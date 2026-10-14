@@ -1,0 +1,327 @@
+{
+  "userChoice": "B",
+  "referenceSha": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+  "reference": "JA-B-reference.mp3",
+  "method": "Exact decoded approved B word, 5 ms boundary crossfades, surrounding audio preserved; Egill G protected PCM retained. MP3 encoding follows PCM checks. Full sentences technically reviewed, not individually human auditioned.",
+  "clips": {
+    "stegoCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/ja/B-v4-ipa.mp3",
+          "sha256": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+          "cutSeconds": [
+            0,
+            0.6924716553287982
+          ],
+          "protectedSeconds": [
+            0.01199546485260771,
+            0.6550113378684808
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\ja\\repair\\stegoCorrect-before.wav",
+          "sha256": "07e9919fb4a29c7ff0367443ab4e2c25a153d3ae56bf02c30135ea1bb5e3a66f",
+          "replaceSeconds": [
+            0,
+            0.5374829931972789
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 5,
+        "output": "qa\\pronunciation\\ja\\repair\\stegoCorrect-with-B"
+      },
+      "candidate": "qa\\pronunciation\\ja\\repair\\stegoCorrect-with-B.mp3",
+      "sha256": "288ee3e95ebd26debcdc792d2b56e552378d78c3c3fe31f38c96839ac67907de",
+      "duration": 10.244989,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        0,
+        30538
+      ],
+      "baseReplaceFrames": [
+        0,
+        23703
+      ],
+      "protectedDonorFrames": [
+        529,
+        28886
+      ],
+      "protectedOutputFrames": [
+        529,
+        28886
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "322ccb0747297e3c2664ac3e609a8f634bc191e93eba591bec773de3f32920d6",
+      "durationDeltaSeconds": 0.15498866213151927,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true,
+      "baseProductionSha256": "aa856d886b55cc3904c10e77d4efd1191c9897e2f258053df1a9696ee5bf2299",
+      "egillPreserved": {
+        "frames": [
+          30582,
+          50868
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identicalToApprovedG": true
+      }
+    },
+    "rexCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/ja/B-v4-ipa.mp3",
+          "sha256": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+          "cutSeconds": [
+            0,
+            0.6924716553287982
+          ],
+          "protectedSeconds": [
+            0.01199546485260771,
+            0.6550113378684808
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\ja\\repair\\rexCorrect-before.wav",
+          "sha256": "ff1e035083a2339478b328781703484d67dd44876682ee2767c2822b81226dde",
+          "replaceSeconds": [
+            0,
+            0.5545124716553288
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 5,
+        "output": "qa\\pronunciation\\ja\\repair\\rexCorrect-with-B"
+      },
+      "candidate": "qa\\pronunciation\\ja\\repair\\rexCorrect-with-B.mp3",
+      "sha256": "8e4fa66a071e9786871118949d96da40d2475a94a3a2e46ba7b70519be0e87f7",
+      "duration": 9.908821,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        0,
+        30538
+      ],
+      "baseReplaceFrames": [
+        0,
+        24454
+      ],
+      "protectedDonorFrames": [
+        529,
+        28886
+      ],
+      "protectedOutputFrames": [
+        529,
+        28886
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "322ccb0747297e3c2664ac3e609a8f634bc191e93eba591bec773de3f32920d6",
+      "durationDeltaSeconds": 0.13795918367346938,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true,
+      "baseProductionSha256": "ebca346213c6001f3e7d85f01432368c95602692a6619b12bb82686425b97b28",
+      "egillPreserved": {
+        "frames": [
+          30607,
+          50893
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identicalToApprovedG": true
+      }
+    },
+    "pteraCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/ja/B-v4-ipa.mp3",
+          "sha256": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+          "cutSeconds": [
+            0,
+            0.6924716553287982
+          ],
+          "protectedSeconds": [
+            0.01199546485260771,
+            0.6550113378684808
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\ja\\repair\\pteraCorrect-before.wav",
+          "sha256": "b666ac5f9b3b1d6a29379f8ae2038640e1609ab00b96001e27e598472462c673",
+          "replaceSeconds": [
+            0,
+            0.5221315192743764
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 5,
+        "output": "qa\\pronunciation\\ja\\repair\\pteraCorrect-with-B"
+      },
+      "candidate": "qa\\pronunciation\\ja\\repair\\pteraCorrect-with-B.mp3",
+      "sha256": "3f53be1bee5c31f7f16d01d2440ec2f4d7cbc0dfb79c094850fa01e25a305103",
+      "duration": 11.14034,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        0,
+        30538
+      ],
+      "baseReplaceFrames": [
+        0,
+        23026
+      ],
+      "protectedDonorFrames": [
+        529,
+        28886
+      ],
+      "protectedOutputFrames": [
+        529,
+        28886
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "322ccb0747297e3c2664ac3e609a8f634bc191e93eba591bec773de3f32920d6",
+      "durationDeltaSeconds": 0.17034013605442178,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true,
+      "baseProductionSha256": "73c256647aae8cd86d3df2d896a8b155654711b6e69610227225cbc6f4e8df2e",
+      "egillPreserved": {
+        "frames": [
+          30582,
+          50868
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identicalToApprovedG": true
+      }
+    },
+    "adventure_stego_bonusCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/ja/B-v4-ipa.mp3",
+          "sha256": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+          "cutSeconds": [
+            0,
+            0.6924716553287982
+          ],
+          "protectedSeconds": [
+            0.01199546485260771,
+            0.6550113378684808
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\ja\\repair\\adventure_stego_bonusCorrect-before.mp3",
+          "sha256": "5ace27081ccdfdf71c7cc9af2a78e5348639fee129814a193cc82f4d9e31f7e6",
+          "replaceSeconds": [
+            0,
+            0.5944671201814059
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 5,
+        "output": "qa\\pronunciation\\ja\\repair\\adventure_stego_bonusCorrect-with-B"
+      },
+      "candidate": "qa\\pronunciation\\ja\\repair\\adventure_stego_bonusCorrect-with-B.mp3",
+      "sha256": "452b9824e5fac71145f241c7d07d207d7af23ffa4d070b98792bddf3e346b631",
+      "duration": 8.268005,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        0,
+        30538
+      ],
+      "baseReplaceFrames": [
+        0,
+        26216
+      ],
+      "protectedDonorFrames": [
+        529,
+        28886
+      ],
+      "protectedOutputFrames": [
+        529,
+        28886
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "322ccb0747297e3c2664ac3e609a8f634bc191e93eba591bec773de3f32920d6",
+      "durationDeltaSeconds": 0.0980045351473923,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true,
+      "baseProductionSha256": "5ace27081ccdfdf71c7cc9af2a78e5348639fee129814a193cc82f4d9e31f7e6"
+    },
+    "adventure_rex_bonusCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/ja/B-v4-ipa.mp3",
+          "sha256": "53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02",
+          "cutSeconds": [
+            0,
+            0.6924716553287982
+          ],
+          "protectedSeconds": [
+            0.01199546485260771,
+            0.6550113378684808
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\ja\\repair\\adventure_rex_bonusCorrect-before.mp3",
+          "sha256": "93ec40511eb31f09b2308a685eedd5997598aeae3ee0462567ba30a306dcbabe",
+          "replaceSeconds": [
+            1.9415873015873015,
+            2.368707482993197
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 5,
+        "output": "qa\\pronunciation\\ja\\repair\\adventure_rex_bonusCorrect-with-B"
+      },
+      "candidate": "qa\\pronunciation\\ja\\repair\\adventure_rex_bonusCorrect-with-B.mp3",
+      "sha256": "05613bc79b64a5e809aa1ea2acc0241e555aa82d1a6b19aa489a5371e0517a2b",
+      "duration": 9.955351,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        0,
+        30538
+      ],
+      "baseReplaceFrames": [
+        85624,
+        104460
+      ],
+      "protectedDonorFrames": [
+        529,
+        28886
+      ],
+      "protectedOutputFrames": [
+        86153,
+        114510
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "322ccb0747297e3c2664ac3e609a8f634bc191e93eba591bec773de3f32920d6",
+      "durationDeltaSeconds": 0.2653514739229025,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true,
+      "baseProductionSha256": "93ec40511eb31f09b2308a685eedd5997598aeae3ee0462567ba30a306dcbabe"
+    }
+  }
+}

@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "clips": {
+    "mini_stegosaurus_win": {
+      "sourceTextHash": "79a14b10a8d0a637b9b172f1c33a93aa85734fcab4f53d9b187120b89988e6b1",
+      "inputHash": "9181994b7eacd265fb80fefb3836cf68b82c8f2f9d7113a4b4c8172549dd9238",
+      "sha256": "140610a93015dda5a916bb18bc754a6d6d3dc968f8896fd6981d4d8b307d0fb8",
+      "duration": 9.771,
+      "file": "approved-audio/mini_stegosaurus_win.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "mini_brachiosaurus_win": {
+      "sourceTextHash": "751a71ef8d442d1991ab1202404dccd21e505b1134812682d6caa37dee60efed",
+      "inputHash": "80ad42efcca90970e864c54b0f1728e7c1fc6cfc94cfe733439905cd3289bc09",
+      "sha256": "6d7c748d359fe752edb998441a99cb2c99b70f936db17e632fc7ea245740e7fc",
+      "duration": 9.17,
+      "file": "approved-audio/mini_brachiosaurus_win.mp3",
+      "note": "Brontosaurus text update; original approved Egill G and unchanged sentence prefix retained exactly before final MP3 encoding. Technical review only for complete line.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; source and exact PCM audit in brontosaurus-splices.json; supersedes historical Egill splice final encoding."
+    },
+    "mini_trex_win": {
+      "sourceTextHash": "bd95a2386e053ee5315a5421865626fe397881fc582799bdbc6a02310ad2becb",
+      "inputHash": "c8040841b84ce06dcf07ed9fcb953baf7058bb60c5a8a6e523a6bf4e72acd97f",
+      "sha256": "4b2c74eaf8e93fd67fb5cf5747b24434dfc28c820084884dc1bb00e276316ded",
+      "duration": 7.29,
+      "file": "approved-audio/mini_trex_win.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "mini_spinosaurus_win": {
+      "sourceTextHash": "91e9f3e1180dc3f13a2582e9a3a773ad456cc6c6f3e855576120afc3b7eea56b",
+      "inputHash": "53ec7a97aa6fbaa665f93152c92dea49e3f82861bd43eb761d7bc04d50433769",
+      "sha256": "bcbb90425fcab179ccc72f72565a08c7e182f0b29317653f872dcb3b7574a9ba",
+      "duration": 8.01,
+      "file": "approved-audio/mini_spinosaurus_win.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "mini_parasaurolophus_win": {
+      "sourceTextHash": "d101b670e80dcf31d81809a3da52eeba4c71090f47d40baf58fe030a7d9343c0",
+      "inputHash": "66ae3d08cfa25ee1fcb258ca9a0616329abcc0ad9415da169738ae98b861be65",
+      "sha256": "c07368005d1382df7909ef81b3d3387c1affe868ec92139e75dfc8dd0534e571",
+      "duration": 6.81,
+      "file": "approved-audio/mini_parasaurolophus_win.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "mini_pteranodon_win": {
+      "sourceTextHash": "ddb34962b996d352889c7ae15e90e3ce3795c2935ad20cbc52b754646da41d7f",
+      "inputHash": "ddf26d6c7a149f5d938521ba56a0858751a42c183748d449f947cd46b0d79e2f",
+      "sha256": "cdab2bb87fda7032b4f8921c03296f6982b599b0d1ba7cec38905b925f246dd4",
+      "duration": 8.01,
+      "file": "approved-audio/mini_pteranodon_win.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "welcome": {
+      "sourceTextHash": "73a1e83cf8cabf742453365585ada0768f16a32e7f9a196c39976da2e0b819a5",
+      "inputHash": "5e93b11da6d3ce3d6955c4a713bc3bb626cb89629e9e940c68ec9dd62485e64b",
+      "sha256": "aa2c9d5b338cae93f049c44bc46058aa50f73ab09e6757f951b00112c3591991",
+      "duration": 6.49,
+      "file": "approved-audio/welcome.mp3",
+      "note": "User heard and approved this exact edited welcome: já rétt núna aftur.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "invite": {
+      "sourceTextHash": "f3a51631f4d6e758bcefc3e04398ee72564181d9c30a74e2b578ce858866eade",
+      "inputHash": "3ba1d22e42bf8c3abf21bc46f486d4e036328c1ce27252494db6818e9a302e8e",
+      "sha256": "da98d830b3a46b6ba174271323bc6d85de268d7eed1b4e8e67c3754041764b92",
+      "duration": 6.57,
+      "file": "approved-audio/invite.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "walkForest": {
+      "sourceTextHash": "67a87b51be9779a561180f5bf2cc59befc49426fff50dd2ccf8d505797746a4d",
+      "inputHash": "c67e6b46060dca6158bc1bdd1b06a3e3f3c309f7d300057871309201b2d965f5",
+      "sha256": "11f440d7b65ef01ad808f281031984cccb8ffd2d44266e147ed0802c1373f6ae",
+      "duration": 8.491,
+      "file": "approved-audio/walkForest.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "stegoCorrect": {
+      "sourceTextHash": "f65351dd67abfee105f9cdbd88a2e0ebc598b330c61dc85fe5ad87b18fb4a258",
+      "inputHash": "a1decbb3d53be9492aa0811e1094374c170de362dea7cded627e1c62d4b2645a",
+      "sha256": "288ee3e95ebd26debcdc792d2b56e552378d78c3c3fe31f38c96839ac67907de",
+      "duration": 10.245,
+      "file": "approved-audio/stegoCorrect.mp3",
+      "note": "Uses actual user-approved Já B performance; any existing approved Egill G PCM preserved. Full sentence has technical review, not individual human listening approval.",
+      "provenance": "JA-B-reference.mp3 SHA256 53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02; exact PCM and cuts in ja-splices.json; supersedes earlier final encoding for this clip."
+    },
+    "brachioCorrect": {
+      "sourceTextHash": "8c951afad6d769e8e982ff2faa6e80f6d5309eb59df52cc7434a43878d670d29",
+      "inputHash": "3510d2167f9a62e52aae006ee8eac4d204d7b3be65c2d4270c152d2e7967d75b",
+      "sha256": "c8adf191be329e755cc15da9a4fe3cd8bb385fdd0ddb11dca0b700e46e797c32",
+      "duration": 8.59,
+      "file": "approved-audio/brachioCorrect.mp3",
+      "note": "Brontosaurus text update; original approved Egill G and unchanged sentence prefix retained exactly before final MP3 encoding. Technical review only for complete line.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; source and exact PCM audit in brontosaurus-splices.json; supersedes historical Egill splice final encoding."
+    },
+    "rexCorrect": {
+      "sourceTextHash": "863c8c33bf179a517a0e5ff2978f36f66758cdc4941f979ccecc111d6891fe27",
+      "inputHash": "2cddb8f7f2bd8b5b6c8545150cc374e8b9d6c99751196fcaaa2ef6b3bac0dcd0",
+      "sha256": "8e4fa66a071e9786871118949d96da40d2475a94a3a2e46ba7b70519be0e87f7",
+      "duration": 9.909,
+      "file": "approved-audio/rexCorrect.mp3",
+      "note": "Uses actual user-approved Já B performance; any existing approved Egill G PCM preserved. Full sentence has technical review, not individual human listening approval.",
+      "provenance": "JA-B-reference.mp3 SHA256 53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02; exact PCM and cuts in ja-splices.json; supersedes earlier final encoding for this clip."
+    },
+    "spinoCorrect": {
+      "sourceTextHash": "956bfbd8e195e2d75b9d640203a605693699ad8c14eb1c559589f19114cf29ad",
+      "inputHash": "a36e70433d411329b6969b55cc5e90b1fa40c2110fe225aa0063f08e90871183",
+      "sha256": "696f6275aede4e331c7c2cb3a02d43760851142efd39da33b0cf60a462ac4fa1",
+      "duration": 8.73,
+      "file": "approved-audio/spinoCorrect.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "paraCorrect": {
+      "sourceTextHash": "9c13219066b2c5a1eef42b0147b743d5c8c38a47ffc9bbd46dab5a446040e630",
+      "inputHash": "d0e8eaf0c302f7ffe08fff40e030f852990da953003b39ddac85c46eb6284f97",
+      "sha256": "d4fcb6bb5bca81c2bfbe8554ddef36b7489bc7b00bedcafab20f8dcfab155283",
+      "duration": 9.21,
+      "file": "approved-audio/paraCorrect.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "pteraCorrect": {
+      "sourceTextHash": "9b4939a097bc46bb669a887f510b936642cd96b3ad09bfa1cce6f8308eccda59",
+      "inputHash": "897a33bcae74d29cbc744a7a74e45d0d1cc4a5419d1ba7d1573e88e9eda08e0f",
+      "sha256": "3f53be1bee5c31f7f16d01d2440ec2f4d7cbc0dfb79c094850fa01e25a305103",
+      "duration": 11.14,
+      "file": "approved-audio/pteraCorrect.mp3",
+      "note": "Uses actual user-approved Já B performance; any existing approved Egill G PCM preserved. Full sentence has technical review, not individual human listening approval.",
+      "provenance": "JA-B-reference.mp3 SHA256 53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02; exact PCM and cuts in ja-splices.json; supersedes earlier final encoding for this clip."
+    },
+    "finish": {
+      "sourceTextHash": "b6cb384973627009ce84370c9f02fe7d7c8b018dfed1f0c700dc7887fcf6ca29",
+      "inputHash": "c50c9a7eeba425bf2eb2100dd2d056533f3b1202696532b928c97d294eb04f81",
+      "sha256": "8f5368d3076de61b3f8b8f02d455d8765932f6112ec6feac00f348c7c9c7b2a6",
+      "duration": 10.81,
+      "file": "approved-audio/finish.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventureHelp": {
+      "sourceTextHash": "5c9f76510a2dd9ef7fdfb192857fa7adeaa058eca6f70fb182d72f53b659ee85",
+      "inputHash": "2b023e0fc6d0635e66c7e7bb316217a70491bf78625978b5762f117efbdcc708",
+      "sha256": "917020cf4f3f20c779bf73b289fea03ed5c43923553f9f21980015e3309d1349",
+      "duration": 7.05,
+      "file": "approved-audio/adventureHelp.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "rideBrachioInvite": {
+      "sourceTextHash": "8cc8a8c40ded3e498eb5c8e9c452df3043625ba2d939f62fea12bb47331a40d3",
+      "inputHash": "9849ce36a599684ed485e8ff89bff96ca951449b9e100362d7d71c9bfbbc1476",
+      "sha256": "2b046020d97c2f47bc385aa6d2e7c0ad7a356b3445294f369dd8bddf4a58304f",
+      "duration": 4.27,
+      "file": "approved-audio/rideBrachioInvite.mp3",
+      "note": "Brontosaurus text update; original approved Egill G and unchanged sentence prefix retained exactly before final MP3 encoding. Technical review only for complete line.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; source and exact PCM audit in brontosaurus-splices.json; supersedes historical Egill splice final encoding."
+    },
+    "ridePteraInvite": {
+      "sourceTextHash": "241b3233348900d0553b68bde937b099195b5c957a158d4210b9991efc857169",
+      "inputHash": "5c5af8f52db8a0824529d1c1b57f4026811dd351f6832111bc56f25b383c0b51",
+      "sha256": "7e2cb15c8ec0187926bb39b81f59246dd3cba1bd214d7c0d9eb34b1005b472e6",
+      "duration": 4.33,
+      "file": "approved-audio/ridePteraInvite.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventure_stego_secretFound": {
+      "sourceTextHash": "ee2f74b28c6ae2aa060c4cfc2566db943bdedf6c88afad9b4e958bc5272319b8",
+      "inputHash": "c0630a36536e379f8a7b68fefb0798a9c34836ca499e3d89886ea1309430ae3c",
+      "sha256": "91f0eebbef03aaa1e3a5da5ecb582e9443d42c4a87867dfa9e1eb2b795fd971c",
+      "duration": 7.77,
+      "file": "approved-audio/adventure_stego_secretFound.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventure_brachio_complete": {
+      "sourceTextHash": "83acb9fa472bf74afedb635dcf2c50b29e5a201ea54de1ed79252fa80f0d9f6b",
+      "inputHash": "6e81ec4df9134f6d932a5297a4c3e7c6dc8dd6a670779e24c138b8849dd20d64",
+      "sha256": "23d84b0db1103f9bfc3c80b999d7a907cfb6de49a93a18e5dd495f7e8da0b996",
+      "duration": 8.39,
+      "file": "approved-audio/adventure_brachio_complete.mp3",
+      "note": "Brontosaurus text update; original approved Egill G and unchanged sentence prefix retained exactly before final MP3 encoding. Technical review only for complete line.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; source and exact PCM audit in brontosaurus-splices.json; supersedes historical Egill splice final encoding."
+    },
+    "adventure_rex_instruction": {
+      "sourceTextHash": "a39dead9490eb9a76a6c8b61a6e6b4b69ebb179585d8744cab213920e8634b00",
+      "inputHash": "e1404d3f591b7402a4efe50abe34c5c71c43ea6ee44d489de1a2fe47b2488d65",
+      "sha256": "6520a5decf460d45ca6baab6d8e23e1fb9feb086112712ef1c13216a54113752",
+      "duration": 9.29,
+      "file": "approved-audio/adventure_rex_instruction.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventure_spino_complete": {
+      "sourceTextHash": "436383f546f34b7517f24dc7b9b05571206cae59eda68c823b93cedd73450c5b",
+      "inputHash": "fa54508218d6d296c4d2e65683834e69b1aaadf23044631602609a2bf4fcb1aa",
+      "sha256": "a8728965167a0c166c1b3f90c845de1e131bc16753a39fbb6e888aaed0b92769",
+      "duration": 9.13,
+      "file": "approved-audio/adventure_spino_complete.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventure_para_instruction": {
+      "sourceTextHash": "140515b5dc57dd8d0afb005e89f60f0fe89a442f9f83117f048b0402d04e3fe2",
+      "inputHash": "a660f50af098e677b60dcbb80be4028e99fc88999aa7a1f75b8563aa4bddf8e7",
+      "sha256": "1e0fbca0ea1f64f48f0a44518b6752a0d864eadfe6a93a94a36c72fc587f177f",
+      "duration": 8.491,
+      "file": "approved-audio/adventure_para_instruction.mp3",
+      "note": "Reuses the exact approved G name using the user-approved welcome splice technique. Other sentence audio retained; full line not individually human-auditioned.",
+      "provenance": "G-reference.mp3 SHA256 0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663; cut and PCM audit in egill-splices.json; original source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "mini_trex_invite": {
+      "sourceTextHash": "695a1d8dbe9904c4d322caafb5452ec23c7e0bc46935d5269da86aa27a62ef48",
+      "inputHash": "2650129f00b2daa30890f43c9882206da0459fd549ddefa847cf704fc64e8161",
+      "sha256": "86e9c2b0aa411bd15d7af2b629d5641c828d4e472d1f1d6bb5b660d32695b5c9",
+      "duration": 9.93,
+      "file": "approved-audio/mini_trex_invite.mp3",
+      "note": "Previously heard and approved exact mylla D recording; bytes unchanged.",
+      "provenance": "Approved D-mil-lu audition; user said D er eina rétta. Retained from source commit 1c5a479f650fdfe9a0237ffd907c9f13d75b074a"
+    },
+    "adventure_stego_bonusCorrect": {
+      "sourceTextHash": "49d1f03be75f23233ba473eac2015048240a8ac82cf01a34c0a78c999d11c498",
+      "inputHash": "6a7aae949078b5432248a7dbedef7f04b387c2d31d065819261cdaa071bc3b70",
+      "sha256": "452b9824e5fac71145f241c7d07d207d7af23ffa4d070b98792bddf3e346b631",
+      "duration": 8.268,
+      "file": "approved-audio/adventure_stego_bonusCorrect.mp3",
+      "note": "Uses actual user-approved Já B performance; any existing approved Egill G PCM preserved. Full sentence has technical review, not individual human listening approval.",
+      "provenance": "JA-B-reference.mp3 SHA256 53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02; exact PCM and cuts in ja-splices.json; supersedes earlier final encoding for this clip."
+    },
+    "adventure_rex_bonusCorrect": {
+      "sourceTextHash": "3b6ff7cf50adf30702f5e13a94dc536478ffdc95e5c38bb5179011f951c7a393",
+      "inputHash": "4145fddaf4af44bbb7b66cf39a63d287946a4e48d3f5c48993474560e39ef7f9",
+      "sha256": "05613bc79b64a5e809aa1ea2acc0241e555aa82d1a6b19aa489a5371e0517a2b",
+      "duration": 9.955,
+      "file": "approved-audio/adventure_rex_bonusCorrect.mp3",
+      "note": "Uses actual user-approved Já B performance; any existing approved Egill G PCM preserved. Full sentence has technical review, not individual human listening approval.",
+      "provenance": "JA-B-reference.mp3 SHA256 53e36a78d3dd078eb561a134aa79d0b247f73c3eb33dfc75a5de18c26075de02; exact PCM and cuts in ja-splices.json; supersedes earlier final encoding for this clip."
+    }
+  }
+}

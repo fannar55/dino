@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#18382c"><meta name="description" content="Stígðu á bak Mosa og uppgötvaðu risaeðlur í ævintýraskógi. Íslenskt könnunarævintýri fyrir börn.">
+<title>Egill og Mosi — Risaeðluleiðangurinn</title>
+<link rel="icon" type="image/svg+xml" href="./icon.svg"><link rel="apple-touch-icon" href="./icon-180.png"><link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./mini-games.css"><link rel="stylesheet" href="./jigsaw-game.css"><link rel="stylesheet" href="./cloud-math.css"><link rel="stylesheet" href="./dinosaur-club.css"><link rel="stylesheet" href="./encyclopedia.css"><link rel="stylesheet" href="./museum-exhibits.css">
+</head><body>
+<svg class="svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4Zm13-1a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+<symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4Zm13 0 5 6m0-6-5 6"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M12 5C9 3 5 3 2 4v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-3-1-7-1-10 1Zm0 0v15M5 8h4m-4 4h4m6-4h4m-4 4h4"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8Z"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+<symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19C-1 7 9 3 21 3c0 13-6 19-14 15M3 22 17 8M7 17v-6m4 2h6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 2.8 6.8L22 10l-5.2 5 1.3 7-6.1-3.7L5.9 22l1.3-7L2 10l7.2-1.2Z"/></symbol>
+<symbol id="i-full" viewBox="0 0 24 24"><path d="M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6"/></symbol>
+</defs></svg>
+<main id="app" data-stage="idle">
+<canvas id="world" aria-label="Þrívíður risaeðluskógur. Egill og Mosi ferðast saman."></canvas>
+<div class="cinema-shade" aria-hidden="true"></div>
+<canvas id="celebration" aria-hidden="true"></canvas>
+<div id="world-hotspots" class="world-hotspots" hidden></div>
+<header class="hud"><div id="wordmark" class="wordmark">mosi<span>ÆVINTÝRI EGILS</span></div><div class="progress-hud"><div id="trail" class="trail" aria-label="Uppgötvanir í ferðinni" hidden></div><div id="stars" class="stars" hidden><svg aria-hidden="true"><use href="#i-star"/></svg><span id="star-count">0</span></div></div><div class="tools">
+<button id="sound" class="icon-button" aria-label="Slökkva á hljóði" aria-pressed="false"><svg><use href="#i-sound"/></svg></button>
+<button id="book" class="icon-button" aria-label="Opna uppgötvunarbók"><svg><use href="#i-book"/></svg><i id="book-dot" hidden></i></button>
+</div></header>
+<div id="activity-hud" class="activity-hud" hidden><span id="activity-title"></span><span id="fossil-progress" class="fossil-progress" aria-hidden="true" hidden></span><button id="activity-card" class="activity-card" disabled aria-label="Skoða uppgötvunina"><span id="activity-count" aria-live="polite" aria-atomic="true"></span><svg id="activity-card-icon" aria-hidden="true" hidden><use href="#i-book"/></svg></button></div>
+<div id="look-hint" class="look-hint" hidden><span aria-hidden="true">↔</span> Dragðu rólega til að skoða</div>
+<div id="reward-status" class="sr-only" role="status"></div>
+<section id="entrance" class="entrance"><button id="start" class="start-button" disabled><svg><use href="#i-play"/></svg><span>Hæ, Mosi!</span></button></section>
+<section id="stage-ui" class="stage-ui" hidden>
+<div id="discovery" class="discovery" hidden><span class="discovery-check">✓</span><div><strong id="discovery-name"></strong><span id="discovery-latin"></span></div></div>
+<div id="speech" class="speech" hidden><div class="speaker-line"><span>MOSI</span><span id="speaking-bars" aria-hidden="true"><i></i><i></i><i></i></span><button id="repeat" aria-label="Hlusta aftur"><svg><use href="#i-sound"/></svg></button></div><p id="speech-text" aria-live="polite"></p></div>
+<div id="actions" class="actions"></div>
+</section>
+<div id="loading" class="loading" role="status"><span class="leaf-loader" aria-hidden="true">✦</span><span>Skógurinn vaknar…</span><progress id="loading-progress" max="1" value="0" aria-label="Skógurinn hleðst"></progress></div>
+<section id="fallback" class="fallback" hidden><h1>Skógurinn náði ekki að opnast</h1><p>Prófaðu að endurhlaða síðuna. Framvindan þín er geymd.</p><button id="reload" class="button">Reyna aftur</button></section>
+</main>
+<dialog id="book-dialog" aria-labelledby="book-title">
+<div class="dialog-heading"><div><span class="eyebrow">LANDKÖNNUÐURINN EGILL</span><h1 id="book-title">Vinir Egils og Mosa</h1></div><button id="close-book" class="icon-button" aria-label="Loka bókinni"><svg><use href="#i-close"/></svg></button></div>
+<button id="open-club" class="button book-club-button">Safn Egils <span id="club-count">Alfræðibók · 14 dýr</span></button>
+<p id="book-score" class="book-score"></p><p id="book-empty">Vinirnir sem við hittum safnast hér.</p><div id="collection" class="collection"></div>
+<button id="back-game" class="button">Aftur í ævintýrið <svg><use href="#i-arrow"/></svg></button><button id="adult" class="adult-link">Fyrir fullorðna</button>
+</dialog>
+<dialog id="club-dialog" class="club-dialog" aria-label="Safn Egils og leikir með risaeðlum"></dialog>
+<dialog id="finding-dialog" class="finding-dialog" aria-labelledby="finding-title">
+<div class="finding-top"><span class="eyebrow">NÝ UPPGÖTVUN</span><button id="close-finding" class="icon-button" aria-label="Loka nærmynd"><svg><use href="#i-close"/></svg></button></div>
+<div id="finding-art" class="finding-art"></div>
+<div class="finding-copy"><h1 id="finding-title"></h1><p id="finding-subtitle" class="finding-subtitle"></p><p id="finding-story"></p></div>
+<div class="finding-actions"><button id="finding-listen" class="button soft" aria-label="Hlusta aftur á söguna"><svg><use href="#i-sound"/></svg><span>Heyra aftur</span></button><button id="finding-back" class="button"><span id="finding-back-label">Áfram að kanna</span><svg><use href="#i-arrow"/></svg></button></div>
+</dialog>
+<dialog id="adult-dialog" aria-labelledby="adult-title">
+<div class="dialog-heading"><h1 id="adult-title">Fyrir fullorðna</h1><button id="close-adult" class="icon-button" aria-label="Loka stillingum"><svg><use href="#i-close"/></svg></button></div>
+<p>Þetta er ímyndað ævintýri. Dýrin lifðu á ólíkum tímum og stöðum. Lögun dýranna er einfölduð og litirnir eru úr ímyndunaraflinu.</p>
+<p>Íslensk heiti eru sýnd ásamt fræðiheitum. Flugeðlur tilheyrðu öðrum hópi skriðdýra en risaeðlur. Framvinda vistast sjálfkrafa í þessum vafra.</p>
+<button id="fullscreen" class="button">Fylla skjáinn <svg><use href="#i-full"/></svg></button>
+<button id="restart" class="hold-button">Halda inni í 3 sekúndur til að byrja upp á nýtt</button>
+</dialog>
+<script type="module" src="./game.js"></script></body></html>
+
+

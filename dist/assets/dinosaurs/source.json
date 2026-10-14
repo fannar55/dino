@@ -1,0 +1,120 @@
+{
+  "author": "Quaternius",
+  "license": "CC0-1.0",
+  "source": "https://quaternius.itch.io/animated-lowpoly-dinosaurs",
+  "changes": "Single subdivision, smooth normals, PBR conversion, storybook colour palette and baked vertex skin paint, local GLB conversion.",
+  "models": [
+    {
+      "file": "triceratops.glb",
+      "bytes": 413652,
+      "triangles": 5332,
+      "bones": 29,
+      "clips": [
+        "attack",
+        "death",
+        "idle",
+        "jump",
+        "run",
+        "walk"
+      ],
+      "source": "Blends/Triceratops.blend",
+      "originalBounds": [
+        [
+          -12.049482345581055,
+          -2.923741340637207,
+          -0.11202628165483475
+        ],
+        [
+          8.932039260864258,
+          2.924482583999634,
+          8.759369850158691
+        ]
+      ],
+      "scale": 0.2097083368180678
+    },
+    {
+      "file": "stegosaurus.glb",
+      "bytes": 574036,
+      "triangles": 9188,
+      "bones": 29,
+      "clips": [
+        "attack",
+        "death",
+        "idle",
+        "jump",
+        "run",
+        "walk"
+      ],
+      "source": "Blends/Stegosaurus.blend",
+      "originalBounds": [
+        [
+          -15.588781356811523,
+          -2.3672525882720947,
+          -0.1103018969297409
+        ],
+        [
+          7.35459566116333,
+          2.7015604972839355,
+          10.376721382141113
+        ]
+      ],
+      "scale": 0.17870080750483588
+    },
+    {
+      "file": "trex.glb",
+      "bytes": 474056,
+      "triangles": 6992,
+      "bones": 29,
+      "clips": [
+        "attack",
+        "death",
+        "idle",
+        "jump",
+        "run",
+        "walk"
+      ],
+      "source": "Blends/Trex.blend",
+      "originalBounds": [
+        [
+          -15.57172966003418,
+          -3.9800212383270264,
+          -0.03257378935813904
+        ],
+        [
+          14.530594825744629,
+          3.9778075218200684,
+          15.031429290771484
+        ]
+      ],
+      "scale": 0.14949011668935824
+    },
+    {
+      "file": "parasaurolophus.glb",
+      "bytes": 399252,
+      "triangles": 5844,
+      "bones": 29,
+      "clips": [
+        "attack",
+        "death",
+        "idle",
+        "jump",
+        "run",
+        "walk"
+      ],
+      "source": "Blends/Parasaurolophus.blend",
+      "originalBounds": [
+        [
+          -7.079843521118164,
+          -0.9752882719039917,
+          -0.00942985899746418
+        ],
+        [
+          4.706233024597168,
+          0.983087956905365,
+          5.747154235839844
+        ]
+      ],
+      "scale": 0.347868095383319
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "creator": "Quaternius",
+  "pack": "Stylized Nature MegaKit Standard (68-model free edition)",
+  "source": "https://quaternius.itch.io/stylized-nature-megakit",
+  "license": "CC0-1.0",
+  "licenseEvidence": "LICENSE-QUATERNIUS.txt supplied in the downloaded Standard archive",
+  "currentCreatorLicense": "https://quaternius.com/license.html",
+  "downloaded": "2026-10-12",
+  "models": [
+    {
+      "id": "tree-common-3",
+      "kind": "tree",
+      "file": "tree-common-3.glb",
+      "sourceModel": "CommonTree_3",
+      "triangles": 3505,
+      "bytes": 299848,
+      "sha256": "47619c411f97452943d2c6bd226dd215fae56796f0d8a27c17c02689cd7b75f0"
+    },
+    {
+      "id": "tree-common-5",
+      "kind": "tree",
+      "file": "tree-common-5.glb",
+      "sourceModel": "CommonTree_5",
+      "triangles": 3182,
+      "bytes": 255856,
+      "sha256": "e9990672f40ae210cabe0311ef7d6570cb60d971b0a9e2713a105eb1fde3b8d6"
+    },
+    {
+      "id": "tree-pine-5",
+      "kind": "tree",
+      "file": "tree-pine-5.glb",
+      "sourceModel": "Pine_5",
+      "triangles": 1646,
+      "bytes": 123816,
+      "sha256": "fddcaae221ef802c6df5bb4d3ad9a6f6bac91058e3075b3b501cb56dbadda64f"
+    },
+    {
+      "id": "fern",
+      "kind": "plant",
+      "file": "fern.glb",
+      "sourceModel": "Fern_1",
+      "triangles": 288,
+      "bytes": 12992,
+      "sha256": "b08fb6d472c11e83edbe460146a169f19ecebc1b2aeaeb2991f13a175eb94880"
+    },
+    {
+      "id": "leaf-plant",
+      "kind": "plant",
+      "file": "leaf-plant.glb",
+      "sourceModel": "Plant_1",
+      "triangles": 120,
+      "bytes": 7060,
+      "sha256": "e9bfbd3878f36c4cbe334295494a806d394a0b57ddc91046704200279bc8a75d"
+    },
+    {
+      "id": "broad-leaf",
+      "kind": "plant",
+      "file": "broad-leaf.glb",
+      "sourceModel": "Plant_7",
+      "triangles": 48,
+      "bytes": 3400,
+      "sha256": "f15bd7649f19ebff112d5e2ee928f439ed7fdf6913d876f4e35db1b24cf6d41a"
+    },
+    {
+      "id": "bush",
+      "kind": "bush",
+      "file": "bush.glb",
+      "sourceModel": "Bush_Common",
+      "triangles": 900,
+      "bytes": 93384,
+      "sha256": "c5179413abb36c99b72625e786b28b5aa327f58a74f86c31e9abe97b3c8ee2f7"
+    },
+    {
+      "id": "grass",
+      "kind": "grass",
+      "file": "grass.glb",
+      "sourceModel": "Grass_Common_Short",
+      "triangles": 155,
+      "bytes": 8572,
+      "sha256": "f44ab8078c253966f2c196a7b9321fbd0b9d7116d0f65ff6f6f93bbfbd5f4fdd"
+    },
+    {
+      "id": "rock-1",
+      "kind": "rock",
+      "file": "rock-1.glb",
+      "sourceModel": "Rock_Medium_1",
+      "triangles": 342,
+      "bytes": 14672,
+      "sha256": "ec2b43d235bf952fcf7b450b52bb3fab557b361911e09414127a1db193a8e1b3"
+    },
+    {
+      "id": "rock-2",
+      "kind": "rock",
+      "file": "rock-2.glb",
+      "sourceModel": "Rock_Medium_2",
+      "triangles": 244,
+      "bytes": 10812,
+      "sha256": "dc50aeef1efe8a5d7e0bb1ba21464e2b6120d6334908079447cff9c41c1ef188"
+    },
+    {
+      "id": "mushroom",
+      "kind": "mushroom",
+      "file": "mushroom.glb",
+      "sourceModel": "Mushroom_Common",
+      "triangles": 880,
+      "bytes": 24416,
+      "sha256": "2965a3de79fcfebf3e455816358ec743d9a0322a8874a198ab8767c96640d9c1"
+    }
+  ],
+  "textures": [
+    "bark-normaltree-normal.jpg",
+    "bark-normaltree.jpg",
+    "leaves-normaltree-c.png",
+    "leaf-pine-c.png",
+    "leaves.png",
+    "leaves-twistedtree-c.png",
+    "grass.jpg",
+    "rocks-diffuse.jpg",
+    "mushrooms.jpg"
+  ],
+  "ground": {
+    "creator": "Rob Tuytel / Poly Haven",
+    "source": "https://polyhaven.com/a/forrest_ground_01",
+    "license": "CC0-1.0",
+    "files": [
+      "forest-ground-color.webp",
+      "forest-ground-normal.webp"
+    ],
+    "changes": "1K diffuse and OpenGL normal maps converted to WebP"
+  },
+  "changes": "Selected models packed as GLB; shared textures resized to 512\u20131024px; purple/red foliage atlas hues changed to fern and sage green; materials tuned for mobile rendering."
+}

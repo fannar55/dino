@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "profiles": {
+    "egill_v4": {
+      "modelId": "eleven_v4",
+      "settings": { "stability": 0.5, "similarity_boost": 0.75 },
+      "seed": 42
+    }
+  },
+  "clips": {
+    "mini_statue": "egill_v4",
+    "mini_gallery": "egill_v4",
+    "mini_stegosaurus_win": "egill_v4",
+    "mini_brachiosaurus_win": "egill_v4",
+    "mini_trex_win": "egill_v4",
+    "mini_spinosaurus_win": "egill_v4",
+    "mini_parasaurolophus_win": "egill_v4",
+    "mini_pteranodon_win": "egill_v4",
+    "welcome": "egill_v4",
+    "invite": "egill_v4",
+    "walkForest": "egill_v4",
+    "stegoCorrect": "egill_v4",
+    "brachioCorrect": "egill_v4",
+    "rexCorrect": "egill_v4",
+    "spinoCorrect": "egill_v4",
+    "paraCorrect": "egill_v4",
+    "pteraCorrect": "egill_v4",
+    "finish": "egill_v4",
+    "adventureHelp": "egill_v4",
+    "rideBrachioInvite": "egill_v4",
+    "ridePteraInvite": "egill_v4",
+    "adventure_stego_secretFound": "egill_v4",
+    "adventure_brachio_complete": "egill_v4",
+    "adventure_rex_instruction": "egill_v4",
+    "adventure_spino_complete": "egill_v4",
+    "adventure_para_instruction": "egill_v4"
+  }
+}

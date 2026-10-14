@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "overrides": {
+    "mini_trex_invite": {
+      "sourceHash": "695a1d8dbe9904c4d322caafb5452ec23c7e0bc46935d5269da86aa27a62ef48",
+      "text": "Grameðlan vill spila mil-lu! Hún er stór, en leikborðið er lítið. Eigum við að prófa?",
+      "approved": true,
+      "note": "User listened and chose D as the only correct pronunciation: “D er eina rétta”. Canonical myllu remains unchanged."
+    }
+  }
+}

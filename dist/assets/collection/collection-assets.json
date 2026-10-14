@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "species": "stegosaurus",
+      "files": [
+        "assets/collection/stegosaurus.webp"
+      ],
+      "creator": "Perry Quan",
+      "title": "Stegosaurus ungulatus.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Stegosaurus_ungulatus.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/7/72/Stegosaurus_ungulatus.jpg",
+      "license": "CC-BY-SA-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "Perry Quan · CC BY-SA 2.0 · Minnkuð mynd á WebP-sniði",
+      "note": "Stegosaurus ungulatus mount at the Carnegie Museum. Source version was cropped on Commons by FunkMonk/Cropbot; game adds no further crop. Flickr licence verified 20 August 2013.",
+      "bytes": 442824,
+      "width": 1600,
+      "height": 1128,
+      "sha256": "80d40d78e0fe8ce4830f3671cfe1c34d5092e285b52c9b66ea025415a9cd1658",
+      "originalSha256": "84032b18322d19545d04c834404abfd6e709062030e2d8a2e3003941c7bb376a",
+      "verifiedAt": "2026-10-12T10:59:02.390Z"
+    },
+    {
+      "species": "brachiosaurus",
+      "files": [
+        "assets/collection/brachiosaurus.webp"
+      ],
+      "creator": "Ad Meskens",
+      "title": "Brontosaurus Yale Peabody.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Brontosaurus_Yale_Peabody.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Brontosaurus_Yale_Peabody.jpg",
+      "license": "CC-BY-SA-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "Ad Meskens · CC BY-SA 3.0 · Minnkuð mynd á WebP-sniði",
+      "note": "Brontosaurus excelsus type specimen YPM 1980 at Yale Peabody Museum, photographed 2 April 2012. Historical mount with reconstructed parts, before the later neck/tail remount. Commons source cropped by FunkMonk/Cropbot in 2014; the game adds no crop. Internal brachiosaurus slot retained for save compatibility.",
+      "bytes": 340468,
+      "width": 1600,
+      "height": 1722,
+      "sha256": "c4ce001cdd66b98cf45e68414ec57414b08ccd25bdda59c846c566dc5f264464",
+      "originalSha256": "c58a7e3386142475d580c6e50398d211f1c432f4f2d091886b55eef0f4deeba6",
+      "verifiedAt": "2026-10-12T19:04:45.861Z"
+    },
+    {
+      "species": "trex",
+      "files": [
+        "assets/collection/trex.webp"
+      ],
+      "creator": "Dallas Krentzel",
+      "title": "Sue side full (Field museum).png",
+      "source": "https://commons.wikimedia.org/wiki/File:Sue_side_full_(Field_museum).png",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/e/eb/Sue_side_full_%28Field_museum%29.png",
+      "license": "CC-BY-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "Dallas Krentzel · CC BY 2.0 · Minnkuð mynd á WebP-sniði",
+      "note": "Sue (FMNH PR2081) museum mount at the Field Museum. Photograph licence verified against Flickr by Commons reviewer 3 June 2013.",
+      "bytes": 162846,
+      "width": 1600,
+      "height": 712,
+      "sha256": "2e64b3d2312f738e4047b2eab88d400672b24b81d48eefd5e36b434e4ec715af",
+      "originalSha256": "3770f4f7cda19753663f4a1fa77dfcd64211d51ac2f40142fb5fb3e42b5a194e",
+      "verifiedAt": "2026-10-12T10:59:18.756Z"
+    },
+    {
+      "species": "spinosaurus",
+      "files": [
+        "assets/collection/spinosaurus.webp"
+      ],
+      "creator": "3blindMies",
+      "title": "Field Spinosaurus.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Field_Spinosaurus.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f2/Field_Spinosaurus.jpg",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "3blindMies · CC BY-SA 4.0 · Minnkuð mynd á WebP-sniði",
+      "note": "2023 cast of FSAC-KK-11888 in swimming posture. Includes modern broad tail reconstruction; the precise swimming/foraging behaviour remains debated.",
+      "bytes": 167188,
+      "width": 1600,
+      "height": 534,
+      "sha256": "8933ce8f14242c1d3cd7d040e37c266e92f09c68901e4379c7b55024b86a37d5",
+      "originalSha256": "945f6293dd73e88fdb2f88ee835591a53f0d400a6db6046ee694e758c9e86204",
+      "verifiedAt": "2026-10-12T10:59:19.123Z"
+    },
+    {
+      "species": "parasaurolophus",
+      "files": [
+        "assets/collection/parasaurolophus.webp"
+      ],
+      "creator": "Jonathan Chen",
+      "title": "Parasaurolophus at FMNH.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_at_FMNH.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c5/Parasaurolophus_at_FMNH.jpg",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "Jonathan Chen · CC BY-SA 4.0 · Minnkuð mynd á WebP-sniði",
+      "note": "Type specimen of Parasaurolophus cyrtocristatus mounted at the Field Museum, photographed 2018. Its shorter curved crest differs from the game reconstruction of a longer-crested Parasaurolophus.",
+      "bytes": 291686,
+      "width": 1600,
+      "height": 1066,
+      "sha256": "7440243daaa352190b59aed3fc6751b3ff22789387310cfb33dec0c8b5bdb8cb",
+      "originalSha256": "fcfa2722213a43901835c68dafa180bb791ba7d786d15494cef3e40279db15a3",
+      "verifiedAt": "2026-10-12T10:59:19.462Z"
+    },
+    {
+      "species": "pteranodon",
+      "files": [
+        "assets/collection/pteranodon.webp"
+      ],
+      "creator": "Mira Mechtley",
+      "title": "Pteranodon longiceps skeleton.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Pteranodon_longiceps_skeleton.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f4/Pteranodon_longiceps_skeleton.jpg",
+      "license": "CC-BY-SA-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "credit": "Mira Mechtley · CC BY-SA 2.0 · Minnkuð mynd á WebP-sniði",
+      "note": "Pteranodon museum mount, photographed 12 January 2010. Flickr attribution/share-alike licence confirmed by Commons reviewer 28 May 2020.",
+      "bytes": 90558,
+      "width": 1600,
+      "height": 1066,
+      "sha256": "fb5343f199cfb2798e7ca2e1a140a99e043e5db84aa8c87ec0298948f73077fa",
+      "originalSha256": "1a707d25256060cfa4ab77c5828fc573b15485921cd520c0682117d745feb1c9",
+      "verifiedAt": "2026-10-12T10:59:19.904Z"
+    }
+  ],
+  "scienceSources": {
+    "stegosaurus": [
+      "https://www.nhm.ac.uk/discover/dino-directory/Stegosaurus.html"
+    ],
+    "brachiosaurus": [
+      "https://islenskordabok.arnastofnun.is/ord/47330",
+      "https://www.nhm.ac.uk/discover/brontosaurus-reinstating-a-prehistoric-icon.html",
+      "https://news.yale.edu/2022/11/11/strike-pose-yales-iconic-dinosaur-skeletons-get-new-look"
+    ],
+    "trex": [
+      "https://www.nhm.ac.uk/discover/how-did-tyrannosaurus-use-its-arms.html",
+      "https://www.nhm.ac.uk/discover/debunking-dinosaur-myths-and-movie-misconceptions.html"
+    ],
+    "spinosaurus": [
+      "https://www.nhm.ac.uk/discover/dino-directory/spinosaurus.html",
+      "https://www.nhm.ac.uk/discover/what-is-the-biggest-dinosaur.html"
+    ],
+    "parasaurolophus": [
+      "https://www.nhm.ac.uk/discover/dino-directory/parasaurolophus.html"
+    ],
+    "pteranodon": [
+      "https://www.amnh.org/explore/ology/ology-cards/358-pteranodon-longiceps",
+      "https://www.amnh.org/explore/news-blogs/what-is-a-pterosaur"
+    ]
+  },
+  "rightsNote": "Each converted image retains its source licence. CC BY-SA conversions are offered under the exact same licence shown. Other game files are separate works, not sublicensed by this image manifest."
+}

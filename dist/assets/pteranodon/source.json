@@ -1,0 +1,21 @@
+{
+  "file": "pteranodon.glb",
+  "bytes": 729516,
+  "sha256": "4e60929838138e7237ebeae7210be747d920305138e9cbec64e7986348aa1e8b",
+  "triangles": 17722,
+  "bones": 19,
+  "clips": {
+    "fly": 1.75,
+    "glide": 4.0,
+    "idle": 4.0,
+    "landing": 2.5
+  },
+  "axes": "+X forward, +Y up, feet on ground in authored rest pose",
+  "geometry": "Original continuous sculpted skin with independently skinned membrane surfaces, fourth-finger wings, toothless beak and long rear crest.",
+  "appearance": "Original vertex colors; no image textures or external resources.",
+  "generator": "scripts/build-pteranodon.py",
+  "anatomyReferences": [
+    "https://www.amnh.org/explore/ology/ology-cards/358-pteranodon-longiceps",
+    "https://www.amnh.org/exhibitions/permanent/vertebrate-origins/pterosaurs"
+  ]
+}

@@ -1,0 +1,15 @@
+node_modules/
+*.tar.gz
+*.tar
+*.zip
+.tools/
+qa/
+__pycache__/
+
+# Local credentials and hosting metadata
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.openai/

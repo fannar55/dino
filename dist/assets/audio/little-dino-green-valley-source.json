@@ -1,0 +1,31 @@
+{
+  "title": "Little Dino Green Valley",
+  "file": "little-dino-green-valley.mp3",
+  "sha256": "2c0d53731c9e64d40402d682ca3b2a182b4c506b24e13fcad1b19a7c05e5393c",
+  "sourceService": "ElevenLabs Music",
+  "sourceModel": "Music v2.5",
+  "projectId": "cqesca9IQAp1GatEp9Fx",
+  "songId": "RFxlgmLBiURG31HhuRFp",
+  "downloaded": "2026-10-12",
+  "sourceSha256": "fb9f6d2a9f6b26dd2e0ab63f6a2c99707f6555feb57590ab5431b50ef0a2d422",
+  "rights": "User-provided generation from the user’s ElevenLabs account; not designated CC0. See CREDITS.txt.",
+  "durationSeconds": 351.6,
+  "sampleRate": 44100,
+  "channels": 2,
+  "bitrate": 160000,
+  "mastering": {
+    "targetLUFS": -18,
+    "measuredLUFS": -18.0,
+    "truePeakDBTP": -5.3,
+    "constantGainDB": -5.0,
+    "trimmedSourceEndSeconds": 354.0,
+    "equalGainWrapCrossfadeSeconds": 2.4
+  },
+  "loop": {
+    "startSeconds": 0,
+    "endSeconds": 351.6,
+    "bakedCrossfade": true,
+    "playWholeFile": true
+  },
+  "generationOrDownloadSecretsIncluded": false
+}

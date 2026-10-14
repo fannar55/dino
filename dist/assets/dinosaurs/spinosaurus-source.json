@@ -1,0 +1,42 @@
+{
+  "file": "spinosaurus.glb",
+  "bytes": 1080236,
+  "triangles": 28672,
+  "bones": 29,
+  "clips": [
+    "idle",
+    "walk"
+  ],
+  "source": "Blends/Trex.blend",
+  "scale": 0.15468881840228327,
+  "author": "Quaternius (base mesh); Stj\u00f6rnufar (anatomy, skin, new animation)",
+  "sourceLicense": "CC0-1.0",
+  "sourceUrl": "https://quaternius.itch.io/animated-lowpoly-dinosaurs",
+  "rightsNote": "The Quaternius base is CC0. Newly authored anatomy, animation and pigment are project-original modifications; this record does not assign a new public license to them.",
+  "modifications": "Reshaped continuous T. rex mesh with long narrow crocodilian snout, shorter hindlegs, enlarged forearms, integrated dorsal sail and broad flattened tail; modified bind skeleton; two subdivisions; new idle/walk actions.",
+  "boundsZUp": [
+    [
+      -2.8,
+      -0.52225,
+      0.0
+    ],
+    [
+      2.8,
+      0.52225,
+      2.06875
+    ]
+  ],
+  "bounds": [
+    [
+      -2.8,
+      0,
+      -0.52225
+    ],
+    [
+      2.8,
+      2.06875,
+      0.52225
+    ]
+  ],
+  "coordinateSystem": "+X forward, +Y up, feet at Y=0"
+}

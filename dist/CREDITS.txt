@@ -1,0 +1,172 @@
+MOSI — RISAEÐLULEIÐANGURINN
+HÖFUNDAR OG NOTKUNARLEYFI
+
+TÓNLIST
+"Little Dino Green Valley" — Eleven Music (Music v2.5)
+Búið til í ElevenLabs-safni eiganda leiksins og valið af honum fyrir leikinn.
+Skrá í leik: assets/audio/little-dino-green-valley.mp3
+Upprunaleg upptaka: 6 mínútur, WAV, 48 kHz, tvær rásir.
+Breytingar: stilltur hljóðstyrkur, mjúk tenging enda og upphafs fyrir endurtekningu
+og MP3-þjöppun. Nákvæmar mælingar fylgja tónlistarskránni í source-JSON.
+Notkun hér: sjálfhýsanlegur leikur án sölu eða auglýsinga.
+Eleven Music-skilmálar gilda; þetta lag er ekki gefið út undir CC0-leyfi.
+https://elevenlabs.io/music-terms
+https://elevenlabs.io/
+
+VARATÓNLIST
+"Dream Culture" Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0
+http://creativecommons.org/licenses/by/4.0/
+
+Heimild: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1300046
+Leyfi og höfundartilvísun: https://incompetech.com/music/royalty-free/licenses/
+Skrá í leik: assets/audio/dream-culture.mp3
+Breytingar: 90 sekúndna brot, mjúk byrjun og lok, ein rás og MP3-þjöppun.
+
+HLJÓÐBRELLUR
+Kenney — Interface Sounds (CC0 / almenningseign)
+https://kenney.nl/assets/interface-sounds
+https://creativecommons.org/publicdomain/zero/1.0/
+click_001.ogg -> assets/audio/sfx-tap.mp3
+confirmation_001.ogg -> assets/audio/sfx-discover.mp3
+maximize_001.ogg -> assets/audio/sfx-launch.mp3
+Breytingar: umbreytt í MP3 til að styðja vafra í síma og spjaldtölvu.
+Upprunalegt leyfi: assets/audio/KENNEY-INTERFACE-LICENSE.txt
+
+Kenney Vleugels — Music Jingles (CC0 / almenningseign)
+https://kenney.nl/assets/music-jingles
+https://creativecommons.org/publicdomain/zero/1.0/
+Pizzicato jingles/jingles_PIZZI09.ogg -> assets/audio/sfx-success.mp3
+Breytingar: umbreytt í MP3.
+Upprunalegt leyfi: assets/audio/KENNEY-JINGLES-LICENSE.txt
+
+HLJÓÐ BÚIN TIL MEÐ KÓÐA
+Skógarniður, laufhljóð, fuglatíst, skordýrahljóð, öldugangur, fótatak,
+vængjasuð, sull, dýrahljóð og verðlaunahljómar eru frumsamin WebAudio-hljóð
+í audio.js. Hljóð dýranna eru ímynduð og stílfærð fyrir leikinn.
+
+MYNDEFNI
+Quaternius — Animated Lowpoly Dinosaurs
+https://quaternius.itch.io/animated-lowpoly-dinosaurs
+Þríhyrna (Triceratops), kambeðla (Stegosaurus), grameðla (Tyrannosaurus rex)
+og slóeðla (Parasaurolophus). Upprunalegar beinagrindur og hreyfingar fylgja.
+Leyfi í sóttum pakka: CC0 1.0 / almenningseign.
+https://creativecommons.org/publicdomain/zero/1.0/
+Upprunalegt leyfi: assets/dinosaurs/QUATERNIUS-LICENSE.txt
+Breytingar: sléttað yfirborð, nýir litir, litabreytileiki í húð, PBR-efni og
+GLB-umbreyting. Augu, svipbrigði, trefill, hnakkur og knapi eru sérsmíðuð.
+Leikurinn notar bið- og gönguhreyfingar; árásir og dauðahreyfingar eru ekki notaðar.
+
+Quaternius — Stylized Nature MegaKit, ókeypis Standard-útgáfa
+https://quaternius.itch.io/stylized-nature-megakit
+11 valin módel: þrjár trjágerðir, burkni, tvær laufplöntur, runni, gras,
+tveir klettar og sveppur. Sameiginlegar myndáferðir eru 512–1024 punktar.
+Leyfi í sóttum Standard-pakka: CC0 1.0 / almenningseign.
+Upprunalegt leyfi: assets/environment/LICENSE-QUATERNIUS.txt
+Breytingar: GLB-umbreyting, minni myndáferðir, litastilling og eigin vindhreyfing.
+Almenn leyfissíða höfundar: https://quaternius.com/license.html
+CC0-heimild þessarar útgáfu byggist á leyfunum sem fylgdu sóttu pökkunum.
+
+Rob Tuytel / Poly Haven — Forest Ground 01
+https://polyhaven.com/a/forrest_ground_01
+CC0 1.0; https://polyhaven.com/license
+Breytingar: 1K lita- og yfirborðsmyndir umbreyttar í WebP og blandaðar við stíginn.
+
+Nákvæmur skráalisti, uppruni og breytingar: assets/visual-assets.json.
+Þórseðla og uggeðla eru nýjar aðlaganir úr CC0-grunnmódelum Quaternius,
+með endurmótaðri rúmfræði og nýjum beinagrindarhreyfingum.
+Pteranodon er frumsamið GLB-módel með liðaða himnuvængi og flughreyfingar.
+Vatn, landslag, andrúmsloft og persónuviðbætur eru mótuð með kóða.
+Allar skrár eru hýstar með leiknum. Nánari uppruni fylgir módelunum.
+Three.js: MIT-leyfi, sjá vendor/THREE-LICENSE.txt.
+
+TALSETNING
+Íslenskur texti: assets/audio/narration-is.json
+Talsetningarskrá: assets/audio/narration-manifest.json
+Rödd: „default ice“, íslensk rödd úr ElevenLabs-aðgangi eiganda leiksins.
+Talgervlar: Eleven v3 og v4 frá ElevenLabs (eleven_v3, eleven_v4).
+Samþykkt G-nafnhljóð er endurnýtt í 24 setningum með „Egill“.
+Þjónusta: https://elevenlabs.io/
+Tal er búið til úr íslenska handriti leiksins. Þetta er gervirödd.
+Allar 183 talsetningarskrárnar fylgja leiknum sem MP3, um 1401 sekúndur samtals.
+Framburður og frásagnartónn þurfa enn yfirferð íslenskumælandi hlustanda.
+
+Ef hljóðskrá vantar er eingöngu notuð íslensk kerfisrödd, ef hún er til staðar.
+Engin ensk rödd er notuð í hennar stað.
+
+HEITI OG FRÆÐILEGT SAMHENGI
+Íslensk heiti eru studd með alþjóðlegum fræðiheitum, sem eru ekki sérstaklega
+ensk orð. Viðmið fyrir þríhyrnu, uggeðlu og slóeðlu:
+Náttúrufræðingurinn, „Risaeðlur úr öllum áttum – íslenskar nafngiftir“.
+https://natturufraedingurinn.is/wp-content/uploads/2026/02/Risaedlur.pdf
+Kambeðla: https://www.visindavefur.is/svar.php?id=2697
+Grameðla: https://www.visindavefur.is/svar.php?id=68288
+Þórseðla — Brontosaurus: Íslensk orðabók, Árnastofnun.
+https://islenskordabok.arnastofnun.is/ord/47330
+Fróðleikur um Brontosaurus:
+https://www.nhm.ac.uk/discover/brontosaurus-reinstating-a-prehistoric-icon.html
+https://news.yale.edu/2022/11/11/strike-pose-yales-iconic-dinosaur-skeletons-get-new-look
+
+Þessi ímyndaði leiðangur blandar dýrum frá ólíkum tímabilum og stöðum.
+Pteranodon er flugeðla, en ekki risaeðla. Módel og hljóð eru stílfærð.
+
+LEIKVERKEFNI OG UMBUN
+Þrívíðir steingervingar, lauf, spor, fiskar, sef, vindhringir og sex litlir
+felufélagar eru frumsamið myndefni úr kóða. Stjörnuhátíð, agnir, tónar og
+stílfærð dýraköll eru líka gerð með kóða og þurfa engar ytri þjónustur.
+Hljóð útdauðra dýra eru ímynduð, ekki staðfest endurgerð.
+
+FRÆÐSLUMYNDIR OG KÖNNUN
+Sjö stórar myndir af steingervingi og smádýrum eru frumsamið SVG-myndefni.
+Trjátoppaferð, flugferð og viðbrögð umhverfis við snertingu eru gerð með kóða.
+
+SAFNSMYNDIR — BEINAGRINDUR OG ENDURGERÐIR
+Myndir sýna uppsettar beinagrindur á söfnum. Þær geta innihaldið afsteypur og endurgerða hluta.
+Breytingar: myndir minnkaðar í mest 1600 punkta breidd og umbreyttar í WebP. Enginn frekari skurður eða önnur myndvinnsla.
+Hver mynd heldur sínu upprunalega leyfi; BY-SA gildir um viðkomandi mynd.
+Nánari uppruni, útgáfur og skráarheildi: assets/collection/collection-assets.json og LICENSES.txt.
+
+Stegosaurus ungulatus.jpg — Perry Quan
+https://commons.wikimedia.org/wiki/File:Stegosaurus_ungulatus.jpg
+CC-BY-SA-2.0 — https://creativecommons.org/licenses/by-sa/2.0/
+Skrá í leik: assets/collection/stegosaurus.webp
+
+Brontosaurus Yale Peabody.jpg — Ad Meskens
+https://commons.wikimedia.org/wiki/File:Brontosaurus_Yale_Peabody.jpg
+CC-BY-SA-3.0 — https://creativecommons.org/licenses/by-sa/3.0/
+Skrá í leik: assets/collection/brachiosaurus.webp
+Mynd frá 2012 af YPM 1980; eldri safnuppsetning með endurgerðum hlutum.
+Beinagrindin hefur síðan fengið nýja stellingu. Commons-útgáfan var skorin
+af FunkMonk/Cropbot árið 2014; leikurinn bætir ekki við frekari skurði.
+
+Sue side full (Field museum).png — Dallas Krentzel
+https://commons.wikimedia.org/wiki/File:Sue_side_full_(Field_museum).png
+CC-BY-2.0 — https://creativecommons.org/licenses/by/2.0/
+Skrá í leik: assets/collection/trex.webp
+
+Field Spinosaurus.jpg — 3blindMies
+https://commons.wikimedia.org/wiki/File:Field_Spinosaurus.jpg
+CC-BY-SA-4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+Skrá í leik: assets/collection/spinosaurus.webp
+
+Parasaurolophus at FMNH.jpg — Jonathan Chen
+https://commons.wikimedia.org/wiki/File:Parasaurolophus_at_FMNH.jpg
+CC-BY-SA-4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+Skrá í leik: assets/collection/parasaurolophus.webp
+
+Pteranodon longiceps skeleton.jpg — Mira Mechtley
+https://commons.wikimedia.org/wiki/File:Pteranodon_longiceps_skeleton.jpg
+CC-BY-SA-2.0 — https://creativecommons.org/licenses/by-sa/2.0/
+Skrá í leik: assets/collection/pteranodon.webp
+
+Nýjar púslmyndir
+Þrjár frumsamdar SVG-myndir, búnar til fyrir Mosa-leikinn: Kambeðla í gullskógi, Þríhyrna við tjörnina og Þórseðla undir stjörnum.
+Myndirnar, púslform og myndskreytingar eru skilgreind í kóða í jigsaw-art.js og jigsaw-game.js. Engar utanaðkomandi myndir eða leturgerðir eru notaðar í púslinu.
+
+Talnaleikur í skýjunum
+Frumsamdar myndskreytingar af flugeðlu, fiskum, hreiðri og rigningarskýi eru skilgreindar í cloud-math.js og cloud-math.css. Engar utanaðkomandi myndir eru notaðar í talnaleiknum.
+
+
+Safn Egils — myndir og raunverulegir þrívíðir safngripir
+Fullar höfundartilvísanir, nákvæm leyfi, frumheimildir og lýsingar á umbreytingum eru í assets/encyclopedia/ATTRIBUTION.txt og assets/encyclopedia/media-manifest.json. Þessar skrár og leyfisupplýsingarnar fylgja öllum eintökum leiksins. Hver safnmynd og safngripur heldur sínu eigin leyfi.
+Frumsaminn íslenskur fræðslutexti og heimildir hvers kafla: encyclopedia-content.js. Þrívíð ævintýramódel eru ekki vísindalegar beinagrindur.

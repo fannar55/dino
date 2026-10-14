@@ -1,0 +1,45 @@
+COLLECTION PHOTOGRAPHS — attribution and reuse
+
+Each converted image retains its source licence. CC BY-SA conversions are offered under the exact same licence shown. Other game files are separate works, not sublicensed by this image manifest.
+
+stegosaurus: Stegosaurus ungulatus.jpg
+Photographer: Perry Quan
+Source: https://commons.wikimedia.org/wiki/File:Stegosaurus_ungulatus.jpg
+Licence: CC-BY-SA-2.0 — https://creativecommons.org/licenses/by-sa/2.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: Stegosaurus ungulatus mount at the Carnegie Museum. Source version was cropped on Commons by FunkMonk/Cropbot; game adds no further crop. Flickr licence verified 20 August 2013.
+
+brachiosaurus: Brontosaurus Yale Peabody.jpg
+Photographer: Ad Meskens
+Source: https://commons.wikimedia.org/wiki/File:Brontosaurus_Yale_Peabody.jpg
+Licence: CC-BY-SA-3.0 — https://creativecommons.org/licenses/by-sa/3.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: Brontosaurus excelsus type specimen YPM 1980 at Yale Peabody Museum, photographed 2 April 2012. Historical mount with reconstructed parts, before the later neck/tail remount. Commons source cropped by FunkMonk/Cropbot in 2014; the game adds no crop. Internal brachiosaurus slot retained for save compatibility.
+
+trex: Sue side full (Field museum).png
+Photographer: Dallas Krentzel
+Source: https://commons.wikimedia.org/wiki/File:Sue_side_full_(Field_museum).png
+Licence: CC-BY-2.0 — https://creativecommons.org/licenses/by/2.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: Sue (FMNH PR2081) museum mount at the Field Museum. Photograph licence verified against Flickr by Commons reviewer 3 June 2013.
+
+spinosaurus: Field Spinosaurus.jpg
+Photographer: 3blindMies
+Source: https://commons.wikimedia.org/wiki/File:Field_Spinosaurus.jpg
+Licence: CC-BY-SA-4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: 2023 cast of FSAC-KK-11888 in swimming posture. Includes modern broad tail reconstruction; the precise swimming/foraging behaviour remains debated.
+
+parasaurolophus: Parasaurolophus at FMNH.jpg
+Photographer: Jonathan Chen
+Source: https://commons.wikimedia.org/wiki/File:Parasaurolophus_at_FMNH.jpg
+Licence: CC-BY-SA-4.0 — https://creativecommons.org/licenses/by-sa/4.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: Type specimen of Parasaurolophus cyrtocristatus mounted at the Field Museum, photographed 2018. Its shorter curved crest differs from the game reconstruction of a longer-crested Parasaurolophus.
+
+pteranodon: Pteranodon longiceps skeleton.jpg
+Photographer: Mira Mechtley
+Source: https://commons.wikimedia.org/wiki/File:Pteranodon_longiceps_skeleton.jpg
+Licence: CC-BY-SA-2.0 — https://creativecommons.org/licenses/by-sa/2.0/
+Changes: Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.
+Image note: Pteranodon museum mount, photographed 12 January 2010. Flickr attribution/share-alike licence confirmed by Commons reviewer 28 May 2020.

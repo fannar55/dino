@@ -1,0 +1,66 @@
+MOSI — RISAEÐLULEIÐANGURINN
+
+LEIKURINN
+Mosi fylgir barninu um skóg, að vatni og undir svífandi flugeðlu.
+Sex áfangar: kambeðla, þórseðla, grameðla, uggeðla, slóeðla og Pteranodon.
+Þetta er ímyndaður leiðangur með dýrum frá ólíkum tímabilum. Fyrstu fimm
+eru risaeðlur; Pteranodon er flugeðla. Heiti og fræðiheiti birtast saman.
+
+HÝSING
+Setjið allt innihald þessa pakka í sömu vefmöppu á HTTPS-vefþjóni.
+index.html á að liggja í rót þeirrar möppu. Haldið assets/ og vendor/ með.
+Virkar bæði í rót léns og í undirmöppu, svo sem /leikir/stjornufar/.
+Enginn bakendi, API-lykill eða utanaðkomandi skráahýsing er nauðsynleg.
+Tónlistin „Little Dino Green Valley“ er staðbundin og endurtekur sig.
+Hún lækkar mjúklega undir tali og sterkum leikhljóðum og hækkar svo aftur.
+Haldið höfundatilvísunum og leyfisskrám með pakkanum, þar á meðal Eleven Music.
+Ekki opna index.html beint sem file://; JavaScript-einingar þurfa vefþjón.
+
+SKRÁAGERÐIR
+.html = text/html; charset=utf-8
+.js = text/javascript
+.css = text/css
+.mp3 = audio/mpeg
+.json = application/json
+.webmanifest = application/manifest+json
+.svg = image/svg+xml
+.png = image/png
+.jpg = image/jpeg
+.webp = image/webp
+.glb = model/gltf-binary
+
+UPPFÆRSLUR
+Skiptið öllum skrám út saman. Stillið sw.js og index.html þannig að vafri
+staðfesti nýjar útgáfur (Cache-Control: no-cache er gott viðmið).
+Ef gömul útgáfa er í notkun lokið öllum flipum leiksins og opnið aftur.
+Framvinda varðveitist í localStorage sama vafra og sama léns.
+Þessi leiðangur notar eigin vistunarlykil og breytir ekki vistun fyrri útgáfu.
+
+SKJÁR
+Leikurinn fyllir sýnilegt vafrasvæði og óskar eftir heilskjá við fyrstu
+snertingu þar sem það er stutt. Raunverulegur heilskjár er ekki tryggður
+í iOS-vöfrum. Hægt er að bæta leiknum á heimaskjá þar sem það er stutt.
+
+HLJÓÐ
+Íslensku talsetningaratriðin fylgja sem MP3-skrár,
+ásamt tónlist og hljóðbrellum. Fyrsta snerting virkjar hljóð í vafranum.
+Talsetningin er framleidd með Eleven v3 og v4 frá ElevenLabs og íslensku röddinni
+„default ice“. Samþykkt nafnhljóð úr G-prufunni er endurnýtt í 24 setningum
+með „Egill“. Engin tenging við ElevenLabs er nauðsynleg við spilun.
+Umhverfishljóð, fótatak, sull, vængjasuð og ímynduð dýrahljóð eru búin til
+með kóða. Tónlist og innifaldar Kenney-hljóðbrellur halda sínum opnu leyfum.
+Umhverfishljóð lækka þegar Mosi talar og hljóðið hvílir í bakgrunni.
+Höfundartilvísanir og leyfi eru í CREDITS.txt; haldið þeirri skrá með.
+
+PRÓFUN
+Sjálfvirkar prófanir á spilun, framvindu og talsetningarskrám hafa staðist.
+Módel, beinagrindur, hreyfingar og staðbundnar áferðir eru sannreynd í prófunum.
+Prófun á raunverulegum iPhone/iPad- og Android-tækjum er enn eftir.
+Notandi hefur hlustað á og samþykkt G-nafnhljóðið, samsettu upphafssetninguna
+og „myllu“-upptökuna. Ekki hefur verið hlustað sérstaklega á hverja setningu.
+
+SAFN EGILS
+Safnið opnast úr bókinni í leiknum. Allt efni helst inni í leiknum.
+Myndir má stækka með tveimur fingrum eða + og −; þrívíð dýr og safngripi má snúa.
+Stórar safnmyndir, safngripir og viðbótarupplestur hlaðast eftir þörfum og eru geymd í skyndiminni vafrans þegar hægt er. Fyrsta heimsókn að slíku efni þarf nettengingu; sjálfhýsing þarf engin ytri API.
+Vafrinn getur tæmt skyndiminni. Aðalleikurinn og vistuð framvinda eru aðskilin frá viðbótarefni safnsins.

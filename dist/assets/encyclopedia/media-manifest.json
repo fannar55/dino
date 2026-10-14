@@ -1,0 +1,864 @@
+{
+  "schemaVersion": 1,
+  "title": "Safn Egils — staðbundið myndefni og safngripir",
+  "generatedBy": "qa/encyclopedia-acquisition/build-media-manifest.py",
+  "attributionNotice": "Leyfi hvers verks nær til þess verks og afleiddra mynda þess. CC BY-SA myndir og smámyndir halda sömu CC BY-SA leyfum; þau leyfi breyta ekki leyfi sjálfstæðs leikkóða.",
+  "assets": [
+    {
+      "type": "image",
+      "species": "triceratops",
+      "src": "./assets/encyclopedia/triceratops-skeleton.jpg",
+      "thumb": "./assets/encyclopedia/triceratops-skeleton-thumb.jpg",
+      "alt": "Uppsett beinagrind Triceratops horridus á Ulster-safninu.",
+      "caption": "Uppsett beinagrind Triceratops horridus á Ulster-safninu.",
+      "credit": "Bazonka",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Triceratops_skeleton_-_Ulster_Museum_2.JPG",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/5/58/Triceratops_skeleton_-_Ulster_Museum_2.JPG",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/5/58/Triceratops_skeleton_-_Ulster_Museum_2.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Triceratops skeleton - Ulster Museum 2.JPG",
+      "originalDimensions": [
+        4320,
+        3240
+      ],
+      "downloadedDimensions": [
+        4320,
+        3240
+      ],
+      "width": 2400,
+      "height": 1800,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "c11f801ffdd55fa90f375ec39611231116b714edfa8629cf5041a5183e1d7543",
+      "downloadedSourceSha256": "65975c3dc611000214904c8ea88c9b6863f45eb00875a524337b003d4fb83408",
+      "thumbSha256": "83fb785afa51ba699c211e5807fc128433725f7d063d3943c9c35c609893f42a"
+    },
+    {
+      "type": "image",
+      "species": "triceratops",
+      "src": "./assets/encyclopedia/triceratops-front.jpg",
+      "thumb": "./assets/encyclopedia/triceratops-front-thumb.jpg",
+      "alt": "Önnur sýn á beinagrind þríhyrnu á Ulster-safninu. Hornin og stóri hálsskjöldurinn sjást vel.",
+      "caption": "Önnur sýn á beinagrind þríhyrnu á Ulster-safninu. Hornin og stóri hálsskjöldurinn sjást vel.",
+      "credit": "Bazonka",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Triceratops_skeleton_-_Ulster_Museum_1.JPG",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/c/ca/Triceratops_skeleton_-_Ulster_Museum_1.JPG",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/c/ca/Triceratops_skeleton_-_Ulster_Museum_1.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Triceratops skeleton - Ulster Museum 1.JPG",
+      "originalDimensions": [
+        4320,
+        3240
+      ],
+      "downloadedDimensions": [
+        4320,
+        3240
+      ],
+      "width": 2400,
+      "height": 1800,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "6e1f3ff377040d2cf565137115a1d49632f06e15d10579da874d8a7c46c34b23",
+      "downloadedSourceSha256": "1d0ff9cf5b3065bd71d3b41897fe19b332e4e2f9b6ba47dfa71c1de948a4955b",
+      "thumbSha256": "99c6151a56b6d52e896728cc0794cd69a2a59cff7a9888e5334c3a0f234d70b2"
+    },
+    {
+      "type": "image",
+      "species": "stegosaurus",
+      "src": "./assets/encyclopedia/stegosaurus-skeleton.jpg",
+      "thumb": "./assets/encyclopedia/stegosaurus-skeleton-thumb.jpg",
+      "alt": "Uppsett beinagrind Stegosaurus á Náttúrugripasafninu í London.",
+      "caption": "Uppsett beinagrind Stegosaurus á Náttúrugripasafninu í London.",
+      "credit": "Gary Todd from Xinzheng, China",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "source": "https://commons.wikimedia.org/wiki/File:Stegosaurus_Skeleton_(36329568742).jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/4/46/Stegosaurus_Skeleton_%2836329568742%29.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/4/46/Stegosaurus_Skeleton_%2836329568742%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Stegosaurus Skeleton (36329568742).jpg",
+      "originalDimensions": [
+        5184,
+        3456
+      ],
+      "downloadedDimensions": [
+        5184,
+        3456
+      ],
+      "width": 2400,
+      "height": 1600,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "103b2d5058e34a44e039b07e6d5b116d36b0e58245eec48c01c5a256b1dde8fb",
+      "downloadedSourceSha256": "a1af9d8cbf8f3108e10e33493c7b2b6f352acbb00ba814b759d921702f4aa542",
+      "thumbSha256": "ba0eb4a9cb3b559e721c6d5860a9519ba1646574fc308493bd513e3f6697d938"
+    },
+    {
+      "type": "image",
+      "species": "stegosaurus",
+      "src": "./assets/encyclopedia/stegosaurus-side.jpg",
+      "thumb": "./assets/encyclopedia/stegosaurus-side-thumb.jpg",
+      "alt": "Beinagrind Stegosaurus stenops, safngripurinn „Sophie“, séð frá hlið. Mynd úr rannsókn safnsins.",
+      "caption": "Beinagrind Stegosaurus stenops, safngripurinn „Sophie“, séð frá hlið. Mynd úr rannsókn safnsins.",
+      "credit": "Susannah Maidment et al. & Natural History Museum, London",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Journal.pone.0138352.g001A.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Journal.pone.0138352.g001A.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Journal.pone.0138352.g001A.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Journal.pone.0138352.g001A.jpg",
+      "originalDimensions": [
+        1956,
+        1176
+      ],
+      "downloadedDimensions": [
+        1956,
+        1176
+      ],
+      "width": 1956,
+      "height": 1176,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "4ff754793c45f4d0cbe265929bf2f54340e87307ec5fa58a45717ea68fe04e27",
+      "downloadedSourceSha256": "b43bfd064849135680dec51c15ce9aa67133710d2299d0ef1dbac1da477f0a3f",
+      "thumbSha256": "4aa0d3464dfb03e15af811f23e069992aa0f36f38dea2dc4d56bff11e040f2b4"
+    },
+    {
+      "type": "image",
+      "species": "brachiosaurus",
+      "src": "./assets/encyclopedia/brachiosaurus-remount.jpg",
+      "thumb": "./assets/encyclopedia/brachiosaurus-remount-thumb.jpg",
+      "alt": "Enduruppsett beinagrind Brontosaurus excelsus á Peabody-safninu.",
+      "caption": "Enduruppsett beinagrind Brontosaurus excelsus á Peabody-safninu.",
+      "credit": "Matthew Bellemare",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Brontosaurus_excelsus_remount_in_the_Peabody_Museum.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/7/74/Brontosaurus_excelsus_remount_in_the_Peabody_Museum.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/7/74/Brontosaurus_excelsus_remount_in_the_Peabody_Museum.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Brontosaurus excelsus remount in the Peabody Museum.jpg",
+      "originalDimensions": [
+        5400,
+        2610
+      ],
+      "downloadedDimensions": [
+        5400,
+        2610
+      ],
+      "width": 2400,
+      "height": 1160,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "8ab0d9f3efe2d7dce368710d5c259690ccd1207c8e06808a985ea345db77c8f1",
+      "downloadedSourceSha256": "ff63083bed63ec74633c77483e319f0bd92a8ff5589e9a9bd467343e79fa3fe2",
+      "thumbSha256": "f666aa6641356544f67cfacd9d84c6989c1629b5dc3b007b96e25d290f2f140f"
+    },
+    {
+      "type": "image",
+      "species": "brachiosaurus",
+      "src": "./assets/encyclopedia/brachiosaurus-skeleton.jpg",
+      "thumb": "./assets/encyclopedia/brachiosaurus-skeleton-thumb.jpg",
+      "alt": "Þórseðla, Brontosaurus, í eldri uppsetningu á Peabody-safninu. Berðu stellinguna saman við nýrri uppsetninguna.",
+      "caption": "Þórseðla, Brontosaurus, í eldri uppsetningu á Peabody-safninu. Berðu stellinguna saman við nýrri uppsetninguna.",
+      "credit": "tosh chiang",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Peabody-Brontosaurus.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/0/02/Peabody-Brontosaurus.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/0/02/Peabody-Brontosaurus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Peabody-Brontosaurus.jpg",
+      "originalDimensions": [
+        6240,
+        4160
+      ],
+      "downloadedDimensions": [
+        6240,
+        4160
+      ],
+      "width": 2400,
+      "height": 1600,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "b0a4bc24935f2eb7c53baffdbadb7272abc67cbc078b4d5f566b00db99900850",
+      "downloadedSourceSha256": "4fd00ed08f196c38452ee7f0ca04e8a534493b03735f39c37dbcf5ca29cb6e1c",
+      "thumbSha256": "1bfc6565477130b34f32f1df526b09d2ae03afebac60a8a8e142385ebff9fb84"
+    },
+    {
+      "type": "image",
+      "species": "trex",
+      "src": "./assets/encyclopedia/trex-skeleton.jpg",
+      "thumb": "./assets/encyclopedia/trex-skeleton-thumb.jpg",
+      "alt": "Tyrannosaurus rex „Sue“ á Field-safninu. Safnið setur beinagrindina saman í líflega stellingu.",
+      "caption": "Tyrannosaurus rex „Sue“ á Field-safninu. Safnið setur beinagrindina saman í líflega stellingu.",
+      "credit": "Zissoudisctrucker",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:FMNH_Tyrannosaurus_rex_Sue.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/5/58/FMNH_Tyrannosaurus_rex_Sue.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/5/58/FMNH_Tyrannosaurus_rex_Sue.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "FMNH Tyrannosaurus rex Sue.jpg",
+      "originalDimensions": [
+        4032,
+        3024
+      ],
+      "downloadedDimensions": [
+        4032,
+        3024
+      ],
+      "width": 2400,
+      "height": 1800,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "feae66d46eb7c427b4c78a96374cb625d3b7d9b17816f6d63ce680d7ca79b9fa",
+      "downloadedSourceSha256": "08eafc01a7f892a79b0760d5e0928ae90fab947bc1613619dfd296d74cdcd743",
+      "thumbSha256": "47c984249d3b7689d1578f55712c9bfdeded73d863c4a0583f380dce629c1a64"
+    },
+    {
+      "type": "image",
+      "species": "trex",
+      "src": "./assets/encyclopedia/trex-skull.jpg",
+      "thumb": "./assets/encyclopedia/trex-skull-thumb.jpg",
+      "alt": "Hluti af upprunalegum steingervingum Tyrannosaurus rex „Sue“ á Field-safninu.",
+      "caption": "Hluti af upprunalegum steingervingum Tyrannosaurus rex „Sue“ á Field-safninu.",
+      "credit": "James St. John",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Tyrannosaurus_rex_(theropod_dinosaur)_(Hell_Creek_Formation,_Upper_Cretaceous;_near_Faith,_South_Dakota,_USA)_36.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Tyrannosaurus_rex_%28theropod_dinosaur%29_%28Hell_Creek_Formation%2C_Upper_Cretaceous%3B_near_Faith%2C_South_Dakota%2C_USA%29_36.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/e/ee/Tyrannosaurus_rex_%28theropod_dinosaur%29_%28Hell_Creek_Formation%2C_Upper_Cretaceous%3B_near_Faith%2C_South_Dakota%2C_USA%29_36.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "Tyrannosaurus rex (theropod dinosaur) (Hell Creek Formation, Upper Cretaceous; near Faith, South Dakota, USA) 36.jpg",
+      "originalDimensions": [
+        2000,
+        2608
+      ],
+      "downloadedDimensions": [
+        2000,
+        2608
+      ],
+      "width": 1840,
+      "height": 2400,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "615377bc06f05b8d0ca4400c26db8081eb7cd154520de5a2d4d52a4b68d51e99",
+      "downloadedSourceSha256": "0ad8c0c21ae31d050d6580d3022e6b42e09378f3486c48792737b864eb876a35",
+      "thumbSha256": "14fb85ee6039eb68fd668c59a9ab59a17f2d70efda8e8fb9fce4d2ec973baf75"
+    },
+    {
+      "type": "image",
+      "species": "spinosaurus",
+      "src": "./assets/encyclopedia/spinosaurus-skeleton.jpg",
+      "thumb": "./assets/encyclopedia/spinosaurus-skeleton-thumb.jpg",
+      "alt": "Afsteypa og endurgerð Spinosaurus á Field-safninu, byggð á þekktum beinum árið 2023. Sundstellingin er túlkun; vísindamenn rannsaka enn hvernig dýrið hreyfði sig í vatni.",
+      "caption": "Afsteypa og endurgerð Spinosaurus á Field-safninu, byggð á þekktum beinum árið 2023. Sundstellingin er túlkun; vísindamenn rannsaka enn hvernig dýrið hreyfði sig í vatni.",
+      "credit": "3blindMies",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:FSAC-KK-11888.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/f/f0/FSAC-KK-11888.jpg",
+      "downloadedSource": "https://upload.wikimedia.org/wikipedia/commons/f/f0/FSAC-KK-11888.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "originalTitle": "FSAC-KK-11888.jpg",
+      "originalDimensions": [
+        6001,
+        1937
+      ],
+      "downloadedDimensions": [
+        6001,
+        1937
+      ],
+      "width": 2400,
+      "height": 775,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "1e76bd98c57e59029ee1863bf9585c6fdfc07eb5d75e5f03b15a831d09328b8b",
+      "downloadedSourceSha256": "989fc69c496e1ddd661c7ad59d3b375011f0da6a80aed6f8273732e2a4ded558",
+      "thumbSha256": "d8dcfc75f0d00b08a8bd3f5f2ea034b35ad310f6658284ced44c27163626a4cf"
+    },
+    {
+      "type": "image",
+      "species": "parasaurolophus",
+      "src": "./assets/encyclopedia/parasaurolophus-skull.jpg",
+      "thumb": "./assets/encyclopedia/parasaurolophus-skull-thumb.jpg",
+      "alt": "Höfuðkúpa Parasaurolophus á safni. Langi kamburinn nær aftur frá höfðinu.",
+      "caption": "Höfuðkúpa Parasaurolophus á safni. Langi kamburinn nær aftur frá höfðinu.",
+      "credit": "Eden, Janine and Jim from New York City",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_Skull_(31269558504).jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/2/29/Parasaurolophus_Skull_%2831269558504%29.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Parasaurolophus_Skull_%2831269558504%29.jpg/3840px-Parasaurolophus_Skull_%2831269558504%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Parasaurolophus Skull (31269558504).jpg",
+      "originalDimensions": [
+        4000,
+        2400
+      ],
+      "downloadedDimensions": [
+        3840,
+        2304
+      ],
+      "width": 2400,
+      "height": 1440,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "e4f497100740f6597c1b83c821706c976c4c15cc3b2b6b706634ec4abe006add",
+      "downloadedSourceSha256": "cd3d16619af14a7c563e37db833d0994b8344a10d21c4d90d7184a8adc5977ef",
+      "thumbSha256": "ad306c8dbd617daef2b57d488df1c8ab54e9430f9b4625de5698ff7f04a23dd9"
+    },
+    {
+      "type": "image",
+      "species": "parasaurolophus",
+      "src": "./assets/encyclopedia/parasaurolophus-juvenile.jpg",
+      "thumb": "./assets/encyclopedia/parasaurolophus-juvenile-thumb.jpg",
+      "alt": "Beinagrind ungrar Parasaurolophus, RAM 14000, kölluð „Joe“. Kambur unga dýrsins er styttri en hjá fullorðnu dýri.",
+      "caption": "Beinagrind ungrar Parasaurolophus, RAM 14000, kölluð „Joe“. Kambur unga dýrsins er styttri en hjá fullorðnu dýri.",
+      "credit": "Andrew A. Farke​, Derek J. Chok, Annisa Herrero, Brandon Scolieri, Sarah Werning",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_juvenile_skeleton.png",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Parasaurolophus_juvenile_skeleton.png",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Parasaurolophus_juvenile_skeleton.png/1920px-Parasaurolophus_juvenile_skeleton.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Parasaurolophus juvenile skeleton.png",
+      "originalDimensions": [
+        2667,
+        3166
+      ],
+      "downloadedDimensions": [
+        1920,
+        2279
+      ],
+      "width": 1920,
+      "height": 2279,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "9949347af2d213910e5fabdecc3b08a0b36be66fc24da9a6fb88f249ced1c8ff",
+      "downloadedSourceSha256": "ee5adeef46742e46e68f2554d860b33e15eaf24ae2b35449503bfa3e12f65197",
+      "thumbSha256": "b43360710c490eeabb2b07af020fdea929459558d8c9287b8bb6d4ef78a84386"
+    },
+    {
+      "type": "image",
+      "species": "pteranodon",
+      "src": "./assets/encyclopedia/pteranodon-skull.jpg",
+      "thumb": "./assets/encyclopedia/pteranodon-skull-thumb.jpg",
+      "alt": "Höfuðkúpa og goggur Pteranodon, safngripur FR7515. Flugeðlur voru skriðdýr en ekki risaeðlur.",
+      "caption": "Höfuðkúpa og goggur Pteranodon, safngripur FR7515. Flugeðlur voru skriðdýr en ekki risaeðlur.",
+      "credit": "Vicpeters",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Pteranodon_skull_and_beak_FR7515.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/c/c8/Pteranodon_skull_and_beak_FR7515.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Pteranodon_skull_and_beak_FR7515.jpg/3840px-Pteranodon_skull_and_beak_FR7515.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Pteranodon skull and beak FR7515.jpg",
+      "originalDimensions": [
+        5712,
+        4284
+      ],
+      "downloadedDimensions": [
+        3840,
+        2880
+      ],
+      "width": 2400,
+      "height": 1800,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "8d4504bd98a6ad5ab3ab5867acf51930b004d098d1600ccc5c59f359b3038744",
+      "downloadedSourceSha256": "e8aa0c0fe36d9061e1ca92ab49619af1fdc5eb986b6b4c2806b58e2ca70d3a1f",
+      "thumbSha256": "64d5f7e3ace0c03cc2545a2d6dbdbe2925b6e911065c813114a869417975ed24"
+    },
+    {
+      "type": "image",
+      "species": "fish",
+      "src": "./assets/encyclopedia/fish-photo.jpg",
+      "thumb": "./assets/encyclopedia/fish-photo-thumb.jpg",
+      "alt": "Þetta er núlifandi fisktegund, Perca fluviatilis. Hún er dæmi um fisk, ekki nákvæm tegund fisksins í sögunni.",
+      "caption": "Þetta er núlifandi fisktegund, Perca fluviatilis. Hún er dæmi um fisk, ekki nákvæm tegund fisksins í sögunni.",
+      "credit": "Gilles San Martin",
+      "license": "CC BY-SA 2.5",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+      "source": "https://commons.wikimedia.org/wiki/File:Perca_fluviatilis_-_Perche_commune_-_European_perch_Cropped.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Perca_fluviatilis_-_Perche_commune_-_European_perch_Cropped.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Perca_fluviatilis_-_Perche_commune_-_European_perch_Cropped.jpg/3840px-Perca_fluviatilis_-_Perche_commune_-_European_perch_Cropped.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Perca fluviatilis - Perche commune - European perch Cropped.jpg",
+      "originalDimensions": [
+        4367,
+        2007
+      ],
+      "downloadedDimensions": [
+        3840,
+        1765
+      ],
+      "width": 2400,
+      "height": 1103,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "43c3cacb92952c4dac94801838675ab312452a1ce1ff43eb0f322378052cff17",
+      "downloadedSourceSha256": "f3df2726b3611c73800e7d9f96ba85c4e4a0b310de2e0a0c6bab6e0f67f70dac",
+      "thumbSha256": "0396f7eea822f1d2cb38409cbbb7dbb851418ee83bf4244555e67734d18383eb"
+    },
+    {
+      "type": "image",
+      "species": "snail",
+      "src": "./assets/encyclopedia/snail-photo.jpg",
+      "thumb": "./assets/encyclopedia/snail-photo-thumb.jpg",
+      "alt": "Núlifandi snigill, Cepaea nemoralis, á mosa. Skelin er heimili sem snigillinn ber með sér.",
+      "caption": "Núlifandi snigill, Cepaea nemoralis, á mosa. Skelin er heimili sem snigillinn ber með sér.",
+      "credit": "Von.grzanka",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Cepaea_nemoralis_on_moss_edited.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Cepaea_nemoralis_on_moss_edited.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Cepaea_nemoralis_on_moss_edited.jpg/1920px-Cepaea_nemoralis_on_moss_edited.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Cepaea nemoralis on moss edited.jpg",
+      "originalDimensions": [
+        3394,
+        2544
+      ],
+      "downloadedDimensions": [
+        1920,
+        1439
+      ],
+      "width": 1920,
+      "height": 1439,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "3824fa7cd65093dd6c2acba6f0575f6fba9e5b088a52410d1c3e44b019dad262",
+      "downloadedSourceSha256": "099aaa9371208c75123151ca44a6aacd72096bc67422c4d83391d245d95bd32f",
+      "thumbSha256": "94106e84180d07d6c73bcf5ee63a034cfd32993855dcbbdab1ed97c814e40628"
+    },
+    {
+      "type": "image",
+      "species": "beetle",
+      "src": "./assets/encyclopedia/beetle-closeup.jpg",
+      "thumb": "./assets/encyclopedia/beetle-closeup-thumb.jpg",
+      "alt": "Nærmynd af bjöllu af núlifandi tegundinni Carabus auratus. Sjáðu fálmarana, fæturna sex og gljáandi hlífðarvængina.",
+      "caption": "Nærmynd af bjöllu af núlifandi tegundinni Carabus auratus. Sjáðu fálmarana, fæturna sex og gljáandi hlífðarvængina.",
+      "credit": "Francisco Welter-Schultes",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "source": "https://commons.wikimedia.org/wiki/File:Carabus-auratus-05-fws.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Carabus-auratus-05-fws.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Carabus-auratus-05-fws.jpg/1920px-Carabus-auratus-05-fws.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Carabus-auratus-05-fws.jpg",
+      "originalDimensions": [
+        2696,
+        1892
+      ],
+      "downloadedDimensions": [
+        1920,
+        1347
+      ],
+      "width": 1920,
+      "height": 1347,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "50be2f549497bd2bae7ada87886bdfa6e45c18ccdc6a719a4c641343565b19d3",
+      "downloadedSourceSha256": "22e17cb31fd0c0f4d9c14fca7a29108609bd9fd38816bf03bb30eb3de1142dbd",
+      "thumbSha256": "c1bd1c14b0c4b8051d61025b8af73b7d873ba125ff2c9e9543088c2e98e5daa6"
+    },
+    {
+      "type": "image",
+      "species": "beetle",
+      "src": "./assets/encyclopedia/beetle-photo.jpg",
+      "thumb": "./assets/encyclopedia/beetle-photo-thumb.jpg",
+      "alt": "Bjalla af núlifandi tegundinni Carabus auratus felur sig meðal laufblaða. Finndu hana og stækkaðu myndina.",
+      "caption": "Bjalla af núlifandi tegundinni Carabus auratus felur sig meðal laufblaða. Finndu hana og stækkaðu myndina.",
+      "credit": "Jag Bill",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Carabus_Auratus_Cherine_2019_France.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Carabus_Auratus_Cherine_2019_France.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Carabus_Auratus_Cherine_2019_France.jpg/3840px-Carabus_Auratus_Cherine_2019_France.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Carabus Auratus Cherine 2019 France.jpg",
+      "originalDimensions": [
+        4624,
+        2608
+      ],
+      "downloadedDimensions": [
+        3840,
+        2166
+      ],
+      "width": 2400,
+      "height": 1354,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "4e5fa4d5bb0156e422b7fe0e38ddc8726958862f1df17e07e25936537c7727ef",
+      "downloadedSourceSha256": "f0bed0c7ccbada3c339884a69a56a5728bb340780c07112d89aa56b9fa0750b3",
+      "thumbSha256": "c08848a71daa87330078a25d51e457fb35bb4bc48e2c86f7b7f3030cd61ec1c5"
+    },
+    {
+      "type": "image",
+      "species": "lizard",
+      "src": "./assets/encyclopedia/lizard-photo.jpg",
+      "thumb": "./assets/encyclopedia/lizard-photo-thumb.jpg",
+      "alt": "Karldýr af núlifandi eðlutegundinni Lacerta agilis. Smáeðlan í sögunni er ekki greind til þessarar tegundar.",
+      "caption": "Karldýr af núlifandi eðlutegundinni Lacerta agilis. Smáeðlan í sögunni er ekki greind til þessarar tegundar.",
+      "credit": "George Chernilevsky",
+      "license": "Public domain",
+      "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Lacerta_agilis_male_2011_G1.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Lacerta_agilis_male_2011_G1.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9f/Lacerta_agilis_male_2011_G1.jpg/3840px-Lacerta_agilis_male_2011_G1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Lacerta agilis male 2011 G1.jpg",
+      "originalDimensions": [
+        4800,
+        2400
+      ],
+      "downloadedDimensions": [
+        3840,
+        1920
+      ],
+      "width": 2400,
+      "height": 1200,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "66f610d110cfe7b2a46be39baaba6033f366fcfa72c15dab6bdd6ef1ea8f214d",
+      "downloadedSourceSha256": "3a061b905ef51bba3a8cd5f86f6e994cb97564464a2de04d640304cf9eb8952a",
+      "thumbSha256": "83280f78af6e0972a2e44fee8faf40f5d1b68e4a67f8b87a7318f5d6685f9c55"
+    },
+    {
+      "type": "image",
+      "species": "frog",
+      "src": "./assets/encyclopedia/frog-photo.jpg",
+      "thumb": "./assets/encyclopedia/frog-photo-thumb.jpg",
+      "alt": "Núlifandi froskur, Rana temporaria. Froskar eru froskdýr, ekki skriðdýr.",
+      "caption": "Núlifandi froskur, Rana temporaria. Froskar eru froskdýr, ekki skriðdýr.",
+      "credit": "Holger Krisp",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Grasfrosch-Rana-temporaria-adult.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/f/fe/Grasfrosch-Rana-temporaria-adult.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Grasfrosch-Rana-temporaria-adult.jpg/1920px-Grasfrosch-Rana-temporaria-adult.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Grasfrosch-Rana-temporaria-adult.jpg",
+      "originalDimensions": [
+        3000,
+        2223
+      ],
+      "downloadedDimensions": [
+        1920,
+        1423
+      ],
+      "width": 1920,
+      "height": 1423,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "0d13119da434d157eb3ba8bdca955b4fe6ca1b6581a9b53cca515f7454e72934",
+      "downloadedSourceSha256": "f3d1788debfdcdd301c2925d82cc99477a3a37d19ea73016342d08c87b15ccec",
+      "thumbSha256": "5147e371060c6398643cd7f92ae2d3b00e433983317d737889f5fe449f8b023d"
+    },
+    {
+      "type": "image",
+      "species": "dragonfly",
+      "src": "./assets/encyclopedia/dragonfly-photo.jpg",
+      "thumb": "./assets/encyclopedia/dragonfly-photo-thumb.jpg",
+      "alt": "Núlifandi drekafluga, Anax imperator. Hún hefur sex fætur og fjóra vængi.",
+      "caption": "Núlifandi drekafluga, Anax imperator. Hún hefur sex fætur og fjóra vængi.",
+      "credit": "Quartl",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Anax_imperator_qtl2.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/0/06/Anax_imperator_qtl2.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Anax_imperator_qtl2.jpg/1920px-Anax_imperator_qtl2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Anax imperator qtl2.jpg",
+      "originalDimensions": [
+        3528,
+        2704
+      ],
+      "downloadedDimensions": [
+        1920,
+        1472
+      ],
+      "width": 1920,
+      "height": 1472,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "714c8108e460168d82ff18fe2aeaf8eaa836fbab776e2f2f31dfc9b32b7ce52b",
+      "downloadedSourceSha256": "21cb2d46ee3a380c84f21b2aa596b2666f5b01a3a70fc7712bfdf651023ab5e4",
+      "thumbSha256": "c423f1b001c3301a1ed21475b2192020d20bbff100984cdd77bab6b3b312669e"
+    },
+    {
+      "type": "image",
+      "species": "butterfly",
+      "src": "./assets/encyclopedia/butterfly-closeup.jpg",
+      "thumb": "./assets/encyclopedia/butterfly-closeup-thumb.jpg",
+      "alt": "Nærmynd af núlifandi fiðrildi, Aglais urticae. Litlar hreisturflögur þekja vængina.",
+      "caption": "Nærmynd af núlifandi fiðrildi, Aglais urticae. Litlar hreisturflögur þekja vængina.",
+      "credit": "Quartl",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:Aglais_urticae_qtl1.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/d/d8/Aglais_urticae_qtl1.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Aglais_urticae_qtl1.jpg/1920px-Aglais_urticae_qtl1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "Aglais urticae qtl1.jpg",
+      "originalDimensions": [
+        3876,
+        2236
+      ],
+      "downloadedDimensions": [
+        1920,
+        1108
+      ],
+      "width": 1920,
+      "height": 1108,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "aa314ce08e450252e6739e2ba130d2bff94a34fbcc4a3c7e882b0f5ba895b380",
+      "downloadedSourceSha256": "94cd140105f9903d6a36b262027dead9c00bbcd8435822ef493e47ce5779b9e9",
+      "thumbSha256": "cf8b8e18afb37fd37ce36f6acd330b23c739b94f02516a85e291f8f7dfc1b07d"
+    },
+    {
+      "type": "image",
+      "species": "butterfly",
+      "src": "./assets/encyclopedia/butterfly-photo.jpg",
+      "thumb": "./assets/encyclopedia/butterfly-photo-thumb.jpg",
+      "alt": "Núlifandi fiðrildi, Aglais urticae, á blómum. Þetta er ein af mörgum fiðrildategundum.",
+      "caption": "Núlifandi fiðrildi, Aglais urticae, á blómum. Þetta er ein af mörgum fiðrildategundum.",
+      "credit": "Flocci Nivis",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "source": "https://commons.wikimedia.org/wiki/File:20220610_Aglais_urticae_01.jpg",
+      "originalDownload": "https://upload.wikimedia.org/wikipedia/commons/2/26/20220610_Aglais_urticae_01.jpg",
+      "downloadedSource": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/20220610_Aglais_urticae_01.jpg/3840px-20220610_Aglais_urticae_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "originalTitle": "20220610 Aglais urticae 01.jpg",
+      "originalDimensions": [
+        4662,
+        3112
+      ],
+      "downloadedDimensions": [
+        3840,
+        2563
+      ],
+      "width": 2400,
+      "height": 1602,
+      "modifications": "Stefna leiðrétt eftir EXIF; stærð minnkuð í að hámarki 2400 punkta; JPEG-þjöppun og 640 punkta smámynd. Myndinni er ekki breytt að öðru leyti.",
+      "sha256": "87c87c7b3373e5363289ce52e6943339a7572991ae670d16505bd17962abe35d",
+      "downloadedSourceSha256": "c1650a306c953b1b3479f7ae72c7967daec9d4c7bdb0333e0252a0847599102e",
+      "thumbSha256": "8769b02e87e9e7dd383336e54ac0d1c4a4bdf411a9f784da33692f4fc712a6d5"
+    },
+    {
+      "type": "image",
+      "species": "stegosaurus",
+      "src": "./assets/collection/stegosaurus.webp",
+      "thumb": "./assets/collection/stegosaurus.webp",
+      "alt": "Beinagrind Stegosaurus ungulatus á Carnegie-safninu. Þessi mynd var þegar í safninu okkar.",
+      "caption": "Beinagrind Stegosaurus ungulatus á Carnegie-safninu. Þessi mynd var þegar í safninu okkar.",
+      "credit": "Perry Quan",
+      "license": "CC-BY-SA-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Stegosaurus_ungulatus.jpg",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 1128,
+      "sha256": "80d40d78e0fe8ce4830f3671cfe1c34d5092e285b52c9b66ea025415a9cd1658",
+      "retainedExistingMedia": true
+    },
+    {
+      "type": "image",
+      "species": "brachiosaurus",
+      "src": "./assets/collection/brachiosaurus.webp",
+      "thumb": "./assets/collection/brachiosaurus.webp",
+      "alt": "Brontosaurus excelsus, YPM 1980, á Peabody-safninu árið 2012. Þetta er eldri uppsetning; háls og hali hafa síðan verið sett í aðra stellingu.",
+      "caption": "Brontosaurus excelsus, YPM 1980, á Peabody-safninu árið 2012. Þetta er eldri uppsetning; háls og hali hafa síðan verið sett í aðra stellingu.",
+      "credit": "Ad Meskens",
+      "license": "CC-BY-SA-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Brontosaurus_Yale_Peabody.jpg",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 1722,
+      "sha256": "c4ce001cdd66b98cf45e68414ec57414b08ccd25bdda59c846c566dc5f264464",
+      "retainedExistingMedia": true
+    },
+    {
+      "type": "image",
+      "species": "trex",
+      "src": "./assets/collection/trex.webp",
+      "thumb": "./assets/collection/trex.webp",
+      "alt": "Beinagrind Tyrannosaurus rex „Sue“ á Field-safninu, séð frá hlið.",
+      "caption": "Beinagrind Tyrannosaurus rex „Sue“ á Field-safninu, séð frá hlið.",
+      "credit": "Dallas Krentzel",
+      "license": "CC-BY-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Sue_side_full_(Field_museum).png",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 712,
+      "sha256": "2e64b3d2312f738e4047b2eab88d400672b24b81d48eefd5e36b434e4ec715af",
+      "retainedExistingMedia": true
+    },
+    {
+      "type": "image",
+      "species": "spinosaurus",
+      "src": "./assets/collection/spinosaurus.webp",
+      "thumb": "./assets/collection/spinosaurus.webp",
+      "alt": "Afsteypa og endurgerð Spinosaurus á Field-safninu árið 2023. Nákvæm sundhreyfing dýrsins er enn rannsóknarefni.",
+      "caption": "Afsteypa og endurgerð Spinosaurus á Field-safninu árið 2023. Nákvæm sundhreyfing dýrsins er enn rannsóknarefni.",
+      "credit": "3blindMies",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Field_Spinosaurus.jpg",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 534,
+      "sha256": "8933ce8f14242c1d3cd7d040e37c266e92f09c68901e4379c7b55024b86a37d5",
+      "retainedExistingMedia": true
+    },
+    {
+      "type": "image",
+      "species": "parasaurolophus",
+      "src": "./assets/collection/parasaurolophus.webp",
+      "thumb": "./assets/collection/parasaurolophus.webp",
+      "alt": "Parasaurolophus cyrtocristatus á Field-safninu. Þessi tegund hafði styttri og sveigðari kamb en langkembda dýrið í leiknum.",
+      "caption": "Parasaurolophus cyrtocristatus á Field-safninu. Þessi tegund hafði styttri og sveigðari kamb en langkembda dýrið í leiknum.",
+      "credit": "Jonathan Chen",
+      "license": "CC-BY-SA-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_at_FMNH.jpg",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 1066,
+      "sha256": "7440243daaa352190b59aed3fc6751b3ff22789387310cfb33dec0c8b5bdb8cb",
+      "retainedExistingMedia": true
+    },
+    {
+      "type": "image",
+      "species": "pteranodon",
+      "src": "./assets/collection/pteranodon.webp",
+      "thumb": "./assets/collection/pteranodon.webp",
+      "alt": "Uppsett beinagrind Pteranodon á safni. Sjáðu löngu vængbeinin.",
+      "caption": "Uppsett beinagrind Pteranodon á safni. Sjáðu löngu vængbeinin.",
+      "credit": "Mira Mechtley",
+      "license": "CC-BY-SA-2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Pteranodon_longiceps_skeleton.jpg",
+      "modifications": "Resized proportionally to at most 1600 px wide and converted to WebP quality 87. No crop, compositing, retouching or generated content.",
+      "width": 1600,
+      "height": 1066,
+      "sha256": "fb5343f199cfb2798e7ca2e1a140a99e043e5db84aa8c87ec0298948f73077fa",
+      "retainedExistingMedia": true
+    },
+    {
+      "species": "triceratops",
+      "alt": "Þrívíð beinagrind þríhyrnu",
+      "caption": "Þrívíddarskönnun af uppsettri beinagrind Triceratops horridus, PAL500000, á Smithsonian-safninu. Safnið bjó þessa samsettu beinagrind til úr afsteypum og þrívíddarprentuðum eftirmyndum beina frá nokkrum þríhyrnum. Snúðu henni og skoðaðu hornin, hálsskjöldinn og beinin.",
+      "credit": "Smithsonian Institution, National Museum of Natural History, Paleobiology",
+      "license": "CC0 1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source": "https://3d.si.edu/object/3d/triceratops-horridus-marsh-1889:d8c623be-4ebc-11ea-b77f-2e728ce88125",
+      "sourceManifest": "https://ids.si.edu/ids/media_view?id=3d_package:d8c623be-4ebc-11ea-b77f-2e728ce88125&format=json",
+      "dimensionsNote": "Upprunalegar einingar safnsins eru metrar. Skoðarinn stillir sýnistærð svo gripurinn rúmist á skjánum.",
+      "modifications": "Upprunaleg 149.998 þríhyrninga rúmfræði varðveitt. Stífur snúningur og hliðrun rétta gripinn af á gólfi. Innbyggðar áferðir minnkaðar úr 4096 í 2048 punkta og endurþjappaðar. Smámynd er lýst myndbirting þessa sama líkans.",
+      "type": "model",
+      "src": "./assets/encyclopedia/triceratops-skeleton.glb",
+      "sha256": "adad80eb2b9bf7f0a2737a4d0bff4874a60761742101deff65628f1b0c2ad41a",
+      "bytes": 9543712,
+      "triangles": 149998,
+      "units": "metres",
+      "selfContained": true,
+      "thumb": "./assets/encyclopedia/triceratops-skeleton-poster.jpg",
+      "poster": "./assets/encyclopedia/triceratops-skeleton-poster.jpg",
+      "thumbSha256": "adca8af414ca6d2c7c8a62e037f67b9525eccda15ea5404b599c290a508dae0e",
+      "processingReport": {
+        "triangles": 149998,
+        "bytes": 9543712,
+        "textures": [
+          {
+            "index": 0,
+            "original": [
+              4096,
+              4096
+            ],
+            "final": [
+              2048,
+              2048
+            ]
+          },
+          {
+            "index": 1,
+            "original": [
+              4096,
+              4096
+            ],
+            "final": [
+              2048,
+              2048
+            ]
+          },
+          {
+            "index": 2,
+            "original": [
+              4096,
+              4096
+            ],
+            "final": [
+              2048,
+              2048
+            ]
+          }
+        ],
+        "sha256": "adad80eb2b9bf7f0a2737a4d0bff4874a60761742101deff65628f1b0c2ad41a",
+        "sourceSha256": "cd8525c7371d14876bcdefe3f579d216bf597db892c2de6ed597da86bf1a98b3",
+        "sourceUnits": "metres, as specified by Smithsonian",
+        "geometryModified": false,
+        "rigidDisplayTransform": {
+          "rotationQuaternion": [
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ],
+          "translation": [
+            0,
+            1.40255403518677,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "species": "parasaurolophus",
+      "alt": "Hægri hluti höfuðkúpu ungrar slóeðlu í þrívídd",
+      "caption": "Þrívíddarskönnun af hægri hluta höfuðkúpu og hálsi ungrar Parasaurolophus, RAM 14000 „Joe“. Berg er enn utan um sum beinin. Þetta er ekki heil, samhverf höfuðkúpa. Brúni liturinn er sýningarlitur, ekki mældur litur steingervingsins.",
+      "credit": "Andrew Farke og Raymond M. Alf Museum of Paleontology (2013). Farke o.fl., PeerJ 1:e182.",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://doi.org/10.6084/m9.figshare.692153.v1",
+      "publication": "https://doi.org/10.7717/peerj.182",
+      "dimensionsNote": "Millimetrum breytt í metra. Gripnum er snúið án þess að breyta hlutföllum. Skoðarinn stillir sýnistærð; þetta er ungt dýr.",
+      "modifications": "Upprunalegt STL líkan einfaldað úr 1.118.952 í 139.037 þríhyrninga; tvíteknir fletir hreinsaðir. Millimetrum breytt í metra. Stífur snúningur fyrir skoðun; hlutlaus sýningarlitur bætt við. Engin bein endurgerð. Smámynd er lýst myndbirting þessa sama líkans.",
+      "type": "model",
+      "src": "./assets/encyclopedia/parasaurolophus-juvenile-skull.glb",
+      "sha256": "5e6b79a3f11dac1363d846289b502b512ed7266b26b5c3bae558ab06ea1bf49c",
+      "bytes": 3350956,
+      "triangles": 139037,
+      "units": "metres",
+      "selfContained": true,
+      "thumb": "./assets/encyclopedia/parasaurolophus-juvenile-skull-poster.jpg",
+      "poster": "./assets/encyclopedia/parasaurolophus-juvenile-skull-poster.jpg",
+      "thumbSha256": "4a020e55034e16fc175104d5dbcfc65a8d4a83d31f13d9fea5ab202b1d77f290",
+      "processingReport": {
+        "source": "qa\\encyclopedia-acquisition\\parasaurolophus-source\\RightSkullModels_RAM14000\\RightSkullModel_RAM14000.stl",
+        "sourceTriangles": 1118952,
+        "triangles": 139037,
+        "metresPerSourceUnit": 0.001,
+        "sourceToDisplayRotation": [
+          [
+            -0.7487615440007018,
+            0.07574911403306747,
+            0.658496941487879
+          ],
+          [
+            -0.03500248976593878,
+            0.9875439011972816,
+            -0.153401006900995
+          ],
+          [
+            -0.6619146288879487,
+            -0.13790980723378266,
+            -0.7367834886402316
+          ]
+        ],
+        "boundsBlenderMetres": [
+          [
+            -0.15301783350329562,
+            -0.03619494235680465,
+            0.0
+          ],
+          [
+            0.1294677428872089,
+            0.033366654572661254,
+            0.2848187096843461
+          ]
+        ],
+        "dimensionsMetres": [
+          0.28248557639050453,
+          0.0695615969294659,
+          0.2848187096843461
+        ],
+        "materialNote": "Neutral sandstone display colour added to untextured scan; not original surface colour.",
+        "sourceLicense": "CC BY 4.0",
+        "sourceDOI": "10.6084/m9.figshare.692153.v1",
+        "sourceSha256": "ef88f98478dbe7951fc14a4251d0e5c682d80f21558e81ab2cdb2e9e13ab56d7",
+        "sourceArchiveSha256": "beafbffbaeb1aa608a51e33280ccefc09969cd79f6463123b156abb0b68a870d"
+      }
+    }
+  ]
+}

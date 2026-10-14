@@ -1,0 +1,394 @@
+{
+  "species": "Þórseðla / Brontosaurus",
+  "review": "Four lossless prefixes and G cores independently verified sample-exact; suffixes use default ice. No individual human listening approval claimed.",
+  "clips": {
+    "mini_brachiosaurus_win": {
+      "id": "mini_brachiosaurus_win",
+      "candidate": "qa/pronunciation/brontosaurus/mini_brachiosaurus_win-with-G.mp3",
+      "losslessCandidate": "qa/pronunciation/brontosaurus/mini_brachiosaurus_win-with-G.wav",
+      "sha256": "6d7c748d359fe752edb998441a99cb2c99b70f936db17e632fc7ea245740e7fc",
+      "wavSha256": "ab638fe3c21ec485283409492625878d71df446a6e06b46b148234a87333f7ba",
+      "duration": 9.170045,
+      "sampleRate": 44100,
+      "sourceText": "Tíu lauf í körfunni, Egill! Þú valdir gott nesti og fylgdist með því sem féll úr trénu. Þórseðlan er alsæl!",
+      "sourceTextHash": "751a71ef8d442d1991ab1202404dccd21e505b1134812682d6caa37dee60efed",
+      "generationInputHash": "80ad42efcca90970e864c54b0f1728e7c1fc6cfc94cfe733439905cd3289bc09",
+      "recipe": {
+        "sourceOriginalMaster": {
+          "file": "qa/pronunciation/brontosaurus/mini_brachiosaurus_win-before.mp3",
+          "sha256": "589e8bb7ef87df6c75f4821385c89836d016b8617051e6b879c04faa033aa76d",
+          "productionPathAtBuild": "dist/assets/audio/mini_brachiosaurus_win.mp3"
+        },
+        "losslessPrefix": {
+          "file": "qa/pronunciation/egill-repair/mini_brachiosaurus_win-with-original-G.wav",
+          "sha256": "6ecd9bf20bca5addef99da8662f3785fb5319950db4b0dce7d3e441e6e81330a",
+          "keepFrames": [
+            0,
+            291060
+          ],
+          "keepSeconds": [
+            0,
+            6.6
+          ],
+          "pcmSha256": "83763b057cb068380ca0b1c9aaa7e5f82861f7a2cafdfb2fa27d2adc04e78f3f"
+        },
+        "previousGProof": {
+          "file": "qa/pronunciation/egill-repair/mini_brachiosaurus_win-with-original-G.json",
+          "sha256": "d4094b79073b15dcf1639a997816a9d85ab610c12044056ad6d9d4f95d9b298b"
+        },
+        "newSuffix": {
+          "file": "qa/pronunciation/brontosaurus/mini_brachiosaurus_win-new.mp3",
+          "sha256": "9460f69ed666c535a26f8a18e75189c6ce3b571b85361aa8956dd1d7105912c9",
+          "text": "Þórseðlan er alsæl!",
+          "frames": 113337
+        },
+        "join": "Preserve prefix exactly; blend only first5ms of new suffix against the quiet original continuation, then keep every remaining generated suffix sample.",
+        "edgeFadeMs": 5,
+        "edgeFadeFrames": 221,
+        "cutReason": "After trénu.; before the old Finngálknið onset."
+      },
+      "approvedG": {
+        "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+        "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+        "protectedDonorFrames": [
+          37044,
+          57330
+        ],
+        "protectedOutputFrames": [
+          72721,
+          93007
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identical": true
+      },
+      "prefixPcmIdentical": true,
+      "suffixAfterFadePcmIdentical": true,
+      "suffixProtectedOutputFrames": [
+        291281,
+        404397
+      ],
+      "suffixProtectedPcmSha256": "8e2f643b548209d4612d65933f9c1c135d64962e6bbcae38cbf9a5d5092d2937",
+      "wavFrames": 404397,
+      "durationDeltaSeconds": 0.04,
+      "boundary": {
+        "originalQuiet": {
+          "rmsDbFS": -88.98416716148829,
+          "peakDbFS": -87.53023057457726
+        },
+        "newSuffixQuiet": {
+          "rmsDbFS": -82.76323741777756,
+          "peakDbFS": -78.87923916282169
+        },
+        "joinJumpDbFS": -110.4960181998199
+      },
+      "peaks": {
+        "wav": {
+          "dbFS": -2.6433267183681246,
+          "clippedSamples": 0
+        },
+        "mp3": {
+          "dbFS": -2.9033338245977607,
+          "clippedSamples": 0
+        }
+      },
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToPrefix": false,
+      "gainChangeToSuffixAfterFade": false,
+      "encoding": "MP3 192kbps mono44100Hz; lossy encoding follows exact32-bit PCM verification. No post-splice loudness normalization.",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "brachioCorrect": {
+      "id": "brachioCorrect",
+      "candidate": "qa/pronunciation/brontosaurus/brachioCorrect-with-G.mp3",
+      "losslessCandidate": "qa/pronunciation/brontosaurus/brachioCorrect-with-G.wav",
+      "sha256": "c8adf191be329e755cc15da9a4fe3cd8bb385fdd0ddb11dca0b700e46e797c32",
+      "wavSha256": "e334621936decc843ea4e45fca6e5d2d90b4145d072304d944403f847234223a",
+      "duration": 8.59,
+      "sampleRate": 44100,
+      "sourceText": "Alveg rétt, Egill! Þórseðla! Hún er líka kölluð Brontósárus. Ég þyrfti ansi háan koll til að heilsa henni!",
+      "sourceTextHash": "8c951afad6d769e8e982ff2faa6e80f6d5309eb59df52cc7434a43878d670d29",
+      "generationInputHash": "3510d2167f9a62e52aae006ee8eac4d204d7b3be65c2d4270c152d2e7967d75b",
+      "recipe": {
+        "sourceOriginalMaster": {
+          "file": "qa/pronunciation/brontosaurus/brachioCorrect-before.mp3",
+          "sha256": "7b5bd304d7f0deb42ee4b79c30fe9a60a236663e0f62e24199fce7dc651869b6",
+          "productionPathAtBuild": "dist/assets/audio/brachioCorrect.mp3"
+        },
+        "losslessPrefix": {
+          "file": "qa/pronunciation/egill-repair/brachioCorrect-with-original-G.wav",
+          "sha256": "d96d9c17a906a2fe2a5d82229f0796b7d8efa1114b48a9b9a8bd5fe90b864da5",
+          "keepFrames": [
+            0,
+            74970
+          ],
+          "keepSeconds": [
+            0,
+            1.7
+          ],
+          "pcmSha256": "69ca068b76aeb01594e3808ad1b066876927cf24362b02d2ed8a268286c3bbcd"
+        },
+        "previousGProof": {
+          "file": "qa/pronunciation/egill-repair/brachioCorrect-with-original-G.json",
+          "sha256": "94895472716de6b7d87e7e90907857617e45981227b90a8c40bd663b225a20fb"
+        },
+        "newSuffix": {
+          "file": "qa/pronunciation/brontosaurus/brachioCorrect-new.mp3",
+          "sha256": "88aee04302a78b321ce9e2bdecb5143f690a5e49b32f6544bdf6abbde0c14841",
+          "text": "Þórseðla! Hún er líka kölluð Brontósárus. Ég þyrfti ansi háan koll til að heilsa henni!",
+          "frames": 303849
+        },
+        "join": "Preserve prefix exactly; blend only first5ms of new suffix against the quiet original continuation, then keep every remaining generated suffix sample.",
+        "edgeFadeMs": 5,
+        "edgeFadeFrames": 221,
+        "cutReason": "Quiet gap after the complete approved Egill. Coarse alignment is late: the old Finngálkn onset is already audible-energy-bearing by1.74s, so the suggested1.81s cut was rejected."
+      },
+      "approvedG": {
+        "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+        "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+        "protectedDonorFrames": [
+          37044,
+          57330
+        ],
+        "protectedOutputFrames": [
+          45840,
+          66126
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identical": true
+      },
+      "prefixPcmIdentical": true,
+      "suffixAfterFadePcmIdentical": true,
+      "suffixProtectedOutputFrames": [
+        75191,
+        378819
+      ],
+      "suffixProtectedPcmSha256": "28ca6ccfca8a27ddc54329b41edcdba2680edd7a2097d385947e019efb972e68",
+      "wavFrames": 378819,
+      "durationDeltaSeconds": -0.14,
+      "boundary": {
+        "originalQuiet": {
+          "rmsDbFS": -88.68900898042037,
+          "peakDbFS": -82.84239267467632
+        },
+        "newSuffixQuiet": {
+          "rmsDbFS": -79.43153575414823,
+          "peakDbFS": -69.25315305428504
+        },
+        "joinJumpDbFS": -115.31220488117212
+      },
+      "peaks": {
+        "wav": {
+          "dbFS": -2.296609380652618,
+          "clippedSamples": 0
+        },
+        "mp3": {
+          "dbFS": -2.5606550108675687,
+          "clippedSamples": 0
+        }
+      },
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToPrefix": false,
+      "gainChangeToSuffixAfterFade": false,
+      "encoding": "MP3 192kbps mono44100Hz; lossy encoding follows exact32-bit PCM verification. No post-splice loudness normalization.",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "rideBrachioInvite": {
+      "id": "rideBrachioInvite",
+      "candidate": "qa/pronunciation/brontosaurus/rideBrachioInvite-with-G.mp3",
+      "losslessCandidate": "qa/pronunciation/brontosaurus/rideBrachioInvite-with-G.wav",
+      "sha256": "2b046020d97c2f47bc385aa6d2e7c0ad7a356b3445294f369dd8bddf4a58304f",
+      "wavSha256": "7886692e346aef92c8f0aba875ad35aec589bfa40d7ac117f567493571dac6f3",
+      "duration": 4.27,
+      "sampleRate": 44100,
+      "sourceText": "Viltu koma upp í trjátoppana, Egill? Þórseðlan passar þig!",
+      "sourceTextHash": "8cc8a8c40ded3e498eb5c8e9c452df3043625ba2d939f62fea12bb47331a40d3",
+      "generationInputHash": "9849ce36a599684ed485e8ff89bff96ca951449b9e100362d7d71c9bfbbc1476",
+      "recipe": {
+        "sourceOriginalMaster": {
+          "file": "qa/pronunciation/brontosaurus/rideBrachioInvite-before.mp3",
+          "sha256": "cbb3f7e54d761a2a33f5ded499c65c0649901f93ef9907c55ba595dc8f0bd053",
+          "productionPathAtBuild": "dist/assets/audio/rideBrachioInvite.mp3"
+        },
+        "losslessPrefix": {
+          "file": "qa/pronunciation/egill-repair/rideBrachioInvite-with-original-G.wav",
+          "sha256": "abfaafdf081c99634f7e77089608692dc513acfb462c6e52619f5cd90c0d7a72",
+          "keepFrames": [
+            0,
+            99666
+          ],
+          "keepSeconds": [
+            0,
+            2.26
+          ],
+          "pcmSha256": "587755ffa8ebff5149ce8d20fdfcb7edbf09b72d8b1e4ca4d07a24d01c0de156"
+        },
+        "previousGProof": {
+          "file": "qa/pronunciation/egill-repair/rideBrachioInvite-with-original-G.json",
+          "sha256": "59a4c11c24f2393ed7f459b82ba4024fa63c92aa355fd41ec0c18adf19e1383f"
+        },
+        "newSuffix": {
+          "file": "qa/pronunciation/brontosaurus/rideBrachioInvite-new.mp3",
+          "sha256": "eee2095564c4b6fc1323ba273e3281428d060d056d3b2401c05aa9b1d5a927fd",
+          "text": "Þórseðlan passar þig!",
+          "frames": 88641
+        },
+        "join": "Preserve prefix exactly; blend only first5ms of new suffix against the quiet original continuation, then keep every remaining generated suffix sample.",
+        "edgeFadeMs": 5,
+        "edgeFadeFrames": 221,
+        "cutReason": "Quiet gap after Egill and its decay; before the old Finngálknið onset."
+      },
+      "approvedG": {
+        "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+        "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+        "protectedDonorFrames": [
+          37044,
+          57330
+        ],
+        "protectedOutputFrames": [
+          66798,
+          87084
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identical": true
+      },
+      "prefixPcmIdentical": true,
+      "suffixAfterFadePcmIdentical": true,
+      "suffixProtectedOutputFrames": [
+        99887,
+        188307
+      ],
+      "suffixProtectedPcmSha256": "ce771595c3b7b71f645a6b2a481574d3e3a4466d60773a27ef8dfd07e342cb28",
+      "wavFrames": 188307,
+      "durationDeltaSeconds": 0.02,
+      "boundary": {
+        "originalQuiet": {
+          "rmsDbFS": -77.1065415508324,
+          "peakDbFS": -68.63059922443439
+        },
+        "newSuffixQuiet": {
+          "rmsDbFS": -85.33788412575936,
+          "peakDbFS": -81.52436924707955
+        },
+        "joinJumpDbFS": -95.0205537623356
+      },
+      "peaks": {
+        "wav": {
+          "dbFS": -3.092351474432398,
+          "clippedSamples": 0
+        },
+        "mp3": {
+          "dbFS": -3.3656089225215666,
+          "clippedSamples": 0
+        }
+      },
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToPrefix": false,
+      "gainChangeToSuffixAfterFade": false,
+      "encoding": "MP3 192kbps mono44100Hz; lossy encoding follows exact32-bit PCM verification. No post-splice loudness normalization.",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_brachio_complete": {
+      "id": "adventure_brachio_complete",
+      "candidate": "qa/pronunciation/brontosaurus/adventure_brachio_complete-with-G.mp3",
+      "losslessCandidate": "qa/pronunciation/brontosaurus/adventure_brachio_complete-with-G.wav",
+      "sha256": "23d84b0db1103f9bfc3c80b999d7a907cfb6de49a93a18e5dd495f7e8da0b996",
+      "wavSha256": "0771537797896c6775d785524547cfe30252e824a3402e36d55b20094c760cf0",
+      "duration": 8.39,
+      "sampleRate": 44100,
+      "sourceText": "Þrjú lauf í nestið! Takk fyrir hjálpina, Egill. Þórseðlan hjálpaði okkur upp í greinarnar með langa hálsinum sínum!",
+      "sourceTextHash": "83acb9fa472bf74afedb635dcf2c50b29e5a201ea54de1ed79252fa80f0d9f6b",
+      "generationInputHash": "6e81ec4df9134f6d932a5297a4c3e7c6dc8dd6a670779e24c138b8849dd20d64",
+      "recipe": {
+        "sourceOriginalMaster": {
+          "file": "qa/pronunciation/brontosaurus/adventure_brachio_complete-before.mp3",
+          "sha256": "18d4101593d0d54cf1a95f86e8e411d06fd2b3ed2f0e4801bd3405ccbf68929d",
+          "productionPathAtBuild": "dist/assets/audio/adventure_brachio_complete.mp3"
+        },
+        "losslessPrefix": {
+          "file": "qa/pronunciation/egill-repair/adventure_brachio_complete-with-original-G.wav",
+          "sha256": "3721661fc115e2262fe60142f9cebde0173a262118c54b0aef16a930d9eee84f",
+          "keepFrames": [
+            0,
+            157878
+          ],
+          "keepSeconds": [
+            0,
+            3.58
+          ],
+          "pcmSha256": "0fe9889f7e508f3b38d76d8ab75c70821a8641353757d51ae68af7fcff94cb88"
+        },
+        "previousGProof": {
+          "file": "qa/pronunciation/egill-repair/adventure_brachio_complete-with-original-G.json",
+          "sha256": "aea403ec7fcd8417571191d97666a60b198af0c26c1005829990660528172ac1"
+        },
+        "newSuffix": {
+          "file": "qa/pronunciation/brontosaurus/adventure_brachio_complete-new.mp3",
+          "sha256": "118ffd46a72ddea7c5d30e260db1cfc36becf4c94b9554382ee6e5272e7bdf5b",
+          "text": "Þórseðlan hjálpaði okkur upp í greinarnar með langa hálsinum sínum!",
+          "frames": 212121
+        },
+        "join": "Preserve prefix exactly; blend only first5ms of new suffix against the quiet original continuation, then keep every remaining generated suffix sample.",
+        "edgeFadeMs": 5,
+        "edgeFadeFrames": 221,
+        "cutReason": "Quiet gap after Egill and its decay; before the old Finngálknið onset."
+      },
+      "approvedG": {
+        "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+        "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+        "protectedDonorFrames": [
+          37044,
+          57330
+        ],
+        "protectedOutputFrames": [
+          125153,
+          145439
+        ],
+        "pcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+        "identical": true
+      },
+      "prefixPcmIdentical": true,
+      "suffixAfterFadePcmIdentical": true,
+      "suffixProtectedOutputFrames": [
+        158099,
+        369999
+      ],
+      "suffixProtectedPcmSha256": "29d924096792167b87d3a022d1dc78a991850ddbef71b14937e8a1c4b4273e0b",
+      "wavFrames": 369999,
+      "durationDeltaSeconds": -0.18,
+      "boundary": {
+        "originalQuiet": {
+          "rmsDbFS": -88.09720322551544,
+          "peakDbFS": -80.81632853914368
+        },
+        "newSuffixQuiet": {
+          "rmsDbFS": -84.19519241678492,
+          "peakDbFS": -80.28970010497213
+        },
+        "joinJumpDbFS": -96.80324172359447
+      },
+      "peaks": {
+        "wav": {
+          "dbFS": -2.268040466853846,
+          "clippedSamples": 0
+        },
+        "mp3": {
+          "dbFS": -2.513408828593773,
+          "clippedSamples": 0
+        }
+      },
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToPrefix": false,
+      "gainChangeToSuffixAfterFade": false,
+      "encoding": "MP3 192kbps mono44100Hz; lossy encoding follows exact32-bit PCM verification. No post-splice loudness normalization.",
+      "humanReviewed": false,
+      "installed": true
+    }
+  }
+}

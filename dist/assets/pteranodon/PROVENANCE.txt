@@ -1,0 +1,6 @@
+Original Pteranodon geometry, vertex paint, skeleton and animation authored for Stjörnufar.
+No downloaded model, texture, animation or other third-party artwork is incorporated.
+Anatomy references (facts only, no copied artwork):
+https://www.amnh.org/explore/ology/ology-cards/358-pteranodon-longiceps
+https://www.amnh.org/exhibitions/permanent/vertebrate-origins/pterosaurs
+Reproducible generator: scripts/build-pteranodon.py (headless Blender 5.2).

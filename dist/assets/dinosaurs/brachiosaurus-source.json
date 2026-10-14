@@ -1,0 +1,44 @@
+{
+  "file": "brachiosaurus.glb",
+  "bytes": 870240,
+  "triangles": 22960,
+  "bones": 29,
+  "clips": [
+    "idle",
+    "walk"
+  ],
+  "source": "Blends/Apatosaurus.blend",
+  "scale": 0.17484150429041945,
+  "author": "Quaternius (base mesh); Stj\u00f6rnufar (anatomy, skin, new animation)",
+  "sourceLicense": "CC0-1.0",
+  "sourceUrl": "https://quaternius.itch.io/animated-lowpoly-dinosaurs",
+  "rightsNote": "The Quaternius base is CC0. Newly authored anatomy, animation and pigment are project-original modifications; this record does not assign a new public license to them.",
+  "modifications": "Reshaped continuous Apatosaurus mesh as a storybook Brontosaurus: broad torso, lower front shoulders and forelegs, substantial gently rising neck, small level skull and full-length lifted tapering tail; matching bind skeleton; two subdivisions; original idle/walk actions. The brachiosaurus filename is a save-compatible internal key, not the displayed species.",
+  "displaySpecies": "Brontosaurus",
+  "internalKey": "brachiosaurus",
+  "boundsZUp": [
+    [
+      -4.4,
+      -0.56482,
+      0.0
+    ],
+    [
+      4.4,
+      0.56482,
+      2.47509
+    ]
+  ],
+  "bounds": [
+    [
+      -4.4,
+      0,
+      -0.56482
+    ],
+    [
+      4.4,
+      2.47509,
+      0.56482
+    ]
+  ],
+  "coordinateSystem": "+X forward, +Y up, feet at Y=0"
+}

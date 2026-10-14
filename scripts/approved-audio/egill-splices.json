@@ -1,0 +1,1404 @@
+{
+  "sourceCommit": "1c5a479f650fdfe9a0237ffd907c9f13d75b074a",
+  "approvedGHash": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+  "approvedWelcomeHash": "aa2c9d5b338cae93f049c44bc46058aa50f73ab09e6757f951b00112c3591991",
+  "userApproval": "já rétt núna aftur",
+  "method": "Exact decoded G name samples; no stretch, pitch or gain changes; 5ms pilot fades and 8ms equal-gain connected-speech boundary crossfades; MP3 192kbps. Human listened to G and assembled welcome; other full sentences have technical review only.",
+  "clips": {
+    "mini_stegosaurus_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_stegosaurus_win-before.mp3",
+          "sha256": "4dc04007867585e7140961a8058fd954a8c91588bf083cc734de3d7de3d0e641",
+          "replaceSeconds": [
+            6.238163265306122,
+            6.868163265306123
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_stegosaurus_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_stegosaurus_win-with-original-G.mp3",
+      "sha256": "140610a93015dda5a916bb18bc754a6d6d3dc968f8896fd6981d4d8b307d0fb8",
+      "duration": 9.770862,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        275103,
+        302886
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        275632,
+        295918
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "mini_brachiosaurus_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_brachiosaurus_win-before.mp3",
+          "sha256": "fa626c11fced675d27a9778d92236d11f4c28f3730e07fa7e322efc5c75b7c25",
+          "replaceSeconds": [
+            1.6370068027210884,
+            2.2670068027210886
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_brachiosaurus_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_brachiosaurus_win-with-original-G.mp3",
+      "sha256": "589e8bb7ef87df6c75f4821385c89836d016b8617051e6b879c04faa033aa76d",
+      "duration": 9.13,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        72192,
+        99975
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        72721,
+        93007
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "mini_trex_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_trex_win-before.mp3",
+          "sha256": "534b0102d970af3f3af3969a8041ccfb58551b05f1d0a80aee7b416f1055db1f",
+          "replaceSeconds": [
+            1.5251020408163265,
+            2.1551020408163266
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_trex_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_trex_win-with-original-G.mp3",
+      "sha256": "4b2c74eaf8e93fd67fb5cf5747b24434dfc28c820084884dc1bb00e276316ded",
+      "duration": 7.29,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        67257,
+        95040
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        67786,
+        88072
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "mini_spinosaurus_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_spinosaurus_win-before.mp3",
+          "sha256": "ec982f31659779ae833b74108600af77cbf34455e30892fdd2460f79e8c8e9f6",
+          "replaceSeconds": [
+            1.8633333333333333,
+            2.493333333333333
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_spinosaurus_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_spinosaurus_win-with-original-G.mp3",
+      "sha256": "bcbb90425fcab179ccc72f72565a08c7e182f0b29317653f872dcb3b7574a9ba",
+      "duration": 8.01,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        82173,
+        109956
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        82702,
+        102988
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "mini_parasaurolophus_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_parasaurolophus_win-before.mp3",
+          "sha256": "7962b4b1e21bde955ef113cbbc6ef8bb733d515bd2e3d3b6f24f80cd157580e1",
+          "replaceSeconds": [
+            1.4850566893424035,
+            2.1150566893424037
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_parasaurolophus_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_parasaurolophus_win-with-original-G.mp3",
+      "sha256": "c07368005d1382df7909ef81b3d3387c1affe868ec92139e75dfc8dd0534e571",
+      "duration": 6.81,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        65491,
+        93274
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        66020,
+        86306
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "mini_pteranodon_win": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\mini_pteranodon_win-before.mp3",
+          "sha256": "d5cbf14fc3107bce4aae113a97414dd246fc221f9ac41c74b42ff51133dd8eff",
+          "replaceSeconds": [
+            2.3775283446712017,
+            3.007528344671202
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\mini_pteranodon_win-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\mini_pteranodon_win-with-original-G.mp3",
+      "sha256": "cdab2bb87fda7032b4f8921c03296f6982b599b0d1ba7cec38905b925f246dd4",
+      "duration": 8.01,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        104849,
+        132632
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        105378,
+        125664
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "welcome": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa/pronunciation/egill-repair/welcome-before.mp3",
+          "sha256": "96a231bf9d7c5f45ea52b5aeff6b87f67e78daca2926df59e8b99a8c80fa34dd",
+          "replaceSeconds": [
+            0.502,
+            1.132
+          ]
+        },
+        "output": "qa/pronunciation/egill-repair/welcome-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\welcome-with-original-G.mp3",
+      "sha256": "aa2c9d5b338cae93f049c44bc46058aa50f73ab09e6757f951b00112c3591991",
+      "duration": 6.49,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        22138,
+        49921
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        22667,
+        42953
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 5,
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": true,
+      "installed": true
+    },
+    "invite": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\invite-before.mp3",
+          "sha256": "ab8671a8fb37dbadf7e6f346973b720b85767d3b13aa46ff33b364129ba0de48",
+          "replaceSeconds": [
+            0.7860317460317461,
+            1.416031746031746
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\invite-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\invite-with-original-G.mp3",
+      "sha256": "da98d830b3a46b6ba174271323bc6d85de268d7eed1b4e8e67c3754041764b92",
+      "duration": 6.57,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        34664,
+        62447
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        35193,
+        55479
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "walkForest": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\walkForest-before.mp3",
+          "sha256": "9aa2f56596c0b23640e46ed611df5e7ba57a9d9279a4f0752684dad0f21645d1",
+          "replaceSeconds": [
+            1.5409977324263038,
+            2.170997732426304
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\walkForest-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\walkForest-with-original-G.mp3",
+      "sha256": "11f440d7b65ef01ad808f281031984cccb8ffd2d44266e147ed0802c1373f6ae",
+      "duration": 8.490862,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        67958,
+        95741
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        68487,
+        88773
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "stegoCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\stegoCorrect-before.mp3",
+          "sha256": "7f0687689143b4a989f0e98b02c2abed5b0aa10bf7fb298c34c03777ea98ff43",
+          "replaceSeconds": [
+            0.526485260770975,
+            1.156485260770975
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\stegoCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\stegoCorrect-with-original-G.mp3",
+      "sha256": "aa856d886b55cc3904c10e77d4efd1191c9897e2f258053df1a9696ee5bf2299",
+      "duration": 10.09,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        23218,
+        51001
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        23747,
+        44033
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "brachioCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\brachioCorrect-before.mp3",
+          "sha256": "68e11dceccd251e01067c4a404b41bce3b8cbeeb27644ae772fcd512603e0fff",
+          "replaceSeconds": [
+            1.0274603174603174,
+            1.6574603174603175
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\brachioCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\brachioCorrect-with-original-G.mp3",
+      "sha256": "7b5bd304d7f0deb42ee4b79c30fe9a60a236663e0f62e24199fce7dc651869b6",
+      "duration": 8.73,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        45311,
+        73094
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        45840,
+        66126
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "rexCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\rexCorrect-before.mp3",
+          "sha256": "4971b0db046f0ca522bf602916b6731071cf8d406406a966e5af5e8d15d111b8",
+          "replaceSeconds": [
+            0.5440816326530612,
+            1.1740816326530612
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\rexCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\rexCorrect-with-original-G.mp3",
+      "sha256": "ebca346213c6001f3e7d85f01432368c95602692a6619b12bb82686425b97b28",
+      "duration": 9.770862,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        23994,
+        51777
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        24523,
+        44809
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "spinoCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\spinoCorrect-before.mp3",
+          "sha256": "d5ed4b7aa8317f591b98a5b4801f87ec627a40e873d770b449af9f7e27704332",
+          "replaceSeconds": [
+            1.0282086167800453,
+            1.6582086167800454
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\spinoCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\spinoCorrect-with-original-G.mp3",
+      "sha256": "696f6275aede4e331c7c2cb3a02d43760851142efd39da33b0cf60a462ac4fa1",
+      "duration": 8.73,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        45344,
+        73127
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        45873,
+        66159
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "paraCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\paraCorrect-before.mp3",
+          "sha256": "79a7e731896d76662d619885f0a7e02e38905c062a6af6d23768cc6e2b8085e5",
+          "replaceSeconds": [
+            0.736938775510204,
+            1.366938775510204
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\paraCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\paraCorrect-with-original-G.mp3",
+      "sha256": "d4fcb6bb5bca81c2bfbe8554ddef36b7489bc7b00bedcafab20f8dcfab155283",
+      "duration": 9.21,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        32499,
+        60282
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        33028,
+        53314
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "pteraCorrect": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\pteraCorrect-before.mp3",
+          "sha256": "73afa291cb7cdbe512b5428fce657b8ad4efae2d63fa51237d317536b9a5d5d3",
+          "replaceSeconds": [
+            0.5111337868480725,
+            1.1411337868480727
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\pteraCorrect-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\pteraCorrect-with-original-G.mp3",
+      "sha256": "73c256647aae8cd86d3df2d896a8b155654711b6e69610227225cbc6f4e8df2e",
+      "duration": 10.97,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        22541,
+        50324
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        23070,
+        43356
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "finish": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\finish-before.mp3",
+          "sha256": "09c12a444ba5348bac705ad22a78cb099598a6a20062c220b872f0b6ba2c4cf0",
+          "replaceSeconds": [
+            3.5090022675736963,
+            4.139002267573696
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\finish-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\finish-with-original-G.mp3",
+      "sha256": "8f5368d3076de61b3f8b8f02d455d8765932f6112ec6feac00f348c7c9c7b2a6",
+      "duration": 10.81,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        154747,
+        182530
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        155276,
+        175562
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventureHelp": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventureHelp-before.mp3",
+          "sha256": "33f71c16b6b19beb562351b0e17c547e502ea36bfe233949c9306739af2b6a6c",
+          "replaceSeconds": [
+            1.3629251700680272,
+            1.9929251700680273
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventureHelp-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventureHelp-with-original-G.mp3",
+      "sha256": "917020cf4f3f20c779bf73b289fea03ed5c43923553f9f21980015e3309d1349",
+      "duration": 7.05,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        60105,
+        87888
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        60634,
+        80920
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "rideBrachioInvite": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\rideBrachioInvite-before.mp3",
+          "sha256": "367dadad73477184ab24adb63f75f64cf3be0a9aea85fa50be20f7dc34334e55",
+          "replaceSeconds": [
+            1.5026984126984126,
+            2.1326984126984128
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\rideBrachioInvite-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\rideBrachioInvite-with-original-G.mp3",
+      "sha256": "cbb3f7e54d761a2a33f5ded499c65c0649901f93ef9907c55ba595dc8f0bd053",
+      "duration": 4.25,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        66269,
+        94052
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        66798,
+        87084
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "ridePteraInvite": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\ridePteraInvite-before.mp3",
+          "sha256": "73c85c250fa5eb25db92b48f8f350bccd7d76f5d6adf476fdd37d7ea578fe6d8",
+          "replaceSeconds": [
+            1.6514285714285715,
+            2.2814285714285716
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\ridePteraInvite-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\ridePteraInvite-with-original-G.mp3",
+      "sha256": "7e2cb15c8ec0187926bb39b81f59246dd3cba1bd214d7c0d9eb34b1005b472e6",
+      "duration": 4.33,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        72828,
+        100611
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        73357,
+        93643
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_stego_secretFound": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventure_stego_secretFound-before.mp3",
+          "sha256": "28b677e160f98160050f9feee843623a438755c5e623602419fbceb6a09779fd",
+          "replaceSeconds": [
+            1.4795918367346939,
+            2.109591836734694
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventure_stego_secretFound-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventure_stego_secretFound-with-original-G.mp3",
+      "sha256": "91f0eebbef03aaa1e3a5da5ecb582e9443d42c4a87867dfa9e1eb2b795fd971c",
+      "duration": 7.77,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        65250,
+        93033
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        65779,
+        86065
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_brachio_complete": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventure_brachio_complete-before.mp3",
+          "sha256": "c000148d99af6dc1768a68b4d644c32dbe7b7d8120ecc128e9cf91286da7a659",
+          "replaceSeconds": [
+            2.8259410430839003,
+            3.4559410430839
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventure_brachio_complete-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventure_brachio_complete-with-original-G.mp3",
+      "sha256": "18d4101593d0d54cf1a95f86e8e411d06fd2b3ed2f0e4801bd3405ccbf68929d",
+      "duration": 8.57,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        124624,
+        152407
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        125153,
+        145439
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_rex_instruction": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventure_rex_instruction-before.mp3",
+          "sha256": "94f6ad52153587a4c3fd76ac7c68cb74a281b92f0f39f58a9443930ac401ab81",
+          "replaceSeconds": [
+            1.332358276643991,
+            1.9623582766439909
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventure_rex_instruction-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventure_rex_instruction-with-original-G.mp3",
+      "sha256": "6520a5decf460d45ca6baab6d8e23e1fb9feb086112712ef1c13216a54113752",
+      "duration": 9.29,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        58757,
+        86540
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        59286,
+        79572
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_spino_complete": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventure_spino_complete-before.mp3",
+          "sha256": "50b9018aada03994bc5590afcf16a4131655909f789081c7d1ff1122dd8d6e1b",
+          "replaceSeconds": [
+            3.828231292517007,
+            4.458231292517007
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventure_spino_complete-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventure_spino_complete-with-original-G.mp3",
+      "sha256": "a8728965167a0c166c1b3f90c845de1e131bc16753a39fbb6e888aaed0b92769",
+      "duration": 9.13,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        168825,
+        196608
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        169354,
+        189640
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    },
+    "adventure_para_instruction": {
+      "recipe": {
+        "donor": {
+          "file": "qa/pronunciation/egill-v4/G-v4-canonical.mp3",
+          "sha256": "0fafd98f9fc41782011f183b092987a59a26f6533a08f13f6f3af201fc465663",
+          "cutSeconds": [
+            0.828,
+            1.458
+          ],
+          "protectedSeconds": [
+            0.84,
+            1.3
+          ]
+        },
+        "base": {
+          "file": "qa\\pronunciation\\egill-repair\\adventure_para_instruction-before.mp3",
+          "sha256": "46430f92d190485eddcea538cf503e8eb63c9fde132dac36eeefb7ced7513e19",
+          "replaceSeconds": [
+            1.8047619047619048,
+            2.434761904761905
+          ]
+        },
+        "join": "crossfade",
+        "edgeFadeMs": 8,
+        "output": "qa\\pronunciation\\egill-repair\\adventure_para_instruction-with-original-G"
+      },
+      "candidate": "qa\\pronunciation\\egill-repair\\adventure_para_instruction-with-original-G.mp3",
+      "sha256": "1e0fbca0ea1f64f48f0a44518b6752a0d864eadfe6a93a94a36c72fc587f177f",
+      "duration": 8.490862,
+      "sampleRate": 44100,
+      "donorCutFrames": [
+        36515,
+        64298
+      ],
+      "baseReplaceFrames": [
+        79590,
+        107373
+      ],
+      "protectedDonorFrames": [
+        37044,
+        57330
+      ],
+      "protectedOutputFrames": [
+        80119,
+        100405
+      ],
+      "approvedWordPcmIdentical": true,
+      "protectedPcmSha256": "91ea2b95a1abff31151d8a179daa8ecd1797bbc71ef895f8360a33408a44d71f",
+      "durationDeltaSeconds": 0,
+      "pitchChange": false,
+      "timeStretch": false,
+      "gainChangeToWord": false,
+      "edgeFadeMs": 8,
+      "join": "crossfade",
+      "encoding": "MP3 192kbps mono; lossy encoding follows exact PCM verification",
+      "humanReviewed": false,
+      "installed": true
+    }
+  },
+  "status": "installed-and-technically-reviewed",
+  "independentReview": {
+    "pilot": "Protected name PCM exact; source outside boundary fades exact; equal duration and no clipping.",
+    "bulk": "23/23: protected name and untouched surrounding PCM exact; all crossfade endpoints continuous; all durations unchanged; maximum4x oversampled MP3 peak -2.256 dBFS.",
+    "limits": "User heard G and full assembled welcome. Other full sentences not individually human-auditioned; waveform checks cannot establish lexical naturalness."
+  }
+}
