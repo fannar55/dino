@@ -172,13 +172,20 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const mixer = new THREE.AnimationMixer(model);
   const clips = new Map(gltf.animations.map(c => [c.name, c]));
   let current = null;
-  let gait; // measured the first time the actor walks
+  let gait; // measured the first time it is needed: a walk, or a climb matching the walk to its speed
+  function measuredGait() {
+    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
+    return gait;
+  }
 
-  function play(clipName, { fade = 0.4, timeScale = 1 } = {}) {
+  // `once` plays the clip to its end and holds the last frame; otherwise it loops.
+  function play(clipName, { fade = 0.4, timeScale = 1, once = false } = {}) {
     const clip = clips.get(clipName);
     if (!clip) return null;
     const action = mixer.clipAction(clip);
     action.enabled = true;
+    action.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+    action.clampWhenFinished = once;
     action.setEffectiveTimeScale(timeScale);
     action.setEffectiveWeight(1);
     if (current && current !== action) {
@@ -274,7 +281,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     handle.onCancel = () => { if (walk?.handle === handle) { const w = walk; walk = null; arrive(w); } };
     const curve = pts.length > 2 ? new THREE.CatmullRomCurve3(pts, false, 'centripetal') : new THREE.LineCurve3(pts[0], pts[1]);
     const length = curve.getLength();
-    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
+    measuredGait();
     const baseScale = gait ? clamp(speed / gait.naturalSpeed, 0.5, 3) : 1;
     const walking = current?.getClip() === clips.get('walk');
     const action = play('walk', { fade, timeScale: baseScale });
@@ -360,6 +367,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
   }
 
+  // Control ------------------------------------------------------------------------------------
+  // Something else can move the actor (riding.js: a climb, a ride). It puts the root each frame, and
+  // walking, turning and footing wait while it does.
+  let controlled = false;
+  let drive = null; // while controlled, called first in each update to put the root
+  function setControlled(value) {
+    if (controlled && !value) footing.reset(); // the feet start over from where the actor was left
+    controlled = value;
+    if (!value) drive = null;
+  }
+
   // Looking ------------------------------------------------------------------------------------
   // The look is laid over the animated pose each frame. The pose the mixer produced is saved and
   // restored first, because the mixer leaves a bone alone when its value has not changed (a paused
@@ -423,10 +441,26 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     get heading() { return getHeading(); },
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },
-    get gait() { return gait; },
+    /** The walk clip's measured gait (naturalSpeed and the rest), or null without a walk clip. */
+    get gait() { return measuredGait(); },
+    /**
+     * True while something else moves the actor (riding.js): update() plays the clips and lays the look
+     * over them, but leaves walking, turning and footing alone and the root where it is put. Set back to
+     * false, the feet start over from where the actor was left.
+     */
+    get controlled() { return controlled; },
+    set controlled(value) { setControlled(Boolean(value)); },
+    /** Take the actor over: drive(dt) puts the root first thing in every update. control(null) gives it back. */
+    control(fn) {
+      setControlled(Boolean(fn));
+      drive = fn ?? null;
+    },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
-    /** Play a clip; one that moves the legs gets them as it is (footing stops planting the feet). */
+    /**
+     * Play a clip, looping or, with `once`, to its end and holding the last frame; one that moves the
+     * legs gets them as it is (footing stops planting the feet).
+     */
     play(clipName, options = {}) {
       const action = play(clipName, options);
       if (action && movesLegs(action.getClip())) footing.free(options.fade ?? 0.4);
@@ -446,10 +480,13 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     update(dt) {
       if (lookApplied) lookBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
       footing.restore();
-      updateWalk(dt);
-      updateTurn(dt);
+      if (controlled) drive?.(dt);
+      else {
+        updateWalk(dt);
+        updateTurn(dt);
+      }
       mixer.update(dt);
-      footing.update(dt);
+      if (!controlled) footing.update(dt);
       lookBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
       lookApplied = applyLook(dt);
     },
