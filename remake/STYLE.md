@@ -41,7 +41,7 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Character | Species | Main hue | Main | Light (belly) | Dark | Accent |
 |---|---|---|---|---|---|---|
 | Mosi | Triceratops | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
-| Egill | boy explorer | khaki and orange | hat `#caa15b` | shirt `#f6e3ac` | trousers `#355774` | backpack `#c57043` |
+| Egill | boy explorer | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
 | Kambeðla | Stegosaurus | orange | `#e58a3d` | `#f3d9b0` | `#a8582a` | plates teal `#3f9c95` |
 | Þórseðla | Brachiosaurus | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
 | Grameðla | T. rex | violet | `#8f6cc9` | `#e2d6f1` | `#5b4590` | cheeks `#ef9fb3` |
@@ -180,20 +180,48 @@ face), misty far forest, forest wall.
 
 ## 12. Asset pipeline
 
-Characters (decision: always our bake tool; Egill is the exception and keeps Tripo's rig):
+Characters (decision: always our bake tool, four-legged and two-legged alike):
 
 1. Concept image in two passes, using `design/mosi/*-prompt.txt` as templates. First a personality
    reference: species, personality, palette from section 3, friendly face, front three-quarter
    view, plain off-white background. Then a rest-pose source: simplified matte surfaces, symmetric
    neutral stance, straight spine and tail, all feet flat, near-orthographic view about 60 degrees
-   from the front, plain light grey background, no accessories. Egill stands in a T-pose; his two
-   prompts are ready in `remake/prompts/`.
+   from the front, plain light grey background, no accessories. A two-legged character stands in
+   an A- or T-pose with the arms clear of the body (Egill arrived in an A-pose); Egill's two
+   prompts are in `remake/prompts/`.
 2. Tripo image-to-3D from the rest-pose image: about 30 to 40k faces, 2K textures, exported in parts.
 3. Bake tool: rig, soft weights, clips, one skinned mesh, 1024 JPEG, the bone names the game
    expects, at most 40k triangles.
 4. Life in code: blinking eyelids, look-at, breathing, celebration.
 5. Check: fixed comparison shots, GPU ms in the tablet preset, provenance in `visual-assets.json`,
    review against this guide. Reject it if it fails.
+
+Mosi was baked with `lab/gfx-demo/tools/bake-mosi.mjs`. Two-legged characters (Egill) go through
+`remake/tools/bake/`. An unrigged Tripo export comes in many parts and far over budget (Egill
+arrived in 11 parts with 395k triangles), so it is first decimated in Blender, keeping the parts:
+
+```bash
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-decimate.py -- <tripo.glb> <parts.glb> 20000 tripo_part_0 parts
+```
+
+The script welds the vertices the GLB splits along UV seams before it decimates (decimating split
+seams opens thin cracks that show as dark lines and specks), and the head keeps relatively more
+detail. Then the bake, in headless Edge:
+
+```bash
+node remake/tools/bake/bake-character.mjs --page bake-biped --out <name>.glb --query "src=<parts.glb, relative to the page>&height=1.1&yaw=90&name=<Name>&out=<name>.glb"
+```
+
+`bake-biped` stands the model at the origin facing +X, tells the parts apart by position (head,
+torso, hips, upper arms, forearms with hands, legs, feet), places 20 humanoid joints from the seams
+between parts, gives every vertex smooth weights that agree on both sides of each seam, and authors
+the clips in code (`biped-clips.js`: idle, walk, wave, waveLeft, point, sit, lifted). Rest
+rotations are identity, so a clip turns bones about the character's own axes (X forward, Y up,
+Z right). A child's arms are short against his head: a raised hand reads by staying out to the
+side, and past about 165 degrees from hanging the forearm folds over the head.
+`remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
+textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
+that fills the frame costs about 0.7 ms more on the reference laptop.
 
 Environment:
 

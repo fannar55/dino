@@ -33,7 +33,10 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `chapters/`: one module per chapter: layout, actors, cast, lines, shots and the script.
 - `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length).
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
-- `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`.
+- `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
+  and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
+  runs `bake-biped` for two-legged characters) and `prep-character.mjs` for static models (see
+  STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
 ## Writing a chapter

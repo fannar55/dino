@@ -16,6 +16,8 @@ const loader = new GLTFLoader();
 const cache = new Map();
 const FORWARD = new THREE.Vector3(1, 0, 0);
 const FEET = ['FrontFoot.L', 'FrontFoot.R', 'BackFoot.L', 'BackFoot.R'];
+// Bipeds baked by remake/tools/bake/bake-biped.js: the walk speed is measured from these.
+const BIPED_FEET = ['LeftFoot', 'RightFoot'];
 const rad = THREE.MathUtils.degToRad;
 const deg = THREE.MathUtils.radToDeg;
 const clamp = THREE.MathUtils.clamp;
@@ -114,11 +116,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const headForward = head ? FORWARD.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert()) : null;
 
   // The feet and their bind-pose spots; the legs swing from the height of the body's centre.
-  const feet = FEET.map(n => findBone(model, n)).filter(Boolean);
+  // Footing follows the quadruped rig only; a biped gets its walk speed matched, without footing.
+  const quadFeet = FEET.map(n => findBone(model, n)).filter(Boolean);
+  const quadruped = quadFeet.length === FEET.length;
+  const feet = quadruped ? quadFeet : BIPED_FEET.map(n => findBone(model, n)).filter(Boolean);
   const restFeet = feet.map(foot => model.worldToLocal(foot.getWorldPosition(new THREE.Vector3())));
   const footing = createFooting({
     root,
-    legs: feet.length === FEET.length ? feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 })) : [],
+    legs: quadruped ? feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 })) : [],
     pivotHeight: centreLocal.y,
   });
   const legBones = new Set(feet.flatMap(foot => [foot.name, foot.parent.name]));

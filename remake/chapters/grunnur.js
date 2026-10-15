@@ -2,6 +2,9 @@
 // camera director and the scene system; it is not a story chapter.
 //
 // Units are metres. Mosi is about 4 m nose to tail and 2 m tall, standing at the origin facing +X.
+// Egill (1.1 m) waits in the clearing; Mosi walks up to him and says hello. Egill is a Tripo model
+// rigged and animated by remake/tools/bake/bake-biped.js (idle, walk, wave, waveLeft, point, sit,
+// lifted).
 // The morning sun sits toward -X/+Z (azimuth 135 deg), so the hero shot gets side light.
 
 // The tracking shot rides ahead of Mosi on his right (+Z) side, so we see his face as he walks in.
@@ -13,6 +16,8 @@ const FACE = { actor: 'mosi', part: 'head', offset: [0, 0.35, 0] };
 const CANOPY = [7.2, 10, -9.6];
 // Where Mosi glances while he speaks: up and a little to his left, inside his comfortable head turn.
 const GLANCE = [13, 7.5, -3];
+// Where Egill waits, facing the spot where Mosi stops; Mosi then turns 20 degrees to face him.
+const EGILL = { position: [2.74, 0, 0.94], heading: 200 };
 
 export const chapter = {
   id: 'grunnur',
@@ -27,10 +32,12 @@ export const chapter = {
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', position: [0, 0, 0], heading: 0 },
+    egill: { url: '../assets/characters/egill.glb', ...EGILL },
   },
   // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3).
   cast: {
     mosi: { name: 'Mosi', colour: '#4f5433' },
+    egill: { name: 'Egill', colour: '#355774' },
   },
   // Lines with a recording name its id in remake/assets/audio/lines.json; the rest are timed by text.
   lines: {
@@ -62,10 +69,12 @@ export const chapter = {
       target: { actor: 'mosi', offset: TRACK.lookOffset },
       fov: 40,
     },
-    intro: { position: [4.3, 0.55, 2.4], frame: { subject: FACE, screen: [0.42, 0.44] }, fov: 44 },
+    // Dialogue: over Egill's left shoulder, his head low right and clear of Mosi's face (STYLE.md 8).
+    intro: { position: [2.86, 1.45, 2.37], frame: { subject: FACE, screen: [0.38, 0.32] }, fov: 44 },
+    // A calm, backlit two-shot of Mosi and Egill, pulled back from where the orbit ends.
     closing: {
-      position: { actor: 'mosi', part: 'feet', offset: [6.6, 1.6, -2.3] },
-      target: { actor: 'mosi', offset: [0.4, 0.2, 0] },
+      position: { actor: 'mosi', part: 'feet', offset: [7.2, 2.3, -2.6] },
+      target: { actor: 'mosi', offset: [1.2, -0.1, 0.35] },
       fov: 42,
     },
   },
@@ -73,6 +82,7 @@ export const chapter = {
   // The scene: a generator that yields what it waits for (remake/engine/scene/scheduler.js).
   *script(s) {
     const mosi = s.actor('mosi');
+    const egill = s.actor('egill');
     yield mosi.place(-12.5, 3.4, -19);
     yield s.camera.cut('opening');
     yield s.ready(); // the start button; immediate in captures
@@ -82,16 +92,28 @@ export const chapter = {
     const arrival = mosi.walkTo([[-10, 2.5], [-6.2, 1.45], [-3, 0.6], [0.3, 0.05]], { speed: 0.65 });
     yield s.all(s.fade(0, 2.5), s.camera.move('openingIn', { duration: 9 }));
 
-    // A tracking shot beside him until he reaches the middle of the clearing.
+    // A tracking shot beside him until he reaches the middle of the clearing. Egill sees him coming:
+    // he looks up at him, and waves from when the camera brings him into the frame (Mosi 3.5 m
+    // away) until his arm comes down just before the cut. The camera sees his left side, so he
+    // waves with his left hand.
     yield s.camera.cut('track');
     yield s.camera.follow('mosi', TRACK);
+    const distance = () => mosi.raw.root.position.distanceTo(egill.raw.root.position);
+    s.after(0, function* greet() {
+      yield s.until(() => distance() < 7);
+      yield egill.lookAt('mosi.head', { weight: 0.8 });
+      yield s.until(() => distance() < 3.5);
+      yield egill.play('waveLeft');
+      yield s.wait(1.9); // about two and a half waves
+      yield egill.play('idle', { fade: 0.5 });
+    });
     yield arrival;
     yield s.wait(0.6);
 
-    // Introduction: low angle and a soft push toward his face while he turns to us.
+    // Introduction: over Egill's shoulder, a soft push while Mosi turns to him and looks at him.
     yield s.camera.cut('intro');
-    yield mosi.lookAt('camera', { weight: 0.85 });
-    yield s.all(mosi.turnTo(20), s.camera.push({ distance: 0.9, duration: 4 }));
+    yield mosi.lookAt('egill.head', { weight: 0.85 });
+    yield s.all(mosi.turnTo('egill'), s.camera.push({ distance: 0.3, duration: 4 }));
     s.camera.handheld(0.6, { duration: 1.5 }); // fades in under the line
     yield s.say('mosi', 'welcome');
 
@@ -111,8 +133,9 @@ export const chapter = {
     yield mosi.lookAt('camera', { weight: 0.85 });
     yield s.camera.move({ frame: { subject: FACE, screen: [0.5, 0.46] }, fov: 34, label: 'face' }, { duration: 8.5 });
 
-    // Celebration: a slow orbit from side light into the sun's rim light.
-    yield s.camera.orbit({ around: 'mosi', degrees: -50, duration: 8.5 });
+    // Celebration: a slow orbit into the sun's rim light that widens into a two-shot with Egill;
+    // the camera stays above his head, so he never blocks Mosi's face.
+    yield s.camera.orbit({ around: 'mosi', degrees: -55, duration: 9, radius: 5, fov: 42 });
     yield s.say('mosi', 'together');
 
     // Pull back and up to a calm closing frame, and fade out.
