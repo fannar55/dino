@@ -1,5 +1,6 @@
 import { createScheduler, wait, all, race, until } from './scheduler.js';
 import { searchFlow } from './search.js';
+import { createStarSprite, STAR_RADIUS } from './star-sprite.js';
 import { EASE } from '../camera/director.js';
 import { DONE } from '../handle.js';
 
@@ -18,8 +19,9 @@ import { DONE } from '../handle.js';
 //   }
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
-// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need.
-export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null }) {
+// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need, and
+// `journal` (scene/journal.js), which s.star and s.found need. s.drag and s.tray need `ui.tray`.
+export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null }) {
   const scheduler = createScheduler();
   let seeking = false;
   let started = false; // set by begin(): the start button, or at once for captures
@@ -185,6 +187,136 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return start(searchTask(spec));
   }
 
+  // Drag to target (spec scene 9). The tray carries an item under the child's finger and says where it was
+  // let go, in canvas pixels. The scene judges whether that is on the target by putting the target's point
+  // on the screen, where it is when the finger lets go, so a target that moves (a head that bends down) is
+  // judged where the child sees it.
+  function needTray(call) {
+    if (!ui.tray) throw new Error(`${call} needs the tray: pass a \`ui\` with a \`tray\` (createStageUI) to createScene`);
+  }
+
+  function needScreen(call) {
+    if (!world.camera || !world.resolvePoint || !world.renderer?.domElement) {
+      throw new Error(`${call} needs the camera and the canvas: \`world\` with camera, resolvePoint and renderer`);
+    }
+  }
+
+  /** A world point on the canvas, in CSS pixels from its corner; `inFront` is false for a point behind the camera. */
+  function screenOf(spec) {
+    const box = world.renderer.domElement.getBoundingClientRect();
+    const point = world.resolvePoint(spec);
+    const inFront = point.clone().applyMatrix4(world.camera.matrixWorldInverse).z < 0;
+    point.project(world.camera);
+    return { x: ((point.x + 1) / 2) * box.width, y: ((1 - point.y) / 2) * box.height, inFront, box };
+  }
+
+  /** Is the drop on the canvas and within `radius` px of where the target is on it? */
+  function onTarget(drop, spec, radius) {
+    const { x, y, inFront, box } = screenOf(spec);
+    if (drop.x < 0 || drop.y < 0 || drop.x > box.width || drop.y > box.height) return false;
+    return inFront && Math.hypot(drop.x - x, drop.y - y) <= radius;
+  }
+
+  // While seeking (captures) there is no child: after 2 s the item is given, as chooseTask and tapTask do.
+  function* dragTask(itemId, targetSpec, { radius, idle }) {
+    const tray = ui.tray;
+    if (seeking) {
+      yield wait(2);
+      tray.remove(itemId);
+      return 'dropped';
+    }
+    let result = null;
+    const stop = tray.onDrop(drop => {
+      if (result !== null || drop.id !== itemId) return; // another item's, or this one is settled already
+      if (onTarget(drop, targetSpec, radius)) {
+        result = 'dropped';
+        tray.remove(itemId);
+      } else {
+        tray.putBack(itemId);
+      }
+    });
+    try {
+      yield race(until(() => result !== null), wait(idle));
+    } finally {
+      stop(); // also when the drag is cancelled
+    }
+    if (result === null) {
+      result = 'idle'; // a child who does not drop it is helped: the item leaves the tray as if it had been given
+      tray.remove(itemId);
+    }
+    return result;
+  }
+
+  function drag(itemId, targetSpec, { radius = 90, idle = 20 } = {}) {
+    needTray('s.drag');
+    needScreen('s.drag');
+    if (typeof itemId !== 'string' || !itemId) throw new TypeError('s.drag needs the id of the tray item, a name');
+    if (targetSpec == null) throw new TypeError('s.drag needs a point in the world to drag the item to');
+    if (!(radius > 0)) throw new TypeError(`s.drag needs a radius in pixels above 0, not ${radius}`);
+    if (!Number.isFinite(idle) || idle < 0) throw new TypeError(`s.drag needs an idle time in seconds, not ${idle}`);
+    return start(dragTask(itemId, targetSpec, { radius, idle }));
+  }
+
+  // The star (spec scene 10). A friend's star rises from a point and waits for a tap; then it flies into the
+  // journal, which keeps it. The sprite and its tap target are the scene's only while it waits.
+  const STAR_IDLE = 8; // seconds before a star nobody taps goes to the journal by itself
+  const STAR_SEEKING = 1.5; // and the time a capture gives it
+
+  function needJournal(call) {
+    if (!journal) throw new Error(`${call} needs the journal: pass \`journal\` (createJournal) to createScene`);
+  }
+
+  function* starTask(id, fromSpec) {
+    const name = `star:${id}`;
+    const sprite = createStarSprite({ from: world.resolvePoint(fromSpec) });
+    const born = scheduler.now;
+    function* rise() {
+      for (;;) {
+        sprite.at(scheduler.now - born);
+        yield;
+      }
+    }
+    let tapped;
+    let from;
+    world.scene.add(sprite.object);
+    try {
+      target(name, { point: sprite.point, radius: STAR_RADIUS });
+      if (seeking) {
+        yield race(rise(), wait(STAR_SEEKING));
+        tapped = true;
+      } else {
+        tapped = (yield race(rise(), tapTask([name]), wait(STAR_IDLE))) !== undefined;
+      }
+      // It leaves from where the child sees it. One tap is all it takes: the target goes in this same step.
+      const at = screenOf(sprite.point);
+      from = at.inFront
+        ? { x: at.box.left + at.x, y: at.box.top + at.y }
+        : { x: at.box.left + at.box.width / 2, y: at.box.top + at.box.height / 2 };
+    } finally {
+      target(name, null);
+      world.scene.remove(sprite.object);
+      sprite.dispose();
+    }
+    yield journal.addStar(id, from);
+    return tapped ? 'tapped' : 'idle';
+  }
+
+  function star(id, fromSpec) {
+    needJournal('s.star');
+    needPointer('s.star');
+    needScreen('s.star');
+    if (!world.scene) throw new Error('s.star needs world.scene to raise the star in');
+    if (typeof id !== 'string' || !id) throw new TypeError('s.star needs the id of the star, a name such as k1_kambedla');
+    if (fromSpec == null) throw new TypeError('s.star needs the point it rises from');
+    return start(starTask(id, fromSpec));
+  }
+
+  function found(id) {
+    needJournal('s.found');
+    journal.addFinding(id);
+    return DONE;
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -236,6 +368,25 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      * is searchFlow's (search.js): hintAfter, helpAfter, speaker and onFound(name, index). Seeking: one find every 3 s.
      */
     search,
+    /**
+     * Wait for the child to drag the tray item `itemId` to a point in the world (a point spec). It resolves 'dropped' when
+     * the item is let go within `radius` px of the point on the screen; a drop anywhere else, or off the canvas, sends
+     * the item back to the tray. After `idle` seconds without a hit the item leaves the tray and it resolves 'idle'.
+     * Seeking: 'dropped' after 2 s.
+     */
+    drag,
+    /**
+     * Raise the star `id` (such as 'k1_kambedla') from a point (a point spec) and wait for the child to tap it. It goes to
+     * the journal when tapped, or by itself after 8 s (1.5 s seeking), and resolves 'tapped' or 'idle' once it has landed.
+     */
+    star,
+    /** Put the animal `id` in the journal's finds (once per id). */
+    found,
+    /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
+    tray: {
+      show: items => { needTray('s.tray.show'); ui.tray.show(items); return DONE; },
+      hide: () => { needTray('s.tray.hide'); ui.tray.hide(); return DONE; },
+    },
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
     after: (delay, item) => start((function* after() {
       yield wait(delay);

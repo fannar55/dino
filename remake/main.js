@@ -16,6 +16,8 @@ import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
+import { createSave } from './engine/save.js';
+import { createJournal } from './engine/scene/journal.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
@@ -86,7 +88,10 @@ try {
 const ui = createStageUI(document);
 const voice = createVoice();
 const pointer = createPointer({ canvas, camera, world });
-const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer });
+// A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
+const save = createSave(params.get('t') === null ? undefined : null);
+const journal = createJournal(document, save);
+const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal });
 
 const shotName = params.get('shot');
 const tParam = params.get('t');
@@ -101,6 +106,7 @@ lighting.focus(ORIGIN, 10);
 let controls = null;
 
 function update(dt) {
+  journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
   stage.update(dt);
   wind.update(clock.time);
   for (const actor of world.actors.values()) actor.update(dt);
@@ -203,4 +209,4 @@ renderer.setAnimationLoop(now => {
   adapt(real, clock.frozen);
   if (++frames === 20) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save });
