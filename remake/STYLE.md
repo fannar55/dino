@@ -228,7 +228,11 @@ legs allow at 99.5 % of their length, smoothed, so the bob (about 2 cm) follows 
 swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a biped's feet as it does
 Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
 and the hips sink when a leg could not reach it otherwise. A clip that leaves the legs at rest (idle,
-wave, point) keeps the feet where they stand.
+wave, point) keeps the feet where they stand. Footing's distances and times are tuned per body plan
+(`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's legs, measured
+from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
+re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
+should grow with the square root of its size too.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.

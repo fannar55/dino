@@ -45,7 +45,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 A chapter exports `chapter` with `layout` (for the forest), `actors`, `cast`, `lines`, `shots` and
 `script`. Shots are data: `{ position, target, fov }` or `{ position, frame: { subject, screen: [u, v] }, fov }`.
 Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.head'`, `'camera'`
-or `{ actor, part, offset, local }`, so a shot can follow a character.
+or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
+`walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:

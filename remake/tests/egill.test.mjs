@@ -51,8 +51,8 @@ async function model() {
   return { gltf, scene, mesh, clip: name => gltf.animations.find(c => c.name === name) };
 }
 
-async function stage() {
-  const gltf = await gltfPromise;
+async function stage(gltf = null) {
+  gltf ??= await gltfPromise;
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
   const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
   world.resolvePoint = createPointResolver(world);
@@ -307,4 +307,61 @@ test('a clip that leaves the legs alone leaves the planted feet where they stand
   const after = watch.sample();
   assert.ok(watch.slide < 1e-3, `a planted foot moved ${mm(watch.slide)} in a frame`);
   after.forEach((foot, k) => assert.ok(foot.p.distanceTo(before[k]) < 1e-3, `a foot moved ${mm(foot.p.distanceTo(before[k]))} while he waved`));
+});
+
+test('one and a half times the size, Egill strides in proportion on planted feet', async () => {
+  // A copy scaled as a re-bake at that size would make him.
+  const gltf = await loadGlb(new URL('../assets/characters/egill.glb', import.meta.url));
+  gltf.scene.scale.setScalar(1.5);
+  const { egill } = await stage(gltf);
+  const watch = footWatch(egill);
+  const spots = [];
+  let last = null;
+  const sample = () => {
+    const now = watch.sample();
+    now.forEach((foot, k) => { if (last && foot.down && !last[k].down) (spots[k] ||= []).push(foot.p.clone()); });
+    last = now;
+  };
+  // Walking: a bigger child walks faster in proportion to the square root of his size.
+  const walk = egill.walkTo([[5, 0]], { speed: 0.55 * Math.sqrt(1.5) });
+  for (let i = 0; i < 600 && egill.root.position.x < 1; i++) egill.update(1 / 30);
+  watch.start();
+  for (let i = 0; i < 600 && egill.root.position.x < 3.5; i++) { egill.update(1 / 30); sample(); }
+  assert.ok(watch.slide < 1e-3, `walking, a planted foot moved ${mm(watch.slide)} in a frame`);
+  const strides = spots.flatMap(list => list.slice(1).map((p, i) => p.distanceTo(list[i])));
+  assert.ok(strides.length >= 4, `${strides.length} strides`);
+  for (const stride of strides) assert.ok(Math.abs(stride - 0.66) < 0.066, `a foot moved ${stride.toFixed(3)} m between plantings (0.44 m at his size)`);
+  // Stopping, then turning on the spot.
+  for (let i = 0; i < 600 && !walk.done; i++) { egill.update(1 / 30); sample(); }
+  for (let i = 0; i < 60; i++) { egill.update(1 / 30); sample(); }
+  assert.ok(watch.slide < 1e-3, `stopping, a planted foot moved ${mm(watch.slide)} in a frame`);
+  const turn = egill.turnTo(90);
+  for (let i = 0; i < 600 && (!turn.done || egill.stepping); i++) { egill.update(1 / 30); sample(); }
+  assert.equal(turn.done, true);
+  assert.equal(egill.stepping, false);
+  assert.ok(watch.slide < 1e-3, `turning, a planted foot moved ${mm(watch.slide)} in a frame`);
+});
+
+test('a walk can head for a point spec, resolved when it starts', async () => {
+  const { world, egill } = await stage();
+  // A stand-in for another actor: a post at (3, 1) facing +Z (heading 90).
+  const post = new THREE.Group();
+  post.position.set(3, 0, 1);
+  post.rotation.y = -Math.PI / 2;
+  post.updateMatrixWorld(true);
+  world.actors.set('post', {
+    root: post,
+    centre: out => out.copy(post.position).setY(0.5),
+    headPosition: out => out.copy(post.position).setY(1),
+  });
+  // Half a metre in front of the post's head, in its own frame (x forward): the ground under (3, 1.5).
+  const walk = egill.walkTo({ actor: 'post', part: 'head', offset: [0.5, 0, 0], local: true }, { speed: 0.6 });
+  post.position.set(9, 0, 9); // moving it now does not move the goal
+  for (let i = 0; i < 600 && !walk.done; i++) egill.update(1 / 30);
+  assert.equal(walk.done, true);
+  assert.ok(egill.root.position.distanceTo(new THREE.Vector3(3, 0, 1.5)) < 1e-3, `ended at ${egill.root.position.toArray().map(v => v.toFixed(3))}`);
+  // Several points may mix pairs and specs.
+  const back = egill.walkTo([[2, 2], 'post.feet'], { speed: 0.6 });
+  for (let i = 0; i < 900 && !back.done; i++) egill.update(1 / 30);
+  assert.ok(egill.root.position.distanceTo(new THREE.Vector3(9, 0, 9)) < 1e-3, `ended at ${egill.root.position.toArray().map(v => v.toFixed(3))}`);
 });

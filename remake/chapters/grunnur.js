@@ -16,14 +16,13 @@ const FACE = { actor: 'mosi', part: 'head', offset: [0, 0.35, 0] };
 const CANOPY = [7.2, 10, -9.6];
 // Where Mosi glances while he speaks: up and a little to his left, inside his comfortable head turn.
 const GLANCE = [13, 7.5, -3];
-// Where Mosi's walk in ends, and where Egill stands for the dialogue, facing that spot; Mosi then
-// turns 20 degrees to face him. Egill waits a metre further back and walks up after waving.
+// Where Mosi's walk in ends. Egill waits a little way off, facing that spot; once Mosi has stopped he
+// walks up beside Mosi's head, to a point in Mosi's own frame taken as he sets off (so it follows Mosi
+// wherever he stops). There the dialogue frames him over his shoulder, and Mosi turns 20 degrees to
+// face him.
 const MOSI_STOP = [0.3, 0.05];
-const EGILL = { position: [2.74, 0, 0.94], heading: 200 };
-const EGILL_WAITS = (() => {
-  const h = (EGILL.heading * Math.PI) / 180;
-  return { position: [EGILL.position[0] - Math.cos(h), 0, EGILL.position[2] - Math.sin(h)], heading: EGILL.heading };
-})();
+const EGILL_WAITS = { position: [3.68, 0, 1.282], heading: 200 };
+const EGILL_SPOT = { actor: 'mosi', part: 'head', offset: [0.966, 0, 1.236], local: true }; // ahead, to his right
 // How far apart the two stand when Mosi stops: Egill's cues are counted from there.
 const APART = Math.hypot(EGILL_WAITS.position[0] - MOSI_STOP[0], EGILL_WAITS.position[2] - MOSI_STOP[1]);
 
@@ -102,8 +101,8 @@ export const chapter = {
 
     // A tracking shot beside him until he reaches the middle of the clearing. Egill sees him coming:
     // he looks up at him, and waves from when the camera brings him into the frame (Mosi about 0.9 m
-    // from his stop). The camera sees his left side, so he waves with his left hand. Then he walks a
-    // few steps toward Mosi (the walk brings his arm down), to where the dialogue frames him.
+    // from his stop). The camera sees his left side, so he waves with his left hand. When Mosi has
+    // stopped, he walks a few steps up to him (the walk brings his arm down).
     yield s.camera.cut('track');
     yield s.camera.follow('mosi', TRACK);
     const distance = () => mosi.raw.root.position.distanceTo(egill.raw.root.position);
@@ -113,7 +112,8 @@ export const chapter = {
       yield s.until(() => distance() < APART + 0.9);
       yield egill.play('waveLeft');
       yield s.wait(1.9); // about two and a half waves
-      yield egill.walkTo([EGILL.position[0], EGILL.position[2]], { speed: 0.55 });
+      yield s.until(() => arrival.done);
+      yield egill.walkTo(EGILL_SPOT, { speed: 0.55 });
     });
     yield s.all(arrival, greeting);
     yield s.wait(0.6);

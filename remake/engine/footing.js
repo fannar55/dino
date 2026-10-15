@@ -25,8 +25,14 @@ const smooth = s => s * s * (3 - 2 * s);
 const yawOf = headingDeg => -THREE.MathUtils.degToRad(headingDeg); // the root's rotation.y
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
-// Metres and seconds, tuned on Mosi (4 m long, his feet 0.8 m apart).
+// Distances in metres and times in seconds, for legs `size` metres long (how far each leg's top
+// joint, hip or shoulder, stands above its foot in the bind pose, on average). Footing scales them to
+// each actor's own legs: lengths in proportion and times by the square root, as a leg swings like a
+// pendulum, so a bigger animal steps further and slower.
+
+// Tuned on Mosi as he is today (4 m long, his feet 0.8 m apart).
 export const QUADRUPED = {
+  size: 0.6424261422805829, // Mosi's legs today
   lift: 0.003, // a foot this far above the ground is in the air
   slack: 0.08, // a standing foot this far to the side of its rest spot, or behind it, steps
   ahead: 0.36, // ...but it may stand this far ahead of it
@@ -44,11 +50,14 @@ export const QUADRUPED = {
   airTime: [0.2, 0.5, 1.5, 0.6], // a lifted foot coming down: clamp(a + b d + c air, a, d) seconds
   joinTime: [0.15, 0.6, 0.45], // a lifted foot joining the clip from d metres away: clamp(a + b d, a, c)
   peel: [0.4, 0.5], // a step peels the heel up to a radians, full at steps of b metres
+  join: [0.005, 0.01], // a lifted foot this close to the clip's (across, up) joins it at once
+  near: 0.05, // a foot this close to the middle turns with the body instead of stepping round
 };
 
 // Tuned on Egill (1.1 m, legs 0.3 m, feet 0.2 m apart): shorter steps, quicker, and a turn steps
 // sooner, since his feet stand close to the middle.
 export const BIPED = {
+  size: 0.2971121788787352, // Egill's legs
   lift: 0.002,
   slack: 0.03,
   ahead: 0.08,
@@ -69,10 +78,34 @@ export const BIPED = {
   legReach: 0.995, // a jointed leg reaches at most this share of its straight length (the knee never locks)
 };
 
-const tuned = tuning => ({ ...QUADRUPED, ...tuning });
+// The tuning for legs `size` metres long (left out: as tuned). `pace` is the time scale.
+function tuned(tuning, size) {
+  const T = { ...QUADRUPED, ...tuning };
+  const s = size === undefined ? 1 : size / T.size;
+  if (s === 1) return { ...T, pace: 1 };
+  const r = Math.sqrt(s);
+  const m = x => x * s; // metres
+  const t = x => x * r; // seconds
+  const v = x => x / r; // seconds per metre
+  return {
+    ...T,
+    size: T.size * s,
+    pace: r,
+    lift: m(T.lift), slack: m(T.slack), ahead: m(T.ahead), lead: m(T.lead), lag: m(T.lag), ease: m(T.ease),
+    reach: m(T.reach), carry: m(T.carry), gap: t(T.gap), catchUp: m(T.catchUp), strideReach: m(T.strideReach),
+    turnLead: m(T.turnLead), near: m(T.near),
+    arc: [m(T.arc[0]), T.arc[1], m(T.arc[2])],
+    stepTime: [t(T.stepTime[0]), v(T.stepTime[1]), t(T.stepTime[2]), t(T.stepTime[3])],
+    airTime: [t(T.airTime[0]), v(T.airTime[1]), v(T.airTime[2]), t(T.airTime[3])],
+    joinTime: [t(T.joinTime[0]), v(T.joinTime[1]), t(T.joinTime[2])],
+    peel: [T.peel[0], m(T.peel[1])],
+    join: [m(T.join[0]), m(T.join[1])],
+  };
+}
 
 /** How much stepping a stop leaves to do, for feet [{ ahead, down }] as the walk ends: one for each
- *  foot that must still step, plus a little for how far out of place each foot stands. */
+ *  foot that must still step, plus a little for how far out of place each foot stands. `tuning`:
+ *  an actor's own (footing.tuning). */
 export function stopCost(feet, tuning) {
   const { slack: SLACK, ahead: AHEAD, carry: CARRY } = tuned(tuning);
   let cost = 0;
@@ -91,10 +124,15 @@ export function stopCost(feet, tuning) {
  * (footing never has both feet of a pair in the air at once) and, for a jointed leg, the toe's
  * ground contact in the foot's frame (a peeling heel turns about it). pivotHeight: the height of the
  * pivot legs' swing pivots in the root's frame. tuning: QUADRUPED (the default) or BIPED, or
- * overrides of it. Create it in the bind pose, with the root at the origin.
+ * overrides of it, scaled to these legs. Create it in the bind pose, with the root at the origin.
  */
 export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
-  const T = tuned(tuning);
+  root.updateMatrixWorld(true);
+  const height = bone => root.worldToLocal(bone.getWorldPosition(new THREE.Vector3())).y;
+  const size = specs.length
+    ? specs.reduce((sum, { foot, jointed }) => sum + (height(jointed ? foot.parent.parent : foot.parent) - height(foot)), 0) / specs.length
+    : undefined;
+  const T = tuned(tuning, size);
   const LIFT = T.lift;
   const SLACK = T.slack;
   const AHEAD = T.ahead;
@@ -118,7 +156,6 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   // already past it, a little further on.
   const landing = (ahead, down) => (down ? ahead : clamp(ahead + CARRY, 0, AHEAD));
 
-  root.updateMatrixWorld(true);
   const rootQ = root.getWorldQuaternion(new THREE.Quaternion()).invert();
   const legs = specs.map(({ foot, girdle, jointed = false, toe = null }) => {
     const leg = foot.parent;
@@ -154,7 +191,8 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
     };
     if (jointed) {
       L.thigh = leg.parent;
-      L.ik = twoBoneLeg(leg.position.clone(), foot.position.clone());
+      L.ik = twoBoneLeg(leg.position.clone(), foot.position.clone()); // in the leg's own units
+      L.unit = parent.getWorldScale(new THREE.Vector3()).x; // metres to one of them
     } else {
       L.pivotY = parent.worldToLocal(root.localToWorld(new THREE.Vector3(home.x, pivotHeight, home.z))).y;
       L.reach = foot.position.clone(); // the foot in the leg's frame
@@ -163,6 +201,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   });
   // Jointed legs hang from the hips, which sink when a leg could not reach its foot otherwise.
   const hips = legs.find(L => L.jointed)?.parent ?? null;
+  const hipsUnit = hips ? hips.parent.getWorldScale(new THREE.Vector3()).x : 1;
   const hipsAnimated = new THREE.Vector3();
   let sink = 0; // metres the hips are lowered this frame
 
@@ -224,7 +263,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
     const d = Math.hypot(L.clip.x - from.x, L.clip.z - from.z);
     L.step = null;
     L.airTime = 0;
-    if (d < 0.005 && Math.abs(L.clip.y - from.y) < 0.01) {
+    if (d < T.join[0] && Math.abs(L.clip.y - from.y) < T.join[1]) {
       L.state = 'clip';
       L.join = null;
       return;
@@ -236,7 +275,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   // The yaw a step aims at while turning: toward the goal, but at most LEAD past the rest spot.
   function aimYaw(L, yaw) {
     if (aim === null) return yaw;
-    const most = L.radius > 0.05 ? LEAD / L.radius : Math.PI;
+    const most = L.radius > T.near ? LEAD / L.radius : Math.PI;
     return yaw + clamp(wrap(yawOf(aim) - yaw), -most, most);
   }
 
@@ -288,7 +327,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
       const off = v2.copy(L.at).sub(home).setY(0);
       let along;
       let across;
-      if (turning && L.radius > 0.05) {
+      if (turning && L.radius > T.near) {
         // Unit direction the rest spot moves in as the root turns toward the goal.
         const dir = v3.set(home.z - root.position.z, 0, root.position.x - home.x).divideScalar(L.radius).multiplyScalar(Math.sign(left));
         along = off.dot(dir);
@@ -338,7 +377,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
           // stay within the leg's reach.
           const over = v1.subVectors(L.at, homeAt(L, root.rotation.y, v2)).setY(0).length() - STRIDE_REACH;
           const toClip = v1.subVectors(L.clip, L.at).setY(0);
-          const slip = over * (1 - Math.exp(-dt / 0.1)); // eased, so a foot is never snapped across
+          const slip = over * (1 - Math.exp(-dt / (0.1 * T.pace))); // eased, so a foot is never snapped across
           if (over > 0 && toClip.lengthSq() > 0) L.at.addScaledVector(toClip, Math.min(1, slip / toClip.length()));
         }
       }
@@ -390,14 +429,15 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
     for (const L of legs) {
       if (!L.jointed) continue;
       const hip = L.thigh.getWorldPosition(v1);
-      const height = hip.y - L.pos.y;
-      const most = T.legReach * L.ik.length;
+      const above = hip.y - L.pos.y;
+      const length = L.ik.length * L.unit;
+      const most = T.legReach * length;
       const across = v2.subVectors(L.pos, hip).setY(0).lengthSq();
-      need = Math.max(need, Math.min(L.ik.length / 3, height - Math.sqrt(Math.max(0, most * most - across))));
+      need = Math.max(need, Math.min(length / 3, above - Math.sqrt(Math.max(0, most * most - across))));
     }
-    sink = need >= sink ? need : need + (sink - need) * Math.exp(-dt / 0.2);
+    sink = need >= sink ? need : need + (sink - need) * Math.exp(-dt / (0.2 * T.pace));
     if (sink <= 1e-6) { sink = 0; return; }
-    hips.position.add(v1.set(0, -sink, 0).applyQuaternion(hips.parent.getWorldQuaternion(q1).invert()));
+    hips.position.add(v1.set(0, -sink / hipsUnit, 0).applyQuaternion(hips.parent.getWorldQuaternion(q1).invert()));
     hips.updateMatrixWorld(true);
   }
 
@@ -406,19 +446,16 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   function poseLeg(L, position, turn) {
     const a = L.animated;
     if (L.jointed) {
-      // The knee bends as far as the distance asks, in the plane the clip bends it in, turned half
-      // as far about the vertical as the foot is turned from the clip's: a foot left behind in a
-      // turn twists the whole leg a little, not just the ankle.
-      const parentQ = L.parent.getWorldQuaternion(q1);
-      const toAnkle = v1.copy(position).sub(L.thigh.getWorldPosition(v2));
-      const hinge = v3.set(0, 0, 1).applyQuaternion(q3.copy(parentQ).multiply(a.thigh));
+      // In the hips' frame: the knee bends as far as the distance asks, in the plane the clip bends
+      // it in, turned half as far about the vertical as the foot is turned from the clip's (a foot
+      // left behind in a turn twists the whole leg a little, not just the ankle).
+      const hipsQ = L.parent.getWorldQuaternion(q1);
+      const toAnkle = L.parent.worldToLocal(v1.copy(position)).sub(L.thigh.position);
+      const hinge = v3.set(0, 0, 1).applyQuaternion(a.thigh);
       const twist = wrap(yawOfTurn(turn) - yawOfTurn(L.clipTurn));
-      if (twist) hinge.applyAxisAngle(UP, 0.5 * twist);
-      const knee = q2;
-      const thighTurn = L.ik.reach(toAnkle, hinge, q3, knee);
-      L.thigh.quaternion.copy(parentQ).invert().multiply(thighTurn);
-      L.leg.quaternion.copy(knee);
-      L.foot.quaternion.copy(thighTurn.multiply(knee)).invert().multiply(turn);
+      if (twist) hinge.applyAxisAngle(v2.copy(UP).applyQuaternion(q2.copy(hipsQ).invert()), 0.5 * twist);
+      L.ik.reach(toAnkle, hinge, L.thigh.quaternion, L.leg.quaternion);
+      L.foot.quaternion.copy(hipsQ).multiply(L.thigh.quaternion).multiply(L.leg.quaternion).invert().multiply(turn);
       return;
     }
     // A pivot leg turns about the point of its axis at pivot height and slides along the axis.
@@ -439,6 +476,8 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   }
 
   const footing = {
+    /** The tuning, scaled to these legs. */
+    get tuning() { return T; },
     /** True while a foot is stepping into place or still has to (standing). */
     get busy() { return mode === 'stand' && legs.some(L => L.state !== 'down' || L.need); },
     /**
@@ -524,8 +563,8 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
         L.clipUp = v1.y - L.home.y > LIFT;
         root.localToWorld(L.clip.copy(v1));
         if (L.state === 'join' || L.state === 'clip') {
-          const most = L.radius > 0.05 ? TURN_LEAD / L.radius : 0;
-          const turn = clamp(lead, -most, most) * smooth(Math.min(1, L.airTime / 0.4));
+          const most = L.radius > T.near ? TURN_LEAD / L.radius : 0;
+          const turn = clamp(lead, -most, most) * smooth(Math.min(1, L.airTime / (0.4 * T.pace)));
           L.clip.sub(root.position).applyAxisAngle(UP, turn).add(root.position);
         }
       });
