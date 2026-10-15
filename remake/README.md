@@ -38,9 +38,10 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
-  runs `bake-biped` for two-legged characters and `bake-tailed-biped` for tailed ones such as
-  Grameðla), the face pass `bake/face.html` that finds the painted eyes for the eyelids after every
-  bake, and `prep-character.mjs` for static models (see STYLE.md section 12).
+  runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
+  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla), the face pass
+  `bake/face.html` that finds the painted eyes for the eyelids after every bake, and
+  `prep-character.mjs` for static models (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
 ## Writing a chapter
