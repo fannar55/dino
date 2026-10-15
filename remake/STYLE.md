@@ -280,6 +280,38 @@ starts, stops and turns as it does Egill's.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
+Four-legged characters (Kambeðla) go through `bake-quadruped`
+(`--query "src=<parts.glb>&length=7&yaw=180&name=Kambeðla&out=stegosaurus.glb"`): `quadruped-rig.js`
+rigs and weights the model, `quadruped-clips.js` authors the clips. Their Tripo parts meet along
+seams, so they are decimated as one mesh and split back (Kambeðla: `38000 tripo_part_3 parts`).
+The bake stands the model facing +X at its length nose to tail, with the root midway between the
+feet, and tells the parts apart by position: the four that stand on the ground are the legs, the
+biggest of the rest is the body, the biggest part ahead of the fore legs is the head, and every
+other part (plates, spikes, horns) rides rigidly on the bone under its base, seam and all, the skin
+around its foot blending out from that bone, so a bend next to a plate never folds it. Bones have identity
+rest rotations: Hips over the hind legs, Spine, Chest over the fore legs, Neck, Neck2, Head (under
+the top of the skull), Tail1 to Tail6 on a smooth line, and Mosi's legs with the names footing
+plants, one rigid bone each hanging from the root (FrontLeg, BackLeg .L/.R) with the foot below
+(FrontFoot, BackFoot). The parts weld into one closed skin, so the material is single-sided, and
+the copies of a seam vertex share one set of weights. Each chain bone holds the stretch from its
+joint to the next, blended around the joints. A leg holds its part up to where it meets the body
+and, fading out toward a pivot at half the height, the bulge above it; the body around it follows
+as heat would spread over the surface (a harmonic field), so a deep belly squeezed between a fore
+and a hind leg is shared out evenly instead of folding where a fade ends. A float attribute
+`plateRow` (`_PLATEROW` in the GLB, `geometry.attributes._platerow` once three loads it) is 0 off
+the plates and counts the plates on the back in rows from the head (plates side by side share a row,
+the rows hold about equal plate area; Kambeðla has 3: neck and shoulders, the two big back plates,
+hips and tail), so the runtime can light them row by row. Clips: idle (4 s), kink (2.4 s: the chin
+lifts a little, the head nods twice, the second time less), eat (2 s: the head comes down in front
+of her until the mouth is about a metre above the ground, where a child holds up a flower, nips,
+chews three times and goes back up), happy (1.5 s: a crouch, a hop that lifts all four feet about
+9 cm, a soft landing and a wiggle; the clip keys the legs, so footing hands them to it) and the walk, four
+beats in lateral sequence, a foot down 55 % of the time, a stride of 1.18 times the pivot height
+at a Froude number of 0.045 (Kambeðla: 2.21 m in 2.43 s, 0.91 m/s). A planted foot sweeps back at
+exactly that speed and passes under its pivot (Tripo stands a hind foot behind the hip), and each
+girdle rides as high as its planted legs reach at their rest length, smoothed, so a rigid leg
+slides along its axis only in the swing. Footing plants the feet in walks, starts, stops and turns,
+and keeps them where they stand in idle, kink and eat.
 
 Environment:
 
