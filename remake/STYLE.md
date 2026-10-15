@@ -214,17 +214,26 @@ Characters (decision: always our bake tool, four-legged and two-legged alike):
 
 Mosi was baked with `lab/gfx-demo/tools/bake-mosi.mjs`; the remake bakes him at his real size with
 `--query "length=8.5"` (one uniform scale on the root node), while the game keeps the fitted size.
-Two-legged characters (Egill) go through
-`remake/tools/bake/`. An unrigged Tripo export comes in many parts and far over budget (Egill
-arrived in 11 parts with 395k triangles), so it is first decimated in Blender, keeping the parts:
+Two-legged characters go through `remake/tools/bake/`: `bake-biped` for Egill, `bake-tailed-biped`
+for the theropods (Grameðla). An unrigged Tripo export comes in many parts and far over budget (Egill
+arrived in 11 parts with 395k triangles, Grameðla in 17 with 390k), so it is first decimated in
+Blender, keeping the parts:
 
 ```bash
 "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-decimate.py -- <tripo.glb> <parts.glb> 20000 tripo_part_0 parts
 ```
 
 The script welds the vertices the GLB splits along UV seams before it decimates (decimating split
-seams opens thin cracks that show as dark lines and specks), and the head keeps relatively more
-detail. Then the bake, in headless Edge:
+seams opens thin cracks that show as dark lines and specks). It also welds the seams between parts:
+where a vertex of one part lies on an edge of the other it splits the edge, and it fills the
+pinholes left where seams meet, so the surface is closed. Then it decimates the whole mesh at once
+and splits it back into its parts, with the normals of the whole mesh, so the seams stay closed and
+shade alike. (Tripo's own seams have hairline cracks and normals that disagree, by up to 33
+degrees across the back of Grameðla's neck and 150 at her lips: the thin dark line on her back was
+the seam between body and head.) The head keeps relatively more detail, and
+`keep=<part>` keeps a part's seams as Tripo made them: Grameðla's lower jaw, whose seam with the
+face becomes her lips (`37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts
+keep=tripo_part_7`). Then the bake, in headless Edge:
 
 ```bash
 node remake/tools/bake/bake-character.mjs --page bake-biped --out <name>.glb --query "src=<parts.glb, relative to the page>&height=1.1&yaw=90&name=<Name>&out=<name>.glb"
@@ -251,6 +260,23 @@ wave, point) keeps the feet where they stand. Footing's distances and times are 
 from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
 re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
 should grow with the square root of its size too.
+`bake-tailed-biped` (`--query "src=<parts.glb>&length=12&name=Grameðla&out=trex.glb"`) stands the
+model at the origin facing +X at its length nose to tail. It finds the heading from the footprint
+and the left and right pairs, tells the parts apart by position and shared seams (body, tail, head,
+lower jaw, thighs, feet and claws, arms; one side's upper arm may hide in the body part), flattens
+the soles onto the ground and places 25 joints: Hips, Spine, Chest, Neck, Head, Jaw, Tail1 to Tail6,
+short arms, and digitigrade legs rigged as the engine's footing expects a biped's: Thigh, Shin and
+Foot, the Foot (at the raised heel) carrying the metatarsus, toes and claws as one, so a heel peels
+up about the toes. Weights come from the spine by position along the body, from the legs and arms
+by the planes that halve each joint, and from the jaw by position along it; the copies of a position
+share a weight, and a few rounds of smoothing over the surface take out the steps at the seams.
+The front of the lip seam opens: the jaw side gets vertices of its own, and a pocket (palate and
+tongue, painted into a free corner of the colour map) fills the mouth, so the roar shows a pink
+mouth with no teeth. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
+by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands flat and sweeps back
+at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
+other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,
+starts, stops and turns as it does Egill's.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
