@@ -81,6 +81,9 @@ export function createCelebrationMotion() {
 export function preloadDinosaurAssets() {
   if (!pending) {
     const loader = new GLTFLoader();
+    // Mosi's skin is textured. Without a DOM (Node tests) there is no image decoder, so load geometry,
+    // skin and clips and leave the textures out instead of logging decode failures.
+    if (typeof document === 'undefined') loader.register(() => ({ name: 'stjornufar_headless_textures', loadTexture: () => Promise.resolve(null) }));
     pending = Promise.allSettled(Object.entries(files).map(async ([type, file]) => {
       const asset = await loader.loadAsync(new URL(`./assets/${file}`, import.meta.url).href);
       const motion = type === 'pteranodon' ? 'fly' : 'walk';
@@ -96,7 +99,8 @@ export function createImportedDinosaur(type) {
   if (!template) return null;
   const group = new THREE.Group();
   group.name = `Animated ${type}`;
-  group.userData.assetSource = type === 'pteranodon' ? 'Stjörnufar / original model' : 'Quaternius CC0 base + Stjörnufar';
+  group.userData.assetSource = type === 'pteranodon' ? 'Stjörnufar / original model'
+    : type === 'triceratops' ? 'Tripo3D model + Stjörnufar skeleton and clips' : 'Quaternius CC0 base + Stjörnufar';
   const animal = cloneSkeleton(template.scene);
   group.add(animal);
   animal.traverse(object => {
