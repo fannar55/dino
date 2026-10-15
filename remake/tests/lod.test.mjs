@@ -151,6 +151,48 @@ test('a character gets half and quarter levels by its size on screen, with some 
   near(at(distanceFor(1200)), 0.25, 'left alone after release');
 });
 
+test('every level keeps the skin triangles each eyelid is cut from', async () => {
+  const gltf = await gltfPromise;
+  const model = gltf.scene.clone(true);
+  let mesh = null;
+  model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+  const eyes = mesh.userData.face?.eyes;
+  assert.ok(eyes?.length, 'Mosi carries his eyes (face pass)');
+  const full = mesh.geometry;
+  // the triangles over each eye, as buildLidGeometry in eyelids.js takes them (its box round the eye)
+  const position = full.attributes.position, index = full.index.array;
+  // a triangle's corners from its smallest one, so the same triangle gives the same key
+  const key = (a, b, c) => { const m = Math.min(a, b, c); return m === a ? `${a},${b},${c}` : m === b ? `${b},${c},${a}` : `${c},${a},${b}`; };
+  const lid = new Set();
+  const p = new THREE.Vector3();
+  for (const eye of eyes) {
+    const centre = new THREE.Vector3().fromArray(eye.centre), right = new THREE.Vector3().fromArray(eye.right);
+    const down = new THREE.Vector3().fromArray(eye.down), facing = new THREE.Vector3().fromArray(eye.normal);
+    const grow = 1.1 * 1.3, depth = 0.8 * grow * Math.max(eye.halfWidth, eye.top, eye.bottom);
+    for (let t = 0; t < index.length; t += 3) {
+      const u = [], v = [], w = [];
+      for (let j = 0; j < 3; j++) { p.fromBufferAttribute(position, index[t + j]).sub(centre); u.push(p.dot(right)); v.push(p.dot(down)); w.push(p.dot(facing)); }
+      if (Math.max(...u) < -grow * eye.halfWidth || Math.min(...u) > grow * eye.halfWidth) continue;
+      if (Math.max(...v) < -grow * eye.top || Math.min(...v) > grow * eye.bottom || Math.max(...w) < -depth || Math.min(...w) > depth) continue;
+      lid.add(key(index[t], index[t + 1], index[t + 2]));
+    }
+  }
+  assert.ok(lid.size > 100, `${lid.size} triangles under the lids`);
+  await prepareCharacter(model, null);
+  await whenReady();
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  camera.position.set(500, 1, 0);
+  camera.lookAt(0, 1, 0);
+  updateCharacterLods(camera, 800); // far away: the quarter level
+  const quarter = mesh.geometry.index.array;
+  assert.ok(quarter.length < index.length * 0.3);
+  const kept = new Set();
+  for (let t = 0; t < quarter.length; t += 3) kept.add(key(quarter[t], quarter[t + 1], quarter[t + 2]));
+  const missing = [...lid].filter(k => !kept.has(k));
+  assert.equal(missing.length, 0, `${missing.length} of the ${lid.size} triangles under the lids changed`);
+  releaseCharacter(model);
+});
+
 test('a character casts its sun shadow with its quarter level, only in the shadow pass', async () => {
   const gltf = await gltfPromise;
   const model = gltf.scene.clone(true);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { simplify } from './simplify.js';
+import { FEATHER } from './eyelids.js';
 
 // Characters at lower detail: distance LODs and low-poly shadow casters.
 //
@@ -17,6 +18,9 @@ import { simplify } from './simplify.js';
 // the quarter. The quarter also casts the sun shadow, bound to the same skeleton (within 2 to 3 cm
 // on Grameðla, under a shadow texel), and only takes part in the shadow pass; the full skin still
 // receives shadows.
+//
+// The skin under each eyelid keeps every triangle at every level: the lid shells are cut from the full
+// skin there (eyelids.js), so a shut lid sits on the same skin whatever level draws.
 //
 // The simplification runs once per model in a worker; until it is done the full mesh draws and
 // casts. whenReady() resolves once every mesh asked for so far has its levels (captures wait).
@@ -65,11 +69,45 @@ function simplifyAsync(positions, index, options) {
   });
 }
 
+/**
+ * The vertices of the skin triangles each eyelid shell is cut from: the same box round the eye as
+ * buildLidGeometry in eyelids.js (its outline grown by the feather, and as deep), or null without eyes.
+ */
+function eyelidVertices(geometry, eyes) {
+  if (!eyes?.length) return null;
+  const position = geometry.attributes.position;
+  const index = geometry.index.array;
+  const keep = new Uint8Array(position.count);
+  const p = new THREE.Vector3();
+  for (const eye of eyes) {
+    const centre = new THREE.Vector3().fromArray(eye.centre);
+    const right = new THREE.Vector3().fromArray(eye.right);
+    const down = new THREE.Vector3().fromArray(eye.down);
+    const facing = new THREE.Vector3().fromArray(eye.normal);
+    const grow = 1.1 * (1 + FEATHER);
+    const reachU = grow * eye.halfWidth, reachTop = grow * eye.top, reachBottom = grow * eye.bottom;
+    const depth = 0.8 * grow * Math.max(eye.halfWidth, eye.top, eye.bottom);
+    for (let t = 0; t < index.length; t += 3) {
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+      for (let j = 0; j < 3; j++) {
+        p.fromBufferAttribute(position, index[t + j]).sub(centre);
+        const u = p.dot(right), v = p.dot(down), w = p.dot(facing);
+        u0 = Math.min(u0, u); u1 = Math.max(u1, u);
+        v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+        w0 = Math.min(w0, w); w1 = Math.max(w1, w);
+      }
+      if (u1 < -reachU || u0 > reachU || v1 < -reachTop || v0 > reachBottom || w1 < -depth || w0 > depth) continue;
+      keep[index[t]] = 1; keep[index[t + 1]] = 1; keep[index[t + 2]] = 1;
+    }
+  }
+  return keep;
+}
+
 // one set of levels per source geometry (actors of the same model share their geometry)
 const levelsOf = new WeakMap();
 
 /** [full, half, quarter] geometries for a skinned geometry; the simpler ones share its attributes. */
-function lodGeometries(geometry) {
+function lodGeometries(geometry, eyes) {
   if (levelsOf.has(geometry)) return levelsOf.get(geometry);
   const position = geometry.attributes.position;
   const skinIndex = geometry.attributes.skinIndex, skinWeight = geometry.attributes.skinWeight;
@@ -85,7 +123,7 @@ function lodGeometries(geometry) {
   if (!geometry.boundingBox) geometry.computeBoundingBox();
   if (!geometry.boundingSphere) geometry.computeBoundingSphere();
   const diagonal = geometry.boundingBox.getSize(new THREE.Vector3()).length();
-  const options = { levels: LEVELS.map(l => ({ ratio: l.ratio, maxError: l.maxError * diagonal })), skin: { indices, weights }, seams: 'keep' };
+  const options = { levels: LEVELS.map(l => ({ ratio: l.ratio, maxError: l.maxError * diagonal })), skin: { indices, weights }, keep: eyelidVertices(geometry, eyes) };
   const promise = simplifyAsync(positions, Uint32Array.from(geometry.index.array), options).then(levels => [
     geometry,
     ...levels.map(({ corners, triangles, error }) => {
@@ -140,7 +178,7 @@ export function prepareCharacter(model, light) {
   model.traverse(o => {
     if (o.isSkinnedMesh && !o.geometry.groups.length && (o.geometry.index?.count ?? 0) / 3 >= MIN_TRIANGLES) meshes.push(o);
   });
-  const done = Promise.all(meshes.map(mesh => lodGeometries(mesh.geometry).then(geometries => {
+  const done = Promise.all(meshes.map(mesh => lodGeometries(mesh.geometry, mesh.userData.face?.eyes).then(geometries => {
     const quarter = geometries[geometries.length - 1];
     const entry = {
       mesh, geometries, level: 0, caster: null, casters: null,

@@ -15,13 +15,14 @@
 //                error allowed (distance, mesh units); one run makes every level in turn
 //     skin       { indices, weights }: 4 per vertex (optional); joining vertices that follow different
 //                bones costs more, so joints keep their shape when the skeleton bends
+//     keep       Uint8Array, 1 per vertex (optional): vertices that never move, like those on seams
 //   -> [{ corners: Uint32Array (original vertex of each triangle corner), triangles, error }, ...]
 
 const BOUNDARY_WEIGHT = 10; // open borders keep their outline
 const FLIP_COS = 0.2; // a triangle may turn at most about 78 degrees in one collapse
 const SKIN_COST = 0.25; // a join between vertices with no bone in common costs this much of maxError²
 
-export function simplify(positions, index, { levels = [{ ratio: 0.25, maxError: Infinity }], skin = null } = {}) {
+export function simplify(positions, index, { levels = [{ ratio: 0.25, maxError: Infinity }], skin = null, keep = null } = {}) {
   const count = positions.length / 3;
   const source = index ?? Uint32Array.from({ length: count }, (_, i) => i);
 
@@ -49,6 +50,7 @@ export function simplify(positions, index, { levels = [{ ratio: 0.25, maxError: 
   const wedges = new Int32Array(V);
   for (let i = 0; i < count; i++) wedges[weldOf[i]]++;
   const locked = wedges.map(n => (n > 1 ? 1 : 0));
+  if (keep) for (let i = 0; i < count; i++) if (keep[i]) locked[weldOf[i]] = 1;
   // skin weights per welded vertex: 4 bones and 4 weights
   const SB = skin ? new Int32Array(V * 4) : null, SW = skin ? new Float32Array(V * 4) : null;
   if (skin) firstOf.forEach((i, w) => { for (let k = 0; k < 4; k++) { SB[w * 4 + k] = skin.indices[i * 4 + k]; SW[w * 4 + k] = skin.weights[i * 4 + k]; } });
