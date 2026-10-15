@@ -1,6 +1,6 @@
 {
   "file": "mosi.glb",
-  "bytes": 1388440,
+  "bytes": 1389016,
   "triangles": 23936,
   "bones": 18,
   "clips": [
@@ -27,5 +27,7 @@
   },
   "bakeCommand": "node lab/gfx-demo/tools/bake-mosi.mjs --out remake/assets/characters/mosi.glb --query \"length=8.5\"",
   "gameModel": "dist/assets/dinosaurs/triceratops.glb (the game keeps the fitted size: the same command without length)",
-  "sourceExport": "lab/gfx-demo/assets/tripo/triceratops.glb"
+  "sourceExport": "lab/gfx-demo/assets/tripo/triceratops.glb",
+  "facePass": "Eyes found in the colour map by remake/tools/bake/face.js (eyes.js) and written into the GLB as extras on the skinned mesh (face.eyes: per eye its centre, frame, outline and lid and lash colours, in bind space), for the eyelids the engine builds in code (engine/eyelids.js). Geometry and textures unchanged (2026-10-15).",
+  "faceCommand": "node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/mosi.glb --query \"src=../../assets/characters/mosi.glb&out=mosi.glb\""
 }

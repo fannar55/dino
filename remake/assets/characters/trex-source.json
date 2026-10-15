@@ -1,6 +1,6 @@
 {
   "file": "trex.glb",
-  "bytes": 2206828,
+  "bytes": 2207400,
   "triangles": 39308,
   "bones": 25,
   "clips": [
@@ -28,5 +28,7 @@
   "decimateCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-decimate.py -- remake/assets/characters/source/trex-tripo.glb remake/assets/characters/source/trex-parts.glb 37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts keep=tripo_part_7",
   "bakeCommand": "node remake/tools/bake/bake-character.mjs --page bake-tailed-biped --out remake/assets/characters/trex.glb --query \"src=../../assets/characters/source/trex-parts.glb&length=12&name=Grameðla&out=trex.glb\"",
   "lookCheck": "qa/remake/shots/trex-bake/ (chapter=lineup at real sizes next to Mosi and Egill: lineup, roar, face, low, walk with footing, neck) and qa/remake/shots/trex-look/ (the source as received).",
-  "budget": "GPU at the tablet preset, 1280x800 on the Iris Xe laptop, __benchmark medians, runs with and without her interleaved in one page load, two loads per shot (chapter=lineup, real sizes): she adds 0.7 to 1.2 ms, mostly the lit material where she fills the frame. Her face 4.4 to 5.1 ms (3.6 to 3.9 without), roaring 4.4 to 4.6, a low shot up at her 4.6 to 5.7: under 6 ms. The wide lineup with Mosi at 8.5 m, Egill and the clearing 6.6 to 6.8 ms (5.6 to 5.9 without): over 6 ms. Triangles, shadow pass included: face 295k (217k without), wide lineup 349k (271k without); the shot budget is 250k. A stray headless Edge from another session was running during the measurements."
+  "budget": "GPU at the tablet preset, 1280x800 on the Iris Xe laptop, __benchmark medians, runs with and without her interleaved in one page load, two loads per shot (chapter=lineup, real sizes): she adds 0.7 to 1.2 ms, mostly the lit material where she fills the frame. Her face 4.4 to 5.1 ms (3.6 to 3.9 without), roaring 4.4 to 4.6, a low shot up at her 4.6 to 5.7: under 6 ms. The wide lineup with Mosi at 8.5 m, Egill and the clearing 6.6 to 6.8 ms (5.6 to 5.9 without): over 6 ms. Triangles, shadow pass included: face 295k (217k without), wide lineup 349k (271k without); the shot budget is 250k. A stray headless Edge from another session was running during the measurements.",
+  "facePass": "Eyes found in the colour map by remake/tools/bake/face.js (eyes.js) and written into the GLB as extras on the skinned mesh (face.eyes: per eye its centre, frame, outline and lid and lash colours, in bind space), for the eyelids the engine builds in code (engine/eyelids.js). Geometry and textures unchanged (2026-10-15).",
+  "faceCommand": "node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/trex.glb --query \"src=../../assets/characters/trex.glb&out=trex.glb\""
 }

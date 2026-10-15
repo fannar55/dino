@@ -3,12 +3,16 @@ import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { Handle } from './handle.js';
 import { createFooting, stopCost, QUADRUPED, BIPED } from './footing.js';
+import { createEyelids } from './eyelids.js';
+import { createTalk } from './talk.js';
 
 // A character in a scene: a rigged GLB with its clips, standing on the ground. Clips cross-fade;
 // walking follows a smooth path at a speed matched to the walk cycle, and footing (footing.js) keeps
 // a planted foot where it is, so walks, curves, stops and turns on the spot do not drag the feet, on
-// four legs or two; the head can turn toward a point on top of whatever clip plays. Everything
-// advances in update(dt) on the game clock, so scenes pause and seek exactly.
+// four legs or two; the head can turn toward a point on top of whatever clip plays, the eyelids
+// (eyelids.js) blink on their own and close as a scene asks, and while the character speaks a line its
+// jaw and head move with the voice (talk.js). Everything advances in update(dt) on the game clock, so
+// scenes pause and seek exactly.
 //
 // Headings are degrees: 0 faces +X and 90 faces +Z (models are authored facing +X).
 
@@ -139,6 +143,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   // The head's forward axis in its own frame, read from the bind pose (model facing +X).
   const neck = findBone(model, 'Neck');
   const head = findBone(model, 'Head');
+  const jaw = findBone(model, 'Jaw');
   const headForward = head ? FORWARD.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert()) : null;
 
   // The feet and their bind-pose spots. A quadruped's legs swing from the height of the body's
@@ -361,12 +366,12 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   }
 
   // Looking ------------------------------------------------------------------------------------
-  // The look is laid over the animated pose each frame. The pose the mixer produced is saved and
-  // restored first, because the mixer leaves a bone alone when its value has not changed (a paused
-  // or frozen frame), and the look would otherwise pile up on itself.
-  const lookBones = [neck, head].filter(Boolean);
-  const animatedPose = lookBones.map(b => b.quaternion.clone());
-  let lookApplied = false;
+  // The look and the talking are laid over the animated pose each frame. The pose the mixer produced
+  // is saved and restored first, because the mixer leaves a bone alone when its value has not changed
+  // (a paused or frozen frame), and the layers would otherwise pile up on themselves.
+  const layerBones = [neck, head, jaw].filter(Boolean);
+  const animatedPose = layerBones.map(b => b.quaternion.clone());
+  let layered = false;
   const look = { spec: null, goal: 0, weight: 0, maxYaw: 55, maxPitch: 30, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false };
   const qa = new THREE.Quaternion();
   const qb = new THREE.Quaternion();
@@ -377,6 +382,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
 
   /** Turn the head toward a point spec (null to look ahead again). Neck and head share the turn. */
   function lookAt(spec, { weight = 1, maxAngle = 55, maxPitch = 30 } = {}) {
+    // A new thing to look at comes with a blink, as a glance does.
+    if ((spec ?? null) !== look.spec) lids?.blink.blink();
     look.spec = spec ?? null;
     look.goal = spec ? weight : 0;
     look.maxYaw = maxAngle;
@@ -413,6 +420,29 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     return true;
   }
 
+  // Talking ------------------------------------------------------------------------------------
+  // While a line plays the jaw opens with the voice and the head dips and tilts a little (talk.js).
+  // Turns are about the character's own axes in the world (x forward, z its right side), so they work
+  // whatever the bones' rest frames are; turning down about the right side opens a jaw.
+  const talk = createTalk();
+  function applyTalk(dt) {
+    const pose = talk.update(dt);
+    if (!pose) return false;
+    const right = v1.set(0, 0, 1).applyQuaternion(root.quaternion);
+    const forward = v2.set(1, 0, 0).applyQuaternion(root.quaternion);
+    if (head) {
+      rotateBoneWorld(head, qa.setFromAxisAngle(right, -pose.nod));
+      rotateBoneWorld(head, qa.setFromAxisAngle(forward, pose.tilt));
+    }
+    if (jaw) rotateBoneWorld(jaw, qa.setFromAxisAngle(right, -pose.jaw));
+    return true;
+  }
+
+  // Eyelids ------------------------------------------------------------------------------------
+  // Shells over the painted eyes, skinned by the same bones, with their own blink (eyelids.js). The
+  // blink's random numbers are seeded by the actor's name, so a scene blinks the same every time.
+  const lids = createEyelids(model, { seed: name });
+
   // --------------------------------------------------------------------------------------------
   place(position[0], position[2], heading);
   play('idle', { fade: 0 });
@@ -433,6 +463,22 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return action;
     },
     place, walkTo, turnTo, lookAt,
+    /** The eyelids (null for a model without eyes): `shut` is how shut they are now. */
+    get eyelids() { return lids; },
+    /** Blink now. */
+    blink() { lids?.blink.blink(); },
+    /** Rest the eyes at `level`: 0 open, 0.5 sleepy, 1 shut; blinks go on unless they are shut. */
+    closeEyes(level = 1, { duration = 0.3 } = {}) { lids?.blink.rest(level, duration); },
+    openEyes({ duration = 0.3 } = {}) { lids?.blink.rest(0, duration); },
+    /**
+     * Speak a line: the mouth follows `mouth` (its track in lines.json) or, without one, the text over
+     * `duration` seconds. Returns a token for stopTalking, which ends only that line.
+     */
+    talk(line) { return talk.say(line); },
+    stopTalking(token) { talk.stop(token); },
+    get talking() { return talk.speaking; },
+    /** How open the mouth is now (0 to 1). */
+    get mouthOpen() { return talk.open; },
     /** Body centre in world space (from the bind-pose bounds). */
     centre(out = new THREE.Vector3()) {
       root.updateMatrixWorld();
@@ -444,21 +490,26 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return this.centre(out).add(new THREE.Vector3(0, size.y * 0.4, 0));
     },
     update(dt) {
-      if (lookApplied) lookBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
+      if (layered) layerBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
       footing.restore();
       updateWalk(dt);
       updateTurn(dt);
       mixer.update(dt);
       footing.update(dt);
-      lookBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
-      lookApplied = applyLook(dt);
+      layerBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
+      const looked = applyLook(dt);
+      const talked = applyTalk(dt);
+      layered = looked || talked;
+      lids?.update(dt);
     },
-    /** Stop walking, turning and looking; settle into idle. */
+    /** Stop walking, turning, looking and talking, open the eyes; settle into idle. */
     stop() {
       if (walk) endWalk(true);
       if (turn) endTurn(true);
       lookAt(null);
+      talk.stop();
+      lids?.blink.rest(0);
     },
-    dispose() { mixer.stopAllAction(); world.scene.remove(root); },
+    dispose() { mixer.stopAllAction(); lids?.dispose(); world.scene.remove(root); },
   };
 }

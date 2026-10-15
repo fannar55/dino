@@ -30,6 +30,16 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 - Every animal and Egill follows the new Mosi: soft friendly cartoon, expressive eyes with lids
   that blink (code), painted matte skin, a pale belly as a family trait, no scary teeth (the T. rex
   too), a closed kind smile at rest.
+- Eyes stay painted as Tripo made them; the lids are code (`engine/eyelids.js`): skin-coloured lids
+  (the skin just above and just below each eye) with a dark lash line, fading into the painted skin.
+  A shut eye is a soft downward curve, the content closed eye, never a squint. Scenes may rest the
+  eyes half shut (sleepy) or shut; the blinks go on over half-shut eyes.
+- Mouths (2026-10-15): a character with a jaw (Grameðla) opens it when it speaks, about 10 degrees
+  on the loudest syllables, and wide (26 degrees) only for the friendly roar; inside is a pink
+  pocket, no teeth. Mosi's beak and Egill's lips stay closed in their smile, and they speak with
+  small nods and tilts of the head. No character has teeth. Whether Mosi's beak and Egill's mouth
+  should open, and whether Grameðla gets soft rounded teeth, is put to the owner with sketches (plan
+  doc, Stílforskrift).
 - Each species owns ONE main hue a child can tell apart across the clearing. No two species share
   a slot, and no species except Mosi uses the forest-green band. Hues are chosen against the
   habitat where the animal appears (orange and violet against green forest, gold and pink against
@@ -166,7 +176,11 @@ face), misty far forest, forest wall.
 
 ## 9. Motion
 
-- Always alive: breathing idle, blinks every 2 to 6 s, glances at the camera, tail sway.
+- Always alive: breathing idle, blinks every 2 to 6 s (now and then two in a row, and one with each
+  new thing a character looks at), glances at the camera, tail sway.
+- Speaking: the speaker's mouth follows its line: the recording's loudness (`assets/audio/lines.json`),
+  or the syllables of a line without a recording. The head dips a little on the stressed syllables
+  and tilts gently while the line goes on: small, so the line stays the one important motion.
 - Walk speed matches the clip stride so feet never slide. Turns follow arcs.
 - Ease everything, anticipate big moves, hold a reaction after a line.
 - Pace for five-year-olds: one important motion at a time while a line plays.
@@ -208,7 +222,8 @@ Characters (decision: always our bake tool, four-legged and two-legged alike):
 2. Tripo image-to-3D from the rest-pose image: about 30 to 40k faces, 2K textures, exported in parts.
 3. Bake tool: rig, soft weights, clips, one skinned mesh, 1024 JPEG, the bone names the game
    expects, at most 40k triangles.
-4. Life in code: blinking eyelids, look-at, breathing, celebration.
+4. Life in code: the face pass (below) finds the painted eyes; the engine gives every character
+   blinking eyelids, talking, look-at, breathing and celebration.
 5. Check: fixed comparison shots, GPU ms in the tablet preset, provenance in `visual-assets.json`,
    review against this guide. Reject it if it fails.
 
@@ -277,6 +292,22 @@ by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands fl
 at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
 other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,
 starts, stops and turns as it does Egill's.
+After every bake, the face pass finds the eyes painted into the colour map and writes them into the
+GLB as extras on the skinned mesh (`face.eyes`); geometry and textures stay byte for byte:
+
+```bash
+node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/<name>.glb --query "src=../../assets/characters/<name>.glb&out=<name>.glb"
+```
+
+`face.js` (with `eyes.js`) maps every texel of the head onto the surface, takes dark blobs as pupil
+candidates and keeps the two whose surroundings are not skin (an iris, a sclera paler than the skin,
+highlights), in front of the head's pivot and side by side, so nostrils and ear holes drop out. Each
+eye's outline is an ellipse with its own heights above and below the centre (almond eyes), grown over
+the rim the eye is painted in; the lids take their colours from the skin above and below it.
+`preview=1` shows what it found; if it ever picks wrong, `eyes=x,y;x,y` gives colour-map pixels near
+the pupils. The engine's eyelids are copies of the skin's triangles over each eye (300 to 1,300
+triangles a character), skinned by the same bones and drawn only where a lid covers: one draw call
+per character while a lid moves, nothing while the eyes are open.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
