@@ -97,6 +97,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     o.castShadow = true;
     o.receiveShadow = true;
     o.frustumCulled = false;
+    // Single-sided skins would cast shadows with their back faces, letting light leak into creases.
+    o.material.shadowSide = THREE.FrontSide;
   });
 
   // Bind-pose size in metres, for framing and the body-centre point.
