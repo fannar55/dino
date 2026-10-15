@@ -404,6 +404,13 @@ test('a right or middle button is not a tap', () => {
   assert.deepEqual(taps, []);
 });
 
+test('a long press does not open the browser\'s context menu', () => {
+  const { canvas } = pointerRig();
+  const menu = new Event('contextmenu', { cancelable: true });
+  canvas.dispatchEvent(menu);
+  assert.equal(menu.defaultPrevented, true, 'on Android it would end the touch with a cancel, and lose a slow tap');
+});
+
 /** The same, with a scene over the pointer. */
 function rig(options) {
   const base = pointerRig(options);

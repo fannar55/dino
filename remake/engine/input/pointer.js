@@ -184,6 +184,9 @@ export function createPointer({ canvas, camera, world }) {
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onCancel);
+  // A long press can open the browser's context menu, which on Android takes the touch over and ends
+  // it with a cancel: a slow tap would be lost.
+  canvas.addEventListener('contextmenu', event => event.preventDefault());
 
   return {
     addTarget(name, { point, radius } = {}) {
