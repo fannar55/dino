@@ -35,19 +35,32 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
   habitat where the animal appears (orange and violet against green forest, gold and pink against
   sky, coral against water, blue against golden reeds). The story may change the roster; the rule
   stays and a new species takes a free slot.
-- Scale: Mosi is the reference at about 4.0 m long and 2.0 m high; Egill is 1.1 m tall.
+- Scale: real sizes. Each species is scaled so its length from nose to tail tip matches a real
+  adult's (the Size column); Egill is 1.1 m tall, a real five- to six-year-old. A cartoon head can
+  make a species a little taller than the real animal; keep the length right.
 - Budget per dinosaur: at most 40k triangles, two 1024 JPEG maps, roughness about 0.62.
 
-| Character | Species | Main hue | Main | Light (belly) | Dark | Accent |
-|---|---|---|---|---|---|---|
-| Mosi | Triceratops | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
-| Egill | boy explorer | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
-| Kambeðla | Stegosaurus | orange | `#e58a3d` | `#f3d9b0` | `#a8582a` | plates teal `#3f9c95` |
-| Þórseðla | Brachiosaurus | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
-| Grameðla | T. rex | violet | `#8f6cc9` | `#e2d6f1` | `#5b4590` | cheeks `#ef9fb3` |
-| Uggeðla | Spinosaurus | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
-| Slóeðla | Parasaurolophus | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
-| Flugeðla | Pteranodon | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
+| Character | Species | Size | Main hue | Main | Light (belly) | Dark | Accent |
+|---|---|---|---|---|---|---|---|
+| Mosi | Triceratops | 8.5 m long (8 to 9) | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
+| Egill | boy explorer | 1.1 m tall | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
+| Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6cc9` | `#e2d6f1` | `#5b4590` | plates teal `#3f9c95` |
+| Þórseðla | Brachiosaurus | 20 m long (18 to 22) | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
+| Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
+| Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
+| Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
+| Flugeðla | Pteranodon | 6 m wingspan (5.6 to 7.6) | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
+
+Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
+orange to the free violet slot. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
+by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
+([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
+[Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
+[Stegosaurus](https://en.wikipedia.org/wiki/Stegosaurus),
+[Brachiosaurus](https://en.wikipedia.org/wiki/Brachiosaurus),
+[Spinosaurus](https://en.wikipedia.org/wiki/Spinosaurus),
+[Parasaurolophus](https://en.wikipedia.org/wiki/Parasaurolophus),
+[Pteranodon](https://en.wikipedia.org/wiki/Pteranodon), October 2026).
 
 ## 4. Environment palette
 
@@ -123,8 +136,10 @@ face), misty far forest, forest wall.
   uniforms in `engine/wind.js`; tall plants sway at most 3 degrees, leaves flutter a little.
 - Opaque geometry first. Alpha test only where the shape needs it (grass blades, fern cards), with
   alpha-to-coverage when MSAA is on. No sorted transparency in the forest.
-- Characters keep their Tripo textures as baked (1024 JPEG), roughness about 0.62, double-sided
-  because Tripo parts are open shells.
+- Characters keep their Tripo textures as baked (1024 JPEG), roughness about 0.62, and render
+  single-sided: the bake tools weld Tripo's open part shells into one closed skin (a double-sided
+  Mosi cost about 0.9 ms more in close frames). The shadow pass draws front faces
+  (`shadowSide = FrontSide`, set in `engine/actor.js`), so creases keep their shadows.
 - Nothing is glossy except eyes and water.
 
 ## 8. Camera
