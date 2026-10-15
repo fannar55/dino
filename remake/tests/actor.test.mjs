@@ -1,0 +1,119 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import * as THREE from 'three';
+import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
+import { createActor } from '../engine/actor.js';
+import { createPointResolver } from '../engine/points.js';
+
+// The real Mosi, with its textures removed so GLTFLoader can parse it without a DOM.
+function loadMosi() {
+  const glb = fs.readFileSync(new URL('../assets/characters/mosi.glb', import.meta.url));
+  const jsonLength = glb.readUInt32LE(12);
+  const json = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8'));
+  delete json.images;
+  delete json.textures;
+  delete json.samplers;
+  for (const material of json.materials ?? []) {
+    delete material.normalTexture;
+    delete material.occlusionTexture;
+    delete material.emissiveTexture;
+    if (material.pbrMetallicRoughness) {
+      delete material.pbrMetallicRoughness.baseColorTexture;
+      delete material.pbrMetallicRoughness.metallicRoughnessTexture;
+    }
+  }
+  let text = Buffer.from(JSON.stringify(json), 'utf8');
+  if (text.length % 4) text = Buffer.concat([text, Buffer.alloc(4 - (text.length % 4), 0x20)]);
+  const rest = glb.subarray(20 + jsonLength);
+  const header = Buffer.alloc(20);
+  header.writeUInt32LE(0x46546c67, 0);
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(20 + text.length + rest.length, 8);
+  header.writeUInt32LE(text.length, 12);
+  header.writeUInt32LE(0x4e4f534a, 16);
+  const out = Buffer.concat([header, text, rest]);
+  const buffer = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+  return new Promise((resolve, reject) => new GLTFLoader().parse(buffer, '', resolve, reject));
+}
+
+const gltfPromise = loadMosi();
+
+async function stage() {
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
+  world.resolvePoint = createPointResolver(world);
+  const mosi = await createActor(world, { name: 'mosi', gltf: await gltfPromise });
+  world.actors.set('mosi', mosi);
+  return { world, camera, mosi };
+}
+
+const headOf = mosi => mosi.model.getObjectByName('Head');
+const headQuat = mosi => headOf(mosi).getWorldQuaternion(new THREE.Quaternion());
+const angleDeg = (a, b) => THREE.MathUtils.radToDeg(a.angleTo(b));
+
+test('the gait is measured from the walk clip', async () => {
+  const { mosi } = await stage();
+  mosi.walkTo([[3, 0]], { speed: 0.6 });
+  assert.ok(mosi.gait && mosi.gait.naturalSpeed > 0.1 && mosi.gait.naturalSpeed < 1, JSON.stringify(mosi.gait));
+});
+
+test('frozen frames do not pile the head look up on itself', async () => {
+  const { mosi } = await stage();
+  mosi.lookAt([1.5, 1.6, 4], { weight: 0.7 }); // well to his right
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const before = headQuat(mosi);
+  for (let i = 0; i < 60; i++) mosi.update(0); // a paused or frozen capture keeps rendering
+  assert.ok(angleDeg(before, headQuat(mosi)) < 0.01, `head drifted ${angleDeg(before, headQuat(mosi)).toFixed(2)} degrees`);
+});
+
+test('a target behind him turns the head sideways without tipping it', async () => {
+  const { mosi } = await stage();
+  const rest = new THREE.Vector3();
+  for (let i = 0; i < 5; i++) mosi.update(1 / 30);
+  const head = headOf(mosi);
+  const forwardAt = () => new THREE.Vector3(1, 0, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+  rest.copy(forwardAt());
+  mosi.lookAt([-6, 1.9, 0.2], { weight: 1 }); // behind him, a little above head height
+  for (let i = 0; i < 120; i++) mosi.update(1 / 30);
+  const now = forwardAt();
+  const pitchChange = Math.abs(THREE.MathUtils.radToDeg(Math.asin(now.y) - Math.asin(rest.y)));
+  assert.ok(pitchChange < 32, `head tipped ${pitchChange.toFixed(1)} degrees`);
+});
+
+test('turning during a walk ends the walk, and the turn finishes', async () => {
+  const { mosi } = await stage();
+  const walk = mosi.walkTo([[6, 0]], { speed: 0.6 });
+  for (let i = 0; i < 30; i++) mosi.update(1 / 30);
+  const turn = mosi.turnTo(90);
+  assert.equal(walk.done, true);
+  assert.equal(mosi.walking, false);
+  for (let i = 0; i < 300 && !turn.done; i++) mosi.update(1 / 30);
+  assert.equal(turn.done, true);
+  assert.ok(Math.abs(mosi.heading - 90) < 1.5, `heading ${mosi.heading}`);
+});
+
+test('walking to where he already stands settles a walk in progress', async () => {
+  const { mosi } = await stage();
+  mosi.walkTo([[6, 0]], { speed: 0.6 });
+  for (let i = 0; i < 30; i++) mosi.update(1 / 30);
+  const here = mosi.root.position;
+  const handle = mosi.walkTo([here.x, here.z]);
+  assert.equal(handle.done, true);
+  assert.equal(mosi.walking, false);
+  const x = mosi.root.position.x;
+  for (let i = 0; i < 30; i++) mosi.update(1 / 30);
+  assert.equal(mosi.root.position.x, x);
+});
+
+test('a walk arrives on its path and stop() settles everything', async () => {
+  const { mosi } = await stage();
+  const walk = mosi.walkTo([[2, 1], [4, 0]], { speed: 0.6 });
+  for (let i = 0; i < 900 && !walk.done; i++) mosi.update(1 / 30);
+  assert.equal(walk.done, true);
+  assert.ok(mosi.root.position.distanceTo(new THREE.Vector3(4, 0, 0)) < 1e-3);
+  mosi.walkTo([[0, 0]]);
+  mosi.lookAt('camera');
+  mosi.stop();
+  assert.equal(mosi.walking, false);
+});

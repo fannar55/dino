@@ -1,0 +1,1202 @@
+{
+ "encyclopedia_triceratops_intro": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_intro.mp3",
+  "duration": 12.49
+ },
+ "encyclopedia_triceratops_name": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_name.mp3",
+  "duration": 34.97
+ },
+ "encyclopedia_triceratops_food": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_food.mp3",
+  "duration": 28.57
+ },
+ "encyclopedia_triceratops_horns": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_horns.mp3",
+  "duration": 32.17
+ },
+ "encyclopedia_triceratops_body": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_body.mp3",
+  "duration": 31.69
+ },
+ "encyclopedia_triceratops_world": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_world.mp3",
+  "duration": 28.49
+ },
+ "encyclopedia_triceratops_discovery": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_discovery.mp3",
+  "duration": 31.77
+ },
+ "encyclopedia_triceratops_mystery": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_mystery.mp3",
+  "duration": 32.57
+ },
+ "encyclopedia_triceratops_look": {
+  "src": "../dist/assets/audio/encyclopedia_triceratops_look.mp3",
+  "duration": 32.25
+ },
+ "encyclopedia_stegosaurus_intro": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_intro.mp3",
+  "duration": 14.17
+ },
+ "encyclopedia_stegosaurus_name": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_name.mp3",
+  "duration": 30.73
+ },
+ "encyclopedia_stegosaurus_food": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_food.mp3",
+  "duration": 33.21
+ },
+ "encyclopedia_stegosaurus_plates": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_plates.mp3",
+  "duration": 26.33
+ },
+ "encyclopedia_stegosaurus_walking": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_walking.mp3",
+  "duration": 27.85
+ },
+ "encyclopedia_stegosaurus_tail": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_tail.mp3",
+  "duration": 30.09
+ },
+ "encyclopedia_stegosaurus_sophie": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_sophie.mp3",
+  "duration": 31.85
+ },
+ "encyclopedia_stegosaurus_brain": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_brain.mp3",
+  "duration": 26.81
+ },
+ "encyclopedia_stegosaurus_mystery": {
+  "src": "../dist/assets/audio/encyclopedia_stegosaurus_mystery.mp3",
+  "duration": 26.57
+ },
+ "encyclopedia_brachiosaurus_intro": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_intro.mp3",
+  "duration": 16.81
+ },
+ "encyclopedia_brachiosaurus_name": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_name.mp3",
+  "duration": 28.81
+ },
+ "encyclopedia_brachiosaurus_body": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_body.mp3",
+  "duration": 27.45
+ },
+ "encyclopedia_brachiosaurus_food": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_food.mp3",
+  "duration": 32.49
+ },
+ "encyclopedia_brachiosaurus_land": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_land.mp3",
+  "duration": 26.89
+ },
+ "encyclopedia_brachiosaurus_tail": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_tail.mp3",
+  "duration": 28.57
+ },
+ "encyclopedia_brachiosaurus_nameStory": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_nameStory.mp3",
+  "duration": 31.77
+ },
+ "encyclopedia_brachiosaurus_museum": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_museum.mp3",
+  "duration": 30.65
+ },
+ "encyclopedia_brachiosaurus_time": {
+  "src": "../dist/assets/audio/encyclopedia_brachiosaurus_time.mp3",
+  "duration": 28.41
+ },
+ "encyclopedia_trex_intro": {
+  "src": "../dist/assets/audio/encyclopedia_trex_intro.mp3",
+  "duration": 13.45
+ },
+ "encyclopedia_trex_name": {
+  "src": "../dist/assets/audio/encyclopedia_trex_name.mp3",
+  "duration": 25.85
+ },
+ "encyclopedia_trex_food": {
+  "src": "../dist/assets/audio/encyclopedia_trex_food.mp3",
+  "duration": 26.65
+ },
+ "encyclopedia_trex_arms": {
+  "src": "../dist/assets/audio/encyclopedia_trex_arms.mp3",
+  "duration": 24.49
+ },
+ "encyclopedia_trex_sue": {
+  "src": "../dist/assets/audio/encyclopedia_trex_sue.mp3",
+  "duration": 27.61
+ },
+ "encyclopedia_trex_growth": {
+  "src": "../dist/assets/audio/encyclopedia_trex_growth.mp3",
+  "duration": 24.89
+ },
+ "encyclopedia_trex_museum": {
+  "src": "../dist/assets/audio/encyclopedia_trex_museum.mp3",
+  "duration": 28.971
+ },
+ "encyclopedia_trex_research": {
+  "src": "../dist/assets/audio/encyclopedia_trex_research.mp3",
+  "duration": 29.29
+ },
+ "encyclopedia_trex_time": {
+  "src": "../dist/assets/audio/encyclopedia_trex_time.mp3",
+  "duration": 26.25
+ },
+ "encyclopedia_spinosaurus_intro": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_intro.mp3",
+  "duration": 12.331
+ },
+ "encyclopedia_spinosaurus_name": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_name.mp3",
+  "duration": 30.09
+ },
+ "encyclopedia_spinosaurus_food": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_food.mp3",
+  "duration": 24.73
+ },
+ "encyclopedia_spinosaurus_sail": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_sail.mp3",
+  "duration": 28.01
+ },
+ "encyclopedia_spinosaurus_tail": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_tail.mp3",
+  "duration": 28.65
+ },
+ "encyclopedia_spinosaurus_world": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_world.mp3",
+  "duration": 25.61
+ },
+ "encyclopedia_spinosaurus_bones": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_bones.mp3",
+  "duration": 30.251
+ },
+ "encyclopedia_spinosaurus_mystery": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_mystery.mp3",
+  "duration": 29.69
+ },
+ "encyclopedia_spinosaurus_museum": {
+  "src": "../dist/assets/audio/encyclopedia_spinosaurus_museum.mp3",
+  "duration": 27.85
+ },
+ "encyclopedia_parasaurolophus_intro": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_intro.mp3",
+  "duration": 11.85
+ },
+ "encyclopedia_parasaurolophus_name": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_name.mp3",
+  "duration": 23.93
+ },
+ "encyclopedia_parasaurolophus_food": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_food.mp3",
+  "duration": 24.57
+ },
+ "encyclopedia_parasaurolophus_crest": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_crest.mp3",
+  "duration": 22.97
+ },
+ "encyclopedia_parasaurolophus_scan": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_scan.mp3",
+  "duration": 26.411
+ },
+ "encyclopedia_parasaurolophus_sound": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_sound.mp3",
+  "duration": 28.65
+ },
+ "encyclopedia_parasaurolophus_walking": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_walking.mp3",
+  "duration": 20.57
+ },
+ "encyclopedia_parasaurolophus_relatives": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_relatives.mp3",
+  "duration": 27.21
+ },
+ "encyclopedia_parasaurolophus_world": {
+  "src": "../dist/assets/audio/encyclopedia_parasaurolophus_world.mp3",
+  "duration": 22.25
+ },
+ "encyclopedia_pteranodon_intro": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_intro.mp3",
+  "duration": 12.09
+ },
+ "encyclopedia_pteranodon_group": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_group.mp3",
+  "duration": 22.81
+ },
+ "encyclopedia_pteranodon_name": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_name.mp3",
+  "duration": 21.53
+ },
+ "encyclopedia_pteranodon_wing": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_wing.mp3",
+  "duration": 23.69
+ },
+ "encyclopedia_pteranodon_size": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_size.mp3",
+  "duration": 28.25
+ },
+ "encyclopedia_pteranodon_head": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_head.mp3",
+  "duration": 20.57
+ },
+ "encyclopedia_pteranodon_food": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_food.mp3",
+  "duration": 21.69
+ },
+ "encyclopedia_pteranodon_flight": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_flight.mp3",
+  "duration": 27.93
+ },
+ "encyclopedia_pteranodon_fossils": {
+  "src": "../dist/assets/audio/encyclopedia_pteranodon_fossils.mp3",
+  "duration": 29.05
+ },
+ "encyclopedia_fish_intro": {
+  "src": "../dist/assets/audio/encyclopedia_fish_intro.mp3",
+  "duration": 13.53
+ },
+ "encyclopedia_fish_breath": {
+  "src": "../dist/assets/audio/encyclopedia_fish_breath.mp3",
+  "duration": 20.17
+ },
+ "encyclopedia_fish_body": {
+  "src": "../dist/assets/audio/encyclopedia_fish_body.mp3",
+  "duration": 21.291
+ },
+ "encyclopedia_fish_groups": {
+  "src": "../dist/assets/audio/encyclopedia_fish_groups.mp3",
+  "duration": 20.33
+ },
+ "encyclopedia_fish_look": {
+  "src": "../dist/assets/audio/encyclopedia_fish_look.mp3",
+  "duration": 23.93
+ },
+ "encyclopedia_snail_intro": {
+  "src": "../dist/assets/audio/encyclopedia_snail_intro.mp3",
+  "duration": 13.69
+ },
+ "encyclopedia_snail_body": {
+  "src": "../dist/assets/audio/encyclopedia_snail_body.mp3",
+  "duration": 17.77
+ },
+ "encyclopedia_snail_shell": {
+  "src": "../dist/assets/audio/encyclopedia_snail_shell.mp3",
+  "duration": 21.37
+ },
+ "encyclopedia_snail_damp": {
+  "src": "../dist/assets/audio/encyclopedia_snail_damp.mp3",
+  "duration": 19.05
+ },
+ "encyclopedia_snail_relatives": {
+  "src": "../dist/assets/audio/encyclopedia_snail_relatives.mp3",
+  "duration": 20.97
+ },
+ "encyclopedia_beetle_intro": {
+  "src": "../dist/assets/audio/encyclopedia_beetle_intro.mp3",
+  "duration": 14.25
+ },
+ "encyclopedia_beetle_legs": {
+  "src": "../dist/assets/audio/encyclopedia_beetle_legs.mp3",
+  "duration": 20.97
+ },
+ "encyclopedia_beetle_wings": {
+  "src": "../dist/assets/audio/encyclopedia_beetle_wings.mp3",
+  "duration": 20.65
+ },
+ "encyclopedia_beetle_wood": {
+  "src": "../dist/assets/audio/encyclopedia_beetle_wood.mp3",
+  "duration": 21.21
+ },
+ "encyclopedia_beetle_cleanup": {
+  "src": "../dist/assets/audio/encyclopedia_beetle_cleanup.mp3",
+  "duration": 19.85
+ },
+ "encyclopedia_lizard_intro": {
+  "src": "../dist/assets/audio/encyclopedia_lizard_intro.mp3",
+  "duration": 12.65
+ },
+ "encyclopedia_lizard_skin": {
+  "src": "../dist/assets/audio/encyclopedia_lizard_skin.mp3",
+  "duration": 18.25
+ },
+ "encyclopedia_lizard_colour": {
+  "src": "../dist/assets/audio/encyclopedia_lizard_colour.mp3",
+  "duration": 17.37
+ },
+ "encyclopedia_lizard_feet": {
+  "src": "../dist/assets/audio/encyclopedia_lizard_feet.mp3",
+  "duration": 18.97
+ },
+ "encyclopedia_lizard_young": {
+  "src": "../dist/assets/audio/encyclopedia_lizard_young.mp3",
+  "duration": 19.13
+ },
+ "encyclopedia_frog_intro": {
+  "src": "../dist/assets/audio/encyclopedia_frog_intro.mp3",
+  "duration": 12.97
+ },
+ "encyclopedia_frog_group": {
+  "src": "../dist/assets/audio/encyclopedia_frog_group.mp3",
+  "duration": 21.21
+ },
+ "encyclopedia_frog_tadpole": {
+  "src": "../dist/assets/audio/encyclopedia_frog_tadpole.mp3",
+  "duration": 19.05
+ },
+ "encyclopedia_frog_change": {
+  "src": "../dist/assets/audio/encyclopedia_frog_change.mp3",
+  "duration": 16.49
+ },
+ "encyclopedia_frog_web": {
+  "src": "../dist/assets/audio/encyclopedia_frog_web.mp3",
+  "duration": 19.77
+ },
+ "encyclopedia_dragonfly_intro": {
+  "src": "../dist/assets/audio/encyclopedia_dragonfly_intro.mp3",
+  "duration": 9.771
+ },
+ "encyclopedia_dragonfly_water": {
+  "src": "../dist/assets/audio/encyclopedia_dragonfly_water.mp3",
+  "duration": 18.17
+ },
+ "encyclopedia_dragonfly_hunt": {
+  "src": "../dist/assets/audio/encyclopedia_dragonfly_hunt.mp3",
+  "duration": 18.89
+ },
+ "encyclopedia_dragonfly_habitat": {
+  "src": "../dist/assets/audio/encyclopedia_dragonfly_habitat.mp3",
+  "duration": 18.65
+ },
+ "encyclopedia_dragonfly_look": {
+  "src": "../dist/assets/audio/encyclopedia_dragonfly_look.mp3",
+  "duration": 20.33
+ },
+ "encyclopedia_butterfly_intro": {
+  "src": "../dist/assets/audio/encyclopedia_butterfly_intro.mp3",
+  "duration": 12.57
+ },
+ "encyclopedia_butterfly_cycle": {
+  "src": "../dist/assets/audio/encyclopedia_butterfly_cycle.mp3",
+  "duration": 18.65
+ },
+ "encyclopedia_butterfly_caterpillar": {
+  "src": "../dist/assets/audio/encyclopedia_butterfly_caterpillar.mp3",
+  "duration": 21.37
+ },
+ "encyclopedia_butterfly_pupa": {
+  "src": "../dist/assets/audio/encyclopedia_butterfly_pupa.mp3",
+  "duration": 16.81
+ },
+ "encyclopedia_butterfly_adult": {
+  "src": "../dist/assets/audio/encyclopedia_butterfly_adult.mp3",
+  "duration": 19.69
+ },
+ "mini_invite": {
+  "src": "../dist/assets/audio/mini_invite.mp3",
+  "duration": 3.371
+ },
+ "mini_statue": {
+  "src": "../dist/assets/audio/mini_statue.mp3",
+  "duration": 6.65
+ },
+ "mini_gallery": {
+  "src": "../dist/assets/audio/mini_gallery.mp3",
+  "duration": 8.33
+ },
+ "mini_stegosaurus_invite": {
+  "src": "../dist/assets/audio/mini_stegosaurus_invite.mp3",
+  "duration": 8.25
+ },
+ "mini_stegosaurus_play": {
+  "src": "../dist/assets/audio/mini_stegosaurus_play.mp3",
+  "duration": 13.37
+ },
+ "mini_stegosaurus_hint": {
+  "src": "../dist/assets/audio/mini_stegosaurus_hint.mp3",
+  "duration": 12.17
+ },
+ "mini_stegosaurus_win": {
+  "src": "../dist/assets/audio/mini_stegosaurus_win.mp3",
+  "duration": 9.771
+ },
+ "mini_brachiosaurus_invite": {
+  "src": "../dist/assets/audio/mini_brachiosaurus_invite.mp3",
+  "duration": 7.45
+ },
+ "mini_brachiosaurus_play": {
+  "src": "../dist/assets/audio/mini_brachiosaurus_play.mp3",
+  "duration": 10.57
+ },
+ "mini_brachiosaurus_hint": {
+  "src": "../dist/assets/audio/mini_brachiosaurus_hint.mp3",
+  "duration": 11.45
+ },
+ "mini_brachiosaurus_win": {
+  "src": "../dist/assets/audio/mini_brachiosaurus_win.mp3",
+  "duration": 9.17
+ },
+ "mini_trex_invite": {
+  "src": "../dist/assets/audio/mini_trex_invite.mp3",
+  "duration": 9.93
+ },
+ "mini_trex_play": {
+  "src": "../dist/assets/audio/mini_trex_play.mp3",
+  "duration": 8.73
+ },
+ "mini_trex_hint": {
+  "src": "../dist/assets/audio/mini_trex_hint.mp3",
+  "duration": 8.33
+ },
+ "mini_trex_win": {
+  "src": "../dist/assets/audio/mini_trex_win.mp3",
+  "duration": 7.29
+ },
+ "mini_spinosaurus_invite": {
+  "src": "../dist/assets/audio/mini_spinosaurus_invite.mp3",
+  "duration": 6.57
+ },
+ "mini_spinosaurus_play": {
+  "src": "../dist/assets/audio/mini_spinosaurus_play.mp3",
+  "duration": 10.89
+ },
+ "mini_spinosaurus_hint": {
+  "src": "../dist/assets/audio/mini_spinosaurus_hint.mp3",
+  "duration": 8.89
+ },
+ "mini_spinosaurus_win": {
+  "src": "../dist/assets/audio/mini_spinosaurus_win.mp3",
+  "duration": 8.01
+ },
+ "mini_parasaurolophus_invite": {
+  "src": "../dist/assets/audio/mini_parasaurolophus_invite.mp3",
+  "duration": 5.931
+ },
+ "mini_parasaurolophus_play": {
+  "src": "../dist/assets/audio/mini_parasaurolophus_play.mp3",
+  "duration": 14.09
+ },
+ "mini_parasaurolophus_hint": {
+  "src": "../dist/assets/audio/mini_parasaurolophus_hint.mp3",
+  "duration": 5.85
+ },
+ "mini_parasaurolophus_win": {
+  "src": "../dist/assets/audio/mini_parasaurolophus_win.mp3",
+  "duration": 6.81
+ },
+ "mini_pteranodon_invite": {
+  "src": "../dist/assets/audio/mini_pteranodon_invite.mp3",
+  "duration": 6.09
+ },
+ "mini_pteranodon_play": {
+  "src": "../dist/assets/audio/mini_pteranodon_play.mp3",
+  "duration": 16.65
+ },
+ "mini_pteranodon_hint": {
+  "src": "../dist/assets/audio/mini_pteranodon_hint.mp3",
+  "duration": 12.17
+ },
+ "mini_pteranodon_win": {
+  "src": "../dist/assets/audio/mini_pteranodon_win.mp3",
+  "duration": 8.01
+ },
+ "statue_stegosaurus_diet": {
+  "src": "../dist/assets/audio/statue_stegosaurus_diet.mp3",
+  "duration": 6.25
+ },
+ "statue_stegosaurus_size": {
+  "src": "../dist/assets/audio/statue_stegosaurus_size.mp3",
+  "duration": 9.53
+ },
+ "statue_stegosaurus_special": {
+  "src": "../dist/assets/audio/statue_stegosaurus_special.mp3",
+  "duration": 9.69
+ },
+ "statue_stegosaurus_more": {
+  "src": "../dist/assets/audio/statue_stegosaurus_more.mp3",
+  "duration": 13.13
+ },
+ "statue_brachiosaurus_diet": {
+  "src": "../dist/assets/audio/statue_brachiosaurus_diet.mp3",
+  "duration": 9.21
+ },
+ "statue_brachiosaurus_size": {
+  "src": "../dist/assets/audio/statue_brachiosaurus_size.mp3",
+  "duration": 11.45
+ },
+ "statue_brachiosaurus_special": {
+  "src": "../dist/assets/audio/statue_brachiosaurus_special.mp3",
+  "duration": 10.09
+ },
+ "statue_brachiosaurus_more": {
+  "src": "../dist/assets/audio/statue_brachiosaurus_more.mp3",
+  "duration": 17.53
+ },
+ "statue_trex_diet": {
+  "src": "../dist/assets/audio/statue_trex_diet.mp3",
+  "duration": 7.85
+ },
+ "statue_trex_size": {
+  "src": "../dist/assets/audio/statue_trex_size.mp3",
+  "duration": 8.01
+ },
+ "statue_trex_special": {
+  "src": "../dist/assets/audio/statue_trex_special.mp3",
+  "duration": 8.81
+ },
+ "statue_trex_more": {
+  "src": "../dist/assets/audio/statue_trex_more.mp3",
+  "duration": 12.97
+ },
+ "statue_spinosaurus_diet": {
+  "src": "../dist/assets/audio/statue_spinosaurus_diet.mp3",
+  "duration": 8.73
+ },
+ "statue_spinosaurus_size": {
+  "src": "../dist/assets/audio/statue_spinosaurus_size.mp3",
+  "duration": 10.49
+ },
+ "statue_spinosaurus_special": {
+  "src": "../dist/assets/audio/statue_spinosaurus_special.mp3",
+  "duration": 10.65
+ },
+ "statue_spinosaurus_more": {
+  "src": "../dist/assets/audio/statue_spinosaurus_more.mp3",
+  "duration": 14.57
+ },
+ "statue_parasaurolophus_diet": {
+  "src": "../dist/assets/audio/statue_parasaurolophus_diet.mp3",
+  "duration": 6.97
+ },
+ "statue_parasaurolophus_size": {
+  "src": "../dist/assets/audio/statue_parasaurolophus_size.mp3",
+  "duration": 6.97
+ },
+ "statue_parasaurolophus_special": {
+  "src": "../dist/assets/audio/statue_parasaurolophus_special.mp3",
+  "duration": 8.73
+ },
+ "statue_parasaurolophus_more": {
+  "src": "../dist/assets/audio/statue_parasaurolophus_more.mp3",
+  "duration": 12.97
+ },
+ "statue_pteranodon_diet": {
+  "src": "../dist/assets/audio/statue_pteranodon_diet.mp3",
+  "duration": 9.45
+ },
+ "statue_pteranodon_size": {
+  "src": "../dist/assets/audio/statue_pteranodon_size.mp3",
+  "duration": 11.37
+ },
+ "statue_pteranodon_special": {
+  "src": "../dist/assets/audio/statue_pteranodon_special.mp3",
+  "duration": 9.29
+ },
+ "statue_pteranodon_more": {
+  "src": "../dist/assets/audio/statue_pteranodon_more.mp3",
+  "duration": 14.891
+ },
+ "math_1_plus_1": {
+  "src": "../dist/assets/audio/math_1_plus_1.mp3",
+  "duration": 8.17
+ },
+ "math_2_plus_1": {
+  "src": "../dist/assets/audio/math_2_plus_1.mp3",
+  "duration": 6.97
+ },
+ "math_1_plus_3": {
+  "src": "../dist/assets/audio/math_1_plus_3.mp3",
+  "duration": 7.05
+ },
+ "math_2_plus_2": {
+  "src": "../dist/assets/audio/math_2_plus_2.mp3",
+  "duration": 8.17
+ },
+ "math_3_plus_2": {
+  "src": "../dist/assets/audio/math_3_plus_2.mp3",
+  "duration": 7.93
+ },
+ "math_2_minus_1": {
+  "src": "../dist/assets/audio/math_2_minus_1.mp3",
+  "duration": 7.77
+ },
+ "math_3_minus_1": {
+  "src": "../dist/assets/audio/math_3_minus_1.mp3",
+  "duration": 7.211
+ },
+ "math_4_minus_2": {
+  "src": "../dist/assets/audio/math_4_minus_2.mp3",
+  "duration": 7.45
+ },
+ "math_5_minus_3": {
+  "src": "../dist/assets/audio/math_5_minus_3.mp3",
+  "duration": 6.57
+ },
+ "math_3_minus_3": {
+  "src": "../dist/assets/audio/math_3_minus_3.mp3",
+  "duration": 7.61
+ },
+ "math_4_plus_2": {
+  "src": "../dist/assets/audio/math_4_plus_2.mp3",
+  "duration": 8.09
+ },
+ "math_5_plus_3": {
+  "src": "../dist/assets/audio/math_5_plus_3.mp3",
+  "duration": 7.29
+ },
+ "math_6_plus_4": {
+  "src": "../dist/assets/audio/math_6_plus_4.mp3",
+  "duration": 8.09
+ },
+ "math_7_plus_2": {
+  "src": "../dist/assets/audio/math_7_plus_2.mp3",
+  "duration": 8.17
+ },
+ "math_6_minus_2": {
+  "src": "../dist/assets/audio/math_6_minus_2.mp3",
+  "duration": 7.29
+ },
+ "math_7_minus_3": {
+  "src": "../dist/assets/audio/math_7_minus_3.mp3",
+  "duration": 6.81
+ },
+ "math_9_minus_4": {
+  "src": "../dist/assets/audio/math_9_minus_4.mp3",
+  "duration": 7.53
+ },
+ "math_10_minus_5": {
+  "src": "../dist/assets/audio/math_10_minus_5.mp3",
+  "duration": 8.25
+ },
+ "math_rain": {
+  "src": "../dist/assets/audio/math_rain.mp3",
+  "duration": 6.41
+ },
+ "welcome": {
+  "src": "../dist/assets/audio/welcome.mp3",
+  "duration": 6.49
+ },
+ "invite": {
+  "src": "../dist/assets/audio/invite.mp3",
+  "duration": 6.57
+ },
+ "walkForest": {
+  "src": "../dist/assets/audio/walkForest.mp3",
+  "duration": 8.491
+ },
+ "stegoArrival": {
+  "src": "../dist/assets/audio/stegoArrival.mp3",
+  "duration": 7.77
+ },
+ "stegoQuestion": {
+  "src": "../dist/assets/audio/stegoQuestion.mp3",
+  "duration": 7.13
+ },
+ "stegoHint": {
+  "src": "../dist/assets/audio/stegoHint.mp3",
+  "duration": 8.491
+ },
+ "stegoCorrect": {
+  "src": "../dist/assets/audio/stegoCorrect.mp3",
+  "duration": 10.245
+ },
+ "walkTall": {
+  "src": "../dist/assets/audio/walkTall.mp3",
+  "duration": 9.29
+ },
+ "brachioArrival": {
+  "src": "../dist/assets/audio/brachioArrival.mp3",
+  "duration": 8.01
+ },
+ "brachioQuestion": {
+  "src": "../dist/assets/audio/brachioQuestion.mp3",
+  "duration": 6.89
+ },
+ "brachioHint": {
+  "src": "../dist/assets/audio/brachioHint.mp3",
+  "duration": 10.17
+ },
+ "brachioCorrect": {
+  "src": "../dist/assets/audio/brachioCorrect.mp3",
+  "duration": 8.59
+ },
+ "walkRex": {
+  "src": "../dist/assets/audio/walkRex.mp3",
+  "duration": 8.89
+ },
+ "rexArrival": {
+  "src": "../dist/assets/audio/rexArrival.mp3",
+  "duration": 7.37
+ },
+ "rexQuestion": {
+  "src": "../dist/assets/audio/rexQuestion.mp3",
+  "duration": 6.89
+ },
+ "rexHint": {
+  "src": "../dist/assets/audio/rexHint.mp3",
+  "duration": 10.01
+ },
+ "rexCorrect": {
+  "src": "../dist/assets/audio/rexCorrect.mp3",
+  "duration": 9.909
+ },
+ "walkLake": {
+  "src": "../dist/assets/audio/walkLake.mp3",
+  "duration": 10.25
+ },
+ "spinoArrival": {
+  "src": "../dist/assets/audio/spinoArrival.mp3",
+  "duration": 8.01
+ },
+ "spinoQuestion": {
+  "src": "../dist/assets/audio/spinoQuestion.mp3",
+  "duration": 7.45
+ },
+ "spinoHint": {
+  "src": "../dist/assets/audio/spinoHint.mp3",
+  "duration": 9.37
+ },
+ "spinoCorrect": {
+  "src": "../dist/assets/audio/spinoCorrect.mp3",
+  "duration": 8.73
+ },
+ "walkReeds": {
+  "src": "../dist/assets/audio/walkReeds.mp3",
+  "duration": 10.25
+ },
+ "paraArrival": {
+  "src": "../dist/assets/audio/paraArrival.mp3",
+  "duration": 6.49
+ },
+ "paraQuestion": {
+  "src": "../dist/assets/audio/paraQuestion.mp3",
+  "duration": 6.17
+ },
+ "paraHint": {
+  "src": "../dist/assets/audio/paraHint.mp3",
+  "duration": 11.61
+ },
+ "paraCorrect": {
+  "src": "../dist/assets/audio/paraCorrect.mp3",
+  "duration": 9.21
+ },
+ "lookUp": {
+  "src": "../dist/assets/audio/lookUp.mp3",
+  "duration": 8.73
+ },
+ "pteraArrival": {
+  "src": "../dist/assets/audio/pteraArrival.mp3",
+  "duration": 8.01
+ },
+ "pteraQuestion": {
+  "src": "../dist/assets/audio/pteraQuestion.mp3",
+  "duration": 5.05
+ },
+ "pteraHint": {
+  "src": "../dist/assets/audio/pteraHint.mp3",
+  "duration": 9.45
+ },
+ "pteraCorrect": {
+  "src": "../dist/assets/audio/pteraCorrect.mp3",
+  "duration": 11.14
+ },
+ "finish": {
+  "src": "../dist/assets/audio/finish.mp3",
+  "duration": 10.81
+ },
+ "mosi": {
+  "src": "../dist/assets/audio/mosi.mp3",
+  "duration": 9.61
+ },
+ "name_triceratops": {
+  "src": "../dist/assets/audio/name_triceratops.mp3",
+  "duration": 3.61
+ },
+ "name_stegosaurus": {
+  "src": "../dist/assets/audio/name_stegosaurus.mp3",
+  "duration": 3.61
+ },
+ "name_brachiosaurus": {
+  "src": "../dist/assets/audio/name_brachiosaurus.mp3",
+  "duration": 3.53
+ },
+ "name_trex": {
+  "src": "../dist/assets/audio/name_trex.mp3",
+  "duration": 3.85
+ },
+ "name_spinosaurus": {
+  "src": "../dist/assets/audio/name_spinosaurus.mp3",
+  "duration": 3.77
+ },
+ "name_parasaurolophus": {
+  "src": "../dist/assets/audio/name_parasaurolophus.mp3",
+  "duration": 3.61
+ },
+ "name_pteranodon": {
+  "src": "../dist/assets/audio/name_pteranodon.mp3",
+  "duration": 3.69
+ },
+ "adventureIntro": {
+  "src": "../dist/assets/audio/adventureIntro.mp3",
+  "duration": 11.45
+ },
+ "adventureHelp": {
+  "src": "../dist/assets/audio/adventureHelp.mp3",
+  "duration": 7.05
+ },
+ "adventureBonusInvite": {
+  "src": "../dist/assets/audio/adventureBonusInvite.mp3",
+  "duration": 5.21
+ },
+ "adventureStar": {
+  "src": "../dist/assets/audio/adventureStar.mp3",
+  "duration": 4.89
+ },
+ "explorationDragHelp": {
+  "src": "../dist/assets/audio/explorationDragHelp.mp3",
+  "duration": 6.09
+ },
+ "dinosaurCalls": {
+  "src": "../dist/assets/audio/dinosaurCalls.mp3",
+  "duration": 9.61
+ },
+ "rideBrachioInvite": {
+  "src": "../dist/assets/audio/rideBrachioInvite.mp3",
+  "duration": 4.27
+ },
+ "rideBrachioAscent": {
+  "src": "../dist/assets/audio/rideBrachioAscent.mp3",
+  "duration": 4.89
+ },
+ "rideBrachioTop": {
+  "src": "../dist/assets/audio/rideBrachioTop.mp3",
+  "duration": 5.61
+ },
+ "rideBrachioReturn": {
+  "src": "../dist/assets/audio/rideBrachioReturn.mp3",
+  "duration": 4.651
+ },
+ "ridePteraInvite": {
+  "src": "../dist/assets/audio/ridePteraInvite.mp3",
+  "duration": 4.33
+ },
+ "ridePteraTakeoff": {
+  "src": "../dist/assets/audio/ridePteraTakeoff.mp3",
+  "duration": 5.77
+ },
+ "ridePteraLanding": {
+  "src": "../dist/assets/audio/ridePteraLanding.mp3",
+  "duration": 4.17
+ },
+ "discovery_fossil": {
+  "src": "../dist/assets/audio/discovery_fossil.mp3",
+  "duration": 14.891
+ },
+ "discovery_leaf": {
+  "src": "../dist/assets/audio/discovery_leaf.mp3",
+  "duration": 15.05
+ },
+ "discovery_footprint": {
+  "src": "../dist/assets/audio/discovery_footprint.mp3",
+  "duration": 14.81
+ },
+ "discovery_fish": {
+  "src": "../dist/assets/audio/discovery_fish.mp3",
+  "duration": 14.81
+ },
+ "discovery_reed": {
+  "src": "../dist/assets/audio/discovery_reed.mp3",
+  "duration": 16.25
+ },
+ "discovery_windring": {
+  "src": "../dist/assets/audio/discovery_windring.mp3",
+  "duration": 17.53
+ },
+ "discovery_snail": {
+  "src": "../dist/assets/audio/discovery_snail.mp3",
+  "duration": 12.89
+ },
+ "discovery_beetle": {
+  "src": "../dist/assets/audio/discovery_beetle.mp3",
+  "duration": 14.33
+ },
+ "discovery_lizard": {
+  "src": "../dist/assets/audio/discovery_lizard.mp3",
+  "duration": 11.051
+ },
+ "discovery_frog": {
+  "src": "../dist/assets/audio/discovery_frog.mp3",
+  "duration": 12.89
+ },
+ "discovery_dragonfly": {
+  "src": "../dist/assets/audio/discovery_dragonfly.mp3",
+  "duration": 14.41
+ },
+ "discovery_butterfly": {
+  "src": "../dist/assets/audio/discovery_butterfly.mp3",
+  "duration": 12.09
+ },
+ "adventure_stego_title": {
+  "src": "../dist/assets/audio/adventure_stego_title.mp3",
+  "duration": 1.93
+ },
+ "adventure_stego_instruction": {
+  "src": "../dist/assets/audio/adventure_stego_instruction.mp3",
+  "duration": 9.85
+ },
+ "adventure_stego_complete": {
+  "src": "../dist/assets/audio/adventure_stego_complete.mp3",
+  "duration": 9.29
+ },
+ "adventure_stego_secretHint": {
+  "src": "../dist/assets/audio/adventure_stego_secretHint.mp3",
+  "duration": 7.05
+ },
+ "adventure_stego_secretFound": {
+  "src": "../dist/assets/audio/adventure_stego_secretFound.mp3",
+  "duration": 7.77
+ },
+ "adventure_stego_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_stego_bonusQuestion.mp3",
+  "duration": 4.89
+ },
+ "adventure_stego_bonusHint": {
+  "src": "../dist/assets/audio/adventure_stego_bonusHint.mp3",
+  "duration": 6.09
+ },
+ "adventure_stego_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_stego_bonusCorrect.mp3",
+  "duration": 8.268
+ },
+ "adventure_stego_choice_back": {
+  "src": "../dist/assets/audio/adventure_stego_choice_back.mp3",
+  "duration": 1.45
+ },
+ "adventure_stego_choice_head": {
+  "src": "../dist/assets/audio/adventure_stego_choice_head.mp3",
+  "duration": 1.37
+ },
+ "adventure_stego_choice_feet": {
+  "src": "../dist/assets/audio/adventure_stego_choice_feet.mp3",
+  "duration": 1.53
+ },
+ "adventure_brachio_title": {
+  "src": "../dist/assets/audio/adventure_brachio_title.mp3",
+  "duration": 1.77
+ },
+ "adventure_brachio_instruction": {
+  "src": "../dist/assets/audio/adventure_brachio_instruction.mp3",
+  "duration": 9.61
+ },
+ "adventure_brachio_complete": {
+  "src": "../dist/assets/audio/adventure_brachio_complete.mp3",
+  "duration": 8.39
+ },
+ "adventure_brachio_secretHint": {
+  "src": "../dist/assets/audio/adventure_brachio_secretHint.mp3",
+  "duration": 8.33
+ },
+ "adventure_brachio_secretFound": {
+  "src": "../dist/assets/audio/adventure_brachio_secretFound.mp3",
+  "duration": 8.57
+ },
+ "adventure_brachio_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_brachio_bonusQuestion.mp3",
+  "duration": 4.89
+ },
+ "adventure_brachio_bonusHint": {
+  "src": "../dist/assets/audio/adventure_brachio_bonusHint.mp3",
+  "duration": 7.77
+ },
+ "adventure_brachio_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_brachio_bonusCorrect.mp3",
+  "duration": 10.09
+ },
+ "adventure_brachio_choice_neck": {
+  "src": "../dist/assets/audio/adventure_brachio_choice_neck.mp3",
+  "duration": 1.69
+ },
+ "adventure_brachio_choice_plates": {
+  "src": "../dist/assets/audio/adventure_brachio_choice_plates.mp3",
+  "duration": 1.93
+ },
+ "adventure_brachio_choice_wings": {
+  "src": "../dist/assets/audio/adventure_brachio_choice_wings.mp3",
+  "duration": 1.45
+ },
+ "adventure_rex_title": {
+  "src": "../dist/assets/audio/adventure_rex_title.mp3",
+  "duration": 1.61
+ },
+ "adventure_rex_instruction": {
+  "src": "../dist/assets/audio/adventure_rex_instruction.mp3",
+  "duration": 9.29
+ },
+ "adventure_rex_complete": {
+  "src": "../dist/assets/audio/adventure_rex_complete.mp3",
+  "duration": 9.05
+ },
+ "adventure_rex_secretHint": {
+  "src": "../dist/assets/audio/adventure_rex_secretHint.mp3",
+  "duration": 7.53
+ },
+ "adventure_rex_secretFound": {
+  "src": "../dist/assets/audio/adventure_rex_secretFound.mp3",
+  "duration": 6.97
+ },
+ "adventure_rex_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_rex_bonusQuestion.mp3",
+  "duration": 4.01
+ },
+ "adventure_rex_bonusHint": {
+  "src": "../dist/assets/audio/adventure_rex_bonusHint.mp3",
+  "duration": 9.37
+ },
+ "adventure_rex_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_rex_bonusCorrect.mp3",
+  "duration": 9.955
+ },
+ "adventure_rex_choice_two": {
+  "src": "../dist/assets/audio/adventure_rex_choice_two.mp3",
+  "duration": 1.21
+ },
+ "adventure_rex_choice_three": {
+  "src": "../dist/assets/audio/adventure_rex_choice_three.mp3",
+  "duration": 1.29
+ },
+ "adventure_rex_choice_five": {
+  "src": "../dist/assets/audio/adventure_rex_choice_five.mp3",
+  "duration": 0.97
+ },
+ "adventure_spino_title": {
+  "src": "../dist/assets/audio/adventure_spino_title.mp3",
+  "duration": 1.69
+ },
+ "adventure_spino_instruction": {
+  "src": "../dist/assets/audio/adventure_spino_instruction.mp3",
+  "duration": 9.771
+ },
+ "adventure_spino_complete": {
+  "src": "../dist/assets/audio/adventure_spino_complete.mp3",
+  "duration": 9.13
+ },
+ "adventure_spino_secretHint": {
+  "src": "../dist/assets/audio/adventure_spino_secretHint.mp3",
+  "duration": 6.49
+ },
+ "adventure_spino_secretFound": {
+  "src": "../dist/assets/audio/adventure_spino_secretFound.mp3",
+  "duration": 6.97
+ },
+ "adventure_spino_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_spino_bonusQuestion.mp3",
+  "duration": 4.57
+ },
+ "adventure_spino_bonusHint": {
+  "src": "../dist/assets/audio/adventure_spino_bonusHint.mp3",
+  "duration": 7.45
+ },
+ "adventure_spino_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_spino_bonusCorrect.mp3",
+  "duration": 8.01
+ },
+ "adventure_spino_choice_fish": {
+  "src": "../dist/assets/audio/adventure_spino_choice_fish.mp3",
+  "duration": 2.091
+ },
+ "adventure_spino_choice_leaves": {
+  "src": "../dist/assets/audio/adventure_spino_choice_leaves.mp3",
+  "duration": 2.41
+ },
+ "adventure_spino_choice_stones": {
+  "src": "../dist/assets/audio/adventure_spino_choice_stones.mp3",
+  "duration": 0.89
+ },
+ "adventure_para_title": {
+  "src": "../dist/assets/audio/adventure_para_title.mp3",
+  "duration": 1.69
+ },
+ "adventure_para_instruction": {
+  "src": "../dist/assets/audio/adventure_para_instruction.mp3",
+  "duration": 8.491
+ },
+ "adventure_para_complete": {
+  "src": "../dist/assets/audio/adventure_para_complete.mp3",
+  "duration": 11.051
+ },
+ "adventure_para_secretHint": {
+  "src": "../dist/assets/audio/adventure_para_secretHint.mp3",
+  "duration": 10.81
+ },
+ "adventure_para_secretFound": {
+  "src": "../dist/assets/audio/adventure_para_secretFound.mp3",
+  "duration": 7.93
+ },
+ "adventure_para_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_para_bonusQuestion.mp3",
+  "duration": 4.25
+ },
+ "adventure_para_bonusHint": {
+  "src": "../dist/assets/audio/adventure_para_bonusHint.mp3",
+  "duration": 8.25
+ },
+ "adventure_para_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_para_bonusCorrect.mp3",
+  "duration": 9.85
+ },
+ "adventure_para_choice_call": {
+  "src": "../dist/assets/audio/adventure_para_choice_call.mp3",
+  "duration": 2.091
+ },
+ "adventure_para_choice_fly": {
+  "src": "../dist/assets/audio/adventure_para_choice_fly.mp3",
+  "duration": 1.29
+ },
+ "adventure_para_choice_dig": {
+  "src": "../dist/assets/audio/adventure_para_choice_dig.mp3",
+  "duration": 1.77
+ },
+ "adventure_ptera_title": {
+  "src": "../dist/assets/audio/adventure_ptera_title.mp3",
+  "duration": 1.61
+ },
+ "adventure_ptera_instruction": {
+  "src": "../dist/assets/audio/adventure_ptera_instruction.mp3",
+  "duration": 10.49
+ },
+ "adventure_ptera_complete": {
+  "src": "../dist/assets/audio/adventure_ptera_complete.mp3",
+  "duration": 10.73
+ },
+ "adventure_ptera_secretHint": {
+  "src": "../dist/assets/audio/adventure_ptera_secretHint.mp3",
+  "duration": 8.25
+ },
+ "adventure_ptera_secretFound": {
+  "src": "../dist/assets/audio/adventure_ptera_secretFound.mp3",
+  "duration": 8.491
+ },
+ "adventure_ptera_bonusQuestion": {
+  "src": "../dist/assets/audio/adventure_ptera_bonusQuestion.mp3",
+  "duration": 2.97
+ },
+ "adventure_ptera_bonusHint": {
+  "src": "../dist/assets/audio/adventure_ptera_bonusHint.mp3",
+  "duration": 10.25
+ },
+ "adventure_ptera_bonusCorrect": {
+  "src": "../dist/assets/audio/adventure_ptera_bonusCorrect.mp3",
+  "duration": 9.93
+ },
+ "adventure_ptera_choice_pterosaurs": {
+  "src": "../dist/assets/audio/adventure_ptera_choice_pterosaurs.mp3",
+  "duration": 1.45
+ },
+ "adventure_ptera_choice_dinosaurs": {
+  "src": "../dist/assets/audio/adventure_ptera_choice_dinosaurs.mp3",
+  "duration": 3.05
+ },
+ "adventure_ptera_choice_fish": {
+  "src": "../dist/assets/audio/adventure_ptera_choice_fish.mp3",
+  "duration": 1.53
+ }
+}
