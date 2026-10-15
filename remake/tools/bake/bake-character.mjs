@@ -3,6 +3,7 @@
 //
 //   node remake/tools/bake/bake-character.mjs --page bake-biped --out remake/assets/characters/egill.glb
 //     [--query "src=../../assets/characters/source/egill-parts.glb&height=1.1&yaw=90&name=Egill"]
+//     [--timeout 300]   seconds to wait for the page (a busy machine bakes slower)
 //
 // The page reads its options from the query, posts the finished GLB to /__bake-output and sets
 // window.__bakeStatus to 'done' (or an error message).
@@ -23,6 +24,7 @@ const arg = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? 
 const outFile = path.resolve(ROOT, arg('--out', 'qa/remake/bake/character.glb'));
 const page = arg('--page', 'bake-biped').replace(/[^a-z0-9_-]/gi, '');
 const query = arg('--query', '');
+const timeout = Number(arg('--timeout', 300));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const server = http.createServer(async (req, res) => {
@@ -116,7 +118,7 @@ try {
   await send('Page.enable', {}, sessionId);
   await send('Page.navigate', { url: `http://127.0.0.1:${port}/remake/tools/bake/${page}.html${query ? `?${query}` : ''}` }, sessionId);
   const finished = s => s === 'done' || String(s).startsWith('error');
-  for (let i = 0; i < 1200 && !finished(status); i++) {
+  for (let i = 0; i < timeout * 4 && !finished(status); i++) {
     await sleep(250);
     try { status = (await send('Runtime.evaluate', { expression: 'window.__bakeStatus || null', returnByValue: true }, sessionId)).result.value; } catch { status = null; }
   }

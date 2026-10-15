@@ -143,6 +143,32 @@ test('the roar opens the mouth wide', async () => {
   assert.ok(widest > 20 && widest < 35, `the jaw opens ${widest.toFixed(1)} degrees`);
 });
 
+test('her soft rounded teeth ride the jaws and part when she roars', async () => {
+  // The bake appends the teeth last: 8 on the upper jaw, then 7 on the lower, 19 vertices each (three
+  // rings of six and the tip).
+  const gltf = await fresh();
+  const mesh = skinnedMesh(gltf);
+  const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+  const first = position.count - 15 * 19;
+  const bone = name => mesh.skeleton.bones.findIndex(b => b.name === name);
+  const share = (i, b) => { let w = 0; for (let k = 0; k < 4; k++) if (skinIndex.getComponent(i, k) === b) w += skinWeight.getComponent(i, k); return w; };
+  for (let i = first; i < position.count; i++) {
+    const upper = i < first + 8 * 19;
+    assert.ok(share(i, bone(upper ? 'Head' : 'Jaw')) > 0.99, `tooth vertex ${i} is not carried by the ${upper ? 'head' : 'jaw'}`);
+  }
+  const gap = () => {
+    gltf.scene.updateMatrixWorld(true);
+    const tip = t => mesh.getVertexPosition(first + t * 19 + 18, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
+    const mean = list => list.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(list.length);
+    return mean([...Array(8).keys()].map(tip)).distanceTo(mean([...Array(7).keys()].map(t => tip(8 + t))));
+  };
+  const closed = gap();
+  const mixer = new THREE.AnimationMixer(gltf.scene);
+  mixer.clipAction(gltf.animations.find(c => c.name === 'roar')).play();
+  mixer.setTime(1.6);
+  assert.ok(gap() > closed + 0.15, `the rows of teeth part only ${(gap() - closed).toFixed(2)} m`);
+});
+
 // In a scene: the engine's actor, with footing planting her feet (jointed legs, as Egill's).
 async function stage() {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);

@@ -36,17 +36,22 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {} 
     return 0.6 + words(entry.text) * 0.42;
   }
 
+  // A speaker who is an actor talks: the mouth follows the recording's loudness (lines.json), or the
+  // text when there is no recording, and the head moves with it (engine/talk.js).
   function* sayTask(speaker, line, { hold = 0.5, keep = false } = {}) {
     const who = cast[speaker] ?? { name: speaker };
     const entry = resolveLine(line);
     const recording = entry.audio ? lines[entry.audio] : null;
     const caption = ui.caption(who.name, entry.text, who.colour);
     const sound = recording && !seeking ? voice.play(recording.src) : null;
+    const actor = world.actors?.get(speaker);
+    const talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
     try {
       yield wait(lineDuration(entry) + hold);
     } finally {
-      // Only this line's own sound and caption: a newer line may already be showing.
+      // Only this line's own sound, mouth and caption: a newer line may already be showing.
       if (sound) voice.stop(sound);
+      if (talking) actor.stopTalking(talking);
       if (!keep) ui.clearCaption(caption);
     }
   }
@@ -92,6 +97,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {} 
       turnTo(target, options) { return a.turnTo(target, options); },
       lookAt(target, options) { a.lookAt(target, options); return DONE; },
       place(x, z, heading) { a.place(x, z, heading); return DONE; },
+      blink() { a.blink?.(); return DONE; },
+      /** 0 open, 0.5 sleepy, 1 shut; the lids get there over `duration` seconds. */
+      closeEyes(level, options) { a.closeEyes?.(level, options); return DONE; },
+      openEyes(options) { a.openEyes?.(options); return DONE; },
     };
   }
 

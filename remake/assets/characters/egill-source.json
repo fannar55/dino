@@ -1,6 +1,6 @@
 {
   "file": "egill.glb",
-  "bytes": 1599896,
+  "bytes": 1600484,
   "triangles": 19988,
   "bones": 20,
   "clips": [
@@ -22,5 +22,7 @@
   "rig": "Our bake tool (plan decision 5 changed to 'Bökunartólið, tvífætt'). Bones: root, Hips, Spine, Chest, Neck, Head, Left/Right Shoulder, UpperArm, LowerArm, Hand, Left/Right UpperLeg, LowerLeg, Foot; identity rest rotations. Clips: idle 3.2 s, walk 0.8 s (authored from the feet by two-bone IK: planted flat at 0.55 m/s, heel peel, swing), wave and waveLeft 2.4 s, point 2.0 s, sit 3.2 s (riding), lifted 1.6 s.",
   "sourceExport": "remake/assets/characters/source/egill-tripo.glb",
   "sourceParts": "remake/assets/characters/source/egill-parts.glb",
-  "bakeCommand": "node remake/tools/bake/bake-character.mjs --page bake-biped --out remake/assets/characters/egill.glb --query \"src=../../assets/characters/source/egill-parts.glb&height=1.1&yaw=90&name=Egill&out=egill.glb\""
+  "bakeCommand": "node remake/tools/bake/bake-character.mjs --page bake-biped --out remake/assets/characters/egill.glb --query \"src=../../assets/characters/source/egill-parts.glb&height=1.1&yaw=90&name=Egill&out=egill.glb\"",
+  "facePass": "Eyes found in the colour map by remake/tools/bake/face.js (eyes.js) and written into the GLB as extras on the skinned mesh (face.eyes: per eye its centre, frame, outline and lid and lash colours, in bind space), for the eyelids the engine builds in code (engine/eyelids.js). Geometry and textures unchanged (2026-10-15).",
+  "faceCommand": "node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/egill.glb --query \"src=../../assets/characters/egill.glb&out=egill.glb\""
 }
