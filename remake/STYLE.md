@@ -44,7 +44,7 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 |---|---|---|---|---|---|---|---|
 | Mosi | Triceratops | 8.5 m long (8 to 9) | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
 | Egill | boy explorer | 1.1 m tall | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
-| Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6cc9` | `#e2d6f1` | `#5b4590` | plates teal `#3f9c95` |
+| Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6aa3` | `#cfb6c6` | plum back `#5d4370` | lilac plates `#ab85c1`, ivory tail spikes `#d2bda9` |
 | Þórseðla | Brachiosaurus | 20 m long (18 to 22) | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
 | Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
 | Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
@@ -52,7 +52,8 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Flugeðla | Pteranodon | 6 m wingspan (5.6 to 7.6) | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
 
 Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
-orange to the free violet slot. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
+orange to the free violet slot; its Tripo model (2026-10-15) gives the violet row its values, with
+lilac plates. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
 by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
 ([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
 [Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
@@ -211,10 +212,12 @@ Characters (decision: always our bake tool, four-legged and two-legged alike):
 5. Check: fixed comparison shots, GPU ms in the tablet preset, provenance in `visual-assets.json`,
    review against this guide. Reject it if it fails.
 
-Mosi was baked with `lab/gfx-demo/tools/bake-mosi.mjs`. Two-legged characters go through
-`remake/tools/bake/`: `bake-biped` for Egill, `bake-tailed-biped` for the theropods (Grameðla). An
-unrigged Tripo export comes in many parts and far over budget (Egill arrived in 11 parts with 395k
-triangles, Grameðla in 17 with 390k), so it is first decimated in Blender, keeping the parts:
+Mosi was baked with `lab/gfx-demo/tools/bake-mosi.mjs`; the remake bakes him at his real size with
+`--query "length=8.5"` (one uniform scale on the root node), while the game keeps the fitted size.
+Two-legged characters go through `remake/tools/bake/`: `bake-biped` for Egill, `bake-tailed-biped`
+for the theropods (Grameðla). An unrigged Tripo export comes in many parts and far over budget (Egill
+arrived in 11 parts with 395k triangles, Grameðla in 17 with 390k), so it is first decimated in
+Blender, keeping the parts:
 
 ```bash
 "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-decimate.py -- <tripo.glb> <parts.glb> 20000 tripo_part_0 parts

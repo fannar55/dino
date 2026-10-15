@@ -9,7 +9,9 @@
 // Page params: src, old, out, tex (texture size), fit (length|height|blend), and for the walk: stride
 // (metres per cycle; dinosaur-assets.js strideLength must match), duty (share of the cycle a foot is
 // down) and lag (how long after a hind foot the fore foot on the same side comes down, share of the
-// cycle). Duty and lag snap to 1/120 of the cycle, the walk's key spacing.
+// cycle). Duty and lag snap to 1/120 of the cycle, the walk's key spacing. length (metres from nose
+// to tail tip) scales the finished Mosi uniformly to that size, walk included: the remake bakes him
+// at his real 8.5 m, while the game keeps the fitted size (no length).
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -28,6 +30,7 @@ const WALK_KEYS = 120; // keys per walk cycle
 const STRIDE = Number(params.get('stride') || 1.7);
 const DUTY = Math.round(Number(params.get('duty') || 0.5) * WALK_KEYS) / WALK_KEYS;
 const LAG = Math.round(Number(params.get('lag') || 0.25) * WALK_KEYS) / WALK_KEYS;
+const LENGTH = Number(params.get('length') || 0);
 const report = {};
 const log = (...a) => console.log('[bake]', ...a.map(v => (typeof v === 'object' ? JSON.stringify(v) : v)));
 const r3 = v => v.toArray().map(n => +n.toFixed(3));
@@ -573,6 +576,14 @@ async function main() {
   };
 
   // --- export --------------------------------------------------------------------------------------
+  if (LENGTH) {
+    // One uniform scale on the root node: skin, skeleton and clips grow together, the stride too.
+    geometry.computeBoundingBox();
+    const k = LENGTH / (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+    exportRoot.scale.setScalar(k);
+    exportRoot.updateMatrixWorld(true);
+    report.length = { metres: LENGTH, scale: +k.toFixed(4), stride: +(STRIDE * k).toFixed(3), speed: +((STRIDE * k) / walkDuration).toFixed(3) };
+  }
   const glb = await new GLTFExporter().parseAsync(exportRoot, { binary: true, animations: [idle, walk], onlyVisible: true, maxTextureSize: TEX });
   const res = await fetch(`/__bake-output?name=${encodeURIComponent(OUT)}`, { method: 'POST', body: glb });
   if (!res.ok) throw new Error(`upload failed ${res.status}`);

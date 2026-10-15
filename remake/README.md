@@ -103,7 +103,7 @@ npm run test:remake
 ```
 
 ```bash
-node remake/tools/capture.mjs --out qa/remake/shots/check --size 1280x800 --bench 120 --shot hero="shot=hero&t=2" --shot intro="t=25"
+node remake/tools/capture.mjs --out qa/remake/shots/check --size 1280x800 --bench 120 --shot hero="shot=hero&t=2" --shot intro="t=31"
 ```
 
 The budget for the tablet preset is in STYLE.md section 11: at most 6 ms GPU per frame at
