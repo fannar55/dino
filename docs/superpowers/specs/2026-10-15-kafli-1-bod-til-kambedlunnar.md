@@ -66,12 +66,12 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 ### 5. Upp á bak (um 25 s)
 
 - **Markmið:** Egill kemst upp í hnakkinn og fyrsta reiðferðin hefst.
-- **Skot:** Mosi leggur halann niður eins og rennibraut og Egill klifrar upp. Mosi stendur upp og myndavélin lyftist með Agli yfir rjóðrið.
+- **Skot:** Hnakkur birtist á herðum Mosa, rétt aftan við kragann, með smá glitri. Egill lyftist eins og í teiknimynd og svífur í mjúkum boga upp í hnakkinn með glitrandi slóð á eftir sér. Myndavélin lyftist með honum yfir rjóðrið.
 - **Línur:**
-    - Mosi: „Klifraðu upp halann minn. Hann er eins og rennibraut, bara öfug!“
+    - Mosi: „Hókus pókus, hnakkur! Upp með þig, Egill!“
     - Egill, uppi í hnakknum: „Vá! Ég sé yfir allt!“
     - Mosi: „Haltu þér fast. Af stað!“
-- **Barnið:** dregur Egil upp halann, eða pikkar nokkrum sinnum og hann klifrar með.
+- **Barnið:** pikkar á Egil og hann svífur upp í hnakkinn. Geri barnið ekkert svífur hann sjálfur eftir smá stund.
 
 ## Senur 6–10: reiðferðin og stöð kambeðlunnar
 
@@ -159,7 +159,7 @@ Andlit á trén eru ekki notuð: þau geta orðið óhugnanleg og draga athyglin
 **Nauðsynlegt, prufan virkar ekki án þess:**
 
 1. Kaflinn sjálfur: senur, skot, línur og val í nýrri kaflaskrá, og burknalaut við stíginn sem nýr staður í skóginum.
-2. Reiðferð: hnakkur á Mosa, Egill sem situr í honum (sit-hreyfingin er til), klifur upp halann og myndavélaskot á ferð.
+2. Reiðferð: hnakkur sem birtist með glitri á herðum Mosa, Egill sem svífur upp í hann eins og í teiknimynd og situr í honum með báðar hendur fram á stórum hnakknum, án tauma (sit-hreyfingin er til), og myndavélaskot á ferð.
 3. Snerting: að pikka á persónur, smádýr, blóm og stjörnu, að líta í kringum sig með fingri innan marka og að draga blóm að kambeðlunni.
 4. Glóblóm og ljós í plötum kambeðlunnar sem kvikna í röðum. Bökun kambeðlunnar þarf að merkja plöturnar svo hægt sé að lýsa þær.
 5. Stjarnan og landkönnuðabókin, í einfaldri fyrstu útgáfu.
@@ -178,7 +178,7 @@ Andlit á trén eru ekki notuð: þau geta orðið óhugnanleg og draga athyglin
 ## Opnar spurningar
 
 - **Raddir kambeðlunnar og Egils:** prófaðar í ElevenLabs og valdar í sameiningu.
-- **Halinn sem rennibraut:** hali Mosa byrjar í um 2,5 m hæð. Verði klifrið of erfitt eða skrýtið leggst Mosi frekar niður.
+- **Upp í hnakkinn:** ákveðið 16. október. Klifrið upp halann leit skringilega út, svo hnakkurinn birtist frekar með glitri og Egill svífur upp í hann eins og í teiknimynd. Hnakkurinn situr framarlega, á herðunum rétt aftan við kragann.
 - **Burknalautin:** stígurinn úr rjóðrinu leiðir þangað, en skógurinn styður nú aðeins eitt rjóður og þarf að læra fleiri.
 - **Bjölluhljómar kambeðlunnar:** gerðir í Eleven Music eða í kóða.
 - **Vísbendingar í leitinni:** tillaga er að Mosi bíði 12 sekúndur áður en hann gefur vísbendingu.
