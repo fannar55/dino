@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { Handle } from './handle.js';
-import { createFooting, stopCost } from './footing.js';
+import { createFooting, stopCost, QUADRUPED, BIPED } from './footing.js';
 
 // A character in a scene: a rigged GLB with its clips, standing on the ground. Clips cross-fade;
 // walking follows a smooth path at a speed matched to the walk cycle, and footing (footing.js) keeps
-// a planted foot where it is, so walks, curves, stops and turns on the spot do not drag the feet; the
-// head can turn toward a point on top of whatever clip plays. Everything advances in update(dt) on
-// the game clock, so scenes pause and seek exactly.
+// a planted foot where it is, so walks, curves, stops and turns on the spot do not drag the feet, on
+// four legs or two; the head can turn toward a point on top of whatever clip plays. Everything
+// advances in update(dt) on the game clock, so scenes pause and seek exactly.
 //
 // Headings are degrees: 0 faces +X and 90 faces +Z (models are authored facing +X).
 
@@ -16,7 +16,7 @@ const loader = new GLTFLoader();
 const cache = new Map();
 const FORWARD = new THREE.Vector3(1, 0, 0);
 const FEET = ['FrontFoot.L', 'FrontFoot.R', 'BackFoot.L', 'BackFoot.R'];
-// Bipeds baked by remake/tools/bake/bake-biped.js: the walk speed is measured from these.
+// Bipeds baked by remake/tools/bake/bake-biped.js (thigh, shin and foot on each side).
 const BIPED_FEET = ['LeftFoot', 'RightFoot'];
 const rad = THREE.MathUtils.degToRad;
 const deg = THREE.MathUtils.radToDeg;
@@ -31,6 +31,26 @@ function loadTemplate(url) {
 // GLTFLoader strips reserved characters from node names ('FrontFoot.L' becomes 'FrontFootL').
 const findBone = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
 
+// The front of a foot's sole, in the foot's own frame: the furthest-forward point (+X) of the
+// vertices the foot bone carries alone that touch the ground in the bind pose. Null if it has none.
+function toeOf(model, foot) {
+  let mesh = null;
+  model.traverse(o => { if (o.isSkinnedMesh && o.skeleton.bones.includes(foot)) mesh = o; });
+  if (!mesh) return null;
+  const bone = mesh.skeleton.bones.indexOf(foot);
+  const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+  const p = new THREE.Vector3();
+  let toe = null;
+  for (let i = 0; i < position.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (skinIndex.getComponent(i, k) === bone) w += skinWeight.getComponent(i, k);
+    if (w < 0.999) continue;
+    p.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+    if (p.y < 0.004 && (!toe || p.x > toe.x)) toe = p.clone();
+  }
+  return toe && foot.worldToLocal(toe.setZ(foot.getWorldPosition(p).z).setY(0));
+}
+
 // Turn a bone by a world-space rotation about its own pivot.
 const parentQ = new THREE.Quaternion();
 const localQ = new THREE.Quaternion();
@@ -42,12 +62,14 @@ function rotateBoneWorld(bone, q) {
 }
 
 // How fast the body must move for the walk clip's feet to stay planted, and the point of the cycle
-// to arrive at. During stance a foot sweeps backward relative to the body, so speed = backward
-// travel / stance time, averaged over the feet. The arrival phase is the one that leaves footing
-// the least stepping when the walk stops (`rest`: each foot's bind-pose spot in the model's frame).
-// The sampled feet (`feet`: per foot, samples + 1 points over the cycle) let footing follow the
-// clip's own steps while the clip is still cross-fading in.
-function measureGait(model, clip, feet, rest) {
+// to arrive at. During stance a foot is down and sweeps backward relative to the body, so speed =
+// backward travel / stance time, averaged over the feet (a heel peeling up about the toe is not
+// stance: the ankle lifts). The arrival phase is the one that leaves footing the least stepping when
+// the walk stops (`rest`: each foot's bind-pose spot in the root's frame). The sampled feet (`feet`:
+// per foot, samples + 1 points over the cycle) let footing follow the clip's own steps while the
+// clip is still cross-fading in. Everything is in the root's frame, in metres, so a model scaled to
+// another size walks at its own speed; `tuning` is its footing's (scaled to its legs).
+function measureGait(model, root, clip, feet, rest, tuning) {
   if (!clip || !feet.length) return null;
   const probe = new THREE.AnimationMixer(model);
   probe.clipAction(clip).play();
@@ -57,31 +79,33 @@ function measureGait(model, clip, feet, rest) {
   const inverse = new THREE.Matrix4();
   for (let i = 0; i <= samples; i++) {
     probe.setTime((i / samples) * clip.duration);
-    model.updateMatrixWorld(true);
-    inverse.copy(model.matrixWorld).invert();
+    root.updateMatrixWorld(true);
+    inverse.copy(root.matrixWorld).invert();
     feet.forEach((foot, k) => tracks[k].push(foot.getWorldPosition(p).applyMatrix4(inverse).clone()));
   }
   probe.stopAllAction();
   probe.uncacheRoot(model);
   const dt = clip.duration / samples;
+  const lift = tuning.lift;
+  const flat = lift / 4; // the speed is read where the foot is right down, before a heel starts up
   let sum = 0;
-  for (const track of tracks) {
+  tracks.forEach((track, k) => {
     let back = 0;
     let stance = 0;
     for (let i = 1; i <= samples; i++) {
       const dx = track[i].x - track[i - 1].x;
-      if (dx < 0) { back -= dx; stance += dt; }
+      if (dx < 0 && track[i].y - rest[k].y < flat && track[i - 1].y - rest[k].y < flat) { back -= dx; stance += dt; }
     }
     sum += stance > 0 ? back / stance : 0;
-  }
+  });
   const naturalSpeed = sum / tracks.length;
   let stopPhase = 0;
   let least = Infinity;
   for (let i = 0; i < samples; i++) {
-    const cost = stopCost(tracks.map((track, k) => ({ ahead: track[i].x - rest[k].x, down: track[i].y - rest[k].y < 0.003 })));
+    const cost = stopCost(tracks.map((track, k) => ({ ahead: track[i].x - rest[k].x, down: track[i].y - rest[k].y < lift })), tuning);
     if (cost < least - 1e-9) { least = cost; stopPhase = i / samples; }
   }
-  const duty = tracks.reduce((sum, track, k) => sum + track.slice(1).filter(p => p.y - rest[k].y < 0.003).length / samples, 0) / tracks.length;
+  const duty = tracks.reduce((sum, track, k) => sum + track.slice(1).filter(p => p.y - rest[k].y < lift).length / samples, 0) / tracks.length;
   return naturalSpeed > 0.01 ? { naturalSpeed, cycle: clip.duration, stopPhase, duty, feet: tracks } : null;
 }
 
@@ -117,19 +141,33 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const head = findBone(model, 'Head');
   const headForward = head ? FORWARD.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert()) : null;
 
-  // The feet and their bind-pose spots; the legs swing from the height of the body's centre.
-  // Footing follows the quadruped rig only; a biped gets its walk speed matched, without footing.
+  // The feet and their bind-pose spots. A quadruped's legs swing from the height of the body's
+  // centre; a biped's bend at the knee (thigh, shin, foot), and its heels peel up about the toes.
   const quadFeet = FEET.map(n => findBone(model, n)).filter(Boolean);
   const quadruped = quadFeet.length === FEET.length;
   const feet = quadruped ? quadFeet : BIPED_FEET.map(n => findBone(model, n)).filter(Boolean);
-  const restFeet = feet.map(foot => model.worldToLocal(foot.getWorldPosition(new THREE.Vector3())));
-  const footing = createFooting({
-    root,
-    legs: quadruped ? feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 })) : [],
-    pivotHeight: centreLocal.y,
+  const biped = !quadruped && feet.length === BIPED_FEET.length;
+  const restFeet = feet.map(foot => root.worldToLocal(foot.getWorldPosition(new THREE.Vector3())));
+  const tuning = quadruped ? QUADRUPED : BIPED;
+  let legs = [];
+  if (quadruped) legs = feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 }));
+  else if (biped) legs = feet.map(foot => ({ foot, girdle: 0, jointed: true, toe: toeOf(model, foot) }));
+  const footing = createFooting({ root, legs, pivotHeight: centreLocal.y, tuning });
+  // A clip moves the legs when it turns or moves a leg bone away from its rest pose (a biped's clips
+  // key every bone, most of them leaving the legs at rest).
+  const legBones = new Map(legs.flatMap(({ foot, jointed }) => (jointed ? [foot, foot.parent, foot.parent.parent] : [foot, foot.parent]))
+    .map(bone => [bone.name, { quaternion: bone.quaternion.clone(), position: bone.position.clone() }]));
+  const movesLegs = clip => clip.tracks.some(track => {
+    const dot = track.name.lastIndexOf('.');
+    const rest = legBones.get(track.name.slice(0, dot))?.[track.name.slice(dot + 1)];
+    if (!rest) return false;
+    const values = track.values;
+    for (let i = 0; i < values.length; i += values.length / track.times.length) {
+      if (rest.isQuaternion && Math.abs(rest.x * values[i] + rest.y * values[i + 1] + rest.z * values[i + 2] + rest.w * values[i + 3]) < 1 - 1e-6) return true;
+      if (rest.isVector3 && Math.hypot(values[i] - rest.x, values[i + 1] - rest.y, values[i + 2] - rest.z) > 1e-5) return true;
+    }
+    return false;
   });
-  const legBones = new Set(feet.flatMap(foot => [foot.name, foot.parent.name]));
-  const movesLegs = clip => clip.tracks.some(track => legBones.has(track.name.slice(0, track.name.lastIndexOf('.'))));
 
   const mixer = new THREE.AnimationMixer(model);
   const clips = new Map(gltf.animations.map(c => [c.name, c]));
@@ -213,12 +251,16 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     if (settle) footing.aim(null);
   }
 
-  /** Walk through [x, z] points along a smooth curve; the handle finishes on arrival. */
+  /**
+   * Walk through points along a smooth curve; the handle finishes on arrival. A point is [x, z] or a
+   * point spec (points.js: [x, y, z], 'mosi.head', { actor, part, offset, local }), taken where it is
+   * when the walk starts.
+   */
   function walkTo(points, { speed = 0.7, arrive: arriveClip = 'idle', fade = 0.5, turnRate = 70 } = {}) {
-    const list = Array.isArray(points[0]) ? points : [points];
+    const list = Array.isArray(points) && points.length && typeof points[0] !== 'number' ? points : [points];
     const pts = [new THREE.Vector3(root.position.x, 0, root.position.z)];
-    for (const [x, z] of list) {
-      const p = new THREE.Vector3(x, 0, z);
+    for (const spec of list) {
+      const p = Array.isArray(spec) && spec.length === 2 ? new THREE.Vector3(spec[0], 0, spec[1]) : world.resolvePoint(spec, new THREE.Vector3()).setY(0);
       if (p.distanceTo(pts[pts.length - 1]) > 0.05) pts.push(p);
     }
     endTurn(false);
@@ -232,7 +274,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     handle.onCancel = () => { if (walk?.handle === handle) { const w = walk; walk = null; arrive(w); } };
     const curve = pts.length > 2 ? new THREE.CatmullRomCurve3(pts, false, 'centripetal') : new THREE.LineCurve3(pts[0], pts[1]);
     const length = curve.getLength();
-    if (gait === undefined) gait = measureGait(model, clips.get('walk'), feet, restFeet);
+    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
     const baseScale = gait ? clamp(speed / gait.naturalSpeed, 0.5, 3) : 1;
     const walking = current?.getClip() === clips.get('walk');
     const action = play('walk', { fade, timeScale: baseScale });

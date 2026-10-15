@@ -26,7 +26,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 ## Layout
 
 - `engine/`: clock, renderer, looks, lighting, fog, sky, wind, stats, actors and their footing
-  (planted feet that never slide: walking, stopping, standing and turning on the spot), point specs.
+  (planted feet that never slide, on four legs or two: walking, stopping, standing and turning on
+  the spot), point specs.
 - `engine/camera/director.js`: the camera director.
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback.
 - `world/forest/`: the forest system (`createForest(world, layout)`).
@@ -44,7 +45,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 A chapter exports `chapter` with `layout` (for the forest), `actors`, `cast`, `lines`, `shots` and
 `script`. Shots are data: `{ position, target, fov }` or `{ position, frame: { subject, screen: [u, v] }, fov }`.
 Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.head'`, `'camera'`
-or `{ actor, part, offset, local }`, so a shot can follow a character.
+or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
+`walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:

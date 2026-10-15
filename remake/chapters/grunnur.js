@@ -2,9 +2,9 @@
 // camera director and the scene system; it is not a story chapter.
 //
 // Units are metres. Mosi is about 4 m nose to tail and 2 m tall, standing at the origin facing +X.
-// Egill (1.1 m) waits in the clearing; Mosi walks up to him and says hello. Egill is a Tripo model
-// rigged and animated by remake/tools/bake/bake-biped.js (idle, walk, wave, waveLeft, point, sit,
-// lifted).
+// Egill (1.1 m) waits in the clearing; Mosi walks up to him, Egill waves and takes a few steps
+// toward him, and Mosi says hello. Egill is a Tripo model rigged and animated by
+// remake/tools/bake/bake-biped.js (idle, walk, wave, waveLeft, point, sit, lifted).
 // The morning sun sits toward -X/+Z (azimuth 135 deg), so the hero shot gets side light.
 
 // The tracking shot rides ahead of Mosi on his right (+Z) side, so we see his face as he walks in.
@@ -16,8 +16,15 @@ const FACE = { actor: 'mosi', part: 'head', offset: [0, 0.35, 0] };
 const CANOPY = [7.2, 10, -9.6];
 // Where Mosi glances while he speaks: up and a little to his left, inside his comfortable head turn.
 const GLANCE = [13, 7.5, -3];
-// Where Egill waits, facing the spot where Mosi stops; Mosi then turns 20 degrees to face him.
-const EGILL = { position: [2.74, 0, 0.94], heading: 200 };
+// Where Mosi's walk in ends. Egill waits a little way off, facing that spot; once Mosi has stopped he
+// walks up beside Mosi's head, to a point in Mosi's own frame taken as he sets off (so it follows Mosi
+// wherever he stops). There the dialogue frames him over his shoulder, and Mosi turns 20 degrees to
+// face him.
+const MOSI_STOP = [0.3, 0.05];
+const EGILL_WAITS = { position: [3.68, 0, 1.282], heading: 200 };
+const EGILL_SPOT = { actor: 'mosi', part: 'head', offset: [0.966, 0, 1.236], local: true }; // ahead, to his right
+// How far apart the two stand when Mosi stops: Egill's cues are counted from there.
+const APART = Math.hypot(EGILL_WAITS.position[0] - MOSI_STOP[0], EGILL_WAITS.position[2] - MOSI_STOP[1]);
 
 export const chapter = {
   id: 'grunnur',
@@ -32,7 +39,7 @@ export const chapter = {
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', position: [0, 0, 0], heading: 0 },
-    egill: { url: '../assets/characters/egill.glb', ...EGILL },
+    egill: { url: '../assets/characters/egill.glb', ...EGILL_WAITS },
   },
   // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3).
   cast: {
@@ -89,25 +96,26 @@ export const chapter = {
 
     // Opening: a wide view over the clearing, slow dolly in, while Mosi comes out of the forest.
     // At 0.65 m/s his walk (1.7 m a cycle) plays at about 1.1x: a footfall every 0.65 s.
-    const arrival = mosi.walkTo([[-10, 2.5], [-6.2, 1.45], [-3, 0.6], [0.3, 0.05]], { speed: 0.65 });
+    const arrival = mosi.walkTo([[-10, 2.5], [-6.2, 1.45], [-3, 0.6], MOSI_STOP], { speed: 0.65 });
     yield s.all(s.fade(0, 2.5), s.camera.move('openingIn', { duration: 9 }));
 
     // A tracking shot beside him until he reaches the middle of the clearing. Egill sees him coming:
-    // he looks up at him, and waves from when the camera brings him into the frame (Mosi 3.5 m
-    // away) until his arm comes down just before the cut. The camera sees his left side, so he
-    // waves with his left hand.
+    // he looks up at him, and waves from when the camera brings him into the frame (Mosi about 0.9 m
+    // from his stop). The camera sees his left side, so he waves with his left hand. When Mosi has
+    // stopped, he walks a few steps up to him (the walk brings his arm down).
     yield s.camera.cut('track');
     yield s.camera.follow('mosi', TRACK);
     const distance = () => mosi.raw.root.position.distanceTo(egill.raw.root.position);
-    s.after(0, function* greet() {
-      yield s.until(() => distance() < 7);
+    const greeting = s.after(0, function* greet() {
+      yield s.until(() => distance() < APART + 4.4);
       yield egill.lookAt('mosi.head', { weight: 0.8 });
-      yield s.until(() => distance() < 3.5);
+      yield s.until(() => distance() < APART + 0.9);
       yield egill.play('waveLeft');
       yield s.wait(1.9); // about two and a half waves
-      yield egill.play('idle', { fade: 0.5 });
+      yield s.until(() => arrival.done);
+      yield egill.walkTo(EGILL_SPOT, { speed: 0.55 });
     });
-    yield arrival;
+    yield s.all(arrival, greeting);
     yield s.wait(0.6);
 
     // Introduction: over Egill's shoulder, a soft push while Mosi turns to him and looks at him.

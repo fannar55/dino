@@ -234,6 +234,20 @@ the clips in code (`biped-clips.js`: idle, walk, wave, waveLeft, point, sit, lif
 rotations are identity, so a clip turns bones about the character's own axes (X forward, Y up,
 Z right). A child's arms are short against his head: a raised hand reads by staying out to the
 side, and past about 165 degrees from hanging the forearm folds over the head.
+The walk is authored from the feet, not from joint angles (`WALK` in `biped-clips.js`): at its
+own speed (0.55 m/s, 0.8 s a stride, 150 steps a minute) a foot lands flat and stays put while the
+body passes over it; just after the other foot lands, its heel peels up about the toe, which stays
+put too; then it swings forward, toes up late in the swing, and comes straight down flat. Two-bone
+IK (the knee a hinge about the thigh's Z axis) reaches each foot, and the hips are as high as the
+legs allow at 99.5 % of their length, smoothed, so the bob (about 2 cm) follows the stride. The arms
+swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a biped's feet as it does
+Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
+and the hips sink when a leg could not reach it otherwise. A clip that leaves the legs at rest (idle,
+wave, point) keeps the feet where they stand. Footing's distances and times are tuned per body plan
+(`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's legs, measured
+from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
+re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
+should grow with the square root of its size too.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
