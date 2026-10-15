@@ -180,11 +180,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const mixer = new THREE.AnimationMixer(model);
   const clips = new Map(gltf.animations.map(c => [c.name, c]));
   let current = null;
-  let gait; // measured the first time it is needed: a walk, or a climb matching the walk to its speed
-  function measuredGait() {
-    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
-    return gait;
-  }
+  let gait; // measured the first time the actor walks
 
   // `once` plays the clip to its end and holds the last frame; otherwise it loops.
   function play(clipName, { fade = 0.4, timeScale = 1, once = false } = {}) {
@@ -289,7 +285,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     handle.onCancel = () => { if (walk?.handle === handle) { const w = walk; walk = null; arrive(w); } };
     const curve = pts.length > 2 ? new THREE.CatmullRomCurve3(pts, false, 'centripetal') : new THREE.LineCurve3(pts[0], pts[1]);
     const length = curve.getLength();
-    measuredGait();
+    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
     const baseScale = gait ? clamp(speed / gait.naturalSpeed, 0.5, 3) : 1;
     const walking = current?.getClip() === clips.get('walk');
     const action = play('walk', { fade, timeScale: baseScale });
@@ -376,14 +372,15 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   }
 
   // Control ------------------------------------------------------------------------------------
-  // Something else can move the actor (riding.js: a climb, a ride). It puts the root each frame, and
+  // Something else can move the actor (riding.js: a float, a ride). It puts the root each frame, and
   // walking, turning and footing wait while it does.
   let controlled = false;
   let drive = null; // while controlled, called first in each update to put the root
+  let pose = null; // and this after the clips, to lay something over their pose (hands on a grip)
   function setControlled(value) {
     if (controlled && !value) footing.reset(); // the feet start over from where the actor was left
     controlled = value;
-    if (!value) drive = null;
+    if (!value) drive = pose = null;
   }
 
   // Looking ------------------------------------------------------------------------------------
@@ -473,23 +470,26 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   world.scene.add(root);
 
   return {
-    name, root, model, mixer, clips, size,
+    name, root, model, mixer, clips, size, world,
     get heading() { return getHeading(); },
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },
-    /** The walk clip's measured gait (naturalSpeed and the rest), or null without a walk clip. */
-    get gait() { return measuredGait(); },
+    get gait() { return gait; },
     /**
      * True while something else moves the actor (riding.js): update() plays the clips and lays the look
-     * over them, but leaves walking, turning and footing alone and the root where it is put. Set back to
-     * false, the feet start over from where the actor was left.
+     * and talk over them, but leaves walking, turning and footing alone and the root where it is put.
+     * Set back to false, the feet start over from where the actor was left.
      */
     get controlled() { return controlled; },
     set controlled(value) { setControlled(Boolean(value)); },
-    /** Take the actor over: drive(dt) puts the root first thing in every update. control(null) gives it back. */
-    control(fn) {
-      setControlled(Boolean(fn));
-      drive = fn ?? null;
+    /**
+     * Take the actor over: drive(dt) puts the root first thing in every update, and pose(dt), if given,
+     * runs right after the clips. control(null) gives the actor back.
+     */
+    control(driveFn, poseFn = null) {
+      setControlled(Boolean(driveFn));
+      drive = driveFn ?? null;
+      pose = driveFn ? poseFn : null;
     },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
@@ -538,7 +538,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
         updateTurn(dt);
       }
       mixer.update(dt);
-      if (!controlled) footing.update(dt);
+      if (controlled) pose?.(dt);
+      else footing.update(dt);
       layerBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
       const looked = applyLook(dt);
       const talked = applyTalk(dt);
@@ -555,4 +556,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     },
     dispose() { mixer.stopAllAction(); lids?.dispose(); world.scene.remove(root); releaseCharacter(model); },
   };
+}
+
+/**
+ * Update a set of actors (a Map's values, an array): those that something else moves (controlled, as a
+ * rider is by riding.js) after the rest, so a rider follows its host as the host is in this very frame,
+ * whatever order the chapter lists them in.
+ */
+export function updateActors(actors, dt) {
+  const free = [];
+  const held = [];
+  for (const actor of actors) (actor.controlled ? held : free).push(actor);
+  for (const actor of free) actor.update(dt);
+  for (const actor of held) actor.update(dt);
 }

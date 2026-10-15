@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
-import { createActor } from '../engine/actor.js';
+import { createActor, updateActors } from '../engine/actor.js';
+import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
-import { createSaddle, ride } from '../engine/riding.js';
+import { createSaddle, ride, floatTo } from '../engine/riding.js';
 
 // Mosi (8.5 m) and Egill (1.1 m) as the remake bakes them, read without textures (no DOM in Node).
 function loadGlb(url) {
@@ -40,22 +41,117 @@ function loadGlb(url) {
 const mosiGltf = loadGlb(new URL('../assets/characters/mosi.glb', import.meta.url));
 const egillGltf = loadGlb(new URL('../assets/characters/egill.glb', import.meta.url));
 
-async function stage({ mosi: withMosi = true } = {}) {
+// A frame as main.js runs it: the actors (riders after their hosts), then the effects.
+async function stage({ egillFirst = false } = {}) {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
-  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map(), effects: createEffects() };
   world.resolvePoint = createPointResolver(world);
-  // Mosi first: the game updates the actors in the chapter's order, the host before its rider.
-  if (withMosi) world.actors.set('mosi', await createActor(world, { name: 'mosi', gltf: await mosiGltf, position: [0, 0, 0], heading: 0 }));
-  world.actors.set('egill', await createActor(world, { name: 'egill', gltf: await egillGltf, position: [-6, 0, 2], heading: 0 }));
-  const frame = (dt = 1 / 30) => { for (const actor of world.actors.values()) actor.update(dt); };
+  const make = {
+    mosi: async () => createActor(world, { name: 'mosi', gltf: await mosiGltf, position: [0, 0, 0], heading: 0 }),
+    egill: async () => createActor(world, { name: 'egill', gltf: await egillGltf, position: [1.2, 0, 3.2], heading: 250 }),
+  };
+  for (const name of egillFirst ? ['egill', 'mosi'] : ['mosi', 'egill']) world.actors.set(name, await make[name]());
+  const frame = (dt = 1 / 30) => {
+    updateActors(world.actors.values(), dt);
+    world.effects.update(dt);
+  };
   return { world, mosi: world.actors.get('mosi'), egill: world.actors.get('egill'), frame };
 }
 
 const mm = metres => `${(metres * 1000).toFixed(1)} mm`;
-test('the rider stays on the seat while the host walks', async () => {
+const unit = new THREE.Vector3(1, 1, 1);
+const handsFrom = (egill, saddle) => ['Left', 'Right'].map(side => {
+  const wrist = egill.model.getObjectByName(`${side}Hand`).getWorldPosition(new THREE.Vector3());
+  return wrist.distanceTo(side === 'Left' ? saddle.grips.left : saddle.grips.right);
+});
+
+test('the saddle starts hidden and appears: it pops in with sparkles and ends visible at full size', async () => {
+  const { world, mosi, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  assert.equal(saddle.object.visible, false, 'hidden until it appears');
+  const shown = saddle.appear();
+  assert.equal(saddle.object.visible, true);
+  assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).x < 0.01, 'it starts from nothing');
+  const sparkles = world.scene.children.filter(o => o.isPoints);
+  assert.equal(sparkles.length, 1, 'one burst of sparkles, one draw call');
+  let biggest = 0;
+  let frames = 0;
+  for (; frames < 60 && !shown.done; frames++) {
+    frame();
+    biggest = Math.max(biggest, saddle.object.getWorldScale(new THREE.Vector3()).x);
+  }
+  assert.equal(shown.done, true);
+  assert.ok(Math.abs(frames / 30 - 0.8) < 0.05, `it took ${(frames / 30).toFixed(2)} s`);
+  assert.ok(biggest > 1.04, `it overshoots a little before it settles (${biggest.toFixed(2)})`);
+  assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'it ends at its full size, in metres');
+  assert.equal(saddle.object.visible, true);
+  for (let i = 0; i < 10; i++) frame();
+  assert.equal(world.scene.children.filter(o => o.isPoints).length, 0, 'the sparkles are gone');
+});
+
+test('floatTo lifts the rider onto the seat, and ride keeps him there while Mosi walks', async () => {
+  const { world, mosi, egill, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  const shown = saddle.appear();
+  while (!shown.done) frame();
+  const ground = egill.root.position.clone();
+  const float = floatTo(egill, saddle);
+  assert.equal(egill.controlled, true);
+  assert.equal(world.scene.children.filter(o => o.isPoints).length, 1, 'one trail of sparkles');
+  let highest = 0;
+  let frames = 0;
+  for (; frames < 120 && !float.done; frames++) {
+    frame();
+    highest = Math.max(highest, egill.root.position.y);
+  }
+  assert.equal(float.done, true);
+  assert.ok(Math.abs(frames / 30 - 2.2) < 0.05, `the float took ${(frames / 30).toFixed(2)} s`);
+  saddle.update();
+  assert.ok(egill.root.position.distanceTo(saddle.seat) < 0.01, `he lands ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
+  assert.ok(highest > saddle.seat.y + 0.2, 'he comes down into the seat from above it');
+  assert.ok(ground.distanceTo(saddle.seat) > 2, 'from where he stood on the ground');
+  assert.ok(Math.abs(egill.heading - mosi.heading) < 0.5, 'facing Mosi\'s way');
+  assert.ok(egill.root.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'never taking Mosi\'s scale');
+  // The ride takes over without a pop: he does not move further than the seat does, and his sit pose
+  // carries on instead of starting again.
+  const sit = egill.mixer.existingAction(egill.clips.get('sit'));
+  const seatBefore = saddle.seat.clone();
+  const before = egill.root.position.clone();
+  const sitTime = sit.time;
+  ride(egill, saddle);
+  frame();
+  saddle.update();
+  assert.ok(egill.root.position.distanceTo(before) <= saddle.seat.distanceTo(seatBefore) + 1e-4, 'no pop when the ride takes over');
+  assert.ok(sit.time > sitTime, 'the sit pose carries on');
+  mosi.walkTo([[12, 2]], { speed: 0.95 });
+  for (let i = 0; i < 60; i++) frame();
+  saddle.update();
+  assert.ok(saddle.seat.distanceTo(seatBefore) > 1, 'Mosi has walked on');
+  assert.ok(egill.root.position.distanceTo(saddle.seat) < 1e-3, `Egill rides ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
+  assert.ok(egill.root.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6);
+});
+
+test('while riding, each hand holds its grip on the handle, also while Mosi walks', async () => {
   const { mosi, egill, frame } = await stage();
   const saddle = createSaddle(mosi);
   ride(egill, saddle);
+  for (let i = 0; i < 45; i++) frame(); // settled in the seat, then the hands go to the handle
+  saddle.update();
+  for (const [k, gap] of handsFrom(egill, saddle).entries()) assert.ok(gap < 0.03, `${k ? 'right' : 'left'} hand ${mm(gap)} from its grip`);
+  mosi.walkTo([[12, -3]], { speed: 0.95 });
+  let worst = 0;
+  for (let i = 0; i < 90; i++) {
+    frame();
+    saddle.update();
+    worst = Math.max(worst, ...handsFrom(egill, saddle));
+  }
+  assert.ok(worst < 0.03, `while Mosi walks a hand was up to ${mm(worst)} from its grip`);
+});
+
+test('the rider stays on the seat while the host walks', async () => {
+  const { mosi, egill, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  ride(egill, saddle); // from the ground: he settles in over 0.8 s
   const start = saddle.seat.clone();
   mosi.walkTo([[14, 2]], { speed: 0.95 });
   for (let i = 0; i < 60; i++) frame();
@@ -64,20 +160,19 @@ test('the rider stays on the seat while the host walks', async () => {
   assert.equal(egill.controlled, true);
   assert.ok(egill.root.position.distanceTo(saddle.seat) < 1e-3, `Egill is ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
   assert.ok(Math.abs(egill.heading - mosi.heading) < 0.1, `Egill faces ${egill.heading.toFixed(1)}, Mosi ${mosi.heading.toFixed(1)} degrees`);
-  // The seat is on Mosi's back, where it was: the saddle follows the bone it sits on.
-  const body = mosi.model.getObjectByName('Body');
-  const onBack = p => body.worldToLocal(p.clone());
-  const before = onBack(saddle.seat);
+  // The seat is on Mosi's shoulders, where it was: the saddle follows the bone it sits on.
+  const shoulders = mosi.model.getObjectByName('Shoulders');
+  const onShoulders = p => shoulders.worldToLocal(p.clone());
+  const before = onShoulders(saddle.seat);
   for (let i = 0; i < 30; i++) frame();
   saddle.update();
-  assert.ok(onBack(saddle.seat).distanceTo(before) < 1e-4, 'the seat keeps its place on the Body bone');
+  assert.ok(onShoulders(saddle.seat).distanceTo(before) < 1e-4, 'the seat keeps its place on the Shoulders bone');
   assert.ok(egill.root.position.distanceTo(saddle.seat) < 1e-3, `Egill is ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
 });
 
 test('the rider never inherits the host\'s scale', async () => {
   const { world, mosi, egill, frame } = await stage();
-  const unit = new THREE.Vector3(1, 1, 1);
-  assert.ok(mosi.model.getObjectByName('Body').getWorldScale(new THREE.Vector3()).x > 2, 'Mosi\'s bones carry the GLB\'s scale');
+  assert.ok(mosi.model.getObjectByName('Shoulders').getWorldScale(new THREE.Vector3()).x > 2, 'Mosi\'s bones carry the GLB\'s scale');
   const saddle = createSaddle(mosi);
   ride(egill, saddle);
   mosi.walkTo([[10, 0]], { speed: 0.95 });
@@ -86,7 +181,23 @@ test('the rider never inherits the host\'s scale', async () => {
   assert.ok(egill.model.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'and so does his model');
   assert.ok(saddle.object.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'the saddle is in metres, not in Mosi\'s units');
   assert.equal(egill.root.parent, world.scene, 'Egill is not hung on Mosi\'s skeleton');
-  // Sized for a 1.1 m rider: a pad about as long as his seat and thighs, on an 8.5 m Triceratops.
+  // Big and generous for a 1.1 m rider, on an 8.5 m Triceratops.
   const size = new THREE.Box3().setFromObject(saddle.object).getSize(new THREE.Vector3());
-  assert.ok(size.x > 0.4 && size.x < 1.2 && size.z > 0.3 && size.z < 1.2, `the saddle is ${size.x.toFixed(2)} by ${size.z.toFixed(2)} m`);
+  assert.ok(size.x > 0.6 && size.x < 1.2 && size.z > 0.6 && size.z < 1.2, `the saddle is ${size.x.toFixed(2)} by ${size.z.toFixed(2)} m`);
+});
+
+test('a rider listed before his host still follows the seat in the same frame', async () => {
+  const { world, mosi, egill, frame } = await stage({ egillFirst: true });
+  assert.deepEqual([...world.actors.keys()], ['egill', 'mosi'], 'Egill comes first in the chapter');
+  const saddle = createSaddle(mosi);
+  ride(egill, saddle);
+  for (let i = 0; i < 30; i++) frame();
+  mosi.walkTo([[12, 0]], { speed: 0.95 });
+  let worst = 0;
+  for (let i = 0; i < 60; i++) {
+    frame();
+    saddle.update(); // where the saddle is after this frame
+    worst = Math.max(worst, egill.root.position.distanceTo(saddle.seat));
+  }
+  assert.ok(worst < 1e-3, `Egill trailed the seat by up to ${mm(worst)}`);
 });

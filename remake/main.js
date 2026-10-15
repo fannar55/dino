@@ -9,7 +9,8 @@ import { updateCharacterLods, whenReady as characterLodsReady } from './engine/c
 import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createWind } from './engine/wind.js';
-import { createActor } from './engine/actor.js';
+import { createActor, updateActors } from './engine/actor.js';
+import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
 import { createPointResolver } from './engine/points.js';
 import { createLocations } from './engine/locations.js';
@@ -54,6 +55,7 @@ const world = {
   THREE, renderer, scene, camera, clock, q, params, look, lighting, wind, chapter,
   heightAt: () => 0,
   actors: new Map(),
+  effects: createEffects(), // sparkles and the like, on the game clock (engine/effects.js)
 };
 world.resolvePoint = createPointResolver(world);
 
@@ -122,7 +124,8 @@ function update(dt) {
   journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
   stage.update(dt);
   wind.update(clock.time);
-  for (const actor of world.actors.values()) actor.update(dt);
+  updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
+  world.effects.update(dt); // after the actors, so a trail follows where a rider is now
   if (controls) controls.update();
   else director.update(dt);
   if (shadowFollowsCamera) {

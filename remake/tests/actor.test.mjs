@@ -331,10 +331,16 @@ test('while controlled, the root stays where it is put and a walk waits', async 
   for (let i = 0; i < 4; i++) mosi.update(1 / 30);
   assert.equal(steps.length, 4);
   assert.equal(mosi.root.position.x, 3);
+  // A pose step, if given, runs after the clips each update.
+  const order = [];
+  mosi.control(() => order.push('drive'), () => order.push('pose'));
+  mosi.update(1 / 30);
+  assert.deepEqual(order, ['drive', 'pose']);
   mosi.control(null);
   assert.equal(mosi.controlled, false);
   mosi.update(1 / 30);
   assert.equal(steps.length, 4);
+  assert.deepEqual(order, ['drive', 'pose']);
 });
 
 test('frozen frames leave a stepping foot where it is', async () => {
