@@ -9,6 +9,7 @@ export const CHARACTERS = {
   mosi: 'mosi.glb',
   egill: 'egill.glb',
   gramedla: 'trex.glb',
+  kambedla: 'stegosaurus.glb',
 };
 
 export function readGlb(name) {

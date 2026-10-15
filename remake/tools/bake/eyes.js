@@ -302,7 +302,7 @@ export function findEyes({ mesh, pixels, hints = null, margin = 0.14 }) {
       const band = near.filter(s => {
         const q = local(s);
         const edge = side < 0 ? top * grow : bottom * grow;
-        return Math.abs(q.u / halfWidth) < 0.7 && side * q.v > edge && side * q.v < edge + 0.35 * (top + bottom);
+        return Math.abs(q.u / halfWidth) < 0.7 && side * q.v > edge && side * q.v < edge + 0.15 * (top + bottom);
       });
       return [0, 1, 2].map(k => median((band.length > 12 ? band : ring).map(s => s.rgb[k])));
     };

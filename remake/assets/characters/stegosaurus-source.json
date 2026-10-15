@@ -1,6 +1,6 @@
 {
   "file": "stegosaurus.glb",
-  "bytes": 2304760,
+  "bytes": 2305344,
   "triangles": 37996,
   "bones": 21,
   "clips": [
@@ -31,5 +31,7 @@
   "bakeCommand": "node remake/tools/bake/bake-character.mjs --page bake-quadruped --out remake/assets/characters/stegosaurus.glb --query \"src=../../assets/characters/source/stegosaurus-parts.glb&length=7&yaw=180&name=Kambeðla&out=stegosaurus.glb\"",
   "lookCheck": "qa/remake/shots/kambedla-look/ (with her beside Mosi at 8.5 m and Egill at 1.1 m: grunnur review shots lineup, three, face, hero, behind, walk and kink; lineup-chapter/ for chapter=lineup with Grameðla too: lineup, kambedla, kambedlaSide), qa/remake/shots/kambedla-r1/ and kambedla-r2/ (rig, weights, walk, nod, eat, happy, the plate rows lit one by one, look turns, back faces in magenta), qa/remake/shots/kambedla-look/chapter1/ (eating from Egill's hand, hopping) and qa/remake/shots/stego-look/ (the source as received).",
   "budget": "GPU at the tablet preset, 1280x800 on the Iris Xe laptop, __benchmark medians, runs with and without her interleaved in one page load (six rounds each): she adds 0.3 to 1.6 ms, median about 0.8 (her face filling the frame about 1.1), nearly all of it the lit material where she covers the frame; 30k instead of 38k triangles, no shadow, no normal map or drawing the characters first each change it by 0.3 ms or less. Whole frames with her are over 6 ms in most loads: grunnur review shots and the scene at t=24 5.5 to 8.2 ms (4.6 to 7.1 without her), chapter=lineup with all four characters 6.2 to 8.5 ms (5.2 to 7.8 without her). The laptop read about 1 ms slower than the scene measured that morning (warm after long benchmark runs, the GPU shared with other sessions). Triangles, shadow pass included: 277k to 305k in grunnur (201k to 229k without her), 359k to 413k in the lineup.",
-  "notes": "Violet body, plum back, lilac-cream belly, lilac plates and ivory spikes, as in the concept and STYLE.md section 3 (the row takes its values from this model). Friendly face, closed smile, no teeth. Real adult size: 7 m from nose to tail tip."
+  "notes": "Violet body, plum back, lilac-cream belly, lilac plates and ivory spikes, as in the concept and STYLE.md section 3 (the row takes its values from this model). Friendly face, closed smile, no teeth. Real adult size: 7 m from nose to tail tip.",
+  "facePass": "Eyes found in the colour map by remake/tools/bake/face.js (eyes.js) and written into the GLB as extras on the skinned mesh (face.eyes: per eye its centre, frame, outline and lid and lash colours, in bind space), for the eyelids the engine builds in code (engine/eyelids.js). Geometry and textures unchanged (2026-10-15).",
+  "faceCommand": "node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/stegosaurus.glb --query \"src=../../assets/characters/stegosaurus.glb&out=stegosaurus.glb\""
 }
