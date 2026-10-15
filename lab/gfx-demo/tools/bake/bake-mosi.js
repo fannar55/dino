@@ -12,7 +12,6 @@
 // cycle). Duty and lag snap to 1/120 of the cycle, the walk's key spacing. length (metres from nose
 // to tail tip) scales the finished Mosi uniformly to that size, walk included: the remake bakes him
 // at his real 8.5 m, while the game keeps the fitted size (no length).
-// clips=remake adds the clips only the remake uses (tailDown, below); without it the bake is the game's.
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -576,55 +575,6 @@ async function main() {
     headBox: { min: r3(head.box.min), max: r3(head.box.max) },
   };
 
-  // --- remake clips (only with clips=remake) -----------------------------------------------------
-  // Clips the remake uses and the game does not: without the query nothing here runs, so the game's
-  // bake stays byte-identical. tailDown (1.5 s, which the remake plays once and holds): the tail lies
-  // down behind the hips as a ramp for Egill to climb (remake chapter 1, scene 5). Each tail bone
-  // turns down about Mosi's right side (Z) until the tail runs straight from Tail1, whatever its curve
-  // at rest; the ramp is as steep as it must be for the lowest point of the tail to come down to the
-  // ground the feet stand on.
-  const remakeClips = [];
-  if (params.get('clips') === 'remake') {
-    const tail = tailNames.map(n => byName[n]);
-    const tailBones = new Set(tail.map(b => index.get(b)));
-    const { position: gp, skinIndex: gi, skinWeight: gw } = geometry.attributes;
-    const tailVerts = [];
-    for (let i = 0; i < gp.count; i++) {
-      let share = 0;
-      for (let k = 0; k < 4; k++) if (tailBones.has(gi.getComponent(i, k))) share += gw.getComponent(i, k);
-      if (share > 0.5) tailVerts.push(i);
-    }
-    // Each segment's droop at rest, from bone to bone and on to the tip, in radians below the horizontal
-    // in the side view, where a turn about Z changes it by exactly that turn.
-    const tip = new V3().fromBufferAttribute(gp, tailVerts.reduce((a, b) => (gp.getX(b) < gp.getX(a) ? b : a)));
-    const joints = [...tail.map(b => b.userData.restWorldPos), tip];
-    const droop = tail.map((b, k) => Math.atan2(joints[k].y - joints[k + 1].y, joints[k].x - joints[k + 1].x));
-    // The turns that lay every segment `ramp` below the horizontal: Tail1 turns by the ramp less its own
-    // droop, and each bone after it by the change in droop from the segment before (turns add up).
-    const turns = ramp => droop.map((d, k) => (k ? droop[k - 1] - d : ramp - d));
-    const restQuats = tail.map(b => b.quaternion.clone());
-    const lowestAt = ramp => {
-      turns(ramp).forEach((angle, k) => {
-        const b = tail[k];
-        b.quaternion.copy(b.parent.userData.restWorldQuat).invert().multiply(new THREE.Quaternion().setFromAxisAngle(Z, angle)).multiply(b.userData.restWorldQuat);
-      });
-      exportRoot.updateMatrixWorld(true);
-      const v = new V3();
-      return tailVerts.reduce((low, i) => Math.min(low, mesh.getVertexPosition(i, v).y), Infinity);
-    };
-    let flatter = 0, steeper = Math.PI / 2.5;
-    for (let i = 0; i < 40; i++) {
-      const ramp = (flatter + steeper) / 2;
-      if (lowestAt(ramp) > box.min.y) flatter = ramp; else steeper = ramp;
-    }
-    tail.forEach((b, k) => b.quaternion.copy(restQuats[k]));
-    exportRoot.updateMatrixWorld(true);
-    const ramp = (flatter + steeper) / 2;
-    const down = turns(ramp);
-    remakeClips.push(makeClip('tailDown', 1.5, u => Object.fromEntries(tail.map((b, k) => [b.name, { rot: [[Z, down[k] * smooth(u)]] }]))));
-    report.tailDown = { rampDeg: +THREE.MathUtils.radToDeg(ramp).toFixed(2), turnsDeg: down.map(a => +THREE.MathUtils.radToDeg(a).toFixed(2)) };
-  }
-
   // --- export --------------------------------------------------------------------------------------
   if (LENGTH) {
     // One uniform scale on the root node: skin, skeleton and clips grow together, the stride too.
@@ -634,7 +584,7 @@ async function main() {
     exportRoot.updateMatrixWorld(true);
     report.length = { metres: LENGTH, scale: +k.toFixed(4), stride: +(STRIDE * k).toFixed(3), speed: +((STRIDE * k) / walkDuration).toFixed(3) };
   }
-  const glb = await new GLTFExporter().parseAsync(exportRoot, { binary: true, animations: [idle, walk, ...remakeClips], onlyVisible: true, maxTextureSize: TEX });
+  const glb = await new GLTFExporter().parseAsync(exportRoot, { binary: true, animations: [idle, walk], onlyVisible: true, maxTextureSize: TEX });
   const res = await fetch(`/__bake-output?name=${encodeURIComponent(OUT)}`, { method: 'POST', body: glb });
   if (!res.ok) throw new Error(`upload failed ${res.status}`);
   report.output = { name: OUT, bytes: glb.byteLength, triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count };

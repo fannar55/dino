@@ -302,40 +302,18 @@ test('twice the size, Mosi turns on the spot in as many steps as at his own size
   assert.ok(Math.abs(steps[2] - steps[1]) <= 1, `${steps[1]} steps at his size, ${steps[2]} at twice it`);
 });
 
-test('the remake\'s Mosi has a tailDown clip', async () => {
-  const { mosi } = await scaledStage(REAL);
-  const clip = mosi.clips.get('tailDown');
-  assert.ok(clip, 'no tailDown clip');
-  assert.ok(Math.abs(clip.duration - 1.5) < 1e-3, `tailDown lasts ${clip.duration} s`);
-  let mesh = null;
-  mosi.model.traverse(o => { if (o.isSkinnedMesh) mesh = o; });
-  const tailBones = new Set(['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5'].map(n => mesh.skeleton.bones.findIndex(b => b.name === n)));
-  const { skinIndex, skinWeight } = mesh.geometry.attributes;
-  const tail = [];
-  for (let i = 0; i < skinIndex.count; i++) {
-    let w = 0;
-    for (let k = 0; k < 4; k++) if (tailBones.has(skinIndex.getComponent(i, k))) w += skinWeight.getComponent(i, k);
-    if (w > 0.5) tail.push(i);
-  }
-  const lowest = () => {
-    mosi.root.updateMatrixWorld(true);
-    return tail.map(i => mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld)).reduce((a, b) => (b.y < a.y ? b : a));
-  };
-  assert.ok(lowest().y > 1, 'the tail is up to begin with');
-  // Played once, it lays the tail down and holds it there: the tip rests on the ground behind the hips.
-  const action = mosi.play('tailDown', { once: true });
-  for (let i = 0; i < 75; i++) mosi.update(1 / 30);
-  const tip = lowest();
-  assert.ok(tip.y > -0.01 && tip.y < 0.04, `the lowest point of the tail is ${tip.y.toFixed(3)} m up`);
-  const hindFoot = mosi.model.getObjectByName('BackFootR').getWorldPosition(new THREE.Vector3());
-  assert.ok(tip.x < hindFoot.x - 2, `it rests ${(hindFoot.x - tip.x).toFixed(2)} m behind the hind feet`);
+test('a clip played once holds its last frame, and loops again when played without once', async () => {
+  const { mosi } = await stage();
+  const action = mosi.play('walk', { once: true, fade: 0.2 });
   assert.equal(action.loop, THREE.LoopOnce);
+  for (let i = 0; i < 105; i++) mosi.update(1 / 30); // 3.5 s, past the end of the 2.9 s clip
+  assert.equal(action.time, action.getClip().duration);
+  const foot = mosi.model.getObjectByName('FrontFootL');
+  const held = foot.getWorldPosition(new THREE.Vector3());
   for (let i = 0; i < 30; i++) mosi.update(1 / 30);
-  assert.ok(lowest().distanceTo(tip) < 1e-3, 'the tail holds its last pose');
-  assert.equal(action.time, clip.duration);
-  // A clip played without `once` loops again.
+  assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(held) < 1e-6, 'the last frame holds');
   mosi.play('idle');
-  assert.equal(mosi.play('tailDown').loop, THREE.LoopRepeat);
+  assert.equal(mosi.play('walk').loop, THREE.LoopRepeat);
 });
 
 test('while controlled, the root stays where it is put and a walk waits', async () => {
