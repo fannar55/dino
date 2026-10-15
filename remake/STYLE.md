@@ -28,18 +28,18 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 ## 3. Characters and the species colour map
 
 - Every animal and Egill follows the new Mosi: soft friendly cartoon, expressive eyes with lids
-  that blink (code), painted matte skin, a pale belly as a family trait, no scary teeth (the T. rex
-  too), a closed kind smile at rest.
+  that blink (code), painted matte skin, a pale belly as a family trait, no scary teeth (the T. rex's
+  few teeth are soft and rounded), a closed kind smile at rest.
 - Eyes stay painted as Tripo made them; the lids are code (`engine/eyelids.js`): skin-coloured lids
   (the skin just above and just below each eye) with a dark lash line, fading into the painted skin.
   A shut eye is a soft downward curve, the content closed eye, never a squint. Scenes may rest the
   eyes half shut (sleepy) or shut; the blinks go on over half-shut eyes.
-- Mouths (2026-10-15): a character with a jaw (Grameðla) opens it when it speaks, about 10 degrees
-  on the loudest syllables, and wide (26 degrees) only for the friendly roar; inside is a pink
-  pocket, no teeth. Mosi's beak and Egill's lips stay closed in their smile, and they speak with
-  small nods and tilts of the head. No character has teeth. Whether Mosi's beak and Egill's mouth
-  should open, and whether Grameðla gets soft rounded teeth, is put to the owner with sketches (plan
-  doc, Stílforskrift).
+- Mouths (the owner, 2026-10-15): a character with a jaw opens it when it speaks, about 10 degrees on
+  the loudest syllables, and wide (26 degrees) only for Grameðla's friendly roar; inside is a pink
+  pocket. Only the T. rex has teeth: a few soft, rounded ivory ones, set in from the lips, so a closed
+  mouth keeps its smile and an open one shows them. Mosi's beak opens a little when he speaks, with
+  no teeth. Egill does not need to talk: his lips stay closed in his smile. Everyone who speaks also
+  nods and tilts the head a little.
 - Each species owns ONE main hue a child can tell apart across the clearing. No two species share
   a slot, and no species except Mosi uses the forest-green band. Hues are chosen against the
   habitat where the animal appears (orange and violet against green forest, gold and pink against
@@ -287,7 +287,9 @@ by the planes that halve each joint, and from the jaw by position along it; the 
 share a weight, and a few rounds of smoothing over the surface take out the steps at the seams.
 The front of the lip seam opens: the jaw side gets vertices of its own, and a pocket (palate and
 tongue, painted into a free corner of the colour map) fills the mouth, so the roar shows a pink
-mouth with no teeth. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
+mouth; on the pocket stand 15 soft rounded teeth (`teeth`: 8 upper on the head, 7 lower on the jaw,
+450 triangles, ivory painted into another free corner), set in from the lips and leaning into the
+mouth so closed lips cover them. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
 by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands flat and sweeps back
 at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
 other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,

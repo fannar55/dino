@@ -16,7 +16,8 @@ import { authorClips } from './tailed-biped-clips.js';
 // nose to tail tip), yaw (degrees that turn the model's head to +X; found from the model when left
 // out), tex (texture size), roughness, name, stride and cycle (the walk: metres and seconds per
 // cycle), duty (share of the cycle a foot is down), mouth (share of the lip seam that opens, from
-// the front), preview (1: show the result in the page instead of exporting; clip and t pick the pose).
+// the front), teeth (soft rounded teeth on the upper jaw, one fewer on the lower; 0 for none),
+// preview (1: show the result in the page instead of exporting; clip and t pick the pose).
 //
 // Bones have identity rest rotations, so clips rotate about the character's own axes: X forward,
 // Y up, Z the character's right. The legs are digitigrade, rigged the way the engine's footing
@@ -32,6 +33,7 @@ const TEX = Number(params.get('tex') || 1024);
 const ROUGHNESS = Number(params.get('roughness') || 0.62);
 const NAME = params.get('name') || 'Grameðla';
 const MOUTH = Number(params.get('mouth') || 0.62);
+const TEETH = Number(params.get('teeth') ?? 8);
 const PREVIEW = params.get('preview') === '1';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -114,9 +116,9 @@ function drawn(image, size) {
   return canvas;
 }
 
-// A block of the texture atlas that no triangle's UVs come near, at `size` px: room for the inside
-// of the mouth. Smaller blocks are tried when the atlas is full.
-function freeBlock(geometries, size) {
+// A block of the texture atlas that no triangle's UVs come near (nor a block already `taken`), at
+// `size` px: room for the inside of the mouth. Smaller blocks are tried when the atlas is full.
+function freeBlock(geometries, size, taken = []) {
   const cell = 4, n = size / cell;
   const used = new Uint8Array(n * n);
   for (const g of geometries) {
@@ -131,6 +133,11 @@ function freeBlock(geometries, size) {
       for (let y = Math.max(0, Math.floor(y0) - 2); y <= Math.min(n - 1, Math.floor(y1) + 2); y++) {
         for (let x = Math.max(0, Math.floor(x0) - 2); x <= Math.min(n - 1, Math.floor(x1) + 2); x++) used[y * n + x] = 1;
       }
+    }
+  }
+  for (const b of taken) {
+    for (let y = Math.floor(b.y / cell) - 1; y <= Math.ceil((b.y + b.h) / cell); y++) {
+      for (let x = Math.floor(b.x / cell) - 1; x <= Math.ceil((b.x + b.w) / cell); x++) if (x >= 0 && y >= 0 && x < n && y < n) used[y * n + x] = 1;
     }
   }
   for (const [w, h] of [[64, 48], [48, 32], [32, 24]]) {
@@ -668,10 +675,17 @@ try {
   };
   paintGradient(mapCanvas, swatch.palate, '#c65e5c', '#6c2a2c');
   paintGradient(mapCanvas, swatch.tongue, '#ee918a', '#a64c4e');
+  // The teeth: ivory, a little warmer at the gum than at the tip (STYLE.md's ivory claws #efe2c8).
+  if (TEETH > 0) {
+    const t = freeBlock(parts.map(p => p.geometry), TEX, [block]);
+    swatch.teeth = { x: t.x, y: t.y, w: Math.min(t.w, 32), h: Math.min(t.h, 24) };
+    paintGradient(mapCanvas, swatch.teeth, '#d9c6a3', '#f7efde');
+  }
   if (normalCanvas) {
     const g = normalCanvas.getContext('2d');
     g.fillStyle = 'rgb(128,128,255)';
     g.fillRect(block.x, block.y, block.w, block.h);
+    if (swatch.teeth) g.fillRect(swatch.teeth.x, swatch.teeth.y, swatch.teeth.w, swatch.teeth.h);
   }
   // A point of a swatch: u across (lip to deep inside), v along the lips; kept off the swatch's edge.
   const swatchUV = (s, u, v) => [(s.x + 4 + u * (s.w - 8)) / TEX, (s.y + 3 + v * (s.h - 6)) / TEX];
@@ -775,6 +789,63 @@ try {
     pieces.push(mouth);
     mouthInfo = { lipVertices: n, triangles: mouth.index.count / 3 };
     log(`mouth: ${n} lip vertices, ${mouth.index.count / 3} triangles inside`);
+
+    // Soft rounded teeth (the owner, 2026-10-15: of all the characters only the T. rex has teeth, and
+    // they are never scary): a few blunt ivory cones along the front of each jaw, set a little inside
+    // the lips on the pocket and rooted in the gum. Closed, each jaw's teeth lie inside the other jaw;
+    // they show while the mouth is open. They follow the pocket's smoothed weights: the upper teeth
+    // the head, the lower ones the jaw. Each tooth is 30 triangles.
+    if (TEETH > 0) {
+      const length = 0.068 * span; // about 16 cm on Grameðla
+      const SIDES = 6;
+      const PROFILE = [[1, 0], [0.95, 0.45], [0.62, 0.82], [0, 1]]; // radius share, height share
+      const tpos = [], tuv = [], tsi = [], tsw = [], tindex = [];
+      const lerpAt = (list, s) => { const x = s * (list.length - 1), i = Math.min(list.length - 2, Math.floor(x)); return list[i].clone().lerp(list[i + 1], x - i); };
+      const tooth = (s, upper) => {
+        const big = 0.75 + 0.25 * Math.sin(Math.PI * s); // the front teeth a little bigger
+        const len = length * big, radius = 0.42 * len;
+        const lip = lerpAt(inner, s), deep = lerpAt(fold, s);
+        // Set in from the lips and leaning into the mouth, so the closed lips cover them (a closed kind
+        // smile at rest) and an open mouth shows them; the root is sunk in the gum.
+        const inward = deep.clone().sub(lip).setY(0).normalize();
+        const root = lip.lerp(deep, 0.11).add(V(0, (upper ? 1 : -1) * 0.22 * len, 0));
+        const dir = V(0, upper ? -1 : 1, 0).addScaledVector(inward, upper ? 0.45 : 0.15).normalize();
+        const w = (upper ? innerUpper : innerLower)[Math.round(s * (m - 1))];
+        const side = V(0, 0, 1).cross(dir).normalize(), across = dir.clone().cross(side).normalize();
+        const base = tpos.length / 3;
+        PROFILE.forEach(([r, h], ring) => {
+          const count = r > 0 ? SIDES : 1;
+          for (let k = 0; k < count; k++) {
+            const a = (2 * Math.PI * k) / SIDES;
+            const q = root.clone().addScaledVector(dir, h * len).addScaledVector(side, Math.cos(a) * r * radius).addScaledVector(across, Math.sin(a) * r * radius);
+            tpos.push(q.x, q.y, q.z);
+            tuv.push(...swatchUV(swatch.teeth, h, 0.5));
+            for (let c = 0; c < 4; c++) { tsi.push(w[c] ? w[c][0] : 0); tsw.push(w[c] ? w[c][1] : 0); }
+          }
+          if (ring === 0) return;
+          const prev = base + (ring - 1) * SIDES, here = base + ring * SIDES;
+          for (let k = 0; k < SIDES; k++) {
+            const k1 = (k + 1) % SIDES;
+            // Wound so the outside faces out whichever way the tooth points.
+            const quad = r > 0 ? [[prev + k, here + k, here + k1], [prev + k, here + k1, prev + k1]] : [[prev + k, here, prev + k1]];
+            for (const [a, b, c] of quad) tindex.push(...(upper ? [a, c, b] : [a, b, c]));
+          }
+        });
+      };
+      const lower = Math.max(0, TEETH - 1);
+      for (let k = 0; k < TEETH; k++) tooth(0.18 + (0.64 * (k + 0.5)) / TEETH, true);
+      for (let k = 0; k < lower; k++) tooth(0.2 + (0.6 * (k + 0.5)) / lower, false);
+      const teeth = new THREE.BufferGeometry();
+      teeth.setAttribute('position', new THREE.Float32BufferAttribute(tpos, 3));
+      teeth.setAttribute('uv', new THREE.Float32BufferAttribute(tuv, 2));
+      teeth.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(tsi, 4));
+      teeth.setAttribute('skinWeight', new THREE.Float32BufferAttribute(tsw, 4));
+      teeth.setIndex(tindex);
+      teeth.computeVertexNormals();
+      pieces.push(teeth);
+      mouthInfo.teeth = { upper: TEETH, lower, triangles: tindex.length / 3, length: +length.toFixed(3) };
+      log(`teeth: ${TEETH} upper, ${lower} lower, ${tindex.length / 3} triangles, ${(100 * length).toFixed(1)} cm long`);
+    }
   }
 
   // --- one skinned mesh ------------------------------------------------------------------------------
