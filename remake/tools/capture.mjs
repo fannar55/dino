@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -71,6 +71,11 @@ function parseArgs(argv) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Waits for a promise, but at most ms, and leaves no timer behind to hold the process open.
+const within = (promise, ms) => {
+  let timer;
+  return Promise.race([promise, new Promise(r => { timer = setTimeout(r, ms); })]).finally(() => clearTimeout(timer));
+};
 
 function startServer() {
   const server = http.createServer(async (req, res) => {
@@ -107,8 +112,14 @@ class CDP {
         for (const h of this.handlers) h(msg);
       }
     });
+    // A dropped socket (the browser closing or crashing) fails the calls it will never answer instead of leaving them waiting.
+    ws.addEventListener('close', () => {
+      for (const { reject } of this.pending.values()) reject(new Error('DevTools socket closed'));
+      this.pending.clear();
+    });
   }
   send(method, params = {}, sessionId) {
+    if (this.ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('DevTools socket closed'));
     const id = ++this.id;
     const payload = { id, method, params };
     if (sessionId) payload.sessionId = sessionId;
@@ -128,22 +139,55 @@ async function launchBrowser(o) {
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
     '--autoplay-policy=no-user-gesture-required', 'about:blank',
   ].filter(Boolean);
-  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'ignore'] });
-  const portFile = path.join(userDir, 'DevToolsActivePort');
-  for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
-  if (!fs.existsSync(portFile)) throw new Error('Browser did not start (no DevToolsActivePort)');
-  let lines = [];
-  for (let i = 0; i < 50; i++) {
-    lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
-    if (lines.length >= 2) break;
-    await sleep(100);
+  // With __COMPAT_LAYER set (it is on this laptop) Edge relaunches itself without it and the process we spawn exits
+  // at once, so waiting for it or killing it misses the real browser. Leave it out, as Edge's relaunch does.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== '__COMPAT_LAYER'));
+  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'ignore'], env });
+  const browser = { exe, proc, exited: new Promise(r => proc.once('exit', r)), userDir, ws: null, cdp: null };
+  try {
+    const portFile = path.join(userDir, 'DevToolsActivePort');
+    for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
+    if (!fs.existsSync(portFile)) throw new Error('Browser did not start (no DevToolsActivePort)');
+    let lines = [];
+    for (let i = 0; i < 50; i++) {
+      lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
+      if (lines.length >= 2) break;
+      await sleep(100);
+    }
+    const ws = new WebSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
+    await new Promise((resolve, reject) => {
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', reject, { once: true });
+    });
+    return Object.assign(browser, { ws, cdp: new CDP(ws) });
+  } catch (e) {
+    await stopBrowser(browser);
+    throw e;
   }
-  const ws = new WebSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
-  await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true });
-    ws.addEventListener('error', reject, { once: true });
-  });
-  return { proc, userDir, ws, cdp: new CDP(ws) };
+}
+
+// Browser.close is not enough on Windows: the browser can take a minute or more to exit after it, its helper
+// processes (GPU, crashpad) can outlive it, and while any of them runs the profile folder cannot be removed.
+async function stopBrowser(browser) {
+  if (browser.cdp) await within(browser.cdp.send('Browser.close').catch(() => {}), 2000);
+  try { browser.ws?.close(); } catch {}
+  await within(browser.exited, 5000);
+  try { browser.proc.kill(); } catch {}
+  killProfileProcesses(browser.exe, browser.userDir);
+  // A killed browser keeps its files open until it has torn down, which took up to 13 s in tests here.
+  await within(browser.exited, 15000);
+  for (let i = 0; i < 40; i++) {
+    try { await fsp.rm(browser.userDir, { recursive: true, force: true }); return; } catch { await sleep(250); }
+  }
+  console.warn(`Could not remove ${browser.userDir}`);
+}
+
+// Windows only: kill() reaches the browser but not its helpers, so stop every process of this browser that was
+// started with this run's profile folder.
+function killProfileProcesses(exe, userDir) {
+  if (process.platform !== 'win32') return;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='${path.basename(exe)}'" | Where-Object { $_.CommandLine -like '*${path.basename(userDir)}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+  try { spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch {}
 }
 
 const PERF_JS = seconds => `new Promise(res => {
@@ -248,15 +292,9 @@ async function main() {
     }
   } finally {
     report.finishedAt = new Date().toISOString();
-    await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
-    try { await cdp.send('Browser.close'); } catch {}
-    try { browser.ws.close(); } catch {}
-    await sleep(300);
-    try { browser.proc.kill(); } catch {}
+    await stopBrowser(browser);
     server.close();
-    for (let i = 0; i < 10; i++) {
-      try { await fsp.rm(browser.userDir, { recursive: true, force: true }); break; } catch { await sleep(300); }
-    }
+    await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
   }
   console.log(`GPU: ${report.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
