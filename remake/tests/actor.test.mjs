@@ -52,6 +52,39 @@ const headOf = mosi => mosi.model.getObjectByName('Head');
 const headQuat = mosi => headOf(mosi).getWorldQuaternion(new THREE.Quaternion());
 const angleDeg = (a, b) => THREE.MathUtils.radToDeg(a.angleTo(b));
 
+// Follows the feet frame by frame from start(): the most a foot moved along the ground between two
+// frames in which it was down (within 1 mm of its bind-pose height), how often a foot lifted, and
+// how far a planted foot got from its rest spot under the body (the leg's reach).
+// Make it while the legs are still in the bind pose.
+function footWatch(mosi) {
+  const feet = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR'].map(n => mosi.model.getObjectByName(n));
+  const read = () => {
+    mosi.root.updateMatrixWorld(true);
+    return feet.map(f => f.getWorldPosition(new THREE.Vector3()));
+  };
+  const rest = read().map(p => mosi.root.worldToLocal(p.clone()));
+  let last = null;
+  const watch = {
+    slide: 0, lifts: 0, reach: 0,
+    start() { last = null; watch.slide = 0; watch.lifts = 0; watch.reach = 0; return watch.sample(); },
+    sample() {
+      const now = read().map((p, k) => {
+        const local = mosi.root.worldToLocal(p.clone());
+        return { p, down: local.y - rest[k].y < 0.001, reach: Math.hypot(local.x - rest[k].x, local.z - rest[k].z) };
+      });
+      now.forEach((foot, k) => {
+        if (foot.down) watch.reach = Math.max(watch.reach, foot.reach);
+        if (!last) return;
+        if (foot.down && last[k].down) watch.slide = Math.max(watch.slide, Math.hypot(foot.p.x - last[k].p.x, foot.p.z - last[k].p.z));
+        if (!foot.down && last[k].down) watch.lifts++;
+      });
+      last = now;
+      return now;
+    },
+  };
+  return watch;
+}
+
 test('the gait is measured from the walk clip', async () => {
   const { mosi } = await stage();
   mosi.walkTo([[3, 0]], { speed: 0.6 });
@@ -116,4 +149,78 @@ test('a walk arrives on its path and stop() settles everything', async () => {
   mosi.lookAt('camera');
   mosi.stop();
   assert.equal(mosi.walking, false);
+});
+
+test('turning on the spot, a foot that is down stays put and the feet step around', async () => {
+  const { mosi } = await stage();
+  const watch = footWatch(mosi);
+  for (let i = 0; i < 10; i++) mosi.update(1 / 30);
+  watch.start();
+  const turn = mosi.turnTo(75);
+  for (let i = 0; i < 300 && !turn.done; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.equal(turn.done, true);
+  assert.ok(Math.abs(mosi.heading - 75) < 1.5, `heading ${mosi.heading}`);
+  for (let i = 0; i < 60 && mosi.stepping; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.equal(mosi.stepping, false);
+  assert.ok(watch.lifts >= 4, `${watch.lifts} steps`);
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+});
+
+test('stopping keeps the planted feet where they are and brings the lifted ones down', async () => {
+  const { mosi } = await stage();
+  const watch = footWatch(mosi);
+  const walk = mosi.walkTo([[4, 0]], { speed: 0.65 });
+  for (let i = 0; i < 900 && !walk.done; i++) {
+    mosi.update(1 / 30);
+    if (mosi.root.position.x > 3.5) watch.sample(); // the last half metre, then the stop
+  }
+  assert.equal(walk.done, true);
+  for (let i = 0; i < 60; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+  assert.ok(watch.sample().every(foot => foot.down), 'every foot is down two seconds after the stop');
+  assert.equal(mosi.stepping, false);
+});
+
+test('a walk starts without dragging a foot or reaching too far', async () => {
+  // From the bind pose, and from wherever a turn on the spot left the feet.
+  for (const turnFirst of [null, -40]) {
+    const { mosi } = await stage();
+    const watch = footWatch(mosi);
+    if (turnFirst !== null) {
+      const turn = mosi.turnTo(turnFirst);
+      for (let i = 0; i < 300 && (!turn.done || mosi.stepping); i++) mosi.update(1 / 30);
+    }
+    const h = THREE.MathUtils.degToRad(mosi.heading);
+    const walk = mosi.walkTo([[4 * Math.cos(h), 4 * Math.sin(h)]], { speed: 0.65 });
+    watch.start();
+    for (let i = 0; i < 90 && !walk.done; i++) { mosi.update(1 / 30); watch.sample(); }
+    assert.ok(watch.lifts >= 2, 'the feet step');
+    assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+    assert.ok(watch.reach < 0.62, `a planted foot was ${watch.reach.toFixed(2)} m from its rest spot`);
+  }
+});
+
+test('on a curve the planted feet stay put and within reach', async () => {
+  const { mosi } = await stage();
+  const watch = footWatch(mosi);
+  // A quarter circle of 4 m radius between two straights.
+  const rad = THREE.MathUtils.degToRad;
+  const arc = [30, 60, 90].map(a => [2 + 4 * Math.sin(rad(a)), 4 * (1 - Math.cos(rad(a)))]);
+  const walk = mosi.walkTo([[2, 0], ...arc, [6, 6]], { speed: 0.65 });
+  watch.start();
+  for (let i = 0; i < 1200 && !walk.done; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.equal(walk.done, true);
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+  assert.ok(watch.reach < 0.62, `a planted foot was ${watch.reach.toFixed(2)} m from its rest spot`);
+});
+
+test('frozen frames leave a stepping foot where it is', async () => {
+  const { mosi } = await stage();
+  mosi.turnTo(60);
+  for (let i = 0; i < 12; i++) mosi.update(1 / 30); // a step is under way
+  const foot = mosi.model.getObjectByName('FrontFootR');
+  const before = foot.getWorldPosition(new THREE.Vector3());
+  for (let i = 0; i < 60; i++) mosi.update(0);
+  mosi.root.updateMatrixWorld(true);
+  assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(before) < 1e-6);
 });

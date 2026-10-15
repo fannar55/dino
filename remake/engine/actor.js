@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { Handle } from './handle.js';
+import { createFooting, stopCost } from './footing.js';
 
 // A character in a scene: a rigged GLB with its clips, standing on the ground. Clips cross-fade;
-// walking follows a smooth path at a speed matched to the walk cycle, so feet do not slide; the
+// walking follows a smooth path at a speed matched to the walk cycle, and footing (footing.js) keeps
+// a planted foot where it is, so walks, curves, stops and turns on the spot do not drag the feet; the
 // head can turn toward a point on top of whatever clip plays. Everything advances in update(dt) on
 // the game clock, so scenes pause and seek exactly.
 //
@@ -37,10 +39,13 @@ function rotateBoneWorld(bone, q) {
   bone.updateMatrixWorld(true);
 }
 
-// How fast the body must move for the walk clip's feet to stay planted. During stance a foot sweeps
-// backward relative to the body, so speed = backward travel / stance time, averaged over the feet.
-function measureGait(model, clip) {
-  const feet = FEET.map(n => findBone(model, n)).filter(Boolean);
+// How fast the body must move for the walk clip's feet to stay planted, and the point of the cycle
+// to arrive at. During stance a foot sweeps backward relative to the body, so speed = backward
+// travel / stance time, averaged over the feet. The arrival phase is the one that leaves footing
+// the least stepping when the walk stops (`rest`: each foot's bind-pose spot in the model's frame).
+// The sampled feet (`feet`: per foot, samples + 1 points over the cycle) let footing follow the
+// clip's own steps while the clip is still cross-fading in.
+function measureGait(model, clip, feet, rest) {
   if (!clip || !feet.length) return null;
   const probe = new THREE.AnimationMixer(model);
   probe.clipAction(clip).play();
@@ -52,23 +57,30 @@ function measureGait(model, clip) {
     probe.setTime((i / samples) * clip.duration);
     model.updateMatrixWorld(true);
     inverse.copy(model.matrixWorld).invert();
-    feet.forEach((foot, k) => tracks[k].push(foot.getWorldPosition(p).applyMatrix4(inverse).x));
+    feet.forEach((foot, k) => tracks[k].push(foot.getWorldPosition(p).applyMatrix4(inverse).clone()));
   }
   probe.stopAllAction();
   probe.uncacheRoot(model);
   const dt = clip.duration / samples;
   let sum = 0;
-  for (const x of tracks) {
+  for (const track of tracks) {
     let back = 0;
     let stance = 0;
     for (let i = 1; i <= samples; i++) {
-      const dx = x[i] - x[i - 1];
+      const dx = track[i].x - track[i - 1].x;
       if (dx < 0) { back -= dx; stance += dt; }
     }
     sum += stance > 0 ? back / stance : 0;
   }
   const naturalSpeed = sum / tracks.length;
-  return naturalSpeed > 0.01 ? { naturalSpeed, cycle: clip.duration } : null;
+  let stopPhase = 0;
+  let least = Infinity;
+  for (let i = 0; i < samples; i++) {
+    const cost = stopCost(tracks.map((track, k) => ({ ahead: track[i].x - rest[k].x, down: track[i].y - rest[k].y < 0.003 })));
+    if (cost < least - 1e-9) { least = cost; stopPhase = i / samples; }
+  }
+  const duty = tracks.reduce((sum, track, k) => sum + track.slice(1).filter(p => p.y - rest[k].y < 0.003).length / samples, 0) / tracks.length;
+  return naturalSpeed > 0.01 ? { naturalSpeed, cycle: clip.duration, stopPhase, duty, feet: tracks } : null;
 }
 
 /** Load (or reuse) a character. `gltf` may be passed in instead of `url` (tests, preloaded assets). */
@@ -101,6 +113,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const head = findBone(model, 'Head');
   const headForward = head ? FORWARD.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert()) : null;
 
+  // The feet and their bind-pose spots; the legs swing from the height of the body's centre.
+  const feet = FEET.map(n => findBone(model, n)).filter(Boolean);
+  const restFeet = feet.map(foot => model.worldToLocal(foot.getWorldPosition(new THREE.Vector3())));
+  const footing = createFooting({
+    root,
+    legs: feet.length === FEET.length ? feet.map(foot => ({ foot, girdle: foot.name.startsWith('Front') ? 0 : 1 })) : [],
+    pivotHeight: centreLocal.y,
+  });
+  const legBones = new Set(feet.flatMap(foot => [foot.name, foot.parent.name]));
+  const movesLegs = clip => clip.tracks.some(track => legBones.has(track.name.slice(0, track.name.lastIndexOf('.'))));
+
   const mixer = new THREE.AnimationMixer(model);
   const clips = new Map(gltf.animations.map(c => [c.name, c]));
   let current = null;
@@ -123,6 +146,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     return action;
   }
 
+  // The walk clip's own foot k (model frame) where `action` is now in the cycle.
+  function gaitFoot(action, k, out) {
+    const track = gait.feet[k];
+    const u = ((((action.time / gait.cycle) % 1) + 1) % 1) * (track.length - 1);
+    const i = Math.min(track.length - 2, Math.floor(u));
+    return out.lerpVectors(track[i], track[i + 1], u - i);
+  }
+
   const getHeading = () => deg(-root.rotation.y);
   const setHeading = h => { root.rotation.y = -rad(h); };
 
@@ -130,6 +161,7 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     root.position.set(x, world.heightAt(x, z), z);
     setHeading(headingDeg);
     root.updateMatrixWorld(true);
+    footing.reset();
   }
 
   // Turn toward a heading at most `rate` deg/s, settling softly; returns the radians still to go.
@@ -147,13 +179,22 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const point = new THREE.Vector3();
   const tangent = new THREE.Vector3();
 
-  function endWalk(arrive) {
+  // The walk is over: footing steps the feet from here (the planted ones stay where they are, the
+  // lifted ones come down), and the body settles from the walk's last pose into the arrival clip.
+  function arrive(w) {
+    footing.stand();
+    footing.aim(null);
+    w.action?.setEffectiveTimeScale(0);
+    play(w.arrive, { fade: w.fade });
+  }
+
+  function endWalk(settle) {
     if (!walk) return;
     const w = walk;
     walk = null;
     w.handle.onCancel = null;
     if (!w.handle.done) w.handle.cancel();
-    if (arrive) play(w.arrive, { fade: w.fade });
+    if (settle) arrive(w);
   }
 
   function endTurn(settle) {
@@ -162,11 +203,11 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     turn = null;
     t.handle.onCancel = null;
     if (!t.handle.done) t.handle.cancel();
-    if (settle) play('idle', { fade: t.fade });
+    if (settle) footing.aim(null);
   }
 
   /** Walk through [x, z] points along a smooth curve; the handle finishes on arrival. */
-  function walkTo(points, { speed = 0.7, arrive = 'idle', fade = 0.5, turnRate = 70 } = {}) {
+  function walkTo(points, { speed = 0.7, arrive: arriveClip = 'idle', fade = 0.5, turnRate = 70 } = {}) {
     const list = Array.isArray(points[0]) ? points : [points];
     const pts = [new THREE.Vector3(root.position.x, 0, root.position.z)];
     for (const [x, z] of list) {
@@ -181,12 +222,24 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return handle.finish();
     }
     endWalk(false);
-    handle.onCancel = () => { if (walk?.handle === handle) { walk = null; play(arrive, { fade }); } };
+    handle.onCancel = () => { if (walk?.handle === handle) { const w = walk; walk = null; arrive(w); } };
     const curve = pts.length > 2 ? new THREE.CatmullRomCurve3(pts, false, 'centripetal') : new THREE.LineCurve3(pts[0], pts[1]);
-    if (gait === undefined) gait = measureGait(model, clips.get('walk'));
+    const length = curve.getLength();
+    if (gait === undefined) gait = measureGait(model, clips.get('walk'), feet, restFeet);
     const baseScale = gait ? clamp(speed / gait.naturalSpeed, 0.5, 3) : 1;
+    const walking = current?.getClip() === clips.get('walk');
     const action = play('walk', { fade, timeScale: baseScale });
-    walk = { curve, length: curve.getLength(), s: 0, t: 0, speed, baseScale, handle, arrive, fade, turnRate, action };
+    if (action && gait && !walking) {
+      // The clip advances in step with the distance walked, so starting it at the right point of
+      // the cycle makes the walk end where the feet stand well (gait.stopPhase).
+      const cycles = (baseScale / speed) * length / gait.cycle;
+      action.time = ((((gait.stopPhase - cycles) % 1) + 1) % 1) * gait.cycle;
+    }
+    footing.walk(action && gait ? {
+      foot: (k, out) => gaitFoot(action, k, out),
+      stance: () => (gait.duty * gait.cycle) / Math.max(0.05, action.getEffectiveTimeScale()),
+    } : null);
+    walk = { curve, length, s: 0, t: 0, speed, baseScale, handle, arrive: arriveClip, fade, turnRate, action };
     return handle;
   }
 
@@ -199,16 +252,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     const factor = Math.min(1, 0.35 + (0.65 * w.t) / 0.7) * Math.min(1, 0.4 + 0.6 * remaining);
     w.action?.setEffectiveTimeScale(w.baseScale * factor);
     w.s = Math.min(w.length, w.s + w.speed * factor * dt);
+    if (w.s >= w.length - 1e-4) {
+      // Arriving this frame: hand the feet to footing before the body covers its last millimetres.
+      walk = null;
+      arrive(w);
+      w.handle.finish();
+    }
     const u = w.length > 0 ? w.s / w.length : 1;
     w.curve.getPointAt(u, point);
     w.curve.getTangentAt(Math.min(u, 0.999), tangent);
     turnToward(deg(Math.atan2(tangent.z, tangent.x)), dt, w.turnRate);
     root.position.set(point.x, world.heightAt(point.x, point.z), point.z);
-    if (w.s >= w.length - 1e-4) {
-      walk = null;
-      play(w.arrive, { fade: w.fade });
-      w.handle.finish();
-    }
   }
 
   function headingTo(spec) {
@@ -216,24 +270,43 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     return deg(Math.atan2(p.z - root.position.z, p.x - root.position.x));
   }
 
-  /** Turn on the spot toward a heading (degrees) or a point, with small steps. Ends a walk. */
-  function turnTo(target, { rate = 40, fade = 0.4 } = {}) {
+  /**
+   * Turn on the spot toward a heading (degrees) or a point, stepping around with planted feet
+   * (footing.js). Ends a walk. The handle finishes when he faces the goal; the last feet may still
+   * be stepping into place.
+   */
+  function turnTo(target, { rate = 25, fade = 0.4 } = {}) {
     const goal = typeof target === 'number' ? target : headingTo(target);
+    const walked = walk?.action;
     endWalk(false);
     endTurn(false);
     const handle = new Handle(`${name} turn`);
-    handle.onCancel = () => { if (turn?.handle === handle) { turn = null; play('idle', { fade }); } };
-    play('walk', { fade, timeScale: 0.55 });
-    turn = { goal, rate, handle, fade };
+    handle.onCancel = () => { if (turn?.handle === handle) { turn = null; footing.aim(null); } };
+    footing.stand();
+    footing.aim(goal);
+    walked?.setEffectiveTimeScale(0); // the body settles from where the walk stopped
+    play('idle', { fade });
+    turn = { goal, rate, handle, speed: 0 };
     return handle;
   }
 
+  // The body turns at up to `rate` deg/s, settling softly, and no faster than the planted feet allow:
+  // a foot that has fallen far behind holds the turn until it has stepped.
   function updateTurn(dt) {
     const t = turn;
     if (!t) return;
-    if (turnToward(t.goal, dt, t.rate) < rad(1)) {
+    const heading = getHeading();
+    const left = deg(wrap(rad(t.goal - heading)));
+    const want = Math.sign(left) * Math.min(t.rate, Math.abs(left) * 5);
+    const allowed = want * footing.slack(heading, heading + t.speed * 0.3);
+    t.speed += (allowed - t.speed) * (1 - Math.exp(-dt / 0.12));
+    let step = t.speed * dt;
+    step *= footing.slack(heading, heading + step);
+    if (Math.abs(step) > Math.abs(left)) step = left;
+    setHeading(heading + step);
+    if (Math.abs(left - step) < 1) {
       turn = null;
-      play('idle', { fade: t.fade });
+      footing.aim(null);
       t.handle.finish();
     }
   }
@@ -302,7 +375,15 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },
     get gait() { return gait; },
-    play, place, walkTo, turnTo, lookAt,
+    /** True while a foot is stepping into place (after a stop or a turn). */
+    get stepping() { return footing.busy; },
+    /** Play a clip; one that moves the legs gets them as it is (footing stops planting the feet). */
+    play(clipName, options = {}) {
+      const action = play(clipName, options);
+      if (action && movesLegs(action.getClip())) footing.free(options.fade ?? 0.4);
+      return action;
+    },
+    place, walkTo, turnTo, lookAt,
     /** Body centre in world space (from the bind-pose bounds). */
     centre(out = new THREE.Vector3()) {
       root.updateMatrixWorld();
@@ -315,9 +396,11 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     },
     update(dt) {
       if (lookApplied) lookBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
+      footing.restore();
       updateWalk(dt);
       updateTurn(dt);
       mixer.update(dt);
+      footing.update(dt);
       lookBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
       lookApplied = applyLook(dt);
     },
