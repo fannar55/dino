@@ -214,6 +214,67 @@ test('on a curve the planted feet stay put and within reach', async () => {
   assert.ok(watch.reach < 0.62, `a planted foot was ${watch.reach.toFixed(2)} m from its rest spot`);
 });
 
+// Mosi at another size: a copy of the GLB scaled as a re-bake at that size would make him (his
+// 8.5 m re-bake is about twice his size today).
+async function scaledStage(scale) {
+  const gltf = await loadMosi();
+  gltf.scene.scale.setScalar(scale);
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
+  world.resolvePoint = createPointResolver(world);
+  const mosi = await createActor(world, { name: 'mosi', gltf });
+  world.actors.set('mosi', mosi);
+  return { world, mosi };
+}
+
+// Where each foot was set down, in order (world x and z), as footWatch samples them.
+function plantings(watch) {
+  const spots = [];
+  const sample = watch.sample;
+  let last = null;
+  watch.sample = () => {
+    const now = sample();
+    now.forEach((foot, k) => {
+      if (last && foot.down && !last[k].down) (spots[k] ||= []).push(foot.p.clone());
+    });
+    last = now;
+    return now;
+  };
+  return spots;
+}
+
+test('twice the size, Mosi strides twice as far and keeps his planted feet still', async () => {
+  const { mosi } = await scaledStage(2);
+  const watch = footWatch(mosi);
+  const spots = plantings(watch);
+  // A bigger animal walks faster in proportion to the square root of its size.
+  const walk = mosi.walkTo([[14, 0]], { speed: 0.65 * Math.SQRT2 });
+  for (let i = 0; i < 900 && mosi.root.position.x < 2; i++) mosi.update(1 / 30);
+  watch.start();
+  for (let i = 0; i < 900 && mosi.root.position.x < 11; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.equal(walk.done, false);
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+  const strides = spots.flatMap(list => list.slice(1).map((p, i) => p.distanceTo(list[i])));
+  assert.ok(strides.length >= 4, `${strides.length} strides`);
+  for (const stride of strides) assert.ok(Math.abs(stride - 3.4) < 0.34, `a foot moved ${stride.toFixed(2)} m between plantings (the clip's stride is 1.7 m at his size today)`);
+});
+
+test('twice the size, Mosi turns on the spot in as many steps as at his own size', async () => {
+  const steps = {};
+  for (const scale of [1, 2]) {
+    const { mosi } = await scaledStage(scale);
+    const watch = footWatch(mosi);
+    for (let i = 0; i < 10; i++) mosi.update(1 / 30);
+    watch.start();
+    const turn = mosi.turnTo(75);
+    for (let i = 0; i < 600 && (!turn.done || mosi.stepping); i++) { mosi.update(1 / 30); watch.sample(); }
+    assert.equal(turn.done, true);
+    assert.ok(watch.slide < 1e-3, `at ${scale}x a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+    steps[scale] = watch.lifts;
+  }
+  assert.ok(Math.abs(steps[2] - steps[1]) <= 1, `${steps[1]} steps at his size, ${steps[2]} at twice it`);
+});
+
 test('frozen frames leave a stepping foot where it is', async () => {
   const { mosi } = await stage();
   mosi.turnTo(60);

@@ -295,7 +295,13 @@ try {
   const skeleton = new THREE.Skeleton(names.map(n => bones[n]));
   mesh.bind(skeleton);
 
-  const clips = authorClips({ bones, joints: J, height: H });
+  // The front edge of each sole (the walk peels the heel up about it): the foot's furthest-forward
+  // point on the ground.
+  const soles = {};
+  for (const s of ['Left', 'Right']) {
+    soles[s] = { toe: Math.max(...foot[s].points.filter(p => p.y < 0.004 * (H / 1.1)).map(p => p.x)) };
+  }
+  const clips = authorClips({ bones, joints: J, height: H, soles });
   console.log(`[bake] ${geometry.index.count / 3} triangles, ${names.length} bones, clips: ${clips.map(c => `${c.name} ${c.duration.toFixed(2)} s`).join(', ')}`);
 
   status('exporting');

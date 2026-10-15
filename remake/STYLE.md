@@ -35,26 +35,32 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
   habitat where the animal appears (orange and violet against green forest, gold and pink against
   sky, coral against water, blue against golden reeds). The story may change the roster; the rule
   stays and a new species takes a free slot.
-- Scale: real sizes (the owner's decision, 2026-10-15). Nose to tail: Mosi (Triceratops) 8.5 m,
-  Grameðla (T. rex) 12 m, Kambeðla (Stegosaurus) 7 m, Þórseðla (Brachiosaurus) 20 m, Uggeðla
-  (Spinosaurus) 14 m, Slóeðla (Parasaurolophus) 7.5 m; Flugeðla (Pteranodon) 6 m wingspan. Egill is
-  1.1 m tall. Mosi is still baked at 4.0 m long and 2.0 m high until he is rescaled.
+- Scale: real sizes. Each species is scaled so its length from nose to tail tip matches a real
+  adult's (the Size column); Egill is 1.1 m tall, a real five- to six-year-old. A cartoon head can
+  make a species a little taller than the real animal; keep the length right.
 - Budget per dinosaur: at most 40k triangles, two 1024 JPEG maps, roughness about 0.62.
 
-| Character | Species | Main hue | Main | Light (belly) | Dark | Accent |
-|---|---|---|---|---|---|---|
-| Mosi | Triceratops | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
-| Egill | boy explorer | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
-| Kambeðla | Stegosaurus | orange | `#e58a3d` | `#f3d9b0` | `#a8582a` | plates teal `#3f9c95` |
-| Þórseðla | Brachiosaurus | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
-| Grameðla | T. rex | terracotta | `#b87652` | `#dcb892` | `#9b5f3a` | claws ivory `#d1b38f`, amber eyes |
-| Uggeðla | Spinosaurus | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
-| Slóeðla | Parasaurolophus | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
-| Flugeðla | Pteranodon | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
+| Character | Species | Size | Main hue | Main | Light (belly) | Dark | Accent |
+|---|---|---|---|---|---|---|---|
+| Mosi | Triceratops | 8.5 m long (8 to 9) | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
+| Egill | boy explorer | 1.1 m tall | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
+| Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6cc9` | `#e2d6f1` | `#5b4590` | plates teal `#3f9c95` |
+| Þórseðla | Brachiosaurus | 20 m long (18 to 22) | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
+| Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
+| Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
+| Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
+| Flugeðla | Pteranodon | 6 m wingspan (5.6 to 7.6) | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
 
-Grameðla keeps the terracotta of the owner's Tripo model (the owner's decision, 2026-10-15; the
-hexes are sampled from her baked colour map). It sits close to Kambeðla's orange and Uggeðla's
-coral, so their hues are checked against hers when they are made.
+Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
+orange to the free violet slot. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
+by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
+([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
+[Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
+[Stegosaurus](https://en.wikipedia.org/wiki/Stegosaurus),
+[Brachiosaurus](https://en.wikipedia.org/wiki/Brachiosaurus),
+[Spinosaurus](https://en.wikipedia.org/wiki/Spinosaurus),
+[Parasaurolophus](https://en.wikipedia.org/wiki/Parasaurolophus),
+[Pteranodon](https://en.wikipedia.org/wiki/Pteranodon), October 2026).
 
 ## 4. Environment palette
 
@@ -130,8 +136,10 @@ face), misty far forest, forest wall.
   uniforms in `engine/wind.js`; tall plants sway at most 3 degrees, leaves flutter a little.
 - Opaque geometry first. Alpha test only where the shape needs it (grass blades, fern cards), with
   alpha-to-coverage when MSAA is on. No sorted transparency in the forest.
-- Characters keep their Tripo textures as baked (1024 JPEG), roughness about 0.62, double-sided
-  because Tripo parts are open shells.
+- Characters keep their Tripo textures as baked (1024 JPEG), roughness about 0.62, and render
+  single-sided: the bake tools weld Tripo's open part shells into one closed skin (a double-sided
+  Mosi cost about 0.9 ms more in close frames). The shadow pass draws front faces
+  (`shadowSide = FrontSide`, set in `engine/actor.js`), so creases keep their shadows.
 - Nothing is glossy except eyes and water.
 
 ## 8. Camera
@@ -235,6 +243,20 @@ the clips in code (`biped-clips.js`: idle, walk, wave, waveLeft, point, sit, lif
 rotations are identity, so a clip turns bones about the character's own axes (X forward, Y up,
 Z right). A child's arms are short against his head: a raised hand reads by staying out to the
 side, and past about 165 degrees from hanging the forearm folds over the head.
+The walk is authored from the feet, not from joint angles (`WALK` in `biped-clips.js`): at its
+own speed (0.55 m/s, 0.8 s a stride, 150 steps a minute) a foot lands flat and stays put while the
+body passes over it; just after the other foot lands, its heel peels up about the toe, which stays
+put too; then it swings forward, toes up late in the swing, and comes straight down flat. Two-bone
+IK (the knee a hinge about the thigh's Z axis) reaches each foot, and the hips are as high as the
+legs allow at 99.5 % of their length, smoothed, so the bob (about 2 cm) follows the stride. The arms
+swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a biped's feet as it does
+Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
+and the hips sink when a leg could not reach it otherwise. A clip that leaves the legs at rest (idle,
+wave, point) keeps the feet where they stand. Footing's distances and times are tuned per body plan
+(`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's legs, measured
+from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
+re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
+should grow with the square root of its size too.
 `bake-tailed-biped` (`--query "src=<parts.glb>&length=12&name=Grameðla&out=trex.glb"`) stands the
 model at the origin facing +X at its length nose to tail. It finds the heading from the footprint
 and the left and right pairs, tells the parts apart by position and shared seams (body, tail, head,

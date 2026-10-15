@@ -1,6 +1,7 @@
 // Bakes the Tripo3D Triceratops (an unrigged export in parts) into a game-ready Mosi GLB:
 // one skinned mesh on a skeleton that uses the old Quaternius bone names and rest orientations
 // (Body, Shoulders, Neck, Head, Tail1..Tail5, legs and feet), with authored `idle` and `walk` clips.
+// The parts are welded into one closed skin, so the material is single-sided.
 // The game rotates Head (look, gaze, nod) and Tail1/Tail2 (celebration) in bone-local axes and
 // attaches the scarf to Shoulders and the saddle to Body, so matching names and rest orientations
 // keeps all of that working. Output is POSTed to the runner (tools/bake-mosi.mjs).
@@ -160,6 +161,119 @@ async function main() {
   });
   const index = new Map(bones.map((b, i) => [b, i]));
 
+  // --- one closed skin -----------------------------------------------------------------------------
+  // Tripo cuts the model into parts along seams whose two sides lie within a tenth of a millimetre
+  // of each other, so welded together the parts make one closed, consistently wound surface, and
+  // Mosi renders single-sided (back faces culled) without holes. Each seam vertex snaps onto its
+  // cluster's first vertex and gets the same skin weights (below), so the seams stay watertight when
+  // skinned. Normals and UVs stay per part: the parts meet at creases and have their own texture
+  // islands. The bake stops if the welded surface is open or wound against itself. Done after the
+  // skeleton is placed, so bones and clips do not move.
+  const skin = (() => {
+    const WELD = 0.001; // metres
+    let offset = 0;
+    for (const part of parts) { part.offset = offset; offset += part.verts; }
+    const vertexPart = [];
+    for (const part of parts) for (let i = 0; i < part.verts; i++) vertexPart.push(part);
+    const rep = new Int32Array(offset);
+    const grid = new Map();
+    const cellOf = (x, y, z) => `${Math.floor(x / WELD)},${Math.floor(y / WELD)},${Math.floor(z / WELD)}`;
+    const q = new V3(), hit = new V3();
+    for (const part of parts) {
+      const pos = part.geo.attributes.position;
+      for (let i = 0; i < part.verts; i++) {
+        const g = part.offset + i;
+        q.fromBufferAttribute(pos, i);
+        let found = -1;
+        const [cx, cy, cz] = cellOf(q.x, q.y, q.z).split(',').map(Number);
+        for (let dx = -1; dx <= 1 && found < 0; dx++) for (let dy = -1; dy <= 1 && found < 0; dy++) for (let dz = -1; dz <= 1 && found < 0; dz++) {
+          for (const other of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) {
+            const owner = vertexPart[other];
+            if (q.distanceTo(hit.fromBufferAttribute(owner.geo.attributes.position, other - owner.offset)) <= WELD) { found = other; break; }
+          }
+        }
+        if (found >= 0) {
+          rep[g] = found;
+          pos.setXYZ(i, hit.x, hit.y, hit.z); // the cluster's first vertex
+        } else {
+          rep[g] = g;
+          const key = `${cx},${cy},${cz}`;
+          if (!grid.has(key)) grid.set(key, []);
+          grid.get(key).push(g);
+        }
+      }
+    }
+    // Edges of the welded surface: each must belong to exactly two triangles that run it in
+    // opposite directions.
+    const edges = new Map();
+    const partsAt = new Map(); // cluster -> parts that meet there
+    for (const part of parts) {
+      const ix = part.geo.index.array;
+      for (let t = 0; t < ix.length; t += 3) {
+        for (let e = 0; e < 3; e++) {
+          const a = rep[part.offset + ix[t + e]], b = rep[part.offset + ix[t + (e + 1) % 3]];
+          if (!partsAt.has(a)) partsAt.set(a, new Set());
+          partsAt.get(a).add(part);
+          if (a === b) continue;
+          const key = a < b ? `${a},${b}` : `${b},${a}`;
+          const edge = edges.get(key) || { n: 0, turn: 0, a: Math.min(a, b), b: Math.max(a, b), part };
+          edge.n++;
+          edge.turn += a < b ? 1 : -1;
+          edges.set(key, edge);
+        }
+      }
+    }
+    let open = 0, nonManifold = 0, misWound = 0;
+    for (const edge of edges.values()) {
+      if (edge.n === 1) open++;
+      else if (edge.n > 2) nonManifold++;
+      else if (edge.turn !== 0) misWound++;
+    }
+    if (open || misWound) throw new Error(`the welded skin has ${open} open and ${misWound} mis-wound edges; single-sided it would show holes`);
+
+    // The head side, and the neck seam where it meets the rest.
+    const touching = new Map(parts.map(pt => [pt, new Set()]));
+    for (const set of partsAt.values()) for (const a of set) for (const b of set) if (a !== b) touching.get(a).add(b);
+    const anchored = new Set([body, ...legs]);
+    for (const pt of [body, ...legs]) for (const other of touching.get(pt)) anchored.add(other);
+    anchored.delete(head);
+    const headSide = new Set([head]);
+    for (let grew = true; grew;) {
+      grew = false;
+      for (const pt of headSide) for (const other of touching.get(pt)) if (!anchored.has(other) && !headSide.has(other)) { headSide.add(other); grew = true; }
+    }
+    const seam = [...partsAt].filter(([, set]) => [...set].some(pt => headSide.has(pt)) && [...set].some(pt => !headSide.has(pt))).map(([r]) => r);
+    // Distance along the surface from the seam into the head side (Dijkstra over its edges).
+    const position = r => { const owner = vertexPart[r]; return new V3().fromBufferAttribute(owner.geo.attributes.position, r - owner.offset); };
+    const near = new Map();
+    for (const edge of edges.values()) {
+      if (!headSide.has(edge.part)) continue;
+      const length = position(edge.a).distanceTo(position(edge.b));
+      for (const [from, to] of [[edge.a, edge.b], [edge.b, edge.a]]) {
+        if (!near.has(from)) near.set(from, []);
+        near.get(from).push([to, length]);
+      }
+    }
+    const headDistance = new Map(seam.map(r => [r, 0]));
+    const queue = seam.map(r => [0, r]);
+    while (queue.length) {
+      let best = 0;
+      for (let k = 1; k < queue.length; k++) if (queue[k][0] < queue[best][0]) best = k;
+      const [d, r] = queue[best];
+      queue[best] = queue[queue.length - 1];
+      queue.pop();
+      if (d > headDistance.get(r)) continue;
+      for (const [to, length] of near.get(r) || []) {
+        if (d + length < (headDistance.get(to) ?? Infinity)) { headDistance.set(to, d + length); queue.push([d + length, to]); }
+      }
+    }
+    report.skin = {
+      vertices: offset, welded: new Set(rep).size, triangles: [...edges.values()].reduce((s, e) => s + e.n, 0) / 3,
+      openEdges: open, misWound, nonManifold, headSide: [...headSide].map(pt => pt.name), neckSeam: seam.length,
+    };
+    return { rep, vertexPart, headDistance };
+  })();
+
   // --- skin weights --------------------------------------------------------------------------------
   const smooth = u => u * u * (3 - 2 * u);
   const spine = [
@@ -170,7 +284,13 @@ async function main() {
     { x: neckJoint.x - 0.3 * hl, bone: byName.Neck },
     { x: neckJoint.x + 0.12 * hl, bone: byName.Head },
   ];
-  for (let k = 1; k < spine.length; k++) if (spine[k].x <= spine[k - 1].x) spine[k].x = spine[k - 1].x + 1e-4;
+  // A control point at or behind the one before it (the neck bone sits over the shoulders) moves
+  // halfway on to the next one, so the blend between those bones stays a blend and not a step.
+  for (let k = 1; k < spine.length; k++) {
+    if (spine[k].x > spine[k - 1].x) continue;
+    const next = k + 1 < spine.length ? Math.max(spine[k + 1].x, spine[k - 1].x + 2e-4) : spine[k - 1].x + 2e-4;
+    spine[k].x = (spine[k - 1].x + next) / 2;
+  }
   function spineWeights(x, out) {
     if (x <= spine[0].x) { out.push([spine[0].bone, 1]); return; }
     for (let k = 0; k < spine.length - 1; k++) {
@@ -211,21 +331,39 @@ async function main() {
       if (f > 0) out.push([lr.foot, f]);
     }
   }
+  // The head side (the head part and the parts that hang only on it: horns, beak) follows the Head
+  // bone rigidly from HEAD_BAND (along the surface) past the neck seam, where it meets the body and
+  // the chest; nearer the seam it blends in from the spine weights. Without this, the back of the
+  // frill sat in the shoulder and neck weights, and a head turn folded it inside out.
+  const HEAD_BAND = 0.2 * hl; // about 20 cm on the 4 m Mosi
   const legOf = new Map(legRigs.map(lr => [lr.leg, lr]));
+  const cache = new Map(); // weld cluster -> weights, so both sides of a seam get the same ones
   const w = [];
   const p = new V3();
   for (const part of parts) {
     const pos = part.geo.attributes.position;
     const si = new Uint16Array(pos.count * 4);
     const sw = new Float32Array(pos.count * 4);
-    const lr = legOf.get(part);
     for (let i = 0; i < pos.count; i++) {
-      p.fromBufferAttribute(pos, i);
-      w.length = 0;
-      vertexWeights(p, lr, w);
-      const kept = w.filter(e => e[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
-      const total = kept.reduce((s, e) => s + e[1], 0);
-      for (let k = 0; k < kept.length; k++) { si[i * 4 + k] = index.get(kept[k][0]); sw[i * 4 + k] = kept[k][1] / total; }
+      const r = skin.rep[part.offset + i];
+      if (!cache.has(r)) {
+        const owner = skin.vertexPart[r];
+        p.fromBufferAttribute(owner.geo.attributes.position, r - owner.offset);
+        w.length = 0;
+        vertexWeights(p, legOf.get(owner), w);
+        const d = skin.headDistance.get(r);
+        if (d !== undefined) {
+          const h = smooth(clamp(d / HEAD_BAND, 0, 1));
+          for (const entry of w) entry[1] *= 1 - h;
+          w.push([byName.Head, h]);
+        }
+        const merged = new Map();
+        for (const [bone, value] of w) merged.set(bone, (merged.get(bone) || 0) + value);
+        const kept = [...merged].filter(e => e[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        const total = kept.reduce((s, e) => s + e[1], 0);
+        cache.set(r, kept.map(([bone, value]) => [index.get(bone), value / total]));
+      }
+      cache.get(r).forEach(([bone, value], k) => { si[i * 4 + k] = bone; sw[i * 4 + k] = value; });
     }
     part.geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     part.geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
@@ -255,7 +393,7 @@ async function main() {
     normalMap: fit(sourceMaterial.normalMap),
     roughness: 0.62,
     metalness: 0,
-    side: THREE.DoubleSide, // Tripo parts are open shells; back faces hide the cut edges
+    side: THREE.FrontSide, // the welded skin is closed, so culling back faces opens no holes
   });
 
   // --- assemble and bind ---------------------------------------------------------------------------
