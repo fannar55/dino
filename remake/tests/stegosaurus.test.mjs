@@ -117,12 +117,14 @@ test('Kambeðla has the quadruped skeleton, the clips and fits the budget', asyn
   // Identity rest rotations: clips turn bones about the character's own axes.
   for (const bone of mesh.skeleton.bones) assert.ok(bone.quaternion.angleTo(new THREE.Quaternion()) < 1e-6, `${bone.name} is turned at rest`);
   const clips = Object.fromEntries(gltf.animations.map(c => [c.name, c]));
-  assert.deepEqual(Object.keys(clips).sort(), ['idle', 'kink', 'walk']);
+  assert.deepEqual(Object.keys(clips).sort(), ['eat', 'happy', 'idle', 'kink', 'walk']);
   for (const clip of Object.values(clips)) {
     const animated = new Set(clip.tracks.map(t => t.name.split('.')[0]));
     for (const bone of CHAIN) assert.ok(animated.has(bone), `${clip.name} leaves ${bone} alone`);
-    // Only the walk moves the legs: in idle and kink, footing keeps the feet where they stand.
-    for (const bone of LEGS) assert.equal(animated.has(bone), clip.name === 'walk', `${clip.name} ${clip.name === 'walk' ? 'leaves' : 'moves'} ${bone}`);
+    // Only the walk and the hop move the legs: in idle, kink and eat, footing keeps the feet where
+    // they stand.
+    const legs = ['walk', 'happy'].includes(clip.name);
+    for (const bone of LEGS) assert.equal(animated.has(bone), legs, `${clip.name} ${legs ? 'leaves' : 'moves'} ${bone}`);
   }
   assert.ok(mesh.geometry.index.count / 3 <= 40000, 'at most 40k triangles');
   mesh.geometry.computeBoundingBox();
@@ -385,8 +387,8 @@ test('on a curve the planted feet stay put and within reach', async () => {
   assert.ok(watch.reach < 1.15, `a planted foot was ${watch.reach.toFixed(2)} m from its rest spot`);
 });
 
-test('idle and the nod leave the planted feet where they stand', async () => {
-  for (const clip of ['idle', 'kink']) {
+test('idle, the nod and eating leave the planted feet where they stand', async () => {
+  for (const clip of ['idle', 'kink', 'eat']) {
     const { kambedla } = await stage();
     const watch = footWatch(kambedla);
     const turn = kambedla.turnTo(50);
@@ -415,4 +417,101 @@ test('the nod dips the head and brings it back', async () => {
   const pitches = Array.from({ length: 49 }, (_, i) => pitchAt((i / 48) * kink.duration));
   assert.ok(Math.min(...pitches) < -15, `the head dips ${Math.min(...pitches).toFixed(1)} degrees at most`);
   assert.ok(Math.abs(pitches[0]) < 1 && Math.abs(pitches.at(-1)) < 1, 'it starts and ends looking ahead');
+});
+
+// The loaded clip's pose at its start and at its end: the same, so it loops without a jump.
+function loops(scene, clip) {
+  const mixer = new THREE.AnimationMixer(scene);
+  mixer.clipAction(clip).play();
+  const pose = t => {
+    mixer.setTime(t);
+    scene.updateMatrixWorld(true);
+    const out = [];
+    scene.traverse(o => { if (o.isBone) out.push(o.getWorldPosition(new THREE.Vector3())); });
+    return out;
+  };
+  const first = pose(0), last = pose(clip.duration - 1e-4);
+  mixer.stopAllAction();
+  return Math.max(...first.map((p, i) => p.distanceTo(last[i])));
+}
+
+test('eating, the head comes down in front of her to a child\'s hand and goes back up', async () => {
+  const { scene, mesh, clip } = await model();
+  const eat = clip('eat');
+  assert.ok(eat.duration >= 1.8 && eat.duration <= 2.2, `eat lasts ${eat.duration} s`);
+  assert.ok(loops(scene, eat) < 0.005, 'eat loops');
+  // The mouth: the most forward vertex the Head bone carries alone.
+  const { position, skinIndex, skinWeight } = mesh.geometry.attributes;
+  const head = mesh.skeleton.bones.findIndex(b => b.name === 'Head');
+  let beak = -1;
+  for (let i = 0; i < position.count; i++) {
+    if (skinIndex.getX(i) === head && skinWeight.getX(i) > 0.999 && (beak < 0 || position.getX(i) > position.getX(beak))) beak = i;
+  }
+  const mixer = new THREE.AnimationMixer(scene);
+  mixer.clipAction(eat).play();
+  const v = new THREE.Vector3();
+  let low = null;
+  for (let i = 0; i <= 60; i++) {
+    mixer.setTime((i / 60) * eat.duration);
+    scene.updateMatrixWorld(true);
+    mesh.getVertexPosition(beak, v).applyMatrix4(mesh.matrixWorld);
+    if (!low || v.y < low.y) low = v.clone();
+  }
+  const fore = scene.getObjectByName('FrontFootL').getWorldPosition(new THREE.Vector3());
+  assert.ok(low.y > 0.85 && low.y < 1.15, `the mouth comes down to ${low.y.toFixed(2)} m`);
+  assert.ok(low.x > fore.x + 1, `the mouth is ${(low.x - fore.x).toFixed(2)} m ahead of the fore feet`);
+});
+
+test('happy, she hops on the spot and her feet leave the ground a little', async () => {
+  const { scene, clip } = await model();
+  const happy = clip('happy');
+  assert.ok(happy.duration >= 1.3 && happy.duration <= 1.7, `happy lasts ${happy.duration} s`);
+  assert.ok(loops(scene, happy) < 0.005, 'happy loops');
+  const feet = FEET.map(n => scene.getObjectByName(n));
+  scene.updateMatrixWorld(true);
+  const rest = feet.map(f => f.getWorldPosition(new THREE.Vector3()));
+  const mixer = new THREE.AnimationMixer(scene);
+  mixer.clipAction(happy).play();
+  let top = 0, air = 0;
+  for (let i = 0; i <= 90; i++) {
+    mixer.setTime((i / 90) * happy.duration);
+    scene.updateMatrixWorld(true);
+    const lift = Math.min(...feet.map((f, k) => f.getWorldPosition(new THREE.Vector3()).y - rest[k].y));
+    top = Math.max(top, lift);
+    if (lift > 0.01) air++;
+  }
+  assert.ok(top > 0.04 && top < 0.15, `all four feet leave the ground by ${(top * 100).toFixed(1)} cm`);
+  assert.ok(air >= 10, `in the air for ${air} of 91 samples`);
+  // In a scene the clip takes the legs, and back in idle the feet stand where they rest.
+  const { kambedla } = await stage();
+  const watch = footWatch(kambedla);
+  watch.start();
+  kambedla.play('happy');
+  let lifted = false;
+  for (let i = 0; i < 60; i++) { kambedla.update(1 / 30); lifted ||= watch.sample().every(foot => !foot.down); }
+  kambedla.play('idle');
+  for (let i = 0; i < 30; i++) kambedla.update(1 / 30);
+  assert.ok(lifted, 'the feet left the ground in the scene');
+  assert.ok(watch.sample().every(foot => foot.down && foot.reach < 0.01), 'and stand on their rest spots again');
+});
+
+test('the plate mask counts the back plates in rows from the head', async () => {
+  const { mesh } = await model();
+  const rows = mesh.geometry.attributes._platerow; // glTF's custom attribute _PLATEROW
+  assert.ok(rows, 'the mesh has a plateRow attribute');
+  const pos = mesh.geometry.attributes.position;
+  const xs = new Map();
+  for (let i = 0; i < rows.count; i++) {
+    const row = rows.getX(i);
+    assert.ok(Number.isInteger(row) && row >= 0 && row <= 6, `vertex ${i} has row ${row}`);
+    if (pos.getY(i) > 3.2) assert.ok(row > 0, 'the tops of the big back plates are in a row');
+    if (pos.getX(i) < -3.3 && Math.abs(pos.getZ(i)) > 0.35) assert.equal(row, 0, 'the tail spikes are not plates');
+    if (pos.getY(i) < 1.5) assert.equal(row, 0, 'nothing low on the body is a plate');
+    if (row > 0) (xs.get(row) || xs.set(row, []).get(row)).push(pos.getX(i));
+  }
+  const count = Math.max(...xs.keys());
+  assert.ok(count >= 3 && count <= 6, `${count} rows`);
+  const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
+  for (let row = 1; row <= count; row++) assert.ok(xs.get(row)?.length > 100, `row ${row} has plates`);
+  for (let row = 2; row <= count; row++) assert.ok(mean(xs.get(row)) < mean(xs.get(row - 1)), `row ${row} lies behind row ${row - 1}`);
 });

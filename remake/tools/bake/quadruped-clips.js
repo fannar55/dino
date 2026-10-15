@@ -8,10 +8,15 @@ import * as THREE from 'three';
 //   walk  (WALK)  a calm four-beat walk in lateral sequence on planted feet (below)
 //   kink  2.4 s   a friendly nod: the chin lifts a little, the head dips twice, the second time
 //                 less, and comes back up
+//   eat   2.0 s   taking a flower from a child's hand: the head comes down in front of her to about
+//                 a metre above the ground, nips, chews three times and goes back up
+//   happy 1.5 s   a joyful hop on the spot: a crouch, a hop that lifts the feet a little off the
+//                 ground, a soft landing and a wiggle
 //
 // Every clip keys every bone of the spine, neck and tail chains (Hips with its position), so a bone
-// one clip turns never keeps that turn when the next takes over. Only the walk keys the legs: idle
-// and kink leave them at rest, so footing (engine/footing.js) keeps the feet where they stand.
+// one clip turns never keeps that turn when the next takes over. Only the walk and the hop key the
+// legs: idle, kink and eat leave them at rest, so footing (engine/footing.js) keeps the feet where
+// they stand.
 
 const TAU = Math.PI * 2;
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
@@ -21,6 +26,16 @@ const q = (axis, angle) => new THREE.Quaternion().setFromAxisAngle(axis, angle);
 const turn = (yaw = 0, roll = 0, pitch = 0) => q(Y, yaw).multiply(q(X, roll)).multiply(q(Z, pitch));
 // A smooth bump from 0 up to 1 and back over [a, b], with no speed at either end.
 const bump = (u, a, b) => (u <= a || u >= b ? 0 : Math.sin((Math.PI * (u - a)) / (b - a)) ** 2);
+// A smooth step from 0 to 1 over [a, b].
+const ease = (u, a, b) => { const t = THREE.MathUtils.clamp((u - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// Cubic Hermite through keys [u, value, slope].
+function spline(keys, u) {
+  let i = 0;
+  while (i < keys.length - 2 && u > keys[i + 1][0]) i++;
+  const [u0, p0, m0] = keys[i], [u1, p1, m1] = keys[i + 1];
+  const h = u1 - u0, t = THREE.MathUtils.clamp((u - u0) / h, 0, 1), t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * p0 + (t3 - 2 * t2 + t) * h * m0 + (3 * t2 - 2 * t3) * p1 + (t3 - t2) * h * m1;
+}
 
 /**
  * The walk. A foot that is down stays flat and sweeps back at exactly the body's speed, `stride` per
@@ -187,6 +202,22 @@ export function authorClips(rig, options = {}) {
   const span = pivotX(true) - pivotX(false);
   const girdle = new Map(legs.map(l => [l.name, l.front ? bones.Chest : bones.Hips]));
   const restDir = new THREE.Vector3();
+  // Turn and slide a rigid leg so its foot is at `target` (the girdle posed already), the foot turned
+  // `toes` about its own axis across (negative: heel up). Returns the pivot-to-foot distance and the
+  // leg's direction.
+  function reachFoot(l, target, toes) {
+    const g = girdle.get(l.name);
+    const pivot = g.localToWorld(l.pivot.clone().sub(joints[g.name])); // bones have identity rest rotations
+    restDir.subVectors(l.rest, l.pivot).normalize();
+    const dir = target.clone().sub(pivot);
+    const distance = dir.length();
+    dir.divideScalar(distance);
+    const legQ = new THREE.Quaternion().setFromUnitVectors(restDir, dir);
+    bones[l.name].quaternion.copy(legQ);
+    bones[l.name].position.copy(target).sub(rest[l.foot].clone().applyQuaternion(legQ));
+    bones[l.foot].quaternion.copy(legQ).invert().multiply(q(Z, toes));
+    return { distance, dir };
+  }
   const stats = Object.fromEntries(legs.map(l => [l.name, { angle: [Infinity, -Infinity], stretch: [Infinity, -Infinity], down: [Infinity, -Infinity] }]));
   const girdles = { hind: [Infinity, -Infinity], fore: [Infinity, -Infinity] };
   const walkPose = u => {
@@ -211,17 +242,7 @@ export function authorClips(rig, options = {}) {
     bones.root.updateMatrixWorld(true);
     for (const l of legs) {
       const { target, a, down } = footAt(l, u);
-      // The pivot as the girdle carries it (bones have identity rest rotations).
-      const g = girdle.get(l.name);
-      const pivot = g.localToWorld(l.pivot.clone().sub(joints[g.name]));
-      restDir.subVectors(l.rest, l.pivot).normalize();
-      const dir = target.clone().sub(pivot);
-      const distance = dir.length();
-      dir.divideScalar(distance);
-      const legQ = new THREE.Quaternion().setFromUnitVectors(restDir, dir);
-      bones[l.name].quaternion.copy(legQ);
-      bones[l.name].position.copy(target).sub(rest[l.foot].clone().applyQuaternion(legQ));
-      bones[l.foot].quaternion.copy(legQ).invert().multiply(q(Z, a));
+      const { distance, dir } = reachFoot(l, target, a);
       const st = stats[l.name];
       const angle = Math.atan2(dir.x, -dir.y);
       st.angle = [Math.min(st.angle[0], angle), Math.max(st.angle[1], angle)];
@@ -251,10 +272,61 @@ export function authorClips(rig, options = {}) {
     chains.tail.forEach((n, i) => bones[n].quaternion.premultiply(q(Y, 0.05 * wag * (0.5 + 0.2 * i) * Math.sin(2 * TAU * u - 0.6 * i))));
   };
 
+  // --- eat: taking a flower from a child's hand -----------------------------------------------------
+  // The neck bends the head down in front of her (the face turned up a little, toward the hand) until
+  // the mouth is about a metre above the ground, where a child holds something up; it nips forward,
+  // chews three times and goes back up. The tail rises a little as the head goes down.
+  const EAT = { spine: 0.02, chest: 0.04, neck: 0.3, neck2: 0.21, head: 0.1 };
+  const eat = u => {
+    const down = ease(u, 0.04, 0.36) * (1 - ease(u, 0.74, 0.98));
+    const nip = bump(u, 0.3, 0.46);
+    const chew = Math.sin((TAU * 3 * (u - 0.46)) / 0.3) * bump(u, 0.46, 0.76);
+    bones.Hips.position.y += 0.002 * H * Math.sin(TAU * u);
+    bones.Spine.quaternion.copy(turn(0, 0, -EAT.spine * down));
+    bones.Chest.quaternion.copy(turn(0, 0, -EAT.chest * down));
+    bones.Neck.quaternion.copy(turn(0, 0, -EAT.neck * down - 0.03 * nip));
+    bones.Neck2?.quaternion.copy(turn(0, 0, -EAT.neck2 * down));
+    bones.Head.quaternion.copy(turn(0, 0.03 * chew, EAT.head * down - 0.06 * nip + 0.035 * chew));
+    sway(u, 0.02, 0.55);
+    bones.Tail1.quaternion.premultiply(q(Z, 0.04 * down));
+  };
+
+  // --- happy: a joyful hop on the spot -----------------------------------------------------------------
+  // She crouches, hops so that her feet leave the ground (by 2.4 % of her height at the top), lands
+  // softly and wiggles: the head up and rocking, the tail wagging. The fore feet reach forward and the
+  // hind feet back while she is in the air, toes down. The clip keys the legs, so footing hands them
+  // to it while it plays.
+  const hop = u => H * spline([[0, 0, 0], [0.16, -0.012, 0], [0.42, 0.048, 0], [0.6, 0, -0.45], [0.68, -0.013, 0], [0.84, 0.003, 0], [1, 0, 0]], u);
+  const clear = 0.024 * H; // the body rises this far before the feet leave the ground
+  const happy = u => {
+    const h = hop(u);
+    const air = Math.max(0, h - clear);
+    const lift = Math.min(1, air / clear);
+    const joy = ease(u, 0.05, 0.35) * (1 - ease(u, 0.85, 1));
+    const wiggle = Math.sin((TAU * 2 * (u - 0.6)) / 0.4) * bump(u, 0.6, 1);
+    const pitch = 0.05 * bump(u, 0.18, 0.48) - 0.04 * bump(u, 0.5, 0.78);
+    bones.Hips.position.y += h - pitch * (pivotX(false) - joints.Hips.x);
+    bones.Hips.quaternion.copy(turn(0.03 * wiggle, 0.035 * wiggle, pitch));
+    bones.Spine.quaternion.copy(turn(-0.015 * wiggle, 0, 0));
+    bones.Chest.quaternion.copy(turn(0, 0, 0.01 * joy));
+    bones.Neck.quaternion.copy(turn(-0.02 * wiggle, 0, 0.08 * joy - 0.6 * pitch));
+    bones.Neck2?.quaternion.copy(turn(0, 0, 0.04 * joy));
+    bones.Head.quaternion.copy(turn(0, 0.08 * Math.sin(TAU * 2 * u) * joy, 0.1 * joy));
+    sway(u, 0.07 * joy, 0.6);
+    bones.Tail1.quaternion.premultiply(q(Z, 0.08 * lift + 0.03 * joy));
+    bones.root.updateMatrixWorld(true);
+    for (const l of legs) {
+      const target = l.rest.clone().add(new THREE.Vector3((l.front ? 0.016 : -0.016) * H * lift, air, 0));
+      reachFoot(l, target, -0.12 * lift);
+    }
+  };
+
   const clips = [
     sample('idle', 4.0, idle, 120),
     sample('walk', cycle, walkPose, walk.keys, true),
     sample('kink', 2.4, kink, 72),
+    sample('eat', 2.0, eat, 60),
+    sample('happy', 1.5, happy, 45, true),
   ];
   const deg = THREE.MathUtils.radToDeg;
   const r3 = v => +v.toFixed(3);

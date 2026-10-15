@@ -53,9 +53,10 @@ function section(points, x, half) {
  * sources: [{ name, geometry }] in the model's own frame (each part's world matrix applied).
  * Options: length (metres, nose to tail tip), yaw (degrees that turn the model's front to +X:
  * Tripo faces +Z, so 90), tail/neck/spine (bones in each chain), name, spread (how far, in leg
- * widths along the surface, the body around a leg follows it).
+ * widths along the surface, the body around a leg follows it), plateRows (rows of back plates the
+ * plateRow mask counts).
  */
-export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6 } = {}) {
+export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6, plateRows = 3 } = {}) {
   const report = {};
 
   // --- stand it up: front to +X, `length` long, on the ground ---------------------------------
@@ -427,9 +428,11 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     }
   }
 
-  // Attached parts ride rigidly on the bone that holds most of their base, from a band above the
-  // seam where they sit (along their own surface); nearer the seam they blend in from the trunk's
-  // weights, which the seam itself keeps.
+  // Attached parts ride rigidly on the bone that holds most of their base, seam and all, so a plate
+  // never bends. The trunk's skin around the base follows that bone too and blends out to its own
+  // weights over a band along the surface of the part it sits on (a fifth of its size): a bend in the
+  // body next to a plate (the neck bowing to eat) stretches the skin around it instead of folding the
+  // plate's foot.
   const ride = new Map();
   for (const part of attached) {
     const seam = seamOf(part);
@@ -440,7 +443,48 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     chainWeights(base.x, w);
     const bone = touchesHeadOnly ? 'Head' : w.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
     const band = Math.max(0.02 * H, 0.2 * Math.max(part.size.x, part.size.y, part.size.z));
-    ride.set(part, { bone, distance: surfaceDistance(seam, new Set([part]), band), band, base });
+    const under = new Set(trunk.filter(t => seam.some(r => partsAt.get(r).has(t)))); // the part it sits on
+    ride.set(part, { bone, distance: surfaceDistance(seam, under, band), band, base });
+  }
+
+  // The plates: attached parts that sit on top of the back, neck or tail (their seam above 85 % of
+  // the trunk's height there, measured to the top right around it; a stegosaurus' tail spikes sit on
+  // the tail's sides, horns on the head). They are counted in rows from the head back, plates side by
+  // side always in one row, each row holding about the same plate area: the plateRow mask (0 off the
+  // plates) lets the runtime light them row by row.
+  const area = part => {
+    const pos = part.geometry.attributes.position, ix = part.geometry.index.array;
+    const a = V(), b = V(), c = V();
+    let sum = 0;
+    for (let t = 0; t < ix.length; t += 3) {
+      a.fromBufferAttribute(pos, ix[t]); b.fromBufferAttribute(pos, ix[t + 1]); c.fromBufferAttribute(pos, ix[t + 2]);
+      sum += b.sub(a).cross(c.sub(a)).length() / 2;
+    }
+    return sum;
+  };
+  const plates = attached.filter(part => {
+    const { base, bone } = ride.get(part);
+    if (bone === 'Head') return false;
+    const section = trunkPoints.filter(p => Math.abs(p.x - base.x) < 0.01 * L);
+    const around = section.filter(p => Math.abs(p.z - base.z) < 0.05 * L);
+    if (!around.length) return false;
+    const bottom = Math.min(...section.map(p => p.y)), top = Math.max(...around.map(p => p.y));
+    return (base.y - bottom) / (top - bottom) > 0.85;
+  }).map(part => ({ part, x: ride.get(part).base.x, area: area(part) })).sort((a, b) => b.x - a.x);
+  const stations = [];
+  for (const plate of plates) {
+    const last = stations.at(-1);
+    if (last && last[0].x - plate.x < 0.02 * L) last.push(plate);
+    else stations.push([plate]);
+  }
+  const plateArea = plates.reduce((sum, p) => sum + p.area, 0);
+  const plateRow = new Map();
+  let before = 0;
+  for (const station of stations) {
+    const here = station.reduce((sum, p) => sum + p.area, 0);
+    const row = Math.min(plateRows, 1 + Math.floor((plateRows * (before + here / 2)) / plateArea));
+    for (const p of station) plateRow.set(p.part, row);
+    before += here;
   }
 
   const cache = new Map(); // weld cluster -> weights, so both sides of a seam get the same ones
@@ -455,12 +499,20 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
         const p = at(r);
         const own = legs.find(l => l.part === owner[r]);
         w.length = 0;
-        trunkWeights(p, r, own, w);
         const rider = ride.get(owner[r]);
-        if (rider) {
-          const h = smooth(clamp((rider.distance.get(r) ?? rider.band) / rider.band, 0, 1));
-          for (const entry of w) entry[1] *= 1 - h;
-          w.push([rider.bone, h]);
+        if (rider) w.push([rider.bone, 1]);
+        else {
+          trunkWeights(p, r, own, w);
+          let near = null; // the attached part whose base this is nearest to, in bands
+          for (const rd of ride.values()) {
+            const d = rd.distance.get(r);
+            if (d !== undefined && (!near || d / rd.band < near.k)) near = { rd, k: d / rd.band };
+          }
+          if (near) {
+            const h = smooth(clamp(near.k, 0, 1));
+            for (const entry of w) entry[1] *= h;
+            w.push([near.rd.bone, 1 - h]);
+          }
         }
         const merged = new Map();
         for (const [bone, value] of w) merged.set(bone, (merged.get(bone) || 0) + value);
@@ -472,6 +524,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     }
     part.geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     part.geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    part.geometry.setAttribute('plateRow', new THREE.Float32BufferAttribute(new Float32Array(count).fill(plateRow.get(part) ?? 0), 1));
   }
   const geometry = mergeGeometries(parts.map(p => p.geometry), false);
   if (!geometry) throw new Error('mergeGeometries failed');
@@ -491,6 +544,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   report.parts = Object.fromEntries(parts.map(p => [p.name, kind.get(p)]));
   report.joints = Object.fromEntries(Object.entries(joints).map(([n, v]) => [n, r3(v)]));
   report.legs = Object.fromEntries(legs.map(l => [l.name, { junction: +l.junction.toFixed(3), pivot: r3(l.pivot), foot: r3(l.foot) }]));
+  report.plateRows = Array.from({ length: plateRows }, (_, i) => [...plateRow].filter(([, row]) => row === i + 1).map(([part]) => part.name));
   report.triangles = geometry.index.count / 3;
   return {
     group, mesh, bones, names, joints, H, L, closed, report,

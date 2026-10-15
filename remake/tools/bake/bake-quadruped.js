@@ -5,9 +5,10 @@ import { rigQuadruped } from './quadruped-rig.js';
 import { authorClips } from './quadruped-clips.js';
 
 // Bakes a four-legged character for the remake from an unrigged Tripo export kept in parts
-// (remake/tools/blender-decimate.py ... parts seams): quadruped-rig.js stands it up, rigs it and
-// welds and weights one skin, quadruped-clips.js authors idle, walk and kink, and this page gives it
-// one matte material and exports one skinned mesh. Run it with bake-character.mjs.
+// (remake/tools/blender-decimate.py ... parts): quadruped-rig.js stands it up, rigs it, welds and
+// weights one skin and marks the plate rows (plateRow), quadruped-clips.js authors idle, walk, kink,
+// eat and happy, and this page gives it one matte material and exports one skinned mesh. Run it
+// with bake-character.mjs.
 //
 // Query: src (parts GLB, relative to this page), out (file name for the upload), length (metres from
 // nose to tail tip), yaw (degrees that turn the model's front to +X; Tripo faces +Z, so 90), name,
