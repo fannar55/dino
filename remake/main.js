@@ -90,7 +90,14 @@ const voice = createVoice();
 const pointer = createPointer({ canvas, camera, world });
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
 const save = createSave(params.get('t') === null ? undefined : null);
-const journal = createJournal(document, save);
+const journal = createJournal(document, save, {
+  // A page the child opens holds the whole game, the voice included, until the child shuts it. A page a
+  // script opens (s.journal.open) does not call this: the last scene fades into the book while Mosi speaks.
+  onPause: paused => {
+    clock.setPaused(paused);
+    voice.setPaused(paused);
+  },
+});
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal });
 
 const shotName = params.get('shot');

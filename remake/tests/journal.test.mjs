@@ -101,11 +101,11 @@ const PAGE = [
 const FRIENDS = ['Kambeðla', 'Þórseðla', 'Grameðla', 'Uggeðla', 'Slóeðla', 'Flugeðla'];
 
 /** A journal over a page with the elements index.html has, and a save in memory. */
-function journalRig({ stored = null, save = null } = {}) {
+function journalRig({ stored = null, save = null, onPause } = {}) {
   const doc = new FakeDocument(PAGE);
   const storage = memoryStorage(stored ? { [KEY]: JSON.stringify(stored) } : {});
   const kept = save ?? createSave(storage);
-  const journal = createJournal(doc, kept);
+  const journal = createJournal(doc, kept, { onPause });
   const el = id => doc.getElementById(id);
   /** The journal button's star slots, in the order of the friends. */
   const slots = () => el('star-slots').children;
@@ -294,6 +294,94 @@ test('the book can be brought out and put away', () => {
   assert.equal(el('journal-button').hidden, true);
 });
 
+// A page the child opens holds the game (R24): the journal asks, through onPause, for the clock and the
+// voice to be paused while the child's page is open. A page that code opens does not.
+
+/** The journal with a recorder for the pauses it asks for, and a tap on a page element. */
+function pauseRig(options) {
+  const pauses = [];
+  const rig = journalRig({ ...options, onPause: paused => pauses.push(paused) });
+  const tap = id => rig.el(id).dispatchEvent(new Event('click'));
+  return { ...rig, pauses, tap };
+}
+
+test('a page the child opens pauses the game until the child closes it', () => {
+  const { journal, pauses, tap, el } = pauseRig({ stored: { stars: [], findings: ['frog'] } });
+  assert.deepEqual(pauses, [], 'nothing is paused while the book is shut');
+
+  tap('journal-button'); // the child taps the book
+  assert.equal(journal.isOpen, true);
+  assert.deepEqual(pauses, [true]);
+  tap('journal-close');
+  assert.equal(journal.isOpen, false);
+  assert.deepEqual(pauses, [true, false], 'and the game goes on when it is shut');
+
+  tap('journal-button');
+  el('journal-page').dispatchEvent(new Event('click')); // the dimmed edge around the card shuts it too
+  assert.equal(journal.isOpen, false);
+  assert.deepEqual(pauses, [true, false, true, false]);
+});
+
+test('a page a script opens does not pause the game, and the child closing it resumes nothing', () => {
+  const { journal, pauses, tap } = pauseRig({ stored: { stars: ['k1_kambedla'], findings: [] } });
+  journal.open(); // as s.journal.open does: the last scene fades into the book while Mosi speaks
+  assert.equal(journal.isOpen, true);
+  assert.deepEqual(pauses, [], 'the clock goes on under a page the scene opened');
+
+  tap('journal-close'); // the child shuts the page the script opened
+  assert.equal(journal.isOpen, false);
+  assert.deepEqual(pauses, [], 'nothing pauses and nothing resumes that was not paused');
+
+  journal.open();
+  journal.close();
+  assert.deepEqual(pauses, []);
+});
+
+test('code that closes a page the child opened lets the game go on, and an open page keeps whoever opened it', () => {
+  const { journal, pauses, tap } = pauseRig();
+  tap('journal-button');
+  journal.open(); // it is open already, and the child's
+  assert.deepEqual(pauses, [true]);
+  journal.close(); // the game must not be left paused with no page showing
+  assert.equal(journal.isOpen, false);
+  assert.deepEqual(pauses, [true, false]);
+
+  journal.open();
+  tap('journal-button'); // a key press on the book under a page the script opened does not make it the child's
+  assert.deepEqual(pauses, [true, false], 'still not paused');
+  tap('journal-close');
+  assert.deepEqual(pauses, [true, false]);
+
+  tap('journal-button'); // and the child can open it again afterwards
+  assert.deepEqual(pauses, [true, false, true]);
+});
+
+test('a pause callback that throws does not leave the page half open', () => {
+  const doc = new FakeDocument(PAGE);
+  const journal = createJournal(doc, createSave(null), { onPause: () => { throw new Error('no audio'); } });
+  const reported = [];
+  const consoleError = console.error;
+  console.error = (...args) => reported.push(args);
+  try {
+    doc.getElementById('journal-button').dispatchEvent(new Event('click'));
+    assert.equal(journal.isOpen, true);
+    assert.equal(doc.getElementById('journal-page').hidden, false);
+    doc.getElementById('journal-close').dispatchEvent(new Event('click'));
+    assert.equal(journal.isOpen, false);
+    assert.equal(doc.getElementById('journal-page').hidden, true);
+    assert.equal(reported.length, 2, 'it was reported each time');
+    assert.match(String(reported[0][1]), /no audio/);
+  } finally {
+    console.error = consoleError;
+  }
+});
+
+test('main.js ties a page the child opens to the clock and the voice', () => {
+  const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const wiring = /createJournal\(document, save, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*voice\.setPaused\(paused\);\s*\},?\s*\}\)/;
+  assert.match(main, wiring, 'createJournal gets an onPause that sets the clock and then the voice');
+});
+
 test('the journal says so when the page lacks a piece of it', () => {
   const doc = new FakeDocument(PAGE.filter(id => id !== 'journal-flights'));
   assert.throws(() => createJournal(doc, createSave(null)), /journal-flights/);
@@ -353,7 +441,7 @@ function fakePointer() {
  * The scene over a real journal on a fake page, with a camera 10 m from the origin looking at it.
  * `step(seconds)` runs frames of a tenth of a second the way main.js does: the journal first, then the scene.
  */
-function starRig({ withJournal = true } = {}) {
+function starRig({ withJournal = true, onPause } = {}) {
   const camera = new THREE.PerspectiveCamera(40, 800 / 500, 0.1, 1200);
   camera.position.set(0, 1.6, 10);
   camera.lookAt(0, 1.6, 0);
@@ -364,12 +452,14 @@ function starRig({ withJournal = true } = {}) {
     renderer: { domElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 500 }) } },
   };
   world.resolvePoint = createPointResolver(world);
-  const rig = journalRig();
+  const rig = journalRig({ onPause });
   const asked = [];
   const journal = withJournal
     ? {
       addStar(id, from) { asked.push({ id, from }); return rig.journal.addStar(id, from); },
       addFinding: id => rig.journal.addFinding(id),
+      open: () => rig.journal.open(),
+      close: () => rig.journal.close(),
     }
     : null;
   const pointer = fakePointer();
@@ -510,10 +600,54 @@ test('s.found puts an animal in the book, once', () => {
   assert.deepEqual(save.get().findings, ['frog', 'beetle']);
 });
 
+test('s.journal.open and close show and hide the page without pausing the game', () => {
+  const pauses = [];
+  const { stage, s, journal, step } = starRig({ onPause: paused => pauses.push(paused) });
+  assert.equal(s.journal.open(), DONE);
+  assert.equal(journal.isOpen, true);
+  assert.equal(s.journal.close(), DONE);
+  assert.equal(journal.isOpen, false);
+  assert.deepEqual(pauses, [], 'a script that opens the book does not stop the clock');
+
+  // A scene that ends in the book: it goes on under the open page, and the page can be shut by the scene.
+  const seen = [];
+  stage.start(function* script() {
+    s.journal.open();
+    yield s.wait(1);
+    seen.push(['open', journal.isOpen, s.time]);
+    s.journal.close();
+    seen.push(['shut', journal.isOpen]);
+  });
+  step(1.2);
+  assert.deepEqual(seen, [['open', true, 1], ['shut', false]], 'time moved while the page was open');
+  assert.deepEqual(pauses, []);
+});
+
+test('a page the child shuts, that a script opened, leaves the scene running', () => {
+  const pauses = [];
+  const { stage, s, journal, step, el } = starRig({ onPause: paused => pauses.push(paused) });
+  const seen = [];
+  stage.start(function* script() {
+    s.journal.open();
+    yield s.wait(0.5);
+    seen.push(['after the child shut it', journal.isOpen, s.time]);
+    yield s.wait(0.5);
+    seen.push(['end', s.time]);
+  });
+  step(0.3);
+  el('journal-close').dispatchEvent(new Event('click')); // the child shuts it under the scene
+  step(0.8);
+  assert.deepEqual(seen, [['after the child shut it', false, 0.5], ['end', 1]]);
+  assert.deepEqual(pauses, [], 'neither a pause nor a resume');
+});
+
 test('s.star and s.found say so when the scene has no journal', () => {
   const { s } = starRig({ withJournal: false });
   assert.throws(() => s.star(STAR, PLATES), /journal/);
   assert.throws(() => s.found('frog'), /journal/);
+  assert.throws(() => s.journal.open(), /journal/);
+  assert.throws(() => s.journal.close(), /journal/);
   const bare = createScene({ world: {}, director: {}, ui: {}, voice: {} });
   assert.throws(() => bare.s.star(STAR, PLATES), /journal/);
+  assert.throws(() => bare.s.journal.open(), /journal/);
 });

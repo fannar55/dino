@@ -52,10 +52,15 @@ function needId(id, call) {
  *   addFinding(id)     an animal goes in the book; false when it was in it already
  *   update(dt)         moves what moves, with game time
  *   show(on = true)    brings the book out, or puts it away; it comes out by itself with the first find
- *   open(), close(), isOpen    the page
+ *   open(), close(), isOpen    the page, shown or hidden by code (a scene that ends in the book); this never
+ *                      pauses the game
  *   stars, findings    the ids, in the order they came
+ * A page the child opens with a tap on the book holds the game until the child shuts it (R24): the journal
+ * calls `options.onPause(true)` when it opens and `onPause(false)` when it is shut, however it is shut, and
+ * main.js holds the clock and the voice for it. A page that code opened never calls it, so a scene can fade
+ * into the open book while its last line plays, and the child shutting that page resumes nothing.
  */
-export function createJournal(doc, save) {
+export function createJournal(doc, save, { onPause = null } = {}) {
   const need = id => {
     const element = doc.getElementById(id);
     if (!element) throw new Error(`The journal needs #${id} on the page (see index.html)`);
@@ -74,6 +79,7 @@ export function createJournal(doc, save) {
   const flights = new Map(); // star id -> the flight in the air
   const motions = []; // { el, age, seconds, amount }: a slot swelling, the book nodding
   let isOpen = false;
+  let openedBy = null; // 'child' or 'script': whose page it is, while it is open
 
   const slots = FRIENDS.map(friend => {
     const slot = doc.createElement('span');
@@ -122,10 +128,24 @@ export function createJournal(doc, save) {
     button.hidden = !on;
   }
 
-  function setOpen(value) {
-    isOpen = Boolean(value);
-    pageEl.hidden = !isOpen;
-    if (isOpen) render();
+  /** The game holds still for a page the child opened. A callback that fails must not leave the page half open. */
+  function pause(paused) {
+    try {
+      onPause?.(paused);
+    } catch (error) {
+      console.error('[journal]', error);
+    }
+  }
+
+  function setOpen(value, by = 'script') {
+    const open = Boolean(value);
+    if (open === isOpen) return; // a page that is open stays whoever opened it
+    const holder = open ? by : openedBy;
+    isOpen = open;
+    openedBy = open ? by : null;
+    pageEl.hidden = !open;
+    if (open) render();
+    if (holder === 'child') pause(open);
   }
 
   /** Swell an element and let it settle, over `seconds` of game time. */
@@ -204,7 +224,7 @@ export function createJournal(doc, save) {
     }
   }
 
-  button.addEventListener('click', () => setOpen(true));
+  button.addEventListener('click', () => setOpen(true, 'child'));
   closeEl.addEventListener('click', () => setOpen(false));
   pageEl.addEventListener('click', event => {
     if (event.target === pageEl) setOpen(false); // the dimmed edge around the card

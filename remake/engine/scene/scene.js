@@ -20,7 +20,7 @@ import { DONE } from '../handle.js';
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need, and
-// `journal` (scene/journal.js), which s.star and s.found need. s.drag and s.tray need `ui.tray`.
+// `journal` (scene/journal.js), which s.star, s.found and s.journal need. s.drag and s.tray need `ui.tray`.
 export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null }) {
   const scheduler = createScheduler();
   let seeking = false;
@@ -382,6 +382,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     star,
     /** Put the animal `id` in the journal's finds (once per id). */
     found,
+    /**
+     * The journal's page, for a scene that ends in the book: `open()` shows it and `close()` hides it. Unlike the child's
+     * own tap on the book, they do not pause the game, so a scene can go on talking under an open page.
+     */
+    journal: {
+      open: () => { needJournal('s.journal.open'); journal.open(); return DONE; },
+      close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
+    },
     /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
     tray: {
       show: items => { needTray('s.tray.show'); ui.tray.show(items); return DONE; },
