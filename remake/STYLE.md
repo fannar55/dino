@@ -260,17 +260,20 @@ should grow with the square root of its size too.
 `bake-tailed-biped` (`--query "src=<parts.glb>&length=12&name=Grameðla&out=trex.glb"`) stands the
 model at the origin facing +X at its length nose to tail. It finds the heading from the footprint
 and the left and right pairs, tells the parts apart by position and shared seams (body, tail, head,
-lower jaw, thighs, feet and claws, arms; one side's upper arm may hide in the body part), and
-places 27 joints: Hips, Spine, Chest, Neck, Head, Jaw, Tail1 to Tail6, digitigrade legs (Thigh,
-Shin, Metatarsus for the raised heel, and Foot, the ball of the foot, which carries the toes) and
-short arms. Weights come from the spine by position along the body, from the legs and arms by the
-planes that halve each joint, and from the jaw by position along it; the copies of a position
+lower jaw, thighs, feet and claws, arms; one side's upper arm may hide in the body part), flattens
+the soles onto the ground and places 25 joints: Hips, Spine, Chest, Neck, Head, Jaw, Tail1 to Tail6,
+short arms, and digitigrade legs rigged as the engine's footing expects a biped's: Thigh, Shin and
+Foot, the Foot (at the raised heel) carrying the metatarsus, toes and claws as one, so a heel peels
+up about the toes. Weights come from the spine by position along the body, from the legs and arms
+by the planes that halve each joint, and from the jaw by position along it; the copies of a position
 share a weight, and a few rounds of smoothing over the surface take out the steps at the seams.
 The front of the lip seam opens: the jaw side gets vertices of its own, and a pocket (palate and
 tongue, painted into a free corner of the colour map) fills the mouth, so the roar shows a pink
-mouth with no teeth. The clips are in `tailed-biped-clips.js`: idle, walk and roar. The legs reach
-their feet: the ball of a planted foot sweeps back at exactly stride per cycle (2.8 m in 2.5 s), so
-it stays put when the actor moves at that speed, and the heel lifts late in the step.
+mouth with no teeth. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
+by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands flat and sweeps back
+at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
+other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,
+starts, stops and turns as it does Egill's.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.

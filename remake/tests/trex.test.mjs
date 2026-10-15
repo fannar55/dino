@@ -43,7 +43,7 @@ function loadGlb() {
 const fresh = () => loadGlb();
 const BONES = ['root', 'Hips', 'Spine', 'Chest', 'Neck', 'Head', 'Jaw',
   'Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6',
-  'LeftThigh', 'LeftShin', 'LeftMetatarsus', 'LeftFoot', 'RightThigh', 'RightShin', 'RightMetatarsus', 'RightFoot',
+  'LeftThigh', 'LeftShin', 'LeftFoot', 'RightThigh', 'RightShin', 'RightFoot',
   'LeftUpperArm', 'LeftLowerArm', 'LeftHand', 'RightUpperArm', 'RightLowerArm', 'RightHand'];
 const skinnedMesh = gltf => { let mesh = null; gltf.scene.traverse(o => { if (o.isSkinnedMesh) mesh = o; }); return mesh; };
 
@@ -104,7 +104,7 @@ test('every vertex weight sums to one', async () => {
   }
 });
 
-// The world position of each foot (the ball of the foot, which carries the toes) over a clip.
+// The world position of each foot (the Foot bone: the heel, which carries the toes) over a clip.
 function feetOver(gltf, clipName, steps) {
   const mixer = new THREE.AnimationMixer(gltf.scene);
   const clip = gltf.animations.find(c => c.name === clipName);
@@ -143,45 +143,98 @@ test('the roar opens the mouth wide', async () => {
   assert.ok(widest > 20 && widest < 35, `the jaw opens ${widest.toFixed(1)} degrees`);
 });
 
-test('walking at its own pace, a foot that is down stays put in the world', async () => {
-  const gltf = await fresh();
+// In a scene: the engine's actor, with footing planting her feet (jointed legs, as Egill's).
+async function stage() {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
   const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
   world.resolvePoint = createPointResolver(world);
-  const rex = await createActor(world, { name: 'gramedla', gltf });
+  const rex = await createActor(world, { name: 'gramedla', gltf: await fresh() });
   world.actors.set('gramedla', rex);
-  const probe = rex.walkTo([[30, 0]], { speed: 1 });
-  const gait = rex.gait;
-  assert.ok(gait && Math.abs(gait.naturalSpeed - 1.12) < 0.01, JSON.stringify(gait && { speed: gait.naturalSpeed, duty: gait.duty }));
-  // Walk again at exactly the measured pace; once the walk clip has faded in, follow the feet.
-  rex.place(0, 0, 0);
-  rex.stop();
-  for (let i = 0; i < 60; i++) rex.update(1 / 30);
-  const walk = rex.walkTo([[30, 0]], { speed: gait.naturalSpeed });
-  const feet = ['LeftFoot', 'RightFoot'].map(n => rex.model.getObjectByName(n));
-  const restY = feet.map(f => { rex.root.updateMatrixWorld(true); return rex.root.worldToLocal(f.getWorldPosition(new THREE.Vector3())).y; });
+  return rex;
+}
+
+// Follows the feet frame by frame, as Egill's and Mosi's tests do: the most a foot moved along the
+// ground between two frames in which it was down (its heel within 1 mm of its bind-pose height), how
+// often a foot lifted, and whether each knee stayed in front of the line from hip to heel (a
+// digitigrade leg bends that way only). Make it while the legs are still in the bind pose.
+function footWatch(actor) {
+  const bones = side => ['Thigh', 'Shin', 'Foot'].map(n => actor.model.getObjectByName(`${side}${n}`));
+  const legs = [bones('Left'), bones('Right')];
+  const local = bone => actor.root.worldToLocal(bone.getWorldPosition(new THREE.Vector3()));
+  const read = () => { actor.root.updateMatrixWorld(true); return legs.map(([hip, knee, heel]) => ({ hip: local(hip), knee: local(knee), heel: local(heel), world: heel.getWorldPosition(new THREE.Vector3()) })); };
+  const rest = read().map(leg => leg.heel.y);
   let last = null;
-  let slide = 0;
-  let steps = 0;
-  for (let i = 0; i < 900 && !walk.done; i++) {
-    rex.update(1 / 30);
-    rex.root.updateMatrixWorld(true);
-    const now = feet.map((f, k) => {
-      const p = f.getWorldPosition(new THREE.Vector3());
-      return { p, down: rex.root.worldToLocal(p.clone()).y - restY[k] < 0.001 };
-    });
-    // Skip the first two seconds (the walk fades in from idle and eases up to speed) and the last
-    // metre and a half (it settles into the stop).
-    if (last && i > 60 && rex.root.position.x < 28.5) {
-      now.forEach((foot, k) => {
-        if (foot.down && last[k].down) slide = Math.max(slide, Math.hypot(foot.p.x - last[k].p.x, foot.p.z - last[k].p.z));
-        if (!foot.down && last[k].down) steps++;
+  const watch = {
+    slide: 0, lifts: 0, kneeBack: false,
+    start() { last = null; watch.slide = 0; watch.lifts = 0; watch.kneeBack = false; return watch.sample(); },
+    sample() {
+      const now = read().map((leg, k) => {
+        const toHeel = leg.heel.clone().sub(leg.hip), toKnee = leg.knee.clone().sub(leg.hip);
+        if (toHeel.x * toKnee.y - toHeel.y * toKnee.x <= 0) watch.kneeBack = true;
+        return { p: leg.world, down: leg.heel.y - rest[k] < 0.001 };
       });
-    }
-    last = now;
+      now.forEach((foot, k) => {
+        if (!last) return;
+        if (foot.down && last[k].down) watch.slide = Math.max(watch.slide, Math.hypot(foot.p.x - last[k].p.x, foot.p.z - last[k].p.z));
+        if (!foot.down && last[k].down) watch.lifts++;
+      });
+      last = now;
+      return now;
+    },
+  };
+  return watch;
+}
+const mm = metres => `${(metres * 1000).toFixed(1)} mm`;
+
+test('the actor measures her calm walking speed from the walk clip', async () => {
+  const rex = await stage();
+  rex.walkTo([[30, 0]], { speed: 1 });
+  assert.ok(rex.gait && Math.abs(rex.gait.naturalSpeed - 1.12) < 0.01, JSON.stringify(rex.gait && { speed: rex.gait.naturalSpeed, duty: rex.gait.duty }));
+});
+
+test('walking at a calm pace, a planted foot stays put and the knees bend forward', async () => {
+  for (const speed of [0.7, 0.9, 1.12]) {
+    const rex = await stage();
+    const watch = footWatch(rex);
+    const walk = rex.walkTo([[30, 0]], { speed });
+    for (let i = 0; i < 900 && rex.root.position.x < 3; i++) rex.update(1 / 30);
+    watch.start();
+    for (let i = 0; i < 900 && rex.root.position.x < 20; i++) { rex.update(1 / 30); watch.sample(); }
+    assert.equal(walk.done, false);
+    assert.ok(watch.lifts >= 8, `${watch.lifts} steps at ${speed} m/s`);
+    assert.ok(watch.slide < 1e-3, `at ${speed} m/s a planted foot moved ${mm(watch.slide)} in a frame`);
+    assert.equal(watch.kneeBack, false, `at ${speed} m/s a knee bent backwards`);
   }
-  assert.equal(walk.done, true);
-  assert.ok(steps >= 10, `${steps} steps`);
-  assert.ok(slide < 0.002, `a planted foot slid ${(slide * 1000).toFixed(1)} mm in one frame`);
-  assert.ok(probe.done);
+});
+
+test('a walk starts and stops without dragging a foot', async () => {
+  for (const goal of [9, 10]) { // two different points of the stride
+    const rex = await stage();
+    const watch = footWatch(rex);
+    const walk = rex.walkTo([[goal, 0]], { speed: 1.12 });
+    watch.start();
+    for (let i = 0; i < 900 && !walk.done; i++) { rex.update(1 / 30); watch.sample(); }
+    assert.equal(walk.done, true);
+    for (let i = 0; i < 120; i++) { rex.update(1 / 30); watch.sample(); }
+    assert.ok(watch.slide < 1e-3, `a planted foot moved ${mm(watch.slide)} in a frame`);
+    assert.ok(watch.sample().every(foot => foot.down), 'both feet are down four seconds after the stop');
+    assert.equal(rex.stepping, false);
+    assert.equal(watch.kneeBack, false, 'a knee bent backwards');
+  }
+});
+
+test('turning on the spot, a planted foot stays put and the feet step around', async () => {
+  const rex = await stage();
+  const watch = footWatch(rex);
+  for (let i = 0; i < 10; i++) rex.update(1 / 30);
+  watch.start();
+  const turn = rex.turnTo(90);
+  for (let i = 0; i < 900 && !turn.done; i++) { rex.update(1 / 30); watch.sample(); }
+  assert.equal(turn.done, true);
+  assert.ok(Math.abs(rex.heading - 90) < 1.5, `heading ${rex.heading}`);
+  for (let i = 0; i < 180 && rex.stepping; i++) { rex.update(1 / 30); watch.sample(); }
+  assert.equal(rex.stepping, false);
+  assert.ok(watch.lifts >= 3, `${watch.lifts} steps`);
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${mm(watch.slide)} in a frame`);
+  assert.equal(watch.kneeBack, false, 'a knee bent backwards');
 });

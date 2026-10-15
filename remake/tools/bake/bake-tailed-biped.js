@@ -19,8 +19,10 @@ import { authorClips } from './tailed-biped-clips.js';
 // the front), preview (1: show the result in the page instead of exporting; clip and t pick the pose).
 //
 // Bones have identity rest rotations, so clips rotate about the character's own axes: X forward,
-// Y up, Z the character's right. The legs are digitigrade: Thigh (hip), Shin (knee), Metatarsus
-// (ankle, the raised heel) and Foot (the ball, carrying the toes that touch the ground).
+// Y up, Z the character's right. The legs are digitigrade, rigged the way the engine's footing
+// (engine/footing.js, jointed legs) and two-bone IK (engine/ik.js) expect a biped's: Thigh (hip),
+// Shin (knee) and Foot (the raised heel), the Foot carrying the metatarsus, toes and claws as one,
+// so a planted foot peels its heel up about the toes.
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src') || '../../assets/characters/source/trex-parts.glb';
@@ -278,6 +280,15 @@ try {
     kind.set(thighParts[i], `thigh ${side}`);
     claws.forEach(c => kind.set(c, `foot ${side}`));
   });
+  // The soles: what lies within a couple of centimetres of the ground is put on it, so both feet
+  // stand flat (Tripo leaves one a centimetre up) and the engine finds the toes' ground contact.
+  const SOLE = 0.008 * H;
+  for (const p of parts.filter(q => kind.get(q)?.startsWith('foot'))) {
+    const pos = p.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) if (pos.getY(i) < box.min.y + SOLE) pos.setY(i, box.min.y);
+    pos.needsUpdate = true;
+  }
+  remeasure();
   const free = () => parts.filter(p => !kind.has(p));
   const body = free().filter(p => touch(p, legs.Left.thigh) && touch(p, legs.Right.thigh)).reduce((a, b) => (!a || b.count > a.count ? b : a), null);
   if (!body) throw new Error('no body part between the thighs');
@@ -331,17 +342,16 @@ try {
     const toe = V(padMax, ball.y * 0.6, ball.z);
     J[`${side}Thigh`] = hip;
     J[`${side}Shin`] = knee.c.clone();
-    J[`${side}Metatarsus`] = heel.c.clone();
-    J[`${side}Foot`] = ball;
-    legInfo[side] = { toe, padMin, padMax, top };
+    J[`${side}Foot`] = heel.c.clone();
+    legInfo[side] = { ball, toe, padMin, padMax, top };
   }
   // Mirror the joints across the midline so the two legs match exactly (the clips rely on it).
-  for (const n of ['Thigh', 'Shin', 'Metatarsus', 'Foot']) {
-    const l = J[`Left${n}`], r = J[`Right${n}`];
+  const mirror = (l, r, set) => {
     const m = V((l.x + r.x) / 2, (l.y + r.y) / 2, (r.z - l.z) / 2);
-    J[`Left${n}`] = V(m.x, m.y, -m.z);
-    J[`Right${n}`] = V(m.x, m.y, m.z);
-  }
+    set(V(m.x, m.y, -m.z), V(m.x, m.y, m.z));
+  };
+  for (const n of ['Thigh', 'Shin', 'Foot']) mirror(J[`Left${n}`], J[`Right${n}`], (l, r) => { J[`Left${n}`] = l; J[`Right${n}`] = r; });
+  mirror(legInfo.Left.ball, legInfo.Right.ball, (l, r) => { legInfo.Left.ball = l; legInfo.Right.ball = r; });
 
   // Spine: the middle of the body's cross-sections along X (half-way between belly and back).
   const spinePoints = [body, tail, head, ...parts.filter(p => kind.get(p) === 'neck')].flatMap(p => p.points);
@@ -361,10 +371,14 @@ try {
   const tailEnd = box.min.x + 0.04 * LENGTH;
   for (let i = 0; i < 6; i++) J[`Tail${i + 1}`] = spineAt(tailRoot + (i / 5) * (tailEnd - tailRoot));
 
-  // Toe tips (not a bone): the front of the toe pads, the same on both feet.
+  // The ball of each foot (where the metatarsus meets the toes) and the toes' ground contact, the
+  // front of the pads, the same on both feet: the Foot bone carries both; a heel peels about the toes.
   const toeX = (legInfo.Left.padMax + legInfo.Right.padMax) / 2;
-  const toes = {};
-  for (const side of ['Left', 'Right']) toes[side] = V(toeX, 0.6 * J[`${side}Foot`].y, J[`${side}Foot`].z);
+  const balls = {}, toes = {};
+  for (const side of ['Left', 'Right']) {
+    balls[side] = legInfo[side].ball;
+    toes[side] = V(toeX, 0, balls[side].z);
+  }
 
   // --- welded vertices: one key per position, so the seams between parts can be found ------------
   const qk = 1e-6 * LENGTH;
@@ -490,8 +504,8 @@ try {
   const PARENT = {
     Hips: 'root', Spine: 'Hips', Chest: 'Spine', Neck: 'Chest', Head: 'Neck', ...(jaw ? { Jaw: 'Head' } : {}),
     Tail1: 'Hips', Tail2: 'Tail1', Tail3: 'Tail2', Tail4: 'Tail3', Tail5: 'Tail4', Tail6: 'Tail5',
-    LeftThigh: 'Hips', LeftShin: 'LeftThigh', LeftMetatarsus: 'LeftShin', LeftFoot: 'LeftMetatarsus',
-    RightThigh: 'Hips', RightShin: 'RightThigh', RightMetatarsus: 'RightShin', RightFoot: 'RightMetatarsus',
+    LeftThigh: 'Hips', LeftShin: 'LeftThigh', LeftFoot: 'LeftShin',
+    RightThigh: 'Hips', RightShin: 'RightThigh', RightFoot: 'RightShin',
     LeftUpperArm: 'Chest', LeftLowerArm: 'LeftUpperArm', LeftHand: 'LeftLowerArm',
     RightUpperArm: 'Chest', RightLowerArm: 'RightUpperArm', RightHand: 'RightLowerArm',
   };
@@ -533,21 +547,19 @@ try {
   const unit = v => v.clone().normalize();
   const legFrame = {};
   for (const side of ['Left', 'Right']) {
-    const Hj = J[`${side}Thigh`], K = J[`${side}Shin`], A = J[`${side}Metatarsus`], B = J[`${side}Foot`], T = toes[side];
-    const a = unit(K.clone().sub(Hj)), b = unit(A.clone().sub(K)), c = unit(B.clone().sub(A)), e = unit(T.clone().sub(B));
-    legFrame[side] = { Hj, K, A, B, a, nK: unit(a.clone().add(b)), nA: unit(b.clone().add(c)), nB: unit(c.clone().add(e)), length: Hj.y };
+    const Hj = J[`${side}Thigh`], K = J[`${side}Shin`], A = J[`${side}Foot`], B = balls[side];
+    const a = unit(K.clone().sub(Hj)), b = unit(A.clone().sub(K)), c = unit(B.clone().sub(A));
+    legFrame[side] = { Hj, K, A, a, nK: unit(a.clone().add(b)), nA: unit(b.clone().add(c)), length: Hj.y };
   }
   function legWeights(side, p, w) {
     const f = legFrame[side], len = f.length;
     const leg = ss(-0.16 * len, 0.06 * len, p.clone().sub(f.Hj).dot(f.a)); // the thigh's top fades into the body
     const shin = ss(-0.07 * len, 0.07 * len, p.clone().sub(f.K).dot(f.nK));
-    const meta = ss(-0.05 * len, 0.05 * len, p.clone().sub(f.A).dot(f.nA));
-    const foot = ss(-0.03 * len, 0.03 * len, p.clone().sub(f.B).dot(f.nB));
+    const foot = ss(-0.05 * len, 0.05 * len, p.clone().sub(f.A).dot(f.nA));
     spineWeights(p.x, w, 1 - leg);
     add(w, `${side}Thigh`, leg * (1 - shin));
-    add(w, `${side}Shin`, leg * shin * (1 - meta));
-    add(w, `${side}Metatarsus`, leg * shin * meta * (1 - foot));
-    add(w, `${side}Foot`, leg * shin * meta * foot);
+    add(w, `${side}Shin`, leg * shin * (1 - foot));
+    add(w, `${side}Foot`, leg * shin * foot);
   }
   const segDist = (p, a, b) => new THREE.Line3(a, b).closestPointToPoint(p, true, V()).distanceTo(p);
   function armShare(side, p, own) {
@@ -812,7 +824,7 @@ try {
   const report = {
     name: NAME, length: +LENGTH.toFixed(3), height: +H.toFixed(3), triangles: geometry.index.count / 3,
     vertices: geometry.attributes.position.count, bones: names.length, mouth: mouthInfo,
-    clips: clips.map(c => `${c.name} ${c.duration.toFixed(2)} s`), walk: clipReport.walk,
+    clips: clips.map(c => `${c.name} ${c.duration.toFixed(2)} s`), walk: clipReport.walk, stretch: clipReport.stretch,
     tailRest: Object.fromEntries(Object.entries(tailRest).map(([k, v]) => [k, +v.toFixed(1)])),
   };
   window.__bakeReport = report;
