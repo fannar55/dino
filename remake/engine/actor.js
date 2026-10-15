@@ -3,6 +3,7 @@ import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { Handle } from './handle.js';
 import { createFooting, stopCost, QUADRUPED, BIPED } from './footing.js';
+import { prepareCharacter, releaseCharacter } from './character-lod.js';
 
 // A character in a scene: a rigged GLB with its clips, standing on the ground. Clips cross-fade;
 // walking follows a smooth path at a speed matched to the walk cycle, and footing (footing.js) keeps
@@ -124,6 +125,8 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     // Single-sided skins would cast shadows with their back faces, letting light leak into creases.
     o.material.shadowSide = THREE.FrontSide;
   });
+  // Simpler levels for far away and a low-poly sun shadow, once they are ready (character-lod.js).
+  if (world.renderer) prepareCharacter(model, world.lighting?.sun);
 
   // Bind-pose size in metres, for framing and the body-centre point.
   const bounds = new THREE.Box3();
@@ -459,6 +462,6 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       if (turn) endTurn(true);
       lookAt(null);
     },
-    dispose() { mixer.stopAllAction(); world.scene.remove(root); },
+    dispose() { mixer.stopAllAction(); world.scene.remove(root); releaseCharacter(model); },
   };
 }

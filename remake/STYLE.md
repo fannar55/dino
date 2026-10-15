@@ -192,6 +192,10 @@ face), misty far forest, forest wall.
 - The forest's share in clearing shots: at most 3.5 ms, 60 draw calls and 150k triangles.
 - No full-screen post-processing on tablet: no bloom, SSAO or depth-of-field passes. Use instancing,
   merged static geometry, distance LOD, and cards or impostors for the far forest.
+- Characters draw at half their triangles below 700 px on screen and a quarter below 200 px (the
+  bind-pose diagonal) or out of view, and cast the sun shadow with the quarter
+  (`engine/character-lod.js`). The sun's shadow map is a depth texture (`engine/shadows.js`). Wide
+  real-size shots with three characters stay under 250k triangles this way.
 - Dynamic resolution may drop to 0.6 on slow devices; art must still read at that scale.
 
 ## 12. Asset pipeline
