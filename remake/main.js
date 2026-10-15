@@ -15,6 +15,7 @@ import { createDirector } from './engine/camera/director.js';
 import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
+import { createPointer } from './engine/input/pointer.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
@@ -84,7 +85,8 @@ try {
 }
 const ui = createStageUI(document);
 const voice = createVoice();
-const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations });
+const pointer = createPointer({ canvas, camera, world });
+const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer });
 
 const shotName = params.get('shot');
 const tParam = params.get('t');

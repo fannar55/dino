@@ -17,7 +17,8 @@ import { DONE } from '../handle.js';
 //   }
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
-export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null }) {
+// So is `pointer` (engine/input/pointer.js), which s.target, s.tap and s.onTap need.
+export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null }) {
   const scheduler = createScheduler();
   let seeking = false;
   let started = false; // set by begin(): the start button, or at once for captures
@@ -96,6 +97,75 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return start(goToTask(name, fade));
   }
 
+  // Taps. A script waits for one with s.tap; the waits are served in the order they began, one tap to
+  // one wait. Handlers added with s.onTap hear every tap on their target, whatever else is waiting.
+  const tapWaits = []; // { names, hit }: a wait in progress, and the name it was given once it has one
+  const tapHandlers = []; // { name, fn }
+  const ownTargets = new Set(); // what s.target put on the pointer, for stop() to take off again
+
+  function needPointer(call) {
+    if (!pointer) throw new Error(`${call} needs the pointer: pass \`pointer\` (createPointer) to createScene`);
+  }
+
+  if (pointer) {
+    pointer.on('tap', event => {
+      // The wait first: a handler that throws must not keep the story from going on. A wait that
+      // already has its tap (the script has not run since) is skipped, so a second tap in the same
+      // frame cannot take it over; it goes to the next wait, or to the handlers alone.
+      const waiting = tapWaits.find(w => w.hit === null && w.names.includes(event.name));
+      if (waiting) waiting.hit = event.name;
+      for (const handler of [...tapHandlers]) if (handler.name === event.name) handler.fn(event);
+    });
+  }
+
+  // On the game clock, like everything a script waits for: the script resumes on the first frame
+  // after the tap. While seeking (captures) there is no player, so it waits a fixed time and takes
+  // its `auto` name, as chooseTask does.
+  function* tapTask(names, { auto = names[0] } = {}) {
+    if (seeking) {
+      yield wait(2);
+      return auto;
+    }
+    const waiting = { names, hit: null };
+    tapWaits.push(waiting);
+    try {
+      yield until(() => waiting.hit !== null);
+      return waiting.hit;
+    } finally {
+      // Also when the task is cancelled, say by losing a race to a timer: a wait that is over must not take the next tap.
+      tapWaits.splice(tapWaits.indexOf(waiting), 1);
+    }
+  }
+
+  function tap(names, options) {
+    needPointer('s.tap');
+    const list = Array.isArray(names) ? names : [names];
+    if (!list.length) throw new TypeError('s.tap needs the name of at least one target');
+    return start(tapTask(list, options));
+  }
+
+  function onTap(name, fn) {
+    needPointer('s.onTap');
+    const handler = { name, fn };
+    tapHandlers.push(handler);
+    return () => {
+      const i = tapHandlers.indexOf(handler);
+      if (i >= 0) tapHandlers.splice(i, 1);
+    };
+  }
+
+  function target(name, spec) {
+    needPointer('s.target');
+    if (spec === null) {
+      pointer.removeTarget(name);
+      ownTargets.delete(name);
+    } else {
+      pointer.addTarget(name, spec);
+      ownTargets.add(name);
+    }
+    return DONE;
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -135,6 +205,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     fade: (to, duration) => start(fadeTask(to, duration)),
     /** Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default). */
     goTo,
+    /** Add or replace a tap target: `{ point, radius }`, a point spec and metres. `s.target(name, null)` removes it. */
+    target,
+    /** Wait for the player to tap one of the targets (a name or a list); resolves with the name tapped. Seeking: `auto` (the first name) after 2 s. */
+    tap,
+    /** Call fn(event) for every tap on the target, wait or no wait. Returns the function that stops it. */
+    onTap,
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
     after: (delay, item) => start((function* after() {
       yield wait(delay);
@@ -160,9 +236,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       beganAt = scheduler.time;
     },
     update(dt) { scheduler.update(dt); },
-    /** Stop everything the scene set going: scripts, camera modes, walks, looks, sound, captions. */
+    /** Stop everything the scene set going: scripts, taps, camera modes, walks, looks, sound, captions. */
     stop() {
       scheduler.cancelAll();
+      tapHandlers.length = 0;
+      for (const name of ownTargets) pointer.removeTarget(name);
+      ownTargets.clear();
       director.stop();
       director.handheld(0, { duration: 0.001 });
       for (const a of world.actors.values()) a.stop?.();
