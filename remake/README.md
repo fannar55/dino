@@ -27,19 +27,23 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 
 - `engine/`: clock, renderer, looks, lighting, fog, sky, wind, stats, actors and their footing
   (planted feet that never slide, on four legs or two: walking, stopping, standing and turning on
-  the spot), point specs.
+  the spot), eyelids that blink (`eyelids.js`), talking (`talk.js`: the jaw and head follow the
+  voice), point specs; the sun's shadow map as a depth texture (`shadows.js`), and characters'
+  distance LODs and low-poly shadow casters (`character-lod.js`, made by `simplify.js` in a worker).
 - `engine/camera/director.js`: the camera director.
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback.
 - `world/forest/`: the forest system (`createForest(world, layout)`).
 - `chapters/`: one module per chapter: layout, actors, cast, lines, shots and the script.
-- `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length).
+- `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length
+  and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it).
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
   runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
-  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla) and `prep-character.mjs`
-  for static models (see
-  STYLE.md section 12).
+  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla), the face pass
+  `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
+  `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), and
+  `prep-character.mjs` for static models (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
 ## Writing a chapter
@@ -63,7 +67,7 @@ clock, so pausing, seeking and cancelling work:
   yield s.all(s.fade(0, 2.5), s.camera.move('openingIn', { duration: 9 }));
   yield s.camera.follow('mosi', { offset: [4, 1.3, 5.4] });
   yield walk;
-  yield s.say('mosi', 'welcome');                    // caption + recording, timed by lines.json
+  yield s.say('mosi', 'welcome');                    // caption + recording, timed by lines.json; he talks
   const answer = yield s.choose([{ label: 'Já!', value: 'yes' }, { label: 'Seinna', value: 'later' }]);
   yield s.camera.orbit({ around: 'mosi', degrees: -50, duration: 8.5 });
 }

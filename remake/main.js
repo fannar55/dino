@@ -4,6 +4,8 @@ import { createClock } from './engine/clock.js';
 import { createRenderer } from './engine/renderer.js';
 import { pickLook } from './engine/looks.js';
 import { createLighting } from './engine/lighting.js';
+import { installDepthShadows } from './engine/shadows.js';
+import { updateCharacterLods, whenReady as characterLodsReady } from './engine/character-lod.js';
 import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createWind } from './engine/wind.js';
@@ -43,6 +45,7 @@ const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
 
 const lighting = createLighting(scene, look, q);
+installDepthShadows(renderer, lighting.sun); // before any material compiles
 installFog(scene, look, lighting.direction); // before any material compiles
 const sky = createSky({ renderer, scene, look, sunDir: lighting.direction });
 const wind = createWind();
@@ -70,6 +73,9 @@ for (const [name, spec] of Object.entries(chapter.actors || {})) {
   const url = new URL(spec.url, new URL(`./chapters/${chapterId}.js`, import.meta.url)).href;
   world.actors.set(name, await createActor(world, { name, ...spec, url }));
 }
+// Captures wait for the characters' LODs and shadow casters, so every measured frame has them.
+let lodsReady = false;
+characterLodsReady().then(() => { lodsReady = true; });
 applySize(camera);
 
 // The director knows every shot of the chapter, wherever it is set: its own and each location's.
@@ -124,6 +130,7 @@ function update(dt) {
     lighting.focus(shadowFocus.centre, shadowFocus.radius);
   }
   world.forest.update?.(dt, clock.time); // after the camera and shadow focus: culling uses this frame's view
+  updateCharacterLods(camera, renderer.domElement.height); // the characters' levels too
   sky.update(clock.time, camera);
 }
 
@@ -214,6 +221,6 @@ renderer.setAnimationLoop(now => {
   render();
   stats.sample(real);
   adapt(real, clock.frozen);
-  if (++frames === 20) window.__demoReady = true;
+  if (++frames >= 20 && lodsReady) window.__demoReady = true;
 });
 Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save });

@@ -28,8 +28,18 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 ## 3. Characters and the species colour map
 
 - Every animal and Egill follows the new Mosi: soft friendly cartoon, expressive eyes with lids
-  that blink (code), painted matte skin, a pale belly as a family trait, no scary teeth (the T. rex
-  too), a closed kind smile at rest.
+  that blink (code), painted matte skin, a pale belly as a family trait, no scary teeth (the T. rex's
+  few teeth are soft and rounded), a closed kind smile at rest.
+- Eyes stay painted as Tripo made them; the lids are code (`engine/eyelids.js`): skin-coloured lids
+  (the skin just above and just below each eye) with a dark lash line, fading into the painted skin.
+  A shut eye is a soft downward curve, the content closed eye, never a squint. Scenes may rest the
+  eyes half shut (sleepy) or shut; the blinks go on over half-shut eyes.
+- Mouths (the owner, 2026-10-15): a character with a jaw opens it when it speaks, about 10 degrees on
+  the loudest syllables, and wide (26 degrees) only for Grameðla's friendly roar; inside is a pink
+  pocket. Only the T. rex has teeth: a few soft, rounded ivory ones, set in from the lips, so a closed
+  mouth keeps its smile and an open one shows them. Mosi's beak opens a little when he speaks, with
+  no teeth. Egill does not need to talk: his lips stay closed in his smile. Everyone who speaks also
+  nods and tilts the head a little.
 - Each species owns ONE main hue a child can tell apart across the clearing. No two species share
   a slot, and no species except Mosi uses the forest-green band. Hues are chosen against the
   habitat where the animal appears (orange and violet against green forest, gold and pink against
@@ -166,7 +176,11 @@ face), misty far forest, forest wall.
 
 ## 9. Motion
 
-- Always alive: breathing idle, blinks every 2 to 6 s, glances at the camera, tail sway.
+- Always alive: breathing idle, blinks every 2 to 6 s (now and then two in a row, and one with each
+  new thing a character looks at), glances at the camera, tail sway.
+- Speaking: the speaker's mouth follows its line: the recording's loudness (`assets/audio/lines.json`),
+  or the syllables of a line without a recording. The head dips a little on the stressed syllables
+  and tilts gently while the line goes on: small, so the line stays the one important motion.
 - Walk speed matches the clip stride so feet never slide. Turns follow arcs.
 - Ease everything, anticipate big moves, hold a reaction after a line.
 - Pace for five-year-olds: one important motion at a time while a line plays.
@@ -192,6 +206,10 @@ face), misty far forest, forest wall.
 - The forest's share in clearing shots: at most 3.5 ms, 60 draw calls and 150k triangles.
 - No full-screen post-processing on tablet: no bloom, SSAO or depth-of-field passes. Use instancing,
   merged static geometry, distance LOD, and cards or impostors for the far forest.
+- Characters draw at half their triangles below 700 px on screen and a quarter below 200 px (the
+  bind-pose diagonal) or out of view, and cast the sun shadow with the quarter
+  (`engine/character-lod.js`). The sun's shadow map is a depth texture (`engine/shadows.js`). Wide
+  real-size shots with three characters stay under 250k triangles this way.
 - Dynamic resolution may drop to 0.6 on slow devices; art must still read at that scale.
 
 ## 12. Asset pipeline
@@ -208,7 +226,8 @@ Characters (decision: always our bake tool, four-legged and two-legged alike):
 2. Tripo image-to-3D from the rest-pose image: about 30 to 40k faces, 2K textures, exported in parts.
 3. Bake tool: rig, soft weights, clips, one skinned mesh, 1024 JPEG, the bone names the game
    expects, at most 40k triangles.
-4. Life in code: blinking eyelids, look-at, breathing, celebration.
+4. Life in code: the face pass (below) finds the painted eyes; the engine gives every character
+   blinking eyelids, talking, look-at, breathing and celebration.
 5. Check: fixed comparison shots, GPU ms in the tablet preset, provenance in `visual-assets.json`,
    review against this guide. Reject it if it fails.
 
@@ -272,11 +291,47 @@ by the planes that halve each joint, and from the jaw by position along it; the 
 share a weight, and a few rounds of smoothing over the surface take out the steps at the seams.
 The front of the lip seam opens: the jaw side gets vertices of its own, and a pocket (palate and
 tongue, painted into a free corner of the colour map) fills the mouth, so the roar shows a pink
-mouth with no teeth. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
+mouth; on the pocket stand 15 soft rounded teeth (`teeth`: 8 upper on the head, 7 lower on the jaw,
+450 triangles, ivory painted into another free corner), set in from the lips and leaning into the
+mouth so closed lips cover them. The clips are in `tailed-biped-clips.js`: idle, walk and roar, the legs posed
 by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands flat and sweeps back
 at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
 other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,
 starts, stops and turns as it does Egill's.
+After every bake, the face pass finds the eyes painted into the colour map and writes them into the
+GLB as extras on the skinned mesh (`face.eyes`); geometry and textures stay byte for byte:
+
+```bash
+node remake/tools/bake/bake-character.mjs --page face --out remake/assets/characters/<name>.glb --query "src=../../assets/characters/<name>.glb&out=<name>.glb"
+```
+
+`face.js` (with `eyes.js`) maps every texel of the head onto the surface, takes dark blobs as pupil
+candidates and keeps the two whose surroundings are not skin (an iris, a sclera paler than the skin,
+highlights), in front of the head's pivot and side by side, so nostrils and ear holes drop out. Each
+eye's outline is an ellipse with its own heights above and below the centre (almond eyes), grown over
+the rim the eye is painted in; the lids take their colours from the skin above and below it.
+`preview=1` shows what it found; if it ever picks wrong, `eyes=x,y;x,y` gives colour-map pixels near
+the pupils. The engine's eyelids are copies of the skin's triangles over each eye (300 to 1,300
+triangles a character), skinned by the same bones and drawn only where a lid covers: one draw call
+per character while a lid moves, nothing while the eyes are open.
+
+A character without a jaw whose mouth should open gets one from the mouth pass, after the face pass
+(it takes the head's frame from the eyes). Mosi's beak is one Tripo part and his lower jaw belongs to
+the head part, so there is no seam to open as Grameðla's: `mouth.js` cuts one along a mouth line given
+in the head's frame (f forward and u up from the eyes' midpoint, read off a gridded side view):
+
+```bash
+node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=<f,u;f,u;...>&front=<f>&cut=<f>&hinge=<f,u>&talk=7"
+```
+
+Below the line, behind `front` (the hook of the upper beak) is the jaw. In front of `cut` the triangles
+that cross the line are split along it and the jaw side gets vertices of its own, so the lips open;
+behind it the line stays closed and the cheek stretches. A Jaw bone under the Head at `hinge` takes the
+jaw (its share grows from the hinge to the cut, smoothed over the surface), a pocket (palate and
+tongue) fills the mouth, and `face.mouth.talk` says how far the jaw opens when the character talks
+(Mosi 7 degrees). The pass re-exports the GLB (textures 1024 JPEG) with the node names as they were;
+`preview=1&deg=8` shows it open. Mosi: 55 triangles split, 54 lip vertices opened, a 1,176-triangle
+pocket, 25,222 triangles in all; the game's `dist` model is untouched.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
