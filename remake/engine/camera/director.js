@@ -11,6 +11,10 @@ import { Handle } from '../handle.js';
 //   `frame` puts the subject at screen position u (0 left, 1 right), v (0 top, 1 bottom), and the
 //   composition then holds on any screen shape. Shots are authored for 16:10: a narrower screen
 //   widens the lens so the whole authored frame stays visible; a wider screen sees more at the sides.
+//
+// Free look hands the camera to the child for a while: `explore` sets limits around the current view,
+// `look` turns the view within them and `hint` pans it to a point. It follows a finger, not a script,
+// so it is eased and capped (LOOK) instead of linted as an authored move.
 
 const AUTHORED_ASPECT = 16 / 10;
 export const LIMITS = {
@@ -28,6 +32,9 @@ export const EASE = {
 };
 // Peak speed of each curve relative to a linear move over the same time.
 const PEAK = { linear: 1, inOut: Math.PI / 2, in: Math.PI / 2, out: Math.PI / 2, smooth: 1.5 };
+// Free look: the view never turns faster than maxSpeed (deg/s) and follows the finger on a critically
+// damped spring of this stiffness (1/s), so it answers at once and comes to rest softly.
+const LOOK = { maxSpeed: 60, stiffness: 14 };
 
 const UP = new THREE.Vector3(0, 1, 0);
 const deg = THREE.MathUtils.radToDeg;
@@ -55,6 +62,13 @@ function turnDegrees(a, b) {
   const dyaw = wrapPi(b.yaw - a.yaw) * Math.cos((a.pitch + b.pitch) / 2);
   return deg(Math.hypot(dyaw, b.pitch - a.pitch));
 }
+// An explore limit: [min, max] degrees either side of the view it starts from (0 lies inside), as radians.
+function limitRange(name, range) {
+  if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isFinite) || range[0] > 0 || range[1] < 0) {
+    throw new TypeError(`explore needs ${name}: [min, max] degrees around the current view, with min <= 0 <= max (got ${JSON.stringify(range)})`);
+  }
+  return [rad(range[0]), rad(range[1])];
+}
 
 // The optional handheld feel: slow sums of sines at unrelated rates (about 0.35 Hz), each in [-1, 1].
 function wobble(t, k) {
@@ -70,7 +84,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   const resolve = world.resolvePoint;
   const rig = { position: camera.position.clone(), target: new THREE.Vector3(0, 1, 0), fov: camera.fov };
   const warnings = [];
-  let mode = null; // { kind, label, step(mode) -> finished, handle, continuous, elapsed, dt, then }
+  let mode = null; // { kind, label, step(mode) -> finished, handle, continuous, elapsed, dt, then, free }
   let held = null; // the shot being held, or the one a move is heading to: push and zoom build on it
   let time = 0;
   let lastCut = -Infinity;
@@ -179,21 +193,34 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   const snapshot = () => ({ position: rig.position.clone(), target: rig.target.clone(), fov: rig.fov });
 
   function holdHere() {
+    endHint();
     held = null;
     mode = null;
   }
 
+  // A hint is a pan inside the explore mode, so it ends with that mode and nothing is left waiting on it.
+  function endHint() {
+    const pan = mode?.free?.hint;
+    if (!pan) return;
+    mode.free.hint = null;
+    pan.handle.onCancel = null;
+    pan.handle.cancel();
+  }
+
   // Start a mode. A mode being replaced is cancelled quietly; a mode cancelled from outside (by
-  // the scene) makes the camera hold where it is.
-  function begin(kind, label, step, { continuous = false } = {}) {
+  // the scene) makes the camera hold where it is. A continuous mode never ends by itself, so its
+  // handle is done at once and there is nothing to wait for; `open` keeps it open instead, for a
+  // mode its owner cancels (explore).
+  function begin(kind, label, step, { continuous = false, open = false } = {}) {
     if (mode && !mode.handle.done) {
+      endHint();
       const old = mode.handle;
       old.onCancel = null;
       old.cancel();
     }
     const handle = new Handle(label, () => { if (mode?.handle === handle) holdHere(); });
-    mode = { kind, label, step, handle, continuous, elapsed: 0, dt: 0, then: null };
-    if (continuous) handle.finish();
+    mode = { kind, label, step, handle, continuous, elapsed: 0, dt: 0, then: null, free: null };
+    if (continuous && !open) handle.finish();
     return handle;
   }
 
@@ -370,6 +397,88 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     }, { continuous: true });
   }
 
+  /**
+   * Hand the camera to the child's finger. It stays where it is, and look(dx, dy) turns the view within
+   * `yaw` and `pitch`: [min, max] degrees either side of the view it has now. `speed` is degrees per
+   * pixel. The handle stays open until it is cancelled, which holds the view where it is.
+   */
+  function explore({ yaw, pitch, speed = 0.15 } = {}) {
+    const limit = { yaw: limitRange('yaw', yaw), pitch: limitRange('pitch', pitch) };
+    const base = aim(rig.position, rig.target);
+    // The view as (yaw, pitch, 0) radians off the base view: where it is, where the finger has asked
+    // it to go, how fast it moves, and the pan of a hint, which takes it over from the finger for a while.
+    const free = { base, limit, speed, pos: new THREE.Vector3(), goal: new THREE.Vector3(), vel: new THREE.Vector3(), hint: null };
+    const dir = new THREE.Vector3();
+    held = null;
+    const handle = begin('explore', 'explore', m => {
+      const pan = free.hint;
+      if (pan) {
+        pan.elapsed += m.dt;
+        const t = progress(pan.elapsed, pan.duration);
+        free.pos.lerpVectors(pan.from, pan.to, EASE.inOut(t));
+        if (t >= 1) {
+          free.hint = null;
+          free.goal.copy(free.pos);
+          free.vel.set(0, 0, 0);
+          pan.handle.finish();
+        }
+      } else {
+        spring(free.pos, free.vel, free.goal, LOOK.stiffness, m.dt, rad(LOOK.maxSpeed));
+      }
+      rig.target.copy(rig.position).addScaledVector(direction(base.yaw + free.pos.x, base.pitch + free.pos.y, dir), base.distance);
+      return false;
+    }, { continuous: true, open: true });
+    mode.free = free;
+    return handle;
+  }
+
+  const exploring = () => (mode?.kind === 'explore' ? mode.free : null);
+
+  /**
+   * The child's finger moved (dx, dy) pixels while exploring: the world follows it, so a finger moving
+   * right turns the view left, and one moving down tilts it up. It takes the camera back from a hint.
+   * It does nothing when the camera is not exploring.
+   */
+  function look(dx = 0, dy = 0) {
+    const free = exploring();
+    if (!free) return;
+    free.hint?.handle.cancel();
+    free.goal.x = clamp(free.goal.x - rad(dx * free.speed), ...free.limit.yaw);
+    free.goal.y = clamp(free.goal.y + rad(dy * free.speed), ...free.limit.pitch);
+  }
+
+  // At least `duration` seconds, and long enough for the pan to `target` to keep the pan speed limit.
+  const panDuration = (target, duration) => Math.max(duration, autoDuration(snapshot(), { position: rig.position, target, fov: rig.fov }, 'inOut'));
+
+  /**
+   * Pan the view to a point, to show the child where to look. While exploring the pan stays within
+   * the explore limits and gives way to look(). It takes `duration` seconds, or longer when the style
+   * guide's pan speed needs it, so a hint never makes the director warn. Outside explore it is an
+   * ordinary look-at with that duration.
+   */
+  function hint(point, { duration = 2 } = {}) {
+    const free = exploring();
+    const there = resolve(point, vc);
+    if (!free) return lookAt(point, { duration: panDuration(there, duration) });
+    const goal = aim(rig.position, there);
+    const to = new THREE.Vector3(
+      clamp(wrapPi(goal.yaw - free.base.yaw), ...free.limit.yaw),
+      clamp(goal.pitch - free.base.pitch, ...free.limit.pitch),
+      0,
+    );
+    const end = direction(free.base.yaw + to.x, free.base.pitch + to.y, new THREE.Vector3()).multiplyScalar(free.base.distance).add(rig.position);
+    free.hint?.handle.cancel(); // a hint under way gives way to the new one
+    const pan = { from: free.pos.clone(), to, duration: panDuration(end, duration), elapsed: 0, handle: null };
+    pan.handle = new Handle('hint', () => {
+      if (free.hint !== pan) return;
+      free.hint = null;
+      free.goal.copy(free.pos); // cancelled: the view stays where it is
+      free.vel.set(0, 0, 0);
+    });
+    free.hint = pan;
+    return pan.handle;
+  }
+
   /** Fade the handheld feel in or out (0 off, 1 the style guide's maximum); the handle waits for the fade. */
   function handheld(level = 1, { duration = 1 } = {}) {
     hand.handle?.finish(); // a newer fade takes over
@@ -458,7 +567,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     get mode() { return mode?.kind ?? 'still'; },
     get busy() { return Boolean(mode && !mode.continuous); },
     get handheldLevel() { return hand.level; },
-    cut, move, orbit, push, lookAt, zoom, follow, handheld, stop, update, apply,
+    cut, move, orbit, push, lookAt, zoom, follow, explore, look, hint, handheld, stop, update, apply,
     shadowFocus, effectiveFov,
   };
 }

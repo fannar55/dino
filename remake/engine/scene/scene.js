@@ -1,4 +1,5 @@
 import { createScheduler, wait, all, race, until } from './scheduler.js';
+import { searchFlow } from './search.js';
 import { EASE } from '../camera/director.js';
 import { DONE } from '../handle.js';
 
@@ -17,7 +18,7 @@ import { DONE } from '../handle.js';
 //   }
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
-// So is `pointer` (engine/input/pointer.js), which s.target, s.tap and s.onTap need.
+// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need.
 export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null }) {
   const scheduler = createScheduler();
   let seeking = false;
@@ -166,6 +167,24 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return DONE;
   }
 
+  // The camera turns free for the search, and what the finger drags looks around. The flow
+  // (search.js) does the rest, and everything is put back when it ends or is cancelled.
+  function* searchTask(spec) {
+    const exploring = director.explore(spec.explore);
+    const unwire = pointer.on('drag', ({ dx, dy }) => director.look(dx, dy));
+    try {
+      yield* searchFlow({ s, director }, spec);
+    } finally {
+      unwire();
+      exploring.cancel(); // holds the view
+    }
+  }
+
+  function search(spec) {
+    needPointer('s.search');
+    return start(searchTask(spec));
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -211,6 +230,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     tap,
     /** Call fn(event) for every tap on the target, wait or no wait. Returns the function that stops it. */
     onTap,
+    /**
+     * The child looks around and finds hidden things; resolves when all are found. `explore` gives the
+     * free-look limits for director.explore ({ yaw, pitch, speed }), `targets` what to find, and the rest
+     * is searchFlow's (search.js): hintAfter, helpAfter, speaker and onFound(name, index). Seeking: one find every 3 s.
+     */
+    search,
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
     after: (delay, item) => start((function* after() {
       yield wait(delay);
