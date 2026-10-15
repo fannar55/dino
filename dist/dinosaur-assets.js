@@ -128,7 +128,8 @@ export function createImportedDinosaur(type) {
   const updateCelebration = createCelebrationMotion();
   let celebration = updateCelebration(0, 0);
   let lookWeight = 0, gazeWeight = 0;
-  const strideLength = { triceratops: .92, stegosaurus: .92, trex: 1.15, parasaurolophus: .88,
+  // Model units per walk cycle; Mosi's comes from the bake tool (lab/gfx-demo/tools/bake/bake-mosi.js).
+  const strideLength = { triceratops: 1.7, stegosaurus: .92, trex: 1.15, parasaurolophus: .88,
     brachiosaurus: .790, spinosaurus: .873 }[type] || 1;
   return {
     group, type, bounds, height: bounds.max.y,
@@ -144,7 +145,7 @@ export function createImportedDinosaur(type) {
       return { walkPhase: flyingAnimal ? 0 : walk.time / motionClip.duration,
         walkDuration: motionClip.duration / walk.getEffectiveTimeScale(),
         baseWalkDuration: motionClip.duration, strideLength,
-        footfallPhases: type === 'brachiosaurus' ? [0, .22, .5, .72] : [0, .5],
+        footfallPhases: type === 'brachiosaurus' ? [0, .22, .5, .72] : type === 'triceratops' ? [0, .25, .5, .75] : [0, .5],
         walking: flyingAnimal ? 0 : walkingWeight,
         wingPhase: flyingAnimal ? walk.time / motionClip.duration : 0,
         wingDuration: flyingAnimal ? motionClip.duration / walk.getEffectiveTimeScale() : 0,

@@ -78,8 +78,7 @@ export const chapter = {
     yield s.ready(); // the start button; immediate in captures
 
     // Opening: a wide view over the clearing, slow dolly in, while Mosi comes out of the forest.
-    // 0.65 m/s plays his walk cycle at 2.3x; a longer-stride walk clip from the bake tool would let
-    // him walk this fast at an unhurried cadence.
+    // At 0.65 m/s his walk (1.7 m a cycle) plays at about 1.1x: a footfall every 0.65 s.
     const arrival = mosi.walkTo([[-10, 2.5], [-6.2, 1.45], [-3, 0.6], [0.3, 0.05]], { speed: 0.65 });
     yield s.all(s.fade(0, 2.5), s.camera.move('openingIn', { duration: 9 }));
 

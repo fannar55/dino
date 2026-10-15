@@ -5,7 +5,10 @@
 // attaches the scarf to Shoulders and the saddle to Body, so matching names and rest orientations
 // keeps all of that working. Output is POSTed to the runner (tools/bake-mosi.mjs).
 //
-// Page params: src, old, out, tex (texture size), fit (length|height|blend).
+// Page params: src, old, out, tex (texture size), fit (length|height|blend), and for the walk: stride
+// (metres per cycle; dinosaur-assets.js strideLength must match), duty (share of the cycle a foot is
+// down) and lag (how long after a hind foot the fore foot on the same side comes down, share of the
+// cycle). Duty and lag snap to 1/120 of the cycle, the walk's key spacing.
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -20,6 +23,10 @@ const SRC = params.get('src') || '../../assets/tripo/triceratops.glb';
 const OUT = params.get('out') || 'triceratops.glb';
 const TEX = Number(params.get('tex') || 1024);
 const FIT = params.get('fit') || 'blend';
+const WALK_KEYS = 120; // keys per walk cycle
+const STRIDE = Number(params.get('stride') || 1.7);
+const DUTY = Math.round(Number(params.get('duty') || 0.5) * WALK_KEYS) / WALK_KEYS;
+const LAG = Math.round(Number(params.get('lag') || 0.25) * WALK_KEYS) / WALK_KEYS;
 const report = {};
 const log = (...a) => console.log('[bake]', ...a.map(v => (typeof v === 'object' ? JSON.stringify(v) : v)));
 const r3 = v => v.toArray().map(n => +n.toFixed(3));
@@ -145,8 +152,11 @@ async function main() {
     const name = `${front ? 'Front' : 'Back'}Leg.${side}`;
     const bone = makeBone(name, 'root', new V3(leg.center.x, jy + 0.08 * leg.size.y, leg.center.z), false);
     // Foot markers keep the old Quaternius joint names the game's tests check (BackFoot.R and so on).
-    makeBone(`${front ? 'Front' : 'Back'}Foot.${side}`, name, new V3(leg.center.x, box.min.y + 0.04 * H, leg.center.z), false);
-    return { leg, bone, name, front, side, junctionY: jy, length: bone.userData.restWorldPos.y - box.min.y };
+    // They also carry the foot, so a planted foot stays flat while the leg swings over it.
+    const foot = makeBone(`${front ? 'Front' : 'Back'}Foot.${side}`, name, new V3(leg.center.x, box.min.y + 0.04 * H, leg.center.z), false);
+    // The walk swings each leg from a hip (or shoulder) pivot inside the thigh bulge, at half the height.
+    const pivot = new V3(leg.center.x, Math.max(box.min.y + 0.5 * H, jy + 0.1 * H), leg.center.z);
+    return { leg, bone, foot, name, front, side, junctionY: jy, pivot };
   });
   const index = new Map(bones.map((b, i) => [b, i]));
 
@@ -173,11 +183,33 @@ async function main() {
     }
     out.push([spine[spine.length - 1].bone, 1]);
   }
-  function legWeights(y, lr, out) {
-    const span = 0.25 * lr.leg.size.y + 0.02 * H;
-    const s = smooth(THREE.MathUtils.clamp((lr.junctionY + 0.02 * H - y) / span, 0, 1));
-    if (s < 1) out.push([byName.Body, 1 - s]);
-    if (s > 0) out.push([lr.bone, s]);
+  // A leg takes its whole part up to the body and, fading out toward the hip pivot, the lower half of
+  // the thigh or shoulder bulge above it, so a long swing bends the hip instead of shearing the leg
+  // out of the body. Around the leg the share fades over about half the leg's width again, which
+  // spreads the stretch and squeeze of the flank without reaching the belly, the far side or the
+  // other leg's bulge (wider fades let front and hind legs squeeze the flank between them into folds).
+  // Leg and body vertices get the same weights where they meet, so the seam stays closed. The foot
+  // bone takes the foot and blends into the leg up the lower shin, so the ankle bends smoothly.
+  const clamp = THREE.MathUtils.clamp;
+  const ankleTop = box.min.y + 0.16 * H, ankleLow = box.min.y + 0.04 * H;
+  const fade = (e, from, to) => 1 - smooth(clamp((e - from) / (to - from), 0, 1));
+  function legShare(p, lr) {
+    const up = smooth(clamp((lr.pivot.y - p.y) / (lr.pivot.y - lr.junctionY), 0, 1));
+    const along = Math.abs(p.x - lr.pivot.x) / (0.5 * lr.leg.size.x), across = Math.abs(p.z - lr.pivot.z) / (0.5 * lr.leg.size.z);
+    return up * fade(along, 1.15, 2.2) * fade(across, 1.15, 2.2);
+  }
+  function vertexWeights(p, own, out) {
+    const shares = (own ? [own] : legRigs).map(lr => [lr, legShare(p, lr)]).filter(([, s]) => s > 0);
+    const sum = shares.reduce((s, [, v]) => s + v, 0);
+    const scale = sum > 1 ? 1 / sum : 1;
+    spineWeights(p.x, out);
+    for (const entry of out) entry[1] *= 1 - sum * scale;
+    for (const [lr, s] of shares) {
+      const share = s * scale;
+      const f = own ? share * smooth(clamp((ankleTop - p.y) / (ankleTop - ankleLow), 0, 1)) : 0;
+      if (share - f > 0) out.push([lr.bone, share - f]);
+      if (f > 0) out.push([lr.foot, f]);
+    }
   }
   const legOf = new Map(legRigs.map(lr => [lr.leg, lr]));
   const w = [];
@@ -190,8 +222,10 @@ async function main() {
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i);
       w.length = 0;
-      if (lr) legWeights(p.y, lr, w); else spineWeights(p.x, w);
-      for (let k = 0; k < Math.min(4, w.length); k++) { si[i * 4 + k] = index.get(w[k][0]); sw[i * 4 + k] = w[k][1]; }
+      vertexWeights(p, lr, w);
+      const kept = w.filter(e => e[1] > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      const total = kept.reduce((s, e) => s + e[1], 0);
+      for (let k = 0; k < kept.length; k++) { si[i * 4 + k] = index.get(kept[k][0]); sw[i * 4 + k] = kept[k][1] / total; }
     }
     part.geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     part.geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
@@ -235,10 +269,10 @@ async function main() {
   const skeleton = new THREE.Skeleton(bones);
   mesh.bind(skeleton);
 
-  // --- clips: world-axis rotations relative to each parent's rest frame ------------------------
+  // --- clips: world-axis rotations (or a quaternion) relative to each parent's rest frame -------
   const X = new V3(1, 0, 0), Y = new V3(0, 1, 0), Z = new V3(0, 0, 1);
-  function makeClip(name, duration, poseAt) {
-    const frames = Math.round(duration * 30) + 1;
+  function makeClip(name, duration, poseAt, keys = Math.round(duration * 30)) {
+    const frames = keys + 1;
     const times = new Float32Array(frames);
     const tracks = new Map();
     const q = new THREE.Quaternion();
@@ -254,7 +288,7 @@ async function main() {
         const invParent = parentQ.clone().invert();
         if (!tracks.has(boneName)) tracks.set(boneName, { q: [], p: [] });
         const tr = tracks.get(boneName);
-        q.identity();
+        if (spec.quat) q.copy(spec.quat); else q.identity();
         for (const [axis, angle] of spec.rot || []) q.premultiply(qa.setFromAxisAngle(axis, angle));
         const local = invParent.clone().multiply(q).multiply(b.userData.restWorldQuat);
         tr.q.push(local.x, local.y, local.z, local.w);
@@ -271,10 +305,7 @@ async function main() {
     return new THREE.AnimationClip(name, duration, kf);
   }
 
-  const legLength = legRigs.reduce((s, lr) => s + lr.length, 0) / legRigs.length;
-  const strideLength = 0.92; // dinosaur-assets.js strideLength for triceratops, model units per walk cycle
-  const swing = Math.min(0.42, Math.asin(Math.min(0.9, strideLength / (4 * legLength))));
-  report.rig = { parts: parts.length, legLength: +legLength.toFixed(3), swing: +swing.toFixed(3), tailLen: +tailLen.toFixed(3), bones: bones.map(b => b.name) };
+  report.rig = { parts: parts.length, tailLen: +tailLen.toFixed(3), pivots: Object.fromEntries(legRigs.map(lr => [lr.name, r3(lr.pivot)])), bones: bones.map(b => b.name) };
   const tailRot = (u, amp, lag) => Object.fromEntries(tailNames.map((n, i) => [n, { rot: [[Y, amp * (0.6 + 0.25 * i) * Math.sin(TAU * u - lag * i)]] }]));
 
   const idleDuration = 3.2;
@@ -286,23 +317,94 @@ async function main() {
     ...tailRot(u, 0.03, 0.55),
   }));
 
-  const walkDuration = oldClip.walk || 2.917; // same cycle length the world's speed sync was tuned for
-  const lift = 0.06 * legLength;
-  const gait = { 'FrontLeg.L': 0, 'BackLeg.R': 0, 'FrontLeg.R': 0.5, 'BackLeg.L': 0.5 }; // diagonal pairs: footfalls at 0 and 0.5
-  const walk = makeClip('walk', walkDuration, u => {
-    const pose = {
-      Body: { offset: new V3(0, -0.012 * H * Math.cos(2 * TAU * u), 0), rot: [[X, 0.022 * Math.sin(TAU * u)]] },
-      Shoulders: { rot: [[X, -0.012 * Math.sin(TAU * u)]] },
-      Neck: { rot: [[Z, 0.03 * Math.sin(2 * TAU * u + 0.6)], [Y, 0.025 * Math.sin(TAU * u)]] },
-      Head: { rot: [[Z, -0.02 * Math.sin(2 * TAU * u + 0.9)]] },
-      ...tailRot(u, 0.045, 0.7),
+  // Walk: a calm four-beat walk in lateral sequence (left hind, left fore, right hind, right fore).
+  // A foot that is down stays flat and sweeps back at exactly the body speed, STRIDE per cycle, so
+  // nothing slides when the body moves at that speed (dinosaur-assets.js strideLength; the remake
+  // measures the same speed from the foot bones). A foot lifts off and sets down straight up and
+  // down in the world, and in between swings forward in an arc with the heel peeled up. Each rigid
+  // leg reaches its foot from the pivot inside the thigh, lengthening or shortening along its axis
+  // where the arc and the ground disagree. A stride this long on short legs needs the lateral
+  // sequence: each fore foot lifts before the hind foot behind it comes down.
+  const walkDuration = oldClip.walk || 2.917; // the game plays this cycle at 1.12x (audio.js: a footstep every 1.3 s)
+  const sweep = STRIDE * DUTY; // backward travel while a foot is down
+  const edge = 3 / WALK_KEYS; // share of the cycle for the straight lift-off, and again for the set-down
+  const swingT = 1 - DUTY - 2 * edge;
+  const reach = sweep / 2 + edge * STRIDE; // the swing runs from -reach to +reach about the stance centre
+  const hEdge = 0.012 * H, hTop = 0.05 * H, peel = 0.4; // height after the straight lift, top of the arc; heel-up angle
+  const gait = { 'BackLeg.L': 0, 'FrontLeg.L': LAG, 'BackLeg.R': 0.5, 'FrontLeg.R': 0.5 + LAG };
+  // Fore feet step a little ahead of the shoulders and hind feet a little behind the hips, which keeps
+  // short the swings that squeeze the flank between them (fore leg back, hind leg forward).
+  const lean = { front: 0.02 * L, back: -0.02 * L };
+  function footPath(p) { // p = 0 at touch-down: x along the body from the stance centre, y above rest, foot pitch a
+    if (p < DUTY) return { x: sweep / 2 - p * STRIDE, y: 0, a: 0 };
+    const q = p - DUTY;
+    if (q < edge) return { x: -sweep / 2 - q * STRIDE, y: hEdge * (q / edge) ** 2, a: 0 };
+    const k = q - edge - swingT;
+    if (k >= 0) return { x: sweep / 2 + (edge - k) * STRIDE, y: hEdge * ((edge - k) / edge) ** 2, a: 0 };
+    const s = (q - edge) / swingT;
+    const h00 = 2 * s ** 3 - 3 * s ** 2 + 1, h10 = s ** 3 - 2 * s ** 2 + s, h11 = s ** 3 - s ** 2;
+    const m = reach; // leaves and arrives moving forward at half the mean swing speed
+    return {
+      x: -reach * h00 + m * h10 + reach * (1 - h00) + m * h11,
+      y: hEdge + (hTop - hEdge) * Math.sin(Math.PI * s),
+      a: -peel * Math.sin(Math.PI * Math.min(1, s / 0.75)) ** 2,
     };
-    for (const lr of legRigs) {
-      const a = TAU * (u + gait[lr.name]);
-      pose[lr.name] = { rot: [[Z, swing * Math.cos(a)]], offset: new V3(0, lift * Math.max(0, -Math.sin(a)), 0) };
-    }
+  }
+  // The body rises over each planted leg and settles between steps, so the hips and shoulders bob
+  // twice a cycle, a step apart (which also pitches the body), and it walks a little lower than it
+  // stands, which keeps the legs from stretching at full reach. It rolls over the left feet while
+  // they alone are down (then over the right ones) and turns its hips with the hind legs. The neck
+  // takes out most of the pitch and turn, so the head stays calm.
+  const bob = 0.015 * H, crouch = 0.02 * H;
+  const bodyRest = byName.Body.userData.restWorldPos;
+  const arm = front => legRigs.filter(lr => lr.front === front).reduce((s, lr) => s + lr.pivot.x, 0) / 2 - bodyRest.x;
+  const armFront = arm(true), armBack = arm(false);
+  function bodyAt(u) {
+    const hind = bob * Math.cos(2 * TAU * (u - DUTY / 2));
+    const fore = bob * Math.cos(2 * TAU * (u - LAG - DUTY / 2));
+    const pitch = (fore - hind) / (armFront - armBack);
+    const roll = -0.02 * Math.cos(TAU * (u - (LAG + DUTY) / 2));
+    const yaw = -0.025 * Math.cos(TAU * u);
+    const rot = [[Z, pitch], [X, roll], [Y, yaw]];
+    const q = new THREE.Quaternion();
+    for (const [axis, angle] of rot) q.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
+    return { offset: new V3(0, hind - pitch * armBack - crouch, 0), rot, q, pitch, yaw };
+  }
+  const DOWN = new V3(0, -1, 0);
+  const legStats = Object.fromEntries(legRigs.map(lr => [lr.name, { angle: [Infinity, -Infinity], stretch: [Infinity, -Infinity] }]));
+  function legPose(lr, u, body) {
+    const path = footPath((((u - gait[lr.name]) % 1) + 1) % 1);
+    const foot = lr.foot.userData.restWorldPos, legTop = lr.bone.userData.restWorldPos;
+    const target = new V3(foot.x + (lr.front ? lean.front : lean.back) + path.x, foot.y + path.y, foot.z);
+    const pivot = lr.pivot.clone().sub(bodyRest).applyQuaternion(body.q).add(bodyRest).add(body.offset);
+    const dir = target.clone().sub(pivot);
+    const len = dir.length();
+    dir.divideScalar(len);
+    const quat = new THREE.Quaternion().setFromUnitVectors(DOWN, dir);
+    const st = legStats[lr.name];
+    const angle = Math.atan2(dir.x, -dir.y), stretch = len - (lr.pivot.y - foot.y);
+    st.angle = [Math.min(st.angle[0], angle), Math.max(st.angle[1], angle)];
+    st.stretch = [Math.min(st.stretch[0], stretch), Math.max(st.stretch[1], stretch)];
+    return {
+      [lr.name]: { quat, offset: target.clone().addScaledVector(dir, -(legTop.y - foot.y)).sub(legTop) },
+      [lr.foot.name]: { quat: quat.clone().invert().multiply(new THREE.Quaternion().setFromAxisAngle(Z, path.a)) },
+    };
+  }
+  const walk = makeClip('walk', walkDuration, u => {
+    const body = bodyAt(u);
+    const pose = {
+      Body: { offset: body.offset, rot: body.rot },
+      Neck: { rot: [[Z, -0.7 * body.pitch + 0.012 * Math.sin(2 * TAU * (u - LAG) + 0.6)], [Y, -0.7 * body.yaw]] },
+      Head: { rot: [[Z, -0.015 * Math.sin(2 * TAU * (u - LAG) + 0.9)]] },
+      ...tailRot(u, 0.05, 0.7),
+    };
+    for (const lr of legRigs) Object.assign(pose, legPose(lr, u, body));
     return pose;
-  });
+  }, WALK_KEYS); // every lift-off and set-down falls on a key
+  report.walk = {
+    cycle: +walkDuration.toFixed(3), stride: STRIDE, speed: +(STRIDE / walkDuration).toFixed(3), duty: DUTY, lag: LAG,
+    legs: Object.fromEntries(Object.entries(legStats).map(([n, s]) => [n, { angleDeg: s.angle.map(a => +THREE.MathUtils.radToDeg(a).toFixed(1)), stretch: s.stretch.map(v => +v.toFixed(3)) }])),
+  };
 
   // --- fitting measurements for the game's scarf and saddle (model space, bind pose) -------------
   const oldPositions = [];
