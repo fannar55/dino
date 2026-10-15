@@ -16,7 +16,8 @@ import { DONE } from '../handle.js';
 //     const answer = yield s.choose([{ label: 'Já!', value: 'yes' }, { label: 'Seinna', value: 'later' }]);
 //   }
 
-export function createScene({ world, director, ui, voice, lines = {}, cast = {} }) {
+// `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
+export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null }) {
   const scheduler = createScheduler();
   let seeking = false;
   let started = false; // set by begin(): the start button, or at once for captures
@@ -82,6 +83,19 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {} 
     }
   }
 
+  // Fade to black, change location, fade back in. The change is real work (a location's forest is
+  // built the first time), so it is a promise: a seek waits for it through the scheduler's pending count.
+  function* goToTask(name, fade) {
+    yield fadeTask(1, fade);
+    yield locations.setLocation(name);
+    yield fadeTask(0, fade);
+  }
+
+  function goTo(name, { fade = 1.2 } = {}) {
+    if (!locations) throw new Error('s.goTo needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
+    return start(goToTask(name, fade));
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -119,6 +133,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {} 
     say: (speaker, line, options) => start(sayTask(speaker, line, options)),
     choose: (options, settings) => start(chooseTask(options, settings)),
     fade: (to, duration) => start(fadeTask(to, duration)),
+    /** Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default). */
+    goTo,
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
     after: (delay, item) => start((function* after() {
       yield wait(delay);

@@ -60,6 +60,8 @@ function actorBox(view, tanH, tanV, x, z, headingRad, box = BODY) {
 // scene's face move (a push from the introduction toward the face) is added as its own shot.
 // Close framings (camera within 12 m of the actor) also keep a deep backdrop behind the head free
 // of crowns, fronds and bushes, so the frill stands against dark trunks, misty depth or sky.
+// The shots are the layout's own when it carries `shots` (a chapter location keeps its own clear, not
+// the other places'), else the chapter's.
 function buildShots(world, layout, terrain, sun) {
   const shots = [];
   const actors = Object.entries(world.chapter?.actors || {}).map(([name, a]) => ({
@@ -101,7 +103,7 @@ function buildShots(world, layout, terrain, sun) {
     if (kind === 'static' && target[1] < 3) rects.push({ x0: -0.3, x1: 0.3, y0: -0.4, y1: 0.3, depth: targetDist * 0.92 });
     shots.push({ name, pos: cam.position.clone(), view, tanH, tanV, rects, targetDist, kind });
   }
-  for (const [name, s] of Object.entries(world.chapter?.shots || {})) {
+  for (const [name, s] of Object.entries(layout.shots ?? world.chapter?.shots ?? {})) {
     const pos = s.position;
     const tgt = s.target;
     if (Array.isArray(pos)) {

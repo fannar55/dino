@@ -10,6 +10,7 @@ import { createWind } from './engine/wind.js';
 import { createActor } from './engine/actor.js';
 import { installStats } from './engine/stats.js';
 import { createPointResolver } from './engine/points.js';
+import { createLocations } from './engine/locations.js';
 import { createDirector } from './engine/camera/director.js';
 import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
@@ -51,9 +52,16 @@ const world = {
 world.resolvePoint = createPointResolver(world);
 
 const { createForest } = await import('./world/forest/forest.js');
-const forest = await createForest(world, chapter.layout);
-world.forest = forest;
-world.heightAt = (x, z) => forest.heightAt(x, z);
+let locations = null;
+if (chapter.locations) {
+  // Several places: the start location is built now, the others when the scene first goes there.
+  locations = createLocations({ world, locations: chapter.locations, build: layout => createForest(world, layout) });
+  await locations.setLocation(chapter.start);
+} else {
+  const forest = await createForest(world, chapter.layout);
+  world.forest = forest;
+  world.heightAt = (x, z) => forest.heightAt(x, z);
+}
 
 for (const [name, spec] of Object.entries(chapter.actors || {})) {
   const url = new URL(spec.url, new URL(`./chapters/${chapterId}.js`, import.meta.url)).href;
@@ -61,7 +69,11 @@ for (const [name, spec] of Object.entries(chapter.actors || {})) {
 }
 applySize(camera);
 
-const director = createDirector({ camera, world, shots: chapter.shots });
+// The director knows every shot of the chapter, wherever it is set: its own and each location's.
+const shots = chapter.locations
+  ? Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots))
+  : chapter.shots;
+const director = createDirector({ camera, world, shots });
 world.director = director;
 
 let lines = {};
@@ -72,7 +84,7 @@ try {
 }
 const ui = createStageUI(document);
 const voice = createVoice();
-const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast });
+const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations });
 
 const shotName = params.get('shot');
 const tParam = params.get('t');
@@ -96,7 +108,7 @@ function update(dt) {
     director.shadowFocus(shadowFocus);
     lighting.focus(shadowFocus.centre, shadowFocus.radius);
   }
-  forest.update?.(dt, clock.time); // after the camera and shadow focus: culling uses this frame's view
+  world.forest.update?.(dt, clock.time); // after the camera and shadow focus: culling uses this frame's view
   sky.update(clock.time, camera);
 }
 
@@ -106,7 +118,7 @@ function startScene() {
 
 if (shotName || !chapter.script) {
   // Review mode: hold a static shot. With t, jump the animation there and freeze.
-  director.cut(chapter.shots[shotName] ? shotName : 'hero');
+  director.cut(shots[shotName] ? shotName : 'hero');
   if (seekTo !== null) {
     clock.step(seekTo);
     for (const actor of world.actors.values()) actor.mixer.setTime(seekTo);
