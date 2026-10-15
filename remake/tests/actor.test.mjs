@@ -39,11 +39,23 @@ function loadMosi() {
 
 const gltfPromise = loadMosi();
 
+// The remake bakes Mosi at his real 8.5 m: one uniform scale on the root node of the game's bake, whose
+// size (4.025 m long) these tests were tuned on. Footing scales with the legs, so he behaves the same
+// in proportion at any size: stage() and scaledStage() size him relative to the game's bake, and one
+// test walks him at his real size.
+const REAL = (() => {
+  const glb = fs.readFileSync(new URL('../assets/characters/mosi.glb', import.meta.url));
+  const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8'));
+  return json.nodes[json.scenes[0].nodes[0]].scale?.[0] ?? 1;
+})();
+
 async function stage() {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
   const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
   world.resolvePoint = createPointResolver(world);
-  const mosi = await createActor(world, { name: 'mosi', gltf: await gltfPromise });
+  const gltf = await gltfPromise;
+  gltf.scene.scale.setScalar(1 / REAL);
+  const mosi = await createActor(world, { name: 'mosi', gltf });
   world.actors.set('mosi', mosi);
   return { world, camera, mosi };
 }
@@ -214,11 +226,10 @@ test('on a curve the planted feet stay put and within reach', async () => {
   assert.ok(watch.reach < 0.62, `a planted foot was ${watch.reach.toFixed(2)} m from its rest spot`);
 });
 
-// Mosi at another size: a copy of the GLB scaled as a re-bake at that size would make him (his
-// 8.5 m re-bake is about twice his size today).
+// Mosi at `scale` times the game's size (REAL is his real 8.5 m, about twice it).
 async function scaledStage(scale) {
   const gltf = await loadMosi();
-  gltf.scene.scale.setScalar(scale);
+  gltf.scene.scale.setScalar(scale / REAL);
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
   const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map() };
   world.resolvePoint = createPointResolver(world);
@@ -257,6 +268,22 @@ test('twice the size, Mosi strides twice as far and keeps his planted feet still
   const strides = spots.flatMap(list => list.slice(1).map((p, i) => p.distanceTo(list[i])));
   assert.ok(strides.length >= 4, `${strides.length} strides`);
   for (const stride of strides) assert.ok(Math.abs(stride - 3.4) < 0.34, `a foot moved ${stride.toFixed(2)} m between plantings (the clip's stride is 1.7 m at his size today)`);
+});
+
+test('at his real 8.5 m, Mosi strides in proportion and keeps his planted feet still', async () => {
+  assert.ok(Math.abs(REAL - 8.5 / 4.025) < 0.01, `the remake's Mosi is ${(4.025 * REAL).toFixed(2)} m long`);
+  const { mosi } = await scaledStage(REAL);
+  const watch = footWatch(mosi);
+  const spots = plantings(watch);
+  const walk = mosi.walkTo([[7 * REAL, 0]], { speed: 0.65 * Math.sqrt(REAL) });
+  for (let i = 0; i < 900 && mosi.root.position.x < REAL; i++) mosi.update(1 / 30);
+  watch.start();
+  for (let i = 0; i < 900 && mosi.root.position.x < 5.5 * REAL; i++) { mosi.update(1 / 30); watch.sample(); }
+  assert.equal(walk.done, false);
+  assert.ok(watch.slide < 1e-3, `a planted foot moved ${(watch.slide * 1000).toFixed(1)} mm in a frame`);
+  const strides = spots.flatMap(list => list.slice(1).map((p, i) => p.distanceTo(list[i])));
+  assert.ok(strides.length >= 4, `${strides.length} strides`);
+  for (const stride of strides) assert.ok(Math.abs(stride - 1.7 * REAL) < 0.17 * REAL, `a foot moved ${stride.toFixed(2)} m between plantings`);
 });
 
 test('twice the size, Mosi turns on the spot in as many steps as at his own size', async () => {
