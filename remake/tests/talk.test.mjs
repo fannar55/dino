@@ -120,16 +120,49 @@ test('Grameðla opens her jaw with the voice, and her head moves a little', asyn
   actor.stopTalking(token);
 });
 
-test('Mosi and Egill talk with their heads', async () => {
-  for (const name of ['mosi', 'egill']) {
+test('Mosi opens his beak a little and nods; Egill talks with his head alone', async () => {
+  for (const [name, beak] of [['mosi', 7], ['egill', 0]]) {
     const quiet = (await actorOf(name)).actor;
     const loud = (await actorOf(name)).actor;
-    assert.equal(loud.model.getObjectByName('Jaw'), undefined, `${name} has a jaw now: talk.js should open it`);
     loud.talk({ mouth: 'ffffffffffffffffffffffffffffff', duration: 1.5 });
     for (let i = 0; i < 20; i++) { quiet.update(1 / 30); loud.update(1 / 30); }
     const moved = turned(loud.model.getObjectByName('Head'), quiet.model.getObjectByName('Head').quaternion);
     assert.ok(moved > 0.5 && moved < 4, `${name}'s head moved ${moved.toFixed(2)} degrees`);
+    const jaw = loud.model.getObjectByName('Jaw');
+    if (!beak) { assert.equal(jaw, undefined, `${name} has a jaw: the owner wants his mouth closed`); continue; }
+    const opened = turned(jaw, quiet.model.getObjectByName('Jaw').quaternion);
+    assert.ok(opened > 0.8 * beak && opened < beak + 0.5, `${name}'s beak opened ${opened.toFixed(1)} degrees`);
   }
+});
+
+test('the mouth pass gave Mosi a jaw under his beak: the lower beak drops, the hook stays', async () => {
+  const gltf = await loadCharacter('mosi');
+  gltf.scene.updateMatrixWorld(true);
+  let mesh = null;
+  gltf.scene.traverse(o => { if (o.isSkinnedMesh) mesh = o; });
+  const jaw = gltf.scene.getObjectByName('Jaw');
+  assert.equal(jaw?.parent?.name, 'Head');
+  assert.deepEqual(mesh.userData.face.mouth, { talk: 7 });
+  const k = mesh.skeleton.bones.indexOf(jaw);
+  const { skinIndex, skinWeight, position } = mesh.geometry.attributes;
+  const carried = [];
+  for (let i = 0; i < position.count; i++) {
+    let w = 0;
+    for (let c = 0; c < 4; c++) if (skinIndex.getComponent(i, c) === k) w += skinWeight.getComponent(i, c);
+    if (w > 0.9) carried.push(i);
+  }
+  assert.ok(carried.length > 300, `the jaw carries ${carried.length} vertices`);
+  // The lowest point of the beak's hook and the jaw's front, before and after the beak opens 7 degrees.
+  const at = i => mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
+  let hook = 0;
+  for (let i = 0; i < position.count; i++) if (at(i).x > at(hook).x) hook = i; // the beak's tip, the front of Mosi
+  const front = carried.reduce((a, b) => (at(b).x > at(a).x ? b : a));
+  const before = [at(hook), at(front)];
+  const left = new THREE.Vector3(0, 0, -1);
+  jaw.quaternion.setFromAxisAngle(left.applyQuaternion(jaw.parent.getWorldQuaternion(new THREE.Quaternion()).invert()), THREE.MathUtils.degToRad(7));
+  gltf.scene.updateMatrixWorld(true);
+  assert.ok(at(hook).distanceTo(before[0]) < 1e-6, 'the hook of the upper beak moved');
+  assert.ok(before[1].y - at(front).y > 0.04, `the jaw's front dropped ${(before[1].y - at(front).y).toFixed(3)} m`);
 });
 
 test('s.say makes the speaking actor talk for the line, with its recording\'s mouth', async () => {

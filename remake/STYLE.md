@@ -310,6 +310,24 @@ the rim the eye is painted in; the lids take their colours from the skin above a
 the pupils. The engine's eyelids are copies of the skin's triangles over each eye (300 to 1,300
 triangles a character), skinned by the same bones and drawn only where a lid covers: one draw call
 per character while a lid moves, nothing while the eyes are open.
+
+A character without a jaw whose mouth should open gets one from the mouth pass, after the face pass
+(it takes the head's frame from the eyes). Mosi's beak is one Tripo part and his lower jaw belongs to
+the head part, so there is no seam to open as Grameðla's: `mouth.js` cuts one along a mouth line given
+in the head's frame (f forward and u up from the eyes' midpoint, read off a gridded side view):
+
+```bash
+node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=<f,u;f,u;...>&front=<f>&cut=<f>&hinge=<f,u>&talk=7"
+```
+
+Below the line, behind `front` (the hook of the upper beak) is the jaw. In front of `cut` the triangles
+that cross the line are split along it and the jaw side gets vertices of its own, so the lips open;
+behind it the line stays closed and the cheek stretches. A Jaw bone under the Head at `hinge` takes the
+jaw (its share grows from the hinge to the cut, smoothed over the surface), a pocket (palate and
+tongue) fills the mouth, and `face.mouth.talk` says how far the jaw opens when the character talks
+(Mosi 7 degrees). The pass re-exports the GLB (textures 1024 JPEG) with the node names as they were;
+`preview=1&deg=8` shows it open. Mosi: 55 triangles split, 54 lip vertices opened, a 1,176-triangle
+pocket, 25,222 triangles in all; the game's `dist` model is untouched.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.

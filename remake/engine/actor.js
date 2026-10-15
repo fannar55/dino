@@ -424,7 +424,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   // While a line plays the jaw opens with the voice and the head dips and tilts a little (talk.js).
   // Turns are about the character's own axes in the world (x forward, z its right side), so they work
   // whatever the bones' rest frames are; turning down about the right side opens a jaw.
-  const talk = createTalk();
+  let faceData = null;
+  model.traverse(o => { if (!faceData && o.isSkinnedMesh && o.userData.face) faceData = o.userData.face; });
+  // A jaw the mouth pass cut (Mosi's beak) says how far it opens when the character talks.
+  const talk = createTalk(faceData?.mouth?.talk ? { jaw: faceData.mouth.talk } : {});
   function applyTalk(dt) {
     const pose = talk.update(dt);
     if (!pose) return false;

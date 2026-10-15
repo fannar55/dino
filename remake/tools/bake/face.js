@@ -89,7 +89,8 @@ try {
   } else {
     status('exporting');
     const eyes = found.eyes.map(({ texels, pupil, ...eye }) => eye);
-    const out = patchGlbNodeExtras(bytes, mesh.userData.name ?? mesh.name, { face: { eyes } });
+    // Whatever else the face holds (the mouth pass's `mouth`) stays.
+    const out = patchGlbNodeExtras(bytes, mesh.userData.name ?? mesh.name, { face: { ...mesh.userData.face, eyes } });
     const res = await fetch(`/__bake-output?name=${encodeURIComponent(OUT)}`, { method: 'POST', body: out });
     if (!res.ok) throw new Error(`upload failed: ${res.status}`);
   }
