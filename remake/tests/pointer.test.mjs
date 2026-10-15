@@ -34,20 +34,49 @@ test('pickTarget ignores disabled and missed targets', () => {
 });
 
 test('pickTarget widens targets that look smaller than the minimum angle', () => {
-  const minAngle = 0.02; // seen from the origin: a target is at least 20 * tan(0.02) = 0.4 m in radius at 20 m
+  const minAngle = 0.02; // seen from the origin: a target is reached out to 20 * tan(0.02) = 0.4 m from its centre at 20 m
   const speck = sphere('speck', 0.3, 0, -20, 0.05);
   assert.equal(pickTarget(ahead(), [speck]), null, 'a 5 cm target 0.3 m off the ray is missed as it is');
   assert.equal(pickTarget(ahead(), [speck], { minAngle }), 'speck', 'but a finger-sized angle reaches it');
   assert.equal(pickTarget(ahead(), [sphere('wide', 0.5, 0, -20, 0.05)], { minAngle }), null, 'and only so far: 0.5 m is outside 0.4 m');
 
-  // Widening never shrinks: a big target keeps its own radius where the angle alone would be tiny.
+  // A big target is hit as it always was.
   assert.equal(pickTarget(ahead(), [sphere('big', 1.5, 0, -3, 2)], { minAngle }), 'big');
-
-  // The nearest hit still wins, widened or not.
-  assert.equal(pickTarget(ahead(), [speck, sphere('near', 0, 0, -5, 1)], { minAngle }), 'near');
 });
 
-/** A pointer event as the canvas receives it: a plain Event with the fields the pointer reads. */
+test('pickTarget prefers a target the ray really hits over one it only reaches through the widening', () => {
+  const minAngle = 0.02;
+  // A near target's halo is grazed while a far target is hit squarely.
+  const grazed = sphere('grazed', 0.07, 0, -5, 0.05); // 7 cm off a 5 cm target 5 m away: inside its 10 cm halo, outside the target
+  const squarely = sphere('squarely', 0.02, 0, -20, 0.05); // 2 cm off a 5 cm target 20 m away: on it
+  assert.equal(pickTarget(ahead(), [grazed, squarely], { minAngle }), 'squarely');
+  assert.equal(pickTarget(ahead(), [squarely, grazed], { minAngle }), 'squarely', 'whatever the order');
+  assert.equal(pickTarget(ahead(), [grazed], { minAngle }), 'grazed', 'the halo counts when nothing is really hit');
+
+  // Among the targets really hit, the nearest still wins.
+  assert.equal(pickTarget(ahead(), [sphere('behind', 0, 0, -9, 1), sphere('front', 0, 0, -4, 1)], { minAngle }), 'front');
+
+  // A real hit wins even where a halo is angularly closer to the ray: the ray is 0.5 m from the middle of a
+  // big target 20 m away (0.025 rad) and 3 cm from the middle of a 1 cm speck 5 m away (0.006 rad).
+  assert.equal(pickTarget(ahead(), [sphere('speck', 0.03, 0, -5, 0.01), sphere('big', 0.5, 0, -20, 1)], { minAngle }), 'big');
+});
+
+test('pickTarget takes the angularly closest target when it only reaches them through the widening', () => {
+  const minAngle = 0.02;
+  const nearby = sphere('nearby', 0.09, 0, -5, 0.05); // 0.09 m off at 5 m: 0.018 rad from the ray, inside its 0.1 m halo
+  const distant = sphere('distant', 0.2, 0, -20, 0.05); // 0.2 m off at 20 m: 0.010 rad, inside its 0.4 m halo
+  assert.equal(pickTarget(ahead(), [nearby, distant], { minAngle }), 'distant', 'closer in angle, though farther along the ray');
+  assert.equal(pickTarget(ahead(), [distant, nearby], { minAngle }), 'distant', 'whatever the order');
+
+  // Not simply the farthest: a nearer target that the ray runs closer to wins.
+  assert.equal(pickTarget(ahead(), [distant, sphere('closer', 0.02, 0, -5, 0.01)], { minAngle }), 'closer');
+});
+
+/**
+ * A pointer event as the canvas receives it: a plain Event with the fields the pointer reads. It also
+ * carries a time, as real ones do, though a press is a tap however long it is held: the tests that
+ * hold a press say how long by it.
+ */
 function pointerEvent(type, { id = 1, x = 0, y = 0, time = 0, button = 0 } = {}) {
   const event = new Event(type);
   Object.defineProperties(event, {
@@ -156,23 +185,26 @@ test('a press that moves 12 px or more is a drag, and its events add up to the f
   assert.deepEqual(taps, []);
 });
 
-test('a press and release more than 300 ms apart is not a tap, and a slow finger can still drag', () => {
-  const { pointer, send } = pointerRig();
+test('a press is a tap however long it is held, and a drag once it moves 12 px', () => {
+  const { pointer, send, screenOf } = pointerRig();
   const { taps, drags } = watch(pointer);
-  send('pointerdown', 100, 100, 0);
-  send('pointerup', 100, 100, 300);
-  assert.equal(taps.length, 1, '300 ms is still a tap');
+  pointer.addTarget('egill', { point: EGILL, radius: 1 });
+  const { x, y } = screenOf(EGILL);
+  send('pointerdown', x, y, 0);
+  send('pointerup', x, y, 2000);
+  assert.deepEqual(taps.map(t => t.name), ['egill'], 'held still for 2 s: a tap');
 
-  send('pointerdown', 100, 100, 1000);
-  send('pointerup', 100, 100, 1301);
-  assert.equal(taps.length, 1, 'a finger held longer is neither a tap...');
-  assert.deepEqual(drags, [], '...nor a drag');
+  send('pointerdown', x, y, 5000);
+  send('pointermove', x + 6, y + 6, 7000);
+  send('pointerup', x + 6, y + 6, 12000);
+  assert.deepEqual(taps.map(t => t.name), ['egill', 'egill'], 'held for 7 s with a wobble of 8 px: still a tap');
+  assert.deepEqual(drags, []);
 
-  send('pointerdown', 100, 100, 2000);
-  send('pointermove', 140, 100, 3000);
-  assert.deepEqual(drags.map(d => d.phase), ['start'], 'moving 12 px is a drag however long the press has been');
-  send('pointerup', 140, 100, 3100);
-  assert.equal(taps.length, 1);
+  send('pointerdown', 100, 100, 20000);
+  send('pointermove', 112, 100, 25000);
+  send('pointerup', 112, 100, 25100);
+  assert.deepEqual(drags.map(d => d.phase), ['start', 'end'], 'but 12 px or more is a drag, however long the press has been');
+  assert.equal(taps.length, 2);
 });
 
 test('only the first finger is followed; a second one is ignored until the first lifts', () => {
@@ -253,6 +285,22 @@ test('a target is at least 44 px wide on screen, however small or far', () => {
   tapOn([0, 1.6, -10], { dx: 23 });
   tapOn([0, 1.6, -10], { dy: -23 });
   assert.deepEqual(taps.map(t => t.name), ['speck', 'speck', 'speck', 'speck', null, null], '22 px each way of its middle, and no further');
+});
+
+test('between two small targets a tap takes the one the finger is closest to, and one hit squarely wins', () => {
+  const { pointer, tapOn } = pointerRig();
+  const { taps } = watch(pointer);
+  // 2 cm targets, 20 px apart on screen: one 5 m from the camera, 15 px right of the middle of the view, the
+  // other 20 m away and 5 px left of it. Each is inside the other's 44 px area.
+  const NEAR = [0.109, 1.6, 5];
+  const FAR = [-0.146, 1.6, -10];
+  pointer.addTarget('near', { point: NEAR, radius: 0.02 });
+  pointer.addTarget('far', { point: FAR, radius: 0.02 });
+  tapOn([0, 1.6, 0]); // the middle: 5 px from far, 15 px from near, and on neither
+  tapOn([0, 1.6, 0], { dx: 10 }); // 5 px from near, 15 px from far
+  tapOn(FAR); // squarely on far, with near's area under the finger too
+  tapOn(NEAR);
+  assert.deepEqual(taps.map(t => t.name), ['far', 'near', 'far', 'near']);
 });
 
 test('targets can be switched off, replaced and removed', () => {

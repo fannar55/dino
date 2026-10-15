@@ -8,49 +8,68 @@ import * as THREE from 'three';
 // have moved by the time the finger lifts) and the release confirms the tap. Only the first finger
 // is followed; a second one is ignored until the first lifts. Positions are canvas pixels.
 //
-//   'tap'   { name, x, y }  a press and release within 300 ms and 12 px. `name` is the target the
-//                           finger landed on, or null when there was none; x and y are where it landed.
+//   'tap'   { name, x, y }  a press that is released before it moves 12 px, however long it was held.
+//                           `name` is the target the finger landed on, or null when there was none;
+//                           x and y are where it landed.
 //   'drag'  { dx, dy, phase, x, y }  a press that moved 12 px or more. phase is 'start', 'move' or
 //                           'end'; dx and dy are the movement since the previous drag event (since
 //                           the press, for 'start'), so a drag's events add up to the finger's travel.
 //                           A cancelled touch ends its drag too.
 
-const TAP_MS = 300; // a tap is a press and release within this long...
-const SLOP_PX = 12; // ...and this close; a press that moves this far is a drag
+const SLOP_PX = 12; // a press that moves this far is a drag; until then it is still a tap
 const MIN_TARGET_PX = 44; // a target is at least this wide on screen, whatever its size or distance
 
 const toCentre = new THREE.Vector3();
 
 /**
- * Which target does a ray hit first? `ray` is a THREE.Ray (unit direction); `targets` is any iterable
- * of { name, centre: Vector3, radius, enabled } (spheres, in metres). The answer is the name of the
- * enabled sphere the ray enters first, or null. Pure: the caller has already resolved each centre.
- *
+ * Where a ray enters a sphere: -1 if it does not meet it, 0 if it starts inside. `along` is how far
+ * down the ray it passes closest to the centre, `miss` the squared distance between them then.
+ */
+function entry(radius, along, miss) {
+  if (miss > radius * radius) return -1;
+  const half = Math.sqrt(radius * radius - miss);
+  if (along + half < 0) return -1; // the whole sphere is behind the origin
+  return Math.max(0, along - half);
+}
+
+/**
+ * Which target does a ray pick? `ray` is a THREE.Ray (unit direction); `targets` is any iterable of
+ * { name, centre: Vector3, radius, enabled } (spheres, in metres). The answer is a name, or null.
+ * Pure: the caller has already resolved each centre. Disabled targets are ignored. In two steps:
+ *   1. a target whose own sphere the ray hits wins, the one it enters first if there are several;
+ *   2. only when there is none, `minAngle` counts: a target the ray passes within distance *
+ *      tan(minAngle) of is reached, and of those the one whose centre is closest in angle to the ray
+ *      wins, not the one nearest along it.
  * `minAngle` (radians, 0 = off) is the smallest angular radius a target may have as seen from the ray
- * origin: a sphere that looks smaller is widened to distance * tan(minAngle), never shrunk. It is
- * what lets a finger hit something small or far away.
+ * origin. It lets a finger pick something small or far away, and yields to a target hit squarely.
  */
 export function pickTarget(ray, targets, { minAngle = 0 } = {}) {
   const slope = Math.tan(minAngle);
-  let best = null;
-  let bestDistance = Infinity;
+  let hit = null; // the target whose own sphere the ray enters first
+  let hitDistance = Infinity;
+  let reached = null; // else the one it reaches through the widening, closest in angle
+  let reachedAngle = Infinity;
   for (const target of targets) {
     if (!target.enabled) continue;
     toCentre.subVectors(target.centre, ray.origin);
     const range = toCentre.length();
-    const radius = Math.max(target.radius, range * slope);
     const along = toCentre.dot(ray.direction); // where the ray passes closest to the centre
     const miss = range * range - along * along; // squared distance between them
-    if (miss > radius * radius) continue;
-    const half = Math.sqrt(radius * radius - miss);
-    if (along + half < 0) continue; // the whole sphere is behind the origin
-    const distance = Math.max(0, along - half); // where the ray enters it (0 when it starts inside)
-    if (distance < bestDistance) {
-      best = target.name;
-      bestDistance = distance;
+    const distance = entry(target.radius, along, miss);
+    if (distance >= 0) {
+      if (distance < hitDistance) {
+        hit = target.name;
+        hitDistance = distance;
+      }
+    } else if (entry(range * slope, along, miss) >= 0) {
+      const angle = Math.atan2(Math.sqrt(miss), along);
+      if (angle < reachedAngle) {
+        reached = target.name;
+        reachedAngle = angle;
+      }
     }
   }
-  return best;
+  return hit ?? reached;
 }
 
 /**
@@ -66,7 +85,7 @@ export function createPointer({ canvas, camera, world }) {
   const listeners = new Map([['tap', []], ['drag', []]]);
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  let finger = null; // the pointer being followed: { id, startX, startY, startTime, lastX, lastY, dragging, hit }
+  let finger = null; // the pointer being followed: { id, startX, startY, lastX, lastY, dragging, hit }
 
   // A listener that throws must not stop the others, or leave a finger half handled.
   function emit(event, payload) {
@@ -121,7 +140,7 @@ export function createPointer({ canvas, camera, world }) {
     const { x, y } = local(event);
     finger = {
       id: event.pointerId,
-      startX: x, startY: y, startTime: event.timeStamp,
+      startX: x, startY: y,
       lastX: x, lastY: y, // where the last drag event left the finger
       dragging: false,
       hit: pick(x, y), // what it landed on
@@ -147,7 +166,7 @@ export function createPointer({ canvas, camera, world }) {
     finger = null;
     if (gesture.dragging) {
       emitDrag(gesture, 'end', x, y);
-    } else if (event.timeStamp - gesture.startTime <= TAP_MS) {
+    } else {
       // The target pressed, unless it was taken away or switched off since.
       const name = targets.get(gesture.hit)?.enabled ? gesture.hit : null;
       emit('tap', { name, x: gesture.startX, y: gesture.startY });
