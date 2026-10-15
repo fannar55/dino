@@ -26,7 +26,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 ## Layout
 
 - `engine/`: clock, renderer, looks, lighting, fog, sky, wind, stats, actors and their footing
-  (planted feet that never slide: walking, stopping, standing and turning on the spot), point specs.
+  (planted feet that never slide, on four legs or two: walking, stopping, standing and turning on
+  the spot), point specs.
 - `engine/camera/director.js`: the camera director.
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback.
 - `world/forest/`: the forest system (`createForest(world, layout)`).

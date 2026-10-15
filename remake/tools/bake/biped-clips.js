@@ -1,11 +1,13 @@
 import * as THREE from 'three';
+import { twoBoneLeg } from '../../engine/ik.js';
 
 // Procedural clips for the biped rig made by bake-biped.js. Rest rotations are identity, so every
 // bone turns about world-aligned axes: X forward, Y up, Z the character's right side. Angles are in
 // degrees. Each clip loops: its functions repeat over the clip length.
 //
 //   idle    3.2 s  breathing, arms relaxed down from the A-pose, a slow look about
-//   walk    0.95 s a calm child's walk in place (the actor moves the body at the matched speed)
+//   walk    0.9 s  a calm child's walk in place at 0.55 m/s (the actor moves the body at the matched
+//                  speed); the legs reach planted feet by two-bone IK (see WALK below)
 //   wave    2.4 s  the right arm up, waving three times per loop (waveLeft: the same with the left)
 //   point   2.0 s  the right arm pointing ahead, held
 //   sit     3.2 s  riding pose for Mosi's saddle: thighs forward and apart, hands forward
@@ -40,8 +42,8 @@ const ARMS_DOWN = -22;
 
 // Every clip has a track for every bone (identity where its pose leaves the bone alone), so a bone
 // one clip turns never keeps that turn when the next clip takes over.
-function sampleClip(name, duration, pose, bones) {
-  const frames = Math.round(duration * FPS);
+function sampleClip(name, duration, pose, bones, fps = FPS) {
+  const frames = Math.round(duration * fps);
   const times = [];
   const quats = {};
   const hips = [];
@@ -63,7 +65,161 @@ function sampleClip(name, duration, pose, bones) {
   return new THREE.AnimationClip(name, duration, tracks);
 }
 
-export function authorClips({ bones }) {
+// Legs by two-bone IK (engine/ik.js, the same the footing uses in a scene) ----------------------
+// The walk is authored from where the feet go, not from joint angles: each leg reaches its foot from
+// the hip, with the knee pointing along `forward`.
+function legSolver(bones, side) {
+  const hip = bones[`${side}UpperLeg`].position.clone(); // the hip joint, in the hips' frame
+  const leg = twoBoneLeg(bones[`${side}LowerLeg`].position, bones[`${side}Foot`].position);
+  return {
+    length: leg.length,
+    /** The hip joint (model frame) for the hips at `position`, turned `turn`. */
+    hipAt: (position, turn) => hip.clone().applyQuaternion(turn).add(position),
+    /** Local turns of thigh, shin and foot that put the ankle at `ankle` with the foot turned `foot`
+     *  (both in the model frame), for the hips at `position` turned `turn`. */
+    solve(position, turn, ankle, foot, forward = AXIS.x) {
+      const toAnkle = ankle.clone().sub(hip.clone().applyQuaternion(turn).add(position));
+      const hinge = toAnkle.clone().normalize().cross(forward);
+      const knee = new THREE.Quaternion();
+      const thighTurn = leg.reach(toAnkle, hinge, new THREE.Quaternion(), knee);
+      return {
+        thigh: turn.clone().invert().multiply(thighTurn),
+        shin: knee,
+        foot: thighTurn.multiply(knee).invert().multiply(foot),
+      };
+    },
+  };
+}
+
+// A smooth step with no speed and no acceleration at either end.
+const smoother = s => s * s * s * (10 + s * (6 * s - 15));
+// Cubic Hermite through keys [s, value, slope per unit s].
+function spline(keys, s) {
+  let i = 0;
+  while (i < keys.length - 2 && s > keys[i + 1][0]) i++;
+  const [s0, p0, m0] = keys[i];
+  const [s1, p1, m1] = keys[i + 1];
+  const h = s1 - s0;
+  const t = THREE.MathUtils.clamp((s - s0) / h, 0, 1);
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * p0 + (t3 - 2 * t2 + t) * h * m0 + (3 * t2 - 2 * t3) * p1 + (t3 - t2) * h * m1;
+}
+
+// The walk. Times are shares of the cycle from the foot's landing (the other foot lands half a cycle
+// later). A foot lands flat and stays put while the body passes over it; just after the other foot
+// has landed, its heel peels up about the toe, which stays put too; then it swings forward, toes up
+// late in the swing, flattens, and comes straight down at the end. The hips are as high as the legs
+// allow (the longest hip-to-ankle reach is `reach` of the straight leg, so the knee never locks),
+// smoothed: the bob follows the stride.
+export const WALK = {
+  cycle: 0.8, // seconds per stride (two steps): 150 steps a minute, a small child's cadence
+  speed: 0.55, // metres a second
+  peel: 0.52, // the heel starts up (the other foot has landed at 0.5)
+  toeOff: 0.64, // the toe leaves the ground
+  heelUp: 22, // degrees of heel peel at toe-off
+  toesUp: 8, // degrees, late in the swing
+  reach: 0.995, // the longest hip-to-ankle reach, as a share of the straight leg
+  hipsBlur: 0.03, // how much the hips' path is smoothed (a share of the cycle)
+};
+// The swing, over its own time s from 0 (toe-off) to 1 (landing): the ankle's height above its rest
+// height (metres; `peeled` is its height at toe-off) and the foot's pitch (degrees, toes up), as
+// [s, value, slope] keys. The foot covers the ground by SWING_REACH and comes straight down after.
+const swingLift = peeled => [[0, peeled, 0], [0.22, peeled + 0.006, 0], [0.55, 0.03, -0.06], [0.8, 0.012, -0.06], [0.92, 0.0035, -0.045], [1, 0, -0.04]];
+const swingPitch = heelUp => [[0, -heelUp, 0], [0.4, -4, 50], [0.7, WALK.toesUp, 0], [0.9, 0, 0], [1, 0, 0]];
+const SWING_REACH = 0.95;
+
+function walkGait({ bones, joints, soles }) {
+  const S = WALK.speed * WALK.cycle; // stride: metres a foot moves forward per cycle
+  const legs = Object.fromEntries(['Left', 'Right'].map(side => {
+    const ankle = joints[`${side}Foot`];
+    const toe = soles?.[side]?.toe ?? ankle.x + 0.12;
+    return [side, {
+      solver: legSolver(bones, side),
+      rest: ankle.clone(),
+      toe: new THREE.Vector3(toe - ankle.x, -ankle.y, 0), // the front of the sole, in the foot's frame
+      offset: side === 'Left' ? 0 : 0.5,
+    }];
+  }));
+
+  // The pelvis: it turns with the leading leg (the left hip is forward as the left foot lands), drops
+  // on the side of the swinging leg and shifts over the planted foot.
+  const pelvis = u => {
+    const turn = -4 * Math.cos(2 * Math.PI * u); // degrees, positive turns left
+    const roll = 2.5 * Math.sin(2 * Math.PI * u); // positive drops the right side
+    const sway = -0.006 * Math.sin(2 * Math.PI * u); // metres toward the right
+    return { turn, roll, sway, q: chain(rot('y', turn), rot('x', roll)) };
+  };
+
+  // A foot at share u of its own cycle: ankle position relative to the body (x along the walk) and
+  // pitch (degrees, toes up). The body moves S per cycle; `land` is where the foot lands (body frame,
+  // chosen below).
+  let land = 0;
+  // While the heel peels, the ankle turns about the toe's ground contact (where the foot landed,
+  // plus the toe's reach; world frame, from where the body was at the landing).
+  const peelAnkle = (L, pitch) => {
+    const ankle = L.toe.clone().applyQuaternion(rot('z', pitch)).negate(); // toe to ankle
+    return ankle.set(land + L.toe.x + ankle.x, ankle.y, L.rest.z);
+  };
+  function footAt(L, u) {
+    if (u < WALK.peel) return { ankle: new THREE.Vector3(land - S * u, L.rest.y, L.rest.z), pitch: 0 };
+    if (u < WALK.toeOff) {
+      const pitch = -WALK.heelUp * smoother((u - WALK.peel) / (WALK.toeOff - WALK.peel));
+      const ankle = peelAnkle(L, pitch);
+      return { ankle: ankle.setX(ankle.x - S * u), pitch };
+    }
+    // The swing, from toe-off to the next landing, S further on.
+    const s = (u - WALK.toeOff) / (1 - WALK.toeOff);
+    const start = peelAnkle(L, -WALK.heelUp);
+    const x = start.x + (land + S - start.x) * smoother(Math.min(1, s / SWING_REACH));
+    const y = L.rest.y + spline(swingLift(start.y - L.rest.y), s);
+    return { ankle: new THREE.Vector3(x - S * u, y, L.rest.z), pitch: spline(swingPitch(WALK.heelUp), s) };
+  }
+
+  // The hips' height: for each moment, the highest the hips can be with both ankles within reach,
+  // then that curve blurred (a Gaussian over the loop, so no wiggles) and lowered until it fits.
+  const hipsRest = bones.Hips.position;
+  const allowedAt = u => {
+    const p = pelvis(u);
+    const hipsAt = new THREE.Vector3(hipsRest.x, 0, hipsRest.z + p.sway);
+    let most = Infinity;
+    for (const L of Object.values(legs)) {
+      const { ankle } = footAt(L, (u + L.offset) % 1);
+      const hip = L.solver.hipAt(hipsAt, p.q);
+      const r2 = (ankle.x - hip.x) ** 2 + (ankle.z - hip.z) ** 2;
+      const reach = WALK.reach * L.solver.length;
+      most = Math.min(most, ankle.y + Math.sqrt(Math.max(0, reach * reach - r2)) - hip.y);
+    }
+    return most;
+  };
+  // The feet land where the hips' lowest point is highest: the front and back reach balance.
+  const lowest = () => Math.min(...Array.from({ length: 120 }, (_, i) => allowedAt(i / 120)));
+  let best = -Infinity;
+  let bestLand = 0;
+  for (let x = legs.Left.rest.x - 0.05; x < legs.Left.rest.x + 0.2; x += 0.001) {
+    land = x;
+    const h = lowest();
+    if (h > best) { best = h; bestLand = x; }
+  }
+  land = bestLand;
+  const SAMPLES = 360;
+  const allowed = Array.from({ length: SAMPLES }, (_, i) => allowedAt(i / SAMPLES));
+  const sigma = WALK.hipsBlur * SAMPLES;
+  const kernel = Array.from({ length: Math.ceil(3 * sigma) * 2 + 1 }, (_, j) => Math.exp(-0.5 * ((j - Math.ceil(3 * sigma)) / sigma) ** 2));
+  const weight = kernel.reduce((sum, w) => sum + w, 0);
+  const blurred = allowed.map((_, i) => kernel.reduce((sum, w, j) => sum + w * allowed[(i + j - (kernel.length - 1) / 2 + SAMPLES) % SAMPLES], 0) / weight);
+  const fit = Math.max(...blurred.map((h, i) => h - allowed[i])) + 0.0003;
+  const curve = blurred.map(h => h - fit);
+  const hipsY = u => {
+    const f = (((u % 1) + 1) % 1) * SAMPLES;
+    const i = Math.floor(f);
+    return THREE.MathUtils.lerp(curve[i % SAMPLES], curve[(i + 1) % SAMPLES], f - i);
+  };
+
+  return { legs, pelvis, footAt, hipsY };
+}
+
+export function authorClips({ bones, joints, soles }) {
   const relaxedArms = (t, w, extra = {}) => ({
     LeftUpperArm: chain(swing(2), armOut('Left', ARMS_DOWN + 1.5 * Math.sin(w * t))),
     RightUpperArm: chain(swing(2), armOut('Right', ARMS_DOWN + 1.5 * Math.sin(w * t + 1))),
@@ -83,26 +239,31 @@ export function authorClips({ bones }) {
     hips: new THREE.Vector3(0, 0.002 * Math.sin(w * t), 0),
   });
 
-  // The walk: each hip swings 24 degrees either way; a foot is down while its leg moves back.
-  const STRIDE = 24;
-  const walk = (t, w) => {
+  // The walk (WALK above): the legs reach the feet, the arms swing against the legs, the spine turns
+  // a little against the pelvis and the head stays steady.
+  const gait = walkGait({ bones, joints, soles });
+  const walk = t => {
+    const u = t / WALK.cycle; // the left foot lands at 0, the right at 0.5
     const q = {};
-    const legs = { Left: w * t, Right: w * t + Math.PI };
-    for (const [side, phase] of Object.entries(legs)) {
-      const forward = Math.cos(phase); // > 0 while the leg swings forward through the air
-      q[`${side}UpperLeg`] = swing(STRIDE * Math.sin(phase));
-      q[`${side}LowerLeg`] = knee(6 + 42 * Math.max(0, forward) ** 1.3);
-      q[`${side}Foot`] = ankle(10 * forward);
-      // The arm swings against the leg on its own side.
-      q[`${side}UpperArm`] = chain(swing(-0.55 * STRIDE * Math.sin(phase)), armOut(side, ARMS_DOWN + 2));
-      q[`${side}LowerArm`] = elbow(12 + 8 * Math.max(0, -Math.sin(phase)));
+    const p = gait.pelvis(u);
+    const hips = new THREE.Vector3(bones.Hips.position.x, gait.hipsY(u), bones.Hips.position.z + p.sway);
+    for (const [side, L] of Object.entries(gait.legs)) {
+      const own = (u + L.offset) % 1;
+      const foot = gait.footAt(L, own);
+      const leg = L.solver.solve(hips, p.q, foot.ankle, rot('z', foot.pitch));
+      q[`${side}UpperLeg`] = leg.thigh;
+      q[`${side}LowerLeg`] = leg.shin;
+      q[`${side}Foot`] = leg.foot;
+      // The arm swings forward as the other leg does, a little behind it.
+      const arm = -18 * Math.cos(2 * Math.PI * (own - 0.04));
+      q[`${side}UpperArm`] = chain(swing(arm), armOut(side, ARMS_DOWN + 2));
+      q[`${side}LowerArm`] = elbow(12 + 12 * Math.max(0, arm / 18));
     }
-    const hipsTurn = 4 * Math.sin(w * t);
-    q.Hips = chain(turn(-hipsTurn), tilt(2.5 * Math.sin(w * t)));
-    q.Spine = turn(0.5 * hipsTurn);
-    q.Chest = chain(turn(0.6 * hipsTurn), lean(2));
-    q.Head = turn(-0.4 * hipsTurn);
-    return { q, hips: new THREE.Vector3(0, 0.01 * Math.cos(2 * w * t) - 0.006, 0) };
+    q.Hips = p.q;
+    q.Spine = chain(turn(-0.6 * p.turn), tilt(-0.6 * p.roll), lean(2));
+    q.Chest = chain(turn(-0.6 * p.turn), tilt(-0.3 * p.roll), lean(1));
+    q.Head = chain(turn(0.2 * p.turn), tilt(-0.1 * p.roll), lean(-2));
+    return { q, hips: hips.sub(bones.Hips.position) };
   };
 
   // Upper arm at about 115 degrees (elbow out at shoulder height), the forearm waving 138-182 about
@@ -176,7 +337,7 @@ export function authorClips({ bones }) {
 
   return [
     sampleClip('idle', 3.2, idle, bones),
-    sampleClip('walk', 0.95, walk, bones),
+    sampleClip('walk', WALK.cycle, walk, bones, 120 / WALK.cycle), // 120 keys a cycle, as the actor samples it
     sampleClip('wave', 2.4, waveWith('Right'), bones),
     sampleClip('waveLeft', 2.4, waveWith('Left'), bones),
     sampleClip('point', 2.0, point, bones),
