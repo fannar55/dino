@@ -57,7 +57,7 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6aa3` | `#cfb6c6` | plum back `#5d4370` | lilac plates `#ab85c1`, ivory tail spikes `#d2bda9` |
 | Þórseðla | Brontosaurus | 22 m long (21 to 22) | golden yellow | `#e9b14d` | `#e7c181` | `#89682e` | caramel patches `#be8c40`, beige throat `#c2a270` |
 | Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
-| Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
+| Uggeðla | Spinosaurus | 14 m long | teal | `#35a8a0` | `#d3eeea` | `#1f6b68` | sail gold `#f2b04a` |
 | Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#6793d0` | `#8b9ebb` | back stripe `#4b6fa4` | pale blue crest `#aac3e6`, beige toenails, amber eyes |
 | Flugeðla | Pteranodon | 7.5 m wingspan (5.6 to 7.6) | pink | `#dc8090` | `#f0ccb7` | raspberry crest `#955055` | peach wing membrane `#ebaf98`, cream beak, amber eyes |
 
@@ -67,8 +67,9 @@ lilac plates. Þórseðla is a Brontosaurus, as her Icelandic name says (2026-10
 model gives the golden row its values. Flugeðla's wingspan is the upper end of the range so she can
 carry Egill, and her Tripo model (2026-10-16) gives the pink row its values; that pink leans to coral.
 Slóeðla's Tripo model (2026-10-16) gives the blue row its values, close to the row it replaced.
-Uggeðla's coral is Grameðla's and Flugeðla's nearest neighbour: check them side
-by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
+Uggeðla is teal with a gold sail (the owner's choice, 2026-10-16, instead of coral red), so the warm
+reds stay with Grameðla and Flugeðla; check her teal against the forest's greens and Slóeðla's blue
+when she is made. Sizes are adult estimates from the species' Wikipedia pages
 ([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
 [Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
 [Stegosaurus](https://en.wikipedia.org/wiki/Stegosaurus),
