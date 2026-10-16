@@ -5,7 +5,7 @@
 //   node remake/tools/voice-lines.mjs --audition egill
 // (needs ffmpeg and ffprobe on the PATH, and ELEVENLABS_API_KEY in the environment)
 //
-// lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and an optional "seed", below): the
+// lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and optional "seed", "kept", below): the
 // id is k1_<speaker>_<short>. A line becomes kafli1/<id>.mp3, mastered like the game's narration (mono, 44.1 kHz, 96 kbps, about
 // -18 LUFS, a quarter second of silence after the voice), and lines.json learns its src, exact duration and mouth (audio-lines.mjs
 // makes the same entries for the game's own lines). Lines are approved before they are made: voices.json names a voice for each
@@ -15,6 +15,11 @@
 // hash of everything that decides the sound: the text, the voice, the model, the settings and the seed. A line costs credits once.
 // For another take of a line, change its "seed" in lines-source.json. Lines that say the same thing (the three "Mmm!") have seeds of
 // their own, or they would share one take.
+//
+// A line whose recording the owner chose by ear among takes made some other way has a "kept" in lines-source.json: one sentence that
+// names the take, such as "the owner's pick, an Eleven v4 take (seed 2), 2026-10-16". The tool never asks for a kept line, masters it
+// or writes over its MP3, also when --only names it; it says "Kept <id>: ..." and renews the line's entry in lines.json from the MP3
+// that is there. To have the tool make a kept line again, take its "kept" away.
 //
 // The key is read from ELEVENLABS_API_KEY and from nowhere else. It goes into one request header; it is never printed, logged,
 // written to a file or put in a URL, and without it the tool stops before it does anything.
@@ -108,6 +113,7 @@ export function readLines(root) {
     ids.add(line.id);
     if (typeof line.speaker !== 'string' || typeof line.text !== 'string' || !line.text.trim()) throw new Error(`${line.id} needs a speaker and text.`);
     if (line.seed !== undefined && !(Number.isInteger(line.seed) && line.seed >= 0 && line.seed <= 4294967295)) throw new Error(`${line.id}: seed is a whole number from 0 to 4294967295.`);
+    if (line.kept !== undefined && (typeof line.kept !== 'string' || !line.kept.trim())) throw new Error(`${line.id}: kept is a sentence that names the take.`);
   }
   return lines;
 }
@@ -184,7 +190,7 @@ function master(raw, target) {
 // ---------------------------------------------------------------------------------------------
 // The commands
 
-/** Makes the lines (all of them, or those in `only`): an MP3 each, and their entries in lines.json. Returns their ids. */
+/** Makes the lines (all of them, or those in `only`): an MP3 each but for a kept line, which keeps the one it has; and their entries in lines.json. Returns their ids. */
 export async function generate({ root, key, fetch, only = null, log }) {
   const lines = readLines(root);
   const voices = readVoices(root);
@@ -199,6 +205,10 @@ export async function generate({ root, key, fetch, only = null, log }) {
   }
   needAudioTools();
   for (const line of chosen) {
+    if (line.kept !== undefined) { // chosen by ear: not asked for, not mastered, not written over; only its entry in lines.json is renewed
+      log(`Kept ${line.id}: ${line.kept}`);
+      continue;
+    }
     const raw = await take({ root, key, fetch, text: line.text, voiceId: voices[line.speaker], seed: line.seed, log });
     const seconds = master(raw, path.join(root, REMAKE_AUDIO, `${line.id}.mp3`));
     log(`Ready ${line.id}: ${seconds} s`);

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, buildLines } from '../tools/audio-lines.mjs';
-import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs } from '../tools/voice-lines.mjs';
+import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines } from '../tools/voice-lines.mjs';
 
 // The chapter's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind.
@@ -101,7 +101,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {
-    assert.deepEqual(Object.keys(line).filter(key => !['id', 'speaker', 'text', 'seed'].includes(key)), [], `${line.id}: unknown field`);
+    assert.deepEqual(Object.keys(line).filter(key => !['id', 'speaker', 'text', 'seed', 'kept'].includes(key)), [], `${line.id}: unknown field`);
     assert.match(line.id, /^k1_[a-z]+_[a-z0-9_]+$/, 'k1_<speaker>_<short>');
     assert.equal(line.id.split('_')[1], line.speaker, `${line.id} belongs to ${line.speaker}`);
     assert.ok(Object.hasOwn(voices, line.speaker), `${line.id}: no voice slot for ${line.speaker}`);
@@ -118,6 +118,14 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
     if (same.length < 2) continue;
     const seeds = same.map(line => line.seed);
     assert.ok(seeds.every(seed => seed !== undefined) && new Set(seeds).size === seeds.length, `${same.map(line => line.id)} say the same: each needs its own seed`);
+  }
+});
+
+test("the three lines the owner chose by ear, Eleven v4 takes that say Egill right, are kept, so the tool cannot make them over from v3", () => {
+  const lines = readJson(REAL.source);
+  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star']) {
+    const kept = lines.find(line => line.id === id)?.kept;
+    assert.ok(typeof kept === 'string' && kept.trim(), `${id} has no "kept" in lines-source.json: node remake/tools/voice-lines.mjs would make it over from its v3 take`);
   }
 });
 
@@ -151,7 +159,7 @@ test('lines.json holds the length of each recording as it is now, so a recording
   const recorded = readJson(REAL.lines);
   for (const line of readJson(REAL.source)) {
     const length = seconds(path.join(path.dirname(REAL.source), `${line.id}.mp3`));
-    assert.ok(Math.abs(recorded[line.id].duration - length) < 0.002, `${line.id}: lines.json says ${recorded[line.id].duration} s, the file is ${length} s: run node remake/tools/voice-lines.mjs --only ${line.id}`);
+    assert.ok(Math.abs(recorded[line.id].duration - length) < 0.002, `${line.id}: lines.json says ${recorded[line.id].duration} s, the file is ${length} s: run node remake/tools/audio-lines.mjs (not voice-lines.mjs, which makes a line that is not "kept" over from its v3 take)`);
   }
 });
 
@@ -343,6 +351,45 @@ test('--only names lines that exist, and a line file with a bad id stops the run
   await assert.rejects(main([], { env, root: bad, fetch, log() {} }), /\.\.\/escape/);
   assert.equal(calls.length, 0);
   assert.ok(!fs.existsSync(path.join(bad, '.tools')));
+});
+
+test("a kept line is never asked for, mastered or written over, with or without --only, and its lines.json entry still comes from its MP3", needsFfmpeg, async t => {
+  const kept = "the owner's pick, an Eleven v4 take (seed 2), 2026-10-16";
+  const lines = [
+    { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' },
+    { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!', seed: 1, kept },
+  ];
+  const runs = [[[], ['Eitt!']], [['--only', 'k1_mosi_two'], []], [['--only', 'k1_mosi_one,k1_mosi_two'], ['Eitt!']]]; // the arguments, and what is asked for
+  for (const [argv, asked] of runs) {
+    const label = argv.join(' ') || 'all lines';
+    const root = makeRoot(t, { lines });
+    const installed = path.join(root, 'remake/assets/audio/kafli1/k1_mosi_two.mp3');
+    fs.writeFileSync(installed, fakeSpeech()); // the owner's take: not what the tool would make of "Tvö!", which is a quarter second longer and 96 kbps
+    const { fetch, calls } = fakeApi();
+    const out = [];
+    await main(argv, { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+    assert.deepEqual(calls.map(call => call.body.text), asked, `${label}: only a line that is not kept is asked for`);
+    assert.ok(fs.readFileSync(installed).equals(fakeSpeech()), `${label}: the kept MP3 is as it was`);
+    assert.ok(out.includes(`Kept k1_mosi_two: ${kept}`), `${label}: it says the line is kept, ${JSON.stringify(out)}`);
+    const entry = JSON.parse(fs.readFileSync(path.join(root, 'remake/assets/audio/lines.json'), 'utf8')).k1_mosi_two;
+    assert.ok(entry, `${label}: lines.json has an entry for the kept line`);
+    assert.deepEqual(Object.keys(entry), ['src', 'duration', 'mouth']);
+    assert.equal(entry.src, 'assets/audio/kafli1/k1_mosi_two.mp3');
+    assert.ok(Math.abs(entry.duration - seconds(installed)) < 0.002, `${label}: the exact duration of the MP3 that is there, ${entry.duration} s`);
+    assert.ok(Math.abs(entry.mouth.length - entry.duration * MOUTH_RATE) <= 1.5, `${label}: and a mouth track as long`);
+  }
+});
+
+test('readLines refuses a kept that is empty or not a string, before any request', async t => {
+  const line = { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' };
+  for (const kept of ['', '   ', 2, true, null, [], ["the owner's pick"], {}]) {
+    assert.throws(() => readLines(makeRoot(t, { lines: [{ ...line, kept }] })), /k1_mosi_one.*kept/, `kept ${JSON.stringify(kept)}`);
+  }
+  const { fetch, calls } = fakeApi();
+  const root = makeRoot(t, { lines: [{ ...line, kept: '' }] });
+  await assert.rejects(main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} }), /k1_mosi_one.*kept/);
+  assert.equal(calls.length, 0);
+  assert.equal(readLines(makeRoot(t, { lines: [{ ...line, kept: "the owner's pick" }] }))[0].kept, "the owner's pick");
 });
 
 // ---------------------------------------------------------------------------------------------

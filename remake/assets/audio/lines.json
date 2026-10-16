@@ -1521,8 +1521,8 @@
  },
  "k1_mosi_festival": {
   "src": "assets/audio/kafli1/k1_mosi_festival.mp3",
-  "duration": 7.93,
-  "mouth": "08efe700cb94dfffc56afdb950000000000000007ee993deca604090dd04defa0da76006b9700cdcb0bec698cefeb74897000000000000000cfeddefc0ceeed8000780acb908fffeb08dbb864000000"
+  "duration": 7.53,
+  "mouth": "00df907a48eee95dda4000000000000ad0a28ffcb00073be804ee300bb55007b500dfa74da666fffda33500000000000000ceeedc7efb60cdcbda00000bfca0bffeeb38cba7770000000000"
  },
  "k1_mosi_friends": {
   "src": "assets/audio/kafli1/k1_mosi_friends.mp3",
@@ -1556,8 +1556,8 @@
  },
  "k1_mosi_hocus": {
   "src": "assets/audio/kafli1/k1_mosi_hocus.mp3",
-  "duration": 4.01,
-  "mouth": "00bfec607dc9500dfc704aca763fffc38ba6530000000000afe7007cddadeec300cfeca0000000000"
+  "duration": 3.77,
+  "mouth": "00ff70dd20cfe577430000000ddfec009d63000000000bf99a9ed9ca3009ca87000000000000"
  },
  "k1_egill_wow": {
   "src": "assets/audio/kafli1/k1_egill_wow.mp3",
@@ -1681,8 +1681,8 @@
  },
  "k1_mosi_star": {
   "src": "assets/audio/kafli1/k1_mosi_star.mp3",
-  "duration": 2.89,
-  "mouth": "64efedc5fd6cfecdd40000000000004fb76006ca000dda800deb600000"
+  "duration": 2.81,
+  "mouth": "003effdeafcaecb90000000000de2000cb000aee900dc900000000000"
  },
  "k1_mosi_next": {
   "src": "assets/audio/kafli1/k1_mosi_next.mp3",
