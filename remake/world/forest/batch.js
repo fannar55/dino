@@ -10,7 +10,7 @@
 // so the shadow pass never draws plants the camera cannot see and the main pass never draws plants
 // that are only there for their shadow.
 import * as THREE from 'three';
-import { FOREST } from './config.js';
+import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
 // Small things vanish into the grass and mist long before this distance (metres to the camera).
@@ -36,6 +36,43 @@ function crownLod(placement, first) {
     placement.z + (cr.c[0] * s + cr.c[2] * c) * sc,
   );
   return { centre, size: Math.max(cr.r, cr.ry) * sc, first, level: 2, frame: -1, proj: 0 };
+}
+
+const TAU = Math.PI * 2;
+const unit = v => Math.max(-1, Math.min(1, v));
+/** Which of the PIVOT.nodSteps ways round the compass an angle (radians) is: 0 for +x, counting toward +z. */
+const compassStep = angle => Math.round(((((angle / TAU) % 1) + 1) % 1) * PIVOT.nodSteps) % PIVOT.nodSteps;
+
+/**
+ * aPivot for one placed model (materials.js reads it, in forestPivot): the last byte says what moves (PIVOT in config.js) and the
+ * others where about. A fern's lean has the vertex's height above the plant's foot in the first byte. A flower head's nod and a
+ * mushroom's hop have the vertex's offset from the pivot, in metres in the world (x, y and z; 127 is none and a step is
+ * FOREST.pivot.reach / 127), and the nod the way the head faces, round the compass, in the last. Flowers and mushrooms only dance
+ * in the bands FOREST.dance names; ferns lean wherever they stand. `c` and `s` are the cosine and sine of the placement's turn.
+ */
+function bakePivots(out, base, m, p, c, s) {
+  const sc = p.scale;
+  const dances = FOREST.dance.bands.includes(p.band);
+  const { reach, height } = FOREST.pivot;
+  for (const run of m.pivots) {
+    if (run.kind !== 'lean' && !dances) continue;
+    let code = PIVOT.lean;
+    if (run.kind === 'hop') code = PIVOT.hop;
+    else if (run.kind === 'nod') code = PIVOT.nod + compassStep(run.facing + p.rot); // the placement's turn turns the way a head faces too
+    const [ax, ay, az] = run.at;
+    for (let i = run.from; i < run.to; i++) {
+      const o = (base + i) * 4;
+      if (run.kind === 'lean') {
+        out[o] = Math.round(unit(Math.max(0, (m.pos[i * 3 + 1] * sc) / height)) * 255);
+      } else {
+        const dx = m.pos[i * 3] - ax, dy = m.pos[i * 3 + 1] - ay, dz = m.pos[i * 3 + 2] - az;
+        out[o] = 127 + Math.round(unit(((dx * c - dz * s) * sc) / reach) * 127);
+        out[o + 1] = 127 + Math.round(unit((dy * sc) / reach) * 127);
+        out[o + 2] = 127 + Math.round(unit(((dx * s + dz * c) * sc) / reach) * 127);
+      }
+      out[o + 3] = code;
+    }
+  }
 }
 
 function createBuckets() {
@@ -96,6 +133,7 @@ export function createBatcher() {
     const nrm = caster ? null : new Float32Array(n * 3);
     const col = caster ? null : new Uint8Array(n * 4);
     const wind = new Uint8Array(n * 4);
+    const pivot = caster ? null : new Uint8Array(n * 4);
     const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
     const master = new IndexArray(bucket.indices);
     const ranges = [];
@@ -135,6 +173,7 @@ export function createBatcher() {
         wind[v * 4 + 2] = Math.round(Math.min(1, m.wind[i * 3 + 1]) * 255);
         wind[v * 4 + 3] = Math.round(Math.min(1, m.wind[i * 3 + 2]) * 255);
       }
+      if (pivot && m.pivots.length) bakePivots(pivot, base, m, p, c, s);
       // one range per cull piece (trunk, crown); each gets the bounding sphere of its own triangles
       const cuts = [0, ...(m.marks || []), m.idx.length];
       for (let c2 = 0; c2 < cuts.length - 1; c2++) {
@@ -162,6 +201,7 @@ export function createBatcher() {
       g.setAttribute('color', new THREE.BufferAttribute(col, 4, true));
     }
     g.setAttribute('aWind', new THREE.BufferAttribute(wind, 4, true));
+    if (pivot) g.setAttribute('aPivot', new THREE.BufferAttribute(pivot, 4, true));
     const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
     dynamic.setUsage(THREE.DynamicDrawUsage);
     g.setIndex(dynamic);

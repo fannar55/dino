@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { beatAt } from '../engine/beat.js';
+import { beatAt, danceAt } from '../engine/beat.js';
 import { createWind } from '../engine/wind.js';
 import { createSharedUniforms } from '../world/forest/materials.js';
 import { FOREST } from '../world/forest/config.js';
@@ -77,6 +77,82 @@ test('setBeat feeds one shared uBeat uniform that every forest material reads', 
   assert.equal(shared.uBeat, wind.uniforms.uBeat);
   wind.setBeat(0.5);
   assert.equal(shared.uBeat.value, 0.5);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The strong beats' dance: flowers nod and mushrooms hop on the even beats of the grid, one every two beats
+
+const DANCE_THEME = { bpm: 120, beatOffset: 0.25 }; // strong beats at 0.25, 1.25, 2.25 s...; weak ones between, at 0.75, 1.75...
+const STRONG = after => 0.25 + after; // the time `after` seconds after the first strong beat
+const dance = time => danceAt(time, DANCE_THEME);
+const AIR = 0.3; // seconds a mushroom is in the air before it lands on the beat (beat.js)
+
+test('the dance repeats every two beats, the same each strong beat, and is a pure function of the music\'s time', () => {
+  for (let t = 0.013; t < 3; t += 0.071) {
+    const a = dance(t), b = dance(t + 1), c = dance(t + 7);
+    for (const key of ['nod', 'hop', 'squash']) {
+      near(a[key], b[key], 1e-9, `${key} a strong beat later at ${t}`);
+      near(a[key], c[key], 1e-9, `${key} seven strong beats later at ${t}`);
+    }
+  }
+  assert.deepEqual(dance(0.4321), dance(0.4321));
+  near(dance(-0.6).nod, dance(0.4).nod, 1e-9, 'before the first beat the grid runs back the same way');
+  // the real theme: 95 beats a minute, a strong beat every 1.2632 s
+  const theme = { bpm: 95, beatOffset: 0.131 };
+  near(danceAt(0.131, theme).nod, 1);
+  near(danceAt(0.131 + (3 * 120) / 95, theme).nod, 1, 1e-9, 'three strong beats on');
+});
+
+test('the nod comes down on the strong beat, settles within half a second and is up again before the next', () => {
+  assert.equal(dance(STRONG(0)).nod, 1, 'the head is fully down on the beat');
+  let previous = 1;
+  for (let after = 0.01; after < 0.5 - 1e-9; after += 0.01) {
+    const nod = dance(STRONG(after)).nod;
+    assert.ok(nod < previous && nod > 0, `the nod rises again at ${after.toFixed(2)} s: ${nod} after ${previous}`);
+    previous = nod;
+  }
+  assert.equal(dance(STRONG(0.5)).nod, 0, 'and it has come up by half a second');
+  assert.equal(dance(STRONG(0.75)).nod, 0, 'on the weak beat in between the heads are up');
+  // it goes down to meet the beat, not after it: a short lead, rising to 1
+  const lead = [0.05, 0.04, 0.03, 0.02, 0.01].map(before => dance(STRONG(1 - before)).nod);
+  assert.ok(lead.every((v, i) => v > 0 && v < 1 && (i === 0 || v > lead[i - 1])), `the nod rises into the beat: ${lead}`);
+  assert.equal(dance(STRONG(1 - 0.07)).nod, 0, 'and only just before it');
+  for (let t = 0; t < 4; t += 0.0173) assert.ok(dance(t).nod >= 0 && dance(t).nod <= 1);
+});
+
+test('a mushroom hops up and down on a parabola, lands on the strong beat and squashes there', () => {
+  assert.equal(dance(STRONG(0)).hop, 0, 'on the ground on the beat');
+  assert.equal(dance(STRONG(0)).squash, 1, 'and flattest there: it has landed');
+  near(dance(STRONG(1 - AIR)).hop, 0, 1e-9, 'it left the ground one flight before');
+  near(dance(STRONG(1 - AIR / 2)).hop, 1, 1e-9, 'at the top of the hop half a flight before the beat');
+  for (const u of [0.2, 0.4, 0.5, 0.6, 0.8]) near(dance(STRONG(1 - u * AIR)).hop, 4 * u * (1 - u), 1e-9, `the hop ${u} of the way up`);
+  assert.equal(dance(STRONG(0.01)).hop, 0, 'on the ground after the beat');
+  assert.equal(dance(STRONG(0.6)).hop, 0);
+  // the squash springs back within a fifth of a second, and in the air the mushroom is a little stretched
+  let previous = 1;
+  for (let after = 0.01; after < 0.2 - 1e-9; after += 0.01) {
+    const squash = dance(STRONG(after)).squash;
+    assert.ok(squash < previous && squash > 0, `it does not spring back steadily at ${after.toFixed(2)} s: ${squash}`);
+    previous = squash;
+  }
+  near(dance(STRONG(0.2)).squash, 0, 1e-9);
+  assert.equal(dance(STRONG(0.5)).squash, 0, 'standing, it is not squashed');
+  const air = dance(STRONG(1 - AIR / 2)).squash;
+  assert.ok(air < 0 && air >= -0.5, `a little stretched at the top of the hop: ${air}`);
+  for (let t = 0; t < 4; t += 0.0131) {
+    const d = dance(t);
+    assert.ok(d.hop >= 0 && d.hop <= 1 && d.squash >= -1 && d.squash <= 1, `${JSON.stringify(d)} at ${t}`);
+  }
+});
+
+test('nothing dances on a weak beat, and a time that is not a number dances nothing', () => {
+  // the weak beats are at 0.75, 1.75...: half a cycle from the strong ones, longer than a flight, a landing or a nod away
+  for (const weak of [0.75, 1.75, 2.75, 10.75]) {
+    for (const t of [weak, weak + 0.05, weak + 0.1]) assert.deepEqual(dance(t), { nod: 0, hop: 0, squash: 0 }, `at ${t}`);
+    assert.equal(dance(weak - 0.05).hop + dance(weak - 0.05).squash, 0, 'a mushroom is on the ground a little before it too');
+  }
+  assert.deepEqual(dance(NaN), { nod: 0, hop: 0, squash: 0 });
+  assert.deepEqual(dance(Infinity), { nod: 0, hop: 0, squash: 0 });
 });
 
 // ---------------------------------------------------------------------------------------------

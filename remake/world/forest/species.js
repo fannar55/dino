@@ -484,6 +484,7 @@ function buildFern(rng, { lod, noise }) {
       color: colour, sway: (p, t) => LEAN.fern * t * length, flutter: (p, t) => 0.3 * t, exposure: (p, t) => 0.55 + 0.45 * t,
     });
   }
+  thin.pivot(0, 'lean'); // the whole fern leans away from a character, about its foot
   return { solid: null, thin, height: size * 0.75, radius: size * 0.7, crown: { c: [0, size * 0.35, 0], r: size * 0.85, ry: size * 0.4 } };
 }
 
@@ -641,6 +642,7 @@ function buildMushrooms(rng, { lod, noise }) {
   const solid = new MeshBuilder();
   const count = rng.int(2, 5);
   for (let k = 0; k < count; k++) {
+    const first = solid.count;
     const az = rng.angle(), rr = k === 0 ? 0 : rng.range(0.08, 0.28);
     const x = Math.cos(az) * rr, z = Math.sin(az) * rr;
     const scale = k === 0 ? 1 : rng.range(0.5, 0.85);
@@ -697,6 +699,7 @@ function buildMushrooms(rng, { lod, noise }) {
       }
       for (let j = 0; j < 6; j++) solid.triFacing(c0, ring[j], ring[(j + 1) % 6]);
     }
+    solid.pivot(first, 'hop', [x, 0, z]); // each mushroom hops and squashes about its own foot, on the beat
   }
   return { solid, thin: null, height: 0.25, radius: 0.3, crown: { c: [0, 0.1, 0], r: 0.3, ry: 0.15 } };
 }

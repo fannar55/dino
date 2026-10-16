@@ -34,11 +34,19 @@ export class MeshBuilder {
     this.wind = []; // sway, flutter, leaf
     this.exp = [];
     this.idx = [];
+    this.pivots = []; // parts that move about a pivot of their own beyond the wind (see pivot())
   }
   get count() { return this.pos.length / 3; }
   get triangles() { return this.idx.length / 3; }
   /** Start a new cull piece here (a tree's crown after its trunk): the batcher culls pieces separately. */
   mark() { (this.marks ||= []).push(this.idx.length); }
+  /**
+   * The vertices from `from` up to the last one added are one part that moves about a pivot of its own, beyond the wind (batch.js
+   * bakes it into aPivot, forestPivot in materials.js moves it): kind 'lean' is a fern, which leans away from a character about
+   * the model's foot (the origin; `at` is not read); 'hop' a mushroom, which hops and squashes about `at`, its foot; 'nod' a
+   * flower head, which turns about `at`, the tip of its stem, toward `facing`, the angle on the ground (atan2(z, x)) it dips toward.
+   */
+  pivot(from, kind, at = [0, 0, 0], facing = 0) { this.pivots.push({ from, to: this.count, kind, at, facing }); }
   vertex(p, n, c, sway = 0, flutter = 0, leaf = 0, exposure = 1) {
     this.pos.push(p[0], p[1], p[2]);
     this.nrm.push(n[0], n[1], n[2]);
@@ -67,6 +75,7 @@ export class MeshBuilder {
     this.wind.push(...other.wind);
     this.exp.push(...other.exp);
     for (const i of other.idx) this.idx.push(i + base);
+    for (const run of other.pivots) this.pivots.push({ ...run, from: run.from + base, to: run.to + base });
   }
 }
 
@@ -466,6 +475,7 @@ export function addRibbonFrond(b, o) {
 /** Flower head: rounded petals around a raised centre, facing `normal`. */
 export function addFlowerHead(b, o) {
   const { center, normal, radius, petals = 5, petalColor, centerColor, sway = 0, rot = 0 } = o;
+  const first = b.count;
   const n = norm3(normal);
   let a = norm3(cross3(n, Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
   const c2 = cross3(n, a);
@@ -487,4 +497,6 @@ export function addFlowerHead(b, o) {
   const cr = [];
   for (let k = 0; k < 5; k++) cr.push(b.vertex(at(rot + k * (Math.PI * 2 / 5), radius * 0.26, radius * 0.1), nUp, centerColor, sway, 0.004, 0.2, 1));
   for (let k = 0; k < 5; k++) b.triFacing(cTop, cr[k], cr[(k + 1) % 5]);
+  // on the beat the head nods about the tip of its stem, toward the way it already tilts (a head that faces straight up, toward its rotation)
+  b.pivot(first, 'nod', center, Math.hypot(n[0], n[2]) > 0.05 ? Math.atan2(n[2], n[0]) : rot);
 }

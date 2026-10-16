@@ -16,13 +16,13 @@
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
 //   plan.js        placements from the layout (path, shots, actors, sun corridor)
-//   batch.js       placed models baked into merged sector meshes
+//   batch.js       placed models baked into merged sector meshes (and the pivot of what bends, nods and hops: aPivot)
 //   grass.js       blade grass with wind, distance LOD and actor footprints
 //   far.js         the far treeline rings
 //   atmosphere.js  light shafts and motes
 import * as THREE from 'three';
 import { FOREST, leafShadowsOf } from './config.js';
-import { createTerrain } from './terrain.js';
+import { createTerrain, ACTOR_GLSL } from './terrain.js';
 import { createSpeciesLibrary } from './species.js';
 import { planForest } from './plan.js';
 import { createBatcher, cullBatches, cullCasters } from './batch.js';
@@ -80,8 +80,10 @@ export async function createForest(world, layout) {
 
   // vegetation, rocks and wood
   const low = q.name === 'low';
-  const solid = createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'forest-solid', low });
-  const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low });
+  // the ferns lean away from the same footprint capsules the grass lies down under and the ground shades round
+  const actors = { glsl: ACTOR_GLSL, uniforms: actorUniforms };
+  const solid = createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'forest-solid', low, actors });
+  const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low, actors });
   const solidDepth = createWindDepthMaterial(shared, 'forest-solid');
   const thinDepth = createWindDepthMaterial(shared, 'forest-thin');
   const batcher = createBatcher();

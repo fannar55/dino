@@ -8,6 +8,11 @@ import { seededRandom } from '../../engine/random.js';
 // (engine/effects.js, which main.js updates every frame) advances it, so sparkles pause with the game
 // and land on the same frame in a capture. When its last glint has faded, the set takes itself out of
 // the scene and its handle finishes. Additive, like the forest's motes, so nothing needs sorting.
+//
+// The machinery is not only for sparkles: glints() takes a look (the sparkles' own, SPARKLE_LOOK, is what it gives when none
+// is asked for) and pollen.js is the same set of glints with another one. A look sets how a glint is drawn (the glow, its star,
+// its twinkle, how it fades at the rim, how much its size varies, what blending) and how it flies (swirling, rising, drifting).
+// SPARKLE_LOOK switches the flying parts off, so the sparkles move as they always have.
 
 const GOLD = '#f2b630'; // star gold (STYLE.md section 10): warm against the sky and against Mosi's sage
 const CORE = '#fff4d6'; // the white-gold heart of each glint, the clearing's motes' colour
@@ -21,6 +26,11 @@ uniform float uSpread; // metres it flies out along its seed
 uniform float uFall; // metres it sinks by the end of its life
 uniform float uSize; // metres across
 uniform float uPixelScale; // pixels a metre spans one metre from the camera
+uniform float uSwirl; // radians the way out turns about the vertical over a life
+uniform float uRise; // metres it rises by the end of its life
+uniform vec2 uDrift; // metres it drifts along the ground by the end of its life
+uniform float uTwinkle; // 1 for the twinkle, 0 for a steady light
+uniform float uVary; // 1 for sizes between half and one and a half times uSize, 0 for all alike
 varying float vLight;
 #include <common>
 #include <fog_pars_vertex>
@@ -28,19 +38,27 @@ void main() {
   float age = uTime - birth;
   float t = clamp( age / uLife, 0.0, 1.0 );
   float fly = 1.0 - ( 1.0 - t ) * ( 1.0 - t ) * ( 1.0 - t ); // fast out, then it hangs
-  vec3 p = position + seed.xyz * uSpread * fly - vec3( 0.0, uFall * t * t, 0.0 );
+  vec3 way = seed.xyz * uSpread * fly;
+  float turn = uSwirl * t * ( 0.6 + 0.8 * seed.w ); // each at its own pace, so the cloud winds up into a spiral
+  way.xz = vec2( cos( turn ) * way.x - sin( turn ) * way.z, sin( turn ) * way.x + cos( turn ) * way.z );
+  vec3 p = position + way + vec3( uDrift.x * t * t, uRise * t * ( 0.55 + 0.9 * seed.w ) - uFall * t * t, uDrift.y * t * t );
   vec4 mvPosition = modelViewMatrix * vec4( p, 1.0 );
   gl_Position = projectionMatrix * mvPosition;
   float alive = step( 0.0, age ) * step( age, uLife );
-  float twinkle = 0.62 + 0.38 * sin( 6.2831853 * ( seed.w + age * 2.6 ) );
+  float twinkle = uTwinkle > 0.5 ? 0.62 + 0.38 * sin( 6.2831853 * ( seed.w + age * 2.6 ) ) : 1.0;
   vLight = alive * min( 1.0, t * 10.0 ) * ( 1.0 - t * t ) * twinkle;
-  gl_PointSize = alive * uSize * uPixelScale / max( 0.2, -mvPosition.z ) * ( 0.45 + 0.55 * vLight );
+  float grain = mix( 1.0, 0.5 + fract( seed.w * 7.31 ), uVary );
+  gl_PointSize = alive * uSize * grain * uPixelScale / max( 0.2, -mvPosition.z ) * ( 0.45 + 0.55 * vLight );
   #include <fog_vertex>
 }`;
 
 const FRAG = /* glsl */`
 uniform vec3 uColour;
 uniform vec3 uCore;
+uniform float uGlow; // how bright the soft glow is at its heart
+uniform float uFalloff; // how fast the glow fades outward: the bigger, the tighter
+uniform float uStar; // 1 for the little four-pointed star, 0 for none
+uniform float uRim; // 1 fades the glow out before the edge of the point, for a speck that is round to its rim
 varying float vLight;
 #include <common>
 #include <fog_pars_fragment>
@@ -48,8 +66,9 @@ void main() {
   vec2 q = gl_PointCoord * 2.0 - 1.0;
   float r2 = dot( q, q );
   // A soft glow and a little four-pointed star.
-  float rays = max( 0.0, 1.0 - abs( q.x ) * 7.0 ) * max( 0.0, 1.0 - abs( q.y ) ) + max( 0.0, 1.0 - abs( q.y ) * 7.0 ) * max( 0.0, 1.0 - abs( q.x ) );
-  float a = clamp( 0.85 * exp( -r2 * 5.0 ) + 0.9 * rays, 0.0, 1.0 ) * vLight;
+  float rays = ( max( 0.0, 1.0 - abs( q.x ) * 7.0 ) * max( 0.0, 1.0 - abs( q.y ) ) + max( 0.0, 1.0 - abs( q.y ) * 7.0 ) * max( 0.0, 1.0 - abs( q.x ) ) ) * uStar;
+  float rim = 1.0 - uRim * smoothstep( 0.45, 1.0, r2 );
+  float a = clamp( uGlow * exp( -r2 * uFalloff ) * rim + 0.9 * rays, 0.0, 1.0 ) * vLight;
   if ( a < 0.004 ) discard;
   gl_FragColor = vec4( mix( uColour, uCore, clamp( exp( -r2 * 14.0 ) + 0.5 * rays, 0.0, 1.0 ) ), a );
   #include <tonemapping_fragment>
@@ -57,22 +76,32 @@ void main() {
   #include <fog_fragment>
 }`;
 
-function needEffects(world, call) {
+export function needEffects(world, call) {
   if (!world?.scene || !world?.effects) {
     throw new Error(`${call} needs world.scene and world.effects (engine/effects.js), which main.js updates every frame`);
   }
 }
 
+// How the sparkles are drawn and fly: what glints() uses when it is not given a look. The shader's own settings (see VERT and FRAG),
+// the blending, the colour of the heart of a glint, and how its way out leans: its height on the sphere of ways, spread over `span`
+// from `floor`. swirl, rise and drift are 0: the sparkles fly out, hang and sink, as they always have.
+export const SPARKLE_LOOK = {
+  glow: 0.85, falloff: 5, star: 1, twinkle: 1, rim: 0, vary: 0,
+  swirl: 0, rise: 0, drift: [0, 0],
+  core: CORE, blending: THREE.AdditiveBlending, floor: -0.6, span: 1.6,
+};
+
 // A set of `count` glints in the scene: their positions to fill in, their birth times and the shader's
 // uniforms. Seeded, so a capture shows the same sparkles every time.
-function glints(world, { count, life, spread, fall, size, colour, seed }) {
+export function glints(world, { count, life, spread, fall, size, colour, seed, look = {} }) {
+  const how = { ...SPARKLE_LOOK, ...look };
   const random = seededRandom(seed);
   const position = new Float32Array(count * 3);
   const birth = new Float32Array(count);
   const seeds = new Float32Array(count * 4);
   for (let i = 0; i < count; i++) {
     // A way out on the sphere, leaning up, each with its own reach.
-    const y = random() * 1.6 - 0.6;
+    const y = random() * how.span + how.floor;
     const turn = random() * Math.PI * 2;
     const across = Math.sqrt(Math.max(0, 1 - y * y));
     const reach = 0.45 + 0.55 * random();
@@ -91,11 +120,20 @@ function glints(world, { count, life, spread, fall, size, colour, seed }) {
     uSize: { value: size },
     uPixelScale: { value: 800 },
     uColour: { value: new THREE.Color(colour) },
-    uCore: { value: new THREE.Color(CORE) },
+    uCore: { value: new THREE.Color(how.core) },
+    uGlow: { value: how.glow },
+    uFalloff: { value: how.falloff },
+    uStar: { value: how.star },
+    uRim: { value: how.rim },
+    uTwinkle: { value: how.twinkle },
+    uVary: { value: how.vary },
+    uSwirl: { value: how.swirl },
+    uRise: { value: how.rise },
+    uDrift: { value: new THREE.Vector2(how.drift[0], how.drift[1]) },
   };
   const material = new THREE.ShaderMaterial({
     vertexShader: VERT, fragmentShader: FRAG, uniforms,
-    fog: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    fog: true, transparent: true, depthWrite: false, blending: how.blending,
   });
   material.name = 'sparkles';
   const points = new THREE.Points(geometry, material);
@@ -119,7 +157,7 @@ function glints(world, { count, life, spread, fall, size, colour, seed }) {
 }
 
 // Runs a set of glints on world.effects until `end` seconds, then takes it away and finishes the handle.
-function run(world, set, end, label, step = () => {}) {
+export function run(world, set, end, label, step = () => {}) {
   const handle = new Handle(label);
   let age = 0;
   const effect = {

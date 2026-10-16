@@ -5,7 +5,7 @@
 //   - fake canopy shade outside the shadow map: baked sky visibility per vertex plus a cheap
 //     dappled-light pattern, so the deep forest is darker without more shadow maps.
 import * as THREE from 'three';
-import { FOREST, BEAT_SHARE } from './config.js';
+import { FOREST, BEAT_SHARE, PIVOT } from './config.js';
 import { createRng } from './random.js';
 
 /** Tileable 128x128 noise: R dapple blobs, G medium fbm, B coarse fbm, A fine grain. */
@@ -117,6 +117,72 @@ vec3 forestWind(vec3 wp, vec4 w) {
   return off;
 }`;
 
+// Parts that move about a pivot of their own, beyond the wind: a fern leans away from a character, a flower head nods, a mushroom
+// hops. batch.js bakes each vertex's pivot as aPivot (the last byte, PIVOT in config.js, says which part it is; the others say where
+// about) and forestPivot returns the offset to add to the vertex on top of forestWind's. It needs the footprint capsules of ACTOR_GLSL
+// (terrain.js), which the grass lies down under too, and the wind's uDance (engine/beat.js: danceAt).
+//   lean  A fern vertex `lever` metres above the plant's foot is turned about the foot, away from the nearest part of the capsule
+//         (from its middle outward along its length, where "nearest" would flip between its two sides), by an angle that eases
+//         from forestLean where the footprint is to nothing forestLeanReach metres beyond it (for a footprint the size of the grass's
+//         own, forestFootRadius; a smaller actor has a smaller reach). Turned, not shortened: a lean.
+//   hop   A mushroom rises by uDance.y of forestHop, and is squashed by uDance.z of forestSquash of its height (a negative number
+//         stretches it), about its foot.
+//   nod   A flower head turns about the tip of its stem by uDance.x of forestNod, to dip toward the way it faces.
+// Each plant takes its own share of the dance, 0.8 to 1, from the phase of its wind, so a field of them does not move as one.
+const BEND = FOREST.fernBend;
+const DANCE = FOREST.dance;
+const RADIANS = Math.PI / 180;
+export const PIVOT_GLSL = /* glsl */`
+attribute vec4 aPivot;
+uniform vec3 uDance;
+const float forestReach = ${FOREST.pivot.reach.toFixed(3)};
+const float forestHeight = ${FOREST.pivot.height.toFixed(3)};
+const float forestNodSteps = ${PIVOT.nodSteps.toFixed(1)};
+const float forestNod = ${(DANCE.nodDeg * RADIANS).toFixed(6)};
+const float forestHop = ${DANCE.hop.toFixed(4)};
+const float forestSquash = ${DANCE.squash.toFixed(4)};
+const float forestLean = ${(BEND.leanDeg * RADIANS).toFixed(6)};
+const float forestLeanReach = ${BEND.reach.toFixed(3)};
+const float forestFootRadius = ${FOREST.grass.footprint.radius.toFixed(3)};
+vec2 forestActorAway( vec2 p, int i ) {
+  vec4 a = uActors[ i ];
+  vec4 s = uActorShape[ i ];
+  vec2 d = p - a.xy;
+  vec2 local = vec2( dot( d, a.zw ), dot( d, vec2( -a.w, a.z ) ) );
+  vec2 beyond = vec2( local.x - clamp( local.x, -s.x, s.x ), local.y );
+  vec2 dir = mix( local, beyond, smoothstep( 0.0, 0.3, length( beyond ) ) );
+  dir /= max( length( dir ), 1e-4 );
+  return dir.x * a.zw + dir.y * vec2( -a.w, a.z );
+}
+vec3 forestFernLean( vec2 p, float lever ) {
+  vec2 push = vec2( 0.0 );
+  for ( int i = 0; i < 4; i ++ ) {
+    if ( i >= uActorCount ) break;
+    float reach = forestLeanReach * uActorShape[ i ].y / forestFootRadius; // a smaller footprint, a smaller lean
+    push += forestActorAway( p, i ) * ( 1.0 - smoothstep( -0.2, reach, forestActorDistance( p, i ) ) );
+  }
+  float len = length( push );
+  float angle = forestLean * min( len, 1.0 );
+  vec2 dir = push / max( len, 1e-4 );
+  return vec3( dir.x * sin( angle ), cos( angle ) - 1.0, dir.y * sin( angle ) ) * lever;
+}
+vec3 forestPivot( vec3 wp, vec4 w, vec4 a ) {
+  float code = floor( a.w * 255.0 + 0.5 );
+  if ( code < 0.5 ) return vec3( 0.0 );
+  if ( code < 1.5 ) return forestFernLean( wp.xz, a.x * forestHeight );
+  vec3 rel = ( a.xyz * 255.0 - 127.0 ) * ( forestReach / 127.0 );
+  float own = 0.8 + 0.2 * fract( w.x * 7.31 );
+  if ( code < 2.5 ) {
+    float squash = uDance.z * forestSquash * own;
+    return vec3( rel.x * 0.5 * squash, uDance.y * forestHop * own - rel.y * squash, rel.z * 0.5 * squash );
+  }
+  float facing = ( code - 3.0 ) * ( 6.2831853 / forestNodSteps );
+  vec3 axis = vec3( sin( facing ), 0.0, -cos( facing ) );
+  float angle = uDance.x * forestNod * own;
+  vec3 turned = rel * cos( angle ) + cross( axis, rel ) * sin( angle ) + axis * ( dot( axis, rel ) * ( 1.0 - cos( angle ) ) );
+  return turned - rel;
+}`;
+
 // Replacement for three's lights_lambert_pars_fragment: wrap lighting, canopy shade, backlit glow.
 // gSun scales the sun (after the shadow map), gAmb the sky fill, gLeaf turns on wrap and glow.
 export const LIGHTS_GLSL = /* glsl */`
@@ -197,6 +263,7 @@ export function createSharedUniforms(world, noiseTexture, leafTexture, leafShado
     uWindStrength: w.uWindStrength,
     uWindDirection: w.uWindDirection,
     uBeat: w.uBeat,
+    uDance: w.uDance,
     uNoise: { value: noiseTexture },
     uLeaf: { value: leafTexture },
     uDapple: { value: FOREST.shade.dapple },
@@ -232,15 +299,19 @@ export function patchLambert(material, key, uniforms, parts) {
 
 /**
  * The vegetation material: one for closed parts (front faces) and one double-sided for fronds,
- * petals and needles. Vertex colour alpha carries the sky visibility, aWind the wind weights.
+ * petals and needles. Vertex colour alpha carries the sky visibility, aWind the wind weights and aPivot
+ * the parts that move about a pivot of their own (PIVOT_GLSL). `actors` is { glsl, uniforms }: the footprint
+ * capsules (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
+ * lean away from. The caller hands them in because terrain.js imports this file.
  */
-export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false }) {
+export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors }) {
+  if (!actors) throw new Error('createVegetationMaterial needs `actors`, { glsl, uniforms }: the footprints the ferns lean away from');
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   material.name = key;
   if (low) material.defines = { FOREST_LOW: '' };
   key = low ? `${key}-low` : key;
-  return patchLambert(material, key, shared, {
-    vertexHead: `attribute vec4 aWind;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}`,
+  return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
+    vertexHead: `attribute vec4 aWind;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
     vertexAfter: [
       ['#include <color_vertex>', `
   #ifdef USE_COLOR_ALPHA
@@ -251,6 +322,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
       ['#include <begin_vertex>', `
   vec3 forestRest = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
   transformed += forestWind( forestRest, aWind );
+  transformed += forestPivot( forestRest, aWind, aPivot );
   vForestPos = forestRest;
   vForestNormal = normalize( mat3( modelMatrix ) * objectNormal );
   // foliage samples the shadow map a little outside its surface: no acne on the lobes

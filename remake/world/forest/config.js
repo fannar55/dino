@@ -158,6 +158,22 @@ export const FOREST = {
     maxSwayDeg: 2.0, // a tree top at full wind
     beatAmplitudeDeg: 1, // what the beat adds to it: maxSwayDeg + this is at most 3
   },
+  // Parts that move about a pivot of their own, on top of the wind (materials.js: forestPivot). batch.js bakes the pivot into every
+  // vertex as aPivot (PIVOT below): for a fern the vertex's height above the plant's foot (up to `height` metres), for a flower head
+  // and a mushroom its offset from the point it nods or hops about (up to `reach` metres each way). 8 bits each.
+  pivot: { reach: 0.4, height: 2 },
+  // Ferns lean away from a character the way the grass lies down (grass.footprint is the capsule they both use): by up to leanDeg
+  // degrees about their foot where the footprint is, easing to nothing `reach` metres beyond it (for a footprint the size of
+  // grass.footprint, a smaller actor's footprint has a smaller reach). A lean, not a squash. The reach is well beyond the grass's
+  // own soft edge because a fern at the side of a path stands two metres off the middle of a body that wide, and is to bend.
+  fernBend: { reach: 2.6, leanDeg: 50 },
+  // On each strong beat of the theme (engine/beat.js: danceAt, in wind.uDance) the flowers and mushrooms of these bands (planner
+  // bands, plan.js) dance: a flower head nods up to nodDeg degrees about its stem's tip, toward the way it faces, and a mushroom
+  // hops `hop` metres and squashes by `squash` of its height. This is play, beside the sway, which keeps to 3 degrees: a head a few
+  // centimetres across shows no nod of 3. The edge band is in because the planner grows the mushrooms at the feet of the ring of
+  // trees, which is there (grunnur has none in the clearing band), and the child sees both from the clearing: ['clearing'] alone
+  // would leave the mushrooms still.
+  dance: { bands: ['clearing', 'edge'], nodDeg: 8, hop: 0.03, squash: 0.1 },
   shade: {
     // Fake canopy shade outside the shadow map: 1 = open sky, 0 = deep shade.
     edgeSun: 0.42,
@@ -203,6 +219,13 @@ export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
  * BEAT_SHARE along the wind. tests/forest-sway.test.mjs keeps these numbers in step with the shader's text.
  */
 export const WIND_PEAK = { along: 0.55 + 0.45 * (0.6 + 0.25), side: 0.22 };
+
+/**
+ * The last byte of a vertex's aPivot (batch.js bakes it, forestPivot in materials.js reads it): `none` for a vertex that moves with
+ * the wind alone; `lean` for a fern's, which leans away from a character; `hop` for a mushroom's; and from `nod` on, a flower
+ * head's, the byte naming which of the `nodSteps` ways round (the direction the head faces) it dips toward.
+ */
+export const PIVOT = { none: 0, lean: 1, hop: 2, nod: 3, nodSteps: 253 };
 
 /** Scale counts by the quality preset. */
 export function scaled(count, factor) {

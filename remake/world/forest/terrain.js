@@ -345,7 +345,8 @@ ${LEAF_SHADOW_GLSL}`,
 }
 
 // Actor contact shade, shared by ground and grass: a soft darkening in a capsule around each
-// actor's footprint, so every character keeps a contact shadow at every quality level.
+// actor's footprint, so every character keeps a contact shadow at every quality level. The same
+// capsules make the grass lie down and the ferns of the vegetation material lean away (materials.js).
 export const ACTOR_GLSL = /* glsl */`
 uniform vec4 uActors[4];
 uniform vec4 uActorShape[4];
