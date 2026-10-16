@@ -6,7 +6,7 @@ import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { createActor, updateActors } from '../engine/actor.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
-import { createSaddle, ride, floatTo } from '../engine/riding.js';
+import { createSaddle, ride, floatTo, floatDown } from '../engine/riding.js';
 
 // Mosi (8.5 m) and Egill (1.1 m) as the remake bakes them, read without textures (no DOM in Node).
 function loadGlb(url) {
@@ -277,4 +277,84 @@ test('a rider listed before his host still follows the seat in the same frame', 
     worst = Math.max(worst, egill.root.position.distanceTo(saddle.seat));
   }
   assert.ok(worst < 1e-3, `Egill trailed the seat by up to ${mm(worst)}`);
+});
+
+// Off again (chapter 1, scene 7): Egill floats down from the saddle onto the ground beside Mosi, the way he came up.
+const playing = (actor, clip) => actor.mixer.existingAction(actor.clips.get(clip))?.getEffectiveWeight() ?? 0;
+
+test('floatDown lifts the rider off the seat and sets him down on the ground, standing, given back', async () => {
+  const { world, mosi, egill, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  const riding = ride(egill, saddle);
+  for (let i = 0; i < 45; i++) frame();
+  saddle.update();
+  const seat = saddle.seat.clone();
+  const spot = new THREE.Vector3(1.2, 0, 3.4); // beside his right shoulder, where a float up may start
+  const down = floatDown(egill, saddle, [spot.x, spot.z], { heading: 120 });
+  assert.equal(egill.controlled, true);
+  assert.ok(mosi.lookYawLimit <= 40 && mosi.lookUpLimit <= 30, 'Mosi\'s looks stay capped while Egill floats down');
+  assert.equal(world.scene.children.filter(o => o.isPoints).length, 1, 'one trail of sparkles');
+  let highest = 0;
+  let frames = 0;
+  for (; frames < 120 && !down.done; frames++) {
+    frame();
+    highest = Math.max(highest, egill.root.position.y);
+  }
+  assert.equal(down.done, true);
+  assert.ok(Math.abs(frames / 30 - 2.2) < 0.05, `the float took ${(frames / 30).toFixed(2)} s`);
+  assert.ok(highest > seat.y + 0.2, 'he rises off the seat before he comes down');
+  assert.ok(egill.root.position.distanceTo(spot) < 0.01, `he lands ${mm(egill.root.position.distanceTo(spot))} from the spot`);
+  assert.equal(egill.controlled, false, 'on the ground he is his own again');
+  assert.ok(Math.abs(egill.heading - 120) < 0.5, `facing ${egill.heading.toFixed(1)} degrees, as asked`);
+  assert.equal(mosi.lookYawLimit, Infinity, 'the caps go when he is down');
+  assert.equal(mosi.lookUpLimit, Infinity);
+  for (let i = 0; i < 6; i++) frame();
+  assert.ok(playing(egill, 'idle') > 0.99 && playing(egill, 'sit') < 0.01 && playing(egill, 'lifted') < 0.01, 'he stands');
+  assert.ok(egill.root.getWorldScale(new THREE.Vector3()).distanceTo(unit) < 1e-6, 'never taking Mosi\'s scale');
+  // The ride is over: Mosi walks on without him, and stopping the old ride changes nothing.
+  riding.stop();
+  mosi.walkTo([[12, -2]], { speed: 0.95 });
+  for (let i = 0; i < 60; i++) frame();
+  assert.ok(egill.root.position.distanceTo(spot) < 0.01, 'Egill stays where he landed');
+  assert.equal(egill.controlled, false);
+});
+
+test('a rider given back faces where he faced: turned about the vertical alone, whatever the heading', async () => {
+  const { mosi, egill, frame } = await stage();
+  mosi.place(0, 0, 150);
+  const saddle = createSaddle(mosi);
+  const riding = ride(egill, saddle);
+  for (let i = 0; i < 30; i++) frame();
+  riding.stop();
+  assert.ok(Math.abs(egill.heading - 150) < 0.5, `he faces ${egill.heading.toFixed(1)} degrees, Mosi 150`);
+  assert.ok(Math.abs(egill.root.rotation.x) < 1e-9 && Math.abs(egill.root.rotation.z) < 1e-9, 'upright');
+  egill.turnTo(200);
+  for (let i = 0; i < 90; i++) frame();
+  assert.ok(new THREE.Vector3(0, 1, 0).applyQuaternion(egill.root.quaternion).y > 0.999, 'and still upright after he turns by himself');
+});
+
+test('the float down is the float up backwards, so a spot a float may start from is one he may land on', async () => {
+  const { mosi, egill, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  mosi.mixer.timeScale = 0; // he holds his breath, so the seat stays put between the two floats
+  const spot = [1.2, 3.4];
+  egill.place(spot[0], spot[1], 250);
+  const up = floatTo(egill, saddle);
+  const upPath = [egill.root.position.clone()];
+  while (!up.done) {
+    frame();
+    upPath.push(egill.root.position.clone());
+  }
+  ride(egill, saddle);
+  for (let i = 0; i < 30; i++) frame();
+  const down = floatDown(egill, saddle, spot);
+  const downPath = [egill.root.position.clone()];
+  while (!down.done) {
+    frame();
+    downPath.push(egill.root.position.clone());
+  }
+  assert.equal(downPath.length, upPath.length, 'it takes as long');
+  let worst = 0;
+  for (let i = 0; i < downPath.length; i++) worst = Math.max(worst, downPath[i].distanceTo(upPath[upPath.length - 1 - i]));
+  assert.ok(worst < 0.002, `the way down strays ${mm(worst)} from the way up`);
 });

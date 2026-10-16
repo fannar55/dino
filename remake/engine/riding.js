@@ -11,6 +11,7 @@ import { sparkleBurst, sparkleTrail } from '../world/props/sparkles.js';
 //   yield saddle.appear();                // it pops in with a burst of sparkles
 //   yield floatTo(egill, saddle);         // up, across and down into the seat, leaving sparkles behind
 //   const riding = ride(egill, saddle);   // he sits there, hands on the handle, until riding.stop()
+//   yield floatDown(egill, saddle, spot); // and off again: the float up backwards, onto his feet on the ground
 //
 // The float and the ride take the rider over (actor.control): each frame, in the rider's own update on
 // the game clock, they put the rider's root, and after his clips the ride lays his hands on the handle.
@@ -331,6 +332,10 @@ function release(rider, controller) {
   if (controllers.get(rider) !== controller) return;
   controller.end();
   controllers.delete(rider);
+  // Given back turned about the vertical alone, as the actor turns itself: it reads its heading from rotation.y, and a
+  // quaternion a controller set past 90 degrees reads back as (180, 180 - y, 180) degrees.
+  const forward = new V3(1, 0, 0).applyQuaternion(rider.root.quaternion);
+  rider.root.rotation.set(0, -Math.atan2(forward.z, forward.x), 0);
   rider.control(null);
 }
 
@@ -458,5 +463,58 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
   rider.play('lifted', { fade: 0.3 });
   const trail = new V3();
   sparkleTrail(world, () => rider.centre(trail), { duration: 0.9 * duration, seed: `${rider.name} float` });
+  return handle;
+}
+
+/**
+ * The float down: the float up backwards. The rider rises off the seat, floats out over the host's side and comes down onto
+ * `spot` ([x, z] on the ground, or a point spec taken where it is now) over `duration` seconds, playing `lifted` with a trail of
+ * sparkles, and lands standing (idle) facing `heading` (degrees; the way he faces now when left out). It takes him over from a
+ * ride, which ends. The curve and its timing are floatTo's reversed, so a spot a float up may start from is one he may land on
+ * (LOOK_CAPS above: the host's looks are capped until he is down). Returns a Handle that finishes with him on the ground, given
+ * back (actor.control(null)), so footing has his feet from there.
+ */
+export function floatDown(rider, saddle, spot, { duration = 2.2, heading = rider.heading } = {}) {
+  const world = rider.world;
+  if (!world?.effects) throw new Error('floatDown needs the rider\'s world.effects (engine/effects.js), which main.js updates');
+  const handle = new Handle(`${rider.name} floats down`);
+  const ground = Array.isArray(spot) && spot.length === 2 ? new V3(spot[0], 0, spot[1]) : world.resolvePoint(spot, new V3());
+  ground.y = world.heightAt?.(ground.x, ground.z) ?? ground.y;
+  const startTurn = rider.root.quaternion.clone();
+  const facing = new THREE.Quaternion().setFromAxisAngle(UP, -THREE.MathUtils.degToRad(heading));
+  const lift = new V3();
+  const over = new V3();
+  let t = 0;
+  let standing = false;
+  const controller = {
+    drive(dt) {
+      if (!handle.cancelled) t += dt;
+      const seat = saddle.update();
+      const u = clamp01(t / duration);
+      const k = smooth(u);
+      lift.copy(seat).addScaledVector(UP, FLOAT_HOVER);
+      over.set(ground.x, seat.y + FLOAT_HOVER, ground.z);
+      const a = (1 - k) ** 3, b = 3 * (1 - k) ** 2 * k, c = 3 * (1 - k) * k * k, e = k ** 3;
+      rider.root.position.set(0, 0, 0).addScaledVector(seat, a).addScaledVector(lift, b).addScaledVector(over, c).addScaledVector(ground, e);
+      rider.root.quaternion.slerpQuaternions(startTurn, facing, smooth(clamp01((u - 0.3) / 0.7)));
+      if (!standing && t >= duration - FLOAT_SIT) {
+        standing = true;
+        rider.play('idle', { fade: FLOAT_SIT });
+      }
+      if (u >= 1 && !handle.done) {
+        handle.finish();
+        release(rider, controller); // on his feet: footing takes them from here
+      }
+    },
+    end() {
+      if (!handle.done) handle.cancel(); // a cancelled float leaves him held where he is
+      uncap();
+    },
+  };
+  take(rider, controller);
+  const uncap = capLooks(saddle.host);
+  rider.play('lifted', { fade: FLOAT_SIT });
+  const trail = new V3();
+  sparkleTrail(world, () => rider.centre(trail), { duration: 0.9 * duration, seed: `${rider.name} float down` });
   return handle;
 }
