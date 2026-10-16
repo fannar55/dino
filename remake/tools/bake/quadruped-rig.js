@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
+import { touchingParts, weldSkin, surfaceDistance, harmonicField, chainWeighting } from './skin.js';
 
 // Rigs a four-legged character from an unrigged Tripo export kept in parts (remake/tools/
 // blender-decimate.py ... parts). bake-quadruped.js runs it in the browser; tests and probes run it
@@ -24,7 +25,7 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // the body, and the skin follows the chain by where it lies along the line through the joints, so a
 // cross-section of the neck moves as one.
 //
-// The welded skin: Tripo cuts a model into parts along seams whose two sides match, and
+// The welded skin (skin.js): Tripo cuts a model into parts along seams whose two sides match, and
 // blender-decimate.py decimates the parts as one mesh, so they still match vertex for vertex and,
 // welded, make one closed surface.
 // Every seam cluster gets one set of weights, so the seams stay closed when skinned, and a closed,
@@ -109,19 +110,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   if (!head || head.c.x <= foreX) throw new Error('no head part ahead of the fore legs');
   // Parts that meet along a seam share vertex positions (blender-decimate.py welds them). The trunk is
   // the body, the head and the parts on the way between them, seam to seam.
-  const WELD = 0.001; // metres
-  const touching = new Map(parts.map(p => [p, new Set()]));
-  {
-    const grid = new Map();
-    for (const part of parts) {
-      for (const q of part.points) {
-        const k = `${Math.round(q.x / WELD)},${Math.round(q.y / WELD)},${Math.round(q.z / WELD)}`;
-        if (!grid.has(k)) grid.set(k, new Set());
-        grid.get(k).add(part);
-      }
-    }
-    for (const set of grid.values()) for (const a of set) for (const b of set) if (a !== b) touching.get(a).add(b);
-  }
+  const touching = touchingParts(parts);
   const way = new Map([[head, null]]);
   for (const queue = [head]; queue.length && !way.has(body);) {
     const p = queue.shift();
@@ -260,195 +249,21 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   const index = Object.fromEntries(names.map((n, i) => [n, i]));
 
   // --- one closed skin ------------------------------------------------------------------------------
-  // Seam vertices snap onto their cluster's first vertex (after blender-decimate.py they lie on top of
-  // each other). Normals and UVs stay as the parts carry them: the parts have their own texture
-  // islands, and the decimation gave the seams the normals of the whole mesh.
-  let offset = 0;
-  for (const part of parts) { part.offset = offset; offset += part.verts; }
-  const owner = [];
-  for (const part of parts) for (let i = 0; i < part.verts; i++) owner.push(part);
-  const rep = new Int32Array(offset);
-  const grid = new Map();
-  const cell = v => [Math.floor(v.x / WELD), Math.floor(v.y / WELD), Math.floor(v.z / WELD)];
-  const at = r => owner[r].points[r - owner[r].offset];
-  for (const part of parts) {
-    const pos = part.geometry.attributes.position;
-    for (let i = 0; i < part.verts; i++) {
-      const g = part.offset + i;
-      const q = part.points[i];
-      const [cx, cy, cz] = cell(q);
-      let found = -1;
-      for (let dx = -1; dx <= 1 && found < 0; dx++) for (let dy = -1; dy <= 1 && found < 0; dy++) for (let dz = -1; dz <= 1 && found < 0; dz++) {
-        for (const other of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) {
-          if (q.distanceTo(at(other)) <= WELD) { found = other; break; }
-        }
-      }
-      if (found >= 0) {
-        rep[g] = found;
-        q.copy(at(found));
-        pos.setXYZ(i, q.x, q.y, q.z);
-      } else {
-        rep[g] = g;
-        const key = `${cx},${cy},${cz}`;
-        if (!grid.has(key)) grid.set(key, []);
-        grid.get(key).push(g);
-      }
-    }
-  }
-  // A sliver whose corners weld together has no area left: drop it, so its doubled edge does not
-  // count against the skin below.
-  let slivers = 0;
-  for (const part of parts) {
-    const ix = part.geometry.index.array;
-    const kept = [];
-    for (let t = 0; t < ix.length; t += 3) {
-      const [a, b, c] = [0, 1, 2].map(e => rep[part.offset + ix[t + e]]);
-      if (a === b || b === c || a === c) slivers++;
-      else kept.push(ix[t], ix[t + 1], ix[t + 2]);
-    }
-    if (kept.length < ix.length) part.geometry.setIndex(kept);
-  }
-  // Each edge of the welded surface must belong to exactly two triangles that run it in opposite
-  // directions; then the skin is closed and consistently wound.
-  const edges = new Map();
-  const partsAt = new Map(); // cluster -> the parts that meet there
-  for (const part of parts) {
-    const ix = part.geometry.index.array;
-    for (let t = 0; t < ix.length; t += 3) {
-      for (let e = 0; e < 3; e++) {
-        const a = rep[part.offset + ix[t + e]], b = rep[part.offset + ix[t + (e + 1) % 3]];
-        if (!partsAt.has(a)) partsAt.set(a, new Set());
-        partsAt.get(a).add(part);
-        if (a === b) continue;
-        const key = a < b ? `${a},${b}` : `${b},${a}`;
-        const edge = edges.get(key) || { n: 0, turn: 0, a: Math.min(a, b), b: Math.max(a, b), part };
-        edge.n++;
-        edge.turn += a < b ? 1 : -1;
-        edges.set(key, edge);
-      }
-    }
-  }
-  let open = 0, nonManifold = 0, misWound = 0;
-  for (const edge of edges.values()) {
-    if (edge.n === 1) open++;
-    else if (edge.n > 2) nonManifold++;
-    else if (edge.turn !== 0) misWound++;
-  }
-  const closed = open === 0 && misWound === 0;
-  report.skin = { vertices: offset, welded: new Set(rep).size, triangles: [...edges.values()].reduce((s, e) => s + e.n, 0) / 3, slivers, openEdges: open, misWound, nonManifold, closed };
+  // The parts welded at their seams (skin.js). Normals and UVs stay as the parts carry them: the parts
+  // have their own texture islands, and the decimation gave the seams the normals of the whole mesh.
+  const skin = weldSkin(parts);
+  const { rep, owner, at, partsAt, seamOf, closed } = skin;
+  report.skin = skin.report;
 
   // --- skin weights -----------------------------------------------------------------------------------
   // Along the centre line each chain bone owns the stretch from its joint to the next one (a tail
-  // bone the stretch behind its joint), blended over a band around each joint, so a bone that turns
-  // bends the skin about its own joint. From the tail tip to the head, owners[k] holds the stretch
-  // (cuts[k-1], cuts[k]): every joint but the hips' is a cut, so the hips hold the stretch from the
-  // tail's root to the spine.
+  // bone the stretch behind its joint), blended over a band around each joint (skin.js,
+  // chainWeighting): every joint but the hips' is a cut, so the hips hold the stretch from the tail's
+  // root to the spine. With a raised neck (`curve`) a point's place along the chain is its place along
+  // the line through the joints, so a cross-section of the neck is one place, and the head stays rigid
+  // in front of its joint.
   const owners = [...tailNames].reverse().concat(chain.filter(([n]) => !n.startsWith('Tail')).map(([n]) => n));
-  // Where along the chain a point lies: its x, or with a raised neck (`curve`) its place along the
-  // line through the joints from the tail's tip to the head, so a cross-section of the neck is one
-  // place. A point far from the line (the chest under the neck) blends the places of the stretches
-  // nearly as close as the nearest one, so the inside of a bend has no seam of its own.
-  let along = p => p.x;
-  if (curve) {
-    const line = owners.map(n => joints[n]);
-    const stretches = line.slice(1).map((b, k) => {
-      const a = line[k], len = Math.hypot(b.x - a.x, b.y - a.y);
-      return { a, ux: (b.x - a.x) / len, uy: (b.y - a.y) / len, len };
-    });
-    const start = [0];
-    stretches.forEach((s, k) => start.push(start[k] + s.len));
-    along = p => {
-      let nearest = Infinity;
-      const places = stretches.map((s, k) => {
-        let u = (p.x - s.a.x) * s.ux + (p.y - s.a.y) * s.uy;
-        if (k > 0) u = Math.max(0, u); // the ends run on past the tail's tip and the head
-        if (k < stretches.length - 1) u = Math.min(s.len, u);
-        const d = Math.hypot(p.x - s.a.x - u * s.ux, p.y - s.a.y - u * s.uy);
-        nearest = Math.min(nearest, d);
-        return [start[k] + u, d];
-      });
-      const sigma = 0.01 * L + 0.25 * nearest;
-      let sum = 0, weight = 0;
-      for (const [t, d] of places) { const w = Math.exp(-(((d - nearest) / sigma) ** 2)); sum += w * t; weight += w; }
-      return sum / weight;
-    };
-  }
-  const cuts = owners.filter(n => n !== 'Hips').map(n => along(joints[n]));
-  if (cuts.some((x, k) => k && x <= cuts[k - 1])) throw new Error(`the chain's joints are out of order along the body: ${owners.join(' ')}`);
-  const halfBand = cuts.map((x, k) => {
-    const left = k > 0 ? x - cuts[k - 1] : Infinity;
-    const right = k < cuts.length - 1 ? cuts[k + 1] - x : Infinity;
-    return 0.45 * Math.min(left, right);
-  });
-  // On a raised neck the head stays rigid in front of its joint (the eyes and the mouth move as one):
-  // the blend into the neck lies behind the joint.
-  const headCut = cuts.length - 1;
-  const headBand = curve ? Math.min(2 * halfBand[headCut], cuts[headCut] - cuts[headCut - 1] - halfBand[headCut - 1]) : 0;
-  function chainWeights(x, out) {
-    let k = 0;
-    while (k < cuts.length && x > cuts[k]) k++; // owners[k] holds x
-    for (const j of [k - 1, k]) {
-      if (curve && j === headCut) {
-        if (x <= cuts[j] - headBand || x >= cuts[j]) continue;
-        const s = smooth((x - (cuts[j] - headBand)) / headBand);
-        out.push([owners[j], 1 - s], [owners[j + 1], s]);
-        return;
-      }
-      if (j < 0 || j >= cuts.length || Math.abs(x - cuts[j]) >= halfBand[j]) continue;
-      const s = smooth((x - (cuts[j] - halfBand[j])) / (2 * halfBand[j]));
-      out.push([owners[j], 1 - s], [owners[j + 1], s]);
-      return;
-    }
-    out.push([owners[k], 1]);
-  }
-
-  // Distances along the surface: from the seed clusters over the edges of the given parts, up to
-  // `limit` (Dijkstra).
-  function surfaceDistance(seeds, within, limit = Infinity) {
-    const near = new Map();
-    for (const edge of edges.values()) {
-      if (!within.has(edge.part)) continue;
-      const d = at(edge.a).distanceTo(at(edge.b));
-      for (const [from, to] of [[edge.a, edge.b], [edge.b, edge.a]]) {
-        if (!near.has(from)) near.set(from, []);
-        near.get(from).push([to, d]);
-      }
-    }
-    const distance = new Map(seeds.map(r => [r, 0]));
-    const heap = seeds.map(r => [0, r]);
-    const swap = (i, j) => { const t = heap[i]; heap[i] = heap[j]; heap[j] = t; };
-    while (heap.length) {
-      const [d, r] = heap[0];
-      const last = heap.pop();
-      if (heap.length) {
-        heap[0] = last;
-        for (let i = 0; ;) {
-          const a = 2 * i + 1, b = a + 1;
-          let m = i;
-          if (a < heap.length && heap[a][0] < heap[m][0]) m = a;
-          if (b < heap.length && heap[b][0] < heap[m][0]) m = b;
-          if (m === i) break;
-          swap(i, m);
-          i = m;
-        }
-      }
-      if (d > distance.get(r)) continue;
-      for (const [to, len] of near.get(r) || []) {
-        const next = d + len;
-        if (next > limit || next >= (distance.get(to) ?? Infinity)) continue;
-        distance.set(to, next);
-        heap.push([next, to]);
-        for (let i = heap.length - 1; i > 0;) {
-          const p = (i - 1) >> 1;
-          if (heap[p][0] <= heap[i][0]) break;
-          swap(i, p);
-          i = p;
-        }
-      }
-    }
-    return distance;
-  }
-  const seamOf = part => [...partsAt].filter(([, set]) => set.size > 1 && set.has(part)).map(([r]) => r);
+  const { along, weights: chainWeights } = chainWeighting(owners, joints, { curve, length: L });
 
   // A leg takes its whole part up to where it meets the body, and above that, fading out toward
   // the pivot, the lower part of the thigh or shoulder bulge, so a long swing bends the hip instead
@@ -460,40 +275,15 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   // the foot and blends into the leg up the lower shin.
   const up = (p, l) => smooth(clamp((l.pivot.y - p.y) / (l.pivot.y - l.junction), 0, 1));
   for (const l of legs) {
-    const domain = new Set([...trunk, l.part]);
     const reachD = spread * Math.max(l.part.size.x, l.part.size.z);
-    const near = surfaceDistance(seamOf(l.part), new Set(trunk), reachD);
-    const ids = new Map();
-    const links = [];
-    for (const edge of edges.values()) {
-      if (!domain.has(edge.part)) continue;
-      for (const r of [edge.a, edge.b]) if (!ids.has(r)) { ids.set(r, ids.size); links.push([]); }
-      const k = 1 / Math.max(1e-6, at(edge.a).distanceTo(at(edge.b)));
-      links[ids.get(edge.a)].push(ids.get(edge.b), k);
-      links[ids.get(edge.b)].push(ids.get(edge.a), k);
-    }
-    const value = new Float64Array(ids.size);
-    const free = new Uint8Array(ids.size);
-    for (const [r, i] of ids) {
+    const near = surfaceDistance(skin, seamOf(l.part), new Set(trunk), reachD);
+    const field = harmonicField(skin, new Set([...trunk, l.part]), r => {
       const p = at(r);
-      if (partsAt.get(r).has(l.part)) value[i] = up(p, l);
-      else if (up(p, l) > 0 && near.has(r)) { free[i] = 1; value[i] = up(p, l) * (1 - near.get(r) / reachD); }
-    }
-    // Gauss-Seidel with over-relaxation, edges weighted by 1 / length.
-    for (let pass = 0; pass < 4000; pass++) {
-      let change = 0;
-      for (let i = 0; i < value.length; i++) {
-        if (!free[i]) continue;
-        let sum = 0, weight = 0;
-        const list = links[i];
-        for (let j = 0; j < list.length; j += 2) { sum += value[list[j]] * list[j + 1]; weight += list[j + 1]; }
-        const next = value[i] + 1.8 * (sum / weight - value[i]);
-        change = Math.max(change, Math.abs(next - value[i]));
-        value[i] = next;
-      }
-      if (change < 1e-6) break;
-    }
-    l.share = new Map([...ids].map(([r, i]) => [r, clamp(value[i], 0, 1)]));
+      if (partsAt.get(r).has(l.part)) return { value: up(p, l), free: false };
+      if (up(p, l) > 0 && near.has(r)) return { value: up(p, l) * (1 - near.get(r) / reachD), free: true };
+      return null;
+    });
+    l.share = new Map([...field].map(([r, v]) => [r, clamp(v, 0, 1)]));
   }
   const ankleTop = 0.16 * H, ankleLow = 0.04 * H;
   function trunkWeights(p, r, own, out) {
@@ -528,7 +318,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     const bone = sitsOnly(head) ? 'Head' : leg ? (base.y < ankleTop ? leg.footName : leg.name) : w.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
     const band = Math.max(0.02 * H, 0.2 * Math.max(part.size.x, part.size.y, part.size.z));
     const under = new Set([...trunk, ...legParts].filter(t => seam.some(r => partsAt.get(r).has(t)))); // the part it sits on
-    ride.set(part, { bone, distance: surfaceDistance(seam, under, band), band, base });
+    ride.set(part, { bone, distance: surfaceDistance(skin, seam, under, band), band, base });
   }
 
   // The plates: attached parts that sit on top of the back, neck or tail (their seam above 85 % of

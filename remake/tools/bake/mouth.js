@@ -30,7 +30,9 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // Query: src, out, line, front, cut, hinge, talk (degrees the jaw opens at the loudest syllable),
 // tex (texture size), smooth (rounds), snap (metres: vertices this close to the line count as on it, so
 // a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
-// only those exactly on it), preview (1: show the result open instead of exporting).
+// only those exactly on it), channel (1: for a long beak, the pocket's fold runs along the middle of the
+// beak under the lips, a long channel, instead of reaching back into the head from the front of the
+// mouth), preview (1: show the result open instead of exporting).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
@@ -43,6 +45,7 @@ const TALK = Number(params.get('talk') || 7);
 const TEX = Number(params.get('tex') || 1024);
 const SMOOTH = Number(params.get('smooth') || 6);
 const SNAP = Number(params.get('snap') || 0);
+const CHANNEL = params.get('channel') === '1';
 const PREVIEW = params.get('preview') === '1';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -376,6 +379,9 @@ try {
   const inner = P.map((q, i) => (i === 0 || i === m - 1 ? { ...q } : nearby(P, i, 3).reduce((s, x, _, a) => ({ f: s.f + x.f / a.length, u: s.u + x.u / a.length, l: s.l + x.l / a.length }), { f: 0, u: 0, l: 0 })));
   const fold = inner.map((q, j) => {
     const depth = 0.85 * Math.max(0, Math.sin((Math.PI * j) / (m - 1))) ** 0.6;
+    // A long beak's channel: in from the lip to the middle of the beak at the same place along it, a little
+    // lower; it closes at the corners, as the deep pocket does.
+    if (CHANNEL) return { f: q.f - 0.02 * span * depth, u: q.u - 0.03 * span * depth, l: q.l * (1 - depth) };
     return { f: THREE.MathUtils.lerp(q.f, backF, depth), u: THREE.MathUtils.lerp(q.u, meanU - 0.05 * span, depth), l: q.l * (1 - 0.7 * depth) };
   });
   const innerUpper = upperW.map((_, j) => { const w = nearby(upperW, j, 3); return blend(w, w.map(() => 1 / w.length)); });
