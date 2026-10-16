@@ -11,14 +11,17 @@ import { findEyes, readPixels, patchGlbNodeExtras } from './eyes.js';
 //     --query "src=../../assets/characters/trex.glb&out=trex.glb"
 //
 // Query: src (GLB, relative to this page), out (file name for the upload), eyes (optional hints,
-// colour-map pixels near each pupil: "x,y;x,y"), margin (how much the outline grows), preview (1:
-// show what was found instead of exporting: the head with each eye's outline, the candidates).
+// colour-map pixels near each pupil: "x,y;x,y"), margin (how much the outline grows), touch (dark
+// blobs close together merge only when their texels come within this many texels' spacing of each
+// other: Slóeðla 4, so the crease under her brow stays apart from the pupil), preview (1: show what
+// was found instead of exporting: the head with each eye's outline, the candidates).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
 const OUT = params.get('out') || SRC.split('/').pop();
 const HINTS = params.get('eyes') ? params.get('eyes').split(';').map(s => s.split(',').map(Number)) : null;
 const MARGIN = Number(params.get('margin') || 0.14);
+const TOUCH = Number(params.get('touch') || 0);
 const status = text => { window.__bakeStatus = text; console.log('[face]', text); };
 
 function preview(gltf, mesh, found) {
@@ -81,7 +84,7 @@ try {
   gltf.scene.traverse(o => { if (o.isSkinnedMesh) mesh = o; });
   if (!mesh) throw new Error('no skinned mesh');
   status('finding the eyes');
-  const found = findEyes({ mesh, pixels: readPixels(mesh.material.map.image), hints: HINTS, margin: MARGIN });
+  const found = findEyes({ mesh, pixels: readPixels(mesh.material.map.image), hints: HINTS, margin: MARGIN, touch: TOUCH });
   window.__bakeReport = found;
   console.log('[face]', JSON.stringify(found));
   if (params.get('preview') === '1') {

@@ -60,9 +60,10 @@ function section(points, x, half) {
  * Options: length (metres, nose to tail tip), yaw (degrees that turn the model's front to +X:
  * Tripo faces +Z, so 90), tail/neck/spine (bones in each chain), name, spread (how far, in leg
  * widths along the surface, the body around a leg follows it), plateRows (rows of back plates the
- * plateRow mask counts), curve (a raised neck: joints and weights along the chain's centre line).
+ * plateRow mask counts), curve (a raised neck: joints and weights along the chain's centre line),
+ * crest (a crest rides on top of the head: the head's joint goes to the back of the skull).
  */
-export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6, plateRows = 3, curve = false } = {}) {
+export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6, plateRows = 3, curve = false, crest = false } = {}) {
   const report = {};
 
   // --- stand it up: front to +X, `length` long, on the ground ---------------------------------
@@ -109,16 +110,30 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   const head = nose !== body ? nose : others.filter(p => p !== body && p.c.x > foreX).reduce((a, b) => (!a || b.verts > a.verts ? b : a), null);
   if (!head || head.c.x <= foreX) throw new Error('no head part ahead of the fore legs');
   // Parts that meet along a seam share vertex positions (blender-decimate.py welds them). The trunk is
-  // the body, the head and the parts on the way between them, seam to seam.
+  // the body, the head and the parts on the way between them, seam to seam, and on the same way back
+  // to the tail's tip when another part holds it (a body cut in two across the hips, Slóeðla's).
   const touching = touchingParts(parts);
-  const way = new Map([[head, null]]);
-  for (const queue = [head]; queue.length && !way.has(body);) {
-    const p = queue.shift();
-    for (const next of touching.get(p)) if (!legParts.includes(next) && !way.has(next)) { way.set(next, p); queue.push(next); }
+  const wayTo = (from, to) => {
+    const way = new Map([[from, null]]);
+    for (const queue = [from]; queue.length && !way.has(to);) {
+      const p = queue.shift();
+      for (const next of touching.get(p)) if (!legParts.includes(next) && !way.has(next)) { way.set(next, p); queue.push(next); }
+    }
+    if (!way.has(to)) return null;
+    const path = [];
+    for (let p = to; p; p = way.get(p)) path.push(p);
+    return path;
+  };
+  const trunk = wayTo(head, body);
+  if (!trunk) throw new Error('the head does not meet the body along seams');
+  // The part that holds the tail's tip: the one furthest back on the centre line (a tail spike stands
+  // out to one side).
+  const tipHolder = others.filter(p => Math.abs(p.c.z) < 0.25 * p.size.z).reduce((a, b) => (b.box.min.x < a.box.min.x ? b : a), body);
+  if (!trunk.includes(tipHolder)) {
+    const way = wayTo(body, tipHolder);
+    if (!way) throw new Error('the tail does not meet the body along seams');
+    trunk.push(...way.filter(p => !trunk.includes(p)));
   }
-  if (!way.has(body)) throw new Error('the head does not meet the body along seams');
-  const trunk = [];
-  for (let p = body; p; p = way.get(p)) trunk.push(p);
   const attached = others.filter(p => !trunk.includes(p));
 
   // The soles: where each leg part touches the ground. The root goes midway between them.
@@ -176,11 +191,20 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   const meanX = list => list.reduce((s, l) => s + l.top.x, 0) / list.length;
   const hipsX = meanX(legs.filter(l => !l.front));
   const chestX = meanX(legs.filter(l => l.front));
-  // The head joint: under the top of the skull, where the head part is highest.
+  // The head joint: under the top of the skull, where the head part is highest. With `crest` (a crest
+  // rides on top of the head, Slóeðla's) it goes to the back of the skull instead, under the back end
+  // of the crest's base, so all of the crest's base is in front of it and the skull turns on the neck.
   let headX = head.c.x, headTop = -Infinity;
   for (let x = head.box.min.x; x <= head.box.max.x; x += 0.01 * L) {
     const top = Math.max(-Infinity, ...head.points.filter(p => Math.abs(p.x - x) < 0.01 * L).map(p => p.y));
     if (top > headTop) { headTop = top; headX = x; }
+  }
+  if (crest) {
+    const key = q => `${Math.round(q.x / 0.001)},${Math.round(q.y / 0.001)},${Math.round(q.z / 0.001)}`;
+    const onHead = new Set(head.points.map(key));
+    const base = attached.filter(p => touching.get(head).has(p) && p.c.y > head.box.max.y).flatMap(p => p.points.filter(q => onHead.has(key(q))));
+    if (!base.length) throw new Error('no crest on top of the head');
+    headX = Math.min(...base.map(q => q.x));
   }
   const tailStart = Math.min(...legs.filter(l => !l.front).map(l => l.part.box.min.x)) - 0.02 * L;
   const tailTip = Math.min(...trunk.map(p => p.box.min.x));
@@ -197,6 +221,9 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   const tailNames = Array.from({ length: tail }, (_, i) => `Tail${i + 1}`);
   tailNames.forEach((n, i) => chain.push([n, i ? tailNames[i - 1] : 'Hips', tailStart + (i / (tail - 1)) * (tailEnd - tailStart)]));
   for (const [n, , x] of chain) joints[n] = sectionAt(x);
+  // Under the crest the head's joint is midway up the head part's own section: the trunk's would take
+  // in the chest below the neck, which leans forward there.
+  if (crest) joints.Head = section(head.points, headX, 0.02 * L).setZ(0);
   // The tail's joints follow a smooth line (a least-squares parabola through their sections): the
   // plates' bases ridge the back, which would put them on a zigzag.
   {
@@ -263,7 +290,9 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   // the line through the joints, so a cross-section of the neck is one place, and the head stays rigid
   // in front of its joint.
   const owners = [...tailNames].reverse().concat(chain.filter(([n]) => !n.startsWith('Tail')).map(([n]) => n));
-  const { along, weights: chainWeights } = chainWeighting(owners, joints, { curve, length: L });
+  // Under a crest the head is long and the neck steep: the line runs on through the head to the nose.
+  const noseTip = crest ? head.points.reduce((a, q) => (q.x > a.x ? q : a)).clone().setZ(0) : null;
+  const { along, weights: chainWeights } = chainWeighting(owners, joints, { curve, length: L, tip: noseTip });
 
   // A leg takes its whole part up to where it meets the body, and above that, fading out toward
   // the pivot, the lower part of the thigh or shoulder bulge, so a long swing bends the hip instead

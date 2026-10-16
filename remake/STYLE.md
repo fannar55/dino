@@ -431,6 +431,28 @@ land (3 s, once, from fly's first pose to idle's) and carry (3.6 s: two slow, sh
 steady and level under the seat). Her mouth is a long slot along the beak: the mouth pass's
 `channel=1` runs the pocket along the middle of the beak under the lips instead of back into the
 head, so the open beak shows no hole.
+A hadrosaur (Slóeðla) goes through `bake-quadruped` with `kind=hadrosaur`
+(`--query "src=<parts.glb>&length=7.5&yaw=180&name=Slóeðla&out=parasaurolophus.glb&kind=hadrosaur&neck=3&tail=6&atlas=0.75&touch=4&brow=1&even=4"`),
+decimated with her head and crest keeping the head's share (`37500 tripo_part_4,tripo_part_6 parts`).
+Her body is cut in two across the hips, so the trunk runs from the head through the front half on to
+the part that holds the tail's tip (the part furthest back on the centre line; a tail spike stands out
+to one side). Her neck rises steeply in an S, so its three joints are spaced along its centre line as a
+sauropod's are. Her crest rides the head, and with a crest on top (`crest`) the head's joint goes to the
+back of the skull, under the back end of the crest's base, midway up the head part's own section, and
+the line the skin follows runs on through the head to the tip of her bill (`tip` in `skin.js`), so her
+long head stays rigid in front of its joint, crest and all. The bake and the face pass take `touch=4`:
+a dark crease under each heavy brow lies close over the pupil, and blobs merge only when their texels
+come within four texels' spacing. Her brows are softened with `brow=1&even=4`: four rounds even out the
+moves over the surface, so her coarse brow ridge keeps a smooth outline. The clips are in
+`hadrosaur-clips.js`: idle (5 s), walk (four beats, a foot down 58 % of the time, a stride as long as the
+hind pivots are high at a Froude number of 0.04: 2.79 m in 2.67 s, 1.05 m/s), kink (2.4 s), happy (2.4 s:
+she rears onto her hind legs, her front feet up to 0.44 m), eat (3.6 s: grazing, the neck curving down
+until the tip of her bill is 0.12 m above the grass in front of her feet, two crops and chewing) and
+call (5 s: her horn call through the crest; a deep breath fills her chest, the Spine bone growing 6 %
+while the Chest scales back so the neck and head keep their size, her head rises 30 degrees until the
+crest lies back over her neck, and her bill opens as she blows, the head trembling a little). A clip
+that opens the jaw carries `jaw` in its extras (degrees at each key), and the mouth pass, which cuts the
+jaw after the bake, turns that into the jaw's track (eat and call).
 
 Environment:
 

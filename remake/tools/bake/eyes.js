@@ -8,7 +8,9 @@ import * as THREE from 'three';
 //
 //   1. Every texel of the head (triangles the Head bone carries alone, or with the jaw) is mapped
 //      onto the surface, so colours and positions go together across the UV islands.
-//   2. Dark blobs are pupil candidates (nostrils, mouth corners and ear holes are dark too).
+//   2. Dark blobs are pupil candidates (nostrils, mouth corners and ear holes are dark too). Blobs
+//      close together on the surface are one shape split over UV islands; with `touch` they must
+//      also meet (a dark crease under a heavy brow, Slóeðla's, lies close over the pupil).
 //   3. A candidate scores by the pale texels (sclera, highlights) and the saturated ones (iris)
 //      around it; the two best that lie apart are the eyes. `hints` (colour-map pixels) override.
 //   4. Each eye is the connected patch of texels around its pupil that differ from the skin there.
@@ -80,9 +82,10 @@ function rasterize(geometry, triangles, pixels, visit) {
  * Find the two painted eyes of a skinned character.
  * mesh: the SkinnedMesh in its bind pose; pixels: readPixels(colour map); hints: optional
  * [[x, y], [x, y]] colour-map pixels on or near each pupil; margin: how much the fitted outline
- * grows (share of its size).
+ * grows (share of its size); touch: blobs close together merge only when their texels come within
+ * this many texels' spacing of each other (0: being close is enough).
  */
-export function findEyes({ mesh, pixels, hints = null, margin = 0.14 }) {
+export function findEyes({ mesh, pixels, hints = null, margin = 0.14, touch = 0 }) {
   const geometry = mesh.geometry;
   const bones = mesh.skeleton.bones;
   const headIndex = bones.findIndex(b => b.name === 'Head');
@@ -140,16 +143,23 @@ export function findEyes({ mesh, pixels, hints = null, margin = 0.14 }) {
     }
     if (blob.length >= 4) blobs.push(blob);
   }
-  // Blobs that are one dark shape split over two UV islands meet on the surface: merge them.
+  // Blobs that are one dark shape split over two UV islands meet on the surface: merge them. With
+  // `touch`, close is not enough: their texels must come within that many texels' spacing.
   const centreOf = list => list.reduce((sum, t) => sum.add(t.p), V()).divideScalar(list.length);
   const radiusOf = (list, c) => Math.sqrt(list.reduce((sum, t) => sum + t.p.distanceToSquared(c), 0) / list.length) * 1.4 + 1e-4;
+  const spacingOf = c => (c.radius / 1.4) * Math.sqrt(Math.PI / c.texels.length);
+  const meet = (a, b) => {
+    if (!touch) return true;
+    const reach = (touch * Math.max(spacingOf(a), spacingOf(b))) ** 2;
+    return a.texels.some(s => b.texels.some(t => s.p.distanceToSquared(t.p) < reach));
+  };
   let candidates = blobs.map(list => { const c = centreOf(list); return { texels: list, centre: c, radius: radiusOf(list, c) }; });
   for (let merged = true; merged;) {
     merged = false;
     outer: for (let i = 0; i < candidates.length; i++) {
       for (let j = i + 1; j < candidates.length; j++) {
         const a = candidates[i], b = candidates[j];
-        if (a.centre.distanceTo(b.centre) < 1.25 * (a.radius + b.radius)) {
+        if (a.centre.distanceTo(b.centre) < 1.25 * (a.radius + b.radius) && meet(a, b)) {
           const list = [...a.texels, ...b.texels];
           const c = centreOf(list);
           candidates[i] = { texels: list, centre: c, radius: radiusOf(list, c) };

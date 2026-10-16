@@ -10,9 +10,12 @@ import * as THREE from 'three';
 // so the painted eye and the eyelids stay where they were. The moved skin takes its normals from its
 // new shape.
 //
+// On a coarse brow (Slóeðla's) the moves differ from vertex to vertex and leave the ridge's outline
+// ragged: `even` rounds then smooth the moves themselves over the surface, so neighbours move alike.
+//
 // mesh: the skinned mesh in its bind pose; eyes: findEyes(...).eyes; strength: 1 for the full change.
 // Returns how far the skin moved at most (metres) and how many vertices moved.
-export function softenBrows(mesh, eyes, { strength = 1, rounds = 40 } = {}) {
+export function softenBrows(mesh, eyes, { strength = 1, rounds = 40, even = 0 } = {}) {
   const geometry = mesh.geometry;
   const pos = geometry.attributes.position, nor = geometry.attributes.normal;
   const index = geometry.index.array;
@@ -69,6 +72,15 @@ export function softenBrows(mesh, eyes, { strength = 1, rounds = 40 } = {}) {
       return p.clone().addScaledVector(normals[id], 0.5 * weight[id] * next.dot(normals[id]));
     });
     moved.forEach((p, id) => { points[id] = p; });
+  }
+  for (let round = 0; round < even; round++) {
+    const moves = points.map((p, id) => p.clone().sub(start[id]));
+    points.forEach((p, id) => {
+      if (!weight[id] || !near[id].size) return;
+      const mean = moves[id].clone();
+      for (const n of near[id]) mean.add(moves[n]);
+      p.copy(start[id]).add(mean.divideScalar(near[id].size + 1));
+    });
   }
   let most = 0, count = 0;
   points.forEach((p, id) => { const d = p.distanceTo(start[id]); if (d > 1e-6) { count++; most = Math.max(most, d); } });

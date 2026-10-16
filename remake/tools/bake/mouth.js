@@ -22,7 +22,9 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 //   3. A pocket fills the mouth (palate on the head, tongue on the jaw, a fold deep inside), painted
 //      into a free corner of the colour map, as in bake-tailed-biped.
 //   4. The GLB is exported again (GLTFExporter: textures 1024 JPEG), the node names as they were, with
-//      `face.mouth` added to the mesh's extras: how far the jaw opens when the character talks.
+//      `face.mouth` added to the mesh's extras: how far the jaw opens when the character talks. A clip
+//      the bake authored to open the jaw (Slóeðla's eat and call) carries `jaw` in its extras, the
+//      jaw's opening in degrees at each of the clip's keys: it gets the jaw's track here.
 //
 //   node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb
 //     --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=f,u;f,u;...&front=f&cut=f&hinge=f,u&talk=7"
@@ -452,9 +454,23 @@ try {
   mesh.material.map = texture(mapCanvas, THREE.SRGBColorSpace);
   if (normalCanvas) mesh.material.normalMap = texture(normalCanvas, THREE.NoColorSpace);
   mesh.userData.face = { ...mesh.userData.face, mouth: { talk: TALK } };
+  // The jaw's track for each clip that opens it, turning it down about the head's own right side as
+  // talking does (and as the preview below opens it).
+  const opens = left.clone().transformDirection(head.matrixWorld.clone().invert()).normalize();
+  const jawClips = [];
+  for (const clip of gltf.animations) {
+    const open = clip.userData.jaw;
+    if (!Array.isArray(open)) continue;
+    const times = clip.tracks[0].times;
+    if (open.length !== times.length) throw new Error(`${clip.name}: ${open.length} jaw keys for ${times.length} times`);
+    const turn = new THREE.Quaternion();
+    const values = open.flatMap(deg => turn.setFromAxisAngle(opens, THREE.MathUtils.degToRad(deg)).toArray());
+    clip.tracks.push(new THREE.QuaternionKeyframeTrack(`${jaw.name}.quaternion`, times, values));
+    jawClips.push(clip.name);
+  }
   const report = {
     triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count, split: splits,
-    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block,
+    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips,
   };
   window.__bakeReport = report;
   log(JSON.stringify(report));
