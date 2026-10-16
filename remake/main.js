@@ -8,6 +8,7 @@ import { installDepthShadows } from './engine/shadows.js';
 import { updateCharacterLods, whenReady as characterLodsReady } from './engine/character-lod.js';
 import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
+import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
@@ -49,6 +50,8 @@ const lighting = createLighting(scene, look, q);
 installDepthShadows(renderer, lighting.sun); // before any material compiles
 installFog(scene, look, lighting.direction); // before any material compiles
 const sky = createSky({ renderer, scene, look, sunDir: lighting.direction });
+const sunFace = createSunFace({ scene, lighting }); // the smiling sun, over the sky's own disc
+const mosiCloud = addMosiCloud({ scene, lighting, look }); // and one cloud shaped like Mosi (engine/sun-face.js)
 const wind = createWind();
 
 const world = {
@@ -106,7 +109,7 @@ const journal = createJournal(document, save, {
     voice.setPaused(paused);
   },
 });
-const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal });
+const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace });
 
 const shotName = params.get('shot');
 const tParam = params.get('t');
@@ -135,6 +138,8 @@ function update(dt) {
   world.forest.update?.(dt, clock.time); // after the camera and shadow focus: culling uses this frame's view
   updateCharacterLods(camera, renderer.domElement.height); // the characters' levels too
   sky.update(clock.time, camera);
+  sunFace.update(clock.time, camera); // after the camera has moved: both sit 600 m from where it is now
+  mosiCloud.update(clock.time, camera);
 }
 
 function startScene() {

@@ -20,8 +20,9 @@ import { DONE } from '../handle.js';
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need, and
-// `journal` (scene/journal.js), which s.star, s.found and s.journal need. s.drag and s.tray need `ui.tray`.
-export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null }) {
+// `journal` (scene/journal.js), which s.star, s.found and s.journal need, and `sun` (engine/sun-face.js),
+// which s.sun needs. s.drag and s.tray need `ui.tray`.
+export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null, sun = null }) {
   const scheduler = createScheduler();
   let seeking = false;
   let started = false; // set by begin(): the start button, or at once for captures
@@ -322,6 +323,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return DONE;
   }
 
+  function needSun(call) {
+    if (!sun) throw new Error(`${call} needs the sun: pass \`sun\` (createSunFace) to createScene`);
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -398,6 +403,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     journal: {
       open: () => { needJournal('s.journal.open'); journal.open(); return DONE; },
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
+    },
+    /** The smiling sun: `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go on over it. */
+    sun: {
+      wink: () => { needSun('s.sun.wink'); sun.wink(); return DONE; },
     },
     /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
     tray: {
