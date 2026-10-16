@@ -128,11 +128,15 @@ export const FOREST = {
     cameraClear: 0.9, // blades shrink inside this radius around the camera
     footprint: { radius: 0.95, soft: 0.85, halfLength: 1.35 }, // flattened capsule per actor
   },
+  // Wind. maxSwayDeg is how far a tree top leans at full wind: bendAt (species.js) bakes trunks, crowns, needles and tree-fern
+  // trunks from it. Each beat of the theme (engine/beat.js) adds beatAmplitudeDeg on top (BEAT_SHARE below), so those reach
+  // the style guide's 3 degrees with it and no more. Fronds, stems and stalks have weights of their own: with the beat they
+  // too stay within 3 degrees, or, where they already leaned further before the beat, at the peak they had (LEAN in species.js).
   wind: {
     swayScale: 1.4, // metres represented by aWind.y = 1
     flutterScale: 0.12, // metres represented by aWind.z = 1
-    maxSwayDeg: 2.0, // trees and tall plants at full wind; the beat comes on top, so the two add up to the style guide's 3
-    beatAmplitudeDeg: 1, // the extra lean on each beat of the theme (engine/beat.js); maxSwayDeg + this stays at most 3
+    maxSwayDeg: 2.0, // a tree top at full wind
+    beatAmplitudeDeg: 1, // what the beat adds to it: maxSwayDeg + this is at most 3
   },
   shade: {
     // Fake canopy shade outside the shadow map: 1 = open sky, 0 = deep shade.
@@ -159,6 +163,16 @@ export const FOREST = {
   actorWarm: 0.5, // strength of the lighter, warmer ground and grass round characters (STYLE.md 5.1); halved, it read as a spotlight following Mosi in the tracking shot
   lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3 },
 };
+
+/** The beat adds this share of a part's own full-wind sway, along the wind, at the top of its pulse (forestWind in materials.js; grass.js takes the same share of a blade's bend). */
+export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
+
+/**
+ * The most forestWind (materials.js) bends a part before the beat, as a multiple of its `sway`, the metres it bends at full wind:
+ * along the wind 0.55 + 0.45 * (0.6 + 0.25) of it (full strength, the strongest swing) and 0.22 of it sideways; the beat adds
+ * BEAT_SHARE along the wind. tests/forest-sway.test.mjs keeps these numbers in step with the shader's text.
+ */
+export const WIND_PEAK = { along: 0.55 + 0.45 * (0.6 + 0.25), side: 0.22 };
 
 /** Scale counts by the quality preset. */
 export function scaled(count, factor) {

@@ -4,9 +4,9 @@
 // blade has a rank; far away only low ranks stay). The CPU rebuilds one index buffer from 2 m
 // cells when the camera moves, so only visible blades at the right density reach the GPU.
 import * as THREE from 'three';
-import { FOREST, PALETTE } from './config.js';
+import { FOREST, PALETTE, BEAT_SHARE } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
-import { patchLambert, LIGHT_GLOBALS, BEAT_SHARE } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
 
 const VERTS = 5;

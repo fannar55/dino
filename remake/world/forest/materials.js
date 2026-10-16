@@ -5,7 +5,7 @@
 //   - fake canopy shade outside the shadow map: baked sky visibility per vertex plus a cheap
 //     dappled-light pattern, so the deep forest is darker without more shadow maps.
 import * as THREE from 'three';
-import { FOREST } from './config.js';
+import { FOREST, BEAT_SHARE } from './config.js';
 import { createRng } from './random.js';
 
 /** Tileable 128x128 noise: R dapple blobs, G medium fbm, B coarse fbm, A fine grain. */
@@ -87,12 +87,12 @@ export function createLeafTexture(seed, size = 128, cells = 6) {
   return tex;
 }
 
-// A part's `sway` (aWind.y) is the metres it bends at full wind, baked from maxSwayDeg. On each beat of
-// the theme it leans beatAmplitudeDeg further along the wind, which is this share of that bend: a
-// tree top that sways 2 degrees at most then reaches 3 on the beat, and grass, whose own bend is
-// far larger, gets the same share of its own.
-export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
-
+// The beat comes on top of the wind: BEAT_SHARE (config.js) of a part's own `sway`, the metres it bends at full wind
+// (aWind.y), along the wind and whatever the gust is doing. Trunks, crowns, needles and tree-fern trunks bake their sway from
+// maxSwayDeg, so that share is at most beatAmplitudeDeg more lean at their tops: 3 degrees with the beat. Fronds, stems and
+// stalks have weights of their own (LEAN in species.js), scaled there so that with the beat they stay within 3 degrees or,
+// where they already leaned further, at the peak they had before it. Grass bends far more than any of them and gets the
+// same share of its own bend.
 export const WIND_GLSL = /* glsl */`
 uniform float uWindTime;
 uniform float uWindStrength;

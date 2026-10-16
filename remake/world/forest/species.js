@@ -4,7 +4,7 @@
 // where `solid` holds closed opaque parts (trunks, lobes, rocks) and `thin` holds double-sided
 // parts (fronds, petals, needles). The planner only uses names, footprints and bounds, so a kind
 // can later be replaced by a loaded GLB that returns the same shape of model.
-import { FOREST, PALETTE } from './config.js';
+import { FOREST, PALETTE, BEAT_SHARE, WIND_PEAK } from './config.js';
 import { createRng, createNoise, clamp, smoothstep, lerp } from './random.js';
 import {
   MeshBuilder, srgb, mix3, mul3, tint3, norm3, add3, sub3, madd3, cross3,
@@ -17,6 +17,21 @@ const SWAY = FOREST.wind.maxSwayDeg * DEG; // radians at full wind
 
 /** Bend weight for a point at height y in a plant of height H (quadratic, metres of sway). */
 const bendAt = (y, H, k = 1) => Math.max(0, SWAY * k * (y * y) / Math.max(H, 0.5));
+
+// Fronds, stems and stalks bend by weights of their own: a lean, the metres of sway per metre of the part's length (or height),
+// where bendAt's trunks and crowns lean SWAY at most. The beat adds BEAT_SHARE of whatever a part sways, so a part that leans more
+// than SWAY would pass the style guide's 3 degrees with it. Every part that does is baked FIT times smaller, which makes its peak
+// lean with the beat the very peak it had before the beat: the beat takes a share of its sway instead of adding to it. (FIT is the
+// wind shader's peak without the beat over its peak with it; tests/forest-sway.test.mjs holds every kind to the rule.)
+const FIT = Math.hypot(WIND_PEAK.along, WIND_PEAK.side) / Math.hypot(WIND_PEAK.along + BEAT_SHARE, WIND_PEAK.side);
+const LEAN = {
+  cycad: 0.08 * FIT, // fronds
+  fern: 0.05 * FIT, // fronds
+  flower: 0.05 * FIT, // stems and heads
+  horsetail: 0.06 * FIT, // stalks, which bend with the square of their height
+  treeFern: 0.12 * FIT, // fronds, beyond the trunk top they ride on
+  bush: 0.025, // lobes and berries: under SWAY already
+};
 
 function jitterColor(c, rng, amount = 0.06) {
   const k = 1 + rng.range(-amount, amount);
@@ -369,12 +384,12 @@ function buildTreeFern(rng, { lod, noise }) {
       let c = mix3(C.barkCrevice, mix3(C.bark, C.soilDark, 0.4), smoothstep(0.3, 0.75, lump));
       return mix3(c, C.barkMoss, smoothstep(0.7, 0.1, p[1]) * 0.5);
     },
-    sway: p => bendAt(p[1], H, 1.1),
+    sway: p => bendAt(p[1], H),
     exposure: () => 0.3,
     capEnd: true,
   });
   const top = spine[n - 1];
-  const topSway = bendAt(H, H, 1.1);
+  const topSway = bendAt(H, H);
   for (let k = 0; k < fronds; k++) {
     const fr = rng.fork(`frond${k}`);
     const az = a0 + (k / fronds) * Math.PI * 2 + fr.range(-0.2, 0.2);
@@ -388,7 +403,7 @@ function buildTreeFern(rng, { lod, noise }) {
       width: width * (lod === 2 ? 0.95 : 0.85), arch, droop,
       leaflets: lod === 0 ? 6 : lod === 1 ? 5 : 3, samples: lod === 0 ? 3 : 2, notch: lod === 2 ? 0.55 : 0.45, forward: 0.5, fold: 0.22,
       color: colour,
-      sway: (p, t) => topSway + 0.12 * t * length,
+      sway: (p, t) => topSway + LEAN.treeFern * t * length,
       flutter: (p, t) => 0.35 * t,
       exposure: (p, t) => 0.6 + 0.4 * t,
     });
@@ -438,7 +453,7 @@ function buildCycad(rng, { lod, noise }) {
       base: [Math.cos(az) * r * 0.5, H + 0.05, Math.sin(az) * r * 0.5], dir: norm3([Math.cos(az), rise, Math.sin(az)]), length,
       width, arch, droop,
       leaflets: lod === 0 ? 9 : lod === 1 ? 5 : 4, samples: lod === 0 ? 3 : 2, notch: 0.4, forward: 0.65, fold: 0.3,
-      color: colour, sway: (p, t) => 0.08 * t * length, flutter: (p, t) => 0.25 * t, exposure: () => 0.85,
+      color: colour, sway: (p, t) => LEAN.cycad * t * length, flutter: (p, t) => 0.25 * t, exposure: () => 0.85,
     });
   }
   return { solid, thin, height: H + 1.3, radius: 0.9, trunk: { r, flare: r, top: H }, crown: { c: [0, H + 0.6, 0], r: 1.5, ry: 0.8 } };
@@ -466,7 +481,7 @@ function buildFern(rng, { lod, noise }) {
       base: [Math.cos(az) * 0.05, 0.0, Math.sin(az) * 0.05], dir: norm3([Math.cos(az), rise, Math.sin(az)]), length,
       width: width * (lod === 0 ? 0.85 : 1.05), arch, droop,
       leaflets: lod === 0 ? 5 : lod === 1 ? 4 : 3, samples: 2, notch: lod === 2 ? 0.6 : 0.45, forward: 0.5, fold: 0.25,
-      color: colour, sway: (p, t) => 0.05 * t * length, flutter: (p, t) => 0.3 * t, exposure: (p, t) => 0.55 + 0.45 * t,
+      color: colour, sway: (p, t) => LEAN.fern * t * length, flutter: (p, t) => 0.3 * t, exposure: (p, t) => 0.55 + 0.45 * t,
     });
   }
   return { solid: null, thin, height: size * 0.75, radius: size * 0.7, crown: { c: [0, size * 0.35, 0], r: size * 0.85, ry: size * 0.4 } };
@@ -509,7 +524,7 @@ function buildBush(rng, { lod, noise, fine = false }) {
       bumps: lod === 2 ? null : makeBumps(rng.fork(`lobe${lobe.k}bumps`), fine ? 10 : lod === 0 ? 6 : 4, { radius: fine ? 0.55 : 0.72, height: 0.2, minY: -0.2 }), crease: 0.06, bumpSoft: 0.55,
       bendCenter: centre, bend: 0.3, flatBottom: 0.6,
       color: foliageColor([1, 1, 1], centre, radii, noise, salt, palette),
-      sway: p => 0.025 * p[1], flutter: () => 0.15, leaf: 0.8,
+      sway: p => LEAN.bush * p[1], flutter: () => 0.15, leaf: 0.8,
       exposure: (p, n) => clamp(0.5 + 0.5 * n[1], 0.3, 1),
     });
   }
@@ -524,7 +539,7 @@ function buildBush(rng, { lod, noise, fine = false }) {
       const p = [centre[0] + d[0] * radii[0] * 0.98, centre[1] + d[1] * radii[1] * 0.98, centre[2] + d[2] * radii[2] * 0.98];
       const col = blossoms ? jitterColor(C.white, br, 0.04) : jitterColor(C.berries, br, 0.08);
       const size = blossoms ? 0.065 : 0.055;
-      addBlob(solid, { center: p, radii: [size, blossoms ? size * 0.55 : size, size], detail: 0, color: () => col, sway: q => 0.025 * q[1], leaf: 0.2, exposure: () => 0.95 });
+      addBlob(solid, { center: p, radii: [size, blossoms ? size * 0.55 : size, size], detail: 0, color: () => col, sway: q => LEAN.bush * q[1], leaf: 0.2, exposure: () => 0.95 });
     }
   }
   return { solid, thin: null, height: R * 1.5 * formK[1], radius: R * 0.9 * Math.max(formK[0], formK[2]), crown: { c: centre, r: R * 1.1 * Math.max(formK[0], formK[2]), ry: R * 0.8 * formK[1] } };
@@ -559,7 +574,7 @@ function buildHorsetail(rng, { lod, noise }) {
         const i = Math.round(t * segs);
         return i % 2 === 0 && i > 0 ? node : green;
       },
-      sway: p => 0.06 * p[1] * p[1], flutter: (p, t) => 0.05 * t, leaf: 0.4, exposure: () => 0.7,
+      sway: p => LEAN.horsetail * p[1] * p[1], flutter: (p, t) => 0.05 * t, leaf: 0.4, exposure: () => 0.7,
     });
     if (lod === 0) {
       for (const tw of [0.35, 0.6]) {
@@ -570,7 +585,7 @@ function buildHorsetail(rng, { lod, noise }) {
           const tipP = madd3(c, d, 0.09);
           const side = norm3(cross3(d, [0, 1, 0]));
           const nn = [0, 1, 0];
-          const sw = 0.06 * c[1] * c[1];
+          const sw = LEAN.horsetail * c[1] * c[1];
           const i0 = thin.vertex(madd3(c, side, 0.008), nn, green, sw, 0.01, 0.5, 0.7);
           const i1 = thin.vertex(madd3(c, side, -0.008), nn, green, sw, 0.01, 0.5, 0.7);
           const i2 = thin.vertex(tipP, nn, mul3(green, 1.1), sw, 0.02, 0.5, 0.7);
@@ -600,12 +615,12 @@ function buildFlowers(rng, { lod, noise, variant = 0 }) {
     const top = [x + lean[0], h, z + lean[1]];
     addTube(thin, {
       points: [[x, -0.02, z], [x + lean[0] * 0.3, h * 0.5, z + lean[1] * 0.3], top], radial: 3,
-      radius: () => 0.009, color: () => mul3(leafC, 0.85), sway: p => 0.05 * p[1], flutter: (p, t) => 0.02 * t, leaf: 0.5, exposure: () => 1,
+      radius: () => 0.009, color: () => mul3(leafC, 0.85), sway: p => LEAN.flower * p[1], flutter: (p, t) => 0.02 * t, leaf: 0.5, exposure: () => 1,
     });
     addFlowerHead(thin, {
       center: top, normal: norm3([lean[0] * 4 + rng.range(-0.4, 0.4), 1, lean[1] * 4 + rng.range(-0.4, 0.4)]),
       radius: rng.range(0.06, 0.09), petals: name === 'violet' ? 4 : 5, rot: rng.angle(),
-      petalColor: jitterColor(petal, rng, 0.04), centerColor: centreC, sway: 0.05 * h,
+      petalColor: jitterColor(petal, rng, 0.04), centerColor: centreC, sway: LEAN.flower * h,
     });
   }
   const leaves = lod === 0 ? rng.int(3, 5) : 2;

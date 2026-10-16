@@ -53,6 +53,8 @@ test('the pulse decays within a beat', () => {
 });
 
 test('the configured sway stays within 3 degrees with the beat added', () => {
+  // These two numbers bound what bendAt bakes (trunks, crowns, needles, tree-fern trunks). Fronds, stems and stalks have weights of
+  // their own, so forest-sway.test.mjs builds every kind and holds what it baked to the same rule.
   const { maxSwayDeg, beatAmplitudeDeg } = FOREST.wind;
   assert.ok(beatAmplitudeDeg > 0, 'the beat is part of the sway: a limit met by switching it off is not met');
   assert.ok(maxSwayDeg + beatAmplitudeDeg <= 3, `${maxSwayDeg} + ${beatAmplitudeDeg} degrees is over the style guide's 3`);
