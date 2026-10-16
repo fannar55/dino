@@ -103,15 +103,15 @@ function topAt(points, x, z, reach) {
 // shins hanging beside it (they come no nearer the middle than 0.1 m), on a broad pad on the back, with
 // a high cantle behind him and a leather loop in front for both hands.
 //
-// It sits on the top of Mosi's back behind his shoulders, where the owner marked it (2026-10-16):
-// Egill's hips AHEAD of the Body bone, 1.55 m along Mosi. The skin there is the Body's alone. In idle
-// and in the walk the frill stays more than 20 cm from Egill; but a head turned far round, or raised,
-// swings the frill's edge back onto him, so while he rides or floats up the host's looks are capped
-// (LOOK_CAPS, below).
+// It sits on the top of Mosi's back behind his shoulders, in the middle of the spot the owner marked
+// (2026-10-16): Egill's hips AHEAD of the Body bone, 1.18 m along Mosi, the pad from 0.74 to 1.44 m. The
+// skin there is the Body's alone. In idle and in the walk the frill stays more than 20 cm from Egill;
+// but a head turned far round, or raised high, swings the frill's edge back onto him, so while he rides
+// or floats up the host's looks are capped (LOOK_CAPS, below).
 const LEATHER = '#6f5440'; // the colour of Egill's boots (STYLE.md section 3)
 const SIT_DEPTH = 0.32;
 const FEET_BELOW = 0.21; // his feet below his seat, with 2 cm to spare
-const AHEAD = 2.12;
+const AHEAD = 1.75;
 const SEAT = { back: -0.17, front: 0.24, halfWidth: 0.095 }; // metres about the rider's hips
 const PAD = { back: -0.44, front: 0.26, halfWidth: 0.42, thickness: 0.045 };
 // The handle, a leather loop standing across the front of the seat (centre and radius, from the rider's
@@ -119,10 +119,11 @@ const PAD = { back: -0.44, front: 0.26, halfWidth: 0.42, thickness: 0.045 };
 const HANDLE = { x: 0.225, y: 0.4625, radius: 0.105, tube: 0.022 };
 const GRIP = { x: 0.18, y: 0.555, z: 0.085 };
 // The caps (degrees) on the host's looks while a rider is on the saddle or floating up to it: how far his
-// head may turn aside and tilt up. Measured on the baked Mosi with Egill seated: without them a look to
-// his left, or at Egill on his back, brings the frill within 0.1 to 3 cm of Egill; with them every look
-// keeps 10 cm or more, and watching Egill float up, 40 cm.
-const LOOK_CAPS = { yaw: 35, up: 25 };
+// head may turn aside and tilt up. Measured on the baked Mosi with Egill seated: without them a look round
+// to his left, or at Egill on his back, brings the frill within 0.4 to 2.4 cm of Egill. With them every
+// look keeps 7.5 cm or more, even one that asks for 50 degrees up, and watching Egill float up keeps more
+// than 20 cm. The up cap is lookAt's own default, so it only stops a scene that asks for more.
+const LOOK_CAPS = { yaw: 45, up: 30 };
 
 // Builds closed shapes from rings of points that go round the same way (right side, top, left side,
 // bottom, seen from behind), joined front to back with both ends closed.

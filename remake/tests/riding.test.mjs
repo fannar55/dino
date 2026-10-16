@@ -97,7 +97,7 @@ test('floatTo lifts the rider onto the seat, and ride keeps him there while Mosi
   const ground = egill.root.position.clone();
   const float = floatTo(egill, saddle);
   assert.equal(egill.controlled, true);
-  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit < 30, 'Mosi\'s looks are capped while Egill floats up');
+  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit <= 30, 'Mosi\'s looks are capped while Egill floats up');
   assert.equal(world.scene.children.filter(o => o.isPoints).length, 1, 'one trail of sparkles');
   let highest = 0;
   let frames = 0;
@@ -190,13 +190,13 @@ test('while Mosi carries Egill his looks are capped, so his frill stays clear of
   const { mosi, egill, frame } = await stage();
   const saddle = createSaddle(mosi);
   const riding = ride(egill, saddle);
-  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit < 30, `looks capped at ${mosi.lookYawLimit} degrees aside and ${mosi.lookUpLimit} up`);
+  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit <= 30, `looks capped at ${mosi.lookYawLimit} degrees aside and ${mosi.lookUpLimit} up`);
   for (let i = 0; i < 30; i++) frame();
   let worst = Infinity;
-  // Up and round to his left, asking lookAt's full 30 degrees up, and at Egill on his back: uncapped,
-  // each brings the frill's edge within a few millimetres of him.
-  for (const target of [{ actor: 'mosi', offset: [2, 6, -4], local: true }, 'egill.head']) {
-    mosi.lookAt(target, { weight: 1, maxPitch: 30 });
+  // Up and round to his left, asking for 50 degrees up (more than lookAt's own 30), and at Egill on his
+  // back with lookAt's defaults: uncapped, each brings the frill's edge within a few millimetres of him.
+  for (const [target, maxPitch] of [[{ actor: 'mosi', offset: [2, 6, -4], local: true }, 50], ['egill.head', 30]]) {
+    mosi.lookAt(target, { weight: 1, maxPitch });
     for (let i = 0; i < 60; i++) {
       frame();
       if (i % 5 === 4) worst = Math.min(worst, frillGap(mosi, egill));
