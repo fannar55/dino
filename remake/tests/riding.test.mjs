@@ -150,7 +150,7 @@ test('while riding, each hand holds its grip on the handle, also while Mosi walk
 });
 
 // The smallest distance between Egill's skin and the skin Mosi's head, jaw and neck carry (the frill
-// with them), as the clips pose both now.
+// with them), as the clips pose both now; anything over 10 cm reads as Infinity, which is all clear.
 function frillGap(mosi, egill) {
   const skinOf = actor => {
     let mesh = null;
@@ -161,50 +161,65 @@ function frillGap(mosi, egill) {
   const egillSkin = skinOf(egill);
   const front = new Set(['Neck', 'Head', 'Jaw'].map(n => mosiSkin.skeleton.bones.findIndex(b => b.name === n)).filter(i => i >= 0));
   const { skinIndex, skinWeight } = mosiSkin.geometry.attributes;
-  mosi.root.updateMatrixWorld(true);
-  egill.root.updateMatrixWorld(true);
-  const cell = 0.1;
-  const grid = new Map();
-  const v = new THREE.Vector3();
+  const frontVertices = [];
   for (let i = 0; i < skinIndex.count; i++) {
     let share = 0;
     for (let k = 0; k < 4; k++) if (front.has(skinIndex.getComponent(i, k))) share += skinWeight.getComponent(i, k);
-    if (share < 0.25) continue;
-    mosiSkin.getVertexPosition(i, v).applyMatrix4(mosiSkin.matrixWorld);
-    const key = `${Math.floor(v.x / cell)},${Math.floor(v.y / cell)},${Math.floor(v.z / cell)}`;
-    if (!grid.has(key)) grid.set(key, []);
-    grid.get(key).push(v.clone());
+    if (share >= 0.25) frontVertices.push(i);
   }
-  let gap = Infinity;
-  for (let i = 0; i < egillSkin.geometry.attributes.position.count; i += 2) {
-    egillSkin.getVertexPosition(i, v).applyMatrix4(egillSkin.matrixWorld);
-    const cx = Math.floor(v.x / cell), cy = Math.floor(v.y / cell), cz = Math.floor(v.z / cell);
-    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
-      for (const p of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) gap = Math.min(gap, p.distanceTo(v));
+  const cell = 0.1;
+  const v = new THREE.Vector3();
+  return () => {
+    mosi.root.updateMatrixWorld(true);
+    egill.root.updateMatrixWorld(true);
+    const grid = new Map();
+    for (const i of frontVertices) {
+      mosiSkin.getVertexPosition(i, v).applyMatrix4(mosiSkin.matrixWorld);
+      const key = `${Math.floor(v.x / cell)},${Math.floor(v.y / cell)},${Math.floor(v.z / cell)}`;
+      if (!grid.has(key)) grid.set(key, []);
+      grid.get(key).push(v.clone());
     }
-  }
-  return gap;
+    let gap = Infinity;
+    for (let i = 0; i < egillSkin.geometry.attributes.position.count; i += 2) {
+      egillSkin.getVertexPosition(i, v).applyMatrix4(egillSkin.matrixWorld);
+      const cx = Math.floor(v.x / cell), cy = Math.floor(v.y / cell), cz = Math.floor(v.z / cell);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        for (const p of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) gap = Math.min(gap, p.distanceTo(v));
+      }
+    }
+    return gap > cell ? Infinity : gap;
+  };
 }
 
-test('while Mosi carries Egill his looks are capped, so his frill stays clear of Egill looking up and round', async () => {
+test('while Mosi carries Egill his looks are capped, so his frill stays clear of Egill looking up and round, standing and walking', async () => {
   const { mosi, egill, frame } = await stage();
   const saddle = createSaddle(mosi);
   const riding = ride(egill, saddle);
+  const gap = frillGap(mosi, egill);
   assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit <= 30, `looks capped at ${mosi.lookYawLimit} degrees aside and ${mosi.lookUpLimit} up`);
   for (let i = 0; i < 30; i++) frame();
-  let worst = Infinity;
   // Up and round to his left, asking for 50 degrees up (more than lookAt's own 30), and at Egill on his
   // back with lookAt's defaults: uncapped, each brings the frill's edge within a few millimetres of him.
-  for (const [target, maxPitch] of [[{ actor: 'mosi', offset: [2, 6, -4], local: true }, 50], ['egill.head', 30]]) {
-    mosi.lookAt(target, { weight: 1, maxPitch });
-    for (let i = 0; i < 60; i++) {
-      frame();
-      if (i % 5 === 4) worst = Math.min(worst, frillGap(mosi, egill));
+  // The walk bobs and turns his head on top of the look, so the gap is smaller then.
+  const lookAbout = (frames, every) => {
+    let worst = Infinity;
+    for (const [target, maxPitch] of [[{ actor: 'mosi', offset: [2, 6, -4], local: true }, 50], ['egill.head', 30]]) {
+      mosi.lookAt(target, { weight: 1, maxPitch });
+      for (let i = 0; i < frames; i++) {
+        frame();
+        if (i % every === every - 1) worst = Math.min(worst, gap());
+      }
+      mosi.lookAt(null);
+      for (let i = 0; i < 30; i++) frame();
     }
-    mosi.lookAt(null);
-    for (let i = 0; i < 30; i++) frame();
-  }
-  assert.ok(worst > 0.04, `the frill came within ${mm(worst)} of Egill`);
+    return worst;
+  };
+  const standing = lookAbout(60, 5);
+  mosi.walkTo([[60, 0]], { speed: 0.95 });
+  const walking = lookAbout(150, 3);
+  assert.equal(mosi.walking, true, 'he walked all through the looks');
+  assert.ok(standing > 0.04, `standing, the frill came within ${mm(standing)} of Egill`);
+  assert.ok(walking > 0.04, `walking, the frill came within ${mm(walking)} of Egill`);
   riding.stop();
   assert.equal(mosi.lookYawLimit, Infinity, 'the caps go when the ride stops');
   assert.equal(mosi.lookUpLimit, Infinity);
