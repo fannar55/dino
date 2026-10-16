@@ -40,7 +40,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
   runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
-  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla), the face pass
+  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla, with `kind=sauropod` for
+  long-necked ones such as Þórseðla), the face pass
   `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
   `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), and
   `prep-character.mjs` for static models (see STYLE.md section 12).
@@ -78,7 +79,7 @@ clock, so pausing, seeking and cancelling work:
 | `s.wait(seconds)` or a number | scene time, with exact deadlines |
 | `s.all(...)`, `s.race(...)` | every item, or the first (the rest are cancelled) |
 | `s.camera.cut / move / orbit / push / lookAt / zoom` | the camera move; `follow` and `handheld` return at once |
-| `s.actor(name).walkTo / turnTo` | arrival; `play`, `lookAt` and `place` return at once |
+| `s.actor(name).walkTo / turnTo` | arrival; `play`, `lookAt` and `place` return at once (a clip marked `once`, such as Þórseðla's `lowerHead`, plays once and holds its last pose) |
 | `s.say(speaker, line)` | the line's length plus a short hold |
 | `s.choose(options)` | the child's tap (in captures: the first option after 3 s) |
 | `s.fade(level, seconds)` | the fade |

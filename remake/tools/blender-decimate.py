@@ -5,8 +5,9 @@
 #     --python remake/tools/blender-decimate.py -- in.glb out.glb 20000 tripo_part_0 [parts]
 # The fourth argument names the head part, or several parts separated by commas
 # (tripo_part_2,tripo_part_7). Pass `parts` to keep the parts separate (the bake tool reads them),
-# and keep=<parts> to keep the seams of those parts as Tripo made them (a lower jaw, whose seam
-# with the face becomes the lips).
+# keep=<parts> to keep the seams of those parts as Tripo made them (a lower jaw, whose seam
+# with the face becomes the lips), and detail=<x> for how much more of its triangles the head keeps
+# than the rest (1.6; a sauropod's small head, seen close up, keeps more).
 # Step 2 is the bake tool for a rigged character (remake/tools/bake/bake-character.mjs), or
 # remake/tools/prep-character.mjs for a static one (STYLE.md section 12).
 import sys
@@ -19,7 +20,8 @@ src, out, target, head = argv[0], argv[1], int(argv[2]), argv[3]
 heads = set(head.split(','))
 keep_parts = 'parts' in argv[4:]
 keep = {name for a in argv[4:] if a.startswith('keep=') for name in a[len('keep='):].split(',')}
-HEAD_DETAIL = 1.6  # the head keeps this much more of its triangles than the rest
+# The head keeps this much more of its triangles than the rest.
+HEAD_DETAIL = next((float(a[len('detail='):]) for a in argv[4:] if a.startswith('detail=')), 1.6)
 PROTECT = 1000.0  # vertex group factor that keeps a region out of a decimation pass
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

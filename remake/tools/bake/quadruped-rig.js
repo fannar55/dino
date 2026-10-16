@@ -6,18 +6,23 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // in Node (geometry only, no textures).
 //
 // It turns the model to face +X, scales it to its length from nose to tail tip, stands it on the
-// ground with the root midway between its feet, and tells the parts apart by position: the four
-// parts that stand on the ground are the legs (front pair ahead, left side at -Z), the biggest of
-// the rest is the body, the biggest part ahead of the fore legs is the head, and every other part
-// (plates, spikes, horns) rides rigidly on the bone it sits on. Then it places a skeleton with
-// identity rest rotations, welds the parts into one skin and gives every vertex skin weights.
+// ground with the root midway between its feet, and tells the parts apart by position and seams:
+// the four parts that stand on the ground are the legs (front pair ahead, left side at -Z), the
+// biggest of the rest is the body, the part that holds the nose is the head, and the parts along the
+// seams from the head back to the body (a long neck, the front of a body cut in two) make up the
+// trunk with them. Every other part (plates, spikes, horns, toenails) rides rigidly on the bone it
+// sits on: a toenail on its foot. Then it places a skeleton with identity rest rotations, welds the
+// parts into one skin and gives every vertex skin weights.
 //
 // Bones: root; the spine chain Hips (over the hind legs), Spine, Chest (over the fore legs), Neck,
-// Neck2, Head; the tail chain Tail1..TailN from the hips; and, hanging from the root, one rigid bone
-// per leg with the foot below it: FrontLeg.L/R, FrontFoot.L/R, BackLeg.L/R, BackFoot.L/R, the names
-// the remake's footing plants (engine/actor.js, engine/footing.js). A leg swings from a pivot on its
-// axis at half the height, as footing turns it, and the skin blends from the leg into the body
+// Neck2..NeckN, Head; the tail chain Tail1..TailN from the hips; and, hanging from the root, one rigid
+// bone per leg with the foot below it: FrontLeg.L/R, FrontFoot.L/R, BackLeg.L/R, BackFoot.L/R, the
+// names the remake's footing plants (engine/actor.js, engine/footing.js). A leg swings from a pivot on
+// its axis at half the height, as footing turns it, and the skin blends from the leg into the body
 // between the top of the leg part and that pivot, so the hip or shoulder bends instead of shearing.
+// A raised neck (a sauropod's, `curve`) has its joints spaced along its centre line instead of along
+// the body, and the skin follows the chain by where it lies along the line through the joints, so a
+// cross-section of the neck moves as one.
 //
 // The welded skin: Tripo cuts a model into parts along seams whose two sides match, and
 // blender-decimate.py decimates the parts as one mesh, so they still match vertex for vertex and,
@@ -54,9 +59,9 @@ function section(points, x, half) {
  * Options: length (metres, nose to tail tip), yaw (degrees that turn the model's front to +X:
  * Tripo faces +Z, so 90), tail/neck/spine (bones in each chain), name, spread (how far, in leg
  * widths along the surface, the body around a leg follows it), plateRows (rows of back plates the
- * plateRow mask counts).
+ * plateRow mask counts), curve (a raised neck: joints and weights along the chain's centre line).
  */
-export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6, plateRows = 3 } = {}) {
+export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2, spine = 1, name = 'Quadruped', spread = 0.6, plateRows = 3, curve = false } = {}) {
   const report = {};
 
   // --- stand it up: front to +X, `length` long, on the ground ---------------------------------
@@ -98,10 +103,34 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   const byX = [...legParts].sort((a, b) => b.c.x - a.c.x);
   const fore = byX.slice(0, 2);
   const foreX = (fore[0].c.x + fore[1].c.x) / 2;
-  const head = others.filter(p => p !== body && p.c.x > foreX).reduce((a, b) => (!a || b.verts > a.verts ? b : a), null);
-  if (!head) throw new Error('no head part ahead of the fore legs');
-  const attached = others.filter(p => p !== body && p !== head);
-  const trunk = [body, head];
+  // The head holds the nose; failing that (the body holds it), the biggest part ahead of the fore legs.
+  const nose = others.reduce((a, b) => (b.box.max.x > a.box.max.x ? b : a));
+  const head = nose !== body ? nose : others.filter(p => p !== body && p.c.x > foreX).reduce((a, b) => (!a || b.verts > a.verts ? b : a), null);
+  if (!head || head.c.x <= foreX) throw new Error('no head part ahead of the fore legs');
+  // Parts that meet along a seam share vertex positions (blender-decimate.py welds them). The trunk is
+  // the body, the head and the parts on the way between them, seam to seam.
+  const WELD = 0.001; // metres
+  const touching = new Map(parts.map(p => [p, new Set()]));
+  {
+    const grid = new Map();
+    for (const part of parts) {
+      for (const q of part.points) {
+        const k = `${Math.round(q.x / WELD)},${Math.round(q.y / WELD)},${Math.round(q.z / WELD)}`;
+        if (!grid.has(k)) grid.set(k, new Set());
+        grid.get(k).add(part);
+      }
+    }
+    for (const set of grid.values()) for (const a of set) for (const b of set) if (a !== b) touching.get(a).add(b);
+  }
+  const way = new Map([[head, null]]);
+  for (const queue = [head]; queue.length && !way.has(body);) {
+    const p = queue.shift();
+    for (const next of touching.get(p)) if (!legParts.includes(next) && !way.has(next)) { way.set(next, p); queue.push(next); }
+  }
+  if (!way.has(body)) throw new Error('the head does not meet the body along seams');
+  const trunk = [];
+  for (let p = body; p; p = way.get(p)) trunk.push(p);
+  const attached = others.filter(p => !trunk.includes(p));
 
   // The soles: where each leg part touches the ground. The root goes midway between them.
   const soleOf = leg => {
@@ -165,7 +194,8 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     if (top > headTop) { headTop = top; headX = x; }
   }
   const tailStart = Math.min(...legs.filter(l => !l.front).map(l => l.part.box.min.x)) - 0.02 * L;
-  const tailEnd = body.box.min.x + 0.1 * (tailStart - body.box.min.x);
+  const tailTip = Math.min(...trunk.map(p => p.box.min.x));
+  const tailEnd = tailTip + 0.1 * (tailStart - tailTip);
   const joints = { root: V() };
   const chain = []; // [name, parent, x], every joint on the centre line
   chain.push(['Hips', 'root', hipsX]);
@@ -197,6 +227,21 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     const [a, b, c] = [0, 1, 2].map(k => det(column(k)) / det(A));
     for (const p of pts) { const u = p.x - m; p.y = a + b * u + c * u * u; }
   }
+  // A raised neck: its joints evenly spaced along its centre line (the sections' centres every 1 % of
+  // the length from the chest to the head), not along the body.
+  if (curve) {
+    const line = [];
+    for (let x = chestX; x < headX; x += 0.01 * L) line.push(sectionAt(x));
+    line.push(joints.Head.clone());
+    const run = [0];
+    for (let i = 1; i < line.length; i++) run.push(run[i - 1] + line[i].distanceTo(line[i - 1]));
+    neckNames.forEach((n, i) => {
+      const s = ((i + 1) / (neck + 1)) * run.at(-1);
+      let k = 1;
+      while (k < line.length - 1 && run[k] < s) k++;
+      joints[n] = line[k - 1].clone().lerp(line[k], (s - run[k - 1]) / Math.max(1e-9, run[k] - run[k - 1]));
+    });
+  }
   for (const l of legs) { joints[l.name] = l.top.clone(); joints[l.footName] = l.foot.clone(); }
 
   // --- bones: identity rest rotations, positions relative to the parent joint ---------------------
@@ -218,7 +263,6 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   // Seam vertices snap onto their cluster's first vertex (after blender-decimate.py they lie on top of
   // each other). Normals and UVs stay as the parts carry them: the parts have their own texture
   // islands, and the decimation gave the seams the normals of the whole mesh.
-  const WELD = 0.001; // metres
   let offset = 0;
   for (const part of parts) { part.offset = offset; offset += part.verts; }
   const owner = [];
@@ -300,17 +344,56 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   // (cuts[k-1], cuts[k]): every joint but the hips' is a cut, so the hips hold the stretch from the
   // tail's root to the spine.
   const owners = [...tailNames].reverse().concat(chain.filter(([n]) => !n.startsWith('Tail')).map(([n]) => n));
-  const cuts = owners.filter(n => n !== 'Hips').map(n => joints[n].x);
+  // Where along the chain a point lies: its x, or with a raised neck (`curve`) its place along the
+  // line through the joints from the tail's tip to the head, so a cross-section of the neck is one
+  // place. A point far from the line (the chest under the neck) blends the places of the stretches
+  // nearly as close as the nearest one, so the inside of a bend has no seam of its own.
+  let along = p => p.x;
+  if (curve) {
+    const line = owners.map(n => joints[n]);
+    const stretches = line.slice(1).map((b, k) => {
+      const a = line[k], len = Math.hypot(b.x - a.x, b.y - a.y);
+      return { a, ux: (b.x - a.x) / len, uy: (b.y - a.y) / len, len };
+    });
+    const start = [0];
+    stretches.forEach((s, k) => start.push(start[k] + s.len));
+    along = p => {
+      let nearest = Infinity;
+      const places = stretches.map((s, k) => {
+        let u = (p.x - s.a.x) * s.ux + (p.y - s.a.y) * s.uy;
+        if (k > 0) u = Math.max(0, u); // the ends run on past the tail's tip and the head
+        if (k < stretches.length - 1) u = Math.min(s.len, u);
+        const d = Math.hypot(p.x - s.a.x - u * s.ux, p.y - s.a.y - u * s.uy);
+        nearest = Math.min(nearest, d);
+        return [start[k] + u, d];
+      });
+      const sigma = 0.01 * L + 0.25 * nearest;
+      let sum = 0, weight = 0;
+      for (const [t, d] of places) { const w = Math.exp(-(((d - nearest) / sigma) ** 2)); sum += w * t; weight += w; }
+      return sum / weight;
+    };
+  }
+  const cuts = owners.filter(n => n !== 'Hips').map(n => along(joints[n]));
   if (cuts.some((x, k) => k && x <= cuts[k - 1])) throw new Error(`the chain's joints are out of order along the body: ${owners.join(' ')}`);
   const halfBand = cuts.map((x, k) => {
     const left = k > 0 ? x - cuts[k - 1] : Infinity;
     const right = k < cuts.length - 1 ? cuts[k + 1] - x : Infinity;
     return 0.45 * Math.min(left, right);
   });
+  // On a raised neck the head stays rigid in front of its joint (the eyes and the mouth move as one):
+  // the blend into the neck lies behind the joint.
+  const headCut = cuts.length - 1;
+  const headBand = curve ? Math.min(2 * halfBand[headCut], cuts[headCut] - cuts[headCut - 1] - halfBand[headCut - 1]) : 0;
   function chainWeights(x, out) {
     let k = 0;
     while (k < cuts.length && x > cuts[k]) k++; // owners[k] holds x
     for (const j of [k - 1, k]) {
+      if (curve && j === headCut) {
+        if (x <= cuts[j] - headBand || x >= cuts[j]) continue;
+        const s = smooth((x - (cuts[j] - headBand)) / headBand);
+        out.push([owners[j], 1 - s], [owners[j + 1], s]);
+        return;
+      }
       if (j < 0 || j >= cuts.length || Math.abs(x - cuts[j]) >= halfBand[j]) continue;
       const s = smooth((x - (cuts[j] - halfBand[j])) / (2 * halfBand[j]));
       out.push([owners[j], 1 - s], [owners[j + 1], s]);
@@ -418,7 +501,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
       .filter(([, s]) => s > 0);
     const sum = shares.reduce((s, [, v]) => s + v, 0);
     const k = sum > 1 ? 1 / sum : 1;
-    chainWeights(p.x, out);
+    chainWeights(along(p), out);
     for (const entry of out) entry[1] *= 1 - sum * k;
     for (const [l, s] of shares) {
       const share = s * k;
@@ -429,21 +512,22 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   }
 
   // Attached parts ride rigidly on the bone that holds most of their base, seam and all, so a plate
-  // never bends. The trunk's skin around the base follows that bone too and blends out to its own
-  // weights over a band along the surface of the part it sits on (a fifth of its size): a bend in the
-  // body next to a plate (the neck bowing to eat) stretches the skin around it instead of folding the
-  // plate's foot.
+  // never bends; a part that sits on a leg alone (a toenail) rides that leg's foot, or the leg above
+  // the ankle. The skin around the base follows that bone too and blends out to its own weights over
+  // a band along the surface of the part it sits on (a fifth of its size): a bend in the body next to
+  // a plate (the neck bowing to eat) stretches the skin around it instead of folding the plate's foot.
   const ride = new Map();
   for (const part of attached) {
     const seam = seamOf(part);
     const base = seam.length ? seam.reduce((s, r) => s.add(at(r)), V()).divideScalar(seam.length) : part.c.clone();
-    const touchesHeadOnly = seam.length && seam.every(r => [...partsAt.get(r)].every(q => q === part || q === head || attached.includes(q)))
-      && seam.some(r => partsAt.get(r).has(head));
+    const sitsOnly = on => seam.length && seam.every(r => [...partsAt.get(r)].every(q => q === part || q === on || attached.includes(q)))
+      && seam.some(r => partsAt.get(r).has(on));
+    const leg = legs.find(l => sitsOnly(l.part));
     const w = [];
-    chainWeights(base.x, w);
-    const bone = touchesHeadOnly ? 'Head' : w.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    chainWeights(along(base), w);
+    const bone = sitsOnly(head) ? 'Head' : leg ? (base.y < ankleTop ? leg.footName : leg.name) : w.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
     const band = Math.max(0.02 * H, 0.2 * Math.max(part.size.x, part.size.y, part.size.z));
-    const under = new Set(trunk.filter(t => seam.some(r => partsAt.get(r).has(t)))); // the part it sits on
+    const under = new Set([...trunk, ...legParts].filter(t => seam.some(r => partsAt.get(r).has(t)))); // the part it sits on
     ride.set(part, { bone, distance: surfaceDistance(seam, under, band), band, base });
   }
 
@@ -524,7 +608,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
     }
     part.geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     part.geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-    part.geometry.setAttribute('plateRow', new THREE.Float32BufferAttribute(new Float32Array(count).fill(plateRow.get(part) ?? 0), 1));
+    if (plates.length) part.geometry.setAttribute('plateRow', new THREE.Float32BufferAttribute(new Float32Array(count).fill(plateRow.get(part) ?? 0), 1));
   }
   const geometry = mergeGeometries(parts.map(p => p.geometry), false);
   if (!geometry) throw new Error('mergeGeometries failed');
@@ -540,7 +624,7 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   group.updateMatrixWorld(true);
   mesh.bind(new THREE.Skeleton(names.map(n => bones[n])));
 
-  const kind = new Map([[body, 'body'], [head, 'head'], ...legs.map(l => [l.part, l.name]), ...attached.map(p => [p, `rides ${ride.get(p).bone}`])]);
+  const kind = new Map([...trunk.map(p => [p, 'trunk']), [body, 'body'], [head, 'head'], ...legs.map(l => [l.part, l.name]), ...attached.map(p => [p, `rides ${ride.get(p).bone}`])]);
   report.parts = Object.fromEntries(parts.map(p => [p.name, kind.get(p)]));
   report.joints = Object.fromEntries(Object.entries(joints).map(([n, v]) => [n, r3(v)]));
   report.legs = Object.fromEntries(legs.map(l => [l.name, { junction: +l.junction.toFixed(3), pivot: r3(l.pivot), foot: r3(l.foot) }]));
@@ -548,6 +632,8 @@ export function rigQuadruped(sources, { length = 7, yaw = 90, tail = 6, neck = 2
   report.triangles = geometry.index.count / 3;
   return {
     group, mesh, bones, names, joints, H, L, closed, report,
+    // Each part's vertices in the one skin: [start, start + count).
+    parts: parts.map(p => ({ name: p.name, kind: kind.get(p), start: p.offset, count: p.verts })),
     chains: { spine: ['Hips', ...spineNames, 'Chest'], neck: [...neckNames, 'Head'], tail: tailNames },
     legs: legs.map(l => ({ name: l.name, foot: l.footName, front: l.front, side: l.side, pivot: l.pivot.clone(), rest: l.foot.clone() })),
   };

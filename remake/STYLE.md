@@ -250,10 +250,11 @@ pinholes left where seams meet, so the surface is closed. Then it decimates the 
 and splits it back into its parts, with the normals of the whole mesh, so the seams stay closed and
 shade alike. (Tripo's own seams have hairline cracks and normals that disagree, by up to 33
 degrees across the back of Grameðla's neck and 150 at her lips: the thin dark line on her back was
-the seam between body and head.) The head keeps relatively more detail, and
-`keep=<part>` keeps a part's seams as Tripo made them: Grameðla's lower jaw, whose seam with the
-face becomes her lips (`37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts
-keep=tripo_part_7`). Then the bake, in headless Edge:
+the seam between body and head.) The head keeps relatively more detail (1.6 times the share of the
+rest; `detail=<x>` gives a small head seen close up more: Þórseðla 4.5), and `keep=<part>` keeps a
+part's seams as Tripo made them: Grameðla's lower jaw, whose seam with the face becomes her lips
+(`37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts keep=tripo_part_7`). Then the
+bake, in headless Edge:
 
 ```bash
 node remake/tools/bake/bake-character.mjs --page bake-biped --out <name>.glb --query "src=<parts.glb, relative to the page>&height=1.1&yaw=90&name=<Name>&out=<name>.glb"
@@ -274,12 +275,13 @@ IK (the knee a hinge about the thigh's Z axis) reaches each foot, and the hips a
 legs allow at 99.5 % of their length, smoothed, so the bob (about 2 cm) follows the stride. The arms
 swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a biped's feet as it does
 Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
-and the hips sink when a leg could not reach it otherwise. A clip that leaves the legs at rest (idle,
-wave, point) keeps the feet where they stand. Footing's distances and times are tuned per body plan
-(`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's legs, measured
-from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
-re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
-should grow with the square root of its size too.
+and the hips sink when a leg could not reach it otherwise. A step footing takes itself is over its
+spot a fifth of its time before it lands, so it comes straight down. A clip that leaves the legs at
+rest (idle, wave, point) keeps the feet where they stand. Footing's distances and times are tuned
+per body plan (`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's
+legs, measured from the skeleton in the bind pose: lengths in proportion, times by the square root.
+A character re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its
+walking speed should grow with the square root of its size too.
 `bake-tailed-biped` (`--query "src=<parts.glb>&length=12&name=Grameðla&out=trex.glb"`) stands the
 model at the origin facing +X at its length nose to tail. It finds the heading from the footprint
 and the left and right pairs, tells the parts apart by position and shared seams (body, tail, head,
@@ -331,8 +333,10 @@ behind it the line stays closed and the cheek stretches. A Jaw bone under the He
 jaw (its share grows from the hinge to the cut, smoothed over the surface), a pocket (palate and
 tongue) fills the mouth, and `face.mouth.talk` says how far the jaw opens when the character talks
 (Mosi 7 degrees). The pass re-exports the GLB (textures 1024 JPEG) with the node names as they were;
-`preview=1&deg=8` shows it open. Mosi: 55 triangles split, 54 lip vertices opened, a 1,176-triangle
-pocket, 25,222 triangles in all; the game's `dist` model is untouched.
+`preview=1&deg=8` shows it open, and `snap=<metres>` counts vertices that close to the line as on it,
+so a vertex a hair off the line leaves no sliver across the open mouth (Þórseðla: 0.003). Mosi: 55
+triangles split, 54 lip vertices opened, a 1,176-triangle pocket, 25,222 triangles in all; the
+game's `dist` model is untouched.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
@@ -368,6 +372,29 @@ exactly that speed and passes under its pivot (Tripo stands a hind foot behind t
 girdle rides as high as its planted legs reach at their rest length, smoothed, so a rigid leg
 slides along its axis only in the swing. Footing plants the feet in walks, starts, stops and turns,
 and keeps them where they stand in idle, kink and eat.
+A sauropod (Þórseðla) goes through `bake-quadruped` with `kind=sauropod`
+(`--query "src=<parts.glb>&length=22&yaw=180&name=Þórseðla&out=brontosaurus.glb&kind=sauropod&neck=5&tail=8&atlas=0.82&brow=1"`).
+Her parts are a head, a neck, a body cut in two and four legs with their toenails: the head is the
+part that holds the nose, the trunk is every part on the way along the seams from the head to the
+body, and a part that sits on a leg alone (a toenail) rides that leg's foot. Her neck rises at about
+45 degrees, so its joints (Neck to Neck5, a metre apart) are spaced along its centre line, and the
+skin follows the chain by where it lies along the line through the joints, a point far from the
+line (the chest under the neck) blending the stretches nearly as close; the head is rigid in front
+of its joint, so the eyes and the mouth move as one. The tail has eight bones. Tripo gave her small
+head about 1 % of the texture, a hundred texels across at 1024 px: `atlas=0.82` narrows the rest of
+the atlas to 82 % of its width and copies the head's islands from the 2048 px source into the column
+that frees up, at twice their old size (`atlas.js`; an island only moves and scales, so the normal
+map stays right). Her brow ridges overhung the eyes and read stern: `brow=1` smooths the skin over
+each eye along its normals until the ridge and the crease under it melt into one soft slope, the
+eye's outline untouched (`brow.js`). The clips are in `sauropod-clips.js`: idle (6 s), a slow walk
+(four beats, a foot down 62 % of the time, a stride of 0.9 times the pivot height at a Froude number
+of 0.025: 3.88 m in 3.77 s, 1.03 m/s), kink (2.8 s), lowerHead (4.5 s: the neck curves down in front
+of her until her eyes, found as the face pass finds them, are at a child's eye height, 0.95 m),
+liftUp (8 s: from that pose the neck rises slowly to its full height, her eyes 9.4 m up, the head
+level all the way so a child on it stays on) and happy (2.4 s: she rocks back so her front feet leave
+the ground by up to half a metre, stamps them down and wiggles her neck and tail). lowerHead and
+liftUp carry `once` in their extras: the actor plays such a clip once and holds its last pose until
+the next one.
 
 Environment:
 

@@ -17,19 +17,21 @@ import * as THREE from 'three';
 // one clip turns never keeps that turn when the next takes over. Only the walk and the hop key the
 // legs: idle, kink and eat leave them at rest, so footing (engine/footing.js) keeps the feet where
 // they stand.
+//
+// The sampling and the walk's feet (createSampler, createGait) are shared with sauropod-clips.js.
 
-const TAU = Math.PI * 2;
-const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-const q = (axis, angle) => new THREE.Quaternion().setFromAxisAngle(axis, angle);
+export const TAU = Math.PI * 2;
+export const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+export const q = (axis, angle) => new THREE.Quaternion().setFromAxisAngle(axis, angle);
 // A turn about the vertical, a tilt toward the right side and a pitch nose-up, applied in that order
 // (yaw outermost).
-const turn = (yaw = 0, roll = 0, pitch = 0) => q(Y, yaw).multiply(q(X, roll)).multiply(q(Z, pitch));
+export const turn = (yaw = 0, roll = 0, pitch = 0) => q(Y, yaw).multiply(q(X, roll)).multiply(q(Z, pitch));
 // A smooth bump from 0 up to 1 and back over [a, b], with no speed at either end.
-const bump = (u, a, b) => (u <= a || u >= b ? 0 : Math.sin((Math.PI * (u - a)) / (b - a)) ** 2);
+export const bump = (u, a, b) => (u <= a || u >= b ? 0 : Math.sin((Math.PI * (u - a)) / (b - a)) ** 2);
 // A smooth step from 0 to 1 over [a, b].
-const ease = (u, a, b) => { const t = THREE.MathUtils.clamp((u - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+export const ease = (u, a, b) => { const t = THREE.MathUtils.clamp((u - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // Cubic Hermite through keys [u, value, slope].
-function spline(keys, u) {
+export function spline(keys, u) {
   let i = 0;
   while (i < keys.length - 2 && u > keys[i + 1][0]) i++;
   const [u0, p0, m0] = keys[i], [u1, p1, m1] = keys[i + 1];
@@ -70,18 +72,27 @@ export const WALK = {
   },
 };
 
-export function authorClips(rig, options = {}) {
-  const { bones, legs, joints, H, chains } = rig;
-  const walk = { ...WALK, ...WALK.defaults(legs[0].pivot.y), ...options };
+/** A walk's settings: `base` (WALK or a variant), its defaults for these legs and the overrides, with
+ *  duty and lag snapped to the keys. */
+export function walkSettings(rig, base = WALK, options = {}) {
+  const walk = { ...base, ...base.defaults(rig.legs[0].pivot.y), ...options };
   const snap = v => Math.round(v * walk.keys) / walk.keys;
   walk.duty = snap(walk.duty);
   walk.lag = snap(walk.lag);
+  return walk;
+}
+
+/**
+ * Samples poses of a rig into clips: `sample(name, duration, pose, keys, withLegs)` keys every chain
+ * bone (and the legs) at keys + 1 times, `pose(u)` (u from 0 to 1 over the clip) posing the bones
+ * from rest each time. `rest` holds the bones' rest positions.
+ */
+export function createSampler(rig) {
+  const { bones, legs, chains } = rig;
   const chainBones = [...chains.spine, ...chains.neck, ...chains.tail];
   const legBones = legs.flatMap(l => [l.name, l.foot]);
   const rest = Object.fromEntries(Object.entries(bones).map(([n, b]) => [n, b.position.clone()]));
   const reset = () => { for (const [n, b] of Object.entries(bones)) { b.position.copy(rest[n]); b.quaternion.identity(); } };
-
-  // Sample `pose(u)` (u from 0 to 1 over the clip) into tracks for the chain bones (and the legs).
   function sample(name, duration, pose, keys, withLegs = false) {
     const times = [];
     const tracks = new Map();
@@ -107,25 +118,17 @@ export function authorClips(rig, options = {}) {
     }
     return new THREE.AnimationClip(name, duration, out);
   }
+  return { sample, reset, rest };
+}
 
-  // The tail sways in a wave running back from the hips, more toward the tip.
-  const sway = (u, amplitude, lag) => chains.tail.forEach((n, i) => {
-    bones[n].quaternion.premultiply(q(Y, amplitude * (0.6 + 0.25 * i) * Math.sin(TAU * u - lag * i)));
-  });
-
-  // --- idle ------------------------------------------------------------------------------------------
-  const idle = u => {
-    const breath = Math.sin(TAU * u);
-    bones.Hips.position.y += 0.004 * H * breath;
-    bones.Spine.quaternion.copy(turn(0, 0, 0.004 * breath));
-    bones.Chest.quaternion.copy(turn(0, 0, -0.008 * Math.sin(TAU * u + 0.3)));
-    bones.Neck.quaternion.copy(turn(0.03 * Math.sin(TAU * u + 0.8), 0, -0.012 * Math.sin(TAU * u + 0.5)));
-    bones.Neck2?.quaternion.copy(turn(0.02 * Math.sin(TAU * u + 1.1), 0, 0));
-    bones.Head.quaternion.copy(turn(0.025 * Math.sin(TAU * u + 1.4), 0.015 * Math.sin(2 * TAU * u), 0.02 * Math.sin(TAU * u + 1.2)));
-    sway(u, 0.025, 0.55);
-  };
-
-  // --- walk --------------------------------------------------------------------------------------------
+/**
+ * The walk's feet and girdles (see WALK) for `walk` (walkSettings): `girdles(u)` the hips' and
+ * shoulders' heights from rest and the body's pitch at u, `plantFeet(u)` the legs reaching the feet
+ * once the body is posed, `reachFoot(leg, target, toes)` one rigid leg reaching a spot (the hop uses
+ * it too), and `report()` the walk's numbers.
+ */
+export function createGait(rig, walk, rest) {
+  const { bones, legs, joints, H } = rig;
   const { stride, cycle, duty, lag } = walk;
   const sweep = stride * duty; // backward travel while a foot is down
   const edge = walk.edge / walk.keys;
@@ -195,9 +198,6 @@ export function authorClips(rig, options = {}) {
     };
   };
   const hindY = girdlePath(false), foreY = girdlePath(true);
-  // The hips and the shoulders each turn a little with their own legs, the spine bending between
-  // them, and the body rolls a little over the side whose feet are down. The neck takes out most of
-  // the pitch and turn, so the head stays calm; the tail sways behind.
   const pivotX = front => legs.filter(l => l.front === front).reduce((s, l) => s + l.pivot.x, 0) / 2;
   const span = pivotX(true) - pivotX(false);
   const girdle = new Map(legs.map(l => [l.name, l.front ? bones.Chest : bones.Hips]));
@@ -219,13 +219,76 @@ export function authorClips(rig, options = {}) {
     return { distance, dir };
   }
   const stats = Object.fromEntries(legs.map(l => [l.name, { angle: [Infinity, -Infinity], stretch: [Infinity, -Infinity], down: [Infinity, -Infinity] }]));
-  const girdles = { hind: [Infinity, -Infinity], fore: [Infinity, -Infinity] };
+  const range = { hind: [Infinity, -Infinity], fore: [Infinity, -Infinity] };
+  const r3 = v => +v.toFixed(3);
+  return {
+    pivotX, span, reachFoot,
+    girdles(u) {
+      const hind = hindY(u), fore = foreY(u);
+      range.hind = [Math.min(range.hind[0], hind), Math.max(range.hind[1], hind)];
+      range.fore = [Math.min(range.fore[0], fore), Math.max(range.fore[1], fore)];
+      return { hind, fore, pitch: (fore - hind) / span };
+    },
+    plantFeet(u) {
+      for (const l of legs) {
+        const { target, a, down } = footAt(l, u);
+        const { distance, dir } = reachFoot(l, target, a);
+        const st = stats[l.name];
+        const angle = Math.atan2(dir.x, -dir.y);
+        st.angle = [Math.min(st.angle[0], angle), Math.max(st.angle[1], angle)];
+        const stretch = distance - length.get(l);
+        st.stretch = [Math.min(st.stretch[0], stretch), Math.max(st.stretch[1], stretch)];
+        if (down) {
+          const off = target.x - l.rest.x;
+          st.down = [Math.min(st.down[0], off), Math.max(st.down[1], off)];
+        }
+      }
+    },
+    report() {
+      const deg = THREE.MathUtils.radToDeg;
+      return {
+        cycle: r3(cycle), stride: r3(stride), speed: r3(stride / cycle), duty, lag,
+        girdles: { hind: range.hind.map(r3), fore: range.fore.map(r3) },
+        legs: Object.fromEntries(Object.entries(stats).map(([n, s]) => [n, {
+          angleDeg: s.angle.map(a => +deg(a).toFixed(1)), stretch: s.stretch.map(r3), plantedFromRest: s.down.map(r3),
+        }])),
+      };
+    },
+  };
+}
+
+export function authorClips(rig, options = {}) {
+  const { bones, joints, H, chains } = rig;
+  const walk = walkSettings(rig, WALK, options);
+  const { sample, rest } = createSampler(rig);
+
+  // The tail sways in a wave running back from the hips, more toward the tip.
+  const sway = (u, amplitude, lag) => chains.tail.forEach((n, i) => {
+    bones[n].quaternion.premultiply(q(Y, amplitude * (0.6 + 0.25 * i) * Math.sin(TAU * u - lag * i)));
+  });
+
+  // --- idle ------------------------------------------------------------------------------------------
+  const idle = u => {
+    const breath = Math.sin(TAU * u);
+    bones.Hips.position.y += 0.004 * H * breath;
+    bones.Spine.quaternion.copy(turn(0, 0, 0.004 * breath));
+    bones.Chest.quaternion.copy(turn(0, 0, -0.008 * Math.sin(TAU * u + 0.3)));
+    bones.Neck.quaternion.copy(turn(0.03 * Math.sin(TAU * u + 0.8), 0, -0.012 * Math.sin(TAU * u + 0.5)));
+    bones.Neck2?.quaternion.copy(turn(0.02 * Math.sin(TAU * u + 1.1), 0, 0));
+    bones.Head.quaternion.copy(turn(0.025 * Math.sin(TAU * u + 1.4), 0.015 * Math.sin(2 * TAU * u), 0.02 * Math.sin(TAU * u + 1.2)));
+    sway(u, 0.025, 0.55);
+  };
+
+  // --- walk --------------------------------------------------------------------------------------------
+  const { cycle, lag } = walk;
+  const gait = createGait(rig, walk, rest);
+  const { pivotX } = gait;
+  // The hips and the shoulders each turn a little with their own legs, the spine bending between
+  // them, and the body rolls a little over the side whose feet are down. The neck takes out most of
+  // the pitch and turn, so the head stays calm; the tail sways behind.
   const walkPose = u => {
-    const hind = hindY(u), fore = foreY(u);
-    girdles.hind = [Math.min(girdles.hind[0], hind), Math.max(girdles.hind[1], hind)];
-    girdles.fore = [Math.min(girdles.fore[0], fore), Math.max(girdles.fore[1], fore)];
-    const pitch = (fore - hind) / span;
-    const roll = -0.015 * Math.cos(TAU * (u - (lag + duty) / 2));
+    const { hind, pitch } = gait.girdles(u);
+    const roll = -0.015 * Math.cos(TAU * (u - (lag + walk.duty) / 2));
     const hipsYaw = -0.02 * Math.cos(TAU * u);
     const chestYaw = -0.02 * Math.cos(TAU * (u - lag));
     // The hips' joint stands near the hind pivots: pitching about it leaves the hind girdle at `hind`.
@@ -240,19 +303,7 @@ export function authorClips(rig, options = {}) {
     sway(u, 0.035, 0.7);
     bones.Tail1.quaternion.premultiply(q(Z, -0.5 * pitch));
     bones.root.updateMatrixWorld(true);
-    for (const l of legs) {
-      const { target, a, down } = footAt(l, u);
-      const { distance, dir } = reachFoot(l, target, a);
-      const st = stats[l.name];
-      const angle = Math.atan2(dir.x, -dir.y);
-      st.angle = [Math.min(st.angle[0], angle), Math.max(st.angle[1], angle)];
-      const stretch = distance - length.get(l);
-      st.stretch = [Math.min(st.stretch[0], stretch), Math.max(st.stretch[1], stretch)];
-      if (down) {
-        const off = target.x - l.rest.x;
-        st.down = [Math.min(st.down[0], off), Math.max(st.down[1], off)];
-      }
-    }
+    gait.plantFeet(u);
   };
 
   // --- kink: a friendly nod ------------------------------------------------------------------------------
@@ -315,9 +366,9 @@ export function authorClips(rig, options = {}) {
     sway(u, 0.07 * joy, 0.6);
     bones.Tail1.quaternion.premultiply(q(Z, 0.08 * lift + 0.03 * joy));
     bones.root.updateMatrixWorld(true);
-    for (const l of legs) {
+    for (const l of rig.legs) {
       const target = l.rest.clone().add(new THREE.Vector3((l.front ? 0.016 : -0.016) * H * lift, air, 0));
-      reachFoot(l, target, -0.12 * lift);
+      gait.reachFoot(l, target, -0.12 * lift);
     }
   };
 
@@ -328,16 +379,5 @@ export function authorClips(rig, options = {}) {
     sample('eat', 2.0, eat, 60),
     sample('happy', 1.5, happy, 45, true),
   ];
-  const deg = THREE.MathUtils.radToDeg;
-  const r3 = v => +v.toFixed(3);
-  const report = {
-    walk: {
-      cycle: r3(cycle), stride: r3(stride), speed: r3(stride / cycle), duty, lag,
-      girdles: { hind: girdles.hind.map(r3), fore: girdles.fore.map(r3) },
-      legs: Object.fromEntries(Object.entries(stats).map(([n, s]) => [n, {
-        angleDeg: s.angle.map(a => +deg(a).toFixed(1)), stretch: s.stretch.map(r3), plantedFromRest: s.down.map(r3),
-      }])),
-    },
-  };
-  return { clips, report, walk: { ...walk, stride, cycle } };
+  return { clips, report: { walk: gait.report() }, walk };
 }

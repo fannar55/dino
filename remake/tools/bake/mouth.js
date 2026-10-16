@@ -28,7 +28,9 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 //     --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=f,u;f,u;...&front=f&cut=f&hinge=f,u&talk=7"
 //
 // Query: src, out, line, front, cut, hinge, talk (degrees the jaw opens at the loudest syllable),
-// tex (texture size), smooth (rounds), preview (1: show the result open instead of exporting).
+// tex (texture size), smooth (rounds), snap (metres: vertices this close to the line count as on it, so
+// a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
+// only those exactly on it), preview (1: show the result open instead of exporting).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
@@ -40,6 +42,7 @@ const HINGE = params.get('hinge').split(',').map(Number);
 const TALK = Number(params.get('talk') || 7);
 const TEX = Number(params.get('tex') || 1024);
 const SMOOTH = Number(params.get('smooth') || 6);
+const SNAP = Number(params.get('snap') || 0);
 const PREVIEW = params.get('preview') === '1';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -174,7 +177,7 @@ try {
     edgeVertex.set(key, v);
     return v;
   };
-  const EPS = 1e-7;
+  const EPS = Math.max(1e-7, SNAP);
   for (let i = 0; i < phis.length; i++) if (Math.abs(phis[i]) < EPS) { phis[i] = 0; onCut.add(i); }
   const index = Array.from(src.index.array);
   const out = [];
