@@ -19,7 +19,7 @@ import { DONE } from '../handle.js';
 //   }
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
-// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need, and
+// So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.search and s.lookAround need, and
 // `journal` (scene/journal.js), which s.star, s.found and s.journal need, and `sun` (engine/sun-face.js),
 // which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
 // The music is not the script's to direct: it plays the theme, lowers itself under the voice (main.js) and holds with the clock.
@@ -176,22 +176,47 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return DONE;
   }
 
-  // The camera turns free for the search, and what the finger drags looks around. The flow
-  // (search.js) does the rest, and everything is put back when it ends or is cancelled.
-  function* searchTask(spec) {
-    const exploring = director.explore(spec.explore);
+  // The camera turns free within `limits` (director.explore) and what the finger drags looks around.
+  // Returns what puts both back; the view then holds where the child left it.
+  function freeLook(limits) {
+    const exploring = director.explore(limits);
     const unwire = pointer.on('drag', ({ dx, dy }) => director.look(dx, dy));
+    return () => {
+      unwire();
+      exploring.cancel(); // holds the view
+    };
+  }
+
+  // The camera turns free for the search. The flow (search.js) does the rest, and everything is put
+  // back when it ends or is cancelled.
+  function* searchTask(spec) {
+    const putBack = freeLook(spec.explore);
     try {
       yield* searchFlow({ s, director }, spec);
     } finally {
-      unwire();
-      exploring.cancel(); // holds the view
+      putBack();
     }
   }
 
   function search(spec) {
     needPointer('s.search');
     return start(searchTask(spec));
+  }
+
+  // Free look on its own (spec scene 1), for a number of seconds: while seeking nobody drags, so it only waits.
+  function* lookAroundTask(limits, seconds) {
+    const putBack = freeLook(limits);
+    try {
+      yield wait(seconds);
+    } finally {
+      putBack();
+    }
+  }
+
+  function lookAround(limits, seconds) {
+    needPointer('s.lookAround');
+    if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`s.lookAround needs a number of seconds, not ${seconds}`);
+    return start(lookAroundTask(limits, seconds));
   }
 
   // Drag to target (spec scene 9). The tray carries an item under the child's finger and says where it was
@@ -387,6 +412,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      * is searchFlow's (search.js): hintAfter, helpAfter, speaker and onFound(name, index). Seeking: one find every 3 s.
      */
     search,
+    /**
+     * Let the child look around for `seconds`: the camera turns free within `limits` (director.explore's { yaw, pitch, speed }) and
+     * a drag turns the view, as in s.search; then the view holds where the child left it. Seeking: it only waits.
+     */
+    lookAround,
     /**
      * Wait for the child to drag the tray item `itemId` to a point in the world (a point spec). It resolves 'dropped' when
      * the item is let go within `radius` px of the point on the screen; a drop anywhere else, or off the canvas, sends

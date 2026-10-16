@@ -515,3 +515,78 @@ test('a drag during a hint hands the camera back to the child, and the next hint
   assert.ok(near(x, 400, 0.01), `the next hint found the flower: x ${x.toFixed(2)}`);
   assert.equal(director.warnings.length, 0);
 });
+
+// Free look without a search (spec scene 1: the child may drag to look around a little): s.lookAround hands the camera to the
+// finger within the limits for a number of seconds, the same wiring as s.search, and puts it back when the time is up.
+test('s.lookAround turns the camera free for its seconds, wires drags to look, then holds the view', () => {
+  const { stage, pointer, director, run } = rig();
+  const explore = { yaw: [-30, 30], pitch: [-8, 12], speed: 0.15 };
+  let ended = null;
+  stage.start(function* script() {
+    yield stage.s.lookAround(explore, 6);
+    ended = stage.s.time;
+  });
+  run(0.1);
+  assert.equal(director.calls.explore.length, 1, 'the camera is the finger\'s');
+  assert.deepEqual(director.calls.explore[0].options, explore);
+  pointer.drag(20, -4);
+  assert.deepEqual(director.calls.look, [[20, -4]], 'what the finger moves is what the camera is told');
+  run(5.8);
+  assert.equal(ended, null);
+  assert.equal(director.calls.explore[0].handle.cancelled, false);
+  run(0.2);
+  assert.ok(ended !== null && near(ended, 6, 1e-6), `it ends by itself at 6 s, not ${ended}`);
+  assert.equal(director.calls.explore[0].handle.cancelled, true, 'free look is over, and the view stays where the child left it');
+  assert.equal(pointer.listeners.drag.length, 0);
+  pointer.drag(40, 40);
+  assert.equal(director.calls.look.length, 1, 'later drags are not for the camera');
+});
+
+test('s.lookAround cut short, by a race or the scene stopping, puts the camera and the finger back', () => {
+  for (const [how, end] of [['raced', null], ['stopped with the scene', ({ stage }) => stage.stop()]]) {
+    const { stage, pointer, director, run } = rig();
+    const task = how === 'raced'
+      ? stage.start(function* script() { yield stage.s.race(stage.s.lookAround(EXPLORE, 30), stage.s.wait(2)); })
+      : stage.s.lookAround(EXPLORE, 30);
+    run(1);
+    assert.equal(pointer.listeners.drag.length, 1, how);
+    if (end) end({ stage });
+    else run(1.1);
+    assert.equal(director.calls.explore[0].handle.cancelled, true, how);
+    assert.equal(pointer.listeners.drag.length, 0, how);
+    if (how === 'raced') assert.equal(task.done, true);
+  }
+});
+
+test('s.lookAround while seeking only waits its seconds, and needs a pointer and a time', () => {
+  const { stage, director, run } = rig();
+  stage.seeking = true;
+  let ended = null;
+  stage.start(function* script() {
+    yield stage.s.lookAround(EXPLORE, 4);
+    ended = stage.s.time;
+  });
+  run(4.1);
+  assert.ok(near(ended, 4, 1e-6), `a capture's timeline stays fixed: ${ended}`);
+  assert.equal(director.calls.explore[0].handle.cancelled, true);
+  const { s } = createScene({ world: {}, director: {}, ui: {}, voice: {} });
+  assert.throws(() => s.lookAround(EXPLORE, 4), /pointer/);
+  assert.throws(() => stage.s.lookAround(EXPLORE, -1), TypeError);
+  assert.throws(() => stage.s.lookAround(EXPLORE), TypeError);
+});
+
+test('with the real director, a drag in s.lookAround turns the view and the limits hold it', () => {
+  const { director, stage, run, drag, turned } = realRig();
+  stage.s.lookAround({ yaw: [-20, 20], pitch: [-5, 5] }, 10);
+  run(0.5);
+  drag(-100); // the finger moves left 100 px: the view turns right, 15 degrees at 0.15 a pixel
+  run(1);
+  assert.ok(near(turned(), 15, 0.5), `turned ${turned().toFixed(2)} degrees`);
+  drag(-400); // far beyond the limit
+  run(1.5);
+  assert.ok(near(turned(), 20, 0.05), `held at the 20 degree limit: ${turned().toFixed(2)}`);
+  assert.equal(director.mode, 'explore');
+  run(8);
+  assert.equal(director.mode, 'still', 'and when the time is up the camera holds where it was left');
+  assert.ok(near(turned(), 20, 0.05));
+});
