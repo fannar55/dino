@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { FOREST, PALETTE, BEAT_SHARE } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
-import { patchLambert, LIGHT_GLOBALS } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
 
 const VERTS = 5;
@@ -179,7 +179,8 @@ varying float vT;
 varying vec3 vInfo;
 varying vec3 vGrassBase;
 ${ACTOR_GLSL}
-${LIGHT_GLOBALS}`,
+${LIGHT_GLOBALS}
+${LEAF_SHADOW_GLSL}`,
     fragmentAfter: [
       ['#include <color_fragment>', `
   vec3 gc = mix( uGrassBase, uGrassMid, smoothstep( 0.0, 0.45, vT ) );
@@ -195,6 +196,7 @@ ${LIGHT_GLOBALS}`,
   diffuseColor.rgb = gc * forestActorShade( vGrassBase );
   float gDap = smoothstep( 0.6, 0.78, texture2D( uNoise, vGrassBase.xz * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
   gSun = vInfo.z + ( 1.0 - vInfo.z ) * gDap * uDapple;
+  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( vGrassBase.xz ) * ( 1.0 - gNear ); // as on the ground
   gAmb = mix( 0.65, 1.0, vInfo.z );
   gShadowUse = smoothstep( 0.52, 0.64, vInfo.z ); // as on the ground: real shadows reach under the edge
   gLeaf = 0.42 * vT;`],

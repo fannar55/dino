@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { FOREST, PALETTE } from './config.js';
 import { createNoise, smoothstep, clamp } from './random.js';
-import { patchLambert, LIGHT_GLOBALS } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL } from './materials.js';
 
 /** Distance from a point to a polyline, with the arc-length position of the closest point. */
 export function createPolyline(points) {
@@ -296,7 +296,8 @@ uniform float uDapple;
 uniform float uWindTime;
 uniform vec3 uGrassBase, uGrassSun, uClover, uForestA, uForestB, uMoss, uSoil, uSoilDark, uPath, uPathEdge, uLitterA, uLitterB;
 ${ACTOR_GLSL}
-${LIGHT_GLOBALS}`,
+${LIGHT_GLOBALS}
+${LEAF_SHADOW_GLSL}`,
       fragmentAfter: [['#include <color_fragment>', `
   vec2 gp = vGroundPos.xz;
   vec4 m = texture2D( uGroundMask, ( gp - uMaskOrigin ) / uMaskSize );
@@ -319,13 +320,16 @@ ${LIGHT_GLOBALS}`,
   pathC = mix( pathC, uPathEdge * 0.9, smoothstep( 0.62, 0.7, nC.g ) * 0.35 );
   col = mix( col, pathC, pathEdge );
   float ao = forestActorShade( vGroundPos );
-  float nearActor = forestActorNear( vGroundPos ) * ( 1.0 - pathEdge );
+  float actorNear = forestActorNear( vGroundPos );
+  float nearActor = actorNear * ( 1.0 - pathEdge );
   col = mix( col * mix( 0.88, 1.0, m.b ), col * vec3( 1.2, 1.14, 0.84 ) + vec3( 0.02, 0.016, 0.0 ), nearActor * 0.75 * uActorWarm * ( 1.0 - m.b ) );
   diffuseColor.rgb = col * ao;
   float shade = texture2D( uShadeMask, ( gp - uMaskOrigin ) / uMaskSize ).r;
   float openSky = mix( 1.0, uForestSun, smoothstep( 0.15, 0.9, shade ) );
   float dap = smoothstep( 0.6, 0.78, texture2D( uNoise, gp * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
   gSun = openSky + ( 1.0 - openSky ) * dap * uDapple;
+  // a glade's leaf shadows drift over its floor, but never over the ground round a character
+  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( gp ) * ( 1.0 - actorNear );
   gAmb = mix( 0.5, 1.0, openSky );
   // the real shadow map keeps counting well under the canopy edge, where the baked shade is
   // already dark, so no lit band opens between the two

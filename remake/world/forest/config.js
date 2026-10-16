@@ -110,6 +110,25 @@ export const FOREST = {
     rocks: 3,
     ferns: 10,
   },
+  // A fern glade is a layout with `glade: { ferns, shafts }`, both optional (gladeOf below fills them in); the leaf shadows come
+  // with it, whatever the options. A layout without `glade` meets none of this, and ferns 1 with shafts 0 leave what the planner
+  // and the atmosphere make as it is.
+  glade: {
+    // ferns: times the ferns round the clearing, the rim's own (clearing.ferns) and the forest edge's (understory.ferns), which grow
+    // round the clearing and not in the middle where the actors stand. They are lusher as well as more: every step of `ferns`
+    // above 1 makes them `perFern` bigger, up to `max` times, and has them push the grass aside and grow behind a character (plan.js).
+    ferns: 1,
+    fernGrowth: { perFern: 0.3, max: 1.6 },
+    shafts: 0, // light shafts that land inside the clearing
+    // How a glade's shafts are drawn (atmosphere.js). ground: where one lands, as a share of the clearing radius; top: the height of
+    // its upper end (m); width (m); strength: times the forest's shafts; near: the camera distance (m) over which one fades in, much
+    // closer than the forest's 3 to 9 m, because in a glade the camera is always within a few metres of one; motes: glittering motes in each.
+    shaft: { ground: [0.15, 0.8], top: [12, 16], width: [1.8, 3.2], strength: 5, near: [1.5, 5], motes: 12 },
+    // Leaf shadows on the floor (materials.js): clumps of shade that take `strength` of the sun and drift with the wind clock at
+    // `speed` metres a second, the nearer layer with the wind, the farther one across it. scale: the two layers' pattern per metre;
+    // cover: the noise values between which a clump fades in. (The dapple of the shaded forest drifts at 2 cm/s: nobody sees it move.)
+    leafShadow: { strength: 0.6, speed: 0.09, scale: [0.21, 0.34], cover: [0.46, 0.62] },
+  },
   grass: {
     density: 70, // blades per m2 at full density (tablet), inside the sunny clearing
     tiles: 4, // the clearing grass is a tiles x tiles grid of chunks
@@ -177,4 +196,15 @@ export const WIND_PEAK = { along: 0.55 + 0.45 * (0.6 + 0.25), side: 0.22 };
 /** Scale counts by the quality preset. */
 export function scaled(count, factor) {
   return Math.max(0, Math.round(count * factor));
+}
+
+/** A layout's glade options with the defaults filled in. `on` says whether the layout is a glade at all. */
+export function gladeOf(layout) {
+  const given = layout.glade;
+  const count = (value, fallback) => (Number.isFinite(value) && value >= 0 ? value : fallback);
+  return {
+    on: Boolean(given),
+    ferns: count(given?.ferns, FOREST.glade.ferns),
+    shafts: Math.round(count(given?.shafts, FOREST.glade.shafts)),
+  };
 }

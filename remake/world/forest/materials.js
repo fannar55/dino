@@ -150,6 +150,23 @@ float gAmb = 1.0;
 float gLeaf = 0.0;
 float gShadowUse = 1.0;`;
 
+// Leaf shadows on the floor of a fern glade: clumps of shade that take uLeafShadow of the sun (0 is off, which every forest but
+// a glade is). Two layers of the noise texture glide over the floor off the game's wind clock, the nearer one with the wind and the
+// farther one across it, at FOREST.glade.leafShadow.speed metres a second: slow, but the eye sees it move (the dapple of the shaded
+// forest drifts at 2 cm/s, which it does not). The pattern depends on the ground position alone, so a blade of grass and the ground
+// under it carry the same shadow. Whoever includes this declares uNoise and uWindTime, as the ground and the grass do.
+const LEAF_SHADOW = FOREST.glade.leafShadow;
+export const LEAF_SHADOW_GLSL = /* glsl */`
+uniform float uLeafShadow;
+uniform vec2 uWindDirection;
+float forestLeafShadow( vec2 gp ) {
+  vec2 drift = uWindDirection * ( uWindTime * ${LEAF_SHADOW.speed.toFixed(4)} );
+  vec2 sidle = vec2( -drift.y, drift.x ) * 0.45;
+  float clumpsA = texture2D( uNoise, ( gp - drift ) * ${LEAF_SHADOW.scale[0].toFixed(3)} ).r;
+  float clumpsB = texture2D( uNoise, ( gp + sidle ) * ${LEAF_SHADOW.scale[1].toFixed(3)} + 0.37 ).g;
+  return smoothstep( ${LEAF_SHADOW.cover[0].toFixed(3)}, ${LEAF_SHADOW.cover[1].toFixed(3)}, 0.6 * clumpsA + 0.4 * clumpsB );
+}`;
+
 // The real shadow map only counts where the sky is open (gShadowUse): under the canopy the baked
 // shade already says how much sun gets through, and stacking both would turn trunks black. The
 // shadow also fades out toward the edges of the shadow camera, so its box never shows as a line.
@@ -171,8 +188,8 @@ vec3 forestSrgbToLinear( vec3 c ) {
   return mix( c / 12.92, pow( ( c + 0.055 ) / 1.055, vec3( 2.4 ) ), step( 0.04045, c ) );
 }`;
 
-/** Shared uniform objects for every forest material (wind objects are the engine's own). */
-export function createSharedUniforms(world, noiseTexture, leafTexture) {
+/** Shared uniform objects for every forest material (wind objects are the engine's own). leafShadow: the glade's leaf shadows, 0 for no glade. */
+export function createSharedUniforms(world, noiseTexture, leafTexture, leafShadow = 0) {
   const w = world.wind.uniforms;
   return {
     uWindTime: w.uWindTime,
@@ -182,6 +199,7 @@ export function createSharedUniforms(world, noiseTexture, leafTexture) {
     uNoise: { value: noiseTexture },
     uLeaf: { value: leafTexture },
     uDapple: { value: FOREST.shade.dapple },
+    uLeafShadow: { value: leafShadow },
     uTranslucency: { value: 0.55 },
   };
 }
