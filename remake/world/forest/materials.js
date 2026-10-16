@@ -150,12 +150,13 @@ float gAmb = 1.0;
 float gLeaf = 0.0;
 float gShadowUse = 1.0;`;
 
-// Leaf shadows on the floor of a fern glade: clumps of shade that take uLeafShadow of the sun (0 is off, which every forest but
-// a glade is). Two layers of the noise texture glide over the floor off the game's wind clock, the nearer one with the wind and the
-// farther one across it, at FOREST.glade.leafShadow.speed metres a second: slow, but the eye sees it move (the dapple of the shaded
-// forest drifts at 2 cm/s, which it does not). The pattern depends on the ground position alone, so a blade of grass and the ground
-// under it carry the same shadow. Whoever includes this declares uNoise and uWindTime, as the ground and the grass do.
-const LEAF_SHADOW = FOREST.glade.leafShadow;
+// Leaf shadows on the floor: clumps of shade that take uLeafShadow of the sun (0 is off, which a forest is unless its layout asks
+// for them: layout.leafShadows, or a glade, config.js). Two layers of the noise texture glide over the floor off the game's wind
+// clock, the nearer one with the wind and the farther one across it, at FOREST.leafShadow.speed metres a second: slow, but the eye
+// sees it move (the dapple of the shaded forest drifts at 2 cm/s, which it does not). The pattern depends on the ground position
+// alone, so a blade of grass and the ground under it carry the same shadow. Whoever includes this declares uNoise and uWindTime,
+// as the ground and the grass do.
+const LEAF_SHADOW = FOREST.leafShadow;
 export const LEAF_SHADOW_GLSL = /* glsl */`
 uniform float uLeafShadow;
 uniform vec2 uWindDirection;
@@ -188,7 +189,7 @@ vec3 forestSrgbToLinear( vec3 c ) {
   return mix( c / 12.92, pow( ( c + 0.055 ) / 1.055, vec3( 2.4 ) ), step( 0.04045, c ) );
 }`;
 
-/** Shared uniform objects for every forest material (wind objects are the engine's own). leafShadow: the glade's leaf shadows, 0 for no glade. */
+/** Shared uniform objects for every forest material (wind objects are the engine's own). leafShadow: the strength of the leaf shadows, 0 for none. */
 export function createSharedUniforms(world, noiseTexture, leafTexture, leafShadow = 0) {
   const w = world.wind.uniforms;
   return {

@@ -7,7 +7,8 @@
 // layout with the shots in `layout.shots`, which the planner keeps clear (world/forest/plan.js); the
 // director gets the shots of every location (main.js). A layout may also carry `actors` ({ name: { position,
 // heading } }: who stands in that place, which the planner keeps clear as well, else it keeps the chapter's
-// actors clear) and `glade` ({ ferns, shafts }: a fern glade, see world/forest/forest.js).
+// actors clear), `glade` ({ ferns, shafts }: a fern glade) and `leafShadows` (true: leaf shadows drifting over the
+// floor, which a glade has too), see world/forest/forest.js.
 //
 //   const locations = createLocations({ world, locations: chapter.locations, build: layout => createForest(world, layout) });
 //   await locations.setLocation(chapter.start);   // builds the first forest and shows it

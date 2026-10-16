@@ -298,11 +298,13 @@ const floorOf = forest => ({
   grass: compiled(forest.group.getObjectByName('Grass').children[0].material),
 });
 
-test('a glade\'s floor takes leaf shadows that drift with the wind clock; other forests do not', async () => {
-  const { world, forest } = await forestOf(withGlade({ ferns: 3, shafts: 4 }));
-  const { ground, grass } = floorOf(forest);
-  for (const [name, shader] of Object.entries({ ground, grass })) {
-    assert.ok(shader.uniforms.uLeafShadow.value > 0, `the ${name} has no leaf shadows in a glade`);
+/** What the ground and the grass of a forest hold in uLeafShadow (0 is off). */
+const strengthOf = floor => [floor.ground, floor.grass].map(shader => shader.uniforms.uLeafShadow.value);
+
+/** The leaf shadows of the floor are on, read the game's wind clock and wind direction, and are taken into the sunlight. */
+function assertDrifting(floor, world) {
+  for (const [name, shader] of Object.entries(floor)) {
+    assert.ok(shader.uniforms.uLeafShadow.value > 0, `the ${name} has no leaf shadows`);
     assert.equal(shader.uniforms.uWindTime, world.wind.uniforms.uWindTime, `the ${name} reads the game's wind clock`);
     assert.equal(shader.uniforms.uWindDirection, world.wind.uniforms.uWindDirection, `the ${name} drifts the way the wind blows`);
     const body = shader.fragmentShader.match(/float forestLeafShadow\([^)]*\)\s*\{[\s\S]*?\n\}/);
@@ -312,17 +314,48 @@ test('a glade\'s floor takes leaf shadows that drift with the wind clock; other 
     assert.match(body[0], /uWindTime/, 'the leaf shadows do not move with the clock');
     assert.match(body[0], /uWindDirection/, 'the leaf shadows do not follow the wind');
   }
-  forest.dispose();
+}
 
-  const plain = await forestOf(GLADE);
-  const floor = floorOf(plain.forest);
-  assert.equal(floor.ground.uniforms.uLeafShadow.value, 0, 'no leaf shadows without a glade');
-  assert.equal(floor.grass.uniforms.uLeafShadow.value, 0);
-  plain.forest.dispose();
+test('a glade\'s floor takes leaf shadows that drift with the wind clock', async () => {
+  const { world, forest } = await forestOf(withGlade({ ferns: 3, shafts: 4 }));
+  assertDrifting(floorOf(forest), world);
+  forest.dispose();
+});
+
+test('layout.leafShadows alone gives the floor drifting leaf shadows, and none of the rest of a glade', async () => {
+  const layout = { ...GLADE, leafShadows: true };
+  const { world, forest } = await forestOf(layout);
+  assertDrifting(floorOf(forest), world);
+  forest.dispose();
+  // no more ferns (or anything else placed differently), no light shaft or mote more
+  for (const shots of [undefined, SHOTS]) {
+    assert.equal(planPrint(plan({ ...layout, shots })), planPrint(plan({ ...GLADE, shots })), 'the plan is not the forest\'s as it was');
+  }
+  assert.deepEqual(shaftsOf(airOf(layout)), shaftsOf(airOf(GLADE)), 'a light shaft more');
+  assert.deepEqual(motesOf(airOf(layout)), motesOf(airOf(GLADE)), 'a mote more');
+});
+
+test('a glade has leaf shadows by default, and none when its layout says leafShadows: false', async () => {
+  const strength = async layout => {
+    const { forest } = await forestOf(layout);
+    const held = strengthOf(floorOf(forest));
+    forest.dispose();
+    return held;
+  };
+  assert.ok((await strength(withGlade({}))).every(value => value > 0), 'a glade with no options has no leaf shadows');
+  assert.deepEqual(await strength({ ...withGlade({ ferns: 3, shafts: 4 }), leafShadows: false }), [0, 0], 'a glade that says leafShadows: false has them');
+});
+
+test('grunnur still has no leaf shadows', async () => {
+  const { forest } = await forestOf(grunnur.layout);
+  assert.deepEqual(strengthOf(floorOf(forest)), [0, 0]);
+  forest.dispose();
+  assert.equal(grunnur.layout.glade, undefined);
+  assert.equal(grunnur.layout.leafShadows, undefined);
 });
 
 test('the leaf shadows move slowly, but not so slowly the eye misses it', () => {
-  const { speed } = FOREST.glade.leafShadow; // metres a second
+  const { speed } = FOREST.leafShadow; // metres a second
   const dapple = Math.hypot(0.003, 0.002) / 0.16; // what the dapple of the shaded forest drifts at
   assert.ok(speed >= 3 * dapple, `${speed} m/s: hardly faster than the dapple (${dapple.toFixed(3)} m/s), which nobody sees move`);
   assert.ok(speed <= 0.15, `${speed} m/s is not slow`);

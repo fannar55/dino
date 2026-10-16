@@ -6,7 +6,9 @@
 //   shots   the camera shots set in this place, which the planner keeps clear (a chapter location carries its own)
 //   actors  { name: { position, heading } } who stands in this place, kept clear too (else the chapter's actors are)
 //   glade   { ferns, shafts } makes it a fern glade: a rim of ferns that many times lusher, that many light shafts landing in
-//           the clearing, and leaf shadows drifting over its floor (config.js: FOREST.glade)
+//           the clearing (config.js: FOREST.glade), and leaf shadows over its floor unless `leafShadows` says false
+//   leafShadows  true puts leaf shadows on the floor, slowly drifting with the wind (config.js: FOREST.leafShadow); a glade has
+//           them by default, any other forest does not
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -16,7 +18,7 @@
 //   far.js         the far treeline rings
 //   atmosphere.js  light shafts and motes
 import * as THREE from 'three';
-import { FOREST, gladeOf } from './config.js';
+import { FOREST, leafShadowsOf } from './config.js';
 import { createTerrain } from './terrain.js';
 import { createSpeciesLibrary } from './species.js';
 import { planForest } from './plan.js';
@@ -45,7 +47,7 @@ export async function createForest(world, layout) {
 
   const noiseTexture = createNoiseTexture(seed);
   const leafTexture = createLeafTexture(seed);
-  const shared = createSharedUniforms(world, noiseTexture, leafTexture, gladeOf(layout).on ? FOREST.glade.leafShadow.strength : 0);
+  const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
     uActors: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) },
     uActorShape: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1.3, 0.9, 0.8, 0)) },
