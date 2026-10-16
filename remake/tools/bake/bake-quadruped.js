@@ -4,6 +4,7 @@ import { GLTFExporter } from '../../vendor/addons/exporters/GLTFExporter.js';
 import { rigQuadruped } from './quadruped-rig.js';
 import { authorClips } from './quadruped-clips.js';
 import { authorSauropodClips } from './sauropod-clips.js';
+import { authorHadrosaurClips } from './hadrosaur-clips.js';
 import { rigWinged } from './winged-rig.js';
 import { authorWingedClips } from './winged-clips.js';
 import { findEyes, readPixels } from './eyes.js';
@@ -19,15 +20,19 @@ import { softenBrows } from './brow.js';
 // lowered until the eyes (found here as the face pass finds them) are at a child's eye height. A
 // pterosaur (`kind=pterosaur`: two legs and two wings, Flugeðla) is rigged by winged-rig.js instead,
 // scaled to its wingspan, and gets winged-clips.js: idle, walk, takeOff, fly, glide, land, kink, happy
-// and carry. Run it with bake-character.mjs.
+// and carry. A hadrosaur (`kind=hadrosaur`: a raised neck and a crest riding the head, Slóeðla) is
+// rigged along its neck's centre line with the head's joint at the back of the skull, and gets
+// hadrosaur-clips.js: idle, walk, kink, happy, eat (grazing) and call (a horn call through the crest).
+// Run it with bake-character.mjs.
 //
 // Query: src (parts GLB, relative to this page), out (file name for the upload), length (metres from
 // nose to tail tip), yaw (degrees that turn the model's front to +X; Tripo faces +Z, so 90), name,
-// tex (texture size), roughness, normal (normal map strength), kind (quadruped, sauropod or pterosaur),
-// span (a pterosaur's wingspan in metres, instead of length), neck, tail, spine (bones in each chain),
-// atlas (for a small head: the share of the texture's side the rest keeps, the head's islands taking the
-// column that frees up; atlas.js), brow (how much to soften stern brow ridges, 1 the full change;
-// brow.js), greet (a sauropod's eye height with the head lowered, metres), and for the walk: stride
+// tex (texture size), roughness, normal (normal map strength), kind (quadruped, sauropod, pterosaur or
+// hadrosaur), span (a pterosaur's wingspan in metres, instead of length), neck, tail, spine (bones in
+// each chain), atlas (for a small head: the share of the texture's side the rest keeps, the head's
+// islands taking the column that frees up; atlas.js), brow (how much to soften stern brow ridges, 1 the
+// full change; brow.js), touch (for finding the eyes: eyes.js), greet (a sauropod's eye height with the
+// head lowered, metres), graze (a hadrosaur's bill height grazing, metres), and for the walk: stride
 // (metres a cycle), cycle (seconds), duty, lag (quadruped-clips.js, WALK).
 
 const params = new URLSearchParams(location.search);
@@ -42,6 +47,7 @@ const NORMAL = num('normal', 0.5);
 const NAME = params.get('name') || 'Kambeðla';
 const SAUROPOD = params.get('kind') === 'sauropod';
 const WINGED = params.get('kind') === 'pterosaur';
+const HADROSAUR = params.get('kind') === 'hadrosaur';
 const status = text => { window.__bakeStatus = text; console.log('[bake]', text); };
 
 try {
@@ -55,7 +61,7 @@ try {
     sources.push({ name: o.name, geometry: o.geometry.clone().applyMatrix4(o.matrixWorld) });
     material ??= o.material;
   });
-  const options = WINGED ? { span: num('span', 7.5), yaw: YAW, name: NAME } : { length: LENGTH, yaw: YAW, name: NAME, curve: SAUROPOD };
+  const options = WINGED ? { span: num('span', 7.5), yaw: YAW, name: NAME } : { length: LENGTH, yaw: YAW, name: NAME, curve: SAUROPOD || HADROSAUR, crest: HADROSAUR };
   for (const key of ['neck', 'tail', 'spine']) if (params.has(key)) options[key] = num(key);
   const rig = WINGED ? rigWinged(sources, options) : rigQuadruped(sources, options);
 
@@ -79,8 +85,8 @@ try {
 
   // The eyes, as the face pass finds them: a sauropod lowers its head to them, and `brow` softens the
   // brow ridges over them (brow.js).
-  const eyes = SAUROPOD || params.has('brow') ? findEyes({ mesh: rig.mesh, pixels: readPixels(mat.map.image) }).eyes : null;
-  if (params.has('brow')) rig.report.brow = softenBrows(rig.mesh, eyes, { strength: num('brow') });
+  const eyes = SAUROPOD || params.has('brow') ? findEyes({ mesh: rig.mesh, pixels: readPixels(mat.map.image), touch: num('touch', 0) }).eyes : null;
+  if (params.has('brow')) rig.report.brow = softenBrows(rig.mesh, eyes, { strength: num('brow'), even: num('even', 0) });
 
   const walk = {};
   for (const key of ['stride', 'cycle', 'duty', 'lag']) if (params.has(key)) walk[key] = num(key);
@@ -89,7 +95,8 @@ try {
   else if (SAUROPOD) {
     const between = new THREE.Vector3(...eyes[0].centre).add(new THREE.Vector3(...eyes[1].centre)).multiplyScalar(0.5);
     authored = authorSauropodClips(rig, { ...walk, eyes: between.toArray(), greet: num('greet', 0.95) });
-  } else authored = authorClips(rig, walk);
+  } else if (HADROSAUR) authored = authorHadrosaurClips(rig, { ...walk, graze: num('graze', 0.12) });
+  else authored = authorClips(rig, walk);
   const { clips, report } = authored;
 
   if (!rig.closed) console.warn('[bake] the welded skin is not closed: double-sided', JSON.stringify(rig.report.skin));

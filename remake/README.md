@@ -41,7 +41,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
   runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
   Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla, with `kind=sauropod` for
-  long-necked ones such as Þórseðla and `kind=pterosaur` for winged ones such as Flugeðla), the
+  long-necked ones such as Þórseðla, `kind=pterosaur` for winged ones such as Flugeðla and
+  `kind=hadrosaur` for crested ones such as Slóeðla), the
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
   `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), and
   `prep-character.mjs` for static models (see STYLE.md section 12).

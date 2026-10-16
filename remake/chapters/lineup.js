@@ -1,13 +1,16 @@
 // Look-check scene: the characters side by side in the foundation clearing, at their real sizes.
 // It has no script, only review shots (?chapter=lineup&shot=<name>&t=<seconds>), for comparing a new
 // character with Mosi and Egill and for measuring the GPU cost with it in view
-// (remake/tools/capture.mjs; ?gramedla=0, ?kambedla=0, ?thorsedla=0 or ?flugedla=0 leaves her out).
+// (remake/tools/capture.mjs; ?gramedla=0, ?kambedla=0, ?thorsedla=0, ?flugedla=0 or ?sloedla=0 leaves
+// her out).
 //
 // Þórseðla the Brontosaurus is 22 m nose to tail (her head 8.6 m up), Grameðla the T. rex 12 m,
-// Mosi 8.5 m, Kambeðla the Stegosaurus 7 m, Flugeðla the Pteranodon 7.5 m from wing tip to wing tip
-// (4.2 m to the top of her crest, standing on her feet and folded hands) and Egill 1.1 m tall (STYLE.md
-// section 3). Þórseðla stands across the back of the clearing behind Mosi, facing left, her tail
-// reaching into the trees; Flugeðla stands in front of her, turned toward Egill.
+// Mosi 8.5 m, Kambeðla the Stegosaurus 7 m, Slóeðla the Parasaurolophus 7.5 m (4.1 m to the top of her
+// crest), Flugeðla the Pteranodon 7.5 m from wing tip to wing tip (4.2 m to the top of her crest,
+// standing on her feet and folded hands) and Egill 1.1 m tall (STYLE.md section 3). Þórseðla stands
+// across the back of the clearing behind Mosi, facing left, her tail reaching into the trees; Flugeðla
+// stands in front of her, turned toward Egill; Slóeðla stands in the middle, in front of Þórseðla's
+// legs, turned toward us.
 // Units are metres; heading 0 faces +X.
 import { chapter as grunnur } from './grunnur.js';
 
@@ -23,6 +26,7 @@ export const chapter = {
     ...(params.get('gramedla') === '0' ? {} : { gramedla: { url: '../assets/characters/trex.glb', position: [-4, 0, -9], heading: 20 } }),
     ...(params.get('kambedla') === '0' ? {} : { kambedla: { url: '../assets/characters/stegosaurus.glb', position: [-1.5, 0, 3.5], heading: 25 } }),
     ...(params.get('flugedla') === '0' ? {} : { flugedla: { url: '../assets/characters/pteranodon.glb', position: [3.5, 0, -2], heading: 50 } }),
+    ...(params.get('sloedla') === '0' ? {} : { sloedla: { url: '../assets/characters/parasaurolophus.glb', position: [6, 0, 2], heading: 120 } }),
     mosi: { url: '../assets/characters/mosi.glb', position: [10, 0, -3], heading: 0 },
     egill: { url: '../assets/characters/egill.glb', position: [9, 0, 3], heading: 200 },
   },
@@ -51,5 +55,11 @@ export const chapter = {
     flugedla: { position: [5.8, 1.1, 6.8], target: [3.9, 2.3, -1.2], fov: 46 },
     // Her face from the front three-quarter, at her head's height.
     flugedlaFace: { position: [4.4, 3.3, 2.2], target: [4.6, 3.0, -0.7], fov: 34 },
+    // Slóeðla from in front of her, at a child's eye height, looking up at her crest.
+    sloedla: { position: [3.9, 1.1, 8.6], target: [4.7, 2.9, 3.2], fov: 50 },
+    // Her face from the front three-quarter, at her head's height.
+    sloedlaFace: { position: [4.8, 3.3, 8.3], target: [4.7, 2.85, 4.2], fov: 34 },
+    // Her whole length from her left side, Egill beside her for scale.
+    sloedlaSide: { position: [18, 1.6, 9.5], target: [6.5, 2.2, 1.6], fov: 46 },
   },
 };

@@ -85,14 +85,15 @@ export function walkSettings(rig, base = WALK, options = {}) {
 /**
  * Samples poses of a rig into clips: `sample(name, duration, pose, keys, withLegs)` keys every chain
  * bone (and the legs) at keys + 1 times, `pose(u)` (u from 0 to 1 over the clip) posing the bones
- * from rest each time. `rest` holds the bones' rest positions.
+ * from rest each time. `rest` holds the bones' rest positions. A bone a pose scales (a chest filling
+ * with air) gets a scale track as well.
  */
 export function createSampler(rig) {
   const { bones, legs, chains } = rig;
   const chainBones = [...chains.spine, ...chains.neck, ...chains.tail];
   const legBones = legs.flatMap(l => [l.name, l.foot]);
   const rest = Object.fromEntries(Object.entries(bones).map(([n, b]) => [n, b.position.clone()]));
-  const reset = () => { for (const [n, b] of Object.entries(bones)) { b.position.copy(rest[n]); b.quaternion.identity(); } };
+  const reset = () => { for (const [n, b] of Object.entries(bones)) { b.position.copy(rest[n]); b.quaternion.identity(); b.scale.set(1, 1, 1); } };
   function sample(name, duration, pose, keys, withLegs = false) {
     const times = [];
     const tracks = new Map();
@@ -104,9 +105,10 @@ export function createSampler(rig) {
       pose(u);
       for (const n of animated) {
         const b = bones[n];
-        if (!tracks.has(n)) tracks.set(n, { q: [], p: [] });
+        if (!tracks.has(n)) tracks.set(n, { q: [], p: [], s: [] });
         tracks.get(n).q.push(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
         tracks.get(n).p.push(b.position.x, b.position.y, b.position.z);
+        tracks.get(n).s.push(b.scale.x, b.scale.y, b.scale.z);
       }
     }
     reset();
@@ -115,6 +117,7 @@ export function createSampler(rig) {
       out.push(new THREE.QuaternionKeyframeTrack(`${n}.quaternion`, times, tr.q));
       const moves = tr.p.some((v, i) => Math.abs(v - tr.p[i % 3]) > 1e-6);
       if (n === 'Hips' || moves) out.push(new THREE.VectorKeyframeTrack(`${n}.position`, times, tr.p));
+      if (tr.s.some(v => Math.abs(v - 1) > 1e-6)) out.push(new THREE.VectorKeyframeTrack(`${n}.scale`, times, tr.s));
     }
     return new THREE.AnimationClip(name, duration, out);
   }

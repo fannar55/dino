@@ -237,13 +237,17 @@ export function harmonicField(skin, domain, start, { channels = 0, passes = 4000
  * of a raised neck is one place; a point far from the line (the chest under the neck) blends the
  * places of the stretches nearly as close as the nearest one, so the inside of a bend has no seam of
  * its own. With `curve` the head stays rigid in front of its joint (the eyes and the mouth move as
- * one): the blend into the neck lies behind the joint. `length` (metres) sets how sharply places blend.
+ * one): the blend into the neck lies behind the joint. `tip` (a point in front of the head: the nose)
+ * runs the line on through the head to it, for a long head on a steep neck (Slóeðla's); otherwise the
+ * line runs on past the head's joint the way the neck points, up, and the front of a long bill, far
+ * from it, would take places behind the joint. `length` (metres) sets how sharply places blend.
  * Returns { along(p), weights(place, out) }: weights pushes [bone, weight] pairs onto out.
  */
-export function chainWeighting(owners, joints, { curve = false, length = 1, joins = 'Hips' } = {}) {
+export function chainWeighting(owners, joints, { curve = false, length = 1, joins = 'Hips', tip = null } = {}) {
   let along = p => p.x;
   if (curve) {
     const line = owners.map(n => joints[n]);
+    if (tip) line.push(tip);
     const stretches = line.slice(1).map((b, k) => {
       const a = line[k], len = Math.hypot(b.x - a.x, b.y - a.y);
       return { a, ux: (b.x - a.x) / len, uy: (b.y - a.y) / len, len };
