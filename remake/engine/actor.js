@@ -182,11 +182,15 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let current = null;
   let gait; // measured the first time the actor walks
 
-  function play(clipName, { fade = 0.4, timeScale = 1 } = {}) {
+  // A clip that goes somewhere and stays (Þórseðla's lowerHead and liftUp carry `once` in their
+  // extras) plays once and holds its last pose; every other clip loops.
+  function play(clipName, { fade = 0.4, timeScale = 1, once = Boolean(clips.get(clipName)?.userData.once) } = {}) {
     const clip = clips.get(clipName);
     if (!clip) return null;
     const action = mixer.clipAction(clip);
     action.enabled = true;
+    action.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+    action.clampWhenFinished = once;
     action.setEffectiveTimeScale(timeScale);
     action.setEffectiveWeight(1);
     if (current && current !== action) {
@@ -462,7 +466,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     get gait() { return gait; },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
-    /** Play a clip; one that moves the legs gets them as it is (footing stops planting the feet). */
+    /**
+     * Play a clip; one that moves the legs gets them as it is (footing stops planting the feet). A clip
+     * marked `once` (or with { once: true }) plays once and holds its last pose until the next one.
+     */
     play(clipName, options = {}) {
       const action = play(clipName, options);
       if (action && movesLegs(action.getClip())) footing.free(options.fade ?? 0.4);

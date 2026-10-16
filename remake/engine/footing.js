@@ -408,7 +408,9 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
       const s = L.step;
       const k = Math.min(1, s.t / s.duration);
       const e = smooth(k);
-      position.lerpVectors(s.from, s.to, e);
+      // The foot is over its spot a fifth of the step before it lands, so it comes straight down (a
+      // foot coming down from the air without an arc would glide in along the ground otherwise).
+      position.lerpVectors(s.from, s.to, smooth(Math.min(1, k / 0.8)));
       position.y = THREE.MathUtils.lerp(s.from.y - s.air, s.to.y, e) + s.air * (1 - e) + s.height * Math.sin(Math.PI * k);
       turn.slerpQuaternions(s.turnFrom, s.turnTo, e);
       const peel = s.peel * Math.sin(Math.PI * Math.min(1, k / 0.75)) ** 2;
