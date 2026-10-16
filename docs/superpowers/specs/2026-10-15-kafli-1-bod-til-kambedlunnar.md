@@ -11,7 +11,7 @@ Fyrsti kafli Stjörnuhátíðarinnar nær frá morgni í rjóðrinu að fyrstu s
 Í kvöld kvikna fyrstu stjörnur sumarsins og skógurinn heldur Stjörnuhátíðina. Mosi á að bjóða öllum vinum sínum áður en sólin sest, og Egill hjálpar honum. Hver vinur kemur með sína gáfu á hátíðina, og fyrir hvert boð sem er þegið fá þeir stjörnu sem kviknar á himninum í lokin.
 
 - **Tíminn líður sýnilega:** sólin lækkar milli kafla, frá morgni yfir gullið síðdegi til sólseturs á hátíðinni.
-- **Tónlistin vex:** hver vinur bætir sínu hljóðfæri við stef leiksins, og á hátíðinni spila allir saman.
+- **Tónlistin vex:** fellt niður 16. október, því aukahljómar ofan á stef leiksins pössuðu illa. Eitthvað annað kemur í staðinn, ákveðið síðar.
 - **Þessi kafli:** Mosi hittir Egil í rjóðrinu og segir honum frá hátíðinni, Egill fer á bak og þeir ríða til kambeðlunnar. Hún hefur misst ljósið í plötunum sínum, Egill finnur glóblómin hennar, plöturnar kvikna og hún lofar að lýsa upp hátíðina. Fyrsta stjarnan kviknar.
 - **Engin ógn:** vandinn er alltaf mildur og leystur með hjálpsemi, og barnið getur aldrei mistekist.
 
@@ -113,7 +113,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
     - Mosi: „Gefðu henni blómin!“
     - Kambeðla eftir hvert blóm: „Mmm!“
     - Kambeðla eftir þriðja: „Sjáið! Ég lýsi aftur!“
-    - Bjölluhljómar bætast við stefið og haldast það sem eftir er leiksins.
+    - Hljóð kviknar með hverri plöturöð. (Bjölluhljómar í stefinu voru felldir niður 16. október; eitthvað annað kemur í staðinn.)
 - **Barnið:** dregur hvert blóm að munni kambeðlunnar.
 
 ### 10. Boðið og stjarnan (um 30 s)
@@ -151,7 +151,7 @@ Andlit á trén eru ekki notuð: þau geta orðið óhugnanleg og draga athyglin
     - Egill: fáein stutt orð með barnsrödd. `scripts/audition-egill.mjs` er til og nýtist til að velja hana.
     - Íslenskumælandi hlustandi fer yfir framburð áður en línur eru samþykktar.
 - **Stefið:** „Little Dino Green Valley“ úr Eleven Music heldur áfram sem grunnur. Tempó lagsins er mælt einu sinni og geymt, og það stýrir sveiflunni í skóginum.
-- **Tónlistin vex:** hver vinur bætir sínu hljóðfæri við stefið. Kambeðlan kemur með bjölluhljóma sem bætast við þegar plöturnar kvikna. Hljóðrásin verður annaðhvort gerð í Eleven Music í sama tempói og tóntegund eða búin til í kóða, og það sem hljómar betur í prófun ræður.
+- **Tónlistin vex:** fellt niður 16. október, því aukahljómar ofan á stefið pössuðu illa. Stefið helst eins og það er, og eitthvað annað kemur í staðinn, ákveðið síðar.
 - **Hljóðbrellur:** skógarniður, fuglatíst, skrjáf, fótatak Mosa og hljóð smádýranna eru gerð í WebAudio eins og í gamla leiknum. Við bætast hljómar fyrir glóblóm, plötur sem kvikna og stjörnuna. Tónlistin lækkar sjálfkrafa undir tali.
 
 ## Smíði fyrir fyrstu prufuna
@@ -164,7 +164,7 @@ Andlit á trén eru ekki notuð: þau geta orðið óhugnanleg og draga athyglin
 4. Glóblóm og ljós í plötum kambeðlunnar sem kvikna í röðum. Bökun kambeðlunnar þarf að merkja plöturnar svo hægt sé að lýsa þær.
 5. Stjarnan og landkönnuðabókin, í einfaldri fyrstu útgáfu.
 6. Raddir: nýjar línur Mosa, rödd kambeðlunnar og orð Egils, allar samþykktar.
-7. Tónlist: stefið með bjölluhljómum kambeðlunnar og tempókort.
+7. Tónlist: stefið og tempókort (bjölluhljómarnir felldir niður 16. október).
 
 **Til að gefa líf, fylgir sömu prufu:**
 
@@ -180,5 +180,5 @@ Andlit á trén eru ekki notuð: þau geta orðið óhugnanleg og draga athyglin
 - **Raddir kambeðlunnar og Egils:** prófaðar í ElevenLabs og valdar í sameiningu.
 - **Upp í hnakkinn:** ákveðið 16. október. Klifrið upp halann leit skringilega út, svo hnakkurinn birtist frekar með glitri og Egill svífur upp í hann eins og í teiknimynd. Hnakkurinn situr framarlega, á herðunum rétt aftan við kragann.
 - **Burknalautin:** stígurinn úr rjóðrinu leiðir þangað, en skógurinn styður nú aðeins eitt rjóður og þarf að læra fleiri.
-- **Bjölluhljómar kambeðlunnar:** gerðir í Eleven Music eða í kóða.
+- **Í stað bjölluhljómanna:** aukahljómar ofan á stefið voru felldir niður 16. október. Eitthvað annað kemur í staðinn, ákveðið síðar.
 - **Vísbendingar í leitinni:** tillaga er að Mosi bíði 12 sekúndur áður en hann gefur vísbendingu.
