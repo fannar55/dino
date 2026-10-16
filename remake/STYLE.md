@@ -55,7 +55,7 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Mosi | Triceratops | 8.5 m long (8 to 9) | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
 | Egill | boy explorer | 1.1 m tall | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
 | Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6aa3` | `#cfb6c6` | plum back `#5d4370` | lilac plates `#ab85c1`, ivory tail spikes `#d2bda9` |
-| Þórseðla | Brachiosaurus | 20 m long (18 to 22) | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
+| Þórseðla | Brontosaurus | 22 m long (21 to 22) | golden yellow | `#e9b14d` | `#e7c181` | `#89682e` | caramel patches `#be8c40`, beige throat `#c2a270` |
 | Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
 | Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
 | Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
@@ -63,12 +63,13 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 
 Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
 orange to the free violet slot; its Tripo model (2026-10-15) gives the violet row its values, with
-lilac plates. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
+lilac plates. Þórseðla is a Brontosaurus, as her Icelandic name says (2026-10-16), and her Tripo
+model gives the golden row its values. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
 by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
 ([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
 [Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
 [Stegosaurus](https://en.wikipedia.org/wiki/Stegosaurus),
-[Brachiosaurus](https://en.wikipedia.org/wiki/Brachiosaurus),
+[Brontosaurus](https://en.wikipedia.org/wiki/Brontosaurus),
 [Spinosaurus](https://en.wikipedia.org/wiki/Spinosaurus),
 [Parasaurolophus](https://en.wikipedia.org/wiki/Parasaurolophus),
 [Pteranodon](https://en.wikipedia.org/wiki/Pteranodon), October 2026).
