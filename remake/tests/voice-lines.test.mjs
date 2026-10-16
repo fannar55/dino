@@ -121,28 +121,37 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   }
 });
 
-test("voices.json gives Mosi the game's voice and has a slot for each new voice", () => {
+test("voices.json gives Mosi the game's voice, and each new voice is one the owner chose", () => {
   const voices = readJson(REAL.voices);
   const game = /const voiceId = '([^']+)'/.exec(fs.readFileSync(REAL.oldScript, 'utf8'))[1]; // "default ice" in scripts/generate-narration.mjs
   assert.equal(voices.mosi, game);
-  for (const who of ['kambedla', 'egill']) {
-    assert.ok(Object.hasOwn(voices, who), `${who} has a slot`);
-    assert.ok(voices[who] === null || /^[A-Za-z0-9]{20}$/.test(voices[who]), `${who} is null until the owner has chosen, then a voice id`);
-  }
+  for (const who of ['kambedla', 'egill']) assert.match(voices[who] ?? '', /^[A-Za-z0-9]{20}$/, `${who} has a voice id`);
+  assert.equal(new Set(Object.values(voices)).size, 3, 'a voice each');
 });
 
-test('lines.json has an entry for each recording in kafli1/, and none for a recording that is not there', () => {
+test('every line of lines-source.json is recorded, and lines.json has an entry for each recording and none for a missing one', () => {
   const recorded = readJson(REAL.lines);
+  const lines = readJson(REAL.source);
   const made = fs.readdirSync(path.dirname(REAL.source)).filter(name => name.endsWith('.mp3')).map(name => name.slice(0, -4));
-  const known = new Set(readJson(REAL.source).map(line => line.id));
+  const known = new Set(lines.map(line => line.id));
+  for (const line of lines) assert.ok(made.includes(line.id), `${line.id} has no recording: run node remake/tools/voice-lines.mjs`);
   for (const id of made) {
     assert.ok(known.has(id), `${id}.mp3 is not a line of lines-source.json`);
     assert.equal(recorded[id]?.src, `assets/audio/kafli1/${id}.mp3`, `lines.json lacks ${id}: run node remake/tools/audio-lines.mjs`);
+    assert.deepEqual(Object.keys(recorded[id]), ['src', 'duration', 'mouth']);
   }
   for (const [id, entry] of Object.entries(recorded)) {
     if (!id.startsWith('k1_')) continue;
     assert.ok(made.includes(id), `lines.json has ${id} but kafli1/${id}.mp3 is gone`);
     assert.ok(Math.abs(entry.mouth.length - entry.duration * MOUTH_RATE) <= 1.5, `${id}: a mouth track as long as the line`);
+  }
+});
+
+test('lines.json holds the length of each recording as it is now, so a recording swapped by hand is noticed', needsFfmpeg, () => {
+  const recorded = readJson(REAL.lines);
+  for (const line of readJson(REAL.source)) {
+    const length = seconds(path.join(path.dirname(REAL.source), `${line.id}.mp3`));
+    assert.ok(Math.abs(recorded[line.id].duration - length) < 0.002, `${line.id}: lines.json says ${recorded[line.id].duration} s, the file is ${length} s: run node remake/tools/voice-lines.mjs --only ${line.id}`);
   }
 });
 
