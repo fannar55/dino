@@ -85,9 +85,11 @@ export const FLOWERS = [
 // Where Egill stands to feed her: in front of her mouth as she bends down (the eat clip brings it 1.6 m ahead of
 // her fore feet, a metre up).
 const EGILL_FEEDS = { actor: 'kambedla', part: 'feet', offset: [3.25, 0, 0.15], local: true };
+// A frog and a snail in the glade's grass, where the child can see them during the search: the frog on the shorter
+// grass toward the middle, below and to the right of the search camera, and the snail out on the left of its first view.
 const GLADE_CRITTERS = [
   { name: 'glade-frog', kind: 'frog', at: [1.6, 5.9], heading: 260 },
-  { name: 'glade-snail', kind: 'snail', at: [-1.2, -6.4], heading: 20 },
+  { name: 'glade-snail', kind: 'snail', at: [6.47, 3.84], heading: 200 },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -102,11 +104,14 @@ export function onBone(actor, bone, [x, y, z]) {
     return node.localToWorld(out.set(x, y, z));
   };
 }
-// In the Head bone's frame, measured on the baked models: the front of Mosi's snout just above the beak, the tip of
-// his right brow horn (found for the butterfly that lands on it, Task 11) and just behind the tip of Kambeðla's
-// snout, her mouth.
+// In the Head bone's frame, measured on the baked models against the eyes the face pass found (his idle pose turns
+// his head to his left, so the world's axes do not show where the middle of his face is): the middle of Mosi's
+// snout between his nostrils, the nose the child taps; a few centimetres in front of it, where the pollen of his
+// sneeze comes out; the tip of his right brow horn (found for the butterfly that lands on it, Task 11); and just
+// behind the tip of Kambeðla's snout, her mouth.
 export const POINTS = {
-  mosiNose: ['Head', [0.08, 0.56, 0.1]],
+  mosiNose: ['Head', [-0.267, 0.64, 0.208]],
+  mosiSneeze: ['Head', [-0.312, 0.778, 0.285]],
   mosiHorn: ['Head', [0.358, 0.618, 0.647]],
   kambedlaMouth: ['Head', [0.82, -0.12, 0]],
   // Where a flower Egill picks flies to: in front of his chest, between his hands (his own frame, from his feet).
@@ -137,11 +142,11 @@ const RJODUR_SHOTS = {
   egillWaves: { position: [9.5, 1.15, 6.5], target: [-0.5, 1.6, -4.6], fov: 44 },
   // Scene 3: over Egill's left shoulder, his head low right, Mosi's face clear of it (STYLE.md section 8).
   intro: { position: { actor: 'egill', part: 'feet', offset: [1.0, 1.3, 2.9] }, frame: { subject: FACE, screen: [0.38, 0.3] }, fov: 46 },
-  // Scene 4: Mosi close; the choice over Egill's shoulder; low under Mosi's head, where the sun smiles just
-  // above it, so the camera has only to look up a little.
+  // Scene 4: Mosi close; the choice over Egill's shoulder; low under Mosi's head, with the sun smiling up beside
+  // it, so the camera has only to look up a little.
   face: { position: [7.6, 0.8, 4.4], frame: { subject: FACE, screen: [0.5, 0.42] }, fov: 38 },
   choice: { position: { actor: 'egill', part: 'feet', offset: [1.5, 1.35, 3.4] }, frame: { subject: FACE, screen: [0.4, 0.32] }, fov: 44 },
-  sunLow: { position: [7.5, 0.6, -3.2], frame: { subject: FACE, screen: [0.5, 0.58] }, fov: 46 },
+  sunLow: { position: [8.46, 0.6, -1.79], frame: { subject: FACE, screen: [0.56, 0.58] }, fov: 46 },
   // Scene 5: Mosi from his right side as he turns to go, the saddle pops on and Egill floats up; then up beside
   // the saddle over the clearing.
   mount: { position: [10.6, 1.3, 3.1], target: [3.8, 1.9, 0.2], fov: 46 },
@@ -196,10 +201,11 @@ function* morning(s, c) {
   mark(c, 1);
   const flowers = flowersNear(c.world, BUTTERFLY_FLOWERS);
   if (flowers) butterflyLand(c.world, flowers);
-  yield s.all(s.fade(0, 2.5), s.camera.move('waiting', { duration: 16 }));
+  yield s.fade(0, 2.5); // on the sunrise while the screen fades in: the smiling sun and the cloud
+  yield s.camera.move('waiting', { duration: 15 });
   // The child may look round a little and tap a butterfly.
   yield s.camera.handheld(0, { duration: 0.4 });
-  yield s.lookAround({ yaw: [-28, 28], pitch: [-8, 10] }, 6);
+  yield s.lookAround({ yaw: [-28, 28], pitch: [-8, 10] }, 5);
 }
 
 // 2. Mosi comes, humming the theme; Egill waves to him.
@@ -217,15 +223,20 @@ function* mosiComes(s, c) {
   yield s.until(() => apart() < 15);
   yield egill.lookAt('mosi.head', { weight: 0.8, maxPitch: 40 });
   yield s.wait(2);
-  // Egill waits for the child: a tap and he waves; if nobody taps, he waves by himself once Mosi has stopped.
+  // Egill waits for the child: a tap and he waves; if nobody taps, he waves by himself once Mosi has stopped. (The
+  // wait watches the walk rather than yielding it: a tap ends the race, and that must not end Mosi's walk.)
   yield s.camera.cut('egillWaves');
   s.camera.handheld(0, { duration: 0.3 });
-  yield tapOrWait(s, 'egill', s.after(0, function* () { yield walk; yield s.wait(4); }));
+  yield tapOrWait(s, 'egill', s.after(0, function* () { yield s.until(() => walk.done); yield s.wait(4); }));
   yield egill.play('waveLeft');
   yield walk;
   yield mosi.lookAt('egill.head', { weight: 0.8 });
   yield s.say('mosi', 'k1_mosi_waving');
 }
+
+// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins (its mouth track in
+// assets/audio/lines.json; tests/kafli1.test.mjs reads it there).
+const ATSJU = 1.95;
 
 // 3. Hello, Egill: he walks the last few steps and Mosi bends his head down to him.
 function* hello(s, c) {
@@ -236,15 +247,14 @@ function* hello(s, c) {
   yield s.all(mosi.turnTo('egill'), s.camera.push({ distance: 0.4, duration: 4 }));
   s.camera.handheld(0.5, { duration: 1.5 });
   yield s.say('mosi', 'welcome');
-  // The child may tap his nose: once it tickles, the second time he sneezes and the pollen flies.
+  // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!".
   yield s.camera.handheld(0, { duration: 0.6 });
-  const nose = onBone(mosi.raw, ...POINTS.mosiNose);
-  s.target('nose', { point: nose, radius: 0.45 });
+  s.target('nose', { point: onBone(mosi.raw, ...POINTS.mosiNose), radius: 0.45 });
   const until = s.time + 5;
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
-    if (taps === 2) pollenBurst(world, nose);
+    if (taps === 2) s.after(ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
   }
   s.target('nose', null);
@@ -337,27 +347,27 @@ function* onThePath(s, c) {
       yield speak(s, c, remarks[found[said]]);
     }
   });
+  // The shots follow Mosi along the path (each for a while at least), and his words go on across them.
   const walk = mosi.walkTo(RIDE, { speed: RIDE_SPEED });
+  const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
+  s.after(2, () => speak(s, c, 'k1_mosi_visit'));
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
-  yield s.wait(2);
-  yield speak(s, c, 'k1_mosi_visit');
-  yield s.wait(1.5);
+  yield past(10.5, 4);
   // Egill close, smiling in the saddle.
   yield s.camera.cut({ position: { actor: 'egill', part: 'feet', offset: RIDE_CLOSE.offset }, target: 'egill.head', fov: RIDE_CLOSE.fov, label: 'rideClose' });
   yield s.camera.follow('egill', RIDE_CLOSE);
-  yield s.wait(6);
+  yield past(17.5, 4);
   // Low by the path: the beetle near, and Mosi's big feet stepping past in the soft soil.
-  const past = x => s.until(() => mosi.raw.root.position.x > x);
   yield s.camera.cut('rideFeet');
-  yield past(23.8);
+  yield past(23.8, 2.6);
   // The frog, and Mosi coming past it.
   yield s.camera.cut('rideFrog');
-  yield past(33.2);
+  yield past(33.2, 2.6);
   // The snail, and the two of them going on into the forest; the glade fades in while he still walks.
   yield s.camera.cut('rideAway');
-  yield past(42.6);
+  yield past(42.6, 2.6);
   yield s.until(() => !c.talking);
   chatter.cancel();
   for (const stop of stops) stop();

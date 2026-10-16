@@ -18,6 +18,7 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
+import { SUN_RADIUS_DEG } from '../engine/sun-face.js';
 import { FakeDocument } from './fake-dom.mjs';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
@@ -176,13 +177,34 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     const stop = onDrop(fn);
     return () => { drops.splice(drops.indexOf(fn), 1); stop(); };
   };
+  // The sun as it winks: where it is on the screen, and whether anyone stands in front of its face (rays from the camera to
+  // its middle and to four points round its rim).
+  const raycaster = new THREE.Raycaster();
+  const shown = object => !object || (object.visible && shown(object.parent));
+  function sunInView() {
+    world.camera.updateMatrixWorld();
+    const sun = world.resolvePoint('sun', new THREE.Vector3());
+    const { x, y } = sun.clone().project(world.camera);
+    const toSun = sun.sub(world.camera.position).normalize();
+    const side = new THREE.Vector3().crossVectors(toSun, THREE.Object3D.DEFAULT_UP).normalize();
+    const up = new THREE.Vector3().crossVectors(side, toSun);
+    const rim = THREE.MathUtils.degToRad(SUN_RADIUS_DEG);
+    const rays = [toSun, ...[side, side.clone().negate(), up, up.clone().negate()].map(d => toSun.clone().multiplyScalar(Math.cos(rim)).addScaledVector(d, Math.sin(rim)))];
+    const people = [...world.actors.values()].filter(actor => actor.root.visible);
+    for (const actor of people) actor.root.traverse(o => { if (o.isSkinnedMesh) o.boundingSphere = o.boundingBox = null; }); // posed now
+    const hidden = rays.some(ray => {
+      raycaster.set(world.camera.position, ray);
+      return people.some(actor => raycaster.intersectObject(actor.root, true).some(hit => shown(hit.object)));
+    });
+    return { x, y, hidden };
+  }
   const winks = [];
   const sounds = [];
   const lines = readJson('../assets/audio/lines.json');
   const stage = createScene({
     world, director, ui, lines, cast: chapter.cast, locations, pointer, journal,
     voice: { play: () => null, stop() {} },
-    sun: { wink: () => winks.push(stage.s.time) },
+    sun: { wink: () => winks.push({ at: stage.s.time, ...sunInView() }) },
     sfx: { play: name => sounds.push(name), stop() {} },
   });
   stage.seeking = seeking;
@@ -192,7 +214,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
   stage.begin();
 
   // What the run sees on the way, for the tests to look at afterwards.
-  const seen = { kambedlaInClearing: false, floatStart: null, landing: null };
+  const seen = { kambedlaInClearing: false, floatStart: null, landing: null, atScene: [] };
   const mosi = world.actors.get('mosi');
   const egill = world.actors.get('egill');
   const kambedla = world.actors.get('kambedla');
@@ -249,6 +271,10 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     world.effects.update(dt);
     director.update(dt);
     if (world.location === 'rjodur' && kambedla.root.visible) seen.kambedlaInClearing = true;
+    // where everyone stands as each scene starts
+    if (world.chapterTimeline && seen.atScene.length < world.chapterTimeline.length) {
+      seen.atScene.push(Object.fromEntries([...world.actors].map(([name, actor]) => [name, actor.root.position.clone()])));
+    }
     if (egill.controlled && !wasControlled && !seen.floatStart) seen.floatStart = inMosisFrame(egill.root.position);
     if (!egill.controlled && wasControlled && world.location === 'burknalaut') seen.landing = inMosisFrame(egill.root.position);
     wasControlled = egill.controlled;
@@ -438,11 +464,15 @@ test('an eager child who taps everything: each tap does its one thing once, and 
   assert.equal(task.done, true, `still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   const said = id => captions.filter(c => c.text === chapter.lines[id].text);
-  // His nose: once it tickles, the second time he sneezes and the pollen flies (a cloud that dims what is behind it).
+  // His nose: once it tickles, the second time he sneezes and the pollen flies (a cloud that dims what is behind it) on the
+  // "atsjú!", the last burst of sound in the recording.
   assert.equal(said('k1_mosi_tickle').length, 1);
   assert.equal(said('k1_mosi_sneeze').length, 1);
-  const sneeze = said('k1_mosi_sneeze')[0].at;
-  assert.ok(added.some(o => o.name === 'Sparkles' && o.normal && Math.abs(o.at - sneeze) < 0.1), 'pollen flies as he sneezes');
+  const loud = [...lines.k1_mosi_sneeze.mouth].map(level => parseInt(level, 16) > 0);
+  let atsju = loud.lastIndexOf(true);
+  while (atsju > 0 && loud[atsju - 1]) atsju--;
+  const sneeze = said('k1_mosi_sneeze')[0].at + atsju / 20;
+  assert.ok(added.some(o => o.name === 'Sparkles' && o.normal && Math.abs(o.at - sneeze) < 0.1), `pollen flies on the "atsjú!", at ${sneeze.toFixed(2)} s`);
   assert.ok(seen.floatStart, 'Egill floated up when tapped');
   // The critters by the path go in the journal, and Mosi says something about each, never over another line of his.
   assert.deepEqual(['beetle', 'frog', 'snail'].filter(kind => journal.findings.includes(kind)), ['beetle', 'frog', 'snail']);
@@ -459,6 +489,15 @@ test('an eager child who taps everything: each tap does its one thing once, and 
   assert.deepEqual(journal.stars, ['k1_kambedla']);
   assert.deepEqual(director.warnings, []);
   assert.ok(stage.s.time < (await ignoredByAChild()).stage.s.time - 100, 'and it goes much quicker than for a child who waits');
+});
+
+test('Mosi walks all the way to Egill, however soon the child taps Egill to wave', async () => {
+  const stop = new THREE.Vector3(...chapter.locations.rjodur.layout.actors.mosi.position);
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const { seen } = await run();
+    const mosi = seen.atScene[2].mosi.clone().setY(0); // as scene 3 starts
+    assert.ok(mosi.distanceTo(stop) < 0.3, `${how}: Mosi stopped ${mosi.distanceTo(stop).toFixed(2)} m short of his place`);
+  }
 });
 
 test('the float up starts, and the float down lands, where the frill and the flank keep clear of Egill', async () => {
@@ -492,6 +531,15 @@ test('the plates light one row a flower, all three after the third', async () =>
 // ---------------------------------------------------------------------------------------------
 // The points that follow the characters, on the real models
 
+test('the sun winks where the child sees it: on the screen, with nobody in front of its face', async () => {
+  const { winks } = await unattended();
+  assert.equal(winks.length, 2);
+  for (const { at, x, y, hidden } of winks) {
+    assert.ok(Math.abs(x) < 0.85 && Math.abs(y) < 0.85, `the sun on the screen as it winks at ${at.toFixed(1)} s, not at ${x.toFixed(2)}, ${y.toFixed(2)}`);
+    assert.equal(hidden, false, `somebody stands in front of the sun as it winks at ${at.toFixed(1)} s`);
+  }
+});
+
 test('yield flower.pick() through the scheduler: the scene waits for it, and the flower ends in Egill\'s hands', async () => {
   const world = await chapterWorld();
   const egill = world.actors.get('egill');
@@ -524,7 +572,7 @@ test('yield flower.pick() through the scheduler: the scene waits for it, and the
   assert.ok(hands.y > Math.min(left.y, right.y) && hands.y < chest.y, 'at the height he holds things');
 });
 
-test('the points on the characters sit where they are named: Mosi\'s nose and horn, Kambeðla\'s mouth and plates', async () => {
+test('the points on the characters sit where they are named: Mosi\'s nose, sneeze and horn, Kambeðla\'s mouth and plates', async () => {
   const world = await chapterWorld();
   const mosi = world.actors.get('mosi');
   const kambedla = world.actors.get('kambedla');
@@ -544,13 +592,45 @@ test('the points on the characters sit where they are named: Mosi\'s nose and ho
     for (let i = 0; i < mesh.geometry.attributes.position.count; i++) best = Math.min(best, mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld).distanceTo(point));
     return best;
   };
-  const nose = at(mosi, POINTS.mosiNose);
-  assert.ok(nose.x > 3.7 && nose.y > 2.3 && nose.y < 3 && Math.abs(nose.z) < 0.4, `the nose at the front of his head, ${nose.toArray().map(n => n.toFixed(2))}`);
-  assert.ok(nearestSkin(mosi, nose) < 0.25, 'on his snout');
+  // Where a point is on a face, measured from the eyes the face pass found (in the skin's bind space, carried by the Head
+  // bone): how far it is across from the midline between them, how far ahead of them, and how far ahead the front of the
+  // face is along that midline. (The idle pose turns Mosi's head to his left, so the world's axes say nothing here.)
+  const onFace = (actor, point) => {
+    const mesh = skin(actor);
+    const head = actor.model.getObjectByName('Head');
+    const toWorld = head.matrixWorld.clone().multiply(mesh.skeleton.boneInverses[mesh.skeleton.bones.indexOf(head)]).multiply(mesh.bindMatrix);
+    const eyes = mesh.userData.face.eyes.map(eye => ({
+      centre: new THREE.Vector3().fromArray(eye.centre).applyMatrix4(toWorld),
+      normal: new THREE.Vector3().fromArray(eye.normal).transformDirection(toWorld),
+    }));
+    const middle = eyes[0].centre.clone().lerp(eyes[1].centre, 0.5);
+    const across = eyes[1].centre.clone().sub(eyes[0].centre).normalize();
+    const ahead = eyes[0].normal.clone().add(eyes[1].normal);
+    ahead.addScaledVector(across, -ahead.dot(across)).normalize();
+    const v = new THREE.Vector3();
+    let front = -Infinity;
+    for (let i = 0; i < mesh.geometry.attributes.position.count; i++) {
+      mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld).sub(middle);
+      if (Math.abs(v.dot(across)) < 0.08) front = Math.max(front, v.dot(ahead));
+    }
+    const d = point.clone().sub(middle);
+    return { across: d.dot(across), ahead: d.dot(ahead), front };
+  };
+  // The nose the child taps: a 0.45 m sphere round the middle of his snout, which takes in its front.
+  const nose = onFace(mosi, at(mosi, POINTS.mosiNose));
+  assert.ok(Math.abs(nose.across) < 0.1, `the nose on the middle of his face, not ${nose.across.toFixed(2)} m to one side`);
+  assert.ok(nose.ahead > 0.25 && nose.front - nose.ahead < 0.4, `in his snout, ${nose.ahead.toFixed(2)} m ahead of his eyes (its front: ${nose.front.toFixed(2)} m)`);
+  // Where the pollen comes out: just in front of it.
+  const sneeze = at(mosi, POINTS.mosiSneeze);
+  const out = onFace(mosi, sneeze);
+  assert.ok(Math.abs(out.across) < 0.1, `the sneeze from the middle of his face, not ${out.across.toFixed(2)} m to one side`);
+  assert.ok(out.ahead > out.front - 0.1 && nearestSkin(mosi, sneeze) < 0.2, `and from the front of his snout (${out.front.toFixed(2)} m ahead of his eyes), not ${out.ahead.toFixed(2)} m`);
   const horn = at(mosi, POINTS.mosiHorn);
   assert.ok(horn.y > 3.6 && nearestSkin(mosi, horn) < 0.08, 'at the tip of his horn');
   const mouth = at(kambedla, POINTS.kambedlaMouth);
-  assert.ok(mouth.x > 2.3 && mouth.y > 1.5 && mouth.y < 2.1 && nearestSkin(kambedla, mouth) < 0.15, `her mouth at the front of her snout, ${mouth.toArray().map(n => n.toFixed(2))}`);
+  const onMuzzle = onFace(kambedla, mouth);
+  assert.ok(Math.abs(onMuzzle.across) < 0.06 && onMuzzle.ahead > onMuzzle.front - 0.15, `her mouth on the middle of her face, at its front: ${JSON.stringify(onMuzzle)}`);
+  assert.ok(mouth.y > 1.5 && mouth.y < 2.1 && nearestSkin(kambedla, mouth) < 0.15, `and at the height of her snout, ${mouth.toArray().map(n => n.toFixed(2))}`);
   const plates = world.resolvePoint(POINTS.kambedlaPlates, new THREE.Vector3());
   assert.ok(plates.y > 3.7 && plates.y < 4.1, `the star rises from just above her tallest plates, at ${plates.y.toFixed(2)} m`);
 });
