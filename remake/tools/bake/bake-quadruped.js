@@ -4,6 +4,8 @@ import { GLTFExporter } from '../../vendor/addons/exporters/GLTFExporter.js';
 import { rigQuadruped } from './quadruped-rig.js';
 import { authorClips } from './quadruped-clips.js';
 import { authorSauropodClips } from './sauropod-clips.js';
+import { rigWinged } from './winged-rig.js';
+import { authorWingedClips } from './winged-clips.js';
 import { findEyes, readPixels } from './eyes.js';
 import { giveHeadTexels } from './atlas.js';
 import { softenBrows } from './brow.js';
@@ -14,17 +16,19 @@ import { softenBrows } from './brow.js';
 // eat and happy, and this page gives it one matte material and exports one skinned mesh. A sauropod
 // (`kind=sauropod`: a raised neck of several bones, a long tail) is rigged along its neck's centre
 // line and gets sauropod-clips.js instead: idle, walk, kink, lowerHead, liftUp and happy, the head
-// lowered until the eyes (found here as the face pass finds them) are at a child's eye height. Run it
-// with bake-character.mjs.
+// lowered until the eyes (found here as the face pass finds them) are at a child's eye height. A
+// pterosaur (`kind=pterosaur`: two legs and two wings, Flugeðla) is rigged by winged-rig.js instead,
+// scaled to its wingspan, and gets winged-clips.js: idle, walk, takeOff, fly, glide, land, kink, happy
+// and carry. Run it with bake-character.mjs.
 //
 // Query: src (parts GLB, relative to this page), out (file name for the upload), length (metres from
 // nose to tail tip), yaw (degrees that turn the model's front to +X; Tripo faces +Z, so 90), name,
-// tex (texture size), roughness, normal (normal map strength), kind (quadruped or sauropod), neck,
-// tail, spine (bones in each chain), atlas (for a small head: the share of the texture's side the rest
-// keeps, the head's islands taking the column that frees up; atlas.js), brow (how much to soften stern
-// brow ridges, 1 the full change; brow.js), greet (a sauropod's eye height with the head lowered,
-// metres), and for the walk: stride (metres a cycle), cycle (seconds), duty, lag (quadruped-clips.js,
-// WALK).
+// tex (texture size), roughness, normal (normal map strength), kind (quadruped, sauropod or pterosaur),
+// span (a pterosaur's wingspan in metres, instead of length), neck, tail, spine (bones in each chain),
+// atlas (for a small head: the share of the texture's side the rest keeps, the head's islands taking the
+// column that frees up; atlas.js), brow (how much to soften stern brow ridges, 1 the full change;
+// brow.js), greet (a sauropod's eye height with the head lowered, metres), and for the walk: stride
+// (metres a cycle), cycle (seconds), duty, lag (quadruped-clips.js, WALK).
 
 const params = new URLSearchParams(location.search);
 const num = (key, fallback) => (params.has(key) ? Number(params.get(key)) : fallback);
@@ -37,6 +41,7 @@ const ROUGHNESS = num('roughness', 0.62);
 const NORMAL = num('normal', 0.5);
 const NAME = params.get('name') || 'Kambeðla';
 const SAUROPOD = params.get('kind') === 'sauropod';
+const WINGED = params.get('kind') === 'pterosaur';
 const status = text => { window.__bakeStatus = text; console.log('[bake]', text); };
 
 try {
@@ -50,9 +55,9 @@ try {
     sources.push({ name: o.name, geometry: o.geometry.clone().applyMatrix4(o.matrixWorld) });
     material ??= o.material;
   });
-  const options = { length: LENGTH, yaw: YAW, name: NAME, curve: SAUROPOD };
+  const options = WINGED ? { span: num('span', 7.5), yaw: YAW, name: NAME } : { length: LENGTH, yaw: YAW, name: NAME, curve: SAUROPOD };
   for (const key of ['neck', 'tail', 'spine']) if (params.has(key)) options[key] = num(key);
-  const rig = rigQuadruped(sources, options);
+  const rig = WINGED ? rigWinged(sources, options) : rigQuadruped(sources, options);
 
   // A small head can take more of the texture (atlas.js): the rest of the atlas keeps `atlas` of its
   // side, the head's islands fill the band that frees up.
@@ -80,7 +85,8 @@ try {
   const walk = {};
   for (const key of ['stride', 'cycle', 'duty', 'lag']) if (params.has(key)) walk[key] = num(key);
   let authored;
-  if (SAUROPOD) {
+  if (WINGED) authored = authorWingedClips(rig, walk);
+  else if (SAUROPOD) {
     const between = new THREE.Vector3(...eyes[0].centre).add(new THREE.Vector3(...eyes[1].centre)).multiplyScalar(0.5);
     authored = authorSauropodClips(rig, { ...walk, eyes: between.toArray(), greet: num('greet', 0.95) });
   } else authored = authorClips(rig, walk);

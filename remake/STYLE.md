@@ -397,6 +397,38 @@ level all the way so a child on it stays on) and happy (2.4 s: she rocks back so
 the ground by up to half a metre, stamps them down and wiggles her neck and tail). lowerHead and
 liftUp carry `once` in their extras: the actor plays such a clip once and holds its last pose until
 the next one.
+A pterosaur (Flugeðla) goes through `bake-quadruped` with `kind=pterosaur`
+(`--query "src=<parts.glb>&span=7.5&yaw=90&name=Flugeðla&out=pteranodon.glb&kind=pterosaur"`):
+`winged-rig.js` rigs and weights her, `winged-clips.js` authors the clips, and the weld, the surface
+distances, the harmonic fields and the weighting along a chain that they share with `quadruped-rig.js`
+are in `skin.js`. She is scaled to her wingspan. Her parts are two legs (on the ground), two wings
+(reaching out more than 0.4 of the span), the head with its crest (the highest part), the beak (it holds
+the nose and touches the head; the mouth pass cuts the jaw out of it), the body (it touches both legs)
+and two arms (each between a wing and the body); the head and the beak ride the Head rigidly, crest and
+all. Tripo turned her head 19 degrees to one side: the bake turns it back about the top of the neck,
+fading down the neck. Bones, with identity rest rotations: root, Hips, Spine, Chest, Neck to Neck3,
+Head, Tail1 to Tail3, the legs as Grameðla's (Thigh, Shin and Foot, Left and Right, as footing plants
+a biped) and on each wing UpperArm, Forearm, Wrist, Claws (the three small clawed fingers) and Finger1
+to Finger3 (the long fourth finger along the membrane's leading edge). Her membranes are closed thin
+shells about 3.5 cm thick, not open sheets, so they stay in the one closed, single-sided skin. A
+membrane is held along its seams (the arm's, the body's and the thigh's weights there) and along its
+leading edge (the finger and the arm by where they lie along the line through their joints);
+everywhere else its weights are a harmonic field of all those bones at once, so it blends smoothly
+between the long finger, the forearm, the body and the thigh. A point on one face and the point
+facing it across the shell share their weights, so the faces bend as one. Folded on the ground
+(`FOLD`), a wing's plane is turned along her side and folded in it like a fan, the knuckle of the
+long finger on the ground: she walks on her feet and those knuckles, which two-bone IK places in the
+wing's plane. Along the middle of her back a strip as wide as her shoulders follows the spine alone,
+so a seat there stays put while the wings beat: the bake finds it (the top of her back between the
+wings in carry, on Spine) and writes the bone and the point into its report, for a saddle. Clips:
+idle (4 s, the wings folded), walk (1.6 s, 1.15 m, 0.72 m/s, a foot down 62.5 % of the time and the
+knuckle on its side a quarter cycle later), kink (2.4 s), happy (2.4 s: a hop with a flutter of
+half-open wings), takeOff (3.2 s, once, ending in fly's first pose), fly (a 1.4 s wingbeat with the
+hips held 2.6 m up; a scene moves her root through the air), glide (6 s, banking 9 degrees each way),
+land (3 s, once, from fly's first pose to idle's) and carry (3.6 s: two slow, shallow beats, the back
+steady and level under the seat). Her mouth is a long slot along the beak: the mouth pass's
+`channel=1` runs the pocket along the middle of the beak under the lips instead of back into the
+head, so the open beak shows no hole.
 
 Environment:
 
