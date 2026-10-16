@@ -391,6 +391,11 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const animatedPose = layerBones.map(b => b.quaternion.clone());
   let layered = false;
   const look = { spec: null, goal: 0, weight: 0, maxYaw: 55, maxPitch: 30, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false };
+  // Caps in degrees on how far any look turns the head aside and tilts it up, whatever lookAt asks:
+  // riding.js sets them while a rider sits where a head turned far round, or raised, would swing the
+  // frill back onto him. Looking down is not capped.
+  let lookYawLimit = Infinity;
+  let lookUpLimit = Infinity;
   const qa = new THREE.Quaternion();
   const qb = new THREE.Quaternion();
   const qc = new THREE.Quaternion();
@@ -427,8 +432,9 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     // turns the head to its limit sideways instead of tipping it over.
     const headPos = head.getWorldPosition(v1);
     const local = v2.copy(look.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
-    const yaw = clamp(Math.atan2(local.z, local.x), -rad(look.maxYaw), rad(look.maxYaw));
-    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(look.maxPitch), rad(look.maxPitch));
+    const maxYaw = rad(Math.min(look.maxYaw, lookYawLimit));
+    const yaw = clamp(Math.atan2(local.z, local.x), -maxYaw, maxYaw);
+    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(look.maxPitch), rad(Math.min(look.maxPitch, lookUpLimit)));
     const want = v2.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), Math.cos(pitch) * Math.sin(yaw)).applyQuaternion(root.quaternion);
     const have = v3.copy(headForward).applyQuaternion(head.getWorldQuaternion(qa));
     qb.setFromUnitVectors(have, want);
@@ -503,6 +509,12 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return action;
     },
     place, walkTo, turnTo, lookAt,
+    /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
+    get lookYawLimit() { return lookYawLimit; },
+    set lookYawLimit(value) { lookYawLimit = Math.max(0, Number(value)); },
+    /** Degrees a look may tilt the head up at most, whatever lookAt asks (Infinity, the default: no cap). */
+    get lookUpLimit() { return lookUpLimit; },
+    set lookUpLimit(value) { lookUpLimit = Math.max(0, Number(value)); },
     /** The eyelids (null for a model without eyes): `shut` is how shut they are now. */
     get eyelids() { return lids; },
     /** Blink now. */

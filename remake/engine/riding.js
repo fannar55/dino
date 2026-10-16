@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from '../../dist/vendor/BufferGeometryUtils.js';
 import { Handle } from './handle.js';
+import { reachTwoBones } from './ik.js';
 import { sparkleBurst, sparkleTrail } from '../world/props/sparkles.js';
 
-// Riding (chapter 1, scenes 5 and 6). A saddle pops onto Mosi's shoulders, Egill floats up into it,
+// Riding (chapter 1, scenes 5 and 6). A saddle pops onto Mosi's back, Egill floats up into it,
 // cartoon-style, and rides there holding its handle:
 //
-//   const saddle = createSaddle(mosi);    // on his shoulders behind the frill, hidden for now
+//   const saddle = createSaddle(mosi);    // on his back behind the shoulders, hidden for now
 //   yield saddle.appear();                // it pops in with a burst of sparkles
 //   yield floatTo(egill, saddle);         // up, across and down into the seat, leaving sparkles behind
 //   const riding = ride(egill, saddle);   // he sits there, hands on the handle, until riding.stop()
@@ -102,22 +103,26 @@ function topAt(points, x, z, reach) {
 // shins hanging beside it (they come no nearer the middle than 0.1 m), on a broad pad on the back, with
 // a high cantle behind him and a leather loop in front for both hands.
 //
-// It sits on Mosi's shoulders, just behind the frill: Egill's hips AHEAD of the Shoulders bone (that
-// is, 8 cm behind it). Measured on the baked Mosi, Egill then stays 15 cm clear of the frill in idle and
-// 14 cm in the walk, and 4.5 cm or more when Mosi turns his head to look about; looking up more than
-// 15 degrees, though, the frill swings back onto him (keep lookAt's maxPitch under that while he
-// rides). Nearer still, the pad would reach over the neck's skin, which turns with every look: in
-// front of 2.48 m along him the neck takes over from the shoulders, and the pad stops there.
+// It sits on the top of Mosi's back behind his shoulders, where the owner marked it (2026-10-16):
+// Egill's hips AHEAD of the Body bone, 1.55 m along Mosi. The skin there is the Body's alone. In idle
+// and in the walk the frill stays more than 20 cm from Egill; but a head turned far round, or raised,
+// swings the frill's edge back onto him, so while he rides or floats up the host's looks are capped
+// (LOOK_CAPS, below).
 const LEATHER = '#6f5440'; // the colour of Egill's boots (STYLE.md section 3)
 const SIT_DEPTH = 0.32;
 const FEET_BELOW = 0.21; // his feet below his seat, with 2 cm to spare
-const AHEAD = -0.08;
+const AHEAD = 2.12;
 const SEAT = { back: -0.17, front: 0.24, halfWidth: 0.095 }; // metres about the rider's hips
 const PAD = { back: -0.44, front: 0.26, halfWidth: 0.42, thickness: 0.045 };
 // The handle, a leather loop standing across the front of the seat (centre and radius, from the rider's
 // root), and where his wrists go to hold it: well within reach of his short arms (0.27 m).
 const HANDLE = { x: 0.225, y: 0.4625, radius: 0.105, tube: 0.022 };
 const GRIP = { x: 0.18, y: 0.555, z: 0.085 };
+// The caps (degrees) on the host's looks while a rider is on the saddle or floating up to it: how far his
+// head may turn aside and tilt up. Measured on the baked Mosi with Egill seated: without them a look to
+// his left, or at Egill on his back, brings the frill within 0.1 to 3 cm of Egill; with them every look
+// keeps 10 cm or more, and watching Egill float up, 40 cm.
+const LOOK_CAPS = { yaw: 35, up: 25 };
 
 // Builds closed shapes from rings of points that go round the same way (right side, top, left side,
 // bottom, seen from behind), joined front to back with both ends closed.
@@ -220,7 +225,7 @@ function saddleShape(back) {
 }
 
 /**
- * A saddle on the host's shoulders, hidden until appear(). It hangs on `bone` with the bone's scale
+ * A saddle on the host's back, hidden until appear(). It hangs on `bone` with the bone's scale
  * undone, so it follows the bone in any pose and stays in metres; `ahead` is how far in front of the
  * bone (along the host, metres) the rider's hips go. Returns
  *   object   the saddle (in the scene, on the bone)
@@ -230,12 +235,12 @@ function saddleShape(back) {
  *   update() brings seat and grips up to date and returns the seat
  *   appear({ duration = 0.8 }) pops the saddle in with a burst of sparkles; returns a Handle
  */
-export function createSaddle(host, { bone: boneName = 'Shoulders', ahead = AHEAD } = {}) {
+export function createSaddle(host, { bone: boneName = 'Body', ahead = AHEAD } = {}) {
   const skin = skinOf(host);
   const { bone, inverse, at } = skin.bone(boneName);
   const unit = skin.unit;
-  // The back under the saddle: skin the bone and the bones above it carry (Mosi's Shoulders and Body),
-  // not the neck and frill in front of it, which turn with his head.
+  // The back under the saddle: skin the bone and the bones above it carry (for Mosi's Body bone, the
+  // Body's own), never the neck and frill, which turn with his head.
   const chain = new Set();
   for (let b = bone; b?.isBone; b = b.parent) chain.add(skin.mesh.skeleton.bones.indexOf(b));
   const origin = new V3(at.x + ahead / unit, 0, at.z);
@@ -301,6 +306,17 @@ export function createSaddle(host, { bone: boneName = 'Shoulders', ahead = AHEAD
 // Taking riders over ------------------------------------------------------------------------------
 // One thing moves a rider at a time: a new float or ride ends the one before.
 const controllers = new WeakMap();
+// Cap the host's looks while a rider is on him (LOOK_CAPS); returns what puts the earlier caps back.
+function capLooks(host) {
+  const before = { yaw: host.lookYawLimit, up: host.lookUpLimit };
+  host.lookYawLimit = Math.min(before.yaw ?? Infinity, LOOK_CAPS.yaw);
+  host.lookUpLimit = Math.min(before.up ?? Infinity, LOOK_CAPS.up);
+  return () => {
+    host.lookYawLimit = before.yaw ?? Infinity;
+    host.lookUpLimit = before.up ?? Infinity;
+  };
+}
+
 function take(rider, controller) {
   controllers.get(rider)?.end();
   controllers.set(rider, controller);
@@ -313,20 +329,11 @@ function release(rider, controller) {
   rider.control(null);
 }
 
-// Turn a bone by a world-space rotation about its own pivot.
-const parentTurn = new THREE.Quaternion();
-const localTurn = new THREE.Quaternion();
-function turnBoneWorld(bone, q) {
-  bone.parent.getWorldQuaternion(parentTurn);
-  localTurn.copy(parentTurn).invert().multiply(q).multiply(parentTurn);
-  bone.quaternion.premultiply(localTurn);
-  bone.updateMatrixWorld(true);
-}
-
-// The rider's hands on the saddle's handle. After his clips have posed his arms, each upper arm and
-// forearm turn so that the wrist lands on its grip (two bones, the elbow bending where the clip bends
-// it), blended in from the clip's own wrist. The clip's arm pose goes back before his clips run again,
-// because the mixer leaves a bone alone when its value does not change (the sit clip holds the arms).
+// The rider's hands on the saddle's handle. After his clips have posed his arms, each arm reaches for
+// its grip (ik.js's reachTwoBones: upper arm and forearm, the elbow bending where the clip bends it),
+// the target blended in from the clip's own wrist. The clip's arm pose goes back before his clips run
+// again, because the mixer leaves a bone alone when its value does not change (the sit clip holds the
+// arms still).
 function handsOn(rider, grips) {
   const arms = [['Left', grips.left], ['Right', grips.right]].map(([side, grip]) => {
     const upper = findBone(rider.model, `${side}UpperArm`);
@@ -335,9 +342,8 @@ function handsOn(rider, grips) {
     return upper && lower && hand ? { upper, lower, hand, grip, upperTurn: new THREE.Quaternion(), lowerTurn: new THREE.Quaternion() } : null;
   }).filter(Boolean);
   let applied = false;
-  const s = new V3(), elbow = new V3(), wrist = new V3(), target = new V3(), toward = new V3(), bend = new V3(), placed = new V3();
-  const from = new V3(), to = new V3();
-  const q = new THREE.Quaternion();
+  const wrist = new V3();
+  const target = new V3();
   return {
     restore() {
       if (!applied) return;
@@ -353,25 +359,8 @@ function handsOn(rider, grips) {
       for (const arm of arms) {
         arm.upperTurn.copy(arm.upper.quaternion);
         arm.lowerTurn.copy(arm.lower.quaternion);
-        arm.upper.getWorldPosition(s);
-        arm.lower.getWorldPosition(elbow);
-        arm.hand.getWorldPosition(wrist);
-        const a = s.distanceTo(elbow);
-        const b = elbow.distanceTo(wrist);
-        target.lerpVectors(wrist, arm.grip, weight);
-        toward.subVectors(target, s);
-        const d = THREE.MathUtils.clamp(toward.length(), Math.abs(a - b) + 1e-4, 0.999 * (a + b));
-        toward.normalize();
-        // The elbow goes out the way the clip bends it, at the distance the two bones allow.
-        bend.subVectors(elbow, s);
-        bend.addScaledVector(toward, -bend.dot(toward));
-        if (bend.lengthSq() < 1e-12) bend.set(0, -1, 0).addScaledVector(toward, toward.y);
-        bend.normalize();
-        const cos = THREE.MathUtils.clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1);
-        placed.copy(s).addScaledVector(toward, a * cos).addScaledVector(bend, a * Math.sqrt(1 - cos * cos));
-        turnBoneWorld(arm.upper, q.setFromUnitVectors(from.subVectors(elbow, s).normalize(), to.subVectors(placed, s).normalize()));
-        arm.hand.getWorldPosition(wrist);
-        turnBoneWorld(arm.lower, q.setFromUnitVectors(from.subVectors(wrist, placed).normalize(), to.copy(s).addScaledVector(toward, d).sub(placed).normalize()));
+        target.lerpVectors(arm.hand.getWorldPosition(wrist), arm.grip, weight);
+        reachTwoBones(arm.upper, arm.lower, arm.hand, target);
       }
       applied = true;
     },
@@ -403,17 +392,20 @@ export function ride(rider, saddle, { settle = 0.8 } = {}) {
       rider.root.quaternion.slerpQuaternions(from.quaternion, facing, k);
     },
     pose() { hands.apply(smooth(clamp01((t - blend) / HANDS_IN))); },
-    end() { hands.restore(); },
+    end() {
+      hands.restore();
+      uncap();
+    },
   };
   take(rider, controller);
+  const uncap = capLooks(saddle.host);
   rider.play('sit', { fade: 0.5 });
   return { stop: () => release(rider, controller) };
 }
 
-// The float: from where he stands the path rises FLOAT_RISE m, then comes down onto the seat from
-// FLOAT_HOVER m above it (a cubic curve, eased at both ends); he takes the sit pose for the last
-// FLOAT_SIT seconds, so he lands sitting.
-const FLOAT_RISE = 1.6;
+// The float: a cubic curve, eased at both ends, from where he stands straight up toward FLOAT_HOVER m
+// above the seat, across, and down onto it, so it peaks about half a metre over the seat wherever the
+// seat is; he takes the sit pose for the last FLOAT_SIT seconds, so he lands sitting.
 const FLOAT_HOVER = 0.9;
 const FLOAT_SIT = 0.6;
 
@@ -439,7 +431,7 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
       const end = saddle.update();
       const u = clamp01(t / duration);
       const k = smooth(u);
-      rise.copy(start).addScaledVector(UP, FLOAT_RISE);
+      rise.set(start.x, end.y + FLOAT_HOVER, start.z);
       hover.copy(end).addScaledVector(UP, FLOAT_HOVER);
       const a = (1 - k) ** 3, b = 3 * (1 - k) ** 2 * k, c = 3 * (1 - k) * k * k, e = k ** 3;
       rider.root.position.set(0, 0, 0).addScaledVector(start, a).addScaledVector(rise, b).addScaledVector(hover, c).addScaledVector(end, e);
@@ -451,9 +443,13 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
       }
       if (u >= 1 && !handle.done) handle.finish();
     },
-    end() { if (!handle.done) handle.cancel(); }, // a cancelled float leaves him held where he is
+    end() {
+      if (!handle.done) handle.cancel(); // a cancelled float leaves him held where he is
+      uncap();
+    },
   };
   take(rider, controller);
+  const uncap = capLooks(saddle.host);
   rider.play('lifted', { fade: 0.3 });
   const trail = new V3();
   sparkleTrail(world, () => rider.centre(trail), { duration: 0.9 * duration, seed: `${rider.name} float` });

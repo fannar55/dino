@@ -343,6 +343,30 @@ test('while controlled, the root stays where it is put and a walk waits', async 
   assert.deepEqual(order, ['drive', 'pose']);
 });
 
+test('look caps hold the head within them whatever lookAt asks', async () => {
+  const { mosi } = await stage();
+  const head = headOf(mosi);
+  // The way his face points, read off the bind pose (he is made facing +X), as the look itself reads it.
+  const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert());
+  const turned = () => {
+    const f = forward.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+    return { up: THREE.MathUtils.radToDeg(Math.asin(f.y)), aside: THREE.MathUtils.radToDeg(Math.atan2(f.z, f.x)) };
+  };
+  mosi.lookAt([-1, 9, 6], { weight: 1 }); // high up and behind him on his right
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const free = turned();
+  assert.ok(free.up > 20 && free.aside > 40, `uncapped he looks ${free.up.toFixed(1)} up and ${free.aside.toFixed(1)} aside`);
+  mosi.lookUpLimit = 10;
+  mosi.lookYawLimit = 20;
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const capped = turned();
+  assert.ok(capped.up < 12 && capped.aside < 22, `capped he looks ${capped.up.toFixed(1)} up and ${capped.aside.toFixed(1)} aside`);
+  // Down is not capped: the frill tips forward, away from a rider.
+  mosi.lookAt([4, -6, 0], { weight: 1 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(turned().up < -20, `he still looks ${turned().up.toFixed(1)} down`);
+});
+
 test('frozen frames leave a stepping foot where it is', async () => {
   const { mosi } = await stage();
   mosi.turnTo(60);

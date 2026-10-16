@@ -97,6 +97,7 @@ test('floatTo lifts the rider onto the seat, and ride keeps him there while Mosi
   const ground = egill.root.position.clone();
   const float = floatTo(egill, saddle);
   assert.equal(egill.controlled, true);
+  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit < 30, 'Mosi\'s looks are capped while Egill floats up');
   assert.equal(world.scene.children.filter(o => o.isPoints).length, 1, 'one trail of sparkles');
   let highest = 0;
   let frames = 0;
@@ -148,6 +149,67 @@ test('while riding, each hand holds its grip on the handle, also while Mosi walk
   assert.ok(worst < 0.03, `while Mosi walks a hand was up to ${mm(worst)} from its grip`);
 });
 
+// The smallest distance between Egill's skin and the skin Mosi's head, jaw and neck carry (the frill
+// with them), as the clips pose both now.
+function frillGap(mosi, egill) {
+  const skinOf = actor => {
+    let mesh = null;
+    actor.model.traverse(o => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; });
+    return mesh;
+  };
+  const mosiSkin = skinOf(mosi);
+  const egillSkin = skinOf(egill);
+  const front = new Set(['Neck', 'Head', 'Jaw'].map(n => mosiSkin.skeleton.bones.findIndex(b => b.name === n)).filter(i => i >= 0));
+  const { skinIndex, skinWeight } = mosiSkin.geometry.attributes;
+  mosi.root.updateMatrixWorld(true);
+  egill.root.updateMatrixWorld(true);
+  const cell = 0.1;
+  const grid = new Map();
+  const v = new THREE.Vector3();
+  for (let i = 0; i < skinIndex.count; i++) {
+    let share = 0;
+    for (let k = 0; k < 4; k++) if (front.has(skinIndex.getComponent(i, k))) share += skinWeight.getComponent(i, k);
+    if (share < 0.25) continue;
+    mosiSkin.getVertexPosition(i, v).applyMatrix4(mosiSkin.matrixWorld);
+    const key = `${Math.floor(v.x / cell)},${Math.floor(v.y / cell)},${Math.floor(v.z / cell)}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(v.clone());
+  }
+  let gap = Infinity;
+  for (let i = 0; i < egillSkin.geometry.attributes.position.count; i += 2) {
+    egillSkin.getVertexPosition(i, v).applyMatrix4(egillSkin.matrixWorld);
+    const cx = Math.floor(v.x / cell), cy = Math.floor(v.y / cell), cz = Math.floor(v.z / cell);
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
+      for (const p of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) || []) gap = Math.min(gap, p.distanceTo(v));
+    }
+  }
+  return gap;
+}
+
+test('while Mosi carries Egill his looks are capped, so his frill stays clear of Egill looking up and round', async () => {
+  const { mosi, egill, frame } = await stage();
+  const saddle = createSaddle(mosi);
+  const riding = ride(egill, saddle);
+  assert.ok(mosi.lookYawLimit < 55 && mosi.lookUpLimit < 30, `looks capped at ${mosi.lookYawLimit} degrees aside and ${mosi.lookUpLimit} up`);
+  for (let i = 0; i < 30; i++) frame();
+  let worst = Infinity;
+  // Up and round to his left, asking lookAt's full 30 degrees up, and at Egill on his back: uncapped,
+  // each brings the frill's edge within a few millimetres of him.
+  for (const target of [{ actor: 'mosi', offset: [2, 6, -4], local: true }, 'egill.head']) {
+    mosi.lookAt(target, { weight: 1, maxPitch: 30 });
+    for (let i = 0; i < 60; i++) {
+      frame();
+      if (i % 5 === 4) worst = Math.min(worst, frillGap(mosi, egill));
+    }
+    mosi.lookAt(null);
+    for (let i = 0; i < 30; i++) frame();
+  }
+  assert.ok(worst > 0.04, `the frill came within ${mm(worst)} of Egill`);
+  riding.stop();
+  assert.equal(mosi.lookYawLimit, Infinity, 'the caps go when the ride stops');
+  assert.equal(mosi.lookUpLimit, Infinity);
+});
+
 test('the rider stays on the seat while the host walks', async () => {
   const { mosi, egill, frame } = await stage();
   const saddle = createSaddle(mosi);
@@ -160,13 +222,13 @@ test('the rider stays on the seat while the host walks', async () => {
   assert.equal(egill.controlled, true);
   assert.ok(egill.root.position.distanceTo(saddle.seat) < 1e-3, `Egill is ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
   assert.ok(Math.abs(egill.heading - mosi.heading) < 0.1, `Egill faces ${egill.heading.toFixed(1)}, Mosi ${mosi.heading.toFixed(1)} degrees`);
-  // The seat is on Mosi's shoulders, where it was: the saddle follows the bone it sits on.
-  const shoulders = mosi.model.getObjectByName('Shoulders');
-  const onShoulders = p => shoulders.worldToLocal(p.clone());
-  const before = onShoulders(saddle.seat);
+  // The seat is on Mosi's back, where it was: the saddle follows the bone it sits on.
+  const body = mosi.model.getObjectByName('Body');
+  const onBody = p => body.worldToLocal(p.clone());
+  const before = onBody(saddle.seat);
   for (let i = 0; i < 30; i++) frame();
   saddle.update();
-  assert.ok(onShoulders(saddle.seat).distanceTo(before) < 1e-4, 'the seat keeps its place on the Shoulders bone');
+  assert.ok(onBody(saddle.seat).distanceTo(before) < 1e-4, 'the seat keeps its place on the Body bone');
   assert.ok(egill.root.position.distanceTo(saddle.seat) < 1e-3, `Egill is ${mm(egill.root.position.distanceTo(saddle.seat))} from the seat`);
 });
 
