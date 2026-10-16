@@ -269,8 +269,10 @@ test('theme.json holds the measured tempo, a strong beat, and a bell key, and po
   assert.equal(theme.key.length, 5);
   assert.deepEqual([...theme.key].sort((a, b) => a - b), theme.key);
   assert.ok(theme.key[0] > 380 && theme.key[4] < 1250, `${theme.key} Hz`);
-  // src is read from the page (remake/index.html), as lines.json's are; the repo is the server root, so the extra .. stops there
-  const file = new URL(theme.src, 'http://localhost/remake/index.html').pathname;
-  assert.ok(file.endsWith('/little-dino-green-valley.mp3'));
+  // src is read against theme.json itself (engine/audio/music.js fetches it that way): three folders up from
+  // remake/assets/audio/ is the repository, which is the server root, so no .. is spent climbing past the root
+  const file = new URL(theme.src, 'http://localhost/remake/assets/audio/theme.json').pathname;
+  assert.equal(file, '/dist/assets/audio/little-dino-green-valley.mp3');
+  assert.equal(new URL(theme.src, 'http://localhost/inside/remake/assets/audio/theme.json').pathname, '/inside/dist/assets/audio/little-dino-green-valley.mp3', 'it follows the folders and does not lean on the server root to stop it');
   assert.ok(fs.existsSync(new URL(`../..${file}`, import.meta.url)), `${file} is not in the repository`);
 });

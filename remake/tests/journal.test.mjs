@@ -376,10 +376,11 @@ test('a pause callback that throws does not leave the page half open', () => {
   }
 });
 
-test('main.js ties a page the child opens to the clock and the voice', () => {
+test('main.js ties a page the child opens to the clock and the sound', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const wiring = /createJournal\(document, save, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*voice\.setPaused\(paused\);\s*\},?\s*\}\)/;
-  assert.match(main, wiring, 'createJournal gets an onPause that sets the clock and then the voice');
+  // The sound (the voice, the music and the effects: engine/audio/hold.js) is held with the clock, and let go with it.
+  const wiring = /createJournal\(document, save, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*hold\('book', paused\);\s*\},?\s*\}\)/;
+  assert.match(main, wiring, 'createJournal gets an onPause that sets the clock and then holds the sound');
 });
 
 test('the journal says so when the page lacks a piece of it', () => {

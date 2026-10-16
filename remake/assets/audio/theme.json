@@ -1,5 +1,5 @@
 {
- "src": "../../dist/assets/audio/little-dino-green-valley.mp3",
+ "src": "../../../dist/assets/audio/little-dino-green-valley.mp3",
  "bpm": 95,
  "beatOffset": 0.131,
  "key": [524.28, 588.48, 660.55, 785.53, 881.73]

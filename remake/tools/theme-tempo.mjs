@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Measures the game's theme music once and writes what the beat clock and the chimes need to
+// Measures the game's theme music once and writes what the beat clock and the sound effects need to
 // remake/assets/audio/theme.json: the tempo (bpm), the time of a strong beat (beatOffset, seconds
 // from the start of the file; every second beat after it is strong too) and the key, as five notes
-// of its major pentatonic scale in a bell register (Hz). The game never listens to the music: the
-// beat is the same pure function of the music's time on every run (engine/beat.js).
+// of its major pentatonic scale in a bell register (Hz), which the bell sounds are tuned to
+// (engine/audio/sfx.js). The game never listens to the music: the beat is the same pure function
+// of the music's time on every run (engine/beat.js).
 //   node remake/tools/theme-tempo.mjs [--no-mix]        (needs ffmpeg on the PATH)
 //
 // Tempo: ffmpeg decodes the theme, a spectral-flux curve marks its onsets, and the tempo is picked
@@ -24,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const THEME_FILE = 'dist/assets/audio/little-dino-green-valley.mp3';
-const THEME_SRC = '../../dist/assets/audio/little-dino-green-valley.mp3'; // as the plan gives it: from remake/index.html it reaches dist/ because a URL cannot climb above the server root
+const THEME_SRC = '../../../dist/assets/audio/little-dino-green-valley.mp3'; // read against theme.json itself (engine/audio/music.js): three folders up from remake/assets/audio/ is the repository
 const RATE = 22050; // the analysis runs on mono at this rate
 
 const WINDOW = 512; // onset curve: 23 ms windows every 5.8 ms

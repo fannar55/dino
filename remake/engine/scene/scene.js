@@ -21,8 +21,9 @@ import { DONE } from '../handle.js';
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap and s.search need, and
 // `journal` (scene/journal.js), which s.star, s.found and s.journal need, and `sun` (engine/sun-face.js),
-// which s.sun needs. s.drag and s.tray need `ui.tray`.
-export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null, sun = null }) {
+// which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
+// The music is not the script's to direct: it plays the theme, lowers itself under the voice (main.js) and holds with the clock.
+export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null, sun = null, sfx = null }) {
   const scheduler = createScheduler();
   let seeking = false;
   let started = false; // set by begin(): the start button, or at once for captures
@@ -327,6 +328,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     if (!sun) throw new Error(`${call} needs the sun: pass \`sun\` (createSunFace) to createScene`);
   }
 
+  function needSfx(call) {
+    if (!sfx) throw new Error(`${call} needs the sound effects: pass \`sfx\` (createSfx) to createScene`);
+  }
+
   function actor(name) {
     const a = world.actors.get(name);
     if (!a) throw new Error(`No actor named "${name}"`);
@@ -413,6 +418,16 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       show: items => { needTray('s.tray.show'); ui.tray.show(items); return DONE; },
       hide: () => { needTray('s.tray.hide'); ui.tray.hide(); return DONE; },
     },
+    /**
+     * Play a sound effect by name and carry on: forest (a quiet loop, laid once), step, frog, snail, beetle, birds, butterfly,
+     * flower, plate, star, journal, saddle or float (engine/audio/sfx.js). An unknown name does nothing. Seeking (a capture's
+     * silent replay, critter reactions included) makes no sound.
+     */
+    sfx: name => {
+      needSfx('s.sfx');
+      if (!seeking) sfx.play(name);
+      return DONE;
+    },
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
     after: (delay, item) => start((function* after() {
       yield wait(delay);
@@ -448,6 +463,7 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       director.handheld(0, { duration: 0.001 });
       for (const a of world.actors.values()) a.stop?.();
       voice.stop();
+      sfx?.stop?.(); // the forest's loop
       ui.reset();
     },
   };

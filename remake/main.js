@@ -23,13 +23,17 @@ import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
 import { createSave } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
+import { createAudioContext, createOutput } from './engine/audio/output.js';
+import { createMusic } from './engine/audio/music.js';
+import { createSfx } from './engine/audio/sfx.js';
+import { createHold } from './engine/audio/hold.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
 //   quality=low|tablet|high
 //   look=morning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
-//   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation)
+//   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation); silent
 //   play=1                start the scene at once, without the start button
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
@@ -97,30 +101,49 @@ try {
 } catch {
   console.warn('No recorded line durations found; lines are timed by reading pace.');
 }
-// The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it.
+// The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it. The music reads the
+// theme's file against this URL (theme.json's src), and the effects tune their bells to its key.
+const themeUrl = new URL('./assets/audio/theme.json', import.meta.url);
 let theme = null;
 try {
-  theme = await (await fetch(new URL('./assets/audio/theme.json', import.meta.url))).json();
+  theme = await (await fetch(themeUrl)).json();
 } catch {
   console.warn('No theme tempo found; the forest sways without the beat.');
 }
-// The one place the beat reads its time: the game clock for now, so a seek or a capture lands on the
-// same beat. The music will point this at its own playhead.
-const musicTime = () => clock.time;
+// Sound. A capture (?t=) and a review shot (?shot=) are silent and make no audio context at all; a scene somebody plays
+// gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
+const playing = params.get('t') === null && params.get('shot') === null && Boolean(chapter.script);
+const audio = playing ? createAudioContext() : null;
+const output = audio && createOutput(audio);
+const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
+const sfx = createSfx({ context: audio, theme, output });
+// The one place the beat reads its time: the music's playhead. It is the game clock's time folded into the theme's loop (and
+// the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
+// on the same beat every time.
+const musicTime = () => music.position;
 const ui = createStageUI(document);
-const voice = createVoice();
+const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
+// The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
+// hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
+const hold = createHold([voice, music, sfx]);
 const pointer = createPointer({ canvas, camera, world });
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
 const save = createSave(params.get('t') === null ? undefined : null);
 const journal = createJournal(document, save, {
-  // A page the child opens holds the whole game, the voice included, until the child shuts it. A page a
+  // A page the child opens holds the whole game, the sound included, until the child shuts it. A page a
   // script opens (s.journal.open) does not call this: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
     clock.setPaused(paused);
-    voice.setPaused(paused);
+    hold('book', paused);
   },
 });
-const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace });
+const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
+
+// A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
+document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
+hold('hidden', document.hidden);
+// The start button is the first touch. After it any touch wakes sound the system has put to sleep (a tablet that was locked).
+window.addEventListener('pointerup', () => { if (stage.started) music.start(); }, { passive: true });
 
 const shotName = params.get('shot');
 const tParam = params.get('t');
@@ -138,6 +161,8 @@ function update(dt) {
   journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
   stage.update(dt);
   wind.update(clock.time);
+  music.update(); // if the clock lost time (a long frame) the sound is brought back to the playhead
+  sfx.update(dt); // the forest's birds and rustles
   if (theme) {
     wind.setBeat(beatAt(musicTime(), theme).pulse); // the foliage leans a little further on each beat
     wind.setDance(danceAt(musicTime(), theme)); // and on each strong beat the flowers nod and the mushrooms hop
@@ -178,6 +203,8 @@ if (shotName || !chapter.script) {
   if (seekTo !== null) {
     // Deterministic seek: run the scene from the start in fixed steps, silently, then freeze.
     voice.muted = true;
+    music.muted = true;
+    sfx.muted = true;
     stage.seeking = true;
     ui.setFade(1);
     stage.begin();
@@ -205,6 +232,7 @@ if (shotName || !chapter.script) {
       button.hidden = true;
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
+      music.start(); // the first touch: the browser lets sound begin, and the theme with it
     }, { once: true });
   }
 }
@@ -246,4 +274,4 @@ renderer.setAnimationLoop(now => {
   adapt(real, clock.frozen);
   if (++frames >= 20 && lodsReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
