@@ -116,24 +116,155 @@ class FakeSource extends FakeNode {
   }
 }
 
+/**
+ * A stand-in for an <audio> element playing a streamed file. It starts loading when src is set, plays only when a running context
+ * pulls it (context.advance moves it on, as a real element feeding Web Audio is moved by the audio clock), loops when asked, and
+ * keeps count of what it was asked to do. Seeking and starting take no time unless a test gives it some.
+ */
+export class FakeMediaElement extends EventTarget {
+  /**
+   * @param {object} options
+   * @param {number} options.duration       the length of the file, in seconds
+   * @param {boolean} options.loadError     the file cannot be loaded or decoded: an error event instead of loadedmetadata
+   * @param {number} options.seekLatency    seconds of audio time a seek takes (`seeking` is true meanwhile, and the media clock stands still)
+   * @param {number} options.startLatency   seconds of audio time between play() and the media clock moving
+   * @param {boolean} options.blocked       play() is refused as the browser does before any touch (NotAllowedError)
+   * @param {Error} options.playError       play() rejects with this
+   * @param {{at: number, for: number}} options.freeze   its clock stands still for `for` seconds once it has reached `at` (an output device that
+   *                                        starts slowly lets the clock move a moment and then stops it)
+   * @param {number} options.rate        how fast its clock runs against the audio clock (1 is in step; a starved pipeline crawls)
+   * @param {boolean} options.seekable      false: the file came from a server with no byte ranges, so it cannot be moved (seekable is
+   *                                        [0, 0], as in Chrome, and a seek lands at the start)
+   */
+  constructor({ duration = 351.6, loadError = false, seekLatency = 0, startLatency = 0, blocked = false, playError = null, seekable = true, freeze = null, rate = 1 } = {}) {
+    super();
+    this.preload = 'metadata';
+    this.loop = false;
+    this.paused = true;
+    this.seeking = false;
+    this.readyState = 0;
+    this.duration = NaN;
+    this.error = null;
+    this.playCalls = 0;
+    this.pauseCalls = 0;
+    this.seeks = []; // every time currentTime was set to, in order
+    this.fileDuration = duration;
+    this.loadError = loadError;
+    this.seekLatency = seekLatency;
+    this.startLatency = startLatency;
+    this.blocked = blocked;
+    this.playError = playError;
+    this.canBeMoved = seekable;
+    this.freeze = freeze;
+    this.rate = rate;
+    this.frozenLeft = 0;
+    this.time = 0;
+    this.seekLeft = 0;
+    this.startLeft = 0;
+    this.address = '';
+  }
+
+  get src() { return this.address; }
+  set src(value) {
+    this.address = String(value);
+    queueMicrotask(() => this.load());
+  }
+
+  load() {
+    if (this.loadError) {
+      this.error = { code: 4, message: 'MEDIA_ELEMENT_ERROR: Format error' };
+      this.dispatchEvent(new Event('error'));
+      return;
+    }
+    this.duration = this.fileDuration;
+    this.readyState = 4;
+    this.dispatchEvent(new Event('loadedmetadata'));
+    this.dispatchEvent(new Event('canplay'));
+  }
+
+  /** What Chrome says: the whole file once it is known and the server gives byte ranges, nothing (0 to 0) when it does not. */
+  get seekable() {
+    const end = this.canBeMoved && Number.isFinite(this.duration) ? this.duration : 0;
+    return { length: 1, start: () => 0, end: () => end };
+  }
+
+  get currentTime() { return this.time; }
+  set currentTime(value) {
+    this.seeks.push(value);
+    this.time = this.canBeMoved ? value : 0; // a file that cannot be moved starts over
+    if (this.seekLatency > 0) {
+      this.seeking = true;
+      this.seekLeft = this.seekLatency;
+    }
+  }
+
+  play() {
+    this.playCalls++;
+    if (this.blocked) return Promise.reject(new DOMException('play() failed because the user didn\'t interact with the document first.', 'NotAllowedError'));
+    if (this.playError) return Promise.reject(this.playError);
+    if (this.paused) {
+      this.paused = false;
+      this.startLeft = this.startLatency;
+    }
+    return Promise.resolve();
+  }
+
+  pause() {
+    this.pauseCalls++;
+    this.paused = true;
+  }
+
+  /** `seconds` of audio time pass while a running context pulls this element. */
+  tick(seconds) {
+    if (this.paused || this.readyState < 3) return;
+    let left = seconds;
+    if (this.seeking) {
+      const used = Math.min(left, this.seekLeft);
+      this.seekLeft -= used;
+      left -= used;
+      if (this.seekLeft > 0) return;
+      this.seeking = false;
+      this.dispatchEvent(new Event('seeked'));
+    }
+    const waiting = Math.min(left, this.startLeft);
+    this.startLeft -= waiting;
+    left -= waiting;
+    if (this.freeze && this.time + left >= this.freeze.at && this.frozenLeft === 0 && !this.froze) {
+      left -= Math.max(0, this.freeze.at - this.time); // it gets as far as `at` ...
+      this.time = this.freeze.at;
+      this.froze = true;
+      this.frozenLeft = this.freeze.for; // ... and stands still
+    }
+    const stuck = Math.min(left, this.frozenLeft);
+    this.frozenLeft -= stuck;
+    left -= stuck;
+    this.time += left * this.rate;
+    if (this.time >= this.duration) {
+      if (this.loop) this.time %= this.duration;
+      else {
+        this.time = this.duration;
+        this.paused = true;
+      }
+    }
+  }
+}
+
 export class FakeContext extends EventTarget {
   /**
    * @param {object} options
    * @param {string} options.state            'suspended' (a page nobody has touched) or 'running'
-   * @param {number} options.duration         the length of the audio decodeAudioData returns, in seconds
    * @param {boolean} options.blocked         resume() is refused, as when the browser wants a touch first
-   * @param {Error} options.decodeError       decodeAudioData rejects with this
    */
-  constructor({ state = 'suspended', sampleRate = 44100, duration = 351.6, blocked = false, decodeError = null } = {}) {
+  constructor({ state = 'suspended', sampleRate = 44100, blocked = false } = {}) {
     super();
     this.nodes = [];
     this.currentTime = 0;
     this.sampleRate = sampleRate;
     this.state = state;
     this.blocked = blocked;
-    this.duration = duration;
-    this.decodeError = decodeError;
-    this.decoded = [];
+    this.stalled = false; // says it runs, but its clock stands still (a slow audio device): time does not pass, nor does an element move
+    this.decoded = []; // everything decodeAudioData was asked to decode: the theme must never be among it
+    this.elements = []; // the media elements feeding this context
     this.resumes = 0;
     this.destination = new FakeNode(this, 'destination');
   }
@@ -156,9 +287,12 @@ export class FakeContext extends EventTarget {
     return Promise.resolve();
   }
 
-  /** Time passes for a running context (an asleep one stands still); sources whose stop time has come end. */
+  /** Time passes for a running context (an asleep one stands still, and so do the elements it pulls); sources whose stop time has come end. */
   advance(seconds) {
-    if (this.state === 'running') this.currentTime += seconds;
+    if (this.state === 'running' && !this.stalled) {
+      this.currentTime += seconds;
+      for (const element of this.elements) element.tick(seconds);
+    }
     for (const node of this.nodes) {
       if (node instanceof FakeSource && node.stopTime !== undefined && node.stopTime <= this.currentTime && !node.ended) {
         node.ended = true;
@@ -167,11 +301,9 @@ export class FakeContext extends EventTarget {
     }
   }
 
-  decodeAudioData() {
-    if (this.decodeError) return Promise.reject(this.decodeError);
-    const buffer = { duration: this.duration, sampleRate: this.sampleRate, numberOfChannels: 2, length: Math.round(this.duration * this.sampleRate) };
-    this.decoded.push(buffer);
-    return Promise.resolve(buffer);
+  decodeAudioData(bytes) {
+    this.decoded.push(bytes);
+    return Promise.resolve(this.createBuffer(2, 1, this.sampleRate));
   }
 
   createBuffer(channels, length, sampleRate) {
@@ -204,11 +336,22 @@ export class FakeContext extends EventTarget {
     return source;
   }
 
+  // Like a browser, an element can feed one source only, and from then on is heard only through the graph.
+  createMediaElementSource(element) {
+    if (this.elements.includes(element) || element.fedBy) throw new DOMException('The HTMLMediaElement already has an associated MediaElementAudioSourceNode', 'InvalidStateError');
+    const source = new FakeNode(this, 'mediaElementSource');
+    source.element = element;
+    element.fedBy = source;
+    this.elements.push(element);
+    return source;
+  }
+
   // What a test looks at -------------------------------------------------------------------------
 
   of(kind) { return this.nodes.filter(node => node.kind === kind); }
   get oscillators() { return this.of('oscillator'); }
   get bufferSources() { return this.of('bufferSource'); }
+  get mediaSources() { return this.of('mediaElementSource'); }
   /** Every source (oscillators and buffers) that has been started. */
   get started() { return this.nodes.filter(node => node instanceof FakeSource && node.started); }
   /** The gain nodes that feed the destination directly. */

@@ -269,10 +269,34 @@ test('theme.json holds the measured tempo, a strong beat, and a bell key, and po
   assert.equal(theme.key.length, 5);
   assert.deepEqual([...theme.key].sort((a, b) => a - b), theme.key);
   assert.ok(theme.key[0] > 380 && theme.key[4] < 1250, `${theme.key} Hz`);
-  // src is read against theme.json itself (engine/audio/music.js fetches it that way): three folders up from
-  // remake/assets/audio/ is the repository, which is the server root, so no .. is spent climbing past the root
+  // src is read against theme.json itself (engine/audio/music.js fetches it that way): the music is the compressed copy beside it
+  assert.equal(theme.src, 'theme.mp3');
   const file = new URL(theme.src, 'http://localhost/remake/assets/audio/theme.json').pathname;
-  assert.equal(file, '/dist/assets/audio/little-dino-green-valley.mp3');
-  assert.equal(new URL(theme.src, 'http://localhost/inside/remake/assets/audio/theme.json').pathname, '/inside/dist/assets/audio/little-dino-green-valley.mp3', 'it follows the folders and does not lean on the server root to stop it');
+  assert.equal(file, '/remake/assets/audio/theme.mp3');
+  assert.equal(new URL(theme.src, 'http://localhost/inside/remake/assets/audio/theme.json').pathname, '/inside/remake/assets/audio/theme.mp3', 'wherever theme.json is served from');
   assert.ok(fs.existsSync(new URL(`../..${file}`, import.meta.url)), `${file} is not in the repository`);
+});
+
+/** What an MP3 file says about itself: its first frame's header (MPEG-1 layer III) and the frame count the encoder wrote in its Xing/Info frame. */
+function mp3Info(url) {
+  const bytes = fs.readFileSync(url);
+  let at = 0;
+  if (bytes.toString('latin1', 0, 3) === 'ID3') at = 10 + ((bytes[6] << 21) | (bytes[7] << 14) | (bytes[8] << 7) | bytes[9]); // an ID3v2 tag comes first
+  assert.ok(bytes[at] === 0xff && (bytes[at + 1] & 0xfe) === 0xfa, 'the file starts with an MPEG-1 layer III frame');
+  const bitrate = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320][bytes[at + 2] >> 4];
+  const sampleRate = [44100, 48000, 32000][(bytes[at + 2] >> 2) & 3];
+  const channels = bytes[at + 3] >> 6 === 3 ? 1 : 2;
+  const tag = at + 4 + (channels === 1 ? 17 : 32) + ((bytes[at + 1] & 1) === 0 ? 2 : 0); // after the side information (and a CRC, if there is one)
+  const hasCount = ['Xing', 'Info'].includes(bytes.toString('latin1', tag, tag + 4)) && (bytes[tag + 7] & 1) === 1;
+  const frames = hasCount ? bytes.readUInt32BE(tag + 8) : 0;
+  return { size: bytes.length, bitrate, sampleRate, channels, seconds: frames ? (frames * 1152) / sampleRate : (bytes.length * 8) / (bitrate * 1000) };
+}
+
+test('the music that plays is a compressed copy of the game\'s theme: an MP3 at 96 kbps, stereo, 44.1 kHz, as long as the original', () => {
+  const copy = mp3Info(new URL('../assets/audio/theme.mp3', import.meta.url));
+  const original = mp3Info(new URL('../../dist/assets/audio/little-dino-green-valley.mp3', import.meta.url));
+  assert.deepEqual({ bitrate: copy.bitrate, sampleRate: copy.sampleRate, channels: copy.channels }, { bitrate: 96, sampleRate: 44100, channels: 2 });
+  assert.ok(copy.size < 0.7 * original.size && copy.size > 3e6, `${copy.size} bytes against ${original.size}`);
+  near(copy.seconds, original.seconds, 0.05, 'the copy is as long as the original, so the beat grid (measured on the copy) holds for the whole file');
+  near(copy.seconds, 351.6, 0.1, 'and 351.6 s is what music.js folds its playhead by');
 });

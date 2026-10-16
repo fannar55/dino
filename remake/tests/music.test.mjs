@@ -3,28 +3,44 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createClock } from '../engine/clock.js';
 import { createMusic } from '../engine/audio/music.js';
-import { createHold } from '../engine/audio/hold.js';
-import { createAudioContext, createOutput } from '../engine/audio/output.js';
-import { createVoice } from '../engine/scene/voice.js';
-import { createFakeContext, FakeContext, withFetch } from './fake-audio.mjs';
+import { createFakeContext, FakeMediaElement, withFetch } from './fake-audio.mjs';
 
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
 const THEME_URL = 'http://localhost/remake/assets/audio/theme.json';
-const SRC_URL = 'http://localhost/dist/assets/audio/little-dino-green-valley.mp3';
+const SRC_URL = 'http://localhost/remake/assets/audio/theme.mp3';
 const LENGTH = 351.6; // the theme, 556.7 beats
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 
-/** The music on a fake context with its theme decoded, and the game clock it follows. */
-async function setup(options = {}, answer) {
-  const context = createFakeContext({ duration: LENGTH, ...options });
+/**
+ * The music on a fake context, streaming from a fake audio element, with the game clock it follows. `fade` is the music's own
+ * fader, the gain node between the element and the volume knob.
+ */
+async function setup({ context: contextOptions = {}, element: elementOptions = {}, theme = THEME, base = THEME_URL } = {}) {
+  const context = createFakeContext(contextOptions);
+  const element = new FakeMediaElement({ duration: LENGTH, ...elementOptions });
   const clock = createClock();
-  const music = await withFetch(async () => {
-    const m = createMusic({ context, theme: THEME, clock, base: THEME_URL });
-    await m.ready;
-    return m;
-  }, answer);
-  return { context, clock, music };
+  const music = createMusic({ context, theme, clock, base, createElement: () => element });
+  await music.ready;
+  return { context, element, clock, music, fade: context.mediaSources[0]?.outputs[0] };
+}
+
+/** `seconds` go by in frames of 1/60 s: the clock ticks (unless it is held), the audio moves on, and the music has its frame. */
+function frames({ clock, context, music }, seconds) {
+  for (let left = seconds; left > 1e-9; left -= 1 / 60) {
+    const dt = Math.min(1 / 60, left);
+    clock.tick(dt);
+    context.advance(dt);
+    music.update();
+  }
+}
+
+/** The music playing: touched, and a moment of frames so the theme is heard. */
+async function playing(options) {
+  const world = await setup(options);
+  world.music.start();
+  frames(world, 0.2);
+  return world;
 }
 
 /** Runs `run` with console.warn caught, and says what it was told. */
@@ -40,183 +56,209 @@ async function warned(run) {
   return told;
 }
 
+const later = () => new Promise(resolve => setTimeout(resolve, 0));
+
 // ---------------------------------------------------------------------------------------------
 // The theme
 
-test('the theme is fetched against theme.json and loops from the decoded buffer', async () => {
+test('the theme streams from an audio element routed through Web Audio, read against theme.json\'s URL, and is never decoded', async () => {
   await withFetch(async asked => {
-    const context = createFakeContext({ duration: LENGTH });
-    const music = createMusic({ context, theme: THEME, clock: createClock(), base: THEME_URL });
+    const { context, element, music } = await setup();
     assert.equal(await music.ready, true);
-    assert.deepEqual(asked, [SRC_URL], 'the src is read from theme.json, not from the page');
-    assert.equal(context.decoded.length, 1, 'decoded once');
-    assert.equal(context.bufferSources.length, 0, 'and it waits for a touch to play');
-
-    music.start();
-    assert.equal(context.bufferSources.length, 0, 'the touch only unlocks sound: the next frame starts it, in step with the clock');
-    music.update();
-    assert.equal(context.bufferSources.length, 1);
-    const [source] = context.bufferSources;
-    assert.equal(source.buffer, context.decoded[0]);
-    assert.equal(source.loop, true, 'it loops');
-    assert.equal(source.starts[0].offset, 0, 'from the beginning');
-    assert.ok(source.reaches(context.destination), 'and is heard');
+    assert.equal(element.src, SRC_URL, 'the src is read from theme.json, not from the page');
+    assert.equal(element.loop, true, 'it loops');
+    assert.equal(element.preload, 'auto');
+    assert.deepEqual(asked, [], 'the page fetches nothing itself: the element streams the file');
+    assert.equal(context.decoded.length, 0, 'and nothing of the 351.6 s is decoded into memory');
+    assert.equal(context.bufferSources.length, 0);
+    assert.equal(context.mediaSources.length, 1);
+    assert.equal(context.mediaSources[0].element, element);
+    assert.ok(context.mediaSources[0].reaches(context.destination), 'it is heard through the graph, so it can be ducked');
+    assert.equal(element.playCalls, 0, 'and it waits for a touch to play');
   });
 });
 
 test('the theme\'s src is read against the URL of theme.json, wherever that is', async () => {
-  await withFetch(async asked => {
-    const music = createMusic({ context: createFakeContext(), theme: { ...THEME, src: 'songs/valley.mp3' }, clock: createClock(), base: 'http://localhost/a/b/theme.json' });
-    await music.ready;
-    assert.deepEqual(asked, ['http://localhost/a/b/songs/valley.mp3'], 'beside theme.json, not beside the page');
-  });
+  const { element } = await setup({ theme: { ...THEME, src: 'songs/valley.mp3' }, base: 'http://localhost/a/b/theme.json' });
+  assert.equal(element.src, 'http://localhost/a/b/songs/valley.mp3', 'beside theme.json, not beside the page');
 });
 
 test('nothing plays before the first touch, and the playhead follows the game clock meanwhile', async () => {
-  const { context, clock, music } = await setup();
+  const { context, element, clock, music } = await setup();
   assert.equal(context.state, 'suspended');
-  assert.equal(context.bufferSources.length, 0);
+  assert.equal(element.playCalls, 0);
   assert.equal(music.position, 0);
   clock.step(3.5);
   assert.equal(music.position, 3.5, 'the forest dances to the grid before the music is heard');
   clock.step(2);
+  music.update();
   assert.equal(music.position, 5.5);
+  assert.equal(element.playCalls, 0);
 });
 
 test('a browser that lets sound run at once still waits for the start button: the theme begins with the scene', async () => {
-  const { context, clock, music } = await setup({ state: 'running' });
-  clock.step(2);
-  context.advance(2);
-  music.update();
-  music.update();
-  assert.equal(context.bufferSources.length, 0, 'the context runs, the theme decoded, and still nothing plays');
-  assert.equal(context.resumes, 0);
-  music.start();
-  music.update();
-  assert.equal(context.bufferSources.length, 1);
-  assert.equal(context.resumes, 0, 'a context that already runs is not asked to');
+  const world = await setup({ context: { state: 'running' } });
+  frames(world, 2);
+  assert.equal(world.element.playCalls, 0, 'the context runs, the theme is loaded, and still nothing plays');
+  assert.equal(world.context.resumes, 0);
+  world.music.start();
+  assert.equal(world.element.playCalls, 1);
+  assert.equal(world.context.resumes, 0, 'a context that already runs is not asked to');
 });
 
-test('start wakes the context inside the touch, plays the theme from its beginning and starts the playhead at 0', async () => {
-  const { context, clock, music } = await setup();
+test('the touch wakes the context and starts the element inside the touch, silent; the next frames bring it up at the theme\'s beginning', async () => {
+  const world = await setup();
+  const { context, element, clock, music, fade } = world;
   clock.step(7.3); // the child looked at the start button for a while
   music.start();
   assert.equal(context.resumes, 1, 'resume() was called by start itself, before anything is awaited');
   assert.equal(context.state, 'running');
+  assert.equal(element.playCalls, 1, 'so was play(): a media element starts from a touch or not at all (iOS)');
+  assert.equal(fade.gain.valueAt(context.currentTime + 5), 0, 'and nothing is heard yet');
   assert.equal(music.position, 7.3, 'until the theme sounds the playhead is the clock\'s');
-  music.update(); // the next frame
-  assert.equal(context.bufferSources.length, 1);
-  assert.equal(context.bufferSources[0].starts[0].offset, 0);
-  assert.equal(music.position, 0, 'the beat grid begins with the music');
-  clock.step(1.25);
-  context.advance(1.25);
-  assert.equal(music.position, 1.25);
+
+  frames(world, 0.06);
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 0, 'it is not brought up until the element has been seen to keep pace with the audio clock');
+  assert.equal(music.position, clock.time, 'and the playhead has not started: it is still the clock\'s');
+  frames(world, 0.2); // the media clock has moved steadily: the theme is playing, from its beginning
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 1, 'now it comes up');
+  const [from, to] = fade.gain.events.slice(-2);
+  assert.ok(to.type === 'linear' && to.value === 1 && to.time - from.time >= 0.02 && to.time - from.time <= 0.1, 'over a few frames, not with a click');
+  assert.ok(near(music.position, element.currentTime), 'the playhead is where the element is');
+  assert.ok(music.position > 0.1 && music.position < 0.3, `the beat grid begins with the music (${music.position})`);
+  assert.equal(element.seeks.length, 0, 'it was not even moved');
 
   music.start();
   music.start();
-  music.update();
-  assert.equal(context.bufferSources.length, 1, 'another touch does not start a second sound');
+  frames(world, 0.1);
+  assert.equal(element.playCalls, 1, 'another touch does not start it again');
   assert.equal(context.resumes, 1, 'nor ask the browser again');
 });
 
 test('the playhead loops with the file, so the beat grid restarts from the file\'s own beatOffset', async () => {
-  const { clock, music } = await setup();
-  music.start();
-  music.update();
-  clock.step(LENGTH - 1);
-  assert.ok(near(music.position, LENGTH - 1));
-  clock.step(5);
-  assert.ok(near(music.position, 4), `${music.position} s into the second time round`);
-  clock.step(LENGTH * 2);
-  assert.ok(near(music.position, 4), 'and the third and fourth');
+  const world = await playing();
+  const { element, music } = world;
+  frames(world, LENGTH - 1 - 0.2);
+  assert.ok(near(music.position, LENGTH - 1, 0.01), `${music.position}`);
+  frames(world, 5);
+  assert.ok(near(music.position, 4, 0.01), `${music.position} s into the second time round`);
+  assert.ok(near(element.currentTime, 4, 0.01), `the element wrapped with it (${element.currentTime})`);
+  assert.equal(element.seeks.length, 0, 'together, without anyone moving it');
+});
+
+test('a resume that goes round the end of the file while the element is being watched is not taken for a stall', async () => {
+  const world = await playing();
+  const { context, element, clock, music, fade } = world;
+  frames(world, LENGTH - 0.15 - 0.2); // 0.15 s from the end of the file
+  music.setPaused(true);
+  clock.setPaused(true);
+  frames(world, 0.2);
+  assert.equal(element.paused, true);
+  assert.ok(element.currentTime > LENGTH - 0.15 && element.currentTime < LENGTH - 0.05, `stopped just before the end (${element.currentTime})`);
+  clock.setPaused(false);
+  music.setPaused(false);
+  frames(world, 0.2); // it plays on, round the end of the file, in the first tenth of a second
+  assert.ok(element.currentTime < 0.3, `round the end (${element.currentTime})`);
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 1, 'and the sound is up at once: going round the loop is not a reason to look again');
+  assert.equal(element.seeks.length, 0);
+});
+
+test('the element and the playhead need not wrap in the same frame: a little ahead or behind across the loop point is still on it', async () => {
+  for (const [what, audio, game] of [['ahead of', 0.05, 0], ['behind', 0, 0.05]]) {
+    const world = await playing();
+    const { clock, context, element, music } = world;
+    frames(world, LENGTH - 2 - 0.2);
+    context.advance(audio); // the element is ahead by 50 ms
+    clock.step(game); // or the playhead is
+    frames(world, 4);
+    assert.ok(music.position < 3 && element.currentTime < 3, `both are past the loop point (${music.position}, ${element.currentTime})`);
+    assert.equal(element.seeks.length, 0, `the element ${what} the playhead wrapped without a jump (a gap of ${LENGTH} s would be one)`);
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
 // Pause
 
 test('pause and resume follow the game clock', async () => {
-  const { context, clock, music } = await setup();
-  music.start();
-  music.update();
-  const [first] = context.bufferSources;
-  const fade = first.outputs[0]; // the sound's own fader, which it lets go of when it has ended
-  clock.step(20);
-  context.advance(20);
+  const world = await playing();
+  const { context, element, clock, music, fade } = world;
+  frames(world, 20);
+  const heldAt = music.position;
   music.setPaused(true);
-  context.advance(0.5);
-
-  assert.ok(first.stopTime !== undefined && first.ended, 'the sound has stopped');
-  assert.ok(fade.gain.valueAt(first.stopTime) < 0.001, 'after fading out, not cut mid-wave');
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.05), 0, 'the sound fades out');
+  assert.equal(element.paused, false, 'and the element stops once it has faded, not in the middle of a wave');
 
   // The book is open (or the tab is hidden and draws no frames): the clock stands still, but the audio's time goes on.
   clock.setPaused(true);
-  for (let frame = 0; frame < 30; frame++) {
-    assert.equal(clock.tick(1), 0);
-    context.advance(1);
-    music.update(); // frames go on while the book is open
-  }
-  assert.ok(near(music.position, 20), 'the playhead stood still with the clock');
-  assert.equal(context.bufferSources.length, 1, 'and nothing sounds meanwhile');
+  frames(world, 30);
+  assert.equal(element.paused, true, 'the element has stopped');
+  assert.ok(near(music.position, heldAt), 'the playhead stood still with the clock');
+  assert.ok(near(element.currentTime, heldAt, 0.08), `and so did the element (${element.currentTime} against ${heldAt})`);
+  assert.equal(element.seeks.length, 0);
 
   clock.setPaused(false);
   music.setPaused(false);
-  assert.equal(context.bufferSources.length, 1, 'letting go starts nothing: the next frame does, when the clock has ticked');
-  assert.equal(clock.tick(1 / 60), 1 / 60);
-  music.update();
-  assert.equal(context.bufferSources.length, 2);
-  const second = context.bufferSources[1];
-  assert.ok(near(second.starts[0].offset, music.position), 'on the playhead');
-  assert.ok(near(second.starts[0].offset, 20, 0.02), `it is back at the clock's 20 s, not where the audio's time would have put it (${second.starts[0].offset})`);
-  assert.ok(second.reaches(context.destination));
+  assert.equal(element.paused, true, 'letting go starts nothing: the next frame does, when the clock has ticked');
+  frames(world, 0.3);
+  assert.equal(element.paused, false);
+  assert.ok(near(element.currentTime, music.position, 0.1), 'it is back on the playhead');
+  assert.ok(near(music.position, heldAt + 0.3, 0.01), 'which is the clock\'s 20 s, not where the audio\'s time would have put it');
+  assert.equal(element.seeks.length, 0, 'continued where it was, so no seek was needed');
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1, 'and it is heard again');
 
-  clock.step(5);
-  context.advance(5);
-  music.update();
-  assert.equal(context.bufferSources.length, 2, 'and it plays on from there without a jump');
-  assert.ok(near(music.position, 25, 0.02));
+  frames(world, 5);
+  assert.ok(near(music.position, heldAt + 5.3, 0.01) && near(element.currentTime, music.position, 0.1));
+  assert.equal(element.seeks.length, 0, 'and plays on from there without a jump');
 });
 
-test('only a frame starts the sound, so it never starts behind a clock that was late', async () => {
-  const { context, clock, music } = await setup();
-  music.start();
-  music.update();
-  clock.step(8);
-  context.advance(8);
-  music.setPaused(true); // the tab is hidden
-  context.advance(4); // four seconds with no frames at all
-  music.setPaused(false); // and it comes back
-  context.advance(0.5); // but its first frame is half a second late
-  assert.equal(context.bufferSources.length, 1, 'the tab\'s event starts no sound');
+test('a hidden tab stops the element at once, since no frame will come to finish a fade; coming back starts it on the first frame', async () => {
+  globalThis.document = { hidden: true };
+  try {
+    const world = await playing();
+    const { context, element, clock, music, fade } = world;
+    frames(world, 8);
+    music.setPaused(true); // the tab is hidden
+    assert.equal(element.paused, true, 'paused at once');
+    assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 0);
+    const heldAt = element.currentTime;
+    context.advance(4); // four seconds with no frames at all
+    assert.equal(element.currentTime, heldAt, 'a paused element stands still');
 
-  assert.equal(clock.tick(4.5), 0.1, 'the clock counts at most 0.1 s of all that time');
-  music.update();
-  assert.equal(context.bufferSources.length, 2);
-  assert.ok(near(context.bufferSources[1].starts[0].offset, 8.1), `it starts where the clock is now (${context.bufferSources[1].starts[0].offset})`);
-  for (let frame = 0; frame < 120; frame++) {
-    clock.tick(1 / 60);
-    context.advance(1 / 60);
+    globalThis.document = { hidden: false };
+    music.setPaused(false); // and it comes back
+    context.advance(0.5); // but its first frame is half a second late
+    assert.equal(element.paused, true, 'the tab\'s event starts no sound');
+    assert.equal(clock.tick(4.5), 0.1, 'the clock counts at most 0.1 s of all that time');
     music.update();
+    assert.equal(element.paused, false);
+    assert.equal(element.seeks.length, 1, 'it was put where the clock is now');
+    assert.ok(near(element.seeks[0], music.position, 0.02), `${element.seeks[0]} against ${music.position}`);
+    frames(world, 2);
+    assert.equal(element.seeks.length, 1, 'and two seconds of steady frames later it has not had to jump');
+    assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+  } finally {
+    delete globalThis.document;
   }
-  assert.equal(context.bufferSources.length, 2, 'and two seconds of steady frames later it has not had to jump');
 });
 
 test('pausing twice, or letting go without a pause, changes nothing; pausing before the touch keeps the music quiet', async () => {
-  const { context, clock, music } = await setup();
+  const world = await setup();
+  const { context, element, music } = world;
   music.setPaused(false);
   music.setPaused(true);
   music.setPaused(true);
   music.start();
-  music.update();
-  assert.equal(context.bufferSources.length, 0, 'held: the touch unlocks sound but the music waits');
+  frames(world, 0.5);
+  assert.equal(element.playCalls, 0, 'held: the touch unlocks sound but the music waits');
   assert.equal(context.state, 'running');
   music.setPaused(false);
-  music.update();
-  assert.equal(context.bufferSources.length, 1);
+  frames(world, 0.5);
+  assert.equal(element.playCalls, 1);
+  assert.equal(element.paused, false);
   music.setPaused(false);
-  music.update();
-  assert.equal(context.bufferSources.length, 1);
-  clock.step(2);
-  assert.ok(near(music.position, 2));
+  frames(world, 0.5);
+  assert.equal(element.playCalls, 1);
+  assert.equal(element.seeks.length, 0);
 });
 
 test('a tab that comes back wakes a context the system put to sleep, but only once the child has touched the page', async () => {
@@ -281,145 +323,219 @@ test('a line that ends mid-duck lets the music up from where it had got to, with
 });
 
 test('the music ducks before it starts too: a first line under a start button ducks the first notes', async () => {
-  const { context, music } = await setup({ state: 'running' });
-  const volume = volumeOf(context).gain;
+  const world = await setup({ context: { state: 'running' } });
+  const volume = volumeOf(world.context).gain;
   const normal = volume.valueAt(0);
-  music.duck(true);
-  context.advance(1);
-  music.start();
-  assert.ok(near(volume.valueAt(context.currentTime), normal * 10 ** (-8 / 20), 1e-9));
+  world.music.duck(true);
+  world.context.advance(1);
+  world.music.start();
+  frames(world, 0.2);
+  assert.ok(near(volume.valueAt(world.context.currentTime), normal * 10 ** (-8 / 20), 1e-9));
 });
 
 // ---------------------------------------------------------------------------------------------
 // The sound stays on the playhead
 
-test('the sound is brought back to the playhead when the clock has lost time', async () => {
-  const { context, clock, music } = await setup();
-  music.start();
-  music.update();
-  clock.step(10);
-  context.advance(10);
-  music.update();
-  assert.equal(context.bufferSources.length, 1, 'in step: nothing to do');
+test('the sound is brought back to the playhead when the clock has lost time: a dip, a seek, and back up', async () => {
+  const world = await playing();
+  const { context, element, clock, music, fade } = world;
+  frames(world, 10);
+  assert.equal(element.seeks.length, 0, 'in step: nothing to do');
 
   // A long frame: the audio went on for 1.5 s, the clock counts at most 0.1 s of it.
   context.advance(1.5);
   assert.equal(clock.tick(1.5), 0.1);
+  const playhead = music.position;
+  assert.ok(element.currentTime - playhead > 1.3);
   music.update();
-  assert.equal(context.bufferSources.length, 2, 'a new sound starts at the playhead');
-  const [old, fresh] = context.bufferSources;
-  assert.ok(near(fresh.starts[0].offset, 10.1), `${fresh.starts[0].offset}`);
-  assert.ok(near(music.position, 10.1), 'the playhead is the clock\'s, it does not go to the sound');
-  const oldFade = old.outputs[0];
-  context.advance(0.2);
-  assert.ok(old.ended, 'the old one faded out and stopped');
-  assert.ok(oldFade.gain.valueAt(old.stopTime) < 0.001);
-  assert.ok(fresh.outputs[0].gain.valueAt(context.currentTime) > 0.99, 'the new one faded in: a short crossfade, no click');
+  const jumpedAt = context.currentTime;
+  assert.equal(fade.gain.valueAt(jumpedAt), 1, 'it starts fading from where it was');
+  assert.equal(fade.gain.valueAt(jumpedAt + 0.03), 0, 'down to nothing in a few frames');
+  assert.equal(element.seeks.length, 0, 'and is not moved while it is still heard');
+  frames(world, 1 / 60);
+  assert.equal(element.seeks.length, 0, 'nor while it is still fading');
+
+  frames(world, 0.5);
+  assert.equal(element.seeks.length, 1, 'then the element is put on the playhead');
+  assert.ok(near(element.seeks[0], playhead, 0.1), `${element.seeks[0]} against ${playhead}`);
+  assert.ok(near(element.currentTime, music.position, 0.1), 'the playhead is the clock\'s, it did not go to the sound');
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1, 'and it fades back in');
+  frames(world, 3);
+  assert.equal(element.seeks.length, 1, 'once');
 });
 
 test('a small drift is left alone, and a long one is mended once, not on every frame', async () => {
-  const { context, clock, music } = await setup();
-  music.start();
+  const world = await playing();
+  const { context, element, clock, music } = world;
+  frames(world, 5);
+  context.advance(0.06);
   music.update();
-  clock.step(5);
-  context.advance(5.06);
-  music.update();
-  assert.equal(context.bufferSources.length, 1, '60 ms is within what a frame can lose');
+  frames(world, 0.1);
+  assert.equal(element.seeks.length, 0, '60 ms is within what a frame can lose');
 
   context.advance(0.5);
   music.update();
-  assert.equal(context.bufferSources.length, 2, '560 ms is not');
-  context.advance(0.3);
-  clock.step(0.1); // the clock lags again, but a jump so soon after the last one would only stutter
+  frames(world, 0.3);
+  assert.equal(element.seeks.length, 1, '560 ms is not');
+
+  context.advance(0.3); // the clock lags again, but a jump so soon after the last one would only stutter
+  clock.tick(0.3);
   music.update();
-  assert.equal(context.bufferSources.length, 2, 'one jump at a time');
+  frames(world, 0.2);
+  assert.equal(element.seeks.length, 1, 'one jump at a time');
 
   context.advance(2); // a second of calm later the next jump is allowed
+  clock.tick(0.1);
   music.update();
-  assert.equal(context.bufferSources.length, 3);
+  frames(world, 0.3);
+  assert.equal(element.seeks.length, 2);
 });
 
 test('a context that sleeps is not chased, and the sound is brought to the playhead once it runs again', async () => {
-  const { context, clock, music } = await setup();
-  music.start();
-  music.update();
-  clock.step(5);
-  context.advance(5);
-  music.update();
+  const world = await playing();
+  const { context, element, clock, music, fade } = world;
+  frames(world, 5);
 
   context.setState('suspended'); // the system puts sound to sleep: a locked tablet
   clock.step(40); // and the game goes on without it
   music.update();
   music.update();
-  assert.equal(context.bufferSources.length, 1, 'the audio\'s own time stands still while it sleeps, so there is nothing to compare, and nothing new is queued');
-  assert.ok(near(music.position, 45), 'the playhead goes on');
+  assert.equal(element.paused, true, 'its element is stopped, since nothing it plays can be heard');
+  assert.equal(element.seeks.length, 0, 'and not chased');
+  assert.ok(near(music.position, 45.2, 0.05), 'the playhead goes on');
 
   context.setState('running');
-  context.advance(0.1);
+  frames(world, 0.3);
+  assert.equal(element.seeks.length, 1, 'once it runs again it is brought to the playhead');
+  assert.ok(near(element.seeks[0], 45.2, 0.3), `${element.seeks[0]}`);
+  assert.equal(element.paused, false);
+  assert.ok(near(element.currentTime, music.position, 0.1));
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+});
+
+test('a seek that takes time is not heard: the element is put ahead by what the last seek cost, and comes up only when it is on the playhead', async () => {
+  const world = await playing({ element: { seekLatency: 0.12 } });
+  const { context, element, clock, music, fade } = world;
+  frames(world, 10);
+  context.advance(1.5); // a long frame
+  clock.tick(1.5);
   music.update();
-  assert.equal(context.bufferSources.length, 2, 'once it runs again it is brought to the playhead');
-  assert.ok(near(context.bufferSources[1].starts[0].offset, 45));
-  assert.ok(near(music.position, 45));
+
+  let loudest = 0;
+  let samples = 0;
+  let backAt = null;
+  const jumpedAt = context.currentTime;
+  for (let frame = 0; frame < 60; frame++) {
+    clock.tick(1 / 60);
+    context.advance(1 / 60);
+    music.update();
+    if (context.currentTime - jumpedAt > 0.04 && !near(element.currentTime, music.position, 0.08)) { // past the dip, and off the playhead
+      loudest = Math.max(loudest, fade.gain.valueAt(context.currentTime));
+      samples++;
+    }
+    if (backAt === null && fade.gain.valueAt(context.currentTime + 0.1) === 1) backAt = context.currentTime; // the moment it is brought up
+  }
+  assert.ok(backAt - jumpedAt < 0.55, `the music was out for ${(backAt - jumpedAt).toFixed(2)} s: a dip, two seeks of 0.12 s each followed by a look of 0.1 s`);
+  assert.ok(samples >= 4, `the element was off the playhead for a while (${samples} frames)`);
+  assert.equal(element.seeks.length, 2, 'a seek, a look at where it landed (0.12 s late), and a second seek ahead of the playhead by that');
+  assert.equal(loudest, 0, 'it stayed silent all that time');
+  assert.ok(near(element.currentTime, music.position, 0.08), `on the playhead (${element.currentTime} against ${music.position})`);
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1, 'and then it is heard');
+  frames(world, 5);
+  assert.equal(element.seeks.length, 2, 'and it stays there: the next jump would have the cost right from the start');
 });
 
 // ---------------------------------------------------------------------------------------------
 // Silence
 
 test('a muted music makes no sound, and un-muting brings it back on the playhead', async () => {
-  const { context, clock, music } = await setup();
+  const world = await setup();
+  const { context, element, clock, music, fade } = world;
   music.muted = true;
   assert.equal(music.muted, true);
   music.start();
-  music.update();
-  assert.equal(context.bufferSources.length, 0, 'start does not break the mute');
+  frames(world, 0.5);
+  assert.equal(element.playCalls, 0, 'start does not break the mute');
   clock.step(9);
-  assert.ok(near(music.position, 9), 'the playhead still follows the clock');
+  assert.ok(near(music.position, 9.5, 0.01), 'the playhead still follows the clock');
 
   music.muted = false;
-  music.update();
-  assert.equal(context.bufferSources.length, 1);
-  assert.ok(near(context.bufferSources[0].starts[0].offset, 0), 'the music begins when it first sounds');
-  clock.step(4);
-  context.advance(4);
+  frames(world, 0.5);
+  assert.equal(element.playCalls, 1);
+  assert.ok(element.currentTime < 0.6, 'the music begins when it first sounds');
+  frames(world, 4);
+  const heardAt = music.position;
   music.muted = true;
-  context.advance(1);
-  assert.ok(context.bufferSources[0].ended, 'muting stops it at once');
-  music.update();
-  assert.equal(context.bufferSources.length, 1, 'and keeps it stopped');
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.05), 0, 'muting fades it out');
+  frames(world, 0.2);
+  assert.equal(element.paused, true, 'and stops it');
   clock.step(6);
   music.muted = false;
-  music.update();
-  assert.ok(near(context.bufferSources[1].starts[0].offset, 10), 'and it returns where the clock is');
+  frames(world, 0.3);
+  assert.equal(element.paused, false);
+  assert.ok(near(music.position, heardAt + 6.5, 0.1), `it returns where the clock is (${music.position})`);
+  assert.ok(near(element.currentTime, music.position, 0.1));
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
 });
 
 test('a music that cannot play still gives the forest its beat', async () => {
-  for (const [name, options, answer] of [
-    ['a missing file', {}, () => ({ ok: false, status: 404 })],
-    ['a failed network', {}, () => { throw new TypeError('Failed to fetch'); }],
-    ['audio that will not decode', { decodeError: new DOMException('Unable to decode audio data', 'EncodingError') }],
+  for (const [name, options] of [
+    ['a missing or undecodable file', { element: { loadError: true } }],
+    ['a browser that cannot play MP3', { element: { playError: new DOMException('The element has no supported sources.', 'NotSupportedError') } }],
   ]) {
     const told = await warned(async () => {
-      const { context, clock, music } = await setup(options, answer);
-      assert.equal(await music.ready, false, name);
+      const world = await setup(options);
+      const { element, clock, music } = world;
       music.start();
-      music.update();
+      await later();
+      frames(world, 1);
       music.setPaused(true);
       music.setPaused(false);
       music.duck(true);
-      assert.equal(context.bufferSources.length, 0, name);
+      music.muted = true;
+      music.muted = false;
+      frames(world, 1);
+      assert.equal(element.seeks.length, 0, name);
+      assert.ok(element.playCalls <= 1, `${name}: asked once at most (${element.playCalls})`);
       clock.step(12.5);
-      assert.equal(music.position, 12.5, `${name}: the playhead goes on with the clock`);
+      assert.ok(near(music.position, 14.5, 0.1), `${name}: the playhead goes on with the clock (${music.position})`);
     });
     assert.equal(told.length, 1, `${name}: said once what is wrong`);
     assert.match(told[0], /theme/i, name);
   }
+
+  const told = await warned(async () => {
+    const context = createFakeContext();
+    context.createMediaElementSource = () => { throw new DOMException('no such thing', 'NotSupportedError'); };
+    const music = createMusic({ context, theme: THEME, clock: createClock(), base: THEME_URL, createElement: () => new FakeMediaElement() });
+    assert.equal(await music.ready, false);
+    music.start();
+    music.update();
+  });
+  assert.equal(told.length, 1, 'a browser that cannot route an element into Web Audio says so once');
+});
+
+test('a play() that a pause interrupted is not a failure: the music plays when it is asked again', async () => {
+  const told = await warned(async () => {
+    const world = await setup({ element: { playError: new DOMException('The play() request was interrupted by a call to pause().', 'AbortError') } });
+    const { element, music } = world;
+    music.start();
+    await later();
+    element.playError = null;
+    frames(world, 0.5);
+    assert.equal(element.paused, false, 'it is played again');
+    assert.equal(world.fade.gain.valueAt(world.context.currentTime + 0.1), 1);
+  });
+  assert.deepEqual(told, [], 'and nobody is warned');
 });
 
 test('a page with no Web Audio, or a capture that makes none, has a music that is a playhead and nothing else', async () => {
   await withFetch(async asked => {
+    let made = 0;
+    const createElement = () => { made++; return new FakeMediaElement(); };
     for (const context of [null, undefined]) {
       const clock = createClock();
-      const music = createMusic({ context, theme: THEME, clock, base: THEME_URL });
+      const music = createMusic({ context, theme: THEME, clock, base: THEME_URL, createElement });
       assert.equal(await music.ready, false);
       music.start();
       music.update();
@@ -430,262 +546,212 @@ test('a page with no Web Audio, or a capture that makes none, has a music that i
       clock.step(2);
       assert.equal(music.position, 2);
     }
-    assert.deepEqual(asked, [], 'and nothing is fetched');
-
     const clock = createClock();
-    const noTheme = createMusic({ context: createFakeContext(), theme: null, clock, base: THEME_URL });
+    const noTheme = createMusic({ context: createFakeContext(), theme: null, clock, base: THEME_URL, createElement });
     assert.equal(await noTheme.ready, false);
-    assert.deepEqual(asked, [], 'a missing theme.json is not fetched for either');
     clock.step(2);
     assert.equal(noTheme.position, 2);
+    assert.equal(made, 0, 'no element is made for any of them, so nothing is loaded');
+    assert.deepEqual(asked, []);
   });
 });
 
 test('when the browser keeps the sound locked, the playhead goes on, and the theme begins when a touch finally wakes it', async () => {
-  const { context, clock, music } = await setup({ blocked: true });
+  const world = await setup({ context: { blocked: true } });
+  const { context, element, clock, music } = world;
   music.start(); // resume() is refused: no throw, no unhandled rejection
-  await Promise.resolve();
+  await later();
   assert.equal(context.state, 'suspended');
   clock.step(30);
   music.update();
-  assert.equal(context.bufferSources.length, 0, 'nothing is queued behind a locked context');
   assert.ok(near(music.position, 30), 'captions and the dance go on without sound');
+  assert.equal(world.fade.gain.valueAt(10), 0, 'and nothing is heard');
 
   context.blocked = false;
   music.start(); // the next touch
-  await Promise.resolve();
+  await later();
   assert.equal(context.state, 'running');
-  music.update();
-  assert.equal(context.bufferSources.length, 1);
-  assert.equal(context.bufferSources[0].starts[0].offset, 0, 'from its beginning, as it would have on the first touch');
-  assert.equal(music.position, 0, 'and the playhead with it');
+  frames(world, 0.2);
+  assert.ok(element.currentTime < 0.3, `from its beginning, as it would have on the first touch (${element.currentTime})`);
+  assert.ok(near(music.position, element.currentTime), 'and the playhead with it');
+  assert.equal(world.fade.gain.valueAt(context.currentTime + 0.1), 1);
+  assert.equal(element.seeks.length, 0);
 });
 
 test('a context that wakes a moment after the touch gets the theme from its beginning, not a theme that is already behind', async () => {
-  const { context, clock, music } = await setup({ blocked: true });
+  const world = await setup({ context: { blocked: true }, element: { startLatency: 0.15 } });
+  const { context, element, clock, music } = world;
   clock.step(4);
   music.start();
+  await later();
   clock.step(0.6); // frames go on while the audio device wakes up
   music.update();
   context.blocked = false;
   await context.resume();
-  clock.step(0.1);
-  music.update();
-  assert.equal(context.bufferSources.length, 1, 'one start, no restart');
-  assert.equal(context.bufferSources[0].starts[0].offset, 0);
-  for (let frame = 0; frame < 120; frame++) {
-    clock.tick(1 / 60);
-    context.advance(1 / 60);
-    music.update();
+  frames(world, 3);
+  assert.equal(element.seeks.length, 0, 'one start, no restart');
+  assert.ok(near(music.position, element.currentTime, 0.02), `on the playhead (${music.position} against ${element.currentTime})`);
+  assert.ok(music.position > 2.5 && music.position < 3.1, `the playhead began when the theme did (${music.position})`);
+  assert.equal(world.fade.gain.valueAt(context.currentTime + 0.1), 1);
+});
+
+test('a play() the browser refuses is not asked again every frame, only at the next touch', async () => {
+  const world = await setup({ element: { blocked: true } });
+  const { context, element, music } = world;
+  music.start();
+  await later();
+  frames(world, 1);
+  assert.equal(element.playCalls, 1, 'refused once, and not asked again');
+  assert.equal(world.fade.gain.valueAt(context.currentTime + 1), 0);
+
+  element.blocked = false;
+  music.start(); // a real touch
+  frames(world, 0.3);
+  assert.equal(element.playCalls, 2);
+  assert.equal(element.paused, false);
+  assert.equal(world.fade.gain.valueAt(context.currentTime + 0.1), 1);
+});
+
+test('a browser that pauses the element on its own (another app took the sound) gets it played again, on the playhead', async () => {
+  const world = await playing();
+  const { element, music, fade } = world;
+  frames(world, 5);
+  const asked = element.playCalls;
+  element.pause(); // the system's doing
+  frames(world, 0.5);
+  assert.equal(element.playCalls, asked + 1, 'it is played again, once');
+  assert.equal(element.paused, false);
+  assert.ok(near(element.currentTime, music.position, 0.1), `${element.currentTime} against ${music.position}`);
+  assert.equal(element.seeks.length, 0, 'it was out for two frames: no need to move it');
+  assert.equal(fade.gain.valueAt(world.context.currentTime + 0.1), 1);
+
+  // And if the browser will not play it again without a touch, it waits for one instead of asking every frame.
+  element.blocked = true;
+  element.pause();
+  for (let frame = 0; frame < 3; frame++) {
+    frames(world, 1 / 60);
+    await later(); // the browser's refusal reaches the music between two frames
   }
-  assert.equal(context.bufferSources.length, 1, 'and it stays on the playhead');
+  const refused = element.playCalls;
+  assert.ok(refused > asked + 1 && refused <= asked + 3, `asked again and refused (${refused - asked - 1} times)`);
+  frames(world, 1);
+  assert.equal(element.playCalls, refused, 'and then left alone');
+  assert.equal(fade.gain.valueAt(world.context.currentTime + 1), 0);
+});
+
+test('a file that cannot be moved (a server with no byte ranges) is not moved: the beat follows the music, once told, and the sound is never interrupted', async () => {
+  const told = await warned(async () => {
+    const world = await playing({ element: { seekable: false } });
+    const { context, element, clock, music, fade } = world;
+    frames(world, 10);
+    assert.ok(near(music.position, element.currentTime, 0.01), 'the playhead began where the element is');
+
+    // The clock loses time, which would be a jump for a file that can be moved.
+    context.advance(1.5);
+    clock.tick(1.5);
+    music.update();
+    assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1, 'the sound does not dip: nothing is going to be moved');
+    assert.equal(element.seeks.length, 0, 'and nothing is, since a seek would send it back to the start');
+    assert.ok(near(music.position, element.currentTime, 0.05), `the playhead went to the element (${music.position} against ${element.currentTime})`);
+    frames(world, 3);
+    assert.equal(element.seeks.length, 0);
+    context.advance(1.5); // and again, a while later
+    clock.tick(1.5);
+    music.update();
+    assert.equal(element.seeks.length, 0);
+    assert.ok(near(music.position, element.currentTime, 0.05));
+
+    // A pause and a resume go on from where the element stopped, which is where the clock stopped.
+    music.setPaused(true);
+    clock.setPaused(true);
+    frames(world, 2);
+    assert.equal(element.paused, true);
+    clock.setPaused(false);
+    music.setPaused(false);
+    frames(world, 0.5);
+    assert.equal(element.paused, false);
+    assert.equal(element.seeks.length, 0);
+    assert.ok(near(music.position, element.currentTime, 0.1));
+    assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+
+    // The game goes on for a long while with the sound asleep: the element is not sent to where the clock is, the clock's playhead comes to the element.
+    context.setState('suspended');
+    clock.step(40);
+    music.update();
+    context.setState('running');
+    frames(world, 0.5);
+    assert.equal(element.seeks.length, 0, 'not even then');
+    assert.equal(element.paused, false);
+    assert.ok(near(music.position, element.currentTime, 0.1), `${music.position} against ${element.currentTime}`);
+    assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+  });
+  assert.equal(told.length, 1, 'and it said once, for whoever runs the server, what is wrong');
+  assert.match(told[0], /byte ranges/);
+});
+
+test('a context that says it runs but whose clock stands still is asleep: nothing is started, moved or left playing, and the music begins when the clock moves', async () => {
+  const world = await setup();
+  const { context, element, clock, music, fade } = world;
+  context.stalled = true;
+  music.start();
+  frames(world, 3); // a device that is slow to start: the context runs, its clock does not
+  assert.equal(context.state, 'running');
+  assert.equal(element.seeks.length, 0);
+  assert.equal(fade.gain.valueAt(10), 0, 'nothing is heard, and nothing is brought up on a clock that stands still');
+  assert.equal(music.position, clock.time, 'the playhead has not started');
+
+  context.stalled = false; // the device wakes
+  frames(world, 0.4);
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1, 'now the music comes up');
+  assert.ok(music.position < 0.5 && near(music.position, element.currentTime, 0.02), `from the theme\'s beginning (${music.position})`);
+  assert.equal(element.seeks.length, 0);
+
+  // And if it stalls while the music is heard, the element is stopped at once, and the music is brought back to the playhead when it moves again.
+  context.stalled = true;
+  frames(world, 0.5);
+  assert.equal(element.paused, true);
+  context.stalled = false;
+  frames(world, 0.6);
+  assert.equal(element.paused, false);
+  assert.ok(near(element.currentTime, music.position, 0.1), `${element.currentTime} against ${music.position}`);
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+});
+
+test('an element whose clock moves a moment and then stands still is not taken for playing: the music waits until it keeps pace', async () => {
+  const world = await setup({ element: { freeze: { at: 0.012, for: 3 } } });
+  const { context, element, music, fade } = world;
+  music.start();
+  frames(world, 2.5);
+  assert.ok(element.currentTime < 0.02, 'its clock reached 12 ms and stopped');
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 0, 'the music is not brought up on a clock that is not running');
+  assert.equal(element.seeks.length, 0, 'and the element is not moved: it is not behind, it has not started');
+  assert.equal(music.position, world.clock.time, 'the playhead has not started');
+
+  frames(world, 1.5); // the device is up
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+  assert.ok(near(music.position, element.currentTime, 0.02) && music.position < 1.5, `the theme begins at its beginning, when it is playing (${music.position})`);
+  assert.equal(element.seeks.length, 0);
+  frames(world, 5);
+  assert.equal(element.seeks.length, 0, 'and goes on in step');
+});
+
+test('an element that crawls (a starved pipeline) is not taken for playing, and the music comes up once it keeps pace', async () => {
+  const world = await setup({ element: { rate: 0.4 } });
+  const { context, element, music, fade } = world;
+  music.start();
+  frames(world, 2);
+  assert.ok(element.currentTime > 0.5 && element.currentTime < 1, `its clock moves, at 0.4 of the audio clock's rate (${element.currentTime})`);
+  assert.equal(fade.gain.valueAt(context.currentTime + 1), 0, 'the music is not brought up');
+  assert.equal(element.seeks.length, 0, 'and the element is not moved either');
+  assert.equal(music.position, world.clock.time, 'the playhead has not started');
+
+  element.rate = 1;
+  frames(world, 0.5);
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.1), 1);
+  assert.ok(near(music.position, element.currentTime, 0.02));
+  assert.equal(element.seeks.length, 0);
 });
 
 test('createMusic says what it needs', () => {
   assert.throws(() => createMusic({ context: createFakeContext(), theme: THEME }), /clock/);
-});
-
-// ---------------------------------------------------------------------------------------------
-// The voice ducks the music
-
-class FakeAudio extends EventTarget {
-  static made = [];
-  static rejection = null;
-  constructor(src) {
-    super();
-    this.src = src;
-    this.paused = true;
-    this.ended = false;
-    FakeAudio.made.push(this);
-  }
-
-  play() {
-    this.paused = false;
-    return FakeAudio.rejection ? Promise.reject(FakeAudio.rejection) : Promise.resolve();
-  }
-
-  pause() { this.paused = true; }
-  finish() {
-    this.ended = true;
-    this.paused = true;
-    this.dispatchEvent(new Event('ended'));
-  }
-}
-
-async function withAudio(run) {
-  const original = globalThis.Audio;
-  globalThis.Audio = FakeAudio;
-  FakeAudio.made = [];
-  FakeAudio.rejection = null;
-  try {
-    await run();
-  } finally {
-    globalThis.Audio = original;
-  }
-}
-
-test('a line ducks the music while it plays and lets it up when it ends or is stopped', () => withAudio(async () => {
-  const told = [];
-  const voice = createVoice({ onSpeaking: on => told.push(on) });
-  assert.deepEqual(told, []);
-
-  voice.play('a.mp3');
-  assert.deepEqual(told, [true]);
-  FakeAudio.made[0].finish();
-  assert.deepEqual(told, [true, false], 'the music is back as the line ends, not after the hold the scene adds');
-
-  const second = voice.play('b.mp3');
-  voice.stop(second);
-  assert.deepEqual(told, [true, false, true, false]);
-  voice.stop();
-  assert.deepEqual(told, [true, false, true, false], 'stopping what is not playing says nothing');
-}));
-
-test('a line that follows another keeps the music down instead of letting it swell between them', () => withAudio(async () => {
-  const told = [];
-  const voice = createVoice({ onSpeaking: on => told.push(on) });
-  const first = voice.play('a.mp3');
-  const second = voice.play('b.mp3');
-  assert.deepEqual(told, [true], 'ducked once');
-  voice.stop(first);
-  assert.deepEqual(told, [true], 'the scene stopping the old line (its own, already replaced) does not let the music up');
-  assert.equal(FakeAudio.made[1].paused, false, 'and the new line plays on');
-  voice.stop(second);
-  assert.deepEqual(told, [true, false]);
-}));
-
-test('a muted voice makes no sound and ducks nothing', () => withAudio(async () => {
-  const told = [];
-  const voice = createVoice({ onSpeaking: on => told.push(on) });
-  voice.muted = true;
-  assert.equal(voice.play('a.mp3'), null);
-  assert.equal(voice.play(''), null);
-  assert.deepEqual(told, []);
-
-  voice.muted = false;
-  voice.play('b.mp3');
-  voice.muted = true; // the replay of a capture starting while a line plays
-  assert.deepEqual(told, [true, false]);
-}));
-
-test('a line the browser will not play does not leave the music down', () => withAudio(async () => {
-  const told = [];
-  const voice = createVoice({ onSpeaking: on => told.push(on) });
-  FakeAudio.rejection = new DOMException('play() failed because the user didn\'t interact', 'NotAllowedError');
-  voice.play('a.mp3');
-  assert.deepEqual(told, [true]);
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(told, [true, false], 'the music is let up when the line proves silent');
-
-  // A pause that interrupts a play() request rejects it with AbortError: the line is only paused, still ducked.
-  told.length = 0;
-  FakeAudio.rejection = new DOMException('The play() request was interrupted by a call to pause()', 'AbortError');
-  voice.play('b.mp3');
-  voice.setPaused(true);
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(told, [true]);
-}));
-
-test('the voice works as before without a music, and a paused line stays a line', () => withAudio(async () => {
-  const voice = createVoice();
-  const sound = voice.play('a.mp3');
-  assert.equal(sound, FakeAudio.made[0]);
-  voice.setPaused(true);
-  assert.equal(sound.paused, true);
-  voice.setPaused(false);
-  assert.equal(sound.paused, false);
-  FakeAudio.made[0].finish();
-  voice.setPaused(false); // a line that has ended is not replayed
-  assert.equal(FakeAudio.made.length, 1);
-}));
-
-// ---------------------------------------------------------------------------------------------
-// What holds the sound
-
-test('the book and a hidden tab each hold the sound, which goes on only when both let go', () => {
-  const log = [];
-  const part = name => ({ setPaused: paused => log.push(`${name}:${paused}`) });
-  const hold = createHold([part('voice'), part('music')]);
-
-  hold('hidden', false); // the page opens in a visible tab
-  assert.deepEqual(log, []);
-
-  hold('book', true);
-  assert.deepEqual(log, ['voice:true', 'music:true']);
-  hold('hidden', true);
-  hold('hidden', false); // the tab comes back, but the child is still in the book
-  hold('book', true);
-  assert.deepEqual(log, ['voice:true', 'music:true'], 'no change, no call');
-
-  hold('book', false);
-  assert.deepEqual(log, ['voice:true', 'music:true', 'voice:false', 'music:false']);
-  hold('hidden', true);
-  hold('hidden', true);
-  assert.equal(log.length, 6);
-  hold('hidden', false);
-  assert.deepEqual(log.slice(6), ['voice:false', 'music:false']);
-});
-
-// ---------------------------------------------------------------------------------------------
-// The audio context and its output
-
-test('the page gets an audio context when the browser has one, and none when it has not', async () => {
-  const had = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
-  const hadWebkit = Object.getOwnPropertyDescriptor(globalThis, 'webkitAudioContext');
-  try {
-    delete globalThis.AudioContext;
-    delete globalThis.webkitAudioContext;
-    assert.equal(createAudioContext(), null, 'no Web Audio');
-
-    globalThis.webkitAudioContext = FakeContext; // older Safari
-    assert.ok(createAudioContext() instanceof FakeContext);
-
-    globalThis.AudioContext = class { constructor() { throw new Error('the device has no audio output'); } };
-    const told = await warned(async () => {
-      assert.equal(createAudioContext(), null, 'a context the device refuses to make is no context');
-    });
-    assert.equal(told.length, 1, 'and it says so once');
-  } finally {
-    for (const [name, descriptor] of [['AudioContext', had], ['webkitAudioContext', hadWebkit]]) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else delete globalThis[name];
-    }
-  }
-});
-
-test('everything is heard through one output that leaves headroom and limits peaks', () => {
-  const context = createFakeContext();
-  const output = createOutput(context);
-  const [limiter] = context.of('compressor');
-  assert.ok(output.reaches(limiter) && limiter.outputs.includes(context.destination), 'headroom, then a limiter, then the speakers');
-  assert.ok(output.gain.valueAt(0) < 1);
-  assert.ok(limiter.threshold.valueAt(0) < 0 && limiter.ratio.valueAt(0) > 1);
-});
-
-// ---------------------------------------------------------------------------------------------
-// main.js: the wiring that cannot run in Node
-
-const MAIN = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-
-test('main.js lets the beat read the music\'s playhead, and ducks the music under the voice', () => {
-  assert.match(MAIN, /const musicTime = \(\) => music\.position;/, 'one source for the beat: the music\'s playhead on the game clock');
-  assert.match(MAIN, /createVoice\(\{ onSpeaking: on => music\.duck\(on\) \}\)/, 'a line ducks the theme');
-  assert.match(MAIN, /music\.update\(\)/, 'and the sound is kept on the playhead each frame');
-  assert.match(MAIN, /sfx\.update\(dt\)/, 'the forest\'s birds are scheduled on the game clock');
-});
-
-test('main.js starts the sound on the first touch and holds it with the book and the tab', () => {
-  assert.match(MAIN, /button\.addEventListener\('click', \(\) => \{[^}]*music\.start\(\)/, 'the start button is the first touch');
-  assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{ if \(stage\.started\) music\.start\(\); \}/, 'any later touch wakes sound the system put to sleep');
-  assert.match(MAIN, /document\.addEventListener\('visibilitychange', \(\) => hold\('hidden', document\.hidden\)\)/, 'a hidden tab holds the sound with the clock that stops');
-  assert.match(MAIN, /\nhold\('hidden', document\.hidden\);/, 'also one that opens hidden');
-  assert.match(MAIN, /createHold\(\[voice, music, sfx\]\)/, 'the voice, the music and the effects follow the same hold');
-});
-
-test('main.js keeps captures and review shots silent and gives the scene its effects', () => {
-  assert.match(MAIN, /voice\.muted = true;\s*music\.muted = true;\s*sfx\.muted = true;/, 'the seek replay is silent');
-  assert.match(MAIN, /const playing = params\.get\('t'\) === null && params\.get\('shot'\) === null && Boolean\(chapter\.script\);/);
-  assert.match(MAIN, /const audio = playing \? createAudioContext\(\) : null;/, 'a capture or a review shot makes no audio context at all');
-  assert.match(MAIN, /createScene\(\{[^}]*\bsfx\b[^}]*\}\)/, 'the scene can play effects');
-  assert.match(MAIN, /theme, clock, base: themeUrl/, 'the music reads its file against theme.json\'s own URL');
 });

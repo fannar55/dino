@@ -1,11 +1,18 @@
 #!/usr/bin/env node
-// Measures the game's theme music once and writes what the beat clock and the sound effects need to
+// Measures the theme music once and writes what the beat clock and the sound effects need to
 // remake/assets/audio/theme.json: the tempo (bpm), the time of a strong beat (beatOffset, seconds
 // from the start of the file; every second beat after it is strong too) and the key, as five notes
 // of its major pentatonic scale in a bell register (Hz), which the bell sounds are tuned to
 // (engine/audio/sfx.js). The game never listens to the music: the beat is the same pure function
 // of the music's time on every run (engine/beat.js).
-//   node remake/tools/theme-tempo.mjs [--no-mix]        (needs ffmpeg on the PATH)
+//   node remake/tools/theme-tempo.mjs [--encode] [--no-mix]        (needs ffmpeg on the PATH)
+//
+// The music that plays is not the game's own file (dist/assets/audio/little-dino-green-valley.mp3,
+// which is never changed) but a compressed copy of it, remake/assets/audio/theme.mp3: an MP3 at
+// 96 kbps, stereo, 44.1 kHz, about 4 MB instead of 7, which is enough for a tablet's speakers.
+// --encode makes that copy first. The measurement is always made on the copy, since an encoder
+// moves the first beat by its delay: beatOffset has to come from the file that plays. theme.json's
+// src is read against theme.json itself (engine/audio/music.js), so it is just "theme.mp3".
 //
 // Tempo: ffmpeg decodes the theme, a spectral-flux curve marks its onsets, and the tempo is picked
 // from the curve's autocorrelation between 60 and 180 bpm (with a mild liking for 120). The pick is
@@ -24,8 +31,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const THEME_FILE = 'dist/assets/audio/little-dino-green-valley.mp3';
-const THEME_SRC = '../../../dist/assets/audio/little-dino-green-valley.mp3'; // read against theme.json itself (engine/audio/music.js): three folders up from remake/assets/audio/ is the repository
+const SOURCE_FILE = 'dist/assets/audio/little-dino-green-valley.mp3'; // the game's own theme
+const THEME_FILE = 'remake/assets/audio/theme.mp3'; // the copy that plays, and the file the tempo is measured on
+const THEME_SRC = 'theme.mp3'; // beside theme.json
 const RATE = 22050; // the analysis runs on mono at this rate
 
 const WINDOW = 512; // onset curve: 23 ms windows every 5.8 ms
@@ -43,6 +51,15 @@ function decode(file, sampleRate, channels) {
   const pcm = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', String(channels), '-ar', String(sampleRate), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 });
   const aligned = pcm.byteOffset % 4 === 0 ? pcm.buffer : pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.length);
   return new Float32Array(aligned, aligned === pcm.buffer ? pcm.byteOffset : 0, pcm.length / 4);
+}
+
+/** Encodes the compressed copy that plays from the game's own theme, and says how much smaller it is. */
+function encodeTheme() {
+  const source = path.join(ROOT, SOURCE_FILE), target = path.join(ROOT, THEME_FILE);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', source, '-vn', '-map_metadata', '-1', '-c:a', 'libmp3lame', '-b:a', '96k', '-ac', '2', '-ar', '44100', target]);
+  const bytes = file => fs.statSync(file).size;
+  console.log(`encoded ${THEME_FILE}: ${bytes(source)} -> ${bytes(target)} bytes (96 kbps, stereo, 44.1 kHz)`);
 }
 
 /** An in-place radix-2 FFT of size n (a power of two): transform(re, im) leaves the spectrum in re and im. */
@@ -361,7 +378,9 @@ function writeClickTrack(file, out, { bpm, beatOffset, key }) {
 // ---------------------------------------------------------------------------------------------
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.includes('--encode')) encodeTheme();
   const file = path.join(ROOT, THEME_FILE);
+  if (!fs.existsSync(file)) throw new Error(`${THEME_FILE} does not exist: run this with --encode to make it from ${SOURCE_FILE}`);
   const samples = decode(file, RATE, 1);
   const rhythm = measureRhythm(samples);
   const key = measureKey(samples);
