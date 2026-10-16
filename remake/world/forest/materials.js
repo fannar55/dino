@@ -87,10 +87,17 @@ export function createLeafTexture(seed, size = 128, cells = 6) {
   return tex;
 }
 
+// A part's `sway` (aWind.y) is the metres it bends at full wind, baked from maxSwayDeg. On each beat of
+// the theme it leans beatAmplitudeDeg further along the wind, which is this share of that bend: a
+// tree top that sways 2 degrees at most then reaches 3 on the beat, and grass, whose own bend is
+// far larger, gets the same share of its own.
+export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
+
 export const WIND_GLSL = /* glsl */`
 uniform float uWindTime;
 uniform float uWindStrength;
 uniform vec2 uWindDirection;
+uniform float uBeat;
 vec3 forestWind(vec3 wp, vec4 w) {
   float phase = w.x * 6.2831853;
   float sway = w.y * ${FOREST.wind.swayScale.toFixed(3)};
@@ -101,7 +108,8 @@ vec3 forestWind(vec3 wp, vec4 w) {
   float strength = uWindStrength * (0.45 + 0.55 * gust);
   float osc = sin(t * 0.9 + phase) * 0.6 + sin(t * 1.63 + phase * 1.7) * 0.25;
   vec2 side = vec2(-uWindDirection.y, uWindDirection.x);
-  vec2 bend = uWindDirection * sway * strength * (0.55 + 0.45 * osc);
+  float lean = strength * (0.55 + 0.45 * osc) + ${BEAT_SHARE.toFixed(3)} * uBeat; // the beat comes on top, whatever the gust is doing
+  vec2 bend = uWindDirection * (sway * lean);
   bend += side * sway * strength * 0.22 * sin(t * 1.27 + phase * 2.3);
   vec3 off = vec3(bend.x, -0.08 * dot(bend, bend), bend.y);
   float f = flutter * strength;
@@ -170,6 +178,7 @@ export function createSharedUniforms(world, noiseTexture, leafTexture) {
     uWindTime: w.uWindTime,
     uWindStrength: w.uWindStrength,
     uWindDirection: w.uWindDirection,
+    uBeat: w.uBeat,
     uNoise: { value: noiseTexture },
     uLeaf: { value: leafTexture },
     uDapple: { value: FOREST.shade.dapple },

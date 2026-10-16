@@ -10,6 +10,7 @@ import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
+import { beatAt } from './engine/beat.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
@@ -96,6 +97,16 @@ try {
 } catch {
   console.warn('No recorded line durations found; lines are timed by reading pace.');
 }
+// The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it.
+let theme = null;
+try {
+  theme = await (await fetch(new URL('./assets/audio/theme.json', import.meta.url))).json();
+} catch {
+  console.warn('No theme tempo found; the forest sways without the beat.');
+}
+// The one place the beat reads its time: the game clock for now, so a seek or a capture lands on the
+// same beat. The music will point this at its own playhead.
+const musicTime = () => clock.time;
 const ui = createStageUI(document);
 const voice = createVoice();
 const pointer = createPointer({ canvas, camera, world });
@@ -127,6 +138,7 @@ function update(dt) {
   journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
   stage.update(dt);
   wind.update(clock.time);
+  if (theme) wind.setBeat(beatAt(musicTime(), theme).pulse); // the foliage leans a little further on each beat
   updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
   world.effects.update(dt); // after the actors, so a trail follows where a rider is now
   if (controls) controls.update();

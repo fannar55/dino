@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { FOREST, PALETTE } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
-import { patchLambert, LIGHT_GLOBALS } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS, BEAT_SHARE } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
 
 const VERTS = 5;
@@ -111,6 +111,7 @@ attribute vec4 aInfo;
 uniform float uWindTime;
 uniform float uWindStrength;
 uniform vec2 uWindDirection;
+uniform float uBeat;
 uniform vec4 uGrassLod;
 uniform float uGrassLean;
 uniform float uFootprintSoft;
@@ -155,6 +156,7 @@ ${ACTOR_GLSL}`,
   float gGust = 0.5 + 0.5 * sin( gAlong * 0.12 - uWindTime * 0.62 + 1.7 );
   float gFlick = sin( uWindTime * 3.3 + aInfo.x * 41.0 ) * 0.1;
   float gWind = uWindStrength * ( 0.12 + 0.5 * gWave * ( 0.35 + 0.65 * gGust ) + gFlick );
+  gWind *= 1.0 + ${BEAT_SHARE.toFixed(3)} * uBeat; // on the beat a blade bends further by the same share of its own bend as a tree top
   vec2 gBend = gLeanDir * ( aInfo.w * uGrassLean ) + uWindDirection * gWind + gPush;
   float gTT = gT * gT;
   vec3 grassPos = gBase;

@@ -131,7 +131,8 @@ export const FOREST = {
   wind: {
     swayScale: 1.4, // metres represented by aWind.y = 1
     flutterScale: 0.12, // metres represented by aWind.z = 1
-    maxSwayDeg: 2.6, // trees and tall plants (style guide: at most 3)
+    maxSwayDeg: 2.0, // trees and tall plants at full wind; the beat comes on top, so the two add up to the style guide's 3
+    beatAmplitudeDeg: 1, // the extra lean on each beat of the theme (engine/beat.js); maxSwayDeg + this stays at most 3
   },
   shade: {
     // Fake canopy shade outside the shadow map: 1 = open sky, 0 = deep shade.
