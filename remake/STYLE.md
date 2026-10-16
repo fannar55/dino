@@ -59,12 +59,14 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
 | Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
 | Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
-| Flugeðla | Pteranodon | 6 m wingspan (5.6 to 7.6) | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
+| Flugeðla | Pteranodon | 7.5 m wingspan (5.6 to 7.6) | pink | `#dc8090` | `#f0ccb7` | raspberry crest `#955055` | peach wing membrane `#ebaf98`, cream beak, amber eyes |
 
 Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
 orange to the free violet slot; its Tripo model (2026-10-15) gives the violet row its values, with
 lilac plates. Þórseðla is a Brontosaurus, as her Icelandic name says (2026-10-16), and her Tripo
-model gives the golden row its values. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
+model gives the golden row its values. Flugeðla's wingspan is the upper end of the range so she can
+carry Egill, and her Tripo model (2026-10-16) gives the pink row its values; that pink leans to coral.
+Uggeðla's coral is Grameðla's and Flugeðla's nearest neighbour: check them side
 by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
 ([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
 [Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
