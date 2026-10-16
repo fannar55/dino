@@ -173,7 +173,17 @@ export const FOREST = {
   },
   shafts: { count: 5, strength: 0.085, width: [1.6, 3.2] },
   motes: { count: 70, radius: 8.5, height: [0.4, 4.2] },
-  butterflies: { count: 4 },
+  // The clearing's butterflies (butterflies.js): `count` of them loop over the clearing and each is a tap target `radius` m wide.
+  // One the child taps flutters (`flutter`): it is `away` m aside and `rise` m up at the middle of `seconds`, zigzagging `zigzag` m,
+  // beats its wings `beats` more times than it would and spreads them between `wings` (radians; at rest they swing 0.25 to 1.3).
+  // One sent to a point (butterflyLand, `land`) arcs `lift` m over the way there, weaving `weave` m, beats `excited` radians a second
+  // faster, and on landing folds its wings to `rest` (the middle and the swing of the angle, then the rate of the slow beat), over `settle` s.
+  butterflies: {
+    count: 4,
+    radius: 0.4,
+    flutter: { seconds: 3, away: 3.2, rise: 2.1, zigzag: 0.14, beats: 3, wings: [0.06, 1.5] },
+    land: { seconds: 3, lift: 0.55, weave: 0.2, excited: 8, wings: [0.12, 1.45], rest: [1.2, 0.26, 2.1], settle: 0.5 },
+  },
   shots: { clearance: 1.5 },
   // Distance LOD: plants carry up to three detail levels and switch at these camera distances.
   // switch: distances to a plant's mid-height point (trunks, understory). Crowns pick their level by

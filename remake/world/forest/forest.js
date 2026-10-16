@@ -1,6 +1,9 @@
 // The forest system: layout in, forest out.
 //
-//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), dispose() }
+//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }
+//
+// `butterflies` is the clearing's pale butterflies as tap targets ({ targets: [{ name, point, radius }], flutter(name), land(spec) },
+// atmosphere.js: butterflyLand flies one to a point).
 //
 // layout = { seed, clearing: { center, radius }, forestEdge, path: [[x, z], ...] } from the chapter, and, all optional:
 //   shots   the camera shots set in this place, which the planner keeps clear (a chapter location carries its own)
@@ -216,6 +219,7 @@ export async function createForest(world, layout) {
     get actorWarm() { return actorUniforms.uActorWarm.value; },
     set actorWarm(v) { actorUniforms.uActorWarm.value = v; },
     heightAt: terrain.heightAt,
+    butterflies: air.butterflies,
     dispose() {
       scene.remove(group);
       groundMesh.geometry.dispose();
