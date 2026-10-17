@@ -168,8 +168,9 @@ export const POINTS = {
   mosiSneeze: ['Head', [-0.312, 0.778, 0.285]],
   mosiHorn: ['Head', [0.358, 0.618, 0.647]],
   kambedlaMouth: ['Head', [0.82, -0.12, 0]],
-  // Where Egill holds the flowers he picks: in front of his chest, between his hands (his own frame, from his feet).
-  egillHands: { actor: 'egill', part: 'feet', offset: [0.22, 0.62, 0], local: true },
+  // Where Egill holds the flowers he picks, the foot of their stems: in front of him at his hands' height (his own
+  // frame, from his feet), so the blooms are at his chest.
+  egillHands: { actor: 'egill', part: 'feet', offset: [0.24, 0.5, 0], local: true },
   // Where the star rises from: just above the top of her middle plates.
   kambedlaPlates: { actor: 'kambedla', part: 'feet', offset: [-0.42, 3.85, 0], local: true },
 };
@@ -212,14 +213,15 @@ const RJODUR_SHOTS = {
   mount: { position: [10.6, 1.3, 3.1], target: [3.8, 1.9, 0.2], fov: 46 },
   mountHigh: { position: [8.6, 4.4, 2.2], target: [1.6, 3.0, -0.6], fov: 44 },
   // Scene 6: the ride. Ahead in the forest looking back along the path through the light; Egill close in the
-  // saddle (a follow); low by the path, the beetle near and Mosi's big feet stepping past; the frog; the snail as
-  // the two of them go on into the forest. The forest floor rises to the east: these heights are from it.
+  // saddle (a follow); by the path at a child's eye height, looking down at the soft soil, the beetle near and Mosi's
+  // big feet stepping past and pressing their prints into it; the frog; the snail as the two of them go on into the
+  // forest. The forest floor rises to the east: these heights are from it.
   rideWide: { position: [27.6, 1.75, -6.6], target: [12, 2.3, -2.6], fov: 50 },
   // The ride close-up, where the follow begins (a shot in Egill's frame, so the forest's planner leaves it alone).
   rideClose: {
     position: { actor: 'egill', part: 'feet', offset: RIDE_CLOSE.offset, local: true }, target: 'egill.head', fov: RIDE_CLOSE.fov,
   },
-  rideFeet: { position: [23.0, 0.4, -2.93], target: [16, 0.45, -4.48], fov: 52 },
+  rideFeet: { position: [23.0, 1.1, -3.2], target: [16.5, 0.2, -4.9], fov: 52 },
   rideFrog: { position: [32.62, 1.08, -7.14], target: [24.5, 1.15, -7.4], fov: 50 },
   rideAway: { position: [38.7, 1.45, -8.25], target: [47, 2.7, -14.8], fov: 50 },
 };
@@ -428,7 +430,8 @@ function* onThePath(s, c) {
   yield s.camera.cut('rideClose');
   yield s.camera.follow('egill', RIDE_CLOSE);
   yield past(17.5, 4);
-  // Low by the path: the beetle near, and Mosi's big feet stepping past in the soft soil.
+  // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
+  // prints into it.
   yield s.camera.cut('rideFeet');
   yield past(23.8, 2.6);
   // The frog, and Mosi coming past it.
@@ -478,7 +481,7 @@ function* kambedlaInTheFerns(s, c) {
 
 // The flowers in Egill's hands, from the search until he gives each to Kambeðla: a little posy, the first upright and
 // the next two leaning out to either side, all a little forward (lean: radians about his forward axis, then his right).
-const HELD = { size: 0.55, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]] };
+const HELD = { size: 0.45, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]] };
 
 // 8. The search: the child looks round the glade and finds the three glow flowers; Egill picks each.
 function* flowerSearch(s, c) {

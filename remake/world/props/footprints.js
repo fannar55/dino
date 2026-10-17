@@ -23,7 +23,9 @@ const PRESS = 0.2; // seconds a print takes to darken as the foot comes down
 const RISE = 0.03; // metres a foot rises above its standing height before its next fall counts
 const LAND = 0.008; // and how near that height it must come back
 const LIFT = 0.012; // metres a print lies above the ground, which the polygon offset keeps it on
-const TINT = '#8a7462'; // what the soil is multiplied by inside a print: a little darker, a little warmer
+// What the soil is multiplied by inside a print: a little darker, a little warmer. Plain numbers, not a THREE.Color: the
+// canvas holds display colours (renderer.js) and the print blends with them as they are.
+const TINT = [0.5, 0.43, 0.36];
 const NEAR = 12; // metres from the camera beyond which a print fades out (the height fog does not reach it)
 const FAR = 30;
 
@@ -37,13 +39,13 @@ export function printLevel(age) {
 export const PRINT_SECONDS = LIFE + FADE; // how long a print can be seen at all
 
 // One print in its own frame, at size 1: x the way the walker faces, z to its right, on the ground plane. Each blob is a
-// middle, a ring at three quarters of its reach where it is still dark and a ring at its edge where it has faded, so the
-// print has no hard edge. aSoft carries the darkness each vertex has.
+// middle, a ring at seven tenths of its reach where it is nearly as dark and a ring at its edge where it has faded, so the
+// print has no hard edge and is deepest in the middle. aSoft carries the darkness each vertex has.
 const BLOBS = [
   { x: -0.05, z: 0, rx: 0.28, rz: 0.26 }, // the pad
-  { x: 0.26, z: -0.17, rx: 0.085, rz: 0.075 }, // three toes
-  { x: 0.3, z: 0, rx: 0.09, rz: 0.08 },
-  { x: 0.26, z: 0.17, rx: 0.085, rz: 0.075 },
+  { x: 0.29, z: -0.18, rx: 0.1, rz: 0.085 }, // three toes
+  { x: 0.33, z: 0, rx: 0.105, rz: 0.09 },
+  { x: 0.29, z: 0.18, rx: 0.1, rz: 0.085 },
 ];
 const SEGMENTS = 12;
 
@@ -57,8 +59,8 @@ function buildPrint() {
     soft.push(1);
     for (let i = 0; i < SEGMENTS; i++) {
       const a = (i / SEGMENTS) * Math.PI * 2;
-      positions.push(x + Math.cos(a) * rx * 0.75, 0, z + Math.sin(a) * rz * 0.75); // inner ring
-      soft.push(1);
+      positions.push(x + Math.cos(a) * rx * 0.7, 0, z + Math.sin(a) * rz * 0.7); // inner ring
+      soft.push(0.85);
       positions.push(x + Math.cos(a) * rx, 0, z + Math.sin(a) * rz); // outer ring
       soft.push(0);
     }
@@ -125,7 +127,7 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
   const material = new THREE.ShaderMaterial({
     vertexShader: VERT,
     fragmentShader: FRAG,
-    uniforms: { uTime: { value: 0 }, uTint: { value: new THREE.Color(TINT) } },
+    uniforms: { uTime: { value: 0 }, uTint: { value: new THREE.Vector3(...TINT) } },
     transparent: true,
     premultipliedAlpha: true,
     blending: THREE.MultiplyBlending,
