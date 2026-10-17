@@ -287,10 +287,10 @@ critters, the glow flowers), the first change of place held the screen black 1.8
 1.2 to 1.8 s frame, its first frame took 0.6 s), and a frame over 0.2 s makes the music jump back to the game's clock. So the
 chapter is drawn once behind the black before the start button shows (`engine/warm-up.js`, `chapter.warmUp`: 17 programs
 in about 2 s on a cold cache), the glade is built and drawn then too (`chapter.prepare`), and a change of place is drawn
-once more under the black while the music moves its playhead instead of jumping back (`music.lenient`). In a cold first play
-(2026-10-17) the button came 0.9 s later, the frames over 100 ms after the touch went from 11 to 2, the black between the
-ride and the glade from 1.8 s beyond its fades to 0.2 s, and the music's jumps from 5 to 2 (both after a 0.9 s frame in the
-search that built nothing: the browser itself stalled).
+once more under the black while the music moves its playhead instead of jumping back (`music.lenient`). In two cold first
+plays (2026-10-17) the button came 0.9 and 4.0 s later than in one before, the frames over 100 ms after the touch went from
+11 to 2 and 1, the black between the ride and the glade from 1.8 s beyond its fades to 0.2 s, and the music's jumps from 5 to
+2 and 0 (the 2 after a 0.9 s frame in the search that built nothing: the browser itself stalled).
 
 ## 12. Asset pipeline
 
