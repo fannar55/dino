@@ -280,6 +280,10 @@ function restHand(side, t, out) {
   out.angle = side * (REST.angle + 4 * Math.sin(phase + 0.7));
   return out;
 }
+/** Where the hands are at rest at time t: [screen-left, screen-right], each { x, y, angle } (the calm between gestures). */
+export function handsAtRest(t) {
+  return [restHand(-1, t, {}), restHand(1, t, {})];
+}
 const mixPose = (a, b, k, out) => {
   out.x = lerp(a.x, b.x, k);
   out.y = lerp(a.y, b.y, k);
@@ -360,7 +364,10 @@ function blinkSchedule(seed = 'sun') {
  *   hug()        both hands cross over the front of the disc and squeeze twice, the face grinning (HUG_SECONDS)
  *   mouth(shape, seconds = MOUTH_SECONDS)  'grin' or 'oh' for that long, then the smile again; 'smile' at once
  *     wave, hug and mouth each return a Handle, done when the gesture is over or the smile is back (a mouth that a later
- *     mouth call cuts short ends cancelled). A gesture asked for while another goes on begins when that one is over.
+ *     mouth call cuts short ends cancelled). A gesture asked for while another goes on begins when that one is over; a mouth
+ *     asked while a hug waits its turn leaves the hug its grin. Cancelling a handle (a script's race lost, a scene stopped):
+ *     a call that has not begun, or a gesture still waiting its turn, is dropped and the gestures queued behind it move up; a
+ *     gesture under way finishes; a mouth under way goes back to the smile at once, through the in-between.
  *   update(t, camera)  t is the game clock in seconds; call it after the camera has moved
  *   eyes         'open', 'half' or 'shut': which frame of the face shows (a wink or a blink)
  *   eyesClosed   whether a wink or a blink shows
@@ -419,12 +426,15 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   };
   hang(ORIGIN); // until the first update, as seen from the world's origin: never a giant face on the camera
 
-  // What scripts have asked for. Calls wait for the next update and begin at its time.
+  // What scripts have asked for. Calls wait for the next update and begin at its time (`asked`).
   const pending = [];
   let winkStart = -Infinity;
-  const gestures = []; // { kind, start, end, handle }, in order, never overlapping
-  const changes = []; // the mouth's changes: { at, shape }, in order
-  const mouths = []; // mouth() calls still under way: { handle, doneAt }
+  const gestures = []; // { kind, asked, start, end, handle }, in order, never overlapping
+  // The mouth: the mouth() calls that have begun (and the smile a cancelled one asks for), each tagged with when it began, `from`.
+  // What the mouth shows is worked out from them and the hugs' grins by replanMouth: each plan takes over from where it begins.
+  const mouthCalls = []; // { from, shape, seconds }
+  const mouthHandles = new Map(); // a mouth() call's handle while it is under way -> { call, doneAt }
+  let changes = []; // { at, shape }, in order
   const blinkBefore = blinkSchedule();
   let lastT = -Infinity;
   let shownMouth = null;
@@ -454,42 +464,106 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
     return changes[i].shape !== before && t - changes[i].at < MOUTH_BETWEEN ? 'mid' : changes[i].shape;
   }
 
-  /** From `at` on the mouth goes through `steps` ([time, shape]) instead of what was planned; a mouth() call under way ends. */
-  function plan(at, steps) {
-    while (changes.length && changes.at(-1).at >= at) changes.pop();
-    changes.push(...steps.map(([when, shape]) => ({ at: when, shape })));
-    for (const m of mouths.splice(0)) m.handle.cancel();
+  /**
+   * The mouth's changes, from every plan in the order the plans begin: a mouth() call where it began, a hug's grin where the hug
+   * grins (so a mouth asked while a hug waits its turn does not take the hug's grin away, and a grin moves with its hug). Each plan
+   * takes over from its beginning on: what an earlier one had planned from there is dropped.
+   */
+  function replanMouth() {
+    const plans = mouthCalls.map((m, order) => ({
+      at: m.from, order, steps: m.shape === 'smile' ? [[m.from, 'smile']] : [[m.from, m.shape], [m.from + m.seconds, 'smile']],
+    }));
+    gestures.forEach((g, i) => {
+      if (g.kind !== 'hug') return;
+      const at = g.start + HUG.grin[0];
+      plans.push({ at, order: mouthCalls.length + i, steps: [[at, 'grin'], [g.start + HUG.grin[1], 'smile']] });
+    });
+    plans.sort((a, b) => a.at - b.at || a.order - b.order);
+    changes = [];
+    for (const plan of plans) {
+      while (changes.length && changes.at(-1).at >= plan.at) changes.pop();
+      for (const [at, shape] of plan.steps) changes.push({ at, shape });
+    }
+  }
+
+  /** The gestures not begun by `now` start as early as the queue lets them: when the one before ends, never before they were asked. */
+  function repack(now) {
+    let end = -Infinity;
+    for (const g of gestures) {
+      if (g.start > now) {
+        const length = g.end - g.start;
+        g.start = Math.max(g.asked, end);
+        g.end = g.start + length;
+      }
+      end = g.end;
+    }
   }
 
   function begin(call, t) {
     if (call.kind === 'wink') {
       winkStart = t;
-    } else if (call.kind === 'mouth') {
+    } else if (call.kind === 'mouth' || call.kind === 'smile') {
+      // A newer mouth cuts the one under way short (out of the map first, so its cancel asks for no smile of its own). The smile
+      // a cancelled mouth asked for has no handle.
+      if (call.kind === 'mouth') {
+        for (const h of [...mouthHandles.keys()]) {
+          mouthHandles.delete(h);
+          h.cancel();
+        }
+      }
       const was = mouthAt(t);
-      if (call.shape === 'smile') plan(t, [[t, 'smile']]);
-      else plan(t, [[t, call.shape], [t + call.seconds, 'smile']]);
-      // Done once the smile is back: at once for a smile that was there already, else after the in-between.
-      const doneAt = call.shape === 'smile' && was === 'smile' ? t : changes.at(-1).at + MOUTH_BETWEEN;
-      mouths.push({ handle: call.handle, doneAt });
+      const record = { from: t, shape: call.kind === 'smile' ? 'smile' : call.shape, seconds: call.seconds ?? 0 };
+      mouthCalls.push(record);
+      replanMouth();
+      if (call.handle) {
+        // Done once the smile is back: at once for a smile that was there already, else after the in-between.
+        const doneAt = record.shape === 'smile' ? (was === 'smile' ? t : t + MOUTH_BETWEEN) : t + record.seconds + MOUTH_BETWEEN;
+        mouthHandles.set(call.handle, { call: record, doneAt });
+      }
     } else {
       // A gesture begins now, or when the ones under way or waiting are over.
       const last = gestures.at(-1);
       const start = last && last.end > t ? last.end : t;
-      gestures.push({ kind: call.kind, start, end: start + (call.kind === 'wave' ? WAVE_SECONDS : HUG_SECONDS), handle: call.handle });
-      if (call.kind === 'hug') {
-        const keep = mouths.splice(0); // the hug's grin is its own: it does not end a mouth() call under way
-        plan(start + HUG.grin[0], [[start + HUG.grin[0], 'grin'], [start + HUG.grin[1], 'smile']]);
-        mouths.push(...keep);
-      }
+      const length = call.kind === 'wave' ? WAVE_SECONDS : HUG_SECONDS;
+      gestures.push({ kind: call.kind, asked: t, start, end: start + length, handle: call.handle });
+      if (call.kind === 'hug') replanMouth();
     }
   }
 
-  /** Forget what had not begun by t: the clock went back, a seek that starts over, and the script will ask again. */
+  /**
+   * A handle cancelled (a script's race lost, a scene stopped): a call still waiting for the next update is dropped; a gesture not
+   * begun yet is dropped and those queued behind it move up; a gesture under way finishes; a mouth under way goes back to the smile
+   * at the next update, through the in-between.
+   */
+  function cancelled(handle) {
+    const waiting = pending.findIndex(call => call.handle === handle);
+    if (waiting >= 0) {
+      pending.splice(waiting, 1);
+      return;
+    }
+    if (mouthHandles.delete(handle)) {
+      pending.push({ kind: 'smile' });
+      return;
+    }
+    const i = gestures.findIndex(g => g.handle === handle);
+    if (i >= 0 && gestures[i].start > lastT) {
+      gestures.splice(i, 1);
+      repack(lastT);
+      replanMouth();
+    }
+  }
+
+  /** Forget what began after t: the clock went back, a seek that starts over, and the script will ask again. */
   function rewind(t) {
     if (winkStart > t) winkStart = -Infinity;
-    while (gestures.length && gestures.at(-1).start > t) gestures.pop().handle.cancel();
-    while (changes.length && changes.at(-1).at > t) changes.pop();
-    for (const m of mouths.splice(0)) m.handle.cancel();
+    while (gestures.length && gestures.at(-1).asked > t) gestures.pop().handle.cancel();
+    while (mouthCalls.length && mouthCalls.at(-1).from > t) mouthCalls.pop();
+    for (const [h, m] of [...mouthHandles]) {
+      if (m.call.from <= t) continue;
+      mouthHandles.delete(h);
+      h.cancel();
+    }
+    replanMouth();
   }
 
   function handsAt(t) {
@@ -548,7 +622,7 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
   }
 
   const ask = (kind, extra = {}) => {
-    const handle = new Handle(`sun ${kind}`);
+    const handle = new Handle(`sun ${kind}`, () => cancelled(handle));
     pending.push({ kind, handle, ...extra });
     return handle;
   };
@@ -580,7 +654,11 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames(), shee
       sprite.scale.set(size * state.squash.x, size * state.squash.y, 1);
       lay(camera);
       for (const g of gestures) if (g.end <= t && !g.handle.done) g.handle.finish();
-      for (let i = mouths.length - 1; i >= 0; i--) if (mouths[i].doneAt <= t) mouths.splice(i, 1)[0].handle.finish();
+      for (const [h, m] of [...mouthHandles]) {
+        if (m.doneAt > t) continue;
+        mouthHandles.delete(h);
+        h.finish();
+      }
     },
     get eyes() { return state.eyes; },
     get eyesClosed() { return state.eyes !== 'open'; },
