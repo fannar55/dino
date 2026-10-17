@@ -60,7 +60,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length
   and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it).
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
-- `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
+- `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `sound-check.mjs` (the sound in a
+  real browser, 61 checks, on this computer or on the tablet over USB debugging), `audio-lines.mjs`,
   `theme-tempo.mjs` (measures the theme once: tempo, beat and key, into `assets/audio/theme.json`),
   `voice-lines.mjs` (voices a chapter's lines with ElevenLabs Eleven v3 from
   `assets/audio/kafli1/lines-source.json`, never making over a line marked `kept`, a take the owner
@@ -169,3 +170,21 @@ node remake/tools/capture.mjs --out qa/remake/shots/check --size 1280x800 --benc
 
 The budget for the tablet preset is in STYLE.md section 11: at most 6 ms GPU per frame at
 1280x800 on the reference laptop, 100 draw calls, 250k triangles and 96 MB of textures.
+
+```bash
+node remake/tools/sound-check.mjs
+```
+
+checks the sound in headless Chrome as a child meets it: nothing before the first touch, the theme streamed and
+looping, the book's pause, a hidden tab, a tablet waking from sleep, the voice ducking the music, every effect, and
+silent captures. `--browser edge` uses Edge; its header says how to run it on the tablet's Chrome.
+
+## Deploying
+
+The page is static: serve the folder that holds both `remake/` and `dist/` (it reads `dist/vendor` and the
+welcome line in `dist/assets`), as `tools/serve.mjs` does. The host, and any proxy, cache or service worker in
+front of it, must answer byte-range requests for `remake/assets/audio/theme.mp3` with 206 Partial Content
+(`Accept-Ranges: bytes`, `Content-Range`): Safari will not play the theme without them, and other browsers cannot
+move it, so the music can no longer follow the game's clock (after the book, a hidden tab or a long frame it just
+plays on, and the beat follows it instead). The theme must come from the page's own origin: it plays through Web
+Audio, which hears silence from media on another origin without CORS.

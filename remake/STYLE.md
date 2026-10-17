@@ -204,6 +204,24 @@ face), misty far forest, forest wall.
 - One rounded, legible typeface bundled locally for offline play, with all Icelandic letters.
   Captions at least 24 px. The speaker's name is shown in the speaker's main hue.
 - Mini-games share the journal look; their pieces use the character hues.
+- **Interaction**, as chapter 1 plays it (2026-10-17):
+  - No fail states. Every wait for the child ends by itself, a tap on something optional (a critter, a butterfly,
+    Mosi's nose) never holds up the story, and a flower let go in the wrong place goes back to the tray.
+  - Every required wait races an idle timer: Egill waves by himself 4 s after Mosi has stopped, floats up into the
+    saddle after 6 s and says yes to the choice after 25 s; in the drags Mosi says it again at 12 s and Egill gives
+    the next flower himself at 20 s; a star nobody taps flies into the book after 8 s.
+  - A search gives a hint at 12, 24 and 36 s (a line and a pan to the place), and at 48 s the thing is found for
+    the child. A find stops a hint; a drag takes the camera back from its pan at once.
+  - Handheld sway is off before every required tap and before a choice, so the camera is still when the child aims.
+  - A drag hits when the item is let go within 90 px of the target, where the child sees the target at that moment.
+    The carried item floats 18 px above the finger, so the finger does not hide it, and that point is what counts.
+  - Tap first: a press let go within 12 px is a tap, however long it was held (no 300 ms limit), and what the finger
+    landed on is what was tapped. Taps come from pointer events on a canvas with `touch-action: none`, so there is
+    no 300 ms click delay, and a long press opens no menu. Only the first finger counts until it lifts.
+  - Tap targets: a target in the world is a sphere round a point, sized in metres (Mosi's nose 0.45, Egill 0.7, a
+    glow flower 0.55, the star 0.85) and never less than 44 px across on the screen; tray items are 64 to 88 px,
+    the book's button and its close 64 px. The choice buttons are still the foundation's 52 px until the interface
+    gets its pass.
 
 ## 11. Performance budget (tablet preset)
 
@@ -467,6 +485,42 @@ Environment:
   soft chunky rounded shapes, broad simple leaf clusters, hand-painted matte texture in [hexes from
   section 4], no tiny leaves, no photo detail, one isolated object, front three-quarter view, plain
   light grey background, soft even light."
+
+
+Measured costs, chapter 1 (2026-10-17): whole frames with the shadow pass on the reference laptop (Iris Xe, Edge, 1280x800,
+tablet preset), one key frame a scene or two. GPU is the median of 24 interleaved pairs of 60-frame medians in one page load.
+The same frame measured 1 to 2.3 ms more when the laptop was warm and busy than when it was quiet, so both are given; the
+forest's main pass is counted by the renderer with everything else hidden.
+
+| Scene | Frame | t (s) | GPU ms, quiet / warm | Calls | Triangles | Forest main pass |
+|---|---|---|---|---|---|---|
+| 1 | the clearing, waiting, three shafts | 19.5 | 3.46 / 5.38 | 39 | 153,574 | 124,971 |
+| 2 | Mosi walks in (track) | 36 | 3.34 / 5.60 | 38 | 168,459 | 111,851 |
+| 3 | the sneeze, pollen 0.4 s on | 66 | 3.31 / 5.12 | 41 | 177,073 | 118,106 |
+| 4 | Mosi close, a butterfly on his horn | 74 | 3.08 / 4.17 | 38 | 170,240 | 110,959 |
+| 5 | Egill floats up | 117.5 | 3.46 / 5.27 | 44 | 171,674 | 114,502 |
+| 6 | rideWide, birds flying up | 132.4 | 3.39 / 4.87 | 60 | 178,955 | 130,079 |
+| 6 | rideFeet, the footprints | 148.5 | 3.29 / 5.10 | 55 | 182,284 | 120,259 |
+| 7 | the glade, four shafts | 181 | 3.73 / 5.70 | 55 | 213,280 | 126,942 |
+| 7 | Kambeðla close (overEgill) | 199 | 3.80 / 5.91 | 44 | 219,859 | 102,999 |
+| 8 | the search, a glow flower | 219.5 | 3.58 / 5.36 | 45 | 220,362 | 123,613 |
+| 9 | feeding, the posy in his hands | 243.5 | 4.10 / 5.94 | 51 | 210,295 | 107,279 |
+| 10 | the invitation | 273.5 | 4.05 / 6.01 | 57 | 213,830 | 136,829 |
+
+Textures are 36.6 MB in every frame. The glade's two-shots have no headroom on a warm laptop. What each part adds, from the
+same pairs (the frame with it against the frame without it, the mean of three page loads):
+
+- three light shafts in the clearing: +0.46 ms, 2 calls (the shafts and their motes); four in the glade: +0.26 ms, 2 calls;
+- Kambeðla's plate glow close up: +0.12 ms, no calls or triangles;
+- the pollen of a sneeze 4.6 m from the camera: +0.11 ms, 1 call (its specks are about 80 px there);
+- the ride's critters (six birds in one instanced call, a beetle, a frog, a snail): +0.15 ms, 4 calls, 2,656 triangles;
+- Mosi's footprints, about 20 alive: +0.04 ms, 1 call, 144 triangles a print;
+- a glow flower: no cost that shows; 2 calls and 218 triangles glimmering, 1 call held in a hand.
+
+A material's first frame builds its shaders. On a child's first play (a cold browser cache) that is a frame of 0.2 to 0.6 s
+on the reference laptop wherever something is drawn for the first time (the first blink's eyelids, Kambeðla's skin, the
+critters, the glow flowers), and the first change of place holds the screen black 2.5 s (the glade's forest is built in a
+1.8 s frame, its first frame takes 0.6 s). A frame over 0.2 s also makes the music jump back to the game's clock.
 
 ## 13. Review checklist
 
