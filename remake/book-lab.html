@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="./book.css">
 <style>
   /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book. ?state=animals
-     (the default), card or zoom picks what shows. The pictures are the placeholders in assets/book/lab/, and the zoom
-     shows one of the old game's licensed fossils, read from dist/ in place. */
+     (the default), card, zoom or info picks what shows. The pictures are the placeholders in assets/book/lab/, and the
+     info state's page shows one of the old game's licensed fossils, read from dist/ in place, with its ⓘ open. */
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background:
@@ -31,7 +31,7 @@
         <span class="ribbon-label">Stjörnur</span>
       </button>
       <button class="ribbon" data-tab="animals" type="button" role="tab" aria-selected="true">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M24 44.5c-6 0-9.5-4-8.8-8.9.7-4.6 4.4-7 8.8-7s8.1 2.4 8.8 7c.7 4.9-2.8 8.9-8.8 8.9zM21.2 25c-.8-7-.2-14 2.8-20.5 3 6.5 3.6 13.5 2.8 20.5-1.6 1.4-4 1.4-5.6 0zM18.6 27.5c-4.4-2.9-8-8.9-10-16.9 5 2.6 9.6 7.8 12.8 14.2-.6 1.6-1.6 2.6-2.8 2.7zM29.4 27.5c4.4-2.9 8-8.9 10-16.9-5 2.6-9.6 7.8-12.8 14.2.6 1.6 1.6 2.6 2.8 2.7z"/></svg>
+        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>
         <span class="ribbon-label">Dýrin</span>
       </button>
     </div>
@@ -80,7 +80,7 @@
     </button>
   </div>
 
-  <article class="card" data-card="kalligrammatid" aria-label="Fiðrildi" hidden>
+  <article class="card" data-card="kalligrammatid" aria-label="Fiðrildi" data-states="card zoom" hidden>
     <button class="card-back chunky" type="button" aria-label="Aftur á dýrasíðuna">
       <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>
     </button>
@@ -100,25 +100,56 @@
       <button class="card-replay chunky" type="button" aria-label="Lesa aftur">
         <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>
       </button>
-      <p class="card-text">Þetta lítur út eins og fiðrildi. En það er ekki fiðrildi!</p>
+      <p class="card-text">Þetta lítur út eins og fiðrildi.<br>En það er ekki fiðrildi!</p>
     </div>
     <div class="card-dots" role="img" aria-label="Síða 1 af 5"><span aria-current="step"></span><span></span><span></span><span></span><span></span></div>
   </article>
 
-  <div class="zoom" hidden>
-    <img src="../dist/assets/encyclopedia/stegosaurus-side.jpg" alt="Beinagrind Stegosaurus stenops, safngripurinn „Sophie“, séð frá hlið.">
+  <article class="card" data-card="kambedla" aria-label="Kambeðla" data-states="info" hidden>
+    <button class="card-back chunky" type="button" aria-label="Aftur á dýrasíðuna">
+      <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>
+    </button>
+    <figure class="card-image">
+      <img src="../dist/assets/encyclopedia/stegosaurus-side.jpg" alt="Beinagrind Stegosaurus stenops, safngripurinn „Sophie“, séð frá hlið. Mynd úr rannsókn safnsins.">
+      <button class="card-info" type="button" aria-label="Um myndina" aria-expanded="true">
+        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-dot" cx="24" cy="24" r="21"/><circle class="icon-i" cx="24" cy="14.5" r="3.4"/><path class="icon-i" d="M24 22v13" stroke-width="5.5"/></svg>
+      </button>
+      <div class="card-credit" role="note">
+        <p><span>Mynd</span>Susannah Maidment et al. &amp; Natural History Museum, London</p>
+        <p><span>Leyfi</span>CC BY 4.0</p>
+        <p><span>Frá</span>Wikimedia Commons</p>
+      </div>
+    </figure>
+    <button class="card-arrow prev" type="button" aria-label="Til baka">
+      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
+    </button>
+    <button class="card-arrow next" type="button" aria-label="Áfram">
+      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
+    </button>
+    <div class="card-words">
+      <button class="card-replay chunky" type="button" aria-label="Lesa aftur">
+        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>
+      </button>
+      <p class="card-text">Þetta er Sophie.<br>Hún er kambeðla úr steini.</p>
+    </div>
+    <div class="card-dots" role="img" aria-label="Síða 3 af 5"><span></span><span></span><span aria-current="step"></span><span></span><span></span></div>
+  </article>
+
+  <div class="zoom" data-card="kalligrammatid" data-states="zoom" hidden>
+    <div class="zoom-frame" style="--ratio: 800 / 600">
+      <img src="assets/book/lab/kalligrammatid.svg" alt="Teikning af kalligrammatíð">
+    </div>
     <button class="zoom-close chunky" type="button" aria-label="Loka myndinni">
       <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>
     </button>
   </div>
 </div>
 <script>
-  // The lab's only logic: ?state= picks which layer of the static mockup shows. capture.mjs waits for __demoReady,
-  // which comes once every picture has loaded and the page has drawn.
+  // The lab's only logic: ?state= picks which layers of the static mockup show, each layer naming its states in
+  // data-states. capture.mjs waits for __demoReady, which comes once every picture has loaded and the page has drawn.
   const asked = new URLSearchParams(location.search).get('state');
-  const state = ['animals', 'card', 'zoom'].includes(asked) ? asked : 'animals';
-  document.querySelector('.card').hidden = state === 'animals';
-  document.querySelector('.zoom').hidden = state !== 'zoom';
+  const state = ['animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  for (const layer of document.querySelectorAll('[data-states]')) layer.hidden = !layer.dataset.states.split(' ').includes(state);
   addEventListener('load', () => document.fonts.ready.then(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => { window.__demoReady = true; }));
   }));
