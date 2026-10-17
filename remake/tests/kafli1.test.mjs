@@ -26,6 +26,7 @@ import { placementInfo } from '../world/forest/forest.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { LIMITS } from '../engine/camera/director.js';
+import { FOREST } from '../world/forest/config.js';
 
 // Chapter 1 (remake/chapters/kafli1.js) played from the start button to the journal by nobody at all, in the
 // seeking mode a capture (?t=) uses: every wait for the child has to end by itself there, so the chapter reaches
@@ -639,6 +640,21 @@ test('on the ride Mosi presses big footprints into the path, seen by his feet, a
     assert.equal(ride.length, 3, `${how}: three birds fly up on the ride`);
     assert.ok(ride.every(b => b.shot === 'rideWide' && b.seen), `${how}: from the path ahead, where the wide shot sees them`);
   }
+});
+
+test('Egill presses the grass down and the ferns aside as a boy does, not with Mosi\'s footprint', async () => {
+  // The forest lays the grass down and leans the ferns round a capsule under each actor (forest.js), the size of the
+  // grass's footprint times the actor's footprintScale; the ferns' reach scales with it. Mosi's size unless a chapter
+  // says otherwise, the boy's too.
+  const { world } = await unattended();
+  const { radius, halfLength } = FOREST.grass.footprint;
+  const scale = name => world.actors.get(name).footprintScale ?? 1;
+  const boy = scale('egill');
+  assert.ok(radius * boy <= 0.35, `his footprint reaches ${(radius * boy).toFixed(2)} m out from him, not the ${radius} m round Mosi`);
+  assert.ok(2 * (halfLength + radius) * boy <= 1.6, `and is ${(2 * (halfLength + radius) * boy).toFixed(2)} m long`);
+  assert.ok(boy > 0, 'but he still stands in the grass');
+  assert.equal(scale('mosi'), 1, 'Mosi keeps the footprint the forest is made for');
+  assert.equal(scale('kambedla'), 1, 'and so does Kambeðla, who is nearly his size');
 });
 
 test('a step sound that breaks stops the steps, never the story', async () => {

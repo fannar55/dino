@@ -36,6 +36,10 @@ const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the cleari
 const MOSI_WALK_IN = [[-16, 4], [-9.9, 2.3], [-4.8, 1]];
 const MOSI_STOP = [0.5, 0.1];
 const EGILL_WAITS = { position: [7.9, 0, 2.3], heading: 209 };
+// The forest lays the grass down and leans the ferns aside round a capsule under each actor, made for Mosi's size
+// (world/forest/forest.js: the grass's footprint times the actor's footprintScale). Egill's is a boy's: 0.3 of it,
+// about 0.3 m round him, so the grass stands up close to his feet and a fern leans from him only within a metre.
+const EGILL_FOOTPRINT = 0.3;
 // Egill walks up in front of Mosi's head, ahead and to his right (a point in Mosi's frame taken as he sets
 // off), where the dialogue frames Mosi over his left shoulder and Mosi turns to face him.
 const EGILL_SPOT = { actor: 'mosi', part: 'head', offset: [2.9, 0, 2.2], local: true };
@@ -878,6 +882,7 @@ export const chapter = {
     const kambedla = s.actor('kambedla');
     const world = mosi.raw.world;
     world.chapterTimeline = [];
+    egill.raw.footprintScale = EGILL_FOOTPRINT;
     const c = { s, world, mosi, egill, kambedla, talking: false };
     // Mosi waits out of sight on the path until scene 2; Kambeðla is in her glade, not in the clearing.
     mosi.raw.root.visible = false;
