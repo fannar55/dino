@@ -149,14 +149,19 @@ export const FOREST = {
     footprint: { radius: 0.95, soft: 0.85, halfLength: 1.35 }, // flattened capsule per actor
   },
   // Wind. maxSwayDeg is how far a tree top leans at full wind: bendAt (species.js) bakes trunks, crowns, needles and tree-fern
-  // trunks from it. Each beat of the theme (engine/beat.js) adds beatAmplitudeDeg on top (BEAT_SHARE below), so those reach
-  // the style guide's 3 degrees with it and no more. Fronds, stems and stalks have weights of their own: with the beat they
-  // too stay within 3 degrees, or, where they already leaned further before the beat, at the peak they had (LEAN in species.js).
+  // trunks from it. The theme's beat (engine/beat.js: beatsAt, in wind.uBeats) sways the forest further on top of the wind, smoothly
+  // and in time with the music, on waves `beatPeriods` beats long that crest on the strong beats: a tree's parts once in four beats,
+  // a plant's (fronds, stems, stalks, bushes) once in two, by beatAmplitudeDeg at the crest (BEAT_SHARE below), so a tree top reaches
+  // the style guide's 3 degrees there and no more; and the grass ripples every beat, its crests running down the wind rippleSpacing
+  // metres apart (GRASS_BEAT_SHARE below). Fronds, stems and stalks have weights of their own: at the crest they too stay within 3
+  // degrees, or, where they already leaned further before the beat, at the peak they had (LEAN in species.js).
   wind: {
     swayScale: 1.4, // metres represented by aWind.y = 1
     flutterScale: 0.12, // metres represented by aWind.z = 1
     maxSwayDeg: 2.0, // a tree top at full wind
-    beatAmplitudeDeg: 1, // what the beat adds to it: maxSwayDeg + this is at most 3
+    beatAmplitudeDeg: 1, // what the beat adds to it at the crest of its wave: maxSwayDeg + this is at most 3
+    beatPeriods: { trees: 4, plants: 2, grass: 1 }, // beats from one crest of a band's wave to the next (each divides engine/beat.js's FOLD)
+    rippleSpacing: 5, // m between two crests of the grass's ripple, along the wind
   },
   // Parts that move about a pivot of their own, on top of the wind (materials.js: forestPivot). batch.js bakes the pivot into every
   // vertex as aPivot (PIVOT below): for a fern the vertex's height above the plant's foot (up to `height` metres), for a flower head
@@ -210,13 +215,16 @@ export const FOREST = {
   lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3 },
 };
 
-/** The beat adds this share of a part's own full-wind sway, along the wind, at the top of its pulse (forestWind in materials.js; grass.js takes the same share of a blade's bend). */
+/** The beat adds this share of a part's own full-wind sway, along the wind, at the crest of its wave (forestWind in materials.js). */
 export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
 
+/** At a crest of its ripple a blade of grass bends further by this share of its own bend (grass.js): light, the owner asked. */
+export const GRASS_BEAT_SHARE = 0.3;
+
 /**
- * The most forestWind (materials.js) bends a part before the beat, as a multiple of its `sway`, the metres it bends at full wind:
- * along the wind 0.55 + 0.45 * (0.6 + 0.25) of it (full strength, the strongest swing) and 0.22 of it sideways; the beat adds
- * BEAT_SHARE along the wind. tests/forest-sway.test.mjs keeps these numbers in step with the shader's text.
+ * The most forestWind (materials.js) bends a part without the beat, as a multiple of its `sway`, the metres it bends at full wind:
+ * along the wind 0.55 + 0.45 * (0.6 + 0.25) of it (full strength, the strongest swing) and 0.22 of it sideways; the crest of the
+ * beat adds BEAT_SHARE along the wind. tests/forest-sway.test.mjs keeps these numbers in step with the shader's text.
  */
 export const WIND_PEAK = { along: 0.55 + 0.45 * (0.6 + 0.25), side: 0.22 };
 

@@ -87,18 +87,31 @@ export function createLeafTexture(seed, size = 128, cells = 6) {
   return tex;
 }
 
-// The beat comes on top of the wind: BEAT_SHARE (config.js) of a part's own `sway`, the metres it bends at full wind
-// (aWind.y), along the wind and whatever the gust is doing. Trunks, crowns, needles and tree-fern trunks bake their sway from
-// maxSwayDeg, so that share is at most beatAmplitudeDeg more lean at their tops: 3 degrees with the beat. Fronds, stems and
-// stalks have weights of their own (LEAN in species.js), scaled there so that with the beat they stay within 3 degrees or,
-// where they already leaned further, at the peak they had before it. Grass bends far more than any of them and gets the
-// same share of its own bend.
+// The theme's beat, smooth and in time with the music: uBeats is the beat count since its first strong beat, folded into [0, 4)
+// (engine/beat.js: beatsAt), and forestWave( beats, period ) a wave `period` beats long: 1 on the beats that are a whole number of
+// periods (strong beats, for waves of two and four), nothing halfway between, a cosine in between, so it moves on without a break,
+// across the fold too (engine/beat.js: waveAt is the same wave). The grass reads it as well.
+export const BEAT_GLSL = /* glsl */`
+uniform float uBeats;
+float forestWave( float beats, float period ) {
+  return 0.5 + 0.5 * cos( 6.2831853 * fract( beats / period ) );
+}`;
+
+// The beat comes on top of the wind: at the crest of its wave BEAT_SHARE (config.js) of a part's own `sway`, the metres it bends at
+// full wind (aWind.y), along the wind and whatever the gust is doing. A tree's parts (trunks, crowns, needles and tree-fern trunks,
+// aTree 1) crest once in four beats, a plant's (fronds, stems, stalks, bushes, aTree 0) once in two, and a tree fern's frond mixes
+// the two by the share of its sway that is its trunk top's (aTree between, batch.js). Each plant takes 0.8 to 1 of its wave by its
+// wind phase, as it does of the dance, so the forest moves together but not as one block. The tree parts bake their sway from
+// maxSwayDeg, so the crest is at most beatAmplitudeDeg more lean at their tops: 3 degrees with the beat. Fronds, stems and stalks
+// have weights of their own (LEAN in species.js), scaled there so that at the crest they stay within 3 degrees or, where they
+// already leaned further, at the peak they had before the beat. The grass ripples with the beat on a wave of its own (grass.js).
+const PERIODS = FOREST.wind.beatPeriods;
 export const WIND_GLSL = /* glsl */`
 uniform float uWindTime;
 uniform float uWindStrength;
 uniform vec2 uWindDirection;
-uniform float uBeat;
-vec3 forestWind(vec3 wp, vec4 w) {
+${BEAT_GLSL}
+vec3 forestWind(vec3 wp, vec4 w, float tree) {
   float phase = w.x * 6.2831853;
   float sway = w.y * ${FOREST.wind.swayScale.toFixed(3)};
   float flutter = w.z * ${FOREST.wind.flutterScale.toFixed(3)};
@@ -108,7 +121,8 @@ vec3 forestWind(vec3 wp, vec4 w) {
   float strength = uWindStrength * (0.45 + 0.55 * gust);
   float osc = sin(t * 0.9 + phase) * 0.6 + sin(t * 1.63 + phase * 1.7) * 0.25;
   vec2 side = vec2(-uWindDirection.y, uWindDirection.x);
-  float lean = strength * (0.55 + 0.45 * osc) + ${BEAT_SHARE.toFixed(3)} * uBeat; // the beat comes on top, whatever the gust is doing
+  float beat = mix(forestWave(uBeats, ${PERIODS.plants.toFixed(1)}), forestWave(uBeats, ${PERIODS.trees.toFixed(1)}), tree) * (0.8 + 0.2 * fract(w.x * 7.31)); // the plant's own 0.8 to 1 of its wave
+  float lean = strength * (0.55 + 0.45 * osc) + ${BEAT_SHARE.toFixed(3)} * beat; // the beat comes on top, whatever the gust is doing
   vec2 bend = uWindDirection * (sway * lean);
   bend += side * sway * strength * 0.22 * sin(t * 1.27 + phase * 2.3);
   vec3 off = vec3(bend.x, -0.08 * dot(bend, bend), bend.y);
@@ -262,7 +276,7 @@ export function createSharedUniforms(world, noiseTexture, leafTexture, leafShado
     uWindTime: w.uWindTime,
     uWindStrength: w.uWindStrength,
     uWindDirection: w.uWindDirection,
-    uBeat: w.uBeat,
+    uBeats: w.uBeats,
     uDance: w.uDance,
     uNoise: { value: noiseTexture },
     uLeaf: { value: leafTexture },
@@ -299,9 +313,10 @@ export function patchLambert(material, key, uniforms, parts) {
 
 /**
  * The vegetation material: one for closed parts (front faces) and one double-sided for fronds,
- * petals and needles. Vertex colour alpha carries the sky visibility, aWind the wind weights and aPivot
- * the parts that move about a pivot of their own (PIVOT_GLSL). `actors` is { glsl, uniforms }: the footprint
- * capsules (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
+ * petals and needles. Vertex colour alpha carries the sky visibility, aWind the wind weights, aTree
+ * the tree's share of the sway (which wave of the beat a vertex rides) and aPivot the parts that move
+ * about a pivot of their own (PIVOT_GLSL). `actors` is { glsl, uniforms }: the footprint capsules
+ * (terrain.js: ACTOR_GLSL and the uniforms it reads, the grass's and the ground's own) that the ferns
  * lean away from. The caller hands them in because terrain.js imports this file.
  */
 export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, low = false, actors }) {
@@ -311,7 +326,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   if (low) material.defines = { FOREST_LOW: '' };
   key = low ? `${key}-low` : key;
   return patchLambert(material, key, { ...shared, ...actors.uniforms }, {
-    vertexHead: `attribute vec4 aWind;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
+    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vSun;\nvarying float vLeaf;\nvarying vec3 vForestPos;\nvarying vec3 vForestNormal;\n${WIND_GLSL}\n${SRGB_GLSL}\n${actors.glsl}\n${PIVOT_GLSL}`,
     vertexAfter: [
       ['#include <color_vertex>', `
   #ifdef USE_COLOR_ALPHA
@@ -321,7 +336,7 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   vLeaf = aWind.w;`],
       ['#include <begin_vertex>', `
   vec3 forestRest = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
-  transformed += forestWind( forestRest, aWind );
+  transformed += forestWind( forestRest, aWind, aTree );
   transformed += forestPivot( forestRest, aWind, aPivot );
   vForestPos = forestRest;
   vForestNormal = normalize( mat3( modelMatrix ) * objectNormal );
@@ -352,17 +367,17 @@ export function createVegetationMaterial(shared, { side = THREE.FrontSide, key, 
   });
 }
 
-/** Shadow-pass material that sways with the same wind, so shadows match the moving crowns. */
+/** Shadow-pass material that sways with the same wind and the same beat, so shadows match the moving crowns. */
 export function createWindDepthMaterial(shared, key) {
   const material = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   material.name = `${key}-depth`;
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, shared);
     patch(shader, {
-      vertexHead: `attribute vec4 aWind;\n${WIND_GLSL}`,
+      vertexHead: `attribute vec4 aWind;\nattribute float aTree;\n${WIND_GLSL}`,
       vertexAfter: [['#include <begin_vertex>', `
   vec3 forestRest = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
-  transformed += forestWind( forestRest, aWind );`]],
+  transformed += forestWind( forestRest, aWind, aTree );`]],
     });
   };
   material.customProgramCacheKey = () => `${key}-depth`;

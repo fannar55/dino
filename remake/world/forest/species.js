@@ -17,12 +17,15 @@ const SWAY = FOREST.wind.maxSwayDeg * DEG; // radians at full wind
 
 /** Bend weight for a point at height y in a plant of height H (quadratic, metres of sway). */
 const bendAt = (y, H, k = 1) => Math.max(0, SWAY * k * (y * y) / Math.max(H, 0.5));
+// Everything bendAt sways is a tree's: a builder of a tree's parts gives the tree all of each vertex's sway (MeshBuilder.treeShare),
+// so the beat sways them on the trees' slow wave, and a plant's parts on the plants' (materials.js: forestWind).
+const TREE = () => 1;
 
 // Fronds, stems and stalks bend by weights of their own: a lean, the metres of sway per metre of the part's length (or height),
-// where bendAt's trunks and crowns lean SWAY at most. The beat adds BEAT_SHARE of whatever a part sways, so a part that leans more
-// than SWAY would pass the style guide's 3 degrees with it. Every part that does is baked FIT times smaller, which makes its peak
-// lean with the beat the very peak it had before the beat: the beat takes a share of its sway instead of adding to it. (FIT is the
-// wind shader's peak without the beat over its peak with it; tests/forest-sway.test.mjs holds every kind to the rule.)
+// where bendAt's trunks and crowns lean SWAY at most. At the crest of its wave the beat adds BEAT_SHARE of whatever a part sways, so
+// a part that leans more than SWAY would pass the style guide's 3 degrees with it. Every part that does is baked FIT times smaller,
+// which makes its peak lean at the crest the very peak it had before the beat: the beat takes a share of its sway instead of adding
+// to it. (FIT is the wind shader's peak without the beat over its peak with it; tests/forest-sway.test.mjs holds every kind to the rule.)
 const FIT = Math.hypot(WIND_PEAK.along, WIND_PEAK.side) / Math.hypot(WIND_PEAK.along + BEAT_SHARE, WIND_PEAK.side);
 const LEAN = {
   cycad: 0.08 * FIT, // fronds
@@ -83,6 +86,7 @@ function foliageColor(lobeTint, crownC, crownR, noise, salt, palette = {}) {
 // for edge trees. `size` below 1 makes the medium trees of the understory.
 function buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
   const solid = new MeshBuilder();
+  solid.treeShare = TREE;
   const H = rng.range(11.5, 16.5) * size;
   const r0 = rng.range(0.42, 0.6) * (H / 15) * (size < 0.8 ? 0.9 : 1);
   const forkH = H * rng.range(0.26, 0.44);
@@ -235,6 +239,7 @@ function buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
 // between them. Seen far away it reads as a tiered spire, up close as tufted arms.
 function buildAraucaria(rng, { lod, noise }) {
   const solid = new MeshBuilder();
+  solid.treeShare = TREE;
   const H = rng.range(14, 23);
   const r0 = rng.range(0.27, 0.38);
   const salt = rng.int(0, 999);
@@ -362,6 +367,7 @@ function frondColor(base, rng, noise, salt) {
 
 function buildTreeFern(rng, { lod, noise }) {
   const solid = new MeshBuilder();
+  solid.treeShare = TREE;
   const thin = new MeshBuilder();
   const H = rng.range(1.7, 3.6);
   const r = rng.range(0.14, 0.21);
@@ -390,6 +396,7 @@ function buildTreeFern(rng, { lod, noise }) {
   });
   const top = spine[n - 1];
   const topSway = bendAt(H, H);
+  thin.treeShare = sway => topSway / Math.max(sway, topSway); // a frond rides its trunk's top: that much of its sway is the tree's
   for (let k = 0; k < fronds; k++) {
     const fr = rng.fork(`frond${k}`);
     const az = a0 + (k / fronds) * Math.PI * 2 + fr.range(-0.2, 0.2);

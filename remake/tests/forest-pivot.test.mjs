@@ -302,7 +302,7 @@ test('the vegetation shader reads the footprints the grass and the ground read, 
     assert.equal(shader.uniforms.uDance, world.wind.uniforms.uDance, `the ${name} material does not read the wind's uDance`);
     assert.match(shader.vertexShader, /attribute vec4 aPivot;/);
     assert.ok(shader.vertexShader.indexOf('forestActorDistance') < shader.vertexShader.indexOf('forestFernLean'), 'the footprint function the grass uses comes first');
-    assert.match(shader.vertexShader, /transformed \+= forestWind\( forestRest, aWind \);\s+transformed \+= forestPivot\( forestRest, aWind, aPivot \);/, 'the pivot comes on top of the wind');
+    assert.match(shader.vertexShader, /transformed \+= forestWind\( forestRest, aWind, aTree \);\s+transformed \+= forestPivot\( forestRest, aWind, aPivot \);/, 'the pivot comes on top of the wind');
   }
   // and the footprints are the characters', written each frame as for the grass
   const mosi = { root: new THREE.Object3D() };

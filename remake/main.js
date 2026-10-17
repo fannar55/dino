@@ -10,7 +10,7 @@ import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
-import { beatAt, danceAt } from './engine/beat.js';
+import { beatsAt, danceAt } from './engine/beat.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
@@ -164,7 +164,7 @@ function update(dt) {
   music.update(); // if the clock lost time (a long frame) the sound is brought back to the playhead
   sfx.update(dt); // the forest's birds and rustles
   if (theme) {
-    wind.setBeat(beatAt(musicTime(), theme).pulse); // the foliage leans a little further on each beat
+    wind.setBeats(beatsAt(musicTime(), theme)); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat
     wind.setDance(danceAt(musicTime(), theme)); // and on each strong beat the flowers nod and the mushrooms hop
   }
   updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
