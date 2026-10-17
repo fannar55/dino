@@ -81,6 +81,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 - **Skot:** reiðskot til skiptis: vítt yfir stíginn í gegnum sólargeisla, nærmynd af brosandi Agli í hnakknum og stór fótspor Mosa í mjúkri moldinni. Burknar sveigja frá og fuglar flögra upp.
 - **Línur:**
     - Mosi: „Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!“
+    - Mosi, strax á eftir: „Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.“ (bætt við eftir prufuspilun 17. október)
     - Finni barnið smádýr: Mosi: „Sjáðu, bjalla! Halló, litla vinkona!“, „Froskur! Hann hoppar hærra en ég!“ eða „Snigill. Hann er ekkert að flýta sér.“
 - **Barnið:** lítur í kringum sig og pikkar á felufélaga á leiðinni. Hver þeirra fer í landkönnuðabókina. Ekkert af því er nauðsynlegt.
 

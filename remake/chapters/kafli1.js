@@ -434,7 +434,10 @@ function* onThePath(s, c) {
     critters.scare([bx, c.world.heightAt(bx, bz), bz], RIDE_BIRDS_UP.reach);
   });
   const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
-  s.after(2, () => speak(s, c, 'k1_mosi_visit'));
+  // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one so a remark about a
+  // critter tapped early waits for both. He must be done before the camera shows the first critter, the beetle in rideFeet. That cut
+  // is timed to his front foot reaching the beetle, so it is the start of the two lines that gives way (tests/kafli1.test.mjs checks it).
+  s.after(1, () => speak(s, c, 'k1_mosi_visit', 'k1_mosi_critters'));
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
@@ -652,12 +655,15 @@ function* tapOrWait(s, name, idle) {
   }
 }
 
-/** A line of Mosi's on the ride: the critters' remarks wait for it and it waits for them. */
-function* speak(s, c, line) {
+/**
+ * A line of Mosi's on the ride, or several one right after the other: the critters' remarks wait for the last of them
+ * and it waits for them. (Said together they keep the one claim on his voice, so no remark gets in between.)
+ */
+function* speak(s, c, ...lines) {
   yield s.until(() => !c.talking);
   c.talking = true;
   try {
-    yield s.say('mosi', line);
+    for (const line of lines) yield s.say('mosi', line);
   } finally {
     c.talking = false;
   }
@@ -858,6 +864,7 @@ export const chapter = {
     k1_egill_wow: { text: 'Vá! Ég sé yfir allt!', audio: 'k1_egill_wow' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },
+    k1_mosi_critters: { text: 'Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.', audio: 'k1_mosi_critters' },
     k1_mosi_beetle: { text: 'Sjáðu, bjalla! Halló, litla vinkona!', audio: 'k1_mosi_beetle' },
     k1_mosi_frog: { text: 'Froskur! Hann hoppar hærra en ég!', audio: 'k1_mosi_frog' },
     k1_mosi_snail: { text: 'Snigill. Hann er ekkert að flýta sér.', audio: 'k1_mosi_snail' },
