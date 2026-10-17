@@ -251,19 +251,29 @@ hidden. t is where a capture (`?t=`) shows the frame.
 |---|---|---|---|---|---|---|
 | 1 | the clearing, waiting, three shafts | 19.5 | 3.46 / 5.38 | 39 | 153,574 | 124,971 |
 | 2 | Mosi walks in (track) | 36 | 3.34 / 5.60 | 38 | 168,459 | 111,851 |
-| 3 | the sneeze, pollen 0.4 s on | 66 | 3.31 / 5.12 | 41 | 177,073 | 118,106 |
-| 4 | Mosi close, a butterfly on his horn | 79.0 | 3.08 / 4.17 | 38 | 170,240 | 110,959 |
-| 5 | Egill floats up | 122.5 | 3.46 / 5.27 | 44 | 171,674 | 114,502 |
+| 3 | the sneeze, pollen 0.4 s on | 66 | 3.31 / 5.12 | 40 | 177,070 | 118,106 |
+| 4 | Mosi close, a butterfly on his horn | 79.0 | 3.08 / 4.17 | 38 | 170,246 | 110,959 |
+| 5 | Egill floats up | 122.5 | 3.46 / 5.27 | 44 | 171,719 | 114,502 |
 | 6 | rideWide, birds flying up | 137.4 | 3.39 / 4.87 | 60 | 178,955 | 130,079 |
-| 6 | rideFeet, the footprints | 153.5 | 3.29 / 5.10 | 55 | 182,284 | 120,259 |
-| 7 | the glade, four shafts | 186.0 | 3.73 / 5.70 | 55 | 213,280 | 126,942 |
-| 7 | Kambeðla close (overEgill) | 204.0 | 3.80 / 5.91 | 44 | 219,859 | 102,999 |
-| 8 | the search, a glow flower | 224.5 | 3.58 / 5.36 | 45 | 220,362 | 123,613 |
-| 9 | feeding, the posy in his hands | 248.5 | 4.10 / 5.94 | 51 | 210,295 | 107,279 |
-| 10 | the invitation | 278.4 | 4.05 / 6.01 | 57 | 213,830 | 136,829 |
+| 6 | rideFeet, the footprints | 153.5 | 3.29 / 5.10 | 55 | 182,287 | 120,259 |
+| 7 | the glade, four shafts | 186.0 | 3.73 / 5.70 | 56 | 214,446 | 126,942 |
+| 7 | Kambeðla close (overEgill) | 204.0 | 3.80 / 5.91 | 44 | 221,415 | 102,999 |
+| 8 | the search, a glow flower | 224.5 | 3.58 / 5.36 | 45 | 221,918 | 123,613 |
+| 9 | feeding, the posy in his hands | 248.5 | 4.10 / 5.94 | 51 | 211,851 | 107,279 |
+| 10 | the invitation | 278.4 | 4.05 / 6.01 | 57 | 214,990 | 136,829 |
 
-Textures are 36.6 MB in every frame. The glade's two-shots have no headroom on a warm laptop. What each part adds, from the
-same pairs (the frame with it against the frame without it, the mean of three page loads unless it says one):
+Re-measured after the sun got its hands and Egill his hop (2026-10-17): the frames land at the same t, since the capture's
+timeline is what it was, and the calls and triangles above are this round's. Kambeðla's mouth pass adds 1,556 triangles where
+she is near (1,160 at her half detail), the sun's overlay 1 call and 6 triangles wherever its bounding sphere, which takes in
+the hands, reaches into the frame (the glade's arrival looks toward the sun), and an eyelid shell 1 call while its lids close
+(Egill's 351 triangles, mid-blink at 186.0); a few
+triangles more or less elsewhere are not traced. GPU in this round, on a warm laptop: 3.21 to 4.98 ms, each frame between its
+quiet and warm figures, the worst single pair 6.00 ms (the search).
+
+Textures are 37.6 MB in every frame: the characters' six maps 31.9, the environment map 3.0, the sun's face 1.0 (three frames)
+and the sheet of its mouths and hands 0.7, the Mosi cloud 0.7, the sky's noise 0.3. The glade's two-shots have no headroom on a
+warm laptop. What each part adds, from the same pairs (the frame with it against the frame without it, the mean of three page
+loads unless it says one):
 
 - three light shafts in the clearing: +0.46 ms, 2 calls (the shafts and their motes); four in the glade: +0.26 ms, 2 calls
   (+0.30 ms in the invitation, one load);
@@ -342,7 +352,7 @@ node remake/tools/bake/bake-character.mjs --page bake-biped --out <name>.glb --q
 `bake-biped` stands the model at the origin facing +X, tells the parts apart by position (head,
 torso, hips, upper arms, forearms with hands, legs, feet), places 20 humanoid joints from the seams
 between parts, gives every vertex smooth weights that agree on both sides of each seam, and authors
-the clips in code (`biped-clips.js`: idle, walk, wave, waveLeft, point, sit, lifted). Rest
+the clips in code (`biped-clips.js`: idle, walk, wave, waveLeft, point, sit, lifted, hop). Rest
 rotations are identity, so a clip turns bones about the character's own axes (X forward, Y up,
 Z right). A child's arms are short against his head: a raised hand reads by staying out to the
 side, and past about 165 degrees from hanging the forearm folds over the head.
@@ -356,7 +366,10 @@ swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a bipe
 Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
 and the hips sink when a leg could not reach it otherwise. A step footing takes itself is over its
 spot a fifth of its time before it lands, so it comes straight down. A clip that leaves the legs at
-rest (idle, wave, point) keeps the feet where they stand. Footing's distances and times are tuned
+rest (idle, wave, point) keeps the feet where they stand. The hop (`HOP`, 1.15 s, played once) is
+authored from the feet too: they stay on their spots while the hips sink 65 mm and spring 0.30 m,
+draw up a little in the air and land where they were, and it starts and ends in idle's first pose;
+a clip that moves the legs, as it does, has them until the next walk or turn. Footing's distances and times are tuned
 per body plan (`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's
 legs, measured from the skeleton in the bind pose: lengths in proportion, times by the square root.
 A character re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its
