@@ -34,8 +34,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   the browser and in memory when storage fails (`save.js`); the saddle that pops onto Mosi's back,
   Egill's float up into it and down again, and riding (`riding.js`); short-lived things on the game
   clock, such as a burst of sparkles (`effects.js`, updated after the actors); Kambeðla's plates
-  lighting row by row (`plate-glow.js`); the smiling sun and the cloud shaped like Mosi
-  (`sun-face.js`); the beat clock, the theme's tempo as a pure function of the music's time
+  lighting row by row (`plate-glow.js`); the smiling sun, which blinks, changes its mouth and waves or hugs itself
+  with two cartoon hands, and the cloud shaped like Mosi (`sun-face.js`); the beat clock, the theme's tempo as a pure function of the music's time
   (`beat.js`: `followBeat`, the beat count the forest's waves and the flowers' nod and the mushrooms'
   hop ride, which follows the music's grid without jumping when the playhead jumps); the warm-up draw
   that builds every shader behind the black before it is seen (`warm-up.js`); and a guard that keeps
@@ -133,6 +133,7 @@ clock, so pausing, seeking and cancelling work:
 | `s.drag(items, target, { radius, idle })` | a tray item (an id, or any of a list of ids) let go within `radius` px of the target on the screen: one id resolves `'dropped'`, or `'idle'` after `idle` s, when it leaves the tray; a list resolves `{ id, how }`, the item dropped or after `idle` s the first on the list (seeking: the first, after 2 s) |
 | `s.star(id, from)` | the star rising from a point, tapped or left 8 s (seeking 1.5 s), and its flight into the journal |
 | `s.found(id)`, `s.tray.show/hide`, `s.journal.open/close`, `s.sun.wink()` | nothing: an animal into the journal, the tray, the journal's page (which does not pause the game), the sun's wink |
+| `s.sun.wave()`, `s.sun.hug()`, `s.sun.mouth(shape, seconds)` | the sun's gesture, which starts at once: one hand up beside the face, four swings and down (2.3 s); both hands across the front of the disc, two squeezes and a grin (2.4 s); the mouth `'grin'` or `'oh'` until the smile is back after `seconds` (1.5 by default), or `'smile'` at once. A gesture asked for while another goes on begins when that one is over, and a newer mouth cuts an older one short. Between them the sun smiles and blinks by itself every 3 to 6 s |
 | `s.sfx(name)` | nothing: forest (a quiet loop, once), step, frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float, each at least a short gap after the last of its name (flower 0.15 s, butterfly 0.25 s, critters 0.4 to 0.5 s) and at most 48 at once; silent while seeking |
 
 The director warns in the console when a move breaks the STYLE.md speed limits or a shot is cut

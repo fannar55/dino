@@ -450,9 +450,18 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       open: () => { needJournal('s.journal.open'); journal.open(); return DONE; },
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
     },
-    /** The smiling sun: `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go on over it. */
+    /**
+     * The smiling sun (engine/sun-face.js). `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go
+     * on over it. `wave()` (one hand up, four swings, down: 2.3 s), `hug()` (both hands across the front, two squeezes, a grin:
+     * 2.4 s) and `mouth('smile' | 'grin' | 'oh', seconds)` (the smile again after `seconds`, 1.5 by default) start at once too and
+     * return a handle, done when the gesture is over or the smile is back: yield it to wait. A gesture asked for while another
+     * goes on begins when that one is over. Between the calls the sun smiles and blinks by itself.
+     */
     sun: {
       wink: () => { needSun('s.sun.wink'); sun.wink(); return DONE; },
+      wave: () => { needSun('s.sun.wave'); return sun.wave(); },
+      hug: () => { needSun('s.sun.hug'); return sun.hug(); },
+      mouth: (shape, seconds) => { needSun('s.sun.mouth'); return seconds === undefined ? sun.mouth(shape) : sun.mouth(shape, seconds); },
     },
     /** The tray along the edge of the screen: `show([{ id, icon }])` fills it, `hide()` puts it away. */
     tray: {

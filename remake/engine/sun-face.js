@@ -1,22 +1,31 @@
 import * as THREE from 'three';
 import { pickLook } from './looks.js';
 import { seededRandom } from './random.js';
+import { Handle } from './handle.js';
 
 // The smiling sun (spec: "Brosandi sól") and the cloud shaped like Mosi (spec: "Ský"). Both are painted
-// on small canvases at start-up and hang in the sky as camera-facing sprites 600 m out, just beyond the
-// sky dome, always in the same direction from the camera, as the sky itself is. Neither is fogged (at
-// 600 m the height fog would erase them), and each draws in one call.
+// on small canvases at start-up and hang in the sky 600 m out, just beyond the sky dome, always in the same
+// direction from the camera, as the sky itself is. Neither is fogged (at 600 m the height fog would erase
+// them). The cloud is one camera-facing sprite; the sun is two draws: its face, a sprite whose frames are
+// the eyes (open, half shut, shut), and over it one small mesh flat to the screen with its mouth and its two
+// cartoon hands (the owner asked for them after the first test play, 2026-10-17).
+//
+// The sun has a personality: it blinks now and then by itself, its mouth smiles, grins or says "o", and its
+// hands rest at the sides of the disc, wave hello or hug the sun itself, as a script asks (s.sun.wink, wave,
+// hug and mouth in scene/scene.js).
 //
 // Everything that moves is a pure function of the game clock: main.js hands `update(t, camera)` the
-// clock's time, so a pause holds the picture and a `?t=` capture lands on the same frame as playing.
-// There is no canvas in Node: without a page the sprites have no texture, and the tests hand in their
-// own stand-in to see which frame of the face is showing.
+// clock's time, so a pause holds the picture and a `?t=` capture lands on the same frame as playing. What a
+// script asks for begins on the next update, at that update's time, and from there the picture at any time is
+// worked out from the calls and the time alone, not from the frames in between. There is no canvas in Node:
+// without a page the face and its sheet have no texture, and the tests hand in their own stand-ins.
 
 const rad = THREE.MathUtils.degToRad;
 const deg = THREE.MathUtils.radToDeg;
 const { lerp, clamp } = THREE.MathUtils;
 const TAU = Math.PI * 2;
 const ORIGIN = new THREE.Vector3();
+const smoother = s => s * s * s * (10 + s * (6 * s - 15)); // eased at both ends, with no speed and no acceleration there
 
 export const SUN_DISTANCE = 600; // metres from the camera; engine/points.js uses it for the 'sun' point
 export const WINK_SECONDS = 0.35;
@@ -24,6 +33,22 @@ export const WINK_SECONDS = 0.35;
 // little slower, as a blink opens slower than it shuts (eyelids.js).
 const HALF_DOWN = 0.06; // seconds of the half-shut face at the start of a wink
 const HALF_UP = 0.09; // and at its end
+// Idle blinks: quicker than the wink, through the same half-shut face, every 3 to 6 s on a seeded schedule of the clock's time.
+// None begins during a wink or just after one.
+export const BLINK_SECONDS = 0.2;
+const BLINK_HALF_DOWN = 0.05;
+const BLINK_HALF_UP = 0.07;
+export const BLINK_EVERY = [3, 6]; // seconds from one blink to the next
+const BLINK_CLEAR = 0.4; // seconds after a wink in which no blink begins
+// The mouth: a smile, the default, a big grin or a surprised "o". Each change passes through a little open in-between mouth
+// for a frame or two, so no shape pops into another.
+export const MOUTHS = ['smile', 'grin', 'oh'];
+export const MOUTH_SECONDS = 1.5; // how long mouth() holds a grin or an "o" before the smile comes back, unless it is told
+export const MOUTH_BETWEEN = 0.08; // seconds of the in-between
+// The hands: mittens in the face's gold and ink, each a square HAND_SIZE of the disc's radius across.
+export const HAND_SIZE = 0.72;
+export const WAVE_SECONDS = 2.3; // up beside the face, four swings, and down
+export const HUG_SECONDS = 2.4; // in across the front, two squeezes, and out
 export const CLOUD_OFFSET_DEG = 35; // the Mosi cloud hangs this far to the left of the sun, at its height
 export const CLOUD_DRIFT_DEG_PER_MIN = 0.5; // and drifts to the right, toward the sun, as the sky's clouds do
 
@@ -36,6 +61,14 @@ const FRAMES = 3; // the face's strip: open eyes, half shut, shut
 const FRAME_OF = { open: 0, half: 1, shut: 2 };
 const FRAME = 256; // px a frame
 const DISC_OF_FRAME = 0.9; // the painted disc's radius as a part of half a frame; the rest is clear margin
+const R_PX = (FRAME / 2) * DISC_OF_FRAME; // the disc's radius in px: in the face's frames, and for the mouths on the sheet
+// The sheet the overlay draws from: the mouths along the top, each the part of the face below its middle, painted at the face's
+// own scale with the cell's top edge through the middle of the face; the hand below them, fingers up, its wrist near the bottom.
+const SHEET = [512, 256]; // px
+const MOUTH_CELL = [128, 96]; // px
+const MOUTH_AT = { smile: 0, mid: 128, grin: 256, oh: 384 }; // each mouth's cell, from the left, on the top row
+const HAND_CELL = [0, 112, 128]; // x, y and size in px
+const HAND_PIVOT = [0.03, -0.28]; // the wrist, in the hand's square from its middle (x right, y up, a side being 1)
 const CLOUD_WIDTH_DEG = 16;
 const CLOUD_SIZE = [512, 256]; // px
 
@@ -61,10 +94,10 @@ function softDisc(g, x, y, r, colour, alpha = 1, feather = 3) {
 
 const PAINT = { rim: '#f7bb3d', mid: '#ffdf78', core: '#fff3cd', ink: '#9b5424', cheek: '#f48a5c', glint: '#fff7de' };
 
-/** One frame of the face, in a square of FRAME px with the sun's centre in the middle; `eyes` is 'open', 'half' or 'shut'. */
+/** One frame of the face without its mouth, in a square of FRAME px with the sun's centre in the middle; `eyes` is 'open', 'half' or 'shut'. */
 function paintSun(g, eyes) {
   const c = FRAME / 2;
-  const R = c * DISC_OF_FRAME;
+  const R = R_PX;
 
   const disc = g.createRadialGradient(c, c, 0, c, c, R + 2);
   disc.addColorStop(0, PAINT.core);
@@ -115,13 +148,91 @@ function paintSun(g, eyes) {
       softDisc(g, x + 0.03 * R, y - 0.06 * R, 0.04 * R, PAINT.glint, 0.95, 1);
     }
   }
+}
 
-  // A closed, kind smile.
-  g.lineWidth = 0.065 * R;
-  g.beginPath();
-  g.moveTo(c - 0.3 * R, c + 0.3 * R);
-  g.quadraticCurveTo(c, c + 0.6 * R, c + 0.3 * R, c + 0.3 * R);
+/**
+ * A mouth, with the face's centre at (c, cy) and its disc R px in radius: 'smile' (closed and kind, as the face always had),
+ * 'mid' (a little open smile, the in-between), 'grin' (wide open, a tongue in the cheeks' colour) or 'oh' (a small round "o").
+ */
+function paintMouth(g, c, cy, R, shape) {
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.strokeStyle = PAINT.ink;
+  g.fillStyle = PAINT.ink;
+  if (shape === 'smile') {
+    g.lineWidth = 0.065 * R;
+    g.beginPath();
+    g.moveTo(c - 0.3 * R, cy + 0.3 * R);
+    g.quadraticCurveTo(c, cy + 0.6 * R, c + 0.3 * R, cy + 0.3 * R);
+    g.stroke();
+    return;
+  }
+  if (shape === 'oh') {
+    g.lineWidth = 0.05 * R;
+    g.beginPath();
+    g.ellipse(c, cy + 0.47 * R, 0.11 * R, 0.14 * R, 0, 0, TAU);
+    g.fill();
+    g.stroke();
+    return;
+  }
+  // An open smile: a top edge that sags a little and a deep lower lip.
+  const [half, top, sag, bottom, line] = shape === 'grin' ? [0.36, 0.25, 0.33, 0.9, 0.055] : [0.24, 0.31, 0.37, 0.66, 0.05];
+  const outline = () => {
+    g.beginPath();
+    g.moveTo(c - half * R, cy + top * R);
+    g.quadraticCurveTo(c, cy + sag * R, c + half * R, cy + top * R);
+    g.quadraticCurveTo(c, cy + bottom * R, c - half * R, cy + top * R);
+    g.closePath();
+  };
+  outline();
+  g.fill();
+  if (shape === 'grin') {
+    g.save();
+    outline();
+    g.clip();
+    softDisc(g, c, cy + 0.66 * R, 0.2 * R, PAINT.cheek, 1, 0.05 * R);
+    g.restore();
+  }
+  g.strokeStyle = PAINT.ink;
+  g.lineWidth = line * R;
+  outline();
   g.stroke();
+}
+
+/**
+ * The hand, fingers up, in a square of `size` px at (x, y): a mitten in the disc's gold with the ink of the face's strokes round
+ * it (both shapes stroked twice as wide and filled over, so the outline goes round the thumb and the palm as one), two short
+ * lines parting the fingers and a glint. The thumb is on the left: a right hand, palm out, as the screen-right hand is.
+ */
+function paintHand(g, x, y, size) {
+  const S = size;
+  const R = S / HAND_SIZE; // px to the disc's radius
+  const line = 0.05 * R; // as heavy as the face's strokes
+  const shapes = [[0.53, 0.5, 0.255, 0.3, 0], [0.255, 0.585, 0.085, 0.155, -0.55]]; // palm and thumb: centre, radii, turn
+  const shape = ([cx, cy, rx, ry, turn]) => {
+    g.beginPath();
+    g.ellipse(x + cx * S, y + cy * S, rx * S, ry * S, turn, 0, TAU);
+  };
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  g.strokeStyle = PAINT.ink;
+  g.lineWidth = 2 * line;
+  for (const s of shapes) { shape(s); g.stroke(); }
+  const gold = g.createRadialGradient(x + 0.47 * S, y + 0.42 * S, 0, x + 0.5 * S, y + 0.5 * S, 0.36 * S);
+  gold.addColorStop(0, PAINT.core);
+  gold.addColorStop(0.45, PAINT.mid);
+  gold.addColorStop(1, PAINT.rim);
+  g.fillStyle = gold;
+  for (const s of shapes) { shape(s); g.fill(); }
+  g.strokeStyle = PAINT.ink;
+  g.lineWidth = 0.6 * line;
+  for (const fx of [0.45, 0.61]) {
+    g.beginPath();
+    g.moveTo(x + fx * S, y + 0.215 * S);
+    g.lineTo(x + fx * S, y + 0.36 * S);
+    g.stroke();
+  }
+  softDisc(g, x + 0.63 * S, y + 0.33 * S, 0.045 * S, PAINT.glint, 0.85, 1.5);
 }
 
 /** The face as a strip of frames, from the left: open eyes, half shut, shut. Null where there is no page. */
@@ -142,17 +253,125 @@ function drawSunFrames() {
   return texture;
 }
 
+/** The overlay's sheet: the four mouths along the top, the hand below. Null where there is no page. */
+function drawSunSheet() {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  [canvas.width, canvas.height] = SHEET;
+  const g = canvas.getContext('2d');
+  for (const [shape, x] of Object.entries(MOUTH_AT)) paintMouth(g, x + MOUTH_CELL[0] / 2, 0, R_PX, shape);
+  paintHand(g, ...HAND_CELL);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// ---------------------------------------------------------------------------------------------
+// What the face does, as functions of time. Poses are in the face's own units: x right and y up from its centre, in the disc's
+// radius; a hand's angle is where its fingers point, in degrees clockwise from straight up. Side -1 is the hand on the screen's
+// left (the sun's own right), side 1 the one on its right.
+
+const REST = { x: 0.99, y: -0.42, angle: 128, bob: 3.1 }; // at the disc's sides, fingers out and down; a gentle bob of `bob` s
+/** A hand at rest at time t, breathing a little. */
+function restHand(side, t, out) {
+  const phase = TAU * (t / REST.bob) + (side < 0 ? 1.3 : 0);
+  out.x = side * REST.x;
+  out.y = REST.y + 0.02 * Math.sin(phase);
+  out.angle = side * (REST.angle + 4 * Math.sin(phase + 0.7));
+  return out;
+}
+const mixPose = (a, b, k, out) => {
+  out.x = lerp(a.x, b.x, k);
+  out.y = lerp(a.y, b.y, k);
+  out.angle = lerp(a.angle, b.angle, k);
+  return out;
+};
+
+// The wave: the screen-left hand (toward the middle of the frame in the dawn shot) rises beside the face, swings four times
+// about the wrist, and comes back down. The swings grow in as the hand comes up and die away as it goes down, so nothing jerks.
+const WAVE = { raise: 0.35, lower: 0.35, swings: 4, up: { x: -1.1, y: 0.3, angle: -14 }, swing: 26, grow: 0.3 };
+const WAVE_RATE = WAVE.swings / (WAVE_SECONDS - WAVE.raise - WAVE.lower); // swings a second
+function waveHand(u, rest, out) {
+  const down = WAVE_SECONDS - WAVE.lower;
+  if (u < WAVE.raise) mixPose(rest, WAVE.up, smoother(u / WAVE.raise), out);
+  else if (u >= down) mixPose(WAVE.up, rest, smoother(clamp((u - down) / WAVE.lower, 0, 1)), out);
+  else Object.assign(out, WAVE.up);
+  const grown = smoother(clamp((u - WAVE.raise + WAVE.grow) / WAVE.grow, 0, 1)) * smoother(clamp((down + WAVE.grow - u) / WAVE.grow, 0, 1));
+  const s = TAU * WAVE_RATE * (u - WAVE.raise);
+  out.x -= 0.04 * grown * Math.sin(s); // the wrist goes a little with each swing
+  out.y += 0.02 * grown * Math.sin(2 * s);
+  out.angle -= WAVE.swing * grown * Math.sin(s);
+  return out;
+}
+
+// The hug: both hands sweep down and in across the front of the disc, low, under the grin, and cross, each pointing up and out
+// on the other side; there they squeeze twice, the face pressed a little wider and lower each time, and they sweep back out.
+const HUG = { in: 0.45, out: 0.5, dip: 0.12, squeeze: 0.04, grin: [0.15, HUG_SECONDS - 0.1] };
+// Where each hand ends up: 298 degrees is 62 degrees left of up, reached by turning clockwise, down and round, from the rest.
+const crossed = side => ({ x: -side * 0.07, y: side < 0 ? -0.9 : -0.87, angle: side * 298 });
+/** How hard the hug squeezes at u s into it, 0 to 1: two soft pulses while the hands are crossed. */
+function squeezeOf(u) {
+  const hold = HUG_SECONDS - HUG.in - HUG.out;
+  if (u <= HUG.in || u >= HUG.in + hold) return 0;
+  return Math.sin((TAU * (u - HUG.in)) / hold) ** 2;
+}
+function hugHand(side, u, rest, out) {
+  const goal = crossed(side);
+  if (u < HUG.in || u >= HUG_SECONDS - HUG.out) {
+    const k = u < HUG.in ? smoother(u / HUG.in) : 1 - smoother(clamp((u - (HUG_SECONDS - HUG.out)) / HUG.out, 0, 1));
+    mixPose(rest, goal, k, out);
+    out.y -= HUG.dip * Math.sin(Math.PI * k); // down under on the way in and out
+    return out;
+  }
+  const p = squeezeOf(u);
+  out.x = goal.x * (1 - 0.6 * p); // pressed together
+  out.y = goal.y + 0.03 * p;
+  out.angle = goal.angle + side * 8 * p;
+  return out;
+}
+
+/** The blinks' start times on the clock: seeded, so the same every time, and worked out as far as asked for. */
+function blinkSchedule(seed = 'sun') {
+  const random = seededRandom(seed);
+  const gap = () => BLINK_EVERY[0] + (BLINK_EVERY[1] - BLINK_EVERY[0]) * random();
+  const starts = [gap()];
+  /** The latest start at or before t, or -Infinity. */
+  return t => {
+    while (starts.at(-1) <= t) starts.push(starts.at(-1) + gap());
+    if (starts[0] > t) return -Infinity;
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= t) lo = mid;
+      else hi = mid - 1;
+    }
+    return starts[lo];
+  };
+}
+
 /**
- * The sun's face: a sprite along `lighting.direction`, 600 m from the camera, over the sky's own sun disc.
- *   sprite       the THREE.Sprite, in `scene`
+ * The sun's face: a sprite along `lighting.direction`, 600 m from the camera, over the sky's own sun disc, and the overlay with its
+ * mouth and hands.
+ *   sprite       the face, a THREE.Sprite in `scene`
+ *   overlay      the mouth and the two hands, one THREE.Mesh of three quads flat to the screen, drawn over the face
  *   wink()       shuts the eyes for 0.35 s of game time, counted from the next update: half shut, shut, half shut
+ *   wave()       the screen-left hand rises, waves four times and comes down (WAVE_SECONDS)
+ *   hug()        both hands cross over the front of the disc and squeeze twice, the face grinning (HUG_SECONDS)
+ *   mouth(shape, seconds = MOUTH_SECONDS)  'grin' or 'oh' for that long, then the smile again; 'smile' at once
+ *     wave, hug and mouth each return a Handle, done when the gesture is over or the smile is back (a mouth that a later
+ *     mouth call cuts short ends cancelled). A gesture asked for while another goes on begins when that one is over.
  *   update(t, camera)  t is the game clock in seconds; call it after the camera has moved
- *   eyes         'open', 'half' or 'shut': which frame of the face shows
- *   eyesClosed   whether a wink shows (the half-shut frames too)
- *   radiusDeg    the painted disc's angular radius, as seen from the camera
- * `texture` is the strip of FRAMES frames; the page draws it, a test can pass its own.
+ *   eyes         'open', 'half' or 'shut': which frame of the face shows (a wink or a blink)
+ *   eyesClosed   whether a wink or a blink shows
+ *   mouthFrame   the mouth showing: 'smile', 'mid' (the in-between), 'grin' or 'oh'
+ *   hands        [screen-left, screen-right], each { x, y, angle }: the wrist in the disc's radius from its centre, and degrees
+ *   handPoints   the middle of each hand in the world, in the same order
+ *   squash       { x, y }: how the hug presses the face, 1 at rest
+ *   radiusDeg    the painted disc's angular radius at rest, as seen from the camera
+ * `texture` is the strip of FRAMES frames and `sheet` the overlay's; the page paints them, a test can pass its own (or null).
  */
-export function createSunFace({ scene, lighting, texture = drawSunFrames() }) {
+export function createSunFace({ scene, lighting, texture = drawSunFrames(), sheet = drawSunSheet() }) {
   const direction = lighting.direction.clone().normalize();
   const material = new THREE.SpriteMaterial({
     map: texture, transparent: true, depthWrite: false, fog: false, toneMapped: false,
@@ -160,33 +379,216 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames() }) {
   const sprite = new THREE.Sprite(material);
   sprite.name = 'SunFace';
   sprite.renderOrder = -2; // the farthest thing there is: before everything else that blends
-  sprite.scale.setScalar((2 * SUN_DISTANCE * Math.tan(rad(SUN_RADIUS_DEG))) / DISC_OF_FRAME);
+  const size = (2 * SUN_DISTANCE * Math.tan(rad(SUN_RADIUS_DEG))) / DISC_OF_FRAME;
+  sprite.scale.setScalar(size);
   scene.add(sprite);
   texture?.repeat.set(1 / FRAMES, 1);
-  const hang = origin => sprite.position.copy(origin).addScaledVector(direction, SUN_DISTANCE);
+
+  // The overlay: three quads, the mouth and then the hands, so the hands cross over the mouth's part of the face. Their corners are
+  // worked out on the CPU each update, along the camera's own right and up as the sprite's are, around the face's centre.
+  const R = SUN_DISTANCE * Math.tan(rad(SUN_RADIUS_DEG)); // the disc's radius in metres
+  const geometry = new THREE.BufferGeometry();
+  const corners = new THREE.BufferAttribute(new Float32Array(12 * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const uvs = new THREE.BufferAttribute(new Float32Array(12 * 2), 2).setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('position', corners);
+  geometry.setAttribute('uv', uvs);
+  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11]);
+  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2.4 * R); // wherever the hands go
+  const overlay = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+    map: sheet, transparent: true, depthWrite: false, fog: false, toneMapped: false,
+  }));
+  overlay.name = 'SunHandsAndMouth';
+  overlay.renderOrder = -1.5; // over the face, under the cloud
+  scene.add(overlay);
+  // A rectangle of the sheet, in px from its top left, as the uvs of a quad's corners (bottom left, bottom right, top right, top
+  // left); `mirror` flips it left to right (the screen-left hand is the right one mirrored).
+  const setCell = (quad, [x, y, w, h], mirror = false) => {
+    const [u0, u1] = mirror ? [(x + w) / SHEET[0], x / SHEET[0]] : [x / SHEET[0], (x + w) / SHEET[0]];
+    const top = 1 - y / SHEET[1];
+    const bottom = 1 - (y + h) / SHEET[1];
+    [[u0, bottom], [u1, bottom], [u1, top], [u0, top]].forEach(([u, v], k) => uvs.setXY(quad * 4 + k, u, v));
+    uvs.needsUpdate = true;
+  };
+  const handCell = [HAND_CELL[0], HAND_CELL[1], HAND_CELL[2], HAND_CELL[2]];
+  setCell(1, handCell, true);
+  setCell(2, handCell);
+
+  const hang = origin => {
+    sprite.position.copy(origin).addScaledVector(direction, SUN_DISTANCE);
+    overlay.position.copy(sprite.position);
+  };
   hang(ORIGIN); // until the first update, as seen from the world's origin: never a giant face on the camera
 
-  let winkPending = false;
+  // What scripts have asked for. Calls wait for the next update and begin at its time.
+  const pending = [];
   let winkStart = -Infinity;
-  let eyes = 'open';
+  const gestures = []; // { kind, start, end, handle }, in order, never overlapping
+  const changes = []; // the mouth's changes: { at, shape }, in order
+  const mouths = []; // mouth() calls still under way: { handle, doneAt }
+  const blinkBefore = blinkSchedule();
+  let lastT = -Infinity;
+  let shownMouth = null;
+
+  const state = {
+    eyes: 'open', mouth: 'smile', squash: { x: 1, y: 1 },
+    hands: [{ x: 0, y: 0, angle: 0 }, { x: 0, y: 0, angle: 0 }],
+    points: [new THREE.Vector3(), new THREE.Vector3()],
+  };
+  const rest = [{ x: 0, y: 0, angle: 0 }, { x: 0, y: 0, angle: 0 }];
+
+  function eyesAt(t) {
+    const into = t - winkStart;
+    if (into >= 0 && into < WINK_SECONDS) return into < HALF_DOWN || into >= WINK_SECONDS - HALF_UP ? 'half' : 'shut';
+    const start = blinkBefore(t);
+    const blink = t - start;
+    if (!(blink < BLINK_SECONDS)) return 'open';
+    if (start >= winkStart && start < winkStart + WINK_SECONDS + BLINK_CLEAR) return 'open'; // no blink in a wink, or just after
+    return blink < BLINK_HALF_DOWN || blink >= BLINK_SECONDS - BLINK_HALF_UP ? 'half' : 'shut';
+  }
+
+  function mouthAt(t) {
+    let i = changes.length - 1;
+    while (i >= 0 && changes[i].at > t) i--;
+    if (i < 0) return 'smile';
+    const before = i > 0 ? changes[i - 1].shape : 'smile';
+    return changes[i].shape !== before && t - changes[i].at < MOUTH_BETWEEN ? 'mid' : changes[i].shape;
+  }
+
+  /** From `at` on the mouth goes through `steps` ([time, shape]) instead of what was planned; a mouth() call under way ends. */
+  function plan(at, steps) {
+    while (changes.length && changes.at(-1).at >= at) changes.pop();
+    changes.push(...steps.map(([when, shape]) => ({ at: when, shape })));
+    for (const m of mouths.splice(0)) m.handle.cancel();
+  }
+
+  function begin(call, t) {
+    if (call.kind === 'wink') {
+      winkStart = t;
+    } else if (call.kind === 'mouth') {
+      const was = mouthAt(t);
+      if (call.shape === 'smile') plan(t, [[t, 'smile']]);
+      else plan(t, [[t, call.shape], [t + call.seconds, 'smile']]);
+      // Done once the smile is back: at once for a smile that was there already, else after the in-between.
+      const doneAt = call.shape === 'smile' && was === 'smile' ? t : changes.at(-1).at + MOUTH_BETWEEN;
+      mouths.push({ handle: call.handle, doneAt });
+    } else {
+      // A gesture begins now, or when the ones under way or waiting are over.
+      const last = gestures.at(-1);
+      const start = last && last.end > t ? last.end : t;
+      gestures.push({ kind: call.kind, start, end: start + (call.kind === 'wave' ? WAVE_SECONDS : HUG_SECONDS), handle: call.handle });
+      if (call.kind === 'hug') {
+        const keep = mouths.splice(0); // the hug's grin is its own: it does not end a mouth() call under way
+        plan(start + HUG.grin[0], [[start + HUG.grin[0], 'grin'], [start + HUG.grin[1], 'smile']]);
+        mouths.push(...keep);
+      }
+    }
+  }
+
+  /** Forget what had not begun by t: the clock went back, a seek that starts over, and the script will ask again. */
+  function rewind(t) {
+    if (winkStart > t) winkStart = -Infinity;
+    while (gestures.length && gestures.at(-1).start > t) gestures.pop().handle.cancel();
+    while (changes.length && changes.at(-1).at > t) changes.pop();
+    for (const m of mouths.splice(0)) m.handle.cancel();
+  }
+
+  function handsAt(t) {
+    restHand(-1, t, rest[0]);
+    restHand(1, t, rest[1]);
+    const g = gestures.find(x => x.start <= t && t < x.end);
+    const [left, right] = state.hands;
+    state.squash.x = 1;
+    state.squash.y = 1;
+    if (g?.kind === 'wave') {
+      waveHand(t - g.start, rest[0], left);
+      Object.assign(right, rest[1]);
+    } else if (g?.kind === 'hug') {
+      hugHand(-1, t - g.start, rest[0], left);
+      hugHand(1, t - g.start, rest[1], right);
+      const p = squeezeOf(t - g.start);
+      state.squash.x = 1 + HUG.squeeze * p;
+      state.squash.y = 1 - HUG.squeeze * p;
+    } else {
+      Object.assign(left, rest[0]);
+      Object.assign(right, rest[1]);
+    }
+  }
+
+  const right = new THREE.Vector3();
+  const up = new THREE.Vector3();
+  const turn = new THREE.Quaternion();
+  const put = (i, x, y) => corners.setXYZ(i, (right.x * x + up.x * y) * R, (right.y * x + up.y * y) * R, (right.z * x + up.z * y) * R);
+  const CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
+
+  /** The overlay's corners along the camera's right and up, around the face's centre, and where the hands are in the world. */
+  function lay(camera) {
+    camera.getWorldQuaternion(turn);
+    right.set(1, 0, 0).applyQuaternion(turn);
+    up.set(0, 1, 0).applyQuaternion(turn);
+    // The mouth, on the face and pressed with it: its cell's top edge through the face's middle.
+    const w = (MOUTH_CELL[0] / R_PX / 2) * state.squash.x;
+    const h = (MOUTH_CELL[1] / R_PX) * state.squash.y;
+    put(0, -w, -h);
+    put(1, w, -h);
+    put(2, w, 0);
+    put(3, -w, 0);
+    // The hands: each square turned about its wrist.
+    state.hands.forEach((hand, k) => {
+      const px = (k === 0 ? -1 : 1) * HAND_PIVOT[0];
+      const a = rad(hand.angle);
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      const ax = (cx, cy) => hand.x + (cx - px) * HAND_SIZE * cos + (cy - HAND_PIVOT[1]) * HAND_SIZE * sin;
+      const ay = (cx, cy) => hand.y - (cx - px) * HAND_SIZE * sin + (cy - HAND_PIVOT[1]) * HAND_SIZE * cos;
+      CORNERS.forEach(([cx, cy], i) => put(4 + 4 * k + i, ax(cx, cy), ay(cx, cy)));
+      state.points[k].copy(sprite.position).addScaledVector(right, ax(0, 0) * R).addScaledVector(up, ay(0, 0) * R);
+    });
+    corners.needsUpdate = true;
+    overlay.updateMatrixWorld();
+  }
+
+  const ask = (kind, extra = {}) => {
+    const handle = new Handle(`sun ${kind}`);
+    pending.push({ kind, handle, ...extra });
+    return handle;
+  };
 
   return {
     sprite,
-    wink() { winkPending = true; },
+    overlay,
+    wink() { pending.push({ kind: 'wink' }); },
+    wave() { return ask('wave'); },
+    hug() { return ask('hug'); },
+    mouth(shape, seconds = MOUTH_SECONDS) {
+      if (!MOUTHS.includes(shape)) throw new TypeError(`the sun's mouth is 'smile', 'grin' or 'oh', not ${JSON.stringify(shape)}`);
+      if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`the sun's mouth holds for a number of seconds of 0 or more, not ${seconds}`);
+      return ask('mouth', { shape, seconds });
+    },
     update(t, camera) {
       hang(camera.position);
-      if (winkPending) {
-        winkPending = false;
-        winkStart = t;
+      if (t < lastT - 1e-9) rewind(t);
+      lastT = t;
+      for (const call of pending.splice(0)) begin(call, t);
+      state.eyes = eyesAt(t);
+      if (texture) texture.offset.x = FRAME_OF[state.eyes] / FRAMES;
+      state.mouth = mouthAt(t);
+      if (state.mouth !== shownMouth) {
+        setCell(0, [MOUTH_AT[state.mouth], 0, ...MOUTH_CELL]);
+        shownMouth = state.mouth;
       }
-      const into = t - winkStart;
-      if (!(into >= 0 && into < WINK_SECONDS)) eyes = 'open';
-      else eyes = into < HALF_DOWN || into >= WINK_SECONDS - HALF_UP ? 'half' : 'shut';
-      if (texture) texture.offset.x = FRAME_OF[eyes] / FRAMES;
+      handsAt(t);
+      sprite.scale.set(size * state.squash.x, size * state.squash.y, 1);
+      lay(camera);
+      for (const g of gestures) if (g.end <= t && !g.handle.done) g.handle.finish();
+      for (let i = mouths.length - 1; i >= 0; i--) if (mouths[i].doneAt <= t) mouths.splice(i, 1)[0].handle.finish();
     },
-    get eyes() { return eyes; },
-    get eyesClosed() { return eyes !== 'open'; },
-    get radiusDeg() { return deg(Math.atan(((sprite.scale.x / 2) * DISC_OF_FRAME) / SUN_DISTANCE)); },
+    get eyes() { return state.eyes; },
+    get eyesClosed() { return state.eyes !== 'open'; },
+    get mouthFrame() { return state.mouth; },
+    get hands() { return state.hands; },
+    get handPoints() { return state.points; },
+    get squash() { return state.squash; },
+    get radiusDeg() { return deg(Math.atan(((size / 2) * DISC_OF_FRAME) / SUN_DISTANCE)); },
   };
 }
 
