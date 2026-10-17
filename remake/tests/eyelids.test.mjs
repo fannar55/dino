@@ -115,11 +115,12 @@ test('the lid shells cover each eye\'s whole outline, so a shut eye hides the pa
       }
       assert.equal(missed, 0, `${name} eye ${k}: ${missed} of ${tried} points of the outline are not under a lid`);
     });
-    // The shells are skinned like the skin they were copied from: the head carries them.
-    const head = mesh.skeleton.bones.findIndex(b => b.name === 'Head');
+    // The shells are skinned like the skin they were copied from: the head carries them, with the jaw that rides
+    // it where a shell's box reaches down past the corners of the mouth (kambedla's big eyes: a tenth of hers).
+    const head = ['Head', 'Jaw'].map(n => mesh.skeleton.bones.findIndex(b => b.name === n));
     const { skinIndex, skinWeight } = lids.attributes;
     let headWeight = 0;
-    for (let i = 0; i < skinIndex.count; i++) for (let j = 0; j < 4; j++) if (skinIndex.getComponent(i, j) === head) headWeight += skinWeight.getComponent(i, j);
+    for (let i = 0; i < skinIndex.count; i++) for (let j = 0; j < 4; j++) if (head.includes(skinIndex.getComponent(i, j))) headWeight += skinWeight.getComponent(i, j);
     assert.ok(headWeight / skinIndex.count > 0.95, `${name}: the head carries ${(100 * headWeight / skinIndex.count).toFixed(1)} % of the lids`);
   }
 });
