@@ -1,6 +1,8 @@
 // The batcher bakes placed models into merged static meshes, one per (band, sector, material).
 // Merging keeps draw calls low. Wind phase and canopy shade are written per vertex here, because
-// they depend on where the plant stands.
+// they depend on where the plant stands, and so is the tree's share of each vertex's sway (aTree,
+// one byte: 1 rides the trees' wave of the beat, 0 the plants', materials.js: forestWind), which
+// the shadow casters carry too, so the shadows sway with the plants.
 //
 // Each merged mesh remembers where every plant (and every detail level of it) sits in its index
 // buffer. When the camera moves, cullBatches() rebuilds the index buffer from the plants in view, at
@@ -133,6 +135,7 @@ export function createBatcher() {
     const nrm = caster ? null : new Float32Array(n * 3);
     const col = caster ? null : new Uint8Array(n * 4);
     const wind = new Uint8Array(n * 4);
+    const tree = new Uint8Array(n);
     const pivot = caster ? null : new Uint8Array(n * 4);
     const IndexArray = n > 65535 ? Uint32Array : Uint16Array;
     const master = new IndexArray(bucket.indices);
@@ -172,6 +175,7 @@ export function createBatcher() {
         wind[v * 4 + 1] = Math.round(Math.min(1, (m.wind[i * 3] * sc) / SWAY) * 255);
         wind[v * 4 + 2] = Math.round(Math.min(1, m.wind[i * 3 + 1]) * 255);
         wind[v * 4 + 3] = Math.round(Math.min(1, m.wind[i * 3 + 2]) * 255);
+        tree[v] = Math.round(m.treeShare(m.wind[i * 3]) * 255);
       }
       if (pivot && m.pivots.length) bakePivots(pivot, base, m, p, c, s);
       // one range per cull piece (trunk, crown); each gets the bounding sphere of its own triangles
@@ -201,6 +205,7 @@ export function createBatcher() {
       g.setAttribute('color', new THREE.BufferAttribute(col, 4, true));
     }
     g.setAttribute('aWind', new THREE.BufferAttribute(wind, 4, true));
+    g.setAttribute('aTree', new THREE.BufferAttribute(tree, 1, true));
     if (pivot) g.setAttribute('aPivot', new THREE.BufferAttribute(pivot, 4, true));
     const dynamic = new THREE.BufferAttribute(new IndexArray(master.length), 1);
     dynamic.setUsage(THREE.DynamicDrawUsage);

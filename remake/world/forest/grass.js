@@ -4,13 +4,14 @@
 // blade has a rank; far away only low ranks stay). The CPU rebuilds one index buffer from 2 m
 // cells when the camera moves, so only visible blades at the right density reach the GPU.
 import * as THREE from 'three';
-import { FOREST, PALETTE, BEAT_SHARE } from './config.js';
+import { FOREST, PALETTE, GRASS_BEAT_SHARE } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
-import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL } from './materials.js';
+import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL, BEAT_GLSL } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
 
 const VERTS = 5;
 const INDICES = [0, 1, 3, 0, 3, 2, 2, 3, 4];
+const RIPPLE = FOREST.wind.rippleSpacing; // m between the crests of the beat's ripple, along the wind
 
 export function createGrass(world, { terrain, layout, seed, shared, actorUniforms, blocked, q }) {
   const cfg = FOREST.grass;
@@ -111,7 +112,7 @@ attribute vec4 aInfo;
 uniform float uWindTime;
 uniform float uWindStrength;
 uniform vec2 uWindDirection;
-uniform float uBeat;
+${BEAT_GLSL}
 uniform vec4 uGrassLod;
 uniform float uGrassLean;
 uniform float uFootprintSoft;
@@ -156,7 +157,9 @@ ${ACTOR_GLSL}`,
   float gGust = 0.5 + 0.5 * sin( gAlong * 0.12 - uWindTime * 0.62 + 1.7 );
   float gFlick = sin( uWindTime * 3.3 + aInfo.x * 41.0 ) * 0.1;
   float gWind = uWindStrength * ( 0.12 + 0.5 * gWave * ( 0.35 + 0.65 * gGust ) + gFlick );
-  gWind *= 1.0 + ${BEAT_SHARE.toFixed(3)} * uBeat; // on the beat a blade bends further by the same share of its own bend as a tree top
+  // a light ripple of the beat runs down the wind, its crests rippleSpacing metres apart: a blade bends further by GRASS_BEAT_SHARE of
+  // its own bend as a crest passes it, once a beat, so the field ripples instead of pulsing as one (materials.js: forestWave)
+  gWind *= 1.0 + ${GRASS_BEAT_SHARE.toFixed(3)} * forestWave( gAlong / ${RIPPLE.toFixed(3)}, ${FOREST.wind.beatPeriods.grass.toFixed(1)} );
   vec2 gBend = gLeanDir * ( aInfo.w * uGrassLean ) + uWindDirection * gWind + gPush;
   float gTT = gT * gT;
   vec3 grassPos = gBase;

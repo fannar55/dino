@@ -5,6 +5,7 @@
 // Per vertex: position, normal, colour (sRGB 0..1), sway (metres of bend at full wind),
 // flutter (metres), leaf (0..1, translucency and wrap) and exposure (0..1, how much sky the
 // point sees within its own plant; the batcher combines it with the canopy shade of the spot).
+// Per builder: the tree's share of a vertex's sway (MeshBuilder.treeShare).
 
 /** sRGB components (0..1) of a hex colour, without linear conversion. */
 export function srgb(hex) {
@@ -26,6 +27,9 @@ export const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 export const madd3 = (a, b, k) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
 
+/** A plant's parts give no tree any of their sway (MeshBuilder.treeShare's default). */
+const PLANT = () => 0;
+
 export class MeshBuilder {
   constructor() {
     this.pos = [];
@@ -35,6 +39,12 @@ export class MeshBuilder {
     this.exp = [];
     this.idx = [];
     this.pivots = []; // parts that move about a pivot of their own beyond the wind (see pivot())
+    // How much of a vertex's sway is a tree's bend (bendAt in species.js) rather than a plant's own lean, 0 to 1, from the sway it
+    // was given: nothing for a plant's parts (the default), all of it for a tree's trunk and crown, and for a tree fern's fronds,
+    // which ride their trunk's top, the share of their sway that is the top's. One rule for the builder's every vertex, so it costs
+    // nothing a vertex here: the batcher bakes each vertex's share (aTree), and the beat sways the tree's share on the trees' wave
+    // and the rest on the plants' (materials.js: forestWind).
+    this.treeShare = PLANT;
   }
   get count() { return this.pos.length / 3; }
   get triangles() { return this.idx.length / 3; }
@@ -68,6 +78,7 @@ export class MeshBuilder {
     else this.idx.push(a, c, b);
   }
   append(other) {
+    if (other.treeShare !== this.treeShare) throw new Error('MeshBuilder.append: the two builders give a tree different shares of their sway');
     const base = this.count;
     this.pos.push(...other.pos);
     this.nrm.push(...other.nrm);
