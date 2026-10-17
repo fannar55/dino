@@ -26,7 +26,7 @@
  { "id": "k1_mosi_hint_stone", "speaker": "mosi", "text": "Ég sé eitthvað glitra við stóra steininn!" },
  { "id": "k1_mosi_hint_ferns", "speaker": "mosi", "text": "Hvað með undir burknunum?" },
  { "id": "k1_mosi_hint_tree", "speaker": "mosi", "text": "Kíktu upp í litla tréð!" },
- { "id": "k1_mosi_one", "speaker": "mosi", "text": "Eitt!", "kept": "the owner's pick, an Eleven v4 take from the spelling Eiht for Eitt (seed 42), 2026-10-17, raised 0.85 dB" },
+ { "id": "k1_mosi_one", "speaker": "mosi", "text": "Eitt!", "kept": "the owner's pick, an Eleven v4 take from the spelling Eiht for Eitt (seed 42), 2026-10-17, raised 0.85 dB (ffmpeg volume=0.85dB before the voice tool's encode; net +0.4 dB, −18.7 LUFS)" },
  { "id": "k1_mosi_two", "speaker": "mosi", "text": "Tvö!" },
  { "id": "k1_mosi_three", "speaker": "mosi", "text": "Og þrjú! Þú fannst þau öll!" },
  { "id": "k1_mosi_give", "speaker": "mosi", "text": "Gefðu henni blómin!" },
