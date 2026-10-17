@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): Mosi the triceratops, drawn soft and by hand, on a clear background so a
+       tile can show him as a silhouette. Our own drawing; the game's render replaces it (Task 12). -->
+  <title>Mosi</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <ellipse cx="200" cy="265" rx="150" ry="13" fill="#3b2f25" opacity=".14"/>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M104 196C99 222 100 242 104 257C114 261 128 261 136 257C138 238 136 218 132 198Z" fill="#6e7150"/>
+    <path d="M226 204C223 228 224 245 227 257C237 261 251 261 257 256C259 238 257 220 253 204Z" fill="#6e7150"/>
+    <path d="M90 158C62 164 38 182 16 212C38 213 66 206 100 194Z" fill="#868862"/>
+    <path d="M74 176C72 128 122 102 184 103C238 104 272 128 280 162C286 196 266 226 224 234C188 241 130 241 100 231C80 224 75 202 74 176Z" fill="#868862"/>
+    <path d="M100 206C130 222 198 226 252 206C244 226 208 236 170 237C134 238 108 230 100 206Z" fill="#c8c395" stroke="none"/>
+    <g fill="#4f5433" opacity=".3" stroke="none">
+      <ellipse cx="126" cy="130" rx="13" ry="7" transform="rotate(-16 126 130)"/>
+      <ellipse cx="164" cy="116" rx="15" ry="7" transform="rotate(-4 164 116)"/>
+      <ellipse cx="204" cy="118" rx="13" ry="6.5" transform="rotate(8 204 118)"/>
+      <ellipse cx="106" cy="154" rx="9" ry="5" transform="rotate(-34 106 154)"/>
+      <ellipse cx="146" cy="146" rx="8" ry="4.5" transform="rotate(-8 146 146)"/>
+    </g>
+    <ellipse cx="160" cy="133" rx="58" ry="14" transform="rotate(-6 160 133)" fill="#fff" opacity=".17" stroke="none"/>
+    <path d="M114 206C108 232 110 250 114 262C126 267 144 267 154 262C156 244 154 224 150 208Z" fill="#868862"/>
+    <path d="M206 210C202 236 204 252 207 262C219 267 237 267 245 262C247 244 245 226 241 210Z" fill="#868862"/>
+    <g fill="#ede0bf" stroke-width="3">
+      <path d="M118 263c0-8 11-8 11 0z"/><path d="M132 264c0-8 11-8 11 0z"/>
+      <path d="M211 263c0-8 11-8 11 0z"/><path d="M225 264c0-8 11-8 11 0z"/>
+    </g>
+    <g fill="#ede0bf" stroke-width="3">
+      <circle cx="210" cy="122" r="6"/><circle cx="218" cy="92" r="6"/><circle cx="238" cy="68" r="6"/>
+      <circle cx="268" cy="53" r="6"/><circle cx="300" cy="51" r="6"/><circle cx="327" cy="63" r="6"/>
+      <circle cx="343" cy="88" r="6"/><circle cx="347" cy="119" r="6"/>
+    </g>
+    <path d="M232 168C206 142 206 92 238 68C268 46 314 48 336 78C352 100 350 132 334 154Z" fill="#747854"/>
+    <path d="M244 158C226 136 228 98 252 80C276 64 310 68 324 92C334 110 330 134 318 148Z" fill="#a8a97f" stroke-width="3.5"/>
+    <path d="M290 126C292 106 302 86 324 70C322 92 316 110 308 128Z" fill="#d6c8a2"/>
+    <path d="M262 152C262 128 286 112 316 116C344 120 366 140 376 164C382 182 374 198 356 202C334 206 298 205 280 196C266 189 262 172 262 152Z" fill="#868862"/>
+    <ellipse cx="300" cy="131" rx="22" ry="8" transform="rotate(-10 300 131)" fill="#fff" opacity=".17" stroke="none"/>
+    <path d="M354 168C368 166 382 175 386 190C380 199 366 203 354 199C350 189 350 177 354 168Z" fill="#c9b98f"/>
+    <path d="M350 160C356 150 366 142 380 136C377 148 372 157 366 164Z" fill="#ede0bf"/>
+    <path d="M304 128C308 104 324 82 354 64C350 88 340 110 330 130Z" fill="#ede0bf"/>
+    <ellipse cx="318" cy="152" rx="10.5" ry="12" fill="#2b2118" stroke-width="3"/>
+    <g stroke="none">
+      <ellipse cx="318" cy="153" rx="7.5" ry="9" fill="#c8862a"/>
+      <ellipse cx="319" cy="154.5" rx="4.5" ry="6" fill="#2b2118"/>
+      <circle cx="314.5" cy="147.5" r="3.2" fill="#fff"/>
+      <circle cx="322" cy="158.5" r="1.5" fill="#fff"/>
+      <ellipse cx="324" cy="180" rx="11" ry="6.5" fill="#e8907e" opacity=".45"/>
+      <ellipse cx="361" cy="171" rx="3" ry="2" fill="#3b2f25"/>
+    </g>
+    <path d="M303 139C310 133 323 133 331 140" fill="none" stroke-width="4"/>
+    <path d="M331 189C342 196 354 195 363 189" fill="none" stroke-width="4"/>
+  </g>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): an early bird in flight, with clawed wings and a long feathered tail, in the
+       chapter's bird colours (world/critters/models.js), drawn soft and by hand on a clear background so a tile can show it
+       as a silhouette. Our own drawing; the owner's drawing replaces it (Task 12). -->
+  <title>Fuglar</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="19" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <ellipse cx="206" cy="274" rx="104" ry="9" fill="#3b2f25" opacity=".1"/>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M238 138C236 104 224 70 204 42C196 60 186 72 174 80C182 94 186 106 188 118C202 126 220 134 238 138Z" fill="#6e5440"/>
+    <path d="M188 160C150 156 96 160 34 178C30 186 32 194 38 198C96 204 150 196 190 184Z" fill="#6e5440"/>
+    <g fill="none" stroke-width="2.6" opacity=".55">
+      <path d="M186 172C140 174 90 180 40 188"/>
+      <path d="M62 182L46 172M62 192L48 200M88 178L72 166M88 194L74 204M114 175L100 163M114 191L102 201M140 173L128 161M140 189L130 199"/>
+    </g>
+    <path d="M222 198C218 210 210 218 198 222M236 200C234 212 228 220 218 226" fill="none" stroke-width="10"/>
+    <path d="M222 198C218 210 210 218 198 222M236 200C234 212 228 220 218 226" fill="none" stroke="#c9944a" stroke-width="4.5"/>
+    <path d="M178 168C178 140 206 124 240 126C272 128 294 146 296 168C296 192 270 206 238 206C204 206 178 194 178 168Z" fill="#9a7556"/>
+    <path d="M196 186C214 200 256 204 282 190C270 204 240 208 216 204C204 200 196 194 196 186Z" fill="#f4e7c6" stroke="none"/>
+    <path d="M262 140C284 146 298 164 294 182C284 168 270 158 254 152Z" fill="#ee8352" stroke="none"/>
+    <path d="M262 136C262 114 280 100 302 102C322 104 334 118 332 136C330 152 314 160 296 158C276 156 262 150 262 136Z" fill="#7f6049"/>
+    <path d="M288 146C300 154 316 154 326 146C320 156 304 160 292 154Z" fill="#ee8352" stroke="none"/>
+    <path d="M328 126C342 126 356 132 362 140C350 146 338 146 326 142Z" fill="#f2c443"/>
+    <path d="M331 136L355 139" fill="none" stroke-width="2.6"/>
+    <circle cx="306" cy="123" r="7.5" fill="#231c14" stroke-width="2.5"/>
+    <g stroke="none">
+      <circle cx="303.4" cy="120.4" r="2.6" fill="#fff"/>
+      <ellipse cx="300" cy="140" rx="8" ry="4.5" fill="#f0a3b6" opacity=".55"/>
+    </g>
+    <path d="M226 148C214 112 186 72 144 40C140 62 130 78 118 88C128 100 132 112 132 124C146 128 156 136 162 144C182 150 204 152 226 148Z" fill="#7a5a40"/>
+    <g fill="none" stroke-width="2.6" opacity=".5">
+      <path d="M204 142C182 114 164 88 150 58M198 146C174 128 152 108 130 90M192 148C172 140 154 130 136 122"/>
+    </g>
+    <path d="M146 44C144 60 136 74 126 84" fill="none" stroke="#d8b27a" stroke-width="5"/>
+    <g fill="#ede0bf" stroke-width="3">
+      <path d="M206 104C211 97 219 95 225 98C218 100 213 104 210 110Z"/>
+      <path d="M193 87C197 80 205 77 211 79C205 82 200 86 197 92Z"/>
+    </g>
+  </g>
+</svg>

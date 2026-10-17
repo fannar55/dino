@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): Kambeðla the stegosaurus, drawn soft and by hand, on a clear background so
+       a tile can show her as a silhouette. Our own drawing; the game's render replaces it (Task 12). -->
+  <title>Kambeðla</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="5" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <path id="plate" d="M-20 4C-21-20-9-44 0-52C9-44 21-20 20 4Z"/>
+  </defs>
+  <ellipse cx="200" cy="265" rx="164" ry="13" fill="#3b2f25" opacity=".14"/>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <g fill="#8a64a0">
+      <use href="#plate" xlink:href="#plate" transform="translate(112 138) rotate(-34) scale(.62)" stroke-width="7"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(139 119) rotate(-21) scale(.78)" stroke-width="6"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(171 110) rotate(-8) scale(.9)" stroke-width="5.4"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(205 109) rotate(4) scale(.92)" stroke-width="5.4"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(238 115) rotate(16) scale(.84)" stroke-width="5.8"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(268 129) rotate(28) scale(.7)" stroke-width="6.6"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(292 147) rotate(40) scale(.55)" stroke-width="8"/>
+    </g>
+    <g fill="#ab85c1">
+      <use href="#plate" xlink:href="#plate" transform="translate(100 150) rotate(-40) scale(.62)" stroke-width="7"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(124 126) rotate(-28) scale(.8)" stroke-width="6"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(154 112) rotate(-14) scale(.95)" stroke-width="5.2"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(188 108) rotate(-2) scale(1.05)" stroke-width="4.8"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(222 110) rotate(10) scale(1)" stroke-width="5"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(254 120) rotate(22) scale(.88)" stroke-width="5.6"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(282 138) rotate(34) scale(.72)" stroke-width="6.8"/>
+      <use href="#plate" xlink:href="#plate" transform="translate(302 156) rotate(46) scale(.55)" stroke-width="8"/>
+    </g>
+    <g fill="#d2bda9" stroke-width="4">
+      <path d="M44 184C38 170 32 158 24 146C36 152 48 162 56 178Z"/>
+      <path d="M62 178C58 164 54 150 48 136C60 144 68 156 72 172Z"/>
+      <path d="M36 192C26 186 16 180 6 174C18 174 30 178 42 184Z"/>
+    </g>
+    <path d="M104 150C72 156 44 172 18 198C42 202 72 196 108 186Z" fill="#8f6aa3"/>
+    <path d="M112 196C106 224 108 244 112 258C122 262 138 262 146 258C148 238 146 216 142 198Z" fill="#6f5285"/>
+    <path d="M258 206C255 228 256 245 259 257C268 261 282 261 288 256C290 240 288 222 284 206Z" fill="#6f5285"/>
+    <path d="M86 178C86 130 138 100 196 100C256 100 300 130 318 166C326 186 312 214 278 224C238 234 156 236 118 226C96 218 86 200 86 178Z" fill="#8f6aa3"/>
+    <path d="M106 206C140 222 230 224 292 206C280 222 232 232 186 234C144 234 114 226 106 206Z" fill="#cfb6c6" stroke="none"/>
+    <g fill="#5d4370" opacity=".32" stroke="none">
+      <ellipse cx="140" cy="140" rx="12" ry="6" transform="rotate(-18 140 140)"/>
+      <ellipse cx="180" cy="128" rx="14" ry="6.5" transform="rotate(-4 180 128)"/>
+      <ellipse cx="222" cy="130" rx="13" ry="6" transform="rotate(10 222 130)"/>
+      <ellipse cx="258" cy="146" rx="10" ry="5" transform="rotate(24 258 146)"/>
+    </g>
+    <ellipse cx="190" cy="122" rx="62" ry="13" transform="rotate(-2 190 122)" fill="#fff" opacity=".15" stroke="none"/>
+    <path d="M124 200C118 228 120 248 124 262C136 267 154 267 162 262C164 242 162 222 158 202Z" fill="#8f6aa3"/>
+    <path d="M244 208C240 232 241 249 244 262C254 266 270 266 276 261C278 244 276 226 272 208Z" fill="#8f6aa3"/>
+    <g fill="#d2bda9" stroke-width="3">
+      <path d="M128 263c0-8 11-8 11 0z"/><path d="M142 264c0-8 11-8 11 0z"/>
+      <path d="M248 263c0-7 10-7 10 0z"/><path d="M261 263c0-7 10-7 10 0z"/>
+    </g>
+    <path d="M300 166C318 168 336 178 350 186C370 190 384 202 380 214C374 225 352 227 336 221C318 215 304 201 296 188Z" fill="#8f6aa3"/>
+    <ellipse cx="336" cy="188" rx="16" ry="5" transform="rotate(20 336 188)" fill="#fff" opacity=".17" stroke="none"/>
+    <ellipse cx="353" cy="198" rx="7" ry="8" fill="#2b2118" stroke-width="2.5"/>
+    <g stroke="none">
+      <ellipse cx="353" cy="199" rx="4.8" ry="5.8" fill="#c8862a"/>
+      <ellipse cx="353.6" cy="199.8" rx="2.8" ry="3.8" fill="#2b2118"/>
+      <circle cx="350.6" cy="195.6" r="2.2" fill="#fff"/>
+      <ellipse cx="350" cy="211" rx="8" ry="4.5" fill="#e8907e" opacity=".45"/>
+      <ellipse cx="375" cy="203" rx="2.2" ry="1.6" fill="#3b2f25"/>
+    </g>
+    <path d="M344 189C349 185 357 185 362 190" fill="none" stroke-width="3.5"/>
+    <path d="M358 215C364 219 371 218 377 212" fill="none" stroke-width="3.5"/>
+  </g>
+</svg>

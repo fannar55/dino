@@ -1,0 +1,506 @@
+/* The living book (part 2): Egill's journal opened over the paused game as a full-screen, illustrated two-page spread.
+   This file is the book's look, and later tasks render real data into its classes (engine/book/):
+
+     .book                       the root over the game: a soft veil, the book's font, and every touch (touch-action: none)
+     .book-spread                the book itself, a cloth cover with the pages on it, sized to the screen
+     .book-page.left / .right    the two pages, side by side, or one above the other on a tablet held upright
+     .book-spine                 the stitched fold between them
+     .book-close                 the big close, on the cover's top right corner
+     .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
+     .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound
+     .card                       an animal's card over the spread, with its parts
+     .zoom                       a picture at full screen, with its .zoom-close
+     .chunky                     the raised button every round control is made of
+
+   The rules it keeps (the plan's Global Constraints and STYLE.md section 10):
+   - the journal's palette, word for word, and STYLE.md section 3's species colours for each animal's tile (--hue);
+   - every control is at least --book-target (88 px; 80 is the floor), whatever it looks like: the ⓘ is a small dot in a
+     full-size hit area, and each control's rule says so in its own min-width and min-height;
+   - few words, big and rounded, in --book-font;
+   - motion is transform and opacity only, so the tablet keeps 60 fps, and none of the idle life plays under
+     prefers-reduced-motion. The press, the sparkle and the sound of a tap come with engine/book/fx.js. */
+
+:root {
+  /* The journal's colours (STYLE.md section 10). */
+  --book-paper: #f6efdf;
+  --book-card: #fffaf0;
+  --book-ink: #3b2f25;
+  --book-ink-soft: #6b5a4a;
+  --book-orange: #e07a3f;
+  --book-teal: #2f8f86;
+  --book-gold: #f2b630;
+  --book-green: #6fae4f;
+  /* Every control in the book is at least this big. */
+  --book-target: 88px;
+  /* The old game's rounded stack, until a rounded face with every Icelandic letter is bundled (STYLE.md section 10). */
+  --book-font: ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+
+  /* Deeper tones of the palette, for the sides of raised things and the cover's cloth. */
+  --book-orange-deep: #b75e2e;
+  --book-teal-deep: #1f6b64;
+  --book-card-deep: #e3d4b5;
+  --book-cloth-edge: #a8501f;
+
+  /* Paper: a fine grain and a soft unevenness, drawn once and tiled. */
+  --book-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .24 0 0 0 0 .19 0 0 0 0 .15 0 0 0 .6 -.24'/%3E%3C/filter%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.011' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .62 0 0 0 0 .48 0 0 0 0 .3 0 0 0 .5 -.18'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  /* A hand-drawn frame line: a wobbly rounded box whose line keeps its width at any size. */
+  --book-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M12 9C110 5 290 11 388 7C394 8 395 13 394 20C391 110 396 200 392 283C391 290 387 292 380 292C270 296 130 290 19 294C12 294 8 290 8 283C10 190 5 100 8 17C8 12 9 9 12 9Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M16 14C120 11 280 16 385 13C389 14 390 18 389 23C387 110 391 200 388 279C387 285 384 287 378 287C270 291 130 286 21 289C16 289 13 286 13 280C15 190 10 100 13 21C13 17 13 14 16 14Z' fill='none' stroke='%233b2f25' stroke-opacity='.13' stroke-width='1.6' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  /* A strip of tape with torn ends, used as a mask so each piece takes its own colour. */
+  --book-tape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E");
+  /* A twinkle: the four-point star the book sparkles with. */
+  --book-twinkle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z' fill='%23f2b630' stroke='%233b2f25' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ---- The root: a veil over the game, and the book's own rules for everything inside it -------------------------- */
+
+.book {
+  position: fixed; inset: 0; overflow: hidden;
+  display: grid; place-items: center;
+  container-type: size; /* the spread and the card size themselves from the screen: cqw, cqh and cqmin below */
+  --gap-top: max(calc(var(--ribbon-size) * 3.85), env(safe-area-inset-top) + 16px); /* the tallest ribbon stands up here */
+  --gap-side: max(36px, env(safe-area-inset-left), env(safe-area-inset-right));
+  --gap-bottom: max(18px, env(safe-area-inset-bottom));
+  --ribbon-size: clamp(20px, 2.6cqmin, 27px);
+  font-family: var(--book-font); font-weight: 700; color: var(--book-ink);
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, rgb(59 47 37 / .42), rgb(24 17 11 / .7));
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.book *, .book *::before, .book *::after { box-sizing: border-box; }
+.book[hidden], .book [hidden] { display: none !important; } /* a rule that sets display must not show what was hidden */
+:where(.book) button { font: inherit; color: inherit; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.book button:focus-visible { outline: 4px solid var(--book-teal); outline-offset: 5px; }
+.book img { -webkit-user-drag: none; }
+
+/* ---- The raised button: every round control is one, and its own rule places it ---------------------------------- */
+
+.chunky {
+  min-width: var(--book-target); min-height: var(--book-target);
+  --face: var(--book-card); --side: var(--book-card-deep);
+  display: inline-grid; place-items: center; padding: 0;
+  width: clamp(88px, 8.6cqmin, 112px); height: clamp(88px, 8.6cqmin, 112px);
+  border: 3px solid var(--book-ink); border-radius: 50%;
+  color: var(--book-ink); background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / .55), transparent 46%), var(--face);
+  box-shadow:
+    0 7px 0 var(--side), 0 7px 0 3px var(--book-ink), /* the button's side, outlined like its face */
+    0 13px 14px 2px rgb(40 24 10 / .34);
+}
+.chunky .book-icon { width: 50%; height: 50%; }
+
+/* ---- The spread: a cloth cover with leather corners, the pages lying open on it --------------------------------- */
+
+.book-spread {
+  --edge: clamp(10px, 1.5cqmin, 18px); /* how much of the cover shows round the pages */
+  position: relative;
+  width: min(100cqw - 2 * var(--gap-side), (100cqh - var(--gap-top) - var(--gap-bottom)) * 2);
+  height: min(100cqh - var(--gap-top) - var(--gap-bottom), (100cqw - 2 * var(--gap-side)) / 1.25);
+  margin: var(--gap-top) var(--gap-side) var(--gap-bottom);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, #8a4a26 0 28px, transparent 28.5px) top left / 64px 64px no-repeat,
+    linear-gradient(225deg, #8a4a26 0 28px, transparent 28.5px) top right / 64px 64px no-repeat,
+    linear-gradient(45deg, #8a4a26 0 28px, transparent 28.5px) bottom left / 64px 64px no-repeat,
+    linear-gradient(315deg, #8a4a26 0 28px, transparent 28.5px) bottom right / 64px 64px no-repeat,
+    var(--book-grain), /* the cloth's grain */
+    linear-gradient(170deg, #e8894f, var(--book-orange) 45%, #cf6a31);
+  box-shadow:
+    inset 0 0 0 3px var(--book-cloth-edge), inset 0 3px 0 4px rgb(255 255 255 / .16),
+    0 26px 48px rgb(14 8 3 / .5), 0 6px 14px rgb(14 8 3 / .35);
+}
+
+.book-page {
+  position: absolute; top: var(--edge); bottom: var(--edge);
+  container-type: size; /* the tiles size themselves from their page */
+  background-color: var(--book-paper);
+}
+.book-page::before { /* the hand-drawn frame and the margin doodles of an explorer's journal */
+  content: ""; position: absolute; inset: clamp(10px, 2.2cqmin, 22px); pointer-events: none;
+  background-repeat: no-repeat;
+}
+.book-page.left {
+  left: var(--edge); right: 50%;
+  border-radius: 16px 3px 3px 16px;
+  background-image:
+    linear-gradient(to left, rgb(59 47 37 / .26), rgb(59 47 37 / .08) 5%, transparent 14%),
+    linear-gradient(to right, rgb(255 255 255 / .4), transparent 8%),
+    var(--book-grain);
+  box-shadow: -3px 2px 0 -1px #e9dec6, -6px 4px 0 -2px #f3ead8, -9px 6px 0 -3px #ded0b2, 0 4px 10px rgb(40 22 8 / .25);
+}
+.book-page.right {
+  left: 50%; right: var(--edge);
+  border-radius: 3px 16px 16px 3px;
+  background-image:
+    linear-gradient(to right, rgb(59 47 37 / .26), rgb(59 47 37 / .08) 5%, transparent 14%),
+    linear-gradient(to left, rgb(255 255 255 / .4), transparent 8%),
+    var(--book-grain);
+  box-shadow: 3px 2px 0 -1px #e9dec6, 6px 4px 0 -2px #f3ead8, 9px 6px 0 -3px #ded0b2, 0 4px 10px rgb(40 22 8 / .25);
+}
+.book-page.left::before {
+  background-image:
+    var(--book-frame),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 90' fill='none' stroke='%236b5a4a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' opacity='.3'%3E%3Cg id='p'%3E%3Cpath d='M11 27C6 27 4 22 6 18L2 9C1 7 4 6 5 8L9 15L9.5 4C9.6 2 12.4 2 12.5 4L13 15L17 8C18 6 21 7 20 9L16 18C18 22 16 27 11 27Z' transform='translate(16 66) rotate(78)'/%3E%3C/g%3E%3Cpath d='M11 27C6 27 4 22 6 18L2 9C1 7 4 6 5 8L9 15L9.5 4C9.6 2 12.4 2 12.5 4L13 15L17 8C18 6 21 7 20 9L16 18C18 22 16 27 11 27Z' transform='translate(72 40) rotate(66)'/%3E%3Cpath d='M11 27C6 27 4 22 6 18L2 9C1 7 4 6 5 8L9 15L9.5 4C9.6 2 12.4 2 12.5 4L13 15L17 8C18 6 21 7 20 9L16 18C18 22 16 27 11 27Z' transform='translate(128 58) rotate(82)'/%3E%3Cpath d='M11 27C6 27 4 22 6 18L2 9C1 7 4 6 5 8L9 15L9.5 4C9.6 2 12.4 2 12.5 4L13 15L17 8C18 6 21 7 20 9L16 18C18 22 16 27 11 27Z' transform='translate(190 30) rotate(70)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%236b5a4a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' opacity='.3'%3E%3Cpath d='M18 90C18 52 44 18 86 10C82 52 58 84 18 90Z'/%3E%3Cpath d='M18 90C40 64 60 40 86 10M34 72L31 56M44 60L44 44M54 48L57 34M64 37L69 26M36 70L52 73M46 58L62 61M56 46L70 49'/%3E%3C/svg%3E");
+  background-size: 100% 100%, min(34%, 230px) auto, min(14%, 96px) auto;
+  background-position: 0 0, 6% 96%, 94% 6%;
+}
+.book-page.right::before {
+  background-image:
+    var(--book-frame),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%236b5a4a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' opacity='.3'%3E%3Ccircle cx='50' cy='50' r='34'/%3E%3Ccircle cx='50' cy='50' r='27' stroke-dasharray='2 6'/%3E%3Cpath d='M50 10L56 44L90 50L56 56L50 90L44 56L10 50L44 44Z'/%3E%3Cpath d='M50 22L50 40'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 80' fill='none' stroke='%236b5a4a' stroke-width='2.6' stroke-linecap='round' opacity='.3'%3E%3Cpath d='M6 70C40 70 50 30 90 34C130 38 140 66 176 52' stroke-dasharray='1 9'/%3E%3Cpath d='M182 40L194 52M194 40L182 52'/%3E%3C/svg%3E");
+  background-size: 100% 100%, min(15%, 110px) auto, min(30%, 210px) auto;
+  background-position: 0 0, 94% 95%, 8% 6%;
+}
+
+.book-spine { /* the fold, with the thread that holds the pages */
+  position: absolute; top: var(--edge); bottom: var(--edge); left: 50%; z-index: 1;
+  width: 44px; margin-left: -22px; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='40'%3E%3Cpath d='M7 9L7.6 30' stroke='%232f8f86' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M6.2 11L6.6 27' stroke='%23fff' stroke-opacity='.35' stroke-width='1' stroke-linecap='round'/%3E%3Ccircle cx='7' cy='5' r='1.7' fill='%233b2f25' fill-opacity='.45'/%3E%3Ccircle cx='7.6' cy='34' r='1.7' fill='%233b2f25' fill-opacity='.45'/%3E%3C/svg%3E") center 14px / 14px 40px repeat-y,
+    linear-gradient(to right, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
+}
+
+/* ---- The close: a big chunky button on the cover's corner ------------------------------------------------------- */
+
+.book-close {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 3;
+  top: calc(var(--book-target) * -.3); right: calc(var(--book-target) * -.3);
+}
+
+/* ---- Ribbons: tabs of satin standing up out of the pages, a swallowtail at the top ------------------------------ */
+
+.book-ribbons {
+  position: absolute; z-index: 2; left: max(var(--edge) + 4%, 40px);
+  top: calc(var(--edge) - var(--ribbon-size) * 4); /* the ribbons come up from under the pages' top edge */
+  display: flex; align-items: flex-end; gap: calc(var(--ribbon-size) * .55);
+  font-size: var(--ribbon-size);
+}
+.ribbon {
+  min-width: var(--book-target); min-height: var(--book-target);
+  --ribbon: var(--book-teal);
+  position: relative; isolation: isolate;
+  width: 5.4em; height: 5.15em; /* the lower part of the hit area lies on the page, under the ribbon's end */
+  padding: .5em .3em 1.32em; border: 0; background: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: .12em;
+  font-size: 1em; line-height: 1;
+  color: var(--book-card);
+  filter: drop-shadow(0 4px 3px rgb(40 24 10 / .35));
+}
+.ribbon::before, .ribbon::after { /* an ink line round the band, then the band itself */
+  content: ""; position: absolute; z-index: -1; bottom: 1.15em;
+  clip-path: polygon(0 0, 50% .62em, 100% 0, 100% 100%, 0 100%);
+}
+.ribbon::before { top: -3px; left: -3px; right: -3px; background: var(--book-ink); }
+.ribbon::after {
+  top: 0; left: 0; right: 0;
+  background:
+    linear-gradient(to top, rgb(40 20 5 / .28), transparent .7em), /* where the band bends under the page */
+    linear-gradient(90deg, transparent 8%, rgb(255 255 255 / .28) 26%, transparent 46%, rgb(0 0 0 / .1) 92%),
+    var(--ribbon);
+}
+.ribbon .book-icon { width: 1.55em; height: 1.55em; }
+.ribbon[data-tab="stars"] { --ribbon: var(--book-gold); color: var(--book-ink); }
+.ribbon[data-tab="animals"] { --ribbon: var(--book-teal); color: var(--book-card); }
+.ribbon[aria-selected="false"] { height: 4.5em; filter: drop-shadow(0 3px 2px rgb(40 24 10 / .3)) saturate(.88) brightness(.96); }
+.ribbon[aria-selected="true"] { z-index: 1; }
+.ribbon-label { white-space: nowrap; }
+
+/* ---- Tiles: taped photos of the animals --------------------------------------------------------------------------- */
+
+.book-tiles {
+  --pad-x: 7cqw; --pad-top: 7.5cqh; --pad-bottom: 7cqh; --gap: max(18px, 4.6cqmin);
+  /* a tile is as wide as two fit across the page and two rows fit down it (a tile is about as tall as it is wide) */
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.16);
+  position: absolute; inset: var(--pad-top) var(--pad-x) var(--pad-bottom);
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
+  gap: var(--gap) calc(var(--gap) * 1.3);
+}
+.tile {
+  min-width: var(--book-target); min-height: var(--book-target);
+  --tilt: -2deg; --lag: 0s; --tape: color-mix(in srgb, var(--book-teal) 52%, transparent);
+  position: relative; width: var(--tile-w);
+  display: flex; flex-direction: column; gap: calc(var(--tile-w) * .03);
+  padding: calc(var(--tile-w) * .055) calc(var(--tile-w) * .055) calc(var(--tile-w) * .035);
+  border: 0; border-radius: 9px;
+  background: var(--book-card);
+  box-shadow: 0 1px 0 rgb(59 47 37 / .1), 0 9px 18px -2px rgb(59 47 37 / .32), 0 2px 4px rgb(59 47 37 / .16);
+  transform: rotate(var(--tilt));
+}
+.tile:nth-child(4n + 1) { --tilt: -2.4deg; --lag: 0s; --tape: color-mix(in srgb, var(--book-teal) 52%, transparent); }
+.tile:nth-child(4n + 2) { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
+.tile:nth-child(4n + 3) { --tilt: 2.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
+.tile:nth-child(4n + 4) { --tilt: -1.4deg; --lag: -3.7s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); }
+.tile::before { /* the tape that holds the photo on the page */
+  content: ""; position: absolute; z-index: 2; left: 50%; top: calc(var(--tile-w) * -.055);
+  width: 46%; height: calc(var(--tile-w) * .13);
+  transform: translateX(-50%) rotate(calc(var(--tilt) * -1.6));
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), var(--tape);
+  -webkit-mask: var(--book-tape) center / 100% 100% no-repeat; mask: var(--book-tape) center / 100% 100% no-repeat;
+}
+.tile-picture {
+  position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 6px;
+  background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #c9b48a) 16%, var(--book-card)), color-mix(in srgb, var(--hue, #c9b48a) 42%, var(--book-card)));
+  box-shadow: inset 0 0 0 2px rgb(59 47 37 / .12);
+}
+.tile-picture img { position: absolute; inset: 5%; width: 90%; height: 90%; object-fit: contain; }
+.tile-name {
+  display: block; text-align: center; white-space: nowrap;
+  font-size: clamp(24px, var(--tile-w) * .135, 46px); line-height: 1.12; padding-bottom: .04em;
+}
+
+/* Found: full colour, breathing, with a twinkle now and then and a glint across the photo. */
+.tile.found { animation: tile-breathe 4.8s ease-in-out var(--lag) infinite; }
+.tile.found::after {
+  content: ""; position: absolute; z-index: 3; top: calc(var(--tile-w) * -.09); right: calc(var(--tile-w) * -.09);
+  width: calc(var(--tile-w) * .17); aspect-ratio: 1; background: var(--book-twinkle) center / contain no-repeat;
+  opacity: 0; animation: twinkle 3.6s ease-in-out calc(var(--lag) * 1.3) infinite;
+}
+.tile.found .tile-picture::after {
+  content: ""; position: absolute; inset: -10% -40%;
+  background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / .6) 50%, transparent 58%);
+  transform: translateX(-80%); animation: glint 7.5s ease-in-out calc(var(--lag) * 1.7) infinite;
+}
+
+/* New: found but not opened yet. It glows, rocks a little and wears its badge until the card is opened. */
+.tile.new { animation: tile-rock 2.4s ease-in-out infinite; }
+.tile.new::after { /* the glow, round the photo and not over it */
+  content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit;
+  box-shadow: 0 0 0 5px var(--book-gold), 0 0 22px 9px rgb(242 182 48 / .9), 0 0 56px 24px rgb(255 205 90 / .5);
+  animation: glow 2.4s ease-in-out infinite;
+}
+.badge-new {
+  position: absolute; z-index: 4; top: calc(var(--tile-w) * -.1); right: calc(var(--tile-w) * -.13);
+  padding: .2em .55em .26em; border-radius: 999px;
+  font-size: clamp(20px, var(--tile-w) * .11, 32px); line-height: 1; white-space: nowrap;
+  color: var(--book-card); background: #d0682e; /* the journal's orange, a shade deeper so the letters stand out on it */
+  -webkit-text-stroke: .13em var(--book-ink); paint-order: stroke fill;
+  box-shadow: 0 0 0 3px var(--book-card), 0 0 0 5.5px var(--book-ink), 0 7px 10px 3px rgb(59 47 37 / .3);
+  transform: rotate(12deg); animation: badge-wobble 1.7s ease-in-out infinite;
+}
+
+/* Unfound: a dark silhouette with a big question mark. The card does not open until the animal is found. */
+.tile.unfound { background: #f1e8d4; box-shadow: 0 1px 0 rgb(59 47 37 / .08), 0 5px 10px -2px rgb(59 47 37 / .24); }
+.tile.unfound::before { --tape: rgb(214 196 160 / .75); } /* plain masking tape */
+.tile.unfound .tile-picture { background: radial-gradient(115% 95% at 50% 30%, #e7dcc4, #d3c4a6); }
+.tile.unfound .tile-picture img { filter: brightness(0); opacity: .7; }
+.tile.unfound .tile-picture::after {
+  content: "?"; position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: calc(var(--tile-w) * .44); line-height: 1;
+  color: var(--book-card); -webkit-text-stroke: .075em var(--book-ink); paint-order: stroke fill;
+  text-shadow: 0 .06em 0 rgb(59 47 37 / .35);
+  transform: rotate(-6deg);
+}
+.tile.unfound .tile-name { color: var(--book-ink-soft); }
+
+/* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
+   background, here and on its card. An animal without one takes the page's warm tan. */
+[data-card="mosi"] { --hue: #868862; }
+[data-card="kambedla"] { --hue: #8f6aa3; }
+[data-card="kalligrammatid"] { --hue: #eea25c; }
+[data-card="beetle"] { --hue: #2a9689; }
+[data-card="frog"] { --hue: #66ac47; }
+[data-card="snail"] { --hue: #ee8650; }
+[data-card="birds"] { --hue: #7ea7cc; }
+
+/* ---- The card: an animal's pages, over the spread -------------------------------------------------------------- */
+
+.card {
+  --card-gap: clamp(16px, 2.6cqmin, 36px);
+  --side: max(var(--book-target) + 28px, 12cqw); /* the columns the arrows stand in */
+  position: absolute; z-index: 10; inset: 0; margin: auto;
+  width: min(100cqw - 2 * var(--card-gap), (100cqh - 2 * var(--card-gap)) * 1.62);
+  height: calc(100cqh - 2 * var(--card-gap));
+  container-type: size;
+  display: grid;
+  grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas: "prev image next" ". words ." ". dots .";
+  row-gap: 2.6cqh;
+  padding: 4.6cqh 0 3.4cqh;
+}
+.card::before { /* the spread dims behind the card */
+  content: ""; position: absolute; z-index: -1; inset: -100vmax; background: rgb(24 17 11 / .62);
+}
+.card::after { /* the card itself: thick paper with a hand-drawn frame */
+  content: ""; position: absolute; z-index: -1; inset: 0; border-radius: 30px;
+  background: var(--book-frame) center / calc(100% - 28px) calc(100% - 28px) no-repeat, var(--book-grain), var(--book-card);
+  box-shadow: inset 0 0 0 3px rgb(59 47 37 / .16), 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
+}
+
+.card-image { /* the page's picture, a photo taped on the card; a tap on it zooms it */
+  grid-area: image; position: relative; margin: 0; justify-self: center; align-self: center;
+  height: 100%; max-width: 100%; aspect-ratio: 4 / 3;
+  padding: clamp(10px, 1.7cqmin, 20px);
+  border-radius: 10px; background: var(--book-card);
+  box-shadow: 0 2px 0 rgb(59 47 37 / .1), 0 16px 30px -4px rgb(59 47 37 / .34), 0 3px 6px rgb(59 47 37 / .18);
+  transform: rotate(-1.2deg);
+}
+.card-image::before, .card-image::after { /* tape on two corners */
+  content: ""; position: absolute; z-index: 2; width: 22%; height: clamp(26px, 5.2cqmin, 44px);
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--book-teal) 50%, transparent);
+  -webkit-mask: var(--book-tape) center / 100% 100% no-repeat; mask: var(--book-tape) center / 100% 100% no-repeat;
+}
+.card-image::before { top: -2.2%; left: -5%; transform: rotate(-32deg); }
+.card-image::after { top: -2.2%; right: -5%; transform: rotate(30deg); background-color: color-mix(in srgb, var(--book-gold) 60%, transparent); }
+.card-image img {
+  display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 6px;
+  background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #c9b48a) 16%, var(--book-card)), color-mix(in srgb, var(--hue, #c9b48a) 42%, var(--book-card)));
+}
+.card-info { /* small to look at (spec 3.3), full size to the finger */
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 3; right: calc(var(--book-target) * -.32); bottom: calc(var(--book-target) * -.32);
+  display: grid; place-items: center; padding: 0; border: 0; background: none;
+}
+.card-info .book-icon { width: 44px; height: 44px; filter: drop-shadow(0 3px 3px rgb(59 47 37 / .35)); }
+
+.card-arrow { /* big drawn arrows at both sides */
+  min-width: var(--book-target); min-height: var(--book-target);
+  width: clamp(112px, 15cqmin, 156px); aspect-ratio: 6 / 5; padding: 0; border: 0; background: none;
+  align-self: center; justify-self: center;
+}
+.card-arrow.prev { grid-area: prev; }
+.card-arrow.next { grid-area: next; }
+.card-arrow.prev .book-arrow { transform: scaleX(-1); }
+.book-arrow { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 9px 6px rgb(59 47 37 / .3)); }
+.book-arrow .arrow-side { fill: var(--book-orange-deep); stroke: var(--book-ink); stroke-width: 5; stroke-linejoin: round; }
+.book-arrow .arrow-face { fill: var(--book-orange); stroke: var(--book-ink); stroke-width: 5; stroke-linejoin: round; }
+.book-arrow .arrow-shine { fill: none; stroke: rgb(255 255 255 / .5); stroke-width: 5; stroke-linecap: round; }
+
+.card-words { grid-area: words; display: flex; align-items: center; justify-content: center; gap: clamp(16px, 2.6cqw, 32px); padding: 0 2cqw; }
+.card-text {
+  margin: 0; max-width: 13.5em; text-align: center; text-wrap: balance; /* narrow, so the speaker sits by the words */
+  font-size: min(6cqh, 6.2cqw, 54px); line-height: 1.25;
+}
+.card-replay {
+  min-width: var(--book-target); min-height: var(--book-target);
+  --face: var(--book-teal); --side: var(--book-teal-deep);
+  flex: none; color: var(--book-card);
+}
+.card-back { /* back to the animals page, from any page */
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; top: clamp(16px, 3.4cqh, 34px); left: clamp(16px, 2.6cqw, 34px);
+}
+.card-dots { grid-area: dots; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 26px; }
+.card-dots > span {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--book-paper); border: 2.5px solid var(--book-ink-soft);
+}
+.card-dots > span[aria-current="step"] {
+  width: 26px; height: 26px; background: var(--book-orange); border: 3px solid var(--book-ink);
+  box-shadow: 0 3px 0 var(--book-orange-deep), 0 3px 0 2px var(--book-ink);
+}
+
+/* ---- The zoom: a picture at full screen, over everything -------------------------------------------------------- */
+
+.zoom {
+  position: absolute; z-index: 20; inset: 0;
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center;
+  padding: clamp(16px, 2.4cqmin, 32px);
+  background: radial-gradient(ellipse 75% 70% at 50% 46%, #2e2319, #120c07);
+}
+.zoom > img {
+  display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+  border: clamp(8px, 1.2cqmin, 14px) solid var(--book-card); border-radius: 14px; background: var(--book-card);
+  box-shadow: 0 28px 70px rgb(0 0 0 / .55), 0 8px 18px rgb(0 0 0 / .4);
+}
+.zoom-close {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 1; top: clamp(16px, 2.6cqmin, 32px); right: clamp(16px, 2.6cqmin, 32px);
+}
+
+/* ---- Icons: drawn in one stroke weight, coloured by the control they sit in -------------------------------------- */
+
+.book-icon { display: block; overflow: visible; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+.book-icon .icon-fill { fill: currentColor; stroke: none; }
+.ribbon .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; }
+.card-info .icon-dot { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; }
+.card-info .icon-i { fill: var(--book-ink); stroke: var(--book-ink); }
+
+/* ---- The still book's idle life ----------------------------------------------------------------------------------- */
+
+.ribbon[data-tab="stars"] .book-icon { animation: star-twinkle 3s ease-in-out infinite; }
+
+@keyframes tile-breathe {
+  0%, 100% { transform: rotate(var(--tilt)) translateY(0) scale(1); }
+  50% { transform: rotate(var(--tilt)) translateY(-3px) scale(1.03); }
+}
+@keyframes tile-rock {
+  0%, 100% { transform: rotate(calc(var(--tilt) - 2.6deg)) scale(1.02); }
+  50% { transform: rotate(calc(var(--tilt) + 2.6deg)) scale(1.05); }
+}
+@keyframes glow {
+  0%, 100% { opacity: .55; transform: scale(.99); }
+  50% { opacity: 1; transform: scale(1.025); }
+}
+@keyframes badge-wobble {
+  0%, 100% { transform: rotate(12deg) scale(1); }
+  30% { transform: rotate(1deg) scale(1.07); }
+  60% { transform: rotate(17deg) scale(.98); }
+}
+@keyframes twinkle {
+  0%, 62%, 100% { opacity: 0; transform: scale(.3) rotate(0deg); }
+  74% { opacity: 1; transform: scale(1.15) rotate(30deg); }
+  86% { opacity: .9; transform: scale(.85) rotate(55deg); }
+}
+@keyframes glint {
+  0%, 70% { transform: translateX(-80%); }
+  86%, 100% { transform: translateX(80%); }
+}
+@keyframes star-twinkle {
+  0%, 100% { transform: scale(1) rotate(-6deg); }
+  50% { transform: scale(1.16) rotate(8deg); }
+}
+
+/* ---- A tablet held upright: the pages lie one above the other, and the card's arrows go under its words ---------- */
+
+@media (max-aspect-ratio: 1/1) {
+  .book-spread {
+    width: min(100cqw - 2 * var(--gap-side), (100cqh - var(--gap-top) - var(--gap-bottom)) * .8);
+    height: min(100cqh - var(--gap-top) - var(--gap-bottom), (100cqw - 2 * var(--gap-side)) / .5);
+  }
+  .book-page.left {
+    top: var(--edge); bottom: 50%; left: var(--edge); right: var(--edge);
+    border-radius: 16px 16px 3px 3px;
+    background-image:
+      linear-gradient(to top, rgb(59 47 37 / .26), rgb(59 47 37 / .08) 5%, transparent 14%),
+      linear-gradient(to bottom, rgb(255 255 255 / .4), transparent 8%),
+      var(--book-grain);
+    box-shadow: 2px -3px 0 -1px #e9dec6, 4px -6px 0 -2px #f3ead8, 6px -9px 0 -3px #ded0b2, 0 4px 10px rgb(40 22 8 / .25);
+  }
+  .book-page.right {
+    top: 50%; bottom: var(--edge); left: var(--edge); right: var(--edge);
+    border-radius: 3px 3px 16px 16px;
+    background-image:
+      linear-gradient(to bottom, rgb(59 47 37 / .26), rgb(59 47 37 / .08) 5%, transparent 14%),
+      linear-gradient(to top, rgb(255 255 255 / .4), transparent 8%),
+      var(--book-grain);
+    box-shadow: 2px 3px 0 -1px #e9dec6, 4px 6px 0 -2px #f3ead8, 6px 9px 0 -3px #ded0b2, 0 4px 10px rgb(40 22 8 / .25);
+  }
+  .book-spine {
+    top: 50%; bottom: auto; left: var(--edge); right: var(--edge);
+    width: auto; height: 44px; margin: -22px 0 0;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='14'%3E%3Cpath d='M9 7L30 7.6' stroke='%232f8f86' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M11 6.2L27 6.6' stroke='%23fff' stroke-opacity='.35' stroke-width='1' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='7' r='1.7' fill='%233b2f25' fill-opacity='.45'/%3E%3Ccircle cx='34' cy='7.6' r='1.7' fill='%233b2f25' fill-opacity='.45'/%3E%3C/svg%3E") 14px center / 40px 14px repeat-x,
+      linear-gradient(to bottom, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
+  }
+  .book-tiles { --pad-x: 7cqw; --pad-top: 6.5cqh; --pad-bottom: 6cqh; }
+
+  .card {
+    width: calc(100cqw - 2 * var(--card-gap));
+    height: min(100cqh - 2 * var(--card-gap), (100cqw - 2 * var(--card-gap)) * 1.62);
+    --side: calc(var(--book-target) + 40px);
+    grid-template-areas: "image image image" "words words words" "prev dots next";
+    padding: calc(var(--book-target) + 8.5cqw) 5cqw 4.4cqw;
+    row-gap: 3.2cqh;
+  }
+  .card-image { height: auto; width: 100%; max-height: 100%; aspect-ratio: 1; } /* as tall as the row lets it be */
+  .card-text { font-size: min(5.4cqw, 54px); }
+  .card-arrow { width: clamp(112px, 17cqw, 156px); }
+}
+
+/* ---- Less motion, when the tablet asks for it: the book holds still, its look and words unchanged --------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .book *, .book *::before, .book *::after { animation: none !important; }
+}

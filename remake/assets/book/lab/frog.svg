@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): the frog, sitting and smiling, in the chapter's frog colours
+       (world/critters/models.js), drawn soft and by hand on a clear background so a tile can show it as a silhouette.
+       Our own drawing; the owner's drawing replaces it (Task 12). -->
+  <title>Froskur</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="13" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <ellipse cx="200" cy="266" rx="134" ry="12" fill="#3b2f25" opacity=".14"/>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M128 252C110 250 88 254 66 262C70 268 76 270 82 266C86 270 92 271 98 268C102 271 110 271 116 267C124 264 130 258 128 252Z" fill="#58a23f"/>
+    <path d="M272 252C290 250 312 254 334 262C330 268 324 270 318 266C314 270 308 271 302 268C298 271 290 271 284 267C276 264 270 258 272 252Z" fill="#58a23f"/>
+    <path d="M152 238C112 248 82 230 86 204C90 180 126 174 152 196Z" fill="#58a23f"/>
+    <path d="M248 238C288 248 318 230 314 204C310 180 274 174 248 196Z" fill="#58a23f"/>
+    <path d="M200 110C254 110 292 150 292 200C292 242 252 262 200 262C148 262 108 242 108 200C108 150 146 110 200 110Z" fill="#66ac47"/>
+    <path d="M200 168C234 168 256 194 254 224C251 250 228 260 200 260C172 260 149 250 146 224C144 194 166 168 200 168Z" fill="#f4edbb" stroke-width="3.5"/>
+    <path d="M154 206C144 228 140 246 142 260C152 265 168 265 176 259C172 242 170 224 170 208Z" fill="#58a23f"/>
+    <path d="M246 206C256 228 260 246 258 260C248 265 232 265 224 259C228 242 230 224 230 208Z" fill="#58a23f"/>
+    <g fill="#58a23f" stroke-width="3.5">
+      <circle cx="145" cy="262" r="5.5"/><circle cx="157" cy="265" r="5.5"/><circle cx="169" cy="263" r="5.5"/>
+      <circle cx="255" cy="262" r="5.5"/><circle cx="243" cy="265" r="5.5"/><circle cx="231" cy="263" r="5.5"/>
+    </g>
+    <path d="M118 152C114 114 150 90 200 90C250 90 286 114 282 152C278 178 244 190 200 190C156 190 122 178 118 152Z" fill="#66ac47"/>
+    <circle cx="150" cy="98" r="32" fill="#66ac47"/>
+    <circle cx="250" cy="98" r="32" fill="#66ac47"/>
+    <ellipse cx="200" cy="114" rx="40" ry="10" fill="#98d25c" opacity=".85" stroke="none"/>
+    <circle cx="150" cy="96" r="23" fill="#f6f1e4" stroke-width="3.5"/>
+    <circle cx="250" cy="96" r="23" fill="#f6f1e4" stroke-width="3.5"/>
+    <g stroke="none">
+      <circle cx="152" cy="98" r="15.5" fill="#f2c443"/>
+      <circle cx="248" cy="98" r="15.5" fill="#f2c443"/>
+      <ellipse cx="153" cy="99" rx="10" ry="6.5" fill="#2b2a1c"/>
+      <ellipse cx="247" cy="99" rx="10" ry="6.5" fill="#2b2a1c"/>
+      <circle cx="146" cy="90" r="4.2" fill="#fff"/>
+      <circle cx="242" cy="90" r="4.2" fill="#fff"/>
+      <g fill="#4f8f36" opacity=".45">
+        <circle cx="178" cy="134" r="6"/><circle cx="224" cy="128" r="7"/><circle cx="244" cy="150" r="5"/>
+        <circle cx="158" cy="146" r="4.5"/><circle cx="124" cy="214" r="6"/><circle cx="276" cy="210" r="6"/>
+      </g>
+      <circle cx="190" cy="138" r="2.4" fill="#2f6a30"/>
+      <circle cx="210" cy="138" r="2.4" fill="#2f6a30"/>
+      <ellipse cx="138" cy="160" rx="12" ry="7" fill="#f0a3b6" opacity=".6"/>
+      <ellipse cx="262" cy="160" rx="12" ry="7" fill="#f0a3b6" opacity=".6"/>
+    </g>
+    <path d="M146 156C172 178 228 178 254 156" fill="none" stroke="#2f6a30" stroke-width="5"/>
+  </g>
+</svg>
