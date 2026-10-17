@@ -207,25 +207,105 @@ test('a press is a tap however long it is held, and a drag once it moves 12 px',
   assert.equal(taps.length, 2);
 });
 
-test('only the first finger is followed; a second one is ignored until the first lifts', () => {
+test('a finger resting on the glass does not stop another from tapping', () => {
+  const { pointer, send, screenOf } = pointerRig();
+  const { taps, drags } = watch(pointer);
+  pointer.addTarget('egill', { point: EGILL, radius: 1 });
+  const { x, y } = screenOf(EGILL);
+  send('pointerdown', 20, 400, 0, 1); // a thumb comes to rest on the edge of the screen, and stays there
+  send('pointerdown', x, y, 500, 2); // another finger taps Egill
+  send('pointerup', x, y, 580, 2);
+  assert.deepEqual(taps.map(t => t.name), ['egill'], 'the tap is heard while the thumb rests');
+  send('pointerdown', x + 4, y + 2, 2000, 3); // and again, a new finger each time, as a touch screen numbers them
+  send('pointerup', x + 4, y + 2, 2070, 3);
+  assert.deepEqual(taps.map(t => t.name), ['egill', 'egill']);
+  assert.ok(near(taps[1].x, x + 4 - 10) && near(taps[1].y, y + 2 - 20), 'each tap is where its own finger landed, in canvas pixels');
+  send('pointerup', 20, 400, 9000, 1); // the thumb lifts at last: a press let go where it landed is a tap (tap first)
+  assert.deepEqual(taps.map(t => [t.name, t.x, t.y]).at(-1), [null, 10, 380]);
+  assert.deepEqual(drags, []);
+});
+
+test('each finger taps what it landed on, whichever lifts first', () => {
+  const { pointer, send, screenOf } = pointerRig();
+  const { taps } = watch(pointer);
+  pointer.addTarget('egill', { point: EGILL, radius: 1 });
+  pointer.addTarget('mosi', { point: MOSI, radius: 1 });
+  const e = screenOf(EGILL);
+  const m = screenOf(MOSI);
+  send('pointerdown', e.x, e.y, 0, 5);
+  send('pointerdown', m.x, m.y, 20, 6);
+  send('pointerup', m.x, m.y, 60, 6); // the later finger lifts first
+  send('pointerup', e.x, e.y, 90, 5);
+  assert.deepEqual(taps.map(t => t.name), ['mosi', 'egill']);
+});
+
+test('a drag follows the earliest finger; another finger that moves is neither a drag nor a tap', () => {
   const { pointer, send } = pointerRig();
   const { taps, drags } = watch(pointer);
   send('pointerdown', 100, 100, 0, 1);
-  send('pointerdown', 300, 300, 10, 2); // a second finger lands...
-  send('pointerdown', 500, 300, 15, 3); // ...and a third
-  send('pointerdown', 300, 400, 18, 4); // ...and a fourth
-  send('pointermove', 340, 300, 20, 2); // the second drags: nothing
-  send('pointerup', 500, 300, 30, 3); // the third lifts while the first is down: that is not the first's release
-  send('pointercancel', 0, 0, 40, 2); // the second is cancelled: nor is that
-  send('pointerup', 100, 100, 60, 1); // the first lifts: a tap where it landed
-  send('pointermove', 360, 400, 70, 4); // the fourth is still down, and still ignored
-  send('pointerup', 360, 400, 80, 4);
-  assert.deepEqual(drags, []);
-  assert.deepEqual(taps.map(t => [t.x, t.y]), [[90, 80]]);
+  send('pointermove', 130, 100, 20, 1); // the first finger drags
+  send('pointerdown', 400, 300, 30, 2); // a second lands and moves far
+  send('pointermove', 460, 340, 40, 2);
+  send('pointermove', 470, 360, 50, 2);
+  send('pointerup', 470, 360, 60, 2); // and lifts: it moved, so it was no tap, and it was not the drag
+  send('pointermove', 150, 110, 70, 1); // the first goes on
+  send('pointerup', 150, 110, 80, 1);
+  assert.deepEqual(drags.map(d => [d.phase, d.dx, d.dy]), [['start', 30, 0], ['move', 20, 10], ['end', 0, 0]], 'one drag, the first finger\'s, never torn between two');
+  assert.deepEqual(taps, []);
+});
 
-  send('pointerdown', 300, 300, 1000, 3); // a new finger is followed again
-  send('pointerup', 300, 300, 1050, 3);
-  assert.deepEqual(taps.map(t => [t.x, t.y]), [[90, 80], [290, 280]]);
+test('when the earliest finger lifts, the next one drags from where it is then', () => {
+  const { pointer, send } = pointerRig();
+  const { taps, drags } = watch(pointer);
+  send('pointerdown', 20, 400, 0, 1); // a resting thumb
+  send('pointerdown', 300, 200, 10, 2);
+  send('pointermove', 340, 200, 20, 2); // the other finger moves 40 px: no drag while the thumb is earlier
+  assert.deepEqual(drags, []);
+  send('pointerup', 20, 400, 30, 1); // the thumb lifts (a tap where it landed)
+  send('pointermove', 345, 203, 40, 2); // now the finger is the earliest: its drag starts from where it was
+  send('pointermove', 360, 203, 50, 2);
+  send('pointerup', 360, 203, 60, 2);
+  assert.deepEqual(drags.map(d => [d.phase, d.dx, d.dy]), [['start', 5, 3], ['move', 15, 0], ['end', 0, 0]], 'no jump by the 40 px it moved before');
+  assert.deepEqual(taps.map(t => [t.x, t.y]), [[10, 380]]);
+});
+
+test('a finger that goes down again under an id the pointer still holds replaces the stale press', () => {
+  const { pointer, send } = pointerRig();
+  const { taps, drags } = watch(pointer);
+  send('pointerdown', 100, 100, 0, 1);
+  send('pointermove', 140, 100, 20, 1); // a drag, whose release the page never hears (lifted outside the window, say)
+  send('pointerdown', 300, 300, 1000, 1); // the same id lands again: the old press is over
+  assert.deepEqual(drags.map(d => [d.phase, d.x, d.y]), [['start', 130, 80], ['end', 130, 80]], 'the stale drag is ended, where it was');
+  send('pointerup', 300, 300, 1050, 1);
+  assert.deepEqual(taps.map(t => [t.x, t.y]), [[290, 280]], 'and the new press is a tap of its own');
+  send('pointerdown', 50, 50, 2000, 2); // a stale press that was only resting is replaced quietly: no tap for it
+  send('pointerdown', 60, 60, 3000, 2);
+  send('pointerup', 60, 60, 3050, 2);
+  assert.deepEqual(taps.map(t => [t.x, t.y]), [[290, 280], [50, 40]]);
+  assert.equal(drags.length, 2);
+});
+
+test('a target whose point cannot be found is skipped and said once, and every press still works', () => {
+  const { pointer, tapOn } = pointerRig();
+  const { taps } = watch(pointer);
+  const reported = [];
+  const consoleError = console.error;
+  console.error = (...args) => reported.push(args);
+  try {
+    pointer.addTarget('gone', { point: () => { throw new Error('no such actor'); }, radius: 1 });
+    pointer.addTarget('egill', { point: EGILL, radius: 1 });
+    tapOn(EGILL);
+    tapOn(EGILL);
+    tapOn(MOSI);
+    assert.deepEqual(taps.map(t => t.name), ['egill', 'egill', null], 'the others are picked as ever');
+    assert.equal(reported.length, 1, 'one message, not one a press');
+    assert.match(reported[0].join(' '), /gone/);
+    pointer.addTarget('gone', { point: () => { throw new Error('still not there'); }, radius: 1 });
+    tapOn(EGILL);
+    assert.equal(reported.length, 2, 'a target given again is reported again when it fails again');
+  } finally {
+    console.error = consoleError;
+  }
 });
 
 test('a cancelled touch ends its drag, is never a tap, and leaves the pointer ready', () => {

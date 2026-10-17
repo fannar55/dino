@@ -5,16 +5,22 @@ import * as THREE from 'three';
 // A target is a sphere around a point spec (engine/points.js), so it can follow an actor, a butterfly
 // or anything else that moves: its centre is resolved when a finger lands, never when the target is
 // added. The press is what is picked (it is what the child aimed at; the camera and the targets may
-// have moved by the time the finger lifts) and the release confirms the tap. Only the first finger
-// is followed; a second one is ignored until the first lifts. Positions are canvas pixels.
+// have moved by the time the finger lifts) and the release confirms the tap. Positions are canvas pixels.
+//
+// Every finger is followed on its own (by its pointerId), so a thumb resting on the glass while a child
+// holds the tablet never stops another finger's tap: each finger taps what it landed on when it lifts.
+// Only the earliest finger still down drags, so a free look is never torn between two fingers; a later
+// finger that moves 12 px is neither a tap nor a drag, and once the fingers before it have lifted it is
+// the earliest and drags from where it is then. A pointer that goes down again with an id that is still
+// held replaces the stale press (its release was lost): a drag it was making ends, and it taps nothing.
 //
 //   'tap'   { name, x, y }  a press that is released before it moves 12 px, however long it was held.
 //                           `name` is the target the finger landed on, or null when there was none;
 //                           x and y are where it landed.
 //   'drag'  { dx, dy, phase, x, y }  a press that moved 12 px or more. phase is 'start', 'move' or
-//                           'end'; dx and dy are the movement since the previous drag event (since
-//                           the press, for 'start'), so a drag's events add up to the finger's travel.
-//                           A cancelled touch ends its drag too.
+//                           'end'; dx and dy are the movement since the previous drag event (for
+//                           'start', since the press, or since the finger became the earliest), so a
+//                           drag's events add up to the finger's travel. A cancelled touch ends its drag too.
 
 const SLOP_PX = 12; // a press that moves this far is a drag; until then it is still a tap
 const MIN_TARGET_PX = 44; // a target is at least this wide on screen, whatever its size or distance
@@ -85,7 +91,11 @@ export function createPointer({ canvas, camera, world }) {
   const listeners = new Map([['tap', []], ['drag', []]]);
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  let finger = null; // the pointer being followed: { id, startX, startY, lastX, lastY, dragging, hit }
+  // The fingers that are down, by pointerId, in the order they landed: { id, startX, startY, x, y, lastX,
+  // lastY, moved, dragging, hit }. A press goes in at the end, so the first one is the earliest.
+  const fingers = new Map();
+  const unfound = new Set(); // names of targets whose point could not be found, said once each
+  const earliest = () => fingers.values().next().value;
 
   // A listener that throws must not stop the others, or leave a finger half handled.
   function emit(event, payload) {
@@ -104,30 +114,51 @@ export function createPointer({ canvas, camera, world }) {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
-  /** The target under canvas position (x, y), or null. */
+  /**
+   * The target under canvas position (x, y), or null. A target whose point cannot be found (an actor
+   * that is gone, a function that fails) is skipped, and said once, so it never swallows a press.
+   */
   function pick(x, y) {
     const { width, height } = canvas.getBoundingClientRect();
     ndc.set((x / width) * 2 - 1, 1 - (y / height) * 2);
     raycaster.setFromCamera(ndc, camera);
-    for (const target of targets.values()) if (target.enabled) world.resolvePoint(target.point, target.centre);
+    const found = [];
+    for (const target of targets.values()) {
+      if (!target.enabled) continue;
+      try {
+        world.resolvePoint(target.point, target.centre);
+        found.push(target);
+      } catch (error) {
+        if (!unfound.has(target.name)) {
+          unfound.add(target.name);
+          console.error(`[pointer] tap target "${target.name}" cannot be found, so it is left out:`, error);
+        }
+      }
+    }
     // A 44 px target spans 22 px each way from its centre: the angle that is, from the camera.
     const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(camera.getEffectiveFOV()) / 2);
     const minAngle = Math.atan((MIN_TARGET_PX * tanHalfFov) / height);
-    return pickTarget(raycaster.ray, targets.values(), { minAngle });
+    return pickTarget(raycaster.ray, found, { minAngle });
   }
 
-  function emitDrag(gesture, phase, x, y) {
-    const dx = x - gesture.lastX;
-    const dy = y - gesture.lastY;
-    gesture.lastX = x;
-    gesture.lastY = y;
+  function emitDrag(finger, phase, x, y) {
+    const dx = x - finger.lastX;
+    const dy = y - finger.lastY;
+    finger.lastX = x;
+    finger.lastY = y;
     emit('drag', { dx, dy, phase, x, y });
   }
 
-  /** The finger is at (x, y): once it is 12 px from where it landed, the press is a drag. */
-  function follow(x, y) {
+  /**
+   * The finger is at (x, y). Once it is 12 px from where it landed it is no tap; if it is the earliest
+   * finger down it drags, and goes on dragging until it lifts.
+   */
+  function follow(finger, x, y) {
+    finger.x = x;
+    finger.y = y;
+    if (!finger.moved && Math.hypot(x - finger.startX, y - finger.startY) >= SLOP_PX) finger.moved = true;
+    if (!finger.moved || finger !== earliest()) return;
     if (!finger.dragging) {
-      if (Math.hypot(x - finger.startX, y - finger.startY) < SLOP_PX) return;
       finger.dragging = true;
       emitDrag(finger, 'start', x, y);
     } else if (x !== finger.lastX || y !== finger.lastY) {
@@ -135,16 +166,33 @@ export function createPointer({ canvas, camera, world }) {
     }
   }
 
+  /** Forget a finger. The next earliest, if it has not been dragging, drags from where it is now. */
+  function lift(finger) {
+    fingers.delete(finger.id);
+    const next = earliest();
+    if (next && !next.dragging) {
+      next.lastX = next.x;
+      next.lastY = next.y;
+    }
+  }
+
   function onDown(event) {
-    if (finger || event.button > 0) return; // a second finger waits for the first; only the main button counts
+    if (event.button > 0) return; // only the main button counts
+    const stale = fingers.get(event.pointerId);
+    if (stale) { // its release was lost: that press is over, and taps nothing
+      lift(stale);
+      if (stale.dragging) emitDrag(stale, 'end', stale.lastX, stale.lastY);
+    }
     const { x, y } = local(event);
-    finger = {
+    fingers.set(event.pointerId, {
       id: event.pointerId,
       startX: x, startY: y,
+      x, y, // where it is now
       lastX: x, lastY: y, // where the last drag event left the finger
+      moved: false, // 12 px or more from where it landed: no tap
       dragging: false,
       hit: pick(x, y), // what it landed on
-    };
+    });
     try {
       canvas.setPointerCapture?.(event.pointerId); // so a mouse that leaves the canvas still lifts here
     } catch {
@@ -153,31 +201,32 @@ export function createPointer({ canvas, camera, world }) {
   }
 
   function onMove(event) {
-    if (!finger || event.pointerId !== finger.id) return;
+    const finger = fingers.get(event.pointerId);
+    if (!finger) return;
     const { x, y } = local(event);
-    follow(x, y);
+    follow(finger, x, y);
   }
 
   function onUp(event) {
-    if (!finger || event.pointerId !== finger.id) return;
+    const finger = fingers.get(event.pointerId);
+    if (!finger) return;
     const { x, y } = local(event);
-    follow(x, y); // a release 12 px from the press is a drag too
-    const gesture = finger;
-    finger = null;
-    if (gesture.dragging) {
-      emitDrag(gesture, 'end', x, y);
-    } else {
+    follow(finger, x, y); // a release 12 px from the press is a drag too
+    lift(finger); // before anyone hears of it: a listener that throws leaves no finger half handled
+    if (finger.dragging) {
+      emitDrag(finger, 'end', x, y);
+    } else if (!finger.moved) {
       // The target pressed, unless it was taken away or switched off since.
-      const name = targets.get(gesture.hit)?.enabled ? gesture.hit : null;
-      emit('tap', { name, x: gesture.startX, y: gesture.startY });
+      const name = targets.get(finger.hit)?.enabled ? finger.hit : null;
+      emit('tap', { name, x: finger.startX, y: finger.startY });
     }
   }
 
   function onCancel(event) {
-    if (!finger || event.pointerId !== finger.id) return;
-    const gesture = finger;
-    finger = null;
-    if (gesture.dragging) emitDrag(gesture, 'end', gesture.lastX, gesture.lastY);
+    const finger = fingers.get(event.pointerId);
+    if (!finger) return;
+    lift(finger);
+    if (finger.dragging) emitDrag(finger, 'end', finger.lastX, finger.lastY);
   }
 
   canvas.addEventListener('pointerdown', onDown);
@@ -193,6 +242,7 @@ export function createPointer({ canvas, camera, world }) {
       if (point == null) throw new TypeError(`Tap target "${name}" needs a point`);
       if (!Number.isFinite(radius) || radius <= 0) throw new TypeError(`Tap target "${name}" needs a radius in metres, not ${radius}`);
       targets.set(name, { name, point, radius, enabled: true, centre: new THREE.Vector3() });
+      unfound.delete(name); // a new point: if it cannot be found either, that is said again
     },
     removeTarget(name) {
       targets.delete(name);

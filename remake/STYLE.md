@@ -217,7 +217,8 @@ face), misty far forest, forest wall.
     The carried item floats 18 px above the finger, so the finger does not hide it, and that point is what counts.
   - Tap first: a press let go within 12 px is a tap, however long it was held (no 300 ms limit), and what the finger
     landed on is what was tapped. Taps come from pointer events on a canvas with `touch-action: none`, so there is
-    no 300 ms click delay, and a long press opens no menu. Only the first finger counts until it lifts.
+    no 300 ms click delay, and a long press opens no menu. Every finger counts on its own, so a thumb resting on the
+    glass never stops another finger's tap; only the earliest finger still down drags (the free look follows one finger).
   - Tap targets: a target in the world is a sphere round a point, sized in metres (Mosi's nose 0.45, Egill 0.7, a
     glow flower 0.55, the star 0.85) and never less than 44 px across on the screen; tray items are 64 to 88 px,
     the book's button and its close 64 px. The choice buttons are still the foundation's 52 px until the interface
