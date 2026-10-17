@@ -89,6 +89,7 @@ Every interactive wait auto-resolves while seeking, so `?t=` captures stay deter
   - `createPointer({ canvas, camera, world })` returns `{ addTarget(name, { point, radius }), removeTarget(name), setEnabled(name, on), on(event, fn) }`.
     - Events: `'tap' { name, x, y }`, `'drag' { dx, dy, phase: 'start'|'move'|'end', x, y }`.
     - A tap is a pointer down and up within 300 ms and 12 px. Anything that moves 12 px or more is a drag.
+      - *Superseded by R16 (tap first): a press let go within 12 px is a tap however long it was held, and the press decides what was tapped (STYLE.md section 10).*
   - `s.target(name, { point, radius })`.
   - `s.tap(names, { auto = names[0] })` is a task that resolves with the tapped name. While seeking it resolves with `auto` after 2 s.
   - `s.onTap(name, fn)` returns an unsubscribe function. One pointer tap resolves at most one waiting `s.tap`; background handlers still run.
@@ -276,6 +277,7 @@ Every interactive wait auto-resolves while seeking, so `?t=` captures stay deter
 - Test: `remake/tests/beat.test.mjs`
 
 **Interfaces:**
+- *Superseded (the owner, 2026-10-17): the forest sways smoothly in time with the music instead of pulsing on the beat. There is no `uBeat`, `setBeat` or pulse: the wind carries the beat count (`uBeats`, `wind.setBeats`, eased onto the grid by `followBeat` in `engine/beat.js`) and the strong beats' dance (`uDance`). The pulse below is the plan as first written.*
 - Produces:
   - `theme.json`: `{ "src": "../../dist/assets/audio/little-dino-green-valley.mp3", "bpm": <measured>, "beatOffset": <seconds>, "key": [<five note frequencies in Hz>] }`.
   - `beatAt(time, { bpm, beatOffset })` returns `{ index, phase, pulse }`, pure. `pulse = exp(-6 * phase)`.

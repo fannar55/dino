@@ -161,7 +161,9 @@ shot clear (no trunk in the lens, no crowns or fronds right behind Mosi's head),
 culls and picks detail per view, with separate low-detail meshes for the shadow pass.
 A layout may also carry `glade: { ferns, shafts }` (a fern glade: a lusher rim of ferns, light shafts
 landing in the clearing, leaf shadows), `leafShadows: true` (leaf shadows drifting over the floor) and
-`actors` (who stands in that place, kept clear). Forest tools are in `tools/world/`
+`actors` (who stands in that place, kept clear). The grass lies down and the ferns lean aside round a
+footprint under each actor: Mosi-sized unless an actor sets `footprintScale` (Egill 0.3; a bigger friend
+will want more than 1). Forest tools are in `tools/world/`
 (`forest-round.mjs` captures the review set with figure-ground checks; `forest-stats.mjs` estimates
 calls and triangles in Node, `--location <name>` for one place of a chapter with locations).
 Reports and reviews are in `qa/remake/reports/`.
