@@ -188,7 +188,8 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   // one in view, and a script waiting on a landing must not wait for ever because the chapter went to another place.
   let driver = null;
   function drive() {
-    if (driver || !world.effects) return;
+    if (!world.effects) return;
+    if (driver && (world.effects.has?.(driver) ?? true)) return; // still running (a stopped scene clears it away: then a new one)
     driver = world.effects.add({
       update() {
         if (!disposed) update();

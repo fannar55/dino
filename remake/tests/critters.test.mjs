@@ -500,6 +500,16 @@ test('a script waiting on a butterfly is not left waiting when its forest goes o
   assert.equal(landing.done, true);
   assert.equal(landing.cancelled, false);
   assert.equal(landOnly.world.effects.size, 0);
+
+  // A stopped scene clears world.effects (scene.stop): a flutter after that is driven on the game clock again.
+  const cleared = butterflyStage();
+  step(away(cleared), 0.5);
+  cleared.butterflies.flutter('butterfly-1');
+  cleared.world.effects.clear();
+  const again = cleared.butterflies.flutter('butterfly-2');
+  assert.equal(cleared.world.effects.size, 1, 'the flutter is on the game clock, though the last driver was cleared away');
+  step(away(cleared), 3.3);
+  assert.equal(again.done, true);
 });
 
 test('disposing the forest lets a script waiting on a butterfly go on', () => {

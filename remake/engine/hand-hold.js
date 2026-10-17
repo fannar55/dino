@@ -15,6 +15,10 @@ import { reachTwoBones } from './ik.js';
 // The mixer writes a bone only when its clip's value changes, so a bone the clip holds still keeps the turn the hold gave
 // it the frame before. Each frame the hold first gives back the clip's own turn to every bone the mixer has left as the
 // hold set it, so a reach always starts from the clip's pose and a release ends exactly on it.
+//
+// One hold per actor at a time. Two holds on the same arms would each take the other's turn for the clip's and give it
+// back, so the hands would fight; release one (and let it end) before another grips. A hold whose point cannot be found
+// any more (its actor is gone) throws in its frame, and world.effects drops it then (engine/effects.js).
 
 const smooth = t => t * t * (3 - 2 * t);
 const BONES = ['upper', 'lower'];
@@ -58,7 +62,7 @@ export function holdWithHands(world, actor, { left = null, right = null } = {}) 
         arm.set[bone] = null;
       }
     }
-    const step = rate * Math.max(0, dt);
+    const step = dt > 0 ? rate * dt : 0; // a frame with no time moves nothing (and grip(0)'s Infinity times 0 is no NaN)
     weight = goal > weight ? Math.min(goal, weight + step) : Math.max(goal, weight - step);
     if (weight <= 0) {
       if (released) over = true; // back in its own pose

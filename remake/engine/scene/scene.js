@@ -494,7 +494,10 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       beganAt = scheduler.time;
     },
     update(dt) { scheduler.update(dt); },
-    /** Stop everything the scene set going: scripts, taps, camera modes, walks, looks, sound, captions. */
+    /**
+     * Stop everything the scene set going: scripts, taps, camera modes, walks, looks, sound, captions, and the effects on
+     * world.effects (a plate glow, a hold, the critters, the flowers), which would otherwise run on into a next chapter.
+     */
     stop() {
       scheduler.cancelAll();
       tapHandlers.length = 0;
@@ -503,6 +506,7 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       director.stop();
       director.handheld(0, { duration: 0.001 });
       for (const a of world.actors.values()) a.stop?.();
+      world.effects?.clear?.();
       voice.stop();
       sfx?.stop?.(); // the forest's loop
       ui.reset();
