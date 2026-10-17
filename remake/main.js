@@ -15,7 +15,7 @@ import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
 import { createPointResolver } from './engine/points.js';
-import { createLocations } from './engine/locations.js';
+import { createLocations, shotsOf, startOf } from './engine/locations.js';
 import { createDirector } from './engine/camera/director.js';
 import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
@@ -27,6 +27,7 @@ import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
 import { createHold } from './engine/audio/hold.js';
+import { guard } from './engine/guard.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
@@ -72,7 +73,7 @@ let locations = null;
 if (chapter.locations) {
   // Several places: the start location is built now, the others when the scene first goes there.
   locations = createLocations({ world, locations: chapter.locations, build: layout => createForest(world, layout) });
-  await locations.setLocation(chapter.start);
+  await locations.setLocation(startOf(chapter));
 } else {
   const forest = await createForest(world, chapter.layout);
   world.forest = forest;
@@ -88,10 +89,8 @@ let lodsReady = false;
 characterLodsReady().then(() => { lodsReady = true; });
 applySize(camera);
 
-// The director knows every shot of the chapter, wherever it is set: its own and each location's.
-const shots = chapter.locations
-  ? Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots))
-  : chapter.shots;
+// The director knows every shot of the chapter, wherever it is set: its own and each location's (a name set twice is said).
+const shots = shotsOf(chapter);
 const director = createDirector({ camera, world, shots });
 world.director = director;
 
@@ -130,6 +129,9 @@ const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lo
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
 const hold = createHold([voice, music, sfx]);
+// The sound runs before the actors, the effects, the camera and the forest: one that throws is said once and the frame goes on.
+const updateMusic = guard('music', () => music.update());
+const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
 const save = createSave(params.get('t') === null ? undefined : null);
@@ -165,8 +167,8 @@ function update(dt) {
   journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
   stage.update(dt);
   wind.update(clock.time);
-  music.update(); // if the clock lost time (a long frame) the sound is brought back to the playhead
-  sfx.update(dt); // the forest's birds and rustles
+  updateMusic(); // if the clock lost time (a long frame) the sound is brought back to the playhead
+  updateSfx(dt); // the forest's birds and rustles
   if (theme) {
     followed = followBeat(followed, beatsAt(musicTime(), theme), dt, theme, stage.seeking || clock.frozen);
     wind.setBeats(followed.beats); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat

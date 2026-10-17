@@ -19,6 +19,33 @@
 // is real async work (a build), so setLocation returns a promise; call it one switch at a time, as
 // a script does with s.goTo.
 
+/**
+ * Every shot of a chapter, wherever it is set, for the director: its own (`chapter.shots`) and, for a chapter in several places,
+ * each location's. A name set twice would frame one of the two wrongly without a word, so it is said: the place listed last
+ * keeps it, as it always did.
+ */
+export function shotsOf(chapter) {
+  if (!chapter.locations) return chapter.shots;
+  const shots = { ...chapter.shots };
+  const setIn = new Map(Object.keys(shots).map(name => [name, 'the chapter']));
+  for (const [place, location] of Object.entries(chapter.locations)) {
+    for (const [name, shot] of Object.entries(location.shots ?? {})) {
+      if (setIn.has(name)) console.warn(`[locations] shot "${name}" is set in ${setIn.get(name)} and in ${place}: the director keeps ${place}'s`);
+      setIn.set(name, place);
+      shots[name] = shot;
+    }
+  }
+  return shots;
+}
+
+/** The place a chapter in several places begins in, `chapter.start`, said clearly when it is missing or not one of them. */
+export function startOf(chapter) {
+  const names = Object.keys(chapter.locations);
+  if (chapter.start == null) throw new Error(`A chapter with locations needs \`start\`, the place it begins in: one of ${names.join(', ')}`);
+  if (!names.includes(chapter.start)) throw new Error(`The chapter starts in "${chapter.start}", which is not one of its places (${names.join(', ')})`);
+  return chapter.start;
+}
+
 export function createLocations({ world, locations, build }) {
   const names = Object.keys(locations);
   const forests = new Map(); // location name -> promise of its forest, so a build is never started twice

@@ -132,3 +132,26 @@ test('a hold needs world.effects, a hand that is there and a point it can find',
   const handless = { name: 'stone', model: new THREE.Group(), root: new THREE.Group() };
   assert.throws(() => holdWithHands(world, handless, GRIPS), /stone has no left arm/);
 });
+
+test('a grip or a release over no time gives no NaN on a frame where the clock stands still, and is done by the next', async () => {
+  const { world, egill, frame } = await stage();
+  frame();
+  const hold = holdWithHands(world, egill, GRIPS);
+  hold.grip(0);
+  frame(0); // a frozen frame: the game held, or a capture
+  assert.ok(Number.isFinite(hold.weight), `weight ${hold.weight}`);
+  for (const d of apart(world, egill)) assert.ok(Number.isFinite(d), 'the arms are where they were, not nowhere');
+  frame();
+  assert.equal(hold.weight, 1, 'at once, on the next frame with time in it');
+  assert.ok(Math.max(...apart(world, egill)) < 0.01);
+  hold.release(0);
+  frame(0);
+  assert.ok(Number.isFinite(hold.weight), `weight ${hold.weight}`);
+  frame();
+  assert.equal(hold.weight, 0);
+  assert.equal(hold.over, true);
+  for (const bone of ['LeftUpperArm', 'LeftLowerArm', 'RightUpperArm', 'RightLowerArm']) {
+    const q = egill.model.getObjectByName(bone).quaternion;
+    assert.ok([q.x, q.y, q.z, q.w].every(Number.isFinite), `${bone} is a real turn`);
+  }
+});

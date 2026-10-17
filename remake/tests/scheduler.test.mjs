@@ -271,3 +271,35 @@ test('pending counts promises a script waits on', async () => {
   await Promise.resolve();
   assert.equal(sched.pending, 0);
 });
+
+test('a promise wait that is cancelled (it lost a race) is no longer pending, and settling later changes nothing', async () => {
+  const sched = createScheduler();
+  let release;
+  let reject;
+  const choice = () => new Promise(resolve => { release = resolve; }); // a choice nobody makes
+  sched.run((function* script() {
+    yield race(choice(), wait(0.5)); // the timer wins and the choice is cancelled
+    yield race(new Promise((resolve, fail) => { reject = fail; }), wait(0.5));
+  })());
+  sched.update(0.1);
+  assert.equal(sched.pending, 1, 'the choice is waited on');
+  for (let i = 0; i < 6; i++) sched.update(0.1);
+  assert.equal(sched.pending, 1, 'the first race is over, its promise no longer counts; the second race waits on its own');
+  for (let i = 0; i < 6; i++) sched.update(0.1);
+  assert.equal(sched.pending, 0, 'so a seek does not wait on promises nobody waits for');
+  assert.equal(sched.idle, true);
+  release('yes'); // the child taps after all, long after
+  reject(new Error('too late'));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(sched.pending, 0, 'and the late settling does not count them off twice');
+
+  const seen = createScheduler();
+  let open;
+  seen.run((function* script() { yield new Promise(resolve => { open = resolve; }); })());
+  seen.update(0.1);
+  open();
+  await Promise.resolve();
+  seen.cancelAll(); // settled, but not yet resumed: cancelled now, it must not count itself off again
+  assert.equal(seen.pending, 0);
+});

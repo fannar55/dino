@@ -152,8 +152,14 @@ test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4) or
   assert.equal(wind.uniforms.uBeats.value, 2.75);
   wind.setBeats(6.5);
   assert.equal(wind.uniforms.uBeats.value, 2.5, 'a count past the fold is folded');
-  wind.setBeats(-0.25);
-  assert.equal(wind.uniforms.uBeats.value, 3.75);
+  wind.setBeats(0);
+  assert.equal(wind.uniforms.uBeats.value, 0, 'the first beat is a beat');
+  // A count below 0 is no beat (main.js only ever gives followBeat's count, folded into [0, 4)): NO_BEAT itself must mean
+  // "hold the middle", as the shader reads uBeats < 0, not fold to 3 (a crest).
+  for (const below of [beat.NO_BEAT, -0.25, -7]) {
+    wind.setBeats(below);
+    assert.equal(wind.uniforms.uBeats.value, beat.NO_BEAT, `a count of ${below} is no beat`);
+  }
   for (const broken of [NaN, Infinity, undefined]) {
     wind.setBeats(broken);
     assert.equal(wind.uniforms.uBeats.value, beat.NO_BEAT, `a count of ${broken} must not send NaN into every vertex: it is no beat`);

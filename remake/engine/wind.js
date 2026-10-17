@@ -15,8 +15,11 @@ export function createWind() {
   return {
     uniforms,
     update(time) { uniforms.uWindTime.value = time; },
-    /** The beat count the forest sways by, smoothly and in time with the music: the trees crest once in four beats, the ferns and bushes once in two, the grass every beat. Not a number: no beat, and every wave holds its middle. */
-    setBeats(beats) { uniforms.uBeats.value = Number.isFinite(beats) ? foldBeats(beats) : NO_BEAT; },
+    /**
+     * The beat count the forest sways by, smoothly and in time with the music: the trees crest once in four beats, the ferns and
+     * bushes once in two, the grass every beat. Below 0 (NO_BEAT) or not a number: no beat, and every wave holds its middle.
+     */
+    setBeats(beats) { uniforms.uBeats.value = Number.isFinite(beats) && beats >= 0 ? foldBeats(beats) : NO_BEAT; },
     /** On the strong beats the flowers nod (0..1) and the mushrooms hop (0..1) and squash (-1 stretches, 1 flattens). */
     setDance({ nod, hop, squash }) { uniforms.uDance.value.set(held(nod, 0, 1), held(hop, 0, 1), held(squash, -1, 1)); },
   };

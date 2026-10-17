@@ -120,10 +120,17 @@ test('all the prints are one draw call, about 150 triangles a print, and dispose
   const triangles = prints.mesh.geometry.index.count / 3;
   assert.ok(triangles <= 160, `${triangles} triangles a print`);
   assert.ok(prints.mesh.material.blending === THREE.MultiplyBlending && prints.mesh.material.premultipliedAlpha, 'it darkens the soil as it is lit');
+  const freed = [];
+  prints.mesh.addEventListener('dispose', () => freed.push('instances'));
+  prints.mesh.geometry.addEventListener('dispose', () => freed.push('geometry'));
+  prints.mesh.material.addEventListener('dispose', () => freed.push('material'));
   prints.dispose();
   world.effects.update(1 / 30);
   assert.equal(world.effects.size, 0, 'the effect stopped');
   assert.equal(prints.mesh.parent, null, 'out of the scene');
+  assert.deepEqual(freed.sort(), ['geometry', 'instances', 'material'], 'and its GPU buffers are freed, the instance matrices too (each place change makes new prints)');
+  prints.dispose();
+  assert.equal(freed.length, 3, 'once');
 });
 
 test('footprints need a walker with the bones they follow, and a game clock', () => {

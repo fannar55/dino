@@ -194,3 +194,49 @@ test('the planner keeps a location\'s own shots clear, and the chapter\'s only w
   assert.ok(crowding(open).length > 0, 'the check can fail: with no shot a tree stands there');
   assert.equal(crowding(plan({ close: shot(camera) })).length, 0);
 });
+
+// ---------------------------------------------------------------------------------------------
+// The chapter's places as main.js reads them
+
+import { shotsOf, startOf } from '../engine/locations.js';
+import fs from 'node:fs';
+
+/** Runs `run` with console.warn caught, and gives back what it was told. */
+function warnings(run) {
+  const told = [];
+  const original = console.warn;
+  console.warn = (...args) => told.push(args.join(' '));
+  try {
+    return { result: run(), told };
+  } finally {
+    console.warn = original;
+  }
+}
+
+test('shotsOf gives the director every shot of a chapter, its own and each place\'s, and says so when a name is used twice', () => {
+  const one = { position: [0, 1, 5] };
+  const two = { position: [1, 1, 5] };
+  const plain = warnings(() => shotsOf({ shots: { hero: one } }));
+  assert.deepEqual(plain.result, { hero: one }, 'a chapter in one place has its own shots');
+  const placed = warnings(() => shotsOf({ shots: { hero: one }, locations: { a: { shots: { wide: two } }, b: { shots: {} }, c: {} } }));
+  assert.deepEqual(placed.result, { hero: one, wide: two });
+  assert.deepEqual(placed.told, []);
+  const twice = warnings(() => shotsOf({ shots: { wide: one }, locations: { a: { shots: { wide: two } }, b: { shots: { close: one, wide: one } } } }));
+  assert.equal(twice.result.wide, one, 'the last place to set it wins, as before');
+  assert.equal(twice.told.length, 2, 'one warning for each place that sets it again');
+  assert.match(twice.told[0], /"wide".*the chapter.*\ba\b/);
+  assert.match(twice.told[1], /"wide".*\ba\b.*\bb\b/);
+});
+
+test('startOf says what is missing when a chapter in several places does not say where it begins', () => {
+  assert.equal(startOf({ start: 'a', locations: { a: {}, b: {} } }), 'a');
+  assert.throws(() => startOf({ locations: { rjodur: {}, burknalaut: {} } }), /`start`.*rjodur, burknalaut/);
+  assert.throws(() => startOf({ start: 'nowhere', locations: { rjodur: {} } }), /nowhere.*rjodur/);
+});
+
+test('main.js takes the director\'s shots and the first place from shotsOf and startOf', () => {
+  const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+  assert.match(main, /import \{ createLocations, shotsOf, startOf \} from '\.\/engine\/locations\.js';/);
+  assert.match(main, /const shots = shotsOf\(chapter\);/);
+  assert.match(main, /setLocation\(startOf\(chapter\)\)/);
+});

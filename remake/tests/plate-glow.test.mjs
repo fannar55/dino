@@ -454,3 +454,32 @@ test('the plate rows reach every character LOD level, one row to a triangle', as
   assert.ok(seen[0] === 1 && seen[1] < 0.6 && seen[2] < 0.3, `the levels were ${seen.map(x => x.toFixed(2))} of the triangles`);
   releaseCharacter(model);
 });
+
+test('a three whose standard shader has lost an anchor the patch needs says so, instead of leaving the plates grey without a word', () => {
+  const told = [];
+  const original = console.warn;
+  console.warn = (...args) => told.push(args.join(' '));
+  try {
+    const actor = plated(2);
+    addPlateGlow(actor);
+    const material = skinOf(actor).material;
+    const fine = compile(material);
+    assert.equal(told.length, 0, 'the vendored three has every anchor');
+    assert.match(fine.fragmentShader, /vPlateRow > 0\.5/);
+
+    // A later three renames the chunk the plates' light goes after.
+    const { vertexShader, fragmentShader, uniforms } = THREE.ShaderLib.standard;
+    const renamed = { vertexShader, fragmentShader: fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissive_map_fragment>'), uniforms: THREE.UniformsUtils.clone(uniforms) };
+    material.onBeforeCompile(renamed, null);
+    assert.equal(told.length, 1, 'one warning');
+    assert.match(told[0], /plate/i);
+    assert.match(told[0], /emissivemap_fragment/, 'naming what is missing');
+
+    const noMain = { vertexShader: vertexShader.replace('void main() {', 'void main(){'), fragmentShader, uniforms: THREE.UniformsUtils.clone(uniforms) };
+    material.onBeforeCompile(noMain, null);
+    assert.equal(told.length, 2);
+    assert.match(told[1], /void main/);
+  } finally {
+    console.warn = original;
+  }
+});

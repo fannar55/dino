@@ -236,7 +236,9 @@ float gShadowUse = 1.0;`;
 // clock, the nearer one with the wind and the farther one across it, at FOREST.leafShadow.speed metres a second: slow, but the eye
 // sees it move (the dapple of the shaded forest drifts at 2 cm/s, which it does not). The pattern depends on the ground position
 // alone, so a blade of grass and the ground under it carry the same shadow. Whoever includes this declares uNoise and uWindTime,
-// as the ground and the grass do.
+// as the ground and the grass do. The drift is the wind clock times the wind's direction now, which holds while the direction
+// stays put, as it does (nothing turns the wind): a wind that turned would swing the whole pattern round the world's origin, by
+// the time since the clock began, so a turning wind needs the drift summed frame by frame instead.
 const LEAF_SHADOW = FOREST.leafShadow;
 export const LEAF_SHADOW_GLSL = /* glsl */`
 uniform float uLeafShadow;

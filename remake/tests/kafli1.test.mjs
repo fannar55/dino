@@ -133,9 +133,10 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
 /**
  * The chapter played until it ends or `limit` seconds have gone by: in seeking mode, as a capture plays it; or (seeking false)
  * as it plays for a child who never touches the screen, or, `eager`, for one who taps everything there is to tap a moment after
- * it appears and drags each flower to Kambeðla's mouth.
+ * it appears and drags each flower to Kambeðla's mouth. `noseAt` is for a child who taps only Mosi's nose: the seconds after it
+ * becomes a target at which each tap comes.
  */
-async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false } = {}) {
+async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null } = {}) {
   const world = await chapterWorld();
   // Kambeðla's plate rows as they light: { row, level, at } (the chapter's plate glow is the effect with a setRow).
   const rows = [];
@@ -356,9 +357,22 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     }
   }
 
+  // The child who taps only the nose, late.
+  const noseTaps = [...(noseAt ?? [])];
+  let noseSince = null;
+  function noseChild(t) {
+    if (!pointer.targets.has('nose')) return;
+    noseSince ??= t;
+    if (noseTaps.length && t - noseSince >= noseTaps[0] - 1e-9) {
+      noseTaps.shift();
+      pointer.tap('nose');
+    }
+  }
+
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
     if (eager) eagerChild(t);
+    if (noseAt) noseChild(t);
     world.clock.step(dt);
     journal.update(dt);
     stage.update(dt);
@@ -590,6 +604,17 @@ test('no fail states: a child who never touches the screen is helped through eve
   assert.deepEqual(journal.stars, ['k1_kambedla'], 'the star flew to the book by itself');
   assert.deepEqual(director.warnings, [], 'the hints and the waits keep the camera rules too');
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
+});
+
+test('a child who finds Mosi\'s nose late still has time to make him sneeze: the window grows after the tickle', async () => {
+  // The first tap comes at 4.2 s of the nose's 5, so the giggle ends past them; the second comes 2.5 s after the giggle.
+  const giggle = RECORDED.k1_mosi_tickle.duration + 0.5; // the line and its hold
+  const { world, captions, added } = await playUnattended({ seeking: false, limit: 100, noseAt: [4.2, 4.2 + giggle + 2.5] });
+  const said = id => captions.filter(c => c.text === chapter.lines[id].text);
+  assert.equal(said('k1_mosi_tickle').length, 1, 'the first tap tickles');
+  assert.equal(said('k1_mosi_sneeze').length, 1, 'and the second, after the tickle, makes him sneeze');
+  assert.ok(added.some(o => o.name === 'Sparkles' && o.normal), 'the pollen flies');
+  assert.ok(world.chapterTimeline.at(-1).scene >= 4, 'and the story goes on to the Star Festival');
 });
 
 test('an eager child who taps everything: each tap does its one thing once, and the optional ones never get in the way', async () => {

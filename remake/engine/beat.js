@@ -69,7 +69,9 @@ export function followBeat(followed, target, dt, { bpm }, snap = false) {
   if (!followed || snap) return { beats: grid, speed: 0 };
   if (!(dt > 0)) return followed;
   const tempo = bpm / 60;
-  const top = Math.max(STEEPEST, 1.1 * tempo); // a tempo past 114 beats a minute would outrun the rule: keep up with the music first
+  // From 102.3 beats a minute 1.1 times the tempo is above STEEPEST, so this floor keeps up with the music first; from about 104 a
+  // count catching up at 1.1 times the tempo breaks the grass's 0.1 rule. The theme's 95 is safe.
+  const top = Math.max(STEEPEST, 1.1 * tempo);
   const gain = top - tempo, lose = top + tempo; // the most the count can gain on the grid a second, and lose on it
   const beats = foldBeats(followed.beats + tempo * dt); // at the tempo first...
   let gap = foldBeats(grid - beats + FOLD / 2) - FOLD / 2; // ...then the grid ahead (> 0) or behind (< 0), the short way round

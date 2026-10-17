@@ -18,6 +18,11 @@ import { sparkleBurst, sparkleTrail } from '../world/props/sparkles.js';
 // updateActors (actor.js) updates riders after their hosts, so a rider sits on the saddle as it is in
 // that frame. What moves by itself (the pop, the sparkles) runs on world.effects (engine/effects.js).
 //
+// Yield a float outside any race. A float that is cancelled (its Handle, or the task waiting on it) stops
+// where it had got to and leaves the rider held there, in mid-air and controlled, and the host's looks
+// still capped: nothing puts him down. Only ride() or another float takes him on from there (and ends the
+// caps), so a script that races a float must start one of those itself when the float loses.
+//
 // Sizes are metres. The host's bones carry its GLB's scale (Mosi's root node makes him 8.5 m long);
 // the saddle and the rider follow a bone's place and turn, never its scale.
 

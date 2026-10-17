@@ -106,7 +106,7 @@ const HIDE_REACH = 2; // metres from `near` that a hiding place may grow
  * Where each glow flower stands, from the plants the glade's forest grew (forest.js placementInfo: name, x, z, radius,
  * height, and for a plant with a trunk its top and thickness), as { name, hint, position, by }: `by` is the plant it
  * hides by. Each stands a little toward the search camera, so part of its glimmer clears what hides it: beside the
- * stone, at its right as the camera sees it; under the front fronds of the fern; on the little tree's trunk among the
+ * stone, at its left as the camera sees it; under the front fronds of the fern; on the little tree's trunk among the
  * fronds.
  */
 export function hidingPlaces(placements = []) {
@@ -308,6 +308,8 @@ function* mosiComes(s, c) {
 // The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins (its mouth track in
 // assets/audio/lines.json; tests/kafli1.test.mjs reads it there).
 const ATSJU = 1.95;
+// Seconds the nose still waits for its second tap once the giggle of the first is over.
+const NOSE_AGAIN = 4;
 
 // 3. Hello, Egill: he walks the last few steps and Mosi bends his head down to him.
 function* hello(s, c) {
@@ -318,15 +320,18 @@ function* hello(s, c) {
   yield s.all(mosi.turnTo('egill'), s.camera.push({ distance: 0.4, duration: 4 }));
   s.camera.handheld(0.5, { duration: 1.5 });
   yield s.say('mosi', 'welcome');
-  // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!".
+  // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!". The nose
+  // waits 5 s for a first tap, and after the giggle at least NOSE_AGAIN more for the second, so a child who finds it late
+  // still gets the whole joke.
   yield s.camera.handheld(0, { duration: 0.6 });
   s.target('nose', { point: onBone(mosi.raw, ...POINTS.mosiNose), radius: 0.45 });
-  const until = s.time + 5;
+  let until = s.time + 5;
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
     if (taps === 2) s.after(ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
+    until = Math.max(until, s.time + NOSE_AGAIN);
   }
   s.target('nose', null);
 }

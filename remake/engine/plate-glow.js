@@ -43,7 +43,19 @@ const FRAGMENT_PLATES = `
 	}
 `;
 
+// Where the patch goes in three's standard shader. A three that has renamed one would leave the plates grey (or not compile), so
+// the patch checks them first, as the glow flowers do (world/props/glow-flower.js), and says so instead.
+const ANCHORS = { vertex: ['void main() {'], fragment: ['void main() {', '#include <emissivemap_fragment>'] };
+
 function patch(shader, uniforms) {
+  const missing = [
+    ...ANCHORS.vertex.filter(anchor => !shader.vertexShader.includes(anchor)).map(anchor => `"${anchor}" in the vertex shader`),
+    ...ANCHORS.fragment.filter(anchor => !shader.fragmentShader.includes(anchor)).map(anchor => `"${anchor}" in the fragment shader`),
+  ];
+  if (missing.length) {
+    console.warn(`[plate-glow] three's standard shader has changed: the plates cannot light (no ${missing.join(', no ')})`);
+    return;
+  }
   Object.assign(shader.uniforms, uniforms);
   shader.vertexShader = shader.vertexShader
     .replace('void main() {', () => `${VERTEX_HEAD}void main() {\n\tvPlateRow = ${ATTRIBUTE};`);

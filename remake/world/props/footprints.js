@@ -215,6 +215,7 @@ export function createFootprints(world, { actor, feet, max = 48 } = {}) {
       if (disposed) return;
       disposed = true;
       mesh.removeFromParent();
+      mesh.dispose(); // the instance matrices' GPU buffer, as critters.js does (the born times are the geometry's)
       geometry.dispose();
       material.dispose();
       prints.length = 0;
