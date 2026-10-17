@@ -22,7 +22,7 @@ Fyrsti kafli Stjörnuhátíðarinnar nær frá morgni í rjóðrinu að fyrstu s
 | Mosi, þríhyrna | 8,5 m langur, 4,2 m hár | Hlýr og áhugasamur gestgjafi, smá klaufalegur og kitlinn. Talar beint við Egil. | Núverandi rödd leiksins, „default ice“ |
 | Egill, landkönnuður | 1,1 m | Forvitinn og hugrakkur. Hann er barnið sjálft og segir fáein, stutt orð. | Barnsrödd, eftir að velja |
 | Kambeðla | 7 m löng, 3,7 m há | Blíð, dreymin og þægileg. Plöturnar lýsa þegar hún borðar glóblóm og þegar hún er glöð. | Ný, mjúk rödd, eftir að velja |
-| Sólin | á himninum | Brosir, blikkar í stóru augnablikunum og lækkar með sögunni. Talar ekki. | Engin |
+| Sólin | á himninum | Brosir, deplar augunum annað slagið, blikkar í stóru augnablikunum og lækkar með sögunni. Hefur tvær litlar teiknimyndahendur sem veifa og faðma, og munnurinn brosir, skælbrosir eða myndar lítinn hring eins og hún segi ó. Talar ekki. (hendur, depl og munnsvipir bætt við eftir prufuspilun 17. október) | Engin |
 | Smádýrin | smá | Fiðrildi, litlir fuglar, froskur, snigill og bjalla, sem bregðast við þegar barnið pikkar á þau. | Hljóð, engin orð |
 
 T-rexinn er ekki í þessum kafla; hann kemur síðar.
@@ -41,7 +41,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 - **Markmið:** Mosi birtist stór og vinalegur, og þeir taka eftir hvor öðrum.
 - **Skot:** litlir fuglar fljúga upp úr kjarrinu. Mosi gengur út á milli trjánna og myndavélin fylgir honum í augnhæð barns. Egill bíður í rjóðrinu. Þegar Mosi nálgast sést Egill hoppa, kalla og veifa í skotinu sem sýnir hann nær, með Mosa að koma á bak við hann. (bætt við eftir prufuspilun 17. október)
 - **Línur:** Mosi raular stefið á leiðinni. Þegar höfuð Mosa er komið um 8 m frá Agli, og Mosi enn á gangi, hoppar Egill, kallar upp til hans og veifar svo: Egill: „Hey þú! Ég er hérna niðri!“ Mosi lítur niður til Egils, nemur staðar og svarar þegar Egill hefur lokið máli sínu: Mosi: „Ó! Ég sé einhvern veifa!“ (kallinu bætt við eftir prufuspilun 17. október)
-- **Barnið:** pikkar á Egil og hann hoppar, kallar og veifar strax, svo barnið kallar sjálft á Mosa; það gerist bara einu sinni. Geri barnið ekkert kallar Egill sjálfur þegar Mosi er kominn nær. (bætt við eftir prufuspilun 17. október)
+- **Barnið:** pikkar á Egil og hann hoppar, kallar og veifar strax, svo barnið kallar sjálft á Mosa; það gerist bara einu sinni. Barnið getur pikkað á Egil frá því að myndavélin sýnir hann nær, um 5 sekúndum áður en hann kallar sjálfur. Geri barnið ekkert kallar Egill sjálfur þegar höfuð Mosa er komið um 8 m frá honum. (bætt við eftir prufuspilun 17. október)
 
 ### 3. Halló, Egill! (um 15 s)
 
@@ -134,7 +134,7 @@ Skógurinn á að vera glaður og á hreyfingu, en allt er fyrirfram stillt og �
 
 | Atriði | Hvar í kaflanum | Hvernig |
 | --- | --- | --- |
-| Brosandi sól | Sena 1, 4 og 10 | Sólskífa með vinalegu, lokuðu brosi á himninum. Hún blikkar þegar Mosi segir „sólin bíður ekki“ og þegar stjarnan kviknar. Morgunstaða í þessum kafla. |
+| Brosandi sól | Sena 1, 4 og 10 | Sólskífa með vinalegu, lokuðu brosi og tveimur litlum teiknimyndahöndum á himninum. Hún deplar augunum annað slagið og veifar barninu halló í senu 1. Hún blikkar og setur munninn í hring þegar Mosi segir „sólin bíður ekki“, og faðmar sjálfa sig skælbrosandi og blikkar þegar stjarnan kviknar. Morgunstaða í þessum kafla. (hendur, depl og munnsvipir bætt við eftir prufuspilun 17. október) |
 | Sólargeislar og ryk | Rjóðrið, stígurinn og burknalautin | Fyrirfram settir geislar á milli trjánna, mjúk spjöld sem blandast mistrinu, og örfáar glitrandi agnir sem svífa í þeim. |
 | Laufskuggar | Allur skógurinn | Laufskuggar sem hreyfast hægt á skógarbotninum. |
 | Sveifla í takt | Allur skógurinn | Tré, strá og blóm sveiflast í takt við stefið, innan 3°. Takturinn kemur úr tempói lagsins, ekki hljóðgreiningu, svo hann er alltaf eins. Blóm kinka kolli og sveppir hoppa smá í rjóðrinu. |

@@ -253,8 +253,9 @@ test('no blink during a wink, nor straight after one: the wink alone shuts the e
   const { scene, lighting, camera } = stage();
   const probe = createSunFace({ scene, lighting });
   const blinks = closings(watchEyes(probe, camera, 0, 60));
-  for (const lead of [0.15, 0.05, -0.05, -0.15, -0.3]) {
-    // A wink called so that it starts just before, at, or just after a blink would have.
+  // A wink called so that it starts just before, at, or just after a blink would have; at leads of 0.3 and 0.6 s the blink would
+  // have begun as the wink's eyes opened, or 0.25 s after: the 0.4 s that no blink begins in after a wink holds it back.
+  for (const lead of [0.6, 0.3, 0.15, 0.05, -0.05, -0.15, -0.3]) {
     const face = createSunFace({ scene, lighting });
     const blink = blinks[3];
     const wink = blink - lead;
@@ -591,6 +592,106 @@ test('a clock that goes back, a seek that starts over, forgets what it had not r
   assert.equal(picture(face), rest, 'back at 1 s it is the sun of 1 s');
   face.update(5.5, camera);
   assert.deepEqual([face.mouthFrame, face.squash.x], ['smile', 1], 'and going forward again the hug and the oh are gone: the script calls them again');
+});
+
+test('a clock that goes back into the middle of a grin or a hug keeps what had begun by then, and its end: nothing is left stuck', () => {
+  const { scene, lighting, camera } = stage();
+  // A 2 s grin from 5 s, played to 8 s, then back to 6 s and on again: the grin at 6 s, the smile from 7.08 s.
+  const face = createSunFace({ scene, lighting });
+  face.update(4.9, camera);
+  face.mouth('grin', 2);
+  face.update(5, camera);
+  face.update(8, camera);
+  assert.equal(face.mouthFrame, 'smile');
+  face.update(6, camera);
+  assert.equal(face.mouthFrame, 'grin', 'back in the middle of the grin');
+  face.update(8, camera);
+  assert.equal(face.mouthFrame, 'smile', 'and the smile comes back where it did');
+  face.update(30, camera);
+  assert.equal(face.mouthFrame, 'smile');
+  // An "o" asked at 6.5 s, after the grin, then the clock back to 6 s: the "o" is forgotten and the grin's own end comes back.
+  const other = createSunFace({ scene, lighting });
+  other.update(4.9, camera);
+  other.mouth('grin', 2);
+  other.update(5, camera);
+  other.update(6.5, camera);
+  other.mouth('oh', 3);
+  other.update(6.6, camera);
+  other.update(6, camera);
+  assert.equal(other.mouthFrame, 'grin');
+  other.update(7.5, camera);
+  assert.equal(other.mouthFrame, 'smile', 'the grin ends at 7 s as it was planned before the "o" took over');
+  // A hug from 10 s, played to 13 s, back to 11 s: crossed and grinning; on to 13 s: at rest and smiling.
+  const hugging = createSunFace({ scene, lighting });
+  hugging.update(9.9, camera);
+  hugging.hug();
+  hugging.update(10, camera);
+  hugging.update(13, camera);
+  hugging.update(11, camera);
+  assert.ok(hugging.hands[0].x > 0 && hugging.hands[1].x < 0 && hugging.mouthFrame === 'grin', 'back in the middle of the hug');
+  hugging.update(13, camera);
+  assert.deepEqual([hugging.mouthFrame, hugging.squash.x, hugging.hands[0].x < -0.85], ['smile', 1, true], 'and it ends as it did');
+});
+
+test('a mouth asked while a hug waits its turn leaves the hug its grin', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  face.wave();
+  face.update(1, camera); // the wave, 1 to 3.3 s
+  face.hug();
+  face.update(1.1, camera); // the hug waits its turn: 3.3 to 5.7 s
+  face.mouth('oh', 0.5);
+  const seen = watchHands(face, camera, 1.2, 1 + WAVE_SECONDS + HUG_SECONDS + 0.3);
+  assert.ok(seen.some(([t, , , mouth]) => t < 2 && mouth === 'oh'), 'the "o" shows');
+  const held = seen.filter(([t]) => t > 1 + WAVE_SECONDS + 0.5 && t < 1 + WAVE_SECONDS + HUG_SECONDS - 0.6);
+  assert.ok(held.length > 30 && held.every(([, , , mouth]) => mouth === 'grin'), 'and the hug, when its turn comes, grins as ever');
+});
+
+test('a sun handle that loses a race is honoured: a hug still waiting is dropped and the queue moves up, one under way finishes, and an "o" goes back to the smile', () => {
+  const { lighting, camera } = stage();
+  const sun = createSunFace({ scene: new THREE.Scene(), lighting });
+  const play = createScene({ world: {}, director: {}, ui: {}, voice: {}, sun });
+  const marks = {};
+  play.start(function* script(s) {
+    yield s.wait(1);
+    s.sun.wave(); // the hands are busy from 1 s to 3.3 s
+    const queued = s.sun.hug(); // it waits its turn behind the wave...
+    yield s.race(queued, s.wait(0.5)); // ...and loses the race at 1.5 s: it is dropped
+    marks.queued = queued;
+    marks.next = s.sun.hug(); // asked at 1.5 s, it moves up into the dropped hug's place, right after the wave
+    yield s.wait(8.5 - s.time);
+    const going = s.sun.hug(); // nothing else under way: it begins at once, at 8.5 s...
+    yield s.race(going, s.wait(0.5)); // ...and loses at 9 s, but a gesture under way finishes
+    marks.going = going;
+    yield s.wait(12 - s.time);
+    yield s.race(s.sun.mouth('oh', 5), s.wait(1)); // an "o" for 5 s, cut short at 13 s
+    marks.ohCut = s.time;
+  });
+  const seen = [];
+  let t = 0;
+  for (let frame = 0; frame < 30 * 16; frame++) {
+    t += 1 / 30;
+    play.update(1 / 30);
+    sun.update(t, camera);
+    seen.push({ t, crossed: sun.hands[0].x > 0 && sun.hands[1].x < 0, mouth: sun.mouthFrame });
+  }
+  const crossedAt = from => seen.filter(f => f.crossed && f.t >= from).map(f => f.t);
+  // The dropped hug never shows; the next one crosses right after the wave (3.3 to 5.7 s), not after a gap (5.7 to 8.1 s).
+  assert.equal(marks.queued.cancelled, true);
+  const first = crossedAt(0).filter(x => x < 8.4);
+  assert.ok(first.length > 25 && first[0] > 1 + WAVE_SECONDS && first.at(-1) < 1 + WAVE_SECONDS + HUG_SECONDS, `the second hug crossed from ${first[0]?.toFixed(2)} to ${first.at(-1)?.toFixed(2)} s, in the dropped one's place`);
+  assert.equal(marks.next.done && !marks.next.cancelled, true, 'and finished as asked');
+  // The hug under way when its race was lost finishes: crossed until near its end, then back at rest.
+  const second = crossedAt(8.4).filter(x => x < 11.5);
+  assert.ok(second.at(-1) > 8.5 + 1.8, `the hug under way crossed until ${second.at(-1)?.toFixed(2)} s: it finished`);
+  assert.equal(marks.going.cancelled, true);
+  // The cut-short "o": the smile again through the in-between, at once, not 5 s on.
+  const at = time => seen.find(f => Math.abs(f.t - time) < 1 / 60).mouth;
+  assert.equal(at(12.5), 'oh');
+  assert.ok(Math.abs(marks.ohCut - 13) < 0.05, `the race ended at ${marks.ohCut.toFixed(2)} s`);
+  const after = seen.filter(f => f.t > 13 - 1e-9 && f.t < 13.3).map(f => f.mouth);
+  assert.deepEqual([...new Set(after)], ['mid', 'smile'], `after the cut: ${after.join(' ')}`);
+  assert.ok(seen.filter(f => f.t > 13.2).every(f => f.mouth === 'smile'), 'and it stays smiling');
 });
 
 // ---------------------------------------------------------------------------------------------
