@@ -1,15 +1,22 @@
 #!/usr/bin/env node
-// Voices the remake's chapters with ElevenLabs Eleven v3, the way scripts/generate-narration.mjs voices the game:
-//   node remake/tools/voice-lines.mjs [--only id,id]        make the lines of assets/audio/kafli1/lines-source.json (all, or just these)
+// Voices the remake's chapters and book with ElevenLabs Eleven v3, the way scripts/generate-narration.mjs voices the game:
+//   node remake/tools/voice-lines.mjs [--set book] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
 //   node remake/tools/voice-lines.mjs --audition kambedla    one sample line per candidate voice, in qa/remake/voices/, to choose from
 //   node remake/tools/voice-lines.mjs --audition egill
+//   node remake/tools/voice-lines.mjs --audition narrator
 // (needs ffmpeg and ffprobe on the PATH, and ELEVENLABS_API_KEY in the environment)
 //
-// lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and optional "seed", "kept", below): the
-// id is k1_<speaker>_<short>. A line becomes kafli1/<id>.mp3, mastered like the game's narration (mono, 44.1 kHz, 96 kbps, about
-// -18 LUFS, a quarter second of silence after the voice), and lines.json learns its src, exact duration and mouth (audio-lines.mjs
-// makes the same entries for the game's own lines). Lines are approved before they are made: voices.json names a voice for each
-// speaker, null until the owner has chosen it, and a speaker without a voice stops the run before any request.
+// The lines come in sets (audio-lines.mjs SETS), each with a lines-source.json in a folder of its own: kafli1, the chapter's, which
+// is made unless --set says otherwise, and book, the narrator's reading of the education cards. Everything below holds for the lines
+// of either set, and --only names lines of the set that is made. A candidate for --audition speaks a line of the set it names (the
+// narrator's is in book); --set may be given with --audition only to repeat that set.
+//
+// lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and optional "seed", "kept", below): in
+// kafli1 the id is k1_<speaker>_<short>, in book book_<card>_<page> or book_<what>. A line becomes <set>/<id>.mp3, mastered like the
+// game's narration (mono, 44.1 kHz, 96 kbps, about -18 LUFS, a quarter second of silence after the voice), and lines.json learns its
+// src, exact duration and mouth (audio-lines.mjs makes the same entries for the game's own lines). Lines are approved before they are
+// made: voices.json names a voice for each speaker, null until the owner has chosen it (the narrator has no entry until then), and a
+// speaker without a voice stops the run before any request.
 //
 // Eleven v3 gives another take every time it is asked, so what ElevenLabs answers is kept in .tools/elevenlabs-remake/, named by a
 // hash of everything that decides the sound: the text, the voice, the model, the settings and the seed. A line costs credits once.
@@ -29,10 +36,11 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { REMAKE_AUDIO, durationOf, updateLines } from './audio-lines.mjs';
+import { SETS, durationOf, setFolder, updateLines } from './audio-lines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SOURCE = `${REMAKE_AUDIO}/lines-source.json`;
+/** Where the lines to speak of a set (the chapter's unless told another) are written, relative to the repo root. */
+const sourceOf = set => `${setFolder(set)}/lines-source.json`;
 const VOICES = 'remake/assets/audio/voices.json';
 const CACHE = '.tools/elevenlabs-remake';
 const AUDITIONS = 'qa/remake/voices';
@@ -48,8 +56,9 @@ export const SETTINGS = Object.freeze({ stability: 0.5, similarity_boost: 0.75, 
 const MASTER = 'loudnorm=I=-18:TP=-2:LRA=7,apad=pad_dur=0.25';
 
 /**
- * The voices the owner chooses from. Each candidate speaks the character's real line (an id in lines-source.json), so the owner hears
- * Icelandic from the voice that would speak it. Library voices work by id without being added to the account.
+ * The voices the owner chooses from. Each candidate speaks the character's real line (an id in lines-source.json, in the chapter's
+ * set unless the entry names another with `set`), so the owner hears Icelandic from the voice that would speak it. Library voices
+ * work by id without being added to the account. The narrator reads the book: a first page of the Kalligrammatid card, in the book set.
  */
 export const CANDIDATES = {
   kambedla: {
@@ -74,7 +83,21 @@ export const CANDIDATES = {
       { name: 'Bholu - Cute, Innocent Kids Character', id: '5krdMTA5HonvWAlY2vSx', note: 'Bubbly and wide-eyed, a little higher (a Hindi-language voice from the shared library)' },
     ],
   },
+  narrator: {
+    set: 'book',
+    line: 'book_kalligrammatid_1',
+    voices: [
+      { name: 'Ingibjorg - Calm, Warm Ad', id: 'EPNZHjyiFUvsaPPq9zRU', note: 'Icelandic voice from the shared library: mellow and calm, a relaxed pace' },
+      { name: 'Katrin - Warm, Patient Friend', id: 'rx2Jwpr6lciMIbfYvpOA', note: 'Icelandic voice from the shared library: warm, relaxed and gentle' },
+      { name: 'Sigrun - Calm, Direct Narrator', id: 'phADS9h1woMxkLioLz5z', note: 'Icelandic voice from the shared library: steady and warm, a lower pitch' },
+      { name: 'Bjorn - Calm, Serious Narrator', id: '6LR26ZnZ2USBpLHfBBH7', note: 'Icelandic voice from the shared library: low and deep, a measured pace' },
+      { name: 'Baldur - Patient Support Agent', id: 'B4dcQDH3p7a2cAn9wzSc', note: 'Icelandic voice from the shared library: light and steady, clear and patient' },
+    ],
+  },
 };
+
+/** The set a candidate's sample line is in: the chapter's unless the entry names another. */
+const setOf = character => CANDIDATES[character].set ?? 'kafli1';
 
 // ---------------------------------------------------------------------------------------------
 // What is asked for
@@ -85,8 +108,10 @@ export function cacheKey({ text, voiceId, model = MODEL, settings = SETTINGS, se
   return createHash('sha256').update(JSON.stringify(decides)).digest('hex');
 }
 
+/** The command line: { only, audition, set }. `set` is the line set that is made (the chapter's unless told another). */
 export function parseArgs(argv) {
-  const args = { only: null, audition: null };
+  const args = { only: null, audition: null, set: 'kafli1' };
+  let named = false; // whether --set was given
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--only') {
@@ -95,22 +120,28 @@ export function parseArgs(argv) {
     } else if (arg === '--audition') {
       args.audition = argv[++i];
       if (!Object.hasOwn(CANDIDATES, args.audition ?? '')) throw new Error(`--audition needs ${Object.keys(CANDIDATES).join(' or ')}.`);
+    } else if (arg === '--set') {
+      args.set = argv[++i];
+      named = true;
+      if (!Object.hasOwn(SETS, args.set ?? '')) throw new Error(`--set needs ${Object.keys(SETS).join(' or ')}.`);
     } else {
-      throw new Error(`Unknown argument: ${arg}\nUsage: voice-lines.mjs [--only id,id] | --audition ${Object.keys(CANDIDATES).join('|')}`);
+      throw new Error(`Unknown argument: ${arg}\nUsage: voice-lines.mjs [--set ${Object.keys(SETS).join('|')}] [--only id,id] | --audition ${Object.keys(CANDIDATES).join('|')}`);
     }
   }
   if (args.audition && args.only) throw new Error('--audition and --only do not go together.');
+  if (args.audition && named && args.set !== setOf(args.audition)) throw new Error(`--audition ${args.audition} speaks a line of the ${setOf(args.audition)} set, so --set can only repeat that.`);
   return args;
 }
 
-/** The lines to speak, checked before a credit is spent: ids become file names. */
-export function readLines(root) {
-  const lines = JSON.parse(fs.readFileSync(path.join(root, SOURCE), 'utf8'));
-  if (!Array.isArray(lines)) throw new Error(`${SOURCE} must be a list of lines.`);
+/** The lines to speak of a set (the chapter's unless told another), checked before a credit is spent: ids become file names. */
+export function readLines(root, set = 'kafli1') {
+  const source = sourceOf(set);
+  const lines = JSON.parse(fs.readFileSync(path.join(root, source), 'utf8'));
+  if (!Array.isArray(lines)) throw new Error(`${source} must be a list of lines.`);
   const ids = new Set();
   for (const line of lines) {
-    if (typeof line?.id !== 'string' || !/^[a-z][a-z0-9_]*$/.test(line.id)) throw new Error(`Not a line id: ${JSON.stringify(line?.id)} in ${SOURCE}.`);
-    if (ids.has(line.id)) throw new Error(`${line.id} is in ${SOURCE} twice.`);
+    if (typeof line?.id !== 'string' || !/^[a-z][a-z0-9_]*$/.test(line.id)) throw new Error(`Not a line id: ${JSON.stringify(line?.id)} in ${source}.`);
+    if (ids.has(line.id)) throw new Error(`${line.id} is in ${source} twice.`);
     ids.add(line.id);
     if (typeof line.speaker !== 'string' || typeof line.text !== 'string' || !line.text.trim()) throw new Error(`${line.id} needs a speaker and text.`);
     if (line.seed !== undefined && !(Number.isInteger(line.seed) && line.seed >= 0 && line.seed <= 4294967295)) throw new Error(`${line.id}: seed is a whole number from 0 to 4294967295.`);
@@ -191,13 +222,15 @@ function master(raw, target) {
 // ---------------------------------------------------------------------------------------------
 // The commands
 
-/** Makes the lines (all of them, or those in `only`): an MP3 each but for a kept line, which keeps the one it has; and their entries in lines.json. Returns their ids. */
-export async function generate({ root, key, fetch, only = null, log }) {
-  const lines = readLines(root);
+/** Makes the lines of a set (the chapter's unless told another; all of them, or those in `only`): an MP3 each in the set's folder but for a kept line, which keeps the one it has; and their entries in lines.json. Returns their ids. */
+export async function generate({ root, key, fetch, only = null, set = 'kafli1', log }) {
+  const folder = setFolder(set);
+  const source = sourceOf(set);
+  const lines = readLines(root, set);
   const voices = readVoices(root);
   if (only) {
     const unknown = only.filter(id => !lines.some(line => line.id === id));
-    if (unknown.length) throw new Error(`Not in ${SOURCE}: ${unknown.join(', ')}`);
+    if (unknown.length) throw new Error(`Not in ${source}: ${unknown.join(', ')}`);
   }
   const chosen = only ? lines.filter(line => only.includes(line.id)) : lines;
   // All that can stop the run is found before the first request, so it never pays for some lines and then stops. A kept
@@ -207,9 +240,9 @@ export async function generate({ root, key, fetch, only = null, log }) {
   if (missing.length) {
     throw new Error(`No voice is chosen for ${missing.join(' and ')} in ${VOICES}; node remake/tools/voice-lines.mjs --audition <name> makes samples to choose from. No request was made.`);
   }
-  const lost = chosen.filter(line => line.kept !== undefined && !fs.existsSync(path.join(root, REMAKE_AUDIO, `${line.id}.mp3`)));
+  const lost = chosen.filter(line => line.kept !== undefined && !fs.existsSync(path.join(root, folder, `${line.id}.mp3`)));
   if (lost.length) {
-    throw new Error(`${lost.map(line => line.id).join(', ')}: kept in ${SOURCE}, but ${lost.length > 1 ? 'their MP3s are' : 'its MP3 is'} not in ${REMAKE_AUDIO}. Put the chosen take back, or take "kept" away to have the tool make the line again. No request was made.`);
+    throw new Error(`${lost.map(line => line.id).join(', ')}: kept in ${source}, but ${lost.length > 1 ? 'their MP3s are' : 'its MP3 is'} not in ${folder}. Put the chosen take back, or take "kept" away to have the tool make the line again. No request was made.`);
   }
   needAudioTools();
   for (const line of chosen) {
@@ -218,21 +251,21 @@ export async function generate({ root, key, fetch, only = null, log }) {
       continue;
     }
     const raw = await take({ root, key, fetch, text: line.text, voiceId: voices[line.speaker], seed: line.seed, log });
-    const seconds = master(raw, path.join(root, REMAKE_AUDIO, `${line.id}.mp3`));
+    const seconds = master(raw, path.join(root, folder, `${line.id}.mp3`));
     log(`Ready ${line.id}: ${seconds} s`);
   }
-  updateLines(root, chosen.map(line => line.id));
+  updateLines(root, chosen.map(line => line.id), set);
   return chosen.map(line => line.id);
 }
 
 /** A file-name word for a voice: "Sanna Hartfield - Calm and Soothing" is "sanna-hartfield". */
 const slug = name => name.split(' - ')[0].normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-/** One sample per candidate voice of a character, and an index of them, in qa/remake/voices/. Returns the index's rows. */
+/** One sample per candidate voice of a character, and an index of them, in qa/remake/voices/. The sample line is read from the set the candidate names. Returns the index's rows. */
 export async function audition({ root, key, fetch, character, log }) {
   const { line: lineId, voices } = CANDIDATES[character];
-  const line = readLines(root).find(entry => entry.id === lineId);
-  if (!line) throw new Error(`${lineId}, the sample line for ${character}, is not in ${SOURCE}.`);
+  const line = readLines(root, setOf(character)).find(entry => entry.id === lineId);
+  if (!line) throw new Error(`${lineId}, the sample line for ${character}, is not in ${sourceOf(setOf(character))}.`);
   needAudioTools();
   const folder = path.join(root, AUDITIONS);
   fs.mkdirSync(folder, { recursive: true });
@@ -274,8 +307,8 @@ export async function main(argv, { env = process.env, root = ROOT, fetch = globa
       const rows = await audition({ root, key, fetch, character: args.audition, log });
       log(`${rows.length} samples and ${args.audition}-index.md are in ${AUDITIONS}/`);
     } else {
-      const ids = await generate({ root, key, fetch, only: args.only, log });
-      log(`${ids.length} lines are in ${REMAKE_AUDIO}/ and lines.json`);
+      const ids = await generate({ root, key, fetch, only: args.only, set: args.set, log });
+      log(`${ids.length} lines are in ${setFolder(args.set)}/ and lines.json`);
     }
   } catch (error) {
     throw new Error(hide(error.message, key));
