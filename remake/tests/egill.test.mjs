@@ -95,11 +95,42 @@ function footWatch(actor) {
 }
 const mm = metres => `${(metres * 1000).toFixed(1)} mm`;
 
+// Pose a scene by a clip at time t (a clip played once holds its last pose).
+function poser(scene, clip) {
+  const mixer = new THREE.AnimationMixer(scene);
+  const action = mixer.clipAction(clip);
+  if (clip.userData.once) { action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; }
+  action.play();
+  return t => { mixer.setTime(Math.min(t, clip.duration - 1e-4)); scene.updateMatrixWorld(true); };
+}
+// Every bone's world position at time t of a clip, and its turn.
+function bonesAt(scene, clip, t) {
+  poser(scene, clip)(t);
+  const out = [];
+  scene.traverse(o => { if (o.isBone) out.push({ p: o.getWorldPosition(new THREE.Vector3()), q: o.getWorldQuaternion(new THREE.Quaternion()) }); });
+  return out;
+}
+const gap = (a, b) => Math.max(...a.map((bone, i) => bone.p.distanceTo(b[i].p)));
+const twist = (a, b) => Math.max(...a.map((bone, i) => THREE.MathUtils.radToDeg(bone.q.angleTo(b[i].q))));
+// The vertices of a foot's sole: carried by the foot bone alone, touching the ground in the bind pose.
+function soleOf(mesh, name) {
+  const bones = mesh.skeleton.bones;
+  const b = bones.findIndex(bone => bone.name === name);
+  const { position: pos, skinIndex: index, skinWeight: weight } = mesh.geometry.attributes;
+  const sole = [];
+  for (let i = 0; i < pos.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (index.getComponent(i, k) === b) w += weight.getComponent(i, k);
+    if (w > 0.999 && pos.getY(i) < 0.004) sole.push(i);
+  }
+  return sole;
+}
+
 test('Egill has the humanoid skeleton, his clips and fits his budget', async () => {
   const { gltf, mesh } = await model();
   assert.deepEqual(mesh.skeleton.bones.map(b => b.name), BONES);
   const clips = Object.fromEntries(gltf.animations.map(c => [c.name, c.duration]));
-  for (const name of ['idle', 'walk', 'wave', 'waveLeft', 'point', 'sit', 'lifted']) assert.ok(clips[name] > 0.5, `${name} missing`);
+  for (const name of ['idle', 'walk', 'wave', 'waveLeft', 'point', 'sit', 'lifted', 'hop']) assert.ok(clips[name] > 0.5, `${name} missing`);
   assert.ok(mesh.geometry.index.count / 3 <= 20000, 'at most 20k triangles');
   mesh.geometry.computeBoundingBox();
   const box = mesh.geometry.boundingBox;
@@ -307,6 +338,149 @@ test('a clip that leaves the legs alone leaves the planted feet where they stand
   const after = watch.sample();
   assert.ok(watch.slide < 1e-3, `a planted foot moved ${mm(watch.slide)} in a frame`);
   after.forEach((foot, k) => assert.ok(foot.p.distanceTo(before[k]) < 1e-3, `a foot moved ${mm(foot.p.distanceTo(before[k]))} while he waved`));
+});
+
+test('the hop: he bends his knees, springs up a light 0.25 to 0.35 m with both arms up, and lands softly where he stood', async () => {
+  const { scene, mesh, clip } = await model();
+  const hop = clip('hop');
+  assert.ok(hop, 'hop missing');
+  assert.ok(hop.duration >= 0.9 && hop.duration <= 1.2, `the hop is ${hop.duration.toFixed(2)} s long`);
+  assert.equal(Boolean(hop.userData.once), true, 'it says it plays once, so the actor plays it once and holds its end');
+  // It starts and ends in idle's first pose, so it blends in from idle and back into it (or into a wave).
+  const idle = clip('idle');
+  const start = bonesAt(scene, idle, 0);
+  for (const [when, t] of [['starts', 0], ['ends', hop.duration]]) {
+    const pose = bonesAt(scene, hop, t);
+    assert.ok(gap(pose, start) < 1e-3 && twist(pose, start) < 0.5, `it ${when} ${mm(gap(pose, start))} and ${twist(pose, start).toFixed(2)} degrees from idle's first pose`);
+  }
+  scene.updateMatrixWorld(true);
+  const bone = name => mesh.skeleton.bones.find(b => b.name === name);
+  const feet = FEET.map(name => ({ bone: bone(name), sole: soleOf(mesh, name), rest: bone(name).getWorldPosition(new THREE.Vector3()) }));
+  const restHips = bone('Hips').getWorldPosition(new THREE.Vector3()).y;
+  const pose = poser(scene, hop);
+  const steps = Math.round(hop.duration * 120); // finer than its keys
+  const v = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  const frames = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * hop.duration;
+    pose(t);
+    frames.push({
+      t,
+      hips: bone('Hips').getWorldPosition(new THREE.Vector3()).y - restHips,
+      head: bone('Head').getWorldPosition(new THREE.Vector3()),
+      hands: ['LeftHand', 'RightHand'].map(name => bone(name).getWorldPosition(new THREE.Vector3())),
+      knees: ['LeftLowerLeg', 'RightLowerLeg'].map(name => bone(name).getWorldPosition(new THREE.Vector3())),
+      thighs: ['LeftUpperLeg', 'RightUpperLeg'].map(name => bone(name).getWorldPosition(new THREE.Vector3())),
+      feet: feet.map(f => ({
+        ankle: f.bone.getWorldPosition(new THREE.Vector3()),
+        tilt: THREE.MathUtils.radToDeg(f.bone.getWorldQuaternion(q).angleTo(new THREE.Quaternion())),
+        sole: f.sole.map(j => mesh.getVertexPosition(j, v).applyMatrix4(mesh.matrixWorld).clone()),
+      })),
+    });
+  }
+  // A foot is down while its ankle is within a millimetre of its height in the bind pose. Each foot leaves the
+  // ground once, both together, and comes down once.
+  const down = (frame, k) => frame.feet[k].ankle.y - feet[k].rest.y < 1e-3;
+  const air = feet.map((_, k) => frames.map((frame, i) => (down(frame, k) ? -1 : i)).filter(i => i >= 0));
+  for (const k of [0, 1]) {
+    const list = air[k];
+    assert.ok(list.length > 0, `${FEET[k]} never leaves the ground`);
+    assert.equal(list.at(-1) - list[0] + 1, list.length, `${FEET[k]} leaves the ground in one go`);
+  }
+  const takeOff = Math.max(air[0][0], air[1][0]);
+  const touchDown = Math.min(air[0].at(-1), air[1].at(-1));
+  assert.ok(Math.abs(air[0][0] - air[1][0]) <= 2 && Math.abs(air[0].at(-1) - air[1].at(-1)) <= 2, 'both feet leave together and land together');
+  const airTime = (touchDown - takeOff) / 120;
+  assert.ok(airTime > 0.3 && airTime < 0.65, `${airTime.toFixed(2)} s in the air`);
+  // Planted before and after: on its own spot, flat, the sole not sliding along the ground or sinking into it.
+  let skid = 0;
+  let stray = 0;
+  let tilt = 0;
+  let sink = 0;
+  frames.forEach((frame, i) => {
+    feet.forEach((f, k) => {
+      for (const p of frame.feet[k].sole) sink = Math.max(sink, -p.y);
+      if (!down(frame, k)) return;
+      stray = Math.max(stray, Math.hypot(frame.feet[k].ankle.x - f.rest.x, frame.feet[k].ankle.z - f.rest.z));
+      tilt = Math.max(tilt, frame.feet[k].tilt);
+      if (i > 0 && down(frames[i - 1], k)) {
+        frame.feet[k].sole.forEach((p, j) => {
+          const before = frames[i - 1].feet[k].sole[j];
+          if (p.y < 0.002 && before.y < 0.002) skid = Math.max(skid, Math.hypot(p.x - before.x, p.z - before.z));
+        });
+      }
+    });
+  });
+  assert.ok(stray < 1e-3, `a planted foot strayed ${mm(stray)} from where it stood`);
+  assert.ok(skid < 5e-4, `a sole on the ground moved ${mm(skid)} in 1/120 s`);
+  assert.ok(tilt < 1, `a planted foot was tilted ${tilt.toFixed(1)} degrees`);
+  assert.ok(sink < 1e-3, `a sole sank ${mm(sink)} into the ground`);
+  // He bends his knees first: the hips sink and each knee comes forward of the line from hip to ankle.
+  const before = frames.slice(0, takeOff);
+  const crouch = before.reduce((low, frame) => (frame.hips < low.hips ? frame : low));
+  assert.ok(crouch.hips < -0.04 && crouch.hips > -0.12, `he crouches ${mm(-crouch.hips)} before he springs`);
+  for (const k of [0, 1]) {
+    const hip = crouch.thighs[k];
+    const ankle = crouch.feet[k].ankle;
+    const knee = crouch.knees[k];
+    const along = THREE.MathUtils.clamp((knee.y - hip.y) / (ankle.y - hip.y), 0, 1);
+    const ahead = knee.x - THREE.MathUtils.lerp(hip.x, ankle.x, along);
+    assert.ok(ahead > 0.02, `the ${k ? 'right' : 'left'} knee bends forward, ${mm(ahead)} ahead of the leg's line`);
+  }
+  // Up: the hips rise 0.25 to 0.35 m over where they stand, the soles clear the ground by 0.2 m or more, and both
+  // hands are up over his head, clear of it.
+  const top = frames.reduce((high, frame) => (frame.hips > high.hips ? frame : high));
+  assert.ok(top.hips >= 0.25 && top.hips <= 0.35, `the hop rises ${mm(top.hips)}`);
+  const clearance = Math.min(...top.feet.flatMap(f => f.sole.map(p => p.y)));
+  assert.ok(clearance > 0.2, `the soles are ${mm(clearance)} off the ground at the top`);
+  for (const [k, hand] of top.hands.entries()) {
+    assert.ok(hand.y > top.head.y, `the ${k ? 'right' : 'left'} hand is up, ${mm(hand.y - top.head.y)} over the head's joint`);
+    assert.ok(hand.distanceTo(top.head) > 0.12, `and clear of his head (${mm(hand.distanceTo(top.head))} from its joint)`);
+  }
+  // Down: a soft bounce, the knees giving a little after the landing and straightening again.
+  const after = frames.slice(touchDown);
+  const give = Math.min(...after.map(frame => frame.hips));
+  assert.ok(give < -0.03 && give > -0.12, `the knees give ${mm(-give)} as he lands`);
+  assert.ok(Math.abs(frames.at(-1).hips) < 1e-3, 'and he stands up straight again');
+});
+
+test('played by the actor, the hop leaves the ground once and sets each foot back down on the spot it left', async () => {
+  // A clip that moves the legs gets them as it is (footing.js), so here the feet are the clip's, cross-fades and all:
+  // on the ground they keep within the couple of millimetres that idle's and the wave's breathing moves the hips.
+  const { egill } = await stage();
+  for (let i = 0; i < 10; i++) egill.update(1 / 30);
+  const feet = FEET.map(n => egill.model.getObjectByName(n));
+  const read = () => {
+    egill.root.updateMatrixWorld(true);
+    return feet.map(f => egill.root.worldToLocal(f.getWorldPosition(new THREE.Vector3())));
+  };
+  const rest = read();
+  const action = egill.play('hop', { fade: 0.12 });
+  assert.equal(action.loop, THREE.LoopOnce, 'played once');
+  const track = [];
+  const frames = Math.ceil(action.getClip().duration * 30) + 5;
+  for (let i = 0; i < frames; i++) { egill.update(1 / 30); track.push(read()); }
+  // Then he waves, as he does in scene 2.
+  egill.play('waveLeft', { fade: 0.3 });
+  for (let i = 0; i < 60; i++) { egill.update(1 / 30); track.push(read()); }
+  for (const k of [0, 1]) {
+    const up = track.map(now => now[k].y - rest[k].y);
+    const air = up.map((h, i) => (h > 3e-3 ? i : -1)).filter(i => i >= 0);
+    assert.ok(air.length > 0 && air.at(-1) - air[0] + 1 === air.length, `${FEET[k]} leaves the ground once`);
+    assert.ok(Math.max(...up) > 0.25, `${FEET[k]} rose ${mm(Math.max(...up))}`);
+    assert.ok(Math.min(...up) > -3e-3, `${FEET[k]} sank ${mm(-Math.min(...up))} into the ground`);
+    const onGround = i => i < air[0] || i > air.at(-1);
+    let slide = 0;
+    let off = 0;
+    track.forEach((now, i) => {
+      if (!onGround(i)) return;
+      off = Math.max(off, Math.hypot(now[k].x - rest[k].x, now[k].z - rest[k].z));
+      if (i > 0 && onGround(i - 1)) slide = Math.max(slide, Math.hypot(now[k].x - track[i - 1][k].x, now[k].z - track[i - 1][k].z));
+    });
+    assert.ok(off < 2e-3, `on the ground ${FEET[k]} kept within ${mm(off)} of the spot it stood on`);
+    assert.ok(slide < 1e-3, `on the ground ${FEET[k]} slid ${mm(slide)} in a frame`);
+  }
 });
 
 test('one and a half times the size, Egill strides in proportion on planted feet', async () => {

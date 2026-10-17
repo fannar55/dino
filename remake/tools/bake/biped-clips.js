@@ -12,6 +12,9 @@ import { twoBoneLeg } from '../../engine/ik.js';
 //   point   2.0 s  the right arm pointing ahead, held
 //   sit     3.2 s  riding pose for Mosi's saddle: thighs forward and apart, hands forward
 //   lifted  1.6 s  lifted up: arms high, legs kicking gently
+//   hop     1.15 s a light hop on the spot, played once (it says so in its extras): the knees bend, he springs
+//                  up 0.30 m with both arms up and lands with a soft give, starting and ending in idle's first
+//                  pose; the feet are planted before and after (two-bone IK, see HOP below)
 
 const FPS = 30;
 const D = THREE.MathUtils.degToRad;
@@ -76,10 +79,11 @@ function legSolver(bones, side) {
     /** The hip joint (model frame) for the hips at `position`, turned `turn`. */
     hipAt: (position, turn) => hip.clone().applyQuaternion(turn).add(position),
     /** Local turns of thigh, shin and foot that put the ankle at `ankle` with the foot turned `foot`
-     *  (both in the model frame), for the hips at `position` turned `turn`. */
-    solve(position, turn, ankle, foot, forward = AXIS.x) {
+     *  (both in the model frame), for the hips at `position` turned `turn`. The knee bends about `axis`
+     *  (model frame), by default the axis across the leg and `forward`. */
+    solve(position, turn, ankle, foot, forward = AXIS.x, axis = null) {
       const toAnkle = ankle.clone().sub(hip.clone().applyQuaternion(turn).add(position));
-      const hinge = toAnkle.clone().normalize().cross(forward);
+      const hinge = axis ? axis.clone() : toAnkle.clone().normalize().cross(forward);
       const knee = new THREE.Quaternion();
       const thighTurn = leg.reach(toAnkle, hinge, new THREE.Quaternion(), knee);
       return {
@@ -219,6 +223,60 @@ function walkGait({ bones, joints, soles }) {
   return { legs, pelvis, footAt, hipsY };
 }
 
+// The hop (scene 2: Egill calls up to Mosi). Seconds from the start, metres and metres a second. A light, cartoon
+// hop rather than an athletic jump: the knees bend, the hips spring up and the feet leave the ground only once the
+// legs are straight, they rise to the top in a natural arc and come down a little slower than they went up (the
+// landing is light), and the knees give a little and straighten again.
+export const HOP = {
+  duration: 1.15,
+  // The knees bend from the first time to the second. Until then he stands as idle begins, so a cross-fade of up to
+  // 0.12 s from idle blends two poses whose legs are both at rest.
+  crouch: [0.12, 0.36],
+  takeOff: 0.42, // the legs are straight and the feet leave the ground
+  top: 0.63, // the highest point
+  touchDown: 0.88, // the feet are back on the ground
+  given: 0.98, // the knees have given as far as they give
+  depth: 0.065, // how far the hips sink before he springs (the spring is quick: as fast as the arc needs at once)
+  rise: 0.3, // how far the hips rise over where they stand
+  landing: 1.35, // how fast the hips come down as the feet touch the ground
+  tuck: 0.05, // how far the feet draw up under him in the air
+  trail: 0.02, // and back
+  toes: 15, // degrees the toes point down in the air
+};
+// Cubic Hermite from p0 (slope m0) to p1 (slope m1) over a segment h seconds long, at s in [0, 1] of it.
+const hermite = (p0, m0, p1, m1, h, s) => (2 * s ** 3 - 3 * s ** 2 + 1) * p0 + (s ** 3 - 2 * s ** 2 + s) * h * m0
+  + (3 * s ** 2 - 2 * s ** 3) * p1 + (s ** 3 - s ** 2) * h * m1;
+/** The hips' height over where they stand at time t of the hop, in metres. */
+export function hopHeight(t) {
+  const H = HOP;
+  const spring = (2 * H.rise) / (H.top - H.takeOff); // up as fast as the arc to the top needs
+  const give = (H.landing * (H.given - H.touchDown)) / 2; // the knees stop the fall evenly
+  const keys = [ // [from, to, height at from, slope, height at to, slope]
+    [0, H.crouch[0], 0, 0, 0, 0],
+    [H.crouch[0], H.crouch[1], 0, 0, -H.depth, 0],
+    [H.crouch[1], H.takeOff, -H.depth, 0, 0, spring],
+    [H.takeOff, H.top, 0, spring, H.rise, 0],
+    [H.top, H.touchDown, H.rise, 0, 0, -H.landing],
+    [H.touchDown, H.given, 0, -H.landing, -give, 0],
+    [H.given, H.duration, -give, 0, 0, 0],
+  ];
+  const key = keys.find(([from, to]) => t <= to) ?? keys.at(-1);
+  const [from, to, p0, m0, p1, m1] = key;
+  return hermite(p0, m0, p1, m1, to - from, THREE.MathUtils.clamp((t - from) / (to - from), 0, 1));
+}
+/** A smooth curve through keys [t, value] (Catmull-Rom slopes, flat at the ends). */
+function through(keys) {
+  const slope = i => (i === 0 || i === keys.length - 1 ? 0 : (keys[i + 1][1] - keys[i - 1][1]) / (keys[i + 1][0] - keys[i - 1][0]));
+  return t => {
+    if (t <= keys[0][0]) return keys[0][1];
+    let i = 0;
+    while (i < keys.length - 2 && t > keys[i + 1][0]) i++;
+    const [t0, v0] = keys[i];
+    const [t1, v1] = keys[i + 1];
+    return hermite(v0, slope(i), v1, slope(i + 1), t1 - t0, THREE.MathUtils.clamp((t - t0) / (t1 - t0), 0, 1));
+  };
+}
+
 export function authorClips({ bones, joints, soles }) {
   const relaxedArms = (t, w, extra = {}) => ({
     LeftUpperArm: chain(swing(2), armOut('Left', ARMS_DOWN + 1.5 * Math.sin(w * t))),
@@ -335,6 +393,59 @@ export function authorClips({ bones, joints, soles }) {
     return { q, hips: new THREE.Vector3(0, 0, 0) };
   };
 
+  // The hop (HOP above). The legs reach the feet from the hips by two-bone IK, each knee bending forward about its
+  // thigh's own Z axis, so while he stands the legs are exactly in their bind pose, idle's. The arms swing back as he
+  // crouches and up into a V as he springs (raised arms swing forward first and then lift, as in `lifted`), the
+  // spine bends with the knees and straightens in the air, and the head tips up a little toward Mosi. The upper body
+  // joins idle's first pose over the first and the last moments.
+  const H = HOP;
+  const hopLegs = ['Left', 'Right'].map(side => ({ side, solver: legSolver(bones, side), rest: joints[`${side}Foot`].clone() }));
+  const restPose = idle(0, (2 * Math.PI) / 3.2).q; // idle's first pose (idle is 3.2 s long)
+  const UPPER = ['Spine', 'Chest', 'Neck', 'Head', 'LeftShoulder', 'RightShoulder', 'LeftUpperArm', 'RightUpperArm',
+    'LeftLowerArm', 'RightLowerArm', 'LeftHand', 'RightHand'];
+  const inAir = t => (t > H.takeOff && t < H.touchDown ? Math.sin((Math.PI * (t - H.takeOff)) / (H.touchDown - H.takeOff)) : 0);
+  const armRaise = through([[0, -22], [H.crouch[0], -21], [H.crouch[1], -14], [H.takeOff, 30], [H.takeOff + 0.1, 96], [H.top + 0.07, 100],
+    [H.touchDown - 0.04, 86], [H.touchDown + 0.08, 8], [H.given + 0.08, -18], [H.duration, -22]]);
+  const armSwing = through([[0, 2], [H.crouch[0], 0], [H.crouch[1], -30], [H.takeOff, 4], [H.takeOff + 0.12, 12], [H.top + 0.1, 10],
+    [H.touchDown + 0.02, 10], [H.given + 0.04, 4], [H.duration, 2]]);
+  const elbowBend = through([[0, 8], [H.crouch[0], 9], [H.crouch[1], 24], [H.takeOff, 14], [H.takeOff + 0.12, 4], [H.touchDown - 0.04, 4],
+    [H.given + 0.01, 16], [H.duration, 8]]);
+  const spineBend = through([[0, 0], [H.crouch[0], 0], [H.crouch[1], 9], [H.takeOff - 0.02, 2], [H.takeOff + 0.12, -4], [H.touchDown - 0.09, -3],
+    [H.touchDown + 0.06, 7], [H.given + 0.02, 6], [H.duration, 0]]);
+  const headUp = through([[0, 0], [H.crouch[0], 0], [H.crouch[1], -2], [H.takeOff + 0.07, -10], [H.touchDown - 0.09, -8], [H.touchDown + 0.06, -2],
+    [H.duration, 0]]);
+  const hop = t => {
+    const q = {};
+    const height = hopHeight(t);
+    const hips = bones.Hips.position.clone().setY(bones.Hips.position.y + height);
+    const air = inAir(t);
+    for (const L of hopLegs) {
+      // On the ground the ankle stays on its spot, the foot flat; in the air it rises with the hips, drawn up a
+      // little and back, the toes pointing down.
+      const ankle = L.rest.clone();
+      if (air > 0) ankle.add(new THREE.Vector3(-H.trail * air, height + H.tuck * air, 0));
+      const leg = L.solver.solve(hips, new THREE.Quaternion(), ankle, rot('z', -H.toes * air), AXIS.x, AXIS.z);
+      q[`${L.side}UpperLeg`] = leg.thigh;
+      q[`${L.side}LowerLeg`] = leg.shin;
+      q[`${L.side}Foot`] = leg.foot;
+    }
+    const raise = armRaise(t);
+    const up = THREE.MathUtils.clamp((raise + 22) / 122, 0, 1); // how far up the arms are
+    for (const side of ['Left', 'Right']) {
+      q[`${side}Shoulder`] = armOut(side, 8 * up);
+      q[`${side}UpperArm`] = chain(armOut(side, raise), swing(armSwing(t)));
+      q[`${side}LowerArm`] = elbow(elbowBend(t)).slerp(armOut(side, 12), up);
+    }
+    q.Spine = lean(spineBend(t));
+    q.Chest = lean(0.5 * spineBend(t));
+    q.Head = lean(headUp(t));
+    const edge = Math.max(1 - smoother(THREE.MathUtils.clamp(t / 0.1, 0, 1)), smoother(THREE.MathUtils.clamp((t - (H.duration - 0.14)) / 0.14, 0, 1)));
+    if (edge > 0) for (const bone of UPPER) q[bone] = (q[bone] ?? new THREE.Quaternion()).slerp(restPose[bone] ?? new THREE.Quaternion(), edge);
+    return { q, hips: new THREE.Vector3(0, height, 0) };
+  };
+  const hopClip = sampleClip('hop', H.duration, hop, bones, 240); // 240 keys a second: the spring and the landing are quick
+  hopClip.userData.once = true;
+
   return [
     sampleClip('idle', 3.2, idle, bones),
     sampleClip('walk', WALK.cycle, walk, bones, 120 / WALK.cycle), // 120 keys a cycle, as the actor samples it
@@ -343,5 +454,6 @@ export function authorClips({ bones, joints, soles }) {
     sampleClip('point', 2.0, point, bones),
     sampleClip('sit', 3.2, sit, bones),
     sampleClip('lifted', 1.6, lifted, bones),
+    hopClip,
   ];
 }
