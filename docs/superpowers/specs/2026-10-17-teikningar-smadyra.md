@@ -5,7 +5,7 @@ Eigandinn teiknar smádýrin fimm fyrir spjöldin í Landkönnuðabókinni, til 
 - **Lýsing:** hvernig dýrið lítur út.
 - **Heimild:** ritið eða safnasíðan sem útlitið byggist á.
 - **Frjálst:** það sem er ímyndað eða einfaldað, því steingervingar sýna sjaldan liti og mjúkvefi.
-- **Tripo:** ein ensk lína til að líma beint í Tripo, því Tripo skilur ensku best.
+- **Tripo:** tvær enskar línur til að líma í Tripo, því Tripo skilur ensku best: jákvæð lína fyrir lýsingarreitinn og neikvæð lína fyrir neikvæða reitinn (það sem á ekki að vera með). Jákvæða línan hefur engar neitanir, því neitanir í lýsingu eru oft hunsaðar eða virka öfugt.
 
 Smíðin heldur áfram með staðgenglum þar til teikningarnar berast.
 
@@ -32,7 +32,7 @@ Smíðin heldur áfram með staðgenglum þar til teikningarnar berast.
 | Snigill | `snail` | landsnigill með spíralkuðung |
 | Fuglar | `birds` | fornfugl með *Archaeopteryx* að fyrirmynd: tennur, klær á vængjum, langt beinótt skott og fjaðrir |
 
-Hver ensk lína er sjálfstæð og hefur stílinn með, svo hana má líma eina og sér.
+Hver jákvæð lína er sjálfstæð og hefur stílinn með, svo hana má líma eina og sér. Neikvæðu línurnar eiga heima í neikvæða reitnum; sýni Tripo engan slíkan reit, er þeim sleppt, og bakgrunnurinn og skugginn eru þá fjarlægðir eftir á með útklippingunni (kafli 2).
 
 ### 3.1 Kalligrammatíð („fiðrildið“), skrá `kalligrammatid`
 
@@ -42,10 +42,16 @@ Hver ensk lína er sjálfstæð og hefur stílinn með, svo hana má líma eina 
 
 **Frjálst.** Litirnir eru ímyndaðir, því steingervingar sýna þá ekki. Miðja augnblettanna gæti hafa innihaldið melanín, dökkt litarefni (greinin segir það óvíst), svo dökkbrúnar miðjur eru í lagi. Tillaga: vængir í rjómahvítum, fölgulum og ferskjulitum tónum (`#f6f1e4`, `#f2dc94`, `#f3b996`, litir fiðrildanna í skóginum, svo barnið þekki þau) og dökkbrúnir augnblettir (`#6e5440`) með ljósum dílum. Fálmarar og fætur eru frjálsir: tveir grannir fálmarar og sex mjóir fætur.
 
-**Tripo.**
+**Tripo, jákvæð lína.**
 
 ```text
-Cute storybook illustration of a Kalligramma, an extinct Jurassic lacewing that looks like a butterfly: very broad, finely veined wings opened wide and tilted toward the viewer, a large round eyespot on each forewing (dark brown centre, soft rings around it, a few tiny pale ovals), a long soft curved proboscis like a thick drinking straw, a slim body, a small head with big friendly eyes, two thin antennae, six slim legs, cream, pale yellow and peach wings, seen from slightly above in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, one animal only, whole body in view, plain flat light background, no ground, no shadow, no frame, no text
+Cute storybook illustration of a Kalligramma, an extinct Jurassic lacewing that looks like a butterfly: very broad, finely veined wings opened wide and tilted toward the viewer, a large round eyespot on each forewing (dark brown centre, soft rings around it, a few tiny pale ovals), a long soft curved proboscis like a thick drinking straw, a slim body, a small head with big friendly eyes, two thin antennae, six slim legs, cream, pale yellow and peach wings, seen from slightly above in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, a single animal with the whole body in view, plain flat light background
+```
+
+**Tripo, neikvæð lína.**
+
+```text
+ground, grass, floor, scenery, cast shadow, drop shadow, frame, border, text, watermark, extra animals, photo, glossy, sharp teeth, cropped, folded wings
 ```
 
 ### 3.2 Bjalla, skrá `beetle`
@@ -56,10 +62,16 @@ Cute storybook illustration of a Kalligramma, an extinct Jurassic lacewing that 
 
 **Frjálst.** Litirnir eru ímyndaðir. Tillaga: grænbláir skjaldvængir (`#2a9689`) með fáeinum gylltum doppum (`#f2c443`), eins og litla bjallan í skóginum, svo barnið þekki hana. Dældirnar eru einfaldaðar: fáar, breiðar raðir duga, ekki hver gluggi. Fæturnir eru stuttir hjá *Pareuryomma* og *Tetraphalerus* og ná varla út fyrir búkinn; hér standa þeir greinilega út frá honum, svo að skuggamyndin þekkist. Kjálkarnir eru litlir og ávalir; í steingervingum sumra tegunda eru þeir langir eða sigðlaga, en hér eiga þeir ekki að vera ógnandi.
 
-**Tripo.**
+**Tripo, jákvæð lína.**
 
 ```text
-Cute storybook illustration of a small Jurassic beetle of an ancient group, a reticulated beetle: an oval, slightly flattened body with a bumpy back, teal wing covers with neat rows of small square pits like little windows and a few gold dots, a small head with big round bulging friendly eyes, short thread-like antennae, tiny rounded jaws, six short legs standing clear of the body, seen from slightly above in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, one animal only, whole body in view, plain flat light background, no ground, no shadow, no frame, no text
+Cute storybook illustration of a small Jurassic beetle of an ancient group, a reticulated beetle: an oval, slightly flattened body with a bumpy back, teal wing covers with neat rows of small square pits like little windows and a few gold dots, a small head with big round bulging friendly eyes, short thread-like antennae, tiny rounded jaws, six short legs standing clear of the body, seen from slightly above in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, a single animal with the whole body in view, plain flat light background
+```
+
+**Tripo, neikvæð lína.**
+
+```text
+ground, grass, floor, scenery, cast shadow, drop shadow, frame, border, text, watermark, extra animals, photo, glossy, sharp teeth, cropped, large pincers, long sharp jaws, horns
 ```
 
 ### 3.3 Froskur, skrá `frog`
@@ -70,10 +82,16 @@ Cute storybook illustration of a small Jurassic beetle of an ancient group, a re
 
 **Frjálst.** Stellingin (hnipraður, tilbúinn að stökkva), hlutföll höfuðs, búks og framfóta, húð og andlitssvipur eru ímynduð og ekki höfð eftir heimildunum hér að ofan, og litirnir líka, því steingervingar sýna þá ekki. Tillaga: grænt bak (`#66ac47`, ljósara efst `#98d25c`), rjómalitaður kviður (`#f4edbb`) og gullin augu (`#f2c443`), eins og litli froskurinn í skóginum.
 
-**Tripo.**
+**Tripo, jákvæð lína.**
 
 ```text
-Cute storybook illustration of Prosalirus, an Early Jurassic jumping frog: a plump little frog crouched ready to leap, a wide head with big bulging gold eyes and a gentle smile, long folded hind legs standing clear of the body, short front legs, no tail, smooth green back and cream belly, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, one animal only, whole body in view, plain flat light background, no ground, no shadow, no frame, no text
+Cute storybook illustration of Prosalirus, an Early Jurassic jumping frog: a plump little frog crouched ready to leap, a wide head with big bulging gold eyes and a gentle smile, long folded hind legs standing clear of the body, short front legs, smooth green back and cream belly, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, a single animal with the whole body in view, plain flat light background
+```
+
+**Tripo, neikvæð lína.**
+
+```text
+ground, grass, floor, scenery, cast shadow, drop shadow, frame, border, text, watermark, extra animals, photo, glossy, sharp teeth, cropped, tail
 ```
 
 ### 3.4 Snigill, skrá `snail`
@@ -84,10 +102,16 @@ Cute storybook illustration of Prosalirus, an Early Jurassic jumping frog: a plu
 
 **Frjálst.** Litirnir eru ímyndaðir. Tillaga: appelsínugulur kuðungur (`#ee8650`) með rjómalitum röndum (`#f9ebcb`) og rjómalitaður líkami (`#ead9ae`), eins og litli snigillinn í skóginum.
 
-**Tripo.**
+**Tripo, jákvæð lína.**
 
 ```text
-Cute storybook illustration of a land snail: a big round spiral shell striped orange and cream on a soft cream body with a wide muscular foot, a small head with a gentle smile and two pairs of tentacles, the longer upper pair with a friendly eye at each tip, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, one animal only, whole body in view, plain flat light background, no ground, no slime trail, no shadow, no frame, no text
+Cute storybook illustration of a land snail: a big round spiral shell striped orange and cream on a soft cream body with a wide muscular foot, a small head with a gentle smile and two pairs of tentacles, the longer upper pair with a friendly eye at each tip, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, a single animal with the whole body in view, plain flat light background
+```
+
+**Tripo, neikvæð lína.**
+
+```text
+ground, grass, floor, scenery, cast shadow, drop shadow, frame, border, text, watermark, extra animals, photo, glossy, sharp teeth, cropped, slime trail, shell-less slug
 ```
 
 ### 3.5 Fuglar, skrá `birds`
@@ -98,8 +122,14 @@ Cute storybook illustration of a land snail: a big round spiral shell striped or
 
 **Frjálst.** Litir fjaðranna eru ímyndaðir. Vísbending er ein stök fjöður sem var líklega svört (Carney o.fl. 2012, *Nature Communications* 3: 637, [doi:10.1038/ncomms1642](https://doi.org/10.1038/ncomms1642)), og hún segir ekkert um allan fuglinn. Tennurnar eru einfaldaðar: heimildin segir að hann hafi haft fullt tannsett, en hér eru þær fáeinar, litlar og ávalar, eins og hjá Grameðlu í leiknum (`remake/STYLE.md`, kafli 3: engar hvassar tennur), svo brosið haldist. Tillaga: brúnt bak og brúnir vængir (`#9a7556`, `#7a5a40`, fjaðraoddar `#d8b27a`), appelsínurauð bringa (`#ee8352`) og rjómalitaður kviður (`#f4e7c6`), eins og litlu fuglarnir í skóginum.
 
-**Tripo.**
+**Tripo, jákvæð lína.**
 
 ```text
-Cute storybook illustration of Archaeopteryx, the early bird: a feathered bird-dinosaur with a narrow snout with a few tiny soft rounded ivory teeth instead of a beak, big friendly eyes, feathered wings with three small clawed fingers showing on the front of one slightly lifted wing, feathered trousers on the legs, a long bony tail with feathers along both sides, brown back and wings, orange-red chest, cream belly, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, one animal only, whole body in view, plain flat light background, no ground, no shadow, no frame, no text
+Cute storybook illustration of Archaeopteryx, the early bird: a feathered bird-dinosaur with a narrow snout holding a few tiny soft rounded ivory teeth, big friendly eyes, feathered wings with three small clawed fingers showing on the front of one slightly lifted wing, feathered trousers on the legs, a long bony tail with feathers along both sides, brown back and wings, orange-red chest, cream belly, seen in a front three-quarter view, soft chunky rounded shapes, matte painted storybook look, a single animal with the whole body in view, plain flat light background
+```
+
+**Tripo, neikvæð lína.**
+
+```text
+ground, grass, floor, scenery, cast shadow, drop shadow, frame, border, text, watermark, extra animals, photo, glossy, sharp teeth, cropped, beak, modern bird
 ```
