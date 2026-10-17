@@ -1,5 +1,16 @@
 /* The colours are the explorer's journal's (STYLE.md section 10), and so are the sizes: touch targets of 64 px and captions
    of at least 24 px. The start button keeps the foundation's first size until the rest of the interface gets its pass. */
+
+/* The typeface (STYLE.md section 10) is Nunito, bundled in assets/fonts/ with its licence (the SIL Open Font License, OFL.txt). It is
+   one variable file, so every weight from 400 to 900 is there offline, and its Latin subset has every Icelandic letter. The book's lab
+   page links only book.css, which therefore declares the same face, word for word (tests/fonts.test.mjs keeps the two alike). */
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: block; /* a local file is there before the first frame, so no frame shows another face first */
+}
+
 :root {
   --paper: #f6efdf;
   --card: #fffaf0;
@@ -12,7 +23,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; } /* a rule that sets display would otherwise show what the page hid */
-html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* What sits over the world lets taps through, except the buttons and things to carry, so a target in

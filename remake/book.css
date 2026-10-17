@@ -20,14 +20,15 @@
    - motion is transform and opacity only, so the tablet keeps 60 fps, and none of the idle life plays under
      prefers-reduced-motion. The press, the sparkle and the sound of a tap come with engine/book/fx.js. */
 
-/* Chrome on Windows finds the installed Arial Rounded MT Bold under the family name "Arial Rounded MT" (its one face is
-   named Bold), so the stack's name found nothing and the book fell through to Trebuchet MS. This gives that name to the
-   installed face, reached by its full and PostScript names. The face is drawn bold, so it answers weight 700 as it is.
-   Where the font is not installed (the tablet), the face fails quietly and the stack goes on. */
+/* The typeface (STYLE.md section 10) is Nunito, bundled in assets/fonts/ with its licence (the SIL Open Font License, OFL.txt). It is
+   one variable file, so every weight from 400 to 900 is there offline, and its Latin subset has every Icelandic letter. This lab
+   page links only this sheet and the game's page only style.css, so each declares the face, word for word (tests/fonts.test.mjs
+   keeps the two alike); a page that links both gets the one file. */
 @font-face {
-  font-family: "Arial Rounded MT Bold";
-  src: local("Arial Rounded MT Bold"), local("ArialRoundedMTBold");
-  font-weight: 700;
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: block; /* a local file is there before the first frame, so no frame shows another face first */
 }
 
 :root {
@@ -42,8 +43,8 @@
   --book-green: #6fae4f;
   /* Every control in the book is at least this big. */
   --book-target: 88px;
-  /* The old game's rounded stack, until a rounded face with every Icelandic letter is bundled (STYLE.md section 10). */
-  --book-font: ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  /* Nunito, then the rounded faces a system has, for a glyph Nunito lacks (the same stack as the game's page, STYLE.md section 10). */
+  --book-font: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
 
   /* Deeper tones of the palette, for the sides of raised things and the cover's cloth. */
   --book-orange-deep: #b75e2e;
