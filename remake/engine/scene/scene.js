@@ -249,44 +249,53 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return inFront && Math.hypot(drop.x - x, drop.y - y) <= radius;
   }
 
-  // While seeking (captures) there is no child: after 2 s the item is given, as chooseTask and tapTask do.
-  function* dragTask(itemId, targetSpec, { radius, idle }) {
+  // The drag hears every item on its list, so a child may give any of them; one id is a list of one. A list resolves with
+  // which item went and how, one id with how alone. While seeking (captures) there is no child: after 2 s the first item
+  // is given, as chooseTask and tapTask do.
+  function* dragTask(ids, targetSpec, { radius, idle }, single) {
     const tray = ui.tray;
+    const answer = (id, how) => (single ? how : { id, how });
     if (seeking) {
       yield wait(2);
-      tray.remove(itemId);
-      return 'dropped';
+      tray.remove(ids[0]);
+      return answer(ids[0], 'dropped');
     }
-    let result = null;
+    let taken = null;
     const stop = tray.onDrop(drop => {
-      if (result !== null || drop.id !== itemId) return; // another item's, or this one is settled already
+      if (taken !== null || !ids.includes(drop.id)) return; // not one of these items, or the drag is settled already
       if (onTarget(drop, targetSpec, radius)) {
-        result = 'dropped';
-        tray.remove(itemId);
+        taken = drop.id;
+        tray.remove(drop.id);
       } else {
-        tray.putBack(itemId);
+        tray.putBack(drop.id);
       }
     });
     try {
-      yield race(until(() => result !== null), wait(idle));
+      yield race(until(() => taken !== null), wait(idle));
     } finally {
       stop(); // also when the drag is cancelled
     }
-    if (result === null) {
-      result = 'idle'; // a child who does not drop it is helped: the item leaves the tray as if it had been given
-      tray.remove(itemId);
+    if (taken === null) {
+      tray.remove(ids[0]); // a child who does not drop one is helped: the first leaves the tray as if it had been given
+      return answer(ids[0], 'idle');
     }
-    return result;
+    return answer(taken, 'dropped');
   }
 
-  function drag(itemId, targetSpec, { radius = 90, idle = 20 } = {}) {
+  function drag(items, targetSpec, { radius = 90, idle = 20 } = {}) {
     needTray('s.drag');
     needScreen('s.drag');
-    if (typeof itemId !== 'string' || !itemId) throw new TypeError('s.drag needs the id of the tray item, a name');
+    const single = !Array.isArray(items);
+    const ids = single ? [items] : [...items];
+    if (!ids.length || ids.some(id => typeof id !== 'string' || !id)) {
+      throw new TypeError('s.drag needs the id of a tray item, a name, or a list of them');
+    }
+    const twice = ids.find((id, i) => ids.indexOf(id) !== i);
+    if (twice !== undefined) throw new TypeError(`s.drag needs different ids: "${twice}" comes twice`);
     if (targetSpec == null) throw new TypeError('s.drag needs a point in the world to drag the item to');
     if (!(radius > 0)) throw new TypeError(`s.drag needs a radius in pixels above 0, not ${radius}`);
     if (!Number.isFinite(idle) || idle < 0) throw new TypeError(`s.drag needs an idle time in seconds, not ${idle}`);
-    return start(dragTask(itemId, targetSpec, { radius, idle }));
+    return start(dragTask(ids, targetSpec, { radius, idle }, single));
   }
 
   // The star (spec scene 10). A friend's star rises from a point and waits for a tap; then it flies into the
@@ -418,10 +427,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      */
     lookAround,
     /**
-     * Wait for the child to drag the tray item `itemId` to a point in the world (a point spec). It resolves 'dropped' when
-     * the item is let go within `radius` px of the point on the screen; a drop anywhere else, or off the canvas, sends
-     * the item back to the tray. After `idle` seconds without a hit the item leaves the tray and it resolves 'idle'.
-     * Seeking: 'dropped' after 2 s.
+     * Wait for the child to drag a tray item to a point in the world (a point spec): `items` is its id, or a list of ids
+     * when any of them will do (flowers that are all alike). An item let go within `radius` px of the point on the screen
+     * leaves the tray; a drop anywhere else, or off the canvas, sends it back. With one id it resolves 'dropped', or
+     * after `idle` seconds without a hit 'idle' (the item leaves the tray then too). With a list it resolves
+     * { id, how }: the item dropped and 'dropped', or after `idle` seconds the first id on the list and 'idle'.
+     * Seeking: the first item, 'dropped', after 2 s.
      */
     drag,
     /**

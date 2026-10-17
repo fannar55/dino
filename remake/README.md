@@ -114,7 +114,7 @@ clock, so pausing, seeking and cancelling work:
 | `s.tap(names)` | the child's tap on one of the targets (seeking: the first after 2 s); race it with `s.wait` so it ends by itself |
 | `s.lookAround(limits, seconds)` | the seconds, while the child's drags turn the camera within the limits |
 | `s.search({ explore, targets, onFound })` | every target found by a tap; a hint every 12 s and, after three, found for the child (seeking: one every 3 s) |
-| `s.drag(item, target, { radius, idle })` | the tray item let go within `radius` px of the target on the screen (`'dropped'`), or `idle` s (`'idle'`: it leaves the tray) (seeking: 2 s) |
+| `s.drag(items, target, { radius, idle })` | a tray item (an id, or any of a list of ids) let go within `radius` px of the target on the screen: one id resolves `'dropped'`, or `'idle'` after `idle` s, when it leaves the tray; a list resolves `{ id, how }`, the item dropped or after `idle` s the first on the list (seeking: the first, after 2 s) |
 | `s.star(id, from)` | the star rising from a point, tapped or left 8 s (seeking 1.5 s), and its flight into the journal |
 | `s.found(id)`, `s.tray.show/hide`, `s.journal.open/close`, `s.sun.wink()` | nothing: an animal into the journal, the tray, the journal's page (which does not pause the game), the sun's wink |
 | `s.sfx(name)` | nothing: forest (a quiet loop, once), step, frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float, each at least a short gap after the last of its name (flower 0.15 s, butterfly 0.25 s, critters 0.4 to 0.5 s) and at most 48 at once; silent while seeking |

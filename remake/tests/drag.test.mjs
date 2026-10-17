@@ -268,6 +268,43 @@ test('a drag that is cancelled leaves no listener behind', () => {
   assert.equal(tray.calls('hide').length, 1, 'and puts the tray away');
 });
 
+test('a drag over a list of items hears any of them, and says which one was dropped', () => {
+  const rig = dragRig();
+  const outcome = runDrag(rig, ['flower1', 'flower2', 'flower3'], MOUTH);
+  rig.step(0.2);
+  assert.equal(rig.tray.listeners.length, 1, 'one listener for all three');
+  rig.tray.drop('other', MIDDLE.x, MIDDLE.y); // not one of them: not heard
+  rig.tray.drop('flower2', MIDDLE.x + 120, MIDDLE.y); // one of them, missed: home it goes
+  assert.deepEqual(rig.tray.log.filter(([call]) => call === 'remove' || call === 'putBack'), [['putBack', 'flower2']]);
+  rig.tray.drop('flower3', MIDDLE.x, MIDDLE.y); // the last pocket, on the mouth
+  rig.tray.drop('flower1', MIDDLE.x, MIDDLE.y); // in the same frame: the drag is settled, so it is not taken
+  rig.step(0.1);
+  assert.deepEqual(outcome.value, { id: 'flower3', how: 'dropped' });
+  assert.deepEqual(rig.tray.calls('remove'), [['remove', 'flower3']], 'only the one dropped leaves the tray');
+  assert.equal(rig.tray.listeners.length, 0);
+});
+
+test('a list drag that waits in vain gives the first item still on the list, which leaves the tray', () => {
+  const rig = dragRig();
+  const outcome = runDrag(rig, ['flower2', 'flower3'], MOUTH, { idle: 20 });
+  rig.step(19.8);
+  assert.equal(outcome.done, false);
+  rig.step(0.4);
+  assert.deepEqual(outcome.value, { id: 'flower2', how: 'idle' });
+  assert.deepEqual(rig.tray.calls('remove'), [['remove', 'flower2']]);
+});
+
+test('a list drag while seeking takes the first item after 2 s', () => {
+  const rig = dragRig();
+  rig.stage.seeking = true;
+  const outcome = runDrag(rig, ['flower3', 'flower1'], MOUTH);
+  rig.step(1.9);
+  assert.equal(outcome.done, false);
+  rig.step(0.1);
+  assert.deepEqual(outcome.value, { id: 'flower3', how: 'dropped' });
+  assert.deepEqual(rig.tray.calls('remove'), [['remove', 'flower3']]);
+});
+
 test('s.tray shows and hides the tray for a script', () => {
   const { s, tray } = dragRig();
   assert.equal(s.tray.show([{ id: 'flower1', icon: 'glowFlower' }, { id: 'flower2', icon: 'glowFlower' }]), DONE);
@@ -287,6 +324,9 @@ test('s.drag and s.tray say so when the scene has no tray or no camera, and refu
 
   const { s } = dragRig();
   assert.throws(() => s.drag('', MOUTH), TypeError);
+  assert.throws(() => s.drag([], MOUTH), TypeError);
+  assert.throws(() => s.drag(['a', ''], MOUTH), TypeError);
+  assert.throws(() => s.drag(['a', 'a'], MOUTH), /twice/);
   assert.throws(() => s.drag('a', null), /point/);
   assert.throws(() => s.drag('a', MOUTH, { radius: 0 }), /radius/);
   assert.throws(() => s.drag('a', MOUTH, { idle: -1 }), /idle/);
