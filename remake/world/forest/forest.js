@@ -41,6 +41,21 @@ const BAND_SETUP = {
 // Kinds whose shadows matter; small plants cast none. The deep band casts nothing.
 const CASTERS = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'rockSmall', 'log']);
 
+/**
+ * What the forest tells of one plant it grew (info.placementList): its kind, detail level, place and scale, the triangles
+ * it costs, and its size in metres: how far it reaches round (radius), how tall it is, and for a plant with a trunk where
+ * the trunk ends (top) and how thick it is there (trunk). A chapter places things by plants with it (kafli1's flowers).
+ */
+export function placementInfo(p) {
+  const { model, scale } = p;
+  return {
+    name: p.name, lod: p.lod, x: p.x, y: p.y, z: p.z, scale,
+    tris: (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0),
+    radius: model.radius * scale, height: model.height * scale,
+    top: model.trunk ? model.trunk.top * scale : null, trunk: model.trunk ? model.trunk.r * scale : null,
+  };
+}
+
 export async function createForest(world, layout) {
   const t0 = performance.now();
   const { scene, q } = world;
@@ -128,7 +143,7 @@ export async function createForest(world, layout) {
     casters: casterMeshes.map(m => ({ name: m.name, tris: m.userData.triangles })),
     farTriangles: far.triangles,
     groundTriangles: groundMesh.geometry.index.count / 3,
-    placementList: plan.placements.map(p => ({ name: p.name, lod: p.lod, x: p.x, z: p.z, scale: p.scale, tris: (p.model.solid ? p.model.solid.triangles : 0) + (p.model.thin ? p.model.thin.triangles : 0) })),
+    placementList: plan.placements.map(placementInfo),
   };
   if (world.params?.get?.('debug') === '1') console.info('[forest]', info);
 
