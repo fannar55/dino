@@ -26,10 +26,18 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 //      the bake authored to open the jaw (Slóeðla's eat and call) carries `jaw` in its extras, the
 //      jaw's opening in degrees at each of the clip's keys: it gets the jaw's track here.
 //
+// Any other vertex attribute the skin carries goes through with it, under the same name in the GLB
+// (Kambeðla's plate rows, _PLATEROW): a vertex the cut makes on an edge takes the value of the edge's
+// nearer end (a plate row is a whole number, never one in between), a lip's copy its own vertex's, and
+// the pocket 0.
+//
 //   node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb
 //     --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=f,u;f,u;...&front=f&cut=f&hinge=f,u&talk=7"
 //
-// Query: src, out, line, front, cut, hinge, talk (degrees the jaw opens at the loudest syllable),
+// Query: src, out, line, left (a line of its own for the character's left side, +l, where the two sides
+// of the mouth differ: `line` is then the right side's, and within 4 cm of the middle the one goes over
+// into the other; the two sides of Kambeðla's smile differ by up to a centimetre), front,
+// cut, hinge, talk (degrees the jaw opens at the loudest syllable),
 // tex (texture size), smooth (rounds), snap (metres: vertices this close to the line count as on it, so
 // a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
 // only those exactly on it), channel (1: for a long beak, the pocket's fold runs along the middle of the
@@ -39,12 +47,21 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // can land on the wrong side and stretch across the open mouth, as on Uggeðla's long snout), fold
 // (back,down: how far behind and below the lips the channel's fold lies, as shares of the mouth's
 // length, 0.02,0.03; a rounded snout tip wants it higher, or it shows through the chin with the mouth
-// shut: Uggeðla 0.04,0.01), preview (1: show the result open instead of exporting).
+// shut: Uggeðla 0.04,0.01), rim (1: the pocket's edge follows the opening's rim edge by edge, instead of
+// the shortest way through the line's points, which can cut across a triangle of the rim and leave a
+// small hole between the pocket and the lips where the line lies nearly along the skin, as in the deep
+// slit of Kambeðla's smile; its rows start from the lips themselves, so where that rim zigzags no flap
+// of the pocket reaches across the open mouth; and where a texture seam runs along the lips the tongue
+// takes the side the jaw has a copy of), conform (1: a triangle the cut leaves whole next to one it split
+// is split at the new vertex too, so no crack opens there when the jaw turns), keep (1: the painted maps
+// keep the source maps' names, wrapping and filters; without it they clamp at their edges, as the earlier
+// passes wrote them), preview (1: show the result open instead of exporting).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
 const OUT = params.get('out') || SRC.split('/').pop();
 const LINE = params.get('line').split(';').map(s => s.split(',').map(Number));
+const LEFT = params.get('left') ? params.get('left').split(';').map(s => s.split(',').map(Number)) : null;
 const FRONT = Number(params.get('front'));
 const CUT = Number(params.get('cut'));
 const HINGE = params.get('hinge').split(',').map(Number);
@@ -55,19 +72,28 @@ const SNAP = Number(params.get('snap') || 0);
 const CHANNEL = params.get('channel') === '1';
 const CORNERS = params.get('corners') === '1';
 const FOLD = (params.get('fold') || '0.02,0.03').split(',').map(Number);
+const RIM = params.get('rim') === '1';
+const CONFORM = params.get('conform') === '1';
+const KEEP = params.get('keep') === '1';
 const PREVIEW = params.get('preview') === '1';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const status = text => { window.__bakeStatus = text; console.log('[mouth]', text); };
 const log = (...a) => console.log('[mouth]', ...a);
 
-// The mouth line's height at f (linear between its points, level beyond them).
-const mouthAt = f => {
-  if (f <= LINE[0][0]) return LINE[0][1];
-  for (let i = 1; i < LINE.length; i++) {
-    if (f <= LINE[i][0]) { const t = (f - LINE[i - 1][0]) / (LINE[i][0] - LINE[i - 1][0]); return LINE[i - 1][1] + t * (LINE[i][1] - LINE[i - 1][1]); }
+// A line's height at f (linear between its points, level beyond them).
+const levelAt = (line, f) => {
+  if (f <= line[0][0]) return line[0][1];
+  for (let i = 1; i < line.length; i++) {
+    if (f <= line[i][0]) { const t = (f - line[i - 1][0]) / (line[i][0] - line[i - 1][0]); return line[i - 1][1] + t * (line[i][1] - line[i - 1][1]); }
   }
-  return LINE.at(-1)[1];
+  return line.at(-1)[1];
+};
+// The mouth line's height at f: with `left`, `line` is the character's right side's and `left` its left side's,
+// and within 4 cm of the middle (l) the one goes over into the other.
+const mouthAt = (f, l = 0) => {
+  const right = levelAt(LINE, f);
+  return LEFT ? right + (levelAt(LEFT, f) - right) * ss(-0.04, 0.04, l) : right;
 };
 
 // A block of the texture atlas that no triangle's UVs come near (as in bake-tailed-biped).
@@ -152,13 +178,16 @@ try {
   const frame = p => { const d = p.clone().applyMatrix4(toWorld).sub(origin); return { f: d.dot(forward), u: d.y, l: d.dot(left) }; };
   const fromFrame = (f, u, l) => origin.clone().addScaledVector(forward, f).add(V(0, u, 0)).addScaledVector(left, l).applyMatrix4(toMesh);
   // Negative in the jaw: below the line, behind the front, in front of the line's start.
-  const phi = q => Math.max(q.u - mouthAt(q.f), q.f - FRONT, LINE[0][0] - q.f);
+  const phi = q => Math.max(q.u - mouthAt(q.f, q.l), q.f - FRONT, LINE[0][0] - q.f);
 
   // --- 1. split the triangles that cross the line in front of the cut --------------------------------
   const src = mesh.geometry;
   const attrs = ['position', 'normal', 'uv', 'skinIndex', 'skinWeight'];
-  const data = Object.fromEntries(attrs.map(a => [a, Array.from(src.attributes[a].array)]));
-  const size = Object.fromEntries(attrs.map(a => [a, src.attributes[a].itemSize]));
+  // The skin's other attributes (Kambeðla's `_platerow`), carried along as the header says.
+  const extras = Object.keys(src.attributes).filter(name => !attrs.includes(name));
+  const all = [...attrs, ...extras];
+  const data = Object.fromEntries(all.map(a => [a, Array.from(src.attributes[a].array)]));
+  const size = Object.fromEntries(all.map(a => [a, src.attributes[a].itemSize]));
   const count = () => data.position.length / 3;
   const point = i => V(data.position[3 * i], data.position[3 * i + 1], data.position[3 * i + 2]);
   const phis = [];
@@ -177,6 +206,8 @@ try {
     }
     const n = V(...data.normal.slice(3 * v, 3 * v + 3)).normalize();
     data.normal.splice(3 * v, 3, n.x, n.y, n.z);
+    const nearer = t < 0.5 ? a : b;
+    for (const name of extras) for (let c = 0; c < size[name]; c++) data[name].push(data[name][size[name] * nearer + c]);
     const w = new Map();
     for (const [bone, x] of weightsOf(src, a)) w.set(bone, (w.get(bone) || 0) + x * (1 - t));
     for (const [bone, x] of weightsOf(src, b)) w.set(bone, (w.get(bone) || 0) + x * t);
@@ -216,6 +247,25 @@ try {
     const pab = split(a, b), pac = split(a, c);
     out.push([a, pab, pac], [pab, b, c], [pab, c, pac]);
   }
+  // With `conform`, a triangle the cut left whole (it lies more than 5 cm behind `cut`) that has an edge a
+  // neighbour's split cut in two is split in two at that vertex as well. Left whole, its edge would run
+  // straight past the new vertex, whose weights blend its ends', and open a crack there as the jaw turns.
+  let conformed = 0;
+  if (CONFORM) {
+    for (let j = 0; j < out.length; j++) {
+      const tri = out[j];
+      for (let e = 0; e < 3; e++) {
+        const a = tri[e], b = tri[(e + 1) % 3], c = tri[(e + 2) % 3];
+        const v = edgeVertex.get(a < b ? `${a}_${b}` : `${b}_${a}`);
+        if (v === undefined) continue;
+        out[j] = [a, v, c];
+        out.push([v, b, c]);
+        conformed++;
+        j--; // look at the first half again: another of its edges may have been split too
+        break;
+      }
+    }
+  }
   // Which side each triangle is on: by its centroid's phi (with `corners`, by its corners off the line).
   const triSide = tri => {
     const off = CORNERS ? tri.map(i => phis[i]).find(x => x !== 0) : undefined;
@@ -234,7 +284,7 @@ try {
       if (!isOpen(i)) continue;
       if (!jawCopy.has(i)) {
         const v = count();
-        for (const name of attrs) for (let c = 0; c < size[name]; c++) data[name].push(data[name][size[name] * i + c]);
+        for (const name of all) for (let c = 0; c < size[name]; c++) data[name].push(data[name][size[name] * i + c]);
         frames.push(frames[i]);
         phis.push(0);
         jawCopy.set(i, v);
@@ -242,7 +292,7 @@ try {
       tri[e] = jawCopy.get(i);
     }
   });
-  log(`cut: ${splits} triangles split, ${onCut.size} vertices on the line, ${jawCopy.size} opened`);
+  log(`cut: ${splits} triangles split${CONFORM ? ` (and ${conformed} beside them)` : ''}, ${onCut.size} vertices on the line, ${jawCopy.size} opened`);
   if (jawCopy.size < 6) throw new Error('the mouth line opens almost nothing: check line, front and cut');
 
   // --- 2. the jaw bone and its share of the skin ---------------------------------------------------
@@ -320,14 +370,34 @@ try {
     const k = lipKey(i);
     lipPos.set(k, point(i));
     lipUpper.set(k, i);
-    lipLower.set(k, jawCopy.get(i) ?? i);
+    // With `rim`, of the vertices at one point of the lips (the two sides of a texture seam) the lower lip is
+    // one the jaw has a copy of, so the tongue's edge moves with the jaw.
+    if (!RIM || jawCopy.has(i) || !lipLower.has(k)) lipLower.set(k, jawCopy.get(i) ?? i);
   }
   const original = new Map([...jawCopy].map(([i, c]) => [c, i]));
   const graph = new Map();
   const link = (a, b) => { if (a === b) return; if (!graph.has(a)) graph.set(a, new Set()); graph.get(a).add(b); };
-  for (const tri of out) {
-    const onLine = tri.map(i => original.get(i) ?? i).filter(i => onCut.has(i));
-    if (onLine.length >= 2) for (let a = 0; a < onLine.length; a++) for (let b = a + 1; b < onLine.length; b++) { link(lipKey(onLine[a]), lipKey(onLine[b])); link(lipKey(onLine[b]), lipKey(onLine[a])); }
+  if (RIM) {
+    // The opened lips' own edges: those only one triangle has once the jaw has its copies (the copies
+    // counted apart), the rim of the opening, so the pocket's edge runs along every one of them.
+    const edgeUse = new Map();
+    for (const tri of out) {
+      for (let e = 0; e < 3; e++) {
+        const a = tri[e], b = tri[(e + 1) % 3];
+        const key = idOf[a] < idOf[b] ? `${idOf[a]},${idOf[b]}` : `${idOf[b]},${idOf[a]}`;
+        const edge = edgeUse.get(key);
+        if (edge) edge.n++; else edgeUse.set(key, { a, b, n: 1 });
+      }
+    }
+    for (const { a, b, n: used } of edgeUse.values()) {
+      const oa = original.get(a) ?? a, ob = original.get(b) ?? b;
+      if (used === 1 && onCut.has(oa) && onCut.has(ob)) { link(lipKey(oa), lipKey(ob)); link(lipKey(ob), lipKey(oa)); }
+    }
+  } else {
+    for (const tri of out) {
+      const onLine = tri.map(i => original.get(i) ?? i).filter(i => onCut.has(i));
+      if (onLine.length >= 2) for (let a = 0; a < onLine.length; a++) for (let b = a + 1; b < onLine.length; b++) { link(lipKey(onLine[a]), lipKey(onLine[b])); link(lipKey(onLine[b]), lipKey(onLine[a])); }
+    }
   }
   const openKeys = new Set([...onCut].filter(isOpen).map(lipKey));
   const sideKey = k => frame(lipPos.get(k)).l;
@@ -411,10 +481,16 @@ try {
   const sheets = [];
   const sheet = (s, lipW, innerW, arch, which) => {
     const edge = path.map((k, i) => vertex(point(which === 'upper' ? lipUpper.get(k) : lipLower.get(k)), swatchUV(s, 0, i / (m - 1)), lipW[i]));
-    const rows = ROWS.map(t => inner.map((q, j) => {
+    const rows = ROWS.map(t => inner.map((smooth, j) => {
+      // With `rim` the rows start from the lips themselves and come round to the lips' smoothed line by
+      // halfway in, so where the rim zigzags the strip along the lips stays narrow, never a flap that
+      // reaches out across the open mouth to a lip point.
+      const near = RIM ? 1 - ss(0, 0.5, t) : 0;
+      const q = near ? { f: THREE.MathUtils.lerp(smooth.f, P[j].f, near), u: THREE.MathUtils.lerp(smooth.u, P[j].u, near), l: THREE.MathUtils.lerp(smooth.l, P[j].l, near) } : smooth;
+      const w = near ? blend([lipW[j], innerW[j]], [near, 1 - near]) : innerW[j];
       const r = { f: THREE.MathUtils.lerp(q.f, fold[j].f, t), u: THREE.MathUtils.lerp(q.u, fold[j].u, t), l: THREE.MathUtils.lerp(q.l, fold[j].l, t) };
       r.u += arch * 0.04 * span * Math.sin(Math.PI * t) * (1 - (r.l / widest) ** 2);
-      return vertex(r, swatchUV(s, t, j / (m - 1)), blend([innerW[j], foldW[j]], [1 - t, t]));
+      return vertex(r, swatchUV(s, t, j / (m - 1)), blend([w, foldW[j]], [1 - t, t]));
     }));
     for (let i = 0; i < m - 1; i++) tris.push([edge[i], edge[i + 1], rows[0][i + 1]], [edge[i], rows[0][i + 1], rows[0][i]]);
     for (let r = 0; r < ROWS.length - 1; r++) for (let j = 0; j < m - 1; j++) tris.push([rows[r][j], rows[r][j + 1], rows[r + 1][j + 1]], [rows[r][j], rows[r + 1][j + 1], rows[r + 1][j]]);
@@ -438,6 +514,15 @@ try {
   mouthGeometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si2, 4));
   mouthGeometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw2, 4));
   mouthGeometry.setIndex(index2);
+  // The loader names a glTF attribute of its own as the file does but in lower case (_PLATEROW becomes
+  // _platerow), and GLTFExporter writes a name it does not know in upper case with an underscore before it:
+  // without its own underscore here the name in the file stays as it was.
+  const fileName = name => name.replace(/^_/, '');
+  const extraAttribute = (name, values) => {
+    const { array, normalized } = src.attributes[name];
+    return new THREE.BufferAttribute(new array.constructor(values), size[name], normalized);
+  };
+  for (const name of extras) mouthGeometry.setAttribute(fileName(name), extraAttribute(name, (pos2.length / 3) * size[name]));
 
   // --- 4. one mesh again, the skeleton with its jaw, and the GLB -------------------------------------
   const body = new THREE.BufferGeometry();
@@ -446,6 +531,7 @@ try {
   body.setAttribute('uv', new THREE.Float32BufferAttribute(data.uv, 2));
   body.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(data.skinIndex, 4));
   body.setAttribute('skinWeight', new THREE.Float32BufferAttribute(data.skinWeight, 4));
+  for (const name of extras) body.setAttribute(fileName(name), extraAttribute(name, data[name]));
   body.setIndex(out.flat());
   const geometry = mergeGeometries([body, mouthGeometry], false);
   geometry.computeBoundingBox();
@@ -459,9 +545,18 @@ try {
   const bindMatrix = mesh.bindMatrix.clone();
   mesh.geometry = geometry;
   mesh.bind(new THREE.Skeleton(bones, inverses), bindMatrix);
-  const texture = (canvas, colorSpace) => { const t = new THREE.CanvasTexture(canvas); t.flipY = false; t.colorSpace = colorSpace; t.userData.mimeType = 'image/jpeg'; return t; };
-  mesh.material.map = texture(mapCanvas, THREE.SRGBColorSpace);
-  if (normalCanvas) mesh.material.normalMap = texture(normalCanvas, THREE.NoColorSpace);
+  const texture = (canvas, colorSpace, source) => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.flipY = false;
+    t.colorSpace = colorSpace;
+    t.userData.mimeType = 'image/jpeg';
+    // With `keep`, the map keeps the source map's name, wrapping and filters (without it a canvas texture's
+    // own: clamped at the edges, no name).
+    if (KEEP) for (const key of ['name', 'wrapS', 'wrapT', 'magFilter', 'minFilter', 'anisotropy']) t[key] = source[key];
+    return t;
+  };
+  mesh.material.map = texture(mapCanvas, THREE.SRGBColorSpace, mesh.material.map);
+  if (normalCanvas) mesh.material.normalMap = texture(normalCanvas, THREE.NoColorSpace, mesh.material.normalMap);
   mesh.userData.face = { ...mesh.userData.face, mouth: { talk: TALK } };
   // The jaw's track for each clip that opens it, turning it down about the head's own right side as
   // talking does (and as the preview below opens it).
@@ -478,8 +573,8 @@ try {
     jawClips.push(clip.name);
   }
   const report = {
-    triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count, split: splits,
-    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips,
+    triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count, split: splits, conformed,
+    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips, carried: extras,
   };
   window.__bakeReport = report;
   log(JSON.stringify(report));

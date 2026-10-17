@@ -7,7 +7,8 @@ import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { createActor } from '../engine/actor.js';
 import { createPointResolver } from '../engine/points.js';
 
-// Kambeðla as baked by remake/tools/bake/bake-quadruped.js, read without textures (no DOM in Node).
+// Kambeðla as baked by remake/tools/bake/bake-quadruped.js (then the face and mouth passes), read without
+// textures (no DOM in Node).
 const FILE = new URL('../assets/characters/stegosaurus.glb', import.meta.url);
 function readGlb() {
   const glb = fs.readFileSync(FILE);
@@ -42,8 +43,9 @@ function loadGlb() {
 const gltfPromise = loadGlb();
 const CHAIN = ['Hips', 'Spine', 'Chest', 'Neck', 'Neck2', 'Head', 'Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
 const LEGS = ['BackLegL', 'BackFootL', 'BackLegR', 'BackFootR', 'FrontLegL', 'FrontFootL', 'FrontLegR', 'FrontFootR'];
-const BONES = ['root', ...CHAIN, ...LEGS];
+const BONES = ['root', ...CHAIN, ...LEGS, 'Jaw'];
 const FEET = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR'];
+const CLIPS = { eat: [2, 13], happy: [1.5, 25], idle: [4, 13], kink: [2.4, 13], walk: [2.43, 25] }; // seconds, tracks
 
 // A copy of Kambeðla in the bind pose (the loaded scene itself is never posed).
 async function model() {
@@ -121,6 +123,8 @@ test('Kambeðla has the quadruped skeleton, the clips and fits the budget', asyn
   for (const clip of Object.values(clips)) {
     const animated = new Set(clip.tracks.map(t => t.name.split('.')[0]));
     for (const bone of CHAIN) assert.ok(animated.has(bone), `${clip.name} leaves ${bone} alone`);
+    // The jaw the mouth pass cut opens only when she talks.
+    assert.ok(!animated.has('Jaw'), `${clip.name} opens the jaw`);
     // Only the walk and the hop move the legs: in idle, kink and eat, footing keeps the feet where
     // they stand.
     const legs = ['walk', 'happy'].includes(clip.name);
@@ -159,7 +163,16 @@ test('every vertex weight sums to one', async () => {
   }
 });
 
-test('the welded skin is closed and consistently wound, so single-sided it shows no holes', async () => {
+// The share of a vertex the given bones carry.
+function carried(mesh, i, bones) {
+  const { skinIndex, skinWeight } = mesh.geometry.attributes;
+  const ids = bones.map(n => mesh.skeleton.bones.findIndex(b => b.name === n));
+  let w = 0;
+  for (let k = 0; k < 4; k++) if (ids.includes(skinIndex.getComponent(i, k))) w += skinWeight.getComponent(i, k);
+  return w;
+}
+
+test('away from the mouth the welded skin is closed and consistently wound, so single-sided it shows no holes', async () => {
   const { mesh } = await model();
   const pos = mesh.geometry.attributes.position;
   const weights = [mesh.geometry.attributes.skinIndex, mesh.geometry.attributes.skinWeight];
@@ -171,8 +184,9 @@ test('the welded skin is closed and consistently wound, so single-sided it shows
     const k = key(i);
     if (!ids.has(k)) ids.set(k, i);
     rep[i] = ids.get(k);
-    // Both sides of a seam carry the same weights, so the seam stays closed when skinned.
-    if (rep[i] !== i) {
+    // Both sides of a seam carry the same weights, so the seam stays closed when skinned (the mouth
+    // pass gave the lips copies of their own).
+    if (rep[i] !== i && carried(mesh, i, ['Head', 'Jaw']) < 0.5) {
       for (const attr of weights) for (let c = 0; c < 4; c++) seamWeights = Math.max(seamWeights, Math.abs(attr.getComponent(i, c) - attr.getComponent(rep[i], c)));
     }
   }
@@ -183,14 +197,17 @@ test('the welded skin is closed and consistently wound, so single-sided it shows
     for (let e = 0; e < 3; e++) {
       const a = rep[index.getX(t + e)], b = rep[index.getX(t + (e + 1) % 3)];
       const k = a < b ? `${a},${b}` : `${b},${a}`;
-      const edge = edges.get(k) || { n: 0, turn: 0 };
+      const edge = edges.get(k) || { n: 0, turn: 0, a, b };
       edge.n++;
       edge.turn += a < b ? 1 : -1;
       edges.set(k, edge);
     }
   }
-  const bad = [...edges.values()].filter(e => e.n !== 2 || e.turn !== 0).length;
-  assert.equal(bad, 0, `${bad} edges are open, shared by more than two triangles or wound against each other`);
+  // The open lips and the pocket inside the mouth are on the head: everywhere else every edge is
+  // shared by two triangles that run it in opposite directions.
+  const head = i => carried(mesh, i, ['Head', 'Jaw']) > 0.9;
+  const bad = [...edges.values()].filter(e => (e.n !== 2 || e.turn !== 0) && !(head(e.a) && head(e.b))).length;
+  assert.equal(bad, 0, `${bad} edges off the head are open, shared by more than two triangles or wound against each other`);
 });
 
 test('the plates and the tail spikes ride rigidly on one bone each', async () => {
@@ -514,4 +531,104 @@ test('the plate mask counts the back plates in rows from the head', async () => 
   const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
   for (let row = 1; row <= count; row++) assert.ok(xs.get(row)?.length > 100, `row ${row} has plates`);
   for (let row = 2; row <= count; row++) assert.ok(mean(xs.get(row)) < mean(xs.get(row - 1)), `row ${row} lies behind row ${row - 1}`);
+});
+
+test('the mouth pass gave her a jaw under the head: her beak opens a little when she talks, without teeth', async () => {
+  const { scene, mesh } = await model();
+  scene.updateMatrixWorld(true);
+  const jaw = scene.getObjectByName('Jaw');
+  assert.equal(jaw?.parent?.name, 'Head');
+  assert.ok(jaw.quaternion.angleTo(new THREE.Quaternion()) < 1e-6, 'turned like the head at rest');
+  assert.deepEqual(mesh.userData.face.mouth, { talk: 8 });
+  const k = mesh.skeleton.bones.indexOf(jaw);
+  const { position } = mesh.geometry.attributes;
+  const jawCarried = [];
+  for (let i = 0; i < position.count; i++) if (carried(mesh, i, ['Jaw']) > 0.9) jawCarried.push(i);
+  assert.ok(jawCarried.length > 300, `the jaw carries ${jawCarried.length} vertices`);
+  assert.equal(k, mesh.skeleton.bones.length - 1, 'the jaw is the last bone, so the others keep their indices');
+  const at = i => mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
+  let beak = 0;
+  for (let i = 0; i < position.count; i++) if (at(i).x > at(beak).x) beak = i; // the hook of her upper beak
+  const chin = jawCarried.reduce((a, b) => (at(b).x > at(a).x ? b : a)); // the front of her lower beak
+  const before = [at(beak), at(chin)];
+  // Opening turns the jaw down about her left side (-Z, as she faces +X).
+  jaw.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, -1).applyQuaternion(jaw.parent.getWorldQuaternion(new THREE.Quaternion()).invert()), THREE.MathUtils.degToRad(8));
+  scene.updateMatrixWorld(true);
+  assert.ok(at(beak).distanceTo(before[0]) < 1e-6, 'the hook of the upper beak moved');
+  assert.ok(before[1].y - at(chin).y > 0.05, `the chin dropped ${(before[1].y - at(chin).y).toFixed(3)} m`);
+  assert.ok(at(chin).x < before[0].x, 'the lower beak stays behind the hook');
+
+  // Talking, the actor opens it by face.mouth.talk at the loudest.
+  const quiet = (await stage()).kambedla, loud = (await stage()).kambedla;
+  loud.talk({ mouth: 'ffffffffffffffffffffffffffffff', duration: 1.5 });
+  for (let i = 0; i < 20; i++) { quiet.update(1 / 30); loud.update(1 / 30); }
+  const opened = THREE.MathUtils.radToDeg(loud.model.getObjectByName('Jaw').quaternion.angleTo(quiet.model.getObjectByName('Jaw').quaternion));
+  assert.ok(opened > 6 && opened < 8.5, `her jaw opened ${opened.toFixed(1)} degrees`);
+});
+
+test('the pocket closes the opened lips: no hole between them, so the open mouth shows no daylight', async () => {
+  // Welded by position, the jaw's copies of the lips kept apart (by what carries them): every edge of the skin
+  // and the pocket has a triangle on each side. An edge only one triangle has is a hole, between the pocket's
+  // edge and the lips, or a crack where the cut split a triangle and left its neighbour whole (the pocket is
+  // double-sided, so its own edges are counted on both faces).
+  const { mesh } = await model();
+  const pos = mesh.geometry.attributes.position;
+  const ids = new Map();
+  const rep = new Int32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const k = `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}|${carried(mesh, i, ['Jaw']) > 0.5 ? 'jaw' : ''}`;
+    if (!ids.has(k)) ids.set(k, i);
+    rep[i] = ids.get(k);
+  }
+  const uses = new Map();
+  const index = mesh.geometry.index;
+  for (let t = 0; t < index.count; t += 3) {
+    for (let e = 0; e < 3; e++) {
+      const a = rep[index.getX(t + e)], b = rep[index.getX(t + (e + 1) % 3)];
+      if (a === b) continue; // the pocket's ends close up to a point at the corners of the mouth
+      const k = a < b ? `${a},${b}` : `${b},${a}`;
+      uses.set(k, (uses.get(k) ?? 0) + 1);
+    }
+  }
+  const open = [...uses.values()].filter(n => n === 1).length;
+  assert.equal(open, 0, `${open} edges have a triangle on one side only`);
+});
+
+test('the mouth pass kept her plate rows, her eyes, her clips and her skeleton', async () => {
+  const { gltf, mesh } = await model();
+  // The plate rows as the bake marked them: every plate vertex keeps its row (the cut is in the head, far
+  // from the plates, and the pocket is off them).
+  const rows = mesh.geometry.attributes._platerow;
+  assert.ok(rows, 'the _PLATEROW attribute came through the pass');
+  const counts = new Map();
+  for (let i = 0; i < rows.count; i++) if (rows.getX(i) > 0) counts.set(rows.getX(i), (counts.get(rows.getX(i)) ?? 0) + 1);
+  assert.deepEqual(Object.fromEntries([...counts].sort((a, b) => a[0] - b[0])), { 1: 1609, 2: 1758, 3: 1031 }, 'vertices in each row');
+  const index = mesh.geometry.index;
+  const triangles = new Map();
+  for (let t = 0; t < index.count; t += 3) {
+    const row = rows.getX(index.getX(t));
+    assert.ok(row === rows.getX(index.getX(t + 1)) && row === rows.getX(index.getX(t + 2)), 'a triangle lies on one row');
+    if (row > 0) triangles.set(row, (triangles.get(row) ?? 0) + 1);
+  }
+  assert.deepEqual(Object.fromEntries([...triangles].sort((a, b) => a[0] - b[0])), { 1: 2452, 2: 2635, 3: 1683 }, 'triangles in each row');
+  const { json } = readGlb();
+  const prim = json.meshes[0].primitives[0];
+  assert.ok('_PLATEROW' in prim.attributes, `the GLB names it _PLATEROW (${Object.keys(prim.attributes).join(', ')})`);
+
+  // The eyes the face pass found, for the eyelids: as they were.
+  const eyes = mesh.userData.face.eyes;
+  assert.equal(eyes.length, 2);
+  const found = [[2.2224, 2.0831, -0.2681], [2.2283, 2.0846, 0.2692]];
+  eyes.forEach((eye, i) => {
+    for (const key of ['centre', 'right', 'down', 'normal', 'halfWidth', 'top', 'bottom', 'lid', 'under', 'lash', 'grow', 'rim']) assert.ok(key in eye, `eye ${i} lost ${key}`);
+    assert.ok(new THREE.Vector3(...eye.centre).distanceTo(new THREE.Vector3(...found[i])) < 1e-3, `eye ${i} moved to ${eye.centre}`);
+  });
+
+  // Every clip, as long as it was, keying the same bones (the jaw in none).
+  assert.deepEqual(Object.fromEntries(gltf.animations.map(c => [c.name, [+c.duration.toFixed(2), c.tracks.length]]).sort()), CLIPS);
+  // The skeleton: the bake's bones in their order and their rest places, then the jaw.
+  const bones = mesh.skeleton.bones;
+  assert.deepEqual(bones.map(b => b.name), BONES);
+  const head = bones.find(b => b.name === 'Head');
+  assert.ok(head.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(1.816, 1.925, 0)) < 1e-3, 'the head joint stayed');
 });

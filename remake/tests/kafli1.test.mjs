@@ -253,9 +253,11 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   });
   stage.seeking = seeking;
   const spoken = new Set(); // every line the script has said, by id
+  const lastLine = new Map(); // speaker -> the line they began last
   const say = stage.s.say;
   stage.s.say = (speaker, line, options) => {
     spoken.add(line);
+    lastLine.set(speaker, line);
     return say(speaker, line, options);
   };
   ui.setFade(1);
@@ -267,6 +269,8 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
     printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
+    // How far each speaker's jaw opens while they speak a line, at the widest, in degrees: line id -> degrees.
+    jaws: {},
     // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
     // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
     grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
@@ -295,6 +299,9 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const mosi = world.actors.get('mosi');
   const egill = world.actors.get('egill');
   const kambedla = world.actors.get('kambedla');
+  // The speakers with a jaw (the mouth pass's, or a bake's), whose opening the run follows; shut is their rest.
+  const jaws = new Map([...world.actors].map(([name, actor]) => [name, actor.model.getObjectByName('Jaw')]).filter(([, jaw]) => jaw));
+  const SHUT = new THREE.Quaternion();
   const inMosisFrame = point => point.clone().sub(mosi.root.position).applyQuaternion(mosi.root.quaternion.clone().invert());
   let wasControlled = false;
 
@@ -383,6 +390,12 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
     director.update(dt);
+    for (const [name, jaw] of jaws) {
+      const actor = world.actors.get(name);
+      if (!actor.talking || !lastLine.has(name)) continue;
+      const line = lastLine.get(name);
+      seen.jaws[line] = Math.max(seen.jaws[line] ?? 0, THREE.MathUtils.radToDeg(jaw.quaternion.angleTo(SHUT)));
+    }
     if (world.location === 'rjodur' && kambedla.root.visible) seen.kambedlaInClearing = true;
     // where everyone stands as each scene starts
     if (world.chapterTimeline && seen.atScene.length < world.chapterTimeline.length) {
@@ -824,6 +837,24 @@ test('the plates light one row a flower, head first, all three after the third',
   });
   assert.ok(levels, 'her skin glows (plate-glow.js)');
   assert.deepEqual([...levels.slice(0, 3)], [1, 1, 1]);
+});
+
+test('Kambeðla talks with her beak: her jaw opens with her voice in every line of hers, as Mosi\'s beak does in his', async () => {
+  const { seen, world } = await unattended();
+  const faceOf = actor => {
+    let face = null;
+    actor.model.traverse(o => { if (!face && o.isSkinnedMesh && o.userData.face) face = o.userData.face; });
+    return face;
+  };
+  const talk = faceOf(world.actors.get('kambedla')).mouth?.talk;
+  assert.equal(talk, 8, 'the mouth pass says how far her jaw opens at the loudest');
+  const hers = Object.keys(chapter.lines).filter(id => id.startsWith('k1_kambedla_')).sort();
+  assert.deepEqual(hers, ['k1_kambedla_accept', 'k1_kambedla_glow', 'k1_kambedla_hello', 'k1_kambedla_lost', 'k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3']);
+  // Each line's recorded loudness opens it (lines.json), most of the way at its loudest syllable, and never past talk.
+  for (const id of hers) assert.ok(seen.jaws[id] > 4 && seen.jaws[id] <= talk + 0.01, `${id}: her jaw opened ${seen.jaws[id]?.toFixed(1)} degrees at the widest`);
+  // Mosi's beak in his lines in the glade, the same way.
+  const his = faceOf(world.actors.get('mosi')).mouth.talk;
+  for (const id of ['k1_mosi_greet', 'k1_mosi_worry']) assert.ok(seen.jaws[id] > 3 && seen.jaws[id] <= his + 0.01, `${id}: his beak opened ${seen.jaws[id]?.toFixed(1)} degrees`);
 });
 
 // ---------------------------------------------------------------------------------------------
