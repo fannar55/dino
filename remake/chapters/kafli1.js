@@ -114,7 +114,7 @@ export const POINTS = {
   mosiSneeze: ['Head', [-0.312, 0.778, 0.285]],
   mosiHorn: ['Head', [0.358, 0.618, 0.647]],
   kambedlaMouth: ['Head', [0.82, -0.12, 0]],
-  // Where a flower Egill picks flies to: in front of his chest, between his hands (his own frame, from his feet).
+  // Where Egill holds the flowers he picks: in front of his chest, between his hands (his own frame, from his feet).
   egillHands: { actor: 'egill', part: 'feet', offset: [0.22, 0.62, 0], local: true },
   // Where the star rises from: just above the top of her middle plates.
   kambedlaPlates: { actor: 'kambedla', part: 'feet', offset: [-0.42, 3.85, 0], local: true },
@@ -407,6 +407,10 @@ function* kambedlaInTheFerns(s, c) {
   yield s.say('mosi', 'k1_mosi_worry');
 }
 
+// The flowers in Egill's hands, from the search until he gives each to Kambeðla: a little posy, the first upright and the
+// next two leaning out to either side, all a little forward (lean: radians about his forward axis, then his right).
+const HELD = { size: 0.55, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]] };
+
 // 8. The search: the child looks round the glade and finds the three glow flowers; Egill picks each.
 function* flowerSearch(s, c) {
   mark(c, 8);
@@ -417,8 +421,8 @@ function* flowerSearch(s, c) {
   yield s.camera.handheld(0, { duration: 0.3 });
   yield mosi.lookAt('camera', { weight: 0.5 });
   yield kambedla.lookAt('camera', { weight: 0.5 });
-  // The search begins as Mosi says what to do. A flower found is picked at once and the search goes on; Mosi counts each
-  // in turn, once he has finished what he was saying.
+  // The search begins as Mosi says what to do. A flower found flies into Egill's hands at once, and he keeps it there, and
+  // the search goes on; Mosi counts each in turn, once he has finished what he was saying.
   const counts = ['k1_mosi_one', 'k1_mosi_two', 'k1_mosi_three'];
   let explaining = null;
   let counting = null;
@@ -427,7 +431,8 @@ function* flowerSearch(s, c) {
     targets: c.flowers.map(f => ({ name: f.name, point: f.flower.point, hint: f.hint, radius: 0.55 })),
     onFound: (name, index) => {
       s.sfx('flower');
-      const picked = c.flowers.find(f => f.name === name).flower.pick(POINTS.egillHands);
+      const turn = () => egill.raw.root.quaternion;
+      const picked = c.flowers.find(f => f.name === name).flower.hold(POINTS.egillHands, { size: HELD.size, lean: HELD.leans[index], turn });
       const before = [picked, counting, explaining].filter(Boolean);
       counting = s.after(0, function* count() {
         yield s.all(before);
@@ -453,22 +458,33 @@ function* platesLight(s, c) {
   yield egill.turnTo('kambedla');
   yield egill.lookAt('kambedla.head', { weight: 0.8, maxPitch: 40 });
   const mouth = onBone(kambedla.raw, ...POINTS.kambedlaMouth);
-  const items = c.flowers.map((_, i) => ({ id: `flower-${i + 1}`, icon: 'glowFlower' }));
-  s.tray.show(items);
+  // The flowers in his hands are in the tray too, and the child may give any of them, in any order, from the moment the
+  // tray shows: a drag listens for every flower still in it and listens again the moment one is given, while she eats.
+  // Twelve seconds into a wait Mosi says it again, and after twenty Egill gives her the first one left himself.
+  const items = c.flowers.map((held, i) => ({ id: `flower-${i + 1}`, flower: held.flower }));
+  s.tray.show(items.map(({ id }) => ({ id, icon: 'glowFlower' })));
+  const given = [];
+  const giving = s.after(0, function* give() {
+    let left = items.map(item => item.id);
+    while (left.length) {
+      let nudge = null;
+      const reminder = s.after(12, () => (nudge = s.say('mosi', 'k1_mosi_give')));
+      const { id } = yield s.drag(left, mouth, { idle: 20 });
+      if (!nudge) reminder.cancel();
+      given.push({ id, nudge });
+      left = left.filter(other => other !== id);
+    }
+  });
   yield s.camera.handheld(0, { duration: 0.6 });
   const mmm = ['k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3'];
-  for (const [row, item] of items.entries()) {
+  for (let row = 0; row < items.length; row++) {
     const eat = bendDown(kambedla);
     if (row === 0) yield s.say('mosi', 'k1_mosi_give');
-    // The child drags the flower to her mouth. After a while Mosi says it again, and if the flower still stays in
-    // the tray Egill gives it to her himself.
-    const given = s.drag(item.id, mouth, { idle: 20 });
-    let nudged = null;
-    const nudge = s.after(12, () => (nudged = s.say('mosi', 'k1_mosi_give')));
-    const how = yield given;
-    if (nudged) yield nudged;
-    else nudge.cancel();
-    if (how === 'idle') yield handOver(world, row, mouth);
+    // Bent down to his hands, she takes the flower given: it flies from his hands into her mouth, however it was given.
+    yield s.all(s.until(() => given.length > row), s.wait(0.6));
+    const { id, nudge } = given[row];
+    if (nudge) yield nudge;
+    yield items.find(item => item.id === id).flower.pick(mouth);
     sparkleBurst(world, mouth, { count: 18, duration: 0.9, colour: '#d9b8f2', seed: `fed ${row}` });
     eat.setEffectiveTimeScale(1); // she nips, chews and comes back up
     s.sfx('plate');
@@ -476,6 +492,7 @@ function* platesLight(s, c) {
     yield s.wait(0.8);
     yield kambedla.play('idle', { fade: 0.5 });
   }
+  yield giving;
   s.tray.hide();
   // All her plates glow again: she hops for joy and the camera circles her slowly.
   yield kambedla.play('happy', { fade: 0.3 });
@@ -550,15 +567,6 @@ function bendDown(kambedla) {
   action.time = 0.6;
   action.setEffectiveTimeScale(0);
   return action;
-}
-
-/** Egill gives her a flower himself: one from his hands flies into her mouth. */
-function* handOver(world, row, mouth) {
-  const hands = world.resolvePoint(POINTS.egillHands, new THREE.Vector3());
-  const flower = createGlowFlower(world, { name: `handed-${row}`, position: hands.toArray() });
-  flower.group.position.y -= flower.point.y - hands.y; // its bloom in his hands
-  yield flower.pick(mouth);
-  flower.dispose();
 }
 
 /** The flowers growing nearest a spot in the clearing, a point just over their heads (null when the forest has none). */

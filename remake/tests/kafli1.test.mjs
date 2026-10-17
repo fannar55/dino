@@ -11,7 +11,7 @@ import { createPointResolver } from '../engine/points.js';
 import { createLocations } from '../engine/locations.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createScene } from '../engine/scene/scene.js';
-import { createStageUI } from '../engine/scene/ui.js';
+import { createStageUI, DRAG_LIFT } from '../engine/scene/ui.js';
 import { createJournal } from '../engine/scene/journal.js';
 import { createSave } from '../engine/save.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
@@ -19,7 +19,7 @@ import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
 import { SUN_RADIUS_DEG } from '../engine/sun-face.js';
-import { FakeDocument } from './fake-dom.mjs';
+import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -153,10 +153,18 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
   const ui = createStageUI(doc);
   if (computed) globalThis.getComputedStyle = computed;
   else delete globalThis.getComputedStyle;
+  // The glow flowers in Egill's hands: shown, with the foot of the stem where he holds them.
+  const heldInHands = () => {
+    const hands = world.resolvePoint(POINTS.egillHands, new THREE.Vector3());
+    return world.scene.children.filter(o => o.name.startsWith('Glow flower ') && o.visible && o.position.distanceTo(hands) < 0.05).length;
+  };
+  const held = { atTray: null, atMmm: [] }; // as the tray shows, and as she says each "Mmm!"
+  const mmm = ['k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3'].map(id => chapter.lines[id].text);
   const captions = [];
   const caption = ui.caption;
   ui.caption = (who, text, colour) => {
     if (text != null) captions.push({ who, text, at: stage.s.time });
+    if (text != null && who === 'Kambeðla' && mmm.includes(text)) held.atMmm.push(heldInHands());
     return caption(who, text, colour);
   };
   doc.getElementById('star-slots').rect = { left: 1180, top: 20, width: 40, height: 40 };
@@ -170,12 +178,16 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     for (const o of objects) added.push({ name: o.name, normal: o.material?.blending === THREE.NormalBlending, at: stage?.s.time ?? 0 });
     return add(...objects);
   };
-  const drops = []; // the scene's listeners on the tray, so the eager child can let a flower go on her mouth
-  const onDrop = ui.tray.onDrop;
-  ui.tray.onDrop = fn => {
-    drops.push(fn);
-    const stop = onDrop(fn);
-    return () => { drops.splice(drops.indexOf(fn), 1); stop(); };
+  const showTray = ui.tray.show;
+  ui.tray.show = items => {
+    held.atTray ??= heldInHands();
+    return showTray(items);
+  };
+  const trayRemoved = []; // the tray's flowers as they leave it: given by the child or, after a while, by Egill
+  const remove = ui.tray.remove;
+  ui.tray.remove = id => {
+    trayRemoved.push({ id, at: stage.s.time });
+    return remove(id);
   };
   // The sun as it winks: where it is on the screen, and whether anyone stands in front of its face (rays from the camera to
   // its middle and to four points round its rim).
@@ -214,7 +226,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
   stage.begin();
 
   // What the run sees on the way, for the tests to look at afterwards.
-  const seen = { kambedlaInClearing: false, floatStart: null, landing: null, atScene: [] };
+  const seen = { kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayDrops: { made: 0, home: 0 }, held };
   const mosi = world.actors.get('mosi');
   const egill = world.actors.get('egill');
   const kambedla = world.actors.get('kambedla');
@@ -222,7 +234,9 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
   let wasControlled = false;
 
   // The eager child: a tap on each target a moment after it appears (the nose again once it has tickled), the flowers of the
-  // search one at a time, and each flower in the tray dropped on her mouth, where it is on the screen.
+  // search one at a time, and a flower from the tray dropped on her mouth, where it is on the screen, a second after the tray
+  // shows and a second after each drop: the last pocket still full, carried by the tray's own pointer events on the page
+  // (its pockets are at the page's corner here), so a flower nobody takes goes home as it would under a finger.
   const tapped = new Map(); // target -> when it was tapped
   const appeared = new Map(); // target -> when it appeared
   const mouth = onBone(kambedla, ...POINTS.kambedlaMouth);
@@ -231,7 +245,10 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     return { x: ((p.x + 1) / 2) * 1280, y: ((1 - p.y) / 2) * 800 };
   };
   let lastFlower = -Infinity;
-  let dragSince = null;
+  const trayEl = doc.getElementById('tray');
+  const full = () => (trayEl.hidden ? [] : trayEl.findAll(e => e.classList.contains('tray-item') && !e.classList.contains('gone')));
+  let trayUp = null;
+  let lastDrop = -Infinity;
   function eagerChild(t) {
     for (const name of pointer.targets.keys()) if (!appeared.has(name)) appeared.set(name, t);
     for (const name of [...appeared.keys()]) {
@@ -249,15 +266,21 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
         if (flower) lastFlower = t;
       }
     }
-    if (!drops.length) {
-      dragSince = null;
+    const pockets = full();
+    if (!pockets.length) {
+      trayUp = null;
       return;
     }
-    dragSince ??= t;
-    if (t - dragSince > 2) {
+    trayUp ??= t;
+    if (t - trayUp > 1 && t - lastDrop > 1) {
+      const item = pockets[pockets.length - 1];
       const at = screenOf(mouth(new THREE.Vector3()));
-      for (const id of ['flower-1', 'flower-2', 'flower-3']) [...drops].forEach(fn => fn({ id, ...at }));
-      dragSince = null;
+      item.dispatchEvent(pointerEvent('pointerdown', { x: 0, y: 0 }));
+      doc.dispatchEvent(pointerEvent('pointermove', { x: at.x, y: at.y + DRAG_LIFT }));
+      doc.dispatchEvent(pointerEvent('pointerup', { x: at.x, y: at.y + DRAG_LIFT }));
+      seen.trayDrops.made++;
+      if (!item.classList.contains('gone')) seen.trayDrops.home++;
+      lastDrop = t;
     }
   }
 
@@ -435,6 +458,7 @@ test('every required wait has an auto option for seeking: the chapter plays to i
   assert.deepEqual(journal.stars, ['k1_kambedla']);
   assert.equal(doc.getElementById('journal-page').hidden, false, 'the chapter ends in the open book');
   assert.equal(winks.length, 2, 'the sun winks twice: "Sólin bíður ekki" and the star');
+  assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'the three flowers stay in his hands until each goes into her mouth');
   assert.equal(pointer.listeners.drag.length, 0, 'no free look is left over');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
 });
@@ -450,10 +474,12 @@ test('no fail states: a child who never touches the screen is helped through eve
   // Hints every 12 s, three to a flower, and then Egill picks it himself: nine hints, the three flowers in order.
   for (const id of ['k1_mosi_hint_stone', 'k1_mosi_hint_ferns', 'k1_mosi_hint_tree']) assert.equal(said(id), 3, `${id} three times`);
   for (const id of ['k1_mosi_one', 'k1_mosi_two', 'k1_mosi_three']) assert.equal(said(id), 1);
-  // Mosi says again what to do with each flower, and each one Egill gives her himself.
+  // Mosi says again what to do with each flower, and Egill gives her each one himself: it leaves the tray by itself and
+  // flies from his hands into her mouth.
   assert.equal(said('k1_mosi_give'), 4, 'once to begin, and once for each flower left in the tray');
-  assert.equal(added.filter(o => o.name.startsWith('Glow flower handed-')).length, 3, 'Egill gave her each flower himself');
-  assert.equal(world.scene.children.filter(o => o.name.startsWith('Glow flower handed-')).length, 0, 'and they went into her mouth');
+  assert.equal(seen.trayDrops.made, 0, 'nobody dragged one');
+  assert.equal(seen.trayRemoved.length, 3, 'each one left the tray by itself');
+  assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'and each left his hands as she took it');
   assert.deepEqual(journal.stars, ['k1_kambedla'], 'the star flew to the book by itself');
   assert.deepEqual(director.warnings, [], 'the hints and the waits keep the camera rules too');
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
@@ -482,10 +508,13 @@ test('an eager child who taps everything: each tap does its one thing once, and 
     const line = Object.values(chapter.lines).find(l => l.text === mosis[i - 1].text);
     assert.ok(mosis[i].at >= mosis[i - 1].at + lines[line.audio].duration - 1e-6, `"${mosis[i].text}" begins over "${mosis[i - 1].text}"`);
   }
-  // Every flower found by a tap, no hints needed, and each one dropped on her mouth, none given by Egill.
+  // Every flower found by a tap, no hints needed. Each flower dragged to her mouth is taken, whichever pocket it comes from,
+  // the first a second after the tray shows (while Mosi still says what to do): none goes home and Egill gives none.
   for (const id of ['k1_mosi_hint_stone', 'k1_mosi_hint_ferns', 'k1_mosi_hint_tree']) assert.equal(said(id).length, 0, `no ${id}`);
+  assert.deepEqual(seen.trayDrops, { made: 3, home: 0 }, 'three drops, each one taken');
+  assert.deepEqual(seen.trayRemoved.map(r => r.id), ['flower-3', 'flower-2', 'flower-1'], 'the last pocket each time');
+  assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'each one he gives leaves his hands');
   assert.equal(said('k1_mosi_give').length, 1, 'no need to say it again');
-  assert.equal(added.filter(o => o.name.startsWith('Glow flower handed-')).length, 0, 'nobody had to give her a flower');
   assert.deepEqual(journal.stars, ['k1_kambedla']);
   assert.deepEqual(director.warnings, []);
   assert.ok(stage.s.time < (await ignoredByAChild()).stage.s.time - 100, 'and it goes much quicker than for a child who waits');
@@ -540,29 +569,37 @@ test('the sun winks where the child sees it: on the screen, with nobody in front
   }
 });
 
-test('yield flower.pick() through the scheduler: the scene waits for it, and the flower ends in Egill\'s hands', async () => {
+test('yield flower.hold() and flower.pick() through the scheduler: the scene waits for each, the flower stays in Egill\'s hands and then goes', async () => {
   const world = await chapterWorld();
   const egill = world.actors.get('egill');
   egill.place(0, 0, 0);
   const flower = createGlowFlower(world, { name: 'stone', position: [2, 0, 1.5] });
   const stage = createScene({ world, director: { stop() {}, handheld() {} }, ui: { reset() {} }, voice: { stop() {} } });
-  const done = { at: null };
+  const done = { held: null, given: null };
+  const mouth = [1.6, 1.0, -0.5];
   stage.start(function* script() {
-    yield flower.pick(POINTS.egillHands);
-    done.at = stage.s.time;
+    yield flower.hold(POINTS.egillHands, { size: 0.55, turn: () => egill.root.quaternion });
+    done.held = stage.s.time;
+    yield 1;
+    yield flower.pick(mouth);
+    done.given = stage.s.time;
   });
   const hands = world.resolvePoint(POINTS.egillHands, new THREE.Vector3());
-  let nearest = Infinity;
-  for (let i = 0; i < 40; i++) {
-    world.clock.step(1 / 30);
-    stage.update(1 / 30);
-    updateActors(world.actors.values(), 1 / 30);
-    world.effects.update(1 / 30);
-    if (flower.group.visible) nearest = Math.min(nearest, flower.point.distanceTo(hands));
-  }
-  assert.ok(done.at !== null && Math.abs(done.at - 0.6) < 0.1, `the scene went on at ${done.at} s, as the pick ended`);
-  assert.equal(flower.group.visible, false, 'the flower is gone, into his hands');
-  assert.ok(nearest < 0.12, `it came within ${(nearest * 100).toFixed(1)} cm of his hands`);
+  const frames = seconds => {
+    for (let i = 0; i < Math.round(seconds * 30); i++) {
+      world.clock.step(1 / 30);
+      stage.update(1 / 30);
+      updateActors(world.actors.values(), 1 / 30);
+      world.effects.update(1 / 30);
+    }
+  };
+  frames(1.2);
+  assert.ok(done.held !== null && Math.abs(done.held - 0.6) < 0.1, `the scene went on at ${done.held} s, as the flower reached his hands`);
+  assert.equal(flower.group.visible, true, 'he holds it');
+  assert.ok(flower.group.position.distanceTo(hands) < 1e-6, 'the foot of its stem in his hands');
+  frames(1.2);
+  assert.ok(done.given !== null && Math.abs(done.given - done.held - 1.6) < 0.15, `and went on ${(done.given - done.held).toFixed(2)} s later, a second and the 0.6 s it takes to give`);
+  assert.equal(flower.group.visible, false, 'given: gone from his hands');
   // His hands: in front of his chest, between the two hands of the real model, at his hands' height.
   const left = egill.model.getObjectByName('LeftHand').getWorldPosition(new THREE.Vector3());
   const right = egill.model.getObjectByName('RightHand').getWorldPosition(new THREE.Vector3());
