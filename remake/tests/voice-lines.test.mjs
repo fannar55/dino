@@ -121,11 +121,11 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   }
 });
 
-test("the three lines the owner chose by ear, Eleven v4 takes that say Egill right, are kept, so the tool cannot make them over from v3", () => {
+test('the lines the owner chose by ear, the takes that say Egill right, are kept, so the tool cannot make them over', () => {
   const lines = readJson(REAL.source);
-  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star']) {
+  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star', 'k1_mosi_worry']) {
     const kept = lines.find(line => line.id === id)?.kept;
-    assert.ok(typeof kept === 'string' && kept.trim(), `${id} has no "kept" in lines-source.json: node remake/tools/voice-lines.mjs would make it over from its v3 take`);
+    assert.ok(typeof kept === 'string' && kept.trim(), `${id} has no "kept" in lines-source.json: node remake/tools/voice-lines.mjs would make it over from its cached v3 take (if you mean to make it again, take the id off this list)`);
   }
 });
 
@@ -353,7 +353,7 @@ test('--only names lines that exist, and a line file with a bad id stops the run
   assert.ok(!fs.existsSync(path.join(bad, '.tools')));
 });
 
-test("a kept line is never asked for, mastered or written over, with or without --only, and its lines.json entry still comes from its MP3", needsFfmpeg, async t => {
+test('a kept line is never asked for, mastered or written over, with or without --only, and its lines.json entry still comes from its MP3', needsFfmpeg, async t => {
   const kept = "the owner's pick, an Eleven v4 take (seed 2), 2026-10-16";
   const lines = [
     { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' },
@@ -378,6 +378,39 @@ test("a kept line is never asked for, mastered or written over, with or without 
     assert.ok(Math.abs(entry.duration - seconds(installed)) < 0.002, `${label}: the exact duration of the MP3 that is there, ${entry.duration} s`);
     assert.ok(Math.abs(entry.mouth.length - entry.duration * MOUTH_RATE) <= 1.5, `${label}: and a mouth track as long`);
   }
+});
+
+test('a kept line whose MP3 is missing stops the run before any request, with or without --only, and says how to put it right', async t => {
+  const lines = [
+    { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' },
+    { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!', seed: 1, kept: "the owner's pick, an Eleven v4 take (seed 2), 2026-10-16" },
+  ];
+  for (const argv of [[], ['--only', 'k1_mosi_two'], ['--only', 'k1_mosi_one,k1_mosi_two']]) {
+    const root = makeRoot(t, { lines }); // the kept line's MP3 is not there
+    const before = filesUnder(root);
+    const { fetch, calls } = fakeApi();
+    await assert.rejects(main(argv, { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} }), error => {
+      assert.match(error.message, /k1_mosi_two/);
+      assert.match(error.message, /kept/);
+      assert.match(error.message, /No request was made/);
+      return true;
+    }, argv.join(' ') || 'all lines');
+    assert.equal(calls.length, 0, 'nothing is paid for, the line that is not kept neither');
+    assert.deepEqual(filesUnder(root), before, 'and nothing is written');
+  }
+});
+
+test('a kept line needs no voice: the run makes the others', needsFfmpeg, async t => {
+  const lines = [
+    { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!', kept: "the owner's pick" },
+    { id: 'k1_egill_wow', speaker: 'egill', text: 'Vá!' },
+  ];
+  const root = makeRoot(t, { lines, voices: { ...VOICES, mosi: null } });
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_two.mp3'), fakeSpeech());
+  const { fetch, calls } = fakeApi();
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
+  assert.deepEqual(calls.map(call => call.body.text), ['Vá!'], 'only the line that is not kept is asked for');
+  assert.ok(fs.existsSync(path.join(root, 'remake/assets/audio/kafli1/k1_egill_wow.mp3')));
 });
 
 test('readLines refuses a kept that is empty or not a string, before any request', async t => {

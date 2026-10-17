@@ -19,7 +19,8 @@
 // A line whose recording the owner chose by ear among takes made some other way has a "kept" in lines-source.json: one sentence that
 // names the take, such as "the owner's pick, an Eleven v4 take (seed 2), 2026-10-16". The tool never asks for a kept line, masters it
 // or writes over its MP3, also when --only names it; it says "Kept <id>: ..." and renews the line's entry in lines.json from the MP3
-// that is there. To have the tool make a kept line again, take its "kept" away.
+// that is there. A kept line needs no voice in voices.json, but its MP3 must be there: without it the tool stops before any
+// request. To have the tool make a kept line again, take its "kept" away.
 //
 // The key is read from ELEVENLABS_API_KEY and from nowhere else. It goes into one request header; it is never printed, logged,
 // written to a file or put in a URL, and without it the tool stops before it does anything.
@@ -199,9 +200,16 @@ export async function generate({ root, key, fetch, only = null, log }) {
     if (unknown.length) throw new Error(`Not in ${SOURCE}: ${unknown.join(', ')}`);
   }
   const chosen = only ? lines.filter(line => only.includes(line.id)) : lines;
-  const missing = [...new Set(chosen.map(line => line.speaker))].filter(speaker => typeof voices[speaker] !== 'string' || !voices[speaker]);
+  // All that can stop the run is found before the first request, so it never pays for some lines and then stops. A kept
+  // line needs no voice; its MP3 must be there (audio-lines.mjs passes over a missing one, so this tool looks for it).
+  const made = chosen.filter(line => line.kept === undefined);
+  const missing = [...new Set(made.map(line => line.speaker))].filter(speaker => typeof voices[speaker] !== 'string' || !voices[speaker]);
   if (missing.length) {
     throw new Error(`No voice is chosen for ${missing.join(' and ')} in ${VOICES}; node remake/tools/voice-lines.mjs --audition <name> makes samples to choose from. No request was made.`);
+  }
+  const lost = chosen.filter(line => line.kept !== undefined && !fs.existsSync(path.join(root, REMAKE_AUDIO, `${line.id}.mp3`)));
+  if (lost.length) {
+    throw new Error(`${lost.map(line => line.id).join(', ')}: kept in ${SOURCE}, but ${lost.length > 1 ? 'their MP3s are' : 'its MP3 is'} not in ${REMAKE_AUDIO}. Put the chosen take back, or take "kept" away to have the tool make the line again. No request was made.`);
   }
   needAudioTools();
   for (const line of chosen) {

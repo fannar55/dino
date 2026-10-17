@@ -20,7 +20,7 @@
  { "id": "k1_mosi_greet", "speaker": "mosi", "text": "Kambeðla! Halló!" },
  { "id": "k1_kambedla_hello", "speaker": "kambedla", "text": "Ó, halló, Mosi… og halló, litli vinur." },
  { "id": "k1_kambedla_lost", "speaker": "kambedla", "text": "Ég finn ekki glóblómin mín. Án þeirra lýsa plöturnar mínar ekki." },
- { "id": "k1_mosi_worry", "speaker": "mosi", "text": "Engar áhyggjur. Egill er besti leitarmaður skógarins!", "seed": 1 },
+ { "id": "k1_mosi_worry", "speaker": "mosi", "text": "Engar áhyggjur. Egill er besti leitarmaður skógarins!", "seed": 1, "kept": "the owner's reference take, the Eleven v3 take (seed 1) that says Egill right" },
  { "id": "k1_mosi_look", "speaker": "mosi", "text": "Glóblómin glitra. Dragðu fingrinum til að líta í kringum þig!" },
  { "id": "k1_mosi_hint_stone", "speaker": "mosi", "text": "Ég sé eitthvað glitra við stóra steininn!" },
  { "id": "k1_mosi_hint_ferns", "speaker": "mosi", "text": "Hvað með undir burknunum?" },

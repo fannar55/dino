@@ -60,7 +60,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
   `theme-tempo.mjs` (measures the theme once: tempo, beat and key, into `assets/audio/theme.json`),
   `voice-lines.mjs` (voices a chapter's lines with ElevenLabs Eleven v3 from
-  `assets/audio/kafli1/lines-source.json`, and auditions voices),
+  `assets/audio/kafli1/lines-source.json`, never making over a line marked `kept`, a take the owner
+  chose by ear, whose MP3 must be there; and auditions voices),
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
   runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
   Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla), the face pass
