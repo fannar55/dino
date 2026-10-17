@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
-import { chapter, onBone, POINTS, FLOWERS } from '../chapters/kafli1.js';
+import { chapter, onBone, POINTS, FLOWERS, hidingPlaces } from '../chapters/kafli1.js';
 import { createActor, updateActors } from '../engine/actor.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
@@ -22,6 +22,7 @@ import { SUN_RADIUS_DEG } from '../engine/sun-face.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
+import { placementInfo } from '../world/forest/forest.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { LIMITS } from '../engine/camera/director.js';
@@ -133,14 +134,33 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
  * as it plays for a child who never touches the screen, or, `eager`, for one who taps everything there is to tap a moment after
  * it appears and drags each flower to Kambeðla's mouth.
  */
-async function playUnattended({ limit = 600, seeking = true, eager = false } = {}) {
+async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false } = {}) {
   const world = await chapterWorld();
+  // Kambeðla's plate rows as they light: { row, level, at } (the chapter's plate glow is the effect with a setRow).
+  const rows = [];
+  const addEffect = world.effects.add.bind(world.effects);
+  world.effects.add = effect => {
+    if (typeof effect?.setRow === 'function') {
+      const setRow = effect.setRow.bind(effect);
+      effect.setRow = (row, level, options) => {
+        rows.push({ row, level, at: stage.s.time });
+        return setRow(row, level, options);
+      };
+    }
+    return addEffect(effect);
+  };
   const forests = [];
   const locations = createLocations({ world, locations: chapter.locations, build: layout => { const f = groundOnly(layout); forests.push(f); return f; } });
   await locations.setLocation(chapter.start);
   const shots = Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots));
   const director = createDirector({ camera: world.camera, world, shots, lint: false });
   world.director = director;
+  let shotNow = null; // the label of the camera's last cut
+  const cut = director.cut;
+  director.cut = (shot, options) => {
+    shotNow = typeof shot === 'string' ? shot : shot?.label ?? null;
+    return cut(shot, options);
+  };
 
   const doc = new FakeDocument(PAGE);
   for (const name of ['caption-speaker', 'caption-text']) {
@@ -217,16 +237,52 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     world, director, ui, lines, cast: chapter.cast, locations, pointer, journal,
     voice: { play: () => null, stop() {} },
     sun: { wink: () => winks.push({ at: stage.s.time, ...sunInView() }) },
-    sfx: { play: name => sounds.push(name), stop() {} },
+    sfx: {
+      play(name) {
+        if (brokenSteps && name === 'step') throw new Error('a step sound broke');
+        sounds.push(name);
+      },
+      stop() {},
+    },
   });
   stage.seeking = seeking;
+  const spoken = new Set(); // every line the script has said, by id
+  const say = stage.s.say;
+  stage.s.say = (speaker, line, options) => {
+    spoken.add(line);
+    return say(speaker, line, options);
+  };
   ui.setFade(1);
   director.cut(chapter.startShot, { check: false });
   const task = stage.start(chapter.script);
   stage.begin();
 
   // What the run sees on the way, for the tests to look at afterwards.
-  const seen = { kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayDrops: { made: 0, home: 0 }, held };
+  const seen = {
+    kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayDrops: { made: 0, home: 0 }, held,
+    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows,
+  };
+  // On the screen, and in front of the camera?
+  const onScreen = point => {
+    world.camera.updateMatrixWorld();
+    const p = point.clone().project(world.camera);
+    return p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
+  };
+  // Mosi's footprints the camera sees: the prints still to be seen, on the screen.
+  const printsSeen = () => {
+    const prints = world.scene.getObjectByName('Footprints');
+    if (!prints) return 0;
+    const born = prints.geometry.attributes.aBorn.array;
+    const matrix = new THREE.Matrix4();
+    const at = new THREE.Vector3();
+    let n = 0;
+    for (let i = 0; i < prints.count; i++) {
+      prints.getMatrixAt(i, matrix);
+      if (world.clock.time - born[i] < 14 && onScreen(at.setFromMatrixPosition(matrix))) n++;
+    }
+    return n;
+  };
+  const perches = new Map(); // bird -> where it sat; it has flown once it leaves there
   const mosi = world.actors.get('mosi');
   const egill = world.actors.get('egill');
   const kambedla = world.actors.get('kambedla');
@@ -249,7 +305,19 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
   const full = () => (trayEl.hidden ? [] : trayEl.findAll(e => e.classList.contains('tray-item') && !e.classList.contains('gone')));
   let trayUp = null;
   let lastDrop = -Infinity;
+  const choicesEl = doc.getElementById('choices');
+  let choicesUp = null;
+  let asked = false;
   function eagerChild(t) {
+    if (!choicesEl.hidden && choicesEl.children.length) {
+      choicesUp ??= t;
+      if (t - choicesUp > 1.2) {
+        const label = asked ? 'Já, gerum það!' : 'Hvað er stjörnuhátíð?';
+        choicesEl.children.find(button => button.textContent === label).dispatchEvent(new Event('click'));
+        asked = true;
+        choicesUp = null;
+      }
+    } else choicesUp = null;
     for (const name of pointer.targets.keys()) if (!appeared.has(name)) appeared.set(name, t);
     for (const name of [...appeared.keys()]) {
       if (pointer.targets.has(name)) continue;
@@ -301,6 +369,17 @@ async function playUnattended({ limit = 600, seeking = true, eager = false } = {
     if (egill.controlled && !wasControlled && !seen.floatStart) seen.floatStart = inMosisFrame(egill.root.position);
     if (!egill.controlled && wasControlled && world.location === 'burknalaut') seen.landing = inMosisFrame(egill.root.position);
     wasControlled = egill.controlled;
+    if (shotNow === 'rideFeet') seen.printsInRideFeet = Math.max(seen.printsInRideFeet, printsSeen());
+    if (world.location === 'burknalaut' && world.scene.getObjectByName('Footprints')) seen.printsInGlade = true;
+    for (const [name, spec] of pointer.targets) {
+      if (!name.startsWith('bird-')) continue;
+      if (!perches.has(name)) perches.set(name, spec.point.clone());
+      const perch = perches.get(name);
+      if (perch && spec.point.distanceTo(perch) > 0.05) {
+        seen.birdsUp.push({ name, at: stage.s.time, shot: shotNow, seen: onScreen(perch), scene: world.chapterTimeline.at(-1).scene });
+        perches.set(name, null);
+      }
+    }
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
@@ -344,6 +423,11 @@ test('kafli1 uses only lines that exist', async () => {
   const texts = new Set(Object.values(chapter.lines).map(line => line.text));
   assert.ok(captions.length >= 25, `${captions.length} lines were said`);
   for (const { text } of captions) assert.ok(texts.has(text), `the caption "${text}" is not one of the chapter's lines`);
+  // Every line is said in one of the runs: the capture, the child who waits (the hints) and the eager child (the nose,
+  // the critters, "Hvað er stjörnuhátíð?").
+  const runs = [await unattended(), await ignoredByAChild(), await playedByAnEagerChild()];
+  const said = new Set(runs.flatMap(run => [...run.seen.spoken]));
+  for (const id of Object.keys(chapter.lines)) assert.ok(said.has(id), `${id} is never said`);
 });
 
 test('each speaker has a name and a colour, Kambeðla in her plum', () => {
@@ -409,30 +493,35 @@ test('every shot of a place keeps the camera rules over that place\'s own ground
   }
 });
 
-test('the glow flowers hide by the big stone, under the ferns and up in the little tree, as the glade grows them', () => {
+test('the glow flowers hide by the big stone, under the ferns and up in the little tree, as the glade grows them on every preset', () => {
   const { layout, shots } = chapter.locations.burknalaut;
-  const world = { chapter };
-  const terrain = groundOf('burknalaut');
-  const { placements } = planForest({ world, layout: { ...layout, shots }, seed: layout.seed, terrain, library: createSpeciesLibrary(layout.seed), q: PRESETS.tablet });
   const search = shots.search.position;
   assert.deepEqual(FLOWERS.map(f => f.name), ['stone', 'ferns', 'tree'], 'in the order the hints come');
-  for (const { name, position: [x, up, z], by } of FLOWERS) {
-    const near = placements.filter(p => p.name === by).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
-    assert.ok(near, `the glade grows no ${by}`);
-    const apart = Math.hypot(near.x - x, near.z - z);
-    const size = near.model.radius * near.scale;
-    if (by === 'rock') {
-      assert.ok(near.model.height * near.scale >= 0.6, `a big stone, ${(near.model.height * near.scale).toFixed(2)} m tall`);
-      assert.ok(apart > size * 0.8 && apart < size + 0.6, `${name} stands right beside the stone (${apart.toFixed(2)} m from its middle, radius ${size.toFixed(2)})`);
-    } else if (by === 'fern') {
-      assert.ok(apart < size * 0.6, `${name} stands under the fern's fronds (${apart.toFixed(2)} m from its middle, radius ${size.toFixed(2)})`);
-    } else {
-      assert.ok(apart < 0.4, `${name} stands on the trunk of the little tree (${apart.toFixed(2)} m from it)`);
-      const top = near.model.trunk.top * near.scale;
-      assert.ok(Math.abs(up - top) < 0.6 && near.model.height * near.scale < 4, `up in a little tree: ${up} m up, its trunk ends at ${top.toFixed(2)} m`);
+  for (const [preset, q] of Object.entries(PRESETS)) {
+    // What the glade's forest grows on this preset, told as the page's forest tells it (forest.js: info.placementList).
+    const terrain = groundOf('burknalaut');
+    const plan = planForest({ world: { chapter }, layout: { ...layout, shots }, seed: layout.seed, terrain, library: createSpeciesLibrary(layout.seed), q });
+    const places = hidingPlaces(plan.placements.map(placementInfo));
+    assert.deepEqual(places.map(p => p.name), ['stone', 'ferns', 'tree'], preset);
+    for (const { name, position: [x, up, z], by } of places) {
+      assert.ok(by, `${preset}: nothing grows where the ${name} flower hides`);
+      const apart = Math.hypot(by.x - x, by.z - z);
+      const where = `${preset}: the ${name} flower, ${apart.toFixed(2)} m from the middle of a ${by.name} of radius ${by.radius.toFixed(2)}`;
+      if (name === 'stone') {
+        assert.equal(by.name, 'rock', where);
+        assert.ok(by.height >= 0.6, `${where}: a big stone, ${by.height.toFixed(2)} m tall`);
+        assert.ok(apart > by.radius * 0.8 && apart < by.radius + 0.6, `${where}: right beside it`);
+      } else if (name === 'ferns') {
+        assert.equal(by.name, 'fern', where);
+        assert.ok(apart < by.radius * 0.6, `${where}: under its fronds`);
+      } else {
+        assert.ok(['treeFern', 'cycad'].includes(by.name), `${where}: a little tree`);
+        assert.ok(apart < by.trunk + 0.4, `${where}: on its trunk`);
+        assert.ok(Math.abs(up - by.top) < 0.6 && by.height < 4, `${where}: up in it, ${up.toFixed(2)} m up, its trunk ends at ${by.top.toFixed(2)} m`);
+      }
+      // seen from the search camera, a little nearer than what hides it, so part of its glimmer shows
+      assert.ok(Math.hypot(x - search[0], z - search[2]) < Math.hypot(by.x - search[0], by.z - search[2]), `${where}: on the camera's side of it`);
     }
-    // seen from the search camera, a little nearer than what hides it, so part of its glimmer shows
-    assert.ok(Math.hypot(x - search[0], z - search[2]) < Math.hypot(near.x - search[0], near.z - search[2]), `${name} stands on the camera's side of its ${by}`);
   }
 });
 
@@ -500,6 +589,10 @@ test('an eager child who taps everything: each tap does its one thing once, and 
   const sneeze = said('k1_mosi_sneeze')[0].at + atsju / 20;
   assert.ok(added.some(o => o.name === 'Sparkles' && o.normal && Math.abs(o.at - sneeze) < 0.1), `pollen flies on the "atsjú!", at ${sneeze.toFixed(2)} s`);
   assert.ok(seen.floatStart, 'Egill floated up when tapped');
+  // Asked what the festival is, Egill asks it and Mosi tells, and the same choice comes again.
+  assert.equal(said('k1_egill_what').length, 1);
+  assert.equal(said('k1_mosi_explain').length, 1);
+  assert.equal(said('k1_egill_yes').length, 1);
   // The critters by the path go in the journal, and Mosi says something about each, never over another line of his.
   assert.deepEqual(['beetle', 'frog', 'snail'].filter(kind => journal.findings.includes(kind)), ['beetle', 'frog', 'snail']);
   for (const id of ['k1_mosi_beetle', 'k1_mosi_frog', 'k1_mosi_snail']) assert.equal(said(id).length, 1, `${id} once`);
@@ -518,6 +611,32 @@ test('an eager child who taps everything: each tap does its one thing once, and 
   assert.deepEqual(journal.stars, ['k1_kambedla']);
   assert.deepEqual(director.warnings, []);
   assert.ok(stage.s.time < (await ignoredByAChild()).stage.s.time - 100, 'and it goes much quicker than for a child who waits');
+});
+
+test('on the ride Mosi presses big footprints into the path, seen by his feet, and birds flutter up from the path ahead', async () => {
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild]]) {
+    const { seen } = await run();
+    assert.ok(seen.printsInRideFeet >= 4, `${how}: ${seen.printsInRideFeet} of his prints in the low shot by his feet`);
+    assert.equal(seen.printsInGlade, false, `${how}: and none follow him into the glade`);
+    const ride = seen.birdsUp.filter(b => b.scene === 6);
+    assert.equal(ride.length, 3, `${how}: three birds fly up on the ride`);
+    assert.ok(ride.every(b => b.shot === 'rideWide' && b.seen), `${how}: from the path ahead, where the wide shot sees them`);
+  }
+});
+
+test('a step sound that breaks stops the steps, never the story', async () => {
+  const errors = [];
+  const report = console.error;
+  console.error = (...args) => errors.push(args.map(String).join(' '));
+  try {
+    const { task, stage, journal } = await playUnattended({ seeking: false, limit: 900, brokenSteps: true });
+    assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+    assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+    assert.deepEqual(journal.stars, ['k1_kambedla'], 'it went on to the star');
+  } finally {
+    console.error = report;
+  }
+  assert.ok(errors.some(e => e.includes('a step sound broke')), 'the broken step is reported');
 });
 
 test('Mosi walks all the way to Egill, however soon the child taps Egill to wave', async () => {
@@ -542,7 +661,12 @@ test('the float up starts, and the float down lands, where the frill and the fla
   check('the landing', seen.landing, -1); // beside his left
 });
 
-test('the plates light one row a flower, all three after the third', async () => {
+test('the plates light one row a flower, head first, all three after the third', async () => {
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const { seen } = await run();
+    assert.deepEqual(seen.rows.map(r => [r.row, r.level]), [[0, 1], [1, 1], [2, 1]], `${how}: one row a flower, from the head back`);
+    seen.rows.forEach((r, i) => assert.ok(r.at >= seen.trayRemoved[i].at, `${how}: row ${i} lights once flower ${i + 1} is given`));
+  }
   const { world } = await unattended();
   const kambedla = world.actors.get('kambedla');
   let levels = null;

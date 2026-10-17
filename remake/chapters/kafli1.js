@@ -25,6 +25,7 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
 import { butterflyLand } from '../world/forest/atmosphere.js';
 import { pollenBurst } from '../world/props/pollen.js';
+import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 
 // ---------------------------------------------------------------------------------------------
@@ -57,6 +58,17 @@ const PATH_CRITTERS = [
 ];
 // A butterfly sits on the flowers nearest this spot as the camera comes down into the clearing.
 const BUTTERFLY_FLOWERS = [8.4, 5.0];
+// On the ride Mosi's feet press big prints into the soft soil of the path (world/props/footprints.js). His soles are
+// about 0.8 m across, the front ones centred a little ahead of the ankle bone and the hind ones behind it (measured on
+// the model).
+const MOSI_FEET = [
+  { bone: 'FrontFootL', size: 1.05, ahead: 0.13 }, { bone: 'FrontFootR', size: 1.05, ahead: 0.13 },
+  { bone: 'BackFootL', size: 1.15, ahead: -0.35 }, { bone: 'BackFootR', size: 1.15, ahead: -0.35 },
+];
+// A few little birds sit on the path ahead, near the camera of the wide ride shot, and flutter up a few seconds into
+// the ride, away from Mosi coming along the path through the light.
+const RIDE_BIRDS = [[21.0, -5.8, 200], [21.7, -6.35, 160], [22.3, -6.0, 230]];
+const RIDE_BIRDS_UP = { after: 4, from: [20.2, -5.6], reach: 3 };
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade
@@ -72,21 +84,63 @@ const EGILL_LANDS = { actor: 'mosi', part: 'feet', offset: [1.2, 0, -3.4], local
 // trees on the glade's east side, with the morning sun behind him.
 const EGILL_LISTENS = [1.0, 4.6];
 const EGILL_SEARCHES = { position: [3.0, 0, 4.0], heading: 30 };
-// The glow flowers' hiding places, seen from the search camera, beside what the glade's forest grows there
-// (tests/kafli1.test.mjs checks them in its plan): by the big stone at the south-east rim, under a big rim fern to
-// the south, and up in the little tree fern to the east, on its trunk among the fronds. [x, height above the
-// ground, z]; each stands a little toward the camera, so part of its glimmer clears what hides it. `by` names
-// what the forest grows there.
+// The glow flowers' hiding places, in the order the hints come: beside the big stone at the south-east rim, under a big
+// rim fern to the south, and up in the little tree to the east. Each is chosen when the glade is set up, from what its
+// forest grew (hidingPlaces, below), so every quality preset hides them alike: the first of `kinds` that grows within
+// 2 m of `near`, where the tablet's plan grows it. The little tree is a tree fern, or on a preset that grows none
+// there the nearest cycad, so "Kíktu upp í litla tréð!" stays true. `at` is where a flower stands when the forest
+// tells nothing (the tablet's place), as [x, height above the ground, z].
 export const FLOWERS = [
-  { name: 'stone', position: [9.55, 0, 10.23], hint: 'k1_mosi_hint_stone', by: 'rock' },
-  { name: 'ferns', position: [3.36, 0, 13.14], hint: 'k1_mosi_hint_ferns', by: 'fern' },
-  { name: 'tree', position: [12.74, 2.35, -4.39], hint: 'k1_mosi_hint_tree', by: 'treeFern' },
+  { name: 'stone', hint: 'k1_mosi_hint_stone', near: [8.97, 11.0], kinds: ['rock'], at: [9.55, 0, 10.23] },
+  { name: 'ferns', hint: 'k1_mosi_hint_ferns', near: [3.44, 13.68], kinds: ['fern'], at: [3.36, 0, 13.14] },
+  { name: 'tree', hint: 'k1_mosi_hint_tree', near: [12.95, -4.53], kinds: ['treeFern', 'cycad'], at: [12.74, 2.35, -4.39] },
 ];
+const HIDE_REACH = 2; // metres from `near` that a hiding place may grow
+
+/**
+ * Where each glow flower stands, from the plants the glade's forest grew (forest.js placementInfo: name, x, z, radius,
+ * height, and for a plant with a trunk its top and thickness), as { name, hint, position, by }: `by` is the plant it
+ * hides by. Each stands a little toward the search camera, so part of its glimmer clears what hides it: beside the
+ * stone, at its right as the camera sees it; under the front fronds of the fern; on the little tree's trunk among the
+ * fronds.
+ */
+export function hidingPlaces(placements = []) {
+  const [cx, , cz] = BURKNALAUT_SHOTS.search.position;
+  return FLOWERS.map(({ name, hint, near: [nx, nz], kinds, at }) => {
+    let by = null;
+    for (const kind of kinds) {
+      const grown = placements.filter(p => p.name === kind && Math.hypot(p.x - nx, p.z - nz) <= HIDE_REACH);
+      by = grown.sort((a, b) => Math.hypot(a.x - nx, a.z - nz) - Math.hypot(b.x - nx, b.z - nz))[0] ?? null;
+      if (by) break;
+    }
+    if (!by) return { name, hint, position: at, by: null };
+    const length = Math.hypot(cx - by.x, cz - by.z);
+    const toward = [(cx - by.x) / length, (cz - by.z) / length];
+    const side = [-toward[1], toward[0]];
+    let along = 0;
+    let across = 0;
+    let up = 0;
+    if (by.name === 'rock') {
+      along = 0.23 * by.radius;
+      across = 1.14 * by.radius;
+    } else if (by.name === 'fern') {
+      along = 0.41 * by.radius;
+    } else {
+      // On the trunk among the fronds: a tree fern's hang down its trunk, so a little below its top; a cycad's spring
+      // from the top of its short trunk and rise, so a little way up into them.
+      along = by.trunk + 0.08;
+      up = by.name === 'treeFern' ? by.top - 0.23 : by.top + 0.3 * (by.height - by.top);
+    }
+    const position = [by.x + toward[0] * along + side[0] * across, up, by.z + toward[1] * along + side[1] * across];
+    return { name, hint, position, by };
+  });
+}
 // Where Egill stands to feed her: in front of her mouth as she bends down (the eat clip brings it 1.6 m ahead of
 // her fore feet, a metre up).
 const EGILL_FEEDS = { actor: 'kambedla', part: 'feet', offset: [3.25, 0, 0.15], local: true };
 // A frog and a snail in the glade's grass, where the child can see them during the search: the frog on the shorter
-// grass toward the middle, below and to the right of the search camera, and the snail out on the left of its first view.
+// grass toward the middle, below and to the right of the search camera, and the snail out on the left of its first
+// view.
 const GLADE_CRITTERS = [
   { name: 'glade-frog', kind: 'frog', at: [1.6, 5.9], heading: 260 },
   { name: 'glade-snail', kind: 'snail', at: [6.47, 3.84], heading: 200 },
@@ -128,9 +182,9 @@ const FACE = { actor: 'mosi', part: 'head', offset: [0, 0.75, 0] }; // above the
 const KAMBEDLA_FACE = { actor: 'kambedla', part: 'head', offset: [0.3, 0.2, 0] };
 // The tracking shot rides ahead of Mosi on his right (+Z) side as he walks in, at a child's eye height.
 const TRACK = { offset: [8.4, 1.5, 11.4], lookOffset: [1.9, 0.5, 0] };
-// Close on Egill in the saddle, ahead of him on Mosi's right, clear of the frill: a stiff follow that looks a little
-// ahead of him, so he stays in the middle of the frame while Mosi walks.
-const RIDE_CLOSE = { offset: [1.8, 0.75, 2.6], look: 'head', lookOffset: [0.3, 0, -0.1], stiffness: 4, fov: 34 };
+// Close on Egill in the saddle, a metre ahead of him and three out on Mosi's right (in Egill's own frame), clear of the
+// frill: a stiff follow that looks a little ahead of him, so he stays in the middle of the frame while Mosi walks.
+const RIDE_CLOSE = { offset: [0.98, 0.75, 3.01], local: true, look: 'head', lookOffset: [0.3, 0, -0.1], stiffness: 4, fov: 34 };
 
 const RJODUR_SHOTS = {
   // Scene 1: over the clearing toward the sunrise, the smiling sun and the cloud shaped like Mosi, then
@@ -138,14 +192,20 @@ const RJODUR_SHOTS = {
   dawn: { position: [11.5, 6.8, -2.5], target: [-0.6, 12.85, 18.5], fov: 50 },
   waiting: { position: [12.6, 1.25, 6.4], target: [-11.15, 2.2, -4.17], fov: 46 },
   // Scene 2: Mosi comes in along the path; then Egill near, for the child to tap.
-  track: { position: { actor: 'mosi', part: 'feet', offset: TRACK.offset }, target: { actor: 'mosi', offset: TRACK.lookOffset }, fov: 40 },
+  track: {
+    position: { actor: 'mosi', part: 'feet', offset: TRACK.offset }, target: { actor: 'mosi', offset: TRACK.lookOffset }, fov: 40,
+  },
   egillWaves: { position: [9.5, 1.15, 6.5], target: [-0.5, 1.6, -4.6], fov: 44 },
   // Scene 3: over Egill's left shoulder, his head low right, Mosi's face clear of it (STYLE.md section 8).
-  intro: { position: { actor: 'egill', part: 'feet', offset: [1.0, 1.3, 2.9] }, frame: { subject: FACE, screen: [0.38, 0.3] }, fov: 46 },
+  intro: {
+    position: { actor: 'egill', part: 'feet', offset: [1.0, 1.3, 2.9] }, frame: { subject: FACE, screen: [0.38, 0.3] }, fov: 46,
+  },
   // Scene 4: Mosi close; the choice over Egill's shoulder; low under Mosi's head, with the sun smiling up beside
   // it, so the camera has only to look up a little.
   face: { position: [7.6, 0.8, 4.4], frame: { subject: FACE, screen: [0.5, 0.42] }, fov: 38 },
-  choice: { position: { actor: 'egill', part: 'feet', offset: [1.5, 1.35, 3.4] }, frame: { subject: FACE, screen: [0.4, 0.32] }, fov: 44 },
+  choice: {
+    position: { actor: 'egill', part: 'feet', offset: [1.5, 1.35, 3.4] }, frame: { subject: FACE, screen: [0.4, 0.32] }, fov: 44,
+  },
   sunLow: { position: [8.46, 0.6, -1.79], frame: { subject: FACE, screen: [0.56, 0.58] }, fov: 46 },
   // Scene 5: Mosi from his right side as he turns to go, the saddle pops on and Egill floats up; then up beside
   // the saddle over the clearing.
@@ -155,6 +215,10 @@ const RJODUR_SHOTS = {
   // saddle (a follow); low by the path, the beetle near and Mosi's big feet stepping past; the frog; the snail as
   // the two of them go on into the forest. The forest floor rises to the east: these heights are from it.
   rideWide: { position: [27.6, 1.75, -6.6], target: [12, 2.3, -2.6], fov: 50 },
+  // The ride close-up, where the follow begins (a shot in Egill's frame, so the forest's planner leaves it alone).
+  rideClose: {
+    position: { actor: 'egill', part: 'feet', offset: RIDE_CLOSE.offset, local: true }, target: 'egill.head', fov: RIDE_CLOSE.fov,
+  },
   rideFeet: { position: [23.0, 0.4, -2.93], target: [16, 0.45, -4.48], fov: 52 },
   rideFrog: { position: [32.62, 1.08, -7.14], target: [24.5, 1.15, -7.4], fov: 50 },
   rideAway: { position: [38.7, 1.45, -8.25], target: [47, 2.7, -14.8], fov: 50 },
@@ -348,7 +412,12 @@ function* onThePath(s, c) {
     }
   });
   // The shots follow Mosi along the path (each for a while at least), and his words go on across them.
+  c.prints = createFootprints(c.world, { actor: mosi.raw, feet: MOSI_FEET }); // made as he stands: it knows his feet
   const walk = mosi.walkTo(RIDE, { speed: RIDE_SPEED });
+  const [bx, bz] = RIDE_BIRDS_UP.from;
+  s.after(RIDE_BIRDS_UP.after, function* birdsUp() {
+    critters.scare([bx, c.world.heightAt(bx, bz), bz], RIDE_BIRDS_UP.reach);
+  });
   const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
   s.after(2, () => speak(s, c, 'k1_mosi_visit'));
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
@@ -356,7 +425,7 @@ function* onThePath(s, c) {
   s.camera.handheld(0.4, { duration: 2 });
   yield past(10.5, 4);
   // Egill close, smiling in the saddle.
-  yield s.camera.cut({ position: { actor: 'egill', part: 'feet', offset: RIDE_CLOSE.offset }, target: 'egill.head', fov: RIDE_CLOSE.fov, label: 'rideClose' });
+  yield s.camera.cut('rideClose');
   yield s.camera.follow('egill', RIDE_CLOSE);
   yield past(17.5, 4);
   // Low by the path: the beetle near, and Mosi's big feet stepping past in the soft soil.
@@ -372,7 +441,7 @@ function* onThePath(s, c) {
   chatter.cancel();
   for (const stop of stops) stop();
   for (const spot of PATH_CRITTERS) s.target(spot.name, null);
-  c.ride = walk;
+  c.pathWalk = walk;
   yield* goTo(s, c, 'burknalaut', () => setUpGlade(s, c));
 }
 
@@ -407,8 +476,8 @@ function* kambedlaInTheFerns(s, c) {
   yield s.say('mosi', 'k1_mosi_worry');
 }
 
-// The flowers in Egill's hands, from the search until he gives each to Kambeðla: a little posy, the first upright and the
-// next two leaning out to either side, all a little forward (lean: radians about his forward axis, then his right).
+// The flowers in Egill's hands, from the search until he gives each to Kambeðla: a little posy, the first upright and
+// the next two leaning out to either side, all a little forward (lean: radians about his forward axis, then his right).
 const HELD = { size: 0.55, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]] };
 
 // 8. The search: the child looks round the glade and finds the three glow flowers; Egill picks each.
@@ -421,8 +490,8 @@ function* flowerSearch(s, c) {
   yield s.camera.handheld(0, { duration: 0.3 });
   yield mosi.lookAt('camera', { weight: 0.5 });
   yield kambedla.lookAt('camera', { weight: 0.5 });
-  // The search begins as Mosi says what to do. A flower found flies into Egill's hands at once, and he keeps it there, and
-  // the search goes on; Mosi counts each in turn, once he has finished what he was saying.
+  // The search begins as Mosi says what to do. A flower found flies into Egill's hands at once, and he keeps it there,
+  // and the search goes on; Mosi counts each in turn, once he has finished what he was saying.
   const counts = ['k1_mosi_one', 'k1_mosi_two', 'k1_mosi_three'];
   let explaining = null;
   let counting = null;
@@ -432,7 +501,8 @@ function* flowerSearch(s, c) {
     onFound: (name, index) => {
       s.sfx('flower');
       const turn = () => egill.raw.root.quaternion;
-      const picked = c.flowers.find(f => f.name === name).flower.hold(POINTS.egillHands, { size: HELD.size, lean: HELD.leans[index], turn });
+      const { flower } = c.flowers.find(f => f.name === name);
+      const picked = flower.hold(POINTS.egillHands, { size: HELD.size, lean: HELD.leans[index], turn });
       const before = [picked, counting, explaining].filter(Boolean);
       counting = s.after(0, function* count() {
         yield s.all(before);
@@ -569,7 +639,7 @@ function bendDown(kambedla) {
   return action;
 }
 
-/** The flowers growing nearest a spot in the clearing, a point just over their heads (null when the forest has none). */
+/** The flowers nearest a spot in the clearing: a point just over their heads (null when the forest has none). */
 function flowersNear(world, [x, z]) {
   const list = world.forest?.info?.placementList?.filter(p => p.name === 'flowers') ?? [];
   if (!list.length) return null;
@@ -585,10 +655,15 @@ function* goTo(s, c, name, setUp) {
   yield going;
 }
 
-/** Mosi's footfalls: a step sounds as each foot comes down (its bone drops back to its standing height). */
+/**
+ * Mosi's footfalls: a step sounds as each foot comes down (its bone drops back to its standing height). It runs as a
+ * task of its own beside the story, so whatever goes wrong with a step can stop the steps but never the story.
+ */
 function* footfalls(s, c) {
   const { model } = c.mosi.raw;
-  const feet = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR'].map(name => model.getObjectByName(name));
+  const feet = ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR']
+    .map(name => model.getObjectByName(name))
+    .filter(Boolean); // a foot the model does not have is left out
   const p = new THREE.Vector3();
   const lift = foot => foot.getWorldPosition(p).y - c.world.heightAt(p.x, p.z);
   const rest = feet.map(lift);
@@ -612,7 +687,9 @@ function setUpClearing(s, c) {
   const ground = (x, z) => [x, world.heightAt(x, z), z];
   const critters = createCritters(world, {
     spots: PATH_CRITTERS.map(({ name, kind, at: [x, z], heading }) => ({ name, kind, position: ground(x, z), heading })),
-    birds: BIRDS.map(([x, z, heading], i) => ({ name: `bird-${i + 1}`, position: ground(x, z), heading })),
+    birds: [...BIRDS, ...RIDE_BIRDS].map(([x, z, heading], i) => ({
+      name: `bird-${i + 1}`, position: ground(x, z), heading,
+    })),
     onReact: (name, kind) => s.sfx(kind === 'bird' ? 'birds' : kind), // the birds Mosi's steps send up as well
   });
   // The birds and the butterflies can be tapped from the start; the critters by the path, on the ride (scene 6).
@@ -646,20 +723,23 @@ function butterflyTaps(s, world) {
   });
 }
 
-/** The glade, set up while the screen is black: the actors in their places, the flowers, the critters, the first shot. */
+/** The glade, set up while the screen is black: the actors, the flowers, the critters, the first shot. */
 function setUpGlade(s, c) {
   const { world, mosi, kambedla } = c;
   c.rjodur.leave();
-  c.ride.cancel(); // he stops walking the clearing's path
+  c.prints.dispose(); // they lie on the clearing's path
+  c.pathWalk.cancel(); // he stops walking the clearing's path
   mosi.place(MOSI_ARRIVES[0][0], MOSI_ARRIVES[0][1], 147); // along the path
   kambedla.place(KAMBEDLA_GLADE.position[0], KAMBEDLA_GLADE.position[2], KAMBEDLA_GLADE.heading);
   kambedla.raw.root.visible = true;
   bendDown(kambedla); // grazing, her head low in the ferns
-  c.flowers = FLOWERS.map(({ name, position: [x, up, z], hint }) => ({
+  c.flowers = hidingPlaces(world.forest?.info?.placementList).map(({ name, position: [x, up, z], hint }) => ({
     name, hint, flower: createGlowFlower(world, { name, position: [x, world.heightAt(x, z) + up, z] }),
   }));
   const critters = createCritters(world, {
-    spots: GLADE_CRITTERS.map(({ name, kind, at: [x, z], heading }) => ({ name, kind, position: [x, world.heightAt(x, z), z], heading })),
+    spots: GLADE_CRITTERS.map(({ name, kind, at: [x, z], heading }) => ({
+      name, kind, position: [x, world.heightAt(x, z), z], heading,
+    })),
     birds: [],
     onReact: (name, kind) => s.sfx(kind),
   });
@@ -788,6 +868,8 @@ export const chapter = {
     yield s.camera.cut('dawn');
     yield s.ready(); // the start button; immediate in captures
     s.sfx('forest');
-    yield s.race(story(s, c), footfalls(s, c));
+    const steps = s.after(0, () => footfalls(s, c));
+    yield* story(s, c);
+    steps.cancel();
   },
 };
