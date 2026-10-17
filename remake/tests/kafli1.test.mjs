@@ -1038,6 +1038,76 @@ test('a child who taps Egill before Mosi is near makes him call at once, and onl
   assert.ok(answer.at >= seen.mosiStopped - 1e-6 && answer.at >= call.at + lines[hey.audio].duration - 1e-6, 'and answers after Egill');
 });
 
+// ---------------------------------------------------------------------------------------------
+// The sun's beats (added after the test play of 17 October): scene 1, scene 4, scene 10, and in between
+
+/** Where the sun is in every view taken while a gesture of the script's went on: on the screen, its hands too, and nobody in front. */
+function assertInView(views, why) {
+  assert.ok(views.length >= 5, `${why}: ${views.length} views`);
+  for (const v of views) {
+    assert.ok(Math.abs(v.x) < 0.85 && Math.abs(v.y) < 0.85, `${why}: the sun at ${v.x.toFixed(2)}, ${v.y.toFixed(2)} at ${v.at.toFixed(1)} s`);
+    assert.ok(v.hands.every(([x, y]) => Math.abs(x) < 0.97 && Math.abs(y) < 0.97), `${why}: its hands off the screen at ${v.at.toFixed(1)} s`);
+    assert.equal(v.hidden, false, `${why}: somebody in front of the sun or its hands at ${v.at.toFixed(1)} s`);
+  }
+}
+
+test('the sun waves hello with a grin as the dawn shot fades in, the first time the child sees it', async () => {
+  const { sunCalls, seen } = await unattended();
+  const wave = sunCalls.find(c => c.call === 'wave');
+  assert.ok(wave && wave.scene === 1 && wave.shot === 'dawn', `the wave in scene 1, in the dawn shot (${wave?.scene}, ${wave?.shot})`);
+  assert.ok(wave.at > 0.8 && wave.at < 2.5, `as the screen fades in (2.5 s), at ${wave.at.toFixed(2)} s`);
+  const grin = sunCalls.find(c => c.call === 'mouth' && c.scene === 1);
+  assert.deepEqual([grin?.args[0], Boolean(grin && Math.abs(grin.at - wave.at) < 1e-9)], ['grin', true], 'with a grin');
+  assertInView(seen.sunViews.filter(v => v.at >= wave.at && v.at <= wave.at + WAVE_SECONDS), 'the dawn wave');
+  const swinging = seen.sunFrames.filter(f => f.at > wave.at + 0.5 && f.at < wave.at + WAVE_SECONDS - 0.4);
+  assert.ok(swinging.every(f => f.mouth === 'grin'), 'grinning while it waves');
+});
+
+test('on "Frábært! Sólin bíður ekki eftir okkur." the camera looks up at the sun: it winks, says "o" and smiles again before the camera comes down', async () => {
+  const { sunCalls, seen, captions, lines } = await unattended();
+  const great = captions.find(c => c.text === chapter.lines.k1_mosi_great.text);
+  const wink = sunCalls.find(c => c.call === 'wink');
+  const oh = sunCalls.find(c => c.call === 'mouth' && c.args[0] === 'oh');
+  assert.ok(wink.scene === 4 && oh?.scene === 4 && wink.shot === 'sunLow' && oh.shot === 'sunLow', 'both in scene 4, low under Mosi\'s head');
+  assert.ok(wink.at > great.at && wink.at < great.at + lines.k1_mosi_great.duration, 'the wink while Mosi says it');
+  assert.ok(Math.abs(oh.at - (wink.at + WINK_SECONDS)) < 0.05, `the "o" as its eyes open, ${(oh.at - wink.at).toFixed(2)} s after the wink`);
+  const frames = seen.sunFrames.filter(f => f.at >= wink.at && f.at < wink.at + 3);
+  const mouths = frames.map(f => f.mouth).filter((m, i, all) => i === 0 || m !== all[i - 1]);
+  assert.deepEqual(mouths, ['smile', 'mid', 'oh', 'mid', 'smile'], 'a smile, the "o" and the smile again, softly');
+  const back = frames.find(f => f.at > oh.at + 0.2 && f.mouth === 'smile').at;
+  const views = seen.sunViews.filter(v => v.at >= oh.at && v.at <= back);
+  assertInView(views, 'the "o"');
+  assert.ok(views.every(v => Math.abs(v.y - 0.4) < 0.02 && Math.abs(v.x) < 0.02), 'the camera still looks up at it, as the look put it, until the smile is back');
+});
+
+test('when the star rises the sun hugs itself with a big grin and winks, where the child sees it, with nobody in front', async () => {
+  for (const [how, run] of [['a capture', unattended], ['an eager child', playedByAnEagerChild]]) {
+    const { sunCalls, seen } = await run();
+    const hug = sunCalls.find(c => c.call === 'hug');
+    const wink = sunCalls.filter(c => c.call === 'wink').at(-1);
+    assert.ok(hug && hug.scene === 10 && hug.shot === 'star', `${how}: the hug in scene 10, in the star's shot`);
+    assert.ok(wink.scene === 10 && wink.at > hug.at + 0.5 && wink.at < hug.at + HUG_SECONDS - 0.5, `${how}: it winks while it hugs`);
+    assertInView(seen.sunViews.filter(v => v.at >= hug.at && v.at <= hug.at + HUG_SECONDS), `${how}: the hug`);
+    const held = seen.sunFrames.filter(f => f.at > hug.at + 0.5 && f.at < hug.at + HUG_SECONDS - 0.6);
+    assert.ok(held.every(f => f.mouth === 'grin'), `${how}: with a big grin`);
+    assert.ok(held.some(f => f.squash > 1.03), `${how}: and a squeeze`);
+  }
+});
+
+test('in between the sun smiles calmly, its hands at rest, and blinks by itself every 3 to 6 s', async () => {
+  const { seen, sunCalls } = await unattended();
+  const length = c => (c.call === 'hug' ? HUG_SECONDS : c.call === 'wave' ? WAVE_SECONDS : (c.args[1] ?? 1.5) + MOUTH_BETWEEN);
+  const beats = sunCalls.filter(c => c.call !== 'wink').map(c => [c.at, c.at + length(c) + 0.1]);
+  const calm = seen.sunFrames.filter(f => !beats.some(([a, b]) => f.at >= a && f.at <= b));
+  assert.ok(calm.length > 0.9 * seen.sunFrames.length);
+  assert.ok(calm.every(f => f.mouth === 'smile' && f.squash === 1), 'a calm smile, the hands resting, between the beats');
+  const winks = sunCalls.filter(c => c.call === 'wink').map(c => c.at);
+  const frames = seen.sunFrames;
+  const blinks = frames.filter((f, i) => i > 0 && f.eyes !== 'open' && frames[i - 1].eyes === 'open' && !winks.some(w => f.at >= w - 0.05 && f.at < w + WINK_SECONDS));
+  const minutes = (frames.at(-1).at - frames[0].at) / 60;
+  assert.ok(blinks.length >= minutes * 10 * 0.85 && blinks.length <= minutes * 20 * 1.1, `${blinks.length} blinks in ${minutes.toFixed(1)} minutes`);
+});
+
 test('yield flower.hold() and flower.pick() through the scheduler: the scene waits for each, the flower stays in Egill\'s hands and then goes', async () => {
   const world = await chapterWorld();
   const egill = world.actors.get('egill');

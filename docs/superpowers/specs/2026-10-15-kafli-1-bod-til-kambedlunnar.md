@@ -32,7 +32,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 ### 1. Morgunn í skóginum (um 20 s)
 
 - **Markmið:** barnið sér að skógurinn er lifandi og glaður.
-- **Skot:** vítt yfir trjátoppana í sólarupprás og brosandi sólin á himninum. Hæg ferð niður og inn í rjóðrið í gegnum sólargeisla. Tré og strá sveiflast í takt við stefið.
+- **Skot:** vítt yfir trjátoppana í sólarupprás og brosandi sólin á himninum. Hæg ferð niður og inn í rjóðrið í gegnum sólargeisla. Tré og strá sveiflast í takt við stefið. Þegar myndin birtist veifar sólin barninu halló með annarri af tveimur litlum teiknimyndahöndum sínum og brosir breitt; þess á milli brosir hún rólega og deplar augunum annað slagið. (bætt við eftir prufuspilun 17. október)
 - **Línur:** engar. Tónlist, fuglasöngur og skrjáf.
 - **Barnið:** getur dregið fingur til að líta aðeins í kringum sig og pikkað á glitrandi fiðrildi sem flögrar upp.
 
@@ -60,7 +60,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
     - Mosi: „En við þurfum að bjóða þeim öllum áður en sólin sest. Viltu hjálpa mér?“
     - Val: „Já, gerum það!“ eða „Hvað er stjörnuhátíð?“
     - Ef seinna svarið: Mosi: „Það er stærsta veisla skógarins! Við syngjum og dönsum og horfum saman á stjörnurnar kvikna. Viltu hjálpa mér að bjóða vinunum?“ Sama val aftur.
-    - Eftir jáið: Mosi: „Frábært! Sólin bíður ekki eftir okkur.“ Sólin blikkar.
+    - Eftir jáið: Mosi: „Frábært! Sólin bíður ekki eftir okkur.“ Sólin blikkar, setur munninn í lítinn hring eins og hún segi ó og brosir svo aftur, meðan myndavélin horfir enn upp til hennar. (bætt við eftir prufuspilun 17. október)
 - **Barnið:** velur svar.
 
 ### 5. Upp á bak (um 25 s)
@@ -120,7 +120,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 ### 10. Boðið og stjarnan (um 30 s)
 
 - **Markmið:** boðið er þegið og fyrsta stjarnan fæst.
-- **Skot:** tvískot af Mosa og kambeðlunni með Egil á milli. Stjarna rís upp frá plötunum hennar og sólin brosir og blikkar. Mjúk dofnun yfir í landkönnuðabókina.
+- **Skot:** tvískot af Mosa og kambeðlunni með Egil á milli. Stjarna rís upp frá plötunum hennar og sólin faðmar sjálfa sig með báðum höndum, skælbrosandi, og blikkar (faðminum bætt við eftir prufuspilun 17. október). Mjúk dofnun yfir í landkönnuðabókina.
 - **Línur:**
     - Mosi: „Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?“
     - Kambeðla: „Já! Ég skal lýsa upp alla hátíðina!“

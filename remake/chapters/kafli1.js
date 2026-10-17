@@ -28,6 +28,7 @@ import { butterflyLand } from '../world/forest/atmosphere.js';
 import { pollenBurst } from '../world/props/pollen.js';
 import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
+import { WINK_SECONDS } from '../engine/sun-face.js';
 
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
@@ -273,11 +274,19 @@ function* story(s, c) {
   yield* invitation(s, c);
 }
 
+// Seconds into the fade-in of scene 1 at which the sun, seen for the first time, waves hello with a grin: the picture is half there,
+// and the hand is up and swinging before the camera starts down (the sun stays in the dawn shot's frame until about 7 s).
+const SUN_WAVES = 1.2;
+// Seconds after the star appears (scene 10) at which the sun hugs itself.
+const SUN_HUGS = 0.2;
+
 // 1. Morning in the forest: no words. Wide over the treetops toward the smiling sun, then slowly down and in.
 function* morning(s, c) {
   mark(c, 1);
   const flowers = flowersNear(c.world, BUTTERFLY_FLOWERS);
   if (flowers) butterflyLand(c.world, flowers);
+  // As the picture comes up the sun waves hello with a big grin (added after the test play of 17 October).
+  s.after(SUN_WAVES, () => s.all(s.sun.wave(), s.sun.mouth('grin', 2.4)));
   yield s.fade(0, 2.5); // on the sunrise while the screen fades in: the smiling sun and the cloud
   yield s.camera.move('waiting', { duration: 15 });
   // The child may look round a little and tap a butterfly.
@@ -378,11 +387,13 @@ function* festival(s, c) {
     yield s.say('mosi', 'k1_mosi_explain');
   }
   yield s.say('egill', 'k1_egill_yes');
-  // "The sun won't wait for us": low under his head the camera looks up to the sun, which winks, and back down.
+  // "The sun won't wait for us": low under his head the camera looks up to the sun, which winks, says "o" with its mouth as its eyes
+  // open (added after the test play of 17 October) and smiles again while the camera still looks up, and back down.
   yield s.camera.cut('sunLow');
   const great = s.say('mosi', 'k1_mosi_great');
   yield s.camera.lookAt('sun', { screen: [0.5, 0.3], duration: 3 });
   s.sun.wink();
+  s.after(WINK_SECONDS, () => s.sun.mouth('oh', 0.9));
   yield great;
   yield s.wait(0.6);
   yield s.camera.move('sunLow', { duration: 3 });
@@ -633,7 +644,8 @@ function* invitation(s, c) {
   yield kambedla.play('kink', { fade: 0.3 });
   yield s.say('kambedla', 'k1_kambedla_accept');
   yield kambedla.play('idle', { fade: 0.5 });
-  // The first star rises from her plates and the sun smiles and winks; the child taps it into the journal.
+  // The first star rises from her plates and the sun hugs itself with a big grin and winks (the hug was added after the test play of
+  // 17 October); the child taps the star into the journal.
   yield s.camera.cut('star');
   yield s.camera.handheld(0, { duration: 0.4 });
   const above = { actor: 'kambedla', part: 'feet', offset: [-0.42, 5.6, 0], local: true };
@@ -641,6 +653,7 @@ function* invitation(s, c) {
   yield egill.lookAt(above, { weight: 0.8, maxPitch: 40 });
   s.sfx('star');
   const star = s.star('k1_kambedla', POINTS.kambedlaPlates);
+  s.after(SUN_HUGS, () => s.sun.hug());
   yield s.wait(1.4);
   s.sun.wink();
   yield s.say('mosi', 'k1_mosi_star');
