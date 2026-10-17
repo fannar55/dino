@@ -17,8 +17,8 @@
  { "id": "k1_mosi_critters", "speaker": "mosi", "text": "Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.", "kept": "the owner's pick, an Eleven v4 take (seed 1), 2026-10-17" },
  { "id": "k1_mosi_beetle", "speaker": "mosi", "text": "Sjáðu, bjalla! Halló, litla vinkona!" },
  { "id": "k1_mosi_frog", "speaker": "mosi", "text": "Froskur! Hann hoppar hærra en ég!" },
- { "id": "k1_mosi_snail", "speaker": "mosi", "text": "Snigill. Hann er ekkert að flýta sér." },
- { "id": "k1_mosi_greet", "speaker": "mosi", "text": "Kambeðla! Halló!" },
+ { "id": "k1_mosi_snail", "speaker": "mosi", "text": "Snigill. Hann er ekkert að flýta sér.", "kept": "the owner's pick, an Eleven v4 take from the IPA input /ˈstniːjɪtl̥/ for Snigill (seed 1), 2026-10-17" },
+ { "id": "k1_mosi_greet", "speaker": "mosi", "text": "Kambeðla! Halló!", "kept": "the owner's pick, an Eleven v4 take of the approved text with the visit line as context, not spoken (seed 42), 2026-10-17" },
  { "id": "k1_kambedla_hello", "speaker": "kambedla", "text": "Ó, halló, Mosi… og halló, litli vinur." },
  { "id": "k1_kambedla_lost", "speaker": "kambedla", "text": "Ég finn ekki glóblómin mín. Án þeirra lýsa plöturnar mínar ekki." },
  { "id": "k1_mosi_worry", "speaker": "mosi", "text": "Engar áhyggjur. Egill er besti leitarmaður skógarins!", "seed": 1, "kept": "the owner's reference take, the Eleven v3 take (seed 1) that says Egill right" },
@@ -26,7 +26,7 @@
  { "id": "k1_mosi_hint_stone", "speaker": "mosi", "text": "Ég sé eitthvað glitra við stóra steininn!" },
  { "id": "k1_mosi_hint_ferns", "speaker": "mosi", "text": "Hvað með undir burknunum?" },
  { "id": "k1_mosi_hint_tree", "speaker": "mosi", "text": "Kíktu upp í litla tréð!" },
- { "id": "k1_mosi_one", "speaker": "mosi", "text": "Eitt!" },
+ { "id": "k1_mosi_one", "speaker": "mosi", "text": "Eitt!", "kept": "the owner's pick, an Eleven v4 take from the spelling Eiht for Eitt (seed 42), 2026-10-17, raised 0.85 dB" },
  { "id": "k1_mosi_two", "speaker": "mosi", "text": "Tvö!" },
  { "id": "k1_mosi_three", "speaker": "mosi", "text": "Og þrjú! Þú fannst þau öll!" },
  { "id": "k1_mosi_give", "speaker": "mosi", "text": "Gefðu henni blómin!" },
@@ -34,8 +34,8 @@
  { "id": "k1_kambedla_mmm2", "speaker": "kambedla", "text": "Mmm!", "seed": 2 },
  { "id": "k1_kambedla_mmm3", "speaker": "kambedla", "text": "Mmm!", "seed": 3 },
  { "id": "k1_kambedla_glow", "speaker": "kambedla", "text": "Sjáið! Ég lýsi aftur!" },
- { "id": "k1_mosi_invite", "speaker": "mosi", "text": "Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?" },
+ { "id": "k1_mosi_invite", "speaker": "mosi", "text": "Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?", "kept": "the owner's pick, an Eleven v4 take of the approved text with the visit line as context, not spoken (seed 42), 2026-10-17" },
  { "id": "k1_kambedla_accept", "speaker": "kambedla", "text": "Já! Ég skal lýsa upp alla hátíðina!" },
  { "id": "k1_mosi_star", "speaker": "mosi", "text": "Sjáðu, Egill! Fyrsta stjarnan!", "seed": 1, "kept": "the owner's pick, an Eleven v4 take (seed 42), 2026-10-16" },
- { "id": "k1_mosi_next", "speaker": "mosi", "text": "Ein komin. Hver ætli sé næst?" }
+ { "id": "k1_mosi_next", "speaker": "mosi", "text": "Ein komin. Hver ætli sé næst?", "kept": "the owner's pick, an Eleven v4 take from the spelling Eyn for Ein (seed 42), 2026-10-17" }
 ]

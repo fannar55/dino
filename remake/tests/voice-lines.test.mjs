@@ -121,9 +121,10 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   }
 });
 
-test('the lines the owner chose by ear, the takes that say Egill and Kambeðlu right, are kept, so the tool cannot make them over', () => {
+test('the lines the owner chose by ear, the takes that say Egill, Kambeðla, Snigill, Eitt and Ein right, are kept, so the tool cannot make them over', () => {
   const lines = readJson(REAL.source);
-  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star', 'k1_mosi_worry', 'k1_mosi_visit', 'k1_mosi_critters']) {
+  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star', 'k1_mosi_worry', 'k1_mosi_visit', 'k1_mosi_critters',
+    'k1_mosi_snail', 'k1_mosi_greet', 'k1_mosi_one', 'k1_mosi_invite', 'k1_mosi_next']) {
     const kept = lines.find(line => line.id === id)?.kept;
     assert.ok(typeof kept === 'string' && kept.trim(), `${id} has no "kept" in lines-source.json: node remake/tools/voice-lines.mjs would make it over from a v3 take, asking ElevenLabs if none is cached (if you mean to make it again, take the id off this list)`);
   }
