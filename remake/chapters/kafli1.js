@@ -37,8 +37,10 @@ const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the cleari
 const MOSI_WALK_IN = [[-16, 4], [-9.9, 2.3], [-4.8, 1]];
 const MOSI_STOP = [0.5, 0.1];
 const EGILL_WAITS = { position: [7.9, 0, 2.3], heading: 209 };
-// Egill calls up to Mosi once Mosi's head is this many metres from him, along the ground (scene 2): about 3.4 s before Mosi stops,
-// his middle then 10.4 m away.
+// Scene 2: the camera cuts to Egill, who can then be tapped, once Mosi's middle is this many metres from his, and Egill calls up to
+// Mosi by himself once Mosi's head is EGILL_CALLS metres from him along the ground, about 3.4 s before Mosi stops (his middle then
+// 10.4 m away). So a child has about 5 s to make the call: 5.2 s in a capture's timeline, from 38.33 s to 43.53 s.
+const EGILL_SEES = 16;
 const EGILL_CALLS = 8;
 // The forest lays the grass down and leans the ferns aside round a capsule under each actor, made for Mosi's size
 // (world/forest/forest.js: the grass's footprint times the actor's footprintScale). Egill's is a boy's: 0.3 of it,
@@ -307,21 +309,23 @@ function* mosiComes(s, c) {
   yield s.camera.cut('track');
   yield s.camera.follow('mosi', TRACK);
   const apart = () => mosi.raw.root.position.distanceTo(egill.raw.root.position);
-  yield s.until(() => apart() < 15);
+  yield s.until(() => apart() < EGILL_SEES);
+  // Egill near, looking up at Mosi as he comes up behind him, the handheld off for the tap. Egill calls once Mosi's head, the end of
+  // him nearest Egill, is EGILL_CALLS metres from him, Mosi still walking; a child who taps Egill before that (about 5 s) makes
+  // him call at once, and once (R12: the call never waits for a tap, it only comes sooner with one). The walk goes on whatever
+  // ends the wait.
   yield egill.lookAt('mosi.head', { weight: 0.8, maxPitch: 40 });
-  yield s.wait(2);
-  // Egill near and Mosi coming up behind him, the handheld off for the tap. Egill calls once Mosi's head, the end of him nearest
-  // Egill, is EGILL_CALLS metres from him, Mosi still walking; a child who taps Egill before that makes him call at once, and
-  // once (R12: the call never waits for a tap, it only comes sooner with one). The walk goes on whatever ends the wait.
   yield s.camera.cut('egillWaves');
   s.camera.handheld(0, { duration: 0.3 });
   const head = new THREE.Vector3();
   const near = () => mosi.raw.headPosition(head).setY(0).distanceTo(egill.raw.root.position.clone().setY(0)) < EGILL_CALLS;
   yield tapOrWait(s, 'egill', s.until(near));
-  // The call, three things in a row: a hop, "Hey þú! Ég er hérna niðri!" once he has landed, and a wave as his voice ends. Mosi
-  // hears him and looks down at him, stops at his place, and answers once Egill's line is over.
+  // The call, three things in a row: a hop, "Hey þú! Ég er hérna niðri!" once he has landed, breathing again as he calls (the hop
+  // ends in idle's first pose), and a wave as his voice ends. Mosi hears him and looks down at him, stops at his place, and answers
+  // once Egill's line is over.
   yield egill.play('hop', { fade: 0.12 });
   yield s.wait(egill.raw.clips.get('hop').duration);
+  yield egill.play('idle', { fade: 0.15 });
   const call = s.say('egill', 'k1_egill_hey');
   yield mosi.lookAt('egill.head', { weight: 0.8 });
   yield s.wait(s.lineDuration('k1_egill_hey'));

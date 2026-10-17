@@ -18,7 +18,7 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
-import { SUN_RADIUS_DEG, WINK_SECONDS, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
+import { SUN_RADIUS_DEG, WINK_SECONDS, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace, handsAtRest } from '../engine/sun-face.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
@@ -450,7 +450,10 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
     {
       const scene = world.chapterTimeline.at(-1)?.scene;
-      seen.sunFrames.push({ at: stage.s.time, scene, shot: shotNow, eyes: sunFace.eyes, mouth: sunFace.mouthFrame, squash: sunFace.squash.x });
+      seen.sunFrames.push({
+        at: stage.s.time, t: world.clock.time, scene, shot: shotNow, eyes: sunFace.eyes, mouth: sunFace.mouthFrame, squash: sunFace.squash.x,
+        hands: sunFace.hands.map(h => [h.x, h.y, h.angle]),
+      });
       const busy = sunCalls.some(c => c.call !== 'wink' && stage.s.time >= c.at && stage.s.time <= c.at + (c.call === 'hug' ? HUG_SECONDS : c.call === 'wave' ? WAVE_SECONDS : (c.args[1] ?? 1.5) + MOUTH_BETWEEN));
       if (busy && seen.sunFrames.length % 6 === 0) seen.sunViews.push({ at: stage.s.time, scene, shot: shotNow, ...sunInView() });
       if (scene === 2) {
@@ -986,8 +989,8 @@ test('Egill calls up to Mosi as he arrives: a hop, "Hey þú! Ég er hérna nið
     const from = world.chapterTimeline.find(m => m.scene === 2).at;
     const to = world.chapterTimeline.find(m => m.scene === 3).at;
     const clips = seen.egillClips.filter(e => e.at >= from && e.at < to);
-    assert.deepEqual(clips.map(e => e.clip), ['hop', 'waveLeft'], `${how}: Egill hops and then waves, once each`);
-    const [hop, wave] = clips;
+    assert.deepEqual(clips.map(e => e.clip), ['hop', 'idle', 'waveLeft'], `${how}: Egill hops, breathes again as he calls, and waves, once each`);
+    const [hop, idle, wave] = clips;
     const calls = captions.filter(c => c.text === hey.text);
     assert.equal(calls.length, 1, `${how}: he calls once`);
     const [call] = calls;
@@ -995,11 +998,16 @@ test('Egill calls up to Mosi as he arrives: a hop, "Hey þú! Ég er hérna nið
     const voice = lines[hey.audio].duration;
     const landed = hop.at + world.actors.get('egill').clips.get('hop').duration;
     assert.ok(Math.abs(call.at - landed) < 0.05, `${how}: the line once he has landed: the hop at ${hop.at.toFixed(2)} s, the line at ${call.at.toFixed(2)} s`);
+    assert.ok(Math.abs(idle.at - landed) < 0.05, `${how}: idle again, not frozen in the hop's last pose, as he calls`);
     assert.ok(Math.abs(wave.at - (call.at + voice)) < 0.05, `${how}: the wave as his voice ends, at ${wave.at.toFixed(2)} s`);
     // While Mosi walks in: once his head is about 8 m from Egill, or sooner for a child who taps (and a capture, which taps 2 s in).
     assert.equal(hop.mosiWalking, true, `${how}: Mosi is still walking when Egill calls`);
-    if (how === 'a child who waits') assert.ok(hop.head > 7.7 && hop.head < 8, `${how}: Mosi's head ${hop.head.toFixed(2)} m from Egill: no tap is needed (R12)`);
-    else assert.ok(hop.head >= 8 - 1e-6, `${how}: a tap brings the call sooner: Mosi's head ${hop.head.toFixed(2)} m away`);
+    if (how === 'a child who waits') {
+      assert.ok(hop.head > 7.7 && hop.head < 8, `${how}: Mosi's head ${hop.head.toFixed(2)} m from Egill: no tap is needed (R12)`);
+      // The child had 4 to 6 s to tap Egill and make the call before he made it by himself.
+      const window = hop.at - seen.egillTarget.at;
+      assert.ok(window >= 4 && window <= 6, `${how}: the tap window is ${window.toFixed(2)} s`);
+    } else assert.ok(hop.head >= 8 - 1e-6, `${how}: a tap brings the call sooner: Mosi's head ${hop.head.toFixed(2)} m away`);
     // Mosi stops at his place, looks down at Egill's head from the moment he hears him, and answers once Egill's voice has ended.
     const answer = captions.find(c => c.text === waving.text && c.at > from);
     assert.ok(answer.at >= call.at + voice - 1e-6, `${how}: Mosi's line at ${answer.at.toFixed(2)} s, Egill's voice ends at ${(call.at + voice).toFixed(2)} s`);
@@ -1015,6 +1023,8 @@ test('Egill calls up to Mosi as he arrives: a hop, "Hey þú! Ég er hérna nið
     assert.ok(seen.egillOnScreen.length > 25, `${how}: ${seen.egillOnScreen.length} frames of the hop seen`);
     for (const e of seen.egillOnScreen) assert.ok([...e.feet, ...e.top].every(v => Math.abs(v) < 0.95), `${how}: Egill off the screen at ${e.at.toFixed(2)} s`);
     assert.ok(seen.egillTarget && seen.egillTarget.handheld === 0 && seen.egillTarget.shot === 'egillWaves', `${how}: the handheld is off as the tap window opens`);
+    const cutAt = shot => seen.cuts.find(c => c.shot === shot && c.at >= from).at;
+    assert.ok(cutAt('egillWaves') - cutAt('track') >= 2.5, `${how}: the track shot holds ${(cutAt('egillWaves') - cutAt('track')).toFixed(2)} s`);
   }
 });
 
@@ -1026,7 +1036,7 @@ test('a child who taps Egill before Mosi is near makes him call at once, and onl
   const from = world.chapterTimeline.find(m => m.scene === 2).at;
   const to = world.chapterTimeline.find(m => m.scene === 3).at;
   const clips = seen.egillClips.filter(e => e.at >= from && e.at < to);
-  assert.deepEqual(clips.map(e => e.clip), ['hop', 'waveLeft'], 'one hop, one wave');
+  assert.deepEqual(clips.map(e => e.clip), ['hop', 'idle', 'waveLeft'], 'one hop, one wave');
   assert.ok(clips[0].at - tap.at < 0.05, `the hop ${(clips[0].at - tap.at).toFixed(3)} s after the tap`);
   assert.ok(clips[0].head > 9, `while Mosi's head is still ${clips[0].head.toFixed(1)} m away`);
   assert.equal(captions.filter(c => c.text === hey.text).length, 1, 'one call');
@@ -1100,7 +1110,12 @@ test('in between the sun smiles calmly, its hands at rest, and blinks by itself 
   const beats = sunCalls.filter(c => c.call !== 'wink').map(c => [c.at, c.at + length(c) + 0.1]);
   const calm = seen.sunFrames.filter(f => !beats.some(([a, b]) => f.at >= a && f.at <= b));
   assert.ok(calm.length > 0.9 * seen.sunFrames.length);
-  assert.ok(calm.every(f => f.mouth === 'smile' && f.squash === 1), 'a calm smile, the hands resting, between the beats');
+  assert.ok(calm.every(f => f.mouth === 'smile' && f.squash === 1), 'a calm smile, no squeeze, between the beats');
+  for (const f of calm) {
+    const rest = handsAtRest(f.t);
+    const off = Math.max(...f.hands.map(([x, y, angle], k) => Math.max(Math.abs(x - rest[k].x), Math.abs(y - rest[k].y), Math.abs(angle - rest[k].angle) / 100)));
+    assert.ok(off < 1e-9, `the hands away from their rest at ${f.at.toFixed(2)} s`);
+  }
   const winks = sunCalls.filter(c => c.call === 'wink').map(c => c.at);
   const frames = seen.sunFrames;
   const blinks = frames.filter((f, i) => i > 0 && f.eyes !== 'open' && frames[i - 1].eyes === 'open' && !winks.some(w => f.at >= w - 0.05 && f.at < w + WINK_SECONDS));

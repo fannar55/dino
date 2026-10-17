@@ -41,7 +41,7 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 - **Markmið:** Mosi birtist stór og vinalegur, og þeir taka eftir hvor öðrum.
 - **Skot:** litlir fuglar fljúga upp úr kjarrinu. Mosi gengur út á milli trjánna og myndavélin fylgir honum í augnhæð barns. Egill bíður í rjóðrinu. Þegar Mosi nálgast sést Egill hoppa, kalla og veifa í skotinu sem sýnir hann nær, með Mosa að koma á bak við hann. (bætt við eftir prufuspilun 17. október)
 - **Línur:** Mosi raular stefið á leiðinni. Þegar höfuð Mosa er komið um 8 m frá Agli, og Mosi enn á gangi, hoppar Egill, kallar upp til hans og veifar svo: Egill: „Hey þú! Ég er hérna niðri!“ Mosi lítur niður til Egils, nemur staðar og svarar þegar Egill hefur lokið máli sínu: Mosi: „Ó! Ég sé einhvern veifa!“ (kallinu bætt við eftir prufuspilun 17. október)
-- **Barnið:** pikkar á Egil og hann hoppar, kallar og veifar strax, svo barnið kallar sjálft á Mosa; það gerist bara einu sinni. Geri barnið ekkert kallar Egill sjálfur þegar Mosi er kominn nær. (bætt við eftir prufuspilun 17. október)
+- **Barnið:** pikkar á Egil og hann hoppar, kallar og veifar strax, svo barnið kallar sjálft á Mosa; það gerist bara einu sinni. Barnið getur pikkað á Egil frá því að myndavélin sýnir hann nær, um 5 sekúndum áður en hann kallar sjálfur. Geri barnið ekkert kallar Egill sjálfur þegar höfuð Mosa er komið um 8 m frá honum. (bætt við eftir prufuspilun 17. október)
 
 ### 3. Halló, Egill! (um 15 s)
 
