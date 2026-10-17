@@ -308,6 +308,30 @@ by the same two-bone IK as footing (`engine/ik.js`). In the walk a foot lands fl
 at exactly stride per cycle (2.8 m in 2.5 s, 1.12 m/s), its heel peels up about the toes as the
 other foot lands, and it swings forward in an arc; in a scene footing plants her feet in walks,
 starts, stops and turns as it does Egill's.
+Uggeðla (the Spinosaurus) goes through the same tool, cut differently by Tripo: her legs and arms are
+one part each (hip to toes, shoulder to claws), her head holds both jaws, and a sail stands on her back
+and tail's root, a closed shell 15 to 40 cm thick welded into the skin, so the single-sided material
+shows it from both sides
+(`--query "src=<parts.glb>&length=14&yaw=180&name=Uggeðla&out=spinosaurus.glb&teeth=0&ahead=1&neck=0.7&stride=3.2&cycle=2.8&clips=idle,walk,kink,happy,wade"`).
+A ground part that reaches past a third of her height is a whole leg; Tripo stood her in mid-stride, so
+each leg keeps its own knee, heel and toes (only the hips are mirrored) and footing plants her feet
+where they stand. An arm of one part gets its elbow and wrist where its centre line, measured over its
+surface from the shoulder's seam, bends most. Her sail rides the back below it (Hips, Spine, Chest and
+the tail's first bones, never the neck), and with a sail the clips bend those a third as much, so the
+sail never stretches or folds (its top edge keeps its length within 1 % in every clip). `ahead=1` turns
+her neck and head back to face +X (Tripo turned them 16 degrees to her left) about the vertical where
+the head's own axis crosses her midline, fading down the neck. `neck=0.7` puts the Head joint at the
+top of her neck (the middle of the head's seam with the body) and the Neck joint 0.7 m down it, and the
+head rides its bone whole, so her long snout never bends. `clips=` picks the clips from
+`tailed-biped-clips.js`: idle, walk (3.2 m in 2.8 s, 1.14 m/s), kink (a friendly nod), happy (two bobs
+on bent knees, the tail swishing) and wade (slow steps through shallow water: lower and leaning
+forward, the neck bent down and the head turned back up so the snout hangs about 1.9 m up over the
+water, the feet lifted high, the tail sweeping for balance; 2.2 m in 4.2 s). A scene wades her with
+`walkTo(points, { clip: 'wade' })`: the actor measures each walking clip's own speed. Her jaw comes
+from the mouth pass (below), with `corners=1` (a triangle goes to the side its corners are on, so the
+long thin ones along her snout's mouth line do not stretch across it) and `fold=0.04,0.01` (the
+pocket's channel lies higher, so it stays inside her rounded snout tip with the mouth shut); she talks
+with the jaw opening 6 degrees, and has no teeth.
 After every bake, the face pass finds the eyes painted into the colour map and writes them into the
 GLB as extras on the skinned mesh (`face.eyes`); geometry and textures stay byte for byte:
 

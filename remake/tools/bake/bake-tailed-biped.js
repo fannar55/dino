@@ -4,20 +4,32 @@ import { GLTFExporter } from '../../vendor/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { authorClips } from './tailed-biped-clips.js';
 
-// Bakes a tailed biped (a theropod such as Grameðla the T. rex) for the remake from an unrigged
-// Tripo export kept in parts (remake/tools/blender-decimate.py ... parts, which keeps the seams
-// between parts welded and the surface closed). It stands the model at the origin facing +X at a
-// given length, recognises the parts (body, tail, head, lower jaw, thighs, feet, claws, arms) from
-// their positions and shared seams, places the skeleton, gives every vertex soft skin weights that
-// agree across the seams, opens a mouth along the lip seam, authors the clips
-// (tailed-biped-clips.js) and exports one skinned mesh.
+// Bakes a tailed biped (a theropod such as Grameðla the T. rex or Uggeðla the Spinosaurus) for the
+// remake from an unrigged Tripo export kept in parts (remake/tools/blender-decimate.py ... parts, which
+// keeps the seams between parts welded and the surface closed). It stands the model at the origin
+// facing +X at a given length, recognises the parts (body, tail, head, lower jaw, thighs, feet, claws,
+// arms, a sail on the back) from their positions and shared seams, places the skeleton, gives every
+// vertex soft skin weights that agree across the seams, opens a mouth along the lip seam, authors the
+// clips (tailed-biped-clips.js) and exports one skinned mesh.
+//
+// Tripo cuts each model differently. Grameðla's legs are thigh, foot and claws, her arms two pieces
+// and her lower jaw a part of its own. Uggeðla's legs and arms are one part each (hip to toes,
+// shoulder to claws), her head holds both jaws (the mouth pass, mouth.js, cuts hers), a sail stands
+// on her back and tail, and Tripo stood her in mid-stride, her right foot ahead: then each leg keeps
+// its own knee, heel and toes as the model has them (footing plants her feet where they stand in the
+// bind pose), and only the hips are mirrored.
 //
 // Query: src (parts GLB, relative to this page), out (file name for the upload), length (metres,
 // nose to tail tip), yaw (degrees that turn the model's head to +X; found from the model when left
 // out), tex (texture size), roughness, name, stride and cycle (the walk: metres and seconds per
 // cycle), duty (share of the cycle a foot is down), mouth (share of the lip seam that opens, from
 // the front), teeth (soft rounded teeth on the upper jaw, one fewer on the lower; 0 for none),
-// preview (1: show the result in the page instead of exporting; clip and t pick the pose).
+// ahead (1: Tripo turned the neck and head aside; turn them back to face +X, see below), neck
+// (metres: the Neck joint this far down the neck from the Head joint, which then sits at the top of
+// the neck, in the middle of the head's seam with the body, and the head part rides it rigidly; left
+// out, Grameðla's joints), straighten (the share of the tail's sideways bend the clips take out),
+// clips (the clips to author, from tailed-biped-clips.js; idle,walk,roar when left out), preview (1:
+// show the result in the page instead of exporting; clip and t pick the pose).
 //
 // Bones have identity rest rotations, so clips rotate about the character's own axes: X forward,
 // Y up, Z the character's right. The legs are digitigrade, rigged the way the engine's footing
@@ -34,6 +46,9 @@ const ROUGHNESS = Number(params.get('roughness') || 0.62);
 const NAME = params.get('name') || 'Grameðla';
 const MOUTH = Number(params.get('mouth') || 0.62);
 const TEETH = Number(params.get('teeth') ?? 8);
+const AHEAD = params.get('ahead') === '1';
+const NECK = params.has('neck') ? Number(params.get('neck')) : null;
+const CLIPS = params.get('clips') ? params.get('clips').split(',') : undefined;
 const PREVIEW = params.get('preview') === '1';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -89,6 +104,96 @@ function along(stations, v, get = s => s.c) {
     }
   }
   return get(stations.at(-1)).clone();
+}
+
+// Shortest distances over a part's surface (along its edges, the copies of a position as one vertex)
+// from the seed positions, as a map from position key to metres; `limit` stops the search there.
+function surfaceDistances(part, keyOf, seeds, limit = Infinity) {
+  const keys = part.points.map(keyOf);
+  const at = new Map();
+  keys.forEach((k, i) => at.set(k, part.points[i]));
+  const links = new Map();
+  const index = part.geometry.index.array;
+  for (let t = 0; t < index.length; t += 3) {
+    for (let e = 0; e < 3; e++) {
+      const a = keys[index[t + e]], b = keys[index[t + ((e + 1) % 3)]];
+      if (a === b) continue;
+      const d = at.get(a).distanceTo(at.get(b));
+      if (!links.has(a)) links.set(a, new Map());
+      if (!links.has(b)) links.set(b, new Map());
+      links.get(a).set(b, d);
+      links.get(b).set(a, d);
+    }
+  }
+  const dist = new Map();
+  const heap = [];
+  const push = (k, d) => {
+    heap.push([d, k]);
+    for (let i = heap.length - 1; i > 0;) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ;) {
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  for (const k of seeds) if (at.has(k) && !dist.has(k)) { dist.set(k, 0); push(k, 0); }
+  while (heap.length) {
+    const [d, k] = pop();
+    if (d > dist.get(k) || d > limit) continue;
+    for (const [n, len] of links.get(k) || []) {
+      const nd = d + len;
+      if (nd < (dist.get(n) ?? Infinity)) { dist.set(n, nd); push(n, nd); }
+    }
+  }
+  return { dist, at };
+}
+
+// A limb in one part (Uggeðla's arms): its centre line from the seam where it meets the body out to
+// its far tip, as the middles of bands of equal distance over its surface from the seam. The two
+// corners of that line, where it bends most, are the elbow and the wrist.
+function limbLine(part, keyOf, seamKeys, bands = 24) {
+  const { dist, at } = surfaceDistances(part, keyOf, seamKeys);
+  let tipKey = null;
+  for (const [k, d] of dist) if (tipKey === null || d > dist.get(tipKey)) tipKey = k;
+  const far = dist.get(tipKey);
+  const sums = Array.from({ length: bands }, () => ({ p: V(), n: 0 }));
+  for (const [k, d] of dist) {
+    const b = Math.min(bands - 1, Math.floor((d / far) * bands));
+    sums[b].p.add(at.get(k));
+    sums[b].n++;
+  }
+  const line = sums.map((s, b) => ({ p: s.n ? s.p.divideScalar(s.n) : null, b })).filter(s => s.p);
+  const tip = at.get(tipKey).clone();
+  // The point of line[from..to) furthest from the straight way between a and b.
+  const corner = (from, to, a, b) => {
+    let best = null, most = -1;
+    const seg = new THREE.Line3(a, b);
+    for (let i = from; i < to; i++) {
+      const d = seg.closestPointToPoint(line[i].p, true, V()).distanceTo(line[i].p);
+      if (d > most) { most = d; best = i; }
+    }
+    return { i: best, d: most };
+  };
+  const start = line[0].p;
+  const first = corner(1, line.length - 1, start, tip);
+  const before = corner(1, first.i, start, line[first.i].p);
+  const after = corner(first.i + 1, line.length - 1, line[first.i].p, tip);
+  const second = before.i !== null && (after.i === null || before.d > after.d) ? before : after;
+  const [e, w] = [first.i, second.i].sort((x, y) => x - y);
+  // How far over the surface from the seam the elbow lies: the forearm and hand are beyond it.
+  const elbowD = ((line[e].b + 0.5) / bands) * far;
+  return { tip, elbow: line[e].p.clone(), wrist: line[w].p.clone(), dist, elbowD };
 }
 
 // Appends copies of a part's vertices (position, normal, uv) and returns their indices.
@@ -255,7 +360,9 @@ try {
   const ground = parts.filter(p => p.box.min.y < box.min.y + 0.02 * H);
   const feetParts = [...ground].sort((a, b) => b.count - a.count).slice(0, 2);
   const others = parts.filter(p => !ground.includes(p));
-  const thighParts = feetParts.map(f => others.reduce((a, b) => (touch(b, f) > touch(a, f) ? b : a)));
+  // A foot part that reaches up past a third of the height is a whole leg, hip to toes (Uggeðla's).
+  const wholeLeg = f => f.box.max.y > box.min.y + 0.35 * H;
+  const thighParts = feetParts.map(f => (wholeLeg(f) ? f : others.reduce((a, b) => (touch(b, f) > touch(a, f) ? b : a))));
   if (feetParts.length !== 2 || thighParts[0] === thighParts[1]) throw new Error('could not find two legs');
   if (!params.has('yaw')) {
     const across = V();
@@ -290,7 +397,7 @@ try {
   // The soles: what lies within a couple of centimetres of the ground is put on it, so both feet
   // stand flat (Tripo leaves one a centimetre up) and the engine finds the toes' ground contact.
   const SOLE = 0.008 * H;
-  for (const p of parts.filter(q => kind.get(q)?.startsWith('foot'))) {
+  for (const p of parts.filter(q => kind.get(q)?.startsWith('foot') || (ground.includes(q) && kind.get(q)?.startsWith('thigh')))) {
     const pos = p.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) if (pos.getY(i) < box.min.y + SOLE) pos.setY(i, box.min.y);
     pos.needsUpdate = true;
@@ -315,29 +422,111 @@ try {
   // Arms: what hangs in front of the chest below the neck; each side's pieces chained by their seams.
   const arms = {};
   for (const p of free()) {
-    if (p.c.x > legs.Left.thigh.box.max.x && p.box.min.y > 0.25 * H && p.c.y < body.c.y && Math.abs(p.c.z) > 0.04 * H) {
+    if (p.c.x > legs.Left.thigh.box.max.x && p.box.min.y > 0.15 * H && p.c.y < body.c.y && Math.abs(p.c.z) > 0.04 * H) {
       const side = sideOf(p);
       (arms[side] ||= []).push(p);
       kind.set(p, `arm ${side}`);
     }
   }
+  // A sail on the back (Uggeðla's): a thin, tall part above the middle of the body that meets it. It
+  // follows the spine below it, by where it lies along the body.
+  for (const p of free()) if (p.c.y > body.c.y && p.size.z < 0.4 * p.size.y && touch(p, body)) kind.set(p, 'sail');
   // What is left between the body and the head (the throat) follows the spine.
   for (const p of free()) kind.set(p, 'neck');
   parts.forEach(p => log(`${p.name}: ${kind.get(p)}, centre ${fmt(p.c)}, size ${fmt(p.size)}`));
   if (!arms.Left || !arms.Right) throw new Error('could not find both arms');
 
+  // One key per position: the copies of a vertex (UV seams, seams between parts) share it.
+  const qk = 1e-6 * LENGTH;
+  const wkey = p => `${Math.round(p.x / qk)},${Math.round(p.y / qk)},${Math.round(p.z / qk)}`;
+
+  // --- the neck and head turned to face forward ---------------------------------------------------
+  // Tripo may turn the neck and head aside (Uggeðla looks 16 degrees to her left). A character's head
+  // should face where she does at rest (the actor looks and talks about the head's rest direction), so
+  // the head turns back about the vertical through the root of the neck, where the head's own axis (the
+  // main axis of its points across the ground: the head is symmetric about the vertical plane through
+  // it) crosses the midline. Down the neck the turn fades out, by the distance from the head's seam
+  // over the body's surface. The copies of a position turn alike, so no seam opens; a part that meets
+  // the body there (an arm) turns whole as much as its seam does on average.
+  let straightened = null;
+  const headAxis = () => {
+    const c = centroid(head.points.map(p => p.clone()));
+    let xx = 0, xz = 0, zz = 0;
+    for (const p of head.points) { const x = p.x - c.x, z = p.z - c.z; xx += x * x; xz += x * z; zz += z * z; }
+    return { c, angle: 0.5 * Math.atan2(2 * xz, xx - zz) }; // the axis's heading: atan2(z, x) toward the snout
+  };
+  if (AHEAD && Math.abs(headAxis().angle) > 1e-3) {
+    const headKeys = new Set(head.points.map(wkey));
+    const seamKeys = new Set(body.points.map(wkey).filter(k => headKeys.has(k)));
+    const seam = centroid(body.points.filter(p => seamKeys.has(wkey(p))));
+    const { c, angle } = headAxis();
+    const pivot = V(c.x - c.z / Math.tan(angle), 0, 0);
+    const band = Math.hypot(seam.x - pivot.x, seam.z);
+    const { dist } = surfaceDistances(body, wkey, seamKeys, band);
+    const share = new Map([...dist].map(([k, d]) => [k, ss(0, 1, 1 - d / band)]));
+    for (const k of headKeys) share.set(k, 1);
+    const whole = part => {
+      if (!kind.get(part)?.startsWith('arm')) return 0;
+      const own = part.points.map(wkey).filter(k => share.has(k));
+      return own.length ? own.reduce((sum, k) => sum + share.get(k), 0) / own.length : 0;
+    };
+    const turn = new THREE.Quaternion(), up = V(0, 1, 0), n = V();
+    for (const part of parts) {
+      const pos = part.geometry.attributes.position, nrm = part.geometry.attributes.normal;
+      const rest = whole(part);
+      part.points.forEach((p, i) => {
+        const s = share.get(wkey(p)) ?? rest;
+        if (s <= 0) return;
+        turn.setFromAxisAngle(up, s * angle);
+        const q = p.clone().sub(pivot).applyQuaternion(turn).add(pivot);
+        pos.setXYZ(i, q.x, q.y, q.z);
+        if (nrm) { n.fromBufferAttribute(nrm, i).applyQuaternion(turn); nrm.setXYZ(i, n.x, n.y, n.z); }
+      });
+      pos.needsUpdate = true;
+      if (nrm) nrm.needsUpdate = true;
+    }
+    remeasure();
+    // The snout now reaches a little further forward: the whole model is scaled back to its length.
+    const fix = LENGTH / (box.max.x - box.min.x);
+    geoms.forEach(g => g.applyMatrix4(new THREE.Matrix4().makeScale(fix, fix, fix)));
+    remeasure();
+    H = box.max.y - box.min.y;
+    straightened = { degrees: +THREE.MathUtils.radToDeg(angle).toFixed(1), pivot: +pivot.x.toFixed(3), band: +band.toFixed(3), rescale: +fix.toFixed(4) };
+    log(`straightened the neck and head ${straightened.degrees} deg about x ${straightened.pivot}, fading over ${straightened.band} m down the neck`);
+  }
+
+  // --- welded vertices: one key per position, so the seams between parts can be found ------------
+  const keyParts = new Map();
+  for (const part of parts) {
+    part.keys = part.points.map(wkey);
+    part.keys.forEach(k => { if (!keyParts.has(k)) keyParts.set(k, new Set()); keyParts.get(k).add(part.index); });
+  }
+  const seamPoints = (a, b) => a.points.filter((p, i) => keyParts.get(a.keys[i]).has(b.index));
+
   // --- joints ------------------------------------------------------------------------------------
   const J = { root: V() };
   const legInfo = {};
+  // Standing in mid-stride (Uggeðla), the feet are far apart along the body.
+  const stride = Math.abs(legs.Left.foot.c.x - legs.Right.foot.c.x) > 0.04 * LENGTH;
   for (const side of ['Left', 'Right']) {
     const leg = legs[side];
-    const points = [leg.foot, leg.thigh, ...leg.claws].flatMap(p => p.points);
+    const points = [...new Set([leg.foot, leg.thigh, ...leg.claws])].flatMap(p => p.points);
     const top = leg.thigh.box.max.y;
     const curve = slices(points, 'y', 0.04 * top, top, 0.025 * top, 0.02 * top);
     const band = (lo, hi) => curve.filter(s => s.v >= lo * top && s.v <= hi * top);
     // Heel (ankle): the back-most point of the leg's centre line low down; knee: the front-most above it.
-    const heel = band(0.12, 0.42).reduce((a, b) => (b.c.x < a.c.x ? b : a));
-    const knee = band(0.45, 0.72).reduce((a, b) => (b.c.x > a.c.x ? b : a));
+    let heel = band(0.12, 0.42).reduce((a, b) => (b.c.x < a.c.x ? b : a));
+    let knee = band(0.45, 0.72).reduce((a, b) => (b.c.x > a.c.x ? b : a));
+    if (leg.foot === leg.thigh) {
+      // A leg of one part: the thigh's bulk crowds the centre line around the knee. The heel is the
+      // middle of the stretch where the line runs furthest back; the knee the top of the shin, where the
+      // line, going up from the heel, stops leaning forward.
+      const back = band(0.12, 0.42).filter(s => s.c.x < heel.c.x + 0.01 * top);
+      heel = { v: back.reduce((sum, s) => sum + s.v, 0) / back.length, c: centroid(back.map(s => s.c.clone())) };
+      const up = curve.filter(s => s.v > heel.v && s.v <= 0.75 * top);
+      const i = up.findIndex((s, j) => j > 0 && (s.c.x - up[j - 1].c.x) / (s.v - up[j - 1].v) < 0.25);
+      knee = { v: 0, c: i > 0 ? up[i - 1].c.clone().lerp(up[i].c, 0.5) : knee.c };
+    }
     const hip = along(curve, 0.86 * top);
     // The ball of the foot: the front end of the metatarsus, a little above the toe pads, where the
     // foot's lowest band of points (the pads) has its middle.
@@ -352,13 +541,14 @@ try {
     J[`${side}Foot`] = heel.c.clone();
     legInfo[side] = { ball, toe, padMin, padMax, top };
   }
-  // Mirror the joints across the midline so the two legs match exactly (the clips rely on it).
+  // Mirror the joints across the midline so the two legs match exactly (the clips rely on it). In
+  // mid-stride only the hips are: each leg keeps its own knee, heel and ball.
   const mirror = (l, r, set) => {
     const m = V((l.x + r.x) / 2, (l.y + r.y) / 2, (r.z - l.z) / 2);
     set(V(m.x, m.y, -m.z), V(m.x, m.y, m.z));
   };
-  for (const n of ['Thigh', 'Shin', 'Foot']) mirror(J[`Left${n}`], J[`Right${n}`], (l, r) => { J[`Left${n}`] = l; J[`Right${n}`] = r; });
-  mirror(legInfo.Left.ball, legInfo.Right.ball, (l, r) => { legInfo.Left.ball = l; legInfo.Right.ball = r; });
+  for (const n of stride ? ['Thigh'] : ['Thigh', 'Shin', 'Foot']) mirror(J[`Left${n}`], J[`Right${n}`], (l, r) => { J[`Left${n}`] = l; J[`Right${n}`] = r; });
+  if (!stride) mirror(legInfo.Left.ball, legInfo.Right.ball, (l, r) => { legInfo.Left.ball = l; legInfo.Right.ball = r; });
 
   // Spine: the middle of the body's cross-sections along X (half-way between belly and back).
   const spinePoints = [body, tail, head, ...parts.filter(p => kind.get(p) === 'neck')].flatMap(p => p.points);
@@ -370,42 +560,53 @@ try {
   const headStart = head.box.min.x;
   J.Spine = spineAt(hipX + 0.35 * (headStart - hipX)).setZ(0);
   J.Chest = spineAt(hipX + 0.68 * (headStart - hipX)).setZ(0);
-  J.Neck = spineAt(headStart).setZ(0);
-  // The head turns about the top of the neck, behind the skull.
-  J.Head = spineAt(headStart + 0.22 * head.size.x).setZ(0);
+  if (NECK !== null) {
+    // The head turns about the top of the neck, the middle of its seam with the body, and rides its
+    // bone whole; the Neck joint is NECK metres further down the neck.
+    const top = centroid(seamPoints(head, body));
+    J.Head = V(top.x, top.y, 0);
+    J.Neck = spineAt(top.x - NECK).setZ(0);
+  } else {
+    J.Neck = spineAt(headStart).setZ(0);
+    // The head turns about the top of the neck, behind the skull.
+    J.Head = spineAt(headStart + 0.22 * head.size.x).setZ(0);
+  }
   // Tail: six joints from the tail's root to near its tip, on the centre line (the tail may curve).
   const tailRoot = hipX - 0.12 * LENGTH;
   const tailEnd = box.min.x + 0.04 * LENGTH;
   for (let i = 0; i < 6; i++) J[`Tail${i + 1}`] = spineAt(tailRoot + (i / 5) * (tailEnd - tailRoot));
 
   // The ball of each foot (where the metatarsus meets the toes) and the toes' ground contact, the
-  // front of the pads, the same on both feet: the Foot bone carries both; a heel peels about the toes.
+  // front of the pads, the same on both feet (each foot's own in mid-stride): the Foot bone carries
+  // both; a heel peels about the toes.
   const toeX = (legInfo.Left.padMax + legInfo.Right.padMax) / 2;
   const balls = {}, toes = {};
   for (const side of ['Left', 'Right']) {
     balls[side] = legInfo[side].ball;
-    toes[side] = V(toeX, 0, balls[side].z);
+    toes[side] = V(stride ? legInfo[side].padMax : toeX, 0, balls[side].z);
   }
-
-  // --- welded vertices: one key per position, so the seams between parts can be found ------------
-  const qk = 1e-6 * LENGTH;
-  const wkey = p => `${Math.round(p.x / qk)},${Math.round(p.y / qk)},${Math.round(p.z / qk)}`;
-  const keyParts = new Map();
-  for (const part of parts) {
-    part.keys = part.points.map(wkey);
-    part.keys.forEach(k => { if (!keyParts.has(k)) keyParts.set(k, new Set()); keyParts.get(k).add(part.index); });
-  }
-  const seamPoints = (a, b) => a.points.filter((p, i) => keyParts.get(a.keys[i]).has(b.index));
 
   // --- arms --------------------------------------------------------------------------------------
   // The piece of an arm that hangs lowest is the forearm with the hand. Tripo may leave one side's
   // upper arm inside the body part, so the joints come from a side whose upper arm is a piece of its
   // own, mirrored to the other side and moved onto that side's forearm.
   const armJoints = {};
+  // Arms of one part each, shoulder to claws (Uggeðla's): each arm's joints are where its centre line
+  // bends, the shoulder a little way in from its seam with the body.
+  const single = ['Left', 'Right'].every(side => arms[side].length === 1 && touch(arms[side][0], body));
   for (const side of ['Left', 'Right']) {
     const hand = arms[side].reduce((a, b) => (b.box.min.y < a.box.min.y ? b : a));
     const upper = arms[side].find(p => p !== hand && touch(p, body));
     armJoints[side] = { hand };
+    if (single) {
+      const limb = limbLine(hand, wkey, new Set(seamPoints(hand, body).map(wkey)));
+      const beyond = p => limb.dist.get(wkey(p)) >= limb.elbowD;
+      Object.assign(armJoints[side], {
+        shoulder: centroid(seamPoints(hand, body)).lerp(centroid(hand.points.filter(p => !beyond(p))), 0.35),
+        elbow: limb.elbow, wrist: limb.wrist, tip: limb.tip, fore: hand.points.filter(beyond),
+      });
+      continue;
+    }
     if (!upper || !touch(upper, hand)) continue;
     const elbow = centroid(seamPoints(upper, hand));
     const tip = hand.points.reduce((far, p) => (p.distanceTo(elbow) > far.distanceTo(elbow) ? p : far));
@@ -426,9 +627,14 @@ try {
     J[`${side}UpperArm`] = a.shoulder;
     J[`${side}LowerArm`] = a.elbow;
     J[`${side}Hand`] = a.wrist;
-    // The arm's thickness: how far the forearm's points lie from the elbow-to-tip line.
+    // The arm's thickness: how far the forearm's points lie from the elbow-to-tip line (from the
+    // forearm and the hand of an arm of one part).
     const line = new THREE.Line3(a.elbow, a.tip);
-    const dists = a.hand.points.map(p => line.closestPointToPoint(p, true, V()).distanceTo(p)).sort((x, y) => x - y);
+    const fore = new THREE.Line3(a.elbow, a.wrist), hand = new THREE.Line3(a.wrist, a.tip);
+    const away = a.fore
+      ? p => Math.min(fore.closestPointToPoint(p, true, V()).distanceTo(p), hand.closestPointToPoint(p, true, V()).distanceTo(p))
+      : p => line.closestPointToPoint(p, true, V()).distanceTo(p);
+    const dists = (a.fore || a.hand.points).map(away).sort((x, y) => x - y);
     a.radius = dists[Math.floor(dists.length * 0.9)];
   }
 
@@ -591,6 +797,8 @@ try {
     const p = part.points[i];
     let [type, side] = kind.get(part).split(' ');
     if (type === 'jaw' || type === 'head') type = jaw && mouthSide(part, i) === 'jaw' ? 'jaw' : 'head';
+    // A head that rides its bone whole (neck=): the snout stays rigid however the neck bends.
+    if (type === 'head' && NECK !== null) { add(w, 'Head', 1); return w; }
     if (type === 'thigh' || type === 'foot') { legWeights(side, p, w); return w; }
     if (type === 'arm') {
       const share = armShare(side, p, true);
@@ -598,6 +806,9 @@ try {
       armWeights(side, p, w, share);
       return w;
     }
+    // A sail rides the back below it (the tail's root, the hips, spine and chest), never the neck: its
+    // front, over the neck's root, takes the chest's weights.
+    if (type === 'sail') { spineWeights(Math.min(p.x, J.Chest.x), w); return w; }
     // Body, neck, head, jaw, tail: the spine chain; an arm's upper part inside the body follows it.
     const near = p.z < 0 ? 'Left' : 'Right';
     const share = type === 'body' || type === 'neck' ? armShare(near, p, false) : 0;
@@ -638,10 +849,14 @@ try {
     }
   }
   const SMOOTH = Number(params.get('smooth') || 8);
-  let current = idWeights;
+  // A head that rides its bone whole (neck=) keeps its weights: the neck's bend fades out on the body's
+  // side of the seam, so the jaw by the mouth's corner, close to the throat, never parts from the lip.
+  const rigid = NECK !== null ? new Set(head.ids) : null;
+  let current = rigid ? idWeights.map((w, id) => (rigid.has(id) ? new Map([['Head', 1]]) : w)) : idWeights;
   for (let round = 0; round < SMOOTH; round++) {
     const before = current;
     current = before.map((w, id) => {
+      if (rigid?.has(id)) return w;
       const out = new Map();
       for (const [bone, v] of w) out.set(bone, 0.5 * v);
       const share = 0.5 / Math.max(1, neighbours[id].size);
@@ -891,12 +1106,18 @@ try {
     bend = yawNow;
   }
   const gait = { stride: Number(params.get('stride') || 2.8), cycle: Number(params.get('cycle') || 2.5), duty: Number(params.get('duty') || 0.62) };
-  const { clips, report: clipReport } = authorClips({ bones, joints: J, toes, height: H, tailRest, walk: gait });
+  const snout = head.points.reduce((a, b) => (b.x > a.x ? b : a)).clone();
+  const sail = parts.some(p => kind.get(p) === 'sail');
+  const { clips, report: clipReport } = authorClips({ bones, joints: J, toes, height: H, snout, sail, tailRest, walk: gait, clips: CLIPS });
   const report = {
     name: NAME, length: +LENGTH.toFixed(3), height: +H.toFixed(3), triangles: geometry.index.count / 3,
     vertices: geometry.attributes.position.count, bones: names.length, mouth: mouthInfo,
     clips: clips.map(c => `${c.name} ${c.duration.toFixed(2)} s`), walk: clipReport.walk, stretch: clipReport.stretch,
     tailRest: Object.fromEntries(Object.entries(tailRest).map(([k, v]) => [k, +v.toFixed(1)])),
+    ...(clipReport.wade ? { wade: clipReport.wade } : {}),
+    ...(straightened ? { straightened } : {}),
+    ...(stride ? { stride: true } : {}),
+    ...(sail ? { sail: true } : {}),
   };
   window.__bakeReport = report;
   log(JSON.stringify(report));

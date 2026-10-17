@@ -34,7 +34,12 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
 // only those exactly on it), channel (1: for a long beak, the pocket's fold runs along the middle of the
 // beak under the lips, a long channel, instead of reaching back into the head from the front of the
-// mouth), preview (1: show the result open instead of exporting).
+// mouth), corners (1: a triangle goes to the side its corners off the line are on, and only one with
+// all three on the line by its middle; by its middle alone, a long thin triangle lying along the line
+// can land on the wrong side and stretch across the open mouth, as on Uggeðla's long snout), fold
+// (back,down: how far behind and below the lips the channel's fold lies, as shares of the mouth's
+// length, 0.02,0.03; a rounded snout tip wants it higher, or it shows through the chin with the mouth
+// shut: Uggeðla 0.04,0.01), preview (1: show the result open instead of exporting).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
@@ -48,6 +53,8 @@ const TEX = Number(params.get('tex') || 1024);
 const SMOOTH = Number(params.get('smooth') || 6);
 const SNAP = Number(params.get('snap') || 0);
 const CHANNEL = params.get('channel') === '1';
+const CORNERS = params.get('corners') === '1';
+const FOLD = (params.get('fold') || '0.02,0.03').split(',').map(Number);
 const PREVIEW = params.get('preview') === '1';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -209,8 +216,10 @@ try {
     const pab = split(a, b), pac = split(a, c);
     out.push([a, pab, pac], [pab, b, c], [pab, c, pac]);
   }
-  // Which side each triangle is on: by its centroid's phi.
+  // Which side each triangle is on: by its centroid's phi (with `corners`, by its corners off the line).
   const triSide = tri => {
+    const off = CORNERS ? tri.map(i => phis[i]).find(x => x !== 0) : undefined;
+    if (off !== undefined) return off < 0 ? 'jaw' : 'head';
     const q = frame(point(tri[0]).add(point(tri[1])).add(point(tri[2])).divideScalar(3));
     return phi(q) < 0 ? 'jaw' : 'head';
   };
@@ -383,7 +392,7 @@ try {
     const depth = 0.85 * Math.max(0, Math.sin((Math.PI * j) / (m - 1))) ** 0.6;
     // A long beak's channel: in from the lip to the middle of the beak at the same place along it, a little
     // lower; it closes at the corners, as the deep pocket does.
-    if (CHANNEL) return { f: q.f - 0.02 * span * depth, u: q.u - 0.03 * span * depth, l: q.l * (1 - depth) };
+    if (CHANNEL) return { f: q.f - FOLD[0] * span * depth, u: q.u - FOLD[1] * span * depth, l: q.l * (1 - depth) };
     return { f: THREE.MathUtils.lerp(q.f, backF, depth), u: THREE.MathUtils.lerp(q.u, meanU - 0.05 * span, depth), l: q.l * (1 - 0.7 * depth) };
   });
   const innerUpper = upperW.map((_, j) => { const w = nearby(upperW, j, 3); return blend(w, w.map(() => 1 / w.length)); });

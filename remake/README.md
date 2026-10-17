@@ -40,7 +40,7 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `audio-lines.mjs`,
   and for new Tripo characters `blender-decimate.py`, the bake tool in `bake/` (`bake-character.mjs`
   runs `bake-biped` for two-legged characters, `bake-tailed-biped` for tailed ones such as
-  Grameðla and `bake-quadruped` for four-legged ones such as Kambeðla, with `kind=sauropod` for
+  Grameðla and Uggeðla and `bake-quadruped` for four-legged ones such as Kambeðla, with `kind=sauropod` for
   long-necked ones such as Þórseðla, `kind=pterosaur` for winged ones such as Flugeðla and
   `kind=hadrosaur` for crested ones such as Slóeðla), the
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
@@ -54,7 +54,8 @@ A chapter exports `chapter` with `layout` (for the forest), `actors`, `cast`, `l
 `script`. Shots are data: `{ position, target, fov }` or `{ position, frame: { subject, screen: [u, v] }, fov }`.
 Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.head'`, `'camera'`
 or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
-`walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts.
+`walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts, and walks
+with the `walk` clip or another walking clip (`{ clip: 'wade' }`: Uggeðla wading in shallow water).
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:

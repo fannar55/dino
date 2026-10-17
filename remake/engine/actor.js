@@ -180,7 +180,13 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const mixer = new THREE.AnimationMixer(model);
   const clips = new Map(gltf.animations.map(c => [c.name, c]));
   let current = null;
-  let gait; // measured the first time the actor walks
+  let gait; // the walk clip's, measured the first time the actor walks
+  const gaits = new Map(); // the gait of each clip walked with (walk, or Uggeðla's wade)
+  const gaitOf = clipName => {
+    if (!gaits.has(clipName)) gaits.set(clipName, measureGait(model, root, clips.get(clipName), feet, restFeet, footing.tuning));
+    if (clipName === 'walk') gait = gaits.get(clipName);
+    return gaits.get(clipName);
+  };
 
   // A clip that goes somewhere and stays (Þórseðla's lowerHead and liftUp carry `once` in their
   // extras) plays once and holds its last pose; every other clip loops.
@@ -203,10 +209,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     return action;
   }
 
-  // The walk clip's own foot k (model frame) where `action` is now in the cycle.
-  function gaitFoot(action, k, out) {
-    const track = gait.feet[k];
-    const u = ((((action.time / gait.cycle) % 1) + 1) % 1) * (track.length - 1);
+  // The walking clip's own foot k (model frame) where `action` is now in the cycle of gait g.
+  function gaitFoot(g, action, k, out) {
+    const track = g.feet[k];
+    const u = ((((action.time / g.cycle) % 1) + 1) % 1) * (track.length - 1);
     const i = Math.min(track.length - 2, Math.floor(u));
     return out.lerpVectors(track[i], track[i + 1], u - i);
   }
@@ -266,9 +272,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   /**
    * Walk through points along a smooth curve; the handle finishes on arrival. A point is [x, z] or a
    * point spec (points.js: [x, y, z], 'mosi.head', { actor, part, offset, local }), taken where it is
-   * when the walk starts.
+   * when the walk starts. `clip` is the cycle walked with: 'walk', or another walking clip with its own
+   * matched speed (Uggeðla's 'wade', slow steps through shallow water).
    */
-  function walkTo(points, { speed = 0.7, arrive: arriveClip = 'idle', fade = 0.5, turnRate = 70 } = {}) {
+  function walkTo(points, { speed = 0.7, arrive: arriveClip = 'idle', fade = 0.5, turnRate = 70, clip: cycle = 'walk' } = {}) {
     const list = Array.isArray(points) && points.length && typeof points[0] !== 'number' ? points : [points];
     const pts = [new THREE.Vector3(root.position.x, 0, root.position.z)];
     for (const spec of list) {
@@ -286,19 +293,19 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     handle.onCancel = () => { if (walk?.handle === handle) { const w = walk; walk = null; arrive(w); } };
     const curve = pts.length > 2 ? new THREE.CatmullRomCurve3(pts, false, 'centripetal') : new THREE.LineCurve3(pts[0], pts[1]);
     const length = curve.getLength();
-    if (gait === undefined) gait = measureGait(model, root, clips.get('walk'), feet, restFeet, footing.tuning);
-    const baseScale = gait ? clamp(speed / gait.naturalSpeed, 0.5, 3) : 1;
-    const walking = current?.getClip() === clips.get('walk');
-    const action = play('walk', { fade, timeScale: baseScale });
-    if (action && gait && !walking) {
+    const g = gaitOf(cycle);
+    const baseScale = g ? clamp(speed / g.naturalSpeed, 0.5, 3) : 1;
+    const walking = current?.getClip() === clips.get(cycle);
+    const action = play(cycle, { fade, timeScale: baseScale });
+    if (action && g && !walking) {
       // The clip advances in step with the distance walked, so starting it at the right point of
       // the cycle makes the walk end where the feet stand well (gait.stopPhase).
-      const cycles = (baseScale / speed) * length / gait.cycle;
-      action.time = ((((gait.stopPhase - cycles) % 1) + 1) % 1) * gait.cycle;
+      const cycles = (baseScale / speed) * length / g.cycle;
+      action.time = ((((g.stopPhase - cycles) % 1) + 1) % 1) * g.cycle;
     }
-    footing.walk(action && gait ? {
-      foot: (k, out) => gaitFoot(action, k, out),
-      stance: () => (gait.duty * gait.cycle) / Math.max(0.05, action.getEffectiveTimeScale()),
+    footing.walk(action && g ? {
+      foot: (k, out) => gaitFoot(g, action, k, out),
+      stance: () => (g.duty * g.cycle) / Math.max(0.05, action.getEffectiveTimeScale()),
     } : null);
     walk = { curve, length, s: 0, t: 0, speed, baseScale, handle, arrive: arriveClip, fade, turnRate, action };
     return handle;
