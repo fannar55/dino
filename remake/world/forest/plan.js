@@ -8,8 +8,10 @@
 //     subject (actors) and its centre; trees may frame the edges of the frame,
 //   - nothing grows where an actor stands,
 //   - big crowns stay out of the sun corridor so the clearing keeps its light.
+// A fern glade (layout.glade, config.js) grows a lusher rim of ferns round its clearing. The shots and the actors are the
+// layout's own when it carries `shots` and `actors` (a chapter location keeps its own place clear), else the chapter's.
 import * as THREE from 'three';
-import { FOREST, scaled } from './config.js';
+import { FOREST, scaled, gladeOf } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
 import { sunDirection } from '../../engine/lighting.js';
 import { pickLook } from '../../engine/looks.js';
@@ -60,9 +62,14 @@ function actorBox(view, tanH, tanV, x, z, headingRad, box = BODY) {
 // scene's face move (a push from the introduction toward the face) is added as its own shot.
 // Close framings (camera within 12 m of the actor) also keep a deep backdrop behind the head free
 // of crowns, fronds and bushes, so the frill stands against dark trunks, misty depth or sky.
+// The shots are the layout's own when it carries `shots` (a chapter location keeps its own clear, not
+// the other places'), else the chapter's.
+// The actors a place protects are the layout's own `actors` ({ name: { position, heading } }, as in the chapter) when it
+// carries them, since each location of a chapter has its actors in other places, else the chapter's.
+const actorSpecs = (world, layout) => layout.actors ?? world.chapter?.actors ?? {};
 function buildShots(world, layout, terrain, sun) {
   const shots = [];
-  const actors = Object.entries(world.chapter?.actors || {}).map(([name, a]) => ({
+  const actors = Object.entries(actorSpecs(world, layout)).map(([name, a]) => ({
     name, x: (a.position || [0, 0, 0])[0], z: (a.position || [0, 0, 0])[2], heading: THREE.MathUtils.degToRad(a.heading || 0),
   }));
   // the introduction turns Mosi a little toward the camera: protect both headings
@@ -101,7 +108,7 @@ function buildShots(world, layout, terrain, sun) {
     if (kind === 'static' && target[1] < 3) rects.push({ x0: -0.3, x1: 0.3, y0: -0.4, y1: 0.3, depth: targetDist * 0.92 });
     shots.push({ name, pos: cam.position.clone(), view, tanH, tanV, rects, targetDist, kind });
   }
-  for (const [name, s] of Object.entries(world.chapter?.shots || {})) {
+  for (const [name, s] of Object.entries(layout.shots ?? world.chapter?.shots ?? {})) {
     const pos = s.position;
     const tgt = s.target;
     if (Array.isArray(pos)) {
@@ -150,10 +157,15 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   const U = FOREST.understory;
   const S = FOREST.shade;
   const clearance = FOREST.shots.clearance;
+  // A glade with glade.ferns above 1 has a lush rim: more ferns, each bigger (a share more for each fern beyond the first), pushing
+  // the grass aside and free to grow behind a character, which other foliage is not. glade.ferns 1 is the forest as it is.
+  const glade = gladeOf(layout);
+  const lush = glade.ferns > 1;
+  const growth = clamp(1 + FOREST.glade.fernGrowth.perFern * (glade.ferns - 1), 1, FOREST.glade.fernGrowth.max);
   const look = pickLook(world.chapter?.look || 'morning');
   const sun = sunDirection(look);
   const shots = buildShots(world, layout, terrain, sun);
-  const actors = Object.values(world.chapter?.actors || {}).map(a => ({ x: (a.position || [0, 0, 0])[0], z: (a.position || [0, 0, 0])[2] }));
+  const actors = Object.values(actorSpecs(world, layout)).map(a => ({ x: (a.position || [0, 0, 0])[0], z: (a.position || [0, 0, 0])[2] }));
   const sunSamples = [];
   for (const [dx, dz] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3], [2.2, 2.2], [-2.2, 2.2], [2.2, -2.2], [-2.2, -2.2]]) sunSamples.push(new THREE.Vector3(cx + dx, 1.2, cz + dz));
 
@@ -309,7 +321,9 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const y = terrain.heightAt(x, z) - (opts.sink ?? model.sink ?? 0) * scale;
     const rot = opts.rot ?? 0;
     const list = opts.spheres ? opts.spheres(y) : spheres(model, x, y, z, rot, scale, tall);
-    if (opts.backdrop || FOLIAGE.has(name)) for (const sp of list) { sp.crown = true; sp.frond = FOLIAGE.has(name); } // kept out from behind close-ups
+    // kept out from behind close-ups, but not the rim ferns of a lush glade: they are the glade, and so low that they hide nothing behind a character
+    const rimFern = lush && name === 'fern' && r < edgeR + B.edgeOuter;
+    if ((opts.backdrop || FOLIAGE.has(name)) && !rimFern) for (const sp of list) { sp.crown = true; sp.frond = FOLIAGE.has(name); }
     if (!opts.skipShots) {
       const blocked = shotBlocked(list, opts.edgeShot);
       if (blocked) { stats.rejected.shot++; const k = blocked.split("@")[0] + (tall ? ":tall" : ""); stats.byShot[k] = (stats.byShot[k] || 0) + 1; return null; }
@@ -535,7 +549,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   scatterKind('bush', 'bushes', scaled(U.bushes, q.plants), edgeR - 1.5, edgeR + 10, { spacing: 1.0, nearTrunk: 0.45, soft: 0.8, blocksGrass: true, grassRadius: 0.7, face: true });
 
   // ---- 6. ferns: thick at the edge, along the forest path, sparse inside ----------------------
-  scatterKind('fern', 'ferns-edge', scaled(Math.round(U.ferns * 0.55), q.plants), edgeR - 2.5, edgeR + 6, { spacing: 0.75, soft: 0.6, nearTrunk: 0.35, scale: [0.8, 1.3], pathClear: P.plantClear });
+  scatterKind('fern', 'ferns-edge', scaled(Math.round(U.ferns * 0.55) * glade.ferns, q.plants), edgeR - 2.5, edgeR + 6, { spacing: 0.75, soft: 0.6, nearTrunk: 0.35, scale: [0.8 * growth, 1.3 * growth], pathClear: P.plantClear, blocksGrass: lush });
   scatterKind('fern', 'ferns-inner', scaled(Math.round(U.ferns * 0.3), q.plants), edgeR + 6, edgeR + 22, { spacing: 0.8, soft: 0.6, nearTrunk: 0.5, scale: [0.9, 1.4] });
   {
     // ferns lining the forest path
@@ -611,13 +625,13 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const p = tryPlace('flowers', x, z, { variant: rng.int(0, T.variants.flowers - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.9, 1.2), pathClear: P.plantClear, spacing: 2.2, actorClear: 2.6, phase: rng.next() });
       if (p) placed++;
     }
-    const ferns = scaled(FOREST.clearing.ferns, q.plants);
+    const ferns = scaled(FOREST.clearing.ferns * glade.ferns, q.plants); // a glade grows more
     placed = 0;
     for (let i = 0; i < ferns * 30 && placed < ferns; i++) {
       const a = rng.angle();
       const rr = rng.range(clearR - 0.5, edgeR - 1.5);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
-      const p = tryPlace('fern', x, z, { variant: rng.int(0, T.variants.fern - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.7, 1.0), pathClear: P.plantClear, spacing: 0.9, soft: 0.6, phase: rng.next() });
+      const p = tryPlace('fern', x, z, { variant: rng.int(0, T.variants.fern - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.7, 1.0) * growth, pathClear: P.plantClear, spacing: 0.9, soft: 0.6, phase: rng.next(), blocksGrass: lush });
       if (p) placed++;
     }
   }

@@ -12,8 +12,40 @@
 <canvas id="view" aria-label="Leikurinn"></canvas>
 <div id="caption" class="caption" hidden><span class="caption-speaker"></span><p class="caption-text"></p></div>
 <div id="choices" class="choices" hidden></div>
+<div id="tray" class="tray" hidden></div>
 <div id="fade" class="fade"></div>
+<div id="loading" class="loading" aria-hidden="true" hidden></div>
 <button id="start" class="start" type="button" hidden>Byrja</button>
+<button id="journal-button" class="journal-button" type="button" aria-label="Landkönnuðabók Egils" hidden>
+  <svg class="journal-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <rect x="9" y="5" width="31" height="38" rx="5" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.5"/>
+    <path d="M9 10a5 5 0 0 1 5-5h4v38h-4a5 5 0 0 1-5-5z" fill="#c9622b" stroke="#3b2f25" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M28 13.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M32 43v-9h7v9l-3.5-2.4z" fill="#2f8f86" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+  <span id="star-slots" class="star-slots" aria-hidden="true"></span>
+  <span id="finding-count" class="finding-count" hidden>0</span>
+</button>
+<div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
+<div id="journal-page" class="journal-page" role="dialog" aria-modal="true" aria-labelledby="journal-title" hidden>
+  <div class="journal-card">
+    <header class="journal-head">
+      <h2 id="journal-title">Landkönnuðabók Egils</h2>
+      <button id="journal-close" class="journal-close" type="button" aria-label="Loka">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+    <section class="journal-section">
+      <h3>Stjörnur</h3>
+      <ol id="journal-stars" class="journal-stars"></ol>
+    </section>
+    <section class="journal-section">
+      <h3>Fundið</h3>
+      <ul id="journal-finds" class="journal-finds"></ul>
+      <p id="journal-empty" class="journal-empty">Pikkaðu á smádýrin í skóginum!</p>
+    </section>
+  </div>
+</div>
 <div id="debug" class="debug" hidden></div>
 <script type="module" src="./main.js"></script>
 </body>

@@ -1498,5 +1498,200 @@
   "src": "../dist/assets/audio/adventure_ptera_choice_fish.mp3",
   "duration": 1.53,
   "mouth": "00ef9007ffd90000000000000000000"
+ },
+ "k1_mosi_hum": {
+  "src": "assets/audio/kafli1/k1_mosi_hum.mp3",
+  "duration": 6.97,
+  "mouth": "0dffffedccba970009c0049000cdddcb9764000000ceddddca8000adddb0003deecba8740000000000000000000000afffeda6000dd000aeddc975400000000efffdcb900000"
+ },
+ "k1_mosi_waving": {
+  "src": "assets/audio/kafli1/k1_mosi_waving.mp3",
+  "duration": 2.17,
+  "mouth": "0deddedcff7608db7dd82bd80dfeebbba8dec4000000"
+ },
+ "k1_mosi_tickle": {
+  "src": "assets/audio/kafli1/k1_mosi_tickle.mp3",
+  "duration": 2.33,
+  "mouth": "004dfca620cdcbb9990000dfe4053fc0006bdc930000000"
+ },
+ "k1_mosi_sneeze": {
+  "src": "assets/audio/kafli1/k1_mosi_sneeze.mp3",
+  "duration": 2.65,
+  "mouth": "0deec000000000000eed9000000000009fe90005ceffda6000000"
+ },
+ "k1_mosi_festival": {
+  "src": "assets/audio/kafli1/k1_mosi_festival.mp3",
+  "duration": 7.53,
+  "mouth": "00df907a48eee95dda4000000000000ad0a28ffcb00073be804ee300bb55007b500dfa74da666fffda33500000000000000ceeedc7efb60cdcbda00000bfca0bffeeb38cba7770000000000"
+ },
+ "k1_mosi_friends": {
+  "src": "assets/audio/kafli1/k1_mosi_friends.mp3",
+  "duration": 5.53,
+  "mouth": "0bed04cfc9efffedeeeddb403bffedcc5000000000d963efeccbcdc0000046feffc9ffedeb0dc300cdcb68b75005dc8400a800000400000"
+ },
+ "k1_mosi_help": {
+  "src": "assets/audio/kafli1/k1_mosi_help.mp3",
+  "duration": 5.21,
+  "mouth": "00afffe0ae98deff5afdb99c2add68c004accb7000efdaaacdb77bccbcdc00bb900000000000000000ec0d88c430cdda600000000"
+ },
+ "k1_egill_yes": {
+  "src": "assets/audio/kafli1/k1_egill_yes.mp3",
+  "duration": 1.77,
+  "mouth": "00bffefd800bced6000cefeea73000000000"
+ },
+ "k1_egill_what": {
+  "src": "assets/audio/kafli1/k1_egill_what.mp3",
+  "duration": 2.01,
+  "mouth": "006fffa68300008bbb00077404000000000000000"
+ },
+ "k1_mosi_explain": {
+  "src": "assets/audio/kafli1/k1_mosi_explain.mp3",
+  "duration": 10.09,
+  "mouth": "00fffff800ded82009dc8ffc5004dee9760dedcb8bb80000000000000000000000dfcd02dfed00ceffcb66eedd966bdddbb9004ceb9deca4bcccdcbba900ddb4ad80ed940dc6049aa4000000000000bfa0fc4fd303cdddee908eedd8dcaffedcbca6000000"
+ },
+ "k1_mosi_great": {
+  "src": "assets/audio/kafli1/k1_mosi_great.mp3",
+  "duration": 3.77,
+  "mouth": "00affffe03ca600030000000000000000006b8ddbccdee89efceefe39ed900bdd08baa200000"
+ },
+ "k1_mosi_hocus": {
+  "src": "assets/audio/kafli1/k1_mosi_hocus.mp3",
+  "duration": 3.77,
+  "mouth": "00ff70dd20cfe577430000000ddfec009d63000000000bf99a9ed9ca3009ca87000000000000"
+ },
+ "k1_egill_wow": {
+  "src": "assets/audio/kafli1/k1_egill_wow.mp3",
+  "duration": 2.57,
+  "mouth": "00afffffca860000630008c9767403000edc8000000000000000"
+ },
+ "k1_mosi_hold": {
+  "src": "assets/audio/kafli1/k1_mosi_hold.mp3",
+  "duration": 2.57,
+  "mouth": "03ee80ed9fa5dff30000000000003fffb57000dfea6000000000"
+ },
+ "k1_mosi_visit": {
+  "src": "assets/audio/kafli1/k1_mosi_visit.mp3",
+  "duration": 6.57,
+  "mouth": "00ef960000bffe94ae77ddcfa077ddd70dffdeeaeed37eecb9654000000000000efea0c7edfd06ebb807eeffdcca9ab9930baaacedcbcec657843653000000000000"
+ },
+ "k1_mosi_critters": {
+  "src": "assets/audio/kafli1/k1_mosi_critters.mp3",
+  "duration": 8.17,
+  "mouth": "00febbea9ffeccc089ffa9ff6eeffededdeecaab940000000000000af6fb00ec007edc867eeea0bfcdd0bc9ba77ba9a60000000009eedc9dbae9defb0cdd72cdbbcdb037ffedd9dd97bb8797440000000000"
+ },
+ "k1_mosi_beetle": {
+  "src": "assets/audio/kafli1/k1_mosi_beetle.mp3",
+  "duration": 3.61,
+  "mouth": "04cefba8aeff50deb005cea00000000000000000feaaddeefeef77eefffd89dea40000000"
+ },
+ "k1_mosi_frog": {
+  "src": "assets/audio/kafli1/k1_mosi_frog.mp3",
+  "duration": 3.13,
+  "mouth": "03dfa8867008da3500000000bffdbf950bcaabd879ddeeea5db995000000000"
+ },
+ "k1_mosi_snail": {
+  "src": "assets/audio/kafli1/k1_mosi_snail.mp3",
+  "duration": 3.45,
+  "mouth": "00000fffedd90300000000000000aeff400bc9400cc48d40de80b9035000000000000"
+ },
+ "k1_mosi_greet": {
+  "src": "assets/audio/kafli1/k1_mosi_greet.mp3",
+  "duration": 2.01,
+  "mouth": "5efa80cecbaa6000000000dcdfffc860000000000"
+ },
+ "k1_kambedla_hello": {
+  "src": "assets/audio/kafli1/k1_kambedla_hello.mp3",
+  "duration": 4.09,
+  "mouth": "00effc89effffea9207feea0009b40000000000000000000ed9ceecbbbaa9049c8cb97740300000000"
+ },
+ "k1_kambedla_lost": {
+  "src": "assets/audio/kafli1/k1_kambedla_lost.mp3",
+  "duration": 5.37,
+  "mouth": "008e6300ffffd40f705feec600decddba875000000000000000000000005bce800cd8b89bb7008000bb9078887788877640004000000"
+ },
+ "k1_mosi_worry": {
+  "src": "assets/audio/kafli1/k1_mosi_worry.mp3",
+  "duration": 4.49,
+  "mouth": "09ffe45fe90dffdaea00850000000000009ffecb60009ec0de83009abcc60dbffeedc5563decba773000000000"
+ },
+ "k1_mosi_look": {
+  "src": "assets/audio/kafli1/k1_mosi_look.mp3",
+  "duration": 5.21,
+  "mouth": "06efffc30ffffefedb4000ccfc8047b8000000000000000000eeeb88b07dd5becca93000dfedcba8008dbb65fe78cc76300000000"
+ },
+ "k1_mosi_hint_stone": {
+  "src": "assets/audio/kafli1/k1_mosi_hint_stone.mp3",
+  "duration": 2.89,
+  "mouth": "009ff905bed5ea0cfac0dffda500cdc8d5703ebaac900dcdefc8900000"
+ },
+ "k1_mosi_hint_ferns": {
+  "src": "assets/audio/kafli1/k1_mosi_hint_ferns.mp3",
+  "duration": 2.25,
+  "mouth": "009efecdefff7606ccda00dca00a90008eeecb8000000"
+ },
+ "k1_mosi_hint_tree": {
+  "src": "assets/audio/kafli1/k1_mosi_hint_tree.mp3",
+  "duration": 2.01,
+  "mouth": "06fd0000dcbb540eeffe603de704aaadc50000000"
+ },
+ "k1_mosi_one": {
+  "src": "assets/audio/kafli1/k1_mosi_one.mp3",
+  "duration": 1.13,
+  "mouth": "0dffc630000000000000000"
+ },
+ "k1_mosi_two": {
+  "src": "assets/audio/kafli1/k1_mosi_two.mp3",
+  "duration": 1.53,
+  "mouth": "007adeffeefec950000000000000000"
+ },
+ "k1_mosi_three": {
+  "src": "assets/audio/kafli1/k1_mosi_three.mp3",
+  "duration": 2.89,
+  "mouth": "0dfc5008dfda9b98800000000000cb00fda8007ffc05cc400000000000"
+ },
+ "k1_mosi_give": {
+  "src": "assets/audio/kafli1/k1_mosi_give.mp3",
+  "duration": 1.85,
+  "mouth": "00affcc8eeedccdca000bdfffeeedda000000"
+ },
+ "k1_kambedla_mmm1": {
+  "src": "assets/audio/kafli1/k1_kambedla_mmm1.mp3",
+  "duration": 0.97,
+  "mouth": "00cffffedbaa50000000"
+ },
+ "k1_kambedla_mmm2": {
+  "src": "assets/audio/kafli1/k1_kambedla_mmm2.mp3",
+  "duration": 1.29,
+  "mouth": "0defffec975442000000000000"
+ },
+ "k1_kambedla_mmm3": {
+  "src": "assets/audio/kafli1/k1_kambedla_mmm3.mp3",
+  "duration": 1.37,
+  "mouth": "0dfffedba9864000000000000000"
+ },
+ "k1_kambedla_glow": {
+  "src": "assets/audio/kafli1/k1_kambedla_glow.mp3",
+  "duration": 2.65,
+  "mouth": "000deedc900000000000000000effffec500cac50600060000000"
+ },
+ "k1_mosi_invite": {
+  "src": "assets/audio/kafli1/k1_mosi_invite.mp3",
+  "duration": 3.61,
+  "mouth": "7ffebfedc8000000002de38a43eddeddda600ee703deffd0beeeeeec63cbb600000000000"
+ },
+ "k1_kambedla_accept": {
+  "src": "assets/audio/kafli1/k1_kambedla_accept.mp3",
+  "duration": 2.97,
+  "mouth": "9dfcaa83000000000000df00cededb008f500ca008eb7d90069656000000"
+ },
+ "k1_mosi_star": {
+  "src": "assets/audio/kafli1/k1_mosi_star.mp3",
+  "duration": 2.81,
+  "mouth": "003effdeafcaecb90000000000de2000cb000aee900dc900000000000"
+ },
+ "k1_mosi_next": {
+  "src": "assets/audio/kafli1/k1_mosi_next.mp3",
+  "duration": 2.73,
+  "mouth": "0effe0a7ffec84000000000040dc99a04c63ccdc400000000000000"
  }
 }

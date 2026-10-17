@@ -4,7 +4,9 @@
 // the grass draw ranges), plus the forest's own shadow casters for the review-mode shadow focus
 // (10 m around the clearing centre), so "forest" matches the budget's forest share. Fast feedback
 // between browser captures.
-//   node remake/tools/world/forest-stats.mjs [--quality tablet|low|high] [--chapter grunnur]
+//   node remake/tools/world/forest-stats.mjs [--quality tablet|low|high] [--chapter grunnur] [--location <name>]
+// --location measures one place of a chapter that has `locations` (kafli1: --location burknalaut): the forest is built from that
+// location's layout with its own shots, as main.js builds it, and the shots measured are that location's.
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -28,6 +30,18 @@ const { pickLook } = await import(pathToFileURL(path.join(ROOT, 'remake/engine/l
 const { sunDirection } = await import(pathToFileURL(path.join(ROOT, 'remake/engine/lighting.js')).href);
 const { createWind } = await import(pathToFileURL(path.join(ROOT, 'remake/engine/wind.js')).href);
 const { chapter } = await import(pathToFileURL(path.join(ROOT, `remake/chapters/${chapterId}.js`)).href);
+const locationName = opt('location', null);
+const locationNames = Object.keys(chapter.locations || {});
+if (locationName ? !locationNames.includes(locationName) : !chapter.layout) {
+  console.error(locationName
+    ? `Chapter ${chapter.id} has no location "${locationName}" (it has ${locationNames.join(', ') || 'none'})`
+    : `Chapter ${chapter.id} builds a forest for each of its locations: pick one with --location (${locationNames.join(', ')})`);
+  process.exit(1);
+}
+// what main.js and engine/locations.js build a forest from: the chapter's layout, or a location's with its own shots in layout.shots
+const place = locationName ? chapter.locations[locationName] : null;
+const layout = place ? { ...place.layout, shots: place.shots ?? {} } : chapter.layout;
+const shots = place ? place.shots ?? {} : chapter.shots;
 const { createForest } = await import(pathToFileURL(path.join(ROOT, 'remake/world/forest/forest.js')).href);
 
 const q = PRESETS[quality];
@@ -35,15 +49,15 @@ const look = pickLook(chapter.look);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
 // a stand-in sun: the forest culls its casters against the shadow focus (review mode: 10 m at 0,0)
-const sun = { castShadow: true, target: { position: new THREE.Vector3(...(chapter.layout.clearing.center.length === 2 ? [chapter.layout.clearing.center[0], 0, chapter.layout.clearing.center[1]] : [0, 0, 0])) }, shadow: { updateMatrices() {} } };
+const sun = { castShadow: true, target: { position: new THREE.Vector3(...(layout.clearing.center.length === 2 ? [layout.clearing.center[0], 0, layout.clearing.center[1]] : [0, 0, 0])) }, shadow: { updateMatrices() {} } };
 const world = {
   THREE, renderer: { getDrawingBufferSize: v => v.set(1280, 800) }, scene, camera, clock: null, q,
   params: new URLSearchParams(''), look, lighting: { direction: sunDirection(look), sun, focusRadius: 10 }, wind: createWind(), chapter,
   heightAt: () => 0, actors: new Map(),
 };
 const t0 = performance.now();
-const forest = await createForest(world, chapter.layout);
-console.log(`built in ${Math.round(performance.now() - t0)} ms (${quality})`);
+const forest = await createForest(world, layout);
+console.log(`built in ${Math.round(performance.now() - t0)} ms (${quality}${locationName ? `, ${chapter.id}/${locationName}` : ''})`);
 console.log('placements', forest.info.placements);
 console.log('rejected', forest.info.rejected);
 console.log(`grass ${forest.info.grassBlades} blades, ${forest.info.grassTriangles} tris max; ground ${forest.info.groundTriangles}; far ${forest.info.farTriangles}`);
@@ -62,7 +76,7 @@ if (args.includes('--models')) {
 
 const frustum = new THREE.Frustum();
 const m4 = new THREE.Matrix4();
-for (const [name, s] of Object.entries(chapter.shots)) {
+for (const [name, s] of Object.entries(shots)) {
   if (!Array.isArray(s.position) || !Array.isArray(s.target)) continue;
   camera.fov = s.fov ?? 40;
   camera.aspect = 1.6;

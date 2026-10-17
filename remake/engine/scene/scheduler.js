@@ -72,6 +72,12 @@ export function createScheduler({ onError = error => console.error('[scene]', er
       const c = this.cond;
       if (c.kind === 'tasks') c.tasks.forEach(task => task.cancel());
       else if (c.kind === 'handle') c.handle.cancel?.();
+      else if (c.kind === 'promise' && !c.settled) {
+        // Nobody waits for it any more (it lost a race, say), so a seek must not wait for it either. Marked settled,
+        // so when it does settle (or never does) it is not counted off again.
+        c.settled = true;
+        pending--;
+      }
       close(this.iterator); // runs the script's finally blocks
     }
   }
@@ -99,8 +105,8 @@ export function createScheduler({ onError = error => console.error('[scene]', er
       const c = { kind: 'promise', settled: false, value: undefined, failed: false, error: undefined };
       pending++;
       y.then(
-        value => { c.settled = true; c.value = value; pending--; },
-        error => { c.settled = true; c.failed = true; c.error = error; pending--; },
+        value => { if (c.settled) return; c.settled = true; c.value = value; pending--; }, // settled already: cancelled
+        error => { if (c.settled) return; c.settled = true; c.failed = true; c.error = error; pending--; },
       );
       return c;
     }

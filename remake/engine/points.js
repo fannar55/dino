@@ -1,9 +1,12 @@
 import * as THREE from 'three';
+import { SUN_DISTANCE } from './sun-face.js';
 
 // Point specs name a place in the world. The camera director and actors resolve them every frame,
 // so a shot or a look can follow a moving character.
 //   [x, y, z]                          a fixed point in metres
 //   'camera'                           the camera position
+//   'sun'                              toward the sun: 600 m from the camera along the light, where the
+//                                      sun's face hangs (so it follows the camera, like the sky)
 //   'mosi', 'mosi.head', 'mosi.feet'   an actor's body centre, head or ground point
 //   { actor, part, offset, local }     an actor point plus an offset in metres; local = in the
 //                                      actor's own frame (x forward, y up, z to its right side)
@@ -31,6 +34,10 @@ export function createPointResolver(world) {
     if (spec.isVector3) return out.copy(spec);
     if (typeof spec === 'function') return out.copy(spec(out));
     if (spec === 'camera') return out.copy(world.camera.position);
+    if (spec === 'sun') {
+      if (!world.lighting) throw new Error("The 'sun' point needs the light: `world` with lighting (createLighting)");
+      return out.copy(world.camera.position).addScaledVector(world.lighting.direction, SUN_DISTANCE);
+    }
     if (typeof spec === 'string') {
       const [name, part] = spec.split('.');
       return actorPoint(name, part, null, false, out);

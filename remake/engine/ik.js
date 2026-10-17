@@ -52,3 +52,57 @@ export function twoBoneLeg(knee, ankle) {
     },
   };
 }
+
+// Two bones turned in world space ----------------------------------------------------------------
+// For a limb that does not bend the way twoBoneLeg's knee does (an elbow bends the other way) or
+// whose bones have rest turns of their own: each bone turns by the smallest rotation about its own
+// pivot, and the middle joint bends out on the side it is bent to already (riding.js lays a rider's
+// hands on a saddle's grip with it, after his clips have posed his arms).
+const p0 = new THREE.Vector3();
+const p1 = new THREE.Vector3();
+const p2 = new THREE.Vector3();
+const toward = new THREE.Vector3();
+const bend = new THREE.Vector3();
+const placed = new THREE.Vector3();
+const from = new THREE.Vector3();
+const to = new THREE.Vector3();
+const turn = new THREE.Quaternion();
+const parentTurn = new THREE.Quaternion();
+const localTurn = new THREE.Quaternion();
+
+/** Turn a bone by a world-space rotation about its own pivot; its world matrix and its children's follow. */
+function turnWorld(bone, q) {
+  bone.parent.getWorldQuaternion(parentTurn);
+  localTurn.copy(parentTurn).invert().multiply(q).multiply(parentTurn);
+  bone.quaternion.premultiply(localTurn);
+  bone.updateMatrixWorld(true);
+}
+
+/**
+ * Reach `target` (a world point) with the end of a two-bone chain: `upper` and then `lower` turn so
+ * that `end` (a child of `lower`) lands on it, the middle joint bending out the way it bends now. A
+ * target out of reach, or too near, leaves `end` as close as the bones allow, on the line toward it.
+ * The chain's world matrices must be current; they stay so.
+ */
+export function reachTwoBones(upper, lower, end, target) {
+  upper.getWorldPosition(p0);
+  lower.getWorldPosition(p1);
+  end.getWorldPosition(p2);
+  const a = p0.distanceTo(p1);
+  const b = p1.distanceTo(p2);
+  toward.subVectors(target, p0);
+  if (toward.lengthSq() < 1e-12 || a < 1e-9 || b < 1e-9) return;
+  const d = clamp(toward.length(), Math.abs(a - b) + 1e-4, 0.999 * (a + b));
+  toward.normalize();
+  // The way the middle joint points out from the line to the target; for a straight chain, any way.
+  bend.subVectors(p1, p0);
+  bend.addScaledVector(toward, -bend.dot(toward));
+  if (bend.lengthSq() < 1e-12) bend.set(1, 0, 0).cross(toward);
+  if (bend.lengthSq() < 1e-12) bend.set(0, 0, 1).cross(toward);
+  bend.normalize();
+  const cos = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1);
+  placed.copy(p0).addScaledVector(toward, a * cos).addScaledVector(bend, a * Math.sqrt(1 - cos * cos));
+  turnWorld(upper, turn.setFromUnitVectors(from.subVectors(p1, p0).normalize(), to.subVectors(placed, p0).normalize()));
+  end.getWorldPosition(p2);
+  turnWorld(lower, turn.setFromUnitVectors(from.subVectors(p2, placed).normalize(), to.copy(p0).addScaledVector(toward, d).sub(placed).normalize()));
+}
