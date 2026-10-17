@@ -8,19 +8,20 @@ import * as THREE from 'three';
 // have moved by the time the finger lifts) and the release confirms the tap. Positions are canvas pixels.
 //
 // Every finger is followed on its own (by its pointerId), so a thumb resting on the glass while a child
-// holds the tablet never stops another finger's tap: each finger taps what it landed on when it lifts.
-// Only the earliest finger still down drags, so a free look is never torn between two fingers; a later
-// finger that moves 12 px is neither a tap nor a drag, and once the fingers before it have lifted it is
-// the earliest and drags from where it is then. A pointer that goes down again with an id that is still
-// held replaces the stale press (its release was lost): a drag it was making ends, and it taps nothing.
+// holds the tablet stops neither another finger's tap nor its look: each finger taps what it landed on when
+// it lifts, and the first finger to move 12 px while no drag is going on drags. One drag at a time, so a free
+// look is never torn between two fingers: another finger that moves 12 px meanwhile is neither a tap nor a
+// drag, and once the drag's finger lifts it can take the drag over, from where it is then. A pointer that
+// goes down again with an id that is still held replaces the stale press (its release was lost): a drag it
+// was making ends, and it taps nothing.
 //
 //   'tap'   { name, x, y }  a press that is released before it moves 12 px, however long it was held.
 //                           `name` is the target the finger landed on, or null when there was none;
 //                           x and y are where it landed.
 //   'drag'  { dx, dy, phase, x, y }  a press that moved 12 px or more. phase is 'start', 'move' or
 //                           'end'; dx and dy are the movement since the previous drag event (for
-//                           'start', since the press, or since the finger became the earliest), so a
-//                           drag's events add up to the finger's travel. A cancelled touch ends its drag too.
+//                           'start', since the press, or since the last drag ended if that was later), so
+//                           a drag's events add up to the finger's travel. A cancelled touch ends its drag too.
 
 const SLOP_PX = 12; // a press that moves this far is a drag; until then it is still a tap
 const MIN_TARGET_PX = 44; // a target is at least this wide on screen, whatever its size or distance
@@ -91,11 +92,10 @@ export function createPointer({ canvas, camera, world }) {
   const listeners = new Map([['tap', []], ['drag', []]]);
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  // The fingers that are down, by pointerId, in the order they landed: { id, startX, startY, x, y, lastX,
-  // lastY, moved, dragging, hit }. A press goes in at the end, so the first one is the earliest.
+  // The fingers that are down, by pointerId: { id, startX, startY, x, y, lastX, lastY, moved, dragging, hit }.
   const fingers = new Map();
+  let dragger = null; // the finger whose drag is going on: the first to move 12 px while no drag was
   const unfound = new Set(); // names of targets whose point could not be found, said once each
-  const earliest = () => fingers.values().next().value;
 
   // A listener that throws must not stop the others, or leave a finger half handled.
   function emit(event, payload) {
@@ -150,29 +150,31 @@ export function createPointer({ canvas, camera, world }) {
   }
 
   /**
-   * The finger is at (x, y). Once it is 12 px from where it landed it is no tap; if it is the earliest
-   * finger down it drags, and goes on dragging until it lifts.
+   * The finger is at (x, y). Once it is 12 px from where it landed it is no tap; if no drag is going on it
+   * starts one, and it goes on dragging until it lifts. While another finger drags it does nothing.
    */
   function follow(finger, x, y) {
     finger.x = x;
     finger.y = y;
     if (!finger.moved && Math.hypot(x - finger.startX, y - finger.startY) >= SLOP_PX) finger.moved = true;
-    if (!finger.moved || finger !== earliest()) return;
-    if (!finger.dragging) {
+    if (!finger.moved) return;
+    if (dragger === null) {
+      dragger = finger;
       finger.dragging = true;
       emitDrag(finger, 'start', x, y);
-    } else if (x !== finger.lastX || y !== finger.lastY) {
+    } else if (dragger === finger && (x !== finger.lastX || y !== finger.lastY)) {
       emitDrag(finger, 'move', x, y);
     }
   }
 
-  /** Forget a finger. The next earliest, if it has not been dragging, drags from where it is now. */
+  /** Forget a finger. When it was the drag's, a finger still down that takes the drag over starts from where it is now. */
   function lift(finger) {
     fingers.delete(finger.id);
-    const next = earliest();
-    if (next && !next.dragging) {
-      next.lastX = next.x;
-      next.lastY = next.y;
+    if (dragger !== finger) return;
+    dragger = null;
+    for (const other of fingers.values()) {
+      other.lastX = other.x;
+      other.lastY = other.y;
     }
   }
 
