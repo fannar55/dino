@@ -36,6 +36,9 @@ const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the cleari
 const MOSI_WALK_IN = [[-16, 4], [-9.9, 2.3], [-4.8, 1]];
 const MOSI_STOP = [0.5, 0.1];
 const EGILL_WAITS = { position: [7.9, 0, 2.3], heading: 209 };
+// Egill calls up to Mosi once Mosi's head is this many metres from him, along the ground (scene 2): about 3.4 s before Mosi stops,
+// his middle then 10.4 m away.
+const EGILL_CALLS = 8;
 // The forest lays the grass down and leans the ferns aside round a capsule under each actor, made for Mosi's size
 // (world/forest/forest.js: the grass's footprint times the actor's footprintScale). Egill's is a boy's: 0.3 of it,
 // about 0.3 m round him, so the grass stands up close to his feet and a fern leans from him only within a metre.
@@ -282,7 +285,8 @@ function* morning(s, c) {
   yield s.lookAround({ yaw: [-28, 28], pitch: [-8, 10] }, 5);
 }
 
-// 2. Mosi comes, humming the theme; Egill waves to him.
+// 2. Mosi comes, humming the theme; Egill calls up to him with a hop and a wave, and Mosi sees him (the call was added after the
+// test play of 17 October). The hum is over long before the call, as Mosi comes out of the trees, so nothing cuts it short.
 function* mosiComes(s, c) {
   mark(c, 2);
   const { mosi, egill } = c;
@@ -297,14 +301,23 @@ function* mosiComes(s, c) {
   yield s.until(() => apart() < 15);
   yield egill.lookAt('mosi.head', { weight: 0.8, maxPitch: 40 });
   yield s.wait(2);
-  // Egill waits for the child: a tap and he waves; if nobody taps, he waves by himself once Mosi has stopped. (The
-  // wait watches the walk rather than yielding it: a tap ends the race, and that must not end Mosi's walk.)
+  // Egill near and Mosi coming up behind him, the handheld off for the tap. Egill calls once Mosi's head, the end of him nearest
+  // Egill, is EGILL_CALLS metres from him, Mosi still walking; a child who taps Egill before that makes him call at once, and
+  // once (R12: the call never waits for a tap, it only comes sooner with one). The walk goes on whatever ends the wait.
   yield s.camera.cut('egillWaves');
   s.camera.handheld(0, { duration: 0.3 });
-  yield tapOrWait(s, 'egill', s.after(0, function* () { yield s.until(() => walk.done); yield s.wait(4); }));
-  yield egill.play('waveLeft');
-  yield walk;
+  const head = new THREE.Vector3();
+  const near = () => mosi.raw.headPosition(head).setY(0).distanceTo(egill.raw.root.position.clone().setY(0)) < EGILL_CALLS;
+  yield tapOrWait(s, 'egill', s.until(near));
+  // The call, three things in a row: a hop, "Hey þú! Ég er hérna niðri!" once he has landed, and a wave as his voice ends. Mosi
+  // hears him and looks down at him, stops at his place, and answers once Egill's line is over.
+  yield egill.play('hop', { fade: 0.12 });
+  yield s.wait(egill.raw.clips.get('hop').duration);
+  const call = s.say('egill', 'k1_egill_hey');
   yield mosi.lookAt('egill.head', { weight: 0.8 });
+  yield s.wait(s.lineDuration('k1_egill_hey'));
+  yield egill.play('waveLeft', { fade: 0.3 });
+  yield s.all(call, walk);
   yield s.say('mosi', 'k1_mosi_waving');
 }
 
@@ -852,6 +865,7 @@ export const chapter = {
   // tag it was recorded with.
   lines: {
     k1_mosi_hum: { text: 'Mm, mm-mm-mm, mm-mm-mmm… mm-mm-mm, mmm.', audio: 'k1_mosi_hum' },
+    k1_egill_hey: { text: 'Hey þú! Ég er hérna niðri!', audio: 'k1_egill_hey' },
     k1_mosi_waving: { text: 'Ó! Ég sé einhvern veifa!', audio: 'k1_mosi_waving' },
     welcome: { text: 'Halló, Egill! Velkominn heim til mín! Ég heiti Mosi. Eigum við að skoða okkur aðeins um saman?', audio: 'welcome' },
     k1_mosi_tickle: { text: 'Hí, hí, það kitlar!', audio: 'k1_mosi_tickle' },

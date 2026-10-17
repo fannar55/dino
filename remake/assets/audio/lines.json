@@ -1504,6 +1504,11 @@
   "duration": 6.97,
   "mouth": "0dffffedccba970009c0049000cdddcb9764000000ceddddca8000adddb0003deecba8740000000000000000000000afffeda6000dd000aeddc975400000000efffdcb900000"
  },
+ "k1_egill_hey": {
+  "src": "assets/audio/kafli1/k1_egill_hey.mp3",
+  "duration": 2.73,
+  "mouth": "0ade000ffd73000000000bbdc40fe05b9889dc08503000000000000"
+ },
  "k1_mosi_waving": {
   "src": "assets/audio/kafli1/k1_mosi_waving.mp3",
   "duration": 2.17,

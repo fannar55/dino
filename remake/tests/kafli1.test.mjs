@@ -18,7 +18,7 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
-import { SUN_RADIUS_DEG } from '../engine/sun-face.js';
+import { SUN_RADIUS_DEG, WINK_SECONDS, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
@@ -139,6 +139,9 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
  */
 async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null } = {}) {
   const world = await chapterWorld();
+  // The real sun, as main.js has it, updated each frame once the camera has moved: its calls start its gestures and finish their
+  // handles. (Made before world.scene.add is watched below: its sprite and overlay are there from the start.)
+  const sunFace = createSunFace({ scene: world.scene, lighting: world.lighting });
   // Kambeðla's plate rows as they light: { row, level, at } (the chapter's plate glow is the effect with a setRow).
   const rows = [];
   const addEffect = world.effects.add.bind(world.effects);
@@ -229,21 +232,36 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     const up = new THREE.Vector3().crossVectors(side, toSun);
     const rim = THREE.MathUtils.degToRad(SUN_RADIUS_DEG);
     const rays = [toSun, ...[side, side.clone().negate(), up, up.clone().negate()].map(d => toSun.clone().multiplyScalar(Math.cos(rim)).addScaledVector(d, Math.sin(rim)))];
+    // and to its two hands, wherever they are
+    for (const hand of sunFace.handPoints) rays.push(hand.clone().sub(world.camera.position).normalize());
+    const hands = sunFace.handPoints.map(hand => hand.clone().project(world.camera));
     const people = [...world.actors.values()].filter(actor => actor.root.visible);
     for (const actor of people) actor.root.traverse(o => { if (o.isSkinnedMesh) o.boundingSphere = o.boundingBox = null; }); // posed now
     const hidden = rays.some(ray => {
       raycaster.set(world.camera.position, ray);
       return people.some(actor => raycaster.intersectObject(actor.root, true).some(hit => shown(hit.object)));
     });
-    return { x, y, hidden };
+    return { x, y, hidden, hands: hands.map(h => [h.x, h.y]) };
   }
   const winks = [];
+  // Every call the script makes to the sun, with where the sun is then; and the sun as it goes on (sunFrames: every frame;
+  // sunViews: on the screen and in front of anyone? five times a second while a gesture or a mouth of the script's is under way).
+  const sunCalls = [];
+  for (const call of ['wink', 'wave', 'hug', 'mouth']) {
+    const real = sunFace[call];
+    sunFace[call] = (...args) => {
+      const made = { call, args, at: stage.s.time, scene: world.chapterTimeline?.at(-1)?.scene, shot: shotNow, ...sunInView() };
+      sunCalls.push(made);
+      if (call === 'wink') winks.push(made);
+      return real(...args);
+    };
+  }
   const sounds = [];
   const lines = readJson('../assets/audio/lines.json');
   const stage = createScene({
     world, director, ui, lines, cast: chapter.cast, locations, pointer, journal,
     voice: { play: () => null, stop() {} },
-    sun: { wink: () => winks.push({ at: stage.s.time, ...sunInView() }) },
+    sun: sunFace,
     sfx: {
       play(name) {
         if (brokenSteps && name === 'step') throw new Error('a step sound broke');
@@ -278,6 +296,9 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
     // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
     grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
+    egillClips: [], mosiLooks: [], mosiWalked: false, mosiStopped: null, sunFrames: [], sunViews: [],
+    // Scene 2: when the tap target on Egill appeared, how far the handheld was on then, and Egill on the screen while he hops.
+    egillTarget: null, egillOnScreen: [],
   };
   // On the screen, and in front of the camera?
   const onScreen = point => {
@@ -303,6 +324,20 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const mosi = world.actors.get('mosi');
   const egill = world.actors.get('egill');
   const kambedla = world.actors.get('kambedla');
+  // Egill's clips as he plays them and Mosi's looks as he turns his head, with when (and Mosi walking or not, and how far his head is
+  // from Egill along the ground).
+  const head = new THREE.Vector3();
+  const headToEgill = () => mosi.headPosition(head).setY(0).distanceTo(egill.root.position.clone().setY(0));
+  const playEgill = egill.play;
+  egill.play = (clip, options) => {
+    seen.egillClips.push({ clip, at: stage.s.time, mosiWalking: mosi.walking, head: headToEgill(), shot: shotNow });
+    return playEgill(clip, options);
+  };
+  const lookMosi = mosi.lookAt;
+  mosi.lookAt = (spec, options) => {
+    seen.mosiLooks.push({ spec, at: stage.s.time });
+    return lookMosi(spec, options);
+  };
   // The speakers with a jaw (the mouth pass's, or a bake's), whose opening the run follows; shut is their rest.
   const jaws = new Map([...world.actors].map(([name, actor]) => [name, actor.model.getObjectByName('Jaw')]).filter(([, jaw]) => jaw));
   const SHUT = new THREE.Quaternion();
@@ -380,13 +415,13 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     if (!spec || seen.earlyTap) return;
     earlySince ??= { t, at: stage.s.time };
     if (t - earlySince.t < earlyTap.after - 1e-9) return;
-    earlyFrom = spec.point.clone();
+    earlyFrom = spec.point?.isVector3 ? spec.point.clone() : null; // a target round a spec string ('egill') does not move by itself
     pointer.tap(earlyTap.name);
     seen.earlyTap = { name: earlyTap.name, appeared: earlySince.at, at: stage.s.time, found: [...journal.findings], movedAt: null };
   }
   function earlyReaction() {
     const spec = pointer.targets.get(earlyTap.name);
-    if (seen.earlyTap && seen.earlyTap.movedAt === null && spec && spec.point.distanceTo(earlyFrom) > 0.005) seen.earlyTap.movedAt = stage.s.time;
+    if (seen.earlyTap && seen.earlyTap.movedAt === null && spec && earlyFrom && spec.point.distanceTo(earlyFrom) > 0.005) seen.earlyTap.movedAt = stage.s.time;
   }
 
   // The child who taps only the nose, late.
@@ -412,6 +447,25 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
     director.update(dt);
+    sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
+    {
+      const scene = world.chapterTimeline.at(-1)?.scene;
+      seen.sunFrames.push({ at: stage.s.time, scene, shot: shotNow, eyes: sunFace.eyes, mouth: sunFace.mouthFrame, squash: sunFace.squash.x });
+      const busy = sunCalls.some(c => c.call !== 'wink' && stage.s.time >= c.at && stage.s.time <= c.at + (c.call === 'hug' ? HUG_SECONDS : c.call === 'wave' ? WAVE_SECONDS : (c.args[1] ?? 1.5) + MOUTH_BETWEEN));
+      if (busy && seen.sunFrames.length % 6 === 0) seen.sunViews.push({ at: stage.s.time, scene, shot: shotNow, ...sunInView() });
+      if (scene === 2) {
+        if (mosi.walking) seen.mosiWalked = true;
+        else if (seen.mosiWalked && seen.mosiStopped === null) seen.mosiStopped = stage.s.time;
+        if (pointer.targets.has('egill') && !seen.egillTarget) seen.egillTarget = { at: stage.s.time, handheld: director.handheldLevel, shot: shotNow };
+        const hop = seen.egillClips.find(e => e.clip === 'hop');
+        if (hop && stage.s.time - hop.at < 1.2) {
+          world.camera.updateMatrixWorld();
+          const feet = egill.root.position.clone().project(world.camera);
+          const top = egill.headPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.25, 0)).project(world.camera);
+          seen.egillOnScreen.push({ at: stage.s.time, shot: shotNow, feet: [feet.x, feet.y], top: [top.x, top.y] });
+        }
+      }
+    }
     if (earlyTap) earlyReaction();
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
@@ -455,7 +509,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
-  return { world, task, stage, director, journal, doc, captions, winks, sounds, forests, pointer, seen, added, lines };
+  return { world, task, stage, director, journal, doc, captions, winks, sunCalls, sunFace, sounds, forests, pointer, seen, added, lines };
 }
 
 let played = null;
@@ -919,6 +973,69 @@ test('the sun winks where the child sees it: on the screen, with nobody in front
     assert.ok(Math.abs(x) < 0.85 && Math.abs(y) < 0.85, `the sun on the screen as it winks at ${at.toFixed(1)} s, not at ${x.toFixed(2)}, ${y.toFixed(2)}`);
     assert.equal(hidden, false, `somebody stands in front of the sun as it winks at ${at.toFixed(1)} s`);
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 2: Egill calls up to Mosi (added after the test play of 17 October)
+
+test('Egill calls up to Mosi as he arrives: a hop, "Hey þú! Ég er hérna niðri!" once he has landed and a wave, Mosi still walking', async () => {
+  const hey = chapter.lines.k1_egill_hey;
+  const waving = chapter.lines.k1_mosi_waving;
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const { captions, lines, seen, world } = await run();
+    const from = world.chapterTimeline.find(m => m.scene === 2).at;
+    const to = world.chapterTimeline.find(m => m.scene === 3).at;
+    const clips = seen.egillClips.filter(e => e.at >= from && e.at < to);
+    assert.deepEqual(clips.map(e => e.clip), ['hop', 'waveLeft'], `${how}: Egill hops and then waves, once each`);
+    const [hop, wave] = clips;
+    const calls = captions.filter(c => c.text === hey.text);
+    assert.equal(calls.length, 1, `${how}: he calls once`);
+    const [call] = calls;
+    assert.equal(call.who, 'Egill');
+    const voice = lines[hey.audio].duration;
+    const landed = hop.at + world.actors.get('egill').clips.get('hop').duration;
+    assert.ok(Math.abs(call.at - landed) < 0.05, `${how}: the line once he has landed: the hop at ${hop.at.toFixed(2)} s, the line at ${call.at.toFixed(2)} s`);
+    assert.ok(Math.abs(wave.at - (call.at + voice)) < 0.05, `${how}: the wave as his voice ends, at ${wave.at.toFixed(2)} s`);
+    // While Mosi walks in: once his head is about 8 m from Egill, or sooner for a child who taps (and a capture, which taps 2 s in).
+    assert.equal(hop.mosiWalking, true, `${how}: Mosi is still walking when Egill calls`);
+    if (how === 'a child who waits') assert.ok(hop.head > 7.7 && hop.head < 8, `${how}: Mosi's head ${hop.head.toFixed(2)} m from Egill: no tap is needed (R12)`);
+    else assert.ok(hop.head >= 8 - 1e-6, `${how}: a tap brings the call sooner: Mosi's head ${hop.head.toFixed(2)} m away`);
+    // Mosi stops at his place, looks down at Egill's head from the moment he hears him, and answers once Egill's voice has ended.
+    const answer = captions.find(c => c.text === waving.text && c.at > from);
+    assert.ok(answer.at >= call.at + voice - 1e-6, `${how}: Mosi's line at ${answer.at.toFixed(2)} s, Egill's voice ends at ${(call.at + voice).toFixed(2)} s`);
+    assert.ok(seen.mosiStopped !== null && answer.at >= seen.mosiStopped - 1e-6, `${how}: and only once he has stopped`);
+    const looks = seen.mosiLooks.filter(l => l.at >= from && l.at <= answer.at);
+    assert.deepEqual(looks.map(l => l.spec), ['egill.head'], `${how}: he looks down at Egill's head`);
+    assert.ok(Math.abs(looks[0].at - call.at) < 0.05, `${how}: as Egill's voice reaches him`);
+    // The child sees it all: the hop and the wave in the shot that frames Egill, with no cut until Mosi has answered, and Egill, head
+    // and feet, on the screen all through the hop. The handheld is off when Egill can be tapped.
+    assert.equal(hop.shot, 'egillWaves', `${how}: the hop in the egillWaves shot`);
+    assert.equal(wave.shot, 'egillWaves');
+    assert.ok(!seen.cuts.some(c => c.at > hop.at && c.at < answer.at), `${how}: no cut between the hop and Mosi's answer`);
+    assert.ok(seen.egillOnScreen.length > 25, `${how}: ${seen.egillOnScreen.length} frames of the hop seen`);
+    for (const e of seen.egillOnScreen) assert.ok([...e.feet, ...e.top].every(v => Math.abs(v) < 0.95), `${how}: Egill off the screen at ${e.at.toFixed(2)} s`);
+    assert.ok(seen.egillTarget && seen.egillTarget.handheld === 0 && seen.egillTarget.shot === 'egillWaves', `${how}: the handheld is off as the tap window opens`);
+  }
+});
+
+test('a child who taps Egill before Mosi is near makes him call at once, and only once', async () => {
+  const hey = chapter.lines.k1_egill_hey;
+  const { captions, lines, seen, world } = await playUnattended({ seeking: false, limit: 75, earlyTap: { name: 'egill', after: 0.3 } });
+  const tap = seen.earlyTap;
+  assert.ok(tap, 'Egill was tapped');
+  const from = world.chapterTimeline.find(m => m.scene === 2).at;
+  const to = world.chapterTimeline.find(m => m.scene === 3).at;
+  const clips = seen.egillClips.filter(e => e.at >= from && e.at < to);
+  assert.deepEqual(clips.map(e => e.clip), ['hop', 'waveLeft'], 'one hop, one wave');
+  assert.ok(clips[0].at - tap.at < 0.05, `the hop ${(clips[0].at - tap.at).toFixed(3)} s after the tap`);
+  assert.ok(clips[0].head > 9, `while Mosi's head is still ${clips[0].head.toFixed(1)} m away`);
+  assert.equal(captions.filter(c => c.text === hey.text).length, 1, 'one call');
+  // Mosi walks all the way to his place all the same, and answers once Egill's line is over.
+  const stop = new THREE.Vector3(...chapter.locations.rjodur.layout.actors.mosi.position);
+  assert.ok(seen.atScene[2].mosi.clone().setY(0).distanceTo(stop) < 0.3, 'Mosi stopped at his place');
+  const call = captions.find(c => c.text === hey.text);
+  const answer = captions.find(c => c.text === chapter.lines.k1_mosi_waving.text);
+  assert.ok(answer.at >= seen.mosiStopped - 1e-6 && answer.at >= call.at + lines[hey.audio].duration - 1e-6, 'and answers after Egill');
 });
 
 test('yield flower.hold() and flower.pick() through the scheduler: the scene waits for each, the flower stays in Egill\'s hands and then goes', async () => {
