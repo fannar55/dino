@@ -17,7 +17,8 @@
 // A forest is built the first time its location is shown and kept after that, hidden while another
 // one shows. world.forest, world.heightAt and world.location follow the location in view. A switch
 // is real async work (a build), so setLocation returns a promise; call it one switch at a time, as
-// a script does with s.goTo.
+// a script does with s.goTo. prepare(name) builds a place ahead of time and keeps it hidden (main.js
+// does it behind the start button for chapter.prepare), so the change to it later is only the fades.
 
 /**
  * Every shot of a chapter, wherever it is set, for the director: its own (`chapter.shots`) and, for a chapter in several places,
@@ -65,6 +66,13 @@ export function createLocations({ world, locations, build }) {
   return {
     names,
     get current() { return current; },
+    /** Build a place now and keep it, hidden unless it is the place in view; going there later builds nothing. Returns its forest. */
+    async prepare(name) {
+      if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
+      const forest = await forestOf(name);
+      if (forest !== shown) forest.group.visible = false; // a forest is built shown
+      return forest;
+    },
     async setLocation(name) {
       if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
       const old = shown;

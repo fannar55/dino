@@ -550,14 +550,30 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
    * Where the sun's shadow map should look: the ground under the point the camera aims at (at most
    * 16 m out). The size stays constant, because a changing size changes the shadow texel size mid-move.
    */
-  function shadowFocus(out = { centre: new THREE.Vector3(), radius: SHADOW_RADIUS }) {
-    const dir = va.copy(rig.target).sub(rig.position);
+  function focusOf(position, target, out) {
+    const dir = va.copy(target).sub(position);
     const distance = dir.length();
     dir.normalize();
-    out.centre.copy(rig.position).addScaledVector(dir, Math.min(distance, 16));
+    out.centre.copy(position).addScaledVector(dir, Math.min(distance, 16));
     out.centre.y = world.heightAt(out.centre.x, out.centre.z);
     out.radius = SHADOW_RADIUS;
     return out;
+  }
+  function shadowFocus(out = { centre: new THREE.Vector3(), radius: SHADOW_RADIUS }) {
+    return focusOf(rig.position, rig.target, out);
+  }
+
+  /**
+   * Where a shot would put the camera, without going there or changing anything: { position, target, fov, focus }, the fov
+   * the lens the camera would use on this screen and focus the shadow's, as shadowFocus would have it. The warm-up draws
+   * from these (engine/warm-up.js).
+   */
+  function poseOf(shot) {
+    const s = spec(shot);
+    const position = new THREE.Vector3();
+    const target = new THREE.Vector3();
+    const fov = effectiveFov(evaluate(s, position, target));
+    return { position, target, fov, focus: focusOf(position, target, { centre: new THREE.Vector3(), radius: SHADOW_RADIUS }) };
   }
 
   return {
@@ -568,6 +584,6 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     get busy() { return Boolean(mode && !mode.continuous); },
     get handheldLevel() { return hand.level; },
     cut, move, orbit, push, lookAt, zoom, follow, explore, look, hint, handheld, stop, update, apply,
-    shadowFocus, effectiveFov,
+    shadowFocus, effectiveFov, poseOf,
   };
 }

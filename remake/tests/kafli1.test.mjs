@@ -201,8 +201,10 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     return add(...objects);
   };
   const showTray = ui.tray.show;
+  const trayShown = []; // the items of each show, as { id, icon }
   ui.tray.show = items => {
     held.atTray ??= heldInHands();
+    trayShown.push(items.map(({ id, icon }) => ({ id, icon })));
     return showTray(items);
   };
   const trayRemoved = []; // the tray's flowers as they leave it: given by the child or, after a while, by Egill
@@ -261,7 +263,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
 
   // What the run sees on the way, for the tests to look at afterwards.
   const seen = {
-    kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayDrops: { made: 0, home: 0 }, held,
+    kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
     printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows,
     // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
     // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
@@ -604,6 +606,46 @@ test('no fail states: a child who never touches the screen is helped through eve
   assert.deepEqual(journal.stars, ['k1_kambedla'], 'the star flew to the book by itself');
   assert.deepEqual(director.warnings, [], 'the hints and the waits keep the camera rules too');
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
+});
+
+test('the chapter draws once, behind the black, everything that would build its shaders as the child watches', async () => {
+  const { world } = await playUnattended({ limit: 0.2 }); // the script's setup has run: the saddle is made, her plates are grey
+  const effects = world.effects.size;
+  const inScene = new Set(world.scene.children);
+  const warm = chapter.warmUp(world);
+  const under = root => { const names = []; root.traverse(o => names.push(o.name)); return names; };
+  for (const actor of world.actors.values()) assert.ok(warm.objects.includes(actor.root), `${actor.name} is drawn, hidden or not`);
+  assert.ok(under(world.actors.get('mosi').root).includes('mosi saddle'), 'with the saddle, before it pops on');
+  assert.ok(under(world.actors.get('egill').root).some(name => / eyelids$/.test(name)), 'and the eyelids, which show only while shut');
+  const kambedla = world.actors.get('kambedla');
+  let glowing = false;
+  kambedla.model.traverse(o => { if (o.isMesh && o.material.customProgramCacheKey?.().includes('plate-glow')) glowing = true; });
+  assert.ok(glowing, 'Kambeðla with her plate glow, out of sight in the clearing');
+  // Throwaways of what comes later: a glimmering flower, one of each critter and a bird, a print, sparkles and pollen.
+  const names = warm.objects.flatMap(under);
+  assert.ok(names.some(name => name.startsWith('Glow flower ')), 'a glow flower');
+  for (const kind of ['frog', 'snail', 'beetle']) assert.ok(names.includes(kind), `a ${kind}`);
+  assert.ok(warm.objects.some(o => o.name === 'Critters' && o.children.some(c => c.isInstancedMesh)), 'and a bird');
+  const prints = warm.objects.find(o => o.name === 'Footprints');
+  assert.ok(prints?.count >= 1, 'a footprint (an instanced mesh with none draws nothing, and builds nothing)');
+  const fresh = world.scene.children.filter(o => !inScene.has(o));
+  assert.ok(fresh.some(o => o.isPoints && o.material.blending === THREE.AdditiveBlending), 'sparkles');
+  assert.ok(fresh.some(o => o.isPoints && o.material.blending === THREE.NormalBlending), 'pollen');
+  // The views whose shadow passes the story draws, and the glade's own.
+  assert.deepEqual(warm.shots, ['dawn', 'egillWaves', 'mountHigh', 'rideFeet']);
+  assert.deepEqual(chapter.locations.burknalaut.warmUp, ['gladeArrive', 'search', 'feeding']);
+  // The glade is built behind the start button too (two resident forests: +31.5 MB of geometry, textures under 40 MB), so the
+  // change of place is only its two fades.
+  assert.deepEqual(chapter.prepare, ['burknalaut']);
+  for (const shot of warm.shots) assert.ok(shot in chapter.locations.rjodur.shots, shot);
+  for (const shot of chapter.locations.burknalaut.warmUp) assert.ok(shot in chapter.locations.burknalaut.shots, shot);
+  // The tray as scene 9 shows it, built once behind the start button.
+  const { seen } = await unattended();
+  assert.deepEqual(warm.tray, seen.trayShown[0]);
+  warm.dispose();
+  assert.deepEqual(world.scene.children.filter(o => !inScene.has(o)), [], 'the throwaways leave the scene');
+  world.effects.update(1 / 30);
+  assert.equal(world.effects.size, effects, 'and nothing of theirs runs on');
 });
 
 test('a child who finds Mosi\'s nose late still has time to make him sneeze: the window grows after the tickle', async () => {

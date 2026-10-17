@@ -72,6 +72,27 @@ test('two requests for a location that is still building share the one build', a
   assert.equal(world.location, 'a');
 });
 
+test('prepare builds a place ahead of time and keeps it hidden, so going there later builds nothing', async () => {
+  const { a, b, world, built, locations } = twoPlaces();
+  await locations.setLocation('a');
+  b.group.visible = true; // a forest is built shown (createForest adds its group to the scene as it is)
+  const ready = await locations.prepare('b');
+  assert.equal(ready, b, 'it gives the forest');
+  assert.equal(b.group.visible, false, 'hidden: it is not the place in view');
+  assert.equal(a.group.visible, true);
+  assert.equal(world.location, 'a', 'nothing changes place');
+  assert.equal(world.forest, a);
+  assert.equal(built.length, 2);
+  await locations.prepare('b');
+  await locations.setLocation('b');
+  assert.equal(built.length, 2, 'built once, ahead of time');
+  assert.equal(b.group.visible, true);
+  assert.equal(world.location, 'b');
+  assert.equal(await locations.prepare('b'), b, 'preparing the place in view leaves it shown');
+  assert.equal(b.group.visible, true);
+  await assert.rejects(locations.prepare('nowhere'), /nowhere/);
+});
+
 test('builds a location from its layout, carrying its own shots as layout.shots', async () => {
   const { locations, built } = twoPlaces();
   await locations.setLocation('a');

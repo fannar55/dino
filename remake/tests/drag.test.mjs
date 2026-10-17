@@ -380,6 +380,37 @@ test('the tray shows its items, and hides', () => {
   assert.equal(element.children.length, 1, 'a refused show changes nothing');
 });
 
+test('a tray prepared ahead of time stays put away, and shows the same pockets later without building them again', () => {
+  const doc = new FakeDocument(['tray', 'view']);
+  doc.getElementById('view').rect = { left: 10, top: 20, width: 800, height: 500 };
+  const tray = createTray(doc);
+  const element = doc.getElementById('tray');
+  element.hidden = true; // as index.html has it
+  const flowers = [{ id: 'flower-1', icon: 'glowFlower' }, { id: 'flower-2', icon: 'glowFlower' }];
+  tray.prepare(flowers);
+  assert.equal(element.hidden, true, 'prepared, it stays hidden');
+  assert.equal(element.children.length, 2, 'with its pockets built');
+  const pockets = [...element.children];
+  const drops = [];
+  tray.onDrop(drop => { drops.push(drop); tray.remove(drop.id); });
+  tray.show(flowers.map(item => ({ ...item })));
+  assert.equal(element.hidden, false);
+  assert.deepEqual([...element.children], pockets, 'the same pockets: nothing is built as it shows');
+  const [first] = element.findAll(e => e.classList.contains('tray-item'));
+  pockets[0].rect = { left: 20, top: 200, width: 88, height: 88 };
+  first.dispatchEvent(pointerEvent('pointerdown', { x: 70, y: 250 }));
+  doc.dispatchEvent(pointerEvent('pointerup', { x: 300, y: 250 }));
+  assert.equal(drops.length, 1, 'and they carry as ever');
+  assert.equal(first.classList.contains('gone'), true);
+  tray.hide();
+  tray.show(flowers);
+  assert.deepEqual([...element.children], pockets, 'shown again, the same pockets...');
+  assert.equal(first.classList.contains('gone'), false, '...full again');
+  tray.show([{ id: 'other', icon: 'glowFlower' }]);
+  assert.equal(element.children.length, 1, 'other items get pockets of their own');
+  assert.throws(() => tray.prepare([{ id: 'x', icon: 'unicorn' }]), /unicorn/);
+});
+
 test('the tray carries an item under the finger and says where it was let go, in canvas pixels', () => {
   const { doc, a, drops, move, lift } = trayRig();
   const down = pointerEvent('pointerdown', { x: 70, y: 250 });

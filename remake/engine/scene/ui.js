@@ -19,6 +19,8 @@ const ICONS = {
  * While an item is carried the document hears the finger, wherever it goes, so an item the browser does not
  * keep the pointer on cannot make the tray miss the finger being lifted.
  *   show([{ id, icon }])   fill the tray; `icon` is the name of a built-in icon ('glowFlower') or SVG markup
+ *   prepare([{ id, icon }]) build the pockets for these items now and keep the tray put away: a show of the same items later
+ *                          builds nothing (main.js does it behind the start button, so the first show is not a long frame)
  *   hide()                 put it away; an item that is being carried goes home, with no drop
  *   onDrop(fn)             fn({ id, x, y }) where the item was let go; returns the function that stops listening
  */
@@ -27,6 +29,7 @@ export function createTray(doc = document) {
   if (!trayEl) throw new Error('The page has no #tray (see index.html)');
   const canvasEl = doc.getElementById('view'); // drops are reported from its top-left corner
   const entries = new Map(); // id -> { id, slotEl, itemEl, state: 'home' | 'carried' | 'dropped' | 'gone' }
+  let builtFor = []; // the items the pockets were built for, [{ id, icon }], in order
   const listeners = [];
   let carried = null; // the grip on the item being carried: { entry, pointerId, startX, startY, homeX, homeY, dx, dy }
 
@@ -137,7 +140,8 @@ export function createTray(doc = document) {
     putBack(carried.entry.id);
   }
 
-  function show(items) {
+  /** The pockets for `items`: the ones already built when they were built for the same items, else new ones. */
+  function build(items) {
     const ids = items.map(item => item.id);
     const twice = ids.find((id, i) => ids.indexOf(id) !== i);
     if (twice !== undefined) throw new TypeError(`Tray items need different ids: "${twice}" comes twice`);
@@ -148,6 +152,17 @@ export function createTray(doc = document) {
     });
 
     if (carried) putBack(carried.entry.id);
+    const same = builtFor.length === items.length && items.every((item, i) => builtFor[i].id === item.id && builtFor[i].icon === item.icon);
+    if (same) { // every pocket full again
+      for (const entry of entries.values()) {
+        entry.state = 'home';
+        entry.itemEl.classList.remove('dragging', 'gone');
+        entry.itemEl.style.removeProperty('--dx');
+        entry.itemEl.style.removeProperty('--dy');
+      }
+      return;
+    }
+    builtFor = items.map(({ id, icon }) => ({ id, icon }));
     entries.clear();
     trayEl.replaceChildren(...items.map(({ id }, i) => {
       const slotEl = doc.createElement('div');
@@ -162,7 +177,15 @@ export function createTray(doc = document) {
       itemEl.addEventListener('contextmenu', event => event.preventDefault()); // a long press must not end the touch
       return slotEl;
     }));
+  }
+
+  function show(items) {
+    build(items);
     trayEl.hidden = false;
+  }
+
+  function prepare(items) {
+    build(items);
   }
 
   function hide() {
@@ -178,7 +201,7 @@ export function createTray(doc = document) {
     };
   }
 
-  return { show, hide, remove, putBack, onDrop };
+  return { show, prepare, hide, remove, putBack, onDrop };
 }
 
 export function createStageUI(doc = document) {

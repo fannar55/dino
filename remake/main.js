@@ -28,6 +28,7 @@ import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
 import { createHold } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
+import { warmUp } from './engine/warm-up.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
@@ -70,9 +71,19 @@ world.resolvePoint = createPointResolver(world);
 
 const { createForest } = await import('./world/forest/forest.js');
 let locations = null;
+// A place's forest is built in one long frame (seconds on a tablet), and its first draws are long frames too: the music is told
+// before each build (music.lenient, set up once the music exists), so it moves its playhead instead of jumping back.
+let beforeBuild = null;
 if (chapter.locations) {
-  // Several places: the start location is built now, the others when the scene first goes there.
-  locations = createLocations({ world, locations: chapter.locations, build: layout => createForest(world, layout) });
+  // Several places: the start location is built now, the others behind the start button (chapter.prepare) or when the scene
+  // first goes there.
+  locations = createLocations({
+    world, locations: chapter.locations,
+    build: layout => {
+      beforeBuild?.();
+      return createForest(world, layout);
+    },
+  });
   await locations.setLocation(startOf(chapter));
 } else {
   const forest = await createForest(world, chapter.layout);
@@ -129,6 +140,10 @@ const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lo
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
 const hold = createHold([voice, music, sfx]);
+// Seconds of game time round a change of place in which a long frame moves the music's playhead to the sound instead of seeking
+// the sound back (engine/audio/music.js: lenient): the build, the warm-up draw and the fade back in, all under the black.
+const PLACE_CHANGE = 4;
+beforeBuild = () => music.lenient(PLACE_CHANGE);
 // The sound runs before the actors, the effects, the camera and the forest: one that throws is said once and the frame goes on.
 const updateMusic = guard('music', () => music.update());
 const updateSfx = guard('sfx', dt => sfx.update(dt));
@@ -152,6 +167,8 @@ hold('hidden', document.hidden);
 window.addEventListener('pointerup', () => { if (stage.started) music.start(); }, { passive: true });
 
 const shotName = params.get('shot');
+let startReady = true; // false while the start button waits for the warm-up (captures and review shots have none)
+let warmedPlace = null; // the place last drawn by the warm-up; null: places are not warmed (captures, review shots, ?play=1)
 const tParam = params.get('t');
 const seekTo = tParam !== null ? Math.max(0, Number(tParam) || 0) : null;
 
@@ -162,6 +179,91 @@ let shadowFollowsCamera = false;
 lighting.focus(ORIGIN, 10);
 
 let controls = null;
+
+// The warm-up draw (engine/warm-up.js). A material's first draw builds its shaders, a stall of 0.2 to 0.6 s on the reference laptop,
+// so before the start button shows, the chapter is drawn once behind the black from the views it names (chapter.warmUp), with what
+// would otherwise show for the first time later; the places it will go to are built then too (chapter.prepare) and drawn the same
+// way, and as the scene comes to a place it is drawn once more, under the black, before the fade back in.
+const nextFrames = count => new Promise(resolve => {
+  let left = count;
+  const step = () => (--left <= 0 ? resolve() : requestAnimationFrame(step));
+  requestAnimationFrame(step);
+});
+
+/** One warm-up draw from each of `views` (shot names), with `warm`'s objects, and this frame's own view put back after. */
+function warmViews(views, warm) {
+  const result = warmUp(renderer, scene, camera, {
+    objects: warm.objects,
+    shots: views.map(name => director.poseOf(name)).map(pose => cam => {
+      cam.position.copy(pose.position);
+      cam.up.set(0, 1, 0);
+      cam.lookAt(pose.target);
+      cam.fov = pose.fov;
+      cam.updateProjectionMatrix();
+      cam.updateMatrixWorld();
+      lighting.focus(pose.focus.centre, pose.focus.radius); // the shadow map looks where this view's would
+      world.forest.update?.(0, clock.time); // and the forest is culled, its casters chosen, for this view
+    }),
+  });
+  if (shadowFollowsCamera) {
+    director.shadowFocus(shadowFocus);
+    lighting.focus(shadowFocus.centre, shadowFocus.radius);
+  } else lighting.focus(ORIGIN, 10);
+  world.forest.update?.(0, clock.time);
+  return result;
+}
+
+/** Draw the place in view once, with the chapter's warm-up objects (their throwaways stand on its ground). */
+function warmPlace(views) {
+  const warm = chapter.warmUp?.(world) ?? { objects: [], dispose() {} };
+  try {
+    return warmViews(views, warm);
+  } finally {
+    warm.dispose?.();
+  }
+}
+
+/** Build a place the chapter goes to later and draw it once, shown for that in place of the one in view. */
+async function prepareAndWarm(name) {
+  const forest = await locations.prepare(name);
+  const here = { forest: world.forest, heightAt: world.heightAt };
+  here.forest.group.visible = false;
+  forest.group.visible = true;
+  world.forest = forest;
+  world.heightAt = (x, z) => forest.heightAt(x, z);
+  try {
+    return warmPlace(chapter.locations[name].warmUp ?? []);
+  } finally {
+    forest.group.visible = false;
+    here.forest.group.visible = true;
+    world.forest = here.forest;
+    world.heightAt = here.heightAt;
+    world.forest.update?.(0, clock.time);
+  }
+}
+
+/** Everything that is done behind the black before the start button shows. */
+async function getReady() {
+  await characterLodsReady(); // the shadow casters the levels bring are drawn too
+  await nextFrames(2); // the script's setup has run and the start shot holds
+  const warmed = [];
+  const warm = chapter.warmUp?.(world) ?? { objects: [], shots: [], dispose() {} };
+  try {
+    warmed.push(warmViews(warm.shots ?? [], warm));
+  } finally {
+    warm.dispose?.();
+  }
+  for (const name of chapter.prepare ?? []) warmed.push(await prepareAndWarm(name));
+  if (warm.tray?.length) {
+    // The tray's pockets are built once and laid out under the black, so its first show in the story is not a long frame.
+    ui.tray.prepare(warm.tray);
+    ui.tray.show(warm.tray);
+    await nextFrames(2);
+    ui.tray.hide();
+  }
+  world.warmUps = warmed; // for a probe: { draws, ms, programs } of each warm-up behind the start button
+  console.info('[warm-up]', warmed.map(w => `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms`).join('; '));
+}
 
 function update(dt) {
   journal.update(dt); // before the scene: a flight the scene starts in this frame is counted from the next
@@ -231,16 +333,23 @@ if (shotName || !chapter.script) {
     ui.setFade(1);
     stage.begin();
   } else {
-    // Wait for a tap: it starts the scene and also lets the browser play the recorded voice.
-    ui.setFade(0.35);
+    // Wait for a tap: it starts the scene and also lets the browser play the recorded voice. Until the chapter has been drawn
+    // once (getReady) the screen stays black and the button hidden.
+    ui.setFade(1);
+    startReady = false;
     const button = document.getElementById('start');
-    button.hidden = false;
     button.addEventListener('click', () => {
       button.hidden = true;
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
     }, { once: true });
+    getReady().catch(error => console.error('[warm-up]', error)).finally(() => {
+      warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows
+      ui.setFade(0.35);
+      button.hidden = false;
+      startReady = true;
+    });
   }
 }
 
@@ -276,9 +385,19 @@ renderer.setAnimationLoop(now => {
     // Keep drawing: a broken scene object must not freeze the picture. Report the first few.
     if (failures++ < 5) console.error('[frame]', error);
   }
+  if (warmedPlace !== null && world.location !== warmedPlace) {
+    // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
+    warmedPlace = world.location;
+    music.lenient(PLACE_CHANGE);
+    try {
+      warmPlace(chapter.locations?.[world.location]?.warmUp ?? []);
+    } catch (error) {
+      console.error('[warm-up]', error);
+    }
+  }
   render();
   stats.sample(real);
-  adapt(real, clock.frozen);
-  if (++frames >= 20 && lodsReady) window.__demoReady = true;
+  adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing
+  if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
 Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

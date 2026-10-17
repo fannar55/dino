@@ -101,6 +101,9 @@ export const FLOWERS = [
   { name: 'tree', hint: 'k1_mosi_hint_tree', near: [12.95, -4.53], kinds: ['treeFern', 'cycad'], at: [12.74, 2.35, -4.39] },
 ];
 const HIDE_REACH = 2; // metres from `near` that a hiding place may grow
+// The tray in scene 9: a pocket for each flower Egill picked, as the script shows it and main.js builds it once behind the start
+// button (chapter.warmUp).
+const TRAY = FLOWERS.map((_, i) => ({ id: `flower-${i + 1}`, icon: 'glowFlower' }));
 
 /**
  * Where each glow flower stands, from the plants the glade's forest grew (forest.js placementInfo: name, x, z, radius,
@@ -559,8 +562,8 @@ function* platesLight(s, c) {
   // The flowers in his hands are in the tray too, and the child may give any of them, in any order, from the moment the
   // tray shows: a drag listens for every flower still in it and listens again the moment one is given, while she eats.
   // Twelve seconds into a wait Mosi says it again, and after twenty Egill gives her the first one left himself.
-  const items = c.flowers.map((held, i) => ({ id: `flower-${i + 1}`, flower: held.flower }));
-  s.tray.show(items.map(({ id }) => ({ id, icon: 'glowFlower' })));
+  const items = c.flowers.map((held, i) => ({ id: TRAY[i].id, flower: held.flower }));
+  s.tray.show(TRAY.slice(0, items.length));
   const given = [];
   const giving = s.after(0, function* give() {
     let left = items.map(item => item.id);
@@ -819,6 +822,9 @@ export const chapter = {
         },
       },
       shots: BURKNALAUT_SHOTS,
+      // The glade's views for the warm-up draw as the chapter comes here (main.js, engine/warm-up.js): the arrival with its four
+      // shafts, the search with the flowers and critters, the feeding with Kambeðla close.
+      warmUp: ['gladeArrive', 'search', 'feeding'],
     },
   },
   actors: {
@@ -878,6 +884,47 @@ export const chapter = {
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.
   startShot: 'dawn',
+  // The glade is built behind the start button and kept, hidden (engine/locations.js: prepare), so the change of place in scene 6
+  // is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
+  // more JS heap, the textures under 40 MB (measured 2026-10-17).
+  prepare: ['burknalaut'],
+
+  /**
+   * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
+   * black as it comes to a place. The first draw of anything builds its shaders, which held the first play up for 0.2 to 0.6 s
+   * wherever something showed for the first time. `objects` are drawn in every view whatever their state: the actors (their
+   * eyelids as if shut, Mosi's saddle before it pops on, Kambeðla with her plate glow, out of sight in the clearing) and
+   * throwaways of what comes later: a glow flower glimmering, one of each critter and a bird, a print of Mosi's feet, a sparkle
+   * burst and a puff of pollen. `shots` are the views whose shadow passes draw what the story's do (the forest's casters as the
+   * camera rises with the float, the ride's critters); a place adds its own (locations[name].warmUp). `tray` is the tray's
+   * pockets, which main.js builds once. dispose() takes the throwaways away again. The mouths need nothing: a jaw only turns.
+   */
+  warmUp(world) {
+    const mosi = world.actors.get('mosi');
+    const ground = (x, z) => [x, world.heightAt(x, z), z];
+    const flower = createGlowFlower(world, { name: 'warm-up', position: ground(0, 0) });
+    const critters = createCritters(world, {
+      spots: ['frog', 'snail', 'beetle'].map((kind, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i, 1), heading: 0 })),
+      birds: [{ name: 'warm-up-bird', position: ground(0, 2), heading: 0 }],
+    });
+    const prints = createFootprints(world, { actor: mosi, feet: MOSI_FEET });
+    prints.mesh.count = 1; // one print: an instanced mesh with none draws nothing, and builds nothing
+    const bursts = [
+      sparkleBurst(world, new THREE.Vector3(...ground(0, 0)), { count: 4, seed: 'warm-up' }),
+      pollenBurst(world, new THREE.Vector3(...ground(0, 0)), { count: 4, seed: 'warm-up' }),
+    ];
+    return {
+      objects: [...[...world.actors.values()].map(actor => actor.root), flower.group, critters.group, prints.mesh],
+      shots: ['dawn', 'egillWaves', 'mountHigh', 'rideFeet'],
+      tray: TRAY,
+      dispose() {
+        flower.dispose();
+        critters.dispose();
+        prints.dispose();
+        for (const burst of bursts) burst.cancel();
+      },
+    };
+  },
   shots: {}, // every shot belongs to a place: chapter.locations[name].shots
 
   // The script: a generator that yields what it waits for (remake/engine/scene/scheduler.js).

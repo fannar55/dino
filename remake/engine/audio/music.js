@@ -14,7 +14,10 @@
 //     behind a clock that was late: the audio context takes a moment to wake, a seek and a start take a moment, and a hidden tab's
 //     first frame comes late and the clock counts at most 0.1 s of it;
 //   - if the clock loses time (a frame longer than it counts), update dips the sound, seeks the element to the playhead and brings
-//     it back: after a long frame the music drops out for a moment, at most once a second.
+//     it back: after a long frame the music drops out for a moment, at most once a second;
+//   - except in a lenient window (lenient(seconds), which main.js opens as the chapter changes place, under the black): there the
+//     playhead goes to the sound instead, as it does for a file that cannot be moved, so the build's long frame and the first draws
+//     of the new place never make the theme jump back and repeat. The beat follower eases onto the new grid under the black.
 // An element that cannot be moved (its file came from a server that gives no byte ranges, so a seek would land at the start) is
 // not moved: the playhead follows it instead, and the beat keeps to what is heard.
 // Before the theme sounds, or when it cannot (no Web Audio, a missing or undecodable file, a browser that wants a touch first), the
@@ -63,7 +66,7 @@ function createFader(param, value, now) {
  * (theme.json) whose `src` is read against `base` (theme.json's own URL). `clock` is the game clock. `output` is the node to
  * play through (the context's destination by default). `createElement` makes the <audio> element (a test gives it a fake).
  *
- * Returns { ready, start, duck, setPaused, update, muted, position }; `ready` is a promise of whether the theme's file could be
+ * Returns { ready, start, duck, lenient, setPaused, update, muted, position }; `ready` is a promise of whether the theme's file could be
  * opened. update() must be called every frame, after the clock has ticked: it is what starts the sound.
  */
 export function createMusic({ context = null, theme = null, clock, base, output, createElement = () => new Audio() } = {}) {
@@ -87,6 +90,7 @@ export function createMusic({ context = null, theme = null, clock, base, output,
   let dipEnd = 0;
   let pauseAt = null; // audio time when a fading element is stopped
   let lastJump = -Infinity;
+  let lenientUntil = -Infinity; // the game time a lenient window lasts until
   let lastAudio = NaN; // the audio clock at the last frame, and the game time it last moved at: a clock that stands still is a stall
   let lastMoved = 0;
   let stalled = false;
@@ -247,7 +251,12 @@ export function createMusic({ context = null, theme = null, clock, base, output,
       fader.to(0, now, FADE);
       return;
     }
-    if (now - lastJump < JUMP_GAP || Math.abs(behind()) <= DRIFT) return;
+    if (Math.abs(behind()) <= DRIFT) return;
+    if (clock.time < lenientUntil) { // a lenient window: the playhead goes to the sound, which plays on, unbroken
+      anchor = clock.time - element.currentTime;
+      return;
+    }
+    if (now - lastJump < JUMP_GAP) return;
     lastJump = now;
     if (!canSeek(fold(playhead() + lead))) {
       follow(); // no dip: nothing moves
@@ -294,6 +303,15 @@ export function createMusic({ context = null, theme = null, clock, base, output,
       if (Boolean(on) === ducked) return;
       ducked = Boolean(on);
       volume?.to(ducked ? LEVEL * 10 ** (DUCK_DB / 20) : LEVEL, context.currentTime, DUCK_SECONDS);
+    },
+    /**
+     * For the next `seconds` of game time a frame that loses time moves the playhead to the sound instead of the sound to the playhead:
+     * no dip and no seek, so nothing is heard twice. main.js opens one round a change of place, whose build and first draws are long
+     * frames under the black. Outside it nothing changes. A window already open is only ever lengthened.
+     */
+    lenient(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) throw new TypeError(`A lenient window lasts a number of seconds, not ${seconds}`);
+      lenientUntil = Math.max(lenientUntil, clock.time + seconds);
     },
     /** Holds the sound with the game clock (the book is open, the tab is hidden): it fades out at once. Letting go starts it again with the next frame. */
     setPaused(value) {

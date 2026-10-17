@@ -445,6 +445,50 @@ test('a seek that takes time is not heard: the element is put ahead by what the 
   assert.equal(element.seeks.length, 2, 'and it stays there: the next jump would have the cost right from the start');
 });
 
+test('in a lenient window a long frame moves the playhead to the sound, with no dip and no seek, so the theme never repeats', async () => {
+  const world = await playing();
+  const { context, element, clock, music, fade } = world;
+  frames(world, 10);
+  music.lenient(4); // main.js, as a place changes: its forest is built in one long frame
+  const before = music.position;
+  context.advance(1.8); // the sound plays on through it...
+  assert.equal(clock.tick(1.8), 0.1, '...and the clock counts 0.1 s of it');
+  music.update();
+  assert.equal(element.seeks.length, 0, 'the element is not sent back');
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.05), 1, 'and the sound does not dip');
+  assert.ok(near(music.position, element.currentTime, 0.01), `the playhead went to the sound (${music.position} against ${element.currentTime})`);
+  assert.ok(music.position > before + 1.8, `forward by the long frame: ${before.toFixed(2)} -> ${music.position.toFixed(2)} s`);
+  context.advance(0.6); // the first draw of the new place: another long frame, still in the window
+  clock.tick(0.6);
+  music.update();
+  frames(world, 2);
+  assert.equal(element.seeks.length, 0);
+  assert.ok(near(music.position, element.currentTime, 0.02));
+
+  frames(world, 2.5); // the window (4 s of game time) is over: a long frame now is mended as ever
+  context.advance(1.5);
+  clock.tick(1.5);
+  music.update();
+  assert.equal(fade.gain.valueAt(context.currentTime + 0.03), 0, 'it dips');
+  frames(world, 0.5);
+  assert.equal(element.seeks.length, 1, 'and the element is put on the playhead');
+});
+
+test('outside a lenient window the same long frame seeks the sound back to the playhead, as before', async () => {
+  const world = await playing();
+  const { context, element, clock, music } = world;
+  frames(world, 10);
+  const before = music.position;
+  context.advance(1.8);
+  clock.tick(1.8);
+  music.update();
+  frames(world, 0.5);
+  assert.equal(element.seeks.length, 1);
+  assert.ok(near(music.position, before + 0.1 + 0.5, 0.02), 'the playhead is the clock\'s');
+  assert.throws(() => music.lenient(-1), /seconds/);
+  assert.throws(() => music.lenient(NaN), /seconds/);
+});
+
 // ---------------------------------------------------------------------------------------------
 // Silence
 

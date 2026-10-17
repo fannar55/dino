@@ -37,7 +37,9 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   lighting row by row (`plate-glow.js`); the smiling sun and the cloud shaped like Mosi
   (`sun-face.js`); the beat clock, the theme's tempo as a pure function of the music's time
   (`beat.js`: `followBeat`, the beat count the forest's waves and the flowers' nod and the mushrooms'
-  hop ride, which follows the music's grid without jumping when the playhead jumps).
+  hop ride, which follows the music's grid without jumping when the playhead jumps); the warm-up draw
+  that builds every shader behind the black before it is seen (`warm-up.js`); and a guard that keeps
+  one failing part of a frame from stopping the rest (`guard.js`).
 - `engine/input/pointer.js`: taps on named targets in the world (spheres round point specs) and drags.
 - `engine/hand-hold.js`: hands that hold something, each wrist reaching its point by two-bone IK laid over a
   character's own pose after the actors update (Egill's two hands on his posy).
@@ -87,6 +89,11 @@ Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.h
 or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
 `walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts, and walks
 with the `walk` clip or another walking clip (`{ clip: 'wade' }`: Uggeðla wading in shallow water).
+A chapter can also give `warmUp(world)`, which returns `{ objects, shots, tray, dispose }`: what to draw
+once behind the start button so nothing builds its shaders while the child watches (the actors, and
+throwaways of what comes later), from which shots, and the tray's items; a place adds its own shots
+(`locations[name].warmUp`). `prepare: ['place']` builds a place behind the start button too, so going
+there later is only the two fades.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:

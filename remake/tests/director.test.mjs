@@ -636,3 +636,32 @@ test('explore needs limits around the view: a pair of degrees for yaw and for pi
   assert.equal(d.mode, 'hold', 'a refused explore changes nothing');
   assert.doesNotThrow(() => d.explore({ yaw: [0, 0], pitch: [0, 0] }));
 });
+
+test("poseOf says where a shot would put the camera, and the shadow's focus there, without going there", () => {
+  const { director: d, camera, actor } = director(4 / 3, {
+    a: { position: [5, 2, 5], target: [0, 1, 0], fov: 38 },
+    face: { position: [0, 1.4, 6], frame: { subject: 'mosi', screen: [0.5, 0.5] }, fov: 40 },
+    far: { position: [0, 1, 40], target: [0, 1, 0], fov: 40 },
+  });
+  d.cut('a');
+  const moving = d.move('far', { duration: 10 });
+  d.update(1);
+  const before = { position: camera.position.clone(), mode: d.mode, rig: d.rig.position.clone() };
+  const pose = d.poseOf('a');
+  assert.ok(nearVec(pose.position, [5, 2, 5]));
+  assert.ok(nearVec(pose.target, [0, 1, 0]));
+  assert.equal(pose.fov, d.effectiveFov(38), 'the lens the camera would use on this screen (4:3 widens it)');
+  assert.ok(pose.fov > 38);
+  const to = new THREE.Vector3(-5, -1, -5);
+  const distance = to.length();
+  assert.ok(nearVec(pose.focus.centre, [5 - 5 * Math.min(distance, 16) / distance, 0, 5 - 5 * Math.min(distance, 16) / distance]), 'the focus: the ground under where it aims, as shadowFocus has it');
+  assert.ok(pose.focus.radius > 0);
+  actor.root.position.set(2, 0, 0);
+  assert.ok(d.poseOf('face').target.distanceTo(new THREE.Vector3(2, 1, 0)) < 1e-6, 'a framed shot is composed on its subject, where it is now');
+  assert.ok(camera.position.equals(before.position) && d.rig.position.equals(before.rig), 'the camera and the rig stay where they were');
+  assert.equal(d.mode, before.mode, 'and the move goes on');
+  assert.equal(moving.done, false);
+  const far = d.poseOf('far');
+  assert.ok(near(far.focus.centre.z, 40 - 16), 'at most 16 m out');
+  assert.throws(() => d.poseOf('nowhere'), /nowhere/);
+});
