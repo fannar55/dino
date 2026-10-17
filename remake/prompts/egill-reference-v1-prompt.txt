@@ -1,0 +1,13 @@
+Purpose: Egill character reference for user-led Tripo3D modeling (first pass: personality and look).
+Template: design/mosi/mosi-tripo-reference-v1-prompt.txt. Colours: remake/STYLE.md section 3.
+
+Use case: stylized-concept.
+Asset type: a polished single-character concept image to serve as the primary image-to-3D reference for Egill, the child explorer who rides Mosi the Triceratops in an Icelandic children's dinosaur adventure game.
+Primary request: Make Egill a warm, curious, brave six-year-old Icelandic boy with the same high-quality animated-film / stylized 3D game look as his friend Mosi: soft rounded shapes, painted matte surfaces, gentle believable proportions.
+Scene/backdrop: seamless plain warm off-white studio background, only a faint soft contact shadow.
+Subject: ONE full-body boy, about 1.1 m tall, with a slightly large head and big expressive eyes, round friendly face, small nose, rosy cheeks, tousled sandy-blond hair (#d9bd7e) peeking out under a small snug khaki explorer hat (#caa15b) with a brown band (#79522e). Cream short-sleeved explorer shirt (#f6e3ac) with two chest pockets, deep blue trousers (#355774) rolled once at the ankle, sturdy brown boots (#654634). Hands empty and relaxed. No backpack (it is a separate prop).
+Personality: delighted, curious and kind; a small open-mouthed smile as if he has just spotted a dinosaur; eyebrows lifted with wonder. Never cheeky or sly.
+Materials/textures: soft matte cloth with a few large simple folds, smooth skin, hair as a few big sculpted locks, no fine noise, no shiny plastic.
+Composition/framing: ONE character, full body from hat to boots with generous clean margin, front three-quarter view at about chest height, near-orthographic perspective, relaxed standing pose with arms slightly away from the body so the hands read. Centre the character, filling about 80 percent of the image height. Portrait or square composition.
+Lighting/mood: soft even neutral studio light, gentle warm highlights, crisp focus across the whole figure.
+Constraints: one character and one view only. No turnaround panels, no inset portraits, no labels, no text, no logo, no watermark, no props, no dinosaur, no plants, no background environment.
