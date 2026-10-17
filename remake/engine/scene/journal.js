@@ -19,14 +19,17 @@ const FLYING_STAR_PX = 72; // the size of .flying-star in style.css
 const ARC_PX = 120; // the highest a flight bows above the straight line, at most
 const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px across) leaves the screen
 
-/** The six friends of the Star Festival, one slot each, in the main hue of each (STYLE.md section 3). */
+/**
+ * The six friends of the Star Festival, one slot each, in the main hue of each: the Main column of STYLE.md section 3's species
+ * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here.
+ */
 const FRIENDS = [
   { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
-  { key: 'thorsedla', name: 'Þórseðla', colour: '#e6bf55' },
+  { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
   { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
-  { key: 'uggedla', name: 'Uggeðla', colour: '#e06a55' },
-  { key: 'sloedla', name: 'Slóeðla', colour: '#5f8fd6' },
-  { key: 'flugedla', name: 'Flugeðla', colour: '#ea8db3' },
+  { key: 'uggedla', name: 'Uggeðla', colour: '#47908a' },
+  { key: 'sloedla', name: 'Slóeðla', colour: '#6793d0' },
+  { key: 'flugedla', name: 'Flugeðla', colour: '#dc8090' },
 ];
 
 /** What the animals the child can find are called in the book; any other find is shown by its id. */

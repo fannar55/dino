@@ -1,5 +1,5 @@
-/* The colours are the explorer's journal's (STYLE.md section 10). The caption, the choices and the start
-   button keep the foundation's first sizes until the rest of the interface gets its pass. */
+/* The colours are the explorer's journal's (STYLE.md section 10), and so are the sizes: touch targets of 64 px and captions
+   of at least 24 px. The start button keeps the foundation's first size until the rest of the interface gets its pass. */
 :root {
   --paper: #f6efdf;
   --card: #fffaf0;
@@ -16,22 +16,26 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; fon
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* What sits over the world lets taps through, except the buttons and things to carry, so a target in
-   the world behind a caption can still be tapped. */
+   the world behind a caption can still be tapped. A caption stands over the fade and the open book: the
+   last scene fades and opens the book while Mosi speaks, and his words must not read dimmed. */
 .caption {
-  position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 2;
   width: min(720px, calc(100% - 32px)); padding: 14px 20px 16px; border-radius: 18px;
   background: var(--paper); color: var(--ink); box-shadow: var(--shadow); pointer-events: none;
 }
 .caption-speaker { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 4px; }
-.caption-text { margin: 0; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.35; }
+.caption-text { margin: 0; font-size: clamp(24px, 2vw, 26px); line-height: 1.35; }
 
+/* The row of choices spans the screen and centres its buttons, so two of them stay side by side, each on one line, on a tablet
+   held upright (820 px); held to half the screen they wrapped. */
 .choices {
-  position: fixed; left: 50%; bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px)); transform: translateX(-50%);
-  display: flex; gap: 12px; pointer-events: none;
+  position: fixed; left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+  bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px));
+  display: flex; justify-content: center; gap: 16px; pointer-events: none;
 }
 .choices button {
-  min-width: 96px; min-height: 52px; padding: 0 22px; border: 0; border-radius: 16px;
-  font-family: inherit; font-size: 19px; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper); box-shadow: var(--shadow); cursor: pointer;
+  min-width: 112px; min-height: 64px; padding: 0 28px; border: 0; border-radius: 20px; white-space: nowrap;
+  font-family: inherit; font-size: 22px; font-weight: 600; line-height: 1; color: var(--ink); background: var(--paper); box-shadow: var(--shadow); cursor: pointer;
   pointer-events: auto;
 }
 .choices button.primary { background: var(--accent); }

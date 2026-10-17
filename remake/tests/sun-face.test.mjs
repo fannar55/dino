@@ -149,17 +149,48 @@ test('winking again starts the wink over, and no wink starts before the call', (
   assert.equal(face.eyesClosed, false);
 });
 
-test('the strip shows its first frame while the eyes are open and its second while they are shut', () => {
+test('a wink goes through a half-shut face on its way down and on its way back up, so it reads softly', () => {
+  const { scene, lighting, camera } = stage();
+  const face = createSunFace({ scene, lighting });
+  face.update(1, camera);
+  assert.equal(face.eyes, 'open');
+  face.wink();
+  const seen = [];
+  for (const after of [0, 0.03, 0.07, 0.15, 0.25, 0.27, 0.3, 0.34, 0.36]) {
+    face.update(1 + after, camera);
+    seen.push([after, face.eyes]);
+  }
+  assert.deepEqual(seen, [
+    [0, 'half'], [0.03, 'half'], // down
+    [0.07, 'shut'], [0.15, 'shut'], [0.25, 'shut'],
+    [0.27, 'half'], [0.3, 'half'], [0.34, 'half'], // and back up, a little slower
+    [0.36, 'open'],
+  ]);
+  assert.ok(seen.every(([, eyes]) => (eyes !== 'open') === (eyes === 'half' || eyes === 'shut')), 'eyesClosed is any of the wink');
+  // At the tablet's 30 fps a wink shows the half-shut face for two frames going down and three coming up.
+  const tablet = createSunFace({ scene, lighting });
+  tablet.wink();
+  const frames = [];
+  for (let i = 0; i < 12; i++) {
+    tablet.update(2 + i / 30, camera);
+    frames.push(tablet.eyes[0]);
+  }
+  assert.equal(frames.join(''), 'hhsssssshhho', 'h: half shut, s: shut, o: open again');
+});
+
+test('the strip shows its first frame while the eyes are open, its second while they are half shut and its third while they are shut', () => {
   const { scene, lighting, camera } = stage();
   const texture = new THREE.Texture();
   const face = createSunFace({ scene, lighting, texture });
   assert.equal(face.sprite.material.map, texture);
-  assert.deepEqual([texture.repeat.x, texture.repeat.y], [0.5, 1], 'one of the two frames at a time');
+  assert.deepEqual([texture.repeat.x, texture.repeat.y], [1 / 3, 1], 'one of the three frames at a time');
   face.update(0, camera);
   assert.equal(texture.offset.x, 0);
   face.wink();
   face.update(1, camera);
-  assert.equal(texture.offset.x, 0.5);
+  assert.equal(texture.offset.x, 1 / 3, 'half shut');
+  face.update(1.2, camera);
+  assert.equal(texture.offset.x, 2 / 3, 'shut');
   face.update(1.4, camera);
   assert.equal(texture.offset.x, 0);
 });
@@ -286,16 +317,16 @@ test('the Mosi cloud is painted in the sky\'s own cloud and shade colours, whate
   }
 });
 
-test('the textures are small: a strip of two square frames for the face and one 2:1 picture for the cloud', () => {
+test('the textures are small: a strip of three square frames for the face and one 2:1 picture for the cloud', () => {
   const { scene, lighting } = stage();
   const { canvases, made } = onAPage(() => ({ face: createSunFace({ scene, lighting }), cloud: addMosiCloud({ scene, lighting }) }));
   assert.equal(canvases.length, 2);
   const [strip, picture] = canvases;
-  assert.equal(strip.width, 2 * strip.height, 'two frames side by side');
+  assert.equal(strip.width, 3 * strip.height, 'three frames side by side: open, half shut, shut');
   assert.ok(strip.height <= 256, `${strip.height} px a frame`);
   assert.equal(picture.width, 2 * picture.height);
   assert.ok(picture.width <= 512, `${picture.width} px wide`);
-  assert.deepEqual([made.face.sprite.material.map.repeat.x, made.face.sprite.material.map.repeat.y], [0.5, 1]);
+  assert.deepEqual([made.face.sprite.material.map.repeat.x, made.face.sprite.material.map.repeat.y], [1 / 3, 1]);
   assert.equal(made.cloud.sprite.material.map.colorSpace, THREE.SRGBColorSpace);
   assert.equal(made.face.sprite.material.map.colorSpace, THREE.SRGBColorSpace);
 });

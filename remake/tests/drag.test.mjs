@@ -583,6 +583,30 @@ test('what sits over the world passes taps through, except buttons and the thing
   assert.match(rule('[hidden]'), /display:\s*none\s*!important/, 'a rule that sets display cannot show what the page hid');
 });
 
+test('the interface keeps STYLE.md section 10: choices 64 px high on one line, captions 24 px, and the last caption reads clearly over the book', () => {
+  const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+  const rule = selector => {
+    const found = new RegExp(`^${selector.replace(/[.[\]#]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'm').exec(css);
+    assert.ok(found, `${selector} has a rule`);
+    return found[1];
+  };
+  const px = (declarations, property) => {
+    const value = new RegExp(`(?:^|;)\\s*${property}:\\s*([^;]+)`).exec(declarations)?.[1]?.trim();
+    assert.ok(value, `${property} is set`);
+    const clamp = /^clamp\(\s*([\d.]+)px/.exec(value); // its smallest
+    return Number(clamp ? clamp[1] : /^([\d.]+)px$/.exec(value)?.[1]);
+  };
+  assert.ok(px(rule('.choices button'), 'min-height') >= 64, 'a choice is a 64 px touch target');
+  assert.match(rule('.choices button'), /white-space:\s*nowrap/, 'and its words stay on one line');
+  assert.doesNotMatch(rule('.choices'), /left:\s*50%/, 'the row is not held to half the screen (it wrapped at 820 px)');
+  assert.match(rule('.choices'), /justify-content:\s*center/);
+  assert.ok(px(rule('.caption-text'), 'font-size') >= 24, 'captions at least 24 px');
+  // The scene fades to 0.45 and opens the book under Mosi's last line: the caption stands over both, so it is not dimmed.
+  const zOf = selector => Number(/z-index:\s*(-?\d+)/.exec(rule(selector))?.[1] ?? 0);
+  assert.ok(zOf('.caption') > zOf('.fade') && zOf('.caption') > zOf('.journal-page'), 'the caption is above the fade and the open book');
+  assert.match(rule('.caption'), /pointer-events:\s*none/, 'and still lets taps through');
+});
+
 test('putting the stage UI away puts the tray away', () => {
   const doc = new FakeDocument(['caption', 'choices', 'fade', 'tray', 'view']);
   for (const name of ['caption-speaker', 'caption-text']) {

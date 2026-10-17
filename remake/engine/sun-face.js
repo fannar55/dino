@@ -20,6 +20,10 @@ const ORIGIN = new THREE.Vector3();
 
 export const SUN_DISTANCE = 600; // metres from the camera; engine/points.js uses it for the 'sun' point
 export const WINK_SECONDS = 0.35;
+// The wink passes through a half-shut face going down and coming back up (the owner asked for it: it reads softer), the way up a
+// little slower, as a blink opens slower than it shuts (eyelids.js).
+const HALF_DOWN = 0.06; // seconds of the half-shut face at the start of a wink
+const HALF_UP = 0.09; // and at its end
 export const CLOUD_OFFSET_DEG = 35; // the Mosi cloud hangs this far to the left of the sun, at its height
 export const CLOUD_DRIFT_DEG_PER_MIN = 0.5; // and drifts to the right, toward the sun, as the sky's clouds do
 
@@ -28,7 +32,8 @@ export const CLOUD_DRIFT_DEG_PER_MIN = 0.5; // and drifts to the right, toward t
 // to the screen while the disc is round on the sphere, so toward the screen's edge the disc stretches more
 // than the sprite does; the extra width keeps it covered out to about 35 degrees off the view axis.
 export const SUN_RADIUS_DEG = 2.6;
-const FRAMES = 2; // the face's strip: open eyes, then shut
+const FRAMES = 3; // the face's strip: open eyes, half shut, shut
+const FRAME_OF = { open: 0, half: 1, shut: 2 };
 const FRAME = 256; // px a frame
 const DISC_OF_FRAME = 0.9; // the painted disc's radius as a part of half a frame; the rest is clear margin
 const CLOUD_WIDTH_DEG = 16;
@@ -56,8 +61,8 @@ function softDisc(g, x, y, r, colour, alpha = 1, feather = 3) {
 
 const PAINT = { rim: '#f7bb3d', mid: '#ffdf78', core: '#fff3cd', ink: '#9b5424', cheek: '#f48a5c', glint: '#fff7de' };
 
-/** One frame of the face, in a square of FRAME px with the sun's centre in the middle. */
-function paintSun(g, shut) {
+/** One frame of the face, in a square of FRAME px with the sun's centre in the middle; `eyes` is 'open', 'half' or 'shut'. */
+function paintSun(g, eyes) {
   const c = FRAME / 2;
   const R = c * DISC_OF_FRAME;
 
@@ -78,12 +83,29 @@ function paintSun(g, shut) {
   for (const side of [-1, 1]) {
     const x = c + side * 0.33 * R;
     const y = c - 0.08 * R;
-    if (shut) {
+    if (eyes === 'shut') {
       // The content closed eye: a soft curve that sags in the middle (STYLE.md section 3), never a squint.
       g.lineWidth = 0.06 * R;
       g.beginPath();
       g.moveTo(x - 0.1 * R, y - 0.01 * R);
       g.quadraticCurveTo(x, y + 0.15 * R, x + 0.1 * R, y - 0.01 * R);
+      g.stroke();
+    } else if (eyes === 'half') {
+      // On the way: the lower half of the open eye, under a lid that has come down to its middle, the lid's edge a soft line
+      // that sags a little, as the shut eye's does. No glint: the lid has covered it.
+      g.save();
+      g.beginPath();
+      g.rect(x - 0.2 * R, y + 0.01 * R, 0.4 * R, 0.3 * R);
+      g.clip();
+      g.fillStyle = PAINT.ink;
+      g.beginPath();
+      g.ellipse(x, y, 0.085 * R, 0.14 * R, 0, 0, TAU);
+      g.fill();
+      g.restore();
+      g.lineWidth = 0.05 * R;
+      g.beginPath();
+      g.moveTo(x - 0.105 * R, y - 0.005 * R);
+      g.quadraticCurveTo(x, y + 0.05 * R, x + 0.105 * R, y - 0.005 * R);
       g.stroke();
     } else {
       g.fillStyle = PAINT.ink;
@@ -102,7 +124,7 @@ function paintSun(g, shut) {
   g.stroke();
 }
 
-/** The face as a strip of frames, open eyes on the left and shut on the right. Null where there is no page. */
+/** The face as a strip of frames, from the left: open eyes, half shut, shut. Null where there is no page. */
 function drawSunFrames() {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
@@ -112,7 +134,7 @@ function drawSunFrames() {
   for (let frame = 0; frame < FRAMES; frame++) {
     g.save();
     g.translate(frame * FRAME, 0);
-    paintSun(g, frame === 1);
+    paintSun(g, Object.keys(FRAME_OF)[frame]);
     g.restore();
   }
   const texture = new THREE.CanvasTexture(canvas);
@@ -123,9 +145,10 @@ function drawSunFrames() {
 /**
  * The sun's face: a sprite along `lighting.direction`, 600 m from the camera, over the sky's own sun disc.
  *   sprite       the THREE.Sprite, in `scene`
- *   wink()       shuts the eyes for 0.35 s of game time, counted from the next update
+ *   wink()       shuts the eyes for 0.35 s of game time, counted from the next update: half shut, shut, half shut
  *   update(t, camera)  t is the game clock in seconds; call it after the camera has moved
- *   eyesClosed   whether the shut-eyes frame shows
+ *   eyes         'open', 'half' or 'shut': which frame of the face shows
+ *   eyesClosed   whether a wink shows (the half-shut frames too)
  *   radiusDeg    the painted disc's angular radius, as seen from the camera
  * `texture` is the strip of FRAMES frames; the page draws it, a test can pass its own.
  */
@@ -145,7 +168,7 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames() }) {
 
   let winkPending = false;
   let winkStart = -Infinity;
-  let closed = false;
+  let eyes = 'open';
 
   return {
     sprite,
@@ -156,10 +179,13 @@ export function createSunFace({ scene, lighting, texture = drawSunFrames() }) {
         winkPending = false;
         winkStart = t;
       }
-      closed = t >= winkStart && t < winkStart + WINK_SECONDS;
-      if (texture) texture.offset.x = (closed ? 1 : 0) / FRAMES;
+      const into = t - winkStart;
+      if (!(into >= 0 && into < WINK_SECONDS)) eyes = 'open';
+      else eyes = into < HALF_DOWN || into >= WINK_SECONDS - HALF_UP ? 'half' : 'shut';
+      if (texture) texture.offset.x = FRAME_OF[eyes] / FRAMES;
     },
-    get eyesClosed() { return closed; },
+    get eyes() { return eyes; },
+    get eyesClosed() { return eyes !== 'open'; },
     get radiusDeg() { return deg(Math.atan(((sprite.scale.x / 2) * DISC_OF_FRAME) / SUN_DISTANCE)); },
   };
 }

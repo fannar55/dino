@@ -221,8 +221,8 @@ face), misty far forest, forest wall.
     glass never stops another finger's tap; only the earliest finger still down drags (the free look follows one finger).
   - Tap targets: a target in the world is a sphere round a point, sized in metres (Mosi's nose 0.45, Egill 0.7, a
     glow flower 0.55, the star 0.85) and never less than 44 px across on the screen; tray items are 64 to 88 px,
-    the book's button and its close 64 px. The choice buttons are still the foundation's 52 px until the interface
-    gets its pass.
+    the book's button and its close 64 px, and the choice buttons 64 px high, side by side with each label on one line
+    (they fit a tablet held upright). Captions are 24 px or more and stand over the fade and the open book.
 
 ## 11. Performance budget (tablet preset)
 

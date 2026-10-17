@@ -652,3 +652,24 @@ test('s.star and s.found say so when the scene has no journal', () => {
   assert.throws(() => bare.s.star(STAR, PLATES), /journal/);
   assert.throws(() => bare.s.journal.open(), /journal/);
 });
+
+test('the book\'s slots and cards are in each friend\'s main hue as STYLE.md section 3 has it, so they cannot drift from it again', () => {
+  // STYLE.md's species colour map: the row of each friend, and its Main column.
+  const style = fs.readFileSync(new URL('../STYLE.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const section = style.slice(style.indexOf('## 3. Characters'), style.indexOf('## 4. '));
+  const rows = section.split('\n').filter(line => line.startsWith('|')).map(line => line.split('|').slice(1, -1).map(cell => cell.trim()));
+  const main = rows[0].indexOf('Main');
+  assert.ok(main > 0, 'the table has a Main column');
+  const hueOf = name => {
+    const row = rows.find(cells => cells[0] === name);
+    assert.ok(row, `STYLE.md has a row for ${name}`);
+    return /#[0-9a-f]{6}/i.exec(row[main])[0].toLowerCase();
+  };
+  const { el, slots } = journalRig();
+  const cards = el('journal-stars').children;
+  FRIENDS.forEach((name, i) => {
+    assert.equal(String(slots()[i].style['--hue']).toLowerCase(), hueOf(name), `${name}'s slot`);
+    assert.equal(String(cards[i].style['--hue']).toLowerCase(), hueOf(name), `${name}'s card`);
+  });
+  assert.equal(hueOf('Uggeðla'), '#47908a', 'Uggeðla is teal');
+});
