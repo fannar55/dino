@@ -158,9 +158,11 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const director = createDirector({ camera: world.camera, world, shots, lint: false });
   world.director = director;
   let shotNow = null; // the label of the camera's last cut
+  const cuts = []; // every cut, as { shot, at }: the shot's label and the scene time
   const cut = director.cut;
   director.cut = (shot, options) => {
     shotNow = typeof shot === 'string' ? shot : shot?.label ?? null;
+    cuts.push({ shot: shotNow, at: stage.s.time });
     return cut(shot, options);
   };
 
@@ -264,7 +266,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   // What the run sees on the way, for the tests to look at afterwards.
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
-    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows,
+    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
     // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
     // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
     grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
@@ -450,7 +452,7 @@ test('kafli1 uses only lines that exist', async () => {
   for (const id of source.keys()) assert.ok(chapter.lines[id], `${id} is missing from the chapter's lines`);
   // Whatever the script names as a line is one of them: the said lines and the hints, in the source.
   const named = new Set([...CHAPTER_TEXT.matchAll(/'(k1_(?:mosi|egill|kambedla)_[a-z0-9_]+|welcome)'/g)].map(match => match[1]));
-  assert.ok(named.size >= 38, `the script names ${named.size} lines`);
+  assert.ok(named.size >= SOURCE.length, `the script names ${named.size} lines, and lines-source.json has ${SOURCE.length}`);
   for (const id of named) assert.ok(chapter.lines[id], `the script names '${id}', which is not one of its lines`);
   // And played through, every caption shown is one of those lines' words, never an id shown as text.
   const { captions } = await unattended();
@@ -462,6 +464,11 @@ test('kafli1 uses only lines that exist', async () => {
   const runs = [await unattended(), await ignoredByAChild(), await playedByAnEagerChild()];
   const said = new Set(runs.flatMap(run => [...run.seen.spoken]));
   for (const id of Object.keys(chapter.lines)) assert.ok(said.has(id), `${id} is never said`);
+  // The ride's two opening lines of Mosi's are no taps' business: every run says them, not just one of the three.
+  const who = ['the capture', 'the child who waits', 'the eager child'];
+  runs.forEach((run, i) => {
+    for (const id of ['k1_mosi_visit', 'k1_mosi_critters']) assert.ok(run.seen.spoken.has(id), `${id} is not said in the run of ${who[i]}`);
+  });
 });
 
 test('each speaker has a name and a colour, Kambeðla in her plum', () => {
@@ -706,6 +713,34 @@ test('on the ride Mosi presses big footprints into the path, seen by his feet, a
     const ride = seen.birdsUp.filter(b => b.scene === 6);
     assert.equal(ride.length, 3, `${how}: three birds fly up on the ride`);
     assert.ok(ride.every(b => b.shot === 'rideWide' && b.seen), `${how}: from the path ahead, where the wide shot sees them`);
+  }
+});
+
+test('on the ride Mosi names the visit and then tells Egill to look out for small animals, before the camera shows the first one', async () => {
+  const visit = chapter.lines.k1_mosi_visit;
+  const critters = chapter.lines.k1_mosi_critters;
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const { captions, lines, seen, world } = await run();
+    const cutAt = shot => seen.cuts.find(cut => cut.shot === shot).at;
+    const mosis = captions.filter(c => c.who === 'Mosi').sort((a, b) => a.at - b.at);
+    const said = line => mosis.filter(c => c.text === line.text);
+    assert.equal(said(visit).length, 1, `${how}: the visit line once`);
+    assert.equal(said(critters).length, 1, `${how}: and the line about the small animals once`);
+    const [first] = said(visit);
+    const [second] = said(critters);
+    // On the ride, right after the visit line, and never over it: no remark about a critter the child tapped gets in between.
+    assert.ok(first.at > world.chapterTimeline.find(m => m.scene === 6).at, `${how}: it comes in scene 6, the ride`);
+    assert.equal(mosis.indexOf(second), mosis.indexOf(first) + 1, `${how}: nothing of Mosi's comes between the two`);
+    assert.ok(second.at >= first.at + lines[visit.audio].duration - 1e-6, `${how}: the second begins over the first`);
+    // A critter's remark waits for both.
+    const over = second.at + lines[critters.audio].duration;
+    for (const id of ['k1_mosi_beetle', 'k1_mosi_frog', 'k1_mosi_snail']) {
+      for (const remark of said(chapter.lines[id])) assert.ok(remark.at >= over - 1e-6, `${how}: ${id} comes before the line about the small animals is over`);
+    }
+    // It is over, its caption too (a line is held half a second after its recording), before the camera cuts to the first critter,
+    // the beetle in rideFeet, and long before the move to the glade.
+    assert.ok(over + 0.5 < cutAt('rideFeet'), `${how}: the line about the small animals runs until ${over + 0.5} s, the camera shows the beetle at ${cutAt('rideFeet')} s`);
+    assert.ok(over + 0.5 < cutAt('gladeArrive'), `${how}: and the glade comes after it, at ${cutAt('gladeArrive')} s`);
   }
 });
 

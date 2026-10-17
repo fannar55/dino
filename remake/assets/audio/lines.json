@@ -1571,8 +1571,13 @@
  },
  "k1_mosi_visit": {
   "src": "assets/audio/kafli1/k1_mosi_visit.mp3",
-  "duration": 7.77,
-  "mouth": "00ff570007efd42ed6addcba0000089eee59ffedcdb9008dedc79ffeedba8300000000000000049ffdc00d84dfddeb0deeb4ceeffeeebaddccb9008c9bec5aeddddc96a9850046dcc97440000000"
+  "duration": 6.57,
+  "mouth": "00ef960000bffe94ae77ddcfa077ddd70dffdeeaeed37eecb9654000000000000efea0c7edfd06ebb807eeffdcca9ab9930baaacedcbcec657843653000000000000"
+ },
+ "k1_mosi_critters": {
+  "src": "assets/audio/kafli1/k1_mosi_critters.mp3",
+  "duration": 8.17,
+  "mouth": "00febbea9ffeccc089ffa9ff6eeffededdeecaab940000000000000af6fb00ec007edc867eeea0bfcdd0bc9ba77ba9a60000000009eedc9dbae9defb0cdd72cdbbcdb037ffedd9dd97bb8797440000000000"
  },
  "k1_mosi_beetle": {
   "src": "assets/audio/kafli1/k1_mosi_beetle.mp3",
