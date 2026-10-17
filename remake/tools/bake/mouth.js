@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { GLTFExporter } from '../../vendor/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
+import { SKIN_ATTRIBUTES, carriedAttributes } from './attributes.js';
 
 // The mouth pass: gives a baked character without a jaw (Mosi) a lower jaw that opens a little, the
 // way bake-tailed-biped opens Grameðla's along the seam between her head and jaw parts. Mosi's beak is
@@ -26,10 +27,12 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 //      the bake authored to open the jaw (Slóeðla's eat and call) carries `jaw` in its extras, the
 //      jaw's opening in degrees at each of the clip's keys: it gets the jaw's track here.
 //
-// Any other vertex attribute the skin carries goes through with it, under the same name in the GLB
-// (Kambeðla's plate rows, _PLATEROW): a vertex the cut makes on an edge takes the value of the edge's
-// nearer end (a plate row is a whole number, never one in between), a lip's copy its own vertex's, and
-// the pocket 0.
+// The skin's other vertex attributes go through only when the query names them (attrs=_platerow, as
+// three's loader names them: Kambeðla's plate rows, _PLATEROW in the GLB); the pass drops any it is not
+// told about, as it always did, so a character whose bake wrote one it does not use (Slóeðla's back patch
+// has a plate row) rebakes as before (attributes.js). A carried attribute keeps its name in the GLB: a
+// vertex the cut makes on an edge takes the value of the edge's nearer end (a plate row is a whole
+// number, never one in between), a lip's copy its own vertex's, and the pocket 0.
 //
 //   node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb
 //     --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=f,u;f,u;...&front=f&cut=f&hinge=f,u&talk=7"
@@ -37,7 +40,8 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 // Query: src, out, line, left (a line of its own for the character's left side, +l, where the two sides
 // of the mouth differ: `line` is then the right side's, and within 4 cm of the middle the one goes over
 // into the other; the two sides of Kambeðla's smile differ by up to a centimetre), front,
-// cut, hinge, talk (degrees the jaw opens at the loudest syllable),
+// cut, hinge, talk (degrees the jaw opens at the loudest syllable), attrs (the skin's other attributes to
+// carry, comma-separated, as above: Kambeðla _platerow),
 // tex (texture size), smooth (rounds), snap (metres: vertices this close to the line count as on it, so
 // a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
 // only those exactly on it), channel (1: for a long beak, the pocket's fold runs along the middle of the
@@ -182,9 +186,11 @@ try {
 
   // --- 1. split the triangles that cross the line in front of the cut --------------------------------
   const src = mesh.geometry;
-  const attrs = ['position', 'normal', 'uv', 'skinIndex', 'skinWeight'];
-  // The skin's other attributes (Kambeðla's `_platerow`), carried along as the header says.
-  const extras = Object.keys(src.attributes).filter(name => !attrs.includes(name));
+  const attrs = SKIN_ATTRIBUTES;
+  // The skin's other attributes go only when the query names them (attrs=_platerow), as the header says.
+  const extras = carriedAttributes(src.attributes, params.get('attrs'));
+  const dropped = Object.keys(src.attributes).filter(name => !attrs.includes(name) && !extras.includes(name));
+  if (dropped.length) log(`not carried (no attrs= names them): ${dropped.join(', ')}`);
   const all = [...attrs, ...extras];
   const data = Object.fromEntries(all.map(a => [a, Array.from(src.attributes[a].array)]));
   const size = Object.fromEntries(all.map(a => [a, src.attributes[a].itemSize]));
@@ -574,7 +580,7 @@ try {
   }
   const report = {
     triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count, split: splits, conformed,
-    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips, carried: extras,
+    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips, carried: extras, dropped,
   };
   window.__bakeReport = report;
   log(JSON.stringify(report));
