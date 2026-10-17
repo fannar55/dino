@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
-import { chapter, onBone, POINTS, FLOWERS, hidingPlaces } from '../chapters/kafli1.js';
+import { chapter, onBone, POINTS, FLOWERS, HELD, hidingPlaces } from '../chapters/kafli1.js';
 import { createActor, updateActors } from '../engine/actor.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
@@ -261,6 +261,9 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayDrops: { made: 0, home: 0 }, held,
     printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows,
+    // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
+    // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
+    grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
   };
   // On the screen, and in front of the camera?
   const onScreen = point => {
@@ -370,6 +373,20 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     if (!egill.controlled && wasControlled && world.location === 'burknalaut') seen.landing = inMosisFrame(egill.root.position);
     wasControlled = egill.controlled;
     if (shotNow === 'rideFeet') seen.printsInRideFeet = Math.max(seen.printsInRideFeet, printsSeen());
+    const scene = world.chapterTimeline.at(-1)?.scene;
+    const strays = () => ['left', 'right'].map(side => {
+      const hand = egill.model.getObjectByName(side === 'left' ? 'LeftHand' : 'RightHand').getWorldPosition(new THREE.Vector3());
+      return hand.distanceTo(world.resolvePoint(HELD.grips[side], new THREE.Vector3()));
+    });
+    if (scene === 9 && held.atMmm.length === 0 && heldInHands() === 3) {
+      const g = seen.grip;
+      g.worst = Math.max(g.worst, ...strays());
+      g.frames++;
+      g.from ??= { at: egill.root.position.clone(), heading: egill.heading };
+      g.walked = Math.max(g.walked, egill.root.position.distanceTo(g.from.at));
+      g.turned = Math.max(g.turned, Math.abs(((egill.heading - g.from.heading + 540) % 360) - 180));
+    }
+    if (scene === 10 && !seen.grip.after) seen.grip.after = strays();
     if (world.location === 'burknalaut' && world.scene.getObjectByName('Footprints')) seen.printsInGlade = true;
     for (const [name, spec] of pointer.targets) {
       if (!name.startsWith('bird-')) continue;
@@ -637,6 +654,16 @@ test('a step sound that breaks stops the steps, never the story', async () => {
     console.error = report;
   }
   assert.ok(errors.some(e => e.includes('a step sound broke')), 'the broken step is reported');
+});
+
+test('Egill holds the posy in both hands: as he walks to her and turns, each hand stays on the stems', async () => {
+  for (const [how, run] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const { grip } = (await run()).seen;
+    assert.ok(grip.frames > 30, `${how}: he carries the posy into scene 9 (${grip.frames} frames)`);
+    assert.ok(grip.walked > 1 && grip.turned > 15, `${how}: walking ${grip.walked.toFixed(1)} m and turning ${grip.turned.toFixed(0)} degrees`);
+    assert.ok(grip.worst < 0.03, `${how}: his hands stay within ${(grip.worst * 100).toFixed(1)} cm of the stems`);
+    assert.ok(grip.after.every(d => d > 0.1), `${how}: and once the posy is gone they are back at his sides`);
+  }
 });
 
 test('Mosi walks all the way to Egill, however soon the child taps Egill to wave', async () => {

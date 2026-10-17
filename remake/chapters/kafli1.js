@@ -20,6 +20,7 @@
 // opening over the clearing, the float, the ride); handheld sway is off whenever the child must tap or choose.
 import * as THREE from 'three';
 import { createSaddle, floatTo, floatDown, ride } from '../engine/riding.js';
+import { holdWithHands } from '../engine/hand-hold.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
@@ -481,7 +482,16 @@ function* kambedlaInTheFerns(s, c) {
 
 // The flowers in Egill's hands, from the search until he gives each to Kambeðla: a little posy, the first upright and
 // the next two leaning out to either side, all a little forward (lean: radians about his forward axis, then his right).
-const HELD = { size: 0.45, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]] };
+// He holds it in both hands from the moment the first flower reaches him until the last has gone.
+export const HELD = {
+  size: 0.45, leans: [[0, 0, -0.12], [-0.34, 0, -0.12], [0.34, 0, -0.12]],
+  // Where his wrists go to hold it, either side of the stems (engine/hand-hold.js): his hands reach in to them from
+  // there, and his elbows stay out past his sides.
+  grips: {
+    left: { actor: 'egill', part: 'feet', offset: [0.16, 0.54, -0.08], local: true },
+    right: { actor: 'egill', part: 'feet', offset: [0.16, 0.58, 0.08], local: true },
+  },
+};
 
 // 8. The search: the child looks round the glade and finds the three glow flowers; Egill picks each.
 function* flowerSearch(s, c) {
@@ -506,6 +516,12 @@ function* flowerSearch(s, c) {
       const turn = () => egill.raw.root.quaternion;
       const { flower } = c.flowers.find(f => f.name === name);
       const picked = flower.hold(POINTS.egillHands, { size: HELD.size, lean: HELD.leans[index], turn });
+      if (index === 0) {
+        s.after(0, function* takeHold() { // his hands go to the stems as the first flower reaches him
+          yield picked;
+          c.hands = holdWithHands(c.world, egill.raw, HELD.grips).grip(0.4);
+        });
+      }
       const before = [picked, counting, explaining].filter(Boolean);
       counting = s.after(0, function* count() {
         yield s.all(before);
@@ -557,6 +573,7 @@ function* platesLight(s, c) {
     yield s.all(s.until(() => given.length > row), s.wait(0.6));
     const { id, nudge } = given[row];
     if (nudge) yield nudge;
+    if (row === items.length - 1) c.hands?.release(0.5); // the last flower leaves his hands, and they go back
     yield items.find(item => item.id === id).flower.pick(mouth);
     sparkleBurst(world, mouth, { count: 18, duration: 0.9, colour: '#d9b8f2', seed: `fed ${row}` });
     eat.setEffectiveTimeScale(1); // she nips, chews and comes back up
