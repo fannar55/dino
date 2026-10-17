@@ -29,6 +29,16 @@ const clamp01 = t => Math.min(1, Math.max(0, t));
 const popIn = t => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2;
 const findBone = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
 
+/**
+ * The heading (degrees: 0 facing +X, 90 facing +Z, as actor.js counts it) that a turned root faces, read from its quaternion:
+ * the way its +X axis points, seen from above. An actor reads its heading from rotation.y, which is right only for a turn about
+ * the vertical alone; a quaternion a controller has set past 90 degrees decomposes as (180, 180 - y, 180) and reads wrong.
+ */
+export function headingOf(quaternion) {
+  const forward = new V3(1, 0, 0).applyQuaternion(quaternion);
+  return THREE.MathUtils.radToDeg(Math.atan2(forward.z, forward.x));
+}
+
 // The host's skin as it was bound. What is measured there (the top of his back) is measured in the bind
 // pose, where each bone's inverse bind matrix starts, so it holds in whatever pose the clips give him
 // later. Only vertices are read: every level of detail shares them (character-lod.js swaps only the
@@ -332,10 +342,8 @@ function release(rider, controller) {
   if (controllers.get(rider) !== controller) return;
   controller.end();
   controllers.delete(rider);
-  // Given back turned about the vertical alone, as the actor turns itself: it reads its heading from rotation.y, and a
-  // quaternion a controller set past 90 degrees reads back as (180, 180 - y, 180) degrees.
-  const forward = new V3(1, 0, 0).applyQuaternion(rider.root.quaternion);
-  rider.root.rotation.set(0, -Math.atan2(forward.z, forward.x), 0);
+  // Given back turned about the vertical alone, as the actor turns itself (it reads its heading from rotation.y).
+  rider.root.rotation.set(0, -THREE.MathUtils.degToRad(headingOf(rider.root.quaternion)), 0);
   rider.control(null);
 }
 
@@ -469,12 +477,13 @@ export function floatTo(rider, saddle, { duration = 2.2 } = {}) {
 /**
  * The float down: the float up backwards. The rider rises off the seat, floats out over the host's side and comes down onto
  * `spot` ([x, z] on the ground, or a point spec taken where it is now) over `duration` seconds, playing `lifted` with a trail of
- * sparkles, and lands standing (idle) facing `heading` (degrees; the way he faces now when left out). It takes him over from a
+ * sparkles, and lands standing (idle) facing `heading` (degrees; when left out, the way he faces now, read by headingOf from the
+ * turn a ride has given him, since his own heading reads wrong past 90 degrees while he rides). It takes him over from a
  * ride, which ends. The curve and its timing are floatTo's reversed, so a spot a float up may start from is one he may land on
  * (LOOK_CAPS above: the host's looks are capped until he is down). Returns a Handle that finishes with him on the ground, given
  * back (actor.control(null)), so footing has his feet from there.
  */
-export function floatDown(rider, saddle, spot, { duration = 2.2, heading = rider.heading } = {}) {
+export function floatDown(rider, saddle, spot, { duration = 2.2, heading = headingOf(rider.root.quaternion) } = {}) {
   const world = rider.world;
   if (!world?.effects) throw new Error('floatDown needs the rider\'s world.effects (engine/effects.js), which main.js updates');
   const handle = new Handle(`${rider.name} floats down`);

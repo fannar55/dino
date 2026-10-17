@@ -6,7 +6,7 @@ import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { createActor, updateActors } from '../engine/actor.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
-import { createSaddle, ride, floatTo, floatDown } from '../engine/riding.js';
+import { createSaddle, ride, floatTo, floatDown, headingOf } from '../engine/riding.js';
 
 // Mosi (8.5 m) and Egill (1.1 m) as the remake bakes them, read without textures (no DOM in Node).
 function loadGlb(url) {
@@ -331,6 +331,29 @@ test('a rider given back faces where he faced: turned about the vertical alone, 
   egill.turnTo(200);
   for (let i = 0; i < 90; i++) frame();
   assert.ok(new THREE.Vector3(0, 1, 0).applyQuaternion(egill.root.quaternion).y > 0.999, 'and still upright after he turns by himself');
+});
+
+test('headingOf reads the way a turned root faces from its quaternion, past 90 degrees too', () => {
+  const root = new THREE.Object3D();
+  for (const heading of [0, 45, 120, 136.4, 150, 179, -30, -120]) {
+    root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -THREE.MathUtils.degToRad(heading));
+    const read = headingOf(root.quaternion);
+    const off = ((read - heading + 540) % 360) - 180;
+    assert.ok(Math.abs(off) < 1e-6, `${heading} degrees reads as ${read.toFixed(3)}`);
+  }
+});
+
+test('floatDown with no heading sets him down facing the way he faced in the saddle, past 90 degrees too', async () => {
+  const { mosi, egill, frame } = await stage();
+  mosi.place(0, 0, 150);
+  const saddle = createSaddle(mosi);
+  ride(egill, saddle);
+  for (let i = 0; i < 30; i++) frame();
+  // beside his left shoulder, where a float up may start: 1.2 m along him and 3.4 m out, in his own frame
+  const spot = new THREE.Vector3(1.2, 0, -3.4).applyAxisAngle(new THREE.Vector3(0, 1, 0), -THREE.MathUtils.degToRad(150));
+  const down = floatDown(egill, saddle, [spot.x, spot.z]);
+  while (!down.done) frame();
+  assert.ok(Math.abs(egill.heading - 150) < 0.5, `he faces ${egill.heading.toFixed(1)} degrees, as he did on Mosi at 150`);
 });
 
 test('the float down is the float up backwards, so a spot a float may start from is one he may land on', async () => {
