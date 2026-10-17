@@ -134,9 +134,10 @@ const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 's
  * The chapter played until it ends or `limit` seconds have gone by: in seeking mode, as a capture plays it; or (seeking false)
  * as it plays for a child who never touches the screen, or, `eager`, for one who taps everything there is to tap a moment after
  * it appears and drags each flower to Kambeðla's mouth. `noseAt` is for a child who taps only Mosi's nose: the seconds after it
- * becomes a target at which each tap comes.
+ * becomes a target at which each tap comes. `earlyTap` ({ name, after }) is for a child who taps one target `after` seconds after
+ * it appears, and nothing else.
  */
-async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null } = {}) {
+async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null } = {}) {
   const world = await chapterWorld();
   // Kambeðla's plate rows as they light: { row, level, at } (the chapter's plate glow is the effect with a setRow).
   const rows = [];
@@ -269,6 +270,9 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   const seen = {
     kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
     printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
+    // The early tap, once made: { name, appeared, at } in scene time, the journal's findings right after it, and when the target first
+    // moved (the critter's reaction: its live point follows it).
+    earlyTap: null,
     // How far each speaker's jaw opens while they speak a line, at the widest, in degrees: line id -> degrees.
     jaws: {},
     // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
@@ -368,6 +372,23 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     }
   }
 
+  // The child who taps one target early and nothing else.
+  let earlySince = null;
+  let earlyFrom = null; // where the target was at the tap
+  function earlyChild(t) {
+    const spec = pointer.targets.get(earlyTap.name);
+    if (!spec || seen.earlyTap) return;
+    earlySince ??= { t, at: stage.s.time };
+    if (t - earlySince.t < earlyTap.after - 1e-9) return;
+    earlyFrom = spec.point.clone();
+    pointer.tap(earlyTap.name);
+    seen.earlyTap = { name: earlyTap.name, appeared: earlySince.at, at: stage.s.time, found: [...journal.findings], movedAt: null };
+  }
+  function earlyReaction() {
+    const spec = pointer.targets.get(earlyTap.name);
+    if (seen.earlyTap && seen.earlyTap.movedAt === null && spec && spec.point.distanceTo(earlyFrom) > 0.005) seen.earlyTap.movedAt = stage.s.time;
+  }
+
   // The child who taps only the nose, late.
   const noseTaps = [...(noseAt ?? [])];
   let noseSince = null;
@@ -384,12 +405,14 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   for (let t = 0; t < limit && !task.done; t += dt) {
     if (eager) eagerChild(t);
     if (noseAt) noseChild(t);
+    if (earlyTap) earlyChild(t);
     world.clock.step(dt);
     journal.update(dt);
     stage.update(dt);
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
     director.update(dt);
+    if (earlyTap) earlyReaction();
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;
@@ -755,6 +778,35 @@ test('on the ride Mosi names the visit and then tells Egill to look out for smal
     assert.ok(over + 0.5 < cutAt('rideFeet'), `${how}: the line about the small animals runs until ${over + 0.5} s, the camera shows the beetle at ${cutAt('rideFeet')} s`);
     assert.ok(over + 0.5 < cutAt('gladeArrive'), `${how}: and the glade comes after it, at ${cutAt('gladeArrive')} s`);
   }
+});
+
+test('a critter tapped in the ride\'s first second reacts at once, and Mosi remarks on it only after his two ride lines', async () => {
+  // The beetle can be tapped from the ride's first frame, in the rideWide shot. A child who taps it 0.3 s in: it rolls over and
+  // goes in the journal at the tap, but Mosi's voice is already his ride lines', so his "Sjáðu, bjalla!" waits for both.
+  const visit = chapter.lines.k1_mosi_visit;
+  const critters = chapter.lines.k1_mosi_critters;
+  const beetle = chapter.lines.k1_mosi_beetle;
+  const { captions, lines, seen, world } = await playUnattended({ limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
+  const ride = world.chapterTimeline.find(m => m.scene === 6).at;
+  const tap = seen.earlyTap;
+  assert.ok(tap, 'the beetle was tapped');
+  assert.ok(tap.appeared - ride < 0.05 && tap.at - ride < 1, `in the ride's first second: it could be tapped ${(tap.appeared - ride).toFixed(2)} s in and was ${(tap.at - ride).toFixed(2)} s in`);
+  assert.ok(tap.found.includes('beetle'), `it went in the journal at the tap (${JSON.stringify(tap.found)})`);
+  assert.ok(tap.movedAt !== null && tap.movedAt - tap.at < 0.1, `it rolled over at once: it moved ${tap.movedAt === null ? 'never' : `${(tap.movedAt - tap.at).toFixed(2)} s after the tap`}`);
+  const mosis = captions.filter(c => c.who === 'Mosi' && c.at >= ride).sort((a, b) => a.at - b.at);
+  assert.deepEqual(mosis.slice(0, 3).map(c => c.text), [visit.text, critters.text, beetle.text], 'his two ride lines, and then the beetle');
+  const [first, second, remark] = mosis;
+  // The ride lines begin when they would with no tap, a second in, as the capture plays them.
+  const capture = await unattended();
+  const plainRide = capture.world.chapterTimeline.find(m => m.scene === 6).at;
+  const plainFirst = capture.captions.find(c => c.text === visit.text && c.at >= plainRide);
+  assert.ok(Math.abs((first.at - ride) - (plainFirst.at - plainRide)) < 1e-6, `the visit line ${(first.at - ride).toFixed(3)} s into the ride, as without the tap (${(plainFirst.at - plainRide).toFixed(3)} s)`);
+  // The remark comes when both are over, and both are over before the camera shows the beetle.
+  const over = second.at + lines[critters.audio].duration;
+  assert.ok(second.at >= first.at + lines[visit.audio].duration - 1e-6, 'the second ride line comes after the first');
+  assert.ok(remark.at >= over - 1e-6, `the remark waits for both: it begins at ${remark.at.toFixed(2)} s, the ride lines end at ${over.toFixed(2)} s`);
+  const rideFeet = seen.cuts.find(cut => cut.shot === 'rideFeet').at;
+  assert.ok(over + 0.5 < rideFeet, `the ride lines run until ${(over + 0.5).toFixed(2)} s, caption included; the camera shows the beetle at ${rideFeet.toFixed(2)} s`);
 });
 
 test('Egill presses the grass down and the ferns aside as a boy does, not with Mosi\'s footprint', async () => {

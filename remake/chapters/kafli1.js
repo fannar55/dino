@@ -434,10 +434,12 @@ function* onThePath(s, c) {
     critters.scare([bx, c.world.heightAt(bx, bz), bz], RIDE_BIRDS_UP.reach);
   });
   const past = (x, seconds) => s.all(s.until(() => mosi.raw.root.position.x > x), s.wait(seconds));
-  // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one so a remark about a
-  // critter tapped early waits for both. He must be done before the camera shows the first critter, the beetle in rideFeet. That cut
-  // is timed to his front foot reaching the beetle, so it is the start of the two lines that gives way (tests/kafli1.test.mjs checks it).
-  s.after(1, () => speak(s, c, 'k1_mosi_visit', 'k1_mosi_critters'));
+  // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
+  // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
+  // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
+  // critter, the beetle in rideFeet. That cut is timed to his front foot reaching the beetle, so it is the start of the two lines that
+  // gives way (tests/kafli1.test.mjs checks it, and the early tap).
+  s.after(0, () => speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters'));
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
@@ -657,13 +659,14 @@ function* tapOrWait(s, name, idle) {
 
 /**
  * A line of Mosi's on the ride, or several one right after the other: the critters' remarks wait for the last of them
- * and it waits for them. (Said together they keep the one claim on his voice, so no remark gets in between.)
+ * and it waits for them. (Said together they keep the one claim on his voice, so no remark gets in between.) A number
+ * among the lines is a pause of that many seconds, inside the claim: his voice is held while he waits.
  */
 function* speak(s, c, ...lines) {
   yield s.until(() => !c.talking);
   c.talking = true;
   try {
-    for (const line of lines) yield s.say('mosi', line);
+    for (const line of lines) yield typeof line === 'number' ? s.wait(line) : s.say('mosi', line);
   } finally {
     c.talking = false;
   }
