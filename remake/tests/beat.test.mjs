@@ -143,10 +143,11 @@ test('the configured sway stays within 3 degrees with the beat added', () => {
   assert.ok(maxSwayDeg + beatAmplitudeDeg <= 3, `${maxSwayDeg} + ${beatAmplitudeDeg} degrees is over the style guide's 3`);
 });
 
-test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4), and nothing is left of the pulse', () => {
+test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4) or NO_BEAT, and nothing is left of the pulse', () => {
   const wind = createWind();
   assert.equal(typeof wind.setBeats, 'function', 'the wind has no setBeats');
-  assert.equal(wind.uniforms.uBeats.value, 0, 'it starts still');
+  assert.equal(beat.NO_BEAT, -1, 'no beat is a count below the fold');
+  assert.equal(wind.uniforms.uBeats.value, beat.NO_BEAT, 'until a beat is set there is none: every wave holds its middle');
   wind.setBeats(2.75);
   assert.equal(wind.uniforms.uBeats.value, 2.75);
   wind.setBeats(6.5);
@@ -155,7 +156,7 @@ test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4), a
   assert.equal(wind.uniforms.uBeats.value, 3.75);
   for (const broken of [NaN, Infinity, undefined]) {
     wind.setBeats(broken);
-    assert.equal(wind.uniforms.uBeats.value, 0, `a count of ${broken} must not send NaN into every vertex`);
+    assert.equal(wind.uniforms.uBeats.value, beat.NO_BEAT, `a count of ${broken} must not send NaN into every vertex: it is no beat`);
   }
   assert.equal(wind.uniforms.uBeat, undefined, 'the pulse\'s uniform is gone');
   assert.equal(wind.setBeat, undefined, 'and so is its setter');
@@ -168,12 +169,16 @@ test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4), a
   assert.equal(shared.uBeats.value, 1.5);
 });
 
-test('every frame main.js feeds the wind the beat count of the music\'s playhead, and the strong beats\' dance', () => {
+test('every frame main.js follows the music\'s beat and feeds the follower\'s count to the waves and the dance; without a theme it feeds nothing', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
-  assert.match(main, /import \{ beatsAt, danceAt \} from '\.\/engine\/beat\.js';/);
-  assert.match(main, /wind\.setBeats\(beatsAt\(musicTime\(\), theme\)\);/);
-  assert.match(main, /wind\.setDance\(danceAt\(musicTime\(\), theme\)\);/);
-  assert.doesNotMatch(main, /setBeat\(|\.pulse\b/, 'nothing in the frame reads the pulse');
+  assert.match(main, /import \{ beatsAt, followBeat, danceOf \} from '\.\/engine\/beat\.js';/);
+  // the music's grid, followed without a jump, and snapped to exactly while seeking or frozen (captures)
+  assert.match(main, /followed = followBeat\(followed, beatsAt\(musicTime\(\), theme\), dt, theme, stage\.seeking \|\| clock\.frozen\);/);
+  assert.match(main, /wind\.setBeats\(followed\.beats\);/);
+  assert.match(main, /wind\.setDance\(danceOf\(followed\.beats, theme\)\);/);
+  // only with a theme: without theme.json the count stays NO_BEAT, and the forest holds its waves' middle
+  assert.match(main, /if \(theme\) \{\s*followed = followBeat\(/);
+  assert.doesNotMatch(main, /setBeat\(|\.pulse\b|danceAt\(/, 'nothing in the frame reads the pulse, or the playhead\'s own dance');
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -186,9 +191,11 @@ const dance = time => danceAt(time, DANCE_THEME);
 const LEAD = 0.25; // a flower head eases down over this long before a strong beat...
 const SETTLE = 0.45; // ...and up again over this long after it
 const AIR = 0.35; // a mushroom is in the air this long before it lands on the beat...
-const RISE = 0.08; // ...squashes over this long after landing...
+const RISE = 0.125; // ...squashes over this long after landing...
 const LAND = 0.3; // ...and has sprung back this long after the beat
 const STRETCH = 0.4; // in the air it is stretched by up to this share of what landing squashes it
+// The span each part of the dance uses, which the rule of a fifth a frame is measured against: the squash runs from -STRETCH to 1.
+const SPAN = { nod: 1, hop: 1, squash: 1 + STRETCH };
 const smooth = x => x * x * (3 - 2 * x);
 /** How fast `key` of the dance moves at `time`, per second (a central difference). */
 const speed = (key, time, h = 1e-6) => (dance(time + h)[key] - dance(time - h)[key]) / (2 * h);
@@ -242,10 +249,10 @@ test('a mushroom hops on sin² over the 0.35 s before the strong beat, leaves an
   assert.equal(dance(STRONG(0.01)).hop, 0, 'and after the beat');
   assert.equal(dance(STRONG(0.6)).hop, 0);
   for (const at of [1 - AIR, 1]) assert.ok(Math.abs(speed('hop', STRONG(at))) < 1e-2, `the mushroom leaves or meets the ground at ${speed('hop', STRONG(at))} of its hop a second`);
-  // the squash: nothing on the beat, as it lands; flattest 0.08 s later; sprung back 0.3 s after the beat
+  // the squash: nothing on the beat, as it lands; flattest 0.125 s later; sprung back 0.3 s after the beat
   assert.equal(dance(STRONG(0)).squash, 0, 'it has only just landed on the beat');
   for (const x of [0.25, 0.5, 0.75]) near(dance(STRONG(x * RISE)).squash, smooth(x), 1e-9, `the squash ${x} of the way down`);
-  near(dance(STRONG(RISE)).squash, 1, 1e-9, 'flattest 0.08 s after landing');
+  near(dance(STRONG(RISE)).squash, 1, 1e-9, 'flattest 0.125 s after landing');
   near(dance(STRONG((RISE + LAND) / 2)).squash, 0.5, 1e-9, 'half sprung back halfway to 0.3 s');
   let previous = 1;
   for (let after = RISE + 0.01; after < LAND - 1e-9; after += 0.01) {
@@ -265,18 +272,21 @@ test('a mushroom hops on sin² over the 0.35 s before the strong beat, leaves an
   }
 });
 
-test('at 60 fps no part of the dance moves more than a fifth of its range from one frame to the next', () => {
-  // A part's range is what danceAt says it is and setDance holds it to: the nod and the hop 0 to 1, the squash -1 (stretched) to 1.
-  const range = { nod: 1, hop: 1, squash: 2 };
+test('at 60 fps no part of the dance moves more than a fifth of the span it uses from one frame to the next', () => {
+  // the span each part actually uses: the nod and the hop 0 to 1, the squash -STRETCH (stretched in the air) to 1 (flattest)
+  let lowest = Infinity, highest = -Infinity;
+  for (let t = 0; t < 4; t += 0.0007) { const s = dance(t).squash; lowest = Math.min(lowest, s); highest = Math.max(highest, s); }
+  near(lowest, -STRETCH, 1e-4, 'the squash\'s low end');
+  near(highest, 1, 1e-4, 'its high end');
   const worst = { nod: 0, hop: 0, squash: 0 };
   for (const offset of [0, 0.0029, 0.0061, 0.0113]) { // frames at four phases against the beat
     const start = THEME.beatOffset - 0.71 + offset;
     for (let i = 0; i < 60 * 30; i++) { // 30 s: 24 strong beats of the real theme
       const a = danceAt(start + i * FRAME, THEME), b = danceAt(start + (i + 1) * FRAME, THEME);
-      for (const key of Object.keys(range)) worst[key] = Math.max(worst[key], Math.abs(b[key] - a[key]) / range[key]);
+      for (const key of Object.keys(SPAN)) worst[key] = Math.max(worst[key], Math.abs(b[key] - a[key]) / SPAN[key]);
     }
   }
-  for (const [key, moved] of Object.entries(worst)) assert.ok(moved <= 0.2, `the ${key} moves ${moved.toFixed(3)} of its range in a frame`);
+  for (const [key, moved] of Object.entries(worst)) assert.ok(moved <= 0.2, `the ${key} moves ${moved.toFixed(3)} of its span in a frame`);
 });
 
 test('nothing dances on a weak beat, and a time that is not a number dances nothing', () => {
@@ -287,6 +297,113 @@ test('nothing dances on a weak beat, and a time that is not a number dances noth
   }
   assert.deepEqual(dance(NaN), { nod: 0, hop: 0, squash: 0 });
   assert.deepEqual(dance(Infinity), { nod: 0, hop: 0, squash: 0 });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The forest's beat follows the music's grid without a jump (followBeat). The playhead jumps at the first touch, from the clock's time
+// to the theme's start, and at every loop of the theme (351.6 s, 556.7 beats, so the grid restarts mid-bar); the follower eases onto
+// the grid instead of jumping with it, and snaps to it while seeking, so captures stay exact.
+
+const LOOP = 351.6; // s: the theme's length, which music.js folds its playhead by
+const ON_GRID = 0.02; // beats (13 ms at 95 beats a minute, under a frame): on the grid
+/** How far apart two beat counts are, the short way round the fold. */
+const apart = (a, b) => Math.abs(((((a - b) % 4) + 6) % 4) - 2);
+/** The music's playhead (music.js: position): the clock's time until the theme first sounds at `touch`, then the time since, folded by its length. */
+const playheadAt = (time, touch) => (time < touch ? time : (time - touch) % LOOP);
+
+test('danceOf is the dance of a beat count: danceAt\'s, the same every two beats, so the fold into four never shows', () => {
+  for (let t = 0.013; t < 9; t += 0.0371) {
+    const count = ((t - THEME.beatOffset) * THEME.bpm) / 60;
+    const byTime = danceAt(t, THEME), byCount = beat.danceOf(count, THEME), byFolded = beat.danceOf(beat.beatsAt(t, THEME), THEME);
+    for (const key of ['nod', 'hop', 'squash']) {
+      near(byCount[key], byTime[key], 1e-9, `${key} of the count at ${t} s`);
+      near(byFolded[key], byTime[key], 1e-9, `${key} of the folded count at ${t} s`);
+    }
+  }
+  assert.deepEqual(beat.danceOf(NaN, THEME), { nod: 0, hop: 0, squash: 0 });
+});
+
+test('the follower starts on the grid, runs at the tempo with it, and lands on it exactly whenever it snaps (seeking, a frozen capture)', () => {
+  let followed = beat.followBeat(null, 2.345, FRAME, THEME);
+  assert.equal(followed.beats, 2.345, 'its first frame is the grid');
+  // with no jump it is the grid, frame after frame, across the folds
+  followed = beat.followBeat(null, beat.beatsAt(3.21, THEME), FRAME, THEME);
+  for (let i = 1; i < 60 * 20; i++) {
+    const grid = beat.beatsAt(3.21 + i * FRAME, THEME);
+    followed = beat.followBeat(followed, grid, FRAME, THEME);
+    assert.ok(apart(followed.beats, grid) < 1e-9, `frame ${i}: ${followed.beats} against the grid's ${grid}`);
+    assert.ok(followed.beats >= 0 && followed.beats < 4);
+  }
+  // the scene's seek replay (1/30 s steps, snapping) through a jump of the playhead: every step is the grid exactly
+  for (let i = 0, time = 0; i < 90; i++) {
+    time += 1 / 30;
+    const grid = beat.beatsAt(i < 40 ? time : time - 1.7, THEME);
+    followed = beat.followBeat(followed, grid, 1 / 30, THEME, true);
+    assert.equal(followed.beats, grid, `seek step ${i}`);
+  }
+  // a frozen capture's frames (dt 0) snap too; in play a held clock (dt 0, the book is open) holds the forest where it is
+  const easing = beat.followBeat(beat.followBeat(null, 1, FRAME, THEME), 3, FRAME, THEME); // two beats off: easing back
+  assert.ok(apart(easing.beats, 3) > 0.5, 'a jump is not taken at once');
+  assert.equal(beat.followBeat(easing, 3, 0, THEME, true).beats, 3, 'a capture lands on the grid');
+  assert.deepEqual(beat.followBeat(easing, 3, 0, THEME), easing, 'a held clock holds the count');
+});
+
+/**
+ * The follower at 60 fps from `from` to `to` s of the clock (snapped at `from`, where it is steady), the theme first sounding at
+ * `touch`: the worst per-frame change of each wave (the grass's at five spots along the wind) and of each part of the dance (as a
+ * share of the span it uses), and for each jump of the playhead how long the forest's beat was off the grid after it.
+ */
+function followAt60({ touch, from, to }) {
+  const periods = FOREST.wind.beatPeriods, spacing = FOREST.wind.rippleSpacing;
+  const worst = { trees: 0, plants: 0, grass: 0, nod: 0, hop: 0, squash: 0 };
+  const jumps = [];
+  let followed = null, last = null;
+  for (let i = 0; from + i * FRAME <= to; i++) {
+    const time = from + i * FRAME;
+    const playhead = playheadAt(time, touch);
+    if (last && Math.abs(playhead - last.playhead - FRAME) > 1e-6) jumps.push({ at: time, off: 0 });
+    const grid = beat.beatsAt(playhead, THEME);
+    followed = beat.followBeat(followed, grid, FRAME, THEME, !last);
+    const b = followed.beats, d = beat.danceOf(b, THEME);
+    assert.ok(b >= 0 && b < 4, `a count of ${b}`);
+    if (last) {
+      for (const band of ['trees', 'plants']) worst[band] = Math.max(worst[band], Math.abs(beat.waveAt(b, periods[band]) - beat.waveAt(last.b, periods[band])));
+      for (const along of [-7.3, 0, 1.9, 3.3, 11.1]) {
+        worst.grass = Math.max(worst.grass, Math.abs(beat.waveAt(b - along / spacing, periods.grass) - beat.waveAt(last.b - along / spacing, periods.grass)));
+      }
+      for (const key of Object.keys(SPAN)) worst[key] = Math.max(worst[key], Math.abs(d[key] - last.d[key]) / SPAN[key]);
+    }
+    const jump = jumps.at(-1);
+    if (jump && apart(b, grid) > ON_GRID) jump.off = time - jump.at + FRAME;
+    last = { playhead, b, d };
+  }
+  return { worst, jumps };
+}
+
+test('after the first touch and the theme\'s loop the forest\'s beat is back on the grid within about a beat, breaking no per-frame rule on the way', () => {
+  const beatLength = 60 / THEME.bpm;
+  const worst = { trees: 0, plants: 0, grass: 0, nod: 0, hop: 0, squash: 0 };
+  const touchJumps = [], loopJumps = [];
+  for (let k = 0; k < 48; k++) {
+    const touch = 5 + (k / 48) * 4 * beatLength; // the child touches anywhere in four beats, so the first jump is any jump there is
+    const start = followAt60({ touch, from: touch - 2, to: touch + 4 });
+    const loop = followAt60({ touch, from: touch + LOOP - 2, to: touch + LOOP + 4 });
+    assert.equal(start.jumps.length, 1, 'one jump at the first touch');
+    assert.equal(loop.jumps.length, 1, 'and one at the loop');
+    touchJumps.push(start.jumps[0].off / beatLength);
+    loopJumps.push(loop.jumps[0].off / beatLength);
+    for (const run of [start, loop]) for (const key of Object.keys(worst)) worst[key] = Math.max(worst[key], run.worst[key]);
+  }
+  for (const band of ['trees', 'plants', 'grass']) assert.ok(worst[band] <= 0.1, `the ${band}' wave moves ${worst[band].toFixed(4)} of its range in a frame`);
+  for (const key of Object.keys(SPAN)) assert.ok(worst[key] <= 0.2, `the ${key} moves ${worst[key].toFixed(3)} of its span in a frame`);
+  // the loop's jump (the grid restarts 0.7 of a beat back) is gone within a beat
+  assert.ok(Math.max(...loopJumps) <= 1, `the loop's jump takes ${Math.max(...loopJumps).toFixed(2)} beats to ease out`);
+  // the first touch's can be anything: under the rule of a tenth a frame the count may run at most 1.2 times the tempo (the grass's
+  // wave is one beat long), so it gains on the grid slowly and drops back fast, and a grid about a third of a beat ahead takes longest,
+  // as long either way round: up to two beats, about one on the whole
+  const slowest = Math.max(...touchJumps), mean = touchJumps.reduce((a, b) => a + b, 0) / touchJumps.length;
+  assert.ok(slowest <= 2.1, `the first touch's jump takes up to ${slowest.toFixed(2)} beats to ease out`);
+  assert.ok(mean <= 1.25, `the first touch's jump takes ${mean.toFixed(2)} beats to ease out on the whole`);
 });
 
 // ---------------------------------------------------------------------------------------------

@@ -149,7 +149,7 @@ export const FOREST = {
     footprint: { radius: 0.95, soft: 0.85, halfLength: 1.35 }, // flattened capsule per actor
   },
   // Wind. maxSwayDeg is how far a tree top leans at full wind: bendAt (species.js) bakes trunks, crowns, needles and tree-fern
-  // trunks from it. The theme's beat (engine/beat.js: beatsAt, in wind.uBeats) sways the forest further on top of the wind, smoothly
+  // trunks from it. The theme's beat (engine/beat.js: followBeat, in wind.uBeats) sways the forest further on top of the wind, smoothly
   // and in time with the music, on waves `beatPeriods` beats long that crest on the strong beats: a tree's parts once in four beats,
   // a plant's (fronds, stems, stalks, bushes) once in two, by beatAmplitudeDeg at the crest (BEAT_SHARE below), so a tree top reaches
   // the style guide's 3 degrees there and no more; and the grass ripples every beat, its crests running down the wind rippleSpacing
@@ -172,7 +172,7 @@ export const FOREST = {
   // grass.footprint, a smaller actor's footprint has a smaller reach). A lean, not a squash. The reach is well beyond the grass's
   // own soft edge because a fern at the side of a path stands two metres off the middle of a body that wide, and is to bend.
   fernBend: { reach: 2.6, leanDeg: 50 },
-  // On each strong beat of the theme (engine/beat.js: danceAt, in wind.uDance) the flowers and mushrooms of these bands (planner
+  // On each strong beat of the theme (engine/beat.js: danceOf, in wind.uDance) the flowers and mushrooms of these bands (planner
   // bands, plan.js) dance: a flower head nods up to nodDeg degrees about its stem's tip, toward the way it faces, and a mushroom
   // hops `hop` metres and squashes by `squash` of its height. This is play, beside the sway, which keeps to 3 degrees: a head a few
   // centimetres across shows no nod of 3. The edge band is in because the planner grows the mushrooms at the feet of the ring of

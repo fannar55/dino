@@ -91,8 +91,8 @@ test('the test knows the wind shader: WIND_PEAK and BEAT_SHARE are its numbers, 
   const osc = WIND_GLSL.match(/float osc = sin\(t \* 0\.9 \+ phase\) \* ([\d.]+) \+ sin\(t \* 1\.63 \+ phase \* 1\.7\) \* ([\d.]+);/);
   const lean = WIND_GLSL.match(/float lean = strength \* \(([\d.]+) \+ ([\d.]+) \* osc\) \+ ([\d.]+) \* beat;/);
   const side = WIND_GLSL.match(/bend \+= side \* sway \* strength \* ([\d.]+) \* sin\(/);
-  const beat = WIND_GLSL.match(/float beat = mix\(forestWave\(uBeats, ([\d.]+)\), forestWave\(uBeats, ([\d.]+)\), tree\) \* \(([\d.]+) \+ ([\d.]+) \* fract\(w\.x \* 7\.31\)\);/);
-  const wave = text.match(/float forestWave\( float beats, float period \) \{ return ([\d.]+) \+ ([\d.]+) \* cos\( 6\.2831853 \* fract\( beats \/ period \) \); \}/);
+  const beat = WIND_GLSL.match(/float beat = mix\(forestWave\(0\.0, ([\d.]+)\), forestWave\(0\.0, ([\d.]+)\), tree\) \* \(([\d.]+) \+ ([\d.]+) \* fract\(w\.x \* 7\.31\)\);/);
+  const wave = text.match(/float forestWave\( float shift, float period \) \{ return uBeats < 0\.0 \? ([\d.]+) : ([\d.]+) \+ ([\d.]+) \* cos\( 6\.2831853 \* fract\( \( uBeats - shift \) \/ period \) \); \}/);
   assert.ok(osc && lean && side && beat && wave, 'forestWind no longer has the lines this reads (the swing, the lean with the beat, the beat\'s waves, the sideways flutter)');
   assert.match(text, /uniform float uBeats; /, 'the beat count is the wind\'s uniform');
   assert.match(text, /vec3 forestWind\(vec3 wp, vec4 w, float tree\) \{/, 'forestWind takes the tree\'s share of the sway (aTree)');
@@ -111,9 +111,11 @@ test('the test knows the wind shader: WIND_PEAK and BEAT_SHARE are its numbers, 
   assert.equal(trees, FOREST.wind.beatPeriods.trees);
   assert.equal(least, LEAST, 'the least of its wave a plant takes');
   assert.equal(least + more, 1, 'and the most, its whole wave');
-  const [, middle, swing] = wave.map(Number);
+  const [, still, middle, swing] = wave.map(Number);
   assert.equal(middle + swing, 1, 'the wave crests at 1');
   assert.equal(middle - swing, 0, 'and is nothing halfway between its crests');
+  // with no beat to follow (no theme.json: the wind's uBeats stays NO_BEAT, below 0) every wave holds its middle, not its crest
+  assert.equal(still, middle, 'without a beat the forest holds the waves\' middle');
 });
 
 const SLOPES = peakSlopes();
@@ -281,7 +283,7 @@ test('every material that sways reads the wind\'s uBeats and the baked aTree, th
   assert.equal(grass.uniforms.uBeats, world.wind.uniforms.uBeats, 'the grass does not read the wind\'s own uBeats');
   const text = grass.vertexShader.replace(/\s+/g, ' ');
   assert.match(text, /float gAlong = dot\( gBase\.xz, uWindDirection \);/, 'along the wind');
-  const ripple = text.match(/gWind \*= 1\.0 \+ ([\d.]+) \* forestWave\( uBeats - gAlong \/ ([\d.]+), ([\d.]+) \);/);
+  const ripple = text.match(/gWind \*= 1\.0 \+ ([\d.]+) \* forestWave\( gAlong \/ ([\d.]+), ([\d.]+) \);/);
   assert.ok(ripple, 'the grass does not ripple with the beat');
   assert.equal(Number(ripple[1]), config.GRASS_BEAT_SHARE, 'the ripple\'s share of a blade\'s bend');
   assert.equal(config.GRASS_BEAT_SHARE, 0.3, 'light: the owner\'s word');

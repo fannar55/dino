@@ -159,7 +159,7 @@ ${ACTOR_GLSL}`,
   float gWind = uWindStrength * ( 0.12 + 0.5 * gWave * ( 0.35 + 0.65 * gGust ) + gFlick );
   // a light ripple of the beat runs down the wind, its crests rippleSpacing metres apart: a blade bends further by GRASS_BEAT_SHARE of
   // its own bend as a crest passes it, once a beat, so the field ripples instead of pulsing as one (materials.js: forestWave)
-  gWind *= 1.0 + ${GRASS_BEAT_SHARE.toFixed(3)} * forestWave( uBeats - gAlong / ${RIPPLE.toFixed(3)}, ${FOREST.wind.beatPeriods.grass.toFixed(1)} );
+  gWind *= 1.0 + ${GRASS_BEAT_SHARE.toFixed(3)} * forestWave( gAlong / ${RIPPLE.toFixed(3)}, ${FOREST.wind.beatPeriods.grass.toFixed(1)} );
   vec2 gBend = gLeanDir * ( aInfo.w * uGrassLean ) + uWindDirection * gWind + gPush;
   float gTT = gT * gT;
   vec3 grassPos = gBase;

@@ -87,14 +87,15 @@ export function createLeafTexture(seed, size = 128, cells = 6) {
   return tex;
 }
 
-// The theme's beat, smooth and in time with the music: uBeats is the beat count since its first strong beat, folded into [0, 4)
-// (engine/beat.js: beatsAt), and forestWave( beats, period ) a wave `period` beats long: 1 on the beats that are a whole number of
-// periods (strong beats, for waves of two and four), nothing halfway between, a cosine in between, so it moves on without a break,
-// across the fold too (engine/beat.js: waveAt is the same wave). The grass reads it as well.
+// The theme's beat, smooth and in time with the music: uBeats is the forest's beat count, folded into [0, 4), which follows the music's
+// grid without jumping when its playhead jumps (engine/beat.js: followBeat). forestWave( shift, period ) is a wave `period` beats long
+// at the count less `shift` beats: 1 on the beats that are a whole number of periods (strong beats, for waves of two and four), nothing
+// halfway between, a cosine in between, so it moves on without a break, across the fold too (engine/beat.js: waveAt is the same wave).
+// With no beat to follow (no theme.json: uBeats is NO_BEAT, below 0) every wave holds its middle. The grass reads it as well.
 export const BEAT_GLSL = /* glsl */`
 uniform float uBeats;
-float forestWave( float beats, float period ) {
-  return 0.5 + 0.5 * cos( 6.2831853 * fract( beats / period ) );
+float forestWave( float shift, float period ) {
+  return uBeats < 0.0 ? 0.5 : 0.5 + 0.5 * cos( 6.2831853 * fract( ( uBeats - shift ) / period ) );
 }`;
 
 // The beat comes on top of the wind: at the crest of its wave BEAT_SHARE (config.js) of a part's own `sway`, the metres it bends at
@@ -121,7 +122,7 @@ vec3 forestWind(vec3 wp, vec4 w, float tree) {
   float strength = uWindStrength * (0.45 + 0.55 * gust);
   float osc = sin(t * 0.9 + phase) * 0.6 + sin(t * 1.63 + phase * 1.7) * 0.25;
   vec2 side = vec2(-uWindDirection.y, uWindDirection.x);
-  float beat = mix(forestWave(uBeats, ${PERIODS.plants.toFixed(1)}), forestWave(uBeats, ${PERIODS.trees.toFixed(1)}), tree) * (0.8 + 0.2 * fract(w.x * 7.31)); // the plant's own 0.8 to 1 of its wave
+  float beat = mix(forestWave(0.0, ${PERIODS.plants.toFixed(1)}), forestWave(0.0, ${PERIODS.trees.toFixed(1)}), tree) * (0.8 + 0.2 * fract(w.x * 7.31)); // the plant's own 0.8 to 1 of its wave
   float lean = strength * (0.55 + 0.45 * osc) + ${BEAT_SHARE.toFixed(3)} * beat; // the beat comes on top, whatever the gust is doing
   vec2 bend = uWindDirection * (sway * lean);
   bend += side * sway * strength * 0.22 * sin(t * 1.27 + phase * 2.3);
@@ -134,7 +135,7 @@ vec3 forestWind(vec3 wp, vec4 w, float tree) {
 // Parts that move about a pivot of their own, beyond the wind: a fern leans away from a character, a flower head nods, a mushroom
 // hops. batch.js bakes each vertex's pivot as aPivot (the last byte, PIVOT in config.js, says which part it is; the others say where
 // about) and forestPivot returns the offset to add to the vertex on top of forestWind's. It needs the footprint capsules of ACTOR_GLSL
-// (terrain.js), which the grass lies down under too, and the wind's uDance (engine/beat.js: danceAt).
+// (terrain.js), which the grass lies down under too, and the wind's uDance (engine/beat.js: danceOf).
 //   lean  A fern vertex `lever` metres above the plant's foot is turned about the foot, away from the nearest part of the capsule
 //         (from its middle outward along its length, where "nearest" would flip between its two sides), by an angle that eases
 //         from forestLean where the footprint is to nothing forestLeanReach metres beyond it (for a footprint the size of the grass's

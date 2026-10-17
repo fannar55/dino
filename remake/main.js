@@ -10,7 +10,7 @@ import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
-import { beatsAt, danceAt } from './engine/beat.js';
+import { beatsAt, followBeat, danceOf } from './engine/beat.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
@@ -121,6 +121,10 @@ const sfx = createSfx({ context: audio, theme, output });
 // the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
 // on the same beat every time.
 const musicTime = () => music.position;
+// The forest's beat, { beats, speed }: the music's grid, followed without a jump when the playhead jumps (at the first touch, and
+// where the theme loops), and the grid exactly while seeking and in a frozen capture (engine/beat.js: followBeat). Without a theme
+// there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
+let followed = null;
 const ui = createStageUI(document);
 const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
@@ -164,8 +168,9 @@ function update(dt) {
   music.update(); // if the clock lost time (a long frame) the sound is brought back to the playhead
   sfx.update(dt); // the forest's birds and rustles
   if (theme) {
-    wind.setBeats(beatsAt(musicTime(), theme)); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat
-    wind.setDance(danceAt(musicTime(), theme)); // and on each strong beat the flowers nod and the mushrooms hop
+    followed = followBeat(followed, beatsAt(musicTime(), theme), dt, theme, stage.seeking || clock.frozen);
+    wind.setBeats(followed.beats); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat
+    wind.setDance(danceOf(followed.beats, theme)); // and on each strong beat the flowers nod and the mushrooms hop
   }
   updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
   world.effects.update(dt); // after the actors, so a trail follows where a rider is now

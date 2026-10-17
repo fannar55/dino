@@ -36,8 +36,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   clock, such as a burst of sparkles (`effects.js`, updated after the actors); Kambeðla's plates
   lighting row by row (`plate-glow.js`); the smiling sun and the cloud shaped like Mosi
   (`sun-face.js`); the beat clock, the theme's tempo as a pure function of the music's time
-  (`beat.js`: `beatsAt`, the beat count the forest's waves ride, and `danceAt` for the flowers' nod
-  and the mushrooms' hop).
+  (`beat.js`: `followBeat`, the beat count the forest's waves and the flowers' nod and the mushrooms'
+  hop ride, which follows the music's grid without jumping when the playhead jumps).
 - `engine/input/pointer.js`: taps on named targets in the world (spheres round point specs) and drags.
 - `engine/camera/director.js`: the camera director, with the child's free look (`explore`, `look`, `hint`).
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback; the search
@@ -128,8 +128,10 @@ against theme.json: `theme.mp3`, 96 kbps, streamed through an `<audio>` element,
 answer byte-range requests, as `serve.mjs` does). The music's playhead is the game clock's, and the
 wind uniforms carry the beat: `uBeats`, the beat count, which the forest moves with smoothly (the
 trees sway once in four beats, the ferns and bushes once in two, the grass ripples down the wind
-every beat), and `uDance` for the flowers' nod and the mushrooms' hop on the strong beats. So the
-forest moves in time with what is heard, and a capture lands on the same beat. For a look inside a
+every beat), and `uDance` for the flowers' nod and the mushrooms' hop on the strong beats. The count
+follows the music's grid and eases back onto it within a beat or two when the playhead jumps (at the
+first touch, where the theme loops), and is the grid exactly while seeking. So the forest moves in
+time with what is heard, and a capture lands on the same beat. For a look inside a
 running page: `window.__world`, `__scene`, `__director`, `__journal`, `__save`, `__music`, `__sfx`
 and `__audio`.
 
