@@ -10,6 +10,9 @@ export const CHARACTERS = {
   egill: 'egill.glb',
   gramedla: 'trex.glb',
   kambedla: 'stegosaurus.glb',
+  thorsedla: 'brontosaurus.glb',
+  flugedla: 'pteranodon.glb',
+  sloedla: 'parasaurolophus.glb',
 };
 
 export function readGlb(name) {

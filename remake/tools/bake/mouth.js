@@ -22,13 +22,19 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 //   3. A pocket fills the mouth (palate on the head, tongue on the jaw, a fold deep inside), painted
 //      into a free corner of the colour map, as in bake-tailed-biped.
 //   4. The GLB is exported again (GLTFExporter: textures 1024 JPEG), the node names as they were, with
-//      `face.mouth` added to the mesh's extras: how far the jaw opens when the character talks.
+//      `face.mouth` added to the mesh's extras: how far the jaw opens when the character talks. A clip
+//      the bake authored to open the jaw (Slóeðla's eat and call) carries `jaw` in its extras, the
+//      jaw's opening in degrees at each of the clip's keys: it gets the jaw's track here.
 //
 //   node remake/tools/bake/bake-character.mjs --page mouth --out remake/assets/characters/mosi.glb
 //     --query "src=../../assets/characters/mosi.glb&out=mosi.glb&line=f,u;f,u;...&front=f&cut=f&hinge=f,u&talk=7"
 //
 // Query: src, out, line, front, cut, hinge, talk (degrees the jaw opens at the loudest syllable),
-// tex (texture size), smooth (rounds), preview (1: show the result open instead of exporting).
+// tex (texture size), smooth (rounds), snap (metres: vertices this close to the line count as on it, so
+// a vertex a hair off the line does not leave a sliver that stretches across the open mouth; 0 keeps
+// only those exactly on it), channel (1: for a long beak, the pocket's fold runs along the middle of the
+// beak under the lips, a long channel, instead of reaching back into the head from the front of the
+// mouth), preview (1: show the result open instead of exporting).
 
 const params = new URLSearchParams(location.search);
 const SRC = params.get('src');
@@ -40,6 +46,8 @@ const HINGE = params.get('hinge').split(',').map(Number);
 const TALK = Number(params.get('talk') || 7);
 const TEX = Number(params.get('tex') || 1024);
 const SMOOTH = Number(params.get('smooth') || 6);
+const SNAP = Number(params.get('snap') || 0);
+const CHANNEL = params.get('channel') === '1';
 const PREVIEW = params.get('preview') === '1';
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -174,7 +182,7 @@ try {
     edgeVertex.set(key, v);
     return v;
   };
-  const EPS = 1e-7;
+  const EPS = Math.max(1e-7, SNAP);
   for (let i = 0; i < phis.length; i++) if (Math.abs(phis[i]) < EPS) { phis[i] = 0; onCut.add(i); }
   const index = Array.from(src.index.array);
   const out = [];
@@ -373,6 +381,9 @@ try {
   const inner = P.map((q, i) => (i === 0 || i === m - 1 ? { ...q } : nearby(P, i, 3).reduce((s, x, _, a) => ({ f: s.f + x.f / a.length, u: s.u + x.u / a.length, l: s.l + x.l / a.length }), { f: 0, u: 0, l: 0 })));
   const fold = inner.map((q, j) => {
     const depth = 0.85 * Math.max(0, Math.sin((Math.PI * j) / (m - 1))) ** 0.6;
+    // A long beak's channel: in from the lip to the middle of the beak at the same place along it, a little
+    // lower; it closes at the corners, as the deep pocket does.
+    if (CHANNEL) return { f: q.f - 0.02 * span * depth, u: q.u - 0.03 * span * depth, l: q.l * (1 - depth) };
     return { f: THREE.MathUtils.lerp(q.f, backF, depth), u: THREE.MathUtils.lerp(q.u, meanU - 0.05 * span, depth), l: q.l * (1 - 0.7 * depth) };
   });
   const innerUpper = upperW.map((_, j) => { const w = nearby(upperW, j, 3); return blend(w, w.map(() => 1 / w.length)); });
@@ -443,9 +454,23 @@ try {
   mesh.material.map = texture(mapCanvas, THREE.SRGBColorSpace);
   if (normalCanvas) mesh.material.normalMap = texture(normalCanvas, THREE.NoColorSpace);
   mesh.userData.face = { ...mesh.userData.face, mouth: { talk: TALK } };
+  // The jaw's track for each clip that opens it, turning it down about the head's own right side as
+  // talking does (and as the preview below opens it).
+  const opens = left.clone().transformDirection(head.matrixWorld.clone().invert()).normalize();
+  const jawClips = [];
+  for (const clip of gltf.animations) {
+    const open = clip.userData.jaw;
+    if (!Array.isArray(open)) continue;
+    const times = clip.tracks[0].times;
+    if (open.length !== times.length) throw new Error(`${clip.name}: ${open.length} jaw keys for ${times.length} times`);
+    const turn = new THREE.Quaternion();
+    const values = open.flatMap(deg => turn.setFromAxisAngle(opens, THREE.MathUtils.degToRad(deg)).toArray());
+    clip.tracks.push(new THREE.QuaternionKeyframeTrack(`${jaw.name}.quaternion`, times, values));
+    jawClips.push(clip.name);
+  }
   const report = {
     triangles: geometry.index.count / 3, vertices: geometry.attributes.position.count, split: splits,
-    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block,
+    opened: jawCopy.size, lips: path.length, pocket: index2.length / 3, hinge: hingeWorld.toArray().map(v => +v.toFixed(3)), block, jawClips,
   };
   window.__bakeReport = report;
   log(JSON.stringify(report));

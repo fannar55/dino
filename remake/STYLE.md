@@ -55,20 +55,28 @@ the same sense. Colours are sRGB hex; three.js converts them to linear.
 | Mosi | Triceratops | 8.5 m long (8 to 9) | sage green (fixed) | `#868862` | `#c8c395` | `#4f5433` | ivory horns `#ede0bf`, amber eyes |
 | Egill | boy explorer | 1.1 m tall | cream and denim blue | shirt `#e6dcc4` | skin `#e9c4a2` | jeans `#4f6670` | boots `#6f5440`, hair `#eadbbd` |
 | Kambeðla | Stegosaurus | 7 m long (6.5 to 9) | violet | `#8f6aa3` | `#cfb6c6` | plum back `#5d4370` | lilac plates `#ab85c1`, ivory tail spikes `#d2bda9` |
-| Þórseðla | Brachiosaurus | 20 m long (18 to 22) | golden yellow | `#e6bf55` | `#f6e6b8` | `#a9813a` | soft patches `#b98a4e` |
+| Þórseðla | Brontosaurus | 22 m long (21 to 22) | golden yellow | `#e9b14d` | `#e7c181` | `#89682e` | caramel patches `#be8c40`, beige throat `#c2a270` |
 | Grameðla | T. rex | 12 m long (12 to 12.8), hips 3.7 to 4 m | terracotta | `#b37955` | `#ead0b4` | cocoa back `#87532e` | ivory claws `#efe2c8`, amber eyes |
-| Uggeðla | Spinosaurus | 14 m long | coral red | `#e06a55` | `#f6d2c2` | `#a5433a` | sail gold `#f2b04a` |
-| Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#5f8fd6` | `#dce7f6` | `#3c5f9e` | crest `#a9c6ee` |
-| Flugeðla | Pteranodon | 6 m wingspan (5.6 to 7.6) | pink | `#ea8db3` | `#f8dfe8` | `#a95a7e` | wing membrane `#f6c2a0` |
+| Uggeðla | Spinosaurus | 14 m long | teal | `#47908a` | `#b1cbb4` | `#3a604f` | coral sail `#ed715d` with peach stripes `#fb8d72`, amber eyes, beige claws |
+| Slóeðla | Parasaurolophus | 7.5 m long (up to 9.5) | blue | `#6793d0` | `#8b9ebb` | back stripe `#4b6fa4` | pale blue crest `#aac3e6`, beige toenails, amber eyes |
+| Flugeðla | Pteranodon | 7.5 m wingspan (5.6 to 7.6) | pink | `#dc8090` | `#f0ccb7` | raspberry crest `#955055` | peach wing membrane `#ebaf98`, cream beak, amber eyes |
 
 Grameðla keeps the terracotta of the owner's Tripo model (2026-10-15), and Kambeðla moved from
 orange to the free violet slot; its Tripo model (2026-10-15) gives the violet row its values, with
-lilac plates. Uggeðla's coral is Grameðla's nearest neighbour: check the two side
-by side when Uggeðla is made. Sizes are adult estimates from the species' Wikipedia pages
+lilac plates. Þórseðla is a Brontosaurus, as her Icelandic name says (2026-10-16), and her Tripo
+model gives the golden row its values. Flugeðla's wingspan is the upper end of the range so she can
+carry Egill, and her Tripo model (2026-10-16) gives the pink row its values; that pink leans to coral.
+Slóeðla's Tripo model (2026-10-16) gives the blue row its values, close to the row it replaced.
+Uggeðla is teal (the owner's choice, 2026-10-16, instead of coral red), and her Tripo model
+(2026-10-17) gives the teal row its values, with the coral sail of the owner's concept; only her
+sail is warm, so the warm bodies stay with Grameðla and Flugeðla. Her teal is well apart in hue from
+the forest's greens and from Slóeðla's blue; the far canopy before the fog has nearly her hue but is
+darker and greyer, so keep her clear of it in wide shots. Sizes are adult estimates from the
+species' Wikipedia pages
 ([Triceratops](https://en.wikipedia.org/wiki/Triceratops),
 [Tyrannosaurus](https://en.wikipedia.org/wiki/Tyrannosaurus),
 [Stegosaurus](https://en.wikipedia.org/wiki/Stegosaurus),
-[Brachiosaurus](https://en.wikipedia.org/wiki/Brachiosaurus),
+[Brontosaurus](https://en.wikipedia.org/wiki/Brontosaurus),
 [Spinosaurus](https://en.wikipedia.org/wiki/Spinosaurus),
 [Parasaurolophus](https://en.wikipedia.org/wiki/Parasaurolophus),
 [Pteranodon](https://en.wikipedia.org/wiki/Pteranodon), October 2026).
@@ -249,10 +257,11 @@ pinholes left where seams meet, so the surface is closed. Then it decimates the 
 and splits it back into its parts, with the normals of the whole mesh, so the seams stay closed and
 shade alike. (Tripo's own seams have hairline cracks and normals that disagree, by up to 33
 degrees across the back of Grameðla's neck and 150 at her lips: the thin dark line on her back was
-the seam between body and head.) The head keeps relatively more detail, and
-`keep=<part>` keeps a part's seams as Tripo made them: Grameðla's lower jaw, whose seam with the
-face becomes her lips (`37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts
-keep=tripo_part_7`). Then the bake, in headless Edge:
+the seam between body and head.) The head keeps relatively more detail (1.6 times the share of the
+rest; `detail=<x>` gives a small head seen close up more: Þórseðla 4.5), and `keep=<part>` keeps a
+part's seams as Tripo made them: Grameðla's lower jaw, whose seam with the face becomes her lips
+(`37600 tripo_part_2,tripo_part_7,tripo_part_10,tripo_part_12 parts keep=tripo_part_7`). Then the
+bake, in headless Edge:
 
 ```bash
 node remake/tools/bake/bake-character.mjs --page bake-biped --out <name>.glb --query "src=<parts.glb, relative to the page>&height=1.1&yaw=90&name=<Name>&out=<name>.glb"
@@ -273,12 +282,13 @@ IK (the knee a hinge about the thigh's Z axis) reaches each foot, and the hips a
 legs allow at 99.5 % of their length, smoothed, so the bob (about 2 cm) follows the stride. The arms
 swing 18 degrees against the legs. In a scene, `engine/footing.js` plants a biped's feet as it does
 Mosi's, in walks, starts, stops and turns on the spot: the legs reach a planted foot by the same IK
-and the hips sink when a leg could not reach it otherwise. A clip that leaves the legs at rest (idle,
-wave, point) keeps the feet where they stand. Footing's distances and times are tuned per body plan
-(`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's legs, measured
-from the skeleton in the bind pose: lengths in proportion, times by the square root. A character
-re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its walking speed
-should grow with the square root of its size too.
+and the hips sink when a leg could not reach it otherwise. A step footing takes itself is over its
+spot a fifth of its time before it lands, so it comes straight down. A clip that leaves the legs at
+rest (idle, wave, point) keeps the feet where they stand. Footing's distances and times are tuned
+per body plan (`QUADRUPED` on Mosi as he is today, `BIPED` on Egill) and scale with each actor's
+legs, measured from the skeleton in the bind pose: lengths in proportion, times by the square root.
+A character re-baked at another size (Mosi at 8.5 m) steps in proportion without retuning; its
+walking speed should grow with the square root of its size too.
 `bake-tailed-biped` (`--query "src=<parts.glb>&length=12&name=Grameðla&out=trex.glb"`) stands the
 model at the origin facing +X at its length nose to tail. It finds the heading from the footprint
 and the left and right pairs, tells the parts apart by position and shared seams (body, tail, head,
@@ -330,8 +340,10 @@ behind it the line stays closed and the cheek stretches. A Jaw bone under the He
 jaw (its share grows from the hinge to the cut, smoothed over the surface), a pocket (palate and
 tongue) fills the mouth, and `face.mouth.talk` says how far the jaw opens when the character talks
 (Mosi 7 degrees). The pass re-exports the GLB (textures 1024 JPEG) with the node names as they were;
-`preview=1&deg=8` shows it open. Mosi: 55 triangles split, 54 lip vertices opened, a 1,176-triangle
-pocket, 25,222 triangles in all; the game's `dist` model is untouched.
+`preview=1&deg=8` shows it open, and `snap=<metres>` counts vertices that close to the line as on it,
+so a vertex a hair off the line leaves no sliver across the open mouth (Þórseðla: 0.003). Mosi: 55
+triangles split, 54 lip vertices opened, a 1,176-triangle pocket, 25,222 triangles in all; the
+game's `dist` model is untouched.
 `remake/tools/prep-character.mjs` stays for static models (stand, scale, face +X, 1024 px
 textures, matte). Render characters single-sided when the mesh is closed: a double-sided character
 that fills the frame costs about 0.7 ms more on the reference laptop.
@@ -367,6 +379,83 @@ exactly that speed and passes under its pivot (Tripo stands a hind foot behind t
 girdle rides as high as its planted legs reach at their rest length, smoothed, so a rigid leg
 slides along its axis only in the swing. Footing plants the feet in walks, starts, stops and turns,
 and keeps them where they stand in idle, kink and eat.
+A sauropod (Þórseðla) goes through `bake-quadruped` with `kind=sauropod`
+(`--query "src=<parts.glb>&length=22&yaw=180&name=Þórseðla&out=brontosaurus.glb&kind=sauropod&neck=5&tail=8&atlas=0.82&brow=1"`).
+Her parts are a head, a neck, a body cut in two and four legs with their toenails: the head is the
+part that holds the nose, the trunk is every part on the way along the seams from the head to the
+body, and a part that sits on a leg alone (a toenail) rides that leg's foot. Her neck rises at about
+45 degrees, so its joints (Neck to Neck5, a metre apart) are spaced along its centre line, and the
+skin follows the chain by where it lies along the line through the joints, a point far from the
+line (the chest under the neck) blending the stretches nearly as close; the head is rigid in front
+of its joint, so the eyes and the mouth move as one. The tail has eight bones. Tripo gave her small
+head about 1 % of the texture, a hundred texels across at 1024 px: `atlas=0.82` narrows the rest of
+the atlas to 82 % of its width and copies the head's islands from the 2048 px source into the column
+that frees up, at twice their old size (`atlas.js`; an island only moves and scales, so the normal
+map stays right). Her brow ridges overhung the eyes and read stern: `brow=1` smooths the skin over
+each eye along its normals until the ridge and the crease under it melt into one soft slope, the
+eye's outline untouched (`brow.js`). The clips are in `sauropod-clips.js`: idle (6 s), a slow walk
+(four beats, a foot down 62 % of the time, a stride of 0.9 times the pivot height at a Froude number
+of 0.025: 3.88 m in 3.77 s, 1.03 m/s), kink (2.8 s), lowerHead (4.5 s: the neck curves down in front
+of her until her eyes, found as the face pass finds them, are at a child's eye height, 0.95 m),
+liftUp (8 s: from that pose the neck rises slowly to its full height, her eyes 9.4 m up, the head
+level all the way so a child on it stays on) and happy (2.4 s: she rocks back so her front feet leave
+the ground by up to half a metre, stamps them down and wiggles her neck and tail). lowerHead and
+liftUp carry `once` in their extras: the actor plays such a clip once and holds its last pose until
+the next one.
+A pterosaur (Flugeðla) goes through `bake-quadruped` with `kind=pterosaur`
+(`--query "src=<parts.glb>&span=7.5&yaw=90&name=Flugeðla&out=pteranodon.glb&kind=pterosaur"`):
+`winged-rig.js` rigs and weights her, `winged-clips.js` authors the clips, and the weld, the surface
+distances, the harmonic fields and the weighting along a chain that they share with `quadruped-rig.js`
+are in `skin.js`. She is scaled to her wingspan. Her parts are two legs (on the ground), two wings
+(reaching out more than 0.4 of the span), the head with its crest (the highest part), the beak (it holds
+the nose and touches the head; the mouth pass cuts the jaw out of it), the body (it touches both legs)
+and two arms (each between a wing and the body); the head and the beak ride the Head rigidly, crest and
+all. Tripo turned her head 19 degrees to one side: the bake turns it back about the top of the neck,
+fading down the neck. Bones, with identity rest rotations: root, Hips, Spine, Chest, Neck to Neck3,
+Head, Tail1 to Tail3, the legs as Grameðla's (Thigh, Shin and Foot, Left and Right, as footing plants
+a biped) and on each wing UpperArm, Forearm, Wrist, Claws (the three small clawed fingers) and Finger1
+to Finger3 (the long fourth finger along the membrane's leading edge). Her membranes are closed thin
+shells about 3.5 cm thick, not open sheets, so they stay in the one closed, single-sided skin. A
+membrane is held along its seams (the arm's, the body's and the thigh's weights there) and along its
+leading edge (the finger and the arm by where they lie along the line through their joints);
+everywhere else its weights are a harmonic field of all those bones at once, so it blends smoothly
+between the long finger, the forearm, the body and the thigh. A point on one face and the point
+facing it across the shell share their weights, so the faces bend as one. Folded on the ground
+(`FOLD`), a wing's plane is turned along her side and folded in it like a fan, the knuckle of the
+long finger on the ground: she walks on her feet and those knuckles, which two-bone IK places in the
+wing's plane. Along the middle of her back a strip as wide as her shoulders follows the spine alone,
+so a seat there stays put while the wings beat: the bake finds it (the top of her back between the
+wings in carry, on Spine) and writes the bone and the point into its report, for a saddle. Clips:
+idle (4 s, the wings folded), walk (1.6 s, 1.15 m, 0.72 m/s, a foot down 62.5 % of the time and the
+knuckle on its side a quarter cycle later), kink (2.4 s), happy (2.4 s: a hop with a flutter of
+half-open wings), takeOff (3.2 s, once, ending in fly's first pose), fly (a 1.4 s wingbeat with the
+hips held 2.6 m up; a scene moves her root through the air), glide (6 s, banking 9 degrees each way),
+land (3 s, once, from fly's first pose to idle's) and carry (3.6 s: two slow, shallow beats, the back
+steady and level under the seat). Her mouth is a long slot along the beak: the mouth pass's
+`channel=1` runs the pocket along the middle of the beak under the lips instead of back into the
+head, so the open beak shows no hole.
+A hadrosaur (Slóeðla) goes through `bake-quadruped` with `kind=hadrosaur`
+(`--query "src=<parts.glb>&length=7.5&yaw=180&name=Slóeðla&out=parasaurolophus.glb&kind=hadrosaur&neck=3&tail=6&atlas=0.75&touch=4&brow=1&even=4"`),
+decimated with her head and crest keeping the head's share (`37500 tripo_part_4,tripo_part_6 parts`).
+Her body is cut in two across the hips, so the trunk runs from the head through the front half on to
+the part that holds the tail's tip (the part furthest back on the centre line; a tail spike stands out
+to one side). Her neck rises steeply in an S, so its three joints are spaced along its centre line as a
+sauropod's are. Her crest rides the head, and with a crest on top (`crest`) the head's joint goes to the
+back of the skull, under the back end of the crest's base, midway up the head part's own section, and
+the line the skin follows runs on through the head to the tip of her bill (`tip` in `skin.js`), so her
+long head stays rigid in front of its joint, crest and all. The bake and the face pass take `touch=4`:
+a dark crease under each heavy brow lies close over the pupil, and blobs merge only when their texels
+come within four texels' spacing. Her brows are softened with `brow=1&even=4`: four rounds even out the
+moves over the surface, so her coarse brow ridge keeps a smooth outline. The clips are in
+`hadrosaur-clips.js`: idle (5 s), walk (four beats, a foot down 58 % of the time, a stride as long as the
+hind pivots are high at a Froude number of 0.04: 2.79 m in 2.67 s, 1.05 m/s), kink (2.4 s), happy (2.4 s:
+she rears onto her hind legs, her front feet up to 0.44 m), eat (3.6 s: grazing, the neck curving down
+until the tip of her bill is 0.12 m above the grass in front of her feet, two crops and chewing) and
+call (5 s: her horn call through the crest; a deep breath fills her chest, the Spine bone growing 6 %
+while the Chest scales back so the neck and head keep their size, her head rises 30 degrees until the
+crest lies back over her neck, and her bill opens as she blows, the head trembling a little). A clip
+that opens the jaw carries `jaw` in its extras (degrees at each key), and the mouth pass, which cuts the
+jaw after the bake, turns that into the jaw's track (eat and call).
 
 Environment:
 

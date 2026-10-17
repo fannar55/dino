@@ -182,8 +182,10 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   let current = null;
   let gait; // measured the first time the actor walks
 
-  // `once` plays the clip to its end and holds the last frame; otherwise it loops.
-  function play(clipName, { fade = 0.4, timeScale = 1, once = false } = {}) {
+  // `once` plays the clip to its end and holds the last frame. A clip that goes somewhere and stays
+  // (Þórseðla's lowerHead and liftUp carry `once` in their extras) does so unless told otherwise;
+  // every other clip loops.
+  function play(clipName, { fade = 0.4, timeScale = 1, once = Boolean(clips.get(clipName)?.userData.once) } = {}) {
     const clip = clips.get(clipName);
     if (!clip) return null;
     const action = mixer.clipAction(clip);
@@ -500,8 +502,9 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
     /**
-     * Play a clip, looping or, with `once`, to its end and holding the last frame; one that moves the
-     * legs gets them as it is (footing stops planting the feet).
+     * Play a clip, looping or, with `once` (or when the clip is marked `once` in its extras), to its
+     * end and holding the last pose until the next one; one that moves the legs gets them as it is
+     * (footing stops planting the feet).
      */
     play(clipName, options = {}) {
       const action = play(clipName, options);

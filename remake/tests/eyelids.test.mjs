@@ -53,6 +53,9 @@ test('the eyes are where a face has them: in front, side by side, the size of an
     egill: { height: [0.88, 0.95], apart: [0.07, 0.11], width: [0.03, 0.08] },
     gramedla: { height: [4.4, 4.9], apart: [0.9, 1.3], width: [0.3, 0.75] },
     kambedla: { height: [1.8, 2.4], apart: [0.4, 0.7], width: [0.15, 0.4] },
+    thorsedla: { height: [8, 8.5], apart: [0.85, 1.15], width: [0.15, 0.4] },
+    flugedla: { height: [3, 3.3], apart: [0.35, 0.5], width: [0.15, 0.35] },
+    sloedla: { height: [2.9, 3.2], apart: [0.6, 0.8], width: [0.15, 0.35] },
   };
   for (const name of NAMES) {
     const gltf = await loadCharacter(name);
