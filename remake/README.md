@@ -38,6 +38,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   (`sun-face.js`); the beat clock, the theme's tempo as a pure function of the music's time
   (`beat.js`: `beatAt` for the sway, `danceAt` for the flowers' nod and the mushrooms' hop).
 - `engine/input/pointer.js`: taps on named targets in the world (spheres round point specs) and drags.
+- `engine/hand-hold.js`: hands that hold something, each wrist reaching its point by two-bone IK laid over a
+  character's own pose after the actors update (Egill's two hands on his posy).
 - `engine/camera/director.js`: the camera director, with the child's free look (`explore`, `look`, `hint`).
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback; the search
   with its hints (`search.js`), the explorer's journal and its page (`journal.js`), the star that rises
