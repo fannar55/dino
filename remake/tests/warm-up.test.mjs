@@ -154,3 +154,43 @@ test('main.js draws the chapter once before the start button shows, builds its l
   // A frame under a black screen (the warm-up, a build) says nothing of how the scene draws: the resolution does not adapt to it.
   assert.match(loop, /adapt\(real, clock\.frozen \|\| ui\.fadeLevel >= 0\.999\);/);
 });
+
+test('while the start screen is black for the warm-up a small gold star breathes in the middle, and fades with the black as the button shows', async () => {
+  const fs = await import('node:fs');
+  const read = name => fs.readFileSync(new URL(`../${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  // The page has it put away (captures and review shots never show it), over the black and under the button, with no words.
+  const html = read('index.html');
+  const element = /<div id="loading"[^>]*><\/div>/.exec(html);
+  assert.ok(element, 'index.html has an empty #loading');
+  assert.match(element[0], /class="loading"/);
+  assert.match(element[0], /\bhidden\b/, 'put away until the start screen asks for it');
+  assert.match(element[0], /aria-hidden="true"/);
+  assert.ok(html.indexOf('id="fade"') < element.index && element.index < html.indexOf('id="start"'), 'after the fade (over the black), before the button');
+  // It is the journal's star gold, breathes gently on its own (opacity and scale: the browser animates them off the main
+  // thread, so it goes on through a long frame), never takes a tap, and fades out.
+  const css = read('style.css');
+  const rule = selector => {
+    const found = new RegExp(`^${selector.replace(/[.[\]#]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'm').exec(css);
+    assert.ok(found, `${selector} has a rule`);
+    return found[1];
+  };
+  const loading = rule('.loading');
+  assert.match(loading, /#f2b630|%23f2b630|var\(--star\)/i, 'STYLE.md\'s star gold');
+  assert.match(css, /--star:\s*#f2b630/i);
+  assert.match(loading, /left:\s*50%/);
+  assert.match(loading, /top:\s*50%/);
+  assert.match(loading, /pointer-events:\s*none/);
+  const breathing = /animation:\s*([\w-]+)/.exec(loading)?.[1];
+  assert.ok(breathing, 'it breathes');
+  const keyframes = new RegExp(`@keyframes ${breathing}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(css);
+  assert.ok(keyframes && /scale\(/.test(keyframes[1]) && !/(left|top|width|height):/.test(keyframes[1]), 'by its scale alone');
+  assert.match(loading, /transition:\s*opacity/);
+  assert.match(rule('.loading.done'), /opacity:\s*0/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*\.loading\s*\{\s*animation:\s*none/, 'and holds still for whoever asks for less motion');
+  // main.js shows it with the black of the start screen and lets it go with the black when the button shows; only there.
+  const main = read('main.js');
+  const start = main.slice(main.indexOf('// Wait for a tap'), main.indexOf("if (params.get('orbit') === '1')"));
+  assert.match(start, /ui\.setFade\(1\);[\s\S]*loading\.hidden = false;[\s\S]*getReady\(\)/);
+  assert.match(start, /\.finally\(\(\) => \{[\s\S]*loading\.classList\.add\('done'\);[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
+  assert.equal((main.match(/loading\.hidden = false/g) ?? []).length, 1, 'nowhere else');
+});

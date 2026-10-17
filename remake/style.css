@@ -42,6 +42,24 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 
 .fade { position: fixed; inset: 0; background: #15110c; opacity: 0; pointer-events: none; }
 
+/* While the start screen is black (the chapter is drawn once and the glade built, main.js), a small gold star breathes in the
+   middle of the screen, so a child sees that something is coming: the journal's star, in its gold. Only its scale changes,
+   which the browser animates on its own, so it goes on breathing through a long frame; it fades out as the black lifts and
+   the start button shows. */
+.loading {
+  position: fixed; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z' fill='%23f2b630' stroke='%23f2b630' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 10px rgba(242, 182, 48, .55));
+  pointer-events: none; transition: opacity .45s ease-out;
+  animation: loading-breathe 1.8s ease-in-out infinite; will-change: transform;
+}
+.loading.done { opacity: 0; }
+@keyframes loading-breathe {
+  0%, 100% { transform: scale(.85); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) { .loading { animation: none; } }
+
 .debug {
   position: fixed; top: 8px; left: 8px; padding: 6px 8px; border-radius: 8px;
   font: 12px/1.35 ui-monospace, monospace; color: #fff; background: rgba(0, 0, 0, .55); white-space: pre;

@@ -337,6 +337,9 @@ if (shotName || !chapter.script) {
     // once (getReady) the screen stays black and the button hidden.
     ui.setFade(1);
     startReady = false;
+    // Meanwhile a small gold star breathes in the middle of the black (style.css: .loading); it fades out as the black lifts.
+    const loading = document.getElementById('loading');
+    loading.hidden = false;
     const button = document.getElementById('start');
     button.addEventListener('click', () => {
       button.hidden = true;
@@ -346,6 +349,8 @@ if (shotName || !chapter.script) {
     }, { once: true });
     getReady().catch(error => console.error('[warm-up]', error)).finally(() => {
       warmedPlace = world.location; // from now on a place the scene comes to is drawn once before it shows
+      loading.classList.add('done');
+      setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
       button.hidden = false;
       startReady = true;
