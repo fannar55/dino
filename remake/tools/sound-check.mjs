@@ -21,28 +21,44 @@ import fsp from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { handle } from './serve.mjs';
 
 const BROWSERS = {
   chrome: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   edge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 };
-const option = (name, fallback) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : fallback;
-};
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
-  console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 17).join('\n'));
-  process.exit(0);
-}
-const CONNECT = option('connect', null);
-const EXE = BROWSERS[option('browser', 'chrome')] || option('browser');
-const HEADFUL = process.argv.includes('--headful');
-const QUERY = option('query', 'quality=low&debug=1');
-let BASE = option('base', null); // the page's folder as the browser reaches it; by default this script's own server
+const VALUED = ['connect', 'base', 'browser', 'query']; // the options that take a value
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Waits for a promise, but at most ms, and leaves no timer behind to hold the process open.
+const within = (promise, ms) => {
+  let timer;
+  return Promise.race([promise, new Promise(r => { timer = setTimeout(r, ms); })]).finally(() => clearTimeout(timer));
+};
+/** An error that is a message for whoever runs the check, not a fault in it: it is printed without a stack. */
+const told = message => Object.assign(new Error(message), { told: true });
 
-class CDP {
+/**
+ * The command line as { connect, base, browser, query, headful, help }. A flag where a value should be (`--connect --base ...`,
+ * or a `--connect` at the end) is refused, and so is an option it does not know, so a typo never quietly drives the wrong browser.
+ */
+export function parseOptions(argv) {
+  const options = { connect: null, base: null, browser: 'chrome', headful: false, query: 'quality=low&debug=1', help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--help' || arg === '-h') options.help = true;
+    else if (arg === '--headful') options.headful = true;
+    else if (arg.startsWith('--') && VALUED.includes(arg.slice(2))) {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('--')) throw told(`${arg} needs a value${value === undefined ? '' : `, not ${value}`} (see --help)`);
+      options[arg.slice(2)] = value;
+      i++;
+    } else throw told(`Unknown option ${arg} (see --help)`);
+  }
+  return options;
+}
+
+export class CDP {
   constructor(ws) {
     this.ws = ws; this.id = 0; this.pending = new Map(); this.handlers = new Set();
     ws.addEventListener('message', ev => {
@@ -54,8 +70,15 @@ class CDP {
         else resolve(msg.result);
       } else if (msg.method) for (const h of this.handlers) h(msg);
     });
+    // A dropped socket (a USB cable pulled, a locked tablet, the browser closed) fails the calls it will never answer instead of
+    // leaving them waiting, as capture.mjs does: the check then ends with the error instead of hanging.
+    ws.addEventListener('close', () => {
+      for (const { reject } of this.pending.values()) reject(new Error('DevTools socket closed'));
+      this.pending.clear();
+    });
   }
   send(method, params = {}, sessionId) {
+    if (this.ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('DevTools socket closed'));
     const id = ++this.id;
     const payload = { id, method, params };
     if (sessionId) payload.sessionId = sessionId;
@@ -72,47 +95,73 @@ const openSocket = async url => {
 
 /** A browser already running with its DevTools endpoint at host:port (the tablet's Chrome through adb forward). */
 async function connect(hostPort) {
-  const info = await (await fetch(`http://${hostPort}/json/version`)).json();
+  let info;
+  try {
+    info = await (await fetch(`http://${hostPort}/json/version`, { signal: AbortSignal.timeout(10000) })).json();
+  } catch (error) {
+    throw told(`No browser answers at ${hostPort} (${error.cause?.code ?? error.cause?.message ?? error.message}). For the tablet: is Chrome open on it, with USB debugging on, `
+      + 'and has `adb forward tcp:9222 localabstract:chrome_devtools_remote` been run on this computer (adb comes with Android\'s platform-tools)? '
+      + 'For a browser here: was it started with --remote-debugging-port?');
+  }
   const ws = await openSocket(info.webSocketDebuggerUrl);
   console.log(`connected to ${info.Browser} (${info['User-Agent']})`);
   return { remote: true, cdp: new CDP(ws), ws, targets: [] };
 }
 
-async function launch() {
-  if (!fs.existsSync(EXE)) throw new Error(`No browser at ${EXE}: pass --browser edge, or the path of a Chromium browser`);
+async function launch({ browser: name, headful }) {
+  const exe = BROWSERS[name] || name;
+  if (!fs.existsSync(exe)) throw told(`No browser at ${exe}: pass --browser edge, or the path of a Chromium browser`);
   const userDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sndchk-'));
   const args = [
-    HEADFUL ? '' : '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${userDir}`, '--window-size=1280,800', '--mute-audio',
+    headful ? '' : '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${userDir}`, '--window-size=1280,800', '--mute-audio',
     '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--use-angle=d3d11', '--ignore-gpu-blocklist',
     '--enable-gpu-rasterization', '--enable-unsafe-swiftshader', '--autoplay-policy=document-user-activation-required', 'about:blank',
   ].filter(Boolean);
+  // With __COMPAT_LAYER set Edge relaunches itself without it and the process spawned here exits at once (capture.mjs).
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== '__COMPAT_LAYER'));
-  const proc = spawn(EXE, args, { stdio: 'ignore', env });
-  const portFile = path.join(userDir, 'DevToolsActivePort');
-  for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
-  let lines = [];
-  for (let i = 0; i < 50; i++) { lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/); if (lines.length >= 2) break; await sleep(100); }
-  const ws = await openSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
-  return { proc, userDir, cdp: new CDP(ws), ws, targets: [] };
+  const proc = spawn(exe, args, { stdio: 'ignore', env });
+  const browser = { exe, proc, exited: new Promise(r => proc.once('exit', r)), userDir, cdp: null, ws: null, targets: [] };
+  try {
+    const portFile = path.join(userDir, 'DevToolsActivePort');
+    for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
+    if (!fs.existsSync(portFile)) throw told(`The browser did not start: ${exe} wrote no DevToolsActivePort in 15 s`);
+    let lines = [];
+    for (let i = 0; i < 50; i++) { lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/); if (lines.length >= 2) break; await sleep(100); }
+    const ws = await openSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
+    return Object.assign(browser, { ws, cdp: new CDP(ws) });
+  } catch (error) {
+    await stop(browser); // no browser or profile is left behind by a start that failed
+    throw error;
+  }
+}
+
+// Windows only: kill() reaches the browser but not its helpers, so stop every process of this browser that was started with this
+// run's profile folder (capture.mjs).
+function killProfileProcesses(exe, userDir) {
+  if (process.platform !== 'win32') return;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='${path.basename(exe)}'" | Where-Object { $_.CommandLine -like '*${path.basename(userDir)}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+  try { spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch {}
 }
 
 async function stop(browser) {
   if (browser.remote) {
     // Somebody else's browser: close only the tabs this check opened.
-    for (const targetId of browser.targets) { try { await Promise.race([browser.cdp.send('Target.closeTarget', { targetId }), sleep(2000)]); } catch {} }
+    for (const targetId of browser.targets) { try { await within(browser.cdp.send('Target.closeTarget', { targetId }), 2000); } catch {} }
     try { browser.ws.close(); } catch {}
     return;
   }
-  try { await Promise.race([browser.cdp.send('Browser.close'), sleep(2000)]); } catch {}
-  try { browser.ws.close(); } catch {}
-  await sleep(500);
+  // As capture.mjs stops its browser: Browser.close is not enough on Windows, a killed browser keeps its files open while it tears
+  // down (up to 13 s in tests there), and its profile can only be removed after that.
+  if (browser.cdp) await within(browser.cdp.send('Browser.close').catch(() => {}), 2000);
+  try { browser.ws?.close(); } catch {}
+  await within(browser.exited, 5000);
   try { browser.proc.kill(); } catch {}
-  if (process.platform === 'win32') {
-    const ps = `Get-CimInstance Win32_Process -Filter "Name='${path.basename(EXE)}'" | Where-Object { $_.CommandLine -like '*${path.basename(browser.userDir)}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
-    try { spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch {}
+  killProfileProcesses(browser.exe, browser.userDir);
+  await within(browser.exited, 15000);
+  for (let i = 0; i < 40; i++) {
+    try { await fsp.rm(browser.userDir, { recursive: true, force: true }); return; } catch { await sleep(250); }
   }
-  await sleep(1500);
-  try { await fsp.rm(browser.userDir, { recursive: true, force: true }); } catch {}
+  console.warn(`Could not remove ${browser.userDir}`);
 }
 
 // What the page does with Web Audio and its media elements, recorded before any of its code runs.
@@ -183,15 +232,27 @@ const apart = s => {
   return Math.abs(gap);
 };
 
-async function main() {
+async function main(options) {
+  const { connect: CONNECT, query: QUERY } = options;
+  let BASE = options.base; // the page's folder as the browser reaches it; by default this script's own server
   let server = null;
   if (!BASE) {
     server = http.createServer(handle);
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     BASE = `http://127.0.0.1:${server.address().port}/remake/`;
+    if (CONNECT) {
+      console.log(`(no --base: the check serves the game at ${BASE}, which only a browser on this computer can reach. For the tablet, `
+        + 'start `node remake/tools/serve.mjs --lan` and pass --base with the address it prints for the tablet.)');
+    }
   }
   if (!BASE.endsWith('/')) BASE += '/';
-  const browser = CONNECT ? await connect(CONNECT) : await launch();
+  let browser;
+  try {
+    browser = CONNECT ? await connect(CONNECT) : await launch(options);
+  } catch (error) {
+    server?.close();
+    throw error;
+  }
   const { cdp } = browser;
   const problems = [];
   try {
@@ -247,6 +308,10 @@ async function main() {
     const page = await attach(`?${QUERY}`);
     const loaded = await waitFor(page, 'window.__demoReady === true');
     check(loaded, 'the page is ready');
+    if (!loaded) {
+      throw told(`The game did not get ready at ${BASE}?${QUERY} in 120 s${CONNECT && server
+        ? ': a browser on another device cannot reach this computer\'s 127.0.0.1, so pass --base (see above)' : ''}`);
+    }
     await page.ev(HELPERS, false);
     const ready = await page.ev('__music.ready');
     check(ready === true, 'the theme\'s file opened while the start button waits', String(ready));
@@ -265,7 +330,7 @@ async function main() {
     check(Math.abs(s.position - s.clock) < 0.5 && s.clock > 0.5, 'the playhead follows the game clock meanwhile', `clock ${s.clock}, position ${s.position}`);
     check(s.rms === 0, 'and the output is silent');
     const fps = await page.ev(`new Promise(res => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 2000) requestAnimationFrame(f); else res(+(n / 2).toFixed(1)); }; requestAnimationFrame(f); })`);
-    console.log(`    (headless frame rate here: ${fps} fps)`);
+    console.log(`    (${browser.remote ? 'the connected browser\'s' : options.headful ? 'this browser\'s' : 'headless'} frame rate: ${fps} fps)`);
 
     // ---- B. the first touch ------------------------------------------------------------------
     console.log('\n== the first touch (the start button, by finger) ==');
@@ -279,7 +344,6 @@ async function main() {
       s = await page.ev('__h.snap()');
       woke = s.state === 'running' && s.sounding && s.ctxTime > 0.3 && s.fade > 0.5;
     }
-    console.log(`    (this PC's media output took ${Date.now() - touchedAt} ms to start; the decoded-buffer build woke in 118-325 ms here)`);
     console.log(`    (the context woke and the theme came up ${Date.now() - touchedAt} ms after the touch)`);
     console.log('   ', JSON.stringify(s));
     check(woke, 'the touch woke the audio context and the theme came up', s.state);
@@ -347,6 +411,7 @@ async function main() {
     // ---- D. a hidden tab ---------------------------------------------------------------------
     console.log('\n== the tab is hidden ==');
     const second = await cdp.send('Target.createTarget', { url: 'about:blank' });
+    browser.targets.push(second.targetId); // so a failure before it is closed below still closes it (on the tablet too)
     await cdp.send('Target.activateTarget', { targetId: second.targetId });
     await sleep(800);
     const vis = await page.ev('({ hidden: document.hidden, vis: document.visibilityState })');
@@ -374,6 +439,7 @@ async function main() {
     check(s.hidden === false && s.sounding, 'back in view the music goes on');
     check(s.seeks <= hiddenPre.seeks + 4 && apart(s) < 0.15, 'on the playhead the clock implies (a few silent seeks at most)',`seeks ${hiddenPre.seeks} -> ${s.seeks}, element ${s.elTime}, position ${s.position}, held at ${heldHidden}`);
     await cdp.send('Target.closeTarget', { targetId: second.targetId });
+    browser.targets.splice(browser.targets.indexOf(second.targetId), 1);
 
     // ---- E. both reasons at once -------------------------------------------------------------
     console.log('\n== the book and a hidden tab together ==');
@@ -539,4 +605,20 @@ async function main() {
   process.exitCode = failures ? 1 : 0;
 }
 
-main().catch(e => { console.error(e); process.exit(2); });
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const exit = error => {
+    console.error(error?.told ? error.message : error); // a message for whoever runs it, or a fault with its stack
+    process.exit(2);
+  };
+  let options;
+  try {
+    options = parseOptions(process.argv.slice(2));
+  } catch (error) {
+    exit(error);
+  }
+  if (options.help) {
+    console.log(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 17).join('\n'));
+    process.exit(0);
+  }
+  main(options).catch(exit);
+}
