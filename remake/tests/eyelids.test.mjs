@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createActor } from '../engine/actor.js';
 import { BLINK, MEET, blinkShape, buildLidGeometry, createBlink, eyesOf } from '../engine/eyelids.js';
+import { TALK } from '../engine/talk.js';
 import { CHARACTERS, emptyWorld, loadCharacter, readGlb, skinnedMeshOf } from './characters.mjs';
 
 // The eyelids (engine/eyelids.js) over the eyes the face pass (remake/tools/bake/face.js) found in
@@ -122,6 +123,31 @@ test('the lid shells cover each eye\'s whole outline, so a shut eye hides the pa
     let headWeight = 0;
     for (let i = 0; i < skinIndex.count; i++) for (let j = 0; j < 4; j++) if (head.includes(skinIndex.getComponent(i, j))) headWeight += skinWeight.getComponent(i, j);
     assert.ok(headWeight / skinIndex.count > 0.95, `${name}: the head carries ${(100 * headWeight / skinIndex.count).toFixed(1)} % of the lids`);
+    // But the eye itself does not move with the jaw. Opened as wide as the character talks (face.mouth.talk degrees), no shell
+    // vertex inside an eye's outline moves a millimetre with it. (The most is kambedla's half a millimetre: her jaw's weights fade
+    // out under her eyes, to under a hundredth of the Jaw inside them, and mosi's and gramedla's to less still.)
+    const jawIndex = head[1];
+    if (jawIndex >= 0) {
+      gltf.scene.updateMatrixWorld(true);
+      const pivot = mesh.skeleton.bones[jawIndex].getWorldPosition(new THREE.Vector3());
+      const talk = mesh.userData.face.mouth?.talk ?? TALK.jaw;
+      const chord = 2 * Math.sin(THREE.MathUtils.degToRad(talk) / 2);
+      const { position } = lids.attributes;
+      const shape = lids.attributes.lidShape;
+      const p = new THREE.Vector3();
+      let inside = 0, carrying = 0, worst = 0;
+      for (let i = 0; i < lid.count; i++) {
+        const u = lid.getX(i) / shape.getX(i), v = lid.getY(i) / (lid.getY(i) < 0 ? shape.getY(i) : shape.getZ(i));
+        if (Math.hypot(u, v) > 1) continue;
+        inside++;
+        let w = 0;
+        for (let j = 0; j < 4; j++) if (skinIndex.getComponent(i, j) === jawIndex) w += skinWeight.getComponent(i, j);
+        if (w > 0) carrying++;
+        worst = Math.max(worst, w * chord * p.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld).distanceTo(pivot));
+      }
+      assert.ok(inside > 20, `${name}: ${inside} shell vertices inside the outlines`);
+      assert.ok(worst < 0.001, `${name}: at ${talk} degrees the jaw moves the eye by ${(1000 * worst).toFixed(2)} mm (${carrying} of the ${inside} shell vertices inside the outlines carry some of it)`);
+    }
   }
 });
 

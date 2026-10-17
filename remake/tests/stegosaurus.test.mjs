@@ -172,23 +172,31 @@ function carried(mesh, i, bones) {
   return w;
 }
 
+// The bake made her first 23,616 vertices (the face pass kept them); the mouth pass appends its own after them.
+const BAKED_VERTICES = 23616;
+
 test('away from the mouth the welded skin is closed and consistently wound, so single-sided it shows no holes', async () => {
   const { mesh } = await model();
   const pos = mesh.geometry.attributes.position;
   const weights = [mesh.geometry.attributes.skinIndex, mesh.geometry.attributes.skinWeight];
+  assert.ok(pos.count > BAKED_VERTICES, 'the mouth pass added vertices after the bake\'s');
   const ids = new Map();
   const rep = new Int32Array(pos.count);
   const key = i => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
-  let seamWeights = 0;
   for (let i = 0; i < pos.count; i++) {
     const k = key(i);
     if (!ids.has(k)) ids.set(k, i);
     rep[i] = ids.get(k);
-    // Both sides of a seam carry the same weights, so the seam stays closed when skinned (the mouth
-    // pass gave the lips copies of their own).
-    if (rep[i] !== i && carried(mesh, i, ['Head', 'Jaw']) < 0.5) {
-      for (const attr of weights) for (let c = 0; c < 4; c++) seamWeights = Math.max(seamWeights, Math.abs(attr.getComponent(i, c) - attr.getComponent(rep[i], c)));
-    }
+  }
+  // The points the mouth pass touched: one of its own vertices is there (the cut's, the lips' copies, the pocket's), or the
+  // jaw carries some of one. Everywhere else, the rest of her head included, the bake's rules hold as they did.
+  const touched = new Uint8Array(pos.count);
+  for (let i = 0; i < pos.count; i++) if (i >= BAKED_VERTICES || carried(mesh, i, ['Jaw']) > 0) touched[rep[i]] = 1;
+  // Both sides of a seam carry the same weights, so the seam stays closed when skinned (the lips' copies have their own).
+  let seamWeights = 0;
+  for (let i = 0; i < pos.count; i++) {
+    if (rep[i] === i || touched[rep[i]]) continue;
+    for (const attr of weights) for (let c = 0; c < 4; c++) seamWeights = Math.max(seamWeights, Math.abs(attr.getComponent(i, c) - attr.getComponent(rep[i], c)));
   }
   assert.ok(seamWeights < 1e-6, `the two sides of a seam differ in weight by ${seamWeights}`);
   const edges = new Map();
@@ -203,11 +211,12 @@ test('away from the mouth the welded skin is closed and consistently wound, so s
       edges.set(k, edge);
     }
   }
-  // The open lips and the pocket inside the mouth are on the head: everywhere else every edge is
-  // shared by two triangles that run it in opposite directions.
-  const head = i => carried(mesh, i, ['Head', 'Jaw']) > 0.9;
-  const bad = [...edges.values()].filter(e => (e.n !== 2 || e.turn !== 0) && !(head(e.a) && head(e.b))).length;
-  assert.equal(bad, 0, `${bad} edges off the head are open, shared by more than two triangles or wound against each other`);
+  // The open lips and the pocket inside the mouth are the pass's: every other edge, her eyes, brow and the back of her
+  // skull among them, is shared by two triangles that run it in opposite directions.
+  const checked = [...edges.values()].filter(e => !touched[e.a] && !touched[e.b]);
+  assert.ok(checked.length > 0.95 * edges.size, `${edges.size - checked.length} of ${edges.size} edges are the mouth pass's`);
+  const bad = checked.filter(e => e.n !== 2 || e.turn !== 0).length;
+  assert.equal(bad, 0, `${bad} edges away from the mouth pass's are open, shared by more than two triangles or wound against each other`);
 });
 
 test('the plates and the tail spikes ride rigidly on one bone each', async () => {
