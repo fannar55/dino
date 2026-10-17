@@ -16,6 +16,8 @@ import { seededRandom } from '../../engine/random.js';
 //   const flower = createGlowFlower(world, { name: 'stone', position: [x, y, z] });  // where it stands
 //   s.target('stone', { point: flower.point, radius: 0.5 });                         // what a tap aims at
 //   yield flower.pick({ actor: 'egill', part: 'head' });                             // Egill picks it
+//   yield flower.hold(hands, { turn: () => egill.root.quaternion });                // or keeps it in his hands
+//   yield flower.pick(mouth);                                                        // until he gives it away
 //
 // The flower puts its group in world.scene and runs on world.effects (engine/effects.js, which main.js
 // updates every frame), so a chapter need not drive it. Its glimmer reads the game clock's own time
@@ -23,13 +25,17 @@ import { seededRandom } from '../../engine/random.js';
 // same frame in a capture. update(t) does the same by hand, for a world with no effects. pick() lifts
 // the flower toward a point and shrinks it over 0.6 s, resolving the point every frame because Egill
 // may be walking, then hides it and finishes its Handle. A picked flower is gone for good; dispose()
-// takes one out of the scene and its effect off world.effects.
+// takes one out of the scene and its effect off world.effects. hold() flies it the same way into a
+// hand instead and keeps it there, smaller and with its glimmer out, the foot of its stem on the point
+// (resolved every frame) and turned as the holder turns; a held flower can be picked from the hand.
 
 const GLIMMER_HZ = 1.2; // throbs a second
 const LEVEL_FLOOR = 0.55; // the dimmest the glow gets, as a share of the brightest: it never goes quite out
 const PICK_SECONDS = 0.6;
 const PICK_LIFT = 0.35; // metres the flower rises above the straight way to the hand, half way there
 const PICK_SMALLEST = 0.1; // the share of its size it has left in the hand
+const HELD_SIZE = 0.6; // the share of its size a held flower has: a posy in a child's hands
+const IDENTITY = new THREE.Quaternion();
 
 // The flower is built at the size below and then drawn SCALE times as big: bigger than the wild flowers
 // (0.2 to 0.4 m tall), so that a child finds it and a tap lands on it, and as tall as a hand-held posy.
@@ -281,7 +287,13 @@ function buildGlow() {
  *   glow         how bright the glimmer is now, 0 to 1 (0 with the glimmer out or the flower picked)
  *   glimmer(on)  put the glimmer on or out (it is on at first); returns DONE
  *   pick(to)     lift the flower to `to` (a point spec, default Egill's middle) and shrink it over 0.6 s,
- *                resolving the point every frame, then hide it for good; returns a Handle
+ *                resolving the point every frame, then hide it for good; returns a Handle. A held flower sets off
+ *                from the hand at its size there, with its glimmer out.
+ *   hold(to, { size = 0.6, lean = [0, 0, 0], turn })  fly the flower the same way into a hand and keep it there: the
+ *                foot of its stem on `to` (a point spec, resolved every frame), `size` of its size, its glimmer out,
+ *                turned by `turn()` (a quaternion, read every frame: whoever holds it) and then leaning by `lean`
+ *                (Euler radians, in the holder's frame); returns a Handle that finishes when it is in the hand,
+ *                and that puts it there at once when cancelled
  *   update(t)    pose it for game time t, in seconds (the registered effect does this every frame)
  *   dispose()
  */
@@ -323,9 +335,16 @@ export function createGlowFlower(world, { name, position } = {}) {
   let level = 0;
   let picked = false;
   let disposed = false;
-  let picking = null; // { handle, to, from, start }
+  let picking = null; // { handle, to, from, start, size, fade }
+  let holding = null; // { handle, to, size, lean, turn, from, fromSize, fromTurn, fromFade, start, there }
+  const lift = new THREE.Vector3();
+  const foot = new THREE.Vector3();
+  const held = new THREE.Vector3();
+  const turned = new THREE.Quaternion();
 
-  const syncPoint = () => point.set(group.position.x, group.position.y + BLOOM * group.scale.y, group.position.z);
+  // From the foot of the stem to the middle of the bloom, at a size and a turn.
+  const stem = (size, quaternion) => lift.set(0, BLOOM * size, 0).applyQuaternion(quaternion);
+  const syncPoint = () => point.copy(group.position).add(stem(group.scale.y, group.quaternion));
 
   function shine() {
     const wave = 0.5 + 0.5 * Math.sin(TAU * (GLIMMER_HZ * time + phase));
@@ -352,17 +371,40 @@ export function createGlowFlower(world, { name, position } = {}) {
     world.resolvePoint(picking.to, hand);
     bloom.lerpVectors(picking.from, hand, eased);
     bloom.y += PICK_LIFT * Math.sin(Math.PI * eased);
-    const size = 1 + (PICK_SMALLEST - 1) * eased;
+    const size = picking.size * (1 + (PICK_SMALLEST - 1) * eased);
     group.scale.setScalar(size);
-    group.position.set(bloom.x, bloom.y - BLOOM * size, bloom.z); // it shrinks about the middle of the bloom
-    fade = 1 - eased * eased; // it keeps glowing on the way and goes out as it arrives
+    group.position.copy(bloom).sub(stem(size, group.quaternion)); // it shrinks about the middle of the bloom
+    fade = picking.fade * (1 - eased * eased); // it keeps glowing on the way and goes out as it arrives
     if (k >= 1) finishPick();
+  }
+
+  // Into the hand and, once there, along with it: the bloom flies as in a pick, the flower shrinks to its held size and
+  // turns from how it stood to how it is held, and its glimmer goes out as it arrives.
+  function carry() {
+    const h = holding;
+    world.resolvePoint(h.to, foot);
+    turned.copy(h.turn ? h.turn() : IDENTITY).multiply(h.lean);
+    const k = h.there ? 1 : THREE.MathUtils.clamp((time - (h.start ??= time)) / PICK_SECONDS, 0, 1);
+    const eased = k * k * (3 - 2 * k);
+    held.copy(foot).add(stem(h.size, turned)); // the middle of the bloom as it is held
+    bloom.lerpVectors(h.from, held, eased);
+    bloom.y += PICK_LIFT * Math.sin(Math.PI * eased);
+    const size = h.fromSize + (h.size - h.fromSize) * eased;
+    group.quaternion.slerpQuaternions(h.fromTurn, turned, eased);
+    group.scale.setScalar(size);
+    group.position.copy(bloom).sub(stem(size, group.quaternion));
+    fade = h.fromFade * (1 - eased);
+    if (k >= 1 && !h.there) {
+      h.there = true;
+      h.handle.finish();
+    }
   }
 
   function update(t) {
     if (disposed) return;
     time = t;
     if (picking) fly();
+    else if (holding) carry();
     shine();
     syncPoint();
   }
@@ -372,9 +414,38 @@ export function createGlowFlower(world, { name, position } = {}) {
     if (picked || disposed) return DONE;
     if (!world.resolvePoint) throw new Error('A glow flower is picked toward a point, so it needs world.resolvePoint (engine/points.js)');
     world.resolvePoint(to, hand); // a point that cannot be found fails here, not a frame later
+    if (holding) { // from the hand: the hold is over, wherever it had got to
+      holding.handle.finish();
+      holding = null;
+    }
     syncPoint();
-    picking = { handle: new Handle(`glow flower ${name} picked`, finishPick), to, from: point.clone(), start: null };
+    picking = {
+      handle: new Handle(`glow flower ${name} picked`, finishPick), to, from: point.clone(), start: null, size: group.scale.x, fade,
+    };
     return picking.handle;
+  }
+
+  function hold(to, { size = HELD_SIZE, lean = [0, 0, 0], turn = null } = {}) {
+    if (holding) return holding.handle;
+    if (picking || picked || disposed) return DONE;
+    if (!world.resolvePoint) throw new Error('A glow flower is held at a point, so it needs world.resolvePoint (engine/points.js)');
+    if (!(size > 0)) throw new TypeError(`A held flower needs a size above 0, not ${size}`);
+    if (turn !== null && typeof turn !== 'function') throw new TypeError('A held flower turns by a function that gives a quaternion');
+    world.resolvePoint(to, hand); // a point that cannot be found fails here, not a frame later
+    syncPoint();
+    const h = {
+      to, size, turn, lean: new THREE.Quaternion().setFromEuler(new THREE.Euler(...lean)),
+      from: point.clone(), fromSize: group.scale.x, fromTurn: group.quaternion.clone(), fromFade: fade, start: null, there: false,
+    };
+    h.handle = new Handle(`glow flower ${name} held`, () => { // cut short: in the hand at once
+      if (holding !== h) return;
+      h.there = true;
+      carry();
+      shine();
+      syncPoint();
+    });
+    holding = h;
+    return h.handle;
   }
 
   function glimmer(on) {
@@ -387,6 +458,9 @@ export function createGlowFlower(world, { name, position } = {}) {
     if (disposed) return;
     disposed = true;
     picking?.handle.cancel(); // a script waiting on it goes on
+    const h = holding;
+    holding = null;
+    h?.handle.cancel();
     group.removeFromParent();
     for (const mesh of [body, halo]) {
       mesh.geometry.dispose();
@@ -405,7 +479,7 @@ export function createGlowFlower(world, { name, position } = {}) {
   update(world.clock?.time ?? 0);
 
   return {
-    group, point, glimmer, pick, update, dispose,
+    group, point, glimmer, pick, hold, update, dispose,
     get glow() { return level; },
   };
 }

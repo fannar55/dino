@@ -5,6 +5,7 @@ import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
+import { DONE } from '../engine/handle.js';
 
 // Glow flowers (world/props/glow-flower.js), the three the child hunts for in scene 8. They are checked on a
 // world as main.js makes one: a scene, the game clock, world.effects (which the frame loop updates after the
@@ -406,6 +407,116 @@ test('dispose() while a flower is being picked cancels the pick, so a script wai
   assert.equal(handle.cancelled, true);
   world.effects.update(1 / 30);
   assert.equal(world.effects.size, 0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Held: a flower Egill keeps in his hands until he gives it away (scenes 8 and 9)
+
+const UP = new THREE.Vector3(0, 1, 0);
+const stemOf = flower => flower.point.clone().sub(flower.group.position); // the foot of the stem to the middle of the bloom
+
+test('hold flies the flower to a hand, smaller and with its glimmer out, and keeps it there, wherever the hand goes', () => {
+  const { world, hand } = stage();
+  const flower = plant(world, 'stone', [0, 0, 0]);
+  const full = stemOf(flower).length();
+  const handle = flower.hold('egill', { size: 0.6 });
+  const seen = [];
+  while (!handle.done && seen.length < 60) {
+    frame(world);
+    seen.push({ size: flower.group.scale.x, glow: flower.glow, high: flower.point.y });
+  }
+  assert.ok(seen.length >= 18 && seen.length <= 21, `${seen.length} frames: 0.6 s, as a pick takes`);
+  assert.ok(Math.max(...seen.map(s => s.high)) > Math.max(seen[0].high, hand.y + 0.6 * full) + 0.1, 'it lifts on the way');
+  for (let i = 1; i < seen.length; i++) assert.ok(seen[i].size <= seen[i - 1].size + 1e-9, `it only shrinks (frame ${i})`);
+  assert.ok(Math.abs(flower.group.scale.x - 0.6) < 1e-9, 'to the size it is held at');
+  assert.ok(flower.group.position.distanceTo(hand) < 1e-6, 'the foot of its stem in the hand');
+  assert.ok(Math.abs(stemOf(flower).length() - 0.6 * full) < 1e-6, 'and the bloom above it');
+  assert.equal(flower.glow, 0, 'the glimmer is out: found, it is a flower in a hand');
+  assert.equal(flower.group.visible, true);
+  for (let i = 0; i < 30; i++) {
+    hand.x += 0.03;
+    frame(world);
+  }
+  assert.ok(flower.group.position.distanceTo(hand) < 1e-6, 'it stays in the hand as he walks');
+  assert.equal(world.effects.size, 1, 'still on the clock');
+  assert.equal(flower.hold('egill').done, true, 'held already: nothing to wait for');
+});
+
+test('a held flower turns with whoever holds it and leans as it is told', () => {
+  const { world, hand } = stage();
+  const flower = plant(world, 'ferns', [0, 0, 0]);
+  const turn = new THREE.Quaternion().setFromAxisAngle(UP, -Math.PI / 2); // facing +Z
+  const lean = [0, 0, 0.3]; // radians about its own forward axis, in the holder's frame
+  const handle = flower.hold('egill', { size: 0.5, lean, turn: () => turn });
+  step(world, 0.7);
+  assert.equal(handle.done, true);
+  const want = turn.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...lean)));
+  assert.ok(flower.group.quaternion.angleTo(want) < 1e-6, 'turned with him, then leaning');
+  const stem = stemOf(flower).normalize();
+  assert.ok(stem.distanceTo(UP.clone().applyQuaternion(want)) < 1e-6, 'its bloom leans with it');
+  assert.ok(flower.group.position.distanceTo(hand) < 1e-6, 'about the foot of its stem, in the hand');
+  turn.setFromAxisAngle(UP, 0); // he turns to face +X
+  frame(world);
+  assert.ok(flower.group.quaternion.angleTo(new THREE.Quaternion().setFromEuler(new THREE.Euler(...lean))) < 1e-6, 'and turns as he does');
+});
+
+test('a held flower can be picked from the hand: it flies to the point from there, shrinking from its size in the hand, and is gone', () => {
+  const { world, hand } = stage();
+  const flower = plant(world, 'tree', [0, 0, 0]);
+  const holding = flower.hold('egill', { size: 0.6 });
+  step(world, 0.7);
+  assert.equal(holding.done, true);
+  const from = flower.point.clone();
+  const mouth = hand.clone().add(new THREE.Vector3(2, 1, 0));
+  const handle = flower.pick(mouth);
+  const seen = [];
+  while (!handle.done && seen.length < 60) {
+    frame(world);
+    seen.push({ at: flower.point.clone(), size: flower.group.scale.x, glow: flower.glow });
+  }
+  assert.ok(seen[0].at.distanceTo(from) < 0.05, 'it sets off from his hands');
+  assert.ok(seen[0].size > 0.55 && seen[0].size <= 0.6, `at the size it was held at: ${seen[0].size.toFixed(2)}`);
+  assert.ok(seen.at(-1).size < 0.07, 'and ends small');
+  assert.ok(seen.at(-1).at.distanceTo(mouth) < 1e-6, 'in the mouth');
+  assert.equal(Math.max(...seen.map(s => s.glow)), 0, 'its glimmer stays out');
+  assert.equal(flower.group.visible, false);
+  world.effects.update(1 / 30);
+  assert.equal(world.effects.size, 0, 'and it is finished with the clock');
+});
+
+test('cancelling a hold puts the flower in the hand at once; a pick takes over a hold that is still on its way', () => {
+  const { world, hand } = stage();
+  const flower = plant(world, 'stone', [0, 0, 0]);
+  const handle = flower.hold('egill', { size: 0.6 });
+  step(world, 0.2);
+  handle.cancel();
+  assert.ok(flower.group.position.distanceTo(hand) < 1e-6, 'in the hand, not in mid-air');
+  assert.ok(Math.abs(flower.group.scale.x - 0.6) < 1e-9);
+  assert.equal(flower.glow, 0);
+  frame(world);
+  assert.ok(flower.group.position.distanceTo(hand) < 1e-6, 'and held there');
+
+  const other = plant(world, 'ferns', [1, 0, 1]);
+  const going = other.hold('egill');
+  step(world, 0.2);
+  const picked = other.pick([5, 2, 5]);
+  assert.equal(going.done, true, 'the hold is over: a script waiting on it goes on');
+  step(world, 0.7);
+  assert.equal(picked.done, true);
+  assert.equal(other.group.visible, false);
+});
+
+test('dispose() takes a held flower away, and a hold on its way ends', () => {
+  const { world } = stage();
+  const flower = plant(world);
+  const handle = flower.hold('egill');
+  step(world, 0.2);
+  flower.dispose();
+  assert.equal(handle.done, true);
+  assert.equal(world.scene.children.length, 0);
+  world.effects.update(1 / 30);
+  assert.equal(world.effects.size, 0);
+  assert.equal(flower.hold('egill'), DONE, 'nothing left to hold');
 });
 
 test('a flower needs a name, a position and, to run on the clock, a game clock', () => {
