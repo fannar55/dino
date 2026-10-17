@@ -47,8 +47,9 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   sound while the book is open or the tab hidden (`hold.js`); the one audio context (`output.js`).
 - `world/forest/`: the forest system (`createForest(world, layout)`), with the clearing's pale
   butterflies as tap targets (`butterflies.js`).
-- `world/props/`: the glow flowers (`glow-flower.js`), sparkle bursts and trails (`sparkles.js`) and
-  the pollen when Mosi sneezes (`pollen.js`: `pollenBurst(world, point)`).
+- `world/props/`: the glow flowers (`glow-flower.js`), sparkle bursts and trails (`sparkles.js`),
+  the pollen when Mosi sneezes (`pollen.js`: `pollenBurst(world, point)`) and the footprints his feet
+  press into the path (`footprints.js`).
 - `world/critters/`: a frog, a snail, a beetle and little birds the child can tap (`critters.js`, the
   models in `models.js`).
 - `chapters/`: one module per chapter: layout (or locations), actors, cast, lines, shots and the
