@@ -1,0 +1,1052 @@
+import { newGame, play, draw, pass, callEitt, catchEitt, canDraw, canPlay, playable, isWild } from './rules.js';
+import { chooseMove, willCallEitt, willCatch } from './kambedla.js';
+import { SKILL_START, afterRound, inRound } from './skill.js';
+import { advise, adviseColour } from './advice.js';
+import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
+import { createSfx } from '../audio/sfx.js';
+import { createVoice } from '../scene/voice.js';
+import { eittSounds, EITT_GAPS, createEittMusic } from './eitt-sounds.js';
+
+// The table of "Eitt!" (spec sections 5 to 9): the round the child plays with Kambeðla, rendered into eitt.css's classes (the class
+// list is at the top of eitt.css, which is the game's whole look). The rules, Kambeðla's choices, her skill and Mosi's advice are the
+// pure modules beside this one; this is the DOM, the motion, the sound and the pace over them.
+//
+//   - The deal: the deck shuffles, seven cards fly to each hand (the child's turn over as they land), and the first card turns
+//     over onto the pile. The child begins, and Kambeðla says "Þín umferð!".
+//   - The child's turn: a tap on a card that goes sends it flying to the pile; one that does not go wiggles, softly. A tap on the
+//     deck draws a card when nothing goes (and wiggles when something does, lifting what goes). A drawn card that goes lifts, and
+//     "Áfram" keeps it instead. A wild brings up the four colour buttons. After about 6 s with nothing done, what goes lifts (or
+//     the deck calls), and Kambeðla says "Þín umferð!" once.
+//   - "Eitt!": the round button glows and pulses while somebody owes the call. The child taps it to call (Kambeðla hops for joy),
+//     or, when she forgot hers, to catch her: she draws two and says "Úps, ég gleymdi!". She catches the child as her skill lets her.
+//   - Mosi's button: Mosi pops up with his advice in a bubble and his voice, and his pick lifts and glows (a card, the deck, the
+//     "Eitt!" button or a colour). Asking costs nothing.
+//   - Kambeðla's turn: she thinks (her head tilts, about 1.2 s; longer while the child owes an "Eitt!", to give the child the time),
+//     then plays or draws; her plates glow in the colour she picks, her tail swishes on a skip, and she moves again after a skip, a
+//     reverse, a +2 or a +4.
+//   - The end: the winner's words, confetti and Kambeðla's sticker in the save for a child who won, "Spilum aftur?", and her skill
+//     updated (skill.js afterRound). She cheers whoever won.
+// Input waits while a card flies or Kambeðla moves. Under prefers-reduced-motion a flight is a fade where the card lands.
+//
+// Sound: the game's own effects (eitt-sounds.js) and music, and Kambeðla's and Mosi's lines (the `eitt` set of lines-source.json),
+// played from lines.json when they are recorded and quiet until then. Mosi's words show in his bubble either way.
+
+const REMAKE = new URL('../../', import.meta.url); // remake/: where lines.json's paths and the pictures start
+const asset = path => new URL(path, REMAKE).href;
+const MUSIC = asset('assets/audio/eitt/music.mp3');
+
+const THINK_MS = 1200; // Kambeðla's pace: she thinks this long before each move
+const OWED_MS = 2600; // and this long while the child owes an "Eitt!", which she may notice at the end of it
+const IDLE_MS = 6000; // the child's turn with nothing done this long: what goes lifts
+const ADVICE_MS = 4800; // Mosi's bubble stays this long
+const FLY_MS = 430; // a card played to the pile
+const DRAW_MS = 400; // a card from the deck to a hand
+const DEAL_MS = 360;
+const DEAL_GAP = 105; // ms between two cards dealt
+const GIVE_GAP = 170; // and between the cards of a +2, a +4 or a catch
+
+const DINO = { red: 'trex.webp', yellow: 'brontosaurus.webp', green: 'mosi.webp', blue: 'parasaurolophus.webp' };
+const TRICK = { skip: 'stegosaurus-tail.webp', reverse: 'pteranodon.webp', draw2: 'eggs-2.svg', wild: 'plates.svg', wild4: 'wild4.svg' };
+const COLOUR_WORD = { red: 'rautt', yellow: 'gult', green: 'grænt', blue: 'blátt' };
+const COLOUR_NAME = { red: 'Rautt', yellow: 'Gult', green: 'Grænt', blue: 'Blátt' };
+const KIND_WORD = { skip: 'sleppa', reverse: 'snúningur', draw2: 'plús tveir', wild: 'litaskipti', wild4: 'litaskipti plús fjórir' };
+const MARK = { draw2: '+2', wild4: '+4' };
+const ORDER = { red: 0, yellow: 1, green: 2, blue: 3 };
+const KIND_ORDER = { number: 0, skip: 10, reverse: 11, draw2: 12, wild: 100, wild4: 101 };
+const MOVES_AGAIN = new Set(['skip', 'reverse', 'draw2', 'wild4']);
+
+/** Mosi's words (his lines in assets/audio/eitt/lines-source.json), shown in his bubble whether or not they are recorded yet. */
+const MOSI_WORDS = {
+  eitt_mosi_try: 'Prófaðu þetta!',
+  eitt_mosi_draw: 'Þú þarft að draga spil.',
+  eitt_mosi_colour: 'Veldu þennan lit!',
+  eitt_mosi_eitt: 'Mundu að segja Eitt!',
+};
+
+const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>';
+
+/** Where a card sits in the child's hand: by colour, then number, then the action cards, and the wilds last. */
+const sortKey = card => (isWild(card) ? KIND_ORDER[card.kind] : ORDER[card.colour] * 20 + (card.kind === 'number' ? card.value : KIND_ORDER[card.kind]));
+const sorted = cards => [...cards].sort((a, b) => sortKey(a) - sortKey(b));
+
+/** How a card lies on the pile: askew by its own id, so it lies the same way every time it is drawn. */
+function tiltOf(id) {
+  let h = 2166136261;
+  for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const unit = shift => ((h >>> shift) % 1000) / 500 - 1;
+  return { r: unit(0) * 10, x: unit(10) * 4, y: unit(20) * 3 };
+}
+
+/** A card's markup in eitt.css's classes, from the rules' card (null for a back). */
+function makeCard(doc, card, tag = 'div') {
+  const el = doc.createElement(tag);
+  if (tag === 'button') el.type = 'button';
+  if (!card) {
+    el.className = 'eitt-card back';
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+  const number = card.kind === 'number';
+  el.className = card.kind === 'wild' ? 'eitt-card wild' : card.kind === 'wild4' ? 'eitt-card wild draw4' : number ? `eitt-card ${card.colour}` : `eitt-card ${card.colour} ${card.kind}`;
+  el.dataset.id = card.id;
+  if (number) el.dataset.n = String(card.value);
+  el.setAttribute('aria-label', isWild(card) ? KIND_WORD[card.kind] : `${COLOUR_WORD[card.colour]} ${number ? card.value : KIND_WORD[card.kind]}`);
+  const mark = number ? String(card.value) : MARK[card.kind] ?? '';
+  const picture = asset(`assets/eitt/${number ? DINO[card.colour] : TRICK[card.kind]}`);
+  el.innerHTML = `<span class="corner" aria-hidden="true">${mark}</span><span class="pic"><img src="${picture}" alt="" draggable="false"></span>` +
+    (card.kind === 'wild' ? '' : `<span class="digit" aria-hidden="true">${mark}</span>`) + `<span class="corner flip" aria-hidden="true">${mark}</span>`;
+  return el;
+}
+
+/**
+ * "Eitt!" in `doc`'s #eitt (an element with the class eitt), over the `save` (engine/save.js: getEitt and setEitt keep Kambeðla's
+ * skill and the stickers won). `audio` is { context, output, theme, lines, muted }: the page's audio context and output (or none:
+ * silent), theme.json for the key, lines.json for the voices. `onPause(paused)` holds the chapter while the game is open, and
+ * `onClose()` is told when it shuts. Returns
+ *   open()     opens the game and deals a new round
+ *   close()    shuts it, dropping a round under way with no penalty
+ *   isOpen     whether it is open
+ *   muted      silences its effects, music and voices
+ *   game       the round as it is now (the rules' data), for a probe, and phase, what it waits for
+ */
+export function createEittGame(doc, { save = null, audio = {}, onClose = null, onPause = null, win = globalThis.window, random = Math.random } = {}) {
+  const root = doc.getElementById('eitt');
+  if (!root) throw new Error('"Eitt!" needs #eitt on the page (see index.html)');
+  const make = (tag, className, html = '') => {
+    const el = doc.createElement(tag);
+    if (className) el.className = className;
+    if (tag === 'button') el.type = 'button';
+    if (html) el.innerHTML = html;
+    return el;
+  };
+  const calm = () => reducedMotion(win);
+
+  // ---- The page -------------------------------------------------------------------------------------------------------------
+
+  const table = make('div', 'eitt-table');
+  const windowEl = make('section', 'eitt-kambedla');
+  windowEl.setAttribute('aria-label', 'Kambeðla');
+  const picture = make('img');
+  picture.src = asset('assets/book/images/kambedla-render.webp');
+  picture.alt = '';
+  windowEl.append(picture);
+  const frameEl = make('div', 'eitt-kambedla-frame');
+  frameEl.setAttribute('aria-hidden', 'true');
+  const theirsEl = make('div', 'eitt-their-hand');
+  theirsEl.setAttribute('role', 'img');
+  const centre = make('div', 'eitt-centre');
+  const deckEl = make('button', 'eitt-deck', '<span class="eitt-card back"></span>');
+  deckEl.setAttribute('aria-label', 'Draga spil');
+  const pileEl = make('div', 'eitt-pile');
+  const ringEl = make('div', 'eitt-ring');
+  pileEl.append(ringEl);
+  const passEl = make('button', 'eitt-pass', `<span>Áfram</span>${ARROW}`);
+  const coloursEl = make('div', 'eitt-colours');
+  const colourButtons = Object.keys(ORDER).map(colour => {
+    const button = make('button', colour);
+    button.dataset.colour = colour;
+    button.setAttribute('aria-label', COLOUR_NAME[colour]);
+    coloursEl.append(button);
+    return button;
+  });
+  centre.append(deckEl, pileEl, passEl, coloursEl);
+  const mosiEl = make('button', 'eitt-mosi');
+  mosiEl.setAttribute('aria-label', 'Spyrja Mosa');
+  const adviceEl = make('div', 'eitt-advice');
+  const mosiPicture = make('img');
+  mosiPicture.src = asset('assets/book/images/mosi-render.webp');
+  mosiPicture.alt = '';
+  const adviceWords = make('p');
+  adviceEl.append(mosiPicture, adviceWords);
+  const handEl = make('div', 'eitt-hand');
+  const eittEl = make('button', 'eitt-eitt', '<span>Eitt!</span>');
+  const quitEl = make('button', 'eitt-close eitt-quit', CROSS);
+  quitEl.setAttribute('aria-label', 'Aftur í bókina');
+  table.append(windowEl, frameEl, theirsEl, centre, mosiEl, adviceEl, handEl, eittEl, quitEl);
+
+  const winEl = make('div', 'eitt-win');
+  const winCard = make('div', 'eitt-win-card');
+  const closeEl = make('button', 'eitt-close', CROSS);
+  closeEl.setAttribute('aria-label', 'Aftur í bókina');
+  const winWords = make('h2');
+  const stickerEl = make('div', 'eitt-sticker');
+  stickerEl.setAttribute('role', 'img');
+  stickerEl.setAttribute('aria-label', 'Kambeðlulímmiði');
+  const stickerWords = make('p', 'eitt-win-words');
+  stickerWords.textContent = 'Límmiði í bókina!';
+  const againEl = make('button', 'eitt-again', `${AGAIN}<span>Spilum aftur?</span>`);
+  winCard.append(closeEl, winWords, stickerEl, stickerWords, againEl);
+  const confettiEl = make('div', 'eitt-confetti');
+  confettiEl.setAttribute('aria-hidden', 'true');
+  winEl.append(winCard, confettiEl);
+
+  root.classList.add('eitt');
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', 'Eitt!, spil við Kambeðlu');
+  root.replaceChildren(table, winEl);
+  root.hidden = true;
+  passEl.hidden = true;
+  coloursEl.hidden = true;
+  adviceEl.hidden = true;
+  winEl.hidden = true;
+
+  // ---- Sound --------------------------------------------------------------------------------------------------------------
+
+  const context = audio.context ?? null;
+  const effects = createSfx({ context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: eittSounds, gaps: EITT_GAPS });
+  const music = createEittMusic({ context, output: audio.output ?? null, url: MUSIC });
+  const voice = createVoice({ onSpeaking: on => music.duck(on) });
+  let muted = false;
+  const sfx = name => effects.play(name);
+  function setMuted(value) {
+    muted = Boolean(value);
+    effects.muted = muted;
+    music.muted = muted;
+    voice.muted = muted;
+  }
+  setMuted(audio.muted); // wherever the game's sound is muted (captures), so is this
+
+  /** Plays a line of the eitt set from lines.json; Kambeðla's mouth follows hers. Returns its length in seconds (0: not recorded yet). */
+  function say(id) {
+    const line = audio.lines?.[id];
+    if (!line?.src || muted) return 0;
+    voice.play(new URL(line.src, REMAKE).href);
+    if (!id.startsWith('eitt_mosi')) view?.talk(line);
+    return line.duration ?? 0;
+  }
+
+  /** A touch in the game: the browser lets sound begin from it, so the music that could not start before a touch starts now. */
+  function wake() {
+    if (!isOpen) return;
+    if (context?.state === 'suspended') context.resume?.().catch?.(() => {});
+    music.wake();
+  }
+
+  // ---- State --------------------------------------------------------------------------------------------------------------
+
+  let isOpen = false;
+  let game = null;
+  let round = 0; // counts rounds; a flow that finds it changed (a new deal, the game shut) stops
+  let busy = true; // a card flies or Kambeðla moves: the child's taps wait
+  let flying = 0; // cards in the air
+  let pendingWild = null; // the wild the child has played, waiting for its colour
+  let hinting = false; // what goes is lifted (the idle hint, or after taps that did not go)
+  let nudged = false; // "Þín umferð!" said this turn
+  let nopes = 0; // taps this turn on cards that did not go
+  let mosiPick = null; // what Mosi points at: a card id or 'draw'
+  let mosiColour = null; // and the colour he suggests for a wild
+  let animating = null; // a catch under way, which Kambeðla's turn waits for
+  const timers = new Set();
+  let idleTimer = 0;
+  let adviceTimer = 0;
+
+  function later(ms, fn) {
+    const id = setTimeout(() => {
+      timers.delete(id);
+      fn();
+    }, ms);
+    timers.add(id);
+    return id;
+  }
+  const wait = ms => new Promise(resolve => later(ms, resolve));
+  /** Starts a move (they are async: cards fly, Kambeðla thinks); one that fails is said, and the round is not left stuck silently. */
+  const run = move => move?.catch?.(error => console.error('[eitt] A move went wrong:', error));
+  function cancelTimer(id) {
+    clearTimeout(id);
+    timers.delete(id);
+  }
+
+  const eittState = () => save?.getEitt?.() ?? { skill: null, losses: 0, wins: 0 };
+  const skillNow = () => inRound(eittState().skill ?? SKILL_START, game.hands.child.length, game.hands.kambedla.length);
+  const childMoves = () => isOpen && game && !game.winner && game.turn === 'child' && !busy && !pendingWild && !animating;
+  const handCards = () => sorted(game ? game.hands.child.filter(card => card.id !== pendingWild?.id) : []);
+  const pileCards = () => (game ? (pendingWild ? [...game.pile, pendingWild] : game.pile) : []);
+
+  // ---- Kambeðla's view: loaded the first time the game opens; until then (and without WebGL) her picture stands in --------------
+
+  let view = null;
+  let viewLoading = null;
+  function startView() {
+    if (view) return view.start();
+    viewLoading ??= import('./kambedla-view.js')
+      .then(module => module.createKambedlaView(windowEl, { win }))
+      .then(made => {
+        view = made;
+        picture.hidden = true;
+        if (isOpen) view.start();
+      })
+      .catch(error => console.warn('[eitt] Kambeðla stays a picture: her live view could not start.', error));
+  }
+
+  // ---- Laying out the cards -------------------------------------------------------------------------------------------------
+
+  const handEls = new Map(); // card id -> its button in the child's hand
+  const theirEls = new Map(); // card id -> its back in Kambeðla's hand
+  const pileEls = new Map(); // card id -> the card on the pile
+
+  /** Where `el` is: its middle in the game's own pixels, its width, and how it is turned (degrees). */
+  function placeOf(el, r = 0) {
+    const box = el.getBoundingClientRect();
+    const base = root.getBoundingClientRect();
+    return { x: box.left + box.width / 2 - base.left, y: box.top + box.height / 2 - base.top, w: el.offsetWidth || box.width, r };
+  }
+  const placeHand = el => placeOf(el, 3 * Number(el.dataset.i || 0));
+  const placeTheirs = el => placeOf(el, -5 * Number(el.dataset.i || 0));
+  const placeDeck = () => placeOf(deckEl.firstElementChild, -3);
+  const placePile = el => placeOf(el, tiltOf(el.dataset.id).r);
+
+  /** Moves cards that changed place from where they were, so a hand closes up and makes room smoothly (a FLIP). */
+  function glide(before, els) {
+    if (calm()) return;
+    for (const [id, old] of before) {
+      const el = els.get(id);
+      if (!old || !el?.isConnected || el.style.visibility === 'hidden') continue;
+      const now = el.getBoundingClientRect();
+      const dx = old.left + old.width / 2 - (now.left + now.width / 2);
+      const dy = old.top + old.height / 2 - (now.top + now.height / 2);
+      if (Math.hypot(dx, dy) > 1) el.animate?.([{ translate: `${dx.toFixed(1)}px ${dy.toFixed(1)}px` }, { translate: '0px 0px' }], { duration: 320, easing: 'cubic-bezier(.3, .7, .4, 1)' });
+    }
+  }
+  const rects = els => new Map([...els].map(([id, el]) => [id, el.isConnected ? el.getBoundingClientRect() : null]));
+
+  /** Lays `els` out in `box` in the order of `cards`, making what is missing with `create` and dropping what is gone. */
+  function layOut(box, els, cards, create, spreadFor, hidden) {
+    const ids = new Set(cards.map(card => card.id));
+    for (const [id, el] of els) {
+      if (ids.has(id)) continue;
+      el.remove();
+      els.delete(id);
+    }
+    const mid = (cards.length - 1) / 2;
+    const spread = spreadFor(cards.length);
+    const wanted = cards.map((card, k) => {
+      let el = els.get(card.id);
+      if (!el) els.set(card.id, (el = create(card)));
+      const i = ((k - mid) * spread).toFixed(2);
+      el.style.setProperty('--i', i);
+      el.dataset.i = i;
+      el.style.visibility = hidden.has(card.id) ? 'hidden' : '';
+      return el;
+    });
+    // In order after whatever else the box holds (the pile's ring stays first, under the cards).
+    const now = [...box.children].filter(child => wanted.includes(child));
+    if (now.length !== wanted.length || now.some((el, k) => el !== wanted[k])) for (const el of wanted) box.append(el);
+  }
+
+  /** The child's cards in their arc, a bigger hand overlapping more so it always fits between Mosi and "Eitt!". */
+  function renderHand(cards, { hidden = new Set(), animate = true } = {}) {
+    const before = animate ? rects(handEls) : new Map();
+    layOut(handEl, handEls, cards, card => {
+      const el = makeCard(doc, card, 'button');
+      tappable(el, () => tapCard(card.id));
+      return el;
+    }, n => (n > 7 ? 6 / (n - 1) : 1), hidden);
+    const width = handEls.values().next().value?.offsetWidth || 120;
+    const upright = Boolean(win?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
+    const sides = upright ? 0 : 2 * (Math.max(mosiEl.offsetWidth, eittEl.offsetWidth) + 24);
+    const room = table.clientWidth - sides - 40 - 0.4 * width;
+    const least = upright ? 0.08 : 0.04;
+    const overlap = cards.length ? Math.min(0.42, Math.max(least, (1 - room / (cards.length * width)) / 2)) : least;
+    handEl.style.setProperty('--overlap', overlap.toFixed(3));
+    marks();
+    if (animate) glide(before, handEls);
+  }
+
+  /** Kambeðla's cards, face down in front of her window, fanned closer as she holds more. */
+  function renderTheirs(cards, { hidden = new Set(), animate = true } = {}) {
+    const before = animate ? rects(theirEls) : new Map();
+    layOut(theirsEl, theirEls, cards, card => {
+      const el = makeCard(doc, null);
+      el.dataset.id = card.id;
+      return el;
+    }, n => (n > 7 ? 6 / (n - 1) : 1), hidden);
+    const width = theirEls.values().next().value?.offsetWidth || 60;
+    const room = windowEl.offsetWidth + 2 * width;
+    const overlap = cards.length ? Math.min(0.42, Math.max(0.24, (1 - room / (cards.length * width)) / 2)) : 0.24;
+    theirsEl.style.setProperty('--them-overlap', overlap.toFixed(3));
+    theirsEl.setAttribute('aria-label', `Kambeðla á ${cards.length} spil`);
+    if (animate) glide(before, theirEls);
+  }
+
+  /** The pile: the last few cards played, each askew in its own way, the top one last. */
+  function renderPile(cards, { hidden = null } = {}) {
+    const shown = cards.slice(-4);
+    layOut(pileEl, pileEls, shown, card => {
+      const el = makeCard(doc, card);
+      const tilt = tiltOf(card.id);
+      el.style.setProperty('--r', `${tilt.r.toFixed(1)}deg`);
+      el.style.setProperty('--x', `${tilt.x.toFixed(1)}%`);
+      el.style.setProperty('--y', `${tilt.y.toFixed(1)}%`);
+      return el;
+    }, () => 0, new Set(hidden ? [hidden] : []));
+  }
+
+  /** What may be tapped shows: the cards that go lift when hinted or picked by Mosi, the deck calls, "Eitt!" glows. */
+  function marks() {
+    if (!game) return;
+    const goes = childMoves() ? new Set(playable(game, 'child').map(card => card.id)) : new Set();
+    for (const [id, el] of handEls) {
+      el.classList.toggle('playable', goes.has(id));
+      el.classList.toggle('hint', goes.has(id) && (hinting || mosiPick === id || game.drew));
+    }
+  }
+
+  /** Everything shown as the round is now. */
+  function sync({ animate = true } = {}) {
+    if (!game) return;
+    renderHand(handCards(), { animate });
+    renderTheirs(game.hands.kambedla, { animate });
+    renderPile(pileCards());
+    ringEl.hidden = false;
+    ringEl.className = `eitt-ring ${pendingWild ? 'wild' : game.colour}`;
+    passEl.hidden = !(game.drew && game.turn === 'child' && !game.winner);
+    eittEl.classList.toggle('needed', Boolean(game.unsaid) && !game.winner);
+    deckEl.classList.toggle('draw', childMoves() && canDraw(game, 'child') && (hinting || mosiPick === 'draw'));
+    coloursEl.hidden = !pendingWild;
+    for (const button of colourButtons) button.classList.toggle('hint', Boolean(pendingWild) && mosiColour === button.dataset.colour);
+  }
+
+  // ---- Motion -----------------------------------------------------------------------------------------------------------------
+
+  /**
+   * A card flies from `from` to `to` (placeOf's { x, y, w, r }) in an arc, turning over on the way with turn 'up' (from its back).
+   * A back flies with `card` null. `onLand` runs as it lands, before the flyer goes. Resolves when it has landed.
+   */
+  function fly(card, from, to, { turn = 'none', duration = FLY_MS, onLand = null } = {}) {
+    const el = make('div', 'eitt-flyer');
+    el.style.setProperty('--fly-w', `${to.w.toFixed(1)}px`);
+    const inner = make('div', 'eitt-flyer-turn');
+    const both = Boolean(card) && turn === 'up';
+    if (card) inner.append(makeCard(doc, card));
+    if (!card || both) {
+      const back = makeCard(doc, null);
+      if (both) back.classList.add('under');
+      inner.append(back);
+    }
+    el.append(inner);
+    const h = (to.w * 7) / 5;
+    const at = (x, y, r, s) => `translate(${(x - to.w / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${s.toFixed(3)})`;
+    el.style.transform = at(from.x, from.y, from.r, from.w / to.w);
+    root.append(el);
+    flying++;
+    let landed = false;
+    const land = () => {
+      if (landed) return;
+      landed = true;
+      flying = Math.max(0, flying - 1);
+      onLand?.();
+      el.remove();
+    };
+    if (calm() || typeof el.animate !== 'function') {
+      el.style.transform = at(to.x, to.y, to.r, 1);
+      const fade = el.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 180 });
+      return (fade?.finished ?? Promise.resolve()).catch(() => {}).then(land);
+    }
+    const lift = Math.min(90, Math.hypot(to.x - from.x, to.y - from.y) * 0.2);
+    const s0 = from.w / to.w;
+    const path = el.animate([
+      { transform: at(from.x, from.y, from.r, s0) },
+      { transform: at((from.x + to.x) / 2, (from.y + to.y) / 2 - lift, (from.r + to.r) / 2, ((s0 + 1) / 2) * 1.1), offset: 0.5 },
+      { transform: at(to.x, to.y, to.r, 1) },
+    ], { duration, easing: 'cubic-bezier(.3, .6, .35, 1)', fill: 'forwards' });
+    if (both) inner.animate([{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(0deg)' }], { duration, easing: 'ease-in-out', fill: 'forwards' });
+    return path.finished.catch(() => {}).then(land);
+  }
+
+  /** A wiggle: no. */
+  function nope(el) {
+    sfx('wiggle');
+    if (typeof el.animate !== 'function') return;
+    el.animate(calm()
+      ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
+      : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-4deg' }, { rotate: '2deg' }, { rotate: '0deg' }], { duration: 480, easing: 'ease-in-out' });
+  }
+
+  /** A wave of the colour in play, going out from the pile. */
+  function wave(colour) {
+    if (calm() || !COLOUR_WORD[colour]) return;
+    const el = make('div', `eitt-wave ${colour}`);
+    pileEl.append(el);
+    const motion = el.animate?.([{ transform: 'scale(.9)', opacity: 0.95 }, { transform: 'scale(2.5)', opacity: 0 }], { duration: 950, easing: 'cubic-bezier(.2, .7, .3, 1)' });
+    (motion?.finished ?? Promise.resolve()).catch(() => {}).then(() => el.remove());
+  }
+
+  /** The cards that came into `who`'s hand since `before` fly in from the deck, one after another (a draw, a +2, a +4, a catch). */
+  async function giveCards(before, who, sound = 'pop') {
+    const token = round;
+    const had = new Set(before.hands[who].map(card => card.id));
+    const added = game.hands[who].filter(card => !had.has(card.id));
+    if (game.deck.length > before.deck.length || game.pile.length < before.pile.length) {
+      sfx('shuffle'); // the deck ran out: the table's cards became a new one
+      renderPile(pileCards());
+    }
+    if (!added.length) return;
+    const hidden = new Set(added.map(card => card.id));
+    if (who === 'child') renderHand(handCards(), { hidden });
+    else renderTheirs(game.hands.kambedla, { hidden });
+    const flights = [];
+    for (const card of added) {
+      const el = (who === 'child' ? handEls : theirEls).get(card.id);
+      if (!el) continue;
+      flights.push(fly(who === 'child' ? card : null, placeDeck(), who === 'child' ? placeHand(el) : placeTheirs(el), {
+        turn: who === 'child' ? 'up' : 'none',
+        duration: DRAW_MS,
+        onLand: () => {
+          el.style.visibility = '';
+          sfx(sound);
+        },
+      }));
+      if (added.length > 1) await wait(GIVE_GAP);
+      if (token !== round) return;
+    }
+    await Promise.all(flights);
+  }
+
+  /** A card flies from `from` onto the pile (turning over from her hand), and lands with a flick and a sparkle. */
+  async function toPile(card, from, turn = 'none') {
+    renderPile(pileCards(), { hidden: card.id });
+    const el = pileEls.get(card.id);
+    await fly(card, from, placePile(el), {
+      turn,
+      onLand: () => {
+        el.style.visibility = '';
+        sfx('flick');
+        sparkle(pileEl, 6, win);
+      },
+    });
+  }
+
+  // ---- Mosi -------------------------------------------------------------------------------------------------------------------
+
+  function showAdvice(id) {
+    cancelTimer(adviceTimer);
+    adviceWords.textContent = MOSI_WORDS[id];
+    adviceEl.getAnimations?.().forEach(animation => animation.cancel());
+    adviceEl.hidden = true;
+    void adviceEl.offsetWidth; // shown anew, so he pops up again
+    adviceEl.hidden = false;
+    say(id);
+    adviceTimer = later(ADVICE_MS, () => hideAdvice());
+  }
+
+  function hideAdvice(now = false) {
+    cancelTimer(adviceTimer);
+    if (adviceEl.hidden) return;
+    if (now || calm() || typeof adviceEl.animate !== 'function') {
+      adviceEl.hidden = true;
+      return;
+    }
+    adviceEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 }).onfinish = () => { adviceEl.hidden = true; };
+  }
+
+  function askMosi() {
+    wake();
+    if (!isOpen || !game || game.winner || flying) return;
+    if (pendingWild) {
+      mosiColour = adviseColour(game, pendingWild.id);
+      showAdvice('eitt_mosi_colour');
+      sync({ animate: false });
+      return;
+    }
+    const advice = advise(game);
+    if (!advice || (busy && advice.type !== 'eitt')) {
+      nope(mosiEl); // Kambeðla's turn: nothing to advise yet
+      return;
+    }
+    if (advice.type === 'eitt') showAdvice('eitt_mosi_eitt');
+    else if (advice.type === 'draw') {
+      mosiPick = 'draw';
+      showAdvice('eitt_mosi_draw');
+    } else {
+      mosiPick = advice.cardId;
+      showAdvice('eitt_mosi_try');
+    }
+    sync({ animate: false });
+  }
+
+  // ---- The child's moves ------------------------------------------------------------------------------------------------------
+
+  /** A tap on a card in the hand, counted as the book counts one (engine/book/fx.js), without the book's sparkle. */
+  function tappable(el, onTap) {
+    const presses = new Map();
+    const end = (event, tapped) => {
+      const press = presses.get(event.pointerId);
+      if (!press) return;
+      presses.delete(event.pointerId);
+      if (!presses.size) el.classList.remove('pressed');
+      if (tapped && Math.hypot(event.clientX - press.x, event.clientY - press.y) < TAP_SLOP_PX) onTap(event);
+    };
+    el.addEventListener('pointerdown', event => {
+      if (event.button > 0) return;
+      presses.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      el.classList.add('pressed');
+      try {
+        el.setPointerCapture(event.pointerId);
+      } catch {
+        // the pointer is already gone
+      }
+    });
+    el.addEventListener('pointermove', event => {
+      const press = presses.get(event.pointerId);
+      if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= TAP_SLOP_PX) end(event, false);
+    });
+    el.addEventListener('pointerup', event => end(event, true));
+    el.addEventListener('pointercancel', event => end(event, false));
+  }
+
+  function armIdle() {
+    cancelTimer(idleTimer);
+    idleTimer = later(IDLE_MS, () => {
+      if (!childMoves()) return;
+      hinting = true;
+      sync({ animate: false });
+      if (!nudged) {
+        nudged = true;
+        say('eitt_your_turn');
+      }
+    });
+  }
+
+  /** Something the child did: the idle hint waits again. */
+  function poke() {
+    wake();
+    if (childMoves()) armIdle();
+  }
+
+  function startChildTurn({ first = false } = {}) {
+    if (!isOpen || game.winner) return;
+    busy = false;
+    nopes = 0;
+    nudged = first;
+    hinting = false;
+    mosiPick = null;
+    sync();
+    if (first) say('eitt_your_turn');
+    armIdle();
+  }
+
+  /** The child is done for now: no hints, no pick, no bubble. */
+  function settleChild() {
+    cancelTimer(idleTimer);
+    hinting = false;
+    mosiPick = null;
+    hideAdvice();
+  }
+
+  function tapCard(id) {
+    poke();
+    if (!childMoves()) return;
+    const card = game.hands.child.find(held => held.id === id);
+    const el = handEls.get(id);
+    if (!card || !el) return;
+    if (!canPlay(card, game)) {
+      nope(el);
+      nopes++;
+      const nothing = playable(game, 'child').length === 0;
+      if (nopes >= (nothing ? 1 : 2) && !hinting) {
+        hinting = true; // what goes lifts (or, with nothing that goes, the deck calls)
+        sync({ animate: false });
+      }
+      return;
+    }
+    if (isWild(card) && game.hands.child.length > 1) run(playWild(card, el));
+    else run(childPlays(card, placeHand(el)));
+  }
+
+  async function childPlays(card, from) {
+    const token = round;
+    busy = true;
+    settleChild();
+    const before = game;
+    game = play(game, 'child', card.id);
+    renderHand(handCards());
+    eittEl.classList.toggle('needed', game.unsaid === 'child');
+    await toPile(card, from);
+    if (token !== round) return;
+    await afterPlay(before, 'child', card);
+  }
+
+  async function playWild(card, el) {
+    const token = round;
+    busy = true;
+    const picked = mosiPick === card.id;
+    settleChild();
+    pendingWild = card;
+    const from = placeHand(el);
+    renderHand(handCards());
+    ringEl.className = 'eitt-ring wild';
+    await toPile(card, from);
+    if (token !== round) return;
+    mosiColour = picked ? adviseColour(game, card.id) : null; // Mosi chose the wild, so he shows the colour too
+    sync({ animate: false });
+  }
+
+  async function chooseColour(colour) {
+    wake();
+    if (!pendingWild || flying || !isOpen) return;
+    const token = round;
+    const card = pendingWild;
+    pendingWild = null;
+    mosiColour = null;
+    hideAdvice();
+    const before = game;
+    game = play(game, 'child', card.id, colour);
+    sync({ animate: false });
+    sfx('sparkle');
+    wave(colour);
+    view?.glow(colour, { hold: 1.4 }); // her plates catch the child's colour
+    await wait(250);
+    if (token !== round) return;
+    await afterPlay(before, 'child', card, { coloured: true });
+  }
+
+  async function tapDeck() {
+    poke();
+    if (!childMoves()) return;
+    if (!canDraw(game, 'child')) {
+      nope(deckEl);
+      if (!game.drew && !hinting) {
+        hinting = true; // a card goes: it lifts
+        sync({ animate: false });
+      }
+      return;
+    }
+    const token = round;
+    busy = true;
+    settleChild();
+    const before = game;
+    const { game: next, card } = draw(game, 'child');
+    game = next;
+    if (card) sfx('draw');
+    await giveCards(before, 'child', 'deal');
+    if (token !== round) return;
+    if (game.turn === 'kambedla') run(herTurn()); // the card does not go: her turn
+    else startChildTurn(); // it goes: it lifts, and "Áfram" keeps it
+  }
+
+  function keepCard() {
+    poke();
+    if (!childMoves() || !game.drew) return;
+    settleChild();
+    game = pass(game, 'child');
+    run(herTurn());
+  }
+
+  /** The round button: the child's own "Eitt!", or catching Kambeðla when she forgot hers. */
+  async function tapEitt() {
+    wake();
+    if (!isOpen || !game || game.winner) return;
+    if (game.unsaid === 'child') {
+      game = callEitt(game, 'child');
+      eittEl.classList.remove('needed');
+      sfx('horn');
+      sparkle(eittEl, 10, win);
+      view?.hop(); // well done!
+      hideAdvice();
+      if (childMoves()) armIdle();
+      return;
+    }
+    if (game.unsaid === 'kambedla' && !flying && !animating) {
+      const token = round;
+      const before = game;
+      game = catchEitt(game, 'child'); // the child's cards wait while hers fly in (childMoves looks at `animating`)
+      eittEl.classList.remove('needed');
+      sfx('horn');
+      sparkle(eittEl, 10, win);
+      view?.think(false);
+      animating = (async () => {
+        const said = say('eitt_oops');
+        await giveCards(before, 'kambedla');
+        if (said) await wait(Math.max(0, said * 1000 - GIVE_GAP * 2));
+      })();
+      await animating;
+      animating = null;
+      if (token !== round) return;
+      if (childMoves()) {
+        sync();
+        armIdle();
+      }
+      return;
+    }
+    nope(eittEl); // nobody owes an "Eitt!"
+  }
+
+  // ---- After a card is played -------------------------------------------------------------------------------------------------
+
+  async function afterPlay(before, who, card, { coloured = false, called = false } = {}) {
+    const token = round;
+    sync();
+    if (isWild(card) && !game.winner && !coloured) {
+      // Kambeðla picked the colour: her plates glow in it and she says it.
+      wave(game.colour);
+      sfx('sparkle');
+      view?.glow(game.colour);
+      const said = say(`eitt_${game.colour}`);
+      await wait(Math.max(500, said * 1000));
+      if (token !== round) return;
+    }
+    if (game.winner) return endRound();
+    if (card.kind === 'skip' || card.kind === 'reverse') {
+      sfx('swish');
+      if (who === 'kambedla') view?.swish();
+    }
+    if (card.kind === 'draw2' || card.kind === 'wild4') {
+      await wait(200);
+      if (token !== round) return;
+      await giveCards(before, who === 'child' ? 'kambedla' : 'child');
+      if (token !== round) return;
+    }
+    if (who === 'child' && MOVES_AGAIN.has(card.kind)) view?.hop(); // a good card: she hops for joy all the same
+    if (called) {
+      // She played down to one card and remembered (decided as she played, so the button never glowed for it): "Eitt!"
+      await wait(250);
+      if (token !== round) return;
+      sfx('horn');
+      view?.glow('yellow', { hold: 1.2 });
+      const said = say('eitt_eitt');
+      await wait(Math.max(600, said * 1000));
+      if (token !== round) return;
+    }
+    // If she forgot, game.unsaid is hers: "Eitt!" glows for the child to catch her (sync below).
+    sync();
+    if (game.turn === 'kambedla') run(herTurn());
+    else startChildTurn();
+  }
+
+  // ---- Kambeðla's turn --------------------------------------------------------------------------------------------------------
+
+  async function herTurn() {
+    const token = round;
+    busy = true;
+    sync();
+    view?.think(true);
+    await wait(game.unsaid === 'child' ? OWED_MS : THINK_MS);
+    while (animating) await animating; // the child is catching her
+    if (token !== round || !isOpen) return;
+    if (game.unsaid === 'child' && willCatch(skillNow(), random)) {
+      // The child forgot "Eitt!": she noticed.
+      const before = game;
+      game = catchEitt(game, 'kambedla');
+      view?.think(false);
+      sfx('horn');
+      view?.glow('yellow', { hold: 1.2 });
+      const said = say('eitt_eitt');
+      eittEl.classList.remove('needed');
+      await giveCards(before, 'child');
+      await wait(Math.max(500, said * 1000 - 300));
+      if (token !== round) return;
+      view?.think(true);
+      await wait(500);
+      if (token !== round) return;
+    }
+    const move = chooseMove(game, skillNow(), random);
+    if (move.type === 'draw') {
+      say('eitt_i_draw');
+      const before = game;
+      const { game: next, card } = draw(game, 'kambedla');
+      game = next;
+      if (card) sfx('draw');
+      await giveCards(before, 'kambedla', 'deal');
+      if (token !== round) return;
+      if (!game.drew) {
+        view?.think(false);
+        startChildTurn();
+        return;
+      }
+      await wait(650); // the card she drew goes: she plays it
+      if (token !== round) return;
+      return herPlays(chooseMove(game, skillNow(), random));
+    }
+    return herPlays(move);
+  }
+
+  async function herPlays(move) {
+    const token = round;
+    const card = game.hands.kambedla.find(held => held.id === move.cardId);
+    const el = theirEls.get(card.id);
+    const from = el ? placeTheirs(el) : placeDeck();
+    const before = game;
+    game = play(game, 'kambedla', card.id, move.colour);
+    // Down to one card: she remembers "Eitt!" as her skill lets her, there and then, or forgets it and may be caught.
+    const called = game.unsaid === 'kambedla' && willCallEitt(skillNow(), random);
+    if (called) game = callEitt(game, 'kambedla');
+    view?.think(false);
+    renderTheirs(game.hands.kambedla);
+    await toPile(card, from, 'up');
+    if (token !== round) return;
+    await afterPlay(before, 'kambedla', card, { called });
+  }
+
+  // ---- The round ------------------------------------------------------------------------------------------------------------------
+
+  async function deal() {
+    const token = ++round;
+    for (const id of timers) clearTimeout(id);
+    timers.clear();
+    busy = true;
+    flying = 0;
+    pendingWild = null;
+    mosiPick = null;
+    mosiColour = null;
+    animating = null;
+    hinting = false;
+    winEl.hidden = true;
+    confettiEl.replaceChildren();
+    hideAdvice(true);
+    view?.rest();
+    game = newGame(random);
+    // Every card's place is laid out first, empty, so each flies straight to where it stays.
+    renderPile([]);
+    ringEl.hidden = true;
+    passEl.hidden = true;
+    coloursEl.hidden = true;
+    deckEl.classList.remove('draw');
+    eittEl.classList.remove('needed');
+    const mine = handCards();
+    renderHand(mine, { hidden: new Set(mine.map(card => card.id)), animate: false });
+    renderTheirs(game.hands.kambedla, { hidden: new Set(game.hands.kambedla.map(card => card.id)), animate: false });
+    sfx('shuffle');
+    if (!calm()) deckEl.animate?.([{ rotate: '0deg' }, { rotate: '-5deg' }, { rotate: '4deg' }, { rotate: '-2deg' }, { rotate: '0deg' }], { duration: 620 });
+    await wait(650);
+    if (token !== round) return;
+    const flights = [];
+    for (let k = 0; k < 7; k++) {
+      for (const who of ['child', 'kambedla']) {
+        const card = who === 'child' ? mine[k] : game.hands.kambedla[k];
+        const el = (who === 'child' ? handEls : theirEls).get(card.id);
+        flights.push(fly(who === 'child' ? card : null, placeDeck(), who === 'child' ? placeHand(el) : placeTheirs(el), {
+          turn: who === 'child' ? 'up' : 'none',
+          duration: DEAL_MS,
+          onLand: () => { el.style.visibility = ''; },
+        }));
+        sfx('deal');
+        await wait(DEAL_GAP);
+        if (token !== round) return;
+      }
+    }
+    await Promise.all(flights);
+    if (token !== round) return;
+    await wait(200);
+    if (token !== round) return;
+    await toPile(game.pile[0], placeDeck(), 'up');
+    if (token !== round) return;
+    sync();
+    wave(game.colour);
+    startChildTurn({ first: true });
+  }
+
+  async function endRound() {
+    const token = round;
+    busy = true;
+    settleChild();
+    sync();
+    const childWon = game.winner === 'child';
+    const was = eittState();
+    const wins = was.wins + (childWon ? 1 : 0);
+    save?.setEitt?.({ ...afterRound(was, childWon), wins });
+    await wait(500);
+    if (token !== round) return;
+    view?.cheer();
+    sfx(childWon ? 'fanfare' : 'horn');
+    const said = say(childWon ? 'eitt_you_won' : 'eitt_i_won');
+    winWords.textContent = childWon ? 'Þú vannst!' : 'Kambeðla vann!';
+    stickerEl.hidden = !childWon;
+    stickerWords.hidden = !childWon;
+    confettiEl.replaceChildren(...(childWon ? confetti() : []));
+    winEl.hidden = false;
+    await wait(Math.max(1800, said * 1000 + 500));
+    if (token !== round) return;
+    say('eitt_again');
+  }
+
+  /** The confetti of a round won, as the look has it (eitt.css .eitt-confetti). */
+  function confetti() {
+    const colours = Object.keys(ORDER);
+    return Array.from({ length: 56 }, (_, k) => {
+      const bit = make('i', colours[k % 4]);
+      bit.style.setProperty('--x', `${((k * 61.8) % 100).toFixed(1)}%`);
+      bit.style.setProperty('--a', `${(k * 67) % 180}deg`);
+      bit.style.setProperty('--t', `${(3.2 + (k % 5) * 0.45).toFixed(2)}s`);
+      bit.style.setProperty('--d', `${-((k * 1.93) % 4.6).toFixed(2)}s`);
+      return bit;
+    });
+  }
+
+  // ---- Opening and shutting ---------------------------------------------------------------------------------------------------
+
+  function pause(paused) {
+    try {
+      onPause?.(paused);
+    } catch (error) {
+      console.error('[eitt]', error);
+    }
+  }
+
+  function open() {
+    if (isOpen) return;
+    isOpen = true;
+    root.hidden = false;
+    if (!calm()) root.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    pause(true);
+    music.start();
+    startView();
+    run(deal());
+  }
+
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    round++; // the round under way is dropped, with no penalty
+    for (const id of timers) clearTimeout(id);
+    timers.clear();
+    busy = true;
+    for (const flyer of root.querySelectorAll('.eitt-flyer')) flyer.remove();
+    flying = 0;
+    pendingWild = null;
+    voice.stop();
+    music.stop();
+    view?.rest();
+    view?.stop();
+    root.hidden = true;
+    pause(false);
+    try {
+      onClose?.();
+    } catch (error) {
+      console.error('[eitt]', error);
+    }
+  }
+
+  // ---- Touch ------------------------------------------------------------------------------------------------------------------
+
+  const tap = { sfx: name => effects.play(name) };
+  pressable(deckEl, { audio: tap, sound: null, win, onTap: () => run(tapDeck()) });
+  pressable(passEl, { audio: tap, win, onTap: () => keepCard() });
+  pressable(eittEl, { audio: tap, sound: null, win, onTap: () => run(tapEitt()) });
+  pressable(mosiEl, { audio: tap, win, onTap: () => askMosi() });
+  for (const button of colourButtons) pressable(button, { audio: tap, sound: null, win, onTap: () => run(chooseColour(button.dataset.colour)) });
+  pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && game?.winner) run(deal()); } });
+  pressable(closeEl, { audio: tap, win, onTap: () => close() });
+  pressable(quitEl, { audio: tap, win, onTap: () => close() });
+  root.addEventListener('pointerdown', () => wake(), true);
+  root.addEventListener('contextmenu', event => event.preventDefault()); // a long press is a tap, never the browser's menu
+  win?.addEventListener?.('resize', () => { if (isOpen && game && !flying) sync({ animate: false }); });
+
+  return {
+    open,
+    close,
+    get isOpen() { return isOpen; },
+    get game() { return game; },
+    /** What the game waits for, for a probe: 'child' (the child's move), 'colour' (a colour for the wild), 'over', 'busy' or 'shut'. */
+    get phase() {
+      if (!isOpen) return 'shut';
+      if (game?.winner) return 'over';
+      if (pendingWild) return flying ? 'busy' : 'colour';
+      return childMoves() ? 'child' : 'busy';
+    },
+    get muted() { return muted; },
+    set muted(value) { setMuted(value); },
+  };
+}

@@ -3,16 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Eitt! — útlitið (tilraunasíða)</title>
+<title>Eitt! — tilraunasíða</title>
 <link rel="icon" href="data:,">
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
 <link rel="stylesheet" href="./eitt.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
-<!-- The look of "Eitt!" for the owner to approve (Task 1), never linked from the game: the table, the cards and every state, as
-     still markup in eitt.css's classes. Kambeðla's window holds a picture of her until her live 3D view comes (Task 3). ?state= picks
-     what shows:
-       table (the default)   a round under way: Kambeðla's cards, the deck, the pile with its red ring, the child's seven cards
+<!-- "Eitt!" on a page of its own, never linked from the game. With no ?state= (or state=live) a real round is played with Kambeðla
+     (engine/eitt/table.js), on a save of its own (mosi-eitt-lab, so the game's progress is untouched); &skill=0 to 1 sets her skill
+     first, and a round that is shut deals the next. It links book.css for the touch the book and the game share (fx.js: the squash
+     and the sparks), as the game's page does. The other states are the look the owner approved (Task 1), as still markup in eitt.css's
+     classes:
+       live (the default)    a real round
+       table                 a round under way: Kambeðla's cards, the deck, the pile with its red ring, the child's seven cards
        wild                  a wild card just played: the ring of all four colours and the four big colour buttons
        eitt                  two cards left: the "Eitt!" button pulses
        mosi                  the child asked Mosi: he pops up with "Prófaðu þetta!" and his pick lifts and glows (and "Áfram",
@@ -76,10 +80,10 @@
   <div class="eitt-gallery" id="gallery" hidden></div>
 </main>
 <script type="module">
-  // The lab's logic: it only fills the markup for the state asked, as the game will (Task 3), and waits for it to settle.
+  // The lab's logic: a live round, or the markup of the still state asked, and then it waits for it to settle.
   const params = new URLSearchParams(location.search);
-  const STATES = ['table', 'wild', 'eitt', 'mosi', 'draw', 'win', 'cards', 'kambedla'];
-  const state = STATES.includes(params.get('state')) ? params.get('state') : 'table';
+  const STATES = ['live', 'table', 'wild', 'eitt', 'mosi', 'draw', 'win', 'cards', 'kambedla'];
+  const state = STATES.includes(params.get('state')) ? params.get('state') : 'live';
   const $ = id => document.getElementById(id);
 
   // The card pictures (assets/eitt/): each colour's dinosaur, and the action cards' tricks.
@@ -158,6 +162,33 @@
     $('gallery').hidden = false;
     $('gallery').innerHTML = ['red 7', 'yellow 3', 'green 5', 'blue 9', 'back', 'red skip', 'blue reverse', 'yellow draw2', 'wild', 'draw4']
       .map(s => card(s)).join('');
+  }
+
+  if (state === 'live') {
+    // A real round, as the game's page plays it, with the page's own sound (it wakes at the first touch).
+    const [{ createEittGame }, { createSave }, { createAudioContext, createOutput }] = await Promise.all([
+      import('./engine/eitt/table.js'), import('./engine/save.js'), import('./engine/audio/output.js'),
+    ]);
+    const read = async path => {
+      try {
+        const response = await fetch(path);
+        return response.ok ? await response.json() : null;
+      } catch {
+        return null;
+      }
+    };
+    const [lines, theme] = await Promise.all([read('./assets/audio/lines.json'), read('./assets/audio/theme.json')]);
+    const context = createAudioContext();
+    const output = context && createOutput(context);
+    const save = createSave(undefined, 'mosi-eitt-lab');
+    if (params.has('skill')) save.setEitt({ ...save.getEitt(), skill: Number(params.get('skill')) });
+    const game = createEittGame(document, {
+      save, audio: { context, output, theme, lines: lines ?? {} },
+      onClose: () => setTimeout(() => game.open(), 600), // the lab has no book to go back to: the next round is dealt
+    });
+    addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
+    Object.assign(window, { __eitt: game, __save: save });
+    game.open();
   }
 
   if (state === 'kambedla') {

@@ -3,8 +3,9 @@
 
      .eitt                       the root over the game: the clearing, the font, every touch (touch-action: none); a size container
      .eitt-table                 the table: Kambeðla at the top, the deck and the pile in the middle, the child's cards at the bottom
-     .eitt-kambedla              Kambeðla's own window at the top, where her live 3D view goes (Task 3), with .eitt-kambedla-frame
-                                 beside it for the tape on its corners (outside the window, which clips its view)
+     .eitt-kambedla              Kambeðla's own window at the top: her picture until her live 3D view (.eitt-kambedla-view, a canvas)
+                                 is ready, with .eitt-kambedla-frame beside it for the tape on its corners (outside the window, which
+                                 clips its view)
      .eitt-their-hand            Kambeðla's cards, face down in front of her, so the child sees how many she has
      .eitt-centre                the middle of the table: .eitt-deck (a button: tap to draw; .draw makes it call), .eitt-pile (the
                                  cards played, the top one last, each askew by --r, --x and --y) with its .eitt-ring (the colour in
@@ -26,6 +27,10 @@
      .eitt-win                   the end of a round under Kambeðla's window: .eitt-win-card with its words (h2), the .eitt-sticker
                                  the child won, .eitt-again ("Spilum aftur?") and .eitt-close; .eitt-confetti holds the
                                  confetti, each an i with a colour class and --x, --a, --t and --d
+     .eitt-quit                  the close while a round is under way (with .eitt-close's look), on the table's top right corner
+     .eitt-flyer                 a card in the air between the deck, the hands and the pile (table.js moves it): --fly-w is its width
+                                 where it lands, its .eitt-flyer-turn turns it over, and a back under a face is .under
+     .eitt-wave                  a wave of the colour in play going out from the pile (with a colour class)
 
    The rules it keeps, as the book does (STYLE.md section 10, book.css):
    - the journal's palette for the paper, the ink and the buttons, and four bright card colours chosen to sit beside it (below);
@@ -67,7 +72,7 @@
   --them-w: clamp(52px, min(4.6cqw, 8.6cqh), 78px);
   --window-w: clamp(300px, min(32cqw, 43cqh), 620px);
 
-  position: fixed; inset: 0; overflow: hidden;
+  position: fixed; inset: 0; overflow: hidden; z-index: 20; /* over the paused chapter, its captions and the book */
   container-type: size;
   font-family: var(--eitt-font); font-weight: 800; color: var(--ink);
   /* The clearing behind the table: sky, the soft far trees and the meadow, all out of focus. */
@@ -82,7 +87,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .eitt *, .eitt *::before, .eitt *::after { box-sizing: border-box; }
-.eitt [hidden] { display: none !important; }
+.eitt[hidden], .eitt [hidden] { display: none !important; }
 :where(.eitt) button { font: inherit; color: inherit; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .eitt button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
 .eitt img { display: block; -webkit-user-drag: none; }
@@ -160,7 +165,7 @@
 }
 .eitt-their-hand .eitt-card {
   --card-w: var(--them-w);
-  margin: 0 calc(var(--them-w) * -.24);
+  margin: 0 calc(var(--them-w) * var(--them-overlap, .24) * -1); /* a bigger hand overlaps more (table.js sets --them-overlap) */
   transform-origin: 50% -60%;
   transform: rotate(calc(var(--i, 0) * -5deg)) translateY(calc(var(--i, 0) * var(--i, 0) * -1.5px));
 }
@@ -360,9 +365,10 @@
   margin: 0 calc(var(--hand-w) * var(--overlap, .04) * -1); /* a bigger hand overlaps more (Task 3 sets --overlap) */
   transform-origin: 50% 160%;
   transform: rotate(calc(var(--i, 0) * 3deg)) translateY(calc(var(--i, 0) * var(--i, 0) * 2.4px));
-  transition: translate .35s cubic-bezier(.3, 1.5, .5, 1);
+  transition: translate .35s cubic-bezier(.3, 1.5, .5, 1), scale .3s cubic-bezier(.3, 1.8, .45, 1);
   box-shadow: 0 0 0 2.5px var(--ink), 0 8px 14px rgb(40 24 10 / .35);
 }
+.eitt-hand .eitt-card.pressed { scale: .94; transition-duration: .35s, .07s; } /* a finger squashes a card a little */
 .eitt-hand .eitt-card.hint { /* lifted a little and lit, so the child sees it may be played */
   translate: 0 calc(var(--hand-w) * -.24);
   box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 7px var(--gold), 0 0 30px 10px rgb(255 214 110 / .9), 0 18px 20px rgb(40 24 10 / .3);
@@ -477,6 +483,7 @@
   box-shadow: 0 7px 0 var(--side), 0 7px 0 3px var(--ink), 0 0 0 11px var(--gold), 0 0 36px 14px rgb(255 214 110 / .9);
 }
 .eitt:has(.eitt-colours:not([hidden])) :is(.eitt-deck, .eitt-pass, .eitt-hand, .eitt-their-hand) { opacity: .5; } /* the rest waits */
+.eitt:has(.eitt-colours:not([hidden])) .eitt-advice p { left: 74%; bottom: 30%; } /* Mosi's bubble goes down beside him, clear of the colours */
 
 /* ---- The end of a round: the words, the sticker won and "Spilum aftur?" -------------------------------------------- */
 
@@ -487,6 +494,7 @@
   background: linear-gradient(transparent 0, rgb(24 17 11 / .25) 30%, rgb(24 17 11 / .55));
 }
 .eitt:has(.eitt-win:not([hidden])) :is(.eitt-kambedla, .eitt-kambedla-frame) { z-index: 11; } /* she stays in sight, cheering */
+.eitt:has(.eitt-win:not([hidden])) .eitt-quit { visibility: hidden; } /* the card has its own close */
 .eitt-win-card {
   position: relative; display: grid; justify-items: center; gap: clamp(10px, 2cqh, 22px);
   width: min(560px, 88cqw); padding: clamp(28px, 4.4cqh, 48px) 36px clamp(30px, 4.4cqh, 44px);
@@ -540,6 +548,9 @@
   box-shadow: 0 7px 0 #e3d4b5, 0 7px 0 3px var(--ink), 0 13px 14px 2px rgb(40 24 10 / .34);
 }
 .eitt-close svg { width: 44%; height: 44%; }
+.eitt-quit { /* the close while a round is under way: on the table's top right corner, clear of every card */
+  z-index: 8; top: max(18px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right));
+}
 
 .eitt-confetti { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
 .eitt-confetti i {
@@ -550,6 +561,28 @@
 }
 .eitt-confetti i:nth-child(3n) { width: 22px; height: 22px; border-radius: 50%; }
 .eitt-confetti i:nth-child(4n+1) { width: 14px; height: 34px; }
+
+/* ---- Motion: a card in the air, and the colour's wave (table.js moves them, with transform and opacity only) ---------- */
+
+.eitt-flyer {
+  position: absolute; left: 0; top: 0; z-index: 9; pointer-events: none;
+  width: var(--fly-w); aspect-ratio: 5 / 7; transform-origin: 50% 50%;
+  perspective: calc(var(--fly-w) * 5);
+}
+.eitt-flyer-turn { position: absolute; inset: 0; transform-style: preserve-3d; }
+.eitt-flyer .eitt-card {
+  --card-w: var(--fly-w); position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  box-shadow: 0 0 0 2.5px var(--ink), 0 16px 22px rgb(40 24 10 / .35);
+}
+.eitt-flyer .eitt-card.under { transform: rotateY(180deg); } /* the back, until the card turns over */
+.eitt-wave {
+  position: absolute; z-index: -1; left: 50%; top: 50%; pointer-events: none;
+  width: calc(var(--pile-w) * 1.72); height: calc(var(--pile-w) * 1.72);
+  margin: calc(var(--pile-w) * -.86) 0 0 calc(var(--pile-w) * -.86);
+  border-radius: 50%; border: calc(var(--pile-w) * .06) solid var(--c);
+  box-shadow: 0 0 26px 8px color-mix(in srgb, var(--c) 70%, transparent);
+}
 
 /* ---- The lab's gallery of every kind of card (eitt-lab.html?state=cards) ------------------------------------------ */
 
@@ -648,7 +681,7 @@
   .eitt-colours button:nth-of-type(2) { grid-area: 2 / 1; }
   .eitt-colours button:nth-of-type(3) { grid-area: 1 / 3; }
   .eitt-colours button:nth-of-type(4) { grid-area: 2 / 3; }
-  .eitt-hand .eitt-card { margin: 0 calc(var(--hand-w) * -.08); }
+  .eitt-hand .eitt-card { margin: 0 calc(var(--hand-w) * var(--overlap, .08) * -1); }
 }
 
 /* ---- Less motion, when the tablet asks for it: everything holds still, its look unchanged --------------------- */
