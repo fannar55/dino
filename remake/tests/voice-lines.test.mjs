@@ -240,11 +240,11 @@ test('a take is cached by a hash of its text, voice, model and settings, so each
   assert.equal(cacheKey({ ...base }), key, 'the same request, the same key');
   assert.notEqual(cacheKey({ ...base, text: 'Tvö!' }), key);
   assert.notEqual(cacheKey({ ...base, voiceId: VOICES.egill }), key);
-  assert.notEqual(cacheKey({ ...base, model: 'eleven_v4' }), key);
+  assert.notEqual(cacheKey({ ...base, model: 'eleven_v3' }), key);
   assert.notEqual(cacheKey({ ...base, settings: { ...SETTINGS, speed: 1 } }), key);
   assert.notEqual(cacheKey({ ...base, seed: 1 }), key);
   assert.notEqual(cacheKey({ ...base, seed: 1 }), cacheKey({ ...base, seed: 2 }));
-  assert.equal(MODEL, 'eleven_v3');
+  assert.equal(MODEL, 'eleven_v4');
 
   const lines = [{ id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' }, { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!' }];
   const root = makeRoot(t, { lines });

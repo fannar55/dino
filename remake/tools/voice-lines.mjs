@@ -49,7 +49,7 @@ const AUDITIONS = 'qa/remake/voices';
 const API = 'https://api.elevenlabs.io/v1/text-to-speech';
 const OUTPUT_FORMAT = 'mp3_44100_128';
 const TIMEOUT = 120000; // ms for one request
-export const MODEL = 'eleven_v3';
+export const MODEL = 'eleven_v4'; // the owner's choice (2026-10-18): v4 reads Icelandic best; chapter 1's lines were made with v3
 const LANGUAGE = 'is';
 /** What scripts/narration-models.mjs gives a game clip that has no profile of its own, so every voice reads at the same pace and steadiness. */
 export const SETTINGS = Object.freeze({ stability: 0.5, similarity_boost: 0.75, speed: 0.95 });

@@ -2108,5 +2108,10 @@
   "src": "assets/audio/eitt/eitt_tut_recap.mp3",
   "duration": 9.37,
   "mouth": "9ffee809ba50000000000800befecccbaeff70cc64009fcefeb004ccccef406deeb988000000000000000eeffdab9dcb86bd909e79cba70000000006ffc5ca302defe85ed2300000000effa06c600040beeea30000bfefb008c750000000"
+ },
+ "eitt_tut_real": {
+  "src": "assets/audio/eitt/eitt_tut_real.mp3",
+  "duration": 4.57,
+  "mouth": "6ffffec099fe0000dfdfe3cf8ba5000000000009ffedb800dccdddc0007d00000ed59fdbcbcba945700000000000"
  }
 }
