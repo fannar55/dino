@@ -361,6 +361,47 @@ export class FakeContext extends EventTarget {
 export const createFakeContext = options => new FakeContext(options);
 
 /**
+ * A stand-in for `new Audio(src)`, the element a recorded line plays from (engine/scene/voice.js): it plays when asked, refuses
+ * with `FakeAudio.rejection` when a test sets one, and `finish()` ends it as a recording ends. Every one made is in `made`.
+ */
+export class FakeAudio extends EventTarget {
+  static made = [];
+  static rejection = null;
+  constructor(src) {
+    super();
+    this.src = src;
+    this.paused = true;
+    this.ended = false;
+    FakeAudio.made.push(this);
+  }
+
+  play() {
+    this.paused = false;
+    return FakeAudio.rejection ? Promise.reject(FakeAudio.rejection) : Promise.resolve();
+  }
+
+  pause() { this.paused = true; }
+  finish() {
+    this.ended = true;
+    this.paused = true;
+    this.dispatchEvent(new Event('ended'));
+  }
+}
+
+/** Runs `run` with FakeAudio as the page's Audio, starting with none made. */
+export async function withAudio(run) {
+  const original = globalThis.Audio;
+  globalThis.Audio = FakeAudio;
+  FakeAudio.made = [];
+  FakeAudio.rejection = null;
+  try {
+    return await run();
+  } finally {
+    globalThis.Audio = original;
+  }
+}
+
+/**
  * Stands in for fetch while `run` goes: every URL asked for is recorded in `asked`, and `answer(url)` says
  * what comes back (the default is a body of a few bytes).
  */
