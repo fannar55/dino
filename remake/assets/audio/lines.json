@@ -1716,8 +1716,8 @@
  },
  "book_mosi_4": {
   "src": "assets/audio/book/book_mosi_4.mp3",
-  "duration": 9.45,
-  "mouth": "08fe00fa0bfb200000000000000000000000bfff8dd50bca007c05ded09cb878500000000cefa8ebbc70009a804bcc9009ca7400000000000000000000000008ddd74cfdefa09fbdde7a6000870000000000dfb90aa94eec9650000000000"
+  "duration": 8.25,
+  "mouth": "06f009f009cc6300000000000000cbdeb0ca70fd96b8034aff00a8736600079ec76da98200099604aaa6008c9500000000000007dfda8eefbff04dadebb90008900008cab0bdb8adce9300000000000000000"
  },
  "book_mosi_5": {
   "src": "assets/audio/book/book_mosi_5.mp3",
@@ -1726,13 +1726,13 @@
  },
  "book_kambedla_1": {
   "src": "assets/audio/book/book_kambedla_1.mp3",
-  "duration": 7.05,
-  "mouth": "00de700ed8037fff0becba9980000000ff90db05ba957400000000000000000000000000efffcefe303dfeb00dbc08dd9007a98600000b90be70009a706c80adba97750000000"
+  "duration": 6.25,
+  "mouth": "08f70aff80066cffb0bca95762000005c6370462000000000000000007fefef9004dfd807ad80ca6008777730097009b000039737706aa866430000000000"
  },
  "book_kambedla_2": {
   "src": "assets/audio/book/book_kambedla_2.mp3",
-  "duration": 7.13,
-  "mouth": "000eff0decaab400000cfdece959c0aca884003ca4cdc708bb90970cc90000cebdddccbbab84aa84500000000000000000affffeeb000cc67cb9feb00ab800cfaba00a967600000"
+  "duration": 6.73,
+  "mouth": "03bfff0cefdde76efebbc0008ea0beac4cdb00bde60abbb605c000007cedcdccdbbba5899043000000000006bbffffa003b830abbcd909900ac8a607654300000000000"
  },
  "book_kambedla_3": {
   "src": "assets/audio/book/book_kambedla_3.mp3",
@@ -1741,8 +1741,8 @@
  },
  "book_kambedla_4": {
   "src": "assets/audio/book/book_kambedla_4.mp3",
-  "duration": 4.49,
-  "mouth": "00afe98ffedcbcb8b60009db74300000000000000009fc7dffdcb97547db0bedd500dc905c900bddda55400000"
+  "duration": 4.97,
+  "mouth": "05cffb0efedfe9c400008fec700000000000a93009eddeecab78c400cc8abbdb90005ddb9ad0000ceefadb96530000000000"
  },
  "book_kambedla_5": {
   "src": "assets/audio/book/book_kambedla_5.mp3",
@@ -1851,8 +1851,8 @@
  },
  "book_birds_2": {
   "src": "assets/audio/book/book_birds_2.mp3",
-  "duration": 6.49,
-  "mouth": "0df0070dfe000b00fa00009de85b600079850007d70e68c004874000000000000000000000000000000efdedf300dde809ccbc007ccba860b439b4698554300000"
+  "duration": 6.97,
+  "mouth": "0ff00909fdd0000d00de0000000bcbb06a400078a8005b809800c80007430000000000000000005ffdfabd6000aeb9a000cbefd2009998886069006cd0686340000000000000"
  },
  "book_birds_3": {
   "src": "assets/audio/book/book_birds_3.mp3",
@@ -1961,13 +1961,13 @@
  },
  "eitt_why_attack": {
   "src": "assets/audio/eitt/eitt_why_attack.mp3",
-  "duration": 5.05,
-  "mouth": "005ffdaeabbddeb4effffb400dd30dc3004cb000bd0008800000000000000bfd0709cdedd70bcdcbbc8cd6600bba700000000"
+  "duration": 4.81,
+  "mouth": "8affd80eeedffeffffa0db005cbc706fe0aec0007b5000000000000afd000feedfa0eceeeaeb800ced930000000000000"
  },
  "eitt_why_keep_attack": {
   "src": "assets/audio/eitt/eitt_why_keep_attack.mp3",
-  "duration": 4.25,
-  "mouth": "03ffffb8d600ca950008dc977400007ffad4cda05cdc08edbddca70005ded806cc96300acc90000000000"
+  "duration": 4.17,
+  "mouth": "0fffc0cc004eeb630507eedee8000dfd9e6bfa097cdea0deeccedd90cf90beda8a06eeb5000000000000"
  },
  "eitt_why_skip": {
   "src": "assets/audio/eitt/eitt_why_skip.mp3",
@@ -1999,45 +1999,40 @@
   "duration": 3.85,
   "mouth": "5407ffffddd3000ffe0de94efd959500000006ef8004dc73000000000db000f93eeda00000000"
  },
+ "eitt_tut_goal": {
+  "src": "assets/audio/eitt/eitt_tut_goal.mp3",
+  "duration": 6.57,
+  "mouth": "edefc9006feebec0000adccbceb8700dfecd48f000060bdeddd709ccca00000000000003ffaffc73dfec9cb8904ccbced30dea05bb5500000000acfffdb640000000"
+ },
  "eitt_tut_colour": {
   "src": "assets/audio/eitt/eitt_tut_colour.mp3",
   "duration": 5.45,
   "mouth": "665fefea9fc60dc0a80adb90beecba4000000000000000000dfffffc0368ca00887b05dcba8600000ce9758bbceeeedccb60000000000"
+ },
+ "eitt_tut_her": {
+  "src": "assets/audio/eitt/eitt_tut_her.mp3",
+  "duration": 2.33,
+  "mouth": "affeddc809fc0097edd50edcccdcb984006000000000000"
  },
  "eitt_tut_number": {
   "src": "assets/audio/eitt/eitt_tut_number.mp3",
   "duration": 3.85,
   "mouth": "00cffff95cdb04bdd03ed49dd840dcccb00beecbcb700006cccaaa00daeec27b8bddda3000000"
  },
- "eitt_tut_her": {
-  "src": "assets/audio/eitt/eitt_tut_her.mp3",
-  "duration": 2.17,
-  "mouth": "fffedcb45cdca053bccccdb00adedcaa980000000000"
- },
  "eitt_tut_skip": {
   "src": "assets/audio/eitt/eitt_tut_skip.mp3",
-  "duration": 5.85,
-  "mouth": "004bdecbbccba80fe70abba800000000008ffffd75489506efeaadddefe69ffa09d83000000007ec06dba90000ec438d60008cbdcdda000500000"
- },
- "eitt_tut_draw": {
-  "src": "assets/audio/eitt/eitt_tut_draw.mp3",
-  "duration": 5.05,
-  "mouth": "0efa22de70000dddda006ed437d950000000000000000000000eed0dfffcecce96d8000500ddb80006eda03d808deec900000"
- },
- "eitt_tut_goal": {
-  "src": "assets/audio/eitt/eitt_tut_goal.mp3",
-  "duration": 6.57,
-  "mouth": "edefc9006feebec0000adccbceb8700dfecd48f000060bdeddd709ccca00000000000003ffaffc73dfec9cb8904ccbced30dea05bb5500000000acfffdb640000000"
+  "duration": 5.29,
+  "mouth": "08bfecdefc49ed649aa3000000000effdefd05e9089eee60eebee88efd00ccb80000ca02bbce706bc000bebddca405000000000000"
  },
  "eitt_tut_reverse": {
   "src": "assets/audio/eitt/eitt_tut_reverse.mp3",
-  "duration": 8.65,
-  "mouth": "0003effc09edadccccca30000fffd8cef50dfeedfed900000000000cdd9040eddbaa00eeccccc40000cecdeeee8aaddb60047bccaabeb80df70aa9800000005ccd60bdca97000008dc5005dc000acccddb60035000000"
+  "duration": 7.53,
+  "mouth": "002dfffeffcdffd34600eeecbeee600efda870000000000000cee6030fdd5760eedccddc400ceddcceb6db664cccddb77c807800000000b804ccc700f7300f4006cadda7004000000000000"
  },
  "eitt_tut_draw2": {
   "src": "assets/audio/eitt/eitt_tut_draw2.mp3",
-  "duration": 6.65,
-  "mouth": "0000affffec9000bed00030000000000000000000000000dfec7fdec808845ade9cdddddb80000cdba7305ddc980000000aed9deed70009942000afd805a600000000"
+  "duration": 5.45,
+  "mouth": "450acdded08ff6000a0000000000005fedb0bddcd809ddc0bedcded04005cdc85507dcba400000dffed6000f96dfc0385000000000000"
  },
  "eitt_tut_wild": {
   "src": "assets/audio/eitt/eitt_tut_wild.mp3",
@@ -2046,18 +2041,23 @@
  },
  "eitt_tut_wild4": {
   "src": "assets/audio/eitt/eitt_tut_wild4.mp3",
-  "duration": 8.491,
-  "mouth": "005bffff04ffc9ffc5000ab3002dffdaf809c5004000000000000000000000005ddec0eeddccccc95cedbbb900acba6a77507ca830000000000cc000999888300007bfedddccdd7054500000000000000000000000"
+  "duration": 6.89,
+  "mouth": "07fffd00de83dfe806fc0004bcfddcdfb2efd00073000000000006dedb0dedcedd80dffcdb4008cddcac5630cdda950000008d000bdd98efdcebaccee00897000000000000"
  },
  "eitt_tut_again": {
   "src": "assets/audio/eitt/eitt_tut_again.mp3",
   "duration": 2.97,
   "mouth": "0cffeb6eec600000000000ffdb606cbbcdceeec4000de530377970000000"
  },
+ "eitt_tut_draw": {
+  "src": "assets/audio/eitt/eitt_tut_draw.mp3",
+  "duration": 5.05,
+  "mouth": "0efa22de70000dddda006ed437d950000000000000000000000eed0dfffcecce96d8000500ddb80006eda03d808deec900000"
+ },
  "eitt_tut_drew": {
   "src": "assets/audio/eitt/eitt_tut_drew.mp3",
-  "duration": 4.17,
-  "mouth": "00bffc08df49dcd60ddedc00aa00000000000000dfedb700cedb55ddc0beccbddc9006bdeb7005000000"
+  "duration": 4.33,
+  "mouth": "00efec07fd08ede60ddbec6068543000000000000bfdeec53ff6098cddb0eeddeeedddd8000300000000000"
  },
  "eitt_tut_last": {
   "src": "assets/audio/eitt/eitt_tut_last.mp3",
@@ -2066,13 +2066,13 @@
  },
  "eitt_tut_eitt": {
   "src": "assets/audio/eitt/eitt_tut_eitt.mp3",
-  "duration": 10.17,
-  "mouth": "0dfff9ff8ff94040dfdd00bb3000300cdca68db000d9300000000cb000aeabedcb9000000de8000000000000000000fe4fd6ffdefec509db4000adc09ffec0eeddeec3bea4a8ba00bdbddc00000000cfc0cffe09deeedbe30006dccc804ec900000000000000"
+  "duration": 9.53,
+  "mouth": "00fffe7adfe700eee000cb0000008eeb6cf5009dd00000000ce0007ed0dff700afc0000000000000000000bf0bd07edffffb09bbc9000ba09bfe90eeddee80ac80dcc00cc36aac00000000cd507dd70ceedcc0030aeed650684000000000000"
  },
  "eitt_tut_catch": {
   "src": "assets/audio/eitt/eitt_tut_catch.mp3",
-  "duration": 4.01,
-  "mouth": "03efedfcdefff7bdedb08bbb00cca877000000000000cdc900000000007dee9060dddcba984000000"
+  "duration": 3.61,
+  "mouth": "7aedd60feaeda07eddb409ffb00bdee80deb3000000000000bcfe000ffefca65000000000"
  },
  "eitt_tut_quiz": {
   "src": "assets/audio/eitt/eitt_tut_quiz.mp3",
