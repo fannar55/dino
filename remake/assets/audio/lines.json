@@ -2023,5 +2023,90 @@
   "src": "assets/audio/eitt/eitt_tut_draw.mp3",
   "duration": 5.05,
   "mouth": "0efa22de70000dddda006ed437d950000000000000000000000eed0dfffcecce96d8000500ddb80006eda03d808deec900000"
+ },
+ "eitt_tut_goal": {
+  "src": "assets/audio/eitt/eitt_tut_goal.mp3",
+  "duration": 6.57,
+  "mouth": "edefc9006feebec0000adccbceb8700dfecd48f000060bdeddd709ccca00000000000003ffaffc73dfec9cb8904ccbced30dea05bb5500000000acfffdb640000000"
+ },
+ "eitt_tut_reverse": {
+  "src": "assets/audio/eitt/eitt_tut_reverse.mp3",
+  "duration": 8.65,
+  "mouth": "0003effc09edadccccca30000fffd8cef50dfeedfed900000000000cdd9040eddbaa00eeccccc40000cecdeeee8aaddb60047bccaabeb80df70aa9800000005ccd60bdca97000008dc5005dc000acccddb60035000000"
+ },
+ "eitt_tut_draw2": {
+  "src": "assets/audio/eitt/eitt_tut_draw2.mp3",
+  "duration": 6.65,
+  "mouth": "0000affffec9000bed00030000000000000000000000000dfec7fdec808845ade9cdddddb80000cdba7305ddc980000000aed9deed70009942000afd805a600000000"
+ },
+ "eitt_tut_wild": {
+  "src": "assets/audio/eitt/eitt_tut_wild.mp3",
+  "duration": 7.53,
+  "mouth": "04ffedbddcb0da06eff5bd86eea030d9000ffffeec73000000000bfd84ce9009fbbee70cd040508dcc80000000009fb0008dbb97000007ffeeebefe00bdc800000000000000000000000000"
+ },
+ "eitt_tut_wild4": {
+  "src": "assets/audio/eitt/eitt_tut_wild4.mp3",
+  "duration": 8.491,
+  "mouth": "005bffff04ffc9ffc5000ab3002dffdaf809c5004000000000000000000000005ddec0eeddccccc95cedbbb900acba6a77507ca830000000000cc000999888300007bfedddccdd7054500000000000000000000000"
+ },
+ "eitt_tut_again": {
+  "src": "assets/audio/eitt/eitt_tut_again.mp3",
+  "duration": 2.97,
+  "mouth": "0cffeb6eec600000000000ffdb606cbbcdceeec4000de530377970000000"
+ },
+ "eitt_tut_drew": {
+  "src": "assets/audio/eitt/eitt_tut_drew.mp3",
+  "duration": 4.17,
+  "mouth": "00bffc08df49dcd60ddedc00aa00000000000000dfedb700cedb55ddc0beccbddc9006bdeb7005000000"
+ },
+ "eitt_tut_last": {
+  "src": "assets/audio/eitt/eitt_tut_last.mp3",
+  "duration": 4.97,
+  "mouth": "009e92300cc5507edeeee9000000ffcaeb00ad730000000000000cffecf663e9effc0c80000000ddefd3bd0007e962000000"
+ },
+ "eitt_tut_eitt": {
+  "src": "assets/audio/eitt/eitt_tut_eitt.mp3",
+  "duration": 10.17,
+  "mouth": "0dfff9ff8ff94040dfdd00bb3000300cdca68db000d9300000000cb000aeabedcb9000000de8000000000000000000fe4fd6ffdefec509db4000adc09ffec0eeddeec3bea4a8ba00bdbddc00000000cfc0cffe09deeedbe30006dccc804ec900000000000000"
+ },
+ "eitt_tut_catch": {
+  "src": "assets/audio/eitt/eitt_tut_catch.mp3",
+  "duration": 4.01,
+  "mouth": "03efedfcdefff7bdedb08bbb00cca877000000000000cdc900000000007dee9060dddcba984000000"
+ },
+ "eitt_tut_quiz": {
+  "src": "assets/audio/eitt/eitt_tut_quiz.mp3",
+  "duration": 3.77,
+  "mouth": "0cffca400fdb6cb00acbb99a420acb840000000000035adbbba07bb30fffeda4000000000000"
+ },
+ "eitt_tut_check": {
+  "src": "assets/audio/eitt/eitt_tut_check.mp3",
+  "duration": 4.01,
+  "mouth": "000bffad8806bbecb58eeed94cc3aefedffea000000000007efc00ad8cc700bfffbfc000000000000"
+ },
+ "eitt_tut_hint_colour": {
+  "src": "assets/audio/eitt/eitt_tut_hint_colour.mp3",
+  "duration": 6.01,
+  "mouth": "fffe5452000aceb60000000000000000095bedd9ccbbb809effd6cdcbceca700000009d70ceda00a7300bbba3000000b700adcabca9ab900030000000"
+ },
+ "eitt_tut_hint_number": {
+  "src": "assets/audio/eitt/eitt_tut_hint_number.mp3",
+  "duration": 5.45,
+  "mouth": "9fff4430006eddb70000000000002000044ffcb7c9059cbcceffd8ed0dec6efed9000006d830efe509c9cd6effede05abccbaa4000000"
+ },
+ "eitt_tut_hint_try": {
+  "src": "assets/audio/eitt/eitt_tut_hint_try.mp3",
+  "duration": 3.371,
+  "mouth": "004eff9d700000ff6aec08ddb04ad300cb4000000000003ec04cdeffeded00000000"
+ },
+ "eitt_tut_right": {
+  "src": "assets/audio/eitt/eitt_tut_right.mp3",
+  "duration": 2.17,
+  "mouth": "fefec9400000000000000cfedba79b80400000000000"
+ },
+ "eitt_tut_recap": {
+  "src": "assets/audio/eitt/eitt_tut_recap.mp3",
+  "duration": 9.37,
+  "mouth": "9ffee809ba50000000000800befecccbaeff70cc64009fcefeb004ccccef406deeb988000000000000000eeffdab9dcb86bd909e79cba70000000006ffc5ca302defe85ed2300000000effa06c600040beeea30000bfefb008c750000000"
  }
 }
