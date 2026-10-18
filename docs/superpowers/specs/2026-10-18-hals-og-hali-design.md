@@ -31,11 +31,19 @@ Okkar útgáfa af slöngum og stigum, sem barnið spilar á móti Þórseðlu. H
   - ávaxtatré gefur auka kast;
   - stjörnureitur gefur glitur og fögnuð, án áhrifa á leikinn.
 
-## 4. Dalurinn
+## 4. Dalurinn: löng hliðarleið (breytt 18. október)
 
-- **Slóðin:** 50 hellusteinar með stórum tölustöfum, í hlykkjum. Hún liggur frá engi (1), gegnum skóg og yfir læk, upp að hreiðri Þórseðlu á hæð (50).
-- **Þórseðlurnar:** 5 sem lyfta með hálsinum og 5 sem renna með halanum. Þær anda, líta á peðin og sveifla halanum.
-- **Gróður og líf:** dalurinn notar gróður og ljós kafla 1, með fiðrildum og eldflugum.
+Eigandinn breytti hönnuninni eftir fyrstu sýnishornin: dalurinn er séður beint framan frá, eins og hliðarskrunsleikur, en er samt þrívíður.
+
+- **Leiðin** liggur frá vinstri til hægri: engi, skógur, lækur, hæðir, og hreiðrið á fjallstoppi lengst til hægri.
+- **Slóðin** er 50 hellusteinar með stórum tölustöfum. Hún rís í stöllum (syllum), svo hver hærri reitur er jafnhár eða hærri en sá á undan.
+- **Myndavélin** horfir á slóðina frá hlið, aðeins ofan frá, og fylgir peðinu mjúklega til hægri. Í byrjun rennir hún einu sinni yfir alla leiðina.
+- **Dýpt:** lög í forgrunni og bakgrunni hreyfast misjafnt hratt.
+- **Þórseðlurnar** sjást í hliðarmynd:
+  - hálsar ná frá upphafsreit upp á syllu framar á leiðinni;
+  - halar halla frá syllu niður og aftur á bak.
+- **Framvindustika** efst sýnir hve langt hvort peð er komið.
+- **Gróður og líf:** gróður, ljós, fiðrildi og eldflugur úr kafla 1.
 
 ## 5. Peðin og kastið
 

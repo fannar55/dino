@@ -87,7 +87,13 @@
   - `dispose()`.
 - The dinosaur models are in `remake/assets/characters/`, and the chapter's forest and lighting in `remake/world/` and `remake/engine/`.
 
-- [ ] **Step 1:** Build the valley within the tablet budget: 50 numbered stones winding from the meadow to the nest, five lifting and five sliding Þórseðlas placed by `BOARD`, breathing and looking, plants, butterflies and fireflies. Capture an overview and a close view at 1280x800, and record the frame cost.
+- [ ] **Step 1 (changed by the owner on 2026-10-18 to a side-scroller):**
+  - **The layout:** a long 3D world seen straight on, from meadow to the mountaintop nest. The 50 numbered stones run left to right, rising in ledges, so necks go up and forward and tails go down and back.
+  - **The camera:** side-on and following the piece; one pan over the whole path at the start.
+  - **Depth:** parallax foreground and background.
+  - **The Þórseðlas:** five lifting and five sliding, in profile, placed by `BOARD`, breathing and looking.
+  - **The progress bar:** `progressOf(square)` feeds it.
+  - **Within the tablet budget,** with plants, butterflies and fireflies. Capture an overview and a close view at 1280x800, and record the frame cost.
 - [ ] **Step 2:** Build the pieces and the egg die, and in the lab hop a piece along a few squares. Commit.
 
 ### Task 3: The game: moves, lifts, slides, effects, sound, voices, the book
