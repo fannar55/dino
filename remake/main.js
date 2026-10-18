@@ -36,7 +36,7 @@ import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 
 // URL parameters
-//   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
+//   chapter=<id>          chapter module in chapters/ (default: kafli1, the game's first chapter; grunnur is the foundation test scene)
 //   quality=low|tablet|high
 //   look=morning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
@@ -53,7 +53,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
 const clock = createClock();
 
-const chapterId = (params.get('chapter') || 'grunnur').replace(/[^a-z0-9_-]/gi, '');
+const chapterId = (params.get('chapter') || 'kafli1').replace(/[^a-z0-9_-]/gi, '');
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
