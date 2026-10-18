@@ -1933,25 +1933,5 @@
   "src": "assets/audio/eitt/k1_kambedla_play.mp3",
   "duration": 1.45,
   "mouth": "09900a000efecc4ddfc5000000000"
- },
- "eitt_mosi_try": {
-  "src": "assets/audio/eitt/eitt_mosi_try.mp3",
-  "duration": 1.29,
-  "mouth": "06dedbffcdb0cec00ca9000000"
- },
- "eitt_mosi_draw": {
-  "src": "assets/audio/eitt/eitt_mosi_draw.mp3",
-  "duration": 2.01,
-  "mouth": "00cfe3fe60aff80deeecadb5507cbb70000000000"
- },
- "eitt_mosi_colour": {
-  "src": "assets/audio/eitt/eitt_mosi_colour.mp3",
-  "duration": 1.77,
-  "mouth": "fdffeb700cc00cfddeeedccb900000000000"
- },
- "eitt_mosi_eitt": {
-  "src": "assets/audio/eitt/eitt_mosi_eitt.mp3",
-  "duration": 2.091,
-  "mouth": "4dfffec5abdd4000acbbccb500adc6000000000000"
  }
 }
