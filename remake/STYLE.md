@@ -201,8 +201,15 @@ face), misty far forest, forest wall.
   accent teal `#2f8f86`, star gold `#f2b630`, success green `#6fae4f`.
 - Touch targets at least 64 px on tablet (the plan's floor is 44 pt). Corner radius 18 to 24 px,
   soft shadows, hand-drawn frame lines.
-- One rounded, legible typeface bundled locally for offline play, with all Icelandic letters.
-  Captions at least 24 px. The speaker's name is shown in the speaker's main hue.
+- One rounded, legible typeface bundled locally for offline play, with all Icelandic letters: Nunito (the owner's
+  choice, 2026-10-17), under the SIL Open Font License 1.1, in `remake/assets/fonts/`: `nunito-latin.woff2`, Google
+  Fonts' Latin subset of the variable font (declared for weights 400 to 900), and `OFL.txt`, which stays beside it.
+  The subset covers Latin-1, so every Icelandic letter is there: á é í ó ú ý þ ð æ ö and their capitals. `style.css`
+  and `book.css` each declare the one `@font-face` (the book's lab links only book.css and the game only style.css, so
+  the two rules are alike word for word), both pages preload the file, and the page's font and the book's
+  `--book-font` are `"Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif`: a
+  tablet's own face is reached only for a glyph Nunito lacks. Captions at least 24 px. The speaker's name is shown in
+  the speaker's main hue.
 - Mini-games share the journal look; their pieces use the character hues.
 - **Interaction**, as chapter 1 plays it (2026-10-17):
   - No fail states. Every wait for the child ends by itself, a tap on something optional (a critter, a butterfly,

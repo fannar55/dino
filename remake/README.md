@@ -60,7 +60,10 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `chapters/`: one module per chapter: layout (or locations), actors, cast, lines, shots and the
   script. `kafli1.js` is chapter 1.
 - `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length
-  and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it).
+  and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it), and the
+  typeface in `assets/fonts/`: Nunito (`nunito-latin.woff2`, the Latin subset of Google Fonts' variable font, with
+  every Icelandic letter; both pages preload it) and its licence `OFL.txt` (SIL Open Font License 1.1), which must
+  stay beside it wherever the font goes.
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `sound-check.mjs` (the sound in a
   real browser, 61 checks, on this computer or on the tablet over USB debugging), `audio-lines.mjs`,
