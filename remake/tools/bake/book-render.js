@@ -8,13 +8,22 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/mosi-render.webp --query "who=mosi"
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/mosi-render-thumb.webp --query "who=mosi&width=320"
 //
-// Query: who (mosi, kambedla or both), width (the picture's width in px, 1024; the height is three quarters of it, and a smaller
-// width is the same picture made smaller: the thumbnail), quality (WebP, 0.9), preview (1: show the picture over the card's
-// paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key is a setting, by its path,
-// of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6 camera.fov=22 camera.fill=0.92,0.88,
-// actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the head turns, + toward heading 90)
-// actors.0.nod=3 (degrees the head dips) actors.0.x and actors.0.z (metres), key.az=-28 (from the camera's) key.el=54 key.i=2.7
-// key.color=#ffe2b5, fill.*, hemi.*, env.i=0.5, shadow=0.24 (the ground shadow's opacity, 0 for none), blur=10 and exposure=1.
+// The pictures on the cards of "Eitt!" (assets/eitt/) come from here too: the four colours' dinosaurs and two of the action
+// cards' tricks, all on a clear background:
+//
+//   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/eitt/trex.webp --query "who=trex&width=512"
+//
+// Query: who (mosi, kambedla or both for the book; trex, brontosaurus, parasaurolophus, pteranodon (Flugeðla flying a circle)
+// or stegosaurus-tail (Kambeðla mid tail-swish) for the cards), width (the picture's width in px, 1024; the height is three
+// quarters of it, and a smaller width is the same picture made smaller: the thumbnail), quality (WebP, 0.9), preview (1: show
+// the picture over the card's paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key
+// is a setting, by its path, of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6
+// camera.fov=22 camera.fill=0.92,0.88, actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the
+// head turns, + toward heading 90) actors.0.nod=3 (degrees the head dips) actors.0.x, actors.0.y and actors.0.z (metres),
+// actors.0.bank and actors.0.pitch (degrees the whole body rolls about its length and tips its nose up), actors.0.swish
+// (degrees the tail swings sideways, spread along its bones, + toward heading 90) and actors.0.lift (degrees it rises),
+// key.az=-28 (from the camera's) key.el=54 key.i=2.7 key.color=#ffe2b5, fill.*, hemi.*, env.i=0.5, shadow=0.24 (the ground
+// shadow's opacity, 0 for none), blur=10 and exposure=1. A shot may carry its own light in `look`.
 // Headings are degrees, 0 facing +X and 90 facing +Z, as in the game.
 //
 // The picture is drawn at twice its size on a transparent canvas and brought down to size in halves, so its edges are smooth.
@@ -29,7 +38,8 @@ const SUPERSAMPLE = 2;
 const status = text => { window.__bakeStatus = text; console.log('[book-render]', text); };
 const rad = THREE.MathUtils.degToRad;
 
-const MODELS = { mosi: '../../assets/characters/mosi.glb', stegosaurus: '../../assets/characters/stegosaurus.glb' };
+const MODELS = Object.fromEntries(['mosi', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon']
+  .map(name => [name, `../../assets/characters/${name}.glb`]));
 
 // The shots. A camera's az is world degrees (0 in front of a character that faces +X, 90 on its +Z side), el is how far
 // above the level it looks from, fill is how much of the frame the characters take. The key light's az is measured from the camera's.
@@ -48,6 +58,29 @@ const SHOTS = {
       { model: 'stegosaurus', x: -1.6, z: 1.2, heading: 56, clip: 'idle', time: 1.0, turn: 14, nod: 2 },
       { model: 'mosi', x: 2.5, z: -0.6, heading: 124, clip: 'idle', time: 1.0, turn: -14, nod: 0 },
     ],
+  },
+  // The cards of "Eitt!": red is Grameðla, yellow Þórseðla, green Mosi (the shot above) and blue Slóeðla; skip is Kambeðla's
+  // tail swish and reverse Flugeðla flying a circle.
+  trex: {
+    camera: { az: 40, el: 6, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'trex', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 34, nod: 0 }],
+  },
+  brontosaurus: {
+    camera: { az: 40, el: 6, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'brontosaurus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 50, nod: 4 }],
+  },
+  parasaurolophus: {
+    camera: { az: 40, el: 6, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'parasaurolophus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 34, nod: 0 }],
+  },
+  pteranodon: {
+    camera: { az: 50, el: 12, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'pteranodon', x: 0, z: 0, heading: 0, clip: 'fly', time: 0.25, turn: 30, nod: 0, bank: 22 }],
+    look: { shadow: 0 },
+  },
+  'stegosaurus-tail': {
+    camera: { az: 100, el: 30, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'stegosaurus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 60, nod: 2, swish: -90, lift: 40 }],
   },
 };
 const LOOK = {
@@ -70,7 +103,7 @@ function setPath(obj, path, raw) {
 }
 
 const shot = structuredClone(SHOTS[WHO]);
-const look = structuredClone(LOOK);
+const look = { ...structuredClone(LOOK), ...structuredClone(shot.look ?? {}) };
 const aspect = FULL[0] / FULL[1];
 for (const [key, value] of params) {
   if (['who', 'width', 'quality', 'preview', 'bg'].includes(key)) continue;
@@ -99,8 +132,9 @@ async function stand(spec) {
   const model = gltf.scene;
   const root = new THREE.Group();
   root.add(model);
-  root.position.set(spec.x, 0, spec.z);
-  root.rotation.y = -rad(spec.heading);
+  root.position.set(spec.x, spec.y ?? 0, spec.z);
+  // A roll about the body's length (its +X), then a nose-up pitch, then the heading: for one flying.
+  root.rotation.set(rad(spec.bank ?? 0), -rad(spec.heading), rad(spec.pitch ?? 0), 'YZX');
   model.traverse(o => {
     if (!o.isMesh) return;
     o.castShadow = true;
@@ -124,6 +158,17 @@ async function stand(spec) {
   if (spec.nod) {
     const forward = new THREE.Vector3(Math.cos(rad(spec.heading + spec.turn)), 0, Math.sin(rad(spec.heading + spec.turn)));
     rotateBoneWorld(head, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3().crossVectors(Y, forward).normalize(), rad(spec.nod)));
+  }
+  // A swish: the tail swings `swish` degrees sideways and rises `lift`, a share at each of its bones, so it curves as it goes.
+  const tail = [];
+  model.traverse(o => { if (o.isBone && /^Tail\d+$/.test(o.name)) tail.push(o); });
+  tail.sort((a, b) => Number(a.name.slice(4)) - Number(b.name.slice(4)));
+  if (tail.length && (spec.swish || spec.lift)) {
+    const side = new THREE.Vector3(-Math.sin(rad(spec.heading)), 0, Math.cos(rad(spec.heading))); // the body's +Z, heading 90
+    for (const bone of tail) {
+      rotateBoneWorld(bone, new THREE.Quaternion().setFromAxisAngle(Y, rad(spec.swish ?? 0) / tail.length)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(side, -rad(spec.lift ?? 0) / tail.length)));
+    }
   }
   root.updateMatrixWorld(true);
   return { root, model };
