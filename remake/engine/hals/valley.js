@@ -50,7 +50,7 @@ export const VALLEY = {
   hill: { height: 2.4, radius: 7.5 }, // the nest's hill beyond stone 50
   stream: { width: 2.2, depth: 0.25 }, // across the valley between the second and third rows: its width and the hollow's depth
   thorsedla: { scale: 0.5, vary: 0.05 }, // their size against the real Þórseðla's 22 m
-  forestGrass: 0.7, // the clearing's grass, as a share of the preset's density
+  forestGrass: 0.55, // the clearing's grass, as a share of the preset's density (the clearing is wider than the chapter's)
   look: 'morning', // the chapter's light (kafli1): the fog's shader chunk stays the same as the chapter's
   sun: { azimuth: 78, elevation: 52 }, // but the sun stands higher, behind the camera at the front: short shadows, faces lit
 };
@@ -918,12 +918,15 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     };
   }
   let levelsReady = null;
+  let firstLevels = null; // the model's light levels (every Þórseðla shares them)
   function registerThorsedla(actor) {
     const mesh = skinOf(actor.model);
     const entry = { actor, mesh, levels: null, level: 0, caster: null };
     light.push(entry);
     entry.material = mesh.material;
-    const ready = lightLevels(mesh.geometry, mesh.material.map).then(levels => {
+    const levelsPromise = lightLevels(mesh.geometry, mesh.material.map);
+    firstLevels ??= levelsPromise;
+    const ready = levelsPromise.then(levels => {
       if (levels[levels.length - 1].attributes.color) entry.coarseMaterial = coarseMaterial;
       entry.levels = levels;
       if (sun.castShadow) {
@@ -1357,6 +1360,8 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     glow: flash, setGlow,
     addUpdater(fn) { updaters.push(fn); return () => updaters.splice(updaters.indexOf(fn), 1); },
     registerThorsedla,
+    /** The Þórseðla model's levels: [full, half, quarter, welded 3,200, welded 1,400] (BufferGeometries over its skin). */
+    thorsedlaLevels: () => firstLevels,
     ready,
     update, resize,
     render() { renderer.render(scene, camera); },

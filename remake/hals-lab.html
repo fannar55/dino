@@ -10,12 +10,13 @@
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- The valley of "Háls og hali" on a page of its own, never linked from the game: to look at it and to try the pawns and the egg.
        ?view=overview (the default)   the whole valley from the front
-       ?view=close&square=N           the camera close behind square N (default 13: the first neck's top, a star near)
-       &hop=1                         Egill on Mosi hops along a few squares by himself, then Þórseðla's figure, and so on
+       ?view=close&square=N           the camera close behind square N (without square: behind Egill)
+       &child=N&figure=M              where the pawns stand to begin with (0: at the gate before stone 1)
+       &hop=N                         Egill throws N by himself once the page is ready (4: hops to the first neck and is lifted)
        &quality=low|tablet|high       the preset (engine/quality.js)
        &debug=1                       draw calls, triangles and frame time in the corner
-     Keys: o overview, c close on Egill, t close on Þórseðla's figure, space (or a tap on the egg) rolls the egg and the pawn whose turn
-     it is hops that many squares, n lifts on the nearest neck, l slides down the nearest tail.
+     Keys: space (or a tap on the egg) throws for Egill, and Þórseðla throws on her own turn: a small game by rules.js; o the
+     overview, c close on Egill, t close on Þórseðla's statue.
      capture.mjs waits for __demoReady: the valley built, its Þórseðlas' light levels ready and a few frames drawn. -->
 <style>
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -30,8 +31,11 @@ import * as THREE from 'three';
 import { pickQuality } from './engine/quality.js';
 import { createRenderer } from './engine/renderer.js';
 import { installStats } from './engine/stats.js';
-import { BOARD } from './engine/hals/rules.js';
+import { BOARD, newGame, roll, move } from './engine/hals/rules.js';
 import { createValley } from './engine/hals/valley.js';
+import { createPieces } from './engine/hals/pieces.js';
+import { createEggDie } from './engine/hals/egg-die.js';
+import { sparkleBurst } from './world/props/sparkles.js';
 
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
@@ -39,15 +43,108 @@ const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q);
 const { renderer } = display;
 const valley = await createValley(renderer, { board: BOARD, q, params });
-window.__valley = valley;
+const pieces = await createPieces(valley);
+const egg = createEggDie();
+valley.camera.add(egg.object);
+valley.addUpdater(dt => egg.update(dt));
+Object.assign(window, { __valley: valley, __pieces: pieces, __egg: egg });
 
-const fit = () => { display.applySize(valley.camera); valley.resize(canvas.clientWidth, canvas.clientHeight); };
+// The egg sits in the lower right corner of the view, in front of the camera.
+function placeEgg() {
+  const cam = valley.camera, d = 6;
+  const hh = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * d, hw = hh * cam.aspect;
+  egg.object.position.set(hw - 1.05, -hh + 0.95, -d);
+}
+const fit = () => { display.applySize(valley.camera); valley.resize(canvas.clientWidth, canvas.clientHeight); placeEgg(); };
 fit();
 addEventListener('resize', fit);
 
+// Where the pawns start (for a still: &child=13&figure=12) and what the camera looks at.
+const at = name => (params.has(name) ? Number(params.get(name)) : 0);
+const sideFor = (who, square) => {
+  const other = who === 'child' ? pieces.thorsedla : pieces.child;
+  return other.square === square && square > 0 ? (who === 'child' ? -1 : 1) : 0;
+};
+pieces.child.place(at('child'), { side: at('child') === at('figure') ? -1 : 0 });
+pieces.thorsedla.place(at('figure'), { side: at('child') === at('figure') ? 1 : 0 });
 const view = params.get('view') || 'overview';
-if (view === 'close') valley.camera.follow(Number(params.get('square') || 13)).cut();
+if (view === 'close') valley.camera.follow(params.has('square') ? Number(params.get('square')) : pieces.child.root).cut();
 else valley.camera.overview().cut();
+pieces.host.watch(pieces.child);
+
+// A small game, by the rules (engine/hals/rules.js), to try the pawns: space or a tap on the egg throws it, and Þórseðla throws on
+// her own turn. The game proper (sounds, voices, the counting, the book) is game.js's.
+let game = newGame();
+game.pos.child = at('child');
+game.pos.thorsedla = at('figure');
+let busy = false;
+const wait = seconds => new Promise(resolve => setTimeout(resolve, seconds * 1000));
+const above = (p, y = 0.8) => p.clone().add(new THREE.Vector3(0, y, 0));
+
+async function lift(neck, pawn, to, who) {
+  valley.camera.follow(pawn.root, { distance: 12, height: 8.5 });
+  await neck.bow({ duration: 2.2 });
+  await pawn.flyTo(neck.headPoint(), { duration: 0.6, height: 0.7 });
+  pawn.ride(out => neck.headPoint(out));
+  await neck.lift({ duration: 3.0 });
+  await neck.reach(valley.squarePosition(to), { duration: 0.8 });
+  pawn.ride(null);
+  await pawn.flyTo(null, { square: to, side: sideFor(who, to), duration: 1.4, height: 2.2 });
+  sparkleBurst(valley.world, above(pawn.position, 0.5), { count: 30, seed: 'lift' });
+  neck.rest();
+}
+async function slide(tail, pawn, to, who) {
+  valley.camera.follow(pawn.root, { distance: 12, height: 8 });
+  await pawn.flyTo(tail.slideCurve().getPointAt(0), { duration: 0.7, height: 1.0 });
+  await pawn.slide(() => tail.slideCurve(), { duration: 1.5 });
+  const puddle = tail.puddle ?? valley.squarePosition(to);
+  await pawn.flyTo(puddle, { duration: 0.8, height: 1.2 });
+  sparkleBurst(valley.world, above(puddle, 0.3), { count: 26, colour: '#bfe8ff', seed: 'splash' });
+  await pawn.hopTo(to, { side: sideFor(who, to) });
+}
+
+async function turn(n = null) {
+  if (busy || game.winner) return;
+  busy = true;
+  const who = game.turn;
+  const pawn = who === 'child' ? pieces.child : pieces.thorsedla;
+  n ??= roll(Math.random);
+  egg.invite = false;
+  await egg.roll(n);
+  const { game: next, path } = move(game, who, n);
+  valley.camera.follow(pawn.root);
+  pieces.host.watch(pawn);
+  await wait(0.4);
+  for (const step of path) {
+    if (step.type === 'step') {
+      await pawn.hopTo(step.square, { side: sideFor(who, step.square) });
+      valley.glow(step.square);
+    } else if (step.type === 'neck') await lift(valley.neckAt(step.from), pawn, step.to, who);
+    else if (step.type === 'tail') await slide(valley.tailAt(step.from), pawn, step.to, who);
+    else if (step.type === 'star' || step.type === 'fruit') sparkleBurst(valley.world, above(pawn.position, 1), { count: 40, seed: step.type });
+    else if (step.type === 'win') { pawn.cheer(); pieces.host.cheer(); sparkleBurst(valley.world, above(valley.nest.position, 1.5), { count: 60, seed: 'win' }); }
+  }
+  await wait(0.5);
+  await egg.close();
+  game = next;
+  busy = false;
+  egg.invite = true;
+  if (!game.winner && game.turn === 'thorsedla') setTimeout(() => turn(), 900);
+  else if (!game.winner) { valley.camera.follow(pieces.child.root); pieces.host.watch(pieces.child); }
+}
+
+const pointer = new THREE.Vector2(), raycaster = new THREE.Raycaster();
+canvas.addEventListener('pointerdown', event => {
+  pointer.set((event.clientX / canvas.clientWidth) * 2 - 1, -(event.clientY / canvas.clientHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, valley.camera);
+  if (egg.hit(raycaster) && game.turn === 'child') turn();
+});
+addEventListener('keydown', event => {
+  if (event.key === ' ' && game.turn === 'child') { event.preventDefault(); turn(); }
+  if (event.key === 'o') valley.camera.overview();
+  if (event.key === 'c') valley.camera.follow(pieces.child.root);
+  if (event.key === 't') valley.camera.follow(pieces.thorsedla.root);
+});
 
 const debugEl = document.getElementById('debug');
 debugEl.hidden = params.get('debug') !== '1';
@@ -61,6 +158,8 @@ window.__parts = () => {
   const groups = {
     forest: [valley.world.forest.group],
     thorsedlas: valley.thorsedlas.map(t => t.root),
+    pawns: [pieces.child.root, pieces.thorsedla.root, pieces.child.egill.root, pieces.host.actor.root],
+    egg: [egg.object],
     stones: valley.scene.children.filter(o => /Stones|Numerals|Stone glow/.test(o.name)),
     props: valley.scene.children.filter(o => /Fruit|Stream|Puddles|Fireflies/.test(o.name)),
   };
@@ -74,27 +173,25 @@ window.__parts = () => {
     objects.forEach((o, i) => { o.visible = was[i]; });
     out[name] = { calls: all.calls - without.calls, tris: all.tris - without.tris };
   }
-  out.levels = valley.thorsedlas.map(t => { let g = null; t.actor.model.traverse(o => { if (o.isSkinnedMesh && !g) g = o.geometry; }); return g.index.count / 3; });
   console.warn('[parts]', JSON.stringify(out));
   return out;
 };
 
-addEventListener('keydown', event => {
-  if (event.key === 'o') valley.camera.overview();
-  if (event.key === 'c') valley.camera.follow(Number(params.get('square') || 13));
-});
-
 let last = performance.now();
 let frames = 0;
 let ready = false;
-valley.ready.then(() => { ready = true; });
+pieces.ready.then(() => { ready = true; });
 renderer.setAnimationLoop(now => {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   valley.update(dt);
   drawNow();
   stats.sample(dt);
-  if (ready && ++frames >= 30) window.__demoReady = true;
+  if (ready && ++frames >= 30 && !window.__demoReady) {
+    window.__demoReady = true;
+    // &hop=N: Egill throws N by himself (4: he hops onto the first neck's stone and is lifted)
+    if (params.has('hop')) turn(Number(params.get('hop')) || 3);
+  }
 });
 </script>
 </body>
