@@ -1873,5 +1873,85 @@
   "src": "assets/audio/book/book_find_me.mp3",
   "duration": 1.85,
   "mouth": "00ffff0fccba300007a000ffda86654000000"
+ },
+ "eitt_your_turn": {
+  "src": "assets/audio/eitt/eitt_your_turn.mp3",
+  "duration": 1.61,
+  "mouth": "00bedfec6007ffd000453000000000000"
+ },
+ "eitt_i_draw": {
+  "src": "assets/audio/eitt/eitt_i_draw.mp3",
+  "duration": 2.41,
+  "mouth": "00fff704deea7500000000000000000000000000000000000"
+ },
+ "eitt_eitt": {
+  "src": "assets/audio/eitt/eitt_eitt.mp3",
+  "duration": 1.69,
+  "mouth": "00ffa70000000000000000000000000000"
+ },
+ "eitt_red": {
+  "src": "assets/audio/eitt/eitt_red.mp3",
+  "duration": 1.37,
+  "mouth": "7ffffea9b96a9000000000000000"
+ },
+ "eitt_yellow": {
+  "src": "assets/audio/eitt/eitt_yellow.mp3",
+  "duration": 1.37,
+  "mouth": "0cffddc99d40ce60000000000000"
+ },
+ "eitt_green": {
+  "src": "assets/audio/eitt/eitt_green.mp3",
+  "duration": 1.77,
+  "mouth": "ffeffa00da6dc00bb9600000000000000000"
+ },
+ "eitt_blue": {
+  "src": "assets/audio/eitt/eitt_blue.mp3",
+  "duration": 1.45,
+  "mouth": "0dffedb9a00cec400000000000000"
+ },
+ "eitt_oops": {
+  "src": "assets/audio/eitt/eitt_oops.mp3",
+  "duration": 1.85,
+  "mouth": "00ab005000000008d607dfffea00054400000"
+ },
+ "eitt_you_won": {
+  "src": "assets/audio/eitt/eitt_you_won.mp3",
+  "duration": 1.37,
+  "mouth": "04ddc6cfefc60000000000000000"
+ },
+ "eitt_i_won": {
+  "src": "assets/audio/eitt/eitt_i_won.mp3",
+  "duration": 1.93,
+  "mouth": "09ffabfffc97000000000000000000000000000"
+ },
+ "eitt_again": {
+  "src": "assets/audio/eitt/eitt_again.mp3",
+  "duration": 1.29,
+  "mouth": "00000effeeeaab002330500000"
+ },
+ "k1_kambedla_play": {
+  "src": "assets/audio/eitt/k1_kambedla_play.mp3",
+  "duration": 1.45,
+  "mouth": "09900a000efecc4ddfc5000000000"
+ },
+ "eitt_mosi_try": {
+  "src": "assets/audio/eitt/eitt_mosi_try.mp3",
+  "duration": 1.29,
+  "mouth": "06dedbffcdb0cec00ca9000000"
+ },
+ "eitt_mosi_draw": {
+  "src": "assets/audio/eitt/eitt_mosi_draw.mp3",
+  "duration": 2.01,
+  "mouth": "00cfe3fe60aff80deeecadb5507cbb70000000000"
+ },
+ "eitt_mosi_colour": {
+  "src": "assets/audio/eitt/eitt_mosi_colour.mp3",
+  "duration": 1.77,
+  "mouth": "fdffeb700cc00cfddeeedccb900000000000"
+ },
+ "eitt_mosi_eitt": {
+  "src": "assets/audio/eitt/eitt_mosi_eitt.mp3",
+  "duration": 2.091,
+  "mouth": "4dfffec5abdd4000acbbccb500adc6000000000000"
  }
 }
