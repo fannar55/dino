@@ -32,11 +32,11 @@ test('save works when storage throws', () => {
   };
   for (const [name, storage] of Object.entries(storages)) {
     const save = createSave(storage);
-    assert.deepEqual(save.get(), { stars: [], findings: [] }, name);
+    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, name);
     assert.equal(save.addStar('k1_kambedla'), true, name);
     assert.equal(save.addStar('k1_kambedla'), false, `${name}: the star is kept once`);
     save.addFinding('frog');
-    assert.deepEqual(save.get(), { stars: ['k1_kambedla'], findings: ['frog'] }, `${name}: what the page was told stays in memory`);
+    assert.deepEqual(save.get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [] }, `${name}: what the page was told stays in memory`);
   }
 
   // Blocked site data can throw on reading globalThis.localStorage itself, which is the default storage.
@@ -60,10 +60,11 @@ test('save keeps what was earned for the next visit', () => {
   first.addFinding('beetle');
   first.addFinding('frog');
   first.addFinding('beetle');
-  assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'] });
+  first.addSeen('mosi');
+  assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'] });
 
-  assert.deepEqual(createSave(storage).get(), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'] }, 'the next visit has them');
-  assert.deepEqual(createSave(storage, 'another-game').get(), { stars: [], findings: [] }, 'under its own key');
+  assert.deepEqual(createSave(storage).get(), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'] }, 'the next visit has them');
+  assert.deepEqual(createSave(storage, 'another-game').get(), { stars: [], findings: [], seen: [] }, 'under its own key');
 
   const copy = first.get();
   copy.stars.push('not-earned');
@@ -75,12 +76,12 @@ test('save starts empty from damaged data and mends it with the next change', ()
   for (const text of damaged) {
     const storage = memoryStorage({ [KEY]: text });
     const save = createSave(storage);
-    assert.deepEqual(save.get(), { stars: [], findings: [] }, text);
+    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, text);
     save.addStar('k1_kambedla');
-    assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: [] }, text);
+    assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: [], seen: [] }, text);
   }
-  const mixed = memoryStorage({ [KEY]: '{"stars":["k1_kambedla",7,"",null,"k1_kambedla"],"findings":["frog",{}]}' });
-  assert.deepEqual(createSave(mixed).get(), { stars: ['k1_kambedla'], findings: ['frog'] }, 'what is not an id is dropped, and a repeat');
+  const mixed = memoryStorage({ [KEY]: '{"stars":["k1_kambedla",7,"",null,"k1_kambedla"],"findings":["frog",{}],"seen":["mosi",3]}' });
+  assert.deepEqual(createSave(mixed).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: ['mosi'] }, 'what is not an id is dropped, and a repeat');
 });
 
 test('save refuses an id that is not a name', () => {
@@ -88,7 +89,20 @@ test('save refuses an id that is not a name', () => {
   for (const id of ['', 7, null, undefined, {}]) {
     assert.throws(() => save.addStar(id), TypeError);
     assert.throws(() => save.addFinding(id), TypeError);
+    assert.throws(() => save.addSeen(id), TypeError);
   }
+});
+
+// Review Focus 5: a save from before the book, or a storage that throws, still opens the book, and "Nýtt!" shows until each card is opened.
+test('old saves and blocked storage', () => {
+  const old = memoryStorage({ [KEY]: JSON.stringify({ stars: ['k1_kambedla'], findings: ['frog'] }) });
+  assert.deepEqual(createSave(old).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [] }, 'a save from before the book has seen nothing');
+
+  const save = createSave({ getItem: blocked, setItem: blocked });
+  assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, 'a storage that throws still gives the lists');
+  assert.equal(save.addSeen('mosi'), true);
+  assert.equal(save.addSeen('mosi'), false);
+  assert.deepEqual(save.get().seen, ['mosi'], 'and keeps what was seen in memory');
 });
 
 // ---------------------------------------------------------------------------------------------

@@ -1,0 +1,243 @@
+{
+  "note": "Seven cards with placeholder pages, so the book can be built before its texts. Task 11 writes the pages from sources the owner approves; Task 12 gives them their recordings and pictures.",
+  "cards": [
+    {
+      "id": "mosi",
+      "name": "Mosi",
+      "order": 1,
+      "unlock": {
+        "start": true
+      },
+      "pages": [
+        {
+          "image": "placeholder-mosi",
+          "text": "Þetta er Mosi.",
+          "audio": "book_mosi_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-mosi",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_mosi_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-mosi",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_mosi_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kambedla",
+      "name": "Kambeðla",
+      "order": 2,
+      "unlock": {
+        "star": "k1_kambedla"
+      },
+      "pages": [
+        {
+          "image": "placeholder-kambedla",
+          "text": "Þetta er Kambeðla.",
+          "audio": "book_kambedla_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-kambedla",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_kambedla_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-kambedla",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_kambedla_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kalligrammatid",
+      "name": "Fiðrildi",
+      "order": 3,
+      "unlock": {
+        "found": "butterfly"
+      },
+      "pages": [
+        {
+          "image": "placeholder-kalligrammatid",
+          "text": "Þetta lítur út eins og fiðrildi. En það er ekki fiðrildi!",
+          "audio": "book_kalligrammatid_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-kalligrammatid",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_kalligrammatid_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-kalligrammatid",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_kalligrammatid_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beetle",
+      "name": "Bjalla",
+      "order": 4,
+      "unlock": {
+        "found": "beetle"
+      },
+      "pages": [
+        {
+          "image": "placeholder-beetle",
+          "text": "Þetta er bjalla.",
+          "audio": "book_beetle_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-beetle",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_beetle_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-beetle",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_beetle_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "frog",
+      "name": "Froskur",
+      "order": 5,
+      "unlock": {
+        "found": "frog"
+      },
+      "pages": [
+        {
+          "image": "placeholder-frog",
+          "text": "Þetta er froskur.",
+          "audio": "book_frog_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-frog",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_frog_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-frog",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_frog_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snail",
+      "name": "Snigill",
+      "order": 6,
+      "unlock": {
+        "found": "snail"
+      },
+      "pages": [
+        {
+          "image": "placeholder-snail",
+          "text": "Þetta er snigill.",
+          "audio": "book_snail_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-snail",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_snail_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-snail",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_snail_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "birds",
+      "name": "Fuglar",
+      "order": 7,
+      "unlock": {
+        "found": "birds"
+      },
+      "pages": [
+        {
+          "image": "placeholder-birds",
+          "text": "Þetta eru fuglar.",
+          "audio": "book_birds_1",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-birds",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_birds_2",
+          "sources": [
+            "placeholder"
+          ]
+        },
+        {
+          "image": "placeholder-birds",
+          "text": "Meira kemur hér síðar.",
+          "audio": "book_birds_3",
+          "sources": [
+            "placeholder"
+          ]
+        }
+      ]
+    }
+  ]
+}

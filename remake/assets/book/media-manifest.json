@@ -1,0 +1,103 @@
+{
+  "note": "The book's pictures. Our own (renders, the owner's drawings, placeholders) have license own; every other picture needs a credit, an open licence, its URL, a source and a sha256 (engine/book/media.js checkMedia).",
+  "images": [
+    {
+      "id": "placeholder-mosi",
+      "src": "assets/book/lab/mosi.svg",
+      "thumb": "assets/book/lab/mosi.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). A render from the game replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-kambedla",
+      "src": "assets/book/lab/kambedla.svg",
+      "thumb": "assets/book/lab/kambedla.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). A render from the game replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-kalligrammatid",
+      "src": "assets/book/lab/kalligrammatid.svg",
+      "thumb": "assets/book/lab/kalligrammatid.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). The owner's drawing replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-beetle",
+      "src": "assets/book/lab/beetle.svg",
+      "thumb": "assets/book/lab/beetle.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). The owner's drawing replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-frog",
+      "src": "assets/book/lab/frog.svg",
+      "thumb": "assets/book/lab/frog.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). The owner's drawing replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-snail",
+      "src": "assets/book/lab/snail.svg",
+      "thumb": "assets/book/lab/snail.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). The owner's drawing replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
+      "id": "placeholder-birds",
+      "src": "assets/book/lab/birds.svg",
+      "thumb": "assets/book/lab/birds.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Placeholder drawn for the book's mockup (Task 1). The owner's drawing replaces it (Task 12).",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    }
+  ]
+}
