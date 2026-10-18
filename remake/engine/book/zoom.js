@@ -18,6 +18,7 @@ const OUT_MS = 300;
 const IN_EASE = 'cubic-bezier(.2, .8, .2, 1)';
 const OUT_EASE = 'cubic-bezier(.5, 0, .8, .4)';
 const WHEEL_STEP = 1.2; // a notch of a mouse wheel, for trying it on a laptop
+const SAFETY_MS = 300; // a page that is not being drawn (a hidden tab) never runs its animations: the state goes on without them
 
 /** The part of an <img> that shows the picture: the picture is fitted in its box (object-fit: contain), so the box is larger. */
 function visibleRect(img) {
@@ -234,7 +235,9 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
       ];
     const mine = { animations };
     motion = mine;
-    animations[0].onfinish = () => { if (motion === mine) motion = null; };
+    const settle = () => { if (motion === mine) motion = null; };
+    animations[0].onfinish = settle;
+    setTimeout(settle, IN_MS + SAFETY_MS)?.unref?.();
     return true;
   }
 
@@ -261,7 +264,9 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
       ];
     const mine = { animations };
     motion = mine;
-    animations[0].onfinish = () => { if (motion === mine) finish(); };
+    const settle = () => { if (motion === mine) finish(); };
+    animations[0].onfinish = settle;
+    setTimeout(settle, OUT_MS + SAFETY_MS)?.unref?.();
     return true;
   }
 

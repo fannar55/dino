@@ -20,6 +20,7 @@ const GROW_MS = 480;
 const SHRINK_MS = 280;
 const FADE_MS = 160; // open and close with less motion
 const FLIP_MS = 260;
+const SAFETY_MS = 300; // a page that is not being drawn (a hidden tab) never runs its animations: the state goes on without them
 const GROW_EASE = 'cubic-bezier(.3, .72, .3, 1.07)'; // from the tile, a little past full size and back
 const SHRINK_EASE = 'cubic-bezier(.5, 0, .8, .3)';
 const SLIDE_EASE = 'cubic-bezier(.2, .8, .2, 1)';
@@ -115,6 +116,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
         img.src = MISSING;
       });
       img.src = image?.src ?? MISSING;
+      img.decode?.().catch?.(() => {}); // ready to show when its page is turned to, whether or not it has been shown yet
       return img;
     });
     photo.replaceChildren(...imgs);
@@ -305,7 +307,9 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
       ];
     const mine = { animations };
     motion = mine;
-    animations[0].onfinish = () => { if (motion === mine) motion = null; };
+    const settle = () => { if (motion === mine) motion = null; };
+    animations[0].onfinish = settle;
+    setTimeout(settle, GROW_MS + SAFETY_MS)?.unref?.();
   }
 
   /** The card is gone: hidden, and its pictures let go. */
@@ -333,7 +337,9 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
       ];
     const mine = { animations };
     motion = mine;
-    animations[0].onfinish = () => { if (motion === mine) finishClose(); };
+    const settle = () => { if (motion === mine) finishClose(); };
+    animations[0].onfinish = settle;
+    setTimeout(settle, SHRINK_MS + SAFETY_MS)?.unref?.();
   }
 
   function open(shown, fromRect = null, start = 0) {
