@@ -3,14 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mosi — bókin (útlitsmynd)</title>
+<title>Mosi — bókin (tilraunasíða)</title>
 <link rel="icon" href="data:,">
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
 <link rel="stylesheet" href="./book.css">
 <style>
-  /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book. ?state=animals
-     (the default), card, zoom or info picks what shows. The pictures are the placeholders in assets/book/lab/, and the
-     info state's page shows one of the old game's licensed fossils, read from dist/ in place, with its ⓘ open. */
+  /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
+     journal button. ?state= picks what shows:
+       stars, animals (the default)  the real book (engine/book/book.js) over the placeholder cards, open on that ribbon;
+                                     it closes into the button, and the button opens it again
+       card, zoom, info              the mockup's static card, zoomed picture and credit window, until Tasks 8 and 9 build
+                                     them; the info state's page shows one of the old game's licensed fossils, read from
+                                     dist/ in place, with its ⓘ open. */
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background:
@@ -24,7 +29,22 @@
 </style>
 </head>
 <body>
-<div class="book" data-tab="animals" role="dialog" aria-modal="true" aria-label="Landkönnuðabók Egils">
+<button id="journal-button" class="journal-button" type="button" aria-label="Landkönnuðabók Egils" hidden>
+  <svg class="journal-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <rect x="9" y="5" width="31" height="38" rx="5" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.5"/>
+    <path d="M9 10a5 5 0 0 1 5-5h4v38h-4a5 5 0 0 1-5-5z" fill="#c9622b" stroke="#3b2f25" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M28 13.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M32 43v-9h7v9l-3.5-2.4z" fill="#2f8f86" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+  <span id="star-slots" class="star-slots" aria-hidden="true"></span>
+  <span id="journal-badge" class="journal-badge" aria-hidden="true" hidden>
+    <svg viewBox="0 0 40 40"><path d="M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z"/></svg>
+  </span>
+</button>
+<div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
+<div id="book" class="book" hidden></div>
+
+<div id="mockup" class="book" data-tab="animals" role="dialog" aria-modal="true" aria-label="Landkönnuðabók Egils" hidden>
   <div class="book-spread">
     <div class="book-ribbons" role="tablist">
       <button class="ribbon" data-tab="stars" type="button" role="tab" aria-selected="false">
@@ -145,14 +165,64 @@
     </button>
   </div>
 </div>
-<script>
-  // The lab's only logic: ?state= picks which layers of the static mockup show, each layer naming its states in
-  // data-states. capture.mjs waits for __demoReady, which comes once every picture has loaded and the page has drawn.
+<script type="module">
+  // The lab's logic. The real book's states open it over the placeholder cards (assets/book/), with a save in memory that has
+  // Kambeðla's star and the butterfly, as after chapter 1's ride; the mockup's states show its static layers, each layer naming
+  // its states in data-states. Sound starts with the first touch, as the browser wants. capture.mjs waits for __demoReady,
+  // which comes once every picture has loaded, the book has finished opening and the page has drawn; __demoStats then says how
+  // big the smallest control within reach is, and how many are off the screen (Review Focus 4).
+  import { createBook } from './engine/book/book.js';
+  import { createBookAudio } from './engine/book/book-audio.js';
+  import { parseCards } from './engine/book/cards.js';
+  import { parseManifest } from './engine/book/media.js';
+  import { createJournal } from './engine/scene/journal.js';
+  import { createSave } from './engine/save.js';
+  import { createAudioContext, createOutput } from './engine/audio/output.js';
+
   const asked = new URLSearchParams(location.search).get('state');
-  const state = ['animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
-  for (const layer of document.querySelectorAll('[data-states]')) layer.hidden = !layer.dataset.states.split(' ').includes(state);
-  addEventListener('load', () => document.fonts.ready.then(() => {
-    requestAnimationFrame(() => requestAnimationFrame(() => { window.__demoReady = true; }));
+  const state = ['stars', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const read = async path => (await fetch(path)).json();
+  const [cards, media, theme, lines] = await Promise.all([
+    read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
+  ]);
+  const save = createSave(null);
+  save.addStar('k1_kambedla');
+  save.addFinding('butterfly');
+  const context = createAudioContext();
+  addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
+  const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
+  const book = createBook(document, { cards: parseCards(cards), media: parseManifest(media), save, audio, win: window, onPause: () => {} });
+  createJournal(document, save, { book, audio });
+  Object.assign(window, { __book: book, __bookAudio: audio });
+
+  if (state === 'stars' || state === 'animals') book.open(state, 'child');
+  else for (const layer of document.querySelectorAll('[data-states]')) layer.hidden = !layer.dataset.states.split(' ').includes(state);
+  document.getElementById('mockup').hidden = state === 'stars' || state === 'animals';
+
+  /** The book's controls a finger can reach (shown, and on top where they are): the smallest one's size, and any off the screen. */
+  function measure() {
+    const controls = '.chunky, .ribbon, .tile, .card-arrow, .card-replay, .card-info, .card-back, .book-close, .zoom-close';
+    const live = [...document.querySelectorAll(controls)].filter(el => {
+      if (!el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') return false;
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return Boolean(hit) && (hit === el || el.contains(hit));
+    });
+    const rects = live.map(el => el.getBoundingClientRect());
+    return {
+      smallestTargetPx: Math.round(Math.min(...rects.map(r => Math.min(r.width, r.height)))),
+      controls: live.length,
+      offscreen: rects.filter(r => r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight).length,
+    };
+  }
+
+  await document.fonts.ready;
+  if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+  const opening = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+  await Promise.all(opening.map(animation => animation.finished.catch(() => {})));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.__demoStats = measure();
+    window.__demoReady = true;
   }));
 </script>
 </body>

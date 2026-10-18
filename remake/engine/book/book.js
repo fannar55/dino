@@ -210,7 +210,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
       ? [root.animate([{ opacity: from }, { opacity: 0 }], { duration: FADE_MS, fill: 'forwards' })]
       : [
         spread.animate([{ transform: at?.transform ?? 'none' }, { transform: over(origin()) }], { duration: CLOSE_MS, easing: CLOSE_EASE, fill: 'forwards' }),
-        root.animate([{ opacity: from }, { opacity: from, offset: 0.5 }, { opacity: 0 }], { duration: CLOSE_MS, fill: 'forwards' }),
+        root.animate([{ opacity: from }, { opacity: from, offset: 0.6 }, { opacity: 0 }], { duration: CLOSE_MS, fill: 'forwards' }), // solid until it is small
       ];
     const mine = { animations };
     moving = mine;
