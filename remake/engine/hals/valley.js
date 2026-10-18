@@ -13,28 +13,29 @@ import { createActor, updateActors } from '../actor.js';
 import { updateCharacterLods, whenReady as characterLodsReady } from '../character-lod.js';
 import { simplify } from '../simplify.js';
 import { PRESETS } from '../quality.js';
-import { createForest } from '../../world/forest/forest.js';
 
-// The valley of "Háls og hali" (spec sections 4 and 5): a scene of its own, drawn by whatever renderer it is given (the game's,
-// while the chapter waits behind the book, or the lab's). Fifty numbered flat stones wind in rows across a clearing of the
-// chapter's own forest, from the meadow at the front (1) over the stream and up the slope to Þórseðla's nest on the hill (50).
-// Beside each neck's and each tail's first stone stands a Þórseðla, breathing, blinking and watching the pawns: the necks lift
-// you up, the tails slide you down (BOARD in rules.js says which stones). Butterflies and fireflies fly over it.
+// The valley of "Háls og hali" (spec sections 4 and 5), seen from the side like a side-scroller (the owner's choice, 2026-10-18):
+// a long world running left to right, from the meadow through the forest and over the stream, up the hills to Þórseðla's nest on
+// the mountaintop at the far right. The path of 50 numbered stone blocks runs along it in rising ledges (each square as high as
+// the one before or higher), so every neck lifts you up and on to the right and every tail slides you down and back. The camera
+// looks at the path from the side, a little above, and follows the pawn; the hills and the mountains behind move slower with
+// their depth, and the plants in front pass before the path. A scene of its own, drawn by whatever renderer it is given (the
+// game's, while the chapter waits behind the book, or the lab's).
 //
 //   const valley = await createValley(renderer, { board })
-//   valley.squarePosition(n, out)   the middle of stone n's top, where a pawn stands (n 0: the gate before stone 1)
-//   valley.squareHeading(n)         which way the path runs at stone n (degrees, actor.js's: 0 is +X, 90 is +Z)
+//   valley.squarePosition(n, out)   the middle of stone n's top, where a pawn stands (n 0: the meadow before stone 1)
+//   valley.squareHeading(n)         which way the path runs at stone n (degrees, actor.js's: 0 is +X, the way on)
+//   valley.progressOf(n)            how far along the path square n is, 0 (the start) to 1 (stone 50)
 //   valley.neckAt(from), tailAt(from)   the Þórseðla of a neck or a tail (see thorsedlaOf below), or null
-//   valley.camera                   a PerspectiveCamera with follow(target, options), overview(), cut() and mode
+//   valley.camera                   a PerspectiveCamera with follow(target), frame(a, b), pan(), overview(), cut() and mode
 //   valley.glow(n), setGlow(n, v)   stone n's numeral lights up (and fades), or is held at v (0..1)
-//   valley.update(dt), render()     the frame (render draws it with the valley's own camera)
-//   valley.dispose()
+//   valley.update(dt), render(), resize(w, h), dispose()
 // and for the pawns and the game: world (actors, effects, heightAt, resolvePoint), scene, addUpdater(fn), registerThorsedla(actor),
-// thorsedlas, puddleAt(from), nest, ready (resolves when every Þórseðla has its light levels), info.
+// thorsedlas, pawns, puddleAt(from), nest, hostSpot(x, out), ready (resolves when every Þórseðla has its light levels), info.
 //
-// Sizes are metres. The pawns are small (Mosi about 2 m long on a 2 m stone), the Þórseðlas about half their real size: giants
+// Sizes are metres. The pawns are small (Mosi about 2.4 m long on a 1.5 m block), the Þórseðlas about their real size: giants
 // beside the pawns, light enough that ten of them stand in the tablet's budget (STYLE.md section 11): they share one model, draw
-// a level of 1/2 to 1/16 of its triangles by their size on screen, and cast the sun's shadow with the 1/16.
+// a level of 1/2 to a welded 1,400 triangles of it by their size on screen, and cast the sun's shadow with the lightest.
 
 const THORSEDLA_URL = new URL('../../assets/characters/brontosaurus.glb', import.meta.url).href;
 const V3 = THREE.Vector3;
@@ -43,248 +44,105 @@ const deg = THREE.MathUtils.radToDeg;
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export const VALLEY = {
-  stone: { spacing: 2.6, radius: 1.02, top: 0.2 }, // centre to centre along the path; a stone's radius and how high its top stands
-  rows: { per: 10, gap: 7.4, wobble: 0.55 }, // stones a row, metres between rows, sideways wander of a row
-  clearing: { radius: 24, forestEdge: 30 },
-  slope: { rise: 3.2 }, // the ground rises this much from the front row to the back row
-  hill: { height: 2.4, radius: 7.5 }, // the nest's hill beyond stone 50
-  stream: { width: 2.2, depth: 0.25 }, // across the valley between the second and third rows: its width and the hollow's depth
-  thorsedla: { scale: 0.5, vary: 0.05 }, // their size against the real Þórseðla's 22 m
-  forestGrass: 0.55, // the clearing's grass, as a share of the preset's density (the clearing is wider than the chapter's)
+  stone: { step: 1.75, width: 1.5, height: 0.9, depth: 1.6 }, // centre to centre along the path; a block's size
+  ledges: { per: 5, gap: 0.55, rises: [1.4, 1.9, 1.6, 2.3, 1.8, 2.1, 1.7, 2.6, 2.2] }, // stones a ledge, extra room at a riser, each rise (m)
+  stream: { after: 18, width: 1.6 }, // the stream crosses the path after this square, the hop over it this much wider
+  camera: { distance: 31, height: 7, lead: 3, fov: 38 },
+  thorsedla: { neck: 0.95, tail: 1.05, vary: 0.04, behind: -2.7, turn: 12 }, // sizes against the real 22 m; z behind the path; degrees toward the camera
   look: 'morning', // the chapter's light (kafli1): the fog's shader chunk stays the same as the chapter's
-  sun: { azimuth: 78, elevation: 52 }, // but the sun stands higher, behind the camera at the front: short shadows, faces lit
+  sun: { azimuth: 118, elevation: 46 }, // but the sun stands higher, behind the camera on the left: faces lit, short shadows
 };
 
 // The model's measures (brontosaurus.glb at its real size, facing +X, the root between the feet): the neck's base, how far ahead
 // of it the head comes down in lowerHead, the tail's base and its tip, half the body's width over the feet, the bind diagonal.
-const MODEL = { neckBase: [3.26, 4.01], bowReach: 4.13, tailBase: [-3.66, 4.21], tailTip: -13.6, chest: 2.24, hips: -2.18, halfWidth: 1.9, diagonal: 24.1 };
+const MODEL = { neckBase: [3.26, 4.01], bowReach: 4.13, bowHead: 7.39, tailBase: [-3.66, 4.21], tailTip: -13.6, chest: 2.24, hips: -2.18, halfWidth: 1.9, diagonal: 24.1 };
 
 // ---------------------------------------------------------------------------------------------------------------------------
-// The path: rows of `per` stones joined by half circles, each row wandering a little, the stones spaced evenly along it.
+// The plan: where every stone stands, the ground's height along the way, the stream, the nest. Pure: no three.js scene.
 
-function buildPath(count) {
-  const { spacing: S } = VALLEY.stone;
-  const { per, gap, wobble } = VALLEY.rows;
-  const arc = (Math.PI * gap) / 2;
-  const rows = Math.ceil(count / per);
-  // Turn i is centred between stones per*(i+1) and per*(i+1)+1, so every row but the first and last has a straight of
-  // per*S - arc; the first and the last reach out further (the meadow's way in, the climb to the nest).
-  const middle = per * S - arc;
-  const first = (per - 0.5) * S - arc / 2;
-  const last = (count - 1 - (rows - 1) * per + 0.5) * S - arc / 2 + 2.5;
-  // Rows run along X at z = -r * gap (the first at the front), the even ones east and the odd ones west; the middle rows' straights
-  // run from x = 0 to x = middle, the first starts further west and the last runs on further.
-  const pts = [];
-  const STEP = 0.1;
-  for (let r = 0; r < rows; r++) {
-    const length = r === 0 ? first : r === rows - 1 ? last : middle;
-    const east = r % 2 === 0;
-    const x0 = east ? (r === 0 ? middle - first : 0) : middle;
-    const n = Math.ceil(length / STEP);
-    const side = r % 3 === 1 ? 1 : -1;
-    for (let k = r === 0 ? 0 : 1; k <= n; k++) {
-      const u = k / n;
-      // the row bows gently to one side and back, so it reads as a trail rather than a ruler
-      const sway = wobble * Math.sin(Math.PI * u) * side;
-      pts.push([x0 + (east ? 1 : -1) * u * length, -r * gap + sway]);
-    }
-    if (r < rows - 1) {
-      // a half circle round the row's end to the start of the next: bulging east after an east row, west after a west row
-      const cx = east ? middle : 0, cz = -r * gap - gap / 2;
-      const m = Math.ceil(arc / STEP);
-      for (let k = 1; k <= m; k++) {
-        const t = (Math.PI * k) / m;
-        const ang = east ? Math.PI / 2 - t : Math.PI / 2 + t;
-        pts.push([cx + Math.cos(ang) * (gap / 2), cz + Math.sin(ang) * (gap / 2)]);
-      }
-    }
+export function planSide(board = BOARD) {
+  const { step, width } = VALLEY.stone;
+  const { per, gap, rises } = VALLEY.ledges;
+  const count = board.size;
+  const ledges = Math.ceil(count / per);
+  const ledgeY = [0];
+  for (let l = 1; l < ledges; l++) ledgeY.push(ledgeY[l - 1] + rises[(l - 1) % rises.length]);
+  const squares = [];
+  const spans = []; // each ledge's ground along x: [x0, x1, y]
+  let x = 0;
+  for (let n = 1; n <= count; n++) {
+    const l = Math.floor((n - 1) / per);
+    if (n > 1 && (n - 1) % per === 0) x += gap;
+    if (n === VALLEY.stream.after + 1) x += VALLEY.stream.width;
+    squares.push([x, ledgeY[l], 0]);
+    if (!spans[l]) spans[l] = [x - step / 2, x, ledgeY[l]];
+    spans[l][1] = x + step / 2;
+    x += step;
   }
-  // even steps along the polyline
-  const along = [0];
-  for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  const stones = [];
-  let j = 0;
-  for (let n = 0; n < count; n++) {
-    const s = n * S;
-    while (j < along.length - 2 && along[j + 1] < s) j++;
-    const t = Math.min(1, Math.max(0, (s - along[j]) / (along[j + 1] - along[j] || 1)));
-    stones.push([pts[j][0] + (pts[j + 1][0] - pts[j][0]) * t, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * t]);
-  }
-  return { pts, stones, total: along[along.length - 1] };
-}
-
-/**
- * The valley's plan: where every stone stands (centred on the clearing), the path's line for the forest, the stream, the nest, and
- * the ground's own rise (a function the forest's terrain adds). Pure: no three.js scene.
- */
-export function planValley(board = BOARD) {
-  const { pts, stones } = buildPath(board.size);
-  // centre the board on the clearing, the front row toward +Z (the camera's side)
-  const xs = stones.map(s => s[0]), zs = stones.map(s => s[1]);
-  const ox = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const oz = (Math.min(...zs) + Math.max(...zs)) / 2 - 1.5;
-  const shift = ([x, z]) => [x - ox, z - oz];
-  const squares = stones.map(shift);
-  const line = pts.filter((_, i) => i % 6 === 0).map(shift);
-  const last = squares[squares.length - 1], before = squares[squares.length - 2];
-  const out = [last[0] - before[0], last[1] - before[1]];
-  const len = Math.hypot(...out) || 1;
-  const nest = [last[0] + (out[0] / len) * 4.6, last[1] + (out[1] / len) * 4.6 - 1.2];
-  // the way in from the meadow before stone 1, and on from 50 to the nest
-  const a = squares[0], b = squares[1];
-  const back = [a[0] - b[0], a[1] - b[1]].map(v => v / (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1));
-  const gate = [a[0] + back[0] * 3.4, a[1] + back[1] * 3.4];
-  const path = [[gate[0] + back[0] * 12, gate[1] + back[1] * 12 + 4], gate, ...line, nest];
-
-  // The stream runs across the valley between the second and the third rows, in at the west through the turn and out at the east.
-  const zRow = r => squares[r * VALLEY.rows.per + 4][1];
-  const zs2 = (zRow(1) + zRow(2)) / 2;
-  const x0 = Math.min(...squares.map(s => s[0])), x1 = Math.max(...squares.map(s => s[0]));
-  const stream = [];
-  for (let x = x0 - 26; x <= x1 + 26; x += 1) stream.push([x, zs2 + 0.9 * Math.sin(x * 0.21) + 0.5 * Math.sin(x * 0.53 + 1)]);
-  const streamDistance = (x, z) => {
-    const i = Math.round(x - (x0 - 26));
-    if (i < 0 || i >= stream.length) return Infinity;
-    let best = Infinity;
-    for (let k = Math.max(0, i - 3); k < Math.min(stream.length - 1, i + 3); k++) {
-      const [ax, az] = stream[k], [bx, bz] = stream[k + 1];
-      const dx = bx - ax, dz = bz - az;
-      const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
-      best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  const first = squares[0], last = squares[count - 1];
+  const streamX = (squares[VALLEY.stream.after - 1][0] + squares[VALLEY.stream.after][0]) / 2;
+  const nest = [last[0] + 5.2, last[1] + 2.4, -0.4];
+  const peakX = nest[0];
+  /** The ground's height along the path: the ledges with steep risers between, the meadow before, the mountaintop after. */
+  function ground(x) {
+    if (x <= spans[0][1]) return ledgeY[0];
+    for (let l = 0; l < spans.length - 1; l++) {
+      const [, e] = spans[l], [s] = spans[l + 1];
+      if (x <= e) return spans[l][2];
+      if (x < s) return spans[l][2] + (spans[l + 1][2] - spans[l][2]) * smoothstep(e - 0.05, s + 0.05, x);
     }
-    return best;
-  };
-
-  const zFront = squares[0][1], zBack = squares[squares.length - 1][1];
-  const { rise } = VALLEY.slope;
-  const { height: hillH, radius: hillR } = VALLEY.hill;
-  const { width: sw, depth: sd } = VALLEY.stream;
-  /** The ground's own shape on top of the forest's: the slope up to the back rows, the nest's hill, the stream's bed. */
-  function lift(x, z) {
-    let h = rise * smoothstep(zFront + 2, zBack - 4, z);
-    h += hillH * Math.exp(-((x - nest[0]) ** 2 + (z - nest[1]) ** 2) / (2 * hillR * hillR));
-    const d = streamDistance(x, z);
-    if (d < sw * 2.5) h -= sd * (1 - smoothstep(0, sw * 2.5, d)); // a soft, wide hollow the water lies in
-    return h;
+    const end = spans[spans.length - 1][1];
+    if (x <= end) return spans[spans.length - 1][2];
+    // the peak with the nest on it, then the far side of the mountain
+    const y0 = spans[spans.length - 1][2];
+    if (x <= peakX) return y0 + (nest[1] - y0) * smoothstep(end, peakX - 1.2, x);
+    return nest[1] - 9 * smoothstep(peakX + 1.5, peakX + 22, x);
   }
-  /** 1 where nothing grows (the stream's water), 0 where the forest grows as it will. */
-  const keepOut = (x, z) => 1 - smoothstep(sw * 0.55, sw * 0.95, streamDistance(x, z));
-  return { squares, path, stream, streamDistance, nest, gate, lift, keepOut };
+  const startX = first[0] - width, endX = last[0] + width;
+  return { squares, spans, ledgeY, ground, streamX, nest, gate: [first[0] - 3.4, 0], startX, endX, length: last[0] - first[0] };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
-// Where each Þórseðla stands, worked out from the stones (any board of BOARD's shape):
-//  - a neck's stands so that her head comes down onto its first stone: lowerHead brings it down MODEL.bowReach ahead of her
-//    neck's base, and she turns her neck up to 80 degrees to either side for it;
-//  - a tail's stands with the base of her tail just beside its first stone and her body reaching away from it, so her tail runs
-//    back past the stone toward the last one. Her tail stays up off the ground, high enough for a pawn to pass under it: the slide
-//    goes down it to the tip, and the pawn flies the rest of the way into the puddle by the last stone.
-// Each tries headings all round and keeps the one where nothing of her body stands on a stone, on a Þórseðla placed before her or
-// in the trees, and from which her neck or tail points best toward her last stone. Tails choose first.
+// Where each Þórseðla stands, in profile behind the path, facing on (right) and turned a little toward the camera:
+//  - a neck's at its first stone, so her head comes down onto it (lowerHead brings her head MODEL.bowHead ahead of her root);
+//    from there she lifts the pawn up toward the ledge of its last stone;
+//  - a tail's on its first stone's ledge, the base of her tail over that stone and her tail sloping down and back toward the
+//    last stone (the slide), its tip over the puddle the pawn splashes into.
 
-function segPointDistance(px, pz, ax, az, bx, bz) {
-  const dx = bx - ax, dz = bz - az;
-  const t = Math.min(1, Math.max(0, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));
-  return Math.hypot(px - ax - dx * t, pz - az - dz * t);
-}
-function segSegDistance(a, b, c, d) {
-  return Math.min(
-    segPointDistance(a[0], a[1], c[0], c[1], d[0], d[1]), segPointDistance(b[0], b[1], c[0], c[1], d[0], d[1]),
-    segPointDistance(c[0], c[1], a[0], a[1], b[0], b[1]), segPointDistance(d[0], d[1], a[0], a[1], b[0], b[1]),
-  );
-}
-
-export function placeThorsedlas(plan, board = BOARD, { seed = 7 } = {}) {
+export function placeProfile(plan, board = BOARD, { seed = 7 } = {}) {
   const { squares } = plan;
-  const R = VALLEY.stone.radius;
-  const clearR = VALLEY.clearing.radius;
+  const T = VALLEY.thorsedla;
   let s = seed >>> 0;
   const random = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
-  const jobs = [
-    ...board.tails.map(([from, to]) => ({ kind: 'tail', from, to })),
-    ...board.necks.map(([from, to]) => ({ kind: 'neck', from, to })),
-  ];
   const placed = [];
-  const HEADINGS = 96;
-  for (const job of jobs) {
-    const k = VALLEY.thorsedla.scale * (1 + (random() * 2 - 1) * VALLEY.thorsedla.vary);
-    const A = squares[job.from - 1], B = squares[job.to - 1];
-    const half = MODEL.halfWidth * k;
-    let best = null;
-    for (let i = 0; i < HEADINGS; i++) {
-      const heading = (i / HEADINGS) * Math.PI * 2;
-      const fx = Math.cos(heading), fz = Math.sin(heading);
-      const options = [];
-      if (job.kind === 'neck') {
-        for (const turn of [-80, -55, -30, 0, 30, 55, 80].map(rad)) {
-          const reach = MODEL.bowReach * k + 0.55;
-          const nx = A[0] - Math.cos(heading + turn) * reach, nz = A[1] - Math.sin(heading + turn) * reach;
-          options.push({ rx: nx - fx * MODEL.neckBase[0] * k, rz: nz - fz * MODEL.neckBase[0] * k, turn });
-        }
+  for (const [kind, pairs] of [['neck', board.necks], ['tail', board.tails]]) {
+    for (const [from, to] of pairs) {
+      const k = T[kind] * (1 + (random() * 2 - 1) * T.vary);
+      const A = squares[from - 1], B = squares[to - 1];
+      const heading = T.turn;
+      const fx = Math.cos(rad(heading)), fz = Math.sin(rad(heading));
+      let rx, rz;
+      if (kind === 'neck') {
+        rx = A[0] - fx * MODEL.bowHead * k;
+        rz = T.behind - fz * MODEL.bowHead * k * 0.5;
       } else {
-        for (const side of [-1.1, 0, 1.1]) {
-          const bx = A[0] + fx * (R + 0.35) - fz * side, bz = A[1] + fz * (R + 0.35) + fx * side;
-          options.push({ rx: bx - fx * MODEL.tailBase[0] * k, rz: bz - fz * MODEL.tailBase[0] * k, turn: 0 });
-        }
+        rx = A[0] - fx * MODEL.tailBase[0] * k;
+        rz = T.behind;
       }
-      for (const { rx, rz, turn } of options) {
-        const at = d => [rx + fx * d * k, rz + fz * d * k];
-        const chest = at(MODEL.chest + 0.5), hips = at(MODEL.hips - 0.3);
-        const tail0 = at(MODEL.tailBase[0]);
-        const tailLength = (MODEL.tailBase[0] - MODEL.tailTip) * k;
-        let tail1;
-        if (job.kind === 'tail') { // toward the last stone, as far as it reaches
-          const dx = B[0] - tail0[0], dz = B[1] - tail0[1], L = Math.hypot(dx, dz) || 1;
-          const reach = Math.min(L - R - 0.6, tailLength * 0.95);
-          tail1 = [tail0[0] + (dx / L) * reach, tail0[1] + (dz / L) * reach];
-        } else tail1 = at(MODEL.tailTip + 1);
-        let E = 0;
-        // her body on no stone; her tail over as few as may be (a pawn passes under, but the path should read clear)
-        squares.forEach((q, n) => {
-          const square = n + 1;
-          if (square !== job.from) {
-            const d = segPointDistance(q[0], q[1], chest[0], chest[1], hips[0], hips[1]) - (half + R + 0.3);
-            if (d < 0) E += 50 + d * d * 60;
-          } else if (job.kind === 'tail') {
-            const d = segPointDistance(q[0], q[1], chest[0], chest[1], hips[0], hips[1]) - (half + R * 0.6);
-            if (d < 0) E += 50 + d * d * 60;
-          }
-          if (square !== job.from && square !== job.to) {
-            const d = segPointDistance(q[0], q[1], tail0[0], tail0[1], tail1[0], tail1[1]) - (R + 0.2);
-            if (d < 0) E += job.kind === 'tail' ? 1.2 : 2.5;
-          }
-        });
-        for (const p of placed) {
-          const d = segSegDistance(chest, hips, p.chest, p.hips) - (half + p.half + 0.8);
-          if (d < 0) E += 50 + d * d * 40;
-          const t = Math.min(segSegDistance(chest, hips, p.tail0, p.tail1), segSegDistance(tail0, tail1, p.chest, p.hips)) - (half + 0.5);
-          if (t < 0) E += 20 + t * t * 20;
-          if (segSegDistance(tail0, tail1, p.tail0, p.tail1) < 0.9) E += 6;
-          // the head of a neck's Þórseðla comes down in front of her: keep others' bodies out of the way
-        }
-        for (const p of [chest, hips, tail1]) {
-          const r = Math.hypot(...p);
-          if (r > clearR - 3) E += 10 + (r - clearR + 3) ** 2 * 4;
-        }
-        if (job.kind === 'tail') {
-          const dx = B[0] - tail0[0], dz = B[1] - tail0[1], L = Math.hypot(dx, dz) || 1;
-          const along = -(fx * dx + fz * dz) / L; // 1: her tail points straight at the last stone
-          E += (1 - along) * 8;
-          if (along < 0.2) E += 30;
-        } else {
-          const nb = at(MODEL.neckBase[0]);
-          const dx = B[0] - nb[0], dz = B[1] - nb[1], L = Math.hypot(dx, dz) || 1;
-          const facing = (fx * dx + fz * dz) / L;
-          E += (1 - facing) * 2 + Math.abs(turn) * 1.2;
-        }
-        E += Math.abs(fz) * 0.4; // a little rather from the side, as the camera at the front sees her
-        if (!best || E < best.E) best = { E, rx, rz, heading, turn, chest, hips, tail0, tail1, half };
+      const at = d => [rx + fx * d * k, rz + fz * d * k];
+      const tail0 = at(MODEL.tailBase[0]);
+      let tail1 = at(MODEL.tailTip + 1);
+      if (kind === 'tail') {
+        const dx = B[0] - tail0[0], dz = B[2] - tail0[1], L = Math.hypot(dx, dz) || 1;
+        const reach = Math.min(L - 1.2, (MODEL.tailBase[0] - MODEL.tailTip) * k * 0.95);
+        tail1 = [tail0[0] + (dx / L) * reach, tail0[1] + (dz / L) * reach];
       }
+      placed.push({ kind, from, to, scale: k, rx, rz, heading, turn: 0, E: 0, chest: at(MODEL.chest), hips: at(MODEL.hips), tail0, tail1, half: MODEL.halfWidth * k });
     }
-    placed.push({ ...job, ...best, scale: k, heading: deg(best.heading) });
   }
   return placed;
 }
+
 
 // ---------------------------------------------------------------------------------------------------------------------------
 // Light levels for the Þórseðlas: the model's skin simplified to 1/2 ... 1/16 of its triangles once (in a worker), each level an
@@ -412,27 +270,6 @@ function rotateBoneWorld(bone, q) {
   localQ.copy(parentQ).invert().multiply(q).multiply(parentQ);
   bone.quaternion.premultiply(localQ);
   bone.updateMatrixWorld(true);
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------
-// The stones and their numerals.
-
-function stoneGeometry() {
-  const { radius: r, top } = VALLEY.stone;
-  const profile = [
-    [r * 0.92, -0.2], [r, top * 0.4], [r * 0.93, top * 0.88], [r * 0.7, top + 0.012], [0.001, top + 0.025],
-  ].map(([x, y]) => new THREE.Vector2(x, y));
-  const g = new THREE.LatheGeometry(profile, 15);
-  // a little lumpy, so no two stones read as one turned shape
-  const p = g.attributes.position, v = new V3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const a = Math.atan2(v.z, v.x);
-    const bump = 1 + 0.045 * Math.sin(a * 3 + 0.7) + 0.03 * Math.sin(a * 5 + 2.1);
-    p.setXYZ(i, v.x * bump, v.y, v.z * bump);
-  }
-  g.computeVertexNormals();
-  return g;
 }
 
 /** The numerals 1..50 in one texture: red holds the numeral, green a star behind it (star squares), alpha all that is drawn. */
@@ -650,75 +487,292 @@ void main() {
 }`;
 
 // ---------------------------------------------------------------------------------------------------------------------------
+// The stones: rounded blocks like big stepping stones, a numeral on the face toward the camera.
+
+function stoneGeometry() {
+  const { width: w, height: h, depth: d } = VALLEY.stone;
+  const r = 0.16;
+  const shape = new THREE.Shape();
+  const x0 = -w / 2 + r, x1 = w / 2 - r, y0 = -h + r, y1 = -r;
+  shape.moveTo(x0, -h);
+  shape.lineTo(x1, -h);
+  shape.quadraticCurveTo(w / 2, -h, w / 2, y0);
+  shape.lineTo(w / 2, y1);
+  shape.quadraticCurveTo(w / 2, 0, x1, 0);
+  shape.lineTo(x0, 0);
+  shape.quadraticCurveTo(-w / 2, 0, -w / 2, y1);
+  shape.lineTo(-w / 2, y0);
+  shape.quadraticCurveTo(-w / 2, -h, x0, -h);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: d - 0.16, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 2, curveSegments: 3 });
+  g.translate(0, 0, -(d - 0.16) / 2);
+  // a little lumpy, so no two read as one cast shape
+  const p = g.attributes.position, v = new V3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    p.setY(i, v.y + 0.03 * Math.sin(v.x * 5.1 + v.z * 3.3));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The land: one long strip of ground (the ledges along the path, hills rising behind it, a bank falling toward the camera), the
+// far hills and the mountains, and the plants, all built in code. Colours from the style guide's palette (STYLE.md section 4).
+
+const LAND = {
+  x: [-40, 0], // how far the ground reaches before the first stone and past the nest (added to the plan's ends)
+  z: [-78, 16],
+  cell: 1.0,
+  colours: { meadow: '#a6b84a', forest: '#6f8f3c', hill: '#8fae47', rock: '#9b8f7b', rockDark: '#7a7062', path: '#c2a273', bank: '#86a43f' },
+};
+
+function makeRandom(seed) {
+  let s = seed >>> 0;
+  return () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+}
+
+/** The land's height: the plan's ground along the path, the hills behind it, the bank in front, the stream's bed. */
+function landHeight(plan) {
+  const bump = (x, z) => 0.22 * Math.sin(x * 0.37 + z * 0.21) * Math.sin(z * 0.41 - x * 0.13) + 0.12 * Math.sin(x * 1.1 + z * 0.9);
+  return (x, z) => {
+    let h = plan.ground(x);
+    const behind = smoothstep(-3.2, -46, z);
+    h += behind * (8 + 5 * Math.sin(x * 0.043 + 1.2) + 3 * Math.sin(x * 0.11)) + smoothstep(-40, -78, z) * (10 + 6 * Math.sin(x * 0.03));
+    h -= smoothstep(2.4, 15, z) * 1.6;
+    h += bump(x, z) * smoothstep(1.6, 4, Math.abs(z));
+    const d = Math.abs(x - plan.streamX);
+    if (d < 2.2) h -= 0.9 * (1 - smoothstep(0.5, 2.2, d)) * smoothstep(-30, -2, z) * (1 - smoothstep(10, 16, z) * 0.3);
+    return h;
+  };
+}
+
+function buildGround(plan, heightAt) {
+  const [xa, xb] = [plan.startX + LAND.x[0], plan.nest[0] + 40];
+  const [za, zb] = LAND.z;
+  const nx = Math.ceil((xb - xa) / LAND.cell), nz = Math.ceil((zb - za) / LAND.cell);
+  const pos = new Float32Array((nx + 1) * (nz + 1) * 3), col = new Float32Array((nx + 1) * (nz + 1) * 3);
+  const C = Object.fromEntries(Object.entries(LAND.colours).map(([k, v]) => [k, new THREE.Color(v)]));
+  const forestFrom = plan.squares[5][0], forestTo = plan.squares[16][0], rockFrom = plan.squares[34][0];
+  const c = new THREE.Color();
+  for (let j = 0; j <= nz; j++) {
+    // rows close to the path are finer in z: the risers and the stream want them
+    const z = za + j * ((zb - za) / nz);
+    for (let i = 0; i <= nx; i++) {
+      const x = xa + i * ((xb - xa) / nx);
+      const y = heightAt(x, z);
+      const k = (j * (nx + 1) + i) * 3;
+      pos[k] = x; pos[k + 1] = y; pos[k + 2] = z;
+      const slope = Math.abs(heightAt(x + 0.5, z) - heightAt(x - 0.5, z)) + Math.abs(heightAt(x, z + 0.5) - heightAt(x, z - 0.5));
+      const forest = smoothstep(forestFrom - 6, forestFrom, x) * (1 - smoothstep(forestTo, forestTo + 6, x));
+      const rocky = smoothstep(rockFrom - 4, rockFrom + 12, x);
+      c.copy(C.meadow).lerp(C.hill, smoothstep(forestTo, forestTo + 12, x)).lerp(C.forest, forest * 0.85);
+      c.lerp(C.rock, rocky * (0.35 + 0.4 * smoothstep(-2, -20, z)));
+      c.lerp(C.rockDark, smoothstep(0.55, 1.1, slope));
+      c.lerp(C.path, (1 - smoothstep(0.9, 1.6, Math.abs(z))) * 0.75 * (x > plan.startX - 4 ? 1 : 0.5));
+      c.lerp(C.bank, smoothstep(3, 9, z) * 0.4);
+      c.offsetHSL(0, 0, 0.025 * Math.sin(x * 1.7 + z * 2.3));
+      col[k] = c.r; col[k + 1] = c.g; col[k + 2] = c.b;
+    }
+  }
+  const idx = [];
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = j * (nx + 1) + i, b = a + nx + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  mesh.name = 'Ground';
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** The mountains far behind: a jagged ridge, blue-grey with snow on the peaks; the fog melts it into the sky. */
+function buildMountains(plan, random) {
+  const pos = [], col = [], idx = [];
+  const rock = new THREE.Color('#7d8fa3'), snow = new THREE.Color('#f2f4f6'), c = new THREE.Color();
+  const z = -190, x0 = plan.startX - 160, x1 = plan.nest[0] + 160;
+  let x = x0, k = 0;
+  while (x <= x1) {
+    const peak = 40 + 45 * Math.abs(Math.sin(x * 0.012 + 0.7)) * (0.6 + 0.4 * random()) + (x > plan.nest[0] - 40 ? 25 : 0);
+    pos.push(x, -10, z, x, peak, z);
+    c.copy(rock);
+    col.push(c.r, c.g, c.b);
+    c.copy(rock).lerp(snow, peak > 62 ? 0.9 : 0.35);
+    col.push(c.r, c.g, c.b);
+    if (k) { const a = (k - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    x += 14 + random() * 10;
+    k++;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }));
+  mesh.name = 'Mountains';
+  return mesh;
+}
+
+// The plants: round broadleaf trees and tall conifers, bushes, ferns and flowers, each a few simple shapes in vertex colours,
+// merged into two meshes (those near the path cast shadows, those far do not).
+function blob(parts, x, y, z, r, colour, squash = 0.85) {
+  const g = new THREE.IcosahedronGeometry(r, 1);
+  g.scale(1, squash, 1);
+  g.translate(x, y, z);
+  parts.push(colouredGeometry(g, colour));
+}
+function broadleaf(parts, x, y, z, size, random) {
+  const trunk = new THREE.CylinderGeometry(0.12 * size, 0.2 * size, 2.6 * size, 6);
+  trunk.translate(x, y + 1.3 * size, z);
+  parts.push(colouredGeometry(trunk, '#6e5440'));
+  const greens = ['#3f6c4c', '#4f7e45', '#5f9442', '#7fa64c'];
+  for (let i = 0; i < 4; i++) {
+    const a = random() * Math.PI * 2, rr = (i ? 0.75 : 0) * size;
+    blob(parts, x + Math.cos(a) * rr, y + (3.0 + random() * 0.9) * size, z + Math.sin(a) * rr * 0.6, (1.05 + random() * 0.4) * size, greens[Math.floor(random() * greens.length)]);
+  }
+}
+function conifer(parts, x, y, z, size, random) {
+  const trunk = new THREE.CylinderGeometry(0.1 * size, 0.18 * size, 1.4 * size, 6);
+  trunk.translate(x, y + 0.7 * size, z);
+  parts.push(colouredGeometry(trunk, '#5d4636'));
+  for (let i = 0; i < 3; i++) {
+    const g = new THREE.ConeGeometry((1.5 - i * 0.38) * size, 2.2 * size, 7);
+    g.translate(x, y + (1.9 + i * 1.25) * size, z);
+    parts.push(colouredGeometry(g, i % 2 ? '#3a5f4b' : '#2c4f45'));
+  }
+  void random;
+}
+function bush(parts, x, y, z, size, random) {
+  const n = 1 + Math.floor(random() * 3);
+  for (let i = 0; i < n; i++) blob(parts, x + (random() - 0.5) * size, y + 0.45 * size, z + (random() - 0.5) * size * 0.6, (0.55 + random() * 0.3) * size, random() < 0.5 ? '#557a3a' : '#6a9142', 0.75);
+}
+function fern(parts, x, y, z, size, random) {
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + random() * 0.4;
+    const g = new THREE.ConeGeometry(0.11 * size, 1.15 * size, 3);
+    g.translate(0, 0.55 * size, 0);
+    g.rotateZ(-0.95);
+    g.rotateY(a);
+    g.translate(x, y, z);
+    parts.push(colouredGeometry(g, i % 2 ? '#5f8f3e' : '#6f9e46'));
+  }
+}
+function flower(parts, x, y, z, random) {
+  const stem = new THREE.CylinderGeometry(0.015, 0.02, 0.45, 3);
+  stem.translate(x, y + 0.22, z);
+  parts.push(colouredGeometry(stem, '#5f8f3e'));
+  const g = new THREE.IcosahedronGeometry(0.09, 0);
+  g.translate(x, y + 0.47, z);
+  parts.push(colouredGeometry(g, ['#f2c443', '#ef8a5a', '#f0a3b6', '#f6f1e4', '#9c83d4'][Math.floor(random() * 5)]));
+}
+
+function buildPlants(plan, heightAt, places, random) {
+  const near = [], far = [];
+  const forestFrom = plan.squares[5][0], forestTo = plan.squares[16][0], rockFrom = plan.squares[34][0];
+  const x0 = plan.startX - 30, x1 = plan.nest[0] + 30;
+  // nothing tall where a Þórseðla stands, nor right on the path
+  const clearOf = (x, z, r) => places.every(p => {
+    const ax = Math.min(p.chest[0], p.tail1[0], p.tail0[0]) - 1.5, bx = Math.max(p.chest[0], p.tail1[0], p.tail0[0]) + 1.5;
+    return x < ax - r || x > bx + r || z < p.rz - 3.5 - r || z > p.rz + 3 + r;
+  });
+  const nearNest = (x, z) => Math.hypot(x - plan.nest[0], z - plan.nest[2]) < 4;
+  const inStream = x => Math.abs(x - plan.streamX) < 1.6;
+  for (let x = x0; x < x1; x += 1.1) {
+    const forest = smoothstep(forestFrom - 6, forestFrom, x) * (1 - smoothstep(forestTo, forestTo + 6, x));
+    const rocky = smoothstep(rockFrom - 4, rockFrom + 10, x);
+    // behind the path: trees, thick in the forest, conifers up the mountain
+    for (let row = 0; row < 3; row++) {
+      if (random() > 0.08 + forest * 0.55 + 0.04 * row) continue;
+      const z = -6 - row * 7 - random() * 6;
+      if (!clearOf(x, z, 2) || nearNest(x, z) || inStream(x)) continue;
+      const y = heightAt(x, z);
+      const list = row === 0 ? near : far;
+      if (rocky > 0.5 || (row > 0 && random() < 0.3)) conifer(list, x, y, z, 1.1 + random() * 0.8, random);
+      else broadleaf(list, x, y, z, 1.0 + random() * 0.6 + forest * 0.3, random);
+    }
+    // bushes and ferns at the back of the path and in front of it
+    if (random() < 0.45 + forest * 0.3) {
+      const z = -2.2 - random() * 3;
+      if (clearOf(x, z, 0.5) && !nearNest(x, z) && !inStream(x)) (random() < 0.5 ? fern : bush)(near, x, heightAt(x, z), z, 0.8 + random() * 0.5, random);
+    }
+    if (random() < 0.5) {
+      const z = 2.6 + random() * 6;
+      if (!inStream(x)) (random() < 0.55 ? fern : bush)(near, x, heightAt(x, z), z, 0.9 + random() * 0.7, random);
+    }
+    // flowers in the meadow and along the way
+    const meadow = 1 - smoothstep(forestFrom - 8, forestFrom, x) + 0.3;
+    for (let f = 0; f < 3; f++) {
+      if (random() > 0.35 * meadow * (1 - rocky * 0.7)) continue;
+      const z = (random() < 0.5 ? 1 : -1) * (1.7 + random() * 4);
+      if (!inStream(x)) flower(near, x + random(), heightAt(x, z), z, random);
+    }
+  }
+  return { near: mergeGeometries(near), far: mergeGeometries(far) };
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------------------
 
 /**
  * The valley. `renderer` draws it (and builds its sky light); `board` is rules.js's BOARD (or one of the same shape); `q` a quality
- * preset (engine/quality.js, tablet by default); `params` URL parameters for the forest's profiling switches. Resolves once the
- * forest, the stones and the Þórseðlas are in the scene; `valley.ready` resolves once their light levels are in place too.
+ * preset (engine/quality.js, tablet by default). Resolves once the land, the stones and the Þórseðlas are in the scene;
+ * `valley.ready` resolves once their light levels are in place too.
  */
 export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet, params = new URLSearchParams(), win = globalThis.window } = {}) {
   const chapterLook = pickLook(VALLEY.look);
   const look = { ...chapterLook, sun: { ...chapterLook.sun, ...VALLEY.sun } };
   const scene = new THREE.Scene();
   scene.name = 'Háls og hali';
-  const camera = new THREE.PerspectiveCamera(40, 16 / 10, 0.3, 1200);
+  const camera = new THREE.PerspectiveCamera(VALLEY.camera.fov, 16 / 10, 0.3, 1400);
   camera.name = 'Valley camera';
   scene.add(camera); // the egg die rides in front of it
   const lighting = createLighting(scene, look, q);
   lighting.sun.name = 'Valley sun';
   installDepthShadows(renderer, lighting.sun);
   installFog(scene, chapterLook, sunDirection(chapterLook));
+  scene.fog.density *= 0.55; // the side view looks far: the hills stay, the mountains go hazy
   const sky = createSky({ renderer, scene, look, sunDir: lighting.direction });
   const wind = createWind();
-  const plan = planValley(board);
-  const places = placeThorsedlas(plan, board);
+  const plan = planSide(board);
+  const places = placeProfile(plan, board);
+  const heightAt = landHeight(plan);
 
   let time = 0;
   const world = {
     THREE, renderer, scene, camera, q, params, look, lighting, wind,
     chapter: { look: VALLEY.look, actors: {}, shots: {} },
-    heightAt: () => 0,
+    heightAt,
     actors: new Map(),
     effects: createEffects(),
     clock: { get time() { return time; } },
   };
   world.resolvePoint = createPointResolver(world);
 
-  // The forest: the chapter's own, round a clearing that holds the board, its path the stones' path. The Þórseðlas' bodies are
-  // kept clear of plants as actors are (a point every few metres along each).
-  const keepClear = {};
-  places.forEach((p, i) => {
-    const pts = [p.chest, [(p.chest[0] + p.hips[0]) / 2, (p.chest[1] + p.hips[1]) / 2], p.hips, p.tail0, [(p.tail0[0] + p.tail1[0]) / 2, (p.tail0[1] + p.tail1[1]) / 2]];
-    pts.forEach(([x, z], k) => { keepClear[`thorsedla-${i}-${k}`] = { position: [x, 0, z], heading: p.heading }; });
-  });
-  keepClear.nest = { position: [plan.nest[0], 0, plan.nest[1]], heading: 0 };
-  // The clearing is wider than the chapter's, so its grass is a little thinner (forestGrass: the share of the preset's density).
-  const forestWorld = Object.create(world);
-  forestWorld.q = { ...q, grass: q.grass * VALLEY.forestGrass };
-  const forest = await createForest(forestWorld, {
-    seed: 23,
-    clearing: { center: [0, 0], radius: VALLEY.clearing.radius },
-    forestEdge: VALLEY.clearing.forestEdge,
-    path: plan.path,
-    actors: keepClear,
-    shots: {},
-    lift: plan.lift,
-    keepOut: plan.keepOut,
-  });
-  world.forest = forest;
-  world.heightAt = (x, z) => forest.heightAt(x, z);
-  const heightAt = world.heightAt;
+  // ---- the land --------------------------------------------------------------------------------------------------------
+  const ground = buildGround(plan, heightAt);
+  const mountains = buildMountains(plan, makeRandom(17));
+  const plantsMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const plantGeometry = buildPlants(plan, heightAt, places, makeRandom(29));
+  const plantsNear = new THREE.Mesh(plantGeometry.near, plantsMaterial);
+  plantsNear.name = 'Plants near';
+  plantsNear.castShadow = true;
+  plantsNear.receiveShadow = true;
+  const plantsFar = new THREE.Mesh(plantGeometry.far, plantsMaterial);
+  plantsFar.name = 'Plants far';
+  const land = new THREE.Group();
+  land.name = 'Land';
+  land.add(ground, mountains, plantsNear, plantsFar);
+  scene.add(land);
 
   // ---- stones ----------------------------------------------------------------------------------------------------------
   const count = board.size;
   const stars = new Set(board.stars ?? []);
   const fruit = new Set(board.fruit ?? []);
-  const squares = plan.squares.map(([x, z]) => {
-    const water = plan.streamDistance(x, z) < VALLEY.stream.width;
-    const y = heightAt(x, z) + (water ? 0.14 : 0.04); // a stepping stone stands a little higher out of the water
-    return new V3(x, y, z);
-  });
-  const stoneTop = VALLEY.stone.top + 0.025;
+  const squares = plan.squares.map(([x, y, z]) => new V3(x, y, z));
+  const stoneTop = VALLEY.stone.height;
   const stoneMaterial = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0, envMapIntensity: 0.4 });
   const stones = new THREE.InstancedMesh(stoneGeometry(), stoneMaterial, count);
   stones.name = 'Stones';
@@ -727,18 +781,12 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   const stoneColours = [];
   {
     const m = new THREE.Matrix4(), qn = new THREE.Quaternion(), sc = new V3();
-    let s = 99;
-    const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+    const random = makeRandom(99);
     const base = [new THREE.Color('#d6b98a'), new THREE.Color('#cbb087'), new THREE.Color('#dcc193'), new THREE.Color('#c4aa86')];
     squares.forEach((p, i) => {
-      // tipped to the slope under it
-      const e = 0.6;
-      const nx = heightAt(p.x - e, p.z) - heightAt(p.x + e, p.z), nz = heightAt(p.x, p.z - e) - heightAt(p.x, p.z + e);
-      const up = new V3(nx * 0.5, 2 * e, nz * 0.5).normalize();
-      qn.setFromUnitVectors(new V3(0, 1, 0), up).multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), random() * Math.PI * 2));
-      const k = 0.97 + random() * 0.08;
-      sc.set(k, 1, k);
-      m.compose(p, qn, sc);
+      qn.setFromAxisAngle(new V3(0, 1, 0), (random() - 0.5) * 0.08);
+      sc.set(0.97 + random() * 0.06, 1, 1);
+      m.compose(new V3(p.x, p.y + stoneTop, p.z), qn, sc);
       stones.setMatrixAt(i, m);
       const c = base[i % base.length].clone().offsetHSL(0, 0, (random() - 0.5) * 0.05);
       stoneColours.push(c);
@@ -747,12 +795,11 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   }
   scene.add(stones);
 
-  // the numerals: flat on each stone, upright for the camera at the front of the valley
+  // the numerals: on each block's face toward the camera
   const fontsReady = win?.document?.fonts?.load?.('900 92px Nunito').catch(() => null);
   await Promise.race([fontsReady, new Promise(resolve => setTimeout(resolve, 1500))]);
   const numerals = drawNumerals(count, stars);
-  const numeralGeometry = new THREE.PlaneGeometry(1.28, 1.28);
-  numeralGeometry.rotateX(-Math.PI / 2);
+  const numeralGeometry = new THREE.PlaneGeometry(0.92, 0.92);
   const cellAttr = new THREE.InstancedBufferAttribute(new Float32Array(count * 2), 2);
   const glowAttr = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
   glowAttr.setUsage(THREE.DynamicDrawUsage);
@@ -783,19 +830,18 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   {
     const m = new THREE.Matrix4(), qn = new THREE.Quaternion();
     squares.forEach((p, i) => {
-      m.compose(new V3(p.x, p.y + stoneTop, p.z), qn, new V3(1, 1, 1));
+      m.compose(new V3(p.x, p.y + stoneTop * 0.5, p.z + VALLEY.stone.depth / 2 + 0.005), qn, new V3(1, 1, 1));
       numeralsMesh.setMatrixAt(i, m);
     });
   }
   scene.add(numeralsMesh);
-  // a soft ring of light round a stone that glows
-  const ringGeometry = new THREE.PlaneGeometry(3.2, 3.2);
-  ringGeometry.rotateX(-Math.PI / 2);
+  // a soft halo of light behind a numeral that glows
+  const ringGeometry = new THREE.PlaneGeometry(2.2, 2.2);
   ringGeometry.setAttribute('aGlow', glowAttr);
   const ringMaterial = new THREE.ShaderMaterial({
     uniforms: { uColour: { value: new THREE.Color('#ffd76a').convertSRGBToLinear() } },
     vertexShader: 'attribute float aGlow; varying float vGlow; varying vec2 vUv; void main() { vGlow = aGlow; vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 uColour; varying float vGlow; varying vec2 vUv; void main() { float r = length(vUv - 0.5) * 2.0; float ring = smoothstep(0.55, 0.72, r) * (1.0 - smoothstep(0.72, 1.0, r)); if (vGlow < 0.01) discard; gl_FragColor = vec4(uColour * ring * vGlow * 1.4, 1.0); }',
+    fragmentShader: 'uniform vec3 uColour; varying float vGlow; varying vec2 vUv; void main() { float r = length(vUv - 0.5) * 2.0; float halo = exp(-r * r * 3.5) * (1.0 - smoothstep(0.8, 1.0, r)); if (vGlow < 0.01) discard; gl_FragColor = vec4(uColour * halo * vGlow * 1.2, 1.0); }',
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
   const rings = new THREE.InstancedMesh(ringGeometry, ringMaterial, count);
@@ -812,25 +858,17 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   const propsMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 });
   const propParts = [];
   {
-    let s = 5;
-    const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+    const random = makeRandom(5);
     for (const n of fruit) {
       const p = squares[n - 1];
-      // beside the stone, on the side away from the next row
-      const prev = squares[Math.max(0, n - 2)], next = squares[Math.min(count - 1, n)];
-      const tx = next.x - prev.x, tz = next.z - prev.z, L = Math.hypot(tx, tz) || 1;
-      let sx = -tz / L, sz = tx / L;
-      const test = (k) => places.some(pl => Math.hypot(pl.chest[0] - (p.x + sx * k), pl.chest[1] - (p.z + sz * k)) < 3);
-      const free = side => squares.every((o, i) => i === n - 1 || Math.hypot(o.x - (p.x + sx * side * 2.2), o.z - (p.z + sz * side * 2.2)) > 2.2);
-      if (!free(1) || test(2.2)) { sx = -sx; sz = -sz; }
       const g = fruitTree(random);
       g.rotateY(random() * Math.PI * 2);
-      const x = p.x + sx * 2.1, z = p.z + sz * 2.1;
+      const x = p.x - 0.6, z = -2.2;
       g.translate(x, heightAt(x, z) - 0.05, z);
       propParts.push(g);
     }
     const nest = nestGeometry(random);
-    nest.translate(plan.nest[0], heightAt(plan.nest[0], plan.nest[1]) - 0.1, plan.nest[1]);
+    nest.translate(plan.nest[0], heightAt(plan.nest[0], plan.nest[2]) - 0.1, plan.nest[2]);
     propParts.push(nest);
   }
   const props = new THREE.Mesh(mergeGeometries(propParts), propsMaterial);
@@ -840,12 +878,13 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   scene.add(props);
 
   const water = waterMaterial();
-  const stream = new THREE.Mesh(ribbonGeometry(plan.stream, VALLEY.stream.width * 1.4, heightAt, 0.07), water);
+  const streamLine = [];
+  for (let z = LAND.z[0] + 30; z <= LAND.z[1]; z += 1) streamLine.push([plan.streamX + 0.5 * Math.sin(z * 0.3), z]);
+  const stream = new THREE.Mesh(ribbonGeometry(streamLine, 2.2, heightAt, 0.32), water);
   stream.renderOrder = 2;
   stream.name = 'Stream';
-  stream.receiveShadow = false;
   scene.add(stream);
-  // a puddle by each tail's last stone, on the side her tail comes in from: the splash at the bottom of the slide
+  // a puddle in front of each tail's last stone: the splash at the bottom of the slide
   const puddles = new Map();
   const puddleGeometry = new THREE.CircleGeometry(1, 20);
   puddleGeometry.rotateX(-Math.PI / 2);
@@ -857,30 +896,25 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   puddleMesh.name = 'Puddles';
   places.filter(p => p.kind === 'tail').forEach((p, i) => {
     const B = squares[p.to - 1];
-    const dx = p.tail1[0] - B.x, dz = p.tail1[1] - B.z, L = Math.hypot(dx, dz) || 1;
-    const at = new V3(B.x + (dx / L) * 1.7, 0, B.z + (dz / L) * 1.7);
-    at.y = heightAt(at.x, at.z) + 0.03;
-    puddleMesh.setMatrixAt(i, new THREE.Matrix4().compose(at, new THREE.Quaternion(), new V3(1.05, 1, 0.8)));
+    const at = new V3(B.x + 1.6, 0, 1.7);
+    at.y = heightAt(at.x, at.z) + 0.04;
+    puddleMesh.setMatrixAt(i, new THREE.Matrix4().compose(at, new THREE.Quaternion(), new V3(1.2, 1, 0.75)));
     puddles.set(p.from, at);
   });
   scene.add(puddleMesh);
 
   // ---- fireflies -------------------------------------------------------------------------------------------------------
-  const flyCount = q.name === 'low' ? 36 : 72;
+  const flyCount = q.name === 'low' ? 40 : 90;
   const flyPositions = new Float32Array(flyCount * 3), flyData = new Float32Array(flyCount * 4);
   {
-    let s = 41;
-    const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+    const random = makeRandom(41);
+    const forestFrom = plan.squares[5][0], forestTo = plan.squares[16][0];
     for (let i = 0; i < flyCount; i++) {
       let x, z;
-      if (i % 3 === 0) { // over the stream
-        const p = plan.stream[Math.floor(random() * plan.stream.length)];
-        x = p[0] + (random() - 0.5) * 3; z = p[1] + (random() - 0.5) * 3;
-      } else { // in the shade at the forest's edge
-        const a = random() * Math.PI * 2, r = VALLEY.clearing.radius - 2 + random() * 9;
-        x = Math.cos(a) * r; z = Math.sin(a) * r;
-      }
-      flyPositions.set([x, heightAt(x, z) + 0.6 + random() * 2.2, z], i * 3);
+      if (i % 3 === 0) { x = plan.streamX + (random() - 0.5) * 3; z = -10 + random() * 18; } // over the stream
+      else if (i % 3 === 1) { x = forestFrom + random() * (forestTo - forestFrom); z = -9 + random() * 7; } // in the forest's shade
+      else { x = plan.startX + random() * (plan.nest[0] - plan.startX); z = -7 + random() * 4; } // all along, behind the path
+      flyPositions.set([x, heightAt(x, z) + 0.6 + random() * 2.4, z], i * 3);
       flyData.set([random(), 0.35 + random() * 0.5, 0.4 + random() * 1.1, 0.3 + random() * 0.16], i * 4);
     }
   }
@@ -898,6 +932,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   fireflies.frustumCulled = false;
   fireflies.renderOrder = 6;
   scene.add(fireflies);
+
 
   // ---- the Þórseðlas ---------------------------------------------------------------------------------------------------
   // Each is the chapter's own actor (engine/actor.js: idle breathing, footing, eyelids, look). The board's stand still in idle,
@@ -1172,74 +1207,79 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   }
 
   // ---- the camera ------------------------------------------------------------------------------------------------------
-  // overview(): the whole valley from the front and above. follow(target): close behind a pawn, a little to the front of the valley so
-  // the numerals read upright, easing after it (target: an Object3D, a Vector3 that moves, or a function filling a Vector3).
-  const bounds = new THREE.Box3();
-  for (const p of squares) bounds.expandByPoint(p);
-  bounds.expandByPoint(new V3(plan.nest[0], heightAt(plan.nest[0], plan.nest[1]) + 1, plan.nest[1]));
-  const boardCentre = bounds.getCenter(new V3());
-  const rig = { position: new V3(), target: new V3(), goalPosition: new V3(), goalTarget: new V3(), ease: 0.9, primed: false };
-  const OVERVIEW = { elevation: 60, azimuth: 6, fill: 0.88 };
-  function overviewPose(outPos, outTarget) {
-    const corners = [];
-    for (const p of squares) for (const [dx, dz] of [[0, 1.4], [0, -1.4], [1.4, 0], [-1.4, 0]]) corners.push(p.clone().add(new V3(dx, 0.8, dz)));
-    for (const t of places) corners.push(new V3(t.chest[0], heightAt(t.chest[0], t.chest[1]) + 4.5 * t.scale / 0.5, t.chest[1]));
-    corners.push(new V3(plan.nest[0], heightAt(plan.nest[0], plan.nest[1]) + 1.5, plan.nest[1]));
-    const dir = new V3(Math.sin(rad(OVERVIEW.azimuth)) * Math.cos(rad(OVERVIEW.elevation)), Math.sin(rad(OVERVIEW.elevation)), Math.cos(rad(OVERVIEW.azimuth)) * Math.cos(rad(OVERVIEW.elevation)));
-    const target = new THREE.Box3().setFromPoints(corners).getCenter(new V3());
-    let distance = 60;
-    const probe = new THREE.PerspectiveCamera(camera.fov, camera.aspect, 0.5, 1000);
-    const v = new V3(), right = new V3(), upv = new V3();
-    for (let round = 0; round < 40; round++) {
-      probe.position.copy(target).addScaledVector(dir, distance);
-      probe.lookAt(target);
-      probe.updateMatrixWorld(true);
-      let [x0, x1, y0, y1] = [Infinity, -Infinity, Infinity, -Infinity];
-      for (const c of corners) { v.copy(c).project(probe); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
-      const halfH = Math.tan(rad(probe.fov) / 2) * distance;
-      probe.matrixWorld.extractBasis(right, upv, v);
-      target.addScaledVector(right, ((x0 + x1) / 2) * halfH * probe.aspect * 0.5).addScaledVector(upv, ((y0 + y1) / 2) * halfH * 0.5);
-      distance *= Math.min(1.5, Math.max(0.7, Math.max((x1 - x0) / 2, (y1 - y0) / 2) / OVERVIEW.fill));
-    }
-    outTarget.copy(target);
-    outPos.copy(target).addScaledVector(dir, distance);
+  // From the side, a little above, framed like a side-scroller:
+  //   follow(target, { distance, height, lead })  eases after a pawn (an Object3D, a Vector3 that moves, a square number or a
+  //                                                function filling a Vector3), a little ahead of it, the way on
+  //   frame(a, b, { margin })                      holds two points in view (a lift's or a slide's two ends)
+  //   pan({ duration })                            once over the whole path, left to right (a Promise); then it holds the end
+  //   overview()                                   the whole path at once, from far
+  const C = VALLEY.camera;
+  const rig = { position: new V3(), target: new V3(), goalPosition: new V3(), goalTarget: new V3(), ease: 0.8, primed: false };
+  let follow = null; // { get(out), distance, height, lead }
+  let pan = null; // { t, duration, resolve }
+  const followPoint = new V3();
+  const halfTan = () => Math.tan(rad(camera.fov) / 2);
+  function poseFor(cx, cy, distance, height, outPos, outTarget) {
+    outTarget.set(cx, cy, 0);
+    outPos.set(cx, cy + height * (distance / C.distance), distance);
   }
-  let follow = null; // { get(out), distance, height, side }
-  const followPoint = new V3(), tangent = new V3();
+  function framePose(a, b, margin, outPos, outTarget) {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2 + 1;
+    const hw = Math.abs(a.x - b.x) / 2 + margin, hh = Math.abs(a.y - b.y) / 2 + margin * 0.7;
+    const distance = Math.max(C.distance * 0.8, hw / (halfTan() * camera.aspect), hh / halfTan());
+    poseFor(cx, cy, distance, C.height, outPos, outTarget);
+  }
+  const pathStart = () => squarePosition(1, new V3()).add(new V3(-4, 0, 0));
+  const pathEnd = () => new V3(plan.nest[0] + 2, plan.nest[1], 0);
   camera.mode = 'overview';
   camera.overview = ({ ease = 1.2 } = {}) => {
-    follow = null;
+    follow = null; pan = null;
     camera.mode = 'overview';
     rig.ease = ease;
-    overviewPose(rig.goalPosition, rig.goalTarget);
+    framePose(pathStart(), pathEnd(), 3, rig.goalPosition, rig.goalTarget);
     return camera;
   };
-  camera.follow = (target, { distance = 9.5, height = 7.2, ease = 0.7 } = {}) => {
+  camera.follow = (target, { distance = C.distance, height = C.height, lead = C.lead, ease = 0.7 } = {}) => {
     const get = typeof target === 'function' ? target
       : target?.isObject3D ? out => target.getWorldPosition(out)
         : target?.isVector3 ? out => out.copy(target)
           : Number.isFinite(target) ? out => squarePosition(target, out) : null;
     if (!get) throw new Error('camera.follow needs an Object3D, a Vector3, a square number or a function');
-    follow = { get, distance, height };
+    follow = { get, distance, height, lead };
+    pan = null;
     camera.mode = 'follow';
     rig.ease = ease;
     return camera;
   };
+  camera.frame = (a, b, { margin = 4, ease = 0.8 } = {}) => {
+    follow = null; pan = null;
+    camera.mode = 'frame';
+    rig.ease = ease;
+    framePose(a.isVector3 ? a : new V3(...a), b.isVector3 ? b : new V3(...b), margin, rig.goalPosition, rig.goalTarget);
+    return camera;
+  };
+  camera.pan = ({ duration = 10 } = {}) => {
+    follow = null;
+    camera.mode = 'pan';
+    rig.ease = 0.25;
+    return new Promise(resolve => { pan = { t: 0, duration, resolve }; });
+  };
   camera.cut = () => { rig.primed = false; return camera; };
+  const panFrom = new V3(), panTo = new V3();
   function updateCamera(dt) {
     if (follow) {
       follow.get(followPoint);
-      // the path's way here, from the nearest stone: the camera stands a little behind along it and well to the front
-      let nearest = 0, best = Infinity;
-      squares.forEach((p, i) => { const d = p.distanceToSquared(followPoint); if (d < best) { best = d; nearest = i; } });
-      const a = squares[Math.max(0, nearest - 1)], b = squares[Math.min(count - 1, nearest + 1)];
-      tangent.subVectors(b, a).setY(0).normalize();
-      const back = new V3(-tangent.x * 0.45, 0, 0.9 + Math.max(0, -tangent.z) * 0.2).normalize();
-      rig.goalTarget.copy(followPoint).addScaledVector(tangent, 1.6).add(new V3(0, 0.6, -0.8));
-      rig.goalPosition.copy(followPoint).addScaledVector(back, follow.distance).add(new V3(0, follow.height, 0));
+      poseFor(followPoint.x + follow.lead, followPoint.y + 1.4, follow.distance, follow.height, rig.goalPosition, rig.goalTarget);
+    } else if (pan) {
+      pan.t += dt;
+      const u = Math.min(1, pan.t / pan.duration);
+      const k = u * u * (3 - 2 * u);
+      panFrom.copy(pathStart()); panTo.copy(pathEnd());
+      const x = panFrom.x + (panTo.x - panFrom.x) * k;
+      poseFor(x, plan.ground(x) + 2.5, C.distance * 1.25, C.height * 1.2, rig.goalPosition, rig.goalTarget);
+      if (u >= 1) { const done = pan; pan = null; camera.mode = 'frame'; done.resolve(); }
     }
     if (!rig.primed) {
-      if (!follow && camera.mode === 'overview') overviewPose(rig.goalPosition, rig.goalTarget);
       rig.position.copy(rig.goalPosition);
       rig.target.copy(rig.goalTarget);
       rig.primed = true;
@@ -1251,10 +1291,11 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     camera.position.copy(rig.position);
     camera.lookAt(rig.target);
     camera.updateMatrixWorld();
-    // the sun's shadow covers what the camera looks at: the board, or the ground round the pawn
-    if (camera.mode === 'overview') lighting.focus(boardCentre, 27);
-    else lighting.focus(rig.target, 13);
+    // the sun's shadow covers what the camera sees round the path
+    const halfWidth = halfTan() * camera.aspect * Math.abs(camera.position.z);
+    lighting.focus(new V3(rig.target.x, rig.target.y, -2), Math.min(60, halfWidth + 6));
   }
+
   camera.overview();
 
   // ---- the frame -------------------------------------------------------------------------------------------------------
@@ -1268,6 +1309,17 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     }
     const p = squares[Math.min(count, Math.max(1, Math.round(n))) - 1];
     return out.set(p.x, p.y + stoneTop, p.z);
+  }
+  /** How far along the path square n is: 0 at the start (the meadow before stone 1), 1 at stone 50. */
+  function progressOf(n) {
+    if (n <= 0) return 0;
+    const p = squares[Math.min(count, Math.max(1, n)) - 1];
+    return Math.min(1, Math.max(0, (p.x - squares[0].x) / (squares[count - 1].x - squares[0].x)));
+  }
+  /** Where the host can stand to watch a pawn at x: behind the path and the Þórseðlas, a little back along the way. */
+  function hostSpot(x, out = new V3()) {
+    const hx = Math.min(plan.nest[0] - 6, Math.max(plan.startX - 4, x - 7));
+    return out.set(hx, heightAt(hx, -10.5), -10.5);
   }
   function squareHeading(n) {
     const i = Math.min(count, Math.max(1, Math.round(n))) - 1;
@@ -1316,7 +1368,6 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
     updateCamera(dt);
-    forest.update(dt, time);
     renderer.getDrawingBufferSize(size);
     updateLevels(size.y);
     updateCharacterLods(camera, size.y);
@@ -1330,12 +1381,14 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   function resize(width, height) {
     camera.aspect = width / Math.max(1, height);
     camera.updateProjectionMatrix();
-    if (camera.mode === 'overview') overviewPose(rig.goalPosition, rig.goalTarget);
+    if (camera.mode === 'overview') camera.overview({ ease: rig.ease });
   }
 
   function dispose() {
     for (const t of thorsedlas) t.actor.dispose();
-    forest.dispose();
+    for (const o of [ground, mountains, plantsNear, plantsFar]) o.geometry.dispose();
+    for (const m of [ground.material, mountains.material, plantsMaterial]) m.dispose();
+    scene.remove(land);
     sky.dispose();
     for (const o of [stones, numeralsMesh, rings, props, stream, puddleMesh, fireflies]) { scene.remove(o); o.geometry.dispose(); }
     for (const m of [stoneMaterial, numeralMaterial, ringMaterial, propsMaterial, water, flyMaterial, casterMaterial, coarseMaterial]) m.dispose();
@@ -1356,7 +1409,9 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     neckAt: from => byNeck.get(from) ?? null,
     tailAt: from => byTail.get(from) ?? null,
     puddleAt: from => puddles.get(from)?.clone() ?? null,
-    nest: { position: new V3(plan.nest[0], heightAt(plan.nest[0], plan.nest[1]) + 0.55, plan.nest[1]) },
+    nest: { position: new V3(plan.nest[0], heightAt(plan.nest[0], plan.nest[2]) + 0.55, plan.nest[2]) },
+    progressOf,
+    hostSpot,
     glow: flash, setGlow,
     addUpdater(fn) { updaters.push(fn); return () => updaters.splice(updaters.indexOf(fn), 1); },
     registerThorsedla,
@@ -1365,7 +1420,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     ready,
     update, resize,
     render() { renderer.render(scene, camera); },
-    get info() { return { forest: forest.info, places: places.map(p => ({ kind: p.kind, from: p.from, to: p.to, scale: +p.scale.toFixed(3), heading: Math.round(p.heading), E: +p.E.toFixed(2) })) }; },
+    get info() { return { places: places.map(p => ({ kind: p.kind, from: p.from, to: p.to, scale: +p.scale.toFixed(3), heading: Math.round(p.heading), E: +p.E.toFixed(2) })) }; },
     dispose,
   };
 }

@@ -5,7 +5,7 @@ import { whenReady as characterLodsReady } from '../character-lod.js';
 // The pawns of "Háls og hali" and the host (spec section 5), on the valley (valley.js):
 //   child       Egill on Mosi's back: Mosi hops from stone to stone, Egill sits on him and bounces along
 //   thorsedla   Þórseðla's pawn: a little golden statue of her on a round foot, which hops too
-//   host        the big Þórseðla herself, walking round the edge of the valley to stay near the pawn she watches
+//   host        the big Þórseðla herself, walking along behind the path to stay near the pawn she watches
 //
 //   const pieces = await createPieces(valley)
 //   pawn.place(n, { side })              stands on square n at once (side -1 / 0 / 1: shares the stone, to the left or right)
@@ -18,7 +18,7 @@ import { whenReady as characterLodsReady } from '../character-lod.js';
 //   pawn.face(heading), faceToward(point) which way it looks (degrees, actor.js's)
 //   pawn.cheer()                          a happy bounce
 //   pawn.root                             an Object3D at its foot (the camera follows it), pawn.square, pawn.position
-//   host.watch(pawn)                      walks round the edge toward that pawn and looks at it; host.cheer(); host.actor
+//   host.watch(pawn)                      walks along behind the path after that pawn and looks at it; host.cheer(); host.actor
 // pieces.update runs in the valley's frame (valley.addUpdater); pieces.dispose() takes them away.
 
 const MOSI_URL = new URL('../../assets/characters/mosi.glb', import.meta.url).href;
@@ -29,7 +29,7 @@ export const PIECES = {
   mosiLength: 2.4, // metres: Mosi as a pawn (8.5 m long in the chapter)
   egillBigger: 1.5, // Egill on his back, this many times his size beside Mosi in the chapter, so a child sees him
   figureLength: 2.1, // the statue, nose to tail
-  host: { scale: 0.62, ring: 22.5, speed: 0.7 }, // the host: her size against the real Þórseðla, the circle she walks on, m/s
+  host: { scale: 1.0, speed: 1.1 }, // the host: her size against the real Þórseðla, how fast she walks (m/s)
   side: 0.5, // metres aside when two pawns share a stone
   hop: { duration: 0.5, height: 0.75 },
 };
@@ -258,21 +258,20 @@ export async function createPieces(valley) {
   valley.pawns.push(childRoot, figureRoot);
 
   // ---- the host ----------------------------------------------------------------------------------------------------------
-  // She walks on a circle round the board, just inside the trees, to the point of it nearest the pawn she watches, then turns to it.
+  // She walks along behind the path and the board's Þórseðlas (valley.hostSpot), keeping a little behind the pawn she watches.
   const hostActor = await createActor(world, { name: 'thorsedla-host', url: THORSEDLA_URL });
   hostActor.root.scale.setScalar(PIECES.host.scale);
   valley.registerThorsedla(hostActor);
   world.actors.set('thorsedla-host', hostActor);
-  const ring = PIECES.host.ring;
-  const startAngle = rad(110); // at the front, a little to the left of the camera's line
-  hostActor.place(Math.cos(startAngle) * ring, Math.sin(startAngle) * ring, deg(startAngle) - 90);
-  hostActor.footprintScale = 2.4; // the grass lies down under her
+  const startSpot = valley.hostSpot(valley.squarePosition(1).x);
+  hostActor.place(startSpot.x, startSpot.z, 0);
+  hostActor.footprintScale = 2.4;
   let watched = null;
-  let hostAngle = startAngle;
-  let walking = null; // { handle, goal }
+  let walking = null; // the walk's Handle
   let rethink = 0;
   let cheerFor = 0;
   const lookAt = new V3();
+  const spot = new V3();
   const host = {
     actor: hostActor,
     watch(pawn) {
@@ -282,7 +281,7 @@ export async function createPieces(valley) {
       return host;
     },
     cheer() {
-      if (walking) { walking.handle.cancel(); walking = null; }
+      if (walking) { walking.cancel(); walking = null; }
       hostActor.play('happy', { fade: 0.25 });
       cheerFor = 2.4;
     },
@@ -293,28 +292,17 @@ export async function createPieces(valley) {
         return;
       }
       if (walking) {
-        if (!walking.handle.done) return;
-        hostAngle = walking.goal;
+        if (!walking.done) return;
         walking = null;
-        if (watched) hostActor.turnTo([watched.root.position.x, watched.root.position.z], { rate: 20 });
-        rethink = 2;
+        rethink = 1.5;
         return;
       }
       rethink -= dt;
       if (!watched || rethink > 0) return;
-      rethink = 1.5;
-      const p = watched.root.position;
-      const want = Math.atan2(p.z, p.x);
-      let d = Math.atan2(Math.sin(want - hostAngle), Math.cos(want - hostAngle));
-      if (Math.abs(d) < rad(28)) return;
-      d -= Math.sign(d) * rad(12); // stop a little short of straight beside the pawn
-      const steps = Math.max(2, Math.ceil(Math.abs(d) / rad(10)));
-      const points = [];
-      for (let i = 1; i <= steps; i++) {
-        const a = hostAngle + (d * i) / steps;
-        points.push([Math.cos(a) * ring, Math.sin(a) * ring]);
-      }
-      walking = { handle: hostActor.walkTo(points, { speed: PIECES.host.speed, turnRate: 40 }), goal: hostAngle + d };
+      rethink = 1.2;
+      valley.hostSpot(watched.root.position.x, spot);
+      if (Math.abs(spot.x - hostActor.root.position.x) < 4) return;
+      walking = hostActor.walkTo([[spot.x, spot.z]], { speed: PIECES.host.speed, turnRate: 40 });
     },
   };
 

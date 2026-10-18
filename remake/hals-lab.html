@@ -9,7 +9,8 @@
 <link rel="stylesheet" href="./style.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- The valley of "Háls og hali" on a page of its own, never linked from the game: to look at it and to try the pawns and the egg.
-       ?view=overview (the default)   the whole valley from the front
+       ?view=pan (the default)        the camera pans once along the whole path, then follows Egill
+       ?view=overview                 the whole path at once, from far
        ?view=close&square=N           the camera close behind square N (without square: behind Egill)
        &child=N&figure=M              where the pawns stand to begin with (0: at the gate before stone 1)
        &hop=N                         Egill throws N by himself once the page is ready (4: hops to the first neck and is lifted)
@@ -67,9 +68,11 @@ const sideFor = (who, square) => {
 };
 pieces.child.place(at('child'), { side: at('child') === at('figure') ? -1 : 0 });
 pieces.thorsedla.place(at('figure'), { side: at('child') === at('figure') ? 1 : 0 });
-const view = params.get('view') || 'overview';
+// view=close: behind a square (or Egill); view=overview: the whole path; view=pan: once along it and then to Egill (the default)
+const view = params.get('view') || 'pan';
 if (view === 'close') valley.camera.follow(params.has('square') ? Number(params.get('square')) : pieces.child.root).cut();
-else valley.camera.overview().cut();
+else if (view === 'overview') valley.camera.overview().cut();
+else { valley.camera.overview().cut(); valley.camera.pan({ duration: 9 }).then(() => valley.camera.follow(pieces.child.root, { ease: 1.2 })); }
 pieces.host.watch(pieces.child);
 
 // A small game, by the rules (engine/hals/rules.js), to try the pawns: space or a tap on the egg throws it, and Þórseðla throws on
@@ -82,7 +85,7 @@ const wait = seconds => new Promise(resolve => setTimeout(resolve, seconds * 100
 const above = (p, y = 0.8) => p.clone().add(new THREE.Vector3(0, y, 0));
 
 async function lift(neck, pawn, to, who) {
-  valley.camera.follow(pawn.root, { distance: 12, height: 8.5 });
+  valley.camera.frame(valley.squarePosition(neck.from), valley.squarePosition(to).add(new THREE.Vector3(0, 4, 0)), { margin: 5 });
   await neck.bow({ duration: 2.2 });
   await pawn.flyTo(neck.headPoint(), { duration: 0.6, height: 0.7 });
   pawn.ride(out => neck.headPoint(out));
@@ -94,7 +97,7 @@ async function lift(neck, pawn, to, who) {
   neck.rest();
 }
 async function slide(tail, pawn, to, who) {
-  valley.camera.follow(pawn.root, { distance: 12, height: 8 });
+  valley.camera.frame(valley.squarePosition(tail.from).add(new THREE.Vector3(0, 4, 0)), valley.squarePosition(to), { margin: 5 });
   await pawn.flyTo(tail.slideCurve().getPointAt(0), { duration: 0.7, height: 1.0 });
   await pawn.slide(() => tail.slideCurve(), { duration: 1.5 });
   const puddle = tail.puddle ?? valley.squarePosition(to);
@@ -156,15 +159,13 @@ window.__parts = () => {
   const count = () => { drawNow(); return { calls: renderer.info.render.calls, tris: renderer.info.render.triangles }; };
   const all = count();
   const groups = {
-    forest: [valley.world.forest.group],
+    land: [valley.scene.getObjectByName('Land')],
     thorsedlas: valley.thorsedlas.map(t => t.root),
     pawns: [pieces.child.root, pieces.thorsedla.root, pieces.child.egill.root, pieces.host.actor.root],
     egg: [egg.object],
     stones: valley.scene.children.filter(o => /Stones|Numerals|Stone glow/.test(o.name)),
     props: valley.scene.children.filter(o => /Fruit|Stream|Puddles|Fireflies/.test(o.name)),
   };
-  const grass = valley.world.forest.group.children.filter(o => /grass/i.test(o.name));
-  if (grass.length) groups.grass = grass;
   const out = { all };
   for (const [name, objects] of Object.entries(groups)) {
     const was = objects.map(o => o.visible);
