@@ -101,7 +101,7 @@ Efnisatriðin hér eru drög. Hver staðreynd er sannreynd með heimild þegar t
 
 | Spjald | Síður (drög) |
 |---|---|
-| Kalligrammatíð („fiðrildið“) | Lítur út eins og fiðrildi en er það ekki, heldur skyld blúnduvængjum (Neuroptera). Lifði á tímum risaeðla, fyrir um 165–125 milljónum ára. Augnblettir á vængjunum hræddu kannski svanga óvini. Langur rani til að drekka safa úr fornum plöntum. Fiðrildi nútímans eru ekki skyld þeim, þau urðu bara lík. Við vitum þetta af steingervingum. Það sem við vitum ekki: litina. |
+| Kalligrammatíð („fiðrildið“) | Lítur út eins og fiðrildi en er það ekki, heldur skyld netvængjum (Neuroptera). Lifði á tímum risaeðla, fyrir um 165–125 milljónum ára. Augnblettir á vængjunum hræddu kannski svanga óvini. Langur rani til að drekka safa úr fornum plöntum. Fiðrildi nútímans eru ekki skyld þeim, þau urðu bara lík. Við vitum þetta af steingervingum. Það sem við vitum ekki: litina. |
 | Bjallan | Bjöllur voru til löngu fyrir risaeðlur og lifðu útdauðann af. Bjöllur eru fleiri tegundir en nokkur annar dýrahópur. Steingervingar úr steini og rafi. |
 | Froskurinn | Froskar hoppuðu um þegar risaeðlur voru uppi. Elstu froskar sem líkjast nútímafroskum eru úr júratímabilinu. Hvernig þeir urðu svona hoppandi. |
 | Snigillinn | Sniglar eru meðal elstu dýra á jörðinni. Kuðungar steingervast vel. Snigillinn ber húsið sitt. |
@@ -129,7 +129,7 @@ Efnisatriðin hér eru drög. Hver staðreynd er sannreynd með heimild þegar t
   - Hver mynd er skráð með uppruna, höfundi, leyfi, slóð leyfis, breytingum og fingrafari, eins og `dist/assets/encyclopedia/media-manifest.json` í gamla leiknum.
   - Myndirnar sem eigandinn sendi (kalligrammatíð-steingervingur og teikning) eru notaðar aðeins ef leyfi þeirra leyfir það.
 - **Teikningar af Mosa og kambeðlunni:** myndir teknar úr leiknum, af þrívíddarlíkönunum í fallegri stellingu og birtu.
-- **Teikningar af smádýrunum fimm:** eigandinn gerir þær, til dæmis í Tripo, eftir lýsingum sem við skrifum. Hver lýsing fylgir einni stílforskrift, svo allar myndir fái sama útlit. Lýsing kalligrammatíðarins byggir á vísindalegri endurgerð: augnblettir, blúnduvængir og langur rani.
+- **Teikningar af smádýrunum fimm:** eigandinn gerir þær, til dæmis í Tripo, eftir lýsingum sem við skrifum. Hver lýsing fylgir einni stílforskrift, svo allar myndir fái sama útlit. Lýsing kalligrammatíðarins byggir á vísindalegri endurgerð: augnblettir, netæðóttir vængir og langur rani.
 - **Snið:** mest 1024 punktar á lengri hlið, JPEG eða WebP, og smámynd fyrir reitinn.
 
 ## 6. Tæknileg útfærsla
