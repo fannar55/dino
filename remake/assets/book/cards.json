@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines).",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page four); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines).",
   "cards": [
     {
       "id": "mosi",
@@ -10,7 +10,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-mosi",
+          "image": "render-mosi",
           "text": "Þetta er Mosi. Hann er þríhyrna, Triceratops, með þrjú horn og stóran kraga.",
           "audio": "book_mosi_1",
           "sources": [
@@ -35,7 +35,7 @@
           ]
         },
         {
-          "image": "placeholder-mosi",
+          "image": "render-mosi-kambedla",
           "text": "Vissir þú? Þríhyrnur og kambeðlur lifðu ekki á sama tíma. En í ævintýrinu okkar eru þær vinir!",
           "audio": "book_mosi_4",
           "sources": [
@@ -61,7 +61,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-kambedla",
+          "image": "render-kambedla",
           "text": "Þetta er kambeðla, Stegosaurus. Hún er með plötur á bakinu og gadda á halanum.",
           "audio": "book_kambedla_1",
           "sources": [
