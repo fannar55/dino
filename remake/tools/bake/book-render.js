@@ -9,11 +9,13 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/mosi-render-thumb.webp --query "who=mosi&width=320"
 //
 // Query: who (mosi, kambedla or both), width (the picture's width in px, 1024; the height is three quarters of it, and a smaller
-// width is the same picture made smaller), quality (WebP, 0.9), preview (1: show the picture over the card's paper instead of
-// uploading it, for capture.mjs). Any other key is a setting of the shot, by its path: camera.az=40, camera.el=6, camera.fov=24,
-// camera.fill=0.86,0.84, key.az=-25, key.el=42, key.i=2.6, hemi.i=1, env.i=0.4, shadow=0.3, exposure=1, actors.0.heading=20,
-// actors.0.time=1.2 (seconds into the clip), actors.0.turn=15 (degrees the head turns, + toward the heading's +Z side),
-// actors.0.nod=5 (degrees the head dips), actors.0.x and z (metres). Headings are degrees, 0 facing +X and 90 facing +Z, as in the game.
+// width is the same picture made smaller: the thumbnail), quality (WebP, 0.9), preview (1: show the picture over the card's
+// paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key is a setting, by its path,
+// of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6 camera.fov=22 camera.fill=0.92,0.88,
+// actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the head turns, + toward heading 90)
+// actors.0.nod=3 (degrees the head dips) actors.0.x and actors.0.z (metres), key.az=-28 (from the camera's) key.el=54 key.i=2.7
+// key.color=#ffe2b5, fill.*, hemi.*, env.i=0.5, shadow=0.24 (the ground shadow's opacity, 0 for none), blur=10 and exposure=1.
+// Headings are degrees, 0 facing +X and 90 facing +Z, as in the game.
 //
 // The picture is drawn at twice its size on a transparent canvas and brought down to size in halves, so its edges are smooth.
 // Colour is the game's pipeline: sRGB out, the Khronos neutral tone map, so the painted Tripo colours stay as they are.
@@ -72,8 +74,7 @@ const look = structuredClone(LOOK);
 const aspect = FULL[0] / FULL[1];
 for (const [key, value] of params) {
   if (['who', 'width', 'quality', 'preview', 'bg'].includes(key)) continue;
-  const [scope, ...rest] = key.split('.');
-  if (['key', 'fill', 'hemi', 'env'].includes(scope)) setPath(look, key, value);
+  if (['key', 'fill', 'hemi', 'env'].includes(key.split('.')[0])) setPath(look, key, value);
   else if (['exposure', 'shadow', 'blur'].includes(key)) look[key] = Number(value);
   else setPath(shot, key, value);
 }
