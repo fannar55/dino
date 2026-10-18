@@ -16,11 +16,11 @@ import { ICONS } from './icons.js';
 
 const SWIPE_PX = 40;
 const FOLLOW = 0.55; // how far the page follows a dragging finger
-const GROW_MS = 440;
+const GROW_MS = 480;
 const SHRINK_MS = 280;
 const FADE_MS = 160; // open and close with less motion
 const FLIP_MS = 260;
-const GROW_EASE = 'cubic-bezier(.2, .9, .3, 1.08)'; // from the tile, a little past full size and back
+const GROW_EASE = 'cubic-bezier(.3, .72, .3, 1.07)'; // from the tile, a little past full size and back
 const SHRINK_EASE = 'cubic-bezier(.5, 0, .8, .3)';
 const SLIDE_EASE = 'cubic-bezier(.2, .8, .2, 1)';
 const LIFT = 'translateY(28px) scale(.86)'; // where a card with no tile to come from grows from
@@ -336,13 +336,13 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     animations[0].onfinish = () => { if (motion === mine) finishClose(); };
   }
 
-  function open(next_, fromRect = null, start = 0) {
-    if (isOpen || !next_?.pages?.length) return false;
+  function open(shown, fromRect = null, start = 0) {
+    if (isOpen || !shown?.pages?.length) return false;
     halt(); // a card still shrinking gives way
     fingers.clear();
     drag = null;
-    current = next_;
-    pages = next_.pages;
+    current = shown;
+    pages = shown.pages;
     origin = fromRect;
     isOpen = true;
     card.setAttribute('data-card', current.id);

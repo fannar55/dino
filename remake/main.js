@@ -397,16 +397,24 @@ if (params.get('orbit') === '1') {
 const debugEl = document.getElementById('debug');
 debugEl.hidden = params.get('debug') !== '1';
 
-function render() {
+function drawNow() {
   renderer.info.reset(); // one count per frame, shadow pass included (autoReset is off)
   renderer.render(scene, camera);
 }
 // While the child's book covers the screen the game stands still behind it (the clock is held), and the canvas keeps the last frame it
 // was given: nothing is drawn again, not the same frozen scene every frame for nothing. A resize clears the canvas, so that draws once.
+// A book a script opened holds nothing, so the scene goes on under it. `drew` says whether this frame was drawn.
 let canvasCleared = false;
+let drew = true;
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
+function render() {
+  drew = !(clock.paused && book.isOpen && !canvasCleared);
+  if (!drew) return;
+  canvasCleared = false;
+  drawNow();
+}
 const stats = installStats({
-  renderer, scene, q, render, debugEl,
+  renderer, scene, q, render: drawNow, debugEl,
   getScale: () => display.resolutionScale,
   extra: () => `scene ${stage.elapsed.toFixed(1)} s  camera ${director.mode}`,
 });
@@ -433,13 +441,11 @@ renderer.setAnimationLoop(now => {
       console.error('[warm-up]', error);
     }
   }
-  const covered = clock.paused && book.isOpen && !canvasCleared; // a book a script opened holds nothing: the scene goes on under it
-  if (!covered) {
-    render();
-    canvasCleared = false;
+  render();
+  if (drew) {
     stats.sample(real);
+    adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing; nor to ones not drawn
   }
-  adapt(real, clock.frozen || ui.fadeLevel >= 0.999 || covered); // not to frames under the black (the warm-up, a build), nor to ones not drawn: they say nothing of drawing
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
 Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
