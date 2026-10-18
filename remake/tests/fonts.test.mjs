@@ -91,10 +91,10 @@ test('no other typeface is named in either sheet, so Nunito shows everywhere (th
 
 test('both pages preload the font, so no frame shows a fallback face', () => {
   for (const page of ['index.html', 'book-lab.html']) {
-    const preloads = [...read(page).matchAll(/<link\b[^>]*>/gi)].map(match => match[0]).filter(tag => /\brel="preload"/i.test(tag));
-    assert.equal(preloads.length, 1, `${page} has one preload`);
+    const links = [...read(page).matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
+    const preloads = links.filter(tag => /\brel="preload"/i.test(tag) && /\bas="font"/i.test(tag));
+    assert.equal(preloads.length, 1, `${page} preloads one font`);
     const [tag] = preloads;
-    assert.match(tag, /\bas="font"/);
     assert.match(tag, /\btype="font\/woff2"/);
     assert.match(tag, /\bcrossorigin\b/, 'a font is always fetched anonymously, and a preload without crossorigin would be fetched a second time');
     assert.equal(new URL(/\bhref="([^"]+)"/.exec(tag)?.[1] ?? 'missing', fileOf(page)).href, FONT.href, 'and it is the file the style sheets use');
