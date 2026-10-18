@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- The skip card's sign in "Eitt!", big under the picture and small in the corners: a white ring with a bar across it, outlined
+       in the journal's ink, standing on its own shadow as the card's numbers do. -->
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#3b2f25" stroke-width="27" transform="translate(0 6)"><circle cx="50" cy="47" r="32"/><path d="M28 69L72 25"/></g>
+    <g stroke="#3b2f25" stroke-width="27"><circle cx="50" cy="47" r="32"/><path d="M28 69L72 25"/></g>
+    <g stroke="#fff" stroke-width="13"><circle cx="50" cy="47" r="32"/><path d="M28 69L72 25"/></g>
+  </g>
+</svg>

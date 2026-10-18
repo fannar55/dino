@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eitt! — útlitið (tilraunasíða)</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./eitt.css">
+<!-- The look of "Eitt!" for the owner to approve (Task 1), never linked from the game: the table, the cards and every state, as
+     still markup in eitt.css's classes. Kambeðla's window holds a picture of her until her live 3D view comes (Task 3). ?state= picks
+     what shows:
+       table (the default)   a round under way: Kambeðla's cards, the deck, the pile with its red ring, the child's seven cards
+       wild                  a wild card just played: the ring of all four colours and the four big colour buttons
+       eitt                  two cards left: the "Eitt!" button pulses
+       mosi                  the child asked Mosi: he pops up with "Prófaðu þetta!" and his pick lifts and glows (and "Áfram",
+                             as after drawing a card)
+       draw                  nothing to play: the deck calls, and Mosi says to draw
+       win                   the round won: the words, Kambeðla's sticker for the book, "Spilum aftur?" and confetti
+       cards                 every kind of card, big
+     capture.mjs waits for __demoReady, which comes once the pictures are in and the pop-ups have finished moving. -->
+</head>
+<body>
+<main class="eitt" id="eitt">
+  <div class="eitt-table">
+    <section class="eitt-kambedla" aria-label="Kambeðla">
+      <img src="./assets/book/images/kambedla-render.webp" alt="">
+    </section>
+    <div class="eitt-kambedla-frame" aria-hidden="true"></div>
+    <div class="eitt-their-hand" id="their-hand" role="img"></div>
+
+    <div class="eitt-centre">
+      <button class="eitt-deck" id="deck" type="button" aria-label="Draga spil"><span class="eitt-card back"></span></button>
+      <div class="eitt-pile" id="pile"><div class="eitt-ring red" id="ring"></div></div>
+      <button class="eitt-pass" id="pass" type="button" hidden>
+        <span>Áfram</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="eitt-colours" id="colours" hidden>
+        <button class="red" type="button" aria-label="Rautt"></button>
+        <button class="yellow" type="button" aria-label="Gult"></button>
+        <button class="green" type="button" aria-label="Grænt"></button>
+        <button class="blue" type="button" aria-label="Blátt"></button>
+      </div>
+    </div>
+
+    <button class="eitt-mosi" type="button" aria-label="Spyrja Mosa"></button>
+    <div class="eitt-advice" id="advice" hidden>
+      <img src="./assets/book/images/mosi-render.webp" alt="">
+      <p id="advice-words">Prófaðu þetta!</p>
+    </div>
+    <div class="eitt-hand" id="hand"></div>
+    <button class="eitt-eitt" id="eitt-button" type="button"><span>Eitt!</span></button>
+  </div>
+
+  <div class="eitt-win" id="win" hidden>
+    <div class="eitt-win-card">
+      <button class="eitt-close" type="button" aria-label="Aftur í bókina">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>
+      </button>
+      <h2>Þú vannst!</h2>
+      <div class="eitt-sticker" role="img" aria-label="Kambeðlulímmiði"></div>
+      <p class="eitt-win-words">Límmiði í bókina!</p>
+      <button class="eitt-again" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Spilum aftur?</span>
+      </button>
+    </div>
+    <div class="eitt-confetti" id="confetti" aria-hidden="true"></div>
+  </div>
+
+  <div class="eitt-gallery" id="gallery" hidden></div>
+</main>
+<script type="module">
+  // The lab's logic: it only fills the markup for the state asked, as the game will (Task 3), and waits for it to settle.
+  const params = new URLSearchParams(location.search);
+  const STATES = ['table', 'wild', 'eitt', 'mosi', 'draw', 'win', 'cards'];
+  const state = STATES.includes(params.get('state')) ? params.get('state') : 'table';
+  const $ = id => document.getElementById(id);
+
+  // The card pictures (assets/eitt/): each colour's dinosaur, and the action cards' tricks.
+  const DINO = { red: 'trex.webp', yellow: 'brontosaurus.webp', green: 'mosi.webp', blue: 'parasaurolophus.webp' };
+  const TRICK = { skip: 'stegosaurus-tail.webp', reverse: 'pteranodon.webp', draw2: 'eggs-2.svg', wild: 'plates.svg', draw4: 'wild4.svg' };
+  const COLOUR_WORD = { red: 'rautt', yellow: 'gult', green: 'grænt', blue: 'blátt' };
+  const KIND_WORD = { skip: 'sleppa', reverse: 'snúningur', draw2: 'plús tveir', wild: 'litaskipti', draw4: 'litaskipti plús fjórir' };
+
+  /** One card's markup. spec: 'red 7', 'blue skip', 'green reverse', 'yellow draw2', 'wild', 'draw4' or 'back'. */
+  function card(spec, { tag = 'div', i, extra = '', style = '' } = {}) {
+    const [a, b] = spec.split(' ');
+    const at = (i === undefined ? '' : `--i:${i};`) + style;
+    const open = cls => `<${tag} class="eitt-card ${cls}${extra ? ' ' + extra : ''}"${tag === 'button' ? ' type="button"' : ''}${at ? ` style="${at}"` : ''}`;
+    if (a === 'back') return `${open('back')} aria-hidden="true"></${tag}>`;
+    if (a === 'wild' || a === 'draw4') {
+      const mark = a === 'draw4' ? '+4' : '';
+      return `${open(a === 'draw4' ? 'wild draw4' : 'wild')} aria-label="${KIND_WORD[a]}">` +
+        `<span class="corner" aria-hidden="true">${mark}</span><span class="pic"><img src="./assets/eitt/${TRICK[a]}" alt=""></span>` +
+        (mark ? `<span class="digit" aria-hidden="true">${mark}</span>` : '') + `<span class="corner flip" aria-hidden="true">${mark}</span></${tag}>`;
+    }
+    const colour = a;
+    if (/^\d$/.test(b)) {
+      return `${open(colour)} data-n="${b}" aria-label="${COLOUR_WORD[colour]} ${b}">` +
+        `<span class="corner" aria-hidden="true">${b}</span><span class="pic"><img src="./assets/eitt/${DINO[colour]}" alt=""></span>` +
+        `<span class="digit" aria-hidden="true">${b}</span><span class="corner flip" aria-hidden="true">${b}</span></${tag}>`;
+    }
+    const mark = b === 'draw2' ? '+2' : ''; // skip and reverse draw their sign in the corners and the middle (eitt.css)
+    return `${open(`${colour} ${b}`)} aria-label="${COLOUR_WORD[colour]} ${KIND_WORD[b]}">` +
+      `<span class="corner" aria-hidden="true">${mark}</span><span class="pic"><img src="./assets/eitt/${TRICK[b]}" alt=""></span>` +
+      `<span class="digit" aria-hidden="true">${mark}</span><span class="corner flip" aria-hidden="true">${mark}</span></${tag}>`;
+  }
+
+  /** The child's cards in an arc: each card's --i is its place from the middle. `marks` adds classes by index. */
+  function hand(specs, marks = {}) {
+    const mid = (specs.length - 1) / 2;
+    $('hand').innerHTML = specs.map((s, k) => card(s, { tag: 'button', i: +(k - mid).toFixed(2), extra: marks[k] ?? '' })).join('');
+  }
+  /** Kambeðla's cards, face down. */
+  function theirs(count) {
+    const mid = (count - 1) / 2;
+    $('their-hand').innerHTML = Array.from({ length: count }, (_, k) => card('back', { i: +(k - mid).toFixed(2) })).join('');
+    $('their-hand').setAttribute('aria-label', `Kambeðla á ${count} spil`);
+  }
+  /** The pile: the cards under the top one lie a little askew. */
+  function pile(specs, ring) {
+    const tilts = [['-9deg', '-4%', '2%'], ['7deg', '5%', '-1%'], ['-2deg', '0', '0']];
+    const under = specs.slice(0, -1).map((s, k) => card(s, { style: `--r:${tilts[k % 2][0]};--x:${tilts[k % 2][1]};--y:${tilts[k % 2][2]};` }));
+    $('pile').insertAdjacentHTML('beforeend', under.join('') + card(specs.at(-1), { style: '--r:2deg;' }));
+    $('ring').className = `eitt-ring ${ring}`;
+  }
+
+  const HAND = ['red 7', 'yellow 4', 'green 0', 'blue 9', 'green reverse', 'wild', 'red skip'];
+  if (state === 'table') {
+    theirs(6); pile(['blue 4', 'yellow 4', 'red 4'], 'red'); hand(HAND);
+  } else if (state === 'wild') {
+    theirs(6); pile(['yellow 4', 'red 4', 'wild'], 'wild'); hand(['red 7', 'yellow 4', 'green 0', 'blue 9', 'green reverse', 'red skip']);
+    $('colours').hidden = false;
+  } else if (state === 'eitt') {
+    theirs(4); pile(['red 4', 'green 4', 'green 2'], 'green'); hand(['green draw2', 'blue 6']);
+    $('eitt-button').classList.add('needed');
+  } else if (state === 'mosi') {
+    theirs(5); pile(['blue 4', 'yellow 4', 'red 4'], 'red');
+    hand(['yellow 1', 'green 0', 'blue 9', 'green reverse', 'blue skip', 'red 5', 'yellow draw2'], { 5: 'hint' });
+    $('advice').hidden = false; $('pass').hidden = false;
+  } else if (state === 'draw') {
+    theirs(3); pile(['red 4', 'red 8', 'blue 8'], 'blue'); hand(['red 7', 'yellow 4', 'green 0', 'yellow 2', 'green reverse']);
+    $('deck').classList.add('draw'); $('advice').hidden = false; $('advice-words').textContent = 'Þú þarft að draga spil.';
+  } else if (state === 'win') {
+    theirs(3); pile(['green 4', 'green 6', 'yellow 6'], 'yellow'); hand([]);
+    $('win').hidden = false;
+    const colours = ['red', 'yellow', 'green', 'blue'];
+    $('confetti').innerHTML = Array.from({ length: 56 }, (_, k) =>
+      `<i class="${colours[k % 4]}" style="--x:${((k * 61.8) % 100).toFixed(1)}%;--a:${(k * 67) % 180}deg;--t:${3.2 + (k % 5) * .45}s;--d:${-((k * 1.93) % 4.6).toFixed(2)}s"></i>`).join('');
+  } else if (state === 'cards') {
+    document.querySelector('.eitt-table').hidden = true;
+    $('gallery').hidden = false;
+    $('gallery').innerHTML = ['red 7', 'yellow 3', 'green 5', 'blue 9', 'back', 'red skip', 'blue reverse', 'yellow draw2', 'wild', 'draw4']
+      .map(s => card(s)).join('');
+  }
+
+  /** Waits until the font and pictures are in and nothing is moving but the idle life. */
+  async function settle() {
+    await document.fonts.ready;
+    if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+    for (let round = 0; round < 3; round++) {
+      await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  }
+  await settle();
+  window.__demoReady = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- "+2" in "Eitt!": two speckled dinosaur eggs in a twig nest, in the 4:3 frame of the card pictures, lit like the renders
+       (a warm key from the upper left, a soft blue-green contact shadow, never black). -->
+  <defs>
+    <radialGradient id="shell" cx="36%" cy="28%" r="78%">
+      <stop offset="0" stop-color="#fffdf7"/>
+      <stop offset=".5" stop-color="#f8ebd0"/>
+      <stop offset=".85" stop-color="#e4cba1"/>
+      <stop offset="1" stop-color="#d2b383"/>
+    </radialGradient>
+    <linearGradient id="bowl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5e4431"/>
+      <stop offset="1" stop-color="#7a5a40"/>
+    </linearGradient>
+    <linearGradient id="lip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c49a64"/>
+      <stop offset=".55" stop-color="#a07d52"/>
+      <stop offset="1" stop-color="#7d5d3e"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.8"/></filter>
+    <path id="egg" d="M0-64C31-64 50-12 50 15C50 45 28 64 0 64C-28 64-50 45-50 15C-50-12-31-64 0-64Z"/>
+    <g id="spots" fill="#b9814d" opacity=".72">
+      <ellipse cx="16" cy="-24" rx="5.5" ry="4" transform="rotate(-24 16 -24)"/>
+      <ellipse cx="28" cy="2" rx="4" ry="3" transform="rotate(30 28 2)"/>
+      <ellipse cx="6" cy="20" rx="6.5" ry="4.6" transform="rotate(12 6 20)"/>
+      <ellipse cx="-24" cy="8" rx="4.4" ry="3.2" transform="rotate(-40 -24 8)"/>
+      <ellipse cx="-12" cy="40" rx="5" ry="3.4" transform="rotate(20 -12 40)"/>
+      <ellipse cx="22" cy="38" rx="3.6" ry="2.6"/>
+      <ellipse cx="-2" cy="-44" rx="3" ry="2.2" transform="rotate(-10 -2 -44)"/>
+      <ellipse cx="34" cy="22" rx="2.6" ry="2"/>
+      <ellipse cx="-34" cy="30" rx="2.8" ry="2.1"/>
+      <circle cx="-8" cy="-8" r="2"/>
+      <circle cx="12" cy="-6" r="1.8"/>
+      <circle cx="-26" cy="-20" r="1.7"/>
+    </g>
+    <g id="shine">
+      <ellipse cx="-19" cy="-31" rx="9" ry="17" fill="#fff" opacity=".85" transform="rotate(20 -19 -31)" filter="url(#soft)"/>
+      <ellipse cx="-27" cy="-5" rx="3.2" ry="5" fill="#fff" opacity=".7" filter="url(#soft)"/>
+    </g>
+  </defs>
+
+  <ellipse cx="200" cy="266" rx="150" ry="20" fill="#2c4a47" opacity=".26" filter="url(#shadow)"/>
+
+  <!-- the nest's hollow, behind the eggs, with a few twigs on its far rim -->
+  <ellipse cx="200" cy="214" rx="128" ry="36" fill="url(#bowl)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M86 206C120 184 170 178 214 180" stroke="#8f6f49" stroke-width="7"/>
+    <path d="M196 178C240 176 290 186 318 204" stroke="#a07d52" stroke-width="6"/>
+    <path d="M110 196C140 186 168 184 188 186" stroke="#c2a273" stroke-width="3"/>
+    <path d="M232 182C262 184 288 192 306 202" stroke="#dccb6e" stroke-width="2.6"/>
+  </g>
+
+  <!-- the eggs: the left one leans, the right one stands a little in front -->
+  <g transform="translate(158 168) rotate(-13)">
+    <use href="#egg" fill="url(#shell)" stroke="#b39064" stroke-width="2.6"/>
+    <use href="#spots"/>
+    <use href="#shine"/>
+  </g>
+  <g transform="translate(244 176) rotate(11) scale(.96)">
+    <use href="#egg" fill="url(#shell)" stroke="#b39064" stroke-width="2.7"/>
+    <use href="#spots" transform="scale(-1 1)"/>
+    <use href="#shine"/>
+  </g>
+
+  <!-- the nest's near lip, in front of the eggs, woven of twigs and a little golden straw -->
+  <path d="M68 206C74 252 136 278 200 278C264 278 326 252 332 206C306 230 256 240 200 240C144 240 94 230 68 206Z" fill="url(#lip)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M74 214C96 246 150 262 210 262" stroke="#7a5a40" stroke-width="6"/>
+    <path d="M150 268C214 276 286 262 324 222" stroke="#6e5236" stroke-width="5"/>
+    <path d="M84 222C118 252 176 258 236 254" stroke="#c2a273" stroke-width="4"/>
+    <path d="M176 248C236 252 290 240 322 214" stroke="#d8b27a" stroke-width="4"/>
+    <path d="M96 238C140 266 214 270 262 262" stroke="#8f6f49" stroke-width="4.5"/>
+    <path d="M190 270C238 272 288 258 314 236" stroke="#a07d52" stroke-width="4"/>
+    <path d="M120 244C150 256 186 258 214 256" stroke="#dccb6e" stroke-width="2.4"/>
+    <path d="M236 258C266 256 292 246 308 234" stroke="#f2d98a" stroke-width="2.2"/>
+    <path d="M60 210L86 214M314 210L342 202M70 226L92 222" stroke="#8f6f49" stroke-width="4"/>
+    <path d="M326 226L348 232M58 224L80 232" stroke="#a07d52" stroke-width="3"/>
+  </g>
+</svg>
