@@ -71,7 +71,7 @@ Viðmið fyrir íslensku heitin:
 
 ## Myndefni og hreyfingar
 
-Öll sjö dýrin nota GLB-módel með beinagrindum og hreyfingum. Mosi, kambeðla, grameðla og slóeðla byggja á Quaternius-módelum; Mosi fær sérsmíðuð augu, trefil, hnakk og knapa. Þórseðla og uggeðla eru verulega endurmótuð úr CC0-grunnmódelum með nýjum hlutföllum, einkennum og gönguhreyfingum. Pteranodon er sérsmíðuð flugeðla með liðaða himnuvængi og flug-, svif- og lendingarhreyfingar. Uppruni og breytingar fylgja módelunum.
+Öll sjö dýrin nota GLB-módel með beinagrindum og hreyfingum. Mosi er Tripo AI-líkan sem eigandi leiksins bjó til; beinagrind, skinnþyngdir og hreyfingar hans eru bakaðar með `lab/gfx-demo/tools/bake-mosi.mjs` og hann ber hnakk og knapa. Kambeðla, grameðla og slóeðla byggja á Quaternius-módelum. Þórseðla og uggeðla eru verulega endurmótuð úr CC0-grunnmódelum með nýjum hlutföllum, einkennum og gönguhreyfingum. Pteranodon er sérsmíðuð flugeðla með liðaða himnuvængi og flug-, svif- og lendingarhreyfingar. Uppruni og breytingar fylgja módelunum.
 
 Dýrin koma inn í senurnar eftir samfelldum leiðum. Fyrst heyrist vísbending, síðan gengur dýrið til okkar eða flugeðlan flýgur yfir trén. Spurning og svarhnappar bíða eftir bæði hreyfingunni og upplestri Mosa. Bókin gerir hlé á komu dýrsins og talinu; þegar henni er lokað heldur ferðin áfram frá sama stað.
 

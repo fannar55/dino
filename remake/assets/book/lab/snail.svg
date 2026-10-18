@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): the snail with its house on its back, in the chapter's snail colours
+       (world/critters/models.js), drawn soft and by hand on a clear background so a tile can show it as a silhouette.
+       Our own drawing; the owner's drawing replaces it (Task 12). -->
+  <title>Snigill</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="17" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M330 196C334 174 340 158 348 144" fill="none" stroke-width="12"/>
+    <path d="M330 196C334 174 340 158 348 144" fill="none" stroke="#d6c293" stroke-width="6.5"/>
+    <circle cx="349" cy="141" r="9.5" fill="#f6f1e4" stroke-width="3.5"/>
+    <path d="M54 252C80 240 140 236 220 236C268 236 298 224 314 198C324 180 344 174 354 186C364 200 358 226 338 240C312 258 262 262 200 262C140 262 88 262 54 252Z" fill="#ead9ae"/>
+    <path d="M62 249C92 244 150 242 220 242C268 242 300 230 318 204C310 230 272 247 220 249C150 251 94 253 62 249Z" fill="#d6c293" stroke="none"/>
+    <circle cx="190" cy="165" r="74" fill="#ee8650"/>
+    <path d="M195 165A5 5 0 0 0 185 165A11 11 0 0 0 207 165A17 17 0 0 0 173 165A23 23 0 0 0 219 165A29 29 0 0 0 161 165A35 35 0 0 0 231 165A41 41 0 0 0 149 165A47 47 0 0 0 243 165A53 53 0 0 0 137 165A59 59 0 0 0 255 165A65 65 0 0 0 125 165" fill="none" stroke="#f9ebcb" stroke-width="6.5"/>
+    <path d="M228 230C246 218 258 200 262 180C266 204 254 226 232 238Z" fill="#c1673a" stroke="none"/>
+    <ellipse cx="160" cy="118" rx="26" ry="11" transform="rotate(-32 160 118)" fill="#fff" opacity=".28" stroke="none"/>
+    <path d="M344 198C354 180 364 166 376 154" fill="none" stroke-width="12"/>
+    <path d="M344 198C354 180 364 166 376 154" fill="none" stroke="#d6c293" stroke-width="6.5"/>
+    <circle cx="378" cy="151" r="9.5" fill="#f6f1e4" stroke-width="3.5"/>
+    <g stroke="none">
+      <circle cx="351" cy="142.5" r="4.6" fill="#2b2a1c"/>
+      <circle cx="380" cy="152.5" r="4.6" fill="#2b2a1c"/>
+      <circle cx="349.2" cy="140.4" r="1.6" fill="#fff"/>
+      <circle cx="378.2" cy="150.4" r="1.6" fill="#fff"/>
+      <ellipse cx="338" cy="214" rx="9" ry="5.5" fill="#f0a3b6" opacity=".6"/>
+    </g>
+    <path d="M343 222C349 228 357 228 363 221" fill="none" stroke-width="4"/>
+  </g>
+</svg>

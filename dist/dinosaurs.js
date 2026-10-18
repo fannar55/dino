@@ -633,18 +633,19 @@ function dressImportedDinosaur(animal, withRider) {
     const hit = ray.intersectObjects(skin, false)[0];
     return [px, py, hit ? hit.point.z + side * .004 : side * fallbackZ];
   };
+  // Mosi's Tripo3D skin paints its own eyes, smile and nostrils; the other species get fitted storybook eyes.
   const locations = {
-    triceratops: [1.67, 1.31, .295, .103],
     stegosaurus: [1.85, .777, .14, .043],
     trex: [1.65, 2.12, .30, .080],
     parasaurolophus: [1.70, 1.83, .145, .056],
     brachiosaurus: SAUROPOD_ANATOMY.eye,
     spinosaurus: [1.66, 1.335, .15, .058],
   };
-  const [x, y, z, eyeSize] = locations[type];
-  const facePalette = type === 'triceratops' ? ['#63a78b', '#c4d6a5', '#467964'] :
-    type === 'spinosaurus' ? ['#4e9291', '#b8ceaa', '#376f70'] : palettes[type];
-  for (const side of [-1, 1]) eye(headDetail, sidePoint(x, y, side, z), side, facePalette, details, eyeSize);
+  if (locations[type]) {
+    const [x, y, z, eyeSize] = locations[type];
+    const facePalette = type === 'spinosaurus' ? ['#4e9291', '#b8ceaa', '#376f70'] : palettes[type];
+    for (const side of [-1, 1]) eye(headDetail, sidePoint(x, y, side, z), side, facePalette, details, eyeSize);
+  }
   const accessoryRoots = [headDetail];
   if (type === 'brachiosaurus') {
     for (const side of [-1, 1]) {
@@ -665,34 +666,16 @@ function dressImportedDinosaur(animal, withRider) {
     }
   }
   if (type === 'triceratops') {
-    for (const side of [-1, 1]) {
-      line(headDetail, [[1.65, 1.10, .265], [1.86, 1.075, .225], [2.03, 1.075, .17], [2.14, 1.09, .09]].map(([px, py, pz]) => sidePoint(px, py, side, pz)), .012, M.mouth);
-      oval(headDetail, M.dark, sidePoint(2.035, 1.185, side, .13), [.035, .020, .015], [0, 0, -.25], true);
-    }
-    const cheekScales = [];
-    for (const side of [-1, 1]) for (let i = 0; i < 14; i++) {
-      const px = 1.54 + i % 5 * .065, py = 1.17 - Math.floor(i / 5) * .033;
-      cheekScales.push([...sidePoint(px, py, side, .29 - (px - 1.54) * .12), 0, .15, side]);
-    }
-    skinScales(headDetail, cheekScales, '#79b696', .016);
-    const scarf = group(root, 'Mosi orange adventure scarf', [.90, 1.16, 0]);
-    const collar = [];
-    for (let i = 0; i <= 36; i++) { const angle = i / 36 * TAU; collar.push([Math.cos(angle) * .075, Math.cos(angle) * .34, Math.sin(angle) * .40]); }
-    line(scarf, collar, .079, M.scarf, 10);
-    oval(scarf, M.scarfLight, [.055, -.13, .40], [.13, .11, .08]);
-    const flutter = group(scarf, 'Fluttering knitted scarf end', [.015, -.16, .40]);
-    sweep(flutter, [[0, 0, 0, .074, .025], [-.17, -.14, .025, .080, .025], [-.34, -.16, .07, .063, .020], [-.44, -.11, .08, .036, .012]], M.scarf, 20, 8);
-    details.scarves.push(flutter); accessoryRoots.push(scarf);
-    animal.attach(scarf, 'Shoulders');
+    // The Tripo3D Mosi goes without the knitted scarf; the saddle and rider stay.
     if (withRider) {
       const mount = group(root, 'Explorer saddle attached to Mosi');
       saddleAndRider(mount, details);
-      // The imported animal's back is lower and a little narrower than the
-      // procedural fallback. Mount follows the real Body bone during the walk.
-      mount.position.set(.08, -.17, 0); mount.scale.setScalar(.91);
-      // Preserve the under-belly contact while the blanket settles onto the
-      // imported back (skin surface measured around Y=1.57 in the idle pose).
-      mount.getObjectByName('Underbody saddle girth').position.y = .154;
+      // The Tripo3D Mosi's back is .23 lower at the saddle than the old Quaternius
+      // model (centre-line top 1.50 instead of 1.73, bind pose); the scale stays
+      // .91 so the rider keeps his size. Mount follows the real Body bone during the walk.
+      mount.position.set(.08, -.40, 0); mount.scale.setScalar(.91);
+      // Keep the girth under the belly (bottom measured around Y=.46 there).
+      mount.getObjectByName('Underbody saddle girth').position.y = .203;
       accessoryRoots.push(mount); animal.attach(mount, 'Body');
     }
   }

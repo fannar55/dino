@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- The wild card in "Eitt!": four of Kambeðla's back plates, glowing red, yellow, green and blue, rising from the curve of
+       her back, with twinkles, in the 4:3 frame of the card pictures. Drawn for the card's dark face, where the glow shows. -->
+  <defs>
+    <path id="plate" d="M-35 0L-46-62Q-48-75-38-85L-7-126Q0-134 7-126L38-85Q48-75 46-62L35 0Z"/>
+    <path id="veins" d="M0-4V-118M-4-6L-27-84M4-6L27-84M-8-8L-40-60M8-8L40-60" fill="none" stroke-linecap="round"/>
+    <radialGradient id="red" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#fff3d6"/><stop offset=".3" stop-color="#ffab86"/><stop offset=".72" stop-color="#ee5a43"/><stop offset="1" stop-color="#c23a2c"/>
+    </radialGradient>
+    <radialGradient id="yellow" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#fffbe6"/><stop offset=".3" stop-color="#ffe58a"/><stop offset=".72" stop-color="#f8c630"/><stop offset="1" stop-color="#d79a16"/>
+    </radialGradient>
+    <radialGradient id="green" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#f4ffe0"/><stop offset=".3" stop-color="#b6ec8a"/><stop offset=".72" stop-color="#5dbd4c"/><stop offset="1" stop-color="#358b34"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#eef8ff"/><stop offset=".3" stop-color="#a4d4ff"/><stop offset=".72" stop-color="#4598ec"/><stop offset="1" stop-color="#2667b3"/>
+    </radialGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a27fb8"/><stop offset=".35" stop-color="#8f6aa3"/><stop offset="1" stop-color="#5d4370"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="13"/></filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2"/></filter>
+    <path id="twinkle" d="M0-12C1.6-3 3-1.6 12 0C3 1.6 1.6 3 0 12C-1.6 3-3 1.6-12 0C-3-1.6-1.6-3 0-12Z"/>
+  </defs>
+
+  <!-- the glow round each plate -->
+  <g filter="url(#glow)">
+    <use href="#plate" fill="#ff6a4d" opacity=".95" transform="translate(96 272) rotate(-30) scale(.94)"/>
+    <use href="#plate" fill="#3f9bff" opacity=".95" transform="translate(304 272) rotate(30) scale(.94)"/>
+    <use href="#plate" fill="#ffd23a" opacity=".95" transform="translate(161 256) rotate(-10) scale(1.06)"/>
+    <use href="#plate" fill="#6fe05a" opacity=".95" transform="translate(239 256) rotate(10) scale(1.06)"/>
+  </g>
+
+  <!-- the plates: the outer two behind, the middle two in front -->
+  <g transform="translate(96 272) rotate(-30) scale(.94)">
+    <use href="#plate" fill="url(#red)" stroke="#9e2f24" stroke-width="3.4" stroke-linejoin="round"/>
+    <use href="#veins" stroke="#fff4dc" stroke-width="3" opacity=".45"/>
+  </g>
+  <g transform="translate(304 272) rotate(30) scale(.94)">
+    <use href="#plate" fill="url(#blue)" stroke="#1f5594" stroke-width="3.4" stroke-linejoin="round"/>
+    <use href="#veins" stroke="#f2faff" stroke-width="3" opacity=".45"/>
+  </g>
+  <g transform="translate(161 256) rotate(-10) scale(1.06)">
+    <use href="#plate" fill="url(#yellow)" stroke="#a87412" stroke-width="3" stroke-linejoin="round"/>
+    <use href="#veins" stroke="#fffdf0" stroke-width="2.6" opacity=".5"/>
+  </g>
+  <g transform="translate(239 256) rotate(10) scale(1.06)">
+    <use href="#plate" fill="url(#green)" stroke="#2a7230" stroke-width="3" stroke-linejoin="round"/>
+    <use href="#veins" stroke="#f6fff0" stroke-width="2.6" opacity=".5"/>
+  </g>
+
+  <!-- the curve of her back, with the plates standing in it -->
+  <path d="M-10 300C40 268 120 244 200 244C280 244 360 268 410 300Z" fill="url(#back)"/>
+  <path d="M40 282C100 260 150 252 200 252C250 252 300 260 360 282" fill="none" stroke="#c9a6dc" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+
+  <!-- twinkles -->
+  <g fill="#fff6d8">
+    <use href="#twinkle" transform="translate(70 70) scale(1.1)"/>
+    <use href="#twinkle" transform="translate(336 58) scale(.9)"/>
+    <use href="#twinkle" transform="translate(200 28) scale(.7)"/>
+    <use href="#twinkle" transform="translate(34 112) scale(.6)"/>
+    <use href="#twinkle" transform="translate(372 116) scale(.7)"/>
+    <use href="#twinkle" transform="translate(120 22) scale(.5)"/>
+    <use href="#twinkle" transform="translate(284 20) scale(.55)"/>
+  </g>
+</svg>

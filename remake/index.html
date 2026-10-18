@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#cfdde3">
+<title>Mosi — endurgerð</title>
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./eitt.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+</head>
+<body>
+<canvas id="view" aria-label="Leikurinn"></canvas>
+<div id="caption" class="caption" hidden><span class="caption-speaker"></span><p class="caption-text"></p></div>
+<div id="choices" class="choices" hidden></div>
+<div id="tray" class="tray" hidden></div>
+<div id="fade" class="fade"></div>
+<div id="loading" class="loading" aria-hidden="true" hidden></div>
+<button id="start" class="start" type="button" hidden>Byrja</button>
+<button id="journal-button" class="journal-button" type="button" aria-label="Landkönnuðabók Egils" hidden>
+  <svg class="journal-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <rect x="9" y="5" width="31" height="38" rx="5" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.5"/>
+    <path d="M9 10a5 5 0 0 1 5-5h4v38h-4a5 5 0 0 1-5-5z" fill="#c9622b" stroke="#3b2f25" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M28 13.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M32 43v-9h7v9l-3.5-2.4z" fill="#2f8f86" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+  <span id="star-slots" class="star-slots" aria-hidden="true"></span>
+  <span id="journal-badge" class="journal-badge" aria-hidden="true" hidden>
+    <svg viewBox="0 0 40 40"><path d="M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z"/></svg>
+  </span>
+</button>
+<div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
+<div id="book" class="book" hidden></div>
+<div id="eitt" class="eitt" hidden></div>
+<div id="debug" class="debug" hidden></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

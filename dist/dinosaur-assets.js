@@ -81,6 +81,9 @@ export function createCelebrationMotion() {
 export function preloadDinosaurAssets() {
   if (!pending) {
     const loader = new GLTFLoader();
+    // Mosi's skin is textured. Without a DOM (Node tests) there is no image decoder, so load geometry,
+    // skin and clips and leave the textures out instead of logging decode failures.
+    if (typeof document === 'undefined') loader.register(() => ({ name: 'stjornufar_headless_textures', loadTexture: () => Promise.resolve(null) }));
     pending = Promise.allSettled(Object.entries(files).map(async ([type, file]) => {
       const asset = await loader.loadAsync(new URL(`./assets/${file}`, import.meta.url).href);
       const motion = type === 'pteranodon' ? 'fly' : 'walk';
@@ -96,7 +99,8 @@ export function createImportedDinosaur(type) {
   if (!template) return null;
   const group = new THREE.Group();
   group.name = `Animated ${type}`;
-  group.userData.assetSource = type === 'pteranodon' ? 'Stjörnufar / original model' : 'Quaternius CC0 base + Stjörnufar';
+  group.userData.assetSource = type === 'pteranodon' ? 'Stjörnufar / original model'
+    : type === 'triceratops' ? 'Tripo3D model + Stjörnufar skeleton and clips' : 'Quaternius CC0 base + Stjörnufar';
   const animal = cloneSkeleton(template.scene);
   group.add(animal);
   animal.traverse(object => {
@@ -124,7 +128,8 @@ export function createImportedDinosaur(type) {
   const updateCelebration = createCelebrationMotion();
   let celebration = updateCelebration(0, 0);
   let lookWeight = 0, gazeWeight = 0;
-  const strideLength = { triceratops: .92, stegosaurus: .92, trex: 1.15, parasaurolophus: .88,
+  // Model units per walk cycle; Mosi's comes from the bake tool (lab/gfx-demo/tools/bake/bake-mosi.js).
+  const strideLength = { triceratops: 1.7, stegosaurus: .92, trex: 1.15, parasaurolophus: .88,
     brachiosaurus: .790, spinosaurus: .873 }[type] || 1;
   return {
     group, type, bounds, height: bounds.max.y,
@@ -140,7 +145,7 @@ export function createImportedDinosaur(type) {
       return { walkPhase: flyingAnimal ? 0 : walk.time / motionClip.duration,
         walkDuration: motionClip.duration / walk.getEffectiveTimeScale(),
         baseWalkDuration: motionClip.duration, strideLength,
-        footfallPhases: type === 'brachiosaurus' ? [0, .22, .5, .72] : [0, .5],
+        footfallPhases: type === 'brachiosaurus' ? [0, .22, .5, .72] : type === 'triceratops' ? [0, .25, .5, .75] : [0, .5],
         walking: flyingAnimal ? 0 : walkingWeight,
         wingPhase: flyingAnimal ? walk.time / motionClip.duration : 0,
         wingDuration: flyingAnimal ? motionClip.duration / walk.getEffectiveTimeScale() : 0,

@@ -1,0 +1,19 @@
+Purpose: simplified Egill in a T-pose: the image Tripo turns into the 3D model and auto-rigs.
+Reference: the image made from egill-reference-v1-prompt.txt.
+Template: design/mosi/mosi-tripo-rest-pose-v2-prompt.txt.
+
+Use case: stylized-concept.
+Asset type: single isolated image-to-3D source image of Egill, optimized for a clean game character that Tripo will rig as a biped and animate.
+Input image: reference for Egill's identity, colours and friendly appeal. Create a deliberately SIMPLER version in a neutral T-pose.
+Subject: the same six-year-old boy: snug khaki explorer hat with brown band, sandy-blond hair in a few big locks, cream short-sleeved shirt, deep blue trousers, brown boots. Keep his face, proportions and colours.
+POSE IS THE HIGHEST PRIORITY: bilaterally symmetrical T-pose. Standing straight, facing the camera, head level and looking straight ahead. Both arms stretched straight out to the sides at shoulder height, horizontal, palms facing down, fingers together and straight, thumbs slightly apart. Legs straight, feet flat on the ground about shoulder width apart, toes pointing forward. Clear gaps between arms and torso and between the legs. Elbows, knees and wrists in simple readable landmarks for rigging.
+SIMPLIFICATION: clean smooth matte surfaces with broad readable volumes. Remove pocket flaps, stitching, laces, fabric texture and tiny folds. Hat tight to the head with a short brim that does not overhang the face. Hair close to the head, no strands sticking out.
+Face: symmetrical calm friendly expression, mouth closed in a slight kind smile, eyes open and relaxed. No exaggerated expression baked into the rest face.
+CAMERA: straight front view, eye level at the chest, near-orthographic / very long lens. Whole figure inside the frame with 10 percent margins, including both hands.
+BACKGROUND AND LIGHT: uniform plain light grey background, soft even diffuse studio lighting, minimal contact shadow, no rim glow, no depth-of-field blur.
+Constraints: ONE character, ONE view. No multiple panels, no turnaround sheet, no labels, no text, no logos, no watermark, no bones or rig diagram, no environment, no props.
+
+Tripo settings for this image (decision 5: Tripo model and Tripo rig):
+- Image to 3D with texture, about 30 to 40 thousand faces, 2K textures.
+- Rig as a humanoid biped, then add these animations: idle, walk, wave, point, sit (riding pose), lifted up.
+- Export GLB with the skeleton and the animations. In the game: at most 40k triangles, 1024 textures after baking.

@@ -48,14 +48,22 @@ vængjasuð, sull, dýrahljóð og verðlaunahljómar eru frumsamin WebAudio-hlj
 MYNDEFNI
 Quaternius — Animated Lowpoly Dinosaurs
 https://quaternius.itch.io/animated-lowpoly-dinosaurs
-Þríhyrna (Triceratops), kambeðla (Stegosaurus), grameðla (Tyrannosaurus rex)
-og slóeðla (Parasaurolophus). Upprunalegar beinagrindur og hreyfingar fylgja.
+Kambeðla (Stegosaurus), grameðla (Tyrannosaurus rex) og slóeðla
+(Parasaurolophus). Upprunalegar beinagrindur og hreyfingar fylgja.
 Leyfi í sóttum pakka: CC0 1.0 / almenningseign.
 https://creativecommons.org/publicdomain/zero/1.0/
 Upprunalegt leyfi: assets/dinosaurs/QUATERNIUS-LICENSE.txt
 Breytingar: sléttað yfirborð, nýir litir, litabreytileiki í húð, PBR-efni og
-GLB-umbreyting. Augu, svipbrigði, trefill, hnakkur og knapi eru sérsmíðuð.
+GLB-umbreyting. Augu og svipbrigði eru sérsmíðuð.
 Leikurinn notar bið- og gönguhreyfingar; árásir og dauðahreyfingar eru ekki notaðar.
+
+Tripo AI (Tripo3D) — Mosi, þríhyrna (Triceratops)
+https://www.tripo3d.ai
+Eigandi leiksins bjó líkanið til í Tripo AI út frá eigin hugmyndamyndum.
+Beinagrind, skinnþyngdir og bið- og gönguhreyfingar voru gerðar fyrir leikinn
+með bökunartóli verkefnisins (lab/gfx-demo/tools/bake-mosi.mjs í frumskrám).
+Hnakkur og knapi eru sérsmíðaðir.
+Réttindi fara eftir skilmálum Tripo og áskriftarleið eiganda: assets/dinosaurs/TRIPO-NOTE.txt
 
 Quaternius — Stylized Nature MegaKit, ókeypis Standard-útgáfa
 https://quaternius.itch.io/stylized-nature-megakit
