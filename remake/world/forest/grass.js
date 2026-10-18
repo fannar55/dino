@@ -40,6 +40,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     const pm = terrain.pathMask(x, z);
     d *= 1 - (1 - cfg.pathDensity) * smoothstep(0.15, 0.7, pm);
     d *= 1 - 0.7 * smoothstep(0.15, 0.65, terrain.soilMask(x, z));
+    if (layout.keepOut) d *= 1 - layout.keepOut(x, z); // a layout's own bare ground (the valley of Háls og hali: its stream)
     return clamp(d, 0, 1);
   }
 

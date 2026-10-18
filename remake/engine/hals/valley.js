@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { BOARD } from './rules.js';
 import { pickLook } from '../looks.js';
-import { createLighting } from '../lighting.js';
+import { createLighting, sunDirection } from '../lighting.js';
 import { installDepthShadows } from '../shadows.js';
 import { installFog } from '../fog.js';
 import { createSky } from '../sky.js';
@@ -52,6 +52,7 @@ export const VALLEY = {
   thorsedla: { scale: 0.5, vary: 0.05 }, // their size against the real Þórseðla's 22 m
   forestGrass: 0.7, // the clearing's grass, as a share of the preset's density
   look: 'morning', // the chapter's light (kafli1): the fog's shader chunk stays the same as the chapter's
+  sun: { azimuth: 78, elevation: 52 }, // but the sun stands higher, behind the camera at the front: short shadows, faces lit
 };
 
 // The model's measures (brontosaurus.glb at its real size, facing +X, the root between the feet): the neck's base, how far ahead
@@ -166,7 +167,9 @@ export function planValley(board = BOARD) {
     if (d < sw * 2.5) h -= sd * (1 - smoothstep(0, sw * 2.5, d)); // a soft, wide hollow the water lies in
     return h;
   }
-  return { squares, path, stream, streamDistance, nest, gate, lift };
+  /** 1 where nothing grows (the stream's water), 0 where the forest grows as it will. */
+  const keepOut = (x, z) => 1 - smoothstep(sw * 0.55, sw * 0.95, streamDistance(x, z));
+  return { squares, path, stream, streamDistance, nest, gate, lift, keepOut };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -287,8 +290,9 @@ export function placeThorsedlas(plan, board = BOARD, { seed = 7 } = {}) {
 // Light levels for the Þórseðlas: the model's skin simplified to 1/2 ... 1/16 of its triangles once (in a worker), each level an
 // index buffer over the same vertex buffers (engine/simplify.js), as character-lod.js does for the chapter's characters.
 
-const LEVELS = [0.5, 0.25, 0.125, 0.0625];
-const LEVEL_PX = [1100, 600, 300, 150]; // the full skin above the first, a level below each
+const COARSE = [3200, 1400]; // triangles of the two light levels (the welded skin's)
+const LEVELS = [0.5, 0.25, ...COARSE];
+const LEVEL_PX = [2000, 1000, 400, 140]; // the full skin above the first, a level below each (the bind diagonal's pixels)
 const levelCache = new Map();
 const TAIL_TIP_HEIGHT = 1.3; // metres: the tip of a tail's Þórseðla's tail over the ground (a pawn, Mosi with Egill, is under 1 m)
 
@@ -308,26 +312,92 @@ function simplifyInWorker(positions, index, options) {
   });
 }
 
-function lightLevels(geometry) {
+function skinArrays(geometry, count = geometry.attributes.position.count, pick = i => i) {
+  const { skinIndex, skinWeight } = geometry.attributes;
+  const indices = new Int32Array(count * 4), weights = new Float32Array(count * 4);
+  for (let i = 0; i < count; i++) for (let c = 0; c < 4; c++) { indices[i * 4 + c] = skinIndex.getComponent(pick(i), c); weights[i * 4 + c] = skinWeight.getComponent(pick(i), c); }
+  return { indices, weights };
+}
+
+// The skin with its seams welded: one vertex for each place, so the simplifier may move every vertex and take the skin down to a
+// few thousand triangles. A welded vertex cannot keep the texture coordinates of both sides of a seam, so the light levels carry
+// the texture's colour at each vertex instead (colourFromMap) and draw with a material of their own, without the map.
+function weldedSkin(geometry) {
+  const position = geometry.attributes.position;
+  const keyOf = i => `${position.getX(i).toFixed(5)},${position.getY(i).toFixed(5)},${position.getZ(i).toFixed(5)}`;
+  const firstOf = new Map(), map = new Uint32Array(position.count), originals = [];
+  for (let i = 0; i < position.count; i++) {
+    const key = keyOf(i);
+    if (!firstOf.has(key)) { firstOf.set(key, originals.length); originals.push(i); }
+    map[i] = firstOf.get(key);
+  }
+  const g = new THREE.BufferGeometry();
+  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+    const size = attribute.itemSize, out = new (attribute.isInterleavedBufferAttribute ? attribute.data.array : attribute.array).constructor(originals.length * size);
+    const raw = attribute.isInterleavedBufferAttribute
+      ? (o, c) => attribute.data.array[o * attribute.data.stride + attribute.offset + c]
+      : (o, c) => attribute.array[o * size + c];
+    originals.forEach((o, i) => { for (let c = 0; c < size; c++) out[i * size + c] = raw(o, c); });
+    g.setAttribute(name, new THREE.BufferAttribute(out, size, attribute.normalized));
+  }
+  const index = Uint32Array.from(geometry.index.array, i => map[i]);
+  return { g, index, originals };
+}
+
+/** The colour map's colour under each vertex (linear), read from a small copy of its image. Null without a readable map. */
+function colourFromMap(g, map) {
+  const image = map?.image;
+  if (!image || typeof document === 'undefined') return null;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const c = canvas.getContext('2d', { willReadFrequently: true });
+  try { c.drawImage(image, 0, 0, size, size); } catch { return null; }
+  const pixels = c.getImageData(0, 0, size, size).data;
+  const uv = g.attributes.uv, out = new Float32Array(uv.count * 3), colour = new THREE.Color();
+  for (let i = 0; i < uv.count; i++) {
+    let u = uv.getX(i), v = uv.getY(i);
+    if (map.flipY) v = 1 - v;
+    const x = Math.min(size - 1, Math.max(0, Math.floor(u * size))), y = Math.min(size - 1, Math.max(0, Math.floor(v * size)));
+    const k = (y * size + x) * 4;
+    colour.setRGB(pixels[k] / 255, pixels[k + 1] / 255, pixels[k + 2] / 255, THREE.SRGBColorSpace);
+    out.set([colour.r, colour.g, colour.b], i * 3);
+  }
+  return new THREE.BufferAttribute(out, 3);
+}
+
+function lightLevels(geometry, map) {
   if (levelCache.has(geometry)) return levelCache.get(geometry);
   const position = geometry.attributes.position;
   const positions = new Float32Array(position.count * 3);
   for (let i = 0; i < position.count; i++) { positions[i * 3] = position.getX(i); positions[i * 3 + 1] = position.getY(i); positions[i * 3 + 2] = position.getZ(i); }
-  const { skinIndex, skinWeight } = geometry.attributes;
-  const indices = new Int32Array(position.count * 4), weights = new Float32Array(position.count * 4);
-  for (let i = 0; i < position.count; i++) for (let c = 0; c < 4; c++) { indices[i * 4 + c] = skinIndex.getComponent(i, c); weights[i * 4 + c] = skinWeight.getComponent(i, c); }
   if (!geometry.boundingBox) geometry.computeBoundingBox();
   if (!geometry.boundingSphere) geometry.computeBoundingSphere();
   const diagonal = geometry.boundingBox.getSize(new V3()).length();
-  const options = { levels: LEVELS.map((ratio, i) => ({ ratio, maxError: i < 2 ? [0.001, 0.0025][i] * diagonal : Infinity })), skin: { indices, weights } };
-  const promise = simplifyInWorker(positions, Uint32Array.from(geometry.index.array), options).then(levels => [geometry, ...levels.map(({ corners }) => {
+  const triangles = geometry.index.count / 3;
+  const indexed = (attributesOf, corners, count) => {
     const g = new THREE.BufferGeometry();
-    for (const [name, attribute] of Object.entries(geometry.attributes)) g.setAttribute(name, attribute);
-    g.setIndex(new THREE.BufferAttribute(position.count < 65536 ? Uint16Array.from(corners) : corners, 1));
+    for (const [name, attribute] of Object.entries(attributesOf.attributes)) g.setAttribute(name, attribute);
+    g.setIndex(new THREE.BufferAttribute(count < 65536 ? Uint16Array.from(corners) : corners, 1));
     g.boundingBox = geometry.boundingBox;
     g.boundingSphere = geometry.boundingSphere;
     return g;
-  })]);
+  };
+  // the half and the quarter over the skin's own vertices, within the chapter's errors
+  const fine = simplifyInWorker(positions, Uint32Array.from(geometry.index.array), {
+    levels: [{ ratio: 0.5, maxError: 0.001 * diagonal }, { ratio: 0.25, maxError: 0.0025 * diagonal }],
+    skin: skinArrays(geometry),
+  }).then(levels => levels.map(({ corners }) => indexed(geometry, corners, position.count)));
+  // the light ones over the welded skin
+  const welded = weldedSkin(geometry);
+  const colours = colourFromMap(welded.g, map);
+  if (colours) welded.g.setAttribute('color', colours);
+  const wp = welded.g.attributes.position;
+  const coarse = simplifyInWorker(Float32Array.from(wp.array), welded.index, {
+    levels: COARSE.map(t => ({ ratio: t / triangles, maxError: Infinity })),
+    skin: skinArrays(geometry, welded.originals.length, i => welded.originals[i]),
+  }).then(levels => levels.map(({ corners }) => indexed(welded.g, corners, wp.count)));
+  const promise = Promise.all([fine, coarse]).then(([a, b]) => [geometry, ...a, ...b]);
   levelCache.set(geometry, promise);
   return promise;
 }
@@ -350,9 +420,9 @@ function rotateBoneWorld(bone, q) {
 function stoneGeometry() {
   const { radius: r, top } = VALLEY.stone;
   const profile = [
-    [0.001, -0.25], [r * 0.9, -0.25], [r * 0.98, -0.05], [r, top * 0.45], [r * 0.95, top * 0.85], [r * 0.82, top], [r * 0.4, top + 0.02], [0.001, top + 0.025],
+    [r * 0.92, -0.2], [r, top * 0.4], [r * 0.93, top * 0.88], [r * 0.7, top + 0.012], [0.001, top + 0.025],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const g = new THREE.LatheGeometry(profile, 22);
+  const g = new THREE.LatheGeometry(profile, 15);
   // a little lumpy, so no two stones read as one turned shape
   const p = g.attributes.position, v = new V3();
   for (let i = 0; i < p.count; i++) {
@@ -433,7 +503,7 @@ function fruitTree(random) {
   }
   for (let i = 0; i < 9; i++) {
     const a = random() * Math.PI * 2, e = random() * 0.9 - 0.2;
-    const g = new THREE.IcosahedronGeometry(0.16, 1);
+    const g = new THREE.IcosahedronGeometry(0.17, 0);
     const [cx, cy, cz, cr] = crown[i % crown.length];
     g.translate(cx + Math.cos(a) * Math.cos(e) * cr * 0.98, cy + Math.sin(e) * cr * 0.85, cz + Math.sin(a) * Math.cos(e) * cr * 0.98);
     parts.push(colouredGeometry(g, i % 3 ? '#e2553a' : '#f2a33a'));
@@ -459,7 +529,7 @@ function nestGeometry(random) {
     parts.push(colouredGeometry(g, ['#7a5a3c', '#946f48', '#6a4c33', '#a37c52'][i % 4]));
   }
   for (const [x, z, t] of [[-0.45, 0.2, 0.2], [0.42, 0.28, -0.25], [0, -0.42, 0.1]]) {
-    const g = new THREE.SphereGeometry(0.34, 16, 12);
+    const g = new THREE.SphereGeometry(0.34, 12, 9);
     g.scale(1, 1.32, 1);
     g.rotateZ(t);
     g.translate(x, 0.75, z);
@@ -521,11 +591,13 @@ varying vec2 vUv;
 #include <fog_pars_fragment>
 void main() {
   float edge = abs(vUv.y - 0.5) * 2.0;
-  float flow = sin(vUv.x * 2.1 - uTime * 1.7 + sin(vUv.y * 6.0) * 0.8) * 0.5 + 0.5;
-  float ripple = sin(vUv.x * 5.3 - uTime * 2.6 + vUv.y * 3.0) * sin(vUv.x * 1.3 + uTime * 0.7);
+  float flow = sin(vUv.x * 1.3 - uTime * 1.2 + sin(vUv.y * 6.0 + vUv.x * 0.4) * 1.4) * 0.5 + 0.5;
+  float ripple = sin(vUv.x * 2.7 - uTime * 2.1 + 3.0 * sin(vUv.y * 5.0 + vUv.x * 0.7)) * sin(vUv.x * 0.9 + vUv.y * 4.0 - uTime * 0.5);
   vec3 c = mix(uDeep, uShallow, smoothstep(0.35, 1.0, edge) * 0.8 + flow * 0.15);
-  c += uGlint * smoothstep(0.82, 0.98, ripple * 0.5 + 0.5) * (1.0 - edge * 0.6);
-  gl_FragColor = vec4(c, 1.0 - smoothstep(0.62, 1.0, edge));
+  c += uGlint * 0.22 * smoothstep(0.8, 1.0, ripple * 0.5 + 0.5) * (1.0 - edge * 0.7);
+  gl_FragColor = vec4(c, 0.88 * (1.0 - smoothstep(0.62, 1.0, edge)));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
   #include <fog_fragment>
 }`;
 
@@ -560,7 +632,7 @@ void main() {
   vGlow = pow(0.5 + 0.5 * sin(uTime * (1.1 + aFly.y) + aFly.x * 40.0), 3.0);
   vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  gl_PointSize = aFly.w * uPixels / -mvPosition.z * (0.55 + 0.45 * vGlow);
+  gl_PointSize = min(18.0, aFly.w * uPixels / -mvPosition.z) * (0.55 + 0.45 * vGlow);
   #include <fog_vertex>
 }`;
 const FIREFLY_FRAGMENT = /* glsl */`
@@ -573,6 +645,8 @@ void main() {
   if (r > 1.0) discard;
   float core = exp(-r * 9.0), halo = exp(-r * 2.6) * 0.45;
   gl_FragColor = vec4(uColour * (core * 2.4 + halo * 1.3) * (0.3 + 0.7 * vGlow), 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -583,7 +657,8 @@ void main() {
  * forest, the stones and the Þórseðlas are in the scene; `valley.ready` resolves once their light levels are in place too.
  */
 export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet, params = new URLSearchParams(), win = globalThis.window } = {}) {
-  const look = pickLook(VALLEY.look);
+  const chapterLook = pickLook(VALLEY.look);
+  const look = { ...chapterLook, sun: { ...chapterLook.sun, ...VALLEY.sun } };
   const scene = new THREE.Scene();
   scene.name = 'Háls og hali';
   const camera = new THREE.PerspectiveCamera(40, 16 / 10, 0.3, 1200);
@@ -592,7 +667,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   const lighting = createLighting(scene, look, q);
   lighting.sun.name = 'Valley sun';
   installDepthShadows(renderer, lighting.sun);
-  installFog(scene, look, lighting.direction);
+  installFog(scene, chapterLook, sunDirection(chapterLook));
   const sky = createSky({ renderer, scene, look, sunDir: lighting.direction });
   const wind = createWind();
   const plan = planValley(board);
@@ -628,6 +703,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     actors: keepClear,
     shots: {},
     lift: plan.lift,
+    keepOut: plan.keepOut,
   });
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
@@ -653,7 +729,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     const m = new THREE.Matrix4(), qn = new THREE.Quaternion(), sc = new V3();
     let s = 99;
     const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
-    const base = [new THREE.Color('#c9b38e'), new THREE.Color('#bfab8a'), new THREE.Color('#cdb894'), new THREE.Color('#b8a688')];
+    const base = [new THREE.Color('#d6b98a'), new THREE.Color('#cbb087'), new THREE.Color('#dcc193'), new THREE.Color('#c4aa86')];
     squares.forEach((p, i) => {
       // tipped to the slope under it
       const e = 0.6;
@@ -832,6 +908,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
   const sun = lighting.sun;
   const casters = new Set();
   const casterMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+  const coarseMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0 }); // the light levels'
   casterMaterial.shadowSide = THREE.FrontSide;
   if (sun.castShadow) {
     const before = sun.shadow.updateMatrices;
@@ -845,7 +922,9 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     const mesh = skinOf(actor.model);
     const entry = { actor, mesh, levels: null, level: 0, caster: null };
     light.push(entry);
-    const ready = lightLevels(mesh.geometry).then(levels => {
+    entry.material = mesh.material;
+    const ready = lightLevels(mesh.geometry, mesh.material.map).then(levels => {
+      if (levels[levels.length - 1].attributes.color) entry.coarseMaterial = coarseMaterial;
       entry.levels = levels;
       if (sun.castShadow) {
         const caster = new THREE.SkinnedMesh(levels[levels.length - 1], casterMaterial);
@@ -872,6 +951,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     if (!entry.levels || level === entry.level) return;
     entry.level = level;
     entry.mesh.geometry = entry.levels[level];
+    entry.mesh.material = level >= 3 && entry.coarseMaterial ? entry.coarseMaterial : entry.material;
   }
   const camPos = new V3(), centre = new V3(), frustum = new THREE.Frustum(), vp = new THREE.Matrix4(), sphere = new THREE.Sphere();
   function updateLevels(height) {
@@ -1131,7 +1211,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     overviewPose(rig.goalPosition, rig.goalTarget);
     return camera;
   };
-  camera.follow = (target, { distance = 9.5, height = 6.2, ease = 0.7 } = {}) => {
+  camera.follow = (target, { distance = 9.5, height = 7.2, ease = 0.7 } = {}) => {
     const get = typeof target === 'function' ? target
       : target?.isObject3D ? out => target.getWorldPosition(out)
         : target?.isVector3 ? out => out.copy(target)
@@ -1255,7 +1335,7 @@ export async function createValley(renderer, { board = BOARD, q = PRESETS.tablet
     forest.dispose();
     sky.dispose();
     for (const o of [stones, numeralsMesh, rings, props, stream, puddleMesh, fireflies]) { scene.remove(o); o.geometry.dispose(); }
-    for (const m of [stoneMaterial, numeralMaterial, ringMaterial, propsMaterial, water, flyMaterial, casterMaterial]) m.dispose();
+    for (const m of [stoneMaterial, numeralMaterial, ringMaterial, propsMaterial, water, flyMaterial, casterMaterial, coarseMaterial]) m.dispose();
     numerals.texture.dispose();
     for (const c of casters) c.removeFromParent();
     casters.clear();

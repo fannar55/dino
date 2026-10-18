@@ -75,7 +75,7 @@ window.__parts = () => {
     out[name] = { calls: all.calls - without.calls, tris: all.tris - without.tris };
   }
   out.levels = valley.thorsedlas.map(t => { let g = null; t.actor.model.traverse(o => { if (o.isSkinnedMesh && !g) g = o.geometry; }); return g.index.count / 3; });
-  console.log('[parts]', JSON.stringify(out));
+  console.warn('[parts]', JSON.stringify(out));
   return out;
 };
 

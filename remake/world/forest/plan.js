@@ -305,6 +305,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const pq = terrain.path.query(x, z);
     const trunkR = model.trunk ? model.trunk.flare * scale : model.radius * scale * 0.7;
     if (pq.d < (opts.pathClear ?? P.plantClear) + trunkR) { stats.rejected.path++; return null; }
+    if (layout.keepOut?.(x, z) > 0.5) { stats.rejected.path++; return null; } // a layout's own bare ground
     for (const a of actors) {
       if (Math.hypot(a.x - x, a.z - z) < (opts.actorClear ?? 3.2) + model.radius * scale * 0.5) { stats.rejected.actor++; return null; }
     }
