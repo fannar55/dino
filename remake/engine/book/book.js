@@ -1,4 +1,6 @@
 import { pressable, reducedMotion } from './fx.js';
+import { ICONS } from './icons.js';
+import { createAnimalsPage } from './animals-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
@@ -6,8 +8,8 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 // Stjörnur page, and the open and close that grow it out of the journal's button and shrink it back in.
 //
 // Pages. Each ribbon has a leaf (.book-leaf[data-tab]) of two pages, each with a .book-tiles box for what the page shows. The
-// Stjörnur leaf shows today's six friends' stars, earned or not. The Dýrin leaf is the animals page's: Task 7 renders it there
-// (and refresh() renders it again); until then its pages are empty. Part 3 adds a ribbon for the games.
+// Stjörnur leaf shows today's six friends' stars, earned or not. The Dýrin leaf is the animals page's (animals-page.js), whose tiles
+// open a card (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). Part 3 adds a ribbon for the games.
 //
 // Who holds it. A book the child opens (the journal's button) holds the game: onPause(true) as it opens and onPause(false) when it
 // is shut, however it is shut. A book a script opens (the chapter's last scene) holds nothing, so the scene's last line plays on,
@@ -29,12 +31,6 @@ const OPEN_EASE = 'cubic-bezier(.2, .9, .3, 1.12)'; // out of the button, a litt
 const CLOSE_EASE = 'cubic-bezier(.55, 0, .8, .25)';
 const PERSPECTIVE = 'perspective(2400px)';
 
-const ICONS = {
-  stars: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M24 5.5c1.3 0 2 1 2.6 2.3l3.8 8.4 9.1 1.1c1.5.2 2.5 1 2.8 2.1.3 1.2-.3 2.2-1.3 3l-6.8 6.2 1.9 9c.3 1.4-.1 2.6-1.1 3.3-1 .7-2.3.6-3.5-.1L24 36.2l-7.5 4.6c-1.2.7-2.5.8-3.5.1-1-.7-1.4-1.9-1.1-3.3l1.9-9L7 22.4c-1-.8-1.6-1.8-1.3-3 .3-1.1 1.3-1.9 2.8-2.1l9.1-1.1 3.8-8.4C22 6.5 22.7 5.5 24 5.5z"/></svg>',
-  animals: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>',
-  close: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>',
-};
-
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
  * createBookAudio). `onPause(paused)` holds the game; `win` is the window (less motion, the screen's shape). Returns
@@ -42,7 +38,7 @@ const ICONS = {
  *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
  *   close()            shuts it, and stops the narration
  *   isOpen, tab        whether it is open, and the page it shows (or showed last)
- *   refresh()          shows what the save holds now (a star that has landed)
+ *   refresh()          shows what the save holds now (a star that has landed, an animal that has come)
  *   pictureOf(findId)  the thumbnail of the card that find unlocks, or null
  */
 export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, win = globalThis.window } = {}) {
@@ -119,11 +115,20 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   root.replaceChildren(spread);
   root.hidden = true;
 
-  /** Lights the stars the save holds. */
+  // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
+  // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
+  const animals = createAnimalsPage(doc, leaves.get('animals').el, {
+    cards, media, save, audio, win,
+    onOpenCard: () => {}, // Task 8 opens the card
+  });
+
+  /** Shows what the save holds: the stars that are lit, and the animals found and new. */
   function render() {
     const got = new Set(save.get().stars.map(friendOf));
     FRIENDS.forEach((friend, i) => stars[i].classList.toggle('earned', got.has(friend.key)));
+    animals.render();
   }
+
 
   function showTab() {
     root.setAttribute('data-tab', tab);
@@ -303,7 +308,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const was = holder;
     isOpen = false;
     holder = null;
-    audio?.stop?.(); // nothing reads on after the book is shut (the card and the zoom close here too, with Tasks 8 and 9)
+    audio?.stop?.(); // nothing reads on after the book is shut
     finishTurn();
     audio?.sfx?.('close');
     shrink();

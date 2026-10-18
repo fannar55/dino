@@ -1,0 +1,13 @@
+// The book's drawn icons, one stroke weight each, coloured by the control they sit in (book.css: .book-icon and .book-arrow).
+// They are markup for a button's innerHTML; the shell (book.js), the card (card-viewer.js) and the zoom (zoom.js) share them.
+
+export const ICONS = {
+  stars: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M24 5.5c1.3 0 2 1 2.6 2.3l3.8 8.4 9.1 1.1c1.5.2 2.5 1 2.8 2.1.3 1.2-.3 2.2-1.3 3l-6.8 6.2 1.9 9c.3 1.4-.1 2.6-1.1 3.3-1 .7-2.3.6-3.5-.1L24 36.2l-7.5 4.6c-1.2.7-2.5.8-3.5.1-1-.7-1.4-1.9-1.1-3.3l1.9-9L7 22.4c-1-.8-1.6-1.8-1.3-3 .3-1.1 1.3-1.9 2.8-2.1l9.1-1.1 3.8-8.4C22 6.5 22.7 5.5 24 5.5z"/></svg>',
+  animals: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>',
+  close: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>',
+  back: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>',
+  speaker: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>',
+  info: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-dot" cx="24" cy="24" r="21"/><circle class="icon-i" cx="24" cy="14.5" r="3.4"/><path class="icon-i" d="M24 22v13" stroke-width="5.5"/></svg>',
+  // The card's big arrow points right; the previous arrow mirrors it (book.css).
+  arrow: '<svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>',
+};

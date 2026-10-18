@@ -9,7 +9,6 @@
     </filter>
     <path id="plate" d="M-20 4C-21-20-9-44 0-52C9-44 21-20 20 4Z"/>
   </defs>
-  <ellipse cx="200" cy="265" rx="164" ry="13" fill="#3b2f25" opacity=".14"/>
   <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
     <g fill="#8a64a0">
       <use href="#plate" xlink:href="#plate" transform="translate(112 138) rotate(-34) scale(.62)" stroke-width="7"/>

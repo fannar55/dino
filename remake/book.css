@@ -10,8 +10,10 @@
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
      .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
                                  page a .star-tile, .earned once the friend's star is in the book
-     .card                       an animal's card over the spread, with its parts (.card-credit is the window its ⓘ opens)
-     .zoom                       a picture at full screen on its .zoom-frame mat, with its .zoom-close
+     .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
+                                 .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
+                                 and, on the last page, .card-done
+     .zoom                       a picture at full screen on its .zoom-frame mat (--ratio is the picture's shape), with its .zoom-close
      .chunky                     the raised button every round control is made of
 
    The rules it keeps (the plan's Global Constraints and STYLE.md section 10):
@@ -257,7 +259,7 @@
 .tile:nth-child(4n + 3) { --tilt: 2.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
 .tile:nth-child(4n + 4) { --tilt: -1.4deg; --lag: -3.7s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); }
 .tile::before { /* the tape that holds the photo on the page */
-  content: ""; position: absolute; z-index: 2; left: 50%; top: calc(var(--tile-w) * -.055);
+  content: ""; position: absolute; z-index: 2; left: 50%; top: calc(var(--tile-w) * -.055); pointer-events: none;
   width: 46%; height: calc(var(--tile-w) * .13);
   transform: translateX(-50%) rotate(calc(var(--tilt) * -1.6));
   background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), var(--tape);
@@ -273,15 +275,15 @@
   font-size: clamp(24px, var(--tile-w) * .135, 46px); line-height: 1.12; padding-bottom: .04em;
 }
 
-/* Found: full colour, breathing, with a twinkle now and then and a glint across the photo. */
-.tile.found { animation: tile-breathe 4.8s ease-in-out var(--lag) infinite; }
-.tile.found::after {
-  content: ""; position: absolute; z-index: 3; top: calc(var(--tile-w) * -.09); right: calc(var(--tile-w) * -.09);
+/* Found: full colour, breathing, with a twinkle now and then and a glint across the photo. A lit star's photo (Stjörnur) lives the same. */
+.tile.found, .star-tile.earned { animation: tile-breathe 4.8s ease-in-out var(--lag) infinite; }
+.tile.found::after, .star-tile.earned::after {
+  content: ""; position: absolute; z-index: 3; top: calc(var(--tile-w) * -.09); right: calc(var(--tile-w) * -.09); pointer-events: none;
   width: calc(var(--tile-w) * .17); aspect-ratio: 1; background: var(--book-twinkle) center / contain no-repeat;
   opacity: 0; animation: twinkle 3.6s ease-in-out calc(var(--lag) * 1.3) infinite;
 }
-.tile.found .tile-picture::after {
-  content: ""; position: absolute; inset: -10% -40%;
+.tile.found .tile-picture::after, .star-tile.earned .tile-picture::after {
+  content: ""; position: absolute; inset: -10% -40%; pointer-events: none;
   background: linear-gradient(105deg, transparent 42%, rgb(255 255 255 / .6) 50%, transparent 58%);
   transform: translateX(-80%); animation: glint 7.5s ease-in-out calc(var(--lag) * 1.7) infinite;
 }
@@ -289,12 +291,12 @@
 /* New: found but not opened yet. It glows, rocks a little and wears its badge until the card is opened. */
 .tile.new { animation: tile-rock 2.4s ease-in-out infinite; }
 .tile.new::after { /* the glow, round the photo and not over it */
-  content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit;
+  content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: 0 0 0 5px var(--book-gold), 0 0 22px 9px rgb(242 182 48 / .9), 0 0 56px 24px rgb(255 205 90 / .5);
   animation: glow 2.4s ease-in-out infinite;
 }
-.badge-new {
-  position: absolute; z-index: 4; top: calc(var(--tile-w) * -.1); right: calc(var(--tile-w) * -.13);
+.badge-new { /* a sticker on the photo's corner, inside its tile: a tap on it is a tap on this tile and no other */
+  position: absolute; z-index: 4; top: calc(var(--tile-w) * .035); right: calc(var(--tile-w) * .04); pointer-events: none;
   padding: .2em .55em .26em; border-radius: 999px;
   font-size: clamp(24px, var(--tile-w) * .12, 34px); line-height: 1; white-space: nowrap;
   color: var(--book-card); background: #d0682e; /* the journal's orange, a shade deeper so the letters stand out on it */
@@ -385,17 +387,22 @@
 }
 .card-image::before { top: -2.2%; left: -5%; transform: rotate(-32deg); }
 .card-image::after { top: -2.2%; right: -5%; transform: rotate(30deg); background-color: color-mix(in srgb, var(--book-gold) 60%, transparent); }
-.card-image img {
-  display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 6px;
+.card-photo { /* the picture is a button: a tap on it zooms it */
+  position: relative; display: block; width: 100%; height: 100%; margin: 0; padding: 0;
+  border: 0; border-radius: 6px; background: none;
 }
-.card-info { /* small to look at (spec 3.3), full size to the finger */
+.card-photo.pressable.pressed { scale: .97; } /* a big picture squashes gently */
+.card-image img { /* every page's picture lies in the photo, one on another, and only the page's shows */
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 6px;
+}
+.card-info { /* small to look at (spec 3.3), full size to the finger, and above the window it opens so the window never covers it */
   min-width: var(--book-target); min-height: var(--book-target);
-  position: absolute; z-index: 3; right: calc(var(--book-target) * -.32); bottom: calc(var(--book-target) * -.32);
+  position: absolute; z-index: 4; right: calc(var(--book-target) * -.32); bottom: calc(var(--book-target) * -.32);
   display: grid; place-items: center; padding: 0; border: 0; background: none;
 }
 .card-info .book-icon { width: 44px; height: 44px; filter: drop-shadow(0 3px 3px rgb(59 47 37 / .35)); }
 .card-credit { /* the short window the ⓘ opens: who made the picture, its licence and where it is from */
-  position: absolute; z-index: 3; right: 4%; bottom: calc(var(--book-target) * .62);
+  position: absolute; z-index: 3; right: 4%; bottom: calc(var(--book-target) * .72); /* clear above the ⓘ's whole hit area */
   max-width: min(88%, 15em); margin: 0; padding: .5em .75em .55em;
   border: 3px solid var(--book-ink); border-radius: 16px;
   font-size: 24px; line-height: 1.25; text-align: left; color: var(--book-ink); background: var(--book-card);
@@ -403,7 +410,7 @@
   transform: rotate(1.2deg); /* level again on the tilted photo */
 }
 .card-credit p { margin: 0; }
-.card-credit span { color: var(--book-ink-soft); margin-right: .3em; }
+.card-credit .credit-label { color: var(--book-ink-soft); margin-right: .3em; }
 
 .card-arrow { /* big drawn arrows at both sides */
   min-width: var(--book-target); min-height: var(--book-target);
@@ -432,6 +439,14 @@
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 2; top: var(--clear); left: var(--clear);
 }
+.card-done { /* the last page: the big way back to the animals, where the arrow on would be */
+  grid-area: next; align-self: center; justify-self: center;
+  width: clamp(112px, 15cqmin, 150px); height: clamp(112px, 15cqmin, 150px);
+  --face: var(--book-green); --side: #4a8434;
+}
+.card-done .book-icon { width: 54%; height: 54%; }
+.card-done .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; }
+.card.closing { pointer-events: none; } /* as it shrinks back into its tile, a tap goes through it */
 .card-dots { grid-area: dots; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 26px; }
 .card-dots > span {
   width: 16px; height: 16px; border-radius: 50%;
@@ -457,6 +472,7 @@
   width: min(100cqw - 2 * (var(--zoom-gap) + var(--mat)), (100cqh - 2 * (var(--zoom-gap) + var(--mat))) * var(--ratio));
   padding: var(--mat); border-radius: 16px; background: var(--book-card);
   box-shadow: 0 28px 70px rgb(0 0 0 / .55), 0 8px 18px rgb(0 0 0 / .4);
+  will-change: transform; /* zoom.js moves it with the fingers: a transform and nothing else */
 }
 .zoom-frame img {
   display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 9px;
@@ -501,6 +517,23 @@
 /* ---- The still book's idle life ----------------------------------------------------------------------------------- */
 
 .ribbon[data-tab="stars"] .book-icon { animation: star-twinkle 3s ease-in-out infinite; }
+/* The stars the friends gave shine on the Stjörnur page (the photo's breathing, glint and twinkle are with the found tiles above). */
+.star-tile.earned .tile-picture svg { animation: star-shine 3.4s ease-in-out var(--lag) infinite; }
+/* On a card's last page the way back bobs a little, so the child sees where to go on. */
+.card-done { animation: done-bob 1.9s ease-in-out infinite; }
+
+@keyframes star-shine {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  50% { transform: scale(1.09) rotate(4deg); }
+}
+@keyframes done-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes twinkle-fade { /* the twinkle with less motion: it only shows and goes, where it is */
+  0%, 60%, 100% { opacity: 0; }
+  76% { opacity: 1; }
+}
 
 @keyframes tile-breathe {
   0%, 100% { transform: rotate(var(--tilt)) translateY(0) scale(1); }
@@ -586,4 +619,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .book *, .book *::before, .book *::after { animation: none !important; }
+  /* the one thing that goes on is a twinkle that fades in and out where it is */
+  .tile.found::after, .star-tile.earned::after { animation: twinkle-fade 4.2s ease-in-out calc(var(--lag) * 1.3) infinite !important; }
 }

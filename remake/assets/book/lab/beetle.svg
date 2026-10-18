@@ -11,7 +11,6 @@
     <path id="legs" d="M178 118C160 112 144 104 134 88C130 80 124 72 116 66M170 160C150 160 132 162 118 170C110 176 102 184 96 194M176 200C160 212 146 222 136 236C132 244 128 252 122 260M222 118C240 112 256 104 266 88C270 80 276 72 284 66M230 160C250 160 268 162 282 170C290 176 298 184 304 194M224 200C240 212 254 222 264 236C268 244 272 252 278 260"/>
     <path id="feelers" d="M192 62C186 48 178 38 164 30M208 62C214 48 222 38 236 30"/>
   </defs>
-  <ellipse cx="200" cy="268" rx="112" ry="11" fill="#3b2f25" opacity=".13"/>
   <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
     <use href="#legs" fill="none" stroke-width="12"/>
     <use href="#legs" fill="none" stroke="#58412f" stroke-width="6"/>

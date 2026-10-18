@@ -9,7 +9,6 @@
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs>
-  <ellipse cx="206" cy="274" rx="104" ry="9" fill="#3b2f25" opacity=".1"/>
   <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
     <path d="M238 138C236 104 224 70 204 42C196 60 186 72 174 80C182 94 186 106 188 118C202 126 220 134 238 138Z" fill="#6e5440"/>
     <path d="M188 160C150 156 96 160 34 178C30 186 32 194 38 198C96 204 150 196 190 184Z" fill="#6e5440"/>

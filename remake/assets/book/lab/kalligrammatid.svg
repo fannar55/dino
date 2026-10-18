@@ -16,7 +16,6 @@
       <circle cx="-4.5" cy="-4.5" r="2.8" fill="#fff" stroke="none"/>
     </g>
   </defs>
-  <ellipse cx="204" cy="274" rx="118" ry="10" fill="#3b2f25" opacity=".1"/>
   <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
     <g fill="none" stroke-width="3.5">
       <path d="M193 86C184 68 172 54 156 44"/>
