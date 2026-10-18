@@ -5,7 +5,7 @@ Eigandinn teiknar smádýrin fimm fyrir spjöldin í Landkönnuðabókinni, til 
 - **Lýsing:** hvernig dýrið lítur út.
 - **Heimild:** ritið eða safnasíðan sem útlitið byggist á.
 - **Frjálst:** það sem er ímyndað eða einfaldað, því steingervingar sýna sjaldan liti og mjúkvefi.
-- **Tripo:** tvær enskar línur til að líma í Tripo, því Tripo skilur ensku best: jákvæð lína fyrir lýsingarreitinn og neikvæð lína fyrir neikvæða reitinn (það sem á ekki að vera með). Jákvæða línan hefur engar neitanir, því neitanir í lýsingu eru oft hunsaðar eða virka öfugt.
+- **Tripo:** tvær enskar línur til að líma í Tripo, því Tripo skilur ensku best: jákvæð lína fyrir lýsingarreitinn og neikvæð lína fyrir neikvæða reitinn (það sem á ekki að vera með). Hafi Tripo engan neikvæðan reit, er neikvæðu línunni sleppt (sjá kafla 3). Jákvæða línan hefur engar neitanir, því neitanir í lýsingu eru oft hunsaðar eða virka öfugt.
 
 Smíðin heldur áfram með staðgenglum þar til teikningarnar berast.
 
