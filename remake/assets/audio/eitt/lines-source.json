@@ -45,6 +45,6 @@
  { "id": "eitt_tut_hint_number", "speaker": "mosi", "text": "Næstum! Sjáðu töluna á borðinu, og finndu sömu tölu." },
  { "id": "eitt_tut_hint_try", "speaker": "mosi", "text": "Sjáðu, þetta spil passar. Pikkaðu á það!" },
  { "id": "eitt_tut_right", "speaker": "mosi", "text": "Rétt! Vel gert." },
- { "id": "eitt_tut_recap", "speaker": "mosi", "text": "Mundu: sami litur eða sama tala. Brögðin hjálpa þér. Og ýttu á Eitt þegar eitt spil er eftir!" },
+ { "id": "eitt_tut_recap", "speaker": "mosi", "text": "Mundu: sami litur eða sama tala. Brögðin hjálpa þér. Og ýttu á Eitt þegar eitt spil er eftir!", "kept": "The owner picked take E on 2026-10-18: Eleven v4 with \"Mundu að ýta á Eitt!\" as context (not spoken), seed 1 (qa/remake/voices/bok-fix/recap/eitt_tut_recap-v4-ctx-seed1.mp3)" },
  { "id": "eitt_tut_real", "speaker": "mosi", "text": "Nú kanntu reglurnar! Nú spilum við fyrsta alvöruleikinn." }
 ]
