@@ -23,6 +23,10 @@ import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
 import { createSave } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
+import { createBook } from './engine/book/book.js';
+import { createBookAudio } from './engine/book/book-audio.js';
+import { parseCards } from './engine/book/cards.js';
+import { parseManifest } from './engine/book/media.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -111,6 +115,24 @@ try {
 } catch {
   console.warn('No recorded line durations found; lines are timed by reading pace.');
 }
+// The book's cards and pictures (engine/book/cards.js and media.js). Without them the book still opens and its Stjörnur page
+// works; only its Dýrin page is empty.
+let cards = [];
+let media = new Map();
+try {
+  const read = async path => {
+    const response = await fetch(new URL(path, import.meta.url));
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return response.json();
+  };
+  const [cardData, mediaData] = await Promise.all([read('./assets/book/cards.json'), read('./assets/book/media-manifest.json')]);
+  cards = parseCards(cardData);
+  media = parseManifest(mediaData);
+} catch (error) {
+  cards = [];
+  media = new Map();
+  console.warn('[book] Its cards could not be read, so its Dýrin page is empty.', error);
+}
 // The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it. The music reads the
 // theme's file against this URL (theme.json's src), and the effects tune their bells to its key.
 const themeUrl = new URL('./assets/audio/theme.json', import.meta.url);
@@ -127,6 +149,9 @@ const audio = playing ? createAudioContext() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
 const sfx = createSfx({ context: audio, theme, output });
+// The book's narrator and effects (engine/book/book-audio.js): outside the hold below, so they sound while the game stands still
+// behind the child's book, and muted wherever the game's sound is silent (captures and review shots).
+const bookAudio = createBookAudio({ context: audio, output, theme, lines });
 // The one place the beat reads its time: the music's playhead. It is the game clock's time folded into the theme's loop (and
 // the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
 // on the same beat every time.
@@ -150,14 +175,16 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
 const save = createSave(params.get('t') === null ? undefined : null);
-const journal = createJournal(document, save, {
-  // A page the child opens holds the whole game, the sound included, until the child shuts it. A page a
-  // script opens (s.journal.open) does not call this: the last scene fades into the book while Mosi speaks.
+const book = createBook(document, {
+  cards, media, save, audio: bookAudio, win: window,
+  // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
+  // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
     clock.setPaused(paused);
     hold('book', paused);
   },
 });
+const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
@@ -296,7 +323,8 @@ function startScene() {
 }
 
 if (shotName || !chapter.script) {
-  // Review mode: hold a static shot. With t, jump the animation there and freeze.
+  // Review mode: hold a static shot. With t, jump the animation there and freeze. The book is as silent as the rest.
+  bookAudio.muted = true;
   director.cut(shots[shotName] ? shotName : 'hero');
   if (seekTo !== null) {
     clock.step(seekTo);
@@ -314,6 +342,7 @@ if (shotName || !chapter.script) {
     voice.muted = true;
     music.muted = true;
     sfx.muted = true;
+    bookAudio.muted = true;
     stage.seeking = true;
     ui.setFade(1);
     stage.begin();
@@ -405,4 +434,4 @@ renderer.setAnimationLoop(now => {
   adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

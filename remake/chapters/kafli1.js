@@ -442,9 +442,9 @@ function* onThePath(s, c) {
   const { critters } = c.rjodur;
   const stops = PATH_CRITTERS.map(spot => {
     s.target(spot.name, critters.targets.find(t => t.name === spot.name));
-    return s.onTap(spot.name, () => {
+    return s.onTap(spot.name, tap => {
       critters.react(spot.name);
-      s.found(spot.kind);
+      s.found(spot.kind, tap); // its picture flies from the tap into the book
       if (!found.includes(spot.kind)) found.push(spot.kind);
     });
   });
@@ -767,7 +767,7 @@ function setUpClearing(s, c) {
   const stops = [];
   for (const t of critters.targets.filter(target => target.name.startsWith('bird-'))) {
     s.target(t.name, t);
-    stops.push(s.onTap(t.name, () => { critters.react(t.name); s.found('birds'); }));
+    stops.push(s.onTap(t.name, tap => { critters.react(t.name); s.found('birds', tap); }));
   }
   stops.push(...butterflyTaps(s, world));
   return {
@@ -785,11 +785,11 @@ function butterflyTaps(s, world) {
   const butterflies = world.forest.butterflies;
   return (butterflies?.targets ?? []).map(t => {
     s.target(t.name, t);
-    return s.onTap(t.name, () => {
+    return s.onTap(t.name, tap => {
       butterflies.flutter(t.name);
       sparkleBurst(world, t.point.clone(), { count: 14, duration: 0.8, seed: t.name });
       s.sfx('butterfly');
-      s.found('butterfly');
+      s.found('butterfly', tap);
     });
   });
 }
@@ -817,7 +817,7 @@ function setUpGlade(s, c) {
   // They react and go in the journal, and do not count for the search.
   for (const { name, kind } of GLADE_CRITTERS) {
     s.target(name, critters.targets.find(t => t.name === name));
-    s.onTap(name, () => { critters.react(name); s.found(kind); });
+    s.onTap(name, tap => { critters.react(name); s.found(kind, tap); });
   }
   butterflyTaps(s, world);
   s.camera.cut('gladeArrive');

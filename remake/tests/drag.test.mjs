@@ -603,7 +603,9 @@ test('the interface keeps STYLE.md section 10: choices 64 px high on one line, c
   assert.ok(px(rule('.caption-text'), 'font-size') >= 24, 'captions at least 24 px');
   // The scene fades to 0.45 and opens the book under Mosi's last line: the caption stands over both, so it is not dimmed.
   const zOf = selector => Number(/z-index:\s*(-?\d+)/.exec(rule(selector))?.[1] ?? 0);
-  assert.ok(zOf('.caption') > zOf('.fade') && zOf('.caption') > zOf('.journal-page'), 'the caption is above the fade and the open book');
+  const book = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  const bookZ = Number(/z-index:\s*(-?\d+)/.exec(/^\.book\s*\{([^}]*)\}/m.exec(book)?.[1] ?? '')?.[1] ?? 0); // the book's root (book.css)
+  assert.ok(zOf('.caption') > zOf('.fade') && zOf('.caption') > bookZ, 'the caption is above the fade and the open book');
   assert.match(rule('.caption'), /pointer-events:\s*none/, 'and still lets taps through');
 });
 

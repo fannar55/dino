@@ -352,9 +352,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return start(starTask(id, fromSpec));
   }
 
-  function found(id) {
+  function found(id, from = null) {
     needJournal('s.found');
-    journal.addFinding(id);
+    journal.addFinding(id, from);
     return DONE;
   }
 
@@ -440,11 +440,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      * the journal when tapped, or by itself after 8 s (1.5 s seeking), and resolves 'tapped' or 'idle' once it has landed.
      */
     star,
-    /** Put the animal `id` in the journal's finds (once per id). */
+    /**
+     * Put the animal `id` in the journal's finds (once per id). `from` is where the child tapped it, a tap's { name, x, y } (canvas
+     * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button.
+     */
     found,
     /**
-     * The journal's page, for a scene that ends in the book: `open()` shows it and `close()` hides it. Unlike the child's
-     * own tap on the book, they do not pause the game, so a scene can go on talking under an open page.
+     * The book, for a scene that ends in it: `open()` opens it on its stars and `close()` shuts it. Unlike the child's own tap on
+     * the button, they do not pause the game, so a scene can go on talking under the open book (until the child taps inside it).
      */
     journal: {
       open: () => { needJournal('s.journal.open'); journal.open(); return DONE; },

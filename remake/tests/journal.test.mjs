@@ -108,23 +108,31 @@ test('old saves and blocked storage', () => {
 // ---------------------------------------------------------------------------------------------
 // The journal
 
-const PAGE = [
-  'journal-button', 'star-slots', 'finding-count', 'journal-flights',
-  'journal-page', 'journal-close', 'journal-stars', 'journal-finds', 'journal-empty',
-];
+const PAGE = ['journal-button', 'star-slots', 'journal-flights', 'journal-badge'];
 const FRIENDS = ['Kambeðla', 'Þórseðla', 'Grameðla', 'Uggeðla', 'Slóeðla', 'Flugeðla'];
 
-/** A journal over a page with the elements index.html has, and a save in memory. */
-function journalRig({ stored = null, save = null, onPause } = {}) {
+/** A stand-in for the book (engine/book/book.js): what it was asked to do, and a picture for each find in `pictures`. */
+function fakeBook(pictures = {}) {
+  return {
+    opened: [], closed: 0, refreshed: 0, isOpen: false,
+    open(tab, by) { this.opened.push([tab, by]); this.isOpen = true; },
+    close() { this.closed++; this.isOpen = false; },
+    refresh() { this.refreshed++; },
+    pictureOf: id => pictures[id] ?? null,
+  };
+}
+
+/** A journal over a page with the elements index.html has, a save in memory, a book and the book's sound. */
+function journalRig({ stored = null, save = null, book = fakeBook(), audio = null } = {}) {
   const doc = new FakeDocument(PAGE);
   const storage = memoryStorage(stored ? { [KEY]: JSON.stringify(stored) } : {});
   const kept = save ?? createSave(storage);
-  const journal = createJournal(doc, kept, { onPause });
+  const journal = createJournal(doc, kept, { book, audio });
   const el = id => doc.getElementById(id);
   /** The journal button's star slots, in the order of the friends. */
   const slots = () => el('star-slots').children;
   const earned = () => slots().map(slot => slot.classList.contains('earned'));
-  return { doc, storage, save: kept, journal, el, slots, earned };
+  return { doc, storage, save: kept, journal, book, el, slots, earned };
 }
 
 const placeOf = style => {
@@ -141,10 +149,52 @@ test('findings are counted once per id', () => {
   assert.equal(journal.addFinding('snail'), true);
   assert.deepEqual(journal.findings, ['frog', 'snail']);
   assert.deepEqual(save.get().findings, ['frog', 'snail']);
-  assert.equal(el('finding-count').textContent, '2');
-  assert.equal(el('finding-count').hidden, false);
   assert.equal(el('journal-button').hidden, false, 'the first find brings the book out');
   assert.throws(() => journal.addFinding(''), TypeError);
+});
+
+test('a find flies its picture from the tap to the button, sounds once on landing, and badges the button until the book opens', () => {
+  const sounds = [];
+  const { journal, book, el } = journalRig({ book: fakeBook({ butterfly: 'assets/book/lab/kalligrammatid.svg', frog: 'assets/book/lab/frog.svg' }), audio: { sfx: name => sounds.push(name) } });
+  el('journal-button').rect = { left: 1100, top: 12, width: 160, height: 64 }; // its middle is at 1180, 44
+  const flying = el('journal-flights').children;
+  assert.equal(journal.addFinding('butterfly', { name: 'butterfly-1', x: 400, y: 300 }), true);
+  assert.equal(flying.length, 1);
+  assert.equal(flying[0].children[0].src, 'assets/book/lab/kalligrammatid.svg', 'the card\'s own picture flies');
+  assert.deepEqual(placeOf(flying[0].style), { x: 400, y: 300 }, 'from where the child tapped');
+
+  journal.update(FLIGHT_SECONDS - 0.02);
+  const arriving = placeOf(flying[0].style);
+  assert.ok(Math.abs(arriving.x - 1180) < 3 && Math.abs(arriving.y - 44) < 3, `into the button: ${arriving.x}, ${arriving.y}`);
+  assert.deepEqual(sounds, [], 'nothing sounds on the way');
+  assert.equal(el('journal-badge').hidden, true);
+  journal.update(0.03);
+  assert.equal(flying.length, 0, 'it has landed');
+  assert.deepEqual(sounds, ['newAnimal'], 'a new animal sounds once, as it lands');
+  assert.equal(el('journal-badge').hidden, false, 'and the button wears a badge');
+  assert.equal(journal.addFinding('butterfly', { x: 10, y: 10 }), false, 'the same animal again');
+  assert.equal(flying.length, 0, 'flies nothing');
+
+  el('journal-flights').rect = { left: 0, top: 0, width: 1280, height: 800 };
+  journal.addFinding('frog'); // found with no tap to fly from
+  assert.deepEqual(placeOf(flying[0].style), { x: 640, y: 400 }, 'it flies from the middle of the screen');
+
+  el('journal-button').dispatchEvent(new Event('click'));
+  assert.deepEqual(book.opened, [['animals', 'child']], 'the button opens the child\'s book on its animals');
+  assert.equal(el('journal-badge').hidden, true, 'and the badge is gone once the book is open');
+});
+
+test('a paused game holds a find\'s flight in the air', () => {
+  const { journal, el } = journalRig({ book: fakeBook({ frog: 'assets/book/lab/frog.svg' }) });
+  journal.addFinding('frog', { x: 200, y: 600 });
+  journal.update(0.5);
+  const held = placeOf(el('journal-flights').children[0].style);
+  for (let i = 0; i < 100; i++) journal.update(0); // the child's book is open: the clock stands still
+  assert.deepEqual(placeOf(el('journal-flights').children[0].style), held);
+  assert.equal(el('journal-badge').hidden, true, 'not in the book yet');
+  journal.update(FLIGHT_SECONDS);
+  assert.equal(el('journal-flights').children.length, 0, 'and it lands when the game goes on');
+  assert.equal(el('journal-badge').hidden, false);
 });
 
 test('a star flies to the journal in 1.2 s and is saved when it lands', () => {
@@ -259,45 +309,26 @@ test('the book shows what the save already holds', () => {
   assert.deepEqual(earned(), [true, false, false, false, false, false]);
   assert.deepEqual(journal.stars, ['k1_kambedla']);
   assert.deepEqual(journal.findings, ['frog', 'snail']);
-  assert.equal(el('finding-count').textContent, '2');
 });
 
-test('the book opens on a tap and shows the stars and the finds, and closes again', () => {
-  const { journal, el } = journalRig({ stored: { stars: ['k1_kambedla'], findings: ['frog', 'comet'] } });
-  const page = el('journal-page');
-  const click = () => new Event('click');
-  assert.equal(page.hidden, true);
+test('the button opens the child\'s book on its animals, and a scene opens it on its stars', () => {
+  const { journal, book, el } = journalRig({ stored: { stars: ['k1_kambedla'], findings: ['frog'] } });
   assert.equal(journal.isOpen, false);
-
-  el('journal-button').dispatchEvent(click());
-  assert.equal(page.hidden, false);
+  el('journal-button').dispatchEvent(new Event('click'));
+  assert.deepEqual(book.opened, [['animals', 'child']], 'the child\'s, which holds the game (book.js)');
   assert.equal(journal.isOpen, true);
-  const named = (parent, name) => parent.findAll(e => e.classList.contains(name));
-  const cards = el('journal-stars').children;
-  assert.deepEqual(cards.map(card => named(card, 'journal-star-name')[0].textContent), FRIENDS);
-  assert.deepEqual(cards.map(card => card.classList.contains('earned')), [true, false, false, false, false, false]);
-  assert.deepEqual(el('journal-finds').children.map(chip => chip.textContent), ['Froskur', 'comet'], 'known animals by their name, others as they are');
-  assert.equal(el('journal-empty').hidden, true, 'no hint to look for animals once there are some');
-
-  el('journal-close').dispatchEvent(click());
-  assert.equal(page.hidden, true);
+  journal.close();
+  assert.equal(book.closed, 1);
   assert.equal(journal.isOpen, false);
-
-  journal.open();
-  page.dispatchEvent(click()); // the dimmed edge around the card
-  assert.equal(journal.isOpen, false);
+  journal.open(); // as s.journal.open does: the last scene opens the book while Mosi speaks
+  assert.deepEqual(book.opened.at(-1), ['stars', 'script'], 'the script\'s, which holds nothing');
 });
 
-test('the open book keeps up with a star that lands and an animal that is found', () => {
-  const { journal, el } = journalRig();
-  journal.open();
-  assert.equal(el('journal-empty').hidden, false, 'an empty book says where animals are found');
-  journal.addFinding('beetle');
+test('the book keeps up with a star that lands', () => {
+  const { journal, book } = journalRig();
   journal.addStar('k1_kambedla', { x: 0, y: 0 });
   journal.update(FLIGHT_SECONDS + 0.01);
-  assert.deepEqual(el('journal-finds').children.map(chip => chip.textContent), ['Bjalla']);
-  assert.equal(el('journal-empty').hidden, true);
-  assert.equal(el('journal-stars').children[0].classList.contains('earned'), true);
+  assert.equal(book.refreshed, 1, 'its Stjörnur page lights the star');
 });
 
 test('the book can be brought out and put away', () => {
@@ -308,93 +339,11 @@ test('the book can be brought out and put away', () => {
   assert.equal(el('journal-button').hidden, true);
 });
 
-// A page the child opens holds the game (R24): the journal asks, through onPause, for the clock and the
-// voice to be paused while the child's page is open. A page that code opens does not.
-
-/** The journal with a recorder for the pauses it asks for, and a tap on a page element. */
-function pauseRig(options) {
-  const pauses = [];
-  const rig = journalRig({ ...options, onPause: paused => pauses.push(paused) });
-  const tap = id => rig.el(id).dispatchEvent(new Event('click'));
-  return { ...rig, pauses, tap };
-}
-
-test('a page the child opens pauses the game until the child closes it', () => {
-  const { journal, pauses, tap, el } = pauseRig({ stored: { stars: [], findings: ['frog'] } });
-  assert.deepEqual(pauses, [], 'nothing is paused while the book is shut');
-
-  tap('journal-button'); // the child taps the book
-  assert.equal(journal.isOpen, true);
-  assert.deepEqual(pauses, [true]);
-  tap('journal-close');
-  assert.equal(journal.isOpen, false);
-  assert.deepEqual(pauses, [true, false], 'and the game goes on when it is shut');
-
-  tap('journal-button');
-  el('journal-page').dispatchEvent(new Event('click')); // the dimmed edge around the card shuts it too
-  assert.equal(journal.isOpen, false);
-  assert.deepEqual(pauses, [true, false, true, false]);
-});
-
-test('a page a script opens does not pause the game, and the child closing it resumes nothing', () => {
-  const { journal, pauses, tap } = pauseRig({ stored: { stars: ['k1_kambedla'], findings: [] } });
-  journal.open(); // as s.journal.open does: the last scene fades into the book while Mosi speaks
-  assert.equal(journal.isOpen, true);
-  assert.deepEqual(pauses, [], 'the clock goes on under a page the scene opened');
-
-  tap('journal-close'); // the child shuts the page the script opened
-  assert.equal(journal.isOpen, false);
-  assert.deepEqual(pauses, [], 'nothing pauses and nothing resumes that was not paused');
-
-  journal.open();
-  journal.close();
-  assert.deepEqual(pauses, []);
-});
-
-test('code that closes a page the child opened lets the game go on, and an open page keeps whoever opened it', () => {
-  const { journal, pauses, tap } = pauseRig();
-  tap('journal-button');
-  journal.open(); // it is open already, and the child's
-  assert.deepEqual(pauses, [true]);
-  journal.close(); // the game must not be left paused with no page showing
-  assert.equal(journal.isOpen, false);
-  assert.deepEqual(pauses, [true, false]);
-
-  journal.open();
-  tap('journal-button'); // a key press on the book under a page the script opened does not make it the child's
-  assert.deepEqual(pauses, [true, false], 'still not paused');
-  tap('journal-close');
-  assert.deepEqual(pauses, [true, false]);
-
-  tap('journal-button'); // and the child can open it again afterwards
-  assert.deepEqual(pauses, [true, false, true]);
-});
-
-test('a pause callback that throws does not leave the page half open', () => {
-  const doc = new FakeDocument(PAGE);
-  const journal = createJournal(doc, createSave(null), { onPause: () => { throw new Error('no audio'); } });
-  const reported = [];
-  const consoleError = console.error;
-  console.error = (...args) => reported.push(args);
-  try {
-    doc.getElementById('journal-button').dispatchEvent(new Event('click'));
-    assert.equal(journal.isOpen, true);
-    assert.equal(doc.getElementById('journal-page').hidden, false);
-    doc.getElementById('journal-close').dispatchEvent(new Event('click'));
-    assert.equal(journal.isOpen, false);
-    assert.equal(doc.getElementById('journal-page').hidden, true);
-    assert.equal(reported.length, 2, 'it was reported each time');
-    assert.match(String(reported[0][1]), /no audio/);
-  } finally {
-    console.error = consoleError;
-  }
-});
-
-test('main.js ties a page the child opens to the clock and the sound', () => {
+test('main.js ties the book the child holds to the clock and the sound', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   // The sound (the voice, the music and the effects: engine/audio/hold.js) is held with the clock, and let go with it.
-  const wiring = /createJournal\(document, save, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*hold\('book', paused\);\s*\},?\s*\}\)/;
-  assert.match(main, wiring, 'createJournal gets an onPause that sets the clock and then holds the sound');
+  const wiring = /createBook\(document, \{[\s\S]*?onPause: paused => \{\s*clock\.setPaused\(paused\);\s*hold\('book', paused\);\s*\},?\s*\}\)/;
+  assert.match(main, wiring, 'createBook gets an onPause that sets the clock and then holds the sound');
 });
 
 test('the journal says so when the page lacks a piece of it', () => {
@@ -402,12 +351,12 @@ test('the journal says so when the page lacks a piece of it', () => {
   assert.throws(() => createJournal(doc, createSave(null)), /journal-flights/);
 });
 
-test('index.html has every element the journal and the tray ask for', () => {
+test('index.html has every element the journal, the book and the tray ask for', () => {
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const id of [...PAGE, 'tray', 'view']) assert.ok(html.includes(`id="${id}"`), `#${id} is on the page`);
+  for (const id of [...PAGE, 'book', 'tray', 'view']) assert.ok(html.includes(`id="${id}"`), `#${id} is on the page`);
   assert.match(html, /<div id="tray"[^>]* hidden>/, 'the tray starts put away');
-  assert.match(html, /<button id="journal-button"[^>]* hidden>/, 'and so does the book');
-  assert.match(html, /<div id="journal-page"[^>]* hidden>/, 'and its page');
+  assert.match(html, /<button id="journal-button"[^>]* hidden>/, 'and so does the book\'s button');
+  assert.match(html, /<div id="book"[^>]* hidden>/, 'and the book');
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -456,7 +405,7 @@ function fakePointer() {
  * The scene over a real journal on a fake page, with a camera 10 m from the origin looking at it.
  * `step(seconds)` runs frames of a tenth of a second the way main.js does: the journal first, then the scene.
  */
-function starRig({ withJournal = true, onPause } = {}) {
+function starRig({ withJournal = true } = {}) {
   const camera = new THREE.PerspectiveCamera(40, 800 / 500, 0.1, 1200);
   camera.position.set(0, 1.6, 10);
   camera.lookAt(0, 1.6, 0);
@@ -467,12 +416,13 @@ function starRig({ withJournal = true, onPause } = {}) {
     renderer: { domElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 500 }) } },
   };
   world.resolvePoint = createPointResolver(world);
-  const rig = journalRig({ onPause });
+  const rig = journalRig();
   const asked = [];
+  const finds = [];
   const journal = withJournal
     ? {
       addStar(id, from) { asked.push({ id, from }); return rig.journal.addStar(id, from); },
-      addFinding: id => rig.journal.addFinding(id),
+      addFinding(id, from) { finds.push({ id, from }); return rig.journal.addFinding(id, from); },
       open: () => rig.journal.open(),
       close: () => rig.journal.close(),
     }
@@ -487,7 +437,7 @@ function starRig({ withJournal = true, onPause } = {}) {
       stage.update(dt);
     }
   };
-  return { ...rig, world, scene3, pointer, stage, s: stage.s, step, asked };
+  return { ...rig, world, scene3, pointer, stage, s: stage.s, step, asked, finds };
 }
 
 const STAR = 'k1_kambedla';
@@ -606,25 +556,25 @@ test('a star that is stopped leaves nothing behind, and one on its way still lan
   assert.equal(flying.el('journal-flights').children.length, 0);
 });
 
-test('s.found puts an animal in the book, once', () => {
-  const { s, journal, save } = starRig();
-  assert.equal(s.found('frog'), DONE);
+test('s.found puts an animal in the book, once, from where the child tapped it', () => {
+  const { s, journal, save, finds } = starRig();
+  const tap = { name: 'frog-1', x: 320, y: 410 };
+  assert.equal(s.found('frog', tap), DONE);
   assert.equal(s.found('frog'), DONE);
   assert.equal(s.found('beetle'), DONE);
   assert.deepEqual(journal.findings, ['frog', 'beetle']);
   assert.deepEqual(save.get().findings, ['frog', 'beetle']);
+  assert.equal(finds[0].from, tap, 'the tap goes to the journal, which flies the picture from it');
 });
 
-test('s.journal.open and close show and hide the page without pausing the game', () => {
-  const pauses = [];
-  const { stage, s, journal, step } = starRig({ onPause: paused => pauses.push(paused) });
+test('s.journal.open and close open and shut the book on its stars, as the script\'s, while the scene goes on', () => {
+  const { stage, s, journal, book, step } = starRig();
   assert.equal(s.journal.open(), DONE);
-  assert.equal(journal.isOpen, true);
+  assert.deepEqual(book.opened, [['stars', 'script']], 'which holds nothing (book.js)');
   assert.equal(s.journal.close(), DONE);
   assert.equal(journal.isOpen, false);
-  assert.deepEqual(pauses, [], 'a script that opens the book does not stop the clock');
 
-  // A scene that ends in the book: it goes on under the open page, and the page can be shut by the scene.
+  // A scene that ends in the book: it goes on under the open book, and the book can be shut by the scene.
   const seen = [];
   stage.start(function* script() {
     s.journal.open();
@@ -634,26 +584,7 @@ test('s.journal.open and close show and hide the page without pausing the game',
     seen.push(['shut', journal.isOpen]);
   });
   step(1.2);
-  assert.deepEqual(seen, [['open', true, 1], ['shut', false]], 'time moved while the page was open');
-  assert.deepEqual(pauses, []);
-});
-
-test('a page the child shuts, that a script opened, leaves the scene running', () => {
-  const pauses = [];
-  const { stage, s, journal, step, el } = starRig({ onPause: paused => pauses.push(paused) });
-  const seen = [];
-  stage.start(function* script() {
-    s.journal.open();
-    yield s.wait(0.5);
-    seen.push(['after the child shut it', journal.isOpen, s.time]);
-    yield s.wait(0.5);
-    seen.push(['end', s.time]);
-  });
-  step(0.3);
-  el('journal-close').dispatchEvent(new Event('click')); // the child shuts it under the scene
-  step(0.8);
-  assert.deepEqual(seen, [['after the child shut it', false, 0.5], ['end', 1]]);
-  assert.deepEqual(pauses, [], 'neither a pause nor a resume');
+  assert.deepEqual(seen, [['open', true, 1], ['shut', false]], 'time moved while the book was open');
 });
 
 test('s.star and s.found say so when the scene has no journal', () => {
@@ -667,7 +598,7 @@ test('s.star and s.found say so when the scene has no journal', () => {
   assert.throws(() => bare.s.journal.open(), /journal/);
 });
 
-test('the book\'s slots and cards are in each friend\'s main hue as STYLE.md section 3 has it, so they cannot drift from it again', () => {
+test('the button\'s slots are in each friend\'s main hue as STYLE.md section 3 has it, so they cannot drift from it again', () => {
   // STYLE.md's species colour map: the row of each friend, and its Main column.
   const style = fs.readFileSync(new URL('../STYLE.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const section = style.slice(style.indexOf('## 3. Characters'), style.indexOf('## 4. '));
@@ -679,11 +610,9 @@ test('the book\'s slots and cards are in each friend\'s main hue as STYLE.md sec
     assert.ok(row, `STYLE.md has a row for ${name}`);
     return /#[0-9a-f]{6}/i.exec(row[main])[0].toLowerCase();
   };
-  const { el, slots } = journalRig();
-  const cards = el('journal-stars').children;
+  const { slots } = journalRig(); // the book's Stjörnur page takes its hues from the same list (journal.js FRIENDS)
   FRIENDS.forEach((name, i) => {
     assert.equal(String(slots()[i].style['--hue']).toLowerCase(), hueOf(name), `${name}'s slot`);
-    assert.equal(String(cards[i].style['--hue']).toLowerCase(), hueOf(name), `${name}'s card`);
   });
   assert.equal(hueOf('Uggeðla'), '#47908a', 'Uggeðla is teal');
 });

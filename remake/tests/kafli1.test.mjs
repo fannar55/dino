@@ -123,12 +123,22 @@ function fakePointer() {
       listeners[event].push(fn);
       return () => listeners[event].splice(listeners[event].indexOf(fn), 1);
     },
-    tap: name => [...listeners.tap].forEach(fn => fn({ name, x: 0, y: 0 })),
+    tap: (name, at = { x: 0, y: 0 }) => [...listeners.tap].forEach(fn => fn({ name, x: at.x, y: at.y })),
   };
 }
 
-const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 'star-slots', 'finding-count', 'journal-flights',
-  'journal-page', 'journal-close', 'journal-stars', 'journal-finds', 'journal-empty'];
+const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 'star-slots', 'journal-flights', 'journal-badge'];
+
+/** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened, and no pictures to fly. */
+function fakeBook() {
+  return {
+    opened: [], isOpen: false,
+    open(tab, by) { this.opened.push([tab, by]); this.isOpen = true; },
+    close() { this.isOpen = false; },
+    refresh() {},
+    pictureOf: () => null,
+  };
+}
 
 /**
  * The chapter played until it ends or `limit` seconds have gone by: in seeking mode, as a capture plays it; or (seeking false)
@@ -198,7 +208,14 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
   doc.getElementById('star-slots').rect = { left: 1180, top: 20, width: 40, height: 40 };
   world.renderer = { domElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 800 }) } };
 
-  const journal = createJournal(doc, createSave(null));
+  const book = fakeBook();
+  const journal = createJournal(doc, createSave(null), { book });
+  const finds = []; // every find the journal is told of, with where the child tapped it
+  const addFinding = journal.addFinding;
+  journal.addFinding = (id, from) => {
+    finds.push({ id, from });
+    return addFinding(id, from);
+  };
   const pointer = fakePointer();
   const added = []; // what comes into the scene, and when: sparkles, pollen, flowers
   const add = world.scene.add.bind(world.scene);
@@ -416,7 +433,7 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     earlySince ??= { t, at: stage.s.time };
     if (t - earlySince.t < earlyTap.after - 1e-9) return;
     earlyFrom = spec.point?.isVector3 ? spec.point.clone() : null; // a target round a spec string ('egill') does not move by itself
-    pointer.tap(earlyTap.name);
+    pointer.tap(earlyTap.name, EARLY_TAP_AT);
     seen.earlyTap = { name: earlyTap.name, appeared: earlySince.at, at: stage.s.time, found: [...journal.findings], movedAt: null };
   }
   function earlyReaction() {
@@ -512,8 +529,10 @@ async function playUnattended({ limit = 600, seeking = true, eager = false, brok
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
-  return { world, task, stage, director, journal, doc, captions, winks, sunCalls, sunFace, sounds, forests, pointer, seen, added, lines };
+  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, forests, pointer, seen, added, lines };
 }
+
+const EARLY_TAP_AT = { x: 612, y: 455 }; // where on the screen the child who taps early taps
 
 let played = null;
 const unattended = () => (played ??= playUnattended());
@@ -663,7 +682,7 @@ test('the glow flowers hide by the big stone, under the ferns and up in the litt
 // Played through by nobody
 
 test('every required wait has an auto option for seeking: the chapter plays to its end unattended, before 600 s', async () => {
-  const { task, stage, world, journal, doc, winks, director, pointer, seen } = await unattended();
+  const { task, stage, world, journal, book, winks, director, pointer, seen } = await unattended();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   assert.ok(stage.s.time < 600, `it ended at ${stage.s.time.toFixed(1)} s`);
@@ -679,7 +698,8 @@ test('every required wait has an auto option for seeking: the chapter plays to i
   assert.equal(flowers.length, 3, 'three glow flowers in the glade');
   for (const flower of flowers) assert.equal(flower.visible, false, `${flower.name} was picked`);
   assert.deepEqual(journal.stars, ['k1_kambedla']);
-  assert.equal(doc.getElementById('journal-page').hidden, false, 'the chapter ends in the open book');
+  assert.deepEqual(book.opened, [['stars', 'script']], 'the chapter ends in the book, open on its stars as the script\'s');
+  assert.equal(journal.isOpen, true);
   assert.equal(winks.length, 2, 'the sun winks twice: "Sólin bíður ekki" and the star');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'the three flowers stay in his hands until each goes into her mouth');
   assert.equal(pointer.listeners.drag.length, 0, 'no free look is left over');
@@ -843,12 +863,13 @@ test('a critter tapped in the ride\'s first second reacts at once, and Mosi rema
   const visit = chapter.lines.k1_mosi_visit;
   const critters = chapter.lines.k1_mosi_critters;
   const beetle = chapter.lines.k1_mosi_beetle;
-  const { captions, lines, seen, world } = await playUnattended({ limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
+  const { captions, lines, seen, world, finds } = await playUnattended({ limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
   const ride = world.chapterTimeline.find(m => m.scene === 6).at;
   const tap = seen.earlyTap;
   assert.ok(tap, 'the beetle was tapped');
   assert.ok(tap.appeared - ride < 0.05 && tap.at - ride < 1, `in the ride's first second: it could be tapped ${(tap.appeared - ride).toFixed(2)} s in and was ${(tap.at - ride).toFixed(2)} s in`);
   assert.ok(tap.found.includes('beetle'), `it went in the journal at the tap (${JSON.stringify(tap.found)})`);
+  assert.deepEqual(finds.find(f => f.id === 'beetle')?.from, { name: 'beetle', ...EARLY_TAP_AT }, 'with the tap, so its picture flies from where the child tapped');
   assert.ok(tap.movedAt !== null && tap.movedAt - tap.at < 0.1, `it rolled over at once: it moved ${tap.movedAt === null ? 'never' : `${(tap.movedAt - tap.at).toFixed(2)} s after the tap`}`);
   const mosis = captions.filter(c => c.who === 'Mosi' && c.at >= ride).sort((a, b) => a.at - b.at);
   assert.deepEqual(mosis.slice(0, 3).map(c => c.text), [visit.text, critters.text, beetle.text], 'his two ride lines, and then the beetle');

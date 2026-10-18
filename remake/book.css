@@ -3,11 +3,13 @@
 
      .book                       the root over the game: a soft veil, the book's font, and every touch (touch-action: none)
      .book-spread                the book itself, a cloth cover with the pages on it, sized to the screen
-     .book-page.left / .right    the two pages, side by side, or one above the other on a tablet held upright
+     .book-page.left / .right    the two pages, side by side, or one above the other on a tablet held upright; each ribbon has
+                                 its own two in a .book-leaf[data-tab], and .turning marks the one turning over the spine
      .book-spine                 the stitched fold between them
      .book-close                 the big close, on the cover's top right corner
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
-     .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound
+     .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
+                                 page a .star-tile, .earned once the friend's star is in the book
      .card                       an animal's card over the spread, with its parts (.card-credit is the window its ⓘ opens)
      .zoom                       a picture at full screen on its .zoom-frame mat, with its .zoom-close
      .chunky                     the raised button every round control is made of
@@ -173,6 +175,16 @@
     linear-gradient(to right, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
 }
 
+/* ---- The shell (engine/book/book.js): each ribbon's leaf of two pages, the page turn, and the closing book ----------- */
+
+.book-leaf { display: contents; } /* its two pages lie on the spread; only the open ribbon's show, and both leaves while a page turns */
+.book-page.turning { z-index: 1; backface-visibility: hidden; } /* the turning page lies over the others; the spine and ribbons stay on top */
+.book.closing { pointer-events: none; } /* as it shrinks into its button, a tap goes through it to the game */
+/* Until the animals page fills it (Task 7), each Dýrin page shows a faint paw print where its tiles will be. */
+.book-leaf[data-tab="animals"] .book-tiles:empty {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%236b5a4a' stroke-width='1.5' opacity='.3'%3E%3Cellipse cx='24' cy='34' rx='10.5' ry='9.5'/%3E%3Cellipse cx='24' cy='11' rx='5.4' ry='7.2'/%3E%3Cellipse cx='11.6' cy='16.6' rx='5.2' ry='7' transform='rotate(-30 11.6 16.6)'/%3E%3Cellipse cx='36.4' cy='16.6' rx='5.2' ry='7' transform='rotate(30 36.4 16.6)'/%3E%3C/svg%3E") center / min(46%, 240px) auto no-repeat;
+}
+
 /* ---- The close: a big chunky button on the cover's corner ------------------------------------------------------- */
 
 .book-close {
@@ -304,6 +316,15 @@
   transform: rotate(-6deg);
 }
 .tile.unfound .tile-name { color: var(--book-ink-soft); }
+
+/* The Stjörnur page: a taped photo of each friend's star on the friend's hue (--hue, set by book.js), lit once it is earned. */
+.star-tile .tile-picture { display: grid; place-items: center; }
+.star-tile .tile-picture svg { width: 62%; height: 82%; display: block; overflow: visible; }
+.star-tile .tile-picture path { fill: rgb(255 250 240 / .55); stroke: var(--book-ink-soft); stroke-width: 1.2; stroke-dasharray: 2.2 1.9; stroke-linejoin: round; }
+.star-tile.earned .tile-picture path { fill: var(--book-gold); stroke: var(--book-ink); stroke-width: 1.4; stroke-dasharray: none; filter: drop-shadow(0 1.5px 0 rgb(59 47 37 / .3)); }
+.star-tile:not(.earned) { background: #f1e8d4; box-shadow: 0 1px 0 rgb(59 47 37 / .08), 0 5px 10px -2px rgb(59 47 37 / .24); }
+.star-tile:not(.earned)::before { --tape: rgb(214 196 160 / .75); } /* plain masking tape, as on an unfound animal */
+.star-tile:not(.earned) .tile-name { color: var(--book-ink-soft); }
 
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
    background, here and on its card. An animal without one takes the page's warm tan. */

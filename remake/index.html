@@ -7,6 +7,7 @@
 <title>Mosi — endurgerð</title>
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body>
@@ -25,28 +26,12 @@
     <path d="M32 43v-9h7v9l-3.5-2.4z" fill="#2f8f86" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/>
   </svg>
   <span id="star-slots" class="star-slots" aria-hidden="true"></span>
-  <span id="finding-count" class="finding-count" hidden>0</span>
+  <span id="journal-badge" class="journal-badge" aria-hidden="true" hidden>
+    <svg viewBox="0 0 40 40"><path d="M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z"/></svg>
+  </span>
 </button>
 <div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
-<div id="journal-page" class="journal-page" role="dialog" aria-modal="true" aria-labelledby="journal-title" hidden>
-  <div class="journal-card">
-    <header class="journal-head">
-      <h2 id="journal-title">Landkönnuðabók Egils</h2>
-      <button id="journal-close" class="journal-close" type="button" aria-label="Loka">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>
-      </button>
-    </header>
-    <section class="journal-section">
-      <h3>Stjörnur</h3>
-      <ol id="journal-stars" class="journal-stars"></ol>
-    </section>
-    <section class="journal-section">
-      <h3>Fundið</h3>
-      <ul id="journal-finds" class="journal-finds"></ul>
-      <p id="journal-empty" class="journal-empty">Pikkaðu á smádýrin í skóginum!</p>
-    </section>
-  </div>
-</div>
+<div id="book" class="book" hidden></div>
 <div id="debug" class="debug" hidden></div>
 <script type="module" src="./main.js"></script>
 </body>
