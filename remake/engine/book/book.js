@@ -11,7 +11,10 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 //
 // Pages. Each ribbon has a leaf (.book-leaf[data-tab]) of two pages, each with a .book-tiles box for what the page shows. The
 // Stjörnur leaf shows today's six friends' stars, earned or not. The Dýrin leaf is the animals page's (animals-page.js), whose tiles
-// open a card (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). Part 3 adds a ribbon for the games.
+// open a card (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). The Leikir leaf (part 3) has the "Eitt!" tile,
+// Kambeðla's card game, which opens once her star (k1_kambedla) is in the book and is new until it is first played, and on the
+// right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
+// hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js).
 //
 // Who holds it. A book the child opens (the journal's button) holds the game: onPause(true) as it opens and onPause(false) when it
 // is shut, however it is shut. A book a script opens (the chapter's last scene) holds nothing, so the scene's last line plays on,
@@ -23,8 +26,12 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 // A fast second tap cuts the motion under way short and starts its own from there. Where the page has no animations, or the tablet
 // asks for less motion, the book opens and turns at once (it fades in and out).
 
-const TABS = ['stars', 'animals'];
-const LABELS = { stars: 'Stjörnur', animals: 'Dýrin' };
+const TABS = ['stars', 'animals', 'games'];
+const LABELS = { stars: 'Stjörnur', animals: 'Dýrin', games: 'Leikir' };
+const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
+const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been opened, so the tile is new no more
+const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
+const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
 const OPEN_MS = 460;
 const CLOSE_MS = 340;
 const FADE_MS = 160; // the open and close with less motion
@@ -35,8 +42,9 @@ const PERSPECTIVE = 'perspective(2400px)';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `win` is the window (less motion, the screen's shape). Returns
- *   open(tab, by)      opens it on 'stars' or 'animals', as the child's (by 'child', which holds the game) or a script's (by
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt')` opens a game from the Leikir page; `win` is the window (less
+ * motion, the screen's shape). Returns
+ *   open(tab, by)      opens it on 'stars', 'animals' or 'games', as the child's (by 'child', which holds the game) or a script's (by
  *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
  *   close()            shuts it, and stops the narration, the card and the zoom
  *   isOpen, tab        whether it is open, and the page it shows (or showed last)
@@ -45,7 +53,7 @@ const PERSPECTIVE = 'perspective(2400px)';
  *   openCard(id, page) shows a card on the animals page, from its own place, as a tap on its tile would (the lab uses it)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, win = globalThis.window } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, onPlay = null, win = globalThis.window } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -104,6 +112,29 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   starsLeft.append(...stars.slice(0, 3));
   starsRight.append(...stars.slice(3));
 
+  // The Leikir page: the "Eitt!" tile on the left, a taped photo of Kambeðla, and her stickers on the right.
+  const eittTile = make('button', 'tile game-tile');
+  eittTile.setAttribute('type', 'button');
+  eittTile.setAttribute('data-game', 'eitt');
+  eittTile.style.setProperty('--hue', '#8f6aa3'); // Kambeðla's violet, as on her card
+  const eittPicture = make('span', 'tile-picture');
+  const eittImage = doc.createElement('img');
+  eittImage.src = KAMBEDLA_PICTURE;
+  eittImage.alt = '';
+  eittImage.draggable = false;
+  eittPicture.append(eittImage);
+  const eittName = make('span', 'tile-name');
+  eittName.textContent = 'Eitt!';
+  const eittBadge = make('span', 'badge-new');
+  eittBadge.textContent = 'Nýtt!';
+  eittBadge.setAttribute('aria-hidden', 'true');
+  eittTile.append(eittPicture, eittName);
+  const sheet = make('div', 'sticker-sheet');
+  sheet.setAttribute('role', 'img');
+  const [gamesLeft, gamesRight] = leaves.get('games').tiles;
+  gamesLeft.append(eittTile);
+  gamesRight.append(sheet);
+
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
   const closeEl = make('button', 'book-close chunky');
@@ -128,11 +159,54 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     onOpenCard: (card, fromRect) => cardViewer.open(card, fromRect),
   });
 
-  /** Shows what the save holds: the stars that are lit, and the animals found and new. */
+  /** Shows what the save holds: the stars that are lit, the animals found and new, and the game and its stickers. */
   function render() {
-    const got = new Set(save.get().stars.map(friendOf));
+    const state = save.get();
+    const got = new Set(state.stars.map(friendOf));
     FRIENDS.forEach((friend, i) => stars[i].classList.toggle('earned', got.has(friend.key)));
     animals.render();
+    renderGames(state);
+  }
+
+  /** "Eitt!" opens with Kambeðla's star and is new until first played; each round won is a sticker on the right page. */
+  function renderGames(state) {
+    const open = state.stars.includes(EITT_STAR);
+    const fresh = open && !state.seen.includes(EITT_SEEN);
+    eittTile.classList.toggle('found', open && !fresh);
+    eittTile.classList.toggle('new', fresh);
+    eittTile.classList.toggle('unfound', !open);
+    eittTile.setAttribute('aria-label', open ? 'Eitt!, spil við Kambeðlu' : 'Eitt! (opnast með stjörnu Kambeðlu)');
+    if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
+    if (!fresh) eittBadge.remove();
+    const wins = save.getEitt?.().wins ?? 0;
+    if (sheet.getAttribute('data-wins') === String(wins)) return;
+    sheet.setAttribute('data-wins', String(wins));
+    const stickers = Array.from({ length: Math.min(wins, STICKERS_SHOWN) }, () => make('span', 'book-sticker'));
+    if (!wins) stickers.push(make('span', 'book-sticker empty')); // where the first one will go
+    if (wins > STICKERS_SHOWN) {
+      const count = make('span', 'sticker-count');
+      count.textContent = String(wins);
+      stickers.push(count);
+    }
+    sheet.replaceChildren(...stickers);
+    sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
+  }
+
+  /** A tap on the "Eitt!" tile: it opens the game once Kambeðla's star is in, and wiggles before. */
+  function tapGame() {
+    if (!save.get().stars.includes(EITT_STAR)) {
+      audio?.sfx?.('wiggle');
+      if (typeof eittTile.animate === 'function') {
+        eittTile.animate(reducedMotion(win)
+          ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
+          : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-4deg' }, { rotate: '2.5deg' }, { rotate: '0deg' }], { duration: 560, easing: 'ease-in-out' });
+      }
+      return;
+    }
+    audio?.sfx?.('tile');
+    save.addSeen(EITT_SEEN);
+    render();
+    onPlay?.('eitt');
   }
 
   /** The card and what is zoomed in it are put away at once, as the book is shut or turns to another page. */
@@ -299,7 +373,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   }
 
   function open(next = tab, by = 'script') {
-    if (!TABS.includes(next)) throw new TypeError(`The book has no page "${next}": it has ${TABS.join(' and ')}`);
+    if (!TABS.includes(next)) throw new TypeError(`The book has no page "${next}": it has ${TABS.slice(0, -1).join(', ')} and ${TABS.at(-1)}`);
     if (isOpen) {
       if (by === 'child') claim();
       turnTo(next);
@@ -347,6 +421,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     pressable(ribbon, { audio, sound: null, win, onTap: () => (name === tab ? audio?.sfx?.('tap') : turnTo(name)) });
   }
   for (const tile of stars) pressable(tile, { audio, win });
+  pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's

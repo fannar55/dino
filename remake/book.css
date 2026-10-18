@@ -9,7 +9,8 @@
      .book-close                 the big close, on the cover's top right corner
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
      .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
-                                 page a .star-tile, .earned once the friend's star is in the book
+                                 page a .star-tile, .earned once the friend's star is in the book; on the Leikir page the
+                                 .game-tile of "Eitt!", with the stickers won beside it (.sticker-sheet of .book-sticker)
      .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
                                  .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
                                  and, on the last page, .card-done
@@ -327,6 +328,36 @@
 .star-tile:not(.earned) { background: #f1e8d4; box-shadow: 0 1px 0 rgb(59 47 37 / .08), 0 5px 10px -2px rgb(59 47 37 / .24); }
 .star-tile:not(.earned)::before { --tape: rgb(214 196 160 / .75); } /* plain masking tape, as on an unfound animal */
 .star-tile:not(.earned) .tile-name { color: var(--book-ink-soft); }
+
+/* The Leikir page (part 3): the "Eitt!" tile alone and big on the left page (a tile's three states, as an animal's), and on the right
+   the stickers won from Kambeðla, one for each round won, as the game hands them out (eitt.css .eitt-sticker). */
+.ribbon[data-tab="games"] { --ribbon: var(--book-green); color: var(--book-card); }
+.game-tile { --tile-w: min((100cqw - 2 * var(--pad-x)) * .78, (100cqh - var(--pad-top) - var(--pad-bottom)) * .84); }
+.sticker-sheet {
+  --sticker: min((100cqw - 2 * var(--pad-x)) / 5.8, (100cqh - var(--pad-top) - var(--pad-bottom)) / 4.8, 110px);
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: center; align-items: center;
+  gap: calc(var(--sticker) * .2); max-width: calc(var(--sticker) * 5.9);
+}
+.book-sticker { /* Kambeðla on a round die-cut sticker with a shine */
+  position: relative; flex: none; width: var(--sticker); aspect-ratio: 1; border-radius: 50%;
+  background:
+    url("./assets/book/images/kambedla-render.webp") 50% 62% / 104% auto no-repeat,
+    radial-gradient(circle at 50% 36%, #fff6d8, #f2d58a 70%, #e9b955);
+  box-shadow: 0 0 0 calc(var(--sticker) * .055) #fff, 0 0 0 calc(var(--sticker) * .055 + 2.5px) var(--book-ink), 0 6px 10px 2px rgb(59 47 37 / .25);
+  rotate: -7deg;
+}
+.book-sticker:nth-child(3n + 2) { rotate: 6deg; }
+.book-sticker:nth-child(3n) { rotate: -1deg; }
+.book-sticker::after { /* the shine */
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .55) 42%, transparent 52%);
+}
+.book-sticker.empty { background: none; box-shadow: none; border: 3px dashed rgb(107 90 74 / .45); } /* where the first one will go */
+.book-sticker.empty::after { display: none; }
+.sticker-count { /* more than the page holds: how many there are, big */
+  font-size: calc(var(--sticker) * .62); font-weight: 900; line-height: 1;
+  color: var(--book-gold); -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill;
+}
 
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
    background, here and on its card. An animal without one takes the page's warm tan. */

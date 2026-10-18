@@ -663,9 +663,12 @@ function* invitation(s, c) {
   yield s.say('mosi', 'k1_mosi_star');
   yield star;
   s.sfx('journal');
-  // Into the book, which opens over the glade while Mosi wonders who is next.
+  // Kambeðla asks the child to play her card game, "Eitt!" (part 3), which her star has just opened in the book.
+  yield kambedla.lookAt('egill.head', { weight: 0.7 });
+  yield s.say('kambedla', 'k1_kambedla_play');
+  // Into the book, which opens over the glade on its games, where "Eitt!" waits, new, while Mosi wonders who is next.
   s.fade(0.45, 1.6);
-  s.journal.open();
+  s.journal.open('games');
   yield s.say('mosi', 'k1_mosi_next');
 }
 
@@ -921,6 +924,8 @@ export const chapter = {
     k1_mosi_invite: { text: 'Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?', audio: 'k1_mosi_invite' },
     k1_kambedla_accept: { text: 'Já! Ég skal lýsa upp alla hátíðina!', audio: 'k1_kambedla_accept' },
     k1_mosi_star: { text: 'Sjáðu, Egill! Fyrsta stjarnan!', audio: 'k1_mosi_star' },
+    // Recorded with the lines of her card game (assets/audio/eitt/lines-source.json), and read by the chapter's own voice.
+    k1_kambedla_play: { text: 'Viltu spila við mig?', audio: 'k1_kambedla_play' },
     k1_mosi_next: { text: 'Ein komin. Hver ætli sé næst?', audio: 'k1_mosi_next' },
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.

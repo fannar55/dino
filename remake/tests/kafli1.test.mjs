@@ -36,6 +36,8 @@ import { FOREST } from '../world/forest/config.js';
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
 const SOURCE = readJson('../assets/audio/kafli1/lines-source.json');
+// Kambeðla's invitation to her card game at the chapter's end is recorded with the game's lines (the eitt set).
+const EITT_SOURCE = readJson('../assets/audio/eitt/lines-source.json');
 const RECORDED = readJson('../assets/audio/lines.json');
 const NARRATION = readJson('../../dist/assets/audio/narration-is.json');
 const CHAPTER_TEXT = fs.readFileSync(file('../chapters/kafli1.js'), 'utf8');
@@ -548,8 +550,15 @@ const words = text => text.replace(/\[[^\]]*\]\s*/g, '').trim(); // what is said
 
 test('kafli1 uses only lines that exist', async () => {
   const source = new Map(SOURCE.map(line => [line.id, line]));
-  // Each of the chapter's lines is a recording the game has, with the words it was recorded with.
+  // Each of the chapter's lines is a recording the game has, with the words it was recorded with. The invitation to "Eitt!" is one of
+  // the game's lines (the eitt set), made after the game's other lines, and timed by reading pace until it is.
   for (const [id, line] of Object.entries(chapter.lines)) {
+    const game = EITT_SOURCE.find(entry => entry.id === id);
+    if (game) {
+      assert.equal(line.audio, id);
+      assert.equal(line.text, words(game.text), `${id} says what the game's lines say`);
+      continue;
+    }
     assert.ok(line.audio && RECORDED[line.audio], `${id} has no recording in lines.json`);
     if (id === 'welcome') {
       assert.equal(line.audio, 'welcome', 'scene 3 reuses the game\'s greeting');
@@ -698,7 +707,7 @@ test('every required wait has an auto option for seeking: the chapter plays to i
   assert.equal(flowers.length, 3, 'three glow flowers in the glade');
   for (const flower of flowers) assert.equal(flower.visible, false, `${flower.name} was picked`);
   assert.deepEqual(journal.stars, ['k1_kambedla']);
-  assert.deepEqual(book.opened, [['stars', 'script']], 'the chapter ends in the book, open on its stars as the script\'s');
+  assert.deepEqual(book.opened, [['games', 'script']], 'the chapter ends in the book, open on its games (where "Eitt!" waits) as the script\'s');
   assert.equal(journal.isOpen, true);
   assert.equal(winks.length, 2, 'the sun winks twice: "Sólin bíður ekki" and the star');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'the three flowers stay in his hands until each goes into her mouth');
@@ -979,7 +988,7 @@ test('Kambeðla talks with her beak: her jaw opens with her voice in every line 
   const talk = faceOf(world.actors.get('kambedla')).mouth?.talk;
   assert.equal(talk, 8, 'the mouth pass says how far her jaw opens at the loudest');
   const hers = Object.keys(chapter.lines).filter(id => id.startsWith('k1_kambedla_')).sort();
-  assert.deepEqual(hers, ['k1_kambedla_accept', 'k1_kambedla_glow', 'k1_kambedla_hello', 'k1_kambedla_lost', 'k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3']);
+  assert.deepEqual(hers, ['k1_kambedla_accept', 'k1_kambedla_glow', 'k1_kambedla_hello', 'k1_kambedla_lost', 'k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3', 'k1_kambedla_play']);
   // Each line's recorded loudness opens it (lines.json), most of the way at its loudest syllable, and never past talk.
   for (const id of hers) assert.ok(seen.jaws[id] > 4 && seen.jaws[id] <= talk + 0.01, `${id}: her jaw opened ${seen.jaws[id]?.toFixed(1)} degrees at the widest`);
   // Mosi's beak in his lines in the glade, the same way.

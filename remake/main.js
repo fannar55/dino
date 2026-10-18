@@ -27,6 +27,7 @@ import { createBook } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
 import { parseManifest } from './engine/book/media.js';
+import { createEittGame } from './engine/eitt/table.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -177,12 +178,25 @@ const pointer = createPointer({ canvas, camera, world });
 const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
+  onPlay: () => eitt.open(), // the Leikir page's "Eitt!" tile
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
     clock.setPaused(paused);
     hold('book', paused);
   },
+});
+// Kambeðla's card game, "Eitt!" (engine/eitt/table.js), which the book's Leikir page opens over the book. Like the child's book it
+// holds the chapter while it is open, the chapter's voice, music and effects included (its own hold, so the two never play at once),
+// and the clock stays held after it while the book is still open. Its effects, music and voices are its own, through the page's
+// output, and silent wherever the game's sound is (captures and review shots have no audio context at all).
+const eitt = createEittGame(document, {
+  save, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('eitt', paused);
+  },
+  onClose: () => book.refresh(), // a sticker won is in the book now
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
@@ -408,7 +422,7 @@ let canvasCleared = false;
 let drew = true;
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
 function render() {
-  drew = !(clock.paused && book.isOpen && !canvasCleared);
+  drew = !(clock.paused && (book.isOpen || eitt.isOpen) && !canvasCleared);
   if (!drew) return;
   canvasCleared = false;
   drawNow();
@@ -448,4 +462,4 @@ renderer.setAnimationLoop(now => {
   }
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

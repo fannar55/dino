@@ -3,8 +3,8 @@
 // its exact duration, so scene timing needs no audio decoding at runtime and seeking is exact, and its
 // mouth: how loud the voice is, 20 times a second, which the speaker's mouth follows (engine/talk.js).
 // The remake's own lines (made by tools/voice-lines.mjs) get the same three fields, from the same code. They come in
-// sets, each in a folder of its own: kafli1, the chapter's (assets/audio/kafli1/), and book, the narrator's reading of
-// the education cards (assets/audio/book/).
+// sets, each in a folder of its own: kafli1, the chapter's (assets/audio/kafli1/), book, the narrator's reading of
+// the education cards (assets/audio/book/), and eitt, Kambeðla's and Mosi's lines at her card game (assets/audio/eitt/).
 //   node remake/tools/audio-lines.mjs        (needs ffprobe and ffmpeg on the PATH)
 //
 // The mouth is one hexadecimal digit a frame (0 shut to f wide open): the loudness of 50 ms of voice
@@ -47,13 +47,14 @@ function decode(file) {
 
 export const LINES_FILE = 'remake/assets/audio/lines.json';
 /** The remake's own line sets, each with the folder it is in (beside its lines-source.json); relative to the repo root. */
-export const SETS = { kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book' };
+export const SETS = { kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt' };
 /** Where the chapter's lines are: the set a tool works on unless it is told another. */
 export const REMAKE_AUDIO = SETS.kafli1;
 
 /** The folder of a line set, relative to the repo root; a set there is none of is refused. */
 export function setFolder(set) {
-  if (!Object.hasOwn(SETS, set)) throw new Error(`Not a line set: ${JSON.stringify(set)}. The sets are ${Object.keys(SETS).join(' and ')}.`);
+  const names = Object.keys(SETS);
+  if (!Object.hasOwn(SETS, set)) throw new Error(`Not a line set: ${JSON.stringify(set)}. The sets are ${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`);
   return SETS[set];
 }
 
@@ -95,7 +96,7 @@ export function remakeLines(root, only = null, set = 'kafli1') {
   return out;
 }
 
-/** Every line lines.json has: the game's, then each set of the remake's in the order of SETS (the chapter's, then the book's). */
+/** Every line lines.json has: the game's, then each set of the remake's in the order of SETS (the chapter's, the book's, the card game's). */
 export function buildLines(root) {
   const out = gameLines(root);
   for (const set of Object.keys(SETS)) Object.assign(out, remakeLines(root, null, set));

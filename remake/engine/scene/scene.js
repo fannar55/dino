@@ -446,11 +446,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      */
     found,
     /**
-     * The book, for a scene that ends in it: `open()` opens it on its stars and `close()` shuts it. Unlike the child's own tap on
-     * the button, they do not pause the game, so a scene can go on talking under the open book (until the child taps inside it).
+     * The book, for a scene that ends in it: `open()` opens it on its stars (`open('games')` on its games) and `close()` shuts it.
+     * Unlike the child's own tap on the button, they do not pause the game, so a scene can go on talking under the open book (until
+     * the child taps inside it).
      */
     journal: {
-      open: () => { needJournal('s.journal.open'); journal.open(); return DONE; },
+      open: tab => { needJournal('s.journal.open'); journal.open(tab); return DONE; },
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
     },
     /**

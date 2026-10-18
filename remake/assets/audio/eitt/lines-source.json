@@ -1,0 +1,18 @@
+[
+ { "id": "eitt_your_turn", "speaker": "kambedla", "text": "Þín umferð!" },
+ { "id": "eitt_i_draw", "speaker": "kambedla", "text": "Ég dreg." },
+ { "id": "eitt_eitt", "speaker": "kambedla", "text": "Eitt!" },
+ { "id": "eitt_red", "speaker": "kambedla", "text": "Nú er það rautt!" },
+ { "id": "eitt_yellow", "speaker": "kambedla", "text": "Nú er það gult!" },
+ { "id": "eitt_green", "speaker": "kambedla", "text": "Nú er það grænt!" },
+ { "id": "eitt_blue", "speaker": "kambedla", "text": "Nú er það blátt!" },
+ { "id": "eitt_oops", "speaker": "kambedla", "text": "Úps, ég gleymdi!" },
+ { "id": "eitt_you_won", "speaker": "kambedla", "text": "Þú vannst!" },
+ { "id": "eitt_i_won", "speaker": "kambedla", "text": "Ég vann!" },
+ { "id": "eitt_again", "speaker": "kambedla", "text": "Spilum aftur?" },
+ { "id": "k1_kambedla_play", "speaker": "kambedla", "text": "Viltu spila við mig?" },
+ { "id": "eitt_mosi_try", "speaker": "mosi", "text": "Prófaðu þetta!" },
+ { "id": "eitt_mosi_draw", "speaker": "mosi", "text": "Þú þarft að draga spil." },
+ { "id": "eitt_mosi_colour", "speaker": "mosi", "text": "Veldu þennan lit!" },
+ { "id": "eitt_mosi_eitt", "speaker": "mosi", "text": "Mundu að segja Eitt!" }
+]

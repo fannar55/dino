@@ -57,8 +57,8 @@ function needId(id, call) {
  *                           into the button, where the book nods, `newAnimal` sounds and a badge shows until the book is opened.
  *   update(dt)              moves what moves, with game time
  *   show(on = true)         brings the button out, or puts it away; it comes out by itself with the first star or find
- *   open(), close(), isOpen the book for a scene that ends in it: open() opens it on its stars as the script's, which holds nothing
- *                           (book.js), so the scene goes on under it
+ *   open(tab), close(), isOpen  the book for a scene that ends in it: open() opens it on its stars (or on `tab`, such as 'games')
+ *                           as the script's, which holds nothing (book.js), so the scene goes on under it
  *   stars, findings         the ids, in the order they came
  * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it.
  */
@@ -226,7 +226,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     addFinding,
     update,
     show,
-    open: () => openBook('stars', 'script'),
+    open: (tab = 'stars') => openBook(tab, 'script'),
     close: () => book?.close(),
     get isOpen() { return book?.isOpen ?? false; },
     get stars() { return save.get().stars; },
