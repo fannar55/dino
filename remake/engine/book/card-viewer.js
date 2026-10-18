@@ -169,6 +169,20 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     if (external) describe(image);
   }
 
+  /**
+   * The text box is made as wide as its widest line, so the speaker sits by the words however many lines they take (the lines are
+   * balanced inside a box that would otherwise be as wide as the card lets it be). Nothing without layout, or without a range, is measured.
+   */
+  function fitText() {
+    text.style.removeProperty('width');
+    const range = doc.createRange?.();
+    if (!range || card.hidden) return;
+    range.selectNodeContents(text);
+    const wide = range.getBoundingClientRect().width;
+    const scale = card.offsetWidth > 0 ? card.getBoundingClientRect().width / card.offsetWidth : 1; // a card still growing is scaled
+    if (wide > 0 && scale > 0) text.style.setProperty('width', `${Math.ceil(wide / scale) + 6}px`);
+  }
+
   /** The last page: a little celebration from the way back. */
   function celebrate() {
     audio?.sfx?.('celebrate');
@@ -188,6 +202,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     audio?.sfx?.('turn');
     text.style.removeProperty('translate'); // the text starts over from the side; the picture leaving keeps its drag until it is gone
     show(to);
+    fitText();
     read();
     if (to === pages.length - 1) celebrate();
     if (!canAnimate() || typeof imgs[to].animate !== 'function') {
@@ -356,6 +371,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     fill();
     show(Math.max(0, Math.min(pages.length - 1, start)));
     card.hidden = false;
+    fitText();
     grow();
     read();
     if (index === pages.length - 1) celebrate();
@@ -378,6 +394,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     return true;
   }
 
+  win?.addEventListener?.('resize', () => { if (isOpen) fitText(); });
   pressable(back, { audio, win, onTap: () => close() });
   pressable(done, { audio, win, onTap: () => close() });
   pressable(prevButton, { audio, sound: null, win, onTap: () => prev() }); // a flip sounds `turn` itself
