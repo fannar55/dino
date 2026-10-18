@@ -18,7 +18,8 @@
      full-size hit area, and each control's rule says so in its own min-width and min-height;
    - few words, big and rounded, in --book-font;
    - motion is transform and opacity only, so the tablet keeps 60 fps, and none of the idle life plays under
-     prefers-reduced-motion. The press, the sparkle and the sound of a tap come with engine/book/fx.js. */
+     prefers-reduced-motion. The press, the sparkle and the sound of a tap come with engine/book/fx.js (.pressable, .pressed,
+     .pressed-fade and .book-spark, below). */
 
 /* The typeface (STYLE.md section 10) is Nunito, bundled in assets/fonts/ with its licence (the SIL Open Font License, OFL.txt). It is
    one variable file, so every weight from 400 to 900 is there offline, and its Latin subset has every Icelandic letter. This lab
@@ -442,6 +443,30 @@
 .zoom-close {
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 1; top: clamp(16px, 2.6cqmin, 32px); right: clamp(16px, 2.6cqmin, 32px);
+}
+
+/* ---- Touch (engine/book/fx.js): a finger squashes a control, and a tap springs it back with a burst of sparks ------ */
+
+/* The squash uses the individual scale and translate properties, so it adds to a control's own tilt and idle life (its transform). */
+.pressable { transition: scale .45s cubic-bezier(.3, 1.8, .45, 1), translate .45s cubic-bezier(.3, 1.8, .45, 1), opacity .2s ease-out; }
+.pressable.pressed { scale: .9; transition-duration: .07s; }
+.chunky.pressable.pressed { translate: 0 4px; } /* a raised button goes down onto its side */
+.pressable.pressed-fade { opacity: .6; transition-duration: .08s; } /* less motion: a short fade instead of the squash */
+
+.book-spark { /* a twinkle bursting from where the finger lifted; fx.js puts it on the page's body, over everything */
+  position: fixed; z-index: 40; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  pointer-events: none; background: var(--book-twinkle) center / contain no-repeat;
+  opacity: 0; animation: book-spark-burst .55s cubic-bezier(.2, .75, .3, 1) var(--delay, 0s) both;
+}
+.book-spark.fade { animation: book-spark-fade .4s ease-out var(--delay, 0s) both; } /* less motion: it fades where it is */
+@keyframes book-spark-burst {
+  0% { opacity: 0; transform: translate(0, 0) scale(.3) rotate(0deg); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.9) rotate(var(--spin, 120deg)); }
+}
+@keyframes book-spark-fade {
+  0%, 100% { opacity: 0; }
+  35% { opacity: .9; }
 }
 
 /* ---- Icons: drawn in one stroke weight, coloured by the control they sit in -------------------------------------- */
