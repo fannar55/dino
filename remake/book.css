@@ -444,7 +444,7 @@
   width: clamp(112px, 15cqmin, 150px); height: clamp(112px, 15cqmin, 150px);
   --face: var(--book-green); --side: #4a8434;
 }
-.card-done .book-icon { width: 54%; height: 54%; }
+.card-done .book-icon { width: 62%; height: 62%; }
 .card-done .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; }
 .card.closing { pointer-events: none; } /* as it shrinks back into its tile, a tap goes through it */
 .card-dots { grid-area: dots; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 26px; }

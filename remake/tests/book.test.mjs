@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBook } from '../engine/book/book.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
+import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createSave } from '../engine/save.js';
 import { DONE } from '../engine/handle.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
@@ -113,3 +114,38 @@ test('closing the book stops narration', () => withAudio(() => {
   assert.equal(line.cancelled, true);
   assert.equal(FakeAudio.made[0].paused, true, 'nothing reads on after the book is shut');
 }));
+
+// Review Focus 1: a child who taps the arrow again and again turns one page per flip, and never past the last page.
+test('rapid taps on next turn one page per settled flip and stop at the last page', () => {
+  const doc = new FakeDocument(['book']);
+  const animations = [];
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => { // every element can animate, and a test says when its animation is over
+    const element = create(tag);
+    element.animate = () => {
+      const animation = { cancel() {}, finish() { this.onfinish?.(); } };
+      animations.push(animation);
+      return animation;
+    };
+    return element;
+  };
+  const root = doc.getElementById('book');
+  const viewer = createCardViewer(doc, root, { audio: { sfx() {}, stop() {}, narrate: () => DONE } });
+  const card = { id: 'frog', name: 'Froskur', pages: [1, 2, 3].map(n => ({ image: 'none', text: `Texti ${n}.`, audio: `book_frog_${n}`, sources: ['heimild'] })) };
+  assert.equal(viewer.open(card), true);
+  const next = root.findAll(e => e.classList.contains('card-arrow') && e.classList.contains('next'))[0];
+  const tapNext = () => {
+    next.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    next.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  const settle = () => animations.forEach(animation => animation.finish());
+
+  for (let i = 0; i < 5; i++) tapNext();
+  assert.equal(viewer.page, 1, 'five taps within one flip turn one page');
+  settle();
+  tapNext();
+  assert.equal(viewer.page, 2, 'and the next flip is the next page');
+  settle();
+  tapNext();
+  assert.equal(viewer.page, 2, 'never past the last page');
+});

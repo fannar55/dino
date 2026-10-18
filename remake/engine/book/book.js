@@ -1,5 +1,6 @@
 import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
+import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 
@@ -36,10 +37,12 @@ const PERSPECTIVE = 'perspective(2400px)';
  * createBookAudio). `onPause(paused)` holds the game; `win` is the window (less motion, the screen's shape). Returns
  *   open(tab, by)      opens it on 'stars' or 'animals', as the child's (by 'child', which holds the game) or a script's (by
  *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
- *   close()            shuts it, and stops the narration
+ *   close()            shuts it, and stops the narration, the card and the zoom
  *   isOpen, tab        whether it is open, and the page it shows (or showed last)
  *   refresh()          shows what the save holds now (a star that has landed, an animal that has come)
  *   pictureOf(findId)  the thumbnail of the card that find unlocks, or null
+ *   openCard(id, page) shows a card on the animals page, from its own place, as a tap on its tile would (the lab uses it)
+ *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
 export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, win = globalThis.window } = {}) {
   const root = doc.getElementById('book');
@@ -117,9 +120,11 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
 
   // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
+  const zoom = { open: () => false, close: () => false, isOpen: false }; // Task 9 builds the real one
+  const cardViewer = createCardViewer(doc, root, { media, audio, zoom, win, onClose: () => animals.render() });
   const animals = createAnimalsPage(doc, leaves.get('animals').el, {
     cards, media, save, audio, win,
-    onOpenCard: () => {}, // Task 8 opens the card
+    onOpenCard: (card, fromRect) => cardViewer.open(card, fromRect),
   });
 
   /** Shows what the save holds: the stars that are lit, and the animals found and new. */
@@ -129,6 +134,11 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     animals.render();
   }
 
+  /** The card and what is zoomed in it are put away at once, as the book is shut or turns to another page. */
+  function putCardAway() {
+    zoom.close(true);
+    cardViewer.close(true);
+  }
 
   function showTab() {
     root.setAttribute('data-tab', tab);
@@ -279,6 +289,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     if (next === tab) return;
     const from = tab;
     finishTurn(); // a turn still under way lands where it was going
+    putCardAway();
     tab = next;
     render();
     showTab();
@@ -309,6 +320,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     isOpen = false;
     holder = null;
     audio?.stop?.(); // nothing reads on after the book is shut
+    putCardAway();
     finishTurn();
     audio?.sfx?.('close');
     shrink();
@@ -319,6 +331,15 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const card = cards.find(c => c.unlock.found === findId);
     const image = card ? media.get(card.pages[0].image) : null;
     return image?.thumb ?? image?.src ?? null;
+  }
+
+  /** A card shown from its own place on the animals page (no tile to grow from), seen as it is shown. False if it is not in the book. */
+  function openCard(id, page = 0) {
+    const card = cards.find(c => c.id === id);
+    if (!card || !isOpen || tab !== 'animals') return false;
+    save.addSeen(card.id);
+    animals.render();
+    return cardViewer.open(card, null, page);
   }
 
   for (const [name, ribbon] of ribbons) {
@@ -339,6 +360,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     close,
     refresh: render,
     pictureOf,
+    openCard,
+    cardViewer,
+    zoom,
     get isOpen() { return isOpen; },
     get tab() { return tab; },
   };

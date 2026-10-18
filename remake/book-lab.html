@@ -10,12 +10,13 @@
 <link rel="stylesheet" href="./book.css">
 <style>
   /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
-     journal button. ?state= picks what shows:
-       stars, animals (the default)  the real book (engine/book/book.js) over the placeholder cards, open on that ribbon;
-                                     it closes into the button, and the button opens it again
-       card, zoom, info              the mockup's static card, zoomed picture and credit window, until Tasks 8 and 9 build
-                                     them; the info state's page shows one of the old game's licensed fossils, read from
-                                     dist/ in place, with its ⓘ open. */
+     journal button. The real book (engine/book/book.js) opens over it on the cards in assets/book/, with a save in memory. ?state= picks
+     what shows:
+       animals (the default), stars   the book open on that ribbon; it closes into the button, and the button opens it again
+       card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
+       zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
+       info                           the same page with its ⓘ window open (credit, licence and source)
+     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page; ?found=all finds every animal, as after the whole chapter. */
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background:
@@ -43,134 +44,13 @@
 </button>
 <div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
 <div id="book" class="book" hidden></div>
-
-<div id="mockup" class="book" data-tab="animals" role="dialog" aria-modal="true" aria-label="Landkönnuðabók Egils" hidden>
-  <div class="book-spread">
-    <div class="book-ribbons" role="tablist">
-      <button class="ribbon" data-tab="stars" type="button" role="tab" aria-selected="false">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M24 5.5c1.3 0 2 1 2.6 2.3l3.8 8.4 9.1 1.1c1.5.2 2.5 1 2.8 2.1.3 1.2-.3 2.2-1.3 3l-6.8 6.2 1.9 9c.3 1.4-.1 2.6-1.1 3.3-1 .7-2.3.6-3.5-.1L24 36.2l-7.5 4.6c-1.2.7-2.5.8-3.5.1-1-.7-1.4-1.9-1.1-3.3l1.9-9L7 22.4c-1-.8-1.6-1.8-1.3-3 .3-1.1 1.3-1.9 2.8-2.1l9.1-1.1 3.8-8.4C22 6.5 22.7 5.5 24 5.5z"/></svg>
-        <span class="ribbon-label">Stjörnur</span>
-      </button>
-      <button class="ribbon" data-tab="animals" type="button" role="tab" aria-selected="true">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>
-        <span class="ribbon-label">Dýrin</span>
-      </button>
-    </div>
-
-    <section class="book-page left" role="tabpanel" aria-label="Dýrin">
-      <div class="book-tiles">
-        <button class="tile found" data-card="mosi" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/mosi.svg" alt=""></span>
-          <span class="tile-name">Mosi</span>
-        </button>
-        <button class="tile found" data-card="kambedla" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/kambedla.svg" alt=""></span>
-          <span class="tile-name">Kambeðla</span>
-        </button>
-        <button class="tile new" data-card="kalligrammatid" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/kalligrammatid.svg" alt=""></span>
-          <span class="tile-name">Fiðrildi</span>
-          <span class="badge-new">Nýtt!</span>
-        </button>
-        <button class="tile unfound" data-card="beetle" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/beetle.svg" alt=""></span>
-          <span class="tile-name">Bjalla</span>
-        </button>
-      </div>
-    </section>
-    <div class="book-spine" aria-hidden="true"></div>
-    <section class="book-page right" aria-label="Dýrin">
-      <div class="book-tiles">
-        <button class="tile unfound" data-card="frog" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/frog.svg" alt=""></span>
-          <span class="tile-name">Froskur</span>
-        </button>
-        <button class="tile unfound" data-card="snail" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/snail.svg" alt=""></span>
-          <span class="tile-name">Snigill</span>
-        </button>
-        <button class="tile unfound" data-card="birds" type="button">
-          <span class="tile-picture"><img src="assets/book/lab/birds.svg" alt=""></span>
-          <span class="tile-name">Fuglar</span>
-        </button>
-      </div>
-    </section>
-
-    <button class="book-close chunky" type="button" aria-label="Loka bókinni">
-      <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>
-    </button>
-  </div>
-
-  <article class="card" data-card="kalligrammatid" aria-label="Fiðrildi" data-states="card zoom" hidden>
-    <button class="card-back chunky" type="button" aria-label="Aftur á dýrasíðuna">
-      <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>
-    </button>
-    <figure class="card-image">
-      <img src="assets/book/lab/kalligrammatid.svg" alt="Teikning af kalligrammatíð">
-      <button class="card-info" type="button" aria-label="Um myndina" hidden>
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-dot" cx="24" cy="24" r="21"/><circle class="icon-i" cx="24" cy="14.5" r="3.4"/><path class="icon-i" d="M24 22v13" stroke-width="5.5"/></svg>
-      </button>
-    </figure>
-    <button class="card-arrow prev" type="button" aria-label="Til baka" hidden>
-      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
-    </button>
-    <button class="card-arrow next" type="button" aria-label="Áfram">
-      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
-    </button>
-    <div class="card-words">
-      <button class="card-replay chunky" type="button" aria-label="Lesa aftur">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>
-      </button>
-      <p class="card-text">Þetta lítur út eins og fiðrildi.<br>En það er ekki fiðrildi!</p>
-    </div>
-    <div class="card-dots" role="img" aria-label="Síða 1 af 5"><span aria-current="step"></span><span></span><span></span><span></span><span></span></div>
-  </article>
-
-  <article class="card" data-card="kambedla" aria-label="Kambeðla" data-states="info" hidden>
-    <button class="card-back chunky" type="button" aria-label="Aftur á dýrasíðuna">
-      <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M36 38V26c0-8.5-6-13.5-14-13.5H11" stroke-width="6"/><path d="M19 4.5l-8.5 8 8.5 8" stroke-width="6"/></svg>
-    </button>
-    <figure class="card-image">
-      <img src="../dist/assets/encyclopedia/stegosaurus-side.jpg" alt="Beinagrind Stegosaurus stenops, safngripurinn „Sophie“, séð frá hlið. Mynd úr rannsókn safnsins.">
-      <button class="card-info" type="button" aria-label="Um myndina" aria-expanded="true">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><circle class="icon-dot" cx="24" cy="24" r="21"/><circle class="icon-i" cx="24" cy="14.5" r="3.4"/><path class="icon-i" d="M24 22v13" stroke-width="5.5"/></svg>
-      </button>
-      <div class="card-credit" role="note">
-        <p><span>Mynd</span>Susannah Maidment et al. &amp; Natural History Museum, London</p>
-        <p><span>Leyfi</span>CC BY 4.0</p>
-        <p><span>Frá</span>Wikimedia Commons</p>
-      </div>
-    </figure>
-    <button class="card-arrow prev" type="button" aria-label="Til baka">
-      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
-    </button>
-    <button class="card-arrow next" type="button" aria-label="Áfram">
-      <svg class="book-arrow" viewBox="0 0 120 100" aria-hidden="true"><path class="arrow-side" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z" transform="translate(0 7)"/><path class="arrow-face" d="M16 32c-4 12-4 24 0 36l40 1v15c0 8 7 11 13 6l40-34c4-4 4-8 0-12L69 10c-6-5-13-2-13 6v15z"/><path class="arrow-shine" d="M23 42c12-1.5 23-1.5 32-1M68 21l26 20"/></svg>
-    </button>
-    <div class="card-words">
-      <button class="card-replay chunky" type="button" aria-label="Lesa aftur">
-        <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M6.5 18H14l9.6-8.2c1.3-1.1 3.4-.2 3.4 1.5v25.4c0 1.7-2.1 2.6-3.4 1.5L14 30H6.5C5.1 30 4 28.9 4 27.5v-7C4 19.1 5.1 18 6.5 18z"/><path d="M32.5 18.5c2.6 3.3 2.6 7.7 0 11" stroke-width="4.5"/><path d="M37.5 13c5.4 6.3 5.4 15.7 0 22" stroke-width="4.5"/></svg>
-      </button>
-      <p class="card-text">Þetta er Sophie.<br>Hún er kambeðla úr steini.</p>
-    </div>
-    <div class="card-dots" role="img" aria-label="Síða 3 af 5"><span></span><span></span><span aria-current="step"></span><span></span><span></span></div>
-  </article>
-
-  <div class="zoom" data-card="kalligrammatid" data-states="zoom" hidden>
-    <div class="zoom-frame" style="--ratio: 800 / 600">
-      <img src="assets/book/lab/kalligrammatid.svg" alt="Teikning af kalligrammatíð">
-    </div>
-    <button class="zoom-close chunky" type="button" aria-label="Loka myndinni">
-      <svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 13.5C19 20 28 28.5 35 35M35 13C28.5 20 20 28 13 35" stroke-width="6.5"/></svg>
-    </button>
-  </div>
-</div>
 <script type="module">
-  // The lab's logic. The real book's states open it over the placeholder cards (assets/book/), with a save in memory that has
-  // Kambeðla's star and the butterfly, as after chapter 1's ride; the mockup's states show its static layers, each layer naming
-  // its states in data-states. Sound starts with the first touch, as the browser wants. capture.mjs waits for __demoReady,
-  // which comes once every picture has loaded, the book has finished opening and the page has drawn; __demoStats then says how
-  // big the smallest control within reach is, and how many are off the screen (Review Focus 4).
+  // The lab's logic. The book opens over the cards (assets/book/) with a save in memory that has Kambeðla's star and the butterfly,
+  // as after chapter 1's ride, and Mosi and Kambeðla already opened, so the animals page shows a new animal, two found and the rest
+  // unfound. The card, zoom and info states open the card by tapping through it, as a child would. Sound starts with the first touch, as
+  // the browser wants. capture.mjs waits for __demoReady, which comes once every picture has loaded, the book and what the state
+  // asked for have finished moving and the page has drawn; __demoStats then says how big the smallest control within reach is, and
+  // how many are off the screen (Review Focus 4).
   import { createBook } from './engine/book/book.js';
   import { createBookAudio } from './engine/book/book-audio.js';
   import { parseCards } from './engine/book/cards.js';
@@ -179,31 +59,56 @@
   import { createSave } from './engine/save.js';
   import { createAudioContext, createOutput } from './engine/audio/output.js';
 
-  const asked = new URLSearchParams(location.search).get('state');
+  const params = new URLSearchParams(location.search);
+  const asked = params.get('state');
   const state = ['stars', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const read = async path => (await fetch(path)).json();
-  const [cards, media, theme, lines] = await Promise.all([
+  const [cardData, mediaData, theme, lines] = await Promise.all([
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
   ]);
+  const cards = parseCards(cardData);
   const save = createSave(null);
   save.addStar('k1_kambedla');
   save.addFinding('butterfly');
+  save.addSeen('mosi');
+  save.addSeen('kambedla');
+  if (params.get('found') === 'all') {
+    for (const card of cards) {
+      if (card.unlock.found) save.addFinding(card.unlock.found);
+      if (card.unlock.star) save.addStar(card.unlock.star);
+    }
+  }
   const context = createAudioContext();
   addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
   const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
-  const book = createBook(document, { cards: parseCards(cards), media: parseManifest(media), save, audio, win: window, onPause: () => {} });
+  const book = createBook(document, { cards, media: parseManifest(mediaData), save, audio, win: window, onPause: () => {} });
   createJournal(document, save, { book, audio });
   Object.assign(window, { __book: book, __bookAudio: audio });
 
-  const real = state === 'stars' || state === 'animals';
-  if (real) book.open(state, 'child');
-  else for (const layer of document.querySelectorAll('[data-states]')) layer.hidden = !layer.dataset.states.split(' ').includes(state);
-  document.getElementById('mockup').hidden = real;
-  if (!real) document.getElementById('journal-button').hidden = true; // the mockup's states as the owner approved them
+  /** A finger that touches `selector`'s element and lifts again, which is all a tap is. */
+  function tap(selector) {
+    const el = document.querySelector(selector);
+    const r = el.getBoundingClientRect();
+    const at = { bubbles: true, pointerId: 7, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    el.dispatchEvent(new PointerEvent('pointerdown', at));
+    el.dispatchEvent(new PointerEvent('pointerup', at));
+  }
+
+  /** Waits until the fonts and pictures are there and nothing is moving but the book's idle life. */
+  async function settle() {
+    await document.fonts.ready;
+    if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+    for (let round = 0; round < 3; round++) {
+      await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  }
 
   /** The book's controls a finger can reach (shown, and on top where they are): the smallest one's size, and any off the screen. */
   function measure() {
-    const controls = '.chunky, .ribbon, .tile, .card-arrow, .card-replay, .card-info, .card-back, .book-close, .zoom-close';
+    const controls = '.chunky, .ribbon, .tile, .card-arrow, .card-replay, .card-info, .card-back, .card-done, .card-photo, .book-close, .zoom-close';
     const live = [...document.querySelectorAll(controls)].filter(el => {
       if (!el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') return false;
       const r = el.getBoundingClientRect();
@@ -218,14 +123,19 @@
     };
   }
 
-  await document.fonts.ready;
-  if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
-  const opening = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
-  await Promise.all(opening.map(animation => animation.finished.catch(() => {})));
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    window.__demoStats = measure();
-    window.__demoReady = true;
-  }));
+  book.open(state === 'stars' ? 'stars' : 'animals', 'child');
+  await settle();
+  if (state === 'card' || state === 'zoom' || state === 'info' || params.has('card')) {
+    const id = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
+    const page = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
+    book.openCard(id, Math.max(0, page));
+    await settle();
+    if (state === 'info') tap('.card-info');
+    if (state === 'zoom') tap('.card-photo');
+    await settle();
+  }
+  window.__demoStats = measure();
+  window.__demoReady = true;
 </script>
 </body>
 </html>
