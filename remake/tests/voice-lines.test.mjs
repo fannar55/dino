@@ -105,7 +105,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const lines = readJson(REAL.source);
   const voices = readJson(REAL.voices);
   const recorded = readJson(REAL.lines);
-  assert.deepEqual(Object.keys(voices).filter(who => who !== 'narrator').sort(), ['egill', 'kambedla', 'mosi']); // the narrator's slot is filled when the owner picks (book set)
+  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator and the games' hosts (Þórseðla) are picked by the owner later
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {
