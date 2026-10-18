@@ -414,14 +414,28 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       const el = makeCard(doc, card, 'button');
       tappable(el, () => tapCard(card.id));
       return el;
-    }, n => (n > 7 ? 6 / (n - 1) : 1), hidden);
+    }, n => (n > 7 ? 5 / (n - 1) : 1), hidden);
     const width = handEls.values().next().value?.offsetWidth || 120;
     const upright = Boolean(win?.matchMedia?.('(max-aspect-ratio: 1/1)')?.matches);
     const sides = upright ? 0 : 2 * (Math.max(mosiEl.offsetWidth, eittEl.offsetWidth) + 24);
     const room = table.clientWidth - sides - 40 - 0.4 * width;
     const least = upright ? 0.08 : 0.04;
-    const overlap = cards.length ? Math.min(0.42, Math.max(least, (1 - room / (cards.length * width)) / 2)) : least;
+    let overlap = cards.length ? Math.min(0.45, Math.max(least, (1 - room / (cards.length * width)) / 2)) : least;
     handEl.style.setProperty('--overlap', overlap.toFixed(3));
+    // The fan tilts its outer cards outward: measured, a hand that still reaches Mosi or "Eitt!" (or the edge) closes up more.
+    const clear = () => {
+      const boxes = [...handEls.values()].map(el => el.getBoundingClientRect()); // hidden ones too: they will land there
+      if (!boxes.length) return true;
+      const left = Math.min(...boxes.map(box => box.left));
+      const right = Math.max(...boxes.map(box => box.right));
+      const from = upright ? table.getBoundingClientRect().left + 8 : mosiEl.getBoundingClientRect().right + 10;
+      const to = upright ? table.getBoundingClientRect().right - 8 : eittEl.getBoundingClientRect().left - 10;
+      return left >= from && right <= to;
+    };
+    for (let tries = 0; tries < 8 && overlap < 0.45 && !clear(); tries++) {
+      overlap = Math.min(0.45, overlap + 0.025);
+      handEl.style.setProperty('--overlap', overlap.toFixed(3));
+    }
     marks();
     if (animate) glide(before, handEls);
   }
