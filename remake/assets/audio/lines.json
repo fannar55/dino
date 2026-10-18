@@ -1999,54 +1999,29 @@
   "duration": 3.85,
   "mouth": "5407ffffddd3000ffe0de94efd959500000006ef8004dc73000000000db000f93eeda00000000"
  },
- "eitt_tut_1": {
-  "src": "assets/audio/eitt/eitt_tut_1.mp3",
-  "duration": 4.41,
-  "mouth": "07ffb40dfa9ecea700dcdcddc00ddca80000000000073efec0bebbcdedb505eeebdd70057ffed970053000000"
- },
- "eitt_tut_2": {
-  "src": "assets/audio/eitt/eitt_tut_2.mp3",
+ "eitt_tut_colour": {
+  "src": "assets/audio/eitt/eitt_tut_colour.mp3",
   "duration": 5.45,
   "mouth": "665fefea9fc60dc0a80adb90beecba4000000000000000000dfffffc0368ca00887b05dcba8600000ce9758bbceeeedccb60000000000"
  },
- "eitt_tut_3": {
-  "src": "assets/audio/eitt/eitt_tut_3.mp3",
+ "eitt_tut_number": {
+  "src": "assets/audio/eitt/eitt_tut_number.mp3",
   "duration": 3.85,
   "mouth": "00cffff95cdb04bdd03ed49dd840dcccb00beecbcb700006cccaaa00daeec27b8bddda3000000"
  },
- "eitt_tut_4": {
-  "src": "assets/audio/eitt/eitt_tut_4.mp3",
+ "eitt_tut_her": {
+  "src": "assets/audio/eitt/eitt_tut_her.mp3",
   "duration": 2.17,
   "mouth": "fffedcb45cdca053bccccdb00adedcaa980000000000"
  },
- "eitt_tut_5": {
-  "src": "assets/audio/eitt/eitt_tut_5.mp3",
+ "eitt_tut_skip": {
+  "src": "assets/audio/eitt/eitt_tut_skip.mp3",
   "duration": 5.85,
   "mouth": "004bdecbbccba80fe70abba800000000008ffffd75489506efeaadddefe69ffa09d83000000007ec06dba90000ec438d60008cbdcdda000500000"
  },
- "eitt_tut_6": {
-  "src": "assets/audio/eitt/eitt_tut_6.mp3",
-  "duration": 4.49,
-  "mouth": "00ffb840000dcdb643000000000000000009ffca0cdeeddb0adfe6cedddefd600000bcdc87409c930000000000"
- },
- "eitt_tut_7": {
-  "src": "assets/audio/eitt/eitt_tut_7.mp3",
+ "eitt_tut_draw": {
+  "src": "assets/audio/eitt/eitt_tut_draw.mp3",
   "duration": 5.05,
   "mouth": "0efa22de70000dddda006ed437d950000000000000000000000eed0dfffcecce96d8000500ddb80006eda03d808deec900000"
- },
- "eitt_tut_8": {
-  "src": "assets/audio/eitt/eitt_tut_8.mp3",
-  "duration": 5.37,
-  "mouth": "feffa6da00cb000aa50000aeedd900dd90cec0409baa97309cdc960000000000000000000efcefeedd8000ffda9bccabcb2000000000"
- },
- "eitt_tut_9": {
-  "src": "assets/audio/eitt/eitt_tut_9.mp3",
-  "duration": 5.53,
-  "mouth": "afffcbfb090cc0000abaa8bc90adba53000000000000000bedd9ccca9cb60a868effed90000000000cb3000acc707ec37bd700000000000"
- },
- "eitt_tut_10": {
-  "src": "assets/audio/eitt/eitt_tut_10.mp3",
-  "duration": 6.41,
-  "mouth": "00eff7eeea3cffebca650aecaabc508cccb900000bd867400007efedb8400000000000000000000efedd98609dbbabeecaccc00000cdb300beeeb8cc894000000"
  }
 }
