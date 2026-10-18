@@ -40,6 +40,7 @@ const REMAKE = new URL('../../', import.meta.url); // remake/: where lines.json'
 const asset = path => new URL(path, REMAKE).href;
 const MUSIC = asset('assets/audio/eitt/music.mp3');
 
+const TAP_PX = 88; // the least a card of the child's hand may show across to be tapped (eitt.css's --eitt-target): a bigger hand lies in rows
 const THINK_MS = 1200; // Kambeðla's pace: she thinks this long before each move
 const OWED_MS = 2600; // and this long while the child owes an "Eitt!", which she may notice at the end of it
 const IDLE_MS = 6000; // the child's turn with nothing done this long: what goes lifts
@@ -407,9 +408,60 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     if (now.length !== wanted.length || now.some((el, k) => el !== wanted[k])) for (const el of wanted) box.append(el);
   }
 
+  /**
+   * Where the child's cards may lie across the table: between Mosi and "Eitt!" (the table's edges, with the buttons on a row of their
+   * own, when the tablet is upright).
+   */
+  function handBounds(upright) {
+    const base = table.getBoundingClientRect();
+    return upright ? [base.left + 8, base.right - 8] : [mosiEl.getBoundingClientRect().right + 10, eittEl.getBoundingClientRect().left - 10];
+  }
+
+  /**
+   * A hand of so many cards that each would show a strip narrower than a small finger (TAP_PX) lies in two overlapping rows instead,
+   * or in three: the first cards in the back row and the rest in front of it, each row fanned and centred on its own, each card
+   * showing a strip of at least TAP_PX across and a good part of its height (.rows in eitt.css).
+   */
+  function layRows(cards, upright) {
+    const els = cards.map(card => handEls.get(card.id));
+    const spread = count => (count > 7 ? 5 / (count - 1) : 1);
+    let step = 0;
+    handEl.classList.add('rows');
+    for (let rows = 2; rows <= 3; rows++) {
+      const per = Math.ceil(cards.length / rows);
+      step = els[0].offsetWidth * 0.92; // the most a card is ever spread: a card's width less its overlap of .04 on either side
+      handEl.style.setProperty('--more', per - 1);
+      handEl.style.setProperty('--more-rows', rows - 1);
+      handEl.style.setProperty('--row-step', rows === 3 ? 'calc(var(--hand-w) * .5)' : ''); // three rows lie closer, to stay under the pile
+      els.forEach((el, k) => {
+        const row = Math.floor(k / per);
+        const col = k % per;
+        const count = Math.min(per, cards.length - row * per);
+        const i = ((col - (count - 1) / 2) * spread(count)).toFixed(2);
+        el.style.setProperty('--col', col + 1);
+        el.style.setProperty('--row', row + 1);
+        el.style.setProperty('--shift', ((per - count) / 2).toFixed(2)); // a row of fewer cards is centred under the longer one
+        el.style.setProperty('--i', i);
+        el.dataset.i = i;
+      });
+      // The fan tilts the outer cards outward: measured, a row that still reaches Mosi or "Eitt!" closes up more. (The buttons move
+      // out as the hand narrows, so this only ever has room to gain.)
+      for (let tries = 0; tries < 10; tries++) {
+        handEl.style.setProperty('--step', `${step.toFixed(1)}px`);
+        const [from, to] = handBounds(upright);
+        const boxes = els.map(el => el.getBoundingClientRect()); // hidden ones too: they will land there
+        const over = Math.max(0, from - Math.min(...boxes.map(box => box.left))) + Math.max(0, Math.max(...boxes.map(box => box.right)) - to);
+        if (over < 1) break;
+        step = Math.max(40, step - over / (per - 1) - 0.5);
+      }
+      if (step >= TAP_PX) break;
+    }
+  }
+
   /** The child's cards in their arc, a bigger hand overlapping more so it always fits between Mosi and "Eitt!". */
   function renderHand(cards, { hidden = new Set(), animate = true } = {}) {
     const before = animate ? rects(handEls) : new Map();
+    handEl.classList.remove('rows');
     layOut(handEl, handEls, cards, card => {
       const el = makeCard(doc, card, 'button');
       tappable(el, () => tapCard(card.id));
@@ -428,14 +480,17 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       if (!boxes.length) return true;
       const left = Math.min(...boxes.map(box => box.left));
       const right = Math.max(...boxes.map(box => box.right));
-      const from = upright ? table.getBoundingClientRect().left + 8 : mosiEl.getBoundingClientRect().right + 10;
-      const to = upright ? table.getBoundingClientRect().right - 8 : eittEl.getBoundingClientRect().left - 10;
+      const [from, to] = handBounds(upright);
       return left >= from && right <= to;
     };
     for (let tries = 0; tries < 8 && overlap < 0.45 && !clear(); tries++) {
       overlap = Math.min(0.45, overlap + 0.025);
       handEl.style.setProperty('--overlap', overlap.toFixed(3));
     }
+    // So many cards that a card's strip comes out narrower than TAP_PX: two (or three) rows instead of one.
+    const first = handEls.get(cards[0]?.id);
+    const last = handEls.get(cards.at(-1)?.id);
+    if (cards.length > 2 && first && last && (last.offsetLeft - first.offsetLeft) / (cards.length - 1) < TAP_PX) layRows(cards, upright);
     marks();
     if (animate) glide(before, handEls);
   }

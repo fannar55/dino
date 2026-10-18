@@ -372,6 +372,19 @@
   transition: translate .35s cubic-bezier(.3, 1.5, .5, 1), scale .3s cubic-bezier(.3, 1.8, .45, 1);
   box-shadow: 0 0 0 2.5px var(--ink), 0 8px 14px rgb(40 24 10 / .35);
 }
+/* A big hand: when one row would leave a card a strip narrower than 88px, table.js lays the cards in two (or three) rows that overlap, the
+   later row in front. It sets --more (columns after the first), --more-rows and --step (a strip's width), and each card's --col,
+   --row and --shift (half a step for each card a row is short of the longest, so it stays centred). A back-row card shows the top
+   half of itself above the row in front (a third, in a hand of three rows), its corner and the top of its picture. */
+.eitt-hand.rows {
+  display: grid; justify-content: center; align-content: end; align-items: start;
+  grid-template-columns: repeat(var(--more, 1), var(--step, 90px)) var(--hand-w);
+  grid-template-rows: repeat(var(--more-rows, 1), var(--row-step, calc(var(--hand-w) * .7))) auto;
+}
+.eitt-hand.rows .eitt-card {
+  margin: 0 0 0 calc(var(--shift, 0) * var(--step, 90px));
+  grid-column: var(--col, 1); grid-row: var(--row, 1); justify-self: start;
+}
 .eitt-hand .eitt-card.pressed { scale: .94; transition-duration: .35s, .07s; } /* a finger squashes a card a little */
 .eitt-hand .eitt-card.hint { /* lifted a little and lit, so the child sees it may be played */
   translate: 0 calc(var(--hand-w) * -.24);
