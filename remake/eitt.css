@@ -3,22 +3,29 @@
 
      .eitt                       the root over the game: the clearing, the font, every touch (touch-action: none); a size container
      .eitt-table                 the table: Kambeðla at the top, the deck and the pile in the middle, the child's cards at the bottom
-     .eitt-kambedla              Kambeðla's own window at the top, where her live 3D view goes (Task 3)
+     .eitt-kambedla              Kambeðla's own window at the top, where her live 3D view goes (Task 3), with .eitt-kambedla-frame
+                                 beside it for the tape on its corners (outside the window, which clips its view)
      .eitt-their-hand            Kambeðla's cards, face down in front of her, so the child sees how many she has
-     .eitt-centre                the middle of the table: .eitt-deck (a button: tap to draw), .eitt-pile (the cards played, the
-                                 top one last) with its .eitt-ring (the colour in play, glowing; a colour class names it, .wild
-                                 while a colour is being chosen) and .eitt-pass ("Áfram", keep the card drawn)
-     .eitt-hand                  the child's cards in an arc; each card's --i is its place from the middle (-3 … 3), and
-                                 .playable marks a card that may be played, .hint lifts and lights it (the idle hint, or Mosi's
-                                 pick), .nope wiggles one that may not
+     .eitt-centre                the middle of the table: .eitt-deck (a button: tap to draw; .draw makes it call), .eitt-pile (the
+                                 cards played, the top one last, each askew by --r, --x and --y) with its .eitt-ring (the colour in
+                                 play, glowing; a colour class names it, .wild while a colour is being chosen) and .eitt-pass
+                                 ("Áfram", keep the card drawn)
+     .eitt-hand                  the child's cards in an arc; each card's --i is its place from the middle (-3 … 3), a bigger
+                                 hand sets --overlap (a share of a card's width, .04 by default), .playable marks a card that may
+                                 be played, .hint lifts and lights it (the idle hint, or Mosi's pick), .nope wiggles one that may not
      .eitt-card                  a card: a colour (.red, .yellow, .green, .blue) or .wild, a kind for an action card (.skip,
-                                 .reverse, .draw2; on a wild, .draw4), or .back; inside, .corner (twice; the second is
-                                 .flip), .pic (the picture, an img in it) and .digit (the big number, "+2" or "+4")
-     .eitt-eitt                  the round "Eitt!" button; .needed makes it pulse
-     .eitt-mosi                  "Spyrja Mosa", Mosi's face beside the child's cards; .eitt-advice is Mosi popping up beside
-                                 them with his words in a bubble
-     .eitt-colours               the four big colour buttons a wild card brings up, each a colour class
-     .eitt-win                   the end of a round: the words, the sticker the child won and "Spilum aftur?"
+                                 .reverse, .draw2; on a wild, .draw4), or .back (no children); inside, .corner (twice; the second
+                                 is .flip), .pic (the picture, an img in it) and .digit (the big number, "+2" or "+4"; empty on
+                                 skip and reverse, whose sign the sheet draws there and in the corners); data-n="6" or "9" puts
+                                 those two on a bar
+     .eitt-eitt                  the round "Eitt!" button; .needed makes it glow and pulse
+     .eitt-mosi                  "Spyrja Mosa", Mosi's face beside the child's cards; .eitt-advice is Mosi popping up over it with
+                                 his words in a bubble (its p)
+     .eitt-colours               the four big colour buttons a wild card brings up, each a colour class with its dinosaur;
+                                 .hint lights Mosi's pick
+     .eitt-win                   the end of a round under Kambeðla's window: .eitt-win-card with its words (h2), the .eitt-sticker
+                                 the child won, .eitt-again ("Spilum aftur?") and .eitt-close; .eitt-confetti holds the
+                                 confetti, each an i with a colour class and --x, --a, --t and --d
 
    The rules it keeps, as the book does (STYLE.md section 10, book.css):
    - the journal's palette for the paper, the ink and the buttons, and four bright card colours chosen to sit beside it (below);
@@ -81,11 +88,11 @@
 .eitt img { display: block; -webkit-user-drag: none; }
 
 /* Each colour, for whatever wears it: a card, the ring, a colour button. */
-.red { --c: var(--red); --c-light: var(--red-light); --c-deep: var(--red-deep); }
-.yellow { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
-.green { --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep); }
-.blue { --c: var(--blue); --c-light: var(--blue-light); --c-deep: var(--blue-deep); }
-.wild { --c: var(--night); --c-light: var(--night-light); --c-deep: var(--night-deep); }
+.eitt .red { --c: var(--red); --c-light: var(--red-light); --c-deep: var(--red-deep); }
+.eitt .yellow { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
+.eitt .green { --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep); }
+.eitt .blue { --c: var(--blue); --c-light: var(--blue-light); --c-deep: var(--blue-deep); }
+.eitt .wild { --c: var(--night); --c-light: var(--night-light); --c-deep: var(--night-deep); }
 
 /* ---- The table: a slab of a big tree in the clearing, its far edge under Kambeðla's window ----------------------- */
 
@@ -352,7 +359,7 @@
   margin: 0 calc(var(--hand-w) * var(--overlap, .04) * -1); /* a bigger hand overlaps more (Task 3 sets --overlap) */
   transform-origin: 50% 160%;
   transform: rotate(calc(var(--i, 0) * 3deg)) translateY(calc(var(--i, 0) * var(--i, 0) * 2.4px));
-  transition: translate .35s cubic-bezier(.3, 1.5, .5, 1), filter .35s ease-out;
+  transition: translate .35s cubic-bezier(.3, 1.5, .5, 1);
   box-shadow: 0 0 0 2.5px var(--ink), 0 8px 14px rgb(40 24 10 / .35);
 }
 .eitt-hand .eitt-card.hint { /* lifted a little and lit, so the child sees it may be played */
