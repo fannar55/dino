@@ -9,7 +9,8 @@ import { DUCK_DB } from '../audio/music.js';
 //
 // The music is a track of its own (assets/audio/eitt/music.mp3, which the owner picked by ear and which is cut to loop): it loops with
 // no jump while the game is open, at a gentle level under Kambeðla's and Mosi's lines, ducks while either speaks, and goes through the
-// page's audio output. Without the file it is simply quiet.
+// page's audio output. Without the file it is simply quiet. A tablet's speaker is small, so the file is baked small: mono at 16 kHz,
+// 64 kbps (1.7 MB), exactly one period of the loop, and it is decoded at its own rate, so the whole track takes 13 MB, not 80.
 
 export const EITT_SFX = ['flick', 'deal', 'shuffle', 'draw', 'wiggle', 'horn', 'swish', 'pop', 'sparkle', 'fanfare', 'tap'];
 
@@ -95,6 +96,19 @@ const MUSIC_LEVEL = 0.3; // gentle: half the theme's place in the mix (music.js 
 const MUSIC_FADE = 0.25; // s, the time constant it comes up with
 const MUSIC_DUCK = 0.1; // s, and dips under a line with
 const SILENCE = 1e-4; // a sample this quiet, at the very start or end of the decoded file, is the encoder's padding
+const MUSIC_RATE = 16000; // Hz, the rate music.mp3 is baked at: decoded at it, the track stays small (a context's own 48 kHz would be 3 times as big)
+
+/**
+ * `bytes` decoded at the file's own rate, which `context.decodeAudioData` would not do: it resamples to the context's rate, so a mono
+ * 16 kHz track would swell to 48 kHz (and, for a moment, to twice that). An offline context at the file's rate leaves it as it is;
+ * where there is none, the context decodes it as usual.
+ */
+function decodeAtOwnRate(context, bytes) {
+  try {
+    if (globalThis.OfflineAudioContext) return new globalThis.OfflineAudioContext(1, 1, MUSIC_RATE).decodeAudioData(bytes);
+  } catch { /* the usual way below */ }
+  return context.decodeAudioData(bytes);
+}
 
 /** Where the music really starts and ends in `buffer` (seconds): the first and the last sample louder than the encoder's padding. */
 export function loopOf(buffer, floor = SILENCE) {
@@ -109,9 +123,9 @@ export function loopOf(buffer, floor = SILENCE) {
 
 /**
  * The game's music on `context` (an AudioContext, or null: silent), heard through `output`, from `url`. The owner's track is cut so
- * that its end flows into its start, so it must loop with no jump: it is decoded whole (once, and kept for the next time the game
- * opens) and played from an AudioBufferSourceNode that loops between the first and the last sound in the file (loopOf), never from an
- * <audio loop>, which leaves a gap. Returns
+ * that its end flows into its start, so it must loop with no jump: it is decoded whole, small (13 MB: see the top of this file), once,
+ * and kept for the next time the game opens, and played from an AudioBufferSourceNode that loops between the first and the last
+ * sound in the file (loopOf), never from an <audio loop>, which leaves a gap. Returns
  *   start()     it plays from its start, looping, and comes up (the game opens); it sounds as soon as it is decoded and the
  *               browser lets sound begin (the first touch)
  *   wake()      a touch: music that was waiting for the first touch, or for a decode, starts now
@@ -146,7 +160,7 @@ export function createEittMusic({ context = null, output = null, url } = {}) {
         if (!response.ok) throw new Error(`${url}: ${response.status}`);
         return response.arrayBuffer();
       })
-      .then(bytes => context.decodeAudioData(bytes))
+      .then(bytes => decodeAtOwnRate(context, bytes))
       .then(decoded => {
         buffer = decoded;
         span = loopOf(decoded);
