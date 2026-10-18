@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- "+4" in "Eitt!": Kambeðla's four glowing plates (as in plates.svg, smaller) with four eggs in front of them, one speckled in
+       each colour, in the 4:3 frame of the card pictures. Drawn for the wild card's dark face. -->
+  <defs>
+    <path id="plate" d="M-35 0L-46-62Q-48-75-38-85L-7-126Q0-134 7-126L38-85Q48-75 46-62L35 0Z"/>
+    <path id="veins" d="M0-4V-118M-4-6L-27-84M4-6L27-84M-8-8L-40-60M8-8L40-60" fill="none" stroke-linecap="round"/>
+    <radialGradient id="red" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#fff3d6"/><stop offset=".3" stop-color="#ffab86"/><stop offset=".72" stop-color="#ee5a43"/><stop offset="1" stop-color="#c23a2c"/>
+    </radialGradient>
+    <radialGradient id="yellow" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#fffbe6"/><stop offset=".3" stop-color="#ffe58a"/><stop offset=".72" stop-color="#f8c630"/><stop offset="1" stop-color="#d79a16"/>
+    </radialGradient>
+    <radialGradient id="green" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#f4ffe0"/><stop offset=".3" stop-color="#b6ec8a"/><stop offset=".72" stop-color="#5dbd4c"/><stop offset="1" stop-color="#358b34"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="50%" cy="66%" r="72%">
+      <stop offset="0" stop-color="#eef8ff"/><stop offset=".3" stop-color="#a4d4ff"/><stop offset=".72" stop-color="#4598ec"/><stop offset="1" stop-color="#2667b3"/>
+    </radialGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a27fb8"/><stop offset=".35" stop-color="#8f6aa3"/><stop offset="1" stop-color="#5d4370"/>
+    </linearGradient>
+    <!-- each egg's shell, warm cream turning to its colour at the edge -->
+    <radialGradient id="shell-red" cx="36%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#fffcf6"/><stop offset=".5" stop-color="#ffe3d6"/><stop offset="1" stop-color="#f0a189"/>
+    </radialGradient>
+    <radialGradient id="shell-yellow" cx="36%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#fffef4"/><stop offset=".5" stop-color="#fff1bf"/><stop offset="1" stop-color="#ecc55c"/>
+    </radialGradient>
+    <radialGradient id="shell-green" cx="36%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#fbfff4"/><stop offset=".5" stop-color="#e2f4cc"/><stop offset="1" stop-color="#9fd27f"/>
+    </radialGradient>
+    <radialGradient id="shell-blue" cx="36%" cy="28%" r="80%">
+      <stop offset="0" stop-color="#f8fcff"/><stop offset=".5" stop-color="#d9ecff"/><stop offset="1" stop-color="#93c1ef"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="11"/></filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="shadow" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+    <path id="twinkle" d="M0-12C1.6-3 3-1.6 12 0C3 1.6 1.6 3 0 12C-1.6 3-3 1.6-12 0C-3-1.6-1.6-3 0-12Z"/>
+    <path id="egg" d="M0-46C22-46 36-9 36 11C36 32 20 46 0 46C-20 46-36 32-36 11C-36-9-22-46 0-46Z"/>
+    <g id="spots" opacity=".85">
+      <ellipse cx="11" cy="-17" rx="4.2" ry="3" transform="rotate(-24 11 -17)"/>
+      <ellipse cx="21" cy="2" rx="3" ry="2.3" transform="rotate(30 21 2)"/>
+      <ellipse cx="4" cy="15" rx="5" ry="3.5" transform="rotate(12 4 15)"/>
+      <ellipse cx="-18" cy="6" rx="3.4" ry="2.5" transform="rotate(-40 -18 6)"/>
+      <ellipse cx="-9" cy="30" rx="3.8" ry="2.6" transform="rotate(20 -9 30)"/>
+      <ellipse cx="17" cy="28" rx="2.8" ry="2"/>
+      <circle cx="-5" cy="-6" r="1.7"/>
+      <circle cx="-2" cy="-32" r="1.6"/>
+      <circle cx="-25" cy="22" r="1.6"/>
+    </g>
+    <ellipse id="shine" cx="-14" cy="-22" rx="6.5" ry="12.5" fill="#fff" opacity=".85" transform="rotate(20 -14 -22)" filter="url(#soft)"/>
+  </defs>
+
+  <!-- the plates, smaller than on the wild card and higher, glowing behind the eggs -->
+  <g transform="translate(200 214) scale(.74) translate(-200 -256)">
+    <g filter="url(#glow)">
+      <use href="#plate" fill="#ff6a4d" opacity=".95" transform="translate(96 272) rotate(-30) scale(.94)"/>
+      <use href="#plate" fill="#3f9bff" opacity=".95" transform="translate(304 272) rotate(30) scale(.94)"/>
+      <use href="#plate" fill="#ffd23a" opacity=".95" transform="translate(161 256) rotate(-10) scale(1.06)"/>
+      <use href="#plate" fill="#6fe05a" opacity=".95" transform="translate(239 256) rotate(10) scale(1.06)"/>
+    </g>
+    <g transform="translate(96 272) rotate(-30) scale(.94)">
+      <use href="#plate" fill="url(#red)" stroke="#9e2f24" stroke-width="3.4" stroke-linejoin="round"/>
+      <use href="#veins" stroke="#fff4dc" stroke-width="3" opacity=".45"/>
+    </g>
+    <g transform="translate(304 272) rotate(30) scale(.94)">
+      <use href="#plate" fill="url(#blue)" stroke="#1f5594" stroke-width="3.4" stroke-linejoin="round"/>
+      <use href="#veins" stroke="#f2faff" stroke-width="3" opacity=".45"/>
+    </g>
+    <g transform="translate(161 256) rotate(-10) scale(1.06)">
+      <use href="#plate" fill="url(#yellow)" stroke="#a87412" stroke-width="3" stroke-linejoin="round"/>
+      <use href="#veins" stroke="#fffdf0" stroke-width="2.6" opacity=".5"/>
+    </g>
+    <g transform="translate(239 256) rotate(10) scale(1.06)">
+      <use href="#plate" fill="url(#green)" stroke="#2a7230" stroke-width="3" stroke-linejoin="round"/>
+      <use href="#veins" stroke="#f6fff0" stroke-width="2.6" opacity=".5"/>
+    </g>
+  </g>
+
+  <!-- the curve of her back -->
+  <path d="M-10 300C40 262 120 238 200 238C280 238 360 262 410 300Z" fill="url(#back)"/>
+  <path d="M40 278C100 254 150 246 200 246C250 246 300 254 360 278" fill="none" stroke="#c9a6dc" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+
+  <!-- four eggs in a row on her back, one of each colour -->
+  <g fill="#2c1f38" filter="url(#shadow)" opacity=".45">
+    <ellipse cx="94" cy="268" rx="34" ry="8"/><ellipse cx="164" cy="258" rx="34" ry="8"/>
+    <ellipse cx="236" cy="258" rx="34" ry="8"/><ellipse cx="306" cy="268" rx="34" ry="8"/>
+  </g>
+  <g transform="translate(94 222) rotate(-12)">
+    <use href="#egg" fill="url(#shell-red)" stroke="#c0583f" stroke-width="2.4"/>
+    <use href="#spots" fill="#e0463a"/><use href="#shine"/>
+  </g>
+  <g transform="translate(164 212) rotate(-4)">
+    <use href="#egg" fill="url(#shell-yellow)" stroke="#c18f1d" stroke-width="2.4"/>
+    <use href="#spots" fill="#e9a713" transform="scale(-1 1)"/><use href="#shine"/>
+  </g>
+  <g transform="translate(236 212) rotate(4)">
+    <use href="#egg" fill="url(#shell-green)" stroke="#3e8d3a" stroke-width="2.4"/>
+    <use href="#spots" fill="#47a943"/><use href="#shine"/>
+  </g>
+  <g transform="translate(306 222) rotate(12)">
+    <use href="#egg" fill="url(#shell-blue)" stroke="#2f6fb8" stroke-width="2.4"/>
+    <use href="#spots" fill="#3a8ee6" transform="scale(-1 1)"/><use href="#shine"/>
+  </g>
+
+  <!-- twinkles -->
+  <g fill="#fff6d8">
+    <use href="#twinkle" transform="translate(52 64) scale(1)"/>
+    <use href="#twinkle" transform="translate(350 54) scale(.85)"/>
+    <use href="#twinkle" transform="translate(200 20) scale(.6)"/>
+    <use href="#twinkle" transform="translate(28 150) scale(.55)"/>
+    <use href="#twinkle" transform="translate(374 140) scale(.6)"/>
+  </g>
+</svg>

@@ -1,19 +1,28 @@
 // The forest system: layout in, forest out.
 //
-//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), dispose() }
+//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }
 //
-// layout = { seed, clearing: { center, radius }, forestEdge, path: [[x, z], ...] } from the chapter.
+// `butterflies` is the clearing's pale butterflies as tap targets ({ targets: [{ name, point, radius }], flutter(name), land(spec) },
+// atmosphere.js: butterflyLand flies one to a point).
+//
+// layout = { seed, clearing: { center, radius }, forestEdge, path: [[x, z], ...] } from the chapter, and, all optional:
+//   shots   the camera shots set in this place, which the planner keeps clear (a chapter location carries its own)
+//   actors  { name: { position, heading } } who stands in this place, kept clear too (else the chapter's actors are)
+//   glade   { ferns, shafts } makes it a fern glade: a rim of ferns that many times lusher, that many light shafts landing in
+//           the clearing (config.js: FOREST.glade), and leaf shadows over its floor unless `leafShadows` says false
+//   leafShadows  true puts leaf shadows on the floor, slowly drifting with the wind (config.js: FOREST.leafShadow); a glade has
+//           them by default, any other forest does not
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
 //   plan.js        placements from the layout (path, shots, actors, sun corridor)
-//   batch.js       placed models baked into merged sector meshes
+//   batch.js       placed models baked into merged sector meshes (and the pivot of what bends, nods and hops: aPivot)
 //   grass.js       blade grass with wind, distance LOD and actor footprints
 //   far.js         the far treeline rings
 //   atmosphere.js  light shafts and motes
 import * as THREE from 'three';
-import { FOREST } from './config.js';
-import { createTerrain } from './terrain.js';
+import { FOREST, leafShadowsOf } from './config.js';
+import { createTerrain, ACTOR_GLSL } from './terrain.js';
 import { createSpeciesLibrary } from './species.js';
 import { planForest } from './plan.js';
 import { createBatcher, cullBatches, cullCasters } from './batch.js';
@@ -32,6 +41,21 @@ const BAND_SETUP = {
 // Kinds whose shadows matter; small plants cast none. The deep band casts nothing.
 const CASTERS = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'rockSmall', 'log']);
 
+/**
+ * What the forest tells of one plant it grew (info.placementList): its kind, detail level, place and scale, the triangles
+ * it costs, and its size in metres: how far it reaches round (radius), how tall it is, and for a plant with a trunk where
+ * the trunk ends (top) and how thick it is there (trunk). A chapter places things by plants with it (kafli1's flowers).
+ */
+export function placementInfo(p) {
+  const { model, scale } = p;
+  return {
+    name: p.name, lod: p.lod, x: p.x, y: p.y, z: p.z, scale,
+    tris: (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0),
+    radius: model.radius * scale, height: model.height * scale,
+    top: model.trunk ? model.trunk.top * scale : null, trunk: model.trunk ? model.trunk.r * scale : null,
+  };
+}
+
 export async function createForest(world, layout) {
   const t0 = performance.now();
   const { scene, q } = world;
@@ -41,7 +65,7 @@ export async function createForest(world, layout) {
 
   const noiseTexture = createNoiseTexture(seed);
   const leafTexture = createLeafTexture(seed);
-  const shared = createSharedUniforms(world, noiseTexture, leafTexture);
+  const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
     uActors: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) },
     uActorShape: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1.3, 0.9, 0.8, 0)) },
@@ -71,8 +95,10 @@ export async function createForest(world, layout) {
 
   // vegetation, rocks and wood
   const low = q.name === 'low';
-  const solid = createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'forest-solid', low });
-  const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low });
+  // the ferns lean away from the same footprint capsules the grass lies down under and the ground shades round
+  const actors = { glsl: ACTOR_GLSL, uniforms: actorUniforms };
+  const solid = createVegetationMaterial(shared, { side: THREE.FrontSide, key: 'forest-solid', low, actors });
+  const thin = createVegetationMaterial(shared, { side: THREE.DoubleSide, key: 'forest-thin', low, actors });
   const solidDepth = createWindDepthMaterial(shared, 'forest-solid');
   const thinDepth = createWindDepthMaterial(shared, 'forest-thin');
   const batcher = createBatcher();
@@ -117,7 +143,7 @@ export async function createForest(world, layout) {
     casters: casterMeshes.map(m => ({ name: m.name, tris: m.userData.triangles })),
     farTriangles: far.triangles,
     groundTriangles: groundMesh.geometry.index.count / 3,
-    placementList: plan.placements.map(p => ({ name: p.name, lod: p.lod, x: p.x, z: p.z, scale: p.scale, tris: (p.model.solid ? p.model.solid.triangles : 0) + (p.model.thin ? p.model.thin.triangles : 0) })),
+    placementList: plan.placements.map(placementInfo),
   };
   if (world.params?.get?.('debug') === '1') console.info('[forest]', info);
 
@@ -210,6 +236,7 @@ export async function createForest(world, layout) {
     get actorWarm() { return actorUniforms.uActorWarm.value; },
     set actorWarm(v) { actorUniforms.uActorWarm.value = v; },
     heightAt: terrain.heightAt,
+    butterflies: air.butterflies,
     dispose() {
       scene.remove(group);
       groundMesh.geometry.dispose();

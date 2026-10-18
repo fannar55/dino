@@ -5,6 +5,7 @@
 // Per vertex: position, normal, colour (sRGB 0..1), sway (metres of bend at full wind),
 // flutter (metres), leaf (0..1, translucency and wrap) and exposure (0..1, how much sky the
 // point sees within its own plant; the batcher combines it with the canopy shade of the spot).
+// Per builder: the tree's share of a vertex's sway (MeshBuilder.treeShare).
 
 /** sRGB components (0..1) of a hex colour, without linear conversion. */
 export function srgb(hex) {
@@ -26,6 +27,9 @@ export const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 export const madd3 = (a, b, k) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
 
+/** A plant's parts give no tree any of their sway (MeshBuilder.treeShare's default). */
+const PLANT = () => 0;
+
 export class MeshBuilder {
   constructor() {
     this.pos = [];
@@ -34,11 +38,25 @@ export class MeshBuilder {
     this.wind = []; // sway, flutter, leaf
     this.exp = [];
     this.idx = [];
+    this.pivots = []; // parts that move about a pivot of their own beyond the wind (see pivot())
+    // How much of a vertex's sway is a tree's bend (bendAt in species.js) rather than a plant's own lean, 0 to 1, from the sway it
+    // was given: nothing for a plant's parts (the default), all of it for a tree's trunk and crown, and for a tree fern's fronds,
+    // which ride their trunk's top, the share of their sway that is the top's. One rule for the builder's every vertex, so it costs
+    // nothing a vertex here: the batcher bakes each vertex's share (aTree), and the beat sways the tree's share on the trees' wave
+    // and the rest on the plants' (materials.js: forestWind).
+    this.treeShare = PLANT;
   }
   get count() { return this.pos.length / 3; }
   get triangles() { return this.idx.length / 3; }
   /** Start a new cull piece here (a tree's crown after its trunk): the batcher culls pieces separately. */
   mark() { (this.marks ||= []).push(this.idx.length); }
+  /**
+   * The vertices from `from` up to the last one added are one part that moves about a pivot of its own, beyond the wind (batch.js
+   * bakes it into aPivot, forestPivot in materials.js moves it): kind 'lean' is a fern, which leans away from a character about
+   * the model's foot (the origin; `at` is not read); 'hop' a mushroom, which hops and squashes about `at`, its foot; 'nod' a
+   * flower head, which turns about `at`, the tip of its stem, toward `facing`, the angle on the ground (atan2(z, x)) it dips toward.
+   */
+  pivot(from, kind, at = [0, 0, 0], facing = 0) { this.pivots.push({ from, to: this.count, kind, at, facing }); }
   vertex(p, n, c, sway = 0, flutter = 0, leaf = 0, exposure = 1) {
     this.pos.push(p[0], p[1], p[2]);
     this.nrm.push(n[0], n[1], n[2]);
@@ -60,6 +78,7 @@ export class MeshBuilder {
     else this.idx.push(a, c, b);
   }
   append(other) {
+    if (other.treeShare !== this.treeShare) throw new Error('MeshBuilder.append: the two builders give a tree different shares of their sway');
     const base = this.count;
     this.pos.push(...other.pos);
     this.nrm.push(...other.nrm);
@@ -67,6 +86,7 @@ export class MeshBuilder {
     this.wind.push(...other.wind);
     this.exp.push(...other.exp);
     for (const i of other.idx) this.idx.push(i + base);
+    for (const run of other.pivots) this.pivots.push({ ...run, from: run.from + base, to: run.to + base });
   }
 }
 
@@ -466,6 +486,7 @@ export function addRibbonFrond(b, o) {
 /** Flower head: rounded petals around a raised centre, facing `normal`. */
 export function addFlowerHead(b, o) {
   const { center, normal, radius, petals = 5, petalColor, centerColor, sway = 0, rot = 0 } = o;
+  const first = b.count;
   const n = norm3(normal);
   let a = norm3(cross3(n, Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
   const c2 = cross3(n, a);
@@ -487,4 +508,6 @@ export function addFlowerHead(b, o) {
   const cr = [];
   for (let k = 0; k < 5; k++) cr.push(b.vertex(at(rot + k * (Math.PI * 2 / 5), radius * 0.26, radius * 0.1), nUp, centerColor, sway, 0.004, 0.2, 1));
   for (let k = 0; k < 5; k++) b.triFacing(cTop, cr[k], cr[(k + 1) % 5]);
+  // on the beat the head nods about the tip of its stem, toward the way it already tilts (a head that faces straight up, toward its rotation)
+  b.pivot(first, 'nod', center, Math.hypot(n[0], n[2]) > 0.05 ? Math.atan2(n[2], n[0]) : rot);
 }

@@ -188,8 +188,9 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     return gaits.get(clipName);
   };
 
-  // A clip that goes somewhere and stays (Þórseðla's lowerHead and liftUp carry `once` in their
-  // extras) plays once and holds its last pose; every other clip loops.
+  // `once` plays the clip to its end and holds the last frame. A clip that goes somewhere and stays
+  // (Þórseðla's lowerHead and liftUp carry `once` in their extras) does so unless told otherwise;
+  // every other clip loops.
   function play(clipName, { fade = 0.4, timeScale = 1, once = Boolean(clips.get(clipName)?.userData.once) } = {}) {
     const clip = clips.get(clipName);
     if (!clip) return null;
@@ -379,6 +380,18 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     }
   }
 
+  // Control ------------------------------------------------------------------------------------
+  // Something else can move the actor (riding.js: a float, a ride). It puts the root each frame, and
+  // walking, turning and footing wait while it does.
+  let controlled = false;
+  let drive = null; // while controlled, called first in each update to put the root
+  let pose = null; // and this after the clips, to lay something over their pose (hands on a grip)
+  function setControlled(value) {
+    if (controlled && !value) footing.reset(); // the feet start over from where the actor was left
+    controlled = value;
+    if (!value) drive = pose = null;
+  }
+
   // Looking ------------------------------------------------------------------------------------
   // The look and the talking are laid over the animated pose each frame. The pose the mixer produced
   // is saved and restored first, because the mixer leaves a bone alone when its value has not changed
@@ -387,6 +400,11 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   const animatedPose = layerBones.map(b => b.quaternion.clone());
   let layered = false;
   const look = { spec: null, goal: 0, weight: 0, maxYaw: 55, maxPitch: 30, point: new THREE.Vector3(), smooth: new THREE.Vector3(), primed: false };
+  // Caps in degrees on how far any look turns the head aside and tilts it up, whatever lookAt asks:
+  // riding.js sets them while a rider sits where a head turned far round, or raised, would swing the
+  // frill back onto him. Looking down is not capped.
+  let lookYawLimit = Infinity;
+  let lookUpLimit = Infinity;
   const qa = new THREE.Quaternion();
   const qb = new THREE.Quaternion();
   const qc = new THREE.Quaternion();
@@ -423,8 +441,9 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     // turns the head to its limit sideways instead of tipping it over.
     const headPos = head.getWorldPosition(v1);
     const local = v2.copy(look.smooth).sub(headPos).applyQuaternion(qa.copy(root.quaternion).invert());
-    const yaw = clamp(Math.atan2(local.z, local.x), -rad(look.maxYaw), rad(look.maxYaw));
-    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(look.maxPitch), rad(look.maxPitch));
+    const maxYaw = rad(Math.min(look.maxYaw, lookYawLimit));
+    const yaw = clamp(Math.atan2(local.z, local.x), -maxYaw, maxYaw);
+    const pitch = clamp(Math.atan2(local.y, Math.hypot(local.x, local.z)), -rad(look.maxPitch), rad(Math.min(look.maxPitch, lookUpLimit)));
     const want = v2.set(Math.cos(pitch) * Math.cos(yaw), Math.sin(pitch), Math.cos(pitch) * Math.sin(yaw)).applyQuaternion(root.quaternion);
     const have = v3.copy(headForward).applyQuaternion(head.getWorldQuaternion(qa));
     qb.setFromUnitVectors(have, want);
@@ -466,16 +485,33 @@ export async function createActor(world, { name, url, gltf: given, position = [0
   world.scene.add(root);
 
   return {
-    name, root, model, mixer, clips, size,
+    name, root, model, mixer, clips, size, world,
     get heading() { return getHeading(); },
     get walking() { return Boolean(walk); },
     get turning() { return Boolean(turn); },
     get gait() { return gait; },
+    /**
+     * True while something else moves the actor (riding.js): update() plays the clips and lays the look
+     * and talk over them, but leaves walking, turning and footing alone and the root where it is put.
+     * Set back to false, the feet start over from where the actor was left.
+     */
+    get controlled() { return controlled; },
+    set controlled(value) { setControlled(Boolean(value)); },
+    /**
+     * Take the actor over: drive(dt) puts the root first thing in every update, and pose(dt), if given,
+     * runs right after the clips. control(null) gives the actor back.
+     */
+    control(driveFn, poseFn = null) {
+      setControlled(Boolean(driveFn));
+      drive = driveFn ?? null;
+      pose = driveFn ? poseFn : null;
+    },
     /** True while a foot is stepping into place (after a stop or a turn). */
     get stepping() { return footing.busy; },
     /**
-     * Play a clip; one that moves the legs gets them as it is (footing stops planting the feet). A clip
-     * marked `once` (or with { once: true }) plays once and holds its last pose until the next one.
+     * Play a clip, looping or, with `once` (or when the clip is marked `once` in its extras), to its
+     * end and holding the last pose until the next one; one that moves the legs gets them as it is
+     * (footing stops planting the feet).
      */
     play(clipName, options = {}) {
       const action = play(clipName, options);
@@ -483,6 +519,12 @@ export async function createActor(world, { name, url, gltf: given, position = [0
       return action;
     },
     place, walkTo, turnTo, lookAt,
+    /** Degrees a look may turn the head aside at most, whatever lookAt asks (Infinity, the default: no cap). */
+    get lookYawLimit() { return lookYawLimit; },
+    set lookYawLimit(value) { lookYawLimit = Math.max(0, Number(value)); },
+    /** Degrees a look may tilt the head up at most, whatever lookAt asks (Infinity, the default: no cap). */
+    get lookUpLimit() { return lookUpLimit; },
+    set lookUpLimit(value) { lookUpLimit = Math.max(0, Number(value)); },
     /** The eyelids (null for a model without eyes): `shut` is how shut they are now. */
     get eyelids() { return lids; },
     /** Blink now. */
@@ -512,10 +554,14 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     update(dt) {
       if (layered) layerBones.forEach((bone, i) => bone.quaternion.copy(animatedPose[i]));
       footing.restore();
-      updateWalk(dt);
-      updateTurn(dt);
+      if (controlled) drive?.(dt);
+      else {
+        updateWalk(dt);
+        updateTurn(dt);
+      }
       mixer.update(dt);
-      footing.update(dt);
+      if (controlled) pose?.(dt);
+      else footing.update(dt);
       layerBones.forEach((bone, i) => animatedPose[i].copy(bone.quaternion));
       const looked = applyLook(dt);
       const talked = applyTalk(dt);
@@ -532,4 +578,17 @@ export async function createActor(world, { name, url, gltf: given, position = [0
     },
     dispose() { mixer.stopAllAction(); lids?.dispose(); world.scene.remove(root); releaseCharacter(model); },
   };
+}
+
+/**
+ * Update a set of actors (a Map's values, an array): those that something else moves (controlled, as a
+ * rider is by riding.js) after the rest, so a rider follows its host as the host is in this very frame,
+ * whatever order the chapter lists them in.
+ */
+export function updateActors(actors, dt) {
+  const free = [];
+  const held = [];
+  for (const actor of actors) (actor.controlled ? held : free).push(actor);
+  for (const actor of free) actor.update(dt);
+  for (const actor of held) actor.update(dt);
 }

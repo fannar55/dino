@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- A placeholder for the book (Task 1's lab): the beetle from above, in the chapter's beetle colours
+       (world/critters/models.js), drawn soft and by hand on a clear background so a tile can show it as a silhouette.
+       Our own drawing; the owner's drawing replaces it (Task 12). -->
+  <title>Bjalla</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="11" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <path id="legs" d="M178 118C160 112 144 104 134 88C130 80 124 72 116 66M170 160C150 160 132 162 118 170C110 176 102 184 96 194M176 200C160 212 146 222 136 236C132 244 128 252 122 260M222 118C240 112 256 104 266 88C270 80 276 72 284 66M230 160C250 160 268 162 282 170C290 176 298 184 304 194M224 200C240 212 254 222 264 236C268 244 272 252 278 260"/>
+    <path id="feelers" d="M192 62C186 48 178 38 164 30M208 62C214 48 222 38 236 30"/>
+  </defs>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <use href="#legs" fill="none" stroke-width="12"/>
+    <use href="#legs" fill="none" stroke="#58412f" stroke-width="6"/>
+    <use href="#feelers" fill="none" stroke-width="8"/>
+    <use href="#feelers" fill="none" stroke="#2f4747" stroke-width="3.5"/>
+    <circle cx="162" cy="29" r="6.5" fill="#2f4747" stroke-width="3.5"/>
+    <circle cx="238" cy="29" r="6.5" fill="#2f4747" stroke-width="3.5"/>
+    <path d="M182 82C182 66 190 56 200 56C210 56 218 66 218 82Z" fill="#2f4747"/>
+    <g stroke="none">
+      <ellipse cx="191" cy="70" rx="5" ry="5.5" fill="#f6f1e4"/>
+      <ellipse cx="209" cy="70" rx="5" ry="5.5" fill="#f6f1e4"/>
+      <circle cx="191.8" cy="71" r="2.8" fill="#1c1c14"/>
+      <circle cx="208.2" cy="71" r="2.8" fill="#1c1c14"/>
+    </g>
+    <path d="M164 112C164 92 180 80 200 80C220 80 236 92 236 112C236 120 222 124 200 124C178 124 164 120 164 112Z" fill="#256f67"/>
+    <ellipse cx="190" cy="96" rx="14" ry="5" transform="rotate(-12 190 96)" fill="#fff" opacity=".22" stroke="none"/>
+    <path d="M199 118C170 118 150 140 150 172C150 214 170 246 199 254Z" fill="#2a9689"/>
+    <path d="M201 118C230 118 250 140 250 172C250 214 230 246 201 254Z" fill="#2a9689"/>
+    <g fill="none" stroke="#5ec4b2" stroke-width="7" opacity=".9">
+      <path d="M168 140C161 160 161 186 168 208"/>
+      <path d="M232 140C239 160 239 186 232 208"/>
+    </g>
+    <g fill="#f2c443" stroke-width="3">
+      <circle cx="180" cy="166" r="8.5"/><circle cx="184" cy="212" r="6.5"/>
+      <circle cx="220" cy="166" r="8.5"/><circle cx="216" cy="212" r="6.5"/>
+    </g>
+  </g>
+</svg>

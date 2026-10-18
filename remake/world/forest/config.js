@@ -110,6 +110,26 @@ export const FOREST = {
     rocks: 3,
     ferns: 10,
   },
+  // A fern glade is a layout with `glade: { ferns, shafts }`, both optional (gladeOf below fills them in); it has leaf shadows
+  // too (leafShadow) unless its layout says `leafShadows: false`. A layout without `glade` meets none of this, and ferns 1 with
+  // shafts 0 leave what the planner and the atmosphere make as it is.
+  glade: {
+    // ferns: times the ferns round the clearing, the rim's own (clearing.ferns) and the forest edge's (understory.ferns), which grow
+    // round the clearing and not in the middle where the actors stand. They are lusher as well as more: every step of `ferns`
+    // above 1 makes them `perFern` bigger, up to `max` times, and has them push the grass aside and grow behind a character (plan.js).
+    ferns: 1,
+    fernGrowth: { perFern: 0.3, max: 1.6 },
+    shafts: 0, // light shafts that land inside the clearing
+    // How a glade's shafts are drawn (atmosphere.js). ground: where one lands, as a share of the clearing radius; top: the height of
+    // its upper end (m); width (m); strength: times the forest's shafts; near: the camera distance (m) over which one fades in, much
+    // closer than the forest's 3 to 9 m, because in a glade the camera is always within a few metres of one; motes: glittering motes in each.
+    shaft: { ground: [0.15, 0.8], top: [12, 16], width: [1.8, 3.2], strength: 5, near: [1.5, 5], motes: 12 },
+  },
+  // Leaf shadows on the floor (materials.js), for a layout with `leafShadows: true` and for a glade (leafShadowsOf below): clumps of
+  // shade that take `strength` of the sun and drift with the wind clock at `speed` metres a second, the nearer layer with the wind,
+  // the farther one across it. scale: the two layers' pattern per metre; cover: the noise values between which a clump fades in.
+  // (The dapple of the shaded forest drifts at 2 cm/s: nobody sees it move.)
+  leafShadow: { strength: 0.6, speed: 0.09, scale: [0.21, 0.34], cover: [0.46, 0.62] },
   grass: {
     density: 70, // blades per m2 at full density (tablet), inside the sunny clearing
     tiles: 4, // the clearing grass is a tiles x tiles grid of chunks
@@ -128,11 +148,37 @@ export const FOREST = {
     cameraClear: 0.9, // blades shrink inside this radius around the camera
     footprint: { radius: 0.95, soft: 0.85, halfLength: 1.35 }, // flattened capsule per actor
   },
+  // Wind. maxSwayDeg is how far a tree top leans at full wind: bendAt (species.js) bakes trunks, crowns, needles and tree-fern
+  // trunks from it. The theme's beat (engine/beat.js: followBeat, in wind.uBeats) sways the forest further on top of the wind, smoothly
+  // and in time with the music, on waves `beatPeriods` beats long that crest on the strong beats: a tree's parts once in four beats,
+  // a plant's (fronds, stems, stalks, bushes) once in two, by beatAmplitudeDeg at the crest (BEAT_SHARE below), so a tree top reaches
+  // the style guide's 3 degrees there and no more; and the grass ripples every beat, its crests running down the wind rippleSpacing
+  // metres apart (GRASS_BEAT_SHARE below). Fronds, stems and stalks have weights of their own: at the crest they too stay within 3
+  // degrees, or, where they already leaned further before the beat, at the peak they had (LEAN in species.js).
   wind: {
     swayScale: 1.4, // metres represented by aWind.y = 1
     flutterScale: 0.12, // metres represented by aWind.z = 1
-    maxSwayDeg: 2.6, // trees and tall plants (style guide: at most 3)
+    maxSwayDeg: 2.0, // a tree top at full wind
+    beatAmplitudeDeg: 1, // what the beat adds to it at the crest of its wave: maxSwayDeg + this is at most 3
+    beatPeriods: { trees: 4, plants: 2, grass: 1 }, // beats from one crest of a band's wave to the next (each divides engine/beat.js's FOLD)
+    rippleSpacing: 5, // m between two crests of the grass's ripple, along the wind
   },
+  // Parts that move about a pivot of their own, on top of the wind (materials.js: forestPivot). batch.js bakes the pivot into every
+  // vertex as aPivot (PIVOT below): for a fern the vertex's height above the plant's foot (up to `height` metres), for a flower head
+  // and a mushroom its offset from the point it nods or hops about (up to `reach` metres each way). 8 bits each.
+  pivot: { reach: 0.4, height: 2 },
+  // Ferns lean away from a character the way the grass lies down (grass.footprint is the capsule they both use): by up to leanDeg
+  // degrees about their foot where the footprint is, easing to nothing `reach` metres beyond it (for a footprint the size of
+  // grass.footprint, a smaller actor's footprint has a smaller reach). A lean, not a squash. The reach is well beyond the grass's
+  // own soft edge because a fern at the side of a path stands two metres off the middle of a body that wide, and is to bend.
+  fernBend: { reach: 2.6, leanDeg: 50 },
+  // On each strong beat of the theme (engine/beat.js: danceOf, in wind.uDance) the flowers and mushrooms of these bands (planner
+  // bands, plan.js) dance: a flower head nods up to nodDeg degrees about its stem's tip, toward the way it faces, and a mushroom
+  // hops `hop` metres and squashes by `squash` of its height. This is play, beside the sway, which keeps to 3 degrees: a head a few
+  // centimetres across shows no nod of 3. The edge band is in because the planner grows the mushrooms at the feet of the ring of
+  // trees, which is there (grunnur has none in the clearing band), and the child sees both from the clearing: ['clearing'] alone
+  // would leave the mushrooms still.
+  dance: { bands: ['clearing', 'edge'], nodDeg: 8, hop: 0.03, squash: 0.1 },
   shade: {
     // Fake canopy shade outside the shadow map: 1 = open sky, 0 = deep shade.
     edgeSun: 0.42,
@@ -148,7 +194,17 @@ export const FOREST = {
   },
   shafts: { count: 5, strength: 0.085, width: [1.6, 3.2] },
   motes: { count: 70, radius: 8.5, height: [0.4, 4.2] },
-  butterflies: { count: 4 },
+  // The clearing's butterflies (butterflies.js): `count` of them loop over the clearing and each is a tap target `radius` m wide.
+  // One the child taps flutters (`flutter`): it is `away` m aside and `rise` m up at the middle of `seconds`, zigzagging `zigzag` m,
+  // beats its wings `beats` more times than it would and spreads them between `wings` (radians; at rest they swing 0.25 to 1.3).
+  // One sent to a point (butterflyLand, `land`) arcs `lift` m over the way there, weaving `weave` m, beats `excited` radians a second
+  // faster, and on landing folds its wings to `rest` (the middle and the swing of the angle, then the rate of the slow beat), over `settle` s.
+  butterflies: {
+    count: 4,
+    radius: 0.4,
+    flutter: { seconds: 3, away: 3.2, rise: 2.1, zigzag: 0.14, beats: 3, wings: [0.06, 1.5] },
+    land: { seconds: 3, lift: 0.55, weave: 0.2, excited: 8, wings: [0.12, 1.45], rest: [1.2, 0.26, 2.1], settle: 0.5 },
+  },
   shots: { clearance: 1.5 },
   // Distance LOD: plants carry up to three detail levels and switch at these camera distances.
   // switch: distances to a plant's mid-height point (trunks, understory). Crowns pick their level by
@@ -159,7 +215,43 @@ export const FOREST = {
   lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3 },
 };
 
+/** The beat adds this share of a part's own full-wind sway, along the wind, at the crest of its wave (forestWind in materials.js). */
+export const BEAT_SHARE = FOREST.wind.beatAmplitudeDeg / FOREST.wind.maxSwayDeg;
+
+/** At a crest of its ripple a blade of grass bends further by this share of its own bend (grass.js): light, the owner asked. */
+export const GRASS_BEAT_SHARE = 0.3;
+
+/**
+ * The most forestWind (materials.js) bends a part without the beat, as a multiple of its `sway`, the metres it bends at full wind:
+ * along the wind 0.55 + 0.45 * (0.6 + 0.25) of it (full strength, the strongest swing) and 0.22 of it sideways; the crest of the
+ * beat adds BEAT_SHARE along the wind. tests/forest-sway.test.mjs keeps these numbers in step with the shader's text.
+ */
+export const WIND_PEAK = { along: 0.55 + 0.45 * (0.6 + 0.25), side: 0.22 };
+
+/**
+ * The last byte of a vertex's aPivot (batch.js bakes it, forestPivot in materials.js reads it): `none` for a vertex that moves with
+ * the wind alone; `lean` for a fern's, which leans away from a character; `hop` for a mushroom's; and from `nod` on, a flower
+ * head's, the byte naming which of the `nodSteps` ways round (the direction the head faces) it dips toward.
+ */
+export const PIVOT = { none: 0, lean: 1, hop: 2, nod: 3, nodSteps: 253 };
+
 /** Scale counts by the quality preset. */
 export function scaled(count, factor) {
   return Math.max(0, Math.round(count * factor));
+}
+
+/** A layout's glade options with the defaults filled in. `on` says whether the layout is a glade at all. */
+export function gladeOf(layout) {
+  const given = layout.glade;
+  const count = (value, fallback) => (Number.isFinite(value) && value >= 0 ? value : fallback);
+  return {
+    on: Boolean(given),
+    ferns: count(given?.ferns, FOREST.glade.ferns),
+    shafts: Math.round(count(given?.shafts, FOREST.glade.shafts)),
+  };
+}
+
+/** Whether a layout has leaf shadows on its floor: its own `leafShadows` says so, else a glade has them and no other forest does. */
+export function leafShadowsOf(layout) {
+  return Boolean(layout.leafShadows ?? gladeOf(layout).on);
 }

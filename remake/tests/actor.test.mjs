@@ -302,6 +302,71 @@ test('twice the size, Mosi turns on the spot in as many steps as at his own size
   assert.ok(Math.abs(steps[2] - steps[1]) <= 1, `${steps[1]} steps at his size, ${steps[2]} at twice it`);
 });
 
+test('a clip played once holds its last frame, and loops again when played without once', async () => {
+  const { mosi } = await stage();
+  const action = mosi.play('walk', { once: true, fade: 0.2 });
+  assert.equal(action.loop, THREE.LoopOnce);
+  for (let i = 0; i < 105; i++) mosi.update(1 / 30); // 3.5 s, past the end of the 2.9 s clip
+  assert.equal(action.time, action.getClip().duration);
+  const foot = mosi.model.getObjectByName('FrontFootL');
+  const held = foot.getWorldPosition(new THREE.Vector3());
+  for (let i = 0; i < 30; i++) mosi.update(1 / 30);
+  assert.ok(foot.getWorldPosition(new THREE.Vector3()).distanceTo(held) < 1e-6, 'the last frame holds');
+  mosi.play('idle');
+  assert.equal(mosi.play('walk').loop, THREE.LoopRepeat);
+});
+
+test('while controlled, the root stays where it is put and a walk waits', async () => {
+  const { mosi } = await stage();
+  const walk = mosi.walkTo([[4, 0]], { speed: 0.6 });
+  for (let i = 0; i < 15; i++) mosi.update(1 / 30);
+  mosi.controlled = true;
+  mosi.root.position.set(1, 2, 3);
+  for (let i = 0; i < 30; i++) mosi.update(1 / 30);
+  assert.deepEqual(mosi.root.position.toArray(), [1, 2, 3]);
+  assert.equal(walk.done, false);
+  // control(fn) hands each update's dt to fn first, to put the root; control(null) gives the actor back.
+  const steps = [];
+  mosi.control(dt => { steps.push(dt); mosi.root.position.x += 0.5; });
+  for (let i = 0; i < 4; i++) mosi.update(1 / 30);
+  assert.equal(steps.length, 4);
+  assert.equal(mosi.root.position.x, 3);
+  // A pose step, if given, runs after the clips each update.
+  const order = [];
+  mosi.control(() => order.push('drive'), () => order.push('pose'));
+  mosi.update(1 / 30);
+  assert.deepEqual(order, ['drive', 'pose']);
+  mosi.control(null);
+  assert.equal(mosi.controlled, false);
+  mosi.update(1 / 30);
+  assert.equal(steps.length, 4);
+  assert.deepEqual(order, ['drive', 'pose']);
+});
+
+test('look caps hold the head within them whatever lookAt asks', async () => {
+  const { mosi } = await stage();
+  const head = headOf(mosi);
+  // The way his face points, read off the bind pose (he is made facing +X), as the look itself reads it.
+  const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()).invert());
+  const turned = () => {
+    const f = forward.clone().applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+    return { up: THREE.MathUtils.radToDeg(Math.asin(f.y)), aside: THREE.MathUtils.radToDeg(Math.atan2(f.z, f.x)) };
+  };
+  mosi.lookAt([-1, 9, 6], { weight: 1 }); // high up and behind him on his right
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const free = turned();
+  assert.ok(free.up > 20 && free.aside > 40, `uncapped he looks ${free.up.toFixed(1)} up and ${free.aside.toFixed(1)} aside`);
+  mosi.lookUpLimit = 10;
+  mosi.lookYawLimit = 20;
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  const capped = turned();
+  assert.ok(capped.up < 12 && capped.aside < 22, `capped he looks ${capped.up.toFixed(1)} up and ${capped.aside.toFixed(1)} aside`);
+  // Down is not capped: the frill tips forward, away from a rider.
+  mosi.lookAt([4, -6, 0], { weight: 1 });
+  for (let i = 0; i < 90; i++) mosi.update(1 / 30);
+  assert.ok(turned().up < -20, `he still looks ${turned().up.toFixed(1)} down`);
+});
+
 test('frozen frames leave a stepping foot where it is', async () => {
   const { mosi } = await stage();
   mosi.turnTo(60);

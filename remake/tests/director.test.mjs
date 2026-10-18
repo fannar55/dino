@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createDirector } from '../engine/camera/director.js';
+import { createDirector, LIMITS } from '../engine/camera/director.js';
 import { createPointResolver } from '../engine/points.js';
 
 function makeWorld(aspect = 1.6) {
@@ -303,4 +303,365 @@ test('shots that break the static rules are reported', () => {
   assert.match(d.warnings.at(-1).message, /frames its subject at v 0.85/);
   d.move({ position: [1, 1.2, 8], target: [0, 1, 0] }, { duration: 4, ease: 'linear' });
   assert.match(d.warnings.map(w => w.message).join(' | '), /is linear/);
+});
+
+// Free look. Angles are the director's own: yaw from +x toward +z, pitch up.
+const deg = THREE.MathUtils.radToDeg;
+const rad = THREE.MathUtils.degToRad;
+
+/** How far the camera has turned from the direction `base`, in degrees. */
+function turnedFrom(base, camera) {
+  const now = aimOf(camera);
+  const yaw = Math.atan2(now.z, now.x) - Math.atan2(base.z, base.x);
+  return { yaw: deg(Math.atan2(Math.sin(yaw), Math.cos(yaw))), pitch: deg(Math.asin(now.y) - Math.asin(base.y)) };
+}
+
+/** `seconds` of frames at 30 fps. */
+function run(d, seconds) {
+  for (let i = 0; i < Math.round(seconds * 30); i++) d.update(1 / 30);
+}
+
+test('explore clamps yaw and pitch to its limits', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.5, 0], target: [10, 0.5, 4] }); // neither level nor square to an axis: the limits are around this view
+  const start = aimOf(camera);
+  const reach = d.rig.target.distanceTo(d.rig.position);
+  const handle = d.explore({ yaw: [-30, 20], pitch: [-10, 15] });
+  assert.equal(d.mode, 'explore');
+  assert.equal(handle.done, false);
+
+  // Drag hard each way and let the view settle. It stays inside the limits all the way, not only at the end.
+  const drag = (dx, dy) => {
+    d.look(dx, dy);
+    let turn;
+    for (let i = 0; i < 90; i++) {
+      d.update(1 / 30);
+      turn = turnedFrom(start, camera);
+      assert.ok(turn.yaw >= -30 - 1e-6 && turn.yaw <= 20 + 1e-6 && turn.pitch >= -10 - 1e-6 && turn.pitch <= 15 + 1e-6, JSON.stringify(turn));
+    }
+    return turn;
+  };
+  let turn = drag(-100000, 0); // the finger far to the left: the view turns toward +z
+  assert.ok(near(turn.yaw, 20, 1e-3), `yaw ${turn.yaw}`);
+  turn = drag(100000, 0);
+  assert.ok(near(turn.yaw, -30, 1e-3), `yaw ${turn.yaw}`);
+  turn = drag(0, 100000); // the finger far down: the view tilts up
+  assert.ok(near(turn.pitch, 15, 1e-3), `pitch ${turn.pitch}`);
+  turn = drag(0, -100000);
+  assert.ok(near(turn.pitch, -10, 1e-3), `pitch ${turn.pitch}`);
+  turn = drag(-100000, 100000); // into a corner
+  assert.ok(near(turn.yaw, 20, 1e-3) && near(turn.pitch, 15, 1e-3), JSON.stringify(turn));
+  assert.ok(nearVec(camera.position, [0, 1.5, 0]), 'the camera only turns');
+  assert.ok(near(d.rig.target.distanceTo(d.rig.position), reach, 1e-9), 'and what it aims at stays as far, so the sun\'s shadow focus does not drift');
+});
+
+test('look moves the world with the finger, a speed in degrees per pixel', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0], fov: 40 });
+  d.explore({ yaw: [-60, 60], pitch: [-30, 30], speed: 0.2 });
+  const ahead = new THREE.Vector3(0, 1.4, 0); // dead centre to begin with
+  assert.ok(near(screenOf(ahead, camera)[0], 0.5, 1e-9));
+
+  d.look(75, 0); // 75 px to the right is 15 degrees: the view turns left and the world slides right
+  run(d, 2);
+  const tanV = Math.tan(rad(20));
+  const tanH = tanV * 1.6;
+  const [u, v] = screenOf(ahead, camera);
+  assert.ok(near(u, (Math.tan(rad(15)) / tanH + 1) / 2, 1e-6) && near(v, 0.5, 1e-6), `${u}, ${v}`);
+
+  d.look(-75, 75); // back, and 75 px down: the view tilts up and the world slides down
+  run(d, 2);
+  const [u2, v2] = screenOf(ahead, camera);
+  assert.ok(near(u2, 0.5, 1e-6) && near(v2, (1 + Math.tan(rad(15)) / tanV) / 2, 1e-6), `${u2}, ${v2}`);
+});
+
+test('look eases the view and never turns it faster than 60 degrees a second', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-170, 170], pitch: [-30, 30] });
+  d.look(-1e6, 0); // as far as it will go
+  let previous = aimOf(camera);
+  let fastest = 0;
+  for (let i = 0; i < 300; i++) {
+    d.update(1 / 60);
+    const now = aimOf(camera);
+    fastest = Math.max(fastest, deg(now.angleTo(previous)) * 60);
+    previous = now;
+  }
+  assert.ok(fastest <= 60 + 1e-6 && fastest > 59, `fastest ${fastest} deg/s`);
+  assert.ok(near(deg(Math.atan2(previous.x, -previous.z)), 170, 1e-3), 'and it gets there');
+
+  // A short drag does not stop dead: after its fastest frame the view only ever slows, and it takes a while to rest.
+  const short = director();
+  short.director.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  short.director.explore({ yaw: [-60, 60], pitch: [-30, 30] });
+  short.director.look(-100, 0);
+  const steps = [];
+  let last = aimOf(short.camera);
+  for (let i = 0; i < 90; i++) {
+    short.director.update(1 / 60);
+    const now = aimOf(short.camera);
+    steps.push(now.angleTo(last));
+    last = now;
+  }
+  const peak = Math.max(...steps);
+  for (let i = steps.indexOf(peak) + 1; i < steps.length; i++) assert.ok(steps[i] <= steps[i - 1] + 1e-9, `frame ${i} speeds up again`);
+  assert.ok(steps.filter(step => step > peak * 0.05).length > 12, 'it comes to rest softly');
+});
+
+test('cancelling explore holds the view where it is, and look then does nothing', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  const handle = d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  assert.equal(d.busy, false, 'the child has the camera: no move is under way');
+  d.look(-200, 0);
+  d.update(0.1);
+  const held = aimOf(camera);
+  handle.cancel();
+  assert.equal(handle.cancelled, true);
+  assert.equal(d.mode, 'still');
+  d.look(-200, 0);
+  run(d, 1);
+  assert.ok(aimOf(camera).angleTo(held) < 1e-9, 'the view stays, though it was still easing');
+
+  // stop() holds it as well, and a new explore takes the view it finds as its middle.
+  const again = d.explore({ yaw: [-10, 10], pitch: [-10, 10] });
+  d.look(-100000, 0);
+  run(d, 2);
+  assert.ok(near(turnedFrom(held, camera).yaw, 10, 1e-3));
+  const edge = aimOf(camera);
+  d.stop();
+  assert.equal(again.cancelled, true);
+  assert.equal(d.mode, 'still');
+  run(d, 1);
+  assert.ok(aimOf(camera).angleTo(edge) < 1e-9);
+});
+
+test('another move or shot takes the camera from explore and ends its handle', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  const handle = d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  const pan = d.hint([5, 1.4, 0]);
+  d.move({ position: [2, 1.4, 10], target: [0, 1.4, 0] }, { duration: 4 });
+  assert.equal(d.mode, 'move');
+  assert.equal(handle.cancelled, true, 'explore is over');
+  assert.equal(pan.cancelled, true, 'and so is the pan inside it, which no script is left waiting for');
+  d.look(-100000, 0);
+  run(d, 5);
+  assert.equal(d.mode, 'hold', 'look does not bring explore back');
+  assert.ok(nearVec(camera.position, [2, 1.4, 10]));
+  assert.ok(aimOf(camera).distanceTo(new THREE.Vector3(-2, 0, -10).normalize()) < 1e-6, 'and the move went where it was going');
+});
+
+test('a hint pans to the point inside the explore limits, slowly enough for the style guide', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  const flower = new THREE.Vector3(4, 0.3, 0); // 22 degrees to the right and a little below
+  const pan = d.hint(flower.toArray()); // asks for 2 s; the pan limit needs about 2.8
+  let previous = aimOf(camera);
+  let fastest = 0;
+  const step = () => {
+    d.update(1 / 30);
+    const now = aimOf(camera);
+    fastest = Math.max(fastest, deg(now.angleTo(previous)) * 30);
+    previous = now;
+  };
+  for (let i = 0; i < 63; i++) step(); // 2.1 s
+  assert.equal(pan.done, false, 'the style guide sets a minimum, not the 2 s asked for');
+  for (let i = 0; i < 27; i++) step(); // 3 s
+  assert.equal(pan.done, true);
+  assert.ok(fastest <= LIMITS.pan && fastest > 10, `peak ${fastest} deg/s`);
+  const [u, v] = screenOf(flower, camera);
+  assert.ok(near(u, 0.5, 1e-6) && near(v, 0.5, 1e-6), `the flower is in the middle of the view: ${u}, ${v}`);
+  assert.equal(d.warnings.length, 0, 'a hint never breaks the camera rules');
+  assert.equal(d.mode, 'explore', 'the child can look around again from here');
+  d.look(0, 0);
+  run(d, 1);
+  assert.ok(near(screenOf(flower, camera)[0], 0.5, 1e-6), 'and the view stays where the hint left it');
+});
+
+test('a hint can be slower than the style guide needs, never faster, and goes only as far as the limits allow', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-30, 30], pitch: [-5, 5] });
+  const slow = d.hint([2, 1.4, 0], { duration: 6 });
+  run(d, 5.9);
+  assert.equal(slow.done, false);
+  run(d, 0.2);
+  assert.equal(slow.done, true);
+
+  // Far to the right and well below: the view goes to the corner of what the child may see.
+  const far = d.hint([40, -6, 10]);
+  while (!far.done) d.update(1 / 30);
+  const turn = turnedFrom(new THREE.Vector3(0, 0, -1), camera);
+  assert.ok(near(turn.yaw, 30, 1e-6) && near(turn.pitch, -5, 1e-6), JSON.stringify(turn));
+  assert.equal(d.warnings.length, 0);
+});
+
+test('a hint takes the short way round, and reads the pitch off the view exploring began with', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 0], target: [-10, 0.4, 0] }); // facing -x, where yaw wraps from +180 to -180, and a little down
+  d.explore({ yaw: [-60, 60], pitch: [-10, 10] });
+  const flower = new THREE.Vector3(-10, 0.9, -3); // 17 degrees to the right of the view, 3 degrees higher than it
+  const pan = d.hint(flower.toArray());
+  while (!pan.done) d.update(1 / 30);
+  const [u, v] = screenOf(flower, camera);
+  assert.ok(near(u, 0.5, 1e-6) && near(v, 0.5, 1e-6), `${u}, ${v}`);
+  assert.ok(d.time < 4, `took ${d.time} s: not the long way round`);
+});
+
+test('zoom while exploring starts from the view the child chose', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0], fov: 40 });
+  d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  d.look(-200, 0); // 30 degrees to the right
+  run(d, 2);
+  const looking = aimOf(camera);
+  d.zoom(30, { duration: 2 });
+  run(d, 2.5);
+  assert.ok(aimOf(camera).angleTo(looking) < 1e-6, 'it did not swing back to the shot explore began with');
+  assert.equal(camera.fov, 30);
+});
+
+test('a look during a hint takes the camera back from it', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  const flower = new THREE.Vector3(4, 0.3, 0);
+  const pan = d.hint(flower.toArray());
+  run(d, 1);
+  const onTheWay = aimOf(camera);
+  d.look(-10, 0); // the finger moves: the pan gives way at once
+  assert.equal(pan.cancelled, true);
+  run(d, 0.2);
+  d.look(10, 0); // and back to where the view was
+  run(d, 3);
+  assert.ok(aimOf(camera).angleTo(onTheWay) < rad(0.01), 'the view has not gone on to the flower');
+  assert.ok(screenOf(flower, camera)[0] > 0.6, 'which is still well off to the right');
+  assert.equal(d.warnings.length, 0);
+
+  // Cancelling the pan from outside holds the view too, and exploring goes on. The view was on the
+  // move when this hint began: nothing of that motion is left to carry it on.
+  d.look(-100, 0);
+  run(d, 0.1);
+  const second = d.hint(flower.toArray());
+  run(d, 1);
+  const here = aimOf(camera);
+  second.cancel();
+  for (let i = 0; i < 60; i++) {
+    d.update(1 / 30);
+    assert.ok(aimOf(camera).angleTo(here) < 1e-9, `the view drifted on at frame ${i}`);
+  }
+  assert.equal(d.mode, 'explore');
+  d.look(-100, 0);
+  run(d, 1);
+  assert.ok(aimOf(camera).angleTo(here) > rad(10), 'the child can still look around');
+});
+
+test('a hint takes over from a view that is still moving, and the view stays where the hint ends', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  const flower = new THREE.Vector3(4, 0.3, 0);
+  d.look(-200, 0); // 30 degrees to the right, and the view is on its way there
+  run(d, 0.1);
+  const moving = aimOf(camera);
+  const pan = d.hint(flower.toArray());
+  d.update(1 / 30);
+  assert.ok(deg(aimOf(camera).angleTo(moving)) < 1, 'the pan starts from where the view is, not from where it was going');
+  while (!pan.done) d.update(1 / 30);
+  const ended = aimOf(camera);
+  for (let i = 0; i < 60; i++) {
+    d.update(1 / 30);
+    assert.ok(aimOf(camera).angleTo(ended) < 1e-9, `the view drifted on at frame ${i}`);
+  }
+  const [u, v] = screenOf(flower, camera);
+  assert.ok(near(u, 0.5, 1e-6) && near(v, 0.5, 1e-6), `${u}, ${v}`);
+  assert.equal(d.warnings.length, 0);
+});
+
+test('a second hint takes over from the first, which ends', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+  const first = d.hint([4, 0.3, 0]);
+  run(d, 1);
+  const second = d.hint([-4, 0.3, 0]);
+  assert.equal(first.cancelled, true);
+  assert.equal(second.done, false);
+  while (!second.done) d.update(1 / 30);
+  const [u, v] = screenOf(new THREE.Vector3(-4, 0.3, 0), camera);
+  assert.ok(near(u, 0.5, 1e-6) && near(v, 0.5, 1e-6), `${u}, ${v}`);
+  assert.equal(d.warnings.length, 0);
+});
+
+test('cancelling explore or stopping the camera ends a hint under way and holds the view', () => {
+  for (const [how, end] of [['cancelling explore', (handle) => handle.cancel()], ['stop', (handle, d) => d.stop()]]) {
+    const { director: d, camera } = director();
+    d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+    const handle = d.explore({ yaw: [-60, 60], pitch: [-20, 20] });
+    const pan = d.hint([4, 0.3, 0]);
+    run(d, 1);
+    const here = aimOf(camera);
+    end(handle, d);
+    assert.equal(pan.cancelled, true, how);
+    assert.equal(d.mode, 'still', how);
+    run(d, 3);
+    assert.ok(aimOf(camera).angleTo(here) < 1e-9, `${how}: the view is held where the pan had got to`);
+  }
+});
+
+test('a hint without explore is a plain pan, still slow enough', () => {
+  const { director: d, camera } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  const flower = new THREE.Vector3(-8, 0.3, -2); // about 34 degrees to the left
+  const pan = d.hint(flower.toArray());
+  while (!pan.done) d.update(1 / 30);
+  assert.ok(d.time > 4, `took ${d.time} s`);
+  const [u, v] = screenOf(flower, camera);
+  assert.ok(near(u, 0.5, 1e-6) && near(v, 0.5, 1e-6));
+  assert.equal(d.warnings.length, 0);
+});
+
+test('explore needs limits around the view: a pair of degrees for yaw and for pitch, each with 0 inside', () => {
+  const { director: d } = director();
+  d.cut({ position: [0, 1.4, 10], target: [0, 1.4, 0] });
+  assert.throws(() => d.explore(), /yaw/);
+  assert.throws(() => d.explore({ yaw: [-10, 10] }), /pitch/);
+  assert.throws(() => d.explore({ yaw: [10, 20], pitch: [-5, 5] }), /yaw/);
+  assert.throws(() => d.explore({ yaw: [-10, 10], pitch: [-5, -1] }), /pitch/);
+  assert.throws(() => d.explore({ yaw: [-10, NaN], pitch: [-5, 5] }), /yaw/);
+  assert.throws(() => d.explore({ yaw: [-10, 10, 20], pitch: [-5, 5] }), /yaw/);
+  assert.equal(d.mode, 'hold', 'a refused explore changes nothing');
+  assert.doesNotThrow(() => d.explore({ yaw: [0, 0], pitch: [0, 0] }));
+});
+
+test("poseOf says where a shot would put the camera, and the shadow's focus there, without going there", () => {
+  const { director: d, camera, actor } = director(4 / 3, {
+    a: { position: [5, 2, 5], target: [0, 1, 0], fov: 38 },
+    face: { position: [0, 1.4, 6], frame: { subject: 'mosi', screen: [0.5, 0.5] }, fov: 40 },
+    far: { position: [0, 1, 40], target: [0, 1, 0], fov: 40 },
+  });
+  d.cut('a');
+  const moving = d.move('far', { duration: 10 });
+  d.update(1);
+  const before = { position: camera.position.clone(), mode: d.mode, rig: d.rig.position.clone() };
+  const pose = d.poseOf('a');
+  assert.ok(nearVec(pose.position, [5, 2, 5]));
+  assert.ok(nearVec(pose.target, [0, 1, 0]));
+  assert.equal(pose.fov, d.effectiveFov(38), 'the lens the camera would use on this screen (4:3 widens it)');
+  assert.ok(pose.fov > 38);
+  const to = new THREE.Vector3(-5, -1, -5);
+  const distance = to.length();
+  assert.ok(nearVec(pose.focus.centre, [5 - 5 * Math.min(distance, 16) / distance, 0, 5 - 5 * Math.min(distance, 16) / distance]), 'the focus: the ground under where it aims, as shadowFocus has it');
+  assert.ok(pose.focus.radius > 0);
+  actor.root.position.set(2, 0, 0);
+  assert.ok(d.poseOf('face').target.distanceTo(new THREE.Vector3(2, 1, 0)) < 1e-6, 'a framed shot is composed on its subject, where it is now');
+  assert.ok(camera.position.equals(before.position) && d.rig.position.equals(before.rig), 'the camera and the rig stay where they were');
+  assert.equal(d.mode, before.mode, 'and the move goes on');
+  assert.equal(moving.done, false);
+  const far = d.poseOf('far');
+  assert.ok(near(far.focus.centre.z, 40 - 16), 'at most 16 m out');
+  assert.throws(() => d.poseOf('nowhere'), /nowhere/);
 });
