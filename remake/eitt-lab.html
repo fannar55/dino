@@ -8,6 +8,7 @@
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./style.css">
 <link rel="stylesheet" href="./eitt.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- The look of "Eitt!" for the owner to approve (Task 1), never linked from the game: the table, the cards and every state, as
      still markup in eitt.css's classes. Kambeðla's window holds a picture of her until her live 3D view comes (Task 3). ?state= picks
      what shows:
@@ -19,6 +20,8 @@
        draw                  nothing to play: the deck calls, and Mosi says to draw
        win                   the round won: the words, Kambeðla's sticker for the book, "Spilum aftur?" and confetti
        cards                 every kind of card, big
+       kambedla              the table with Kambeðla live in her window (Task 3's view): keys t talk, k think, g glow, s swish,
+                             h hop, c cheer; &do=kg does them at once, for a capture
      capture.mjs waits for __demoReady, which comes once the pictures are in and the pop-ups have finished moving. -->
 </head>
 <body>
@@ -75,7 +78,7 @@
 <script type="module">
   // The lab's logic: it only fills the markup for the state asked, as the game will (Task 3), and waits for it to settle.
   const params = new URLSearchParams(location.search);
-  const STATES = ['table', 'wild', 'eitt', 'mosi', 'draw', 'win', 'cards'];
+  const STATES = ['table', 'wild', 'eitt', 'mosi', 'draw', 'win', 'cards', 'kambedla'];
   const state = STATES.includes(params.get('state')) ? params.get('state') : 'table';
   const $ = id => document.getElementById(id);
 
@@ -129,7 +132,7 @@
   }
 
   const HAND = ['red 7', 'yellow 4', 'green 0', 'blue 9', 'green reverse', 'wild', 'red skip'];
-  if (state === 'table') {
+  if (state === 'table' || state === 'kambedla') {
     theirs(6); pile(['blue 4', 'yellow 4', 'red 4'], 'red'); hand(HAND);
   } else if (state === 'wild') {
     theirs(6); pile(['yellow 4', 'red 4', 'wild'], 'wild'); hand(['red 7', 'yellow 4', 'green 0', 'blue 9', 'green reverse', 'red skip']);
@@ -155,6 +158,31 @@
     $('gallery').hidden = false;
     $('gallery').innerHTML = ['red 7', 'yellow 3', 'green 5', 'blue 9', 'back', 'red skip', 'blue reverse', 'yellow draw2', 'wild', 'draw4']
       .map(s => card(s)).join('');
+  }
+
+  if (state === 'kambedla') {
+    // Kambeðla live in her window (Task 3's view), over the still table. Keys: t talks, k thinks (again to stop), g glows in the
+    // next colour, s swishes her tail, h hops, c cheers. window.__view is the view, for a probe.
+    const { createKambedlaView } = await import('./engine/eitt/kambedla-view.js');
+    const frame = document.querySelector('.eitt-kambedla');
+    const view = await createKambedlaView(frame);
+    frame.querySelector('img').hidden = true;
+    view.start();
+    window.__view = view;
+    const lines = await (await fetch('./assets/audio/lines.json')).json().catch(() => ({}));
+    const colours = ['red', 'yellow', 'green', 'blue'];
+    let thinking = false;
+    let colour = 0;
+    const act = key => {
+      if (key === 't') view.talk(lines.k1_kambedla_glow);
+      if (key === 'k') view.think((thinking = !thinking));
+      if (key === 'g') view.glow(colours[colour++ % 4]);
+      if (key === 's') view.swish();
+      if (key === 'h') view.hop();
+      if (key === 'c') view.cheer();
+    };
+    addEventListener('keydown', event => act(event.key));
+    for (const key of params.get('do') ?? '') act(key); // ?do=kg: think and glow at once, for a capture
   }
 
   /** Waits until the font and pictures are in and nothing is moving but the idle life. */

@@ -134,9 +134,10 @@
     linear-gradient(#cfe4f0, #eef1dc 58%, #c6d686 74%, #a3bd5e);
   box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 14px 26px 6px rgb(40 24 10 / .3);
 }
-.eitt-kambedla img { /* the stand-in for her live view, until Task 3 */
+.eitt-kambedla img { /* her picture, until her live view is ready (and for good where there is no WebGL) */
   position: absolute; left: 14%; bottom: 3%; width: 72%; height: auto;
 }
+.eitt-kambedla-view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; } /* her live 3D view (kambedla-view.js) */
 .eitt-kambedla-frame { /* a strip of tape on each top corner, as on the book's photos (outside the window, which clips) */
   grid-area: kambedla; justify-self: center; position: relative; z-index: 2; pointer-events: none;
   width: var(--window-w); aspect-ratio: 16 / 10;
