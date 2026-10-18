@@ -26,7 +26,7 @@
 // The file is 351.6 s, which is 556.7 beats, so at each loop the beat grid restarts from the file's own beatOffset.
 
 const LEVEL = 0.6; // the theme's place in the mix, where the old game kept it (dist/audio.js MUSIC_MIX.quiet)
-const DUCK_DB = -8; // under a recorded line
+export const DUCK_DB = -8; // under a recorded line (the book's effects dip as much under its narrator: engine/book/book-audio.js)
 const DUCK_SECONDS = 0.3;
 const FADE = 0.04; // s: the sound comes up and goes down over this long, so it never clicks
 const DIP = 0.03; // s: and goes down over this long before the element is moved

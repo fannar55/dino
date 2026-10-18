@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mosi — bókin (tilraunasíða)</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<style>
+  /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
+     journal button. The real book (engine/book/book.js) opens over it on the cards in assets/book/, with a save in memory. ?state= picks
+     what shows:
+       animals (the default), stars   the book open on that ribbon; it closes into the button, and the button opens it again
+       card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
+       zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
+       info                           the same page with its ⓘ window open (credit, licence and source)
+     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page; ?found=all finds every animal, as after the whole chapter. */
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background:
+      radial-gradient(ellipse 24% 34% at 10% 44%, #3f6c4c 0 97%, transparent 100%),
+      radial-gradient(ellipse 15% 24% at 27% 37%, #4f7a5a 0 97%, transparent 100%),
+      radial-gradient(ellipse 27% 36% at 88% 42%, #2e5544 0 97%, transparent 100%),
+      radial-gradient(ellipse 14% 20% at 68% 35%, #7fa64c 0 97%, transparent 100%),
+      radial-gradient(ellipse 70% 16% at 48% 66%, #a6b84a 0 97%, transparent 100%),
+      linear-gradient(#cfdde3 0%, #e6e7cf 44%, #8fae52 57%, #55703a 100%);
+  }
+</style>
+</head>
+<body>
+<button id="journal-button" class="journal-button" type="button" aria-label="Landkönnuðabók Egils" hidden>
+  <svg class="journal-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <rect x="9" y="5" width="31" height="38" rx="5" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.5"/>
+    <path d="M9 10a5 5 0 0 1 5-5h4v38h-4a5 5 0 0 1-5-5z" fill="#c9622b" stroke="#3b2f25" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M28 13.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M32 43v-9h7v9l-3.5-2.4z" fill="#2f8f86" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>
+  <span id="star-slots" class="star-slots" aria-hidden="true"></span>
+  <span id="journal-badge" class="journal-badge" aria-hidden="true" hidden>
+    <svg viewBox="0 0 40 40"><path d="M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z"/></svg>
+  </span>
+</button>
+<div id="journal-flights" class="journal-flights" aria-hidden="true"></div>
+<div id="book" class="book" hidden></div>
+<script type="module">
+  // The lab's logic. The book opens over the cards (assets/book/) with a save in memory that has Kambeðla's star and the butterfly,
+  // as after chapter 1's ride, and Mosi and Kambeðla already opened, so the animals page shows a new animal, two found and the rest
+  // unfound. The card, zoom and info states open the card by tapping through it, as a child would. Sound starts with the first touch, as
+  // the browser wants. capture.mjs waits for __demoReady, which comes once every picture has loaded, the book and what the state
+  // asked for have finished moving and the page has drawn; __demoStats then says how big the smallest control within reach is, and
+  // how many are off the screen (Review Focus 4).
+  import { createBook } from './engine/book/book.js';
+  import { createBookAudio } from './engine/book/book-audio.js';
+  import { parseCards } from './engine/book/cards.js';
+  import { parseManifest } from './engine/book/media.js';
+  import { createJournal } from './engine/scene/journal.js';
+  import { createSave } from './engine/save.js';
+  import { createAudioContext, createOutput } from './engine/audio/output.js';
+
+  const params = new URLSearchParams(location.search);
+  const asked = params.get('state');
+  const state = ['stars', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const read = async path => (await fetch(path)).json();
+  const [cardData, mediaData, theme, lines] = await Promise.all([
+    read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
+  ]);
+  const cards = parseCards(cardData);
+  const save = createSave(null);
+  save.addStar('k1_kambedla');
+  save.addFinding('butterfly');
+  save.addSeen('mosi');
+  save.addSeen('kambedla');
+  if (params.get('found') === 'all') {
+    for (const card of cards) {
+      if (card.unlock.found) save.addFinding(card.unlock.found);
+      if (card.unlock.star) save.addStar(card.unlock.star);
+    }
+  }
+  const context = createAudioContext();
+  addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
+  const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
+  const book = createBook(document, { cards, media: parseManifest(mediaData), save, audio, win: window, onPause: () => {} });
+  createJournal(document, save, { book, audio });
+  Object.assign(window, { __book: book, __bookAudio: audio });
+
+  /** A finger that touches `selector`'s element and lifts again, which is all a tap is. */
+  function tap(selector) {
+    const el = document.querySelector(selector);
+    const r = el.getBoundingClientRect();
+    const at = { bubbles: true, pointerId: 7, button: 0, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    el.dispatchEvent(new PointerEvent('pointerdown', at));
+    el.dispatchEvent(new PointerEvent('pointerup', at));
+  }
+
+  /** Waits until the fonts and pictures are there and nothing is moving but the book's idle life. */
+  async function settle() {
+    await document.fonts.ready;
+    if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+    for (let round = 0; round < 3; round++) {
+      await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  }
+
+  /** The book's controls a finger can reach (shown, and on top where they are): the smallest one's size, and any off the screen. */
+  function measure() {
+    const controls = '.chunky, .ribbon, .tile, .card-arrow, .card-replay, .card-info, .card-back, .card-done, .card-photo, .book-close, .zoom-close';
+    const live = [...document.querySelectorAll(controls)].filter(el => {
+      if (!el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') return false;
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return Boolean(hit) && (hit === el || el.contains(hit));
+    });
+    const rects = live.map(el => el.getBoundingClientRect());
+    return {
+      smallestTargetPx: Math.round(Math.min(...rects.map(r => Math.min(r.width, r.height)))),
+      controls: live.length,
+      offscreen: rects.filter(r => r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight).length,
+    };
+  }
+
+  book.open(state === 'stars' ? 'stars' : 'animals', 'child');
+  await settle();
+  if (state === 'card' || state === 'zoom' || state === 'info' || params.has('card')) {
+    const id = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
+    const page = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
+    book.openCard(id, Math.max(0, page));
+    await settle();
+    if (state === 'info') tap('.card-info');
+    if (state === 'zoom') tap('.card-photo');
+    await settle();
+  }
+  window.__demoStats = measure();
+  window.__demoReady = true;
+</script>
+</body>
+</html>

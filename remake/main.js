@@ -23,6 +23,11 @@ import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
 import { createSave } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
+import { createBook } from './engine/book/book.js';
+import { createBookAudio } from './engine/book/book-audio.js';
+import { parseCards } from './engine/book/cards.js';
+import { parseManifest } from './engine/book/media.js';
+import { createEittGame } from './engine/eitt/table.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -31,7 +36,7 @@ import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 
 // URL parameters
-//   chapter=<id>          chapter module in chapters/ (default: grunnur, the foundation test scene)
+//   chapter=<id>          chapter module in chapters/ (default: kafli1, the game's first chapter; grunnur is the foundation test scene)
 //   quality=low|tablet|high
 //   look=morning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
@@ -48,7 +53,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
 const clock = createClock();
 
-const chapterId = (params.get('chapter') || 'grunnur').replace(/[^a-z0-9_-]/gi, '');
+const chapterId = (params.get('chapter') || 'kafli1').replace(/[^a-z0-9_-]/gi, '');
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
@@ -111,6 +116,24 @@ try {
 } catch {
   console.warn('No recorded line durations found; lines are timed by reading pace.');
 }
+// The book's cards and pictures (engine/book/cards.js and media.js). Without them the book still opens and its Stjörnur page
+// works; only its Dýrin page is empty.
+let cards = [];
+let media = new Map();
+try {
+  const read = async path => {
+    const response = await fetch(new URL(path, import.meta.url));
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return response.json();
+  };
+  const [cardData, mediaData] = await Promise.all([read('./assets/book/cards.json'), read('./assets/book/media-manifest.json')]);
+  cards = parseCards(cardData);
+  media = parseManifest(mediaData);
+} catch (error) {
+  cards = [];
+  media = new Map();
+  console.warn('[book] Its cards could not be read, so its Dýrin page is empty.', error);
+}
 // The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it. The music reads the
 // theme's file against this URL (theme.json's src), and the effects tune their bells to its key.
 const themeUrl = new URL('./assets/audio/theme.json', import.meta.url);
@@ -127,6 +150,9 @@ const audio = playing ? createAudioContext() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
 const sfx = createSfx({ context: audio, theme, output });
+// The book's narrator and effects (engine/book/book-audio.js): outside the hold below, so they sound while the game stands still
+// behind the child's book, and muted wherever the game's sound is silent (captures and review shots).
+const bookAudio = createBookAudio({ context: audio, output, theme, lines });
 // The one place the beat reads its time: the music's playhead. It is the game clock's time folded into the theme's loop (and
 // the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
 // on the same beat every time.
@@ -150,14 +176,29 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
 const save = createSave(params.get('t') === null ? undefined : null);
-const journal = createJournal(document, save, {
-  // A page the child opens holds the whole game, the sound included, until the child shuts it. A page a
-  // script opens (s.journal.open) does not call this: the last scene fades into the book while Mosi speaks.
+const book = createBook(document, {
+  cards, media, save, audio: bookAudio, win: window,
+  onPlay: (game, options) => eitt.open(options), // the Leikir page's "Eitt!" tile, or its Kennsla (the tutorial)
+  // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
+  // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
     clock.setPaused(paused);
     hold('book', paused);
   },
 });
+// Kambeðla's card game, "Eitt!" (engine/eitt/table.js), which the book's Leikir page opens over the book. Like the child's book it
+// holds the chapter while it is open, the chapter's voice, music and effects included (its own hold, so the two never play at once),
+// and the clock stays held after it while the book is still open. Its effects, music and voices are its own, through the page's
+// output, and silent wherever the game's sound is (captures and review shots have no audio context at all).
+const eitt = createEittGame(document, {
+  save, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('eitt', paused);
+  },
+  onClose: () => book.refresh(), // a sticker won is in the book now
+});
+const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
@@ -296,7 +337,8 @@ function startScene() {
 }
 
 if (shotName || !chapter.script) {
-  // Review mode: hold a static shot. With t, jump the animation there and freeze.
+  // Review mode: hold a static shot. With t, jump the animation there and freeze. The book is as silent as the rest.
+  bookAudio.muted = true;
   director.cut(shots[shotName] ? shotName : 'hero');
   if (seekTo !== null) {
     clock.step(seekTo);
@@ -314,6 +356,7 @@ if (shotName || !chapter.script) {
     voice.muted = true;
     music.muted = true;
     sfx.muted = true;
+    bookAudio.muted = true;
     stage.seeking = true;
     ui.setFade(1);
     stage.begin();
@@ -368,12 +411,24 @@ if (params.get('orbit') === '1') {
 const debugEl = document.getElementById('debug');
 debugEl.hidden = params.get('debug') !== '1';
 
-function render() {
+function drawNow() {
   renderer.info.reset(); // one count per frame, shadow pass included (autoReset is off)
   renderer.render(scene, camera);
 }
+// While the child's book covers the screen the game stands still behind it (the clock is held), and the canvas keeps the last frame it
+// was given: nothing is drawn again, not the same frozen scene every frame for nothing. A resize clears the canvas, so that draws once.
+// A book a script opened holds nothing, so the scene goes on under it. `drew` says whether this frame was drawn.
+let canvasCleared = false;
+let drew = true;
+window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
+function render() {
+  drew = !(clock.paused && (book.isOpen || eitt.isOpen) && !canvasCleared);
+  if (!drew) return;
+  canvasCleared = false;
+  drawNow();
+}
 const stats = installStats({
-  renderer, scene, q, render, debugEl,
+  renderer, scene, q, render: drawNow, debugEl,
   getScale: () => display.resolutionScale,
   extra: () => `scene ${stage.elapsed.toFixed(1)} s  camera ${director.mode}`,
 });
@@ -401,8 +456,10 @@ renderer.setAnimationLoop(now => {
     }
   }
   render();
-  stats.sample(real);
-  adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing
+  if (drew) {
+    stats.sample(real);
+    adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing; nor to ones not drawn
+  }
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

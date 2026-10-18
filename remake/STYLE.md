@@ -201,8 +201,15 @@ face), misty far forest, forest wall.
   accent teal `#2f8f86`, star gold `#f2b630`, success green `#6fae4f`.
 - Touch targets at least 64 px on tablet (the plan's floor is 44 pt). Corner radius 18 to 24 px,
   soft shadows, hand-drawn frame lines.
-- One rounded, legible typeface bundled locally for offline play, with all Icelandic letters.
-  Captions at least 24 px. The speaker's name is shown in the speaker's main hue.
+- One rounded, legible typeface bundled locally for offline play, with all Icelandic letters: Nunito (the owner's
+  choice, 2026-10-17), under the SIL Open Font License 1.1, in `remake/assets/fonts/`: `nunito-latin.woff2`, Google
+  Fonts' Latin subset of the variable font (declared for weights 400 to 900), and `OFL.txt`, which stays beside it.
+  The subset covers Latin-1, so every Icelandic letter is there: á é í ó ú ý þ ð æ ö and their capitals. `style.css`
+  and `book.css` each declare the one `@font-face` (the book's lab links only book.css and the game only style.css, so
+  the two rules are alike word for word), both pages preload the file, and the page's font and the book's
+  `--book-font` are `"Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif`: a
+  tablet's own face is reached only for a glyph Nunito lacks. Captions at least 24 px. The speaker's name is shown in
+  the speaker's main hue.
 - Mini-games share the journal look; their pieces use the character hues.
 - **Interaction**, as chapter 1 plays it (2026-10-17):
   - No fail states. Every wait for the child ends by itself, a tap on something optional (a critter, a butterfly,
@@ -221,8 +228,19 @@ face), misty far forest, forest wall.
     glass stops neither another finger's tap nor its look: the first finger to move 12 px drags, one drag at a time.
   - Tap targets: a target in the world is a sphere round a point, sized in metres (Mosi's nose 0.45, Egill 0.7, a
     glow flower 0.55, the star 0.85) and never less than 44 px across on the screen; tray items are 64 to 88 px,
-    the book's button and its close 64 px, and the choice buttons 64 px high, side by side with each label on one line
+    the journal's button 64 px, and the choice buttons 64 px high, side by side with each label on one line
     (they fit a tablet held upright). Captions are 24 px or more and stand over the fade and the open book.
+- **The book** (the education book: `engine/book/` and `book.css`, 2026-10-18) keeps the journal's look and these rules:
+  - Every control is at least 80 px across, and the book makes them 88 px (`--book-target`): the arrows, the close buttons,
+    the speaker, the ribbons, the tiles and the ⓘ (a small dot in a full-size hit area), whatever they look like.
+  - The type is Nunito (`--book-font`), as everywhere, with few words and big: a card's sentence and a tile's name.
+  - The book's sounds are made on the spot with the game's own tools, and every note is a note of the theme's key
+    (`theme.json`) or an octave of one, so they sit in the music (`engine/book/book-sounds.js`). They dip under the narrator
+    as the music does under a line.
+  - Motion is transform and opacity only. When the tablet asks for less motion (`prefers-reduced-motion`) the book holds
+    still and moves as fades: it opens, closes, turns a page and zooms a picture as a fade, a press is a short fade and the
+    sparkles fade where they are; no tile breathes or rocks, and only the twinkle goes on, fading in and out where it is.
+    The sounds are the same.
 
 ## 11. Performance budget (tablet preset)
 

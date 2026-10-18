@@ -2,8 +2,9 @@
 // Builds remake/assets/audio/lines.json: every recorded line in the game's narration manifest with
 // its exact duration, so scene timing needs no audio decoding at runtime and seeking is exact, and its
 // mouth: how loud the voice is, 20 times a second, which the speaker's mouth follows (engine/talk.js).
-// The remake's own lines (made by tools/voice-lines.mjs into assets/audio/kafli1/) get the same three
-// fields, from the same code.
+// The remake's own lines (made by tools/voice-lines.mjs) get the same three fields, from the same code. They come in
+// sets, each in a folder of its own: kafli1, the chapter's (assets/audio/kafli1/), book, the narrator's reading of
+// the education cards (assets/audio/book/), and eitt, Kambeðla's and Mosi's lines at her card game (assets/audio/eitt/).
 //   node remake/tools/audio-lines.mjs        (needs ffprobe and ffmpeg on the PATH)
 //
 // The mouth is one hexadecimal digit a frame (0 shut to f wide open): the loudness of 50 ms of voice
@@ -45,8 +46,17 @@ function decode(file) {
 }
 
 export const LINES_FILE = 'remake/assets/audio/lines.json';
-/** Where the remake's own lines are (beside their lines-source.json); relative to the repo root. */
-export const REMAKE_AUDIO = 'remake/assets/audio/kafli1';
+/** The remake's own line sets, each with the folder it is in (beside its lines-source.json); relative to the repo root. */
+export const SETS = { kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt' };
+/** Where the chapter's lines are: the set a tool works on unless it is told another. */
+export const REMAKE_AUDIO = SETS.kafli1;
+
+/** The folder of a line set, relative to the repo root; a set there is none of is refused. */
+export function setFolder(set) {
+  const names = Object.keys(SETS);
+  if (!Object.hasOwn(SETS, set)) throw new Error(`Not a line set: ${JSON.stringify(set)}. The sets are ${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`);
+  return SETS[set];
+}
 
 /** The length of a recording in seconds, to the millisecond. */
 export function durationOf(file) {
@@ -72,22 +82,25 @@ export function gameLines(root) {
   return out;
 }
 
-/** The remake's own lines that have been made (all of them, or just those in `only`), in the order of lines-source.json. */
-export function remakeLines(root, only = null) {
-  const source = path.join(root, REMAKE_AUDIO, 'lines-source.json');
+/** The lines of one set (the chapter's unless told another) that have been made (all of them, or just those in `only`), in the order of its lines-source.json. */
+export function remakeLines(root, only = null, set = 'kafli1') {
+  const folder = setFolder(set);
+  const source = path.join(root, folder, 'lines-source.json');
   if (!fs.existsSync(source)) return {};
   const out = {};
   for (const { id } of JSON.parse(fs.readFileSync(source, 'utf8'))) {
-    const full = path.join(root, REMAKE_AUDIO, `${id}.mp3`);
+    const full = path.join(root, folder, `${id}.mp3`);
     if ((only && !only.includes(id)) || !fs.existsSync(full)) continue;
-    out[id] = lineEntry(full, `${REMAKE_AUDIO.replace(/^remake\//, '')}/${id}.mp3`);
+    out[id] = lineEntry(full, `${folder.replace(/^remake\//, '')}/${id}.mp3`);
   }
   return out;
 }
 
-/** Every line lines.json has: the game's, then the remake's. */
+/** Every line lines.json has: the game's, then each set of the remake's in the order of SETS (the chapter's, the book's, the card game's). */
 export function buildLines(root) {
-  return { ...gameLines(root), ...remakeLines(root) };
+  const out = gameLines(root);
+  for (const set of Object.keys(SETS)) Object.assign(out, remakeLines(root, null, set));
+  return out;
 }
 
 export function writeLines(root, lines) {
@@ -95,11 +108,11 @@ export function writeLines(root, lines) {
   fs.writeFileSync(path.join(root, LINES_FILE), `${JSON.stringify(lines, null, 1)}\n`);
 }
 
-/** Adds (or renews) the entries of these remake lines and leaves the rest of lines.json as it is. */
-export function updateLines(root, ids) {
+/** Adds (or renews) the entries of these lines of a set (the chapter's unless told another) and leaves the rest of lines.json as it is. */
+export function updateLines(root, ids, set = 'kafli1') {
   const file = path.join(root, LINES_FILE);
   const lines = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
-  writeLines(root, { ...lines, ...remakeLines(root, ids) });
+  writeLines(root, { ...lines, ...remakeLines(root, ids, set) });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

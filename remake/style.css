@@ -1,5 +1,16 @@
 /* The colours are the explorer's journal's (STYLE.md section 10), and so are the sizes: touch targets of 64 px and captions
    of at least 24 px. The start button keeps the foundation's first size until the rest of the interface gets its pass. */
+
+/* The typeface (STYLE.md section 10) is Nunito, bundled in assets/fonts/ with its licence (the SIL Open Font License, OFL.txt). It is
+   one variable file, so every weight from 400 to 900 is there offline, and its Latin subset has every Icelandic letter. The book's lab
+   page links only book.css, which therefore declares the same face, word for word (tests/fonts.test.mjs keeps the two alike). */
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: block; /* a local file is there before the first frame, so no frame shows another face first */
+}
+
 :root {
   --paper: #f6efdf;
   --card: #fffaf0;
@@ -12,7 +23,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; } /* a rule that sets display would otherwise show what the page hid */
-html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde3; font-family: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
 /* What sits over the world lets taps through, except the buttons and things to carry, so a target in
@@ -102,7 +113,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.3);
 }
 
-/* The journal: the book in the top right corner with a slot for each friend's star... */
+/* The journal: the book's button in the top right corner, with a slot for each friend's star... */
 .journal-button {
   position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right));
   display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 16px 6px 10px;
@@ -118,14 +129,22 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   border: 2.5px solid var(--hue); background: var(--paper);
 }
 .star-slot svg { width: 72%; height: 72%; display: block; overflow: visible; }
-.star-slot path, .journal-star-icon path { fill: none; stroke: var(--ink-soft); stroke-width: 1.5; stroke-linejoin: round; opacity: .45; }
-.star-slot.earned path, .journal-star.earned .journal-star-icon path { fill: var(--star); stroke: var(--ink); opacity: 1; }
-.finding-count {
-  position: absolute; top: -9px; left: 36px; min-width: 26px; height: 26px; padding: 0 6px; border: 2px solid var(--card); border-radius: 13px;
-  font-size: 15px; font-weight: 700; line-height: 22px; text-align: center; color: #fff; background: var(--teal);
+.star-slot path { fill: none; stroke: var(--ink-soft); stroke-width: 1.5; stroke-linejoin: round; opacity: .45; }
+.star-slot.earned path { fill: var(--star); stroke: var(--ink); opacity: 1; }
+.journal-badge { /* a new animal is in the book: a twinkle on the button until the book is opened */
+  position: absolute; top: -11px; left: 31px; width: 32px; height: 32px; display: grid; place-items: center;
+  border: 2.5px solid var(--card); border-radius: 50%; background: var(--accent); box-shadow: 0 2px 6px rgba(40, 30, 15, .35);
+  animation: journal-badge 1.6s ease-in-out infinite;
 }
+.journal-badge svg { width: 68%; height: 68%; display: block; }
+.journal-badge path { fill: var(--card); }
+@keyframes journal-badge {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.14) rotate(14deg); }
+}
+@media (prefers-reduced-motion: reduce) { .journal-badge { animation: none; } }
 
-/* ...the star on its way into it... */
+/* ...the star, or a new animal's picture, on its way into it. The book itself is book.css's: engine/book/book.js opens it. */
 .journal-flights { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
 .flying-star {
   position: absolute; left: 0; top: 0; width: 72px; height: 72px; will-change: transform;
@@ -133,43 +152,9 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 }
 .flying-star svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .flying-star path { fill: var(--star); stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
-
-/* ...and its page, which opens over the world. */
-.journal-page {
-  position: fixed; inset: 0; display: grid; place-items: center; background: rgba(59, 47, 37, .55);
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+.flying-find {
+  position: absolute; left: 0; top: 0; width: 96px; height: 96px; padding: 8px; will-change: transform;
+  border: 3px solid var(--ink); border-radius: 50%; background: var(--card);
+  box-shadow: 0 0 0 4px rgba(242, 182, 48, .9), 0 0 18px 6px rgba(242, 182, 48, .55), 0 8px 16px rgba(40, 30, 15, .35);
 }
-.journal-card {
-  position: relative; width: min(760px, 100%); max-height: 100%; overflow-y: auto; padding: 24px 30px 30px;
-  color: var(--ink); background: var(--paper); box-shadow: var(--shadow);
-  border: 3px solid var(--ink); border-radius: 28px 22px 26px 24px / 24px 28px 22px 26px;
-}
-.journal-card::before { /* the hand-drawn frame line inside the edge */
-  content: ""; position: absolute; inset: 8px; pointer-events: none;
-  border: 2px dashed rgba(59, 47, 37, .3); border-radius: 22px 18px 22px 20px / 20px 22px 18px 22px;
-}
-.journal-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.journal-head h2 { margin: 0; font-size: clamp(24px, 3.6vw, 32px); line-height: 1.15; }
-.journal-close {
-  flex: none; width: 64px; height: 64px; padding: 0; display: grid; place-items: center; border-radius: 50%;
-  border: 3px solid var(--ink); color: var(--ink); background: var(--card); box-shadow: var(--shadow); cursor: pointer;
-}
-.journal-close svg { width: 26px; height: 26px; display: block; }
-.journal-section { position: relative; }
-.journal-section h3 { margin: 18px 0 10px; font-size: 20px; color: var(--ink-soft); }
-.journal-stars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 560px) { .journal-stars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.journal-star {
-  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 8px 12px;
-  border: 3px dashed var(--hue); border-radius: 22px; background: var(--card); color: var(--ink-soft);
-}
-.journal-star.earned { border-style: solid; color: var(--ink); }
-.journal-star-icon { width: 72px; height: 72px; display: grid; place-items: center; }
-.journal-star-icon svg { width: 86%; height: 86%; display: block; overflow: visible; }
-.journal-star-name { font-size: 22px; font-weight: 700; }
-.journal-finds { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
-.journal-find {
-  padding: 10px 18px; border: 2.5px solid var(--teal); border-radius: 999px; background: var(--card);
-  font-size: 20px; font-weight: 600;
-}
-.journal-empty { margin: 0; font-size: 20px; color: var(--ink-soft); }
+.flying-find img { width: 100%; height: 100%; display: block; object-fit: contain; }

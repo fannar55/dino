@@ -52,6 +52,12 @@ const EGILL_SPOT = { actor: 'mosi', part: 'head', offset: [2.9, 0, 2.2], local: 
 // Before the saddle Mosi turns to go, this far to his left, which leaves Egill beside his right shoulder: at most
 // 2.5 m along Mosi and more than 3 m out, where the float up keeps clear of the frill and the flank (riding.js).
 const MOSI_TURNS_TO_GO = 74;
+// The saddle on his back, glittering until the child taps it: a tap target round a point just above the seat, and a few glints
+// there every GLITTER_EVERY seconds.
+const SADDLE_TAP_UP = 0.15;
+const SADDLE_TAP_RADIUS = 0.9;
+const GLITTER_EVERY = 0.35;
+const GLITTER_BEAT = 1.1; // seconds from one swell of the saddle to the next
 // Seconds the choice in scene 4 waits for a child before Egill answers yes himself.
 const CHOICE_IDLE = 25;
 // The ride: out of the clearing along the path to the east and into the forest.
@@ -416,16 +422,33 @@ function* upOnBack(s, c) {
   yield mosi.lookAt('egill.head', { weight: 0.6, maxAngle: 40, maxPitch: 30 });
   s.sfx('saddle');
   yield c.saddle.appear();
-  yield s.say('mosi', 'k1_mosi_hocus');
-  // The child taps Egill and he floats up into the saddle, or he floats up by himself after a while.
+  // The saddle glitters, asking for a tap, from the moment it is on (the owner's play of 18 October), while Mosi says his spell.
+  // A tap on the saddle (or on Egill) floats him up at once, with nothing in between, Mosi still talking if he is; a child who
+  // does not tap sees him float up by himself 6 s after the spell. A capture's tap comes 2 s after the spell, as it always has.
   s.camera.handheld(0, { duration: 0.3 });
-  yield tapOrWait(s, 'egill', s.wait(6));
+  const glitter = s.after(0, () => glitterSaddle(s, c));
+  const hocus = s.say('mosi', 'k1_mosi_hocus');
+  const spellSaid = () => s.until(() => hocus.done);
+  if (s.seeking) yield spellSaid();
+  s.target('saddle', { point: out => overSaddle(c, out), radius: SADDLE_TAP_RADIUS });
+  s.target('egill', { point: 'egill', radius: 0.7 });
+  try {
+    yield s.race(s.tap(['saddle', 'egill']), (function* idle() {
+      yield spellSaid();
+      yield s.wait(6);
+    })());
+  } finally {
+    s.target('saddle', null);
+    s.target('egill', null);
+    glitter.cancel();
+  }
   s.sfx('float');
   yield egill.lookAt(null);
   const rising = s.camera.move('mountHigh', { duration: 6 });
-  yield s.after(0.8, () => floatTo(egill.raw, c.saddle));
+  yield floatTo(egill.raw, c.saddle);
   ride(egill.raw, c.saddle); // until he floats down in the glade, which ends the ride
   yield rising;
+  yield spellSaid();
   yield s.say('egill', 'k1_egill_wow');
   yield mosi.lookAt(null);
   yield s.say('mosi', 'k1_mosi_hold');
@@ -442,9 +465,9 @@ function* onThePath(s, c) {
   const { critters } = c.rjodur;
   const stops = PATH_CRITTERS.map(spot => {
     s.target(spot.name, critters.targets.find(t => t.name === spot.name));
-    return s.onTap(spot.name, () => {
+    return s.onTap(spot.name, tap => {
       critters.react(spot.name);
-      s.found(spot.kind);
+      s.found(spot.kind, tap); // its picture flies from the tap into the book
       if (!found.includes(spot.kind)) found.push(spot.kind);
     });
   });
@@ -663,9 +686,12 @@ function* invitation(s, c) {
   yield s.say('mosi', 'k1_mosi_star');
   yield star;
   s.sfx('journal');
-  // Into the book, which opens over the glade while Mosi wonders who is next.
+  // Kambeðla asks the child to play her card game, "Eitt!" (part 3), which her star has just opened in the book.
+  yield kambedla.lookAt('egill.head', { weight: 0.7 });
+  yield s.say('kambedla', 'k1_kambedla_play');
+  // Into the book, which opens over the glade on its games, where "Eitt!" waits, new, while Mosi wonders who is next.
   s.fade(0.45, 1.6);
-  s.journal.open();
+  s.journal.open('games');
   yield s.say('mosi', 'k1_mosi_next');
 }
 
@@ -675,6 +701,48 @@ function* invitation(s, c) {
 /** Note when a scene starts (world.chapterTimeline, for captures and probes). */
 function mark(c, scene) {
   c.world.chapterTimeline?.push({ scene, at: c.s.time });
+}
+
+/** A point just above the saddle's seat, in the world (`out`), as Mosi stands now. */
+function overSaddle(c, out = new THREE.Vector3()) {
+  out.copy(c.saddle.update());
+  out.y += SADDLE_TAP_UP;
+  return out;
+}
+
+/**
+ * The saddle glitters, asking for a tap: gold glints over it every GLITTER_EVERY seconds, and it swells a little and back, like a
+ * heartbeat, until the task is cancelled (then it is its own size again).
+ */
+function* glitterSaddle(s, c) {
+  const saddle = c.saddle.object;
+  const size = saddle.scale.x;
+  let over = false;
+  let age = 0;
+  c.world.effects.add({
+    update(dt) {
+      if (over) return false;
+      age += dt;
+      const beat = Math.max(0, Math.sin((age / GLITTER_BEAT) * Math.PI * 2));
+      saddle.scale.setScalar(size * (1 + 0.14 * beat * beat));
+      return true;
+    },
+  });
+  const at = new THREE.Vector3();
+  try {
+    for (let i = 0; ; i++) {
+      overSaddle(c, at);
+      const k = i * 2.39996; // round the seat, a golden angle at a time, so no two in a row come up in one place
+      at.x += Math.cos(k) * 0.35;
+      at.z += Math.sin(k) * 0.35;
+      at.y += 0.1;
+      sparkleBurst(c.world, at.clone(), { count: 12, duration: 1.2, size: 0.34, spread: 0.75, seed: `saddle glitter ${i % 8}` });
+      yield s.wait(GLITTER_EVERY);
+    }
+  } finally {
+    over = true;
+    saddle.scale.setScalar(size);
+  }
 }
 
 /** A required tap on an actor that also ends by itself when `idle` is done (R12): a hint-free wait for the child. */
@@ -767,7 +835,7 @@ function setUpClearing(s, c) {
   const stops = [];
   for (const t of critters.targets.filter(target => target.name.startsWith('bird-'))) {
     s.target(t.name, t);
-    stops.push(s.onTap(t.name, () => { critters.react(t.name); s.found('birds'); }));
+    stops.push(s.onTap(t.name, tap => { critters.react(t.name); s.found('birds', tap); }));
   }
   stops.push(...butterflyTaps(s, world));
   return {
@@ -785,11 +853,11 @@ function butterflyTaps(s, world) {
   const butterflies = world.forest.butterflies;
   return (butterflies?.targets ?? []).map(t => {
     s.target(t.name, t);
-    return s.onTap(t.name, () => {
+    return s.onTap(t.name, tap => {
       butterflies.flutter(t.name);
       sparkleBurst(world, t.point.clone(), { count: 14, duration: 0.8, seed: t.name });
       s.sfx('butterfly');
-      s.found('butterfly');
+      s.found('butterfly', tap);
     });
   });
 }
@@ -817,7 +885,7 @@ function setUpGlade(s, c) {
   // They react and go in the journal, and do not count for the search.
   for (const { name, kind } of GLADE_CRITTERS) {
     s.target(name, critters.targets.find(t => t.name === name));
-    s.onTap(name, () => { critters.react(name); s.found(kind); });
+    s.onTap(name, tap => { critters.react(name); s.found(kind, tap); });
   }
   butterflyTaps(s, world);
   s.camera.cut('gladeArrive');
@@ -921,6 +989,8 @@ export const chapter = {
     k1_mosi_invite: { text: 'Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?', audio: 'k1_mosi_invite' },
     k1_kambedla_accept: { text: 'Já! Ég skal lýsa upp alla hátíðina!', audio: 'k1_kambedla_accept' },
     k1_mosi_star: { text: 'Sjáðu, Egill! Fyrsta stjarnan!', audio: 'k1_mosi_star' },
+    // Recorded with the lines of her card game (assets/audio/eitt/lines-source.json), and read by the chapter's own voice.
+    k1_kambedla_play: { text: 'Viltu spila við mig?', audio: 'k1_kambedla_play' },
     k1_mosi_next: { text: 'Ein komin. Hver ætli sé næst?', audio: 'k1_mosi_next' },
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.

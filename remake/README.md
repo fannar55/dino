@@ -45,11 +45,19 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   character's own pose after the actors update (Egill's two hands on his posy).
 - `engine/camera/director.js`: the camera director, with the child's free look (`explore`, `look`, `hint`).
 - `engine/scene/`: the scheduler, the scene API, captions and choices, voice playback; the search
-  with its hints (`search.js`), the explorer's journal and its page (`journal.js`), the star that rises
+  with its hints (`search.js`), the explorer's journal (`journal.js`, whose button opens the book in
+  `engine/book/`), the star that rises
   to be tapped (`star-sprite.js`).
 - `engine/audio/`: the theme, streamed from `assets/audio/theme.mp3` and lowered under the voice
   (`music.js`); the sound effects, made in Web Audio as in the old game (`sfx.js`); what holds the
   sound while the book is open or the tab hidden (`hold.js`); the one audio context (`output.js`).
+- `engine/book/`: the book, Egill's journal opened over the paused game; its look is `book.css`. `book.js` is the shell
+  (the spread, the ribbons that turn its pages, the close, the Stjörnur page); `animals-page.js` the animals page, a taped
+  photo of each animal that is found, new or an unfound silhouette; `card-viewer.js` a card that grows out of its tile, a
+  picture and a sentence at a time, read aloud; `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
+  the squash, sparkle and sound of every touch, counting a tap as the game does; `book-audio.js` the book's own narrator and
+  effects, and `book-sounds.js` the effects, made with the game's tools in the theme's key; `cards.js` and `media.js` read
+  and check its data (`parseCards`, `parseManifest`, `checkMedia`). Under reduced motion it moves as fades.
 - `world/forest/`: the forest system (`createForest(world, layout)`), with the clearing's pale
   butterflies as tap targets (`butterflies.js`).
 - `world/props/`: the glow flowers (`glow-flower.js`), sparkle bursts and trails (`sparkles.js`),
@@ -60,7 +68,21 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `chapters/`: one module per chapter: layout (or locations), actors, cast, lines, shots and the
   script. `kafli1.js` is chapter 1.
 - `assets/`: models and generated data (`assets/audio/lines.json` holds every recorded line's length
-  and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it).
+  and its mouth track, the voice's loudness 20 times a second; `tools/audio-lines.mjs` makes it), and the
+  typeface in `assets/fonts/`: Nunito (`nunito-latin.woff2`, the Latin subset of Google Fonts' variable font, with
+  every Icelandic letter; both pages preload it) and its licence `OFL.txt` (SIL Open Font License 1.1), which must
+  stay beside it wherever the font goes.
+- `assets/book/`: the book's data. `cards.json` has the seven cards, page by page (each page's picture, text, narrator's
+  line and the sources of its facts); `media-manifest.json` lists every picture with its licence, credit and source
+  (`tests/media.test.mjs` runs `checkMedia`: an outside picture needs its credit, open licence, source and sha256, and every
+  picture is at most 1024 px and JPEG or WebP); `images/` holds the pictures, each with a 320 px thumbnail, the game's own
+  renders of Mosi and Kambeðla among them (`tools/bake/book-render.html`); `lab/` holds the lab's placeholder drawings.
+- `assets/audio/book/`: the narrator's lines for the cards (`book_<card>_<page>.mp3` and `book_find_me.mp3`) and their texts in
+  `lines-source.json`. `node remake/tools/voice-lines.mjs --set book` voices them with ElevenLabs, as it voices a chapter's
+  lines, and their lengths and mouth tracks go into `assets/audio/lines.json` with the chapter's.
+- `book-lab.html`: the book's lab page, never linked from the game: the real book over a stand-in for the forest, on the real
+  cards, with a save in memory. `?state=animals|stars|card|zoom|info`, `?card=<id>&page=<n>` and `?found=all` open it where you
+  want it, for `tools/capture.mjs`.
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `sound-check.mjs` (the sound in a
   real browser, 61 checks, on this computer or on the tablet over USB debugging), `audio-lines.mjs`,
@@ -74,7 +96,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   long-necked ones such as Þórseðla, `kind=pterosaur` for winged ones such as Flugeðla and
   `kind=hadrosaur` for crested ones such as Slóeðla), the
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
-  `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), and
+  `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), `bake/book-render.html` that renders the
+  book's pictures of Mosi and Kambeðla from their models (its header has the commands), and
   `prep-character.mjs` for static models (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
@@ -132,7 +155,7 @@ clock, so pausing, seeking and cancelling work:
 | `s.search({ explore, targets, onFound })` | every target found by a tap; a hint every 12 s and, after three, found for the child (seeking: one every 3 s) |
 | `s.drag(items, target, { radius, idle })` | a tray item (an id, or any of a list of ids) let go within `radius` px of the target on the screen: one id resolves `'dropped'`, or `'idle'` after `idle` s, when it leaves the tray; a list resolves `{ id, how }`, the item dropped or after `idle` s the first on the list (seeking: the first, after 2 s) |
 | `s.star(id, from)` | the star rising from a point, tapped or left 8 s (seeking 1.5 s), and its flight into the journal |
-| `s.found(id)`, `s.tray.show/hide`, `s.journal.open/close`, `s.sun.wink()` | nothing: an animal into the journal, the tray, the journal's page (which does not pause the game), the sun's wink |
+| `s.found(id, from)`, `s.tray.show/hide`, `s.journal.open/close`, `s.sun.wink()` | nothing: an animal into the journal (a new one's picture flies from `from`, the tap's `{ name, x, y }`, into the book's button, or from the middle of the screen without it), the tray, the book open on its stars (a script's book, which pauses nothing until the child taps inside it), the sun's wink |
 | `s.sun.wave()`, `s.sun.hug()`, `s.sun.mouth(shape, seconds)` | the sun's gesture, which starts at once: one hand up beside the face, four swings and down (2.3 s); both hands across the front of the disc, two squeezes and a grin (2.4 s); the mouth `'grin'` or `'oh'` until the smile is back after `seconds` (1.5 by default), or `'smile'` at once. A gesture asked for while another goes on begins when that one is over, a newer mouth cuts an older one short, and a mouth asked while a hug waits its turn leaves the hug its grin. A handle that is cancelled (a race lost, the scene stopped) drops a gesture still waiting its turn, and those behind it move up; a gesture under way finishes; a mouth goes back to the smile at once, through the in-between. Between them the sun smiles and blinks by itself every 3 to 6 s |
 | `s.sfx(name)` | nothing: forest (a quiet loop, once), step, frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float, each at least a short gap after the last of its name (flower 0.15 s, butterfly 0.25 s, critters 0.4 to 0.5 s) and at most 48 at once; silent while seeking |
 
@@ -148,7 +171,7 @@ every beat), and `uDance` for the flowers' nod and the mushrooms' hop on the str
 follows the music's grid and eases back onto it within a beat or two when the playhead jumps (at the
 first touch, where the theme loops), and is the grid exactly while seeking. So the forest moves in
 time with what is heard, and a capture lands on the same beat. For a look inside a
-running page: `window.__world`, `__scene`, `__director`, `__journal`, `__save`, `__music`, `__sfx`
+running page: `window.__world`, `__scene`, `__director`, `__journal`, `__book`, `__save`, `__music`, `__sfx`
 and `__audio`.
 
 ## The forest

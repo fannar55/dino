@@ -151,6 +151,8 @@ export function addPlateGlow(actor, { colour = '#ab85c1', dull = 0.85 } = {}) {
 
   return {
     rows,
+    /** The glow's colour, a THREE.Color the shader reads: set it to light the plates in another colour (the game's card colours). */
+    colour: uniforms.uPlateGlow.value,
     /** Ease row `index` (0 is the row nearest the head) to `level` (0 dull and grey, 1 lit) over `duration` seconds. */
     setRow(index, level, { duration = DURATION } = {}) {
       if (!Number.isInteger(index) || index < 0 || index >= rows) throw new RangeError(`${actor.name} has plate rows 0 to ${rows - 1}, not ${String(index)}`);

@@ -88,8 +88,12 @@ export class FakeElement extends EventTarget {
 
   /** Only `.class` selectors: all the screen layer asks for. */
   querySelector(selector) {
+    return this.querySelectorAll(selector)[0] ?? null;
+  }
+
+  querySelectorAll(selector) {
     const name = selector.replace(/^\./, '');
-    return this.findAll(element => element.classList.contains(name))[0] ?? null;
+    return this.findAll(element => element.classList.contains(name));
   }
 }
 

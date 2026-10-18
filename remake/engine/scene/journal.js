@@ -1,29 +1,31 @@
 import { Handle } from '../handle.js';
 
-// Egill's explorer's journal (STYLE.md section 10): a book in the top right corner of the screen with a
-// slot for the star of each friend, and a page that opens when the child taps it, with the stars and the
-// animals found along the way. A star from a friend flies into its slot (spec scene 10), and the save
-// (engine/save.js) keeps what the child has earned.
+// Egill's explorer's journal (STYLE.md section 10): a book in the top right corner of the screen with a slot for the star of
+// each friend. A tap on it opens the book itself (engine/book/book.js), the living book over the paused game. A star from a
+// friend flies into its slot (spec scene 10), a new animal's picture flies into the book, and the save (engine/save.js) keeps
+// what the child has earned.
 //
-// The motion is driven from update(dt) with game time, like everything else, so a capture finds the
-// star in the same place every time and a paused game holds it in the air. main.js calls update(dt)
-// before the scene's, so a flight that a script starts in one frame is counted from the next.
+// The motion is driven from update(dt) with game time, like everything else, so a capture finds the star in the same place every
+// time and a paused game (the child's open book) holds it in the air. main.js calls update(dt) before the scene's, so a flight that
+// a script starts in one frame is counted from the next.
 //
-// A star id names the chapter and the friend, `k1_kambedla`: the part after the first underscore picks
-// the slot, so the stars of later chapters need no change here.
+// A star id names the chapter and the friend, `k1_kambedla`: the part after the first underscore picks the slot, so the stars of
+// later chapters need no change here.
 
-export const FLIGHT_SECONDS = 1.2; // from where the star was tapped to its slot in the book
+export const FLIGHT_SECONDS = 1.2; // from where the star or the animal was tapped to the book
 const POP_SECONDS = 0.5; // the slot swells when the star lands
 const BUMP_SECONDS = 0.4; // the book nods when an animal goes in it
 const FLYING_STAR_PX = 72; // the size of .flying-star in style.css
+const FLYING_FIND_PX = 96; // and of .flying-find
 const ARC_PX = 120; // the highest a flight bows above the straight line, at most
 const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px across) leaves the screen
 
 /**
  * The six friends of the Star Festival, one slot each, in the main hue of each: the Main column of STYLE.md section 3's species
- * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here.
+ * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here. The book's Stjörnur page
+ * shows them too.
  */
-const FRIENDS = [
+export const FRIENDS = [
   { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
   { key: 'thorsedla', name: 'Þórseðla', colour: '#e9b14d' },
   { key: 'gramedla', name: 'Grameðla', colour: '#b37955' },
@@ -32,13 +34,11 @@ const FRIENDS = [
   { key: 'flugedla', name: 'Flugeðla', colour: '#dc8090' },
 ];
 
-/** What the animals the child can find are called in the book; any other find is shown by its id. */
-const ANIMALS = { butterfly: 'Fiðrildi', birds: 'Fuglar', frog: 'Froskur', snail: 'Snigill', beetle: 'Bjalla' };
-
 const STAR_PATH = 'M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z';
-const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+export const STAR_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
 
-const friendOf = id => id.slice(id.indexOf('_') + 1);
+/** The friend a star id names: `k1_kambedla` is kambedla's. */
+export const friendOf = id => id.slice(id.indexOf('_') + 1);
 const slotOf = id => FRIENDS.findIndex(friend => friend.key === friendOf(id));
 const ease = t => t * t * (3 - 2 * t);
 
@@ -47,23 +47,22 @@ function needId(id, call) {
 }
 
 /**
- * The journal on a page that has index.html's journal elements, over a save. Returns
- *   addStar(id, from)  a star flies from `from` ({ x, y } in screen pixels) to its slot; returns a
- *                      Handle that is done when it has landed and been saved. A star already on its way
- *                      shares its flight; one the book already has flies again and is kept once.
- *                      A cancelled flight lands at once: the star was earned.
- *   addFinding(id)     an animal goes in the book; false when it was in it already
- *   update(dt)         moves what moves, with game time
- *   show(on = true)    brings the book out, or puts it away; it comes out by itself with the first find
- *   open(), close(), isOpen    the page, shown or hidden by code (a scene that ends in the book); this never
- *                      pauses the game
- *   stars, findings    the ids, in the order they came
- * A page the child opens with a tap on the book holds the game until the child shuts it (R24): the journal
- * calls `options.onPause(true)` when it opens and `onPause(false)` when it is shut, however it is shut, and
- * main.js holds the clock and the voice for it. A page that code opened never calls it, so a scene can fade
- * into the open book while its last line plays, and the child shutting that page resumes nothing.
+ * The journal on a page that has index.html's journal elements, over a save, with the book it opens (createBook) and the book's
+ * sound (createBookAudio) for a new animal. Returns
+ *   addStar(id, from)       a star flies from `from` ({ x, y } in screen pixels) to its slot; returns a Handle that is done when it
+ *                           has landed and been saved. A star already on its way shares its flight; one the book already has
+ *                           flies again and is kept once. A cancelled flight lands at once: the star was earned.
+ *   addFinding(id, from)    an animal goes in the book (saved at once); false when it was in it already. A new one's picture (the
+ *                           book's pictureOf) flies from `from` ({ x, y } in screen pixels; the middle of the screen without it)
+ *                           into the button, where the book nods, `newAnimal` sounds and a badge shows until the book is opened.
+ *   update(dt)              moves what moves, with game time
+ *   show(on = true)         brings the button out, or puts it away; it comes out by itself with the first star or find
+ *   open(tab), close(), isOpen  the book for a scene that ends in it: open() opens it on its stars (or on `tab`, such as 'games')
+ *                           as the script's, which holds nothing (book.js), so the scene goes on under it
+ *   stars, findings         the ids, in the order they came
+ * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it.
  */
-export function createJournal(doc, save, { onPause = null } = {}) {
+export function createJournal(doc, save, { book = null, audio = null } = {}) {
   const need = id => {
     const element = doc.getElementById(id);
     if (!element) throw new Error(`The journal needs #${id} on the page (see index.html)`);
@@ -71,18 +70,12 @@ export function createJournal(doc, save, { onPause = null } = {}) {
   };
   const button = need('journal-button');
   const slotsEl = need('star-slots');
-  const countEl = need('finding-count');
   const flightsEl = need('journal-flights');
-  const pageEl = need('journal-page');
-  const closeEl = need('journal-close');
-  const starsEl = need('journal-stars');
-  const findsEl = need('journal-finds');
-  const emptyEl = need('journal-empty');
+  const badgeEl = need('journal-badge');
+  const bookIcon = button.querySelector?.('.journal-icon') ?? null; // where a find lands: the little book on the button
 
-  const flights = new Map(); // star id -> the flight in the air
+  const flights = new Map(); // 'star:<id>' or 'find:<id>' -> the flight in the air
   const motions = []; // { el, age, seconds, amount }: a slot swelling, the book nodding
-  let isOpen = false;
-  let openedBy = null; // 'child' or 'script': whose page it is, while it is open
 
   const slots = FRIENDS.map(friend => {
     const slot = doc.createElement('span');
@@ -93,62 +86,20 @@ export function createJournal(doc, save, { onPause = null } = {}) {
   });
   slotsEl.replaceChildren(...slots);
 
-  const cards = FRIENDS.map(friend => {
-    const card = doc.createElement('li');
-    card.className = 'journal-star';
-    card.style.setProperty('--hue', friend.colour);
-    const icon = doc.createElement('span');
-    icon.className = 'journal-star-icon';
-    icon.innerHTML = STAR_SVG;
-    const name = doc.createElement('span');
-    name.className = 'journal-star-name';
-    name.textContent = friend.name;
-    card.append(icon, name);
-    return card;
-  });
-  starsEl.replaceChildren(...cards);
-
-  /** Lights what the save holds and lists the finds. */
+  /** Lights the slots of the stars the save holds. */
   function render() {
-    const { stars, findings } = save.get();
-    const got = new Set(stars.map(friendOf));
-    FRIENDS.forEach((friend, i) => {
-      slots[i].classList.toggle('earned', got.has(friend.key));
-      cards[i].classList.toggle('earned', got.has(friend.key));
-    });
-    countEl.textContent = String(findings.length);
-    countEl.hidden = findings.length === 0;
-    emptyEl.hidden = findings.length > 0;
-    findsEl.replaceChildren(...findings.map(id => {
-      const chip = doc.createElement('li');
-      chip.className = 'journal-find';
-      chip.textContent = ANIMALS[id] ?? id;
-      return chip;
-    }));
+    const got = new Set(save.get().stars.map(friendOf));
+    FRIENDS.forEach((friend, i) => slots[i].classList.toggle('earned', got.has(friend.key)));
   }
 
   function show(on = true) {
     button.hidden = !on;
   }
 
-  /** The game holds still for a page the child opened. A callback that fails must not leave the page half open. */
-  function pause(paused) {
-    try {
-      onPause?.(paused);
-    } catch (error) {
-      console.error('[journal]', error);
-    }
-  }
-
-  function setOpen(value, by = 'script') {
-    const open = Boolean(value);
-    if (open === isOpen) return; // a page that is open stays whoever opened it
-    const holder = open ? by : openedBy;
-    isOpen = open;
-    openedBy = open ? by : null;
-    pageEl.hidden = !open;
-    if (open) render();
-    if (holder === 'child') pause(open);
+  /** Opening the book takes the badge off: the child has seen what is new in it. */
+  function openBook(tab, by) {
+    badgeEl.hidden = true;
+    book?.open(tab, by);
   }
 
   /** Swell an element and let it settle, over `seconds` of game time. */
@@ -156,31 +107,56 @@ export function createJournal(doc, save, { onPause = null } = {}) {
     motions.push({ el, age: 0, seconds, amount });
   }
 
-  /** Where a star ends up: the middle of its slot, or of the book when it has none, and how big to be there. */
-  function arrival(id) {
-    const rect = (slots[slotOf(id)] ?? button).getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, scale: rect.width ? rect.width / FLYING_STAR_PX : 0.4 };
+  /** The middle of a rectangle, and how much bigger or smaller than `size` it is. */
+  function centreOf(rect, size) {
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, scale: rect.width ? rect.width / size : 0.4 };
+  }
+
+  /** Where a flight ends up: a star in the middle of its slot (or of the button when it has none), an animal on the button's book. */
+  function arrival(flight) {
+    if (flight.kind === 'star') return centreOf((slots[slotOf(flight.id)] ?? button).getBoundingClientRect(), FLYING_STAR_PX);
+    return centreOf((bookIcon ?? button).getBoundingClientRect(), FLYING_FIND_PX);
   }
 
   function place(flight) {
     const e = ease(Math.min(1, flight.age / FLIGHT_SECONDS));
-    const to = arrival(flight.id);
+    const to = arrival(flight);
     const arc = Math.min(ARC_PX, 0.25 * Math.hypot(to.x - flight.from.x, to.y - flight.from.y));
     const x = flight.from.x + (to.x - flight.from.x) * e;
     const line = flight.from.y + (to.y - flight.from.y) * e;
     const y = Math.max(Math.min(line, TOP_MARGIN_PX), line - arc * Math.sin(Math.PI * e)); // the bow stays on the screen
-    const scale = 1.1 + (to.scale - 1.1) * e;
-    flight.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) rotate(${(e * 360).toFixed(0)}deg) scale(${scale.toFixed(3)})`;
+    const turn = flight.kind === 'star' ? e * 360 : 12 * Math.sin(e * 2 * Math.PI); // a star spins, a picture rocks
+    const scale = flight.start + (to.scale - flight.start) * e;
+    flight.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) rotate(${turn.toFixed(0)}deg) scale(${scale.toFixed(3)})`;
+  }
+
+  /** A new animal is in the book: it nods, the book's bell sounds, and the button wears a badge until the book is opened. */
+  function welcome() {
+    swell(button, BUMP_SECONDS, 0.15);
+    audio?.sfx?.('newAnimal');
+    badgeEl.hidden = false;
+    book?.refresh?.();
   }
 
   function land(flight) {
-    if (flights.get(flight.id) !== flight) return; // it has landed
-    flights.delete(flight.id);
+    if (flights.get(flight.key) !== flight) return; // it has landed
+    flights.delete(flight.key);
     flight.el.remove();
+    if (flight.kind === 'find') {
+      welcome();
+      return;
+    }
     save.addStar(flight.id);
     render();
     if (slotOf(flight.id) >= 0) swell(slots[slotOf(flight.id)], POP_SECONDS, 0.7);
+    book?.refresh?.();
     flight.handle.finish();
+  }
+
+  function fly(flight) {
+    flights.set(flight.key, flight);
+    flightsEl.append(flight.el);
+    place(flight);
   }
 
   function addStar(id, from) {
@@ -188,28 +164,39 @@ export function createJournal(doc, save, { onPause = null } = {}) {
     if (!Number.isFinite(from?.x) || !Number.isFinite(from?.y)) {
       throw new TypeError('journal.addStar needs where the star starts: { x, y } in screen pixels');
     }
-    const flying = flights.get(id);
+    const flying = flights.get(`star:${id}`);
     if (flying) return flying.handle;
     show();
-    const flight = { id, age: 0, from: { x: from.x, y: from.y }, el: doc.createElement('div'), handle: null };
+    const flight = { key: `star:${id}`, kind: 'star', id, age: 0, start: 1.1, from: { x: from.x, y: from.y }, el: doc.createElement('div'), handle: null };
     flight.el.className = 'flying-star';
     flight.el.innerHTML = STAR_SVG;
     flight.handle = new Handle('star', () => land(flight));
-    flights.set(id, flight);
-    flightsEl.append(flight.el);
-    place(flight);
+    fly(flight);
     return flight.handle;
   }
 
-  function addFinding(id) {
+  function addFinding(id, from = null) {
     needId(id, 'journal.addFinding');
     const isNew = save.addFinding(id);
-    if (isNew) {
-      render();
-      show();
-      swell(button, BUMP_SECONDS, 0.15);
+    if (!isNew) return false;
+    show();
+    const picture = book?.pictureOf?.(id) ?? null;
+    if (!picture) {
+      welcome(); // nothing to fly (the book's cards could not be read): it is in the book at once
+      return true;
     }
-    return isNew;
+    const screen = flightsEl.getBoundingClientRect(); // the layer the flights cross is the screen
+    const start = Number.isFinite(from?.x) && Number.isFinite(from?.y)
+      ? { x: from.x, y: from.y }
+      : { x: screen.left + screen.width / 2, y: screen.top + screen.height / 2 };
+    const flight = { key: `find:${id}`, kind: 'find', id, age: 0, start: 1, from: start, el: doc.createElement('div') };
+    flight.el.className = 'flying-find';
+    const image = doc.createElement('img');
+    image.src = picture;
+    image.alt = '';
+    flight.el.append(image);
+    fly(flight);
+    return true;
   }
 
   function update(dt) {
@@ -227,14 +214,10 @@ export function createJournal(doc, save, { onPause = null } = {}) {
     }
   }
 
-  button.addEventListener('click', () => setOpen(true, 'child'));
-  closeEl.addEventListener('click', () => setOpen(false));
-  pageEl.addEventListener('click', event => {
-    if (event.target === pageEl) setOpen(false); // the dimmed edge around the card
-  });
+  button.addEventListener('click', () => openBook('animals', 'child'));
 
   render();
-  pageEl.hidden = true;
+  badgeEl.hidden = true;
   const held = save.get();
   show(held.stars.length > 0 || held.findings.length > 0);
 
@@ -243,9 +226,9 @@ export function createJournal(doc, save, { onPause = null } = {}) {
     addFinding,
     update,
     show,
-    open: () => setOpen(true),
-    close: () => setOpen(false),
-    get isOpen() { return isOpen; },
+    open: (tab = 'stars') => openBook(tab, 'script'),
+    close: () => book?.close(),
+    get isOpen() { return book?.isOpen ?? false; },
     get stars() { return save.get().stars; },
     get findings() { return save.get().findings; },
   };

@@ -5,13 +5,19 @@
 // A sound plays only when the browser has let sound begin (the first touch), nothing holds the game (the book is open, the tab is
 // hidden) and the effects are not muted (a capture's silent replay). The scene asks for one by name: s.sfx(name).
 // The forest is a loop, laid once; the birds and rustles that come and go over it are scheduled by update(dt) on the game clock.
+// A second instance can carry more sounds, made with the same tools in the same key: the book's (engine/book/book-sounds.js), whose
+// instance is outside the game's hold, so it sounds while the game stands still behind the child's book.
 
 const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot pile up more than this
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
 
-export function createSfx({ context = null, theme = null, output, random = Math.random } = {}) {
+/**
+ * `sounds({ tone, noise, bell, key })`, when given, returns more sounds by name, which play as the game's own do, each at least
+ * `gaps[name]` audio seconds after the last of its name.
+ */
+export function createSfx({ context = null, theme = null, output, random = Math.random, sounds = null, gaps = {} } = {}) {
   let muted = false;
   let paused = false;
 
@@ -264,6 +270,12 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     },
   };
 
+  for (const [name, sound] of Object.entries(sounds?.({ tone, noise, bell, key }) ?? {})) {
+    if (Object.hasOwn(SOUNDS, name)) throw new TypeError(`createSfx: "${name}" is one of the game's own sounds`);
+    SOUNDS[name] = sound;
+  }
+  const least = { ...GAPS, ...gaps };
+
   const lastPlayed = new Map();
   const allowed = () => !muted && !paused && context.state === 'running';
   const applyLevel = () => master.gain.setTargetAtTime(muted || paused ? 0 : 1, context.currentTime, 0.015);
@@ -282,7 +294,7 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       }
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
       const now = context.currentTime;
-      if (now - (lastPlayed.get(name) ?? -Infinity) < (GAPS[name] ?? 0)) return false;
+      if (now - (lastPlayed.get(name) ?? -Infinity) < (least[name] ?? 0)) return false;
       lastPlayed.set(name, now);
       SOUNDS[name]();
       return true;
