@@ -51,6 +51,13 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 - `engine/audio/`: the theme, streamed from `assets/audio/theme.mp3` and lowered under the voice
   (`music.js`); the sound effects, made in Web Audio as in the old game (`sfx.js`); what holds the
   sound while the book is open or the tab hidden (`hold.js`); the one audio context (`output.js`).
+- `engine/book/`: the book, Egill's journal opened over the paused game; its look is `book.css`. `book.js` is the shell
+  (the spread, the ribbons that turn its pages, the close, the Stjörnur page); `animals-page.js` the animals page, a taped
+  photo of each animal that is found, new or an unfound silhouette; `card-viewer.js` a card that grows out of its tile, a
+  picture and a sentence at a time, read aloud; `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
+  the squash, sparkle and sound of every touch, counting a tap as the game does; `book-audio.js` the book's own narrator and
+  effects, and `book-sounds.js` the effects, made with the game's tools in the theme's key; `cards.js` and `media.js` read
+  and check its data (`parseCards`, `parseManifest`, `checkMedia`). Under reduced motion it moves as fades.
 - `world/forest/`: the forest system (`createForest(world, layout)`), with the clearing's pale
   butterflies as tap targets (`butterflies.js`).
 - `world/props/`: the glow flowers (`glow-flower.js`), sparkle bursts and trails (`sparkles.js`),
@@ -65,6 +72,17 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   typeface in `assets/fonts/`: Nunito (`nunito-latin.woff2`, the Latin subset of Google Fonts' variable font, with
   every Icelandic letter; both pages preload it) and its licence `OFL.txt` (SIL Open Font License 1.1), which must
   stay beside it wherever the font goes.
+- `assets/book/`: the book's data. `cards.json` has the seven cards, page by page (each page's picture, text, narrator's
+  line and the sources of its facts); `media-manifest.json` lists every picture with its licence, credit and source
+  (`tests/media.test.mjs` runs `checkMedia`: an outside picture needs its credit, open licence, source and sha256, and every
+  picture is at most 1024 px and JPEG or WebP); `images/` holds the pictures, each with a 320 px thumbnail, the game's own
+  renders of Mosi and Kambeðla among them (`tools/bake/book-render.html`); `lab/` holds the lab's placeholder drawings.
+- `assets/audio/book/`: the narrator's lines for the cards (`book_<card>_<page>.mp3` and `book_find_me.mp3`) and their texts in
+  `lines-source.json`. `node remake/tools/voice-lines.mjs --set book` voices them with ElevenLabs, as it voices a chapter's
+  lines, and their lengths and mouth tracks go into `assets/audio/lines.json` with the chapter's.
+- `book-lab.html`: the book's lab page, never linked from the game: the real book over a stand-in for the forest, on the real
+  cards, with a save in memory. `?state=animals|stars|card|zoom|info`, `?card=<id>&page=<n>` and `?found=all` open it where you
+  want it, for `tools/capture.mjs`.
 - `prompts/`: image prompts for new Tripo characters, following `design/mosi`.
 - `tools/`: `serve.mjs`, `capture.mjs` (headless screenshots and GPU benchmark), `sound-check.mjs` (the sound in a
   real browser, 61 checks, on this computer or on the tablet over USB debugging), `audio-lines.mjs`,
@@ -78,7 +96,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
   long-necked ones such as Þórseðla, `kind=pterosaur` for winged ones such as Flugeðla and
   `kind=hadrosaur` for crested ones such as Slóeðla), the
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
-  `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), and
+  `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), `bake/book-render.html` that renders the
+  book's pictures of Mosi and Kambeðla from their models (its header has the commands), and
   `prep-character.mjs` for static models (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 

@@ -228,8 +228,19 @@ face), misty far forest, forest wall.
     glass stops neither another finger's tap nor its look: the first finger to move 12 px drags, one drag at a time.
   - Tap targets: a target in the world is a sphere round a point, sized in metres (Mosi's nose 0.45, Egill 0.7, a
     glow flower 0.55, the star 0.85) and never less than 44 px across on the screen; tray items are 64 to 88 px,
-    the book's button and its close 64 px, and the choice buttons 64 px high, side by side with each label on one line
+    the journal's button 64 px, and the choice buttons 64 px high, side by side with each label on one line
     (they fit a tablet held upright). Captions are 24 px or more and stand over the fade and the open book.
+- **The book** (the education book: `engine/book/` and `book.css`, 2026-10-18) keeps the journal's look and these rules:
+  - Every control is at least 80 px across, and the book makes them 88 px (`--book-target`): the arrows, the close buttons,
+    the speaker, the ribbons, the tiles and the ⓘ (a small dot in a full-size hit area), whatever they look like.
+  - The type is Nunito (`--book-font`), as everywhere, with few words and big: a card's sentence and a tile's name.
+  - The book's sounds are made on the spot with the game's own tools, and every note is a note of the theme's key
+    (`theme.json`) or an octave of one, so they sit in the music (`engine/book/book-sounds.js`). They dip under the narrator
+    as the music does under a line.
+  - Motion is transform and opacity only. When the tablet asks for less motion (`prefers-reduced-motion`) the book holds
+    still and moves as fades: it opens, closes, turns a page and zooms a picture as a fade, a press is a short fade and the
+    sparkles fade where they are; no tile breathes or rocks, and only the twinkle goes on, fading in and out where it is.
+    The sounds are the same.
 
 ## 11. Performance budget (tablet preset)
 
