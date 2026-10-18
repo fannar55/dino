@@ -14,7 +14,8 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 // open a card (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). The Leikir leaf (part 3) has the "Eitt!" tile,
 // Kambeðla's card game, which opens once her star (k1_kambedla) is in the book and is new until it is first played, and on the
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
-// hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js).
+// hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
+// opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }).
 //
 // Who holds it. A book the child opens (the journal's button) holds the game: onPause(true) as it opens and onPause(false) when it
 // is shut, however it is shut. A book a script opens (the chapter's last scene) holds nothing, so the scene's last line plays on,
@@ -42,7 +43,7 @@ const PERSPECTIVE = 'perspective(2400px)';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt')` opens a game from the Leikir page; `win` is the window (less
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `win` is the window (less
  * motion, the screen's shape). Returns
  *   open(tab, by)      opens it on 'stars', 'animals' or 'games', as the child's (by 'child', which holds the game) or a script's (by
  *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
@@ -129,10 +130,13 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   eittBadge.textContent = 'Nýtt!';
   eittBadge.setAttribute('aria-hidden', 'true');
   eittTile.append(eittPicture, eittName);
+  const teachButton = make('button', 'game-teach'); // the tutorial again: "Kennsla"
+  teachButton.setAttribute('type', 'button');
+  teachButton.innerHTML = '<svg class="book-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="icon-fill" d="M2.5 9.5L12 5l9.5 4.5L12 14z"/><path d="M6.5 11.6v4.2c3.3 2.6 7.7 2.6 11 0v-4.2M20 10.5v5" stroke-width="2"/></svg><span>Kennsla</span>';
   const sheet = make('div', 'sticker-sheet');
   sheet.setAttribute('role', 'img');
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
-  gamesLeft.append(eittTile);
+  gamesLeft.append(eittTile, teachButton);
   gamesRight.append(sheet);
 
   const spine = make('div', 'book-spine');
@@ -176,6 +180,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     eittTile.classList.toggle('new', fresh);
     eittTile.classList.toggle('unfound', !open);
     eittTile.setAttribute('aria-label', open ? 'Eitt!, spil við Kambeðlu' : 'Eitt! (opnast með stjörnu Kambeðlu)');
+    teachButton.hidden = !open;
     if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
     if (!fresh) eittBadge.remove();
     const wins = save.getEitt?.().wins ?? 0;
@@ -422,6 +427,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   }
   for (const tile of stars) pressable(tile, { audio, win });
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
+  pressable(teachButton, { audio, sound: 'tile', win, onTap: () => { if (save.get().stars.includes(EITT_STAR)) onPlay?.('eitt', { tutorial: true }); } });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's

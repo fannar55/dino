@@ -31,6 +31,10 @@
      .eitt-flyer                 a card in the air between the deck, the hands and the pile (table.js moves it): --fly-w is its width
                                  where it lands, its .eitt-flyer-turn turns it over, and a back under a face is .under
      .eitt-wave                  a wave of the colour in play going out from the pile (with a colour class)
+     .eitt-teach                 "Kennsla", the tutorial again, on the table's top left corner; .eitt-skip ("Sleppa") ends it there
+     .teaching                   on .eitt while Mosi teaches: everything is dimmed but what he means (.live)
+     .eitt-caption               Egill's "Eitt!", a caption over the button (.eitt-caption-speaker and a p); Mosi's longer
+                                 sentences make his bubble's p .long
 
    The rules it keeps, as the book does (STYLE.md section 10, book.css):
    - the journal's palette for the paper, the ink and the buttons, and four bright card colours chosen to sit beside it (below);
@@ -494,7 +498,7 @@
   background: linear-gradient(transparent 0, rgb(24 17 11 / .25) 30%, rgb(24 17 11 / .55));
 }
 .eitt:has(.eitt-win:not([hidden])) :is(.eitt-kambedla, .eitt-kambedla-frame) { z-index: 11; } /* she stays in sight, cheering */
-.eitt:has(.eitt-win:not([hidden])) .eitt-quit { visibility: hidden; } /* the card has its own close */
+.eitt:has(.eitt-win:not([hidden])) :is(.eitt-quit, .eitt-teach, .eitt-skip) { visibility: hidden; } /* the card has its own close */
 .eitt-win-card {
   position: relative; display: grid; justify-items: center; gap: clamp(10px, 2cqh, 22px);
   width: min(560px, 88cqw); padding: clamp(28px, 4.4cqh, 48px) 36px clamp(30px, 4.4cqh, 44px);
@@ -582,6 +586,58 @@
   margin: calc(var(--pile-w) * -.86) 0 0 calc(var(--pile-w) * -.86);
   border-radius: 50%; border: calc(var(--pile-w) * .06) solid var(--c);
   box-shadow: 0 0 26px 8px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+/* ---- The tutorial, Mosi's reasons and Egill's "Eitt!" (task 3b) ------------------------------------------------------- */
+
+/* "Kennsla": the tutorial again, on the table's top left corner, a raised teal pill like "Áfram" in a full-size hit area */
+.eitt-teach, .eitt-skip {
+  position: absolute; z-index: 8; top: max(18px, env(safe-area-inset-top)); left: max(18px, env(safe-area-inset-left));
+  min-width: var(--eitt-target); min-height: var(--eitt-target);
+  display: inline-flex; align-items: center; gap: .3em; padding: 0 1em 0 .75em;
+  font-size: 28px; font-weight: 900; color: var(--card);
+}
+.eitt-teach::before, .eitt-skip::before {
+  content: ""; position: absolute; z-index: -1; inset: 14px 0; border-radius: 999px;
+  background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--teal);
+  border: 3px solid var(--ink);
+  box-shadow: 0 6px 0 var(--teal-deep), 0 6px 0 3px var(--ink), 0 12px 14px 2px rgb(40 24 10 / .3);
+}
+.eitt-teach span, .eitt-skip span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.eitt-teach svg { width: 1.25em; height: 1.25em; overflow: visible; }
+/* "Sleppa": small, cream, in the same corner while Mosi teaches */
+.eitt-skip { font-size: 24px; color: var(--ink); padding: 0 .9em; }
+.eitt-skip::before { inset: 20px 0; background: var(--card); box-shadow: 0 5px 0 #e3d4b5, 0 5px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25); }
+.eitt-skip span { -webkit-text-stroke: 0; }
+
+/* While Mosi teaches, only what he means is live: the rest waits, dimmed, and takes no taps */
+.eitt.teaching :is(.eitt-hand .eitt-card, .eitt-deck, .eitt-eitt, .eitt-pass):not(.live) { opacity: .38; pointer-events: none; }
+.eitt.teaching .eitt-colours button.live { /* all four, after the wild */
+  box-shadow: 0 7px 0 var(--side), 0 7px 0 3px var(--ink), 0 0 0 8px var(--gold), 0 0 30px 10px rgb(255 214 110 / .8);
+}
+.eitt.teaching .eitt-eitt.live { animation: eitt-pulse .8s ease-in-out infinite; }
+
+/* Mosi's longer sentences (his reasons, the tutorial's steps): a wider bubble in smaller letters */
+.eitt-advice p.long { left: 34%; max-width: 12.5em; font-size: clamp(22px, 2.3cqmin, 28px); } /* starting further left, clear of the deck */
+
+/* Egill's "Eitt!", a caption over the button, as the chapter shows a line: his name in his colour, the word big */
+.eitt-caption {
+  grid-area: eitt; position: absolute; z-index: 7; left: 50%; translate: -50% 0;
+  bottom: calc(clamp(116px, 12cqmin, 150px) + 4cqh + 22px);
+  padding: .3em .8em .42em; border-radius: 22px; text-align: center; white-space: nowrap;
+  background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 7px 0 -2px #e3d4b5, 0 7px 0 1px var(--ink), 0 12px 16px rgb(40 24 10 / .3);
+  pointer-events: none;
+  animation: advice-pop .4s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+.eitt-caption::after { /* its tail, down to the button */
+  content: ""; position: absolute; left: 50%; bottom: -16px; width: 22px; height: 22px; margin-left: -11px;
+  background: var(--card); border: 3px solid var(--ink); border-top: 0; border-left: 0; transform: rotate(45deg);
+}
+.eitt-caption-speaker { display: block; font-size: 20px; font-weight: 900; line-height: 1.1; color: #355774; } /* Egill's (STYLE.md section 3) */
+.eitt-caption p {
+  margin: 0; font-size: clamp(32px, 3.4cqmin, 42px); font-weight: 900; line-height: 1;
+  color: var(--orange); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
 }
 
 /* ---- The lab's gallery of every kind of card (eitt-lab.html?state=cards) ------------------------------------------ */

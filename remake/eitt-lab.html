@@ -12,7 +12,8 @@
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- "Eitt!" on a page of its own, never linked from the game. With no ?state= (or state=live) a real round is played with Kambeðla
      (engine/eitt/table.js), on a save of its own (mosi-eitt-lab, so the game's progress is untouched); &skill=0 to 1 sets her skill
-     first, and a round that is shut deals the next. It links book.css for the touch the book and the game share (fx.js: the squash
+     first, &tutorial=1 runs Mosi's tutorial (it runs by itself the first time) and &tutorial=0 goes straight to a round, and a round
+     that is shut deals the next. It links book.css for the touch the book and the game share (fx.js: the squash
      and the sparks), as the game's page does. The other states are the look the owner approved (Task 1), as still markup in eitt.css's
      classes:
        live (the default)    a real round
@@ -181,14 +182,15 @@
     const context = createAudioContext();
     const output = context && createOutput(context);
     const save = createSave(undefined, 'mosi-eitt-lab');
-    if (params.has('skill')) save.setEitt({ ...save.getEitt(), skill: Number(params.get('skill')) });
+    if (params.has('skill')) save.setEitt({ skill: Number(params.get('skill')) });
+    if (params.get('tutorial') === '0') save.setEitt({ tutorialDone: true });
     const game = createEittGame(document, {
       save, audio: { context, output, theme, lines: lines ?? {} },
       onClose: () => setTimeout(() => game.open(), 600), // the lab has no book to go back to: the next round is dealt
     });
     addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
     Object.assign(window, { __eitt: game, __save: save });
-    game.open();
+    game.open({ tutorial: params.get('tutorial') === '1' });
   }
 
   if (state === 'kambedla') {

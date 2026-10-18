@@ -1,7 +1,8 @@
 // Kambeðla's choices at the table. She has no view of the child's cards, only of how many there are.
 //
-// At skill 1 she plays sharp: she keeps her wilds for last, plays a +2 or a +4 as soon as the other player is
-// down to 2 cards or fewer, and picks the colour she holds most of. At skill 0 she is mild: any card that may be
+// At skill 1 she plays sharp: she keeps her wilds for last and her +2s for the attack, plays a +2 or a +4 as soon as the
+// other player is down to 2 cards or fewer (spec section 6: "spilar +2 og +4 þegar barnið nálgast Eitt!"), and picks the
+// colour she holds most of. Mosi's advice is the same sharp choice, made with the child's cards (advice.js). At skill 0 she is mild: any card that may be
 // played, and a colour at random. In between, each choice is a sharp one with a chance equal to her skill, and she
 // forgets to call "Eitt!", or to notice that the child forgot it, more and more as her skill falls.
 //
@@ -11,7 +12,7 @@
 import { COLOURS, isWild, other, playable } from './rules.js';
 import { clampSkill } from './skill.js';
 
-const ATTACK_AT = 2; // a +2 or +4 is played when the other player is down to this many cards, or fewer
+export const ATTACK_AT = 2; // a +2 or +4 is played when the other player is down to this many cards, or fewer
 const REMEMBER_EITT_AT_ZERO = 0.2; // the chance that she calls "Eitt!" at skill 0 (at skill 1 it is 1)
 const NOTICE_AT_ZERO = 0.3; // the chance that she catches a forgotten "Eitt!" at skill 0
 
@@ -25,7 +26,8 @@ export function bestColour(cards, random = () => 0) {
 }
 
 // How much a sharp player wants to play `card` now (higher is better): attacks when the other is nearly out, then
-// the cards that give another turn, then numbers, with the colour held most winning among equals, then the wilds.
+// the skips and reverses that give another turn, then numbers, with the colour held most winning among equals, then a
+// +2 kept for the attack, then the wilds.
 function worth(card, hand, otherCards) {
   const attack = otherCards <= ATTACK_AT;
   if (attack && card.kind === 'draw2') return 400;
@@ -33,7 +35,8 @@ function worth(card, hand, otherCards) {
   if (card.kind === 'wild') return 0; // wilds are kept for last, the +4 longest of all
   if (card.kind === 'wild4') return -10;
   const held = hand.filter(mine => mine.colour === card.colour).length;
-  return (card.kind === 'number' ? 100 : 200) + held; // skip, reverse and +2 give another turn
+  if (card.kind === 'draw2') return 50 + held; // kept until the other is nearly out, unless nothing else but a wild goes
+  return (card.kind === 'number' ? 100 : 200) + held; // skip and reverse give another turn
 }
 
 function sharpCard(game, who, options, random) {

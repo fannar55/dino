@@ -178,7 +178,7 @@ const pointer = createPointer({ canvas, camera, world });
 const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
-  onPlay: () => eitt.open(), // the Leikir page's "Eitt!" tile
+  onPlay: (game, options) => eitt.open(options), // the Leikir page's "Eitt!" tile, or its Kennsla (the tutorial)
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {

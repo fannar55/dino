@@ -332,7 +332,19 @@
 /* The Leikir page (part 3): the "Eitt!" tile alone and big on the left page (a tile's three states, as an animal's), and on the right
    the stickers won from Kambeðla, one for each round won, as the game hands them out (eitt.css .eitt-sticker). */
 .ribbon[data-tab="games"] { --ribbon: var(--book-green); color: var(--book-card); }
-.game-tile { --tile-w: min((100cqw - 2 * var(--pad-x)) * .78, (100cqh - var(--pad-top) - var(--pad-bottom)) * .84); }
+.game-tile { --tile-w: min((100cqw - 2 * var(--pad-x)) * .74, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--book-target) - 30px) * .96); }
+.game-teach { /* "Kennsla": the tutorial again, a raised teal pill under the tile */
+  min-width: var(--book-target); min-height: var(--book-target);
+  display: inline-flex; align-items: center; gap: .3em; padding: .1em 1em .1em .75em;
+  border: 3px solid var(--book-ink); border-radius: 999px;
+  font-size: clamp(26px, 3cqmin, 34px); font-weight: 900; color: var(--book-card);
+  background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--book-teal);
+  box-shadow: 0 6px 0 var(--book-teal-deep), 0 6px 0 3px var(--book-ink), 0 12px 14px 2px rgb(40 24 10 / .3);
+}
+.game-teach span { -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill; }
+.game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
+.game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
+.game-tile { margin-bottom: 4px; }
 .sticker-sheet {
   --sticker: min((100cqw - 2 * var(--pad-x)) / 5.8, (100cqh - var(--pad-top) - var(--pad-bottom)) / 4.8, 110px);
   display: flex; flex-wrap: wrap; justify-content: center; align-content: center; align-items: center;

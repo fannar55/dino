@@ -158,7 +158,7 @@ test('every line of lines-source.json is recorded, and lines.json has an entry f
     assert.deepEqual(Object.keys(recorded[id]), ['src', 'duration', 'mouth']);
   }
   for (const [id, entry] of Object.entries(recorded)) {
-    if (!id.startsWith('k1_')) continue;
+    if (!entry.src.startsWith('assets/audio/kafli1/')) continue; // the chapter's (k1_kambedla_play is the card game's, in eitt/)
     assert.ok(made.includes(id), `lines.json has ${id} but kafli1/${id}.mp3 is gone`);
     assert.ok(Math.abs(entry.mouth.length - entry.duration * MOUTH_RATE) <= 1.5, `${id}: a mouth track as long as the line`);
   }

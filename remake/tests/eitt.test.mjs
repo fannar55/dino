@@ -4,7 +4,7 @@ import { seededRandom } from '../engine/random.js';
 import { COLOURS, isWild, makeDeck, newGame, canPlay, playable, play, draw, pass, callEitt, catchEitt } from '../engine/eitt/rules.js';
 import { chooseMove, willCallEitt, willCatch } from '../engine/eitt/kambedla.js';
 import { SKILL_START, afterRound, inRound } from '../engine/eitt/skill.js';
-import { advise } from '../engine/eitt/advice.js';
+import { advise, REASONS } from '../engine/eitt/advice.js';
 
 const cards = makeDeck();
 const card = id => cards.find(c => c.id === id);
@@ -236,6 +236,42 @@ test('Kambeðla and Mosi only ever choose legal moves', () => {
     assert.equal(game.hands[game.winner].length, 0);
   }
   assert.ok(caught > 0 && reshuffled > 0, `the rounds should have seen catches (${caught}) and reshuffles (${reshuffled})`);
+});
+
+test('Mosi says why: every piece of his advice is legal and carries one of his reasons, which fits the move', () => {
+  assert.deepEqual([...REASONS].sort(), ['attack', 'change-colour', 'colour', 'draw', 'eitt', 'keep-attack', 'keep-wild', 'most-colour', 'number', 'only-wild', 'play-drawn', 'skip']);
+  const given = new Set();
+  for (let seed = 0; seed < 150; seed++) {
+    const random = seededRandom(`mosi-${seed}`);
+    const skill = random();
+    let game = newGame(random);
+    for (let steps = 0; !game.winner; steps++) {
+      assert.ok(steps < 2000, `round ${seed} never ended`);
+      const advice = checkedAdvice(game); // legal, as in the test above
+      if (advice) {
+        assert.ok(REASONS.includes(advice.reason), `"${advice.reason}" is not one of Mosi's reasons`);
+        given.add(advice.reason);
+        const card = game.hands.child.find(held => held.id === advice.cardId);
+        const fits = { draw: advice.type === 'draw', eitt: advice.type === 'eitt', 'play-drawn': game.drew,
+          colour: card?.colour === game.colour, number: card && !isWild(card) && card.colour !== game.colour,
+          skip: card?.kind === 'skip' || card?.kind === 'reverse', 'only-wild': playable(game, 'child').every(isWild),
+          attack: game.hands.kambedla.length <= 2 && (card?.kind === 'draw2' || card?.kind === 'wild4'),
+          'keep-wild': game.hands.child.some(held => held !== card && isWild(held)),
+          'keep-attack': game.hands.child.some(held => held !== card && held.kind === 'draw2'), 'change-colour': card?.colour !== game.colour };
+        assert.ok(fits[advice.reason], `"${advice.reason}" does not fit ${JSON.stringify(advice)} on ${game.pile.at(-1).id} (${game.colour})`);
+      }
+      // The child does as Mosi says (and calls "Eitt!" when he says so); Kambeðla plays at some skill.
+      if (game.unsaid === 'child' && game.turn === 'kambedla') game = callEitt(game, 'child');
+      if (game.turn === 'child') {
+        game = advice.type === 'eitt' ? callEitt(game, 'child') : apply(game, 'child', advice);
+        if (game.unsaid === 'child' && random() < 0.6) game = callEitt(game, 'child');
+      } else {
+        game = apply(game, 'kambedla', chooseMove(game, skill, random));
+        if (game.unsaid === 'kambedla') game = callEitt(game, 'kambedla');
+      }
+    }
+  }
+  for (const reason of REASONS.filter(r => r !== 'most-colour')) assert.ok(given.has(reason), `Mosi never said "${reason}"`);
 });
 
 test('skill rises after wins, falls after losses, and eases when the child is far behind', () => {
