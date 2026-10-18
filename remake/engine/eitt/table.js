@@ -27,7 +27,8 @@ import { eittSounds, EITT_GAPS, createEittMusic } from './eitt-sounds.js';
 //     at a time (TUTORIAL): the goal, every card played once, why "Eitt!" matters (the child calls it, then catches Kambeðla), three
 //     checks where nothing is lit and the child finds the card that fits, and a recap. Only what he means is live, the rest is
 //     dimmed, nothing goes on until the child does the step, and each step is a sentence or two, shown and spoken. "Sleppa" ends it at
-//     any time. Either way a real round is dealt after it.
+//     any time. However it ends (the recap, "Sleppa", or somebody winning its game) it is no round: no sticker, and nothing for her
+//     skill. Mosi says the first real game comes now (eitt_tut_real), and then a real round is dealt.
 //   - Kambeðla's turn: she thinks (her head tilts, about 1.2 s; longer while the child owes an "Eitt!", to give the child the time),
 //     then plays or draws; her plates glow in the colour she picks, her tail swishes on a skip, and she moves again after a skip, a
 //     reverse, a +2 or a +4.
@@ -151,6 +152,8 @@ const HINTS = {
   try: { id: 'eitt_tut_hint_try', text: 'Sjáðu, þetta spil passar. Pikkaðu á það!' },
   right: { id: 'eitt_tut_right', text: 'Rétt! Vel gert.' },
 };
+/** Mosi's words as the tutorial ends, before the first real round is dealt. */
+const REAL = { id: 'eitt_tut_real', text: 'Nú kanntu reglurnar! Nú spilum við fyrsta alvöruleikinn.' };
 
 /** A part of the tutorial: the rules' data, as newGame makes it, from one of TUTORIAL_DEALS. */
 function tutorialGame(deal) {
@@ -420,6 +423,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   let tutorial = null;
   let quickHints = false; // this round helps sooner (QUICK_IDLE_MS): the first after the tutorial
   let quickNext = false; // and the next round dealt will
+  let ending = false; // the tutorial is over and Mosi is saying so: the table waits for the first real round
   let turns = 0; // counts the child's turns, so a "Þín umferð!" that waited knows whether it is still the same turn
   let lastNudge = -Infinity; // when Kambeðla last said "Þín umferð!" (performance.now() ms)
   let captionTimer = 0;
@@ -813,7 +817,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
 
   function askMosi() {
     wake();
-    if (!isOpen || !game || game.winner) return;
+    if (!isOpen || !game || game.winner || ending) return;
     if (tutorial) { // he says the step again
       const step = TUTORIAL[tutorial.step];
       if (step) showAdvice(step.id, step.text, { stay: true });
@@ -905,13 +909,33 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     return card && canPlay(card, game) ? { type: 'play', cardId: card.id } : chooseMove(game, 1, random);
   }
 
-  /** The tutorial is over (its recap said, or "Sleppa"): the save remembers it, and a real round is dealt, which helps sooner. */
-  function endTutorial() {
+  /**
+   * The tutorial is over (its recap said, "Sleppa", or its game won): the save remembers it, but it was no round, so there is no
+   * sticker and nothing for her skill. Mosi says the first real game comes now, with the table as it stands (nothing to do on it), and
+   * then that round is dealt, which helps sooner. "Sleppa" (`skipped`) cuts the line he was saying.
+   */
+  async function endTutorial({ skipped = false } = {}) {
     if (!tutorial) return;
+    const token = ++round; // whatever the tutorial had under way stops here
+    ending = true;
     save?.setEitt?.({ tutorialDone: true });
     tutorial = null;
     quickNext = true;
-    hideAdvice(true);
+    for (const id of timers) clearTimeout(id);
+    timers.clear();
+    hush();
+    if (skipped) voice.stop();
+    busy = true;
+    pendingWild = null;
+    mosiPick = null;
+    mosiColour = null;
+    animating = null;
+    hinting = false;
+    coloursEl.hidden = true;
+    skipEl.hidden = true;
+    const said = showAdvice(REAL.id, REAL.text, { stay: true });
+    await wait(Math.max(MIN_STEP_MS, said * 1000 + 900));
+    if (token !== round || !isOpen) return;
     run(deal());
   }
 
@@ -1135,7 +1159,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   /** The round button: the child's own "Eitt!", or catching Kambeðla when she forgot hers. */
   async function tapEitt() {
     wake();
-    if (!isOpen || !game || game.winner) return;
+    if (!isOpen || !game || game.winner || ending) return;
     if (tutorial && tutorial.live !== 'eitt') return;
     if (game.unsaid === 'child') {
       game = callEitt(game, 'child');
@@ -1312,10 +1336,12 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     for (const id of timers) clearTimeout(id);
     timers.clear();
     hush();
+    ending = false;
     if (!tutorial) { // the first real round after the tutorial helps sooner
       quickHints = quickNext;
       quickNext = false;
     }
+    root.classList.toggle('teaching', Boolean(tutorial)); // the real round's cards are not dimmed as they are dealt
     busy = true;
     flying = 0;
     pendingWild = null;
@@ -1371,6 +1397,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   }
 
   async function endRound() {
+    if (tutorial) return endTutorial(); // the tutorial's game won: no sticker, no win or loss for her skill, and the first real round comes
     const token = round;
     busy = true;
     settleChild();
@@ -1435,6 +1462,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   function close() {
     if (!isOpen) return;
     isOpen = false;
+    ending = false;
     round++; // the round under way is dropped, with no penalty
     for (const id of timers) clearTimeout(id);
     timers.clear();
@@ -1471,7 +1499,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   pressable(closeEl, { audio: tap, win, onTap: () => close() });
   pressable(quitEl, { audio: tap, win, onTap: () => close() });
   pressable(teachEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) startTutorial(); } });
-  pressable(skipEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && tutorial) endTutorial(); } });
+  pressable(skipEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && tutorial) run(endTutorial({ skipped: true })); } });
   root.addEventListener('pointerdown', () => wake(), true);
   root.addEventListener('contextmenu', event => event.preventDefault()); // a long press is a tap, never the browser's menu
   win?.addEventListener?.('resize', () => { if (isOpen && game && !flying) sync({ animate: false }); });
