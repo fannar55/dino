@@ -1,5 +1,6 @@
 import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
+import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
@@ -120,7 +121,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
 
   // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
-  const zoom = { open: () => false, close: () => false, isOpen: false }; // Task 9 builds the real one
+  const zoom = createZoom(doc, { audio, win, root });
   const cardViewer = createCardViewer(doc, root, { media, audio, zoom, win, onClose: () => animals.render() });
   const animals = createAnimalsPage(doc, leaves.get('animals').el, {
     cards, media, save, audio, win,
