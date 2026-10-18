@@ -195,9 +195,11 @@
   createJournal(document, save, { book, audio });
   Object.assign(window, { __book: book, __bookAudio: audio });
 
-  if (state === 'stars' || state === 'animals') book.open(state, 'child');
+  const real = state === 'stars' || state === 'animals';
+  if (real) book.open(state, 'child');
   else for (const layer of document.querySelectorAll('[data-states]')) layer.hidden = !layer.dataset.states.split(' ').includes(state);
-  document.getElementById('mockup').hidden = state === 'stars' || state === 'animals';
+  document.getElementById('mockup').hidden = real;
+  if (!real) document.getElementById('journal-button').hidden = true; // the mockup's states as the owner approved them
 
   /** The book's controls a finger can reach (shown, and on top where they are): the smallest one's size, and any off the screen. */
   function measure() {
