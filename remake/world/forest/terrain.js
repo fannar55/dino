@@ -59,6 +59,8 @@ export function createTerrain(world, layout, seed) {
     const pd = path.query(x, z).d;
     const flat = smoothstep(3.5, 0.5, pd);
     h -= flat * (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * cfg.bumps * 0.8;
+    // a layout may shape the ground further (the valley of Háls og hali: its slope, the nest's hill and the stream's bed)
+    if (layout.lift) h += layout.lift(x, z);
     return h;
   }
   const h0 = rawHeight(cx, cz);

@@ -47,13 +47,25 @@ export function depthShadowChunk(chunk = THREE.ShaderChunk.shadowmap_pars_fragme
 export function installDepthShadows(renderer, light) {
   const shadow = light?.shadow;
   if (!light?.castShadow || !shadow) return null;
-  const chunk = depthShadowChunk();
-  if (!chunk) {
-    console.warn('[shadows] three\'s shadowmap_pars_fragment changed; keeping three\'s RGBA shadow maps');
-    return null;
+  if (!THREE.ShaderChunk.shadowmap_pars_fragment.includes(PATCHED)) {
+    const chunk = depthShadowChunk();
+    if (!chunk) {
+      console.warn('[shadows] three\'s shadowmap_pars_fragment changed; keeping three\'s RGBA shadow maps');
+      return null;
+    }
+    THREE.ShaderChunk.shadowmap_pars_fragment = chunk;
   }
-  THREE.ShaderChunk.shadowmap_pars_fragment = chunk;
+  return attachDepthShadow(renderer, light);
+}
 
+// A second scene drawn by the same renderer (the valley of Háls og hali, opened over the chapter) brings its own sun. Its shaders
+// compile with the patched chunk too, so its sun needs a depth-texture map of its own: installDepthShadows again, which leaves the
+// chunk as it is and only attaches the map. The shadow pass skips clearing the colour of every such target.
+const PATCHED = 'uniform sampler2DShadow directionalShadowMap';
+const colourless = new WeakSet();
+const wrapped = new WeakSet();
+function attachDepthShadow(renderer, light) {
+  const shadow = light.shadow;
   const { x: width, y: height } = shadow.mapSize;
   const depth = new THREE.DepthTexture(width, height);
   depth.compareFunction = THREE.LessEqualCompare;
@@ -71,7 +83,11 @@ export function installDepthShadows(renderer, light) {
   shadow.map = target; // three only makes its own map while shadow.map is null
 
   // The shadow pass clears the colour target too; skip that one (it is never read).
-  const clear = renderer.clear.bind(renderer);
-  renderer.clear = (color = true, depthBit = true, stencil = true) => clear(color && renderer.getRenderTarget() !== target, depthBit, stencil);
+  colourless.add(target);
+  if (!wrapped.has(renderer)) {
+    wrapped.add(renderer);
+    const clear = renderer.clear.bind(renderer);
+    renderer.clear = (color = true, depthBit = true, stencil = true) => clear(color && !colourless.has(renderer.getRenderTarget()), depthBit, stencil);
+  }
   return { target, depth };
 }
