@@ -123,7 +123,8 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
 
   /** The ⓘ window for a picture that is not our own: who made it, its licence and where it is from. */
   function describe(image) {
-    const rows = [['Mynd', image.credit], ['Leyfi', image.license], ['Frá', siteOf(image.source)]].filter(([, value]) => value);
+    const licence = /^public domain$/i.test(image.license) ? 'Almenningseign' : image.license;
+    const rows = [['Mynd', image.credit], ['Leyfi', licence], ['Frá', siteOf(image.source)]].filter(([, value]) => value);
     credit.replaceChildren(...rows.map(([label, value]) => {
       const row = make('p', '');
       const name = make('span', 'credit-label');

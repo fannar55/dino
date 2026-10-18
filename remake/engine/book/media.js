@@ -1,18 +1,19 @@
 // The book's pictures (spec section 5.4), in assets/book/media-manifest.json, as the old game keeps its own
 // (dist/assets/encyclopedia/media-manifest.json):
 //
-//   { "images": [ { "id", "src", "thumb", "kind", "credit", "license", "licenseUrl", "source", "modifications", "sha256",
+//   { "images": [ { "id", "src", "thumb", "kind", "alt", "credit", "license", "licenseUrl", "source", "modifications", "sha256",
 //                   "width", "height" }, ... ] }
 //
 // `kind` is 'fossil', 'photo', 'illustration', 'render' or 'placeholder'. Our own pictures (the game's renders, the owner's
 // drawings and the placeholders) have license 'own', and their source names the render command or the owner. Every other
 // picture is external: it needs a credit, an open licence and that licence's URL, its source, and its file's sha256.
-// Paths are read from remake/, as the page reads them. A tile shows its card's first picture, so that one is a drawing.
+// `alt` says in a sentence what the picture shows. Paths are read from remake/, as the page reads them. A tile shows its card's
+// first picture, so that one is a drawing.
 
 export const KINDS = ['fossil', 'photo', 'illustration', 'render', 'placeholder'];
 const TILE_KINDS = ['illustration', 'render', 'placeholder']; // what page one, and so the tile, may show
 const MAX_SIDE = 1024; // px, the long side
-const FIELDS = ['id', 'src', 'thumb', 'kind', 'credit', 'license', 'licenseUrl', 'source', 'modifications', 'sha256', 'width', 'height'];
+const FIELDS = ['id', 'src', 'thumb', 'kind', 'alt', 'credit', 'license', 'licenseUrl', 'source', 'modifications', 'sha256', 'width', 'height'];
 const EXTERNAL = { credit: 'a credit', license: 'a licence', licenseUrl: 'a licence URL', source: 'a source', sha256: 'a sha256' };
 const FORMATS = { '.jpg': 'JPEG', '.jpeg': 'JPEG', '.webp': 'WebP', '.svg': 'SVG' };
 

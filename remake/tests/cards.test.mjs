@@ -48,3 +48,15 @@ test('new until seen', () => {
   assert.equal(isNew(mosi, save.get()), false);
   assert.equal(save.addSeen('mosi'), false, 'seen once');
 });
+
+test("the shipped cards are written and sourced, and the narrator has a line for each page with the page's own text", () => {
+  const lines = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/book/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
+  for (const card of parseCards(SHIPPED)) {
+    card.pages.forEach((page, i) => {
+      assert.ok(!page.sources.includes(PLACEHOLDER), `${card.id} page ${i + 1} is still a placeholder`);
+      assert.equal(page.audio, `book_${card.id}_${i + 1}`, `${card.id} page ${i + 1}: the line's id`);
+      assert.equal(lines.get(page.audio)?.text, page.text, `${page.audio}: the line says what the page says`);
+      assert.equal(lines.get(page.audio)?.speaker, 'narrator');
+    });
+  }
+});

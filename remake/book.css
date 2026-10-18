@@ -427,8 +427,8 @@
 
 .card-words { grid-area: words; display: flex; align-items: center; justify-content: center; gap: clamp(16px, 2.6cqw, 32px); padding: 0 2cqw; }
 .card-text {
-  margin: 0; max-width: 13.5em; text-align: center; text-wrap: balance; /* narrow, so the speaker sits by the words */
-  font-size: min(6cqh, 6.2cqw, 54px); line-height: 1.25;
+  margin: 0; max-width: 22em; text-align: center; text-wrap: balance; /* two or three even lines, with the speaker beside them */
+  font-size: min(5.6cqh, 6cqw, 50px); line-height: 1.25;
 }
 .card-replay {
   min-width: var(--book-target); min-height: var(--book-target);

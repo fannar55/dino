@@ -1,5 +1,5 @@
 {
-  "note": "Seven cards with placeholder pages, so the book can be built before its texts. Task 11 writes the pages from sources the owner approves; Task 12 gives them their recordings and pictures.",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines).",
   "cards": [
     {
       "id": "mosi",
@@ -11,26 +11,43 @@
       "pages": [
         {
           "image": "placeholder-mosi",
-          "text": "Þetta er Mosi.",
+          "text": "Þetta er Mosi. Hann er þríhyrna, Triceratops, með þrjú horn og stóran kraga.",
           "audio": "book_mosi_1",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: þrjú horn á höfuðkúpunni og kragi sem gat orðið nærri metri á breidd. Nafnið Mosi er úr ævintýrinu."
           ]
         },
         {
-          "image": "placeholder-mosi",
-          "text": "Meira kemur hér síðar.",
+          "image": "triceratops-front",
+          "text": "Þríhyrnur voru uppi fyrir um 66 milljónum ára. Þær voru meðal síðustu risaeðlanna.",
           "audio": "book_mosi_2",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: síðkrít, fyrir 68–66 milljónum ára.",
+            "Natural History Museum, How an asteroid caused the extinction of the dinosaurs, https://www.nhm.ac.uk/discover/how-an-asteroid-caused-extinction-of-dinosaurs.html: þríhyrnan var ein síðasta risaeðlan (önnur en fuglar), og risaeðlurnar dóu út fyrir 66,0 milljónum ára þegar loftsteinninn féll."
+          ]
+        },
+        {
+          "image": "triceratops-skull-paris",
+          "text": "Við vitum þetta af steingervingum. Fólk hefur fundið margar höfuðkúpur þríhyrna.",
+          "audio": "book_mosi_3",
+          "sources": [
+            "Horner, Goodwin og Myhrvold 2011, „Dinosaur census reveals abundant Tyrannosaurus and rare ontogenetic stages in the Upper Cretaceous Hell Creek Formation (Maastrichtian), Montana, USA“, PLoS ONE 6(2): e16574, doi:10.1371/journal.pone.0016574, https://doi.org/10.1371/journal.pone.0016574 (opin grein, CC BY): í talningu risaeðlusteingervinga í Hell Creek-myndun er þríhyrnan algengasta risaeðlan, og stakar höfuðkúpur eru stór hluti fundanna."
           ]
         },
         {
           "image": "placeholder-mosi",
-          "text": "Meira kemur hér síðar.",
-          "audio": "book_mosi_3",
+          "text": "Vissir þú? Þríhyrnur og kambeðlur lifðu ekki á sama tíma. En í ævintýrinu okkar eru þær vinir!",
+          "audio": "book_mosi_4",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html (68–66 milljón ár) og Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html (152–145 milljón ár). Um 77 milljón ár liðu frá síðustu kambeðlunum til fyrstu þríhyrnanna. Til gamans fyrir foreldra: frá þríhyrnunum til okkar eru aðeins 66 milljón ár, svo við lifum nær þríhyrnunum í tíma en þríhyrnurnar kambeðlunum."
+          ]
+        },
+        {
+          "image": "triceratops-skeleton",
+          "text": "Til hvers var kraginn? Kannski til varnar eða til að sýnast. Það vitum við ekki enn.",
+          "audio": "book_mosi_5",
+          "sources": [
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: kraginn gæti hafa varið hálsinn (en bitför grameðlu í sumum krögum sýna að það dugði ekki alltaf), laðað að maka eða hjálpað dýrum sömu tegundar að þekkja hvert annað."
           ]
         }
       ]
@@ -45,26 +62,47 @@
       "pages": [
         {
           "image": "placeholder-kambedla",
-          "text": "Þetta er Kambeðla.",
+          "text": "Þetta er kambeðla, Stegosaurus. Hún er með plötur á bakinu og gadda á halanum.",
           "audio": "book_kambedla_1",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: plöturnar sátu í húðinni og stóðu upp sitt á hvað meðfram hryggnum; öflugur gaddahali var vörn hennar."
           ]
         },
         {
-          "image": "placeholder-kambedla",
-          "text": "Meira kemur hér síðar.",
+          "image": "stegosaurus-mount-carnegie",
+          "text": "Kambeðlur voru uppi fyrir um 150 milljónum ára, löngu á undan þríhyrnunum.",
           "audio": "book_kambedla_2",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: síðjúra, fyrir 152–145 milljónum ára. Drög hönnunarinnar segja 155–145; „um 150“ passar við hvort tveggja.",
+            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: Sophie lifði fyrir um 150 milljónum ára.",
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: 68–66 milljón ár."
           ]
         },
         {
-          "image": "placeholder-kambedla",
-          "text": "Meira kemur hér síðar.",
+          "image": "stegosaurus-side",
+          "text": "Við vitum þetta af steingervingum. Beinagrindin Sophie fannst nærri því heil!",
           "audio": "book_kambedla_3",
           "sources": [
-            "placeholder"
+            "Natural History Museum, fréttatilkynning 2014, World's most complete Stegosaurus goes on show, https://www.nhm.ac.uk/press-office/press-releases/world_s-most-complete-stegosaurus-goes-on-show.html: fannst nærri heil í Wyoming 2003, aðeins vantaði vinstri framlim og rót halans; yfir 300 bein; 5,6 m löng og 2,9 m há.",
+            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: ein heillegasta beinagrind kambeðlu sem fundist hefur."
+          ]
+        },
+        {
+          "image": "stegosaurus-sophie-skull",
+          "text": "Kambeðlan var stór, en heilinn var bara á stærð við plómu!",
+          "audio": "book_kambedla_4",
+          "sources": [
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: allt að 9 m löng; heilinn var á stærð við plómu.",
+            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: hún hafði einn heila; sagan um annan heila í mjöðmunum er misskilningur."
+          ]
+        },
+        {
+          "image": "stegosaurus-skeleton",
+          "text": "Til hvers voru plöturnar? Til að sýnast eða til að stilla hitann? Það vitum við ekki enn.",
+          "audio": "book_kambedla_5",
+          "sources": [
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: plöturnar gætu hafa fælt rándýr, hjálpað dýrum sömu tegundar að þekkja hvert annað eða stýrt líkamshita.",
+            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: varnarhugmyndin er komin úr tísku; sýning og hitastjórnun eru helstu kostirnir, og málið er óútkljáð."
           ]
         }
       ]
@@ -82,23 +120,43 @@
           "text": "Þetta lítur út eins og fiðrildi. En það er ekki fiðrildi!",
           "audio": "book_kalligrammatid_1",
           "sources": [
-            "placeholder"
+            "Labandeira 2016: kalligrammatíður voru netvængjur (Neuroptera), ekki fiðrildi. Þær líktust fiðrildum í augnblettum, hreisturflögum á vængjunum og löngum rana, en líkindin komu upp tvisvar, hvort í sínu lagi, í óskyldum hópum.",
+            "Yang, Wang, Labandeira, Shih og Ren 2014, „Mesozoic lacewings from China provide phylogenetic insight into evolution of the Kalligrammatidae (Neuroptera)“, BMC Evolutionary Biology 14: 126, doi:10.1186/1471-2148-14-126, https://doi.org/10.1186/1471-2148-14-126 (opin grein, CC BY 2.0): þær eru stundum kallaðar „fiðrildi júratímabilsins“."
           ]
         },
         {
-          "image": "placeholder-kalligrammatid",
-          "text": "Meira kemur hér síðar.",
+          "image": "lacewing-chrysoperla",
+          "text": "Það er forn netvængja sem var uppi á tímum risaeðlanna.",
           "audio": "book_kalligrammatid_2",
           "sources": [
-            "placeholder"
+            "Labandeira 2016: elstu kalligrammatíðurnar fundust í Daohugou í Kína, 164–165 milljón ára gamlar, og sú yngsta í Crato-myndun í Brasilíu, um 120 milljón ára. Drög hönnunarinnar segja 165–125; talan 125 er úr Yang o.fl. 2014, en Labandeira 2016 færir yngsta fundinn að 120.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára; júra er 201–145 og krít 145–66 milljón ár.",
+            "Orðið: Náttúrufræðistofnun Íslands nefnir ættbálkinn Neuroptera netvængjur (samkvæmt verkstjóranum; sama heiti er á íslensku Wikipediu). Drög hönnunarinnar notuðu „blúnduvængjur“, sem fannst hvergi. Sjá spurningu 1."
           ]
         },
         {
-          "image": "placeholder-kalligrammatid",
-          "text": "Meira kemur hér síðar.",
+          "image": "oregramma-fossil",
+          "text": "Á vængjunum voru stórir augnblettir. Kannski hræddu þeir litlar, svangar risaeðlur!",
           "audio": "book_kalligrammatid_3",
           "sources": [
-            "placeholder"
+            "Labandeira 2016: augnblettirnir voru með dökkri miðju, hringjum utan um og litlum, ljósum, sporöskjulaga dílum. Þeir voru líklega notaðir til að fæla rándýr eða beina árásum þeirra frá búknum, til dæmis fyrstu fugla, litlar ránrisaeðlur eða bænabeiður.",
+            "Yang o.fl. 2014: Oregramma illecebrosa hafði greinilegan augnblett á framvængnum."
+          ]
+        },
+        {
+          "image": "kalligrammatids-fig1",
+          "text": "Við vitum þetta af steingervingum. Þeir sýna líka langan rana, eins og drykkjarrör!",
+          "audio": "book_kalligrammatid_4",
+          "sources": [
+            "Labandeira 2016: steingervingarnir eru úr fíngerðu vatnaseti í Kína og Kasakstan, sem varðveitir smáatriði eins og litamynstur, hreisturflögur og munnhluta. Raninn var 8–20 mm langur og sveigjanlegur, og endinn var ávalur eins og á þykku drykkjarröri. Dýrin drukku líklega sætan vökva og frævunardropa úr fornum fræplöntum, til dæmis bennettítum, sem líktust köngulpálmum."
+          ]
+        },
+        {
+          "image": "kalligramma-fossil-beijing",
+          "text": "Litina vitum við ekki enn, því steinninn geymir þá ekki. Hvaða liti heldur þú?",
+          "audio": "book_kalligrammatid_5",
+          "sources": [
+            "Labandeira 2016: steingervingarnir sýna ljós og dökk mynstur. Í dökkri miðju augnblettanna gæti hafa verið melanín, dökkt litarefni, en það er óvíst, og aðrir litir eru óþekktir. Teikningarlýsingin (teikningar-smadyra.md, ../../../docs/superpowers/specs/2026-10-17-teikningar-smadyra.md) segir líka að litir teikningarinnar séu ímyndaðir."
           ]
         }
       ]
@@ -113,26 +171,39 @@
       "pages": [
         {
           "image": "placeholder-beetle",
-          "text": "Þetta er bjalla.",
+          "text": "Þetta er bjalla. Bjöllur voru til á undan risaeðlunum og þær eru enn til!",
           "audio": "book_beetle_1",
           "sources": [
-            "placeholder"
+            "Zhang o.fl. 2018, „Evolutionary history of Coleoptera revealed by extensive sampling of genes and species“, Nature Communications 9: 205, doi:10.1038/s41467-017-02644-4, https://doi.org/10.1038/s41467-017-02644-4 (opin grein, CC BY 4.0, lesin í heild): bjöllur eru taldar hafa komið fram snemma á permtímabilinu, og rannsóknin tímasetur uppruna þeirra fyrir um 297 milljónum ára.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur komu fram á tríastímabilinu, fyrir um 245 milljónum ára.",
+            "Smith og Marcot 2015, „The fossil record and macroevolutionary history of the beetles“, Proceedings of the Royal Society B 282: 20150060, doi:10.1098/rspb.2015.0060, https://doi.org/10.1098/rspb.2015.0060 (útdráttur lesinn): í stærsta bjölluhópnum dó engin ætt út lengst af, ekki heldur þegar risaeðlurnar dóu út."
           ]
         },
         {
-          "image": "placeholder-beetle",
-          "text": "Meira kemur hér síðar.",
+          "image": "beetle-closeup",
+          "text": "Fjórða hver dýrategund sem við þekkjum er bjalla!",
           "audio": "book_beetle_2",
           "sources": [
-            "placeholder"
+            "Zhang o.fl. 2018: yfir 380.000 þekktar tegundir bjallna, um fjórðungur allra dýrategunda sem hefur verið lýst.",
+            "Smith og Marcot 2015: bjöllur eru tegundaríkasti ættbálkur dýra, um 380.000 tegundir."
           ]
         },
         {
-          "image": "placeholder-beetle",
-          "text": "Meira kemur hér síðar.",
+          "image": "beetle-in-amber",
+          "text": "Við vitum þetta af steingervingum. Sumar bjöllur festust í trjákvoðu sem varð að rafi.",
           "audio": "book_beetle_3",
           "sources": [
-            "placeholder"
+            "Smith og Marcot 2015: í gagnasafni þeirra, 5.553 fundum frá 221 stað, varðveita raf og vatnaset mest af steingerðum bjöllum.",
+            "Seyfullah o.fl. 2018, „Production and preservation of resins – past and present“, Biological Reviews 93: 1684–1714, doi:10.1111/brv.12414, https://doi.org/10.1111/brv.12414 (CC BY, útdráttur lesinn): raf er steingerð trjákvoða."
+          ]
+        },
+        {
+          "image": "beetle-drawer-nhm",
+          "text": "Hvers vegna urðu bjöllur svona margar? Það vitum við ekki alveg enn.",
+          "audio": "book_beetle_4",
+          "sources": [
+            "McKenna o.fl. 2019, „The evolution and genomic basis of beetle diversity“, PNAS 116: 24729–24737, doi:10.1073/pnas.1909655116, https://doi.org/10.1073/pnas.1909655116 (útdráttur lesinn): þróunarsaga bjallna er enn illa skilin. Fjölbreytnin virðist eiga sér margar orsakir, meðal annars lítinn útdauða, samþróun með blómplöntum og gen sem hjálpuðu bjöllum að melta plöntur.",
+            "Smith og Marcot 2015: þeir leggja til að skoða hvað hindraði útdauða bjallna, ekki aðeins hvað ýtti undir nýjar tegundir."
           ]
         }
       ]
@@ -147,26 +218,45 @@
       "pages": [
         {
           "image": "placeholder-frog",
-          "text": "Þetta er froskur.",
+          "text": "Þetta er froskur. Froskar hoppuðu um þegar risaeðlurnar voru uppi!",
           "audio": "book_frog_1",
           "sources": [
-            "placeholder"
+            "Stocker o.fl. 2019, „The earliest equatorial record of frogs from the Late Triassic of Arizona“, Biology Letters 15: 20180922, doi:10.1098/rsbl.2018.0922, https://doi.org/10.1098/rsbl.2018.0922 (útdráttur lesinn): steingervingar froska frá síðtrías í Arizona, og Prosalirus bitis frá byrjun júratímabilsins í sömu jarðlagaröð.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur voru uppi á trías-, júra- og krítartímabilinu, fyrir um 245–66 milljónum ára."
           ]
         },
         {
-          "image": "placeholder-frog",
-          "text": "Meira kemur hér síðar.",
+          "image": "frog-skeleton",
+          "text": "Forfeður froskanna fengu lengri fætur og styttra skott. Þá fóru þeir að hoppa!",
           "audio": "book_frog_2",
           "sources": [
-            "placeholder"
+            "Reilly o.fl. 2016, „Functional evolution of jumping in frogs: interspecific differences in take-off and landing“, Journal of Morphology 277: 379–393, doi:10.1002/jmor.20504, https://doi.org/10.1002/jmor.20504 (útdráttur lesinn): afturfætur og mjaðmagrind forfeðra froska lengdust, en halinn og hryggurinn styttust, og það boðaði stökkið sem helsta ferðamáta þeirra."
           ]
         },
         {
-          "image": "placeholder-frog",
-          "text": "Meira kemur hér síðar.",
+          "image": "triadobatrachus-fossil",
+          "text": "Við vitum þetta af steingervingum. Þessi forni ættingi froska var enn með skott!",
           "audio": "book_frog_3",
           "sources": [
-            "placeholder"
+            "Ascarrunz, Rage, Legreneur og Laurin 2016, „Triadobatrachus massinoti, the earliest known lissamphibian (Vertebrata: Tetrapoda) re-examined by µCT scan, and the evolution of trunk length in batrachians“, Contributions to Zoology 85: 201–234, doi:10.1163/18759866-08502004, https://doi.org/10.1163/18759866-08502004 (útdráttur lesinn): dýrið er þekkt af einum steingervingi frá ártrías á Madagaskar; tölvusneiðmyndir sýndu halaliði sem ekki höfðu sést áður, og halinn var styttri en hjá forverum þess.",
+            "Stocker o.fl. 2019 (útdráttur): Triadobatrachus er frumstæður ættingi froska frá ártrías."
+          ]
+        },
+        {
+          "image": "frog-photo",
+          "text": "Froskar lifðu af þegar risaeðlurnar dóu út. Þeir eru enn að hoppa!",
+          "audio": "book_frog_4",
+          "sources": [
+            "Feng o.fl. 2017, „Phylogenomics reveals rapid, simultaneous diversification of three major clades of Gondwanan frogs at the Cretaceous–Paleogene boundary“, PNAS 114 (29), doi:10.1073/pnas.1704632114, https://doi.org/10.1073/pnas.1704632114 (útdráttur lesinn): þrír stórir hópar froska, sem eiga um 88% núlifandi froskategunda, breiddust hratt út einmitt þegar risaeðlurnar dóu út; froskar eru nærri 90% allra núlifandi froskdýrategunda."
+          ]
+        },
+        {
+          "image": "eopelobates-fossil",
+          "text": "Stukku fyrstu froskarnir langt eða hoppuðu þeir stutt? Það vitum við ekki enn.",
+          "audio": "book_frog_5",
+          "sources": [
+            "Reilly og Jorgensen 2011, „The evolution of jumping in frogs: morphological evidence for the basal anuran locomotor condition and the radiation of locomotor systems in crown group anurans“, Journal of Morphology 272: 149–168, doi:10.1002/jmor.10902, https://doi.org/10.1002/jmor.10902 (útdráttur lesinn): áður var talið að langstökk hefði komið snemma fram, því Prosalirus var talinn hafa mjaðmagrind langstökkvara, en greining þeirra bendir til að fyrstu froskarnir hafi gengið og hoppað stutt og að langstökkvarar hafi komið miklu síðar. Fræðimenn eru því ekki sammála.",
+            "Ascarrunz o.fl. 2016 (útdráttur): Triadobatrachus var ekki sérhæfður stökkvari."
           ]
         }
       ]
@@ -181,26 +271,47 @@
       "pages": [
         {
           "image": "placeholder-snail",
-          "text": "Þetta er snigill.",
+          "text": "Þetta er snigill. Hann ber húsið sitt og það stækkar með honum!",
           "audio": "book_snail_1",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Interesting shells, https://www.nhm.ac.uk/discover/interesting-shells.html: lindýr gera skelina úr kalsíumkarbónati og seigu prótíni, og þegar þau stækka bæta þau við efni svo skelin rúmi líkamann.",
+            "University of California Museum of Paleontology, Gastropoda, https://ucmp.berkeley.edu/taxa/inverts/mollusca/gastropoda.php: sniglar hafa eina skel, oft undna."
           ]
         },
         {
-          "image": "placeholder-snail",
-          "text": "Meira kemur hér síðar.",
+          "image": "maclurites-fossil",
+          "text": "Sniglar voru til löngu, löngu á undan risaeðlunum.",
           "audio": "book_snail_2",
           "sources": [
-            "placeholder"
+            "University of California Museum of Paleontology, Gastropoda, https://ucmp.berkeley.edu/taxa/inverts/mollusca/gastropoda.php: sniglar eiga sér langa og ríka steingervingasögu allt frá árkambríum.",
+            "Natural History Museum, Snails and slugs, https://www.nhm.ac.uk/discover/snails-and-slugs.html: lindýr komu líklega fram fyrir meira en 500 milljónum ára.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur komu fram fyrir um 245 milljónum ára."
           ]
         },
         {
-          "image": "placeholder-snail",
-          "text": "Meira kemur hér síðar.",
+          "image": "snail-photo",
+          "text": "Ef skuggi fellur á snigilinn, felur hann sig í kuðungnum.",
           "audio": "book_snail_3",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Snails and slugs, https://www.nhm.ac.uk/discover/snails-and-slugs.html: sniglar hafa ljósnæmar frumur um allan líkamann, og ef skuggi fellur á þá draga þeir sig inn í skelina; skelin ver þá gegn rándýrum og þornun. Í leiknum felur snigillinn sig líka í kuðungnum þegar barnið pikkar á hann."
+          ]
+        },
+        {
+          "image": "elimia-fossils",
+          "text": "Við vitum þetta af steingervingum. Til eru mjög margir steingerðir kuðungar.",
+          "audio": "book_snail_4",
+          "sources": [
+            "University of California Museum of Paleontology, Gastropoda, https://ucmp.berkeley.edu/taxa/inverts/mollusca/gastropoda.php: löng og rík steingervingasaga.",
+            "University of California Museum of Paleontology, Mollusca, https://ucmp.berkeley.edu/taxa/inverts/mollusca/mollusca.php: steingervingasaga lindýra nær meira en 550 milljón ár aftur í tímann."
+          ]
+        },
+        {
+          "image": "crommium-fossil",
+          "text": "Oft finnst bara kuðungurinn. Hvernig leit mjúki snigillinn út? Það vitum við ekki alltaf.",
+          "audio": "book_snail_5",
+          "sources": [
+            "University of California Museum of Paleontology, rannsóknir Carole Hickman, https://ucmp.berkeley.edu/museum/profiles/hickman/hickmanresearch2.html: erfitt getur verið að vita hvernig vöðvar og aðrir mjúkvefir litu út og störfuðu þegar skelin ein er eftir, en för þeirra innan á skelinni hjálpa.",
+            "Natural History Museum, How are fossils formed?, https://www.nhm.ac.uk/discover/how-are-fossils-formed.html: flest sem deyr rotnar alveg, og oft eru aðeins hörðu hlutarnir eftir."
           ]
         }
       ]
@@ -215,26 +326,50 @@
       "pages": [
         {
           "image": "placeholder-birds",
-          "text": "Þetta eru fuglar.",
+          "text": "Vissir þú? Fuglar eru risaeðlur! Þeir eru einu risaeðlurnar sem lifa enn.",
           "audio": "book_birds_1",
           "sources": [
-            "placeholder"
+            "Natural History Museum, How dinosaurs evolved into birds, https://www.nhm.ac.uk/discover/how-dinosaurs-evolved-into-birds: fuglar nútímans eru lifandi risaeðlur.",
+            "Natural History Museum, Why are birds the only surviving dinosaurs?, https://www.nhm.ac.uk/discover/why-are-birds-the-only-surviving-dinosaurs.html: fuglar þróuðust af kjötætum risaeðlum (ráneðlum, Theropoda), og eftir útdauðann voru aðeins fuglar eftir."
           ]
         },
         {
-          "image": "placeholder-birds",
-          "text": "Meira kemur hér síðar.",
+          "image": "archaeopteryx-berlin",
+          "text": "Einn elsti fugl sem við þekkjum heitir öglir. Hann var uppi á sama tíma og kambeðlan.",
           "audio": "book_birds_2",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/Archaeopteryx.html: síðjúra, fyrir 149–145 milljónum ára; öll eintökin eru úr kalksteinsnámum við Solnhofen í Þýskalandi.",
+            "Natural History Museum, How dinosaurs evolved into birds, https://www.nhm.ac.uk/discover/how-dinosaurs-evolved-into-birds: stundum kallaður elsti fuglinn.",
+            "University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: um 150 milljón ára.",
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: 152–145 milljón ár.",
+            "Orðið: „öglir“ er heiti Archaeopteryx á íslensku Wikipediu og í teikningarlýsingunni, en fannst ekki í orðabók. Sjá spurningu 4."
+          ]
+        },
+        {
+          "image": "archaeopteryx-skull",
+          "text": "Öglir hafði tennur, klær á vængjunum og langt, beinótt skott.",
+          "audio": "book_birds_3",
+          "sources": [
+            "University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: fullt sett af tönnum, þrjár klær á vængnum og langt, beinótt skott.",
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/Archaeopteryx.html: margar litlar, keilulaga tennur og langt, beinótt skott."
+          ]
+        },
+        {
+          "image": "archaeopteryx-eichstatt",
+          "text": "Við vitum þetta af steingervingum. Í steininum sjást meira að segja fjaðrirnar!",
+          "audio": "book_birds_4",
+          "sources": [
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/Archaeopteryx.html: mörg eintakanna sýna greinileg merki um langar fjaðrir; safnið keypti Lundúnaeintakið 1862.",
+            "University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: öglir hafði fjaðrir."
           ]
         },
         {
           "image": "placeholder-birds",
-          "text": "Meira kemur hér síðar.",
-          "audio": "book_birds_3",
+          "text": "Gat öglir flogið vel eða bara svifið? Það vitum við ekki enn.",
+          "audio": "book_birds_5",
           "sources": [
-            "placeholder"
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/Archaeopteryx.html: ekki er vitað hvort hann gat flogið til fulls eða aðeins svifið.",
+            "University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: talið er að hann hafi getað flogið, en líklega ekki vel."
           ]
         }
       ]
