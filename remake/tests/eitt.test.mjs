@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seededRandom } from '../engine/random.js';
-import { COLOURS, makeDeck, newGame, canPlay, playable, play, draw, pass, callEitt, catchEitt } from '../engine/eitt/rules.js';
+import { COLOURS, isWild, makeDeck, newGame, canPlay, playable, play, draw, pass, callEitt, catchEitt } from '../engine/eitt/rules.js';
+import { chooseMove, willCallEitt, willCatch } from '../engine/eitt/kambedla.js';
+import { SKILL_START, afterRound, inRound } from '../engine/eitt/skill.js';
+import { advise } from '../engine/eitt/advice.js';
 
 const cards = makeDeck();
 const card = id => cards.find(c => c.id === id);
@@ -161,4 +164,103 @@ test('the last card wins, even a wild', () => {
 
   const number = table({ top: 'red-7-a', turn: 'kambedla', child: ['blue-1-a', 'blue-2-a'], kambedla: ['red-3-a'] });
   assert.equal(play(number, 'kambedla', 'red-3-a').winner, 'kambedla');
+});
+
+const apply = (game, who, move) =>
+  move.type === 'draw' ? draw(game, who).game : move.type === 'pass' ? pass(game, who) : play(game, who, move.cardId, move.colour);
+
+/** Mosi's advice, checked against the rules whatever the state; it is null when there is nothing to advise. */
+function checkedAdvice(game) {
+  const advice = advise(game);
+  const options = playable(game, 'child');
+  if (game.winner || (game.turn === 'kambedla' && game.unsaid !== 'child')) {
+    assert.equal(advice, null);
+  } else if (advice.type === 'eitt') {
+    assert.equal(game.unsaid, 'child');
+  } else if (advice.type === 'draw') {
+    assert.ok(game.turn === 'child' && !game.drew && options.length === 0, 'advised a draw with a card to play');
+  } else {
+    const chosen = options.find(c => c.id === advice.cardId);
+    assert.ok(game.turn === 'child' && chosen, 'advised a card that cannot be played');
+    const needsColour = isWild(chosen) && game.hands.child.length > 1;
+    assert.equal(advice.colour !== undefined, needsColour);
+    if (needsColour) assert.ok(COLOURS.includes(advice.colour));
+  }
+  return advice;
+}
+
+// The child plays like a five-year-old: Mosi's advice half the time, otherwise any card that goes.
+function childMove(game, advice, random) {
+  if (advice && advice.type !== 'eitt' && random() < 0.5) return advice;
+  const options = playable(game, 'child');
+  if (game.drew && random() < 0.3) return { type: 'pass' };
+  if (options.length === 0) return { type: 'draw' };
+  return { type: 'play', cardId: options[Math.floor(random() * options.length)].id, colour: COLOURS[Math.floor(random() * 4)] };
+}
+
+test('Kambeðla and Mosi only ever choose legal moves', () => {
+  let caught = 0;
+  let reshuffled = 0;
+  for (let seed = 0; seed < 200; seed++) {
+    const random = seededRandom(`eitt-${seed}`);
+    const skill = [0, 1][seed] ?? random(); // the two ends, then any skill
+    let game = newGame(random);
+    for (let steps = 0; !game.winner; steps++) {
+      assert.ok(steps < 2000, `round ${seed} never ended`);
+      const who = game.turn;
+      const advice = checkedAdvice(game);
+
+      if (game.unsaid === (who === 'child' ? 'kambedla' : 'child') && (who === 'kambedla' ? willCatch(skill, random) : random() < 0.5)) {
+        game = catchEitt(game, who);
+        caught++;
+      }
+
+      let move;
+      if (who === 'kambedla') {
+        const options = playable(game, 'kambedla').map(c => c.id);
+        move = chooseMove(game, inRound(skill, game.hands.child.length, game.hands.kambedla.length), random);
+        if (move.type === 'draw') assert.deepEqual(options, [], 'she drew with a card to play');
+        else assert.ok(options.includes(move.cardId), 'she chose a card that cannot be played');
+      } else {
+        move = childMove(game, advice, random);
+      }
+      const pileBefore = game.pile.length + (move.type === 'play' ? 1 : 0);
+      game = apply(game, who, move);
+      if (game.pile.length < pileBefore) reshuffled++;
+
+      if (game.unsaid === who && (who === 'kambedla' ? willCallEitt(skill, random) : random() < 0.5)) game = callEitt(game, who);
+      const all = [...game.deck, ...game.pile, ...game.hands.child, ...game.hands.kambedla];
+      assert.equal(new Set(all.map(c => c.id)).size, 108, 'every card is somewhere exactly once');
+      assert.equal(all.length, 108);
+    }
+    assert.equal(game.hands[game.winner].length, 0);
+  }
+  assert.ok(caught > 0 && reshuffled > 0, `the rounds should have seen catches (${caught}) and reshuffles (${reshuffled})`);
+});
+
+test('skill rises after wins, falls after losses, and eases when the child is far behind', () => {
+  let state = afterRound({ skill: SKILL_START, losses: 0 }, true);
+  assert.deepEqual(state, { skill: 0.6, losses: 0 });
+  state = afterRound(state, false); // one loss: down 0.1
+  assert.deepEqual(state, { skill: 0.5, losses: 1 });
+  state = afterRound(state, false); // a second in a row: down 0.1 more
+  assert.deepEqual(state, { skill: 0.3, losses: 2 });
+  state = afterRound(state, false); // a third: 0.1 more again
+  assert.deepEqual(state, { skill: 0, losses: 3 });
+  assert.deepEqual(afterRound(state, false), { skill: 0, losses: 4 }, 'held at 0');
+  assert.deepEqual(afterRound({ skill: 1, losses: 0 }, true), { skill: 1, losses: 0 }, 'held at 1');
+  assert.deepEqual(afterRound({ skill: 0.5, losses: 2 }, true), { skill: 0.6, losses: 0 }, 'a win ends the run of losses');
+
+  assert.equal(inRound(0.5, 8, 4), 0.2, 'the child holds 4 more cards than she does');
+  assert.equal(inRound(0.5, 7, 4), 0.5, 'only 3 more');
+  assert.equal(inRound(0.2, 12, 3), 0, 'held at 0');
+
+  const remembered = (ask, skill) => {
+    const random = seededRandom('remember');
+    return Array.from({ length: 1000 }, () => ask(skill, random)).filter(Boolean).length;
+  };
+  for (const ask of [willCallEitt, willCatch]) {
+    assert.equal(remembered(ask, 1), 1000, 'she always remembers at skill 1');
+    assert.ok(remembered(ask, 0) < remembered(ask, 0.5) && remembered(ask, 0.5) < 1000, 'and forgets more as her skill falls');
+  }
 });
