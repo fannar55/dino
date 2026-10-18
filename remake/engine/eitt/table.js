@@ -44,6 +44,7 @@ const DRAW_MS = 400; // a card from the deck to a hand
 const DEAL_MS = 360;
 const DEAL_GAP = 105; // ms between two cards dealt
 const GIVE_GAP = 170; // and between the cards of a +2, a +4 or a catch
+const DRAW_TALK = 0.35; // after her first "Ég dreg." of a round, the chance she says it again as she draws (she talks little)
 
 const DINO = { red: 'trex.webp', yellow: 'brontosaurus.webp', green: 'mosi.webp', blue: 'parasaurolophus.webp' };
 const TRICK = { skip: 'stegosaurus-tail.webp', reverse: 'pteranodon.webp', draw2: 'eggs-2.svg', wild: 'plates.svg', wild4: 'wild4.svg' };
@@ -239,6 +240,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   let mosiPick = null; // what Mosi points at: a card id or 'draw'
   let mosiColour = null; // and the colour he suggests for a wild
   let animating = null; // a catch under way, which Kambeðla's turn waits for
+  let saidDraw = false; // "Ég dreg." said this round: after the first time she says it only now and then
   const timers = new Set();
   let idleTimer = 0;
   let adviceTimer = 0;
@@ -844,7 +846,8 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     }
     const move = chooseMove(game, skillNow(), random);
     if (move.type === 'draw') {
-      say('eitt_i_draw');
+      if (!saidDraw || random() < DRAW_TALK) say('eitt_i_draw');
+      saidDraw = true;
       const before = game;
       const { game: next, card } = draw(game, 'kambedla');
       game = next;
@@ -893,6 +896,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     mosiColour = null;
     animating = null;
     hinting = false;
+    saidDraw = false;
     winEl.hidden = true;
     confettiEl.replaceChildren();
     hideAdvice(true);

@@ -551,15 +551,15 @@ const words = text => text.replace(/\[[^\]]*\]\s*/g, '').trim(); // what is said
 test('kafli1 uses only lines that exist', async () => {
   const source = new Map(SOURCE.map(line => [line.id, line]));
   // Each of the chapter's lines is a recording the game has, with the words it was recorded with. The invitation to "Eitt!" is one of
-  // the game's lines (the eitt set), made after the game's other lines, and timed by reading pace until it is.
+  // the card game's lines (the eitt set).
   for (const [id, line] of Object.entries(chapter.lines)) {
+    assert.ok(line.audio && RECORDED[line.audio], `${id} has no recording in lines.json`);
     const game = EITT_SOURCE.find(entry => entry.id === id);
     if (game) {
       assert.equal(line.audio, id);
       assert.equal(line.text, words(game.text), `${id} says what the game's lines say`);
       continue;
     }
-    assert.ok(line.audio && RECORDED[line.audio], `${id} has no recording in lines.json`);
     if (id === 'welcome') {
       assert.equal(line.audio, 'welcome', 'scene 3 reuses the game\'s greeting');
       assert.equal(line.text, NARRATION.welcome, 'with the words of the game\'s greeting');
