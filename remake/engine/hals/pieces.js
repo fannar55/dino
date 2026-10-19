@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createActor } from '../actor.js';
 import { createSaddle, ride } from '../riding.js';
 import { BOARD } from './rules.js';
-import { createThorsedlaLod } from './thorsedla-lod.js';
+import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 
 // The pieces of "Háls og hali" (spec section 4): the chapter's own characters, small enough to stand on a block, each in a
 // lane of its own across the block so two or four share a square side by side. Egill rides Mosi in his saddle (riding.js);
@@ -37,7 +37,9 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
   const tweens = new Set();
   const tween = (duration, step) => new Promise(resolve => tweens.add({ t: 0, duration: Math.max(0.001, duration), step, resolve }));
   let calm = false;
-  const lod = createThorsedlaLod(world.lighting?.sun); // the little Thorsedla's levels, as the board's big ones have
+  // Lighter levels for every piece (thorsedla-lod.js, with a piece's switch sizes): four pieces of 20,000 to 39,000 triangles
+  // each would cost the budget even at character-lod.js's quarter.
+  const lod = createThorsedlaLod(world.lighting?.sun);
   const list = await Promise.all(roster.map((id, index) => createPiece(world, board, id, index, { tween, lod, get calm() { return calm; } })));
   return {
     list,
@@ -63,15 +65,15 @@ async function createPiece(world, board, id, index, host) {
   const own = Object.create(world);
   own.heightAt = () => 0;
   const scale = LENGTH / spec.length;
-  const big = spec.model === 'brontosaurus';
-  if (big) own.renderer = null; // her own lighter levels (thorsedla-lod.js), not character-lod.js's
+  own.renderer = null; // its own lighter levels (thorsedla-lod.js), not character-lod.js's
   const actor = await createActor(own, { name: `piece-${index}-${id}`, url: url(spec.model), position: [0, 0, 0], heading: 0 });
   actor.root.scale.setScalar(scale);
-  if (big) host.lod.add(actor);
+  host.lod.add(actor, { levels: PIECE_PX });
   let rider = null, saddle = null, riding = null;
   if (spec.rider) {
     rider = await createActor(own, { name: `piece-${index}-${spec.rider}`, url: url(spec.rider), position: [0, 0, 0], heading: 0 });
     rider.root.scale.setScalar(scale);
+    host.lod.add(rider, { levels: PIECE_PX });
   }
   const lane = LANES[index % LANES.length];
   const position = new V3();

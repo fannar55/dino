@@ -229,22 +229,53 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       woodParts.push(painted(new THREE.TubeGeometry(curve, 5, 0.05 + random() * 0.04, 4, false), k % 3 ? COLOURS.ivy : COLOURS.root, 0.1, random));
     }
   }
-  // the shelves: a rounded mossy rock slab behind a tier, where a Þórseðla stands
+  // the shelves: a craggy rock behind a tier, flat and mossy on top, where a Þórseðla stands (thorsedla.js stands her 0.3 m
+  // under the blocks' tops)
+  const rock = [new THREE.Color(COLOURS.shelf), new THREE.Color('#a39d8f'), new THREE.Color('#6f6a60')];
+  const mossColour = new THREE.Color(COLOURS.shelfMoss), mossDeep = new THREE.Color('#5f7f36');
   for (const s of shelves) {
     if (s.tier === 0) continue;
-    const top = tierY(s.tier) - STONE.height - 0.05;
-    const w = s.x1 - s.x0, d = s.z1 - s.z0;
-    const slab = new THREE.ExtrudeGeometry(roundedRect(w, d, Math.min(1.4, d / 3)), { depth: 0.9, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.3, bevelSegments: 3, curveSegments: 6 });
-    slab.rotateX(Math.PI / 2);
-    slab.translate((s.x0 + s.x1) / 2, top, (s.z0 + s.z1) / 2);
-    const sp = slab.attributes.position;
-    for (let i = 0; i < sp.count; i++) sp.setY(i, sp.getY(i) + (sp.getY(i) < top - 0.5 ? -0.35 * Math.abs(Math.sin(sp.getX(i) * 0.9 + sp.getZ(i))) : 0));
-    slab.computeVertexNormals();
-    woodParts.push(painted(slab, COLOURS.shelf, 0.07, random));
-    const moss = new THREE.SphereGeometry(1, 20, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-    moss.scale(w / 2 + 0.1, 0.1, d / 2 + 0.1);
-    moss.translate((s.x0 + s.x1) / 2, top + 0.24, (s.z0 + s.z1) / 2);
-    woodParts.push(painted(moss, COLOURS.shelfMoss, 0.08, random));
+    const yTop = tierY(s.tier) - 0.3, thick = 1.5;
+    const w = s.x1 - s.x0 + 0.6, d = s.z1 - s.z0 + 0.4;
+    const cx = (s.x0 + s.x1) / 2, cz = (s.z0 + s.z1) / 2;
+    const g = new THREE.BoxGeometry(w, thick, d, 14, 3, 8);
+    const pos = g.attributes.position;
+    const colours = new Float32Array(pos.count * 3);
+    const c = new THREE.Color();
+    const seed = s.x0 * 1.7 + s.tier * 3.1;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const ex = Math.abs(x) / (w / 2), ez = Math.abs(z) / (d / 2);
+      const edge = Math.max(ex, ez); // 1 on the rim
+      const n1 = Math.sin(x * 1.3 + seed) * Math.cos(z * 1.7 - seed) , n2 = Math.sin(x * 3.1 + z * 2.3 + seed * 2);
+      let px = x, py = y, pz = z;
+      if (y > thick / 2 - 0.01) {
+        // the top: flat where she stands, rounding down to the rim
+        py = thick / 2 - 0.32 * Math.max(0, edge - 0.82) / 0.18 + 0.03 * n2 * (1 - edge);
+      } else if (y < -thick / 2 + 0.01) {
+        // the underside: crags hanging down, deepest in the middle
+        py = -thick / 2 - (0.25 + 0.55 * Math.abs(n1) + 0.25 * Math.abs(n2)) * (1 - edge * 0.6);
+      }
+      // the sides wander in and out
+      const out = 1 + 0.06 * n2 + 0.05 * n1;
+      if (ex > 0.98) px = x * out;
+      if (ez > 0.98) pz = z * out;
+      pos.setXYZ(i, px + cx, py + yTop - thick / 2, pz + cz);
+      const top = py > thick / 2 - 0.12;
+      if (top) c.copy(mossColour).lerp(mossDeep, 0.5 + 0.5 * n2);
+      else c.copy(rock[0]).lerp(rock[n1 > 0 ? 1 : 2], Math.abs(n1) * 0.7).multiplyScalar(0.95 + 0.1 * n2);
+      colours.set([c.r, c.g, c.b], i * 3);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+    g.computeVertexNormals();
+    woodParts.push(g);
+    // moss and roots hanging from its front edge
+    for (let k = 0; k < 5; k++) {
+      const x = s.x0 + (k + 0.5) * (s.x1 - s.x0) / 5 + (random() - 0.5) * 0.8, z = s.z1 + 0.15;
+      const length = 0.6 + random() * 1.4;
+      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(x, yTop - 0.2, z), new THREE.Vector3(x + 0.2, yTop - 0.2 - length * 0.5, z + 0.15), new THREE.Vector3(x - 0.1, yTop - 0.2 - length, z + 0.05)]);
+      woodParts.push(painted(new THREE.TubeGeometry(curve, 5, 0.05, 4, false), k % 2 ? COLOURS.ivy : COLOURS.root, 0.1, random));
+    }
   }
 
   // ---- the stairs between the tiers -------------------------------------------------------------------------------------
@@ -284,6 +315,23 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       post.translate(p.x, p.y - 0.47, p.z);
       woodParts.push(painted(post, COLOURS.root, 0.05, random));
     }
+  }
+
+  // ---- the finish: a flag on a pole behind square 80 ----------------------------------------------------------------------
+  {
+    const p = square(BOARD.count);
+    const x = p.x + 0.75, z = -0.75;
+    const pole = new THREE.CylinderGeometry(0.06, 0.08, 3.4, 6);
+    pole.translate(x, p.y + 1.7, z);
+    woodParts.push(painted(pole, '#7a5a40', 0, random));
+    const knob = new THREE.SphereGeometry(0.14, 8, 6);
+    knob.translate(x, p.y + 3.45, z);
+    woodParts.push(painted(knob, '#f2c443', 0, random));
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0); shape.lineTo(-1.6, -0.18); shape.lineTo(-1.2, -0.55); shape.lineTo(-1.6, -0.92); shape.lineTo(0, -0.8); shape.closePath();
+    const flag = new THREE.ShapeGeometry(shape);
+    flag.translate(x - 0.05, p.y + 3.3, z + 0.01);
+    woodParts.push(painted(flag, '#ef8a5a', 0, random));
   }
 
   // ---- the two old trees that hold the logs at the ends -------------------------------------------------------------------

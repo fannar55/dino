@@ -9,14 +9,15 @@ import { simplify } from '../simplify.js';
 // and draw with a material of their own without the map. The lightest casts the shadow.
 //
 //   const lod = createThorsedlaLod(light)      light: the scene's sun
-//   lod.add(actor, { tint })                   tint(material, hook, key) -> the Þórseðla's own material
+//   lod.add(actor, { tint, levels })           tint(material, hook, key) -> her own material; levels: LEVEL_PX's like
+// The pieces (pieces.js) use it too, with lower switch sizes (PIECE_PX): a piece close up keeps its painted face.
 //   lod.update(camera, heightPx)
 //   lod.ready()                                resolves when every level is in place
 //   lod.info()                                 { name: level } for the lab
 
 const COARSE = [3200, 1400];
 const LEVEL_PX = [2200, 1100, 520, 170]; // the bind diagonal's pixels: the full skin above the first, then one level below each
-const DIAGONAL = 24.1; // the model's bind diagonal (m)
+export const PIECE_PX = [1400, 700, 240, 90]; // a piece's: textured down to about 240 px, then the light levels
 const levelCache = new Map();
 
 function simplifyInWorker(positions, index, options) {
@@ -149,9 +150,9 @@ export function createThorsedlaLod(sun) {
 
   const camPos = new THREE.Vector3(), centre = new THREE.Vector3(), frustum = new THREE.Frustum(), vp = new THREE.Matrix4(), sphere = new THREE.Sphere();
   return {
-    add(actor, { tint = m => m } = {}) {
+    add(actor, { tint = m => m, levels: px = LEVEL_PX } = {}) {
       const mesh = skinOf(actor.model);
-      const e = { actor, mesh, material: mesh.material, coarse: null, levels: null, level: 0 };
+      const e = { actor, mesh, material: mesh.material, coarse: null, levels: null, level: 0, px, diagonal: actor.size.length() };
       entries.push(e);
       const ready = levelsOf(mesh.geometry, mesh.material.map).then(levels => {
         if (levels[levels.length - 1].attributes.color) e.coarse = tint(coarseBase, '#include <color_fragment>', 'thorsedla-tint-coarse');
@@ -185,10 +186,10 @@ export function createThorsedlaLod(sun) {
         if (!e.levels) continue;
         e.actor.centre(centre);
         const k = e.actor.root.scale.x;
-        const inView = frustum.intersectsSphere(sphere.set(centre, (DIAGONAL / 2) * k * 1.4));
-        const px = inView ? (DIAGONAL * k * pxPerUnit) / Math.max(0.1, camPos.distanceTo(centre)) : 0;
+        const inView = frustum.intersectsSphere(sphere.set(centre, (e.diagonal / 2) * k * 1.4));
+        const px = inView ? (e.diagonal * k * pxPerUnit) / Math.max(0.1, camPos.distanceTo(centre)) : 0;
         let level = 0;
-        while (level < LEVEL_PX.length && px < LEVEL_PX[level]) level++;
+        while (level < e.px.length && px < e.px[level]) level++;
         setLevel(e, level);
       }
     },

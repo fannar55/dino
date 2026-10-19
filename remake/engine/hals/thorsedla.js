@@ -185,6 +185,9 @@ async function createThorsedla(world, board, place, lod) {
   const actor = await createActor(own, { name: `thorsedla-${place.id}`, url: URL_MODEL, position: [place.x, ground, place.z], heading });
   const { root, model } = actor;
   root.scale.setScalar(k);
+  // out of step: each starts her idle somewhere else in its six seconds, a little faster or slower
+  const idle = actor.mixer.existingAction(actor.clips.get('idle'));
+  if (idle) { idle.time = Math.random() * 6; idle.setEffectiveTimeScale(0.88 + Math.random() * 0.2); }
   root.updateMatrixWorld(true);
   let skin = null;
   model.traverse(o => { if (o.isSkinnedMesh && (!skin || o.geometry.attributes.position.count > skin.geometry.attributes.position.count)) skin = o; });
@@ -289,6 +292,11 @@ async function createThorsedla(world, board, place, lod) {
   aimGoal.copy(aim);
   const look = { point: new V3(), weight: 0, goal: 0 };
   let swishT = -1, flickT = -1, cheerT = -1, cheerFor = 0;
+  // Now and then, while nothing happens, she does a little something of her own: a nod, a swish of her tail, a glance at the
+  // child (the camera), a stretch of her neck. Each on her own clock, so the six never move together.
+  let nodT = -1, glanceT = -1, stretchT = -1;
+  let nextFidget = 4 + Math.random() * 8;
+  const nudge = new V3();
   const jointsNow = { neck: neckBind.map(p => p.clone()), tail: tailBind.map(p => p.clone()) };
 
   // ---- posing, after her clips each frame (actor.control's pose) --------------------------------------------------------
@@ -316,7 +324,7 @@ async function createThorsedla(world, board, place, lod) {
     // where the top of her neck goes, with a slow bob while she rests
     const bob = calm ? 0 : 1;
     local.copy(neckTarget);
-    if (!neckGoal) local.add(vb.set(0, Math.sin(time * 0.9) * 0.06 * bob, Math.sin(time * 0.55 + 1) * 0.08 * bob));
+    if (!neckGoal) local.add(vb.set(0, Math.sin(time * 0.9) * 0.06 * bob, Math.sin(time * 0.55 + 1) * 0.08 * bob)).add(nudge);
     root.worldToLocal(local).sub(base);
     const yaw = Math.atan2(local.z, local.x);
     const u = Math.hypot(local.x, local.z), v = local.y;
@@ -494,11 +502,48 @@ async function createThorsedla(world, board, place, lod) {
         tw.step(t);
         if (t >= 1) { tweens.delete(tw); tw.resolve(); }
       }
-      aim.lerp(aimGoal, 1 - Math.exp(-dt * 4));
       look.weight += (look.goal - look.weight) * (1 - Math.exp(-dt * 2.5));
       if (swishT >= 0 && (swishT += dt) > 1.4) swishT = -1;
       if (flickT >= 0 && (flickT += dt) > 0.7) flickT = -1;
       if (cheerT >= 0 && (cheerT += dt) > cheerFor) { cheerT = -1; actor.play('idle', { fade: 0.5 }); }
+      // the fidgets
+      const busy = neckGoal || tweens.size || cheerT >= 0;
+      if (!busy && (nextFidget -= dt) <= 0) {
+        nextFidget = (calm ? 12 : 6) + Math.random() * (calm ? 14 : 9);
+        const pick = Math.random();
+        if (pick < 0.3) nodT = 0;
+        else if (pick < 0.55) { if (!calm) swishT = 0; else nodT = 0; }
+        else if (pick < 0.8) glanceT = 0;
+        else stretchT = 0;
+        if (Math.random() < 0.5) actor.blink();
+      }
+      nudge.set(0, 0, 0);
+      if (nodT >= 0) {
+        // a slow, friendly nod: down, a little up, down again less, and back
+        const x = (nodT += dt) / 1.8;
+        nudge.y -= Math.sin(Math.PI * Math.min(1, x) * 2) ** 2 * 0.35 * (x < 0.5 ? 1 : 0.6) * (calm ? 0.5 : 1);
+        if (x >= 1) nodT = -1;
+      }
+      if (stretchT >= 0) {
+        const x = (stretchT += dt) / 2.6;
+        nudge.y += Math.sin(Math.PI * Math.min(1, x)) * 0.55 * (calm ? 0.5 : 1);
+        nudge.z += Math.sin(Math.PI * Math.min(1, x)) * 0.25;
+        if (x >= 1) stretchT = -1;
+      }
+      if (cheerT >= 0 && !calm) nudge.y += Math.sin(cheerT * 9) * 0.22 * Math.min(1, cheerT * 3, (cheerFor - cheerT) * 3);
+      // a glance at the child, the camera, for a couple of seconds
+      let goal = aimGoal;
+      if (glanceT >= 0) {
+        if ((glanceT += dt) > 2.4) glanceT = -1;
+        else goal = vc.copy(world.camera.position);
+      }
+      if (cheerT >= 0) goal = vc.copy(world.camera.position);
+      aim.lerp(goal, 1 - Math.exp(-dt * 4));
+      if (!place.neck) {
+        // Lyng keeps her clip's neck and looks round with the actor's own look
+        if (look.goal > 0.5) actor.lookAt(look.point, { weight: 0.5, maxAngle: 45, maxPitch: 35 });
+        else actor.lookAt(glanceT >= 0 ? 'camera' : null, { weight: 0.5 });
+      }
       actor.update(dt);
     },
   };
