@@ -29,6 +29,7 @@ import { parseCards } from './engine/book/cards.js';
 import { parseManifest } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
+import { createYatzyGame } from './engine/yatzy/table.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -179,7 +180,7 @@ const pointer = createPointer({ canvas, camera, world });
 const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : eitt.open(options)), // the Leikir page's "Eitt!" tile (or its Kennsla), or "Háls og hali"
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once.
   onTab: tab => { if (tab === 'games') setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
@@ -200,6 +201,15 @@ const eitt = createEittGame(document, {
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
+});
+// Slóeðla's dice game, "Risaeðlu-Yatzy" (engine/yatzy/table.js), which the Leikir page opens over the book.
+const yatzy = createYatzyGame(document, {
+  save, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('yatzy', paused);
+  },
+  onClose: () => book.refresh(),
 });
 // Þórseðla's snakes and ladders, "Háls og hali" (engine/hals/game.js), which the Leikir page opens over the book as it does "Eitt!",
 // holding the chapter the same way (its own hold). It draws its board with this page's renderer: the canvas moves into the game

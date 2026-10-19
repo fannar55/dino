@@ -348,13 +348,14 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
-/* Two games side by side on the left page: each in its slot, "Eitt!" with its "Kennsla" under it. */
-.book-leaf[data-tab="games"] .book-tiles { flex-wrap: nowrap; align-items: center; }
-.game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .6); }
+/* Three games on the left page: two across and one below, each in its slot, "Eitt!" with its "Kennsla" under it. */
+.book-leaf[data-tab="games"] .book-tiles { flex-wrap: wrap; align-items: flex-start; }
+.game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .35); }
 .book-leaf[data-tab="games"] .game-tile {
-  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--book-target) - 30px) * .96);
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) - 38px) / 2.18);
 }
-.game-tile[data-game="hals"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
+.game-tile[data-game="hals"] .tile-picture img,
+.game-tile[data-game="yatzy"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
 
 /* The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's title. */
 .ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */

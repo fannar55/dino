@@ -41,10 +41,12 @@ const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been
 const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
-// "Háls og hali" shows on the Leikir page always while it is being made: a development switch. The finished game will open with
-// Þórseðla's star, as "Eitt!" opens with Kambeðla's: HALS_OPEN becomes save.get().stars.includes('k2_thorsedla').
+const SLOEDLA_PICTURE = new URL('../../assets/eitt/parasaurolophus.webp', import.meta.url).href;
+// "Háls og hali" and "Risaeðlu-Yatzy" show on the Leikir page always while they are being made: development switches.
 const HALS_OPEN = true;
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
+const YATZY_OPEN = true;
+const YATZY_SEEN = 'yatzy'; // kept in the save's seen list once Risaeðlu-Yatzy has been opened
 const NAME_MS = 2600; // a fossil's name stays over its sticker this long
 const OPEN_MS = 460;
 const CLOSE_MS = 340;
@@ -171,8 +173,28 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   eittSlot.append(eittTile, teachButton);
   const halsSlot = make('div', 'game-slot');
   halsSlot.append(halsTile);
+  // "Risaeðlu-Yatzy": a taped photo of Slóeðla beside "Eitt!" and "Háls og hali".
+  const yatzyTile = make('button', 'tile game-tile');
+  yatzyTile.setAttribute('type', 'button');
+  yatzyTile.setAttribute('data-game', 'yatzy');
+  yatzyTile.setAttribute('aria-label', 'Risaeðlu-Yatzy, teningaspil við Slóeðlu');
+  yatzyTile.style.setProperty('--hue', '#d97a4a'); // Slóeðla's warm orange-ochre
+  const yatzyPicture = make('span', 'tile-picture');
+  const yatzyImage = doc.createElement('img');
+  yatzyImage.src = SLOEDLA_PICTURE;
+  yatzyImage.alt = '';
+  yatzyImage.draggable = false;
+  yatzyPicture.append(yatzyImage);
+  const yatzyName = make('span', 'tile-name');
+  yatzyName.textContent = 'Risaeðlu-Yatzy';
+  const yatzyBadge = make('span', 'badge-new');
+  yatzyBadge.textContent = 'Nýtt!';
+  yatzyBadge.setAttribute('aria-hidden', 'true');
+  yatzyTile.append(yatzyPicture, yatzyName);
+  const yatzySlot = make('div', 'game-slot');
+  yatzySlot.append(yatzyTile);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
-  gamesLeft.append(eittSlot, halsSlot);
+  gamesLeft.append(eittSlot, halsSlot, yatzySlot);
   gamesRight.append(sheet);
 
   // The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page.
@@ -235,6 +257,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     animals.render();
     renderGames(state);
     renderHals(state);
+    renderYatzy(state);
     renderFossils();
   }
 
@@ -322,6 +345,16 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     if (!fresh) halsBadge.remove();
   }
 
+  /** "Risaeðlu-Yatzy" is there while YATZY_OPEN, and new until it is first played. */
+  function renderYatzy(state) {
+    const fresh = YATZY_OPEN && !state.seen.includes(YATZY_SEEN);
+    yatzySlot.hidden = !YATZY_OPEN;
+    yatzyTile.classList.toggle('found', YATZY_OPEN && !fresh);
+    yatzyTile.classList.toggle('new', fresh);
+    if (fresh && yatzyBadge.parentNode !== yatzyTile) yatzyTile.append(yatzyBadge);
+    if (!fresh) yatzyBadge.remove();
+  }
+
   /** A tap on the "Háls og hali" tile: the game opens over the book. */
   function tapHals() {
     if (!HALS_OPEN) return;
@@ -329,6 +362,15 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     save.addSeen(HALS_SEEN);
     render();
     onPlay?.('hals');
+  }
+
+  /** A tap on the "Risaeðlu-Yatzy" tile: Slóeðla's dice game opens over the book. */
+  function tapYatzy() {
+    if (!YATZY_OPEN) return;
+    audio?.sfx?.('tile');
+    save.addSeen(YATZY_SEEN);
+    render();
+    onPlay?.('yatzy');
   }
 
   /** A tap on the "Eitt!" tile: it opens the game once Kambeðla's star is in, and wiggles before. */
@@ -573,6 +615,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   for (const tile of stars) pressable(tile, { audio, win });
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
+  pressable(yatzyTile, { audio, sound: null, win, onTap: () => tapYatzy() });
   for (const fossil of fossilTiles) pressable(fossil.tile, { audio, sound: null, win, onTap: () => tapFossil(fossil) });
   pressable(teachButton, { audio, sound: 'tile', win, onTap: () => { if (save.get().stars.includes(EITT_STAR)) onPlay?.('eitt', { tutorial: true }); } });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound

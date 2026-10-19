@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Risaeðlu-Yatzy — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./yatzy.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<!-- "Risaeðlu-Yatzy" on a page of its own, never linked from the game.
+     With no ?state= (or state=live) a real game is played with Slóeðla (engine/yatzy/table.js),
+     on a save of its own (mosi-yatzy-lab, so the game's progress is untouched).
+     &skill=0 to 1 sets Slóeðla's skill first. -->
+</head>
+<body>
+<main class="yatzy" id="yatzy"></main>
+<script type="module">
+  import { createYatzyGame } from './engine/yatzy/table.js';
+  import { createSave } from './engine/save.js';
+  import { createAudioContext, createOutput } from './engine/audio/output.js';
+
+  const params = new URLSearchParams(location.search);
+  const read = async path => {
+    try {
+      const response = await fetch(path);
+      return response.ok ? await response.json() : null;
+    } catch {
+      return null;
+    }
+  };
+  const [lines, theme] = await Promise.all([read('./assets/audio/lines.json'), read('./assets/audio/theme.json')]);
+  const context = createAudioContext();
+  const output = context && createOutput(context);
+  const save = createSave(undefined, 'mosi-yatzy-lab');
+  if (params.has('skill')) save.setYatzy({ skill: Number(params.get('skill')) });
+
+  // Custom deterministic seed rolls for visual states (?state=yatzy|egg|mosi)
+  const state = params.get('state') || 'live';
+  let rollQueue = [];
+  if (state === 'yatzy') {
+    rollQueue = [5, 5, 5, 5, 5]; // Five Slóeðlur!
+  } else if (state === 'egg') {
+    rollQueue = [1, 1, 2, 2, 3, 1, 1, 4, 4, 5];
+  } else if (state === 'mosi') {
+    rollQueue = [1, 1, 1, 4, 6];
+  }
+  const random = () => {
+    if (rollQueue.length > 0) {
+      const face = rollQueue.shift();
+      return (face - 0.5) / 6;
+    }
+    return Math.random();
+  };
+
+  const game = createYatzyGame(document, {
+    save,
+    audio: { context, output, theme, lines: lines ?? {} },
+    random,
+    onClose: () => setTimeout(() => game.open(), 600),
+  });
+  addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
+  Object.assign(window, { __yatzy: game, __save: save });
+  game.open();
+
+  const root = document.getElementById('yatzy');
+  const rollBtn = root.querySelector('.yatzy-roll');
+  const mosiBtn = root.querySelector('.yatzy-mosi');
+  const tap = el => {
+    if (!el) return;
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
+    el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
+  };
+
+  if (state === 'yatzy' || state === 'mosi') {
+    setTimeout(() => {
+      tap(rollBtn);
+      if (state === 'mosi') setTimeout(() => tap(mosiBtn), 700);
+      setTimeout(() => { window.__demoReady = true; }, 1100);
+    }, 250);
+  } else {
+    setTimeout(() => { window.__demoReady = true; }, 600);
+  }
+</script>
+</body>
+</html>
