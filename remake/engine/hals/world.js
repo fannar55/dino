@@ -14,6 +14,7 @@ import { createForest } from '../../world/forest/forest.js';
 import { createBoard } from './board.js';
 import { PLACES, shelfFor } from './places.js';
 import { createThorsedlas } from './thorsedla.js';
+import { createFriends } from './friends.js';
 
 // The world of "Háls og hali" (spec sections 3, 4 and 6): Codex's board of 80 squares on five tiers, seen from the side, in a
 // clearing of the remake's own forest, in the chapter's morning light, with the chapter's real Þórseðlas on its necks and tails
@@ -22,13 +23,17 @@ import { createThorsedlas } from './thorsedla.js';
 //
 //   const world = await createHalsWorld(renderer, { q, params, onProgress })
 //   world.scene, world.camera                the scene and its PerspectiveCamera
-//   world.board                              the board (board.js): square(n), stairs(n), decorate(events), glow(n)
-//   world.view                               the camera: overview(), follow(target), frame(a, b), calm, shake(s), cut()
-//   world.actors                             the actor world the Þórseðlas and the pieces are made in (actor.js's `world`)
-//   world.addUpdater(fn)                     fn(dt) every frame, before the camera (thorsedlas, pieces)
-//   world.update(dt), world.render(), world.resize(width, height), world.dispose()
-//   world.info                               draw-cost notes for the lab
-//
+//   world.board                              the board (board.js): square(n), stairs(n), decorate(events), glow(n), tierY(r)
+//   world.thorsedlas                         the six Þórseðlas (thorsedla.js): neckAt(from), tailAt(from), list
+//   world.friends                            Uggeðla and Flugeðla watching (friends.js)
+//   world.view                               the camera: overview(), follow(target), frame(a, b, margin), shake(s), cut()
+//   world.watch(point)                       the Þórseðlas and friends look at a piece (null: they look about)
+//   world.calm = true                        calm mode: the camera stays on the whole board, everything moves gently
+//   world.world                              the actor world the pieces are made in (pieces.js: createPieces(world.world, board))
+//   world.tween(seconds, step), world.wait(seconds)   Promises on the world's clock (they hold while it is not updated)
+//   world.addUpdater(fn)                     fn(dt) every frame, before the camera (the pieces)
+//   world.update(dt), world.render(), world.resize(width, height), world.ready(), world.dispose()
+
 // Sizes are metres. The board is Codex's at his own measures (2.3 m a square, 5.5 m a tier); the forest is the chapter's at its
 // real size round it, so its old trees stand as tall as the board.
 
@@ -101,6 +106,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   // ---- the Þórseðlas ----------------------------------------------------------------------------------------------------
   onProgress(0.6, 'thorsedlas');
   const thorsedlas = await createThorsedlas(world, board, places);
+  const friends = await createFriends(world, board);
 
   // ---- the camera ------------------------------------------------------------------------------------------------------
   const view = createView(camera, board);
@@ -122,6 +128,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     }
     thorsedlas.update(dt);
     for (const fn of updaters) fn(dt);
+    friends.update(dt);
     world.effects.update(dt);
     board.update(dt);
     view.update(dt);
@@ -142,7 +149,12 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   }
 
   return {
-    scene, camera, board, view, forest, world, lighting, places, thorsedlas,
+    scene, camera, board, view, forest, world, lighting, places, thorsedlas, friends,
+    /** Everyone who watches (the Þórseðlas, the friends) looks at this point (a piece's position), or about (null). */
+    watch(point) { thorsedlas.lookAt(point); friends.lookAt(point); },
+    /** Calm mode: the camera stays on the whole board and everything moves gently. */
+    set calm(value) { view.calm = value; thorsedlas.calm = value; friends.calm = value; },
+    get calm() { return view.calm; },
     get time() { return time; },
     addUpdater(fn) { updaters.add(fn); return () => updaters.delete(fn); },
     tween,
@@ -150,9 +162,10 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     update,
     render() { renderer.render(scene, camera); },
     resize,
-    ready: () => Promise.all([characterLodsReady(), thorsedlas.ready()]),
+    ready: () => Promise.all([characterLodsReady(), thorsedlas.ready(), friends.ready()]),
     dispose() {
       thorsedlas.dispose();
+      friends.dispose();
       board.dispose();
       forest.dispose();
       sky.dispose?.();

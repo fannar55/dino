@@ -56,6 +56,8 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
       if (world.camera && world.renderer) lod.update(world.camera, world.renderer.domElement.height);
     },
     ready: () => lod.ready(),
+    /** The pieces whose turn it is not look at the one whose turn it is. */
+    watch(active) { for (const p of list) p.lookAt(p === active ? null : active.position); },
     dispose() { for (const p of list) p.dispose(); },
   };
 }
@@ -233,7 +235,7 @@ async function createPiece(world, board, id, index, host) {
     spot, place, hopTo, hopOnto, follow: followPoint, slide, float, wobbleTo, cheer,
     face(dir) { heading = headingFor(dir); },
     rest() { play('idle', { fade: 0.3 }); },
-    lookAt(point) { actor.lookAt(point, { weight: 0.6, maxAngle: 50, maxPitch: 30 }); },
+    lookAt(point) { actor.lookAt(point, { weight: 0.6, maxAngle: 50, maxPitch: 30 }); rider?.lookAt(point, { weight: 0.7, maxAngle: 60, maxPitch: 30 }); },
     update(dt) {
       actor.update(dt);
       rider?.update(dt);

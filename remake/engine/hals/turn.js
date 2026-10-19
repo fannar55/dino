@@ -78,6 +78,7 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
   if (result.won) {
     onLand('win', { at: result.destination });
     for (const t of thorsedlas.list) t.cheer(3.2);
+    world.friends?.cheer();
     await piece.cheer(4);
   }
 }

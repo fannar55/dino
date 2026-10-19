@@ -67,7 +67,8 @@ world.board.decorate(SPECIAL_TILES);
 let active = pieces.list[0];
 world.addUpdater(dt => {
   pieces.update(dt);
-  world.thorsedlas.lookAt(active.position);
+  world.watch(active.position);
+  pieces.watch(active);
 });
 window.__world = world;
 window.__pieces = pieces;
@@ -78,9 +79,8 @@ addEventListener('resize', fit);
 // the camera and calm mode
 let whole = params.get('view') !== 'follow';
 function setCalm(on) {
-  world.view.calm = on;
+  world.calm = on;
   pieces.calm = on;
-  world.thorsedlas.calm = on;
   document.getElementById('calm').setAttribute('aria-pressed', String(on));
 }
 function setWhole(on) {
