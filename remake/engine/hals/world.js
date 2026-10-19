@@ -46,8 +46,9 @@ export const VIEW = {
   // with room below for the dock (`safe`, a share of the view's height) and the tall Þórseðlas allowed up to the top edge; from
   // Lyng's tail beside the left end (`left`) to Burkni beside the right end (`right`). Upright, where the width is what limits
   // the view, it frames just the board and the two giants (`tight`) and sets the board in the middle of the height between the
-  // dock and the buttons at the top (`top`, a share of the view's height).
-  overview: { bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, tight: [-26.2, 31.6], safe: 0.16, top: 0.07, lift: 0.25, depth: -4.2 },
+  // dock and the buttons at the top (`top`, a share of the view's height). In landscape `bar` metres more go over the top tier,
+  // so the players' portraits along the top sit in the sky over its numbers.
+  overview: { bar: 2.8, bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, tight: [-26.2, 31.6], safe: 0.16, top: 0.07, lift: 0.25, depth: -4.2 },
   // close on a piece: its tier and the next one above; upright, a little further back and aimed lower, so the front tier above
   // (it stands 6.2 m nearer) does not loom over the players' portraits
   follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0], upright: { pull: 1.1, lead: -1.6 } },
@@ -217,8 +218,9 @@ function createView(camera, board) {
         wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);
         return;
       }
-      wantTarget.set((O.left + O.right) / 2, O.bottom - height * O.safe + height / 2, O.depth);
-      const d = distanceFor(O.right - O.left, height);
+      const tall = (TOP + O.above + O.bar - O.bottom) / (1 - O.safe);
+      wantTarget.set((O.left + O.right) / 2, O.bottom - tall * O.safe + tall / 2, O.depth);
+      const d = distanceFor(O.right - O.left, tall);
       wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);
       return;
     }

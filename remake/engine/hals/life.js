@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { BOARD, SPECIAL_TILES } from './rules.js';
 import { STONE } from './board.js';
-import { THORSEDLA_MODEL } from './places.js';
+import { THORSEDLA_MODEL, shelfFor } from './places.js';
 import { createModel } from '../../world/critters/models.js';
 
 // The board's small life (the owner's polish round, 2026-10-19: "meira af smádýrum í bakgrunn, drekaflugu, fiðrildi og fleira"):
@@ -139,8 +139,8 @@ function flowerGeometry() {
   const heads = [[0, 0.32, 0], [0.09, 0.24, 0.05], [-0.08, 0.27, -0.04]];
   for (const [x, y, z] of heads) {
     parts.push(part(new THREE.CylinderGeometry(0.008, 0.01, y, 3).translate(x * 0.5, y / 2, z * 0.5), '#5f8f3e'));
-    parts.push(part(new THREE.CircleGeometry(0.06, 6).rotateX(-1.2).translate(x, y, z), '#ffffff'));
-    parts.push(part(new THREE.CircleGeometry(0.022, 5).rotateX(-1.2).translate(x, y + 0.004, z + 0.002), '#f7c843'));
+    parts.push(part(new THREE.CircleGeometry(0.07, 6).rotateX(-0.55).translate(x, y, z), '#ffffff'));
+    parts.push(part(new THREE.CircleGeometry(0.026, 5).rotateX(-0.55).translate(x, y + 0.003, z + 0.006), '#f7c843'));
   }
   for (const s of [-1, 1]) parts.push(part(new THREE.CircleGeometry(0.06, 4).scale(1.6, 0.6, 1).rotateY(s * 0.8).translate(0.03 * s, 0.05, 0.02), '#6f9a3f'));
   const g = mergeGeometries(parts);
@@ -275,7 +275,8 @@ void main() {
 
 // ---- the life itself -------------------------------------------------------------------------------------------------------
 
-const COUNTS = { dragonflies: 9, butterflies: 14, birds: 14, flowers: 44, beetles: 4, lizards: 3, frogs: 2, snails: 1, leaves: 10, motes: 220, shafts: 5 };
+const COUNTS = { dragonflies: 16, butterflies: 30, birds: 26, flowers: 64, beetles: 8, lizards: 6, frogs: 3, snails: 2, leaves: 26, motes: 420, shafts: 5 };
+const GROUP = 3; // butterflies go about in little groups
 const BUTTERFLY_COLOURS = ['#f39a3a', '#6fc0ee', '#f5dc4a', '#f08bb4', '#fffaf0', '#b48cf0'];
 const FLOWER_COLOURS = ['#fff4f0', '#f7a6c4', '#ffd84a', '#c9a2f2', '#ff9a6a'];
 const LEAF_COLOURS = ['#8fbf4e', '#c9c24a', '#e8a33a', '#d9772f', '#a8c95a'];
@@ -294,6 +295,8 @@ export function createLife(hw) {
   const tierY = r => board.tierY(r), tierZ = r => board.tierZ(r);
   const nearFocus = (p, r) => focus && p.distanceTo(v1.copy(focus).add(UP)) < r;
   const speed = () => (calm ? 0.55 : 1);
+  /** How much bigger to draw something far from the camera, so the whole-board view shows it too: 1 near, up to `most` far. */
+  const seen = (p, near, most) => Math.min(most, Math.max(1, camera.position.distanceTo(p) / near));
   /** Somewhere along the board, most often near where the child looks (the piece whose turn it is), so the close view has life. */
   const alongX = () => (focus && Math.random() < 0.65 ? THREE.MathUtils.clamp(focus.x + rand(-8, 8), -23, 23) : rand(-23, 23));
   /** A tier, most often the one the piece whose turn it is stands on, or the one above it. */
@@ -393,7 +396,7 @@ export function createLife(hw) {
     }
     const resting = f.mode === 'rest';
     setFlap(dragonflies, i, resting ? 0 : 1, f.phase, resting ? 0.02 : 0.1);
-    place(dragonflies, i, f.pos, f.yaw, { pitch: f.pitch, scale: 1.3 });
+    place(dragonflies, i, f.pos, f.yaw, { pitch: f.pitch, scale: 1.3 * seen(f.pos, 24, 2.4) });
   }
 
   // ---- butterflies --------------------------------------------------------------------------------------------------------
@@ -405,7 +408,7 @@ export function createLife(hw) {
   // flowers: on the moss of the logs between the blocks, on the shelves' front edges and in the grass before the bottom tier
   const flowerSpots = [];
   for (let r = 1; r < BOARD.rows; r++) {
-    for (let c = 0; c < 6; c++) {
+    for (let c = 0; c < 9; c++) {
       const n = r * BOARD.columns + 1 + Math.floor(rand(0, BOARD.columns - 1));
       const a = board.square(n), b = board.square(n + (r % 2 ? 1 : 1));
       if (Math.abs(a.y - b.y) > 0.1) continue;
@@ -444,17 +447,38 @@ export function createLife(hw) {
     }
     return out;
   }
-  const bugs = Array.from({ length: COUNTS.butterflies }, (_, i) => {
-    const band = i < 3 ? -1 : i < 6 ? 0 : bands();
-    const p = nearStart(wanderPoint(band), i < 6);
-    return { mode: 'flutter', band, pos: p.clone(), vel: new V3(), goal: wanderPoint(band), t: 0, dur: rand(6, 14), sit: null, phase: rand(0, TAU), yaw: 0, from: new V3() };
+  // little groups, one or two along every tier and over the grass: each group wanders to a goal and its members flutter round it
+  const groups = Array.from({ length: Math.ceil(COUNTS.butterflies / GROUP) }, (_, g) => {
+    const band = g === 0 ? -1 : g === 1 ? 0 : g < 2 + BOARD.rows ? g - 2 : bands();
+    const goal = nearStart(wanderPoint(band), g < 2);
+    return { band, goal, t: 0, dur: rand(5, 11) };
   });
+  const bugs = Array.from({ length: COUNTS.butterflies }, (_, i) => {
+    const group = groups[Math.floor(i / GROUP)];
+    const p = group.goal.clone().add(new V3(rand(-1, 1), rand(-0.5, 0.5), rand(-0.6, 0.6)));
+    return { mode: 'flutter', group, band: group.band, pos: p, vel: new V3(), goal: new V3(), t: 0, dur: rand(6, 14), sit: null, phase: rand(0, TAU), yaw: 0, from: new V3(), orbit: rand(0.6, 1.3) };
+  });
+  function updateGroups(dt) {
+    for (const g of groups) {
+      if ((g.t += dt) < g.dur) continue;
+      g.t = 0; g.dur = rand(5, 11);
+      if (Math.random() < 0.2) g.band = bands();
+      // most often a few metres along its tier, sometimes further
+      const from = g.goal.clone();
+      wanderPoint(g.band, g.goal);
+      if (g.band === -1 || Math.random() < 0.7) g.goal.x = THREE.MathUtils.clamp(from.x + rand(-7, 7), -23, 23);
+    }
+  }
   function updateBug(b, i, dt) {
     b.t += dt;
     const s = speed();
     if (scatterT >= 0 && b.mode !== 'flee') {
       if (b.sit) b.sit.taken = false;
       b.sit = null; b.mode = 'flee'; b.t = 0; b.goal.copy(b.pos).add(v2.set(rand(-5, 5), rand(8, 12), rand(-1, 2)));
+    }
+    if (b.mode === 'flutter') {
+      // round its group's goal, each on a little loop of its own
+      b.goal.copy(b.group.goal).add(v1.set(Math.sin(time * 0.9 + b.phase) * b.orbit, Math.sin(time * 1.3 + b.phase * 2) * 0.4, Math.cos(time * 0.7 + b.phase) * b.orbit * 0.6));
     }
     if (b.mode === 'flutter' || b.mode === 'flee' || b.mode === 'land') {
       const target = b.mode === 'land' ? b.sit.point() : b.goal;
@@ -466,49 +490,52 @@ export function createLife(hw) {
       if (b.mode !== 'land') b.pos.y += Math.sin(time * 6 + b.phase) * 0.6 * dt; // a butterfly's bobbing
       if (Math.hypot(b.vel.x, b.vel.z) > 0.05) b.yaw = lerpAngle(b.yaw, Math.atan2(b.vel.z, b.vel.x), Math.min(1, dt * 5));
       if (b.mode === 'land' && d < 0.08) { b.mode = 'sit'; b.t = 0; b.dur = rand(3, 7); b.yaw = b.sit.yaw; }
-      else if (b.mode === 'flutter' && (d < 0.4 || b.t > b.dur)) {
+      else if (b.mode === 'flutter' && b.t > b.dur) {
         b.t = 0; b.dur = rand(5, 12);
-        const roll = Math.random();
         const free = sits.filter(x => !x.taken);
-        if (roll < 0.35 && free.length) {
-          // a flower near its way, or now and then a Þórseðla's back
-          const near = free.filter(x => x.point().distanceTo(b.pos) < (x.back ? 14 : 9));
+        if (Math.random() < 0.4 && free.length) {
+          // a flower near it, or now and then a Þórseðla's back
+          const near = free.filter(x => x.point().distanceTo(b.pos) < (x.back ? 12 : 7));
           if (near.length) { b.sit = pick(near); b.sit.taken = true; b.mode = 'land'; }
         }
-        if (b.mode === 'flutter') { if (roll > 0.85) b.band = bands(); wanderPoint(b.band, b.goal); }
       } else if (b.mode === 'flee' && b.t > 2.5) { b.mode = 'away'; b.t = 0; }
     } else if (b.mode === 'sit') {
       b.pos.copy(b.sit.point());
       if (b.t > b.dur || nearFocus(b.pos, 1.6) || avoid.some(a => a.distanceTo(b.pos) < 1.2)) {
-        b.sit.taken = false; b.sit = null; b.mode = 'flutter'; b.t = 0; wanderPoint(b.band, b.goal); b.vel.set(0, 1, 0);
+        b.sit.taken = false; b.sit = null; b.mode = 'flutter'; b.t = 0; b.vel.set(0, 1, 0);
       }
     } else if (b.mode === 'away') {
       b.pos.y += Math.sin(time * 6 + b.phase) * 0.3 * dt;
-      if (b.t > 3 && scatterT < 0) { b.mode = 'flutter'; b.t = 0; wanderPoint(b.band, b.goal); }
+      if (b.t > 3 && scatterT < 0) { b.mode = 'flutter'; b.t = 0; }
     }
     const sitting = b.mode === 'sit';
     setFlap(butterflies, i, sitting ? 0 : 1, b.phase, sitting ? 1.15 + 0.3 * Math.sin(time * 1.6 + b.phase) : 0.35);
-    place(butterflies, i, b.pos, b.yaw, { scale: 1 });
+    place(butterflies, i, b.pos, b.yaw, { scale: seen(b.pos, 16, 3) });
   }
 
   // ---- pterosaurs: a flock far off now and then, and a smaller one nearer, in front of the trees -------------------------------
   const ptero = lifeMaterial('Háls og hali: pterosaurs', { rate: 7.5, amp: 0.7 });
   const birds = makeInstanced(scene, own(pterosaurGeometry()), own(ptero.material), COUNTS.birds, 'Life: pterosaurs', 1);
   const flocks = [
-    { size: 9, wait: rand(3, 10), t: 0, dur: 26, far: true, flying: false, from: new V3(), to: new V3(), slots: [] },
-    { size: 5, wait: rand(8, 16), t: 0, dur: 14, far: false, flying: false, from: new V3(), to: new V3(), slots: [] },
+    { kind: 'far', size: 11, wait: rand(2, 8), t: 0, dur: 26, flying: false, from: new V3(), to: new V3(), slots: [] },
+    { kind: 'near', size: 7, wait: rand(6, 14), t: 0, dur: 14, flying: false, from: new V3(), to: new V3(), slots: [] },
+    { kind: 'high', size: 8, wait: rand(4, 10), t: 0, dur: 18, flying: false, from: new V3(), to: new V3(), slots: [] },
   ];
   let slot = 0;
   for (const flock of flocks) for (let k = 0; k < flock.size; k++) flock.slots.push({ index: slot++, offset: new V3(), phase: rand(0, TAU), glide: rand(0, 3) });
   function launch(flock) {
     const dir = Math.random() < 0.5 ? 1 : -1;
-    if (flock.far) {
-      const y = rand(36, 48), z = rand(-90, -70);
+    if (flock.kind === 'far') {
+      const y = rand(40, 52), z = rand(-90, -70);
       flock.from.set(-150 * dir, y, z); flock.to.set(150 * dir, y + rand(-4, 6), z + rand(-8, 8));
-    } else {
+    } else if (flock.kind === 'near') {
       // in front of the trees behind the board, below the top tier: the close view sees them against the forest wall
       const y = rand(8, 16), z = rand(-30, -22);
       flock.from.set(-70 * dir, y, z); flock.to.set(70 * dir, y + rand(-2, 3), z);
+    } else {
+      // over the top tier, in the sky the whole board's view shows
+      const y = rand(37, 42), z = rand(-22, -14);
+      flock.from.set(-80 * dir, y, z); flock.to.set(80 * dir, y + rand(-2, 3), z);
     }
     flock.slots.forEach((s, k) => {
       const row = Math.ceil(k / 2), side = k % 2 ? 1 : -1;
@@ -516,7 +543,7 @@ export function createLife(hw) {
     });
     flock.t = 0;
     flock.flying = true;
-    flock.wait = flock.far ? rand(14, 30) : rand(12, 26);
+    flock.wait = flock.kind === 'far' ? rand(10, 22) : flock.kind === 'near' ? rand(10, 20) : rand(8, 18);
   }
   function updateFlocks(dt) {
     for (const flock of flocks) {
@@ -531,7 +558,8 @@ export function createLife(hw) {
         v1.y += Math.sin(time * 0.8 + s.phase) * 0.4;
         const flap = Math.sin(time * 0.6 + s.glide) > -0.2 ? 1 : 0.08;
         setFlap(birds, s.index, flap, s.phase, 0.12);
-        place(birds, s.index, flock.flying ? v1 : v2.set(0, -500, 0), yaw, { scale: flock.far ? 1.2 : 0.9, roll: Math.sin(time * 0.5 + s.phase) * 0.12 });
+        const size = flock.kind === 'far' ? 3 : flock.kind === 'near' ? 1.1 : 1.3 * seen(v1, 30, 2.2);
+        place(birds, s.index, flock.flying ? v1 : v2.set(0, -500, 0), yaw, { scale: size, roll: Math.sin(time * 0.5 + s.phase) * 0.12 });
       }
     }
   }
@@ -546,6 +574,9 @@ export function createLife(hw) {
   const grass = { ground: true, x: [-24, 24], z: [tierZ(0) + STONE.depth / 2 + 1.4, tierZ(0) + STONE.depth / 2 + 5] };
   const logs = [];
   for (let r = 1; r < BOARD.rows; r++) logs.push({ ground: false, y: tierY(r) - STONE.height + 0.02, z: tierZ(r) + STONE.depth / 2 - 0.1, x: [-22, 22] });
+  // and the mossy tops of the Þórseðlas' shelves, along their front edges
+  const shelves = (hw.places ?? []).filter(p => p.tier > 0).map(shelfFor).filter(sh => !sh.angle)
+    .map(sh => ({ ground: false, y: tierY(sh.tier) - 0.3 - (sh.drop ?? 0) + 0.02, z: sh.z1 - 0.35, x: [sh.x0 + 0.4, sh.x1 - 0.4] }));
   const walkPoint = (track, out = new V3(), near = null) => {
     const x = near ? THREE.MathUtils.clamp(near.x + rand(-4, 4), track.x[0], track.x[1]) : rand(track.x[0], track.x[1]);
     if (track.ground) { const z = rand(track.z[0], track.z[1]); return out.set(x, heightAt(x, z), z); }
@@ -556,15 +587,12 @@ export function createLife(hw) {
     const p = walkPoint(track);
     walkers.push({ mesh, index, track, pace, stop, hop, wiggle, scale, pos: p.clone(), goal: p.clone(), wait: rand(0, stop[1]), yaw: rand(0, TAU), phase: rand(0, TAU), jump: -1 });
   };
-  addWalker(beetleMesh, 0, grass, { pace: 0.6, stop: [1, 4] });
-  addWalker(beetleMesh, 1, grass, { pace: 0.6, stop: [1, 4] });
-  addWalker(beetleMesh, 2, logs[0], { pace: 0.45, stop: [2, 6] });
-  addWalker(beetleMesh, 3, logs[2], { pace: 0.45, stop: [2, 6] });
-  addWalker(lizardMesh, 0, grass, { pace: 2.6, stop: [1.5, 5], wiggle: true });
-  addWalker(lizardMesh, 1, logs[1], { pace: 2.2, stop: [2, 6], wiggle: true });
-  addWalker(lizardMesh, 2, logs[3], { pace: 2.2, stop: [2, 6], wiggle: true });
-  addWalker(snailMesh, 0, logs[0], { pace: 0.06, stop: [6, 12] });
-  // the frogs: by the first two mud squares, hopping along the backs of the blocks round them
+  const beetleTracks = [grass, grass, grass, logs[0], logs[1], logs[2], logs[3], shelves[0] ?? grass];
+  beetleTracks.slice(0, COUNTS.beetles).forEach((track, k) => addWalker(beetleMesh, k, track, { pace: track === grass ? 0.6 : 0.45, stop: [1, 5] }));
+  const lizardTracks = [grass, logs[0], logs[1], logs[2], logs[3], shelves[1] ?? grass];
+  lizardTracks.slice(0, COUNTS.lizards).forEach((track, k) => addWalker(lizardMesh, k, track, { pace: track === grass ? 2.6 : 2.2, stop: [1.5, 6], wiggle: true }));
+  [logs[0], logs[2]].slice(0, COUNTS.snails).forEach((track, k) => addWalker(snailMesh, k, track, { pace: 0.06, stop: [6, 12] }));
+  // the frogs: by the mud squares, hopping along the backs of the blocks round them
   const muds = SPECIAL_TILES.filter(e => e.type === 'mud').map(e => e.from).slice(0, COUNTS.frogs);
   muds.forEach((n, k) => {
     const a = board.square(n - 1), b = board.square(n + 1);
@@ -605,14 +633,15 @@ export function createLife(hw) {
     v1.copy(w.pos); v1.y += lift + (w.track.ground ? 0.01 : 0);
     const bob = moving && !w.hop && !w.wiggle ? Math.abs(Math.sin(time * 22 + w.phase)) * 0.01 : 0;
     v1.y += bob;
-    place(w.mesh, w.index, v1, w.yaw, { scale: w.scale, sy: w.scale * squash, sx: w.scale / Math.sqrt(squash), sz: w.scale / Math.sqrt(squash) });
+    const k = w.scale * seen(w.pos, 22, 1.8);
+    place(w.mesh, w.index, v1, w.yaw, { scale: k, sy: k * squash, sx: k / Math.sqrt(squash), sz: k / Math.sqrt(squash) });
   }
 
   // ---- leaves falling now and then ----------------------------------------------------------------------------------------
   const leafMesh = makeInstanced(scene, own(leafGeometry()), own(lifeMaterial('Háls og hali: leaves').material), COUNTS.leaves, 'Life: falling leaves', 1);
   const leaves = Array.from({ length: COUNTS.leaves }, (_, i) => {
     leafMesh.setColorAt(i, colour.set(pick(LEAF_COLOURS)));
-    return { pos: new V3(0, -500, 0), wait: rand(0, 14), spin: rand(1.5, 3.5), phase: rand(0, TAU), fall: rand(0.7, 1.1), sway: rand(0.5, 1.2), floor: 0, x0: 0 };
+    return { pos: new V3(0, -500, 0), wait: rand(0, 10), spin: rand(1.5, 3.5), phase: rand(0, TAU), fall: rand(0.7, 1.1), sway: rand(0.5, 1.2), floor: 0, x0: 0 };
   });
   function updateLeaf(l, i, dt) {
     if (l.wait > 0) {
@@ -628,8 +657,8 @@ export function createLife(hw) {
     l.pos.y -= l.fall * speed() * dt;
     l.pos.x = l.x0 + Math.sin(l.phase * l.sway) * 1.4;
     l.pos.z += Math.cos(l.phase * 0.7) * 0.2 * dt;
-    if (l.pos.y < l.floor) { l.wait = rand(4, 16); place(leafMesh, i, v1.set(0, -500, 0), 0); return; }
-    place(leafMesh, i, l.pos, l.phase * l.spin, { roll: Math.sin(l.phase * l.spin * 1.3) * 1.1, pitch: Math.cos(l.phase * l.sway) * 0.6, scale: 2.2 });
+    if (l.pos.y < l.floor) { l.wait = rand(2, 10); place(leafMesh, i, v1.set(0, -500, 0), 0); return; }
+    place(leafMesh, i, l.pos, l.phase * l.spin, { roll: Math.sin(l.phase * l.spin * 1.3) * 1.1, pitch: Math.cos(l.phase * l.sway) * 0.6, scale: 2.2 * seen(l.pos, 26, 2) });
   }
 
   // ---- motes in the air round the board, and slanting light in front of the trees ----------------------------------------------
@@ -641,7 +670,7 @@ export function createLife(hw) {
     for (let i = 0; i < COUNTS.motes; i++) {
       const x = rand(-30, 30), z = rand(-16, 6);
       pos.push(x, heightAt(x, z) + rand(0.3, 32), z);
-      mote.push(Math.random(), Math.random(), rand(0.035, 0.07), rand(0.5, 1));
+      mote.push(Math.random(), Math.random(), rand(0.05, 0.1), rand(0.5, 1)); // pollen and motes, big enough to glint from far
     }
     const g = own(new THREE.BufferGeometry());
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -706,6 +735,7 @@ export function createLife(hw) {
     hw.world.renderer?.getDrawingBufferSize?.(size);
     if (size.y) moteUniforms.uScale.value = size.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     flies.forEach((f, i) => updateFly(f, i, dt));
+    updateGroups(dt);
     bugs.forEach((b, i) => updateBug(b, i, dt));
     updateFlocks(dt);
     for (const w of walkers) updateWalker(w, dt);
@@ -728,7 +758,7 @@ export function createLife(hw) {
     scatter() {
       if (calm) return;
       scatterT = 0;
-      const near = flocks.find(f => !f.far);
+      const near = flocks.find(f => f.kind === 'high');
       if (near && !near.flying) launch(near); // and a flock of pterosaurs goes over
     },
     update,

@@ -1,7 +1,8 @@
 /* "Háls og hali" (Þórseðla's snakes and ladders): the game's look over its 3D board, in "Eitt!"'s style (eitt.css), so the two games
    of the book are one family. engine/hals/game.js renders into these classes:
 
-     .hals                       the root over the book: the font, every touch (touch-action: none); a size container. While it is
+     .hals                       the root over the book: the font, every touch (touch-action: none); a size container; .overview
+                                 while the whole board is in view (the players' bar a little smaller). While it is
                                  open the page's canvas (#view, .hals-view) lies first in it, under everything else; .calm is on it
                                  while the game is calm (prefers-reduced-motion, or a lab's ?calm=1)
      .hals-veil                  the clearing, soft, with a breathing star (.hals-loading) until the board is in (.ready fades it out;
@@ -142,6 +143,8 @@
   animation: hals-glow 1.8s ease-in-out infinite;
 }
 .hals-player.active .hals-name { opacity: 1; }
+.hals.overview .hals-players { scale: .82; transform-origin: 50% 0; } /* the whole board in view: the bar keeps to the sky over it */
+.hals-players { transform-origin: 50% 0; transition: scale .4s ease; }
 
 /* "Allt borðið": a cream pill on the top left, in a full-size hit area; green when on. */
 .hals-tools { position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); display: flex; gap: 6px; }

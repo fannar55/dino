@@ -389,6 +389,7 @@ export function createHalsGame(doc, {
   let skipIntro = null;
   let raf = 0;
   let last = 0;
+  let overviewShown = false; // the whole board is in view (hals.css .overview)
   let exposure = null; // the renderer's, while the game borrows it
   let home = null; // where the canvas lives while the game is shut
   const timers = new Set();
@@ -478,6 +479,8 @@ export function createHalsGame(doc, {
     last = now;
     effects.update(dt);
     if (!hw) return;
+    const overview = hw.view.mode === 'overview' || hw.view.calm;
+    if (overview !== overviewShown) root.classList.toggle('overview', (overviewShown = overview)); // the portraits a little smaller
     try {
       hw.update(dt);
       renderer.info.reset();
