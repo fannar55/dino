@@ -89,9 +89,9 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     shots: { overview: { position: [0, 18, 58], target: [0, 12, 0], fov: VIEW.fov } },
     leafShadows: false,
   };
-  // Half the grass of the chapter's clearing: here it is only the strip in front of the bottom tier, seen from far, and it
+  // A third of the grass of the chapter's clearing: here it is only the strip in front of the bottom tier, seen from far, and it
   // would otherwise cost a quarter of the frame's triangles close up.
-  const forest = await createForest(Object.assign(Object.create(world), { q: { ...q, grass: q.grass * 0.5 } }), layout);
+  const forest = await createForest(Object.assign(Object.create(world), { q: { ...q, grass: q.grass * 0.35 } }), layout);
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   const ground = forest.heightAt(0, 0);
