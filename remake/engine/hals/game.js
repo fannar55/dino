@@ -116,10 +116,11 @@ function spokenOf(line) {
  *   game           the rules' state now; world, pieces: the board world and its pieces, for the lab
  *   start(setup)   a new game ({ players: 1 to 4, mode }), as "Byrjum!"; roll(value) the child's roll (value: for a probe)
  *   muted          silences its effects, music and voices
+ * `musicUrl` is the track (assets/audio/hals/music.mp3 unless a lab tries another).
  */
 export function createHalsGame(doc, {
   save = null, audio = {}, renderer = null, q = undefined, params = undefined, onPause = null, onClose = null,
-  win = globalThis.window, random = Math.random,
+  win = globalThis.window, random = Math.random, musicUrl = MUSIC,
 } = {}) {
   const root = doc.getElementById('hals');
   if (!root) throw new Error('"Háls og hali" needs #hals on the page (see index.html)');
@@ -234,7 +235,25 @@ export function createHalsGame(doc, {
 
   const context = audio.context ?? null;
   const effects = createSfx({ context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: halsSounds, gaps: HALS_GAPS });
-  const music = createEittMusic({ context, output: audio.output ?? null, url: MUSIC });
+  const music = createEittMusic({ context, output: audio.output ?? null, url: musicUrl });
+  // The owner's track may not be there yet: asked once (a HEAD request) before the music first starts, so a missing file is one
+  // quiet miss and not one for every touch.
+  let musicThere = null; // null: not asked yet; then true or false
+  function startMusic() {
+    if (!context) return;
+    if (musicThere) {
+      music.start();
+      return;
+    }
+    if (musicThere === false) return;
+    musicThere = false; // until the answer comes
+    fetch(musicUrl, { method: 'HEAD' })
+      .then(response => {
+        musicThere = response.ok;
+        if (musicThere && isOpen) music.start();
+      })
+      .catch(() => { musicThere = false; });
+  }
   // One voice at a time, as in "Eitt!": a line asked for while another speaks waits until it has ended, the waiting lines in order of
   // who matters most (Mosi's counting, then the events, then the chatter); a line that waits too long (`within`) or is no longer true
   // (`still`) is dropped. Mosi's counting cuts in at once (`cut`), so each number lands on its hop.
@@ -342,7 +361,7 @@ export function createHalsGame(doc, {
   function wake() {
     if (!isOpen) return;
     if (context?.state === 'suspended') context.resume?.().catch?.(() => {});
-    music.wake();
+    if (musicThere) music.wake();
   }
 
   // ---- State --------------------------------------------------------------------------------------------------------------
@@ -1145,7 +1164,7 @@ export function createHalsGame(doc, {
     pause(true);
     attachCanvas();
     resize();
-    music.start();
+    startMusic();
     effects.play('forest');
     veil.classList.toggle('ready', Boolean(hw));
     last = globalThis.performance?.now?.() ?? 0;
