@@ -2303,5 +2303,15 @@
   "src": "assets/audio/hals/hals_fossil_skeleton.mp3",
   "duration": 6.33,
   "mouth": "00dfffea60565000000000000000000cd0000deff08ebcfe05dddc999a8209acddccdd6aa800009a0bca6ccb006a8885734870057a306668400000000000000"
+ },
+ "hals_mosi_bounce": {
+  "src": "assets/audio/hals/hals_mosi_bounce.mp3",
+  "duration": 3.45,
+  "mouth": "2ff0095320000ca07bbbfb50000000000000009e668fa00df9db0fc72670000000000"
+ },
+ "hals_thor_bounce": {
+  "src": "assets/audio/hals/hals_thor_bounce.mp3",
+  "duration": 2.33,
+  "mouth": "0df900cccb30000000ff007bbdeb0000000000000000000"
  }
 }
