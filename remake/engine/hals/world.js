@@ -13,6 +13,7 @@ import { PRESETS } from '../quality.js';
 import { createForest } from '../../world/forest/forest.js';
 import { createBoard } from './board.js';
 import { PLACES, shelfFor } from './places.js';
+import { createThorsedlas } from './thorsedla.js';
 
 // The world of "Háls og hali" (spec sections 3, 4 and 6): Codex's board of 80 squares on five tiers, seen from the side, in a
 // clearing of the remake's own forest, in the chapter's morning light, with the chapter's real Þórseðlas on its necks and tails
@@ -95,6 +96,10 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   const board = createBoard({ base: ground + BASE, heightAt: world.heightAt, shelves: places.map(shelfFor) });
   scene.add(board.group);
 
+  // ---- the Þórseðlas ----------------------------------------------------------------------------------------------------
+  onProgress(0.6, 'thorsedlas');
+  const thorsedlas = await createThorsedlas(world, board, places);
+
   // ---- the camera ------------------------------------------------------------------------------------------------------
   const view = createView(camera, board);
 
@@ -104,6 +109,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   function update(dt) {
     time += dt;
     wind.update(time);
+    thorsedlas.update(dt);
     for (const fn of updaters) fn(dt);
     world.effects.update(dt);
     board.update(dt);
@@ -114,6 +120,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     lighting.focus(shadowCentre, focus.radius);
     forest.update(dt, time);
     updateCharacterLods(camera, renderer.domElement.height);
+    thorsedlas.updateLevels(camera, renderer.domElement.height);
     sky.update(time, camera);
   }
 
@@ -124,14 +131,15 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   }
 
   return {
-    scene, camera, board, view, forest, world, lighting, places,
+    scene, camera, board, view, forest, world, lighting, places, thorsedlas,
     get time() { return time; },
     addUpdater(fn) { updaters.add(fn); return () => updaters.delete(fn); },
     update,
     render() { renderer.render(scene, camera); },
     resize,
-    ready: () => characterLodsReady(),
+    ready: () => Promise.all([characterLodsReady(), thorsedlas.ready()]),
     dispose() {
+      thorsedlas.dispose();
       board.dispose();
       forest.dispose();
       sky.dispose?.();

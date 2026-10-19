@@ -18,7 +18,7 @@ const SPECS = {
   sage: { name: 'Salvía', tier: 3, size: 0.75, z: -4.2, lead: 0.8 },
   coral: { name: 'Glóð', tier: 3, size: 0.75, z: -4.2, lead: 0.8 },
   birch: { name: 'Kvisti', tier: 0, size: 0.72, z: -4.4, lead: 0.8 },
-  plum: { name: 'Lyng', tier: 4, size: 0.85, z: -7.6, facing: -1, rumpAt: 0.15 },
+  plum: { name: 'Lyng', tier: 4, size: 0.64, z: -7.2, facing: -1, rumpAt: 0.15 },
 };
 
 /** The six places: { id, name, tier, x, z, facing, size, neck, tail } (neck and tail as in rules.js, or null). */

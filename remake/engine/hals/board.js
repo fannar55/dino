@@ -70,7 +70,7 @@ function painted(geometry, colour, jitter = 0, random = Math.random) {
 function stoneGeometry() {
   const { width, height, depth } = STONE;
   const g = new THREE.ExtrudeGeometry(roundedRect(width - 0.12, height - 0.12, 0.1), {
-    depth: depth - 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 3, curveSegments: 5,
+    depth: depth - 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2, curveSegments: 3,
   });
   g.translate(0, -height / 2, -(depth - 0.12) / 2);
   const p = g.attributes.position;
@@ -81,7 +81,7 @@ function stoneGeometry() {
     p.setY(i, y + (y > -0.05 ? 0.018 * Math.sin(x * 4.1 + z * 2.3) : 0));
   }
   g.computeVertexNormals();
-  return g.toNonIndexed ? g : g;
+  return g;
 }
 
 /** The numbers 1 to 80 on plaques in one texture, 8 across and 10 down; Nunito, the game's face (STYLE.md). */
@@ -149,6 +149,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
 
   // ---- the plaques: one mesh, its numbers from one texture ----------------------------------------------------------------
   const starts = new Map(SHORTCUTS.map(s => [s.from, s.type]));
+  const plaqueGlow = { attribute: null, now: new Float32Array(BOARD.count) };
   const plaques = drawPlaques(starts);
   textures.push(plaques.texture);
   {
@@ -187,7 +188,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     mesh.name = 'Plaques';
     mesh.receiveShadow = true;
     group.add(mesh);
-    var plaqueGlow = { attribute: g.attributes.aGlow, now: new Float32Array(BOARD.count), colourless: true };
+    plaqueGlow.attribute = g.attributes.aGlow;
   }
 
   // ---- the logs under the tiers, the shelves behind them, the roots and ivy under them ---------------------------------------
@@ -325,54 +326,66 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   wood.receiveShadow = true;
   group.add(wood);
 
-  // ---- the adventure's marks ------------------------------------------------------------------------------------------
+  // ---- the adventure's marks: one mesh for their stems, mud and fossils, one for the fireflies' glowing bulbs ---------------
   const marks = new THREE.Group();
   marks.name = 'Adventure marks';
   group.add(marks);
-  const markCache = new Map();
-  const markMaterials = {
-    glow: ownM(new THREE.MeshStandardMaterial({ color: '#fff0a8', emissive: '#ffd860', emissiveIntensity: 2.2, roughness: 0.5 })),
-    stem: ownM(new THREE.MeshStandardMaterial({ color: '#6f9a4a', roughness: 0.9 })),
-    mud: ownM(new THREE.MeshStandardMaterial({ color: '#6b5238', roughness: 0.25, metalness: 0 })),
-    fossil: ownM(new THREE.MeshStandardMaterial({ color: '#cdb58a', roughness: 0.7 })),
-    shell: ownM(new THREE.MeshStandardMaterial({ color: '#e6c77a', roughness: 0.45, metalness: 0.1 })),
-  };
-  const bulbs = [];
+  const markMaterial = ownM(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0 }));
+  const bulbMaterial = ownM(new THREE.MeshStandardMaterial({ color: '#fff0a8', emissive: '#ffd860', emissiveIntensity: 2.2, roughness: 0.5 }));
+  const bulbGeometry = own(new THREE.SphereGeometry(0.1, 10, 8));
+  let bulbs = null, bulbSpots = [], markMesh = null;
   function decorate(events = []) {
-    for (const mark of markCache.values()) mark.visible = false;
+    if (markMesh) { markMesh.geometry.dispose(); marks.remove(markMesh); markMesh = null; }
+    if (bulbs) { bulbs.dispose(); marks.remove(bulbs); bulbs = null; }
+    bulbSpots = [];
+    const parts = [];
+    const part = (geometry, colour, at, scale, rotZ = 0) => {
+      if (scale) geometry.scale(...scale);
+      if (rotZ) geometry.rotateZ(rotZ);
+      geometry.translate(...at);
+      parts.push(painted(geometry.index ? geometry.toNonIndexed() : geometry, colour));
+    };
     for (const event of events) {
-      const key = `${event.type}:${event.from}`;
-      if (markCache.has(key)) { markCache.get(key).visible = true; continue; }
-      const g = new THREE.Group();
       const p = square(event.from);
-      g.position.set(p.x + 0.62, p.y, -0.55);
-      const add = (geometry, material, at, scale) => {
-        const m = new THREE.Mesh(own(geometry), material);
-        m.position.set(...at);
-        if (scale) m.scale.set(...scale);
-        m.castShadow = false;
-        g.add(m);
-        return m;
-      };
+      const x = p.x + 0.62, y = p.y, z = -0.55;
       if (event.type === 'firefly') {
         for (let i = 0; i < 3; i++) {
-          const h = 0.42 + i * 0.13, x = (i - 1) * 0.18;
-          add(new THREE.CylinderGeometry(0.025, 0.035, h, 5), markMaterials.stem, [x, h / 2, 0]);
-          bulbs.push({ mesh: add(new THREE.SphereGeometry(0.1, 10, 8), markMaterials.glow, [x, h, 0], [1, 1.3, 1]), y: h, phase: i + event.from });
+          const h = 0.42 + i * 0.13, dx = (i - 1) * 0.18;
+          part(new THREE.CylinderGeometry(0.025, 0.035, h, 5), '#6f9a4a', [x + dx, y + h / 2, z]);
+          bulbSpots.push({ x: x + dx, y: y + h, z, phase: i + event.from });
         }
       } else if (event.type === 'mud') {
-        g.position.x = p.x;
-        g.position.z = 0.2;
-        add(new THREE.SphereGeometry(1, 18, 8), markMaterials.mud, [0, 0.0, 0], [0.82, 0.05, 0.62]);
-      } else {
-        const rock = add(new THREE.SphereGeometry(1, 14, 10), markMaterials.fossil, [0, 0.24, 0], [0.34, 0.3, 0.17]);
-        rock.rotation.z = -0.18;
-        const spiral = Array.from({ length: 40 }, (_, i) => { const t = i / 39, a = t * Math.PI * 4.6, r = 0.02 + t * 0.2; return new THREE.Vector3(Math.cos(a) * r, 0.25 + Math.sin(a) * r, 0.16); });
-        add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiral), 40, 0.022, 5, false), markMaterials.shell, [0, 0, 0]);
+        part(new THREE.SphereGeometry(1, 18, 8), '#6b5238', [p.x, y, 0.2], [0.82, 0.05, 0.62]);
+      } else if (event.type === 'fossil') {
+        part(new THREE.SphereGeometry(1, 14, 10), '#cdb58a', [x, y + 0.24, z], [0.34, 0.3, 0.17], -0.18);
+        const spiral = Array.from({ length: 40 }, (_, i) => { const t = i / 39, a = t * Math.PI * 4.6, r = 0.02 + t * 0.2; return new THREE.Vector3(x + Math.cos(a) * r, y + 0.25 + Math.sin(a) * r, z + 0.16); });
+        part(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiral), 40, 0.022, 5, false), '#e6c77a', [0, 0, 0]);
       }
-      marks.add(g);
-      markCache.set(key, g);
     }
+    if (parts.length) {
+      for (const g of parts) for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(name)) g.deleteAttribute(name);
+      markMesh = new THREE.Mesh(mergeGeometries(parts), markMaterial);
+      parts.forEach(g => g.dispose());
+      markMesh.name = 'Adventure marks';
+      markMesh.receiveShadow = true;
+      marks.add(markMesh);
+    }
+    if (bulbSpots.length) {
+      bulbs = new THREE.InstancedMesh(bulbGeometry, bulbMaterial, bulbSpots.length);
+      bulbs.name = 'Firefly bulbs';
+      bulbs.frustumCulled = false;
+      marks.add(bulbs);
+      placeBulbs(0);
+    }
+  }
+  const bulbMatrix = new THREE.Matrix4(), bulbScale = new THREE.Vector3(1, 1.3, 1), bulbQ = new THREE.Quaternion(), bulbAt = new THREE.Vector3();
+  function placeBulbs(t) {
+    if (!bulbs) return;
+    bulbSpots.forEach((b, i) => {
+      bulbAt.set(b.x, b.y + Math.sin(t * 1.4 + b.phase) * 0.03, b.z);
+      bulbs.setMatrixAt(i, bulbMatrix.compose(bulbAt, bulbQ, bulbScale));
+    });
+    bulbs.instanceMatrix.needsUpdate = true;
   }
 
   // ---- glowing plaques --------------------------------------------------------------------------------------------------
@@ -394,7 +407,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       dirty = true;
     }
     if (dirty) a.needsUpdate = true;
-    for (const b of bulbs) if (b.mesh.parent?.visible) b.mesh.position.y = b.y + Math.sin(time * 1.4 + b.phase) * 0.03;
+    placeBulbs(time);
   }
 
   return {
