@@ -1,0 +1,474 @@
+/* "Háls og hali" (Þórseðla's snakes and ladders): the game's look over its 3D board, in "Eitt!"'s style (eitt.css), so the two games
+   of the book are one family. engine/hals/game.js renders into these classes:
+
+     .hals                       the root over the book: the font, every touch (touch-action: none); a size container. While it is
+                                 open the page's canvas (#view, .hals-view) lies first in it, under everything else; .calm is on it in
+                                 "Rólegra" (gentler motion)
+     .hals-veil                  the clearing, soft, with a breathing star (.hals-loading) until the board is in (.ready fades it out;
+                                 .waiting: "Byrjum!" was pressed and the board is still coming)
+     .hals-hud                   the controls over the board, laid out on its edges:
+       .hals-players             the players' portraits along the top: each .hals-player (--c, its colour) with its .hals-portrait,
+                                 .hals-square (the square it stands on) and .hals-name; .active is raised and glows
+       .hals-tools               "Rólegra" (.hals-calm) and "Allt borðið" (.hals-view), pills on the top left; aria-pressed when on
+       .hals-close               back to the book: the round close, on the top right (and on a card's corner, .hals-card-close)
+       .hals-mosi                "Spyrja Mosa", his face with a "?", bottom left; .hals-advice is Mosi popping up over it with his
+                                 words in a bubble (its p; .long for a longer line); .hals-skip ("Sleppa") ends his intro
+       .hals-dock                the big die (.hals-die: a .hals-cube of six .hals-face, pips as i.tl .tr .ml .mr .bl .br .c) and
+                                 "Kasta" (.hals-roll, with the player's picture), bottom right; --c is the player's colour; .live while
+                                 the child may roll, .computer while Þórseðla does; .call on the die after a while with nothing done
+       .hals-card                an event card in the "Eitt!" card's look, on the right: a kind (.neck, .tail, .firefly, .mud, .fossil)
+                                 names its colour; .hals-card-face holds a picture (.hals-card-pic) or a fossil (.hals-card-art) and
+                                 a big mark (.hals-card-mark: an arrow, "+2", "−2"); .hals-card-word, .hals-card-sub, and confetti
+                                 (.hals-card-confetti) for a new find
+     .hals-setup                 who plays: .hals-setup-card with .hals-title, .hals-resume ("Halda áfram" .hals-continue and "Nýr
+                                 leikur" .hals-fresh) or .hals-choose: the four .hals-choice (data-players, aria-pressed; each with its
+                                 .hals-choice-pics and .hals-choice-name), the two .hals-mode (.adventure, .classic) and "Byrjum!"
+                                 (.hals-start)
+     .hals-win                   the end: .hals-win-card with the winner's picture (.hals-win-picture), its words (h2), the fossils found
+                                 this game (.hals-win-finds of .hals-sticker) and "Spilum aftur?" (.hals-again); .hals-confetti
+     .hals-big, .hals-plain      the big green raised pill and the plain cream one
+
+   The rules it keeps, as "Eitt!" and the book do (STYLE.md section 10):
+   - the journal's palette for the paper, the ink and the buttons, and the players' own colours (pieces.js);
+   - every control is at least --hals-target (88 px);
+   - Nunito, few words, big and rounded;
+   - motion is transform and opacity only, and under prefers-reduced-motion every move is a fade and none of the idle life plays.
+   The page that shows this links style.css too, which declares the Nunito face, and book.css, for the touch the book, "Eitt!" and
+   this game share (fx.js: the squash and the sparks). */
+
+.hals {
+  /* The journal's colours (STYLE.md section 10). */
+  --paper: #f6efdf;
+  --card: #fffaf0;
+  --card-deep: #e3d4b5;
+  --ink: #3b2f25;
+  --ink-soft: #6b5a4a;
+  --orange: #e07a3f;
+  --orange-deep: #b75e2e;
+  --teal: #2f8f86;
+  --teal-deep: #1f6b64;
+  --gold: #f2b630;
+  --gold-deep: #c48a16;
+  --green: #6fae4f;
+  --green-deep: #4a8434;
+  /* The confetti's and the cards' four bright colours, as "Eitt!"'s. */
+  --red: #e8483b;      --red-light: #ff8063;    --red-deep: #ad3127;
+  --yellow: #f7bd2b;   --yellow-light: #ffe066; --yellow-deep: #c98a12;
+  --green-card: #48ad4a; --green-light: #8fd96a; --green-card-deep: #2b7a32;
+  --blue: #3a8de4;     --blue-light: #7cc0ff;   --blue-deep: #2161a6;
+  --night: #3a2b4e;    --night-light: #5d4370;  --night-deep: #21182e;
+  --mud: #8a6440;      --mud-light: #b38a5c;    --mud-deep: #5e4128;
+
+  --hals-target: 88px;
+  --hals-font: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --tape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E");
+  --frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+
+  position: fixed; inset: 0; overflow: hidden; z-index: 20; /* over the paused chapter, its captions and the book */
+  container-type: size;
+  font-family: var(--hals-font); font-weight: 800; color: var(--ink);
+  background: linear-gradient(#cfe4ee, #e9efd8 55%, #9fbb62);
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.hals *, .hals *::before, .hals *::after { box-sizing: border-box; }
+.hals[hidden], .hals [hidden] { display: none !important; }
+:where(.hals) button { font: inherit; color: inherit; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hals button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
+.hals img { display: block; -webkit-user-drag: none; }
+.hals > canvas.hals-view { z-index: 0; }
+.hals :is(.hals-tool, .hals-skip, .hals-mode, .hals-roll, .hals-big, .hals-plain, .hals-choice) { isolation: isolate; } /* their pill lies under them */
+/* While the setup or the end is up, its card has the close: the board's controls wait. */
+.hals:has(.hals-setup:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-players, .hals-dock),
+.hals:has(.hals-win:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-dock) { visibility: hidden; }
+.hals .red { --c: var(--red); --c-light: var(--red-light); --c-deep: var(--red-deep); }
+.hals .yellow { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
+.hals .green { --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep); }
+.hals .blue { --c: var(--blue); --c-light: var(--blue-light); --c-deep: var(--blue-deep); }
+
+/* ---- The clearing, until the board is in ------------------------------------------------------------------------- */
+
+.hals-veil {
+  position: absolute; inset: 0; z-index: 1; display: grid; place-items: center;
+  background:
+    radial-gradient(ellipse 22% 30% at 8% 30%, #8fb07c 0 60%, transparent 100%),
+    radial-gradient(ellipse 16% 22% at 22% 22%, #a4c08a 0 55%, transparent 100%),
+    radial-gradient(ellipse 24% 32% at 92% 28%, #84a874 0 60%, transparent 100%),
+    radial-gradient(ellipse 15% 20% at 76% 20%, #b2cc8e 0 55%, transparent 100%),
+    radial-gradient(ellipse 60% 22% at 50% 52%, #c4d27c 0 60%, transparent 100%),
+    linear-gradient(#d7e7ee 0%, #edf0dc 30%, #bccf7e 48%, #8fae52 70%, #6f8f3c 100%);
+  transition: opacity .7s ease-out;
+}
+.hals-veil.ready { opacity: 0; pointer-events: none; }
+.hals-loading {
+  width: 64px; height: 64px; opacity: 0; transition: opacity .3s;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z' fill='%23f2b630' stroke='%233b2f25' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 12px rgb(242 182 48 / .6));
+  animation: hals-breathe 1.8s ease-in-out infinite;
+}
+.hals-veil.waiting .hals-loading { opacity: 1; }
+
+/* ---- The controls round the board ---------------------------------------------------------------------------------- */
+
+.hals-hud { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.hals-hud > button, .hals-hud > .hals-tools, .hals-hud > .hals-dock { pointer-events: auto; }
+
+/* The players along the top: taped round photos, the active one raised and glowing, each with its square. */
+.hals-players {
+  position: absolute; left: 50%; top: max(12px, env(safe-area-inset-top)); translate: -50% 0;
+  display: flex; align-items: flex-start; gap: clamp(12px, 2cqw, 26px);
+}
+.hals-player { position: relative; display: grid; justify-items: center; transition: transform .4s cubic-bezier(.3, 1.6, .5, 1), opacity .3s; opacity: .88; }
+.hals-portrait {
+  position: relative; display: block; width: clamp(70px, 8cqmin, 96px); aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c) 45%, #fffaf0) 72%);
+  box-shadow: 0 0 0 5px var(--card), 0 0 0 8px var(--ink), 0 9px 14px 3px rgb(40 24 10 / .32);
+}
+.hals-portrait img { position: absolute; left: -12%; bottom: 2%; width: 124%; height: auto; }
+.hals-square {
+  position: relative; z-index: 1; margin-top: -16px; min-width: 2.2em; padding: .02em .45em .08em; text-align: center;
+  font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900; line-height: 1.05; color: #fff;
+  -webkit-text-stroke: .14em var(--ink); paint-order: stroke fill;
+  background: var(--c); border: 3px solid var(--ink); border-radius: 999px;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--c) 55%, var(--ink));
+}
+.hals-name { margin-top: 2px; font-size: 18px; font-weight: 900; color: var(--card); -webkit-text-stroke: .2em var(--ink); paint-order: stroke fill; opacity: 0; transition: opacity .3s; }
+.hals-player.active { transform: translateY(4px) scale(1.16); opacity: 1; z-index: 1; }
+.hals-player.active .hals-portrait {
+  box-shadow: 0 0 0 5px var(--card), 0 0 0 8px var(--ink), 0 0 0 13px var(--gold), 0 0 30px 14px rgb(255 214 110 / .85);
+  animation: hals-glow 1.8s ease-in-out infinite;
+}
+.hals-player.active .hals-name { opacity: 1; }
+
+/* "Rólegra" and "Allt borðið": cream pills on the top left, each in a full-size hit area; green when on. */
+.hals-tools { position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); display: flex; gap: 6px; }
+.hals-tool {
+  position: relative; min-width: var(--hals-target); min-height: var(--hals-target);
+  display: inline-flex; align-items: center; gap: .3em; padding: 0 .85em 0 .65em;
+  font-size: 22px; font-weight: 900;
+}
+.hals-tool::before {
+  content: ""; position: absolute; z-index: -1; inset: 16px 0; border-radius: 999px;
+  background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25);
+}
+.hals-tool svg { width: 1.5em; height: 1.5em; overflow: visible; }
+.hals-tool[aria-pressed="true"] { color: #fff; }
+.hals-tool[aria-pressed="true"] span { -webkit-text-stroke: .14em var(--ink); paint-order: stroke fill; }
+.hals-tool[aria-pressed="true"]::before { background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--green); box-shadow: 0 5px 0 var(--green-deep), 0 5px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25); }
+.hals-tool:disabled { opacity: .5; cursor: default; }
+
+.hals-close { /* back to the book: the book's round close */
+  position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 8;
+  width: var(--hals-target); height: var(--hals-target); border-radius: 50%; display: grid; place-items: center;
+  border: 3px solid var(--ink);
+  background: radial-gradient(circle at 36% 28%, rgb(255 255 255 / .55), transparent 46%), var(--card);
+  box-shadow: 0 7px 0 var(--card-deep), 0 7px 0 3px var(--ink), 0 13px 14px 2px rgb(40 24 10 / .34);
+}
+.hals-close svg { width: 44%; height: 44%; }
+.hals-card-close { top: -26px; right: -26px; }
+
+/* "Spyrja Mosa": his face with a "?" on the bottom left, as in "Eitt!". */
+.hals-mosi {
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom));
+  width: clamp(98px, 10cqmin, 124px); height: clamp(98px, 10cqmin, 124px); border-radius: 50%;
+  border: 3px solid var(--ink);
+  background:
+    radial-gradient(circle at 34% 24%, rgb(255 255 255 / .45), transparent 40%),
+    url("./assets/book/images/mosi-render.webp") 80% 38% / 340% auto no-repeat,
+    radial-gradient(circle at 50% 40%, #fffaf0, #e9e3c4);
+  box-shadow: 0 7px 0 #5e6340, 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
+}
+.hals-mosi::after {
+  content: "?"; position: absolute; right: -12%; top: -10%;
+  width: 40%; height: 40%; border-radius: 50%; display: grid; place-items: center;
+  font-size: clamp(26px, 2.6cqmin, 32px); font-weight: 900; color: var(--ink);
+  background: var(--gold); border: 3px solid var(--ink);
+  box-shadow: 0 3px 0 var(--gold-deep), 0 3px 0 3px var(--ink);
+}
+.hals-advice { /* Mosi popping up over his button, his words in a bubble */
+  position: absolute; z-index: 6; left: max(8px, env(safe-area-inset-left));
+  bottom: calc(clamp(98px, 10cqmin, 124px) + max(24px, env(safe-area-inset-bottom)) - 14px);
+  width: clamp(220px, 24cqmin, 300px); pointer-events: none;
+  animation: hals-pop .5s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+.hals-advice img { width: 100%; height: auto; filter: drop-shadow(0 10px 10px rgb(40 24 10 / .3)); }
+.hals-advice p {
+  position: absolute; left: 66%; bottom: 72%; margin: 0;
+  width: max-content; max-width: 9em; padding: .42em .7em .48em;
+  font-size: clamp(26px, 2.8cqmin, 34px); font-weight: 900; line-height: 1.1; text-align: center;
+  color: var(--ink); background: var(--card);
+  border: 3px solid var(--ink); border-radius: 26px;
+  box-shadow: 0 8px 0 -2px var(--card-deep), 0 8px 0 1px var(--ink), 0 14px 18px rgb(40 24 10 / .3);
+  rotate: -3deg;
+}
+.hals-advice p.long { max-width: 12.5em; font-size: clamp(22px, 2.4cqmin, 28px); }
+.hals-advice p::after {
+  content: ""; position: absolute; left: 14%; bottom: -21px; width: 26px; height: 24px;
+  background: var(--card); border: 3px solid var(--ink); border-top: 0; border-right: 0;
+  transform: skewY(-38deg) rotate(-8deg); border-bottom-left-radius: 6px;
+}
+.hals-skip { /* "Sleppa": small and cream, beside Mosi while he gives his intro */
+  position: absolute; z-index: 7; left: calc(max(22px, env(safe-area-inset-left)) + clamp(98px, 10cqmin, 124px) + 16px);
+  bottom: max(28px, env(safe-area-inset-bottom));
+  min-width: var(--hals-target); min-height: var(--hals-target); padding: 0 .9em;
+  display: inline-flex; align-items: center; font-size: 24px; font-weight: 900;
+}
+.hals-skip::before {
+  content: ""; position: absolute; z-index: -1; inset: 20px 0; border-radius: 999px; background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25);
+}
+
+/* ---- The dock: the big die and "Kasta", on the bottom right ------------------------------------------------------ */
+
+.hals-dock {
+  --c: #79c7a1;
+  position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 14px;
+  transition: opacity .3s;
+}
+.hals-dock:not(.live) { opacity: .62; }
+.hals-dock.computer { opacity: .9; }
+.hals-dock.computer .hals-roll { opacity: 0; pointer-events: none; }
+.hals-die {
+  --die: clamp(92px, 10.4cqmin, 118px);
+  position: relative; width: calc(var(--die) * 1.42); height: calc(var(--die) * 1.42);
+  display: grid; place-items: center; perspective: calc(var(--die) * 6);
+  border-radius: 30px;
+}
+.hals-die::before { /* the die's soft shadow on the grass */
+  content: ""; position: absolute; left: 18%; right: 18%; bottom: 2%; height: 16%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(40 24 10 / .38), transparent);
+}
+.hals-cube { position: relative; width: var(--die); height: var(--die); transform-style: preserve-3d; }
+.hals-face {
+  position: absolute; inset: 0; border-radius: 20%;
+  background: radial-gradient(circle at 32% 26%, #fff, var(--card) 55%, color-mix(in srgb, var(--c) 22%, var(--card)));
+  border: 3.5px solid var(--ink);
+  box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--c) 30%, transparent);
+}
+.hals-face.f1 { transform: translateZ(calc(var(--die) / 2)); }
+.hals-face.f6 { transform: rotateY(180deg) translateZ(calc(var(--die) / 2)); }
+.hals-face.f3 { transform: rotateY(90deg) translateZ(calc(var(--die) / 2)); }
+.hals-face.f4 { transform: rotateY(-90deg) translateZ(calc(var(--die) / 2)); }
+.hals-face.f2 { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
+.hals-face.f5 { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
+.hals-face i { position: absolute; width: 20%; height: 20%; border-radius: 50%; background: var(--ink); box-shadow: inset 0 3px 0 rgb(255 255 255 / .25); }
+.hals-face i.tl { left: 17%; top: 17%; } .hals-face i.tr { right: 17%; top: 17%; }
+.hals-face i.ml { left: 17%; top: 40%; } .hals-face i.mr { right: 17%; top: 40%; }
+.hals-face i.bl { left: 17%; bottom: 17%; } .hals-face i.br { right: 17%; bottom: 17%; }
+.hals-face i.c { left: 40%; top: 40%; }
+.hals-face.f1 i.c { left: 34%; top: 34%; width: 32%; height: 32%; background: var(--orange); box-shadow: 0 0 0 3px var(--ink), inset 0 3px 0 rgb(255 255 255 / .3); }
+.hals-dock.live .hals-die.call { animation: hals-call 1.4s ease-in-out infinite; }
+.hals-dock.live .hals-die.call::after { /* and glows, for a child who has waited */
+  content: ""; position: absolute; inset: 4%; z-index: -1; border-radius: 34px; pointer-events: none;
+  background: rgb(255 226 140 / .45); box-shadow: 0 0 0 6px var(--gold), 0 0 34px 16px rgb(242 182 48 / .85);
+  animation: hals-glow-soft 1.4s ease-in-out infinite;
+}
+.hals-roll { /* "Kasta": a big raised pill in the player's colour, with the player's picture */
+  position: relative; min-height: var(--hals-target); min-width: var(--hals-target);
+  display: inline-flex; align-items: center; gap: .3em; padding: 0 .9em 0 .35em;
+  font-size: clamp(32px, 3.6cqmin, 40px); font-weight: 900; color: #fff;
+  border: 3px solid var(--ink); border-radius: 999px;
+  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .4), transparent 46%), var(--c);
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--c) 60%, var(--ink)), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
+}
+.hals-roll span { -webkit-text-stroke: .13em var(--ink); paint-order: stroke fill; }
+.hals-roll img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; object-position: 60% 40%; background: var(--card); box-shadow: 0 0 0 3px var(--ink); }
+
+/* ---- An event card: the "Eitt!" card's look, popping up on the right ---------------------------------------------- */
+
+.hals-card {
+  --w: clamp(200px, 21cqmin, 250px);
+  --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep);
+  position: absolute; z-index: 5; right: max(30px, env(safe-area-inset-right)); top: 21cqh;
+  width: var(--w); display: grid; justify-items: center; gap: 8px; pointer-events: none;
+}
+.hals-card.tail { --c: var(--orange); --c-light: #f5a46e; --c-deep: var(--orange-deep); }
+.hals-card.firefly { --c: var(--night); --c-light: var(--night-light); --c-deep: var(--night-deep); }
+.hals-card.mud { --c: var(--mud); --c-light: var(--mud-light); --c-deep: var(--mud-deep); }
+.hals-card.fossil { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
+.hals-card-face { /* the card: cream edge, the coloured face lit from the top left, the picture's window inside */
+  position: relative; display: block; width: var(--w); aspect-ratio: 5 / 6; container-type: inline-size;
+  border-radius: calc(var(--w) * .12); background: var(--card);
+  box-shadow: 0 0 0 3px var(--ink), 0 14px 22px rgb(40 24 10 / .38);
+  rotate: 3deg;
+}
+.hals-card-face::before {
+  content: ""; position: absolute; inset: 5.5cqw; border-radius: 8cqw;
+  background:
+    radial-gradient(ellipse 90% 60% at 24% 10%, rgb(255 255 255 / .38), transparent 60%),
+    linear-gradient(165deg, var(--c-light), var(--c) 42%, var(--c-deep));
+  box-shadow: inset 0 0 0 1.6cqw color-mix(in srgb, var(--c-deep) 40%, transparent);
+}
+.hals-card.firefly .hals-card-face::before { /* a night with fireflies glowing in it */
+  background:
+    radial-gradient(2.6cqw 2.6cqw at 22% 26%, #fff3a0 45%, transparent 100%),
+    radial-gradient(2cqw 2cqw at 76% 20%, #e8ff9a 45%, transparent 100%),
+    radial-gradient(2.4cqw 2.4cqw at 84% 62%, #fff3a0 45%, transparent 100%),
+    radial-gradient(1.8cqw 1.8cqw at 16% 72%, #ffe070 45%, transparent 100%),
+    radial-gradient(circle at 50% 46%, rgb(255 236 150 / .3), transparent 50%),
+    linear-gradient(165deg, var(--c-light), var(--c) 45%, var(--c-deep));
+}
+.hals-card-pic, .hals-card-art {
+  position: absolute; left: 11cqw; right: 11cqw; top: 11cqw; bottom: 11cqw; border-radius: 10cqw;
+  background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--c) 10%, var(--card)), color-mix(in srgb, var(--c) 34%, var(--card)));
+  box-shadow: inset 0 0 0 1cqw color-mix(in srgb, var(--c-deep) 45%, transparent);
+  overflow: hidden;
+}
+.hals-card-pic img { position: absolute; left: -2%; bottom: 3%; width: 104%; height: auto; }
+.hals-card.tail .hals-card-pic img { transform: scaleX(-1); }
+.hals-card-art { display: grid; place-items: center; background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, var(--c)) 14%, var(--card)), color-mix(in srgb, var(--hue, var(--c)) 40%, var(--card))); }
+.hals-card-art svg { width: 82%; height: 82%; }
+.hals-card-mark { /* the big arrow, or "+2" / "−2", over the bottom of the picture */
+  position: absolute; right: 6cqw; bottom: 4cqw; display: grid; place-items: center;
+  font-size: 42cqw; font-weight: 900; line-height: 1; letter-spacing: -.04em;
+  color: #fff; -webkit-text-stroke: .11em var(--ink); paint-order: stroke fill;
+  text-shadow: 0 .07em 0 var(--ink);
+}
+.hals-card.firefly .hals-card-mark, .hals-card.mud .hals-card-mark { left: 0; right: 0; bottom: 18cqw; font-size: 50cqw; }
+.hals-card-mark svg { width: 38cqw; height: 38cqw; filter: drop-shadow(0 1cqw 0 rgb(40 24 10 / .3)); }
+.hals-card-word {
+  padding: .18em .6em .26em; border-radius: 22px; white-space: nowrap;
+  font-size: clamp(28px, 3.2cqmin, 36px); font-weight: 900; line-height: 1;
+  color: var(--ink); background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 6px 0 -2px var(--card-deep), 0 6px 0 1px var(--ink), 0 10px 14px rgb(40 24 10 / .3);
+  rotate: -2deg;
+}
+.hals-card-sub { font-size: 24px; font-weight: 900; color: var(--gold); -webkit-text-stroke: .2em var(--ink); paint-order: stroke fill; rotate: 2deg; }
+.hals-card-confetti { position: absolute; inset: -40% -60%; z-index: -1; overflow: hidden; }
+.hals-card-confetti i, .hals-confetti i {
+  position: absolute; top: 0; left: var(--x); width: 18px; height: 26px; border-radius: 5px;
+  background: linear-gradient(135deg, var(--c-light), var(--c) 60%); border: 2.5px solid var(--ink);
+  rotate: var(--a, 20deg);
+  animation: hals-fall var(--t, 3.4s) linear var(--d, 0s) infinite;
+}
+.hals-card-confetti i:nth-child(3n), .hals-confetti i:nth-child(3n) { width: 20px; height: 20px; border-radius: 50%; }
+
+/* ---- Who plays ------------------------------------------------------------------------------------------------------ */
+
+.hals-setup {
+  position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgb(24 17 11 / .18), rgb(24 17 11 / .45));
+}
+.hals-setup-card, .hals-win-card {
+  position: relative; display: grid; justify-items: center; gap: clamp(12px, 2.4cqh, 24px);
+  border-radius: 30px; padding: clamp(24px, 4cqh, 40px) clamp(24px, 3.6cqw, 44px) clamp(28px, 4.4cqh, 44px);
+  background: var(--frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat, var(--card);
+  box-shadow: 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
+}
+.hals-setup-card { width: min(980px, 94cqw); }
+.hals-setup-card::before, .hals-win-card::before { /* tape on its top corners, as on the book's photos */
+  content: ""; position: absolute; top: -14px; left: 7%; width: min(22%, 120px); height: 34px; rotate: -8deg;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--teal) 55%, transparent);
+  -webkit-mask: var(--tape) center / 100% 100% no-repeat; mask: var(--tape) center / 100% 100% no-repeat;
+}
+.hals-title { margin: 0; display: flex; align-items: center; gap: .35em; font-size: clamp(44px, 6.4cqmin, 70px); font-weight: 900; line-height: 1; color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink); rotate: -2deg; }
+.hals-title img { width: 1.5em; height: auto; margin: -.3em 0 -.2em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
+.hals-choose { display: grid; justify-items: center; gap: clamp(14px, 2.6cqh, 26px); width: 100%; }
+.hals-who { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(10px, 1.6cqw, 20px); width: 100%; }
+.hals-choice { /* a taped photo of who plays: their pictures and the words */
+  position: relative; min-height: var(--hals-target); display: grid; justify-items: center; align-content: center; gap: 6px;
+  padding: 14px 8px 12px; border-radius: 18px;
+  background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 12px 14px 2px rgb(40 24 10 / .22);
+}
+.hals-choice:nth-child(2) { rotate: 1.2deg; } .hals-choice:nth-child(3) { rotate: -1deg; } .hals-choice:nth-child(4) { rotate: 1.6deg; } .hals-choice:nth-child(1) { rotate: -1.4deg; }
+.hals-choice[aria-pressed="true"] {
+  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .55), transparent 50%), #fff3c8;
+  box-shadow: 0 6px 0 var(--gold-deep), 0 6px 0 3px var(--ink), 0 0 0 9px var(--gold), 0 0 26px 10px rgb(255 214 110 / .8);
+}
+.hals-choice-pics { display: flex; justify-content: center; height: clamp(70px, 10cqh, 96px); }
+.hals-choice-pics img {
+  width: clamp(62px, 8.6cqh, 84px); height: clamp(62px, 8.6cqh, 84px); margin: 0 -10px; border-radius: 50%; object-fit: cover; object-position: 55% 45%;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c) 45%, #fffaf0) 72%);
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 5.5px var(--ink);
+}
+.hals-choice-pics img:nth-child(even) { translate: 0 14px; }
+.hals-choice-name { font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900; line-height: 1.1; text-align: center; }
+.hals-modes { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.hals-mode {
+  position: relative; min-height: var(--hals-target); min-width: var(--hals-target); padding: 0 1em;
+  display: inline-flex; align-items: center; font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900;
+}
+.hals-mode::before {
+  content: ""; position: absolute; z-index: -1; inset: 14px 0; border-radius: 999px; background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
+}
+.hals-mode[aria-pressed="true"] { color: #fff; }
+.hals-mode[aria-pressed="true"] span { -webkit-text-stroke: .14em var(--ink); paint-order: stroke fill; }
+.hals-mode.adventure[aria-pressed="true"]::before { background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--teal); box-shadow: 0 5px 0 var(--teal-deep), 0 5px 0 3px var(--ink); }
+.hals-mode.classic[aria-pressed="true"]::before { background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--orange); box-shadow: 0 5px 0 var(--orange-deep), 0 5px 0 3px var(--ink); }
+.hals-resume { display: grid; justify-items: center; gap: 14px; }
+
+/* The big green raised pill ("Byrjum!", "Halda áfram", "Spilum aftur?") and the plain cream one ("Nýr leikur"). */
+.hals-big, .hals-plain {
+  position: relative; min-height: var(--hals-target); min-width: var(--hals-target);
+  display: inline-flex; align-items: center; gap: .45em; padding: 0 1.1em 0 .8em;
+  font-size: clamp(30px, 3.8cqmin, 40px); font-weight: 900; color: #fff;
+  border: 3px solid var(--ink); border-radius: 999px;
+  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--green);
+  box-shadow: 0 7px 0 var(--green-deep), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
+}
+.hals-big span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.hals-big svg { width: 1.2em; height: 1.2em; overflow: visible; }
+.hals-plain { font-size: clamp(24px, 2.8cqmin, 30px); color: var(--ink); padding: 0 1em; background: var(--paper); box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25); }
+
+/* ---- The end of a game: the winner, the finds and "Spilum aftur?" -------------------------------------------------- */
+
+.hals-win {
+  position: absolute; inset: 0; z-index: 10; display: grid; place-items: end center; padding-bottom: max(4cqh, 22px);
+  background: linear-gradient(transparent 0, transparent 40%, rgb(24 17 11 / .2) 60%, rgb(24 17 11 / .5));
+}
+.hals-win-card { width: min(560px, 88cqw); padding-top: clamp(64px, 9cqh, 84px); }
+.hals-win-picture {
+  position: absolute; top: calc(clamp(110px, 15cqh, 150px) * -.62); width: clamp(110px, 15cqh, 150px); aspect-ratio: 1; border-radius: 50%; object-fit: cover; object-position: 55% 45%;
+  background: radial-gradient(circle at 50% 38%, #fff6d8, #f2d58a 70%, #e9b955);
+  box-shadow: 0 0 0 7px #fff, 0 0 0 10px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .3);
+  rotate: -6deg;
+}
+.hals-win h2 {
+  margin: 0; font-size: clamp(50px, 7.4cqmin, 80px); font-weight: 900; line-height: 1;
+  color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink);
+  rotate: -3deg; text-align: center;
+}
+.hals-win-finds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.hals-sticker { /* a fossil found this game, on a round die-cut sticker */
+  width: clamp(70px, 9cqh, 88px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 36%, #fffaf0, color-mix(in srgb, var(--hue, var(--gold)) 40%, #fffaf0) 75%);
+  box-shadow: 0 0 0 5px #fff, 0 0 0 7.5px var(--ink), 0 8px 12px 2px rgb(40 24 10 / .25);
+}
+.hals-sticker:nth-child(odd) { rotate: -6deg; } .hals-sticker:nth-child(even) { rotate: 5deg; }
+.hals-sticker svg { width: 78%; height: 78%; }
+.hals-confetti { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
+
+/* ---- Rólegra: everything moves gently, nothing bobs or glows on and on ---------------------------------------------- */
+
+.hals.calm .hals-player.active .hals-portrait, .hals.calm .hals-die.call, .hals.calm .hals-die.call::after { animation: none !important; }
+.hals.calm .hals-player { transition-duration: .8s; }
+
+/* ---- The idle life ---------------------------------------------------------------------------------------------- */
+
+@keyframes hals-breathe { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.06); } }
+@keyframes hals-glow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes hals-glow-soft { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes hals-call { 0%, 100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-12px) rotate(-6deg); } 60% { transform: translateY(0) rotate(4deg); } }
+@keyframes hals-pop { from { opacity: 0; transform: translateY(30px) scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes hals-fall { from { transform: translateY(-6cqh) rotate(0deg); } to { transform: translateY(106cqh) rotate(540deg); } }
+
+/* ---- A tablet held upright: the players over the board, the dock and Mosi under it ----------------------------------- */
+
+@media (max-aspect-ratio: 1/1) {
+  .hals-players { top: calc(max(12px, env(safe-area-inset-top)) + var(--hals-target) + 4px); }
+  .hals-card { top: 30cqh; right: 50%; translate: 50% 0; }
+  .hals-who { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hals-tool span { display: none; } /* the icons alone, so the close and the tools share the top */
+  .hals-tool { padding: 0 .5em; }
+}
+
+/* ---- Less motion, when the tablet asks for it: everything holds still, its look unchanged --------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .hals *, .hals *::before, .hals *::after { animation: none !important; transition-duration: .01s !important; }
+  .hals-veil { transition: opacity .3s !important; }
+}
