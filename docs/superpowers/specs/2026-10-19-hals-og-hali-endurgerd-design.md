@@ -23,7 +23,9 @@ Bæta codex-útgáfuna og flytja hana inn í endurgerðina (`remake/`). Þá er 
   - Mosi telur hoppin aðeins í fyrstu umferð hvers barns, og aðeins þegar tveir spila;
   - hálsar og halar í eðlilegum hlutföllum, sýnilegir og án klippingar, og meira bil milli stalla;
   - löngu leiðirnar tvær haldast;
-  - 100 reitir.
+  - 100 reitir;
+  - lenda þarf nákvæmlega á 100, annars skoppar peðið til baka;
+  - alltaf Ævintýraskógur (ekkert val um ham), og hvorki „Rólegra“ né „Kasta“: teningurinn einn kastar.
 
 ## 3. Það sem haldið er úr codex-útgáfunni
 
@@ -32,12 +34,12 @@ Bæta codex-útgáfuna og flytja hana inn í endurgerðina (`remake/`). Þá er 
 - **Reglurnar:**
   - teningur 1–6;
   - aðeins lokareitur kasts virkjar háls, hala eða atburð;
-  - hærra kast en þarf dugar til að klára;
+  - lenda þarf nákvæmlega á 100: of hátt kast fer upp á 100 og skoppar til baka um það sem umfram er (97 + 5 → 98), og Mosi segir „Úps, of langt! Við skoppum til baka.“ (eigandinn breytti þessu 19. október);
   - sex gefur ekki aukakast.
-- **„Ævintýraskógur“:** ljósflugur (+2 reitir), leðja (−2) og steingervingar.
+- **„Ævintýraskógur“,** alltaf á: ljósflugur (+2 reitir), leðja (−2) og steingervingar.
 - **Leikmenn:** einn á móti tölvu (Þórseðla), eða 2–4 á sama tæki.
 - **Myndavélin:** fylgir peðinu eða sýnir allt borðið.
-- **„Rólegra“-hamur,** hlé, og vistun leiks í gangi.
+- **Hlé og vistun** leiks í gangi. „Rólegra“-hamurinn er farinn: rólegri hreyfingar koma aðeins af sjálfu sér þegar tækið biður um minni hreyfingu.
 
 ## 4. Það sem verður betra
 
