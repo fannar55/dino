@@ -1,4 +1,5 @@
-import { BOARD, DINOSAURS, tilePosition } from './rules.js';
+import { BOARD, DINOSAURS } from './rules.js';
+import { squareAt } from './board.js';
 
 // Where each Þórseðla of the board stands (rules.js DINOSAURS: six of them, five necks and five tails between them), at her
 // natural proportions (no neck or tail drawn out by more than about a quarter, the owner's word of 2026-10-19).
@@ -6,9 +7,9 @@ import { BOARD, DINOSAURS, tilePosition } from './rules.js';
 // Four stand on rock shelves behind the two front tiers (the second and the fourth: rules.js BOARD.recess), at the tier's
 // height, side-on to the camera like Codex's:
 //  - a little lower than the tier (`drop`), so her back stays under the numbers of the tier above;
-//  - her chest a little behind the first square of her neck (`lead` metres along the board), so her neck rises in front of
-//    the tier above (which stands further back), her head comes to rest over its square, and comes down to the first square
-//    in a bow;
+//  - her chest a square behind the first square of her neck (`lead` metres along the board): her neck rises in front of
+//    the tier above (which stands further back), her head comes to rest over its square (right over the first one), and in a
+//    bow it reaches forward and down onto the first square;
 //  - her rump just past the first square of her tail, so her tail hangs down from her hips behind her tier onto the tier
 //    below (further back too), its tip on the last square.
 // The two long routes, two tiers each, belong to the two big elder giants, uniformly bigger rather than stretched, who stand
@@ -30,10 +31,10 @@ export const BLOCK_BACK = 1.2; // the back face of a tier's blocks behind their 
 const SPECS = {
   // the elder giant at the right end, beside the stairs, her chest 3 m in front of the back tiers
   fern: { name: 'Burkni', tier: 0, size: 1.85, at: [27.7, -11.2], turn: 88, maxStretch: 1.5 },
-  amber: { name: 'Gyllir', tier: 1, size: 1.15, lead: 0.3, drop: 0.35 },
-  coral: { name: 'Glóð', tier: 1, size: 1.15, lead: 0.3, drop: 0.35 },
-  sage: { name: 'Salvía', tier: 3, size: 1.15, lead: 0.3, drop: 0.35 },
-  birch: { name: 'Kvisti', tier: 3, size: 1.15, lead: 0.3, drop: 0.35 },
+  amber: { name: 'Gyllir', tier: 1, size: 1.15, lead: 2.3, drop: 0.35 },
+  coral: { name: 'Glóð', tier: 1, size: 1.15, lead: 2.3, drop: 0.35 },
+  sage: { name: 'Salvía', tier: 3, size: 1.15, lead: 2.3, drop: 0.35 },
+  birch: { name: 'Kvisti', tier: 3, size: 1.15, lead: 2.3, drop: 0.35 },
   // the elder giant on the top tier, her rump behind square 81, at the board's left end
   plum: { name: 'Lyng', tier: 4, size: 1.6, turn: -25, rump: [1.45, -10.4], drop: 3.0, maxStretch: 1.5 },
 };
@@ -55,11 +56,11 @@ export const PLACES = DINOSAURS.map(d => {
   if (s.at) [x, z] = s.at; // a giant at a spot of her own (Burkni)
   else if (s.rump) {
     // her rump at a spot past the tail's first square, her body turned with her (Lyng)
-    const rx = tilePosition(d.tail.from).x - facing * s.rump[0], rz = s.rump[1];
+    const rx = squareAt(d.tail.from).x - facing * s.rump[0], rz = s.rump[1];
     x = rx - Math.cos(h) * MODEL.tail * k;
     z = rz - Math.sin(h) * MODEL.tail * k;
   } else {
-    x = tilePosition(d.neck.from).x - facing * (MODEL.neck * k + s.lead); // her chest `lead` behind the neck's square
+    x = squareAt(d.neck.from).x - facing * (MODEL.neck * k + s.lead); // her chest `lead` behind the neck's square
     z = nearZ(k);
   }
   return Object.freeze({ id: d.id, name: s.name, tier: s.tier, drop: s.drop ?? 0, x, z, facing, turn, size: k, maxStretch: s.maxStretch, neck: d.neck, tail: d.tail, color: d.color });

@@ -26,7 +26,39 @@ import { BOARD, SHORTCUTS, DINOSAURS, tilePosition } from './rules.js';
 
 // The plaque nearly fills the block's face, so the numbers read from the whole board. The blocks are deep enough for two pieces
 // side by side, with a Þórseðla's head resting just behind them (places.js BLOCK_BACK is half the depth).
-export const STONE = { width: 1.55, height: 1.1, depth: 2.4, plaque: [1.4, 1.0] };
+export const STONE = { width: 1.7, height: 1.25, depth: 2.4, plaque: [1.56, 1.1] };
+// Where a neck rises in front of a tier, the blocks on either side of it stand apart by about the neck's thickness, so it
+// passes through empty space and hides no number (the owner's word, 2026-10-19): the gap there is `NECK_GAP` metres, and the
+// tier's other blocks stand a little closer to make room, so its ends stay where the other tiers' ends are.
+export const NECK_GAP = 2.0;
+
+/** The gaps a tier opens for necks: { tier: [c, ...] }, each c the column the gap follows (between c and c + 1). */
+function neckGaps() {
+  const gaps = {};
+  for (const d of DINOSAURS) {
+    if (!d.neck || Math.round((tilePosition(d.neck.to).y - tilePosition(d.neck.from).y) / BOARD.rowHeight) !== 1) continue;
+    // the gap before the neck's last square, on the side she stands
+    const n = d.neck.to, tier = Math.floor((n - 1) / BOARD.columns), offset = (n - 1) % BOARD.columns;
+    const column = tier % 2 ? BOARD.columns - 1 - offset : offset;
+    (gaps[tier] ??= []).push(d.facing > 0 ? column - 1 : column);
+  }
+  return gaps;
+}
+const GAPS = neckGaps();
+
+/** Where square n's block stands (x along the board, y its top over tier 0's, z its middle), with the necks' gaps. */
+export function squareAt(n) {
+  const p = tilePosition(n);
+  if (n === 0) return p;
+  const tier = Math.floor((n - 1) / BOARD.columns), gaps = GAPS[tier];
+  if (!gaps) return p;
+  const offset = (n - 1) % BOARD.columns, column = tier % 2 ? BOARD.columns - 1 - offset : offset;
+  const extra = NECK_GAP + STONE.width - BOARD.spacing; // what a gap adds to an ordinary step
+  const width = (BOARD.columns - 1) * BOARD.spacing;
+  const step = (width - gaps.length * extra) / (BOARD.columns - 1);
+  const before = gaps.filter(c => c < column).length;
+  return { ...p, x: -width / 2 + column * step + before * extra };
+}
 // A flat log under each tier: thin, so the bodies behind and under it show (the owner's look, 2026-10-19).
 export const LEDGE = { depth: 2.3, thickness: 0.45, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
 // The stairs: a flight from a tier's end square up to the next tier's, bowing out a little past the board's end.
@@ -92,7 +124,7 @@ function stoneGeometry() {
 }
 
 /** The numbers 1 to 100 on plaques in one texture, 10 across and 10 down, each cell as wide as the plaque; Nunito, the game's face. */
-function drawPlaques(starts, shifts) {
+function drawPlaques(starts) {
   const w = 196, h = 140, cols = 10, rows = 10;
   const canvas = document.createElement('canvas');
   canvas.width = w * cols; canvas.height = h * rows;
@@ -107,12 +139,11 @@ function drawPlaques(starts, shifts) {
     c.strokeStyle = kind === 'neck' ? '#4fa64c' : kind === 'tail' ? '#e5803c' : n === BOARD.count ? '#d49b2c' : '#c2ad88';
     c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = `900 ${n >= 100 ? 104 : 128}px Nunito, "Arial Rounded MT Bold", sans-serif`;
+    c.font = `900 ${n >= 100 ? 118 : 146}px Nunito, "Arial Rounded MT Bold", sans-serif`;
     c.lineJoin = 'round';
     c.lineWidth = 6;
     c.strokeStyle = 'rgba(255, 252, 240, 0.9)';
-    const shift = shifts.get(n) ?? 0, tx = x + w / 2 + shift * w;
-    if (shift) c.font = `900 ${n >= 100 ? 84 : 100}px Nunito, "Arial Rounded MT Bold", sans-serif`;
+    const tx = x + w / 2;
     c.strokeText(String(n), tx, y + h / 2 + 8);
     c.fillStyle = kind === 'neck' ? '#26602b' : kind === 'tail' ? '#9a4316' : '#3d2f20';
     c.fillText(String(n), tx, y + h / 2 + 8);
@@ -133,7 +164,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
 
   /** Where a piece stands on square n (the block's top), in the world. */
   function square(n, out = new THREE.Vector3()) {
-    const p = tilePosition(n);
+    const p = squareAt(n);
     return out.set(p.x, p.y + base, p.z);
   }
   const tierY = r => r * BOARD.rowHeight + base;
@@ -164,18 +195,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   // ---- the plaques: one mesh, its numbers from one texture ----------------------------------------------------------------
   const starts = new Map(SHORTCUTS.map(s => [s.from, s.type]));
   const plaqueGlow = { attribute: null, now: new Float32Array(BOARD.count) };
-  // where a neck rises in front of a tier, in the gap before its last square, the numbers on either side of the gap sit a
-  // little away from it, so the neck hides neither
-  const shifts = new Map();
-  for (const d of DINOSAURS) {
-    if (!d.neck || tilePosition(d.neck.to).y - tilePosition(d.neck.from).y > BOARD.rowHeight + 0.01) continue;
-    const gap = tilePosition(d.neck.to).x - d.facing * BOARD.spacing / 2, tier = Math.floor((d.neck.to - 1) / BOARD.columns);
-    for (let n = tier * BOARD.columns + 1; n <= (tier + 1) * BOARD.columns; n++) {
-      const dx = tilePosition(n).x - gap;
-      if (Math.abs(Math.abs(dx) - BOARD.spacing / 2) < 0.01) shifts.set(n, Math.sign(dx) * 0.24);
-    }
-  }
-  const plaques = drawPlaques(starts, shifts);
+  const plaques = drawPlaques(starts);
   textures.push(plaques.texture);
   {
     const [w, h] = STONE.plaque;

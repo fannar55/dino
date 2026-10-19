@@ -46,7 +46,7 @@ function boardBoxes(world) {
   for (let r = 0; r < BOARD.rows; r++) {
     const y = world.board.tierY(r), z = world.board.tierZ(r);
     for (let c = 0; c < BOARD.columns; c++) {
-      const x = (c - (BOARD.columns - 1) / 2) * BOARD.spacing;
+      const x = world.board.square(r * BOARD.columns + c + 1).x;
       boxes.push({ name: `blocks ${r}`, min: new V3(x - STONE.width / 2, y - STONE.height, z - STONE.depth / 2), max: new V3(x + STONE.width / 2, y, z + STONE.depth / 2) });
     }
     if (r) boxes.push({ name: `log ${r}`, min: new V3(-LEDGE.halfLength + 0.35, y - STONE.height - LEDGE.thickness, z - LEDGE.depth / 2), max: new V3(LEDGE.halfLength - 0.35, y - STONE.height + 0.04, z + LEDGE.depth / 2) });

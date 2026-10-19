@@ -40,14 +40,15 @@ export const BOARD = Object.freeze({
 // the two big elder giants at the board's ends, Burkni's neck at the right (19 up to 59) and Lyng's tail at the left
 // (82 down to 41). `neck` goes up from a low square to a high one, `tail` slides down; either is null when she has only
 // the other. `facing` is the way she looks along the board (1 is to the right) and `color` is Codex's colour for her.
-// Balance (2026-10-19, 6000 seeded games of two): median 32 turns in all, 90th percentile 49, against 28 and 43 on
-// Codex's 80 squares (adventure mode: 31 and 47 against 29 and 45).
+// An ordinary neck's last square is right over its first, which lies ahead of her chest, so she bows forward onto it.
+// Balance (2026-10-19, 6000 seeded games of two): median 32 turns in all, 90th percentile 50, against 28 and 43 on
+// Codex's 80 squares (adventure mode: 31 and 49 against 29 and 45).
 export const DINOSAURS = Object.freeze([
   {id: 'fern', color: '#75b87b', facing: -1, neck: {from: 19, to: 59}, tail: null},
-  {id: 'amber', color: '#dca251', facing: -1, neck: {from: 28, to: 52}, tail: {from: 24, to: 17}},
-  {id: 'coral', color: '#d88479', facing: -1, neck: {from: 34, to: 46}, tail: {from: 30, to: 11}},
-  {id: 'sage', color: '#7ba691', facing: 1, neck: {from: 69, to: 93}, tail: {from: 73, to: 48}},
-  {id: 'birch', name: 'Kvisti', color: '#c8ae79', facing: 1, neck: {from: 63, to: 99}, tail: {from: 67, to: 54}},
+  {id: 'amber', color: '#dca251', facing: -1, neck: {from: 28, to: 53}, tail: {from: 23, to: 18}},
+  {id: 'coral', color: '#d88479', facing: -1, neck: {from: 34, to: 47}, tail: {from: 29, to: 12}},
+  {id: 'sage', color: '#7ba691', facing: 1, neck: {from: 69, to: 92}, tail: {from: 74, to: 46}},
+  {id: 'birch', name: 'Kvisti', color: '#c8ae79', facing: 1, neck: {from: 63, to: 98}, tail: {from: 68, to: 52}},
   {id: 'plum', name: 'Lyng', color: '#a491ab', facing: 1, neck: null, tail: {from: 82, to: 41}},
 ].map(dinosaur => Object.freeze({
   ...dinosaur,

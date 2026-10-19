@@ -46,8 +46,8 @@ test('six dinosaurs own five upward necks and five downward tails with distinct 
       assert.ok(!SHORTCUTS.some(s => s.from === shortcut.to), 'A ride must end on an ordinary square');
     }
   }
-  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'neck').map(s => [s.from, s.to]), [[19, 59], [28, 52], [34, 46], [69, 93], [63, 99]]);
-  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'tail').map(s => [s.from, s.to]), [[24, 17], [30, 11], [73, 48], [67, 54], [82, 41]]);
+  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'neck').map(s => [s.from, s.to]), [[19, 59], [28, 53], [34, 47], [69, 92], [63, 98]]);
+  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'tail').map(s => [s.from, s.to]), [[23, 18], [29, 12], [74, 46], [68, 52], [82, 41]]);
   // every route reaches one tier, but for the giants' two: Burkni's neck up two tiers and Lyng's tail down two
   const tiers = s => Math.round(Math.abs(tilePosition(s.to).y - tilePosition(s.from).y) / BOARD.rowHeight);
   assert.deepEqual(SHORTCUTS.filter(s => tiers(s) === 2).map(s => s.id), ['fern-neck', 'plum-tail']);
@@ -67,9 +67,11 @@ test('neck and tail rides activate only on the dice landing, with every walking 
     assert.equal(landing.landed, shortcut.from);
     assert.equal(landing.shortcut, shortcut);
     assert.equal(landing.destination, shortcut.to);
-    const passing = resolveTurn(shortcut.from - 1, 2);
+    // walking over it onto the next free square (two routes may start side by side)
+    const over = [2, 3, 4].find(roll => !SHORTCUTS.some(s => s.from === shortcut.from - 1 + roll));
+    const passing = resolveTurn(shortcut.from - 1, over);
     assert.equal(passing.shortcut, null);
-    assert.equal(passing.destination, shortcut.from + 1);
+    assert.equal(passing.destination, shortcut.from - 1 + over);
   }
   assert.deepEqual(resolveTurn(0, 1), { from: 0, roll: 1, steps: [1], landed: 1, shortcut: null, event: null, destination: 1, won: false });
 });

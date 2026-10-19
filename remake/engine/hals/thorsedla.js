@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createActor } from '../actor.js';
 import { BOARD } from './rules.js';
 import { BLOCK_BACK } from './places.js';
-import { STONE } from './board.js';
+import { STONE, NECK_GAP } from './board.js';
 import { createThorsedlaLod } from './thorsedla-lod.js';
 
 // The Þórseðlas of the board (spec section 4): the chapter's own Þórseðla (brontosaurus.glb, engine/actor.js: her idle
@@ -51,7 +51,7 @@ const BOWED = { aside: 0.2, chin: 0.55, z: 0.05, way: [0.25, -0.72, 0.62] };
 const FRONT = 0.3; // metres clear of a tier's front face where a neck rises in front of it
 const STAIRS_OUT = 1.7; // how far past the board's last block the stairs and their rail reach, beside which a giant's neck or tail passes
 const NECK_LEAN = 50; // degrees over the level her neck leaves her shoulders
-const TAIL_Z = -3.25; // z where a tail hangs behind a front tier: clear of its blocks and of the tier below's, further back
+const TAIL_Z = -5.5; // z where a tail hangs behind a front tier: right over the tier below (further back), onto which it comes down
 const LOOK = { near: 14, share: 0.45, down: -0.3, up: 0.2 }; // metres within which she looks at a piece, how far her head turns to it, and the most it pitches (radians) as she looks
 const rad = THREE.MathUtils.degToRad;
 
@@ -156,6 +156,25 @@ function chainRadii(skin, root, joints) {
   return sums.map(([s, n]) => (n ? s / n : 0.4));
 }
 
+/** The way the skin past a chain's last bone goes from it in the bind pose (root frame): the middle of what that bone moves. */
+function tipWay(skin, root, bone, joint) {
+  const index = skin.skeleton.bones.indexOf(bone);
+  if (index < 0) return null;
+  const position = skin.geometry.attributes.position, si = skin.geometry.attributes.skinIndex, sw = skin.geometry.attributes.skinWeight;
+  const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(skin.matrixWorld);
+  const sum = new V3(), p = new V3();
+  let n = 0;
+  for (let i = 0; i < position.count; i++) {
+    let best = 0, bestW = -1;
+    for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > bestW) { bestW = w; best = si.getComponent(i, j); } }
+    if (best !== index) continue;
+    sum.add(p.fromBufferAttribute(position, i).applyMatrix4(toRoot)); n++;
+  }
+  if (!n) return null;
+  const way = sum.divideScalar(n).sub(joint);
+  return way.lengthSq() > 1e-6 ? way.normalize() : null;
+}
+
 export async function createThorsedlas(world, board, places) {
   // their own levels of detail (thorsedla-lod.js), not character-lod.js's: an actor world without a renderer skips those
   const own = Object.create(world);
@@ -217,6 +236,7 @@ async function createThorsedla(world, board, place, lod) {
   const neckO = bindQ(neckBones), tailO = bindQ(tailBones);
   const restDir = joints => joints.slice(0, -1).map((p, i) => new V3().subVectors(joints[i + 1], p).normalize());
   const neckRest = restDir(neckBind), tailRest = restDir(tailBind);
+  tailRest.push(tipWay(skin, root, tailBones[tailBones.length - 1], tailBind[tailBind.length - 1]) ?? tailRest[tailRest.length - 1].clone()); // the tip's bone
   const tipLength = 0.99; // the tail's tip past its last joint (model metres)
   /** Draw a chain's joints apart by `s` (its bones' offsets from their parents). */
   const stretch = (bones, s) => { for (let i = 1; i < bones.length; i++) bones[i].position.multiplyScalar(s); };
@@ -259,12 +279,12 @@ async function createThorsedla(world, board, place, lod) {
       bowed = bowOver(place.neck.from);
       const face = board.tierZ(up) + STONE.depth / 2;
       vias = [
-        new V3(Xs.x - f * BOARD.spacing / 2, board.tierY(up) - 0.6, face + neckR(3) + 0.6),
-        new V3(Xs.x - f * 0.95, board.tierY(up) + neckR(4) + 0.45, face + 0.75),
+        new V3(Xs.x - f * (STONE.width + NECK_GAP) / 2, board.tierY(up) - 0.6, face + neckR(3) + 0.6),
+        new V3(Xs.x - f * 1.15, board.tierY(up) + neckR(4) + 0.45, face + 0.75),
       ];
       // bowing: up over her own tier's back edge and down onto the first square
       // bowing: like a crane, up from her shoulders, over her own tier's back edge and down onto the first square
-      bowVias = [new V3(S.x - f * 0.8, S.y + 5.4, S.z - BLOCK_BACK - 1.6), new V3(S.x - f * 0.45, S.y + 3.6, S.z - BLOCK_BACK + 0.2)];
+      bowVias = [new V3(S.x - f * 1.7, S.y + 5.0, S.z - BLOCK_BACK - 1.4), new V3(S.x - f * 0.8, S.y + 3.3, S.z - BLOCK_BACK + 0.1)];
     } else {
       // Burkni, beside the board's right end: her neck rises past the stairs and curls in over the square two tiers up; she
       // bows to the first square from beside it
@@ -316,9 +336,9 @@ async function createThorsedla(world, board, place, lod) {
         new V3(hang, a.y + 0.55, TAIL_Z),
         new V3(hang + side * 0.1, a.y - 2.7, TAIL_Z),
       ];
-      endAt = r => new V3(b.x - side * 0.1, b.y + 0.1 + r, b.z + 0.55);
-      points.push(new V3(b.x - side * 0.2, b.y + 1.8, (TAIL_Z + b.z + 0.55) / 2));
-      boardAt = new V3(hang, a.y + 0.5, TAIL_Z + 0.4);
+      endAt = r => new V3(b.x - side * 0.1, b.y + 0.1 + r, b.z + 0.1);
+      points.push(new V3(b.x - side * 0.15, b.y + 1.9, b.z + 0.3));
+      boardAt = new V3(hang, a.y + 0.5, TAIL_Z + 1.4);
     } else {
       // Lyng: out past the board's left end behind her tier, down beside the stairs, and onto the square two tiers down
       // behind the end square of her tier (where a piece hops on), out past its log's end, then in close beside the stairs
@@ -398,7 +418,7 @@ async function createThorsedla(world, board, place, lod) {
   }
   const rootFrameQ = (bone, out) => out.copy(rootQi).multiply(bone.getWorldQuaternion(qc));
   const neckDirs = NECK.slice(0, -1).map(() => new V3());
-  const tailDirs = TAIL.slice(0, -1).map(() => new V3());
+  const tailDirs = TAIL.map(() => new V3()); // each bone's way, the tip's bone too (it follows the curve on)
   const chestQ = new THREE.Quaternion(), hipsQ = new THREE.Quaternion();
   const curve = [], neckJoints = NECK.map(() => new V3());
   const B = new V3(), T = new V3(), tB = new V3(), tT = new V3(), P1 = new V3(), P2 = new V3(), headDir = new V3();
@@ -490,7 +510,8 @@ async function createThorsedla(world, board, place, lod) {
     let s = 0;
     const total = sum(tailLengths) * k;
     for (let i = 0; i < tailDirs.length; i++) {
-      s += tailLengths[i] * k;
+      const length = i < tailLengths.length ? tailLengths[i] : tipLength * 0.8; // (model metres)
+      s += length * k;
       tailCurve.pointAt(s, tailPoint);
       const along = s / total;
       // the swish: a wave running down the tail, growing toward the tip; the flick: the tip tossed out
@@ -509,8 +530,8 @@ async function createThorsedla(world, board, place, lod) {
       if (cheerT >= 0 && !calm) tailOffset.x += Math.sin(cheerT * 8 - along * 4) * 0.3 * along;
       tailPoint.add(tailOffset);
       const dir = vb.subVectors(tailPoint, joint).normalize();
-      joint.addScaledVector(dir, tailLengths[i] * k);
-      tailJoints[i + 1].copy(joint);
+      joint.addScaledVector(dir, length * k);
+      if (i + 1 < tailJoints.length) tailJoints[i + 1].copy(joint);
       tailDirs[i].copy(dir).applyQuaternion(rootQi);
     }
     setChain(tailBones, tailRest, tailO, tailDirs, hipsQ);

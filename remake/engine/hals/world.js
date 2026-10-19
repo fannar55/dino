@@ -41,8 +41,10 @@ export const VIEW = {
   fov: 30,
   // What the whole board needs in view (m), the camera a little above: from the grass to the top tier and Lyng's back over it,
   // with room below for the dock (`safe`, a share of the view's height) and the tall Þórseðlas allowed up to the top edge; from
-  // Lyng's tail beside the left end (`left`) to Burkni beside the right end (`right`).
-  overview: { bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, safe: 0.17, lift: 0.25, depth: -4.2 },
+  // Lyng's tail beside the left end (`left`) to Burkni beside the right end (`right`). Upright, where the width is what limits
+  // the view, it frames just the board and the two giants (`tight`) and sets the board in the middle of the height between the
+  // dock and the buttons at the top (`top`, a share of the view's height).
+  overview: { bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, tight: [-26.2, 31.6], safe: 0.16, top: 0.07, lift: 0.25, depth: -4.2 },
   follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0] }, // close on a piece: its tier and the next one above
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
@@ -199,6 +201,14 @@ function createView(camera, board) {
   function wanted() {
     if (mode === 'overview' || calm) {
       const height = (TOP + O.above - O.bottom) / (1 - O.safe);
+      if ((O.right - O.left) / height > aspect) {
+        // upright: the board and the giants fill the width, the board in the middle of the free height
+        const width = O.tight[1] - O.tight[0], seen = width / aspect;
+        wantTarget.set((O.tight[0] + O.tight[1]) / 2, (O.bottom + TOP + O.above) / 2 - seen * (O.safe - O.top) / 2, O.depth);
+        const d = distanceFor(width, height);
+        wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);
+        return;
+      }
       wantTarget.set((O.left + O.right) / 2, O.bottom - height * O.safe + height / 2, O.depth);
       const d = distanceFor(O.right - O.left, height);
       wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);

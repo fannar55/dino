@@ -8,7 +8,7 @@
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./style.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
-<!-- The world of "Háls og hali" on a page of its own, never linked from the game: Codex's board of 80 squares on five tiers,
+<!-- The world of "Háls og hali" on a page of its own, never linked from the game: the board of 100 squares on five tiers,
      side-on, with the chapter's Þórseðlas and Egill on Mosi. The game proper (its "Eitt!" look, the voices, the sounds, the
      book) is Task 3's; this page is for looking at the world and playing a game in it.
        ?view=overview (the default) | follow    the whole board, or close on the piece whose turn it is
@@ -21,6 +21,7 @@
        &look=fern|amber|sage|coral|birch|plum      the camera close on one Þórseðla (her neck's or tail's two squares)
        &bow=1                                     with look: she bows to her neck's first square once ready (and stays down)
        &lift=1                                    with bow: and then lifts back to rest
+       &hold=U                                    with look: she is held at U along her bow (0 rest, 1 bowed)
      Keys: space rolls, o the whole board, f follow, m calm mode. -->
 <style>
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -99,11 +100,12 @@ setWhole(whole);
 const lookId = params.get('look');
 const looked = lookId ? world.thorsedlas.list.find(t => t.place.id === lookId) : null;
 if (looked) {
-  const route = looked.place.neck ?? looked.place.tail;
-  const a = world.board.square(route.from), b = world.board.square(route.to);
-  a.y = Math.min(a.y, b.y); b.y = Math.max(a.y, b.y) + 3;
+  // her neck's and tail's squares and her body, with room over the highest for her head
+  const ends = [looked.place.neck, looked.place.tail].filter(Boolean).flatMap(r => [r.from, r.to]).map(n => world.board.square(n));
   const body = looked.root.position.clone();
-  world.view.frame(a.clone().min(body).setZ(0), b.clone().max(body.clone().setY(b.y)).setZ(0), 3);
+  const a = ends.reduce((m, p) => m.min(p), body.clone()), b = ends.reduce((m, p) => m.max(p), body.clone());
+  b.y += 3;
+  world.view.frame(a.setZ(0), b.setZ(0), 3);
 }
 world.view.cut();
 document.getElementById('calm').onclick = () => setCalm(!world.view.calm);
@@ -188,6 +190,7 @@ renderer.setAnimationLoop(now => {
     window.__demoReady = true;
     if (params.has('roll')) turn(Number(params.get('roll')) || 3);
     if (looked && params.get('bow') === '1') looked.bow({ duration: 1.5 }).then(() => (params.get('lift') === '1' ? looked.lift({ duration: 2.8 }) : null));
+    if (looked && params.has('hold')) looked.holdArc(Number(params.get('hold')));
   }
 });
 </script>
