@@ -9,7 +9,10 @@ import * as THREE from 'three';
 //   await playTurn(game, piece, result, { onStep(n, i), onLand(kind, data) })
 //   game: { world (world.js), pieces, thorsedlas }   result: resolveTurn's
 // onStep and onLand are for the host's voices and sounds (Task 3): onStep(square, count) on each hop, onLand(kind, data) with
-// kind 'neck' | 'tail' | 'firefly' | 'mud' | 'fossil' | 'win' | 'square'.
+// kind 'neck' | 'tail' | 'firefly' | 'mud' | 'fossil' | 'win' | 'square'. A Promise that onStep returns is waited for before the
+// next hop (the host paces the hops to Mosi counting them). onPhase(name, data) says where a turn is, for the effects: 'hop';
+// 'neck', then 'lift' ({ thorsedla }) as she lifts the piece and 'off' ({ at }) as it hops off at the top; 'tail', then 'slide'
+// ({ curve }) and 'splash' ({ at }) at its end; 'firefly', 'mud' and 'fossil'.
 
 const V3 = THREE.Vector3;
 
@@ -22,7 +25,7 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
   for (const [i, n] of result.steps.entries()) {
     await piece.hopTo(n);
     board.glow(n, 1);
-    onStep(n, i + 1);
+    await onStep(n, i + 1);
   }
   piece.rest();
   await world.wait(0.25);
@@ -35,9 +38,11 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     await t.bow({ duration: 1.5 });
     await piece.hopOnto(t.ridePoint());
     piece.follow(out => t.ridePoint(out));
+    onPhase('lift', { thorsedla: t });
     await t.lift({ duration: 2.8 });
     await world.wait(0.15);
     await piece.hopOnto(piece.spot(result.destination), { height: 1.2, seconds: 0.7 });
+    onPhase('off', { at: piece.position.clone() });
     piece.square = result.destination;
     piece.face(onward(result.destination));
     board.glow(result.destination, 1);
@@ -52,8 +57,10 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     await world.wait(0.6);
     const curve = t.slideCurve();
     await piece.hopOnto(curve.getPointAt(0));
+    onPhase('slide', { curve });
     await piece.slide(curve, { seconds: 1.4 + curve.getLength() * 0.07 });
     t.flick();
+    onPhase('splash', { at: piece.position.clone() });
     await piece.hopOnto(piece.spot(result.destination), { height: 0.5, seconds: 0.4 });
     piece.square = result.destination;
     piece.face(onward(result.destination));
@@ -62,14 +69,17 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
     view.follow(() => piece.position);
   } else if (result.event?.type === 'firefly') {
     onLand('firefly', { from: result.landed, to: result.destination });
+    onPhase('firefly');
     await piece.float(result.destination);
     board.glow(result.destination, 1);
   } else if (result.event?.type === 'mud') {
     onLand('mud', { from: result.landed, to: result.destination });
+    onPhase('mud');
     await piece.wobbleTo(result.destination);
     board.glow(result.destination, 1);
   } else if (result.event?.type === 'fossil') {
     onLand('fossil', { at: result.landed });
+    onPhase('fossil');
     await piece.cheer(1);
   } else {
     onLand('square', { at: result.landed });

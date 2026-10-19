@@ -12,17 +12,20 @@ import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 //
 //   const pieces = await createPieces(world, board, { roster: ['egill', 'kambedla'] })
 //   pieces.list[i]: { id, name, colour, actor, square, position, place(n), hopTo(n), hopOnto(point), follow(fn), slide(curve),
-//                    float(to), wobbleTo(n), cheer(), face(dir), lookAt(point) }
+//                    float(to), wobbleTo(n), cheer(), wave(), armsUp(seconds), face(dir), lookAt(point) }
+// A piece slides down a tail feet first, sitting back with its nose up, as a child goes down a slide (the owner's look at Task 2).
+// Egill waves from Mosi's back, or throws both arms up (a win, a slide); a friend plays its happy clip instead.
 //   pieces.update(dt), pieces.ready, pieces.dispose()
 // Every move returns a Promise that settles on the world's clock (the world's tweens), so a paused world holds them.
 
 const CHARACTERS = {
   egill: { name: 'Egill', model: 'mosi', rider: 'egill', length: 8.5, colour: '#79c7a1' },
-  kambedla: { name: 'Kambeðla', model: 'stegosaurus', length: 7.0, colour: '#ab85c1' },
-  sloedla: { name: 'Slóeðla', model: 'parasaurolophus', length: 7.5, colour: '#6793d0' },
-  gramedla: { name: 'Grameðla', model: 'trex', length: 12, colour: '#d69a6e' },
-  thorsedla: { name: 'Þórseðla', model: 'brontosaurus', length: 22, colour: '#e9b14d' },
+  kambedla: { name: 'Kambeðla', model: 'stegosaurus', length: 7.0, colour: '#ab85c1', happy: 'happy' },
+  sloedla: { name: 'Slóeðla', model: 'parasaurolophus', length: 7.5, colour: '#6793d0', happy: 'happy' },
+  gramedla: { name: 'Grameðla', model: 'trex', length: 12, colour: '#d69a6e', happy: 'roar' },
+  thorsedla: { name: 'Þórseðla', model: 'brontosaurus', length: 22, colour: '#e9b14d', happy: 'happy' },
 };
+const ARMS = /^(Left|Right)(Shoulder|UpperArm|LowerArm|Hand)$/; // Egill's arm bones, which a gesture takes from his wave clips
 export { CHARACTERS as PIECE_CHARACTERS };
 const LENGTH = 3.7; // a piece's length nose to tail (m): bigger than a block, so Egill shows clearly on Mosi close up
 const LANES = [[-0.2, 0.3], [0.35, -0.3], [-0.55, -0.02], [0.5, -0.62]]; // x and z on a block, by player: behind the plaques' face
@@ -120,6 +123,57 @@ async function createPiece(world, board, id, index, host) {
     riding = ride(rider, saddle, { settle: 0 });
   }
 
+  // Egill's own moves on Mosi's back. His ride sits him in the saddle with both hands on the handle (riding.js), so a wave or a
+  // cheer is a clip made here of his sitting pose with the arms of his wave (and of his left-handed wave), played while he is held
+  // on the seat without the handle, turned with Mosi (who leans back on a slide); then he takes the handle again.
+  function seated(name, arms) {
+    if (rider.clips.has(name)) return name;
+    const sit = rider.clips.get('sit');
+    const sources = arms.map(id => rider.clips.get(id)).filter(Boolean);
+    if (!sit || sources.length !== arms.length) return null;
+    const taken = new Map();
+    for (const clip of sources) {
+      const side = clip.name === 'waveLeft' ? 'Left' : 'Right';
+      for (const track of clip.tracks) {
+        const bone = track.name.split('.')[0];
+        if (ARMS.test(bone) && bone.startsWith(side)) taken.set(track.name, track.clone());
+      }
+    }
+    const tracks = [...sit.tracks.filter(track => !taken.has(track.name)).map(track => track.clone()), ...taken.values()];
+    rider.clips.set(name, new THREE.AnimationClip(name, Math.max(...sources.map(clip => clip.duration)), tracks));
+    return name;
+  }
+  let gestures = 0; // counts them, so an older one ending does not cut a newer one short
+  async function gesture(clipName, arms, seconds) {
+    if (!rider || !saddle) return;
+    const name = seated(clipName, arms);
+    if (!name) return;
+    const mine = ++gestures;
+    riding?.stop();
+    riding = null;
+    rider.control(() => {
+      saddle.update();
+      rider.root.position.copy(saddle.seat);
+      rider.root.quaternion.copy(actor.root.quaternion);
+    });
+    rider.play(name, { fade: 0.25 });
+    await host.tween(seconds, () => {});
+    if (mine !== gestures) return;
+    rider.control(null);
+    riding = ride(rider, saddle, { settle: 0 });
+  }
+  /** A friend's happy clip (a hop of joy, a roar) for a while, then back to standing. */
+  async function happy(seconds) {
+    if (!spec.happy || !actor.clips.has(spec.happy)) return;
+    play(spec.happy, { fade: 0.25 });
+    await host.tween(seconds, () => {});
+    if (clip === spec.happy) play('idle', { fade: 0.4 });
+  }
+  /** Egill waves (his turn); a friend is happy. */
+  const wave = () => (rider ? gesture('sitWave', ['wave'], 2.4) : happy(1.6));
+  /** Egill throws both arms up and waves them (a win, a slide); a friend is happy. */
+  const armsUp = (seconds = 2.4) => (rider ? gesture('sitCheer', ['wave', 'waveLeft'], seconds) : happy(seconds));
+
   /** One hop from where the piece stands to `to` (a Vector3), with `height` metres of arc. */
   function hopArc(to, { seconds, height, turn = true } = {}) {
     const calm = host.calm;
@@ -186,7 +240,10 @@ async function createPiece(world, board, id, index, host) {
       curve.getTangentAt(Math.min(0.999, u), tangent);
       if (Math.abs(tangent.x) > 0.15) heading = headingFor(Math.sign(tangent.x));
       const pitch = Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z));
-      lean = host.calm ? 0 : THREE.MathUtils.clamp(pitch, -0.7, 0.7) * Math.sign(Math.cos(THREE.MathUtils.degToRad(heading))) * 0.8;
+      // Feet first: sat back on the tail, nose up and legs out in front down the slope (a positive lean lifts the nose whichever
+      // way the piece faces), a little less nose-up where the tail is steep.
+      const sit = THREE.MathUtils.clamp(0.55 + pitch * 0.5, 0.12, 0.6);
+      lean = (host.calm ? 0.5 : 1) * sit * smooth(Math.min(1, t * 6));
       roll = host.calm ? 0 : Math.sin(t * 18) * 0.05;
     }).then(() => { lean = roll = 0; });
   }
@@ -221,6 +278,7 @@ async function createPiece(world, board, id, index, host) {
   /** A happy bounce on the spot (a win, a ride). */
   async function cheer(times = 3) {
     play('idle', { fade: 0.2 });
+    if (rider) armsUp(times * 0.5 + 0.4);
     const here = position.clone();
     heading = 90 - 0; // to the camera
     for (let i = 0; i < times; i++) await hopArc(here, { turn: false, height: host.calm ? 0.15 : 0.7, seconds: 0.48 });
@@ -232,7 +290,7 @@ async function createPiece(world, board, id, index, host) {
     get square() { return square; },
     set square(n) { square = n; },
     get position() { return position; },
-    spot, place, hopTo, hopOnto, follow: followPoint, slide, float, wobbleTo, cheer,
+    spot, place, hopTo, hopOnto, follow: followPoint, slide, float, wobbleTo, cheer, wave, armsUp,
     face(dir) { heading = headingFor(dir); },
     rest() { play('idle', { fade: 0.3 }); },
     lookAt(point) { actor.lookAt(point, { weight: 0.6, maxAngle: 50, maxPitch: 30 }); rider?.lookAt(point, { weight: 0.7, maxAngle: 60, maxPitch: 30 }); },
