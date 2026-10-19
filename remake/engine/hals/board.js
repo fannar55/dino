@@ -129,7 +129,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   const stoneMaterial = ownM(new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, vertexColors: false }));
   const stones = new THREE.InstancedMesh(own(stoneGeometry()), stoneMaterial, BOARD.count + 1);
   stones.name = 'Blocks';
-  stones.castShadow = true;
+  stones.castShadow = false; // on top of the logs: a shadow there would cost the shadow pass for a sliver
   stones.receiveShadow = true;
   {
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
@@ -198,7 +198,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const top = tierY(r) - STONE.height + 0.04;
     if (r === 0) continue; // tier 0's blocks lie on the grass
     // a log: a long, slightly wavy cylinder lying along x
-    const log = new THREE.CylinderGeometry(L.thickness * 0.62, L.thickness * 0.66, L.halfLength * 2 + 1.2, 14, 24, false);
+    const log = new THREE.CylinderGeometry(L.thickness * 0.62, L.thickness * 0.66, L.halfLength * 2 + 1.2, 10, 14, false);
     log.rotateZ(Math.PI / 2);
     const lp = log.attributes.position;
     for (let i = 0; i < lp.count; i++) {
@@ -210,7 +210,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     log.translate(0, top - L.thickness * 0.5, -0.05);
     woodParts.push(painted(log, COLOURS.log, 0.06, random));
     // a moss blanket over the log's top, under the blocks
-    const moss = new THREE.SphereGeometry(1, 24, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const moss = new THREE.SphereGeometry(1, 18, 4, 0, Math.PI * 2, 0, Math.PI / 2);
     moss.scale(L.halfLength + 0.5, 0.12, 1.4);
     moss.translate(0, top - 0.06, -0.05);
     woodParts.push(painted(moss, COLOURS.logMoss, 0.08, random));
@@ -223,7 +223,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
         new THREE.Vector3(x + 0.25, top - L.thickness * 0.7 - length * 0.5, 0.9),
         new THREE.Vector3(x - 0.1, top - L.thickness * 0.7 - length, 0.75),
       ]);
-      woodParts.push(painted(new THREE.TubeGeometry(curve, 8, 0.05 + random() * 0.04, 5, false), k % 3 ? COLOURS.ivy : COLOURS.root, 0.1, random));
+      woodParts.push(painted(new THREE.TubeGeometry(curve, 5, 0.05 + random() * 0.04, 4, false), k % 3 ? COLOURS.ivy : COLOURS.root, 0.1, random));
     }
   }
   // the shelves: a rounded mossy rock slab behind a tier, where a Þórseðla stands
@@ -274,7 +274,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       const p = point(k / 10);
       rail.push(new THREE.Vector3(p.x + side * 0.55 * Math.sin(Math.PI * k / 10), p.y + 0.9, p.z - 0.85));
     }
-    woodParts.push(painted(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rail), 30, 0.07, 6, false), COLOURS.root, 0.05, random));
+    woodParts.push(painted(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rail), 20, 0.07, 5, false), COLOURS.root, 0.05, random));
     for (let k = 1; k < 10; k += 2) {
       const p = rail[k];
       const post = new THREE.CylinderGeometry(0.05, 0.06, 0.95, 5);
@@ -288,7 +288,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const x = side * (LEDGE.halfLength + STAIR.reach + 3.2), z = -2.6;
     const ground = heightAt(x, z);
     const height = tierY(BOARD.rows - 1) + 9 - ground;
-    const trunk = new THREE.CylinderGeometry(1.55, 2.5, height, 16, 18, true);
+    const trunk = new THREE.CylinderGeometry(1.55, 2.5, height, 14, 12, true);
     const tp = trunk.attributes.position;
     for (let i = 0; i < tp.count; i++) {
       const y = tp.getY(i), angle = Math.atan2(tp.getZ(i), tp.getX(i));
@@ -309,7 +309,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
         new THREE.Vector3(x - side * reach * 0.5, y - 0.9, z + 1.0),
         new THREE.Vector3(side * (LEDGE.halfLength - 0.6), y - 0.15, -0.1),
       ]);
-      woodParts.push(painted(new THREE.TubeGeometry(curve, 16, 0.55, 9, false), '#6e5440', 0.08, random));
+      woodParts.push(painted(new THREE.TubeGeometry(curve, 10, 0.55, 7, false), '#6e5440', 0.08, random));
     }
   }
 

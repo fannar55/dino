@@ -34,8 +34,8 @@ import { createThorsedlas } from './thorsedla.js';
 
 export const VIEW = {
   fov: 30,
-  overview: { centre: [0, 14.2, -1.5], width: 50, height: 34, lift: 0.1 }, // what the whole board needs in view (m), the camera a little above
-  follow: { distance: 25, lift: 0.12, lead: [0, 2.2, 0] }, // close on a piece: about a tier above and below it
+  overview: { centre: [0, 11.6, -1.5], width: 52, height: 37, lift: 0.1 }, // what the whole board needs in view (m), the camera a little above
+  follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0] }, // close on a piece: its tier and the next one above
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
 const LOOK = 'morning'; // the chapter's light, so the fog's shader chunk (shared by every scene the renderer draws) stays the same
@@ -84,7 +84,9 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     shots: { overview: { position: [0, 18, 58], target: [0, 12, 0], fov: VIEW.fov } },
     leafShadows: false,
   };
-  const forest = await createForest(world, layout);
+  // Half the grass of the chapter's clearing: here it is only the strip in front of the bottom tier, seen from far, and it
+  // would otherwise cost a quarter of the frame's triangles close up.
+  const forest = await createForest(Object.assign(Object.create(world), { q: { ...q, grass: q.grass * 0.5 } }), layout);
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   const ground = forest.heightAt(0, 0);
@@ -105,10 +107,19 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
 
   // ---- the frame -------------------------------------------------------------------------------------------------------
   const updaters = new Set();
+  const tweens = new Set();
+  /** step(t) every frame for `duration` seconds of the world's clock (t from 0 to 1); resolves at the end. */
+  const tween = (duration, step = () => {}) => new Promise(resolve => tweens.add({ t: 0, duration: Math.max(0.001, duration), step, resolve }));
   const shadowCentre = new THREE.Vector3();
   function update(dt) {
     time += dt;
     wind.update(time);
+    for (const tw of [...tweens]) {
+      tw.t += dt;
+      const t = Math.min(1, tw.t / tw.duration);
+      tw.step(t);
+      if (t >= 1) { tweens.delete(tw); tw.resolve(); }
+    }
     thorsedlas.update(dt);
     for (const fn of updaters) fn(dt);
     world.effects.update(dt);
@@ -134,6 +145,8 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     scene, camera, board, view, forest, world, lighting, places, thorsedlas,
     get time() { return time; },
     addUpdater(fn) { updaters.add(fn); return () => updaters.delete(fn); },
+    tween,
+    wait: seconds => tween(seconds),
     update,
     render() { renderer.render(scene, camera); },
     resize,
@@ -179,7 +192,7 @@ function createView(camera, board) {
       return;
     }
     if (follow) {
-      if (typeof follow === 'function') follow(followed);
+      if (typeof follow === 'function') { const v = follow(followed); if (v?.isVector3 && v !== followed) followed.copy(v); }
       else followed.copy(follow.isVector3 ? follow : follow.position);
     }
     wantTarget.set(THREE.MathUtils.clamp(followed.x, -16, 16), followed.y + F.lead[1], -0.5);

@@ -418,20 +418,25 @@ async function createThorsedla(world, board, place, lod) {
   function slideCurve() {
     if (!place.tail) return null;
     model.updateMatrixWorld(true);
-    const points = [];
     const joints = tailBones.map(b => b.getWorldPosition(new V3()));
     const last = joints[joints.length - 1], before = joints[joints.length - 2];
     joints.push(last.clone().addScaledVector(vb.subVectors(last, before).normalize(), tipLength * k * 0.8));
-    joints.forEach((p, i) => {
-      const r = (tailRadius[Math.min(i, tailRadius.length - 1)] ?? 0.1) * k * (i === joints.length - 1 ? 0.4 : 0.9);
-      points.push(p.clone().add(va.set(0, r, 0)));
-    });
+    const radius = i => (tailRadius[Math.min(i, tailRadius.length - 1)] ?? 0.1) * k * (i >= joints.length - 1 ? 0.35 : 0.85);
+    // the top of the tail, densely: a few points between each two joints
+    const dense = [];
+    for (let i = 0; i < joints.length - 1; i++) {
+      for (let j = 0; j < 6; j++) {
+        const u = j / 6;
+        dense.push(new V3().lerpVectors(joints[i], joints[i + 1], u).add(va.set(0, radius(i) * (1 - u) + radius(i + 1) * u, 0)));
+      }
+    }
+    dense.push(joints[joints.length - 1].clone().add(va.set(0, radius(joints.length - 1), 0)));
     // from the point over the first square on
-    const a = square(place.tail.from);
+    const over = square(place.tail.from).add(va.set(0, 0.45, -0.3));
     let best = 0, bestD = Infinity;
-    points.forEach((p, i) => { const dd = Math.hypot(p.x - a.x, p.z - a.z) + Math.abs(p.y - a.y) * 0.3; if (dd < bestD) { bestD = dd; best = i; } });
-    const used = points.slice(Math.max(0, best));
-    used.push(square(place.tail.to).add(va.set((board.square(place.tail.to).x - a.x) * 0.0, 0, 0)));
+    dense.forEach((p, i) => { const d = p.distanceTo(over); if (d < bestD) { bestD = d; best = i; } });
+    const used = dense.slice(best).filter((p, i, all) => i === 0 || i === all.length - 1 || i % 2 === 0);
+    used.push(square(place.tail.to).add(va.set(0, 0.02, 0.1)));
     return new THREE.CatmullRomCurve3(used, false, 'centripetal');
   }
 

@@ -10,9 +10,9 @@
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- The world of "Háls og hali" on a page of its own, never linked from the game: Codex's board of 80 squares on five tiers,
      side-on, with the chapter's Þórseðlas and Egill on Mosi. The game proper (its "Eitt!" look, the voices, the sounds, the
-     book) is Task 3's; this page is for looking at the world and trying a game in it.
+     book) is Task 3's; this page is for looking at the world and playing a game in it.
        ?view=overview (the default) | follow    the whole board, or close on the piece whose turn it is
-       &players=1..4 &computer=1                  how many pieces (the last one Þórseðla's when computer=1)
+       &players=1..4 &computer=0|1                how many pieces (2 and computer=1, the default: Egill against a little Þórseðla)
        &at=N[,N...]                               where the pieces stand to begin with
        &roll=N                                    the first piece rolls N by itself once the page is ready
        &calm=1                                    calm mode
@@ -22,17 +22,32 @@
 <style>
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   #debug { position: fixed; left: 8px; top: 8px; font: 12px/1.3 ui-monospace, monospace; color: #fffaf0; background: rgba(40, 30, 20, 0.55); padding: 6px 8px; border-radius: 6px; white-space: pre; pointer-events: none; }
+  /* a plain dock for the lab; the game's own, in the "Eitt!" look, is Task 3's */
+  #dock { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 10px 14px 10px 20px; border-radius: 28px; background: rgba(255, 250, 238, 0.92); box-shadow: 0 6px 0 rgba(60, 45, 30, 0.18); font: 800 20px/1.2 Nunito, sans-serif; color: #4a3a28; }
+  #dock .who { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+  #dock .dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.15); }
+  #roll { min-width: 150px; min-height: 88px; border: 0; border-radius: 24px; background: #f2c443; color: #4a3a28; font: 900 30px Nunito, sans-serif; box-shadow: 0 6px 0 #b8902a; cursor: pointer; }
+  #roll:disabled { opacity: 0.55; cursor: default; }
+  #roll:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #b8902a; }
+  #die { font: 900 34px Nunito, sans-serif; min-width: 64px; height: 64px; display: grid; place-items: center; border-radius: 16px; background: #fffdf6; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08); }
+  #tools { position: fixed; right: 14px; top: 14px; display: flex; gap: 10px; }
+  #tools button { min-width: 88px; min-height: 56px; border: 0; border-radius: 18px; background: rgba(255, 250, 238, 0.92); font: 800 16px Nunito, sans-serif; color: #4a3a28; box-shadow: 0 4px 0 rgba(60, 45, 30, 0.18); cursor: pointer; padding: 0 14px; }
+  #tools button[aria-pressed="true"] { background: #cfe8b8; }
 </style>
 </head>
 <body>
 <canvas id="view" aria-label="Háls og hali"></canvas>
 <div id="debug" hidden></div>
+<div id="tools"><button id="whole" aria-pressed="false">Allt borðið</button><button id="calm" aria-pressed="false">Rólegra</button></div>
+<div id="dock"><div class="who"><span class="dot" id="dot"></span><span id="who">Egill</span></div><span id="die" aria-live="polite">?</span><button id="roll">Kasta</button></div>
 <script type="module">
 import { pickQuality } from './engine/quality.js';
 import { createRenderer } from './engine/renderer.js';
 import { installStats } from './engine/stats.js';
-import { SPECIAL_TILES } from './engine/hals/rules.js';
+import { SPECIAL_TILES, createGame, applyTurn, resolveTurn } from './engine/hals/rules.js';
 import { createHalsWorld } from './engine/hals/world.js';
+import { createPieces } from './engine/hals/pieces.js';
+import { playTurn } from './engine/hals/turn.js';
 
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
@@ -40,13 +55,92 @@ const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q);
 const { renderer } = display;
 const world = await createHalsWorld(renderer, { q, params });
-window.__world = world;
+const players = Math.min(4, Math.max(1, Number(params.get('players')) || 2));
+const vsComputer = players === 2 && params.get('computer') !== '0';
+const roster = vsComputer ? ['egill', 'thorsedla'] : ['egill', 'kambedla', 'sloedla', 'gramedla'].slice(0, players);
+const pieces = await createPieces(world.world, world.board, { roster });
+let game = createGame({ playerCount: roster.length, vsComputer, mode: 'adventure' });
+const at = (params.get('at') || '').split(',').filter(Boolean).map(Number);
+game = { ...game, players: game.players.map((p, i) => ({ ...p, position: Number.isInteger(at[i]) ? at[i] : 0 })) };
+pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
 world.board.decorate(SPECIAL_TILES);
+let active = pieces.list[0];
+world.addUpdater(dt => {
+  pieces.update(dt);
+  world.thorsedlas.lookAt(active.position);
+});
+window.__world = world;
+window.__pieces = pieces;
 const fit = () => { display.applySize(world.camera); world.resize(canvas.clientWidth, canvas.clientHeight); };
 fit();
 addEventListener('resize', fit);
-world.view.calm = params.get('calm') === '1';
-world.view.overview().cut();
+
+// the camera and calm mode
+let whole = params.get('view') !== 'follow';
+function setCalm(on) {
+  world.view.calm = on;
+  pieces.calm = on;
+  world.thorsedlas.calm = on;
+  document.getElementById('calm').setAttribute('aria-pressed', String(on));
+}
+function setWhole(on) {
+  whole = on;
+  document.getElementById('whole').setAttribute('aria-pressed', String(on));
+  if (on) world.view.overview();
+  else world.view.follow(() => active.position);
+}
+setCalm(params.get('calm') === '1');
+setWhole(whole);
+world.view.cut();
+document.getElementById('calm').onclick = () => setCalm(!world.view.calm);
+document.getElementById('whole').onclick = () => setWhole(!whole);
+
+// the game: a turn by the rules (rules.js), played out by turn.js
+const rollButton = document.getElementById('roll');
+const dieEl = document.getElementById('die');
+let busy = false;
+function showTurn() {
+  const p = pieces.list[game.winner ?? game.currentPlayer];
+  document.getElementById('who').textContent = game.winner !== null ? `${p.name} vann!` : p.name;
+  document.getElementById('dot').style.background = p.colour;
+  rollButton.disabled = busy || game.winner !== null || game.players[game.currentPlayer].isComputer;
+}
+async function turn(forced = null) {
+  if (busy || game.winner !== null) return;
+  busy = true;
+  const index = game.currentPlayer;
+  const piece = pieces.list[index];
+  active = piece;
+  showTurn();
+  const roll = forced ?? 1 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < 8; i++) { dieEl.textContent = String(1 + ((i * 5 + roll) % 6)); await world.wait(0.07); }
+  dieEl.textContent = String(roll);
+  const result = resolveTurn(game.players[index].position, roll, { mode: game.mode });
+  await playTurn({ world, pieces, thorsedlas: world.thorsedlas }, piece, result);
+  game = applyTurn(game, roll);
+  busy = false;
+  active = pieces.list[game.winner ?? game.currentPlayer];
+  if (whole) world.view.overview();
+  else world.view.follow(() => active.position);
+  showTurn();
+  if (game.winner === null && game.players[game.currentPlayer].isComputer) {
+    await world.wait(0.9);
+    turn();
+  }
+}
+rollButton.onclick = () => turn();
+addEventListener('keydown', event => {
+  if (event.key === ' ') {
+    event.preventDefault();
+    if (!game.players[game.currentPlayer].isComputer) turn();
+  }
+  if (event.key === 'o') setWhole(true);
+  if (event.key === 'f') setWhole(false);
+  if (event.key === 'm') setCalm(!world.view.calm);
+});
+window.__turn = turn;
+window.__game = () => game;
+showTurn();
 
 const debugEl = document.getElementById('debug');
 debugEl.hidden = params.get('debug') !== '1';
@@ -61,7 +155,10 @@ renderer.setAnimationLoop(now => {
   world.update(dt);
   drawNow();
   stats.sample(dt);
-  if (ready && ++frames >= 30 && !window.__demoReady) window.__demoReady = true;
+  if (ready && ++frames >= 30 && !window.__demoReady) {
+    window.__demoReady = true;
+    if (params.has('roll')) turn(Number(params.get('roll')) || 3);
+  }
 });
 </script>
 </body>
