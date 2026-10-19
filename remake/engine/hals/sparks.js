@@ -158,6 +158,8 @@ export function createSparks(world) {
   const GRASS = ['#6fa83f', '#8fc24e', '#5d9437'].map(colourOf);
   const GOLD = ['#ffe9a0', '#fff6d0', '#ffd25a'].map(colourOf);
   const FIREFLY = ['#fff3a0', '#e8ff9a', '#ffe070'].map(colourOf);
+  const FIREFLY_CORE = colourOf('#fffde8');
+  const GLOW_WARM = colourOf('#ffe98a');
   const MUD = ['#5e4630', '#6f5238', '#4c3826'].map(colourOf);
   const BUBBLE = ['#b39270', '#9c7c5a', '#c8ab88'].map(colourOf);
   const WATER = ['#e9f4ff', '#cfe6f5', '#ffffff'].map(colourOf);
@@ -288,36 +290,43 @@ export function createSparks(world) {
         });
       }
     },
-    /** Fireflies round a piece they carry: a few glowing specks that swirl and wink out (called every few frames). */
-    firefly(p, { count = 2 } = {}) {
+    /**
+     * Fireflies carrying a piece: a bright swarm under and round it, each a glowing core in a soft halo, and a warm glow under the
+     * piece that holds it up (called every few frames while they carry it).
+     */
+    firefly(p, { count = 4 } = {}) {
+      add(glow, p, { dy: 0.2, life: 0.2, size: 3.2, grow: 1, colour: GLOW_WARM, alpha: 0.3, fadeIn: 0.05, kind: KIND.disc });
       for (let i = 0; i < count; i++) {
-        const a = rand(0, Math.PI * 2), r = rand(0.5, 1.1);
-        add(glow, p, {
-          dx: Math.cos(a) * r, dy: rand(0.3, 1.5), dz: Math.sin(a) * r * 0.6, vx: -Math.sin(a) * 1.2, vy: rand(-0.2, 0.4), vz: Math.cos(a) * 0.6,
-          drag: 0.8, swirl: 3.2, life: rand(0.9, 1.5), size: rand(0.16, 0.26), grow: 0.7, colour: pick(FIREFLY), alpha: 1, fadeIn: 0.25, kind: KIND.disc,
-        });
+        const a = rand(0, Math.PI * 2), r = rand(0.4, 1.2), under = Math.random() < 0.6;
+        const o = {
+          dx: Math.cos(a) * r, dy: under ? rand(-0.15, 0.35) : rand(0.4, 1.6), dz: Math.sin(a) * r * 0.6,
+          vx: -Math.sin(a) * 1.3, vy: rand(0, 0.5), vz: Math.cos(a) * 0.6, drag: 0.8, swirl: 3.2, life: rand(0.8, 1.3), fadeIn: 0.2,
+        };
+        add(glow, p, { ...o, size: rand(0.7, 1.0), grow: 0.8, colour: pick(FIREFLY), alpha: 0.32, kind: KIND.disc });
+        add(glow, p, { ...o, size: rand(0.22, 0.32), grow: 0.8, colour: FIREFLY_CORE, alpha: 1, kind: KIND.disc });
       }
     },
-    /** Fireflies gathering from all round onto a piece, before they carry it. */
+    /** Fireflies gathering from all round onto a piece, a bright swarm, before they lift and carry it. */
     swarm(p) {
-      const n = Math.round(28 * scaleOf());
+      const n = Math.round(46 * scaleOf());
       for (let i = 0; i < n; i++) {
-        const a = rand(0, Math.PI * 2), r = rand(2.5, 4.5), h = rand(-0.5, 3), life = rand(0.7, 1.1);
+        const a = rand(0, Math.PI * 2), r = rand(2.5, 5), h = rand(-0.5, 3.5), life = rand(0.7, 1.15);
         const dx = Math.cos(a) * r, dy = h, dz = Math.sin(a) * r * 0.5;
-        add(glow, p, {
-          dx, dy, dz, vx: -dx / life, vy: (0.8 - dy) / life, vz: -dz / life, life, size: rand(0.18, 0.28), grow: 1.2,
-          colour: pick(FIREFLY), alpha: 1, fadeIn: 0.3, kind: KIND.disc, delay: rand(0, 0.3),
-        });
+        const o = { dx, dy, dz, vx: -dx / life, vy: (0.4 - dy) / life, vz: -dz / life, life, fadeIn: 0.25, delay: rand(0, 0.35) };
+        add(glow, p, { ...o, size: rand(0.8, 1.1), grow: 1.1, colour: pick(FIREFLY), alpha: 0.3, kind: KIND.disc });
+        add(glow, p, { ...o, size: rand(0.26, 0.38), grow: 1.1, colour: FIREFLY_CORE, alpha: 1, kind: KIND.disc });
       }
+      add(glow, p, { dy: 0.3, life: 1.2, size: 1.5, grow: 2.2, colour: GLOW_WARM, alpha: 0.35, fadeIn: 0.6, kind: KIND.disc, delay: 0.4 });
     },
-    /** A splat of mud: dark blobs thrown up and out, falling back. */
+    /** A big splat of mud: a dark ring slapped out on the block and blobs thrown up and out, falling back. */
     mud(p) {
-      const n = Math.round(14 * scaleOf());
+      add(soft, p, { dy: 0.04, life: 0.8, size: 0.9, grow: 3.6, colour: MUD[0], alpha: 0.85, kind: KIND.ring });
+      const n = Math.round(26 * scaleOf());
       for (let i = 0; i < n; i++) {
-        const a = rand(0, Math.PI * 2), s = rand(0.8, 2.2);
+        const a = rand(0, Math.PI * 2), s = rand(0.8, 2.8);
         add(soft, p, {
-          dy: 0.15, vx: Math.cos(a) * s, vy: rand(2.0, 3.6), vz: Math.sin(a) * s * 0.5, gravity: -9.5, drag: 0.5,
-          life: rand(0.5, 0.8), size: rand(0.16, 0.3), grow: 0.8, colour: pick(MUD), alpha: 0.95, kind: KIND.disc,
+          dy: 0.15, vx: Math.cos(a) * s, vy: rand(2.2, 4.6), vz: Math.sin(a) * s * 0.5, gravity: -9.5, drag: 0.5,
+          life: rand(0.55, 0.9), size: rand(0.2, 0.44), grow: 0.8, colour: pick(MUD), alpha: 1, kind: KIND.disc,
         });
       }
     },

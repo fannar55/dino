@@ -52,6 +52,10 @@ const FRONT = 0.3; // metres clear of a tier's front face where a neck rises in 
 const STAIRS_OUT = 1.7; // how far past the board's last block the stairs and their rail reach, beside which a giant's neck or tail passes
 const NECK_LEAN = 50; // degrees over the level her neck leaves her shoulders
 const TAIL_Z = -5.5; // z where a tail hangs behind a front tier: right over the tier below (further back), onto which it comes down
+// An ordinary tail's swoop below her tier: [out to its side, down, forward] metres from where it hangs (`drop`: just under the
+// tier's log; `out`: the widest, in view), and over the square it lands on (`back`: [to its side, up, forward]).
+const ARCH_FORWARD = 0.9; // how far a bowing neck arches toward the camera for each metre it arches up
+const SWOOP = { drop: [0.35, 1.5, 0.3], out: [1.3, 3.5, 1.2], back: [0.3, 1.8, 0.45] };
 const LOOK = { near: 14, share: 0.45, down: -0.3, up: 0.2 }; // metres within which she looks at a piece, how far her head turns to it, and the most it pitches (radians) as she looks
 const rad = THREE.MathUtils.degToRad;
 
@@ -180,7 +184,7 @@ export async function createThorsedlas(world, board, places) {
   const own = Object.create(world);
   own.renderer = null;
   const lod = createThorsedlaLod(world.lighting?.sun);
-  const list = await Promise.all(places.map(place => createThorsedla(own, board, place, lod)));
+  const list = await Promise.all(places.map(place => createThorsedla(own, board, place, lod, places)));
   const necks = new Map(list.filter(t => t.place.neck).map(t => [t.place.neck.from, t]));
   const tails = new Map(list.filter(t => t.place.tail).map(t => [t.place.tail.from, t]));
   return {
@@ -197,7 +201,7 @@ export async function createThorsedlas(world, board, places) {
   };
 }
 
-async function createThorsedla(world, board, place, lod) {
+async function createThorsedla(world, board, place, lod, places = []) {
   const k = place.size, f = place.facing;
   const ground = place.tier === 0 ? world.heightAt(place.x, place.z) : board.tierY(place.tier) - 0.3 - (place.drop ?? 0);
   const own = Object.create(world);
@@ -326,18 +330,25 @@ async function createThorsedla(world, board, place, lod) {
     // further back than hers), or the back (Lyng's, beside the stairs that come up to its front)
     let points, side, endAt;
     if (tiersOf(place.tail) === -1) {
-      // straight down from her hips, past the end of her shelf, behind her tier and onto the tier below
-      side = Math.abs(b.x - a.x) < 0.01 ? f : Math.sign(b.x - a.x);
+      // From her hips, past the end of her shelf, down behind her tier (quickly: the tier hides that bit), then, below its log
+      // where the camera sees it, it swoops out to one side and forward in a soft curve, and comes back in onto the square below
+      // (the owner's polish round: a slide the child can follow, not a 6 m drop half behind the tier). The swoop goes to the side
+      // away from any neck that rises by the square it lands on (a Þórseðla below rests her head by it).
       const hind = root.localToWorld(new V3(-2.18, 0, 0)).x; // her hind legs, along the board
       const hang = f > 0 ? Math.min(a.x - 0.2, rump.x - 0.15, hind - 1.0) : Math.max(a.x + 0.2, rump.x + 0.15, hind + 1.0);
+      const landTier = tierOf(place.tail.to);
+      const necksThere = places.filter(o => o !== place && o.neck && tierOf(o.neck.to) === landTier).map(o => square(o.neck.to).x);
+      const nearest = necksThere.reduce((m, x) => (Math.abs(x - b.x) < Math.abs(m - b.x) ? x : m), Infinity);
+      side = Number.isFinite(nearest) && Math.abs(nearest - b.x) < 6 ? (Math.sign(b.x - nearest) || -f) : -f;
       points = [
         rump.clone(),
         new V3(rump.x + (hang - rump.x) * 0.6, rump.y - (rump.y - a.y) * 0.45, rump.z + (TAIL_Z - rump.z) * 0.6),
         new V3(hang, a.y + 0.55, TAIL_Z),
-        new V3(hang + side * 0.1, a.y - 2.7, TAIL_Z),
+        new V3(hang + side * SWOOP.drop[0], a.y - SWOOP.drop[1], TAIL_Z + SWOOP.drop[2]),
+        new V3(hang + side * SWOOP.out[0], a.y - SWOOP.out[1], TAIL_Z + SWOOP.out[2]),
+        new V3(b.x + side * SWOOP.back[0], b.y + SWOOP.back[1], b.z + SWOOP.back[2]),
       ];
-      endAt = r => new V3(b.x - side * 0.1, b.y + 0.1 + r, b.z + 0.1);
-      points.push(new V3(b.x - side * 0.15, b.y + 1.9, b.z + 0.3));
+      endAt = r => new V3(b.x + side * 0.1, b.y + 0.1 + r, b.z + 0.1);
       boardAt = new V3(hang, a.y + 0.5, TAIL_Z + 1.4);
     } else {
       // Lyng: out past the board's left end behind her tier, down beside the stairs, and onto the square two tiers down
@@ -430,6 +441,7 @@ async function createThorsedla(world, board, place, lod) {
   const bowTarget = vias ? vias.map((v, i) => bowVias[Math.min(i, bowVias.length - 1)]) : null; // where each point goes as she bows
   const neckCurve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal');
   const viasNow = curvePoints.slice(1, -1).map(() => new V3()), mid = new V3(), bulge = new V3(), lean = new V3(), centre = new V3();
+  const archUp = new V3(); // up, square to her neck's chord: the way the bowing neck arches
   function poseNeck() {
     model.updateMatrixWorld(true);
     rootFrameQ(chest, chestQ);
@@ -447,8 +459,19 @@ async function createThorsedla(world, board, place, lod) {
         const ex = smooth(clamp01(arc / 0.3)), ey = smooth(clamp01((arc - 0.25) / 0.6));
         vias.forEach((v, i) => viasNow[i].set(v.x + (bowTarget[i].x - v.x) * ex, v.y + (bowTarget[i].y - v.y) * ey, v.z + (bowTarget[i].z - v.z) * ey));
       } else {
-        const e = smooth(clamp01(arc / 0.65));
-        vias.forEach((v, i) => viasNow[i].lerpVectors(v, bowTarget[i], e));
+        // Off the curl over the tier above, then one smooth arch from her chest to her head all the way down and back (the
+        // owner's polish round: no S in front of her chest mid-bow): the via points sit on a bow over the chord, and the
+        // length match below only makes it arch higher or lower.
+        const w = smooth(clamp01(arc / 0.3));
+        vb.subVectors(T, B);
+        const chord = vb.lengthSq() || 1;
+        archUp.set(0, 1, ARCH_FORWARD); // up and toward the camera, away from the tier above behind her head
+        archUp.addScaledVector(vb, -archUp.dot(vb) / chord).normalize();
+        vias.forEach((v, i) => {
+          const t = (i + 1) / (vias.length + 1);
+          vc.lerpVectors(B, T, t).addScaledVector(archUp, Math.sin(Math.PI * t));
+          viasNow[i].lerpVectors(v, vc, w);
+        });
       }
     } else {
       lean.set(Math.cos(rad(NECK_LEAN)), Math.sin(rad(NECK_LEAN)), 0).applyQuaternion(rootQ);

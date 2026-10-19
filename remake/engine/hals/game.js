@@ -140,7 +140,9 @@ export function createHalsGame(doc, {
   // ---- The page -------------------------------------------------------------------------------------------------------------
 
   const veil = make('div', 'hals-veil'); // the clearing, soft, until the board is in
-  veil.innerHTML = '<span class="hals-loading" aria-hidden="true"></span>';
+  // Mosi trotting on the spot with three bouncing dots while the board is still coming ("Byrjum!" pressed before it is in): a
+  // compositor animation, so it keeps moving even while the page is busy building
+  veil.innerHTML = `<span class="hals-loading" aria-hidden="true"><img src="${asset('assets/book/images/mosi-render.webp')}" alt=""><i></i><i></i><i></i></span>`;
   const hud = make('div', 'hals-hud');
   const playersEl = make('div', 'hals-players');
   playersEl.setAttribute('aria-label', 'Leikmenn');
@@ -372,6 +374,8 @@ export function createHalsGame(doc, {
   let game = null; // the rules' state
   let setup = { players: 1 }; // who plays; every new game is the adventure forest
   let active = null; // the piece whose turn it is
+  let shownPlayer = 0; // whose turn the portraits and the die show: it passes only when the next turn begins
+  let cardUntil = 0; // when the event card showing now will have gone
   let round = 0; // counts games and closes: a flow that finds it changed stops
   let busy = true; // a piece moves, the die tumbles, or the computer plays: the child's taps wait
   let turning = false; // a turn is being played out
@@ -392,6 +396,7 @@ export function createHalsGame(doc, {
   let raf = 0;
   let last = 0;
   let overviewShown = false; // the whole board is in view (hals.css .overview)
+  let framed = false; // the board has been drawn once (a mark for a probe of the first open)
   let exposure = null; // the renderer's, while the game borrows it
   let home = null; // where the canvas lives while the game is shut
   const timers = new Set();
@@ -420,12 +425,52 @@ export function createHalsGame(doc, {
 
   // ---- The world: loaded the first time the game opens, and kept ----------------------------------------------------------------
 
+  /** Compiles the scene's shaders off the main thread where the browser can (KHR_parallel_shader_compile), so the first frame never stalls. */
+  async function compiled(scene, camera) {
+    globalThis.performance?.mark?.('hals:compile');
+    try {
+      await renderer?.compileAsync?.(scene, camera);
+      globalThis.performance?.mark?.('hals:compiled');
+    } catch (error) {
+      console.warn('[hals] the shaders could not be compiled ahead', error);
+    }
+  }
+
+  /**
+   * One drawing of the board into a two-pixel corner of the canvas, a frame after its shaders are in: the shadow pass's shaders and
+   * every texture's upload happen here, out of sight (under the book, when the Leikir page builds the board ahead), not in the
+   * game's first frame. (Into a render target of its own it would need every shader again, for that target's colours.)
+   */
+  async function warmUp(made) {
+    await new Promise(resolve => setTimeout(resolve, 30));
+    globalThis.performance?.mark?.('hals:warm');
+    const viewport = renderer.getViewport(new THREE.Vector4()), scissor = renderer.getScissor(new THREE.Vector4()), clipped = renderer.getScissorTest();
+    try {
+      renderer.setScissorTest(true);
+      renderer.setScissor(0, 0, 2, 2);
+      renderer.setViewport(0, 0, 2, 2);
+      made.render();
+    } catch (error) {
+      console.warn('[hals] the board could not be drawn ahead', error);
+    } finally {
+      renderer.setScissorTest(clipped);
+      renderer.setScissor(scissor);
+      renderer.setViewport(viewport);
+    }
+    globalThis.performance?.mark?.('hals:warmed');
+  }
+
   function ensureWorld() {
     if (hw) return Promise.resolve(hw);
     if (!renderer) return Promise.reject(new Error('"Háls og hali" needs the page\'s renderer'));
     worldLoading ??= import('./world.js')
       .then(module => module.createHalsWorld(renderer, { ...(q && { q }), ...(params && { params }), win }))
-      .then(made => {
+      .then(async made => {
+        made.resize(renderer.domElement.clientWidth || win?.innerWidth || 1280, renderer.domElement.clientHeight || win?.innerHeight || 800);
+        made.view.overview().cut();
+        made.update(0);
+        await compiled(made.scene, made.camera);
+        await warmUp(made);
         hw = made;
         hw.onBoom = () => sfx('boom');
         sparks = createSparks(hw);
@@ -456,7 +501,10 @@ export function createHalsGame(doc, {
   async function ensurePieces(ids) {
     if (pieces && !stale && roster?.join() === ids.join()) return pieces;
     const { createPieces } = await import('./pieces.js');
+    globalThis.performance?.mark?.('hals:pieces');
     const made = await createPieces(hw.world, hw.board, { roster: ids });
+    made.update(0);
+    await compiled(hw.scene, hw.camera);
     pieces?.dispose();
     pieces = made;
     roster = ids;
@@ -486,7 +534,9 @@ export function createHalsGame(doc, {
     try {
       hw.update(dt);
       renderer.info.reset();
+      if (!framed) globalThis.performance?.mark?.('hals:first-frame');
       hw.render();
+      if (!framed) { framed = true; globalThis.performance?.mark?.('hals:first-frame-done'); }
     } catch (error) {
       console.error('[hals] a frame failed', error);
     }
@@ -534,7 +584,7 @@ export function createHalsGame(doc, {
         return el;
       }));
     }
-    const current = game.winner ?? game.currentPlayer;
+    const current = game.winner ?? shownPlayer;
     playerEls.forEach((el, i) => {
       const at = liveSquare?.index === i ? liveSquare.square : game.players[i].position;
       el.classList.toggle('active', i === current);
@@ -546,7 +596,7 @@ export function createHalsGame(doc, {
 
   /** The dock: the die, live on a child's turn and dimmed otherwise, in a ring of the colour of whoever plays, with their portrait. */
   function renderDock() {
-    const index = game ? game.winner ?? game.currentPlayer : 0;
+    const index = game ? game.winner ?? shownPlayer : 0;
     const id = roster?.[index] ?? 'egill';
     dockEl.style.setProperty('--c', COLOURS[id]);
     showPicture(diePicture, id);
@@ -686,6 +736,7 @@ export function createHalsGame(doc, {
       (withConfetti ? `<span class="hals-card-confetti" aria-hidden="true">${confettiBits(18).join('')}</span>` : '');
     cardEl.getAnimations?.().forEach(animation => animation.cancel());
     cardEl.hidden = false;
+    cardUntil = clock() + CARD_MS + 320;
     sfx('card');
     if (typeof cardEl.animate === 'function') {
       cardEl.animate(calm()
@@ -773,7 +824,7 @@ export function createHalsGame(doc, {
     fxTimer -= dt;
     if (fxTimer > 0) return;
     fxTimer = fxPhase === 'firefly' ? 0.05 : fxPhase === 'slide' ? 0.045 : 0.06;
-    if (fxPhase === 'firefly') sparks.firefly(fxPiece.position, { count: calm() ? 1 : 2 });
+    if (fxPhase === 'firefly') sparks.firefly(fxPiece.position, { count: calm() ? 2 : 4 });
     else if (fxPhase === 'lift') sparks.spiral(fxPiece.position, fxTurn);
     else if (fxPhase === 'slide') {
       fxWay.subVectors(fxPiece.position, fxLast);
@@ -789,6 +840,7 @@ export function createHalsGame(doc, {
     if (!isOpen || !game || game.winner !== null || !pieces) return;
     const token = round;
     const index = game.currentPlayer;
+    shownPlayer = index; // the portraits and the die show whose turn it is from now
     active = pieces.list[index];
     turnNumber++;
     renderPlayers();
@@ -921,7 +973,8 @@ export function createHalsGame(doc, {
       }
     }
     if (game.winner !== null) return endGame(token, before);
-    await wait(NEXT_MS);
+    // the turn passes once the event card has gone, so the find, the ride or the mud is the child's own to see
+    await wait(Math.max(NEXT_MS, cardUntil - clock()));
     if (token !== round) return;
     beginTurn();
   }
@@ -1144,6 +1197,7 @@ export function createHalsGame(doc, {
     hw.board.decorate(game.mode === 'adventure' ? SPECIAL_TILES : []);
     pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
     active = pieces.list[game.currentPlayer];
+    shownPlayer = game.currentPlayer;
     sparks.clear();
     counted = new Set(kept ? game.players.map((_, i) => i) : []); // a game taken up again has had its first turns
     quietTurns = 0;
@@ -1324,6 +1378,11 @@ export function createHalsGame(doc, {
   return {
     open,
     close,
+    /** Starts building the board world before the game opens (the book's Leikir page); quiet if it cannot. */
+    prewarm() {
+      if (!renderer || hw || worldLoading) return;
+      ensureWorld().catch(error => console.warn('[hals] the board could not be built ahead', error));
+    },
     start: (choice = setup) => run(start(choice)),
     /** The child's roll, as a tap on the die (a probe may give the value). */
     roll(value = null) {

@@ -59,6 +59,15 @@ const BASE = 0.72; // tier 0's block tops over the grass (the blocks sink a litt
 const TOP = (BOARD.rows - 1) * BOARD.rowHeight + BASE; // the top tier's block tops
 
 export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = new URLSearchParams(), onProgress = () => {}, win = globalThis.window } = {}) {
+  // Between the long stages the page gets a frame to paint and to take a tap (a hidden page, whose frames wait, goes on after 60 ms).
+  const breathe = () => new Promise(resolve => {
+    let done = false;
+    const go = () => { if (!done) { done = true; resolve(); } };
+    win?.requestAnimationFrame?.(() => setTimeout(go, 0));
+    setTimeout(go, 60);
+  });
+  await breathe();
+  globalThis.performance?.mark?.('hals:world');
   const look = pickLook(LOOK);
   const scene = new THREE.Scene();
   scene.name = 'Háls og hali';
@@ -83,7 +92,9 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     clock: { get time() { return time; } },
   };
   world.resolvePoint = createPointResolver(world);
+  await breathe();
   onProgress(0.1, 'forest');
+  globalThis.performance?.mark?.('hals:forest');
 
   // ---- the forest: a clearing round the board and the camera's place in front of it ------------------------------------------
   // The board stands at the back of a wide clearing, the camera at its front, so the planner keeps every tree out of the view;
@@ -109,7 +120,9 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   const ground = forest.heightAt(0, 0);
+  await breathe();
   onProgress(0.5, 'board');
+  globalThis.performance?.mark?.('hals:board');
 
   // ---- the board -------------------------------------------------------------------------------------------------------
   const fontsReady = win?.document?.fonts?.load?.('900 70px Nunito').catch(() => null);
@@ -118,9 +131,14 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   scene.add(board.group);
 
   // ---- the Þórseðlas ----------------------------------------------------------------------------------------------------
+  await breathe();
   onProgress(0.6, 'thorsedlas');
+  globalThis.performance?.mark?.('hals:thorsedlas');
   const thorsedlas = await createThorsedlas(world, board, places);
+  await breathe();
+  globalThis.performance?.mark?.('hals:friends');
   const friends = await createFriends(world, board);
+  globalThis.performance?.mark?.('hals:friends-done');
 
   // ---- the camera ------------------------------------------------------------------------------------------------------
   const view = createView(camera, board);
@@ -188,6 +206,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     },
   };
   api.life = createLife(api);
+  globalThis.performance?.mark?.('hals:life-done');
   return api;
 }
 

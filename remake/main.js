@@ -180,6 +180,8 @@ const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
   onPlay: (game, options) => (game === 'hals' ? hals.open() : eitt.open(options)), // the Leikir page's "Eitt!" tile (or its Kennsla), or "Háls og hali"
+  // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once.
+  onTab: tab => { if (tab === 'games') setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {

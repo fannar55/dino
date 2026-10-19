@@ -56,7 +56,8 @@ const PERSPECTIVE = 'perspective(2400px)';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `win` is the window (less
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `onTab(tab)` is told
+ * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape). Returns
  *   open(tab, by)      opens it on 'stars', 'animals' or 'games', as the child's (by 'child', which holds the game) or a script's (by
  *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
@@ -67,7 +68,7 @@ const PERSPECTIVE = 'perspective(2400px)';
  *   openCard(id, page) shows a card on the animals page, from its own place, as a tap on its tile would (the lab uses it)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, onPlay = null, win = globalThis.window } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -353,6 +354,15 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     cardViewer.close(true);
   }
 
+  /** The page an open book shows, told to onTab (a callback that fails must not stop the book). */
+  function tellTab() {
+    try {
+      onTab?.(tab);
+    } catch (error) {
+      console.error('[book]', error);
+    }
+  }
+
   function showTab() {
     root.setAttribute('data-tab', tab);
     for (const [name, ribbon] of ribbons) ribbon.setAttribute('aria-selected', String(name === tab));
@@ -508,6 +518,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     showTab();
     audio?.sfx?.('turn');
     if (isOpen) pageTurn(from, next);
+    if (isOpen) tellTab();
   }
 
   function open(next = tab, by = 'script') {
@@ -525,6 +536,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     if (holder === 'child') pause(true);
     audio?.sfx?.('open');
     grow();
+    tellTab();
   }
 
   function close() {

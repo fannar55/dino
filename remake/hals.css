@@ -5,8 +5,8 @@
                                  while the whole board is in view (the players' bar a little smaller). While it is
                                  open the page's canvas (#view, .hals-view) lies first in it, under everything else; .calm is on it
                                  while the game is calm (prefers-reduced-motion, or a lab's ?calm=1)
-     .hals-veil                  the clearing, soft, with a breathing star (.hals-loading) until the board is in (.ready fades it out;
-                                 .waiting: "Byrjum!" was pressed and the board is still coming)
+     .hals-veil                  the clearing, soft, until the board is in (.ready fades it out); .waiting: "Byrjum!" was pressed and
+                                 the board is still coming, and Mosi trots on the spot over three bouncing dots (.hals-loading)
      .hals-hud                   the controls over the board, laid out on its edges:
        .hals-players             the players' portraits along the top: each .hals-player (--c, its colour) with its .hals-portrait,
                                  .hals-square (the square it stands on) and .hals-name; .active is raised and glows
@@ -106,13 +106,23 @@
   transition: opacity .7s ease-out;
 }
 .hals-veil.ready { opacity: 0; pointer-events: none; }
-.hals-loading {
-  width: 64px; height: 64px; opacity: 0; transition: opacity .3s;
-  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.4L14.88 9.04L22.08 9.72L16.66 14.51L18.23 21.58L12 17.9L5.77 21.58L7.34 14.51L1.92 9.72L9.12 9.04Z' fill='%23f2b630' stroke='%233b2f25' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E");
-  filter: drop-shadow(0 0 12px rgb(242 182 48 / .6));
-  animation: hals-breathe 1.8s ease-in-out infinite;
+.hals-loading { /* Mosi trotting on the spot, and three dots bouncing under him, while the board is still coming */
+  position: relative; display: grid; justify-items: center; gap: 10px; opacity: 0; transition: opacity .3s;
+  grid-template-columns: repeat(3, 22px); column-gap: 12px;
 }
+.hals-loading img {
+  grid-column: 1 / -1; width: clamp(180px, 26cqmin, 260px); height: auto;
+  filter: drop-shadow(0 14px 10px rgb(40 24 10 / .25));
+  animation: hals-trot .55s ease-in-out infinite alternate; transform-origin: 50% 90%;
+}
+.hals-loading i {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--ink);
+  animation: hals-dot 1s ease-in-out infinite;
+}
+.hals-loading i:nth-of-type(2) { animation-delay: .15s; } .hals-loading i:nth-of-type(3) { animation-delay: .3s; }
 .hals-veil.waiting .hals-loading { opacity: 1; }
+@keyframes hals-trot { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-14px) rotate(2deg); } }
+@keyframes hals-dot { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-16px); } }
 
 /* ---- The controls round the board ---------------------------------------------------------------------------------- */
 

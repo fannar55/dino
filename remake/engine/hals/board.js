@@ -316,6 +316,28 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
     g.computeVertexNormals();
     woodParts.push(g);
+    // A shelf well under its tier (Lyng's, 3 m under the top tier) would float: it stands on a craggy rock column down to the
+    // forest floor behind the board, mossy at its foot and its top (the owner's polish round: ground it).
+    if ((s.drop ?? 0) > 1.5) {
+      const top = yTop - thick * 0.55, foot = heightAt(cx, cz) - 0.6, height = top - foot;
+      const ca = Math.cos(s.angle ?? 0), sa = Math.sin(s.angle ?? 0);
+      const r0 = Math.min(w, d) * 0.2, r1 = r0 * 1.7, back = d * 0.22; // slim, and toward its back, so it stands back in the forest
+      const column = new THREE.CylinderGeometry(r0, r1, height, 14, Math.max(4, Math.round(height / 1.6)), true);
+      const cp = column.attributes.position, cc = new Float32Array(cp.count * 3), tint = new THREE.Color();
+      for (let i = 0; i < cp.count; i++) {
+        const x = cp.getX(i), y = cp.getY(i), z = cp.getZ(i), a = Math.atan2(z, x), h = (y + height / 2) / height; // 0 foot, 1 top
+        const crag = 1 + 0.12 * Math.sin(a * 5 + y * 0.7 + seed) + 0.08 * Math.sin(a * 11 - y * 1.9) + 0.05 * Math.sin(y * 3.1 + a * 2);
+        cp.setXYZ(i, cx + x * crag - back * sa, foot + h * height, cz + z * crag - back * ca);
+        // dark and mossy, so it sits back into the forest behind the board; ivy runs up it in streaks
+        const streak = 0.5 + 0.5 * Math.sin(a * 4 + Math.sin(y * 0.35) * 1.5);
+        const mossy = Math.max(0, 1 - h / 0.25) + Math.max(0, (h - 0.85) / 0.15) + Math.max(0, streak - 0.45) * 1.4;
+        tint.copy(rock[0]).lerp(rock[2], 0.55 + 0.3 * Math.sin(y * 0.9 + a)).multiplyScalar(0.72).lerp(mossDeep, Math.min(0.9, mossy));
+        cc.set([tint.r, tint.g, tint.b], i * 3);
+      }
+      column.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+      column.computeVertexNormals();
+      woodParts.push(column);
+    }
     // moss and roots hanging from its front edge
     for (let k = 0; k < 5; k++) {
       const x = s.x0 + (k + 0.5) * (s.x1 - s.x0) / 5 + (random() - 0.5) * 0.8, z = s.z1 + 0.15;

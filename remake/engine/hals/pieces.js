@@ -242,7 +242,7 @@ async function createPiece(world, board, id, index, host) {
     const tangent = new V3();
     const s = host.calm ? seconds * 1.4 : seconds;
     return host.tween(s, t => {
-      const u = t * t * (1.6 - 0.6 * t); // eases in, speeds up, settles just at the end
+      const u = t * (1.45 - 0.45 * t); // off at once (past the bit behind the tier quickly), easing in the swoop the child sees
       curve.getPointAt(Math.min(1, u), position);
       curve.getTangentAt(Math.min(0.999, u), tangent);
       if (Math.abs(tangent.x) > 0.15) heading = headingFor(Math.sign(tangent.x));
