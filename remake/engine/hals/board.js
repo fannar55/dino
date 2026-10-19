@@ -21,7 +21,7 @@ import { BOARD, SHORTCUTS, tilePosition } from './rules.js';
 // `base` is the height of tier 0's block tops over the ground at the board, `heightAt` the forest's ground, `shelves` the rock
 // shelves to put behind the tiers: [{ tier, x0, x1, z0, z1 }] (the Þórseðlas' places, thorsedla.js's shelfFor).
 
-export const STONE = { width: 2.02, height: 0.5, depth: 2.0, plaque: [1.36, 0.42] };
+export const STONE = { width: 2.04, height: 0.95, depth: 2.0, plaque: [1.76, 0.82] }; // the plaque nearly fills the block's face, so the numbers read from the whole board
 export const LEDGE = { depth: 2.5, thickness: 1.0, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
 const STAIR = { reach: 3.3, treads: 13 };
 const COLOURS = {
@@ -84,30 +84,34 @@ function stoneGeometry() {
   return g;
 }
 
-/** The numbers 1 to 80 on plaques in one texture, 8 across and 10 down; Nunito, the game's face (STYLE.md). */
+/** The numbers 1 to 80 on plaques in one texture, 8 across and 10 down, each cell as wide as the plaque; Nunito, the game's face. */
 function drawPlaques(starts) {
-  const cell = 128, cols = 8, rows = 10;
+  const w = 240, h = 112, cols = 8, rows = 10;
   const canvas = document.createElement('canvas');
-  canvas.width = cell * cols; canvas.height = cell * rows;
+  canvas.width = w * cols; canvas.height = h * rows;
   const c = canvas.getContext('2d');
   for (let n = 1; n <= BOARD.count; n++) {
-    const x = ((n - 1) % cols) * cell, y = Math.floor((n - 1) / cols) * cell;
+    const x = ((n - 1) % cols) * w, y = Math.floor((n - 1) / cols) * h;
     const kind = starts.get(n);
     // a cream plaque with a soft rim, green round a neck's first square, apricot round a tail's, gold on the finish
-    c.fillStyle = n === BOARD.count ? '#ffe7a8' : '#f7efd9';
-    c.beginPath(); c.roundRect(x + 6, y + 22, cell - 12, cell - 44, 22); c.fill();
-    c.lineWidth = kind ? 9 : 4;
-    c.strokeStyle = kind === 'neck' ? '#5fae5a' : kind === 'tail' ? '#e58c4a' : n === BOARD.count ? '#d49b2c' : '#b9a786';
+    c.fillStyle = n === BOARD.count ? '#ffe39a' : '#fbf4e2';
+    c.beginPath(); c.roundRect(x + 4, y + 4, w - 8, h - 8, 26); c.fill();
+    c.lineWidth = kind ? 12 : 6;
+    c.strokeStyle = kind === 'neck' ? '#4fa64c' : kind === 'tail' ? '#e5803c' : n === BOARD.count ? '#d49b2c' : '#c2ad88';
     c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = '900 70px Nunito, "Arial Rounded MT Bold", sans-serif';
-    c.fillStyle = kind === 'neck' ? '#2f6b34' : kind === 'tail' ? '#a1501f' : '#4a3a28';
-    c.fillText(String(n), x + cell / 2, y + cell / 2 + 4);
+    c.font = '900 104px Nunito, "Arial Rounded MT Bold", sans-serif';
+    c.lineJoin = 'round';
+    c.lineWidth = 6;
+    c.strokeStyle = 'rgba(255, 252, 240, 0.9)';
+    c.strokeText(String(n), x + w / 2, y + h / 2 + 6);
+    c.fillStyle = kind === 'neck' ? '#26602b' : kind === 'tail' ? '#9a4316' : '#3d2f20';
+    c.fillText(String(n), x + w / 2, y + h / 2 + 6);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
-  return { texture, cell, cols, rows };
+  return { texture, w, h, cols, rows };
 }
 
 export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], renderer = null } = {}) {
@@ -160,11 +164,10 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       square(n, p);
       const y = p.y - STONE.height * 0.5, z = STONE.depth / 2 + 0.012, k = positions.length / 3;
       positions.push(p.x - w / 2, y - h / 2, z, p.x + w / 2, y - h / 2, z, p.x + w / 2, y + h / 2, z, p.x - w / 2, y + h / 2, z);
-      const { cell, cols, rows } = plaques;
+      const { cols, rows } = plaques;
       const cx = (n - 1) % cols, cy = Math.floor((n - 1) / cols);
-      // the cell's plaque only (the texture leaves a margin above and below it)
       const u0 = cx / cols, u1 = (cx + 1) / cols;
-      const v0 = 1 - (cy * cell + cell - 20) / (rows * cell), v1 = 1 - (cy * cell + 20) / (rows * cell);
+      const v0 = 1 - (cy + 1) / rows, v1 = 1 - cy / rows;
       uvs.push(u0, v0, u1, v0, u1, v1, u0, v1);
       index.push(k, k + 1, k + 2, k, k + 2, k + 3);
     }

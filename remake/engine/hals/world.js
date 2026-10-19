@@ -39,7 +39,7 @@ export const VIEW = {
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
 const LOOK = 'morning'; // the chapter's light, so the fog's shader chunk (shared by every scene the renderer draws) stays the same
-const BASE = 0.55; // tier 0's block tops over the grass
+const BASE = 0.72; // tier 0's block tops over the grass (the blocks sink a little into it)
 
 export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = new URLSearchParams(), onProgress = () => {}, win = globalThis.window } = {}) {
   const look = pickLook(LOOK);

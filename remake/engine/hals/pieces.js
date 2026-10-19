@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createActor } from '../actor.js';
 import { createSaddle, ride } from '../riding.js';
 import { BOARD } from './rules.js';
+import { createThorsedlaLod } from './thorsedla-lod.js';
 
 // The pieces of "Háls og hali" (spec section 4): the chapter's own characters, small enough to stand on a block, each in a
 // lane of its own across the block so two or four share a square side by side. Egill rides Mosi in his saddle (riding.js);
@@ -23,8 +24,8 @@ const CHARACTERS = {
   thorsedla: { name: 'Þórseðla', model: 'brontosaurus', length: 22, colour: '#e9b14d' },
 };
 export { CHARACTERS as PIECE_CHARACTERS };
-const LENGTH = 2.25; // a piece's length nose to tail (m): about a block
-const LANES = [[-0.15, 0.55], [0.3, -0.25], [-0.45, 0.05], [0.4, -0.75]]; // x and z on a block, by player
+const LENGTH = 3.7; // a piece's length nose to tail (m): bigger than a block, so Egill shows clearly on Mosi close up
+const LANES = [[-0.2, 0.3], [0.35, -0.3], [-0.55, -0.02], [0.5, -0.62]]; // x and z on a block, by player: behind the plaques' face
 const HOP = { seconds: 0.44, height: 0.62, calm: { seconds: 0.62, height: 0.22 } };
 const TOWARD_CAMERA = 24; // degrees a piece turns toward the camera from the way it goes
 const url = name => new URL(`../../assets/characters/${name}.glb`, import.meta.url).href;
@@ -36,7 +37,8 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
   const tweens = new Set();
   const tween = (duration, step) => new Promise(resolve => tweens.add({ t: 0, duration: Math.max(0.001, duration), step, resolve }));
   let calm = false;
-  const list = await Promise.all(roster.map((id, index) => createPiece(world, board, id, index, { tween, get calm() { return calm; } })));
+  const lod = createThorsedlaLod(world.lighting?.sun); // the little Thorsedla's levels, as the board's big ones have
+  const list = await Promise.all(roster.map((id, index) => createPiece(world, board, id, index, { tween, lod, get calm() { return calm; } })));
   return {
     list,
     get calm() { return calm; },
@@ -49,7 +51,9 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
         if (t >= 1) { tweens.delete(tw); tw.resolve(); }
       }
       for (const p of list) p.update(dt);
+      if (world.camera && world.renderer) lod.update(world.camera, world.renderer.domElement.height);
     },
+    ready: () => lod.ready(),
     dispose() { for (const p of list) p.dispose(); },
   };
 }
@@ -59,8 +63,11 @@ async function createPiece(world, board, id, index, host) {
   const own = Object.create(world);
   own.heightAt = () => 0;
   const scale = LENGTH / spec.length;
+  const big = spec.model === 'brontosaurus';
+  if (big) own.renderer = null; // her own lighter levels (thorsedla-lod.js), not character-lod.js's
   const actor = await createActor(own, { name: `piece-${index}-${id}`, url: url(spec.model), position: [0, 0, 0], heading: 0 });
   actor.root.scale.setScalar(scale);
+  if (big) host.lod.add(actor);
   let rider = null, saddle = null, riding = null;
   if (spec.rider) {
     rider = await createActor(own, { name: `piece-${index}-${spec.rider}`, url: url(spec.rider), position: [0, 0, 0], heading: 0 });

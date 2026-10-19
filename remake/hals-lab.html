@@ -148,7 +148,7 @@ const drawNow = () => { renderer.info.reset(); world.render(); };
 const stats = installStats({ renderer, scene: world.scene, q, render: drawNow, debugEl, getScale: () => display.resolutionScale });
 
 let last = performance.now(), frames = 0, ready = false;
-world.ready().then(() => { ready = true; });
+Promise.all([world.ready(), pieces.ready()]).then(() => { ready = true; });
 renderer.setAnimationLoop(now => {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
