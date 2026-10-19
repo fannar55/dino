@@ -22,7 +22,7 @@ import { createVoice } from '../scene/voice.js';
 //     counts the hops, one line a hop, the hops paced to his words), and where it lands plays out (turn.js) with an event card,
 //     a voice, a sound and an effect.
 //     Input waits while a piece moves. The computer (a little Þórseðla) rolls by itself.
-//   - The end: fireworks over square 80, every Þórseðla cheering, the words and "Spilum aftur?".
+//   - The end: fireworks over square 100, every Þórseðla cheering, the words and "Spilum aftur?".
 //   - "Rólegra": the world's calm (the whole board, gentle motion) and gentler motion here; "Allt borðið": the whole board between
 //     turns instead of following the piece. The X goes back to the book; the game under way is kept in the save after every turn.
 // Under prefers-reduced-motion every move of the page is a fade.
@@ -80,7 +80,7 @@ const NUDGE_MS = 8500; // and this long: Mosi says "Ýttu á teninginn!"
 const NUDGE_GAP_MS = 25000; // but never sooner than this after he last said it
 const CARD_MS = 2400; // an event card stays this long
 const NEXT_MS = 450; // between one turn and the next
-const NEAR = 64; // Mosi says "Við erum næstum komnir upp!" once Egill is this high
+const NEAR = Math.round(BOARD.count * 0.8); // Mosi says "Við erum næstum komnir upp!" once Egill is this high (80 of 100)
 const FACES = { 1: [0, 0], 2: [-90, 0], 3: [0, -90], 4: [0, 90], 5: [90, 0], 6: [0, -180] }; // the cube's turn that shows each face
 const TILT = 'rotateX(-20deg) rotateY(-26deg)'; // the die seen from a little above and to the side, three faces showing
 const PIPS = { 1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'], 4: ['tl', 'tr', 'bl', 'br'], 5: ['tl', 'tr', 'c', 'bl', 'br'], 6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br'] };

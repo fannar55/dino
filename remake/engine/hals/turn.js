@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BOARD } from './rules.js';
 
 // One turn of "Háls og hali" played out in the world: the piece hops the squares of the roll one by one (each square's plaque
 // lights as it lands, for counting along), and where it lands decides the rest (rules.js resolveTurn): a neck's Þórseðla bows,
@@ -93,4 +94,4 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
   }
 }
 
-const onward = n => (n === 0 ? 1 : Math.floor((n - 1) / 16) % 2 ? -1 : 1);
+const onward = n => (n === 0 ? 1 : Math.floor((n - 1) / BOARD.columns) % 2 ? -1 : 1);

@@ -12,7 +12,7 @@ import { createThorsedlaLod } from './thorsedla-lod.js';
 
 const url = name => new URL(`../../assets/characters/${name}.glb`, import.meta.url).href;
 /** Where Uggeðla watches from (world.js keeps the forest's plants off it). */
-export const UGGEDLA_SPOT = Object.freeze({ x: -24.5, z: -2.5, heading: 25 });
+export const UGGEDLA_SPOT = Object.freeze({ x: -28.2, z: -2.6, heading: 25 });
 const FLIGHT = { centre: [0, 27.5, -17], radius: [25, 2.5, 6], seconds: 46, size: 0.8 };
 
 export async function createFriends(world, board) {

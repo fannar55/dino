@@ -1,78 +1,89 @@
 import { BOARD, DINOSAURS, tilePosition } from './rules.js';
 
 // Where each Þórseðla of the board stands (rules.js DINOSAURS: six of them, five necks and five tails between them), at her
-// natural proportions (no neck or tail drawn out by more than about a fifth, the owner's word of 2026-10-19). Each stands on a
-// rock shelf behind a tier, at that tier's height, side-on to the camera like Codex's:
-//  - her chest a little behind the first square of her neck (`lead` metres along the board), so her neck rises forward in an
-//    S and her head comes to rest over the square above, and comes down to the first square in a bow;
-//  - her rump just past the first square of her tail, so her tail hangs down from her hips behind the tier and the square.
-// Four are the model's 22 m at 0.84 (18.5 m): their bodies fit under the tier above. Two routes reach two tiers, so those two
-// are grown-up giants, uniformly bigger rather than stretched, and stand farther back where there is room:
-//  - Burkni (25 up to 56): her chest just past the neck's squares, a deep giant whose neck rises nearly straight up and curls
-//    forward to the square two tiers up; her tail hangs from her rump behind square 28, which her body leaves clear.
-//  - Lyng (74 down to 42, the top tier): her neck carries no route, so she stands well back with her head held low and
-//    forward, and her long tail hangs down past the tier below.
+// natural proportions (no neck or tail drawn out by more than about a quarter, the owner's word of 2026-10-19).
 //
-// `x` is her root (between her feet) along the board, `z` how far behind the blocks (the blocks' row is z 0), `facing` 1 to
-// the right and -1 to the left, `size` her scale against the model's real 22 m. The names are Codex's ids; `name` is the
-// game's.
+// Four stand on rock shelves behind the two front tiers (the second and the fourth: rules.js BOARD.recess), at the tier's
+// height, side-on to the camera like Codex's:
+//  - a little lower than the tier (`drop`), so her back stays under the numbers of the tier above;
+//  - her chest a little behind the first square of her neck (`lead` metres along the board), so her neck rises in front of
+//    the tier above (which stands further back), her head comes to rest over its square, and comes down to the first square
+//    in a bow;
+//  - her rump just past the first square of her tail, so her tail hangs down from her hips behind her tier onto the tier
+//    below (further back too), its tip on the last square.
+// The two long routes, two tiers each, belong to the two big elder giants, uniformly bigger rather than stretched, who stand
+// at the board's ends where they hide no square:
+//  - Burkni (19 up to 59), on the grass beside the right end, facing the camera: her neck rises beside the end, past the
+//    stairs, and curls over the end square onto the square two tiers up.
+//  - Lyng (82 down to 41), on a shelf behind the top tier at its left end, `drop` metres under its blocks so her back does
+//    not tower over the board, turned a little away from the camera: her long tail hangs down beside the board's left end,
+//    past the stairs, onto the square two tiers down.
+//
+// `x` is her root (between her feet) along the board, `z` how far toward the camera (a front tier's blocks are at z 0),
+// `facing` 1 to the right and -1 to the left, `turn` degrees toward the camera from side-on (less than 0: away from it),
+// `size` her scale against the model's own. The names are Codex's ids; `name` is the game's.
 
 const MODEL = { neck: 3.26, tail: -3.66, chest: 2.24, hips: -2.18, halfWidth: 1.9, legs: 1.57, foot: 0.4, back: 5.3 };
 export { MODEL as THORSEDLA_MODEL };
-export const BLOCK_BACK = 1.2; // z of the back face of a tier's blocks (board.js STONE.depth / 2)
+export const BLOCK_BACK = 1.2; // the back face of a tier's blocks behind their middle (board.js STONE.depth / 2)
 
 const SPECS = {
-  fern: { name: 'Burkni', tier: 1, size: 1.48, z: -7.2, chestAt: 1.15 },
-  amber: { name: 'Gyllir', tier: 1, size: 0.84, lead: 1.45 },
-  sage: { name: 'Salvía', tier: 3, size: 0.84, lead: 1.45 },
-  coral: { name: 'Glóð', tier: 3, size: 0.84, lead: 1.45 },
-  birch: { name: 'Kvisti', tier: 0, size: 0.84, lead: 1.5 },
-  plum: { name: 'Lyng', tier: 4, size: 1.5, facing: -1, turn: -35, rump: [0.35, -3.9] },
+  // the elder giant at the right end, beside the stairs, her chest 3 m in front of the back tiers
+  fern: { name: 'Burkni', tier: 0, size: 1.85, at: [27.7, -11.2], turn: 88, maxStretch: 1.5 },
+  amber: { name: 'Gyllir', tier: 1, size: 1.15, lead: 0.3, drop: 0.35 },
+  coral: { name: 'Glóð', tier: 1, size: 1.15, lead: 0.3, drop: 0.35 },
+  sage: { name: 'Salvía', tier: 3, size: 1.15, lead: 0.3, drop: 0.35 },
+  birch: { name: 'Kvisti', tier: 3, size: 1.15, lead: 0.3, drop: 0.35 },
+  // the elder giant on the top tier, her rump behind square 81, at the board's left end
+  plum: { name: 'Lyng', tier: 4, size: 1.6, turn: -25, rump: [1.45, -10.4], drop: 3.0, maxStretch: 1.5 },
 };
 
-/** How far behind the blocks a Þórseðla of size k stands at the least: her near side a hand behind them. */
+/** How far behind a front tier's blocks a Þórseðla of size k stands at the least: her near side a hand behind them. */
 const nearZ = k => -(BLOCK_BACK + 0.2 + MODEL.halfWidth * k);
-const THREE_DEG = Math.PI / 180;
+const DEG = Math.PI / 180;
+/** The way she faces, in x and z, from her facing and turn (three's heading: 0 along +x, 90 toward the camera). */
+export const headingOf = place => DEG * (place.facing > 0 ? place.turn : 180 - place.turn);
 
-/** The six places: { id, name, tier, x, z, facing, size, neck, tail, color }. */
+/** The six places: { id, name, tier, x, z, facing, turn, size, maxStretch, neck, tail, color }. */
 export const PLACES = DINOSAURS.map(d => {
   const s = SPECS[d.id];
   const facing = s.facing ?? d.facing;
   const k = s.size;
-  const turn = s.turn ?? 6; // degrees toward the camera from side-on (less than 0: away from it)
-  let x, z = s.z ?? nearZ(k);
-  if (s.chestAt !== undefined) x = s.chestAt - facing * MODEL.neck * k; // her chest at a given x (Burkni)
-  else if (d.neck) x = tilePosition(d.neck.from).x - facing * (MODEL.neck * k + s.lead); // her chest `lead` behind the neck's square
-  else {
-    // her rump at a given spot past the tail's square, her body turned away from the camera behind it (Lyng)
-    const h = THREE_DEG * (facing > 0 ? turn : 180 - turn);
+  const turn = s.turn ?? 6;
+  const h = DEG * (facing > 0 ? turn : 180 - turn);
+  let x, z;
+  if (s.at) [x, z] = s.at; // a giant at a spot of her own (Burkni)
+  else if (s.rump) {
+    // her rump at a spot past the tail's first square, her body turned with her (Lyng)
     const rx = tilePosition(d.tail.from).x - facing * s.rump[0], rz = s.rump[1];
     x = rx - Math.cos(h) * MODEL.tail * k;
     z = rz - Math.sin(h) * MODEL.tail * k;
+  } else {
+    x = tilePosition(d.neck.from).x - facing * (MODEL.neck * k + s.lead); // her chest `lead` behind the neck's square
+    z = nearZ(k);
   }
-  return Object.freeze({ id: d.id, name: s.name, tier: s.tier, x, z, facing, turn, size: k, neck: d.neck, tail: d.tail, color: d.color });
+  return Object.freeze({ id: d.id, name: s.name, tier: s.tier, drop: s.drop ?? 0, x, z, facing, turn, size: k, maxStretch: s.maxStretch, neck: d.neck, tail: d.tail, color: d.color });
 });
 
 /**
- * The rock shelf a place stands on: { tier, x0, x1, z0, z1 } (tier 0 stands on the grass). It lies under her feet only, from
- * a little behind her hind feet to a little past her front feet, so her tail hangs down past its end, and from behind her far
- * feet to a little before her near ones, so the necks rising to the tier above pass in front of it.
+ * The rock shelf a place stands on: { tier, x0, x1, z0, z1, angle } (on tier 0 she stands on the grass). It lies under her feet
+ * only, from a little behind her hind feet to a little past her front feet, so her tail hangs down past its end, and from behind
+ * her far feet to just behind the blocks. A turned place's slab turns with her (`angle` about y round its middle).
  */
 export function shelfFor(place) {
   const k = place.size, f = place.facing;
-  if (place.turn < 0) {
-    // turned away: a slab turned with her, round her four feet ({ angle } about y round its middle)
-    const h = THREE_DEG * (f > 0 ? place.turn : 180 - place.turn);
+  if (Math.abs(place.turn) > 15) {
+    const h = headingOf(place);
     const hind = MODEL.hips * k - MODEL.foot * k - 0.3, front = MODEL.chest * k + MODEL.foot * k + 0.6;
     const half = MODEL.legs * k + MODEL.foot * k + 0.15;
     const mid = (hind + front) / 2, cx = place.x + Math.cos(h) * mid, cz = place.z + Math.sin(h) * mid;
     const len = (front - hind) / 2;
-    return { tier: place.tier, x0: cx - len, x1: cx + len, z0: cz - half, z1: cz + half, angle: -h };
+    return { tier: place.tier, drop: place.drop, x0: cx - len, x1: cx + len, z0: cz - half, z1: cz + half, angle: -h };
   }
   const hind = place.x + f * MODEL.hips * k, front = place.x + f * MODEL.chest * k;
   const ends = [hind - f * (MODEL.foot * k + 0.1), front + f * (MODEL.foot * k + 0.12)];
   const near = Math.min(-BLOCK_BACK - 0.05, place.z + MODEL.legs * k + MODEL.foot * k + 0.35);
-  return { tier: place.tier, x0: Math.min(...ends), x1: Math.max(...ends), z0: place.z - MODEL.legs * k - MODEL.foot * k - 0.8, z1: near };
+  return { tier: place.tier, drop: place.drop, x0: Math.min(...ends), x1: Math.max(...ends), z0: place.z - MODEL.legs * k - MODEL.foot * k - 0.8, z1: near };
 }
 
 export const TIER_HEIGHT = BOARD.rowHeight;

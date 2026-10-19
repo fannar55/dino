@@ -4,25 +4,27 @@ import assert from 'node:assert/strict';
 import { seededRandom } from '../engine/random.js';
 import { createSave } from '../engine/save.js';
 import {
-  BOARD, DINOSAURS, SHORTCUTS, SPECIAL_TILES, FOSSIL_KINDS, FOSSIL_SQUARES,
+  BOARD, DINOSAURS, SHORTCUTS, SPECIAL_TILES, FOSSIL_KINDS, FOSSIL_SQUARES, GAME_VERSION,
   tileNumber, tilePosition, resolveTurn, createGame, applyTurn, validateGame, placeFossils,
 } from '../engine/hals/rules.js';
 
-test('80 squares form one continuous serpentine board with an adjacent start', () => {
+test('100 squares form one continuous serpentine board of five tiers of 20, with an adjacent start', () => {
+  assert.deepEqual([BOARD.count, BOARD.rows, BOARD.columns], [100, 5, 20]);
   const numbers = [];
   for (let row = 0; row < BOARD.rows; row++) {
     for (let column = 0; column < BOARD.columns; column++) {
       const number = tileNumber(row, column);
       numbers.push(number);
-      assert.deepEqual(tilePosition(number), { x: (column - 7.5) * BOARD.spacing, y: row * BOARD.rowHeight, z: 0 });
+      // the odd tiers stand in front, the even ones further back
+      assert.deepEqual(tilePosition(number), { x: (column - 9.5) * BOARD.spacing, y: row * BOARD.rowHeight, z: row % 2 ? 0 : -BOARD.recess });
     }
   }
-  assert.deepEqual([...numbers].sort((a, b) => a - b), Array.from({ length: 80 }, (_, i) => i + 1));
-  assert.deepEqual([tileNumber(0, 0), tileNumber(0, 15), tileNumber(1, 0), tileNumber(1, 15), tileNumber(4, 0), tileNumber(4, 15)], [1, 16, 32, 17, 65, 80]);
-  for (let number = 0; number < 80; number++) {
+  assert.deepEqual([...numbers].sort((a, b) => a - b), Array.from({ length: 100 }, (_, i) => i + 1));
+  assert.deepEqual([tileNumber(0, 0), tileNumber(0, 19), tileNumber(1, 0), tileNumber(1, 19), tileNumber(4, 0), tileNumber(4, 19)], [1, 20, 40, 21, 81, 100]);
+  for (let number = 0; number < 100; number++) {
     const a = tilePosition(number), b = tilePosition(number + 1);
     const dx = Math.abs(b.x - a.x), dy = b.y - a.y;
-    assert.ok((Math.abs(dx - BOARD.spacing) < 1e-10 && dy === 0) || (dx === 0 && dy === BOARD.rowHeight), `${number} to ${number + 1} must be adjacent`);
+    assert.ok((Math.abs(dx - BOARD.spacing) < 1e-10 && dy === 0 && a.z === b.z) || (dx === 0 && dy === BOARD.rowHeight), `${number} to ${number + 1} must be adjacent`);
   }
 });
 
@@ -44,8 +46,18 @@ test('six dinosaurs own five upward necks and five downward tails with distinct 
       assert.ok(!SHORTCUTS.some(s => s.from === shortcut.to), 'A ride must end on an ordinary square');
     }
   }
-  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'neck').map(s => [s.from, s.to]), [[25, 56], [21, 44], [57, 72], [53, 76], [4, 29]]);
-  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'tail').map(s => [s.from, s.to]), [[28, 6], [18, 14], [60, 38], [50, 46], [74, 42]]);
+  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'neck').map(s => [s.from, s.to]), [[19, 59], [28, 52], [34, 46], [69, 93], [63, 99]]);
+  assert.deepEqual(SHORTCUTS.filter(s => s.type === 'tail').map(s => [s.from, s.to]), [[24, 17], [30, 11], [73, 48], [67, 54], [82, 41]]);
+  // every route reaches one tier, but for the giants' two: Burkni's neck up two tiers and Lyng's tail down two
+  const tiers = s => Math.round(Math.abs(tilePosition(s.to).y - tilePosition(s.from).y) / BOARD.rowHeight);
+  assert.deepEqual(SHORTCUTS.filter(s => tiers(s) === 2).map(s => s.id), ['fern-neck', 'plum-tail']);
+  assert.ok(SHORTCUTS.every(s => tiers(s) >= 1 && tiers(s) <= 2));
+  // no route starts on another route's square, on an event, or on the first or last square
+  const events = new Set(SPECIAL_TILES.map(e => e.from));
+  for (const s of SHORTCUTS) {
+    assert.ok(![1, BOARD.count].includes(s.from) && !events.has(s.from), `route ${s.id} starts on a free square`);
+    assert.ok(!SHORTCUTS.some(o => o !== s && (o.from === s.from || o.to === s.from)), `route ${s.id} starts on its own square`);
+  }
 });
 
 test('neck and tail rides activate only on the dice landing, with every walking step retained', () => {
@@ -63,55 +75,56 @@ test('neck and tail rides activate only on the dice landing, with every walking 
 });
 
 test('a roll too high for the finish still wins, and every position has a route to the finish', () => {
-  assert.deepEqual(resolveTurn(78, 6), { from: 78, roll: 6, steps: [79, 80], landed: 80, shortcut: null, event: null, destination: 80, won: true });
-  assert.equal(resolveTurn(74, 6).won, true);
-  assert.deepEqual(resolveTurn(80, 1).steps, []);
+  assert.deepEqual(resolveTurn(98, 6), { from: 98, roll: 6, steps: [99, 100], landed: 100, shortcut: null, event: null, destination: 100, won: true });
+  assert.equal(resolveTurn(94, 6).won, true);
+  assert.deepEqual(resolveTurn(100, 1).steps, []);
 
   for (const mode of ['classic', 'adventure']) {
-    const routesToFinish = new Set([80]);
+    const routesToFinish = new Set([100]);
     for (let changed = true; changed;) {
       changed = false;
       for (let from = 0; from <= BOARD.count; from++) {
         for (let roll = 1; roll <= 6; roll++) {
           const turn = resolveTurn(from, roll, { mode });
-          assert.ok(turn.destination >= 1 && turn.destination <= 80);
-          assert.equal(turn.steps.length, Math.min(roll, 80 - from));
-          assert.equal(turn.won, turn.destination === 80);
+          assert.ok(turn.destination >= 1 && turn.destination <= 100);
+          assert.equal(turn.steps.length, Math.min(roll, 100 - from));
+          assert.equal(turn.won, turn.destination === 100);
           if (routesToFinish.has(turn.destination) && !routesToFinish.has(from)) { routesToFinish.add(from); changed = true; }
         }
       }
     }
-    assert.equal(routesToFinish.size, 81, `${mode}: no square traps a player in a closed loop`);
+    assert.equal(routesToFinish.size, 101, `${mode}: no square traps a player in a closed loop`);
   }
 });
 
 test('adventure events happen only on the landing square, in adventure mode, and never on a route', () => {
-  assert.deepEqual(SPECIAL_TILES.map(e => e.type), ['firefly', 'firefly', 'firefly', 'firefly', 'mud', 'mud', 'fossil', 'fossil', 'fossil', 'fossil']);
+  assert.deepEqual(SPECIAL_TILES.map(e => e.type), [...Array(5).fill('firefly'), ...Array(3).fill('mud'), ...Array(5).fill('fossil')]);
   const routeSquares = new Set(SHORTCUTS.flatMap(s => [s.from, s.to]));
   for (const event of SPECIAL_TILES) {
     assert.ok(!routeSquares.has(event.from), `event ${event.from} is not on a route`);
     assert.ok(!SHORTCUTS.some(s => s.from === event.to), 'an event never carries a pawn onto a neck or a tail');
+    assert.ok(![1, BOARD.count].includes(event.from));
     const landing = resolveTurn(event.from - 1, 1, { mode: 'adventure' });
     assert.equal(landing.event, event);
     assert.equal(landing.destination, event.to);
     assert.equal(resolveTurn(event.from - 1, 1).event, null, 'classic mode has no events');
     assert.equal(resolveTurn(event.from - 2, 3, { mode: 'adventure' }).event, null, 'passing over does nothing');
   }
-  assert.equal(resolveTurn(8, 1, { mode: 'adventure' }).destination, 11, 'fireflies carry the pawn 2 on');
-  const mud = resolveTurn(46, 1, { mode: 'adventure' });
-  assert.deepEqual([mud.event.type, mud.destination], ['mud', 45], 'mud sets it 2 back, onto a fossil square that does not trigger in the same turn');
+  assert.equal(resolveTurn(7, 1, { mode: 'adventure' }).destination, 10, 'fireflies carry the pawn 2 on');
+  const mud = resolveTurn(43, 1, { mode: 'adventure' });
+  assert.deepEqual([mud.event.type, mud.destination], ['mud', 42], 'mud sets it 2 back');
   assert.throws(() => resolveTurn(0, 1, { mode: 'hard' }), RangeError);
 });
 
 test('malformed indices, dice and settings fail before entering game state', () => {
-  for (const invalid of [-1, 81, 1.5, NaN, Infinity, '1', null, undefined]) {
+  for (const invalid of [-1, 101, 1.5, NaN, Infinity, '1', null, undefined]) {
     assert.throws(() => tilePosition(invalid), RangeError);
     assert.throws(() => resolveTurn(invalid, 1), RangeError);
   }
   for (const invalid of [0, 7, -1, 1.5, NaN, '6', null, undefined]) assert.throws(() => resolveTurn(0, invalid), RangeError);
   assert.throws(() => tileNumber(-1, 0), RangeError);
   assert.throws(() => tileNumber(5, 0), RangeError);
-  assert.throws(() => tileNumber(0, 16), RangeError);
+  assert.throws(() => tileNumber(0, 20), RangeError);
   for (const playerCount of [0, 5, 1.5, '2', NaN]) assert.throws(() => createGame({ playerCount }), RangeError);
   assert.throws(() => createGame({ vsComputer: 1 }), TypeError);
   assert.throws(() => createGame({ playerCount: 1, vsComputer: true }), RangeError);
@@ -134,55 +147,61 @@ test('players take turns, a six gives no extra roll, and a win freezes the game'
   assert.equal(applyTurn(createGame({ playerCount: 1 }), 3).currentPlayer, 0, 'a solo player goes again');
 
   const initial = createGame();
-  initial.players[0].position = 79;
+  initial.players[0].position = 98;
   const won = applyTurn(initial, 5);
   assert.equal(won.winner, 0);
   assert.equal(won.currentPlayer, 0);
-  assert.equal(won.players[0].position, 80);
+  assert.equal(won.players[0].position, 100);
   assert.equal(won.lastTurn.won, true);
   assert.equal(applyTurn(won, 6), won, 'later rolls move nobody');
   assert.equal(won.turnCount, 1);
 });
 
-test('saved state validation rejects impossible or unfinished states, and accepts older ones', () => {
-  assert.equal(createGame().version, 1);
-  const legacy = createGame(); delete legacy.version; delete legacy.fossilKinds;
-  assert.equal(validateGame(legacy), true, 'a game from before the version or the fossil kinds still loads');
-  assert.throws(() => validateGame({ ...createGame(), version: 2 }), RangeError);
+test('saved state validation rejects impossible or unfinished states, and a game kept from the board of 80', () => {
+  assert.equal(createGame().version, GAME_VERSION);
+  assert.equal(GAME_VERSION, 2);
+  const noFossils = createGame(); delete noFossils.fossilKinds;
+  assert.equal(validateGame(noFossils), true, 'a game without the fossil kinds still loads');
+  // a game kept from the board of 80 (version 1, or the previews before the version) is refused: the host offers a new one
+  const eighty = { ...createGame(), version: 1, players: createGame().players.map(p => ({ ...p, position: 64 })) };
+  assert.throws(() => validateGame(eighty), RangeError);
+  const unversioned = createGame(); delete unversioned.version;
+  assert.throws(() => validateGame(unversioned), RangeError);
+  assert.throws(() => validateGame({ ...createGame(), version: 3 }), RangeError);
   assert.throws(() => validateGame(null), TypeError);
   const bad = change => { const game = createGame(); change(game); return game; };
-  assert.throws(() => validateGame(bad(g => { g.players[0].position = 81; })), RangeError);
+  assert.throws(() => validateGame(bad(g => { g.players[0].position = 101; })), RangeError);
   assert.throws(() => validateGame(bad(g => { g.players[1].id = 0; })), TypeError);
   assert.throws(() => validateGame(bad(g => { g.currentPlayer = 2; })), RangeError);
-  assert.throws(() => validateGame(bad(g => { g.players[0].position = 80; })), RangeError);
+  assert.throws(() => validateGame(bad(g => { g.players[0].position = 100; })), RangeError);
   assert.throws(() => validateGame(bad(g => { g.winner = 1; })), RangeError);
   assert.throws(() => validateGame(bad(g => { g.players[0].fossils = [8]; })), RangeError);
   assert.throws(() => validateGame(bad(g => { g.fossilKinds = { 8: 'tooth' }; })), RangeError);
-  assert.throws(() => validateGame(bad(g => { g.fossilKinds = { 7: 'dragon' }; })), RangeError);
-  assert.throws(() => validateGame(bad(g => { g.fossilKinds = { 7: 'tooth', 32: 'tooth' }; })), RangeError);
+  assert.throws(() => validateGame(bad(g => { g.fossilKinds = { 5: 'dragon' }; })), RangeError);
+  assert.throws(() => validateGame(bad(g => { g.fossilKinds = { 5: 'tooth', 26: 'tooth' }; })), RangeError);
 });
 
-test('every game puts four different kinds of the eight on the fossil squares, and a find names its kind', () => {
+test('every game puts five different kinds of the eight on the fossil squares, and a find names its kind', () => {
   assert.equal(FOSSIL_KINDS.length, 8);
   assert.equal(new Set(FOSSIL_KINDS.map(k => k.id)).size, 8);
-  assert.deepEqual(FOSSIL_SQUARES, [7, 32, 45, 67]);
+  assert.deepEqual(FOSSIL_SQUARES, [5, 26, 50, 75, 95]);
   const seen = new Set();
   for (let seed = 0; seed < 30; seed++) {
     const placed = placeFossils(seededRandom(`hals-${seed}`));
     assert.deepEqual(Object.keys(placed).map(Number), FOSSIL_SQUARES);
-    assert.equal(new Set(Object.values(placed)).size, 4);
+    assert.equal(new Set(Object.values(placed)).size, 5);
     Object.values(placed).forEach(kind => { assert.ok(FOSSIL_KINDS.some(k => k.id === kind)); seen.add(kind); });
   }
   assert.equal(seen.size, 8, 'across games every kind turns up');
   assert.deepEqual(placeFossils(seededRandom('same')), placeFossils(seededRandom('same')), 'a seed places the same kinds');
 
   const game = createGame({ mode: 'adventure', random: seededRandom('find') });
-  game.players[0].position = 6;
+  game.players[0].position = 4;
   const found = applyTurn(game, 1);
   assert.equal(found.lastTurn.newFossil, true);
-  assert.equal(found.lastTurn.fossil, game.fossilKinds[7]);
-  assert.deepEqual(found.players[0].fossils, [7]);
-  assert.equal(applyTurn({ ...found, currentPlayer: 0, players: found.players.map((p, i) => i ? p : { ...p, position: 6 }) }, 1).lastTurn.newFossil, false, 'the same square twice is no new find');
+  assert.equal(found.lastTurn.fossil, game.fossilKinds[5]);
+  assert.deepEqual(found.players[0].fossils, [5]);
+  assert.equal(applyTurn({ ...found, currentPlayer: 0, players: found.players.map((p, i) => i ? p : { ...p, position: 4 }) }, 1).lastTurn.newFossil, false, 'the same square twice is no new find');
   assert.equal(applyTurn({ ...game, mode: 'classic' }, 1).lastTurn.fossil, null, 'classic mode finds nothing');
   assert.equal(applyTurn(createGame(), 1).lastTurn.fossil, null, 'a plain square finds nothing');
 });

@@ -16,7 +16,7 @@ import { PLACES, shelfFor } from './places.js';
 import { createThorsedlas } from './thorsedla.js';
 import { createFriends, UGGEDLA_SPOT } from './friends.js';
 
-// The world of "Háls og hali" (spec sections 3, 4 and 6): Codex's board of 80 squares on five tiers, seen from the side, in a
+// The world of "Háls og hali" (spec sections 3, 4 and 6): the board of 100 squares on five tiers, seen from the side, in a
 // clearing of the remake's own forest, in the chapter's morning light, with the chapter's real Þórseðlas on its necks and tails
 // (thorsedla.js) and Egill on Mosi and his friends as the pieces (pieces.js). A scene of its own, drawn by whatever renderer it
 // is given: the game's, while the chapter waits behind the book, or a lab's.
@@ -34,14 +34,15 @@ import { createFriends, UGGEDLA_SPOT } from './friends.js';
 //   world.addUpdater(fn)                     fn(dt) every frame, before the camera (the pieces)
 //   world.update(dt), world.render(), world.resize(width, height), world.ready(), world.dispose()
 
-// Sizes are metres. The board is Codex's at his own measures (2.3 m a square, 5.5 m a tier); the forest is the chapter's at its
-// real size round it, so its old trees stand as tall as the board.
+// Sizes are metres. The board is Codex's at his own measures (2.3 m a square) with the tiers 7.5 m apart and zigzagging in depth
+// (rules.js BOARD); the forest is the chapter's at its real size round it, so its old trees stand as tall as the board.
 
 export const VIEW = {
   fov: 30,
   // What the whole board needs in view (m), the camera a little above: from the grass to the top tier and Lyng's back over it,
-  // with room below for the dock (`safe`, a share of the view's height) and the tall Þórseðlas allowed up to the top edge.
-  overview: { bottom: -0.4, above: 8.8, width: 52, safe: 0.17, lift: 0.1 },
+  // with room below for the dock (`safe`, a share of the view's height) and the tall Þórseðlas allowed up to the top edge; from
+  // Lyng's tail beside the left end (`left`) to Burkni beside the right end (`right`).
+  overview: { bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, safe: 0.17, lift: 0.25, depth: -4.2 },
   follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0] }, // close on a piece: its tier and the next one above
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
@@ -81,16 +82,17 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   // the forest edge rises behind the board and round both sides. A footpath comes in from the left front to the start.
   const places = PLACES;
   const keepClear = {};
-  for (let x = -24; x <= 24; x += 4) keepClear[`row${x}`] = { position: [x, 0, 0], heading: 0 }; // no plant on tier 0's blocks
+  // no plant on tier 0's blocks (they stand back) nor on the grass before them, where the tails of the second tier hang
+  for (let x = -24; x <= 24; x += 4) for (const z of [-BOARD.recess, -2.5]) keepClear[`row${x}/${z}`] = { position: [x, 0, z], heading: 0 };
   for (const p of places) keepClear[p.id] = { position: [p.x, 0, p.z], heading: p.facing > 0 ? 0 : 180 };
   keepClear.uggedla = { position: [UGGEDLA_SPOT.x, 0, UGGEDLA_SPOT.z], heading: UGGEDLA_SPOT.heading }; // where she watches
   const layout = {
     seed: 23,
-    clearing: { center: [0, 26], radius: 42 },
-    forestEdge: 48,
-    path: [[-86, 46], [-58, 30], [-36, 15], [-24, 5], [-20.5, 1.5]],
+    clearing: { center: [0, 34], radius: 60 },
+    forestEdge: 66,
+    path: [[-86, 46], [-60, 30], [-42, 14], [-31, 1], [-26.5, -5]],
     actors: keepClear,
-    shots: { overview: { position: [0, 20, 72], target: [0, 13, 0], fov: VIEW.fov } },
+    shots: { overview: { position: [2, 25, 98], target: [2, 17, -4], fov: VIEW.fov } },
     leafShadows: false,
   };
   // A third of the grass of the chapter's clearing: here it is only the strip in front of the bottom tier, seen from far, and it
@@ -197,8 +199,8 @@ function createView(camera, board) {
   function wanted() {
     if (mode === 'overview' || calm) {
       const height = (TOP + O.above - O.bottom) / (1 - O.safe);
-      wantTarget.set(0, O.bottom - height * O.safe + height / 2, -1.5);
-      const d = distanceFor(O.width, height);
+      wantTarget.set((O.left + O.right) / 2, O.bottom - height * O.safe + height / 2, O.depth);
+      const d = distanceFor(O.right - O.left, height);
       wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);
       return;
     }
@@ -213,7 +215,8 @@ function createView(camera, board) {
       if (typeof follow === 'function') { const v = follow(followed); if (v?.isVector3 && v !== followed) followed.copy(v); }
       else followed.copy(follow.isVector3 ? follow : follow.position);
     }
-    wantTarget.set(THREE.MathUtils.clamp(followed.x, -16, 16), followed.y + F.lead[1], -0.5);
+    const half = (BOARD.columns / 2 - 3) * BOARD.spacing; // the view stops short of running off the board's ends
+    wantTarget.set(THREE.MathUtils.clamp(followed.x, -half, half), followed.y + F.lead[1], followed.z - 0.5);
     wantPosition.set(wantTarget.x, wantTarget.y + F.distance * F.lift, wantTarget.z + F.distance);
   }
 
@@ -239,7 +242,7 @@ function createView(camera, board) {
     },
     /** What the sun's shadow map should cover: the board in an overview, the view's middle close up. */
     focus() {
-      if (mode === 'overview' || calm) return { centre: new THREE.Vector3(0, TOP / 2 + 1.5, -3.5), radius: 31 };
+      if (mode === 'overview' || calm) return { centre: new THREE.Vector3((O.left + O.right) / 2, TOP / 2 + 1.5, O.depth - 1), radius: 35 };
       return { centre: target, radius: Math.min(28, 9 + position.distanceTo(target) * 0.3) };
     },
     update(dt) {

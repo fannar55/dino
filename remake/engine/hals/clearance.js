@@ -4,7 +4,7 @@ import { STONE, LEDGE } from './board.js';
 import { shelfFor, THORSEDLA_MODEL as MODEL } from './places.js';
 
 // A check for the lab (hals-lab.html ?look=…, or window.__clearance()): how close each Þórseðla's neck, head and tail come to
-// the board (the blocks, the logs, the shelves) and to the other Þórseðlas, as they stand now. Each chain is a row of balls
+// the board (the blocks, the logs, the shelves, the stairs) and to the other Þórseðlas, as they stand now. Each chain is a row of balls
 // (its joints and the points between, each as thick as the chain there); the board's parts and the other bodies are boxes.
 // A gap below 0 is a clash. It reports the smallest gap of each and what it is with.
 
@@ -40,18 +40,27 @@ function balls(chain, n = 3) {
   return out;
 }
 
-/** The boxes of the board: each tier's row of blocks and its log, and each shelf (world). */
+/** The boxes of the board: each tier's row of blocks and its log, each flight of stairs in pieces, and each shelf (world). */
 function boardBoxes(world) {
   const boxes = [];
-  const halfRow = (BOARD.columns * BOARD.spacing) / 2 + 0.2;
   for (let r = 0; r < BOARD.rows; r++) {
-    const y = world.board.tierY(r);
-    boxes.push({ name: `blocks ${r}`, min: new V3(-halfRow, y - STONE.height, -STONE.depth / 2), max: new V3(halfRow, y, STONE.depth / 2) });
-    if (r) boxes.push({ name: `log ${r}`, min: new V3(-LEDGE.halfLength, y - STONE.height - LEDGE.thickness, -LEDGE.depth / 2), max: new V3(LEDGE.halfLength, y - STONE.height + 0.04, LEDGE.depth / 2) });
+    const y = world.board.tierY(r), z = world.board.tierZ(r);
+    for (let c = 0; c < BOARD.columns; c++) {
+      const x = (c - (BOARD.columns - 1) / 2) * BOARD.spacing;
+      boxes.push({ name: `blocks ${r}`, min: new V3(x - STONE.width / 2, y - STONE.height, z - STONE.depth / 2), max: new V3(x + STONE.width / 2, y, z + STONE.depth / 2) });
+    }
+    if (r) boxes.push({ name: `log ${r}`, min: new V3(-LEDGE.halfLength + 0.35, y - STONE.height - LEDGE.thickness, z - LEDGE.depth / 2), max: new V3(LEDGE.halfLength - 0.35, y - STONE.height + 0.04, z + LEDGE.depth / 2) });
+  }
+  for (let r = 0; r < BOARD.rows - 1; r++) {
+    const stairs = world.board.stairs((r + 1) * BOARD.columns);
+    for (let i = 0; i < 8; i++) {
+      const p = stairs.point((i + 0.5) / 8), q = stairs.point(i / 8), e = stairs.point((i + 1) / 8);
+      boxes.push({ name: `stairs ${stairs.from}`, min: new V3(p.x - 0.95, Math.min(q.y, e.y) - 0.5, Math.min(q.z, e.z) - 0.2), max: new V3(p.x + 0.95, Math.max(q.y, e.y) + 0.95, Math.max(q.z, e.z) + 0.2) });
+    }
   }
   for (const place of world.places) {
     if (place.tier === 0) continue;
-    const s = shelfFor(place), top = world.board.tierY(place.tier) - 0.3;
+    const s = shelfFor(place), top = world.board.tierY(place.tier) - 0.3 - (place.drop ?? 0);
     boxes.push({ name: `${place.id}'s shelf`, owner: place.id, min: new V3(s.x0, top - 1.5, s.z0), max: new V3(s.x1, top, s.z1), angle: s.angle ?? 0, centre: new V3((s.x0 + s.x1) / 2, 0, (s.z0 + s.z1) / 2) });
   }
   return boxes;

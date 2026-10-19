@@ -2,26 +2,31 @@ import * as THREE from 'three';
 import { createActor } from '../actor.js';
 import { BOARD } from './rules.js';
 import { BLOCK_BACK } from './places.js';
+import { STONE } from './board.js';
 import { createThorsedlaLod } from './thorsedla-lod.js';
 
 // The Þórseðlas of the board (spec section 4): the chapter's own Þórseðla (brontosaurus.glb, engine/actor.js: her idle
-// breathing, her blinking eyelids, her voice on her jaw), six of her, each in a colour of her own, standing on the shelves
-// behind the tiers (places.js) at her natural proportions. Her neck is a ladder and her tail a slide, as Codex's are, but alive:
+// breathing, her blinking eyelids, her voice on her jaw), six of her, each in a colour of her own, at her natural proportions
+// (places.js: four behind the two front tiers, two big elder giants at the board's ends). Her neck is a ladder and her tail a
+// slide, as Codex's are, but alive:
 //
-//  - At rest her neck rises from her chest in a soft S, behind the tier above, and curls over its back edge: her head rests
-//    over the neck's last square with her chin level, turned a little toward the child. She breathes, her head bobs, she looks
-//    at the piece whose turn it is, blinks, and now and then nods, swishes her tail, glances at the camera or stretches.
-//  - bow(): like a crane lowering, her head draws back a little behind the tier above and comes down in one smooth arc to the
-//    neck's first square; lift() carries a piece on the top of her neck back up along the same arc to rest, and it hops off
-//    onto the square at her head. The neck is posed afresh every frame: a smooth curve from her chest to where her head is,
-//    leaving her shoulders the way her neck grows and arriving the way her head points, with the neck's bones laid along it.
-//  - Her tail hangs from her hips behind her tier, past the tail's first square (where a piece hops onto it), and down to the
-//    square it slides to, its tip resting on that block's back edge. swish() sends a wave along it, flick() tosses its tip.
+//  - At rest her neck rises from her chest in a soft S in front of the tier above (which stands further back: rules.js
+//    BOARD.recess) and curls over its front edge: her head rests over the neck's last square with her chin level, looking
+//    along the board and a little toward the child. Burkni's rises beside the board's right end, past the stairs. She
+//    breathes, her head bobs, she looks at the piece whose turn it is, blinks, and now and then nods, swishes her tail,
+//    glances at the camera or stretches.
+//  - bow(): like a crane lowering, her head comes forward off the square above and down in one smooth arc onto the neck's
+//    first square; lift() carries a piece on the top of her neck back up along the same arc to rest, and it hops off onto
+//    the square at her head. The neck is posed afresh every frame: a smooth curve from her chest to where her head is, through
+//    the points it passes, as long as her neck, with the neck's bones laid along it.
+//  - Her tail hangs from her hips behind her tier, past the tail's first square (where a piece hops onto it), and down onto
+//    the square it slides to on the tier below, its tip on that block's top. Lyng's hangs beside the board's left end, two
+//    tiers down. swish() sends a wave along it, flick() tosses its tip.
 //  - cheer(): her happy clip, her neck and tail waving (a win, a ride).
 //
-// No neck or tail is drawn out by more than about a fifth (the owner's word, 2026-10-19): where a route needs more reach, she
-// is bigger (places.js). A small stretch moves the chain's joints apart along the bones, and the skin, whose weights blend
-// smoothly along the chain (tools/bake/skin.js chainWeighting), follows.
+// No neck or tail is drawn out by more than about a quarter (the owner's word, 2026-10-19), a giant's by half: a stretch
+// moves the chain's joints apart along the bones, the skin, whose weights blend smoothly along the chain
+// (tools/bake/skin.js chainWeighting), follows, and the chain keeps its thickness and taper.
 //
 //   const thorsedlas = await createThorsedlas(world, board, places)
 //   thorsedlas.list, thorsedlas.neckAt(from), thorsedlas.tailAt(from)
@@ -35,14 +40,18 @@ const NECK = ['Neck', 'Neck2', 'Neck3', 'Neck4', 'Neck5', 'Head'];
 const TAIL = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6', 'Tail7', 'Tail8'];
 const RIDE_JOINT = 4; // a piece rides on the top of the neck at Neck5, just behind the head
 const TURN = 6; // degrees each turns toward the camera from side-on
-const MAX_STRETCH = 1.32; // the most a neck or a tail is drawn out (the owner: about 1.3 at most)
-// Her head: `yaw` degrees turned from the way she faces toward the camera, its skull `reach` (of her size) ahead of the head
-// joint; at rest the head joint is `behind` metres behind the blocks' back face, the chin `chin` metres over the block.
-const HEAD = { yaw: 25, reach: 0.6, behind: 0.55, chin: 0.32, half: 0.42 };
-const NECK_LEAN = 48; // degrees over the level her neck leaves her shoulders
-const BOW = { pitch: -38, yaw: 30, back: 0.95 }; // the bowed head: pitched down, turned to the camera; the arc draws back this much
-const TAIL_Z = -3.0; // z where a tail hangs: behind the blocks with room for a piece sliding on its front
-const TAIL_PAST = 0.7; // metres past its first square (away from her head) that it hangs
+const MAX_STRETCH = 1.26; // the most a neck or a tail is drawn out (the owner: about 1.26 at most); a giant's (place.maxStretch) 1.5
+// Her head at rest: over the neck's last square, `chin` metres over its block (over a piece standing there), its skull `reach` (of
+// her size) from the head joint, a little before the block's middle, looking along the board the way she faces, `yaw` degrees
+// toward the camera and `pitch` down.
+const HEAD = { reach: 0.6, half: 0.42, chin: 1.35, z: 0.35, yaw: 28, pitch: -10 };
+// Her bowed head: down over the neck's first square, a little to her side of its middle, chin over the block, looking down
+// at the piece and toward the camera.
+const BOWED = { aside: 0.2, chin: 0.55, z: 0.05, way: [0.25, -0.72, 0.62] };
+const FRONT = 0.3; // metres clear of a tier's front face where a neck rises in front of it
+const STAIRS_OUT = 1.7; // how far past the board's last block the stairs and their rail reach, beside which a giant's neck or tail passes
+const NECK_LEAN = 50; // degrees over the level her neck leaves her shoulders
+const TAIL_Z = -3.25; // z where a tail hangs behind a front tier: clear of its blocks and of the tier below's, further back
 const LOOK = { near: 14, share: 0.45, down: -0.3, up: 0.2 }; // metres within which she looks at a piece, how far her head turns to it, and the most it pitches (radians) as she looks
 const rad = THREE.MathUtils.degToRad;
 
@@ -171,7 +180,7 @@ export async function createThorsedlas(world, board, places) {
 
 async function createThorsedla(world, board, place, lod) {
   const k = place.size, f = place.facing;
-  const ground = place.tier === 0 ? world.heightAt(place.x, place.z) : board.tierY(place.tier) - 0.3;
+  const ground = place.tier === 0 ? world.heightAt(place.x, place.z) : board.tierY(place.tier) - 0.3 - (place.drop ?? 0);
   const own = Object.create(world);
   own.heightAt = () => ground;
   const heading = f > 0 ? (place.turn ?? TURN) : 180 - (place.turn ?? TURN);
@@ -216,81 +225,141 @@ async function createThorsedla(world, board, place, lod) {
   const sum = list => list.reduce((a, b) => a + b, 0);
 
   const square = (n, out = new V3()) => board.square(n, out);
-  const heightOf = n => square(n).y;
-  // the way her head points: level, along the way she faces, turned toward the camera (+z) by `yaw` degrees, pitched by `pitch`
-  const headWay = (yaw, pitch, out = new V3()) => out.set(f * Math.cos(rad(yaw)) * Math.cos(rad(pitch)), Math.sin(rad(pitch)), Math.sin(rad(yaw)) * Math.cos(rad(pitch)));
-  /** Where her head joint rests over square n, its skull over the square and just behind the blocks, and the way it points. */
-  function headAt(n, { yaw = HEAD.yaw, pitch = 0 } = {}) {
-    const way = headWay(yaw, pitch);
+  const tierOf = n => Math.floor((n - 1) / BOARD.columns);
+  const unit = (x, y, z) => new V3(x, y, z).normalize();
+  // the way her head points at rest: along the board the way she faces, turned toward the camera, a little down
+  const restWay = unit(f * Math.cos(rad(HEAD.yaw)) * Math.cos(rad(HEAD.pitch)), Math.sin(rad(HEAD.pitch)), Math.sin(rad(HEAD.yaw)) * Math.cos(rad(HEAD.pitch)));
+  /** Her head joint where her skull rests over square n (and the way it points). */
+  function restOver(n, z = HEAD.z) {
     const p = square(n);
-    const at = new V3(p.x, p.y + HEAD.chin + HEAD.half * k, -BLOCK_BACK - HEAD.behind).addScaledVector(way, -HEAD.reach * k);
-    at.z = Math.min(at.z, -BLOCK_BACK - HEAD.behind); // the skull reaches toward the blocks, the joint stays behind them
-    return { at, way };
+    const skull = new V3(p.x, p.y + HEAD.chin + HEAD.half * k, p.z + z);
+    return { at: skull.addScaledVector(restWay, -HEAD.reach * k), way: restWay.clone() };
   }
+  /** Her head joint where she bows to square n (beside it, `aside` metres toward her, when a giant's neck comes in from beside the end). */
+  function bowOver(n, aside = -f * BOWED.aside, chin = BOWED.chin) {
+    const p = square(n);
+    const way = unit(f * BOWED.way[0], BOWED.way[1], BOWED.way[2]);
+    const skull = new V3(p.x + aside, p.y + chin + HEAD.half * k, p.z + BOWED.z);
+    return { at: skull.addScaledVector(way, -HEAD.reach * k), way };
+  }
+  const tiersOf = route => Math.round((square(route.to).y - square(route.from).y) / BOARD.rowHeight);
+  const endSide = x => Math.sign(x) || 1; // the board's end a giant stands at (1 the right)
+  const pastEnd = side => side * (BOARD.columns / 2 * BOARD.spacing - BOARD.spacing / 2 + STONE.width / 2 + STAIRS_OUT);
 
-  // ---- the neck: its rest over the last square, its bow to the first, and a length that reaches both -----------------------
-  let rest = null, bowed = null, neckS = 1;
+  // ---- the neck: rising in front of the tier above to rest over its last square; a length that reaches it ----------------
+  let rest = null, bowed = null, neckS = 1, vias = null, bowVias = null;
+  const neckChain = sum(neckLengths.slice(0, RIDE_JOINT + 1));
+  const neckR = i => neckRadius[i] * k;
   if (place.neck) {
-    rest = headAt(place.neck.to);
-    bowed = headAt(place.neck.from, { yaw: BOW.yaw, pitch: BOW.pitch });
-    // as she bows, her head comes down behind the first square, a little higher than at rest (it looks down at the piece)
-    bowed.at.y += 0.25;
+    const S = square(place.neck.from), Xs = square(place.neck.to);
+    const up = tierOf(place.neck.to);
+    if (tiersOf(place.neck) === 1) {
+      // in front of the tier above, in the gap before its square (on her side), and over its front edge
+      rest = restOver(place.neck.to);
+      bowed = bowOver(place.neck.from);
+      const face = board.tierZ(up) + STONE.depth / 2;
+      vias = [
+        new V3(Xs.x - f * BOARD.spacing / 2, board.tierY(up) - 0.6, face + neckR(3) + 0.6),
+        new V3(Xs.x - f * 0.95, board.tierY(up) + neckR(4) + 0.45, face + 0.75),
+      ];
+      // bowing: up over her own tier's back edge and down onto the first square
+      // bowing: like a crane, up from her shoulders, over her own tier's back edge and down onto the first square
+      bowVias = [new V3(S.x - f * 0.8, S.y + 5.4, S.z - BLOCK_BACK - 1.6), new V3(S.x - f * 0.45, S.y + 3.6, S.z - BLOCK_BACK + 0.2)];
+    } else {
+      // Burkni, beside the board's right end: her neck rises past the stairs and curls in over the square two tiers up; she
+      // bows to the first square from beside it
+      // between the tiers' ends, where no stairs are (the stairs at this end join the first tier to the second and the third to
+      // the fourth), it comes in close past the logs' ends; it crosses over the end square of the tier above onto its square
+      const side = endSide(Xs.x), logEnd = side * (BOARD.columns / 2 * BOARD.spacing + 0.3);
+      rest = restOver(place.neck.to, -0.55); // over the block's back half, behind the stairs that leave the end square's front
+      bowed = bowOver(place.neck.from, side * 0.35, 0.9);
+      const base = root.localToWorld(neckBind[0].clone());
+      const endSquare = square(place.neck.to + (tierOf(place.neck.to) % 2 ? -1 : 1));
+      vias = [
+        new V3(logEnd + side * (neckR(2) + 0.6), board.tierY(up) - 0.6, (base.z + rest.at.z) / 2),
+        new V3(endSquare.x, endSquare.y + 2.5, rest.at.z + 0.05),
+      ];
+      // bowing: down past the end of the tier between, out beside the stairs, and over the end square onto the first
+      const firstEnd = square(place.neck.from + (tierOf(place.neck.from) % 2 ? -1 : 1));
+      bowVias = [new V3(logEnd + side * (neckR(2) + 0.9), firstEnd.y + 6.0, firstEnd.z - 0.6), new V3(logEnd + side * (neckR(2) * 0.6 + 0.3), firstEnd.y + 3.4, firstEnd.z - 0.4)];
+    }
     const base = root.localToWorld(neckBind[0].clone());
-    const reach = Math.max(base.distanceTo(rest.at), base.distanceTo(bowed.at)) / k;
-    const have = sum(neckLengths.slice(0, RIDE_JOINT + 1));
-    const want = reach / 0.86; // a gentle S, never straight
-    neckS = Math.min(MAX_STRETCH, Math.max(1, want / have));
-    if (want / have > MAX_STRETCH + 1e-3) console.warn(`[thorsedla] ${place.name}'s neck would need ${(want / have).toFixed(2)}x: she should stand nearer or be bigger`);
+    const length = new THREE.CatmullRomCurve3([base, ...vias, rest.at], false, 'centripetal').getLength();
+    const want = (length * 1.02) / k;
+    const most = place.maxStretch ?? MAX_STRETCH;
+    neckS = Math.min(most, Math.max(1, want / neckChain));
+    if (want / neckChain > most + 1e-3) console.warn(`[thorsedla] ${place.name}'s neck would need ${(want / neckChain).toFixed(2)}x: she should stand nearer or be bigger`);
     if (neckS > 1.001) { stretch(neckBones, neckS); neckLengths = neckLengths.map(l => l * neckS); }
   }
 
-  // ---- the tail: hanging from her hips behind the tier, past its first square and down to its last -------------------------
+  // ---- the tail: hanging from her hips behind her tier, past its first square and down onto its last ------------------------
   const rump = root.localToWorld(tailBind[0].clone());
-  let tailCurve, tailS = 1, tailEnd = null;
+  let tailCurve, tailS = 1, tailEnd = null, boardAt = null;
   if (place.tail) {
     const a = square(place.tail.from), b = square(place.tail.to);
-    const side = Math.sign(b.x - a.x) || -f;
-    // straight down from her hips, behind the first square (where a piece hops on), down past the tier, and its tip to rest
-    // just behind the last square's block
-    // it hangs half a metre past the square (away from her head), clear of her hind legs, with room for a sliding piece
-    const hang = a.x - f * TAIL_PAST;
-    const points = [
-      rump.clone(),
-      new V3(rump.x + (hang - rump.x) * 0.6, rump.y - (rump.y - a.y) * 0.45, rump.z + (TAIL_Z - rump.z) * 0.6),
-      new V3(hang, a.y + 0.55, TAIL_Z),
-      new V3(hang + side * 0.15, a.y - 2.7, TAIL_Z), // straight down past her shelf
-    ];
-    for (let y = a.y - BOARD.rowHeight; y > b.y + 1; y -= BOARD.rowHeight) points.push(new V3(a.x + (b.x - a.x) * 0.5, y - 0.6, TAIL_Z)); // past a tier between
-    // down behind the last square's block, and along its back edge, just over its top: where a piece slides off onto it (as
-    // high and as far back as the tail is thick there: a giant's long tail reaches it with its thick middle)
-    const endAt = r => new V3(b.x - side * 0.7, b.y + 0.12 + r, -BLOCK_BACK - 0.08 - r);
     const thickness = s => {
       const u = THREE.MathUtils.clamp(s / (sum(tailLengths) * k), 0, 1) * (tailRadius.length - 1);
       const i = Math.min(tailRadius.length - 2, Math.floor(u));
       return (tailRadius[i] + (tailRadius[i + 1] - tailRadius[i]) * (u - i)) * k;
     };
+    // the last square: its tip on the block's top, a little to the side the tail comes from and toward the front (a tier
+    // further back than hers), or the back (Lyng's, beside the stairs that come up to its front)
+    let points, side, endAt;
+    if (tiersOf(place.tail) === -1) {
+      // straight down from her hips, past the end of her shelf, behind her tier and onto the tier below
+      side = Math.abs(b.x - a.x) < 0.01 ? f : Math.sign(b.x - a.x);
+      const hind = root.localToWorld(new V3(-2.18, 0, 0)).x; // her hind legs, along the board
+      const hang = f > 0 ? Math.min(a.x - 0.2, rump.x - 0.15, hind - 1.0) : Math.max(a.x + 0.2, rump.x + 0.15, hind + 1.0);
+      points = [
+        rump.clone(),
+        new V3(rump.x + (hang - rump.x) * 0.6, rump.y - (rump.y - a.y) * 0.45, rump.z + (TAIL_Z - rump.z) * 0.6),
+        new V3(hang, a.y + 0.55, TAIL_Z),
+        new V3(hang + side * 0.1, a.y - 2.7, TAIL_Z),
+      ];
+      endAt = r => new V3(b.x - side * 0.1, b.y + 0.1 + r, b.z + 0.55);
+      points.push(new V3(b.x - side * 0.2, b.y + 1.8, (TAIL_Z + b.z + 0.55) / 2));
+      boardAt = new V3(hang, a.y + 0.5, TAIL_Z + 0.4);
+    } else {
+      // Lyng: out past the board's left end behind her tier, down beside the stairs, and onto the square two tiers down
+      // behind the end square of her tier (where a piece hops on), out past its log's end, then in close beside the stairs
+      // (which are further forward) where no log is, and onto the square's top from beside the end
+      const end = endSide(b.x), logEnd = end * (BOARD.columns / 2 * BOARD.spacing + 0.3), r = i => tailRadius[i] * k;
+      side = -end;
+      const behind = a.z - BLOCK_BACK - r(2) - 0.3;
+      points = [
+        rump.clone(),
+        new V3(a.x + end * 2.6, a.y + 0.9, behind),
+        new V3(logEnd + end * (r(3) + 0.3), a.y - 1.2, behind + 0.5),
+        new V3(logEnd + end * (r(4) - 0.6), a.y - BOARD.rowHeight - 1.0, a.z - BLOCK_BACK - 0.8),
+        new V3(logEnd + end * (r(5) - 0.8), b.y + 2.4, b.z - 0.9),
+      ];
+      endAt = rr => new V3(b.x - side * 0.45, b.y + 0.1 + rr, b.z - 0.45);
+      points.push(new V3(b.x + end * 1.0, b.y + 1.6, b.z - 0.55));
+      boardAt = new V3(a.x + end * 2.6, a.y + 1.2, behind + 0.4);
+    }
     let end = endAt(0.15 * k);
-    let main = sampled([...points, new V3(b.x - side * 0.9, b.y + 1.5, TAIL_Z + 0.4), end]);
+    let main = sampled([...points, end]);
     end = endAt(thickness(main.total));
-    points.push(new V3(b.x - side * 0.9, b.y + 1.5 + (end.y - b.y - 0.42), TAIL_Z + 0.4), end);
+    points.push(end);
     main = sampled(points);
-    // what is left of a long tail lies on along the block's back edge
-    tailCurve = sampled([...points, end.clone().add(new V3(side * 1.5, -0.06, 0)), end.clone().add(new V3(side * 3.2, -0.12, -0.15))]);
+    // what is left of a long tail lies on back over the block's top and droops down behind it
+    tailCurve = sampled([...points, end.clone().add(new V3(0, -0.04, -1.3)), end.clone().add(new V3(side * 0.2, -1.1, -2.3))]);
     tailEnd = { at: end, s: main.total };
     const have = sum(tailLengths);
     const want = main.total / k - tipLength * 0.3;
-    tailS = Math.min(MAX_STRETCH, Math.max(1, want / have));
-    if (want / have > MAX_STRETCH + 1e-3) console.warn(`[thorsedla] ${place.name}'s tail would need ${(want / have).toFixed(2)}x: she should be bigger`);
+    const most = place.maxStretch ?? MAX_STRETCH;
+    tailS = Math.min(most, Math.max(1, want / have));
+    if (want / have > most + 1e-3) console.warn(`[thorsedla] ${place.name}'s tail would need ${(want / have).toFixed(2)}x: she should be bigger`);
     if (tailS > 1.001) { stretch(tailBones, tailS); tailLengths = tailLengths.map(l => l * tailS); }
   } else {
     // an ordinary tail: down behind her and along the ground, curling away from the board
     const g = ground;
     tailCurve = sampled([
       rump.clone(),
-      new V3(rump.x - f * 2.2 * k, g + 2.4 * k, rump.z - 0.2),
-      new V3(rump.x - f * 4.6 * k, g + 0.7 * k, rump.z - 1.2 * k),
-      new V3(rump.x - f * 6.4 * k, g + 0.35, rump.z - 3.0 * k),
-      new V3(rump.x - f * 7.4 * k, g + 0.3, rump.z - 5.2 * k),
+      new V3(rump.x - f * 1.6 * k, g + 2.4 * k, rump.z - 0.6 * k),
+      new V3(rump.x - f * 2.6 * k, g + 0.7 * k, rump.z - 2.6 * k),
+      new V3(rump.x - f * 2.2 * k, g + 0.35, rump.z - 5.0 * k),
+      new V3(rump.x - f * 0.8 * k, g + 0.3, rump.z - 6.8 * k),
     ]);
   }
   // Lyng carries no neck route: her neck rests low and forward, her head turned to the board, as she watches the game
@@ -299,7 +368,7 @@ async function createThorsedla(world, board, place, lod) {
     const chestAt = root.localToWorld(neckBind[0].clone());
     const ahead = new V3(1, 0, 0).applyQuaternion(rootQ).setY(0).normalize();
     const way = new V3(f * 0.55, -0.18, 0.82).normalize();
-    rest = { at: chestAt.clone().addScaledVector(ahead, 2.4 * k).setY(board.tierY(place.tier) + 2.2 * k), way };
+    rest = { at: chestAt.clone().addScaledVector(ahead, 2.4 * k).setY(Math.max(ground + 2.2 * k, board.tierY(place.tier) + 1.8)), way };
   }
 
   // ---- state ---------------------------------------------------------------------------------------------------------
@@ -335,44 +404,62 @@ async function createThorsedla(world, board, place, lod) {
   const B = new V3(), T = new V3(), tB = new V3(), tT = new V3(), P1 = new V3(), P2 = new V3(), headDir = new V3();
   const cumul = [];
 
+  const neckRide = sum(neckLengths.slice(0, RIDE_JOINT + 1));
+  const giantNeck = Boolean(place.neck) && tiersOf(place.neck) > 1; // the neck's length to her head, drawn out (model metres)
+  const curvePoints = [new V3(), ...(vias ?? [null]).map(() => new V3()), new V3()];
+  const bowTarget = vias ? vias.map((v, i) => bowVias[Math.min(i, bowVias.length - 1)]) : null; // where each point goes as she bows
+  const neckCurve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal');
+  const viasNow = curvePoints.slice(1, -1).map(() => new V3()), mid = new V3(), bulge = new V3(), lean = new V3(), centre = new V3();
   function poseNeck() {
     model.updateMatrixWorld(true);
     rootFrameQ(chest, chestQ);
     neckBones[0].getWorldPosition(B);
     // where her head goes (with the fidgets and the slow bob while she rests), and the way it points
     T.copy(target);
-    if (!moving) T.add(nudge).add(va.set(0, Math.sin(time * 0.9) * 0.05 * (calm ? 0 : 1), Math.sin(time * 0.55 + 1) * 0.06 * (calm ? 0 : 1)));
-    tT.copy(way);
-    // the way her neck leaves her shoulders: up from her chest at NECK_LEAN, along the way she faces, turned a little toward her head
-    vb.subVectors(T, B).applyQuaternion(rootQi).setY(0).normalize();
-    const turn = THREE.MathUtils.clamp(Math.atan2(vb.z, vb.x), -0.5, 0.5);
-    tB.set(Math.cos(rad(NECK_LEAN)) * Math.cos(turn), Math.sin(rad(NECK_LEAN)), Math.cos(rad(NECK_LEAN)) * Math.sin(turn)).applyQuaternion(rootQ);
-    // the curve, its handles sized so it is as long as the neck (a gentle S between her shoulders and her head)
-    const total = sum(neckLengths.slice(0, RIDE_JOINT + 1)) * k;
-    let d = B.distanceTo(T);
-    if (d > total * 0.97) { T.sub(B).setLength(total * 0.97).add(B); d = total * 0.97; }
-    let lo = 0.02, hi = 4;
-    for (let it = 0; it < 18; it++) {
-      const s = (lo + hi) / 2;
-      P1.copy(B).addScaledVector(tB, s * d * 0.55);
-      P2.copy(T).addScaledVector(tT, -s * d * 0.45);
-      if (bezier(B, P1, P2, T, 24, curve) < total) lo = s; else hi = s;
+    if (!moving) T.add(nudge).add(va.set(0, Math.sin(time * 0.9) * 0.05 * (calm ? 0 : 1), Math.sin(time * 0.55 + 1) * 0.04 * (calm ? 0 : 1)));
+    const total = neckRide * k; // her neck as long as it is drawn out
+    // the via points: where her neck rises in front of the tier above (at rest), or arches over her own tier (bowed); Lyng's: a
+    // point up and ahead of her shoulders
+    if (vias) {
+      // (a giant's neck keeps to beside the board's end until her head is well down past the tier between)
+      if (giantNeck) {
+        // out beside the end first, then down past the tier between
+        const ex = smooth(clamp01(arc / 0.3)), ey = smooth(clamp01((arc - 0.25) / 0.6));
+        vias.forEach((v, i) => viasNow[i].set(v.x + (bowTarget[i].x - v.x) * ex, v.y + (bowTarget[i].y - v.y) * ey, v.z + (bowTarget[i].z - v.z) * ey));
+      } else {
+        const e = smooth(clamp01(arc / 0.65));
+        vias.forEach((v, i) => viasNow[i].lerpVectors(v, bowTarget[i], e));
+      }
+    } else {
+      lean.set(Math.cos(rad(NECK_LEAN)), Math.sin(rad(NECK_LEAN)), 0).applyQuaternion(rootQ);
+      viasNow[0].copy(B).addScaledVector(lean, total * 0.45);
     }
-    P1.copy(B).addScaledVector(tB, lo * d * 0.55);
-    P2.copy(T).addScaledVector(tT, -lo * d * 0.45);
-    const length = bezier(B, P1, P2, T, 24, curve);
+    let d = B.distanceTo(T);
+    if (d > total * 0.98) { T.sub(B).setLength(total * 0.98).add(B); d = total * 0.98; }
+    // the curve's length matched to her neck's by moving the via point out from the chord or in toward it
+    mid.addVectors(B, T).multiplyScalar(0.5);
+    centre.set(0, 0, 0);
+    for (const v of viasNow) centre.addScaledVector(v, 1 / viasNow.length);
+    bulge.subVectors(centre, mid);
+    const span = bulge.length() || 1;
+    bulge.divideScalar(span);
+    let lo = -0.85 * span, hi = total;
+    const last = curvePoints.length - 1;
+    curvePoints[0].copy(B); curvePoints[last].copy(T);
+    const putVias = b => { viasNow.forEach((v, i) => curvePoints[i + 1].copy(v).addScaledVector(bulge, b)); neckCurve.updateArcLengths(); };
+    for (let it = 0; it < 14; it++) {
+      const b = (lo + hi) / 2;
+      putVias(b);
+      if (neckCurve.getLength() < total) lo = b; else hi = b;
+    }
+    putVias(lo);
     // the bones along it, each from where the last one ended to the curve's point its length on
-    cumul[0] = 0;
-    for (let i = 1; i < curve.length; i++) cumul[i] = cumul[i - 1] + curve[i].distanceTo(curve[i - 1]);
-    const scale = length / total;
+    const length = neckCurve.getLength();
     neckJoints[0].copy(B);
     let s = 0;
     for (let i = 0; i <= RIDE_JOINT; i++) {
-      s += neckLengths[i] * k * scale;
-      let j = 1;
-      while (j < curve.length - 1 && cumul[j] < s) j++;
-      const u = (s - cumul[j - 1]) / Math.max(1e-6, cumul[j] - cumul[j - 1]);
-      vc.lerpVectors(curve[j - 1], curve[j], Math.min(1, u));
+      s += neckLengths[i] * k;
+      neckCurve.getPointAt(Math.min(1, s / length), vc);
       const dir = vb.subVectors(vc, neckJoints[i]).normalize();
       neckJoints[i + 1].copy(neckJoints[i]).addScaledVector(dir, neckLengths[i] * k);
       neckDirs[i].copy(dir).applyQuaternion(rootQi);
@@ -447,12 +534,16 @@ async function createThorsedla(world, board, place, lod) {
     return out.add(va.set(0, neckRadius[RIDE_JOINT] * k * 0.95, 0));
   }
 
-  // The arc between her rest and her bow: her head draws back from the tier above, then comes down (or goes up) in one smooth
-  // curve, its way turning from level to looking down at the square.
+  // The arc between her rest and her bow: her head comes forward off the square above, over its front edge, down in front of
+  // the tier and onto the first square, like a crane lowering, and goes back up along the same way; its way turns from her
+  // resting look to the piece.
   function arcPoint(u, out) {
     const a = rest.at, b = bowed.at, m = 1 - u;
-    const c1 = va.copy(a).add(vb.set(0, 0.4, -BOW.back));
-    const c2 = vc.copy(b).add(new V3(0, 1.0, -BOW.back));
+    const v = vias[0];
+    const giant = tiersOf(place.neck) > 1; // Burkni's head goes out beside the board's end and down past the tier between
+    const wide = Math.sign(v.x) * 1.2;
+    const c1 = giant ? va.set(v.x + wide, a.y + 3.0, a.z) : va.set(a.x + (v.x - a.x) * 0.4, a.y + 1.4, v.z + 0.6);
+    const c2 = giant ? vc.set(v.x + wide, b.y + 3.4, b.z) : vc.set(b.x + (v.x - b.x) * 0.3, b.y + 2.8, b.z + (v.z - b.z) * 0.5 + 0.3);
     return out.set(0, 0, 0).addScaledVector(a, m * m * m).addScaledVector(c1, 3 * m * m * u).addScaledVector(c2, 3 * m * u * u).addScaledVector(b, u * u * u);
   }
   const wayAt = (u, out) => out.copy(rest.way).lerp(bowed.way, smooth(u)).normalize();
@@ -517,7 +608,7 @@ async function createThorsedla(world, board, place, lod) {
     }
     dense.push(joints[joints.length - 1].clone().add(va.set(0, radius(joints.length - 1), 0.1)));
     // from the point beside the first square on (the piece hops onto it there)
-    const over = square(place.tail.from).add(va.set(-f * TAIL_PAST, 0.5, TAIL_Z + 0.5));
+    const over = boardAt;
     let best = 0, bestD = Infinity;
     dense.forEach((p, i) => { const d = p.distanceTo(over); if (d < bestD) { bestD = d; best = i; } });
     // down to where the tail comes to the last square's block (a long tail's rest lies on along its back edge)

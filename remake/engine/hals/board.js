@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
-import { BOARD, SHORTCUTS, tilePosition } from './rules.js';
+import { BOARD, SHORTCUTS, DINOSAURS, tilePosition } from './rules.js';
 
-// The board of "Háls og hali" in the world (spec sections 3 and 4): Codex's 80 squares on five tiers of 16, seen from the side,
-// at Codex's measures (rules.js: 2.3 m from square to square, 5.75 m from tier to tier), in metres. Each tier is a flat mossy log
-// with sixteen sandstone blocks on it, each block with its number on a plaque on the face toward the camera. The ends of the
-// tiers are joined by wooden stairs that bow out past the ends (16 to 17, 32 to 33, 48 to 49, 64 to 65), Codex's stairs. Two
-// old trees hold the logs at the ends, and roots and ivy hang under them. Behind a tier, a mossy rock shelf carries the
-// Þórseðla who stands there (thorsedla.js), at the tier's height.
+// The board of "Háls og hali" in the world (spec sections 3 and 4): 100 squares on five tiers of 20, seen from the side, at
+// Codex's measures (rules.js: 2.3 m from square to square) with the tiers 7.5 m apart, in metres. Each tier is a flat mossy log
+// with twenty sandstone blocks on it, each block with its number on a plaque on the face toward the camera. The tiers zigzag
+// in depth (rules.js BOARD.recess): the second and the fourth stand in front, the others further back, so a Þórseðla standing
+// behind a front tier has the tier above and the tier below both behind her, her neck rising in front of the one and her
+// tail hanging down onto the other. The ends of the tiers are joined by wooden stairs (20 to 21, 40 to 41, 60 to 61, 80 to
+// 81), each a flight from one tier's end up to the next one's, and they hold the logs' ends. Behind a front tier, a mossy rock
+// shelf carries the Þórseðla who stands there (thorsedla.js), at the tier's height.
 //
 //   const board = createBoard({ base, heightAt, shelves })
 //   board.group                       everything, to add to the scene
@@ -15,18 +17,20 @@ import { BOARD, SHORTCUTS, tilePosition } from './rules.js';
 //   board.stairs(n)                   the stairs from square n up to n + 1, or null: { from, to, point(u, out), length }
 //   board.decorate(events)            the adventure's marks on their squares (rules.js SPECIAL_TILES), or [] for none
 //   board.glow(n, colour)             square n's plaque lights up and fades (a landing, a count)
+//   board.tierY(r), board.tierZ(r)    a tier's block tops (height) and the middle of its blocks (depth)
 //   board.update(dt)
 //   board.dispose()
 //
 // `base` is the height of tier 0's block tops over the ground at the board, `heightAt` the forest's ground, `shelves` the rock
-// shelves to put behind the tiers: [{ tier, x0, x1, z0, z1 }] (the Þórseðlas' places, thorsedla.js's shelfFor).
+// shelves to put behind the tiers: [{ tier, x0, x1, z0, z1 }] (the Þórseðlas' places, places.js shelfFor).
 
 // The plaque nearly fills the block's face, so the numbers read from the whole board. The blocks are deep enough for two pieces
 // side by side, with a Þórseðla's head resting just behind them (places.js BLOCK_BACK is half the depth).
-export const STONE = { width: 2.04, height: 0.95, depth: 2.4, plaque: [1.7, 0.82] };
-// A flat log under each tier: thin, so the necks and bodies behind and under it show (the owner's look, 2026-10-19).
-export const LEDGE = { depth: 2.3, thickness: 0.55, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
-const STAIR = { reach: 3.3, treads: 13 };
+export const STONE = { width: 1.55, height: 1.1, depth: 2.4, plaque: [1.4, 1.0] };
+// A flat log under each tier: thin, so the bodies behind and under it show (the owner's look, 2026-10-19).
+export const LEDGE = { depth: 2.3, thickness: 0.45, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
+// The stairs: a flight from a tier's end square up to the next tier's, bowing out a little past the board's end.
+const STAIR = { reach: 0.7, treads: 14, width: 1.6 };
 const COLOURS = {
   stone: ['#dcc49a', '#d5bf98', '#d0bf9c', '#cdbf9f', '#dcc6a0'], // a tier each: warm sandstone, a little cooler higher up
   finish: '#f3cd74',
@@ -87,9 +91,9 @@ function stoneGeometry() {
   return g;
 }
 
-/** The numbers 1 to 80 on plaques in one texture, 8 across and 10 down, each cell as wide as the plaque; Nunito, the game's face. */
-function drawPlaques(starts) {
-  const w = 240, h = 112, cols = 8, rows = 10;
+/** The numbers 1 to 100 on plaques in one texture, 10 across and 10 down, each cell as wide as the plaque; Nunito, the game's face. */
+function drawPlaques(starts, shifts) {
+  const w = 196, h = 140, cols = 10, rows = 10;
   const canvas = document.createElement('canvas');
   canvas.width = w * cols; canvas.height = h * rows;
   const c = canvas.getContext('2d');
@@ -98,18 +102,20 @@ function drawPlaques(starts) {
     const kind = starts.get(n);
     // a cream plaque with a soft rim, green round a neck's first square, apricot round a tail's, gold on the finish
     c.fillStyle = n === BOARD.count ? '#ffe39a' : '#fbf4e2';
-    c.beginPath(); c.roundRect(x + 4, y + 4, w - 8, h - 8, 26); c.fill();
+    c.beginPath(); c.roundRect(x + 4, y + 4, w - 8, h - 8, 24); c.fill();
     c.lineWidth = kind ? 12 : 6;
     c.strokeStyle = kind === 'neck' ? '#4fa64c' : kind === 'tail' ? '#e5803c' : n === BOARD.count ? '#d49b2c' : '#c2ad88';
     c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.font = '900 104px Nunito, "Arial Rounded MT Bold", sans-serif';
+    c.font = `900 ${n >= 100 ? 104 : 128}px Nunito, "Arial Rounded MT Bold", sans-serif`;
     c.lineJoin = 'round';
     c.lineWidth = 6;
     c.strokeStyle = 'rgba(255, 252, 240, 0.9)';
-    c.strokeText(String(n), x + w / 2, y + h / 2 + 6);
+    const shift = shifts.get(n) ?? 0, tx = x + w / 2 + shift * w;
+    if (shift) c.font = `900 ${n >= 100 ? 84 : 100}px Nunito, "Arial Rounded MT Bold", sans-serif`;
+    c.strokeText(String(n), tx, y + h / 2 + 8);
     c.fillStyle = kind === 'neck' ? '#26602b' : kind === 'tail' ? '#9a4316' : '#3d2f20';
-    c.fillText(String(n), x + w / 2, y + h / 2 + 6);
+    c.fillText(String(n), tx, y + h / 2 + 8);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -128,9 +134,10 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   /** Where a piece stands on square n (the block's top), in the world. */
   function square(n, out = new THREE.Vector3()) {
     const p = tilePosition(n);
-    return out.set(p.x, p.y + base, 0);
+    return out.set(p.x, p.y + base, p.z);
   }
   const tierY = r => r * BOARD.rowHeight + base;
+  const tierZ = r => (r % 2 ? 0 : -BOARD.recess);
 
   // ---- the blocks ------------------------------------------------------------------------------------------------------
   const stoneMaterial = ownM(new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, vertexColors: false }));
@@ -142,7 +149,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     for (let n = 0; n <= BOARD.count; n++) {
       square(n, p);
-      if (n === 0) p.y = heightAt(p.x, 0) + 0.32; // the start: a low block on the grass, before square 1
+      if (n === 0) p.y = heightAt(p.x, p.z) + 0.32; // the start: a low block on the grass, before square 1
       q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (random() - 0.5) * 0.05);
       s.set(n === 0 ? 1.15 : 0.98 + random() * 0.04, n === 0 ? 0.7 : 1, 1);
       m.compose(p, q, s);
@@ -157,7 +164,18 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   // ---- the plaques: one mesh, its numbers from one texture ----------------------------------------------------------------
   const starts = new Map(SHORTCUTS.map(s => [s.from, s.type]));
   const plaqueGlow = { attribute: null, now: new Float32Array(BOARD.count) };
-  const plaques = drawPlaques(starts);
+  // where a neck rises in front of a tier, in the gap before its last square, the numbers on either side of the gap sit a
+  // little away from it, so the neck hides neither
+  const shifts = new Map();
+  for (const d of DINOSAURS) {
+    if (!d.neck || tilePosition(d.neck.to).y - tilePosition(d.neck.from).y > BOARD.rowHeight + 0.01) continue;
+    const gap = tilePosition(d.neck.to).x - d.facing * BOARD.spacing / 2, tier = Math.floor((d.neck.to - 1) / BOARD.columns);
+    for (let n = tier * BOARD.columns + 1; n <= (tier + 1) * BOARD.columns; n++) {
+      const dx = tilePosition(n).x - gap;
+      if (Math.abs(Math.abs(dx) - BOARD.spacing / 2) < 0.01) shifts.set(n, Math.sign(dx) * 0.24);
+    }
+  }
+  const plaques = drawPlaques(starts, shifts);
   textures.push(plaques.texture);
   {
     const [w, h] = STONE.plaque;
@@ -165,7 +183,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const p = new THREE.Vector3();
     for (let n = 1; n <= BOARD.count; n++) {
       square(n, p);
-      const y = p.y - STONE.height * 0.5, z = STONE.depth / 2 + 0.012, k = positions.length / 3;
+      const y = p.y - STONE.height * 0.5, z = p.z + STONE.depth / 2 + 0.012, k = positions.length / 3;
       positions.push(p.x - w / 2, y - h / 2, z, p.x + w / 2, y - h / 2, z, p.x + w / 2, y + h / 2, z, p.x - w / 2, y + h / 2, z);
       const { cols, rows } = plaques;
       const cx = (n - 1) % cols, cy = Math.floor((n - 1) / cols);
@@ -201,33 +219,36 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   const woodParts = [];
   const L = LEDGE;
   for (let r = 0; r < BOARD.rows; r++) {
-    const top = tierY(r) - STONE.height + 0.04;
+    const top = tierY(r) - STONE.height + 0.04, z0 = tierZ(r);
     if (r === 0) continue; // tier 0's blocks lie on the grass
-    // a log: a long, slightly wavy cylinder lying along x
-    const log = new THREE.CylinderGeometry(L.thickness * 0.62, L.thickness * 0.66, L.halfLength * 2 + 1.2, 10, 14, false);
-    log.rotateZ(Math.PI / 2);
-    const lp = log.attributes.position;
-    for (let i = 0; i < lp.count; i++) {
-      const x = lp.getX(i);
-      lp.setY(i, lp.getY(i) * 0.82 + 0.04 * Math.sin(x * 0.4 + r));
-      lp.setZ(i, lp.getZ(i) * (L.depth / 2) / (L.thickness * 0.64));
+    {
+      const x0 = -L.halfLength + 0.35, x1 = L.halfLength - 0.35, length = x1 - x0, cx = 0; // to just past the last blocks
+      // a log: a long, slightly wavy cylinder lying along x, flattened
+      const log = new THREE.CylinderGeometry(L.thickness * 0.62, L.thickness * 0.66, length, 10, Math.max(2, Math.round(length / 2.6)), false);
+      log.rotateZ(Math.PI / 2);
+      const lp = log.attributes.position;
+      for (let i = 0; i < lp.count; i++) {
+        const x = lp.getX(i) + cx;
+        lp.setY(i, lp.getY(i) * 0.82 + 0.04 * Math.sin(x * 0.4 + r));
+        lp.setZ(i, lp.getZ(i) * (L.depth / 2) / (L.thickness * 0.64));
+      }
+      log.computeVertexNormals();
+      log.translate(cx, top - L.thickness * 0.5, z0 - 0.05);
+      woodParts.push(painted(log, COLOURS.log, 0.06, random));
+      // a moss blanket over the log's top, under the blocks
+      const moss = new THREE.SphereGeometry(1, 12, 4, 0, Math.PI * 2, 0, Math.PI / 2);
+      moss.scale(length / 2 + 0.05, 0.1, L.depth / 2 + 0.05);
+      moss.translate(cx, top - 0.06, z0 - 0.05);
+      woodParts.push(painted(moss, COLOURS.logMoss, 0.08, random));
     }
-    log.computeVertexNormals();
-    log.translate(0, top - L.thickness * 0.5, -0.05);
-    woodParts.push(painted(log, COLOURS.log, 0.06, random));
-    // a moss blanket over the log's top, under the blocks
-    const moss = new THREE.SphereGeometry(1, 18, 4, 0, Math.PI * 2, 0, Math.PI / 2);
-    moss.scale(L.halfLength + 0.5, 0.1, L.depth / 2 + 0.05);
-    moss.translate(0, top - 0.06, -0.05);
-    woodParts.push(painted(moss, COLOURS.logMoss, 0.08, random));
     // roots and ivy hanging under the log
-    for (let k = 0; k < 9; k++) {
-      const x = -L.halfLength + 1.5 + k * (2 * L.halfLength - 3) / 8 + (random() - 0.5) * 1.2;
+    for (let k = 0; k < 11; k++) {
+      const x = -L.halfLength + 1.5 + k * (2 * L.halfLength - 3) / 10 + (random() - 0.5) * 1.2;
       const length = 0.8 + random() * 1.6;
       const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(x, top - L.thickness * 0.7, 0.75),
-        new THREE.Vector3(x + 0.25, top - L.thickness * 0.7 - length * 0.5, 1.05),
-        new THREE.Vector3(x - 0.1, top - L.thickness * 0.7 - length, 0.9),
+        new THREE.Vector3(x, top - L.thickness * 0.7, z0 + 0.75),
+        new THREE.Vector3(x + 0.25, top - L.thickness * 0.7 - length * 0.5, z0 + 1.05),
+        new THREE.Vector3(x - 0.1, top - L.thickness * 0.7 - length, z0 + 0.9),
       ]);
       woodParts.push(painted(new THREE.TubeGeometry(curve, 5, 0.05 + random() * 0.04, 4, false), k % 3 ? COLOURS.ivy : COLOURS.root, 0.1, random));
     }
@@ -238,7 +259,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   const mossColour = new THREE.Color(COLOURS.shelfMoss), mossDeep = new THREE.Color('#5f7f36');
   for (const s of shelves) {
     if (s.tier === 0) continue;
-    const yTop = tierY(s.tier) - 0.3, thick = 1.5;
+    const yTop = tierY(s.tier) - 0.3 - (s.drop ?? 0), thick = 1.5;
     const w = s.x1 - s.x0, d = s.z1 - s.z0; // no wider than asked: necks and tails pass close by its edges
     const cx = (s.x0 + s.x1) / 2, cz = (s.z0 + s.z1) / 2;
     const g = new THREE.BoxGeometry(w, thick, d, 14, 3, 8);
@@ -283,35 +304,41 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     }
   }
 
-  // ---- the stairs between the tiers -------------------------------------------------------------------------------------
+  // ---- the stairs between the tiers: a flight from one tier's end square to the next one's, bowing out past the end --------
   const stairs = new Map();
   for (let r = 0; r < BOARD.rows - 1; r++) {
     const from = (r + 1) * BOARD.columns, to = from + 1;
-    const a = square(from), b = square(to);
+    // from the front or back edge of one end block to the edge of the next (a giant's head rests on those blocks' tops)
+    const a = square(from), b = square(to), dz = Math.sign(b.z - a.z);
+    a.z += dz * (STONE.depth / 2 - 0.15); b.z -= dz * (STONE.depth / 2 - 0.15);
     const side = r % 2 === 0 ? 1 : -1;
     const point = (u, out = new THREE.Vector3()) => out.set(
       a.x + side * Math.sin(Math.PI * u) * STAIR.reach,
       a.y + (b.y - a.y) * u,
-      0.15 * Math.sin(Math.PI * u),
+      a.z + (b.z - a.z) * u,
     );
     let length = 0;
     const prev = point(0), here = new THREE.Vector3();
     for (let i = 1; i <= 32; i++) { point(i / 32, here); length += here.distanceTo(prev); prev.copy(here); }
     stairs.set(from, { from, to, point, length, side });
-    // the treads: planks on the curve, and a twisted root rail on the outside
+    // the treads: planks across the flight, two root stringers under their ends, and a twisted root rail on the outside
+    const climb = Math.atan2(b.y - a.y, Math.abs(b.z - a.z));
     for (let k = 1; k < STAIR.treads; k++) {
-      const u = k / STAIR.treads;
-      const p = point(u);
-      const tangent = point(Math.min(1, u + 0.01)).sub(point(Math.max(0, u - 0.01)));
-      const plank = new THREE.BoxGeometry(1.0, 0.16, 1.9);
-      plank.rotateY(Math.atan2(-tangent.z, tangent.x) * 0 + (random() - 0.5) * 0.08);
-      plank.translate(p.x, p.y - 0.08, p.z);
+      const p = point(k / STAIR.treads);
+      const plank = new THREE.BoxGeometry(STAIR.width, 0.14, 0.62);
+      plank.rotateY((random() - 0.5) * 0.08);
+      plank.translate(p.x, p.y - 0.07, p.z);
       woodParts.push(painted(plank, COLOURS.stair, 0.08, random));
+    }
+    for (const edge of [-1, 1]) {
+      const beam = [];
+      for (let k = 0; k <= 8; k++) beam.push(point(k / 8).add(new THREE.Vector3(edge * STAIR.width * 0.45, -0.35, 0)));
+      woodParts.push(painted(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(beam), 16, 0.13, 6, false), COLOURS.root, 0.05, random));
     }
     const rail = [];
     for (let k = 0; k <= 10; k++) {
       const p = point(k / 10);
-      rail.push(new THREE.Vector3(p.x + side * 0.55 * Math.sin(Math.PI * k / 10), p.y + 0.9, p.z - 0.85));
+      rail.push(new THREE.Vector3(p.x + side * STAIR.width * 0.5, p.y + 0.9, p.z));
     }
     woodParts.push(painted(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rail), 20, 0.07, 5, false), COLOURS.root, 0.05, random));
     for (let k = 1; k < 10; k += 2) {
@@ -320,12 +347,13 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       post.translate(p.x, p.y - 0.47, p.z);
       woodParts.push(painted(post, COLOURS.root, 0.05, random));
     }
+    void climb;
   }
 
-  // ---- the finish: a flag on a pole behind square 80 ----------------------------------------------------------------------
+  // ---- the finish: a flag on a pole behind the last square ---------------------------------------------------------------
   {
     const p = square(BOARD.count);
-    const x = p.x + 0.75, z = -0.75;
+    const x = p.x + 0.75, z = p.z - 0.75;
     const pole = new THREE.CylinderGeometry(0.06, 0.08, 3.4, 6);
     pole.translate(x, p.y + 1.7, z);
     woodParts.push(painted(pole, '#7a5a40', 0, random));
@@ -339,36 +367,6 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     woodParts.push(painted(flag, '#ef8a5a', 0, random));
   }
 
-  // ---- the two old trees that hold the logs at the ends -------------------------------------------------------------------
-  for (const side of [-1, 1]) {
-    const x = side * (LEDGE.halfLength + STAIR.reach + 3.2), z = -2.6;
-    const ground = heightAt(x, z);
-    const height = tierY(BOARD.rows - 1) + 9 - ground;
-    const trunk = new THREE.CylinderGeometry(1.55, 2.5, height, 14, 12, true);
-    const tp = trunk.attributes.position;
-    for (let i = 0; i < tp.count; i++) {
-      const y = tp.getY(i), angle = Math.atan2(tp.getZ(i), tp.getX(i));
-      const flare = 1 + 0.55 * Math.max(0, -(y / height) - 0.38) * 2.2 * (0.6 + 0.4 * Math.sin(angle * 5));
-      const bark = 1 + 0.04 * Math.sin(angle * 11 + y * 0.6);
-      tp.setX(i, tp.getX(i) * flare * bark + 0.35 * Math.sin(y * 0.12));
-      tp.setZ(i, tp.getZ(i) * flare * bark);
-    }
-    trunk.computeVertexNormals();
-    trunk.translate(x, ground + height / 2 - 0.4, z);
-    woodParts.push(painted(trunk, '#6e5440', 0.08, random));
-    // a bough under each log's end on this side
-    for (let r = 1; r < BOARD.rows; r++) {
-      const y = tierY(r) - STONE.height - LEDGE.thickness * 0.6;
-      const reach = Math.abs(x) - LEDGE.halfLength + 1.2;
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(x, y - 1.6, z),
-        new THREE.Vector3(x - side * reach * 0.5, y - 0.9, z + 1.0),
-        new THREE.Vector3(side * (LEDGE.halfLength - 0.6), y - 0.15, -0.1),
-      ]);
-      woodParts.push(painted(new THREE.TubeGeometry(curve, 10, 0.55, 7, false), '#6e5440', 0.08, random));
-    }
-  }
-
   const woodGeometry = own(mergeGeometries(woodParts.map(g => (g.index ? g.toNonIndexed() : g)).map(g => {
     // mergeGeometries needs matching attributes: position, normal, color (uv dropped)
     for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(name)) g.deleteAttribute(name);
@@ -377,7 +375,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   woodParts.forEach(g => g.dispose());
   const woodMaterial = ownM(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 }));
   const wood = new THREE.Mesh(woodGeometry, woodMaterial);
-  wood.name = 'Logs, shelves, stairs and trees';
+  wood.name = 'Logs, shelves and stairs';
   wood.castShadow = true;
   wood.receiveShadow = true;
   group.add(wood);
@@ -403,7 +401,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     };
     for (const event of events) {
       const p = square(event.from);
-      const x = p.x + 0.62, y = p.y, z = -0.55;
+      const x = p.x + 0.62, y = p.y, z = p.z - 0.55;
       if (event.type === 'firefly') {
         for (let i = 0; i < 3; i++) {
           const h = 0.42 + i * 0.13, dx = (i - 1) * 0.18;
@@ -411,7 +409,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
           bulbSpots.push({ x: x + dx, y: y + h, z, phase: i + event.from });
         }
       } else if (event.type === 'mud') {
-        part(new THREE.SphereGeometry(1, 18, 8), '#6b5238', [p.x, y, 0.2], [0.82, 0.05, 0.62]);
+        part(new THREE.SphereGeometry(1, 18, 8), '#6b5238', [p.x, y, p.z + 0.2], [0.82, 0.05, 0.62]);
       } else if (event.type === 'fossil') {
         part(new THREE.SphereGeometry(1, 14, 10), '#cdb58a', [x, y + 0.24, z], [0.34, 0.3, 0.17], -0.18);
         const spiral = Array.from({ length: 40 }, (_, i) => { const t = i / 39, a = t * Math.PI * 4.6, r = 0.02 + t * 0.2; return new THREE.Vector3(x + Math.cos(a) * r, y + 0.25 + Math.sin(a) * r, z + 0.16); });
@@ -467,7 +465,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   }
 
   return {
-    group, square, stairs: n => stairs.get(n) ?? null, decorate, glow, update, tierY,
+    group, square, stairs: n => stairs.get(n) ?? null, decorate, glow, update, tierY, tierZ,
     dispose() {
       group.removeFromParent();
       stones.dispose();
