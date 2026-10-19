@@ -11,6 +11,8 @@ import { createThorsedlaLod } from './thorsedla-lod.js';
 //   friends.lookAt(point), friends.cheer(), friends.calm, friends.update(dt), friends.dispose()
 
 const url = name => new URL(`../../assets/characters/${name}.glb`, import.meta.url).href;
+/** Where Uggeðla watches from (world.js keeps the forest's plants off it). */
+export const UGGEDLA_SPOT = Object.freeze({ x: -24.5, z: -2.5, heading: 25 });
 const FLIGHT = { centre: [0, 27.5, -17], radius: [25, 2.5, 6], seconds: 46, size: 0.8 };
 
 export async function createFriends(world, board) {
@@ -18,12 +20,13 @@ export async function createFriends(world, board) {
   own.renderer = null;
   const lod = createThorsedlaLod(world.lighting?.sun);
 
-  // Uggeðla, in the grass behind the bottom tier on the right, a little turned toward the camera
-  const ux = 7.5, uz = -6.4;
+  // Uggeðla, in the grass beside the board's left end, by the start, turned toward the board and the camera (she stood behind the
+  // bottom tier, where the close view on a piece put her right behind it: the owner's look at Task 3's demos)
+  const { x: ux, z: uz, heading: uh } = UGGEDLA_SPOT;
   own.heightAt = (x, z) => world.heightAt(x, z);
-  const uggedla = await createActor(own, { name: 'friend-uggedla', url: url('spinosaurus'), position: [ux, 0, uz], heading: 160 });
+  const uggedla = await createActor(own, { name: 'friend-uggedla', url: url('spinosaurus'), position: [ux, 0, uz], heading: uh });
   uggedla.root.scale.setScalar(0.5);
-  uggedla.place(ux, uz, 160);
+  uggedla.place(ux, uz, uh);
   lod.add(uggedla);
 
   // Flugeðla, gliding round

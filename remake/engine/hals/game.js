@@ -486,6 +486,7 @@ export function createHalsGame(doc, {
   // ---- The players along the top ----------------------------------------------------------------------------------------------
 
   const playerEls = [];
+  let liveSquare = null; // { index, square }: where the piece moving is now, counted along as it hops
   function renderPlayers() {
     if (!game || !roster) {
       playersEl.replaceChildren();
@@ -505,9 +506,10 @@ export function createHalsGame(doc, {
     }
     const current = game.winner ?? game.currentPlayer;
     playerEls.forEach((el, i) => {
-      const at = game.players[i].position;
+      const at = liveSquare?.index === i ? liveSquare.square : game.players[i].position;
       el.classList.toggle('active', i === current);
-      el.querySelector?.('.hals-square')?.replaceChildren?.(doc.createTextNode(String(at)));
+      const square = el.querySelector?.('.hals-square');
+      if (square) square.textContent = String(at);
       el.setAttribute('aria-label', `${NAMES[roster[i]]}: reitur ${at}`);
     });
   }
@@ -765,6 +767,8 @@ export function createHalsGame(doc, {
     await playTurn({ world: hw, pieces, thorsedlas: hw.thorsedlas }, piece, result, {
       onStep: async (square, count) => {
         if (token !== round) return;
+        liveSquare = { index, square };
+        renderPlayers();
         sfx(`step${Math.min(6, count)}`);
         sparks.dust(piece.position, { count: 5 });
         if (count === result.steps.length && !result.shortcut && !result.event) sparks.leaves(piece.position, { count: 3 });
@@ -779,10 +783,15 @@ export function createHalsGame(doc, {
       },
       onPhase: (name, data) => {
         if (token !== round) return;
+        if (name === 'off' || name === 'splash') {
+          liveSquare = { index, square: result.destination };
+          renderPlayers();
+        }
         phaseEffect(name, data, { piece, egill });
       },
     });
     fxPhase = null;
+    liveSquare = null;
     if (token !== round) return;
     const before = game;
     game = applyTurn(game, value);

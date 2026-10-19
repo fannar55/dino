@@ -14,7 +14,7 @@ import { createForest } from '../../world/forest/forest.js';
 import { createBoard } from './board.js';
 import { PLACES, shelfFor } from './places.js';
 import { createThorsedlas } from './thorsedla.js';
-import { createFriends } from './friends.js';
+import { createFriends, UGGEDLA_SPOT } from './friends.js';
 
 // The world of "Háls og hali" (spec sections 3, 4 and 6): Codex's board of 80 squares on five tiers, seen from the side, in a
 // clearing of the remake's own forest, in the chapter's morning light, with the chapter's real Þórseðlas on its necks and tails
@@ -80,6 +80,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   const keepClear = {};
   for (let x = -24; x <= 24; x += 4) keepClear[`row${x}`] = { position: [x, 0, 0], heading: 0 }; // no plant on tier 0's blocks
   for (const p of places) keepClear[p.id] = { position: [p.x, 0, p.z], heading: p.facing > 0 ? 0 : 180 };
+  keepClear.uggedla = { position: [UGGEDLA_SPOT.x, 0, UGGEDLA_SPOT.z], heading: UGGEDLA_SPOT.heading }; // where she watches
   const layout = {
     seed: 23,
     clearing: { center: [0, 22], radius: 36 },
