@@ -50,13 +50,9 @@ const PICTURES = {
   gramedla: asset('assets/eitt/trex.webp'),
   thorsedla: asset('assets/eitt/brontosaurus.webp'),
 };
-/** Each piece's photo, taken on the board once its piece is made (photograph below); the pictures above stand in until then. */
-const photos = new Map();
-const pictureOf = id => photos.get(id) ?? PICTURES[id];
-/** An img shows the piece's photo (class photo: it fills its frame) or its stand-in picture. */
+/** An img shows the player's picture: the same clean face everywhere (the setup, the portraits, the die's pad, the end). */
 function showPicture(img, id) {
-  img.src = pictureOf(id);
-  img.classList.toggle('photo', photos.has(id));
+  img.src = PICTURES[id] ?? PICTURES.egill;
 }
 const NAMES = { egill: 'Egill', kambedla: 'Kambeðla', sloedla: 'Slóeðla', gramedla: 'Grameðla', thorsedla: 'Þórseðla' };
 const COLOURS = { egill: '#79c7a1', kambedla: '#ab85c1', sloedla: '#6793d0', gramedla: '#d69a6e', thorsedla: '#e9b14d' };
@@ -473,97 +469,6 @@ export function createHalsGame(doc, {
     hw.resize(canvas.clientWidth || win?.innerWidth || 1280, canvas.clientHeight || win?.innerHeight || 800);
   }
 
-  // Each piece's photo for the portraits (Egill on Mosi, and the friends), taken on the board itself: a camera close on the piece
-  // alone draws it into a corner of the canvas, which is copied out at once (before the frame is shown, so it never appears) and
-  // the frame drawn over it. The board's light, the pieces' own levels for a close view, and the forest behind: a snapshot, as
-  // the book's taped photos are.
-  let wanted = []; // the pieces whose photo is still to be taken
-  const PHOTO = 224; // px
-  // Each portrait's framing: `size` metres across the frame round its head joint, moved `ahead` along the way it faces and `up`;
-  // the camera `turn` toward its face (1: halfway between its side and its front) and `above` it. Egill's is aimed between Mosi's
-  // head and his (`rider`: how far toward his).
-  const PORTRAIT = {
-    rider: 0.42,
-    egill: { size: 1.65, ahead: 0.5, up: 0.12, turn: 1.2, above: 0.55 },
-    kambedla: { size: 1.25, ahead: 0.12, up: -0.08, turn: 0.9, above: 0.2 },
-    sloedla: { size: 1.45, ahead: 0.1, up: 0.14, turn: 0.9, above: 0.18 },
-    gramedla: { size: 1.3, ahead: 0.15, up: -0.1, turn: 0.9, above: 0.18 },
-    thorsedla: { size: 0.85, ahead: 0.05, up: -0.08, turn: 0.9, above: 0.15 },
-  };
-  function photograph() {
-    const canvas = renderer.domElement;
-    const ratio = renderer.getPixelRatio();
-    const side = Math.min(PHOTO, Math.floor(Math.min(canvas.width, canvas.height) / ratio));
-    const shot = doc.createElement('canvas');
-    shot.width = shot.height = PHOTO;
-    const paint = shot.getContext?.('2d');
-    if (!paint || side < 64) { wanted = []; return; }
-    const camera = hw.camera;
-    const { fov, aspect } = camera;
-    const taken = [];
-    const stage = hw.board.square(0); // each is taken at the start, where nothing stands in front of it
-    for (const friend of hw.friends.actors ?? []) friend.root.visible = false; // nobody stands behind a portrait
-    for (const piece of wanted) {
-      for (const other of pieces.list) other.actor.root.visible = other === piece;
-      for (const other of pieces.list) if (other.rider) other.rider.root.visible = other === piece;
-      const was = piece.position.clone();
-      piece.position.copy(stage);
-      pieces.update(0);
-      // A close-up that fills the round frame: the head and shoulders, three-quarters on from the side it faces (a piece is 3.7 m
-      // nose to tail). Egill's is of him in the saddle over Mosi's head and frill, the two of them together.
-      const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(piece.actor.root.quaternion).setY(0).normalize();
-      piece.actor.root.updateMatrixWorld(true);
-      const look = piece.actor.headPosition(new THREE.Vector3());
-      if (piece.rider) {
-        piece.rider.root.updateMatrixWorld(true);
-        look.lerp(piece.rider.headPosition(new THREE.Vector3()), PORTRAIT.rider);
-      }
-      const frame = PORTRAIT[piece.id] ?? PORTRAIT.kambedla;
-      look.addScaledVector(forward, frame.ahead).add(new THREE.Vector3(0, frame.up, 0));
-      camera.fov = 30;
-      camera.aspect = 1;
-      camera.updateProjectionMatrix();
-      const distance = frame.size / 2 / Math.tan(THREE.MathUtils.degToRad(15));
-      camera.position.copy(look).add(forward.clone().multiplyScalar(frame.turn).add(new THREE.Vector3(0, frame.above, 1)).normalize().multiplyScalar(distance));
-      camera.lookAt(look);
-      camera.updateMatrixWorld();
-      pieces.update(0); // their levels for this close view
-      renderer.setScissorTest(true);
-      renderer.setScissor(0, 0, side, side);
-      renderer.setViewport(0, 0, side, side);
-      renderer.render(hw.scene, camera);
-      paint.clearRect(0, 0, PHOTO, PHOTO);
-      paint.drawImage(canvas, 0, canvas.height - side * ratio, side * ratio, side * ratio, 0, 0, PHOTO, PHOTO);
-      try {
-        photos.set(piece.id, shot.toDataURL('image/webp', 0.9));
-        taken.push(piece.id);
-      } catch (error) {
-        console.warn('[hals] a photo could not be kept', error);
-      }
-      piece.position.copy(was);
-    }
-    wanted = [];
-    for (const friend of hw.friends.actors ?? []) friend.root.visible = true;
-    for (const other of pieces.list) {
-      other.actor.root.visible = true;
-      if (other.rider) other.rider.root.visible = true;
-    }
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, canvas.clientWidth || canvas.width / ratio, canvas.clientHeight || canvas.height / ratio);
-    camera.fov = fov;
-    camera.aspect = aspect;
-    camera.updateProjectionMatrix();
-    resize();
-    pieces.update(0);
-    // The new photos everywhere a picture of that piece shows.
-    for (const el of playerEls) {
-      const img = el.querySelector?.('.hals-portrait img');
-      if (img && taken.includes(el.dataset.id)) showPicture(img, el.dataset.id);
-    }
-    for (const img of root.querySelectorAll?.('.hals-choice-pics img') ?? []) if (taken.includes(img.dataset.id)) showPicture(img, img.dataset.id);
-    renderDock();
-  }
-
   function frame(now) {
     if (!isOpen) return;
     raf = win.requestAnimationFrame(frame);
@@ -571,14 +476,6 @@ export function createHalsGame(doc, {
     last = now;
     effects.update(dt);
     if (!hw) return;
-    if (wanted.length && pieces) {
-      try {
-        photograph();
-      } catch (error) {
-        wanted = [];
-        console.warn('[hals] the photos could not be taken', error);
-      }
-    }
     try {
       hw.update(dt);
       renderer.info.reset();
@@ -1140,8 +1037,6 @@ export function createHalsGame(doc, {
     game = kept?.state ?? createGame({ playerCount: ids.length, vsComputer: setup.players === 1, mode: 'adventure', random });
     hw.board.decorate(game.mode === 'adventure' ? SPECIAL_TILES : []);
     pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
-    const unshot = pieces.list.filter(piece => !photos.has(piece.id));
-    if (unshot.length) pieces.ready().then(() => { if (token === round) wanted = unshot; });
     active = pieces.list[game.currentPlayer];
     sparks.clear();
     counted = new Set(kept ? game.players.map((_, i) => i) : []); // a game taken up again has had its first turns
