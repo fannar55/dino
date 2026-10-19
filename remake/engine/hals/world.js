@@ -224,7 +224,14 @@ function createView(camera, board) {
     /** Go there at once (the first frame, or after a jump). */
     cut() { snap = true; return this; },
     shake(strength = 0.1) { if (!calm) shake = Math.min(0.25, Math.max(shake, strength)); },
-    resize(value) { aspect = value; },
+    resize(value) {
+      aspect = value;
+      // Upright, the view keeps the width a landscape view has (its horizontal angle) and grows taller, so the whole board
+      // still fits without the camera backing out of the clearing into the trees.
+      const wide = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(VIEW.fov / 2)) * 1.6);
+      camera.fov = aspect >= 1.6 ? VIEW.fov : THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(wide / 2) / aspect));
+      camera.updateProjectionMatrix();
+    },
     /** What the sun's shadow map should cover: the board in an overview, the view's middle close up. */
     focus() {
       if (mode === 'overview' || calm) return { centre: new THREE.Vector3(0, 12, -3), radius: 28 };
