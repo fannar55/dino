@@ -18,11 +18,17 @@ Bæta codex-útgáfuna og flytja hana inn í endurgerðina (`remake/`). Þá er 
   - sjónbrellur, hljóðbrellur og tal;
   - viðmótið, sem á að líta út eins og í „Eitt!“, svo leikirnir séu samhæfðir.
 - **Viðbót:** steingervingasafn.
+- **Síðar sama dag:**
+  - lag C (ukulele, sílófónn og blokkflauta) í samfelldum hring;
+  - Mosi telur hoppin aðeins í fyrstu umferð hvers barns, og aðeins þegar tveir spila;
+  - hálsar og halar í eðlilegum hlutföllum, sýnilegir og án klippingar, og meira bil milli stalla;
+  - löngu leiðirnar tvær haldast;
+  - 100 reitir.
 
 ## 3. Það sem haldið er úr codex-útgáfunni
 
-- **Borðið:** 80 reitir á fimm stöllum, 16 á hverjum, séð frá hlið. Farið er til skiptis vinstri–hægri og hægri–vinstri, upp stallana.
-- **Leiðirnar:** fimm hálsar upp og fimm halar niður, með sömu leiðum og í codex.
+- **Borðið:** 100 reitir á fimm stöllum, 20 á hverjum, séð frá hlið (eigandinn breytti úr 80 reitum codex-útgáfunnar 19. október). Farið er til skiptis vinstri–hægri og hægri–vinstri, upp stallana, og um 7 metrar eru milli stalla svo þórseðlurnar njóti sín.
+- **Leiðirnar:** fimm eða sex hálsar upp og jafnmargir halar niður, í anda codex-útgáfunnar en endurraðaðar fyrir 100 reiti. Flestar ná einn stall. Ein löng leið nær tvo stalla upp (háls Burkna) og önnur tvo stalla niður (hali Lyngs), og þar eru stórir, eldri risar.
 - **Reglurnar:**
   - teningur 1–6;
   - aðeins lokareitur kasts virkjar háls, hala eða atburð;
