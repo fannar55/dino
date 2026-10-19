@@ -18,6 +18,9 @@
        &calm=1                                    calm mode
        &quality=low|tablet|high                   the preset (engine/quality.js)
        &debug=1                                   draw calls, triangles and frame time in the corner
+       &look=fern|amber|sage|coral|birch|plum      the camera close on one Þórseðla (her neck's or tail's two squares)
+       &bow=1                                     with look: she bows to her neck's first square once ready (and stays down)
+       &lift=1                                    with bow: and then lifts back to rest
      Keys: space rolls, o the whole board, f follow, m calm mode. -->
 <style>
   #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
@@ -48,6 +51,7 @@ import { SPECIAL_TILES, createGame, applyTurn, resolveTurn } from './engine/hals
 import { createHalsWorld } from './engine/hals/world.js';
 import { createPieces } from './engine/hals/pieces.js';
 import { playTurn } from './engine/hals/turn.js';
+import { clearance } from './engine/hals/clearance.js';
 
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
@@ -91,6 +95,16 @@ function setWhole(on) {
 }
 setCalm(params.get('calm') === '1');
 setWhole(whole);
+// a close look at one Þórseðla: her route's two squares and her body framed together
+const lookId = params.get('look');
+const looked = lookId ? world.thorsedlas.list.find(t => t.place.id === lookId) : null;
+if (looked) {
+  const route = looked.place.neck ?? looked.place.tail;
+  const a = world.board.square(route.from), b = world.board.square(route.to);
+  a.y = Math.min(a.y, b.y); b.y = Math.max(a.y, b.y) + 3;
+  const body = looked.root.position.clone();
+  world.view.frame(a.clone().min(body).setZ(0), b.clone().max(body.clone().setY(b.y)).setZ(0), 3);
+}
 world.view.cut();
 document.getElementById('calm').onclick = () => setCalm(!world.view.calm);
 document.getElementById('whole').onclick = () => setWhole(!whole);
@@ -139,6 +153,21 @@ addEventListener('keydown', event => {
   if (event.key === 'm') setCalm(!world.view.calm);
 });
 window.__turn = turn;
+window.__clearance = () => clearance(world); // how near each Þórseðla's neck, head and tail come to the board and the others
+// the same along each bow: every Þórseðla held at u = 0, 0.25 … 1 of hers in turn, one frame drawn for each
+window.__bowCheck = async () => {
+  const out = {};
+  for (const t of world.thorsedlas.list.filter(t => t.place.neck)) {
+    for (const u of [0.2, 0.4, 0.6, 0.8, 1]) {
+      t.holdArc(u);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const c = clearance(world);
+      out[`${t.place.id} u${u}`] = ['neck', 'head'].map(p => c[`${t.place.id} ${p}`]).join(' | ');
+    }
+    t.holdArc(0);
+  }
+  return out;
+};
 window.__game = () => game;
 showTurn();
 
@@ -158,6 +187,7 @@ renderer.setAnimationLoop(now => {
   if (ready && ++frames >= 30 && !window.__demoReady) {
     window.__demoReady = true;
     if (params.has('roll')) turn(Number(params.get('roll')) || 3);
+    if (looked && params.get('bow') === '1') looked.bow({ duration: 1.5 }).then(() => (params.get('lift') === '1' ? looked.lift({ duration: 2.8 }) : null));
   }
 });
 </script>

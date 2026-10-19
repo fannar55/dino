@@ -14,7 +14,7 @@ test('80 squares form one continuous serpentine board with an adjacent start', (
     for (let column = 0; column < BOARD.columns; column++) {
       const number = tileNumber(row, column);
       numbers.push(number);
-      assert.deepEqual(tilePosition(number), { x: (column - 7.5) * 2.3, y: row * 5.5, z: 0 });
+      assert.deepEqual(tilePosition(number), { x: (column - 7.5) * BOARD.spacing, y: row * BOARD.rowHeight, z: 0 });
     }
   }
   assert.deepEqual([...numbers].sort((a, b) => a - b), Array.from({ length: 80 }, (_, i) => i + 1));
@@ -22,7 +22,7 @@ test('80 squares form one continuous serpentine board with an adjacent start', (
   for (let number = 0; number < 80; number++) {
     const a = tilePosition(number), b = tilePosition(number + 1);
     const dx = Math.abs(b.x - a.x), dy = b.y - a.y;
-    assert.ok((Math.abs(dx - 2.3) < 1e-10 && dy === 0) || (dx === 0 && dy === 5.5), `${number} to ${number + 1} must be adjacent`);
+    assert.ok((Math.abs(dx - BOARD.spacing) < 1e-10 && dy === 0) || (dx === 0 && dy === BOARD.rowHeight), `${number} to ${number + 1} must be adjacent`);
   }
 });
 

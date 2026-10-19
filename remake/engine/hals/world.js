@@ -39,12 +39,15 @@ import { createFriends, UGGEDLA_SPOT } from './friends.js';
 
 export const VIEW = {
   fov: 30,
-  overview: { centre: [0, 11.6, -1.5], width: 52, height: 37, lift: 0.1 }, // what the whole board needs in view (m), the camera a little above
+  // What the whole board needs in view (m), the camera a little above: from the grass to the top tier and Lyng's back over it,
+  // with room below for the dock (`safe`, a share of the view's height) and the tall Þórseðlas allowed up to the top edge.
+  overview: { bottom: -0.4, above: 8.8, width: 52, safe: 0.17, lift: 0.1 },
   follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0] }, // close on a piece: its tier and the next one above
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
 const LOOK = 'morning'; // the chapter's light, so the fog's shader chunk (shared by every scene the renderer draws) stays the same
 const BASE = 0.72; // tier 0's block tops over the grass (the blocks sink a little into it)
+const TOP = (BOARD.rows - 1) * BOARD.rowHeight + BASE; // the top tier's block tops
 
 export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = new URLSearchParams(), onProgress = () => {}, win = globalThis.window } = {}) {
   const look = pickLook(LOOK);
@@ -83,11 +86,11 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
   keepClear.uggedla = { position: [UGGEDLA_SPOT.x, 0, UGGEDLA_SPOT.z], heading: UGGEDLA_SPOT.heading }; // where she watches
   const layout = {
     seed: 23,
-    clearing: { center: [0, 22], radius: 36 },
-    forestEdge: 42,
+    clearing: { center: [0, 26], radius: 42 },
+    forestEdge: 48,
     path: [[-86, 46], [-58, 30], [-36, 15], [-24, 5], [-20.5, 1.5]],
     actors: keepClear,
-    shots: { overview: { position: [0, 18, 58], target: [0, 12, 0], fov: VIEW.fov } },
+    shots: { overview: { position: [0, 20, 72], target: [0, 13, 0], fov: VIEW.fov } },
     leafShadows: false,
   };
   // A third of the grass of the chapter's clearing: here it is only the strip in front of the bottom tier, seen from far, and it
@@ -193,8 +196,9 @@ function createView(camera, board) {
 
   function wanted() {
     if (mode === 'overview' || calm) {
-      wantTarget.fromArray(O.centre);
-      const d = distanceFor(O.width, O.height);
+      const height = (TOP + O.above - O.bottom) / (1 - O.safe);
+      wantTarget.set(0, O.bottom - height * O.safe + height / 2, -1.5);
+      const d = distanceFor(O.width, height);
       wantPosition.set(wantTarget.x, wantTarget.y + d * O.lift, wantTarget.z + d);
       return;
     }
@@ -235,7 +239,7 @@ function createView(camera, board) {
     },
     /** What the sun's shadow map should cover: the board in an overview, the view's middle close up. */
     focus() {
-      if (mode === 'overview' || calm) return { centre: new THREE.Vector3(0, 12, -3), radius: 28 };
+      if (mode === 'overview' || calm) return { centre: new THREE.Vector3(0, TOP / 2 + 1.5, -3.5), radius: 31 };
       return { centre: target, radius: Math.min(28, 9 + position.distanceTo(target) * 0.3) };
     },
     update(dt) {

@@ -1,44 +1,50 @@
 import * as THREE from 'three';
 import { createActor } from '../actor.js';
-import { BOARD, tilePosition } from './rules.js';
-import { THORSEDLA_MODEL } from './places.js';
+import { BOARD } from './rules.js';
+import { BLOCK_BACK } from './places.js';
 import { createThorsedlaLod } from './thorsedla-lod.js';
 
 // The Þórseðlas of the board (spec section 4): the chapter's own Þórseðla (brontosaurus.glb, engine/actor.js: her idle
 // breathing, her blinking eyelids, her voice on her jaw), six of her, each in a colour of her own, standing on the shelves
-// behind the tiers (places.js). Her neck is a ladder and her tail a slide, as Codex's are, but alive:
+// behind the tiers (places.js) at her natural proportions. Her neck is a ladder and her tail a slide, as Codex's are, but alive:
 //
-//  - At rest her neck rises from her chest to the tier above and her head rests behind its square, the neck's last square,
-//    so the child sees where it goes; she breathes, her head bobs, she looks at the piece whose turn it is and blinks.
-//  - bow(): her neck bends down and her head comes down onto the neck's first square, in front of her chest.
-//  - lift(): with a piece on the top of her neck she lifts it up and over the tier above, back to rest, and the piece hops off
-//    onto the square at her head. Her neck is posed afresh every frame (an arc through its bones toward where the top of the
-//    neck should be), so it bends smoothly whatever the two squares are.
-//  - Her tail lies from her rump over the tail's first square, over the tier's edge and down onto the square it slides to.
-//    swish() sends a wave along it, flick() a little toss of its tip (a piece shoots off it at the bottom).
+//  - At rest her neck rises from her chest in a soft S, behind the tier above, and curls over its back edge: her head rests
+//    over the neck's last square with her chin level, turned a little toward the child. She breathes, her head bobs, she looks
+//    at the piece whose turn it is, blinks, and now and then nods, swishes her tail, glances at the camera or stretches.
+//  - bow(): like a crane lowering, her head draws back a little behind the tier above and comes down in one smooth arc to the
+//    neck's first square; lift() carries a piece on the top of her neck back up along the same arc to rest, and it hops off
+//    onto the square at her head. The neck is posed afresh every frame: a smooth curve from her chest to where her head is,
+//    leaving her shoulders the way her neck grows and arriving the way her head points, with the neck's bones laid along it.
+//  - Her tail hangs from her hips behind her tier, past the tail's first square (where a piece hops onto it), and down to the
+//    square it slides to, its tip resting on that block's back edge. swish() sends a wave along it, flick() tosses its tip.
 //  - cheer(): her happy clip, her neck and tail waving (a win, a ride).
 //
-// The model's neck and tail are too short for some routes (Burkni's neck climbs two tiers and Lyng's tail drops two), so their
-// bones are drawn out to the length the route needs: the joints of the chain move apart along the bones, and the skin, whose
-// weights blend smoothly along the chain (tools/bake/skin.js chainWeighting), stretches with them.
+// No neck or tail is drawn out by more than about a fifth (the owner's word, 2026-10-19): where a route needs more reach, she
+// is bigger (places.js). A small stretch moves the chain's joints apart along the bones, and the skin, whose weights blend
+// smoothly along the chain (tools/bake/skin.js chainWeighting), follows.
 //
 //   const thorsedlas = await createThorsedlas(world, board, places)
 //   thorsedlas.list, thorsedlas.neckAt(from), thorsedlas.tailAt(from)
 //   thorsedlas.lookAt(point)           every Þórseðla near it looks (a Vector3, or null: they look about by themselves)
 //   thorsedlas.update(dt)
 //   one Þórseðla: { place, actor, root, ridePoint(out), bow({ duration }), lift({ duration, onProgress }), slideCurve(),
-//                  swish(), flick(), cheer(seconds), talk(line), calm }
+//                  swish(), flick(), cheer(seconds), talk(line), rest(), calm, stretch, skeleton() }
 
 const URL_MODEL = new URL('../../assets/characters/brontosaurus.glb', import.meta.url).href;
 const NECK = ['Neck', 'Neck2', 'Neck3', 'Neck4', 'Neck5', 'Head'];
 const TAIL = ['Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6', 'Tail7', 'Tail8'];
-const RIDE_JOINT = 4; // the piece rides on the top of the neck at Neck5, just behind the head
-const TURN = 12; // degrees each turns toward the camera from side-on, so her face shows
-// Where the top of her neck rests: in front of the tier above, beside its square (in the gap between two plaques, so no number
-// is hidden), `up` metres over the blocks and `front` metres in front of their middle, her head held over the square, looking
-// down at it; and where it comes down onto the first square, over the block's top `aside` metres toward her chest.
-const NECK_SPOT = { up: 1.15, front: 1.5, down: 0.1, downZ: -0.2, aside: 0.8 };
-const LOOK = { near: 16, share: 0.55 }; // metres within which she looks at a piece, and how far her head turns to it
+const RIDE_JOINT = 4; // a piece rides on the top of the neck at Neck5, just behind the head
+const TURN = 6; // degrees each turns toward the camera from side-on
+const MAX_STRETCH = 1.32; // the most a neck or a tail is drawn out (the owner: about 1.3 at most)
+// Her head: `yaw` degrees turned from the way she faces toward the camera, its skull `reach` (of her size) ahead of the head
+// joint; at rest the head joint is `behind` metres behind the blocks' back face, the chin `chin` metres over the block.
+const HEAD = { yaw: 25, reach: 0.6, behind: 0.55, chin: 0.32, half: 0.42 };
+const NECK_LEAN = 48; // degrees over the level her neck leaves her shoulders
+const BOW = { pitch: -38, yaw: 30, back: 0.95 }; // the bowed head: pitched down, turned to the camera; the arc draws back this much
+const TAIL_Z = -3.0; // z where a tail hangs: behind the blocks with room for a piece sliding on its front
+const TAIL_PAST = 0.7; // metres past its first square (away from her head) that it hangs
+const LOOK = { near: 14, share: 0.45, down: -0.3, up: 0.2 }; // metres within which she looks at a piece, how far her head turns to it, and the most it pitches (radians) as she looks
+const rad = THREE.MathUtils.degToRad;
 
 // Each one's colour: a turn of the model's own hue (the painted skin and its spots keep their pattern), its saturation and
 // brightness. The model's skin is a warm apricot; Codex's six colours are green, gold, sage, coral, birch and lilac.
@@ -65,7 +71,7 @@ vec3 tintColour(vec3 c) {
 /** Give a material (a clone) the tint: after its colour map, the hue turned, the saturation and brightness scaled. */
 function tinted(material, tint, after = '#include <map_fragment>', key = 'thorsedla-tint') {
   const m = material.clone();
-  const uniform = { value: new THREE.Vector3(THREE.MathUtils.degToRad(tint.hue), tint.sat, tint.bright) };
+  const uniform = { value: new THREE.Vector3(rad(tint.hue), tint.sat, tint.bright) };
   const before = material.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     before?.call(material, shader, renderer);
@@ -81,43 +87,18 @@ function tinted(material, tint, after = '#include <map_fragment>', key = 'thorse
 const V3 = THREE.Vector3;
 const smooth = t => t * t * (3 - 2 * t);
 const clamp01 = t => Math.min(1, Math.max(0, t));
-const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), qc = new THREE.Quaternion();
+const qb = new THREE.Quaternion(), qc = new THREE.Quaternion();
 const va = new V3(), vb = new V3(), vc = new V3();
-const X = new V3(1, 0, 0), UP = new V3(0, 1, 0);
+const X = new V3(1, 0, 0);
 const findBone = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
-
-/** Find θ0 and δ so that segments of `lengths`, the i-th at angle θ0 + iδ, end at (u, v). Warm-started; δ bends forward-down. */
-function solveArc(lengths, u, v, guess) {
-  let [a, d] = guess;
-  const end = (a, d, out) => {
-    let x = 0, y = 0;
-    for (let i = 0; i < lengths.length; i++) { x += lengths[i] * Math.cos(a + i * d); y += lengths[i] * Math.sin(a + i * d); }
-    out[0] = x; out[1] = y;
-    return out;
-  };
-  const e = [0, 0], ea = [0, 0], ed = [0, 0];
-  for (let it = 0; it < 16; it++) {
-    end(a, d, e);
-    const ex = e[0] - u, ey = e[1] - v;
-    if (ex * ex + ey * ey < 1e-7) break;
-    const h = 1e-4;
-    end(a + h, d, ea); end(a, d + h, ed);
-    const j00 = (ea[0] - e[0]) / h, j01 = (ed[0] - e[0]) / h, j10 = (ea[1] - e[1]) / h, j11 = (ed[1] - e[1]) / h;
-    const det = j00 * j11 - j01 * j10;
-    if (Math.abs(det) < 1e-9) { d -= 0.05; continue; }
-    const da = (j11 * ex - j01 * ey) / det, dd = (-j10 * ex + j00 * ey) / det;
-    const step = Math.min(1, 0.35 / Math.max(Math.abs(da), Math.abs(dd), 1e-9));
-    a -= da * step;
-    d = Math.min(0.85, Math.max(-0.85, d - dd * step));
-  }
-  guess[0] = a; guess[1] = d;
-  return guess;
-}
 
 /** A polyline sampled from points, with its arc length: pointAt(s, out) by metres along it. */
 function sampled(points) {
   const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
   const samples = curve.getSpacedPoints(160);
+  return lengthed(samples);
+}
+function lengthed(samples) {
   const lengths = [0];
   for (let i = 1; i < samples.length; i++) lengths.push(lengths[i - 1] + samples[i].distanceTo(samples[i - 1]));
   const total = lengths[lengths.length - 1];
@@ -131,6 +112,18 @@ function sampled(points) {
       return out.lerpVectors(samples[lo], samples[hi], (s - lengths[lo]) / Math.max(1e-6, lengths[hi] - lengths[lo]));
     },
   };
+}
+
+/** The cubic Bézier from p0 to p3 with handles p1, p2, sampled in `n` steps into `out` (Vector3s), and its length. */
+function bezier(p0, p1, p2, p3, n, out) {
+  let length = 0;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, m = 1 - t;
+    const p = out[i] ?? (out[i] = new V3());
+    p.set(0, 0, 0).addScaledVector(p0, m * m * m).addScaledVector(p1, 3 * m * m * t).addScaledVector(p2, 3 * m * t * t).addScaledVector(p3, t * t * t);
+    if (i) length += p.distanceTo(out[i - 1]);
+  }
+  return length;
 }
 
 /** Average distance of the skin from a joint, across the chain there: the chain's thickness at each joint (root frame). */
@@ -177,11 +170,11 @@ export async function createThorsedlas(world, board, places) {
 }
 
 async function createThorsedla(world, board, place, lod) {
-  const k = place.size;
+  const k = place.size, f = place.facing;
   const ground = place.tier === 0 ? world.heightAt(place.x, place.z) : board.tierY(place.tier) - 0.3;
   const own = Object.create(world);
   own.heightAt = () => ground;
-  const heading = place.facing > 0 ? TURN : 180 - TURN;
+  const heading = f > 0 ? (place.turn ?? TURN) : 180 - (place.turn ?? TURN);
   const actor = await createActor(own, { name: `thorsedla-${place.id}`, url: URL_MODEL, position: [place.x, ground, place.z], heading });
   const { root, model } = actor;
   root.scale.setScalar(k);
@@ -209,190 +202,236 @@ async function createThorsedla(world, board, place, lod) {
   const bindPos = bones => bones.map(b => root.worldToLocal(b.getWorldPosition(new V3())));
   const bindQ = bones => bones.map(b => rootQi.clone().multiply(b.getWorldQuaternion(new THREE.Quaternion())));
   const neckBind = bindPos(neckBones), tailBind = bindPos(tailBones);
-  const neckRadius = chainRadii(skin, root, neckBind), tailRadius = chainRadii(skin, root, tailBind);
+  // a chain only thins toward its end (the measure catches stray skin near a tail's tip)
+  const thinning = list => list.map((r, i) => Math.min(r, ...list.slice(0, i)));
+  const neckRadius = thinning(chainRadii(skin, root, neckBind)), tailRadius = thinning(chainRadii(skin, root, tailBind));
   const neckO = bindQ(neckBones), tailO = bindQ(tailBones);
   const restDir = joints => joints.slice(0, -1).map((p, i) => new V3().subVectors(joints[i + 1], p).normalize());
   const neckRest = restDir(neckBind), tailRest = restDir(tailBind);
   const tipLength = 0.99; // the tail's tip past its last joint (model metres)
-
   /** Draw a chain's joints apart by `s` (its bones' offsets from their parents). */
   const stretch = (bones, s) => { for (let i = 1; i < bones.length; i++) bones[i].position.multiplyScalar(s); };
   const lengthsOf = joints => joints.slice(0, -1).map((p, i) => p.distanceTo(joints[i + 1]));
   let neckLengths = lengthsOf(neckBind), tailLengths = lengthsOf(tailBind);
+  const sum = list => list.reduce((a, b) => a + b, 0);
 
   const square = (n, out = new V3()) => board.square(n, out);
-  const f = place.facing;
-  const gapBeside = n => square(n).x - f * BOARD.spacing / 2; // the gap between square n's plaque and the next toward her chest
-  const restSpot = n => new V3(gapBeside(n), square(n).y + NECK_SPOT.up, NECK_SPOT.front);
-  const downSpot = n => square(n).add(va.set(-f * NECK_SPOT.aside, neckRadius[RIDE_JOINT] * k + NECK_SPOT.down, NECK_SPOT.downZ));
-  const squareTop = (n, out = new V3()) => square(n, out).add(va.set(0, 0.3, 0.1));
-
-  // ---- the neck: where its top rests (at the neck's last square) and where it comes down (its first) ------------------------
-  let neckRestPoint = null, neckDownPoint = null, neckS = 1;
-  const arcGuess = [0.35, 0.3];
-  if (place.neck) {
-    neckRestPoint = restSpot(place.neck.to);
-    neckDownPoint = downSpot(place.neck.from);
-    // long enough to reach the square she comes down to, and to curve out in front of the tier above and up to her rest
-    const base = root.localToWorld(neckBind[0].clone());
-    const front = new V3(neckRestPoint.x, square(place.neck.to).y - 1.2, NECK_SPOT.front + 0.1);
-    const reach = Math.max(base.distanceTo(neckDownPoint) * 1.12, base.distanceTo(front) + front.distanceTo(neckRestPoint)) / k;
-    const have = neckLengths.slice(0, RIDE_JOINT).reduce((a, b) => a + b, 0);
-    neckS = Math.max(1, reach / have);
-    if (neckS > 1.001) {
-      stretch(neckBones, neckS);
-      neckLengths = neckLengths.map(l => l * neckS);
-    }
+  const heightOf = n => square(n).y;
+  // the way her head points: level, along the way she faces, turned toward the camera (+z) by `yaw` degrees, pitched by `pitch`
+  const headWay = (yaw, pitch, out = new V3()) => out.set(f * Math.cos(rad(yaw)) * Math.cos(rad(pitch)), Math.sin(rad(pitch)), Math.sin(rad(yaw)) * Math.cos(rad(pitch)));
+  /** Where her head joint rests over square n, its skull over the square and just behind the blocks, and the way it points. */
+  function headAt(n, { yaw = HEAD.yaw, pitch = 0 } = {}) {
+    const way = headWay(yaw, pitch);
+    const p = square(n);
+    const at = new V3(p.x, p.y + HEAD.chin + HEAD.half * k, -BLOCK_BACK - HEAD.behind).addScaledVector(way, -HEAD.reach * k);
+    at.z = Math.min(at.z, -BLOCK_BACK - HEAD.behind); // the skull reaches toward the blocks, the joint stays behind them
+    return { at, way };
   }
 
-  // ---- the tail: its rest curve, from the rump over the first square and down onto the last ---------------------------------
+  // ---- the neck: its rest over the last square, its bow to the first, and a length that reaches both -----------------------
+  let rest = null, bowed = null, neckS = 1;
+  if (place.neck) {
+    rest = headAt(place.neck.to);
+    bowed = headAt(place.neck.from, { yaw: BOW.yaw, pitch: BOW.pitch });
+    // as she bows, her head comes down behind the first square, a little higher than at rest (it looks down at the piece)
+    bowed.at.y += 0.25;
+    const base = root.localToWorld(neckBind[0].clone());
+    const reach = Math.max(base.distanceTo(rest.at), base.distanceTo(bowed.at)) / k;
+    const have = sum(neckLengths.slice(0, RIDE_JOINT + 1));
+    const want = reach / 0.86; // a gentle S, never straight
+    neckS = Math.min(MAX_STRETCH, Math.max(1, want / have));
+    if (want / have > MAX_STRETCH + 1e-3) console.warn(`[thorsedla] ${place.name}'s neck would need ${(want / have).toFixed(2)}x: she should stand nearer or be bigger`);
+    if (neckS > 1.001) { stretch(neckBones, neckS); neckLengths = neckLengths.map(l => l * neckS); }
+  }
+
+  // ---- the tail: hanging from her hips behind the tier, past its first square and down to its last -------------------------
   const rump = root.localToWorld(tailBind[0].clone());
-  let tailCurve;
+  let tailCurve, tailS = 1, tailEnd = null;
   if (place.tail) {
     const a = square(place.tail.from), b = square(place.tail.to);
-    const top = tailRadius[3] * k * 0.8;
-    // Over the tier's edge between two plaques (the first square's and its neighbour's toward the last square), so no number
-    // is hidden, and down in front of the tiers between, each passed between two plaques too.
     const side = Math.sign(b.x - a.x) || -f;
-    const gap = a.x + side * BOARD.spacing / 2;
+    // straight down from her hips, behind the first square (where a piece hops on), down past the tier, and its tip to rest
+    // just behind the last square's block
+    // it hangs half a metre past the square (away from her head), clear of her hind legs, with room for a sliding piece
+    const hang = a.x - f * TAIL_PAST;
     const points = [
       rump.clone(),
-      new V3(rump.x - f * 1.4, rump.y - 1.0, rump.z + 0.6),
-      new V3(a.x + side * 0.35, a.y + top + 0.15, -0.35),
-      new V3(gap, a.y - 0.2, 1.55),
-      new V3(gap, a.y - 1.3, 1.95),
+      new V3(rump.x + (hang - rump.x) * 0.6, rump.y - (rump.y - a.y) * 0.45, rump.z + (TAIL_Z - rump.z) * 0.6),
+      new V3(hang, a.y + 0.55, TAIL_Z),
+      new V3(hang + side * 0.15, a.y - 2.7, TAIL_Z), // straight down past her shelf
     ];
-    for (let y = a.y - BOARD.rowHeight; y > b.y + 1; y -= BOARD.rowHeight) points.push(new V3(gap, y - 0.4, 1.95)); // past a tier between
-    points.push(new V3((gap + b.x) / 2, b.y + 1.1, 1.45), new V3(b.x + side * 0.2, b.y + 0.24, 0.2));
-    tailCurve = sampled(points);
-    const have = tailLengths.reduce((s, l) => s + l, 0);
-    const want = tailCurve.total / k - tipLength;
-    const s = Math.max(1, want / have);
-    if (s > 1.001) { stretch(tailBones, s); tailLengths = tailLengths.map(l => l * s); }
+    for (let y = a.y - BOARD.rowHeight; y > b.y + 1; y -= BOARD.rowHeight) points.push(new V3(a.x + (b.x - a.x) * 0.5, y - 0.6, TAIL_Z)); // past a tier between
+    // down behind the last square's block, and along its back edge, just over its top: where a piece slides off onto it (as
+    // high and as far back as the tail is thick there: a giant's long tail reaches it with its thick middle)
+    const endAt = r => new V3(b.x - side * 0.7, b.y + 0.12 + r, -BLOCK_BACK - 0.08 - r);
+    const thickness = s => {
+      const u = THREE.MathUtils.clamp(s / (sum(tailLengths) * k), 0, 1) * (tailRadius.length - 1);
+      const i = Math.min(tailRadius.length - 2, Math.floor(u));
+      return (tailRadius[i] + (tailRadius[i + 1] - tailRadius[i]) * (u - i)) * k;
+    };
+    let end = endAt(0.15 * k);
+    let main = sampled([...points, new V3(b.x - side * 0.9, b.y + 1.5, TAIL_Z + 0.4), end]);
+    end = endAt(thickness(main.total));
+    points.push(new V3(b.x - side * 0.9, b.y + 1.5 + (end.y - b.y - 0.42), TAIL_Z + 0.4), end);
+    main = sampled(points);
+    // what is left of a long tail lies on along the block's back edge
+    tailCurve = sampled([...points, end.clone().add(new V3(side * 1.5, -0.06, 0)), end.clone().add(new V3(side * 3.2, -0.12, -0.15))]);
+    tailEnd = { at: end, s: main.total };
+    const have = sum(tailLengths);
+    const want = main.total / k - tipLength * 0.3;
+    tailS = Math.min(MAX_STRETCH, Math.max(1, want / have));
+    if (want / have > MAX_STRETCH + 1e-3) console.warn(`[thorsedla] ${place.name}'s tail would need ${(want / have).toFixed(2)}x: she should be bigger`);
+    if (tailS > 1.001) { stretch(tailBones, tailS); tailLengths = tailLengths.map(l => l * tailS); }
   } else {
     // an ordinary tail: down behind her and along the ground, curling away from the board
-    const g = place.tier === 0 ? ground : board.tierY(place.tier) - 0.3;
+    const g = ground;
     tailCurve = sampled([
       rump.clone(),
-      new V3(rump.x - f * 2.4, g + 2.0, rump.z - 0.4),
-      new V3(rump.x - f * 4.6, g + 0.6, rump.z - 1.6),
-      new V3(rump.x - f * 6.2, g + 0.35, rump.z - 3.4),
-      new V3(rump.x - f * 7.0, g + 0.3, rump.z - 5.6),
+      new V3(rump.x - f * 2.2 * k, g + 2.4 * k, rump.z - 0.2),
+      new V3(rump.x - f * 4.6 * k, g + 0.7 * k, rump.z - 1.2 * k),
+      new V3(rump.x - f * 6.4 * k, g + 0.35, rump.z - 3.0 * k),
+      new V3(rump.x - f * 7.4 * k, g + 0.3, rump.z - 5.2 * k),
     ]);
+  }
+  // Lyng carries no neck route: her neck rests low and forward, her head turned to the board, as she watches the game
+  if (!place.neck) {
+    // ahead of her chest along the way she faces, low, her head turned round to the board and the child
+    const chestAt = root.localToWorld(neckBind[0].clone());
+    const ahead = new V3(1, 0, 0).applyQuaternion(rootQ).setY(0).normalize();
+    const way = new V3(f * 0.55, -0.18, 0.82).normalize();
+    rest = { at: chestAt.clone().addScaledVector(ahead, 2.4 * k).setY(board.tierY(place.tier) + 2.2 * k), way };
   }
 
   // ---- state ---------------------------------------------------------------------------------------------------------
   let time = Math.random() * 10;
   let calm = false;
-  const neckTarget = new V3().copy(neckRestPoint ?? root.localToWorld(neckBind[RIDE_JOINT].clone()));
-  let neckGoal = null; // a function(t) -> Vector3 while she bows or lifts
-  // what her head points at: her neck's last square at rest, its first while she bows, the way up while she lifts
-  const aim = new V3(), aimGoal = new V3();
-  if (place.neck) aim.copy(squareTop(place.neck.to)); else aim.set(place.x + f * 12, ground + 7, place.z + 6);
-  aimGoal.copy(aim);
+  const target = rest.at.clone(); // where her head joint is now (before the fidgets)
+  const way = rest.way.clone(); // the way her head points now
+  let moving = false; // while she bows or lifts
   const look = { point: new V3(), weight: 0, goal: 0 };
   let swishT = -1, flickT = -1, cheerT = -1, cheerFor = 0;
-  // Now and then, while nothing happens, she does a little something of her own: a nod, a swish of her tail, a glance at the
-  // child (the camera), a stretch of her neck. Each on her own clock, so the six never move together.
   let nodT = -1, glanceT = -1, stretchT = -1;
   let nextFidget = 4 + Math.random() * 8;
   const nudge = new V3();
-  const jointsNow = { neck: neckBind.map(p => p.clone()), tail: tailBind.map(p => p.clone()) };
+  let glance = 0;
 
   // ---- posing, after her clips each frame (actor.control's pose) --------------------------------------------------------
   const D = []; // desired root-frame orientations of the chain's bones
-  function setChain(bones, rest, O, dirs, parentQ) {
+  function setChain(bones, restDirs, O, dirs, parentQ) {
     let parent = parentQ;
     for (let i = 0; i < dirs.length; i++) {
-      qb.setFromUnitVectors(rest[i], dirs[i]).multiply(O[i]);
+      qb.setFromUnitVectors(restDirs[i], dirs[i]).multiply(O[i]);
       bones[i].quaternion.copy(qc.copy(parent).invert().multiply(qb));
       D[i] = (D[i] ?? new THREE.Quaternion()).copy(qb);
       parent = D[i];
     }
     return parent;
   }
-  const rootFrameQ = (bone, out) => out.copy(rootQi).multiply(bone.getWorldQuaternion(qa));
+  const rootFrameQ = (bone, out) => out.copy(rootQi).multiply(bone.getWorldQuaternion(qc));
   const neckDirs = NECK.slice(0, -1).map(() => new V3());
   const tailDirs = TAIL.slice(0, -1).map(() => new V3());
   const chestQ = new THREE.Quaternion(), hipsQ = new THREE.Quaternion();
-  const local = new V3(), base = new V3(), headDir = new V3(), headAt = new V3(), rideAt = new V3();
+  const curve = [], neckJoints = NECK.map(() => new V3());
+  const B = new V3(), T = new V3(), tB = new V3(), tT = new V3(), P1 = new V3(), P2 = new V3(), headDir = new V3();
+  const cumul = [];
 
-  function poseNeck(dt) {
+  function poseNeck() {
     model.updateMatrixWorld(true);
     rootFrameQ(chest, chestQ);
-    base.copy(root.worldToLocal(neckBones[0].getWorldPosition(va)));
-    // where the top of her neck goes, with a slow bob while she rests
-    const bob = calm ? 0 : 1;
-    local.copy(neckTarget);
-    if (!neckGoal) local.add(vb.set(0, Math.sin(time * 0.9) * 0.06 * bob, Math.sin(time * 0.55 + 1) * 0.08 * bob)).add(nudge);
-    root.worldToLocal(local).sub(base);
-    const yaw = Math.atan2(local.z, local.x);
-    const u = Math.hypot(local.x, local.z), v = local.y;
-    const [a, d] = solveArc(neckLengths.slice(0, RIDE_JOINT), u, v, arcGuess);
-    const cy = Math.cos(yaw), sy = Math.sin(yaw);
-    for (let i = 0; i < RIDE_JOINT; i++) {
-      const th = a + i * d;
-      neckDirs[i].set(Math.cos(th) * cy, Math.sin(th), Math.cos(th) * sy);
+    neckBones[0].getWorldPosition(B);
+    // where her head goes (with the fidgets and the slow bob while she rests), and the way it points
+    T.copy(target);
+    if (!moving) T.add(nudge).add(va.set(0, Math.sin(time * 0.9) * 0.05 * (calm ? 0 : 1), Math.sin(time * 0.55 + 1) * 0.06 * (calm ? 0 : 1)));
+    tT.copy(way);
+    // the way her neck leaves her shoulders: up from her chest at NECK_LEAN, along the way she faces, turned a little toward her head
+    vb.subVectors(T, B).applyQuaternion(rootQi).setY(0).normalize();
+    const turn = THREE.MathUtils.clamp(Math.atan2(vb.z, vb.x), -0.5, 0.5);
+    tB.set(Math.cos(rad(NECK_LEAN)) * Math.cos(turn), Math.sin(rad(NECK_LEAN)), Math.cos(rad(NECK_LEAN)) * Math.sin(turn)).applyQuaternion(rootQ);
+    // the curve, its handles sized so it is as long as the neck (a gentle S between her shoulders and her head)
+    const total = sum(neckLengths.slice(0, RIDE_JOINT + 1)) * k;
+    let d = B.distanceTo(T);
+    if (d > total * 0.97) { T.sub(B).setLength(total * 0.97).add(B); d = total * 0.97; }
+    let lo = 0.02, hi = 4;
+    for (let it = 0; it < 18; it++) {
+      const s = (lo + hi) / 2;
+      P1.copy(B).addScaledVector(tB, s * d * 0.55);
+      P2.copy(T).addScaledVector(tT, -s * d * 0.45);
+      if (bezier(B, P1, P2, T, 24, curve) < total) lo = s; else hi = s;
     }
-    // what she aims at (her square), turned part way toward a piece she watches
-    rideAt.copy(base);
-    for (let i = 0; i < RIDE_JOINT; i++) rideAt.addScaledVector(neckDirs[i], neckLengths[i]);
-    vc.copy(aim).lerp(look.point, look.weight * LOOK.share);
-    root.worldToLocal(vc);
-    // the last stretch of the neck, behind the head, bends down toward it; the head points at it
-    const th = a + RIDE_JOINT * d;
-    vb.set(Math.cos(th) * cy, Math.sin(th), Math.cos(th) * sy);
-    headDir.subVectors(vc, rideAt).normalize();
-    neckDirs[RIDE_JOINT].copy(vb).lerp(headDir, 0.7).normalize();
+    P1.copy(B).addScaledVector(tB, lo * d * 0.55);
+    P2.copy(T).addScaledVector(tT, -lo * d * 0.45);
+    const length = bezier(B, P1, P2, T, 24, curve);
+    // the bones along it, each from where the last one ended to the curve's point its length on
+    cumul[0] = 0;
+    for (let i = 1; i < curve.length; i++) cumul[i] = cumul[i - 1] + curve[i].distanceTo(curve[i - 1]);
+    const scale = length / total;
+    neckJoints[0].copy(B);
+    let s = 0;
+    for (let i = 0; i <= RIDE_JOINT; i++) {
+      s += neckLengths[i] * k * scale;
+      let j = 1;
+      while (j < curve.length - 1 && cumul[j] < s) j++;
+      const u = (s - cumul[j - 1]) / Math.max(1e-6, cumul[j] - cumul[j - 1]);
+      vc.lerpVectors(curve[j - 1], curve[j], Math.min(1, u));
+      const dir = vb.subVectors(vc, neckJoints[i]).normalize();
+      neckJoints[i + 1].copy(neckJoints[i]).addScaledVector(dir, neckLengths[i] * k);
+      neckDirs[i].copy(dir).applyQuaternion(rootQi);
+    }
     const headParentQ = setChain(neckBones, neckRest, neckO, neckDirs, chestQ);
-    headAt.copy(rideAt).addScaledVector(neckDirs[RIDE_JOINT], neckLengths[RIDE_JOINT]);
-    headDir.subVectors(vc, headAt).normalize();
-    const pitchNow = Math.asin(THREE.MathUtils.clamp(headDir.y, -1, 1));
-    const pitchHeld = THREE.MathUtils.clamp(pitchNow, -1.2, 0.45);
-    if (pitchHeld !== pitchNow) {
+    // the head: the way it points, turned part way toward a piece she watches, or to the camera for a glance
+    headDir.copy(way);
+    if (look.weight > 0.01 || glance > 0.01) {
+      vb.copy(look.weight >= glance ? look.point : world.camera.position).sub(neckJoints[RIDE_JOINT + 1]).normalize();
+      headDir.lerp(vb, Math.max(look.weight * LOOK.share, glance * 0.7)).normalize();
+      // a look turns her head, but tips it only a little from where it points (so her chin stays clear of the blocks)
+      const base = Math.asin(THREE.MathUtils.clamp(way.y, -1, 1));
+      const pitch = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(headDir.y, -1, 1)), base + LOOK.down, base + LOOK.up);
       const flat = Math.hypot(headDir.x, headDir.z) || 1;
-      headDir.set(headDir.x / flat * Math.cos(pitchHeld), Math.sin(pitchHeld), headDir.z / flat * Math.cos(pitchHeld));
+      headDir.set(headDir.x / flat * Math.cos(pitch), Math.sin(pitch), headDir.z / flat * Math.cos(pitch));
     }
+    headDir.applyQuaternion(rootQi);
     qb.setFromUnitVectors(X, headDir).multiply(neckO[5]);
     neckBones[5].quaternion.copy(qc.copy(headParentQ).invert().multiply(qb));
   }
 
-  const tailOffset = new V3(), tailPoint = new V3(), joint = new V3();
-  function poseTail(dt) {
+  const tailOffset = new V3(), tailPoint = new V3(), joint = new V3(), tailJoints = TAIL.map(() => new V3());
+  function poseTail() {
     model.updateMatrixWorld(true);
     rootFrameQ(hips, hipsQ);
     joint.copy(tailBones[0].getWorldPosition(va));
+    tailJoints[0].copy(joint);
     let s = 0;
-    const total = tailLengths.reduce((x, l) => x + l, 0) * k;
+    const total = sum(tailLengths) * k;
     for (let i = 0; i < tailDirs.length; i++) {
       s += tailLengths[i] * k;
       tailCurve.pointAt(s, tailPoint);
       const along = s / total;
-      // the swish: a wave running down the tail, growing toward the tip; the flick: the tip tossed up
+      // the swish: a wave running down the tail, growing toward the tip; the flick: the tip tossed out
       tailOffset.set(0, 0, 0);
       if (swishT >= 0) {
         const x = swishT / 1.4, env = Math.sin(Math.PI * clamp01(x));
-        tailOffset.x += Math.sin(swishT * 9 - along * 5) * 0.55 * along * env;
+        tailOffset.x += Math.sin(swishT * 9 - along * 5) * 0.45 * along * env;
       } else if (!calm) {
-        tailOffset.x += Math.sin(time * 1.1 - along * 3) * 0.06 * along;
+        tailOffset.x += Math.sin(time * 1.1 - along * 3) * 0.05 * along;
       }
       if (flickT >= 0) {
         const x = flickT / 0.7, env = Math.sin(Math.PI * clamp01(x));
-        tailOffset.y += 1.1 * along * along * env;
+        tailOffset.z += 0.25 * along * along * env;
+        tailOffset.y += 0.5 * along * along * env;
       }
-      if (cheerT >= 0 && !calm) tailOffset.x += Math.sin(cheerT * 8 - along * 4) * 0.4 * along;
+      if (cheerT >= 0 && !calm) tailOffset.x += Math.sin(cheerT * 8 - along * 4) * 0.3 * along;
       tailPoint.add(tailOffset);
       const dir = vb.subVectors(tailPoint, joint).normalize();
       joint.addScaledVector(dir, tailLengths[i] * k);
+      tailJoints[i + 1].copy(joint);
       tailDirs[i].copy(dir).applyQuaternion(rootQi);
     }
     setChain(tailBones, tailRest, tailO, tailDirs, hipsQ);
   }
 
-  // A Þórseðla without a neck route (Lyng) keeps her clip's own neck, looking about; every tail is posed (Kvisti's out of the way).
-  actor.control(() => {}, dt => {
-    if (place.neck) poseNeck(dt);
-    poseTail(dt);
+  actor.control(() => {}, () => {
+    poseNeck();
+    poseTail();
   });
 
   // ---- behaviour --------------------------------------------------------------------------------------------------------
@@ -405,72 +444,87 @@ async function createThorsedla(world, board, place, lod) {
   function ridePoint(out = new V3()) {
     model.updateMatrixWorld(true);
     neckBones[RIDE_JOINT].getWorldPosition(out);
-    return out.add(va.set(0, neckRadius[RIDE_JOINT] * k * 0.92, 0));
+    return out.add(va.set(0, neckRadius[RIDE_JOINT] * k * 0.95, 0));
   }
 
-  /** Her head comes down onto the neck's first square. */
+  // The arc between her rest and her bow: her head draws back from the tier above, then comes down (or goes up) in one smooth
+  // curve, its way turning from level to looking down at the square.
+  function arcPoint(u, out) {
+    const a = rest.at, b = bowed.at, m = 1 - u;
+    const c1 = va.copy(a).add(vb.set(0, 0.4, -BOW.back));
+    const c2 = vc.copy(b).add(new V3(0, 1.0, -BOW.back));
+    return out.set(0, 0, 0).addScaledVector(a, m * m * m).addScaledVector(c1, 3 * m * m * u).addScaledVector(c2, 3 * m * u * u).addScaledVector(b, u * u * u);
+  }
+  const wayAt = (u, out) => out.copy(rest.way).lerp(bowed.way, smooth(u)).normalize();
+  let arc = 0; // 0 at rest, 1 bowed
+
+  /** Her head comes down onto the neck's first square, like a crane lowering. */
   function bow({ duration = 1.6 } = {}) {
     if (!place.neck) return Promise.resolve();
-    const from = neckTarget.clone();
-    const to = neckDownPoint;
-    // forward and down in front of the tier above, then onto the square
-    const mid = new V3(from.x, (from.y + to.y) / 2 + 0.6, NECK_SPOT.front + 0.4);
-    neckGoal = true;
-    aimGoal.copy(squareTop(place.neck.from));
+    moving = true;
+    const from = arc;
     return tween(calm ? duration * 1.3 : duration, t => {
-      const e = smooth(t);
-      neckTarget.copy(from).multiplyScalar((1 - e) * (1 - e)).addScaledVector(mid, 2 * e * (1 - e)).addScaledVector(to, e * e);
+      arc = from + (1 - from) * smooth(t);
+      arcPoint(arc, target);
+      wayAt(arc, way);
     });
   }
 
-  /** From the first square back up to rest at the last, carrying a piece on the top of her neck (onProgress(e) each frame). */
+  /** From the first square back up to rest at the last, along the same arc, carrying a piece on the top of her neck. */
   function lift({ duration = 2.6, onProgress } = {}) {
     if (!place.neck) return Promise.resolve();
-    const from = neckTarget.clone(), to = neckRestPoint;
-    // out in front of the tiers (clear of the logs) and up to her rest beside the square above
-    const c1 = new V3(to.x, from.y + 0.9, NECK_SPOT.front + 0.3);
-    const c2 = new V3(to.x, to.y - 1.6, NECK_SPOT.front + 0.35);
-    neckGoal = true;
-    const start = squareTop(place.neck.from), end = squareTop(place.neck.to), up = new V3(to.x, to.y + 1.5, 6);
+    moving = true;
+    const from = arc;
     return tween(calm ? duration * 1.3 : duration, t => {
-      const e = smooth(t), m = 1 - e;
-      neckTarget.copy(from).multiplyScalar(m * m * m).addScaledVector(c1, 3 * m * m * e).addScaledVector(c2, 3 * m * e * e).addScaledVector(to, e * e * e);
-      // she looks up the way she lifts, and at the end down at the square she sets the piece on
-      aimGoal.copy(start).lerp(up, Math.sin(Math.PI * Math.min(1, e * 1.3))).lerp(end, smooth(clamp01((e - 0.6) / 0.4)));
+      const e = smooth(t);
+      arc = from * (1 - e);
+      arcPoint(arc, target);
+      wayAt(arc, way);
       onProgress?.(e);
-    }).then(() => { neckGoal = null; aimGoal.copy(end); });
+    }).then(() => { moving = false; arc = 0; target.copy(rest.at); way.copy(rest.way); });
   }
 
   /** Her head goes back to rest at once (a game set up anew). */
-  function rest() {
-    if (neckRestPoint) { neckTarget.copy(neckRestPoint); aim.copy(squareTop(place.neck.to)); aimGoal.copy(aim); }
-    neckGoal = null;
+  function settle() {
+    target.copy(rest.at); way.copy(rest.way);
+    arc = 0; moving = false;
     swishT = flickT = cheerT = -1;
   }
 
-  /** The slide: the top of her tail from its first square down to its last (world), for a piece to ride. */
+  /**
+   * The slide: along the top of her tail from where it passes its first square down to its tip on its last square (world),
+   * for a piece to ride feet first. Where the tail hangs steeply, its top is its face toward the camera.
+   */
   function slideCurve() {
     if (!place.tail) return null;
     model.updateMatrixWorld(true);
     const joints = tailBones.map(b => b.getWorldPosition(new V3()));
     const last = joints[joints.length - 1], before = joints[joints.length - 2];
-    joints.push(last.clone().addScaledVector(vb.subVectors(last, before).normalize(), tipLength * k * 0.8));
-    const radius = i => (tailRadius[Math.min(i, tailRadius.length - 1)] ?? 0.1) * k * (i >= joints.length - 1 ? 0.35 : 0.85);
-    // the top of the tail, densely: a few points between each two joints
+    joints.push(last.clone().addScaledVector(vb.subVectors(last, before).normalize(), tipLength * k * tailS * 0.8));
+    const radius = i => (tailRadius[Math.min(i, tailRadius.length - 1)] ?? 0.1) * k * (i >= joints.length - 1 ? 0.3 : 0.92);
     const dense = [];
+    const tangent = new V3(), top = new V3(), up = new V3(0, 1, 0), front = new V3(0, 0, 1);
     for (let i = 0; i < joints.length - 1; i++) {
-      for (let j = 0; j < 6; j++) {
-        const u = j / 6;
-        dense.push(new V3().lerpVectors(joints[i], joints[i + 1], u).add(va.set(0, radius(i) * (1 - u) + radius(i + 1) * u, 0)));
+      tangent.subVectors(joints[i + 1], joints[i]).normalize();
+      // the top: world up, less what lies along the tail; where it hangs steeply, toward the camera
+      top.copy(up).addScaledVector(tangent, -tangent.y);
+      const steep = 1 - top.length();
+      top.normalize().lerp(vb.copy(front).addScaledVector(tangent, -tangent.z).normalize(), clamp01(steep * 1.6)).normalize();
+      for (let j = 0; j < 4; j++) {
+        const u = j / 4;
+        dense.push(new V3().lerpVectors(joints[i], joints[i + 1], u).addScaledVector(top, radius(i) * (1 - u) + radius(i + 1) * u));
       }
     }
-    dense.push(joints[joints.length - 1].clone().add(va.set(0, radius(joints.length - 1), 0)));
-    // from the point over the first square on
-    const over = square(place.tail.from).add(va.set(0, 0.45, -0.3));
+    dense.push(joints[joints.length - 1].clone().add(va.set(0, radius(joints.length - 1), 0.1)));
+    // from the point beside the first square on (the piece hops onto it there)
+    const over = square(place.tail.from).add(va.set(-f * TAIL_PAST, 0.5, TAIL_Z + 0.5));
     let best = 0, bestD = Infinity;
     dense.forEach((p, i) => { const d = p.distanceTo(over); if (d < bestD) { bestD = d; best = i; } });
-    const used = dense.slice(best).filter((p, i, all) => i === 0 || i === all.length - 1 || i % 2 === 0);
-    used.push(square(place.tail.to).add(va.set(0, 0.02, 0.1)));
+    // down to where the tail comes to the last square's block (a long tail's rest lies on along its back edge)
+    let stop = dense.length - 1, stopD = Infinity;
+    dense.forEach((p, i) => { if (i > best) { const d = p.distanceTo(tailEnd.at); if (d < stopD) { stopD = d; stop = i; } } });
+    const used = dense.slice(best, stop + 1).filter((p, i, all) => i === 0 || i === all.length - 1 || i % 2 === 0);
+    if (used.length < 2) used.push(tailEnd.at.clone());
     return new THREE.CatmullRomCurve3(used, false, 'centripetal');
   }
 
@@ -478,13 +532,26 @@ async function createThorsedla(world, board, place, lod) {
     place, actor, root, k,
     get calm() { return calm; },
     set calm(value) { calm = Boolean(value); },
-    get stretch() { return { neck: neckS, tail: tailLengths.reduce((a, b) => a + b, 0) / lengthsOf(tailBind).reduce((a, b) => a + b, 0) }; },
-    ridePoint, bow, lift, rest, slideCurve,
-    restSpot, downSpot,
+    get stretch() { return { neck: neckS, tail: tailS }; },
+    ridePoint, bow, lift, rest: settle, slideCurve,
+    /** Her head at once at `u` along her bow (0 rest, 1 bowed): the lab's clearance check of the arc. */
+    holdArc(u) {
+      if (!place.neck) return;
+      arc = clamp01(u); moving = arc > 0;
+      arcPoint(arc, target); wayAt(arc, way);
+    },
+    /** Her neck's and tail's joints and thickness as she stands now (world), for the lab's clearance check. */
+    skeleton() {
+      return {
+        neck: neckJoints.map((p, i) => ({ p: p.clone(), r: neckRadius[i] * k })),
+        tail: tailJoints.map((p, i) => ({ p: p.clone(), r: tailRadius[i] * k })),
+        head: neckJoints[RIDE_JOINT + 1].clone().addScaledVector(headDir.clone().applyQuaternion(rootQ), HEAD.reach * k),
+      };
+    },
     lookAt(point) {
       if (!point) { look.goal = 0; return; }
       const head = actor.headPosition(va);
-      look.goal = head.distanceTo(point) < LOOK.near * (k / 0.75) ? 1 : 0;
+      look.goal = head.distanceTo(point) < LOOK.near ? 1 : 0;
       look.point.copy(point);
     },
     swish() { if (!calm) swishT = 0; },
@@ -507,7 +574,7 @@ async function createThorsedla(world, board, place, lod) {
       if (flickT >= 0 && (flickT += dt) > 0.7) flickT = -1;
       if (cheerT >= 0 && (cheerT += dt) > cheerFor) { cheerT = -1; actor.play('idle', { fade: 0.5 }); }
       // the fidgets
-      const busy = neckGoal || tweens.size || cheerT >= 0;
+      const busy = moving || tweens.size || cheerT >= 0;
       if (!busy && (nextFidget -= dt) <= 0) {
         nextFidget = (calm ? 12 : 6) + Math.random() * (calm ? 14 : 9);
         const pick = Math.random();
@@ -521,29 +588,21 @@ async function createThorsedla(world, board, place, lod) {
       if (nodT >= 0) {
         // a slow, friendly nod: down, a little up, down again less, and back
         const x = (nodT += dt) / 1.8;
-        nudge.y -= Math.sin(Math.PI * Math.min(1, x) * 2) ** 2 * 0.35 * (x < 0.5 ? 1 : 0.6) * (calm ? 0.5 : 1);
+        nudge.y -= Math.sin(Math.PI * Math.min(1, x) * 2) ** 2 * 0.22 * (x < 0.5 ? 1 : 0.6) * (calm ? 0.5 : 1);
         if (x >= 1) nodT = -1;
       }
       if (stretchT >= 0) {
+        // her neck up and back a little (behind the blocks, never over them), then down again
         const x = (stretchT += dt) / 2.6;
-        nudge.y += Math.sin(Math.PI * Math.min(1, x)) * 0.55 * (calm ? 0.5 : 1);
-        nudge.z += Math.sin(Math.PI * Math.min(1, x)) * 0.25;
+        nudge.y += Math.sin(Math.PI * Math.min(1, x)) * 0.45 * (calm ? 0.5 : 1);
+        nudge.z -= Math.sin(Math.PI * Math.min(1, x)) * 0.3;
         if (x >= 1) stretchT = -1;
       }
-      if (cheerT >= 0 && !calm) nudge.y += Math.sin(cheerT * 9) * 0.22 * Math.min(1, cheerT * 3, (cheerFor - cheerT) * 3);
+      if (cheerT >= 0 && !calm) nudge.y += Math.abs(Math.sin(cheerT * 6)) * 0.25 * Math.min(1, cheerT * 3, (cheerFor - cheerT) * 3);
       // a glance at the child, the camera, for a couple of seconds
-      let goal = aimGoal;
-      if (glanceT >= 0) {
-        if ((glanceT += dt) > 2.4) glanceT = -1;
-        else goal = vc.copy(world.camera.position);
-      }
-      if (cheerT >= 0) goal = vc.copy(world.camera.position);
-      aim.lerp(goal, 1 - Math.exp(-dt * 4));
-      if (!place.neck) {
-        // Lyng keeps her clip's neck and looks round with the actor's own look
-        if (look.goal > 0.5) actor.lookAt(look.point, { weight: 0.5, maxAngle: 45, maxPitch: 35 });
-        else actor.lookAt(glanceT >= 0 ? 'camera' : null, { weight: 0.5 });
-      }
+      const glancing = (glanceT >= 0 && (glanceT += dt) < 2.4) || cheerT >= 0;
+      if (glanceT >= 2.4) glanceT = -1;
+      glance += ((glancing ? 1 : 0) - glance) * (1 - Math.exp(-dt * 3));
       actor.update(dt);
     },
   };

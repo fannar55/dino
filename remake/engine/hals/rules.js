@@ -21,13 +21,14 @@
 // squares (placeFossils), so it pays to play again, and applyTurn names the kind a landing finds. Keeping what has
 // been found between games is the save's job (engine/save.js, addHalsFound), not the rules'.
 
-// The entire board is deterministic.
+// The entire board is deterministic. Codex's measures (metres in the world), with the tiers 5.75 m apart instead of
+// his 5.5, so a Þórseðla at her natural size fits under the tier above (the owner's look at the board, 2026-10-19).
 export const BOARD = Object.freeze({
   columns: 16,
   rows: 5,
   count: 80,
   spacing: 2.3,
-  rowHeight: 5.5,
+  rowHeight: 5.75,
 });
 
 // The Þórseðlas that carry the routes. `neck` goes up from a low square to a high one, `tail` slides down; either is

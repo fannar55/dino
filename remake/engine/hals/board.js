@@ -3,7 +3,7 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { BOARD, SHORTCUTS, tilePosition } from './rules.js';
 
 // The board of "Háls og hali" in the world (spec sections 3 and 4): Codex's 80 squares on five tiers of 16, seen from the side,
-// at Codex's own measures (rules.js: 2.3 m from square to square, 5.5 m from tier to tier), in metres. Each tier is a mossy log
+// at Codex's measures (rules.js: 2.3 m from square to square, 5.75 m from tier to tier), in metres. Each tier is a flat mossy log
 // with sixteen sandstone blocks on it, each block with its number on a plaque on the face toward the camera. The ends of the
 // tiers are joined by wooden stairs that bow out past the ends (16 to 17, 32 to 33, 48 to 49, 64 to 65), Codex's stairs. Two
 // old trees hold the logs at the ends, and roots and ivy hang under them. Behind a tier, a mossy rock shelf carries the
@@ -21,8 +21,11 @@ import { BOARD, SHORTCUTS, tilePosition } from './rules.js';
 // `base` is the height of tier 0's block tops over the ground at the board, `heightAt` the forest's ground, `shelves` the rock
 // shelves to put behind the tiers: [{ tier, x0, x1, z0, z1 }] (the Þórseðlas' places, thorsedla.js's shelfFor).
 
-export const STONE = { width: 2.04, height: 0.95, depth: 2.0, plaque: [1.76, 0.82] }; // the plaque nearly fills the block's face, so the numbers read from the whole board
-export const LEDGE = { depth: 2.5, thickness: 1.0, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
+// The plaque nearly fills the block's face, so the numbers read from the whole board. The blocks are deep enough for two pieces
+// side by side, with a Þórseðla's head resting just behind them (places.js BLOCK_BACK is half the depth).
+export const STONE = { width: 2.04, height: 0.95, depth: 2.4, plaque: [1.7, 0.82] };
+// A flat log under each tier: thin, so the necks and bodies behind and under it show (the owner's look, 2026-10-19).
+export const LEDGE = { depth: 2.3, thickness: 0.55, halfLength: BOARD.columns * BOARD.spacing / 2 + 0.35 };
 const STAIR = { reach: 3.3, treads: 13 };
 const COLOURS = {
   stone: ['#dcc49a', '#d5bf98', '#d0bf9c', '#cdbf9f', '#dcc6a0'], // a tier each: warm sandstone, a little cooler higher up
@@ -206,15 +209,15 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const lp = log.attributes.position;
     for (let i = 0; i < lp.count; i++) {
       const x = lp.getX(i);
-      lp.setY(i, lp.getY(i) * 0.82 + 0.06 * Math.sin(x * 0.4 + r));
-      lp.setZ(i, lp.getZ(i) * 1.55);
+      lp.setY(i, lp.getY(i) * 0.82 + 0.04 * Math.sin(x * 0.4 + r));
+      lp.setZ(i, lp.getZ(i) * (L.depth / 2) / (L.thickness * 0.64));
     }
     log.computeVertexNormals();
     log.translate(0, top - L.thickness * 0.5, -0.05);
     woodParts.push(painted(log, COLOURS.log, 0.06, random));
     // a moss blanket over the log's top, under the blocks
     const moss = new THREE.SphereGeometry(1, 18, 4, 0, Math.PI * 2, 0, Math.PI / 2);
-    moss.scale(L.halfLength + 0.5, 0.12, 1.4);
+    moss.scale(L.halfLength + 0.5, 0.1, L.depth / 2 + 0.05);
     moss.translate(0, top - 0.06, -0.05);
     woodParts.push(painted(moss, COLOURS.logMoss, 0.08, random));
     // roots and ivy hanging under the log
@@ -222,9 +225,9 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
       const x = -L.halfLength + 1.5 + k * (2 * L.halfLength - 3) / 8 + (random() - 0.5) * 1.2;
       const length = 0.8 + random() * 1.6;
       const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(x, top - L.thickness * 0.7, 0.6),
-        new THREE.Vector3(x + 0.25, top - L.thickness * 0.7 - length * 0.5, 0.9),
-        new THREE.Vector3(x - 0.1, top - L.thickness * 0.7 - length, 0.75),
+        new THREE.Vector3(x, top - L.thickness * 0.7, 0.75),
+        new THREE.Vector3(x + 0.25, top - L.thickness * 0.7 - length * 0.5, 1.05),
+        new THREE.Vector3(x - 0.1, top - L.thickness * 0.7 - length, 0.9),
       ]);
       woodParts.push(painted(new THREE.TubeGeometry(curve, 5, 0.05 + random() * 0.04, 4, false), k % 3 ? COLOURS.ivy : COLOURS.root, 0.1, random));
     }
@@ -236,7 +239,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   for (const s of shelves) {
     if (s.tier === 0) continue;
     const yTop = tierY(s.tier) - 0.3, thick = 1.5;
-    const w = s.x1 - s.x0 + 0.6, d = s.z1 - s.z0 + 0.4;
+    const w = s.x1 - s.x0, d = s.z1 - s.z0; // no wider than asked: necks and tails pass close by its edges
     const cx = (s.x0 + s.x1) / 2, cz = (s.z0 + s.z1) / 2;
     const g = new THREE.BoxGeometry(w, thick, d, 14, 3, 8);
     const pos = g.attributes.position;
@@ -257,10 +260,12 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
         py = -thick / 2 - (0.25 + 0.55 * Math.abs(n1) + 0.25 * Math.abs(n2)) * (1 - edge * 0.6);
       }
       // the sides wander in and out
-      const out = 1 + 0.06 * n2 + 0.05 * n1;
+      const out = 1 - 0.04 * Math.abs(n2) - 0.04 * Math.abs(n1); // in, never out
       if (ex > 0.98) px = x * out;
       if (ez > 0.98) pz = z * out;
-      pos.setXYZ(i, px + cx, py + yTop - thick / 2, pz + cz);
+      // turned about y round its middle when its place is turned (shelfFor's angle)
+      const ca = Math.cos(s.angle ?? 0), sa = Math.sin(s.angle ?? 0);
+      pos.setXYZ(i, cx + px * ca + pz * sa, py + yTop - thick / 2, cz - px * sa + pz * ca);
       const top = py > thick / 2 - 0.12;
       if (top) c.copy(mossColour).lerp(mossDeep, 0.5 + 0.5 * n2);
       else c.copy(rock[0]).lerp(rock[n1 > 0 ? 1 : 2], Math.abs(n1) * 0.7).multiplyScalar(0.95 + 0.1 * n2);

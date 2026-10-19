@@ -28,7 +28,7 @@ const CHARACTERS = {
 const ARMS = /^(Left|Right)(Shoulder|UpperArm|LowerArm|Hand)$/; // Egill's arm bones, which a gesture takes from his wave clips
 export { CHARACTERS as PIECE_CHARACTERS };
 const LENGTH = 3.7; // a piece's length nose to tail (m): bigger than a block, so Egill shows clearly on Mosi close up
-const LANES = [[-0.2, 0.3], [0.35, -0.3], [-0.55, -0.02], [0.5, -0.62]]; // x and z on a block, by player: behind the plaques' face
+const LANES = [[-0.2, 0.45], [0.35, -0.1], [-0.55, 0.15], [0.5, -0.45]]; // x and z on a block, by player: on its top, clear of its faces
 const HOP = { seconds: 0.44, height: 0.62, calm: { seconds: 0.62, height: 0.22 } };
 const TOWARD_CAMERA = 24; // degrees a piece turns toward the camera from the way it goes
 const url = name => new URL(`../../assets/characters/${name}.glb`, import.meta.url).href;
