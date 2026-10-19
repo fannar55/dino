@@ -2113,5 +2113,195 @@
   "src": "assets/audio/eitt/eitt_tut_real.mp3",
   "duration": 4.57,
   "mouth": "6ffffec099fe0000dfdfe3cf8ba5000000000009ffedb800dccdddc0007d00000ed59fdbcbcba945700000000000"
+ },
+ "hals_mosi_intro": {
+  "src": "assets/audio/hals/hals_mosi_intro.mp3",
+  "duration": 5.37,
+  "mouth": "00ddb40dffdba768cfbcb6563ef99779dccebb77400000000000afeadc0ec90000ea800bbd08e03cfd0000004bffda80030000000000"
+ },
+ "hals_mosi_intro_neck": {
+  "src": "assets/audio/hals/hals_mosi_intro_neck.mp3",
+  "duration": 4.33,
+  "mouth": "7fc00cddeefeb08c6aff9aefdc3009ccb000000dfee00000eb7000bdab990ffdcddb0eebfd0000000000000"
+ },
+ "hals_mosi_intro_tail": {
+  "src": "assets/audio/hals/hals_mosi_intro_tail.mp3",
+  "duration": 4.651,
+  "mouth": "08edec00bbbecd40cce986acecbabcb000000bcdfdffffcafffeffd8745000000006ba9befdeeeeaa7500000000000"
+ },
+ "hals_mosi_roll": {
+  "src": "assets/audio/hals/hals_mosi_roll.mp3",
+  "duration": 2.01,
+  "mouth": "7dc20000cdffc000bfedefd988400000000000000"
+ },
+ "hals_mosi_count": {
+  "src": "assets/audio/hals/hals_mosi_count.mp3",
+  "duration": 1.37,
+  "mouth": "00efc50ceffeec50000000000000"
+ },
+ "hals_mosi_1": {
+  "src": "assets/audio/hals/hals_mosi_1.mp3",
+  "duration": 1.13,
+  "mouth": "00fffeeb950000000000000"
+ },
+ "hals_mosi_2": {
+  "src": "assets/audio/hals/hals_mosi_2.mp3",
+  "duration": 1.29,
+  "mouth": "008affffdb8500000000000000"
+ },
+ "hals_mosi_3": {
+  "src": "assets/audio/hals/hals_mosi_3.mp3",
+  "duration": 1.13,
+  "mouth": "000defefdb5400000000000"
+ },
+ "hals_mosi_4": {
+  "src": "assets/audio/hals/hals_mosi_4.mp3",
+  "duration": 1.21,
+  "mouth": "0004dfeefbb50000000000000"
+ },
+ "hals_mosi_5": {
+  "src": "assets/audio/hals/hals_mosi_5.mp3",
+  "duration": 1.13,
+  "mouth": "0007ffeda65000000000000"
+ },
+ "hals_mosi_6": {
+  "src": "assets/audio/hals/hals_mosi_6.mp3",
+  "duration": 1.05,
+  "mouth": "0000ff300300000000000"
+ },
+ "hals_mosi_good": {
+  "src": "assets/audio/hals/hals_mosi_good.mp3",
+  "duration": 1.37,
+  "mouth": "099ffec777dfe600000000000000"
+ },
+ "hals_mosi_go": {
+  "src": "assets/audio/hals/hals_mosi_go.mp3",
+  "duration": 1.85,
+  "mouth": "0dfe4000bfec950000dfffefc600000000000"
+ },
+ "hals_mosi_near": {
+  "src": "assets/audio/hals/hals_mosi_near.mp3",
+  "duration": 2.17,
+  "mouth": "0bffeeeddd7600dfebdfffcadf700000000000000000"
+ },
+ "hals_mosi_after_tail": {
+  "src": "assets/audio/hals/hals_mosi_after_tail.mp3",
+  "duration": 3.29,
+  "mouth": "00cf600cbfdddb800000000007b055ff74bdd6eddec000aabd6000000000000000"
+ },
+ "hals_mosi_fireflies": {
+  "src": "assets/audio/hals/hals_mosi_fireflies.mp3",
+  "duration": 3.53,
+  "mouth": "0aeffc809fdcd5dfcaecbd705dec35dc0004009bbc8530ddff86efe6098300000000000"
+ },
+ "hals_mosi_mud": {
+  "src": "assets/audio/hals/hals_mosi_mud.mp3",
+  "duration": 3.371,
+  "mouth": "affdc700003cdcff98ceb970000000000007efe9857cffd00af70066400000000000"
+ },
+ "hals_mosi_new_fossil": {
+  "src": "assets/audio/hals/hals_mosi_new_fossil.mp3",
+  "duration": 2.49,
+  "mouth": "4cffeee56000cdeeda0efecff9ddea0de00bb5000000000000"
+ },
+ "hals_mosi_won": {
+  "src": "assets/audio/hals/hals_mosi_won.mp3",
+  "duration": 3.371,
+  "mouth": "08bfd5003fecaaadeb94000000009d0076edfabb909c0ba0023ff300000000000000"
+ },
+ "hals_mosi_lost": {
+  "src": "assets/audio/hals/hals_mosi_lost.mp3",
+  "duration": 3.53,
+  "mouth": "000fe8850fedbedec9feefede8ee98c67750000000000008efdddee0087530000000000"
+ },
+ "hals_egill_yay": {
+  "src": "assets/audio/hals/hals_egill_yay.mp3",
+  "duration": 1.37,
+  "mouth": "024ff00000743000000000000000"
+ },
+ "hals_thor_hello": {
+  "src": "assets/audio/hals/hals_thor_hello.mp3",
+  "duration": 3.05,
+  "mouth": "00ceccffb400009e74edfec50000000000b00b08d505eaab9000000000000"
+ },
+ "hals_thor_my_turn": {
+  "src": "assets/audio/hals/hals_thor_my_turn.mp3",
+  "duration": 2.01,
+  "mouth": "0dfffec6ce500fdedcddddda40000000000000000"
+ },
+ "hals_thor_neck": {
+  "src": "assets/audio/hals/hals_thor_neck.mp3",
+  "duration": 1.85,
+  "mouth": "7ff8000cee467bfee600cb840000000000000"
+ },
+ "hals_thor_tail": {
+  "src": "assets/audio/hals/hals_thor_tail.mp3",
+  "duration": 2.49,
+  "mouth": "0049feffffed86000000277ac9aa95db59aa85000000000000"
+ },
+ "hals_thor_fossil": {
+  "src": "assets/audio/hals/hals_thor_fossil.mp3",
+  "duration": 1.69,
+  "mouth": "00000cfffd06eb96760000000000000000"
+ },
+ "hals_thor_mud": {
+  "src": "assets/audio/hals/hals_thor_mud.mp3",
+  "duration": 2.17,
+  "mouth": "0efe8875300000004899affddb542620000000000000"
+ },
+ "hals_thor_won": {
+  "src": "assets/audio/hals/hals_thor_won.mp3",
+  "duration": 2.81,
+  "mouth": "09fffc959cdeeb9200000000000ab609ea50002cabb70000000000000"
+ },
+ "hals_thor_you_won": {
+  "src": "assets/audio/hals/hals_thor_you_won.mp3",
+  "duration": 3.45,
+  "mouth": "009fda75eedeb030000000000347fffec00000ffb32000ad62a997500000000000000"
+ },
+ "hals_thor_again": {
+  "src": "assets/audio/hals/hals_thor_again.mp3",
+  "duration": 1.45,
+  "mouth": "00fd50ffecf000073300000000000"
+ },
+ "hals_fossil_ammonite": {
+  "src": "assets/audio/hals/hals_fossil_ammonite.mp3",
+  "duration": 8.09,
+  "mouth": "bfffda9740000000000000000009fefffffb0ce8538cbc000bdd99a4008660009b80ced707a7000586300000000000000000eb00af7000bbc000dccbbaaa620a7000babaaaaee706776333300000000000"
+ },
+ "hals_fossil_trilobite": {
+  "src": "assets/audio/hals/hals_fossil_trilobite.mp3",
+  "duration": 8.01,
+  "mouth": "000fdfe007a900340000000000000000000ddee00dfb0d80000cdffc5ecbc73a90000a708abbba269abdffdc6003dc80007abcefffe900087400008cca99cda6aca007689663073000874300000000000"
+ },
+ "hals_fossil_tooth": {
+  "src": "assets/audio/hals/hals_fossil_tooth.mp3",
+  "duration": 5.85,
+  "mouth": "08deeb0099967700753000000000000000cfffcadeb00cdcaacddc0008400498787000000007e30003befff800798630070068840000000000000"
+ },
+ "hals_fossil_footprint": {
+  "src": "assets/audio/hals/hals_fossil_footprint.mp3",
+  "duration": 6.49,
+  "mouth": "000fe00000077400000000000000000007cfff00adeddaba3000adcca009bccdfa008cccb92678730000000730000cfeccd90004ab80850008b995000000000000"
+ },
+ "hals_fossil_leaf": {
+  "src": "assets/audio/hals/hals_fossil_leaf.mp3",
+  "duration": 6.25,
+  "mouth": "00000dfff75e700bde80007530000000000000000cf400ceffc403dcb004da0000b98c000003a97000abba9ffd00baaa879099348896b5000400000000000"
+ },
+ "hals_fossil_amber": {
+  "src": "assets/audio/hals/hals_fossil_amber.mp3",
+  "duration": 6.65,
+  "mouth": "0acffeb3000afe6007dfda0540000000000000000000dfffeefd00bb0000c90ac005aded000992875008c603bcb0dedc6ca4000ab4cb7700a898a9860300000000000"
+ },
+ "hals_fossil_egg": {
+  "src": "assets/audio/hals/hals_fossil_egg.mp3",
+  "duration": 6.09,
+  "mouth": "4ccfff305caaa957530000000000000000007afff40bdbdc97cc4749e70000c7aa0000496300000007dc0aa00e008b79b000a968908b84000000000000"
+ },
+ "hals_fossil_skeleton": {
+  "src": "assets/audio/hals/hals_fossil_skeleton.mp3",
+  "duration": 6.33,
+  "mouth": "00dfffea60565000000000000000000cd0000deff08ebcfe05dddc999a8209acddccdd6aa800009a0bca6ccb006a8885734870057a306668400000000000000"
  }
 }
