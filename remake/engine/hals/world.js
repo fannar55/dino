@@ -15,6 +15,7 @@ import { createBoard } from './board.js';
 import { PLACES, shelfFor } from './places.js';
 import { createThorsedlas } from './thorsedla.js';
 import { createFriends, UGGEDLA_SPOT } from './friends.js';
+import { createLife } from './life.js';
 
 // The world of "Háls og hali" (spec sections 3, 4 and 6): the board of 100 squares on five tiers, seen from the side, in a
 // clearing of the remake's own forest, in the chapter's morning light, with the chapter's real Þórseðlas on its necks and tails
@@ -26,6 +27,8 @@ import { createFriends, UGGEDLA_SPOT } from './friends.js';
 //   world.board                              the board (board.js): square(n), stairs(n), decorate(events), glow(n), tierY(r)
 //   world.thorsedlas                         the six Þórseðlas (thorsedla.js): neckAt(from), tailAt(from), list
 //   world.friends                            Uggeðla and Flugeðla watching (friends.js)
+//   world.life                               the small life round the board (life.js): dragonflies, butterflies, pterosaurs,
+//                                            beetles, lizards, frogs, a snail, flowers, motes, light and falling leaves
 //   world.view                               the camera: overview(), follow(target), frame(a, b, margin), shake(s), cut()
 //   world.watch(point)                       the Þórseðlas and friends look at a piece (null: they look about)
 //   world.calm = true                        calm mode: the camera stays on the whole board, everything moves gently
@@ -158,12 +161,12 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     view.resize(camera.aspect);
   }
 
-  return {
-    scene, camera, board, view, forest, world, lighting, places, thorsedlas, friends,
+  const api = {
+    scene, camera, board, view, forest, world, lighting, places, thorsedlas, friends, life: null,
     /** Everyone who watches (the Þórseðlas, the friends) looks at this point (a piece's position), or about (null). */
     watch(point) { thorsedlas.lookAt(point); friends.lookAt(point); },
     /** Calm mode: the camera stays on the whole board and everything moves gently. */
-    set calm(value) { view.calm = value; thorsedlas.calm = value; friends.calm = value; },
+    set calm(value) { view.calm = value; thorsedlas.calm = value; friends.calm = value; if (api.life) api.life.calm = value; },
     get calm() { return view.calm; },
     get time() { return time; },
     addUpdater(fn) { updaters.add(fn); return () => updaters.delete(fn); },
@@ -174,6 +177,7 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
     resize,
     ready: () => Promise.all([characterLodsReady(), thorsedlas.ready(), friends.ready()]),
     dispose() {
+      api.life?.dispose();
       thorsedlas.dispose();
       friends.dispose();
       board.dispose();
@@ -182,6 +186,8 @@ export async function createHalsWorld(renderer, { q = PRESETS.tablet, params = n
       scene.clear();
     },
   };
+  api.life = createLife(api);
+  return api;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------

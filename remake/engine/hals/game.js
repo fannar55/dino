@@ -433,6 +433,7 @@ export function createHalsGame(doc, {
             hw.watch(active.position);
             pieces.watch(active);
           }
+          if (hw.life) hw.life.focus = active?.position ?? null; // nothing hovers or rests by the piece whose turn it is
           followEffects(dt);
         });
         hw.board.decorate(SPECIAL_TILES);
@@ -456,6 +457,7 @@ export function createHalsGame(doc, {
     pieces?.dispose();
     pieces = made;
     roster = ids;
+    if (hw.life) hw.life.avoid = made.list.map(piece => piece.position); // and nothing rests on a piece's square
     stale = false;
     pieces.calm = calm();
     return pieces;
@@ -883,6 +885,7 @@ export function createHalsGame(doc, {
       hw.view.frame(hw.board.square(BOARD.count - 8), top.clone().add(new THREE.Vector3(0, 9, 0)), 5);
       sparks.fireworks(top.add(new THREE.Vector3(0, 1.5, -1)));
       sparks.sparkle(piece.position);
+      hw.life?.scatter(); // the critters fly up and jump for joy
     }
   }
 
