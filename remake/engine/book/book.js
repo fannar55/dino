@@ -1,9 +1,11 @@
-import { pressable, reducedMotion } from './fx.js';
+import { pressable, reducedMotion, sparkle } from './fx.js';
 import { ICONS } from './icons.js';
 import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
+import { FOSSIL_KINDS } from '../hals/rules.js';
+import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
 // spread, with Task 1's look (book.css). This is its shell: the spread, the ribbons that turn between its pages, the close, the
@@ -15,7 +17,12 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 // Kambeðla's card game, which opens once her star (k1_kambedla) is in the book and is new until it is first played, and on the
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
-// opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }).
+// opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
+// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js), new until it is first played.
+// The Safn leaf is the fossil collection, Steingervingasafn: the eight finds of "Háls og hali" (engine/hals/rules.js FOSSIL_KINDS),
+// four on each page as taped stickers (engine/hals/fossil-art.js), in colour once found (the save's getHals().found) and a soft
+// silhouette with a "?" until then. A tap on a found one has the narrator say its name and a fact (hals_fossil_<kind>), shows its
+// name over it, and sparkles; an unfound one wiggles.
 //
 // Who holds it. A book the child opens (the journal's button) holds the game: onPause(true) as it opens and onPause(false) when it
 // is shut, however it is shut. A book a script opens (the chapter's last scene) holds nothing, so the scene's last line plays on,
@@ -27,12 +34,18 @@ import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 // A fast second tap cuts the motion under way short and starts its own from there. Where the page has no animations, or the tablet
 // asks for less motion, the book opens and turns at once (it fades in and out).
 
-const TABS = ['stars', 'animals', 'games'];
-const LABELS = { stars: 'Stjörnur', animals: 'Dýrin', games: 'Leikir' };
+const TABS = ['stars', 'animals', 'games', 'fossils'];
+const LABELS = { stars: 'Stjörnur', animals: 'Dýrin', games: 'Leikir', fossils: 'Safn' };
 const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
 const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been opened, so the tile is new no more
 const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
+const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
+// "Háls og hali" shows on the Leikir page always while it is being made: a development switch. The finished game will open with
+// Þórseðla's star, as "Eitt!" opens with Kambeðla's: HALS_OPEN becomes save.get().stars.includes('k2_thorsedla').
+const HALS_OPEN = true;
+const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
+const NAME_MS = 2600; // a fossil's name stays over its sticker this long
 const OPEN_MS = 460;
 const CLOSE_MS = 340;
 const FADE_MS = 160; // the open and close with less motion
@@ -135,9 +148,59 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   teachButton.innerHTML = '<svg class="book-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="icon-fill" d="M2.5 9.5L12 5l9.5 4.5L12 14z"/><path d="M6.5 11.6v4.2c3.3 2.6 7.7 2.6 11 0v-4.2M20 10.5v5" stroke-width="2"/></svg><span>Kennsla</span>';
   const sheet = make('div', 'sticker-sheet');
   sheet.setAttribute('role', 'img');
+  // "Háls og hali": a taped photo of Þórseðla beside "Eitt!".
+  const halsTile = make('button', 'tile game-tile');
+  halsTile.setAttribute('type', 'button');
+  halsTile.setAttribute('data-game', 'hals');
+  halsTile.setAttribute('aria-label', 'Háls og hali, spil við Þórseðlu');
+  halsTile.style.setProperty('--hue', '#e9b14d'); // Þórseðla's apricot
+  const halsPicture = make('span', 'tile-picture');
+  const halsImage = doc.createElement('img');
+  halsImage.src = THORSEDLA_PICTURE;
+  halsImage.alt = '';
+  halsImage.draggable = false;
+  halsPicture.append(halsImage);
+  const halsName = make('span', 'tile-name');
+  halsName.textContent = 'Háls og hali';
+  const halsBadge = make('span', 'badge-new');
+  halsBadge.textContent = 'Nýtt!';
+  halsBadge.setAttribute('aria-hidden', 'true');
+  halsTile.append(halsPicture, halsName);
+  const eittSlot = make('div', 'game-slot');
+  eittSlot.append(eittTile, teachButton);
+  const halsSlot = make('div', 'game-slot');
+  halsSlot.append(halsTile);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
-  gamesLeft.append(eittTile, teachButton);
+  gamesLeft.append(eittSlot, halsSlot);
   gamesRight.append(sheet);
+
+  // The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page.
+  const fossilTiles = FOSSIL_KINDS.map(kind => {
+    const tile = make('button', 'tile fossil-tile');
+    tile.setAttribute('type', 'button');
+    tile.setAttribute('data-fossil', kind.id);
+    tile.style.setProperty('--hue', FOSSIL_HUES[kind.id]);
+    const picture = make('span', 'tile-picture');
+    picture.innerHTML = FOSSIL_ART[kind.id];
+    const name = make('span', 'tile-name');
+    tile.append(picture, name);
+    return { tile, name, kind };
+  });
+  const fossilTitle = make('h2', 'fossil-title');
+  fossilTitle.textContent = 'Steingervingasafn';
+  const fossilCount = make('p', 'fossil-count');
+  const fossilName = make('div', 'fossil-name'); // the name over a sticker tapped
+  fossilName.setAttribute('aria-live', 'polite');
+  fossilName.hidden = true;
+  const fossilLeaf = leaves.get('fossils');
+  const [fossilsLeft, fossilsRight] = fossilLeaf.tiles;
+  fossilsLeft.classList.add('fossil-tiles');
+  fossilsRight.classList.add('fossil-tiles');
+  fossilsLeft.append(...fossilTiles.slice(0, 4).map(f => f.tile));
+  fossilsRight.append(...fossilTiles.slice(4).map(f => f.tile));
+  fossilLeaf.pages[0].append(fossilTitle);
+  fossilLeaf.pages[1].append(fossilCount);
+  fossilLeaf.el.append(fossilName);
 
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
@@ -170,6 +233,57 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     FRIENDS.forEach((friend, i) => stars[i].classList.toggle('earned', got.has(friend.key)));
     animals.render();
     renderGames(state);
+    renderHals(state);
+    renderFossils();
+  }
+
+  /** The fossils found are in colour with their names; the rest are soft silhouettes with a "?". */
+  function renderFossils() {
+    const found = new Set(save.getHals?.().found ?? []);
+    for (const { tile, name, kind } of fossilTiles) {
+      const has = found.has(kind.id);
+      tile.classList.toggle('found', has);
+      tile.classList.toggle('unfound', !has);
+      name.textContent = has ? kind.name : '?';
+      tile.setAttribute('aria-label', has ? kind.name : 'Ófundinn steingervingur');
+    }
+    const count = FOSSIL_KINDS.filter(kind => found.has(kind.id)).length;
+    fossilCount.textContent = `${count} af ${FOSSIL_KINDS.length}`;
+  }
+
+  let nameTimer = 0;
+  /** A tap on a sticker: a found one says its name and fact, shows its name over it and sparkles; an unfound one wiggles. */
+  function tapFossil({ tile, kind }) {
+    if (!tile.classList.contains('found')) {
+      audio?.sfx?.('wiggle');
+      if (typeof tile.animate === 'function') {
+        tile.animate(reducedMotion(win)
+          ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
+          : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-3deg' }, { rotate: '0deg' }], { duration: 520, easing: 'ease-in-out' });
+      }
+      return;
+    }
+    audio?.narrate?.(`hals_fossil_${kind.id}`);
+    sparkle(tile, 12, win);
+    if (typeof tile.animate === 'function' && !reducedMotion(win)) {
+      tile.animate([{ scale: '1' }, { scale: '1.1' }, { scale: '1' }], { duration: 480, easing: 'cubic-bezier(.3, 1.6, .5, 1)' });
+    }
+    // The name over the sticker, placed in the spread's own pixels (its leaf lies on the spread).
+    fossilName.textContent = kind.name;
+    fossilName.hidden = false;
+    const rect = tile.getBoundingClientRect?.();
+    const box = spread.getBoundingClientRect?.();
+    if (rect?.width && box) {
+      fossilName.style.setProperty('left', `${(rect.left + rect.width / 2 - box.left).toFixed(1)}px`);
+      fossilName.style.setProperty('top', `${(rect.top - box.top).toFixed(1)}px`);
+    }
+    fossilName.getAnimations?.().forEach(animation => animation.cancel());
+    if (typeof fossilName.animate === 'function') {
+      fossilName.animate(reducedMotion(win) ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translate(-50%, -80%) scale(.6)' }, { opacity: 1, transform: 'translate(-50%, -100%) scale(1)' }],
+        { duration: 360, easing: 'cubic-bezier(.3, 1.6, .5, 1)' });
+    }
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(() => { fossilName.hidden = true; }, NAME_MS);
   }
 
   /** "Eitt!" opens with Kambeðla's star and is new until first played; each round won is a sticker on the right page. */
@@ -184,7 +298,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
     if (!fresh) eittBadge.remove();
     const wins = save.getEitt?.().wins ?? 0;
-    if (sheet.getAttribute('data-wins') === String(wins)) return;
+    if (sheet.getAttribute('data-wins') === String(wins)) return; // nothing new for the sticker sheet
     sheet.setAttribute('data-wins', String(wins));
     const stickers = Array.from({ length: Math.min(wins, STICKERS_SHOWN) }, () => make('span', 'book-sticker'));
     if (!wins) stickers.push(make('span', 'book-sticker empty')); // where the first one will go
@@ -195,6 +309,25 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     }
     sheet.replaceChildren(...stickers);
     sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
+  }
+
+  /** "Háls og hali" is there while HALS_OPEN, and new until it is first played. */
+  function renderHals(state) {
+    const fresh = HALS_OPEN && !state.seen.includes(HALS_SEEN);
+    halsSlot.hidden = !HALS_OPEN;
+    halsTile.classList.toggle('found', HALS_OPEN && !fresh);
+    halsTile.classList.toggle('new', fresh);
+    if (fresh && halsBadge.parentNode !== halsTile) halsTile.append(halsBadge);
+    if (!fresh) halsBadge.remove();
+  }
+
+  /** A tap on the "Háls og hali" tile: the game opens over the book. */
+  function tapHals() {
+    if (!HALS_OPEN) return;
+    audio?.sfx?.('tile');
+    save.addSeen(HALS_SEEN);
+    render();
+    onPlay?.('hals');
   }
 
   /** A tap on the "Eitt!" tile: it opens the game once Kambeðla's star is in, and wiggles before. */
@@ -427,6 +560,8 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   }
   for (const tile of stars) pressable(tile, { audio, win });
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
+  pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
+  for (const fossil of fossilTiles) pressable(fossil.tile, { audio, sound: null, win, onTap: () => tapFossil(fossil) });
   pressable(teachButton, { audio, sound: 'tile', win, onTap: () => { if (save.get().stars.includes(EITT_STAR)) onPlay?.('eitt', { tutorial: true }); } });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {

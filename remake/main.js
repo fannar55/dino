@@ -28,6 +28,7 @@ import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
 import { parseManifest } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
+import { createHalsGame } from './engine/hals/game.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -178,7 +179,7 @@ const pointer = createPointer({ canvas, camera, world });
 const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => eitt.open(options), // the Leikir page's "Eitt!" tile, or its Kennsla (the tutorial)
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : eitt.open(options)), // the Leikir page's "Eitt!" tile (or its Kennsla), or "Háls og hali"
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
@@ -197,6 +198,20 @@ const eitt = createEittGame(document, {
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
+});
+// Þórseðla's snakes and ladders, "Háls og hali" (engine/hals/game.js), which the Leikir page opens over the book as it does "Eitt!",
+// holding the chapter the same way (its own hold). It draws its board with this page's renderer: the canvas moves into the game
+// while it is open, so the chapter draws nothing then (render() below), and draws once more when the game shuts, under the book.
+const hals = createHalsGame(document, {
+  save, renderer, q, params, audio: { context: audio, output, theme, lines, muted: !playing },
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('hals', paused);
+  },
+  onClose: () => {
+    canvasCleared = true; // the chapter's frame goes back on the canvas the game drew on
+    book.refresh(); // a fossil found is in the book now
+  },
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
@@ -422,6 +437,10 @@ let canvasCleared = false;
 let drew = true;
 window.addEventListener('resize', () => { canvasCleared = true; }); // after the renderer's own, which does the clearing
 function render() {
+  if (hals.isOpen) { // the game draws its board on this canvas: the chapter waits
+    drew = false;
+    return;
+  }
   drew = !(clock.paused && (book.isOpen || eitt.isOpen) && !canvasCleared);
   if (!drew) return;
   canvasCleared = false;
@@ -462,4 +481,4 @@ renderer.setAnimationLoop(now => {
   }
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

@@ -10,7 +10,10 @@
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
      .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
                                  page a .star-tile, .earned once the friend's star is in the book; on the Leikir page the
-                                 .game-tile of "Eitt!", with the stickers won beside it (.sticker-sheet of .book-sticker)
+                                 .game-tile of "Eitt!" and of "Háls og hali", each in its .game-slot, with the stickers won from
+                                 Kambeðla beside them (.sticker-sheet of .book-sticker); on the Safn page a .fossil-tile for each
+                                 of the eight fossils (.found or .unfound), under .fossil-title, with .fossil-count and the
+                                 .fossil-name that shows over a sticker tapped
      .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
                                  .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
                                  and, on the last page, .card-done
@@ -345,6 +348,41 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
+/* Two games side by side on the left page: each in its slot, "Eitt!" with its "Kennsla" under it. */
+.book-leaf[data-tab="games"] .book-tiles { flex-wrap: nowrap; align-items: center; }
+.game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .6); }
+.book-leaf[data-tab="games"] .game-tile {
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--book-target) - 30px) * .96);
+}
+.game-tile[data-game="hals"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
+
+/* The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's title. */
+.ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */
+.book-leaf[data-tab="fossils"] .book-tiles {
+  --pad-top: 17cqh; --pad-bottom: 6cqh;
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.3);
+}
+.fossil-tile .tile-picture { display: grid; place-items: center; }
+.fossil-tile .tile-picture svg { width: 72%; height: 92%; display: block; overflow: visible; }
+.fossil-tile.unfound .tile-picture svg { filter: brightness(0); opacity: .16; } /* a soft silhouette, under the "?" */
+.fossil-tile.unfound .tile-name { letter-spacing: .1em; }
+.fossil-tile .tile-name { font-size: clamp(22px, var(--tile-w) * .12, 36px); }
+.fossil-title, .fossil-count {
+  position: absolute; left: 0; right: 0; top: max(5cqh, 22px); margin: 0; text-align: center; pointer-events: none;
+}
+.fossil-title {
+  font-size: clamp(30px, 6.4cqmin, 52px); font-weight: 900; line-height: 1;
+  color: var(--book-gold); -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill; text-shadow: 0 .06em 0 var(--book-ink);
+  rotate: -2deg;
+}
+.fossil-count { font-size: clamp(26px, 4.6cqmin, 38px); font-weight: 900; color: var(--book-ink-soft); }
+.fossil-name { /* the name of a sticker tapped, in a bubble over it */
+  position: absolute; z-index: 4; transform: translate(-50%, -100%); pointer-events: none;
+  padding: .26em .7em .34em; border-radius: 22px; white-space: nowrap;
+  font-size: clamp(26px, 3cqmin, 36px); font-weight: 900; line-height: 1;
+  color: var(--book-ink); background: var(--book-card); border: 3px solid var(--book-ink);
+  box-shadow: 0 7px 0 -2px var(--book-card-deep), 0 7px 0 1px var(--book-ink), 0 12px 16px rgb(40 24 10 / .3);
+}
 .sticker-sheet {
   --sticker: min((100cqw - 2 * var(--pad-x)) / 5.8, (100cqh - var(--pad-top) - var(--pad-bottom)) / 4.8, 110px);
   display: flex; flex-wrap: wrap; justify-content: center; align-content: center; align-items: center;
