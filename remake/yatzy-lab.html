@@ -10,10 +10,12 @@
 <link rel="stylesheet" href="./book.css">
 <link rel="stylesheet" href="./yatzy.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
-<!-- "Risaeðlu-Yatzy" on a page of its own, never linked from the game.
-     With no ?state= (or state=live) a real game is played with Slóeðla (engine/yatzy/table.js),
-     on a save of its own (mosi-yatzy-lab, so the game's progress is untouched).
-     &skill=0 to 1 sets Slóeðla's skill first. -->
+<script>
+  // Browsers block ES module imports on file:// URLs. If opened directly from disk, hop to the local server.
+  if (location.protocol === 'file:') {
+    location.replace('http://127.0.0.1:4196/remake/yatzy-lab.html' + location.search);
+  }
+</script>
 </head>
 <body>
 <main class="yatzy" id="yatzy"></main>
@@ -55,6 +57,16 @@
     return Math.random();
   };
 
+  const tutParam = params.get('tutorial');
+  const isSpecialDemo = state === 'yatzy' || state === 'mosi' || state === 'egg';
+  const isTutorialDemo = state.startsWith('tutorial');
+  const tutorialOpt =
+    tutParam === '1' || isTutorialDemo
+      ? true
+      : tutParam === '0' || isSpecialDemo
+        ? false
+        : null;
+
   const game = createYatzyGame(document, {
     save,
     audio: { context, output, theme, lines: lines ?? {} },
@@ -63,20 +75,39 @@
   });
   addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
   Object.assign(window, { __yatzy: game, __save: save });
-  game.open();
+  game.open({ tutorial: tutorialOpt });
 
   const root = document.getElementById('yatzy');
   const rollBtn = root.querySelector('.yatzy-roll');
   const mosiBtn = root.querySelector('.yatzy-mosi');
   const eggBtn = root.querySelector('.yatzy-egg');
   const dieBtns = root.querySelectorAll('.yatzy-die');
+  const tutNextBtn = root.querySelector('.yatzy-tut-next');
   const tap = el => {
     if (!el) return;
     el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
     el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
   };
 
-  if (state === 'yatzy') {
+  if (state === 'tutorial-hold') {
+    setTimeout(() => {
+      tap(rollBtn);
+      setTimeout(() => {
+        tap(dieBtns[0]);
+        setTimeout(() => { window.__demoReady = true; }, 450);
+      }, 600);
+    }, 250);
+  } else if (state === 'tutorial-boards') {
+    setTimeout(() => {
+      tap(rollBtn);
+      setTimeout(() => {
+        tap(dieBtns[0]);
+        tap(dieBtns[1]);
+        tap(rollBtn);
+        setTimeout(() => { window.__demoReady = true; }, 650);
+      }, 600);
+    }, 250);
+  } else if (state === 'yatzy') {
     setTimeout(() => {
       tap(rollBtn);
       setTimeout(() => { window.__demoReady = true; }, 900);

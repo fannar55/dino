@@ -14,6 +14,7 @@ import { adviseYatzy, YATZY_REASONS } from '../engine/yatzy/advice.js';
 import { yatzySounds, YATZY_GAPS } from '../engine/yatzy/yatzy-sounds.js';
 import { createSfx } from '../engine/audio/sfx.js';
 import { createBook } from '../engine/book/book.js';
+import { createYatzyGame, TUTORIAL_STEPS } from '../engine/yatzy/table.js';
 import { DONE } from '../engine/handle.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createFakeContext } from './fake-audio.mjs';
@@ -198,13 +199,13 @@ test('all procedural Yatzy sound effects play cleanly through WebAudio', () => {
   }
 });
 
-test('save.js persists Yatzy stats and badges cleanly alongside existing progress', () => {
+test('save.js persists Yatzy stats, tutorialDone, and badges cleanly alongside existing progress', () => {
   const files = new Map();
   const storage = { getItem: k => files.get(k) ?? null, setItem: (k, v) => files.set(k, v) };
   const save = createSave(storage);
 
-  assert.deepEqual(save.getYatzy(), { skill: null, losses: 0, wins: 0, badges: [] });
-  save.setYatzy({ wins: 2, skill: 0.55 });
+  assert.deepEqual(save.getYatzy(), { skill: null, losses: 0, wins: 0, badges: [], tutorialDone: false });
+  save.setYatzy({ wins: 2, skill: 0.55, tutorialDone: true });
   assert.equal(save.addYatzyBadge('sloedla'), true);
   assert.equal(save.addYatzyBadge('sloedla'), false, 'badge added once');
   assert.equal(save.addYatzyBadge('mosi'), true);
@@ -215,6 +216,7 @@ test('save.js persists Yatzy stats and badges cleanly alongside existing progres
     losses: 0,
     wins: 2,
     badges: ['sloedla', 'mosi'],
+    tutorialDone: true,
   });
 });
 
@@ -240,3 +242,118 @@ test('the Leikir page in the book shows Risaeðlu-Yatzy and opens it on tap', ()
   assert.equal(save.get().seen.includes('yatzy'), true);
   assert.equal(yatzyTile.classList.contains('new'), false);
 });
+
+test('Mosi interactive tutorial auto-starts on first play, enforces right moves, and marks tutorialDone', async () => {
+  const doc = new FakeDocument(['yatzy']);
+  const files = new Map();
+  const storage = { getItem: k => files.get(k) ?? null, setItem: (k, v) => files.set(k, v) };
+  const save = createSave(storage);
+  const context = createFakeContext({ state: 'running' });
+
+  const yatzy = createYatzyGame(doc, {
+    save,
+    audio: { context, theme: THEME },
+    random: seededRandom('yatzy-tut'),
+  });
+
+  // First open: tutorial starts automatically because save.getYatzy().tutorialDone is false
+  yatzy.open();
+  assert.equal(yatzy.isTeaching, true);
+  assert.equal(yatzy.tutorialStep?.id, 'intro');
+  assert.ok(TUTORIAL_STEPS.length >= 11);
+
+  // Step 1 -> Step 2: Advance from intro
+  yatzy.nextTutorialStep();
+  assert.equal(yatzy.tutorialStep?.id, 'roll-1');
+
+  // Trying to tap a die before rolling is blocked by the tutorial
+  yatzy.toggleDie(2);
+  assert.equal(yatzy.tutorialStep?.id, 'roll-1');
+
+  // Step 2: Roll #1 produces rigged [1, 1, 3, 4, 6]
+  yatzy.roll();
+  assert.deepEqual(yatzy.game.dice, [1, 1, 3, 4, 6]);
+  assert.equal(yatzy.tutorialStep?.id, 'hold-0');
+
+  // Trying to hold the wrong die (index 3) is blocked; holding die 0 succeeds
+  yatzy.toggleDie(3);
+  assert.equal(yatzy.game.held[3], false);
+  assert.equal(yatzy.tutorialStep?.id, 'hold-0');
+
+  yatzy.toggleDie(0);
+  assert.equal(yatzy.game.held[0], true);
+  assert.equal(yatzy.tutorialStep?.id, 'hold-1');
+
+  // Step 4: Hold second Mosi (die 1)
+  yatzy.toggleDie(1);
+  assert.equal(yatzy.game.held[1], true);
+  assert.equal(yatzy.tutorialStep?.id, 'roll-2');
+
+  // Step 5: Roll again -> rigged Fullt hreiður [1, 1, 1, 2, 2]
+  yatzy.roll();
+  assert.deepEqual(yatzy.game.dice, [1, 1, 1, 2, 2]);
+  assert.equal(yatzy.tutorialStep?.id, 'explain-boards');
+
+  // Step 6 -> Step 7: Advance explanation of the two scoreboards
+  yatzy.nextTutorialStep();
+  assert.equal(yatzy.tutorialStep?.id, 'score-full-nest');
+
+  // Tapping a wrong category (e.g. 'pair') is blocked with a helpful nudge
+  yatzy.pickCategory('pair');
+  assert.equal(yatzy.game.scores.child.pair, undefined);
+  assert.equal(yatzy.tutorialStep?.id, 'score-full-nest');
+
+  // Step 7: Score Fullt hreiður (+10) -> triggers Slóeðla's scripted turn
+  yatzy.pickCategory('full-nest');
+  assert.equal(yatzy.game.scores.child['full-nest'], 10);
+  assert.equal(yatzy.tutorialStep?.id, 'sloedla-turn-1');
+
+  // Wait for Slóeðla's scripted turn timers to complete
+  await new Promise(r => setTimeout(r, 1800));
+  assert.equal(yatzy.game.scores.sloedla.thorsedla, 6);
+  assert.equal(yatzy.tutorialStep?.id, 'roll-round-2');
+
+  // Step 8: Roll round 2 -> rigged [5, 5, 5, 5, 2] + Golden Egg ready
+  yatzy.roll();
+  assert.deepEqual(yatzy.game.dice, [5, 5, 5, 5, 2]);
+  assert.equal(yatzy.tutorialStep?.id, 'use-egg');
+
+  // Step 9: Use Golden Egg -> transforms 5th die to 5 for Risaeðlu-Yatzy!
+  yatzy.useEgg();
+  assert.deepEqual(yatzy.game.dice, [5, 5, 5, 5, 5]);
+  assert.equal(yatzy.tutorialStep?.id, 'score-yatzy');
+  assert.equal(save.getYatzy().badges.includes('sloedla'), true);
+
+  // Step 10: Score Yatzy (+15) -> triggers Slóeðla's second scripted turn
+  yatzy.pickCategory('yatzy');
+  assert.equal(yatzy.game.scores.child.yatzy, 15);
+  assert.equal(yatzy.tutorialStep?.id, 'sloedla-turn-2');
+
+  await new Promise(r => setTimeout(r, 1800));
+  assert.equal(yatzy.game.scores.sloedla.kambedla, 4);
+  assert.equal(yatzy.tutorialStep?.id, 'round-3-roll');
+
+  // Step 11: Roll round 3 -> [4, 4, 4, 1, 6], child must pick 'three' (+7) or 'gramedla' (+6)
+  yatzy.roll();
+  assert.deepEqual(yatzy.game.dice, [4, 4, 4, 1, 6]);
+  assert.equal(yatzy.tutorialStep?.id, 'round-3-pick');
+
+  // Wrong low-scoring category is gently rejected
+  yatzy.pickCategory('mosi');
+  assert.equal(yatzy.game.scores.child.mosi, undefined);
+  assert.equal(yatzy.tutorialStep?.id, 'round-3-pick');
+
+  // Picking 'three' (+7) completes the tutorial and marks tutorialDone: true!
+  yatzy.pickCategory('three');
+  assert.equal(yatzy.tutorialStep?.id, 'done');
+  assert.equal(save.getYatzy().tutorialDone, true);
+
+  // Tapping "Byrja leik!" exits tutorial and starts a fresh normal game
+  yatzy.nextTutorialStep();
+  assert.equal(yatzy.isTeaching, false);
+  assert.equal(yatzy.game.round, 1);
+  assert.equal(Object.keys(yatzy.game.scores.child).length, 0);
+
+  yatzy.close();
+});
+

@@ -45,11 +45,11 @@ function halsOf(value) {
   return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }) };
 }
 
-/** Risaeðlu-Yatzy's state as stored: { skill (0 to 1, or null), losses, wins, badges }, or null. */
+/** Risaeðlu-Yatzy's state as stored: { skill (0 to 1, or null), losses, wins, badges, tutorialDone }, or null. */
 function yatzyOf(value) {
   if (!value || typeof value !== 'object') return null;
   const skill = Number.isFinite(value.skill) && value.skill >= 0 && value.skill <= 1 ? value.skill : null;
-  return { skill, losses: count(value.losses), wins: count(value.wins), badges: idsOf(value.badges) };
+  return { skill, losses: count(value.losses), wins: count(value.wins), badges: idsOf(value.badges), tutorialDone: value.tutorialDone === true };
 }
 
 /**
@@ -61,7 +61,7 @@ function yatzyOf(value) {
  * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
  * `getHalsPlay()` is { game, intro, hello }: the game left under way (or null) and whether the intro and the hello have been
  * said; `setHalsPlay(changes)` keeps what it is given (game: null forgets the game) and leaves the rest as it was.
- * `getYatzy()` is a copy of Risaeðlu-Yatzy's { skill, losses, wins, badges }, `setYatzy(changes)` updates it, and
+ * `getYatzy()` is a copy of Risaeðlu-Yatzy's { skill, losses, wins, badges, tutorialDone }, `setYatzy(changes)` updates it, and
  * `addYatzyBadge(id)` records a dinosaur Yatzy badge once and returns whether it was new.
  */
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
@@ -136,6 +136,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       losses: yatzy?.losses ?? 0,
       wins: yatzy?.wins ?? 0,
       badges: [...(yatzy?.badges ?? [])],
+      tutorialDone: yatzy?.tutorialDone ?? false,
     }),
     setYatzy(changes = {}) {
       yatzy = yatzyOf({ ...yatzy, ...changes }) ?? yatzyOf({});

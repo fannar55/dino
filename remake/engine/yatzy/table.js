@@ -39,6 +39,137 @@ const SPEECH_MS = 2600;
 const CROSS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>';
 const AGAIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const EGG_SVG = '<svg class="yatzy-egg-icon" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3C11 3 6 12.5 6 21c0 6.8 5.2 12 12 12s12-5.2 12-12C30 12.5 25 3 18 3z" fill="#ffe268" stroke="#3b2f25" stroke-width="2.6"/><path d="M10 19l4-3 4 4 4-4 4 3" fill="none" stroke="#c48a16" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="11" r="2" fill="#fffaf0"/></svg>';
+const CAP_SVG = '<svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 11L14 5l12 6-12 6-12-6z" fill="#f7bd2b" stroke="#3b2f25" stroke-width="2.3" stroke-linejoin="round"/><path d="M7 14v5c0 2.2 3.1 4 7 4s7-1.8 7-4v-5" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 12v7" fill="none" stroke="#3b2f25" stroke-width="2.3" stroke-linecap="round"/></svg>';
+
+/**
+ * Interactive step-by-step tutorial led by Mosi on first play (or when tapping "Kennsla").
+ * Walks the child through rolling, holding dice in the moss nest, re-rolling, reading both
+ * scoreboards, scoring Fullt hreiður, watching Slóeðla's turn, using the Golden Egg's
+ * Crest Horn power for Risaeðlu-Yatzy, and choosing a smart category independently.
+ */
+export const TUTORIAL_STEPS = Object.freeze([
+  {
+    id: 'intro',
+    stepNum: 1,
+    totalSteps: 11,
+    title: 'Velkomin í Risaeðlu-Yatzy!',
+    text: 'Hæ! Við skiptumst á við Slóeðlu að kasta 5 risaeðluteningum og safna stigum á spjöldin tvö. Pikkaðu á Áfram → eða Kasta! til að byrja!',
+    live: ['next', 'roll'],
+  },
+  {
+    id: 'roll-1',
+    stepNum: 2,
+    totalSteps: 11,
+    title: 'Fyrsta kastið (allt að 3 köst)',
+    text: 'Í hverri umferð áttu allt að 3 köst — sjáðu gulu punktana þrjá á takkanum! Pikkaðu á stóra appelsínugula Kasta! takkann.',
+    live: ['roll'],
+  },
+  {
+    id: 'hold-0',
+    stepNum: 3,
+    totalSteps: 11,
+    title: 'Mosahreiðrið mjúka',
+    text: 'Flott! Þú fékkst tvo Mosa (1)! Teningar sem við geymum í mosahreiðrinu eru kyrrir þegar við köstum hinum aftur. Pikkaðu á fyrsta Mosa-teninginn!',
+    live: ['die:0'],
+  },
+  {
+    id: 'hold-1',
+    stepNum: 4,
+    totalSteps: 11,
+    title: 'Geymum báða Mosa!',
+    text: 'Vel gert! Pikkaðu líka á hinn Mosa-teninginn svo báðir séu öruggir í mosahreiðrinu.',
+    live: ['die:1'],
+  },
+  {
+    id: 'roll-2',
+    stepNum: 5,
+    totalSteps: 11,
+    title: 'Kasta aftur!',
+    text: 'Nú eru báðir Mosarnir öruggir í hreiðrinu. Pikkaðu á Kasta aftur! til að rúlla hinum þremur teningunum!',
+    live: ['roll'],
+  },
+  {
+    id: 'explain-boards',
+    stepNum: 6,
+    totalSteps: 11,
+    title: 'Stigaspjöldin tvö',
+    text: 'Vá, þrír Mosar og tvær Kambeðlur! Vinstra spjaldið (Vinirnir sex 1–6) gefur 2 stig fyrir hvern sama vin. Hægra spjaldið (Samsetningar) gefur enn fleiri stig fyrir mynstur!',
+    live: ['next', 'cat:full-nest'],
+    focusBoards: true,
+  },
+  {
+    id: 'score-full-nest',
+    stepNum: 7,
+    totalSteps: 11,
+    title: 'Skráum Fullt hreiður (+10)!',
+    text: 'Þrír eins + tveir eins heitir Fullt hreiður og gefur 10 stig! Hvern reit má bara nota einu sinni. Pikkaðu á Fullt hreiður (+10) hægra megin!',
+    live: ['cat:full-nest'],
+  },
+  {
+    id: 'sloedla-turn-1',
+    stepNum: 7,
+    totalSteps: 11,
+    title: 'Umferð Slóeðlu',
+    text: 'Flott! Nú á Slóeðla leik — við skiptumst alltaf á þar til allir 12 reitirnir eru fullir.',
+    live: [],
+  },
+  {
+    id: 'roll-round-2',
+    stepNum: 8,
+    totalSteps: 11,
+    title: '2. umferð — Kastaðu aftur!',
+    text: 'Slóeðla fékk 6 stig fyrir Þórseðlu. Nú er komið að þér aftur! Pikkaðu á Kasta! til að byrja nýja umferð.',
+    live: ['roll'],
+  },
+  {
+    id: 'use-egg',
+    stepNum: 9,
+    totalSteps: 11,
+    title: 'Gullna töfraeggið (Lúðrakall!)',
+    text: 'Sjáðu! Þú ert með fjórar Slóeðlur (5) og Gullna eggið glóir (3 neistar)! Pikkaðu á Lúðrakall! til að láta Slóeðlu blása í kambið og breyta fimmta teningnum!',
+    live: ['egg'],
+  },
+  {
+    id: 'score-yatzy',
+    stepNum: 10,
+    totalSteps: 11,
+    title: 'Risaeðlu-Yatzy (+15)!',
+    text: 'VÁÁ! Fimm eins er Risaeðlu-Yatzy — 15 stig og gullmerki efst á skjánum! Pikkaðu á stjörnureitinn Yatzy! (+15) neðst hægra megin!',
+    live: ['cat:yatzy'],
+  },
+  {
+    id: 'sloedla-turn-2',
+    stepNum: 10,
+    totalSteps: 11,
+    title: 'Slóeðla kastar',
+    text: 'Glæsilegt! Slóeðla tekur sína umferð og svo færð þú að prófa sjálf/ur!',
+    live: [],
+  },
+  {
+    id: 'round-3-roll',
+    stepNum: 11,
+    totalSteps: 11,
+    title: 'Prófaðu sjálf/ur!',
+    text: 'Nú kanntu öll brögðin! Mundu að þú getur alltaf pikkað á mig (Mosa) neðst til vinstri ef þú vilt ráð. Kastaðu nú teningunum!',
+    live: ['roll'],
+  },
+  {
+    id: 'round-3-pick',
+    stepNum: 11,
+    totalSteps: 11,
+    title: 'Veldu góðan stigareit!',
+    text: 'Þú fékkst þrjár Grameðlur (4)! Pikkaðu á Þrenna (+7) hægra megin eða Grameðla (+6) vinstra megin til að klára kennsluna!',
+    live: ['cat:three', 'cat:gramedla'],
+  },
+  {
+    id: 'done',
+    stepNum: 11,
+    totalSteps: 11,
+    title: 'Kennslu lokið — Vel gert!',
+    text: 'Frábært hjá þér! Nú kanntu Risaeðlu-Yatzy upp á tíu! Pikkaðu á Byrja leik! til að spila alvöru leik við Slóeðlu!',
+    live: ['next'],
+  },
+]);
 
 /** Custom icons for the 6 combination rows on the right side of the scorecard. */
 const COMBO_ICONS = {
@@ -109,6 +240,8 @@ export function createYatzyGame(
   let timers = [];
   let speechTimer = 0;
   let adviceTimer = 0;
+  let tutIdx = -1; // -1 when not in tutorial mode, 0..TUTORIAL_STEPS.length-1 when teaching
+  let tutOverrideText = '';
 
   const later = (ms, fn) => {
     const id = setTimeout(() => {
@@ -181,13 +314,24 @@ export function createYatzyGame(
   speechEl.hidden = true;
   sloedlaWrap.append(sloedlaWindow, sloedlaFrame, speechEl);
 
-  // Top right close button
+  // Top right controls: Kennsla (replay tutorial), Sleppa (skip tutorial), and Close (X)
   const topRight = make('div', 'yatzy-top-right');
+  const teachBtn = make('button', 'yatzy-teach-btn');
+  teachBtn.setAttribute('type', 'button');
+  teachBtn.setAttribute('aria-label', 'Kennsla frá Mosa');
+  teachBtn.innerHTML = `${CAP_SVG}<span>Kennsla</span>`;
+
+  const skipBtn = make('button', 'yatzy-skip-btn');
+  skipBtn.setAttribute('type', 'button');
+  skipBtn.setAttribute('aria-label', 'Sleppa kennslu');
+  skipBtn.textContent = 'Sleppa kennslu';
+  skipBtn.hidden = true;
+
   const quitBtn = make('button', 'yatzy-quit');
   quitBtn.setAttribute('type', 'button');
   quitBtn.setAttribute('aria-label', 'Aftur í bókina');
   quitBtn.innerHTML = CROSS_SVG;
-  topRight.append(quitBtn);
+  topRight.append(teachBtn, skipBtn, quitBtn);
 
   headerEl.append(scoresBar, sloedlaWrap, topRight);
 
@@ -245,6 +389,27 @@ export function createYatzyGame(
   const stageEl = make('section', 'yatzy-stage');
   const bannerEl = make('div', 'yatzy-banner');
   bannerEl.textContent = 'Kastaðu teningunum!';
+
+  // Mosi's Interactive Tutorial Card (shown in stage during tutorial mode)
+  const tutCard = make('div', 'yatzy-tut-card');
+  tutCard.hidden = true;
+  tutCard.setAttribute('role', 'region');
+  tutCard.setAttribute('aria-label', 'Kennsla frá Mosa');
+  const tutAvatar = doc.createElement('img');
+  tutAvatar.className = 'yatzy-tut-avatar';
+  tutAvatar.src = asset('assets/book/images/mosi-render-thumb.webp');
+  tutAvatar.alt = 'Mosi';
+  const tutBody = make('div', 'yatzy-tut-body');
+  const tutTop = make('div', 'yatzy-tut-top');
+  const tutStepBadge = make('span', 'yatzy-tut-step');
+  const tutTitle = make('strong', 'yatzy-tut-title');
+  tutTop.append(tutStepBadge, tutTitle);
+  const tutText = make('p', 'yatzy-tut-text');
+  tutBody.append(tutTop, tutText);
+  const tutNextBtn = make('button', 'yatzy-tut-next');
+  tutNextBtn.setAttribute('type', 'button');
+  tutNextBtn.textContent = 'Áfram →';
+  tutCard.append(tutAvatar, tutBody, tutNextBtn);
 
   const nestArea = make('div', 'yatzy-nest-area');
   const diceTray = make('div', 'yatzy-dice-tray');
@@ -322,7 +487,7 @@ export function createYatzyGame(
   eggBtn.append(eggSparks, eggLabel);
 
   controlsBar.append(mosiWrap, rollBtn, eggBtn);
-  stageEl.append(bannerEl, nestArea, controlsBar);
+  stageEl.append(bannerEl, tutCard, nestArea, controlsBar);
 
   tableEl.append(headerEl, leftCol, stageEl, rightCol);
 
@@ -348,6 +513,32 @@ export function createYatzyGame(
   root.replaceChildren(tableEl, winOverlay);
 
   // ---- Helpers & Rendering --------------------------------------------------------------------------------------------
+
+  function currentTutStep() {
+    return tutIdx >= 0 && tutIdx < TUTORIAL_STEPS.length ? TUTORIAL_STEPS[tutIdx] : null;
+  }
+
+  function tutAllows(actionKey) {
+    const step = currentTutStep();
+    if (!step) return true;
+    return step.live.includes(actionKey);
+  }
+
+  function nudgeWrongControl(el, customHint = '') {
+    sfx.play('wiggle');
+    if (el) {
+      el.classList.remove('tut-nope');
+      void el.offsetWidth;
+      el.classList.add('tut-nope');
+    }
+    tutCard.classList.remove('tut-attention');
+    void tutCard.offsetWidth;
+    tutCard.classList.add('tut-attention');
+    if (customHint) {
+      tutOverrideText = customHint;
+      render();
+    }
+  }
 
   function saySloedla(text, ms = SPEECH_MS) {
     speechEl.textContent = text;
@@ -392,6 +583,54 @@ export function createYatzyGame(
     pipsEl.replaceChildren(...Array.from({ length: face }, () => make('i')));
     imgEl.src = asset(dino.img);
     nameEl.textContent = dino.name;
+  }
+
+  function renderTutorialState() {
+    const step = currentTutStep();
+    const teaching = Boolean(step);
+    root.classList.toggle('teaching', teaching);
+    teachBtn.hidden = teaching;
+    skipBtn.hidden = !teaching;
+    tutCard.hidden = !teaching;
+    bannerEl.hidden = teaching;
+    nestHint.hidden = teaching;
+
+    rollBtn.classList.remove('tut-live');
+    eggBtn.classList.remove('tut-live');
+    mosiBtn.classList.remove('tut-live');
+    tutNextBtn.classList.remove('tut-live');
+    leftCol.classList.remove('tut-focus');
+    rightCol.classList.remove('tut-focus');
+    for (const { dieBtn } of dieEls) dieBtn.classList.remove('tut-live');
+    for (const { btn } of rowButtons.values()) btn.classList.remove('tut-live');
+
+    if (!step) return;
+
+    tutStepBadge.textContent = `Kennsla ${step.stepNum}/${step.totalSteps}`;
+    tutTitle.textContent = step.title;
+    tutText.textContent = tutOverrideText || step.text;
+
+    const showNext = step.live.includes('next');
+    tutNextBtn.hidden = !showNext;
+    tutNextBtn.textContent = step.id === 'done' ? 'Byrja leik!' : 'Áfram →';
+    if (showNext) tutNextBtn.classList.add('tut-live');
+
+    if (step.focusBoards) {
+      leftCol.classList.add('tut-focus');
+      rightCol.classList.add('tut-focus');
+    }
+
+    for (const key of step.live) {
+      if (key === 'roll') rollBtn.classList.add('tut-live');
+      else if (key === 'egg') eggBtn.classList.add('tut-live');
+      else if (key.startsWith('die:')) {
+        const idx = Number(key.slice(4));
+        dieEls[idx]?.dieBtn.classList.add('tut-live');
+      } else if (key.startsWith('cat:')) {
+        const catId = key.slice(4);
+        rowButtons.get(catId)?.btn.classList.add('tut-live');
+      }
+    }
   }
 
   function render() {
@@ -482,9 +721,18 @@ export function createYatzyGame(
         theirsEl.classList.remove('done');
       }
     }
+
+    renderTutorialState();
   }
 
   // ---- Actions --------------------------------------------------------------------------------------------------------
+
+  function setTutStepById(stepId) {
+    const idx = TUTORIAL_STEPS.findIndex(s => s.id === stepId);
+    tutIdx = idx;
+    tutOverrideText = '';
+    render();
+  }
 
   function syncNewBadges() {
     for (const key of game.yatzyBadges) {
@@ -526,8 +774,66 @@ export function createYatzyGame(
     }
   }
 
+  function runTutorialSloedlaTurn({ dice, categoryId, nextStepId }) {
+    busy = true;
+    view?.think(true);
+    saySloedla('Mín umferð!');
+
+    later(550, () => {
+      if (!isOpen || tutIdx < 0) return;
+      game = {
+        ...game,
+        dice: [...dice],
+        held: [false, false, false, false, false],
+        rollsLeft: 2,
+        rolled: true,
+      };
+      sfx.play('roll');
+      render();
+      animateRoll([0, 1, 2, 3, 4], () => {
+        const combo = detectCombo(game.dice);
+        celebrateCombo(combo, 'sloedla');
+        render();
+        later(650, () => {
+          if (!isOpen || tutIdx < 0) return;
+          view?.think(false);
+          const cat = CATEGORIES.find(c => c.id === categoryId);
+          const pts = scoreCategory(categoryId, game.dice);
+          game = chooseCategory(game, 'sloedla', categoryId);
+          sfx.play('score');
+          const rowEntry = rowButtons.get(categoryId);
+          if (rowEntry) sparkle(rowEntry.btn, 10, win);
+          saySloedla(`Ég vel ${cat.short} (${pts} stig)! Þín umferð!`);
+          busy = false;
+          setTutStepById(nextStepId);
+        });
+      });
+    });
+  }
+
+  function onTapTutNext() {
+    const step = currentTutStep();
+    if (!step || !tutAllows('next')) {
+      nudgeWrongControl(tutNextBtn);
+      return;
+    }
+    sfx.play('tap');
+    if (step.id === 'intro') {
+      setTutStepById('roll-1');
+    } else if (step.id === 'explain-boards') {
+      setTutStepById('score-full-nest');
+    } else if (step.id === 'done') {
+      completeTutorialAndPlay();
+    }
+  }
+
   function onTapRoll() {
     if (busy || game.winner || game.turn !== 'child') return;
+    const step = currentTutStep();
+    if (step && !tutAllows('roll')) {
+      nudgeWrongControl(rollBtn);
+      return;
+    }
     if (game.rollsLeft <= 0 || (game.rolled && game.held.every(Boolean))) {
       sfx.play('wiggle');
       return;
@@ -539,7 +845,49 @@ export function createYatzyGame(
       ? [0, 1, 2, 3, 4]
       : game.held.map((h, i) => (!h ? i : -1)).filter(i => i >= 0);
 
-    game = rollDice(game, 'child', random);
+    if (step) {
+      if (step.id === 'intro' || step.id === 'roll-1') {
+        game = {
+          ...game,
+          dice: [1, 1, 3, 4, 6],
+          held: [false, false, false, false, false],
+          rollsLeft: 2,
+          rolled: true,
+          eggCharge: MAX_EGG_CHARGE,
+        };
+        setTutStepById('hold-0');
+      } else if (step.id === 'roll-2') {
+        game = {
+          ...game,
+          dice: [1, 1, 1, 2, 2],
+          rollsLeft: 1,
+          rolled: true,
+        };
+        setTutStepById('explain-boards');
+      } else if (step.id === 'roll-round-2') {
+        game = {
+          ...game,
+          dice: [5, 5, 5, 5, 2],
+          held: [false, false, false, false, false],
+          rollsLeft: 2,
+          rolled: true,
+          eggCharge: MAX_EGG_CHARGE,
+        };
+        setTutStepById('use-egg');
+      } else if (step.id === 'round-3-roll') {
+        game = {
+          ...game,
+          dice: [4, 4, 4, 1, 6],
+          held: [false, false, false, false, false],
+          rollsLeft: 2,
+          rolled: true,
+        };
+        setTutStepById('round-3-pick');
+      }
+    } else {
+      game = rollDice(game, 'child', random);
+    }
+
     syncNewBadges();
     sfx.play('roll');
     render();
@@ -557,6 +905,16 @@ export function createYatzyGame(
 
   function onTapDie(index) {
     if (busy || game.winner || game.turn !== 'child') return;
+    const step = currentTutStep();
+    if (step && !tutAllows(`die:${index}`)) {
+      nudgeWrongControl(
+        dieEls[index]?.dieBtn,
+        step.id === 'hold-0' || step.id === 'hold-1'
+          ? 'Pikkaðu á græna Mosa-teninginn (1) sem glóir til að geyma hann í mosahreiðrinu!'
+          : '',
+      );
+      return;
+    }
     if (!game.rolled || game.rollsLeft <= 0) {
       sfx.play('wiggle');
       return;
@@ -570,10 +928,21 @@ export function createYatzyGame(
     } else {
       sfx.play('unhold');
     }
-    render();
+    if (step?.id === 'hold-0' && game.held[0]) {
+      setTutStepById('hold-1');
+    } else if (step?.id === 'hold-1' && game.held[1]) {
+      setTutStepById('roll-2');
+    } else {
+      render();
+    }
   }
 
   function onTapEgg() {
+    const step = currentTutStep();
+    if (step && !tutAllows('egg')) {
+      nudgeWrongControl(eggBtn);
+      return;
+    }
     if (busy || !canUseEgg(game, 'child')) {
       sfx.play('wiggle');
       return;
@@ -599,7 +968,11 @@ export function createYatzyGame(
     if (combo.kind === 'yatzy') {
       later(400, () => celebrateCombo(combo, 'child'));
     }
-    render();
+    if (step?.id === 'use-egg') {
+      setTutStepById('score-yatzy');
+    } else {
+      render();
+    }
   }
 
   function finishGame() {
@@ -717,6 +1090,23 @@ export function createYatzyGame(
 
   function onTapCategory(categoryId) {
     if (busy || game.winner || game.turn !== 'child') return;
+    const step = currentTutStep();
+    if (step && !tutAllows(`cat:${categoryId}`)) {
+      const btn = rowButtons.get(categoryId)?.btn;
+      if (step.id === 'round-3-pick') {
+        nudgeWrongControl(
+          btn,
+          'Við eigum þrjár Grameðlur (4)! Prófaðu frekar Þrenna (+7) hægra megin eða Grameðla (+6) vinstra megin sem gefa miklu fleiri stig!',
+        );
+      } else if (step.id === 'score-full-nest' || step.id === 'explain-boards') {
+        nudgeWrongControl(btn, 'Pikkaðu á upplýsta reitinn Fullt hreiður (+10) á hægra spjaldinu!');
+      } else if (step.id === 'score-yatzy') {
+        nudgeWrongControl(btn, 'Pikkaðu á stjörnureitinn Yatzy! (+15) neðst á hægra spjaldinu!');
+      } else {
+        nudgeWrongControl(btn);
+      }
+      return;
+    }
     if (!game.rolled || categoryId in game.scores.child) {
       sfx.play('wiggle');
       return;
@@ -731,6 +1121,31 @@ export function createYatzyGame(
     if (rowEntry) sparkle(rowEntry.btn, pts >= 8 ? 14 : 8, win);
     if (pts >= 8) view?.hop();
 
+    if (step) {
+      if (step.id === 'explain-boards' || step.id === 'score-full-nest') {
+        setTutStepById('sloedla-turn-1');
+        runTutorialSloedlaTurn({
+          dice: [3, 3, 3, 2, 5],
+          categoryId: 'thorsedla',
+          nextStepId: 'roll-round-2',
+        });
+      } else if (step.id === 'score-yatzy') {
+        setTutStepById('sloedla-turn-2');
+        runTutorialSloedlaTurn({
+          dice: [2, 2, 4, 5, 6],
+          categoryId: 'kambedla',
+          nextStepId: 'round-3-roll',
+        });
+      } else if (step.id === 'round-3-pick') {
+        save?.setYatzy?.({ tutorialDone: true });
+        sfx.play('fanfare');
+        view?.cheer(3.0);
+        sparkle(tutCard, 18, win);
+        setTutStepById('done');
+      }
+      return;
+    }
+
     render();
     if (game.winner) {
       later(550, finishGame);
@@ -741,6 +1156,13 @@ export function createYatzyGame(
 
   function onTapMosi() {
     if (busy || game.winner || game.turn !== 'child') return;
+    if (currentTutStep()) {
+      sparkle(mosiBtn, 8, win);
+      tutCard.classList.remove('tut-attention');
+      void tutCard.offsetWidth;
+      tutCard.classList.add('tut-attention');
+      return;
+    }
     clearHints();
     const advice = adviseYatzy(game);
     if (!advice) return;
@@ -769,11 +1191,34 @@ export function createYatzyGame(
     adviceTimer?.unref?.();
   }
 
+  function startTutorial() {
+    clearTimers();
+    clearHints();
+    busy = false;
+    winOverlay.hidden = true;
+    game = newGame();
+    tutIdx = 0;
+    tutOverrideText = '';
+    view?.rest();
+    saySloedla('Mosi kennir okkur Risaeðlu-Yatzy!');
+    render();
+  }
+
+  function completeTutorialAndPlay() {
+    save?.setYatzy?.({ tutorialDone: true });
+    tutIdx = -1;
+    tutOverrideText = '';
+    startNewRound();
+  }
+
   // ---- Wire Controls --------------------------------------------------------------------------------------------------
 
   pressable(rollBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapRoll });
   pressable(eggBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapEgg });
   pressable(mosiBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: onTapMosi });
+  pressable(tutNextBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapTutNext });
+  pressable(teachBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => startTutorial() });
+  pressable(skipBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => completeTutorialAndPlay() });
   pressable(quitBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => close() });
   pressable(winCloseBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => close() });
   pressable(againBtn, {
@@ -800,6 +1245,8 @@ export function createYatzyGame(
     clearTimers();
     clearHints();
     busy = false;
+    tutIdx = -1;
+    tutOverrideText = '';
     winOverlay.hidden = true;
     game = newGame();
     view?.rest();
@@ -824,7 +1271,7 @@ export function createYatzyGame(
     }
   }
 
-  function open() {
+  function open({ tutorial = null } = {}) {
     if (isOpen) return;
     isOpen = true;
     root.hidden = false;
@@ -834,7 +1281,13 @@ export function createYatzyGame(
       console.error('[yatzy]', e);
     }
     music.start();
-    startNewRound();
+    const shouldTeach =
+      typeof tutorial === 'boolean' ? tutorial : Boolean(save?.getYatzy && !save.getYatzy().tutorialDone);
+    if (shouldTeach) {
+      startTutorial();
+    } else {
+      startNewRound();
+    }
     ensureView();
   }
 
@@ -844,6 +1297,8 @@ export function createYatzyGame(
     clearTimers();
     clearHints();
     busy = false;
+    tutIdx = -1;
+    tutOverrideText = '';
     view?.stop();
     music.stop();
     root.hidden = true;
@@ -866,13 +1321,24 @@ export function createYatzyGame(
     open,
     close,
     startNewRound,
+    startTutorial,
+    skipTutorial: completeTutorialAndPlay,
+    nextTutorialStep: onTapTutNext,
     get isOpen() {
       return isOpen;
+    },
+    get isTeaching() {
+      return tutIdx >= 0;
+    },
+    get tutorialStep() {
+      return currentTutStep();
     },
     get game() {
       return game;
     },
     setGame(nextState) {
+      tutIdx = -1;
+      tutOverrideText = '';
       game = nextState;
       render();
     },

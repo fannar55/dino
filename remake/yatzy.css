@@ -260,15 +260,18 @@
 /* Slóeðla speech bubble */
 .yatzy-speech {
   position: absolute;
-  left: 102%;
+  left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
+  width: max-content;
+  max-width: clamp(140px, 16.5cqw, 220px);
   background: var(--card);
   border: 3px solid var(--ink);
   border-radius: 18px;
-  padding: 8px 14px;
-  font-size: clamp(14px, 1.5cqw, 18px);
-  white-space: nowrap;
+  padding: 6px 12px;
+  font-size: clamp(13px, 1.35cqw, 16px);
+  line-height: 1.2;
+  white-space: normal;
   box-shadow: 0 6px 14px rgb(40 24 10 / .22);
   z-index: 5;
   pointer-events: none;
@@ -985,6 +988,168 @@
   100% { transform: translateY(105cqh) rotate(360deg); opacity: 0.85; }
 }
 
+/* ---- Interactive Mosi Tutorial (Kennsla) ------------------------------------------------------------------------ */
+
+.yatzy-teach-btn,
+.yatzy-skip-btn {
+  min-height: clamp(46px, 5.2cqw, 58px);
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--ink), 0 8px 16px rgb(40 24 10 / .22);
+  font-size: clamp(14px, 1.5cqw, 18px);
+  font-weight: 900;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.yatzy-teach-btn svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.yatzy-skip-btn {
+  background: #fff6d6;
+  border-color: var(--gold-deep);
+}
+
+.yatzy-tut-card {
+  width: 100%;
+  max-width: 560px;
+  background: linear-gradient(180deg, #fffdf6 0%, var(--card) 100%);
+  border: 3.5px solid var(--ink);
+  border-radius: 24px;
+  padding: clamp(8px, 1.1cqh, 13px) clamp(10px, 1.3cqw, 16px);
+  box-shadow:
+    0 6px 0 var(--ink),
+    0 0 0 3px var(--gold),
+    0 12px 24px rgb(40 24 10 / .3);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(8px, 1cqw, 12px);
+  z-index: 6;
+  animation: yatzy-pop 0.32s cubic-bezier(.25, 1.5, .45, 1);
+}
+
+.yatzy-tut-avatar {
+  width: clamp(50px, 5.8cqw, 68px);
+  height: clamp(50px, 5.8cqw, 68px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f5fbe6, #b7d678 65%, var(--green));
+  border: 3px solid var(--ink);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.yatzy-tut-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.yatzy-tut-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.yatzy-tut-step {
+  background: var(--gold);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: clamp(11px, 1.15cqw, 13px);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.yatzy-tut-title {
+  font-size: clamp(15px, 1.65cqw, 19px);
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.yatzy-tut-text {
+  margin: 0;
+  font-size: clamp(13px, 1.4cqw, 16px);
+  font-weight: 800;
+  color: var(--ink-soft);
+  line-height: 1.28;
+}
+
+.yatzy-tut-next {
+  min-height: clamp(46px, 5.4cqh, 58px);
+  padding: 0 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #8fd96a, var(--green));
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  color: #fffaf0;
+  font-size: clamp(15px, 1.6cqw, 19px);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Dim inactive controls during tutorial so the child immediately spots the active target */
+.yatzy.teaching .yatzy-row:not(.tut-live) {
+  opacity: 0.48;
+}
+
+.yatzy.teaching .yatzy-col.tut-focus {
+  box-shadow: 0 8px 0 var(--ink), 0 0 0 4px var(--gold), 0 0 24px rgb(242 182 48 / .75);
+}
+
+.yatzy.teaching .yatzy-col.tut-focus .yatzy-row {
+  opacity: 0.92;
+}
+
+.yatzy.teaching .yatzy-die:not(.tut-live):not(.held) {
+  opacity: 0.56;
+}
+
+.yatzy.teaching .yatzy-roll:not(.tut-live),
+.yatzy.teaching .yatzy-egg:not(.tut-live) {
+  opacity: 0.45;
+}
+
+/* Bright golden pulse on the control Mosi is asking the child to tap */
+.yatzy.teaching .tut-live {
+  opacity: 1 !important;
+  box-shadow:
+    0 6px 0 var(--ink),
+    0 0 0 5px var(--gold),
+    0 0 28px rgb(242 182 48 / .95) !important;
+  animation: yatzy-tut-pulse 1.05s ease-in-out infinite alternate;
+  z-index: 5;
+}
+
+@keyframes yatzy-tut-pulse {
+  0% { transform: scale(1) translateY(0); }
+  100% { transform: scale(1.05) translateY(-4px); }
+}
+
+.tut-nope,
+.tut-attention {
+  animation: yatzy-tut-shake 0.36s ease-in-out !important;
+}
+
+@keyframes yatzy-tut-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-7px); }
+  50% { transform: translateX(7px); }
+  75% { transform: translateX(-4px); }
+}
+
 /* Portrait tablet / narrower screens */
 @media (max-aspect-ratio: 1/1) {
   .yatzy-table {
@@ -1006,6 +1171,8 @@
   .yatzy-die.hint,
   .yatzy-egg.ready,
   .yatzy-banner,
+  .yatzy-tut-card,
+  .yatzy.teaching .tut-live,
   .yatzy-confetti i {
     animation: none !important;
   }
