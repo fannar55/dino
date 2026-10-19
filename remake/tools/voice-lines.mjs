@@ -13,7 +13,7 @@
 // (the narrator's is in book); --set may be given with --audition only to repeat that set.
 //
 // lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and optional "seed", "kept", below): in
-// kafli1 the id is k1_<speaker>_<short>, in book book_<card>_<page> or book_<what>, in eitt eitt_<short> or eitt_mosi_<short>. A line
+// kafli1 the id is k1_<speaker>_<short>, in book book_<card>_<page> or book_<what>, in eitt eitt_<short> or eitt_mosi_<short>, in hals hals_<speaker>_<short> or hals_fossil_<kind>. A line
 // becomes <set>/<id>.mp3, mastered like the game's narration (mono, 44.1 kHz, 96 kbps, about -18 LUFS, a quarter second of silence
 // after the voice), and lines.json learns its src, exact duration and mouth (audio-lines.mjs makes the same entries for the game's
 // own lines). Lines are approved before they are made: voices.json names a voice for each speaker, null until the owner has chosen it

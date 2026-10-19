@@ -72,7 +72,7 @@ const eventsByStart = new Map(SPECIAL_TILES.map(event => [event.from, event]));
 // narrator says and what the sticker shows.
 export const FOSSIL_KINDS = Object.freeze([
   {id: 'ammonite', name: 'Ammónít'},
-  {id: 'trilobite', name: 'Þríbrotsormur'},
+  {id: 'trilobite', name: 'Þríbroti'},
   {id: 'tooth', name: 'Risaeðlutönn'},
   {id: 'footprint', name: 'Fótspor'},
   {id: 'leaf', name: 'Steingert laufblað'},

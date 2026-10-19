@@ -52,7 +52,7 @@ Bæta codex-útgáfuna og flytja hana inn í endurgerðina (`remake/`). Þá er 
 - Hvert nýtt atriði fer í safn í bókinni sem límmiði og helst þar á milli leikja.
 - Í safninu eru 8 atriði:
   - ammónít;
-  - þríbrotsormur;
+  - þríbroti;
   - risaeðlutönn;
   - fótspor;
   - steingert laufblað;
