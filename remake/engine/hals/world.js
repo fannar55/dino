@@ -225,7 +225,7 @@ function createView(camera, board) {
       if (typeof follow === 'function') { const v = follow(followed); if (v?.isVector3 && v !== followed) followed.copy(v); }
       else followed.copy(follow.isVector3 ? follow : follow.position);
     }
-    const half = (BOARD.columns / 2 - 3) * BOARD.spacing; // the view stops short of running off the board's ends
+    const half = BOARD.columns / 2 * BOARD.spacing - 0.5; // the view goes as far as the board's end squares, no further
     wantTarget.set(THREE.MathUtils.clamp(followed.x, -half, half), followed.y + F.lead[1], followed.z - 0.5);
     wantPosition.set(wantTarget.x, wantTarget.y + F.distance * F.lift, wantTarget.z + F.distance);
   }
