@@ -12,7 +12,9 @@
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 <!-- "Háls og hali", the game proper (engine/hals/game.js), on a page of its own, never linked from the game: the same game the book
      opens, on a renderer of this page's own and a save of its own (mosi-hals-lab, so the game's progress is untouched).
-       ?players=1..4 &mode=adventure|classic &start=1   start a game at once (1: the child against Þórseðla)
+       ?players=1..4 &start=1                             start a game at once (1: the child against Þórseðla); a new game is
+                                                          always the adventure forest
+       &mode=classic                                      with &at: a kept game in the old classic mode (it still loads and plays)
        &at=N[,N...]                                       where the pieces stand to begin with (and &turn=i whose turn it is)
        &roll=N                                            the child rolls N by itself once the game waits for a roll
        &intro=0|1                                         skip Mosi's intro, or hear it again; &fresh=1 a save in memory only
@@ -77,7 +79,7 @@ if (at.length) {
   const count = players === 1 ? 2 : players;
   let state = createGame({ playerCount: count, vsComputer: players === 1, mode });
   state = { ...state, players: state.players.map((p, i) => ({ ...p, position: Number.isInteger(at[i]) ? at[i] : 0 })), currentPlayer: Math.min(count - 1, Number(params.get('turn')) || 0), turnCount: 4 };
-  save.setHalsPlay({ game: { state, setup: { players, mode } } });
+  save.setHalsPlay({ game: { state, setup: { players } } });
 }
 
 const music = params.get('music'); // a track to try in place of assets/audio/hals/music.mp3 (a path from the repository's root)
@@ -105,7 +107,7 @@ if (params.get('start') === '1') {
   const kept = save.getHalsPlay().game;
   if (kept) document.querySelector('.hals-continue')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 })) ;
   if (kept) document.querySelector('.hals-continue')?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }));
-  else game.start({ players, mode });
+  else game.start({ players });
   await waitFor(() => game.phase === 'child' && game.pieces);
   await game.pieces.ready();
   if (params.has('roll')) game.roll(Number(params.get('roll')));

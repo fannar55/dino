@@ -45,7 +45,9 @@ export const VIEW = {
   // the view, it frames just the board and the two giants (`tight`) and sets the board in the middle of the height between the
   // dock and the buttons at the top (`top`, a share of the view's height).
   overview: { bottom: -0.4, above: 6.5, left: -28.5, right: 32.8, tight: [-26.2, 31.6], safe: 0.16, top: 0.07, lift: 0.25, depth: -4.2 },
-  follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0] }, // close on a piece: its tier and the next one above
+  // close on a piece: its tier and the next one above; upright, a little further back and aimed lower, so the front tier above
+  // (it stands 6.2 m nearer) does not loom over the players' portraits
+  follow: { distance: 18, lift: 0.1, lead: [0, 1.8, 0], upright: { pull: 1.1, lead: -1.6 } },
   ease: { move: 2.4, calm: 0.9 }, // 1/s: how quickly the camera settles on a new view (calm mode slower)
 };
 const LOOK = 'morning'; // the chapter's light, so the fog's shader chunk (shared by every scene the renderer draws) stays the same
@@ -226,8 +228,10 @@ function createView(camera, board) {
       else followed.copy(follow.isVector3 ? follow : follow.position);
     }
     const half = BOARD.columns / 2 * BOARD.spacing - 0.5; // the view goes as far as the board's end squares, no further
-    wantTarget.set(THREE.MathUtils.clamp(followed.x, -half, half), followed.y + F.lead[1], followed.z - 0.5);
-    wantPosition.set(wantTarget.x, wantTarget.y + F.distance * F.lift, wantTarget.z + F.distance);
+    const upright = aspect < 1;
+    const distance = F.distance * (upright ? F.upright.pull : 1);
+    wantTarget.set(THREE.MathUtils.clamp(followed.x, -half, half), followed.y + (upright ? F.upright.lead : F.lead[1]), followed.z - 0.5);
+    wantPosition.set(wantTarget.x, wantTarget.y + distance * F.lift, wantTarget.z + distance);
   }
 
   return {

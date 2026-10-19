@@ -8,7 +8,7 @@ import { createThorsedlaLod } from './thorsedla-lod.js';
 // (thorsedla-lod.js): far away, they cost little.
 //
 //   const friends = await createFriends(world, board)
-//   friends.lookAt(point), friends.cheer(), friends.calm, friends.update(dt), friends.dispose()
+//   friends.lookAt(point), friends.cheer(), friends.calm, friends.actors, friends.update(dt), friends.dispose()
 
 const url = name => new URL(`../../assets/characters/${name}.glb`, import.meta.url).href;
 /** Where Uggeðla watches from (world.js keeps the forest's plants off it). */
@@ -55,6 +55,8 @@ export async function createFriends(world, board) {
   return {
     get calm() { return calm; },
     set calm(value) { calm = Boolean(value); },
+    /** Uggeðla and Flugeðla (the game hides them while it photographs the pieces). */
+    get actors() { return [uggedla, flugedla]; },
     lookAt(point) { uggedla.lookAt(point, { weight: 0.65, maxAngle: 60, maxPitch: 35 }); },
     cheer() {
       if (calm) return;

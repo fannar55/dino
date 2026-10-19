@@ -13,9 +13,10 @@ import { createVoice } from '../scene/voice.js';
 // board world of Task 2 (world.js, pieces.js, turn.js), with the look, sound and feel of "Eitt!" (hals.css, whose class list is at
 // its top; engine/eitt/table.js is the model this follows).
 //
-//   - Setup: who plays ("Ég og Þórseðla", the child against the computer, or 2, 3 or 4 children on one tablet) and the mode
-//     ("Ævintýraskógur", with fireflies, mud and fossils, or "Klassískt"). A game left under way is offered first: "Halda áfram" or
-//     "Nýr leikur". The world loads behind the setup the first time the game opens and is kept for the next.
+//   - Setup: who plays ("Ég og Þórseðla", the child against the computer, or 2, 3 or 4 children on one tablet). Every game is the
+//     adventure forest ("Ævintýraskógur": fireflies, mud and fossils; the owner took the classic choice out on 19 October, though
+//     a classic game kept in a save still loads and plays). A game left under way is offered first: "Halda áfram" or "Nýr leikur".
+//     The world loads behind the setup the first time the game opens and is kept for the next.
 //   - The first game: Mosi's three intro lines, then play. Mosi's "?" says them again at any time.
 //   - A turn: the players' portraits along the top, the active one raised and glowing with its square; the die alone in the dock,
 //     big, in a ring of the colour of whoever plays with that player's little portrait on it. On a child's turn it glows, pulses and
@@ -65,7 +66,6 @@ const ROSTERS = {
   3: ['egill', 'kambedla', 'sloedla'],
   4: ['egill', 'kambedla', 'sloedla', 'gramedla'],
 };
-const MODES = { adventure: 'Ævintýraskógur', classic: 'Klassískt' };
 
 /** Mosi's intro (the first game, and his "?"): each line with its words for his bubble. */
 const INTRO = [
@@ -116,7 +116,8 @@ function spokenOf(line) {
  *   isOpen         whether it is open
  *   phase          what it waits for, for a probe: 'shut', 'setup', 'loading', 'intro', 'child', 'busy' or 'over'
  *   game           the rules' state now; world, pieces: the board world and its pieces, for the lab
- *   start(setup)   a new game ({ players: 1 to 4, mode }), as "Byrjum!"; roll(value) the child's roll (value: for a probe)
+ *   start(setup)   a new game ({ players: 1 to 4 }, always the adventure mode), as "Byrjum!"; roll(value) the child's roll (value:
+ *                  for a probe)
  *   muted          silences its effects, music and voices
  *   calm           whether it is calm (prefers-reduced-motion); a lab may set it
  * `musicUrl` is the track (assets/audio/hals/music.mp3 unless a lab tries another).
@@ -196,15 +197,8 @@ export function createHalsGame(doc, {
     whoEl.append(button);
     return button;
   });
-  const modesEl = make('div', 'hals-modes');
-  const modeEls = Object.entries(MODES).map(([mode, name]) => {
-    const button = make('button', `hals-mode ${mode}`, `<span>${name}</span>`);
-    button.dataset.mode = mode;
-    modesEl.append(button);
-    return button;
-  });
   const startEl = make('button', 'hals-big hals-start', `${PLAY}<span>Byrjum!</span>`);
-  chooseEl.append(whoEl, modesEl, startEl);
+  chooseEl.append(whoEl, startEl);
   setupCard.append(setupClose, titleEl, resumeEl, chooseEl);
   setupEl.append(setupCard);
 
@@ -378,7 +372,7 @@ export function createHalsGame(doc, {
   let roster = null; // their ids
   let stale = false; // a turn was cut short by a close: the pieces are made anew for the next game
   let game = null; // the rules' state
-  let setup = { players: 1, mode: 'adventure' };
+  let setup = { players: 1 }; // who plays; every new game is the adventure forest
   let active = null; // the piece whose turn it is
   let round = 0; // counts games and closes: a flow that finds it changed stops
   let busy = true; // a piece moves, the die tumbles, or the computer plays: the child's taps wait
@@ -485,6 +479,17 @@ export function createHalsGame(doc, {
   // the book's taped photos are.
   let wanted = []; // the pieces whose photo is still to be taken
   const PHOTO = 224; // px
+  // Each portrait's framing: `size` metres across the frame round its head joint, moved `ahead` along the way it faces and `up`;
+  // the camera `turn` toward its face (1: halfway between its side and its front) and `above` it. Egill's is aimed between Mosi's
+  // head and his (`rider`: how far toward his).
+  const PORTRAIT = {
+    rider: 0.42,
+    egill: { size: 1.65, ahead: 0.5, up: 0.12, turn: 1.2, above: 0.55 },
+    kambedla: { size: 1.25, ahead: 0.12, up: -0.08, turn: 0.9, above: 0.2 },
+    sloedla: { size: 1.45, ahead: 0.1, up: 0.14, turn: 0.9, above: 0.18 },
+    gramedla: { size: 1.3, ahead: 0.15, up: -0.1, turn: 0.9, above: 0.18 },
+    thorsedla: { size: 0.85, ahead: 0.05, up: -0.08, turn: 0.9, above: 0.15 },
+  };
   function photograph() {
     const canvas = renderer.domElement;
     const ratio = renderer.getPixelRatio();
@@ -497,23 +502,29 @@ export function createHalsGame(doc, {
     const { fov, aspect } = camera;
     const taken = [];
     const stage = hw.board.square(0); // each is taken at the start, where nothing stands in front of it
+    for (const friend of hw.friends.actors ?? []) friend.root.visible = false; // nobody stands behind a portrait
     for (const piece of wanted) {
       for (const other of pieces.list) other.actor.root.visible = other === piece;
       for (const other of pieces.list) if (other.rider) other.rider.root.visible = other === piece;
       const was = piece.position.clone();
       piece.position.copy(stage);
       pieces.update(0);
-      // Its head and shoulders, three-quarters on from the side it faces (a piece is 3.7 m nose to tail).
-      // Egill's photo is of him in the saddle with Mosi's frill before him.
+      // A close-up that fills the round frame: the head and shoulders, three-quarters on from the side it faces (a piece is 3.7 m
+      // nose to tail). Egill's is of him in the saddle over Mosi's head and frill, the two of them together.
       const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(piece.actor.root.quaternion).setY(0).normalize();
-      const look = piece.rider
-        ? piece.rider.root.getWorldPosition(new THREE.Vector3()).addScaledVector(forward, 0.22).add(new THREE.Vector3(0, 0.3, 0))
-        : stage.clone().addScaledVector(forward, 0.75).add(new THREE.Vector3(0, 1.1, 0));
+      piece.actor.root.updateMatrixWorld(true);
+      const look = piece.actor.headPosition(new THREE.Vector3());
+      if (piece.rider) {
+        piece.rider.root.updateMatrixWorld(true);
+        look.lerp(piece.rider.headPosition(new THREE.Vector3()), PORTRAIT.rider);
+      }
+      const frame = PORTRAIT[piece.id] ?? PORTRAIT.kambedla;
+      look.addScaledVector(forward, frame.ahead).add(new THREE.Vector3(0, frame.up, 0));
       camera.fov = 30;
       camera.aspect = 1;
       camera.updateProjectionMatrix();
-      const distance = (piece.rider ? 0.58 : 1.35) / Math.tan(THREE.MathUtils.degToRad(15));
-      camera.position.copy(look).add(forward.clone().multiplyScalar(0.5).add(new THREE.Vector3(0, 0.22, 0.84)).normalize().multiplyScalar(distance));
+      const distance = frame.size / 2 / Math.tan(THREE.MathUtils.degToRad(15));
+      camera.position.copy(look).add(forward.clone().multiplyScalar(frame.turn).add(new THREE.Vector3(0, frame.above, 1)).normalize().multiplyScalar(distance));
       camera.lookAt(look);
       camera.updateMatrixWorld();
       pieces.update(0); // their levels for this close view
@@ -532,6 +543,7 @@ export function createHalsGame(doc, {
       piece.position.copy(was);
     }
     wanted = [];
+    for (const friend of hw.friends.actors ?? []) friend.root.visible = true;
     for (const other of pieces.list) {
       other.actor.root.visible = true;
       if (other.rider) other.rider.root.visible = true;
@@ -1091,7 +1103,6 @@ export function createHalsGame(doc, {
     resumeEl.hidden = !kept;
     chooseEl.hidden = Boolean(kept);
     for (const button of choiceEls) button.setAttribute('aria-pressed', String(Number(button.dataset.players) === setup.players));
-    for (const button of modeEls) button.setAttribute('aria-pressed', String(button.dataset.mode === setup.mode));
     winEl.hidden = true;
     setupEl.hidden = false;
     renderDock();
@@ -1101,7 +1112,7 @@ export function createHalsGame(doc, {
     }
   }
 
-  /** A new game for `choice` ({ players, mode }), or the kept one (`kept`: { state, setup }). */
+  /** A new game for `choice` ({ players }), always in the adventure mode, or the kept one (`kept`: { state, setup }, in its own mode). */
   async function start(choice = setup, kept = null) {
     const token = ++round;
     for (const id of timers) clearTimeout(id);
@@ -1111,7 +1122,7 @@ export function createHalsGame(doc, {
     hideAdvice();
     hideCard();
     skipEl.hidden = true;
-    setup = { players: kept?.setup.players ?? choice.players, mode: kept?.state.mode ?? choice.mode };
+    setup = { players: kept?.setup.players ?? choice.players };
     setupEl.hidden = true;
     winEl.hidden = true;
     confettiEl.replaceChildren();
@@ -1126,7 +1137,7 @@ export function createHalsGame(doc, {
     await ensurePieces(ids);
     if (token !== round) return;
     veil.classList.remove('waiting');
-    game = kept?.state ?? createGame({ playerCount: ids.length, vsComputer: setup.players === 1, mode: setup.mode, random });
+    game = kept?.state ?? createGame({ playerCount: ids.length, vsComputer: setup.players === 1, mode: 'adventure', random });
     hw.board.decorate(game.mode === 'adventure' ? SPECIAL_TILES : []);
     pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
     const unshot = pieces.list.filter(piece => !photos.has(piece.id));
@@ -1283,15 +1294,6 @@ export function createHalsGame(doc, {
         wake();
         setup = { ...setup, players: Number(button.dataset.players) };
         for (const other of choiceEls) other.setAttribute('aria-pressed', String(other === button));
-      },
-    });
-  }
-  for (const button of modeEls) {
-    pressable(button, {
-      audio: tap, win, onTap: () => {
-        wake();
-        setup = { ...setup, mode: button.dataset.mode };
-        for (const other of modeEls) other.setAttribute('aria-pressed', String(other === button));
       },
     });
   }

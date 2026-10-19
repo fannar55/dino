@@ -25,8 +25,8 @@
                                  (.hals-card-confetti) for a new find
      .hals-setup                 who plays: .hals-setup-card with .hals-title, .hals-resume ("Halda áfram" .hals-continue and "Nýr
                                  leikur" .hals-fresh) or .hals-choose: the four .hals-choice (data-players, aria-pressed; each with its
-                                 .hals-choice-pics and .hals-choice-name), the two .hals-mode (.adventure, .classic) and "Byrjum!"
-                                 (.hals-start)
+                                 .hals-choice-pics and .hals-choice-name) and "Byrjum!" (.hals-start); no mode to choose (every
+                                 game is the adventure forest)
      .hals-win                   the end: .hals-win-card with the winner's picture (.hals-win-picture), its words (h2), the fossils found
                                  this game (.hals-win-finds of .hals-sticker) and "Spilum aftur?" (.hals-again); .hals-confetti
      .hals-big, .hals-plain      the big green raised pill and the plain cream one
@@ -80,7 +80,7 @@
 .hals button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
 .hals img { display: block; -webkit-user-drag: none; }
 .hals > canvas.hals-view { z-index: 0; }
-.hals :is(.hals-tool, .hals-skip, .hals-mode, .hals-big, .hals-plain, .hals-choice) { isolation: isolate; } /* their pill lies under them */
+.hals :is(.hals-tool, .hals-skip, .hals-big, .hals-plain, .hals-choice) { isolation: isolate; } /* their pill lies under them */
 /* While the setup or the end is up, its card has the close: the board's controls wait. */
 .hals:has(.hals-setup:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-players, .hals-dock),
 .hals:has(.hals-win:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-dock) { visibility: hidden; }
@@ -401,19 +401,6 @@
 }
 .hals-choice-pics img:nth-child(even) { translate: 0 14px; }
 .hals-choice-name { font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900; line-height: 1.1; text-align: center; }
-.hals-modes { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
-.hals-mode {
-  position: relative; min-height: var(--hals-target); min-width: var(--hals-target); padding: 0 1em;
-  display: inline-flex; align-items: center; font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900;
-}
-.hals-mode::before {
-  content: ""; position: absolute; z-index: -1; inset: 14px 0; border-radius: 999px; background: var(--paper); border: 3px solid var(--ink);
-  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
-}
-.hals-mode[aria-pressed="true"] { color: #fff; }
-.hals-mode[aria-pressed="true"] span { -webkit-text-stroke: .14em var(--ink); paint-order: stroke fill; }
-.hals-mode.adventure[aria-pressed="true"]::before { background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--teal); box-shadow: 0 5px 0 var(--teal-deep), 0 5px 0 3px var(--ink); }
-.hals-mode.classic[aria-pressed="true"]::before { background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .35), transparent 50%), var(--orange); box-shadow: 0 5px 0 var(--orange-deep), 0 5px 0 3px var(--ink); }
 .hals-resume { display: grid; justify-items: center; gap: 14px; }
 
 /* The big green raised pill ("Byrjum!", "Halda áfram", "Spilum aftur?") and the plain cream one ("Nýr leikur"). */
