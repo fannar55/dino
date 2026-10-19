@@ -293,7 +293,7 @@ void main() {
 
 // ---- the life itself -------------------------------------------------------------------------------------------------------
 
-const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 52, beetles: 6, lizards: 6, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 4 };
+const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 52, beetles: 6, lizards: 6, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 3 };
 const GROUP = 3; // butterflies go about in little groups
 const BUTTERFLY_COLOURS = ['#f39a3a', '#6fc0ee', '#f5dc4a', '#f08bb4', '#fffaf0', '#b48cf0'];
 const FLOWER_COLOURS = ['#fff4f0', '#f7a6c4', '#ffd84a', '#c9a2f2', '#ff9a6a'];
@@ -716,9 +716,9 @@ export function createLife(hw) {
     if (down.y > -0.3) down.y = -0.3;
     down.normalize();
     const pos = [], shaft = [], seed = [], idx = [];
-    const feet = [-27, -18.5, -5, 8, 21].slice(0, COUNTS.shafts); // two of them by the start, where every game begins
+    const feet = [-24, -6, 14].slice(0, COUNTS.shafts); // one by the start, where every game begins
     feet.forEach((x0, i) => {
-      const width = rand(3.5, 6), z = rand(-17, -13);
+      const width = rand(3, 4.5), z = rand(-17, -13);
       const bottom = new V3(x0 + rand(-1.5, 1.5), 0, z);
       bottom.y = heightAt(bottom.x, bottom.z);
       const top = bottom.clone().addScaledVector(down, -(34 - bottom.y) / Math.abs(down.y));
@@ -736,7 +736,7 @@ export function createLife(hw) {
     g.setIndex(idx);
     const material = own(new THREE.ShaderMaterial({
       vertexShader: SHAFT_VERT, fragmentShader: SHAFT_FRAG, uniforms: shaftUniforms,
-      fog: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      fog: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, // (no fog: cheaper over the big quads)
     }));
     material.name = 'Háls og hali: light shafts';
     const mesh = new THREE.Mesh(g, material);
