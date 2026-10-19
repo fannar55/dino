@@ -46,6 +46,14 @@ const PICTURES = {
   gramedla: asset('assets/eitt/trex.webp'),
   thorsedla: asset('assets/eitt/brontosaurus.webp'),
 };
+/** Each piece's photo, taken on the board once its piece is made (photograph below); the pictures above stand in until then. */
+const photos = new Map();
+const pictureOf = id => photos.get(id) ?? PICTURES[id];
+/** An img shows the piece's photo (class photo: it fills its frame) or its stand-in picture. */
+function showPicture(img, id) {
+  img.src = pictureOf(id);
+  img.classList.toggle('photo', photos.has(id));
+}
 const NAMES = { egill: 'Egill', kambedla: 'Kambeðla', sloedla: 'Slóeðla', gramedla: 'Grameðla', thorsedla: 'Þórseðla' };
 const COLOURS = { egill: '#79c7a1', kambedla: '#ab85c1', sloedla: '#6793d0', gramedla: '#d69a6e', thorsedla: '#e9b14d' };
 const ROSTERS = {
@@ -177,7 +185,7 @@ export function createHalsGame(doc, {
   const choiceEls = [1, 2, 3, 4].map(n => {
     const button = make('button', 'hals-choice');
     button.dataset.players = String(n);
-    const pictures = ROSTERS[n].map(id => `<img src="${PICTURES[id]}" alt="" style="--c:${COLOURS[id]}">`).join('');
+    const pictures = ROSTERS[n].map(id => `<img src="${PICTURES[id]}" alt="" data-id="${id}" style="--c:${COLOURS[id]}">`).join('');
     button.innerHTML = `<span class="hals-choice-pics">${pictures}</span><span class="hals-choice-name">${n === 1 ? 'Ég og Þórseðla' : `${n} leikmenn`}</span>`;
     button.setAttribute('aria-label', n === 1 ? 'Ég og Þórseðla' : `${n} leikmenn`);
     whoEl.append(button);
@@ -448,6 +456,79 @@ export function createHalsGame(doc, {
     hw.resize(canvas.clientWidth || win?.innerWidth || 1280, canvas.clientHeight || win?.innerHeight || 800);
   }
 
+  // Each piece's photo for the portraits (Egill on Mosi, and the friends), taken on the board itself: a camera close on the piece
+  // alone draws it into a corner of the canvas, which is copied out at once (before the frame is shown, so it never appears) and
+  // the frame drawn over it. The board's light, the pieces' own levels for a close view, and the forest behind: a snapshot, as
+  // the book's taped photos are.
+  let wanted = []; // the pieces whose photo is still to be taken
+  const PHOTO = 224; // px
+  function photograph() {
+    const canvas = renderer.domElement;
+    const ratio = renderer.getPixelRatio();
+    const side = Math.min(PHOTO, Math.floor(Math.min(canvas.width, canvas.height) / ratio));
+    const shot = doc.createElement('canvas');
+    shot.width = shot.height = PHOTO;
+    const paint = shot.getContext?.('2d');
+    if (!paint || side < 64) { wanted = []; return; }
+    const camera = hw.camera;
+    const { fov, aspect } = camera;
+    const taken = [];
+    const stage = hw.board.square(0); // each is taken at the start, where nothing stands in front of it
+    for (const piece of wanted) {
+      for (const other of pieces.list) other.actor.root.visible = other === piece;
+      for (const other of pieces.list) if (other.rider) other.rider.root.visible = other === piece;
+      const was = piece.position.clone();
+      piece.position.copy(stage);
+      pieces.update(0);
+      // Its head and shoulders, three-quarters on from the side it faces (a piece is 3.7 m nose to tail).
+      // Egill's photo is of him in the saddle with Mosi's frill before him.
+      const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(piece.actor.root.quaternion).setY(0).normalize();
+      const look = piece.rider
+        ? piece.rider.root.getWorldPosition(new THREE.Vector3()).addScaledVector(forward, 0.22).add(new THREE.Vector3(0, 0.3, 0))
+        : stage.clone().addScaledVector(forward, 0.75).add(new THREE.Vector3(0, 1.1, 0));
+      camera.fov = 30;
+      camera.aspect = 1;
+      camera.updateProjectionMatrix();
+      const distance = (piece.rider ? 0.58 : 1.35) / Math.tan(THREE.MathUtils.degToRad(15));
+      camera.position.copy(look).add(forward.clone().multiplyScalar(0.5).add(new THREE.Vector3(0, 0.22, 0.84)).normalize().multiplyScalar(distance));
+      camera.lookAt(look);
+      camera.updateMatrixWorld();
+      pieces.update(0); // their levels for this close view
+      renderer.setScissorTest(true);
+      renderer.setScissor(0, 0, side, side);
+      renderer.setViewport(0, 0, side, side);
+      renderer.render(hw.scene, camera);
+      paint.clearRect(0, 0, PHOTO, PHOTO);
+      paint.drawImage(canvas, 0, canvas.height - side * ratio, side * ratio, side * ratio, 0, 0, PHOTO, PHOTO);
+      try {
+        photos.set(piece.id, shot.toDataURL('image/webp', 0.9));
+        taken.push(piece.id);
+      } catch (error) {
+        console.warn('[hals] a photo could not be kept', error);
+      }
+      piece.position.copy(was);
+    }
+    wanted = [];
+    for (const other of pieces.list) {
+      other.actor.root.visible = true;
+      if (other.rider) other.rider.root.visible = true;
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvas.clientWidth || canvas.width / ratio, canvas.clientHeight || canvas.height / ratio);
+    camera.fov = fov;
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+    resize();
+    pieces.update(0);
+    // The new photos everywhere a picture of that piece shows.
+    for (const el of playerEls) {
+      const img = el.querySelector?.('.hals-portrait img');
+      if (img && taken.includes(el.dataset.id)) showPicture(img, el.dataset.id);
+    }
+    for (const img of root.querySelectorAll?.('.hals-choice-pics img') ?? []) if (taken.includes(img.dataset.id)) showPicture(img, img.dataset.id);
+    renderDock();
+  }
+
   function frame(now) {
     if (!isOpen) return;
     raf = win.requestAnimationFrame(frame);
@@ -455,6 +536,14 @@ export function createHalsGame(doc, {
     last = now;
     effects.update(dt);
     if (!hw) return;
+    if (wanted.length && pieces) {
+      try {
+        photograph();
+      } catch (error) {
+        wanted = [];
+        console.warn('[hals] the photos could not be taken', error);
+      }
+    }
     try {
       hw.update(dt);
       renderer.info.reset();
@@ -499,7 +588,9 @@ export function createHalsGame(doc, {
         const el = make('div', 'hals-player');
         el.dataset.id = id;
         el.style.setProperty('--c', COLOURS[id]);
-        el.innerHTML = `<span class="hals-portrait"><img src="${PICTURES[id]}" alt=""></span><span class="hals-square"></span><span class="hals-name">${game.players[i].isComputer ? 'Þórseðla' : NAMES[id]}</span>`;
+        el.innerHTML = `<span class="hals-portrait"><img alt=""></span><span class="hals-square"></span><span class="hals-name">${game.players[i].isComputer ? 'Þórseðla' : NAMES[id]}</span>`;
+        const img = el.querySelector?.('img');
+        if (img) showPicture(img, id);
         playerEls.push(el);
         return el;
       }));
@@ -519,7 +610,7 @@ export function createHalsGame(doc, {
     const index = game ? game.winner ?? game.currentPlayer : 0;
     const id = roster?.[index] ?? 'egill';
     dockEl.style.setProperty('--c', COLOURS[id]);
-    if (rollPicture) rollPicture.src = PICTURES[id];
+    if (rollPicture) showPicture(rollPicture, id);
     const live = childMoves();
     dockEl.classList.toggle('live', live);
     dockEl.classList.toggle('computer', Boolean(game && game.players[index]?.isComputer && game.winner === null));
@@ -915,6 +1006,7 @@ export function createHalsGame(doc, {
     await wait(1200);
     if (token !== round) return;
     showWin(winner, computer);
+    sparks.fireworks(hw.board.square(BOARD.count).add(new THREE.Vector3(0, 1.5, -1)), { count: 6 }); // and more over the card
     await wait(Math.max(2200, said * 1000 + 600));
     if (token !== round) return;
     say('hals_thor_again', { by: nearestThorsedla() });
@@ -924,7 +1016,7 @@ export function createHalsGame(doc, {
   function showWin(winner, computer) {
     const solo = setup.players === 1;
     winWords.textContent = solo ? (computer ? 'Þórseðla vann!' : 'Þú vannst!') : `${computer ? 'Þórseðla' : NAMES[winner.id]} vann!`;
-    winPicture.src = PICTURES[winner.id];
+    showPicture(winPicture, winner.id);
     const found = [];
     game.players.forEach(player => {
       if (player.isComputer) return;
@@ -1009,6 +1101,8 @@ export function createHalsGame(doc, {
     game = kept?.state ?? createGame({ playerCount: ids.length, vsComputer: setup.players === 1, mode: setup.mode, random });
     hw.board.decorate(game.mode === 'adventure' ? SPECIAL_TILES : []);
     pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
+    const unshot = pieces.list.filter(piece => !photos.has(piece.id));
+    if (unshot.length) pieces.ready().then(() => { if (token === round) wanted = unshot; });
     active = pieces.list[game.currentPlayer];
     sparks.clear();
     countIntros = kept ? 2 : 0;

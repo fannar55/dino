@@ -3,8 +3,8 @@ import * as THREE from 'three';
 // The board's little effects (spec section 4, "Sjónbrellur"): dust and leaves where a piece lands, glitter along a neck or a tail
 // as it is ridden, a splash at a tail's end, fireflies swirling round a piece they carry, a splat of mud, a fossil's sparkle and
 // fireworks over the top square at a win. They are cheap on purpose: two point clouds of a few hundred points each (two draw calls
-// whatever is going on), one with soft shapes drawn over the scene (dust, leaves, mud) and one that glows (glitter, fireflies,
-// sparkles, fireworks), each point a disc, a four-pointed star or a leaf drawn in its fragment shader.
+// whatever is going on), one with soft shapes (dust, leaves, mud) and one of bright ones (glitter, fireflies, sparkles, fireworks),
+// both drawn over the scene, each point a disc, a four-pointed star or a leaf drawn in its fragment shader.
 //
 //   const sparks = createSparks(world)          world: createHalsWorld's (its scene, camera, renderer and addUpdater)
 //   sparks.dust(p) / leaves(p) / glitter(p) / splash(p) / firefly(p) / mud(p) / sparkle(p) / fireworks(p)   p: a Vector3
@@ -84,7 +84,8 @@ function createCloud(size, blending, name) {
 
 export function createSparks(world) {
   const soft = createCloud(SOFT, THREE.NormalBlending, 'Háls og hali: dust and leaves');
-  const glow = createCloud(GLOW, THREE.AdditiveBlending, 'Háls og hali: glitter and fireworks');
+  // Drawn over the scene too, not added to it: the morning sky is bright, and added light would wash every colour out to white.
+  const glow = createCloud(GLOW, THREE.NormalBlending, 'Háls og hali: glitter and fireworks');
   world.scene.add(soft.points, glow.points);
   let calm = false;
   const scaleOf = () => (calm ? 0.5 : 1);
@@ -108,7 +109,7 @@ export function createSparks(world) {
   const FIREFLY = ['#fff3a0', '#e8ff9a', '#ffe070'].map(colourOf);
   const MUD = ['#5e4630', '#6f5238', '#4c3826'].map(colourOf);
   const WATER = ['#e9f4ff', '#cfe6f5', '#ffffff'].map(colourOf);
-  const FIREWORK = [['#ff8a7a', '#ffd0c4'], ['#ffd25a', '#fff2c0'], ['#8fd96a', '#e2ffcf'], ['#7cc0ff', '#e2f2ff'], ['#d9a8f0', '#f6e6ff']]
+  const FIREWORK = [['#ff4f3f', '#ffb3a3'], ['#ffb800', '#ffe48a'], ['#3fc23f', '#b8f5a0'], ['#2f8cff', '#a8d4ff'], ['#b45cff', '#e6c2ff']]
     .map(pair => pair.map(colourOf));
   const pick = list => list[Math.floor(Math.random() * list.length)];
 
@@ -201,7 +202,7 @@ export function createSparks(world) {
             const u = rand(-1, 1), a = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u), s = rand(4.2, 5.6);
             add(glow, at, {
               vx: r * Math.cos(a) * s, vy: u * s, vz: r * Math.sin(a) * s * 0.5, gravity: -2.6, drag: 1.3,
-              life: rand(1.2, 1.8), size: rand(0.3, 0.45), grow: 0.25, colour: i % 3 ? bright : pale, alpha: 1, kind: i % 4 ? KIND.disc : KIND.star,
+              life: rand(1.2, 1.8), size: rand(0.55, 0.8), grow: 0.3, colour: i % 3 ? bright : pale, alpha: 1, kind: i % 4 ? KIND.disc : KIND.star,
             });
           }
         },
