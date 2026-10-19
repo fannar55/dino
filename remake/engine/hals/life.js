@@ -120,6 +120,28 @@ function pterosaurGeometry() {
   return g;
 }
 
+/**
+ * A beetle about 0.3 m long, facing +x, in the chapter's beetle's colours (world/critters/models.js) but light: a teal shell
+ * with a gold spot and a seam, a dark head, six legs (about 90 triangles, where the chapter's has 400 for a close look).
+ */
+function beetleGeometry() {
+  const parts = [];
+  parts.push(part(ellipsoid([0.15, 0.085, 0.11], [0, 0.1, 0], 6, 3), '#2a9689'));
+  parts.push(part(ellipsoid([0.1, 0.03, 0.075], [-0.01, 0.165, 0], 5, 2), '#5ec4b2'));
+  parts.push(part(ellipsoid([0.025, 0.012, 0.025], [-0.05, 0.19, 0.03], 4, 2), '#f2c443'));
+  parts.push(part(ellipsoid([0.055, 0.05, 0.06], [0.16, 0.085, 0], 4, 2), '#2f4747'));
+  for (const s of [-1, 1]) {
+    parts.push(part(ellipsoid([0.012, 0.012, 0.012], [0.2, 0.11, 0.03 * s], 3, 2), '#f6f1e4'));
+    for (const fx of [0.08, 0, -0.08]) {
+      const leg = new THREE.CylinderGeometry(0.008, 0.008, 0.13, 3, 1, true).rotateX(s * 1.0).translate(fx, 0.05, 0.12 * s);
+      parts.push(part(leg, '#58412f'));
+    }
+  }
+  const g = mergeGeometries(parts);
+  parts.forEach(p => p.dispose());
+  return g;
+}
+
 /** A little lizard, 0.6 m nose to tail, facing +x: green above, yellow under, a long tail (its body bends in the shader). */
 function lizardGeometry() {
   const parts = [];
@@ -293,7 +315,7 @@ void main() {
 
 // ---- the life itself -------------------------------------------------------------------------------------------------------
 
-const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 52, beetles: 6, lizards: 6, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 3 };
+const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 44, beetles: 6, lizards: 5, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 3 };
 const GROUP = 3; // butterflies go about in little groups
 const BUTTERFLY_COLOURS = ['#f39a3a', '#6fc0ee', '#f5dc4a', '#f08bb4', '#fffaf0', '#b48cf0'];
 const FLOWER_COLOURS = ['#fff4f0', '#f7a6c4', '#ffd84a', '#c9a2f2', '#ff9a6a'];
@@ -570,6 +592,7 @@ export function createLife(hw) {
     flock.wait = flock.kind === 'far' ? rand(10, 22) : flock.kind === 'near' ? rand(10, 20) : rand(8, 18);
   }
   function updateFlocks(dt) {
+    birds.visible = flocks.some(flock => flock.flying); // (not drawn at all while none flies)
     for (const flock of flocks) {
       if (!flock.flying) {
         flock.wait -= dt;
@@ -589,7 +612,7 @@ export function createLife(hw) {
   }
 
   // ---- ground critters: beetles and lizards scurrying, frogs by the mud, a snail on a log --------------------------------------
-  const beetleMesh = kindMesh('beetles', critterGeometry('beetle', 2.6), COUNTS.beetles);
+  const beetleMesh = kindMesh('beetles', beetleGeometry(), COUNTS.beetles);
   const lizardMesh = kindMesh('lizards', lizardGeometry(), COUNTS.lizards, { bend: 0.035 });
   const frogMesh = kindMesh('frogs', critterGeometry('frog', 2.2), COUNTS.frogs);
   const snailMesh = kindMesh('snail', critterGeometry('snail', 3), COUNTS.snails);
