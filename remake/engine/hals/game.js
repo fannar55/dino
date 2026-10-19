@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BOARD, SPECIAL_TILES, FOSSIL_KINDS, createGame, applyTurn, resolveTurn, validateGame } from './rules.js';
 import { playTurn } from './turn.js';
+import { STONE } from './board.js';
 import { createSparks } from './sparks.js';
 import { halsSounds, HALS_GAPS } from './hals-sounds.js';
 import { FOSSIL_ART, FOSSIL_HUES } from './fossil-art.js';
@@ -85,6 +86,7 @@ const PIPS = { 1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'], 4: ['tl', 'tr', 
 
 const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>';
 const AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const BOOK_ICON = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 14c8-3 15-2 22 3v38c-7-5-14-6-22-3z" fill="#2f8f86" stroke="#3b2f25" stroke-width="3.4" stroke-linejoin="round"/><path d="M54 14c-8-3-15-2-22 3v38c7-5 14-6 22-3z" fill="#3aa79c" stroke="#3b2f25" stroke-width="3.4" stroke-linejoin="round"/><path d="M43 26l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round"/></svg>';
 const ARROW_UP = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ARROW_DOWN = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -562,17 +564,32 @@ export function createHalsGame(doc, {
   const faceTurn = n => `${TILT} rotateX(${FACES[n][0]}deg) rotateY(${FACES[n][1]}deg)`;
   cubeEl.style.transform = faceTurn(1);
 
+  /** A little puff of dust on the die's pad as it lands (hals.css .hals-puff; a fade under reduced motion). */
+  function puff() {
+    const el = make('span', 'hals-puff', '<i></i><i></i><i></i><i></i><i></i><i></i>');
+    el.setAttribute('aria-hidden', 'true');
+    dieEl.append(el);
+    later(800, () => el.remove());
+  }
+
   /** The die tumbles and lands on `value` (a fade to it under reduced motion). Resolves as it lands. */
   function tumble(value) {
     sfx('roll');
     const end = faceTurn(value);
     dockEl.classList.add('rolling'); // bright while it tumbles, whoever rolled it
+    let trail = 0;
+    if (!still()) { // a trail of sparkles while it tumbles
+      const twinkle = () => { sparkle(dieEl, calm() ? 1 : 3, win); trail = later(110, twinkle); };
+      trail = later(60, twinkle);
+    }
     const done = () => {
+      cancelTimer(trail);
       dockEl.classList.remove('rolling');
       cubeEl.style.transform = end;
       shown = value;
       sfx('land');
       sparkle(dieEl, 8, win);
+      puff();
     };
     if (typeof cubeEl.animate !== 'function') {
       done();
@@ -690,6 +707,54 @@ export function createHalsGame(doc, {
       .onfinish = () => { cardEl.hidden = true; };
   }
 
+  /**
+   * A new find flies as a sticker from the card to a little book that pops up beside Mosi, and the book takes it in with a bounce
+   * (hals.css .hals-flying, .hals-book). Under reduced motion the sticker fades out at the card and the book fades in and out.
+   */
+  function stickerToBook(kind) {
+    if (!kind || typeof cardEl.getBoundingClientRect !== 'function') return;
+    const book = make('span', 'hals-book', BOOK_ICON);
+    book.setAttribute('aria-hidden', 'true');
+    const sticker = make('span', 'hals-sticker hals-flying', FOSSIL_ART[kind]);
+    sticker.style.setProperty('--hue', FOSSIL_HUES[kind]);
+    sticker.setAttribute('aria-hidden', 'true');
+    hud.append(book, sticker);
+    const from = cardEl.querySelector?.('.hals-card-face')?.getBoundingClientRect() ?? cardEl.getBoundingClientRect();
+    const to = book.getBoundingClientRect();
+    const size = sticker.getBoundingClientRect();
+    const x0 = from.left + from.width / 2 - size.width / 2, y0 = from.top + from.height * 0.42 - size.height / 2;
+    const x1 = to.left + to.width / 2 - size.width / 2, y1 = to.top + to.height * 0.45 - size.height / 2;
+    sticker.style.left = `${x0}px`;
+    sticker.style.top = `${y0}px`;
+    const animate = typeof sticker.animate === 'function';
+    const end = () => { sticker.remove(); later(900, () => book.remove()); };
+    if (!animate) { end(); return; }
+    book.animate(still() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(30px) scale(.5)' }, { opacity: 1, transform: 'none' }],
+      { duration: 360, easing: 'cubic-bezier(.3, 1.5, .5, 1)', fill: 'both' });
+    if (still()) {
+      sticker.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 300, fill: 'both' }).finished.catch(() => {}).then(() => {
+        book.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 500, fill: 'both' });
+        end();
+      });
+      return;
+    }
+    const dx = x1 - x0, dy = y1 - y0;
+    sticker.animate([
+      { transform: 'translate(0, 0) scale(1.15) rotate(0deg)' },
+      { transform: `translate(${dx * 0.45}px, ${dy * 0.3 - 120}px) scale(1) rotate(-14deg)`, offset: 0.45 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.42) rotate(8deg)`, opacity: 1 },
+    ], { duration: 950, delay: 250, easing: 'cubic-bezier(.45, .05, .55, .95)', fill: 'both' }).finished.catch(() => {}).then(() => {
+      sticker.remove();
+      sfx('chime');
+      sparkle(book, 10, win);
+      book.animate([
+        { transform: 'scale(1)' }, { transform: 'scale(1.25) rotate(-6deg)', offset: 0.35 }, { transform: 'scale(.95)', offset: 0.7 }, { transform: 'scale(1)' },
+      ], { duration: 520, easing: 'ease-out' });
+      book.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, delay: 1100, fill: 'both' });
+      later(1600, () => book.remove());
+    });
+  }
+
   /** Bits of confetti as markup (hals.css .hals-confetti i): each with its colour, place, turn, fall time and delay. */
   function confettiBits(count) {
     const colours = ['red', 'yellow', 'green', 'blue'];
@@ -699,14 +764,26 @@ export function createHalsGame(doc, {
   // ---- A turn -----------------------------------------------------------------------------------------------------------------
 
   /** The effects that follow a piece through a ride: glitter up a neck and down a tail, fireflies round a piece they carry. */
+  let fxTurn = 0; // how far round the neck's spiral of glitter has gone
+  const fxLast = new THREE.Vector3(); // where the sliding piece was, for the way its streaks point
+  const fxWay = new THREE.Vector3();
   function followEffects(dt) {
     if (!fxPhase || !fxPiece || !sparks) return;
+    fxTurn += dt * 7;
     fxTimer -= dt;
     if (fxTimer > 0) return;
-    fxTimer = fxPhase === 'firefly' ? 0.05 : 0.07;
+    fxTimer = fxPhase === 'firefly' ? 0.05 : fxPhase === 'slide' ? 0.045 : 0.06;
     if (fxPhase === 'firefly') sparks.firefly(fxPiece.position, { count: calm() ? 1 : 2 });
-    else sparks.glitter(fxPiece.position, { count: calm() ? 1 : 2 });
+    else if (fxPhase === 'lift') sparks.spiral(fxPiece.position, fxTurn);
+    else if (fxPhase === 'slide') {
+      fxWay.subVectors(fxPiece.position, fxLast);
+      fxLast.copy(fxPiece.position);
+      if (fxWay.lengthSq() > 1e-5 && !calm()) sparks.streak(fxPiece.position, fxWay.normalize());
+      else sparks.glitter(fxPiece.position, { count: 1 });
+    } else sparks.glitter(fxPiece.position, { count: calm() ? 1 : 2 });
   }
+  /** The middle of square n's number plaque, a little in front of it (a count's pop of light). */
+  const plaqueOf = n => hw.board.square(n).add(new THREE.Vector3(0, -STONE.height * 0.5, STONE.depth / 2 + 0.15));
 
   function beginTurn() {
     if (!isOpen || !game || game.winner !== null || !pieces) return;
@@ -727,6 +804,7 @@ export function createHalsGame(doc, {
     }
     busy = false;
     phase = 'child';
+    pieces.waiting = active; // it bounces and looks round now and then while it waits
     renderDock();
     armIdle();
     if (active.id === 'egill') {
@@ -774,6 +852,7 @@ export function createHalsGame(doc, {
     turning = true;
     busy = true;
     phase = 'busy';
+    pieces.waiting = null;
     cancelTimer(idleTimer);
     cancelTimer(nudgeTimer);
     renderDock();
@@ -803,7 +882,8 @@ export function createHalsGame(doc, {
         liveSquare = { index, square };
         renderPlayers();
         sfx(`step${Math.min(6, count)}`);
-        sparks.dust(piece.position, { count: 5 });
+        sparks.hop(piece.position);
+        sparks.pop(plaqueOf(square));
         if (count === result.steps.length && !result.shortcut && !result.event) sparks.leaves(piece.position, { count: 3 });
         if (!counting || count > 6) return;
         const said = say(`hals_mosi_${count}`, { cut: true });
@@ -820,7 +900,7 @@ export function createHalsGame(doc, {
           liveSquare = { index, square: result.destination };
           renderPlayers();
         }
-        phaseEffect(name, data, { piece, egill });
+        phaseEffect(name, data, { piece, egill, result });
       },
     });
     fxPhase = null;
@@ -876,7 +956,11 @@ export function createHalsGame(doc, {
       });
       if (fossilKind) cardEl.style.setProperty('--hue', FOSSIL_HUES[fossilKind]);
       sfx('chime');
-      sparks.sparkle(hw.board.square(data.at).add(new THREE.Vector3(0.6, 0.35, -0.5)));
+      const spot = hw.board.square(data.at).add(new THREE.Vector3(0.6, 0.35, -0.5));
+      sparks.sparkle(spot);
+      if (fossilKind) sparks.find(spot, FOSSIL_ART[fossilKind], { hue: FOSSIL_HUES[fossilKind] }); // it rises out of the ground
+      else sparks.dig(spot);
+      if (isNew) later(900, () => stickerToBook(fossilKind));
       say('hals_thor_fossil');
       if (isNew) say('hals_mosi_new_fossil', { within: 6000 });
       quietTurns = 0;
@@ -886,38 +970,53 @@ export function createHalsGame(doc, {
       sfx('fanfare');
       const top = hw.board.square(BOARD.count);
       hw.view.frame(hw.board.square(BOARD.count - 8), top.clone().add(new THREE.Vector3(0, 9, 0)), 5);
-      sparks.fireworks(top.add(new THREE.Vector3(0, 1.5, -1)));
+      sparks.fireworks(top.clone().add(new THREE.Vector3(0, 1.5, -1)), { count: 8 });
+      sparks.confetti(top.clone().add(new THREE.Vector3(-4, 0, 1)));
+      sparks.burst(piece.position);
       sparks.sparkle(piece.position);
+      hw.board.cheer?.(10); // the flag waves hard
       hw.life?.scatter(); // the critters fly up and jump for joy
     }
   }
 
   /** The effects that come with where a turn is (turn.js's onPhase). */
-  function phaseEffect(name, data, { piece, egill }) {
+  function phaseEffect(name, data, { piece, egill, result }) {
     if (name === 'lift') {
       fxPhase = 'lift';
       fxPiece = piece;
+      fxTurn = 0;
       sfx('neck');
+      // a warm light runs up the neck ahead of the piece, to the square it will hop off onto
+      sparks.rise(piece.position.clone().add(new THREE.Vector3(0, 0.8, 0)), hw.board.square(result.destination).add(new THREE.Vector3(0, 1, 0)), 2.2);
     } else if (name === 'off') {
       fxPhase = null;
       sparks.dust(data.at, { count: 10 });
       sparks.leaves(data.at, { count: 4 });
+      sparks.burst(data.at); // a happy burst at the top
       sfx('land');
       if (egill) piece.armsUp(1.6);
+      hw.friends?.cheer(); // Uggeðla and Flugeðla are glad too
     } else if (name === 'slide') {
       fxPhase = 'slide';
       fxPiece = piece;
+      fxLast.copy(piece.position);
       sfx('whoosh');
       piece.armsUp(2.6);
     } else if (name === 'splash') {
       fxPhase = null;
       sparks.splash(data.at);
       sfx('splash');
+      if (result.landed - result.destination > BOARD.columns * 1.5) hw.friends?.cheer(); // a long slide: the watchers cheer
     } else if (name === 'firefly') {
-      fxPhase = 'firefly';
-      fxPiece = piece;
+      sparks.swarm(piece.position); // they gather from all round
+      later(calm() ? 200 : 450, () => { if (turning) { fxPhase = 'firefly'; fxPiece = piece; } });
     } else if (name === 'mud') {
-      later(900, () => sparks?.mud(piece.position));
+      later(900, () => {
+        if (!sparks) return;
+        sparks.mud(piece.position);
+        sparks.bubbles(hw.board.square(piece.square).add(new THREE.Vector3(0, 0.05, 0.2)));
+        sparks.drips(out => out.copy(piece.position), 1.8); // and drips off the piece
+      });
     }
   }
 
@@ -949,7 +1048,8 @@ export function createHalsGame(doc, {
     await wait(1200);
     if (token !== round) return;
     showWin(winner, computer);
-    sparks.fireworks(hw.board.square(BOARD.count).add(new THREE.Vector3(0, 1.5, -1)), { count: 6 }); // and more over the card
+    sparks.fireworks(hw.board.square(BOARD.count).add(new THREE.Vector3(0, 1.5, -1)), { count: 8 }); // and more over the card
+    sparks.confetti(hw.board.square(BOARD.count - 6).add(new THREE.Vector3(0, 0, 1)), { count: 60, width: 16 });
     await wait(Math.max(2200, said * 1000 + 600));
     if (token !== round) return;
     say('hals_thor_again', { by: nearestThorsedla() });

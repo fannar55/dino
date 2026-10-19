@@ -17,6 +17,7 @@ import { BOARD, SHORTCUTS, DINOSAURS, tilePosition } from './rules.js';
 //   board.stairs(n)                   the stairs from square n up to n + 1, or null: { from, to, point(u, out), length }
 //   board.decorate(events)            the adventure's marks on their squares (rules.js SPECIAL_TILES), or [] for none
 //   board.glow(n, colour)             square n's plaque lights up and fades (a landing, a count)
+//   board.cheer(seconds)              the flag over square 100 waves hard for a while (a win); it flutters gently always
 //   board.tierY(r), board.tierZ(r)    a tier's block tops (height) and the middle of its blocks (depth)
 //   board.update(dt)
 //   board.dispose()
@@ -371,6 +372,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   }
 
   // ---- the finish: a flag on a pole behind the last square ---------------------------------------------------------------
+  const flagAt = new THREE.Vector3();
   {
     const p = square(BOARD.count);
     const x = p.x + 0.75, z = p.z - 0.75;
@@ -380,11 +382,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     const knob = new THREE.SphereGeometry(0.14, 8, 6);
     knob.translate(x, p.y + 3.45, z);
     woodParts.push(painted(knob, '#f2c443', 0, random));
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0); shape.lineTo(-1.6, -0.18); shape.lineTo(-1.2, -0.55); shape.lineTo(-1.6, -0.92); shape.lineTo(0, -0.8); shape.closePath();
-    const flag = new THREE.ShapeGeometry(shape);
-    flag.translate(x - 0.05, p.y + 3.3, z + 0.01);
-    woodParts.push(painted(flag, '#ef8a5a', 0, random));
+    flagAt.set(x - 0.05, p.y + 3.3, z + 0.01);
   }
 
   const woodGeometry = own(mergeGeometries(woodParts.map(g => (g.index ? g.toNonIndexed() : g)).map(g => {
@@ -399,6 +397,44 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   wood.castShadow = true;
   wood.receiveShadow = true;
   group.add(wood);
+
+  // ---- the flag: a pennant of its own (one draw call, no shadow) that flutters in the vertex shader, hard at a win ----------
+  const flagWave = { uTime: { value: 0 }, uWave: { value: 0.25 } };
+  let flagCheer = 0;
+  {
+    // a grid along the pennant (u from the pole out, v across), cut into a swallowtail at its far end
+    const U = 12, W = 4, pos = [], idx = [];
+    for (let i = 0; i <= U; i++) {
+      for (let j = 0; j <= W; j++) {
+        const u = i / U, v = j / W;
+        const reach = 1.6 - 0.4 * (1 - Math.abs(2 * v - 1)); // the notch
+        pos.push(-u * reach, -0.18 * u * (1 - v) - (0.8 + 0.12 * u) * v, 0);
+      }
+    }
+    for (let i = 0; i < U; i++) for (let j = 0; j < W; j++) {
+      const a = i * (W + 1) + j, b = a + W + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const g = own(new THREE.BufferGeometry());
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const material = ownM(new THREE.MeshStandardMaterial({ color: '#ef8a5a', roughness: 0.8, side: THREE.DoubleSide }));
+    material.onBeforeCompile = shader => {
+      Object.assign(shader.uniforms, flagWave);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uWave;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+float flagOut = -position.x / 1.6;
+transformed.z += sin( position.x * 4.2 + uTime * ( 5.0 + uWave * 6.0 ) ) * uWave * 0.32 * flagOut;
+transformed.y += sin( position.x * 3.1 + uTime * 4.0 ) * uWave * 0.08 * flagOut;`);
+    };
+    material.customProgramCacheKey = () => 'hals-flag';
+    const flag = new THREE.Mesh(g, material);
+    flag.name = 'Flag';
+    flag.position.copy(flagAt);
+    group.add(flag);
+  }
 
   // ---- the adventure's marks: one mesh for their stems, mud and fossils, one for the fireflies' glowing bulbs ---------------
   const marks = new THREE.Group();
@@ -470,6 +506,9 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   let time = 0;
   function update(dt) {
     time += dt;
+    flagWave.uTime.value = time;
+    flagCheer = Math.max(0, flagCheer - dt);
+    flagWave.uWave.value += ((flagCheer > 0 ? 1 : 0.25) - flagWave.uWave.value) * Math.min(1, dt * 2);
     let dirty = false;
     const a = plaqueGlow.attribute;
     for (let i = 0; i < BOARD.count; i++) {
@@ -486,6 +525,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
 
   return {
     group, square, stairs: n => stairs.get(n) ?? null, decorate, glow, update, tierY, tierZ,
+    cheer(seconds = 6) { flagCheer = Math.max(flagCheer, seconds); },
     dispose() {
       group.removeFromParent();
       stones.dispose();

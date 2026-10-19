@@ -15,6 +15,7 @@ import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 //                    float(to), wobbleTo(n), cheer(), wave(), armsUp(seconds), face(dir), lookAt(point) }
 // A piece slides down a tail feet first, sitting back with its nose up, as a child goes down a slide (the owner's look at Task 2).
 // Egill waves from Mosi's back, or throws both arms up (a win, a slide); a friend plays its happy clip instead.
+//   pieces.waiting = piece | null   the piece waiting for its roll: now and then it bounces on the spot or looks round at the camera
 //   pieces.update(dt), pieces.ready, pieces.dispose()
 // Every move returns a Promise that settles on the world's clock (the world's tweens), so a paused world holds them.
 
@@ -40,6 +41,7 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
   const tweens = new Set();
   const tween = (duration, step) => new Promise(resolve => tweens.add({ t: 0, duration: Math.max(0.001, duration), step, resolve }));
   let calm = false;
+  let waiting = null; // the piece waiting for its roll (its idle life)
   // Lighter levels for every piece (thorsedla-lod.js, with a piece's switch sizes): four pieces of 20,000 to 39,000 triangles
   // each would cost the budget even at character-lod.js's quarter.
   const lod = createThorsedlaLod(world.lighting?.sun);
@@ -48,6 +50,8 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
     list,
     get calm() { return calm; },
     set calm(value) { calm = Boolean(value); },
+    get waiting() { return waiting; },
+    set waiting(piece) { waiting = piece ?? null; },
     update(dt) {
       for (const tw of [...tweens]) {
         tw.t += dt;
@@ -55,12 +59,12 @@ export async function createPieces(world, board, { roster = ['egill', 'kambedla'
         tw.step(t, dt);
         if (t >= 1) { tweens.delete(tw); tw.resolve(); }
       }
-      for (const p of list) p.update(dt);
+      for (const p of list) p.update(dt, p === waiting && !calm ? world.camera : null);
       if (world.camera && world.renderer) lod.update(world.camera, world.renderer.domElement.height);
     },
     ready: () => lod.ready(),
     /** The pieces whose turn it is not look at the one whose turn it is. */
-    watch(active) { for (const p of list) p.lookAt(p === active ? null : active.position); },
+    watch(active) { for (const p of list) { if (p !== active) p.lookAt(active.position); else if (!p.looking) p.lookAt(null); } },
     dispose() { for (const p of list) p.dispose(); },
   };
 }
@@ -85,6 +89,8 @@ async function createPiece(world, board, id, index, host) {
   const squash = { y: 1, xz: 1 }; // a hop's crouch, stretch and landing squash
   let heading = 0, square = 0, clip = 'idle', lean = 0, roll = 0;
   let follow = null; // a function(out) the piece stands on each frame (a neck it rides)
+  // its idle life while it waits for its roll: a little bounce on the spot, or a look round at the camera, every few seconds
+  const idle = { next: 1.2 + Math.random() * 1.5, kind: 0, bounce: -1, look: -1, lift: 0 };
 
   const spot = (n, out = new V3()) => board.square(n, out).add(new V3(lane[0], 0, lane[1]));
   const onward = n => (n === 0 ? 1 : Math.floor((n - 1) / BOARD.columns) % 2 ? -1 : 1); // the way the path runs at square n
@@ -93,6 +99,7 @@ async function createPiece(world, board, id, index, host) {
   actor.control(() => {
     if (follow) follow(position);
     actor.root.position.copy(position);
+    actor.root.position.y += idle.lift;
     actor.root.rotation.set(0, 0, 0);
     actor.root.rotateY(-THREE.MathUtils.degToRad(heading));
     actor.root.rotateZ(lean);
@@ -294,7 +301,33 @@ async function createPiece(world, board, id, index, host) {
     face(dir) { heading = headingFor(dir); },
     rest() { play('idle', { fade: 0.3 }); },
     lookAt(point) { actor.lookAt(point, { weight: 0.6, maxAngle: 50, maxPitch: 30 }); rider?.lookAt(point, { weight: 0.7, maxAngle: 60, maxPitch: 30 }); },
-    update(dt) {
+    /** Whether it is looking round at the camera while it waits (the others' watching leaves it be). */
+    get looking() { return idle.look >= 0; },
+    /** `camera` while it waits for its roll (its idle life), else null. */
+    update(dt, camera = null) {
+      if (camera) {
+        idle.next -= dt;
+        if (idle.next <= 0 && idle.bounce < 0 && idle.look < 0) {
+          idle.next = 2.4 + Math.random() * 1.6;
+          if (idle.kind++ % 2 === 0) idle.bounce = 0; else idle.look = 0;
+        }
+        if (idle.bounce >= 0) {
+          const u = (idle.bounce += dt) / 0.46;
+          if (u >= 1) { idle.bounce = -1; idle.lift = 0; squash.y = squash.xz = 1; }
+          else {
+            idle.lift = Math.max(0, Math.sin(Math.PI * Math.min(1, u * 1.15))) * 0.24;
+            squash.y = 1 + 0.07 * Math.sin(Math.PI * u * 2); squash.xz = 1 - 0.03 * Math.sin(Math.PI * u * 2);
+          }
+        }
+        if (idle.look >= 0) {
+          idle.look += dt;
+          if (idle.look < 1.6) this.lookAt(camera.position);
+          else { idle.look = -1; this.lookAt(null); }
+        }
+      } else if (idle.bounce >= 0 || idle.look >= 0 || idle.lift) {
+        if (idle.bounce >= 0) { squash.y = squash.xz = 1; }
+        idle.bounce = idle.look = -1; idle.lift = 0;
+      }
       actor.update(dt);
       rider?.update(dt);
     },

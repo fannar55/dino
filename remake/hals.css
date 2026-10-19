@@ -19,7 +19,9 @@
                                  pips as i.tl .tr .ml .mr .bl .br .c, and the player's small portrait .hals-die-who); --c is the
                                  player's colour; .live while the child may roll (it glows, pulses and hops), dimmed and still
                                  otherwise; .computer while Þórseðla plays, .rolling while it tumbles; .call on the die after a while
-                                 with nothing done
+                                 with nothing done; .hals-puff, a puff of dust on its pad as it lands
+       .hals-book, .hals-flying  a new find: the sticker (.hals-sticker.hals-flying) flies from the card to a little book that pops
+                                 up beside Mosi
        .hals-card                an event card in the "Eitt!" card's look, on the right: a kind (.neck, .tail, .firefly, .mud, .fossil)
                                  names its colour; .hals-card-face holds a picture (.hals-card-pic) or a fossil (.hals-card-art) and
                                  a big mark (.hals-card-mark: an arrow, "+2", "−2"); .hals-card-word, .hals-card-sub, and confetti
@@ -232,8 +234,11 @@
   position: absolute; right: max(30px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom));
   transition: opacity .35s;
 }
-.hals-dock:not(.live):not(.rolling) { opacity: .5; }
-.hals-dock.computer:not(.rolling) { opacity: .62; }
+/* Dimmed while a piece moves or the computer plays: the pad and portrait fade, the die greys (still solid, so its back faces never show). */
+.hals-dock:not(.live):not(.rolling) :is(.hals-die-ring, .hals-die-who) { opacity: .5; }
+.hals-dock:not(.live):not(.rolling) .hals-face { filter: saturate(.3) brightness(.84); }
+.hals-dock.computer:not(.rolling) :is(.hals-die-ring, .hals-die-who) { opacity: .65; }
+.hals-die-ring, .hals-die-who { transition: opacity .35s; }
 .hals-die {
   --die: clamp(100px, 12.6cqmin, 126px);
   position: relative; width: calc(var(--die) * 1.78); height: calc(var(--die) * 1.78);
@@ -262,7 +267,7 @@
   box-shadow: 0 0 0 4px var(--card), 0 0 0 7px var(--ink), 0 6px 10px 2px rgb(40 24 10 / .3);
 }
 .hals-face {
-  position: absolute; inset: 0; border-radius: 20%;
+  position: absolute; inset: 0; border-radius: 20%; backface-visibility: hidden;
   background: radial-gradient(circle at 32% 26%, #fff, var(--card) 55%, color-mix(in srgb, var(--c) 22%, var(--card)));
   border: 3.5px solid var(--ink);
   box-shadow: inset 0 0 0 5px color-mix(in srgb, var(--c) 30%, transparent);
@@ -291,6 +296,28 @@
   background: rgb(255 226 140 / .45); box-shadow: 0 0 0 6px var(--gold), 0 0 40px 18px rgb(242 182 48 / .85);
   animation: hals-glow-soft 1.4s ease-in-out infinite;
 }
+
+/* A puff of dust on the pad as the die lands: six little clouds blowing out and fading. */
+.hals-puff { position: absolute; left: 50%; bottom: 16%; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.hals-puff i {
+  position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgb(255 250 235 / .95), rgb(214 196 160 / .8) 60%, transparent 72%);
+  animation: hals-puff .7s ease-out both;
+}
+.hals-puff i:nth-child(1) { --dx: -64px; --dy: -6px; } .hals-puff i:nth-child(2) { --dx: -38px; --dy: -28px; }
+.hals-puff i:nth-child(3) { --dx: -6px; --dy: -36px; } .hals-puff i:nth-child(4) { --dx: 30px; --dy: -30px; }
+.hals-puff i:nth-child(5) { --dx: 60px; --dy: -8px; } .hals-puff i:nth-child(6) { --dx: 4px; --dy: 6px; }
+@keyframes hals-puff { from { transform: translate(0, 0) scale(.4); opacity: .95; } to { transform: translate(var(--dx), var(--dy)) scale(1.6); opacity: 0; } }
+
+/* A new find flying to the book: the sticker, and the little book that pops up beside Mosi to take it. */
+.hals-book {
+  position: absolute; z-index: 6; pointer-events: none;
+  left: calc(max(22px, env(safe-area-inset-left)) + clamp(98px, 10cqmin, 124px) + 18px); bottom: max(30px, env(safe-area-inset-bottom));
+  width: 92px; height: 92px; display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #fffaf0, #f3e3bf); box-shadow: 0 0 0 4px var(--card), 0 0 0 7px var(--ink), 0 10px 16px 2px rgb(40 24 10 / .3);
+}
+.hals-book svg { width: 74%; height: 74%; }
+.hals-sticker.hals-flying { position: absolute; z-index: 7; pointer-events: none; width: 96px; rotate: 0deg; }
 
 /* ---- An event card: the "Eitt!" card's look, popping up on the right ---------------------------------------------- */
 
@@ -482,5 +509,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hals *, .hals *::before, .hals *::after { animation: none !important; transition-duration: .01s !important; }
+  .hals-puff { display: none; }
   .hals-veil { transition: opacity .3s !important; }
 }
