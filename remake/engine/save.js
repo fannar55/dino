@@ -4,6 +4,8 @@
 // reads as having seen nothing. Kambeðla's card game, "Eitt!", keeps its own: her skill, the rounds the
 // child has lost in a row, the stickers won and whether the tutorial has been through (engine/eitt/table.js);
 // it is stored only once the game has been played, so a save from before the game reads as it always did.
+// "Háls og hali" keeps the fossil kinds the child has found, as hals: { found: [...] }, in the same way: stored with
+// the first find, and a save without it loads as before (engine/hals/rules.js has the kinds).
 //
 // Storage can fail in many ways (blocked site data, a full disk, a private window, even reading
 // globalThis.localStorage can throw), and the game must not stop for any of them: every call to the
@@ -30,15 +32,24 @@ function eittOf(value) {
   return { skill, losses: count(value.losses), wins: count(value.wins), tutorialDone: value.tutorialDone === true };
 }
 
+/** The fossil collection as stored: { found } with the ids of the kinds found, in the order they came, or null. */
+function halsOf(value) {
+  if (!value || typeof value !== 'object') return null;
+  return { found: idsOf(value.found) };
+}
+
 /**
  * `get()` is a copy of { stars, findings, seen }, each a list of ids in the order they came. `addStar(id)`,
  * `addFinding(id)` and `addSeen(id)` keep an id once however often they are called, and say whether it was new.
  * `getEitt()` is a copy of the card game's { skill, losses, wins, tutorialDone } (skill null before the first
  * round), and `setEitt(changes)` keeps what it is given and leaves the rest as it was.
+ * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
+ * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
  */
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   const data = { stars: [], findings: [], seen: [] }; // all there is when the storage does not work
   let eitt = null; // the card game's, once a round has been played
+  let hals = null; // the fossil collection, once the first fossil has been found
 
   try {
     const stored = JSON.parse(storage?.getItem(key) ?? 'null');
@@ -47,6 +58,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       data.findings = idsOf(stored.findings);
       data.seen = idsOf(stored.seen); // none in a save from before the book
       eitt = eittOf(stored.eitt); // none in a save from before the game
+      hals = halsOf(stored.hals); // none in a save from before the fossils
     }
   } catch {
     // nothing stored, or nothing that can be read: start empty
@@ -54,7 +66,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 
   function write() {
     try {
-      storage?.setItem(key, JSON.stringify(eitt ? { ...data, eitt } : data));
+      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(hals && { hals }) }));
     } catch {
       // not kept for next time; still kept for now
     }
@@ -77,6 +89,14 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
     setEitt(changes) {
       eitt = eittOf({ ...eitt, ...changes }) ?? eittOf({});
       write();
+    },
+    getHals: () => ({ found: [...(hals?.found ?? [])] }),
+    addHalsFound(kind) {
+      if (typeof kind !== 'string' || !kind) throw new TypeError(`A save keeps ids, which are names, not ${String(kind)}`);
+      if (hals?.found.includes(kind)) return false;
+      hals = { found: [...(hals?.found ?? []), kind] };
+      write();
+      return true;
     },
   };
 }
