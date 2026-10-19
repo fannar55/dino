@@ -11,7 +11,9 @@ import { BOARD } from './rules.js';
 //   game: { world (world.js), pieces, thorsedlas }   result: resolveTurn's
 // onStep and onLand are for the host's voices and sounds (Task 3): onStep(square, count) on each hop, onLand(kind, data) with
 // kind 'neck' | 'tail' | 'firefly' | 'mud' | 'fossil' | 'win' | 'square'. A Promise that onStep returns is waited for before the
-// next hop (the host paces the hops to Mosi counting them). onPhase(name, data) says where a turn is, for the effects: 'hop';
+// next hop (the host paces the hops to Mosi counting them); its third argument says { back: true } for the hops back down
+// after a roll past 100 bounced. A roll past 100 hops up onto it, gives a little boing there ('boing' ({ at }), the flag
+// wobbling) and hops back down the squares over. onPhase(name, data) says where a turn is, for the effects: 'hop';
 // 'neck', then 'lift' ({ thorsedla }) as she lifts the piece and 'off' ({ at }) as it hops off at the top; 'tail', then 'slide'
 // ({ curve }) and 'splash' ({ at }) at its end; 'firefly', 'mud' and 'fossil'.
 
@@ -23,10 +25,17 @@ export async function playTurn(game, piece, result, { onStep = () => {}, onLand 
   view.follow(() => piece.position);
   onPhase('hop');
   // the squares of the roll, one hop each
+  const backFrom = result.steps.length - (result.bounce ?? 0); // the hops from here on go back down off 100
   for (const [i, n] of result.steps.entries()) {
     await piece.hopTo(n);
     board.glow(n, 1);
-    await onStep(n, i + 1);
+    await onStep(n, i + 1, { back: i >= backFrom });
+    if (result.bounce && n === BOARD.count && i < backFrom) {
+      // a roll too big: up on 100, a little boing there with the flag wobbling, and back down by what was over
+      onPhase('boing', { at: piece.position.clone() });
+      board.cheer?.(1.6);
+      await piece.boing?.();
+    }
   }
   piece.rest();
   await world.wait(0.25);

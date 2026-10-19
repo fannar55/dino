@@ -73,12 +73,15 @@ test('neck and tail rides activate only on the dice landing, with every walking 
     assert.equal(passing.shortcut, null);
     assert.equal(passing.destination, shortcut.from - 1 + over);
   }
-  assert.deepEqual(resolveTurn(0, 1), { from: 0, roll: 1, steps: [1], landed: 1, shortcut: null, event: null, destination: 1, won: false });
+  assert.deepEqual(resolveTurn(0, 1), { from: 0, roll: 1, steps: [1], landed: 1, bounce: 0, shortcut: null, event: null, destination: 1, won: false });
 });
 
-test('a roll too high for the finish still wins, and every position has a route to the finish', () => {
-  assert.deepEqual(resolveTurn(98, 6), { from: 98, roll: 6, steps: [99, 100], landed: 100, shortcut: null, event: null, destination: 100, won: true });
-  assert.equal(resolveTurn(94, 6).won, true);
+test('only an exact roll wins: one past 100 bounces back by what is over, and every position has a route to the finish', () => {
+  assert.deepEqual(resolveTurn(97, 5), { from: 97, roll: 5, steps: [98, 99, 100, 99, 98], landed: 98, bounce: 2, shortcut: null, event: null, destination: 98, won: false });
+  assert.deepEqual(resolveTurn(99, 6).steps, [100, 99, 98, 97, 96, 95]);
+  assert.equal(resolveTurn(99, 6).landed, 95);
+  assert.equal(resolveTurn(99, 6, { mode: 'adventure' }).event?.type, 'fossil', 'the square it bounces back to plays out as any landing');
+  assert.deepEqual(resolveTurn(94, 6), { from: 94, roll: 6, steps: [95, 96, 97, 98, 99, 100], landed: 100, bounce: 0, shortcut: null, event: null, destination: 100, won: true });
   assert.deepEqual(resolveTurn(100, 1).steps, []);
 
   for (const mode of ['classic', 'adventure']) {
@@ -89,7 +92,8 @@ test('a roll too high for the finish still wins, and every position has a route 
         for (let roll = 1; roll <= 6; roll++) {
           const turn = resolveTurn(from, roll, { mode });
           assert.ok(turn.destination >= 1 && turn.destination <= 100);
-          assert.equal(turn.steps.length, Math.min(roll, 100 - from));
+          assert.equal(turn.steps.length, from === 100 ? 0 : roll);
+          assert.equal(turn.bounce, Math.max(0, from + roll - 100) * (from < 100 ? 1 : 0));
           assert.equal(turn.won, turn.destination === 100);
           if (routesToFinish.has(turn.destination) && !routesToFinish.has(from)) { routesToFinish.add(from); changed = true; }
         }
@@ -150,7 +154,8 @@ test('players take turns, a six gives no extra roll, and a win freezes the game'
 
   const initial = createGame();
   initial.players[0].position = 98;
-  const won = applyTurn(initial, 5);
+  assert.equal(applyTurn(initial, 5).players[0].position, 97, 'one past bounces back');
+  const won = applyTurn(initial, 2);
   assert.equal(won.winner, 0);
   assert.equal(won.currentPlayer, 0);
   assert.equal(won.players[0].position, 100);

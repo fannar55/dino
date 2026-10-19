@@ -9,7 +9,7 @@
 // The steps are counted: step1 to step6 climb the key, one for each hop of a roll, so a child hears the count go up.
 
 export const HALS_SFX = ['roll', 'land', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'stairs', 'neck', 'whoosh', 'splash',
-  'twinkle', 'squelch', 'chime', 'fanfare', 'boom', 'card', 'turn', 'tap', 'wiggle'];
+  'twinkle', 'squelch', 'chime', 'fanfare', 'boom', 'card', 'turn', 'tap', 'wiggle', 'boing'];
 
 /** The least time, in audio seconds, between two of the same, for the sounds that come in quick runs or from a child's taps. */
 export const HALS_GAPS = { roll: 0.4, land: 0.2, stairs: 0.05, tap: 0.05, wiggle: 0.3, card: 0.2, turn: 0.3, boom: 0.05, twinkle: 0.15 };
@@ -118,6 +118,15 @@ export function halsSounds({ tone, noise, bell, key }) {
       tone({ frequency: key[4], duration: 0.06, level: 0.09, type: 'triangle', attack: 0.002, body: 0 });
       tone({ frequency: key[4] * 2, duration: 0.03, level: 0.03, attack: 0.002, body: 0 });
       noise({ kind: 'white', type: 'bandpass', frequency: 2600, q: 2, duration: 0.03, level: 0.04, attack: 0.002 });
+    },
+    // Boing: a roll too big bounces off 100, a springy note swooping up and wobbling back down, over a soft thump.
+    boing() {
+      tone({ frequency: key[0] / 4, end: key[0] / 6, duration: 0.12, level: 0.09, type: 'sine', attack: 0.003, body: 0 });
+      tone({ frequency: key[0] / 2, end: key[4], duration: 0.16, level: 0.08, type: 'sine', attack: 0.004, body: 0.3 });
+      for (let i = 0; i < 5; i++) {
+        const [from, to] = i % 2 ? [key[2], key[4]] : [key[4], key[2]];
+        tone({ frequency: from * (1 - i * 0.08), end: to * (1 - i * 0.08), duration: 0.07, level: 0.06 - i * 0.009, type: 'triangle', attack: 0.003, delay: 0.15 + i * 0.065 });
+      }
     },
     // Not now (a tap while a piece moves): a little wobble between two notes of the key.
     wiggle() {

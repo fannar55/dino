@@ -929,15 +929,16 @@ export function createHalsGame(doc, {
     const egill = piece.id === 'egill';
     const fossilKind = result.event?.type === 'fossil' ? game.fossilKinds?.[result.landed] ?? null : null;
     await playTurn({ world: hw, pieces, thorsedlas: hw.thorsedlas }, piece, result, {
-      onStep: async (square, count) => {
+      onStep: async (square, count, { back = false } = {}) => {
         if (token !== round) return;
         liveSquare = { index, square };
         renderPlayers();
-        sfx(`step${Math.min(6, count)}`);
+        // the count climbs the key on the way up; back down off 100 it steps down the key again
+        sfx(back ? `step${Math.max(1, 7 - (count - (result.steps.length - result.bounce)))}` : `step${Math.min(6, count)}`);
         sparks.hop(piece.position);
         sparks.pop(plaqueOf(square));
         if (count === result.steps.length && !result.shortcut && !result.event) sparks.leaves(piece.position, { count: 3 });
-        if (!counting || count > 6) return;
+        if (!counting || count > 6 || back) return; // Mosi has no recorded numbers for the hops back
         const said = say(`hals_mosi_${count}`, { cut: true });
         const hop = calm() ? 0.62 : 0.44;
         if (said && count < result.steps.length) await hw.wait(Math.max(0, said + 0.06 - hop));
@@ -1034,6 +1035,16 @@ export function createHalsGame(doc, {
 
   /** The effects that come with where a turn is (turn.js's onPhase). */
   function phaseEffect(name, data, { piece, egill, result }) {
+    if (name === 'boing') {
+      // up on 100 with a roll too big: boing, and "Úps, of langt!" (Mosi's for a child, Þórseðla's own for the computer)
+      sfx('boing');
+      sparks.pop(data.at.clone().add(new THREE.Vector3(0, 1.2, 0.4)));
+      sparks.glitter(data.at, { count: 6 });
+      const computer = game.players[game.currentPlayer]?.isComputer;
+      if (computer) say('hals_thor_bounce', { by: piece.actor, within: 3000 });
+      else say('hals_mosi_bounce', { within: 3000 });
+      return;
+    }
     if (name === 'lift') {
       fxPhase = 'lift';
       fxPiece = piece;

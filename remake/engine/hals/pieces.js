@@ -12,7 +12,7 @@ import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 //
 //   const pieces = await createPieces(world, board, { roster: ['egill', 'kambedla'] })
 //   pieces.list[i]: { id, name, colour, actor, square, position, place(n), hopTo(n), hopOnto(point), follow(fn), slide(curve),
-//                    float(to), wobbleTo(n), cheer(), wave(), armsUp(seconds), face(dir), lookAt(point) }
+//                    float(to), wobbleTo(n), cheer(), boing(), wave(), armsUp(seconds), face(dir), lookAt(point) }
 // A piece slides down a tail feet first, sitting back with its nose up, as a child goes down a slide (the owner's look at Task 2).
 // Egill waves from Mosi's back, or throws both arms up (a win, a slide); a friend plays its happy clip instead.
 //   pieces.waiting = piece | null   the piece waiting for its roll: now and then it bounces on the spot or looks round at the camera
@@ -282,6 +282,15 @@ async function createPiece(world, board, id, index, host) {
     play('idle', { fade: 0.3 });
   }
 
+  /** Boing: up on 100 with a roll too big, a springy bounce on the spot, facing the camera, before it hops back down. */
+  async function boing() {
+    const here = position.clone(), was = heading;
+    heading = 90; // to the camera
+    await hopArc(here, { turn: false, height: host.calm ? 0.12 : 0.6, seconds: 0.44 });
+    await hopArc(here, { turn: false, height: host.calm ? 0.05 : 0.2, seconds: 0.28 });
+    heading = was;
+  }
+
   /** A happy bounce on the spot (a win, a ride). */
   async function cheer(times = 3) {
     play('idle', { fade: 0.2 });
@@ -297,7 +306,7 @@ async function createPiece(world, board, id, index, host) {
     get square() { return square; },
     set square(n) { square = n; },
     get position() { return position; },
-    spot, place, hopTo, hopOnto, follow: followPoint, slide, float, wobbleTo, cheer, wave, armsUp,
+    spot, place, hopTo, hopOnto, follow: followPoint, slide, float, wobbleTo, cheer, boing, wave, armsUp,
     face(dir) { heading = headingFor(dir); },
     rest() { play('idle', { fade: 0.3 }); },
     lookAt(point) { actor.lookAt(point, { weight: 0.6, maxAngle: 50, maxPitch: 30 }); rider?.lookAt(point, { weight: 0.7, maxAngle: 60, maxPitch: 30 }); },

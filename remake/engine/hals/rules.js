@@ -13,7 +13,9 @@
 //  - The die is 1 to 6, and only the square a pawn LANDS on starts anything. Walking over a neck, a tail or an
 //    event does nothing, and a six gives no extra roll.
 //  - The far end of a neck or a tail is an ordinary square, so one turn never chains into a second ride.
-//  - A roll that is too high for the finish still wins: the pawn stops on 100.
+//  - The finish must be reached exactly (the owner's rule of 2026-10-19; Codex's let a roll too high win): a roll past
+//    100 hops up onto it and bounces back by what is over, so from p with roll r the pawn lands on 200 - (p + r). The
+//    square it bounces back to plays out as any landing (the fossil on 95 counts; no route starts in 94 to 99).
 //  - In "adventure" mode ("Ævintýraskógur") a few squares carry a small event, never on a route: fireflies carry the
 //    pawn 2 squares on, mud sets it 2 back, and a fossil is a find. Mode "classic" has none of them.
 //
@@ -42,7 +44,8 @@ export const BOARD = Object.freeze({
 // the other. `facing` is the way she looks along the board (1 is to the right) and `color` is Codex's colour for her.
 // An ordinary neck's last square is right over its first, which lies ahead of her chest, so she bows forward onto it.
 // Balance (2026-10-19, 6000 seeded games of two): median 32 turns in all, 90th percentile 50, against 28 and 43 on
-// Codex's 80 squares (adventure mode: 31 and 49 against 29 and 45).
+// Codex's 80 squares (adventure mode: 31 and 49 against 29 and 45). With the exact finish and its bounce (the owner, later
+// that day): median 39 and 60 (adventure 38 and 58), about three and a half bounces a game.
 export const DINOSAURS = Object.freeze([
   {id: 'fern', color: '#75b87b', facing: -1, neck: {from: 19, to: 59}, tail: null},
   {id: 'amber', color: '#dca251', facing: -1, neck: {from: 28, to: 53}, tail: {from: 23, to: 18}},
@@ -148,8 +151,10 @@ export function tilePosition(number) {
 }
 
 /**
- * One throw from square `from` (0 to 100): { from, roll, steps, landed, shortcut, event, destination, won }.
- *   steps        the squares the pawn walks over, one hop each, ending on `landed` (never past 100)
+ * One throw from square `from` (0 to 100): { from, roll, steps, landed, bounce, shortcut, event, destination, won }.
+ *   steps        the squares the pawn walks over, one hop each, ending on `landed`: up to 100 at most, and down again when
+ *                the roll goes past it (98 + 5: 99, 100, 99, 98, 97)
+ *   bounce       how many squares it bounced back off 100 (0 when the roll did not go past it)
  *   shortcut     the neck or tail on `landed`, or null
  *   event        the adventure event on `landed` (mode "adventure" only, never together with a shortcut), or null
  *   destination  where the pawn ends the turn: the shortcut's or event's far end, else `landed`
@@ -159,14 +164,20 @@ export function resolveTurn(from, roll, {mode = 'classic'} = {}) {
   integerInRange(from, 0, BOARD.count, 'from');
   integerInRange(roll, 1, 6, 'roll');
   validateMode(mode);
-  const landed = Math.min(BOARD.count, from + roll);
-  const steps = Array.from({length: landed - from}, (_, index) => from + index + 1);
+  // Past 100 the pawn hops up onto it and back by the rest: the steps run up to 100 and down again to where it lands.
+  const target = from + roll;
+  const bounce = from < BOARD.count && target > BOARD.count ? target - BOARD.count : 0;
+  const landed = from === BOARD.count ? from : bounce ? BOARD.count - bounce : target;
+  const steps = [
+    ...Array.from({length: Math.min(target, BOARD.count) - from}, (_, index) => from + index + 1),
+    ...Array.from({length: bounce}, (_, index) => BOARD.count - 1 - index),
+  ];
   // Passing over a neck or tail does nothing. Only the dice landing activates
   // one ride. Its destination never triggers an additional ride this turn.
   const shortcut = shortcutsByStart.get(landed) ?? null;
   const event = mode === 'adventure' && !shortcut ? eventsByStart.get(landed) ?? null : null;
   const destination = shortcut?.to ?? event?.to ?? landed;
-  return {from, roll, steps, landed, shortcut, event, destination, won: destination === BOARD.count};
+  return {from, roll, steps, landed, bounce, shortcut, event, destination, won: destination === BOARD.count};
 }
 
 /**
