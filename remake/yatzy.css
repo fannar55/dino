@@ -548,9 +548,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: clamp(8px, 1.3cqw, 16px);
-  flex-wrap: wrap;
-  padding: 12px 14px;
+  gap: clamp(6px, 0.85cqw, 12px);
+  flex-wrap: nowrap;
+  padding: 16px 14px 18px;
   border-radius: 30px;
   background:
     radial-gradient(ellipse 80% 60% at 50% 60%, rgb(63 95 60 / .35), rgb(44 70 42 / .55));
@@ -562,20 +562,20 @@
   --dino-c: var(--green);
   --dino-deep: var(--green-deep);
   --dino-light: #a3d977;
-  width: clamp(78px, min(10.5cqw, 18cqh), 116px);
-  height: clamp(92px, min(12.2cqw, 21cqh), 134px);
-  border-radius: 22px;
+  width: clamp(66px, min(7.1cqw, 15.5cqh), 102px);
+  height: clamp(84px, min(8.9cqw, 19cqh), 124px);
+  border-radius: 20px;
   background: linear-gradient(180deg, #fffdf8 0%, var(--card) 75%, #efe4ce 100%);
-  border: 4px solid var(--ink);
+  border: 3.5px solid var(--ink);
   box-shadow:
-    0 8px 0 var(--dino-deep),
+    0 7px 0 var(--dino-deep),
     0 0 0 3px var(--dino-c),
-    0 12px 20px rgb(40 24 10 / .32);
+    0 10px 18px rgb(40 24 10 / .32);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 6px 5px;
+  padding: 6px 5px 5px;
   position: relative;
   transition: transform 0.24s cubic-bezier(.25, 1.45, .5, 1), box-shadow 0.24s ease, background 0.24s ease;
 }

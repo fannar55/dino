@@ -43,7 +43,7 @@
   if (state === 'yatzy') {
     rollQueue = [5, 5, 5, 5, 5]; // Five Slóeðlur!
   } else if (state === 'egg') {
-    rollQueue = [1, 1, 2, 2, 3, 1, 1, 4, 4, 5];
+    rollQueue = [5, 5, 1, 2, 3];
   } else if (state === 'mosi') {
     rollQueue = [1, 1, 1, 4, 6];
   }
@@ -68,17 +68,38 @@
   const root = document.getElementById('yatzy');
   const rollBtn = root.querySelector('.yatzy-roll');
   const mosiBtn = root.querySelector('.yatzy-mosi');
+  const eggBtn = root.querySelector('.yatzy-egg');
+  const dieBtns = root.querySelectorAll('.yatzy-die');
   const tap = el => {
     if (!el) return;
     el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
     el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, clientX: 10, clientY: 10 }));
   };
 
-  if (state === 'yatzy' || state === 'mosi') {
+  if (state === 'yatzy') {
     setTimeout(() => {
       tap(rollBtn);
-      if (state === 'mosi') setTimeout(() => tap(mosiBtn), 700);
-      setTimeout(() => { window.__demoReady = true; }, 1100);
+      setTimeout(() => { window.__demoReady = true; }, 900);
+    }, 250);
+  } else if (state === 'mosi') {
+    setTimeout(() => {
+      tap(rollBtn);
+      setTimeout(() => {
+        tap(dieBtns[0]);
+        tap(dieBtns[1]);
+        tap(mosiBtn);
+        setTimeout(() => { window.__demoReady = true; }, 450);
+      }, 650);
+    }, 250);
+  } else if (state === 'egg') {
+    setTimeout(() => {
+      tap(rollBtn);
+      setTimeout(() => {
+        tap(dieBtns[0]);
+        tap(dieBtns[1]);
+        tap(eggBtn);
+        setTimeout(() => { window.__demoReady = true; }, 550);
+      }, 650);
     }, 250);
   } else {
     setTimeout(() => { window.__demoReady = true; }, 600);

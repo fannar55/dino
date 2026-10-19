@@ -348,11 +348,24 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
-/* Three games on the left page: two across and one below, each in its slot, "Eitt!" with its "Kennsla" under it. */
-.book-leaf[data-tab="games"] .book-tiles { flex-wrap: wrap; align-items: flex-start; }
-.game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .35); }
+/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Risaeðlu-Yatzy" in the second. */
+.book-leaf[data-tab="games"] .book-tiles {
+  --pad-top: 6cqh; --pad-bottom: 5.5cqh; --gap: max(16px, 3.4cqmin);
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  grid-template-rows: repeat(2, auto);
+  place-content: center;
+  place-items: center;
+  gap: var(--gap) calc(var(--gap) * 1.25);
+}
+.game-slot { display: flex; flex-direction: column; align-items: center; gap: calc(var(--gap) * .55); }
+.game-slot:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
+.game-slot:nth-child(2) { grid-column: 2; grid-row: 1; }
+.game-slot:nth-child(3) { grid-column: 2; grid-row: 2; }
+.game-slot:nth-child(2) .tile { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
+.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
 .book-leaf[data-tab="games"] .game-tile {
-  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.3) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap) - 38px) / 2.18);
+  --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.25) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.18);
 }
 .game-tile[data-game="hals"] .tile-picture img,
 .game-tile[data-game="yatzy"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
