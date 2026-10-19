@@ -12,9 +12,13 @@ import { createModel } from '../../world/critters/models.js';
 //   - A flock of little pterosaurs passes far off now and then, and another nearer, in front of the trees.
 //   - Beetles and little lizards scurry on the grass and the logs, frogs hop by the mud squares, a snail crawls along a log.
 //   - Flowers on the logs and the shelves, motes drifting in slanting light, leaves falling now and then.
-// Each kind is one instanced mesh, one draw call (eleven in all), and none of it casts a shadow. Wings beat in the vertex shader
-// (aWing on a wing's vertices, aFlap on each instance: how hard, its phase, the wings' rest angle); the rest is moved here each
-// frame on the world's clock. `scatter()` sends everything up and away for a few seconds (a win); calm slows it all.
+// Five draw calls in all, and none of it casts a shadow: everything that flies (dragonflies, butterflies, pterosaurs, falling
+// leaves) is one instanced mesh, everything on the ground (beetles, lizards, frogs, the snail) another, then the flowers, the
+// motes and the light. A shared mesh holds every kind's model, each vertex tagged with its kind (aKind), and each instance says
+// which it is (aSel): the vertex shader folds the other kinds away to a point, where they draw nothing. Wings beat in the vertex
+// shader too (aWing on a wing's vertices, aFlap on each instance: how hard, its phase, the wings' rest angle), and a lizard's body
+// wiggles as it runs; the rest is moved here each frame on the world's clock. `scatter()` sends everything up and away for a few
+// seconds (a win); calm slows it all.
 //
 //   const life = createLife(hw)        hw: createHalsWorld's
 //   life.focus = vector | null         the piece whose turn it is: nothing hovers or rests near it
@@ -68,14 +72,14 @@ const ellipsoid = (r, at, w = 6, h = 4) => new THREE.SphereGeometry(1, w, h).sca
 function dragonflyGeometry() {
   const parts = [];
   // the abdomen: banded segments tapering back
-  for (let i = 0; i < 7; i++) {
-    const x0 = -0.04 - i * 0.075, r = 0.03 - i * 0.0025;
-    const seg = new THREE.CylinderGeometry(r * 0.92, r, 0.075, 6, 1).rotateZ(Math.PI / 2).translate(x0 - 0.0375, 0, 0);
+  for (let i = 0; i < 4; i++) {
+    const x0 = -0.04 - i * 0.13, r = 0.03 - i * 0.004;
+    const seg = new THREE.CylinderGeometry(r * 0.88, r, 0.13, 5, 1, true).rotateZ(Math.PI / 2).translate(x0 - 0.065, 0, 0);
     parts.push(part(seg, i % 2 ? '#1d5fa8' : '#3cc4e0'));
   }
-  parts.push(part(ellipsoid([0.075, 0.05, 0.05], [0.03, 0.005, 0]), '#46b85a'));
-  parts.push(part(ellipsoid([0.04, 0.038, 0.045], [0.12, 0.01, 0]), '#2f7d43'));
-  for (const s of [-1, 1]) parts.push(part(ellipsoid([0.03, 0.032, 0.03], [0.135, 0.022, 0.03 * s], 6, 4), '#7a2f24'));
+  parts.push(part(ellipsoid([0.075, 0.05, 0.05], [0.03, 0.005, 0], 5, 3), '#46b85a'));
+  parts.push(part(ellipsoid([0.04, 0.038, 0.045], [0.12, 0.01, 0], 5, 3), '#2f7d43'));
+  for (const s of [-1, 1]) parts.push(part(ellipsoid([0.03, 0.032, 0.03], [0.135, 0.022, 0.03 * s], 4, 2), '#7a2f24'));
   const front = [[0, 0], [0.035, 0.08], [0.05, 0.25], [0.035, 0.42], [0.0, 0.46], [-0.03, 0.38], [-0.03, 0.1]];
   const back = [[0, 0], [0.025, 0.1], [0.03, 0.28], [0.01, 0.42], [-0.03, 0.44], [-0.07, 0.34], [-0.06, 0.08]];
   for (const s of [-1, 1]) {
@@ -138,9 +142,9 @@ function flowerGeometry() {
   const parts = [];
   const heads = [[0, 0.32, 0], [0.09, 0.24, 0.05], [-0.08, 0.27, -0.04]];
   for (const [x, y, z] of heads) {
-    parts.push(part(new THREE.CylinderGeometry(0.008, 0.01, y, 3).translate(x * 0.5, y / 2, z * 0.5), '#5f8f3e'));
-    parts.push(part(new THREE.CircleGeometry(0.07, 6).rotateX(-0.55).translate(x, y, z), '#ffffff'));
-    parts.push(part(new THREE.CircleGeometry(0.026, 5).rotateX(-0.55).translate(x, y + 0.003, z + 0.006), '#f7c843'));
+    parts.push(part(new THREE.CylinderGeometry(0.008, 0.01, y, 3, 1, true).translate(x * 0.5, y / 2, z * 0.5), '#5f8f3e'));
+    parts.push(part(new THREE.CircleGeometry(0.07, 5).rotateX(-0.55).translate(x, y, z), '#ffffff'));
+    parts.push(part(new THREE.CircleGeometry(0.026, 4).rotateX(-0.55).translate(x, y + 0.003, z + 0.006), '#f7c843'));
   }
   for (const s of [-1, 1]) parts.push(part(new THREE.CircleGeometry(0.06, 4).scale(1.6, 0.6, 1).rotateY(s * 0.8).translate(0.03 * s, 0.05, 0.02), '#6f9a3f'));
   const g = mergeGeometries(parts);
@@ -166,36 +170,67 @@ function critterGeometry(kind, scale) {
   return geometry.scale(scale, scale, scale);
 }
 
+/** Several models in one geometry for one instanced mesh: each vertex tagged with its model's kind (0, 1, 2 …). */
+function kinds(geometries) {
+  const tagged = geometries.map((g, kind) => {
+    g.setAttribute('aKind', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind), 1));
+    return g.index ? g.toNonIndexed() : g;
+  });
+  const merged = mergeGeometries(tagged);
+  tagged.forEach(g => g.dispose());
+  return merged;
+}
+
 // ---- materials: lit and fogged as the scene is, with the wing beat (and a lizard's wiggle) in the vertex shader -------------------
 
-function lifeMaterial(name, { rate = 30, amp = 0.9, bend = 0, transparent = false, basic = false } = {}) {
-  const Material = basic ? THREE.MeshBasicMaterial : THREE.MeshLambertMaterial;
-  const material = new Material({ vertexColors: true, side: THREE.DoubleSide, transparent, depthWrite: true });
+/** The material of a shared mesh: for each kind (by aKind) its wings' beat (`rate`, radians a second, and `amp`) and its wiggle (`bend`). */
+function lifeMaterial(name, { kinds: list = [{}], transparent = false } = {}) {
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent, depthWrite: true });
   material.name = name;
-  const uniforms = { uTime: { value: 0 } };
+  const v4 = key => new THREE.Vector4(...[0, 1, 2, 3].map(i => list[i]?.[key] ?? 0));
+  const uniforms = { uTime: { value: 0 }, uRate: { value: v4('rate') }, uAmp: { value: v4('amp') }, uBend: { value: v4('bend') } };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute float aWing;
+attribute float aKind; // which model of the mesh this vertex belongs to
+attribute float aSel; // per instance: which model it is
 attribute vec3 aFlap; // per instance: how hard the wings beat (0: still, at rest), the phase, the wings' rest angle
-uniform float uTime;`)
+uniform float uTime;
+uniform vec4 uRate;
+uniform vec4 uAmp;
+uniform vec4 uBend;
+float ofKind( vec4 v ) { return aKind < 0.5 ? v.x : aKind < 1.5 ? v.y : aKind < 2.5 ? v.z : v.w; }`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-if ( aWing != 0.0 ) {
-  float pair = abs( aWing ) - 1.0;
-  float ang = aFlap.z + aFlap.x * ${amp.toFixed(3)} * sin( uTime * ${rate.toFixed(2)} + aFlap.y + pair * 1.9 );
-  float zz = transformed.z;
-  transformed.y += abs( zz ) * sin( ang );
-  transformed.z = zz * cos( ang );
-}
-${bend ? `transformed.z += sin( transformed.x * 9.0 - uTime * 18.0 + aFlap.y ) * ${bend.toFixed(3)} * aFlap.x * ( 0.4 + max( 0.0, -transformed.x ) * 3.0 );` : ''}`);
+if ( abs( aKind - aSel ) > 0.5 ) {
+  transformed = vec3( 0.0 ); // another kind's model: folded away to a point, where it draws nothing
+} else {
+  if ( aWing != 0.0 ) {
+    float pair = abs( aWing ) - 1.0;
+    float ang = aFlap.z + aFlap.x * ofKind( uAmp ) * sin( uTime * ofKind( uRate ) + aFlap.y + pair * 1.9 );
+    float zz = transformed.z;
+    transformed.y += abs( zz ) * sin( ang );
+    transformed.z = zz * cos( ang );
+  }
+  float bend = ofKind( uBend );
+  if ( bend > 0.0 ) transformed.z += sin( transformed.x * 9.0 - uTime * 18.0 + aFlap.y ) * bend * aFlap.x * ( 0.4 + max( 0.0, -transformed.x ) * 3.0 );
+}`);
   };
-  material.customProgramCacheKey = () => `hals-life-${rate}-${amp}-${bend}`;
+  material.customProgramCacheKey = () => 'hals-life';
   return { material, uniforms };
 }
 
+/** A view of a shared mesh: the instances of one kind, from `offset` on. */
+const view = (mesh, offset, kind, count) => {
+  mesh.geometry.attributes.aSel.array.fill(kind, offset, offset + count);
+  return { mesh, offset, kind, count };
+};
+
 function makeInstanced(scene, geometry, material, count, name, renderOrder = 0) {
   geometry.setAttribute('aFlap', new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aSel', new THREE.InstancedBufferAttribute(new Float32Array(count), 1));
+  if (!geometry.attributes.aKind) geometry.setAttribute('aKind', new THREE.BufferAttribute(new Float32Array(geometry.attributes.position.count), 1));
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = name;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -275,7 +310,7 @@ void main() {
 
 // ---- the life itself -------------------------------------------------------------------------------------------------------
 
-const COUNTS = { dragonflies: 16, butterflies: 30, birds: 26, flowers: 64, beetles: 8, lizards: 6, frogs: 3, snails: 2, leaves: 26, motes: 420, shafts: 5 };
+const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 52, beetles: 6, lizards: 6, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 4 };
 const GROUP = 3; // butterflies go about in little groups
 const BUTTERFLY_COLOURS = ['#f39a3a', '#6fc0ee', '#f5dc4a', '#f08bb4', '#fffaf0', '#b48cf0'];
 const FLOWER_COLOURS = ['#fff4f0', '#f7a6c4', '#ffd84a', '#c9a2f2', '#ff9a6a'];
@@ -313,16 +348,30 @@ export function createLife(hw) {
     }
     return out;
   }
-  const setFlap = (mesh, i, amount, phase, rest) => mesh.geometry.attributes.aFlap.array.set([amount, phase, rest], i * 3);
-  function place(mesh, i, p, yaw, { pitch = 0, roll = 0, scale = 1, sx = scale, sy = scale, sz = scale } = {}) {
+  // (a target is a view of a shared mesh, or a mesh of its own, whose instances start at 0)
+  const at = (target, i) => (target.mesh ? [target.mesh, target.offset + i] : [target, i]);
+  const setFlap = (target, i, amount, phase, rest) => { const [mesh, k] = at(target, i); mesh.geometry.attributes.aFlap.array.set([amount, phase, rest], k * 3); };
+  const setColour = (target, i, c) => { const [mesh, k] = at(target, i); mesh.setColorAt(k, c); };
+  function place(target, i, p, yaw, { pitch = 0, roll = 0, scale = 1, sx = scale, sy = scale, sz = scale } = {}) {
+    const [mesh, k] = at(target, i);
     e4.set(roll, -yaw, pitch, 'YZX');
     q4.setFromEuler(e4);
-    mesh.setMatrixAt(i, m4.compose(p, q4, s4.set(sx, sy, sz)));
+    mesh.setMatrixAt(k, m4.compose(p, q4, s4.set(sx, sy, sz)));
   }
+  // Everything that flies, in one mesh: the dragonflies, the butterflies, the pterosaurs and the falling leaves.
+  const FLY = { dragonfly: 0, butterfly: 1, pterosaur: 2, leaf: 3 };
+  const flyLook = lifeMaterial('Háls og hali: what flies', {
+    transparent: true, // the dragonflies' glassy wings
+    kinds: [{ rate: 46, amp: 0.55 }, { rate: 17, amp: 0.65 }, { rate: 7.5, amp: 0.7 }, {}],
+  });
+  const flyCount = COUNTS.dragonflies + COUNTS.butterflies + COUNTS.birds + COUNTS.leaves;
+  const fliers = makeInstanced(scene, own(kinds([dragonflyGeometry(), butterflyGeometry(), pterosaurGeometry(), leafGeometry()])), own(flyLook.material), flyCount, 'Life: fliers', 2);
+  for (let i = 0; i < flyCount; i++) fliers.setColorAt(i, new THREE.Color(1, 1, 1)); // the dragonflies and pterosaurs keep their own colours
+  let flyAt = 0;
+  const flyView = (kind, count) => { const v = view(fliers, flyAt, kind, count); flyAt += count; return v; };
 
   // ---- dragonflies --------------------------------------------------------------------------------------------------------
-  const fly = lifeMaterial('Háls og hali: dragonflies', { rate: 46, amp: 0.55, transparent: true });
-  const dragonflies = makeInstanced(scene, own(dragonflyGeometry()), own(fly.material), COUNTS.dragonflies, 'Life: dragonflies', 2);
+  const dragonflies = flyView(FLY.dragonfly, COUNTS.dragonflies);
   // rest spots: a block's front edge, on top, beside its number
   const restSpots = [];
   for (let n = 2; n < BOARD.count; n++) {
@@ -400,10 +449,9 @@ export function createLife(hw) {
   }
 
   // ---- butterflies --------------------------------------------------------------------------------------------------------
-  const bfly = lifeMaterial('Háls og hali: butterflies', { rate: 17, amp: 0.65 });
-  const butterflies = makeInstanced(scene, own(butterflyGeometry()), own(bfly.material), COUNTS.butterflies, 'Life: butterflies', 2);
+  const butterflies = flyView(FLY.butterfly, COUNTS.butterflies);
   const colour = new THREE.Color();
-  for (let i = 0; i < COUNTS.butterflies; i++) butterflies.setColorAt(i, colour.set(BUTTERFLY_COLOURS[i % BUTTERFLY_COLOURS.length]));
+  for (let i = 0; i < COUNTS.butterflies; i++) setColour(butterflies, i, colour.set(BUTTERFLY_COLOURS[i % BUTTERFLY_COLOURS.length]));
 
   // flowers: on the moss of the logs between the blocks, on the shelves' front edges and in the grass before the bottom tier
   const flowerSpots = [];
@@ -421,6 +469,7 @@ export function createLife(hw) {
     flowerSpots.push(new V3(x, heightAt(x, z) + 0.12, z));
   }
   const flowers = makeInstanced(scene, own(flowerGeometry()), own(lifeMaterial('Háls og hali: flowers').material), Math.min(COUNTS.flowers, flowerSpots.length), 'Life: flowers');
+  flowers.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   flowerSpots.length = flowers.count;
   flowerSpots.forEach((p, i) => {
     place(flowers, i, p, rand(0, TAU), { scale: rand(1.1, 1.6) });
@@ -514,8 +563,7 @@ export function createLife(hw) {
   }
 
   // ---- pterosaurs: a flock far off now and then, and a smaller one nearer, in front of the trees -------------------------------
-  const ptero = lifeMaterial('Háls og hali: pterosaurs', { rate: 7.5, amp: 0.7 });
-  const birds = makeInstanced(scene, own(pterosaurGeometry()), own(ptero.material), COUNTS.birds, 'Life: pterosaurs', 1);
+  const birds = flyView(FLY.pterosaur, COUNTS.birds);
   const flocks = [
     { kind: 'far', size: 11, wait: rand(2, 8), t: 0, dur: 26, flying: false, from: new V3(), to: new V3(), slots: [] },
     { kind: 'near', size: 7, wait: rand(6, 14), t: 0, dur: 14, flying: false, from: new V3(), to: new V3(), slots: [] },
@@ -565,11 +613,14 @@ export function createLife(hw) {
   }
 
   // ---- ground critters: beetles and lizards scurrying, frogs by the mud, a snail on a log --------------------------------------
-  const beetleMesh = makeInstanced(scene, own(critterGeometry('beetle', 2.6)), own(lifeMaterial('Háls og hali: beetles').material), COUNTS.beetles, 'Life: beetles');
-  const lizardLook = lifeMaterial('Háls og hali: lizards', { bend: 0.035 });
-  const lizardMesh = makeInstanced(scene, own(lizardGeometry()), own(lizardLook.material), COUNTS.lizards, 'Life: lizards');
-  const frogMesh = makeInstanced(scene, own(critterGeometry('frog', 2.2)), own(lifeMaterial('Háls og hali: frogs').material), COUNTS.frogs, 'Life: frogs');
-  const snailMesh = makeInstanced(scene, own(critterGeometry('snail', 3)), own(lifeMaterial('Háls og hali: snail').material), COUNTS.snails, 'Life: snail');
+  // Everything on the ground, in one mesh: the beetles, the lizards (who wiggle as they run), the frogs and the snail.
+  const groundLook = lifeMaterial('Háls og hali: what crawls', { kinds: [{}, { bend: 0.035 }, {}, {}] });
+  const groundCount = COUNTS.beetles + COUNTS.lizards + COUNTS.frogs + COUNTS.snails;
+  const crawlers = makeInstanced(scene, own(kinds([critterGeometry('beetle', 2.6), lizardGeometry(), critterGeometry('frog', 2.2), critterGeometry('snail', 3)])), own(groundLook.material), groundCount, 'Life: crawlers');
+  let groundAt = 0;
+  const groundView = (kind, count) => { const v = view(crawlers, groundAt, kind, count); groundAt += count; return v; };
+  const beetleMesh = groundView(0, COUNTS.beetles), lizardMesh = groundView(1, COUNTS.lizards);
+  const frogMesh = groundView(2, COUNTS.frogs), snailMesh = groundView(3, COUNTS.snails);
   // where they go: the grass before the bottom tier, and the front edge of each log under the blocks (y, z, and an x range)
   const grass = { ground: true, x: [-24, 24], z: [tierZ(0) + STONE.depth / 2 + 1.4, tierZ(0) + STONE.depth / 2 + 5] };
   const logs = [];
@@ -638,9 +689,9 @@ export function createLife(hw) {
   }
 
   // ---- leaves falling now and then ----------------------------------------------------------------------------------------
-  const leafMesh = makeInstanced(scene, own(leafGeometry()), own(lifeMaterial('Háls og hali: leaves').material), COUNTS.leaves, 'Life: falling leaves', 1);
+  const leafMesh = flyView(FLY.leaf, COUNTS.leaves);
   const leaves = Array.from({ length: COUNTS.leaves }, (_, i) => {
-    leafMesh.setColorAt(i, colour.set(pick(LEAF_COLOURS)));
+    setColour(leafMesh, i, colour.set(pick(LEAF_COLOURS)));
     return { pos: new V3(0, -500, 0), wait: rand(0, 10), spin: rand(1.5, 3.5), phase: rand(0, TAU), fall: rand(0.7, 1.1), sway: rand(0.5, 1.2), floor: 0, x0: 0 };
   });
   function updateLeaf(l, i, dt) {
@@ -723,8 +774,8 @@ export function createLife(hw) {
     scene.add(mesh);
   }
 
-  const meshes = [dragonflies, butterflies, birds, beetleMesh, lizardMesh, frogMesh, snailMesh, leafMesh];
-  const looks = [fly, bfly, ptero, lizardLook];
+  const meshes = [fliers, crawlers];
+  const looks = [flyLook, groundLook];
   const size = new THREE.Vector2();
   function update(dt) {
     time += dt;

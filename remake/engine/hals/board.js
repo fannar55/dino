@@ -277,6 +277,7 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
   // the shelves: a craggy rock behind a tier, flat and mossy on top, where a Þórseðla stands (thorsedla.js stands her 0.3 m
   // under the blocks' tops)
   const rock = [new THREE.Color(COLOURS.shelf), new THREE.Color('#a39d8f'), new THREE.Color('#6f6a60')];
+  const bark = [new THREE.Color('#6b5240'), new THREE.Color('#4e3a2c')];
   const mossColour = new THREE.Color(COLOURS.shelfMoss), mossDeep = new THREE.Color('#5f7f36');
   for (const s of shelves) {
     if (s.tier === 0) continue;
@@ -316,22 +317,23 @@ export function createBoard({ base = 0.5, heightAt = () => 0, shelves = [], rend
     g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
     g.computeVertexNormals();
     woodParts.push(g);
-    // A shelf well under its tier (Lyng's, 3 m under the top tier) would float: it stands on a craggy rock column down to the
-    // forest floor behind the board, mossy at its foot and its top (the owner's polish round: ground it).
+    // A shelf well under its tier (Lyng's, 3 m under the top tier) would float: it rests on an old tree's trunk, which goes down
+    // to the forest floor behind the board in the bark of the forest's own trees, mossy at its foot (the owner's polish round:
+    // ground it), slim and toward the shelf's back so it stands back among the trees.
     if ((s.drop ?? 0) > 1.5) {
       const top = yTop - thick * 0.55, foot = heightAt(cx, cz) - 0.6, height = top - foot;
       const ca = Math.cos(s.angle ?? 0), sa = Math.sin(s.angle ?? 0);
-      const r0 = Math.min(w, d) * 0.2, r1 = r0 * 1.7, back = d * 0.22; // slim, and toward its back, so it stands back in the forest
+      const r0 = Math.min(w, d) * 0.16, r1 = r0 * 1.6, back = d * 0.25;
       const column = new THREE.CylinderGeometry(r0, r1, height, 14, Math.max(4, Math.round(height / 1.6)), true);
       const cp = column.attributes.position, cc = new Float32Array(cp.count * 3), tint = new THREE.Color();
       for (let i = 0; i < cp.count; i++) {
         const x = cp.getX(i), y = cp.getY(i), z = cp.getZ(i), a = Math.atan2(z, x), h = (y + height / 2) / height; // 0 foot, 1 top
-        const crag = 1 + 0.12 * Math.sin(a * 5 + y * 0.7 + seed) + 0.08 * Math.sin(a * 11 - y * 1.9) + 0.05 * Math.sin(y * 3.1 + a * 2);
+        const crag = (1 + 0.06 * Math.sin(a * 7 + y * 0.3 + seed) + 0.05 * Math.sin(a * 13)) * (1 + 0.7 * Math.max(0, 1 - h / 0.05)); // ridged bark, roots flaring at its foot
         cp.setXYZ(i, cx + x * crag - back * sa, foot + h * height, cz + z * crag - back * ca);
-        // dark and mossy, so it sits back into the forest behind the board; ivy runs up it in streaks
-        const streak = 0.5 + 0.5 * Math.sin(a * 4 + Math.sin(y * 0.35) * 1.5);
-        const mossy = Math.max(0, 1 - h / 0.25) + Math.max(0, (h - 0.85) / 0.15) + Math.max(0, streak - 0.45) * 1.4;
-        tint.copy(rock[0]).lerp(rock[2], 0.55 + 0.3 * Math.sin(y * 0.9 + a)).multiplyScalar(0.72).lerp(mossDeep, Math.min(0.9, mossy));
+        // bark in streaks along it, moss at its foot and in a few runs up it
+        const streak = 0.5 + 0.5 * Math.sin(a * 9 + Math.sin(y * 0.4) * 0.8);
+        const mossy = Math.max(0, 1 - h / 0.12) * 0.9 + (Math.sin(a * 3 + y * 0.15) > 0.8 ? 0.45 : 0);
+        tint.copy(bark[0]).lerp(bark[1], streak).lerp(mossDeep, Math.min(0.85, mossy));
         cc.set([tint.r, tint.g, tint.b], i * 3);
       }
       column.setAttribute('color', new THREE.BufferAttribute(cc, 3));
