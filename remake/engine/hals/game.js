@@ -18,8 +18,9 @@ import { createVoice } from '../scene/voice.js';
 //     "Nýr leikur". The world loads behind the setup the first time the game opens and is kept for the next.
 //   - The first game: Mosi's three intro lines, then play. Mosi's "?" says them again at any time.
 //   - A turn: the players' portraits along the top, the active one raised and glowing with its square; the dock's big die and
-//     "Kasta" (the die is tappable too). The die tumbles and lands, the piece hops (Mosi counts the child's hops, one line a hop,
-//     the hops paced to his words), and where it lands plays out (turn.js) with an event card, a voice, a sound and an effect.
+//     "Kasta" (the die is tappable too). The die tumbles and lands, the piece hops (on a child's first turn in a game of two, Mosi
+//     counts the hops, one line a hop, the hops paced to his words), and where it lands plays out (turn.js) with an event card,
+//     a voice, a sound and an effect.
 //     Input waits while a piece moves. The computer (a little Þórseðla) rolls by itself.
 //   - The end: fireworks over square 80, every Þórseðla cheering, the words and "Spilum aftur?".
 //   - "Rólegra": the world's calm (the whole board, gentle motion) and gentler motion here; "Allt borðið": the whole board between
@@ -381,7 +382,7 @@ export function createHalsGame(doc, {
   let turning = false; // a turn is being played out
   let phase = 'shut';
   let introDone = false;
-  let countIntros = 0; // "Teldu með!" said this game (on the first roll or two)
+  let counted = new Set(); // the players whose first turn Mosi has counted ("Teldu með!" and the hops; only in a game of two)
   let quietTurns = 0; // the child's turns since Mosi last encouraged
   let saidNear = false;
   let saidMyTurn = false; // Þórseðla said "Nú er komið að mér." on her last turn
@@ -864,9 +865,11 @@ export function createHalsGame(doc, {
     await tumble(value);
     if (token !== round) return;
     const result = resolveTurn(game.players[index].position, value, { mode: game.mode });
-    const counting = human;
-    if (human && countIntros < 2) {
-      countIntros++;
+    // Mosi counts a child's hops on that child's first turn only, and only when two play (the child and Þórseðla, or two
+    // children): the owner's choice, so the counting teaches without talking through the whole game.
+    const counting = human && game.players.length === 2 && !counted.has(index);
+    if (counting) {
+      counted.add(index);
       say('hals_mosi_count', { cut: true });
       await hw.wait(spokenOf(lineOf('hals_mosi_count')) + 0.15);
       if (token !== round) return;
@@ -1124,7 +1127,7 @@ export function createHalsGame(doc, {
     if (unshot.length) pieces.ready().then(() => { if (token === round) wanted = unshot; });
     active = pieces.list[game.currentPlayer];
     sparks.clear();
-    countIntros = kept ? 2 : 0;
+    counted = new Set(kept ? game.players.map((_, i) => i) : []); // a game taken up again has had its first turns
     quietTurns = 0;
     saidNear = false;
     saidMyTurn = false;
