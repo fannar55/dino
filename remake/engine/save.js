@@ -5,7 +5,10 @@
 // child has lost in a row, the stickers won and whether the tutorial has been through (engine/eitt/table.js);
 // it is stored only once the game has been played, so a save from before the game reads as it always did.
 // "Háls og hali" keeps the fossil kinds the child has found, as hals: { found: [...] }, in the same way: stored with
-// the first find, and a save without it loads as before (engine/hals/rules.js has the kinds).
+// the first find, and a save without it loads as before (engine/hals/rules.js has the kinds). Beside them it keeps the game
+// left under way (hals.game: the rules' state and who plays, which engine/hals/game.js checks with validateGame before it
+// offers "Halda áfram") and whether Mosi has said his intro and Þórseðla her hello (hals.intro, hals.hello), each only
+// once it is there.
 //
 // Storage can fail in many ways (blocked site data, a full disk, a private window, even reading
 // globalThis.localStorage can throw), and the game must not stop for any of them: every call to the
@@ -32,10 +35,14 @@ function eittOf(value) {
   return { skill, losses: count(value.losses), wins: count(value.wins), tutorialDone: value.tutorialDone === true };
 }
 
-/** The fossil collection as stored: { found } with the ids of the kinds found, in the order they came, or null. */
+/**
+ * The fossil collection as stored: { found } with the ids of the kinds found, in the order they came, and what else the
+ * game keeps: `game` (the game under way, a plain object: game.js validates it), `intro` and `hello` (true once said); or null.
+ */
 function halsOf(value) {
   if (!value || typeof value !== 'object') return null;
-  return { found: idsOf(value.found) };
+  const game = value.game && typeof value.game === 'object' && !Array.isArray(value.game) ? value.game : null;
+  return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }) };
 }
 
 /**
@@ -45,6 +52,8 @@ function halsOf(value) {
  * round), and `setEitt(changes)` keeps what it is given and leaves the rest as it was.
  * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
  * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
+ * `getHalsPlay()` is { game, intro, hello }: the game left under way (or null) and whether the intro and the hello have been
+ * said; `setHalsPlay(changes)` keeps what it is given (game: null forgets the game) and leaves the rest as it was.
  */
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   const data = { stars: [], findings: [], seen: [] }; // all there is when the storage does not work
@@ -94,9 +103,22 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
     addHalsFound(kind) {
       if (typeof kind !== 'string' || !kind) throw new TypeError(`A save keeps ids, which are names, not ${String(kind)}`);
       if (hals?.found.includes(kind)) return false;
-      hals = { found: [...(hals?.found ?? []), kind] };
+      hals = { ...hals, found: [...(hals?.found ?? []), kind] };
       write();
       return true;
+    },
+    getHalsPlay: () => ({
+      game: hals?.game ? JSON.parse(JSON.stringify(hals.game)) : null,
+      intro: hals?.intro === true,
+      hello: hals?.hello === true,
+    }),
+    setHalsPlay(changes = {}) {
+      const next = { ...hals, found: hals?.found ?? [] };
+      if ('game' in changes) next.game = changes.game ? JSON.parse(JSON.stringify(changes.game)) : null;
+      if ('intro' in changes) next.intro = changes.intro === true;
+      if ('hello' in changes) next.hello = changes.hello === true;
+      hals = halsOf(next);
+      write();
     },
   };
 }

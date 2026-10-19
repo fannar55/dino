@@ -207,3 +207,22 @@ test('the fossil collection is kept in the save, once each, and an older save st
   assert.deepEqual(createSave(storage).get().stars, ['k1_kambedla'], 'the rest is kept');
   assert.deepEqual(createSave(null).getHals(), { found: [] }, 'without storage it still works');
 });
+
+test('the game under way and the intro are kept beside the collection, and forgotten when asked', () => {
+  const files = new Map();
+  const storage = { getItem: k => files.get(k) ?? null, setItem: (k, v) => files.set(k, v) };
+  const save = createSave(storage);
+  assert.deepEqual(save.getHalsPlay(), { game: null, intro: false, hello: false }, 'nothing at first');
+  const game = applyTurn(createGame({ playerCount: 2, vsComputer: true, mode: 'adventure' }), 3);
+  save.setHalsPlay({ game: { state: game, setup: { players: 1, mode: 'adventure' } }, intro: true });
+  save.addHalsFound('leaf');
+  const next = createSave(storage);
+  assert.deepEqual(next.getHalsPlay().game.state, game, 'the game comes back as it was');
+  assert.equal(validateGame(next.getHalsPlay().game.state), true);
+  assert.equal(next.getHalsPlay().intro, true);
+  assert.deepEqual(next.getHals(), { found: ['leaf'] }, 'the collection is untouched');
+  next.setHalsPlay({ game: null });
+  assert.equal(createSave(storage).getHalsPlay().game, null, 'a finished game is forgotten');
+  assert.equal(createSave(storage).getHalsPlay().intro, true, 'and the rest stays');
+  assert.deepEqual(JSON.parse(files.get('mosi-remake-v1')).hals, { found: ['leaf'], intro: true });
+});
