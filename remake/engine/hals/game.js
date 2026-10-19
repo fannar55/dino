@@ -17,15 +17,17 @@ import { createVoice } from '../scene/voice.js';
 //     ("Ævintýraskógur", with fireflies, mud and fossils, or "Klassískt"). A game left under way is offered first: "Halda áfram" or
 //     "Nýr leikur". The world loads behind the setup the first time the game opens and is kept for the next.
 //   - The first game: Mosi's three intro lines, then play. Mosi's "?" says them again at any time.
-//   - A turn: the players' portraits along the top, the active one raised and glowing with its square; the dock's big die and
-//     "Kasta" (the die is tappable too). The die tumbles and lands, the piece hops (on a child's first turn in a game of two, Mosi
-//     counts the hops, one line a hop, the hops paced to his words), and where it lands plays out (turn.js) with an event card,
-//     a voice, a sound and an effect.
+//   - A turn: the players' portraits along the top, the active one raised and glowing with its square; the die alone in the dock,
+//     big, in a ring of the colour of whoever plays with that player's little portrait on it. On a child's turn it glows, pulses and
+//     hops now and then until it is tapped (space or Enter in a lab); while a piece moves or the computer plays it is dimmed and still.
+//     The die tumbles and lands, the piece hops (on a child's first turn in a game of two, Mosi counts the hops, one line a hop, the
+//     hops paced to his words), and where it lands plays out (turn.js) with an event card, a voice, a sound and an effect.
 //     Input waits while a piece moves. The computer (a little Þórseðla) rolls by itself.
 //   - The end: fireworks over square 100, every Þórseðla cheering, the words and "Spilum aftur?".
-//   - "Rólegra": the world's calm (the whole board, gentle motion) and gentler motion here; "Allt borðið": the whole board between
-//     turns instead of following the piece. The X goes back to the book; the game under way is kept in the save after every turn.
-// Under prefers-reduced-motion every move of the page is a fade.
+//   - "Allt borðið": the whole board between turns instead of following the piece. The X goes back to the book; the game under way
+//     is kept in the save after every turn.
+// Under prefers-reduced-motion the game goes calm by itself: the world's calm (the whole board, gentle motion), and every move of
+// the page a fade.
 //
 // Rendering: the chapter's own renderer draws the board while the game is open (main.js pauses the chapter and skips its draw):
 // its canvas moves into the game's root, under the game's controls, and goes back when the game shuts. One WebGL context for both
@@ -90,7 +92,6 @@ const AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round"/></svg>';
 const ARROW_UP = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ARROW_DOWN = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const SNAIL = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 38h30c4 0 6-3 6-6v-6" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="25" r="11" fill="#f2b630" stroke="#3b2f25" stroke-width="3.4"/><path d="M24 25a4 4 0 1 1 4 4" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linecap="round"/><path d="M40 26l-2-10M44 26l2-10" stroke="#3b2f25" stroke-width="3" stroke-linecap="round"/></svg>';
 const BOARD_ICON = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="6" fill="#fffaf0" stroke="#3b2f25" stroke-width="3.4"/><path d="M12 34h24M12 26h24M12 18h24" stroke="#6fae4f" stroke-width="4" stroke-linecap="round"/><path d="M30 33c0-8 4-12 6-15" fill="none" stroke="#e07a3f" stroke-width="3.4" stroke-linecap="round"/></svg>';
 
 const priorityOf = id => (/^hals_mosi_(\d|count)$/.test(id) ? 3 : /^hals_(mosi_(roll|good|go|near)|thor_(my_turn|hello))$/.test(id) ? 1 : 2);
@@ -117,6 +118,7 @@ function spokenOf(line) {
  *   game           the rules' state now; world, pieces: the board world and its pieces, for the lab
  *   start(setup)   a new game ({ players: 1 to 4, mode }), as "Byrjum!"; roll(value) the child's roll (value: for a probe)
  *   muted          silences its effects, music and voices
+ *   calm           whether it is calm (prefers-reduced-motion); a lab may set it
  * `musicUrl` is the track (assets/audio/hals/music.mp3 unless a lab tries another).
  */
 export function createHalsGame(doc, {
@@ -132,8 +134,8 @@ export function createHalsGame(doc, {
     if (html) el.innerHTML = html;
     return el;
   };
-  let calmMode = false; // "Rólegra"
-  const calm = () => calmMode || reducedMotion(win);
+  let labCalm = false; // a lab's ?calm=1, as prefers-reduced-motion would have it
+  const calm = () => labCalm || reducedMotion(win);
   const still = () => reducedMotion(win); // every move a fade
 
   // ---- The page -------------------------------------------------------------------------------------------------------------
@@ -144,11 +146,9 @@ export function createHalsGame(doc, {
   const playersEl = make('div', 'hals-players');
   playersEl.setAttribute('aria-label', 'Leikmenn');
   const toolsEl = make('div', 'hals-tools');
-  const calmEl = make('button', 'hals-tool hals-calm', `${SNAIL}<span>Rólegra</span>`);
-  calmEl.setAttribute('aria-pressed', 'false');
   const viewEl = make('button', 'hals-tool hals-view', `${BOARD_ICON}<span>Allt borðið</span>`);
   viewEl.setAttribute('aria-pressed', 'false');
-  toolsEl.append(calmEl, viewEl);
+  toolsEl.append(viewEl);
   const closeEl = make('button', 'hals-close', CROSS);
   closeEl.setAttribute('aria-label', 'Aftur í bókina');
   const mosiEl = make('button', 'hals-mosi');
@@ -162,13 +162,16 @@ export function createHalsGame(doc, {
   const skipEl = make('button', 'hals-skip', '<span>Sleppa</span>');
   const dockEl = make('div', 'hals-dock');
   const dieEl = make('button', 'hals-die');
-  dieEl.setAttribute('aria-label', 'Teningur');
+  dieEl.setAttribute('aria-label', 'Kasta teningnum');
+  const ringEl = make('span', 'hals-die-ring');
+  const hopEl = make('span', 'hals-die-hop'); // the idle hop moves this, so the tumble (on the die) and the face (on the cube) stay apart
   const cubeEl = make('span', 'hals-cube');
   for (let n = 1; n <= 6; n++) cubeEl.append(make('span', `hals-face f${n}`, PIPS[n].map(p => `<i class="${p}"></i>`).join('')));
-  dieEl.append(cubeEl);
-  const rollEl = make('button', 'hals-roll', '<img alt=""><span>Kasta</span>');
-  const rollPicture = rollEl.querySelector?.('img') ?? null;
-  dockEl.append(dieEl, rollEl);
+  hopEl.append(cubeEl);
+  const diePicture = make('img', 'hals-die-who'); // whoever plays, small, on the die's corner
+  diePicture.alt = '';
+  dieEl.append(ringEl, hopEl, diePicture);
+  dockEl.append(dieEl);
   const cardEl = make('div', 'hals-card');
   cardEl.setAttribute('aria-live', 'polite');
   hud.append(playersEl, toolsEl, closeEl, mosiEl, adviceEl, skipEl, dockEl, cardEl);
@@ -464,7 +467,7 @@ export function createHalsGame(doc, {
     pieces = made;
     roster = ids;
     stale = false;
-    pieces.calm = calmMode;
+    pieces.calm = calm();
     return pieces;
   }
 
@@ -625,12 +628,13 @@ export function createHalsGame(doc, {
     });
   }
 
-  /** The dock: the die and "Kasta" live on a child's turn, dimmed otherwise; the die in the colour of whoever plays. */
+  /** The dock: the die, live on a child's turn and dimmed otherwise, in a ring of the colour of whoever plays, with their portrait. */
   function renderDock() {
     const index = game ? game.winner ?? game.currentPlayer : 0;
     const id = roster?.[index] ?? 'egill';
     dockEl.style.setProperty('--c', COLOURS[id]);
-    if (rollPicture) showPicture(rollPicture, id);
+    showPicture(diePicture, id);
+    diePicture.classList.toggle('computer', id === 'thorsedla');
     const live = childMoves();
     dockEl.classList.toggle('live', live);
     dockEl.classList.toggle('computer', Boolean(game && game.players[index]?.isComputer && game.winner === null));
@@ -648,7 +652,9 @@ export function createHalsGame(doc, {
   function tumble(value) {
     sfx('roll');
     const end = faceTurn(value);
+    dockEl.classList.add('rolling'); // bright while it tumbles, whoever rolled it
     const done = () => {
+      dockEl.classList.remove('rolling');
       cubeEl.style.transform = end;
       shown = value;
       sfx('land');
@@ -667,12 +673,12 @@ export function createHalsGame(doc, {
     const spinY = 360 * (1 + Math.floor(random() * 2));
     const [x, y] = FACES[value];
     const [x0, y0] = FACES[shown];
-    const duration = calmMode ? ROLL_MS * 0.8 : ROLL_MS;
+    const duration = calm() ? ROLL_MS * 0.8 : ROLL_MS;
     const spin = cubeEl.animate([
       { transform: `${TILT} rotateX(${x0}deg) rotateY(${y0}deg)` },
       { transform: `${TILT} rotateX(${x + spinX}deg) rotateY(${y + spinY}deg)` },
     ], { duration, easing: 'cubic-bezier(.2, .75, .3, 1)' });
-    if (!calmMode) {
+    if (!calm()) {
       dieEl.animate([
         { transform: 'translateY(0) scale(1)' }, { transform: 'translateY(-46px) scale(1.08)', offset: 0.35 },
         { transform: 'translateY(0) scale(.94)', offset: 0.7 }, { transform: 'translateY(-8px) scale(1.02)', offset: 0.85 },
@@ -784,8 +790,8 @@ export function createHalsGame(doc, {
     fxTimer -= dt;
     if (fxTimer > 0) return;
     fxTimer = fxPhase === 'firefly' ? 0.05 : 0.07;
-    if (fxPhase === 'firefly') sparks.firefly(fxPiece.position, { count: calmMode ? 1 : 2 });
-    else sparks.glitter(fxPiece.position, { count: calmMode ? 1 : 2 });
+    if (fxPhase === 'firefly') sparks.firefly(fxPiece.position, { count: calm() ? 1 : 2 });
+    else sparks.glitter(fxPiece.position, { count: calm() ? 1 : 2 });
   }
 
   function beginTurn() {
@@ -796,7 +802,7 @@ export function createHalsGame(doc, {
     turnNumber++;
     renderPlayers();
     sfx('turn');
-    if (whole || calmMode) hw.view.overview();
+    if (whole || calm()) hw.view.overview();
     else hw.view.follow(() => active.position);
     if (game.players[index].isComputer) {
       busy = true;
@@ -887,7 +893,7 @@ export function createHalsGame(doc, {
         if (count === result.steps.length && !result.shortcut && !result.event) sparks.leaves(piece.position, { count: 3 });
         if (!counting || count > 6) return;
         const said = say(`hals_mosi_${count}`, { cut: true });
-        const hop = calmMode ? 0.62 : 0.44;
+        const hop = calm() ? 0.62 : 0.44;
         if (said && count < result.steps.length) await hw.wait(Math.max(0, said + 0.06 - hop));
       },
       onLand: (kind, data) => {
@@ -1226,18 +1232,19 @@ export function createHalsGame(doc, {
 
   // ---- Calm and the view ------------------------------------------------------------------------------------------------------
 
+  // The game is calm when the tablet asks for less motion (or a lab's ?calm=1): the world holds the whole board and moves gently.
   function applyCalm() {
-    root.classList.toggle('calm', calmMode);
-    calmEl.setAttribute('aria-pressed', String(calmMode));
-    if (hw) hw.calm = calmMode;
-    if (pieces) pieces.calm = calmMode;
-    if (sparks) sparks.calm = calmMode;
-    viewEl.disabled = calmMode;
+    const on = calm();
+    root.classList.toggle('calm', on);
+    if (hw) hw.calm = on;
+    if (pieces) pieces.calm = on;
+    if (sparks) sparks.calm = on;
+    viewEl.disabled = on;
   }
   function applyView() {
-    viewEl.setAttribute('aria-pressed', String(whole || calmMode));
+    viewEl.setAttribute('aria-pressed', String(whole || calm()));
     if (!hw || turning || !active) return;
-    if (whole || calmMode) hw.view.overview();
+    if (whole || calm()) hw.view.overview();
     else hw.view.follow(() => active.position);
   }
 
@@ -1259,14 +1266,17 @@ export function createHalsGame(doc, {
 
   const tap = { sfx: name => effects.play(name) };
   pressable(dieEl, { audio: tap, sound: null, win, onTap: tapRoll });
-  pressable(rollEl, { audio: tap, sound: null, win, onTap: tapRoll });
   pressable(mosiEl, { audio: tap, win, onTap: askMosi });
   pressable(skipEl, { audio: tap, win, onTap: () => { wake(); skipIntro?.(); } });
   pressable(closeEl, { audio: tap, win, onTap: () => close() });
   pressable(setupClose, { audio: tap, win, onTap: () => close() });
   pressable(winClose, { audio: tap, win, onTap: () => close() });
-  pressable(calmEl, { audio: tap, win, onTap: () => { wake(); calmMode = !calmMode; applyCalm(); applyView(); } });
-  pressable(viewEl, { audio: tap, win, onTap: () => { wake(); if (calmMode) return; whole = !whole; applyView(); } });
+  pressable(viewEl, { audio: tap, win, onTap: () => { wake(); if (calm()) return; whole = !whole; applyView(); } });
+  try { // the tablet's setting changed while the game is open
+    win?.matchMedia?.('(prefers-reduced-motion: reduce)')?.addEventListener?.('change', () => { applyCalm(); applyView(); });
+  } catch {
+    // no matchMedia here
+  }
   for (const button of choiceEls) {
     pressable(button, {
       audio: tap, win, onTap: () => {
@@ -1324,8 +1334,9 @@ export function createHalsGame(doc, {
     get game() { return game; },
     get world() { return hw; },
     get pieces() { return pieces; },
-    get calm() { return calmMode; },
-    set calm(value) { calmMode = Boolean(value); applyCalm(); applyView(); },
+    /** Calm (as under prefers-reduced-motion); a lab may set it (?calm=1), the child cannot. */
+    get calm() { return calm(); },
+    set calm(value) { labCalm = Boolean(value); applyCalm(); applyView(); },
     get muted() { return muted; },
     set muted(value) { setMuted(value); },
   };

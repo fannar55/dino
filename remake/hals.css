@@ -2,20 +2,23 @@
    of the book are one family. engine/hals/game.js renders into these classes:
 
      .hals                       the root over the book: the font, every touch (touch-action: none); a size container. While it is
-                                 open the page's canvas (#view, .hals-view) lies first in it, under everything else; .calm is on it in
-                                 "Rólegra" (gentler motion)
+                                 open the page's canvas (#view, .hals-view) lies first in it, under everything else; .calm is on it
+                                 while the game is calm (prefers-reduced-motion, or a lab's ?calm=1)
      .hals-veil                  the clearing, soft, with a breathing star (.hals-loading) until the board is in (.ready fades it out;
                                  .waiting: "Byrjum!" was pressed and the board is still coming)
      .hals-hud                   the controls over the board, laid out on its edges:
        .hals-players             the players' portraits along the top: each .hals-player (--c, its colour) with its .hals-portrait,
                                  .hals-square (the square it stands on) and .hals-name; .active is raised and glows
-       .hals-tools               "Rólegra" (.hals-calm) and "Allt borðið" (.hals-view), pills on the top left; aria-pressed when on
+       .hals-tools               "Allt borðið" (.hals-view), a pill on the top left; aria-pressed when on
        .hals-close               back to the book: the round close, on the top right (and on a card's corner, .hals-card-close)
        .hals-mosi                "Spyrja Mosa", his face with a "?", bottom left; .hals-advice is Mosi popping up over it with his
                                  words in a bubble (its p; .long for a longer line); .hals-skip ("Sleppa") ends his intro
-       .hals-dock                the big die (.hals-die: a .hals-cube of six .hals-face, pips as i.tl .tr .ml .mr .bl .br .c) and
-                                 "Kasta" (.hals-roll, with the player's picture), bottom right; --c is the player's colour; .live while
-                                 the child may roll, .computer while Þórseðla does; .call on the die after a while with nothing done
+       .hals-dock                the die alone, bottom right, the one thing to tap to roll (.hals-die: its .hals-die-ring in the
+                                 player's colour, the .hals-die-hop that hops now and then, holding a .hals-cube of six .hals-face with
+                                 pips as i.tl .tr .ml .mr .bl .br .c, and the player's small portrait .hals-die-who); --c is the
+                                 player's colour; .live while the child may roll (it glows, pulses and hops), dimmed and still
+                                 otherwise; .computer while Þórseðla plays, .rolling while it tumbles; .call on the die after a while
+                                 with nothing done
        .hals-card                an event card in the "Eitt!" card's look, on the right: a kind (.neck, .tail, .firefly, .mud, .fossil)
                                  names its colour; .hals-card-face holds a picture (.hals-card-pic) or a fossil (.hals-card-art) and
                                  a big mark (.hals-card-mark: an arrow, "+2", "−2"); .hals-card-word, .hals-card-sub, and confetti
@@ -77,7 +80,7 @@
 .hals button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
 .hals img { display: block; -webkit-user-drag: none; }
 .hals > canvas.hals-view { z-index: 0; }
-.hals :is(.hals-tool, .hals-skip, .hals-mode, .hals-roll, .hals-big, .hals-plain, .hals-choice) { isolation: isolate; } /* their pill lies under them */
+.hals :is(.hals-tool, .hals-skip, .hals-mode, .hals-big, .hals-plain, .hals-choice) { isolation: isolate; } /* their pill lies under them */
 /* While the setup or the end is up, its card has the close: the board's controls wait. */
 .hals:has(.hals-setup:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-players, .hals-dock),
 .hals:has(.hals-win:not([hidden])) .hals-hud > :is(.hals-close, .hals-tools, .hals-mosi, .hals-dock) { visibility: hidden; }
@@ -141,7 +144,7 @@
 }
 .hals-player.active .hals-name { opacity: 1; }
 
-/* "Rólegra" and "Allt borðið": cream pills on the top left, each in a full-size hit area; green when on. */
+/* "Allt borðið": a cream pill on the top left, in a full-size hit area; green when on. */
 .hals-tools { position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); display: flex; gap: 6px; }
 .hals-tool {
   position: relative; min-width: var(--hals-target); min-height: var(--hals-target);
@@ -220,28 +223,43 @@
   box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25);
 }
 
-/* ---- The dock: the big die and "Kasta", on the bottom right ------------------------------------------------------ */
+/* ---- The dock: the die alone, big, on the bottom right ------------------------------------------------------------ */
 
 .hals-dock {
   --c: #79c7a1;
-  position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom));
-  display: flex; align-items: center; gap: 14px;
-  transition: opacity .3s;
+  position: absolute; right: max(30px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom));
+  transition: opacity .35s;
 }
-.hals-dock:not(.live) { opacity: .62; }
-.hals-dock.computer { opacity: .9; }
-.hals-dock.computer .hals-roll { opacity: 0; pointer-events: none; }
+.hals-dock:not(.live):not(.rolling) { opacity: .5; }
+.hals-dock.computer:not(.rolling) { opacity: .62; }
 .hals-die {
-  --die: clamp(92px, 10.4cqmin, 118px);
-  position: relative; width: calc(var(--die) * 1.42); height: calc(var(--die) * 1.42);
-  display: grid; place-items: center; perspective: calc(var(--die) * 6);
-  border-radius: 30px;
+  --die: clamp(100px, 12.6cqmin, 126px);
+  position: relative; width: calc(var(--die) * 1.78); height: calc(var(--die) * 1.78);
+  display: grid; place-items: center; border-radius: 50%;
 }
-.hals-die::before { /* the die's soft shadow on the grass */
-  content: ""; position: absolute; left: 18%; right: 18%; bottom: 2%; height: 16%; border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(40 24 10 / .38), transparent);
+.hals-die-ring { /* a round pad in the colour of whoever plays, the die sitting on it */
+  position: absolute; inset: 3%; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 42%, rgb(255 255 255 / .5), transparent 58%),
+    radial-gradient(circle, color-mix(in srgb, var(--c) 30%, var(--card)) 0 52%, color-mix(in srgb, var(--c) 70%, var(--card)) 70%);
+  box-shadow: 0 0 0 7px var(--c), 0 0 0 10px var(--ink), 0 12px 18px 4px rgb(40 24 10 / .32);
+}
+.hals-die-ring::after { /* the glow that pulses out from it while the die waits for a tap */
+  content: ""; position: absolute; inset: -6%; border-radius: 50%; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--c) 70%, #fff), 0 0 32px 14px color-mix(in srgb, var(--c) 60%, #fff6c8);
+}
+.hals-die-hop { position: relative; display: grid; place-items: center; perspective: calc(var(--die) * 6); translate: -6% -3%; } /* the tilted cube shows its right side: centred by eye */
+.hals-die-hop::before { /* the die's soft shadow on its pad */
+  content: ""; position: absolute; left: 6%; right: 6%; bottom: -12%; height: 22%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(40 24 10 / .34), transparent);
 }
 .hals-cube { position: relative; width: var(--die); height: var(--die); transform-style: preserve-3d; }
+.hals-die-who { /* whoever plays, small, on the pad's top left */
+  position: absolute; left: -16%; top: 2%; width: 38%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; object-position: 60% 40%;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c) 45%, #fffaf0) 72%);
+  box-shadow: 0 0 0 4px var(--card), 0 0 0 7px var(--ink), 0 6px 10px 2px rgb(40 24 10 / .3);
+}
+.hals-die-who.photo, .hals-choice-pics img.photo, .hals-win-picture.photo { object-position: 50% 50%; }
 .hals-face {
   position: absolute; inset: 0; border-radius: 20%;
   background: radial-gradient(circle at 32% 26%, #fff, var(--card) 55%, color-mix(in srgb, var(--c) 22%, var(--card)));
@@ -260,23 +278,18 @@
 .hals-face i.bl { left: 17%; bottom: 17%; } .hals-face i.br { right: 17%; bottom: 17%; }
 .hals-face i.c { left: 40%; top: 40%; }
 .hals-face.f1 i.c { left: 34%; top: 34%; width: 32%; height: 32%; background: var(--orange); box-shadow: 0 0 0 3px var(--ink), inset 0 3px 0 rgb(255 255 255 / .3); }
-.hals-dock.live .hals-die.call { animation: hals-call 1.4s ease-in-out infinite; }
-.hals-dock.live .hals-die.call::after { /* and glows, for a child who has waited */
-  content: ""; position: absolute; inset: 4%; z-index: -1; border-radius: 34px; pointer-events: none;
-  background: rgb(255 226 140 / .45); box-shadow: 0 0 0 6px var(--gold), 0 0 34px 16px rgb(242 182 48 / .85);
+/* The child's turn: the pad breathes and its glow pulses, and the die hops now and then. */
+.hals-dock.live .hals-die-ring { animation: hals-pad 1.8s ease-in-out infinite; }
+.hals-dock.live .hals-die-ring::after { animation: hals-pulse 1.8s ease-out infinite; }
+.hals-dock.live .hals-die-hop { animation: hals-hop 3.4s cubic-bezier(.3, .7, .4, 1) 1.2s infinite; }
+.hals-dock.live .hals-die-who { animation: hals-glow 1.8s ease-in-out infinite; }
+/* And after a while with nothing done, it calls: a quicker hop and a golden glow. */
+.hals-dock.live .hals-die.call .hals-die-hop { animation: hals-call 1.4s ease-in-out infinite; }
+.hals-dock.live .hals-die.call::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 50%; pointer-events: none;
+  background: rgb(255 226 140 / .45); box-shadow: 0 0 0 6px var(--gold), 0 0 40px 18px rgb(242 182 48 / .85);
   animation: hals-glow-soft 1.4s ease-in-out infinite;
 }
-.hals-roll { /* "Kasta": a big raised pill in the player's colour, with the player's picture */
-  position: relative; min-height: var(--hals-target); min-width: var(--hals-target);
-  display: inline-flex; align-items: center; gap: .3em; padding: 0 .9em 0 .35em;
-  font-size: clamp(32px, 3.6cqmin, 40px); font-weight: 900; color: #fff;
-  border: 3px solid var(--ink); border-radius: 999px;
-  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .4), transparent 46%), var(--c);
-  box-shadow: 0 7px 0 color-mix(in srgb, var(--c) 60%, var(--ink)), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
-}
-.hals-roll span { -webkit-text-stroke: .13em var(--ink); paint-order: stroke fill; }
-.hals-roll img { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; object-position: 60% 40%; background: var(--card); box-shadow: 0 0 0 3px var(--ink); }
-.hals-roll img.photo, .hals-choice-pics img.photo, .hals-win-picture.photo { object-position: 50% 50%; }
 
 /* ---- An event card: the "Eitt!" card's look, popping up on the right ---------------------------------------------- */
 
@@ -444,9 +457,9 @@
 .hals-sticker svg { width: 78%; height: 78%; }
 .hals-confetti { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
 
-/* ---- Rólegra: everything moves gently, nothing bobs or glows on and on ---------------------------------------------- */
+/* ---- Calm (a lab's ?calm=1, as reduced motion has it): nothing bobs or glows on and on ----------------------------------- */
 
-.hals.calm .hals-player.active .hals-portrait, .hals.calm .hals-die.call, .hals.calm .hals-die.call::after { animation: none !important; }
+.hals.calm .hals-player.active .hals-portrait, .hals.calm .hals-dock *, .hals.calm .hals-dock *::before, .hals.calm .hals-dock *::after { animation: none !important; }
 .hals.calm .hals-player { transition-duration: .8s; }
 
 /* ---- The idle life ---------------------------------------------------------------------------------------------- */
@@ -454,7 +467,16 @@
 @keyframes hals-breathe { 0%, 100% { transform: scale(.85); } 50% { transform: scale(1.06); } }
 @keyframes hals-glow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
 @keyframes hals-glow-soft { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@keyframes hals-call { 0%, 100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-12px) rotate(-6deg); } 60% { transform: translateY(0) rotate(4deg); } }
+@keyframes hals-call { 0%, 100% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(-16px) rotate(-6deg); } 60% { transform: translateY(0) rotate(4deg); } }
+@keyframes hals-pad { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+@keyframes hals-pulse { 0% { transform: scale(.94); opacity: .9; } 80%, 100% { transform: scale(1.16); opacity: 0; } }
+@keyframes hals-hop { /* a little hop with a squash, then a long rest */
+  0%, 22%, 100% { transform: translateY(0) scale(1); }
+  4% { transform: translateY(2px) scale(1.06, .92); }
+  10% { transform: translateY(-22px) scale(.97, 1.04) rotate(-4deg); }
+  16% { transform: translateY(0) scale(1.05, .94) rotate(1deg); }
+  19% { transform: translateY(-5px) scale(1); }
+}
 @keyframes hals-pop { from { opacity: 0; transform: translateY(30px) scale(.7); } to { opacity: 1; transform: none; } }
 @keyframes hals-fall { from { transform: translateY(-6cqh) rotate(0deg); } to { transform: translateY(106cqh) rotate(540deg); } }
 
