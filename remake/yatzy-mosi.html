@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="is"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#23483f"><title>Yatzy við Mosa</title>
+<link rel="icon" href="data:,"><link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="./yatzy-mosi.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script></head>
+<body>
+<main id="game">
+  <section class="scene" aria-label="Yatzy-borðið">
+    <canvas id="table" aria-label="Þrívítt borð, teningar og Mosi"></canvas>
+    <header class="masthead"><div class="brand"><span>ÆVINTÝRI MOSA</span><h1>Yatzy</h1></div><div class="turn"><span class="turn-dot"></span><span id="turn-label">Velkomin að borðinu</span></div></header>
+    <div id="dice-targets" aria-label="Teningar"></div>
+    <button id="cup-target" type="button" hidden aria-label="Kasta teningum úr svarta ílátinu"><span class="cup-aura" aria-hidden="true"></span><span class="cup-spark cup-spark-one" aria-hidden="true">✦</span><span class="cup-spark cup-spark-two" aria-hidden="true">✧</span><span id="cup-label">Smelltu til að kasta</span></button>
+    <div id="moment" role="status" aria-live="polite"><span id="moment-kicker">FIMM TENINGAR · TVEIR VINIR</span><p id="moment-text">Mosi bíður eftir þér.</p></div>
+    <div class="controls" id="controls" hidden><p id="hint">Kastaðu til að byrja.</p><div class="action-row"><button id="roll" class="primary"><span id="roll-label">Kasta teningum</span><span id="roll-count">3 köst</span></button><button id="advice" class="secondary" title="Sjá tillögu að teningum eða stigareit">Ráð</button></div><p class="key-hint">Veldu teninga til að geyma · 1–5 á lyklaborði · bilslá kastar</p></div>
+    <div id="loading"><span class="loading-die">✦</span><h2>Við gerum borðið tilbúið…</h2><p>Mosi finnur teningana.</p></div>
+    <div id="error" hidden><h2>Borðið náði ekki að opnast</h2><p>Prófaðu að endurhlaða síðunni.</p><button onclick="location.reload()">Reyna aftur</button></div>
+  </section>
+  <aside class="scoreboard" aria-label="Stig beggja leikmanna">
+    <div class="score-heading"><div><span class="eyebrow" id="round">UMFERÐ 1 / 15</span><h2>Stigablaðið</h2></div><nav><button id="sound" class="icon" aria-label="Slökkva á hljóði" aria-pressed="false">♫</button><button id="help" class="icon" aria-label="Leikreglur">?</button><button id="pause" class="icon" aria-label="Gera hlé">Ⅱ</button></nav></div>
+    <div class="totals"><div id="you-card" class="player-card current"><span class="player-icon">✋</span><span>Þú</span><strong id="you-total">0</strong></div><div id="mosi-card" class="player-card"><img src="./assets/eitt/mosi.webp" alt=""><span>Mosi</span><strong id="mosi-total">0</strong></div></div>
+    <section id="tutorial-coach" aria-label="Kennsla með Mosa" hidden>
+      <div class="coach-heading"><img src="./assets/eitt/mosi.webp" alt=""><div><span id="tutorial-progress"></span><h3 id="tutorial-title" tabindex="-1" aria-describedby="tutorial-copy tutorial-task"></h3></div></div>
+      <p id="tutorial-copy"></p><div id="tutorial-example" role="group" aria-label="Dæmi með teningum"></div>
+      <p id="tutorial-task"></p><div id="tutorial-choices" role="group" aria-label="Veldu svar"></div>
+      <p id="tutorial-feedback" role="status" aria-live="polite"></p>
+      <div class="coach-actions"><button id="tutorial-next" class="secondary">Áfram</button><button id="tutorial-repeat" class="secondary" hidden>Æfa aftur</button><button id="tutorial-exit" class="text-button">Hætta kennslu</button></div>
+    </section>
+    <div class="score-scroll"><table><thead><tr><th scope="col">Flokkur</th><th scope="col">Þú</th><th scope="col">Mosi</th></tr></thead><tbody id="score-rows"></tbody><tfoot><tr><th>Bónus <small>63 → +50</small></th><td id="you-bonus">0</td><td id="mosi-bonus">0</td></tr></tfoot></table></div>
+    <div class="bonus-progress"><div><span>Leiðin í bónus</span><span id="upper-copy">0 / 63 · 0 / 63</span></div><div class="bonus-bars"><span><i id="you-progress"></i></span><span><i id="mosi-progress"></i></span></div></div>
+  </aside>
+</main>
+<dialog id="welcome" class="panel"><span class="eyebrow">SETJUMST AÐ BORÐINU</span><h2>Yatzy við Mosa</h2><p>Hristu kastílátið, geymdu góða teninga og safnaðu stigum. Mosi spilar á móti þér.</p><button id="continue" class="primary" hidden>Halda áfram</button><button id="learn" class="secondary">Læra með Mosa · prófum saman!</button><button id="start" class="primary">Byrja nýjan leik</button><p class="fine">15 umferðir · allt að 3 köst í hvert sinn</p></dialog>
+<dialog id="pause-dialog" class="panel"><span class="eyebrow">GÓÐ STUND FYRIR HLÉ</span><h2>Mosi bíður.</h2><p>Leikurinn vistast sjálfkrafa á þessu tæki.</p><button class="primary" data-close>Halda áfram</button><button id="motion" class="secondary" aria-pressed="false">Rólegri hreyfing</button><button id="new-game" class="text-button">Nýr leikur</button></dialog>
+<dialog id="help-dialog" class="panel help-panel"><span class="eyebrow">SVONA SPILUM VIÐ</span><h2>Lærum með Mosa</h2><p>Mosi sýnir þér eitt í einu. Þú færð að kasta, geyma, losa og skrá stig. Svo æfum við pör, fullt hús, séns og bónus með myndum.</p><button id="learn-help" class="primary">Prófa kennsluna</button><p class="fine">Leikurinn þinn bíður á meðan. Þú getur hætt kennslunni hvenær sem er.</p><ol><li>Kastaðu allt að þrisvar. Geymdu teninga sem þú vilt halda.</li><li>Veldu einn lausan reit í dálkinum Þú. Talan í reitnum sýnir hvað þú færð.</li><li>Mosi á svo leik. Þegar báðir hafa fyllt 15 reiti vinnur sá sem hefur fleiri stig.</li></ol><button class="secondary" data-close>Aftur að borðinu</button></dialog>
+<dialog id="zero-dialog" class="panel"><h2 id="zero-title">Skrá núll?</h2><p>Þessi reitur verður þá fylltur fyrir restina af leiknum.</p><button id="confirm-zero" class="primary">Skrá 0 stig</button><button class="secondary" data-close>Velja annan reit</button></dialog>
+<dialog id="win-dialog" class="panel"><span class="eyebrow">TAKK FYRIR LEIKINN</span><h2 id="win-title"></h2><p id="win-copy"></p><button id="play-again" class="primary">Spila aftur</button><button class="secondary" data-close>Skoða stigablaðið</button></dialog>
+<script type="module" src="./engine/yatzy-mosi/game.js"></script>
+</body></html>
