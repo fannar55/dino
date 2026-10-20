@@ -30,6 +30,7 @@ import { parseManifest } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createYatzyGame } from './engine/yatzy/table.js';
+import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
@@ -180,7 +181,7 @@ const pointer = createPointer({ canvas, camera, world });
 const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once.
   onTab: tab => { if (tab === 'games') setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
@@ -208,6 +209,15 @@ const yatzy = createYatzyGame(document, {
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('yatzy', paused);
+  },
+  onClose: () => book.refresh(),
+});
+// "Litla Yatzy við Mosa" (remake/yatzy-junior.html, a page of its own) in a frame over the book (engine/yatzy-junior/frame.js),
+// the chapter held meanwhile as for the other games.
+const junior = createJuniorFrame(document, {
+  onPause: paused => {
+    clock.setPaused(paused || book.isOpen);
+    hold('yatzy-junior', paused);
   },
   onClose: () => book.refresh(),
 });
@@ -493,4 +503,4 @@ renderer.setAnimationLoop(now => {
   }
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

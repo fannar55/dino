@@ -173,3 +173,5 @@ button:focus-visible{outline:3px solid #dba52b;outline-offset:3px}
   .panel{padding:22px}.panel h2{font-size:27px}.panel p{font-size:16px}.panel-mosi{width:88px;height:67px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* In the book (?inbook=1): the book's round close, 88px, sits top right over the scoreboard, so its icons move left of it. */
+#game[data-inbook="1"] .score-heading nav{margin-right:96px}

@@ -18,7 +18,9 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
 // opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
-// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js), new until it is first played.
+// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js), new until it is first played. Then the
+// "Risaeðlu-Yatzy" tile, a taped photo of Slóeðla, onPlay('yatzy') (engine/yatzy/table.js), with the "Litla Yatzy" button under it,
+// onPlay('yatzy-junior'): the junior dice game with Mosi, a page of its own that main.js opens in a frame over the book.
 // The Safn leaf is the fossil collection, Steingervingasafn: the eight finds of "Háls og hali" (engine/hals/rules.js FOSSIL_KINDS),
 // four on each page as taped stickers (engine/hals/fossil-art.js), in colour once found (the save's getHals().found) and a soft
 // silhouette with a "?" until then. A tap on a found one has the narrator say its name and a fact (hals_fossil_<kind>), shows its
@@ -191,8 +193,12 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   yatzyBadge.textContent = 'Nýtt!';
   yatzyBadge.setAttribute('aria-hidden', 'true');
   yatzyTile.append(yatzyPicture, yatzyName);
+  const littleButton = make('button', 'game-teach game-little'); // "Litla Yatzy": the junior game with Mosi, under the tile
+  littleButton.setAttribute('type', 'button');
+  littleButton.setAttribute('aria-label', 'Litla Yatzy við Mosa');
+  littleButton.innerHTML = '<svg class="book-icon" viewBox="0 0 24 24" aria-hidden="true"><rect class="icon-fill" x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.7" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg><span>Litla Yatzy</span>';
   const yatzySlot = make('div', 'game-slot');
-  yatzySlot.append(yatzyTile);
+  yatzySlot.append(yatzyTile, littleButton);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
   gamesLeft.append(eittSlot, halsSlot, yatzySlot);
   gamesRight.append(sheet);
@@ -618,6 +624,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   pressable(yatzyTile, { audio, sound: null, win, onTap: () => tapYatzy() });
   for (const fossil of fossilTiles) pressable(fossil.tile, { audio, sound: null, win, onTap: () => tapFossil(fossil) });
   pressable(teachButton, { audio, sound: 'tile', win, onTap: () => { if (save.get().stars.includes(EITT_STAR)) onPlay?.('eitt', { tutorial: true }); } });
+  pressable(littleButton, { audio, sound: 'tile', win, onTap: () => onPlay?.('yatzy-junior') }); // "Litla Yatzy": the junior page in a frame over the book (main.js)
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's
