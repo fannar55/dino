@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="is">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#2c5544">
+  <title>Litla Yatzy við Mosa</title>
+  <link rel="icon" href="data:,">
+  <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./yatzy-junior.css">
+  <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script>
+</head>
+<body>
+<main id="game" data-mode="junior" data-startup="loading">
+  <section class="scene" aria-label="Yatzy-borðið með Mosa">
+    <canvas id="table" aria-label="Borð, fimm teningar og Mosi"></canvas>
+    <header class="masthead">
+      <div class="brand"><span>ÆVINTÝRI MOSA</span><h1>Litla Yatzy</h1></div>
+      <div class="turn"><span class="turn-dot" aria-hidden="true"></span><span id="turn-label">Velkomin að borðinu</span></div>
+    </header>
+    <div id="dice-targets" aria-label="Veldu teninga til að geyma"></div>
+    <button id="cup-target" type="button" hidden aria-label="Kasta teningunum">
+      <span class="cup-aura" aria-hidden="true"></span>
+      <span class="cup-spark cup-spark-one" aria-hidden="true">✦</span>
+      <span class="cup-spark cup-spark-two" aria-hidden="true">✧</span>
+      <span id="cup-label">Kasta</span>
+    </button>
+
+    <section id="lesson-center" data-phase="listen" aria-label="Mosi hjálpar þér" hidden>
+      <p id="lesson-line" role="status" aria-live="polite">Prófum saman!</p>
+      <div id="lesson-example" role="group" aria-label="Dæmi með teningum" hidden></div>
+      <div class="lesson-actions">
+        <button id="lesson-replay" class="voice-button" type="button" aria-label="Heyra Mosa aftur" title="Heyra aftur">🔊</button>
+        <button id="lesson-next" class="primary" type="button" hidden>Prófum!</button>
+        <button id="lesson-skip" class="text-button" type="button">Hætta æfingu</button>
+      </div>
+      <div id="voice-recovery" role="status" hidden>
+        <p>Rödd Mosa náðist ekki.</p>
+        <button id="voice-retry" class="secondary" type="button">🔊 Reyna aftur</button>
+      </div>
+    </section>
+
+    <div id="moment" role="status" aria-live="polite" hidden><span id="moment-kicker">ÞÚ OG MOSI</span><p id="moment-text">Við skulum spila!</p></div>
+    <div class="controls" id="controls" hidden>
+      <p id="hint">Kastaðu til að byrja.</p>
+      <div class="action-row"><button id="roll" class="primary" type="button"><span id="roll-label">Kasta teningum</span><span id="roll-count">3 köst</span></button><button id="advice" class="secondary" type="button" hidden>Hjálp</button></div>
+    </div>
+    <div id="loading"><span class="loading-die" aria-hidden="true">✦</span><h2>Mosi gerir borðið tilbúið…</h2><p>Rétt að byrja!</p></div>
+    <div id="error" hidden><h2>Borðið náði ekki að opnast</h2><p>Prófum aftur.</p><button class="primary" type="button" onclick="location.reload()">Reyna aftur</button></div>
+  </section>
+
+  <aside class="scoreboard" aria-label="Fimm spjöld og stig beggja leikmanna">
+    <div class="score-heading">
+      <div><span class="eyebrow" id="round">UMFERÐ 1 / 5</span><h2>Fimm spjöld</h2></div>
+      <nav aria-label="Stillingar"><button id="sound" class="icon" type="button" aria-label="Slökkva á hljóði" aria-pressed="false">♫</button><button id="help" class="icon" type="button" aria-label="Fá hjálp frá Mosa">?</button><button id="pause" class="icon" type="button" aria-label="Gera hlé">Ⅱ</button></nav>
+    </div>
+    <div class="totals">
+      <div id="you-card" class="player-card current"><span class="player-icon" aria-hidden="true">✋</span><span>Þú</span><strong id="you-total">0</strong></div>
+      <div id="mosi-card" class="player-card"><img src="./assets/eitt/mosi.webp" alt=""><span>Mosi</span><strong id="mosi-total">0</strong></div>
+    </div>
+    <div id="score-rows" role="group" aria-label="Veldu eitt laust spjald"></div>
+  </aside>
+</main>
+
+<dialog id="welcome" class="panel">
+  <img class="panel-mosi" src="./assets/eitt/mosi.webp" alt="">
+  <span class="eyebrow">SETJUMST AÐ BORÐINU</span><h2>Litla Yatzy við Mosa</h2>
+  <p>Fimm teningar. Fimm spjöld. Við prófum saman!</p>
+  <button id="welcome-voice" class="text-button" type="button" aria-label="Heyra Mosa lesa upphafsvalmyndina">🔊 Heyra Mosa</button>
+  <button id="continue" class="primary" type="button" hidden>Halda áfram</button>
+  <button id="learn" class="primary" type="button">Læra með Mosa</button>
+  <button id="start" class="secondary" type="button">Spila</button>
+</dialog>
+<dialog id="pause-dialog" class="panel">
+  <span class="eyebrow">GÓÐ STUND FYRIR HLÉ</span><h2>Mosi bíður.</h2>
+  <p>Við höldum áfram þegar þú ert tilbúin eða tilbúinn.</p>
+  <button id="pause-voice" class="text-button" type="button" aria-label="Heyra Mosa lesa hlévalmyndina">🔊 Heyra Mosa</button>
+  <button class="primary" type="button" data-close>Halda áfram</button>
+  <button id="motion" class="secondary" type="button" aria-pressed="false">Rólegri hreyfing</button>
+  <button id="new-game" class="text-button" type="button">Byrja upp á nýtt</button>
+</dialog>
+<dialog id="help-dialog" class="panel help-panel">
+  <img class="panel-mosi" src="./assets/eitt/mosi.webp" alt=""><h2>Prófum með Mosa</h2>
+  <p>Kastaðu. Geymdu teninga sem passa saman. Veldu eitt spjald.</p>
+  <button id="learn-help" class="primary" type="button">Sýndu mér</button>
+  <button class="secondary" type="button" data-close>Aftur að borðinu</button>
+</dialog>
+<dialog id="zero-dialog" class="panel">
+  <h2 id="zero-title">Nota spjaldið?</h2><p>Það gefur ekkert stig í þetta sinn.</p>
+  <button id="confirm-zero" class="primary" type="button">Nota spjaldið</button>
+  <button class="secondary" type="button" data-close>Velja annað</button>
+</dialog>
+<dialog id="win-dialog" class="panel">
+  <span class="eyebrow">TAKK FYRIR LEIKINN</span><h2 id="win-title"></h2><p id="win-copy"></p>
+  <button id="play-again" class="primary" type="button">Spila aftur</button>
+  <button class="secondary" type="button" data-close>Skoða spjöldin</button>
+</dialog>
+<script>
+// Keep recovery independent of the module graph: even a failed import must
+// replace the loading screen with a working retry button.
+(() => {
+  const game=document.getElementById('game'),loading=document.getElementById('loading'),errorPanel=document.getElementById('error');
+  const controller=new AbortController(),signal=controller.signal;
+  const labels={voice:'Sæki rödd Mosa…',forest:'Geri skóginn tilbúinn…',players:'Mosi sest við borðið…',shaders:'Rétt að byrja!',ready:'Tilbúið!'};
+  let finished=false;
+  game.inert=true;
+  const onStage=stage=>{if(signal.aborted)return;loading.dataset.stage=stage;loading.querySelector('p').textContent=labels[stage]||'Rétt að byrja!';};
+  const timer=setTimeout(()=>controller.abort(new Error(`Yatzy startup timed out: ${loading.dataset.stage||'modules'}`)),30000);
+  const lost=event=>{if(!finished){event.preventDefault();controller.abort(new Error('WebGL context lost during Yatzy startup'));}};
+  const canvas=document.getElementById('table');canvas.addEventListener('webglcontextlost',lost);
+  const aborted=new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));
+  const startup=import('./engine/yatzy-junior/game.js').then(module=>{
+    if(signal.aborted)throw signal.reason;
+    return module.initialize({signal,onStage});
+  });
+  Promise.race([startup,aborted]).then(()=>{
+    finished=true;game.dataset.startup='ready';
+  }).catch(error=>{
+    controller.abort(error);game.dataset.startup='error';game.inert=false;
+    document.querySelector('.scoreboard').inert=true;
+    loading.hidden=true;errorPanel.hidden=false;
+    console.error('Junior Yatzy initialization failed',error);
+  }).finally(()=>{clearTimeout(timer);canvas.removeEventListener('webglcontextlost',lost);});
+})();
+</script>
+</body>
+</html>
