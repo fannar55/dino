@@ -96,6 +96,8 @@
   <button class="secondary" type="button" data-close>Skoða spjöldin</button>
 </dialog>
 <script>
+// In the book (engine/yatzy-junior/frame.js opens this page in a frame, ?inbook=1) the book's close sits top right: the page's own buttons move out from under it (yatzy-junior.css).
+if (new URLSearchParams(location.search).has('inbook')) document.getElementById('game').dataset.inbook = '1';
 // Keep recovery independent of the module graph: even a failed import must
 // replace the loading screen with a working retry button.
 (() => {
