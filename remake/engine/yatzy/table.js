@@ -362,7 +362,7 @@ export function createYatzyGame(
   const skipBtn = make('button', 'yatzy-skip-btn');
   skipBtn.setAttribute('type', 'button');
   skipBtn.setAttribute('aria-label', 'Sleppa kennslu');
-  skipBtn.textContent = 'Sleppa kennslu';
+  skipBtn.innerHTML = '<span>Sleppa</span><span class="yatzy-long"> kennslu</span>'; // a narrow screen shows "Sleppa" alone
   skipBtn.hidden = true;
 
   const quitBtn = make('button', 'yatzy-quit');
@@ -584,9 +584,27 @@ export function createYatzyGame(
     }
   }
 
+  /**
+   * Her bubble goes beside her window where there is room for it: to the right, between the window's frame and the buttons, or else
+   * to the left, between the frame and the scores, and never wider than that room, so it touches neither.
+   */
+  function placeSpeech() {
+    const w = sloedlaWindow.getBoundingClientRect();
+    if (!w.width) return;
+    const FRAME = 9 + 10; // the window's painted frame, and a gap
+    const buttons = topRight.getBoundingClientRect().left;
+    const scores = Math.max(...[childPill, sloedlaPill, badgesBar].map(el => el.getBoundingClientRect().right));
+    const right = buttons - (w.right + FRAME) - 8;
+    const left = w.left - FRAME - scores - 8;
+    const onLeft = right < 150 && left > right;
+    speechEl.classList.toggle('on-left', onLeft);
+    speechEl.style.setProperty('--speech-max', `${Math.round(Math.max(90, Math.min(220, onLeft ? left : right)))}px`);
+  }
+
   function saySloedla(text, ms = SPEECH_MS) {
     speechEl.textContent = text;
     speechEl.hidden = false;
+    placeSpeech();
     retrigger(speechEl, 'pop');
     clearTimeout(speechTimer);
     speechTimer = setTimeout(() => {
@@ -790,6 +808,7 @@ export function createYatzyGame(
     }
 
     renderTutorialState();
+    if (!speechEl.hidden) placeSpeech(); // the buttons beside her window may have changed
   }
 
   // ---- Actions --------------------------------------------------------------------------------------------------------

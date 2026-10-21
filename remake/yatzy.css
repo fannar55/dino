@@ -226,6 +226,7 @@
 .yatzy-sloedla-wrap {
   position: relative;
   justify-self: center;
+  margin-top: 10px; /* room for the tapes on its top corners */
 }
 
 .yatzy-sloedla {
@@ -271,7 +272,7 @@
 .yatzy-sloedla-frame::after {
   content: "";
   position: absolute;
-  top: -11px;
+  top: -8px;
   width: min(24%, 76px);
   height: 24px;
   background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--blue-light) 68%, transparent);
@@ -288,7 +289,7 @@
   top: 50%;
   transform: translateY(-50%);
   width: max-content;
-  max-width: clamp(140px, 16.5cqw, 220px);
+  max-width: min(clamp(140px, 16.5cqw, 220px), var(--speech-max, 220px)); /* table.js: placeSpeech() says how much room there is */
   background: var(--card);
   border: 3px solid var(--ink);
   border-radius: 18px;
@@ -300,6 +301,13 @@
   z-index: 5;
   pointer-events: none;
   transform-origin: 0 50%;
+  overflow-wrap: anywhere;
+}
+
+.yatzy-speech.on-left {
+  left: auto;
+  right: calc(100% + 10px);
+  transform-origin: 100% 50%;
 }
 
 .yatzy-speech.pop { animation: yatzy-speech-pop 320ms cubic-bezier(.25, 1.5, .45, 1); }
@@ -361,7 +369,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: clamp(5px, 0.8cqh, 9px);
+  gap: clamp(8px, 1.1cqh, 12px); /* wider than a row's ring and thickness together, so neighbours never touch */
 }
 .yatzy-col.left { grid-area: left; }
 .yatzy-col.right { grid-area: right; }
@@ -409,7 +417,6 @@
   background: linear-gradient(180deg, #fffbe0, #ffefc2);
   border-color: var(--orange);
   box-shadow: 0 5px 0 var(--orange-deep), 0 0 0 3px var(--gold), 0 8px 18px rgb(242 182 48 / .45);
-  transform: scale(1.02);
 }
 
 .yatzy-row.filled {
@@ -418,12 +425,26 @@
   cursor: default;
 }
 
-/* The best row breathes while the child chooses */
-.yatzy-row.can-pick.best:not(.hint) { animation: yatzy-row-breathe 1.7s ease-in-out infinite alternate; }
+/* The best row breathes while the child chooses: a warm light swells and fades inside it, and its score pill swells with it */
+.yatzy-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 18px 4px rgb(255 200 60 / .85);
+}
+.yatzy-row.can-pick.best:not(.hint)::before { animation: yatzy-row-breathe 1.7s ease-in-out infinite alternate; }
+.yatzy-row.can-pick.best:not(.hint) .yatzy-row-mine { animation: yatzy-pill-breathe 1.7s ease-in-out infinite alternate; }
 
 @keyframes yatzy-row-breathe {
-  from { transform: scale(1.01); }
-  to { transform: scale(1.03); }
+  from { opacity: .1; }
+  to { opacity: 1; }
+}
+
+@keyframes yatzy-pill-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
 }
 
 /* A row that scores now shimmers once: a band of light sweeps across it */
@@ -653,9 +674,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: clamp(6px, 0.85cqw, 12px);
+  gap: clamp(8px, 0.95cqw, 12px); /* wider than two dice's gold rings together */
   flex-wrap: nowrap;
-  padding: 16px 14px 18px;
+  padding: 16px 10px 18px;
   border-radius: 30px;
   background:
     radial-gradient(ellipse 80% 60% at 50% 60%, rgb(63 95 60 / .35), rgb(44 70 42 / .55));
@@ -667,8 +688,11 @@
   --dino-c: var(--green);
   --dino-deep: var(--green-deep);
   --dino-light: #a3d977;
-  width: clamp(66px, min(7.1cqw, 15.5cqh), 102px);
-  height: clamp(84px, min(8.9cqw, 19cqh), 124px);
+  /* As wide as five fit in the middle column with the tray round them (the column is about 40.8cqw less 24px), and no taller than
+     the screen allows */
+  --die-w: clamp(60px, min(7.4cqw - 13px, 15.5cqh), 102px);
+  width: var(--die-w);
+  height: calc(var(--die-w) * 1.24);
   border-radius: 20px;
   background: linear-gradient(180deg, #fffdf8 0%, var(--card) 75%, #efe4ce 100%);
   border: 3.5px solid var(--ink);
@@ -687,7 +711,7 @@
 
 /* Held in the moss nest: it lifts and glows */
 .yatzy-die.held {
-  transform: translateY(-7px) scale(1.03);
+  transform: translateY(-7px);
   background: linear-gradient(180deg, #f5fbe6 0%, #e4f2c3 78%, #c7e094 100%);
   box-shadow:
     0 7px 0 var(--moss-deep),
@@ -858,7 +882,7 @@
 }
 
 .yatzy-die-name {
-  font-size: clamp(11px, 1.25cqw, 14px);
+  font-size: clamp(10px, 1.05cqw, 14px);
   font-weight: 900;
   color: var(--ink);
   line-height: 1.05;
@@ -1498,9 +1522,25 @@
   z-index: 5;
 }
 
+.yatzy.teaching .yatzy-row.tut-live {
+  box-shadow: 0 5px 0 var(--ink), 0 0 0 3px var(--gold), 0 0 24px rgb(242 182 48 / .95) !important;
+  animation: none;
+}
+.yatzy.teaching .yatzy-row.tut-live::before { animation: yatzy-row-breathe 1.05s ease-in-out infinite alternate; }
+
+.yatzy.teaching .yatzy-die.tut-live {
+  box-shadow: 0 7px 0 var(--dino-deep), 0 0 0 4px var(--gold), 0 0 26px rgb(242 182 48 / .95) !important;
+  animation: yatzy-tut-hop 1.05s ease-in-out infinite alternate;
+}
+
+@keyframes yatzy-tut-hop {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-5px); }
+}
+
 @keyframes yatzy-tut-pulse {
-  0% { transform: scale(1) translateY(0); }
-  100% { transform: scale(1.05) translateY(-4px); }
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-5px); }
 }
 
 .tut-nope,
@@ -1528,6 +1568,16 @@
   .yatzy-sloedla {
     width: clamp(150px, 28cqw, 230px);
   }
+  .yatzy-die {
+    --die-w: clamp(60px, min(15cqw - 16px, 11cqh), 102px);
+  }
+}
+
+/* Narrow screens: "Kennsla" is its cap alone (its name stays in its label), so Slóeðla's bubble has room beside her window */
+@media (max-width: 900px) {
+  .yatzy-teach-btn span,
+  .yatzy-skip-btn .yatzy-long { display: none; }
+  .yatzy-teach-btn { padding: 0 12px; }
 }
 
 /* Less motion: every move is a fade, and nothing idles (no breathing row, no bouncing button, no pulsing egg) */
@@ -1545,7 +1595,10 @@
   .yatzy-egg.full .yatzy-egg-shine,
   .yatzy-row.stamped,
   .yatzy-row.stamped-theirs,
-  .yatzy-row.can-pick.best:not(.hint),
+  .yatzy-row.can-pick.best:not(.hint)::before,
+  .yatzy-row.can-pick.best:not(.hint) .yatzy-row-mine,
+  .yatzy.teaching .yatzy-row.tut-live::before,
+  .yatzy.teaching .yatzy-die.tut-live,
   .yatzy-roll.inviting:not(:disabled),
   .yatzy-score-pill.bump,
   .yatzy-badge-slot.new,
