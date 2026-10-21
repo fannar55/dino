@@ -146,7 +146,7 @@ test('the fen plan keeps plants out of the water and lilies in it', () => {
   const { layout, plan } = planOf(FEN_PLACE);
   const counts = counted(plan.placements);
   // the Fen grows its own plants, and none of the forest's broadleaves, araucarias, bushes or flowers
-  for (const name of ['swampConifer', 'horsetailReed', 'horsetailTall', 'waterLily', 'mossHummock', 'deadSnag', 'fern', 'cycad']) {
+  for (const name of ['swampConifer', 'horsetailReed', 'horsetailTall', 'waterLily', 'mossHummock', 'deadSnag', 'fern', 'cycad', 'treeFern', 'log']) {
     assert.ok(counts[name] > 0, `the Fen has no ${name}`);
   }
   for (const name of ['broadleaf', 'araucaria', 'bush', 'flowers']) assert.equal(counts[name] ?? 0, 0, `the Fen grows ${counts[name]} ${name}`);

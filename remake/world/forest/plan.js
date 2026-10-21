@@ -706,7 +706,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   // ---- the Fen --------------------------------------------------------------------------------
   // Open water and golden reed with groves of swamp conifers: the layout's own plants first, then the groves and lone conifers,
   // the dead snags, beds of horsetail reed along the water and in the open, tall horsetails, moss hummocks with ferns, cycads
-  // and tree ferns on the dry ground, a few mossy stones, and the lilies on the water. Every count is FEN.counts at the tablet
+  // and tree ferns on the dry ground, a fallen log or two along a shore, a few mossy stones, and the lilies on the water. Every count is FEN.counts at the tablet
   // preset; a pass places its plants by the fen's share (a trail grows fewer where it is still half forest).
   function growFen() {
     const C = FEN.counts;
@@ -895,7 +895,25 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         if (p) placed++;
       }
     }
-    // 6. a few mossy stones
+    // 6. a fallen log or two lying along a shore, out of the water at both ends (the turtle's log, Task 4)
+    if (signed) {
+      const rng = createRng(seed, 'fen-logs');
+      const want = Math.max(1, scaled(C.logs, q.plants));
+      let placed = 0;
+      for (let i = 0; i < want * 40 && placed < want; i++) {
+        const at = shoreSpot(rng, 1.0, 2.8);
+        if (!at) continue;
+        const [x, z] = at, e = 0.3;
+        const gx = signed(x + e, z) - signed(x - e, z), gz = signed(x, z + e) - signed(x, z - e);
+        const rot = Math.atan2(gz, gx) + Math.PI / 2 + rng.range(-0.25, 0.25); // along the shore
+        const half = library.get('log', 0, 0).length / 2;
+        const dx = Math.cos(rot), dz = Math.sin(rot);
+        if (signed(x + dx * half, z + dz * half) < 0.3 || signed(x - dx * half, z - dz * half) < 0.3) continue;
+        const p = fenPlace('log', at, rng, { variant: 0, lod: 0, rot, footprint: 1.0, spacing: 1, pathClear: P.rockClear + 1, blocksGrass: true, grassRadius: 0.6 });
+        if (p) { placed++; p.logAxis = [dx, dz]; p.halfLength = half; }
+      }
+    }
+    // 7. a few mossy stones
     {
       const rng = createRng(seed, 'fen-rocks');
       const want = scaled(C.rocks, q.plants);
@@ -909,7 +927,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         if (p) placed++;
       }
     }
-    // 7. lilies on the water: where it is deep enough, mostly in the pools, never right at an edge
+    // 8. lilies on the water: where it is deep enough, mostly in the pools, never right at an edge
     if (water) {
       const rng = createRng(seed, 'fen-lilies');
       const want = scaled(C.lilies, q.plants);

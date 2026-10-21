@@ -279,6 +279,7 @@ export const FEN = {
     treeFerns: 10,
     lilies: 44,
     rocks: 8,
+    logs: 2,
   },
   // Where it grows: out to this far beyond the forest edge (m), most of it on the clearing's rim (plan.js: growFen).
   reach: 70,
