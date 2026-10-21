@@ -2526,8 +2526,8 @@
  },
  "k2_mosi_hint_far2": {
   "src": "assets/audio/kafli2/k2_mosi_hint_far2.mp3",
-  "duration": 3.21,
-  "mouth": "05ee32009dffe00efdeeffedc80000000566ddda05fe048beec70000000000000"
+  "duration": 2.57,
+  "mouth": "07ef55307cfef700efddddef80838cc30ef369c7000000000000"
  },
  "k2_mosi_hint_far3": {
   "src": "assets/audio/kafli2/k2_mosi_hint_far3.mp3",
@@ -2603,5 +2603,10 @@
   "src": "assets/audio/kafli2/k2_mosi_map_uggedla.mp3",
   "duration": 5.21,
   "mouth": "7fe0008fffdca8600000000cff00adcccc609cac8007edbbdca500000007ca500cc0038ba0000bd700004c5300500000000000000"
+ },
+ "k2_mosi_map_kambedla": {
+  "src": "assets/audio/kafli2/k2_mosi_map_kambedla.mp3",
+  "duration": 4.33,
+  "mouth": "5acfec60affddddca90000000002afe90d9ceaeeddda800bbbaa000cb6de6bceddd749a6079300000000000"
  }
 }

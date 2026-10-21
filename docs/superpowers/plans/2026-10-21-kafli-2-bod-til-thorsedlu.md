@@ -14,7 +14,7 @@
 
 - **Worktree and branch:** `C:/Risaeðla/dino-kafli2`, branch `kafli2` (from main b9cfb5d). Never push. Commit after each piece with paths named in `git add`. Every commit message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (builders run on Opus 5.5).
 - **Never:** bare `git stash`; touch `dist/` or `design/`; call ElevenLabs (only the controller records voices); stop servers on ports 4190, 4195 or 4197; dispatch subagents.
-- **Line endings:** keep each file's existing line endings and never convert a file (the repo has `.gitattributes * -text`; most files, `main.js` and `STYLE.md` among them, are CRLF). Edit with tools that preserve them.
+- **Line endings:** keep each file's existing line endings and never convert a file (the repo has `.gitattributes * -text`, so git never normalizes; `git ls-files --eol` shows most text files LF and a few CRLF, `main.js`, `STYLE.md` and `README.md` among them). Edit with tools that preserve them.
 - **Real scale** (STYLE.md 3): Þórseðla 22 m, head 8.3–9 m up; Mosi 8.5 m; Egill 1.1 m. No scale tricks.
 - **Science first** (spec 1): only animals and plants that lived with the dinosaurs in the Fen: frogs, salamanders, turtles, dragonflies, water beetles, water striders, early birds, fish, snails; horsetails, ferns, cycads, swamp conifers, water lilies, moss. No herons, ducks or modern grasses. The red berries are the one allowed licence.
 - **The Fen's look** (spec 3): wet, golden, clear, not dark; water `#3f7a6e` → `#a9c9c4`, horsetail reeds `#c9b45a`/`#e3d08a`, moss `#6f8f3c`/`#4e7a3a`, mud `#4a3a2c`, swamp-tree bark `#5a4636`, hanging moss `#8aa05a`, lily pads `#4f8a4a` with `#f6f1e4`/`#f0a3b6` flowers, mist `#cfe0d6`. Mosi stands on a dry hummock with light water behind him (STYLE 5).
