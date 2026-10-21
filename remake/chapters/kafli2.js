@@ -307,12 +307,13 @@ export const chapter = {
           { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
           { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
         ],
-        // the two conifers whose tops she bites; a tall white snag for Flugeðla; reed round where Uggeðla lies
+        // the two conifers whose tops she bites (about 11 m tall, their crowns from 4 m up); a white snag 10.5 m tall for Flugeðla
+        // to perch on; reed round where Uggeðla lies, on her side away from the channel
         plants: [
-          { name: 'swampConifer', position: [9.6, -10.8], scale: 0.85, variant: 0 },
-          { name: 'swampConifer', position: [9.4, -7.0], scale: 0.8, variant: 1 },
-          { name: 'deadSnag', position: [-52, -88], scale: 1.4, variant: 0 },
-          ...[0, 1, 2, 3, 4, 5].map(k => ({ name: 'horsetailReed', position: [78 + Math.cos(k * 1.05 + 0.3) * 10, 40 + Math.sin(k * 1.05 + 0.3) * 8], variant: k % 4 })),
+          { name: 'swampConifer', position: [9.6, -10.8], scale: 0.98, variant: 5 },
+          { name: 'swampConifer', position: [9.4, -7.0], scale: 0.85, variant: 3 },
+          { name: 'deadSnag', position: [-52, -88], scale: 1.5, variant: 2 },
+          ...[[72, 33], [78, 31], [84, 34], [88, 41], [69, 39], [82, 45]].map((position, k) => ({ name: 'horsetailReed', position, variant: k % 4, scale: 1.15 })),
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },

@@ -10,9 +10,16 @@
 //   - big crowns stay out of the sun corridor so the clearing keeps its light.
 // A fern glade (layout.glade, config.js) grows a lusher rim of ferns round its clearing. The shots and the actors are the
 // layout's own when it carries `shots` and `actors` (a chapter location keeps its own place clear), else the chapter's.
+// The Fen (layout.biome 'fen', biome.js) grows its own plants instead (growFen below): where a point is fen, the forest's passes
+// give way, by the fen's share there, so a trail that turns from forest to fen turns over the width of its blend. Its plants
+// keep out of the water (layout.keepOut) but the lilies, which grow only on it (layout.water.depthAt), and its tall plants keep
+// out of the lines from the lookout to the far friends (layout.lookout, layout.farFriends). Plants the layout names itself
+// (layout.plants) are placed first, where it says.
 import * as THREE from 'three';
-import { FOREST, scaled, gladeOf } from './config.js';
+import { FOREST, FEN, scaled, gladeOf } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
+import { biomeOf } from './biome.js';
+import { SPECIES } from './species.js';
 import { sunDirection } from '../../engine/lighting.js';
 import { pickLook } from '../../engine/looks.js';
 
@@ -169,6 +176,15 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   const sunSamples = [];
   for (const [dx, dz] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3], [2.2, 2.2], [-2.2, 2.2], [2.2, -2.2], [-2.2, -2.2]]) sunSamples.push(new THREE.Vector3(cx + dx, 1.2, cz + dz));
 
+  // the Fen: a forest pass's plant is kept with the forest's share at its spot, a fen pass's with the fen's (biome.js)
+  const biome = biomeOf(layout);
+  const biomeRng = createRng(seed, 'biome');
+  const shareHere = (x, z, fen) => {
+    const s = biome.shareAt(x, z);
+    const want = fen ? s : 1 - s;
+    return want >= 1 || (want > 0 && biomeRng.next() < want);
+  };
+
   const lodBias = q.name === 'low' ? 1 : 0; // low quality uses the next coarser model everywhere
   const cameraSpots = shots.filter(s => !s.name.includes('@')).map(s => [s.pos.x, s.pos.z]);
   const nearCamera = (x, z) => { let d = Infinity; for (const [px, pz] of cameraSpots) d = Math.min(d, Math.hypot(px - x, pz - z)); return d; };
@@ -284,7 +300,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
    */
   // Plants that change with distance carry several detail levels; the batcher bakes them all and
   // the cull picks one by camera distance. The deep band starts at the middle level.
-  const LOD_SPECIES = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'fern', 'bush', 'horsetail']);
+  const LOD_SPECIES = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'fern', 'bush', 'horsetail', 'swampConifer', 'deadSnag', 'horsetailReed', 'horsetailTall', 'waterLily', 'mossHummock']);
   function levelsFor(name, r, baseLod) {
     if (!LOD_SPECIES.has(name)) return [Math.min(2, baseLod + lodBias)];
     const first = Math.min(2, (bandOf(r) === 'deep' ? 1 : 0) + lodBias);
@@ -293,6 +309,9 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     return out;
   }
   function tryPlace(name, x, z, opts) {
+    // a plant the layout places itself (opts.authored) goes where it says; any other gives way to the other biome there
+    const authored = Boolean(opts.authored);
+    if (biome.fen && !authored && !shareHere(x, z, Boolean(opts.fen))) { stats.rejected.biome = (stats.rejected.biome ?? 0) + 1; return null; }
     let shape = opts.shape || {};
     // the bushes right next to an authored camera get extra-fine lobes: they fill the frame there
     if (name === 'bush' && nearCamera(x, z) < 3.8) shape = { ...shape, fine: true };
@@ -304,22 +323,24 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const r = radiusOf(x, z);
     const pq = terrain.path.query(x, z);
     const trunkR = model.trunk ? model.trunk.flare * scale : model.radius * scale * 0.7;
-    if (pq.d < (opts.pathClear ?? P.plantClear) + trunkR) { stats.rejected.path++; return null; }
-    if (layout.keepOut?.(x, z) > 0.5) { stats.rejected.path++; return null; } // a layout's own bare ground
-    for (const a of actors) {
+    if (!authored && pq.d < (opts.pathClear ?? P.plantClear) + trunkR) { stats.rejected.path++; return null; }
+    // a layout's own bare ground (the Fen's water, where only a lily, opts.inWater, may grow)
+    if (!authored && !opts.inWater && layout.keepOut?.(x, z) > 0.5) { stats.rejected.path++; return null; }
+    for (const a of authored ? [] : actors) {
       if (Math.hypot(a.x - x, a.z - z) < (opts.actorClear ?? 3.2) + model.radius * scale * 0.5) { stats.rejected.actor++; return null; }
     }
     const footprint = (opts.footprint ?? (tall ? model.trunk?.flare ?? model.radius : model.radius)) * scale;
     if (name === 'araucaria') {
       for (const o of treeHash.near(x, z, 10)) if (o.araucaria && Math.hypot(o.x - x, o.z - z) < 9) { stats.rejected.space++; return null; }
     }
-    if (opts.treeSpacing) {
+    if (opts.treeSpacing && !authored) {
       for (const o of treeHash.near(x, z, opts.treeSpacing + 1)) {
         if (Math.hypot(o.x - x, o.z - z) < Math.min(opts.treeSpacing, o.s)) { stats.rejected.space++; return null; }
       }
     }
-    if (!spaceFree(x, z, footprint * (opts.spacing ?? 1), opts.soft ?? 1)) { stats.rejected.space++; return null; }
-    const y = terrain.heightAt(x, z) - (opts.sink ?? model.sink ?? 0) * scale;
+    if (!authored && !spaceFree(x, z, footprint * (opts.spacing ?? 1), opts.soft ?? 1)) { stats.rejected.space++; return null; }
+    if (!authored && opts.where && !opts.where(model, scale)) { stats.rejected.space++; return null; }
+    const y = opts.y ?? terrain.heightAt(x, z) - (opts.sink ?? model.sink ?? 0) * scale;
     const rot = opts.rot ?? 0;
     const list = opts.spheres ? opts.spheres(y) : spheres(model, x, y, z, rot, scale, tall);
     // kept out from behind close-ups, but not the rim ferns of a lush glade: they are the glade, and so low that they hide nothing behind a character
@@ -329,7 +350,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const blocked = shotBlocked(list, opts.edgeShot);
       if (blocked) { stats.rejected.shot++; const k = blocked.split("@")[0] + (tall ? ":tall" : ""); stats.byShot[k] = (stats.byShot[k] || 0) + 1; return null; }
     }
-    if (tall && r < 40 && sunBlocked(list.filter(s => s.crown || s.c[1] > 4))) { stats.rejected.sun++; return null; }
+    if (tall && r < 40 && !authored && sunBlocked(list.filter(s => s.crown || s.c[1] > 4))) { stats.rejected.sun++; return null; }
     const band = bandOf(r);
     const placement = {
       name, model, variant: opts.variant, lod, x, y, z, rot, scale, band,
@@ -664,6 +685,223 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       }
     }
   }
+  if (biome.fen) growFen();
+
+  // ---- the Fen --------------------------------------------------------------------------------
+  // Open water and golden reed with groves of swamp conifers: the layout's own plants first, then the groves and lone conifers,
+  // the dead snags, beds of horsetail reed along the water and in the open, tall horsetails, moss hummocks with ferns, cycads
+  // and tree ferns on the dry ground, a few mossy stones, and the lilies on the water. Every count is FEN.counts at the tablet
+  // preset; a pass places its plants by the fen's share (a trail grows fewer where it is still half forest).
+  function growFen() {
+    const C = FEN.counts;
+    const reach = edgeR + FEN.reach;
+    const water = layout.water ?? null;
+    const signed = layout.water?.shape?.signedAt ?? null;
+    const T2 = (rng, r0, r1) => {
+      const a = rng.angle(), rr = Math.sqrt(r0 * r0 + rng.next() * (r1 * r1 - r0 * r0));
+      return [cx + Math.cos(a) * rr, cz + Math.sin(a) * rr];
+    };
+    const lodAt = (x, z) => { const rr = radiusOf(x, z); return rr < edgeR + 3 ? 0 : rr < edgeR + 16 ? 1 : 2; };
+    // the lines along which the lookout sees the far friends, and the friends' own spots, kept clear of tall plants
+    const sights = [];
+    if (layout.farFriends) {
+      const from = layout.lookout ? [layout.lookout[0], layout.lookout[2]] : [cx, cz];
+      for (const [fx, fz] of Object.values(layout.farFriends)) sights.push({ ax: from[0], az: from[1], bx: fx, bz: fz });
+    }
+    const inSight = (x, z, reachM = 7) => sights.some(s => {
+      const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz;
+      const t = clamp(((x - s.ax) * dx + (z - s.az) * dz) / l2, 0, 1);
+      return Math.hypot(x - s.ax - dx * t, z - s.az - dz * t) < (t > 0.92 ? 10 : reachM);
+    });
+    const wetness = (x, z) => (signed ? signed(x, z) : Infinity); // distance to the nearest water (negative in it)
+
+    // 0. the layout's own plants, where it says
+    {
+      const rng = createRng(seed, 'fen-authored');
+      for (const spec of layout.plants ?? []) {
+        const [x, z] = spec.position;
+        const p = tryPlace(spec.name, x, z, {
+          variant: spec.variant ?? 0, lod: 0, tall: Boolean(SPECIES[spec.name]?.tall), rot: spec.rot ?? rng.angle(), scale: spec.scale ?? 1,
+          authored: true, skipShots: true, sky: FEN.sky, phase: rng.next(), blocksGrass: true, grassRadius: 0.8,
+          y: spec.name === 'waterLily' ? water?.surfaceAt(x, z) ?? undefined : undefined,
+        });
+        if (p && SPECIES[spec.name]?.tall) treeHash.add({ x, z, s: 4.5 });
+      }
+    }
+    // a plant of a fen pass: the fen's share decides, the open sky lights it, and tall ones keep out of the sightlines
+    const fenPlace = (name, x, z, rng, opts = {}) => {
+      if (opts.tall && inSight(x, z)) { stats.rejected.space++; return null; }
+      return tryPlace(name, x, z, {
+        variant: rng.int(0, (T.variants[name] || 3) - 1), lod: lodAt(x, z), rot: rng.angle(), phase: rng.next(),
+        pathClear: P.plantClear, sky: FEN.sky, fen: true, ...opts,
+      });
+    };
+
+    // 1. groves of swamp conifers, two to four trees each, mostly near the water; and some standing alone
+    {
+      const rng = createRng(seed, 'fen-groves');
+      const want = scaled(C.groves, q.trees);
+      let made = 0;
+      for (let i = 0; i < want * 40 && made < want; i++) {
+        const [ux, uz] = T2(rng, clearR * 0.55, reach);
+        const near = wetness(ux, uz);
+        if (signed && near > 9 && !rng.chance(0.35)) continue; // most groves stand by the water
+        if (!shareHere(ux, uz, true) || inSight(ux, uz, 9)) continue;
+        const n = rng.int(2, 4);
+        let grown = 0;
+        for (let k = 0; k < n; k++) {
+          const a = rng.angle(), d = k === 0 ? 0 : rng.range(2.8, 6);
+          const p = fenPlace('swampConifer', ux + Math.cos(a) * d, uz + Math.sin(a) * d, rng, {
+            tall: true, scale: rng.range(0.85, 1.2), pathClear: P.treeClear, treeSpacing: 4.2, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
+          });
+          if (p) grown++;
+        }
+        if (grown) made++;
+      }
+      const lone = scaled(C.loneConifers, q.trees);
+      let placed = 0;
+      for (let i = 0; i < lone * 40 && placed < lone; i++) {
+        const [x, z] = T2(rng, clearR - 4, reach);
+        const p = fenPlace('swampConifer', x, z, rng, {
+          tall: true, scale: rng.range(0.75, 1.15), pathClear: P.treeClear, treeSpacing: 6, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
+        });
+        if (p) placed++;
+      }
+    }
+    // 2. dead white snags, some standing at the water
+    {
+      const rng = createRng(seed, 'fen-snags');
+      const want = scaled(C.snags, q.trees);
+      let placed = 0;
+      for (let i = 0; i < want * 40 && placed < want; i++) {
+        const [x, z] = T2(rng, clearR * 0.6, reach);
+        if (signed && wetness(x, z) > 6 && !rng.chance(0.4)) continue;
+        const p = fenPlace('deadSnag', x, z, rng, { tall: true, scale: rng.range(0.8, 1.3), pathClear: P.treeClear - 0.8, treeSpacing: 4, blocksGrass: true, grassRadius: 0.4 });
+        if (p) placed++;
+      }
+    }
+    // 3. beds of golden horsetail reed: along the water's edge, and in the open
+    const beds = [];
+    {
+      const rng = createRng(seed, 'fen-reed');
+      const want = scaled(C.reedBeds, q.plants);
+      for (let i = 0; i < want * 40 && beds.length < want; i++) {
+        let x, z;
+        if (signed && rng.chance(0.7)) {
+          // a spot on a shore: a point near the water, pushed out of it
+          [x, z] = T2(rng, 0, reach);
+          const s = wetness(x, z);
+          if (!(s > 0.3 && s < 3.2)) continue;
+        } else [x, z] = T2(rng, clearR * 0.4, reach);
+        if (!shareHere(x, z, true)) continue;
+        const n = rng.int(3, 7);
+        let grown = 0;
+        for (let k = 0; k < n; k++) {
+          const a = rng.angle(), d = k === 0 ? 0 : rng.range(0.7, 1.8);
+          const p = fenPlace('horsetailReed', x + Math.cos(a) * d, z + Math.sin(a) * d, rng, { scale: rng.range(0.85, 1.2), spacing: 0.7, soft: 0.4 });
+          if (p) grown++;
+        }
+        if (grown) beds.push([x, z]);
+      }
+    }
+    // 4. tall horsetails, in ones and twos, by the reed and the water
+    {
+      const rng = createRng(seed, 'fen-horsetails');
+      const want = scaled(C.tallHorsetails, q.plants);
+      let placed = 0;
+      for (let i = 0; i < want * 40 && placed < want; i++) {
+        let x, z;
+        if (beds.length && rng.chance(0.6)) {
+          const [bx, bz] = rng.pick(beds);
+          const a = rng.angle(), d = rng.range(1.8, 3.5);
+          x = bx + Math.cos(a) * d; z = bz + Math.sin(a) * d;
+        } else [x, z] = T2(rng, clearR * 0.5, reach * 0.8);
+        const p = fenPlace('horsetailTall', x, z, rng, { scale: rng.range(0.85, 1.2), spacing: 0.9, soft: 0.6 });
+        if (p) placed++;
+      }
+    }
+    // 5. moss hummocks, and ferns, cycads and tree ferns on the dry ground, many by the hummocks and at the conifers' feet
+    const hummocks = [];
+    {
+      const rng = createRng(seed, 'fen-hummocks');
+      const want = scaled(C.hummocks, q.plants);
+      for (let i = 0; i < want * 40 && hummocks.length < want; i++) {
+        const [x, z] = T2(rng, 3, reach * 0.85);
+        if (signed && wetness(x, z) < 0.8) continue;
+        const p = fenPlace('mossHummock', x, z, rng, { scale: rng.range(0.8, 1.35), spacing: 1.1, blocksGrass: true, grassRadius: 0.9 });
+        if (p) hummocks.push([x, z, p.model.radius * p.scale]);
+      }
+    }
+    const nearSomething = rng => {
+      const conifers = placements.filter(p => p.name === 'swampConifer');
+      if (hummocks.length && rng.chance(0.5)) {
+        const [hx, hz, hr] = rng.pick(hummocks);
+        const a = rng.angle(), d = hr + rng.range(0.2, 1.2);
+        return [hx + Math.cos(a) * d, hz + Math.sin(a) * d];
+      }
+      if (conifers.length && rng.chance(0.6)) {
+        const t = rng.pick(conifers);
+        const a = rng.angle(), d = (t.model.trunk?.flare ?? 1) * t.scale + rng.range(0.8, 2.8);
+        return [t.x + Math.cos(a) * d, t.z + Math.sin(a) * d];
+      }
+      return T2(rng, clearR * 0.5, reach * 0.8);
+    };
+    const dry = (x, z, min = 1.0) => !signed || wetness(x, z) > min;
+    for (const [name, stream, count, opts] of [
+      ['fern', 'fen-ferns', C.ferns, { scale: [0.8, 1.3], spacing: 0.75, soft: 0.6 }],
+      ['cycad', 'fen-cycads', C.cycads, { scale: [0.8, 1.15], spacing: 1.1 }],
+      ['treeFern', 'fen-tree-ferns', C.treeFerns, { scale: [0.8, 1.15], spacing: 1.2, tall: true, pathClear: 1.8 }],
+    ]) {
+      const rng = createRng(seed, stream);
+      const want = scaled(count, q.plants);
+      let placed = 0;
+      for (let i = 0; i < want * 30 && placed < want; i++) {
+        const [x, z] = nearSomething(rng);
+        if (!dry(x, z, 1.2)) continue;
+        const p = fenPlace(name, x, z, rng, {
+          scale: rng.range(...opts.scale), spacing: opts.spacing, soft: opts.soft ?? 1, tall: opts.tall, pathClear: opts.pathClear ?? P.plantClear,
+          lod: name === 'treeFern' ? Math.min(lodAt(x, z), 1) : lodAt(x, z),
+        });
+        if (p) placed++;
+      }
+    }
+    // 6. a few mossy stones
+    {
+      const rng = createRng(seed, 'fen-rocks');
+      const want = scaled(C.rocks, q.plants);
+      let placed = 0;
+      for (let i = 0; i < want * 40 && placed < want; i++) {
+        const [x, z] = T2(rng, 4, reach * 0.6);
+        if (!dry(x, z, 0.4)) continue;
+        const p = fenPlace(rng.chance(0.5) ? 'rock' : 'rockSmall', x, z, rng, {
+          variant: rng.int(0, T.variants.rock - 1), scale: rng.range(0.6, 1.0), shape: { mossy: 1.4 }, spacing: 1.4, pathClear: P.rockClear, blocksGrass: true, grassRadius: 0.8,
+        });
+        if (p) placed++;
+      }
+    }
+    // 7. lilies on the water: where it is deep enough, mostly near an edge, never right at it
+    if (water) {
+      const rng = createRng(seed, 'fen-lilies');
+      const want = scaled(C.lilies, q.plants);
+      const pools = (layout.water.pools ?? []).filter(pool => Math.hypot(pool.center[0] - cx, pool.center[1] - cz) < reach);
+      let placed = 0;
+      for (let i = 0; i < want * 40 && placed < want; i++) {
+        let x, z;
+        if (pools.length && rng.chance(0.75)) {
+          const pool = rng.pick(pools);
+          const a = rng.angle(), d = pool.radius * Math.sqrt(rng.range(0.15, 0.85));
+          x = pool.center[0] + Math.cos(a) * d; z = pool.center[1] + Math.sin(a) * d;
+        } else [x, z] = T2(rng, 0, Math.min(reach, 60));
+        const s = wetness(x, z);
+        if (!(s < -0.8) || water.depthAt(x, z) <= 0.08) continue;
+        const p = fenPlace('waterLily', x, z, rng, {
+          scale: rng.range(0.8, 1.2), spacing: 0.9, inWater: true, pathClear: 0, actorClear: 2.6, y: water.surfaceAt(x, z) + 0.012, lod: lodAt(x, z),
+        });
+        if (p) placed++;
+      }
+    }
+  }
+
   /** Grass stays out of rocks, the log, trunks and bush centres. */
   function blocked(x, z) {
     for (const o of occupied.near(x, z, 3)) {

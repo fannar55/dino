@@ -43,6 +43,7 @@ const place = locationName ? chapter.locations[locationName] : null;
 const layout = place ? { ...place.layout, shots: place.shots ?? {} } : chapter.layout;
 const shots = place ? place.shots ?? {} : chapter.shots;
 const { createForest } = await import(pathToFileURL(path.join(ROOT, 'remake/world/forest/forest.js')).href);
+const { shotStats } = await import(pathToFileURL(path.join(ROOT, 'remake/tools/world/shot-stats.mjs')).href);
 
 const q = PRESETS[quality];
 const look = pickLook(chapter.look);
@@ -61,6 +62,7 @@ console.log(`built in ${Math.round(performance.now() - t0)} ms (${quality}${loca
 console.log('placements', forest.info.placements);
 console.log('rejected', forest.info.rejected);
 console.log(`grass ${forest.info.grassBlades} blades, ${forest.info.grassTriangles} tris max; ground ${forest.info.groundTriangles}; far ${forest.info.farTriangles}`);
+if (forest.water) console.log(`water ${forest.water.triangles} tris; mist ${forest.mists.map(m => `${m.cards} cards`).join(', ') || 'none'}; hanging moss ${forest.info.mossCards} cards`);
 const byBand = {};
 for (const m of forest.info.meshes) {
   const band = m.name.split(' ')[1].split(':')[0];
@@ -74,47 +76,13 @@ if (args.includes('--models')) {
   console.log(per);
 }
 
-const frustum = new THREE.Frustum();
-const m4 = new THREE.Matrix4();
 for (const [name, s] of Object.entries(shots)) {
   if (!Array.isArray(s.position) || !Array.isArray(s.target)) continue;
-  camera.fov = s.fov ?? 40;
-  camera.aspect = 1.6;
-  camera.position.fromArray(s.position);
-  camera.lookAt(new THREE.Vector3().fromArray(s.target));
-  camera.updateProjectionMatrix();
-  camera.updateMatrixWorld();
-  forest.update(0, 0);
-  m4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-  frustum.setFromProjectionMatrix(m4);
-  let calls = 0, tris = 0, grassTris = 0, grassCalls = 0;
-  const parts = {};
-  forest.group.traverse(o => {
-    if (!o.isMesh && !o.isPoints) return;
-    if (!o.visible) return;
-    const g = o.geometry;
-    if (o.frustumCulled !== false) {
-      if (!g.boundingSphere) g.computeBoundingSphere();
-      const sphere = g.boundingSphere.clone().applyMatrix4(o.matrixWorld);
-      if (!frustum.intersectsSphere(sphere)) return;
-    }
-    calls++;
-    if (o.isPoints) return;
-    const count = Math.min(g.index ? g.index.count : g.attributes.position.count, g.drawRange.count);
-    const t = Math.floor(count / 3);
-    tris += t;
-    if (o.name.startsWith('Grass')) { grassTris += t; grassCalls++; }
-    const part = o.name.startsWith('Forest ') && o.name.includes(':') ? o.name.split(' ')[1].split(':')[0] : o.name.split(' ')[0];
-    parts[part] = parts[part] || [0, 0];
-    parts[part][0]++; parts[part][1] += t;
-  });
+  const { calls, triangles, main, casters, parts } = shotStats(world, forest, s);
   if (args.includes('--species') && name === (opt('species', 'hero'))) {
     const per = {};
     forest.group.traverse(o => { const k = o.userData?.cull?.kept; if (!k || !o.visible) return; for (const r of k) { const key = r.name + ' lod' + r.lod; per[key] = (per[key] || 0) + r.count / 3; } });
     console.log(Object.entries(per).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + Math.round(v / 100) / 10 + 'k').join(', '));
   }
-  // casters: the caster meshes with something to draw (they are shown only for the shadow pass)
-  let casterCalls = 0, casterTris = 0;
-  forest.group.traverse(o => { if (o.isMesh && o.userData?.caster && o.userData.cull.submitted > 0) { casterCalls++; casterTris += o.userData.cull.submitted; } });
-  console.log(`${name.padEnd(9)} forest ${String(calls + casterCalls).padStart(3)} / ${String(tris + casterTris).padStart(7)}  (main ${calls} / ${tris}, casters ${casterCalls} / ${casterTris})  ` + Object.entries(parts).map(([k, v]) => `${k} ${v[0]}/${Math.round(v[1] / 1000)}k`).join('  '));
+  console.log(`${name.padEnd(9)} forest ${String(calls).padStart(3)} / ${String(triangles).padStart(7)}  (main ${main.calls} / ${main.triangles}, casters ${casters.calls} / ${casters.triangles})  ` + Object.entries(parts).map(([k, v]) => `${k} ${v[0]}/${Math.round(v[1] / 1000)}k`).join('  '));
 }

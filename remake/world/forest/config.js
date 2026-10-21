@@ -282,7 +282,7 @@ export const FEN = {
   // Where it grows: from the clearing's rim out to this far beyond the forest edge (m).
   reach: 70,
   // Hanging moss under a conifer's lower tiers (forest.js): cards, how long and how wide (m), and how far they swing (degrees).
-  moss: { perTree: [3, 6], length: [0.8, 2.0], width: [0.35, 0.6], swingDeg: 4 },
+  mossCards: { perTree: [3, 6], length: [0.8, 2.0], width: [0.35, 0.6], swingDeg: 4 },
   // The far treeline: well out, so the fen opens to it (far.js).
   far: {
     rings: [

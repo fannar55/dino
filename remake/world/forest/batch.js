@@ -16,14 +16,14 @@ import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
 // Small things vanish into the grass and mist long before this distance (metres to the camera).
-const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36 };
+const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 36, horsetailReed: 55, horsetailTall: 55, mossHummock: 45 };
 const LOD_SWITCH = FOREST.lod.switch;
 // small understory plants drop to their far shape sooner than the trees
-const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail']);
+const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail', 'horsetailReed', 'horsetailTall', 'mossHummock', 'waterLily']);
 const LOD_SWITCH_SMALL = FOREST.lod.switchSmall || LOD_SWITCH;
 // Trees whose crown is its own cull piece pick the crown's level by its projected size, not by
 // the distance to the tree's mid-height: a big crown right overhead counts as near.
-const CROWN_LOD = new Set(['broadleaf', 'araucaria']);
+const CROWN_LOD = new Set(['broadleaf', 'araucaria', 'swampConifer']);
 const [CROWN_T0, CROWN_T1] = FOREST.lod.crownSize;
 const CROWN_FINE = FOREST.lod.crownFine ?? 4;
 

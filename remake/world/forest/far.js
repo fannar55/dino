@@ -27,7 +27,7 @@ function unionOutline(circles, segments) {
   return out;
 }
 
-export function createFarForest({ layout, seed, terrain, q }) {
+export function createFarForest({ layout, seed, terrain, q, rings = FOREST.far.rings }) {
   const [cx, cz] = layout.clearing.center;
   const SECTORS = 8;
   const quads = Array.from({ length: SECTORS }, () => ({ pos: [], col: [], idx: [] }));
@@ -35,7 +35,7 @@ export function createFarForest({ layout, seed, terrain, q }) {
   const toLin = v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   let triangles = 0;
 
-  FOREST.far.rings.forEach((ring, ri) => {
+  rings.forEach((ring, ri) => {
     const rng = createRng(seed, `far-ring-${ri}`);
     const R = ring.radius;
     const dark = srgb(ring.color[0]);
