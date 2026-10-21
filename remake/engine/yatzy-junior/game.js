@@ -148,16 +148,23 @@ function renderUI(){
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();updateTargets();syncVoiceRecovery();
 }
-// The Kasta tag stands over the cup's ring, 12 px clear of it; where something is in the way up there, it stands at its right.
+// The Kasta tag stands over the cup's ring, 12 px clear of it, sliding sideways to stay on the screen; where something is in the
+// way there (the players' bar, the buttons, the bubble, a die or its number, the cards) it stands at the ring's right, else its
+// left, else under it, wherever is clear first.
 let tagKey='';
 function placeTag(){
-  const ring=cupButton.firstElementChild.getBoundingClientRect(),tag=cupButton.querySelector('.cup-tag');
-  const key=`${Math.round(ring.left)},${Math.round(ring.top)},${Math.round(ring.width)},${$('game').dataset.view},${innerWidth}`;if(!ring.width||key===tagKey)return;tagKey=key;
-  // Over the ring it may slide sideways to stay on the screen.
-  const width=tag.offsetWidth,height=tag.offsetHeight+10,gap=12,natural=ring.left-ring.width*.04,left=Math.min(Math.max(natural,gap),innerWidth-gap-width),bottom=ring.top-15,top=bottom-height;
-  const blocked=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help')].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0)
-    .some(r=>r.left<left+width+gap&&r.right>left-gap&&r.top<bottom+gap&&r.bottom>top-gap);
-  const above=!blocked&&top>=gap;cupButton.dataset.tag=above?'above':'right';cupButton.style.setProperty('--tag-shift',above?`${Math.round(left-natural)}px`:'0px');
+  const ring=cupButton.firstElementChild.getBoundingClientRect(),tag=cupButton.querySelector('.cup-tag');if(!ring.width)return;
+  const key=`${Math.round(ring.left)},${Math.round(ring.top)},${Math.round(ring.width)},${$('game').dataset.view},${innerWidth},${innerHeight},${pixels.map(p=>`${Math.round(p.x)}:${Math.round(p.y)}`).join(',')},${dieButtons.map(b=>b.hidden?0:1).join('')}`;
+  if(key===tagKey)return;tagKey=key;
+  const width=tag.offsetWidth,height=tag.offsetHeight+10,gap=12,cx=(ring.left+ring.right)/2,cy=(ring.top+ring.bottom)/2,natural=ring.left-ring.width*.04;
+  const slide=left=>Math.min(Math.max(left,gap),innerWidth-gap-width);
+  const spots=[['above',slide(natural),ring.top-15-height],['right',ring.right+15,cy-height/2],['left',ring.left-15-width,cy-height/2],['below',slide(natural),ring.bottom+15]];
+  const rects=e=>e.getBoundingClientRect(),obstacles=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help, #score-rows .card-select, #score-rows .card-value')].map(rects);
+  for(const b of dieButtons)if(!b.hidden){const r=rects(b);obstacles.push({left:r.left,right:r.right,top:r.top-56,bottom:r.bottom});} // a die and its number chip
+  const live=obstacles.filter(r=>r.right>r.left),clash=(left,top)=>live.reduce((sum,r)=>sum+Math.max(0,Math.min(r.right,left+width)+gap-Math.max(r.left,left)-0)*Math.max(0,Math.min(r.bottom,top+height)+gap-Math.max(r.top,top)),0);
+  const scored=spots.map(([name,left,top])=>({name,left,top,cost:clash(left,top)+(left<gap||top<gap||left+width>innerWidth-gap||top+height>innerHeight-gap?1e9:0)}));
+  const pick=scored.find(spot=>spot.cost===0)||scored.reduce((a,b)=>b.cost<a.cost?b:a);
+  cupButton.dataset.tag=pick.name;cupButton.style.setProperty('--tag-shift',pick.name==='above'||pick.name==='below'?`${Math.round(pick.left-natural)}px`:'0px');
 }
 function placeTarget(button,target,index){const pixel=pixels[index],x=Math.round(target.x*targetWidth*4)/4,y=Math.round(target.y*targetHeight*4)/4;if(pixel.x!==x||pixel.y!==y){pixel.x=x;pixel.y=y;button.style.transform=`translate3d(${x}px,${y}px,0)`;}}
 function updateTargets(){
