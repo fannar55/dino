@@ -79,8 +79,8 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Skot:** reiðskot niður úr skóginum inn í þokuna; trén breytast í fenjatré. Fótsporin tíu liggja í boga framundan í leðjunni,
   vatnið í þeim glitrar. Myndavélin fylgir Mosa og sveigir svo að næsta spori sem bíður. Froskur hoppar upp úr þriðja sporinu,
   brunnklukka syndir í því sjötta, drekafluga situr á brún þess níunda, og salamandra skríður yfir það tíunda.
-- **Línur:** Mosi: „Sjáðu! Fótspor Þórseðlu. Þau eru risastór! Teljum þau!“ Við hvert pikk telur Mosi: „Einn!“ … „Tíu!“ (línurnar úr
-  Háls og hala til sex, nýjar sjö til tíu). Eftir tíunda: Mosi: „Tíu fótspor! Hún hlýtur að vera rétt hjá.“ Vísbending eftir 8 s:
+- **Línur:** Mosi: „Sjáðu! Fótspor Þórseðlu. Þau eru risastór! Teljum þau!“ Við hvert pikk telur Mosi í hvorugkyni, því spor eru hvorugkyns: „Eitt!“, „Tvö!“, „Þrjú!“ … „Tíu!“ (ný
+  talning kafla 2, sömu línur og berin nota). Eftir tíunda: Mosi: „Tíu fótspor! Hún hlýtur að vera rétt hjá.“ Vísbending eftir 8 s:
   „Hvað með næsta spor? Pikkaðu á það!“ Eftir 16 s pikkar Egill sjálfur.
 - **Barnið:** pikkar á sporin í röð; hvert pikk skvettir, talan rís upp úr vatninu í stuttri stund og smádýr sem þar býr fer í bókina.
   Pikk á rangt spor skvettir bara og Mosi segir „Næsta er þarna!“ og bendir með höfðinu.
