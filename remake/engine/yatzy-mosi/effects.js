@@ -87,6 +87,7 @@ export function createYatzyEffects(world, { lively = false } = {}) {
 // Where a butterfly may sit on the rail's top, in the table's frame: on the far rail right of Mosi, and on the right-hand rail, both
 // over the wood beside the felt, clear of the dice, the cup and the cards.
 const PERCHES = [[1.72, -2.03], [2.32, -2.03], [3.03, -.6]];
+const GOLD_RING = new THREE.Color('#ffe08a');
 
 function createLivelyEffects(world) {
   const { table } = world, sparks = createTableSparks(world.scene, world.camera, world.renderer);
@@ -102,7 +103,7 @@ function createLivelyEffects(world) {
     if (kind === 'impact') { sparks.dust(felt(position), s); if (s > .25) sparks.ring(felt(position), .1 + .12 * s, { alpha: .55 + .35 * s }); }
     else if (kind === 'settle') { sparks.dust(felt(position), .12); sparks.ring(felt(position), .08, { alpha: .35, life: .4 }); }
     else if (kind === 'sweep') sparks.dust(felt(position), .2);
-    else if (kind === 'hold') { sparks.stars(felt(position, .08)); sparks.ring(felt(position), .13, { colour: new THREE.Color('#ffe08a'), alpha: .85, life: .5 }); }
+    else if (kind === 'hold') { sparks.keep(felt(position, .02)); sparks.ring(felt(position), .16, { colour: GOLD_RING, alpha: .9, life: .55 }); }
     else if (kind === 'lift') sparks.stars(felt(position, .12), { count: 5, rise: .9, radius: .12 });
     else if (kind === 'good' || kind === 'score') sparks.burst(felt(position, .05), { scale: kind === 'score' ? .8 : .65 });
     else if (kind === 'great') sparks.burst(felt(position, .05), { scale: 1.1 });
@@ -139,7 +140,7 @@ function createLivelyEffects(world) {
     if (disposed || !(dt > 0)) return;
     for (let i = trails.length - 1; i >= 0; i--) {
       const trail = trails[i]; trail.t += dt; trail.wait -= dt;
-      if (trail.wait <= 0) { trail.wait = .028; sparks.glitter(trail.object.position, 2); }
+      if (trail.wait <= 0) { trail.wait = .03; sparks.glitter(trail.object.position, 2); }
       if (trail.t >= trail.seconds) { trails.splice(i, 1); if (trail.land) emit(trail.object.position, { kind: trail.land }); }
     }
     if (ambient) {

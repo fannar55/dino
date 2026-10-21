@@ -30,6 +30,9 @@ varying float vKind;
 varying vec2 vTurn;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  // A point sprite has its centre's depth all over, so one lying on the felt would sink under the nearer felt below its centre:
+  // drawn a little nearer the camera (half its size, at most 35 cm), it lies on the felt whole.
+  mv.z += min(aSize * 0.5, 0.35);
   gl_Position = projectionMatrix * mv;
   gl_PointSize = clamp(aSize * uScale / max(0.1, -mv.z), 1.0, 220.0);
   vColor = aColor;
@@ -96,6 +99,7 @@ export function createTableSparks(scene, camera, renderer) {
   const DUST = ['#d9d0a8', '#c9c094', '#e6dfbd'].map(colour);
   const FELT = ['#9fb98a', '#b5c99c'].map(colour);
   const GOLD = ['#ffe9a0', '#fff6d0', '#ffd25a', '#ffc93a'].map(colour);
+  const BRIGHT = ['#ffffff', '#fff6d0', '#ffe9a0'].map(colour); // stars that show over the held frame's gold glow
   const LEAVES = ['#7fb04e', '#a8c95a', '#e0b84a', '#c98f3a', '#6f9a3f'].map(colour);
   const HAPPY = ['#ff6b5a', '#ffc93a', '#5fd36a', '#4fa8ff', '#c58cff', '#ff8fc8'].map(colour);
   const FIREWORK = [['#ff5a4a', '#ffc2b5'], ['#ffb800', '#ffe9a0'], ['#45c845', '#c2f5ac'], ['#3a92ff', '#b4dbff'], ['#b864ff', '#ead0ff']].map(pair => pair.map(colour));
@@ -139,9 +143,18 @@ export function createTableSparks(scene, camera, renderer) {
           gravity: -.2, drag: 1.6, life: rand(.6, .95), size: rand(.8, 1.2) * size, grow: .35, colour: pick(GOLD), kind: KIND.star, spin: rand(-3, 3), delay: i * .025 });
       }
     },
-    /** A few little stars that hang and fade where something passed (the trail of a die moving to the kept row). */
-    glitter(p, count = 2) {
-      for (let i = 0; i < count; i++) add(glow, p, { dx: rand(-.07, .07), dy: rand(-.03, .08), dz: rand(-.06, .06), vy: rand(.05, .25), drag: 1.8, life: rand(.35, .6), size: rand(.035, .06), grow: .2, colour: pick(GOLD), kind: KIND.star });
+    /** A few little stars that hang and fade where something passed (the trail of a die moving to the kept row), round its edge. */
+    glitter(p, count = 2, reach = .17) {
+      for (let i = 0; i < count; i++) { const a = rand(0, Math.PI * 2), r = reach * rand(.75, 1.1); add(glow, p, { dx: Math.cos(a) * r, dy: rand(0, .12), dz: Math.sin(a) * r, vy: rand(.05, .25), drag: 1.8, life: rand(.45, .7), size: rand(.06, .09), grow: .25, colour: pick(BRIGHT), kind: KIND.star, spin: rand(-4, 4) }); }
+    },
+    /** A die is kept: a ring of light swelling out on the felt round it and gold stars bursting out past its frame. */
+    keep(p) {
+      add(glow, p, { dy: .01, life: .6, size: .4, grow: 3.2, colour: GOLD[1], alpha: .95, kind: KIND.halo, hold: .15 });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + rand(-.2, .2), s = rand(.95, 1.35);
+        add(glow, p, { dx: Math.cos(a) * .17, dy: rand(.05, .18), dz: Math.sin(a) * .17, vx: Math.cos(a) * s, vy: rand(.25, .55), vz: Math.sin(a) * s, gravity: -.6, drag: 3, life: rand(.65, .9),
+          size: rand(.1, .14), grow: .3, colour: pick(BRIGHT), kind: KIND.star, spin: rand(-5, 5), delay: i * .01 });
+      }
     },
     /** A happy burst over the felt: a ring of light, stars and a little confetti (a good roll, a good score). */
     burst(p, { scale = 1 } = {}) {

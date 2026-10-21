@@ -361,7 +361,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world,{lively:true});effects.setAmbient(true);pick=createPickEffects(world);
     onStage('players');
     await wait(Promise.all([
-      createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ,lively:true}).then(resource=>take(resource,value=>{opponent=value;})),
+      createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ,lively:true,onEvent(kind,data){audio.cue(kind==='hop'?'mosi-hop':`mosi-${data.kind}`,{strength:data.strength??1});}}).then(resource=>take(resource,value=>{opponent=value;})),
       createDiceAndCup(world,{layout:TABLE_LAYOUT,lively:true,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
     ]));check();
     onStage('shaders');dice.setReducedMotion(reduced);world.update(0,0);opponent.update(.001,0,{reducedMotion:reduced});world.scene.updateMatrixWorld(true);world.resize();dice.dice.forEach(d=>{d.visible=true;});

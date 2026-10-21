@@ -16,6 +16,8 @@ const pulse = (age, start, duration) => envelope(age - start, duration);
 const REACTION_LENGTH = Object.freeze({ anticipate: 1.3, good: 2.1, great: 2.8, bad: 2.5, near: 2.1, win: 3.6, cheer: 2.4, aww: 2.8, lean: 1.5, nod: 1.1 });
 // The small ones never cut a bigger reaction short: they wait for it to end (one at most waits).
 const SOFT = new Set(['lean', 'nod']);
+// When (s into the reaction) the lively Mosi leaves his seat in a hop, and how big each hop is.
+const HOPS = Object.freeze({ cheer: [[.14, 1], [.64, .55]], win: [[.1, .85], [.62, .65], [2.1, .45]] });
 const GESTURE_KEYS = ['nod', 'tilt', 'yaw', 'jaw', 'bodyPitch', 'bodyRoll', 'bodyLift', 'pawL', 'pawR', 'lid', 'tail'];
 const boneNamed = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
 
@@ -25,7 +27,8 @@ const boneNamed = (model, name) => model.getObjectByName(name) ?? model.getObjec
  * up at the child every few seconds and a blink with each, a cheer that hops in his seat, an "aww" that slumps and perks up again,
  * a lean towards a die the child keeps and a nod at a card that lights up (react('cheer' | 'aww' | 'lean' | 'nod')), a hop in the win,
  * and while he speaks a line (actor.talking) his body holds still so the line stays the one important motion. Mosi Yatzy keeps the
- * Mosi it had.
+ * Mosi it had. `onEvent(kind, data)` hears each reaction as it starts ('reaction', { kind }) and each hop as he leaves his seat
+ * ('hop', { strength }), for the sounds.
  *
  * The remake's actual Mosi, sharing the table scene and game clock. `gltf` is an
  * optional already loaded asset, useful to preload or test without DOM textures.
@@ -33,7 +36,7 @@ const boneNamed = (model, name) => model.getObjectByName(name) ?? model.getObjec
  * target while his forelegs stay planted; only a celebration after the throw
  * deliberately lifts a paw, always along its real fixed-length limb arc.
  */
-export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, gltf, lively = false } = {}) {
+export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, gltf, lively = false, onEvent = () => {} } = {}) {
   if (!world?.scene || !world?.camera || typeof world.resolvePoint !== 'function' || typeof world.heightAt !== 'function') {
     throw new TypeError('Mosi needs the shared table scene, camera and point/height resolvers');
   }
@@ -278,7 +281,9 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     thinking += ((wantThinking ? 1 : 0) - thinking) * (1 - Math.exp(-delta / .28));
     rolling += ((wantRolling ? 1 : 0) - rolling) * (1 - Math.exp(-delta / .20));
     watchingRoll = Boolean(wantRolling);
+    const before = reactionAge;
     reactionAge += delta;
+    if (lively && !reduced && reactionKind) for (const [at, strength] of HOPS[reactionKind] || []) if (before < at && reactionAge >= at) onEvent('hop', { strength });
     if (reduced || reactionAge >= reactionDuration) reactionKind = null;
     if (queued && !reactionKind && !reduced) { const next = queued; queued = null; start(next.kind, next.target); }
     if (reduced) queued = null;
@@ -326,6 +331,7 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     if (next === 'lean' && target && Number.isFinite(target.x) && Number.isFinite(target.y) && Number.isFinite(target.z)) leanPoint.copy(target);
     else if (next === 'lean') leanPoint.copy(dicePoint);
     actor.blink();
+    if (lively) onEvent('reaction', { kind: next });
   }
   /** A reaction: `target` is where a lean looks (a kept die). A small one (lean, nod) waits for a bigger one to end. */
   function react(kind = 'happy', { target = null } = {}) {
