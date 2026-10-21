@@ -30,6 +30,9 @@ export const JUNIOR_SFX = [
   'pip', 'fanfare', 'confetti', 'warm', 'draw',
   // The page.
   'tap', 'bubble', 'open', 'close', 'pause', 'resume',
+  // Mosi's reactions, as he starts each one (engine/yatzy-mosi/opponent.js onEvent, cued as mosi-*). His "aww" ('mosi-aww') plays
+  // 'aww', so it can never sound twice with the one his own empty card gives; his other reactions are silent.
+  'mosi-hop', 'mosi-cheer', 'mosi-nod', 'mosi-lean', 'mosi-good', 'mosi-win',
 ];
 
 /**
@@ -43,6 +46,7 @@ export const JUNIOR_GAPS = {
   drum: 0.6, yourTurn: 0.6, think: 0.5, tada: 0.6, aww: 0.6,
   pip: 0.3, fanfare: 1, confetti: 1, warm: 1, draw: 1,
   tap: 0.05, bubble: 0.3, open: 0.2, close: 0.2, pause: 0.3, resume: 0.3,
+  'mosi-hop': 0.2, 'mosi-cheer': 0.6, 'mosi-nod': 0.4, 'mosi-lean': 0.4, 'mosi-good': 0.6, 'mosi-win': 1,
 };
 
 const DIP_SECONDS = 0.08; // how quickly the effects dip under Mosi's voice and come back (a time constant), as the book's do
@@ -379,6 +383,46 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
       bell(key[3] * 2, { delay: d + 0.13, level: 0.045, duration: 0.5 });
       bell(key[0] * 4, { delay: d + 0.24, level: 0.025, duration: 0.4 });
     },
+
+    // Mosi hops in his seat (args.strength, 0 to 1): a soft thump as he leaves it and a tiny happy chirp, "hup!", both as big as the hop.
+    'mosi-hop'() {
+      const d = at(), s = Math.max(0.2, Math.min(1, args().strength ?? 1));
+      tone({ frequency: key[0] / 4, end: key[0] / 8, duration: 0.1, level: 0.09 * s, type: 'sine', attack: 0.003, body: 0, delay: d, pan: 0.15 });
+      noise({ kind: 'warm', type: 'lowpass', frequency: 700, end: 250, duration: 0.08, level: 0.06 * s, attack: 0.003, delay: d, pan: 0.15 });
+      tone({ frequency: key[2] * 2, end: key[4] * 2, duration: 0.07, level: 0.035 * s, type: 'sine', attack: 0.004, body: 0, delay: d + 0.03, pan: 0.15 });
+    },
+    // Mosi cheers: a bright two-note "yay!", la then high do.
+    'mosi-cheer'() {
+      const d = at();
+      tone({ frequency: key[4] * 2, duration: 0.1, level: 0.035, type: 'triangle', attack: 0.004, body: 0.4, delay: d, pan: 0.15 });
+      bell(key[4] * 2, { delay: d, level: 0.035, duration: 0.25, pan: 0.15 });
+      tone({ frequency: key[0] * 4, duration: 0.3, level: 0.035, type: 'triangle', attack: 0.004, body: 0.5, delay: d + 0.11, pan: 0.15 });
+      bell(key[0] * 4, { delay: d + 0.11, level: 0.04, duration: 0.45, pan: 0.15 });
+    },
+    // Mosi nods at the cards: a quiet wooden click and a tiny knock under it.
+    'mosi-nod'() {
+      const d = at();
+      tone({ frequency: key[3] * 2, duration: 0.03, level: 0.03, type: 'triangle', attack: 0.001, body: 0, delay: d, pan: 0.15 });
+      tone({ frequency: key[0] / 2, duration: 0.04, level: 0.03, type: 'triangle', attack: 0.002, body: 0, delay: d + 0.015, pan: 0.15 });
+    },
+    // Mosi leans in to look at a kept die: a soft whoosh of air.
+    'mosi-lean'() {
+      noise({ kind: 'warm', type: 'bandpass', frequency: 400, end: 1000, q: 0.8, duration: 0.35, level: 0.08, attack: 0.15, delay: at(), pan: 0.15 });
+    },
+    // Mosi likes it: a warm, hummed "mm-hm", the second note up and longer.
+    'mosi-good'() {
+      const d = at();
+      for (const [t, hz, length] of [[0, key[2] / 2, 0.14], [0.17, key[4] / 2, 0.24]]) {
+        tone({ frequency: hz, duration: length, level: 0.04, type: 'triangle', attack: 0.03, body: 0.5, sustain: 0.7, delay: d + t, pan: 0.15 });
+        tone({ frequency: hz / 2, duration: length, level: 0.03, type: 'sine', attack: 0.03, body: 0.5, sustain: 0.7, delay: d + t, pan: 0.15 });
+      }
+    },
+    // Mosi celebrates: the fanfare's little cousin, three quick notes on the toy horn, softer, and a few bells.
+    'mosi-win'() {
+      const d = at();
+      [[key[2], 0, 0.1], [key[3], 0.11, 0.1], [key[0] * 2, 0.22, 0.4]].forEach(([hz, t, duration]) => horn(hz, d + t, duration, 0.6, 0.15));
+      [key[2], key[4], key[0] * 2].forEach((hz, i) => bell(hz * 2, { delay: d + 0.26 + i * 0.07, level: 0.03, duration: i === 2 ? 0.7 : 0.4, pan: 0.15 }));
+    },
   };
 }
 
@@ -396,6 +440,8 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
   // dark while the camera moves after a hold, and are not new when they come back), and a glowing card sparkles once a roll.
   let cards = null, pick = -1, rolls = 0, shimmered = -1, sparkled = '';
   let scored = false; // a card was chosen in this task (a calm score's pop comes first: its sound waits for the flight's length)
+  let awwed = false; // Mosi said "aww" in this task: the child's empty card leaves its "oh" to him
+  let ended = ''; // the end sound asked for in this task (fanfare, warm, draw): Mosi's little win fanfare makes room for it
   let args = {};
 
   if (theme === undefined) {
@@ -457,7 +503,8 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
   const distance = (a, b) => (a && b ? Math.hypot(a.x - b.x, a.z - b.z) : 0);
 
   /** What the game tells: an event, and its detail. Returns whether something sounded. */
-  function cue(kind, options = {}) {
+  function cue(kind, options) {
+    options = options ?? {};
     if (!sfx || muted || held || disposed) return false;
     const { strength = 1, pan = 0, die, at } = options;
     switch (kind) {
@@ -508,7 +555,8 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
           if (player === 1 && points >= WELL) play('tada', { delay: 0.32 });
         } else {
           sounded = play('stamp', { player });
-          play(player === 1 ? 'aww' : 'oh', { delay: 0.18 });
+          if (player === 1) play('aww', { delay: 0.18 });
+          else queueMicrotask(() => { if (!awwed) play('oh', { delay: 0.18 }); }); // Mosi's own "aww" for the child, if he reacts, is enough
         }
         play('swoosh', { player, delay: 0.05 });
         play('tally', { player, points: Math.max(points, 2), delay: 0.1 });
@@ -549,11 +597,27 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
       // The end.
       case 'win': {
         const winner = options.winner ?? 'you';
+        ended = winner === 'mosi' ? 'warm' : winner === 'tie' ? 'draw' : 'fanfare';
+        queueMicrotask(() => { ended = ''; });
         if (winner === 'mosi') return play('warm');
         if (winner === 'tie') return play('draw');
         play('confetti');
         return play('fanfare');
       }
+      // Mosi's reactions (his own lines duck them, as every effect is).
+      case 'mosi-aww':
+        awwed = true;
+        queueMicrotask(() => { awwed = false; });
+        return play('aww');
+      case 'mosi-hop': return play('mosi-hop', { strength });
+      case 'mosi-win':
+        // He reacts as the game ends, just before the end's own sound. The child's fanfare is celebration enough; after a warm
+        // tone or a draw his little fanfare comes in a moment later, so the two never pile up.
+        queueMicrotask(() => {
+          if (ended === 'fanfare') return;
+          play('mosi-win', ended ? { delay: 0.9 } : {});
+        });
+        return true;
       // The page.
       case 'tap': return play('tap');
       case 'bubble': return play('bubble');
