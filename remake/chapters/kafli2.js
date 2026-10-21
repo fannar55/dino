@@ -295,6 +295,7 @@ export const chapter = {
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
     s.sfx('forest');
+    yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);
   },
 };
