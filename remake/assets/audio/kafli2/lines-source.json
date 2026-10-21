@@ -5,7 +5,7 @@
  { "id": "k2_kambedla_bye", "speaker": "kambedla", "text": "Góða ferð!" },
  { "id": "k2_mosi_prints", "speaker": "mosi", "text": "Sjáðu! Fótspor Þórseðlu. Þau eru risastór!" },
  { "id": "k2_mosi_count", "speaker": "mosi", "text": "Teljum þau!" },
- { "id": "k2_mosi_1", "speaker": "mosi", "text": "Eitt!" },
+ { "id": "k2_mosi_1", "speaker": "mosi", "text": "Eitt!", "kept": "an Eleven v4 take from the spelling Eiht for Eitt, as chapter 1 did, 2026-10-21" },
  { "id": "k2_mosi_2", "speaker": "mosi", "text": "Tvö!" },
  { "id": "k2_mosi_3", "speaker": "mosi", "text": "Þrjú!" },
  { "id": "k2_mosi_4", "speaker": "mosi", "text": "Fjögur!" },
