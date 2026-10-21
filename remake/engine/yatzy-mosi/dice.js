@@ -59,7 +59,10 @@ function cupGrain(){
 // `layout` moves where the cup waits before a roll (home: [x, z, scale]), where it rests after one (park: [x, z]) and the row of held
 // dice (held: { left, step, near, far }), for a game whose controls sit elsewhere round the table (the junior game's cards and cup
 // ring); Mosi Yatzy keeps the defaults.
-export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
+// `lively` (the junior game) plays the cast bigger for a six-year-old: the cup dips before it lifts, lifts higher and shakes harder,
+// the dice visibly rattle inside it (they hop against its floor, which shows through the open mouth), and each die rocks once on the
+// felt as it settles. Mosi Yatzy keeps the motion it had.
+export async function createDiceAndCup(world,{onEvent=()=>{},layout={},lively=false}={}){
   const park=layout.park||[-1.45,.80],heldRow={left:-1.2,step:.6,near:1.43,far:-.75,...layout.held};
   const start=layout.home||[-.15,.05,CUP_FULL_SCALE],startLift=layout.home?.06+(start[2]-CUP_PARK_SCALE)/(CUP_FULL_SCALE-CUP_PARK_SCALE)*.14:.20;
   const {scene,table}=world,root=new THREE.Group();root.name='Yatzy dice and black cup';scene.add(root);
@@ -111,7 +114,9 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
   function setHome(who){
     const result=values.some(value=>value>0);
     home.set(result?park[0]:start[0],table.y+(result?.06:startLift),result?park[1]:start[1]);homeScale=result?CUP_PARK_SCALE:start[2];
-    pourHome.set(-.20,table.y+.30,who?-.52:.52);
+    // The lively cast pours left of Mosi's face (the child's cup tips toward the empty felt at the back right, so the pour is seen
+    // from the side and his face stays in view); Mosi Yatzy's pours from the middle.
+    if(lively)pourHome.set(who?-.45:-.82,table.y+.30,who?-.52:.42);else pourHome.set(-.20,table.y+.30,who?-.52:.52);
   }
   function placeTargets(){
     for(let i=0;i<5;i++){
@@ -168,18 +173,27 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
     // and the visibly floating corners produced by an unrounded bounding-box support.
     return CORE*(Math.abs(e[1])+Math.abs(e[5])+Math.abs(e[9]))+ROUND;
   }
+  // The lively cast's extra: an anticipating dip before the lift, a higher lift and a harder shake (1 for Mosi Yatzy's own).
+  const castLift=lively?.3:.22,castShake=lively?1.55:1;
+  const dip=t=>lively?-.045*Math.sin(Math.PI*THREE.MathUtils.clamp((t-.02)/.2,0,1))**2:0;
   function cupPose(t){
     const lift=smoother((t-.12)/.52)*(1-smoother((t-2.02)/.76));
     const shakeEnvelope=smoother((t-.58)/.15)*(1-smoother((t-1.13)/.2));
-    const shake=(Math.sin(t*29)+.37*Math.sin(t*43+.6))*shakeEnvelope;
+    const shake=(Math.sin(t*29)+.37*Math.sin(t*43+.6))*shakeEnvelope*castShake;
     const tilt=smoother((t-1.05)/.34)*(1-smoother((t-2.01)/.63)),side=player?1:-1;
     cup.position.lerpVectors(cupFrom,pourHome,smoother(t/.55)).lerp(home,smoother((t-2.02)/.76));
-    cup.position.y+=lift*.22;cup.position.x+=shake*.027;cup.position.z+=Math.sin(t*24)*shakeEnvelope*.018;
-    poseQ.setFromEuler(euler.set(side*(tilt*1.61+shake*.035),tilt*(player?-.14:.14),-.035+shake*.055));
+    cup.position.y+=lift*castLift+dip(t);cup.position.x+=shake*.027;cup.position.z+=Math.sin(t*24)*shakeEnvelope*castShake*.018;
+    if(lively&&!player)poseQ.setFromEuler(euler.set(-(tilt*1.2+shake*.035),tilt*.1,-.035+shake*.055-tilt*1.05));
+    else poseQ.setFromEuler(euler.set(side*(tilt*1.61+shake*.035),tilt*(player?-.14:.14),-.035+shake*.055));
     cup.quaternion.slerpQuaternions(cupStartQ,poseQ,smoother(t/.18));
     const castingScale=THREE.MathUtils.lerp(cupFromScale,CUP_FULL_SCALE,smoother(t/.28));
     cup.scale.setScalar(THREE.MathUtils.lerp(castingScale,homeScale,smoother((t-2.02)/.76)));
     cup.updateMatrixWorld(true);
+  }
+  // How high (cup-local) a die hops inside the shaking cup: a bounce off its floor, each die to its own beat, only while it shakes.
+  function rattle(p,t){
+    const envelope=smoother((t-.6)/.12)*(1-smoother((t-1.12)/.18));
+    return envelope?Math.abs(Math.sin(t*(31+p.rank*3.7)+p.rank*1.9))*.065*envelope:0;
   }
   function internalPose(p,t,out){
     const slide=smoother((t-(p.release-.25))/.25);
@@ -223,6 +237,13 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
       event('hit'+p.index+'-'+k,'impact',point,Math.min(.9,Math.max(.07,p.contacts[k].speed/4)),p.index);
     }
     if(u>=1&&!p.settled){p.settled=true;mesh.position.copy(targets[p.index]);mesh.quaternion.copy(targetQ[p.index]);point.copy(mesh.position);point.y=table.y+.006;event('settle'+p.index,'settle',point,.22,p.index);}
+    if(lively&&u>=1){
+      // The settle wobble: the die rocks once or twice about the way it came and comes to rest, over .32 s (within the roll's time).
+      const since=age-p.travel,rock=since<.32?.12*Math.sin(since*27)*Math.exp(-since*8)*(1-since/.32):0;
+      if(rock){direction.subVectors(targets[p.index],p.launch).setY(0);if(direction.lengthSq()<1e-8)direction.set(1,0,0);
+        point.set(direction.z,0,-direction.x).normalize();spin.setFromAxisAngle(point,rock);mesh.quaternion.copy(spin).multiply(targetQ[p.index]);
+        mesh.position.copy(targets[p.index]);mesh.position.y=table.y+supportHeight(mesh.quaternion);}
+    }
   }
   function update(dt){
     if(disposed||!Number.isFinite(dt)||dt<=0)return false;
@@ -259,6 +280,7 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
         }else if(t<p.release){
           if(p.gather&&t<insideEnd){point.copy(p.mouth).addScaledVector(UP,.12).lerp(p.packed,smoother((t-loadEnd)/(insideEnd-loadEnd)));}
           else point.copy(p.packed).lerp(p.mouth,smoother((t-(p.release-.25))/.25));
+          if(lively)point.y+=rattle(p,t); // the dice hop against the cup's floor while it shakes
           mesh.position.copy(point).applyMatrix4(cup.matrixWorld);internalPose(p,t,mesh.quaternion);
         }else{
           if(!p.launched){launch(p,t);event('release'+i,'release',p.launch,.35,i);}
@@ -286,6 +308,15 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
   function getGripTarget(){return null;}
   function setGripResolver(){/* Compatibility: the autonomous cup never asks a paw to carry it. */}
   function getFocusTarget(out=focus){cup.updateMatrixWorld(true);return out.set(0,.52,0).applyMatrix4(cup.matrixWorld);}
+  // Where an onlooker's eyes go: the cup until the first die leaves it, then the dice in the air and on the felt, and once the roll is
+  // over the middle of the dice that were rolled (all of them when none was).
+  function getWatchTarget(out=new THREE.Vector3()){
+    let count=0;out.set(0,0,0);
+    for(let i=0;i<5;i++){const live=rolling?plans[i].launched&&!held[i]:dice[i].visible&&(!held[i]||held.every(Boolean));if(live){out.add(dice[i].position);count++;}}
+    if(!count){if(rolling)return getFocusTarget(out);for(let i=0;i<5;i++)if(dice[i].visible){out.add(dice[i].position);count++;}}
+    if(!count)return getFocusTarget(out);
+    return out.divideScalar(count);
+  }
   function getFramingPoints(){
     root.updateWorldMatrix(true,false);
     for(let i=0;i<5;i++)framingPoints[i].copy(targets[i]).applyMatrix4(root.matrixWorld);
@@ -333,7 +364,7 @@ export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
     return screenCup;
   }
   sync([0,0,0,0,0],held);
-  return{root,dice,cup,startRoll,update,sync,setHeld,setReducedMotion,setReady,screenCupPosition,getFocusTarget,getFramingPoints,getGripTarget,setGripResolver,screenPositions,get rolling(){return rolling;},
+  return{root,dice,cup,startRoll,update,sync,setHeld,setReducedMotion,setReady,screenCupPosition,getFocusTarget,getWatchTarget,getFramingPoints,getGripTarget,setGripResolver,screenPositions,get rolling(){return rolling;},
     getDebugState:()=>({rolling,elapsed,duration,reduced,ready,returning:returnTime>0,values:[...values],held:[...held],up:dice.map(d=>upwardFace(d.quaternion)),positions:dice.map(d=>d.position.toArray()),cup:cup.position.toArray(),cupRotation:cup.rotation.toArray().slice(0,3),cupScale:cup.scale.x,serial,flights:plans.map(p=>({gather:p.gather,release:p.release,launched:p.launched,settled:p.settled,age:p.flightTime,airTime:p.airTime,travel:p.travel,contacts:p.contacts.map(c=>c.time)}))}),
     dispose(){
       if(disposed)return;disposed=true;rolling=false;holdTime=0;returnTime=0;ready=false;root.removeFromParent();
