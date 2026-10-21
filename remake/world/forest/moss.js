@@ -19,7 +19,12 @@ function strandTexture(seed) {
   const W = 64, H = 128;
   const rng = createRng(seed, 'moss-texture');
   const data = new Uint8Array(W * H * 4);
-  const strands = Array.from({ length: 14 }, () => ({ x: rng.range(4, W - 4), w: rng.range(1.5, 4), end: rng.range(0.45, 1.0), drift: rng.range(-6, 6), tone: rng.range(0.8, 1.1) }));
+  // most strands hang from near the middle, so a strand of moss is a ragged beard and never shows the card's edges
+  const strands = Array.from({ length: 18 }, () => {
+    const x = Math.max(4, Math.min(W - 4, W / 2 + rng.normal() * W * 0.13));
+    const middle = 1 - Math.abs(x - W / 2) / (W / 2);
+    return { x, w: rng.range(1.6, 3.6), end: rng.range(0.45, 0.75) + 0.25 * middle * rng.next(), drift: rng.range(-4, 4), tone: rng.range(0.8, 1.1) };
+  });
   for (let y = 0; y < H; y++) {
     const v = y / (H - 1); // 0 at the top (where it hangs from), 1 at the foot
     for (let x = 0; x < W; x++) {
@@ -29,7 +34,7 @@ function strandTexture(seed) {
         const cx = s.x + s.drift * v * v + Math.sin(v * 9 + s.x) * 1.2;
         const w = s.w * (1 - 0.6 * (v / s.end));
         const d = Math.abs(x - cx) / Math.max(0.6, w);
-        const k = Math.max(0, 1 - d) * (1 - Math.pow(v / s.end, 6));
+        const k = Math.max(0, 1 - d) * (1 - Math.pow(v / s.end, 2));
         if (k > a) { a = k; tone = s.tone; }
       }
       const i = (y * W + x) * 4;
@@ -79,7 +84,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
           for (const side of [-1, 1]) {
             pos.push(ax + dx * side * narrow, ay - length * v, az + dz * side * narrow);
             nrm.push(...n);
-            uv.push((side + 1) / 2, 1 - v);
+            uv.push((side + 1) / 2, v); // the texture's first row is where the strand hangs from
             col.push(base.r * tint, base.g * tint, base.b * tint);
             wind.push(phase, Math.round(Math.min(1, sway / SWAY) * 255), Math.round(Math.min(1, 0.25 * v) * 255), 204);
             tree.push(Math.round(Math.min(1, carried / Math.max(sway, 1e-6)) * 255));

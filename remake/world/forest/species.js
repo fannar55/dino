@@ -944,7 +944,7 @@ function buildSwampConifer(rng, { lod, noise }) {
       const out = mr.range(-0.3, 0.5), side = mr.range(-0.5, 0.5);
       const length = mr.range(FEN.mossCards.length[0], FEN.mossCards.length[1]), width = mr.range(FEN.mossCards.width[0], FEN.mossCards.width[1]);
       moss.push({
-        p: [c.c[0] + Math.cos(c.a) * c.R * out - Math.sin(c.a) * c.R * side, c.c[1] - c.R * 0.55, c.c[2] + Math.sin(c.a) * c.R * out + Math.cos(c.a) * c.R * side],
+        p: [c.c[0] + Math.cos(c.a) * c.R * out - Math.sin(c.a) * c.R * side, c.c[1] - c.R * 0.36, c.c[2] + Math.sin(c.a) * c.R * out + Math.cos(c.a) * c.R * side], // its top hidden in the pad
         length, width, yaw: c.a + Math.PI / 2 + mr.range(-0.4, 0.4),
       });
     }

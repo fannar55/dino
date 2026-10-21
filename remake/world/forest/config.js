@@ -285,7 +285,7 @@ export const FEN = {
   reachBlended: 35, // a place that is part forest grows its fen nearer: it is seen from its path
   blendedTrees: 0.65, // and fewer of its trees, which a trail sees many of at once
   // Hanging moss under a conifer's lower tiers (forest.js): cards, how long and how wide (m), and how far they swing (degrees).
-  mossCards: { perTree: [3, 6], length: [0.8, 2.0], width: [0.35, 0.6], swingDeg: 4 },
+  mossCards: { perTree: [3, 6], length: [1.6, 3.0], width: [0.55, 0.9], swingDeg: 4 },
   // The far treeline: well out, so the fen opens to it (far.js).
   far: {
     rings: [
