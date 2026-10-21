@@ -293,7 +293,7 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
   #game[data-view="dice"] .bubble{translate:224px -208px;width:min(360px,calc(100% - 246px - 220px))}
   #game[data-view="dice"] .bubble::before{display:none}
   .skip{position:absolute;top:calc(var(--target) + 10px);right:0;white-space:nowrap} /* under the round buttons, out of the bubble's band */
-  #score-rows{--u:min(1px,calc((100vw - 48px) / 584));flex-wrap:wrap;width:calc(3 * 176 * var(--u) + 2 * 14 * var(--u) + 32px);row-gap:calc(30 * var(--u))}
+  #score-rows{--u:min(1px,calc((100vw - 48px) / 584));flex-wrap:wrap;width:calc(3 * 176 * var(--u) + 2 * 14 * var(--u) + 32px);row-gap:calc(44 * var(--u))} /* a lifted card's badge (14u lift + 16u) stays 8u+ clear of the row above */
   .mosi-help{width:100px;height:100px}
 }
 
