@@ -98,11 +98,11 @@ function renderUI(){
     const cell=cells.get(c.id),you=lesson?(lesson.awards[c.id]??null):state.players[0].scores[c.id],mosi=lesson?null:state.players[1].scores[c.id];
     const available=you===null&&human&&state.rollCount>0&&still&&allowed('score',c.id),possible=state.rollCount>0&&phase!=='rolling'&&phase!=='handoff';
     cell.select.disabled=!available;
-    // The badge is the child's: what the card would give now, or the score laid on it (teal). Who used it, and for how much, hangs
-    // on its top-left corner: a "Þú" chip and Mosi's face, each with the number.
+    // The badge is the child's: what the card would give now, or the score laid on it (teal). Who used it hangs on its top-left
+    // corner: a plain "Þú" chip (the badge has the number) and Mosi's face with his.
     const chips=`${you??''}|${mosi??''}`;
     cell.value.textContent=you!==null?String(you):possible&&who===0?`+${preview[c.id]??0}`:'';cell.value.dataset.who=you!==null?'you':'';
-    if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?`<i class="who you"><span>Þú</span><b>${you}</b></i>`:'')+(mosi!==null?`<i class="who mosi"><span></span><b>${mosi}</b></i>`:'');}
+    if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?'<i class="who you"><span>Þú</span></i>':'')+(mosi!==null?`<i class="who mosi"><span></span><b>${mosi}</b></i>`:'');}
     cell.card.classList.toggle('filled',you!==null);cell.card.classList.toggle('available',available);cell.card.classList.toggle('best',available&&(preview[c.id]??0)>0);cell.card.classList.toggle('recent',recent===c.id);
     cell.select.setAttribute('aria-label',`${c.label}. ${you!==null?`${you} stig, notað kort`:available?`${preview[c.id]} stig í boði`:'Laust kort'}`);
   }

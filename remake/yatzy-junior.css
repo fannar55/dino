@@ -112,6 +112,8 @@ svg{overflow:visible}
 #voice-recovery p{margin:0;font-size:22px;line-height:1.25;font-weight:800;color:var(--ink-soft)}
 #lesson-center[data-voice="unavailable"] #lesson-replay,#lesson-center[data-voice="unavailable"] #lesson-next{display:none}
 dialog #voice-recovery{justify-content:center;margin-top:4px}
+body:has(dialog[open]) .bubble{opacity:0;visibility:hidden} /* a dialog speaks for Mosi meanwhile: one voice on screen */
+.bubble{transition:opacity .2s,visibility .2s}
 
 /* ---- The cup is the roll: a gold ring glows round it, and its orange tag says how many rolls are left ---- */
 #cup-target{position:absolute;left:0;top:0;translate:-50% -50%;z-index:2;width:110px;height:110px;min-width:64px;min-height:64px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink);isolation:isolate}
@@ -172,7 +174,8 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 .who{--c:var(--teal);display:flex;align-items:center;gap:calc(3 * var(--u));height:calc(32 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(3 * var(--u));border-radius:999px;border:3px solid var(--ink);background:var(--c);box-shadow:0 3px 0 rgb(40 24 10 / .4);font-style:normal}
 .who.mosi{--c:var(--sage)}
 .who span{display:grid;place-items:center;width:calc(22 * var(--u));height:calc(22 * var(--u));border-radius:50%;font-size:calc(12 * var(--u));font-weight:1000;color:#fff;-webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
-.who.you span{width:auto;padding-left:calc(3 * var(--u))}
+.who.you{padding:0 calc(5 * var(--u))}
+.who.you span{width:auto;font-size:calc(14 * var(--u))}
 .who.mosi span{background:#e9e3c4 url('./assets/eitt/mosi.webp') 55% 40% / 160% no-repeat;box-shadow:0 0 0 2px var(--ink)}
 .who b{font-size:calc(19 * var(--u));font-weight:1000;line-height:1;font-variant-numeric:tabular-nums;color:#fff;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill}
 /* The best card lifts out of the hand and glows gold; a used card lies back as paper. */
