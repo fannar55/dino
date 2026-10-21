@@ -37,6 +37,40 @@ function scoreCounts(category,counts){
   return 0;
 }
 export function scoreCategory(categoryId,dice){return scoreCounts(categoryFor(categoryId),diceCounts(dice));}
+// The dice that make a card's score, smallest first (the pair, both pairs, the three, the run, the five); [] when the hand does not
+// make it. The cards show these, and a filled card keeps the ones it was filled with (players[i].faces).
+function facesFor(category,counts){
+  if(!scoreCounts(category,counts))return [];
+  if(category.id==='smallStraight')return [1,2,3,4,5];
+  if(category.id==='yatzy'){const face=counts.indexOf(5);return Array(5).fill(face);}
+  if(category.id==='twoPairs'){const pairs=[];for(let face=6;face>=1&&pairs.length<2;face--)if(counts[face]>=2)pairs.push(face);return [pairs[1],pairs[1],pairs[0],pairs[0]];}
+  const needed=category.id==='pair'?2:3;for(let face=6;face>=1;face--)if(counts[face]>=needed)return Array(needed).fill(face);
+  return [];
+}
+export function scoringDice(categoryId,dice){return facesFor(categoryFor(categoryId),diceCounts(dice));}
+// What a kept set of scoring dice is worth on its card (NaN when they could not have scored there).
+function facesScore(category,faces){
+  if(!faces.length)return 0;const counts=[0,0,0,0,0,0,0];for(const face of faces)counts[face]++;
+  const same=n=>faces.length===n&&counts.includes(n);
+  if(category.id==='pair')return same(2)?2*faces[0]:NaN;
+  if(category.id==='threeKind')return same(3)?3*faces[0]:NaN;
+  if(category.id==='yatzy')return same(5)?50:NaN;
+  if(category.id==='smallStraight')return faces.length===5&&counts.slice(1,6).every(count=>count===1)?15:NaN;
+  const pairs=counts.map((count,face)=>count===2?face:0).filter(Boolean);
+  return faces.length===4&&pairs.length===2?2*(pairs[0]+pairs[1]):NaN;
+}
+// Kept dice are only shown, never scored: a save is checked for their shape, and a copy keeps them only where they make the score.
+function validateFaces(faces){
+  assert(record(faces),'Kept dice must be a plain object');
+  const keys=Object.keys(faces);assert(keys.length===ROUND_COUNT&&keys.every(key=>BY_ID.has(key)),'Kept dice cover exactly five categories');
+  for(const category of CATEGORIES){
+    const kept=ownValue(faces,category.id);if(kept===null)continue;
+    assert(Array.isArray(kept)&&kept.length<=DICE_COUNT,'Kept dice must be a short list');
+    for(let i=0;i<kept.length;i++)assert(integer(ownValue(kept,i),1,6),'Kept dice must be integers from 1 to 6');
+  }
+}
+function keptFaces(category,player){const kept=player.faces?.[category.id],value=player.scores[category.id];return Array.isArray(kept)&&value!==null&&facesScore(category,kept)===value?[...kept]:null;}
+const emptyFaces=()=>Object.fromEntries(CATEGORIES.map(category=>[category.id,null]));
 
 // Enumerate the 252 unordered hands once for strict saved-score validation.
 // The opponent never enumerates 7,776 outcomes during a move.
@@ -69,6 +103,7 @@ export function validateGame(value){
   for(let i=0;i<2;i++){
     const player=ownValue(value.players,i);assert(record(player),'Invalid player');assert(ownValue(player,'id')===PLAYERS[i],'Unexpected player identity or order');
     const card=ownValue(player,'scores');validateScorecard(card);filled.push(CATEGORIES.filter(category=>card[category.id]!==null).length);
+    if(Object.hasOwn(player,'faces'))validateFaces(ownValue(player,'faces')); // older saves have no kept dice
   }
   const first=value.startingPlayer,next=(first+value.turnCount)%2;
   assert(filled[first]===Math.ceil(value.turnCount/2)&&filled[1-first]===Math.floor(value.turnCount/2),'Scores do not match alternating turns');
@@ -83,7 +118,8 @@ export function validateGame(value){
   return true;
 }
 function copyGame(game){return {
-  version:SAVE_VERSION,players:game.players.map(player=>({id:player.id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,player.scores[category.id]]))})),
+  version:SAVE_VERSION,players:game.players.map(player=>({id:player.id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,player.scores[category.id]])),
+    faces:Object.fromEntries(CATEGORIES.map(category=>[category.id,keptFaces(category,player)]))})),
   currentPlayer:game.currentPlayer,startingPlayer:game.startingPlayer,turnCount:game.turnCount,rollCount:game.rollCount,dice:[...game.dice],held:[...game.held],rng:game.rng,status:game.status,winner:game.winner,
 };}
 export function restoreGame(serializedOrObject){
@@ -91,7 +127,7 @@ export function restoreGame(serializedOrObject){
 }
 export function createGame({seed=1,startingPlayer=0}={}){
   assert(integer(seed,0,UINT32_MAX),'Seed must be an unsigned 32-bit integer');assert(integer(startingPlayer,0,1),'Invalid starting player');
-  return {version:SAVE_VERSION,players:PLAYERS.map(id=>({id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,null]))})),currentPlayer:startingPlayer,startingPlayer,turnCount:0,rollCount:0,dice:Array(DICE_COUNT).fill(0),held:Array(DICE_COUNT).fill(false),rng:seed,status:'playing',winner:null};
+  return {version:SAVE_VERSION,players:PLAYERS.map(id=>({id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,null])),faces:emptyFaces()})),currentPlayer:startingPlayer,startingPlayer,turnCount:0,rollCount:0,dice:Array(DICE_COUNT).fill(0),held:Array(DICE_COUNT).fill(false),rng:seed,status:'playing',winner:null};
 }
 function requirePlaying(game){validateGame(game);assert(game.status==='playing','The game is finished');}
 function randomWord(rng){const next=(rng+0x6d2b79f5)>>>0;let value=Math.imul(next^next>>>15,next|1);value^=value+Math.imul(value^value>>>7,value|61);return {rng:next,word:(value^value>>>14)>>>0};}
@@ -112,7 +148,7 @@ export function previews(game){
 }
 export function score(game,categoryId){
   requirePlaying(game);const category=categoryFor(categoryId);assert(game.rollCount>0,'Roll before choosing a score');assert(game.players[game.currentPlayer].scores[categoryId]===null,'That score category is already filled');
-  const next=copyGame(game);next.players[game.currentPlayer].scores[categoryId]=scoreCounts(category,diceCounts(game.dice));next.turnCount++;next.currentPlayer=(next.startingPlayer+next.turnCount)%2;
+  const next=copyGame(game),counts=diceCounts(game.dice);next.players[game.currentPlayer].scores[categoryId]=scoreCounts(category,counts);next.players[game.currentPlayer].faces[categoryId]=facesFor(category,counts);next.turnCount++;next.currentPlayer=(next.startingPlayer+next.turnCount)%2;
   next.rollCount=0;next.dice.fill(0);next.held.fill(false);
   if(next.turnCount===MAX_TURNS){next.status='finished';next.winner=findWinner(next.players);}return next;
 }

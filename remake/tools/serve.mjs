@@ -33,7 +33,7 @@ export async function handle(req, res) {
     const stat = await fsp.stat(file);
     const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
     const body = await fsp.readFile(target);
-    const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes' };
+    const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || ''); // bytes=a-b, bytes=a- (to the end), bytes=-n (the last n)
     if (range && (range[1] || range[2])) {
       const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));

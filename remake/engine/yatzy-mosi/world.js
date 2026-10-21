@@ -15,25 +15,37 @@ export const TABLE = Object.freeze({ y: 1.4, width: 5.8, depth: 3.8, farZ: -1.9,
 // face occupies the upper third. A little look-room at left keeps the cup visible.
 const SHOT = { position: [-.4, 3.2, 4.4], target: [-.4, 1.7, -.8], fov: 41 };
 
-/** Shared-clock camera rig, independently constructible without a WebGL context. */
-export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}) {
-  const tableTarget = new THREE.Vector3().fromArray(SHOT.target);
-  const tableOffset = new THREE.Vector3().fromArray(SHOT.position).sub(tableTarget);
+/** Shared-clock camera rig, independently constructible without a WebGL context.
+ *  `shot` replaces the table shot ({ position, target, fov, pull }): a game laid out differently round the table (the junior game's
+ *  full-width table) frames it its own way. `pull` (default .95) is the aspect below which the camera backs away to keep the table's
+ *  width in view, as `pull / aspect`; or a function of the aspect that returns how far it backs away (1 = not at all).
+ *  For the dice view: `safe(width, height)` may return the free area as screen margins (px: top, bottom, left, right), and with
+ *  them how far (px) what a game draws round a die (`die: { top, bottom, side }`, e.g. its number chip) and round the cup's ring
+ *  (`ring: { top, bottom, side }`, e.g. its tag) reaches past them; `cup` is where the cup rests after a roll ([x, z]),
+ *  `cupMargin` how far (px) it keeps from the sides, `footprint` the half-size of what lies round a die on the table (its held
+ *  ring), `ring` the radius of a ring drawn round the resting cup, in view-plane units (0: none), and `elevation` the dice view's
+ *  angle over the table in degrees (61). */
+export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot = SHOT } = {}) {
+  const tableTarget = new THREE.Vector3().fromArray(shot.target);
+  const tableOffset = new THREE.Vector3().fromArray(shot.position).sub(tableTarget);
+  const pull = shot.pull ?? .95, cupAt = shot.cup ?? [-1.45, .80], cupMargin = shot.cupMargin ?? 8, footprint = shot.footprint ?? .157, cupRing = shot.ring ?? 0;
+  const reach = { die: { top: 0, bottom: 0, side: 0 }, ring: { top: 0, bottom: 0, side: 0 } };
   const tablePosition = new THREE.Vector3(), dicePosition = new THREE.Vector3(), diceTarget = new THREE.Vector3();
   const focusStartPosition = new THREE.Vector3(), focusStartTarget = new THREE.Vector3();
   const focusEndPosition = new THREE.Vector3(), focusEndTarget = new THREE.Vector3();
   const focusEnvelopePosition = new THREE.Vector3(), focusEnvelopeTarget = new THREE.Vector3();
   const aim = new THREE.Vector3(), stagedPosition = new THREE.Vector3();
-  const elevation = THREE.MathUtils.degToRad(61);
+  const elevation = THREE.MathUtils.degToRad(shot.elevation ?? 61);
   const backward = new THREE.Vector3(0, Math.sin(elevation), Math.cos(elevation));
   const upward = new THREE.Vector3(0, Math.cos(elevation), -Math.sin(elevation));
   const defaults = [[-.92, -.25], [-.38, .46], [.34, -.45], [.91, .19], [.32, .86]];
   const focus = defaults.map(([x, z]) => new THREE.Vector3(x, TABLE.y + .1357, z));
   const previousFocus = focus.map(point => point.clone());
   const focusEnvelope = Array.from({ length: 10 }, () => new THREE.Vector3());
-  // Two sets of die corners plus eight compact-cup corners. Refit only on a new
+  // Two sets of die corners plus eight compact-cup corners and four round its ring. Refit only on a new
   // layout or resize; a stationary result performs no fitting or allocation.
-  const corners = Array.from({ length: 88 }, () => ({ x: 0, v: 0, depth: 0, horizontal: 0 }));
+  const corners = Array.from({ length: 96 }, () => ({ x: 0, v: 0, depth: 0, left: 0, right: 0, top: 0, bottom: 0 }));
+  const dieLimit = { left: 0, right: 0, top: 0, bottom: 0 }, cupLimit = { left: 0, right: 0, top: 0, bottom: 0 }, ringLimit = { left: 0, right: 0, top: 0, bottom: 0 };
   const safe = { top: 0, bottom: 0, left: 0, right: 0 };
   let mode = 'table', blend = 0, zoom = 0, fromBlend = 0, fromZoom = 0, to = 0;
   let elapsed = 0, duration = 0, focusElapsed = 0, focusDuration = 0, disposed = false;
@@ -50,25 +62,40 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}
   }
   function fit(points, position, target, arcHeight = 0) {
     const aspect = viewportWidth / viewportHeight;
-    const tan = Math.tan(THREE.MathUtils.degToRad(SHOT.fov) / 2);
-    const top = 1 - 2 * safe.top / viewportHeight, bottom = -1 + 2 * safe.bottom / viewportHeight;
-    const horizontal = 1 - 2 * safe.left / viewportWidth, cupHorizontal = 1 - 16 / viewportWidth;
+    const tan = Math.tan(THREE.MathUtils.degToRad(shot.fov) / 2);
+    // Each limit is how far from the centre (-1..1) a point may lie towards each edge, after the margins.
+    const limit = (target, side, top, bottom, edge = null) => {
+      target.left = 1 - 2 * (edge ?? safe.left + side) / viewportWidth; target.right = 1 - 2 * (edge ?? safe.right + side) / viewportWidth;
+      target.top = 1 - 2 * (safe.top + top) / viewportHeight; target.bottom = -1 + 2 * (safe.bottom + bottom) / viewportHeight;
+      return target;
+    };
+    limit(dieLimit, reach.die.side, reach.die.top, reach.die.bottom);
+    if (cupRing) limit(cupLimit, reach.die.side, reach.die.top, reach.die.bottom); else limit(cupLimit, 0, 0, 0, cupMargin);
+    limit(ringLimit, reach.ring.side, reach.ring.top, reach.ring.bottom);
     let count = 0, averageDepth = 0;
-    function corner(x, y, z, limit) {
+    function at(x, v, depth, bounds) {
       const point = corners[count++];
-      point.x = x; point.v = y * upward.y + z * upward.z;
-      point.depth = y * backward.y + z * backward.z; point.horizontal = limit;
+      point.x = x; point.v = v; point.depth = depth;
+      point.left = bounds.left; point.right = bounds.right; point.top = bounds.top; point.bottom = bounds.bottom;
     }
+    const corner = (x, y, z, bounds) => at(x, y * upward.y + z * upward.z, y * backward.y + z * backward.z, bounds);
     for (let i = 0; i < points.length; i++) {
       const point = points[i]; averageDepth += point.y * backward.y + point.z * backward.z;
-      // Cover the rounded die's small settled yaw and its entire top face.
-      for (let x = -1; x <= 1; x += 2) for (let y = 0; y <= 1; y++) for (let z = -1; z <= 1; z += 2)
-        corner(point.x + x * .157, point.y - .1357 + y * (.305 + arcHeight), point.z + z * .157, horizontal);
+      // Cover the rounded die's small settled yaw and its entire top face (and at its foot whatever lies round it).
+      for (let x = -1; x <= 1; x += 2) for (let y = 0; y <= 1; y++) for (let z = -1; z <= 1; z += 2) {
+        const half = y ? .157 : footprint;
+        corner(point.x + x * half, point.y - .1357 + y * (.305 + arcHeight), point.z + z * half, dieLimit);
+      }
     }
     // Match the .42-scale parked cup near the left rail. The small allowance
     // covers its .394-radius rolled rim without reserving its casting size.
     for (let x = -1; x <= 1; x += 2) for (let y = 0; y <= 1; y++) for (let z = -1; z <= 1; z += 2)
-      corner(-1.45 + x * .174, TABLE.y + .06 + y * .43, .80 + z * .174, cupHorizontal);
+      corner(cupAt[0] + x * .174, TABLE.y + .06 + y * .43, cupAt[1] + z * .174, cupLimit);
+    if (cupRing) {
+      const y = TABLE.y + .275, v = y * upward.y + cupAt[1] * upward.z, depth = y * backward.y + cupAt[1] * backward.z;
+      at(cupAt[0] - cupRing, v, depth, ringLimit); at(cupAt[0] + cupRing, v, depth, ringLimit);
+      at(cupAt[0], v - cupRing, depth, ringLimit); at(cupAt[0], v + cupRing, depth, ringLimit);
+    }
     // Solve the shared view-plane intervals, rather than wasting space on the
     // corners of one large axis-aligned rectangle that contains no dice.
     let left, right, lower, upper;
@@ -77,9 +104,8 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}
       for (let i = 0; i < count; i++) {
         const point = corners[i], span = tan * (depth - point.depth);
         if (span <= 0) return false;
-        const halfWidth = point.horizontal * span * aspect;
-        left = Math.max(left, point.x - halfWidth); right = Math.min(right, point.x + halfWidth);
-        lower = Math.max(lower, point.v - top * span); upper = Math.min(upper, point.v - bottom * span);
+        left = Math.max(left, point.x - point.right * span * aspect); right = Math.min(right, point.x + point.left * span * aspect);
+        lower = Math.max(lower, point.v - point.top * span); upper = Math.min(upper, point.v - point.bottom * span);
       }
       return left <= right && lower <= upper;
     }
@@ -126,12 +152,15 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}
     if (disposed) return;
     viewportWidth = Math.max(1, Number(nextWidth) || 1); viewportHeight = Math.max(1, Number(nextHeight) || 1);
     const aspect = viewportWidth / viewportHeight, compact = viewportHeight < 620;
-    camera.aspect = aspect; camera.fov = SHOT.fov; camera.updateProjectionMatrix();
-    tablePosition.copy(tableTarget).addScaledVector(tableOffset, Math.max(1, .95 / aspect));
+    camera.aspect = aspect; camera.fov = shot.fov; camera.updateProjectionMatrix();
+    tablePosition.copy(tableTarget).addScaledVector(tableOffset, typeof pull === 'function' ? pull(aspect) : Math.max(1, pull / aspect));
     // Mesh bounds reserve another 22–30px for external result/held labels.
     safe.top = Math.min(compact ? 88 : 112, viewportHeight * .22);
     safe.bottom = Math.min(compact ? 114 : 142, viewportHeight * .285);
     safe.left = safe.right = Math.min(16, viewportWidth * .035);
+    const own = shot.safe?.(viewportWidth, viewportHeight);
+    if (own) for (const side of ['top', 'bottom', 'left', 'right']) if (Number.isFinite(own[side])) safe[side] = own[side];
+    for (const kind of ['die', 'ring']) for (const side of ['top', 'bottom', 'side']) reach[kind][side] = Number.isFinite(own?.[kind]?.[side]) ? own[kind][side] : 0;
     fit(focus, focusEndPosition, focusEndTarget);
     if (focusDuration) {
       fit(previousFocus, focusStartPosition, focusStartTarget);
@@ -306,7 +335,7 @@ export function createYatzyTable() {
 }
 
 /** One shared REMAKE scene. The controller owns RAF, actors, dice and game time. */
-export async function createYatzyWorld(canvas) {
+export async function createYatzyWorld(canvas, { shot = SHOT } = {}) {
   const params = new URLSearchParams(globalThis.location?.search || '');
   const preset = pickQuality(params);
   // This is an intimate table clearing, with less distant vegetation to shade.
@@ -319,7 +348,7 @@ export async function createYatzyWorld(canvas) {
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = look.exposure; renderer.shadowMap.enabled = q.shadowSize > 0;
   renderer.shadowMap.type = THREE.PCFShadowMap; renderer.info.autoReset = false;
-  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(SHOT.fov, 1.5, .1, 700);
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(shot.fov, 1.5, .1, 700);
   camera.name = 'Yatzy · across the table';
   const lighting = createLighting(scene, look, q);
   const depthShadow = installDepthShadows(renderer, lighting.sun);
@@ -334,7 +363,7 @@ export async function createYatzyWorld(canvas) {
     // The clearing overlooks a gently falling wooded hollow. Lower distant
     // crowns replace the flat carpet of ground and repetitive full-height trunks.
     lift(x, z) { return -Math.min(5.5, Math.max(0, -z - 6) * .2) * THREE.MathUtils.smoothstep(Math.hypot(x, z + 1.5), 6, 14); },
-    shots: { table: SHOT, narrow: { position: [-.4, 3.7, 6.2], target: SHOT.target, fov: 41 } },
+    shots: { table: SHOT, narrow: { position: [-.4, 3.7, 6.2], target: SHOT.target, fov: 41 }, ...(shot === SHOT ? {} : { own: shot }) },
     actors: { mosi: { position: [0, 0, -3.4], heading: 90 }, table: { position: [0, 0, 0], heading: 0 } },
   };
   const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'morning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
@@ -343,7 +372,7 @@ export async function createYatzyWorld(canvas) {
   let disposed = false, resolution = 1, frameTime = 0, frameCount = 0, environmentTime = 0, lastAdapt = 0;
   let forest, resizeObserver;
   const focus = new THREE.Vector3(0, 1.3, -1.2); lighting.focus(focus, 5.7);
-  const cameraRig = createYatzyCameraRig(camera);
+  const cameraRig = createYatzyCameraRig(camera, { shot });
 
   function resize() {
     if (disposed) return;

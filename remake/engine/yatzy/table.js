@@ -26,15 +26,43 @@ import { yatzySounds, YATZY_GAPS } from './yatzy-sounds.js';
 
 // The interactive table of "Risaeðlu-Yatzy!", rendered into `#yatzy` using `yatzy.css`.
 // Can be opened from the Leikir page of Egill's journal (`main.js`) or run standalone in `yatzy-lab.html`.
+//
+// What a turn looks and sounds like (the sounds are yatzy-sounds.js's, Slóeðla's moves sloedla-view.js's):
+//   - Kasta!: the cup rattles and pours, the dice tumble with their faces flicking past and land one after another, left to right,
+//     each with a squash, a knock and a bell up the key, Slóeðla's eyes following them. Only then do the banner, the glow round a
+//     pattern and the sheet show what was rolled: the rows that score now shimmer once, top to bottom, and she nods.
+//   - A die held lifts into the moss nest with a ring of light and the next note of do-re-mi, and she leans in to look.
+//   - A row chosen stamps with a squash and pop, its score flies to the total, which counts up in climbing ticks, and she rears up
+//     for a good score, nods for a small one and slumps, cutely, for a zero. A spark earned flies into the Golden Egg, which fills
+//     with gold; full, it shines and wobbles. Used, it shakes, cracks and bursts, she calls through her crest with it glowing and
+//     notes floating out, and the magic flies to the die it turns.
+//   - Her turn opens with a drum, she thinks with a tick-tock and a tilted head, and plays as the child does.
+//   - At the end the card pops open over a burst of confetti, with a fanfare for the child's win (a warm chord when she wins), and
+//     she celebrates. The music dips under the fanfares and her call.
+// A tap on a die or a row while the dice are still in the air does nothing; the methods the lab and the tests call act at once.
 
 const REMAKE = new URL('../../', import.meta.url);
 const asset = path => new URL(path, REMAKE).href;
 const MUSIC = asset('assets/audio/eitt/music.mp3');
 
-const ROLL_ANIM_MS = 420;
+// The table's motion (yatzy.css draws it, with transform and opacity only). The game's state changes at once; these only pace what
+// the child sees, and with less motion (prefers-reduced-motion) every move is a fade.
+const TUMBLE_MS = 380; // the first die tumbles this long before it lands
+const STAGGER_MS = 55; // and each next one lands this much after the one before
+const SQUASH_MS = 320; // a landed die's squash and pop
+const POUR_MS = 110; // the dice pour out of the cup this long after its rattle
+const FLY_MS = 560; // a spark's flight into the Golden Egg, the egg's magic to a die, or a score to its total
+const CRACK_MS = 330; // the egg shakes and cracks this long before it bursts
+const SHIMMER_MS = 1300; // rows lighting up, the last one's shimmer included
+const STAMP_MS = 650; // a chosen row's stamp
+const TALLY_STEP_MS = 55; // a total counts up one tick at a time
 const SLOEDLA_STEP_MS = 950;
 const ADVICE_MS = 5200;
 const SPEECH_MS = 2600;
+const NOTE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18.5a3.2 2.6 0 1 1-1.3-2.1V4.5l10-2.2v12.4a3.2 2.6 0 1 1-1.3-2.1V6.7L9 8.3z" fill="var(--note-c, #f7bd2b)" stroke="#3b2f25" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z" fill="#ffe268" stroke="#c48a16" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+const CRACKS_SVG = '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M14 47l13 7 9-10 11 11 9-9 11 10 9-8 10 6" fill="none" stroke="#3b2f25" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M47 55l-4 13 6 9M67 54l5 12" fill="none" stroke="#3b2f25" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CONFETTI_COLOURS = ['#e8483b', '#f7bd2b', '#6fae4f', '#3a8de4', '#8f6aa3', '#dc8090', '#2f8f86'];
 
 const CROSS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="#3b2f25" stroke-width="4" stroke-linecap="round"/></svg>';
 const AGAIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -225,7 +253,23 @@ export function createYatzyGame(
     output: audio?.output ?? null,
     url: MUSIC,
   });
-  if (audio?.muted) music.muted = true;
+  let muted = false;
+  function setMuted(value) {
+    muted = Boolean(value);
+    sfx.muted = muted;
+    music.muted = muted;
+  }
+  setMuted(audio?.muted); // wherever the game's sound is muted (captures), so is this
+
+  let duckTimer = 0;
+  /** The music dips under a big moment (a fanfare, her call) for `ms`, as it does under a line. */
+  function duckFor(ms) {
+    music.duck(true);
+    clearTimeout(duckTimer);
+    duckTimer = setTimeout(() => music.duck(false), ms);
+    duckTimer?.unref?.();
+  }
+  const calm = () => reducedMotion(win);
 
   const make = (tag, cls) => {
     const el = doc.createElement(tag);
@@ -242,6 +286,12 @@ export function createYatzyGame(
   let adviceTimer = 0;
   let tutIdx = -1; // -1 when not in tutorial mode, 0..TUTORIAL_STEPS.length-1 when teaching
   let tutOverrideText = '';
+  const rolling = new Set(); // dice mid-tumble: the tumble shows their faces, not render()
+  const pending = new Set(); // a die the egg's magic is on its way to: it keeps its old face until the magic lands
+  let eggShown = game.eggCharge; // the sparks the egg shows, which catch up with game.eggCharge as each spark lands in it
+  let eggFlying = 0; // sparks on their way to the egg
+  let bannerText = '';
+  const tallies = {}; // 'child' | 'sloedla' -> { el, pill, shown, target, count, timer }: the totals in the header, counting up
 
   const later = (ms, fn) => {
     const id = setTimeout(() => {
@@ -282,6 +332,8 @@ export function createYatzyGame(
   const sloedlaPts = make('span', 'pts');
   sloedlaPts.textContent = '0';
   sloedlaPill.append(sloedlaDot, sloedlaLabel, sloedlaPts);
+  tallies.child = { el: childPts, pill: childPill, shown: 0, target: 0, count: false, timer: 0 };
+  tallies.sloedla = { el: sloedlaPts, pill: sloedlaPill, shown: 0, target: 0, count: false, timer: 0 };
 
   // Badges bar (6 dinosaurs)
   const badgesBar = make('div', 'yatzy-badges-bar');
@@ -324,7 +376,7 @@ export function createYatzyGame(
   const skipBtn = make('button', 'yatzy-skip-btn');
   skipBtn.setAttribute('type', 'button');
   skipBtn.setAttribute('aria-label', 'Sleppa kennslu');
-  skipBtn.textContent = 'Sleppa kennslu';
+  skipBtn.innerHTML = '<span>Sleppa</span><span class="yatzy-long"> kennslu</span>'; // a narrow screen shows "Sleppa" alone
   skipBtn.hidden = true;
 
   const quitBtn = make('button', 'yatzy-quit');
@@ -484,7 +536,13 @@ export function createYatzyGame(
   const eggLabel = make('span', 'yatzy-egg-label');
   eggLabel.textContent = 'Töfraegg';
   eggBtn.innerHTML = EGG_SVG;
-  eggBtn.append(eggSparks, eggLabel);
+  // The charge fills the egg from the bottom (gold glass behind its picture), cracks show as it breaks, and a ring of light bursts.
+  const eggGlass = make('span', 'yatzy-egg-glass');
+  eggGlass.append(make('span', 'yatzy-egg-fill'), make('span', 'yatzy-egg-shine'));
+  const eggCracks = make('span', 'yatzy-egg-cracks');
+  eggCracks.innerHTML = CRACKS_SVG;
+  const eggBurst = make('span', 'yatzy-egg-burst');
+  eggBtn.append(eggGlass, eggSparks, eggLabel, eggCracks, eggBurst);
 
   controlsBar.append(mosiWrap, rollBtn, eggBtn);
   stageEl.append(bannerEl, tutCard, nestArea, controlsBar);
@@ -540,9 +598,28 @@ export function createYatzyGame(
     }
   }
 
+  /**
+   * Her bubble goes beside her window where there is room for it: to the right, between the window's frame and the buttons, or else
+   * to the left, between the frame and the scores, and never wider than that room, so it touches neither.
+   */
+  function placeSpeech() {
+    const w = sloedlaWindow.getBoundingClientRect();
+    if (!w.width) return;
+    const FRAME = 9 + 10; // the window's painted frame, and a gap
+    const buttons = topRight.getBoundingClientRect().left;
+    const scores = Math.max(...[childPill, sloedlaPill, badgesBar].map(el => el.getBoundingClientRect().right));
+    const right = buttons - (w.right + FRAME) - 8;
+    const left = w.left - FRAME - scores - 8;
+    const onLeft = right < 150 && left > right;
+    speechEl.classList.toggle('on-left', onLeft);
+    speechEl.style.setProperty('--speech-max', `${Math.round(Math.max(90, Math.min(220, onLeft ? left : right)))}px`);
+  }
+
   function saySloedla(text, ms = SPEECH_MS) {
     speechEl.textContent = text;
     speechEl.hidden = false;
+    placeSpeech();
+    retrigger(speechEl, 'pop');
     clearTimeout(speechTimer);
     speechTimer = setTimeout(() => {
       speechEl.hidden = true;
@@ -563,26 +640,32 @@ export function createYatzyGame(
     return new Set([...saved, ...game.yatzyBadges]);
   }
 
-  function renderDie(i) {
-    const { dieBtn, nestTag, numEl, pipsEl, imgEl, nameEl } = dieEls[i];
-    const face = game.dice[i];
+  /** The face die `i` shows: its dinosaur, number, name and colours (the pips and the label are renderDie's). */
+  function showFace(i, face) {
+    const { dieBtn, numEl, imgEl, nameEl } = dieEls[i];
     const dino = dinoByFace(face);
-    const isHeld = game.rolled && game.held[i];
-
     dieBtn.style.setProperty('--dino-c', dino.colour);
     dieBtn.style.setProperty('--dino-deep', dino.deep);
     dieBtn.style.setProperty('--dino-light', dino.light);
-    dieBtn.classList.toggle('held', isHeld);
-    dieBtn.setAttribute(
-      'aria-label',
-      `${dino.name} (${face})${isHeld ? ', geymdur í hreiðri' : ''}`,
-    );
-
-    nestTag.hidden = !isHeld;
     numEl.textContent = String(face);
-    pipsEl.replaceChildren(...Array.from({ length: face }, () => make('i')));
     imgEl.src = asset(dino.img);
     nameEl.textContent = dino.name;
+  }
+
+  function renderDie(i) {
+    const entry = dieEls[i];
+    const { dieBtn, nestTag, pipsEl } = entry;
+    const isHeld = game.rolled && game.held[i];
+    dieBtn.classList.toggle('held', isHeld);
+    nestTag.hidden = !isHeld;
+    if (rolling.has(i) || pending.has(i)) return; // the tumble, or the egg's magic, shows this die's face for now
+    const face = game.dice[i];
+    const dino = dinoByFace(face);
+    dieBtn.setAttribute('aria-label', `${dino.name} (${face})${isHeld ? ', geymdur í hreiðri' : ''}`);
+    if (entry.face === face) return;
+    entry.face = face;
+    showFace(i, face);
+    pipsEl.replaceChildren(...Array.from({ length: face }, () => make('i')));
   }
 
   function renderTutorialState() {
@@ -637,8 +720,8 @@ export function createYatzyGame(
     // Scoreboard pills
     const childTotal = totalScore(game, 'child');
     const sloedlaTotal = totalScore(game, 'sloedla');
-    childPts.textContent = String(childTotal);
-    sloedlaPts.textContent = String(sloedlaTotal);
+    showTotal('child', childTotal);
+    showTotal('sloedla', sloedlaTotal);
     childPill.classList.toggle('active', !game.winner && game.turn === 'child');
     sloedlaPill.classList.toggle('active', !game.winner && game.turn === 'sloedla');
 
@@ -649,15 +732,21 @@ export function createYatzyGame(
     }
 
     // Dice
-    const combo = game.rolled ? detectCombo(game.dice) : { kind: 'none', indices: [], label: '' };
+    // While dice tumble the table keeps the roll to itself: the banner, the glow round a pattern and the sheet's previews wait
+    // until the last die has landed.
+    const landing = rolling.size > 0 || pending.size > 0;
+    const shown = game.rolled && !landing;
+    const combo = shown ? detectCombo(game.dice) : { kind: 'none', indices: [], label: '' };
     for (let i = 0; i < DICE_COUNT; i++) {
       renderDie(i);
-      dieEls[i].dieBtn.classList.toggle('combo-match', game.rolled && combo.indices.includes(i));
+      dieEls[i].dieBtn.classList.toggle('combo-match', shown && combo.indices.includes(i));
     }
 
     // Banner & Nest Hint
     bannerEl.classList.toggle('yatzy-mega', combo.kind === 'yatzy');
-    if (game.winner) {
+    if (landing && !game.winner) {
+      bannerEl.textContent = pending.size ? 'Töfralúður Slóeðlu!' : game.turn === 'sloedla' ? 'Slóeðla kastar…' : 'Teningarnir rúlla…';
+    } else if (game.winner) {
       bannerEl.textContent = game.winner === 'child' ? 'Þú vannst leikinn!' : game.winner === 'tie' ? 'Jafntefli!' : 'Slóeðla vann!';
     } else if (game.turn === 'sloedla') {
       bannerEl.textContent = game.rolled && combo.label ? `Slóeðla: ${combo.label}` : 'Slóeðla á leik…';
@@ -667,6 +756,11 @@ export function createYatzyGame(
       bannerEl.textContent = combo.label;
     } else {
       bannerEl.textContent = game.rollsLeft > 0 ? 'Veldu teninga í hreiðrið eða kastaðu aftur!' : 'Veldu reit á spjaldinu!';
+    }
+
+    if (bannerEl.textContent !== bannerText) {
+      bannerText = bannerEl.textContent;
+      retrigger(bannerEl, 'pop');
     }
 
     nestHint.textContent =
@@ -680,17 +774,22 @@ export function createYatzyGame(
     const allHeld = game.rolled && game.held.every(Boolean);
     const canRoll = !game.winner && game.turn === 'child' && game.rollsLeft > 0 && !allHeld;
     rollBtn.disabled = !canRoll;
+    rollBtn.classList.toggle('inviting', canRoll && !game.rolled && !currentTutStep());
     rollLabel.textContent = !game.rolled ? 'Kasta!' : game.rollsLeft > 0 ? 'Kasta aftur!' : 'Veldu reit';
     pipSpans.forEach((pip, idx) => pip.classList.toggle('on', idx < game.rollsLeft));
 
     // Golden Egg button
-    const eggReady = canUseEgg(game, 'child');
+    if (!eggFlying && !rolling.size && !pending.size) eggShown = game.eggCharge; // nothing on its way: the egg shows what it holds
+    const eggFull = eggShown >= MAX_EGG_CHARGE;
+    const eggReady = canUseEgg(game, 'child') && eggFull;
     eggBtn.classList.toggle('ready', eggReady);
-    eggSparkDots.forEach((dot, idx) => dot.classList.toggle('lit', idx < game.eggCharge));
-    eggLabel.textContent = eggReady ? 'Lúðrakall!' : `Töfraegg ${game.eggCharge}/${MAX_EGG_CHARGE}`;
+    eggBtn.classList.toggle('full', eggFull);
+    eggBtn.style.setProperty('--charge', String(Math.min(1, eggShown / MAX_EGG_CHARGE)));
+    eggSparkDots.forEach((dot, idx) => dot.classList.toggle('lit', idx < eggShown));
+    eggLabel.textContent = eggReady ? 'Lúðrakall!' : `Töfraegg ${eggShown}/${MAX_EGG_CHARGE}`;
 
     // Scorecard rows
-    const childCanPick = !game.winner && game.turn === 'child' && game.rolled;
+    const childCanPick = !game.winner && game.turn === 'child' && shown;
     const bestCatId = childCanPick ? sharpCategory(game, 'child') : null;
 
     for (const [id, { btn, mineEl, theirsEl }] of rowButtons) {
@@ -723,6 +822,7 @@ export function createYatzyGame(
     }
 
     renderTutorialState();
+    if (!speechEl.hidden) placeSpeech(); // the buttons beside her window may have changed
   }
 
   // ---- Actions --------------------------------------------------------------------------------------------------------
@@ -739,37 +839,276 @@ export function createYatzyGame(
       const isNew = save?.addYatzyBadge?.(key);
       if (isNew) {
         const slot = badgeSlots.get(key);
-        if (slot) sparkle(slot, 14, win);
+        if (slot) {
+          sparkle(slot, 14, win);
+          bounce(slot, 'new', 900);
+        }
+        later(700, () => sfx.play('badge'));
       }
     }
   }
 
-  function animateRoll(rolledIndices, onDone) {
-    for (const idx of rolledIndices) {
-      dieEls[idx].dieBtn.classList.remove('rolling');
-      void dieEls[idx].dieBtn.offsetWidth;
-      dieEls[idx].dieBtn.classList.add('rolling');
-    }
-    later(ROLL_ANIM_MS, () => {
-      for (const idx of rolledIndices) dieEls[idx].dieBtn.classList.remove('rolling');
-      onDone?.();
+  // ---- Effects --------------------------------------------------------------------------------------------------------
+
+  /** Takes `cls` off `el` and puts it back on, so its animation plays again from the start. */
+  function retrigger(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  }
+
+  /** `el` wears `cls` for `ms` (its animation plays once), then not. */
+  function bounce(el, cls, ms) {
+    retrigger(el, cls);
+    later(ms, () => el.classList.remove(cls));
+  }
+
+  /**
+   * Something flies from the middle of `fromEl` to the middle of `toEl` over FLY_MS (yatzy.css: .yatzy-flyer and its kind): a spark
+   * into the egg, the egg's magic to a die, a score to its total. It is drawn over the table and takes itself away.
+   */
+  function flyer(fromEl, toEl, kind, html = STAR_SVG) {
+    const a = fromEl?.getBoundingClientRect?.();
+    const b = toEl?.getBoundingClientRect?.();
+    if (!a || !b) return null;
+    const el = make('span', `yatzy-flyer ${kind}`);
+    el.innerHTML = html;
+    const x = a.left + a.width / 2;
+    const y = a.top + a.height / 2;
+    el.style.setProperty('left', `${x.toFixed(1)}px`);
+    el.style.setProperty('top', `${y.toFixed(1)}px`);
+    el.style.setProperty('--dx', `${(b.left + b.width / 2 - x).toFixed(1)}px`);
+    el.style.setProperty('--dy', `${(b.top + b.height / 2 - y).toFixed(1)}px`);
+    el.style.setProperty('--fly-ms', `${FLY_MS}ms`);
+    root.append(el);
+    const timer = setTimeout(() => el.remove(), FLY_MS + 150);
+    timer?.unref?.();
+    return el;
+  }
+
+  /** A spark flies from `fromEl` into the Golden Egg; as it lands the egg gulps, a spark lights and the gold rises inside. */
+  function chargeEgg(fromEl, delay = 0) {
+    eggFlying++;
+    later(delay, () => {
+      flyer(fromEl, eggBtn, 'spark');
+      sfx.play('eggSpark');
+      later(FLY_MS, () => {
+        eggFlying = Math.max(0, eggFlying - 1);
+        eggShown = game.eggCharge;
+        bounce(eggBtn, 'gulp', 560);
+        const full = eggShown >= MAX_EGG_CHARGE;
+        if (full) sfx.play('eggReady');
+        sparkle(eggBtn, full ? 14 : 8, win);
+        render();
+      });
     });
   }
 
+  /** Golden notes float up out of Slóeðla's crest while she calls. */
+  function floatNotes(count = 4) {
+    const point = view?.crestPoint?.() ?? { x: 0.32, y: 0.22 };
+    const x = Math.min(0.95, Math.max(0.05, point.x));
+    const y = Math.min(0.9, Math.max(0.08, point.y));
+    for (let k = 0; k < count; k++) {
+      const note = make('span', 'yatzy-note');
+      note.innerHTML = NOTE_SVG;
+      note.style.setProperty('left', `${(x * 100).toFixed(1)}%`);
+      note.style.setProperty('top', `${(y * 100).toFixed(1)}%`);
+      note.style.setProperty('--dx', `${(k % 2 ? 1 : -1) * (18 + k * 12)}px`);
+      note.style.setProperty('--dy', `${-34 - k * 8}px`);
+      note.style.setProperty('--note-c', ['#f7bd2b', '#e07a3f', '#2f8f86', '#8f6aa3'][k % 4]);
+      note.style.setProperty('--delay', `${180 + k * 240}ms`);
+      sloedlaWrap.append(note);
+      const timer = setTimeout(() => note.remove(), 2600);
+      timer?.unref?.();
+    }
+  }
+
+  /** The rows the child's dice score on now (none on Slóeðla's turn or before a roll). */
+  function scorableRows() {
+    if (game.winner || game.turn !== 'child' || !game.rolled) return [];
+    return CATEGORIES.filter(c => !(c.id in game.scores.child) && scoreCategory(c.id, game.dice) > 0).map(c => c.id);
+  }
+
+  /** Rows that score now and did not before (`before`) shimmer once, top to bottom down both columns, and Slóeðla nods. */
+  function shimmerRows(before) {
+    const fresh = scorableRows().filter(id => !before.includes(id));
+    const place = { left: 0, right: 0 };
+    for (const id of fresh) {
+      const { btn, cat } = rowButtons.get(id);
+      btn.style.setProperty('--shimmer-delay', `${place[cat.side]++ * 70}ms`);
+      bounce(btn, 'shimmer', SHIMMER_MS);
+    }
+    if (fresh.length) {
+      sfx.play('shimmer');
+      view?.nod();
+    }
+  }
+
+  /** The dice of a pattern hop together, one after another. */
+  function cheerDice(indices) {
+    indices.forEach((idx, k) => {
+      const { dieBtn } = dieEls[idx];
+      dieBtn.style.setProperty('--cheer-delay', `${k * 60}ms`);
+      bounce(dieBtn, 'cheer', 520 + k * 60);
+    });
+  }
+
+  /** The total on `who`'s pill: counts up tick by tick after a row is chosen (when `count` is set), else simply shows. */
+  function showTotal(who, total) {
+    const t = tallies[who];
+    if (t.target === total) return;
+    t.target = total;
+    clearTimeout(t.timer);
+    if (t.count && total > t.shown) {
+      const from = t.shown;
+      const steps = Math.min(total - from, 10);
+      let k = 0;
+      const step = () => {
+        k++;
+        t.shown = k >= steps ? total : from + Math.round(((total - from) * k) / steps);
+        t.el.textContent = String(t.shown);
+        sfx.play(`tick${Math.min(6, 1 + Math.floor(((k - 1) * 6) / steps))}`);
+        if (k < steps) t.timer = later(TALLY_STEP_MS, step);
+        else bounce(t.pill, 'bump', 450);
+      };
+      t.timer = later(FLY_MS - 40, step); // as the score lands on the pill
+    } else {
+      t.shown = total;
+      t.el.textContent = String(total);
+    }
+    t.count = false;
+  }
+
+  /** A row is chosen: it stamps and sparkles, its score flies to the total, which counts up, and Slóeðla reacts. */
+  function scoreFx(who, categoryId, pts) {
+    const entry = rowButtons.get(categoryId);
+    sfx.play('stamp');
+    tallies[who].count = true;
+    if (entry) {
+      const pill = who === 'child' ? entry.mineEl : entry.theirsEl;
+      bounce(entry.btn, who === 'child' ? 'stamped' : 'stamped-theirs', STAMP_MS);
+      sparkle(pill, pts >= 8 ? 14 : 8, win);
+      if (pts > 0) later(120, () => flyer(pill, tallies[who].pill, 'score', `+${pts}`));
+    }
+    if (pts === 0) {
+      later(160, () => sfx.play('zero'));
+      view?.slump();
+    } else if (pts >= 8) {
+      view?.hop();
+    } else {
+      view?.nod();
+    }
+  }
+
+  /** The egg shakes and cracks, then bursts in a ring of light. */
+  function crackEgg() {
+    bounce(eggBtn, 'cracking', CRACK_MS + 60);
+    later(CRACK_MS, () => {
+      bounce(eggBtn, 'bursting', 950);
+      sparkle(eggBtn, 18, win);
+    });
+  }
+
+  /** Confetti bursts up from behind the end card and falls, and a gentle rain follows (with less motion: it only fades in place). */
+  function launchConfetti(burst, rain) {
+    const pieces = [];
+    for (let k = 0; k < burst + rain; k++) {
+      const shape = k % 5 === 0 ? ' round' : k % 7 === 3 ? ' star' : '';
+      const piece = make('i', k < burst ? `burst${shape}` : `rain${shape}`);
+      const angle = (((k * 137.5) % 180) + 180) * (Math.PI / 180); // the golden angle, over the upper half
+      const power = 0.55 + ((k * 7919) % 100) / 220;
+      const bx = Math.cos(angle) * power * 44;
+      const by = Math.sin(angle) * power * 46 - 6;
+      piece.style.setProperty('--c', CONFETTI_COLOURS[k % CONFETTI_COLOURS.length]);
+      piece.style.setProperty('--bx', `${bx.toFixed(1)}cqw`);
+      piece.style.setProperty('--by', `${by.toFixed(1)}cqh`);
+      piece.style.setProperty('--fx', `${(bx * 1.3).toFixed(1)}cqw`);
+      piece.style.setProperty('--r', `${(k % 2 ? 1 : -1) * (360 + ((k * 53) % 540))}deg`);
+      piece.style.setProperty('--t', `${(k < burst ? 2.4 + (k % 6) * 0.22 : 3.4 + (k % 5) * 0.4).toFixed(2)}s`);
+      piece.style.setProperty('--d', `${(k < burst ? (k % 8) * 0.025 : 1.2 + (k % 9) * 0.45).toFixed(2)}s`);
+      piece.style.setProperty('--x', `${((k * 61.8) % 100).toFixed(1)}%`);
+      piece.style.setProperty('--y', `${(6 + ((k * 37.3) % 84)).toFixed(1)}%`);
+      pieces.push(piece);
+    }
+    confettiEl.replaceChildren(...pieces);
+  }
+
+  /** Everything in flight stops and the table shows the game as it is (a new game, the tutorial, the game shut). */
+  function resetFx() {
+    rolling.clear();
+    pending.clear();
+    eggFlying = 0;
+    eggShown = game.eggCharge;
+    for (const t of Object.values(tallies)) {
+      t.count = false;
+      t.target = -1;
+    }
+    for (const { dieBtn } of dieEls) dieBtn.classList.remove('tumbling', 'landing', 'magic', 'just-held', 'cheer');
+    for (const { btn } of rowButtons.values()) btn.classList.remove('shimmer', 'stamped', 'stamped-theirs');
+    eggBtn.classList.remove('cracking', 'bursting', 'gulp');
+    for (const el of [...root.querySelectorAll('.yatzy-flyer'), ...sloedlaWrap.querySelectorAll('.yatzy-note')]) el.remove();
+    confettiEl.replaceChildren();
+    winOverlay.classList.remove('show');
+  }
+
+  /**
+   * The dice in `rolledIndices` tumble out of the cup (it rattles, they pour) and land one after another, left to right, each with
+   * a squash, a knock and a bell up the key, Slóeðla's eyes following them; `onDone` once the last has landed.
+   */
+  function animateRoll(rolledIndices, onDone) {
+    sfx.play('shake');
+    later(POUR_MS, () => sfx.play('roll'));
+    view?.sweep();
+    rolledIndices.forEach(idx => rolling.add(idx));
+    rolledIndices.forEach((idx, k) => {
+      const { dieBtn } = dieEls[idx];
+      const landAt = TUMBLE_MS + k * STAGGER_MS;
+      dieBtn.classList.remove('landing', 'cheer');
+      dieBtn.style.setProperty('--tumble-ms', `${landAt}ms`);
+      dieBtn.style.setProperty('--tilt', `${k % 2 ? 7 : -7}deg`);
+      retrigger(dieBtn, 'tumbling');
+      later(landAt, () => {
+        rolling.delete(idx);
+        dieBtn.classList.remove('tumbling');
+        renderDie(idx);
+        bounce(dieBtn, 'landing', SQUASH_MS);
+        sfx.play(`settle${Math.min(5, k + 1)}`);
+        view?.watch(idx / (DICE_COUNT - 1));
+      });
+    });
+    if (!calm()) {
+      // Faces flick past as the dice turn over (with less motion they fade out and come back with the new face).
+      const spin = () => {
+        for (const idx of rolling) {
+          dieEls[idx].face = 0;
+          showFace(idx, 1 + Math.floor(Math.random() * 6));
+        }
+        if (rolling.size) later(120, spin);
+      };
+      spin();
+    }
+    later(TUMBLE_MS + (rolledIndices.length - 1) * STAGGER_MS + 30, () => onDone?.());
+  }
+
   function celebrateCombo(combo, who) {
-    sfx.play('land');
     if (combo.kind === 'yatzy') {
       sfx.play('yatzy');
+      duckFor(1600);
       view?.call();
+      floatNotes();
       saySloedla(who === 'child' ? 'Váá! Risaeðlu-Yatzy!!' : 'Jibbí! Ég fékk Yatzy!');
+      cheerDice([0, 1, 2, 3, 4]);
       for (const { dieBtn } of dieEls) sparkle(dieBtn, 12, win);
       sparkle(bannerEl, 16, win);
     } else if (['footprints-5', 'full-nest', 'four', 'footprints-4', 'three'].includes(combo.kind)) {
       sfx.play('combo');
       view?.hop();
+      cheerDice(combo.indices);
       for (const idx of combo.indices) sparkle(dieEls[idx].dieBtn, 8, win);
     } else if (combo.kind === 'two-pairs' || combo.kind === 'pair') {
       sfx.play('pair');
+      cheerDice(combo.indices);
       view?.nod();
     }
   }
@@ -777,9 +1116,10 @@ export function createYatzyGame(
   function runTutorialSloedlaTurn({ dice, categoryId, nextStepId }) {
     busy = true;
     view?.think(true);
+    sfx.play('drum');
     saySloedla('Mín umferð!');
 
-    later(550, () => {
+    later(400, () => {
       if (!isOpen || tutIdx < 0) return;
       game = {
         ...game,
@@ -788,26 +1128,25 @@ export function createYatzyGame(
         rollsLeft: 2,
         rolled: true,
       };
-      sfx.play('roll');
-      render();
       animateRoll([0, 1, 2, 3, 4], () => {
         const combo = detectCombo(game.dice);
         celebrateCombo(combo, 'sloedla');
         render();
-        later(650, () => {
+        sfx.play('think');
+        later(550, () => {
           if (!isOpen || tutIdx < 0) return;
           view?.think(false);
           const cat = CATEGORIES.find(c => c.id === categoryId);
           const pts = scoreCategory(categoryId, game.dice);
           game = chooseCategory(game, 'sloedla', categoryId);
-          sfx.play('score');
-          const rowEntry = rowButtons.get(categoryId);
-          if (rowEntry) sparkle(rowEntry.btn, 10, win);
+          scoreFx('sloedla', categoryId, pts);
+          view?.watch(null);
           saySloedla(`Ég vel ${cat.short} (${pts} stig)! Þín umferð!`);
           busy = false;
           setTutStepById(nextStepId);
         });
       });
+      render();
     });
   }
 
@@ -841,9 +1180,11 @@ export function createYatzyGame(
     clearHints();
     music.wake();
     const beforeCharge = game.eggCharge;
+    const before = scorableRows();
     const rolledIndices = !game.rolled
       ? [0, 1, 2, 3, 4]
       : game.held.map((h, i) => (!h ? i : -1)).filter(i => i >= 0);
+    rolledIndices.forEach(idx => rolling.add(idx)); // they tumble from the tap: no render below shows their new faces before they land
 
     if (step) {
       if (step.id === 'intro' || step.id === 'roll-1') {
@@ -889,18 +1230,18 @@ export function createYatzyGame(
     }
 
     syncNewBadges();
-    sfx.play('roll');
-    render();
 
     const combo = detectCombo(game.dice);
     animateRoll(rolledIndices, () => {
       celebrateCombo(combo, 'child');
       if (game.eggCharge > beforeCharge) {
-        sfx.play(game.eggCharge >= MAX_EGG_CHARGE ? 'eggReady' : 'eggSpark');
-        sparkle(eggBtn, 10, win);
+        const middle = combo.indices[Math.floor(combo.indices.length / 2)];
+        chargeEgg(middle === undefined ? diceTray : dieEls[middle].dieBtn, 120);
       }
       render();
+      shimmerRows(before);
     });
+    render();
   }
 
   function onTapDie(index) {
@@ -921,12 +1262,17 @@ export function createYatzyGame(
     }
     clearHints();
     game = toggleHold(game, 'child', index);
+    const { dieBtn } = dieEls[index];
     if (game.held[index]) {
       const heldCount = game.held.filter(Boolean).length;
       sfx.play(`hold${Math.min(5, Math.max(1, heldCount))}`);
-      sparkle(dieEls[index].dieBtn, 8, win);
+      sparkle(dieBtn, 8, win);
+      bounce(dieBtn, 'just-held', 650);
+      view?.lean(index / (DICE_COUNT - 1));
     } else {
       sfx.play('unhold');
+      dieBtn.classList.remove('just-held');
+      view?.watch(index / (DICE_COUNT - 1));
     }
     if (step?.id === 'hold-0' && game.held[0]) {
       setTutStepById('hold-1');
@@ -950,24 +1296,33 @@ export function createYatzyGame(
     clearHints();
     const { game: next, changedIndex, newFace } = useEggPower(game, 'child');
     game = next;
+    eggShown = game.eggCharge; // the sparks go into the crack
+    pending.add(changedIndex); // the die keeps its old face until the magic reaches it
     syncNewBadges();
 
-    sfx.play('crestCall');
-    view?.call();
     const dino = dinoByFace(newFace);
     saySloedla(`Töfralúður! ${dino.name} kemur til hjálpar!`, 3400);
-
+    sfx.play('eggCrack');
+    crackEgg();
     const targetDie = dieEls[changedIndex].dieBtn;
-    targetDie.classList.remove('magic');
-    void targetDie.offsetWidth;
-    targetDie.classList.add('magic');
-    sparkle(eggBtn, 14, win);
-    sparkle(targetDie, 18, win);
-
     const combo = detectCombo(game.dice);
-    if (combo.kind === 'yatzy') {
-      later(400, () => celebrateCombo(combo, 'child'));
-    }
+    later(CRACK_MS, () => {
+      sfx.play('crestCall');
+      duckFor(1900);
+      view?.call();
+      floatNotes();
+      later(160, () => {
+        flyer(eggBtn, targetDie, 'magic');
+        later(FLY_MS, () => {
+          pending.delete(changedIndex);
+          render();
+          bounce(targetDie, 'magic', 800);
+          sfx.play('magic');
+          sparkle(targetDie, 18, win);
+          if (combo.kind === 'yatzy') later(520, () => celebrateCombo(combo, 'child'));
+        });
+      });
+    });
     if (step?.id === 'use-egg') {
       setTutStepById('score-yatzy');
     } else {
@@ -1004,22 +1359,25 @@ export function createYatzyGame(
       }),
     );
 
-    const colours = ['#e8483b', '#f7bd2b', '#6fae4f', '#3a8de4', '#8f6aa3', '#dc8090'];
-    confettiEl.innerHTML = Array.from(
-      { length: 48 },
-      (_, k) =>
-        `<i style="--c:${colours[k % colours.length]};--x:${((k * 61.8) % 100).toFixed(1)}%;--t:${(3.1 + (k % 5) * 0.4).toFixed(2)}s;--d:-${((k * 1.7) % 4).toFixed(2)}s"></i>`,
-    ).join('');
-
+    launchConfetti(childWon ? 60 : 30, childWon ? 22 : 10);
     winOverlay.hidden = false;
-    sfx.play('fanfare');
-    view?.cheer(5.0);
+    retrigger(winOverlay, 'show');
+    sfx.play('dialog');
+    later(260, () => {
+      sfx.play(childWon ? 'fanfare' : 'warm');
+      duckFor(childWon ? 2300 : 2000);
+    });
+    view?.cheer(childWon ? 6.5 : 2.4); // for the child's win she rears up and calls in turn; when she wins, one happy rear-up
   }
 
   function runSloedlaTurn() {
-    if (!isOpen || game.winner || game.turn !== 'sloedla') return;
+    if (!isOpen || game.winner || game.turn !== 'sloedla') {
+      busy = false;
+      return;
+    }
     busy = true;
     view?.think(true);
+    sfx.play('drum');
     saySloedla('Mín umferð!');
 
     const skill = save?.getYatzy?.().skill ?? SKILL_START;
@@ -1029,20 +1387,20 @@ export function createYatzyGame(
         busy = false;
         return;
       }
+      if (game.rolled) sfx.play('think');
       const move = chooseSloedlaMove(game, skill, random);
       if (move.type === 'roll') {
         const rolledIndices = !game.rolled
           ? [0, 1, 2, 3, 4]
           : game.held.map((h, i) => (!h ? i : -1)).filter(i => i >= 0);
         game = rollDice(game, 'sloedla', random);
-        sfx.play('roll');
-        render();
         const combo = detectCombo(game.dice);
         animateRoll(rolledIndices, () => {
           celebrateCombo(combo, 'sloedla');
           render();
           later(SLOEDLA_STEP_MS, step);
         });
+        render();
         return;
       }
 
@@ -1056,14 +1414,13 @@ export function createYatzyGame(
           if (!isOpen || game.turn !== 'sloedla') return;
           const rolledIndices = game.held.map((h, i) => (!h ? i : -1)).filter(i => i >= 0);
           game = rollDice(game, 'sloedla', random);
-          sfx.play('roll');
-          render();
           const combo = detectCombo(game.dice);
           animateRoll(rolledIndices, () => {
             celebrateCombo(combo, 'sloedla');
             render();
             later(SLOEDLA_STEP_MS, step);
           });
+          render();
         });
         return;
       }
@@ -1073,9 +1430,8 @@ export function createYatzyGame(
         const cat = CATEGORIES.find(c => c.id === move.categoryId);
         const pts = scoreCategory(move.categoryId, game.dice);
         game = chooseCategory(game, 'sloedla', move.categoryId);
-        sfx.play('score');
-        const rowEntry = rowButtons.get(move.categoryId);
-        if (rowEntry) sparkle(rowEntry.btn, 10, win);
+        scoreFx('sloedla', move.categoryId, pts);
+        view?.watch(null);
         saySloedla(pts > 0 ? `Ég vel ${cat.short} (${pts} stig)! Þín umferð!` : `Ég vel ${cat.short}. Þín umferð!`);
         busy = false;
         render();
@@ -1113,13 +1469,11 @@ export function createYatzyGame(
     }
     clearHints();
     const pts = scoreCategory(categoryId, game.dice);
+    const beforeCharge = game.eggCharge;
     game = chooseCategory(game, 'child', categoryId);
     syncNewBadges();
-    sfx.play('score');
-
-    const rowEntry = rowButtons.get(categoryId);
-    if (rowEntry) sparkle(rowEntry.btn, pts >= 8 ? 14 : 8, win);
-    if (pts >= 8) view?.hop();
+    scoreFx('child', categoryId, pts);
+    if (game.eggCharge > beforeCharge) chargeEgg(rowButtons.get(categoryId)?.mineEl ?? eggBtn, 380);
 
     if (step) {
       if (step.id === 'explain-boards' || step.id === 'score-full-nest') {
@@ -1150,7 +1504,8 @@ export function createYatzyGame(
     if (game.winner) {
       later(550, finishGame);
     } else if (game.turn === 'sloedla') {
-      runSloedlaTurn();
+      busy = true; // her turn waits a moment, so the child sees the stamp and the count land first
+      later(700, runSloedlaTurn);
     }
   }
 
@@ -1197,6 +1552,7 @@ export function createYatzyGame(
     busy = false;
     winOverlay.hidden = true;
     game = newGame();
+    resetFx();
     tutIdx = 0;
     tutOverrideText = '';
     view?.rest();
@@ -1213,8 +1569,10 @@ export function createYatzyGame(
 
   // ---- Wire Controls --------------------------------------------------------------------------------------------------
 
-  pressable(rollBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapRoll });
-  pressable(eggBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapEgg });
+  // While dice are in the air (or the egg's magic is on its way) a finger's tap waits for them: nothing is chosen unseen.
+  const settled = () => !rolling.size && !pending.size;
+  pressable(rollBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapRoll() });
+  pressable(eggBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapEgg() });
   pressable(mosiBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: onTapMosi });
   pressable(tutNextBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapTutNext });
   pressable(teachBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => startTutorial() });
@@ -1232,11 +1590,11 @@ export function createYatzyGame(
   });
 
   dieEls.forEach(({ dieBtn }, idx) => {
-    pressable(dieBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => onTapDie(idx) });
+    pressable(dieBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapDie(idx) });
   });
 
   for (const [id, { btn }] of rowButtons) {
-    pressable(btn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => onTapCategory(id) });
+    pressable(btn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapCategory(id) });
   }
 
   root.addEventListener('contextmenu', e => e.preventDefault());
@@ -1249,6 +1607,7 @@ export function createYatzyGame(
     tutOverrideText = '';
     winOverlay.hidden = true;
     game = newGame();
+    resetFx();
     view?.rest();
     saySloedla('Velkomin í Risaeðlu-Yatzy! Þú byrjar!');
     render();
@@ -1299,6 +1658,7 @@ export function createYatzyGame(
     busy = false;
     tutIdx = -1;
     tutOverrideText = '';
+    resetFx();
     view?.stop();
     music.stop();
     root.hidden = true;
@@ -1327,6 +1687,13 @@ export function createYatzyGame(
     get isOpen() {
       return isOpen;
     },
+    /** Silences the game's effects and music (and lets them sound again). */
+    get muted() {
+      return muted;
+    },
+    set muted(value) {
+      setMuted(value);
+    },
     get isTeaching() {
       return tutIdx >= 0;
     },
@@ -1335,6 +1702,10 @@ export function createYatzyGame(
     },
     get game() {
       return game;
+    },
+    /** Slóeðla's live view, once it has loaded (null until then, or without WebGL): for the lab and the play-tests. */
+    get view() {
+      return view;
     },
     setGame(nextState) {
       tutIdx = -1;
