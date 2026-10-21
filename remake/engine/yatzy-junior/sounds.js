@@ -32,9 +32,12 @@ export const JUNIOR_SFX = [
   'tap', 'bubble', 'open', 'close', 'pause', 'resume',
 ];
 
-/** The least time, in audio seconds, between two of the same: nothing machine-guns, however fast a child taps. */
+/**
+ * The least time, in audio seconds, between two of the same: nothing machine-guns, however fast a child taps. A die's clack and
+ * knock have none: the dice send each landing once a roll (engine/yatzy-mosi/dice.js), and two dice can land in the same frame.
+ */
 export const JUNIOR_GAPS = {
-  pickup: 0.4, gather: 0.4, rattle: 0.035, pour: 0.5, clack: 0.012, knock: 0.012, rimRoll: 0.08, cupDown: 0.4, calmRoll: 0.3,
+  pickup: 0.4, gather: 0.4, rattle: 0.035, pour: 0.5, clack: 0, knock: 0, rimRoll: 0.08, cupDown: 0.4, calmRoll: 0.3,
   hold: 0.05, unhold: 0.05, rollGood: 0.5, rollGreat: 0.5, rollBad: 0.5,
   shimmer: 0.5, sparkle: 0.4, choose: 0.3, stamp: 0.3, oh: 0.4, swoosh: 0.4, tally: 0.3, land: 0.2,
   drum: 0.6, yourTurn: 0.6, think: 0.5, tada: 0.6, aww: 0.6,
@@ -75,8 +78,8 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
   };
   /** The dice slide over the cup's lip and out: a rising, then falling, wooden slither. */
   const pourOut = (d, p) => {
-    noise({ kind: 'warm', type: 'bandpass', frequency: 500, end: 1700, q: 0.9, duration: 0.34, level: 0.06, attack: 0.09, delay: d, pan: p });
-    for (let i = 0; i < 3; i++) click(d + 0.05 + i * 0.07, 0.03, p);
+    noise({ kind: 'warm', type: 'bandpass', frequency: 500, end: 1700, q: 0.9, duration: 0.34, level: 0.1, attack: 0.09, delay: d, pan: p });
+    for (let i = 0; i < 3; i++) click(d + 0.05 + i * 0.07, 0.045, p);
   };
   /** A die meets the felt: a muffled thud with its own note, brighter the harder it lands. */
   const thud = (d, die, strength, p) => {
@@ -126,8 +129,8 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
     // The cup sweeps the loose dice up off the felt: a short slither, and two or three clicks as they drop in.
     gather() {
       const d = at(), p = pan();
-      noise({ kind: 'warm', type: 'bandpass', frequency: 900, end: 1800, q: 0.8, duration: 0.2, level: 0.045, attack: 0.05, delay: d, pan: p });
-      for (let i = 0; i < Math.max(1, Math.min(3, args().count ?? 3)); i++) click(d + 0.2 + i * 0.06, 0.035, p);
+      noise({ kind: 'warm', type: 'bandpass', frequency: 900, end: 1800, q: 0.8, duration: 0.2, level: 0.09, attack: 0.05, delay: d, pan: p });
+      for (let i = 0; i < Math.max(1, Math.min(3, args().count ?? 3)); i++) click(d + 0.2 + i * 0.06, 0.05, p);
     },
     // One shake of the cup (the dice send six, one after another): as many clicks as dice in it (args.count), so one die rattles
     // thinly and five rattle thick.
@@ -149,11 +152,11 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
     // A die that flew far (args.die) rolls a little further: a few slowing taps of its corners and a soft rumble under them.
     rimRoll() {
       const d = at(), p = pan();
-      noise({ kind: 'warm', type: 'lowpass', frequency: 900, end: 350, duration: 0.3, level: 0.035, attack: 0.02, delay: d, pan: p });
+      noise({ kind: 'warm', type: 'lowpass', frequency: 900, end: 350, duration: 0.3, level: 0.05, attack: 0.02, delay: d, pan: p });
       let t = 0;
       for (let i = 0; i < 5; i++) {
-        tone({ frequency: dieNote(args().die) * 2, duration: 0.025, level: 0.022 - i * 0.003, type: 'triangle', attack: 0.001, body: 0, delay: d + t, pan: p });
-        noise({ kind: 'white', type: 'bandpass', frequency: 1900, q: 3, duration: 0.018, level: 0.03 - i * 0.004, attack: 0.001, delay: d + t, pan: p });
+        tone({ frequency: dieNote(args().die) * 2, duration: 0.025, level: 0.032 - i * 0.004, type: 'triangle', attack: 0.001, body: 0, delay: d + t, pan: p });
+        noise({ kind: 'white', type: 'bandpass', frequency: 1900, q: 3, duration: 0.018, level: 0.042 - i * 0.006, attack: 0.001, delay: d + t, pan: p });
         t += 0.04 + i * 0.012;
       }
     },
@@ -249,13 +252,13 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
     // The score flies up to its player's total: a whoosh rising and falling (0.72 s, the flight's).
     swoosh() {
       const d = at(), p = args().player ? 0.3 : -0.3;
-      noise({ kind: 'warm', type: 'bandpass', frequency: 500, end: 2800, q: 1.1, duration: 0.36, level: 0.06, attack: 0.15, delay: d, pan: p * 0.3 });
-      noise({ kind: 'warm', type: 'bandpass', frequency: 2800, end: 900, q: 1.1, duration: 0.36, level: 0.05, attack: 0.05, delay: d + 0.34, pan: p });
+      noise({ kind: 'warm', type: 'bandpass', frequency: 500, end: 2800, q: 1.1, duration: 0.36, level: 0.11, attack: 0.15, delay: d, pan: p * 0.3 });
+      noise({ kind: 'warm', type: 'bandpass', frequency: 2800, end: 900, q: 1.1, duration: 0.36, level: 0.09, attack: 0.05, delay: d + 0.34, pan: p });
     },
     // Tally ticks climbing the key as the score counts up (args.points): more ticks for more points, 2 to 10.
     tally() {
       const d = at(), points = args().points ?? 5, count = Math.max(2, Math.min(10, Math.round(points / 3))), p = args().player ? 0.25 : -0.25;
-      for (let i = 0; i < count; i++) tick(d + (i * 0.6) / count, scale[i] * 2, 0.03 + i * 0.002, p);
+      for (let i = 0; i < count; i++) tick(d + (i * 0.6) / count, scale[i] * 2, 0.04 + i * 0.003, p);
     },
     // The score lands on the total: a round pop and a tiny bell.
     land() {
@@ -268,10 +271,10 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
     // Mosi's turn begins: a soft two-beat drum, bum-bum.
     drum() {
       const d = at();
-      for (const [t, hz, level] of [[0, key[0] / 4, 0.14], [0.2, key[3] / 8, 0.12]]) {
+      for (const [t, hz, level] of [[0, key[0] / 4, 0.09], [0.2, key[3] / 8, 0.08]]) {
         tone({ frequency: hz, end: hz / 2, duration: 0.2, level, type: 'sine', attack: 0.004, body: 0, delay: d + t, pan: 0.15 });
         tone({ frequency: hz * 2, end: hz, duration: 0.08, level: level * 0.3, type: 'triangle', attack: 0.003, body: 0, delay: d + t, pan: 0.15 });
-        noise({ kind: 'brown', type: 'lowpass', frequency: 500, end: 150, duration: 0.16, level: 0.2, attack: 0.004, delay: d + t, pan: 0.15 });
+        noise({ kind: 'brown', type: 'lowpass', frequency: 500, end: 150, duration: 0.16, level: 0.13, attack: 0.004, delay: d + t, pan: 0.15 });
       }
     },
     // The child's turn begins: two soft notes up.
@@ -346,7 +349,7 @@ export function juniorSounds({ tone, noise, bell, key }, args = () => ({})) {
     // Mosi's bubble pops in: a round bloop rising.
     bubble() {
       const d = at();
-      tone({ frequency: key[2], end: key[4] * 2, duration: 0.11, level: 0.055, attack: 0.004, body: 0, delay: d, pan: 0.1 });
+      tone({ frequency: key[2], end: key[4] * 2, duration: 0.11, level: 0.045, attack: 0.004, body: 0, delay: d, pan: 0.1 });
       tone({ frequency: key[2] * 2, end: key[4] * 4, duration: 0.06, level: 0.012, attack: 0.004, body: 0, delay: d, pan: 0.1 });
     },
     // A dialog opens: a soft paper whoosh and two bells up.
@@ -389,7 +392,10 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
   const log = [];
   // The dice of the roll going on: how many went into the cup, where each left it, and how often each has landed.
   const roll = { count: 5, from: [], hits: [] };
-  let cards = null, pick = -1; // the cards as last seen: what each gives (-1: not to be chosen now), and the glowing one
+  // The cards as last seen: what each gives (-1: not to be chosen now) and the glowing one. They shimmer once a roll (the cards go
+  // dark while the camera moves after a hold, and are not new when they come back), and a glowing card sparkles once a roll.
+  let cards = null, pick = -1, rolls = 0, shimmered = -1, sparkled = '';
+  let scored = false; // a card was chosen in this task (a calm score's pop comes first: its sound waits for the flight's length)
   let args = {};
 
   if (theme === undefined) {
@@ -457,6 +463,7 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
     switch (kind) {
       // The cup and the dice (engine/yatzy-mosi/dice.js onEvent, and the roll itself).
       case 'roll':
+        rolls++;
         roll.count = Math.max(1, Math.min(5, options.count ?? 5));
         roll.from = [];
         roll.hits = [];
@@ -493,6 +500,8 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
       // falls through: a card used for 0
       case 'score': {
         const points = options.points ?? (kind === 'bad' ? 0 : 1), player = options.player ?? 0;
+        scored = true;
+        queueMicrotask(() => { scored = false; });
         let sounded;
         if (points > 0) {
           sounded = play('choose', { player, points });
@@ -506,20 +515,31 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
         if (player === 1) play('pip', { delay: 1.05 }); // Mosi's card fills the round (the child always starts)
         return sounded;
       }
-      case 'land': return play('land', { player: options.player ?? 0 });
+      case 'land': {
+        // With less motion the score does not fly: the total pops at once, just before the card's own cue. Its pop then keeps the
+        // flight's time (0.72 s), so the sounds come as they always do: stamp, swoosh and ticks, pop.
+        const player = options.player ?? 0;
+        if (scored) return play('land', { player });
+        queueMicrotask(() => play('land', scored ? { player, delay: 0.72 } : { player }));
+        return true;
+      }
       // The cards: the game shows them (renderUI) and says what each gives now, -1 for one not to be chosen.
       case 'cards': {
         const values = options.values ?? [], before = cards ?? values.map(() => -1);
         cards = values;
         const opened = values.flatMap((value, i) => (value >= 0 && !(before[i] >= 0) ? [i] : []));
         let sounded = false;
-        if (opened.length) {
+        if (opened.length && shimmered !== rolls) {
+          shimmered = rolls;
           sounded = play('shimmer', { cards: opened, values });
           const best = opened.reduce((a, i) => (values[i] > (values[a] ?? 0) ? i : a), -1);
           if (best >= 0) play('sparkle', { card: best, delay: 0.06 * opened.length + 0.12 });
         }
         const glowing = options.pick ?? -1;
-        if (glowing >= 0 && glowing !== pick) sounded = play('sparkle', { card: glowing }) || sounded;
+        if (glowing >= 0 && glowing !== pick && sparkled !== `${rolls}:${glowing}`) {
+          sparkled = `${rolls}:${glowing}`;
+          sounded = play('sparkle', { card: glowing }) || sounded;
+        }
         pick = glowing;
         return sounded;
       }
