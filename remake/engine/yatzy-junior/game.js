@@ -331,11 +331,11 @@ export async function initialize({signal,onStage=()=>{}}={}){
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
-    onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world);pick=createPickEffects(world);
+    onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world,{lively:true});effects.setAmbient(true);pick=createPickEffects(world);
     onStage('players');
     await wait(Promise.all([
       createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ}).then(resource=>take(resource,value=>{opponent=value;})),
-      createDiceAndCup(world,{layout:TABLE_LAYOUT,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
+      createDiceAndCup(world,{layout:TABLE_LAYOUT,lively:true,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
     ]));check();
     onStage('shaders');dice.setReducedMotion(reduced);world.update(0,0);opponent.update(.001,0,{reducedMotion:reduced});world.scene.updateMatrixWorld(true);world.resize();dice.dice.forEach(d=>{d.visible=true;});
     // compileAsync polls the driver forever after some context-loss failures.
@@ -360,7 +360,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
         opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';opponentFrame.target=opponentFrame.rolling?dice.getFocusTarget():null;opponentFrame.reducedMotion=reduced;
         // The idle hint: ten quiet seconds on the child's turn with rolls left, and the dice Mosi would keep (or his card) glow.
         if(!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint){idle+=dt;if(idle>=10){const d=decideAI(state);idleHint={dice:d?.type==='roll'?d.held.flatMap((keep,i)=>keep&&!state.held[i]?[i]:[]):[],card:d?.type==='score'?d.categoryId:null};renderUI();}}
-        opponent.update(dt,elapsed,opponentFrame);effects.update(dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
+        opponent.update(dt,elapsed,opponentFrame);effects.update(reduced?0:dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
         pick.lift(dice.dice,1);world.render();pick.lift(dice.dice,-1); // the hop is drawn, the hit areas stay put
         const ready=settled();if(ready!==readyLast){readyLast=ready;renderUI();}updateTargets();dirty=false;
       }else if(modalNarration&&!document.hidden&&!qaFrozen){
