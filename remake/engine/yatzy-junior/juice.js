@@ -79,7 +79,8 @@ export function createJuice({ reduced = () => false, doc = globalThis.document }
   function bubble(element) {
     if (!element) return;
     if (calm()) { play(element, [{ opacity: 0 }, { opacity: 1 }], { duration: 260 }); return; }
-    play(element, [{ scale: '.62 .5', opacity: 0 }, { scale: '1.06 1.08', opacity: 1, offset: .55 }, { scale: '.98 .97', offset: .8 }, { scale: '1 1', opacity: 1 }], { duration: 400, easing: 'ease-out' });
+    // A squash and a stretch that never grow past its resting size, so the bubble never reaches anything near it while it pops.
+    play(element, [{ scale: '.55 .45', opacity: 0 }, { scale: '1 .86', opacity: 1, offset: .5 }, { scale: '.94 1', offset: .78 }, { scale: '1 1', opacity: 1 }], { duration: 420, easing: 'ease-out' });
   }
 
   function countUp(element, from, to, onStep = value => { element.textContent = String(value); }) {
