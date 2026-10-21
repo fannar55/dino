@@ -4,8 +4,9 @@
 // mouth: how loud the voice is, 20 times a second, which the speaker's mouth follows (engine/talk.js).
 // The remake's own lines (made by tools/voice-lines.mjs) get the same three fields, from the same code. They come in
 // sets, each in a folder of its own: kafli1, the chapter's (assets/audio/kafli1/), book, the narrator's reading of
-// the education cards (assets/audio/book/), eitt, Kambeðla's and Mosi's lines at her card game (assets/audio/eitt/), and
-// hals, Mosi's, Þórseðla's and the narrator's lines at Háls og hali (assets/audio/hals/).
+// the education cards (assets/audio/book/), eitt, Kambeðla's and Mosi's lines at her card game (assets/audio/eitt/),
+// hals, Mosi's, Þórseðla's and the narrator's lines at Háls og hali (assets/audio/hals/), and kafli2, chapter 2's
+// (assets/audio/kafli2/).
 //   node remake/tools/audio-lines.mjs        (needs ffprobe and ffmpeg on the PATH)
 //
 // The mouth is one hexadecimal digit a frame (0 shut to f wide open): the loudness of 50 ms of voice
@@ -48,7 +49,10 @@ function decode(file) {
 
 export const LINES_FILE = 'remake/assets/audio/lines.json';
 /** The remake's own line sets, each with the folder it is in (beside its lines-source.json); relative to the repo root. */
-export const SETS = { kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals' };
+export const SETS = {
+  kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
+  kafli2: 'remake/assets/audio/kafli2',
+};
 /** Where the chapter's lines are: the set a tool works on unless it is told another. */
 export const REMAKE_AUDIO = SETS.kafli1;
 

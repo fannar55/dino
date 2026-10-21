@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 // Voices the remake's chapters and book with ElevenLabs Eleven v3, the way scripts/generate-narration.mjs voices the game:
-//   node remake/tools/voice-lines.mjs [--set book|eitt] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
+//   node remake/tools/voice-lines.mjs [--set book|eitt|hals|kafli2] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
 //   node remake/tools/voice-lines.mjs --audition kambedla    one sample line per candidate voice, in qa/remake/voices/, to choose from
 //   node remake/tools/voice-lines.mjs --audition egill
 //   node remake/tools/voice-lines.mjs --audition narrator
 // (needs ffmpeg and ffprobe on the PATH, and ELEVENLABS_API_KEY in the environment)
 //
 // The lines come in sets (audio-lines.mjs SETS), each with a lines-source.json in a folder of its own: kafli1, the chapter's, which
-// is made unless --set says otherwise, book, the narrator's reading of the education cards, and eitt, Kambeðla's and Mosi's lines at
-// her card game "Eitt!" (with her invitation to it, k1_kambedla_play, which the chapter reads at its end). Everything below holds for
+// is made unless --set says otherwise, book, the narrator's reading of the education cards, eitt, Kambeðla's and Mosi's lines at
+// her card game "Eitt!" (with her invitation to it, k1_kambedla_play, which the chapter reads at its end), hals, the lines of Háls og
+// hali, and kafli2, chapter 2's (Mosi's, Egill's, Þórseðla's and Kambeðla's goodbye). Everything below holds for
 // the lines of any set, and --only names lines of the set that is made. A candidate for --audition speaks a line of the set it names
 // (the narrator's is in book); --set may be given with --audition only to repeat that set.
 //
 // lines-source.json is a list of { "id": "k1_mosi_waving", "speaker": "mosi", "text": "..." } (and optional "seed", "kept", below): in
-// kafli1 the id is k1_<speaker>_<short>, in book book_<card>_<page> or book_<what>, in eitt eitt_<short> or eitt_mosi_<short>, in hals hals_<speaker>_<short> or hals_fossil_<kind>. A line
-// becomes <set>/<id>.mp3, mastered like the game's narration (mono, 44.1 kHz, 96 kbps, about -18 LUFS, a quarter second of silence
-// after the voice), and lines.json learns its src, exact duration and mouth (audio-lines.mjs makes the same entries for the game's
-// own lines). Lines are approved before they are made: voices.json names a voice for each speaker, null until the owner has chosen it
+// kafli1 the id is k1_<speaker>_<short>, in book book_<card>_<page> or book_<what>, in eitt eitt_<short> or eitt_mosi_<short>, in hals hals_<speaker>_<short> or hals_fossil_<kind>,
+// in kafli2 k2_<speaker>_<short>. A line becomes <set>/<id>.mp3, mastered like the game's narration (mono, 44.1 kHz, 96 kbps, about
+// -18 LUFS, a quarter second of silence after the voice), and lines.json learns its src, exact duration and mouth (audio-lines.mjs
+// makes the same entries for the game's own lines). Lines are approved before they are made: voices.json names a voice for each speaker, null until the owner has chosen it
 // (the narrator has no entry until then), and a speaker without a voice stops the run before any request.
 //
 // Eleven v3 gives another take every time it is asked, so what ElevenLabs answers is kept in .tools/elevenlabs-remake/, named by a

@@ -357,7 +357,7 @@ test("parseArgs takes a line set and the narrator's audition", () => {
   assert.deepEqual(parseArgs(['--set', 'book']), { only: null, audition: null, set: 'book' });
   assert.deepEqual(parseArgs(['--only', 'book_find_me', '--set', 'book']), { only: ['book_find_me'], audition: null, set: 'book' }, 'in either order');
   assert.deepEqual(parseArgs(['--audition', 'narrator']), { only: null, audition: 'narrator', set: 'kafli1' });
-  for (const argv of [['--set'], ['--set', ''], ['--set', 'kafli2'], ['--set', 'Book'], ['--set', 'constructor'], ['--set', '--only', 'book_find_me']]) {
+  for (const argv of [['--set'], ['--set', ''], ['--set', 'kafli3'], ['--set', 'Book'], ['--set', 'constructor'], ['--set', '--only', 'book_find_me']]) {
     assert.throws(() => parseArgs(argv), /--set needs kafli1 or book/, argv.join(' '));
   }
   // A candidate speaks a line of its own set, so --set may only repeat that set in an audition.
@@ -460,8 +460,11 @@ const BOOK_LINES = [
   { id: 'book_wait', speaker: 'narrator', text: 'Bíddu aðeins!' },
 ];
 
-test("the line sets are the chapter's, the book's, the card game's and Háls og hali's, each in a folder of its own", () => {
-  assert.deepEqual(SETS, { kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals' });
+test("the line sets are chapter 1's, the book's, the card game's, Háls og hali's and chapter 2's, each in a folder of its own", () => {
+  assert.deepEqual(SETS, {
+    kafli1: 'remake/assets/audio/kafli1', book: 'remake/assets/audio/book', eitt: 'remake/assets/audio/eitt', hals: 'remake/assets/audio/hals',
+    kafli2: 'remake/assets/audio/kafli2',
+  });
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });
 
@@ -484,7 +487,7 @@ test("the book's lines live in their own folder", needsFfmpeg, t => {
   assert.deepEqual(readLines(root, 'book'), BOOK_LINES, 'book/lines-source.json');
   assert.deepEqual(readLines(root), readJson(REAL.source), "and the chapter's lines are what you get without a set");
   assert.deepEqual(readLines(root, 'kafli1'), readLines(root));
-  assert.throws(() => readLines(root, 'kafli2'), /kafli2/);
+  assert.throws(() => readLines(root, 'kafli3'), /kafli3/);
 
   fs.writeFileSync(path.join(audio, 'book/book_find_me.mp3'), fakeSpeech()); // book_wait has no MP3 yet
   const made = remakeLines(root, null, 'book');
@@ -493,7 +496,7 @@ test("the book's lines live in their own folder", needsFfmpeg, t => {
   assert.equal(made.book_find_me.src, 'assets/audio/book/book_find_me.mp3', 'relative to remake/index.html');
   assert.deepEqual(remakeLines(root, ['book_wait'], 'book'), {}, 'only the lines asked for, and only if made');
   assert.deepEqual(remakeLines(root), {}, "the chapter's set does not see the book's MP3");
-  assert.throws(() => remakeLines(root, null, 'kafli2'), /kafli2/);
+  assert.throws(() => remakeLines(root, null, 'kafli3'), /kafli3/);
 
   // lines.json takes the game's lines, then the chapter's, then the book's.
   fs.mkdirSync(path.join(root, 'dist/assets/audio'), { recursive: true });
@@ -518,7 +521,7 @@ test('updateLines renews the entries of one set and leaves the rest of lines.jso
   updateLines(root, ['book_find_me', 'k1_mosi_waving'], 'book');
   assert.deepEqual(keys(), ['welcome', 'book_wait', 'k1_mosi_waving', 'book_find_me'], 'a line of another set is not made by it');
   assert.equal(readJson(path.join(audio, 'lines.json')).book_find_me.src, 'assets/audio/book/book_find_me.mp3');
-  assert.throws(() => updateLines(root, ['book_find_me'], 'kafli2'), /kafli2/);
+  assert.throws(() => updateLines(root, ['book_find_me'], 'kafli3'), /kafli3/);
 });
 
 test("--set book makes the book's lines in the book's folder, in the narrator's voice, and registers them", needsFfmpeg, async t => {
