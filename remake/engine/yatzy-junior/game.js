@@ -12,6 +12,9 @@ import {waitForStartup} from './startup.js';
 const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='mosi.yatzy.junior.prefs.v1';
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
 const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{/* Storage is optional. */}};
+// Seated at the near rail and a little higher than Mosi Yatzy's shot, so the held row clears the cards along the bottom and Mosi's
+// whole head stays in view; upright, the camera backs away (pull) until the cup and both ends of the held row fit.
+const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:1.14});
 const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3,3,3],smallStraight:[1,2,3,4,5],yatzy:[5,5,5,5,5]};
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
@@ -21,7 +24,7 @@ let world,opponent,dice,effects,voice,voiceManifest={},state=createGame(),saved=
 let phase='intro',timer=0,elapsed=0,last=performance.now(),frame=0,started=false,paused=true,disposed=false,qaFrozen=false,resizeObserver;
 let pendingDiceView=-1,aiDecision=null,zeroCategory=null,recent=null,lesson=null,lessonReturn=null,lessonAdvance=-1,readyLast=false,captionTime=0,modalNarration=false;
 let lessonFocus='';
-const cells=new Map(),dieButtons=[],canvas=$('table'),cupButton=$('cup-target'),coach=$('lesson-center');
+const cells=new Map(),dieButtons=[],canvas=$('table'),cupButton=$('cup-target'),coach=$('lesson-center'),roundPips=[...document.querySelectorAll('#rounds i')];
 const pixels=Array.from({length:6},()=>({x:NaN,y:NaN,width:NaN,height:NaN,top:NaN,bottom:NaN}));
 const cupAnchor={x:0,y:0},opponentFrame={thinking:false,rolling:false,target:null,reducedMotion:reduced};
 let targetWidth=0,targetHeight=0;
@@ -37,13 +40,13 @@ for(const category of CATEGORIES){
   const picture=document.createElement('span');picture.className='card-picture';picture.setAttribute('aria-hidden','true');picture.append(miniDice(EXAMPLES[category.id]));
   const name=document.createElement('span');name.className='card-name';name.textContent=category.label;
   const rule=document.createElement('span');rule.className='card-rule';rule.textContent=category.id==='smallStraight'?'1 · 2 · 3 · 4 · 5':category.id==='twoPairs'?'2 eins + 2 aðrir eins':category.id==='pair'?'2 eins':category.id==='threeKind'?'3 eins':'5 eins';
-  const value=document.createElement('strong');value.className='card-value';const scores=document.createElement('span');scores.className='card-scores';
-  const listen=document.createElement('button');listen.type='button';listen.className='card-listen';listen.textContent='🔊';listen.setAttribute('aria-label',`Mosi útskýrir: ${category.label}`);
-  listen.addEventListener('click',()=>{if(!lesson&&!paused){enableNarration();say(`${category.id}Help`);}});
-  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores,listen);$('score-rows').append(card);cells.set(category.id,{card,select,value,scores,listen});
+  const value=document.createElement('strong');value.className='card-value';const scores=document.createElement('span');scores.className='card-scores';scores.setAttribute('aria-hidden','true');
+  // The card is the tap target: one that cannot be chosen now lets the tap through (yatzy-junior.css), and Mosi says what it is.
+  card.addEventListener('click',event=>{if(!event.target.closest('.card-select')&&!lesson&&!paused){enableNarration();say(`${category.id}Help`);}});
+  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores);$('score-rows').append(card);cells.set(category.id,{card,select,value,scores,shown:''});
 }
 for(let i=0;i<5;i++){
-  const button=document.createElement('button');button.type='button';button.className='die-target';button.hidden=true;button.dataset.index=i;button.innerHTML='<span>Geymdur</span>';
+  const button=document.createElement('button');button.type='button';button.className='die-target';button.hidden=true;button.dataset.index=i;button.innerHTML='<span>Geymdur</span><i class="die-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i>';
   button.addEventListener('click',()=>toggleHold(i));$('dice-targets').append(button);dieButtons.push(button);
 }
 const step=()=>lesson?LESSON_STEPS[lesson.index]:null;
@@ -51,7 +54,7 @@ const isHuman=()=>started&&!paused&&phase==='human'&&state.currentPlayer===0&&st
 const settled=()=>!!world&&phase!=='rolling'&&pendingDiceView<0&&!world.isViewTransitioning();
 const allowed=(action,value)=>!lesson||(!voice?.unavailable&&allowsAction(step(),action,value));
 function save(){if(lesson)return;write(SAVE,state);saved=restoreGame(state);}
-function savePrefs(){write(PREFS,{muted,reduced});$('sound').textContent=muted?'♩':'♫';$('sound').setAttribute('aria-pressed',String(muted));$('sound').setAttribute('aria-label',muted?'Kveikja á hljóði':'Slökkva á hljóði');$('motion').textContent=reduced?'Venjuleg hreyfing':'Rólegri hreyfing';$('motion').setAttribute('aria-pressed',String(reduced));cupButton.dataset.motion=reduced?'reduced':'full';}
+function savePrefs(){write(PREFS,{muted,reduced});$('sound-label').textContent=muted?'Hljóð af':'Hljóð á';$('sound').setAttribute('aria-pressed',String(muted));$('sound').setAttribute('aria-label',muted?'Kveikja á hljóði':'Slökkva á hljóði');$('motion').textContent=reduced?'Venjuleg hreyfing':'Rólegri hreyfing';$('motion').setAttribute('aria-pressed',String(reduced));cupButton.dataset.motion=reduced?'reduced':'full';}
 function enableNarration(){muted=false;audio.mute(false);voice?.mute(false);audio.unlock();savePrefs();}
 function syncVoiceRecovery(){
   const recovery=$('voice-recovery'),unavailable=Boolean(voice?.unavailable);
@@ -61,7 +64,8 @@ function syncVoiceRecovery(){
   if(recovery.parentElement!==parent)parent.append(recovery);
   if(parent===coach)coach.hidden=false;
 }
-function view(mode,snap=reduced){pendingDiceView=-1;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});}
+// The junior table is the whole screen, framed with Mosi and every die in view (TABLE_SHOT), so the camera never zooms to the dice.
+function view(mode,snap=reduced){pendingDiceView=-1;world?.setView('table',{reduced:snap});}
 function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'));audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();}
 function openDialog(id,line){if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
 function closeDialogs(){modalNarration=false;for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();syncPause();}
@@ -89,21 +93,24 @@ function renderUI(){
   for(const c of CATEGORIES){
     const cell=cells.get(c.id),you=lesson?(lesson.awards[c.id]??null):state.players[0].scores[c.id],mosi=lesson?null:state.players[1].scores[c.id];
     const available=you===null&&human&&state.rollCount>0&&still&&allowed('score',c.id),possible=state.rollCount>0&&phase!=='rolling'&&phase!=='handoff';
-    cell.select.disabled=!available;cell.listen.disabled=Boolean(lesson)||paused;
-    cell.value.textContent=you!==null?String(you):possible&&who===0?`+${preview[c.id]??0}`:'—';
-    cell.scores.textContent=`Þú ${you??'—'}  ·  Mosi ${mosi??'—'}`;
+    cell.select.disabled=!available;
+    // The badge: the child's own score (teal), else Mosi's when the card is not the child's to choose now (sage), else what it would give.
+    const open=possible&&who===0,shows=you!==null?'you':mosi!==null&&!open?'mosi':'',chips=`${you!==null?'you':''}${mosi!==null?'mosi':''}`;
+    cell.value.textContent=shows==='you'?String(you):shows==='mosi'?String(mosi):open?`+${preview[c.id]??0}`:'—';cell.value.dataset.who=shows;
+    if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?'<i class="who you">Þú</i>':'')+(mosi!==null?'<i class="who mosi"></i>':'');}
     cell.card.classList.toggle('filled',you!==null);cell.card.classList.toggle('available',available);cell.card.classList.toggle('best',available&&(preview[c.id]??0)>0);cell.card.classList.toggle('recent',recent===c.id);
     cell.select.setAttribute('aria-label',`${c.label}. ${you!==null?`${you} stig, notað kort`:available?`${preview[c.id]} stig í boði`:'Laust kort'}`);
   }
   $('you-total').textContent=lesson?Object.values(lesson.awards).reduce((a,b)=>a+b,0):totals(state.players[0].scores).total;
   $('mosi-total').textContent=lesson?0:totals(state.players[1].scores).total;
-  $('round').textContent=lesson?'ÆFUM SAMAN':`${Math.min(5,Math.floor(state.turnCount/2)+1)} / 5`;
+  const round=Math.min(5,Math.floor(state.turnCount/2)+1),over=state.status==='finished';$('round').textContent=lesson?'Æfum saman':`${round} af 5`;
+  roundPips.forEach((pip,i)=>{pip.classList.toggle('done',over||i<round-1);pip.classList.toggle('now',!over&&i===round-1);});
   $('turn-label').textContent=lesson?'Mosi kennir þér':!started?'Spilum saman':state.status==='finished'?'Leik lokið':who?'Mosi á leik':'Þú átt leik';
   $('you-card').classList.toggle('current',who===0);$('mosi-card').classList.toggle('current',who===1);document.querySelector('.turn').classList.toggle('ai',who===1);
   const canRoll=human&&state.rollCount<3&&!state.held.every(Boolean)&&allowed('roll')&&still;
   $('roll').disabled=!canRoll;$('roll-label').textContent=phase==='rolling'?'Teningarnir rúlla…':who?'Mosi á leik':state.rollCount===3?'Veldu kort':state.rollCount===0?'Kasta':'Kasta aftur';
   $('roll-count').textContent=`${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'}`;$('hint').textContent='';
-  dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!canRoll;cupButton.dataset.parked=String(state.rollCount>0);$('cup-label').textContent=state.rollCount===0?'Kasta!':'Kasta aftur';
+  dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!canRoll;cupButton.dataset.parked=String(state.rollCount>0);cupButton.dataset.rolls=String(3-state.rollCount);cupButton.setAttribute('aria-label',`Kasta teningunum: ${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'} eftir`);
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();updateTargets();syncVoiceRecovery();
 }
@@ -151,8 +158,17 @@ function chooseScore(id){
   if(!isHuman()||!settled()||!state.rollCount||state.players[0].scores[id]!==null||!allowed('score',id))return;
   if(previews(state)[id]===0){zeroCategory=id;$('zero-title').textContent=`${CATEGORIES.find(c=>c.id===id).label}: 0 stig?`;openDialog('zero-dialog','zero');return;}record(id);
 }
+function flyScore(id,player,points){
+  const badge=cells.get(id).value,chip=$(player?'mosi-total':'you-total'),from=badge.getBoundingClientRect(),to=chip.getBoundingClientRect();
+  const pop=()=>chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.3,1.6,.5,1)'});
+  if(reduced||!from.width||!to.width){pop();return;}
+  const flyer=document.createElement('strong');flyer.className='card-value score-flyer';flyer.dataset.who=player?'mosi':'you';flyer.textContent=String(points);flyer.setAttribute('aria-hidden','true');
+  Object.assign(flyer.style,{left:`${from.left}px`,top:`${from.top}px`,minWidth:`${from.width}px`,height:`${from.height}px`,fontSize:getComputedStyle(badge).fontSize});document.body.append(flyer);
+  const dx=to.left+to.width/2-(from.left+from.width/2),dy=to.top+to.height/2-(from.top+from.height/2);
+  flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{flyer.remove();pop();},()=>flyer.remove());
+}
 function record(id){
-  const player=state.currentPlayer,points=previews(state)[id];voice.stop();state=score(state,id);recent=id;
+  const player=state.currentPlayer,points=previews(state)[id];voice.stop();flyScore(id,player,points);state=score(state,id);recent=id;
   effects.emit({x:0,y:world.table.y+.2,z:0},{kind:points?'score':'bad',reduced});audio.cue(points?'score':'bad');opponent.react(points>=20?'great':points?'good':'bad');
   if(lesson){lesson.awards[id]=points;phase='human';view('table');nextLesson();renderUI();return;}
   save();phase='handoff';timer=1.8;view('table');speakScore(player,points);renderUI();
@@ -245,7 +261,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
-    onStage('forest');await wait(createYatzyWorld(canvas).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world);
+    onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world);
     onStage('players');
     await wait(Promise.all([
       createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ}).then(resource=>take(resource,value=>{opponent=value;})),

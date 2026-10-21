@@ -15,10 +15,14 @@ export const TABLE = Object.freeze({ y: 1.4, width: 5.8, depth: 3.8, farZ: -1.9,
 // face occupies the upper third. A little look-room at left keeps the cup visible.
 const SHOT = { position: [-.4, 3.2, 4.4], target: [-.4, 1.7, -.8], fov: 41 };
 
-/** Shared-clock camera rig, independently constructible without a WebGL context. */
-export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}) {
-  const tableTarget = new THREE.Vector3().fromArray(SHOT.target);
-  const tableOffset = new THREE.Vector3().fromArray(SHOT.position).sub(tableTarget);
+/** Shared-clock camera rig, independently constructible without a WebGL context.
+ *  `shot` replaces the table shot ({ position, target, fov, pull }): a game laid out differently round the table (the junior game's
+ *  full-width table) frames it its own way. `pull` (default .95) is the aspect below which the camera backs away to keep the table's
+ *  width in view, as `pull / aspect`. */
+export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot = SHOT } = {}) {
+  const tableTarget = new THREE.Vector3().fromArray(shot.target);
+  const tableOffset = new THREE.Vector3().fromArray(shot.position).sub(tableTarget);
+  const pull = shot.pull ?? .95;
   const tablePosition = new THREE.Vector3(), dicePosition = new THREE.Vector3(), diceTarget = new THREE.Vector3();
   const focusStartPosition = new THREE.Vector3(), focusStartTarget = new THREE.Vector3();
   const focusEndPosition = new THREE.Vector3(), focusEndTarget = new THREE.Vector3();
@@ -50,7 +54,7 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}
   }
   function fit(points, position, target, arcHeight = 0) {
     const aspect = viewportWidth / viewportHeight;
-    const tan = Math.tan(THREE.MathUtils.degToRad(SHOT.fov) / 2);
+    const tan = Math.tan(THREE.MathUtils.degToRad(shot.fov) / 2);
     const top = 1 - 2 * safe.top / viewportHeight, bottom = -1 + 2 * safe.bottom / viewportHeight;
     const horizontal = 1 - 2 * safe.left / viewportWidth, cupHorizontal = 1 - 16 / viewportWidth;
     let count = 0, averageDepth = 0;
@@ -126,8 +130,8 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720 } = {}
     if (disposed) return;
     viewportWidth = Math.max(1, Number(nextWidth) || 1); viewportHeight = Math.max(1, Number(nextHeight) || 1);
     const aspect = viewportWidth / viewportHeight, compact = viewportHeight < 620;
-    camera.aspect = aspect; camera.fov = SHOT.fov; camera.updateProjectionMatrix();
-    tablePosition.copy(tableTarget).addScaledVector(tableOffset, Math.max(1, .95 / aspect));
+    camera.aspect = aspect; camera.fov = shot.fov; camera.updateProjectionMatrix();
+    tablePosition.copy(tableTarget).addScaledVector(tableOffset, Math.max(1, pull / aspect));
     // Mesh bounds reserve another 22–30px for external result/held labels.
     safe.top = Math.min(compact ? 88 : 112, viewportHeight * .22);
     safe.bottom = Math.min(compact ? 114 : 142, viewportHeight * .285);
@@ -306,7 +310,7 @@ export function createYatzyTable() {
 }
 
 /** One shared REMAKE scene. The controller owns RAF, actors, dice and game time. */
-export async function createYatzyWorld(canvas) {
+export async function createYatzyWorld(canvas, { shot = SHOT } = {}) {
   const params = new URLSearchParams(globalThis.location?.search || '');
   const preset = pickQuality(params);
   // This is an intimate table clearing, with less distant vegetation to shade.
@@ -319,7 +323,7 @@ export async function createYatzyWorld(canvas) {
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = look.exposure; renderer.shadowMap.enabled = q.shadowSize > 0;
   renderer.shadowMap.type = THREE.PCFShadowMap; renderer.info.autoReset = false;
-  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(SHOT.fov, 1.5, .1, 700);
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(shot.fov, 1.5, .1, 700);
   camera.name = 'Yatzy · across the table';
   const lighting = createLighting(scene, look, q);
   const depthShadow = installDepthShadows(renderer, lighting.sun);
@@ -334,7 +338,7 @@ export async function createYatzyWorld(canvas) {
     // The clearing overlooks a gently falling wooded hollow. Lower distant
     // crowns replace the flat carpet of ground and repetitive full-height trunks.
     lift(x, z) { return -Math.min(5.5, Math.max(0, -z - 6) * .2) * THREE.MathUtils.smoothstep(Math.hypot(x, z + 1.5), 6, 14); },
-    shots: { table: SHOT, narrow: { position: [-.4, 3.7, 6.2], target: SHOT.target, fov: 41 } },
+    shots: { table: SHOT, narrow: { position: [-.4, 3.7, 6.2], target: SHOT.target, fov: 41 }, ...(shot === SHOT ? {} : { own: shot }) },
     actors: { mosi: { position: [0, 0, -3.4], heading: 90 }, table: { position: [0, 0, 0], heading: 0 } },
   };
   const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'morning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
@@ -343,7 +347,7 @@ export async function createYatzyWorld(canvas) {
   let disposed = false, resolution = 1, frameTime = 0, frameCount = 0, environmentTime = 0, lastAdapt = 0;
   let forest, resizeObserver;
   const focus = new THREE.Vector3(0, 1.3, -1.2); lighting.focus(focus, 5.7);
-  const cameraRig = createYatzyCameraRig(camera);
+  const cameraRig = createYatzyCameraRig(camera, { shot });
 
   function resize() {
     if (disposed) return;
