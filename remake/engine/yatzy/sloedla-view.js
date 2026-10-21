@@ -283,7 +283,7 @@ export async function createSloedlaView(container, { win = globalThis.window } =
     const scale = head.getWorldScale(new THREE.Vector3()).x || 1;
     crestLength = crest.base.distanceTo(crest.tip);
     midLocal.copy(head.worldToLocal(crest.base.clone().lerp(crest.tip, 0.6)));
-    halo.scale.setScalar(crestLength * 1.5);
+    halo.scale.setScalar(crestLength * 1.8);
     tipLocal.copy(head.worldToLocal(crest.tip.clone()));
     twinkle.position.copy(tipLocal);
     twinkle.scale.setScalar((crestLength * 0.5) / scale);
@@ -467,6 +467,10 @@ export async function createSloedlaView(container, { win = globalThis.window } =
     renderer.render(scene, camera);
   }
   update(0);
+  // Her crest's sprites are built now, behind the first frame, so her first call does not stall while their shader compiles.
+  halo.visible = twinkle.visible = Boolean(crest);
+  renderer.compile(scene, camera);
+  halo.visible = twinkle.visible = false;
   renderer.render(scene, camera);
 
   const tipWorld = new THREE.Vector3();

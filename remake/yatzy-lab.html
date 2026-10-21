@@ -39,7 +39,7 @@
   const save = createSave(undefined, 'mosi-yatzy-lab');
   if (params.has('skill')) save.setYatzy({ skill: Number(params.get('skill')) });
 
-  // Custom deterministic seed rolls for visual states (?state=yatzy|egg|mosi)
+  // Custom deterministic seed rolls for visual states (?state=yatzy|egg|mosi); ?state=win: one row left, and picking it ends the game
   const state = params.get('state') || 'live';
   let rollQueue = [];
   if (state === 'yatzy') {
@@ -58,7 +58,7 @@
   };
 
   const tutParam = params.get('tutorial');
-  const isSpecialDemo = state === 'yatzy' || state === 'mosi' || state === 'egg';
+  const isSpecialDemo = state === 'yatzy' || state === 'mosi' || state === 'egg' || state === 'win';
   const isTutorialDemo = state.startsWith('tutorial');
   const tutorialOpt =
     tutParam === '1' || isTutorialDemo
@@ -74,6 +74,7 @@
     onClose: () => setTimeout(() => game.open(), 600),
   });
   addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
+  addEventListener('keydown', event => { if (event.key === 'm' || event.key === 'M') game.muted = !game.muted; }); // M: the mute toggle
   Object.assign(window, { __yatzy: game, __save: save });
   game.open({ tutorial: tutorialOpt });
 
@@ -132,6 +133,16 @@
         setTimeout(() => { window.__demoReady = true; }, 550);
       }, 650);
     }, 250);
+  } else if (state === 'win') {
+    // The child has every row but Yatzy, Slóeðla has all hers, and five Þórseðlur lie on the table: tap Yatzy! for the end.
+    setTimeout(() => {
+      const ids = [...root.querySelectorAll('.yatzy-row')].map(row => row.dataset.cat);
+      const child = {};
+      const sloedla = {};
+      ids.forEach(id => { if (id !== 'yatzy') child[id] = 6; sloedla[id] = 4; });
+      game.setGame({ ...game.game, scores: { child, sloedla }, round: ids.length, dice: [3, 3, 3, 3, 3], rolled: true, rollsLeft: 0, held: [false, false, false, false, false] });
+      window.__demoReady = true;
+    }, 400);
   } else {
     setTimeout(() => { window.__demoReady = true; }, 600);
   }

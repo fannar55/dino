@@ -26,6 +26,20 @@ import { yatzySounds, YATZY_GAPS } from './yatzy-sounds.js';
 
 // The interactive table of "Risaeðlu-Yatzy!", rendered into `#yatzy` using `yatzy.css`.
 // Can be opened from the Leikir page of Egill's journal (`main.js`) or run standalone in `yatzy-lab.html`.
+//
+// What a turn looks and sounds like (the sounds are yatzy-sounds.js's, Slóeðla's moves sloedla-view.js's):
+//   - Kasta!: the cup rattles and pours, the dice tumble with their faces flicking past and land one after another, left to right,
+//     each with a squash, a knock and a bell up the key, Slóeðla's eyes following them. Only then do the banner, the glow round a
+//     pattern and the sheet show what was rolled: the rows that score now shimmer once, top to bottom, and she nods.
+//   - A die held lifts into the moss nest with a ring of light and the next note of do-re-mi, and she leans in to look.
+//   - A row chosen stamps with a squash and pop, its score flies to the total, which counts up in climbing ticks, and she rears up
+//     for a good score, nods for a small one and slumps, cutely, for a zero. A spark earned flies into the Golden Egg, which fills
+//     with gold; full, it shines and wobbles. Used, it shakes, cracks and bursts, she calls through her crest with it glowing and
+//     notes floating out, and the magic flies to the die it turns.
+//   - Her turn opens with a drum, she thinks with a tick-tock and a tilted head, and plays as the child does.
+//   - At the end the card pops open over a burst of confetti, with a fanfare for the child's win (a warm chord when she wins), and
+//     she celebrates. The music dips under the fanfares and her call.
+// A tap on a die or a row while the dice are still in the air does nothing; the methods the lab and the tests call act at once.
 
 const REMAKE = new URL('../../', import.meta.url);
 const asset = path => new URL(path, REMAKE).href;
@@ -1070,7 +1084,7 @@ export function createYatzyGame(
           dieEls[idx].face = 0;
           showFace(idx, 1 + Math.floor(Math.random() * 6));
         }
-        if (rolling.size) later(95, spin);
+        if (rolling.size) later(120, spin);
       };
       spin();
     }
@@ -1551,8 +1565,10 @@ export function createYatzyGame(
 
   // ---- Wire Controls --------------------------------------------------------------------------------------------------
 
-  pressable(rollBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapRoll });
-  pressable(eggBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapEgg });
+  // While dice are in the air (or the egg's magic is on its way) a finger's tap waits for them: nothing is chosen unseen.
+  const settled = () => !rolling.size && !pending.size;
+  pressable(rollBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapRoll() });
+  pressable(eggBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapEgg() });
   pressable(mosiBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: onTapMosi });
   pressable(tutNextBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: onTapTutNext });
   pressable(teachBtn, { audio: { sfx: name => sfx.play(name) }, sound: 'tap', win, onTap: () => startTutorial() });
@@ -1570,11 +1586,11 @@ export function createYatzyGame(
   });
 
   dieEls.forEach(({ dieBtn }, idx) => {
-    pressable(dieBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => onTapDie(idx) });
+    pressable(dieBtn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapDie(idx) });
   });
 
   for (const [id, { btn }] of rowButtons) {
-    pressable(btn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => onTapCategory(id) });
+    pressable(btn, { audio: { sfx: name => sfx.play(name) }, sound: null, win, onTap: () => settled() && onTapCategory(id) });
   }
 
   root.addEventListener('contextmenu', e => e.preventDefault());
