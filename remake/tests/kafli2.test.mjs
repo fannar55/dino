@@ -5,7 +5,7 @@ import * as kafli2 from '../chapters/kafli2.js';
 import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { createSave, defaultChapter } from '../engine/save.js';
 import { LOOKS } from '../engine/looks.js';
-import { createTerrain } from '../world/forest/terrain.js';
+import { shapeGround } from '../world/forest/forest.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { playUnattended } from './chapter-harness.mjs';
 
@@ -107,10 +107,11 @@ test('locations as data: the glade, the trail and the Fen, with who stands where
   assert.equal(chapter.startShot, 'glade_leaving');
 });
 
-// The ground of a place, as its forest builds it (the floor rises away from a clearing).
+// The ground of a place, as its forest builds it (the floor rises away from a clearing; the Fen's water is dug out of it and
+// its hummocks raised: world/forest/forest.js, shapeGround).
 const groundOf = name => {
   const { layout, shots } = chapter.locations[name];
-  return createTerrain({ chapter }, { ...layout, shots }, layout.seed);
+  return shapeGround({ chapter }, { ...layout, shots }, layout.seed).terrain;
 };
 
 test('every shot keeps the camera rules over its ground', () => {

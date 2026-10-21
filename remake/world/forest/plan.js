@@ -190,7 +190,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   const allQ = q;
   let fenShare = biome.fen ? 1 : 0;
   if (biome.blended) {
-    const R = edgeR + FEN.reach;
+    const R = edgeR + FEN.reachBlended;
     let sum = 0, n = 0;
     for (let j = -20; j <= 20; j++) for (let i = -20; i <= 20; i++) {
       const x = (i / 20) * R, z = (j / 20) * R;
@@ -710,8 +710,8 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   // preset; a pass places its plants by the fen's share (a trail grows fewer where it is still half forest).
   function growFen() {
     const C = FEN.counts;
-    const q = { ...allQ, plants: allQ.plants * fenShare, trees: allQ.trees * fenShare };
-    const reach = edgeR + FEN.reach;
+    const q = { ...allQ, plants: allQ.plants * fenShare, trees: allQ.trees * fenShare * (biome.blended ? FEN.blendedTrees : 1) };
+    const reach = edgeR + (biome.blended ? FEN.reachBlended : FEN.reach);
     const water = layout.water ?? null;
     const signed = water?.shape?.signedAt ?? null;
     const wetness = (x, z) => (signed ? signed(x, z) : Infinity); // distance to the nearest water (negative in it)

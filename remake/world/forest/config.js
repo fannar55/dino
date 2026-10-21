@@ -265,7 +265,7 @@ export const FEN = {
   // Open sky: what a plant in the fen sees of it (the forest's deep band sees 0.09), and the shade a grove of conifers throws.
   sky: 0.86,
   // Grass in the fen: golden reed, sparser and taller than the clearing's grass.
-  grass: { density: 0.6, tall: 1.5 },
+  grass: { density: 0.55, tall: 1.5 },
   // How much the fen grows (per place, at tablet; scaled by the quality preset).
   counts: {
     groves: 16, // groups of two to four swamp conifers
@@ -282,6 +282,8 @@ export const FEN = {
   },
   // Where it grows: out to this far beyond the forest edge (m), most of it on the clearing's rim (plan.js: growFen).
   reach: 70,
+  reachBlended: 35, // a place that is part forest grows its fen nearer: it is seen from its path
+  blendedTrees: 0.65, // and fewer of its trees, which a trail sees many of at once
   // Hanging moss under a conifer's lower tiers (forest.js): cards, how long and how wide (m), and how far they swing (degrees).
   mossCards: { perTree: [3, 6], length: [0.8, 2.0], width: [0.35, 0.6], swingDeg: 4 },
   // The far treeline: well out, so the fen opens to it (far.js).

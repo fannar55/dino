@@ -907,7 +907,7 @@ function buildSwampConifer(rng, { lod, noise }) {
       addBlob(solid, {
         center: centre, radii: [R * 1.25, R * 0.58, R * 1.12], detail: lod === 0 && R > 1.15 && finePads++ < 9 ? 2 : 1,
         lump: 0.12, lumpFreq: 2.4, noise3: noise.noise3, salt: salt2,
-        bumps: makeBumps(cr.fork('bumps'), lod === 0 ? 16 : lod === 1 ? 9 : 5, { radius: lod === 0 ? 0.42 : 0.55, height: 0.2, minY: -0.35 }),
+        bumps: lod === 2 ? null : makeBumps(cr.fork('bumps'), lod === 0 ? 16 : 9, { radius: lod === 0 ? 0.42 : 0.55, height: 0.2, minY: -0.35 }),
         // the rim of a pad droops, as a cypress's sprays do
         warp: pp => { const q2 = ((pp[0] - centre[0]) ** 2 + (pp[2] - centre[2]) ** 2) / (R * R * 1.44); return [pp[0], pp[1] - R * 0.32 * q2, pp[2]]; },
         crease: 0.05, bumpSoft: 0.55, bend: 0.35, bendCenter: [tx, y - 0.6, tz], flatBottom: 0.45,
@@ -921,7 +921,7 @@ function buildSwampConifer(rng, { lod, noise }) {
     const [tx, tz] = trunkAt(H - 0.8);
     const R = maxLen * (flatTop ? 0.5 : 0.32);
     addBlob(solid, {
-      center: [tx, H - 0.8, tz], radii: [R * 1.2, flatTop ? R * 0.45 : R * 0.9, R * 1.1], detail: lod === 0 ? 2 : 1, lump: 0.08, noise3: noise.noise3, salt: 3,
+      center: [tx, H - 0.8, tz], radii: [R * 1.2, flatTop ? R * 0.45 : R * 0.9, R * 1.1], detail: lod === 0 ? 2 : lod === 1 ? 1 : 0, lump: 0.08, noise3: noise.noise3, salt: 3,
       bumps: makeBumps(rng.fork('top-bumps'), lod === 0 ? 14 : 7, { radius: 0.45, height: 0.15, minY: -0.3 }), crease: 0.05, bumpSoft: 0.55, flatBottom: 0.4,
       color: foliage(1, 3), sway, leaf: 0.75, exposure: (p, nn) => clamp(0.55 + 0.45 * nn[1], 0.3, 1),
     });

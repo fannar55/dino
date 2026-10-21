@@ -6,8 +6,8 @@
 // it: every wait for the child has hints where the script gives them and ends by itself.
 //
 // This is the chapter's skeleton (the plan's first task): its places, actors, cast, lines and look, and the eight scenes in their
-// order, each of which only marks its start. The trail and the Fen are stubs, a flat clearing with six shots each, until their own
-// layouts come (the plan's second task); the scenes come after that.
+// order, each of which only marks its start; the trail and the Fen have their own ground, plants, water, mist and shots (the plan's
+// second task: world/forest/ grows them as the Fen biome). The scenes come after that.
 //
 // Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m,
 // Þórseðla 22 m with her head 8.3 to 9 m up, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late
@@ -46,7 +46,7 @@ const GLADE_SHOTS = {
 
 const TRAIL_PATH = [[-46, -30], [-26, -17], [-12, -8], [0, 0], [12, 7], [26, 14], [46, 24]];
 const TRAIL_DIR = [0.83, 0.55]; // the way down the trail, toward the Fen (unit)
-const TRAIL_DROP = 0.032; // m the ground falls each metre down the trail
+const TRAIL_DROP = 0.05; // m the ground falls each metre down the trail
 
 /** Where a path is halfway along it, and the points `width` metres before and after that along it: the blend's ends. */
 function blendAcross(path, width) {
@@ -61,12 +61,12 @@ function blendAcross(path, width) {
 }
 
 const TRAIL_SHOTS = {
-  trail_wide: { position: [-15, 2.1, -4], target: [6, 1.4, 6.5], fov: 50 },
-  trail_follow: { position: [8, 1.5, -3.5], target: [-3, 2.0, -0.5], fov: 46 },
-  print_close: { position: [2.2, 0.9, 3.9], target: [7.5, 0.1, 4.8], fov: 50 },
-  trail_fog: { position: [6, 1.4, 1.5], target: [18, 1.3, 13], fov: 48 },
-  trail_portrait: { position: [5.5, 1.3, 5.5], target: [-1, 2.6, -1], fov: 36 },
-  trail_end: { position: [18, 1.6, 9.5], target: [34, 1.0, 18], fov: 50 },
+  trail_wide: { position: [-18.5, 2.85, -11.5], target: [5, 1.1, 4], fov: 50 },
+  trail_follow: { position: [8.5, 1.2, 6.5], target: [-3, 1.6, -1], fov: 46 },
+  print_close: { position: [2.2, 0.68, 3.9], target: [7.5, -0.34, 4.8], fov: 50 },
+  trail_fog: { position: [6, 1.1, 1.5], target: [18, 0.2, 13], fov: 48 },
+  trail_portrait: { position: [6.5, 0.95, 6.8], target: [-1, 2.4, -1], fov: 36 },
+  trail_end: { position: [24, 0.35, 9], target: [4, 1.6, 1.5], fov: 48 },
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -103,20 +103,20 @@ const FEN_SHOTS = {
   fen_reveal: { position: [12, 1.6, 4], target: [-14, 1.5, 10], fov: 46 },
   fen_reveal_end: { position: [7.5, 5.8, 10.5], target: [-3, 3, -8.5], fov: 50 },
   // From below: her feet in the water like trunks, her head up in the swamp conifers.
-  fen_thorsedla_low: { position: [-1, 0.45, -1], target: [3, 3.3, -9.5], fov: 56 },
+  fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
-  fen_two_shot: { position: [3.5, 1.4, 2.5], target: [5.2, 1.6, -7], fov: 46 },
+  fen_two_shot: { position: [1.5, 1.4, -16.5], target: [5.5, 1.4, -6], fov: 46 },
   // Scene 4: over Egill's shoulder, her face coming down to him.
   fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
   // Scene 4: the berry hummocks east of Mosi.
-  fen_berries: { position: [9.5, 1.45, 3.0], target: [15, 0.6, -3.5], fov: 50 },
+  fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
   // Scene 6: Egill by her lowered head, about to climb on; scene 7: the slide ends in the saddle on Mosi.
-  fen_lift_start: { position: [10.5, 1.4, -3.5], target: [4.5, 1.6, -9], fov: 46 },
-  fen_slide_end: { position: [12, 1.5, -6.5], target: [6.5, 2.3, -2.5], fov: 46 },
+  fen_lift_start: { position: [3.2, 1.3, -15], target: [4.6, 1.4, -8.6], fov: 40 },
+  fen_slide_end: { position: [5, 3.2, 6], target: [7.6, 2.6, -3.5], fov: 46 },
   // Scene 8: the two of them with Egill between, the pools glittering behind.
-  fen_star: { position: [13.5, 1.3, -14], target: [1.5, 4.2, -5], fov: 52 },
+  fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
   // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
-  fen_portrait: { position: [13, 1.2, 2], target: [4.5, 4.6, -9], fov: 36 },
+  fen_portrait: { position: [0.5, 1.0, 2.5], target: [5, 4.2, -8.5], fov: 36 },
 };
 
 // ---------------------------------------------------------------------------------------------

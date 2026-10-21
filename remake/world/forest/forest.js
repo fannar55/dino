@@ -218,7 +218,7 @@ export async function createForest(world, layout) {
   group.add(grass.group);
 
   // far forest and air; the Fen's treeline stands well out, so the Fen opens to it
-  const far = createFarForest({ layout, seed, terrain, q, rings: terrain.biome.fen && !terrain.biome.blended ? FEN.far.rings : FOREST.far.rings });
+  const far = createFarForest({ layout, seed, terrain, q, rings: terrain.biome.fen ? FEN.far.rings : FOREST.far.rings });
   group.add(far.mesh);
   const air = createAtmosphere(world, { layout, seed, terrain, shared, sun: world.lighting.direction, q });
   group.add(air.group);
