@@ -16,15 +16,26 @@ const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}c
 // whole head stays in view. On a screen narrower than 16:10 the camera backs away until the table is as wide as there (the cup's
 // tag stays on screen); upright, until the cup and both ends of the held row fit.
 const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:aspect=>aspect>=1?Math.max(1,1.6/aspect):1.14/aspect,
-  cup:[-1.85,.6],cupMargin:96,safe:diceMargins});
-// The dice view keeps every die, its number chip, the held row and the cup's ring clear of the cards along the bottom and of the
-// players' bar and Mosi's bubble along the top.
+  cup:[-1.85,.6],footprint:.26,ring:.4,elevation:54,safe:diceMargins});
+// The dice view fits the dice into the free part of the screen, measured from the page on every resize: under the players' bar and
+// Mosi's bubble band, over the cards' top edge with everything that sticks up over it (the badges, the chips, the best card's lift),
+// 24 px clear of all of it and of the sides. What is drawn round a die (its number chip, a held die's gold frame and check, the
+// held ring at its foot) and round the cup (its gold ring, and the Kasta tag over it) is counted in too: the zoom shrinks rather
+// than let anything touch.
 function diceMargins(width,height){
-  const rows=document.getElementById('score-rows')?.getBoundingClientRect(),screen=document.getElementById('table')?.getBoundingClientRect();
-  if(!rows?.height||!screen?.height)return null;
-  // The bubble's top band (yatzy-junior.css: it rises to the top over the dice; on a phone it stays under the players) plus room
-  // for a die's number chip over it.
-  return {top:width<=560?292:200,bottom:Math.max(0,screen.bottom-rows.top)+6,left:20,right:20};
+  const $$=selector=>[...document.querySelectorAll(selector)].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+  const screen=document.getElementById('table')?.getBoundingClientRect(),cards=$$('#score-rows .card-select');
+  if(!screen?.height||!cards.length)return null;
+  const u=document.querySelector('#score-rows .card-select').offsetWidth/176,clear=24,phone=width<=560,coach=document.getElementById('lesson-center');
+  const cardTop=Math.min(...cards.map(r=>r.top))-(16+14)*u-4; // a badge sticks up 16u over a card and the best card lifts 14u more
+  // The players' bar: on a wide screen the dice keep beside it (the bubble's band runs along the top beside it), on an upright one
+  // or a phone below it.
+  const bar=$$('.player-card, .rounds'),barBottom=Math.max(...bar.map(r=>r.bottom)),barRight=Math.max(...bar.map(r=>r.right)),below=phone||height>width;
+  const bandBottom=(phone?coach.offsetTop:14)+Math.max(coach.offsetHeight,104)+8; // the bubble over the dice (yatzy-junior.css)
+  const top=below?Math.max(barBottom,bandBottom):bandBottom;
+  return {top:top+clear-screen.top,bottom:screen.bottom-cardTop+clear,left:(below?0:barRight-screen.left)+clear,right:clear,
+    die:{top:52,bottom:12,side:22}, // the number chip over a die; a held die's frame, its check and its glow
+    ring:{top:(phone?58:76)+26,bottom:10,side:10}}; // the Kasta tag over the ring, 12 px clear of it
 }
 // The cup waits at the left of the table (not in front of Mosi, where his bubble is) and rests a little further back after a roll;
 // the held row sits a little nearer the middle and to the right, so the cup's gold ring, the held dice and the cards never touch.
@@ -137,6 +148,16 @@ function renderUI(){
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();updateTargets();syncVoiceRecovery();
 }
+// The Kasta tag stands over the cup's ring, 12 px clear of it; where something is in the way up there, it stands at its right.
+let tagKey='';
+function placeTag(){
+  const ring=cupButton.firstElementChild.getBoundingClientRect(),tag=cupButton.querySelector('.cup-tag');
+  const key=`${Math.round(ring.left)},${Math.round(ring.top)},${Math.round(ring.width)},${$('game').dataset.view},${innerWidth}`;if(!ring.width||key===tagKey)return;tagKey=key;
+  const width=tag.offsetWidth,height=tag.offsetHeight+10,left=ring.left-ring.width*.04,bottom=ring.top-15,top=bottom-height,gap=12;
+  const blocked=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help')].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0)
+    .some(r=>r.left<left+width+gap&&r.right>left-gap&&r.top<bottom+gap&&r.bottom>top-gap);
+  cupButton.dataset.tag=!blocked&&top>=gap&&left>=gap&&left+width<=innerWidth-gap?'above':'right';
+}
 function placeTarget(button,target,index){const pixel=pixels[index],x=Math.round(target.x*targetWidth*4)/4,y=Math.round(target.y*targetHeight*4)/4;if(pixel.x!==x||pixel.y!==y){pixel.x=x;pixel.y=y;button.style.transform=`translate3d(${x}px,${y}px,0)`;}}
 function updateTargets(){
   if(!dice||!world)return;
@@ -153,6 +174,7 @@ function updateTargets(){
     if(target.visible){const parked=state.rollCount>0;cupAnchor.x=parked?(target.left+target.right)*.5:target.x;cupAnchor.y=parked?(target.top+target.bottom)*.5:target.y;placeTarget(cupButton,cupAnchor,5);
       const pixel=pixels[5],padding=parked?4:22,minimum=parked?44:64,width=Math.ceil(Math.max(minimum,(parked?target.right-target.left:target.width)*targetWidth+padding)),height=Math.ceil(Math.max(minimum,(parked?target.bottom-target.top:target.height)*targetHeight+padding));
       if(pixel.width!==width){pixel.width=width;cupButton.style.width=`${width}px`;}if(pixel.height!==height){pixel.height=height;cupButton.style.height=`${height}px`;}
+      if(settled())placeTag();
     }
   }
 }
