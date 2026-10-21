@@ -229,8 +229,8 @@ void main() {
   // toward the sun: a broad warm sheen, the sun's own glint and a glitter of small sparks where the surface turns to it
   vec3 rr = reflect( -v, n );
   float sun = max( dot( rr, uSunDir ), 0.0 );
-  float sheen = pow( sun, 10.0 ) * 0.22;
-  float glint = pow( sun, 180.0 ) * 3.5;
+  float sheen = pow( sun, 10.0 ) * 0.16;
+  float glint = pow( sun, 420.0 ) * 1.8;
   float sparks = smoothstep( 0.7, 0.92, texture2D( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ) ).a )
     * smoothstep( 0.62, 0.9, texture2D( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;

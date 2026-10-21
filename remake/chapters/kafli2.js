@@ -116,7 +116,7 @@ const FEN_SHOTS = {
   // Scene 8: the two of them with Egill between, the pools glittering behind.
   fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
   // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
-  fen_portrait: { position: [0.5, 1.0, 2.5], target: [5, 4.2, -8.5], fov: 36 },
+  fen_portrait: { position: [0.5, 1.0, 2.5], target: [5, 3.6, -8.5], fov: 32 },
 };
 
 // ---------------------------------------------------------------------------------------------
