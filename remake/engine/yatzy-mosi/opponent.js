@@ -13,18 +13,27 @@ const rad = THREE.MathUtils.degToRad;
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const envelope = (age, duration) => age >= 0 && age < duration ? Math.sin(Math.PI * age / duration) ** 2 : 0;
 const pulse = (age, start, duration) => envelope(age - start, duration);
-const REACTION_LENGTH = Object.freeze({ anticipate: 1.3, good: 2.1, great: 2.8, bad: 2.5, near: 2.1, win: 3.6 });
+const REACTION_LENGTH = Object.freeze({ anticipate: 1.3, good: 2.1, great: 2.8, bad: 2.5, near: 2.1, win: 3.6, cheer: 2.4, aww: 2.8, lean: 1.5, nod: 1.1 });
+// The small ones never cut a bigger reaction short: they wait for it to end (one at most waits).
+const SOFT = new Set(['lean', 'nod']);
 const GESTURE_KEYS = ['nod', 'tilt', 'yaw', 'jaw', 'bodyPitch', 'bodyRoll', 'bodyLift', 'pawL', 'pawR', 'lid', 'tail'];
 const boneNamed = (model, name) => model.getObjectByName(name) ?? model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
 
 /**
+ * `lively` (the junior game) gives Mosi a little more life for a six-year-old: a head that tilts this way and that and eyes a little
+ * narrowed while he thinks on his own turn, his eyes on the dice while the child plays (update's `waiting` and `watch`) with a glance
+ * up at the child every few seconds and a blink with each, a cheer that hops in his seat, an "aww" that slumps and perks up again,
+ * a lean towards a die the child keeps and a nod at a card that lights up (react('cheer' | 'aww' | 'lean' | 'nod')), a hop in the win,
+ * and while he speaks a line (actor.talking) his body holds still so the line stays the one important motion. Mosi Yatzy keeps the
+ * Mosi it had.
+ *
  * The remake's actual Mosi, sharing the table scene and game clock. `gltf` is an
  * optional already loaded asset, useful to preload or test without DOM textures.
  * The cup moves independently. `rolling` makes Mosi watch the supplied world
  * target while his forelegs stay planted; only a celebration after the throw
  * deliberately lifts a paw, always along its real fixed-length limb arc.
  */
-export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, gltf } = {}) {
+export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, gltf, lively = false } = {}) {
   if (!world?.scene || !world?.camera || typeof world.resolvePoint !== 'function' || typeof world.heightAt !== 'function') {
     throw new TypeError('Mosi needs the shared table scene, camera and point/height resolvers');
   }
@@ -68,6 +77,9 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
   const previousGesture = { ...gesture }, immediateEyes = { duration: 0 };
   let reactionBlink = false, lidLevel = 0;
   let watchingRoll = false, watchTilt = 0, watchNod = 0;
+  // Lively: a reaction waiting for the current one to end, where a lean looks, the glance schedule and how still a line holds him.
+  let queued = null, still = 0, glanceIn = 2.6, glanceLeft = 0, lifeSeed = 3301;
+  const leanPoint = new THREE.Vector3(), watchPoint = new THREE.Vector3(), lifeRandom = () => { lifeSeed = (Math.imul(lifeSeed, 1664525) + 1013904223) >>> 0; return lifeSeed / 4294967296; };
   const skeletons = new Set();
   let triangles = 0;
   actor.model.traverse(node => {
@@ -155,6 +167,7 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
       if (reactionKind === 'win') {
         gesture.nod += rad(3) * pulse(t, 2.55, .55); gesture.bodyLift += .022 * pulse(t, 2.15, .65);
         gesture.pawL += .10 * pulse(t, 2.15, .52); gesture.pawR += .10 * pulse(t, 2.4, .52);
+        if (lively) gesture.bodyLift += .13 * pulse(t, .1, .42) + .1 * pulse(t, .62, .38) + .07 * pulse(t, 2.1, .4);
       }
     } else if (reactionKind === 'bad') {
       // A little deflated sigh, a slow head shake, then a hopeful recovery.
@@ -164,6 +177,29 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
       gesture.jaw = rad(1.6) * pulse(t, .1, .5); gesture.lid = .24 * pulse(t, .18, 1.35);
       gesture.bodyPitch = rad(-2.3) * pulse(t, .1, 1.75); gesture.bodyLift = -.018 * pulse(t, .3, 1.25);
       gesture.tail = .35 * pulse(t, 1.6, .6);
+    } else if (reactionKind === 'cheer') {
+      // A crouch, a hop in his seat with both paws up, a bounce on landing and a smaller second hop; tail wagging, beak open.
+      gesture.bodyLift = -.035 * pulse(t, 0, .22) + .16 * pulse(t, .14, .42) - .03 * pulse(t, .5, .2) + .085 * pulse(t, .64, .34) - .015 * pulse(t, .95, .2);
+      gesture.bodyPitch = rad(2.6) * pulse(t, .12, .55) + rad(1.4) * pulse(t, .62, .4);
+      gesture.nod = rad(7) * pulse(t, .1, .55) - rad(3) * pulse(t, .62, .3) + rad(4) * pulse(t, .9, .6);
+      gesture.tilt = rad(5) * pulse(t, .5, 1.2); gesture.jaw = rad(8) * pulse(t, .08, 1.4);
+      gesture.pawL = .13 * pulse(t, .16, .5) + .06 * pulse(t, .66, .4); gesture.pawR = .13 * pulse(t, .2, .5) + .06 * pulse(t, .7, .4);
+      gesture.tail = 3 * pulse(t, .1, 2.2);
+    } else if (reactionKind === 'aww') {
+      // Aww: he sinks, his head droops and tips, his eyes go soft, a slow little sway; then he perks up again.
+      gesture.bodyLift = -.05 * pulse(t, .05, 2.1) + .02 * pulse(t, 2.05, .6);
+      gesture.bodyPitch = rad(-3.4) * pulse(t, .05, 2.1);
+      gesture.nod = rad(-11) * pulse(t, .1, 1.95) + rad(4) * pulse(t, 2.0, .7);
+      gesture.tilt = rad(-8) * pulse(t, .25, 1.7); gesture.yaw = rad(3) * Math.sin((t - .5) * 4.5) * pulse(t, .5, 1.2);
+      gesture.lid = .38 * pulse(t, .15, 1.8); gesture.jaw = rad(1.2) * pulse(t, .2, .6);
+      gesture.tail = .5 * pulse(t, 1.95, .8);
+    } else if (reactionKind === 'lean') {
+      // He leans in over the table to see the die the child keeps.
+      gesture.bodyPitch = rad(-3.6) * pulse(t, 0, 1.5); gesture.bodyLift = .012 * pulse(t, 0, 1.5);
+      gesture.nod = rad(-3) * pulse(t, .1, 1.3); gesture.tilt = rad(4) * pulse(t, .2, 1.1); gesture.tail = .8 * pulse(t, .2, 1.2);
+    } else if (reactionKind === 'nod') {
+      gesture.nod = rad(-7) * pulse(t, .05, .42) + rad(2.5) * pulse(t, .42, .4); gesture.jaw = rad(2) * pulse(t, .1, .5);
+      gesture.tilt = rad(2.5) * pulse(t, .05, .9); gesture.tail = .9 * pulse(t, .05, 1);
     } else if (reactionKind === 'near') {
       gesture.nod = rad(-2) * pulse(t, .08, .52) + rad(4) * pulse(t, 1.02, .58);
       gesture.tilt = rad(8) * pulse(t, .2, 1.15); gesture.yaw = rad(7) * pulse(t, .12, .85) - rad(3) * pulse(t, .95, .68);
@@ -175,6 +211,11 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     const blend = THREE.MathUtils.smoothstep(t, 0, .14);
     for (const key of GESTURE_KEYS) gesture[key] = previousGesture[key] * (1 - blend) + gesture[key] * blend;
     if (watchingRoll) gesture.pawL = gesture.pawR = 0;
+    if (still > .001) {
+      // A line is playing: the body holds still and the head moves less, so the line is the one important motion.
+      for (const key of ['bodyLift', 'bodyPitch', 'bodyRoll', 'pawL', 'pawR']) gesture[key] *= 1 - .7 * still;
+      for (const key of ['nod', 'tilt', 'yaw', 'tail']) gesture[key] *= 1 - .45 * still;
+    }
   }
   function liftPaw(limb, amount) {
     if (amount <= .000001) return;
@@ -202,8 +243,10 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
       limb.foot.quaternion.copy(limb.leg.quaternion).invert().multiply(rest.get(limb.foot).quaternion);
     }
     const life = reduced ? 0 : 1;
+    // Lively thinking: the tilt swings slowly from side to side as he weighs it up.
+    const ponder = lively ? thinking * (rad(4.5) * Math.sin(clock * 1.15) - rad(1.5)) : 0;
     nod = (gesture.nod - thinking * rad(1.7) + watchNod) * life;
-    tilt = (thinking * rad(5.2) + gesture.tilt + watchTilt) * life;
+    tilt = (thinking * rad(5.2) + gesture.tilt + watchTilt + ponder) * life;
     jawOpen = gesture.jaw * life;
     if (gesture.tail && life) for (let i = 0; i < tail.length; i++) {
       rotateWorld(tail[i], up, Math.sin(reactionAge * 6.4 - i * .45) * rad(gesture.tail));
@@ -227,7 +270,7 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
   finishPose();
   world.actors?.set(actor.name, actor);
 
-  function update(dt, time, { thinking: wantThinking = false, rolling: wantRolling = false, target = null, reducedMotion = false } = {}) {
+  function update(dt, time, { thinking: wantThinking = false, rolling: wantRolling = false, target = null, reducedMotion = false, waiting = false, watch = null } = {}) {
     if (disposed) return;
     const delta = clamp(finite(dt), 0, .1);
     if (!delta) return; // The host owns pause; zero-dt frames are exact no-ops.
@@ -237,8 +280,12 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     watchingRoll = Boolean(wantRolling);
     reactionAge += delta;
     if (reduced || reactionAge >= reactionDuration) reactionKind = null;
+    if (queued && !reactionKind && !reduced) { const next = queued; queued = null; start(next.kind, next.target); }
+    if (reduced) queued = null;
+    still += ((lively && actor.talking && !reduced ? 1 : 0) - still) * (1 - Math.exp(-delta / .18));
     reactionWeight = reactionKind ? envelope(reactionAge, reactionDuration) : 0;
     sampleReaction();
+    if (lively && !reduced) gesture.lid = Math.max(gesture.lid, thinking * .14); // a thinker's narrowed eyes
     if (Math.abs(gesture.lid - lidLevel) > .00001) {
       lidLevel = gesture.lid; actor.closeEyes(lidLevel, immediateEyes);
     }
@@ -247,8 +294,17 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     }
     if (!reduced && (wantThinking !== lastThinking || wantRolling && !lastRolling)) actor.blink();
     lastThinking = !!wantThinking; lastRolling = !!wantRolling;
+    const watching = lively && waiting && !wantThinking && !wantRolling;
+    if (watching && !reduced) {
+      // While the child plays his eyes are on the dice, and every few seconds they go up to the child for a moment, with a blink.
+      if (glanceLeft > 0) { glanceLeft -= delta; if (glanceLeft <= 0) { glanceIn = 2.4 + lifeRandom() * 3.2; actor.blink(); } }
+      else if ((glanceIn -= delta) <= 0) { glanceLeft = .9 + lifeRandom() * .7; actor.blink(); }
+    } else if (!watching) { glanceLeft = 0; glanceIn = Math.min(glanceIn, 1.6 + lifeRandom()); }
+    const aside = lively && (reactionKind === 'cheer' || reactionKind === 'aww' || reactionKind === 'win' || reactionKind === 'nod');
     if (target && Number.isFinite(target.x) && Number.isFinite(target.y) && Number.isFinite(target.z)) lookPoint.copy(target);
+    else if (lively && reactionKind === 'lean') lookPoint.copy(leanPoint);
     else if (wantThinking || wantRolling) lookPoint.copy(dicePoint);
+    else if (watching && !aside && glanceLeft <= 0) lookPoint.copy(watch && Number.isFinite(watch.x) && Number.isFinite(watch.y) && Number.isFinite(watch.z) ? watchPoint.copy(watch) : dicePoint);
     else lookPoint.copy(world.camera.position);
     // The actor smooths the actual gaze. This slower, bounded head response
     // follows the cup's position instead of mirroring every high-frequency shake.
@@ -264,13 +320,23 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     actor.update(delta);
     finishPose();
   }
-  function react(kind = 'happy') {
+  function start(next, target = null) {
+    for (const key of GESTURE_KEYS) previousGesture[key] = gesture[key];
+    reactionKind = next; reactionAge = 0; reactionDuration = REACTION_LENGTH[next]; reactionBlink = false;
+    if (next === 'lean' && target && Number.isFinite(target.x) && Number.isFinite(target.y) && Number.isFinite(target.z)) leanPoint.copy(target);
+    else if (next === 'lean') leanPoint.copy(dicePoint);
+    actor.blink();
+  }
+  /** A reaction: `target` is where a lean looks (a kept die). A small one (lean, nod) waits for a bigger one to end. */
+  function react(kind = 'happy', { target = null } = {}) {
     if (disposed || reduced) return false;
     const next = ['oops', 'bad', 'poor', 'miss'].includes(kind) ? 'bad' : ['win', 'yatzy'].includes(kind) ? 'win' : Object.hasOwn(REACTION_LENGTH, kind) ? kind : 'good';
     if (reactionKind === next && reactionAge < .55) return false;
-    for (const key of GESTURE_KEYS) previousGesture[key] = gesture[key];
-    reactionKind = next; reactionAge = 0; reactionDuration = REACTION_LENGTH[next]; reactionBlink = false;
-    actor.blink();
+    if (SOFT.has(next) && reactionKind && !SOFT.has(reactionKind) && reactionAge < reactionDuration - .25) {
+      queued = { kind: next, target: target ? new THREE.Vector3(target.x, target.y, target.z) : null }; return true;
+    }
+    if (!SOFT.has(next)) queued = null;
+    start(next, target);
     return true;
   }
   function reset() {
@@ -279,7 +345,7 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
     watchingRoll = false;
     for (const key of GESTURE_KEYS) gesture[key] = previousGesture[key] = 0;
     reactionBlink = false; lidLevel = 0;
-    reactionKind = null; reactionAge = 10; lastThinking = lastRolling = false;
+    reactionKind = null; reactionAge = 10; lastThinking = lastRolling = false; queued = null; still = 0; glanceLeft = 0; glanceIn = 2.6;
     actor.stop();
     actor.openEyes(immediateEyes);
     for (const bone of bones) {
@@ -297,7 +363,7 @@ export async function createMosiOpponent(world, { tableY = 1.4, farZ = -1.9, glt
   }
   function getDebugState() {
     return { disposed, source: MODEL, triangles, bones: bones.length, time: clock, thinking, rolling, reducedMotion: reduced,
-      reaction: reactionKind, reactionWeight, nod, tilt, jawOpen,
+      reaction: reactionKind, reactionWeight, nod, tilt, jawOpen, queued: queued?.kind ?? null, still, glancing: glanceLeft > 0,
       expression: { ...gesture },
       position: group.position.toArray(), head: actor.headPosition(scratch).toArray(), hand: getHandTarget(scratch).toArray(),
       watch: { rolling: watchingRoll, target: lookPoint.toArray(), tilt: watchTilt, nod: watchNod },

@@ -108,8 +108,8 @@ function createLivelyEffects(world) {
     else if (kind === 'great') sparks.burst(felt(position, .05), { scale: 1.1 });
     else if (kind === 'yatzy') sparks.gold(felt(position));
   }
-  /** Glitter left behind `object` (a die mesh) for `seconds` as it moves. */
-  function trail(object, seconds = .36) { if (!disposed && object) trails.push({ object, t: 0, seconds, wait: 0 }); }
+  /** Glitter left behind `object` (a die mesh) for `seconds` as it moves, and where it lands the effect `land` (e.g. 'hold'). */
+  function trail(object, seconds = .36, land = null) { if (!disposed && object) trails.push({ object, t: 0, seconds, wait: 0, land }); }
   /** A win: confetti over the table, and two volleys of fireworks over it, left and right of Mosi. */
   function celebrate() {
     if (disposed) return;
@@ -140,7 +140,7 @@ function createLivelyEffects(world) {
     for (let i = trails.length - 1; i >= 0; i--) {
       const trail = trails[i]; trail.t += dt; trail.wait -= dt;
       if (trail.wait <= 0) { trail.wait = .028; sparks.glitter(trail.object.position, 2); }
-      if (trail.t >= trail.seconds) trails.splice(i, 1);
+      if (trail.t >= trail.seconds) { trails.splice(i, 1); if (trail.land) emit(trail.object.position, { kind: trail.land }); }
     }
     if (ambient) {
       // A leaf let go high behind Mosi every few seconds, and a handful of motes drifting in the light over the table.
