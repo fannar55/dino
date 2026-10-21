@@ -34,7 +34,7 @@ function diceMargins(width,height){
   const bandBottom=(phone?coach.offsetTop:14)+Math.max(coach.offsetHeight,104)+8; // the bubble over the dice (yatzy-junior.css)
   const top=below?Math.max(barBottom,bandBottom):bandBottom;
   return {top:top+clear-screen.top,bottom:screen.bottom-cardTop+clear,left:(below?0:barRight-screen.left)+clear,right:clear,
-    die:{top:52,bottom:12,side:22}, // the number chip over a die; a held die's frame, its check and its glow
+    die:{top:phone?40:52,bottom:12,side:22}, // the number chip over a die; a held die's frame, its check and its glow
     ring:{top:(phone?58:76)+26,bottom:10,side:10}}; // the Kasta tag over the ring, 12 px clear of it
 }
 // The cup waits at the left of the table (not in front of Mosi, where his bubble is) and rests a little further back after a roll;
@@ -153,10 +153,11 @@ let tagKey='';
 function placeTag(){
   const ring=cupButton.firstElementChild.getBoundingClientRect(),tag=cupButton.querySelector('.cup-tag');
   const key=`${Math.round(ring.left)},${Math.round(ring.top)},${Math.round(ring.width)},${$('game').dataset.view},${innerWidth}`;if(!ring.width||key===tagKey)return;tagKey=key;
-  const width=tag.offsetWidth,height=tag.offsetHeight+10,left=ring.left-ring.width*.04,bottom=ring.top-15,top=bottom-height,gap=12;
+  // Over the ring it may slide sideways to stay on the screen.
+  const width=tag.offsetWidth,height=tag.offsetHeight+10,gap=12,natural=ring.left-ring.width*.04,left=Math.min(Math.max(natural,gap),innerWidth-gap-width),bottom=ring.top-15,top=bottom-height;
   const blocked=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help')].map(e=>e.getBoundingClientRect()).filter(r=>r.width>0)
     .some(r=>r.left<left+width+gap&&r.right>left-gap&&r.top<bottom+gap&&r.bottom>top-gap);
-  cupButton.dataset.tag=!blocked&&top>=gap&&left>=gap&&left+width<=innerWidth-gap?'above':'right';
+  const above=!blocked&&top>=gap;cupButton.dataset.tag=above?'above':'right';cupButton.style.setProperty('--tag-shift',above?`${Math.round(left-natural)}px`:'0px');
 }
 function placeTarget(button,target,index){const pixel=pixels[index],x=Math.round(target.x*targetWidth*4)/4,y=Math.round(target.y*targetHeight*4)/4;if(pixel.x!==x||pixel.y!==y){pixel.x=x;pixel.y=y;button.style.transform=`translate3d(${x}px,${y}px,0)`;}}
 function updateTargets(){
