@@ -18,11 +18,13 @@ const SHOT = { position: [-.4, 3.2, 4.4], target: [-.4, 1.7, -.8], fov: 41 };
 /** Shared-clock camera rig, independently constructible without a WebGL context.
  *  `shot` replaces the table shot ({ position, target, fov, pull }): a game laid out differently round the table (the junior game's
  *  full-width table) frames it its own way. `pull` (default .95) is the aspect below which the camera backs away to keep the table's
- *  width in view, as `pull / aspect`; or a function of the aspect that returns how far it backs away (1 = not at all). */
+ *  width in view, as `pull / aspect`; or a function of the aspect that returns how far it backs away (1 = not at all).
+ *  For the dice view: `safe(width, height)` may return the screen margins (px: top, bottom, left, right) the dice must keep clear of,
+ *  `cup` is where the cup rests after a roll ([x, z]) and `cupMargin` how far (px) it keeps from the sides. */
 export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot = SHOT } = {}) {
   const tableTarget = new THREE.Vector3().fromArray(shot.target);
   const tableOffset = new THREE.Vector3().fromArray(shot.position).sub(tableTarget);
-  const pull = shot.pull ?? .95;
+  const pull = shot.pull ?? .95, cupAt = shot.cup ?? [-1.45, .80], cupMargin = shot.cupMargin ?? 8;
   const tablePosition = new THREE.Vector3(), dicePosition = new THREE.Vector3(), diceTarget = new THREE.Vector3();
   const focusStartPosition = new THREE.Vector3(), focusStartTarget = new THREE.Vector3();
   const focusEndPosition = new THREE.Vector3(), focusEndTarget = new THREE.Vector3();
@@ -56,7 +58,7 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot 
     const aspect = viewportWidth / viewportHeight;
     const tan = Math.tan(THREE.MathUtils.degToRad(shot.fov) / 2);
     const top = 1 - 2 * safe.top / viewportHeight, bottom = -1 + 2 * safe.bottom / viewportHeight;
-    const horizontal = 1 - 2 * safe.left / viewportWidth, cupHorizontal = 1 - 16 / viewportWidth;
+    const horizontal = 1 - 2 * safe.left / viewportWidth, cupHorizontal = 1 - 2 * cupMargin / viewportWidth;
     let count = 0, averageDepth = 0;
     function corner(x, y, z, limit) {
       const point = corners[count++];
@@ -72,7 +74,7 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot 
     // Match the .42-scale parked cup near the left rail. The small allowance
     // covers its .394-radius rolled rim without reserving its casting size.
     for (let x = -1; x <= 1; x += 2) for (let y = 0; y <= 1; y++) for (let z = -1; z <= 1; z += 2)
-      corner(-1.45 + x * .174, TABLE.y + .06 + y * .43, .80 + z * .174, cupHorizontal);
+      corner(cupAt[0] + x * .174, TABLE.y + .06 + y * .43, cupAt[1] + z * .174, cupHorizontal);
     // Solve the shared view-plane intervals, rather than wasting space on the
     // corners of one large axis-aligned rectangle that contains no dice.
     let left, right, lower, upper;
@@ -136,6 +138,8 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot 
     safe.top = Math.min(compact ? 88 : 112, viewportHeight * .22);
     safe.bottom = Math.min(compact ? 114 : 142, viewportHeight * .285);
     safe.left = safe.right = Math.min(16, viewportWidth * .035);
+    const own = shot.safe?.(viewportWidth, viewportHeight);
+    if (own) for (const side of ['top', 'bottom', 'left', 'right']) if (Number.isFinite(own[side])) safe[side] = own[side];
     fit(focus, focusEndPosition, focusEndTarget);
     if (focusDuration) {
       fit(previousFocus, focusStartPosition, focusStartTarget);

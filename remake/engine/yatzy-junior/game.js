@@ -3,7 +3,7 @@ import {createMosiOpponent} from '../yatzy-mosi/opponent.js';
 import {createDiceAndCup,DINO_FACES} from '../yatzy-mosi/dice.js';
 import {createYatzyEffects} from '../yatzy-mosi/effects.js';
 import {createYatzyAudio} from '../yatzy-mosi/audio.js';
-import {CATEGORIES,createGame,roll,hold,score,previews,totals,decideAI,restoreGame,validateGame} from './rules.js';
+import {CATEGORIES,createGame,roll,hold,score,scoringDice,previews,totals,decideAI,restoreGame,validateGame} from './rules.js';
 import {LESSON_STEPS,allowsAction} from './lesson.js';
 import {VOICE_LINES} from './voice-lines.js';
 import {createJuniorVoice} from './voice.js';
@@ -15,7 +15,17 @@ const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}c
 // Seated at the near rail and a little higher than Mosi Yatzy's shot, so the held row clears the cards along the bottom and Mosi's
 // whole head stays in view. On a screen narrower than 16:10 the camera backs away until the table is as wide as there (the cup's
 // tag stays on screen); upright, until the cup and both ends of the held row fit.
-const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:aspect=>aspect>=1?Math.max(1,1.6/aspect):1.14/aspect});
+const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:aspect=>aspect>=1?Math.max(1,1.6/aspect):1.14/aspect,
+  cup:[-1.85,.6],cupMargin:96,safe:diceMargins});
+// The dice view keeps every die, its number chip, the held row and the cup's ring clear of the cards along the bottom and of the
+// players' bar and Mosi's bubble along the top.
+function diceMargins(width,height){
+  const rows=document.getElementById('score-rows')?.getBoundingClientRect(),screen=document.getElementById('table')?.getBoundingClientRect();
+  if(!rows?.height||!screen?.height)return null;
+  // The bubble's top band (yatzy-junior.css: it rises to the top over the dice; on a phone it stays under the players) plus room
+  // for a die's number chip over it.
+  return {top:width<=560?292:200,bottom:Math.max(0,screen.bottom-rows.top)+6,left:20,right:20};
+}
 // The cup waits at the left of the table (not in front of Mosi, where his bubble is) and rests a little further back after a roll;
 // the held row sits a little nearer the middle and to the right, so the cup's gold ring, the held dice and the cards never touch.
 const TABLE_LAYOUT=Object.freeze({home:[-1.7,.45,.6],park:[-1.85,.6],held:{left:-1.0,step:.58,near:1.2}});
@@ -47,7 +57,7 @@ for(const category of CATEGORIES){
   const value=document.createElement('strong');value.className='card-value';const scores=document.createElement('span');scores.className='card-scores';scores.setAttribute('aria-hidden','true');
   // The card is the tap target: one that cannot be chosen now lets the tap through (yatzy-junior.css), and Mosi says what it is.
   card.addEventListener('click',event=>{if(!event.target.closest('.card-select')&&!lesson&&!paused){enableNarration();say(`${category.id}Help`);}});
-  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores);$('score-rows').append(card);cells.set(category.id,{card,select,value,scores,shown:''});
+  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores);$('score-rows').append(card);cells.set(category.id,{card,select,picture,value,scores,shown:'',pictured:''});
 }
 for(let i=0;i<5;i++){
   const button=document.createElement('button');button.type='button';button.className='die-target';button.hidden=true;button.dataset.index=i;button.innerHTML='<span>Geymdur</span><i class="die-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i>';
@@ -68,8 +78,9 @@ function syncVoiceRecovery(){
   if(recovery.parentElement!==parent)parent.append(recovery);
   if(parent===coach)coach.hidden=false;
 }
-// The junior table is the whole screen, framed with Mosi and every die in view (TABLE_SHOT), so the camera never zooms to the dice.
-function view(mode,snap=reduced){pendingDiceView=-1;world?.setView('table',{reduced:snap});}
+// After a roll the camera rises over the dice and closes in on them (the 'dice' view), between the players' bar and the cards
+// (TABLE_SHOT.safe); it goes back to the table, Mosi in view, when the turn moves on. #game[data-view] tells the page which.
+function view(mode,snap=reduced){pendingDiceView=-1;$('game').dataset.view=mode;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});}
 function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'));audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();}
 function openDialog(id,line){if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
 function closeDialogs(){modalNarration=false;for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();syncPause();}
@@ -102,6 +113,12 @@ function renderUI(){
     // corner: a plain "Þú" chip (the badge has the number) and Mosi's face with his.
     const chips=`${you??''}|${mosi??''}`;
     cell.value.textContent=you!==null?String(you):possible&&who===0?`+${preview[c.id]??0}`:'';cell.value.dataset.who=you!==null?'you':'';
+    // The picture row shows what the child really has: the dice that score here after a roll, the dice a filled card was filled with,
+    // or the card's example, dimmed when the hand does not make it (before a roll, and on Mosi's turn, the example as it is).
+    let faces=EXAMPLES[c.id],dim=false;
+    if(you!==null){const kept=lesson?lesson.faces[c.id]:state.players[0].faces?.[c.id];if(kept?.length)faces=kept;else dim=true;}
+    else if(possible&&who===0){const live=scoringDice(c.id,state.dice);if(live.length)faces=live;else dim=true;}
+    const pictured=`${dim?'-':'+'}${faces.join('')}`;if(cell.pictured!==pictured){cell.pictured=pictured;cell.picture.replaceChildren(miniDice(faces));cell.picture.classList.toggle('dim',dim);}
     if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?'<i class="who you"><span>Þú</span></i>':'')+(mosi!==null?`<i class="who mosi"><span></span><b>${mosi}</b></i>`:'');}
     cell.card.classList.toggle('filled',you!==null);cell.card.classList.toggle('available',available);cell.card.classList.toggle('best',available&&(preview[c.id]??0)>0);cell.card.classList.toggle('recent',recent===c.id);
     cell.select.setAttribute('aria-label',`${c.label}. ${you!==null?`${you} stig, notað kort`:available?`${preview[c.id]} stig í boði`:'Laust kort'}`);
@@ -177,7 +194,7 @@ function flyScore(id,player,points){
 function record(id){
   const player=state.currentPlayer,points=previews(state)[id];voice.stop();flyScore(id,player,points);state=score(state,id);recent=id;
   effects.emit({x:0,y:world.table.y+.2,z:0},{kind:points?'score':'bad',reduced});audio.cue(points?'score':'bad');opponent.react(points>=20?'great':points?'good':'bad');
-  if(lesson){lesson.awards[id]=points;phase='human';view('table');nextLesson();renderUI();return;}
+  if(lesson){lesson.awards[id]=points;lesson.faces[id]=state.players[0].faces[id];phase='human';view('table');nextLesson();renderUI();return;}
   save();phase='handoff';timer=1.8;view('table');speakScore(player,points);renderUI();
 }
 function resultCopy(){const a=totals(state.players[0].scores).total,b=totals(state.players[1].scores).total;$('win-title').textContent=state.winner==='tie'?'Jafntefli!':state.winner==='you'?'Þú vannst!':'Mosi vann!';$('win-copy').textContent=`Þú ${a} · Mosi ${b}`;}
@@ -204,7 +221,7 @@ function enterStep(){
 function nextLesson(){if(!lesson)return;lesson.index++;if(lesson.index>=LESSON_STEPS.length){leaveLesson(true);return;}enterStep();}
 function beginLesson(){
   if(!lesson)lessonReturn={state:structuredClone(state),started,phase,scoreScroll:$('score-rows').scrollTop};
-  voice.stop();audio.cancel();effects.clear();opponent.reset();lesson={index:0,awards:{}};state=createGame({seed:606});started=true;phase='human';timer=0;recent=null;aiDecision=null;zeroCategory=null;
+  voice.stop();audio.cancel();effects.clear();opponent.reset();lesson={index:0,awards:{},faces:{}};state=createGame({seed:606});started=true;phase='human';timer=0;recent=null;aiDecision=null;zeroCategory=null;
   dice.sync(state.dice,state.held,0);view('table',true);$('controls').hidden=false;closeDialogs();audio.unlock();enterStep();
 }
 function leaveLesson(play=false){
