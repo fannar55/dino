@@ -355,6 +355,7 @@ test("parseArgs takes a line set and the narrator's audition", () => {
   assert.equal(parseArgs([]).set, 'kafli1', 'the chapter unless told otherwise');
   assert.equal(parseArgs(['--set', 'kafli1']).set, 'kafli1');
   assert.deepEqual(parseArgs(['--set', 'book']), { only: null, audition: null, set: 'book' });
+  assert.deepEqual(parseArgs(['--set', 'kafli2']), { only: null, audition: null, set: 'kafli2' }, "chapter 2's lines");
   assert.deepEqual(parseArgs(['--only', 'book_find_me', '--set', 'book']), { only: ['book_find_me'], audition: null, set: 'book' }, 'in either order');
   assert.deepEqual(parseArgs(['--audition', 'narrator']), { only: null, audition: 'narrator', set: 'kafli1' });
   for (const argv of [['--set'], ['--set', ''], ['--set', 'kafli3'], ['--set', 'Book'], ['--set', 'constructor'], ['--set', '--only', 'book_find_me']]) {

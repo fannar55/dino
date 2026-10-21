@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import * as kafli2 from '../chapters/kafli2.js';
 import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { createSave, defaultChapter } from '../engine/save.js';
+import { LOOKS } from '../engine/looks.js';
 import { createTerrain } from '../world/forest/terrain.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { playUnattended } from './chapter-harness.mjs';
@@ -19,9 +20,9 @@ const RECORDED = readJson('../assets/audio/lines.json');
 const CHAPTER_TEXT = fs.readFileSync(file('../chapters/kafli2.js'), 'utf8');
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
-// The controller records the kafli2 set right after the chapter's first task, so until then a line may have no recording: the test
-// names those lines and is marked skipped. From Task 4 on every line must have its recording: this becomes true.
-const RECORDINGS_REQUIRED = false;
+// Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
+// named; setting this false while lines wait for their recording names them and marks the test skipped instead.
+const RECORDINGS_REQUIRED = true;
 
 const words = text => text.replace(/\[[^\]]*\]\s*/g, '').trim(); // what is said, without the voice's tags
 
@@ -74,6 +75,9 @@ test('locations as data: the glade, the trail and the Fen, with who stands where
   assert.equal(chapter.id, 'kafli2');
   assert.equal(chapter.title, 'Boð til Þórseðlu');
   assert.equal(chapter.look, 'lateMorning');
+  assert.ok(LOOKS[chapter.look], 'a look engine/looks.js has, not the morning an unknown name falls back to');
+  assert.equal(LOOKS[chapter.look].sun.azimuth, 150, "the sun a little further round than chapter 1's");
+  assert.equal(LOOKS[chapter.look].sun.elevation, 26, 'and a little lower');
   assert.equal(chapter.start, 'burknalaut');
   assert.deepEqual(Object.keys(chapter.locations), ['burknalaut', 'fenjaslod', 'fen'], 'in the order the story goes');
   assert.deepEqual(chapter.prepare, ['fenjaslod', 'fen'], 'the two new places are built behind the start button');

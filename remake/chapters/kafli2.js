@@ -112,7 +112,7 @@ const WORDS = {
   k2_mosi_notsmall: 'Ég er ekki lítill, ég er langt í burtu!',
   k2_thorsedla_look: 'Horfðu vel, Egill. Sérðu vinina okkar?',
   k2_mosi_hint_far1: 'Ég sé eitthvað glitra úti í tjörninni!',
-  k2_mosi_hint_far2: 'Kíktu á gamla, hvíta tréð!',
+  k2_mosi_hint_far2: 'Kíktu á gamla hvíta tréð!',
   k2_mosi_hint_far3: 'Hvað glitrar þarna í sefinu?',
   k2_mosi_found_sloedla: 'Slóeðla! Hún er að vaða í tjörninni!',
   k2_mosi_found_flugedla: 'Flugeðla! Uppi á gamla trénu!',
@@ -125,8 +125,9 @@ const WORDS = {
   // 8. The star
   k2_mosi_second: 'Sjáðu, Egill! Önnur stjarnan!',
   k2_mosi_two: 'Tvær komnar. Og nú vitum við hvert við förum næst!',
-  // The book's map: a tap on a place's marker, and Mosi says its name and one sentence
+  // The book's map: a tap on the marker of a place found or done, and Mosi says its name and one sentence (an empty slot is silent)
   k2_mosi_map_fen: 'Fenið! Þar eru tjarnir, sef og froskar.',
+  k2_mosi_map_kambedla: 'Kambeðla! Plöturnar hennar lýsa eins og ljósker.',
   k2_mosi_map_thorsedla: 'Þórseðla! Hún er hæst af öllum vinum mínum.',
   k2_mosi_map_sloedla: 'Slóeðla! Henni finnst gott að vaða í vatninu.',
   k2_mosi_map_flugedla: 'Flugeðla! Hún situr hátt uppi á gamla trénu.',

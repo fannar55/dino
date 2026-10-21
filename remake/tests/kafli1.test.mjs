@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import * as kafli1 from '../chapters/kafli1.js';
-import { chapter, onBone, POINTS, FLOWERS, hidingPlaces } from '../chapters/kafli1.js';
 import { updateActors } from '../engine/actor.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
@@ -23,6 +22,7 @@ import { chapterWorld, playUnattended, EARLY_TAP_AT } from './chapter-harness.mj
 // forests that are only their ground), with the real characters, camera director, scene, screen layer and journal
 // (tests/chapter-harness.mjs).
 
+const { chapter, onBone, POINTS, FLOWERS, hidingPlaces } = kafli1;
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
 const SOURCE = readJson('../assets/audio/kafli1/lines-source.json');
