@@ -71,8 +71,8 @@
   <h2>Litla Yatzy við Mosa</h2>
   <div class="panel-say"><p>Fimm teningar. Fimm spjöld. Við prófum saman!</p><button id="welcome-voice" class="hear" type="button" aria-label="Heyra Mosa lesa upphafsvalmyndina"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button></div>
   <div class="panel-actions">
-    <button id="continue" class="big" type="button" hidden>Halda áfram</button>
-    <button id="learn" class="big" type="button">Læra með Mosa</button>
+    <button id="continue" class="big" type="button" autofocus hidden>Halda áfram</button>
+    <button id="learn" class="big" type="button" autofocus>Læra með Mosa</button>
     <button id="start" class="plain" type="button">Spila</button>
   </div>
 </dialog>
@@ -81,7 +81,7 @@
   <h2>Mosi bíður.</h2>
   <div class="panel-say"><p>Við höldum áfram þegar þú ert tilbúin eða tilbúinn.</p><button id="pause-voice" class="hear" type="button" aria-label="Heyra Mosa lesa hlévalmyndina"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button></div>
   <div class="panel-actions">
-    <button class="big" type="button" data-close>Halda áfram</button>
+    <button class="big" type="button" data-close autofocus>Halda áfram</button>
     <div class="panel-row">
       <button id="sound" class="plain" type="button" aria-label="Slökkva á hljóði" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path class="on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span id="sound-label">Hljóð á</span></button>
       <button id="motion" class="plain" type="button" aria-pressed="false">Rólegri hreyfing</button>
@@ -94,7 +94,7 @@
   <h2>Prófum með Mosa</h2>
   <p>Kastaðu. Geymdu teninga sem passa saman. Veldu eitt spjald.</p>
   <div class="panel-actions">
-    <button id="learn-help" class="big" type="button">Sýndu mér</button>
+    <button id="learn-help" class="big" type="button" autofocus>Sýndu mér</button>
     <button class="plain" type="button" data-close>Aftur að borðinu</button>
   </div>
 </dialog>
@@ -103,7 +103,7 @@
   <p>Það gefur ekkert stig í þetta sinn.</p>
   <div class="panel-actions">
     <button id="confirm-zero" class="big" type="button">Nota spjaldið</button>
-    <button class="plain" type="button" data-close>Velja annað</button>
+    <button class="plain" type="button" data-close autofocus>Velja annað</button>
   </div>
 </dialog>
 <dialog id="win-dialog" class="panel win-panel">
@@ -111,7 +111,7 @@
   <h2 id="win-title"></h2>
   <p id="win-copy"></p>
   <div class="panel-actions">
-    <button id="play-again" class="big" type="button">Spila aftur</button>
+    <button id="play-again" class="big" type="button" autofocus>Spila aftur</button>
     <button class="plain" type="button" data-close>Skoða spjöldin</button>
   </div>
 </dialog>

@@ -13,8 +13,12 @@ const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
 const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{/* Storage is optional. */}};
 // Seated at the near rail and a little higher than Mosi Yatzy's shot, so the held row clears the cards along the bottom and Mosi's
-// whole head stays in view; upright, the camera backs away (pull) until the cup and both ends of the held row fit.
-const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:1.14});
+// whole head stays in view. On a screen narrower than 16:10 the camera backs away until the table is as wide as there (the cup's
+// tag stays on screen); upright, until the cup and both ends of the held row fit.
+const TABLE_SHOT=Object.freeze({position:[-.28,3.6,4.9],target:[-.28,1.48,-.42],fov:41,pull:aspect=>aspect>=1?Math.max(1,1.6/aspect):1.14/aspect});
+// The cup waits at the left of the table (not in front of Mosi, where his bubble is) and rests a little further back after a roll;
+// the held row sits a little nearer the middle and to the right, so the cup's gold ring, the held dice and the cards never touch.
+const TABLE_LAYOUT=Object.freeze({home:[-1.7,.45,.6],park:[-1.85,.6],held:{left:-1.0,step:.58,near:1.2}});
 const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3,3,3],smallStraight:[1,2,3,4,5],yatzy:[5,5,5,5,5]};
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
@@ -94,10 +98,11 @@ function renderUI(){
     const cell=cells.get(c.id),you=lesson?(lesson.awards[c.id]??null):state.players[0].scores[c.id],mosi=lesson?null:state.players[1].scores[c.id];
     const available=you===null&&human&&state.rollCount>0&&still&&allowed('score',c.id),possible=state.rollCount>0&&phase!=='rolling'&&phase!=='handoff';
     cell.select.disabled=!available;
-    // The badge: the child's own score (teal), else Mosi's when the card is not the child's to choose now (sage), else what it would give.
-    const open=possible&&who===0,shows=you!==null?'you':mosi!==null&&!open?'mosi':'',chips=`${you!==null?'you':''}${mosi!==null?'mosi':''}`;
-    cell.value.textContent=shows==='you'?String(you):shows==='mosi'?String(mosi):open?`+${preview[c.id]??0}`:'—';cell.value.dataset.who=shows;
-    if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?'<i class="who you">Þú</i>':'')+(mosi!==null?'<i class="who mosi"></i>':'');}
+    // The badge is the child's: what the card would give now, or the score laid on it (teal). Who used it, and for how much, hangs
+    // on its top-left corner: a "Þú" chip and Mosi's face, each with the number.
+    const chips=`${you??''}|${mosi??''}`;
+    cell.value.textContent=you!==null?String(you):possible&&who===0?`+${preview[c.id]??0}`:'';cell.value.dataset.who=you!==null?'you':'';
+    if(cell.shown!==chips){cell.shown=chips;cell.scores.innerHTML=(you!==null?`<i class="who you"><span>Þú</span><b>${you}</b></i>`:'')+(mosi!==null?`<i class="who mosi"><span></span><b>${mosi}</b></i>`:'');}
     cell.card.classList.toggle('filled',you!==null);cell.card.classList.toggle('available',available);cell.card.classList.toggle('best',available&&(preview[c.id]??0)>0);cell.card.classList.toggle('recent',recent===c.id);
     cell.select.setAttribute('aria-label',`${c.label}. ${you!==null?`${you} stig, notað kort`:available?`${preview[c.id]} stig í boði`:'Laust kort'}`);
   }
@@ -110,7 +115,8 @@ function renderUI(){
   const canRoll=human&&state.rollCount<3&&!state.held.every(Boolean)&&allowed('roll')&&still;
   $('roll').disabled=!canRoll;$('roll-label').textContent=phase==='rolling'?'Teningarnir rúlla…':who?'Mosi á leik':state.rollCount===3?'Veldu kort':state.rollCount===0?'Kasta':'Kasta aftur';
   $('roll-count').textContent=`${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'}`;$('hint').textContent='';
-  dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!canRoll;cupButton.dataset.parked=String(state.rollCount>0);cupButton.dataset.rolls=String(3-state.rollCount);cupButton.setAttribute('aria-label',`Kasta teningunum: ${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'} eftir`);
+  // On the child's turn the cup keeps its ring while everything is still: gold when it can be rolled, grey when not now.
+  dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!(canRoll||(human&&still&&state.status==='playing'));cupButton.dataset.parked=String(state.rollCount>0);cupButton.dataset.rolls=String(3-state.rollCount);cupButton.setAttribute('aria-label',`Kasta teningunum: ${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'} eftir`);
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();updateTargets();syncVoiceRecovery();
 }
@@ -124,7 +130,7 @@ function updateTargets(){
     if(pixel.width!==width){pixel.width=width;b.style.width=`${width}px`;}if(pixel.height!==height){pixel.height=height;b.style.height=`${height}px`;}
     if(pixel.top!==top){pixel.top=top;b.style.setProperty('--die-top',`${top}px`);}if(pixel.bottom!==bottom){pixel.bottom=bottom;b.style.setProperty('--die-bottom',`${bottom}px`);}
   }
-  if(!cupButton.disabled){
+  if(!cupButton.hidden){
     if(state.rollCount>0&&!settled()){cupButton.hidden=true;return;}
     const target=dice.screenCupPosition();cupButton.hidden=!target.visible;
     if(target.visible){const parked=state.rollCount>0;cupAnchor.x=parked?(target.left+target.right)*.5:target.x;cupAnchor.y=parked?(target.top+target.bottom)*.5:target.y;placeTarget(cupButton,cupAnchor,5);
@@ -265,7 +271,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     onStage('players');
     await wait(Promise.all([
       createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ}).then(resource=>take(resource,value=>{opponent=value;})),
-      createDiceAndCup(world,{onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
+      createDiceAndCup(world,{layout:TABLE_LAYOUT,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
     ]));check();
     onStage('shaders');dice.setReducedMotion(reduced);world.update(0,0);opponent.update(.001,0,{reducedMotion:reduced});world.scene.updateMatrixWorld(true);world.resize();dice.dice.forEach(d=>{d.visible=true;});
     // compileAsync polls the driver forever after some context-loss failures.

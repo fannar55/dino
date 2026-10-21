@@ -56,7 +56,12 @@ function cupGrain(){
   const texture=new THREE.DataTexture(data,size,size);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(5,4);texture.needsUpdate=true;return texture;
 }
 
-export async function createDiceAndCup(world,{onEvent=()=>{}}={}){
+// `layout` moves where the cup waits before a roll (home: [x, z, scale]), where it rests after one (park: [x, z]) and the row of held
+// dice (held: { left, step, near, far }), for a game whose controls sit elsewhere round the table (the junior game's cards and cup
+// ring); Mosi Yatzy keeps the defaults.
+export async function createDiceAndCup(world,{onEvent=()=>{},layout={}}={}){
+  const park=layout.park||[-1.45,.80],heldRow={left:-1.2,step:.6,near:1.43,far:-.75,...layout.held};
+  const start=layout.home||[-.15,.05,CUP_FULL_SCALE],startLift=layout.home?.06+(start[2]-CUP_PARK_SCALE)/(CUP_FULL_SCALE-CUP_PARK_SCALE)*.14:.20;
   const {scene,table}=world,root=new THREE.Group();root.name='Yatzy dice and black cup';scene.add(root);
   const textures=await Promise.all(DINO_FACES.map((face,i)=>faceTexture(face,i+1)));
   const faceMaterials=textures.map(map=>new THREE.MeshStandardMaterial({map,roughness:.36,metalness:0}));
@@ -105,12 +110,12 @@ export async function createDiceAndCup(world,{onEvent=()=>{}}={}){
   let duration=0,events=new Set();
   function setHome(who){
     const result=values.some(value=>value>0);
-    home.set(result?-1.45:-.15,table.y+(result?.06:.20),result?.80:.05);homeScale=result?CUP_PARK_SCALE:CUP_FULL_SCALE;
+    home.set(result?park[0]:start[0],table.y+(result?.06:startLift),result?park[1]:start[1]);homeScale=result?CUP_PARK_SCALE:start[2];
     pourHome.set(-.20,table.y+.30,who?-.52:.52);
   }
   function placeTargets(){
     for(let i=0;i<5;i++){
-      if(held[i])targets[i].set((i-2)*.6,table.y+HALF,player?-.75:1.43);
+      if(held[i])targets[i].set(heldRow.left+i*heldRow.step,table.y+HALF,player?heldRow.far:heldRow.near);
       else targets[i].set(layouts[i][0]+offsets[i].x,table.y+HALF,(player?.35-layouts[i][1]*.65:layouts[i][1])+offsets[i].y);
       targetQ[i].copy(faceQuaternion(values[i]||i+1,(i%2?1:-1)*.08+yaws[i]));
     }

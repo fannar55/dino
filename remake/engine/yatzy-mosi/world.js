@@ -18,7 +18,7 @@ const SHOT = { position: [-.4, 3.2, 4.4], target: [-.4, 1.7, -.8], fov: 41 };
 /** Shared-clock camera rig, independently constructible without a WebGL context.
  *  `shot` replaces the table shot ({ position, target, fov, pull }): a game laid out differently round the table (the junior game's
  *  full-width table) frames it its own way. `pull` (default .95) is the aspect below which the camera backs away to keep the table's
- *  width in view, as `pull / aspect`. */
+ *  width in view, as `pull / aspect`; or a function of the aspect that returns how far it backs away (1 = not at all). */
 export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot = SHOT } = {}) {
   const tableTarget = new THREE.Vector3().fromArray(shot.target);
   const tableOffset = new THREE.Vector3().fromArray(shot.position).sub(tableTarget);
@@ -131,7 +131,7 @@ export function createYatzyCameraRig(camera, { width = 1000, height = 720, shot 
     viewportWidth = Math.max(1, Number(nextWidth) || 1); viewportHeight = Math.max(1, Number(nextHeight) || 1);
     const aspect = viewportWidth / viewportHeight, compact = viewportHeight < 620;
     camera.aspect = aspect; camera.fov = shot.fov; camera.updateProjectionMatrix();
-    tablePosition.copy(tableTarget).addScaledVector(tableOffset, Math.max(1, pull / aspect));
+    tablePosition.copy(tableTarget).addScaledVector(tableOffset, typeof pull === 'function' ? pull(aspect) : Math.max(1, pull / aspect));
     // Mesh bounds reserve another 22–30px for external result/held labels.
     safe.top = Math.min(compact ? 88 : 112, viewportHeight * .22);
     safe.bottom = Math.min(compact ? 114 : 142, viewportHeight * .285);

@@ -123,9 +123,12 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 .cup-pips i{width:14px;height:14px;border-radius:50%;background:var(--card);border:2px solid var(--ink)}
 #cup-target[data-rolls="2"] .cup-pips i:nth-child(n+3),#cup-target[data-rolls="1"] .cup-pips i:nth-child(n+2),#cup-target[data-rolls="0"] .cup-pips i{background:color-mix(in srgb,var(--orange-deep) 70%,var(--ink))}
 #cup-target:active .cup-tag{transform:translateY(4px);box-shadow:0 3px 0 var(--orange-deep),0 3px 0 3px var(--ink),0 6px 8px 1px rgb(40 24 10 / .3)}
-/* Lying on its side after a roll, the cup is small: its tag stands over it instead of beside it. */
-#cup-target[data-parked="true"] .cup-ring{height:max(150%,110px)}
-#cup-target[data-parked="true"] .cup-tag{right:auto;left:50%;top:auto;bottom:calc(100% + 10px);translate:-50% 0}
+#cup-target[data-parked="true"] .cup-ring{height:max(150%,110px)} /* resting small at the side after a roll */
+/* Not now (a lesson step that asks for something else, or no rolls left): the ring and its tag go grey and still. */
+#cup-target:disabled .cup-ring{border-color:#b8ad98;box-shadow:0 0 0 3px var(--ink)}
+#cup-target:disabled .cup-tag{background:#b8ad98;box-shadow:0 7px 0 #8a7f6c,0 7px 0 3px var(--ink)}
+#cup-target:disabled .cup-pips i{background:var(--card-deep)}
+#cup-target:disabled[data-rolls="2"] .cup-pips i:nth-child(n+3),#cup-target:disabled[data-rolls="1"] .cup-pips i:nth-child(n+2),#cup-target:disabled[data-rolls="0"] .cup-pips i{background:#7d7262}
 #cup-target.tutorial-target .cup-ring{animation:ring-call 1.4s ease-in-out infinite}
 @keyframes ring-call{50%{scale:1.08}}
 
@@ -161,12 +164,15 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 .card-value{position:absolute;right:calc(-14 * var(--u));top:calc(-16 * var(--u));min-width:calc(56 * var(--u));height:calc(52 * var(--u));padding:0 calc(12 * var(--u));display:grid;place-items:center;border-radius:999px;
   font-size:calc(28 * var(--u));font-weight:1000;line-height:1;font-variant-numeric:tabular-nums;color:#fff;-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill;
   background:var(--card-deep);border:3px solid var(--ink);box-shadow:0 4px 0 color-mix(in srgb,var(--card-deep) 60%,var(--ink))}
+.card-value:empty{display:none}
 .card-value[data-who="you"]{background:var(--teal);box-shadow:0 4px 0 var(--teal-deep)}
-.card-value[data-who="mosi"]{background:var(--sage);box-shadow:0 4px 0 var(--sage-deep)}
-.card-scores{position:absolute;z-index:1;left:calc(-10 * var(--u));top:calc(-12 * var(--u));display:flex;gap:4px;pointer-events:none}
-.who{display:grid;place-items:center;width:calc(36 * var(--u));height:calc(36 * var(--u));border-radius:50%;border:3px solid var(--ink);box-shadow:0 3px 0 rgb(40 24 10 / .4);font-style:normal}
-.who.you{background:var(--teal);font-size:calc(15 * var(--u));font-weight:1000;color:#fff;-webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
-.who.mosi{background:var(--sage) url('./assets/eitt/mosi.webp') 55% 40% / 160% no-repeat}
+.card-scores{position:absolute;z-index:1;left:calc(6 * var(--u));top:calc(-15 * var(--u));display:flex;gap:4px;pointer-events:none}
+.who{--c:var(--teal);display:flex;align-items:center;height:calc(36 * var(--u));padding-right:calc(9 * var(--u));border-radius:999px;border:3px solid var(--ink);background:var(--c);box-shadow:0 3px 0 rgb(40 24 10 / .4);font-style:normal}
+.who.mosi{--c:var(--sage)}
+.who span{display:grid;place-items:center;width:calc(30 * var(--u));height:calc(30 * var(--u));margin-right:calc(3 * var(--u));border-radius:50%;font-size:calc(14 * var(--u));font-weight:1000;color:#fff;-webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
+.who.you span{background:color-mix(in srgb,var(--teal) 80%,#fff)}
+.who.mosi span{background:#e9e3c4 url('./assets/eitt/mosi.webp') 55% 40% / 160% no-repeat;box-shadow:inset 0 0 0 2px var(--ink)}
+.who b{font-size:calc(20 * var(--u));font-weight:1000;line-height:1;font-variant-numeric:tabular-nums;color:#fff;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill}
 /* The best card lifts out of the hand and glows gold; a used card lies back as paper. */
 .junior-card.best{translate:0 calc(-14 * var(--u));rotate:0deg;z-index:1}
 .junior-card.best .card-select{box-shadow:0 0 0 4px var(--gold),0 7px 0 var(--card-deep),0 7px 0 3px var(--ink),0 0 30px 10px rgb(255 214 110 / .75);animation:card-breathe 2.6s ease-in-out infinite}
@@ -177,6 +183,7 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 .junior-card.tutorial-target .card-select,.card-select.tutorial-target{outline:4px solid var(--gold);outline-offset:4px}
 /* The authored moment: a chosen card's score flies up to the player's portrait and the chip there pops. */
 .score-flyer{position:fixed;z-index:30;right:auto;margin:0;padding:0 12px;pointer-events:none}
+.score-flyer[data-who="mosi"]{background:var(--sage);box-shadow:0 4px 0 var(--sage-deep)}
 
 /* ---- "Spyrja Mosa": his face with a "?", bottom left, as in the other games ---- */
 .mosi-help{position:absolute;z-index:5;left:max(22px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:112px;height:112px;padding:0;border-radius:50%;border:3px solid var(--ink);
@@ -213,6 +220,7 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 .panel-say p{text-align:left}
 .panel-actions{display:grid;justify-items:center;gap:18px;width:100%;margin-top:4px}
 .panel-actions .big{min-width:min(100%,320px)}
+.panel-actions>.plain{min-width:min(100%,220px)}
 .panel-row{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 14px}
 
 /* ---- Loading and failure: the clearing, with Mosi trotting on the spot over three bouncing dots ---- */
@@ -239,8 +247,8 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 
 /* ---- A tablet held upright: players top left, the bubble under them, the cup and dice over the cards (3 + 2) ---- */
 @media (max-aspect-ratio:1/1){
-  .bubble{left:22px;top:230px;width:min(470px,calc(100% - 44px));min-width:0;max-height:none}
-  .bubble::before{right:auto;left:62%;top:-19px;rotate:-45deg}
+  .bubble{left:22px;top:222px;width:min(360px,calc(46% - 22px));min-width:0;max-height:none}
+  #cup-target .cup-tag{right:auto;left:-4%;top:auto;bottom:calc(100% + 6px)} /* the cup sits near the left edge: its tag stands over it */
   #score-rows{--u:min(1px,calc((100vw - 48px) / 584));flex-wrap:wrap;width:calc(3 * 176 * var(--u) + 2 * 14 * var(--u) + 32px);row-gap:calc(30 * var(--u))}
   .mosi-help{width:100px;height:100px}
 }
