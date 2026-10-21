@@ -166,13 +166,13 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
   background:var(--card-deep);border:3px solid var(--ink);box-shadow:0 4px 0 color-mix(in srgb,var(--card-deep) 60%,var(--ink))}
 .card-value:empty{display:none}
 .card-value[data-who="you"]{background:var(--teal);box-shadow:0 4px 0 var(--teal-deep)}
-.card-scores{position:absolute;z-index:1;left:calc(6 * var(--u));top:calc(-15 * var(--u));display:flex;gap:4px;pointer-events:none}
-.who{--c:var(--teal);display:flex;align-items:center;height:calc(36 * var(--u));padding-right:calc(9 * var(--u));border-radius:999px;border:3px solid var(--ink);background:var(--c);box-shadow:0 3px 0 rgb(40 24 10 / .4);font-style:normal}
+.card-scores{position:absolute;z-index:1;left:calc(-6 * var(--u));top:calc(-14 * var(--u));display:flex;gap:calc(3 * var(--u));pointer-events:none}
+.who{--c:var(--teal);display:flex;align-items:center;gap:calc(3 * var(--u));height:calc(32 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(3 * var(--u));border-radius:999px;border:3px solid var(--ink);background:var(--c);box-shadow:0 3px 0 rgb(40 24 10 / .4);font-style:normal}
 .who.mosi{--c:var(--sage)}
-.who span{display:grid;place-items:center;width:calc(30 * var(--u));height:calc(30 * var(--u));margin-right:calc(3 * var(--u));border-radius:50%;font-size:calc(14 * var(--u));font-weight:1000;color:#fff;-webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
-.who.you span{background:color-mix(in srgb,var(--teal) 80%,#fff)}
-.who.mosi span{background:#e9e3c4 url('./assets/eitt/mosi.webp') 55% 40% / 160% no-repeat;box-shadow:inset 0 0 0 2px var(--ink)}
-.who b{font-size:calc(20 * var(--u));font-weight:1000;line-height:1;font-variant-numeric:tabular-nums;color:#fff;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill}
+.who span{display:grid;place-items:center;width:calc(22 * var(--u));height:calc(22 * var(--u));border-radius:50%;font-size:calc(12 * var(--u));font-weight:1000;color:#fff;-webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
+.who.you span{width:auto;padding-left:calc(3 * var(--u))}
+.who.mosi span{background:#e9e3c4 url('./assets/eitt/mosi.webp') 55% 40% / 160% no-repeat;box-shadow:0 0 0 2px var(--ink)}
+.who b{font-size:calc(19 * var(--u));font-weight:1000;line-height:1;font-variant-numeric:tabular-nums;color:#fff;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill}
 /* The best card lifts out of the hand and glows gold; a used card lies back as paper. */
 .junior-card.best{translate:0 calc(-14 * var(--u));rotate:0deg;z-index:1}
 .junior-card.best .card-select{box-shadow:0 0 0 4px var(--gold),0 7px 0 var(--card-deep),0 7px 0 3px var(--ink),0 0 30px 10px rgb(255 214 110 / .75);animation:card-breathe 2.6s ease-in-out infinite}
@@ -272,7 +272,7 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
   .hear{margin:-8px}
   .hear::before{inset:8px}
   #lesson-next{font-size:24px}
-  #score-rows{--u:.74px;left:0;right:0;translate:none;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:none;padding:22px 16px 12px 104px;scroll-padding-left:104px}
+  #score-rows{--u:.74px;left:0;right:0;width:auto;flex-wrap:nowrap;translate:none;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:none;padding:22px 16px 12px 104px;scroll-padding-left:104px}
   #score-rows::-webkit-scrollbar{display:none}
   .mosi-help{left:10px;bottom:max(14px,env(safe-area-inset-bottom));width:80px;height:80px}
   .mosi-help::after{width:32px;height:32px;font-size:22px}

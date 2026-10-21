@@ -27,7 +27,7 @@ const audio=createYatzyAudio();audio.mute(muted);
 let world,opponent,dice,effects,voice,voiceManifest={},state=createGame(),saved=restoreGame(read(SAVE));
 let phase='intro',timer=0,elapsed=0,last=performance.now(),frame=0,started=false,paused=true,disposed=false,qaFrozen=false,resizeObserver;
 let pendingDiceView=-1,aiDecision=null,zeroCategory=null,recent=null,lesson=null,lessonReturn=null,lessonAdvance=-1,readyLast=false,captionTime=0,modalNarration=false;
-let lessonFocus='';
+let lessonFocus='';const chipHold=[null,null];
 const cells=new Map(),dieButtons=[],canvas=$('table'),cupButton=$('cup-target'),coach=$('lesson-center'),roundPips=[...document.querySelectorAll('#rounds i')];
 const pixels=Array.from({length:6},()=>({x:NaN,y:NaN,width:NaN,height:NaN,top:NaN,bottom:NaN}));
 const cupAnchor={x:0,y:0},opponentFrame={thinking:false,rolling:false,target:null,reducedMotion:reduced};
@@ -106,8 +106,8 @@ function renderUI(){
     cell.card.classList.toggle('filled',you!==null);cell.card.classList.toggle('available',available);cell.card.classList.toggle('best',available&&(preview[c.id]??0)>0);cell.card.classList.toggle('recent',recent===c.id);
     cell.select.setAttribute('aria-label',`${c.label}. ${you!==null?`${you} stig, notað kort`:available?`${preview[c.id]} stig í boði`:'Laust kort'}`);
   }
-  $('you-total').textContent=lesson?Object.values(lesson.awards).reduce((a,b)=>a+b,0):totals(state.players[0].scores).total;
-  $('mosi-total').textContent=lesson?0:totals(state.players[1].scores).total;
+  $('you-total').textContent=chipHold[0]??(lesson?Object.values(lesson.awards).reduce((a,b)=>a+b,0):totals(state.players[0].scores).total);
+  $('mosi-total').textContent=chipHold[1]??(lesson?0:totals(state.players[1].scores).total);
   const round=Math.min(5,Math.floor(state.turnCount/2)+1),over=state.status==='finished';$('round').textContent=lesson?'Æfum saman':`${round} af 5`;
   roundPips.forEach((pip,i)=>{pip.classList.toggle('done',over||i<round-1);pip.classList.toggle('now',!over&&i===round-1);});
   $('turn-label').textContent=lesson?'Mosi kennir þér':!started?'Spilum saman':state.status==='finished'?'Leik lokið':who?'Mosi á leik':'Þú átt leik';
@@ -168,10 +168,11 @@ function flyScore(id,player,points){
   const badge=cells.get(id).value,chip=$(player?'mosi-total':'you-total'),from=badge.getBoundingClientRect(),to=chip.getBoundingClientRect();
   const pop=()=>chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.3,1.6,.5,1)'});
   if(reduced||!from.width||!to.width){pop();return;}
+  chipHold[player]=chip.textContent; // the old total stays until the score lands
   const flyer=document.createElement('strong');flyer.className='card-value score-flyer';flyer.dataset.who=player?'mosi':'you';flyer.textContent=String(points);flyer.setAttribute('aria-hidden','true');
   Object.assign(flyer.style,{left:`${from.left}px`,top:`${from.top}px`,minWidth:`${from.width}px`,height:`${from.height}px`,fontSize:getComputedStyle(badge).fontSize});document.body.append(flyer);
   const dx=to.left+to.width/2-(from.left+from.width/2),dy=to.top+to.height/2-(from.top+from.height/2);
-  flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{flyer.remove();pop();},()=>flyer.remove());
+  flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{flyer.remove();chipHold[player]=null;renderUI();pop();},()=>{flyer.remove();chipHold[player]=null;});
 }
 function record(id){
   const player=state.currentPlayer,points=previews(state)[id];voice.stop();flyScore(id,player,points);state=score(state,id);recent=id;
