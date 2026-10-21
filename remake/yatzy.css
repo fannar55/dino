@@ -2,7 +2,14 @@
    Follows STYLE.md section 10 and eitt.css:
    - Journal paper (#f6efdf), card (#fffaf0), ink (#3b2f25), and each dinosaur's signature hue from STYLE.md section 3.
    - Nunito typeface throughout.
-   - Touch targets >= 68-88 px, transform and opacity animations, and calm fallbacks under prefers-reduced-motion. */
+   - Touch targets >= 68-88 px, transform and opacity animations, and calm fallbacks under prefers-reduced-motion.
+   The table's life (engine/yatzy/table.js sets the classes): the dice tumble (.tumbling) and land with a squash (.landing), a held
+   die lifts and glows (.held, .just-held), a pattern's dice hop (.cheer); rows that score shimmer once (.shimmer), the best one
+   breathes, a chosen row stamps (.stamped, .stamped-theirs) and its score flies to the total (.yatzy-flyer.score), which pops
+   (.bump); the Golden Egg fills with gold (--charge), gulps each spark (.gulp), shakes and cracks (.cracking) and bursts
+   (.bursting); notes float from Slóeðla's crest (.yatzy-note); confetti bursts at the end (.yatzy-confetti .burst, .rain).
+   Animations move with transform (and its translate, rotate and scale properties) and opacity only; under
+   prefers-reduced-motion every move is a fade and nothing idles. */
 
 .yatzy {
   --paper: #f6efdf;
@@ -138,6 +145,14 @@
   transform: translateY(-2px);
 }
 
+.yatzy-score-pill.bump { animation: yatzy-pill-bump 450ms cubic-bezier(.3, 1.6, .5, 1); }
+
+@keyframes yatzy-pill-bump {
+  0% { scale: 1; }
+  40% { scale: 1.14; }
+  100% { scale: 1; }
+}
+
 .yatzy-score-pill .who-dot {
   width: 14px;
   height: 14px;
@@ -198,10 +213,20 @@
   filter: none;
 }
 
+.yatzy-badge-slot.new { animation: yatzy-badge-new 900ms cubic-bezier(.3, 1.6, .5, 1); }
+
+@keyframes yatzy-badge-new {
+  0% { scale: 1; }
+  30% { scale: 1.45; rotate: -12deg; }
+  60% { scale: .95; rotate: 6deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+
 /* Slóeðla's 3D window */
 .yatzy-sloedla-wrap {
   position: relative;
   justify-self: center;
+  margin-top: 10px; /* room for the tapes on its top corners */
 }
 
 .yatzy-sloedla {
@@ -247,7 +272,7 @@
 .yatzy-sloedla-frame::after {
   content: "";
   position: absolute;
-  top: -11px;
+  top: -8px;
   width: min(24%, 76px);
   height: 24px;
   background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--blue-light) 68%, transparent);
@@ -264,7 +289,7 @@
   top: 50%;
   transform: translateY(-50%);
   width: max-content;
-  max-width: clamp(140px, 16.5cqw, 220px);
+  max-width: min(clamp(140px, 16.5cqw, 220px), var(--speech-max, 220px)); /* table.js: placeSpeech() says how much room there is */
   background: var(--card);
   border: 3px solid var(--ink);
   border-radius: 18px;
@@ -275,6 +300,40 @@
   box-shadow: 0 6px 14px rgb(40 24 10 / .22);
   z-index: 5;
   pointer-events: none;
+  transform-origin: 0 50%;
+  overflow-wrap: anywhere;
+}
+
+.yatzy-speech.on-left {
+  left: auto;
+  right: calc(100% + 10px);
+  transform-origin: 100% 50%;
+}
+
+.yatzy-speech.pop { animation: yatzy-speech-pop 320ms cubic-bezier(.25, 1.5, .45, 1); }
+
+@keyframes yatzy-speech-pop {
+  0% { scale: .5; opacity: 0; }
+  100% { scale: 1; opacity: 1; }
+}
+
+/* Golden notes floating out of her crest while she calls */
+.yatzy-note {
+  position: absolute;
+  z-index: 6;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  pointer-events: none;
+  opacity: 0;
+  animation: yatzy-note 1.7s ease-out var(--delay, 0ms) forwards;
+}
+.yatzy-note svg { width: 100%; height: 100%; display: block; }
+
+@keyframes yatzy-note {
+  0% { opacity: 0; transform: translate(0, 0) scale(.5) rotate(-12deg); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, -40px)) scale(1.15) rotate(14deg); }
 }
 
 /* Header right controls */
@@ -310,7 +369,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: clamp(5px, 0.8cqh, 9px);
+  gap: clamp(8px, 1.1cqh, 12px); /* wider than a row's ring and thickness together, so neighbours never touch */
 }
 .yatzy-col.left { grid-area: left; }
 .yatzy-col.right { grid-area: right; }
@@ -327,6 +386,7 @@
 
 .yatzy-row {
   position: relative;
+  overflow: hidden; /* the shimmer sweeps inside the row */
   flex: 1;
   min-height: clamp(50px, 7.6cqh, 76px);
   border-radius: 16px;
@@ -357,13 +417,70 @@
   background: linear-gradient(180deg, #fffbe0, #ffefc2);
   border-color: var(--orange);
   box-shadow: 0 5px 0 var(--orange-deep), 0 0 0 3px var(--gold), 0 8px 18px rgb(242 182 48 / .45);
-  transform: scale(1.02);
 }
 
 .yatzy-row.filled {
   background: #efe7d4;
   border-color: rgb(59 47 37 / .35);
   cursor: default;
+}
+
+/* The best row breathes while the child chooses: a warm light swells and fades inside it, and its score pill swells with it */
+.yatzy-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 18px 4px rgb(255 200 60 / .85);
+}
+.yatzy-row.can-pick.best:not(.hint)::before { animation: yatzy-row-breathe 1.7s ease-in-out infinite alternate; }
+.yatzy-row.can-pick.best:not(.hint) .yatzy-row-mine { animation: yatzy-pill-breathe 1.7s ease-in-out infinite alternate; }
+
+@keyframes yatzy-row-breathe {
+  from { opacity: .1; }
+  to { opacity: 1; }
+}
+
+@keyframes yatzy-pill-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+/* A row that scores now shimmers once: a band of light sweeps across it */
+.yatzy-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 22%, rgb(255 255 255 / .85) 44%, rgb(255 226 120 / .75) 52%, transparent 74%);
+  transform: translateX(-110%);
+  opacity: 0;
+}
+.yatzy-row.shimmer::after { animation: yatzy-row-shimmer 760ms ease-out var(--shimmer-delay, 0ms) both; }
+
+@keyframes yatzy-row-shimmer {
+  0% { transform: translateX(-110%); opacity: 1; }
+  100% { transform: translateX(110%); opacity: 1; }
+}
+
+/* A chosen row stamps: it squashes and pops, and the score lands on it like a rubber stamp */
+.yatzy-row.stamped,
+.yatzy-row.stamped-theirs { animation: yatzy-row-stamp 520ms cubic-bezier(.3, 1.5, .5, 1); }
+
+@keyframes yatzy-row-stamp {
+  0% { transform: scale(.96, .9); }
+  40% { transform: scale(1.03, 1.05); }
+  100% { transform: none; }
+}
+
+.yatzy-row.stamped .yatzy-row-mine,
+.yatzy-row.stamped-theirs .yatzy-row-theirs { animation: yatzy-stamp-in 460ms cubic-bezier(.2, 1.6, .45, 1) both; }
+
+@keyframes yatzy-stamp-in {
+  0% { transform: scale(1.7) rotate(-16deg); opacity: 0; }
+  55% { transform: scale(.9) rotate(4deg); opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
 
 .yatzy-row-icon {
@@ -515,7 +632,13 @@
   align-items: center;
   gap: 8px;
   text-align: center;
-  animation: yatzy-pop 0.38s cubic-bezier(.25, 1.55, .45, 1);
+}
+
+.yatzy-banner.pop { animation: yatzy-banner-pop 0.38s cubic-bezier(.25, 1.55, .45, 1); }
+
+@keyframes yatzy-banner-pop {
+  0% { scale: .6; opacity: 0; }
+  100% { scale: 1; opacity: 1; }
 }
 
 .yatzy-banner.yatzy-mega {
@@ -551,9 +674,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: clamp(6px, 0.85cqw, 12px);
+  gap: clamp(8px, 0.95cqw, 12px); /* wider than two dice's gold rings together */
   flex-wrap: nowrap;
-  padding: 16px 14px 18px;
+  padding: 16px 10px 18px;
   border-radius: 30px;
   background:
     radial-gradient(ellipse 80% 60% at 50% 60%, rgb(63 95 60 / .35), rgb(44 70 42 / .55));
@@ -565,8 +688,11 @@
   --dino-c: var(--green);
   --dino-deep: var(--green-deep);
   --dino-light: #a3d977;
-  width: clamp(66px, min(7.1cqw, 15.5cqh), 102px);
-  height: clamp(84px, min(8.9cqw, 19cqh), 124px);
+  /* As wide as five fit in the middle column with the tray round them (the column is about 40.8cqw less 24px), and no taller than
+     the screen allows */
+  --die-w: clamp(60px, min(7.4cqw - 13px, 15.5cqh), 102px);
+  width: var(--die-w);
+  height: calc(var(--die-w) * 1.24);
   border-radius: 20px;
   background: linear-gradient(180deg, #fffdf8 0%, var(--card) 75%, #efe4ce 100%);
   border: 3.5px solid var(--ink);
@@ -581,16 +707,56 @@
   padding: 6px 5px 5px;
   position: relative;
   transition: transform 0.24s cubic-bezier(.25, 1.45, .5, 1), box-shadow 0.24s ease, background 0.24s ease;
+  will-change: transform; /* each die keeps its own layer, so a roll does not make and drop five */
 }
 
-/* Held in the moss nest! */
+/* Held in the moss nest: it lifts and glows */
 .yatzy-die.held {
-  transform: translateY(10px) scale(0.97);
+  transform: translateY(-7px);
   background: linear-gradient(180deg, #f5fbe6 0%, #e4f2c3 78%, #c7e094 100%);
   box-shadow:
-    0 3px 0 var(--moss-deep),
+    0 7px 0 var(--moss-deep),
     0 0 0 4px var(--gold),
-    0 6px 14px rgb(40 24 10 / .28);
+    0 0 22px 2px rgb(242 182 48 / .7),
+    0 17px 16px rgb(40 24 10 / .24);
+}
+
+/* A ring of light round a die as it goes into the nest (and a flash as the egg's magic turns it) */
+.yatzy-die::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 26px;
+  border: 4px solid var(--gold);
+  opacity: 0;
+  pointer-events: none;
+}
+.yatzy-die.just-held { animation: yatzy-die-hold 460ms cubic-bezier(.3, 1.5, .5, 1); }
+.yatzy-die.just-held::before { animation: yatzy-die-ring 620ms ease-out; }
+
+@keyframes yatzy-die-hold {
+  0% { translate: 0 0; }
+  35% { translate: 0 -12px; }
+  100% { translate: 0 0; }
+}
+
+@keyframes yatzy-die-ring {
+  0% { opacity: 1; transform: scale(.9); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* A puff of moss where a die lands */
+.yatzy-die::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: -11px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 246 214 / .9), rgb(255 246 214 / 0));
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Matching combo glow */
@@ -615,27 +781,61 @@
   100% { transform: translateY(-8px) scale(1.05); }
 }
 
-/* Rolling tumble animation */
-.yatzy-die.rolling {
-  animation: yatzy-die-roll 0.52s cubic-bezier(.3, 1.3, .5, 1);
+/* A roll: each die hops and turns over and over (its faces flick past), longer for each die to the right, so they land in turn */
+.yatzy-die.tumbling { animation: yatzy-die-tumble var(--tumble-ms, 400ms) cubic-bezier(.3, .55, .4, 1) both; }
+.yatzy-die.tumbling .yatzy-die-pips { opacity: 0; }
+.yatzy-die.tumbling .yatzy-die-pic img { filter: none; } /* the faces flicking past are drawn without their shadow: cheaper */
+
+@keyframes yatzy-die-tumble {
+  0% { transform: perspective(600px) translateY(0) rotateX(0deg) rotate(0deg) scale(1); }
+  22% { transform: perspective(600px) translateY(-18px) rotateX(-120deg) rotate(var(--tilt, 6deg)) scale(.93); }
+  58% { transform: perspective(600px) translateY(-8px) rotateX(-260deg) rotate(calc(var(--tilt, 6deg) * -.6)) scale(.96); }
+  100% { transform: perspective(600px) translateY(0) rotateX(-360deg) rotate(0deg) scale(1); }
 }
 
-@keyframes yatzy-die-roll {
-  0% { transform: translateY(-22px) rotate(-18deg) scale(0.9); }
-  35% { transform: translateY(6px) rotate(14deg) scale(1.06); }
-  70% { transform: translateY(-8px) rotate(-7deg) scale(0.98); }
-  100% { transform: translateY(0) rotate(0deg) scale(1); }
+/* It lands: a squash, a little bounce and a puff */
+.yatzy-die.landing { animation: yatzy-die-land 320ms cubic-bezier(.3, 1.4, .5, 1); transform-origin: 50% 100%; }
+.yatzy-die.landing::after { animation: yatzy-die-puff 380ms ease-out; }
+
+@keyframes yatzy-die-land {
+  0% { transform: scale(1.1, .84); }
+  40% { transform: translateY(-4px) scale(.95, 1.07); }
+  70% { transform: scale(1.02, .98); }
+  100% { transform: none; }
 }
 
-/* Golden Egg transformation flash */
-.yatzy-die.magic {
-  animation: yatzy-die-magic 0.75s cubic-bezier(.2, 1.5, .5, 1);
+@keyframes yatzy-die-puff {
+  0% { opacity: .9; transform: scale(.4, .6); }
+  100% { opacity: 0; transform: scale(1.5, 1.2); }
+}
+
+/* The dice of a pattern hop together */
+.yatzy-die.cheer { animation: yatzy-die-cheer 480ms cubic-bezier(.3, 1.4, .5, 1) var(--cheer-delay, 0ms) both; }
+
+@keyframes yatzy-die-cheer {
+  0% { translate: 0 0; rotate: 0deg; }
+  40% { translate: 0 -14px; rotate: -5deg; }
+  70% { translate: 0 2px; rotate: 3deg; }
+  100% { translate: 0 0; rotate: 0deg; }
+}
+
+/* The Golden Egg's magic turns a die over to its new face, in a flash of gold */
+.yatzy-die.magic { animation: yatzy-die-magic 0.8s cubic-bezier(.2, 1.5, .5, 1); }
+.yatzy-die.magic::before {
+  border-color: #ffe268;
+  background: radial-gradient(closest-side, rgb(255 240 170 / .85), rgb(255 226 104 / 0));
+  animation: yatzy-die-flash 0.8s ease-out;
 }
 
 @keyframes yatzy-die-magic {
-  0% { transform: scale(0.7) rotate(-20deg); filter: brightness(1.8); }
-  50% { transform: scale(1.18) rotate(8deg); filter: brightness(1.3); }
-  100% { transform: scale(1) rotate(0deg); filter: none; }
+  0% { scale: .6; rotate: -200deg; }
+  55% { scale: 1.16; rotate: 12deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+
+@keyframes yatzy-die-flash {
+  0% { opacity: 1; transform: scale(.7); }
+  100% { opacity: 0; transform: scale(1.35); }
 }
 
 .yatzy-die-top {
@@ -684,7 +884,7 @@
 }
 
 .yatzy-die-name {
-  font-size: clamp(11px, 1.25cqw, 14px);
+  font-size: clamp(10px, 1.05cqw, 14px);
   font-weight: 900;
   color: var(--ink);
   line-height: 1.05;
@@ -788,6 +988,14 @@
   transition: transform 0.18s ease, filter 0.18s ease;
 }
 
+.yatzy-roll.inviting:not(:disabled) { animation: yatzy-roll-invite 1.6s ease-in-out infinite; }
+
+@keyframes yatzy-roll-invite {
+  0%, 64%, 100% { scale: 1; }
+  76% { scale: 1.05; }
+  88% { scale: .985; }
+}
+
 .yatzy-roll.hint {
   box-shadow: 0 8px 0 var(--ink), 0 0 0 5px var(--gold), 0 0 24px rgb(242 182 48 / .85);
 }
@@ -842,6 +1050,114 @@
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
+.yatzy-egg > svg,
+.yatzy-egg-sparks,
+.yatzy-egg-label { position: relative; z-index: 1; }
+
+/* The gold that fills the egg from the bottom, a third for each spark */
+.yatzy-egg-glass {
+  position: absolute;
+  inset: 3px;
+  z-index: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.yatzy-egg-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  transform: scaleY(var(--charge, 0));
+  transition: transform 0.6s cubic-bezier(.3, 1.3, .5, 1);
+  background: linear-gradient(0deg, #f2b630 0%, #ffd84a 58%, #fff0a0 100%);
+  opacity: .82;
+}
+
+.yatzy-egg-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 34%, rgb(255 255 255 / .85) 48%, transparent 62%);
+  transform: translateX(-120%);
+}
+.yatzy-egg.full .yatzy-egg-shine { animation: yatzy-egg-shine 2.4s ease-in-out infinite; }
+
+@keyframes yatzy-egg-shine {
+  0%, 55% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* A spark lands in the egg: it gulps */
+.yatzy .yatzy-egg.gulp { animation: yatzy-egg-gulp 560ms cubic-bezier(.3, 1.6, .5, 1); }
+
+@keyframes yatzy-egg-gulp {
+  0% { scale: 1; }
+  30% { scale: 1.14 .9; }
+  60% { scale: .95 1.06; }
+  100% { scale: 1; }
+}
+
+/* Used: it shakes, cracks show, and it bursts in a ring of light */
+.yatzy-egg-cracks {
+  position: absolute;
+  inset: 4% 3%;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+.yatzy-egg-cracks svg { display: block; width: 100%; height: 100%; }
+.yatzy .yatzy-egg.cracking { animation: yatzy-egg-shake 390ms ease-in-out; }
+.yatzy-egg.cracking .yatzy-egg-cracks { animation: yatzy-egg-crack 330ms steps(3, end) forwards; }
+.yatzy-egg.bursting .yatzy-egg-cracks { animation: yatzy-egg-crack-out 260ms ease-out; }
+
+@keyframes yatzy-egg-shake {
+  0%, 100% { rotate: 0deg; }
+  20% { rotate: -9deg; }
+  40% { rotate: 8deg; }
+  60% { rotate: -6deg; }
+  80% { rotate: 4deg; }
+}
+
+@keyframes yatzy-egg-crack {
+  0% { opacity: 1; transform: scaleX(.25); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes yatzy-egg-crack-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.yatzy-egg-burst {
+  position: absolute;
+  left: -70%;
+  top: -60%;
+  width: 240%;
+  height: 220%;
+  z-index: 3;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(closest-side, rgb(255 252 230 / .95) 0 26%, rgb(255 216 92 / .7) 46%, rgb(255 200 60 / 0) 70%),
+    repeating-conic-gradient(rgb(255 226 120 / .9) 0 7deg, rgb(255 226 120 / 0) 7deg 30deg);
+  -webkit-mask: radial-gradient(closest-side, #000 55%, transparent 100%);
+  mask: radial-gradient(closest-side, #000 55%, transparent 100%);
+}
+.yatzy .yatzy-egg.bursting { animation: yatzy-egg-pop 500ms cubic-bezier(.3, 1.6, .5, 1); }
+.yatzy-egg.bursting .yatzy-egg-burst { animation: yatzy-egg-burst 900ms ease-out; }
+
+@keyframes yatzy-egg-pop {
+  0% { scale: 1.18; }
+  100% { scale: 1; }
+}
+
+@keyframes yatzy-egg-burst {
+  0% { opacity: 1; transform: scale(.25) rotate(0deg); }
+  45% { opacity: .95; }
+  100% { opacity: 0; transform: scale(1.3) rotate(32deg); }
+}
+
 .yatzy-egg.ready {
   background: radial-gradient(circle at 35% 28%, #fffef0, #ffe268 48%, var(--gold) 82%, var(--gold-deep) 100%);
   box-shadow:
@@ -872,11 +1188,49 @@
   border-radius: 50%;
   background: rgb(59 47 37 / .22);
   border: 1.5px solid var(--ink);
+  transition: transform 0.3s cubic-bezier(.3, 1.6, .5, 1);
 }
 
 .yatzy-egg-sparks i.lit {
-  background: #fffaf0;
-  box-shadow: 0 0 6px #fffaf0;
+  background: #fff3a6;
+  box-shadow: 0 0 6px 1px #ffd33d;
+  transform: scale(1.15);
+}
+
+/* What flies across the table: a spark into the egg, the egg's magic to a die, a score to its total */
+.yatzy-flyer {
+  position: absolute;
+  z-index: 30;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  pointer-events: none;
+  opacity: 0;
+  animation: yatzy-fly var(--fly-ms, 560ms) cubic-bezier(.45, 0, .25, 1) forwards;
+}
+.yatzy-flyer svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgb(255 214 90 / .95)); }
+.yatzy-flyer.magic { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+.yatzy-flyer.score {
+  width: auto;
+  height: auto;
+  margin: 0;
+  translate: -50% -50%;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--gold);
+  border: 2.5px solid var(--ink);
+  box-shadow: 0 3px 0 var(--gold-deep);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+@keyframes yatzy-fly {
+  0% { transform: translate(0, 0) scale(.5); opacity: 0; }
+  15% { transform: translate(calc(var(--dx) * .06), calc(var(--dy) * .06 - 26px)) scale(1.2); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.6); opacity: .6; }
 }
 
 .yatzy-egg-label {
@@ -896,6 +1250,19 @@
   display: grid;
   place-items: center;
   padding: 20px;
+}
+
+.yatzy-win.show { animation: yatzy-fade-in 300ms ease-out; }
+.yatzy-win.show .yatzy-win-card { animation: yatzy-card-pop 560ms cubic-bezier(.25, 1.5, .45, 1) 60ms both; }
+
+@keyframes yatzy-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes yatzy-card-pop {
+  0% { transform: translateY(36px) scale(.6); opacity: 0; }
+  100% { transform: none; opacity: 1; }
 }
 
 .yatzy-win-card {
@@ -971,21 +1338,45 @@
   z-index: 1;
 }
 
+/* Confetti bursts up from behind the card and falls (.burst), then a gentle rain keeps falling from the top (.rain) */
 .yatzy-confetti i {
   position: absolute;
-  top: -24px;
-  left: var(--x, 50%);
-  width: 14px;
-  height: 22px;
+  left: 50%;
+  top: 46%;
+  width: 13px;
+  height: 20px;
+  margin: -10px 0 0 -6px;
   border-radius: 4px;
   background: var(--c, var(--gold));
   border: 2px solid var(--ink);
-  animation: yatzy-confetti-fall var(--t, 3.5s) linear var(--d, 0s) infinite;
+  opacity: 0;
+}
+.yatzy-confetti i.round { width: 15px; height: 15px; border-radius: 50%; }
+.yatzy-confetti i.star {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.yatzy-confetti i.burst { animation: yatzy-confetti-burst var(--t, 2.6s) linear var(--d, 0s) both; }
+.yatzy-confetti i.rain { left: var(--x, 50%); top: -26px; animation: yatzy-confetti-rain var(--t, 3.5s) linear var(--d, 0s) infinite; }
+
+@keyframes yatzy-confetti-burst {
+  0% { transform: translate(0, 0) rotate(0deg) scale(.3); opacity: 0; animation-timing-function: cubic-bezier(.15, .7, .35, 1); }
+  6% { opacity: 1; }
+  32% { transform: translate(var(--bx), var(--by)) rotate(calc(var(--r) * .35)) scale(1); animation-timing-function: cubic-bezier(.5, 0, .85, .6); }
+  86% { opacity: 1; }
+  100% { transform: translate(var(--fx), 70cqh) rotate(var(--r)) scale(1); opacity: 0; }
 }
 
-@keyframes yatzy-confetti-fall {
-  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(105cqh) rotate(360deg); opacity: 0.85; }
+@keyframes yatzy-confetti-rain {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(calc(var(--bx) * .25), 108cqh) rotate(var(--r)); opacity: .85; }
+}
+
+@keyframes yatzy-confetti-twinkle {
+  0% { opacity: 0; }
+  100% { opacity: .9; }
 }
 
 /* ---- Interactive Mosi Tutorial (Kennsla) ------------------------------------------------------------------------ */
@@ -1133,9 +1524,25 @@
   z-index: 5;
 }
 
+.yatzy.teaching .yatzy-row.tut-live {
+  box-shadow: 0 5px 0 var(--ink), 0 0 0 3px var(--gold), 0 0 24px rgb(242 182 48 / .95) !important;
+  animation: none;
+}
+.yatzy.teaching .yatzy-row.tut-live::before { animation: yatzy-row-breathe 1.05s ease-in-out infinite alternate; }
+
+.yatzy.teaching .yatzy-die.tut-live {
+  box-shadow: 0 7px 0 var(--dino-deep), 0 0 0 4px var(--gold), 0 0 26px rgb(242 182 48 / .95) !important;
+  animation: yatzy-tut-hop 1.05s ease-in-out infinite alternate;
+}
+
+@keyframes yatzy-tut-hop {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-5px); }
+}
+
 @keyframes yatzy-tut-pulse {
-  0% { transform: scale(1) translateY(0); }
-  100% { transform: scale(1.05) translateY(-4px); }
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-5px); }
 }
 
 .tut-nope,
@@ -1163,19 +1570,111 @@
   .yatzy-sloedla {
     width: clamp(150px, 28cqw, 230px);
   }
+  .yatzy-die {
+    --die-w: clamp(60px, min(15cqw - 16px, 11cqh), 102px);
+  }
 }
 
+/* Narrow screens: "Kennsla" is its cap alone (its name stays in its label), so Slóeðla's bubble has room beside her window */
+@media (max-width: 900px) {
+  .yatzy-teach-btn span,
+  .yatzy-skip-btn .yatzy-long { display: none; }
+  .yatzy-teach-btn { padding: 0 12px; }
+}
+
+/* Less motion: every move is a fade, and nothing idles (no breathing row, no bouncing button, no pulsing egg) */
 @media (prefers-reduced-motion: reduce) {
-  .yatzy-die.rolling,
+  .yatzy-die.landing,
+  .yatzy-die.cheer,
+  .yatzy-die.just-held,
   .yatzy-die.magic,
   .yatzy-die.hint,
+  .yatzy-die.landing::after,
   .yatzy-egg.ready,
-  .yatzy-banner,
+  .yatzy .yatzy-egg.gulp,
+  .yatzy .yatzy-egg.cracking,
+  .yatzy .yatzy-egg.bursting,
+  .yatzy-egg.full .yatzy-egg-shine,
+  .yatzy-row.stamped,
+  .yatzy-row.stamped-theirs,
+  .yatzy-row.can-pick.best:not(.hint)::before,
+  .yatzy-row.can-pick.best:not(.hint) .yatzy-row-mine,
+  .yatzy.teaching .yatzy-row.tut-live::before,
+  .yatzy.teaching .yatzy-die.tut-live,
+  .yatzy-roll.inviting:not(:disabled),
+  .yatzy-score-pill.bump,
+  .yatzy-badge-slot.new,
+  .yatzy-banner.pop,
+  .yatzy-speech.pop,
   .yatzy-tut-card,
   .yatzy.teaching .tut-live,
-  .yatzy-confetti i {
+  .tut-nope,
+  .tut-attention {
     animation: none !important;
   }
+
+  /* Still states that would move: they stay where they are and only change their light */
+  .yatzy-die,
+  .yatzy-die.held,
+  .yatzy-row.can-pick.best,
+  .yatzy-row.hint,
+  .yatzy-score-pill.active,
+  .yatzy-egg-sparks i.lit { transform: none; }
+  .yatzy-die,
+  .yatzy-row,
+  .yatzy-score-pill,
+  .yatzy-egg,
+  .yatzy-egg-fill,
+  .yatzy-egg-sparks i { transition: opacity 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+
+  /* A roll: the dice fade down and come back with their new faces */
+  .yatzy-die.tumbling { animation: yatzy-fade-dip var(--tumble-ms, 400ms) ease-in-out both; }
+
+  @keyframes yatzy-fade-dip {
+    0%, 100% { opacity: 1; }
+    45% { opacity: .3; }
+  }
+
+  /* Flashes and rings fade where they are */
+  .yatzy-die.just-held::before,
+  .yatzy-die.magic::before { animation: yatzy-fade-out 600ms ease-out; transform: none; }
+  .yatzy .yatzy-egg.cracking .yatzy-egg-cracks { animation: yatzy-fade-in 300ms ease-out forwards; transform: none; }
+  .yatzy .yatzy-egg.bursting .yatzy-egg-burst { animation: yatzy-fade-out 600ms ease-out; transform: none; }
+  .yatzy-row.shimmer::after { transform: none; animation: yatzy-fade-out 760ms ease-out var(--shimmer-delay, 0ms) both; }
+  .yatzy-row.stamped .yatzy-row-mine,
+  .yatzy-row.stamped-theirs .yatzy-row-theirs { animation: yatzy-fade-in 300ms ease-out both; }
+
+  @keyframes yatzy-fade-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* What flies only shows where it lands, and fades */
+  .yatzy-flyer { animation-name: yatzy-fly-calm; }
+
+  @keyframes yatzy-fly-calm {
+    0% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+    40% { opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+  }
+
+  .yatzy-note { animation-name: yatzy-note-calm; }
+
+  @keyframes yatzy-note-calm {
+    0%, 100% { opacity: 0; }
+    35% { opacity: 1; }
+  }
+
+  /* Confetti lies scattered and fades in and out where it is */
+  .yatzy-confetti i.burst,
+  .yatzy-confetti i.rain {
+    left: var(--x, 50%);
+    top: var(--y, 50%);
+    transform: rotate(var(--r));
+    animation: yatzy-confetti-twinkle 1.6s ease-in-out var(--d, 0s) 3 alternate both;
+  }
+
+  .yatzy-win.show .yatzy-win-card { animation: yatzy-fade-in 300ms ease-out both; }
 }
 
 /* "Litla Yatzy við Mosa" in the book (engine/yatzy-junior/frame.js): the junior page in a frame over the book, under the book's
