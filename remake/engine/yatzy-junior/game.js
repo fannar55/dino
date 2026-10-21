@@ -39,7 +39,7 @@ function diceMargins(width,height){
 }
 // The cup waits at the left of the table (not in front of Mosi, where his bubble is) and rests a little further back after a roll;
 // the held row sits a little nearer the middle and to the right, so the cup's gold ring, the held dice and the cards never touch.
-const TABLE_LAYOUT=Object.freeze({home:[-1.7,.45,.6],park:[-1.85,.6],held:{left:-1.0,step:.58,near:1.2}});
+const TABLE_LAYOUT=Object.freeze({home:[-1.75,.85,.55],park:[-1.85,.6],held:{left:-1.0,step:.58,near:1.2}});
 const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3,3,3],smallStraight:[1,2,3,4,5],yatzy:[5,5,5,5,5]};
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
