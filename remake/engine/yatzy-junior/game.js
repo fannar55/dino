@@ -166,7 +166,7 @@ function chooseScore(id){
 }
 function flyScore(id,player,points){
   const badge=cells.get(id).value,chip=$(player?'mosi-total':'you-total'),from=badge.getBoundingClientRect(),to=chip.getBoundingClientRect();
-  const pop=()=>chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.3,1.6,.5,1)'});
+  const pop=()=>chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.22,1,.36,1)'});
   if(reduced||!from.width||!to.width){pop();return;}
   chipHold[player]=chip.textContent; // the old total stays until the score lands
   const flyer=document.createElement('strong');flyer.className='card-value score-flyer';flyer.dataset.who=player?'mosi':'you';flyer.textContent=String(points);flyer.setAttribute('aria-hidden','true');

@@ -56,14 +56,16 @@ svg{overflow:visible}
 #close svg{fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round}
 .round:active:not(:disabled),.mosi-help:active,.plain:active:not(:disabled){transform:translateY(4px);box-shadow:var(--pressed)}
 .corner{position:absolute;z-index:7;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));display:flex;align-items:flex-start;gap:14px}
-#game[data-inbook="1"] #close{visibility:hidden} /* the book's own round close sits exactly here */
+/* In the book its own round close (88 px, 14 px from the corner) sits exactly where ours would: ours keeps the place, unseen. */
+#game[data-inbook="1"] .corner{top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right))}
+#game[data-inbook="1"] #close{visibility:hidden;width:88px;height:88px}
 .skip{position:relative;isolation:isolate;min-height:var(--target);padding:0 1em 16px;border:0;background:none;font-size:22px;font-weight:900;color:var(--ink)}
 .skip::before{content:"";position:absolute;z-index:-1;inset:0 0 16px;border:3px solid var(--ink);border-radius:999px;background:var(--paper);box-shadow:var(--raise)}
 .skip:active::before{transform:translateY(4px);box-shadow:var(--pressed)}
 
 /* ---- The players: round portraits with the score hanging under them, the one who plays raised and ringed in gold ---- */
 .players{position:absolute;z-index:5;left:max(22px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));display:flex;gap:26px;align-items:flex-start;pointer-events:none}
-.player-card{display:grid;justify-items:center;opacity:.88;transition:transform .4s cubic-bezier(.3,1.6,.5,1),opacity .3s}
+.player-card{display:grid;justify-items:center;opacity:.88;transition:transform .4s cubic-bezier(.22,1,.36,1),opacity .3s}
 .player-card.current{transform:translateY(4px) scale(1.14);opacity:1;z-index:1}
 .portrait{position:relative;width:86px;aspect-ratio:1;border-radius:50%;overflow:hidden;display:grid;place-items:center;
   background:radial-gradient(circle at 50% 38%,#fffaf0,color-mix(in srgb,var(--c) 45%,#fffaf0) 72%);
@@ -148,7 +150,7 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
 
 /* ---- The five cards: real cards in a hand along the bottom, tilted a little this way and that ---- */
 #score-rows{--u:min(1px,calc((100vw - 330px) / 936));position:absolute;z-index:4;left:50%;bottom:max(8px,env(safe-area-inset-bottom));translate:-50% 0;display:flex;justify-content:center;gap:calc(14 * var(--u));padding:calc(24 * var(--u)) 16px 12px;max-width:100%}
-.junior-card{position:relative;flex:none;width:calc(176 * var(--u));height:calc(142 * var(--u));rotate:-1.4deg;transition:translate .35s cubic-bezier(.3,1.5,.5,1),rotate .35s ease,opacity .3s}
+.junior-card{position:relative;flex:none;width:calc(176 * var(--u));height:calc(142 * var(--u));rotate:-1.4deg;transition:translate .35s cubic-bezier(.22,1,.36,1),rotate .35s ease,opacity .3s}
 .junior-card:nth-child(even){rotate:1.4deg}
 .card-select{position:relative;display:grid;align-content:start;gap:calc(4 * var(--u));width:100%;height:100%;padding:calc(12 * var(--u)) calc(12 * var(--u)) calc(10 * var(--u));
   border-radius:calc(18 * var(--u));background:var(--card);border:3px solid var(--ink);color:var(--ink);text-align:left;
@@ -268,6 +270,7 @@ dialog #voice-recovery{justify-content:center;margin-top:4px}
   .skip{position:absolute;top:calc(var(--target) + 10px);right:0;min-height:64px;padding:0 .8em 12px;font-size:18px;white-space:nowrap}
   .skip::before{inset:0 0 12px}
   .bubble{left:12px;top:156px;width:calc(100% - 24px);padding:10px 14px 12px;border-radius:20px;column-gap:8px;row-gap:8px}
+  .bubble::before{right:auto;left:56%;top:auto;bottom:-19px;rotate:135deg} /* Mosi sits under it on a phone */
   #lesson-line{font-size:21px}
   .hear{margin:-8px}
   .hear::before{inset:8px}
