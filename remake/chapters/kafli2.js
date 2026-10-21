@@ -39,24 +39,84 @@ const GLADE_SHOTS = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Fenjaslóðin and Fenið: stubs, a flat clearing each with its shots, until their own layouts come
+// Fenjaslóðin, the trail: out of the forest and down into the Fen. North is -Z, east +X; the late morning sun stands in the
+// west-south-west. The path runs from the glade's side in the north-west down to the Fen in the south-east; from its middle on
+// the forest turns into fen over ten metres (world/forest/biome.js: blend), so the walk reads as one walk, not a cut, and the
+// ground falls gently toward the Fen. Low mist lies over the fen half. Task 4 lays Þórseðla's ten prints in the mud of the path.
+
+const TRAIL_PATH = [[-46, -30], [-26, -17], [-12, -8], [0, 0], [12, 7], [26, 14], [46, 24]];
+const TRAIL_DIR = [0.83, 0.55]; // the way down the trail, toward the Fen (unit)
+const TRAIL_DROP = 0.032; // m the ground falls each metre down the trail
+
+/** Where a path is halfway along it, and the points `width` metres before and after that along it: the blend's ends. */
+function blendAcross(path, width) {
+  const legs = path.slice(1).map((p, i) => Math.hypot(p[0] - path[i][0], p[1] - path[i][1]));
+  let left = legs.reduce((a, b) => a + b, 0) / 2;
+  let i = 0;
+  while (left > legs[i]) left -= legs[i++];
+  const [ax, az] = path[i], [bx, bz] = path[i + 1];
+  const dx = (bx - ax) / legs[i], dz = (bz - az) / legs[i];
+  const mx = ax + dx * left, mz = az + dz * left;
+  return { from: [mx - (dx * width) / 2, mz - (dz * width) / 2], to: [mx + (dx * width) / 2, mz + (dz * width) / 2] };
+}
 
 const TRAIL_SHOTS = {
-  trail_wide: { position: [8, 1.6, -6], target: [-2, 1.8, 2], fov: 50 },
-  trail_follow: { position: [-6, 1.5, 6], target: [2, 2.0, -0.5], fov: 46 },
-  print_close: { position: [3.5, 1.1, -3], target: [0.5, 0.2, -0.5], fov: 50 },
-  trail_fog: { position: [-8, 1.4, -5], target: [3, 1.6, 4], fov: 50 },
-  trail_portrait: { position: [6, 1.3, 6], target: [0, 2.2, 0], fov: 55 },
-  trail_end: { position: [9, 1.5, 2], target: [-4, 1.8, -1], fov: 48 },
+  trail_wide: { position: [-15, 2.1, -4], target: [6, 1.4, 6.5], fov: 50 },
+  trail_follow: { position: [8, 1.5, -3.5], target: [-3, 2.0, -0.5], fov: 46 },
+  print_close: { position: [2.2, 0.9, 3.9], target: [7.5, 0.1, 4.8], fov: 50 },
+  trail_fog: { position: [6, 1.4, 1.5], target: [18, 1.3, 13], fov: 48 },
+  trail_portrait: { position: [5.5, 1.3, 5.5], target: [-1, 2.6, -1], fov: 36 },
+  trail_end: { position: [18, 1.6, 9.5], target: [34, 1.0, 18], fov: 50 },
+};
+
+// ---------------------------------------------------------------------------------------------
+// Fenið, the Fen: open water and golden reed with groves of swamp conifers, at real size. Þórseðla stands in the shallow pool p1
+// facing east, toward the two swamp conifers she bites the tops of; when her head comes down (lowerHead) it reaches the bank
+// where Egill holds up the berries. Mosi stands on a dry hummock south of her head, with the pool p4 behind him, and the berry
+// hummocks are east of him. The channel winds from the north-west out to the far treeline in the south-east, north of her
+// pool. The three far friends (Task 5) are only places here, out in the open fen where the lookout on her head sees them.
+
+// Þórseðla: where she stands (her root, between her four feet) and points along her 22 m from her tail to where her head comes down.
+const THORSEDLA = { position: [-2, 0, -9], heading: 0 };
+const alongHer = metres => {
+  const h = (THORSEDLA.heading * Math.PI) / 180;
+  return { position: [THORSEDLA.position[0] + Math.cos(h) * metres, 0, THORSEDLA.position[2] + Math.sin(h) * metres] };
+};
+
+const FEN_WATER = {
+  pools: [
+    { center: [-3.5, -9], radius: 6.5, depth: 0.3 }, // p1: Þórseðla's shallow pool
+    { center: [-15, 7], radius: 6, depth: 0.35 }, // p2: south-west, toward the sun
+    { center: [-27, -9], radius: 5.5, depth: 0.35 }, // p3: west
+    { center: [10, 9], radius: 4.5, depth: 0.35 }, // p4: behind Mosi, seen past him from the north-west
+    { center: [-70, -38], radius: 7, depth: 0.35 }, // p5: far out, where Slóeðla wades (Task 5)
+  ],
+  channel: {
+    line: [[-150, -105], [-95, -70], [-58, -48], [-34, -30], [-14, -24], [6, -22], [22, -14], [32, 2], [44, 22], [66, 42], [100, 62], [150, 96]],
+    width: 4, depth: 0.5,
+  },
 };
 
 const FEN_SHOTS = {
-  fen_reveal: { position: [8, 4.5, 14], target: [-2, 3, -10], fov: 50 },
-  fen_thorsedla_low: { position: [4, 0.6, -4], target: [0, 5, -12], fov: 50 },
-  fen_two_shot: { position: [10, 1.4, 2], target: [0, 2, -4], fov: 50 },
-  fen_head_down: { position: [3.5, 1.2, 3], target: [1.5, 1.2, -2], fov: 46 },
-  fen_berries: { position: [-6, 1.4, 8], target: [6, 0.8, 12], fov: 50 },
-  fen_star: { position: [9, 1.3, 10], target: [0, 4, -4], fov: 52 },
+  // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
+  // toward the sun, and ends with Þórseðla far right, in the water at her real size (a move from the first to the second).
+  fen_reveal: { position: [13, 1.6, 2], target: [-14, 1.8, 4], fov: 50 },
+  fen_reveal_end: { position: [12.5, 5.8, 4.5], target: [-8, 3.2, -10], fov: 50 },
+  // From below: her feet in the water like trunks, her head up in the swamp conifers.
+  fen_thorsedla_low: { position: [3.2, 0.45, -1.6], target: [0.5, 5.2, -9.5], fov: 56 },
+  // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
+  fen_two_shot: { position: [-1.5, 1.45, -16.5], target: [6, 1.3, -5.5], fov: 46 },
+  // Scene 4: over Egill's shoulder, her face coming down to him.
+  fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
+  // Scene 4: the berry hummocks east of Mosi.
+  fen_berries: { position: [9.5, 1.45, 3.0], target: [15, 0.6, -3.5], fov: 50 },
+  // Scene 6: Egill by her lowered head, about to climb on; scene 7: the slide ends in the saddle on Mosi.
+  fen_lift_start: { position: [10.5, 1.4, -3.5], target: [4.5, 1.6, -9], fov: 46 },
+  fen_slide_end: { position: [12, 1.5, -6.5], target: [6.5, 2.3, -2.5], fov: 46 },
+  // Scene 8: the two of them with Egill between, the pools glittering behind.
+  fen_star: { position: [13.5, 1.3, -14], target: [1.5, 4.2, -5], fov: 52 },
+  // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
+  fen_portrait: { position: [12, 1.2, 1], target: [3, 4.6, -9], fov: 36 },
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -222,26 +282,52 @@ export const chapter = {
         seed: 11,
         clearing: { center: [0, 0], radius: 14 },
         forestEdge: 20,
-        path: [[-40, -24], [-12, -7], [0, 0], [12, 7], [40, 24]],
+        path: TRAIL_PATH,
+        biome: 'fen',
+        blend: blendAcross(TRAIL_PATH, 10), // forest before the path's middle, fen after it
+        lift: (x, z) => -TRAIL_DROP * Math.max(-60, Math.min(60, x * TRAIL_DIR[0] + z * TRAIL_DIR[1])), // down toward the Fen
+        mist: [{ center: [17, 10], radius: 14, height: 1.0 }],
         leafShadows: true,
-        actors: { mosi: { position: [0, 0, 0], heading: 30 } },
+        actors: { mosi: { position: [0, 0, 0], heading: 34 } },
       },
       shots: TRAIL_SHOTS,
+      warmUp: ['trail_wide', 'trail_fog'],
     },
     fen: {
       layout: {
         seed: 12,
         clearing: { center: [0, 0], radius: 24 },
         forestEdge: 30,
-        path: [[-50, -30], [-20, -10], [0, 4]],
-        leafShadows: true,
+        path: [[56, 40], [34, 22], [20, 9], [12, 1.5], [8.5, -1.5]], // the trail comes in from the south-east to Mosi's hummock
+        biome: 'fen',
+        water: FEN_WATER,
+        hummocks: [
+          { center: [7.5, -2.5], radius: 5.5, height: 0.4 }, // Mosi's
+          { center: [10.5, -9.5], radius: 4, height: 0.25 }, // under her two conifers, where Egill stands
+          { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
+          { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
+        ],
+        // the two conifers whose tops she bites; a tall white snag for Flugeðla; reed round where Uggeðla lies
+        plants: [
+          { name: 'swampConifer', position: [9.6, -10.8], scale: 0.85, variant: 0 },
+          { name: 'swampConifer', position: [9.4, -7.0], scale: 0.8, variant: 1 },
+          { name: 'deadSnag', position: [-52, -88], scale: 1.4, variant: 0 },
+          ...[0, 1, 2, 3, 4, 5].map(k => ({ name: 'horsetailReed', position: [78 + Math.cos(k * 1.05 + 0.3) * 10, 40 + Math.sin(k * 1.05 + 0.3) * 8], variant: k % 4 })),
+        ],
+        mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
+        farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
+        lookout: [5, 9.4, -9], // where Egill looks out from on her head, nine metres up
         actors: {
-          mosi: { position: [0, 0, 6], heading: -90 },
-          egill: { position: [3, 0, 6.5], heading: -90 },
-          thorsedla: { position: [0, 0, -12], heading: 90 },
+          mosi: { position: [7, 0, -3], heading: -120 },
+          egill: { position: [6, 0, -9], heading: 180 }, // on the bank where her head comes down to him
+          thorsedla: THORSEDLA,
+          thorsedla_tail: alongHer(-9.5),
+          thorsedla_neck: alongHer(3),
+          thorsedla_head: alongHer(6),
         },
       },
       shots: FEN_SHOTS,
+      warmUp: ['fen_reveal_end', 'fen_thorsedla_low', 'fen_two_shot'],
     },
   },
   actors: {
