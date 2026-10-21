@@ -566,7 +566,7 @@ export async function createSloedlaView(container, { win = globalThis.window } =
       leanT = nodT = slumpT = -1;
       cheerUntil = clock + seconds;
       cheerNext = clock;
-      cheerCall = false;
+      cheerCall = true; // so the first is a happy rear-up, then a call, and so on
     },
     /** Where her crest's tip is in her window now, { x, y } from 0 (left, top) to 1, or null. */
     crestPoint() {

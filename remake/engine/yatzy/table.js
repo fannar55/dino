@@ -1371,7 +1371,10 @@ export function createYatzyGame(
   }
 
   function runSloedlaTurn() {
-    if (!isOpen || game.winner || game.turn !== 'sloedla') return;
+    if (!isOpen || game.winner || game.turn !== 'sloedla') {
+      busy = false;
+      return;
+    }
     busy = true;
     view?.think(true);
     sfx.play('drum');
@@ -1501,7 +1504,8 @@ export function createYatzyGame(
     if (game.winner) {
       later(550, finishGame);
     } else if (game.turn === 'sloedla') {
-      runSloedlaTurn();
+      busy = true; // her turn waits a moment, so the child sees the stamp and the count land first
+      later(700, runSloedlaTurn);
     }
   }
 
