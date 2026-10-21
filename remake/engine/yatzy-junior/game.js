@@ -8,6 +8,7 @@ import {LESSON_STEPS,allowsAction} from './lesson.js';
 import {VOICE_LINES} from './voice-lines.js';
 import {createJuniorVoice} from './voice.js';
 import {waitForStartup} from './startup.js';
+import {createPickEffects} from './pick-vfx.js';
 
 const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='mosi.yatzy.junior.prefs.v1';
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
@@ -45,10 +46,11 @@ const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
 let muted=prefs.muted===true,reduced=typeof prefs.reduced==='boolean'?prefs.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches;
 const audio=createYatzyAudio();audio.mute(muted);
-let world,opponent,dice,effects,voice,voiceManifest={},state=createGame(),saved=restoreGame(read(SAVE));
+let world,opponent,dice,effects,pick,voice,voiceManifest={},state=createGame(),saved=restoreGame(read(SAVE));
 let phase='intro',timer=0,elapsed=0,last=performance.now(),frame=0,started=false,paused=true,disposed=false,qaFrozen=false,resizeObserver;
 let pendingDiceView=-1,aiDecision=null,zeroCategory=null,recent=null,lesson=null,lessonReturn=null,lessonAdvance=-1,readyLast=false,captionTime=0,modalNarration=false;
 let lessonFocus='';const chipHold=[null,null];
+let idle=0,idleHint=null; // after a while with nothing done on the child's turn, Mosi's own choice glows (paintPicks)
 const cells=new Map(),dieButtons=[],canvas=$('table'),cupButton=$('cup-target'),coach=$('lesson-center'),roundPips=[...document.querySelectorAll('#rounds i')];
 const pixels=Array.from({length:6},()=>({x:NaN,y:NaN,width:NaN,height:NaN,top:NaN,bottom:NaN}));
 const cupAnchor={x:0,y:0},opponentFrame={thinking:false,rolling:false,target:null,reducedMotion:reduced};
@@ -68,7 +70,11 @@ for(const category of CATEGORIES){
   const value=document.createElement('strong');value.className='card-value';const scores=document.createElement('span');scores.className='card-scores';scores.setAttribute('aria-hidden','true');
   // The card is the tap target: one that cannot be chosen now lets the tap through (yatzy-junior.css), and Mosi says what it is.
   card.addEventListener('click',event=>{if(!event.target.closest('.card-select')&&!lesson&&!paused){enableNarration();say(`${category.id}Help`);}});
-  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores);$('score-rows').append(card);cells.set(category.id,{card,select,picture,value,scores,shown:'',pictured:''});
+  // "Tap here" (shown a few seconds into a pick, yatzy-junior.css): a ring closing onto the card and a drawn finger; and sparkles on its corner.
+  const tap=document.createElement('span');tap.className='tap-hint';tap.setAttribute('aria-hidden','true');
+  tap.innerHTML='<i class="tap-ring"></i><svg viewBox="0 0 24 24"><path d="M9.2 11.4V4.6a1.6 1.6 0 0 1 3.2 0v5.6m0-.4a1.6 1.6 0 0 1 3.2 0v1.2m0-.2a1.6 1.6 0 0 1 3.2 0v3.4c0 3.7-2.5 6.2-6.1 6.2h-1.1c-2.1 0-3.5-.8-4.7-2.4l-2.6-3.5a1.6 1.6 0 0 1 2.4-2.1l2.5 2.3"/></svg>';
+  const sparkles=document.createElement('span');sparkles.className='card-sparks';sparkles.setAttribute('aria-hidden','true');sparkles.innerHTML='<i></i><i></i><i></i>';
+  select.append(picture,name,rule,value);select.addEventListener('click',()=>chooseScore(category.id));card.append(select,scores,tap,sparkles);$('score-rows').append(card);cells.set(category.id,{card,select,picture,value,scores,shown:'',pictured:''});
 }
 for(let i=0;i<5;i++){
   const button=document.createElement('button');button.type='button';button.className='die-target';button.hidden=true;button.dataset.index=i;button.innerHTML='<span>Geymdur</span><i class="die-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i>';
@@ -79,7 +85,7 @@ const isHuman=()=>started&&!paused&&phase==='human'&&state.currentPlayer===0&&st
 const settled=()=>!!world&&phase!=='rolling'&&pendingDiceView<0&&!world.isViewTransitioning();
 const allowed=(action,value)=>!lesson||(!voice?.unavailable&&allowsAction(step(),action,value));
 function save(){if(lesson)return;write(SAVE,state);saved=restoreGame(state);}
-function savePrefs(){write(PREFS,{muted,reduced});$('sound-label').textContent=muted?'Hljóð af':'Hljóð á';$('sound').setAttribute('aria-pressed',String(muted));$('sound').setAttribute('aria-label',muted?'Kveikja á hljóði':'Slökkva á hljóði');$('motion').textContent=reduced?'Venjuleg hreyfing':'Rólegri hreyfing';$('motion').setAttribute('aria-pressed',String(reduced));cupButton.dataset.motion=reduced?'reduced':'full';}
+function savePrefs(){write(PREFS,{muted,reduced});$('sound-label').textContent=muted?'Hljóð af':'Hljóð á';$('sound').setAttribute('aria-pressed',String(muted));$('sound').setAttribute('aria-label',muted?'Kveikja á hljóði':'Slökkva á hljóði');$('motion').textContent=reduced?'Venjuleg hreyfing':'Rólegri hreyfing';$('motion').setAttribute('aria-pressed',String(reduced));cupButton.dataset.motion=reduced?'reduced':'full';$('game').dataset.motion=reduced?'reduced':'full';}
 function enableNarration(){muted=false;audio.mute(false);voice?.mute(false);audio.unlock();savePrefs();}
 function syncVoiceRecovery(){
   const recovery=$('voice-recovery'),unavailable=Boolean(voice?.unavailable);
@@ -146,7 +152,7 @@ function renderUI(){
   // On the child's turn the cup keeps its ring while everything is still: gold when it can be rolled, grey when not now.
   dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!(canRoll||(human&&still&&state.status==='playing'));cupButton.dataset.parked=String(state.rollCount>0);cupButton.dataset.rolls=String(3-state.rollCount);cupButton.setAttribute('aria-label',`Kasta teningunum: ${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'} eftir`);
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
-  paintCoach();updateTargets();syncVoiceRecovery();
+  paintCoach();paintPicks();updateTargets();syncVoiceRecovery();
 }
 // The Kasta tag stands over the cup's ring, 12 px clear of it, sliding sideways to stay on the screen; where something is in the
 // way there (the players' bar, the buttons, the bubble, a die or its number, the cards) it stands at the ring's right, else its
@@ -166,6 +172,16 @@ function placeTag(){
   const pick=scored.find(spot=>spot.cost===0)||scored.reduce((a,b)=>b.cost<a.cost?b:a);
   cupButton.dataset.tag=pick.name;cupButton.style.setProperty('--tag-shift',pick.name==='above'||pick.name==='below'?`${Math.round(pick.left-natural)}px`:'0px');
 }
+// What the child should pick now glows: the dice the lesson (or the idle hint) wants kept (pick-vfx.js, on the table), and the
+// card to lay the score on: the lesson's, Mosi's hint, or the best one once there is nothing else left to do.
+function paintPicks(){
+  const spec=step(),ready=isHuman()&&settled()&&!voice?.unavailable&&state.rollCount>0;let wanted=[],card=null;
+  if(lesson){if(ready&&spec?.type==='hold')wanted=spec.indices.filter(i=>!state.held[i]);if(ready&&spec?.type==='score')card=spec.category;}
+  else if(ready&&(state.rollCount>=3||state.held.every(Boolean))){const open=Object.entries(previews(state)).sort((a,b)=>b[1]-a[1]);card=open[0]?.[1]>0?open[0][0]:decideAI(state)?.categoryId??null;}
+  else if(ready&&idleHint){wanted=idleHint.dice.filter(i=>!state.held[i]);card=idleHint.card;}
+  pick?.show(wanted);for(const [id,cell] of cells)cell.card.classList.toggle('pick',id===card);
+}
+function resetIdle(){idle=0;idleHint=null;}
 function placeTarget(button,target,index){const pixel=pixels[index],x=Math.round(target.x*targetWidth*4)/4,y=Math.round(target.y*targetHeight*4)/4;if(pixel.x!==x||pixel.y!==y){pixel.x=x;pixel.y=y;button.style.transform=`translate3d(${x}px,${y}px,0)`;}}
 function updateTargets(){
   if(!dice||!world)return;
@@ -187,7 +203,7 @@ function updateTargets(){
   }
 }
 function toggleHold(index){
-  if(!isHuman()||!settled()||state.rollCount<1||state.rollCount>=3||!allowed('hold',index))return;
+  if(!isHuman()||!settled()||state.rollCount<1||state.rollCount>=3||!allowed('hold',index))return;resetIdle();
   state=hold(state,index);dice.setHeld(state.held);world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();audio.cue(state.held[index]?'hold':'release',{index});
   if(state.held[index])effects.emit(dice.dice[index].position,{kind:'hold',reduced});
   if(lesson){if(step().indices.every(i=>state.held[i]))nextLesson();}else say(state.held.every(Boolean)?'allHeld':state.held[index]?'hold':'release');renderUI();
@@ -195,7 +211,7 @@ function toggleHold(index){
 function beginRoll(){
   if(!started||paused||state.status!=='playing'||phase==='rolling'||state.rollCount>=3||state.held.every(Boolean))return;
   if(state.currentPlayer===0&&(!isHuman()||!settled()||!allowed('roll')))return;
-  voice.stop();captionTime=0;if(!lesson)coach.hidden=true;
+  voice.stop();captionTime=0;if(!lesson)coach.hidden=true;resetIdle();
   const previous=state;state=roll(state);
   if(lesson)state.dice=step().hand.map((face,i)=>previous.held[i]?previous.dice[i]:face);
   save();phase='rolling';timer=0;recent=null;view('table');audio.unlock();dice.startRoll(state.dice,state.held,state.currentPlayer,reduced);opponent.react('anticipate');renderUI();
@@ -222,7 +238,7 @@ function flyScore(id,player,points){
   flyer.animate([{transform:'translate(0,0) scale(1)'},{transform:`translate(${dx*.45}px,${dy*.45-60}px) scale(1.25)`,offset:.45},{transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:.9}],{duration:720,easing:'cubic-bezier(.45,0,.25,1)'}).finished.then(()=>{flyer.remove();chipHold[player]=null;renderUI();pop();},()=>{flyer.remove();chipHold[player]=null;});
 }
 function record(id){
-  const player=state.currentPlayer,points=previews(state)[id];voice.stop();flyScore(id,player,points);state=score(state,id);recent=id;
+  const player=state.currentPlayer,points=previews(state)[id];voice.stop();resetIdle();flyScore(id,player,points);state=score(state,id);recent=id;
   effects.emit({x:0,y:world.table.y+.2,z:0},{kind:points?'score':'bad',reduced});audio.cue(points?'score':'bad');opponent.react(points>=20?'great':points?'good':'bad');
   if(lesson){lesson.awards[id]=points;lesson.faces[id]=state.players[0].faces[id];phase='human';view('table');nextLesson();renderUI();return;}
   save();phase='handoff';timer=1.8;view('table');speakScore(player,points);renderUI();
@@ -261,7 +277,7 @@ function leaveLesson(play=false){
   if(!started){if(play)start(Boolean(saved));else{$('continue').hidden=!saved;openDialog('welcome');}}else if(state.status==='finished'){resultCopy();openDialog('win-dialog');}else say('resume');
 }
 function start(continuing=false){
-  voice.stop();audio.cancel();effects.clear();opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;
+  voice.stop();resetIdle();audio.cancel();effects.clear();opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;
   state=continuing&&saved?structuredClone(saved):createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0]});started=true;phase=state.status==='finished'?'finished':state.currentPlayer===0?'human':'ai-wait';timer=.9;
   dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount>0&&state.status==='playing'?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
   if(state.status==='finished'){resultCopy();openDialog('win-dialog',resultSpeech());}else say(continuing?'resume':'yourTurn');
@@ -293,7 +309,7 @@ document.querySelectorAll('dialog').forEach(dialog=>{
 document.addEventListener('visibilitychange',syncPause);
 document.addEventListener('keydown',event=>{if(event.repeat||event.ctrlKey||event.altKey||event.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
   if(/^[1-5]$/.test(event.key)&&isHuman()){event.preventDefault();toggleHold(Number(event.key)-1);}else if(event.code==='Space'&&isHuman()&&document.activeElement?.tagName!=='BUTTON'){event.preventDefault();beginRoll();}else if(event.code==='Escape'&&started&&!paused){event.preventDefault();openDialog('pause-dialog');}});
-function cleanupScene(){effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
+function cleanupScene(){pick?.dispose();effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
 function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
 addEventListener('pagehide',dispose,{once:true});addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 
@@ -315,7 +331,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
-    onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world);
+    onStage('forest');await wait(createYatzyWorld(canvas,{shot:TABLE_SHOT}).then(resource=>take(resource,value=>{world=value;})));check();effects=createYatzyEffects(world);pick=createPickEffects(world);
     onStage('players');
     await wait(Promise.all([
       createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ}).then(resource=>take(resource,value=>{opponent=value;})),
@@ -342,7 +358,10 @@ export async function initialize({signal,onStage=()=>{}}={}){
         if(lessonAdvance>=0){lessonAdvance-=dt;if(lessonAdvance<=0){lessonAdvance=-1;if(step()?.type==='finish')leaveLesson(true);else nextLesson();}}
         if(!lesson&&timer<=0&&!voice.busy){if(phase==='handoff')advanceTurn();else if(phase.startsWith('ai-'))aiStep();}
         opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';opponentFrame.target=opponentFrame.rolling?dice.getFocusTarget():null;opponentFrame.reducedMotion=reduced;
-        opponent.update(dt,elapsed,opponentFrame);effects.update(dt);world.update(reduced?0:dt,elapsed);world.render();
+        // The idle hint: ten quiet seconds on the child's turn with rolls left, and the dice Mosi would keep (or his card) glow.
+        if(!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint){idle+=dt;if(idle>=10){const d=decideAI(state);idleHint={dice:d?.type==='roll'?d.held.flatMap((keep,i)=>keep&&!state.held[i]?[i]:[]):[],card:d?.type==='score'?d.categoryId:null};renderUI();}}
+        opponent.update(dt,elapsed,opponentFrame);effects.update(dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
+        pick.lift(dice.dice,1);world.render();pick.lift(dice.dice,-1); // the hop is drawn, the hit areas stay put
         const ready=settled();if(ready!==readyLast){readyLast=ready;renderUI();}updateTargets();dirty=false;
       }else if(modalNarration&&!document.hidden&&!qaFrozen){
         // A voiced dialog can animate Mosi while the board, turn and camera stay paused.
@@ -355,7 +374,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
       getState:()=>structuredClone(state),getStatus:()=>({phase,paused,reduced,started,timer,lessonAdvance,settled:settled()}),
       getTutorial:()=>lesson?{active:true,...structuredClone(lesson),...step()}:{active:false},
       freeze(value){qaFrozen=Boolean(value);syncPause();},
-      setState(value){validateGame(value);voice.stop();lesson=null;lessonReturn=null;lessonAdvance=-1;state=structuredClone(value);started=true;phase=state.status==='finished'?'finished':state.currentPlayer===0?'human':'ai-wait';timer=.8;dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount?'dice':'table',true);$('controls').hidden=false;closeDialogs();renderUI();},dispose};
+      setState(value){validateGame(value);voice.stop();resetIdle();lesson=null;lessonReturn=null;lessonAdvance=-1;state=structuredClone(value);started=true;phase=state.status==='finished'?'finished':state.currentPlayer===0?'human':'ai-wait';timer=.8;dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount?'dice':'table',true);$('controls').hidden=false;closeDialogs();renderUI();},dispose};
     onStage('ready');
   }catch(error){dispose();throw error;}
   finally{signal?.removeEventListener('abort',onAbort);}

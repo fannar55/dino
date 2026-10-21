@@ -154,8 +154,8 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 .die-check{position:absolute;right:-14px;top:-13px;width:40px;height:40px;display:none;place-items:center;border-radius:50%;background:var(--gold);border:3px solid var(--ink);box-shadow:0 3px 0 var(--gold-deep);pointer-events:none}
 .die-check svg{width:60%;height:60%;fill:none;stroke:var(--ink);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 .die-target.held .die-check{display:grid}
-.die-target.tutorial-target{border-color:var(--card);box-shadow:0 0 0 3px var(--gold),0 0 22px 6px rgb(255 214 110 / .6);animation:die-call 1.4s ease-in-out infinite}
-@keyframes die-call{50%{scale:1.06}}
+/* A die the child should keep is pointed at on the table under it (engine/yatzy-junior/pick-vfx.js), never by moving its hit area:
+   a scale or translate on .die-target would multiply the inline transform that places it over the die. */
 
 /* ---- The five cards: real cards in a hand along the bottom, tilted a little this way and that ---- */
 #score-rows{--u:min(1px,calc((100vw - 330px) / 936));position:absolute;z-index:4;left:50%;bottom:max(8px,env(safe-area-inset-bottom));translate:-50% 0;display:flex;justify-content:center;gap:calc(14 * var(--u));padding:calc(24 * var(--u)) 16px 12px;max-width:100%}
@@ -193,7 +193,32 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 @keyframes card-breathe{50%{scale:1.025}}
 .junior-card.filled .card-select{background:var(--paper)}
 .junior-card.filled{opacity:.92}
-.junior-card.tutorial-target .card-select,.card-select.tutorial-target{outline:4px solid var(--gold);outline-offset:4px}
+/* The card to tap (game.js paintPicks): it lifts, breathes and its gold glow pulses, sparkles rise from its corner, and a few seconds
+   on a ring closes onto it under a drawn finger, until the tap. Calm motion: the glow alone, steady. */
+.junior-card.pick{translate:0 calc(-14 * var(--u));rotate:0deg;z-index:1}
+.junior-card.pick .card-select{animation:pick-breathe 1.5s ease-in-out infinite}
+.junior-card.pick .card-select::after{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;
+  box-shadow:0 0 0 4px var(--gold),0 0 18px 4px rgb(255 214 110 / .9);animation:pick-glow 1.5s ease-in-out infinite}
+.tap-hint{position:absolute;z-index:2;left:80%;top:66%;width:calc(54 * var(--u));height:calc(54 * var(--u));translate:-50% -50%;pointer-events:none;opacity:0}
+.tap-ring{position:absolute;inset:0;border-radius:50%;border:calc(4 * var(--u)) solid var(--gold);box-shadow:0 0 0 2px var(--ink),inset 0 0 0 2px var(--ink);opacity:0}
+.tap-hint svg{position:absolute;left:30%;top:28%;width:72%;height:72%;fill:var(--card);stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 3px 2px rgb(40 24 10 / .35))}
+.junior-card.pick .tap-hint{animation:tap-show .45s ease-out 3s forwards}
+.junior-card.pick .tap-ring{animation:tap-ring 1.5s ease-out 3s infinite}
+.junior-card.pick .tap-hint svg{animation:tap-finger 1.5s ease-in-out 3s infinite}
+.card-sparks{position:absolute;z-index:2;left:calc(-4 * var(--u));top:calc(-4 * var(--u));pointer-events:none}
+.card-sparks i{position:absolute;width:calc(12 * var(--u));height:calc(12 * var(--u));background:#fff4c7;opacity:0;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 3px var(--gold))}
+.junior-card.pick .card-sparks i{animation:spark-rise 1.5s ease-out infinite}
+.junior-card.pick .card-sparks i:nth-child(2){animation-delay:.5s;left:calc(14 * var(--u))}
+.junior-card.pick .card-sparks i:nth-child(3){animation-delay:1s;left:calc(-10 * var(--u));top:calc(14 * var(--u))}
+@keyframes pick-breathe{50%{scale:1.03}}
+@keyframes pick-glow{0%,100%{opacity:.35}50%{opacity:1}}
+@keyframes tap-show{to{opacity:1}}
+@keyframes tap-ring{0%{scale:1.9;opacity:0}35%{opacity:1}85%{scale:.75;opacity:.9}100%{scale:.7;opacity:0}}
+@keyframes tap-finger{0%,30%,100%{translate:0 0}55%,70%{translate:0 5px}}
+@keyframes spark-rise{0%{translate:0 0;scale:.4;opacity:0}30%{opacity:1}100%{translate:calc(-8 * var(--u)) calc(-26 * var(--u));scale:1;opacity:0}}
+#game[data-motion="reduced"] .junior-card.pick:not(.best){translate:none}
+#game[data-motion="reduced"] .junior-card.pick :is(.card-select,.tap-hint,.tap-ring,.tap-hint svg,.card-sparks i){animation:none}
+#game[data-motion="reduced"] .junior-card.pick .card-select::after{animation:none;opacity:1}
 /* The authored moment: a chosen card's score flies up to the player's portrait and the chip there pops. */
 .score-flyer{position:fixed;z-index:30;right:auto;margin:0;padding:0 12px;pointer-events:none}
 .score-flyer[data-who="mosi"]{background:var(--sage);box-shadow:0 4px 0 var(--sage-deep)}
@@ -307,5 +332,6 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 /* ---- Less motion, when the tablet asks for it: everything holds still and changes as a fade ---- */
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition-property:opacity!important;scroll-behavior:auto!important}
+  .junior-card.pick:not(.best){translate:none}
   .loading-mosi img{animation:none!important}
 }
