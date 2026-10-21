@@ -92,7 +92,7 @@ const GOLD_RING = new THREE.Color('#ffe08a');
 function createLivelyEffects(world) {
   const { table } = world, sparks = createTableSparks(world.scene, world.camera, world.renderer);
   const trails = [], at = new THREE.Vector3(), perch = new THREE.Vector3();
-  let leafTime = 1.5, moteTime = 0, ambient = false, disposed = false, seed = 4111, butterfly = null, turns = 0;
+  let leafTime = 1.5, moteTime = 0, ambient = false, disposed = false, seed = 4111, butterfly = null, turns = 0, clock = 0, landed = -10;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const rand = (a, b) => a + random() * (b - a);
   const felt = (position, lift = 0) => at.set(position.x, table.y + .012 + lift, position.z);
@@ -127,7 +127,7 @@ function createLivelyEffects(world) {
     if (disposed || !flock || butterfly || turns++ % 3 !== 1) return false;
     const [x, z] = PERCHES[Math.floor(random() * PERCHES.length)];
     perch.set(x, table.y + .118, z);
-    try { const handle = flock.land(perch.clone(), { duration: 2.4 }); butterfly = handle.label?.split(' ')[0] || null; return true; }
+    try { const handle = flock.land(perch.clone(), { duration: 2.4 }); butterfly = handle.label?.split(' ')[0] || null; landed = clock + 2.4; return true; }
     catch { butterfly = null; return false; }
   }
   /** The cup lifts: a butterfly sitting on the rim flies off. */
@@ -138,6 +138,7 @@ function createLivelyEffects(world) {
   }
   function update(dt) {
     if (disposed || !(dt > 0)) return;
+    clock += dt;
     for (let i = trails.length - 1; i >= 0; i--) {
       const trail = trails[i]; trail.t += dt; trail.wait -= dt;
       if (trail.wait <= 0) { trail.wait = .03; sparks.glitter(trail.object.position, 2); }
@@ -154,8 +155,9 @@ function createLivelyEffects(world) {
   return {
     emit, update, clear, trail, celebrate, betweenTurns, wake, sparks,
     setAmbient(on) { ambient = Boolean(on); },
-    get butterfly() { return butterfly ? perch : null; },
-    getStats: () => ({ ...sparks.getStats(), trails: trails.length, ambient, butterfly }),
+    /** Where a butterfly is coming in to sit, from just before it lands until a little after (Mosi's eyes follow it), else null. */
+    get butterfly() { return butterfly && clock > landed - 1 && clock < landed + 2.2 ? perch : null; },
+    getStats: () => ({ ...sparks.getStats(), trails: trails.length, ambient, butterfly, butterflyLands: butterfly ? +(landed - clock).toFixed(2) : null }),
     dispose() { if (disposed) return; clear(); disposed = true; sparks.dispose(); },
   };
 }
