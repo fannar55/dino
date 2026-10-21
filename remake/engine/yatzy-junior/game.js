@@ -2,7 +2,7 @@ import {createYatzyWorld} from '../yatzy-mosi/world.js';
 import {createMosiOpponent} from '../yatzy-mosi/opponent.js';
 import {createDiceAndCup,DINO_FACES} from '../yatzy-mosi/dice.js';
 import {createYatzyEffects} from '../yatzy-mosi/effects.js';
-import {createYatzyAudio} from '../yatzy-mosi/audio.js';
+import {createJuniorAudio} from './sounds.js';
 import {CATEGORIES,createGame,roll,hold,score,scoringDice,previews,totals,decideAI,restoreGame,validateGame} from './rules.js';
 import {LESSON_STEPS,allowsAction} from './lesson.js';
 import {VOICE_LINES} from './voice-lines.js';
@@ -45,7 +45,7 @@ const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
 let muted=prefs.muted===true,reduced=typeof prefs.reduced==='boolean'?prefs.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches;
-const audio=createYatzyAudio();audio.mute(muted);
+const audio=createJuniorAudio();audio.mute(muted);
 let world,opponent,dice,effects,pick,voice,voiceManifest={},state=createGame(),saved=restoreGame(read(SAVE));
 let phase='intro',timer=0,elapsed=0,last=performance.now(),frame=0,started=false,paused=true,disposed=false,qaFrozen=false,resizeObserver;
 let pendingDiceView=-1,aiDecision=null,zeroCategory=null,recent=null,lesson=null,lessonReturn=null,lessonAdvance=-1,readyLast=false,captionTime=0,modalNarration=false;
@@ -99,7 +99,7 @@ function syncVoiceRecovery(){
 // (TABLE_SHOT.safe); it goes back to the table, Mosi in view, when the turn moves on. #game[data-view] tells the page which.
 function view(mode,snap=reduced){pendingDiceView=-1;$('game').dataset.view=mode;if(mode==='dice')world?.setDiceFocus(dice.getFramingPoints(),{snap});world?.setView(mode,{reduced:snap});}
 function syncPause(){paused=qaFrozen||document.hidden||Boolean(document.querySelector('dialog[open]'));audio.pause(paused);voice?.pause(qaFrozen||document.hidden||(paused&&!modalNarration));cupButton.dataset.paused=String(paused);last=performance.now();if(world)renderUI();}
-function openDialog(id,line){if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
+function openDialog(id,line){if(!$(id).open)audio.cue('dialog',{id});if(line){voice?.stop();modalNarration=true;lessonAdvance=-1;}if(!$(id).open)$(id).showModal();syncPause();if(line)saySequence(Array.isArray(line)?line:[line]);}
 function closeDialogs(){modalNarration=false;for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();syncPause();}
 function say(id,onEnd){
   captionTime=0;
@@ -153,6 +153,7 @@ function renderUI(){
   dice?.setReady(canRoll);cupButton.disabled=!canRoll;cupButton.hidden=!(canRoll||(human&&still&&state.status==='playing'));cupButton.dataset.parked=String(state.rollCount>0);cupButton.dataset.rolls=String(3-state.rollCount);cupButton.setAttribute('aria-label',`Kasta teningunum: ${3-state.rollCount} ${3-state.rollCount===1?'kast':'köst'} eftir`);
   for(let i=0;i<5;i++){const b=dieButtons[i];b.disabled=!(human&&state.rollCount>0&&state.rollCount<3&&still&&allowed('hold',i));b.classList.toggle('held',state.held[i]);b.dataset.value=state.dice[i];b.setAttribute('aria-pressed',String(state.held[i]));b.setAttribute('aria-label',`Teningur ${i+1}: ${state.dice[i]}. ${state.held[i]?'Losa':'Geyma'}`);b.removeAttribute('aria-describedby');}
   paintCoach();paintPicks();updateTargets();syncVoiceRecovery();
+  audio.cue('cards',{values:CATEGORIES.map(c=>cells.get(c.id).select.disabled?-1:preview[c.id]??0),pick:CATEGORIES.findIndex(c=>cells.get(c.id).card.classList.contains('pick'))});
 }
 // The Kasta tag stands over the cup's ring, 12 px clear of it, sliding sideways to stay on the screen; where something is in the
 // way there (the players' bar, the buttons, the bubble, a die or its number, the cards) it stands at the ring's right, else its
@@ -204,7 +205,7 @@ function updateTargets(){
 }
 function toggleHold(index){
   if(!isHuman()||!settled()||state.rollCount<1||state.rollCount>=3||!allowed('hold',index))return;resetIdle();
-  state=hold(state,index);dice.setHeld(state.held);world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();audio.cue(state.held[index]?'hold':'release',{index});
+  state=hold(state,index);dice.setHeld(state.held);world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();audio.cue(state.held[index]?'hold':'release',{index,count:state.held.filter(Boolean).length});
   if(state.held[index])effects.emit(dice.dice[index].position,{kind:'hold',reduced});
   if(lesson){if(step().indices.every(i=>state.held[i]))nextLesson();}else say(state.held.every(Boolean)?'allHeld':state.held[index]?'hold':'release');renderUI();
 }
@@ -214,7 +215,7 @@ function beginRoll(){
   voice.stop();captionTime=0;if(!lesson)coach.hidden=true;resetIdle();
   const previous=state;state=roll(state);
   if(lesson)state.dice=step().hand.map((face,i)=>previous.held[i]?previous.dice[i]:face);
-  save();phase='rolling';timer=0;recent=null;view('table');audio.unlock();dice.startRoll(state.dice,state.held,state.currentPlayer,reduced);opponent.react('anticipate');renderUI();
+  save();phase='rolling';timer=0;recent=null;view('table');audio.unlock();audio.cue('roll',{count:state.held.filter(h=>!h).length,reduced});dice.startRoll(state.dice,state.held,state.currentPlayer,reduced);opponent.react('anticipate');renderUI();
 }
 function rolled(){
   const values=Object.values(previews(state)),best=Math.max(0,...values),kind=best>=40?'great':best>0?'good':'bad';
@@ -229,7 +230,7 @@ function chooseScore(id){
 }
 function flyScore(id,player,points){
   const badge=cells.get(id).value,chip=$(player?'mosi-total':'you-total'),from=badge.getBoundingClientRect(),to=chip.getBoundingClientRect();
-  const pop=()=>chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.22,1,.36,1)'});
+  const pop=()=>{audio.cue('land',{player});return chip.animate(reduced?[{opacity:.25},{opacity:1}]:[{scale:1},{scale:1.4},{scale:1}],{duration:reduced?420:380,easing:'cubic-bezier(.22,1,.36,1)'});};
   if(reduced||!from.width||!to.width){pop();return;}
   chipHold[player]=chip.textContent; // the old total stays until the score lands
   const flyer=document.createElement('strong');flyer.className='card-value score-flyer';flyer.dataset.who=player?'mosi':'you';flyer.textContent=String(points);flyer.setAttribute('aria-hidden','true');
@@ -239,19 +240,19 @@ function flyScore(id,player,points){
 }
 function record(id){
   const player=state.currentPlayer,points=previews(state)[id];voice.stop();resetIdle();flyScore(id,player,points);state=score(state,id);recent=id;
-  effects.emit({x:0,y:world.table.y+.2,z:0},{kind:points?'score':'bad',reduced});audio.cue(points?'score':'bad');opponent.react(points>=20?'great':points?'good':'bad');
+  effects.emit({x:0,y:world.table.y+.2,z:0},{kind:points?'score':'bad',reduced});audio.cue(points?'score':'bad',{points,player});opponent.react(points>=20?'great':points?'good':'bad');
   if(lesson){lesson.awards[id]=points;lesson.faces[id]=state.players[0].faces[id];phase='human';view('table');nextLesson();renderUI();return;}
   save();phase='handoff';timer=1.8;view('table');speakScore(player,points);renderUI();
 }
 function resultCopy(){const a=totals(state.players[0].scores).total,b=totals(state.players[1].scores).total;$('win-title').textContent=state.winner==='tie'?'Jafntefli!':state.winner==='you'?'Þú vannst!':'Mosi vann!';$('win-copy').textContent=`Þú ${a} · Mosi ${b}`;}
 function advanceTurn(){
-  if(state.status==='finished'){phase='finished';resultCopy();opponent.react('win');audio.cue('win');openDialog('win-dialog',resultSpeech());renderUI();return;}
-  recent=null;dice.sync(state.dice,state.held,state.currentPlayer,{animate:!reduced});phase=state.currentPlayer===0?'human':'ai-wait';timer=.9;aiDecision=null;audio.cue('turn');say(state.currentPlayer?'mosiTurn':'yourTurn');renderUI();
+  if(state.status==='finished'){phase='finished';resultCopy();opponent.react('win');audio.cue('win',{winner:state.winner});openDialog('win-dialog',resultSpeech());renderUI();return;}
+  recent=null;dice.sync(state.dice,state.held,state.currentPlayer,{animate:!reduced});phase=state.currentPlayer===0?'human':'ai-wait';timer=.9;aiDecision=null;audio.cue('turn',{player:state.currentPlayer});say(state.currentPlayer?'mosiTurn':'yourTurn');renderUI();
 }
 function aiStep(){
   if(lesson||state.currentPlayer!==1||state.status!=='playing'||voice.busy||!settled())return;
   if(phase==='ai-wait'){aiDecision=decideAI(state);if(aiDecision.type==='score'){phase='ai-score';timer=.8;}
-    else if(state.rollCount===0)beginRoll();else{for(let i=0;i<5;i++)if(state.held[i]!==aiDecision.held[i])state=hold(state,i,aiDecision.held[i]);dice.setHeld(state.held);world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();phase='ai-hold';timer=.85;}}
+    else if(state.rollCount===0)beginRoll();else{for(let i=0;i<5;i++)if(state.held[i]!==aiDecision.held[i])state=hold(state,i,aiDecision.held[i]);dice.setHeld(state.held);audio.cue('hold',{count:state.held.filter(Boolean).length,run:true,strength:.7});world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();phase='ai-hold';timer=.85;}}
   else if(phase==='ai-hold')beginRoll();else if(phase==='ai-score')record(aiDecision.categoryId);renderUI();
 }
 function speakStep(){
@@ -307,6 +308,9 @@ document.querySelectorAll('dialog').forEach(dialog=>{
   dialog.addEventListener('cancel',event=>{if(dialog.id==='welcome'&&!started)event.preventDefault();});
 });
 document.addEventListener('visibilitychange',syncPause);
+document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>audio.cue('dialogClose',{id:dialog.id})));
+// The raised buttons tap (the dice, the cards and the cup have sounds of their own).
+document.addEventListener('click',event=>{const button=event.target.closest?.('button');if(button&&!button.matches('.die-target,.card-select,#cup-target'))audio.cue('tap');});
 document.addEventListener('keydown',event=>{if(event.repeat||event.ctrlKey||event.altKey||event.metaKey||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
   if(/^[1-5]$/.test(event.key)&&isHuman()){event.preventDefault();toggleHold(Number(event.key)-1);}else if(event.code==='Space'&&isHuman()&&document.activeElement?.tagName!=='BUTTON'){event.preventDefault();beginRoll();}else if(event.code==='Escape'&&started&&!paused){event.preventDefault();openDialog('pause-dialog');}});
 function cleanupScene(){pick?.dispose();effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
@@ -325,9 +329,9 @@ export async function initialize({signal,onStage=()=>{}}={}){
     const response=await fetch('./assets/audio/yatzy-junior/manifest.json',{signal});if(!response.ok)throw new Error('Mosi voice recordings are missing');voiceManifest=await response.json();check();
     for(const id of Object.keys(VOICE_LINES))if(!voiceManifest[id]?.src)throw new Error(`Missing recorded line: ${id}`);
     voice=createJuniorVoice({lines:VOICE_LINES,manifest:voiceManifest,
-      onLine(id,text){coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:CAPTIONS[id]||text;paintCoach();},
+      onLine(id,text){if(coach.hidden)audio.cue('bubble');coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:CAPTIONS[id]||text;paintCoach();},
       onUnavailable(){lessonAdvance=-1;coach.dataset.voice='unavailable';syncVoiceRecovery();renderUI();},
-      onSpeaking(speaking){coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],at=voice.getDebugState().elapsed;opponent.actor.talk({duration:Math.max(0,clip.duration-at),mouth:clip.mouth.slice(Math.floor(at*20)),text:VOICE_LINES[id].text});}else opponent?.actor.stopTalking();}
+      onSpeaking(speaking){audio.duck(speaking);coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],at=voice.getDebugState().elapsed;opponent.actor.talk({duration:Math.max(0,clip.duration-at),mouth:clip.mouth.slice(Math.floor(at*20)),text:VOICE_LINES[id].text});}else opponent?.actor.stopTalking();}
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
@@ -335,7 +339,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     onStage('players');
     await wait(Promise.all([
       createMosiOpponent(world,{tableY:world.table.y,farZ:world.table.farZ}).then(resource=>take(resource,value=>{opponent=value;})),
-      createDiceAndCup(world,{layout:TABLE_LAYOUT,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
+      createDiceAndCup(world,{layout:TABLE_LAYOUT,onEvent(kind,data){audio.cue(kind,{strength:data.strength*(voice.busy?.55:1),pan:data.position.x/3,die:data.die,at:data.position});if(['impact','sweep','release','settle'].includes(kind))effects.emit(data.position,{kind,strength:data.strength,reduced});}}).then(resource=>take(resource,value=>{dice=value;}))
     ]));check();
     onStage('shaders');dice.setReducedMotion(reduced);world.update(0,0);opponent.update(.001,0,{reducedMotion:reduced});world.scene.updateMatrixWorld(true);world.resize();dice.dice.forEach(d=>{d.visible=true;});
     // compileAsync polls the driver forever after some context-loss failures.
@@ -358,6 +362,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
         if(lessonAdvance>=0){lessonAdvance-=dt;if(lessonAdvance<=0){lessonAdvance=-1;if(step()?.type==='finish')leaveLesson(true);else nextLesson();}}
         if(!lesson&&timer<=0&&!voice.busy){if(phase==='handoff')advanceTurn();else if(phase.startsWith('ai-'))aiStep();}
         opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';opponentFrame.target=opponentFrame.rolling?dice.getFocusTarget():null;opponentFrame.reducedMotion=reduced;
+        if(opponentFrame.thinking&&!voice.busy&&timer>0)audio.cue('think'); // tick, tock while Mosi decides
         // The idle hint: ten quiet seconds on the child's turn with rolls left, and the dice Mosi would keep (or his card) glow.
         if(!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint){idle+=dt;if(idle>=10){const d=decideAI(state);idleHint={dice:d?.type==='roll'?d.held.flatMap((keep,i)=>keep&&!state.held[i]?[i]:[]):[],card:d?.type==='score'?d.categoryId:null};renderUI();}}
         opponent.update(dt,elapsed,opponentFrame);effects.update(dt);pick.update(dt,dice.dice,reduced);world.update(reduced?0:dt,elapsed);
