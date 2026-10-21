@@ -150,9 +150,9 @@ function glowTexture(star = false) {
   canvas.width = canvas.height = 128;
   const c = canvas.getContext('2d');
   const gradient = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255, 250, 225, 1)');
-  gradient.addColorStop(star ? 0.12 : 0.25, 'rgba(255, 220, 120, 0.75)');
-  gradient.addColorStop(1, 'rgba(255, 200, 80, 0)');
+  gradient.addColorStop(0, star ? 'rgba(255, 250, 225, 1)' : 'rgba(255, 228, 140, 1)');
+  gradient.addColorStop(star ? 0.12 : 0.35, 'rgba(255, 210, 100, 0.7)');
+  gradient.addColorStop(1, 'rgba(255, 190, 70, 0)');
   c.fillStyle = gradient;
   if (star) {
     c.beginPath();
@@ -267,26 +267,31 @@ export async function createSloedlaView(container, { win = globalThis.window } =
   const up = new THREE.Vector3(0, 1, 0);
   const q = new THREE.Quaternion();
 
-  // Her crest's glow: a soft gold halo over the crest and a twinkle at its tip, two sprites on her head bone, drawn only while lit.
+  // Her crest's glow: a gold aura just behind her crest, so her head hides its middle and it rims the crest, and a twinkle at the
+  // crest's tip in front; two sprites, drawn only while lit.
   const crest = findCrest(actor.model, head);
-  const sprite = (texture, colour) => new THREE.Sprite(new THREE.SpriteMaterial({
-    map: texture, color: colour, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, toneMapped: false, opacity: 0,
+  const sprite = (texture, colour, depthTest) => new THREE.Sprite(new THREE.SpriteMaterial({
+    map: texture, color: colour, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest, toneMapped: false, opacity: 0,
   }));
-  const halo = sprite(glowTexture(), GLOW.colour);
-  const twinkle = sprite(glowTexture(true), '#fff3c4');
+  const halo = sprite(glowTexture(), GLOW.colour, true);
+  const twinkle = sprite(glowTexture(true), '#fff3c4', false);
   halo.visible = twinkle.visible = false;
   const tipLocal = new THREE.Vector3();
+  const midLocal = new THREE.Vector3();
+  let crestLength = 1;
   if (crest && head) {
     const scale = head.getWorldScale(new THREE.Vector3()).x || 1;
-    const length = crest.base.distanceTo(crest.tip);
-    halo.position.copy(head.worldToLocal(crest.base.clone().lerp(crest.tip, 0.62)));
-    halo.scale.setScalar((length * 1.25) / scale);
+    crestLength = crest.base.distanceTo(crest.tip);
+    midLocal.copy(head.worldToLocal(crest.base.clone().lerp(crest.tip, 0.6)));
+    halo.scale.setScalar(crestLength * 1.5);
     tipLocal.copy(head.worldToLocal(crest.tip.clone()));
     twinkle.position.copy(tipLocal);
-    twinkle.scale.setScalar((length * 0.55) / scale);
+    twinkle.scale.setScalar((crestLength * 0.5) / scale);
     halo.renderOrder = twinkle.renderOrder = 5;
-    head.add(halo, twinkle);
+    scene.add(halo);
+    head.add(twinkle);
   }
+  const away = new THREE.Vector3();
   let glow = 0; // 0 to 1, easing toward glowGoal
   let glowGoal = 0;
   let glowUntil = 0;
@@ -424,14 +429,19 @@ export async function createSloedlaView(container, { win = globalThis.window } =
     halo.visible = twinkle.visible = Boolean(crest) && glow > 0.01;
     if (halo.visible) {
       const shimmer = 0.85 + 0.15 * Math.sin(clock * 9);
-      halo.material.opacity = 0.8 * glow * shimmer;
-      twinkle.material.opacity = glow;
+      halo.material.opacity = 0.95 * glow * shimmer;
+      twinkle.material.opacity = 0.9 * glow;
       twinkle.material.rotation = clock * 1.6;
     }
     if (layered) layerBones.forEach((bone, i) => bone.quaternion.copy(saved[i]));
     actor.update(dt);
     layerBones.forEach((bone, i) => saved[i].copy(bone.quaternion));
     layered = applyLayer(dt);
+    if (halo.visible) {
+      head.localToWorld(halo.position.copy(midLocal));
+      away.copy(halo.position).sub(camera.position).normalize();
+      halo.position.addScaledVector(away, crestLength * 0.45); // just behind the crest, as the camera sees it
+    }
   }
 
   function resize() {
