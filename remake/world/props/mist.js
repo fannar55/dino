@@ -38,7 +38,7 @@ void main() {
   // fade near the camera, and when the card is looked down on from above
   float dist = length( cameraPosition - p );
   float down = abs( normalize( toCam ).y );
-  vStrength = aCard.w * smoothstep( 2.5, 9.0, dist ) * ( 1.0 - smoothstep( 0.35, 0.7, down ) );
+  vStrength = aCard.w * smoothstep( 2.5, 8.0, dist ) * ( 1.0 - smoothstep( 0.35, 0.7, down ) );
   vec4 mvPosition = viewMatrix * vec4( p, 1.0 );
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -60,7 +60,7 @@ void main() {
   float shape = across * across * smoothstep( 0.0, 0.32, vUv.y ) * ( 1.0 - smoothstep( 0.38, 1.0, vUv.y ) );
   vec2 q = vec2( vWorld.x + vWorld.z * 0.6, vWorld.y * 2.2 ) * 0.11 - uWind * uTime * 0.02;
   float n = texture2D( uNoise, q ).g * 0.65 + texture2D( uNoise, q * 2.3 + 0.37 ).b * 0.35;
-  float a = shape * smoothstep( 0.25, 0.75, n ) * vStrength * uLevel;
+  float a = shape * smoothstep( 0.32, 0.8, n ) * vStrength * uLevel;
   if ( a < 0.002 ) discard;
   gl_FragColor = vec4( uColour, a );
   #include <tonemapping_fragment>
@@ -79,7 +79,7 @@ export function createMist(world, { center, radius, height = 1.2, level = 1, hei
     const r = radius * Math.sqrt(rng.range(0.04, 1));
     const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
     const y = heightAt(x, z) - 0.25; // the foot sunk a little into the ground
-    const w = rng.range(7, 13), h = height * rng.range(1.7, 2.3), phase = rng.next(), strength = rng.range(0.16, 0.26);
+    const w = rng.range(8, 14), h = height * rng.range(1.8, 2.4), phase = rng.next(), strength = rng.range(0.26, 0.38);
     const base = pos.length / 3;
     for (const [u, v] of [[-1, 0], [1, 0], [-1, 1], [1, 1]]) {
       pos.push(x, y, z);

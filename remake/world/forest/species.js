@@ -810,12 +810,12 @@ function buildSwampConifer(rng, { lod, noise }) {
   const solid = new MeshBuilder();
   solid.treeShare = TREE;
   const H = rng.range(10.5, 15);
-  const r0 = rng.range(0.34, 0.46) * (H / 12.5);
+  const r0 = rng.range(0.42, 0.55) * (H / 12.5);
   const salt = rng.int(0, 999);
   const bend = [rng.range(-0.35, 0.35), rng.range(-0.35, 0.35)];
-  const crownStart = H * rng.range(0.34, 0.44);
-  const tierCount = rng.int(5, 7);
-  const maxLen = rng.range(2.5, 3.3);
+  const crownStart = H * rng.range(0.28, 0.36);
+  const tierCount = rng.int(7, 9);
+  const maxLen = rng.range(2.6, 3.4);
   const flatTop = rng.chance(0.5);
   const buttress = rng.int(5, 7);
   const bPhase = rng.angle();
@@ -837,8 +837,8 @@ function buildSwampConifer(rng, { lod, noise }) {
     points: spine, radial: lod === 0 ? 10 : lod === 1 ? 7 : 5,
     radius: (t, ang, i) => {
       const y = spine[i][1], yp = Math.max(0, y);
-      const flare = 1 + 1.5 * Math.exp(-yp / 0.8);
-      const butt = 1 + 0.5 * Math.exp(-yp / 1.1) * Math.pow(Math.max(0, Math.cos(buttress * ang + bPhase)), 3);
+      const flare = 1 + 2.0 * Math.exp(-yp / 0.7);
+      const butt = 1 + 0.7 * Math.exp(-yp / 1.1) * Math.pow(Math.max(0, Math.cos(buttress * ang + bPhase)), 3);
       return r0 * (1 - 0.72 * clamp(y / H, 0, 1)) * flare * butt;
     },
     color: bark, sway, exposure: p => 0.15 + 0.3 * clamp(p[1] / H, 0, 1),
@@ -867,80 +867,85 @@ function buildSwampConifer(rng, { lod, noise }) {
       });
     }
   }
-  // the crown: tiers of drooping, feathery lobes, culled apart from the trunk
+  // the crown: soft, scalloped clumps of feathery foliage in loose layers up the top of the trunk, each on a short limb, a
+  // pointed cone in a young tree and a broad, flat-topped one in an old tree; culled apart from the trunk
   solid.mark();
-  const gaps = [];
-  let acc = 0;
-  for (let k = 0; k < tierCount; k++) { const g = rng.fork(`gap${k}`).range(0.75, 1.25); gaps.push(g); if (k < tierCount - 1) acc += g; }
-  const tiers = [];
-  let ty = crownStart;
-  for (let k = 0; k < tierCount; k++) { tiers.push(ty); ty += ((H - 0.7 - crownStart) * gaps[k]) / acc; }
-  const branchesOf = [];
-  tiers.forEach((y, k) => {
-    const tr = rng.fork(`tier${k}`);
-    const u = k / Math.max(1, tierCount - 1); // 0 the lowest tier, 1 the top
-    const branches = tr.int(4, 6);
-    const rot = k * 2.399963 + tr.range(-0.3, 0.3);
-    const profile = flatTop ? (0.62 + 0.38 * Math.sin(Math.PI * clamp(0.25 + u * 0.75, 0, 1))) * (u > 0.9 ? 0.82 : 1) : 1 - 0.66 * u;
-    const L0 = maxLen * profile;
+  const layerCount = tierCount <= 7 ? 4 : 5;
+  const profile = u => (flatTop ? 0.62 + 0.38 * Math.sin(Math.PI * clamp(0.3 + u * 0.7, 0, 1)) : 1 - 0.62 * u);
+  const clumpsOf = [];
+  let finePads = 0; // the fine level rounds its biggest pads (nine at most: a tree keeps under 6k triangles, STYLE.md 12)
+  const foliage = (u, salt2) => (p, nn, d, bump = 0.08) => {
+    const up = clamp(0.5 + 0.5 * d[1], 0, 1);
+    const f = clamp(0.12 + 0.42 * up + 0.22 * clamp(nn[1], -1, 1) + 1.3 * (bump - 0.08) + 0.12 * u, 0, 1);
+    const c = f < 0.5 ? mix3(dark, mid, f / 0.5) : mix3(mid, tip, (f - 0.5) / 0.5);
+    return mul3(c, 0.88 + 0.24 * noise.noise3(p[0] * 1.6, p[1] * 1.6, p[2] * 1.6, salt2));
+  };
+  for (let L = 0; L < layerCount; L++) {
+    const lr = rng.fork(`layer${L}`);
+    const u = L / (layerCount - 1);
+    const y = crownStart + 0.5 + (H - crownStart - 1.6) * u + lr.range(-0.25, 0.25);
+    const n = lr.int(2, 4);
+    const a0 = lr.angle();
     const [tx, tz] = trunkAt(y);
-    for (let b = 0; b < branches; b++) {
-      const br = tr.fork(`b${b}`);
-      const az = rot + (b / branches) * Math.PI * 2 + br.range(-0.3, 0.3);
-      const L = L0 * br.range(0.82, 1.12);
-      const droop = L * br.range(0.12, 0.26);
-      const thick = br.range(0.42, 0.55) * (0.8 + 0.2 * L / maxLen);
-      const wide = br.range(0.62, 0.8) * (0.8 + 0.2 * L / maxLen);
-      const lumpSalt = br.range(0, 50);
-      branchesOf.push({ k, y, az, L, droop, thick });
-      if (lod === 1 && b === branches - 1 && branches > 4) continue;
-      if (lod === 2 && b % 2 === 1) continue;
-      const dx = Math.cos(az), dz = Math.sin(az);
-      const half = L * 0.52;
-      const cxB = tx + dx * (L * 0.5), czB = tz + dz * (L * 0.5);
-      const grow = lod === 2 ? 1.3 : 1;
+    for (let c = 0; c < n; c++) {
+      const cr = lr.fork(`clump${c}`);
+      const a = a0 + (c / n) * Math.PI * 2 + cr.range(-0.35, 0.35);
+      const d = profile(u) * maxLen * cr.range(0.4, 0.6);
+      const R = (0.6 + 0.4 * profile(u)) * maxLen * 0.52 * cr.range(0.85, 1.15);
+      const dy = cr.range(-0.35, 0.35);
+      const salt2 = cr.range(0, 50);
+      const centre = [tx + Math.cos(a) * d, y + dy, tz + Math.sin(a) * d];
+      clumpsOf.push({ L, c: centre, R, a });
+      if (lod === 2 && c % 2 === 1) continue;
+      // a short limb out to it from the trunk
+      if (lod < 2) {
+        addTube(solid, {
+          points: [[tx, y - R * 0.6, tz], [tx + Math.cos(a) * d * 0.55, y - R * 0.35 + dy * 0.5, tz + Math.sin(a) * d * 0.55], [centre[0], centre[1] - R * 0.2, centre[2]]],
+          radial: lod === 0 ? 5 : 4, radius: t => r0 * 0.35 * (1 - 0.65 * t) * (1 - 0.5 * u), color: bark, sway, exposure: () => 0.3,
+        });
+      }
       addBlob(solid, {
-        center: [0, 0, 0], radii: [half, thick * grow, wide * grow], detail: lod === 2 ? 0 : 1,
-        lump: 0.1, lumpFreq: 2.6, noise3: noise.noise3, salt: lumpSalt,
-        bumps: lod === 2 ? null : makeBumps(tr.fork(`b${b}bumps`), lod === 0 ? 9 : 6, { radius: 0.55, height: 0.22, minY: -0.5 }),
-        crease: 0.06, bumpSoft: 0.2, bend: 0.2, bendCenter: [tx, y - 0.8, tz], flatBottom: 0.3,
-        warp: p => {
-          const t = clamp((p[0] / half + 1) / 2, 0, 1); // 0 at the trunk, 1 at the tip
-          const yy = p[1] - droop * t * t + 0.1 * L * Math.pow(t, 6);
-          return [cxB + p[0] * dx - p[2] * dz, y + yy, czB + p[0] * dz + p[2] * dx];
-        },
-        color: (p, nn, d, bump = 0.08) => {
-          const t = clamp((d[0] + 1) / 2, 0, 1);
-          const f = clamp(0.18 + 0.38 * t + 0.32 * clamp(nn[1], -1, 1) + 1.1 * (bump - 0.08) + 0.12 * u, 0, 1);
-          const c = f < 0.5 ? mix3(dark, mid, f / 0.5) : mix3(mid, tip, (f - 0.5) / 0.5);
-          return mul3(c, 0.88 + 0.24 * noise.noise(p[0] * 2.1, p[2] * 2.1 + p[1], salt));
-        },
-        sway, flutter: (p, d) => 0.18 * clamp((d[0] + 1) / 2, 0, 1), leaf: 0.65,
-        exposure: (p, nn) => clamp(0.4 + 0.5 * nn[1] + 0.2 * u, 0.2, 1),
+        center: centre, radii: [R * 1.25, R * 0.58, R * 1.12], detail: lod === 0 && R > 1.15 && finePads++ < 9 ? 2 : 1,
+        lump: 0.12, lumpFreq: 2.4, noise3: noise.noise3, salt: salt2,
+        bumps: makeBumps(cr.fork('bumps'), lod === 0 ? 16 : lod === 1 ? 9 : 5, { radius: lod === 0 ? 0.42 : 0.55, height: 0.2, minY: -0.35 }),
+        // the rim of a pad droops, as a cypress's sprays do
+        warp: pp => { const q2 = ((pp[0] - centre[0]) ** 2 + (pp[2] - centre[2]) ** 2) / (R * R * 1.44); return [pp[0], pp[1] - R * 0.32 * q2, pp[2]]; },
+        crease: 0.05, bumpSoft: 0.55, bend: 0.35, bendCenter: [tx, y - 0.6, tz], flatBottom: 0.45,
+        color: foliage(u, salt2), sway, flutter: (p, dd) => 0.2 * clamp(0.4 + 0.6 * Math.abs(dd[1]), 0, 1), leaf: 0.75,
+        exposure: (p, nn) => clamp(0.42 + 0.5 * nn[1] + 0.15 * u, 0.2, 1),
       });
     }
-  });
+  }
   {
-    const [tx, tz] = trunkAt(H);
+    // the top: a pointed tuft, or the broad flat crown of an old tree
+    const [tx, tz] = trunkAt(H - 0.8);
+    const R = maxLen * (flatTop ? 0.5 : 0.32);
     addBlob(solid, {
-      center: [tx, H - 0.1, tz], radii: [flatTop ? 0.9 : 0.45, 0.6, flatTop ? 0.9 : 0.45], detail: lod === 2 ? 0 : 1, lump: 0.12, noise3: noise.noise3, salt: 3,
-      color: (p, nn, d) => mix3(mid, tip, 0.35 + 0.45 * d[1]), sway, leaf: 0.5, exposure: () => 1,
+      center: [tx, H - 0.8, tz], radii: [R * 1.2, flatTop ? R * 0.45 : R * 0.9, R * 1.1], detail: lod === 0 ? 2 : 1, lump: 0.08, noise3: noise.noise3, salt: 3,
+      bumps: makeBumps(rng.fork('top-bumps'), lod === 0 ? 14 : 7, { radius: 0.45, height: 0.15, minY: -0.3 }), crease: 0.05, bumpSoft: 0.55, flatBottom: 0.4,
+      color: foliage(1, 3), sway, leaf: 0.75, exposure: (p, nn) => clamp(0.55 + 0.45 * nn[1], 0.3, 1),
+    });
+    // and a dark core inside the clumps, so no sky shows through the middle of the crown
+    const [mx, mz] = trunkAt((crownStart + H) / 2);
+    addBlob(solid, {
+      center: [mx, (crownStart + H) / 2 + 0.3, mz], radii: [maxLen * 0.3, (H - crownStart) * 0.24, maxLen * 0.3],
+      detail: lod === 2 ? 0 : 1, lump: 0.08, noise3: noise.noise3, salt: 7, flatBottom: 0.3,
+      color: (p, nn, d) => mix3(dark, mid, clamp(0.25 + 0.4 * d[1], 0, 1)), sway, leaf: 0.5, exposure: (p, nn) => clamp(0.35 + 0.4 * nn[1], 0.2, 1),
     });
   }
-  // the hanging moss, from branches of the lower tiers: a point under the branch, how long and wide a strand is, and its turn
+  // the hanging moss, from the clumps of the lower layers: a point under a clump, how long and wide a strand is, and its turn
   const moss = [];
   {
     const mr = rng.fork('moss');
     const count = mr.int(FEN.mossCards.perTree[0], FEN.mossCards.perTree[1]);
-    const low = branchesOf.filter(b => b.k < Math.max(2, Math.ceil(tierCount * 0.6)));
+    const low = clumpsOf.filter(c => c.L < layerCount - 1);
     for (let i = 0; i < count && low.length; i++) {
-      const b = low[mr.int(0, low.length - 1)];
-      const along = mr.range(0.35, 0.8);
-      const [tx, tz] = trunkAt(b.y);
+      const c = low[mr.int(0, low.length - 1)];
+      const out = mr.range(-0.3, 0.5), side = mr.range(-0.5, 0.5);
       const length = mr.range(FEN.mossCards.length[0], FEN.mossCards.length[1]), width = mr.range(FEN.mossCards.width[0], FEN.mossCards.width[1]);
       moss.push({
-        p: [tx + Math.cos(b.az) * b.L * along, b.y - b.droop * along * along - b.thick * 0.55, tz + Math.sin(b.az) * b.L * along],
-        length, width, yaw: b.az + Math.PI / 2 + mr.range(-0.4, 0.4),
+        p: [c.c[0] + Math.cos(c.a) * c.R * out - Math.sin(c.a) * c.R * side, c.c[1] - c.R * 0.55, c.c[2] + Math.sin(c.a) * c.R * out + Math.cos(c.a) * c.R * side],
+        length, width, yaw: c.a + Math.PI / 2 + mr.range(-0.4, 0.4),
       });
     }
   }
@@ -979,7 +984,7 @@ function buildDeadSnag(rng, { lod, noise }) {
       const broken = i === n - 1 ? 0.75 + 0.35 * Math.sin(ang * 3 + salt) : 1; // a jagged, broken top
       return r0 * (1 - 0.5 * t) * (1 + 0.9 * Math.exp(-yp / 0.6)) * broken;
     },
-    color: wood, capEnd: true, capColor: () => mul3(F.snagShade, 0.85), exposure: p => 0.4 + 0.5 * clamp(p[1] / H, 0, 1),
+    color: wood, capEnd: true, capColor: () => mul3(F.snagShade, 0.85), exposure: p => 0.7 + 0.3 * clamp(p[1] / H, 0, 1),
   });
   const stubs = rng.int(2, 3);
   for (let k = 0; k < stubs; k++) {
@@ -1023,7 +1028,7 @@ function buildMossHummock(rng, { lod, noise }) {
 // tip that horsetails carry. The farther levels keep fewer, thicker stalks.
 function buildHorsetailReed(rng, { lod, noise }) {
   const solid = new MeshBuilder();
-  const stalks = rng.int(22, 30);
+  const stalks = rng.int(30, 40);
   const spread = rng.range(0.4, 0.65);
   const tallest = rng.range(1.5, 2.2);
   const base = jitterColor(F.reedBase, rng, 0.05), reed = jitterColor(F.reed, rng, 0.05), top = jitterColor(F.reedTip, rng, 0.04);
@@ -1036,7 +1041,7 @@ function buildHorsetailReed(rng, { lod, noise }) {
     const h = tallest * sr.range(0.55, 1.0) * (1 - 0.25 * rr / spread);
     const splay = 0.14 * rr / spread;
     const lean = [sr.range(-0.08, 0.08) + Math.cos(az) * splay, sr.range(-0.08, 0.08) + Math.sin(az) * splay];
-    const rad = sr.range(0.011, 0.017) * Math.sqrt(keep) * 0.85;
+    const rad = sr.range(0.016, 0.025) * Math.sqrt(keep) * 0.85;
     const strobilus = sr.chance(0.3);
     const tone = sr.range(0.92, 1.08);
     if (k % keep) continue;
@@ -1048,14 +1053,14 @@ function buildHorsetailReed(rng, { lod, noise }) {
       pts.push([x + lean[0] * t * t * h, -0.05 + (h + 0.05) * t, z + lean[1] * t * t * h]);
     }
     addTube(solid, {
-      points: pts, radial: 3, radius: t => rad * (1 - 0.6 * t),
+      points: pts, radial: 3, radius: t => rad * (1 - 0.6 * t), normalTilt: 1.2, // lit along the stalk, so a thin stalk catches the light
       color: (t, ang, p) => {
         let c = t < 0.4 ? mix3(base, reed, t / 0.4) : mix3(reed, top, (t - 0.4) / 0.6);
         const ring = Math.round(t * segs);
-        if (ring % 2 === 1 && lod === 0) c = mul3(c, 0.8); // the joints
+        if (ring % 2 === 1 && lod === 0) c = mul3(c, 0.86); // the joints
         return mul3(c, tone);
       },
-      sway, flutter: (p, t) => 0.04 * t, leaf: 0.55, exposure: () => 0.8,
+      sway, flutter: (p, t) => 0.04 * t, leaf: 0.55, exposure: () => 1,
     });
     if (strobilus && lod === 0) {
       const tp = pts[pts.length - 1];

@@ -236,6 +236,7 @@ export const FEN = {
   // water (world/props/water.js): teal in shade, sky-coloured toward the horizon, a golden glint toward the sun
   waterDeep: '#3f7a6e',
   waterSky: '#a9c9c4',
+  waterBed: '#6f6a45', // the bed's olive mud, seen through the shallows
   glint: '#fff0c6',
   mist: '#cfe0d6',
   // trees and plants
@@ -254,7 +255,7 @@ export const FEN = {
   lilyWhite: '#f6f1e4',
   lilyPink: '#f0a3b6',
   lilyHeart: '#f2c443',
-  snag: '#dcd5c6', // dead wood bleached white
+  snag: '#e6dfd0', // dead wood bleached white
   snagShade: '#9d9586',
   // The ground is a calm basin: little undulation, a shallow bowl, the hummocks small. The ground mesh is finer than the forest's
   // so the banks of the pools and the channel are smooth (terrain.js), and the water lies at one level everywhere (water.js),
@@ -264,22 +265,22 @@ export const FEN = {
   // Open sky: what a plant in the fen sees of it (the forest's deep band sees 0.09), and the shade a grove of conifers throws.
   sky: 0.86,
   // Grass in the fen: golden reed, sparser and taller than the clearing's grass.
-  grass: { density: 0.5, tall: 1.35 },
+  grass: { density: 0.6, tall: 1.5 },
   // How much the fen grows (per place, at tablet; scaled by the quality preset).
   counts: {
-    groves: 11, // groups of two to four swamp conifers
-    loneConifers: 10,
-    snags: 9,
-    reedBeds: 22, // each a bed of three to seven clumps
-    tallHorsetails: 16,
-    hummocks: 26,
-    ferns: 46,
-    cycads: 10,
-    treeFerns: 8,
-    lilies: 34,
-    rocks: 6,
+    groves: 16, // groups of two to four swamp conifers
+    loneConifers: 14,
+    snags: 10,
+    reedBeds: 60, // each a bed of three to seven clumps
+    tallHorsetails: 30,
+    hummocks: 44,
+    ferns: 80,
+    cycads: 16,
+    treeFerns: 10,
+    lilies: 44,
+    rocks: 8,
   },
-  // Where it grows: from the clearing's rim out to this far beyond the forest edge (m).
+  // Where it grows: out to this far beyond the forest edge (m), most of it on the clearing's rim (plan.js: growFen).
   reach: 70,
   // Hanging moss under a conifer's lower tiers (forest.js): cards, how long and how wide (m), and how far they swing (degrees).
   mossCards: { perTree: [3, 6], length: [0.8, 2.0], width: [0.35, 0.6], swingDeg: 4 },

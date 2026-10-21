@@ -100,12 +100,12 @@ const FEN_WATER = {
 const FEN_SHOTS = {
   // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
   // toward the sun, and ends with Þórseðla far right, in the water at her real size (a move from the first to the second).
-  fen_reveal: { position: [13, 1.6, 2], target: [-14, 1.8, 4], fov: 50 },
-  fen_reveal_end: { position: [12.5, 5.8, 4.5], target: [-8, 3.2, -10], fov: 50 },
+  fen_reveal: { position: [12, 1.6, 4], target: [-14, 1.5, 10], fov: 46 },
+  fen_reveal_end: { position: [7.5, 5.8, 10.5], target: [-3, 3, -8.5], fov: 50 },
   // From below: her feet in the water like trunks, her head up in the swamp conifers.
-  fen_thorsedla_low: { position: [3.2, 0.45, -1.6], target: [0.5, 5.2, -9.5], fov: 56 },
+  fen_thorsedla_low: { position: [-1, 0.45, -1], target: [3, 3.3, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
-  fen_two_shot: { position: [-1.5, 1.45, -16.5], target: [6, 1.3, -5.5], fov: 46 },
+  fen_two_shot: { position: [3.5, 1.4, 2.5], target: [5.2, 1.6, -7], fov: 46 },
   // Scene 4: over Egill's shoulder, her face coming down to him.
   fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
   // Scene 4: the berry hummocks east of Mosi.
@@ -116,7 +116,7 @@ const FEN_SHOTS = {
   // Scene 8: the two of them with Egill between, the pools glittering behind.
   fen_star: { position: [13.5, 1.3, -14], target: [1.5, 4.2, -5], fov: 52 },
   // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
-  fen_portrait: { position: [12, 1.2, 1], target: [3, 4.6, -9], fov: 36 },
+  fen_portrait: { position: [13, 1.2, 2], target: [4.5, 4.6, -9], fov: 36 },
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -302,16 +302,16 @@ export const chapter = {
         biome: 'fen',
         water: FEN_WATER,
         hummocks: [
-          { center: [7.5, -2.5], radius: 5.5, height: 0.4 }, // Mosi's
-          { center: [10.5, -9.5], radius: 4, height: 0.25 }, // under her two conifers, where Egill stands
+          { center: [8.5, -3], radius: 5, height: 0.4 }, // Mosi's
+          { center: [8.4, -8.8], radius: 3.5, height: 0.25 }, // under her two conifers, where Egill stands
           { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
           { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
         ],
         // the two conifers whose tops she bites (about 11 m tall, their crowns from 4 m up); a white snag 10.5 m tall for Flugeðla
         // to perch on; reed round where Uggeðla lies, on her side away from the channel
         plants: [
-          { name: 'swampConifer', position: [9.6, -10.8], scale: 0.98, variant: 5 },
-          { name: 'swampConifer', position: [9.4, -7.0], scale: 0.85, variant: 3 },
+          { name: 'swampConifer', position: [7.6, -10.4], scale: 0.98, variant: 5 },
+          { name: 'swampConifer', position: [9.0, -7.0], scale: 0.9, variant: 3 },
           { name: 'deadSnag', position: [-52, -88], scale: 1.5, variant: 2 },
           ...[[72, 33], [78, 31], [84, 34], [88, 41], [69, 39], [82, 45]].map((position, k) => ({ name: 'horsetailReed', position, variant: k % 4, scale: 1.15 })),
         ],
@@ -319,8 +319,8 @@ export const chapter = {
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
         lookout: [5, 9.4, -9], // where Egill looks out from on her head, nine metres up
         actors: {
-          mosi: { position: [7, 0, -3], heading: -120 },
-          egill: { position: [6, 0, -9], heading: 180 }, // on the bank where her head comes down to him
+          mosi: { position: [8, 0, -3.5], heading: -125 },
+          egill: { position: [5.8, 0, -8.4], heading: 180 }, // on the bank where her head comes down to him
           thorsedla: THORSEDLA,
           thorsedla_tail: alongHer(-9.5),
           thorsedla_neck: alongHer(3),

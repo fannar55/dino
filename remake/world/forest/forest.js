@@ -59,6 +59,8 @@ const CANOPY = { broadleaf: 0.9, araucaria: 0.6, swampConifer: 0.75 };
 // Far out the ground mesh is coarse (terrain.js: its rings), so round the water there a broad, shallow hollow keeps the ground
 // under the whole surface: this much lower than the water's edge, past 60 m from the clearing's centre.
 const FAR_DROP = 0.12;
+// Near the clearing the ground at the water's edge stands this much above it, so no bare ground lies lower than the water.
+const BANK = 0.02;
 
 /**
  * A layout's ground, shaped as the forest grows it: the layout itself, or a copy whose `lift` digs the Fen's water out of the
@@ -66,8 +68,8 @@ const FAR_DROP = 0.12;
  * 0.4 m outside it), and whose `water` answers surfaceAt(x, z) and depthAt(x, z) on that ground. Returns { layout, terrain,
  * water } (water: the shape, world/props/water.js: waterShape, or null). Each pool and the channel is dug to its depth below
  * the one level all the water lies at, its bed smooth-stepped over 2.5 times its depth inside the edge (waterShape.bedAt); round
- * it the ground eases back to its own height within two metres near the clearing, and far out, where the ground mesh is
- * coarse, within a wider hollow a little below the water's edge.
+ * it the ground stands a little above the water at its edge and eases back to its own height within two metres near the
+ * clearing; far out, where the ground mesh is coarse, it lies in a wider hollow a little below the water's edge.
  */
 export function shapeGround(world, layout, seed = layout.seed ?? 1) {
   const water = layout.water ? waterShape(layout.water) : null;
@@ -89,8 +91,8 @@ export function shapeGround(world, layout, seed = layout.seed ?? 1) {
         if (s < margin) {
           const bed = s < 0
             ? water.level - (water.edgeDrop + (depth - water.edgeDrop) * smoothstep(0, 2.5 * depth, -s))
-            : water.level - water.edgeDrop - FAR_DROP * smoothstep(34, 60, r);
-          const eased = s <= 0 ? bed : bed + (h - bed) * smoothstep(margin * 0.4, margin, s);
+            : water.level + BANK - (BANK + water.edgeDrop + FAR_DROP) * smoothstep(34, 60, r);
+          const eased = s <= 0 ? bed : bed + (h - bed) * smoothstep(margin * 0.25, margin, s);
           if (eased < h) h = eased;
         }
       }

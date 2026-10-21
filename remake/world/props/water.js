@@ -229,16 +229,16 @@ void main() {
   // toward the sun: a broad warm sheen, the sun's own glint and a glitter of small sparks where the surface turns to it
   vec3 rr = reflect( -v, n );
   float sun = max( dot( rr, uSunDir ), 0.0 );
-  float sheen = pow( sun, 10.0 ) * 0.32;
+  float sheen = pow( sun, 10.0 ) * 0.22;
   float glint = pow( sun, 180.0 ) * 3.5;
-  float sparks = smoothstep( 0.66, 0.9, texture2D( uNoise, p * 0.9 + vec2( uTime * 0.07, -uTime * 0.05 ) ).a )
-    * smoothstep( 0.6, 0.9, texture2D( uNoise, p * 1.37 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
+  float sparks = smoothstep( 0.7, 0.92, texture2D( uNoise, p * 2.1 + vec2( uTime * 0.07, -uTime * 0.05 ) ).a )
+    * smoothstep( 0.62, 0.9, texture2D( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uSky * 1.12, clamp( crest * 0.45, 0.0, 0.6 ) );
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
-  float alpha = shore * clamp( mix( 0.5, 0.9, deep ) + fresnel * 0.25 + glint + glitter + crest * 0.2, 0.0, 1.0 );
+  float alpha = shore * clamp( mix( 0.62, 0.9, deep ) + fresnel * 0.25 + glint + glitter + crest * 0.2, 0.0, 1.0 );
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -339,7 +339,7 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
     uTime: { value: 0 },
     uDeep: { value: new THREE.Color(FEN.waterDeep) },
     uSky: { value: new THREE.Color(FEN.waterSky) },
-    uBed: { value: new THREE.Color(FEN.mud).multiplyScalar(1.25) },
+    uBed: { value: new THREE.Color(FEN.waterBed) },
     uGlint: { value: new THREE.Color(FEN.glint) },
     uSunDir: { value: sunDir },
     uNoise: { value: noise },
