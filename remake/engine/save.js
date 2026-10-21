@@ -151,3 +151,11 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
     },
   };
 }
+
+/**
+ * The chapter a page plays when its address names none (main.js), from the stars the child has: chapter 1 until Kambeðla's star
+ * (k1_kambedla) is won, then chapter 2, also once its own star (k2_thorsedla) is there, so the child can play it again.
+ */
+export function defaultChapter(save) {
+  return save.get().stars.includes('k1_kambedla') ? 'kafli2' : 'kafli1';
+}

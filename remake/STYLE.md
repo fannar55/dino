@@ -137,9 +137,10 @@ face), misty far forest, forest wall.
 
 - One sun as the warm key, plus sky fill (hemisphere light and sky image-based lighting). Shadows
   are never black or neutral grey; they lean blue-green.
-- Looks live in `engine/looks.js`: `morning` (default, sun azimuth 135, elevation 32), `golden`
-  (late afternoon, elevation 15) and `evening` (sunset, elevation 6). A chapter picks one. Looks
-  change only between chapters or as a slow authored change.
+- Looks live in `engine/looks.js`: `morning` (default, sun azimuth 135, elevation 32), `lateMorning`
+  (chapter 2: later the same morning, azimuth 150, elevation 26, a warmer sun and a lighter mist),
+  `golden` (late afternoon, elevation 15) and `evening` (sunset, elevation 6). A chapter picks one.
+  Looks change only between chapters or as a slow authored change.
 - The shadow map covers the hero focus (10 to 20 m) and stays sharp near the camera. Beyond it,
   shade is faked: darker vertex colour under trees and dappled light as cheap patterns, not more
   shadow maps.

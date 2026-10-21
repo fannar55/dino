@@ -21,7 +21,7 @@ import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
-import { createSave } from './engine/save.js';
+import { createSave, defaultChapter } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
 import { createBook } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
@@ -39,9 +39,10 @@ import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 
 // URL parameters
-//   chapter=<id>          chapter module in chapters/ (default: kafli1, the game's first chapter; grunnur is the foundation test scene)
+//   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
+//                         until Kambeðla's star, then kafli2; grunnur is the foundation test scene)
 //   quality=low|tablet|high
-//   look=morning|golden|evening   override the chapter's light
+//   look=morning|lateMorning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
 //   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation); silent
 //   play=1                start the scene at once, without the start button
@@ -56,7 +57,10 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
 const clock = createClock();
 
-const chapterId = (params.get('chapter') || 'kafli1').replace(/[^a-z0-9_-]/gi, '');
+// A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory. An address that names no
+// chapter plays the one the save is at.
+const save = createSave(params.get('t') === null ? undefined : null);
+const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
@@ -177,8 +181,6 @@ beforeBuild = () => music.lenient(PLACE_CHANGE);
 const updateMusic = guard('music', () => music.update());
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
-// A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
-const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
   onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
