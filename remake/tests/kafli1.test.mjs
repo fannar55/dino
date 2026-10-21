@@ -2,24 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
-import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
-import { chapter, onBone, POINTS, FLOWERS, HELD, hidingPlaces } from '../chapters/kafli1.js';
-import { createActor, updateActors } from '../engine/actor.js';
-import { createClock } from '../engine/clock.js';
-import { createEffects } from '../engine/effects.js';
-import { createPointResolver } from '../engine/points.js';
-import { createLocations } from '../engine/locations.js';
-import { createDirector } from '../engine/camera/director.js';
+import * as kafli1 from '../chapters/kafli1.js';
+import { chapter, onBone, POINTS, FLOWERS, hidingPlaces } from '../chapters/kafli1.js';
+import { updateActors } from '../engine/actor.js';
 import { createScene } from '../engine/scene/scene.js';
-import { createStageUI, DRAG_LIFT } from '../engine/scene/ui.js';
-import { createJournal } from '../engine/scene/journal.js';
-import { createSave } from '../engine/save.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
-import { Handle } from '../engine/handle.js';
-import { pickLook } from '../engine/looks.js';
-import { sunDirection } from '../engine/lighting.js';
-import { SUN_RADIUS_DEG, WINK_SECONDS, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace, handsAtRest } from '../engine/sun-face.js';
-import { FakeDocument, pointerEvent } from './fake-dom.mjs';
+import { WINK_SECONDS, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, handsAtRest } from '../engine/sun-face.js';
 import { createTerrain } from '../world/forest/terrain.js';
 import { planForest } from '../world/forest/plan.js';
 import { placementInfo } from '../world/forest/forest.js';
@@ -27,11 +15,13 @@ import { createSpeciesLibrary } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { FOREST } from '../world/forest/config.js';
+import { chapterWorld, playUnattended, EARLY_TAP_AT } from './chapter-harness.mjs';
 
 // Chapter 1 (remake/chapters/kafli1.js) played from the start button to the journal by nobody at all, in the
 // seeking mode a capture (?t=) uses: every wait for the child has to end by itself there, so the chapter reaches
 // its end, and the timeline a capture lands on stays fixed. The world is a stand-in for the page's (no renderer,
-// forests that are only their ground), with the real characters, camera director, scene, screen layer and journal.
+// forests that are only their ground), with the real characters, camera director, scene, screen layer and journal
+// (tests/chapter-harness.mjs).
 
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
@@ -42,506 +32,12 @@ const RECORDED = readJson('../assets/audio/lines.json');
 const NARRATION = readJson('../../dist/assets/audio/narration-is.json');
 const CHAPTER_TEXT = fs.readFileSync(file('../chapters/kafli1.js'), 'utf8');
 
-// The remake's GLBs read without their textures (there is no image decoder in Node), as riding.test.mjs does.
-function loadGlb(url) {
-  const glb = fs.readFileSync(url);
-  const jsonLength = glb.readUInt32LE(12);
-  const json = JSON.parse(glb.subarray(20, 20 + jsonLength).toString('utf8'));
-  delete json.images;
-  delete json.textures;
-  delete json.samplers;
-  for (const material of json.materials ?? []) {
-    delete material.normalTexture;
-    delete material.occlusionTexture;
-    delete material.emissiveTexture;
-    if (material.pbrMetallicRoughness) {
-      delete material.pbrMetallicRoughness.baseColorTexture;
-      delete material.pbrMetallicRoughness.metallicRoughnessTexture;
-    }
-  }
-  let text = Buffer.from(JSON.stringify(json), 'utf8');
-  if (text.length % 4) text = Buffer.concat([text, Buffer.alloc(4 - (text.length % 4), 0x20)]);
-  const rest = glb.subarray(20 + jsonLength);
-  const header = Buffer.alloc(20);
-  header.writeUInt32LE(0x46546c67, 0);
-  header.writeUInt32LE(2, 4);
-  header.writeUInt32LE(20 + text.length + rest.length, 8);
-  header.writeUInt32LE(text.length, 12);
-  header.writeUInt32LE(0x4e4f534a, 16);
-  const out = Buffer.concat([header, text, rest]);
-  return new Promise((resolve, reject) => new GLTFLoader().parse(out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength), '', resolve, reject));
-}
-const models = new Map();
-const modelOf = url => {
-  if (!models.has(url)) models.set(url, loadGlb(new URL(url, file('../chapters/kafli1.js'))));
-  return models.get(url);
-};
-
-/** The chapter's world: its actors, a camera at 16:10, the effects and the clock main.js has, and a sun. */
-async function chapterWorld() {
-  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
-  const world = {
-    THREE, scene: new THREE.Scene(), camera, clock: createClock(), chapter, heightAt: () => 0, actors: new Map(), effects: createEffects(),
-    lighting: { direction: sunDirection(pickLook(chapter.look)) },
-  };
-  world.resolvePoint = createPointResolver(world);
-  for (const [name, spec] of Object.entries(chapter.actors)) {
-    world.actors.set(name, await createActor(world, { name, gltf: await modelOf(spec.url), position: spec.position, heading: spec.heading }));
-  }
-  return world;
-}
-
-/** A forest that is only its ground, with two butterflies that can be tapped and sent to a point. */
-function groundOnly(layout) {
-  const [cx, cz] = layout.clearing.center;
-  const targets = [1, 2].map(i => ({ name: `butterfly-${i}`, point: new THREE.Vector3(cx + 2 * i, 1.2, cz + 3), radius: 0.4 }));
-  const landed = [];
-  return {
-    group: new THREE.Group(),
-    layout,
-    heightAt: () => 0,
-    butterflies: {
-      targets,
-      landed,
-      flutter: () => new Handle('flutter').finish(),
-      land(spec) {
-        landed.push(spec);
-        return new Handle('land');
-      },
-    },
-  };
-}
-
-/** A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. */
-function fakePointer() {
-  const targets = new Map();
-  const listeners = { tap: [], drag: [] };
-  return {
-    targets,
-    listeners,
-    addTarget: (name, spec) => targets.set(name, spec),
-    removeTarget: name => targets.delete(name),
-    on(event, fn) {
-      listeners[event].push(fn);
-      return () => listeners[event].splice(listeners[event].indexOf(fn), 1);
-    },
-    tap: (name, at = { x: 0, y: 0 }) => [...listeners.tap].forEach(fn => fn({ name, x: at.x, y: at.y })),
-  };
-}
-
-const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 'star-slots', 'journal-flights', 'journal-badge'];
-
-/** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened, and no pictures to fly. */
-function fakeBook() {
-  return {
-    opened: [], isOpen: false,
-    open(tab, by) { this.opened.push([tab, by]); this.isOpen = true; },
-    close() { this.isOpen = false; },
-    refresh() {},
-    pictureOf: () => null,
-  };
-}
-
-/**
- * The chapter played until it ends or `limit` seconds have gone by: in seeking mode, as a capture plays it; or (seeking false)
- * as it plays for a child who never touches the screen, or, `eager`, for one who taps everything there is to tap a moment after
- * it appears and drags each flower to Kambeðla's mouth. `noseAt` is for a child who taps only Mosi's nose: the seconds after it
- * becomes a target at which each tap comes. `earlyTap` ({ name, after }) is for a child who taps one target `after` seconds after
- * it appears, and nothing else.
- */
-async function playUnattended({ limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null } = {}) {
-  const world = await chapterWorld();
-  // The real sun, as main.js has it, updated each frame once the camera has moved: its calls start its gestures and finish their
-  // handles. (Made before world.scene.add is watched below: its sprite and overlay are there from the start.)
-  const sunFace = createSunFace({ scene: world.scene, lighting: world.lighting });
-  // Kambeðla's plate rows as they light: { row, level, at } (the chapter's plate glow is the effect with a setRow).
-  const rows = [];
-  const addEffect = world.effects.add.bind(world.effects);
-  world.effects.add = effect => {
-    if (typeof effect?.setRow === 'function') {
-      const setRow = effect.setRow.bind(effect);
-      effect.setRow = (row, level, options) => {
-        rows.push({ row, level, at: stage.s.time });
-        return setRow(row, level, options);
-      };
-    }
-    return addEffect(effect);
-  };
-  const forests = [];
-  const locations = createLocations({ world, locations: chapter.locations, build: layout => { const f = groundOnly(layout); forests.push(f); return f; } });
-  await locations.setLocation(chapter.start);
-  const shots = Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots));
-  const director = createDirector({ camera: world.camera, world, shots, lint: false });
-  world.director = director;
-  let shotNow = null; // the label of the camera's last cut
-  const cuts = []; // every cut, as { shot, at }: the shot's label and the scene time
-  const cut = director.cut;
-  director.cut = (shot, options) => {
-    shotNow = typeof shot === 'string' ? shot : shot?.label ?? null;
-    cuts.push({ shot: shotNow, at: stage.s.time });
-    return cut(shot, options);
-  };
-
-  const doc = new FakeDocument(PAGE);
-  for (const name of ['caption-speaker', 'caption-text']) {
-    const part = doc.createElement('span');
-    part.className = name;
-    doc.getElementById('caption').append(part);
-  }
-  const computed = globalThis.getComputedStyle;
-  globalThis.getComputedStyle = () => ({ opacity: '1' });
-  const ui = createStageUI(doc);
-  if (computed) globalThis.getComputedStyle = computed;
-  else delete globalThis.getComputedStyle;
-  // The glow flowers in Egill's hands: shown, with the foot of the stem where he holds them.
-  const heldInHands = () => {
-    const hands = world.resolvePoint(POINTS.egillHands, new THREE.Vector3());
-    return world.scene.children.filter(o => o.name.startsWith('Glow flower ') && o.visible && o.position.distanceTo(hands) < 0.05).length;
-  };
-  const held = { atTray: null, atMmm: [] }; // as the tray shows, and as she says each "Mmm!"
-  const mmm = ['k1_kambedla_mmm1', 'k1_kambedla_mmm2', 'k1_kambedla_mmm3'].map(id => chapter.lines[id].text);
-  const captions = [];
-  const caption = ui.caption;
-  ui.caption = (who, text, colour) => {
-    if (text != null) captions.push({ who, text, at: stage.s.time });
-    if (text != null && who === 'Kambeðla' && mmm.includes(text)) held.atMmm.push(heldInHands());
-    return caption(who, text, colour);
-  };
-  doc.getElementById('star-slots').rect = { left: 1180, top: 20, width: 40, height: 40 };
-  world.renderer = { domElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 800 }) } };
-
-  const book = fakeBook();
-  const journal = createJournal(doc, createSave(null), { book });
-  const finds = []; // every find the journal is told of, with where the child tapped it
-  const addFinding = journal.addFinding;
-  journal.addFinding = (id, from) => {
-    finds.push({ id, from });
-    return addFinding(id, from);
-  };
-  const pointer = fakePointer();
-  const added = []; // what comes into the scene, and when: sparkles, pollen, flowers
-  const add = world.scene.add.bind(world.scene);
-  world.scene.add = (...objects) => {
-    for (const o of objects) added.push({ name: o.name, normal: o.material?.blending === THREE.NormalBlending, at: stage?.s.time ?? 0 });
-    return add(...objects);
-  };
-  const showTray = ui.tray.show;
-  const trayShown = []; // the items of each show, as { id, icon }
-  ui.tray.show = items => {
-    held.atTray ??= heldInHands();
-    trayShown.push(items.map(({ id, icon }) => ({ id, icon })));
-    return showTray(items);
-  };
-  const trayRemoved = []; // the tray's flowers as they leave it: given by the child or, after a while, by Egill
-  const remove = ui.tray.remove;
-  ui.tray.remove = id => {
-    trayRemoved.push({ id, at: stage.s.time });
-    return remove(id);
-  };
-  // The sun as it winks: where it is on the screen, and whether anyone stands in front of its face (rays from the camera to
-  // its middle and to four points round its rim).
-  const raycaster = new THREE.Raycaster();
-  const shown = object => !object || (object.visible && shown(object.parent));
-  function sunInView() {
-    world.camera.updateMatrixWorld();
-    const sun = world.resolvePoint('sun', new THREE.Vector3());
-    const { x, y } = sun.clone().project(world.camera);
-    const toSun = sun.sub(world.camera.position).normalize();
-    const side = new THREE.Vector3().crossVectors(toSun, THREE.Object3D.DEFAULT_UP).normalize();
-    const up = new THREE.Vector3().crossVectors(side, toSun);
-    const rim = THREE.MathUtils.degToRad(SUN_RADIUS_DEG);
-    const rays = [toSun, ...[side, side.clone().negate(), up, up.clone().negate()].map(d => toSun.clone().multiplyScalar(Math.cos(rim)).addScaledVector(d, Math.sin(rim)))];
-    // and to its two hands, wherever they are
-    for (const hand of sunFace.handPoints) rays.push(hand.clone().sub(world.camera.position).normalize());
-    const hands = sunFace.handPoints.map(hand => hand.clone().project(world.camera));
-    const people = [...world.actors.values()].filter(actor => actor.root.visible);
-    for (const actor of people) actor.root.traverse(o => { if (o.isSkinnedMesh) o.boundingSphere = o.boundingBox = null; }); // posed now
-    const hidden = rays.some(ray => {
-      raycaster.set(world.camera.position, ray);
-      return people.some(actor => raycaster.intersectObject(actor.root, true).some(hit => shown(hit.object)));
-    });
-    return { x, y, hidden, hands: hands.map(h => [h.x, h.y]) };
-  }
-  const winks = [];
-  // Every call the script makes to the sun, with where the sun is then; and the sun as it goes on (sunFrames: every frame;
-  // sunViews: on the screen and in front of anyone? five times a second while a gesture or a mouth of the script's is under way).
-  const sunCalls = [];
-  for (const call of ['wink', 'wave', 'hug', 'mouth']) {
-    const real = sunFace[call];
-    sunFace[call] = (...args) => {
-      const made = { call, args, at: stage.s.time, scene: world.chapterTimeline?.at(-1)?.scene, shot: shotNow, ...sunInView() };
-      sunCalls.push(made);
-      if (call === 'wink') winks.push(made);
-      return real(...args);
-    };
-  }
-  const sounds = [];
-  const lines = readJson('../assets/audio/lines.json');
-  const stage = createScene({
-    world, director, ui, lines, cast: chapter.cast, locations, pointer, journal,
-    voice: { play: () => null, stop() {} },
-    sun: sunFace,
-    sfx: {
-      play(name) {
-        if (brokenSteps && name === 'step') throw new Error('a step sound broke');
-        sounds.push(name);
-      },
-      stop() {},
-    },
-  });
-  stage.seeking = seeking;
-  const spoken = new Set(); // every line the script has said, by id
-  const lastLine = new Map(); // speaker -> the line they began last
-  const say = stage.s.say;
-  stage.s.say = (speaker, line, options) => {
-    spoken.add(line);
-    lastLine.set(speaker, line);
-    return say(speaker, line, options);
-  };
-  ui.setFade(1);
-  director.cut(chapter.startShot, { check: false });
-  const task = stage.start(chapter.script);
-  stage.begin();
-
-  // What the run sees on the way, for the tests to look at afterwards.
-  const seen = {
-    kambedlaInClearing: false, floatStart: null, landing: null, atScene: [], trayRemoved, trayShown, trayDrops: { made: 0, home: 0 }, held,
-    printsInRideFeet: 0, printsInGlade: false, birdsUp: [], spoken, rows, cuts,
-    // The early tap, once made: { name, appeared, at } in scene time, the journal's findings right after it, and when the target first
-    // moved (the critter's reaction: its live point follows it).
-    earlyTap: null,
-    // How far each speaker's jaw opens while they speak a line, at the widest, in degrees: line id -> degrees.
-    jaws: {},
-    // Scene 9 from the feeding shot until a flower leaves his hands: how far his wrists stray from where they hold the
-    // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
-    grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
-    egillClips: [], mosiLooks: [], mosiWalked: false, mosiStopped: null, sunFrames: [], sunViews: [],
-    // Scene 2: when the tap target on Egill appeared, how far the handheld was on then, and Egill on the screen while he hops.
-    egillTarget: null, egillOnScreen: [],
-  };
-  // On the screen, and in front of the camera?
-  const onScreen = point => {
-    world.camera.updateMatrixWorld();
-    const p = point.clone().project(world.camera);
-    return p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
-  };
-  // Mosi's footprints the camera sees: the prints still to be seen, on the screen.
-  const printsSeen = () => {
-    const prints = world.scene.getObjectByName('Footprints');
-    if (!prints) return 0;
-    const born = prints.geometry.attributes.aBorn.array;
-    const matrix = new THREE.Matrix4();
-    const at = new THREE.Vector3();
-    let n = 0;
-    for (let i = 0; i < prints.count; i++) {
-      prints.getMatrixAt(i, matrix);
-      if (world.clock.time - born[i] < 14 && onScreen(at.setFromMatrixPosition(matrix))) n++;
-    }
-    return n;
-  };
-  const perches = new Map(); // bird -> where it sat; it has flown once it leaves there
-  const mosi = world.actors.get('mosi');
-  const egill = world.actors.get('egill');
-  const kambedla = world.actors.get('kambedla');
-  // Egill's clips as he plays them and Mosi's looks as he turns his head, with when (and Mosi walking or not, and how far his head is
-  // from Egill along the ground).
-  const head = new THREE.Vector3();
-  const headToEgill = () => mosi.headPosition(head).setY(0).distanceTo(egill.root.position.clone().setY(0));
-  const playEgill = egill.play;
-  egill.play = (clip, options) => {
-    seen.egillClips.push({ clip, at: stage.s.time, mosiWalking: mosi.walking, head: headToEgill(), shot: shotNow });
-    return playEgill(clip, options);
-  };
-  const lookMosi = mosi.lookAt;
-  mosi.lookAt = (spec, options) => {
-    seen.mosiLooks.push({ spec, at: stage.s.time });
-    return lookMosi(spec, options);
-  };
-  // The speakers with a jaw (the mouth pass's, or a bake's), whose opening the run follows; shut is their rest.
-  const jaws = new Map([...world.actors].map(([name, actor]) => [name, actor.model.getObjectByName('Jaw')]).filter(([, jaw]) => jaw));
-  const SHUT = new THREE.Quaternion();
-  const inMosisFrame = point => point.clone().sub(mosi.root.position).applyQuaternion(mosi.root.quaternion.clone().invert());
-  let wasControlled = false;
-
-  // The eager child: a tap on each target a moment after it appears (the nose again once it has tickled), the flowers of the
-  // search one at a time, and a flower from the tray dropped on her mouth, where it is on the screen, a second after the tray
-  // shows and a second after each drop: the last pocket still full, carried by the tray's own pointer events on the page
-  // (its pockets are at the page's corner here), so a flower nobody takes goes home as it would under a finger.
-  const tapped = new Map(); // target -> when it was tapped
-  const appeared = new Map(); // target -> when it appeared
-  const mouth = onBone(kambedla, ...POINTS.kambedlaMouth);
-  const screenOf = point => {
-    const p = point.clone().project(world.camera);
-    return { x: ((p.x + 1) / 2) * 1280, y: ((1 - p.y) / 2) * 800 };
-  };
-  let lastFlower = -Infinity;
-  const trayEl = doc.getElementById('tray');
-  const full = () => (trayEl.hidden ? [] : trayEl.findAll(e => e.classList.contains('tray-item') && !e.classList.contains('gone')));
-  let trayUp = null;
-  let lastDrop = -Infinity;
-  const choicesEl = doc.getElementById('choices');
-  let choicesUp = null;
-  let asked = false;
-  function eagerChild(t) {
-    if (!choicesEl.hidden && choicesEl.children.length) {
-      choicesUp ??= t;
-      if (t - choicesUp > 1.2) {
-        const label = asked ? 'Já, gerum það!' : 'Hvað er stjörnuhátíð?';
-        choicesEl.children.find(button => button.textContent === label).dispatchEvent(new Event('click'));
-        asked = true;
-        choicesUp = null;
-      }
-    } else choicesUp = null;
-    for (const name of pointer.targets.keys()) if (!appeared.has(name)) appeared.set(name, t);
-    for (const name of [...appeared.keys()]) {
-      if (pointer.targets.has(name)) continue;
-      appeared.delete(name);
-      tapped.delete(name);
-    }
-    for (const [name, since] of appeared) {
-      if (/^(bird|butterfly|glade)-/.test(name)) continue;
-      const flower = ['stone', 'ferns', 'tree'].includes(name);
-      const again = name === 'nose' && tapped.has(name) && t - tapped.get(name) > 3.5 && t - tapped.get(name) < 3.5 + dt;
-      if ((!tapped.has(name) && t - since > 1.2 && (!flower || t - lastFlower > 4)) || again) {
-        pointer.tap(name);
-        tapped.set(name, t);
-        if (flower) lastFlower = t;
-      }
-    }
-    const pockets = full();
-    if (!pockets.length) {
-      trayUp = null;
-      return;
-    }
-    trayUp ??= t;
-    if (t - trayUp > 1 && t - lastDrop > 1) {
-      const item = pockets[pockets.length - 1];
-      const at = screenOf(mouth(new THREE.Vector3()));
-      item.dispatchEvent(pointerEvent('pointerdown', { x: 0, y: 0 }));
-      doc.dispatchEvent(pointerEvent('pointermove', { x: at.x, y: at.y + DRAG_LIFT }));
-      doc.dispatchEvent(pointerEvent('pointerup', { x: at.x, y: at.y + DRAG_LIFT }));
-      seen.trayDrops.made++;
-      if (!item.classList.contains('gone')) seen.trayDrops.home++;
-      lastDrop = t;
-    }
-  }
-
-  // The child who taps one target early and nothing else.
-  let earlySince = null;
-  let earlyFrom = null; // where the target was at the tap
-  function earlyChild(t) {
-    const spec = pointer.targets.get(earlyTap.name);
-    if (!spec || seen.earlyTap) return;
-    earlySince ??= { t, at: stage.s.time };
-    if (t - earlySince.t < earlyTap.after - 1e-9) return;
-    earlyFrom = spec.point?.isVector3 ? spec.point.clone() : null; // a target round a spec string ('egill') does not move by itself
-    pointer.tap(earlyTap.name, EARLY_TAP_AT);
-    seen.earlyTap = { name: earlyTap.name, appeared: earlySince.at, at: stage.s.time, found: [...journal.findings], movedAt: null };
-  }
-  function earlyReaction() {
-    const spec = pointer.targets.get(earlyTap.name);
-    if (seen.earlyTap && seen.earlyTap.movedAt === null && spec && earlyFrom && spec.point.distanceTo(earlyFrom) > 0.005) seen.earlyTap.movedAt = stage.s.time;
-  }
-
-  // The child who taps only the nose, late.
-  const noseTaps = [...(noseAt ?? [])];
-  let noseSince = null;
-  function noseChild(t) {
-    if (!pointer.targets.has('nose')) return;
-    noseSince ??= t;
-    if (noseTaps.length && t - noseSince >= noseTaps[0] - 1e-9) {
-      noseTaps.shift();
-      pointer.tap('nose');
-    }
-  }
-
-  const dt = 1 / 30;
-  for (let t = 0; t < limit && !task.done; t += dt) {
-    if (eager) eagerChild(t);
-    if (noseAt) noseChild(t);
-    if (earlyTap) earlyChild(t);
-    world.clock.step(dt);
-    journal.update(dt);
-    stage.update(dt);
-    updateActors(world.actors.values(), dt);
-    world.effects.update(dt);
-    director.update(dt);
-    sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
-    {
-      const scene = world.chapterTimeline.at(-1)?.scene;
-      seen.sunFrames.push({
-        at: stage.s.time, t: world.clock.time, scene, shot: shotNow, eyes: sunFace.eyes, mouth: sunFace.mouthFrame, squash: sunFace.squash.x,
-        hands: sunFace.hands.map(h => [h.x, h.y, h.angle]),
-      });
-      const busy = sunCalls.some(c => c.call !== 'wink' && stage.s.time >= c.at && stage.s.time <= c.at + (c.call === 'hug' ? HUG_SECONDS : c.call === 'wave' ? WAVE_SECONDS : (c.args[1] ?? 1.5) + MOUTH_BETWEEN));
-      if (busy && seen.sunFrames.length % 6 === 0) seen.sunViews.push({ at: stage.s.time, scene, shot: shotNow, ...sunInView() });
-      if (scene === 2) {
-        if (mosi.walking) seen.mosiWalked = true;
-        else if (seen.mosiWalked && seen.mosiStopped === null) seen.mosiStopped = stage.s.time;
-        if (pointer.targets.has('egill') && !seen.egillTarget) seen.egillTarget = { at: stage.s.time, handheld: director.handheldLevel, shot: shotNow };
-        const hop = seen.egillClips.find(e => e.clip === 'hop');
-        if (hop && stage.s.time - hop.at < 1.2) {
-          world.camera.updateMatrixWorld();
-          const feet = egill.root.position.clone().project(world.camera);
-          const top = egill.headPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.25, 0)).project(world.camera);
-          seen.egillOnScreen.push({ at: stage.s.time, shot: shotNow, feet: [feet.x, feet.y], top: [top.x, top.y] });
-        }
-      }
-    }
-    if (earlyTap) earlyReaction();
-    for (const [name, jaw] of jaws) {
-      const actor = world.actors.get(name);
-      if (!actor.talking || !lastLine.has(name)) continue;
-      const line = lastLine.get(name);
-      seen.jaws[line] = Math.max(seen.jaws[line] ?? 0, THREE.MathUtils.radToDeg(jaw.quaternion.angleTo(SHUT)));
-    }
-    if (world.location === 'rjodur' && kambedla.root.visible) seen.kambedlaInClearing = true;
-    // where everyone stands as each scene starts
-    if (world.chapterTimeline && seen.atScene.length < world.chapterTimeline.length) {
-      seen.atScene.push(Object.fromEntries([...world.actors].map(([name, actor]) => [name, actor.root.position.clone()])));
-    }
-    if (egill.controlled && !wasControlled && !seen.floatStart) seen.floatStart = inMosisFrame(egill.root.position);
-    if (!egill.controlled && wasControlled && world.location === 'burknalaut') seen.landing = inMosisFrame(egill.root.position);
-    wasControlled = egill.controlled;
-    if (shotNow === 'rideFeet') seen.printsInRideFeet = Math.max(seen.printsInRideFeet, printsSeen());
-    const scene = world.chapterTimeline.at(-1)?.scene;
-    const strays = () => ['left', 'right'].map(side => {
-      const hand = egill.model.getObjectByName(side === 'left' ? 'LeftHand' : 'RightHand').getWorldPosition(new THREE.Vector3());
-      return hand.distanceTo(world.resolvePoint(HELD.grips[side], new THREE.Vector3()));
-    });
-    if (scene === 9 && held.atMmm.length === 0 && heldInHands() === 3) {
-      const g = seen.grip;
-      g.worst = Math.max(g.worst, ...strays());
-      g.frames++;
-      g.from ??= { at: egill.root.position.clone(), heading: egill.heading };
-      g.walked = Math.max(g.walked, egill.root.position.distanceTo(g.from.at));
-      g.turned = Math.max(g.turned, Math.abs(((egill.heading - g.from.heading + 540) % 360) - 180));
-    }
-    if (scene === 10 && !seen.grip.after) seen.grip.after = strays();
-    if (world.location === 'burknalaut' && world.scene.getObjectByName('Footprints')) seen.printsInGlade = true;
-    for (const [name, spec] of pointer.targets) {
-      if (!name.startsWith('bird-')) continue;
-      if (!perches.has(name)) perches.set(name, spec.point.clone());
-      const perch = perches.get(name);
-      if (perch && spec.point.distanceTo(perch) > 0.05) {
-        seen.birdsUp.push({ name, at: stage.s.time, shot: shotNow, seen: onScreen(perch), scene: world.chapterTimeline.at(-1).scene });
-        perches.set(name, null);
-      }
-    }
-    // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
-    if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
-  }
-  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, forests, pointer, seen, added, lines };
-}
-
-const EARLY_TAP_AT = { x: 612, y: 455 }; // where on the screen the child who taps early taps
-
 let played = null;
-const unattended = () => (played ??= playUnattended());
+const unattended = () => (played ??= playUnattended(kafli1));
 let ignored = null;
-const ignoredByAChild = () => (ignored ??= playUnattended({ seeking: false, limit: 900 }));
+const ignoredByAChild = () => (ignored ??= playUnattended(kafli1, { seeking: false, limit: 900 }));
 let eager = null;
-const playedByAnEagerChild = () => (eager ??= playUnattended({ seeking: false, eager: true, limit: 900 }));
+const playedByAnEagerChild = () => (eager ??= playUnattended(kafli1, { seeking: false, eager: true, limit: 900 }));
 
 // ---------------------------------------------------------------------------------------------
 // The lines
@@ -738,7 +234,7 @@ test('no fail states: a child who never touches the screen is helped through eve
 });
 
 test('the chapter draws once, behind the black, everything that would build its shaders as the child watches', async () => {
-  const { world } = await playUnattended({ limit: 0.2 }); // the script's setup has run: the saddle is made, her plates are grey
+  const { world } = await playUnattended(kafli1, { limit: 0.2 }); // the script's setup has run: the saddle is made, her plates are grey
   const effects = world.effects.size;
   const inScene = new Set(world.scene.children);
   const warm = chapter.warmUp(world);
@@ -780,7 +276,7 @@ test('the chapter draws once, behind the black, everything that would build its 
 test('a child who finds Mosi\'s nose late still has time to make him sneeze: the window grows after the tickle', async () => {
   // The first tap comes at 4.2 s of the nose's 5, so the giggle ends past them; the second comes 2.5 s after the giggle.
   const giggle = RECORDED.k1_mosi_tickle.duration + 0.5; // the line and its hold
-  const { world, captions, added } = await playUnattended({ seeking: false, limit: 100, noseAt: [4.2, 4.2 + giggle + 2.5] });
+  const { world, captions, added } = await playUnattended(kafli1, { seeking: false, limit: 100, noseAt: [4.2, 4.2 + giggle + 2.5] });
   const said = id => captions.filter(c => c.text === chapter.lines[id].text);
   assert.equal(said('k1_mosi_tickle').length, 1, 'the first tap tickles');
   assert.equal(said('k1_mosi_sneeze').length, 1, 'and the second, after the tickle, makes him sneeze');
@@ -872,7 +368,7 @@ test('a critter tapped in the ride\'s first second reacts at once, and Mosi rema
   const visit = chapter.lines.k1_mosi_visit;
   const critters = chapter.lines.k1_mosi_critters;
   const beetle = chapter.lines.k1_mosi_beetle;
-  const { captions, lines, seen, world, finds } = await playUnattended({ limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
+  const { captions, lines, seen, world, finds } = await playUnattended(kafli1, { limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
   const ride = world.chapterTimeline.find(m => m.scene === 6).at;
   const tap = seen.earlyTap;
   assert.ok(tap, 'the beetle was tapped');
@@ -916,7 +412,7 @@ test('a step sound that breaks stops the steps, never the story', async () => {
   const report = console.error;
   console.error = (...args) => errors.push(args.map(String).join(' '));
   try {
-    const { task, stage, journal } = await playUnattended({ seeking: false, limit: 900, brokenSteps: true });
+    const { task, stage, journal } = await playUnattended(kafli1, { seeking: false, limit: 900, brokenSteps: true });
     assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
     assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
     assert.deepEqual(journal.stars, ['k1_kambedla'], 'it went on to the star');
@@ -1060,7 +556,7 @@ test('Egill calls up to Mosi as he arrives: a hop, "Hey þú! Ég er hérna nið
 
 test('a child who taps Egill before Mosi is near makes him call at once, and only once', async () => {
   const hey = chapter.lines.k1_egill_hey;
-  const { captions, lines, seen, world } = await playUnattended({ seeking: false, limit: 75, earlyTap: { name: 'egill', after: 0.3 } });
+  const { captions, lines, seen, world } = await playUnattended(kafli1, { seeking: false, limit: 75, earlyTap: { name: 'egill', after: 0.3 } });
   const tap = seen.earlyTap;
   assert.ok(tap, 'Egill was tapped');
   const from = world.chapterTimeline.find(m => m.scene === 2).at;
@@ -1154,7 +650,7 @@ test('in between the sun smiles calmly, its hands at rest, and blinks by itself 
 });
 
 test('yield flower.hold() and flower.pick() through the scheduler: the scene waits for each, the flower stays in Egill\'s hands and then goes', async () => {
-  const world = await chapterWorld();
+  const world = await chapterWorld(chapter);
   const egill = world.actors.get('egill');
   egill.place(0, 0, 0);
   const flower = createGlowFlower(world, { name: 'stone', position: [2, 0, 1.5] });
@@ -1194,7 +690,7 @@ test('yield flower.hold() and flower.pick() through the scheduler: the scene wai
 });
 
 test('the points on the characters sit where they are named: Mosi\'s nose, sneeze and horn, Kambeðla\'s mouth and plates', async () => {
-  const world = await chapterWorld();
+  const world = await chapterWorld(chapter);
   const mosi = world.actors.get('mosi');
   const kambedla = world.actors.get('kambedla');
   mosi.place(0, 0, 0);
