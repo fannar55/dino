@@ -51,8 +51,8 @@ function fakeApi(answer = () => new Response(fakeSpeech(), { status: 200, header
   return { fetch, calls };
 }
 
-/** A repo root of its own in the temp folder, with the lines to speak, the voices and the lines.json the game has; the book's lines (a set of their own) only when `book` gives them. */
-function makeRoot(t, { lines = readJson(REAL.source), book = null, voices = VOICES } = {}) {
+/** A repo root of its own in the temp folder, with the lines to speak, the voices, a pronunciation lexicon (empty unless given) and the lines.json the game has; the book's lines (a set of their own) only when `book` gives them. */
+function makeRoot(t, { lines = readJson(REAL.source), book = null, voices = VOICES, lexicon = { words: {} } } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-lines-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const audio = path.join(root, 'remake/assets/audio');
@@ -63,6 +63,7 @@ function makeRoot(t, { lines = readJson(REAL.source), book = null, voices = VOIC
     fs.writeFileSync(path.join(audio, 'book/lines-source.json'), JSON.stringify(book));
   }
   fs.writeFileSync(path.join(audio, 'voices.json'), JSON.stringify(voices));
+  if (lexicon) fs.writeFileSync(path.join(audio, 'pronunciation.json'), JSON.stringify(lexicon, null, 2));
   fs.writeFileSync(path.join(audio, 'lines.json'), JSON.stringify({ welcome: { src: '../dist/assets/audio/welcome.mp3', duration: 6.49, mouth: '0bfc' } }, null, 1));
   return root;
 }
@@ -669,4 +670,107 @@ test('audio-lines.mjs builds lines.json from the game\'s lines and the remake\'s
   assert.equal(lines.old.src, '../dist/assets/audio/old.mp3');
   assert.equal(lines.k1_mosi_one.src, 'assets/audio/kafli1/k1_mosi_one.mp3');
   assert.deepEqual({ ...lines.old, src: '' }, { ...lines.k1_mosi_one, src: '' }, 'the same file, the same duration and mouth');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The pronunciation standard in the tool (remake/assets/audio/pronunciation.json)
+
+const REAL_LEXICON = readJson(file('../assets/audio/pronunciation.json'));
+const VISIT = 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!';
+const HARD = [
+  { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' },
+  { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' },
+  { id: 'k1_mosi_snail', speaker: 'mosi', text: 'Snigill. Hann er ekkert að flýta sér.' },
+  { id: 'k1_mosi_two', speaker: 'mosi', text: 'Tvö!' },
+  { id: 'k1_egill_wow', speaker: 'egill', text: 'Áfram, Egill!' }, // Egill is not chosen yet: sent as written
+];
+
+test('the tool sends each line through the lexicon: a respelling or IPA as the text, a context as previous_text, the recipe\'s seed; the caption, lines-source.json and lines.json stay clean', needsFfmpeg, async t => {
+  const root = makeRoot(t, { lines: HARD, lexicon: REAL_LEXICON });
+  const source = fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/lines-source.json'), 'utf8');
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  const sent = Object.fromEntries(calls.map((call, i) => [HARD[i].id, call.body]));
+  assert.deepEqual(sent.k1_mosi_greet, { text: 'Kambeðla! Halló!', model_id: MODEL, language_code: 'is', voice_settings: SETTINGS, seed: 1, previous_text: VISIT });
+  assert.equal(sent.k1_mosi_one.text, 'Eiht!');
+  assert.equal(sent.k1_mosi_one.seed, 42);
+  assert.equal(sent.k1_mosi_snail.text, '"/ˈstniːjɪtl̥/". Hann er ekkert að flýta sér.', 'the IPA as the winning take sent it');
+  assert.deepEqual(sent.k1_mosi_two, { text: 'Tvö!', model_id: MODEL, language_code: 'is', voice_settings: SETTINGS }, 'a line with no hard word is sent as before');
+  assert.equal(sent.k1_egill_wow.text, 'Áfram, Egill!', 'a word the owner has not picked is sent as written');
+  assert.ok(!('previous_text' in sent.k1_egill_wow));
+  assert.equal(fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/lines-source.json'), 'utf8'), source, 'lines-source.json, which the captions read, is untouched');
+  const recorded = readJson(path.join(root, 'remake/assets/audio/lines.json'));
+  for (const { id } of HARD) assert.deepEqual(Object.keys(recorded[id]), ['src', 'duration', 'mouth'], `${id}: lines.json holds no text`);
+  assert.ok(out.includes(`Ready k1_mosi_greet: ${recorded.k1_mosi_greet.duration} s (kambedla: samhengi)`), JSON.stringify(out));
+  // The cache is keyed by what was sent: the same run again asks nothing, a changed recipe asks for that line only.
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
+  assert.equal(calls.length, HARD.length);
+  const lexicon = structuredClone(REAL_LEXICON);
+  lexicon.words.kambedla.chosen = 'samhengi-42';
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/pronunciation.json'), JSON.stringify(lexicon));
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
+  assert.deepEqual(calls.slice(HARD.length).map(call => [call.body.text, call.body.seed]), [['Kambeðla! Halló!', 42]]);
+});
+
+test("a line's own say and context are sent in place of the lexicon's, and a kept line that says a hard word is still never asked for", needsFfmpeg, async t => {
+  const lines = [
+    { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!', say: 'Eytt!', context: 'Teljum!' },
+    { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!', kept: "the owner's pick" },
+  ];
+  const root = makeRoot(t, { lines, lexicon: REAL_LEXICON });
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_greet.mp3'), fakeSpeech());
+  const { fetch, calls } = fakeApi();
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
+  assert.deepEqual(calls.map(call => [call.body.text, call.body.previous_text, call.body.seed]), [['Eytt!', 'Teljum!', 42]], 'the kept line is not asked for');
+  assert.ok(fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_greet.mp3')).equals(fakeSpeech()));
+});
+
+test('without the lexicon the tool sends nothing', async t => {
+  const root = makeRoot(t, { lexicon: null });
+  const { fetch, calls } = fakeApi();
+  await assert.rejects(main(['--only', 'k1_mosi_waving'], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} }), /pronunciation\.json is missing.*No request was made/);
+  await assert.rejects(main(['--dry'], { env: {}, root, fetch, log() {} }), /pronunciation\.json is missing/);
+  assert.equal(calls.length, 0);
+});
+
+test('--dry prints, per line, the text that would be sent, its context and seed, and whether a word is unchosen, without a key, a request or a file', async t => {
+  const root = makeRoot(t, { lines: [...HARD, { id: 'k1_mosi_next', speaker: 'mosi', text: 'Ein komin.', kept: "the owner's pick" }], lexicon: REAL_LEXICON });
+  const before = filesUnder(root);
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  await main(['--dry'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.equal(calls.length, 0, 'not one request');
+  assert.deepEqual(filesUnder(root), before, 'not one file');
+  const text = out.join('\n');
+  assert.match(out[0], /^kafli1: 6 lines, 3 sent with a recipe, 1 with a word not chosen yet, 1 kept, 5 to ask$/);
+  assert.ok(text.includes('  k1_mosi_greet: "Kambeðla! Halló!"  seed 1  [kambedla: samhengi]  to ask'), text);
+  assert.ok(text.includes(`      context (not spoken): ${JSON.stringify(VISIT)}`));
+  assert.ok(text.includes('  k1_mosi_one: "Eiht!"  seed 42  [eitt: stafsetning]  to ask'));
+  assert.ok(text.includes('  k1_egill_wow: "Áfram, Egill!"  [egill: unchosen, sent as written]  to ask'));
+  assert.ok(text.includes('  k1_mosi_two: "Tvö!"  to ask'));
+  assert.ok(text.includes("  k1_mosi_next: kept, never sent (the owner's pick)"));
+  out.length = 0;
+  await main(['--dry', '--only', 'k1_mosi_two'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.deepEqual(out, ['kafli1: 1 lines, 0 sent with a recipe, 0 with a word not chosen yet, 0 kept, 1 to ask', '  k1_mosi_two: "Tvö!"  to ask']);
+  out.length = 0;
+  await main(['--dry', '--set', 'all'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.ok(out.some(line => line.startsWith('yatzy-junior: ')) && out.some(line => line.startsWith('  yatzyRoll: "Eiht markmið eftir. Kastaðu!"')), 'and Litla Yatzy with all');
+  assert.equal(calls.length, 0);
+});
+
+test('parseArgs takes the lexicon commands, and refuses them together or with what they do not use', () => {
+  assert.deepEqual(parseArgs(['--dry']), { only: null, audition: null, set: 'kafli1', dry: true });
+  assert.deepEqual(parseArgs(['--dry', '--set', 'all']), { only: null, audition: null, set: 'all', dry: true });
+  assert.deepEqual(parseArgs(['--dry', '--set', 'yatzy-junior', '--only', 'yatzyRoll']), { only: ['yatzyRoll'], audition: null, set: 'yatzy-junior', dry: true });
+  assert.deepEqual(parseArgs(['--book', 'all']), { only: null, audition: null, set: 'kafli1', book: 'all' });
+  assert.deepEqual(parseArgs(['--book', 'egill', '--dry']), { only: null, audition: null, set: 'kafli1', book: 'egill', dry: true });
+  assert.deepEqual(parseArgs(['--pick', 'picks.json']), { only: null, audition: null, set: 'kafli1', pick: 'picks.json' });
+  assert.deepEqual(parseArgs(['--plan']), { only: null, audition: null, set: 'kafli1', plan: true });
+  assert.deepEqual(parseArgs(['--ab', 'eitt']), { only: null, audition: null, set: 'kafli1', ab: 'eitt' });
+  assert.deepEqual(parseArgs(['--ab', 'yatzy-junior', '--only', 'yatzyRoll']), { only: ['yatzyRoll'], audition: null, set: 'kafli1', ab: 'yatzy-junior' });
+  for (const argv of [['--set', 'all'], ['--set', 'yatzy-junior'], ['--book'], ['--book', '--dry'], ['--pick'], ['--ab'], ['--ab', 'kafli3'], ['--plan', '--book', 'all'],
+    ['--plan', '--dry'], ['--pick', 'p.json', '--dry'], ['--audition', 'egill', '--dry'], ['--book', 'all', '--set', 'book'], ['--plan', '--only', 'x'], ['--ab', 'book', '--set', 'book']]) {
+    assert.throws(() => parseArgs(argv), Error, argv.join(' '));
+  }
 });

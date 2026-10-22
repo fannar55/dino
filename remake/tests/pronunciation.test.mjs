@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
+import { applyLexicon, cacheKey, checkLexicon, formsPattern, requestFor } from '../tools/voice-lines.mjs';
 
 // The pronunciation standard (remake/assets/audio/pronunciation.json): one entry per hard word, which the voice tools apply to
 // every line they send. These tests hold the lexicon to the texts: every inflection of a hard word that any line says is one of
@@ -98,4 +99,126 @@ test('the text the child sees carries no recipe: no IPA and no respelling in any
       assert.doesNotMatch(line.text, word, `${line.set}/${line.id}: "${value}" is a recipe, not the text`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------------------------
+// applyLexicon: what is sent
+
+const VISIT = 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!';
+const TOY = {
+  words: {
+    kambedla: { word: 'Kambeðla', stem: '[Kk]ambeðl', forms: ['Kambeðla', 'Kambeðlu', 'kambeðlan'], recipes: { hratt: { note: 'as written' }, samhengi: { context: VISIT, seed: 1, note: 'context' } }, chosen: 'samhengi' },
+    eitt: { word: 'Eitt', stem: 'Eitt$', forms: ['Eitt'], recipes: { hratt: { note: 'as written' }, stafsetning: { say: { Eitt: 'Eiht' }, seed: 42, note: 'respelt' } }, chosen: 'stafsetning' },
+    mundu: { word: 'Mundu', stem: '[Mm]und', forms: ['Mundu'], recipes: { hratt: { note: 'as written' }, samhengi: { context: { mosi: 'Mundu að ýta á Eitt!', '*': 'Mundu þetta.' }, note: 'context' } }, chosen: 'samhengi' },
+    snigill: { word: 'Snigill', stem: '[Ss]nig', forms: ['Snigill', 'snigilinn'], recipes: { hratt: { note: 'as written' }, ipa: { say: { Snigill: '"/ˈstniːjɪtl̥/"', snigilinn: '"/ˈstniːjɪlɪn/"' }, note: 'ipa' } }, chosen: 'ipa' },
+    egill: { word: 'Egill', stem: 'Egil', forms: ['Egill'], recipes: { hratt: { note: 'as written' }, ipa: { say: '"/ˈeiːjɪtl̥/"', note: 'ipa' } }, chosen: null },
+  },
+};
+const pick = ({ text, context, seed }) => ({ text, context, seed });
+
+test('applyLexicon replaces each form of a chosen word as a whole word, case-sensitively, and leaves the text it was given as it was', () => {
+  const text = 'Snigill. Eitt! Eitthvað glitrar, eitt spil, Egill og snigilinn.';
+  const copy = structuredClone(TOY);
+  const sent = applyLexicon(text, { speaker: 'mosi', lexicon: TOY });
+  assert.equal(sent.say, '"/ˈstniːjɪtl̥/". Eiht! Eitthvað glitrar, eitt spil, Egill og "/ˈstniːjɪlɪn/".', '"Eitthvað" and lower-case "eitt" are other words; Egill is not chosen yet');
+  assert.equal(sent.seed, 42, "the seed Eitt's recipe fixes");
+  assert.equal(sent.context, undefined, 'no chosen word here wants a context');
+  assert.deepEqual(sent.words.map(word => [word.id, word.recipe, word.forms]), [['snigill', 'ipa', ['Snigill', 'snigilinn']], ['eitt', 'stafsetning', ['Eitt']], ['egill', null, ['Egill']]]);
+  assert.deepEqual(TOY, copy, 'the lexicon is not changed');
+  assert.deepEqual(applyLexicon('Hæ! Ég er Mosi.', { speaker: 'mosi', lexicon: TOY }), { say: 'Hæ! Ég er Mosi.', context: undefined, seed: undefined, words: [] });
+  assert.equal(applyLexicon('Kambeðlurnar', { speaker: 'mosi', lexicon: TOY }).words.length, 0, 'a longer word is not a form');
+});
+
+test("a context-only recipe leaves the word and sends the context; two words with contexts send both, in the order they are said; a context may be the speaker's own", () => {
+  const one = applyLexicon('Kambeðla! Halló!', { speaker: 'mosi', lexicon: TOY });
+  assert.deepEqual([one.say, one.context, one.seed], ['Kambeðla! Halló!', VISIT, 1]);
+  const two = applyLexicon('Mundu: kambeðlan á leik.', { speaker: 'mosi', lexicon: TOY });
+  assert.equal(two.say, 'Mundu: kambeðlan á leik.');
+  assert.equal(two.context, `Mundu að ýta á Eitt! ${VISIT}`, 'joined into one, Mundu first because it is said first');
+  assert.equal(two.seed, 1, 'Mundu fixes no seed, Kambeðla does');
+  assert.equal(applyLexicon('Mundu: kambeðlan á leik.', { speaker: 'narrator', lexicon: TOY }).context, `Mundu þetta. ${VISIT}`, '"*" for a speaker with no context of their own');
+  assert.equal(applyLexicon('Kambeðla og Kambeðlu.', { speaker: 'mosi', lexicon: TOY }).context, VISIT, 'the same context once');
+});
+
+test("requestFor: a line's own say, context and seed win over the lexicon", () => {
+  const line = { id: 'x', speaker: 'mosi', text: 'Eitt!' };
+  assert.deepEqual(pick(requestFor(line, TOY)), { text: 'Eiht!', context: undefined, seed: 42 });
+  assert.deepEqual(pick(requestFor({ ...line, seed: 3 }, TOY)), { text: 'Eiht!', context: undefined, seed: 3 });
+  assert.deepEqual(pick(requestFor({ ...line, say: 'Eytt!', context: 'Teljum!' }, TOY)), { text: 'Eytt!', context: 'Teljum!', seed: 42 });
+  assert.deepEqual(requestFor({ ...line, say: 'Eytt!' }, TOY).own, ['say']);
+});
+
+test('every line of every set and Litla Yatzy that says a chosen word is sent with its recipe, and no other line is changed', () => {
+  let changed = 0;
+  for (const line of corpus()) {
+    const sent = requestFor(line, LEXICON);
+    const chosen = sent.words.filter(word => word.recipe);
+    if (!chosen.length) {
+      assert.deepEqual([sent.text, sent.context], [line.text, undefined], `${line.set}/${line.id} says no chosen word, so it is sent as written`);
+      continue;
+    }
+    changed++;
+    for (const word of chosen) {
+      const recipe = LEXICON.words[word.id].recipes[word.recipe];
+      if (recipe.say !== undefined) {
+        for (const form of word.forms) {
+          const say = typeof recipe.say === 'string' ? recipe.say : recipe.say[form];
+          if (say !== form) assert.ok(sent.text.includes(say) && !formsPattern([form]).test(sent.text), `${line.set}/${line.id}: ${form} is sent as ${say}`);
+        }
+      }
+      if (recipe.context !== undefined) {
+        const context = typeof recipe.context === 'string' ? recipe.context : recipe.context[line.speaker] ?? recipe.context['*'];
+        assert.ok(sent.context?.includes(context), `${line.set}/${line.id}: ${word.id}'s context is sent`);
+      }
+    }
+  }
+  assert.ok(changed >= 30, `${changed} lines carry a recipe (Kambeðla alone is in 18)`);
+});
+
+test('the cache key is of what is sent: a changed recipe, context or seed is a new take; a line with no hard word keeps the key it had before the lexicon', () => {
+  const voiceId = 'osSKuDKznhXBktjJ9Z9F';
+  const keyOf = (line, lexicon) => { const sent = requestFor(line, lexicon); return cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }); };
+  assert.equal(keyOf({ speaker: 'mosi', text: 'Tvö!' }, LEXICON), cacheKey({ text: 'Tvö!', voiceId }), 'the takes made before still count');
+  const line = { speaker: 'mosi', text: 'Kambeðla! Halló!' };
+  const before = keyOf(line, TOY);
+  const other = structuredClone(TOY);
+  other.words.kambedla.recipes.samhengi.seed = 42;
+  assert.notEqual(keyOf(line, other), before, 'another seed');
+  const seeded = keyOf(line, other);
+  other.words.kambedla.recipes.samhengi.context = 'Kambeðla er vinkona mín.';
+  assert.notEqual(keyOf(line, other), seeded, 'another context');
+  other.words.kambedla.chosen = 'hratt';
+  assert.equal(keyOf(line, other), cacheKey({ text: 'Kambeðla! Halló!', voiceId }), 'raw again: the raw take');
+  const ipa = structuredClone(TOY);
+  ipa.words.snigill.recipes.ipa.say.Snigill = '"/ˈsnɪːjɪtl̥/"';
+  assert.notEqual(keyOf({ speaker: 'mosi', text: 'Snigill.' }, ipa), keyOf({ speaker: 'mosi', text: 'Snigill.' }, TOY), 'another IPA');
+  assert.notEqual(cacheKey({ text: 'a', voiceId, context: 'b' }), cacheKey({ text: 'a', voiceId }));
+});
+
+test('checkLexicon refuses an entry the tool could not apply, before any request', () => {
+  const broken = mutate => { const copy = structuredClone(TOY); mutate(copy.words); return () => checkLexicon(copy); };
+  assert.equal(checkLexicon(structuredClone(TOY)).words.eitt.chosen, 'stafsetning');
+  for (const [why, mutate] of [
+    ['a form in two words', words => words.egill.forms.push('Eitt')],
+    ['a form that misses its stem', words => words.eitt.forms.push('Ein')],
+    ['a say that misses a form', words => { words.snigill.recipes.ipa.say = { Snigill: 'x' }; }],
+    ['a chosen recipe that is not there', words => { words.egill.chosen = 'samhengi'; }],
+    ['a recipe without a note', words => { delete words.eitt.recipes.stafsetning.note; }],
+    ['a seed that is not a whole number', words => { words.eitt.recipes.stafsetning.seed = 1.5; }],
+    ['an unknown field', words => { words.eitt.recipes.stafsetning.voice = 'x'; }],
+    ['an id that is not a file name', words => { words['Eitt!'] = words.eitt; }],
+  ]) assert.throws(broken(mutate), /pronunciation\.json.*No request was made/s, why);
+});
+
+test("Litla Yatzy's tool sends its lines through the same function", async () => {
+  const junior = await import('../tools/yatzy-junior-voices.mjs');
+  const source = fs.readFileSync(file('../tools/yatzy-junior-voices.mjs'), 'utf8');
+  assert.match(source, /import \{[^}]*requestFor[^}]*\} from '\.\/voice-lines\.mjs'/, 'requestFor (applyLexicon) comes from voice-lines.mjs');
+  assert.match(source, /previous_text:sent\.context/, 'the context goes into the request');
+  const sent = junior.juniorRequest(VOICE_LINES.yatzyRoll, LEXICON);
+  assert.deepEqual(pick(sent), pick(requestFor({ speaker: 'mosi', text: VOICE_LINES.yatzyRoll.text }, LEXICON)));
+  assert.equal(sent.text, 'Eiht markmið eftir. Kastaðu!');
+  assert.equal(VOICE_LINES.yatzyRoll.text, 'Eitt markmið eftir. Kastaðu!', 'the caption stays as written');
+  const voiceId = 'osSKuDKznhXBktjJ9Z9F';
+  assert.equal(junior.juniorFingerprint(VOICE_LINES.welcome, { voiceId, lexicon: LEXICON }), cacheKey({ text: VOICE_LINES.welcome.text, voiceId }), 'a line with no hard word keeps its old fingerprint');
 });
