@@ -216,6 +216,7 @@
       "stem": "[Ff]lugeðl",
       "forms": [
         "Flugeðla",
+        "Flugeðlu",
         "Flugeðlan"
       ],
       "recipes": {
@@ -225,6 +226,7 @@
         "ipa": {
           "say": {
             "Flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
+            "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
             "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\""
           },
           "seed": 42,
@@ -296,7 +298,8 @@
       "word": "Slóeðla",
       "stem": "[Ss]lóeðl",
       "forms": [
-        "Slóeðla"
+        "Slóeðla",
+        "Slóeðlu"
       ],
       "recipes": {
         "hratt": {
@@ -304,7 +307,8 @@
         },
         "ipa": {
           "say": {
-            "Slóeðla": "\"/ˈstlouːˌɛðla/\""
+            "Slóeðla": "\"/ˈstlouːˌɛðla/\"",
+            "Slóeðlu": "\"/ˈstlouːˌɛðlʏ/\""
           },
           "note": "IPA /ˈstlouːˌɛðla/, með t-inu sem íslenskan setur í sl- eins og í „slá“ (óheyrt)."
         },
@@ -377,7 +381,8 @@
       "stem": "[Öö]gl",
       "forms": [
         "öglir",
-        "Öglir"
+        "Öglir",
+        "öglis"
       ],
       "recipes": {
         "hratt": {
@@ -386,7 +391,8 @@
         "ipa": {
           "say": {
             "öglir": "\"/ˈœklɪr/\"",
-            "Öglir": "\"/ˈœklɪr/\""
+            "Öglir": "\"/ˈœklɪr/\"",
+            "öglis": "\"/ˈœklɪs/\""
           },
           "note": "IPA /ˈœklɪr/: gl er borið fram „kl“, eins og í „fugl“ (óheyrt)."
         },
