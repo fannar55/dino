@@ -336,23 +336,40 @@ world.warmObjects = objects => {
 };
 
 // The chapter's first find flies into the book as its card's picture (scene/journal.js). The Fen's drawings are SVGs with a
-// hand-drawn filter, and the first such drawing shown builds the filter's shaders on the GPU, a frame of some 0.4 s. It is shown
-// once, tiny and all but transparent, for a few frames where nobody sees a frame stall: behind the start button once it shows,
-// else under the scene's first black (chapter.firstFind: the find; only a drawing, an SVG, needs it).
+// hand-drawn filter, and the first such drawing shown builds the filter's shaders on the GPU, a frame of some 0.4 s (and in a new
+// game the book's button first shows then too, some 0.1 s more). They are shown once, all but transparent, for a few frames where
+// nobody sees a frame stall: behind the start button once it shows, else under the scene's first black (chapter.firstFind: the
+// find; only a drawing, an SVG, needs it).
 let drawingToWarm = (() => {
   const picture = chapter.firstFind ? book.pictureOf?.(chapter.firstFind) : null;
   return picture && /\.svg([?#]|$)/i.test(picture) ? picture : null;
 })();
 function warmDrawing() {
   if (!drawingToWarm) return;
+  // as the flight shows it (style.css .flying-find: its round frame and glow too)
+  const flight = document.createElement('div');
+  flight.className = 'flying-find';
+  flight.setAttribute('aria-hidden', 'true');
+  flight.style.cssText = 'position: fixed; opacity: 0.01; pointer-events: none; z-index: 2147483647;';
   const image = document.createElement('img');
   image.src = drawingToWarm;
   image.alt = '';
-  image.setAttribute('aria-hidden', 'true');
-  image.style.cssText = 'position: fixed; left: 0; top: 0; width: 96px; height: 96px; opacity: 0.01; pointer-events: none; z-index: 2147483647;';
-  document.body.append(image);
+  flight.append(image);
+  document.body.append(flight);
+  // and the book's button, when it is not showing yet (a new game: it comes with the first find), its first drawing as costly
+  const button = document.querySelector('.journal-button');
+  const copy = button?.hidden ? button.cloneNode(true) : null;
+  if (copy) {
+    copy.hidden = false;
+    copy.removeAttribute('id');
+    for (const part of copy.querySelectorAll('[id]')) part.removeAttribute('id');
+    copy.setAttribute('aria-hidden', 'true');
+    copy.tabIndex = -1;
+    copy.style.cssText = 'opacity: 0.01; pointer-events: none; z-index: 2147483647;';
+    document.body.append(copy);
+  }
   drawingToWarm = null;
-  image.decode().catch(() => {}).then(() => nextFrames(4)).finally(() => image.remove());
+  image.decode().catch(() => {}).then(() => nextFrames(6)).finally(() => { flight.remove(); copy?.remove(); });
 }
 
 /** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view. */
