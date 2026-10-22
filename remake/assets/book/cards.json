@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page four); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines).",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page four); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded.",
   "cards": [
     {
       "id": "mosi",
@@ -258,6 +258,16 @@
             "Reilly og Jorgensen 2011, „The evolution of jumping in frogs: morphological evidence for the basal anuran locomotor condition and the radiation of locomotor systems in crown group anurans“, Journal of Morphology 272: 149–168, doi:10.1002/jmor.10902, https://doi.org/10.1002/jmor.10902 (útdráttur lesinn): áður var talið að langstökk hefði komið snemma fram, því Prosalirus var talinn hafa mjaðmagrind langstökkvara, en greining þeirra bendir til að fyrstu froskarnir hafi gengið og hoppað stutt og að langstökkvarar hafi komið miklu síðar. Fræðimenn eru því ekki sammála.",
             "Ascarrunz o.fl. 2016 (útdráttur): Triadobatrachus var ekki sérhæfður stökkvari."
           ]
+        },
+        {
+          "image": "fen-frog",
+          "text": "Úr froskaeggjum í vatninu koma halakörtur. Elsta halakartan sem við þekkjum var lengri en höndin á þér!",
+          "audio": "book_frog_6",
+          "sources": [
+            "Chuliver, Agnolín, Scanferla, Aranciaga Rolando, Ezcurra, Novas og Xu 2024, „The oldest tadpole reveals evolutionary stability of the anuran life cycle“, Nature 636: 138–142, doi:10.1038/s41586-024-08055-y, https://doi.org/10.1038/s41586-024-08055-y: elsta halakarta sem fundist hefur, af froskinum Notobatrachus degiustoi, frá miðjúra í Patagóníu í Argentínu, um 161 milljón ára; hún er líka fyrsta forna halakartan sem tengd er fullorðnum froski sömu tegundar.",
+            "Nature, fréttatilkynning um sömu grein, https://www.natureasia.com/ja-jp/nature/pr-highlights/15076: halakartan var næstum 16 cm löng; áður þekktust steingerðar halakörtur ekki fyrr en frá krítartímabilinu, og tvískipt líf froska, halakarta í vatni og svo froskur, var þegar til fyrir 161 milljón árum. Til samanburðar er hönd sex ára barns um 12–13 cm frá úlnlið fram í fingurgóm (mælið hönd Egils til að vera viss)."
+          ],
+          "wanted": "Wikimedia Commons: frog spawn and tadpoles in a pond (a photograph with an open licence), or a figure of the 161-million-year-old tadpole Notobatrachus degiustoi (Chuliver et al. 2024) if one is there with an open licence. For this page; the owner approves before any download."
         }
       ]
     },
@@ -373,6 +383,285 @@
           ]
         }
       ]
+    },
+    {
+      "id": "waterbeetle",
+      "name": "Brunnklukka",
+      "order": 8,
+      "unlock": {
+        "found": "waterBeetle"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-waterbeetle",
+          "text": "Þetta er brunnklukka. Hún syndir með afturfótunum, eins og hún sé að róa með árum!",
+          "audio": "book_waterbeetle_1",
+          "sources": [
+            "Bateman og Hulcr, University of Florida IFAS Extension, „Predaceous Diving Beetles as Pets and the Self-Cleaning Aquarium“ (FOR330/FR398), https://ask.ifas.ufl.edu/publication/FR398: brunnklukkur (Dytiscidae) hafa sterka, árarlaga afturfætur sem knýja þær áfram í vatninu.",
+            "Prokin, Petrov, Wang og Ponomarenko 2013, „New fossil taxa and notes on the Mesozoic evolution of Liadytidae and Dytiscidae (Coleoptera)“, Zootaxa 3666(2): 137–159, doi:10.11646/zootaxa.3666.2.2, https://doi.org/10.11646/zootaxa.3666.2.2: á síðjúra og árkrít tóku afturfæturnir æ meira við sundinu, svo brunnklukkurnar gátu kafað dýpra. Í leiknum róa afturfætur brunnklukkunnar líka eins og árar (world/critters/models.js)."
+          ]
+        },
+        {
+          "image": "fen-waterbeetle",
+          "text": "Við vitum af steingervingum að brunnklukkur syntu í vötnum á tímum risaeðlanna.",
+          "audio": "book_waterbeetle_2",
+          "sources": [
+            "Prokin, Petrov, Wang og Ponomarenko 2013, Zootaxa 3666(2): 137–159, doi:10.11646/zootaxa.3666.2.2, https://doi.org/10.11646/zootaxa.3666.2.2: steingervingar brunnklukkna (Dytiscidae) og skyldrar ættar frá síðjúra og árkrít, meðal annars úr Yixian-myndun í Kína, frá Baisa í Síberíu og Shar Teg í Mongólíu, með yfirliti yfir allar þekktar brunnklukkur miðlífsaldar.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára, á trías-, júra- og krítartímabilinu."
+          ]
+        },
+        {
+          "image": "fen-waterbeetle",
+          "text": "Brunnklukkan tekur loftbólu með sér undir vængina og andar úr henni í kafi, eins og kafari!",
+          "audio": "book_waterbeetle_3",
+          "sources": [
+            "Bateman og Hulcr, University of Florida IFAS Extension, FOR330/FR398, https://ask.ifas.ufl.edu/publication/FR398: stór loftbóla undir skjaldvængjunum (elytra), sem brunnklukkan sækir upp á yfirborðið, gerir henni kleift að anda lengi í kafi.",
+            "Seymour og Matthews 2013, „Physical gills in diving insects and spiders: theory and experiment“, Journal of Experimental Biology 216: 164–170, doi:10.1242/jeb.070276, https://doi.org/10.1242/jeb.070276: skordýr sem kafa bera loftbólu með sér og anda úr henni í kafi. Í teikningunni gægist loftbólan út undan vængjunum."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: a fossil diving beetle (Dytiscidae) from the Early Cretaceous Yixian Formation of China, or a living great diving beetle (Dytiscus marginalis) at the surface with its bubble of air showing, for pages 2 and 3; the owner approves before any download."
+    },
+    {
+      "id": "waterstrider",
+      "name": "Vatnalæsingi",
+      "order": 9,
+      "unlock": {
+        "found": "waterStrider"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-waterstrider",
+          "text": "Þetta er vatnalæsingi. Hann gengur á vatninu eins og á gólfi!",
+          "audio": "book_waterstrider_1",
+          "sources": [
+            "Gao og Jiang 2004, „Water-repellent legs of water striders“, Nature 432: 36, doi:10.1038/432036a, https://doi.org/10.1038/432036a: vatnalæsingjar (Gerridae) standa og hlaupa á vatninu á vatnsheldum fótum."
+          ]
+        },
+        {
+          "image": "fen-waterstrider",
+          "text": "Elstu vatnalæsingjar sem við þekkjum sitja fastir í rafi. Þeir eru yngri en Þórseðla en eldri en Mosi!",
+          "audio": "book_waterstrider_2",
+          "sources": [
+            "Perrichot, Nel og Néraudeau 2005, „Gerromorphan bugs in Early Cretaceous French amber (Insecta: Heteroptera): first representatives of Gerridae and their phylogenetic and palaeoecological implications“, Cretaceous Research 26: 793–800, doi:10.1016/j.cretres.2005.05.003, https://doi.org/10.1016/j.cretres.2005.05.003: elsti vatnalæsinginn (Gerridae), Cretogerris albianus, í rafi frá síðalbíum í Frakklandi, um 100 milljón ára.",
+            "Nanjing Institute of Geology and Palaeontology, fréttatilkynning 3. apríl 2024, „Amber Reveals Mating Behavior of Cretaceous Water Striders“, https://english.nigpas.cas.cn/new/hs/rp/202404/t20240403_659278.html: vatnalæsingjar (Burmogerris rarus) í rafi frá Mjanmar, um 100 milljón ára; áður var aðeins einn vatnalæsingi þekktur frá miðlífsöld, í frönsku rafi. Steingervingar þeirra eru fáir, svo þeir gætu verið eldri.",
+            "Tschopp, Mateus og Benson 2015, „A specimen-level phylogenetic analysis and taxonomic revision of Diplodocidae (Dinosauria, Sauropoda)“, PeerJ 3: e857, doi:10.7717/peerj.857, https://doi.org/10.7717/peerj.857 (opin grein, CC BY): Brontosaurus, Þórseðla leiksins, er úr Morrison-myndun í vestanverðri Norður-Ameríku, frá síðjúra, fyrir um 150 milljónum ára.",
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: síðkrít, fyrir 68–66 milljónum ára (Mosi)."
+          ]
+        },
+        {
+          "image": "fen-waterstrider",
+          "text": "Fæturnir eru þaktir örsmáum hárum. Einn fótur gæti haldið uppi fimmtán vatnalæsingjum!",
+          "audio": "book_waterstrider_3",
+          "sources": [
+            "Gao og Jiang 2004, Nature 432: 36, doi:10.1038/432036a, https://doi.org/10.1038/432036a: fæturnir eru þaktir ótal örsmáum hárum með fínum rákum, sem hrinda vatninu frá sér; einn fótur ber allt að 152 dyn á vatninu, um fimmtánfalda þyngd dýrsins."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: a living water strider (Gerris) standing on the water, the dimples under its feet showing, or a water strider in Cretaceous amber, for pages 2 and 3; the owner approves before any download."
+    },
+    {
+      "id": "salamander",
+      "name": "Salamandra",
+      "order": 10,
+      "unlock": {
+        "found": "salamander"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-salamander",
+          "text": "Þetta er salamandra. Ef hún missir fót, vex nýr fótur í staðinn!",
+          "audio": "book_salamander_1",
+          "sources": [
+            "Fröbisch, Bickelmann og Witzmann 2014, „Early evolution of limb regeneration in tetrapods: evidence from a 300-million-year-old amphibian“, Proceedings of the Royal Society B 281: 20141550, doi:10.1098/rspb.2014.1550, https://doi.org/10.1098/rspb.2014.1550 (opin grein, CC BY 4.0, lesin í Europe PMC): salamöndrur eru einu ferfætlingarnir sem geta látið heila fætur vaxa aftur alla ævi."
+          ]
+        },
+        {
+          "image": "fen-salamander",
+          "text": "Salamöndrur voru uppi á tímum risaeðlanna. Í Kína hafa fundist þúsundir steingerðra salamandra!",
+          "audio": "book_salamander_2",
+          "sources": [
+            "Gao og Shubin 2003, „Earliest known crown-group salamanders“, Nature 422: 424–428, doi:10.1038/nature01491, https://doi.org/10.1038/nature01491: vel varðveittar salamöndrur frá miðjúra í Innri-Mongólíu í Kína. Síðari rannsóknir telja sumar þeirra frumstæða ættingja nútímasalamandra; á barnamáli eru þær allar salamöndrur.",
+            "University of Chicago Medicine, fréttatilkynning 26. mars 2003, „New species of earliest-known salamanders found in China“, https://www.uchicagomedicine.org/forefront/news/new-species-of-earliest-known-salamanders-found-in-china: „thousands of salamander fossils“ frá sjö uppgraftarstöðum, um 161 milljón ára.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára, á trías-, júra- og krítartímabilinu."
+          ]
+        },
+        {
+          "image": "fen-salamander",
+          "text": "Í einum steingervingnum sést meira að segja maginn, fullur af litlum skeljum!",
+          "audio": "book_salamander_3",
+          "sources": [
+            "University of Chicago Medicine, fréttatilkynning 26. mars 2003, https://www.uchicagomedicine.org/forefront/news/new-species-of-earliest-known-salamanders-found-in-china: margir steingervinganna geyma alla beinagrindina og för mjúkvefja, og í einum er maginn fullur af smáum skeljum (samlokum).",
+            "Gao og Shubin 2003, Nature 422: 424–428, doi:10.1038/nature01491, https://doi.org/10.1038/nature01491."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: a Jurassic salamander fossil from China (Chunerpeton tianyiensis or Jeholotriton paradoxus), the whole animal in the stone, for pages 2 and 3; the owner approves before any download."
+    },
+    {
+      "id": "dragonfly",
+      "name": "Drekafluga",
+      "order": 11,
+      "unlock": {
+        "found": "dragonfly"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-dragonfly",
+          "text": "Þetta er drekafluga. Augun eru svo stór að hún sér næstum í allar áttir í einu!",
+          "audio": "book_dragonfly_1",
+          "sources": [
+            "Natural History Museum, Dragonflies: The ultimate hunters, https://www.nhm.ac.uk/discover/dragonflies-the-ultimate-hunters.html: stóru samsettu augun geta mæst ofan á höfðinu og sjá nærri allan hringinn (nærri 360°); í hvoru auga geta verið um 30.000 linsur. Í teikningunni mætast augun ofan á höfðinu."
+          ]
+        },
+        {
+          "image": "fen-dragonfly",
+          "text": "Drekaflugur voru til löngu á undan risaeðlunum. Í steininum sjást meira að segja æðarnar í vængjunum!",
+          "audio": "book_dragonfly_2",
+          "sources": [
+            "University of California Museum of Paleontology, Introduction to the Odonata, https://ucmp.berkeley.edu/arthropoda/uniramia/odonatoida.html: fyrstu steingervingar drekaflugna (Odonata) eru úr neðra perm, yfir 250 milljón ára, og forverar þeirra eldri; drekaflugan Protolindenia wittei úr Solnhofen-kalksteini í Bæjaralandi er um 155 milljón ára, með um 15 cm vænghaf; steingervingarnir eru greindir eftir æðum og hnúð (nodus) vængjanna.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára, á trías-, júra- og krítartímabilinu."
+          ]
+        },
+        {
+          "image": "fen-dragonfly",
+          "text": "Lirfur drekaflugunnar búa í vatninu. Þær grípa sér mat með kjálka sem skýst út!",
+          "audio": "book_dragonfly_3",
+          "sources": [
+            "Natural History Museum, Dragonflies: The ultimate hunters, https://www.nhm.ac.uk/discover/dragonflies-the-ultimate-hunters.html: lirfurnar lifa í vatni, stundum árum saman, og grípa bráð með hjöruðum kjálka (labium) sem skýst fram.",
+            "University of California Museum of Paleontology, Introduction to the Odonata, https://ucmp.berkeley.edu/arthropoda/uniramia/odonatoida.html: steingerðar lirfur drekaflugna þekkjast frá miðlífsöld, tímum risaeðlanna."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: a Late Jurassic dragonfly from the Solnhofen limestone of Germany (for example Cymatophlebia or Aeschnogomphus), its four wings spread with their veins showing, for page 2; the owner approves before any download."
+    },
+    {
+      "id": "turtle",
+      "name": "Skjaldbaka",
+      "order": 12,
+      "unlock": {
+        "found": "turtle"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-turtle",
+          "text": "Þetta er skjaldbaka. Skelin er vaxin úr rifbeinum hennar og hrygg, svo hún kemst aldrei úr henni!",
+          "audio": "book_turtle_1",
+          "sources": [
+            "Pecor, Animal Diversity Web (University of Michigan Museum of Zoology), Testudines, https://animaldiversity.org/accounts/Testudines/: skel skjaldböku er breytt rifjahylki og hluti hryggsins, og hana er ekki hægt að „taka af“, frekar en við getum tekið af okkur hrygginn og rifbeinin.",
+            "Lyson, Bever, Scheyer, Hsiang og Gauthier 2013, „Evolutionary origin of the turtle shell“, Current Biology 23: 1113–1119, doi:10.1016/j.cub.2013.05.003, https://doi.org/10.1016/j.cub.2013.05.003: skelin myndaðist smám saman úr breiðum rifbeinum og hrygg."
+          ]
+        },
+        {
+          "image": "fen-turtle",
+          "text": "Skjaldbökur voru til á tímum fyrstu risaeðlanna, og þær eru enn til!",
+          "audio": "book_turtle_2",
+          "sources": [
+            "Pecor, Animal Diversity Web, Testudines, https://animaldiversity.org/accounts/Testudines/: elstu þekktu skjaldbökurnar eru frá síðtrías.",
+            "Li, Wu, Rieppel, Wang og Zhao 2008, „An ancestral turtle from the Late Triassic of southwestern China“, Nature 456: 497–501, doi:10.1038/nature07533, https://doi.org/10.1038/nature07533: skjaldbaka frá síðtrías, um 220 milljón ára.",
+            "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára, á trías-, júra- og krítartímabilinu."
+          ]
+        },
+        {
+          "image": "fen-turtle",
+          "text": "Við vitum það af steingervingum. Ein elsta skjaldbakan hafði tennur, og heila skel bara á maganum!",
+          "audio": "book_turtle_3",
+          "sources": [
+            "Li, Wu, Rieppel, Wang og Zhao 2008, Nature 456: 497–501, doi:10.1038/nature07533, https://doi.org/10.1038/nature07533: Odontochelys semitestacea („tennt skjaldbaka með hálfa skel“), um 220 milljón ára, frá Kína; kviðskelin var fullgerð en á bakinu aðeins hryggplötur, og hún hafði tennur í kjálkunum.",
+            "Pecor, Animal Diversity Web, Testudines, https://animaldiversity.org/accounts/Testudines/: núlifandi skjaldbökur hafa engar tennur."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: the Late Triassic turtle Proganochelys quenstedti (for example its skeleton or shell at the Staatliches Museum für Naturkunde Stuttgart), or the half-shelled Odontochelys semitestacea, for pages 2 and 3; the owner approves before any download."
+    },
+    {
+      "id": "fish",
+      "name": "Fiskur",
+      "order": 13,
+      "unlock": {
+        "found": "fish"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-fish",
+          "text": "Þetta er fiskur. Hreistrið hans er hart og glansandi, eins og litlar flísar.",
+          "audio": "book_fish_1",
+          "sources": [
+            "Beaufils, Vullo, Gendry, Picot og Cavin 2026, „Composition and paleoecology of the mid-Jurassic bony fish assemblage of the Vaches Noires cliffs (Normandy, France)“, PLoS ONE 21(5): e0344519, doi:10.1371/journal.pone.0344519, https://doi.org/10.1371/journal.pone.0344519 (opin grein, CC BY 4.0): gljáhreistur (ganoid scales) lepídótíða (Lepidotidae), skyldra Lepidotes, sem fiskur leiksins er gerður eftir; hreistrin falla saman með tappa og holu.",
+            "Florida Museum of Natural History, Florida Gar, https://www.floridamuseum.ufl.edu/discover-fish/species-profiles/florida-gar: núlifandi frændur þeirra (Lepisosteidae) eru þaktir glerungshörðum, tígullaga plötum, gljáhreistri."
+          ]
+        },
+        {
+          "image": "fen-fish",
+          "text": "Svona fiskar syntu í vötnum og sjó á tímum risaeðlanna. Frændur þeirra lifa enn í Ameríku!",
+          "audio": "book_fish_2",
+          "sources": [
+            "López-Arbarello 2012, „Phylogenetic interrelationships of ginglymodian fishes (Actinopterygii: Neopterygii)“, PLoS ONE 7(7): e39370, doi:10.1371/journal.pone.0039370, https://doi.org/10.1371/journal.pone.0039370 (opin grein, CC BY): Lepidotes og skyldar ættkvíslir eru á ættlínunni sem leiðir til núlifandi „gar“-fiska (Lepisosteiformes), og hún nær aftur til árjúra.",
+            "Beaufils o.fl. 2026, PLoS ONE 21(5): e0344519, doi:10.1371/journal.pone.0344519: lepídótíðar í sjávarseti frá miðjúra í Normandí, fyrir um 163 milljónum ára. Charig og Milner 1997 (næsta síða): Lepidotes í ár- og vatnaseti Wealden á Englandi, frá árkrít.",
+            "Florida Museum of Natural History, Florida Gar, https://www.floridamuseum.ufl.edu/discover-fish/species-profiles/florida-gar: „gar“-fiskar lifa í ferskvatni í Norður-Ameríku."
+          ]
+        },
+        {
+          "image": "fen-fish",
+          "text": "Frænka Uggeðlu hafði borðað svona fisk. Hreistrið fannst inni í maganum á henni!",
+          "audio": "book_fish_3",
+          "sources": [
+            "Natural History Museum, How did Baryonyx change what we knew about spinosaurs?, https://www.nhm.ac.uk/discover/how-did-baryonyx-change-what-we-knew-about-spinosaurs.html: þar sem magi Baryonyx var fannst fiskhreistur (og bein ungs Iguanodon); Baryonyx er spínósáreðla, eins og Spinosaurus, Uggeðla leiksins.",
+            "Charig og Milner 1997, „Baryonyx walkeri, a fish-eating dinosaur from the Wealden of Surrey“, Bulletin of the Natural History Museum, Geology 53: 11–70: hreistrið í maga Baryonyx var af Lepidotes, ætað af magasýrum."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: a fossil Lepidotes (for example Lepidotes gigas from the Early Jurassic of Holzmaden) with its shining diamond-shaped scales, for pages 2 and 3; the owner approves before any download."
+    },
+    {
+      "id": "earlybird",
+      "name": "Fornfugl",
+      "order": 14,
+      "unlock": {
+        "found": "earlyBird"
+      },
+      "spread": 2,
+      "pages": [
+        {
+          "image": "fen-earlybird",
+          "text": "Þetta er fornfugl, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón.",
+          "audio": "book_earlybird_1",
+          "sources": [
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: Archaeopteryx (öglir á fuglaspjaldinu), sem fornfugl leiksins er gerður eftir, fannst í kalksteini við Solnhofen í Þýskalandi; þar var á júratímabilinu lón umkringt hlýjum (hálfhitabeltis-) eyjum.",
+            "Natural History Museum, How dinosaurs evolved into birds, https://www.nhm.ac.uk/discover/how-dinosaurs-evolved-into-birds: Archaeopteryx er stundum kallaður elsti fuglinn."
+          ]
+        },
+        {
+          "image": "fen-earlybird",
+          "text": "Fornfuglar voru uppi um svipað leyti og Þórseðla, en langt í burtu. Í ævintýrinu okkar hittast þau!",
+          "audio": "book_earlybird_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: síðjúra, fyrir 149–145 milljónum ára, í Evrópu; University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: um 150 milljón ára.",
+            "Tschopp, Mateus og Benson 2015, „A specimen-level phylogenetic analysis and taxonomic revision of Diplodocidae (Dinosauria, Sauropoda)“, PeerJ 3: e857, doi:10.7717/peerj.857, https://doi.org/10.7717/peerj.857 (opin grein, CC BY): Brontosaurus, Þórseðla leiksins, er úr Morrison-myndun í vestanverðri Norður-Ameríku, frá síðjúra, fyrir um 150 milljónum ára. Öglir var í Evrópu en Þórseðla í Norður-Ameríku, og þau hittast aðeins í ævintýrinu."
+          ]
+        },
+        {
+          "image": "archaeopteryx-berlin",
+          "text": "Við vitum það af steingervingum. Fyrst fannst bara ein fjöður, og svo heill fugl í steini!",
+          "audio": "book_earlybird_3",
+          "sources": [
+            "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: fyrsti fundurinn var ein fjöður; fyrsti steingervingur Archaeopteryx fannst í Þýskalandi árið 1861, og safnið keypti Lundúnaeintakið, heila beinagrind með förum fjaðranna, árið 1862. Myndin á síðunni er Berlínareintakið, heill fugl í steini."
+          ]
+        }
+      ],
+      "wanted": "Wikimedia Commons: the single fossil feather of Archaeopteryx found in 1861 (Museum für Naturkunde Berlin), for page 3 beside the Berlin specimen already in the book; the owner approves before any download."
+    }
+  ],
+  "spreads": [
+    {
+      "spread": 2,
+      "findMe": "book_find_me_fen"
     }
   ]
 }

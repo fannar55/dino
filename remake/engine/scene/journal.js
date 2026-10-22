@@ -74,7 +74,9 @@ function needId(id, call) {
  *   open(tab), close(), isOpen  the book for a scene that ends in it: open() opens it on its stars (or on `tab`, such as 'games')
  *                           as the script's, which holds nothing (book.js), so the scene goes on under it
  *   stars, findings, places the ids, in the order they came
- * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it.
+ * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it. An animal found
+ * since the book was last opened asks it to open on that animal's spread of the Dýrin page, where its tile nods (the newest, if
+ * there were more); any opening of the book answers it.
  */
 export function createJournal(doc, save, { book = null, audio = null } = {}) {
   const need = id => {
@@ -89,6 +91,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
   const bookIcon = button.querySelector?.('.journal-icon') ?? null; // where a find lands: the little book on the button
 
   const flights = new Map(); // 'star:<id>' or 'find:<id>' -> the flight in the air
+  let newest = null; // the animal found since the book was last opened, which it opens for
   const motions = []; // { el, age, seconds, amount }: a slot swelling, the book nodding
 
   const slots = FRIENDS.map(friend => {
@@ -110,10 +113,12 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     button.hidden = !on;
   }
 
-  /** Opening the book takes the badge off: the child has seen what is new in it. */
+  /** Opening the book takes the badge off: the child has seen what is new in it. On its animals, it opens for the newest find. */
   function openBook(tab, by) {
     badgeEl.hidden = true;
-    book?.open(tab, by);
+    const find = newest;
+    newest = null;
+    book?.open(tab, by, { find });
   }
 
   /** Swell an element and let it settle, over `seconds` of game time. */
@@ -193,6 +198,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     needId(id, 'journal.addFinding');
     const isNew = save.addFinding(id);
     if (!isNew) return false;
+    newest = id;
     show();
     const picture = book?.pictureOf?.(id) ?? null;
     if (!picture) {

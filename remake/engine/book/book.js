@@ -3,6 +3,7 @@ import { ICONS } from './icons.js';
 import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
+import { isUnlocked } from './cards.js';
 import { renderMap } from './map-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 import { FOSSIL_KINDS } from '../hals/rules.js';
@@ -13,8 +14,13 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // Stjörnur page, and the open and close that grow it out of the journal's button and shrink it back in.
 //
 // Pages. Each ribbon has a leaf (.book-leaf[data-tab]) of two pages, each with a .book-tiles box for what the page shows. The
-// Stjörnur leaf shows today's six friends' stars, earned or not. The Dýrin leaf is the animals page's (animals-page.js), whose tiles
-// open a card (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). The Leikir leaf (part 3) has the "Eitt!" tile,
+// Stjörnur leaf shows today's six friends' stars, earned or not. The Dýrin ribbon has a leaf for each spread of the cards (cards.js:
+// chapter 1's animals on the first, the Fen's on the second), the animals page's (animals-page.js), whose tiles open a card
+// (card-viewer.js) over the spread, and a card's picture zooms (zoom.js). A dog-eared corner turns to the next spread, on the right
+// page's outer corner (the lower page's, on a tablet held upright), and one on the left turns back, with the ribbons' page turn and
+// its sound; the corner on shows once an animal of a later spread is found, so chapter 1's book is as it was. The Dýrin ribbon
+// remembers no spread between opens: the book opens on the first, unless a find asks (open's `find`, the journal's newest find),
+// when it opens on that animal's spread and its tile nods. The Leikir leaf (part 3) has the "Eitt!" tile,
 // Kambeðla's card game, which opens once her star (k1_kambedla) is in the book and is new until it is first played, and on the
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
@@ -62,16 +68,23 @@ const TURN_MS = 560; // both halves of a page turn
 const OPEN_EASE = 'cubic-bezier(.2, .9, .3, 1.12)'; // out of the button, a little past full size and back, like a game's window
 const CLOSE_EASE = 'cubic-bezier(.55, 0, .8, .25)';
 const PERSPECTIVE = 'perspective(2400px)';
+// A page's corner turned up, the page under it peeping out, with the card's big arrow on it (book.css .spread-turn); the corner
+// back is the same, mirrored.
+const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 34L34 100H100Z"/>'
+  + '<path class="corner-flap" d="M100 34C80 37 60 40 42 42C40 60 37 80 34 100Z"/><path class="corner-crease" d="M97 37L37 97"/></svg>';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
  * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape). Returns
- *   open(tab, by)      opens it on 'stars', 'animals' or 'games', as the child's (by 'child', which holds the game) or a script's (by
- *                      'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's
+ *   open(tab, by, { find })  opens it on 'stars', 'animals' or 'games', as the child's (by 'child', which holds the game) or a script's
+ *                      (by 'script', which does not); an open book turns to the tab instead, and a child's open makes it the child's.
+ *                      On the animals, `find` (a finding's id, the journal's newest) opens the spread of the card it unlocks and nods
+ *                      its tile; without it the first spread
  *   close()            shuts it, and stops the narration, the card and the zoom
  *   isOpen, tab        whether it is open, and the page it shows (or showed last)
+ *   spread             the Dýrin spread shown (or shown last), from 1
  *   refresh()          shows what the save holds now (a star that has landed, an animal that has come)
  *   pictureOf(findId)  the thumbnail of the card that find unlocks, or null
  *   openCard(id, page) shows a card on the animals page, from its own place, as a tap on its tile would (the lab uses it)
@@ -91,6 +104,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   let tab = 'animals'; // the page it shows, and while it is shut the one it showed last
   let moving = null; // the open or close under way: { animations }
   let turning = null; // the page turn under way: { animations, pages }
+  const spreadNumbers = [...new Set(cards.map(card => card.spread ?? 1))].sort((a, b) => a - b);
+  if (!spreadNumbers.length) spreadNumbers.push(1);
+  let spreadIndex = 0; // the Dýrin spread shown: spreadNumbers[spreadIndex]
 
   // The ribbons, each a tab standing up out of the pages.
   const ribbonsEl = make('div', 'book-ribbons');
@@ -105,8 +121,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     return [name, ribbon];
   }));
 
-  // Each ribbon's leaf: a left and a right page (an upper and a lower one on a tablet held upright), each with its tiles' box.
-  const leaves = new Map(TABS.map(name => {
+  // Each ribbon's leaf: a left and a right page (an upper and a lower one on a tablet held upright), each with its tiles' box. The
+  // Dýrin ribbon has one for each spread of the cards, each with its corners: on to the next spread, and back to the one before.
+  function makeLeaf(name) {
     const el = make('div', 'book-leaf');
     el.setAttribute('data-tab', name);
     const pages = ['left', 'right'].map(side => {
@@ -117,8 +134,27 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
       return page;
     });
     el.append(...pages);
-    return [name, { el, pages, tiles: pages.map(page => page.children[0]) }];
-  }));
+    return { el, pages, tiles: pages.map(page => page.children[0]) };
+  }
+  const animalLeaves = spreadNumbers.map((spread, i) => {
+    const leaf = makeLeaf('animals');
+    leaf.el.setAttribute('data-spread', String(spread));
+    leaf.corners = {};
+    for (const [way, label, to] of [['prev', 'Fyrri dýr', i - 1], ['next', 'Fleiri dýr', i + 1]]) {
+      if (to < 0 || to >= spreadNumbers.length) continue;
+      const corner = make('button', `spread-turn ${way}`);
+      corner.setAttribute('type', 'button');
+      corner.setAttribute('aria-label', label);
+      corner.innerHTML = `${CORNER_SVG}${ICONS.arrow}`;
+      leaf.el.append(corner);
+      leaf.corners[way] = corner;
+    }
+    return leaf;
+  });
+  const leaves = new Map(TABS.map(name => [name, name === 'animals' ? animalLeaves[0] : makeLeaf(name)]));
+  const allLeaves = [...[...leaves.values()].filter(leaf => leaf !== animalLeaves[0]), ...animalLeaves];
+  /** The leaf a ribbon shows now: its own, or for the Dýrin ribbon the spread's. */
+  const leafOf = name => (name === 'animals' ? animalLeaves[spreadIndex] : leaves.get(name));
 
   // The Stjörnur page: a taped photo of each friend's star, in the friend's hue, lit once it is earned.
   const stars = FRIENDS.map(friend => {
@@ -243,7 +279,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   closeEl.setAttribute('aria-label', 'Loka bókinni');
   closeEl.innerHTML = ICONS.close;
   const spread = make('div', 'book-spread');
-  spread.append(ribbonsEl, ...[...leaves.values()].map(leaf => leaf.el), spine, closeEl);
+  spread.append(ribbonsEl, ...allLeaves.map(leaf => leaf.el), spine, closeEl);
   root.classList.add('book');
   root.setAttribute('role', 'dialog');
   root.setAttribute('aria-modal', 'true');
@@ -255,7 +291,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
   const zoom = createZoom(doc, { audio, win, root });
   const cardViewer = createCardViewer(doc, root, { media, audio, zoom, win, onClose: () => animals.render() });
-  const animals = createAnimalsPage(doc, leaves.get('animals').el, {
+  const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), {
     cards, media, save, audio, win,
     onOpenCard: (card, fromRect) => cardViewer.open(card, fromRect),
   });
@@ -268,11 +304,30 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const got = new Set(state.stars.map(friendOf));
     FRIENDS.forEach((friend, i) => stars[i].classList.toggle('earned', got.has(friend.key)));
     animals.render();
+    renderCorners(state);
     renderGames(state);
     renderHals(state);
     renderYatzy(state);
     map.render();
     renderFossils();
+  }
+
+  /** A spread the child can turn to: the first always, and a later one once an animal on it is found. */
+  function canShow(i, state) {
+    return i === 0 || cards.some(card => (card.spread ?? 1) === spreadNumbers[i] && isUnlocked(card, state));
+  }
+
+  /** The nearest spread the child can turn to from spread `i`, the way `step` goes (+1 on, -1 back), or -1 when there is none. */
+  function nextShown(i, step, state = save.get()) {
+    for (let j = i + step; j >= 0 && j < spreadNumbers.length; j += step) if (canShow(j, state)) return j;
+    return -1;
+  }
+
+  /** The corner on shows once a later spread has an animal found; the corner back always. */
+  function renderCorners(state) {
+    animalLeaves.forEach((leaf, i) => {
+      if (leaf.corners.next) leaf.corners.next.hidden = nextShown(i, 1, state) < 0;
+    });
   }
 
   /** The fossils found are in colour with their names; the rest are soft silhouettes with a "?". */
@@ -432,7 +487,8 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   function showTab() {
     root.setAttribute('data-tab', tab);
     for (const [name, ribbon] of ribbons) ribbon.setAttribute('aria-selected', String(name === tab));
-    for (const [name, leaf] of leaves) leaf.el.hidden = name !== tab;
+    const shown = leafOf(tab);
+    for (const leaf of allLeaves) leaf.el.hidden = leaf !== shown;
   }
 
   /** The game holds still for the child's book. A callback that fails must not leave the book half open. */
@@ -536,14 +592,16 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     return { origin: right ? '0% 50%' : '100% 50%', at: deg => `${PERSPECTIVE} rotateY(${deg}deg)`, edge: right ? -90 : 90 };
   }
 
-  /** The page turn from one ribbon's leaf to another's: the old page lifts over the spine, and the new one comes down. */
-  function pageTurn(from, to) {
-    if (!canAnimate() || reducedMotion(win)) return;
-    const forward = TABS.indexOf(to) > TABS.indexOf(from);
-    const old = leaves.get(from);
+  /**
+   * The page turn from one leaf to another (a ribbon's, or a Dýrin spread's), on (`forward`) or back: the old page lifts over the
+   * spine, and the new one comes down.
+   */
+  function pageTurn(old, next, forward) {
+    if (!canAnimate() || reducedMotion(win) || old === next) return;
     const out = old.pages[forward ? 1 : 0]; // the old right page going on, the old left one going back
-    const into = leaves.get(to).pages[forward ? 0 : 1]; // and the new page on the other side of the spine
+    const into = next.pages[forward ? 0 : 1]; // and the new page on the other side of the spine
     old.el.hidden = false; // the old pages stay while one of them turns
+    spread.classList.add('page-turning'); // the corners keep out of the way of a turning page
     const half = TURN_MS / 2;
     const [lift, land] = [hinge(out), hinge(into)];
     out.style.setProperty('transform-origin', lift.origin);
@@ -569,7 +627,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
       page.classList.remove('turning');
       page.style.removeProperty('transform-origin');
     }
-    for (const [name, leaf] of leaves) leaf.el.hidden = name !== tab;
+    spread.classList.remove('page-turning');
+    const shown = leafOf(tab);
+    for (const leaf of allLeaves) leaf.el.hidden = leaf !== shown;
   }
 
   // ---- What it does ------------------------------------------------------------------------------------------------------
@@ -579,29 +639,54 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const from = tab;
     finishTurn(); // a turn still under way lands where it was going
     putCardAway();
+    const old = leafOf(from);
     tab = next;
     render();
     showTab();
     audio?.sfx?.('turn');
-    if (isOpen) pageTurn(from, next);
+    if (isOpen) pageTurn(old, leafOf(next), TABS.indexOf(next) > TABS.indexOf(from));
     if (isOpen) tellTab();
   }
 
-  function open(next = tab, by = 'script') {
+  /** The Dýrin page turns to spread number `i` (from 0), at a corner: as a ribbon turns a page, with its sound. */
+  function turnSpread(i) {
+    if (tab !== 'animals' || i < 0 || i >= animalLeaves.length || i === spreadIndex) return;
+    finishTurn();
+    putCardAway();
+    const old = leafOf('animals');
+    const forward = i > spreadIndex;
+    spreadIndex = i;
+    render();
+    showTab();
+    audio?.sfx?.('turn');
+    if (isOpen) pageTurn(old, leafOf('animals'), forward);
+  }
+
+  /** The card a find unlocks, if the book has it. */
+  const cardOfFind = find => (find ? cards.find(card => card.unlock.found === find) ?? null : null);
+
+  function open(next = tab, by = 'script', { find = null } = {}) {
     if (!TABS.includes(next)) throw new TypeError(`The book has no page "${next}": it has ${TABS.slice(0, -1).join(', ')} and ${TABS.at(-1)}`);
+    const found = next === 'animals' ? cardOfFind(find) : null; // a find asks for its spread, and its tile nods there
     if (isOpen) {
       if (by === 'child') claim();
       turnTo(next);
+      if (found) {
+        turnSpread(spreadNumbers.indexOf(found.spread ?? 1));
+        animals.nod(found.id);
+      }
       return;
     }
     isOpen = true;
     holder = by === 'child' ? 'child' : 'script';
     tab = next;
+    spreadIndex = found ? Math.max(0, spreadNumbers.indexOf(found.spread ?? 1)) : 0; // the Dýrin page remembers no spread
     render();
     showTab();
     if (holder === 'child') pause(true);
     audio?.sfx?.('open');
     grow();
+    if (found) animals.nod(found.id, reducedMotion(win) ? FADE_MS : OPEN_MS); // once the book has grown
     tellTab();
   }
 
@@ -628,6 +713,12 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   function openCard(id, page = 0) {
     const card = cards.find(c => c.id === id);
     if (!card || !isOpen || tab !== 'animals') return false;
+    const onSpread = spreadNumbers.indexOf(card.spread ?? 1);
+    if (onSpread !== spreadIndex) { // its tile's spread lies under the card
+      finishTurn();
+      spreadIndex = onSpread;
+      showTab();
+    }
     save.addSeen(card.id);
     animals.render();
     return cardViewer.open(card, null, page);
@@ -636,6 +727,10 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   for (const [name, ribbon] of ribbons) {
     pressable(ribbon, { audio, sound: null, win, onTap: () => (name === tab ? audio?.sfx?.('tap') : turnTo(name)) });
   }
+  animalLeaves.forEach((leaf, i) => {
+    if (leaf.corners.next) pressable(leaf.corners.next, { audio, sound: null, win, onTap: () => turnSpread(nextShown(i, 1)) }); // the turn sounds
+    if (leaf.corners.prev) pressable(leaf.corners.prev, { audio, sound: null, win, onTap: () => turnSpread(nextShown(i, -1)) });
+  });
   for (const tile of stars) pressable(tile, { audio, win });
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
@@ -662,5 +757,6 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     zoom,
     get isOpen() { return isOpen; },
     get tab() { return tab; },
+    get spread() { return spreadNumbers[spreadIndex]; },
   };
 }

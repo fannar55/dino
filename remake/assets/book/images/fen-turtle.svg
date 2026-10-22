@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- The book's drawing of the Fen's turtle (Task 7, chapter 2), from the side: a domed olive shell with paler rims to its plates and
+       a pale belly, four stout legs, and a grey-green head with a yellow stripe peeping out with a smile, in the colours of the game's
+       turtle (world/critters/models.js), drawn soft and by hand on a clear background so a tile can show it as a silhouette. Our
+       own drawing, until a photograph the owner approves (cards.json, the card's wanted) or the owner's drawing replaces it. -->
+  <title>Skjaldbaka</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="27" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the far legs and the little tail -->
+    <path d="M150 218C148 236 150 248 156 256C164 260 176 258 180 252C180 240 178 228 176 216Z" fill="#6a744d"/>
+    <path d="M268 216C272 234 276 246 284 252C292 256 302 252 304 246C300 234 294 224 290 212Z" fill="#6a744d"/>
+    <path d="M318 196C334 196 346 200 354 208C348 212 338 212 326 208Z" fill="#7f8a5e"/>
+    <!-- the head and neck, reaching out -->
+    <path d="M118 190C104 178 82 172 62 176C42 180 30 192 32 206C34 222 50 230 70 228C90 226 106 216 124 210Z" fill="#7f8a5e"/>
+    <path d="M44 210C62 214 90 210 112 200" fill="none" stroke="#d9c45a" stroke-width="6"/>
+    <circle cx="62" cy="192" r="12" fill="#f6f1e4" stroke-width="3.5"/>
+    <g stroke="none">
+      <circle cx="60" cy="194" r="7.5" fill="#1c1a12"/>
+      <circle cx="57" cy="190" r="3" fill="#fff"/>
+      <ellipse cx="82" cy="212" rx="8" ry="5" fill="#f0a3b6" opacity=".55"/>
+    </g>
+    <path d="M38 210C46 218 58 220 68 216" fill="none" stroke="#2b2a1c" stroke-width="4"/>
+    <!-- the belly's edge, pale -->
+    <path d="M100 206C150 222 260 224 330 204C334 214 326 224 312 228C250 242 160 242 112 228C100 224 96 214 100 206Z" fill="#d8c98a"/>
+    <!-- the shell: a dome of plates with paler rims -->
+    <path d="M96 204C96 140 146 88 214 88C282 88 334 140 334 204C290 214 240 218 214 218C188 218 138 214 96 204Z" fill="#6b6436"/>
+    <path d="M110 196C112 146 154 104 214 104C274 104 316 146 318 196" fill="none" stroke="#7d7540" stroke-width="10" stroke-opacity=".8"/>
+    <g fill="#7d7540" stroke="#b0a45e" stroke-width="4">
+      <path d="M182 108C196 102 232 102 246 108L252 140L214 152L176 140Z"/>
+      <path d="M176 144L214 156L252 144L262 182L214 196L166 182Z"/>
+      <path d="M170 112L172 140L162 180L118 182C120 152 140 124 170 112Z"/>
+      <path d="M258 112C288 124 308 152 310 182L266 180L256 140Z"/>
+    </g>
+    <path d="M100 202C146 212 186 216 214 216C242 216 282 212 330 202" fill="none" stroke="#4f4a2a" stroke-width="6"/>
+    <path d="M150 116C164 108 182 104 198 104" fill="none" stroke="#e1d79a" stroke-width="5" stroke-opacity=".6"/>
+    <!-- the near legs, stout -->
+    <path d="M128 220C124 238 126 252 132 262C142 268 158 266 164 258C164 244 162 232 160 220Z" fill="#7f8a5e"/>
+    <path d="M286 218C292 236 296 250 304 258C314 264 328 258 330 250C326 236 318 226 312 214Z" fill="#7f8a5e"/>
+    <path d="M134 262L134 268M146 264L146 270M158 260L159 266M306 258L304 264M318 258L318 264M328 252L330 258" fill="none" stroke-width="3.5"/>
+  </g>
+</svg>
