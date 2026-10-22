@@ -70,6 +70,7 @@ function basketGeometry() {
  *   lower({ duration = 0.6 })         back to in front of his tummy; a Handle
  *   add(kind = 'red')                 a berry lands in it with a bounce; a Handle; `count` is how many are in it
  *   empty(to)                         the berries fly out of it one by one to `to` (a point spec: her mouth); a Handle
+ *   putDown()                         on the ground in front of his feet, and his hands let go
  *   count, dispose()
  */
 export function createBasket(world) {
@@ -167,6 +168,22 @@ export function createBasket(world) {
     return group;
   }
 
+  /** He puts it down: on the ground just in front of his feet, his hands his own again. */
+  function putDown() {
+    if (!actor) return;
+    if (placing) placing.over = true;
+    placing = null;
+    hands?.release(0.4);
+    hands = null;
+    actor.root.updateMatrixWorld(true);
+    const at = new THREE.Vector3(0.38, 0, 0.12).applyMatrix4(actor.root.matrixWorld);
+    at.y = world.heightAt?.(at.x, at.z) ?? actor.root.position.y;
+    group.quaternion.copy(actor.root.quaternion);
+    group.position.copy(at);
+    group.updateMatrixWorld(true);
+    point.set(0, SIZE.depth + 0.04, 0).applyMatrix4(group.matrixWorld);
+  }
+
   function lerpTo(to, duration, label) {
     move?.handle.finish();
     const handle = new Handle(label, () => { lift = to; move = null; });
@@ -261,7 +278,7 @@ export function createBasket(world) {
   });
 
   return {
-    group, point, hold, raise, lower, add, empty,
+    group, point, hold, raise, lower, add, empty, putDown,
     get count() { return added.length; },
     /** How many berries have gone into it, all told (eaten ones too). */
     get total() { return total; },

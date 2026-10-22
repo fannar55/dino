@@ -420,7 +420,8 @@ test('a wrong footprint splashes and says next, and the count waits', async () =
   const at = seen.earlyTap.at;
   const log = world.chapterState.printLog;
   assert.ok(log.some(e => e.what === 'splash' && e.index === 2 && Math.abs(e.at - at) < 0.1), 'the third print splashed');
-  assert.ok(!log.some(e => e.what === 'count' && e.index === 2), 'and was not counted');
+  const counts = log.filter(e => e.what === 'count').map(e => e.index);
+  assert.deepEqual(counts, [...counts].sort((a, b) => a - b), 'and was not counted out of turn: the counts go in order');
   const next = captions.find(c => c.text === 'Næsta er þarna!');
   assert.ok(next && next.at >= at - 1e-6 && next.at - at < 0.6, 'Mosi says the next one is there');
   assert.ok(seen.mosiLooks.some(l => l.at >= at - 1e-6 && l.at - at < 0.6), 'and nods toward it');

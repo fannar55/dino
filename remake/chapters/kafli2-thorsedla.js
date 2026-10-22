@@ -454,7 +454,7 @@ function eyesMeet(c, spec) {
 }
 
 /** Her eyes, as a point for the camera over Egill's shoulder to look at, but never more than LOOK_UP degrees up from it. */
-function faceInView(c) {
+export function faceInView(c) {
   const eyes = eyesOf(c.thorsedla.raw);
   const camera = c.world.camera.position;
   return out => {
