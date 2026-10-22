@@ -484,13 +484,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       hide: () => { needTray('s.tray.hide'); ui.tray.hide(); return DONE; },
     },
     /**
-     * Play a sound effect by name and carry on: forest (a quiet loop, laid once), step, frog, snail, beetle, birds, butterfly,
-     * flower, plate, star, journal, saddle or float (engine/audio/sfx.js). An unknown name does nothing. Seeking (a capture's
-     * silent replay, critter reactions included) makes no sound.
+     * Play a sound effect by name and carry on: forest or fen (a quiet bed, laid once, the one taking over from the other), step,
+     * frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float (engine/audio/sfx.js), or chapter 2's
+     * (engine/audio/fen-sounds.js), some of which take a detail: s.sfx('countTone', { index: 3 }). An unknown name does nothing.
+     * Seeking (a capture's silent replay, critter reactions included) makes no sound.
      */
-    sfx: name => {
+    sfx: (name, detail) => {
       needSfx('s.sfx');
-      if (!seeking) sfx.play(name);
+      if (!seeking) sfx.play(name, detail);
       return DONE;
     },
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
