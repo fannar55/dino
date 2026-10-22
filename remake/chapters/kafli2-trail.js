@@ -61,6 +61,7 @@ export const TRAIL_ON = [82, 88].map(s => { const p = pathAt(TRAIL_PATH, s); ret
 // The ride's camera: behind Mosi on his right, a little above Egill, looking past Mosi's head down the trail.
 export const RIDE_CAMERA = { offset: [-6.2, 3.0, 2.8], local: true, look: 'head', lookOffset: [1.6, -1.0, 1.1], stiffness: 1.4, fov: 50 };
 const PRINT_SHOT = { along: 3.6, out: 3.2, up: 1.6, aimAlong: -1.2, aimIn: 1.4, aimUp: 0.85, fov: 56 };
+const TALL_CLOSER = 0.4; // of the way in to the print the print camera comes on a tall screen (printFollow)
 // The ten ahead, as Mosi says what they are ("Þau eru risastór!"): low on the path behind the first, about a child's height up, the
 // first print big in the near third, Mosi's front foot and leg beside it for its size, and the row on down the trail into the mist
 // (shotAlong: metres along the path from print 1, out from its middle to the south-west, negative toward Mosi; up from the ground).
@@ -109,12 +110,18 @@ export function printFollow(c) {
   const shot = printShot(c, 0), at = mosiAt(0);
   const h = THREE.MathUtils.degToRad(at.heading);
   const dx = shot.position[0] - at.x, dz = shot.position[2] - at.z;
-  const offset = [dx * Math.cos(h) + dz * Math.sin(h), shot.position[1] - c.world.heightAt(at.x, at.z), -dx * Math.sin(h) + dz * Math.cos(h)];
-  // on a tall screen the lens is wider up and down (director.js keeps the frame's width): look at the print and its number there,
-  // so the print is in the middle and Mosi above it, not an empty foreground
+  const local = (x, z) => [(x - at.x) * Math.cos(h) + (z - at.z) * Math.sin(h), -(x - at.x) * Math.sin(h) + (z - at.z) * Math.cos(h)];
+  const [ox, oz] = local(shot.position[0], shot.position[2]);
+  const offset = [ox, shot.position[1] - c.world.heightAt(at.x, at.z), oz];
+  // On a tall screen the lens is wider up and down (director.js keeps the frame's width): the camera comes TALL_CLOSER of the way
+  // in to the print and a little lower, and looks at the print and its number, so the print is big in the lower middle and Mosi
+  // above it, not over an empty foreground.
+  const [px, pz] = local(...TRAIL_PRINTS[0].position);
+  const tall = [THREE.MathUtils.lerp(ox, px, TALL_CLOSER), offset[1] - 0.2, THREE.MathUtils.lerp(oz, pz, TALL_CLOSER)];
+  const isTall = () => c.world.camera.aspect < 1;
   const lift = new THREE.Vector3(0, 0.45, 0);
-  const look = out => (c.world.camera.aspect < 1 ? out.copy(c.prints.targets[c.focus].point).add(lift) : out.fromArray(printShot(c, c.focus).target));
-  return { offset, local: true, look, fov: PRINT_SHOT.fov, stiffness: 1.5 };
+  const look = out => (isTall() ? out.copy(c.prints.targets[c.focus].point).add(lift) : out.fromArray(printShot(c, c.focus).target));
+  return { offset: () => (isTall() ? tall : offset), local: true, look, fov: PRINT_SHOT.fov, stiffness: 1.5 };
 }
 
 /** A shot set along the trail from print k (S: metres along the path from it, out from its middle, up from the ground). */
