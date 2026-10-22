@@ -114,9 +114,11 @@ const FEN_SHOTS = {
   fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
   fen_two_shot: { position: [0, 1.4, 1.5], target: [5, 1.3, -8], fov: 46 },
-  // Scene 4: over Egill's left shoulder on the hummock under her conifers, looking up to where her face comes down to him: where
-  // the camera that follows him then (HEAD_DOWN_CAMERA) stands, so it takes over without a move.
-  fen_head_down: { position: [8.4, 1.16, -7.4], target: [6.4, 2.2, -9.1], fov: 44 },
+  // Scene 4: over Egill's right shoulder, from behind him on the hummock between her two conifers, looking up to where her face
+  // comes down to him: where the camera that follows him then (HEAD_DOWN_CAMERA) stands, so that it takes over without a move.
+  fen_head_down: { position: [10.6, 1.36, -9.35], target: [5.7, 2.6, -9.05], fov: 46 },
+  // Scene 6: as the lift begins, where the camera that rides up with Egill on her head (LIFT_CAMERA) stands then, at his left.
+  fen_lift: { position: { actor: 'egill', part: 'feet', offset: [-3.0, 1.3, -3.0], local: true }, target: 'egill.head', fov: 40 },
   // Scene 4: the berry hummocks east of Mosi.
   fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
   // Scene 6: Egill by her lowered head, about to climb on.
@@ -315,11 +317,15 @@ const HOLD_SETTLE = 1.2; // seconds her look at him has to settle, the clip move
 const SEAT = { bone: 'Head', offset: [0, 0.65, -0.15], grips: { left: [-0.12, 0.45, 0.08], right: [0.12, 0.45, 0.08] } };
 const FLOAT = 2.2; // seconds he floats up onto it
 // The cameras that follow Egill (director.follow, which may rise above 7.5 m, as the lookout's must). Her face comes down over his
-// left shoulder (the conifer stands at his right and the sun is ahead of him there), the camera tilted up LOOK_UP degrees at most,
-// so her face comes down into the frame; at the top it looks down past him at Mosi, LOOK_DOWN degrees at most (STYLE.md 8: 35).
-const HEAD_DOWN_CAMERA = { offset: [-0.6, 0.9, -1.6], local: true, fov: 44 };
-const LIFT_CAMERA = { offset: [0, 1.2, -3.2], local: true, look: 'head', stiffness: 1.2, fov: 40 };
-const LOOK_UP = 30;
+// right shoulder from 2.8 m behind him, between the trunks of her two conifers (one stands at each of his sides, 1.4 and 2.3 m
+// from him), tilted up LOOK_UP degrees at most: so the camera looks out under their crowns, not up into them, her face comes down
+// into the frame, and the sun shows over Mosi's head to wink. At the top it looks down past him at Mosi, LOOK_DOWN degrees at
+// most (STYLE.md 8: 35).
+const HEAD_DOWN_CAMERA = { offset: [-2.8, 1.1, 0.35], local: true, fov: 46 };
+// Up with him at his left (the brief's side), 3 m further back, clear of the crown of the conifer north of her lowered head, and
+// as fast as he rises (up to 2 m/s: the camera moves with him, not past anything), so that he stays in the middle of the frame.
+const LIFT_CAMERA = { offset: [-3.0, 1.3, -3.0], local: true, look: 'head', stiffness: 2.0, fov: 40, maxSpeed: 2.4 };
+const LOOK_UP = 14;
 const LOOK_DOWN = 32;
 // Her life: a nod or a bite every 7 to 12 s, the first 2.5 s after she is seen; the nod (kink) is 2.8 s, its lowest 0.95 s in,
 // where her mouth closes on the twigs.
@@ -488,6 +494,7 @@ function* liftUp(s, c) {
   lift.time = clipTimeForEyes(her.raw, 'liftUp', eyeHeightIn(her.raw, 'lowerHead', held));
   const rising = lift.getClip().duration - lift.time;
   c.lift = { action: lift, rising };
+  s.camera.cut('fen_lift');
   s.camera.follow('egill', LIFT_CAMERA);
   const drops = waterDrops(world, { seconds: rising, seed: 'her neck drips', ring: c.ring });
   const dripping = s.after(0.3, () => dripFromNeck(s, c, drops));
@@ -723,6 +730,7 @@ function arriveInTheFen(s, c) {
   c.riding?.stop();
   c.riding = null;
   egill.place(EGILL_MEETS.at[0], EGILL_MEETS.at[1], EGILL_MEETS.heading);
+  egill.play('idle', { fade: 0 });
   s.camera.cut('fen_thorsedla_low');
 }
 
@@ -783,10 +791,12 @@ export const chapter = {
           { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
           { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
         ],
-        // the two conifers whose tops she bites (about 11 m tall, their crowns from 4 m up); a white snag 10.5 m tall for Flugeðla
-        // to perch on; reed round where Uggeðla lies, on her side away from the channel
+        // the two conifers whose tops she bites (their crowns from 3 or 4 m up): the north one 8.8 m tall, its top level with her head
+        // as she stands and below Egill on it at the top of her lift, and her head's way down to him and up again with him on it just
+        // clear of its crown (her snout brushes it); the south-east one 11.5 m; a white snag 10.5 m tall for Flugeðla to perch on;
+        // reed round where Uggeðla lies, on her side away from the channel
         plants: [
-          { name: 'swampConifer', position: [7.6, -10.4], scale: 0.98, variant: 5 },
+          { name: 'swampConifer', position: [7.6, -11.1], scale: 0.72, variant: 7 },
           { name: 'swampConifer', position: [9.0, -7.0], scale: 0.9, variant: 3 },
           { name: 'deadSnag', position: [-52, -88], scale: 1.5, variant: 2 },
           ...[[72, 33], [78, 31], [84, 34], [88, 41], [69, 39], [82, 45]].map((position, k) => ({ name: 'horsetailReed', position, variant: k % 4, scale: 1.15 })),
