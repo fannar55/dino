@@ -1,20 +1,21 @@
 import * as THREE from 'three';
 import { Handle } from '../../engine/handle.js';
-import { BLOBS } from './footprints.js';
 import { createWaterMaterial, RIPPLE_SLOTS } from './water.js';
 import { glints, run, sparkleBurst, needEffects } from './sparkles.js';
 import { FEN } from '../forest/config.js';
 
 // Þórseðla's ten footprints in the mud of the trail (chapter 2, scene 2: the child counts them, one to ten). Each is her hind foot
-// pressed into dark, wet mud: the pad and three toes of footprints.js's BLOBS, 1.0 m long and 0.7 m wide, its mud pushed up round
-// it into a lip 6 to 8 cm high, light where it catches the sun, dark down the inner wall, that goes on down under the ground 30 cm
-// out (so it never floats on the path, whatever the ground does); and just ahead of it the crescent of her front foot, shallower,
-// as real sauropod trackways have. Water stands in the hind print 2 cm below the lowest of its lip, flat however the trail slopes,
+// pressed into dark, wet mud, as a sauropod's pes print is: one rounded impression, broad at the front and narrower at the heel,
+// with three short claw marks fused to its front edge toward the outside, angled outward (PES), 1.0 m long and 0.7 m wide, her
+// left foot's the mirror of her right's. Its mud is pushed up round it into a lip 6 to 8 cm high, a light crest along it, dark down
+// the inner wall, a wet band outside it, and goes on down under the ground 30 cm out in the path's own colour (so it never floats
+// on the path, whatever the ground does); and just ahead of it lies the crescent of her front foot, shallower, as real sauropod
+// trackways have. Water stands in the hind print 2 cm below the lowest of its lip, flat however the trail slopes,
 // drawn with the Fen's own water material (water.js, its print variant): clear enough that the dark mud floor shows through it
 // looking down, the sky by a fresnel looking along it, its shore drawn per pixel from the print's shape. All ten are two meshes,
 // two draw calls: the mud and the water.
 //
-//   const prints = createMudPrints(world, { prints: layout.prints, heightAt });   // [{ position: [x, z], heading }]
+//   const prints = createMudPrints(world, { prints: layout.prints, heightAt });   // [{ position: [x, z], heading, foot }]
 //   for (const t of prints.targets) s.target(t.name, t);  // print1 .. print10: { name, point, radius: 0.6 }
 //   prints.glimmer(0);       // the next to count glimmers: its water swells with light, glints rise off its rim, a soft ring
 //   prints.splash(4);        // a tap: a ring in its water and a splash of drops; returns a Handle
@@ -26,7 +27,6 @@ import { FEN } from '../forest/config.js';
 // camera as it rises. Everything runs on the game clock (world.effects and world.clock.time), so a capture lands on the same
 // frame. heightAt is the place's ground (the trail's lift and all).
 
-const SIZE = 1.3; // BLOBS at this scale: the print is 1.0 m long and 0.7 m wide, as a 22 m sauropod's hind foot is
 const WATER_UP = 0.015; // m the water stands over the highest ground inside the print
 const RIM_UP = 0.02; // m the lowest of the rim's crest stands over the water (it rises higher where the ground falls away)
 const CREST_UP = 0.06; // m the crest stands over the ground at least: the mud the foot pushed up round it
@@ -40,9 +40,11 @@ const WATER_FADE = 0.025; // m over which the water fades out at its edge
 // The front foot's print (the manus) just ahead of each hind print, as in real sauropod trackways: a crescent, convex forward,
 // shallower, with no water in it. Two ellipses in the print's frame ([x, z, rx, rz], metres): the crescent is the outer less the inner.
 const MANUS = { outer: [0.84, 0, 0.16, 0.26], inner: [0.73, 0, 0.12, 0.2], floor: 0.012, edge: 0.03, crest: 0.045, wall: 0.04, skirt: 0.22 };
-// dark wet mud on the floor and the inner wall (FEN.mud, darker), a lighter lip where the pushed-up crest catches the light, and the
-// trail's damp path at the edge, where it goes under the ground
-const MUD = { floor: '#2e241b', wall: '#3b2e22', lip: '#9a7a52', outer: '#80654a' };
+// dark wet mud on the floor and the inner wall (FEN.mud, darker); a lighter crest along the pushed-up lip where it catches the light;
+// outside it a band of wet mud darker than the path, and out over the skirt the trail's own path as it renders in the sun (FEN.path
+// through the ground's shading), so where the mud goes under the ground it is the path
+const MUD = { floor: '#2e241b', wall: '#3b2e22', lip: '#86683f', band: '#5c4328', outer: '#735426' };
+const BAND = 0.08; // m outside the crest where the wet band is darkest
 const BED = '#1c1510'; // the water's own colour over its floor: the mud's, darker under the water
 const DIGIT = {
   height: 0.74, // m from the bottom of its edge to the top
@@ -67,14 +69,50 @@ function ellipseDistance(u, v, x, z, rx, rz) {
   const g = Math.hypot(a / (rx * rx), b / (rz * rz));
   return g < 1e-6 ? -Math.min(rx, rz) : ((k - 1) * k) / g;
 }
-/** The pad and the three toes, scaled: what the water shader's shoreline is drawn from too (uBlobs). */
-const PES = BLOBS.map(b => ({ x: b.x * SIZE, z: b.z * SIZE, rx: b.rx * SIZE, rz: b.rz * SIZE }));
-/** The hind print's signed distance (m, negative inside) at (u, v) in its own frame: u the way it points, v to its right. */
-function printDistance(u, v) {
-  let d = Infinity;
-  for (const b of PES) d = Math.min(d, ellipseDistance(u, v, b.x, b.z, b.rx, b.rz));
+// Her hind foot (the pes), science first: a sauropod's pes print is one rounded impression, broad at the front and narrower at the
+// heel, with the short claw marks of digits I to III on its front edge, set toward the outside and angled outward, the first the
+// biggest (Brontopodus trackways); not separate round toes. Her right foot's, in the print's frame: u the way it points, w toward
+// the outside of the foot (her left foot's is the mirror). Ellipses fused by a smooth union over BLEND m into one pool: the front of
+// the sole, the heel, and the three claws, each set on the sole's edge `at` degrees round from the way it points toward the
+// outside, `len` and `wide` its radii, turned `turn` degrees outward. 1.0 m long and 0.7 m wide, as a 22 m sauropod's hind foot is.
+const SOLE = { x: 0.06, z: 0.02, rx: 0.32, rz: 0.33 };
+const BLEND = 0.08;
+const blob = (x, z, rx, rz, turn = 0) => {
+  const a = THREE.MathUtils.degToRad(turn);
+  return { x, z, rx, rz, cos: Math.cos(a), sin: Math.sin(a) };
+};
+const claw = (at, len, wide, turn) => {
+  const a = THREE.MathUtils.degToRad(at), t = THREE.MathUtils.degToRad(turn);
+  const ex = SOLE.x + SOLE.rx * Math.cos(a), ez = SOLE.z + SOLE.rz * Math.sin(a);
+  return blob(ex + Math.cos(t) * len * 0.4, ez + Math.sin(t) * len * 0.4, len, wide, turn);
+};
+const PES = [
+  blob(SOLE.x, SOLE.z, SOLE.rx, SOLE.rz), // the front of the sole (the first: the water's light ring goes out from its middle)
+  blob(-0.2, -0.02, 0.24, 0.25), // the heel
+  claw(-10, 0.12, 0.07, 15), // digit I's claw, the biggest
+  claw(25, 0.11, 0.065, 35), // digit II's
+  claw(58, 0.095, 0.058, 58), // digit III's
+];
+/** A turned ellipse's signed distance (m, negative inside) at (u, w), to first order. */
+function blobDistance(u, w, b) {
+  const a = u - b.x, c = w - b.z;
+  const p = a * b.cos + c * b.sin, q = -a * b.sin + c * b.cos;
+  const k = Math.hypot(p / b.rx, q / b.rz);
+  const g = Math.hypot(p / (b.rx * b.rx), q / (b.rz * b.rz));
+  return g < 1e-6 ? -Math.min(b.rx, b.rz) : ((k - 1) * k) / g;
+}
+/** The hind print's signed distance (m, negative inside) at (u, w) in its frame: its ellipses' smooth union (as the water's shader). */
+function printDistance(u, w) {
+  let d = 1e3;
+  for (const b of PES) {
+    const e = blobDistance(u, w, b);
+    const h = Math.max(BLEND - Math.abs(d - e), 0) / BLEND;
+    d = Math.min(d, e) - h * h * BLEND * 0.25;
+  }
   return d;
 }
+/** A turned ellipse's half extents along u and w. */
+const reach = b => [Math.hypot(b.rx * b.cos, b.rz * b.sin), Math.hypot(b.rx * b.sin, b.rz * b.cos)];
 /** The front foot's crescent: the outer ellipse less the inner. */
 function manusDistance(u, v) {
   return Math.max(ellipseDistance(u, v, ...MANUS.outer), -ellipseDistance(u, v, ...MANUS.inner));
@@ -108,8 +146,8 @@ function mudAt(u, v, ground, level) {
 const covered = (dp, dm) => dp < SKIRT || dm < MANUS.skirt; // mud there, above the ground or under it
 
 const EXTENT = (() => {
-  const xs = PES.flatMap(b => [b.x - b.rx, b.x + b.rx]);
-  const zs = PES.flatMap(b => [b.z - b.rz, b.z + b.rz]);
+  const xs = PES.flatMap(b => [b.x - reach(b)[0], b.x + reach(b)[0]]);
+  const zs = PES.flatMap(b => [b.z - reach(b)[1], b.z + reach(b)[1]]);
   const pad = SKIRT + 0.05;
   const front = MANUS.outer[0] + MANUS.outer[2] + MANUS.skirt + 0.05;
   const side = Math.max(...zs.map(Math.abs), MANUS.outer[3]) + pad;
@@ -117,11 +155,11 @@ const EXTENT = (() => {
 })();
 // The water's quad over the hind print (the shader keeps only what is inside the print's shape), in the print's frame.
 const POOL = (() => {
-  const xs = PES.flatMap(b => [b.x - b.rx, b.x + b.rx]);
-  const zs = PES.flatMap(b => [b.z - b.rz, b.z + b.rz]);
+  const xs = PES.flatMap(b => [b.x - reach(b)[0], b.x + reach(b)[0]]);
+  const zs = PES.flatMap(b => [b.z - reach(b)[1], b.z + reach(b)[1]]);
   return { x0: Math.min(...xs) - 0.02, x1: Math.max(...xs) + 0.02, z0: Math.min(...zs) - 0.02, z1: Math.max(...zs) + 0.02 };
 })();
-const PAD = [PES[0].x, PES[0].z]; // the middle of the pad: where a tap aims and a digit rises
+const PAD = [-0.02, 0]; // the middle of the sole: where a tap aims and a digit rises
 
 // ---- the digits ------------------------------------------------------------------------------------------------
 
@@ -265,15 +303,19 @@ export function digitGeometry(number) {
  *   dispose()
  */
 export function createMudPrints(world, { prints, heightAt = world.heightAt, seed = 12 } = {}) {
-  if (!Array.isArray(prints) || !prints.length) throw new TypeError('createMudPrints takes `prints`: [{ position: [x, z], heading }]');
+  if (!Array.isArray(prints) || !prints.length) throw new TypeError('createMudPrints takes `prints`: [{ position: [x, z], heading, foot }]');
   needEffects(world, 'createMudPrints');
   const group = new THREE.Group();
   group.name = 'Þórseðla prints';
-  const frames = prints.map(({ position: [x, z], heading = 0 }) => {
+  const frames = prints.map(({ position: [x, z], heading = 0, foot = 'right' }) => {
     const a = THREE.MathUtils.degToRad(heading);
-    return { x, z, ax: Math.cos(a), az: Math.sin(a) }; // its way (ax, az); its right is (-az, ax)
+    // its way (ax, az); its right is (-az, ax); the outside of the foot is to its right for her right foot, its left for her left
+    return { x, z, ax: Math.cos(a), az: Math.sin(a), out: foot === 'left' ? -1 : 1 };
   });
+  /** A point in print f's frame (u along it, v to its right) in the world. */
   const toWorld = (f, u, v) => [f.x + f.ax * u - f.az * v, f.z + f.az * u + f.ax * v];
+  /** A point in its shape's frame (u along it, w toward the outside of the foot) in the world. */
+  const shapeToWorld = (f, u, w) => toWorld(f, u, w * f.out);
 
   // ---- the mud: a grid a print, its heights from the distance to each foot's edge ----
   const pos = [], col = [], edge = [], index = [];
@@ -289,7 +331,8 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     const wall = d === g.dp ? WALL : MANUS.wall;
     if (d <= 0) return tint.copy(C.floor).lerp(C.wall, smooth((d + wall) / wall));
     if (d <= CREST) return tint.copy(C.wall).lerp(C.lip, smooth(d / CREST));
-    return tint.copy(C.lip).lerp(C.outer, smooth((d - CREST) / (skirt - CREST)));
+    if (d <= CREST + BAND) return tint.copy(C.lip).lerp(C.band, smooth((d - CREST) / BAND));
+    return tint.copy(C.band).lerp(C.outer, smooth((d - CREST - BAND) / (skirt - CREST - BAND)));
   }
   frames.forEach((f, k) => {
     const grid = [];
@@ -297,7 +340,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     for (let j = 0; j <= nv; j++) {
       for (let i = 0; i <= nu; i++) {
         const u = EXTENT.x0 + ((EXTENT.x1 - EXTENT.x0) * i) / nu, v = EXTENT.z0 + ((EXTENT.z1 - EXTENT.z0) * j) / nv;
-        const [x, z] = toWorld(f, u, v);
+        const [x, z] = shapeToWorld(f, u, v);
         const ground = heightAt(x, z);
         const dp = printDistance(u, v);
         if (dp < 0) highest = Math.max(highest, ground);
@@ -324,13 +367,15 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       for (let i = 0; i < nu; i++) {
         const corners = [at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)];
         const a = base + j * (nu + 1) + i, b = a + 1, c = a + (nu + 1), d = c + 1;
-        if (corners.some(g => covered(g.dp, g.dm))) index.push(a, c, b, b, c, d);
+        if (!corners.some(g => covered(g.dp, g.dm))) continue;
+        if (f.out > 0) index.push(a, c, b, b, c, d);
+        else index.push(a, b, c, b, d, c); // the mirror's triangles turn the other way: keep them facing up
       }
     }
     // the water: one quad over the hind print, flat at its level; the shader draws its shore from the print's shape
     const wbase = water.pos.length / 3;
     for (const [u, v] of [[POOL.x0, POOL.z0], [POOL.x1, POOL.z0], [POOL.x0, POOL.z1], [POOL.x1, POOL.z1]]) {
-      const [x, z] = toWorld(f, u, v);
+      const [x, z] = shapeToWorld(f, u, v);
       water.pos.push(x, level, z);
       water.data.push(-1, 0.15, 0);
       water.flow.push(0, 0);
@@ -338,7 +383,8 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       water.owner.push(k);
       water.local.push(u, v);
     }
-    water.index.push(wbase, wbase + 2, wbase + 1, wbase + 1, wbase + 2, wbase + 3);
+    if (f.out > 0) water.index.push(wbase, wbase + 2, wbase + 1, wbase + 1, wbase + 2, wbase + 3);
+    else water.index.push(wbase, wbase + 1, wbase + 2, wbase + 1, wbase + 3, wbase + 2);
   });
   const mudGeometry = new THREE.BufferGeometry();
   mudGeometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -348,7 +394,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   mudGeometry.computeVertexNormals();
   mudGeometry.computeBoundingSphere();
   // wet, dark and a little glossy (STYLE.md: nothing shines but eyes and water; wet mud has a soft sheen), on top of the ground
-  const mudMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.12, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  const mudMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.06, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
   mudMaterial.name = 'mud prints';
   const mud = new THREE.Mesh(mudGeometry, mudMaterial);
   mud.name = 'Mud prints';
@@ -365,8 +411,10 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   waterGeometry.setAttribute('aLocal', new THREE.Float32BufferAttribute(water.local, 2));
   waterGeometry.setIndex(water.index);
   waterGeometry.computeBoundingSphere();
-  const surface = createWaterMaterial(world, { seed, fade: WATER_FADE, prints: true, bed: BED });
+  const surface = createWaterMaterial(world, { seed, fade: WATER_FADE, prints: true, blobs: PES.length, bed: BED });
   surface.uniforms.uBlobs.value.forEach((v, i) => v.set(PES[i].x, PES[i].z, PES[i].rx, PES[i].rz));
+  surface.uniforms.uBlobTurn.value.forEach((v, i) => v.set(PES[i].cos, PES[i].sin));
+  surface.uniforms.uBlend.value = BLEND;
   const waterMesh = new THREE.Mesh(waterGeometry, surface.material);
   waterMesh.name = 'Print water';
   waterMesh.renderOrder = 8;
@@ -409,8 +457,8 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       const f = frames[k];
       const dx = x - f.x, dz = z - f.z;
       if (dx * dx + dz * dz > 1.6 * 1.6) continue;
-      const u = dx * f.ax + dz * f.az, v = -dx * f.az + dz * f.ax;
-      const m = mudAt(u, v, ground, levels[k]);
+      const u = dx * f.ax + dz * f.az, w = (-dx * f.az + dz * f.ax) * f.out;
+      const m = mudAt(u, w, ground, levels[k]);
       if (covered(m.dp, m.dm)) return Math.max(ground, m.h);
     }
     return ground;

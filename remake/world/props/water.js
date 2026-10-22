@@ -207,18 +207,25 @@ varying vec2 vWater;
 varying vec2 vFlow;
 #ifdef PRINT_WATER
 uniform vec3 uGold;
-uniform vec4 uBlobs[ 4 ]; // the print's pad and three toes: x, z, radius along, radius across (mud-prints.js)
+uniform vec4 uBlobs[ PRINT_BLOBS ]; // the print's shape, its ellipses: x, z, radius along, radius across (mud-prints.js)
+uniform vec2 uBlobTurn[ PRINT_BLOBS ]; // and how each is turned: cos, sin
+uniform float uBlend; // m over which they fuse into one (a smooth union)
 varying vec2 vState;
 varying vec2 vLocal;
-// the print's signed distance (m, negative inside): the nearest of its four ellipses, to first order (as mud-prints.js has it)
+// the print's signed distance (m, negative inside): its ellipses, each to first order, fused by a smooth union (as mud-prints.js
+// has it)
 float printDistance( vec2 p ) {
   float d = 1e3;
-  for ( int i = 0; i < 4; i ++ ) {
+  for ( int i = 0; i < PRINT_BLOBS; i ++ ) {
     vec4 b = uBlobs[ i ];
+    vec2 t = uBlobTurn[ i ];
     vec2 u = p - b.xy;
+    u = vec2( u.x * t.x + u.y * t.y, - u.x * t.y + u.y * t.x );
     float k = length( u / b.zw );
     float g = length( u / ( b.zw * b.zw ) );
-    d = min( d, g < 1e-6 ? - min( b.z, b.w ) : ( k - 1.0 ) * k / g );
+    float e = g < 1e-6 ? - min( b.z, b.w ) : ( k - 1.0 ) * k / g;
+    float h = max( uBlend - abs( d - e ), 0.0 ) / uBlend;
+    d = min( d, e ) - h * h * uBlend * 0.25;
   }
   return d;
 }
@@ -290,8 +297,8 @@ void main() {
   #ifdef PRINT_WATER
   // A footprint's water: a few centimetres over a mud floor. Its shore is the print's own shape, per pixel. Looking down it is
   // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, it lies
-  // still, a warm amber over its floor, the sky in it gold (the sky times the gold: mixed in, a bright sky turns it to sand), with
-  // a gold line where the light catches its shore and gold in its sheen and sparks. The next to count glimmers: its sparks twinkle
+  // still, a warm amber over its floor, the sky in it gold (the sky times the gold: mixed in, a bright sky turns it to sand), its
+  // meniscus gold and gold in its sheen and sparks. The next to count glimmers: its sparks twinkle
   // whatever the sun, and a ring of light goes out from the middle of the pad again and again. A ring where something touched it
   // shows in its tilt and a thin crest, not a wash of white over so small a water.
   float pd = printDistance( vLocal );
@@ -300,10 +307,14 @@ void main() {
   float done = vState.x;
   vec3 floorTint = mix( uBed, uDeep * 0.7, 0.3 * smoothstep( 0.0, 0.25, - pd ) );
   floorTint = mix( floorTint, uGold * 0.35, 0.6 * done );
-  col = mix( floorTint, sky * mix( vec3( 1.0 ), uGold * vec3( 1.35, 1.1, 1.0 ), done ), fresnel * 0.9 );
-  float rim = ( - pd - 0.03 ) / 0.018;
-  float goldRim = exp( - rim * rim ) * done;
-  col += uGold * ( goldRim * 0.55 + sparks * done * 0.9 );
+  // however steeply it is seen, it shows a little of the sky
+  col = mix( floorTint, sky * mix( vec3( 1.0 ), uGold * vec3( 1.35, 1.1, 1.0 ), done ), max( fresnel, 0.15 ) * 0.9 );
+  // the meniscus: a thin line of light just inside its shore, where the water curves up to the mud, pale as the sky (gold once
+  // counted), brighter the further along it is seen
+  float rim = ( - pd - 0.025 ) / 0.015;
+  float meniscus = exp( - rim * rim ) * ( 0.18 + 0.45 * fresnel );
+  col += mix( mix( uHorizon, uZenith, 0.4 ) * 1.1, uGold, done ) * meniscus;
+  col += uGold * sparks * done * 0.9;
   col += mix( uGlint, uGold, done ) * ( sheen * ( 1.0 + 2.0 * done ) + glint + glitter * ( 1.0 + done ) );
   float run = fract( uTime * 0.6 );
   float wave = ( length( vLocal - uBlobs[ 0 ].xy ) - run * 0.42 ) / 0.03;
@@ -311,7 +322,7 @@ void main() {
   float twinkle = sparks * vState.y * 2.5;
   col += uGlint * ( lightRing * 0.9 + twinkle );
   col = mix( col, uHorizon * 1.05, clamp( crest * crest * 0.3, 0.0, 0.3 ) );
-  alpha = printShore * clamp( 0.5 + fresnel * 0.5 + goldRim * 0.4 + glint + glitter + crest * 0.15 + lightRing * 0.6 + twinkle * 0.5, 0.0, 1.0 );
+  alpha = printShore * clamp( 0.5 + fresnel * 0.5 + meniscus * 0.6 + glint + glitter + crest * 0.15 + lightRing * 0.6 + twinkle * 0.5, 0.0, 1.0 );
   #endif
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
@@ -577,9 +588,10 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
  * and RIPPLES rings in `uniforms.uRipples` ([x, z, the time it began, strength]; strength 0 is none), on the clock `uniforms.uTime`.
  * A geometry drawn with it carries aWater ([distance to the shore, negative inside, depth, 0]) and aFlow ([m/s, m/s]), and with
  * `prints` aState ([still and gold, glimmer], 0 to 1) and aLocal (the point in the print's frame): a footprint's water, its shore
- * the print's shape in `uniforms.uBlobs`, clear over its mud floor (`bed`). `fade` is the metres it fades out over inside its shore.
+ * the print's shape (`blobs` ellipses in `uniforms.uBlobs`, turned by `uBlobTurn`, fused over `uBlend` m), clear over its mud floor
+ * (`bed`). `fade` is the metres it fades out over inside its shore.
  */
-export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, bed = FEN.waterBed } = {}) {
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed } = {}) {
   const noise = createNoiseTexture((seed ^ 0x77a7e) >>> 0);
   const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
   const uniforms = {
@@ -595,14 +607,19 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
     uNoise: { value: noise },
     uRipples: { value: Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0)) },
     uFade: { value: fade },
-    ...(prints ? { uGold: { value: new THREE.Color(PRINT_GOLD) }, uBlobs: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 1)) } } : {}),
+    ...(prints ? {
+      uGold: { value: new THREE.Color(PRINT_GOLD) },
+      uBlobs: { value: Array.from({ length: blobs }, () => new THREE.Vector4(0, 0, 1, 1)) },
+      uBlobTurn: { value: Array.from({ length: blobs }, () => new THREE.Vector2(1, 0)) },
+      uBlend: { value: 0.001 },
+    } : {}),
   };
   const material = new THREE.ShaderMaterial({
     vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
     fog: true, transparent: true, depthWrite: false,
   });
   material.name = prints ? 'fen-water prints' : 'fen-water';
-  if (prints) material.defines = { PRINT_WATER: '' };
+  if (prints) material.defines = { PRINT_WATER: '', PRINT_BLOBS: blobs };
   return {
     material, uniforms,
     dispose() { material.dispose(); noise.dispose(); },

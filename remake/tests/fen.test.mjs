@@ -439,6 +439,17 @@ test('ten mud prints lie on the trail with water in them', () => {
   run(1);
   const state = waterMesh.geometry.attributes.aState;
   for (let i = 0; i < state.count; i++) if (owner.getX(i) === 2) assert.ok(state.getX(i) > 0.99, "print 3's water is still and gold");
+  // A sauropod's hind foot: one impression with its claw marks on the front edge toward the outside of the foot, her left foot's
+  // the mirror of her right's. Where a claw is pressed in on the outside, the same place on the inside is the lip.
+  for (const [k, p] of prints.entries()) {
+    const out = p.foot === 'left' ? -1 : 1;
+    assert.equal(p.foot, k % 2 === 0 ? 'right' : 'left', `print ${k + 1} is her ${k % 2 === 0 ? 'right' : 'left'} foot's`);
+    const [cx, , cz] = mud.pointIn(k, 0.39, 0.185 * out);
+    const [ix, , iz] = mud.pointIn(k, 0.39, -0.185 * out);
+    const claw = mud.groundAt(cx, cz) - terrain.heightAt(cx, cz), inner = mud.groundAt(ix, iz) - terrain.heightAt(ix, iz);
+    assert.ok(claw < 0.015, `print ${k + 1}: a claw is pressed in on the outside of the foot (${(claw * 100).toFixed(1)} cm)`);
+    assert.ok(inner > 0.02, `print ${k + 1}: the inside there is the lip (${(inner * 100).toFixed(1)} cm)`);
+  }
   mud.dispose();
   assert.equal(mud.group.parent, null);
 });

@@ -39,7 +39,7 @@ function printsAlong(path) {
     const p = pathAt(path, PRINT_FROM + PRINT_PACE * k);
     const right = k % 2 === 0 ? 1 : -1; // her right foot on the right of the way down: (-dz, dx)
     const heading = (Math.atan2(p.dz, p.dx) * 180) / Math.PI + right * PRINT_TURN;
-    return { position: [p.x - p.dz * PRINT_GAUGE * right, p.z + p.dx * PRINT_GAUGE * right], heading };
+    return { position: [p.x - p.dz * PRINT_GAUGE * right, p.z + p.dx * PRINT_GAUGE * right], heading, foot: right > 0 ? 'right' : 'left' };
   });
 }
 export const TRAIL_PRINTS = printsAlong(TRAIL_PATH);
