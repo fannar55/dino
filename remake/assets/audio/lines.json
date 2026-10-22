@@ -1952,7 +1952,7 @@
  "eitt_why_keep_wild": {
   "src": "assets/audio/eitt/eitt_why_keep_wild.mp3",
   "duration": 5.13,
-  "mouth": "0ffff80eedfa00f94ba02a80000000000007fd3fe400e7cd70bd30aca4000000cdd70cc7000dc02afecd80ac402200000000000"
+  "mouth": "00cffff6bffdcde90cd658b009ba7000000000000ee75cb030cdceda2ae900b860000cdd9ac709d400beedd806db009a8300000"
  },
  "eitt_why_only_wild": {
   "src": "assets/audio/eitt/eitt_why_only_wild.mp3",
@@ -1962,12 +1962,12 @@
  "eitt_why_attack": {
   "src": "assets/audio/eitt/eitt_why_attack.mp3",
   "duration": 4.81,
-  "mouth": "8affd80eeedffeffffa0db005cbc706fe0aec0007b5000000000000afd000feedfa0eceeeaeb800ced930000000000000"
+  "mouth": "8affe80effdffefeffa0db006ebc805ff09ec0006b4400000000000bfe000fefdfb0ecefeafb600deea30000000000000"
  },
  "eitt_why_keep_attack": {
   "src": "assets/audio/eitt/eitt_why_keep_attack.mp3",
   "duration": 4.17,
-  "mouth": "0fffc0cc004eeb630507eedee8000dfd9e6bfa097cdea0deeccedd90cf90beda8a06eeb5000000000000"
+  "mouth": "0fffc0cc020dec640507eeddd8000efc7f69ea078deea0dfedcedd80cf90ceda6906eea5000000000000"
  },
  "eitt_why_skip": {
   "src": "assets/audio/eitt/eitt_why_skip.mp3",
@@ -1976,8 +1976,8 @@
  },
  "eitt_why_most_colour": {
   "src": "assets/audio/eitt/eitt_why_most_colour.mp3",
-  "duration": 3.85,
-  "mouth": "6bcfdd60ae700dfffffecec8000000000000009efc2000cf5000040afefdcbcb9440000000000"
+  "duration": 4.25,
+  "mouth": "8cfffc05f70effeffddc9500000000000000000ffed96000acb30000000cbcdb94008dfedceda76600000"
  },
  "eitt_why_change_colour": {
   "src": "assets/audio/eitt/eitt_why_change_colour.mp3",
@@ -1991,8 +1991,8 @@
  },
  "eitt_why_eitt": {
   "src": "assets/audio/eitt/eitt_why_eitt.mp3",
-  "duration": 2.01,
-  "mouth": "0effd507cded82dc30ceebcfd2cfd900000000000"
+  "duration": 2.57,
+  "mouth": "0fffed50acc56fb0009abc000efbafc0dda00000000000000000"
  },
  "eitt_why_play_drawn": {
   "src": "assets/audio/eitt/eitt_why_play_drawn.mp3",
@@ -2012,7 +2012,7 @@
  "eitt_tut_her": {
   "src": "assets/audio/eitt/eitt_tut_her.mp3",
   "duration": 2.33,
-  "mouth": "affeddc809fc0097edd50edcccdcb984006000000000000"
+  "mouth": "9ffedcb80afc0096ddc40edcbddcb874004000000000000"
  },
  "eitt_tut_number": {
   "src": "assets/audio/eitt/eitt_tut_number.mp3",
@@ -2022,7 +2022,7 @@
  "eitt_tut_skip": {
   "src": "assets/audio/eitt/eitt_tut_skip.mp3",
   "duration": 5.29,
-  "mouth": "08bfecdefc49ed649aa3000000000effdefd05e9089eee60eebee88efd00ccb80000ca02bbce706bc000bebddca405000000000000"
+  "mouth": "08cfeeeffe59de649ab0000000000effdefd07f9079eee40edbfe9affd00ccc80000cb00ccde836dc000cebecc9606000000000000"
  },
  "eitt_tut_reverse": {
   "src": "assets/audio/eitt/eitt_tut_reverse.mp3",
@@ -2032,7 +2032,7 @@
  "eitt_tut_draw2": {
   "src": "assets/audio/eitt/eitt_tut_draw2.mp3",
   "duration": 5.45,
-  "mouth": "450acdded08ff6000a0000000000005fedb0bddcd809ddc0bedcded04005cdc85507dcba400000dffed6000f96dfc0385000000000000"
+  "mouth": "460bdeeee09ff6000a3000000000005feeb0bdedd909eed0bfeceee05306ddda7709ecba500000effed6000fa6dfe0095000000000000"
  },
  "eitt_tut_wild": {
   "src": "assets/audio/eitt/eitt_tut_wild.mp3",
@@ -2042,12 +2042,12 @@
  "eitt_tut_wild4": {
   "src": "assets/audio/eitt/eitt_tut_wild4.mp3",
   "duration": 6.89,
-  "mouth": "07fffd00de83dfe806fc0004bcfddcdfb2efd00073000000000006dedb0dedcedd80dffcdb4008cddcac5630cdda950000008d000bdd98efdcebaccee00897000000000000"
+  "mouth": "08fffc30de86dfe906fb4004cdfddcbfc4dfd00060000000000007deda0dedaedd82cffdea0008cddc9c5420cddb940000009d000cdc98dffddbabcfe00997000000000000"
  },
  "eitt_tut_again": {
   "src": "assets/audio/eitt/eitt_tut_again.mp3",
-  "duration": 2.89,
-  "mouth": "3affda00bfd73000000000000bded908db9bcbb9b90006300000000000"
+  "duration": 2.97,
+  "mouth": "0cffeb6eec600000000000ffdb606cbbcdceeec4000de530377970000000"
  },
  "eitt_tut_draw": {
   "src": "assets/audio/eitt/eitt_tut_draw.mp3",
@@ -2057,7 +2057,7 @@
  "eitt_tut_drew": {
   "src": "assets/audio/eitt/eitt_tut_drew.mp3",
   "duration": 4.33,
-  "mouth": "00efec07fd08ede60ddbec6068543000000000000bfdeec53ff6098cddb0eeddeeedddd8000300000000000"
+  "mouth": "00efeb06fd08ede50deced6079460000000000000bfeeec60ff7099ceea0efedeffdded8000400000000000"
  },
  "eitt_tut_last": {
   "src": "assets/audio/eitt/eitt_tut_last.mp3",
@@ -2066,13 +2066,13 @@
  },
  "eitt_tut_eitt": {
   "src": "assets/audio/eitt/eitt_tut_eitt.mp3",
-  "duration": 9.53,
-  "mouth": "00fffe7adfe700eee000cb0000008eeb6cf5009dd00000000ce0007ed0dff700afc0000000000000000000bf0bd07edffffb09bbc9000ba09bfe90eeddee80ac80dcc00cc36aac00000000cd507dd70ceedcc0030aeed650684000000000000"
+  "duration": 9.69,
+  "mouth": "00eeee70ddfc400cfdfa0009fd300000040eeedeb00beb30000000dd0007dbffc000efa00000000000000000000ce3bb09edefffb08dcca000cb0c9fea0ddcdee00dd57dec00c70bbc70000000bc20adc09ceecca0530beec70075000000000000"
  },
  "eitt_tut_catch": {
   "src": "assets/audio/eitt/eitt_tut_catch.mp3",
   "duration": 3.61,
-  "mouth": "7aedd60feaeda07eddb409ffb00bdee80deb3000000000000bcfe000ffefca65000000000"
+  "mouth": "6aedd70feaeda07eddb509ffb00bcdfa0de93000000000000bbfd000fffeca87000000000"
  },
  "eitt_tut_quiz": {
   "src": "assets/audio/eitt/eitt_tut_quiz.mp3",
@@ -2106,8 +2106,8 @@
  },
  "eitt_tut_recap": {
   "src": "assets/audio/eitt/eitt_tut_recap.mp3",
-  "duration": 8.33,
-  "mouth": "cfffb0bd8000000000005feddddccced805cc5000cccb000ddedec04aefca9400000000defdcc9eeb08e730be0775000000000006f90dd300bffd38dd900000aedd509d300030aedccede700a93000000000000"
+  "duration": 8.97,
+  "mouth": "0fffd0dd5000000000009fdcddcbcee806cc0000cdca000dccbcb006efeb9840000000002cefd9c8ccc434d7300da087400000000000fc0af6000cffd57feb000000eede6000cfa000000300cccb809ecd7007a6000000000000"
  },
  "eitt_tut_real": {
   "src": "assets/audio/eitt/eitt_tut_real.mp3",

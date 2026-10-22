@@ -379,6 +379,12 @@
    "duration": 2.89,
    "model": "eleven_v4"
   },
+  "eitt/eitt_tut_catch": {
+   "key": "cfbf0f778bdb1d5d95bc46a91835af4553090779a45b0fea3370fe1963579c66",
+   "mp3": "e96b0fb1221d7d6d001649136a8f19d21b461b6b57c19856abf8ba85e8c74037",
+   "duration": 3.61,
+   "model": "eleven_v4"
+  },
   "eitt/eitt_tut_check": {
    "key": "a6e748a569ddc33f05e0c5d50ebe4901bdef891a792770a94bead1bd489a82c4",
    "mp3": "b883f3811636c0769cc524a693875ec6cd5deb3f9a61ee7ba651b88f09aff9f9",
@@ -397,10 +403,34 @@
    "duration": 4.73,
    "model": "eleven_v4"
   },
+  "eitt/eitt_tut_draw2": {
+   "key": "3db38922647a44a3af3b1b13fe3889e3905cbb1a7606c08bf82d864cccca1998",
+   "mp3": "96f2ed4b19b1fd52a29766bc961799e22e81dd531f8bdb3b089b33db0ac49c4b",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_tut_drew": {
+   "key": "1beaf58c643a662ed6701f32bd73a4c4cc2e94cee4c1d096af7dab1908b3daaf",
+   "mp3": "5405c488bd7b66d5ba51990d8f5263fdd52f952a29ded66e2765eb035dd735ae",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_tut_eitt": {
+   "key": "6b47804cc7694265c52b80ef56f53590a0af46e17a65409497b1cdfd9ca3feaa",
+   "mp3": "083bdedbacbfa97551a250351d46e2497edbdc267651caa4403041cfd638ecaf",
+   "duration": 9.69,
+   "model": "eleven_v4"
+  },
   "eitt/eitt_tut_goal": {
    "key": "2615a5f1704342ccd9688af44c184c6021034627e11b90efdc157624e9f8b963",
    "mp3": "7f39495e229c5107721a7bac23d3a25167f05415e5693aaa16112b32c5f86cbf",
    "duration": 6.17,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_tut_her": {
+   "key": "b2cb4c487a114ec32934486b8ea8ac76413270020117b6167f8f74cb732a4425",
+   "mp3": "3948e907562bc202c5938ff1719762af7628711a6ad90454f33b619f57f6e918",
+   "duration": 2.33,
    "model": "eleven_v4"
   },
   "eitt/eitt_tut_hint_colour": {
@@ -445,16 +475,40 @@
    "duration": 4.57,
    "model": "eleven_v4"
   },
+  "eitt/eitt_tut_recap": {
+   "key": "dc53323a44e98f09016bcb828295ec4c8a25b7a2255637cf045b6be519378db4",
+   "mp3": "970de2b5085b067e6e79d6d464a29f61f25322bdebfa01714f0381d1a7d0d074",
+   "duration": 8.97,
+   "model": "eleven_v4"
+  },
   "eitt/eitt_tut_right": {
    "key": "a91c34a5910007de5357f485578634a8c36dee4f6bf90f86e4ab11a8a3b64447",
    "mp3": "06a80e8d3ed39301ffb303edf6fb5550250d6f9f05475c6901a54daf00fe97cf",
    "duration": 2.25,
    "model": "eleven_v4"
   },
+  "eitt/eitt_tut_skip": {
+   "key": "4b2f8c4ed199812ade7cf1483213f2915a69b00acc0422d0e16f7455fa0b3633",
+   "mp3": "c435ae083fa37e4688522de568695609fba11a23af0c27cca803ba24b693053c",
+   "duration": 5.29,
+   "model": "eleven_v4"
+  },
   "eitt/eitt_tut_wild": {
    "key": "3e4154c3e8b090ded25cec268776ecca3e2457ff7f1126c748e47075e2a33c42",
    "mp3": "5f45f7ae666760d5883ce3c36718022e376f73d6fdc951b27dd493f1ba83f012",
    "duration": 6.49,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_tut_wild4": {
+   "key": "2c335a8a79ef3129bae11bbc119e13fdd3fec675264390ebb1f8d8494c613ae3",
+   "mp3": "fd89eba6a1e344dad6ed01acbf33048df38c5f452d3785057c7ee7072d80298b",
+   "duration": 6.89,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_why_attack": {
+   "key": "988db91a6c8445c9580f3693499a9a18df5c8b39bc15c634e6eafa4ef8668fc8",
+   "mp3": "bfe99f61879391367df048bc42ef2c0abeedcee7852c75098da4ce4dd48ab145",
+   "duration": 4.81,
    "model": "eleven_v4"
   },
   "eitt/eitt_why_change_colour": {
@@ -473,6 +527,18 @@
    "key": "87346185df989028c6658044639582b9b5e1fc8b8df6382e4e14b8fb5c3baa88",
    "mp3": "966da62d60a48b8679595d50ce521fce3a81e26a9a733e7aabc7e519c7433c00",
    "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_why_eitt": {
+   "key": "d162c9ca17fb63250b5fe61f5f00adb726e8249a7c32acba8848da01cce229a4",
+   "mp3": "ec8a7cd823b5969b96963e14e83c3e33806fba02278ae6f1487d141e58409006",
+   "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "eitt/eitt_why_keep_attack": {
+   "key": "f5ca4175fe7e5952568357c2e16fe08f0cb4dd79ddca2839e723cbc2a8501b0c",
+   "mp3": "88fa10ed4e460d449ac825a5c5140d29ca871115856dc0e563b3f3ca3aeb0cf4",
+   "duration": 4.17,
    "model": "eleven_v4"
   },
   "eitt/eitt_why_keep_wild": {
