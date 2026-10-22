@@ -467,3 +467,10 @@ test('a blue berry is the birds\': Mosi says so, and it stays on its bush', asyn
   assert.equal(c.berries.picked.has(blue), false, 'it is not picked');
   assert.ok(c.picks.every(p => p.kind === 'red'), 'only red ones go in the basket');
 });
+
+test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'fen-dragonfly', after: 1 } });
+  assert.ok(run.seen.earlyTap, 'the dragonfly could be tapped in the Fen');
+  assert.ok(run.journal.findings.includes('dragonfly'), `the dragonfly is in the book (${run.journal.findings.join(', ')})`);
+  assert.ok(run.seen.earlyTap.movedAt !== null, 'and it darted off');
+});
