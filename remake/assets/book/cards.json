@@ -444,7 +444,7 @@
         },
         {
           "image": "fen-waterstrider",
-          "text": "Elstu vatnalæsingjar sem við þekkjum sitja fastir í rafi. Þeir eru yngri en Þórseðla en eldri en Mosi!",
+          "text": "Sá elsti sem við þekkjum situr fastur í rafi. Hvenær þeir fóru fyrst að ganga á vatni vitum við ekki enn.",
           "audio": "book_waterstrider_2",
           "sources": [
             "Perrichot, Nel og Néraudeau 2005, „Gerromorphan bugs in Early Cretaceous French amber (Insecta: Heteroptera): first representatives of Gerridae and their phylogenetic and palaeoecological implications“, Cretaceous Research 26: 793–800, doi:10.1016/j.cretres.2005.05.003, https://doi.org/10.1016/j.cretres.2005.05.003: elsti vatnalæsinginn (Gerridae), Cretogerris albianus, í rafi frá síðalbíum í Frakklandi, um 100 milljón ára.",
@@ -635,7 +635,7 @@
       "pages": [
         {
           "image": "fen-earlybird",
-          "text": "Þetta er fornfugl, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón.",
+          "text": "Þetta er fornfugl, öglir, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón.",
           "audio": "book_earlybird_1",
           "sources": [
             "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: Archaeopteryx (öglir á fuglaspjaldinu), sem fornfugl leiksins er gerður eftir, fannst í kalksteini við Solnhofen í Þýskalandi; þar var á júratímabilinu lón umkringt hlýjum (hálfhitabeltis-) eyjum.",

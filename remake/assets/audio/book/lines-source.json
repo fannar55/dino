@@ -39,7 +39,7 @@
  { "id": "book_waterbeetle_2", "speaker": "narrator", "text": "Við vitum af steingervingum að brunnklukkur syntu í vötnum á tímum risaeðlanna." },
  { "id": "book_waterbeetle_3", "speaker": "narrator", "text": "Brunnklukkan tekur loftbólu með sér undir vængina og andar úr henni í kafi, eins og kafari!" },
  { "id": "book_waterstrider_1", "speaker": "narrator", "text": "Þetta er vatnalæsingi. Hann gengur á vatninu eins og á gólfi!" },
- { "id": "book_waterstrider_2", "speaker": "narrator", "text": "Elstu vatnalæsingjar sem við þekkjum sitja fastir í rafi. Þeir eru yngri en Þórseðla en eldri en Mosi!" },
+ { "id": "book_waterstrider_2", "speaker": "narrator", "text": "Sá elsti sem við þekkjum situr fastur í rafi. Hvenær þeir fóru fyrst að ganga á vatni vitum við ekki enn." },
  { "id": "book_waterstrider_3", "speaker": "narrator", "text": "Fæturnir eru þaktir örsmáum hárum. Einn fótur gæti haldið uppi fimmtán vatnalæsingjum!" },
  { "id": "book_salamander_1", "speaker": "narrator", "text": "Þetta er salamandra. Ef hún missir fót, vex nýr fótur í staðinn!" },
  { "id": "book_salamander_2", "speaker": "narrator", "text": "Salamöndrur voru uppi á tímum risaeðlanna. Í Kína hafa fundist þúsundir steingerðra salamandra!" },
@@ -53,7 +53,7 @@
  { "id": "book_fish_1", "speaker": "narrator", "text": "Þetta er fiskur. Hreistrið hans er hart og glansandi, eins og litlar flísar." },
  { "id": "book_fish_2", "speaker": "narrator", "text": "Svona fiskar syntu í vötnum og sjó á tímum risaeðlanna. Frændur þeirra lifa enn í Ameríku!" },
  { "id": "book_fish_3", "speaker": "narrator", "text": "Frænka Uggeðlu hafði borðað svona fisk. Hreistrið fannst inni í maganum á henni!" },
- { "id": "book_earlybird_1", "speaker": "narrator", "text": "Þetta er fornfugl, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón." },
+ { "id": "book_earlybird_1", "speaker": "narrator", "text": "Þetta er fornfugl, öglir, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón." },
  { "id": "book_earlybird_2", "speaker": "narrator", "text": "Fornfuglar voru uppi um svipað leyti og Þórseðla, en langt í burtu. Í ævintýrinu okkar hittast þau!" },
  { "id": "book_earlybird_3", "speaker": "narrator", "text": "Við vitum það af steingervingum. Fyrst fannst bara ein fjöður, og svo heill fugl í steini!" },
  { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" }
