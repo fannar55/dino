@@ -221,7 +221,7 @@ test('the fossil collection is kept in the save, once each, and an older save st
   files.set('mosi-remake-v1', old);
   const before = createSave(storage);
   assert.deepEqual(before.getHals(), { found: [] }, 'a save from before the fossils has none');
-  assert.deepEqual(before.get(), { stars: ['k1_kambedla'], findings: ['beetle'], seen: ['mosi'] });
+  assert.deepEqual(before.get(), { stars: ['k1_kambedla'], findings: ['beetle'], seen: ['mosi'], places: [] });
   assert.equal(files.get('mosi-remake-v1'), old, 'and reading it stores nothing new');
 
   assert.equal(before.addHalsFound('tooth'), true);

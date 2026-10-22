@@ -8,7 +8,9 @@
 // the first find, and a save without it loads as before (engine/hals/rules.js has the kinds). Beside them it keeps the game
 // left under way (hals.game: the rules' state and who plays, which engine/hals/game.js checks with validateGame before it
 // offers "Halda áfram") and whether Mosi has said his intro and Þórseðla her hello (hals.intro, hals.hello), each only
-// once it is there.
+// once it is there. Beside the stars and the finds it keeps the places on the book's map (Kortið, engine/book/map-page.js): the
+// friends found far away from Þórseðla's head in chapter 2 (sloedla, flugedla, uggedla) and the places themselves (fen), each once;
+// a save from before the map has none.
 //
 // Storage can fail in many ways (blocked site data, a full disk, a private window, even reading
 // globalThis.localStorage can throw), and the game must not stop for any of them: every call to the
@@ -53,8 +55,8 @@ function yatzyOf(value) {
 }
 
 /**
- * `get()` is a copy of { stars, findings, seen }, each a list of ids in the order they came. `addStar(id)`,
- * `addFinding(id)` and `addSeen(id)` keep an id once however often they are called, and say whether it was new.
+ * `get()` is a copy of { stars, findings, seen, places }, each a list of ids in the order they came. `addStar(id)`,
+ * `addFinding(id)`, `addSeen(id)` and `addPlace(id)` keep an id once however often they are called, and say whether it was new.
  * `getEitt()` is a copy of the card game's { skill, losses, wins, tutorialDone } (skill null before the first
  * round), and `setEitt(changes)` keeps what it is given and leaves the rest as it was.
  * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
@@ -65,7 +67,7 @@ function yatzyOf(value) {
  * `addYatzyBadge(id)` records a dinosaur Yatzy badge once and returns whether it was new.
  */
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
-  const data = { stars: [], findings: [], seen: [] }; // all there is when the storage does not work
+  const data = { stars: [], findings: [], seen: [], places: [] }; // all there is when the storage does not work
   let eitt = null; // the card game's, once a round has been played
   let hals = null; // the fossil collection, once the first fossil has been found
   let yatzy = null; // Risaeðlu-Yatzy's, once played
@@ -76,6 +78,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       data.stars = idsOf(stored.stars);
       data.findings = idsOf(stored.findings);
       data.seen = idsOf(stored.seen); // none in a save from before the book
+      data.places = idsOf(stored.places); // none in a save from before the map
       eitt = eittOf(stored.eitt); // none in a save from before the game
       hals = halsOf(stored.hals); // none in a save from before the fossils
       yatzy = yatzyOf(stored.yatzy); // none in a save from before Yatzy
@@ -101,10 +104,11 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   }
 
   return {
-    get: () => ({ stars: [...data.stars], findings: [...data.findings], seen: [...data.seen] }),
+    get: () => ({ stars: [...data.stars], findings: [...data.findings], seen: [...data.seen], places: [...data.places] }),
     addStar: id => add('stars', id),
     addFinding: id => add('findings', id),
     addSeen: id => add('seen', id),
+    addPlace: id => add('places', id),
     getEitt: () => ({ skill: eitt?.skill ?? null, losses: eitt?.losses ?? 0, wins: eitt?.wins ?? 0, tutorialDone: eitt?.tutorialDone ?? false }),
     setEitt(changes) {
       eitt = eittOf({ ...eitt, ...changes }) ?? eittOf({});

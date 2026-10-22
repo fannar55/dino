@@ -20,7 +20,7 @@ import { DONE } from '../handle.js';
 
 // `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.search and s.lookAround need, and
-// `journal` (scene/journal.js), which s.star, s.found and s.journal need, and `sun` (engine/sun-face.js),
+// `journal` (scene/journal.js), which s.star, s.found, s.place and s.journal need, and `sun` (engine/sun-face.js),
 // which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
 // The music is not the script's to direct: it plays the theme, lowers itself under the voice (main.js) and holds with the clock.
 export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null, sun = null, sfx = null }) {
@@ -358,6 +358,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return DONE;
   }
 
+  function place(id, from = null) {
+    needJournal('s.place');
+    journal.addPlace(id, from);
+    return DONE;
+  }
+
   function needSun(call) {
     if (!sun) throw new Error(`${call} needs the sun: pass \`sun\` (createSunFace) to createScene`);
   }
@@ -445,6 +451,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
      * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button.
      */
     found,
+    /**
+     * Put the place `id` on the book's map (once per id): a friend found far away (chapter 2's sloedla, flugedla, uggedla) or a
+     * place (fen). `from` is where it is on the screen ({ x, y }, canvas pixels): its marker flies from there into the book's button.
+     */
+    place,
     /**
      * The book, for a scene that ends in it: `open()` opens it on its stars (`open('games')` on its games) and `close()` shuts it.
      * Unlike the child's own tap on the button, they do not pause the game, so a scene can go on talking under the open book (until
