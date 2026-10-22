@@ -318,7 +318,7 @@ test('the fen stays within the forest budget', async () => {
   }
 });
 
-test('the Fen\'s reed thins sooner far off than the forest\'s grass, the shader as the cull', async () => {
+test('the Fen\'s reed thins further far off than the forest\'s grass, the shader as the cull', async () => {
   const forest = await createForest(nodeWorld(), layoutOf(FEN_PLACE));
   let grass = null;
   forest.group.traverse(o => { if (o.isMesh && o.name === 'Grass') grass = o; });
@@ -326,7 +326,7 @@ test('the Fen\'s reed thins sooner far off than the forest\'s grass, the shader 
   grass.material.onBeforeCompile(shader);
   const [near, far, least] = shader.uniforms.uGrassLod.value.toArray();
   assert.deepEqual([near, far, least], [FOREST_GRASS.lodNear, FEN.grass.lodFar, FEN.grass.lodMin], 'the shader fades the blades on the Fen\'s distances');
-  assert.ok(far < FOREST_GRASS.lodFar && least < FOREST_GRASS.lodMin, 'sooner and further than the forest\'s');
+  assert.ok(far <= FOREST_GRASS.lodFar && least < FOREST_GRASS.lodMin, 'further than the forest\'s, never sooner');
   forest.dispose();
 });
 

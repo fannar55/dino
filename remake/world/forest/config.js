@@ -266,10 +266,11 @@ export const FEN = {
   // Open sky: what a plant in the fen sees of it (the forest's deep band sees 0.09), and the shade a grove of conifers throws.
   sky: 0.86,
   // Grass in the Fen: golden reed, fullest within near[0] m of the middle, easing to densityRim by near[1] m and beyond; a trail,
-  // part forest, keeps the lighter densityBlended (its budget). Away from the camera it thins sooner and further than the forest's
-  // (FOREST.grass: to 0.18 by 19 m): to lodMin by lodFar m. Far off the golden reed reads by the ground's own gold under it, and
-  // the Fen's frames with all three characters in them need the triangles (8k in the head-down frames: the budget pass of 22 Oct).
-  grass: { density: 0.85, densityRim: 0.55, near: [14, 24], densityBlended: 0.55, tall: 1.5, lodFar: 16, lodMin: 0.12 },
+  // part forest, keeps the lighter densityBlended (its budget). Away from the camera it thins as the forest's grass does but further
+  // (FOREST.grass: to 0.18 by 19 m): to lodMin by lodFar m, so the reed near and in the middle distance is as it was, and only the
+  // far reed, a few pixels a blade, is sparser: it reads by the ground's own gold under it, and the Fen's frames with all three
+  // characters in them need the triangles (7k in the head-down frames: the budget pass of 22 October).
+  grass: { density: 0.85, densityRim: 0.55, near: [14, 24], densityBlended: 0.55, tall: 1.5, lodFar: 19, lodMin: 0.1 },
   // How much the fen grows (per place, at tablet; scaled by the quality preset).
   counts: {
     groves: 16, // groups of two to four swamp conifers
