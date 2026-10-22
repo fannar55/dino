@@ -2,7 +2,7 @@
 // glittering where she is, and each goes onto the book's map (the fifth task of the plan). The pieces the scene calls, with their
 // constants and helpers:
 //   farFriends(s, c, spots)  the three of them (world/props/far-friends.js), made after the start button shows (kafli2.js: later),
-//                            or as the scene comes to the Fen, under its black; shown from the Fen on, and only from above 6 m
+//                            or under the chapter's first black; shown from the Fen on, and only from above 6 m
 //   haze(c, factor, seconds) the air thickens round the lookout (the fog's density, eased): the Fen far below reads far below
 //   lookDown(s, c)           at the top, the camera looks down past Egill at Mosi: "Vá… Mosi er pínulítill!", and Mosi's answer
 //   findFriends(s, c)        "Horfðu vel, Egill…", the camera turns out over the Fen to the north-west and the child looks round for
@@ -63,7 +63,7 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
  * Sets up the three far friends at their places (`spots`: the layout's farFriends, { name: [x, z] }) and keeps them updated on
  * world.effects until they are disposed of. Call it as the chapter starts. Their models are not made yet (defer): parsing three
  * models and making their light levels are long frames, so main.js has them made once the start button shows and the places are
- * built (chapter.later), and if the child has started by then the Fen makes them under its black (kafli2.js: arriveInTheFen).
+ * built (chapter.later), and if the child has started by then the script makes them under its first black (kafli2.js).
  * Uggeðla is kept back until the camera has turned away from her (findFriends): from the lift and the look down at Mosi she would
  * show at the edge of the frame before the child is asked to look.
  */

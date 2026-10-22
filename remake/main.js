@@ -335,6 +335,26 @@ world.warmObjects = objects => {
   return warmed;
 };
 
+// The chapter's first find flies into the book as its card's picture (scene/journal.js). The Fen's drawings are SVGs with a
+// hand-drawn filter, and the first such drawing shown builds the filter's shaders on the GPU, a frame of some 0.4 s. It is shown
+// once, tiny and all but transparent, for a few frames where nobody sees a frame stall: behind the start button once it shows,
+// else under the scene's first black (chapter.firstFind: the find; only a drawing, an SVG, needs it).
+let drawingToWarm = (() => {
+  const picture = chapter.firstFind ? book.pictureOf?.(chapter.firstFind) : null;
+  return picture && /\.svg([?#]|$)/i.test(picture) ? picture : null;
+})();
+function warmDrawing() {
+  if (!drawingToWarm) return;
+  const image = document.createElement('img');
+  image.src = drawingToWarm;
+  image.alt = '';
+  image.setAttribute('aria-hidden', 'true');
+  image.style.cssText = 'position: fixed; left: 0; top: 0; width: 96px; height: 96px; opacity: 0.01; pointer-events: none; z-index: 2147483647;';
+  document.body.append(image);
+  drawingToWarm = null;
+  image.decode().catch(() => {}).then(() => nextFrames(4)).finally(() => image.remove());
+}
+
 /** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view. */
 function warmPrepared(name, forest) {
   const here = { forest: world.forest, heightAt: world.heightAt };
@@ -380,19 +400,22 @@ const describeWarm = w => `${w.label}: ${w.built ? `built in ${w.built} ms (${w.
 /**
  * Once the start button shows: the places the chapter goes to later (chapter.prepare), built one after another a slice at a time
  * (the scene's first change of place waits for its build if the child gets there first), each drawn once while the button still
- * waits (after the start, the scene draws each as it comes there, under the black: the frame loop); then what the chapter makes
+ * waits or the screen is black (else the scene draws each as it comes there, under the black: the frame loop); then what the chapter makes
  * later (chapter.later: its files fetched as the button shows, the rest made while the button still waits, else the chapter makes
  * it under a black of its own). A warm-up's draws on the canvas are drawn over at once with the view behind the button.
  */
 async function prepareLater() {
   const warmed = (world.warmUps ??= []);
   chapter.later?.fetch?.(world);
+  if (!stage.started) warmDrawing();
   for (const name of locations ? chapter.prepare ?? [] : []) {
     const began = performance.now();
     slicing.stats = { slices: 0, longest: 0 };
     const forest = await locations.prepare(name, { sliced: true });
     const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
-    if (!stage.started) {
+    // drawn while the button waits, or under a black the scene holds for it (chapter 2's first, for the trail); else as the scene
+    // comes there
+    if (!stage.started || ui.fadeLevel >= 0.999) {
       Object.assign(entry, warmPrepared(name, forest));
       if (ui.fadeLevel < 0.999) drawNow();
     }
@@ -565,6 +588,24 @@ const stats = installStats({
   extra: () => `scene ${stage.elapsed.toFixed(1)} s  camera ${director.mode}`,
 });
 
+// A black the scene holds for longer than a moment (it waits for a place's build, or for models it makes there) shows the start's
+// small gold star breathing in its middle (style.css: .loading), as the black before the start button does; it fades with the black.
+const STAR_AFTER = 1000; // ms of black before the star shows
+const star = document.getElementById('loading');
+let blackSince = null;
+function starInTheBlack(now) {
+  if (stage.started && ui.fadeLevel >= 0.999) {
+    blackSince ??= now;
+    if (now - blackSince >= STAR_AFTER && (star.hidden || star.classList.contains('done'))) {
+      star.hidden = false;
+      star.classList.remove('done');
+    }
+  } else if (blackSince !== null) {
+    blackSince = null;
+    if (!star.hidden) star.classList.add('done');
+  }
+}
+
 let last = performance.now();
 let frames = 0;
 let failures = 0;
@@ -578,6 +619,8 @@ renderer.setAnimationLoop(now => {
     if (failures++ < 5) console.error('[frame]', error);
   }
   handOver(); // the script may have ended in this frame
+  if (warmedPlace !== null) starInTheBlack(now);
+  if (warmedPlace !== null && stage.started && ui.fadeLevel >= 0.999) warmDrawing();
   if (warmedPlace !== null && world.location !== warmedPlace) {
     // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
     warmedPlace = world.location;

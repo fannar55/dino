@@ -527,21 +527,19 @@ test('no scene plays in a place still being built: the glade waits under the bla
   }
 });
 
-test('the black at the start waits two seconds at most for the trail; then the glade plays and the change to the trail waits for it', async () => {
+test('a child who taps at once: the black at the start holds until the trail is built and the far friends are made', async () => {
   const visible = [];
-  const { task, world, builds } = await playUnattended(kafli2, {
-    seeking: false, limit: 40, slowBuilds: { fenjaslod: 30, fen: 1 },
+  const { task, builds } = await playUnattended(kafli2, {
+    seeking: false, limit: 20, makeLater: false, slowBuilds: { fenjaslod: 12, fen: 1 },
     onFrame({ t, world, ui }) {
-      if (ui.fadeLevel < 0.999) visible.push({ t, location: world.location });
+      if (ui.fadeLevel < 0.999) visible.push({ t, location: world.location, far: world.chapterState.farFriends.isReady });
     },
   });
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.ok(visible[0].t > 1.9 && visible[0].t < 2.6, `the glade showed at ${visible[0].t.toFixed(2)} s`);
+  assert.ok(builds.fenjaslod.built > 11.9, `the trail was built at ${builds.fenjaslod.built} s`);
+  assert.ok(visible.length > 0 && visible[0].t >= builds.fenjaslod.built, `the glade showed at ${visible[0]?.t.toFixed(2)} s`);
   assert.equal(visible[0].location, 'burknalaut');
-  assert.ok(builds.fenjaslod.built > 29.9, `the trail was built at ${builds.fenjaslod.built} s`);
-  const trail = visible.find(v => v.location === 'fenjaslod');
-  assert.ok(trail && trail.t >= builds.fenjaslod.built, `the trail showed at ${trail?.t.toFixed(2)} s, built at ${builds.fenjaslod.built.toFixed(2)} s`);
-  assert.equal(world.chapterTimeline.at(-1).scene, 2, 'on the trail');
+  assert.ok(visible.every(v => v.far), 'with the far friends made');
 });
 
 test('no fail states: the far friends are hinted and found for a child who taps nothing, and the slide goes by itself', async () => {

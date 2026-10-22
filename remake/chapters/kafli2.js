@@ -51,10 +51,6 @@ const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
 const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
-// Seconds the black at the start waits at most for the trail's build (main.js builds it once the start button shows): a child who
-// taps at once sees the glade after this, while the last of the trail is built a little each frame; the change of place to the
-// trail waits for the rest, under its own black.
-const TRAIL_WAIT = 2;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
 const GLADE_EXIT = [[6.6, -6.2], [10.5, -8.7], [15, -10.5]];
@@ -709,16 +705,19 @@ export const chapter = {
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.
   startShot: 'glade_leaving',
   // The trail and the Fen are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
-  // prepare; main.js): the trail first, which the script's first fade from black waits for (TRAIL_WAIT at most), then the Fen;
-  // a change of place to either waits for its build.
+  // prepare; main.js): the trail first, which the script's first fade from black waits for, then the Fen; a change of place to
+  // either waits for its build.
   prepare: ['fenjaslod', 'fen'],
   // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
   // models made (three parses and their light levels: long frames) once the places are, if the button still waits; else the
-  // scene makes them as it comes to the Fen, under the black (arriveInTheFen).
+  // script makes them under its first black (and, should that ever not have, the Fen under its own: arriveInTheFen).
   later: {
     fetch: world => world.chapterState?.farFriends?.prefetch(),
     make: world => world.chapterState?.farFriends?.load(),
   },
+  // The first animal the chapter puts in the book (the frog in the trail's third print): main.js shows its card's drawing once
+  // where nobody sees a frame stall, so its flight into the book is not the first drawing with the hand-drawn filter.
+  firstFind: 'frog',
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
@@ -785,9 +784,11 @@ export const chapter = {
     c.glow.setAll(1, { duration: 0 });
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
-    // the trail, built while the start button waited (main.js): a child who tapped first waits for it under the black, for two
-    // seconds at most (in captures it is built here, at once)
-    yield s.race(s.prepare('fenjaslod'), s.wait(TRAIL_WAIT));
+    // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (main.js
+    // draws it, with the chapter's things, under this black as soon as it is), and the far friends, made (three models parsed: long
+    // frames, here where none shows). The black holds for them, its star breathing (main.js); in captures they are made here.
+    const far = c.farFriends;
+    yield s.all(s.prepare('fenjaslod'), ...(far.isReady ? [] : [far.load()]));
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);

@@ -150,7 +150,11 @@ test('main.js draws the chapter once before the start button shows, builds its l
   assert.match(start, /button\.hidden = false;[\s\S]*prepareLater\(\)\.catch\(/);
   const later = main.slice(main.indexOf('async function prepareLater()'), main.indexOf('function update(dt)'));
   assert.match(later, /chapter\.later\?\.fetch\?\.\(world\);/);
-  assert.match(later, /await locations\.prepare\(name, \{ sliced: true \}\);[\s\S]*if \(!stage\.started\) \{\s*Object\.assign\(entry, warmPrepared\(name, forest\)\);\s*if \(ui\.fadeLevel < 0\.999\) drawNow\(\);/);
+  assert.match(later, /await locations\.prepare\(name, \{ sliced: true \}\);[\s\S]*if \(!stage\.started \|\| ui\.fadeLevel >= 0\.999\) \{\s*Object\.assign\(entry, warmPrepared\(name, forest\)\);\s*if \(ui\.fadeLevel < 0\.999\) drawNow\(\);/);
+  // the chapter's first find's drawing, shown once behind the button or under the first black; a long black shows the star
+  assert.match(later, /if \(!stage\.started\) warmDrawing\(\);/);
+  const frame = main.slice(main.indexOf('renderer.setAnimationLoop('));
+  assert.match(frame, /if \(warmedPlace !== null\) starInTheBlack\(now\);\s*if \(warmedPlace !== null && stage\.started && ui\.fadeLevel >= 0\.999\) warmDrawing\(\);/);
   assert.match(later, /if \(chapter\.later\?\.make && !stage\.started\) \{\s*const began = performance\.now\(\);\s*await chapter\.later\.make\(world\);/);
   // a slice may take 25 ms of a frame while the button waits, 8 while the scene plays, 80 under the black
   assert.match(main, /slicing\.budget = \(\) => \(!stage\.started \? 25 : ui\.fadeLevel >= 0\.999 \? 80 : 8\);/);
