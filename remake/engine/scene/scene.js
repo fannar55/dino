@@ -513,6 +513,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       return yield (typeof item === 'function' ? item() : item);
     })()),
     lineDuration: line => lineDuration(resolveLine(line)),
+    /** A line's mouth track (lines.json: its loudness, MOUTH_RATE frames a second), or null when it has no recording. */
+    lineMouth: line => {
+      const entry = resolveLine(line);
+      return (entry.audio ? lines[entry.audio]?.mouth : null) ?? null;
+    },
   };
 
   return {

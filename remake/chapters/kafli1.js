@@ -26,6 +26,7 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
 import { butterflyLand } from '../world/forest/atmosphere.js';
 import { pollenBurst } from '../world/props/pollen.js';
+import { MOUTH_RATE } from '../engine/talk.js';
 import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { WINK_SECONDS } from '../engine/sun-face.js';
@@ -341,9 +342,17 @@ function* mosiComes(s, c) {
   yield s.say('mosi', 'k1_mosi_waving');
 }
 
-// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins (its mouth track in
-// assets/audio/lines.json; tests/kafli1.test.mjs reads it there).
-const ATSJU = 1.95;
+// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins, read from its mouth track
+// (assets/audio/lines.json; tests/kafli1.test.mjs reads it the same way), so a new take of the line moves the pollen with it.
+// A line without a recording (no mouth track) sneezes ATSJU seconds in.
+export function lastBurst(mouth) {
+  const loud = [...(mouth ?? '')].map(level => parseInt(level, 16) > 0);
+  let at = loud.lastIndexOf(true);
+  if (at < 0) return null;
+  while (at > 0 && loud[at - 1]) at--;
+  return at / MOUTH_RATE;
+}
+const ATSJU = 1.5;
 // Seconds the nose still waits for its second tap once the giggle of the first is over.
 const NOSE_AGAIN = 4;
 
@@ -365,7 +374,7 @@ function* hello(s, c) {
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
-    if (taps === 2) s.after(ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
+    if (taps === 2) s.after(lastBurst(s.lineMouth('k1_mosi_sneeze')) ?? ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
     until = Math.max(until, s.time + NOSE_AGAIN);
   }
