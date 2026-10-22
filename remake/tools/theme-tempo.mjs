@@ -6,6 +6,11 @@
 // (engine/audio/sfx.js). The game never listens to the music: the beat is the same pure function
 // of the music's time on every run (engine/beat.js).
 //   node remake/tools/theme-tempo.mjs [--encode] [--no-mix]        (needs ffmpeg on the PATH)
+//   node remake/tools/theme-tempo.mjs --theme kafli2 [--no-mix]
+//
+// --theme <folder> measures a chapter's own theme instead (chapters/<id>.js `theme`): remake/assets/audio/<folder>/theme.mp3, as
+// it is (it was cut to loop by hand, so there is nothing to encode), into remake/assets/audio/<folder>/theme.json, whose other
+// fields (name, danceBeats, comment) it keeps; its click track goes to qa/remake/<folder>/theme-click-track.mp3.
 //
 // The music that plays is not the game's own file (dist/assets/audio/little-dino-green-valley.mp3,
 // which is never changed) but a compressed copy of it, remake/assets/audio/theme.mp3: an MP3 at
@@ -378,16 +383,24 @@ function writeClickTrack(file, out, { bpm, beatOffset, key }) {
 // ---------------------------------------------------------------------------------------------
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const themeAt = process.argv.indexOf('--theme');
+  const folder = themeAt > 0 ? process.argv[themeAt + 1] : null; // a chapter's own theme, under remake/assets/audio/<folder>/
+  if (themeAt > 0 && !/^[a-z0-9_-]+$/i.test(folder ?? '')) throw new Error('--theme takes a folder under remake/assets/audio/, as --theme kafli2');
+  if (folder && process.argv.includes('--encode')) throw new Error('--encode makes chapter 1\'s copy; a chapter\'s own theme is measured as it is');
   if (process.argv.includes('--encode')) encodeTheme();
-  const file = path.join(ROOT, THEME_FILE);
-  if (!fs.existsSync(file)) throw new Error(`${THEME_FILE} does not exist: run this with --encode to make it from ${SOURCE_FILE}`);
+  const themeFile = folder ? `remake/assets/audio/${folder}/theme.mp3` : THEME_FILE;
+  const file = path.join(ROOT, themeFile);
+  if (!fs.existsSync(file)) throw new Error(folder ? `${themeFile} does not exist` : `${THEME_FILE} does not exist: run this with --encode to make it from ${SOURCE_FILE}`);
   const samples = decode(file, RATE, 1);
   const rhythm = measureRhythm(samples);
   const key = measureKey(samples);
   const round = (v, places) => Math.round(v * 10 ** places) / 10 ** places;
   const theme = { src: THEME_SRC, bpm: round(rhythm.bpm, 3), beatOffset: round(rhythm.beatOffset, 4), key: keyNotes(key) };
-  const json = `{\n "src": ${JSON.stringify(theme.src)},\n "bpm": ${theme.bpm},\n "beatOffset": ${theme.beatOffset},\n "key": [${theme.key.join(', ')}]\n}\n`;
-  const target = path.join(ROOT, 'remake/assets/audio/theme.json');
+  const target = path.join(ROOT, folder ? `remake/assets/audio/${folder}/theme.json` : 'remake/assets/audio/theme.json');
+  // a chapter's theme.json keeps what is not measured (its name, danceBeats, comment), each field where it was
+  const fields = folder && fs.existsSync(target) ? { ...JSON.parse(fs.readFileSync(target, 'utf8')), ...theme } : theme;
+  const line = ([name, value]) => ` ${JSON.stringify(name)}: ${Array.isArray(value) ? `[${value.join(', ')}]` : JSON.stringify(value)}`;
+  const json = `{\n${Object.entries(fields).map(line).join(',\n')}\n}\n`;
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, json);
   const drift = Math.max(...rhythm.driftMs.map(Math.abs));
@@ -398,7 +411,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   console.log(`  bell notes (Hz): ${theme.key.join(', ')}`);
   console.log(`wrote ${path.relative(ROOT, target).replace(/\\/g, '/')}`);
   if (!process.argv.includes('--no-mix')) {
-    const out = path.join(ROOT, 'qa/remake/kafli1-t9/theme-click-track.mp3');
+    const out = path.join(ROOT, folder ? `qa/remake/${folder}/theme-click-track.mp3` : 'qa/remake/kafli1-t9/theme-click-track.mp3');
     writeClickTrack(file, out, { bpm: theme.bpm, beatOffset: theme.beatOffset, key: theme.key });
     console.log(`wrote ${path.relative(ROOT, out).replace(/\\/g, '/')}`);
   }
