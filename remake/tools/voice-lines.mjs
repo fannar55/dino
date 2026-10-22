@@ -765,6 +765,191 @@ export function pick({ root, file, log }) {
   return changes;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The plan: which lines to make again, and the A/B pages
+
+const JUNIOR_INDEX = `${CACHE}/yatzy-junior-index.json`;
+/** The fingerprints Litla Yatzy's tool keeps of the takes it mastered: this checkout's, or another's. */
+function juniorIndexOf(root) {
+  const dirs = [path.join(root, CACHE), ...siblingCaches(root)];
+  const file = dirs.map(dir => path.join(dir, path.basename(JUNIOR_INDEX))).find(candidate => fs.existsSync(candidate));
+  return file ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+}
+
+/**
+ * Which cached take an MP3 was mastered from, among the keys given: the one there is, or, when several are cached, the one whose
+ * length plus the quarter second of quiet is the MP3's (a take of v3 and one of v4 differ by more than the encoder's few ms).
+ */
+function madeFrom(mp3, keys, caches) {
+  const found = keys.map(key => ({ key, file: caches.map(dir => path.join(dir, `${key}.mp3`)).find(candidate => fs.existsSync(candidate)) })).filter(item => item.file);
+  if (found.length <= 1) return found[0]?.key ?? null;
+  const length = durationOf(mp3) - 0.25;
+  const scored = found.map(item => ({ ...item, off: Math.abs(durationOf(item.file) - length) })).sort((a, b) => a.off - b.off);
+  return scored[0].off < 0.08 ? scored[0].key : null;
+}
+
+/**
+ * --plan's findings, per set (and Litla Yatzy): `make`, the lines whose MP3 is not what the tool would send now (an eleven_v3
+ * take, a take of another request, a recipe chosen since, no MP3), each with its reasons; `waiting`, lines with a word the owner
+ * has not picked (sent as written meanwhile); `kept`, kept lines worth knowing about (an eleven_v3 take, or a chosen word); and
+ * `current`, the count of lines that are as the tool would make them. Which take made an MP3 is read from the record the tool
+ * keeps since the lexicon (.tools/voice-lines-made.json; Litla Yatzy's index), else from the caches here and in the other
+ * checkouts (the analysis's method: a line's raw text hashed for eleven_v3 and eleven_v4). Asks nothing and writes nothing.
+ */
+export function regenerationPlan(root, { caches = [path.join(root, CACHE), ...siblingCaches(root)], junior = VOICE_LINES, juniorIndex = juniorIndexOf(root) } = {}) {
+  const lexicon = readLexicon(root);
+  const voices = readVoices(root);
+  const made = readMade(root);
+  const sets = [...Object.keys(SETS).filter(set => fs.existsSync(path.join(root, sourceOf(set)))), JUNIOR];
+  const plan = {};
+  for (const set of sets) {
+    const found = { make: [], waiting: [], kept: [], current: 0 };
+    for (const line of linesOf(root, set, junior)) {
+      const sent = requestFor(line, lexicon);
+      const chosen = sent.words.filter(word => word.recipe);
+      const unchosen = sent.words.filter(word => !word.recipe).map(word => word.id);
+      const recipes = chosen.map(word => `${word.id}: ${word.recipe}`).join(', ');
+      if (line.kept !== undefined) {
+        const why = [/\bv3\b/.test(line.kept) ? 'a kept eleven_v3 take' : null, chosen.length ? `says ${chosen.map(word => word.id).join(', ')}` : null].filter(Boolean);
+        if (why.length) found.kept.push({ id: line.id, why: why.join('; '), kept: line.kept });
+        continue;
+      }
+      const voiceId = voices[line.speaker];
+      const key = cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context });
+      const changed = sent.text !== line.text || sent.context !== undefined || sent.seed !== line.seed;
+      const mp3 = path.join(root, folderOf(set), `${line.id}.mp3`);
+      const reasons = [];
+      const record = set === JUNIOR ? (juniorIndex?.[line.id] === undefined ? null : { key: juniorIndex[line.id] }) : made[`${set}/${line.id}`] ?? null;
+      if (!fs.existsSync(mp3)) {
+        reasons.push('no MP3 yet');
+      } else if (record) {
+        if (record.key !== key) reasons.push(changed ? `the lexicon changed its request (${recipes})` : 'made from another request (a recipe, seed or voice changed since)');
+        else if (record.mp3 && record.mp3 !== sha256(mp3)) reasons.push('its MP3 was changed after the tool made it');
+      } else {
+        const raw = { text: line.text, voiceId, seed: line.seed };
+        const v3 = cacheKey({ ...raw, model: 'eleven_v3' });
+        const v4 = cacheKey(raw);
+        const from = madeFrom(mp3, [...new Set([key, v4, v3])], caches);
+        if (from === v3) reasons.push('an eleven_v3 take');
+        else if (from === null) reasons.push(set === 'kafli1' ? 'no cached take: eleven_v3, made before the switch to v4 on 2026-10-18' : 'no cached take of it found');
+        if (from !== key && changed) reasons.push(`the lexicon changes its request (${recipes})`);
+      }
+      if (reasons.length) found.make.push({ id: line.id, speaker: line.speaker, reasons, sent: { text: sent.text, context: sent.context, seed: sent.seed }, cached: caches.some(dir => fs.existsSync(path.join(dir, `${key}.mp3`))), unchosen });
+      else if (unchosen.length) found.waiting.push({ id: line.id, words: unchosen });
+      else found.current++;
+    }
+    plan[set] = found;
+  }
+  return plan;
+}
+
+/** The commands that make a set's planned lines again: the A/B snapshot first, then the lines. */
+export const planCommands = (set, ids) => [
+  `node remake/tools/voice-lines.mjs --ab ${set}`,
+  set === JUNIOR ? `node remake/tools/yatzy-junior-voices.mjs --only ${ids.join(',')}` : `node remake/tools/voice-lines.mjs --set ${set} --only ${ids.join(',')}`,
+];
+
+/** --plan: prints regenerationPlan, set by set, with the commands to run. */
+export function printPlan({ root, log }) {
+  const plan = regenerationPlan(root);
+  let lines = 0;
+  let characters = 0;
+  log('Lines to make again: the MP3 is an eleven_v3 take, or not of the request the lexicon makes now. Kept lines are never made again.');
+  for (const [set, found] of Object.entries(plan)) {
+    log('');
+    log(`${set}: ${found.make.length} to make, ${found.waiting.length} waiting for a pick, ${found.kept.length} kept to know about, ${found.current} as they should be`);
+    for (const item of found.make) {
+      log(`  ${item.id}: ${item.reasons.join('; ')}${item.cached ? ' (cached)' : ''}`);
+      if (!item.cached) { lines++; characters += item.sent.text.length; }
+    }
+    if (found.waiting.length) log(`  waiting (sent as written until the owner picks): ${found.waiting.map(item => `${item.id} (${item.words.join(', ')})`).join(', ')}`);
+    for (const item of found.kept) log(`  kept, never made again: ${item.id} (${item.why})`);
+    if (found.make.length) for (const command of planCommands(set, found.make.map(item => item.id))) log(`  ${command}`);
+  }
+  log('');
+  log(`In all: ${Object.values(plan).reduce((n, found) => n + found.make.length, 0)} lines to make, ${lines} of them to ask ElevenLabs for (${characters} characters).`);
+  return plan;
+}
+
+const AB = 'qa/remake/voices/ab';
+
+/**
+ * --ab <set>: copies the MP3s of the lines about to be made again (the plan's, or --only's) into qa/remake/voices/ab/<set>/old/
+ * (never over a copy already there, so run it BEFORE making them) and writes qa/remake/voices/ab/<set>.html, the old take beside
+ * the new for each, for the owner to approve the change set by set. Asks nothing.
+ */
+export function abPage({ root, set, only = null, log }) {
+  const lexicon = readLexicon(root);
+  const lines = linesOf(root, set);
+  if (only) {
+    const unknown = only.filter(id => !lines.some(line => line.id === id));
+    if (unknown.length) throw new Error(`Not in ${set}: ${unknown.join(', ')}`);
+  }
+  const planned = only ?? regenerationPlan(root)[set]?.make.map(item => item.id) ?? [];
+  const oldFolder = path.join(root, AB, set, 'old');
+  fs.mkdirSync(oldFolder, { recursive: true });
+  let copied = 0;
+  for (const id of planned) {
+    const from = path.join(root, folderOf(set), `${id}.mp3`);
+    const to = path.join(oldFolder, `${id}.mp3`);
+    if (fs.existsSync(from) && !fs.existsSync(to)) { fs.copyFileSync(from, to); copied++; }
+  }
+  const snapped = new Set(fs.readdirSync(oldFolder).filter(name => name.endsWith('.mp3')).map(name => name.slice(0, -4)));
+  const shown = lines.filter(line => snapped.has(line.id));
+  const newSrc = id => `../../../../${folderOf(set)}/${id}.mp3`;
+  const rows = shown.map(line => {
+    const sent = requestFor(line, lexicon);
+    const how = [sent.text !== line.text ? `sent: ${sent.text}` : '', sent.context ? `samhengi (ekki talað): ${sent.context}` : '', sent.seed === undefined ? '' : `fræ ${sent.seed}`].filter(Boolean).join(' · ');
+    return `<div class="line" data-id="${escapeHtml(line.id)}">
+  <p><b>${escapeHtml(SPEAKER_NAMES[line.speaker] ?? line.speaker)}</b>: ${escapeHtml(line.text)} <code>${escapeHtml(line.id)}</code>${how ? `<br><span class="sent">${escapeHtml(how)}</span>` : ''}</p>
+  <div class="pair"><label><input type="radio" name="${escapeHtml(line.id)}" value="gamla"> Gamla</label><audio controls preload="none" src="${escapeHtml(`${set}/old/${line.id}.mp3`)}"></audio>
+  <label><input type="radio" name="${escapeHtml(line.id)}" value="nyja"> Nýja (v4)</label><audio controls preload="none" src="${escapeHtml(newSrc(line.id))}"></audio></div>
+</div>`;
+  });
+  const html = `<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A/B: ${escapeHtml(set)}</title>
+<style>
+  ${PAGE_STYLE}
+  .line { padding: 10px 0; border-top: 1px solid var(--line); }
+  .line p { margin: 0 0 6px; }
+  .pair { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; align-items: center; }
+  .pair audio { width: 100%; height: 36px; }
+  @media (max-width: 600px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>A/B: ${escapeHtml(set)}</h1>
+  <p class="note">${shown.length} línur, hver með gömlu tökunni og þeirri nýju (Eleven v4 með framburðarreglunum). Nýja takan heyrist hér eftir að línurnar hafa verið gerðar aftur. Merktu „Gamla“ við línu sem á að halda gömlu tökunni, ýttu svo á „Vista val“ og sendu mér skrána.</p>
+${rows.join('\n')}
+  <div class="bar"><button type="button" id="save">Vista val</button><span class="muted" id="count"></span></div>
+</main>
+<script>
+  const ids = [...document.querySelectorAll('.line')].map(line => line.dataset.id);
+  const choices = () => Object.fromEntries(ids.flatMap(id => { const input = document.querySelector('input[name="' + id + '"]:checked'); return input ? [[id, input.value]] : []; }));
+  const count = () => { const all = Object.values(choices()); document.getElementById('count').textContent = all.filter(v => v === 'nyja').length + ' nýjar, ' + all.filter(v => v === 'gamla').length + ' gamlar, ' + (ids.length - all.length) + ' ómerktar'; };
+  document.addEventListener('change', count);
+  count();
+  document.getElementById('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ set: ${JSON.stringify(set)}, choices: choices() }, null, 2) + '\\n'], { type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: ${JSON.stringify(`ab-${set}.json`)} });
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });
+</script>
+</body>
+</html>
+`;
+  fs.writeFileSync(path.join(root, AB, `${set}.html`), html);
+  log(`${copied} old takes copied into ${AB}/${set}/old/ (${snapped.size} there in all); ${AB}/${set}.html lists ${shown.length} lines.`);
+  return { planned, copied, shown: shown.map(line => line.id) };
+}
+
 export async function main(argv, { env = process.env, root = ROOT, fetch = globalThis.fetch, log = console.log } = {}) {
   const args = parseArgs(argv);
   // What asks ElevenLabs nothing needs no key.
@@ -775,6 +960,14 @@ export async function main(argv, { env = process.env, root = ROOT, fetch = globa
   }
   if (args.pick) {
     pick({ root, file: args.pick, log });
+    return;
+  }
+  if (args.plan) {
+    printPlan({ root, log });
+    return;
+  }
+  if (args.ab) {
+    abPage({ root, set: args.ab, only: args.only, log });
     return;
   }
   const key = env.ELEVENLABS_API_KEY?.trim();

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, REMAKE_AUDIO, SETS, buildLines, remakeLines, updateLines } from '../tools/audio-lines.mjs';
-import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines } from '../tools/voice-lines.mjs';
+import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines, regenerationPlan } from '../tools/voice-lines.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -853,4 +853,98 @@ test("--pick writes the owner's picks into the lexicon's chosen, and nothing els
     assert.equal(fs.readFileSync(lexiconFile, 'utf8'), before, 'nothing written');
   }
   assert.equal(calls.length, 0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The plan and the A/B pages
+
+/** A chapter whose lines were made in every way the plan must tell apart, with the raw takes in the cache as the old tools left them. */
+function planRoot(t) {
+  const lines = [
+    { id: 'k1_mosi_old', speaker: 'mosi', text: 'Halló!' }, // an eleven_v3 take
+    { id: 'k1_mosi_new', speaker: 'mosi', text: 'Tvö!' }, // an eleven_v4 take, as it should be
+    { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' }, // v4, but Kambeðla's recipe is chosen since
+    { id: 'k1_egill_go', speaker: 'egill', text: 'Áfram, Egill!' }, // v4, Egill not picked yet
+    { id: 'k1_mosi_lost', speaker: 'mosi', text: 'Þrjú!' }, // no cached take anywhere: chapter 1 was v3 before 2026-10-18
+    { id: 'k1_mosi_missing', speaker: 'mosi', text: 'Fjögur!' }, // never made
+    { id: 'k1_mosi_worry', speaker: 'mosi', text: 'Egill er bestur!', kept: 'the owner\'s reference take, the Eleven v3 take (seed 1)' },
+  ];
+  const root = makeRoot(t, { lines, lexicon: BOOK_LEXICON });
+  const cache = path.join(root, '.tools/elevenlabs-remake');
+  fs.mkdirSync(cache, { recursive: true });
+  const raw = (line, model) => fs.writeFileSync(path.join(cache, `${cacheKey({ text: line.text, voiceId: VOICES[line.speaker], model })}.mp3`), fakeSpeech());
+  raw(lines[0], 'eleven_v3');
+  for (const line of lines.slice(1, 4)) raw(line, MODEL);
+  for (const line of lines.slice(0, 5)) fs.writeFileSync(path.join(root, `remake/assets/audio/kafli1/${line.id}.mp3`), fakeSpeech());
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_worry.mp3'), fakeSpeech());
+  return root;
+}
+
+test('--plan lists, per set, the lines whose MP3 is an eleven_v3 take or not of the request the lexicon makes now, and the --only to run; nothing is asked for or written', async t => {
+  const root = planRoot(t);
+  const plan = regenerationPlan(root, { junior: {}, juniorIndex: null }).kafli1;
+  assert.deepEqual(plan.make.map(item => [item.id, item.reasons]), [
+    ['k1_mosi_old', ['an eleven_v3 take']],
+    ['k1_mosi_greet', ['the lexicon changes its request (kambedla: samhengi)']],
+    ['k1_mosi_lost', ['no cached take: eleven_v3, made before the switch to v4 on 2026-10-18']],
+    ['k1_mosi_missing', ['no MP3 yet']],
+  ]);
+  assert.deepEqual(plan.waiting, [{ id: 'k1_egill_go', words: ['egill'] }], 'a line whose only hard word is not picked waits: it would be sent as it was');
+  assert.deepEqual(plan.kept.map(item => [item.id, item.why]), [['k1_mosi_worry', 'a kept eleven_v3 take']]);
+  assert.equal(plan.current, 1, 'k1_mosi_new is as it should be');
+  assert.equal(plan.make.find(item => item.id === 'k1_mosi_greet').sent.context, VISIT);
+
+  const before = filesUnder(root);
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  await main(['--plan'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.equal(calls.length, 0);
+  assert.deepEqual(filesUnder(root), before, 'nothing written');
+  assert.ok(out.includes('kafli1: 4 to make, 1 waiting for a pick, 1 kept to know about, 1 as they should be'), out.join('\n'));
+  assert.ok(out.includes('  node remake/tools/voice-lines.mjs --ab kafli1'));
+  assert.ok(out.includes('  node remake/tools/voice-lines.mjs --set kafli1 --only k1_mosi_old,k1_mosi_greet,k1_mosi_lost,k1_mosi_missing'));
+  assert.ok(out.includes('  kept, never made again: k1_mosi_worry (a kept eleven_v3 take)'));
+});
+
+test('--ab snapshots the old takes before they are made again (never over a snapshot), and its page puts each old take beside the new', needsFfmpeg, async t => {
+  const root = planRoot(t);
+  const env = { ELEVENLABS_API_KEY: KEY };
+  const { fetch, calls } = fakeApi();
+  await main(['--ab', 'kafli1'], { env: {}, root, fetch, log() {} });
+  const old = path.join(root, 'qa/remake/voices/ab/kafli1/old');
+  assert.deepEqual(filesUnder(old), ['k1_mosi_greet.mp3', 'k1_mosi_lost.mp3', 'k1_mosi_old.mp3'], "the plan's lines that have an MP3");
+  assert.equal(calls.length, 0, '--ab asks nothing');
+  const ids = ['k1_mosi_old', 'k1_mosi_greet', 'k1_mosi_lost', 'k1_mosi_missing'];
+  await main(['--set', 'kafli1', '--only', ids.join(',')], { env, root, fetch, log() {} });
+  assert.equal(calls.length, 4);
+  assert.ok(!fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_old.mp3')).equals(fakeSpeech()), 'made again');
+  assert.ok(fs.readFileSync(path.join(old, 'k1_mosi_old.mp3')).equals(fakeSpeech()), 'the old take kept for the page');
+
+  // Made with the lexicon, the lines are as they should be; --ab again copies nothing over the old takes and still shows them.
+  const plan = regenerationPlan(root, { junior: {}, juniorIndex: null }).kafli1;
+  assert.deepEqual(plan.make, [], 'the tool recorded which request made each MP3');
+  assert.equal(plan.current, 5);
+  const out = [];
+  await main(['--ab', 'kafli1'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.match(out[0], /^0 old takes copied/);
+  assert.ok(fs.readFileSync(path.join(old, 'k1_mosi_old.mp3')).equals(fakeSpeech()));
+  const page = fs.readFileSync(path.join(root, 'qa/remake/voices/ab/kafli1.html'), 'utf8');
+  for (const id of ['k1_mosi_old', 'k1_mosi_greet', 'k1_mosi_lost']) {
+    assert.ok(page.includes(`src="kafli1/old/${id}.mp3"`) && page.includes(`src="../../../../remake/assets/audio/kafli1/${id}.mp3"`), `${id}: old and new`);
+  }
+  assert.ok(page.includes('samhengi (ekki talað): Fyrst heimsækjum'), 'what the new take was sent with');
+  assert.match(page, /id="save">Vista val</);
+  // --only names the lines itself, for a set or Litla Yatzy's.
+  await main(['--ab', 'kafli1', '--only', 'k1_mosi_new'], { env: {}, root, fetch, log() {} });
+  assert.ok(fs.existsSync(path.join(old, 'k1_mosi_new.mp3')));
+  await assert.rejects(main(['--ab', 'kafli1', '--only', 'k1_nope'], { env: {}, root, fetch, log() {} }), /k1_nope/);
+  // A changed MP3 or a changed recipe puts a line back in the plan.
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_old.mp3'), fakeSpeech());
+  const lexicon = structuredClone(BOOK_LEXICON);
+  lexicon.words.kambedla.chosen = 'samhengi-42';
+  fs.writeFileSync(path.join(root, 'remake/assets/audio/pronunciation.json'), JSON.stringify(lexicon));
+  assert.deepEqual(regenerationPlan(root, { junior: {}, juniorIndex: null }).kafli1.make.map(item => [item.id, item.reasons]), [
+    ['k1_mosi_old', ['its MP3 was changed after the tool made it']],
+    ['k1_mosi_greet', ['the lexicon changed its request (kambedla: samhengi-42)']],
+  ]);
 });
