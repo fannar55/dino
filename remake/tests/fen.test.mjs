@@ -13,7 +13,7 @@ import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
 import { biomeOf } from '../world/forest/biome.js';
-import { FEN } from '../world/forest/config.js';
+import { FEN, FOREST } from '../world/forest/config.js';
 import { PRESETS } from '../engine/quality.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
@@ -26,6 +26,7 @@ import { emptyWorld, loadCharacter } from './characters.mjs';
 // its mist and its plants, and the cost of every shot set in them (world/forest/, world/props/water.js and mist.js).
 
 const FEN_PLACE = chapter.locations.fen;
+const FOREST_GRASS = FOREST.grass;
 const TRAIL = chapter.locations.fenjaslod;
 const layoutOf = place => ({ ...place.layout, shots: place.shots });
 
@@ -315,6 +316,18 @@ test('the fen stays within the forest budget', async () => {
     }
     forest.dispose();
   }
+});
+
+test('the Fen\'s reed thins sooner far off than the forest\'s grass, the shader as the cull', async () => {
+  const forest = await createForest(nodeWorld(), layoutOf(FEN_PLACE));
+  let grass = null;
+  forest.group.traverse(o => { if (o.isMesh && o.name === 'Grass') grass = o; });
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.lambert.vertexShader, fragmentShader: THREE.ShaderLib.lambert.fragmentShader };
+  grass.material.onBeforeCompile(shader);
+  const [near, far, least] = shader.uniforms.uGrassLod.value.toArray();
+  assert.deepEqual([near, far, least], [FOREST_GRASS.lodNear, FEN.grass.lodFar, FEN.grass.lodMin], 'the shader fades the blades on the Fen\'s distances');
+  assert.ok(far < FOREST_GRASS.lodFar && least < FOREST_GRASS.lodMin, 'sooner and further than the forest\'s');
+  forest.dispose();
 });
 
 test('no moss hangs between Egill and where her face comes down to him (mossClear), and the trees round it keep theirs', async () => {

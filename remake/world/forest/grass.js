@@ -26,8 +26,10 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
   const widthScale = low ? 1.35 : 1;
   const density = cfg.density * q.grass;
   const tuftSize = (cfg.clump[0] + cfg.clump[1]) / 2;
-  // In the Fen (biome.js) the grass is golden reed: sparser and taller, mixed in by the fen's share.
+  // In the Fen (biome.js) the grass is golden reed: sparser and taller, mixed in by the fen's share, and sparser far off.
   const biome = biomeOf(layout);
+  // how the blades thin with distance from the camera (the shader's uGrassLod and the cull's rebuild, below, the same)
+  const fade = { near: cfg.lodNear, far: biome.fen ? FEN.grass.lodFar : cfg.lodFar, min: biome.fen ? FEN.grass.lodMin : cfg.lodMin };
 
   /** Relative tuft density 0..1 at a point. */
   function densityAt(x, z) {
@@ -112,7 +114,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     uFenGrassTip: { value: col(FEN.grassTip, 1.06) },
     uFenGrassShade: { value: col(FEN.grassShade, 1.0) },
   } : {};
-  const lod = new THREE.Vector4(cfg.lodNear, cfg.lodFar, cfg.lodMin, cfg.cameraClear);
+  const lod = new THREE.Vector4(fade.near, fade.far, fade.min, cfg.cameraClear);
   const uniforms = {
     ...shared,
     ...actorUniforms,
@@ -341,7 +343,7 @@ ${LEAF_SHADOW_GLSL}`,
         grown.copy(c.box).expandByScalar(2.5);
         if (!frustum.intersectsBox(grown)) continue;
       }
-      const dens = 1 + (cfg.lodMin - 1) * smoothstep(cfg.lodNear, cfg.lodFar, Math.max(0, d - MARGIN));
+      const dens = 1 + (fade.min - 1) * smoothstep(fade.near, fade.far, Math.max(0, d - MARGIN));
       const k = Math.min(c.count, Math.ceil(dens * c.count + 0.5));
       out.set(master.subarray(c.start * 9, (c.start + k) * 9), offset);
       offset += k * 9;
