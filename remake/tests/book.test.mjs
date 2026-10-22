@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createBook } from '../engine/book/book.js';
+import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
+import { parseManifest } from '../engine/book/media.js';
+import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createSave } from '../engine/save.js';
@@ -234,4 +238,197 @@ test('rapid taps on next turn one page per settled flip and stop at the last pag
   settle();
   tapNext();
   assert.equal(viewer.page, 2, 'never past the last page');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The Fen's animals (chapter 2): their cards, on a second Dýrin spread of their own
+
+const readJson = path => JSON.parse(fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'));
+const CARD_DATA = readJson('assets/book/cards.json');
+const CARDS = parseCards(CARD_DATA);
+const MEDIA = parseManifest(readJson('assets/book/media-manifest.json'));
+/** The Fen's seven new cards, each by the finding that opens it (world/critters/models.js's kinds, which chapter 2 passes to s.found). */
+const FEN = { waterbeetle: 'waterBeetle', waterstrider: 'waterStrider', salamander: 'salamander', dragonfly: 'dragonfly', turtle: 'turtle', fish: 'fish', earlybird: 'earlyBird' };
+const FEN_NAMES = { waterbeetle: 'Brunnklukka', waterstrider: 'Vatnalæsingi', salamander: 'Salamandra', dragonfly: 'Drekafluga', turtle: 'Skjaldbaka', fish: 'Fiskur', earlybird: 'Fornfugl' };
+/** The frog's five pages as chapter 1 wrote and recorded them, which its Fen page must leave alone. */
+const FROG_PAGES = [
+  ['placeholder-frog', 'Þetta er froskur. Froskar hoppuðu um þegar risaeðlurnar voru uppi!'],
+  ['frog-skeleton', 'Forfeður froskanna fengu lengri fætur og styttra skott. Þá fóru þeir að hoppa!'],
+  ['triadobatrachus-fossil', 'Við vitum þetta af steingervingum. Þessi forni ættingi froska var enn með skott!'],
+  ['frog-photo', 'Froskar lifðu af þegar risaeðlurnar dóu út. Þeir eru enn að hoppa!'],
+  ['eopelobates-fossil', 'Stukku fyrstu froskarnir langt eða hoppuðu þeir stutt? Það vitum við ekki enn.'],
+];
+
+test('the fen cards unlock with their findings and have three pages each', () => {
+  const nobody = { stars: [], findings: [], seen: [] };
+  for (const [id, find] of Object.entries(FEN)) {
+    const card = CARDS.find(c => c.id === id);
+    assert.ok(card, `a card for the ${find}`);
+    assert.equal(card.id, find.toLowerCase(), 'its id is its finding\'s, in lower case (the narrator\'s lines are lower case)');
+    assert.deepEqual(card.unlock, { found: find }, `${id} opens with the ${find} the child finds`);
+    assert.equal(isUnlocked(card, nobody), false, `${id} waits for its animal`);
+    assert.equal(isUnlocked(card, { ...nobody, findings: [find] }), true, `${id} opens once it is found`);
+    assert.equal(card.name, FEN_NAMES[id], 'with the name the game gives it');
+    assert.equal(card.pages.length, 3, `${id} has three pages`);
+    assert.equal(card.spread, 2, `${id} is on the Fen's spread`);
+    assert.equal(card.pages[0].image, `fen-${id}`, 'its tile is our drawing of it');
+    assert.equal(MEDIA.get(`fen-${id}`)?.src, `assets/book/images/fen-${id}.svg`);
+    card.pages.forEach((page, i) => {
+      assert.equal(page.audio, `book_${id}_${i + 1}`);
+      assert.ok(!page.sources.includes(PLACEHOLDER) && page.sources.every(source => source.length > 40), `${id} page ${i + 1} says where its facts are from`);
+      assert.ok(page.text.length <= 105, `${id} page ${i + 1} is short enough to read aloud: ${page.text.length} letters`);
+    });
+    const raw = CARD_DATA.cards.find(c => c.id === id);
+    assert.match(raw.wanted ?? '', /Wikimedia Commons/, `${id} names the photograph it wants, for the owner to approve`);
+  }
+  // The frog is chapter 1's card: the Fen adds a sixth page about its eggs and tadpoles, and leaves the five it had alone.
+  const frog = CARDS.find(c => c.id === 'frog');
+  assert.deepEqual(frog.unlock, { found: 'frog' }, 'the frog in the third print opens the frog\'s card, as the forest\'s frog does');
+  assert.equal(frog.spread, 1, 'on the first spread still');
+  assert.equal(frog.pages.length, 6);
+  assert.deepEqual(frog.pages.slice(0, 5).map(page => [page.image, page.text]), FROG_PAGES, 'its five pages as they were recorded');
+  frog.pages.forEach((page, i) => assert.equal(page.audio, `book_frog_${i + 1}`));
+  const fenPage = frog.pages[5];
+  assert.equal(fenPage.image, 'fen-frog');
+  assert.match(fenPage.text, /halakört/, 'the Fen page is about tadpoles');
+  assert.ok(fenPage.sources.some(source => source.includes('10.1038/s41586-024-08055-y')), 'with the oldest tadpole (Chuliver et al. 2024) for its wonder');
+  assert.match(CARD_DATA.cards.find(c => c.id === 'frog').pages[5].wanted ?? '', /Wikimedia Commons/);
+  assert.match(CARD_DATA.note, /six/i, 'and the note says why the frog has six pages');
+});
+
+/** The book over the shipped cards and pictures and a save of its own, with what it narrates and the sounds it makes. */
+function fenRig({ fill = () => {}, animate = false } = {}) {
+  const save = createSave(null);
+  fill(save);
+  const narrated = [];
+  const sounds = [];
+  const audio = { sfx: name => { sounds.push(name); return true; }, stop() {}, narrate: id => { narrated.push(id); return DONE; } };
+  const doc = new FakeDocument(['book', 'journal-button', 'star-slots', 'journal-flights', 'journal-badge']);
+  const animations = []; // { el, keyframes, options, animation }
+  if (animate) { // every element can animate, and a test says when its animations are over
+    const animated = element => {
+      element.animate = (keyframes, options) => {
+        const animation = { cancel() {}, finish() { this.onfinish?.(); } };
+        animations.push({ el: element, keyframes, options, animation });
+        return animation;
+      };
+      return element;
+    };
+    const create = doc.createElement.bind(doc);
+    doc.createElement = tag => animated(create(tag));
+    animated(doc.getElementById('book'));
+  }
+  const book = createBook(doc, { cards: CARDS, media: MEDIA, save, audio, onPause() {} });
+  const root = doc.getElementById('book');
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  const leaves = () => root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'animals');
+  const leaf = n => leaves().find(e => e.getAttribute('data-spread') === String(n));
+  const page = (n, side) => leaf(n).findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0];
+  const tilesOn = (n, side) => page(n, side).findAll(e => e.classList.contains('tile')).map(e => e.getAttribute('data-card'));
+  const corner = (n, way) => leaf(n).findAll(e => e.classList.contains('spread-turn') && e.classList.contains(way))[0];
+  const tile = id => root.findAll(e => e.classList.contains('tile') && e.getAttribute('data-card') === id)[0];
+  return { doc, save, book, root, narrated, sounds, animations, tap, leaves, leaf, page, tilesOn, corner, tile };
+}
+
+test('the Dýrin page has a second spread for the Fen, turned at the page corner', () => {
+  const { save, book, narrated, sounds, tap, leaves, leaf, tilesOn, corner, tile } = fenRig();
+  assert.deepEqual(leaves().map(e => e.getAttribute('data-spread')), ['1', '2'], 'a spread for the forest and one for the Fen');
+  assert.deepEqual(tilesOn(1, 'left'), ['mosi', 'kambedla', 'kalligrammatid', 'beetle'], 'chapter 1\'s animals as they were: four on the left');
+  assert.deepEqual(tilesOn(1, 'right'), ['frog', 'snail', 'birds'], 'and three on the right');
+  assert.deepEqual(tilesOn(2, 'left'), ['waterbeetle', 'waterstrider', 'salamander', 'dragonfly'], 'the Fen\'s, four on the left');
+  assert.deepEqual(tilesOn(2, 'right'), ['turtle', 'fish', 'earlybird'], 'and three on the right, in the order the child meets them');
+
+  book.open('animals', 'child');
+  assert.equal(book.spread, 1, 'the book opens on the forest\'s animals');
+  assert.equal(leaf(1).hidden, false);
+  assert.equal(leaf(2).hidden, true);
+  assert.equal(corner(1, 'next').hidden, true, 'no corner to turn while no animal of the Fen is found: chapter 1\'s book as it was');
+  assert.equal(corner(1, 'prev'), undefined, 'and nothing before the first spread');
+
+  save.addFinding('frog'); // the Fen's frog is chapter 1's, on the first spread
+  book.refresh();
+  assert.equal(corner(1, 'next').hidden, true, 'the frog opens nothing new');
+  save.addFinding('waterBeetle');
+  book.refresh();
+  assert.equal(corner(1, 'next').hidden, false, 'a Fen animal found shows the corner');
+  sounds.length = 0;
+  tap(corner(1, 'next'));
+  assert.equal(book.spread, 2, 'the corner turns to the Fen');
+  assert.equal(book.tab, 'animals');
+  assert.deepEqual(sounds, ['turn'], 'with the page turn\'s sound');
+  assert.equal(leaf(1).hidden, true);
+  assert.equal(leaf(2).hidden, false);
+  assert.equal(corner(2, 'next'), undefined, 'the last spread has no corner on');
+  assert.ok(tile('waterbeetle').classList.contains('new'), 'the beetle is new on its spread');
+  assert.ok(tile('turtle').classList.contains('unfound'), 'the rest wait');
+
+  tap(tile('turtle'));
+  assert.equal(narrated.at(-1), 'book_find_me_fen', 'an animal of the Fen not found yet says "Finndu mig í Feninu!"');
+  tap(corner(2, 'prev'));
+  assert.equal(book.spread, 1, 'and the corner back turns to the forest');
+  tap(tile('snail'));
+  assert.equal(narrated.at(-1), 'book_find_me', 'whose animals say "Finndu mig í skóginum!"');
+
+  tap(corner(1, 'next'));
+  book.close();
+  book.open('animals', 'child');
+  assert.equal(book.spread, 1, 'the Dýrin page remembers nothing: it opens on the first spread again');
+  assert.equal(leaf(2).hidden, true);
+});
+
+test('a page corner turns the spread with the book\'s own page turn', () => {
+  const { book, animations, tap, leaf, page, corner } = fenRig({ animate: true, fill: save => save.addFinding('fish') });
+  book.open('animals', 'child');
+  animations.length = 0;
+  tap(corner(1, 'next'));
+  const out = page(1, 'right');
+  const into = page(2, 'left');
+  assert.ok(out.classList.contains('turning') && into.classList.contains('turning'), 'the right page lifts over the spine and the Fen\'s left one comes down');
+  assert.equal(leaf(1).hidden, false, 'the old pages stay while one of them turns');
+  const turn = animations.filter(a => a.el === out || a.el === into);
+  assert.equal(turn.length, 2, 'two halves, as a ribbon turns the page');
+  assert.match(JSON.stringify(turn[0].keyframes), /rotateY/, 'about the spine');
+  turn.forEach(a => a.animation.finish());
+  assert.equal(out.classList.contains('turning'), false, 'and when it has turned the pages lie flat');
+  assert.equal(leaf(1).hidden, true);
+  tap(corner(2, 'prev'));
+  assert.ok(page(2, 'left').classList.contains('turning') && page(1, 'right').classList.contains('turning'), 'back the other way');
+});
+
+test('the book opened after a find lands on the spread that holds the new animal, and nods it there', () => {
+  const { doc, save, book, animations, tile } = fenRig({ animate: true });
+  const journal = createJournal(doc, save, { book, audio: { sfx() {} } });
+  const button = doc.getElementById('journal-button');
+  const nods = id => animations.filter(a => a.el === tile(id) && /scale/.test(JSON.stringify(a.keyframes))).length;
+
+  journal.addFinding('turtle');
+  journal.update(FLIGHT_SECONDS + 0.1); // it has landed in the book
+  button.dispatchEvent(new Event('click'));
+  assert.equal(book.tab, 'animals');
+  assert.equal(book.spread, 2, 'the turtle is on the Fen\'s spread, so the book opens there');
+  assert.equal(nods('turtle'), 1, 'and the turtle nods');
+  book.close();
+
+  button.dispatchEvent(new Event('click'));
+  assert.equal(book.spread, 1, 'no new find: the first spread, as always');
+  assert.equal(nods('turtle'), 1, 'and nothing nods');
+  book.close();
+
+  journal.addFinding('snail'); // chapter 1's snail is on the first spread
+  journal.update(FLIGHT_SECONDS + 0.1);
+  button.dispatchEvent(new Event('click'));
+  assert.equal(book.spread, 1);
+  assert.equal(nods('snail'), 1, 'the snail nods on the first spread');
+  book.close();
+
+  journal.addFinding('fish');
+  journal.update(FLIGHT_SECONDS + 0.1);
+  journal.open('stars'); // a scene opens the book on its stars: the find does not turn it
+  assert.equal(book.tab, 'stars');
+  book.close();
+  button.dispatchEvent(new Event('click'));
+  assert.equal(book.spread, 1, 'the book was opened since the fish came: the first spread');
 });
