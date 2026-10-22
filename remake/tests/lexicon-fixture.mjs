@@ -2,7 +2,8 @@
 // the tests of applyLexicon, requestFor, --dry, --book, --pick, --plan and --ab use it, so the owner's picks in the shipped lexicon
 // (which change as he listens) never move a test. Only pronunciation.test.mjs's invariants test reads the shipped file.
 //   Kambeðla: the visit line as context, seed 1 (samhengi-42 the same with seed 42); Snigill: IPA, seed 1; Eitt: "Eiht", seed 42;
-//   Ein: "Eyn", seed 42; Mundu: context, seed 1; öglir: context; Þórseðla, Egill and Grameðla: not chosen (null).
+//   Ein: "Eyn", seed 42; Einn: IPA; Mundu: context, seed 1; öglir: context; ein (in a sentence), Þórseðla, Egill and Grameðla:
+//   not chosen (null).
 
 export const VISIT = 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!';
 const q = ipa => `"/${ipa}/"`;
@@ -50,6 +51,20 @@ const FIXTURE = {
       forms: ['Ein'],
       recipes: { hratt: raw, stafsetning: { say: { Ein: 'Eyn' }, seed: 42, note: 'Spelt Eyn, seed 42.' } },
       chosen: 'stafsetning',
+    },
+    'ein-inni': {
+      word: 'ein (inni í setningu)',
+      stem: 'ein$',
+      forms: ['ein'],
+      recipes: { hratt: raw, stafsetning: { say: { ein: 'eyn' }, note: 'Spelt eyn.' } },
+      chosen: null,
+    },
+    einn: {
+      word: 'Einn',
+      stem: 'Einn$',
+      forms: ['Einn'],
+      recipes: { hratt: raw, ipa: { say: { Einn: q('ˈeitn̥') }, note: 'IPA.' } },
+      chosen: 'ipa',
     },
     mundu: {
       word: 'Mundu',

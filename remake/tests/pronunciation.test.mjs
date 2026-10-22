@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
-import { SPEAKER_NAMES, applyLexicon, bookHtml, bookPlan, cacheKey, checkLexicon, formsPattern, requestFor, resolveWord } from '../tools/voice-lines.mjs';
+import { bookPlan, cacheKey } from '../tools/voice-lines.mjs';
+import { applyLexicon, checkLexicon, formsPattern, lexiconText, requestFor, resolveWord } from '../tools/pronunciation.mjs';
+import { SPEAKER_NAMES, bookHtml } from '../tools/voice-pages.mjs';
 import { VISIT, fixtureLexicon } from './lexicon-fixture.mjs';
 
 // The pronunciation standard (remake/assets/audio/pronunciation.json): one entry per hard word, which the voice tools apply to
@@ -30,7 +32,10 @@ function corpus() {
 const tokens = text => text.match(/\p{L}+/gu) ?? [];
 
 test('the shipped lexicon, whatever the owner picked: valid, every choice a recipe or null, every inflection in the lines covered, the winning recipes still offered, and no recipe in the text the child sees', () => {
-  const shipped = readJson(file('../assets/audio/pronunciation.json'));
+  const text = fs.readFileSync(file('../assets/audio/pronunciation.json'), 'utf8');
+  const shipped = JSON.parse(text);
+  assert.equal(text, lexiconText(shipped), 'in the form --pick writes (JSON.stringify with two spaces, and a newline): edit it with node, not json.dumps');
+  assert.equal(lexiconText(shipped), `${JSON.stringify(shipped, null, 2)}\n`);
   checkLexicon(shipped); // the tool's own check: forms, stems, recipes, chosen
   const entries = Object.entries(shipped.words);
   for (const id of ['kambedla', 'snigill', 'eitt', 'ein', 'mundu', 'flugedla', 'thorsedla', 'uggedla', 'sloedla', 'gramedla', 'egill', 'oglir', 'stjornuhatid', 'thribroti']) {
@@ -120,6 +125,38 @@ test("requestFor: a line's own say, context and seed win over the lexicon", () =
   assert.deepEqual(requestFor({ ...line, say: 'Eytt!' }, TOY).own, ['say']);
 });
 
+test('Ein, ein and Einn are three words: each form gets its own word\'s recipe, and none touches the others or a longer word', () => {
+  const lexicon = fixtureLexicon(); // Ein: Eyn; ein (in a sentence): not chosen; Einn: IPA
+  const sent = applyLexicon('Ein komin. Bara ein fjöður. Einn! Einhver, eina, eins og einn.', { speaker: 'mosi', lexicon });
+  assert.equal(sent.say, 'Eyn komin. Bara ein fjöður. "/ˈeitn̥/"! Einhver, eina, eins og einn.');
+  assert.deepEqual(sent.words.map(word => [word.id, word.recipe, word.forms]), [['ein', 'stafsetning', ['Ein']], ['ein-inni', null, ['ein']], ['einn', 'ipa', ['Einn']]]);
+  lexicon.words['ein-inni'].chosen = 'stafsetning';
+  assert.equal(applyLexicon('Ein og ein.', { speaker: 'mosi', lexicon }).say, 'Eyn og eyn.');
+});
+
+test('applyLexicon is idempotent: what it sends, sent through it again, is sent as it is, and the same text always sends the same', () => {
+  const lexicon = fixtureLexicon();
+  for (const line of corpus()) {
+    const once = applyLexicon(line.text, { speaker: line.speaker, lexicon });
+    const twice = applyLexicon(once.say, { speaker: line.speaker, lexicon });
+    assert.equal(twice.say, once.say, `${line.set}/${line.id}: a recipe's say is not itself a form to replace`);
+    assert.deepEqual(applyLexicon(line.text, { speaker: line.speaker, lexicon }), once, `${line.set}/${line.id}: the same each time`);
+  }
+});
+
+test('resolveWord: an id wins (picks.json names words by id), then a name or form, then a name in any case; a name two words fit is refused', () => {
+  const lexicon = fixtureLexicon();
+  assert.equal(resolveWord(lexicon, 'ein'), 'ein', "an id, though it is also ein-inni's form");
+  assert.equal(resolveWord(lexicon, 'ein-inni'), 'ein-inni');
+  assert.equal(resolveWord(lexicon, 'Kambeðla'), 'kambedla', 'its name');
+  assert.equal(resolveWord(lexicon, 'Kambeðlu'), 'kambedla', 'a form');
+  assert.equal(resolveWord(lexicon, 'KAMBEÐLA'), 'kambedla', 'its name in any case');
+  assert.throws(() => resolveWord(lexicon, 'Mosi'), /not a word/);
+  const twins = { words: { a: { ...lexicon.words.egill }, b: { ...lexicon.words.egill, forms: ['Egils'] } } };
+  assert.throws(() => resolveWord(twins, 'Egill'), /Egill could mean a or b: name the word by its id/);
+  assert.equal(resolveWord(twins, 'Egils'), 'b', 'a form only one of them has');
+});
+
 test('every line of every set and Litla Yatzy that says a chosen word is sent with its recipe, and no other line is changed', () => {
   let changed = 0;
   for (const line of corpus()) {
@@ -188,7 +225,7 @@ test('checkLexicon refuses an entry the tool could not apply, before any request
 test("Litla Yatzy's tool sends its lines through the same function", async () => {
   const junior = await import('../tools/yatzy-junior-voices.mjs');
   const source = fs.readFileSync(file('../tools/yatzy-junior-voices.mjs'), 'utf8');
-  assert.match(source, /import \{[^}]*requestFor[^}]*\} from '\.\/voice-lines\.mjs'/, 'requestFor (applyLexicon) comes from voice-lines.mjs');
+  assert.match(source, /import \{[^}]*requestFor[^}]*\} from '\.\/pronunciation\.mjs'/, "requestFor (applyLexicon) comes from pronunciation.mjs, as voice-lines.mjs's does");
   assert.match(source, /previous_text:sent\.context/, 'the context goes into the request');
   const sent = junior.juniorRequest(VOICE_LINES.yatzyRoll, LEXICON);
   assert.deepEqual(pick(sent), pick(requestFor({ speaker: 'mosi', text: VOICE_LINES.yatzyRoll.text }, LEXICON)));

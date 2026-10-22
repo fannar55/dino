@@ -6,19 +6,21 @@
 // same functions as voice-lines.mjs (requestFor -> applyLexicon): the caption stays the script's text, the request
 // carries the chosen recipes (a respelling or IPA as the text, a context as previous_text, a seed), and the
 // fingerprint hashes what is sent, so a changed recipe makes the line again. voice-lines.mjs --plan lists them.
+// Which request made each MP3 is kept in the committed record, remake/assets/audio/voices-made.json ("yatzy-junior/<id>"),
+// with voice-lines.mjs's lines; a take another checkout of the repo has in its cache is copied, not asked for again.
 // node remake/tools/yatzy-junior-voices.mjs [--only id,id] [--dry-run|--verify]
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {VOICE_LINES} from '../engine/yatzy-junior/voice-lines.js';
-import {cacheKey,MODEL,SETTINGS,readLexicon,requestFor} from './voice-lines.mjs';
+import {cacheKey,MODEL,SETTINGS,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
+import {readLexicon,requestFor} from './pronunciation.mjs';
 import {lineEntry} from './audio-lines.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const FOLDER=path.join(ROOT,'remake/assets/audio/yatzy-junior');
 const CACHE=path.join(ROOT,'.tools/elevenlabs-remake');
-const INDEX=path.join(CACHE,'yatzy-junior-index.json');
 const MASTER='loudnorm=I=-18:TP=-2:LRA=7,apad=pad_dur=0.25';
 export const SPEAKER='mosi';
 const readJson=(file,fallback)=>fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback;
@@ -42,7 +44,8 @@ async function main(argv){
   const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
   const writeJson=(file,value)=>{fs.writeFileSync(`${file}.part`,`${JSON.stringify(value,null,2)}\n`);fs.renameSync(`${file}.part`,file);};
   const manifestFile=path.join(FOLDER,'manifest.json');
-  const manifest=readJson(manifestFile,{}),index=readJson(INDEX,{});
+  const manifest=readJson(manifestFile,{});
+  const recorded=id=>readMade(ROOT)[`yatzy-junior/${id}`]?.key;
 
   function verify(){
     const issues=[];let duration=0,bytes=0;
@@ -52,7 +55,7 @@ async function main(argv){
       if(entry.src!==`assets/audio/yatzy-junior/${id}.mp3`||!(entry.duration>.3&&entry.duration<40)||!/^[0-9a-f]+$/.test(entry.mouth))issues.push(`${id}: invalid manifest entry`);
       if(!/[1-9a-f]/.test(entry.mouth)||!entry.mouth.endsWith('000'))issues.push(`${id}: silent voice or missing closing silence`);
       if(Math.abs(entry.mouth.length-entry.duration*20)>3)issues.push(`${id}: mouth duration mismatch`);
-      if(index[id]!==fingerprint(line))issues.push(`${id}: stale script/model/settings/pronunciation fingerprint`);
+      if(recorded(id)!==fingerprint(line))issues.push(`${id}: stale script/model/settings/pronunciation fingerprint`);
       const probe=JSON.parse(run('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,sample_rate,channels','-of','json',file]));
       if(probe.streams[0]?.codec_name!=='mp3'||probe.streams[0]?.channels!==1||probe.streams[0]?.sample_rate!=='44100'||Math.abs(Number(probe.format.duration)-entry.duration)>.002)issues.push(`${id}: audio format/duration mismatch`);
       duration+=entry.duration;bytes+=fs.statSync(file).size;
@@ -80,7 +83,9 @@ async function main(argv){
   const worker=async()=>{
     while(next<selected.length){
       const[id,line]=selected[next++],sent=juniorRequest(line,lexicon),hash=fingerprint(line),raw=path.join(CACHE,`${hash}.mp3`),target=path.join(FOLDER,`${id}.mp3`);
-      if(!fs.existsSync(raw)){
+      const elsewhere=fs.existsSync(raw)?null:siblingCaches(ROOT).map(dir=>path.join(dir,`${hash}.mp3`)).find(file=>fs.existsSync(file));
+      if(elsewhere){fs.copyFileSync(elsewhere,`${raw}.part`);fs.renameSync(`${raw}.part`,raw);cached++;}
+      else if(!fs.existsSync(raw)){
         let response;
         for(let attempt=0;attempt<3;attempt++){
           response=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,{method:'POST',headers:{'xi-api-key':key,'Content-Type':'application/json'},body:JSON.stringify({text:sent.text,model_id:MODEL,language_code:'is',voice_settings:SETTINGS,...(sent.seed===undefined?{}:{seed:sent.seed}),...(sent.context===undefined?{}:{previous_text:sent.context})}),signal:AbortSignal.timeout(120000)});
@@ -92,14 +97,14 @@ async function main(argv){
         const bytes=Buffer.from(await response.arrayBuffer());if(bytes.length<1000)throw new Error(`ElevenLabs ${id}: audio was empty.`);
         fs.writeFileSync(`${raw}.part`,bytes);fs.renameSync(`${raw}.part`,raw);generated++;
       }else cached++;
-      if(index[id]!==hash||!fs.existsSync(target)){
+      if(recorded(id)!==hash||!fs.existsSync(target)){
         const part=path.join(FOLDER,`${id}.part.mp3`);
         run('ffmpeg',['-hide_banner','-loglevel','error','-y','-i',raw,'-map_metadata','-1','-af',MASTER,'-ar','44100','-ac','1','-codec:a','libmp3lame','-b:a','96k',part]);
         fs.renameSync(part,target);
       }
       manifest[id]=lineEntry(target,`assets/audio/yatzy-junior/${id}.mp3`);
       if(!(manifest[id].duration>.3&&manifest[id].duration<40))throw new Error(`${id}: unexpected clip duration.`);
-      index[id]=hash;writeJson(manifestFile,manifest);writeJson(INDEX,index);
+      writeJson(manifestFile,manifest);recordMade(ROOT,{[`yatzy-junior/${id}`]:madeEntry(hash,target,manifest[id].duration)});
       console.log(`${id}: ${manifest[id].duration}s`);
     }
   };
