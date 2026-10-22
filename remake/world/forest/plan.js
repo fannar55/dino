@@ -343,8 +343,8 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     if (name === 'bush' && nearCamera(x, z) < 3.8) shape = { ...shape, fine: true };
     const levels = levelsFor(name, radiusOf(x, z), opts.lod ?? 0);
     const lod = levels[0];
-    const model = library.get(name, opts.variant, lod, shape);
-    yield; // a model built the first time it is asked for takes up to some 15 ms
+    const model = yield* library.getSteps(name, opts.variant, lod, shape); // built the first time it is asked for: a tree a part at a time
+    yield;
     const scale = opts.scale ?? 1;
     const tall = Boolean(opts.tall);
     const r = radiusOf(x, z);
@@ -380,7 +380,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     const band = bandOf(r);
     const models = [];
     for (const level of levels) {
-      models.push({ level, model: level === lod ? model : library.get(name, opts.variant, level, shape) });
+      models.push({ level, model: level === lod ? model : yield* library.getSteps(name, opts.variant, level, shape) });
       if (level !== lod) yield; // and each of its other levels too
     }
     const placement = {

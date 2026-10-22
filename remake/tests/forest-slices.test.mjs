@@ -7,7 +7,7 @@ import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
 import { createWind } from '../engine/wind.js';
 import { createForest } from '../world/forest/forest.js';
-import { runSync, runSliced } from '../world/forest/slices.js';
+import { runSync, runSliced, FRESH } from '../world/forest/slices.js';
 
 // A forest built a slice at a time (world/forest/slices.js), as main.js builds a chapter's later places while the start button waits
 // and the first scenes play: the same place as one built at once, its steps short enough to leave a frame room to draw.
@@ -23,7 +23,7 @@ function nodeWorld() {
 }
 const layoutOf = name => ({ ...chapter.locations[name].layout, shots: chapter.locations[name].shots });
 
-test('runSync and runSliced drive the same steps to the same end; the sliced one waits between slices', async () => {
+test('runSync and runSliced drive the same steps to the same end; the sliced one waits between slices, and begins a long step in a slice of its own', async () => {
   function* steps() {
     let sum = 0;
     for (let i = 0; i < 50; i++) {
@@ -44,6 +44,22 @@ test('runSync and runSliced drive the same steps to the same end; the sliced one
   let big = 0;
   await runSliced(steps(), { budget: () => 1000, wait: () => { big++; return Promise.resolve(); } });
   assert.equal(big, 0, 'all in one slice');
+  // a step that yields FRESH ends its slice, so the long step after it begins one of its own; not when the slice has only just begun
+  const busy = ms => { const until = performance.now() + ms; while (performance.now() < until); };
+  function* withLong() {
+    yield FRESH; // the slice has only just begun: it goes on
+    for (let i = 0; i < 6; i++) { busy(0.5); yield; }
+    yield FRESH;
+    busy(4); // the long step
+    yield FRESH;
+    busy(4); // and another
+    return 'made';
+  }
+  const lengths = [];
+  assert.equal(await runSliced(withLong(), { budget: () => 1000, wait: () => Promise.resolve(), onSlice: ms => lengths.push(ms) }), 'made');
+  assert.equal(lengths.length, 3, `${lengths.length} slices`);
+  assert.ok(lengths[0] >= 3 && lengths[0] < 4 && lengths[1] >= 4 && lengths[1] < 8 && lengths[2] >= 4, lengths.map(ms => ms.toFixed(1)).join(', '));
+  assert.equal(runSync(withLong()), 'made');
 });
 
 test('the trail and the Fen built in slices are the places built at once, and no step of the build holds a frame long', async () => {

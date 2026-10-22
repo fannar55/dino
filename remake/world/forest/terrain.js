@@ -217,6 +217,7 @@ export function createTerrain(world, layout, seed) {
       for (let j = 0; j < segs; j++) {
         const a = (j / segs) * Math.PI * 2 + (i % 2) * (Math.PI / segs);
         pushVertex(cx + Math.cos(a) * radii[i], cz + Math.sin(a) * radii[i]);
+        if (j % 64 === 63) yield; // round the Fen's water a vertex is five reads of its height: a ring is up to 30 ms
       }
       yield;
     }
@@ -233,6 +234,7 @@ export function createTerrain(world, layout, seed) {
           idx.push(a0 + j, a0 + j1, b0 + j1);
         }
       }
+      if (i % 8 === 0) yield;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));

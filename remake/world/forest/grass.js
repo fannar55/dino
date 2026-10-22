@@ -96,6 +96,7 @@ export function* createGrassSteps(world, { terrain, layout, seed, shared, actorU
   const tuftDensity = density / tuftSize;
   const cell = 1 / Math.sqrt(tuftDensity);
   const reach = cfg.corridorReach;
+  let tried = 0;
   for (let gz = -reach; gz < reach; gz += cell) {
     for (let gx = -reach; gx < reach; gx += cell) {
       const x = cx + gx + (rng.next() - 0.5) * cell;
@@ -103,8 +104,9 @@ export function* createGrassSteps(world, { terrain, layout, seed, shared, actorU
       const r = Math.hypot(x - cx, z - cz);
       if (r > reach) { rng.next(); continue; }
       const d = densityAt(x, z);
-      if (rng.next() >= d) continue;
+      if (rng.next() >= d) { if (++tried % 32 === 0) yield; continue; }
       addTuft(x, z, r);
+      if (++tried % 32 === 0) yield; // a row of the Fen's reed is up to 35 ms
     }
     yield;
   }

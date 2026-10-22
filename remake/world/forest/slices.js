@@ -12,6 +12,13 @@
 //
 // A step function calls another with `yield* other()`. What it builds is the same however it is driven: the yields only stop it.
 
+/**
+ * What a step yields when the next one is long by itself (some 20 to 30 ms: a whole prop made in one go): runSliced ends the slice
+ * there, unless it has only just begun, so that the long step begins a slice of its own instead of coming on top of the budget.
+ * runSync takes no notice of it.
+ */
+export const FRESH = Symbol('fresh slice');
+
 /** The next frame (requestAnimationFrame), or the next turn of the event loop where there are no frames (Node). */
 export const nextFrame = () => new Promise(resolve => {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
@@ -29,7 +36,8 @@ export async function runSliced(steps, { budget = () => 20, wait = nextFrame, on
     const start = performance.now();
     const limit = Math.max(1, budget());
     let next;
-    do next = steps.next(); while (!next.done && performance.now() - start < limit);
+    do next = steps.next();
+    while (!next.done && performance.now() - start < limit && !(next.value === FRESH && performance.now() - start > 1));
     onSlice?.(performance.now() - start);
     if (next.done) return next.value;
     await wait();

@@ -44,7 +44,7 @@ import { createAtmosphere } from './atmosphere.js';
 import { createHangingMoss } from './moss.js';
 import { smoothstep, clamp } from './random.js';
 import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
-import { runSync, runSliced } from './slices.js';
+import { runSync, runSliced, FRESH } from './slices.js';
 import { waterShape, createWaterSteps } from '../props/water.js';
 import { createMist } from '../props/mist.js';
 
@@ -278,18 +278,23 @@ function* forestSteps(world, layout) {
     : null;
   if (water) group.add(water.group);
   yield 'water';
-  // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing
+  // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing (some 25 ms: a slice of its own)
+  yield FRESH;
   const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
     antialias: q.antialias, seed, clear: layout.mossClear ?? [],
   });
   if (moss) group.add(moss.mesh);
   yield 'moss';
   // the mist lies over the water where there is any, its cards standing on the surface
-  const mists = (layout.mist ?? []).map((spec, i) => createMist(world, {
-    ...spec, seed: seed + i,
-    heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
-    over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
-  }));
+  const mists = [];
+  for (const [i, spec] of (layout.mist ?? []).entries()) {
+    yield FRESH; // each some 25 ms: a slice of its own
+    mists.push(createMist(world, {
+      ...spec, seed: seed + i,
+      heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
+      over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
+    }));
+  }
   for (const mist of mists) group.add(mist.group);
 
   scene.add(group);

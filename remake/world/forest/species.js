@@ -6,6 +6,7 @@
 // can later be replaced by a loaded GLB that returns the same shape of model.
 import { FOREST, PALETTE, BEAT_SHARE, WIND_PEAK, FEN } from './config.js';
 import { createRng, createNoise, clamp, smoothstep, lerp } from './random.js';
+import { runSync } from './slices.js';
 import {
   MeshBuilder, srgb, mix3, mul3, tint3, norm3, add3, sub3, madd3, cross3,
   addBlob, addTube, addFrond, addLeafletFrond, addRibbonFrond, addFlowerHead, makeBumps,
@@ -86,7 +87,9 @@ function foliageColor(lobeTint, crownC, crownR, noise, salt, palette = {}) {
 // Broadleaf: the big characterful tree. Thick flared trunk, a few curving limbs, and a crown of a
 // few big puffy clumps with scalloped (cauliflower) outlines that reaches toward +X (the clearing)
 // for edge trees. `size` below 1 makes the medium trees of the understory.
-function buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
+// (a generator, as the swamp conifer's: it yields after its trunk and after each clump of its crown, so a forest built a slice at a
+// time (slices.js) never spends a whole tree's 20 to 40 ms in one frame)
+function* buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
   const solid = new MeshBuilder();
   solid.treeShare = TREE;
   const H = rng.range(11.5, 16.5) * size;
@@ -132,6 +135,7 @@ function buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
     sway: p => bendAt(p[1], H),
     exposure: p => 0.1 + 0.2 * clamp(p[1] / H, 0, 1),
   });
+  yield;
 
   // crown envelope: low and wide, so the trees frame the clearing with foliage, not poles
   const crownC = [leanX * 1.25 + reach * H * 0.08, H * crownY, leanZ * 1.1];
@@ -226,6 +230,7 @@ function buildBroadleaf(rng, { lod, noise, reach = 0.6, size = 1 }) {
       leaf: 0.85,
       exposure: (p, n) => clamp(0.4 + 0.45 * ((p[1] - crownC[1]) / crownR[1]) + 0.25 * n[1], 0.2, 1),
     });
+    yield;
   }
   return {
     solid, thin: null, height: crownC[1] + crownR[1],
@@ -806,7 +811,8 @@ const FEN_BARK = { crevice: F.barkCrevice, highlight: F.barkHighlight, moss: F.m
 // stand out of the water), a straight trunk, and a crown of soft, feathery tiers, conical in a young tree and flat-topped in an
 // old one. Pale moss hangs in strands under its lower tiers: cards the forest draws itself (forest.js and moss.js) from `moss`,
 // the points on the branches they hang from, which are the same at every level of detail.
-function buildSwampConifer(rng, { lod, noise }) {
+// (a generator: it yields after each pad of its crown, its top and its core; see buildBroadleaf)
+function* buildSwampConifer(rng, { lod, noise }) {
   const solid = new MeshBuilder();
   solid.treeShare = TREE;
   const H = rng.range(10.5, 15);
@@ -914,6 +920,7 @@ function buildSwampConifer(rng, { lod, noise }) {
         color: foliage(u, salt2), sway, flutter: (p, dd) => 0.2 * clamp(0.4 + 0.6 * Math.abs(dd[1]), 0, 1), leaf: 0.75,
         exposure: (p, nn) => clamp(0.42 + 0.5 * nn[1] + 0.15 * u, 0.2, 1),
       });
+      yield;
     }
   }
   {
@@ -925,6 +932,7 @@ function buildSwampConifer(rng, { lod, noise }) {
       bumps: makeBumps(rng.fork('top-bumps'), lod === 0 ? 14 : 7, { radius: 0.45, height: 0.15, minY: -0.3 }), crease: 0.05, bumpSoft: 0.55, flatBottom: 0.4,
       color: foliage(1, 3), sway, leaf: 0.75, exposure: (p, nn) => clamp(0.55 + 0.45 * nn[1], 0.3, 1),
     });
+    yield;
     // and a dark core inside the clumps, so no sky shows through the middle of the crown
     const [mx, mz] = trunkAt((crownStart + H) / 2);
     addBlob(solid, {
@@ -1249,16 +1257,21 @@ export const SPECIES = {
 export function createSpeciesLibrary(seed) {
   const noise = createNoise(seed ^ 0x5bd1e995);
   const cache = new Map();
-  return {
+  const library = {
     noise,
     get(name, variant, lod = 0, opts = {}) {
+      return runSync(library.getSteps(name, variant, lod, opts));
+    },
+    /** get as steps (slices.js): a species whose build is a generator (the broadleaf, the swamp conifer) is made a part at a time. */
+    *getSteps(name, variant, lod = 0, opts = {}) {
       const key = `${name}:${variant}:${lod}:${JSON.stringify(opts)}`;
       if (!cache.has(key)) {
         const spec = SPECIES[name];
         if (!spec) throw new Error(`Unknown species ${name}`);
         const { fine, ...shapeOpts } = opts;
         const rng = createRng(seed, `species:${name}:${variant}:${JSON.stringify(shapeOpts)}`);
-        cache.set(key, spec.build(rng, { lod, noise, variant, ...opts }));
+        const made = spec.build(rng, { lod, noise, variant, ...opts });
+        cache.set(key, typeof made?.next === 'function' ? yield* made : made);
       }
       return cache.get(key);
     },
@@ -1268,4 +1281,5 @@ export function createSpeciesLibrary(seed) {
       return out;
     },
   };
+  return library;
 }
