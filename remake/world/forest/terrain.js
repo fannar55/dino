@@ -195,6 +195,9 @@ export function createTerrain(world, layout, seed) {
     const segments = fine ? F.segments : cfg.segments;
     const segs = q.name === 'low' ? Math.round(segments * 0.75) : segments;
     const pos = [], nrm = [], idx = [];
+    // round the Fen's water each vertex knows how far it is from the water's edge (negative under it): the shore's colours
+    const signedAt = layout.water?.shape?.signedAt ?? null;
+    const shore = signedAt ? [] : null;
     const e = 0.5;
     const pushVertex = (x, z) => {
       const y = heightAt(x, z);
@@ -203,6 +206,7 @@ export function createTerrain(world, layout, seed) {
       const l = Math.hypot(nx, 2 * e, nz);
       pos.push(x, y, z);
       nrm.push(nx / l, (2 * e) / l, nz / l);
+      if (shore) shore.push(clamp(signedAt(x, z), -3, 20));
     };
     pushVertex(cx, cz);
     for (let i = 1; i < radii.length; i++) {
@@ -228,6 +232,7 @@ export function createTerrain(world, layout, seed) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    if (shore) g.setAttribute('aShore', new THREE.Float32BufferAttribute(shore, 1));
     g.setIndex(idx);
     g.computeBoundingSphere();
     return g;
@@ -286,7 +291,7 @@ export function createTerrain(world, layout, seed) {
     const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
     material.name = 'forest-ground';
     // the Fen's ground (FEN in config.js): golden reed, moss, and dark mud at and under the water, mixed in by its share
-    if (biome.fen) material.defines = { FOREST_FEN: '' };
+    if (biome.fen) material.defines = layout.water ? { FOREST_FEN: '', FEN_SHORE: '' } : { FOREST_FEN: '' };
     const fen = biome.fen ? {
       ...fenUniforms(biome, THREE),
       uWaterLevel: { value: layout.water ? FEN.waterLevel : -10 },
@@ -296,6 +301,8 @@ export function createTerrain(world, layout, seed) {
       uFenMossWet: { value: col(FEN.mossWet, gain * 0.95) },
       uFenMud: { value: col(FEN.mud, gain * 1.05) },
       uFenPath: { value: col(FEN.path, gain * 0.98) },
+      uFenStraw: { value: col(FEN.grassTip, gain * 0.85) },
+      uFenSilt: { value: col(FEN.waterBed, gain * 0.95) },
     } : {};
     const uniforms = {
       ...shared,
@@ -320,8 +327,8 @@ export function createTerrain(world, layout, seed) {
       uLitterB: { value: col(PALETTE.litterB, 0.95) },
     };
     patchLambert(material, 'forest-ground', uniforms, {
-      vertexHead: 'varying vec3 vGroundPos;',
-      vertexAfter: [['#include <begin_vertex>', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;']],
+      vertexHead: 'varying vec3 vGroundPos;\n#ifdef FEN_SHORE\nattribute float aShore;\nvarying float vShore;\n#endif',
+      vertexAfter: [['#include <begin_vertex>', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n#ifdef FEN_SHORE\nvShore = aShore;\n#endif']],
       fragmentHead: `
 varying vec3 vGroundPos;
 uniform sampler2D uNoise;
@@ -335,8 +342,11 @@ uniform float uWindTime;
 uniform vec3 uGrassBase, uGrassSun, uClover, uForestA, uForestB, uMoss, uSoil, uSoilDark, uPath, uPathEdge, uLitterA, uLitterB;
 #ifdef FOREST_FEN
 uniform float uWaterLevel;
-uniform vec3 uFenReed, uFenReedBase, uFenMoss, uFenMossWet, uFenMud, uFenPath;
+uniform vec3 uFenReed, uFenReedBase, uFenMoss, uFenMossWet, uFenMud, uFenPath, uFenStraw, uFenSilt;
 ${FEN_SHARE_GLSL}
+#endif
+#ifdef FEN_SHORE
+varying float vShore;
 #endif
 ${ACTOR_GLSL}
 ${LIGHT_GLOBALS}
@@ -362,19 +372,25 @@ ${LEAF_SHADOW_GLSL}`,
   vec3 pathC = mix( uPathEdge, uPath, pathCore ) * ( 0.9 + 0.18 * fine );
   pathC = mix( pathC, uPathEdge * 0.9, smoothstep( 0.62, 0.7, nC.g ) * 0.35 );
   #ifdef FOREST_FEN
-  // The Fen: golden reed meadow with moss in patches and on the hummocks, dark mud where the ground comes down to the water,
-  // darker still under it; the path a trodden, damp track.
+  // The Fen: golden reed meadow broken by broad patches of moss, of wet dark moss in the hollows and of pale straw, moss on
+  // the hummocks; at the water's edge a narrow ragged band of mud and wet moss a metre out, olive silt under the water; the
+  // path a trodden, damp track.
   float fen = fenShare( gp );
   float above = vGroundPos.y - uWaterLevel; // height over the water's level
-  vec3 reed = mix( uFenReedBase, uFenReed, 0.62 + 0.38 * med ) * ( 0.88 + 0.26 * nA.a );
-  vec3 fenC = mix( reed, mix( uFenMossWet, uFenMoss, smoothstep( 0.3, 0.7, fine ) ), smoothstep( 0.5, 0.76, nB.g ) * 0.4 );
+  #ifdef FEN_SHORE
+  float shoreD = vShore; // m from the water's edge, negative under it
+  #else
+  float shoreD = 99.0;
+  #endif
+  vec4 nD = texture2D( uNoise, gp * 0.028 + vec2( 0.31, 0.77 ) ); // broad patches, some 35 m apart
+  vec3 fenC = mix( uFenReedBase, uFenReed, 0.62 + 0.38 * med ) * ( 0.88 + 0.26 * nA.a );
+  fenC = mix( fenC, uFenStraw * ( 0.9 + 0.2 * fine ), smoothstep( 0.56, 0.76, nD.b + ( fine - 0.5 ) * 0.2 ) * 0.55 );
+  fenC = mix( fenC, mix( uFenMossWet, uFenMoss, smoothstep( 0.3, 0.7, fine ) ), smoothstep( 0.5, 0.72, nD.g + ( med - 0.5 ) * 0.3 ) * 0.7 );
+  fenC = mix( fenC, uFenMossWet * 0.82 * ( 0.85 + 0.3 * fine ), smoothstep( 0.6, 0.8, nD.r + ( fine - 0.5 ) * 0.2 ) * 0.7 );
   fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
-  // wet moss down toward the water, then a narrow ragged band of mud at its edge, darker under it
-  fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.05, 0.16 + 0.06 * med, above ) ) * 0.55 );
-  float wet = 1.0 - smoothstep( -0.02 + 0.03 * fine, 0.02 + 0.04 * med, above );
-  wet = max( wet, smoothstep( 0.66, 0.8, nB.r ) * 0.45 ); // and muddy patches here and there
-  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), wet );
-  fenC = mix( fenC, mix( uFenMud, uFenMossWet, 0.45 ) * 0.9, smoothstep( -0.02, -0.25, above ) ); // the bed under the water
+  fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
+  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) );
+  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ), smoothstep( 0.0, -0.6, shoreD ) ); // the bed under the water
 
   col = mix( col, fenC, fen );
   pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );

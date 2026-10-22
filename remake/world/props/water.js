@@ -6,7 +6,7 @@
 //                                { level, signedAt(x, z), nearest(x, z) -> { s, depth, flow }, bedAt(x, z), bounds, pools, line }
 //   createWater(world, spec, heightAt, { spots, seed, centre }) ->
 //     { group, shape, update(t), surfaceAt(x, z) -> y | null, depthAt(x, z), rippleAt(point, strength = 1) -> Handle,
-//       bubblesAt(point) -> Handle, dispose() }
+//       bubblesAt(point) -> Handle, wade(actors), dispose() }
 //
 // spec = { pools: [{ center: [x, z], radius, depth }], channel: { line: [[x, z], ...], width, depth } } (a place's
 // layout.water). All the water lies at one level, `level` metres from the place's clearing centre (FEN.waterLevel): the
@@ -18,9 +18,12 @@
 // One mesh: a grid laid over the water, a metre a cell near the middle of the place and 2.5 m far out, each vertex carrying
 // its distance to the shore and its depth. The surface fades out over the last FADE metres inside the edge, where the bank
 // meets it, so no line shows where the water meets the ground; and shallow water is clearer, so the mud of the bank shows
-// through. Rings (rippleAt) are up to RIPPLES live in the material's uniforms, and now and then a faint one starts by itself at
-// one of `spots` (roots, stones, lily pads); bubbles are one small set of soft points, drawn only while some rise. The water's
-// clock is the game's (update(t) with the forest's time), so a capture freezes it.
+// through. It is teal where it is deep and reflects the look's sky (its horizon to its zenith, and the far treeline low down) by
+// a Schlick fresnel; the small waves fade out with distance. Rings are up to RIPPLES live in the material's uniforms: the
+// script's (rippleAt), faint ones round the feet of whoever stands in the water (wade, which forest.update calls with the
+// actors), and, in slots of their own, faint ones that start by themselves now and then at one of `spots` (roots, stones, reed,
+// lily pads). Bubbles are one small set of soft points, drawn only while some rise. The water's clock is the game's (update(t)
+// with the forest's time), so a capture freezes it, and it follows the look's sun as it is now.
 import * as THREE from 'three';
 import { Handle } from '../../engine/handle.js';
 import { FEN } from '../forest/config.js';
@@ -36,6 +39,8 @@ const FLOW = 0.22; // m/s the channel drifts
 const NEAR = 45; // m from the place's centre within which the grid is fine
 const CELL = { near: 1.0, far: 2.5 };
 const AMBIENT = 1.4; // s between the faint rings that start by themselves
+const AMBIENT_SLOTS = 2; // ring slots kept for them, so they never push out a ring the script made
+const WADE = 2.0; // s between two rings at the same foot of whoever stands in the water
 
 const wobble = (k, salt) => hash2(k, salt, 0x51f) * Math.PI * 2;
 
@@ -105,7 +110,7 @@ export function waterShape(spec = {}, { level = FEN.waterLevel, reach = 26 } = {
   function channelNear(x, z) {
     if (!grid) return null;
     const k = Math.floor((x - grid.ox) / grid.cell), j = Math.floor((z - grid.oz) / grid.cell);
-    if (k < 0 || j < 0 || k >= grid.nx || j >= grid.nz) return null;
+    if (!(k >= 0 && j >= 0 && k < grid.nx && j < grid.nz)) return null; // (NaN too)
     const list = grid.cells[j * grid.nx + k];
     if (!list.length) return null;
     let best = Infinity, bestS = 0, bestSeg = null;
@@ -174,7 +179,9 @@ void main() {
 const SURFACE_FRAG = /* glsl */`
 uniform float uTime;
 uniform vec3 uDeep;
-uniform vec3 uSky;
+uniform vec3 uHorizon;
+uniform vec3 uZenith;
+uniform vec3 uTreeline;
 uniform vec3 uBed;
 uniform vec3 uGlint;
 uniform vec3 uSunDir;
@@ -195,6 +202,8 @@ float waterHeight( vec2 p ) {
 }
 void main() {
   vec2 p = vWorld.xz;
+  // the small waves fade out with distance, so far water lies smooth and reflects the sky
+  float detail = 1.0 - smoothstep( 12.0, 35.0, length( cameraPosition - vWorld ) );
   float e = 0.12;
   float h0 = waterHeight( p );
   vec2 grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
@@ -218,16 +227,20 @@ void main() {
       tilt += ( d / max( dist, 1e-3 ) ) * ( -x * w );
     }
   }
-  vec3 n = normalize( vec3( -grad.x * 0.22 - tilt.x * 0.35, 1.0, -grad.y * 0.22 - tilt.y * 0.35 ) );
+  vec3 n = normalize( vec3( -grad.x * 0.07 * detail - tilt.x * 0.35, 1.0, -grad.y * 0.07 * detail - tilt.y * 0.35 ) );
   vec3 v = normalize( cameraPosition - vWorld );
   float facing = max( dot( n, v ), 0.0 );
-  float fresnel = pow( 1.0 - facing, 4.0 );
-  // the body: the bed's mud through the shallows, teal where it is deep; the sky's colour toward the horizon
-  float deep = smoothstep( 0.03, 0.42, vWater.y );
+  float fresnel = 0.02 + 0.98 * pow( 1.0 - facing, 5.0 ); // Schlick
+  // the body: deep teal, the olive silt of the bed only in the shallows at the edge
+  float deep = smoothstep( 0.03, 0.25, vWater.y );
   vec3 body = mix( uBed, uDeep, deep );
-  vec3 col = mix( body, uSky, clamp( 0.18 + 0.82 * fresnel, 0.0, 1.0 ) );
-  // toward the sun: a broad warm sheen, the sun's own glint and a glitter of small sparks where the surface turns to it
+  // the sky it reflects: the look's sky from just over its hazy horizon to its zenith, the far treeline along the bottom of it;
+  // a pond in reeds reflects less than open water, so the teal shows through
   vec3 rr = reflect( -v, n );
+  vec3 sky = mix( mix( uHorizon, uZenith, 0.45 ), uZenith, smoothstep( 0.0, 0.55, rr.y ) );
+  sky = mix( sky, uTreeline, smoothstep( 0.14, 0.03, rr.y ) * 0.8 );
+  vec3 col = mix( body, sky, fresnel * 0.6 );
+  // toward the sun: a broad warm sheen, the sun's own glint and a glitter of small sparks where the surface turns to it
   float sun = max( dot( rr, uSunDir ), 0.0 );
   float sheen = pow( sun, 10.0 ) * 0.16;
   float glint = pow( sun, 420.0 ) * 1.8;
@@ -235,10 +248,10 @@ void main() {
     * smoothstep( 0.62, 0.9, texture2D( uNoise, p * 2.9 - vec2( uTime * 0.05, uTime * 0.06 ) ).r );
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
-  col = mix( col, uSky * 1.12, clamp( crest * 0.45, 0.0, 0.6 ) );
+  col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
-  float alpha = shore * clamp( mix( 0.62, 0.9, deep ) + fresnel * 0.25 + glint + glitter + crest * 0.2, 0.0, 1.0 );
+  float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -338,7 +351,9 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
     uTime: { value: 0 },
     uDeep: { value: new THREE.Color(FEN.waterDeep) },
-    uSky: { value: new THREE.Color(FEN.waterSky) },
+    uHorizon: { value: new THREE.Color(world.look?.sky?.horizon ?? FEN.waterSky) },
+    uZenith: { value: new THREE.Color(world.look?.sky?.zenith ?? FEN.waterSky) },
+    uTreeline: { value: new THREE.Color(FEN.waterTreeline) },
     uBed: { value: new THREE.Color(FEN.waterBed) },
     uGlint: { value: new THREE.Color(FEN.glint) },
     uSunDir: { value: sunDir },
@@ -390,23 +405,34 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
   const live = []; // rings and bubble sets with their handles, and bubbles still to break on the surface
   let nextBubble = 0, bubblesUntil = -1;
   let ambientTick = -1;
+  // Who each ring slot belongs to: the first AMBIENT_SLOTS are the faint rings that start by themselves; the others are for the
+  // script's rings (rippleAt) and for the rings round the feet of whoever wades (wade), which never push a script's ring out.
+  const owner = Array.from({ length: RIPPLES }, (_, i) => (i < AMBIENT_SLOTS ? 'ambient' : 'free'));
+  const expired = i => ripples[i].w <= 0 || now - ripples[i].z > RIPPLE.life || ripples[i].z > now;
 
   const surfaceAt = (x, z) => (shape.signedAt(x, z) < 0 ? shape.level : null);
   const depthAt = (x, z) => (shape.signedAt(x, z) < 0 ? Math.max(0, shape.level - heightAt(x, z)) : 0);
-  /** The slot of the ring that began longest ago. */
-  const oldest = () => {
-    let slot = 0;
-    for (let i = 1; i < RIPPLES; i++) if (ripples[i].z < ripples[slot].z) slot = i;
-    return slot;
-  };
+  /** A slot for a ring of `kind` ('play' or 'wade'): a free or spent one; else a wading ring's (for 'play' only), else the oldest. */
+  function slotFor(kind) {
+    let pick = -1;
+    for (let i = AMBIENT_SLOTS; i < RIPPLES; i++) if (expired(i)) return i;
+    if (kind === 'wade') return -1;
+    for (let i = AMBIENT_SLOTS; i < RIPPLES; i++) if (owner[i] === 'wade' && (pick < 0 || ripples[i].z < ripples[pick].z)) pick = i;
+    if (pick >= 0) return pick;
+    for (let i = AMBIENT_SLOTS; i < RIPPLES; i++) if (pick < 0 || ripples[i].z < ripples[pick].z) pick = i;
+    return pick;
+  }
 
   /** A ring spreading from a point on the water (a Vector3, [x, y, z] or { x, z }); strength 1 is a footstep's. */
-  function rippleAt(point, strength = 1) {
+  function rippleAt(point, strength = 1, kind = 'play') {
     const [x, z] = groundOf(point);
-    const slot = oldest();
+    const slot = slotFor(kind);
+    const handle = new Handle('ripple');
+    if (slot < 0) return handle.finish();
     const began = now;
     ripples[slot].set(x, z, began, Math.max(0, strength));
-    const handle = new Handle('ripple', () => { if (ripples[slot].z === began) ripples[slot].w = 0; });
+    owner[slot] = kind;
+    handle.onCancel = () => { if (ripples[slot].z === began) ripples[slot].w = 0; };
     live.push({ handle, end: began + RIPPLE.life });
     return handle;
   }
@@ -438,23 +464,51 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
     return handle;
   }
 
+  // Whoever stands in the water makes faint rings round their feet, one foot after another, each foot every WADE seconds.
+  const waders = new Map(); // actor -> { feet, k, next }
+  const footAt = new THREE.Vector3();
+  /** Rings at the feet of every actor (with a root and bones named "…Foot…") whose feet are in the water. */
+  function wade(actors) {
+    for (const actor of actors) {
+      const root = actor?.root;
+      if (!root || !root.visible) continue;
+      let w = waders.get(actor);
+      if (!w) {
+        const feet = [];
+        (actor.model ?? root).traverse(o => { if (o.isBone && /Foot/.test(o.name)) feet.push(o); });
+        w = { feet, k: 0, next: now };
+        waders.set(actor, w);
+      }
+      if (!w.feet.length) continue;
+      if (w.next - now > WADE) w.next = now; // the clock went back (a seek)
+      if (now < w.next) continue;
+      const foot = w.feet[w.k % w.feet.length];
+      w.k++;
+      w.next = now + WADE / w.feet.length;
+      foot.getWorldPosition(footAt);
+      if (depthAt(footAt.x, footAt.z) < 0.05) continue;
+      rippleAt([footAt.x, 0, footAt.z], 0.3 + 0.12 * hash2(w.k, seed, 17), 'wade');
+    }
+  }
+
   function update(t) {
     now = t;
     uniforms.uTime.value = t;
     bubbleUniforms.uTime.value = t;
-    // now and then a faint ring at a root, a stone or a lily pad, chosen by the clock so a capture shows the same ones
+    if (world.lighting?.direction) uniforms.uSunDir.value.copy(world.lighting.direction); // a later look's sun is followed
+    // now and then a faint ring at a root, a stone, a reed or a lily pad, chosen by the clock so a capture shows the same ones
     if (spots.length) {
       const tick = Math.floor(t / AMBIENT);
       if (tick !== ambientTick) {
         ambientTick = tick;
         const spot = spots[Math.floor(hash2(tick, seed, 3) * spots.length) % spots.length];
-        ripples[oldest()].set(spot[0], spot[1], tick * AMBIENT, 0.3 + 0.25 * hash2(tick, seed, 5));
+        ripples[((tick % AMBIENT_SLOTS) + AMBIENT_SLOTS) % AMBIENT_SLOTS].set(spot[0], spot[1], tick * AMBIENT, 0.3 + 0.25 * hash2(tick, seed, 5));
       }
     }
     for (let i = live.length - 1; i >= 0; i--) {
       const item = live[i];
       if (item.pop) {
-        if (t >= item.at) { live.splice(i, 1); rippleAt([item.pop[0], 0, item.pop[1]], 0.25); }
+        if (t >= item.at) { live.splice(i, 1); rippleAt([item.pop[0], 0, item.pop[1]], 0.25, 'wade'); }
       } else if (item.handle.done || t >= item.end) {
         item.handle.finish();
         live.splice(i, 1);
@@ -464,7 +518,9 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
   }
 
   return {
-    group, shape, surface, update, surfaceAt, depthAt, rippleAt, bubblesAt,
+    group, shape, surface, update, surfaceAt, depthAt, bubblesAt, wade,
+    /** A ring spreading from a point on the water (a Vector3, [x, y, z] or { x, z }); strength 1 is a footstep's. */
+    rippleAt: (point, strength = 1) => rippleAt(point, strength, 'play'),
     get level() { return shape.level; },
     get triangles() { return idx.length / 3; },
     dispose() {

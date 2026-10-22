@@ -14,6 +14,8 @@ import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
 import { createWind } from '../engine/wind.js';
 import { shotStats } from '../tools/world/shot-stats.mjs';
+import { createActor } from '../engine/actor.js';
+import { emptyWorld, loadCharacter } from './characters.mjs';
 
 // Chapter 2's two new places, the trail (fenjaslod) and the Fen (fen): the Fen's own biome in the forest generator, its water,
 // its mist and its plants, and the cost of every shot set in them (world/forest/, world/props/water.js and mist.js).
@@ -108,9 +110,11 @@ test('rings and bubbles live on the water\'s clock, and no more than eight rings
   const water = createWater(world, layout.water, terrain.heightAt);
   water.update(10);
   const [x, z] = FEN_PLACE.layout.water.pools[0].center;
+  const slots = water.surface.material.uniforms.uRipples.value;
+  assert.equal(slots.length, 8, 'eight rings at most');
   const rings = Array.from({ length: 11 }, (_, i) => water.rippleAt(new THREE.Vector3(x + i * 0.2, 0, z), 1));
-  const live = water.surface.material.uniforms.uRipples.value.filter(r => r.w > 0 && r.z === 10);
-  assert.equal(live.length, 8, 'eight rings at most: the newest take the oldest\'s places');
+  const live = slots.filter(r => r.w > 0 && r.z === 10);
+  assert.equal(live.length, 6, 'six for the script (the newest take the oldest\'s places), two kept for the faint rings that start by themselves');
   assert.ok(rings.every(r => !r.done));
   const bubbles = water.bubblesAt([x, 0, z]);
   const points = water.group.getObjectByName('Water bubbles');
@@ -119,6 +123,32 @@ test('rings and bubbles live on the water\'s clock, and no more than eight rings
   assert.ok(rings.every(r => r.done), 'every ring has faded');
   assert.equal(bubbles.done, true, 'the bubbles have broken on the surface');
   assert.equal(points.visible, false, 'and cost no draw call any more');
+  water.dispose();
+});
+
+test('whoever stands in the water makes rings round their feet, and nobody on dry land does', () => {
+  const world = nodeWorld();
+  const { layout, terrain } = shapeGround(world, layoutOf(FEN_PLACE), FEN_PLACE.layout.seed);
+  const water = createWater(world, layout.water, terrain.heightAt);
+  const wader = (x, z) => {
+    const root = new THREE.Group();
+    const foot = new THREE.Bone();
+    foot.name = 'FrontFootL';
+    foot.position.set(x, terrain.heightAt(x, z) + 0.3, z);
+    root.add(foot);
+    root.updateMatrixWorld(true);
+    return { root, model: root };
+  };
+  const [px, pz] = FEN_PLACE.layout.water.pools[0].center;
+  const [mx, , mz] = FEN_PLACE.layout.actors.mosi.position;
+  const slots = water.surface.material.uniforms.uRipples.value;
+  water.update(20);
+  water.wade([wader(mx, mz)]);
+  assert.equal(slots.filter(r => r.w > 0 && r.z === 20).length, 0, 'no ring on dry land');
+  water.wade([wader(px, pz)]);
+  const ring = slots.find(r => r.w > 0 && r.z === 20);
+  assert.ok(ring && Math.hypot(ring.x - px, ring.y - pz) < 1e-6, 'a ring round the foot in the water');
+  assert.ok(ring.w < 0.5, 'a faint one');
   water.dispose();
 });
 
@@ -200,9 +230,9 @@ test('Þórseðla\'s standing points are clear of plants', () => {
       assert.ok(d >= 3.2, `a ${p.name} ${d.toFixed(2)} m from ${name}`);
     }
   }
-  // she stands in the shallow pool p1, 0.3 m deep under her feet; Mosi on a dry hummock above the water
+  // she stands in p1, 0.6 m of water where she stands (past her ankles: the next test); Mosi on a dry hummock above the water
   const her = layout.actors.thorsedla.position;
-  assert.ok(Math.abs(layout.water.depthAt(her[0], her[2]) - 0.3) < 0.02, `${layout.water.depthAt(her[0], her[2])} m of water where she stands`);
+  assert.ok(Math.abs(layout.water.depthAt(her[0], her[2]) - 0.6) < 0.02, `${layout.water.depthAt(her[0], her[2])} m of water where she stands`);
   const mosi = layout.actors.mosi.position;
   assert.equal(layout.water.depthAt(mosi[0], mosi[2]), 0, 'Mosi stands on dry ground');
   const { terrain } = planOf(FEN_PLACE);
@@ -216,6 +246,31 @@ test('Þórseðla\'s standing points are clear of plants', () => {
   for (const [name, [x, z]] of Object.entries(layout.farFriends)) {
     const d = Math.hypot(x - layout.clearing.center[0], z - layout.clearing.center[1]);
     assert.ok(d >= 60 && d <= 120, `${name} is ${d.toFixed(0)} m out`);
+  }
+});
+
+test('Þórseðla wades: the water covers her feet past the ankle joints where she stands', async () => {
+  const { layout, terrain } = planOf(FEN_PLACE);
+  const world = emptyWorld();
+  world.heightAt = terrain.heightAt;
+  const { position: [x, , z], heading } = layout.actors.thorsedla;
+  const thorsedla = await createActor(world, { name: 'thorsedla', gltf: await loadCharacter('thorsedla'), position: [x, 0, z], heading });
+  thorsedla.root.updateMatrixWorld(true);
+  assert.ok(Math.abs(thorsedla.root.position.y - terrain.heightAt(x, z)) < 1e-9, 'her root is on the bed');
+  const level = layout.water.surfaceAt(x, z);
+  for (const name of ['FrontFootL', 'FrontFootR', 'BackFootL', 'BackFootR']) {
+    const foot = thorsedla.model.getObjectByName(name).getWorldPosition(new THREE.Vector3());
+    assert.ok(foot.y <= level - 0.2, `${name} is at ${foot.y.toFixed(3)}, the water at ${level}: her ankle is not under it`);
+    assert.ok(layout.water.depthAt(foot.x, foot.z) > 0.5, `${name} stands in the pool`);
+  }
+});
+
+test('the clearing centre of both places is where the ground is counted from: no lift there', () => {
+  for (const place of [TRAIL, FEN_PLACE]) {
+    const { layout, terrain } = shapeGround({ chapter }, layoutOf(place), place.layout.seed);
+    const [cx, cz] = layout.clearing.center;
+    assert.ok(Math.abs(terrain.heightAt(cx, cz)) < 1e-12);
+    assert.ok(Math.abs(layout.lift(cx, cz, 0)) < 1e-12, `${place.layout.seed}: the lift is nothing at the centre (terrain.js counts heights from there)`);
   }
 });
 

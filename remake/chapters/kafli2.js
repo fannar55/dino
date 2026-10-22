@@ -85,14 +85,14 @@ const alongHer = metres => {
 
 const FEN_WATER = {
   pools: [
-    { center: [-3.5, -9], radius: 6.5, depth: 0.3 }, // p1: Þórseðla's shallow pool
+    { center: [-3.5, -9], radius: 7, depth: 0.6 }, // p1: Þórseðla's pool, deep enough to cover her feet past the ankles
     { center: [-15, 7], radius: 6, depth: 0.35 }, // p2: south-west, toward the sun
     { center: [-27, -9], radius: 5.5, depth: 0.35 }, // p3: west
     { center: [10, 9], radius: 4.5, depth: 0.35 }, // p4: behind Mosi, seen past him from the north-west
     { center: [-70, -38], radius: 7, depth: 0.35 }, // p5: far out, where Slóeðla wades (Task 5)
   ],
   channel: {
-    line: [[-150, -105], [-95, -70], [-58, -48], [-34, -30], [-14, -24], [6, -22], [22, -14], [32, 2], [44, 22], [66, 42], [100, 62], [150, 96]],
+    line: [[-150, -105], [-95, -70], [-58, -48], [-34, -30], [-16, -20], [-8, -15.5], [4, -17], [22, -14], [32, 2], [44, 22], [66, 42], [100, 62], [150, 96]],
     width: 4, depth: 0.5,
   },
 };
@@ -101,20 +101,22 @@ const FEN_SHOTS = {
   // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
   // toward the sun, and ends with Þórseðla far right, in the water at her real size (a move from the first to the second).
   fen_reveal: { position: [12, 1.6, 4], target: [-14, 1.5, 10], fov: 46 },
-  fen_reveal_end: { position: [7.5, 5.8, 10.5], target: [-3, 3, -8.5], fov: 50 },
+  fen_reveal_end: { position: [6, 3.8, 13], target: [-5, 2.6, -9], fov: 40 },
   // From below: her feet in the water like trunks, her head up in the swamp conifers.
   fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
-  fen_two_shot: { position: [1.5, 1.4, -16.5], target: [5.5, 1.4, -6], fov: 46 },
+  fen_two_shot: { position: [0, 1.4, 1.5], target: [5, 1.3, -8], fov: 46 },
   // Scene 4: over Egill's shoulder, her face coming down to him.
   fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
   // Scene 4: the berry hummocks east of Mosi.
   fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
   // Scene 6: Egill by her lowered head, about to climb on; scene 7: the slide ends in the saddle on Mosi.
-  fen_lift_start: { position: [3.2, 1.3, -15], target: [4.6, 1.4, -8.6], fov: 40 },
+  fen_lift_start: { position: [1.5, 1.35, -1.5], target: [4.6, 1.4, -8.6], fov: 40 },
   fen_slide_end: { position: [5, 3.2, 6], target: [7.6, 2.6, -3.5], fov: 46 },
   // Scene 8: the two of them with Egill between, the pools glittering behind.
   fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
+  // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
+  fen_shore: { position: [-16, 1.2, -16], target: [-4, 1.6, -8.5], fov: 50 },
   // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
   fen_portrait: { position: [0.5, 1.0, 2.5], target: [5, 3.6, -8.5], fov: 32 },
 };
@@ -314,6 +316,9 @@ export const chapter = {
           { name: 'swampConifer', position: [9.0, -7.0], scale: 0.9, variant: 3 },
           { name: 'deadSnag', position: [-52, -88], scale: 1.5, variant: 2 },
           ...[[72, 33], [78, 31], [84, 34], [88, 41], [69, 39], [82, 45]].map((position, k) => ({ name: 'horsetailReed', position, variant: k % 4, scale: 1.15 })),
+          // reed on p1's west shore and round p2 and p4, and lilies in p1, all clear of her and of the shots across her pool
+          ...[[-11.2, -5.6], [-11.3, -12.8], [-8.3, 6], [-14, 0.2], [-9.5, 3], [14.5, 10], [9, 13.8]].map((position, k) => ({ name: 'horsetailReed', position, variant: (k + 1) % 4, scale: 1.1 })),
+          ...[[-7.5, -6.3], [-7, -12], [-5.5, -14.2], [-6.5, -3.8]].map((position, k) => ({ name: 'waterLily', position, variant: k % 6, scale: 1.1 })),
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },

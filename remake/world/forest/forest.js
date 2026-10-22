@@ -121,18 +121,33 @@ export function shapeGround(world, layout, seed = layout.seed ?? 1) {
 
 /** Where the water's faint rings start by themselves: at the lilies, and in the water by roots, reed and stones at its edge. */
 function waterSpots(placements, water) {
-  const spots = [];
+  const kinds = { lily: [], root: [], reed: [], stone: [] };
+  const kindOf = { waterLily: 'lily', swampConifer: 'root', deadSnag: 'root', horsetailReed: 'reed', rock: 'stone', rockSmall: 'stone', log: 'stone' };
   const e = 0.3;
   for (const p of placements) {
-    if (p.name === 'waterLily') { spots.push([p.x, p.z]); continue; }
-    if (!['swampConifer', 'horsetailReed', 'rock', 'rockSmall', 'deadSnag', 'log'].includes(p.name)) continue;
+    const kind = kindOf[p.name];
+    if (!kind) continue;
+    if (kind === 'lily') { kinds.lily.push([p.x, p.z]); continue; }
     const s = water.signedAt(p.x, p.z);
     if (!(s > 0 && s < 2.5)) continue;
     const gx = water.signedAt(p.x + e, p.z) - water.signedAt(p.x - e, p.z), gz = water.signedAt(p.x, p.z + e) - water.signedAt(p.x, p.z - e);
     const l = Math.hypot(gx, gz) || 1;
-    spots.push([p.x - (gx / l) * (s + 0.4), p.z - (gz / l) * (s + 0.4)]);
+    kinds[kind].push([p.x - (gx / l) * (s + 0.4), p.z - (gz / l) * (s + 0.4)]);
   }
-  return spots.slice(0, 32);
+  // some of each kind, spread through each list (placements come in the order the passes grew them, lilies last)
+  const some = (list, n) => list.length <= n ? list : Array.from({ length: n }, (_, i) => list[Math.floor((i * list.length) / n)]);
+  return [...some(kinds.lily, 10), ...some(kinds.root, 10), ...some(kinds.reed, 8), ...some(kinds.stone, 4)];
+}
+
+/** Points over a place's open water within a mist's disc (a 2 m grid, more than a metre from any edge), for its cards to stand on. */
+function mistPoints(water, [cx, cz], radius) {
+  const points = [];
+  for (let z = cz - radius; z <= cz + radius; z += 2) {
+    for (let x = cx - radius; x <= cx + radius; x += 2) {
+      if (Math.hypot(x - cx, z - cz) <= radius && water.signedAt(x, z) < -1) points.push([x, z]);
+    }
+  }
+  return points;
 }
 
 /**
@@ -230,7 +245,12 @@ export async function createForest(world, layout) {
   if (water) group.add(water.group);
   const moss = createHangingMoss(world, plan.placements, shared, { antialias: q.antialias, seed });
   if (moss) group.add(moss.mesh);
-  const mists = (layout.mist ?? []).map((spec, i) => createMist(world, { ...spec, heightAt: terrain.heightAt, seed: seed + i }));
+  // the mist lies over the water where there is any, its cards standing on the surface
+  const mists = (layout.mist ?? []).map((spec, i) => createMist(world, {
+    ...spec, seed: seed + i,
+    heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
+    over: ground.water ? mistPoints(ground.water, spec.center, spec.radius) : null,
+  }));
   for (const mist of mists) group.add(mist.group);
 
   scene.add(group);
@@ -335,6 +355,7 @@ export async function createForest(world, layout) {
     grass.update(world.camera);
     air.update(world.camera);
     water?.update(time ?? 0);
+    water?.wade(world.actors.values()); // rings round the feet of whoever stands in the water
     for (const mist of mists) mist.update(time ?? 0);
   }
 

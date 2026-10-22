@@ -44,7 +44,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     d *= 1 - (1 - cfg.pathDensity) * smoothstep(0.15, 0.7, pm);
     d *= 1 - 0.7 * smoothstep(0.15, 0.65, terrain.soilMask(x, z));
     if (layout.keepOut) d *= 1 - layout.keepOut(x, z); // a layout's own bare ground (the Fen's water)
-    if (biome.fen) d *= 1 + (FEN.grass.density - 1) * biome.shareAt(x, z);
+    if (biome.fen) d *= 1 + ((biome.blended ? FEN.grass.densityBlended : FEN.grass.density) - 1) * biome.shareAt(x, z);
     return clamp(d, 0, 1);
   }
 

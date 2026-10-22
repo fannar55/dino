@@ -355,7 +355,6 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       }
     }
     if (!authored && !spaceFree(x, z, footprint * (opts.spacing ?? 1), opts.soft ?? 1)) { stats.rejected.space++; return null; }
-    if (!authored && opts.where && !opts.where(model, scale)) { stats.rejected.space++; return null; }
     const y = opts.y ?? terrain.heightAt(x, z) - (opts.sink ?? model.sink ?? 0) * scale;
     const rot = opts.rot ?? 0;
     const list = opts.spheres ? opts.spheres(y) : spheres(model, x, y, z, rot, scale, tall);
@@ -786,13 +785,15 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     };
     const near = (rng, [x, z], d0, d1) => { const a = rng.angle(), d = rng.range(d0, d1); return [x + Math.cos(a) * d, z + Math.sin(a) * d]; };
 
-    // 1. groves of swamp conifers, two to four trees each, most of them by the water; and some standing alone
+    // 1. groves of swamp conifers, two to four trees each, most of them by the water, a few right at its edge so their roots
+    //    and knees stand in it (the trunk on the bank); and some standing alone
     {
       const rng = createRng(seed, 'fen-groves');
       const want = scaled(C.groves, q.trees);
       let made = 0;
       for (let i = 0; i < want * 30 && made < want; i++) {
-        const centre = rng.chance(0.6) ? shoreSpot(rng, 1.5, 7) : spot(rng, [0.1, 0.6]);
+        const roll = rng.next();
+        const centre = roll < 0.3 ? shoreSpot(rng, 0.3, 1.0) : roll < 0.65 ? shoreSpot(rng, 1.5, 7) : spot(rng, [0.1, 0.6]);
         if (!centre || radiusOf(...centre) < clearR * 0.55 || inSight(...centre, 9)) continue;
         const n = rng.int(2, 4);
         let grown = 0;
@@ -813,13 +814,22 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         if (p) placed++;
       }
     }
-    // 2. dead white snags, some standing at the water
+    // 2. dead white snags, some standing at the water, none in the middle third of an authored shot (a bare pole there splits
+    //    the picture)
+    const v3 = new THREE.Vector3();
+    const inMiddleThird = (x, z) => shots.some(shot => {
+      if (shot.kind !== 'static') return false;
+      v3.set(x, terrain.heightAt(x, z) + 3, z).applyMatrix4(shot.view);
+      const depth = -v3.z;
+      return depth > 0.5 && depth < 90 && Math.abs(v3.x / (depth * shot.tanH)) < 0.34;
+    });
     {
       const rng = createRng(seed, 'fen-snags');
       const want = scaled(C.snags, q.trees);
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
         const at = rng.chance(0.5) ? shoreSpot(rng, 0.6, 4) : spot(rng, [0.15, 0.5]);
+        if (at && inMiddleThird(...at)) { stats.rejected.shot++; continue; }
         const p = fenPlace('deadSnag', at, rng, { tall: true, scale: rng.range(0.8, 1.3), pathClear: P.treeClear - 0.8, treeSpacing: 4, blocksGrass: true, grassRadius: 0.4 });
         if (p) placed++;
       }

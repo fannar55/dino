@@ -850,7 +850,7 @@ function buildSwampConifer(rng, { lod, noise }) {
     const len = r0 * rr.range(4.0, 6.0);
     if (lod === 2 || (lod === 1 && k % 2)) continue;
     const dx = Math.cos(az), dz = Math.sin(az);
-    const pts = [[dx * r0 * 0.8, 0.62, dz * r0 * 0.8], [dx * r0 * 2.0, 0.32, dz * r0 * 2.0], [dx * len * 0.62, 0.1, dz * len * 0.62], [dx * len, -0.28, dz * len]];
+    const pts = [[dx * r0 * 0.8, 0.62, dz * r0 * 0.8], [dx * r0 * 2.0, 0.32, dz * r0 * 2.0], [dx * len * 0.62, 0.05, dz * len * 0.62], [dx * len, -0.6, dz * len]]; // down to the bed where it is in the water
     addTube(solid, { points: pts, radial: lod === 0 ? 6 : 4, radius: t => r0 * 0.4 * (1 - 0.72 * t), color: bark, exposure: () => 0.35 });
   }
   {
@@ -861,7 +861,7 @@ function buildSwampConifer(rng, { lod, noise }) {
       if (lod > 0) continue;
       const x = Math.cos(az) * d, z = Math.sin(az) * d;
       addTube(solid, {
-        points: [[x, -0.15, z], [x + tilt * 0.4, h * 0.55, z], [x + tilt, h, z]], radial: 6,
+        points: [[x, -0.65, z], [x + tilt * 0.4, h * 0.55, z], [x + tilt, h, z]], radial: 6, // from the bed when it stands in water
         radius: t => rad * (1 - 0.45 * t), color: (t, ang, p, nn) => mul3(bark(t, ang, p, nn), 1.08), capEnd: true, capBulge: rad * 0.6,
         exposure: () => 0.6,
       });
@@ -890,9 +890,9 @@ function buildSwampConifer(rng, { lod, noise }) {
     for (let c = 0; c < n; c++) {
       const cr = lr.fork(`clump${c}`);
       const a = a0 + (c / n) * Math.PI * 2 + cr.range(-0.35, 0.35);
-      const d = profile(u) * maxLen * cr.range(0.4, 0.6);
-      const R = (0.6 + 0.4 * profile(u)) * maxLen * 0.52 * cr.range(0.85, 1.15);
-      const dy = cr.range(-0.35, 0.35);
+      const d = profile(u) * maxLen * cr.range(0.32, 0.68);
+      const R = (0.6 + 0.4 * profile(u)) * maxLen * 0.52 * cr.range(0.72, 1.25);
+      const dy = cr.range(-0.5, 0.5);
       const salt2 = cr.range(0, 50);
       const centre = [tx + Math.cos(a) * d, y + dy, tz + Math.sin(a) * d];
       clumpsOf.push({ L, c: centre, R, a });
@@ -906,7 +906,7 @@ function buildSwampConifer(rng, { lod, noise }) {
       }
       addBlob(solid, {
         center: centre, radii: [R * 1.25, R * 0.58, R * 1.12], detail: lod === 0 && R > 1.15 && finePads++ < 9 ? 2 : 1,
-        lump: 0.12, lumpFreq: 2.4, noise3: noise.noise3, salt: salt2,
+        lump: 0.2, lumpFreq: 2.4, noise3: noise.noise3, salt: salt2,
         bumps: lod === 2 ? null : makeBumps(cr.fork('bumps'), lod === 0 ? 16 : 9, { radius: lod === 0 ? 0.42 : 0.55, height: 0.2, minY: -0.35 }),
         // the rim of a pad droops, as a cypress's sprays do
         warp: pp => { const q2 = ((pp[0] - centre[0]) ** 2 + (pp[2] - centre[2]) ** 2) / (R * R * 1.44); return [pp[0], pp[1] - R * 0.32 * q2, pp[2]]; },
@@ -955,51 +955,82 @@ function buildSwampConifer(rng, { lod, noise }) {
   };
 }
 
-// A dead snag: a trunk bleached white, broken off, with a few broken branches; rigid, so it does not sway. One of them is tall
+// A dead snag: a trunk weathered silver-grey, fluted and cracked, leaning and kinked, broken off at the top into a few
+// splinters, with broken branches tapering to points and a dark wet foot; rigid, so it does not sway. One of them is tall
 // enough for Flugeðla to perch on (the Fen's layout places it).
 function buildDeadSnag(rng, { lod, noise }) {
   const solid = new MeshBuilder();
   solid.treeShare = TREE;
   const H = rng.range(4.5, 8.5);
-  const r0 = rng.range(0.22, 0.34);
+  const r0 = rng.range(0.24, 0.36);
   const salt = rng.int(0, 999);
-  const bend = [rng.range(-0.5, 0.5), rng.range(-0.5, 0.5)];
-  const wet = mix3(F.mossWet, F.mud, 0.45);
+  const lean = [rng.range(-0.06, 0.06), rng.range(-0.06, 0.06)];
+  const kinkAt = H * rng.range(0.35, 0.65), kink = [rng.range(-0.55, 0.55), rng.range(-0.55, 0.55)];
+  const wet = mix3(F.mossWet, F.mud, 0.5);
   const wood = (t, ang, p) => {
-    const grain = 0.5 + 0.5 * Math.sin(ang * 11 + p[1] * 0.4 + noise.noise(p[1] * 0.8, ang * 2, salt) * 3);
-    let c = mix3(F.snagShade, F.snag, smoothstep(0.15, 0.7, grain));
-    c = mul3(c, 0.9 + 0.18 * noise.noise(p[0] * 2 + ang, p[1] * 1.3, salt + 4));
-    return mix3(c, wet, smoothstep(0.8, 0.0, p[1]) * 0.75); // wet and dark where it stands in the mud
+    const crack = 0.5 + 0.5 * Math.sin(ang * 7 + p[1] * 0.5 + noise.noise(p[1] * 0.9, ang * 1.7, salt) * 2.2);
+    let c = mix3(F.snagShade, F.snag, smoothstep(0.18, 0.72, crack));
+    c = mul3(c, 0.86 + 0.22 * noise.noise(p[0] * 2.2 + ang, p[1] * 1.6, salt + 4));
+    return mix3(c, wet, smoothstep(1.0, 0.1, p[1]) * 0.85); // dark and wet where it stands in the mud
   };
-  const n = lod === 0 ? 8 : lod === 1 ? 5 : 3;
-  const spine = [];
-  for (let i = 0; i < n; i++) {
-    const t = i / (n - 1), y = -0.4 + (H + 0.4) * t * t * 0.4 + (H + 0.4) * t * 0.6;
-    spine.push([bend[0] * (y / H) ** 2, y, bend[1] * (y / H) ** 2]);
-  }
+  const axis = y => {
+    const k = smoothstep(kinkAt - 0.6, kinkAt + 0.6, y);
+    return [lean[0] * y + kink[0] * k * (y - kinkAt + 0.6) * 0.25, lean[1] * y + kink[1] * k * (y - kinkAt + 0.6) * 0.25];
+  };
+  const ys = lod === 0 ? [-0.45, 0, 0.3, 0.7, 1.2] : lod === 1 ? [-0.4, 0.2, 0.9] : [-0.4, 0.6];
+  const upper = lod === 0 ? 8 : lod === 1 ? 4 : 2;
+  const last = ys[ys.length - 1];
+  for (let i = 1; i <= upper; i++) ys.push(last + (H - last) * (i / upper));
+  const spine = ys.map(y => { const [x, z] = axis(y); return [x, y, z]; });
+  const radiusAt = y => r0 * (1 - 0.65 * clamp(y / H, 0, 1)) * (1 + 0.9 * Math.exp(-Math.max(0, y) / 0.6));
+  const radial = lod === 0 ? 14 : lod === 1 ? 9 : 6;
   addTube(solid, {
-    points: spine, radial: lod === 0 ? 9 : lod === 1 ? 7 : 5,
-    radius: (t, ang, i) => {
-      const yp = Math.max(0, spine[i][1]);
-      const broken = i === n - 1 ? 0.75 + 0.35 * Math.sin(ang * 3 + salt) : 1; // a jagged, broken top
-      return r0 * (1 - 0.5 * t) * (1 + 0.9 * Math.exp(-yp / 0.6)) * broken;
-    },
-    color: wood, capEnd: true, capColor: () => mul3(F.snagShade, 0.85), exposure: p => 0.7 + 0.3 * clamp(p[1] / H, 0, 1),
+    points: spine, radial,
+    radius: (t, ang, i) => radiusAt(spine[i][1]) * (1 + 0.07 * Math.sin(ang * 7 + spine[i][1] * 0.5)), // fluted
+    color: wood, exposure: p => 0.55 + 0.45 * clamp(p[1] / H, 0, 1),
+    // the broken top, sunk a little into the trunk
+    capEnd: true, capBulge: -radiusAt(H) * 0.4, capColor: () => mul3(F.snagShade, 0.7),
   });
+  // splinters standing round the broken top
+  const top = spine[spine.length - 1], rTop = radiusAt(H);
+  const splinters = rng.int(3, 5);
+  for (let k = 0; k < splinters; k++) {
+    const sr = rng.fork(`splinter${k}`);
+    const a = (k / splinters) * Math.PI * 2 + sr.range(-0.4, 0.4), len = sr.range(0.3, 1.2), out = sr.range(0.05, 0.25);
+    if (lod === 2 && k > 1) continue;
+    const base = [top[0] + Math.cos(a) * rTop * 0.6, top[1] - 0.05, top[2] + Math.sin(a) * rTop * 0.6];
+    const tip = [base[0] + Math.cos(a) * out, base[1] + len, base[2] + Math.sin(a) * out];
+    addTube(solid, {
+      points: [base, mix3(base, tip, 0.5), tip], radial: lod === 0 ? 5 : 3,
+      radius: t => rTop * 0.38 * (1 - 0.92 * t), color: wood, exposure: () => 1,
+    });
+  }
+  // broken branches, tapering to points at all sorts of angles
   const stubs = rng.int(2, 3);
   for (let k = 0; k < stubs; k++) {
     const sr = rng.fork(`stub${k}`);
-    const y = H * sr.range(0.45, 0.85), az = sr.angle(), up = sr.range(0.5, 1.0), len = sr.range(0.8, 2.2) * (1 - y / H * 0.4);
+    const y = H * sr.range(0.4, 0.85), az = sr.angle(), up = sr.range(-0.1, 1.2), len = sr.range(0.7, 2.0) * (1 - (y / H) * 0.35), droop = sr.range(-0.25, 0.15);
     if (lod === 2 && k > 0) continue;
-    const [bx, bz] = [bend[0] * (y / H) ** 2, bend[1] * (y / H) ** 2];
+    const [bx, bz] = axis(y);
     const dir = norm3([Math.cos(az), up, Math.sin(az)]);
-    const r = r0 * (1 - 0.5 * y / H) * 0.42;
-    addTube(solid, {
-      points: [[bx, y, bz], madd3([bx, y, bz], dir, len * 0.5), madd3([bx, y, bz], dir, len)], radial: lod === 0 ? 6 : 4,
-      radius: t => r * (1 - 0.55 * t), color: wood, capEnd: true, capColor: () => mul3(F.snagShade, 0.85), exposure: () => 0.8,
-    });
+    const start = [bx, y, bz];
+    const mid = add3(madd3(start, dir, len * 0.5), [0, droop * len * 0.3, 0]);
+    const end = add3(madd3(start, dir, len), [0, droop * len, 0]);
+    const r = radiusAt(y) * 0.42;
+    addTube(solid, { points: [start, mid, end], radial: lod === 0 ? 6 : 4, radius: t => r * (1 - 0.9 * t), color: wood, exposure: () => 0.85 });
   }
-  return { solid, thin: null, height: H, radius: r0 * 1.8, trunk: { r: r0, flare: r0 * 1.9, top: H } };
+  // short flared roots into the mud
+  if (lod === 0) {
+    const roots = rng.int(3, 4), a0 = rng.angle();
+    for (let k = 0; k < roots; k++) {
+      const a = a0 + (k / roots) * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
+      addTube(solid, {
+        points: [[dx * r0 * 0.7, 0.45, dz * r0 * 0.7], [dx * r0 * 1.8, 0.12, dz * r0 * 1.8], [dx * r0 * 3.2, -0.25, dz * r0 * 3.2]], radial: 5,
+        radius: t => r0 * 0.45 * (1 - 0.7 * t), color: wood, exposure: () => 0.5,
+      });
+    }
+  }
+  return { solid, thin: null, height: H + 0.6, radius: r0 * 1.8, trunk: { r: r0, flare: r0 * 1.9, top: H } };
 }
 
 // A moss hummock: a low, lumpy mound of moss, wetter and darker at its foot.
@@ -1041,7 +1072,7 @@ function buildHorsetailReed(rng, { lod, noise }) {
     const h = tallest * sr.range(0.55, 1.0) * (1 - 0.25 * rr / spread);
     const splay = 0.14 * rr / spread;
     const lean = [sr.range(-0.08, 0.08) + Math.cos(az) * splay, sr.range(-0.08, 0.08) + Math.sin(az) * splay];
-    const rad = sr.range(0.016, 0.025) * Math.sqrt(keep) * 0.85;
+    const rad = sr.range(0.02, 0.03) * Math.sqrt(keep) * 0.85;
     const strobilus = sr.chance(0.3);
     const tone = sr.range(0.92, 1.08);
     if (k % keep) continue;
@@ -1055,7 +1086,7 @@ function buildHorsetailReed(rng, { lod, noise }) {
     addTube(solid, {
       points: pts, radial: 3, radius: t => rad * (1 - 0.6 * t), normalTilt: 1.2, // lit along the stalk, so a thin stalk catches the light
       color: (t, ang, p) => {
-        let c = t < 0.4 ? mix3(base, reed, t / 0.4) : mix3(reed, top, (t - 0.4) / 0.6);
+        let c = t < 0.3 ? mix3(base, reed, t / 0.3) : mix3(reed, top, (t - 0.3) / 0.7);
         const ring = Math.round(t * segs);
         if (ring % 2 === 1 && lod === 0) c = mul3(c, 0.86); // the joints
         return mul3(c, tone);
@@ -1065,8 +1096,8 @@ function buildHorsetailReed(rng, { lod, noise }) {
     if (strobilus && lod === 0) {
       const tp = pts[pts.length - 1];
       addTube(solid, {
-        points: [madd3(tp, [0, 1, 0], -0.02), madd3(tp, [0, 1, 0], 0.06)], radial: 4, radius: () => rad * 1.5,
-        color: () => cone, capEnd: true, capBulge: rad, sway, leaf: 0.3, exposure: () => 0.8,
+        points: [madd3(tp, [0, 1, 0], -0.03), madd3(tp, [0, 1, 0], 0.02), madd3(tp, [0, 1, 0], 0.08)], radial: 5, radius: t => rad * (1.5 - 1.3 * t * t), // a small cone
+        color: () => cone, sway, leaf: 0.3, exposure: () => 0.8,
       });
     }
   }
