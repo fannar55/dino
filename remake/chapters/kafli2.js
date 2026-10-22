@@ -89,7 +89,7 @@ function blendAcross(path, width) {
 // sauropod's were. The first is 4 m past the middle of the blend, where the trail is all fen; the ten end 21 m on, in the mist.
 const PRINT_FROM = 57.5; // m along the path to the first print
 const PRINT_PACE = 2.3; // m along the path from one print to the next
-const PRINT_GAUGE = 0.3; // m from the middle of the path to the middle of a print
+const PRINT_GAUGE = 0.45; // m from the middle of the path to the middle of a print: her left and right prints never touch
 const PRINT_TURN = 8; // degrees a print's toes turn out
 /** Where a path is `s` metres along it, and its way there (unit). */
 function pathAt(path, s) {
@@ -121,7 +121,7 @@ const TRAIL_PRINTS = printsAlong(TRAIL_PATH);
 // and up from the ground).
 const RIDE_FROM = 44;
 const MOSI_BACK = 3.2;
-const MOSI_SIDE = 1.9;
+const MOSI_SIDE = 2.3;
 const RIDE_POINTS = [49, 52].map((s, i) => {
   const p = pathAt(TRAIL_PATH, s);
   const out = [0.6, 1.4][i];
@@ -142,12 +142,12 @@ const NOD_DIP = { x: 0, y: -0.6, z: 0 };
 // which hops out onto the middle of the path; a diving beetle swimming round in the sixth; a water strider on the ninth's water,
 // which shoots off toward the toes; and a salamander in the tenth, which crawls out over the toes and back.
 const PRINT_ANIMALS = [
-  { print: 2, kind: 'frog', name: 'print-frog', along: -0.02, across: 0.12, on: 'floor', turn: -90 },
+  { print: 2, kind: 'frog', name: 'print-frog', along: -0.02, across: -0.12, on: 'floor', turn: -90 },
   { print: 5, kind: 'waterBeetle', name: 'print-beetle', along: -0.05, across: 0, on: 'water', turn: 0 },
   { print: 8, kind: 'waterStrider', name: 'print-strider', along: -0.1, across: 0, on: 'water', turn: 0 },
-  { print: 9, kind: 'salamander', name: 'print-salamander', along: -0.12, across: 0.02, on: 'floor', turn: 0 },
+  { print: 9, kind: 'salamander', name: 'print-salamander', along: 0.14, across: 0.02, on: 'floor', turn: 0 },
 ];
-const ANIMAL_SIZE = 1.5; // the animals in her prints are drawn this much larger than life, so a child sees them from the camera
+const ANIMAL_SIZE = 1.1; // the animals in her prints a little larger again than the critters' own (already larger than life)
 
 const TRAIL_SHOTS = {
   trail_wide: { position: [-18.5, 2.85, -11.5], target: [5, 1.1, 4], fov: 50 },

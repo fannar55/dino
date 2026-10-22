@@ -44,7 +44,7 @@ const CELL = { near: 1.0, far: 2.5 };
 const AMBIENT = 1.4; // s between the faint rings that start by themselves
 const AMBIENT_SLOTS = 2; // ring slots kept for them, so they never push out a ring the script made
 const WADE = 2.0; // s between two rings at the same foot of whoever stands in the water
-const PRINT_GOLD = '#d9a83c'; // a counted footprint's water, warm gold (the star's gold, a little deeper: it is water, not cream)
+const PRINT_GOLD = '#f0bf4c'; // a counted footprint's water shows the sky in this warm gold (the star's)
 
 const wobble = (k, salt) => hash2(k, salt, 0x51f) * Math.PI * 2;
 
@@ -170,7 +170,9 @@ varying vec2 vWater;
 varying vec2 vFlow;
 #ifdef PRINT_WATER
 attribute vec2 aState; // a footprint's water: x 0 to 1 still and gold (counted), y 0 to 1 glimmering (the next to count)
+attribute vec2 aLocal; // where in the print's own frame (metres along it, to its right): its shore is drawn from its shape
 varying vec2 vState;
+varying vec2 vLocal;
 #endif
 #include <common>
 #include <fog_pars_vertex>
@@ -181,6 +183,7 @@ void main() {
   vFlow = aFlow;
   #ifdef PRINT_WATER
   vState = aState;
+  vLocal = aLocal;
   #endif
   vec4 mvPosition = viewMatrix * world;
   gl_Position = projectionMatrix * mvPosition;
@@ -204,7 +207,21 @@ varying vec2 vWater;
 varying vec2 vFlow;
 #ifdef PRINT_WATER
 uniform vec3 uGold;
+uniform vec4 uBlobs[ 4 ]; // the print's pad and three toes: x, z, radius along, radius across (mud-prints.js)
 varying vec2 vState;
+varying vec2 vLocal;
+// the print's signed distance (m, negative inside): the nearest of its four ellipses, to first order (as mud-prints.js has it)
+float printDistance( vec2 p ) {
+  float d = 1e3;
+  for ( int i = 0; i < 4; i ++ ) {
+    vec4 b = uBlobs[ i ];
+    vec2 u = p - b.xy;
+    float k = length( u / b.zw );
+    float g = length( u / ( b.zw * b.zw ) );
+    d = min( d, g < 1e-6 ? - min( b.z, b.w ) : ( k - 1.0 ) * k / g );
+  }
+  return d;
+}
 #endif
 #include <common>
 #include <fog_pars_fragment>
@@ -267,14 +284,29 @@ void main() {
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
-  #ifdef PRINT_WATER
-  // counted: a warm gold through it; the next to count: a soft glimmer that swells and ebbs
-  col = mix( col, uGold, 0.32 * vState.x );
-  col += uGlint * vState.y * ( 0.32 + 0.26 * sin( uTime * 5.2 ) );
-  #endif
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
+  #ifdef PRINT_WATER
+  // A footprint's water: a few centimetres over a mud floor. Its shore is the print's own shape, per pixel. Looking down it is
+  // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, the sky
+  // and the sun in it turn gold. The next to count glimmers: its sparks twinkle whatever the sun, and a ring of light goes out from
+  // the middle of the pad again and again.
+  float pd = printDistance( vLocal );
+  float printShore = smoothstep( 0.0, uFade, - pd );
+  if ( printShore <= 0.0 ) discard;
+  vec3 floorTint = mix( uBed, uDeep * 0.7, 0.3 * smoothstep( 0.0, 0.25, - pd ) );
+  vec3 printSky = mix( sky, uGold, 0.4 * vState.x );
+  col = mix( floorTint, printSky, fresnel * 0.9 );
+  col += mix( uGlint, uGold, vState.x ) * ( sheen * ( 1.0 + 2.0 * vState.x ) + glint + glitter * ( 1.0 + vState.x ) );
+  float run = fract( uTime * 0.6 );
+  float wave = ( length( vLocal - uBlobs[ 0 ].xy ) - run * 0.42 ) / 0.03;
+  float lightRing = exp( - wave * wave ) * ( 1.0 - run ) * vState.y;
+  float twinkle = sparks * vState.y * 2.5;
+  col += uGlint * ( lightRing * 0.9 + twinkle );
+  col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
+  alpha = printShore * clamp( 0.5 + fresnel * 0.5 + glint + glitter + crest * 0.25 + lightRing * 0.6 + twinkle * 0.5, 0.0, 1.0 );
+  #endif
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -538,9 +570,10 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
  * The surface's material: teal in the deep, the bed through the shallows, the look's sky by a fresnel, the sun's sheen and glitter,
  * and RIPPLES rings in `uniforms.uRipples` ([x, z, the time it began, strength]; strength 0 is none), on the clock `uniforms.uTime`.
  * A geometry drawn with it carries aWater ([distance to the shore, negative inside, depth, 0]) and aFlow ([m/s, m/s]), and with
- * `prints` aState ([still and gold, glimmer], 0 to 1). `fade` is the metres the surface fades out over inside its shore.
+ * `prints` aState ([still and gold, glimmer], 0 to 1) and aLocal (the point in the print's frame): a footprint's water, its shore
+ * the print's shape in `uniforms.uBlobs`, clear over its mud floor (`bed`). `fade` is the metres it fades out over inside its shore.
  */
-export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false } = {}) {
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, bed = FEN.waterBed } = {}) {
   const noise = createNoiseTexture((seed ^ 0x77a7e) >>> 0);
   const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
   const uniforms = {
@@ -550,13 +583,13 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
     uHorizon: { value: new THREE.Color(world.look?.sky?.horizon ?? FEN.waterSky) },
     uZenith: { value: new THREE.Color(world.look?.sky?.zenith ?? FEN.waterSky) },
     uTreeline: { value: new THREE.Color(FEN.waterTreeline) },
-    uBed: { value: new THREE.Color(FEN.waterBed) },
+    uBed: { value: new THREE.Color(bed) },
     uGlint: { value: new THREE.Color(FEN.glint) },
     uSunDir: { value: sunDir },
     uNoise: { value: noise },
     uRipples: { value: Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0)) },
     uFade: { value: fade },
-    ...(prints ? { uGold: { value: new THREE.Color(PRINT_GOLD) } } : {}),
+    ...(prints ? { uGold: { value: new THREE.Color(PRINT_GOLD) }, uBlobs: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 1)) } } : {}),
   };
   const material = new THREE.ShaderMaterial({
     vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
