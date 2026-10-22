@@ -309,8 +309,8 @@ function* theSlide(s, c) {
 const EGILL_MEETS = { at: [7.8, -9.0], heading: 180 };
 const MOSI_CATCHES = { at: [4.6, -4.2], heading: 180 };
 // Her eyes come down to his: this far above the ground he stands on (his own eyes are 0.92 m up). Her root stands 0.74 m lower,
-// on the bed of her pool, so lowerHead is held where her eyes get there (3.5 s in) and does not play to its end (0.95 m above her
-// feet: holdAtEyes).
+// on the bed of her pool, so lowerHead is held where her eyes get there (about 3.2 s in, her look at him on it) and does not play
+// to its end (0.95 m above her feet: holdAtEyes).
 const EYES_UP = 1.0;
 const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene goes on (holdAtEyes keeps her eyes at his after)
 // The seat on the back of her head (riding.js: createSeat), level however her head and neck turn: 0.15 m behind her Head bone,
