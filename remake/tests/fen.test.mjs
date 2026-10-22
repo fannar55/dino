@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { chapter } from '../chapters/kafli2.js';
-import { createWater, waterShape } from '../world/props/water.js';
+import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
+import { createMudPrints } from '../world/props/mud-prints.js';
+import { createBerryBushes } from '../world/props/berries.js';
+import { createClock } from '../engine/clock.js';
+import { createEffects } from '../engine/effects.js';
+import { createPointResolver } from '../engine/points.js';
 import { createMist, CARDS } from '../world/props/mist.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
@@ -312,6 +317,174 @@ test('no moss hangs between Egill and where her face comes down to him (mossClea
   }
   assert.ok(near > 0, 'the conifers by the disc keep their other strands');
   forest.dispose();
+});
+
+// ---- Þórseðla's footprints and the berries -----------------------------------------------------
+
+/** nodeWorld with the game clock and effects main.js has, and its own frame: the clock on, then the effects. */
+function propWorld(heightAt) {
+  const world = nodeWorld();
+  world.clock = createClock();
+  world.effects = createEffects();
+  world.heightAt = heightAt;
+  world.resolvePoint = createPointResolver(world);
+  const frame = (dt = 1 / 30) => { world.clock.step(dt); world.effects.update(dt); };
+  return { world, run: seconds => { for (let t = 0; t < seconds - 1e-9; t += 1 / 30) frame(); } };
+}
+/** The distance from a point to a polyline, how far along it the nearest point is, which side the point is on and the way there. */
+function alongLine(line, x, z) {
+  let best = { d: Infinity, s: 0 };
+  let s0 = 0;
+  for (let i = 0; i + 1 < line.length; i++) {
+    const [ax, az] = line[i], [bx, bz] = line[i + 1];
+    const len = Math.hypot(bx - ax, bz - az);
+    const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / (len * len)));
+    const d = Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t);
+    if (d < best.d) best = { d, s: s0 + len * t, side: Math.sign((bx - ax) * (z - az) - (bz - az) * (x - ax)), dir: Math.atan2(bz - az, bx - ax) };
+    s0 += len;
+  }
+  return best;
+}
+
+test('ten mud prints lie on the trail with water in them', () => {
+  const { layout, terrain } = shapeGround({ chapter }, layoutOf(TRAIL), TRAIL.layout.seed);
+  const prints = TRAIL.layout.prints;
+  assert.equal(prints?.length, 10, 'ten footprints');
+  // On the path, down its fen half, in the order she walked them toward the Fen: a stride apart, left foot and right foot in turn.
+  const biome = biomeOf(layout);
+  const placed = prints.map(p => ({ ...p, ...alongLine(TRAIL.layout.path, ...p.position) }));
+  for (const [i, p] of placed.entries()) {
+    assert.ok(p.d <= 0.45, `print ${i + 1} is ${p.d.toFixed(2)} m off the middle of the path`);
+    assert.ok(biome.shareAt(...p.position) > 0.9, `print ${i + 1} is in the fen half of the trail`);
+    const off = Math.abs((((p.heading * Math.PI) / 180 - p.dir + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) * (180 / Math.PI);
+    assert.ok(off <= 25, `print ${i + 1} points ${off.toFixed(0)} degrees off the way down the trail`);
+    if (i === 0) continue;
+    const step = Math.hypot(p.position[0] - placed[i - 1].position[0], p.position[1] - placed[i - 1].position[1]);
+    assert.ok(p.s > placed[i - 1].s && step >= 2 && step <= 2.8, `print ${i + 1} is ${step.toFixed(2)} m on from the one before`);
+    assert.equal(p.side, -placed[i - 1].side, `print ${i + 1} is the other foot's`);
+  }
+  const { world, run } = propWorld(terrain.heightAt);
+  const mud = createMudPrints(world, { prints, heightAt: terrain.heightAt });
+  assert.equal(mud.group.parent, world.scene);
+  const meshes = [];
+  mud.group.traverse(o => { if (o.isMesh) meshes.push(o); });
+  assert.equal(meshes.length, 2, 'two draw calls for all ten: the mud and the water');
+  const [mudMesh, waterMesh] = [mud.group.getObjectByName('Mud prints'), mud.group.getObjectByName('Print water')];
+  assert.ok(mudMesh && waterMesh);
+  const triangles = meshes.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+  assert.ok(triangles <= 6000, `${triangles} triangles`);
+  // the targets: one a print, print1 to print10, over its water
+  assert.deepEqual(mud.targets.map(t => t.name), prints.map((_, i) => `print${i + 1}`));
+  for (const [i, t] of mud.targets.entries()) {
+    const [x, z] = prints[i].position;
+    assert.equal(t.radius, 0.6);
+    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.3, `print${i + 1}'s target is over it`);
+    const up = t.point.y - terrain.heightAt(x, z);
+    assert.ok(up > 0 && up < 0.2, `print${i + 1}'s target is ${up.toFixed(2)} m above the ground`);
+  }
+  // Pressed into the mud: nothing stands more than a hand's breadth above the ground, and the edge of it goes under the ground,
+  // so it never floats on the path; its floor lies under the water.
+  const pos = mudMesh.geometry.attributes.position;
+  let highest = -Infinity, edgeAbove = 0;
+  const edge = mudMesh.geometry.attributes.aEdge;
+  assert.ok(edge, 'the mud marks its outer edge');
+  for (let i = 0; i < pos.count; i++) {
+    const up = pos.getY(i) - terrain.heightAt(pos.getX(i), pos.getZ(i));
+    highest = Math.max(highest, up);
+    if (edge.getX(i) > 0.5 && up > -0.005) edgeAbove++;
+  }
+  assert.ok(highest <= 0.07, `the rim stands ${(highest * 100).toFixed(1)} cm above the path`);
+  assert.equal(edgeAbove, 0, 'the outer edge of every print is under the ground');
+  // The water: the water's own shader (the same as the pools of the Fen), with a print's state, 2 cm below each rim.
+  const pools = createWaterMaterial(world, {});
+  assert.equal(waterMesh.material.fragmentShader, pools.material.fragmentShader, "the Fen's water shader");
+  assert.equal(waterMesh.material.vertexShader, pools.material.vertexShader);
+  assert.ok('PRINT_WATER' in waterMesh.material.defines);
+  pools.dispose();
+  const wpos = waterMesh.geometry.attributes.position;
+  const owner = waterMesh.geometry.attributes.aPrint;
+  const levels = prints.map(() => new Set());
+  for (let i = 0; i < wpos.count; i++) {
+    const k = owner.getX(i);
+    const [x, z] = prints[k].position;
+    assert.ok(Math.hypot(wpos.getX(i) - x, wpos.getZ(i) - z) < 0.5, `the water of print ${k + 1} is in it`);
+    levels[k].add(wpos.getY(i).toFixed(4));
+  }
+  for (const [k, set] of levels.entries()) {
+    assert.equal(set.size, 1, `print ${k + 1}'s water is flat`);
+    const level = Number([...set][0]);
+    assert.ok(Math.abs(mud.rimOf(k) - level - 0.02) < 0.003, `print ${k + 1}'s water lies ${((mud.rimOf(k) - level) * 100).toFixed(1)} cm below its rim`);
+    assert.ok(level > mud.floorOf(k) + 0.01, 'above its floor');
+  }
+  // A splash rings the water; the count raises a big digit 0.6 m out of it for 1.6 s; a counted print's water goes still and gold.
+  run(0.5);
+  const splash = mud.splash(2);
+  const rings = waterMesh.material.uniforms.uRipples.value.filter(r => r.w > 0);
+  assert.ok(rings.some(r => Math.hypot(r.x - prints[2].position[0], r.y - prints[2].position[1]) < 0.3), 'a ring in print 3');
+  const counting = mud.count(2);
+  let tallest = 0, risen = 0;
+  for (let t = 0; t < 1.7 && !counting.done; t += 1 / 30) {
+    run(1 / 30);
+    const digit = world.scene.getObjectByName('Print digit');
+    if (!digit?.visible) continue;
+    const box = new THREE.Box3().setFromObject(digit);
+    tallest = Math.max(tallest, box.max.y - box.min.y);
+    risen = Math.max(risen, box.min.y - mud.levelOf(2));
+  }
+  assert.ok(counting.done, 'the digit is gone after 1.6 s');
+  assert.ok(tallest >= 0.6, `the digit is ${tallest.toFixed(2)} m tall`);
+  assert.ok(risen >= 0.5, `and rises ${risen.toFixed(2)} m out of the water`);
+  assert.ok(splash.done, 'the splash is over');
+  mud.done(2);
+  run(1);
+  const state = waterMesh.geometry.attributes.aState;
+  for (let i = 0; i < state.count; i++) if (owner.getX(i) === 2) assert.ok(state.getX(i) > 0.99, "print 3's water is still and gold");
+  mud.dispose();
+  assert.equal(mud.group.parent, null);
+});
+
+test('berry bushes expose five red targets and the blue ones', () => {
+  const { layout, terrain, plan } = planOf(FEN_PLACE);
+  const spec = FEN_PLACE.layout.berries;
+  assert.ok(spec?.length >= 3, 'bushes on the berry hummocks');
+  const bushes = spec.map(b => ({ ...b, position: [b.position[0], terrain.heightAt(...b.position), b.position[1]] }));
+  const { world, run } = propWorld(terrain.heightAt);
+  const berries = createBerryBushes(world, { bushes });
+  const red = berries.targets.filter(t => t.kind === 'red');
+  const blue = berries.targets.filter(t => t.kind === 'blue');
+  assert.equal(red.length, 5, 'five red berries');
+  assert.ok(blue.length >= 2, `${blue.length} blue ones`);
+  assert.equal(spec.filter(b => b.kind === 'blue').length, 1, 'one bush of blue berries, for the birds');
+  for (const t of berries.targets) {
+    assert.match(t.name, /^berry_\d+_\d+$/);
+    assert.equal(t.radius, 0.35);
+    const [b] = t.name.split('_').slice(1).map(Number);
+    const [x, y, z] = bushes[b].position;
+    assert.equal(t.kind, bushes[b].kind);
+    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.9, `${t.name} hangs on its bush`);
+    assert.ok(t.point.y - y > 0.15 && t.point.y - y < 1.3, `${t.name} is ${(t.point.y - y).toFixed(2)} m up`);
+  }
+  // on dry hummocks, clear of the Fen's plants, and never in the water
+  for (const b of bushes) {
+    assert.equal(layout.water.depthAt(b.position[0], b.position[2]), 0, `the bush at ${b.position} stands on dry ground`);
+    const near = plan.placements.filter(p => p.name !== 'mossHummock' && Math.hypot(p.x - b.position[0], p.z - b.position[2]) < 0.9 + (p.radius ?? 0.5));
+    assert.deepEqual(near.map(p => p.name), [], `nothing grows where the bush at ${b.position} stands`);
+  }
+  let calls = 0;
+  berries.group.traverse(o => { if (o.isMesh && o.visible) calls++; });
+  assert.ok(calls <= 2, `${calls} draw calls`);
+  // a picked berry flies to the point and leaves its bush; the bush shakes
+  const to = new THREE.Vector3(bushes[0].position[0] + 2, bushes[0].position[1] + 0.8, bushes[0].position[2]);
+  const flight = berries.pick(red[0].name, to);
+  const shake = berries.shake(0);
+  run(0.1);
+  assert.equal(berries.picked.has(red[0].name), true);
+  run(1.5);
+  assert.equal(flight.done, true, 'the berry has flown');
+  assert.equal(shake.done, true, 'the bush has shaken');
+  assert.ok(berries.flying.position.distanceTo(to) < 0.01, 'and ends at the point');
+  berries.dispose();
+  assert.equal(berries.group.parent, null);
 });
 
 // ---- the look -------------------------------------------------------------------------------

@@ -230,7 +230,7 @@ function playTheFen() {
     let midway = false;
     let eyesOf = null; // her eyes' midpoint, carried by her Head bone (the face pass's eyes)
     const run = await playUnattended(kafli2, {
-      limit: 300, shaped: true,
+      limit: 600, shaped: true,
       onFrame({ world, stage }) {
         const c = world.chapterState;
         if (!c) return;
@@ -378,4 +378,72 @@ test('the slide lands in the saddle', async () => {
   assert.ok(seen.landed, 'and landed');
   assert.ok(seen.landed.gap < 0.05, `his root is ${(seen.landed.gap * 100).toFixed(1)} cm from the saddle's seat`);
   assert.equal(seen.landed.controlled, true, 'riding Mosi again');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The footprints, the Fen's animals and the berries (scenes 2 to 4)
+
+const COUNTS = ['Eitt!', 'Tvö!', 'Þrjú!', 'Fjögur!', 'Fimm!', 'Sex!', 'Sjö!', 'Átta!', 'Níu!', 'Tíu!'];
+const sceneStart = (world, n) => world.chapterTimeline.find(mark => mark.scene === n)?.at;
+
+test('the prints are counted one to ten in order, and the berries one to five', async () => {
+  const { captions, world } = await playTheFen();
+  const counted = (from, to) => captions.filter(c => c.at >= sceneStart(world, from) && c.at < sceneStart(world, to) && COUNTS.includes(c.text)).map(c => c.text);
+  assert.deepEqual(counted(2, 3), COUNTS, 'Mosi counts the ten footprints, one to ten');
+  assert.deepEqual(counted(4, 5), COUNTS.slice(0, 5), 'and the five berries, one to five');
+  // each count comes with its print's splash and digit, in the order of the prints
+  const log = world.chapterState.printLog;
+  assert.deepEqual(log.filter(e => e.what === 'count').map(e => e.index), [...Array(10).keys()], 'a digit rises from each print in turn');
+  for (const [i, text] of COUNTS.entries()) {
+    const digit = log.find(e => e.what === 'count' && e.index === i);
+    const said = captions.find(c => c.text === text && c.at >= digit.at - 1e-6);
+    assert.ok(said && said.at - digit.at < 0.5, `"${text}" is said as its digit rises`);
+  }
+  assert.ok(sceneStart(world, 4) - sceneStart(world, 3) >= 12, 'the reveal takes its time');
+  assert.equal(world.chapterState.basket.count, 5, 'five berries in the basket');
+});
+
+test('the fen animals go into the book', async () => {
+  const { journal, world } = await playTheFen();
+  for (const id of ['frog', 'waterBeetle', 'waterStrider', 'salamander']) {
+    assert.ok(journal.findings.includes(id), `the ${id} in its print is found (${journal.findings.join(', ')})`);
+  }
+  // the others live in the Fen, a tap away: tap targets with their finding
+  const fen = world.chapterState.fenCritters;
+  assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+});
+
+test('a wrong footprint splashes and says next, and the count waits', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 110, shaped: true, earlyTap: { name: 'print3', after: 1.5 } });
+  const { seen, captions, world } = run;
+  assert.ok(seen.earlyTap, 'the child tapped the third print while the first was next');
+  const at = seen.earlyTap.at;
+  const log = world.chapterState.printLog;
+  assert.ok(log.some(e => e.what === 'splash' && e.index === 2 && Math.abs(e.at - at) < 0.1), 'the third print splashed');
+  assert.ok(!log.some(e => e.what === 'count' && e.index === 2), 'and was not counted');
+  const next = captions.find(c => c.text === 'Næsta er þarna!');
+  assert.ok(next && next.at >= at - 1e-6 && next.at - at < 0.6, 'Mosi says the next one is there');
+  assert.ok(seen.mosiLooks.some(l => l.at >= at - 1e-6 && l.at - at < 0.6), 'and nods toward it');
+  // the count waits for the first print: a hint, and then Egill taps it himself
+  const hint = captions.find(c => c.text === 'Hvað með næsta spor? Pikkaðu á það!' && c.at > at);
+  const one = captions.find(c => c.text === 'Eitt!');
+  assert.ok(hint && one && hint.at < one.at, 'a hint first, then "Eitt!"');
+  assert.ok(one.at - at >= 8, `the first print was counted ${(one.at - at).toFixed(1)} s after the wrong tap`);
+  assert.equal(log.find(e => e.what === 'count')?.index, 0, 'the first print counted is the first');
+  assert.equal(log.find(e => e.what === 'count')?.by, 'egill', 'by Egill, as the child tapped nothing more');
+  assert.equal(captions.filter(c => COUNTS.includes(c.text) && c.at < one.at).length, 0, 'nothing was counted before it');
+});
+
+test('an idle child still gets the head down', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 420, shaped: true });
+  const { world } = run;
+  const five = sceneStart(world, 5);
+  assert.ok(five !== undefined && five <= 420, `scene 5 at ${five?.toFixed(1)} s`);
+  const c = world.chapterState;
+  assert.equal(c.printLog.filter(e => e.what === 'count').length, 10, 'every print counted');
+  assert.ok(c.printLog.filter(e => e.what === 'count').every(e => e.by === 'egill'), 'by Egill, for a child who taps nothing');
+  assert.equal(c.basket.count, 5, 'five berries in the basket');
+  assert.deepEqual(c.picks.map(p => p.by), Array(5).fill('egill'), 'each picked by Egill');
+  assert.ok(c.picks.every(p => p.kind === 'red'), 'all of them red');
+  assert.ok(c.headDownAt > 0 && c.headDownAt < five, 'and her head came down to him before it');
 });

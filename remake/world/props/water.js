@@ -7,6 +7,9 @@
 //   createWater(world, spec, heightAt, { spots, seed, centre }) ->
 //     { group, shape, update(t), surfaceAt(x, z) -> y | null, depthAt(x, z), rippleAt(point, strength = 1) -> Handle,
 //       bubblesAt(point) -> Handle, wade(actors), dispose() }
+//   createWaterMaterial(world, { seed, fade, prints }) -> { material, uniforms, dispose() }: the surface's own material, for
+//                                water drawn somewhere else in the same look (world/props/mud-prints.js: the water in
+//                                Þórseðla's footprints); `prints` adds what a print's water does (aState: still and gold, glimmer)
 //
 // spec = { pools: [{ center: [x, z], radius, depth }], channel: { line: [[x, z], ...], width, depth } } (a place's
 // layout.water). All the water lies at one level, `level` metres from the place's clearing centre (FEN.waterLevel): the
@@ -41,6 +44,7 @@ const CELL = { near: 1.0, far: 2.5 };
 const AMBIENT = 1.4; // s between the faint rings that start by themselves
 const AMBIENT_SLOTS = 2; // ring slots kept for them, so they never push out a ring the script made
 const WADE = 2.0; // s between two rings at the same foot of whoever stands in the water
+const PRINT_GOLD = '#f2c766'; // a counted footprint's water, warm gold (the star's gold, lighter)
 
 const wobble = (k, salt) => hash2(k, salt, 0x51f) * Math.PI * 2;
 
@@ -164,6 +168,10 @@ attribute vec2 aFlow; // m/s the water drifts
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef PRINT_WATER
+attribute vec2 aState; // a footprint's water: x 0 to 1 still and gold (counted), y 0 to 1 glimmering (the next to count)
+varying vec2 vState;
+#endif
 #include <common>
 #include <fog_pars_vertex>
 void main() {
@@ -171,6 +179,9 @@ void main() {
   vWorld = world.xyz;
   vWater = aWater.xy;
   vFlow = aFlow;
+  #ifdef PRINT_WATER
+  vState = aState;
+  #endif
   vec4 mvPosition = viewMatrix * world;
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -191,6 +202,10 @@ uniform float uFade;
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef PRINT_WATER
+uniform vec3 uGold;
+varying vec2 vState;
+#endif
 #include <common>
 #include <fog_pars_fragment>
 float waterHeight( vec2 p ) {
@@ -204,6 +219,9 @@ void main() {
   vec2 p = vWorld.xz;
   // the small waves fade out with distance, so far water lies smooth and reflects the sky
   float detail = 1.0 - smoothstep( 12.0, 35.0, length( cameraPosition - vWorld ) );
+  #ifdef PRINT_WATER
+  detail *= 1.0 - 0.85 * vState.x; // a counted print's water lies still
+  #endif
   float e = 0.12;
   float h0 = waterHeight( p );
   vec2 grad = vec2( waterHeight( p + vec2( e, 0.0 ) ) - h0, waterHeight( p + vec2( 0.0, e ) ) - h0 ) / e;
@@ -249,6 +267,11 @@ void main() {
   float glitter = sparks * pow( sun, 28.0 ) * 4.0;
   col += uGlint * ( sheen + glint + glitter );
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
+  #ifdef PRINT_WATER
+  // counted: a warm gold through it; the next to count: a soft glimmer that swells and ebbs
+  col = mix( col, uGold, 0.42 * vState.x );
+  col += uGlint * vState.y * ( 0.22 + 0.18 * sin( uTime * 5.2 ) );
+  #endif
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
@@ -344,28 +367,8 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
   geometry.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 2));
   geometry.setIndex(idx);
   geometry.computeBoundingSphere();
-  const noise = createNoiseTexture((seed ^ 0x77a7e) >>> 0);
-  const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
-  const ripples = Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0));
-  const uniforms = {
-    ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
-    uTime: { value: 0 },
-    uDeep: { value: new THREE.Color(FEN.waterDeep) },
-    uHorizon: { value: new THREE.Color(world.look?.sky?.horizon ?? FEN.waterSky) },
-    uZenith: { value: new THREE.Color(world.look?.sky?.zenith ?? FEN.waterSky) },
-    uTreeline: { value: new THREE.Color(FEN.waterTreeline) },
-    uBed: { value: new THREE.Color(FEN.waterBed) },
-    uGlint: { value: new THREE.Color(FEN.glint) },
-    uSunDir: { value: sunDir },
-    uNoise: { value: noise },
-    uRipples: { value: ripples },
-    uFade: { value: FADE },
-  };
-  const material = new THREE.ShaderMaterial({
-    vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
-    fog: true, transparent: true, depthWrite: false,
-  });
-  material.name = 'fen-water';
+  const { material, uniforms, dispose: disposeMaterial } = createWaterMaterial(world, { seed });
+  const ripples = uniforms.uRipples.value;
   const surface = new THREE.Mesh(geometry, material);
   surface.name = 'Water surface';
   surface.renderOrder = 8;
@@ -525,8 +528,46 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
     get triangles() { return idx.length / 3; },
     dispose() {
       group.removeFromParent();
-      geometry.dispose(); material.dispose(); noise.dispose();
+      geometry.dispose(); disposeMaterial();
       bubbleGeometry.dispose(); bubbleMaterial.dispose();
     },
   };
 }
+
+/**
+ * The surface's material: teal in the deep, the bed through the shallows, the look's sky by a fresnel, the sun's sheen and glitter,
+ * and RIPPLES rings in `uniforms.uRipples` ([x, z, the time it began, strength]; strength 0 is none), on the clock `uniforms.uTime`.
+ * A geometry drawn with it carries aWater ([distance to the shore, negative inside, depth, 0]) and aFlow ([m/s, m/s]), and with
+ * `prints` aState ([still and gold, glimmer], 0 to 1). `fade` is the metres the surface fades out over inside its shore.
+ */
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false } = {}) {
+  const noise = createNoiseTexture((seed ^ 0x77a7e) >>> 0);
+  const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
+  const uniforms = {
+    ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
+    uTime: { value: 0 },
+    uDeep: { value: new THREE.Color(FEN.waterDeep) },
+    uHorizon: { value: new THREE.Color(world.look?.sky?.horizon ?? FEN.waterSky) },
+    uZenith: { value: new THREE.Color(world.look?.sky?.zenith ?? FEN.waterSky) },
+    uTreeline: { value: new THREE.Color(FEN.waterTreeline) },
+    uBed: { value: new THREE.Color(FEN.waterBed) },
+    uGlint: { value: new THREE.Color(FEN.glint) },
+    uSunDir: { value: sunDir },
+    uNoise: { value: noise },
+    uRipples: { value: Array.from({ length: RIPPLES }, () => new THREE.Vector4(0, 0, -99, 0)) },
+    uFade: { value: fade },
+    ...(prints ? { uGold: { value: new THREE.Color(PRINT_GOLD) } } : {}),
+  };
+  const material = new THREE.ShaderMaterial({
+    vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
+    fog: true, transparent: true, depthWrite: false,
+  });
+  material.name = prints ? 'fen-water prints' : 'fen-water';
+  if (prints) material.defines = { PRINT_WATER: '' };
+  return {
+    material, uniforms,
+    dispose() { material.dispose(); noise.dispose(); },
+  };
+}
+export const RIPPLE_SLOTS = RIPPLES;
+export const RIPPLE_LIFE = RIPPLE.life;
