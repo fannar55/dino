@@ -1,0 +1,450 @@
+{
+  "about": [
+    "The pronunciation standard of the remake's voices: remake/tools/voice-lines.mjs and remake/tools/yatzy-junior-voices.mjs apply it to every line they send.",
+    "One entry per hard word: \"word\" (its name in the pronunciation book), \"stem\" (a regular expression for the start of every inflection, which remake/tests/pronunciation.test.mjs checks over all the sets and Litla Yatzy), \"forms\" (the surface forms, matched case-sensitively as whole words), optional \"except\" (words the stem matches that are not this word), \"recipes\" and \"chosen\".",
+    "A recipe: \"say\" (what is sent in place of the form: one string for every form, or form -> string; IPA goes in double quotes and slashes, \"/.../\", the way Eleven v4 reads it), \"context\" (sent as previous_text, never spoken: a string, or speaker -> string with \"*\" for the rest), \"seed\", and \"note\" (for the owner, shown in the book). \"hratt\" sends the word as written.",
+    "\"chosen\" is the recipe the owner picked by ear in the pronunciation book (node remake/tools/voice-lines.mjs --pick picks.json), or null: then the word is sent as written. \"audition\" (speaker -> sentence) gives the book a sentence for a speaker who has no line with the word.",
+    "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is."
+  ],
+  "words": {
+    "kambedla": {
+      "word": "Kambeðla",
+      "stem": "[Kk]ambeðl",
+      "forms": [
+        "Kambeðla",
+        "kambeðla",
+        "Kambeðlu",
+        "Kambeðlur",
+        "kambeðlur",
+        "Kambeðlan",
+        "kambeðlan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven segir þá oft „kabella“ eða „kampedla“."
+        },
+        "samhengi": {
+          "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!",
+          "seed": 1,
+          "note": "Vann hjá þér í 16 línum (kafli 1, bókin, Eitt!): heimsóknarlínan úr kafla 1 er send á undan sem samhengi en ekki töluð. Fræ 1, eins og í bókinni og Eitt!."
+        },
+        "samhengi-42": {
+          "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!",
+          "seed": 42,
+          "note": "Sama samhengi með fræi 42, eins og kveðjan og boðið í kafla 1."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "snigill": {
+      "word": "Snigill",
+      "stem": "[Ss]nig",
+      "forms": [
+        "Snigill",
+        "snigill",
+        "snigilinn",
+        "snigillinn",
+        "Sniglar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven segir þá oft „snill“ eða með hörðu g."
+        },
+        "ipa": {
+          "say": {
+            "Snigill": "\"/ˈstniːjɪtl̥/\"",
+            "snigill": "\"/ˈstniːjɪtl̥/\"",
+            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
+            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
+            "Sniglar": "\"/ˈstnɪklar/\""
+          },
+          "seed": 1,
+          "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/, Sniglar /ˈstnɪklar/."
+        },
+        "stafsetning": {
+          "say": {
+            "Snigill": "Sníjitl",
+            "snigill": "sníjitl",
+            "snigilinn": "sníjilinn",
+            "snigillinn": "sníjitlinn",
+            "Sniglar": "Sniglar"
+          },
+          "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
+        }
+      },
+      "chosen": "ipa"
+    },
+    "eitt": {
+      "word": "Eitt",
+      "stem": "Eitt$",
+      "forms": [
+        "Eitt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Sérhljóðið byrjar þá oft opið, „Ætt“ eða „Átt“."
+        },
+        "stafsetning": {
+          "say": {
+            "Eitt": "Eiht"
+          },
+          "seed": 42,
+          "note": "Vann hjá þér í kafla 1 og 2 (talningin): „Eiht“, h-ið fyrir fráblásturinn á undan tt. Fræ 42. Gildir um „Eitt“ með stórum staf: talninguna, leikinn Eitt! og setningarbyrjun."
+        },
+        "ipa": {
+          "say": {
+            "Eitt": "\"/ˈeiht/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈeiht/, fræ 42: boðið í kafla 1 en þú valdir stafsetninguna."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "eitt-inni": {
+      "word": "eitt (inni í setningu)",
+      "stem": "eitt$",
+      "forms": [
+        "eitt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag (t.d. „Tuttugu og eitt stig.“ í Litlu Yatzy)."
+        },
+        "stafsetning": {
+          "say": {
+            "eitt": "eiht"
+          },
+          "note": "Sama stafsetning og vann fyrir „Eitt!“, hér inni í setningu (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "eitt": "\"/ˈeiht/\""
+          },
+          "note": "IPA /ˈeiht/ inni í setningu (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "ein": {
+      "word": "Ein",
+      "stem": "Ein$",
+      "forms": [
+        "Ein"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven les það þá oft eins og þýska „ein“ eða „Æ“."
+        },
+        "stafsetning": {
+          "say": {
+            "Ein": "Eyn"
+          },
+          "seed": 42,
+          "note": "Vann hjá þér í kafla 1 („Ein komin.“): „Eyn“, því ey hljómar eins og ei á íslensku. Fræ 42."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "ein-inni": {
+      "word": "ein (inni í setningu)",
+      "stem": "ein$",
+      "forms": [
+        "ein"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag."
+        },
+        "stafsetning": {
+          "say": {
+            "ein": "eyn"
+          },
+          "note": "Sama stafsetning og vann fyrir „Ein komin.“, hér inni í setningu (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "einn": {
+      "word": "Einn",
+      "stem": "Einn$",
+      "forms": [
+        "Einn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag („Einn!“ í Háls og hala, „Einn, tveir, þrír…“ í Litlu Yatzy)."
+        },
+        "stafsetning": {
+          "say": {
+            "Einn": "Eynn"
+          },
+          "note": "Sama bragð og „Eyn“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "note": "IPA /ˈeitn̥/: nn á eftir tvíhljóði er borið fram „tn“ (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "mundu": {
+      "word": "Mundu",
+      "stem": "[Mm]und",
+      "forms": [
+        "Mundu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. v4 sagði það rangt í Eitt! (þar er v3-takan geymd)."
+        },
+        "samhengi": {
+          "context": "Mundu að ýta á Eitt!",
+          "seed": 1,
+          "note": "Vann hjá þér (eitt_tut_recap): „Mundu að ýta á Eitt!“ sent á undan sem samhengi en ekki talað. Fræ 1."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "flugedla": {
+      "word": "Flugeðla",
+      "stem": "[Ff]lugeðl",
+      "forms": [
+        "Flugeðla",
+        "Flugeðlan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línur kafla 2 í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
+            "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\""
+          },
+          "seed": 42,
+          "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
+        },
+        "samhengi": {
+          "context": "Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum.",
+          "seed": 42,
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42 (tapaði fyrir IPA í Eitt!)."
+        }
+      },
+      "chosen": "ipa"
+    },
+    "thorsedla": {
+      "word": "Þórseðla",
+      "stem": "[Þþ]órseðl",
+      "forms": [
+        "Þórseðla",
+        "Þórseðlu",
+        "Þórseðlan",
+        "þórseðlan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru allar línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Þórseðla": "\"/ˈθoursˌɛðla/\"",
+            "Þórseðlu": "\"/ˈθoursˌɛðlʏ/\"",
+            "Þórseðlan": "\"/ˈθoursˌɛðlan/\"",
+            "þórseðlan": "\"/ˈθoursˌɛðlan/\""
+          },
+          "note": "IPA /ˈθoursˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!",
+          "note": "Línan þar sem Mosi kynnir hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "uggedla": {
+      "word": "Uggeðla",
+      "stem": "[Uu]ggeðl",
+      "forms": [
+        "Uggeðla",
+        "Uggeðlu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Uggeðla": "\"/ˈʏkːˌɛðla/\"",
+            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\""
+          },
+          "note": "IPA /ˈʏkːˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Uggeðla á heima í Feninu. Hún felur sig í sefinu, en seglið sést alltaf.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "sloedla": {
+      "word": "Slóeðla",
+      "stem": "[Ss]lóeðl",
+      "forms": [
+        "Slóeðla"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Slóeðla": "\"/ˈstlouːˌɛðla/\""
+          },
+          "note": "IPA /ˈstlouːˌɛðla/, með t-inu sem íslenskan setur í sl- eins og í „slá“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "gramedla": {
+      "word": "Grameðla",
+      "stem": "[Gg]rameðl",
+      "forms": [
+        "Grameðla",
+        "Grameðlu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Enginn segir hana enn; hún kemur seinna."
+        },
+        "ipa": {
+          "say": {
+            "Grameðla": "\"/ˈkraːmˌɛðla/\"",
+            "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\""
+          },
+          "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Grameðla er vinkona Mosa. Hún er með stórar og sterkar tennur.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null,
+      "audition": {
+        "mosi": "Grameðla! Hún er með stærstu tennurnar af öllum."
+      }
+    },
+    "egill": {
+      "word": "Egill",
+      "stem": "Egil|Agl",
+      "forms": [
+        "Egill"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. v4 segir það stundum rangt (k1_mosi_worry er geymd v3-taka sem segir það rétt)."
+        },
+        "ipa": {
+          "say": {
+            "Egill": "\"/ˈeiːjɪtl̥/\""
+          },
+          "note": "IPA /ˈeiːjɪtl̥/, venjulegur framburður, sama regla og vann fyrir Snigil (óheyrt)."
+        },
+        "stafsetning": {
+          "say": {
+            "Egill": "Eijitl"
+          },
+          "note": "Stafsett eins og það hljómar, „Eijitl“, sama bragð og „Sníjitl“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins!",
+          "note": "Línan úr kafla 1 sem segir Egil rétt send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "oglir": {
+      "word": "öglir",
+      "stem": "[Öö]gl",
+      "forms": [
+        "öglir",
+        "Öglir"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með honum í dag)."
+        },
+        "ipa": {
+          "say": {
+            "öglir": "\"/ˈœklɪr/\"",
+            "Öglir": "\"/ˈœklɪr/\""
+          },
+          "note": "IPA /ˈœklɪr/: gl er borið fram „kl“, eins og í „fugl“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Einn elsti fugl sem við þekkjum heitir öglir.",
+          "note": "Byrjunin á línunni sem þú valdir í bókinni (book_birds_2) send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "stjornuhatid": {
+      "word": "Stjörnuhátíð",
+      "stem": "[Ss]tjörnuhátíð",
+      "forms": [
+        "Stjörnuhátíð",
+        "stjörnuhátíð",
+        "Stjörnuhátíðina"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línan í kafla 2 og spurning Egils í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
+            "stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
+            "Stjörnuhátíðina": "\"/ˈstjœrtnʏˌhauːtʰiðɪna/\""
+          },
+          "note": "IPA /ˈstjœrtnʏˌhauːtʰiθ/: rn borið fram „rtn“ eins og í „stjarna“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Veistu hvað, Egill? Í kvöld kvikna fyrstu stjörnur sumarsins. Þá höldum við Stjörnuhátíðina!",
+          "note": "Línan úr kafla 1 sem þú valdir send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    },
+    "thribroti": {
+      "word": "Þríbroti",
+      "stem": "[Þþ]ríbrot",
+      "forms": [
+        "Þríbroti",
+        "Þríbrotar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona er línan í Háls og hala í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Þríbroti": "\"/ˈθriːˌprɔːtɪ/\"",
+            "Þríbrotar": "\"/ˈθriːˌprɔːtar/\""
+          },
+          "note": "IPA /ˈθriːˌprɔːtɪ/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Þríbrotar voru sjávardýr sem skriðu á hafsbotninum.",
+          "note": "Setning um þá send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": null
+    }
+  }
+}
