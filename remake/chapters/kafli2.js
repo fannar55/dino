@@ -70,6 +70,37 @@ function blendAcross(path, width) {
   return { from: [mx - (dx * width) / 2, mz - (dz * width) / 2], to: [mx + (dx * width) / 2, mz + (dz * width) / 2] };
 }
 
+// Þórseðla's ten footprints down the fen half of the trail, the way she walked to the Fen: a 22 m sauropod's walk scaled down to
+// read on a tablet (her real stride, one foot to the same foot again, is about 4 m; here it is 4.6), her hind feet in turn, left
+// and right, PRINT_PACE m along the path apart and PRINT_GAUGE m either side of its middle, each toe turned a little out, as a
+// sauropod's were. The first is 4 m past the middle of the blend, where the trail is all fen; the ten end 21 m on, in the mist.
+const PRINT_FROM = 57.5; // m along the path to the first print
+const PRINT_PACE = 2.3; // m along the path from one print to the next
+const PRINT_GAUGE = 0.3; // m from the middle of the path to the middle of a print
+const PRINT_TURN = 8; // degrees a print's toes turn out
+/** Where a path is `s` metres along it, and its way there (unit). */
+function pathAt(path, s) {
+  let i = 0;
+  for (; i < path.length - 2; i++) {
+    const leg = Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]);
+    if (s <= leg) break;
+    s -= leg;
+  }
+  const [ax, az] = path[i], [bx, bz] = path[i + 1];
+  const leg = Math.hypot(bx - ax, bz - az);
+  return { x: ax + ((bx - ax) * s) / leg, z: az + ((bz - az) * s) / leg, dx: (bx - ax) / leg, dz: (bz - az) / leg };
+}
+/** The prints: the first is her right foot's, on the south-west side of the path (the camera's), and so on in turn. */
+function printsAlong(path) {
+  return Array.from({ length: 10 }, (_, k) => {
+    const p = pathAt(path, PRINT_FROM + PRINT_PACE * k);
+    const right = k % 2 === 0 ? 1 : -1; // her right foot on the right of the way down: (-dz, dx)
+    const heading = (Math.atan2(p.dz, p.dx) * 180) / Math.PI + right * PRINT_TURN;
+    return { position: [p.x - p.dz * PRINT_GAUGE * right, p.z + p.dx * PRINT_GAUGE * right], heading };
+  });
+}
+const TRAIL_PRINTS = printsAlong(TRAIL_PATH);
+
 const TRAIL_SHOTS = {
   trail_wide: { position: [-18.5, 2.85, -11.5], target: [5, 1.1, 4], fov: 50 },
   trail_follow: { position: [8.5, 1.2, 6.5], target: [-3, 1.6, -1], fov: 46 },
@@ -110,6 +141,17 @@ const FEN_WATER = {
     width: 4, depth: 0.5,
   },
 };
+
+// The marsh berry bushes (world/props/berries.js), on the berry hummocks east of Egill's, clear of the Fen's plants and its water:
+// the big red one and the one nearer the water on the south hummock, a red one on the north hummock among the reed, and the
+// blue one (the birds') between them, where the child sees it first. `facing` is the side their berries hang on: toward where the
+// child looks from, behind Egill on the bank (EGILL_PICKS).
+const BERRY_BUSHES = [
+  { position: [16.5, -10.2], kind: 'red', count: 2, facing: 175 },
+  { position: [18.3, -12.3], kind: 'red', count: 2, facing: 165 },
+  { position: [16.4, -5.4], kind: 'red', count: 1, facing: 200 },
+  { position: [15.0, -7.8], kind: 'blue', count: 3, facing: 185 },
+];
 
 const FEN_SHOTS = {
   // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
@@ -384,6 +426,7 @@ export const chapter = {
         mist: [{ center: [17, 10], radius: 14, height: 1.0 }],
         leafShadows: true,
         actors: { mosi: { position: [0, 0, 0], heading: 34 } },
+        prints: TRAIL_PRINTS, // Þórseðla's ten footprints (world/props/mud-prints.js): not the forest's, it reads no `prints`
       },
       shots: TRAIL_SHOTS,
       warmUp: ['trail_wide', 'trail_fog'],
@@ -420,6 +463,7 @@ export const chapter = {
         // there, a bright beard across her shoulder and beside her eye over his shoulder
         mossClear: [{ center: [EGILL_FEN.position[0] - 0.8, EGILL_FEN.position[2]], radius: 1.8 }],
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
+        berries: BERRY_BUSHES, // the berry bushes (world/props/berries.js): not the forest's, it reads no `berries`
         lookout: [5, 9.4, -9], // where the sight lines to the far friends start, that tall plants keep out of (Egill's head: LOOKOUT_HEAD)
         actors: {
           mosi: MOSI_FEN,

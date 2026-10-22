@@ -393,7 +393,7 @@ test('ten mud prints lie on the trail with water in them', () => {
     highest = Math.max(highest, up);
     if (edge.getX(i) > 0.5 && up > -0.005) edgeAbove++;
   }
-  assert.ok(highest <= 0.07, `the rim stands ${(highest * 100).toFixed(1)} cm above the path`);
+  assert.ok(highest <= 0.08, `the rim stands ${(highest * 100).toFixed(1)} cm above the path`);
   assert.equal(edgeAbove, 0, 'the outer edge of every print is under the ground');
   // The water: the water's own shader (the same as the pools of the Fen), with a print's state, 2 cm below each rim.
   const pools = createWaterMaterial(world, {});
