@@ -81,10 +81,16 @@ test('the trail and the Fen built in slices are the places built at once, and no
     assert.ok(waits > 60, `${name}: built over ${waits} frames`);
     // each slice is the budget and at most one step more: a step is a plant tried (its model built the first time), a row of the
     // ground or the grass, a bucket's plant merged; generous for a busy machine (the browser's frames are measured in the report).
-    // A step that is long is long in every build; a pause of the machine's own (the collector, the other tests) is not, so the
-    // place is built in slices once more and the shorter of the two longest slices is what counts.
+    // A step that is long is long in every build; a pause of the machine's own (the collector, the other tests running beside this
+    // one) is not: so the place is built in slices once more, each slice timed by the CPU time it took (a slice the machine set aside
+    // for another process does not count that), and the shorter of the two builds' longest slices is what counts.
     const again = [];
-    const twice = await createForest(nodeWorld(), layoutOf(name), { slice: { budget: () => 4, wait: () => Promise.resolve(), onSlice: ms => again.push(ms) } });
+    let cpuAt = null;
+    const twice = await createForest(nodeWorld(), layoutOf(name), { slice: {
+      budget: () => { cpuAt = process.cpuUsage(); return 4; },
+      wait: () => Promise.resolve(),
+      onSlice: ms => { const cpu = process.cpuUsage(cpuAt); again.push(Math.min(ms, (cpu.user + cpu.system) / 1000)); },
+    } });
     const longest = Math.min(Math.max(...slices.slice(1)), Math.max(...again.slice(1))); // the first runs the code cold
     assert.ok(longest < 60, `${name}: its longest slice took ${longest.toFixed(1)} ms`);
     whole.dispose();

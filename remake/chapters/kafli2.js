@@ -547,8 +547,9 @@ function arriveInTheFen(s, c) {
   c.farFriends.show(true); // out in the Fen, seen only from her head
   s.sfx('fen'); // the Fen's own bed of water, frogs and drips (laid on the trail already: asked again, it stays as it is)
   s.camera.cut('fen_reveal');
+  // (a capture, seeking, holds nothing here, as it never did: its frames stay where they were, and the lookout waits for them)
   const far = c.farFriends;
-  return far.isReady ? null : far.load().then(() => world.warmObjects?.([far.group])); // main.js: one draw with them, under the black
+  return far.isReady || s.seeking ? null : far.load().then(() => world.warmObjects?.([far.group])); // main.js: one draw with them, under the black
 }
 
 /** A line, one voice at a time: `c.saying` counts the lines under way, so a goodbye or a remark can wait for quiet. */
@@ -797,9 +798,11 @@ export const chapter = {
     yield s.ready(); // the start button; immediate in captures
     // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (main.js
     // draws it, with the chapter's things, under this black as soon as it is), and the far friends, made (three models parsed: long
-    // frames, here where none shows). The black holds for them, its star breathing (main.js); in captures they are made here.
+    // frames, here where none shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
+    // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
     const far = c.farFriends;
-    yield s.all(s.prepare('fenjaslod'), ...(far.isReady ? [] : [far.load()]));
+    if (s.seeking) far.load();
+    else yield s.all(s.prepare('fenjaslod'), ...(far.isReady ? [] : [far.load()]));
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);
