@@ -805,6 +805,17 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         }
         if (grown) made++;
       }
+      // and some on their own right at the water's edge, their roots and knees standing in it
+      const edge = scaled(C.edgeConifers, q.trees);
+      let atEdge = 0;
+      for (let i = 0; i < edge * 60 && atEdge < edge; i++) {
+        const at = shoreSpot(rng, 0.25, 0.9);
+        if (!at || radiusOf(...at) < clearR * 0.4) continue;
+        const p = fenPlace('swampConifer', at, rng, {
+          tall: true, scale: rng.range(0.8, 1.15), pathClear: P.treeClear, treeSpacing: 5, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
+        });
+        if (p) atEdge++;
+      }
       const lone = scaled(C.loneConifers, q.trees);
       let placed = 0;
       for (let i = 0; i < lone * 40 && placed < lone; i++) {

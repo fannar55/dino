@@ -271,6 +271,7 @@ export const FEN = {
   counts: {
     groves: 16, // groups of two to four swamp conifers
     loneConifers: 14,
+    edgeConifers: 7, // standing at the water's edge, roots and knees in it
     snags: 10,
     reedBeds: 60, // each a bed of three to seven clumps
     tallHorsetails: 30,

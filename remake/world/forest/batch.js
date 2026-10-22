@@ -16,7 +16,7 @@ import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
 // Small things vanish into the grass and mist long before this distance (metres to the camera).
-const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 36, horsetailReed: 55, horsetailTall: 55, mossHummock: 45 };
+const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 45, horsetailReed: 64, horsetailTall: 55, mossHummock: 45 };
 const LOD_SWITCH = FOREST.lod.switch;
 // small understory plants drop to their far shape sooner than the trees
 const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail', 'horsetailReed', 'horsetailTall', 'mossHummock', 'waterLily']);
