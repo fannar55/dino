@@ -4,9 +4,9 @@ import { seededRandom } from '../../engine/random.js';
 import { sparkleBurst, sparkleTrail, needEffects } from './sparkles.js';
 
 // The marsh berry bushes of the Fen (chapter 2, scene 4: Egill picks five bunches of red berries for Þórseðla, and the blue ones
-// are the birds'). Each bush is a low, round shrub about a metre high: a dark leafy heart with sixty leaves round it, each leaf a
-// small blade turned its own way, and its berries hanging in bunches on the outside where a child sees them, six glossy berries
-// to a bunch, 4 cm each. A bunch is what the child taps and counts. One picked flies in an arc to a point (Egill's basket), with
+// are the birds'). Each bush is a low, round shrub about a metre high: a small dark heart under a hundred and ten leaves laid along
+// its round in layers, lapping over each other, and its berries hanging in bunches on the outside where a child sees them, six
+// glossy berries to a bunch, 4.6 cm each. A bunch is what the child taps and counts. One picked flies in an arc to a point (Egill's basket), with
 // a trail of glints, and leaves its bush, which shakes, its leaves nodding. All the bushes are one mesh, all the berries one
 // instanced mesh: two draw calls (and a third for a bunch in the air).
 //
@@ -21,7 +21,8 @@ import { sparkleBurst, sparkleTrail, needEffects } from './sparkles.js';
 // bush shake with it. Everything runs on the game clock (world.effects, world.clock.time). The basket (basket.js) draws a bunch
 // that lands in it the same: BUNCH and berryGeometry.
 
-const BUSH = { radius: 0.6, height: 1.0, leaves: 80, leaf: [0.22, 0.095], heart: 0.55 }; // m; a leaf's length and width; the heart's share
+// m; how many leaves, a leaf's length and width; the heart's share of the bush, and where the leaves lie (shares of it, in to out)
+const BUSH = { radius: 0.6, height: 1.0, leaves: 110, leaf: [0.3, 0.14], heart: 0.4, shell: [0.45, 0.85] };
 const LEAF = { core: '#2e4f2c', dark: '#3e6a38', mid: '#5c8a45', light: '#8ab05a' };
 export const BERRY = { radius: 0.023, red: '#d8323a', blue: '#3f5fc4', tip: '#3b2a22' };
 // A bunch: six berries round its middle (metres), hanging a little.
@@ -81,40 +82,52 @@ function bunchesOf(random, count, facing) {
   });
 }
 
-/** One bush: a dark heart (an 80-triangle ball, a little flattened) and BUSH.leaves leaves on its outside, each two triangles. */
+/**
+ * One bush: a small dark heart (an 80-triangle ball) and BUSH.leaves leaves over it, each two triangles, laid along the bush's
+ * round in layers from BUSH.shell[0] to [1] of the way out, each lapping over the ones under it (shingled, as a shrub's leaves are):
+ * flat to the round and tipped a little out, pointing round it and mostly down it, the inner ones darker.
+ */
 function bushGeometry(random, b, [x, y, z]) {
   const position = [], colour = [], sway = [];
   const tone = [LEAF.dark, LEAF.mid, LEAF.light].map(hex => new THREE.Color(hex));
   const core = new THREE.Color(LEAF.core);
   const push = (p, c, up) => { position.push(p.x, p.y, p.z); colour.push(c.r, c.g, c.b); sway.push(b, Math.max(0, up)); };
+  const R = BUSH.radius, H = BUSH.height * 0.5, middle = y + BUSH.height * 0.47;
   const heart = new THREE.IcosahedronGeometry(1, 1);
   const hp = heart.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < hp.count; i++) {
     v.fromBufferAttribute(hp, i);
-    const p = new THREE.Vector3(x + v.x * BUSH.radius * BUSH.heart, y + BUSH.height * 0.45 + v.y * BUSH.height * 0.36, z + v.z * BUSH.radius * BUSH.heart);
+    const p = new THREE.Vector3(x + v.x * R * BUSH.heart, middle + v.y * H * BUSH.heart, z + v.z * R * BUSH.heart);
     push(p, core, (p.y - y) / BUSH.height);
   }
   heart.dispose();
-  // the leaves: out from the heart all round, each turned and tipped its own way, folded a little on its rib
-  const out = new THREE.Vector3(), side = new THREE.Vector3(), along = new THREE.Vector3();
+  const out = new THREE.Vector3(), round = new THREE.Vector3(), down = new THREE.Vector3(), along = new THREE.Vector3(), side = new THREE.Vector3();
+  const UP = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < BUSH.leaves; i++) {
     const a = random() * Math.PI * 2;
-    const h = 0.08 + 0.92 * random();
-    const ring = Math.sin(Math.acos(2 * h - 1)) * 0.95 + 0.05;
-    out.set(Math.cos(a) * ring, (h - 0.5) * 2 * 0.9, Math.sin(a) * ring).normalize();
-    const reach = BUSH.heart * (0.85 + 0.3 * random());
-    const base = new THREE.Vector3(x + out.x * BUSH.radius * reach, y + BUSH.height * 0.45 + out.y * BUSH.height * 0.38, z + out.z * BUSH.radius * reach);
-    along.copy(out).multiplyScalar(1.3).add(new THREE.Vector3(random() - 0.5, 0.3 + random() * 0.35, random() - 0.5)).normalize();
+    const h = 0.06 + 0.94 * random(); // from the foot of the bush (0) to its top (1)
+    const lat = Math.asin(2 * h - 1);
+    out.set(Math.cos(a) * Math.cos(lat), Math.sin(lat), Math.sin(a) * Math.cos(lat)); // the way out from the middle, on the round
+    const layer = random();
+    const reach = BUSH.shell[0] + (BUSH.shell[1] - BUSH.shell[0]) * layer;
+    const base = new THREE.Vector3(x + out.x * R * reach, middle + out.y * H * reach * 1.1, z + out.z * R * reach);
+    // flat to the round: round it (horizontal) and down it, mostly down, tipped a little out
+    round.crossVectors(UP, out);
+    if (round.lengthSq() < 1e-4) round.set(1, 0, 0);
+    round.normalize();
+    down.crossVectors(round, out).normalize(); // down the round
+    const turn = THREE.MathUtils.degToRad(-75 + (random() - 0.5) * 150); // from round it (0) to down it (-90) and back up
+    along.copy(round).multiplyScalar(Math.cos(turn)).addScaledVector(down, -Math.sin(turn)).addScaledVector(out, 0.35).normalize();
     side.crossVectors(along, out).normalize();
-    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
     const length = BUSH.leaf[0] * (0.8 + 0.4 * random()), width = BUSH.leaf[1] * (0.8 + 0.4 * random());
     const tip = base.clone().addScaledVector(along, length);
     const mid = base.clone().addScaledVector(along, length * 0.45);
-    const fold = out.clone().multiplyScalar(width * 0.25);
-    const left = mid.clone().addScaledVector(side, width * 0.5).add(fold);
-    const right = mid.clone().addScaledVector(side, -width * 0.5).add(fold);
-    const c = tone[Math.min(2, Math.floor(random() * 2 + h * 1.4))].clone().offsetHSL(0, 0, (random() - 0.5) * 0.06);
+    const fold = out.clone().multiplyScalar(width * 0.12); // a little convex over its rib
+    const left = mid.clone().addScaledVector(side, width * 0.5).sub(fold);
+    const right = mid.clone().addScaledVector(side, -width * 0.5).sub(fold);
+    const c = tone[Math.min(2, Math.floor(random() * 1.6 + h * 1.2 + layer * 0.6))].clone()
+      .offsetHSL(0, 0, (random() - 0.5) * 0.06).multiplyScalar(0.62 + 0.38 * layer);
     const rib = c.clone().multiplyScalar(0.82);
     const up = p => (p.y - y) / BUSH.height;
     push(base, rib, up(base)); push(left, c, up(left)); push(tip, c, up(tip));
