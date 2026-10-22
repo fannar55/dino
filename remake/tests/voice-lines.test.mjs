@@ -7,6 +7,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, REMAKE_AUDIO, SETS, buildLines, remakeLines, updateLines } from '../tools/audio-lines.mjs';
 import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
+import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -675,8 +676,8 @@ test('audio-lines.mjs builds lines.json from the game\'s lines and the remake\'s
 // ---------------------------------------------------------------------------------------------
 // The pronunciation standard in the tool (remake/assets/audio/pronunciation.json)
 
-const REAL_LEXICON = readJson(file('../assets/audio/pronunciation.json'));
-const VISIT = 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!';
+// The tests' own lexicon (lexicon-fixture.mjs), never the shipped one, whose choices change as the owner picks: Kambeðla's
+// visit context (seed 1), Snigill's IPA (seed 1), Eiht (seed 42), Eyn; Egill not chosen.
 const HARD = [
   { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' },
   { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!' },
@@ -686,7 +687,7 @@ const HARD = [
 ];
 
 test('the tool sends each line through the lexicon: a respelling or IPA as the text, a context as previous_text, the recipe\'s seed; the caption, lines-source.json and lines.json stay clean', needsFfmpeg, async t => {
-  const root = makeRoot(t, { lines: HARD, lexicon: REAL_LEXICON });
+  const root = makeRoot(t, { lines: HARD, lexicon: fixtureLexicon() });
   const source = fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/lines-source.json'), 'utf8');
   const { fetch, calls } = fakeApi();
   const out = [];
@@ -706,7 +707,7 @@ test('the tool sends each line through the lexicon: a respelling or IPA as the t
   // The cache is keyed by what was sent: the same run again asks nothing, a changed recipe asks for that line only.
   await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
   assert.equal(calls.length, HARD.length);
-  const lexicon = structuredClone(REAL_LEXICON);
+  const lexicon = fixtureLexicon();
   lexicon.words.kambedla.chosen = 'samhengi-42';
   fs.writeFileSync(path.join(root, 'remake/assets/audio/pronunciation.json'), JSON.stringify(lexicon));
   await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
@@ -718,7 +719,7 @@ test("a line's own say and context are sent in place of the lexicon's, and a kep
     { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!', say: 'Eytt!', context: 'Teljum!' },
     { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!', kept: "the owner's pick" },
   ];
-  const root = makeRoot(t, { lines, lexicon: REAL_LEXICON });
+  const root = makeRoot(t, { lines, lexicon: fixtureLexicon() });
   fs.writeFileSync(path.join(root, 'remake/assets/audio/kafli1/k1_mosi_greet.mp3'), fakeSpeech());
   const { fetch, calls } = fakeApi();
   await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log() {} });
@@ -735,7 +736,7 @@ test('without the lexicon the tool sends nothing', async t => {
 });
 
 test('--dry prints, per line, the text that would be sent, its context and seed, and whether a word is unchosen, without a key, a request or a file', async t => {
-  const root = makeRoot(t, { lines: [...HARD, { id: 'k1_mosi_next', speaker: 'mosi', text: 'Ein komin.', kept: "the owner's pick" }], lexicon: REAL_LEXICON });
+  const root = makeRoot(t, { lines: [...HARD, { id: 'k1_mosi_next', speaker: 'mosi', text: 'Ein komin.', kept: "the owner's pick" }], lexicon: fixtureLexicon() });
   const before = filesUnder(root);
   const { fetch, calls } = fakeApi();
   const out = [];
@@ -778,7 +779,7 @@ test('parseArgs takes the lexicon commands, and refuses them together or with wh
 // ---------------------------------------------------------------------------------------------
 // The pronunciation book and the owner's picks
 
-const BOOK_LEXICON = { words: { kambedla: REAL_LEXICON.words.kambedla, egill: REAL_LEXICON.words.egill } };
+const BOOK_LEXICON = fixtureWords('kambedla', 'egill');
 const BOOK_SOURCE = [
   { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' },
   { id: 'k1_mosi_long', speaker: 'mosi', text: 'Kambeðla er vinkona mín og plöturnar hennar lýsa.' },
@@ -829,8 +830,8 @@ test('--book renders an audition per word, speaker and recipe into qa/remake/voi
 test("--pick writes the owner's picks into the lexicon's chosen, and nothing else; a pick that is not a recipe or a word writes nothing", async t => {
   const root = makeRoot(t, { lexicon: null });
   const lexiconFile = path.join(root, 'remake/assets/audio/pronunciation.json');
-  const real = fs.readFileSync(file('../assets/audio/pronunciation.json'), 'utf8');
-  fs.writeFileSync(lexiconFile, real);
+  const fixture = `${JSON.stringify(fixtureLexicon(), null, 2)}\n`; // written as --pick writes it
+  fs.writeFileSync(lexiconFile, fixture);
   const picks = path.join(root, 'picks.json');
   const { fetch, calls } = fakeApi();
   const out = [];
@@ -841,11 +842,12 @@ test("--pick writes the owner's picks into the lexicon's chosen, and nothing els
   assert.equal(after.words.thorsedla.chosen, 'samhengi', 'by its name as well as its id');
   assert.equal(after.words.kambedla.chosen, 'samhengi');
   assert.equal(after.words.oglir.chosen, null);
-  const expected = JSON.parse(real);
+  const expected = fixtureLexicon();
   expected.words.egill.chosen = 'ipa';
   expected.words.thorsedla.chosen = 'samhengi';
+  expected.words.oglir.chosen = null;
   assert.equal(fs.readFileSync(lexiconFile, 'utf8'), `${JSON.stringify(expected, null, 2)}\n`, 'the file keeps its form: only the picks changed');
-  assert.ok(out.includes('egill: not chosen -> ipa') && out.includes('kambedla: samhengi, as it was'), JSON.stringify(out));
+  assert.ok(out.includes('egill: not chosen -> ipa') && out.includes('kambedla: samhengi, as it was') && out.includes('oglir: samhengi -> not chosen'), JSON.stringify(out));
   for (const wrong of [{ egill: 'nope' }, { mosi: 'ipa' }, { egill: 'ipa', thorsedla: 'stafsetning' }]) {
     const before = fs.readFileSync(lexiconFile, 'utf8');
     fs.writeFileSync(picks, JSON.stringify(wrong));
