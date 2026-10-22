@@ -102,7 +102,7 @@
           "note": "IPA /ˈeiht/, fræ 42: boðið í kafla 1 en þú valdir stafsetninguna."
         }
       },
-      "chosen": "stafsetning"
+      "chosen": null
     },
     "eitt-inni": {
       "word": "eitt (inni í setningu)",
@@ -127,7 +127,7 @@
           "note": "IPA /ˈeiht/ inni í setningu (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "ipa"
     },
     "ein": {
       "word": "Ein",
@@ -166,7 +166,7 @@
           "note": "Sama stafsetning og vann fyrir „Ein komin.“, hér inni í setningu (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "einn": {
       "word": "Einn",
@@ -238,7 +238,7 @@
           "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42 (tapaði fyrir IPA í Eitt!)."
         }
       },
-      "chosen": "ipa"
+      "chosen": "samhengi"
     },
     "thorsedla": {
       "word": "Þórseðla",
@@ -267,7 +267,7 @@
           "note": "Línan þar sem Mosi kynnir hana send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "uggedla": {
       "word": "Uggeðla",
@@ -292,7 +292,7 @@
           "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "sloedla": {
       "word": "Slóeðla",
@@ -317,7 +317,7 @@
           "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "gramedla": {
       "word": "Grameðla",
@@ -342,7 +342,7 @@
           "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null,
+      "chosen": "samhengi",
       "audition": {
         "mosi": "Grameðla! Hún er með stærstu tennurnar af öllum."
       }
@@ -374,7 +374,7 @@
           "note": "Línan úr kafla 1 sem segir Egil rétt send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "oglir": {
       "word": "öglir",
@@ -401,7 +401,7 @@
           "note": "Byrjunin á línunni sem þú valdir í bókinni (book_birds_2) send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "stjornuhatid": {
       "word": "Stjörnuhátíð",
@@ -428,7 +428,7 @@
           "note": "Línan úr kafla 1 sem þú valdir send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "thribroti": {
       "word": "Þríbroti",
@@ -453,7 +453,7 @@
           "note": "Setning um þá send á undan sem samhengi en ekki töluð (óheyrt)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     }
   }
 }
