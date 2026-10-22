@@ -53,8 +53,15 @@ function fakeApi(answer = () => new Response(fakeSpeech(), { status: 200, header
   return { fetch, calls };
 }
 
-/** A repo root of its own in the temp folder, with the lines to speak, the voices, a pronunciation lexicon (empty unless given) and the lines.json the game has; the book's lines (a set of their own) only when `book` gives them. */
-function makeRoot(t, { lines = readJson(REAL.source), book = null, voices = VOICES, lexicon = { words: {} } } = {}) {
+/** A chapter of the tests' own, one line for each voice, none kept: what the owner keeps or makes again in the real chapter never moves a test. */
+const CHAPTER = Object.freeze([
+  { id: 'k1_mosi_waving', speaker: 'mosi', text: 'Ó! Ég sé einhvern veifa!' },
+  { id: 'k1_kambedla_lost', speaker: 'kambedla', text: 'Ég finn ekki glóblómin mín. Án þeirra lýsa plöturnar mínar ekki.' },
+  { id: 'k1_egill_wow', speaker: 'egill', text: 'Vá! Ég sé yfir allt!' },
+]);
+
+/** A repo root of its own in the temp folder, with the lines to speak (CHAPTER unless given), the voices, a pronunciation lexicon (empty unless given) and the lines.json the game has; the book's lines (a set of their own) only when `book` gives them. */
+function makeRoot(t, { lines = CHAPTER, book = null, voices = VOICES, lexicon = { words: {} } } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-lines-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const audio = path.join(root, 'remake/assets/audio');
@@ -132,12 +139,21 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   }
 });
 
-test('the lines the owner chose by ear, the takes that say Egill, Kambeðla, Snigill, Eitt and Ein right and Egill calling up to Mosi, are kept, so the tool cannot make them over', () => {
-  const lines = readJson(REAL.source);
-  for (const id of ['k1_mosi_festival', 'k1_mosi_hocus', 'k1_mosi_star', 'k1_mosi_worry', 'k1_mosi_visit', 'k1_mosi_critters',
-    'k1_mosi_snail', 'k1_mosi_greet', 'k1_mosi_one', 'k1_mosi_invite', 'k1_mosi_next', 'k1_egill_hey']) {
-    const kept = lines.find(line => line.id === id)?.kept;
-    assert.ok(typeof kept === 'string' && kept.trim(), `${id} has no "kept" in lines-source.json: node remake/tools/voice-lines.mjs would make it over from a v3 take, asking ElevenLabs if none is cached (if you mean to make it again, take the id off this list)`);
+test('a take the owner kept whose note names a recipe or a v3 take is never asked for: every such line of the five sets, as they are now, is left as it is by a run', needsFfmpeg, async t => {
+  // Read at test time from the shipped sets, whatever the owner has kept or made again since; a line of the tests' own makes sure
+  // the run is never empty. The tests' lexicon gives their hard words rules, so a rule never reaches a kept take either.
+  const names = /\bv3\b|\b(IPA|spelling|context)\b/i;
+  const kept = Object.values(SETS).flatMap(folder => readJson(file(`../../${folder}/lines-source.json`))).filter(line => line.kept !== undefined && names.test(line.kept));
+  const lines = [...kept, { id: 'k1_mosi_ours', speaker: 'mosi', text: 'Kambeðla! Eitt!', kept: 'an Eleven v4 take with the visit line as context, and the spelling Eiht' }];
+  const root = makeRoot(t, { lines, lexicon: fixtureLexicon() });
+  for (const line of lines) fs.writeFileSync(path.join(root, `remake/assets/audio/kafli1/${line.id}.mp3`), fakeSpeech());
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  await main([], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  assert.equal(calls.length, 0, `not one of the ${lines.length} kept lines is asked for`);
+  for (const line of lines) {
+    assert.ok(fs.readFileSync(path.join(root, `remake/assets/audio/kafli1/${line.id}.mp3`)).equals(fakeSpeech()), `${line.id}: its take is as it was`);
+    assert.ok(out.includes(`Kept ${line.id}: ${line.kept}`), `${line.id}: said to be kept`);
   }
 });
 
@@ -489,7 +505,7 @@ test("the book's lines live in their own folder", needsFfmpeg, t => {
   const root = makeRoot(t, { book: BOOK_LINES });
   const audio = path.join(root, 'remake/assets/audio');
   assert.deepEqual(readLines(root, 'book'), BOOK_LINES, 'book/lines-source.json');
-  assert.deepEqual(readLines(root), readJson(REAL.source), "and the chapter's lines are what you get without a set");
+  assert.deepEqual(readLines(root), CHAPTER, "and the chapter's lines are what you get without a set");
   assert.deepEqual(readLines(root, 'kafli1'), readLines(root));
   assert.throws(() => readLines(root, 'kafli3'), /kafli3/);
 
@@ -599,7 +615,7 @@ test("a kept line of the book is looked for, and kept, in the book's folder", ne
 
 for (const [character, expected] of [['kambedla', { min: 4, max: 6 }], ['egill', { min: 4, max: 6 }], ['narrator', { min: 4, max: 6 }]]) {
   test(`--audition ${character} writes one sample of a line they really say per candidate voice, and an index`, needsFfmpeg, async t => {
-    const root = makeRoot(t, { book: readJson(REAL.book) });
+    const root = makeRoot(t, { lines: readJson(REAL.source), book: readJson(REAL.book) }); // the real sample lines (an audition never minds a kept line)
     const { fetch, calls } = fakeApi();
     const out = [];
     await main(['--audition', character], { env: { ELEVENLABS_API_KEY: KEY }, root, fetch, log: (...parts) => out.push(parts.join(' ')) });

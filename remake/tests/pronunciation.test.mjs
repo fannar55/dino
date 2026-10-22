@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
-import { bookPlan, cacheKey } from '../tools/voice-lines.mjs';
+import { allLines, bookPlan, cacheKey } from '../tools/voice-lines.mjs';
 import { applyLexicon, checkLexicon, formsPattern, lexiconText, requestFor, resolveWord } from '../tools/pronunciation.mjs';
 import { SPEAKER_NAMES, bookHtml } from '../tools/voice-pages.mjs';
 import { VISIT, fixtureLexicon } from './lexicon-fixture.mjs';
@@ -236,10 +238,51 @@ test("Litla Yatzy's tool sends its lines through the same function", async () =>
 });
 
 // ---------------------------------------------------------------------------------------------
-// The pronunciation book
+// The pronunciation book: on a chapter of the tests' own (sets written into a temp root), so neither a line the owner keeps or
+// makes again nor a text the game changes moves these tests.
 
-test('the book has a row for every word x every speaker who says it x every recipe, each in a file of its own', () => {
-  const lines = corpus();
+const BOOK_SETS = {
+  kafli1: [
+    { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!', kept: "the owner's pick" },
+    { id: 'k1_mosi_snail', speaker: 'mosi', text: 'Snigill. Hann er ekkert að flýta sér.', kept: "the owner's pick" },
+    { id: 'k1_mosi_one', speaker: 'mosi', text: 'Eitt!', kept: "the owner's pick" },
+    { id: 'k1_mosi_next', speaker: 'mosi', text: 'Ein komin. Hver ætli sé næst?', kept: "the owner's pick" },
+    { id: 'k1_mosi_go', speaker: 'mosi', text: 'Áfram, Egill!' },
+  ],
+  book: [
+    { id: 'book_snail_2', speaker: 'narrator', text: 'Sniglar voru til löngu á undan risaeðlunum.' },
+    { id: 'book_snail_1', speaker: 'narrator', text: 'Þetta er snigill. Hann ber húsið sitt og það stækkar með honum!' },
+    { id: 'book_birds_3', speaker: 'narrator', text: 'Öglir hafði tennur og klær á vængjunum.' },
+    { id: 'book_turtle_3', speaker: 'narrator', text: 'Ein elsta skjaldbakan hafði tennur.' },
+    { id: 'book_earlybird_3', speaker: 'narrator', text: 'Fyrst fannst bara ein fjöður.' },
+    { id: 'book_earlybird_2', speaker: 'narrator', text: 'Fornfuglar voru uppi um svipað leyti og Þórseðla.' },
+  ],
+  eitt: [
+    { id: 'eitt_why_eitt', speaker: 'mosi', text: 'Mundu að ýta á Eitt!', kept: "the owner's pick" },
+    { id: 'eitt_eitt', speaker: 'kambedla', text: 'Eitt!' },
+  ],
+  hals: [{ id: 'hals_mosi_1', speaker: 'mosi', text: 'Einn!' }],
+  kafli2: [
+    { id: 'k2_mosi_map_kambedla', speaker: 'mosi', text: 'Kambeðla! Plöturnar hennar lýsa eins og ljósker.' },
+    { id: 'k2_egill_name', speaker: 'egill', text: 'Ég heiti Egill!' },
+    { id: 'k2_thorsedla_thanks', speaker: 'thorsedla', text: 'Egill. Takk fyrir berin.' },
+    { id: 'k2_mosi_there', speaker: 'mosi', text: 'Þarna er hún! Þórseðla! Halló!' },
+  ],
+};
+
+/** The tests' chapter, written as lines-source.json files into a temp root and read back as the tool reads the sets (no Litla Yatzy). */
+function bookCorpus(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pronunciation-book-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const [set, lines] of Object.entries(BOOK_SETS)) {
+    fs.mkdirSync(path.join(root, SETS[set]), { recursive: true });
+    fs.writeFileSync(path.join(root, SETS[set], 'lines-source.json'), JSON.stringify(lines));
+  }
+  return allLines(root, {});
+}
+
+test('the book has a row for every word x every speaker who says it x every recipe, each in a file of its own', t => {
+  const lines = bookCorpus(t);
   const rows = bookPlan(LEXICON, lines);
   const key = row => `${row.word}|${row.speaker}|${row.recipe}`;
   assert.equal(new Set(rows.map(key)).size, rows.length, 'each combination once');
@@ -258,29 +301,31 @@ test('the book has a row for every word x every speaker who says it x every reci
     assert.ok(formsPattern(LEXICON.words[row.word].forms).test(row.text), `${row.file}: the sentence has the word`);
     assert.ok(SPEAKER_NAMES[row.speaker], `${row.speaker} has a name on the page`);
   }
-  assert.deepEqual([...new Set(rows.filter(row => row.word === 'egill').map(row => row.speaker))], ['mosi', 'egill', 'thorsedla']);
-  assert.deepEqual([...new Set(rows.filter(row => row.word === 'gramedla').map(row => row.speaker))], ['mosi'], 'Grameðla, said by no line yet, by her audition sentence');
+  assert.deepEqual([...new Set(rows.filter(row => row.word === 'egill').map(row => row.speaker))], ['mosi', 'egill', 'thorsedla'], 'in the order the page shows the speakers');
+  assert.deepEqual([...new Set(rows.filter(row => row.word === 'gramedla').map(row => row.speaker))], ['mosi'], 'Grameðla, said by no line, by her audition sentence');
 });
 
-test("a book row tries one word's recipe and keeps the others' choices, and reads a line that will be made again, so the take heard is the request that goes in", () => {
-  const rows = bookPlan(LEXICON, corpus());
+test("a book row tries one word's recipe and keeps the others' choices, and reads a line that will be made again, so the take heard is the request that goes in", t => {
+  const lines = bookCorpus(t);
+  const rows = bookPlan(LEXICON, lines);
   const row = (word, speaker, recipe) => rows.find(item => item.word === word && item.speaker === speaker && item.recipe === recipe);
   const map = row('kambedla', 'mosi', 'samhengi');
-  assert.equal(map.from, 'kafli2/k2_mosi_map_kambedla', "Kambeðla's own map line, the one line of hers not kept");
-  const line = corpus().find(item => item.id === 'k2_mosi_map_kambedla');
-  assert.deepEqual(map.sent, pick(requestFor(line, LEXICON)), 'the same request the line is made with');
+  assert.equal(map.from, 'kafli2/k2_mosi_map_kambedla', "the shortest of Mosi's Kambeðla lines that is not kept, not the shorter kept greeting");
+  assert.deepEqual(map.sent, pick(requestFor(lines.find(item => item.id === 'k2_mosi_map_kambedla'), LEXICON)), 'the same request the line is made with');
   assert.equal(row('kambedla', 'mosi', 'hratt').sent.context, undefined, 'raw: no context');
+  assert.equal(row('mundu', 'mosi', 'hratt').from, 'eitt/eitt_why_eitt', 'a word said only in kept lines is read from the shortest of them');
   assert.equal(row('mundu', 'mosi', 'hratt').sent.text, 'Mundu að ýta á Eiht!', 'Eitt keeps its chosen respelling while Mundu is tried raw');
-  assert.equal(row('snigill', 'narrator', 'ipa').from, 'book/book_snail_1', "an audition sentence that is one of the speaker's lines is that line");
+  assert.equal(row('snigill', 'narrator', 'ipa').from, 'book/book_snail_1', "an audition sentence that is one of the speaker's lines is that line (not the shorter book_snail_2)");
   assert.equal(row('egill', 'thorsedla', 'ipa').sent.text, '"/ˈeiːjɪtl̥/". Takk fyrir berin.');
+  assert.equal(row('gramedla', 'mosi', 'hratt').from, null, 'a sentence of the entry its own');
   assert.equal(resolveWord(LEXICON, 'Kambeðlu'), 'kambedla');
   assert.equal(resolveWord(LEXICON, 'Þórseðla'), 'thorsedla');
   assert.throws(() => resolveWord(LEXICON, 'Mosi'), /not a word/);
-  assert.deepEqual([...new Set(bookPlan(LEXICON, corpus(), 'Egill').map(item => item.word))], ['egill'], 'one word');
+  assert.deepEqual([...new Set(bookPlan(LEXICON, lines, 'Egill').map(item => item.word))], ['egill'], 'one word');
 });
 
-test('the book page lists every row with a player and the note, a radio per recipe per word (the chosen one checked), and saves picks.json', () => {
-  const rows = bookPlan(LEXICON, corpus());
+test('the book page lists every row with a player and the note, a radio per recipe per word (the chosen one checked), and saves picks.json', t => {
+  const rows = bookPlan(LEXICON, bookCorpus(t));
   const html = bookHtml(LEXICON, rows);
   for (const row of rows) {
     assert.ok(html.includes(`data-row="${row.word}|${row.speaker}|${row.recipe}"`), `${row.file} has a row`);
