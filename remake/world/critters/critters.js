@@ -78,6 +78,7 @@ function validate(world, { spots, birds, onReact, ripple }) {
     if (!Array.isArray(entry.position) || entry.position.length !== 3 || !entry.position.every(Number.isFinite)) {
       throw new TypeError(`"${entry.name}" stands at a position [x, y, z] in metres, not ${JSON.stringify(entry.position)}`);
     }
+    if (entry.scale !== undefined && !(entry.scale > 0)) throw new TypeError(`"${entry.name}" is drawn at a scale above 0, not ${JSON.stringify(entry.scale)}`);
     if (entry.heading !== undefined && !Number.isFinite(entry.heading)) {
       throw new TypeError(`"${entry.name}" faces a heading in degrees (0 faces +X, 90 faces +Z), not ${JSON.stringify(entry.heading)}`);
     }
@@ -328,7 +329,7 @@ const FEN_LIFE = {
     react(c, tau, t) {
       FEN_LIFE.waterStrider.idle(c, t);
       const k = tau < 0.3 ? easeOut(tau / 0.3) : tau < 0.65 ? 1 : 1 - smooth((tau - 0.65) / 0.75);
-      c.mesh.position.x += 0.4 * k;
+      c.mesh.position.x += (0.35 / c.scale) * k; // 0.35 m across the water, however large it is drawn
       setMorph(c.mesh, 'row', Math.max(c.mesh.morphTargetInfluences[c.mesh.morphTargetDictionary.row], tau < 0.3 || (tau > 0.65 && tau < 0.95) ? 1 : 0));
     },
     start(c) { c.ripple(0.3); },
@@ -404,12 +405,14 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple,
     const root = new THREE.Group();
     root.name = `Critter ${spot.name}`;
     root.position.fromArray(spot.position);
+    if (spot.scale) root.scale.setScalar(spot.scale); // a Fen animal a little larger than life where a child must see it (in a footprint)
     const heading = spot.heading ?? seededRandom(`${spot.name} heading`)() * 360; // degrees: 0 faces +X, 90 faces +Z
     root.rotation.y = -rad(heading);
     root.add(mesh);
     group.add(root);
     const c = { name: spot.name, kind: spot.kind, root, mesh, model, heading, leg: 0, reaction: null, point: new THREE.Vector3(), tap: new THREE.Vector3(...model.tap) };
     c.life = FEN_LIFE[spot.kind] ?? null;
+    c.scale = spot.scale ?? 1;
     if (c.life) {
       c.phase = seededRandom(`${spot.name} life`)() * TAU; // no two of a kind live in step, and a name always lives the same way
       c.flight = flight;

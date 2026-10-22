@@ -34,7 +34,7 @@ const SINK = 0.025; // and how far under it goes there
 const CELL = 0.065; // m: the grid each print is drawn on
 const WATER_REACH = 0.015; // m outside the edge the water reaches, under the inner wall (it hides the water's edge)
 const WATER_FADE = 0.03; // m over which the water fades out at its edge
-const MUD = { floor: '#352a20', wet: FEN.mud, crest: '#5c4835', outer: '#6a553f' };
+const MUD = { floor: '#3e3125', wet: '#55432f', crest: '#6d5841', outer: '#7d6749' }; // dark wet mud (FEN.mud) to the trail's damp path
 const DIGIT = {
   height: 0.74, // m from the bottom of its edge to the top
   stroke: 0.105, // the stroke's radius, in a digit one unit tall (from its baseline to its top, along the middle of the stroke)
@@ -46,7 +46,7 @@ const DIGIT = {
   life: 1.6, // s from the water to gone
   rise: 0.62, // m its bottom rises out of the water
 };
-const GLIMMER = { every: 1.3, ring: 2.1 }; // s between the glints off the next print's rim, and between its soft rings
+const GLIMMER = { every: 0.9, ring: 1.6 }; // s between the glints off the next print's rim, and between its soft rings
 
 const smooth = t => { const k = Math.min(1, Math.max(0, t)); return k * k * (3 - 2 * k); };
 const easeOutBack = x => 1 + 2.70158 * (x - 1) ** 3 + 1.70158 * (x - 1) ** 2;
@@ -137,7 +137,7 @@ function tube(out, { points, closed }, offsetX, radius, colour, inside) {
     });
   };
   const tri = (a, b, c) => {
-    const list = inside ? [a, c, b] : [a, b, c];
+    const list = inside ? [a, b, c] : [a, c, b]; // the bands run along the stroke wound inward: the fill turns them out, the edge leaves them in
     for (const v of list) {
       out.position.push(v.p.x, v.p.y, v.p.z);
       const k = inside ? -1 : 1;
@@ -187,7 +187,7 @@ export function digitGeometry(number) {
       tube(out, stroke, x, DIGIT.stroke, fill, false);
       tube(out, stroke, x, DIGIT.stroke + DIGIT.edge, dark, true);
     }
-    x += 0.52;
+    x += 0.6;
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(out.position, 3));
@@ -279,7 +279,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
       const g = grid[key];
       const n = water.pos.length / 3 - wbase;
       water.pos.push(g.x, level, g.z);
-      water.data.push(g.d, 0.06 + 2 * Math.max(0, level - g.h), 0);
+      water.data.push(g.d, 0.12 + 0.12 * smooth(-g.d / 0.1), 0); // as deep as a pool to look at: teal, not the olive of a bed
       water.flow.push(0, 0);
       water.state.push(0, 0);
       water.owner.push(k);
@@ -306,7 +306,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   mudGeometry.computeVertexNormals();
   mudGeometry.computeBoundingSphere();
   // wet, dark and a little glossy (STYLE.md: nothing shines but eyes and water; wet mud has a soft sheen), on top of the ground
-  const mudMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  const mudMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, envMapIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
   mudMaterial.name = 'mud prints';
   const mud = new THREE.Mesh(mudGeometry, mudMaterial);
   mud.name = 'Mud prints';
@@ -471,11 +471,11 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
         nextGlint = now + GLIMMER.every;
         const turn = (now * 2.39996) % (Math.PI * 2);
         const [x, z] = toWorld(frames[next], PAD[0] + Math.cos(turn) * 0.3, Math.sin(turn) * 0.24);
-        keep(sparkleBurst(world, new THREE.Vector3(x, rims[next] + 0.05, z), { count: 7, duration: 1.1, size: 0.16, spread: 0.32, seed: `print glimmer ${Math.floor(now * 10) % 9}` }));
+        keep(sparkleBurst(world, new THREE.Vector3(x, rims[next] + 0.05, z), { count: 9, duration: 1.2, size: 0.2, spread: 0.36, seed: `print glimmer ${Math.floor(now * 10) % 9}` }));
       }
       if (now >= nextRing) {
         nextRing = now + GLIMMER.ring;
-        ring(next, 0.35);
+        ring(next, 0.5);
       }
     }
     if (digit) poseDigit();

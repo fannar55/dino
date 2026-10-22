@@ -44,7 +44,7 @@ const CELL = { near: 1.0, far: 2.5 };
 const AMBIENT = 1.4; // s between the faint rings that start by themselves
 const AMBIENT_SLOTS = 2; // ring slots kept for them, so they never push out a ring the script made
 const WADE = 2.0; // s between two rings at the same foot of whoever stands in the water
-const PRINT_GOLD = '#f2c766'; // a counted footprint's water, warm gold (the star's gold, lighter)
+const PRINT_GOLD = '#d9a83c'; // a counted footprint's water, warm gold (the star's gold, a little deeper: it is water, not cream)
 
 const wobble = (k, salt) => hash2(k, salt, 0x51f) * Math.PI * 2;
 
@@ -269,8 +269,8 @@ void main() {
   col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
   #ifdef PRINT_WATER
   // counted: a warm gold through it; the next to count: a soft glimmer that swells and ebbs
-  col = mix( col, uGold, 0.42 * vState.x );
-  col += uGlint * vState.y * ( 0.22 + 0.18 * sin( uTime * 5.2 ) );
+  col = mix( col, uGold, 0.32 * vState.x );
+  col += uGlint * vState.y * ( 0.32 + 0.26 * sin( uTime * 5.2 ) );
   #endif
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );

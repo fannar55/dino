@@ -129,7 +129,10 @@ const RIDE_POINTS = [49, 52].map((s, i) => {
 const TRAIL_ON = [82, 88].map(s => { const p = pathAt(TRAIL_PATH, s); return [p.x + p.dz * MOSI_SIDE, p.z - p.dx * MOSI_SIDE]; });
 // The ride's camera: behind Mosi on his right, a little above Egill, looking past Mosi's head down the trail.
 const RIDE_CAMERA = { offset: [-6.2, 3.0, 2.8], local: true, look: 'head', lookOffset: [1.6, -1.0, 1.1], stiffness: 1.4, fov: 50 };
-const PRINT_SHOT = { back: -2.6, ahead: 0.8, out: 3.4, lean: 0.7, up: 1.35, aim: 0.55, fov: 48 };
+const PRINT_SHOT = { along: 3.6, out: 3.2, up: 1.6, aimAlong: -1.2, aimIn: 1.4, aimUp: 0.85, fov: 56 };
+// The ten ahead, as Mosi says what they are: from beside the path behind the first, a little high, down the trail into the mist.
+const PRINTS_AHEAD = { along: -7, out: 2.7, up: 2.8, aimAlong: 8, aimIn: 0.5, aimUp: 0, fov: 44 };
+const PRINT_ON = 1.0; // s after a count before Mosi and the camera go on to the next: the number is up first
 // Seconds the child may be idle before the hint, and before Egill taps the print himself; the quick ones once he has.
 const PRINT_WAIT = { hint: 8, help: 16, quickHint: 4, quickHelp: 8 };
 const NOD_DIP = { x: 0, y: -0.6, z: 0 };
@@ -143,6 +146,7 @@ const PRINT_ANIMALS = [
   { print: 8, kind: 'waterStrider', name: 'print-strider', along: -0.1, across: 0, on: 'water', turn: 0 },
   { print: 9, kind: 'salamander', name: 'print-salamander', along: -0.12, across: 0.02, on: 'floor', turn: 0 },
 ];
+const ANIMAL_SIZE = 1.5; // the animals in her prints are drawn this much larger than life, so a child sees them from the camera
 
 const TRAIL_SHOTS = {
   trail_wide: { position: [-18.5, 2.85, -11.5], target: [5, 1.1, 4], fov: 50 },
@@ -421,12 +425,16 @@ function* footprints(s, c) {
   const first = mosiAt(0);
   const ride = mosi.walkTo([...RIDE_POINTS, [first.x, first.z]], { speed: 1.1 });
   s.camera.follow('mosi', RIDE_CAMERA);
-  yield s.wait(6.5);
+  yield s.wait(7);
+  yield ride;
+  // all ten down the trail ahead, into the mist
+  yield s.camera.cut(shotAlong(c, 'prints ahead', 0, PRINTS_AHEAD));
   yield mosi.lookAt(c.prints.targets[0].point, { weight: 0.8, maxPitch: 40 });
   yield* say(s, c, 'mosi', 'k2_mosi_prints');
-  yield ride;
   yield mosi.turnTo(first.heading, { rate: 40 });
   yield s.camera.cut(printShot(c, 0));
+  c.focus = 0; // the print the camera looks at, as it follows Mosi from print to print
+  s.camera.follow('mosi', printFollow(c));
   yield egill.lookAt(c.prints.targets[0].point, { weight: 0.7, maxPitch: 45 });
   yield* say(s, c, 'mosi', 'k2_mosi_count');
   // Every print is a target from now on; the next to count glimmers. A tap on the next splashes, its number rises out of the water
@@ -444,11 +452,11 @@ function* footprints(s, c) {
     c.prints.glimmer(null);
     const counting = countPrint(s, c, k, by);
     if (k < names.length - 1) {
-      // on to the next while the number is said: Mosi to his place beside it, the camera with him
+      // on to the next once the number is up: Mosi to his place beside it, the camera following him and turning to it
       const next = mosiAt(k + 1);
-      walking = s.all(mosi.walkTo([next.x, next.z], { speed: 0.95 }), s.camera.move(printShot(c, k + 1), { duration: 3.4 }));
-      s.after(0.3, () => mosi.lookAt(c.prints.targets[k + 1].point, { weight: 0.8, maxPitch: 40 }));
-      s.after(0.5, () => egill.lookAt(c.prints.targets[k + 1].point, { weight: 0.7, maxPitch: 45 }));
+      walking = s.after(PRINT_ON, () => { c.focus = k + 1; return mosi.walkTo([next.x, next.z], { speed: 0.95 }); });
+      s.after(PRINT_ON + 0.3, () => mosi.lookAt(c.prints.targets[k + 1].point, { weight: 0.8, maxPitch: 40 }));
+      s.after(PRINT_ON + 0.5, () => egill.lookAt(c.prints.targets[k + 1].point, { weight: 0.7, maxPitch: 45 }));
     }
     yield counting;
   }
@@ -471,16 +479,34 @@ function mosiAt(k) {
 }
 
 /**
- * The camera for print k: low across the path from Mosi, a little back from the print, so the print is near and big, the next
- * ones beyond it in the mud and Mosi with Egill on his back over them.
+ * The camera for print k: a little way on down the trail and across the path from Mosi, low, looking back up it: the print near
+ * and big in the lower middle, Mosi beyond it beside the path looking down at it, his face toward us, Egill on his back, and the
+ * prints counted already behind them in the mud.
  */
 function printShot(c, k) {
-  const at = pathAt(TRAIL_PATH, PRINT_FROM + PRINT_PACE * k + PRINT_SHOT.back);
-  const ahead = pathAt(TRAIL_PATH, PRINT_FROM + PRINT_PACE * k + PRINT_SHOT.ahead);
-  const x = at.x - at.dz * PRINT_SHOT.out, z = at.z + at.dx * PRINT_SHOT.out; // across the path from Mosi (its south-west side)
-  const tx = ahead.x + ahead.dz * PRINT_SHOT.lean, tz = ahead.z - ahead.dx * PRINT_SHOT.lean;
+  return shotAlong(c, `print ${k + 1}`, k, PRINT_SHOT);
+}
+
+/**
+ * The same camera as it follows Mosi from print to print (director.follow: smooth, never faster than the style guide's dolly): where
+ * print 1's shot stands, in Mosi's own frame as he waits there, and looking where the shot of the print it is on (c.focus) looks.
+ */
+function printFollow(c) {
+  const shot = printShot(c, 0), at = mosiAt(0);
+  const h = THREE.MathUtils.degToRad(at.heading);
+  const dx = shot.position[0] - at.x, dz = shot.position[2] - at.z;
+  const offset = [dx * Math.cos(h) + dz * Math.sin(h), shot.position[1] - c.world.heightAt(at.x, at.z), -dx * Math.sin(h) + dz * Math.cos(h)];
+  return { offset, local: true, look: out => out.fromArray(printShot(c, c.focus).target), fov: PRINT_SHOT.fov, stiffness: 1.5 };
+}
+
+/** A shot set along the trail from print k (S: metres along the path from it, out from its middle, up from the ground). */
+function shotAlong(c, label, k, S) {
+  const at = pathAt(TRAIL_PATH, PRINT_FROM + PRINT_PACE * k + S.along);
+  const aim = pathAt(TRAIL_PATH, PRINT_FROM + PRINT_PACE * k + S.aimAlong);
+  const x = at.x - at.dz * S.out, z = at.z + at.dx * S.out; // across the path from Mosi (its south-west side)
+  const tx = aim.x + aim.dz * S.aimIn, tz = aim.z - aim.dx * S.aimIn; // toward Mosi's side
   const ground = c.world.heightAt;
-  return { label: `print ${k + 1}`, position: [x, ground(x, z) + PRINT_SHOT.up, z], target: [tx, ground(tx, tz) + PRINT_SHOT.aim, tz], fov: PRINT_SHOT.fov };
+  return { label, position: [x, ground(x, z) + S.up, z], target: [tx, ground(tx, tz) + S.aimUp, tz], fov: S.fov };
 }
 
 /**
@@ -756,7 +782,7 @@ function arriveOnTheTrail(s, c) {
   mosi.place(start.x, start.z, (Math.atan2(start.dz, start.dx) * 180) / Math.PI);
   c.prints = createMudPrints(world, { prints: TRAIL_PRINTS, heightAt: world.heightAt });
   const animals = PRINT_ANIMALS.map(({ print, kind, name, along, across, on, turn }) => ({
-    name, kind, position: c.prints.pointIn(print, along, across, on), heading: TRAIL_PRINTS[print].heading + turn,
+    name, kind, position: c.prints.pointIn(print, along, across, on), heading: TRAIL_PRINTS[print].heading + turn, scale: ANIMAL_SIZE,
   }));
   c.printCritters = createCritters(world, { spots: animals, heightAt: c.prints.groundAt, ripple: (point, strength) => c.prints.rippleAt(point, strength) });
   s.camera.cut({ label: 'trail ride', position: { actor: 'mosi', part: 'feet', offset: RIDE_CAMERA.offset, local: true }, target: 'mosi.head', fov: RIDE_CAMERA.fov });
