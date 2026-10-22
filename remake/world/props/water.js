@@ -508,7 +508,7 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
     for (let i = live.length - 1; i >= 0; i--) {
       const item = live[i];
       if (item.pop) {
-        if (t >= item.at) { live.splice(i, 1); rippleAt([item.pop[0], 0, item.pop[1]], 0.25, 'wade'); }
+        if (t >= item.at) { live.splice(i, 1); rippleAt([item.pop[0], 0, item.pop[1]], 0.25, 'play'); }
       } else if (item.handle.done || t >= item.end) {
         item.handle.finish();
         live.splice(i, 1);

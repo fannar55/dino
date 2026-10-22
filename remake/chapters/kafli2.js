@@ -100,8 +100,8 @@ const FEN_WATER = {
 const FEN_SHOTS = {
   // Scene 3: the trail ends on Mosi's hummock; the camera rises over him and pans right across the Fen, the pools glittering
   // toward the sun, and ends with Þórseðla far right, in the water at her real size (a move from the first to the second).
-  fen_reveal: { position: [12, 1.6, 4], target: [-14, 1.5, 10], fov: 46 },
-  fen_reveal_end: { position: [6, 3.8, 13], target: [-5, 2.6, -9], fov: 40 },
+  fen_reveal: { position: [13, 1.6, 9.5], target: [-14, 1.5, 15.5], fov: 46 },
+  fen_reveal_end: { position: [6, 3.8, 13], target: [-3.6, 2.6, -9], fov: 44 },
   // From below: her feet in the water like trunks, her head up in the swamp conifers.
   fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.

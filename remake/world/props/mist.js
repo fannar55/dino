@@ -50,6 +50,7 @@ uniform float uTime;
 uniform float uLevel;
 uniform vec3 uColour;
 uniform vec2 uWind;
+uniform float uStretch;
 uniform sampler2D uNoise;
 varying vec2 vUv;
 varying float vStrength;
@@ -59,7 +60,7 @@ varying vec3 vWorld;
 void main() {
   float across = 1.0 - vUv.x * vUv.x;
   float shape = across * across * smoothstep( 0.0, 0.14, vUv.y ) * ( 1.0 - smoothstep( 0.34, 1.0, vUv.y ) );
-  vec2 q = vec2( ( vWorld.x + vWorld.z * 0.6 ) * 0.06, vWorld.y * 1.4 ) - uWind * uTime * 0.02;
+  vec2 q = vec2( ( vWorld.x + vWorld.z * 0.6 ) * uStretch, vWorld.y * 1.4 ) - uWind * uTime * 0.02;
   float n = texture2D( uNoise, q ).g * 0.65 + texture2D( uNoise, q * 2.3 + 0.37 ).b * 0.35;
   float a = shape * smoothstep( 0.25, 0.72, n ) * vStrength * uLevel;
   if ( a < 0.002 ) discard;
@@ -98,7 +99,8 @@ export function createMist(world, { center, radius, height = 1.2, level = 1, hei
       x = cx + Math.cos(a) * r; z = cz + Math.sin(a) * r;
     }
     const y = heightAt(x, z) - 0.08; // the foot just under the surface
-    const w = rng.range(5, 9), h = height * rng.range(0.6, 0.9), phase = rng.next(), strength = rng.range(0.45, 0.6);
+    // over water a little stronger; on dry ground (no `over`) fainter, so it never reads as a sheet of water that is not there
+    const w = rng.range(5, 9), h = height * rng.range(0.6, 0.9), phase = rng.next(), strength = spots.length ? rng.range(0.3, 0.4) : rng.range(0.25, 0.32);
     const base = pos.length / 3;
     for (const [u, v] of [[-1, 0], [1, 0], [-1, 1], [1, 1]]) {
       pos.push(x, y, z);
@@ -122,6 +124,7 @@ export function createMist(world, { center, radius, height = 1.2, level = 1, hei
     uLevel: { value: level },
     uColour: { value: new THREE.Color(FEN.mist) },
     uWind: { value: wind ? new THREE.Vector2(wind.x, wind.y) : new THREE.Vector2(1, 0) },
+    uStretch: { value: spots.length ? 0.06 : 0.11 }, // wisps drawn out along the water, shorter on the ground
     uNoise: { value: noise },
   };
   const material = new THREE.ShaderMaterial({

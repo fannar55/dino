@@ -265,8 +265,9 @@ export const FEN = {
   waterLevel: -0.06,
   // Open sky: what a plant in the fen sees of it (the forest's deep band sees 0.09), and the shade a grove of conifers throws.
   sky: 0.86,
-  // Grass in the fen: golden reed, sparser and taller than the clearing's grass.
-  grass: { density: 0.85, densityBlended: 0.55, tall: 1.5 }, // the trail, part forest, keeps the lighter grass (its budget)
+  // Grass in the Fen: golden reed, fullest within near[0] m of the middle, easing to densityRim by near[1] m and beyond; a trail,
+  // part forest, keeps the lighter densityBlended (its budget).
+  grass: { density: 0.85, densityRim: 0.55, near: [14, 24], densityBlended: 0.55, tall: 1.5 },
   // How much the fen grows (per place, at tablet; scaled by the quality preset).
   counts: {
     groves: 16, // groups of two to four swamp conifers
@@ -292,7 +293,7 @@ export const FEN = {
   // The far treeline: well out, so the fen opens to it (far.js).
   far: {
     rings: [
-      { radius: 150, rows: 2, spacing: 6, height: [12, 17], crown: [6, 9.5], strip: [2.4, 4.0], color: ['#3a5a4c', '#5d7d6b'], haze: '#c7d8d0', topHaze: 0.45, araucaria: 0.15 },
+      { radius: 150, rows: 1, spacing: 6.5, height: [12, 17], crown: [6, 9.5], strip: [2.4, 4.0], color: ['#3a5a4c', '#5d7d6b'], haze: '#c7d8d0', topHaze: 0.45, araucaria: 0.15 },
       { radius: 190, rows: 1, spacing: 6, height: [12, 16], crown: [6, 9], strip: [2.6, 4.2], color: ['#4b6a5e', '#6d8b7d'], haze: '#d0dfd8', topHaze: 0.6, araucaria: 0.1 },
     ],
   },

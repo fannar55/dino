@@ -44,7 +44,12 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     d *= 1 - (1 - cfg.pathDensity) * smoothstep(0.15, 0.7, pm);
     d *= 1 - 0.7 * smoothstep(0.15, 0.65, terrain.soilMask(x, z));
     if (layout.keepOut) d *= 1 - layout.keepOut(x, z); // a layout's own bare ground (the Fen's water)
-    if (biome.fen) d *= 1 + ((biome.blended ? FEN.grass.densityBlended : FEN.grass.density) - 1) * biome.shareAt(x, z);
+    if (biome.fen) {
+      // the Fen's reed is fullest on the stage round its middle, lighter toward the rim and beyond; a trail keeps it light
+      const G = FEN.grass;
+      const fenD = biome.blended ? G.densityBlended : G.density + (G.densityRim - G.density) * smoothstep(G.near[0], G.near[1], r);
+      d *= 1 + (fenD - 1) * biome.shareAt(x, z);
+    }
     return clamp(d, 0, 1);
   }
 

@@ -291,7 +291,8 @@ export function createTerrain(world, layout, seed) {
     const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
     material.name = 'forest-ground';
     // the Fen's ground (FEN in config.js): golden reed, moss, and dark mud at and under the water, mixed in by its share
-    if (biome.fen) material.defines = layout.water ? { FOREST_FEN: '', FEN_SHORE: '' } : { FOREST_FEN: '' };
+    // the shore's colours read aShore, which buildGroundGeometry gives the ground only where the water has its shape: key both on it
+    if (biome.fen) material.defines = layout.water?.shape ? { FOREST_FEN: '', FEN_SHORE: '' } : { FOREST_FEN: '' };
     const fen = biome.fen ? {
       ...fenUniforms(biome, THREE),
       uWaterLevel: { value: layout.water ? FEN.waterLevel : -10 },
@@ -389,8 +390,8 @@ ${LEAF_SHADOW_GLSL}`,
   fenC = mix( fenC, uFenMossWet * 0.82 * ( 0.85 + 0.3 * fine ), smoothstep( 0.6, 0.8, nD.r + ( fine - 0.5 ) * 0.2 ) * 0.7 );
   fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
   fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
-  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) );
-  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ), smoothstep( 0.0, -0.6, shoreD ) ); // the bed under the water
+  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD ) );
+  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ), smoothstep( 0.0, -0.25, shoreD ) ); // the bed under the water, from its very edge
 
   col = mix( col, fenC, fen );
   pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );

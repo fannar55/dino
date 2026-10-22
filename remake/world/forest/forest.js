@@ -61,6 +61,8 @@ const CANOPY = { broadleaf: 0.9, araucaria: 0.6, swampConifer: 0.75 };
 const FAR_DROP = 0.12;
 // Near the clearing the ground at the water's edge stands this much above it, so no bare ground lies lower than the water.
 const BANK = 0.02;
+// Hanging moss is a few centimetres of strand: past this far from the clearing it is not seen, so it is not drawn there.
+const MOSS_REACH = 50;
 
 /**
  * A layout's ground, shaped as the forest grows it: the layout itself, or a copy whose `lift` digs the Fen's water out of the
@@ -139,12 +141,20 @@ function waterSpots(placements, water) {
   return [...some(kinds.lily, 10), ...some(kinds.root, 10), ...some(kinds.reed, 8), ...some(kinds.stone, 4)];
 }
 
-/** Points over a place's open water within a mist's disc (a 2 m grid, more than a metre from any edge), for its cards to stand on. */
-function mistPoints(water, [cx, cz], radius) {
+/**
+ * Points over a place's open water within a mist's disc (a 2 m grid, more than a metre from any edge), for its cards to stand
+ * on: none where an actor stands in the water, so no mist veils legs at the waterline (MIST_CLEAR m round Þórseðla's root,
+ * MIST_CLEAR_OTHERS round every other point the layout's actors name).
+ */
+const MIST_CLEAR = 9, MIST_CLEAR_OTHERS = 5;
+function mistPoints(water, [cx, cz], radius, actors = {}) {
+  const clear = Object.entries(actors).map(([name, a]) => [a.position[0], a.position[2], name === 'thorsedla' ? MIST_CLEAR : MIST_CLEAR_OTHERS]);
   const points = [];
   for (let z = cz - radius; z <= cz + radius; z += 2) {
     for (let x = cx - radius; x <= cx + radius; x += 2) {
-      if (Math.hypot(x - cx, z - cz) <= radius && water.signedAt(x, z) < -1) points.push([x, z]);
+      if (Math.hypot(x - cx, z - cz) > radius || water.signedAt(x, z) >= -1) continue;
+      if (clear.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r)) continue;
+      points.push([x, z]);
     }
   }
   return points;
@@ -243,13 +253,14 @@ export async function createForest(world, layout) {
     ? createWater(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center })
     : null;
   if (water) group.add(water.group);
-  const moss = createHangingMoss(world, plan.placements, shared, { antialias: q.antialias, seed });
+  // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing
+  const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, { antialias: q.antialias, seed });
   if (moss) group.add(moss.mesh);
   // the mist lies over the water where there is any, its cards standing on the surface
   const mists = (layout.mist ?? []).map((spec, i) => createMist(world, {
     ...spec, seed: seed + i,
     heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
-    over: ground.water ? mistPoints(ground.water, spec.center, spec.radius) : null,
+    over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
   }));
   for (const mist of mists) group.add(mist.group);
 

@@ -905,7 +905,7 @@ function buildSwampConifer(rng, { lod, noise }) {
         });
       }
       addBlob(solid, {
-        center: centre, radii: [R * 1.25, R * 0.58, R * 1.12], detail: lod === 0 && R > 1.15 && finePads++ < 9 ? 2 : 1,
+        center: centre, radii: [R * 1.25, R * 0.58, R * 1.12], detail: lod === 0 ? (R > 1.15 && finePads++ < 9 ? 2 : 1) : lod === 2 && R < 1.1 ? 0 : 1, // far small pads are a few facets
         lump: 0.2, lumpFreq: 2.4, noise3: noise.noise3, salt: salt2,
         bumps: lod === 2 ? null : makeBumps(cr.fork('bumps'), lod === 0 ? 16 : 9, { radius: lod === 0 ? 0.42 : 0.55, height: 0.2, minY: -0.35 }),
         // the rim of a pad droops, as a cypress's sprays do
