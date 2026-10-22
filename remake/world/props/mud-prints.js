@@ -63,6 +63,16 @@ function printDistance(x, z) {
   }
   return d;
 }
+/** The height of the mud at distance `d` (m, negative inside) from a print's edge, over ground `ground`, its water at `level`. */
+function mudHeight(d, ground, level) {
+  const rim = level + RIM_UP;
+  if (d >= SKIRT) return ground - SINK;
+  if (d <= -WALL) return ground + FLOOR_UP;
+  if (d <= 0) return THREE.MathUtils.lerp(ground + FLOOR_UP, level, smooth((d + WALL) / WALL));
+  if (d <= CREST) return THREE.MathUtils.lerp(level, rim, smooth(d / CREST));
+  return THREE.MathUtils.lerp(rim, ground - SINK, smooth((d - CREST) / (SKIRT - CREST)));
+}
+
 const EXTENT = (() => {
   const xs = BLOBS.flatMap(b => [(b.x - b.rx) * SIZE, (b.x + b.rx) * SIZE]);
   const zs = BLOBS.flatMap(b => [(b.z - b.rz) * SIZE, (b.z + b.rz) * SIZE]);
@@ -207,6 +217,8 @@ export function digitGeometry(number) {
  *   glimmer(i)     print i is the next to count: it glimmers (null: none does)
  *   levelOf(i), rimOf(i), floorOf(i)   heights: its water, its rim, its floor at the middle of its pad
  *   pointIn(i, along, across, on)      a point in print i's frame (metres along it and to its right) on 'floor', 'water' or 'rim'
+ *   groundAt(x, z) the ground with the prints in it (for a frog that hops out of one, a salamander that crawls out)
+ *   rippleAt(point, strength)          a ring on the prints' water (an animal in a print touching it)
  *   update(t)      pose everything for game time t (the registered effect does it every frame)
  *   dispose()
  */
@@ -248,12 +260,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     const at = (i, j) => grid[j * (nu + 1) + i];
     const base = pos.length / 3;
     for (const g of grid) {
-      let h;
-      if (g.d <= -WALL) h = g.ground + FLOOR_UP;
-      else if (g.d <= 0) h = THREE.MathUtils.lerp(g.ground + FLOOR_UP, level, smooth((g.d + WALL) / WALL));
-      else if (g.d <= CREST) h = THREE.MathUtils.lerp(level, rim, smooth(g.d / CREST));
-      else h = THREE.MathUtils.lerp(rim, g.ground - SINK, smooth((g.d - CREST) / (SKIRT - CREST)));
-      if (g.d >= SKIRT) h = g.ground - SINK;
+      const h = mudHeight(g.d, g.ground, level);
       g.h = h;
       pos.push(g.x, h, g.z);
       const k = g.d <= 0 ? C.floor.clone().lerp(C.wet, smooth((g.d + WALL) / WALL))
@@ -342,8 +349,26 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
 
   function ring(k, strength = 1, at = now) {
     const p = pointOf(k);
-    ripples[slot].set(p.x, p.z, at, strength);
+    rippleAt(p, strength, at);
+  }
+  /** A ring on the prints' water at a point (a Vector3, [x, y, z] or { x, z }): an animal in a print touching it. */
+  function rippleAt(point, strength = 1, at = now) {
+    const [x, z] = Array.isArray(point) ? [point[0], point[2]] : [point.x, point.z];
+    ripples[slot].set(x, z, at, strength);
     slot = (slot + 1) % RIPPLE_SLOTS;
+    return new Handle('print ripple').finish();
+  }
+  /** The ground with the prints pressed into it: the mud of a print where there is one (its floor under the water), else heightAt. */
+  function groundAt(x, z) {
+    const ground = heightAt(x, z);
+    for (let k = 0; k < frames.length; k++) {
+      const f = frames[k];
+      const dx = x - f.x, dz = z - f.z;
+      if (dx * dx + dz * dz > 0.8 * 0.8) continue;
+      const d = printDistance(dx * f.ax + dz * f.az, -dx * f.az + dz * f.ax);
+      if (d < SKIRT) return Math.max(ground, mudHeight(d, ground, levels[k]));
+    }
+    return ground;
   }
 
   function splash(k) {
@@ -473,7 +498,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   });
 
   return {
-    group, targets, splash, count, done, glimmer, update, pointIn,
+    group, targets, splash, count, done, glimmer, update, pointIn, groundAt, rippleAt,
     levelOf: k => levels[k],
     rimOf: k => rims[k],
     floorOf: k => floors[k],

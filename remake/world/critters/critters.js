@@ -15,6 +15,7 @@ import { BEETLE_SIZE, BIRD, DRAGONFLY, EARLY_BIRD, KINDS, WINGED, createModel } 
 //     birds: [{ name: 'bird-1', position: [x, y, z], heading }],                  // where each sits, and how it faces
 //     onReact(name, kind) {},                                                     // optional: a sound for every reaction
 //     ripple(point, strength) {},                                                 // optional: a ring on the water where a Fen animal touches it
+//     heightAt(x, z) {},                                                          // optional: the ground they hop and crawl on (world.heightAt)
 //   });
 //
 // The Fen's animals (chapter 2) are spots too, each with a life of its own as well as a reaction: the dragonfly (`position` is
@@ -345,7 +346,7 @@ const FEN_LIFE = {
  *   update(dt, t)     pose everything for game time t (the registered effect does this every frame)
  *   dispose()
  */
-export function createCritters(world, { spots = [], birds = [], onReact, ripple } = {}) {
+export function createCritters(world, { spots = [], birds = [], onReact, ripple, heightAt: groundAt = null } = {}) {
   validate(world, { spots, birds, onReact, ripple });
 
   const group = new THREE.Group();
@@ -366,7 +367,7 @@ export function createCritters(world, { spots = [], birds = [], onReact, ripple 
       console.error(`[critters] onReact failed for ${name}:`, error);
     }
   }
-  const heightAt = (x, z) => world.heightAt?.(x, z) ?? 0;
+  const heightAt = (x, z) => (groundAt ? groundAt(x, z) : world.heightAt?.(x, z) ?? 0); // a place's own ground, or what is on it (a footprint's mud)
   const ringAt = new THREE.Vector3();
   // a ring where a Fen animal touches the water: under (or over) its middle, on the water its spot stands on
   function rings(c, strength) {

@@ -327,7 +327,7 @@ function* dripFromNeck(s, c, drops) {
 }
 
 /** Six of the conifer's leaves fall from her mouth, fluttering and turning, and lie on the water or the ground a while. */
-function leafFall(c, from) {
+export function leafFall(c, from) {
   const { world } = c;
   const mesh = new THREE.InstancedMesh(leafShape(), leafMaterial(), LEAVES.count);
   mesh.name = 'Þórseðla leaves';
@@ -419,7 +419,7 @@ export function leafWarm(world) {
 }
 
 /** Where her mouth closes on the twigs: in front of and under her Head bone, toward the tip of her snout. */
-function mouthOf(her) {
+export function mouthOf(her) {
   const head = her.model.getObjectByName('Head');
   head.updateWorldMatrix(true, false);
   return head.localToWorld(new THREE.Vector3(1.0, -0.15, 0));

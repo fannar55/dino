@@ -400,7 +400,7 @@ test('the prints are counted one to ten in order, and the berries one to five', 
     assert.ok(said && said.at - digit.at < 0.5, `"${text}" is said as its digit rises`);
   }
   assert.ok(sceneStart(world, 4) - sceneStart(world, 3) >= 12, 'the reveal takes its time');
-  assert.equal(world.chapterState.basket.count, 5, 'five berries in the basket');
+  assert.equal(world.chapterState.basket.total, 5, 'five berries went into the basket');
 });
 
 test('the fen animals go into the book', async () => {
@@ -442,7 +442,7 @@ test('an idle child still gets the head down', async () => {
   const c = world.chapterState;
   assert.equal(c.printLog.filter(e => e.what === 'count').length, 10, 'every print counted');
   assert.ok(c.printLog.filter(e => e.what === 'count').every(e => e.by === 'egill'), 'by Egill, for a child who taps nothing');
-  assert.equal(c.basket.count, 5, 'five berries in the basket');
+  assert.equal(c.basket.total, 5, 'five berries went into the basket');
   assert.deepEqual(c.picks.map(p => p.by), Array(5).fill('egill'), 'each picked by Egill');
   assert.ok(c.picks.every(p => p.kind === 'red'), 'all of them red');
   assert.ok(c.headDownAt > 0 && c.headDownAt < five, 'and her head came down to him before it');
