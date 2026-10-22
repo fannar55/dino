@@ -126,7 +126,7 @@ function topAt(points, x, z, reach) {
 // head turned far round, or raised high, swings the frill's edge back onto him, so while he rides or
 // floats up the host's looks are capped (LOOK_CAPS, below).
 const LEATHER = '#6f5440'; // the colour of Egill's boots (STYLE.md section 3)
-const SIT_DEPTH = 0.32;
+export const SIT_DEPTH = 0.32; // the underside of a sitting rider's thighs above his root (neck-ride.js sits him on her skin with it)
 const FEET_BELOW = 0.21; // his feet below his seat, with 2 cm to spare
 const AHEAD = 1.75;
 const SEAT = { back: -0.17, front: 0.24, halfWidth: 0.095 }; // metres about the rider's hips
@@ -324,6 +324,50 @@ export function createSaddle(host, { bone: boneName = 'Body', ahead = AHEAD } = 
   return { object, seat, grips, host, update, appear };
 }
 
+// The seat with no saddle --------------------------------------------------------------------------
+// Chapter 2 (scene 6): Egill sits on the back of Þórseðla's head while she lifts it from the bank to nine metres. Nothing is
+// built: the seat is a frame on one of the host's bones that follows the bone's place and the way it faces seen from above,
+// but never its pitch or roll, so the rider sits upright however steeply the neck rises under him.
+
+/**
+ * A seat on the host's bone `bone`, kept level. `offset` is where the rider's root goes, from the bone, and `grips` where his
+ * wrists go, from there; each [across (to the rider's right), up, ahead] in metres in the level frame. Returns
+ *   object      null: there is nothing to see
+ *   seat        where a rider's root goes, in the world, as of the last update()
+ *   grips       { left, right }: where his wrists go, likewise
+ *   quaternion  the level frame's turn (x ahead, y up, z to the right, as a saddle's), likewise
+ *   host        the host
+ *   update()    brings them up to date and returns the seat
+ * ride(), floatTo() and floatDown() take it as they take a saddle (they use seat, grips, host and update).
+ */
+export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: hands = {} } = {}) {
+  const { bone, inverse } = skinOf(host).bone(boneName);
+  // The way the host faces, in the bone's own frame as it was bound (the host faces +X in its model's frame).
+  const ahead = new V3(1, 0, 0).transformDirection(inverse);
+  const frame = ([across, up, forward]) => new V3(forward, up, across); // [across, up, ahead] -> (ahead, up, across)
+  const at = frame(offset);
+  const holds = { left: frame(hands.left ?? [-0.12, 0.45, 0.08]).add(at), right: frame(hands.right ?? [0.12, 0.45, 0.08]).add(at) };
+  const seat = new V3();
+  const grips = { left: new V3(), right: new V3() };
+  const quaternion = new THREE.Quaternion();
+  const origin = new V3();
+  const turn = new THREE.Quaternion();
+  const facing = new V3();
+  function update() {
+    bone.updateWorldMatrix(true, false);
+    bone.matrixWorld.decompose(origin, turn, facing);
+    facing.copy(ahead).applyQuaternion(turn).setY(0);
+    // A bone pointing straight up or down has no way it faces seen from above: the host's own way, then.
+    if (facing.lengthSq() < 1e-8) facing.set(1, 0, 0).applyQuaternion(host.root.quaternion).setY(0);
+    quaternion.setFromAxisAngle(UP, -Math.atan2(facing.z, facing.x));
+    grips.left.copy(holds.left).applyQuaternion(quaternion).add(origin);
+    grips.right.copy(holds.right).applyQuaternion(quaternion).add(origin);
+    return seat.copy(at).applyQuaternion(quaternion).add(origin);
+  }
+  update();
+  return { object: null, seat, grips, quaternion, host, update };
+}
+
 // Taking riders over ------------------------------------------------------------------------------
 // One thing moves a rider at a time: a new float or ride ends the one before.
 const controllers = new WeakMap();
@@ -350,6 +394,16 @@ function release(rider, controller) {
   // Given back turned about the vertical alone, as the actor turns itself (it reads its heading from rotation.y).
   rider.root.rotation.set(0, -THREE.MathUtils.degToRad(headingOf(rider.root.quaternion)), 0);
   rider.control(null);
+}
+
+/**
+ * Something else that carries a rider (neck-ride.js: the slide down Þórseðla's neck) takes him over as a float or a ride does:
+ * `controller` is { drive(dt), pose?(dt), end() }, and the float or ride before it ends (end() is called on it). The next
+ * float or ride ends this one in turn. Returns what gives him back where he is (the controller's end() is called).
+ */
+export function carryRider(rider, controller) {
+  take(rider, controller);
+  return { release: () => release(rider, controller) };
 }
 
 // The rider's hands on the saddle's handle. After his clips have posed his arms, each arm reaches for

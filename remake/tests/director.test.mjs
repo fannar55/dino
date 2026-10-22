@@ -665,3 +665,17 @@ test("poseOf says where a shot would put the camera, and the shadow's focus ther
   assert.ok(near(far.focus.centre.z, 40 - 16), 'at most 16 m out');
   assert.throws(() => d.poseOf('nowhere'), /nowhere/);
 });
+
+test('follow can look at a point of its own, another actor\'s head, while it keeps to the one it follows', () => {
+  const { director: d, camera, actor, world } = director();
+  const root = new THREE.Object3D();
+  root.position.set(-4, 0, 0);
+  world.actors.set('thorsedla', { root, centre: out => out.copy(root.position), headPosition: out => out.copy(root.position).add(new THREE.Vector3(0, 3, 0)) });
+  actor.root.position.set(2, 0, 0);
+  d.cut({ position: [2, 1.4, 6], target: [2, 1, 0] });
+  d.follow('mosi', { offset: [0, 1.4, 6], look: { actor: 'thorsedla', part: 'head' } });
+  for (let i = 0; i < 900; i++) d.update(1 / 30);
+  assert.ok(nearVec(camera.position, [2, 1.4, 6], 1e-3), `the camera keeps to Mosi: ${camera.position.toArray().map(v => v.toFixed(3))}`);
+  const toHead = new THREE.Vector3(-4, 3, 0).sub(camera.position).normalize();
+  assert.ok(aimOf(camera).angleTo(toHead) < 1e-3, 'and looks at her head');
+});
