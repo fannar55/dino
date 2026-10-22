@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
+import { clone as cloneSkinned } from '../../dist/vendor/SkeletonUtils.js';
 import { simplify } from '../engine/simplify.js';
 import { prepareCharacter, releaseCharacter, updateCharacterLods, whenReady } from '../engine/character-lod.js';
 import { depthShadowChunk } from '../engine/shadows.js';
@@ -202,8 +203,8 @@ test('a character casts its sun shadow with its quarter level, only in the shado
   model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
   mesh.castShadow = true;
   await prepareCharacter(model, sun);
-  const caster = mesh.children.find(o => o.isSkinnedMesh);
-  assert.ok(caster, 'a caster bound to the skin');
+  const caster = mesh.parent.children.find(o => o.isSkinnedMesh && o !== mesh);
+  assert.ok(caster, 'a caster bound to the skin, beside it');
   assert.equal(caster.skeleton, mesh.skeleton);
   assert.equal(mesh.castShadow, false);
   assert.equal(caster.castShadow, true);
@@ -222,4 +223,77 @@ test('the sun shadow map is read as a depth texture with four hardware compares'
   assert.match(chunk, /float getShadow\( sampler2DShadow shadowMap/);
   assert.equal((chunk.match(/texture\( shadowMap, vec3\(/g) || []).length, 4);
   assert.equal(depthShadowChunk('a changed chunk'), null);
+});
+
+test('a character out of the frame is not drawn: its posed bones bound it, so it is drawn as soon as any of it is in, and its shadow still casts', async () => {
+  const gltf = await gltfPromise;
+  const model = cloneSkinned(gltf.scene);
+  const root = new THREE.Group();
+  root.add(model);
+  root.position.set(3, 0, -2);
+  root.rotation.y = 0.7;
+  root.updateMatrixWorld(true);
+  const sun = new THREE.DirectionalLight();
+  sun.castShadow = true;
+  let mesh = null;
+  model.traverse(o => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+  mesh.castShadow = true;
+  mesh.frustumCulled = false; // as actor.js has every character's meshes
+  await prepareCharacter(model, sun);
+  await whenReady();
+  const caster = mesh.parent.children.find(o => o.isSkinnedMesh && o !== mesh);
+  assert.ok(caster && caster.parent !== mesh && caster.frustumCulled === false, 'its shadow caster stands beside the skin, never culled');
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const frustum = new THREE.Frustum();
+  const view = () => {
+    camera.updateMatrixWorld();
+    frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    return frustum;
+  };
+  // every third vertex of the skin as it is posed now, in the world
+  const posed = () => {
+    root.updateMatrixWorld(true);
+    mesh.skeleton.update(); // as the renderer does before it draws
+    const out = [];
+    const v = new THREE.Vector3();
+    for (let i = 0; i < mesh.geometry.attributes.position.count; i += 3) out.push(mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld).clone());
+    return out;
+  };
+  const centre = new THREE.Box3().setFromPoints(posed()).getCenter(new THREE.Vector3());
+  camera.position.set(centre.x + 14, centre.y + 1, centre.z);
+  // the camera turns from the character to beside it and away: while any vertex is in the frame it is drawn; once none is, it is
+  // not, a few degrees on and not the 50 % more of the bind pose's sphere; and its shadow caster is in the shadow pass throughout
+  const sweep = () => {
+    const points = posed();
+    let drawnOut = 0, culled = 0, hiddenWhileIn = 0, casting = 0;
+    for (let yaw = 0; yaw <= 90; yaw += 0.5) {
+      const a = THREE.MathUtils.degToRad(yaw);
+      camera.lookAt(camera.position.x - Math.cos(a), camera.position.y, camera.position.z + Math.sin(a));
+      updateCharacterLods(camera, 800);
+      const f = view();
+      const anyIn = points.some(p => f.containsPoint(p));
+      if (anyIn && !mesh.visible) hiddenWhileIn++;
+      if (!anyIn && mesh.visible) drawnOut++;
+      if (!mesh.visible) culled++;
+      sun.shadow.updateMatrices(sun);
+      if (caster.visible) casting++;
+      caster.onAfterShadow();
+    }
+    return { drawnOut, culled, hiddenWhileIn, casting };
+  };
+  const still = sweep();
+  assert.equal(still.hiddenWhileIn, 0, 'never hidden while any of it shows');
+  assert.ok(still.culled > 40, `hidden through ${still.culled / 2} of the 90 degrees`);
+  assert.ok(still.drawnOut <= 20, `drawn though out of the frame for at most 10 degrees (${still.drawnOut / 2})`);
+  assert.equal(still.casting, 181, 'it casts its shadow all the while');
+  // a pose that swings the tail, the neck and the head far round: the bones' spheres go with them
+  for (const name of ['Tail1', 'Tail2', 'Neck', 'Head']) model.getObjectByName(name)?.rotateY(0.9);
+  model.getObjectByName('Body')?.rotateZ(0.5);
+  const swung = sweep();
+  assert.equal(swung.hiddenWhileIn, 0, 'posed: never hidden while any of it shows');
+  assert.ok(swung.culled > 30 && swung.drawnOut <= 24, `posed: hidden through ${swung.culled / 2} degrees, drawn out of the frame through ${swung.drawnOut / 2}`);
+  // once its actor is gone the skin is shown again and left alone, and its caster goes with it
+  releaseCharacter(model);
+  assert.equal(mesh.visible, true);
+  assert.equal(caster.parent, null);
 });
