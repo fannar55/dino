@@ -517,8 +517,7 @@ async function prepareLater() {
       continue;
     }
     const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
-    // drawn while the button waits, or under a black the scene holds for it (chapter 2's first, for the trail); else as the scene
-    // comes there
+    // drawn while the button waits, in parts; once the scene plays in view the rest is drawn as the scene comes there, under its black
     if (!stage.started || ui.fadeLevel >= 0.999) Object.assign(entry, await warmPrepared(name, forest));
     warmed.push(entry);
   }

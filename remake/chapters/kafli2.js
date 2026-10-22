@@ -805,9 +805,9 @@ export const chapter = {
     c.glow.setAll(1, { duration: 0 });
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
-    // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (main.js
-    // draws it, with the chapter's things, under this black as soon as it is), and the far friends, made (three models parsed: long
-    // frames, here where none shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
+    // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (it is drawn
+    // as the scene comes there, under that black), and the far friends, made (three models parsed: long frames, here where none
+    // shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
     // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
     const far = c.farFriends;
     if (s.seeking) far.load();
