@@ -211,7 +211,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - Hvernig Egill heldur sér á hnakka Þórseðlu (hendur í fellingu á hálsinum, eða lítill kragi af laufum sem hún er með).
 - Hvort brúin (hálsinn yfir síkið) komi síðar sem leiðin heim, þegar Slóeðla er næst hinum megin.
 
-## 10. Breytingar í smíði (2026-10-22)
+## 11. Breytingar í smíði (2026-10-22)
 
 Það sem mælingar og rýni breyttu frá forskriftinni hér að ofan, með ástæðu:
 
@@ -220,7 +220,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Hausinn kemur niður að augum Egils mælt við jörðina hans**, því rót hennar stendur 0,74 m neðar á botninum. Klippan `lowerHead` er fryst í þeim ramma þar sem augun ná hæðinni, og hún horfir á hann með tveggja liða miði.
 - **Fótsporin eru 1,0 × 0,7 m, þrýst í jörðina með brún**, ein ávöl dæld með þremur klóförum sem renna saman við framkantinn (sauropoda-afturspor), og lítið framfótarspor á undan hverju. 0,7 m „pollur" las ekki sem „risastór". Dýrin í sporunum eru teiknuð 1,1× raunstærð svo þau sjáist.
 - **Karfan er laufkarfa og fer eins hátt og handleggir Egils ná** (að höfuðhæð, út til hægri), ekki yfir höfuð: handleggir líkansins eru 0,27 m. Berin hrúgast upp fyrir brúnina og karfan ljómar meðan hún er uppi.
-- **Leitarsviðið ofan af höfðinu er reiknað (um −33° til +178°)**, ekki ±70°, því vinirnir þrír spanna 187°. Eftir að barnið hefur fengið hjálp við einn vin styttast vísbendingar næstu vina í 6 s og fundur í 24 s, svo heil spilun án snertingar klárist innan 10 mínútna.
+- **Leitin ofan af höfðinu er í tveimur hlutum**, ekki ein ±70° leit: fyrst Slóeðla og Flugeðla saman (um −23° til +35°), svo snýr myndavélin sér (15°/s) að Uggeðlu og leitar að henni með ±70°, því vinirnir þrír spanna 187° og ein leit næði þeim ekki. Eftir að barnið hefur fengið hjálp við einn vin styttast vísbendingar næstu vina í 6 s og fundur í 24 s, svo heil spilun án snertingar klárist innan 10 mínútna.
 - **Uggeðla sést frá leitarmyndavélinni en ekki frá sjálfu höfðinu** (sjónlínan liggur í gegnum krónu suðaustur-trésins). Færsla hennar hefði stokkað 75–127 plöntum upp á nýtt og eyðilagt samþykktar myndir; myndavélin er augu Egils í sögunni og krónan rammar hana inn.
 - **Útsýnispunktur skipulagsins (`layout.lookout`) er upphaf sjónlínanna fyrir plöntuskipulagið**, 1,4 m frá raunverulegum stað höfuðsins (`LOOKOUT_HEAD`), og er ekki færður af sömu ástæðu.
 - **Línur:** talningin er í hvorugkyni (`k2_mosi_1..10`, „Eitt!" … „Tíu!") og er notuð bæði fyrir spor og ber; kortið talar aðeins þegar pikkað er á fundinn eða kláraðan vin, tómur reitur þegir.
