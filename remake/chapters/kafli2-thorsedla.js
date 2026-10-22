@@ -327,7 +327,7 @@ function* dripFromNeck(s, c, drops) {
 }
 
 /** Six of the conifer's leaves fall from her mouth, fluttering and turning, and lie on the water or the ground a while. */
-export function leafFall(c, from) {
+function leafFall(c, from) {
   const { world } = c;
   const mesh = new THREE.InstancedMesh(leafShape(), leafMaterial(), LEAVES.count);
   mesh.name = 'Þórseðla leaves';
