@@ -1,4 +1,5 @@
-// The theme, "Little Dino Green Valley", played from assets/audio/theme.mp3 (theme.json says where the file is and how fast it goes).
+// The theme, the chapter's song, played from its file (theme.json says where the file is and how fast it goes; engine/audio/theme.js
+// reads the chapter's): chapter 1's is "Little Dino Green Valley" (assets/audio/theme.mp3), chapter 2's "Dino Trail" (kafli2/theme.mp3).
 // It is streamed: an <audio> element, looping, is routed into Web Audio with createMediaElementSource, so the theme can be ducked
 // and faded like any other sound while the browser decodes it a little at a time. Decoded whole, its 351.6 s would be 135 MB of
 // samples, which a tablet cannot spare.
@@ -23,7 +24,8 @@
 // Before the theme sounds, or when it cannot (no Web Audio, a missing or undecodable file, a browser that wants a touch first), the
 // playhead is simply the clock's time, so the forest dances and the captions show all the same.
 //
-// The file is 351.6 s, which is 556.7 beats, so at each loop the beat grid restarts from the file's own beatOffset.
+// The file's length is read from the file itself: chapter 1's is 351.6 s, which is 556.7 beats, and chapter 2's 176.24 s, 393.6 beats,
+// so at each loop the beat grid restarts from the file's own beatOffset (the forest's follower eases onto it: engine/beat.js).
 
 const LEVEL = 0.6; // the theme's place in the mix, where the old game kept it (dist/audio.js MUSIC_MIX.quiet)
 export const DUCK_DB = -8; // under a recorded line (the book's effects dip as much under its narrator: engine/book/book-audio.js)

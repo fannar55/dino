@@ -14,6 +14,16 @@ export function beatAt(time, { bpm, beatOffset = 0 }) {
   return { index, phase: beats - index };
 }
 
+// The forest may dance on every n-th beat of the theme instead of every one (theme.json `danceBeats`, 1 by default): at a fast tempo the
+// sway and the nod would look twitchy, so Dino Trail's 134 beats a minute are danced at 67 (danceBeats 2), near the 95 of chapter 1's
+// theme, while the effects and the beat grid keep the song's own tempo. The dance's beat 0 is the theme's (a strong beat), so the
+// dance's beats fall on the theme's strong beats, and its own strong beats, where the flowers nod, on every second one of those.
+/** The grid the forest dances on, { bpm, beatOffset }: `theme` itself, or with `bpm` divided by its whole `danceBeats` above 1. */
+export function danceGrid(theme) {
+  const every = Number.isInteger(theme?.danceBeats) && theme.danceBeats > 1 ? theme.danceBeats : 1;
+  return every === 1 ? theme : { ...theme, bpm: theme.bpm / every };
+}
+
 // The forest's sway rides one beat count (the wind's uBeats; world/forest/materials.js reads it). Each band of the forest crests on a
 // wave of its own length in beats (config.js: FOREST.wind.beatPeriods): the trees once in four beats, the ferns and bushes once in two,
 // the grass every beat. Four is the longest, so the count is folded into four beats: every wave fits the fold a whole number of times,
@@ -70,7 +80,8 @@ export function followBeat(followed, target, dt, { bpm }, snap = false) {
   if (!(dt > 0)) return followed;
   const tempo = bpm / 60;
   // From 102.3 beats a minute 1.1 times the tempo is above STEEPEST, so this floor keeps up with the music first; from about 104 a
-  // count catching up at 1.1 times the tempo breaks the grass's 0.1 rule. The theme's 95 is safe.
+  // count catching up at 1.1 times the tempo breaks the grass's 0.1 rule. Chapter 1's 95 is safe, and so is Dino Trail's 134 danced at
+  // 67 (danceGrid: main.js follows the dance's grid); danced at 134 it would not be.
   const top = Math.max(STEEPEST, 1.1 * tempo);
   const gain = top - tempo, lose = top + tempo; // the most the count can gain on the grid a second, and lose on it
   const beats = foldBeats(followed.beats + tempo * dt); // at the tempo first...
@@ -122,7 +133,8 @@ export function danceOf(beats, { bpm }) {
   };
 }
 
-/** The strong beats' dance at `time` (seconds of the music): danceOf the beat count there. A time that is not a number gives no dance. */
+/** The strong beats' dance at `time` (seconds of the music): danceOf the count of the dance's grid there. A time that is not a number gives no dance. */
 export function danceAt(time, theme) {
-  return danceOf(((time - (theme.beatOffset ?? 0)) * theme.bpm) / 60, theme);
+  const grid = danceGrid(theme);
+  return danceOf(((time - (grid.beatOffset ?? 0)) * grid.bpm) / 60, grid);
 }

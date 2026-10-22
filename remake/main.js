@@ -10,7 +10,7 @@ import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
-import { beatsAt, followBeat, danceOf } from './engine/beat.js';
+import { beatsAt, followBeat, danceOf, danceGrid } from './engine/beat.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
@@ -34,6 +34,7 @@ import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
+import { loadTheme } from './engine/audio/theme.js';
 import { createHold } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
@@ -157,15 +158,16 @@ try {
   media = new Map();
   console.warn('[book] Its cards could not be read, so its Dýrin page is empty.', error);
 }
-// The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it. The music reads the
-// theme's file against this URL (theme.json's src), and the effects tune their bells to its key.
-const themeUrl = new URL('./assets/audio/theme.json', import.meta.url);
-let theme = null;
-try {
-  theme = await (await fetch(themeUrl)).json();
-} catch {
-  console.warn('No theme tempo found; the forest sways without the beat.');
-}
+// The theme: the chapter's song (chapter.theme, a theme.json under assets/audio/: chapter 1 the default, "Little Dino Green Valley",
+// chapter 2 "Dino Trail"), its tempo, measured once by tools/theme-tempo.mjs, which the forest sways in time with, and its key, which
+// the effects tune their bells to. The music reads the theme's file against the URL it came from (theme.json's src). It is read once,
+// for the chapter this page plays, before the music is made: the hand-over to the next chapter loads a new page (?chapter=kafli2,
+// below), so the theme never changes while a page lives and needs no live switch. A chapter's theme that cannot be read gives the
+// default (said once in the console); with none at all the forest sways without the beat (engine/audio/theme.js).
+const { theme, url: themeUrl } = await loadTheme(chapter, new URL('./assets/audio/', import.meta.url));
+// The grid the forest dances on: the theme's beats, or every second of them for a fast song (theme.json danceBeats, engine/beat.js
+// danceGrid: Dino Trail's 134 a minute are danced at 67). The effects and the music keep the theme's own tempo.
+const dance = theme && danceGrid(theme);
 // Sound. A capture (?t=) and a review shot (?shot=) are silent and make no audio context at all; a scene somebody plays
 // gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
 const playing = params.get('t') === null && params.get('shot') === null && Boolean(chapter.script);
@@ -180,9 +182,9 @@ const bookAudio = createBookAudio({ context: audio, output, theme, lines });
 // the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
 // on the same beat every time.
 const musicTime = () => music.position;
-// The forest's beat, { beats, speed }: the music's grid, followed without a jump when the playhead jumps (at the first touch, and
-// where the theme loops), and the grid exactly while seeking and in a frozen capture (engine/beat.js: followBeat). Without a theme
-// there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
+// The forest's beat, { beats, speed }: the dance's grid on the music's playhead, followed without a jump when the playhead jumps (at
+// the first touch, and where the theme loops), and the grid exactly while seeking and in a frozen capture (engine/beat.js: followBeat).
+// Without a theme there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
 let followed = null;
 const ui = createStageUI(document);
 const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
@@ -538,10 +540,10 @@ function update(dt) {
   wind.update(clock.time);
   updateMusic(); // if the clock lost time (a long frame) the sound is brought back to the playhead
   updateSfx(dt); // the forest's birds and rustles
-  if (theme) {
-    followed = followBeat(followed, beatsAt(musicTime(), theme), dt, theme, stage.seeking || clock.frozen);
+  if (dance) {
+    followed = followBeat(followed, beatsAt(musicTime(), dance), dt, dance, stage.seeking || clock.frozen);
     wind.setBeats(followed.beats); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat
-    wind.setDance(danceOf(followed.beats, theme)); // and on each strong beat the flowers nod and the mushrooms hop
+    wind.setDance(danceOf(followed.beats, dance)); // and on each strong beat the flowers nod and the mushrooms hop
   }
   updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
   world.effects.update(dt); // after the actors, so a trail follows where a rider is now

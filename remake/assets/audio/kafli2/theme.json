@@ -1,0 +1,9 @@
+{
+ "name": "Dino Trail",
+ "src": "theme.mp3",
+ "bpm": 134,
+ "beatOffset": 0.36,
+ "key": [469.41, 526.89, 591.41, 703.31, 789.44],
+ "danceBeats": 2,
+ "comment": "Chapter 2's theme (chapters/kafli2.js theme). Key: B-flat major pentatonic at A4 = 443 Hz, root first (B-flat4 C5 D5 F5 G5), as tools/theme-tempo.mjs bellNotes writes it: every sound treats key[0] as do. danceBeats 2: the forest sways and the flowers nod on every second beat (67 a minute); the effects and the beat grid keep 134."
+}

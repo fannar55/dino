@@ -628,6 +628,9 @@ export const chapter = {
   title: 'Boð til Þórseðlu',
   next: null, // the last chapter so far: its script ends in the book (main.js shows no hand-over)
   look: 'lateMorning',
+  // Its own song, "Dino Trail" (assets/audio/kafli2/theme.json, read by main.js as the page loads: engine/audio/theme.js); its effects
+  // are tuned to its key, B-flat major, and the forest dances on every second of its 134 beats a minute (theme.json danceBeats)
+  theme: 'kafli2/theme.json',
   start: 'burknalaut',
   locations: {
     burknalaut: {
