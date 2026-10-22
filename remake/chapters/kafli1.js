@@ -887,6 +887,7 @@ function setUpGlade(s, c) {
 export const chapter = {
   id: 'kafli1',
   title: 'Boð til kambeðlunnar',
+  next: 'kafli2', // when its script ends, the book shows an "Áfram" into chapter 2 (main.js)
   look: 'morning',
   start: 'rjodur',
   locations: {

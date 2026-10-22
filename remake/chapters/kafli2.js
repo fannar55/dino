@@ -32,11 +32,11 @@ import {
   TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { BERRY_BUSHES, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
+import { farFriends, lookDown, findFriends } from './kafli2-lookout.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import {
-  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, downToMosi, faceInView, tailSwish, tapOnHer, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, LOOKOUT_CAMERA,
-  MOSI_HEAD,
+  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, faceInView, tailSwish, tapOnHer, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, MOSI_HEAD,
 } from './kafli2-thorsedla.js';
 
 export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
@@ -109,6 +109,12 @@ const alongHer = metres => {
   const h = (THORSEDLA.heading * Math.PI) / 180;
   return { position: [THORSEDLA.position[0] + Math.cos(h) * metres, 0, THORSEDLA.position[2] + Math.sin(h) * metres] };
 };
+
+// The far friends' places, out in the open Fen where the lookout on her head sees them (and the planner keeps the sight lines to
+// them clear of tall plants, from `lookout`): Slóeðla in the far pool p5, Flugeðla on the white snag, Uggeðla in the reed by the
+// channel. Uggeðla's line from Egill's head passes through the south-east conifer's crown: the search sees her from its camera
+// instead (kafli2-lookout.js), as moving her would re-deal 75 to 127 of the Fen's plants.
+const FEN_FAR = { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] };
 
 const FEN_WATER = {
   pools: [
@@ -458,21 +464,14 @@ function* theInvitation(s, c) {
   c.fenCritters.quiet();
 }
 
-// 6. The lookout: up her neck to nine metres, where the child finds the three friends far away.
+// 6. The lookout: up her neck to nine metres (Task 3's lift), where he sees how small Mosi is down there and the child finds the
+// three friends far away, each going onto the book's map (kafli2-lookout.js).
 function* theLookout(s, c) {
   mark(c, 6);
+  yield c.farFriends.ready(); // made behind the start button: long since there
   yield* liftUp(s, c);
-  // (The fifth task: the three friends, found from up here; it rewrites this scene and carries the line and the look down with it.)
-  // For now he looks down a while at Mosi, small below, who has come round to the bank beside her withers to catch him at the end
-  // of the slide; the camera looks down past him, 32 degrees (kafli2-thorsedla.js: LOOK_DOWN), with a wide lens. "Vá… Mosi er
-  // pínulítill!" once the camera has turned down past him to Mosi, so that the child sees what he sees.
-  yield c.egill.lookAt(MOSI_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 50 });
-  s.camera.follow('egill', { ...LOOKOUT_CAMERA, look: downToMosi(c) });
-  yield s.wait(1.4);
-  yield s.say('egill', 'k2_egill_tiny');
-  yield s.wait(3.5);
-  yield c.egill.lookAt(null);
-  s.camera.follow('egill', LOOKOUT_CAMERA);
+  yield* lookDown(s, c);
+  yield* findFriends(s, c);
 }
 
 // 7. The slide down her neck into the saddle.
@@ -508,6 +507,7 @@ function arriveInTheFen(s, c) {
   c.fenCritters = fenAnimals(s, c);
   c.berries = berryBushes(world);
   c.basket = createBasket(world);
+  c.farFriends.show(true); // out in the Fen, seen only from her head
   s.camera.cut('fen_reveal');
 }
 
@@ -521,10 +521,31 @@ function* say(s, c, speaker, id, options) {
   }
 }
 
-// 8. The second star, and the book.
+// 8. The second star, and the book: the star rises from her neck, the sun hugs itself and winks, the child taps the star into the
+// book, and the book opens on its stars, two of them alight now, and turns to the map, where the friends found today are.
+const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, -1, 0] }; // her neck, just under her head
+const SUN_HUGS = 0.2; // seconds after the star appears, as in chapter 1
+const TO_THE_MAP = 1.2; // seconds the book shows its stars before it turns to the map
 function* theStar(s, c) {
   mark(c, 8);
-  yield s.wait(0.1);
+  const { mosi, egill } = c;
+  yield s.camera.cut('fen_star');
+  const above = { actor: 'thorsedla', part: 'head', offset: [0, 1.2, 0] };
+  yield mosi.lookAt(above, { weight: 0.8, maxAngle: 60, maxPitch: 45 });
+  yield egill.lookAt(above, { weight: 0.85, maxAngle: 60, maxPitch: 50 });
+  s.sfx('star');
+  const star = s.star('k2_thorsedla', STAR_FROM);
+  s.after(SUN_HUGS, () => s.sun.hug());
+  yield s.wait(1.4);
+  s.sun.wink();
+  yield* say(s, c, 'mosi', 'k2_mosi_second');
+  yield star;
+  s.sfx('journal');
+  // Into the book, which opens over the Fen on its stars and turns to the map, while Mosi says where they stand.
+  s.fade(0.45, 1.6);
+  s.journal.open('stars');
+  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  yield* say(s, c, 'mosi', 'k2_mosi_two');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -540,6 +561,7 @@ function mark(c, scene) {
 export const chapter = {
   id: 'kafli2',
   title: 'Boð til Þórseðlu',
+  next: null, // the last chapter so far: its script ends in the book (main.js shows no hand-over)
   look: 'lateMorning',
   start: 'burknalaut',
   locations: {
@@ -596,7 +618,7 @@ export const chapter = {
         // no moss hangs between Egill and where her face comes down to him (x 6.0 to 7.3): the north conifer's lowest strands hung
         // there, a bright beard across her shoulder and beside her eye over his shoulder
         mossClear: [{ center: [EGILL_FEN.position[0] - 0.8, EGILL_FEN.position[2]], radius: 1.8 }],
-        farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
+        farFriends: FEN_FAR,
         berries: BERRY_BUSHES, // the berry bushes (world/props/berries.js): not the forest's, it reads no `berries`
         lookout: [5, 9.4, -9], // where the sight lines to the far friends start, that tall plants keep out of (Egill's head: LOOKOUT_HEAD)
         actors: {
@@ -640,7 +662,7 @@ export const chapter = {
     const leaf = leafWarm(world);
     const ground = (x, z) => [x, world.heightAt(x, z), z];
     // a print with its water, its digit up and a splash; one of each of the Fen's animals; a bush of each berry, one in the air; the
-    // basket with a berry in it
+    // basket with a berry in it; and the far friends, once their models are there, so their first frame from her head is no stall
     const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }] });
     prints.count(0);
     prints.splash(0);
@@ -652,8 +674,9 @@ export const chapter = {
     const basket = createBasket(world);
     basket.group.visible = true;
     basket.add('red');
+    const far = world.chapterState?.farFriends;
     return {
-      objects: [...[...world.actors.values()].map(actor => actor.root), leaf.object, prints.group, critters.group, berries.group, basket.group],
+      objects: [...[...world.actors.values()].map(actor => actor.root), leaf.object, prints.group, critters.group, berries.group, basket.group, ...(far?.isReady ? [far.group] : [])],
       shots: ['glade_leaving'],
       dispose() {
         leaf.dispose();
@@ -680,6 +703,8 @@ export const chapter = {
     c.ring = ringsFor(world, { most: 3 });
     c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's and the Fen's pieces
     world.chapterState = c; // what the scenes share, for captures and probes
+    // The three friends far out in the Fen (kafli2-lookout.js): made now, so they are ready behind the start button.
+    c.farFriends = farFriends(s, c, FEN_FAR);
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight. Þórseðla is in the Fen, not here.
     thorsedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw);

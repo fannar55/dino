@@ -371,8 +371,29 @@ function update(dt) {
   mosiCloud.update(clock.time, camera);
 }
 
+let scriptTask = null; // the chapter's script, once it runs: when it ends, the hand-over (below)
 function startScene() {
-  stage.start(chapter.script);
+  scriptTask = stage.start(chapter.script);
+}
+
+// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2) puts
+// a raised "Áfram" pill over the open book, in the book's style (book.css .next-chapter), and a tap on it goes on to that chapter's
+// page. It stands under a game the book opens (it comes before them on the page), and stays if the child shuts the book.
+let handedOver = false;
+function handOver() {
+  if (handedOver || !chapter.next || !scriptTask?.done || scriptTask.failed || scriptTask.cancelled) return;
+  handedOver = true;
+  const next = new URLSearchParams();
+  for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
+  next.set('chapter', chapter.next);
+  const button = document.createElement('button');
+  button.id = 'next-chapter';
+  button.type = 'button';
+  button.className = 'next-chapter';
+  button.setAttribute('aria-label', 'Áfram í næsta kafla');
+  button.innerHTML = '<span>Áfram</span><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 24h24M24 11l13 13-13 13" stroke-width="7"/></svg>';
+  button.addEventListener('click', () => { location.search = `?${next}`; }, { once: true });
+  document.getElementById('book').after(button);
 }
 
 if (shotName || !chapter.script) {
@@ -488,6 +509,7 @@ renderer.setAnimationLoop(now => {
     // Keep drawing: a broken scene object must not freeze the picture. Report the first few.
     if (failures++ < 5) console.error('[frame]', error);
   }
+  handOver(); // the script may have ended in this frame
   if (warmedPlace !== null && world.location !== warmedPlace) {
     // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
     warmedPlace = world.location;

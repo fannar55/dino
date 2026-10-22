@@ -20,7 +20,7 @@ const SOURCE = readJson('../assets/audio/kafli2/lines-source.json');
 const RECORDED = readJson('../assets/audio/lines.json');
 // The script, with its pieces: Þórseðla's part (kafli2-thorsedla.js), the trail's (kafli2-trail.js) and the Fen's (kafli2-fen.js), which
 // speak lines of their own.
-const CHAPTER_TEXT = ['kafli2', 'kafli2-thorsedla', 'kafli2-trail', 'kafli2-fen'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
+const CHAPTER_TEXT = ['kafli2', 'kafli2-thorsedla', 'kafli2-trail', 'kafli2-fen', 'kafli2-lookout'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
 // Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
@@ -149,6 +149,21 @@ test('the default chapter follows the stars', () => {
   assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_thorsedla'])), 'kafli2', 'and chapter 2 again with both, to play it again');
   // The page asks it when its address names no chapter; ?chapter= still says which.
   assert.match(MAIN_TEXT, /params\.get\('chapter'\)\s*\|\|\s*defaultChapter\(save\)/);
+});
+
+test('chapter 1 hands over to chapter 2 with an "Áfram" when its script ends, and chapter 2 to none yet', () => {
+  assert.equal(kafli1.next, 'kafli2', 'chapter 1 names the next');
+  assert.equal(chapter.next, null, 'chapter 2 is the last so far');
+  // main.js: when the script's task is done (and did not fail), a raised "Áfram" pill goes after the book and leads to ?chapter=<next>
+  const main = MAIN_TEXT.replace(/\r\n/g, '\n');
+  assert.match(main, /scriptTask = stage\.start\(chapter\.script\)/, 'the page keeps the script\'s task');
+  assert.match(main, /if \(handedOver \|\| !chapter\.next \|\| !scriptTask\?\.done \|\| scriptTask\.failed \|\| scriptTask\.cancelled\) return;/, 'only a chapter that names the next, once its script has ended');
+  assert.match(main, /next\.set\('chapter', chapter\.next\)/, 'its address names the next chapter');
+  assert.match(main, /className = 'next-chapter'/);
+  assert.match(main, /<span>Áfram<\/span>/, 'and it says Áfram');
+  assert.match(main, /document\.getElementById\('book'\)\.after\(button\)/, 'over the book, under the games it opens');
+  const css = fs.readFileSync(file('../book.css'), 'utf8');
+  assert.match(css, /\.next-chapter \{[^}]*min-height: var\(--book-target\)/, 'a pill the size of the book\'s controls');
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -381,6 +396,93 @@ test('the slide lands in the saddle', async () => {
   assert.ok(seen.landed, 'and landed');
   assert.ok(seen.landed.gap < 0.05, `his root is ${(seen.landed.gap * 100).toFixed(1)} cm from the saddle's seat`);
   assert.equal(seen.landed.controlled, true, 'riding Mosi again');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The lookout, the far friends, the slide and the star (scenes 6 to 8), played by a child who never touches the screen
+
+const FAR = ['sloedla', 'flugedla', 'uggedla'];
+let idled = null;
+function playIdle() {
+  idled ??= (async () => {
+    const seen = { frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null };
+    let phase = null;
+    const run = await playUnattended(kafli2, {
+      seeking: false, limit: 600, shaped: true,
+      onFrame({ world, stage, pointer }) {
+        const c = world.chapterState;
+        const far = c?.farFriends;
+        if (far) {
+          seen.frames++;
+          const shown = FAR.filter(name => far.actorOf(name)?.root.visible && far.group.visible);
+          if (world.camera.position.y <= 6 && shown.length) seen.shownLow.push({ at: stage.s.time, y: world.camera.position.y, shown });
+          if (shown.length === FAR.length) {
+            seen.shownHigh++;
+            for (const name of FAR) {
+              let triangles = 0;
+              far.actorOf(name).root.traverse(o => {
+                if (!o.isMesh || !o.visible) return;
+                triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+                if (o.castShadow) seen.casters++;
+              });
+              seen.heaviest = Math.max(seen.heaviest, triangles);
+              seen.lightest = Math.min(seen.lightest, triangles);
+            }
+          }
+        }
+        // the lift and the slide wait for a tap on Egill, and go by themselves
+        if (c?.phase !== phase) {
+          phase = c?.phase;
+          if (phase === 'floating up') seen.floating = stage.s.time;
+          if (phase === 'sliding') seen.sliding = stage.s.time;
+        }
+        if (pointer.targets.has('seat') && seen.floatTarget === null) seen.floatTarget = stage.s.time;
+        if (world.chapterTimeline?.at(-1)?.scene === 7 && pointer.targets.has('egill') && seen.slideTarget === null) seen.slideTarget = stage.s.time;
+      },
+    });
+    return { ...run, seen };
+  })();
+  return idled;
+}
+
+test('the chapter plays to its end unattended with no director warnings', async () => {
+  const { task, stage, world, director, journal, book } = await playIdle();
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  assert.ok(stage.s.time < 600, `it took ${stage.s.time.toFixed(1)} s`);
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(world.location, 'fen');
+  assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
+  assert.deepEqual([...journal.places].sort(), [...FAR].sort(), 'and the three far friends\' places are on its map');
+  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['stars', 'map'], 'the book opens on the stars and turns to the map');
+  assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
+});
+
+test('no fail states: the far friends are hinted and found for a child who taps nothing, and the slide goes by itself', async () => {
+  const { captions, world, seen } = await playIdle();
+  const said = text => captions.filter(c => c.text === text).length;
+  const lines = world.chapter.lines;
+  for (const [k, name] of FAR.entries()) {
+    assert.equal(said(lines[`k2_mosi_hint_far${k + 1}`].text), 3, `three hints for ${name}`);
+    assert.equal(said(lines[`k2_mosi_found_${name}`].text), 1, `then she is found, and Mosi names her`);
+  }
+  const finds = world.chapterState.farFinds;
+  assert.deepEqual(finds.map(f => f.name), FAR, 'in the order of the hints');
+  assert.ok(finds.every(f => f.how === 'helped'), 'each found for the child');
+  assert.ok(finds[0].at - sceneStart(world, 6) < 120, 'the first within two minutes of the lookout');
+  assert.ok(seen.floating - seen.floatTarget >= 6 - 1e-6, `he floated up onto her head by himself after ${(seen.floating - seen.floatTarget).toFixed(1)} s`);
+  assert.ok(seen.sliding - seen.slideTarget >= 5 - 1e-6, `and slid down by himself after ${(seen.sliding - seen.slideTarget).toFixed(1)} s`);
+  const now = captions.find(c => c.text === lines.k2_thorsedla_now.text);
+  assert.ok(now && now.at > finds[2].at, '"Nú veistu hvar þau eru." after the third');
+});
+
+test('the far friends only show from above', async () => {
+  const { seen } = await playIdle();
+  assert.ok(seen.frames > 1000, 'they were there to look at');
+  assert.deepEqual(seen.shownLow.slice(0, 3), [], 'never with the camera at 6 m or lower');
+  assert.ok(seen.shownHigh > 30 * 60, `all three in ${(seen.shownHigh / 30).toFixed(0)} s of frames from her head`);
+  assert.ok(seen.heaviest <= 2200 && seen.lightest > 200, `each draws ${seen.lightest} to ${seen.heaviest} triangles (the light levels)`);
+  assert.equal(seen.casters, 0, 'and casts no shadow');
 });
 
 // ---------------------------------------------------------------------------------------------

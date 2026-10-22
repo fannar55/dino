@@ -1,0 +1,220 @@
+import * as THREE from 'three';
+import { createActor } from '../../engine/actor.js';
+import { createThorsedlaLod } from '../../engine/hals/thorsedla-lod.js';
+import { Handle } from '../../engine/handle.js';
+import { sparkleBurst } from './sparkles.js';
+
+// The far friends of chapter 2's lookout (spec scene 6, "Vinirnir í fjarska"): Slóeðla wading in a far pool, Flugeðla on a dead white
+// snag standing out of the Fen and Uggeðla lying in the reed with her sail up, each at real size and 80 to 100 m from Þórseðla's
+// head, where Egill finds them. They are the game's own models drawn only with Háls og hali's light levels (engine/hals/
+// thorsedla-lod.js: a welded copy of the skin, 1,400 triangles, coloured from its texture in its vertices), as the board's watching
+// friends are: made in a world of their own whose renderer is null, so character-lod.js keeps no full levels of them, casting no
+// shadow and without their eyelid shells (a speck at that distance). They show only while the camera is more than 6 m up, from her
+// head: in every frame on the ground they are hidden and are not even moved, so they cost nothing there.
+//
+//   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun })
+//     position   x and z where the friend stands, and y how far above the ground there its feet are (for Flugeðla, perch:
+//                'snag', above the top of the dead snag the forest grew there; for one lying, sink: metres her body goes into the reed)
+//     heading    degrees, 0 facing +X and 90 facing +Z, as everywhere
+//     clip       what she does while she waits: 'idle', or 'wade' (a few slow steps along her pool now and then, on the walk clip
+//                where the model has no wading clip of its own)
+//   far.targets                     [{ name, point, radius: 2.5 }] for s.search: each point is the friend's middle, kept up to date
+//   far.show(on)                    puts them out (in the place they belong to, grounded on its ground), or away
+//   far.glimmer(name, on)           gold glints round her now and then, while she waits to be found
+//   far.react(name) -> Handle       found: Slóeðla steps toward the lookout and calls, Flugeðla spreads her wings (the first half
+//                                   of takeOff, then land), Uggeðla lifts her head (kink); done when it is over
+//   far.update(dt, camera, heightPx) every frame (the chapter puts it on world.effects)
+//   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden)
+//   far.actorOf(name), far.group, far.isReady, far.dispose()
+
+const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus' };
+const url = model => new URL(`../../assets/characters/${model}.glb`, import.meta.url).href;
+export const SHOW_ABOVE = 6; // metres the camera must be above for them to show
+const LIGHT_ONLY = [Infinity, Infinity, Infinity, Infinity]; // thorsedla-lod's levels by pixels: always the lightest
+const TARGET_RADIUS = 2.5;
+const GLIMMER = { every: 1.25, count: 11, size: 1.7, spread: 2.6, duration: 1.3 };
+const WADE = { every: [6, 10], reach: 2.6, speed: 0.55 };
+const FOUND_BURST = { count: 36, size: 2.2, spread: 4, duration: 1.8 };
+
+export function createFarFriends(world, { friends, sun = null } = {}) {
+  const group = new THREE.Group();
+  group.name = 'Far friends';
+  group.visible = false;
+  world.scene.add(group);
+  // Háls og hali's light levels, without the sun: no shadow casters (thorsedla-lod adds one only for a sun that casts).
+  const lod = createThorsedlaLod(null);
+  void sun;
+  let shown = false;
+  let isReady = false;
+  let time = 0;
+
+  const entries = new Map(Object.entries(friends).map(([name, spec], i) => [name, {
+    name, spec, actor: null, home: null, glimmering: false, nextGlint: 0.3 * i, glints: 0, timers: [], nextWade: 0, wadeOut: true,
+    target: { name, point: new THREE.Vector3(spec.position[0], (spec.position[1] ?? 0) + 2, spec.position[2]), radius: TARGET_RADIUS },
+  }]));
+  const targets = [...entries.values()].map(entry => entry.target);
+
+  /** The ground a friend stands on: the place's ground, the top of the snag she perches on, or a little under it for one lying. */
+  function groundOf(entry) {
+    const [x, , z] = entry.spec.position;
+    if (entry.spec.perch === 'snag') {
+      const snag = world.forest?.info?.placementList?.find(p => p.name === 'deadSnag' && Math.hypot(p.x - x, p.z - z) < 1.5);
+      if (snag) return snag.y + (snag.height ?? 0);
+    }
+    return world.heightAt(x, z) - (entry.spec.sink ?? 0);
+  }
+
+  /** Puts each friend where she belongs, on the ground of the place in view now. */
+  function ground() {
+    for (const entry of entries.values()) {
+      if (!entry.actor) continue;
+      const [x, y = 0, z] = entry.spec.position;
+      const base = groundOf(entry) + y;
+      entry.own.heightAt = entry.spec.perch === 'snag' ? () => base : (px, pz) => world.heightAt(px, pz) - (entry.spec.sink ?? 0) + y;
+      entry.actor.place(x, z, entry.spec.heading ?? 0);
+      entry.home = entry.actor.root.position.clone();
+      entry.actor.centre(entry.target.point);
+    }
+  }
+
+  async function load(entry) {
+    const own = Object.create(world);
+    own.renderer = null; // its own light levels (thorsedla-lod.js), not character-lod.js's
+    own.scene = { add: object => group.add(object), remove: object => group.remove(object) };
+    entry.own = own;
+    const address = url(MODELS[entry.name]);
+    const gltf = world.loadModel ? await world.loadModel(address) : undefined; // tests read the file themselves
+    const actor = await createActor(own, { name: `far-${entry.name}`, url: address, gltf, position: entry.spec.position, heading: entry.spec.heading ?? 0 });
+    // A speck at 80 m: no eyelid shells, no shadow either way.
+    const lids = [];
+    actor.model.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false;
+      o.receiveShadow = false;
+      if (/eyelids/i.test(o.name)) lids.push(o);
+    });
+    for (const lid of lids) lid.removeFromParent();
+    entry.actor = actor;
+    play(entry, entry.spec.clip === 'wade' && !actor.clips.has('wade') ? 'idle' : entry.spec.clip ?? 'idle');
+    await lod.add(actor, { levels: LIGHT_ONLY });
+  }
+
+  function play(entry, clip, options = {}) {
+    if (!entry.actor?.clips.has(clip)) return null;
+    return entry.actor.play(clip, { fade: 0.4, ...options });
+  }
+
+  /** Something to do `delay` seconds from now, on the friends' own clock (it runs while they show). */
+  function after(entry, delay, fn) {
+    entry.timers.push({ at: time + delay, fn });
+  }
+
+  const loading = Promise.all([...entries.values()].map(entry => load(entry).catch(error => {
+    console.warn(`[far-friends] ${entry.name} could not be made:`, error?.message ?? error);
+  }))).then(() => {
+    isReady = [...entries.values()].every(entry => entry.actor);
+    if (shown) ground();
+  });
+
+  function show(on = true) {
+    shown = Boolean(on);
+    if (shown && isReady) ground();
+  }
+
+  function glimmer(name, on = true) {
+    const entry = entries.get(name);
+    if (!entry) return;
+    entry.glimmering = Boolean(on);
+    entry.nextGlint = time;
+  }
+
+  /** Slóeðla's slow wading: a few steps one way along her pool, and later back. */
+  function wade(entry) {
+    if (!entry.home || entry.actor.walking || entry.reacting) return;
+    const h = THREE.MathUtils.degToRad(entry.spec.heading ?? 0);
+    const out = entry.wadeOut ? WADE.reach : 0;
+    entry.wadeOut = !entry.wadeOut;
+    const to = [entry.home.x + Math.cos(h) * out, entry.home.z + Math.sin(h) * out];
+    const back = entry.wadeOut; // she comes back facing the other way, and turns to her heading again
+    entry.actor.walkTo([to], { speed: WADE.speed, clip: entry.actor.clips.has('wade') ? 'wade' : 'walk' });
+    if (back) after(entry, 7, () => { if (!entry.actor.walking) entry.actor.turnTo(entry.spec.heading ?? 0, { rate: 40 }); });
+  }
+
+  function react(name) {
+    const entry = entries.get(name);
+    const handle = new Handle(`far ${name}`);
+    if (!entry?.actor) return handle.finish();
+    entry.reacting = true;
+    entry.glimmering = false;
+    sparkleBurst(world, entry.target.point.clone(), { ...FOUND_BURST, seed: `found ${name}` });
+    const done = seconds => after(entry, seconds, () => {
+      entry.reacting = false;
+      handle.finish();
+    });
+    const { actor } = entry;
+    if (name === 'sloedla') {
+      // a few steps toward the lookout, and she calls
+      const h = THREE.MathUtils.degToRad(entry.spec.heading ?? 0);
+      const from = actor.root.position;
+      actor.walkTo([[from.x + Math.cos(h) * 1.8, from.z + Math.sin(h) * 1.8]], { speed: 0.8 });
+      after(entry, 2.4, () => play(entry, 'call', { fade: 0.35 }));
+      after(entry, 2.4 + (actor.clips.get('call')?.duration ?? 4), () => play(entry, 'idle', { fade: 0.6 }));
+      done(3.6);
+    } else if (name === 'flugedla') {
+      // she spreads her wings: the first half of her take-off, then she settles again
+      const takeOff = actor.clips.get('takeOff');
+      play(entry, 'takeOff', { fade: 0.25, once: true });
+      const half = (takeOff?.duration ?? 3.2) / 2;
+      after(entry, half, () => play(entry, 'land', { fade: 0.35, once: true }));
+      after(entry, half + (actor.clips.get('land')?.duration ?? 3), () => play(entry, 'idle', { fade: 0.5 }));
+      done(half + 1.6);
+    } else {
+      // she lifts her head out of the reed
+      play(entry, 'kink', { fade: 0.3 });
+      after(entry, actor.clips.get('kink')?.duration ?? 2.4, () => play(entry, 'idle', { fade: 0.6 }));
+      done(2.4);
+    }
+    return handle;
+  }
+
+  const glintAt = new THREE.Vector3();
+  function update(dt, camera, heightPx = 800) {
+    time += dt;
+    for (const entry of entries.values()) {
+      for (const timer of [...entry.timers]) {
+        if (time < timer.at) continue;
+        entry.timers.splice(entry.timers.indexOf(timer), 1);
+        timer.fn();
+      }
+    }
+    const high = shown && isReady && Boolean(camera) && camera.position.y > SHOW_ABOVE;
+    group.visible = high;
+    if (!high) return; // on the ground they are not seen, and nothing of them is moved or drawn
+    for (const entry of entries.values()) {
+      entry.actor.update(dt);
+      if (!entry.reacting) entry.actor.centre(entry.target.point);
+      if (entry.spec.clip === 'wade' && time >= entry.nextWade) {
+        wade(entry);
+        entry.nextWade = time + WADE.every[0] + ((entry.glints++ * 0.618) % 1) * (WADE.every[1] - WADE.every[0]);
+      }
+      if (entry.glimmering && time >= entry.nextGlint) {
+        entry.nextGlint = time + GLIMMER.every;
+        glintAt.copy(entry.target.point);
+        sparkleBurst(world, glintAt.clone(), { count: GLIMMER.count, size: GLIMMER.size, spread: GLIMMER.spread, duration: GLIMMER.duration, seed: `glimmer ${entry.name} ${entry.glints++ % 6}` });
+      }
+    }
+    lod.update(camera, heightPx);
+  }
+
+  return {
+    targets, group, show, glimmer, react, update,
+    ready: () => loading,
+    get isReady() { return isReady; },
+    get shown() { return shown; },
+    actorOf: name => entries.get(name)?.actor ?? null,
+    dispose() {
+      for (const entry of entries.values()) entry.actor?.dispose();
+      group.removeFromParent();
+    },
+  };
+}
