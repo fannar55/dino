@@ -289,23 +289,29 @@ void main() {
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
   #ifdef PRINT_WATER
   // A footprint's water: a few centimetres over a mud floor. Its shore is the print's own shape, per pixel. Looking down it is
-  // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, the sky
-  // and the sun in it turn gold. The next to count glimmers: its sparks twinkle whatever the sun, and a ring of light goes out from
-  // the middle of the pad again and again.
+  // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, it lies
+  // still and lights up gold from within, the sky in it gold too (the sky times the gold: mixed in, a bright sky turns it to sand),
+  // with a gold line where the light catches its shore and gold in its sheen and sparks. The next to count glimmers: its sparks twinkle whatever the sun, and
+  // a ring of light goes out from the middle of the pad again and again. A ring where something touched it shows in its tilt and
+  // a thin crest, not a wash of white over so small a water.
   float pd = printDistance( vLocal );
   float printShore = smoothstep( 0.0, uFade, - pd );
   if ( printShore <= 0.0 ) discard;
+  float done = vState.x;
   vec3 floorTint = mix( uBed, uDeep * 0.7, 0.3 * smoothstep( 0.0, 0.25, - pd ) );
-  vec3 printSky = mix( sky, uGold, 0.4 * vState.x );
-  col = mix( floorTint, printSky, fresnel * 0.9 );
-  col += mix( uGlint, uGold, vState.x ) * ( sheen * ( 1.0 + 2.0 * vState.x ) + glint + glitter * ( 1.0 + vState.x ) );
+  floorTint = mix( floorTint, uGold * 0.45, 0.85 * done );
+  col = mix( floorTint, sky * mix( vec3( 1.0 ), uGold * vec3( 1.35, 1.1, 1.0 ), done ), fresnel * 0.9 );
+  float rim = ( - pd - 0.03 ) / 0.018;
+  float goldRim = exp( - rim * rim ) * done;
+  col += uGold * ( goldRim * 0.55 + sparks * done * 0.9 );
+  col += mix( uGlint, uGold, done ) * ( sheen * ( 1.0 + 2.0 * done ) + glint + glitter * ( 1.0 + done ) );
   float run = fract( uTime * 0.6 );
   float wave = ( length( vLocal - uBlobs[ 0 ].xy ) - run * 0.42 ) / 0.03;
   float lightRing = exp( - wave * wave ) * ( 1.0 - run ) * vState.y;
   float twinkle = sparks * vState.y * 2.5;
   col += uGlint * ( lightRing * 0.9 + twinkle );
-  col = mix( col, uHorizon * 1.05, clamp( crest * 0.45, 0.0, 0.6 ) );
-  alpha = printShore * clamp( 0.5 + fresnel * 0.5 + glint + glitter + crest * 0.25 + lightRing * 0.6 + twinkle * 0.5, 0.0, 1.0 );
+  col = mix( col, uHorizon * 1.05, clamp( crest * crest * 0.3, 0.0, 0.3 ) );
+  alpha = printShore * clamp( 0.5 + fresnel * 0.5 + done * 0.25 + goldRim * 0.4 + glint + glitter + crest * 0.15 + lightRing * 0.6 + twinkle * 0.5, 0.0, 1.0 );
   #endif
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
