@@ -284,6 +284,22 @@ test('a child who finds Mosi\'s nose late still has time to make him sneeze: the
   assert.ok(world.chapterTimeline.at(-1).scene >= 4, 'and the story goes on to the Star Festival');
 });
 
+test('the "atsjú!" is the last burst of the sneeze\'s mouth track, 1.5 s in when the line has none; the scene gives a line\'s mouth track, or null', () => {
+  assert.equal(kafli1.atsjuOf('0f0000ff00'), 0.3, 'the last run of sound starts at frame 6 of 20 a second');
+  assert.equal(kafli1.atsjuOf('0ff'), 0.05);
+  assert.equal(kafli1.atsjuOf(''), 1.5, 'an empty track');
+  assert.equal(kafli1.atsjuOf(null), 1.5, 'no recording');
+  assert.equal(kafli1.atsjuOf('0000'), 1.5, 'a silent one');
+  const { s } = createScene({
+    world: { chapter: { lines: { a: { text: 'Atsjú!', audio: 'rec_a' }, b: { text: 'No recording.' }, c: { text: 'A lost one.', audio: 'rec_c' } } } },
+    director: {}, ui: {}, voice: {}, lines: { rec_a: { src: 'a.mp3', duration: 0.5, mouth: '0f80' } },
+  });
+  assert.equal(s.lineMouth('a'), '0f80');
+  assert.equal(s.lineMouth('b'), null, 'a line with no recording');
+  assert.equal(s.lineMouth('c'), null, 'a recording lines.json does not have');
+  assert.equal(s.lineMouth('nowhere'), null, 'a line the chapter does not have');
+});
+
 test('an eager child who taps everything: each tap does its one thing once, and the optional ones never get in the way', async () => {
   const { task, stage, journal, captions, added, lines, director, seen } = await playedByAnEagerChild();
   assert.equal(task.done, true, `still going at ${stage.s.time.toFixed(1)} s`);
@@ -293,9 +309,8 @@ test('an eager child who taps everything: each tap does its one thing once, and 
   // "atsjú!", the last burst of sound in the recording.
   assert.equal(said('k1_mosi_tickle').length, 1);
   assert.equal(said('k1_mosi_sneeze').length, 1);
-  const loud = [...lines.k1_mosi_sneeze.mouth].map(level => parseInt(level, 16) > 0);
-  let atsju = loud.lastIndexOf(true);
-  while (atsju > 0 && loud[atsju - 1]) atsju--;
+  // Read here on its own, not with the chapter's function: the last run of non-zero frames before the closing quiet.
+  const atsju = /[1-9a-f]+0*$/.exec(lines.k1_mosi_sneeze.mouth).index;
   const sneeze = said('k1_mosi_sneeze')[0].at + atsju / 20;
   assert.ok(added.some(o => o.name === 'Sparkles' && o.normal && Math.abs(o.at - sneeze) < 0.1), `pollen flies on the "atsjú!", at ${sneeze.toFixed(2)} s`);
   assert.ok(seen.floatStart, 'Egill floated up when tapped');

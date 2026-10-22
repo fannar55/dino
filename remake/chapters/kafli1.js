@@ -353,6 +353,8 @@ export function lastBurst(mouth) {
   return at / MOUTH_RATE;
 }
 const ATSJU = 1.5;
+/** Seconds into the sneeze where the pollen flies: the last burst of its mouth track, or ATSJU without one. */
+export const atsjuOf = mouth => lastBurst(mouth) ?? ATSJU;
 // Seconds the nose still waits for its second tap once the giggle of the first is over.
 const NOSE_AGAIN = 4;
 
@@ -374,7 +376,7 @@ function* hello(s, c) {
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
-    if (taps === 2) s.after(lastBurst(s.lineMouth('k1_mosi_sneeze')) ?? ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
+    if (taps === 2) s.after(atsjuOf(s.lineMouth('k1_mosi_sneeze')), () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
     until = Math.max(until, s.time + NOSE_AGAIN);
   }
