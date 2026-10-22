@@ -474,3 +474,13 @@ test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book', 
   assert.ok(run.journal.findings.includes('dragonfly'), `the dragonfly is in the book (${run.journal.findings.join(', ')})`);
   assert.ok(run.seen.earlyTap.movedAt !== null, 'and it darted off');
 });
+
+test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing more', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'thorsedla', after: 1 } });
+  const { seen, added, world } = run;
+  assert.ok(seen.earlyTap, 'she could be tapped as the Fen opens');
+  const at = seen.earlyTap.at;
+  assert.ok(added.some(o => o.name === 'Þórseðla leaves' && o.at >= at - 1e-6 && o.at - at < 0.1), 'leaves fall from her mouth at the tap');
+  assert.equal(world.chapterState.taps, 1, 'one tap');
+  assert.ok(world.chapterState.swishLog.some(t => t >= at - 1e-6 && t - at < 0.2), 'and her tail swishes at it');
+});

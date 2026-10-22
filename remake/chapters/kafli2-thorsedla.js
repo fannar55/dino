@@ -4,6 +4,7 @@
 //   headDown(s, c)       her head comes down out of the conifers to Egill's eyes and holds there
 //   liftUp(s, c)         he floats onto the back of her head and she lifts him to nine metres; Mosi comes round to catch him later
 //   slideDown(s, c)      she bends her neck and he slides down it into the saddle on Mosi
+//   tailSwish(s, c)      her tail swishes from side to side; tapOnHer(s, c): that, and leaves falling from her mouth (a tap on her)
 // `c` is the chapter's shared state (its cast as s.actor wrappers, world, saddle, ring); each piece leaves `c.phase` saying where it
 // has got to, for captures and probes. Engine pieces: engine/riding.js (createSeat, ride, floatTo) and engine/neck-ride.js.
 import * as THREE from 'three';
@@ -63,6 +64,7 @@ const SWING = { from: 0.65, to: 1, most: 0.5 };
 // where her mouth closes on the twigs.
 const LIFE = { first: 2.5, gap: [7, 12], nod: 2.8, bite: 0.95, chew: 1.4 };
 const LEAVES = { count: 6, rest: 2.5, shrink: 0.6, colours: [FEN.canopyMid, FEN.canopySun, FEN.hangingMoss] };
+const TAIL_BONES = ['Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6', 'Tail7']; // the ones her tail swishes with (tailSwish)
 // For the slide she bends her neck down again, liftUp backwards to 5.3 s, so it slopes from her head to her withers like a slide.
 const BEND = { to: 5.3, rate: 0.7 };
 const SLIDE_WAIT = 5;
@@ -327,14 +329,14 @@ function* dripFromNeck(s, c, drops) {
 }
 
 /** Six of the conifer's leaves fall from her mouth, fluttering and turning, and lie on the water or the ground a while. */
-function leafFall(c, from) {
+function leafFall(c, from, seed = c.life.log.length) {
   const { world } = c;
   const mesh = new THREE.InstancedMesh(leafShape(), leafMaterial(), LEAVES.count);
   mesh.name = 'Þórseðla leaves';
   mesh.frustumCulled = false; // they fall out of any bounds taken at the start
   mesh.castShadow = false;
   mesh.receiveShadow = true;
-  const random = seededRandom(`leaves ${c.life.log.length}`);
+  const random = seededRandom(`leaves ${seed}`);
   const tint = new THREE.Color();
   const leaves = Array.from({ length: LEAVES.count }, (_, i) => {
     const start = from.clone().add(new THREE.Vector3((random() - 0.5) * 0.7, (random() - 0.5) * 0.3, (random() - 0.5) * 0.7));
@@ -416,6 +418,69 @@ export function leafWarm(world) {
   mesh.visible = false;
   world.scene.add(mesh);
   return { object: mesh, dispose() { mesh.removeFromParent(); mesh.dispose(); } };
+}
+
+/**
+ * Her tail swishes from side to side, twice, laid over her clip as engine/hand-hold.js lays a hold over one: each frame the clip's
+ * own turn goes back to every bone the mixer left as the swish set it, then the swish turns the tail about the vertical, more
+ * toward its tip. A task (yield it to wait, or let it run).
+ */
+export function* tailSwish(s, c, { seconds = 2.4, reach = 0.1 } = {}) {
+  if (c.swishing) return;
+  c.swishing = true;
+  (c.swishLog ??= []).push(s.time);
+  const her = c.thorsedla.raw;
+  const bones = TAIL_BONES.map(name => her.model.getObjectByName(name)).filter(Boolean);
+  const own = bones.map(() => new THREE.Quaternion());
+  const set = bones.map(() => null);
+  const parent = new THREE.Quaternion(), turn = new THREE.Quaternion(), local = new THREE.Quaternion();
+  const UP = new THREE.Vector3(0, 1, 0);
+  let t = 0;
+  let over = false;
+  c.world.effects.add({
+    label: 'her tail swishes',
+    update(dt) {
+      for (let i = 0; i < bones.length; i++) {
+        if (set[i] && bones[i].quaternion.equals(set[i])) bones[i].quaternion.copy(own[i]);
+        set[i] = null;
+      }
+      if (over) return false;
+      t += dt;
+      const k = Math.sin(Math.PI * Math.min(1, t / seconds)) * Math.sin((Math.PI * 2 * t * 2) / seconds);
+      her.root.updateMatrixWorld(true);
+      bones.forEach((bone, i) => {
+        own[i].copy(bone.quaternion);
+        bone.parent.getWorldQuaternion(parent);
+        turn.setFromAxisAngle(UP, reach * k * (0.6 + 0.4 * i));
+        local.copy(parent).invert().multiply(turn).multiply(parent);
+        bone.quaternion.premultiply(local);
+        bone.updateMatrixWorld(true);
+        set[i] = bone.quaternion.clone();
+      });
+      if (t >= seconds) over = true;
+      return true;
+    },
+  });
+  try {
+    yield s.wait(seconds);
+  } finally {
+    c.swishing = false;
+  }
+}
+
+/**
+ * A tap on her while her head is up in the trees (scene 3): her tail swishes and a few leaves fall from her mouth, nothing more;
+ * a tap while the tail still swishes is part of that one. Starts its own task: an onTap handler's return is not waited on.
+ */
+export function tapOnHer(s, c) {
+  if (c.swishing || c.tapping) return;
+  c.tapping = true;
+  c.taps = (c.taps ?? 0) + 1;
+  s.after(0, function* swish() {
+    c.tapping = false;
+    yield* tailSwish(s, c);
+  });
+  leafFall(c, mouthOf(c.thorsedla.raw), `tap ${c.taps}`);
 }
 
 /** Where her mouth closes on the twigs: in front of and under her Head bone, toward the tip of her snout. */

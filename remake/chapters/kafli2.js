@@ -33,7 +33,7 @@ import { sparkleTrail } from '../world/props/sparkles.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import {
-  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, downToMosi, mouthOf, faceInView, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, LOOKOUT_CAMERA,
+  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, downToMosi, mouthOf, faceInView, tailSwish, tapOnHer, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, LOOKOUT_CAMERA,
   MOSI_HEAD,
 } from './kafli2-thorsedla.js';
 
@@ -214,7 +214,6 @@ const EGILL_FEN_WAY = [[10.4, -8.7], [EGILL_FEN.position[0], EGILL_FEN.position[
 const HER_HEAD = { actor: 'thorsedla', part: 'head' };
 const HER_MIDDLE = 'thorsedla';
 const EGILL_HEAD = 'egill.head';
-const TAIL_BONES = ['Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6', 'Tail7'];
 // The child drags the basket up to over Egill's head, or taps him (scene 4).
 const OVER_EGILL = { actor: 'egill', part: 'head', offset: [0.15, 0.45, 0], local: true };
 // The berry search: the free look's limits round the view behind Egill (fen_pick), and Mosi's three hints, one after another.
@@ -605,7 +604,7 @@ function* theFen(s, c) {
   thorsedlaLife(s, c);
   // The trail ends on Mosi's hummock: the camera rises over the Fen and pans across it, the pools glittering, the early bird
   // flying up out of the reed, to Þórseðla in the water at her real size; a tap on her swishes her tail.
-  const herTap = s.onTap('thorsedla', () => { tailSwish(s, c); });
+  const herTap = s.onTap('thorsedla', () => { tapOnHer(s, c); });
   s.target('thorsedla', { point: HER_MIDDLE, radius: 2.6 });
   const arriving = mosi.walkTo(FEN_ARRIVAL, { speed: 1.45 });
   const reveal = s.camera.move('fen_reveal_end', { duration: REVEAL_SECONDS });
@@ -821,53 +820,6 @@ function arriveInTheFen(s, c) {
   c.berries = createBerryBushes(world, { bushes: BERRY_BUSHES.map(b => ({ ...b, position: [b.position[0], ground(...b.position), b.position[1]] })) });
   c.basket = createBasket(world);
   s.camera.cut('fen_reveal');
-}
-
-/**
- * Her tail swishes from side to side, twice, laid over her clip as engine/hand-hold.js lays a hold over one: each frame the clip's
- * own turn goes back to every bone the mixer left as the swish set it, then the swish turns the tail about the vertical, more
- * toward its tip. A task (yield it to wait, or let it run).
- */
-function* tailSwish(s, c, { seconds = 2.4, reach = 0.1 } = {}) {
-  if (c.swishing) return;
-  c.swishing = true;
-  const her = c.thorsedla.raw;
-  const bones = TAIL_BONES.map(name => her.model.getObjectByName(name)).filter(Boolean);
-  const own = bones.map(() => new THREE.Quaternion());
-  const set = bones.map(() => null);
-  const parent = new THREE.Quaternion(), turn = new THREE.Quaternion(), local = new THREE.Quaternion();
-  const UP = new THREE.Vector3(0, 1, 0);
-  let t = 0;
-  let over = false;
-  c.world.effects.add({
-    label: 'her tail swishes',
-    update(dt) {
-      for (let i = 0; i < bones.length; i++) {
-        if (set[i] && bones[i].quaternion.equals(set[i])) bones[i].quaternion.copy(own[i]);
-        set[i] = null;
-      }
-      if (over) return false;
-      t += dt;
-      const k = Math.sin(Math.PI * Math.min(1, t / seconds)) * Math.sin((Math.PI * 2 * t * 2) / seconds);
-      her.root.updateMatrixWorld(true);
-      bones.forEach((bone, i) => {
-        own[i].copy(bone.quaternion);
-        bone.parent.getWorldQuaternion(parent);
-        turn.setFromAxisAngle(UP, reach * k * (0.6 + 0.4 * i));
-        local.copy(parent).invert().multiply(turn).multiply(parent);
-        bone.quaternion.premultiply(local);
-        bone.updateMatrixWorld(true);
-        set[i] = bone.quaternion.clone();
-      });
-      if (t >= seconds) over = true;
-      return true;
-    },
-  });
-  try {
-    yield s.wait(seconds);
-  } finally {
-    c.swishing = false;
-  }
 }
 
 /** A required tap on an actor that also ends by itself when `idle` is done: a wait for the child with no hints (kafli1's). */
