@@ -63,10 +63,15 @@ test('the trail and the Fen built in slices are the places built at once, and no
     assert.deepEqual(ground(sliced), ground(whole), `${name}: the same ground`);
     assert.ok(waits > 60, `${name}: built over ${waits} frames`);
     // each slice is the budget and at most one step more: a step is a plant tried (its model built the first time), a row of the
-    // ground or the grass, a bucket's plant merged; generous for a busy machine (the browser's frames are measured in the report)
-    const longest = Math.max(...slices.slice(1)); // the first runs the code cold
+    // ground or the grass, a bucket's plant merged; generous for a busy machine (the browser's frames are measured in the report).
+    // A step that is long is long in every build; a pause of the machine's own (the collector, the other tests) is not, so the
+    // place is built in slices once more and the shorter of the two longest slices is what counts.
+    const again = [];
+    const twice = await createForest(nodeWorld(), layoutOf(name), { slice: { budget: () => 4, wait: () => Promise.resolve(), onSlice: ms => again.push(ms) } });
+    const longest = Math.min(Math.max(...slices.slice(1)), Math.max(...again.slice(1))); // the first runs the code cold
     assert.ok(longest < 60, `${name}: its longest slice took ${longest.toFixed(1)} ms`);
     whole.dispose();
     sliced.dispose();
+    twice.dispose();
   }
 });

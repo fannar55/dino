@@ -188,9 +188,15 @@ export function fakeBook() {
  * it appears and drags each flower to Kambeðla's mouth. `noseAt` is for a child who taps only Mosi's nose: the seconds after it
  * becomes a target at which each tap comes. `earlyTap` ({ name, after }) is for a child who taps one target `after` seconds after
  * it appears, and nothing else. `shaped` plays on each place's own ground and water (groundOnly) instead of a flat floor, and
- * `onFrame({ t, world, stage, director, pointer })` is called after every frame, for a test that watches something as it goes.
+ * `onFrame({ t, world, stage, director, pointer, ui, shot })` is called after every frame, for a test that watches something as it goes.
+ *
+ * As main.js has it, the chapter's later things (chapter.later.make: chapter 2's far friends) are made before the first frame
+ * moves on, as if behind the start button; `makeLater` false leaves them to the chapter, as for a child who taps the start button
+ * at once. `slowBuilds` (seconds, or { name: seconds }) builds each place but the first as main.js does once the start button
+ * shows, one after another in the order of chapter.prepare and over frames: each build is done that many seconds of the run after
+ * it is asked for. Each place's build is in `builds` ({ name: { asked, built } }, the run's seconds).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0 } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -212,8 +218,31 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     return addEffect(effect);
   };
   const forests = [];
-  const locations = createLocations({ world, locations: chapter.locations, build: layout => { const f = groundOnly(layout, { shaped, world }); forests.push(f); return f; } });
+  let runTime = 0; // the run's seconds (the loop's t)
+  const builds = {}; // name -> { asked, built }
+  const due = []; // slow builds: { at, resolve, forest }
+  let asking = null; // the place whose build is asked for now
+  let slow = false; // the first place is built at once
+  const locations = createLocations({ world, locations: chapter.locations, build: layout => {
+    const f = groundOnly(layout, { shaped, world });
+    forests.push(f);
+    const record = builds[asking] = { asked: runTime, built: null };
+    const seconds = typeof slowBuilds === 'number' ? slowBuilds : slowBuilds?.[asking] ?? 0;
+    if (!slow || !seconds) {
+      record.built = runTime;
+      return f;
+    }
+    return new Promise(resolve => due.push({ at: runTime + seconds, resolve: () => { record.built = runTime; resolve(f); } }));
+  } });
+  for (const call of ['prepare', 'setLocation']) {
+    const real = locations[call];
+    locations[call] = name => {
+      asking = name;
+      return real(name);
+    };
+  }
   await locations.setLocation(chapter.start);
+  slow = true;
   const shots = Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots));
   const director = createDirector({ camera: world.camera, world, shots, lint: false });
   world.director = director;
@@ -349,6 +378,9 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   director.cut(chapter.startShot, { check: false });
   const task = stage.start(chapter.script);
   stage.begin();
+  // main.js's builds once the start button shows: one place after another, each over frames
+  if (slowBuilds) (async () => { for (const name of chapter.prepare ?? []) await locations.prepare(name); })();
+  let madeLater = !makeLater || !chapter.later?.make;
 
   // What the run sees on the way, for the tests to look at afterwards.
   const seen = {
@@ -507,6 +539,11 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
 
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
+    runTime = t;
+    for (const build of due.filter(d => d.at <= t + 1e-9)) {
+      due.splice(due.indexOf(build), 1);
+      build.resolve();
+    }
     if (eager) eagerChild(t);
     if (noseAt) noseChild(t);
     if (earlyTap) earlyChild(t);
@@ -541,7 +578,11 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     if (earlyTap) earlyReaction();
-    onFrame?.({ t, world, stage, director, pointer, sunFace });
+    if (!madeLater && world.chapterState) { // the script has set up: what is made behind the start button
+      madeLater = true;
+      await chapter.later.make(world);
+    }
+    onFrame?.({ t, world, stage, director, pointer, sunFace, ui, shot: shotNow });
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;
@@ -584,7 +625,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
-  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines };
+  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
 }
 
 export const EARLY_TAP_AT = { x: 612, y: 455 }; // where on the screen the child who taps early taps

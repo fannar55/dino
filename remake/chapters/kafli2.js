@@ -491,7 +491,7 @@ function* theInvitation(s, c) {
 // three friends far away, each going onto the book's map (kafli2-lookout.js).
 function* theLookout(s, c) {
   mark(c, 6);
-  yield c.farFriends.ready(); // made behind the start button: long since there
+  yield c.farFriends.ready(); // made behind the start button or under the Fen's black: long since there
   hazeUp(c); // the air thickens as he rises: the Fen far below reads far below
   yield* liftUp(s, c);
   yield* lookDown(s, c);
@@ -511,18 +511,25 @@ function* theSlide(s, c) {
   yield* say(s, c, 'thorsedla', 'k2_thorsedla_comeback');
 }
 
-/** Fade to another place, set it up while the screen is black, and fade in (as chapter 1 does). */
+/**
+ * Fade to another place, set it up while the screen is black, and fade in (as chapter 1 does). What the setting up returns, a
+ * promise or nothing, holds the black until it settles (s.goTo's hold): the far friends' models, if they are made there. (The
+ * script resumes before s.goTo's own task in the frame the place is there, as a task that starts another always does, so the
+ * hold is asked after the setting up.)
+ */
 function* goTo(s, c, name, setUp) {
-  const going = s.goTo(name);
+  let holding = null;
+  const going = s.goTo(name, { hold: () => holding });
   yield s.until(() => c.world.location === name);
-  setUp();
+  holding = setUp() ?? null;
   yield going;
 }
 
 /**
  * In the Fen, under the black: the trail's prints stay on the trail; Þórseðla stands in her pool; Mosi, with Egill on his back, at
  * the end of the trail where it comes into the Fen; the Fen's animals (a tap on one: it reacts and goes in the book), the berry
- * bushes and Egill's basket, ready for him.
+ * bushes and Egill's basket, ready for him. The far friends' models are made here, under the black, if they were not behind the
+ * start button (the child started before main.js came to them): the promise returned holds the black until they are, and drawn once.
  */
 function arriveInTheFen(s, c) {
   const { world, kambedla, thorsedla, mosi } = c;
@@ -539,6 +546,8 @@ function arriveInTheFen(s, c) {
   c.farFriends.show(true); // out in the Fen, seen only from her head
   s.sfx('fen'); // the Fen's own bed of water, frogs and drips (laid on the trail already: asked again, it stays as it is)
   s.camera.cut('fen_reveal');
+  const far = c.farFriends;
+  return far.isReady ? null : far.load().then(() => world.warmObjects?.([far.group])); // main.js: one draw with them, under the black
 }
 
 /** A line, one voice at a time: `c.saying` counts the lines under way, so a goodbye or a remark can wait for quiet. */
@@ -695,8 +704,17 @@ export const chapter = {
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.
   startShot: 'glade_leaving',
-  // The trail and the Fen are built behind the start button and kept, hidden (engine/locations.js: prepare).
+  // The trail and the Fen are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
+  // prepare; main.js): the trail first, which the script waits for before its first fade from black (if the child taps before it
+  // is built, the black holds a moment), then the Fen, which the change of place to it waits for.
   prepare: ['fenjaslod', 'fen'],
+  // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
+  // models made (three parses and their light levels: long frames) once the places are, if the button still waits; else the
+  // scene makes them as it comes to the Fen, under the black (arriveInTheFen).
+  later: {
+    fetch: world => world.chapterState?.farFriends?.prefetch(),
+    make: world => world.chapterState?.farFriends?.load(),
+  },
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
@@ -748,7 +766,7 @@ export const chapter = {
     c.ring = ringsFor(world, { most: 3 });
     c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's and the Fen's pieces
     world.chapterState = c; // what the scenes share, for captures and probes
-    // The three friends far out in the Fen (kafli2-lookout.js): made now, so they are ready behind the start button.
+    // The three friends far out in the Fen (kafli2-lookout.js): set up now, their models made later (chapter.later).
     c.farFriends = farFriends(s, c, FEN_FAR);
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight. Þórseðla is in the Fen, not here.
     thorsedla.raw.root.visible = false;
@@ -759,6 +777,9 @@ export const chapter = {
     c.glow.setAll(1, { duration: 0 });
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
+    // the trail, built while the start button waited (main.js): a child who tapped first waits for it a moment under the black,
+    // so the glade never plays with the trail still being built behind it (in captures it is built here, at once)
+    yield s.prepare('fenjaslod');
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);

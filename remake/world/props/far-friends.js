@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { createActor } from '../../engine/actor.js';
 import { createThorsedlaLod } from '../../engine/hals/thorsedla-lod.js';
 import { Handle } from '../../engine/handle.js';
@@ -13,7 +14,8 @@ import { sparkleBurst } from './sparkles.js';
 // shadow and without their eyelid shells (a speck at that distance). They show only while the camera is more than 6 m up, from her
 // head: in every frame on the ground they are hidden and are not even moved, so they cost nothing there.
 //
-//   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun })
+//   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun, defer })
+//     defer      true: nothing is fetched or made until prefetch() or load() (chapter 2 makes them after the start button shows)
 //     position   x and z where the friend stands, and y how far above the ground there its feet are (for Flugeðla, perch:
 //                'snag', above the top of the dead snag the forest grew there; for one lying, sink: metres her body goes into the reed)
 //     reed       a bed of tall golden reed round her, that she lies in ({ clumps, near, radius: [in, out], height: [low, high],
@@ -29,7 +31,11 @@ import { sparkleBurst } from './sparkles.js';
 //                                   of takeOff, then land), Uggeðla lifts her head (kink); done when it is over
 //   far.withhold(name, on)          keeps one of them out of sight while the others show (a friend not to be seen yet)
 //   far.update(dt, camera, heightPx) every frame (the chapter puts it on world.effects)
-//   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden)
+//   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden);
+//                                   it starts making them if nobody has
+//   far.prefetch()                  with `defer`: fetches the models' files now, and makes nothing (no long frame)
+//   far.load() -> Promise           with `defer`: makes them now (parsing a model and making an actor are long frames: the chapter
+//                                   calls this where nobody sees one, behind the start button or under a black fade); far.ready()
 //   far.dispose()                   once they will not be seen again: frees the GPU buffers of the light level each draws with (the
 //                                   level stays in thorsedla-lod.js's cache, which Háls og hali shares, and is uploaded again if drawn
 //                                   again), disposes the coarse material and the reed, and lets the actors go; the models' own skins
@@ -97,7 +103,7 @@ function reedBed({ x, z, heightAt, clumps = 9, near = 0.6, radius = [1.8, 4], he
 // `sun` (the scene's sun) is taken as the board's friends take it, and not used: at this distance they cast no shadow, and
 // thorsedla-lod.js would add a caster for a sun that casts.
 // eslint-disable-next-line no-unused-vars
-export function createFarFriends(world, { friends, sun = null } = {}) {
+export function createFarFriends(world, { friends, sun = null, defer = false } = {}) {
   const group = new THREE.Group();
   group.name = 'Far friends';
   group.visible = false;
@@ -153,7 +159,9 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
     own.scene = { add: object => group.add(object), remove: object => group.remove(object) };
     entry.own = own;
     const address = url(MODELS[entry.name]);
-    const gltf = world.loadModel ? await world.loadModel(address) : undefined; // tests read the file themselves
+    // tests read the file themselves; a page that fetched it already (prefetch) parses those bytes; else actor.js loads it
+    const bytes = files.get(entry.name);
+    const gltf = world.loadModel ? await world.loadModel(address) : bytes ? await parse(await bytes, address) : undefined;
     const actor = await createActor(own, { name: `far-${entry.name}`, url: address, gltf, position: entry.spec.position, heading: entry.spec.heading ?? 0 });
     // A speck at 80 m: no eyelid shells, no shadow either way.
     const lids = [];
@@ -180,12 +188,32 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
     entry.timers.push({ at: time + delay, fn });
   }
 
-  const loading = Promise.all([...entries.values()].map(entry => load(entry).catch(error => {
-    console.warn(`[far-friends] ${entry.name} could not be made:`, error?.message ?? error);
-  }))).then(() => {
-    isReady = [...entries.values()].every(entry => entry.actor);
-    if (shown) ground();
-  });
+  // the models' files, fetched ahead of making them (prefetch): name -> promise of an ArrayBuffer
+  const files = new Map();
+  function prefetch() {
+    if (world.loadModel || typeof fetch !== 'function') return;
+    for (const entry of entries.values()) {
+      if (files.has(entry.name)) continue;
+      const address = url(MODELS[entry.name]);
+      files.set(entry.name, fetch(address).then(response => {
+        if (!response.ok) throw new Error(`${address}: ${response.status}`);
+        return response.arrayBuffer();
+      }));
+    }
+  }
+  const parse = (bytes, address) => new GLTFLoader().parseAsync(bytes, new URL('./', address).href);
+
+  let loading = null;
+  function loadAll() {
+    loading ??= Promise.all([...entries.values()].map(entry => load(entry).catch(error => {
+      console.warn(`[far-friends] ${entry.name} could not be made:`, error?.message ?? error);
+    }))).then(() => {
+      isReady = [...entries.values()].every(entry => entry.actor);
+      if (shown) ground();
+    });
+    return loading;
+  }
+  if (!defer) loadAll();
 
   function show(on = true) {
     shown = Boolean(on);
@@ -288,7 +316,10 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
 
   return {
     targets, group, show, withhold, glimmer, react, update,
-    ready: () => loading,
+    ready: () => loadAll(),
+    prefetch,
+    load: () => loadAll(),
+    get loading() { return Boolean(loading); },
     get isReady() { return isReady; },
     get shown() { return shown; },
     get disposed() { return disposed; },

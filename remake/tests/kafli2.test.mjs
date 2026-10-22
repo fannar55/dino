@@ -491,6 +491,42 @@ test('the chapter plays to its end unattended with no director warnings', async 
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
 });
 
+// main.js builds the trail and the Fen once the start button shows, a slice at a time, and makes the far friends after them: a
+// child who taps at once comes to each before it is there. Here the trail takes 3 s to build and the Fen 200 s (long after the
+// scene comes to it), and the far friends are left to the chapter.
+test('no scene plays in a place still being built: the glade waits under the black for the trail, the Fen for its build and the far friends', async () => {
+  const shotsOf = Object.fromEntries(Object.entries(chapter.locations).map(([name, location]) => [name, new Set(Object.keys(location.shots))]));
+  const placeOf = shot => Object.keys(shotsOf).find(name => shotsOf[name].has(shot)) ?? null; // null: a shot made as it goes
+  const visible = []; // every frame the picture shows (not under the black)
+  const { task, stage, world, director, builds } = await playUnattended(kafli2, {
+    seeking: false, limit: 700, makeLater: false, slowBuilds: { fenjaslod: 3, fen: 200 },
+    onFrame({ t, world, ui, shot }) {
+      if (ui.fadeLevel >= 0.999) return;
+      const far = world.chapterState?.farFriends;
+      visible.push({ t, location: world.location, shot, far: Boolean(far?.isReady || far?.disposed) });
+    },
+  });
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
+  assert.ok(visible.length > 1000);
+  // the glade fades in from black only once the trail is built
+  assert.ok(builds.fenjaslod.built > 2.99, `the trail was built at ${builds.fenjaslod.built} s`);
+  assert.ok(visible[0].t >= builds.fenjaslod.built, `the glade showed at ${visible[0].t.toFixed(2)} s, the trail built at ${builds.fenjaslod.built.toFixed(2)} s`);
+  // the scene came to the Fen while it was still being built, and waited for it under the black
+  const lastOnTheTrail = visible.filter(v => v.location === 'fenjaslod').at(-1);
+  assert.ok(lastOnTheTrail.t < builds.fen.built, `the trail's last frame at ${lastOnTheTrail.t.toFixed(1)} s, the Fen built at ${builds.fen.built.toFixed(1)} s`);
+  // every frame shown is of a place built, framed by a shot of that place, and in the Fen the far friends are made
+  for (const frame of visible) {
+    const build = builds[frame.location];
+    assert.ok(build && build.built !== null && build.built <= frame.t, `${frame.location} showed at ${frame.t.toFixed(2)} s before it was built`);
+    const place = placeOf(frame.shot);
+    assert.ok(place === null || place === frame.location, `${frame.shot} (a shot of ${place}) showed in ${frame.location} at ${frame.t.toFixed(2)} s`);
+    if (frame.location === 'fen') assert.ok(frame.far, `the Fen showed at ${frame.t.toFixed(2)} s before the far friends were made`);
+  }
+});
+
 test('no fail states: the far friends are hinted and found for a child who taps nothing, and the slide goes by itself', async () => {
   const { captions, world, seen } = await playIdle();
   const said = text => captions.filter(c => c.text === text).length;

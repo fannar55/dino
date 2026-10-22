@@ -86,12 +86,28 @@ let locations = null;
 // A place's forest is built in one long frame (seconds on a tablet), and its first draws are long frames too: the music is told
 // before each build (music.lenient, set up once the music exists), so it moves its playhead instead of jumping back.
 let beforeBuild = null;
+// The places a chapter goes to later (chapter.prepare) are built once the start button shows, a slice at a time over frames
+// (world/forest/slices.js: prepareLater below). slicing.budget() is how many ms of a frame the build may take (set once the scene
+// exists); a slice that held its frame long (under the black) tells the music as a build at once does, and a frame with a slice
+// in it says nothing of drawing (adapt).
+let slicedInFrame = false;
+const slicing = {
+  budget: () => 25,
+  stats: { slices: 0, longest: 0 },
+  onSlice(ms) {
+    slicedInFrame = true;
+    slicing.stats.slices++;
+    slicing.stats.longest = Math.max(slicing.stats.longest, ms);
+    if (ms > 50) beforeBuild?.();
+  },
+};
 if (chapter.locations) {
-  // Several places: the start location is built now, the others behind the start button (chapter.prepare) or when the scene
-  // first goes there.
+  // Several places: the start location is built now, the others once the start button shows (chapter.prepare, a slice at a
+  // time) or, at once, when the scene first goes there.
   locations = createLocations({
     world, locations: chapter.locations,
-    build: layout => {
+    build: (layout, { sliced = false } = {}) => {
+      if (sliced) return createForest(world, layout, { slice: slicing });
       beforeBuild?.();
       return createForest(world, layout);
     },
@@ -240,6 +256,9 @@ const hals = createHalsGame(document, {
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
+// A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
+// while the scene plays (the frame keeps room to draw), and 200 under the black, where no frame is seen.
+slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 200 : 8);
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
@@ -263,8 +282,9 @@ let controls = null;
 
 // The warm-up draw (engine/warm-up.js). A material's first draw builds its shaders, a stall of 0.2 to 0.6 s on the reference laptop,
 // so before the start button shows, the chapter is drawn once behind the black from the views it names (chapter.warmUp), with what
-// would otherwise show for the first time later; the places it will go to are built then too (chapter.prepare) and drawn the same
-// way, and as the scene comes to a place it is drawn once more, under the black, before the fade back in.
+// would otherwise show for the first time later. The places it will go to (chapter.prepare) are built once the button shows, and
+// each is drawn the same way while the button still waits (prepareLater); and as the scene comes to a place it is drawn once more,
+// under the black, before the fade back in.
 const nextFrames = count => new Promise(resolve => {
   let left = count;
   const step = () => (--left <= 0 ? resolve() : requestAnimationFrame(step));
@@ -304,9 +324,15 @@ function warmPlace(views) {
   }
 }
 
-/** Build a place the chapter goes to later and draw it once, shown for that in place of the one in view. */
-async function prepareAndWarm(name) {
-  const forest = await locations.prepare(name);
+/** One draw of `objects` from the view as it is, under the black: models a chapter makes as it comes to a place (kafli2's far friends). */
+world.warmObjects = objects => {
+  const warmed = warmViews([], { objects });
+  (world.warmUps ??= []).push({ label: 'objects', ...warmed });
+  return warmed;
+};
+
+/** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view. */
+function warmPrepared(name, forest) {
   const here = { forest: world.forest, heightAt: world.heightAt };
   here.forest.group.visible = false;
   forest.group.visible = true;
@@ -323,18 +349,17 @@ async function prepareAndWarm(name) {
   }
 }
 
-/** Everything that is done behind the black before the start button shows. */
+/** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
 async function getReady() {
   await characterLodsReady(); // the shadow casters the levels bring are drawn too
   await nextFrames(2); // the script's setup has run and the start shot holds
   const warmed = [];
   const warm = chapter.warmUp?.(world) ?? { objects: [], shots: [], dispose() {} };
   try {
-    warmed.push(warmViews(warm.shots ?? [], warm));
+    warmed.push({ label: 'start', ...warmViews(warm.shots ?? [], warm) });
   } finally {
     warm.dispose?.();
   }
-  for (const name of chapter.prepare ?? []) warmed.push(await prepareAndWarm(name));
   if (warm.tray?.length) {
     // The tray's pockets are built once and laid out under the black, so its first show in the story is not a long frame.
     ui.tray.prepare(warm.tray);
@@ -342,8 +367,45 @@ async function getReady() {
     await nextFrames(2);
     ui.tray.hide();
   }
-  world.warmUps = warmed; // for a probe: { draws, ms, programs } of each warm-up behind the start button
-  console.info('[warm-up]', warmed.map(w => `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms`).join('; '));
+  world.warmUps = warmed; // for a probe: { label, draws, ms, programs } of each warm-up (prepareLater adds the places')
+  console.info('[warm-up]', warmed.map(describeWarm).join('; '));
+}
+
+const describeWarm = w => `${w.label}: ${w.built ? `built in ${w.built} ms (${w.slices} slices, the longest ${w.longest} ms)${w.draws ? ', ' : ''}` : ''}${w.draws ? `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms` : ''}`;
+
+/**
+ * Once the start button shows: the places the chapter goes to later (chapter.prepare), built one after another a slice at a time
+ * (the scene's first change of place waits for its build if the child gets there first), each drawn once while the button still
+ * waits (after the start, the scene draws each as it comes there, under the black: the frame loop); then what the chapter makes
+ * later (chapter.later: its files fetched as the button shows, the rest made while the button still waits, else the chapter makes
+ * it under a black of its own). A warm-up's draws on the canvas are drawn over at once with the view behind the button.
+ */
+async function prepareLater() {
+  const warmed = (world.warmUps ??= []);
+  chapter.later?.fetch?.(world);
+  for (const name of locations ? chapter.prepare ?? [] : []) {
+    const began = performance.now();
+    slicing.stats = { slices: 0, longest: 0 };
+    const forest = await locations.prepare(name, { sliced: true });
+    const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
+    if (!stage.started) {
+      Object.assign(entry, warmPrepared(name, forest));
+      if (ui.fadeLevel < 0.999) drawNow();
+    }
+    warmed.push(entry);
+  }
+  if (chapter.later?.make && !stage.started) {
+    const began = performance.now();
+    await chapter.later.make(world);
+    const entry = { label: 'later', made: Math.round(performance.now() - began) };
+    if (!stage.started) {
+      Object.assign(entry, warmPlace([])); // the chapter's warm-up again, with what it made, from the view behind the button
+      if (ui.fadeLevel < 0.999) drawNow();
+    }
+    warmed.push(entry);
+  }
+  world.preparedLater = true;
+  console.info('[warm-up] later:', warmed.filter(w => w.label !== 'start').map(describeWarm).join('; '));
 }
 
 function update(dt) {
@@ -458,6 +520,7 @@ if (shotName || !chapter.script) {
       ui.setFade(0.35);
       button.hidden = false;
       startReady = true;
+      prepareLater().catch(error => console.error('[warm-up]', error));
     });
   }
 }
@@ -524,8 +587,11 @@ renderer.setAnimationLoop(now => {
   render();
   if (drew) {
     stats.sample(real);
-    adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing; nor to ones not drawn
+    // not to frames under the black (the warm-up, a build) nor to ones with a slice of a build in them: they say nothing of
+    // drawing; nor to ones not drawn
+    adapt(real, clock.frozen || ui.fadeLevel >= 0.999 || slicedInFrame);
   }
+  slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
 Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

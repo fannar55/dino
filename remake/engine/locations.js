@@ -17,8 +17,9 @@
 // A forest is built the first time its location is shown and kept after that, hidden while another
 // one shows. world.forest, world.heightAt and world.location follow the location in view. A switch
 // is real async work (a build), so setLocation returns a promise; call it one switch at a time, as
-// a script does with s.goTo. prepare(name) builds a place ahead of time and keeps it hidden (main.js
-// does it behind the start button for chapter.prepare), so the change to it later is only the fades.
+// a script does with s.goTo. prepare(name, options) builds a place ahead of time and keeps it hidden (main.js does it for
+// chapter.prepare once the start button shows, a slice at a time: `options` go to the build), so the change to it later is only
+// the fades; a change to a place still being built waits for that build.
 
 /**
  * Every shot of a chapter, wherever it is set, for the director: its own (`chapter.shots`) and, for a chapter in several places,
@@ -53,10 +54,10 @@ export function createLocations({ world, locations, build }) {
   let current = null; // the name in view
   let shown = null; // the forest in view
 
-  function forestOf(name) {
+  function forestOf(name, options) {
     if (!forests.has(name)) {
       const { layout, shots = {} } = locations[name];
-      const building = Promise.resolve(build({ ...layout, shots }));
+      const building = Promise.resolve(build({ ...layout, shots }, options));
       forests.set(name, building);
       building.catch(() => forests.delete(name)); // a failed build may be tried again
     }
@@ -67,9 +68,9 @@ export function createLocations({ world, locations, build }) {
     names,
     get current() { return current; },
     /** Build a place now and keep it, hidden unless it is the place in view; going there later builds nothing. Returns its forest. */
-    async prepare(name) {
+    async prepare(name, options) {
       if (!names.includes(name)) throw new Error(`No location named "${name}" (the chapter has ${names.join(', ')})`);
-      const forest = await forestOf(name);
+      const forest = await forestOf(name, options);
       if (forest !== shown) forest.group.visible = false; // a forest is built shown
       return forest;
     },

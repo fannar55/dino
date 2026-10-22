@@ -18,7 +18,7 @@ import { DONE } from '../handle.js';
 //     const answer = yield s.choose([{ label: 'Já!', value: 'yes' }, { label: 'Seinna', value: 'later' }]);
 //   }
 
-// `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
+// `locations` (engine/locations.js) is optional: only s.goTo and s.prepare need it, and say so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.search and s.lookAround need, and
 // `journal` (scene/journal.js), which s.star, s.found, s.place and s.journal need, and `sun` (engine/sun-face.js),
 // which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
@@ -95,16 +95,20 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   }
 
   // Fade to black, change location, fade back in. The change is real work (a location's forest is
-  // built the first time), so it is a promise: a seek waits for it through the scheduler's pending count.
-  function* goToTask(name, fade) {
+  // built the first time, or its build, begun earlier, finished), so it is a promise: a seek waits for it through the scheduler's
+  // pending count. `hold()`, when given, is asked once the place is there: what it returns (a promise) is waited for under the
+  // black too, before the fade back in (a chapter's models that must be made before the place shows).
+  function* goToTask(name, fade, hold) {
     yield fadeTask(1, fade);
     yield locations.setLocation(name);
+    const wait = hold?.();
+    if (wait) yield wait;
     yield fadeTask(0, fade);
   }
 
-  function goTo(name, { fade = 1.2 } = {}) {
+  function goTo(name, { fade = 1.2, hold = null } = {}) {
     if (!locations) throw new Error('s.goTo needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
-    return start(goToTask(name, fade));
+    return start(goToTask(name, fade, hold));
   }
 
   // Taps. A script waits for one with s.tap; the waits are served in the order they began, one tap to
@@ -415,6 +419,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     fade: (to, duration) => start(fadeTask(to, duration)),
     /** Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default). */
     goTo,
+    /**
+     * A place the scene goes to later, built now and kept hidden (or its build, begun already, finished: main.js builds the
+     * chapter's places once the start button shows). A promise: yield it to wait, under the black.
+     */
+    prepare(name) {
+      if (!locations) throw new Error('s.prepare needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
+      return locations.prepare(name);
+    },
     /** Add or replace a tap target: `{ point, radius }`, a point spec and metres. `s.target(name, null)` removes it. */
     target,
     /** Wait for the player to tap one of the targets (a name or a list); resolves with the name tapped. Seeking: `auto` (the first name) after 2 s. */
