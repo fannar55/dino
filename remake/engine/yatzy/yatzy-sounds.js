@@ -2,7 +2,8 @@
 // engine/hals/hals-sounds.js).
 //
 // Every effect is made on the spot with the game's own tools (engine/audio/sfx.js: tone, noise and bell), and every note is a note
-// of the theme's key (theme.json `key`, a major pentatonic) or an octave of one, so the table sits in the music. A glide may pass
+// of the key the effects are given (a major pentatonic, root first) or an octave of one, so the table sits in the music: its music's
+// key, Eitt!'s track (assets/audio/eitt/music.json, C major), else the page theme's (engine/audio/game-music.js). A glide may pass
 // between two notes of the key on its way, as a horn's or a whistle's does, but it starts and ends on them.
 //
 // The table plays them through its own instance of the effects (createSfx with `sounds: yatzySounds`), outside the chapter's hold.

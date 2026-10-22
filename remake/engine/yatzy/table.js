@@ -20,7 +20,7 @@ import { chooseSloedlaMove, sharpCategory } from './sloedla.js';
 import { adviseYatzy } from './advice.js';
 import { SKILL_START, afterRound } from '../eitt/skill.js';
 import { pressable, sparkle, reducedMotion } from '../book/fx.js';
-import { createSfx } from '../audio/sfx.js';
+import { createGameSfx } from '../audio/game-music.js';
 import { createEittMusic } from '../eitt/eitt-sounds.js';
 import { yatzySounds, YATZY_GAPS } from './yatzy-sounds.js';
 
@@ -241,7 +241,9 @@ export function createYatzyGame(
   const root = doc.getElementById('yatzy');
   if (!root) throw new Error('Risaeðlu-Yatzy needs #yatzy on the page');
 
-  const sfx = createSfx({
+  // tuned to its music's key, Eitt!'s track (assets/audio/eitt/music.json), else the page's theme (engine/audio/game-music.js)
+  const sfx = createGameSfx({
+    music: MUSIC,
     context: audio?.context ?? null,
     theme: audio?.theme ?? null,
     output: audio?.output ?? null,

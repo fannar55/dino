@@ -7,7 +7,7 @@ import { halsSounds, HALS_GAPS } from './hals-sounds.js';
 import { FOSSIL_ART, FOSSIL_HUES } from './fossil-art.js';
 import { createEittMusic } from '../eitt/eitt-sounds.js';
 import { pressable, sparkle, reducedMotion } from '../book/fx.js';
-import { createSfx } from '../audio/sfx.js';
+import { createGameSfx } from '../audio/game-music.js';
 import { createVoice } from '../scene/voice.js';
 
 // "Háls og hali", the game the child opens from the book's Leikir page (spec sections 3 to 6): Þórseðla's snakes and ladders on the
@@ -232,7 +232,8 @@ export function createHalsGame(doc, {
   // ---- Sound --------------------------------------------------------------------------------------------------------------
 
   const context = audio.context ?? null;
-  const effects = createSfx({ context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: halsSounds, gaps: HALS_GAPS });
+  // tuned to its own music's key (assets/audio/hals/music.json), else the page's theme (engine/audio/game-music.js)
+  const effects = createGameSfx({ music: musicUrl, context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: halsSounds, gaps: HALS_GAPS });
   const music = createEittMusic({ context, output: audio.output ?? null, url: musicUrl });
   // The owner's track may not be there yet: asked once (a HEAD request) before the music first starts, so a missing file is one
   // quiet miss and not one for every touch.

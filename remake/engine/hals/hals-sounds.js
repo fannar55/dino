@@ -1,10 +1,11 @@
 // The sound of "Háls og hali" (spec sections 4 and 6): the board's effects, built as "Eitt!"'s are (engine/eitt/eitt-sounds.js).
 //
 // Every effect is made on the spot with the game's own tools (engine/audio/sfx.js: tone, noise and bell), and every note is a note
-// of the theme's key (theme.json `key`, a major pentatonic) or an octave of one, so the board sits in the music. The game plays
-// them through its own instance of the effects (createSfx with `sounds: halsSounds`), outside the chapter's hold, so they sound
-// while the chapter stands still behind the game. The music is "Eitt!"'s loop (createEittMusic) with the game's own track,
-// assets/audio/hals/music.mp3, which the owner has still to pick: without the file the game is simply quiet under its effects.
+// of the key the effects are given (a major pentatonic, root first) or an octave of one, so the board sits in the music: its own
+// track's key (assets/audio/hals/music.json, C major), else the page theme's (engine/audio/game-music.js). The game plays them through
+// its own instance of the effects (createGameSfx with `sounds: halsSounds`), outside the chapter's hold, so they sound while the
+// chapter stands still behind the game. The music is "Eitt!"'s loop (createEittMusic) with the game's own track,
+// assets/audio/hals/music.mp3: without the file the game is simply quiet under its effects.
 //
 // The steps are counted: step1 to step6 climb the key, one for each hop of a roll, so a child hears the count go up.
 

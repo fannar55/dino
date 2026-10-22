@@ -3,7 +3,7 @@ import { chooseMove, willCallEitt, willCatch } from './kambedla.js';
 import { SKILL_START, afterRound, inRound } from './skill.js';
 import { advise, adviseColour } from './advice.js';
 import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
-import { createSfx } from '../audio/sfx.js';
+import { createGameSfx } from '../audio/game-music.js';
 import { createVoice } from '../scene/voice.js';
 import { eittSounds, EITT_GAPS, createEittMusic } from './eitt-sounds.js';
 
@@ -314,7 +314,8 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   // ---- Sound --------------------------------------------------------------------------------------------------------------
 
   const context = audio.context ?? null;
-  const effects = createSfx({ context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: eittSounds, gaps: EITT_GAPS });
+  // tuned to its own music's key (assets/audio/eitt/music.json), else the page's theme (engine/audio/game-music.js)
+  const effects = createGameSfx({ music: MUSIC, context, theme: audio.theme ?? null, output: audio.output ?? null, sounds: eittSounds, gaps: EITT_GAPS });
   const music = createEittMusic({ context, output: audio.output ?? null, url: MUSIC });
   // One voice at a time (the owner's play of 18 October): a line asked for while another is speaking waits until it has ended, and
   // the lines waiting go in order of who matters most: Egill's short "Eitt!", then Mosi (his steps and his advice), then Kambeðla's
