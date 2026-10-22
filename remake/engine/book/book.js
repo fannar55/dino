@@ -49,7 +49,7 @@ const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has 
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
 const SLOEDLA_PICTURE = new URL('../../assets/eitt/parasaurolophus.webp', import.meta.url).href;
-const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
+export const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 // "Risaeðlu-Yatzy" shows on the Leikir page always while it is being made: a development switch.
 const YATZY_OPEN = true;

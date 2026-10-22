@@ -60,6 +60,21 @@
       "height": 768
     },
     {
+      "id": "render-uggedla",
+      "src": "assets/book/images/uggedla-render.webp",
+      "thumb": "assets/book/images/uggedla-render-thumb.webp",
+      "kind": "render",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/uggedla-render.webp --query \"who=spinosaurus\" (the thumbnail: --out remake/assets/book/images/uggedla-render-thumb.webp --query \"who=spinosaurus&width=320\"); the page is remake/tools/bake/book-render.html and the model is remake/assets/characters/spinosaurus.glb. Her sticker on the book's map (engine/book/map-page.js)",
+      "alt": "Uggeðla, grænbláa uggeðlan okkar, með rautt segl á bakinu. Hún horfir á þig.",
+      "modifications": "Myndgert úr þrívíddarlíkani leiksins (idle-hreyfingin, höfuðið snúið að þeim sem horfir) með mjúkri lýsingu og mjúkum skugga á jörðinni, á gegnsæjum bakgrunni. 1024 × 768 punktar með 320 punkta smámynd, vistuð sem WebP. Ekki lagfærð á annan hátt.",
+      "sha256": null,
+      "width": 1024,
+      "height": 768
+    },
+    {
       "id": "render-mosi-kambedla",
       "src": "assets/book/images/mosi-kambedla-render.webp",
       "thumb": "assets/book/images/mosi-kambedla-render-thumb.webp",

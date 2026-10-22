@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createActor } from '../../engine/actor.js';
 import { createThorsedlaLod } from '../../engine/hals/thorsedla-lod.js';
 import { Handle } from '../../engine/handle.js';
+import { seededRandom } from '../../engine/random.js';
 import { sparkleBurst } from './sparkles.js';
 
 // The far friends of chapter 2's lookout (spec scene 6, "Vinirnir í fjarska"): Slóeðla wading in a far pool, Flugeðla on a dead white
@@ -15,6 +16,8 @@ import { sparkleBurst } from './sparkles.js';
 //   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun })
 //     position   x and z where the friend stands, and y how far above the ground there its feet are (for Flugeðla, perch:
 //                'snag', above the top of the dead snag the forest grew there; for one lying, sink: metres her body goes into the reed)
+//     reed       a bed of tall golden reed round her, that she lies in ({ clumps, radius: [near, far], height: [low, high] }): the
+//                prop's own, seen with her from above (the forest's reed is culled 64 m from the camera, and she lies 88 m out)
 //     heading    degrees, 0 facing +X and 90 facing +Z, as everywhere
 //     clip       what she does while she waits: 'idle', or 'wade' (a few slow steps along her pool now and then, on the walk clip
 //                where the model has no wading clip of its own)
@@ -23,9 +26,13 @@ import { sparkleBurst } from './sparkles.js';
 //   far.glimmer(name, on)           gold glints round her now and then, while she waits to be found
 //   far.react(name) -> Handle       found: Slóeðla steps toward the lookout and calls, Flugeðla spreads her wings (the first half
 //                                   of takeOff, then land), Uggeðla lifts her head (kink); done when it is over
+//   far.withhold(name, on)          keeps one of them out of sight while the others show (a friend not to be seen yet)
 //   far.update(dt, camera, heightPx) every frame (the chapter puts it on world.effects)
 //   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden)
-//   far.actorOf(name), far.group, far.isReady, far.dispose()
+//   far.dispose()                   once they will not be seen again: lets go of their light levels and their material (what this
+//                                   made on the GPU), and of the actors; the models' own skins and maps stay with the cache, which
+//                                   Háls og hali shares
+//   far.actorOf(name), far.group, far.isReady, far.disposed
 
 const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus' };
 const url = model => new URL(`../../assets/characters/${model}.glb`, import.meta.url).href;
@@ -35,6 +42,55 @@ const TARGET_RADIUS = 2.5;
 const GLIMMER = { every: 1.25, count: 11, size: 1.7, spread: 2.6, duration: 1.3 };
 const WADE = { every: [6, 10], reach: 2.6, speed: 0.55 };
 const FOUND_BURST = { count: 36, size: 2.2, spread: 4, duration: 1.8 };
+const REED = { blades: 11, width: 0.16, colours: ['#7d6d33', '#c9b45a', '#e3d08a'] }; // the Fen's reed and its tips (spec: útlit Fensins)
+
+/**
+ * A bed of reed round (x, z) on the ground `heightAt` gives: `clumps` tufts between radius[0] and radius[1] m from it, thickest
+ * toward `toward` (a bearing, radians: the lookout's side), each a fan of curved, tapering blades from dark at the foot to pale at the
+ * tip, one mesh with its colours in its vertices.
+ */
+function reedBed({ x, z, heightAt, clumps = 9, radius = [1.8, 4], height = [2.2, 3.2], toward = 0, seed = 'reed' }) {
+  const random = seededRandom(seed);
+  const positions = [], colours = [], index = [];
+  const tone = REED.colours.map(hex => new THREE.Color(hex));
+  const c = new THREE.Color();
+  for (let k = 0; k < clumps; k++) {
+    // most clumps on the side she is seen from, the rest round her
+    const side = k < clumps * 0.6 ? toward + (random() - 0.5) * 1.8 : random() * Math.PI * 2;
+    const r = radius[0] + random() * (radius[1] - radius[0]);
+    const cx = x + Math.cos(side) * r, cz = z + Math.sin(side) * r, cy = heightAt(cx, cz) - 0.1;
+    const tall = height[0] + random() * (height[1] - height[0]);
+    for (let b = 0; b < REED.blades; b++) {
+      const turn = random() * Math.PI * 2, lean = 0.15 + random() * 0.45, h = tall * (0.6 + 0.4 * random());
+      const across = new THREE.Vector3(-Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(REED.width * (0.7 + 0.6 * random()));
+      const out = new THREE.Vector3(Math.cos(turn), 0, Math.sin(turn));
+      const foot = new THREE.Vector3(cx + out.x * 0.25 * random(), cy, cz + out.z * 0.25 * random());
+      const first = positions.length / 3;
+      const rows = 4;
+      for (let i = 0; i <= rows; i++) {
+        const t = i / rows;
+        const p = foot.clone().addScaledVector(out, lean * t * t * h * 0.5).add(new THREE.Vector3(0, h * t, 0));
+        const w = 1 - t * 0.92; // tapering to a point
+        positions.push(p.x - across.x * w, p.y, p.z - across.z * w, p.x + across.x * w, p.y, p.z + across.z * w);
+        c.copy(tone[0]).lerp(tone[1], Math.min(1, t * 1.6)).lerp(tone[2], Math.max(0, t - 0.6) * 2.5);
+        colours.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        if (i < rows) {
+          const a = first + i * 2;
+          index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        }
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.name = 'Far friend reed';
+  mesh.castShadow = mesh.receiveShadow = false;
+  return mesh;
+}
 
 // `sun` (the scene's sun) is taken as the board's friends take it, and not used: at this distance they cast no shadow, and
 // thorsedla-lod.js would add a caster for a sun that casts.
@@ -48,10 +104,12 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
   const lod = createThorsedlaLod(null);
   let shown = false;
   let isReady = false;
+  let disposed = false;
   let time = 0;
 
   const entries = new Map(Object.entries(friends).map(([name, spec], i) => [name, {
-    name, spec, actor: null, home: null, glimmering: false, nextGlint: 0.3 * i, glints: 0, timers: [], nextWade: 0, wadeOut: true,
+    name, spec, actor: null, home: null, glimmering: false, nextGlint: 0.3 * i, glints: 0, wades: 0, timers: [], nextWade: 0, wadeOut: true,
+    withheld: false, skins: [], // skins: the meshes' own geometry and material, from the models (the light levels replace them)
     target: { name, point: new THREE.Vector3(spec.position[0], (spec.position[1] ?? 0) + 2, spec.position[2]), radius: TARGET_RADIUS },
   }]));
   const targets = [...entries.values()].map(entry => entry.target);
@@ -76,6 +134,14 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
       entry.actor.place(x, z, entry.spec.heading ?? 0);
       entry.home = entry.actor.root.position.clone();
       entry.actor.centre(entry.target.point);
+      if (entry.spec.reed) {
+        entry.reed?.geometry.dispose();
+        entry.reed?.material.dispose();
+        entry.reed?.removeFromParent();
+        const toward = entry.spec.reed.toward ?? 0;
+        entry.reed = reedBed({ x, z, heightAt: world.heightAt, ...entry.spec.reed, toward, seed: `reed ${entry.name}` });
+        group.add(entry.reed);
+      }
     }
   }
 
@@ -96,6 +162,7 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
       if (/eyelids/i.test(o.name)) lids.push(o);
     });
     for (const lid of lids) lid.removeFromParent();
+    actor.model.traverse(o => { if (o.isMesh) entry.skins.push({ mesh: o, geometry: o.geometry, material: o.material }); });
     entry.actor = actor;
     play(entry, entry.spec.clip === 'wade' && !actor.clips.has('wade') ? 'idle' : entry.spec.clip ?? 'idle');
     await lod.add(actor, { levels: LIGHT_ONLY });
@@ -121,6 +188,11 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
   function show(on = true) {
     shown = Boolean(on);
     if (shown && isReady) ground();
+  }
+
+  function withhold(name, on = true) {
+    const entry = entries.get(name);
+    if (entry) entry.withheld = Boolean(on);
   }
 
   function glimmer(name, on = true) {
@@ -181,6 +253,7 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
 
   const glintAt = new THREE.Vector3();
   function update(dt, camera, heightPx = 800) {
+    if (disposed) return;
     time += dt;
     for (const entry of entries.values()) {
       for (const timer of [...entry.timers]) {
@@ -193,11 +266,14 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
     group.visible = high;
     if (!high) return; // on the ground they are not seen, and nothing of them is moved or drawn
     for (const entry of entries.values()) {
+      entry.actor.root.visible = !entry.withheld;
+      if (entry.reed) entry.reed.visible = !entry.withheld;
+      if (entry.withheld) continue;
       entry.actor.update(dt);
       if (!entry.reacting) entry.actor.centre(entry.target.point);
       if (entry.spec.clip === 'wade' && time >= entry.nextWade) {
         wade(entry);
-        entry.nextWade = time + WADE.every[0] + ((entry.glints++ * 0.618) % 1) * (WADE.every[1] - WADE.every[0]);
+        entry.nextWade = time + WADE.every[0] + ((entry.wades++ * 0.618) % 1) * (WADE.every[1] - WADE.every[0]);
       }
       if (entry.glimmering && time >= entry.nextGlint) {
         entry.nextGlint = time + GLIMMER.every;
@@ -209,13 +285,27 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
   }
 
   return {
-    targets, group, show, glimmer, react, update,
+    targets, group, show, withhold, glimmer, react, update,
     ready: () => loading,
     get isReady() { return isReady; },
     get shown() { return shown; },
+    get disposed() { return disposed; },
     actorOf: name => entries.get(name)?.actor ?? null,
     dispose() {
-      for (const entry of entries.values()) entry.actor?.dispose();
+      if (disposed) return;
+      disposed = true;
+      group.visible = false;
+      for (const entry of entries.values()) {
+        // the light level and the material drawn with it are this one's own; the model's own skin and map are the cache's
+        for (const { mesh, geometry, material } of entry.skins) {
+          if (mesh.geometry !== geometry) mesh.geometry.dispose();
+          if (mesh.material !== material) mesh.material.dispose();
+        }
+        entry.actor?.dispose();
+        entry.reed?.geometry.dispose();
+        entry.reed?.material.dispose();
+        entry.timers.length = 0;
+      }
       group.removeFromParent();
     },
   };

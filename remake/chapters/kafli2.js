@@ -32,7 +32,7 @@ import {
   TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { BERRY_BUSHES, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
-import { farFriends, lookDown, findFriends } from './kafli2-lookout.js';
+import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import {
@@ -199,6 +199,13 @@ const FEN_SHOTS = {
   fen_star_rise: {
     position: { actor: 'thorsedla', part: 'feet', offset: [2.5, 2.0, 18.5], local: true },
     target: { actor: 'thorsedla', part: 'feet', offset: [6, 5.2, 2.5], local: true }, fov: 50,
+  },
+  // Scene 8, as the star lands: the sun's hug. From the north side of her pool, 4 m up over the channel, looking south-west and up
+  // 15 degrees, toward the late morning sun (heading 150, 26 up): her back and neck along the bottom of the frame, the west groves'
+  // crowns beyond, and the sun's face in the upper third. Points on her, as fen_star_rise is.
+  fen_sun_hug: {
+    position: { actor: 'thorsedla', part: 'feet', offset: [8, 4.66, -9], local: true },
+    target: { actor: 'thorsedla', part: 'feet', offset: [-8.74, 9.84, 0.66], local: true }, fov: 50,
   },
   // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
   fen_shore: { position: [-16, 1.2, -16], target: [-4, 1.6, -8.5], fov: 50 },
@@ -477,6 +484,7 @@ function* theInvitation(s, c) {
 function* theLookout(s, c) {
   mark(c, 6);
   yield c.farFriends.ready(); // made behind the start button: long since there
+  hazeUp(c); // the air thickens as he rises: the Fen far below reads far below
   yield* liftUp(s, c);
   yield* lookDown(s, c);
   yield* findFriends(s, c);
@@ -485,7 +493,12 @@ function* theLookout(s, c) {
 // 7. The slide down her neck into the saddle.
 function* theSlide(s, c) {
   mark(c, 7);
+  haze(c, 1, 3); // the lookout's haze eases off again for the ground
   yield* slideDown(s, c);
+  // he is down: the far friends are not seen again, and let go of what they hold (their light levels and material)
+  c.farFriends.dispose();
+  // and Mosi turns toward her head as she speaks, so that he looks up at her star as it rises (scene 8: STAR_TURN)
+  c.mosi.turnTo(STAR_TURN, { rate: 30 });
   yield s.say('mosi', 'k2_mosi_oof');
   yield s.say('thorsedla', 'k2_thorsedla_comeback');
 }
@@ -532,9 +545,14 @@ function* say(s, c, speaker, id, options) {
 // 8. The second star, and the book: the star rises from her neck, the sun hugs itself and winks, the child taps the star into the
 // book, and the book opens on its stars, two of them alight now, and turns to the map, where the friends found today are.
 const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, -1, 0] }; // her neck, just under her head
-const SUN_HUGS = 0.2; // seconds after the star appears, as in chapter 1
+
 const TO_THE_MAP = 1.2; // seconds the book shows its stars before it turns to the map
-const STAR_TURN = -148; // degrees: Mosi's heading as the star rises (he came round to catch Egill facing west, 180)
+// Mosi's heading as the star rises (he came round to catch Egill facing west, 180): turned north toward her head, so the star is
+// 33 degrees aside of his head (the saddle lets his look go 40 aside and 30 up, engine/riding.js); from the south he reads three
+// quarters from behind, looking up with Egill.
+const STAR_TURN = -98;
+const SUN_WINKS = 1.4; // seconds into the sun's hug, in its own shot, that it winks
+const HUG_HOLD = 2.8; // seconds the sun's shot holds before the fade into the book (its hug is 2.4 s)
 function* theStar(s, c) {
   mark(c, 8);
   const { mosi, egill } = c;
@@ -546,13 +564,17 @@ function* theStar(s, c) {
   yield mosi.lookAt(above, { weight: 0.8, maxAngle: 60, maxPitch: 45 });
   yield egill.lookAt(above, { weight: 0.85, maxAngle: 60, maxPitch: 50 });
   s.sfx('star');
-  const star = s.star('k2_thorsedla', STAR_FROM);
-  s.after(SUN_HUGS, () => s.sun.hug());
+  const star = s.star('k2_thorsedla', STAR_FROM); // it waits in this shot for the child's tap (8 s at most), and flies into the book
   yield s.wait(1.4);
-  s.sun.wink();
   yield* say(s, c, 'mosi', 'k2_mosi_second');
   yield star;
   s.sfx('journal');
+  // The sun, seen over her back from the far side of her pool (her conifers hide it from every shot with her head in it), hugs itself
+  // with a big grin and winks.
+  yield s.camera.cut('fen_sun_hug');
+  s.sun.hug();
+  s.after(SUN_WINKS, () => s.sun.wink());
+  yield s.wait(HUG_HOLD);
   // Into the book, which opens over the Fen on its stars and turns to the map, while Mosi says where they stand.
   s.fade(0.45, 1.6);
   s.journal.open('stars');
@@ -625,6 +647,7 @@ export const chapter = {
           // reed on p1's west shore and round p2 and p4, and lilies in p1, all clear of her and of the shots across her pool
           ...[[-11.2, -5.6], [-11.3, -12.8], [-8.3, 6], [-14, 0.2], [-9.5, 3], [14.5, 10], [9, 13.8]].map((position, k) => ({ name: 'horsetailReed', position, variant: (k + 1) % 4, scale: 1.1 })),
           ...[[-7.5, -6.3], [-7, -12], [-5.5, -14.2], [-6.5, -3.8]].map((position, k) => ({ name: 'waterLily', position, variant: k % 6, scale: 1.1 })),
+
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
         // no moss hangs between Egill and where her face comes down to him (x 6.0 to 7.3): the north conifer's lowest strands hung

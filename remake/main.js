@@ -23,7 +23,7 @@ import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
 import { createSave, defaultChapter } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
-import { createBook } from './engine/book/book.js';
+import { createBook, HALS_STAR } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
 import { parseManifest } from './engine/book/media.js';
@@ -184,8 +184,9 @@ const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
   onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
-  // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once.
-  onTab: tab => { if (tab === 'games') setTimeout(() => hals.prewarm(), 900); },
+  // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
+  // once Þórseðla's star has opened it (a locked tile only wiggles, and builds nothing).
+  onTab: tab => { if (tab === 'games' && save.get().stars.includes(HALS_STAR)) setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {

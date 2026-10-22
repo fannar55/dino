@@ -205,11 +205,18 @@ test('a find flies its picture from the tap to the button, sounds once on landin
 
 test('addPlace writes the save once and flies a marker', () => {
   const sounds = [];
-  const { journal, save, el, book } = journalRig({ audio: { sfx: name => sounds.push(name) } });
+  // the storage counts its writes: a place is written when it comes, and never again for the same place
+  const storage = memoryStorage();
+  let writes = 0;
+  const setItem = storage.setItem;
+  storage.setItem = (key, value) => { writes++; return setItem(key, value); };
+  const { journal, save, el, book } = journalRig({ save: createSave(storage), audio: { sfx: name => sounds.push(name) } });
   el('journal-button').rect = { left: 1100, top: 12, width: 160, height: 64 }; // its middle is at 1180, 44
   const flying = el('journal-flights').children;
   assert.equal(journal.addPlace('sloedla', { x: 300, y: 420 }), true, 'a new place on the map');
   assert.deepEqual(save.get().places, ['sloedla'], 'saved at once');
+  assert.equal(writes, 1, 'in one write');
+  assert.deepEqual(JSON.parse(storage.getItem(KEY)).places, ['sloedla'], 'to the storage');
   assert.equal(el('journal-button').hidden, false, 'the book comes out for it');
   assert.equal(flying.length, 1, 'a marker flies');
   assert.ok(flying[0].classList.contains('flying-place'), 'a small round marker');
@@ -218,12 +225,14 @@ test('addPlace writes the save once and flies a marker', () => {
   assert.equal(journal.addPlace('sloedla', { x: 10, y: 10 }), false, 'the same place again');
   assert.equal(flying.length, 1, 'flies nothing more');
   assert.deepEqual(save.get().places, ['sloedla'], 'and is kept once');
+  assert.equal(writes, 1, 'without writing the save again');
   journal.update(FLIGHT_SECONDS - 0.02);
   const arriving = placeOf(flying[0].style);
   assert.ok(Math.abs(arriving.x - 1180) < 3 && Math.abs(arriving.y - 44) < 3, `into the button: ${arriving.x}, ${arriving.y}`);
   assert.deepEqual(sounds, []);
   journal.update(0.03);
   assert.equal(flying.length, 0, 'it has landed');
+  assert.equal(writes, 1, 'landing writes nothing more');
   assert.deepEqual(sounds, ['newAnimal'], 'the book\'s bell, once');
   assert.equal(el('journal-badge').hidden, false, 'the button wears its badge');
   assert.ok(book.refreshed >= 1, 'and the book shows the place');
