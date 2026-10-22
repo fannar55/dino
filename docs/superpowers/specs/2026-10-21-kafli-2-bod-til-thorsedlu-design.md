@@ -225,3 +225,9 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Útsýnispunktur skipulagsins (`layout.lookout`) er upphaf sjónlínanna fyrir plöntuskipulagið**, 1,4 m frá raunverulegum stað höfuðsins (`LOOKOUT_HEAD`), og er ekki færður af sömu ástæðu.
 - **Línur:** talningin er í hvorugkyni (`k2_mosi_1..10`, „Eitt!" … „Tíu!") og er notuð bæði fyrir spor og ber; kortið talar aðeins þegar pikkað er á fundinn eða kláraðan vin, tómur reitur þegir.
 - **Mosaskeggið dofnar innan 1,2–3 m frá myndavél**, svo skeggin leggist ekki yfir andlit hennar í nærmyndum.
+- **Sólin blikkar 3,35 s inn í „hausinn niður"** (ekki 2,5 s), því fyrr er hún falin á bak við hausinn á Mosa; það er prófað í báðum spilunum.
+- **Engin sólarkveðja uppi í 9 m hæð:** sólin er aðeins 1,7 s í mynd í flugi Egils upp á höfuðið og aldrei í lyftunni eða útsýninu; faðmlagið í senu 8 er sólaratriði kaflans.
+- **Þokuslæðurnar dofna þegar horft er bratt niður á þær** (útsýnið, lyftan), svo þær lesi ekki sem flatar rákir ofan frá; á jörðu niðri haldast þær.
+- **Fjarlægt sef Fensins er gisnara** (10 % handan 19 m) til að halda hverjum ramma undir 230 þúsund þríhyrningum með svigrúmi; nærsefið og sefbreiðan í afhjúpuninni eru óbreytt.
+- **Vatnshljóð Fensins byrja á seinni helmingi slóðarinnar** (4 s inn í reiðina) og taka alveg við af skóginum við komuna í Fenið.
+- **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
