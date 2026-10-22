@@ -221,7 +221,6 @@ const FEN_LIFE = {
       setMorph(c.mesh, 'walkB', walking * Math.max(0, -step));
       c.mesh.position.set(x, 0, 0);
       c.mesh.rotation.set(0, -turn, 0);
-      c.followGround = true;
     },
   },
   turtle: {

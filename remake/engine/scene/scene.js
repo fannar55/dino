@@ -418,7 +418,7 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     /**
      * The child looks around and finds hidden things; resolves when all are found. `explore` gives the
      * free-look limits for director.explore ({ yaw, pitch, speed }), `targets` what to find, and the rest
-     * is searchFlow's (search.js): hintAfter, helpAfter, speaker and onFound(name, index). Seeking: one find every 3 s.
+     * is searchFlow's (search.js): hintAfter, helpAfter, quick, speaker and onFound(name, index, how). Seeking: one find every 3 s.
      */
     search,
     /**

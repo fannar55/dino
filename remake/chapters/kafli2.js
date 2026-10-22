@@ -30,6 +30,7 @@ import { createMudPrints } from '../world/props/mud-prints.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import { createBasket } from '../world/props/basket.js';
 import { sparkleTrail } from '../world/props/sparkles.js';
+import { tapOrWait } from '../engine/scene/tap-or-wait.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import {
@@ -737,6 +738,7 @@ function* theInvitation(s, c) {
   }
   yield* say(s, c, 'egill', 'k2_egill_yes');
   c.basket.putDown(); // on the bank: his hands are free for her head
+  c.fenCritters.quiet();
 }
 
 // 6. The lookout: up her neck to nine metres, where the child finds the three friends far away.
@@ -807,29 +809,24 @@ function arriveInTheFen(s, c) {
     name, kind, heading, position: [x, (water ? world.forest?.water?.level ?? ground(x, z) : ground(x, z)) + up, z],
   }));
   const critters = createCritters(world, { spots, ripple: (point, strength) => c.ring(point, strength) });
-  for (const t of critters.targets) {
+  const unhear = critters.targets.map(t => {
     const { kind } = FEN_CRITTERS.find(f => f.name === t.name);
     s.target(t.name, t);
-    s.onTap(t.name, tap => {
+    return s.onTap(t.name, tap => {
       critters.react(t.name);
       s.sfx(kind);
       s.found(kind, tap);
     });
-  }
-  c.fenCritters = { critters, spots: FEN_CRITTERS };
+  });
+  // they can be tapped on the ground until Egill goes up her neck (scene 6), where a tap is for the far friends, not for them
+  const quiet = () => {
+    for (const t of critters.targets) s.target(t.name, null);
+    for (const stop of unhear.splice(0)) stop();
+  };
+  c.fenCritters = { critters, spots: FEN_CRITTERS, quiet };
   c.berries = createBerryBushes(world, { bushes: BERRY_BUSHES.map(b => ({ ...b, position: [b.position[0], ground(...b.position), b.position[1]] })) });
   c.basket = createBasket(world);
   s.camera.cut('fen_reveal');
-}
-
-/** A required tap on an actor that also ends by itself when `idle` is done: a wait for the child with no hints (kafli1's). */
-function* tapOrWait(s, name, idle) {
-  s.target(name, { point: name, radius: 0.7 });
-  try {
-    return yield s.race(s.tap(name), idle);
-  } finally {
-    s.target(name, null);
-  }
 }
 
 /** A line, one voice at a time: `c.saying` counts the lines under way, so a goodbye or a remark can wait for quiet. */

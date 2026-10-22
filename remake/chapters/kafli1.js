@@ -29,6 +29,7 @@ import { pollenBurst } from '../world/props/pollen.js';
 import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { WINK_SECONDS } from '../engine/sun-face.js';
+import { tapOrWait } from '../engine/scene/tap-or-wait.js';
 
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
@@ -742,16 +743,6 @@ function* glitterSaddle(s, c) {
   } finally {
     over = true;
     saddle.scale.setScalar(size);
-  }
-}
-
-/** A required tap on an actor that also ends by itself when `idle` is done (R12): a hint-free wait for the child. */
-function* tapOrWait(s, name, idle) {
-  s.target(name, { point: name, radius: 0.7 });
-  try {
-    return yield s.race(s.tap(name), idle);
-  } finally {
-    s.target(name, null);
   }
 }
 

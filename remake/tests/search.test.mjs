@@ -345,6 +345,21 @@ test('a target may have a line for each hint, and a child who was helped is help
   assert.equal(said.length, 4, 'nothing more after the end');
 });
 
+test('after the child taps one again, the quick pacing is over: the next waits the whole time', () => {
+  const { said, pointer, found, search, run } = rig();
+  search({ quick: { hintAfter: 6, helpAfter: 1 } });
+  run(48.1); // the stone is found for the child at 48 s: the ferns are hinted at sooner now
+  pointer.tap('ferns'); // but the child taps the ferns
+  run(0.2);
+  const at = found.at(-1).time;
+  assert.deepEqual(found.map(f => f.name), ['stone', 'ferns']);
+  run(11.7);
+  assert.equal(said.length, 3, 'no quick hint 6 s after the tap: the three for the stone only');
+  run(0.4);
+  assert.equal(said.length, 4, "the tree's first hint comes 12 s after the tap");
+  assert.ok(near(said.at(-1).time, at + 12));
+});
+
 test('onFound hears how each was found: tapped, helped or by the seek', () => {
   const child = rig();
   child.search({ targets: FLOWERS.slice(0, 2) });

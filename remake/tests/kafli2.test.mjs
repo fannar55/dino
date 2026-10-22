@@ -411,6 +411,9 @@ test('the fen animals go into the book', async () => {
   // the others live in the Fen, a tap away: tap targets with their finding
   const fen = world.chapterState.fenCritters;
   assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  // until he goes up her neck: from then on a tap is for the far friends, never an animal far below
+  const targets = (await playTheFen()).pointer.targets;
+  for (const spot of fen.spots) assert.equal(targets.has(spot.name), false, `${spot.name} is no tap target after scene 5`);
 });
 
 test('a wrong footprint splashes and says next, and the count waits', async () => {
