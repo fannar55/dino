@@ -410,7 +410,7 @@ function playIdle() {
   idled ??= (async () => {
     const seen = {
       frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null,
-      uggedlaFirst: null, disposed: null,
+      uggedlaFirst: null, disposed: null, openings: [],
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
@@ -423,6 +423,16 @@ function playIdle() {
           const shown = FAR.filter(name => far.actorOf(name)?.root.visible && far.group.visible && far.group.parent);
           if (world.camera.position.y <= 6 && shown.length) seen.shownLow.push({ at: stage.s.time, y: world.camera.position.y, shown });
           if (shown.includes('uggedla') && !seen.uggedlaFirst) seen.uggedlaFirst = { at: stage.s.time, finds: c.farFinds?.length ?? 0 };
+          // where each friend to be found is on the 1280 by 800 screen in the first frame of each of the lookout's two searches
+          const exploring = world.director.mode === 'explore' && world.chapterTimeline.at(-1)?.scene === 6;
+          if (exploring && !seen.wasExploring) {
+            world.camera.updateMatrixWorld();
+            seen.openings.push(Object.fromEntries(shown.filter(name => !c.farFinds?.some(found => found.name === name)).map(name => {
+              const p = far.targets.find(t => t.name === name).point.clone().project(world.camera);
+              return [name, { x: ((p.x + 1) / 2) * 1280, y: ((1 - p.y) / 2) * 800, front: p.z < 1 }];
+            })));
+          }
+          seen.wasExploring = exploring;
           if (far.disposed && !seen.disposed) seen.disposed = { at: stage.s.time, scene: world.chapterTimeline.at(-1).scene, phase: c.phase, inScene: !!far.group.parent };
           if (shown.length >= 2) {
             seen.shownHigh++;
@@ -491,6 +501,17 @@ test('the far friends only show from above', async () => {
   assert.ok(seen.shownHigh > 30 * 60, `they show in ${(seen.shownHigh / 30).toFixed(0)} s of frames from her head`);
   assert.ok(seen.heaviest <= 2200 && seen.lightest > 200, `each draws ${seen.lightest} to ${seen.heaviest} triangles (the light levels)`);
   assert.equal(seen.casters, 0, 'and casts no shadow');
+  // In the first frame of each search every friend to find is on the screen, and clear of the star counter and of the place pin that
+  // lands on it (style.css .journal-button, 12 px in from the top right, about 305 by 64 px, its badge 11 px above it; .flying-place
+  // lands, 60 px across, on its book), so her burst and her marker's flight into the book read.
+  const HUD = { left: 1280 - 12 - 305, bottom: 12 + 64 + 14 }, CLEAR = 25;
+  assert.deepEqual(seen.openings.map(o => Object.keys(o)), [['sloedla', 'flugedla'], ['uggedla']], 'Slóeðla and Flugeðla, then Uggeðla');
+  for (const opening of seen.openings) {
+    for (const [name, { x, y, front }] of Object.entries(opening)) {
+      assert.ok(front && x > 0 && x < 1280 && y > 0 && y < 800, `${name} on the screen as her search opens (${x.toFixed(0)}, ${y.toFixed(0)})`);
+      assert.ok(!(x > HUD.left - CLEAR && y < HUD.bottom + CLEAR), `${name} at (${x.toFixed(0)}, ${y.toFixed(0)}) is clear of the star counter and the place pin`);
+    }
+  }
   // Uggeðla is kept back until the camera has turned away from her to the first two: not at the edge of the lift or the look down
   assert.ok(seen.uggedlaFirst && seen.uggedlaFirst.finds === 2, `Uggeðla first shows after the first two are found (${JSON.stringify(seen.uggedlaFirst)})`);
   // and once Egill is down in the saddle they let go of what they hold, and leave the scene
@@ -509,7 +530,7 @@ function assertInView(views, why) {
 
 test('when the star has landed the sun hugs itself with a big grin and winks, where the child sees it, with nobody in front', async () => {
   for (const [how, run] of [['a capture', playTheFen], ['a child who taps nothing', playIdle]]) {
-    const { sunCalls, watched: seen } = await run();
+    const { sunCalls, captions, watched: seen } = await run();
     const hug = sunCalls.find(c => c.call === 'hug');
     const wink = sunCalls.filter(c => c.call === 'wink').at(-1);
     assert.ok(hug && hug.scene === 8 && hug.shot === 'fen_sun_hug', `${how}: the hug in scene 8, in the sun's own shot (${hug?.scene}, ${hug?.shot})`);
@@ -522,6 +543,10 @@ test('when the star has landed the sun hugs itself with a big grin and winks, wh
     const star = cuts.findLastIndex(cut => cut.shot === 'fen_star_rise' && cut.at < hug.at);
     assert.ok(star >= 0 && cuts[star + 1]?.shot === 'fen_sun_hug' && Math.abs(cuts[star + 1].at - hug.at) < 1e-6, `${how}: the star in its own shot, then the sun's, on whose cut it hugs`);
     assert.ok(hug.at - cuts[star].at >= 2.5, `${how}: the star's shot held ${(hug.at - cuts[star].at).toFixed(1)} s`);
+    // and the sun's own shot is held too, until the book opens over it as Mosi says "Tvær komnar…"
+    assert.equal(cuts.filter(cut => cut.at > hug.at + 1e-6 && cut.at < hug.at + 2.5).length, 0, `${how}: no cut in the sun's first 2.5 s`);
+    const book = captions.find(caption => caption.text === kafli2.chapter.lines.k2_mosi_two.text && caption.at > hug.at);
+    assert.ok(book && book.at - hug.at >= 2.5, `${how}: the sun's shot held ${(book?.at - hug.at).toFixed(1)} s before the book`);
   }
 });
 

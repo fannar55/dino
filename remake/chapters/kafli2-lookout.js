@@ -21,7 +21,9 @@ import { LOOKOUT_CAMERA, LOOKOUT_HEAD, MOSI_HEAD, downToMosi } from './kafli2-th
 const FRIENDS = {
   sloedla: { heading: 64, clip: 'wade', y: 0 }, // wading in the far pool (p5): a few slow steps now and then
   flugedla: { heading: 55, clip: 'idle', y: 0, perch: 'snag' }, // on top of the white snag, facing the lookout
-  uggedla: { heading: -64, clip: 'idle', y: 0, sink: 1.6, reed: { clumps: 11, radius: [1.6, 4.2], height: [2.3, 3.4] } }, // lying low in the reed, her back and sail up out of it
+  // lying low in the reed, her back and sail up out of it: 2 m into the ground, in a bed of 16 tall tufts, three quarters of them on
+  // the lookout's side (1,400 triangles)
+  uggedla: { heading: -64, clip: 'idle', y: 0, sink: 2.0, reed: { clumps: 16, near: 0.75, radius: [1.3, 3.6], height: [2.7, 3.9] } },
 };
 const FIRST = ['sloedla', 'flugedla']; // to the north-west, seen together
 const LAST = 'uggedla'; // to the east-south-east, past her conifers
@@ -29,9 +31,11 @@ const HINTS = { sloedla: 'k2_mosi_hint_far1', flugedla: 'k2_mosi_hint_far2', ugg
 const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_flugedla', uggedla: 'k2_mosi_found_uggedla' };
 
 // The camera of the search: behind Egill on his right, 2 m above his feet, over her neck and back curving away below. First it
-// turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 8 degrees down,
-// so both glitter in the upper half of the frame (Flugeðla clear of the star counter), the Fen lies far below in its haze, and her
-// tail curves up through the bottom left: he is nine metres up, on her. The lens is a little long (44 degrees), so they read from
+// turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 6 degrees down,
+// so both glitter in the upper half of the frame, Flugeðla left of and under the star counter, so that her burst and the marker's
+// flight into the book read (kafli2.test holds them clear of it), the Fen lies far below in its haze, and her tail curves up through
+// the bottom left: he is nine metres up, on her. On a tall screen it looks TALL_DOWN degrees further down, or the top third is sky.
+// The lens is a little long (44 degrees), so they read from
 // 80 to 100 m (a longer one would lose her tail, which lies 25 to 40 degrees under the level from here). The free look turns as far as each
 // of them and 12 degrees more, 30 down and 10 up. Then the camera turns round (TURN_SPEED) to Uggeðla in the east-south-east, past
 // her conifers, and the free look turns 70 degrees either way from her (s.search's explore, as the brief has it). From here the line
@@ -40,11 +44,12 @@ const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_fluge
 const SEARCH_CAMERA = { offset: [-3.2, 2.0, 2.4], local: true, stiffness: 1.6, fov: 44, maxSpeed: 2.4 };
 const SEARCH_PITCH = [-30, 10]; // degrees the free look tilts down and up
 const SEARCH_MARGIN = 12; // degrees the free look turns past the friend furthest round on each side
-const SEARCH_DOWN = 8; // degrees under the level the view looks as it turns out over the Fen
-const SEARCH_LEAN = -6; // degrees the view turns out to the left of the first two friends' middle, toward her tail
+const SEARCH_DOWN = 6; // degrees under the level the view looks as it turns out over the Fen
+const TALL_DOWN = 8; // and this much more on a screen taller than it is wide
+const SEARCH_LEAN = -2; // degrees the view turns out to the left of the first two friends' middle, toward her tail
 const LAST_LOOK = { yaw: [-70, 70], pitch: [-30, 10] }; // the free look round Uggeðla
 const LAST_DOWN = 6; // degrees the view of her looks under her: she sits a little above the middle, the reed and the channel below
-const TURN_SPEED = 16; // degrees a second, on average, the camera turns from the first two friends round to Uggeðla (eased)
+const TURN_SPEED = 10; // degrees a second, on average, the camera turns round to Uggeðla: eased, its peak is the style's 15 (STYLE.md 8)
 // Hints at 12, 24 and 36 s and a find at 48 s (STYLE.md 10) for the first friend; once one was found for the child the next
 // ones come sooner (hints every 6 s, found at 24 s), so a child who taps nothing is through the lookout in about two minutes.
 const PACE = { hintAfter: 12, helpAfter: 3 };
@@ -183,7 +188,8 @@ function searchView(c, targets) {
   const base = bearing(a.point) + wrap(bearing(b.point) - bearing(a.point)) / 2 + THREE.MathUtils.degToRad(SEARCH_LEAN);
   const turns = targets.map(t => THREE.MathUtils.radToDeg(wrap(bearing(t.point) - base)));
   const yaw = [Math.min(0, ...turns) - SEARCH_MARGIN, Math.max(0, ...turns) + SEARCH_MARGIN];
-  return { look: along(eye, base, -THREE.MathUtils.degToRad(SEARCH_DOWN)).toArray(), yaw };
+  const down = SEARCH_DOWN + (c.world.camera.aspect < 1 ? TALL_DOWN : 0);
+  return { look: along(eye, base, -THREE.MathUtils.degToRad(down)).toArray(), yaw };
 }
 
 /**

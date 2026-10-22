@@ -20,7 +20,10 @@ import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
 import { SUN_RADIUS_DEG, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
-import { shapeGround } from '../world/forest/forest.js';
+import { shapeGround, placementInfo } from '../world/forest/forest.js';
+import { planForest } from '../world/forest/plan.js';
+import { createSpeciesLibrary } from '../world/forest/species.js';
+import { PRESETS } from '../engine/quality.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 
 const file = relative => new URL(relative, import.meta.url);
@@ -117,6 +120,8 @@ export function groundOnly(layout, { shaped = false, world = null } = {}) {
     layout,
     heightAt,
     water,
+    // the plants a chapter stands things on (chapter 2's far Flugeðla on her dead snag), as the forest lists them: planned once
+    info: { placementList: ground ? snagsOf(world, layout, ground) : [] },
     butterflies: {
       targets,
       landed,
@@ -127,6 +132,17 @@ export function groundOnly(layout, { shaped = false, world = null } = {}) {
       },
     },
   };
+}
+
+/** The dead snags of a shaped place, from its plan, as createForest's info lists them (planned once for each layout). */
+const snagLists = new Map();
+function snagsOf(world, layout, ground) {
+  if (!(layout.plants ?? []).some(p => p.name === 'deadSnag')) return [];
+  if (!snagLists.has(layout)) {
+    const plan = planForest({ world, layout: ground.layout, seed: layout.seed, terrain: ground.terrain, library: createSpeciesLibrary(layout.seed), q: PRESETS.tablet });
+    snagLists.set(layout, plan.placements.filter(p => p.name === 'deadSnag').map(placementInfo));
+  }
+  return snagLists.get(layout);
 }
 
 /** A pointer that remembers the targets the scene puts on it and the drags it listens to, and taps one when told. */

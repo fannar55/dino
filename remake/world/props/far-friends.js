@@ -16,8 +16,9 @@ import { sparkleBurst } from './sparkles.js';
 //   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun })
 //     position   x and z where the friend stands, and y how far above the ground there its feet are (for Flugeðla, perch:
 //                'snag', above the top of the dead snag the forest grew there; for one lying, sink: metres her body goes into the reed)
-//     reed       a bed of tall golden reed round her, that she lies in ({ clumps, radius: [near, far], height: [low, high] }): the
-//                prop's own, seen with her from above (the forest's reed is culled 64 m from the camera, and she lies 88 m out)
+//     reed       a bed of tall golden reed round her, that she lies in ({ clumps, near, radius: [in, out], height: [low, high],
+//                toward }: `near` of the clumps on the side `toward` faces): the prop's own, seen with her from above (the forest's
+//                reed is culled 64 m from the camera, and she lies 88 m out)
 //     heading    degrees, 0 facing +X and 90 facing +Z, as everywhere
 //     clip       what she does while she waits: 'idle', or 'wade' (a few slow steps along her pool now and then, on the walk clip
 //                where the model has no wading clip of its own)
@@ -29,9 +30,10 @@ import { sparkleBurst } from './sparkles.js';
 //   far.withhold(name, on)          keeps one of them out of sight while the others show (a friend not to be seen yet)
 //   far.update(dt, camera, heightPx) every frame (the chapter puts it on world.effects)
 //   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden)
-//   far.dispose()                   once they will not be seen again: lets go of their light levels and their material (what this
-//                                   made on the GPU), and of the actors; the models' own skins and maps stay with the cache, which
-//                                   Háls og hali shares
+//   far.dispose()                   once they will not be seen again: frees the GPU buffers of the light level each draws with (the
+//                                   level stays in thorsedla-lod.js's cache, which Háls og hali shares, and is uploaded again if drawn
+//                                   again), disposes the coarse material and the reed, and lets the actors go; the models' own skins
+//                                   and maps stay with actor.js's cache
 //   far.actorOf(name), far.group, far.isReady, far.disposed
 
 const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus' };
@@ -42,21 +44,21 @@ const TARGET_RADIUS = 2.5;
 const GLIMMER = { every: 1.25, count: 11, size: 1.7, spread: 2.6, duration: 1.3 };
 const WADE = { every: [6, 10], reach: 2.6, speed: 0.55 };
 const FOUND_BURST = { count: 36, size: 2.2, spread: 4, duration: 1.8 };
-const REED = { blades: 11, width: 0.16, colours: ['#7d6d33', '#c9b45a', '#e3d08a'] }; // the Fen's reed and its tips (spec: útlit Fensins)
+const REED = { blades: 11, width: 0.2, colours: ['#7d6d33', '#c9b45a', '#e3d08a'] }; // the Fen's reed and its tips (spec: útlit Fensins)
 
 /**
  * A bed of reed round (x, z) on the ground `heightAt` gives: `clumps` tufts between radius[0] and radius[1] m from it, thickest
  * toward `toward` (a bearing, radians: the lookout's side), each a fan of curved, tapering blades from dark at the foot to pale at the
  * tip, one mesh with its colours in its vertices.
  */
-function reedBed({ x, z, heightAt, clumps = 9, radius = [1.8, 4], height = [2.2, 3.2], toward = 0, seed = 'reed' }) {
+function reedBed({ x, z, heightAt, clumps = 9, near = 0.6, radius = [1.8, 4], height = [2.2, 3.2], toward = 0, seed = 'reed' }) {
   const random = seededRandom(seed);
   const positions = [], colours = [], index = [];
   const tone = REED.colours.map(hex => new THREE.Color(hex));
   const c = new THREE.Color();
   for (let k = 0; k < clumps; k++) {
     // most clumps on the side she is seen from, the rest round her
-    const side = k < clumps * 0.6 ? toward + (random() - 0.5) * 1.8 : random() * Math.PI * 2;
+    const side = k < clumps * near ? toward + (random() - 0.5) * 1.5 : random() * Math.PI * 2;
     const r = radius[0] + random() * (radius[1] - radius[0]);
     const cx = x + Math.cos(side) * r, cz = z + Math.sin(side) * r, cy = heightAt(cx, cz) - 0.1;
     const tall = height[0] + random() * (height[1] - height[0]);
@@ -296,7 +298,8 @@ export function createFarFriends(world, { friends, sun = null } = {}) {
       disposed = true;
       group.visible = false;
       for (const entry of entries.values()) {
-        // the light level and the material drawn with it are this one's own; the model's own skin and map are the cache's
+        // the GPU buffers of the light level (the geometry stays in thorsedla-lod.js's cache) and the coarse material drawn with
+        // it; the model's own skin and map are actor.js's cache's
         for (const { mesh, geometry, material } of entry.skins) {
           if (mesh.geometry !== geometry) mesh.geometry.dispose();
           if (mesh.material !== material) mesh.material.dispose();

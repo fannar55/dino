@@ -200,12 +200,13 @@ const FEN_SHOTS = {
     position: { actor: 'thorsedla', part: 'feet', offset: [2.5, 2.0, 18.5], local: true },
     target: { actor: 'thorsedla', part: 'feet', offset: [6, 5.2, 2.5], local: true }, fov: 50,
   },
-  // Scene 8, as the star lands: the sun's hug. From the north side of her pool, 4 m up over the channel, looking south-west and up
-  // 15 degrees, toward the late morning sun (heading 150, 26 up): her back and neck along the bottom of the frame, the west groves'
-  // crowns beyond, and the sun's face in the upper third. Points on her, as fen_star_rise is.
+  // Scene 8, once the star has landed: the sun's hug. From the north side of her pool, 4 m up over the channel, looking south-west
+  // straight at the late morning sun's heading (150) and up 13 degrees (it is 26 up), on a 40-degree lens: her back and her tail's
+  // curve a band along the bottom of the frame, the west groves' crowns beyond, and the sun's face in the upper third. Points on her,
+  // as fen_star_rise is.
   fen_sun_hug: {
     position: { actor: 'thorsedla', part: 'feet', offset: [8, 4.66, -9], local: true },
-    target: { actor: 'thorsedla', part: 'feet', offset: [-8.74, 9.84, 0.66], local: true }, fov: 50,
+    target: { actor: 'thorsedla', part: 'feet', offset: [-8.88, 9.16, 0.74], local: true }, fov: 40,
   },
   // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
   fen_shore: { position: [-16, 1.2, -16], target: [-4, 1.6, -8.5], fov: 50 },
@@ -542,10 +543,12 @@ function* say(s, c, speaker, id, options) {
   }
 }
 
-// 8. The second star, and the book: the star rises from her neck, the sun hugs itself and winks, the child taps the star into the
-// book, and the book opens on its stars, two of them alight now, and turns to the map, where the friends found today are.
-const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, -1, 0] }; // her neck, just under her head
-
+// 8. The second star, and the book: the star rises from her head into the sky, the child taps it into the book, the sun hugs itself
+// and winks in a shot of its own, and the book opens on its stars, two of them alight now, and turns to the map, where the friends
+// found today are.
+// The star rises from just over her head (the brief's 1 m under it, on her neck, put a gold star on her gold skin) and goes up 2.4 m
+// into the sky (engine/scene/star-sprite.js), where it waits for the tap.
+const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, 0.3, 0] };
 const TO_THE_MAP = 1.2; // seconds the book shows its stars before it turns to the map
 // Mosi's heading as the star rises (he came round to catch Egill facing west, 180): turned north toward her head, so the star is
 // 33 degrees aside of his head (the saddle lets his look go 40 aside and 30 up, engine/riding.js); from the south he reads three
@@ -558,8 +561,8 @@ function* theStar(s, c) {
   const { mosi, egill } = c;
   yield s.camera.cut('fen_star_rise');
   const above = { actor: 'thorsedla', part: 'head', offset: [0, 1.2, 0] };
-  // Mosi turns a little toward her head, still side on to us, so his look (which the saddle keeps within 40 degrees aside and 30 up,
-  // engine/riding.js) reaches the star as it rises
+  // Mosi has turned toward her head (from the slide's end on), three quarters from behind us, so his look (which the saddle keeps
+  // within 40 degrees aside and 30 up, engine/riding.js) reaches the star as it rises
   mosi.turnTo(STAR_TURN, { rate: 35 });
   yield mosi.lookAt(above, { weight: 0.8, maxAngle: 60, maxPitch: 45 });
   yield egill.lookAt(above, { weight: 0.85, maxAngle: 60, maxPitch: 50 });
@@ -647,7 +650,6 @@ export const chapter = {
           // reed on p1's west shore and round p2 and p4, and lilies in p1, all clear of her and of the shots across her pool
           ...[[-11.2, -5.6], [-11.3, -12.8], [-8.3, 6], [-14, 0.2], [-9.5, 3], [14.5, 10], [9, 13.8]].map((position, k) => ({ name: 'horsetailReed', position, variant: (k + 1) % 4, scale: 1.1 })),
           ...[[-7.5, -6.3], [-7, -12], [-5.5, -14.2], [-6.5, -3.8]].map((position, k) => ({ name: 'waterLily', position, variant: k % 6, scale: 1.1 })),
-
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
         // no moss hangs between Egill and where her face comes down to him (x 6.0 to 7.3): the north conifer's lowest strands hung
