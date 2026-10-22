@@ -232,9 +232,11 @@ function playTheFen() {
     let eyesOf = null; // her eyes' midpoint, carried by her Head bone (the face pass's eyes)
     const run = await playUnattended(kafli2, {
       limit: 600, shaped: true,
-      onFrame({ world, stage }) {
+      onFrame({ world, stage, pointer }) {
         const c = world.chapterState;
         if (!c) return;
+        // what a tap could reach as scene 5 ends (the first frame of scene 6)
+        if (!seen.targetsAtSix && world.chapterTimeline?.some(e => e.scene === 6)) seen.targetsAtSix = new Set(pointer.targets.keys());
         const thorsedla = world.actors.get('thorsedla'), egill = world.actors.get('egill');
         if (!eyesOf) {
           let mesh = null;
@@ -412,9 +414,13 @@ test('the fen animals go into the book', async () => {
   // the others live in the Fen, a tap away: tap targets with their finding
   const fen = world.chapterState.fenCritters;
   assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
-  // until he goes up her neck: from then on a tap is for the far friends, never an animal far below
-  const targets = (await playTheFen()).pointer.targets;
-  for (const spot of fen.spots) assert.equal(targets.has(spot.name), false, `${spot.name} is no tap target after scene 5`);
+  // until he goes up her neck: from then on a tap is for the far friends, never an animal far below: not as scene 5 ends, nor after
+  const { pointer, seen } = await playTheFen();
+  assert.ok(seen.targetsAtSix, 'scene 6 began');
+  for (const spot of fen.spots) {
+    assert.equal(seen.targetsAtSix.has(spot.name), false, `${spot.name} is no tap target as scene 5 ends`);
+    assert.equal(pointer.targets.has(spot.name), false, `${spot.name} is no tap target at the end of the chapter`);
+  }
 });
 
 test('a wrong footprint splashes and says next, and the count waits', async () => {
@@ -487,6 +493,38 @@ test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing
   assert.ok(added.some(o => o.name === 'Þórseðla leaves' && o.at >= at - 1e-6 && o.at - at < 0.1), 'leaves fall from her mouth at the tap');
   assert.equal(world.chapterState.taps, 1, 'one tap');
   assert.ok(world.chapterState.swishLog.some(t => t >= at - 1e-6 && t - at < 0.2), 'and her tail swishes at it');
+});
+
+test('the warm-up draws the basket with its glow, which shows only while he holds it up, at the climax', async () => {
+  const { world } = await playUnattended(kafli2, { limit: 0.2 });
+  const warm = kafli2.chapter.warmUp(world);
+  const names = warm.objects.flatMap(root => { const n = []; root.traverse(o => n.push(o.name)); return n; });
+  for (const name of ['Mud prints', 'Print water', 'Basket', 'Basket berries', 'Basket glow']) assert.ok(names.includes(name), `${name} is drawn`);
+  warm.dispose();
+});
+
+test('a tap on her just before her tail swishes on its own: the swish she does then is a whole one, and so is its shot', async () => {
+  let tappedAt = null, rode = false, calledAt = null;
+  const run = await playUnattended(kafli2, {
+    seeking: false, limit: 230, shaped: true,
+    onFrame({ world, stage, pointer }) {
+      // Egill gets down off Mosi to call up to her (the chapter lets go of his ride there): half a second on, the child taps her
+      const c = world.chapterState;
+      if (c?.riding) rode = true;
+      if (rode && c.riding === null && calledAt === null) calledAt = stage.s.time;
+      if (calledAt !== null && tappedAt === null && stage.s.time - calledAt >= 0.5) {
+        tappedAt = stage.s.time;
+        pointer.tap('thorsedla');
+      }
+    },
+  });
+  const { cuts } = run.seen;
+  const low = cuts.findIndex(e => e.shot === 'fen_thorsedla_low');
+  assert.ok(tappedAt !== null && low > 0, 'the child tapped her as Egill called, before the beat');
+  const swishes = run.world.chapterState.swishLog;
+  assert.equal(swishes.length, 2, 'her tail swished at the tap and again on its own');
+  assert.ok(swishes[1] >= swishes[0] + 2.4 - 1e-6, 'the second only once the first was over');
+  assert.ok(cuts[low + 1].at - cuts[low].at >= 2.5, `the low shot on her is held ${(cuts[low + 1].at - cuts[low].at).toFixed(1)} s`);
 });
 
 test('a tap on the next print while Mosi says a number is not lost: it is counted as soon as he has said it', async () => {

@@ -382,6 +382,7 @@ function* theFen(s, c) {
   yield egill.play('wave', { fade: 0.3 });
   yield* say(s, c, 'egill', 'k2_egill_hello');
   yield egill.play('idle', { fade: 0.5 });
+  yield s.until(() => !c.swishing); // a tap's swish still going: it ends first, so hers is the whole beat and the shot its length
   yield s.camera.cut('fen_thorsedla_low');
   yield* tailSwish(s, c);
   yield s.wait(0.6);

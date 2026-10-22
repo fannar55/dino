@@ -127,9 +127,9 @@ export function createBasket(world) {
   berries.count = 0;
   berries.castShadow = false;
   group.add(berries);
-  const glow = glowMesh();
+  const glow = glowMesh(); // in the basket's group: drawn when it is (the chapter's warm-up compiles it with the basket)
+  group.add(glow);
   world.scene.add(group);
-  world.scene.add(glow);
 
   const point = new THREE.Vector3();
   let actor = null;
@@ -353,7 +353,7 @@ export function createBasket(world) {
   }
 
   // the glow round it while it is held up: on the camera's side of it, facing the camera, breathing a little
-  const camQ = new THREE.Quaternion();
+  const camQ = new THREE.Quaternion(), groupQ = new THREE.Quaternion();
   function poseGlow() {
     const k = group.visible ? smooth((lift - 0.55) / 0.45) : 0;
     glow.visible = k > 0.01;
@@ -363,9 +363,13 @@ export function createBasket(world) {
     glow.position.copy(point);
     if (camera) {
       camera.getWorldQuaternion(camQ);
-      glow.quaternion.copy(camQ);
       glow.position.lerp(camera.position, 0.02);
     }
+    // where it is in the world, put in the group's frame
+    group.updateMatrixWorld(true);
+    group.worldToLocal(glow.position);
+    glow.quaternion.copy(group.getWorldQuaternion(groupQ).invert());
+    if (camera) glow.quaternion.multiply(camQ);
   }
 
   world.effects.add({
@@ -404,7 +408,6 @@ export function createBasket(world) {
       if (actor) turnHands(0);
       hands?.release(0);
       group.removeFromParent();
-      glow.removeFromParent();
       geometry.dispose(); material.dispose();
       berryShape.dispose(); wholeBunch.dispose(); berryMaterial.dispose(); berries.dispose();
       glow.geometry.dispose(); glow.material.dispose();
