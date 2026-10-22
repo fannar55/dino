@@ -29,9 +29,10 @@ const HINTS = { sloedla: 'k2_mosi_hint_far1', flugedla: 'k2_mosi_hint_far2', ugg
 const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_flugedla', uggedla: 'k2_mosi_found_uggedla' };
 
 // The camera of the search: behind Egill on his right, 2 m above his feet, over her neck and back curving away below. First it
-// turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 14 degrees down,
-// so both glitter in the upper half of the frame, the Fen lies far below, and her tail curves away through the bottom left: he is
-// nine metres up, on her. The lens is a little long (42 degrees), so they read from 80 to 100 m. The free look turns as far as each
+// turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 8 degrees down,
+// so both glitter in the upper half of the frame (Flugeðla clear of the star counter), the Fen lies far below in its haze, and her
+// tail curves up through the bottom left: he is nine metres up, on her. The lens is a little long (44 degrees), so they read from
+// 80 to 100 m (a longer one would lose her tail, which lies 25 to 40 degrees under the level from here). The free look turns as far as each
 // of them and 12 degrees more, 30 down and 10 up. Then the camera turns round (TURN_SPEED) to Uggeðla in the east-south-east, past
 // her conifers, and the free look turns 70 degrees either way from her (s.search's explore, as the brief has it). From here the line
 // to Uggeðla passes 4.8 m clear of the south-east conifer's crown, which hides her from his head (the layout's sight line from it
@@ -49,7 +50,7 @@ const TURN_SPEED = 16; // degrees a second, on average, the camera turns from th
 const PACE = { hintAfter: 12, helpAfter: 3 };
 const QUICK = { hintAfter: 6, helpAfter: 3 };
 const SETTLE = 1.6; // seconds the camera turning out over the Fen has to come to rest before the free look starts from it
-const HAZE = { up: 1.6, rise: 4 }; // the fog twice as thick at the lookout, eased in over the lift's first 4 s
+const HAZE = { up: 1.6, rise: 4 }; // the fog 1.6 times as thick at the lookout (twice washed the friends out), eased in over the lift's first 4 s
 const smooth = t => t * t * (3 - 2 * t);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -75,7 +76,7 @@ export function farFriends(s, c, spots) {
 
 /**
  * The fog's density eased to `factor` times the look's own over `seconds` (a uniform every material reads: no cost). Up on her
- * head the Fen lies under twice the haze, so the far trees fade and the plain reads far below; it eases back for the slide.
+ * head the Fen lies under thicker haze, so the far trees fade and the plain reads far below; it eases back for the slide.
  */
 export function haze(c, factor, seconds) {
   const fog = c.world.scene?.fog;
