@@ -194,9 +194,10 @@ export function fakeBook() {
  * moves on, as if behind the start button; `makeLater` false leaves them to the chapter, as for a child who taps the start button
  * at once. `slowBuilds` (seconds, or { name: seconds }) builds each place but the first as main.js does once the start button
  * shows, one after another in the order of chapter.prepare and over frames: each build is done that many seconds of the run after
- * it is asked for. Each place's build is in `builds` ({ name: { asked, built } }, the run's seconds).
+ * it is asked for. Each place's build is in `builds` ({ name: { asked, built, failed } }, the run's seconds). `failBuilds`
+ * ({ name: times }) makes a place's first builds fail, as a build that throws would.
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0 } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {} } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -223,10 +224,16 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   const due = []; // slow builds: { at, resolve, forest }
   let asking = null; // the place whose build is asked for now
   let slow = false; // the first place is built at once
+  const failing = { ...failBuilds };
   const locations = createLocations({ world, locations: chapter.locations, build: layout => {
+    if (failing[asking] > 0) {
+      failing[asking]--;
+      (builds[asking] ??= { asked: runTime, built: null, failed: 0 }).failed = (builds[asking].failed ?? 0) + 1;
+      return Promise.reject(new Error(`the build of ${asking} failed`));
+    }
     const f = groundOnly(layout, { shaped, world });
     forests.push(f);
-    const record = builds[asking] = { asked: runTime, built: null };
+    const record = builds[asking] = { asked: runTime, built: null, failed: builds[asking]?.failed ?? 0 };
     const seconds = typeof slowBuilds === 'number' ? slowBuilds : slowBuilds?.[asking] ?? 0;
     if (!slow || !seconds) {
       record.built = runTime;
@@ -379,7 +386,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   const task = stage.start(chapter.script);
   stage.begin();
   // main.js's builds once the start button shows: one place after another, each over frames
-  if (slowBuilds) (async () => { for (const name of chapter.prepare ?? []) await locations.prepare(name); })();
+  if (slowBuilds) (async () => { for (const name of chapter.prepare ?? []) await locations.prepare(name).catch(() => {}); })();
   let madeLater = !makeLater || !chapter.later?.make;
 
   // What the run sees on the way, for the tests to look at afterwards.

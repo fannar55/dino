@@ -14,8 +14,9 @@
 
 /**
  * What a step yields when the next one is long by itself (some 20 to 30 ms: a whole prop made in one go): runSliced ends the slice
- * there, unless it has only just begun, so that the long step begins a slice of its own instead of coming on top of the budget.
- * runSync takes no notice of it.
+ * there, unless it is the slice's first step, so that the long step begins a slice of its own instead of coming on top of the budget.
+ * runSync takes no notice of it. Any other value a step yields is only a mark for whoever reads the steps (world/forest/forest.js
+ * yields the name of the part it has just made, 'noise', 'ground', 'grass', ..., to profile a build by): both runners pass it by.
  */
 export const FRESH = Symbol('fresh slice');
 
@@ -36,8 +37,11 @@ export async function runSliced(steps, { budget = () => 20, wait = nextFrame, on
     const start = performance.now();
     const limit = Math.max(1, budget());
     let next;
-    do next = steps.next();
-    while (!next.done && performance.now() - start < limit && !(next.value === FRESH && performance.now() - start > 1));
+    let ran = 0;
+    do {
+      next = steps.next();
+      ran++;
+    } while (!next.done && performance.now() - start < limit && !(next.value === FRESH && ran > 1));
     onSlice?.(performance.now() - start);
     if (next.done) return next.value;
     await wait();

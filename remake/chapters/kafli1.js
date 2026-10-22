@@ -987,8 +987,8 @@ export const chapter = {
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.
   startShot: 'dawn',
-  // The glade is built behind the start button and kept, hidden (engine/locations.js: prepare), so the change of place in scene 6
-  // is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
+  // The glade is built once the start button shows, a slice at a time (main.js: prepareLater), and kept, hidden (engine/locations.js:
+  // prepare), so the change of place in scene 6 is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
   // more JS heap, the textures under 40 MB (measured 2026-10-17).
   prepare: ['burknalaut'],
 

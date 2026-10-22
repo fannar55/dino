@@ -44,15 +44,16 @@ test('runSync and runSliced drive the same steps to the same end; the sliced one
   let big = 0;
   await runSliced(steps(), { budget: () => 1000, wait: () => { big++; return Promise.resolve(); } });
   assert.equal(big, 0, 'all in one slice');
-  // a step that yields FRESH ends its slice, so the long step after it begins one of its own; not when the slice has only just begun
+  // a step that yields FRESH ends its slice, so the long step after it begins one of its own; not when it is the slice's first step
   const busy = ms => { const until = performance.now() + ms; while (performance.now() < until); };
   const ran = []; // the steps as they run, and '|' where a slice ends
   function* withLong() {
-    yield FRESH; // the slice has only just begun: it goes on
+    yield FRESH; // the slice's first step: it goes on
     for (let i = 0; i < 6; i++) { busy(0.5); ran.push('short'); yield; }
     yield FRESH;
-    busy(4); // the long step
+    busy(4); // the long step, the first of its slice
     ran.push('long');
+    yield; // (a FRESH it yielded itself would be its slice's first step: no end)
     yield FRESH;
     busy(4); // and another
     ran.push('long');

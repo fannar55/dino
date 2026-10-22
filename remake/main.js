@@ -372,15 +372,15 @@ function warmDrawing() {
   image.decode().catch(() => {}).then(() => nextFrames(6)).finally(() => { flight.remove(); copy?.remove(); });
 }
 
-/** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view. */
-function warmPrepared(name, forest) {
+/** Runs `fn` with a place the chapter goes to later (its built `forest`) shown in place of the one in view, and puts that back. */
+function withPlace(forest, fn) {
   const here = { forest: world.forest, heightAt: world.heightAt };
   here.forest.group.visible = false;
   forest.group.visible = true;
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   try {
-    return warmPlace(chapter.locations[name].warmUp ?? [], name);
+    return fn();
   } finally {
     forest.group.visible = false;
     here.forest.group.visible = true;
@@ -388,6 +388,86 @@ function warmPrepared(name, forest) {
     world.heightAt = here.heightAt;
     world.forest.update?.(0, clock.time);
   }
+}
+
+// A place drawn once while the start button waits is drawn in parts, a frame each, so the picture behind the button never holds
+// long (a place at once was a frame of 2.1-2.4 s): its meshes, and then the chapter's things for it (chapter.warmUp's), grouped by
+// the materials they draw with, each group building its own shaders. A group's frame draws only it, on a layer of its own (the
+// lights too, so the shaders are the ones the whole scene builds).
+const WARM_LAYER = 31;
+function byMaterial(roots) {
+  const groups = new Map();
+  for (const root of roots) {
+    root.traverse(o => {
+      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
+      const key = [...[o.material].flat(), o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean).map(m => m.uuid).join()
+        + (o.isSkinnedMesh ? ' skinned' : '') + (o.isInstancedMesh ? ' instanced' : '');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(o);
+    });
+  }
+  // and a group of many meshes a few at a time: the first draw of a mesh uploads it (a skinned one most of all)
+  return [...groups.values()].flatMap(meshes => {
+    const most = meshes[0].isSkinnedMesh ? 1 : 4;
+    return Array.from({ length: Math.ceil(meshes.length / most) }, (_, i) => meshes.slice(i * most, (i + 1) * most));
+  });
+}
+function warmPart(views, meshes) {
+  const lights = [];
+  scene.traverse(o => { if (o.isLight) lights.push(o); });
+  const added = [...meshes, ...lights].filter(o => !o.layers.isEnabled(WARM_LAYER));
+  for (const o of added) o.layers.enable(WARM_LAYER);
+  const mask = camera.layers.mask;
+  camera.layers.set(WARM_LAYER);
+  try {
+    return warmViews(views, { objects: meshes });
+  } finally {
+    camera.layers.mask = mask;
+    for (const o of added) o.layers.disable(WARM_LAYER);
+  }
+}
+/** Not while a game has the canvas (Háls og hali draws its board on it, over the book, before the child has tapped Byrja). */
+async function canvasFree() {
+  while (hals.isOpen) await nextFrames(15);
+}
+/**
+ * Draw `roots` from `views` a group of their meshes a frame (above), each inside `around` (a place shown for it). Stops when the scene
+ * plays in view (it draws a place as it comes there); returns the sums.
+ */
+async function warmInParts(views, roots, around = fn => fn()) {
+  const sum = { draws: 0, programs: 0, ms: 0, frames: 0, longestPart: 0 };
+  for (const meshes of byMaterial(roots)) {
+    await canvasFree();
+    if (stage.started && ui.fadeLevel < 0.999) break;
+    const part = around(() => warmPart(views, meshes));
+    if (ui.fadeLevel < 0.999 && !hals.isOpen) drawNow(); // the view behind the button over the part's draws
+    sum.draws += part.draws;
+    sum.programs += part.programs;
+    sum.ms += part.ms;
+    sum.frames++;
+    sum.longestPart = Math.max(sum.longestPart, Math.round(part.ms));
+    await nextFrames(1);
+  }
+  return sum;
+}
+/** The chapter's warm-up for `place` (null: all of it), made inside `around`; its own things (not the actors) out of sight between frames. */
+async function warmChapterInParts(views, place, forest = null) {
+  const around = forest ? fn => withPlace(forest, fn) : fn => fn();
+  const actors = new Set([...world.actors.values()].map(actor => actor.root));
+  const warm = around(() => chapter.warmUp?.(world, { place }) ?? { objects: [], dispose() {} });
+  const own = warm.objects.filter(o => !actors.has(o));
+  const shown = own.map(o => o.visible);
+  for (const o of own) o.visible = false;
+  try {
+    return await warmInParts(views, forest ? [forest.group, ...own] : own, around);
+  } finally {
+    own.forEach((o, i) => { o.visible = shown[i]; });
+    warm.dispose?.();
+  }
+}
+/** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view, in parts. */
+function warmPrepared(name, forest) {
+  return warmChapterInParts(chapter.locations[name].warmUp ?? [], name, forest);
 }
 
 /** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
@@ -412,7 +492,7 @@ async function getReady() {
   console.info('[warm-up]', warmed.map(describeWarm).join('; '));
 }
 
-const describeWarm = w => `${w.label}: ${w.built ? `built in ${w.built} ms (${w.slices} slices, the longest ${w.longest} ms)${w.draws ? ', ' : ''}` : ''}${w.draws ? `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms` : ''}`;
+const describeWarm = w => `${w.label}: ${w.built ? `built in ${w.built} ms (${w.slices} slices, the longest ${w.longest} ms)${w.draws ? ', ' : ''}` : ''}${w.draws ? `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms${w.frames ? ` over ${w.frames} frames (the longest ${w.longestPart} ms)` : ''}` : ''}`;
 
 /**
  * Once the start button shows: the places the chapter goes to later (chapter.prepare), built one after another a slice at a time
@@ -428,27 +508,28 @@ async function prepareLater() {
   for (const name of locations ? chapter.prepare ?? [] : []) {
     const began = performance.now();
     slicing.stats = { slices: 0, longest: 0 };
-    const forest = await locations.prepare(name, { sliced: true });
+    let forest;
+    try {
+      forest = await locations.prepare(name, { sliced: true });
+    } catch (error) {
+      // said once, here; the scene builds it at once as it goes there (locations.js drops a failed build)
+      console.warn(`[warm-up] ${name} could not be built ahead; the scene builds it as it goes there:`, error?.message ?? error);
+      continue;
+    }
     const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
     // drawn while the button waits, or under a black the scene holds for it (chapter 2's first, for the trail); else as the scene
     // comes there
-    if (!stage.started || ui.fadeLevel >= 0.999) {
-      Object.assign(entry, warmPrepared(name, forest));
-      if (ui.fadeLevel < 0.999) drawNow();
-    }
+    if (!stage.started || ui.fadeLevel >= 0.999) Object.assign(entry, await warmPrepared(name, forest));
     warmed.push(entry);
   }
   if (chapter.later?.make && !stage.started) {
     const began = performance.now();
     await chapter.later.make(world);
     const entry = { label: 'later', made: Math.round(performance.now() - began) };
-    if (!stage.started) {
-      Object.assign(entry, warmPlace([], null)); // all the chapter's warm-up again, with what it made, from the view behind the button
-      if (ui.fadeLevel < 0.999) drawNow();
-    }
+    // all the chapter's warm-up again, with what it made, from the view behind the button, in parts (what is drawn already is quick)
+    if (!stage.started) Object.assign(entry, await warmChapterInParts([], null));
     warmed.push(entry);
   }
-  world.preparedLater = true;
   console.info('[warm-up] later:', warmed.filter(w => w.label !== 'start').map(describeWarm).join('; '));
 }
 
@@ -551,6 +632,9 @@ if (shotName || !chapter.script) {
     const loading = document.getElementById('loading');
     loading.hidden = false;
     const button = document.getElementById('start');
+    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
+    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
+    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
     button.addEventListener('click', () => {
       button.hidden = true;
       ui.setFade(1); // the scene opens from black, the same as in captures
@@ -610,16 +694,22 @@ const stats = installStats({
 const STAR_AFTER = 1000; // ms of black before the star shows
 const star = document.getElementById('loading');
 let blackSince = null;
+let starShows = 0; // each show of the star: a fade-out hides it only if it has not shown again meanwhile
 function starInTheBlack(now) {
   if (stage.started && ui.fadeLevel >= 0.999) {
     blackSince ??= now;
     if (now - blackSince >= STAR_AFTER && (star.hidden || star.classList.contains('done'))) {
+      starShows++;
       star.hidden = false;
       star.classList.remove('done');
     }
   } else if (blackSince !== null) {
     blackSince = null;
-    if (!star.hidden) star.classList.add('done');
+    if (!star.hidden && !star.classList.contains('done')) {
+      star.classList.add('done');
+      const show = starShows;
+      setTimeout(() => { if (show === starShows && star.classList.contains('done')) star.hidden = true; }, 600); // once it has faded
+    }
   }
 }
 

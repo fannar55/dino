@@ -33,13 +33,16 @@ import { sparkleBurst } from './sparkles.js';
 //   far.update(dt, camera, heightPx) every frame (the chapter puts it on world.effects)
 //   far.ready() -> Promise          resolves when the models and their light levels are there (or could not be: they stay hidden);
 //                                   it starts making them if nobody has
-//   far.prefetch()                  with `defer`: fetches the models' files now, and makes nothing (no long frame)
+//   far.prefetch() -> Promise       with `defer`: fetches the models' files now, and makes nothing (no long frame); resolves when
+//                                   they are all here (at once where the files are read another way: tests)
 //   far.load() -> Promise           with `defer`: makes them now (parsing a model and making an actor are long frames: the chapter
-//                                   calls this where nobody sees one, behind the start button or under a black fade); far.ready()
+//                                   calls this where nobody sees one, behind the start button or under a black fade); a file is let
+//                                   go once its model is made
 //   far.dispose()                   once they will not be seen again: frees the GPU buffers of the light level each draws with (the
 //                                   level stays in thorsedla-lod.js's cache, which Háls og hali shares, and is uploaded again if drawn
 //                                   again), disposes the coarse material and the reed, and lets the actors go; the models' own skins
-//                                   and maps stay with actor.js's cache
+//                                   and maps go with them (made from the fetched files), or stay with actor.js's cache where it loaded
+//                                   them (no prefetch)
 //   far.actorOf(name), far.group, far.isReady, far.disposed
 
 const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus' };
@@ -162,6 +165,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     // tests read the file themselves; a page that fetched it already (prefetch) parses those bytes; else actor.js loads it
     const bytes = files.get(entry.name);
     const gltf = world.loadModel ? await world.loadModel(address) : bytes ? await parse(await bytes, address) : undefined;
+    files.delete(entry.name); // the file's 2.3-2.7 MB, let go once its model is made
     const actor = await createActor(own, { name: `far-${entry.name}`, url: address, gltf, position: entry.spec.position, heading: entry.spec.heading ?? 0 });
     // A speck at 80 m: no eyelid shells, no shadow either way.
     const lids = [];
@@ -191,7 +195,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
   // the models' files, fetched ahead of making them (prefetch): name -> promise of an ArrayBuffer
   const files = new Map();
   function prefetch() {
-    if (world.loadModel || typeof fetch !== 'function') return;
+    if (world.loadModel || typeof fetch !== 'function' || loading) return Promise.resolve();
     for (const entry of entries.values()) {
       if (files.has(entry.name)) continue;
       const address = url(MODELS[entry.name]);
@@ -200,6 +204,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
         return response.arrayBuffer();
       }));
     }
+    return Promise.all([...files.values()].map(file => file.catch(() => null))).then(() => {}); // a file that fails: load says so
   }
   const parse = (bytes, address) => new GLTFLoader().parseAsync(bytes, new URL('./', address).href);
 
@@ -319,7 +324,6 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     ready: () => loadAll(),
     prefetch,
     load: () => loadAll(),
-    get loading() { return Boolean(loading); },
     get isReady() { return isReady; },
     get shown() { return shown; },
     get disposed() { return disposed; },

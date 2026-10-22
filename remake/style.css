@@ -81,7 +81,7 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   min-width: 180px; min-height: 72px; padding: 0 36px; border: 0; border-radius: 36px;
   font-family: inherit; font-size: 26px; font-weight: 700; line-height: 1; color: var(--ink); background: var(--accent); box-shadow: var(--shadow); cursor: pointer;
 }
-.start:active { transform: translate(-50%, -50%) scale(.97); }
+.start:active, .start.pressed { transform: translate(-50%, -50%) scale(.97); }
 
 /* The tray: pockets along the left edge with the things the child carries to a place in the world. */
 .tray {

@@ -52,6 +52,9 @@ const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
 const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
+// Seconds the black at the start waits at most for the far friends' files (7.3 MB: on a slow connection they come later, and the
+// Fen makes the friends under its own black: arriveInTheFen).
+const FAR_WAIT = 4;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
 const GLADE_EXIT = [[6.6, -6.2], [10.5, -8.7], [15, -10.5]];
@@ -552,6 +555,12 @@ function arriveInTheFen(s, c) {
   return far.isReady || s.seeking ? null : far.load().then(() => world.warmObjects?.([far.group])); // main.js: one draw with them, under the black
 }
 
+/** The far friends made under the start's black if their files come within FAR_WAIT s; else the Fen makes them (arriveInTheFen). */
+function* farFriendsInTime(s, far) {
+  const fetched = yield s.race(far.prefetch().then(() => true), s.wait(FAR_WAIT));
+  if (fetched === true) yield far.load();
+}
+
 /** A line, one voice at a time: `c.saying` counts the lines under way, so a goodbye or a remark can wait for quiet. */
 function* say(s, c, speaker, id, options) {
   c.saying = (c.saying ?? 0) + 1;
@@ -802,7 +811,11 @@ export const chapter = {
     // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
     const far = c.farFriends;
     if (s.seeking) far.load();
-    else yield s.all(s.prepare('fenjaslod'), ...(far.isReady ? [] : [far.load()]));
+    else {
+      // a trail whose build failed: main.js has said so, and the change of place to it builds it again (locations.js drops it)
+      const trail = s.prepare('fenjaslod').catch(() => {});
+      yield s.all(trail, ...(far.isReady ? [] : [farFriendsInTime(s, far)]));
+    }
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);

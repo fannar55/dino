@@ -528,6 +528,22 @@ test('no scene plays in a place still being built: the glade waits under the bla
   }
 });
 
+test('a trail whose build fails while the start\'s black waits: the glade plays, and the change of place builds it again', async () => {
+  const visible = [];
+  const { task, world, builds } = await playUnattended(kafli2, {
+    seeking: false, limit: 40, failBuilds: { fenjaslod: 1 }, slowBuilds: { fenjaslod: 1, fen: 1 },
+    onFrame({ t, world, ui }) {
+      if (ui.fadeLevel < 0.999) visible.push({ t, location: world.location });
+    },
+  });
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  assert.equal(builds.fenjaslod.failed, 1, 'the first build failed');
+  assert.ok(visible[0]?.location === 'burknalaut' && visible[0].t < 1, `the glade showed at ${visible[0]?.t.toFixed(2)} s`);
+  assert.ok(builds.fenjaslod.built !== null, 'built again as the scene went there');
+  assert.ok(visible.some(v => v.location === 'fenjaslod'), 'and the trail showed');
+  assert.equal(world.chapterTimeline.at(-1).scene, 2);
+});
+
 test('a child who taps at once: the black at the start holds until the trail is built and the far friends are made', async () => {
   const visible = [];
   const { task, builds } = await playUnattended(kafli2, {

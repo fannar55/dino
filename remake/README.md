@@ -233,11 +233,18 @@ Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.h
 or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
 `walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts, and walks
 with the `walk` clip or another walking clip (`{ clip: 'wade' }`: Uggeðla wading in shallow water).
-A chapter can also give `warmUp(world)`, which returns `{ objects, shots, tray, dispose }`: what to draw
-once behind the start button so nothing builds its shaders while the child watches (the actors, and
-throwaways of what comes later), from which shots, and the tray's items; a place adds its own shots
-(`locations[name].warmUp`). `prepare: ['place']` builds a place behind the start button too, so going
-there later is only the two fades.
+A chapter can also give `warmUp(world, { place })`, which returns `{ objects, shots, tray, dispose }`:
+what to draw once where nobody sees a frame stall so nothing builds its shaders while the child watches
+(the actors, and throwaways of what comes later), from which shots, and the tray's items. `place` is the
+place it is drawn for (the start place behind the start button, another as main.js draws it or the scene
+comes there, `null` for everything): a place can bring only what shows there first. A place adds its own
+shots (`locations[name].warmUp`). `prepare: ['place']` builds a place once the start button shows, a slice
+at a time (`world/forest/slices.js`), and draws it while the button still waits, so going there later is
+only the two fades; `yield s.prepare('place')` waits for that build (a child who tapped before it was done
+waits under the black), and `s.goTo(name, { hold })` keeps the black until the promise `hold()` returns
+settles (models the chapter makes there). `later: { fetch, make }` is what main.js fetches as the button
+shows and makes once the places are, if the button still waits (chapter 2's far friends), and `firstFind`
+names the first animal the chapter puts in the book, whose drawing is shown once beforehand.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:

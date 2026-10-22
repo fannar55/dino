@@ -294,6 +294,7 @@ function* forestSteps(world, layout) {
       heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
       over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
     }));
+    yield; // so the next FRESH is not the step this slice began with
   }
   for (const mist of mists) group.add(mist.group);
 

@@ -150,7 +150,13 @@ test('main.js draws the chapter once before the start button shows, builds its l
   assert.match(start, /button\.hidden = false;[\s\S]*prepareLater\(\)\.catch\(/);
   const later = main.slice(main.indexOf('async function prepareLater()'), main.indexOf('function update(dt)'));
   assert.match(later, /chapter\.later\?\.fetch\?\.\(world\);/);
-  assert.match(later, /await locations\.prepare\(name, \{ sliced: true \}\);[\s\S]*if \(!stage\.started \|\| ui\.fadeLevel >= 0\.999\) \{\s*Object\.assign\(entry, warmPrepared\(name, forest\)\);\s*if \(ui\.fadeLevel < 0\.999\) drawNow\(\);/);
+  assert.match(later, /forest = await locations\.prepare\(name, \{ sliced: true \}\);\s*\} catch \(error\) \{[\s\S]*?console\.warn\([\s\S]*?continue;/, 'a place that fails to build is said once and left to the scene');
+  assert.match(later, /if \(!stage\.started \|\| ui\.fadeLevel >= 0\.999\) Object\.assign\(entry, await warmPrepared\(name, forest\)\);/);
+  // drawn in parts, a group of meshes by their materials a frame, never over a game that has the canvas (Háls og hali)
+  const parts = main.slice(main.indexOf('async function canvasFree()'), main.indexOf('/** Everything that is done behind the black'));
+  assert.match(parts, /while \(hals\.isOpen\) await nextFrames\(\d+\);/);
+  assert.match(parts, /for \(const meshes of byMaterial\(roots\)\) \{\s*await canvasFree\(\);[\s\S]*?await nextFrames\(1\);/);
+  assert.match(later, /await chapter\.later\.make\(world\);[\s\S]*?await warmChapterInParts\(\[\], null\)/);
   // the chapter's first find's drawing, shown once behind the button or under the first black; a long black shows the star
   assert.match(later, /if \(!stage\.started\) warmDrawing\(\);/);
   const frame = main.slice(main.indexOf('renderer.setAnimationLoop('));
