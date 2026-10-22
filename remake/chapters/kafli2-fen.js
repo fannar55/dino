@@ -38,6 +38,10 @@ export const FEN_CRITTERS = [
   { name: 'fen-fish', kind: 'fish', at: [16.5, -15.4], up: 0, water: true, heading: 10 },
 ];
 
+// The sound each of the chapter's animals makes when it reacts (engine/audio/fen-sounds.js, and chapter 1's frog): the Fen's four
+// when tapped, and the frog in the third print as it hops out (kafli2-trail.js). The others in the prints splash with their print.
+export const CRITTER_SOUNDS = { earlyBird: 'earlyBird', dragonfly: 'dragonfly', turtle: 'turtle', fish: 'fish', frog: 'frog' };
+
 /**
  * The Fen's own animals where FEN_CRITTERS puts them, on the ground or the water, each a tap target: a tap makes it react, with its
  * sound, and puts it in the book. They ring the water through `c.ring` (at most three of the script's rings at once). Returns
@@ -53,9 +57,10 @@ export function fenAnimals(s, c) {
   const unhear = critters.targets.map(t => {
     const { kind } = FEN_CRITTERS.find(f => f.name === t.name);
     s.target(t.name, t);
+    const sound = CRITTER_SOUNDS[kind];
     return s.onTap(t.name, tap => {
       critters.react(t.name);
-      s.sfx(kind);
+      if (sound) s.sfx(sound);
       s.found(kind, tap);
     });
   });
@@ -97,6 +102,7 @@ export function* pickBerries(s, c) {
       c.picks.push({ name, by, kind: 'red', at: s.time });
       if (by === 'egill') s.after(0, () => egill.lookAt(c.berries.berry(name).point, { weight: 0.8, maxPitch: 40 }));
       c.berries.shake(bushOf(name));
+      s.sfx('berryPop', { index: index + 1 }); // a step higher for each berry, as Mosi counts them
       const flight = c.berries.pick(name, c.basket.point);
       const before = counting;
       counting = s.after(0, function* count() {
@@ -128,6 +134,7 @@ export function* holdUpBasket(s, c) {
 export function* eatFromBasket(s, c) {
   const her = c.thorsedla.raw;
   her.talk({ text: 'namm namm namm', duration: 1.6 });
+  s.sfx('chew');
   yield c.basket.empty(out => out.copy(mouthOf(her)));
   yield* c.say('thorsedla', 'k2_thorsedla_mmm');
 }

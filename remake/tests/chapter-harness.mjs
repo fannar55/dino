@@ -19,7 +19,7 @@ import { createSave } from '../engine/save.js';
 import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
-import { SUN_RADIUS_DEG, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
+import { SUN_RADIUS_DEG, WAVE_SECONDS, HUG_SECONDS, WINK_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
 import { shapeGround, placementInfo } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -64,12 +64,18 @@ const modelOf = url => {
   return models.get(url);
 };
 
-/** A chapter's world: its actors, a camera at 16:10, the effects and the clock main.js has, and a sun in the chapter's look. */
+/**
+ * A chapter's world: its actors, a camera at 16:10, the effects and the clock main.js has, and a sun and a fog in the chapter's look
+ * (the fog as engine/fog.js lays it, without its shader patch: a chapter thickens it, as chapter 2's lookout does).
+ */
 export async function chapterWorld(chapter) {
   const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200);
+  const look = pickLook(chapter.look);
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(look.fog.color, look.fog.density);
   const world = {
-    THREE, scene: new THREE.Scene(), camera, clock: createClock(), chapter, heightAt: () => 0, actors: new Map(), effects: createEffects(),
-    lighting: { direction: sunDirection(pickLook(chapter.look)) },
+    THREE, scene, camera, clock: createClock(), chapter, heightAt: () => 0, actors: new Map(), effects: createEffects(),
+    lighting: { direction: sunDirection(look) },
   };
   world.resolvePoint = createPointResolver(world);
   // A model a chapter's props load for themselves (chapter 2's far friends), read as the actors' are: the page has no fetch of files.
@@ -315,15 +321,17 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     };
   }
   const sounds = [];
+  const soundLog = []; // every sound the scene asks for: { name, detail, at, scene }
   const lines = readJson('../assets/audio/lines.json');
   const stage = createScene({
     world, director, ui, lines, cast: chapter.cast, locations, pointer, journal,
     voice: { play: () => null, stop() {} },
     sun: sunFace,
     sfx: {
-      play(name) {
+      play(name, detail) {
         if (brokenSteps && name === 'step') throw new Error('a step sound broke');
         sounds.push(name);
+        soundLog.push({ name, detail, at: stage.s.time, scene: world.chapterTimeline?.at(-1)?.scene });
       },
       stop() {},
     },
@@ -355,6 +363,8 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     // stems, how far he walks and how far he turns meanwhile; and his wrists once the posy is gone, at scene 10.
     grip: { worst: 0, frames: 0, from: null, walked: 0, turned: 0, after: null },
     egillClips: [], mosiLooks: [], mosiWalked: false, mosiStopped: null, sunFrames: [], sunViews: [],
+    // The sun on the screen and in front of anyone, every other frame while it winks.
+    winkViews: [],
     // Scene 2: when the tap target on Egill appeared, how far the handheld was on then, and Egill on the screen while he hops.
     egillTarget: null, egillOnScreen: [],
   };
@@ -515,6 +525,8 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       });
       const busy = sunCalls.some(c => c.call !== 'wink' && stage.s.time >= c.at && stage.s.time <= c.at + (c.call === 'hug' ? HUG_SECONDS : c.call === 'wave' ? WAVE_SECONDS : (c.args[1] ?? 1.5) + MOUTH_BETWEEN));
       if (busy && seen.sunFrames.length % 6 === 0) seen.sunViews.push({ at: stage.s.time, scene, shot: shotNow, ...sunInView() });
+      const winking = sunCalls.some(c => c.call === 'wink' && stage.s.time >= c.at && stage.s.time <= c.at + WINK_SECONDS);
+      if (winking && seen.sunFrames.length % 2 === 0) seen.winkViews.push({ at: stage.s.time, scene, shot: shotNow, ...sunInView() });
       if (scene === 2) {
         if (mosi.walking) seen.mosiWalked = true;
         else if (seen.mosiWalked && seen.mosiStopped === null) seen.mosiStopped = stage.s.time;
@@ -529,7 +541,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     if (earlyTap) earlyReaction();
-    onFrame?.({ t, world, stage, director, pointer });
+    onFrame?.({ t, world, stage, director, pointer, sunFace });
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;
@@ -572,7 +584,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
-  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, forests, pointer, seen, added, lines };
+  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines };
 }
 
 export const EARLY_TAP_AT = { x: 612, y: 455 }; // where on the screen the child who taps early taps

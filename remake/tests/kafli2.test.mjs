@@ -8,8 +8,11 @@ import { createSave, defaultChapter } from '../engine/save.js';
 import { LOOKS } from '../engine/looks.js';
 import { shapeGround } from '../world/forest/forest.js';
 import { LIMITS } from '../engine/camera/director.js';
-import { HUG_SECONDS } from '../engine/sun-face.js';
+import { HUG_SECONDS, WINK_SECONDS } from '../engine/sun-face.js';
+import { createSfx } from '../engine/audio/sfx.js';
+import { CRITTER_SOUNDS } from '../chapters/kafli2-fen.js';
 import { playUnattended } from './chapter-harness.mjs';
+import { createFakeContext } from './fake-audio.mjs';
 
 // Chapter 2 (remake/chapters/kafli2.js), "Boð til Þórseðlu": its lines, its places as data, the camera rules of its shots, the
 // page's choice of chapter from the save, and its script played through by nobody (tests/chapter-harness.mjs).
@@ -410,7 +413,7 @@ function playIdle() {
   idled ??= (async () => {
     const seen = {
       frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null,
-      uggedlaFirst: null, disposed: null, openings: [],
+      uggedlaFirst: null, disposed: null, openings: [], fog: {},
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
@@ -455,6 +458,12 @@ function playIdle() {
           if (phase === 'sliding') seen.sliding = stage.s.time;
         }
         if (pointer.targets.has('seat') && seen.floatTarget === null) seen.floatTarget = stage.s.time;
+        // the fog's density in each scene: the least, the most, and the last
+        const scene = world.chapterTimeline?.at(-1)?.scene;
+        if (scene && world.scene.fog) {
+          const d = world.scene.fog.density, f = (seen.fog[scene] ??= { min: d, max: d, last: d });
+          f.min = Math.min(f.min, d); f.max = Math.max(f.max, d); f.last = d;
+        }
         if (world.chapterTimeline?.at(-1)?.scene === 7 && pointer.targets.has('egill') && seen.slideTarget === null) seen.slideTarget = stage.s.time;
       },
     });
@@ -650,6 +659,7 @@ test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book', 
   assert.ok(run.seen.earlyTap, 'the dragonfly could be tapped in the Fen');
   assert.ok(run.journal.findings.includes('dragonfly'), `the dragonfly is in the book (${run.journal.findings.join(', ')})`);
   assert.ok(run.seen.earlyTap.movedAt !== null, 'and it darted off');
+  assert.ok(run.soundLog.some(e => e.name === CRITTER_SOUNDS.dragonfly && Math.abs(e.at - run.seen.earlyTap.at) < 0.1), 'with its own sound');
 });
 
 test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing more', async () => {
@@ -713,4 +723,90 @@ test('a tap on the next print while Mosi says a number is not lost: it is counte
   assert.ok(tappedAt !== null && two, 'and tapped the second during "Eitt!"');
   assert.equal(two.by, 'child', 'the second is the child\'s');
   assert.ok(two.at - tappedAt < 2, `counted ${(two.at - tappedAt).toFixed(1)} s after the tap, as soon as "Eitt!" was said`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The sound (engine/audio/sfx.js, engine/audio/fen-sounds.js), the lookout's haze and the sun's beats
+
+test('every sound the script asks for exists', () => {
+  const context = createFakeContext({ state: 'running' });
+  const sfx = createSfx({ context, theme: readJson('../assets/audio/theme.json') });
+  const known = name => {
+    sfx.stop(); // a bed (the forest, the Fen) is laid once: each is asked for afresh
+    context.advance(12);
+    return sfx.play(name, { index: 1, seconds: 8 });
+  };
+  const calls = [...CHAPTER_TEXT.matchAll(/s\.sfx\(([^,)]*)/g)].map(m => m[1].trim());
+  const literal = calls.filter(a => /^'[^']*'$/.test(a)).map(a => a.slice(1, -1));
+  assert.deepEqual([...new Set(calls.filter(a => !/^'[^']*'$/.test(a)))], ['sound'], 'a sound not written out is an animal\'s, looked up in CRITTER_SOUNDS');
+  for (const name of new Set([...literal, ...Object.values(CRITTER_SOUNDS)])) assert.equal(known(name), true, `"${name}" is a sound of the set`);
+  // the brief's sounds are all asked for, and the forest only once: in the glade, until the trail goes into the Fen
+  for (const name of ['fen', 'splash', 'ripple', 'countTone', 'berryPop', 'sniff', 'breathHuge', 'chew', 'liftTone', 'windHigh', 'slide', 'landSaddle', 'mapMark']) {
+    assert.ok(literal.includes(name), `the script asks for ${name}`);
+  }
+  assert.equal(literal.filter(name => name === 'forest').length, 1);
+  // every animal of the chapter with a voice has its own sound
+  for (const kind of ['dragonfly', 'turtle', 'fish', 'earlyBird', 'frog']) assert.ok(CRITTER_SOUNDS[kind], `the ${kind} has a sound`);
+});
+
+test('the sounds come where the script has them: the Fen\'s water, the count, the berries, her head, the lift, the map and the slide', async () => {
+  const { soundLog: log, world } = await playIdle();
+  const named = (name, scene) => log.filter(e => e.name === name && (scene === undefined || e.scene === scene));
+  // the forest's wind from the start button; the Fen's water from the trail's fen half on (and asked for again on arrival)
+  assert.deepEqual(named('forest').map(e => e.scene), [undefined], 'the forest once, at the start');
+  const fen = named('fen');
+  assert.ok(fen.length >= 1 && fen[0].scene === 2, `the Fen's bed from scene 2 (${fen.map(e => e.scene)})`);
+  assert.ok(fen.some(e => e.scene === 3), 'and on arrival in the Fen');
+  // the count: each print a splash, its tone (climbing with the number) and its ripple, together
+  const counts = named('countTone', 2);
+  assert.deepEqual(counts.map(e => e.detail?.index), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 'the tone climbs one to ten');
+  assert.ok(fen[0].at < counts[0].at, 'the water is there before the first print');
+  for (const count of counts) {
+    for (const what of ['splash', 'ripple']) assert.ok(named(what, 2).some(e => Math.abs(e.at - count.at) < 0.05), `${what} with ${count.detail.index}`);
+  }
+  // the berries, popping up the key one to five
+  assert.deepEqual(named('berryPop', 4).map(e => e.detail?.index), [1, 2, 3, 4, 5]);
+  // her head: a sniff as it starts down, a big warm breath as it reaches his eyes, and she chews the berries
+  const [sniff] = named('sniff', 4), [breath] = named('breathHuge', 4);
+  assert.ok(sniff && breath && sniff.at < breath.at && breath.at - sniff.at < 6, 'a sniff, then her breath');
+  assert.ok(named('chew', 4).some(e => e.at > breath.at && e.at < sceneStart(world, 5)), 'and the chew of the berries');
+  // the lift: its tone as long as the rise, the wind at the top, a mark on the map for each friend found
+  const [lift] = named('liftTone', 6), [wind] = named('windHigh', 6);
+  assert.ok(lift && lift.detail.seconds > 5 && lift.detail.seconds <= 8.01, `the lift's tone for ${lift?.detail?.seconds?.toFixed(2)} s`);
+  assert.ok(wind && Math.abs(wind.at - lift.at - lift.detail.seconds) < 0.2, 'the wind as he reaches the top');
+  assert.equal(named('mapMark', 6).length, 3, 'three places on the map');
+  assert.equal(named('flower', 6).length, 3, 'three friends found');
+  // the slide down her neck, and the landing in the saddle as he lands
+  const [slide] = named('slide', 7), [land] = named('landSaddle', 7);
+  assert.ok(slide && land && land.at - slide.at > 2.4 && land.at - slide.at < 3.3, `the landing ${(land?.at - slide?.at).toFixed(2)} s into the slide`);
+  // the star and the book, as chapter 1's
+  assert.ok(named('star', 8).length === 1 && named('journal', 8).length === 1);
+});
+
+test('the lookout\'s haze: 1.6 times the look\'s fog at the top, eased back for the slide, and the star in the look\'s own', async () => {
+  const { seen } = await playIdle();
+  const density = LOOKS.lateMorning.fog.density;
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  for (const scene of [1, 2, 3, 4, 5]) assert.ok(near(seen.fog[scene].min, density) && near(seen.fog[scene].max, density), `scene ${scene} in the look's fog`);
+  assert.ok(near(seen.fog[6].max, 1.6 * density), `the lookout at ${(seen.fog[6].max / density).toFixed(2)} times it`);
+  assert.ok(near(seen.fog[7].last, density), 'back by the slide\'s end');
+  assert.ok(near(seen.fog[8].min, density) && near(seen.fog[8].max, density), 'and scene 8 runs at the look\'s density');
+});
+
+test('the sun winks as her head comes down, on the screen with nobody in front of it, the whole wink', async () => {
+  for (const [how, run] of [['a capture', playTheFen], ['a child who taps nothing', playIdle]]) {
+    const { sunCalls, watched } = await run();
+    const wink = sunCalls.find(c => c.call === 'wink' && c.scene === 4);
+    assert.ok(wink, `${how}: it winks in scene 4`);
+    const views = watched.winkViews.filter(v => v.at >= wink.at && v.at <= wink.at + WINK_SECONDS);
+    assert.ok(views.length >= 4, `${how}: ${views.length} looks at the wink`);
+    for (const v of views) {
+      assert.ok(Math.abs(v.x) < 0.85 && Math.abs(v.y) < 0.85, `${how}: the sun at ${v.x.toFixed(2)}, ${v.y.toFixed(2)} at ${v.at.toFixed(2)} s`);
+      assert.equal(v.hidden, false, `${how}: somebody in front of the sun at ${v.at.toFixed(2)} s`);
+    }
+  }
+  const { seen, sunCalls } = await playTheFen();
+  const wink = sunCalls.find(c => c.call === 'wink' && c.scene === 4);
+  const down = seen.phases.find(p => p.phase === 'head coming down'), there = seen.phases.find(p => p.phase === 'head down');
+  assert.ok(wink.at > down.at && wink.at + WINK_SECONDS < there.at, 'while her head comes down');
 });

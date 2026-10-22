@@ -69,6 +69,9 @@ const GLADE_SHOTS = {
 // ground falls gently toward the Fen. Low mist lies over the fen half. Task 4 lays Þórseðla's ten prints in the mud of the path.
 
 const TRAIL_DIR = [0.83, 0.55]; // the way down the trail, toward the Fen (unit)
+// Seconds into the ride down the trail when the forest's wind cross-fades to the Fen's water (engine/audio/sfx.js): Mosi is 4.4 m on,
+// where the forest begins to turn into fen (the layout's blend), and the water is all there by the first print.
+const FEN_SOUNDS_IN = 4;
 const TRAIL_DROP = 0.05; // m the ground falls each metre down the trail
 
 /** Where a path is halfway along it, and the points `width` metres before and after that along it: the blend's ends. */
@@ -356,6 +359,7 @@ function* footprints(s, c) {
   const first = mosiAt(0);
   const ride = mosi.walkTo([...RIDE_POINTS, [first.x, first.z]], { speed: 1.1 });
   s.camera.follow('mosi', RIDE_CAMERA);
+  s.after(FEN_SOUNDS_IN, () => s.sfx('fen')); // the forest's wind gives way to the Fen's water as the trees turn to fen
   yield s.wait(7);
   yield ride;
   // all ten down the trail ahead, into the mist
@@ -530,6 +534,7 @@ function arriveInTheFen(s, c) {
   c.berries = berryBushes(world);
   c.basket = createBasket(world);
   c.farFriends.show(true); // out in the Fen, seen only from her head
+  s.sfx('fen'); // the Fen's own bed of water, frogs and drips (laid on the trail already: asked again, it stays as it is)
   s.camera.cut('fen_reveal');
 }
 

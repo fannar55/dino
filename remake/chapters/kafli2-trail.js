@@ -9,6 +9,7 @@ import { holdWithHands } from '../engine/hand-hold.js';
 import { createCritters } from '../world/critters/critters.js';
 import { createMudPrints } from '../world/props/mud-prints.js';
 import { sparkleTrail } from '../world/props/sparkles.js';
+import { CRITTER_SOUNDS } from './kafli2-fen.js';
 
 // The path from the glade's side in the north-west down to the Fen in the south-east (the trail's layout path, kafli2.js).
 export const TRAIL_PATH = [[-46, -30], [-26, -17], [-12, -8], [0, 0], [12, 7], [26, 14], [46, 24]];
@@ -81,6 +82,7 @@ const PRINT_ANIMALS = [
   { print: 9, kind: 'salamander', name: 'print-salamander', along: 0.14, across: 0.02, on: 'floor', turn: 0 },
 ];
 const ANIMAL_SIZE = 1.1; // the animals in her prints a little larger again than the critters' own (already larger than life)
+const CROAK_AFTER = 0.35; // s after its print's splash that the frog in it croaks, as it hops out
 
 /** Where Mosi waits by print k: back along the path from it and out on its north-east side, facing down the trail. */
 export function mosiAt(k) {
@@ -183,22 +185,30 @@ function* waitingForPrint(s, c, k, quick, names, next) {
   }
 }
 
-/** A print splashes (a tap on it), and the animal in it reacts and is found. */
+/** A print splashes (a tap on it, the right one or not: a soft splash, never a buzzer), and the animal in it reacts and is found. */
 function splashPrint(s, c, k, by) {
   c.printLog.push({ what: 'splash', index: k, at: s.time, by });
   c.prints.splash(k);
+  s.sfx('splash');
   const animal = PRINT_ANIMALS.find(a => a.print === k);
   if (animal) {
     c.printCritters.react(animal.name);
+    const sound = CRITTER_SOUNDS[animal.kind];
+    if (sound) s.after(CROAK_AFTER, () => s.sfx(sound));
     s.found(animal.kind, by === 'child' ? c.lastTap : null);
   }
 }
 
-/** Print k is counted: a splash, its number rising out of the water as Mosi says it, and its water still and gold. A task. */
+/**
+ * Print k is counted: a splash, its number rising out of the water as Mosi says it with its tone, a step up the key for each number
+ * (engine/audio/fen-sounds.js: countTone, so the ten are a scale climbed), the rings spreading, and its water still and gold. A task.
+ */
 function countPrint(s, c, k, by) {
   splashPrint(s, c, k, by);
   c.printLog.push({ what: 'count', index: k, at: s.time, by });
   c.prints.count(k);
+  s.sfx('countTone', { index: k + 1 });
+  s.sfx('ripple');
   s.after(0.5, () => { c.prints.done(k); });
   return s.all(c.say('mosi', `k2_mosi_${k + 1}`, { hold: 0.35 }), s.wait(1.2));
 }

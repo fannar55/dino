@@ -48,6 +48,11 @@ const MOSI_CATCHES = [4.6, -4.2];
 // to its end (0.95 m above her feet: holdAtEyes).
 const EYES_UP = 1.0;
 const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene goes on (holdAtEyes keeps her eyes at his after)
+// Seconds into her head coming down that the sun winks, over Mosi's head behind Egill's shoulder: from 3.3 to 3.85 s in, the sun and
+// its hands are clear of Mosi and in the frame. Before that his horn and head, turning up to follow hers, are in front of the sun or
+// of its resting hand; after it the camera, tilting down with her face, has taken the sun out of the top of the frame (kafli2.test
+// holds the whole wink on the screen with nobody in front).
+const WINK_AT = 3.35;
 // The seat on the back of her head (riding.js: createSeat), level however her head and neck turn: 0.15 m behind her Head bone,
 // his root 0.65 m above it, which keeps the lowest of him 1 to 3 cm over her skin with his legs out (neck-ride.js: legsOut) from
 // the bank to the top (kafli2.test asserts none of him inside her). His hands rest on his thighs.
@@ -120,6 +125,7 @@ function* living(s, c) {
       if (life.held) continue;
       leafFall(c, mouthOf(her));
       her.talk({ text: 'namm namm namm', duration: LIFE.chew });
+      s.sfx('chew');
       yield s.wait(LIFE.nod - LIFE.bite);
     } else {
       yield s.wait(LIFE.nod);
@@ -160,10 +166,11 @@ export function* headDown(s, c) {
   yield her.lookAt(null);
   yield egill.lookAt(HER_HEAD, { weight: 0.85, maxAngle: 40, maxPitch: 40 });
   s.camera.follow('egill', { ...HEAD_DOWN_CAMERA, look: faceInView(c) });
+  s.sfx('sniff'); // she stops biting and smells the berries
   const lowering = her.raw.play('lowerHead', { fade: 0.8 });
   s.after(0.6, () => ringAtFoot(c, 'FrontFootL'));
   s.after(1.1, () => ringAtFoot(c, 'FrontFootR'));
-  s.after(2.5, () => s.sun.wink());
+  s.after(WINK_AT, () => s.sun.wink());
   s.after(2.6, () => her.lookAt(eyesMeet(c, EGILL_EYES), HER_LOOK));
   yield* holdAtEyes(s, c, lowering);
   c.life.headDown = true;
@@ -186,6 +193,7 @@ function* holdAtEyes(s, c, action) {
   action.setEffectiveTimeScale(0);
   c.held = action.time;
   c.headHold = true;
+  s.sfx('breathHuge'); // her face at his eyes: a big, warm breath
   // Her eyes as she is drawn, her look laid over the clip: where they are too high the clip moves on a little, too low it moves back.
   c.world.effects.add({
     label: 'her eyes held at his',
@@ -247,6 +255,7 @@ export function* liftUp(s, c) {
   lift.time = clipTimeForEyes(her.raw, 'liftUp', eyeHeightIn(her.raw, 'lowerHead', held));
   const rising = lift.getClip().duration - lift.time;
   c.lift = { action: lift, from: lift.time, rising };
+  s.sfx('liftTone', { seconds: rising }); // a tone rising two octaves all the way up
   s.camera.cut('fen_lift');
   s.camera.follow('egill', { ...LIFT_CAMERA, offset: swingRound(c), look: liftLook(c) });
   c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES[0] + 1.5, MOSI_CATCHES[1]], MOSI_CATCHES], { speed: 0.9 }); // arriving facing west
@@ -256,6 +265,7 @@ export function* liftUp(s, c) {
   dripping.cancel();
   c.lookout = egill.raw.headPosition(new THREE.Vector3()); // where he looks out from: LOOKOUT_HEAD
   c.phase = 'lookout';
+  s.sfx('windHigh'); // the wind nine metres up
 }
 
 /**
@@ -278,7 +288,12 @@ export function* slideDown(s, c) {
   }
   c.phase = 'sliding';
   s.say('egill', 'k2_egill_wuuu');
+  s.sfx('slide');
   c.slide = slideDownHerNeck(egill.raw, her.raw, c.saddle, { duration: 3.2, legs: c.legs, ring: c.ring });
+  s.after(0, function* landing() { // the bump into the saddle as he lands in it, with its little bounce
+    yield s.until(() => c.slide.phase === 'bounce' || c.slide.done);
+    s.sfx('landSaddle');
+  });
   yield c.slide;
   c.riding = c.slide.riding;
   c.legs = null;

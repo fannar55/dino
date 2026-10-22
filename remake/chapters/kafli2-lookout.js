@@ -164,6 +164,7 @@ function* found(s, c, name, how) {
   s.sfx('flower');
   const reaction = far.react(name);
   s.place(name, screenOf(world, target.point));
+  s.sfx('mapMark'); // a swish as her marker flies, and a tick and two bells as it lands on the map
   yield s.all(reaction, s.after(0.3, () => c.say('mosi', FOUND[name])));
 }
 
