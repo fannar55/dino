@@ -36,14 +36,16 @@ const GLIMMER = { every: 1.25, count: 11, size: 1.7, spread: 2.6, duration: 1.3 
 const WADE = { every: [6, 10], reach: 2.6, speed: 0.55 };
 const FOUND_BURST = { count: 36, size: 2.2, spread: 4, duration: 1.8 };
 
+// `sun` (the scene's sun) is taken as the board's friends take it, and not used: at this distance they cast no shadow, and
+// thorsedla-lod.js would add a caster for a sun that casts.
+// eslint-disable-next-line no-unused-vars
 export function createFarFriends(world, { friends, sun = null } = {}) {
   const group = new THREE.Group();
   group.name = 'Far friends';
   group.visible = false;
   world.scene.add(group);
-  // Háls og hali's light levels, without the sun: no shadow casters (thorsedla-lod adds one only for a sun that casts).
+  // Háls og hali's light levels, without the sun: no shadow casters.
   const lod = createThorsedlaLod(null);
-  void sun;
   let shown = false;
   let isReady = false;
   let time = 0;
