@@ -51,6 +51,10 @@ const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
 const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
+// Seconds the black at the start waits at most for the trail's build (main.js builds it once the start button shows): a child who
+// taps at once sees the glade after this, while the last of the trail is built a little each frame; the change of place to the
+// trail waits for the rest, under its own black.
+const TRAIL_WAIT = 2;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
 const GLADE_EXIT = [[6.6, -6.2], [10.5, -8.7], [15, -10.5]];
@@ -705,8 +709,8 @@ export const chapter = {
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.
   startShot: 'glade_leaving',
   // The trail and the Fen are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js:
-  // prepare; main.js): the trail first, which the script waits for before its first fade from black (if the child taps before it
-  // is built, the black holds a moment), then the Fen, which the change of place to it waits for.
+  // prepare; main.js): the trail first, which the script's first fade from black waits for (TRAIL_WAIT at most), then the Fen;
+  // a change of place to either waits for its build.
   prepare: ['fenjaslod', 'fen'],
   // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
   // models made (three parses and their light levels: long frames) once the places are, if the button still waits; else the
@@ -718,10 +722,14 @@ export const chapter = {
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
-   * black as it comes to a place. For now the actors, Þórseðla among them while she waits out of sight, and one of the leaves
-   * she bites off, from the start shot.
+   * black as it comes to a place. `place` is the place it is drawn for (main.js): for the glade, where the chapter starts, only the
+   * actors (Þórseðla among them while she waits out of sight), so the start button waits for no more than the glade shows; for any
+   * other (or none) all of it: the actors, one of the leaves she bites off, the trail's prints and the Fen's things, so they are drawn
+   * with the trail behind the start button once it shows, or as the scene comes to the trail, under its black.
    */
-  warmUp(world) {
+  warmUp(world, { place = null } = {}) {
+    const actors = [...world.actors.values()].map(actor => actor.root);
+    if (place === 'burknalaut') return { objects: actors, shots: ['glade_leaving'], dispose() {} };
     const leaf = leafWarm(world);
     const ground = (x, z) => [x, world.heightAt(x, z), z];
     // a print with its water, its digit up and a splash; one of each of the Fen's animals; a bush of each berry, one in the air; the
@@ -739,7 +747,7 @@ export const chapter = {
     basket.add('red');
     const far = world.chapterState?.farFriends;
     return {
-      objects: [...[...world.actors.values()].map(actor => actor.root), leaf.object, prints.group, critters.group, berries.group, basket.group, ...(far?.isReady ? [far.group] : [])],
+      objects: [...actors, leaf.object, prints.group, critters.group, berries.group, basket.group, ...(far?.isReady ? [far.group] : [])],
       shots: ['glade_leaving'],
       dispose() {
         leaf.dispose();
@@ -777,9 +785,9 @@ export const chapter = {
     c.glow.setAll(1, { duration: 0 });
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
-    // the trail, built while the start button waited (main.js): a child who tapped first waits for it a moment under the black,
-    // so the glade never plays with the trail still being built behind it (in captures it is built here, at once)
-    yield s.prepare('fenjaslod');
+    // the trail, built while the start button waited (main.js): a child who tapped first waits for it under the black, for two
+    // seconds at most (in captures it is built here, at once)
+    yield s.race(s.prepare('fenjaslod'), s.wait(TRAIL_WAIT));
     s.sfx('forest');
     yield s.fade(0, 0.8); // the scene opens from black (main.js): the glade comes up out of it
     yield* story(s, c);

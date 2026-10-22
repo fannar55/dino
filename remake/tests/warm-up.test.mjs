@@ -142,7 +142,7 @@ test('main.js draws the chapter once before the start button shows, builds its l
   assert.doesNotMatch(start.slice(0, start.indexOf('getReady()')), /button\.hidden = false/, 'the button waits for the warm-up');
   const ready = main.slice(main.indexOf('async function getReady()'), main.indexOf('const describeWarm'));
   assert.match(ready, /await characterLodsReady\(\);/);
-  assert.match(ready, /chapter\.warmUp\?\.\(world\)/);
+  assert.match(ready, /chapter\.warmUp\?\.\(world, \{ place: world\.location \}\)/, 'drawn for the start place: what it shows');
   assert.doesNotMatch(ready, /locations\.prepare|chapter\.prepare/, 'the start button does not wait for the later places');
   assert.match(ready, /ui\.tray\.prepare\(warm\.tray\);/);
   // once the button shows: the later places built a slice at a time, each drawn while the button still waits, then the chapter's later
@@ -152,8 +152,8 @@ test('main.js draws the chapter once before the start button shows, builds its l
   assert.match(later, /chapter\.later\?\.fetch\?\.\(world\);/);
   assert.match(later, /await locations\.prepare\(name, \{ sliced: true \}\);[\s\S]*if \(!stage\.started\) \{\s*Object\.assign\(entry, warmPrepared\(name, forest\)\);\s*if \(ui\.fadeLevel < 0\.999\) drawNow\(\);/);
   assert.match(later, /if \(chapter\.later\?\.make && !stage\.started\) \{\s*const began = performance\.now\(\);\s*await chapter\.later\.make\(world\);/);
-  // a slice may take 25 ms of a frame while the button waits, 8 while the scene plays, 200 under the black
-  assert.match(main, /slicing\.budget = \(\) => \(!stage\.started \? 25 : ui\.fadeLevel >= 0\.999 \? 200 : 8\);/);
+  // a slice may take 25 ms of a frame while the button waits, 8 while the scene plays, 80 under the black
+  assert.match(main, /slicing\.budget = \(\) => \(!stage\.started \? 25 : ui\.fadeLevel >= 0\.999 \? 80 : 8\);/);
   assert.match(main, /world\.warmObjects = objects => \{/);
   // a new place: drawn once in the frame it is set up, under the black, with the music lenient round it
   const loop = main.slice(main.indexOf('renderer.setAnimationLoop('));

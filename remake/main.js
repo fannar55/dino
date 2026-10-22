@@ -257,8 +257,9 @@ const hals = createHalsGame(document, {
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
 // A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
-// while the scene plays (the frame keeps room to draw), and 200 under the black, where no frame is seen.
-slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 200 : 8);
+// while the scene plays (the frame keeps room to draw), and 80 under the black, where no frame is seen (no more: the game clock
+// counts a frame as 0.1 s at most, and a black that waits some seconds for a build, the chapter's own, must last that long).
+slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 80 : 8);
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
@@ -314,9 +315,12 @@ function warmViews(views, warm) {
   return result;
 }
 
-/** Draw the place in view once, with the chapter's warm-up objects (their throwaways stand on its ground). */
-function warmPlace(views) {
-  const warm = chapter.warmUp?.(world) ?? { objects: [], dispose() {} };
+/**
+ * Draw the place in view once, with the chapter's warm-up objects (their throwaways stand on its ground). `place`: the place the
+ * chapter is told it is drawn for (chapter.warmUp's), the one in view unless said; null for all the chapter has.
+ */
+function warmPlace(views, place = world.location) {
+  const warm = chapter.warmUp?.(world, { place }) ?? { objects: [], dispose() {} };
   try {
     return warmViews(views, warm);
   } finally {
@@ -339,7 +343,7 @@ function warmPrepared(name, forest) {
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   try {
-    return warmPlace(chapter.locations[name].warmUp ?? []);
+    return warmPlace(chapter.locations[name].warmUp ?? [], name);
   } finally {
     forest.group.visible = false;
     here.forest.group.visible = true;
@@ -354,7 +358,7 @@ async function getReady() {
   await characterLodsReady(); // the shadow casters the levels bring are drawn too
   await nextFrames(2); // the script's setup has run and the start shot holds
   const warmed = [];
-  const warm = chapter.warmUp?.(world) ?? { objects: [], shots: [], dispose() {} };
+  const warm = chapter.warmUp?.(world, { place: world.location }) ?? { objects: [], shots: [], dispose() {} };
   try {
     warmed.push({ label: 'start', ...warmViews(warm.shots ?? [], warm) });
   } finally {
@@ -399,7 +403,7 @@ async function prepareLater() {
     await chapter.later.make(world);
     const entry = { label: 'later', made: Math.round(performance.now() - began) };
     if (!stage.started) {
-      Object.assign(entry, warmPlace([])); // the chapter's warm-up again, with what it made, from the view behind the button
+      Object.assign(entry, warmPlace([], null)); // all the chapter's warm-up again, with what it made, from the view behind the button
       if (ui.fadeLevel < 0.999) drawNow();
     }
     warmed.push(entry);

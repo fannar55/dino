@@ -492,14 +492,14 @@ test('the chapter plays to its end unattended with no director warnings', async 
 });
 
 // main.js builds the trail and the Fen once the start button shows, a slice at a time, and makes the far friends after them: a
-// child who taps at once comes to each before it is there. Here the trail takes 3 s to build and the Fen 200 s (long after the
-// scene comes to it), and the far friends are left to the chapter.
+// child who taps at once comes to each before it is there. Here the trail takes 1.5 s to build and the Fen 200 s (long after the
+// scene comes to it), and the far friends are left to the chapter; and then the trail takes 30 s (longer than the glade's scene).
 test('no scene plays in a place still being built: the glade waits under the black for the trail, the Fen for its build and the far friends', async () => {
   const shotsOf = Object.fromEntries(Object.entries(chapter.locations).map(([name, location]) => [name, new Set(Object.keys(location.shots))]));
   const placeOf = shot => Object.keys(shotsOf).find(name => shotsOf[name].has(shot)) ?? null; // null: a shot made as it goes
   const visible = []; // every frame the picture shows (not under the black)
   const { task, stage, world, director, builds } = await playUnattended(kafli2, {
-    seeking: false, limit: 700, makeLater: false, slowBuilds: { fenjaslod: 3, fen: 200 },
+    seeking: false, limit: 700, makeLater: false, slowBuilds: { fenjaslod: 1.5, fen: 200 },
     onFrame({ t, world, ui, shot }) {
       if (ui.fadeLevel >= 0.999) return;
       const far = world.chapterState?.farFriends;
@@ -512,7 +512,7 @@ test('no scene plays in a place still being built: the glade waits under the bla
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
   assert.ok(visible.length > 1000);
   // the glade fades in from black only once the trail is built
-  assert.ok(builds.fenjaslod.built > 2.99, `the trail was built at ${builds.fenjaslod.built} s`);
+  assert.ok(builds.fenjaslod.built > 1.49, `the trail was built at ${builds.fenjaslod.built} s`);
   assert.ok(visible[0].t >= builds.fenjaslod.built, `the glade showed at ${visible[0].t.toFixed(2)} s, the trail built at ${builds.fenjaslod.built.toFixed(2)} s`);
   // the scene came to the Fen while it was still being built, and waited for it under the black
   const lastOnTheTrail = visible.filter(v => v.location === 'fenjaslod').at(-1);
@@ -525,6 +525,23 @@ test('no scene plays in a place still being built: the glade waits under the bla
     assert.ok(place === null || place === frame.location, `${frame.shot} (a shot of ${place}) showed in ${frame.location} at ${frame.t.toFixed(2)} s`);
     if (frame.location === 'fen') assert.ok(frame.far, `the Fen showed at ${frame.t.toFixed(2)} s before the far friends were made`);
   }
+});
+
+test('the black at the start waits two seconds at most for the trail; then the glade plays and the change to the trail waits for it', async () => {
+  const visible = [];
+  const { task, world, builds } = await playUnattended(kafli2, {
+    seeking: false, limit: 40, slowBuilds: { fenjaslod: 30, fen: 1 },
+    onFrame({ t, world, ui }) {
+      if (ui.fadeLevel < 0.999) visible.push({ t, location: world.location });
+    },
+  });
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  assert.ok(visible[0].t > 1.9 && visible[0].t < 2.6, `the glade showed at ${visible[0].t.toFixed(2)} s`);
+  assert.equal(visible[0].location, 'burknalaut');
+  assert.ok(builds.fenjaslod.built > 29.9, `the trail was built at ${builds.fenjaslod.built} s`);
+  const trail = visible.find(v => v.location === 'fenjaslod');
+  assert.ok(trail && trail.t >= builds.fenjaslod.built, `the trail showed at ${trail?.t.toFixed(2)} s, built at ${builds.fenjaslod.built.toFixed(2)} s`);
+  assert.equal(world.chapterTimeline.at(-1).scene, 2, 'on the trail');
 });
 
 test('no fail states: the far friends are hinted and found for a child who taps nothing, and the slide goes by itself', async () => {
@@ -717,12 +734,22 @@ test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing
   assert.ok(world.chapterState.swishLog.some(t => t >= at - 1e-6 && t - at < 0.2), 'and her tail swishes at it');
 });
 
-test('the warm-up draws the basket with its glow, which shows only while he holds it up, at the climax', async () => {
+test('the warm-up draws the basket with its glow, which shows only while he holds it up, at the climax; behind the start button only the actors', async () => {
   const { world } = await playUnattended(kafli2, { limit: 0.2 });
   const warm = kafli2.chapter.warmUp(world);
   const names = warm.objects.flatMap(root => { const n = []; root.traverse(o => n.push(o.name)); return n; });
   for (const name of ['Mud prints', 'Print water', 'Basket', 'Basket berries', 'Basket glow']) assert.ok(names.includes(name), `${name} is drawn`);
   warm.dispose();
+  // behind the start button (the glade) only the actors: the start button waits for no more than the glade shows
+  const atStart = kafli2.chapter.warmUp(world, { place: 'burknalaut' });
+  assert.deepEqual(atStart.objects, [...world.actors.values()].map(actor => actor.root));
+  assert.deepEqual(atStart.shots, ['glade_leaving']);
+  atStart.dispose();
+  for (const place of ['fenjaslod', 'fen']) {
+    const there = kafli2.chapter.warmUp(world, { place });
+    assert.equal(there.objects.length, warm.objects.length, `all of it for ${place}`);
+    there.dispose();
+  }
 });
 
 test('a tap on her just before her tail swishes on its own: the swish she does then is a whole one, and so is its shot', async () => {
