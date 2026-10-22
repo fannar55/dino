@@ -46,19 +46,20 @@ test('runSync and runSliced drive the same steps to the same end; the sliced one
   assert.equal(big, 0, 'all in one slice');
   // a step that yields FRESH ends its slice, so the long step after it begins one of its own; not when the slice has only just begun
   const busy = ms => { const until = performance.now() + ms; while (performance.now() < until); };
+  const ran = []; // the steps as they run, and '|' where a slice ends
   function* withLong() {
     yield FRESH; // the slice has only just begun: it goes on
-    for (let i = 0; i < 6; i++) { busy(0.5); yield; }
+    for (let i = 0; i < 6; i++) { busy(0.5); ran.push('short'); yield; }
     yield FRESH;
     busy(4); // the long step
+    ran.push('long');
     yield FRESH;
     busy(4); // and another
+    ran.push('long');
     return 'made';
   }
-  const lengths = [];
-  assert.equal(await runSliced(withLong(), { budget: () => 1000, wait: () => Promise.resolve(), onSlice: ms => lengths.push(ms) }), 'made');
-  assert.equal(lengths.length, 3, `${lengths.length} slices`);
-  assert.ok(lengths[0] >= 3 && lengths[0] < 4 && lengths[1] >= 4 && lengths[1] < 8 && lengths[2] >= 4, lengths.map(ms => ms.toFixed(1)).join(', '));
+  assert.equal(await runSliced(withLong(), { budget: () => 1000, wait: () => Promise.resolve(), onSlice: () => ran.push('|') }), 'made');
+  assert.deepEqual(ran.join(' '), 'short short short short short short | long | long |');
   assert.equal(runSync(withLong()), 'made');
 });
 
