@@ -9,21 +9,23 @@
 // side on), lower than `height`: thickest 0.1 to 0.35 m over the water, thinning to nothing at its top, its sides and its
 // foot, which is sunk a little below the surface so no line shows. Its noise is stretched along the ground and drifts with the
 // wind (followed as it is now), and each card sways a metre or two along it. Additive and light (the spec's #cfe0d6), so
-// nothing needs sorting; a card fades out near the camera, so the camera can pass through, and beyond 40 m. It fades too as it
-// is looked down on: a card stands upright, so from above it shows edge on, as a thin, flat streak of light, which from her head
-// and from the top of the lift is all it would be. By how steeply the camera looks down past the card's top (the rise over the
-// run, MIST_FADE.steep: whole up to 1 in 7.7, gone by 1 in 4.5), so from a child's height and the reveal's 3.8 m over her pool it
-// is as it was, and from her head (11 m up) there is none, nor within 25 m of a camera 6 m up. mistStrength() is the same sum in
-// code. One draw call. The clock is the game's (update(t)).
+// nothing needs sorting; a card fades out near the camera, so the camera can pass through, and beyond 40 m, and as the line to
+// its foot steepens (MIST_FADE.down, on the sine of that angle), where a card would show as a sheet. A camera high above the
+// cards, up the lift and on her head, sees each one edge on, as a thin, flat streak of light: from 4.5 m above a card's foot
+// (whole by 6.5, MIST_FADE.high) it fades as well by how steeply the camera looks down past its top (the rise over the run,
+// MIST_FADE.steep: whole up to 1 in 7.7, gone by 1 in 4.5). Lower than that the cards are as they always were: the ground shots,
+// the trail, whose cards stand down its slope below the camera's ground, the ride's camera 3 m up, and the reveal's 3.8 m over
+// her pool. mistStrength() is the same sum in code. One draw call. The clock is the game's (update(t)).
 import * as THREE from 'three';
 import { FEN } from '../forest/config.js';
 import { createRng } from '../forest/random.js';
 import { createNoiseTexture } from '../forest/materials.js';
 
 export const CARDS = 12;
-// Where a card fades (m from the camera, and the camera's rise over its run above the card's top): in near, out far, and out as
-// it is looked down on.
-export const MIST_FADE = { near: [2.5, 8], far: [40, 55], steep: [0.13, 0.22], top: 0.6 };
+// Where a card fades: in near and out far (m from the camera); out as the line from the camera to its foot steepens (`down`, the
+// sine of that angle); and, for a camera `high` m or more above its foot, out as the camera looks down past `top` of its height
+// (`steep`, the rise over the run).
+export const MIST_FADE = { near: [2.5, 8], far: [40, 55], down: [0.35, 0.7], high: [4.5, 6.5], steep: [0.13, 0.22], top: 0.6 };
 const glsl = n => n.toFixed(3);
 
 const VERT = /* glsl */`
@@ -44,11 +46,15 @@ void main() {
   vec3 p = centre + side * aCorner.x * aCard.x * 0.5 + vec3( 0.0, aCorner.y * aCard.y, 0.0 );
   vUv = vec2( aCorner.x, aCorner.y );
   vWorld = p;
-  // fade near the camera, far from it, and as the card is looked down on: the camera's rise above the card's top over its run
+  // fade near the camera, far from it, as the line to the foot steepens, and, from a camera high over the card, as it looks down
+  // past the card's top
   float dist = length( cameraPosition - p );
-  float steep = ( cameraPosition.y - centre.y - aCard.y * ${glsl(MIST_FADE.top)} ) / max( length( toCam.xz ), 0.1 );
+  float down = abs( normalize( toCam ).y );
+  float steep = ( toCam.y - aCard.y * ${glsl(MIST_FADE.top)} ) / max( length( toCam.xz ), 0.1 );
+  float high = smoothstep( ${glsl(MIST_FADE.high[0])}, ${glsl(MIST_FADE.high[1])}, toCam.y );
   vStrength = aCard.w * smoothstep( ${glsl(MIST_FADE.near[0])}, ${glsl(MIST_FADE.near[1])}, dist ) * ( 1.0 - smoothstep( ${glsl(MIST_FADE.far[0])}, ${glsl(MIST_FADE.far[1])}, dist ) )
-    * ( 1.0 - smoothstep( ${glsl(MIST_FADE.steep[0])}, ${glsl(MIST_FADE.steep[1])}, steep ) );
+    * ( 1.0 - smoothstep( ${glsl(MIST_FADE.down[0])}, ${glsl(MIST_FADE.down[1])}, down ) )
+    * ( 1.0 - smoothstep( ${glsl(MIST_FADE.steep[0])}, ${glsl(MIST_FADE.steep[1])}, steep ) * high );
   vec4 mvPosition = viewMatrix * vec4( p, 1.0 );
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
@@ -86,10 +92,13 @@ const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b
  * foot at `foot` (a Vector3) and `height` m tall, seen from `camera` (a Vector3), at its middle.
  */
 export function mistStrength(camera, foot, height) {
+  const rise = camera.y - foot.y;
   const run = Math.max(Math.hypot(camera.x - foot.x, camera.z - foot.z), 0.1);
   const dist = Math.hypot(run, camera.y - (foot.y + height * 0.5));
-  const steep = (camera.y - foot.y - height * MIST_FADE.top) / run;
-  return smoothstep(...MIST_FADE.near, dist) * (1 - smoothstep(...MIST_FADE.far, dist)) * (1 - smoothstep(...MIST_FADE.steep, steep));
+  const down = Math.abs(rise) / Math.max(Math.hypot(run, rise), 1e-6);
+  const steep = (rise - height * MIST_FADE.top) / run;
+  return smoothstep(...MIST_FADE.near, dist) * (1 - smoothstep(...MIST_FADE.far, dist)) * (1 - smoothstep(...MIST_FADE.down, down))
+    * (1 - smoothstep(...MIST_FADE.steep, steep) * smoothstep(...MIST_FADE.high, rise));
 }
 
 export function createMist(world, { center, radius, height = 1.2, level = 1, heightAt = world.heightAt, over = null, seed = 1, cards = CARDS } = {}) {

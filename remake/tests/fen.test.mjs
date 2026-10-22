@@ -9,6 +9,8 @@ import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
 import { createMist, CARDS, MIST_FADE, mistStrength } from '../world/props/mist.js';
+import { mosiAt, RIDE_CAMERA } from '../chapters/kafli2-trail.js';
+import { LOOKOUT_HEAD } from '../chapters/kafli2-thorsedla.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -176,22 +178,64 @@ test('the mist is a few soft cards that the sun lifts', () => {
   mist.dispose();
 });
 
-test('a mist card fades as it is looked down on: none of it from her head or the top of the lift, all of it from a child\'s height', () => {
+test('a mist card fades as it is looked down on: none of it from her head or high in the lift, all of it from a child\'s height', () => {
   const V = THREE.Vector3;
   const foot = new V(0, -0.08, 0), height = 1.0; // a card standing in the water, its foot just under the surface
   const from = (x, y) => mistStrength(new V(x, y, 0), foot, height);
   // at a child's height, and from the reveal's end 3.8 m up across her pool: as it was
   for (const d of [8, 15, 30]) assert.ok(from(d, 1.4) > 0.97, `${d} m off at 1.4 m: ${from(d, 1.4).toFixed(2)}`);
-  assert.ok(from(24, 3.8) > 0.85, `the reveal's end: ${from(24, 3.8).toFixed(2)}`);
-  // from her head (about 11 m up) and halfway up the lift, a card is a thin streak of light: gone
+  assert.ok(from(24, 3.8) > 0.97, `the reveal's end: ${from(24, 3.8).toFixed(2)}`);
+  // from her head (about 11 m up) and from 7 m up the lift, a card is a thin streak of light: gone
   for (const d of [12, 20, 30, 40, 48]) assert.ok(from(d, 10.9) < 0.05, `the lookout, ${d} m off: ${from(d, 10.9).toFixed(2)}`);
-  assert.ok(from(20, 6) < 0.05, `halfway up the lift: ${from(20, 6).toFixed(2)}`);
+  for (const d of [10, 20, 30]) assert.ok(from(d, 7) < 0.05, `7 m up the lift, ${d} m off: ${from(d, 7).toFixed(2)}`);
   // and the shader reads the same numbers
   const mist = createMist(nodeWorld(), { center: [0, 0], radius: 20, heightAt: () => 0 });
   const shader = mist.mesh.material.vertexShader;
-  for (const n of MIST_FADE.steep) assert.ok(shader.includes(n.toFixed(3)), `the shader fades at ${n}`);
+  for (const n of [...MIST_FADE.steep, ...MIST_FADE.high, ...MIST_FADE.down]) assert.ok(shader.includes(n.toFixed(3)), `the shader fades at ${n}`);
   assert.equal(mist.mesh.geometry.index.count / 6 <= CARDS, true, 'twelve cards at most, one draw');
   mist.dispose();
+});
+
+/** A card as it was seen before the fade by steepness (commit ed420c3's shader): near, far and the angle to its foot only. */
+function mistBefore(camera, foot, height) {
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const dist = camera.distanceTo(new THREE.Vector3(foot.x, foot.y + height * 0.5, foot.z));
+  const down = Math.abs(camera.y - foot.y) / camera.distanceTo(foot);
+  return smooth(2.5, 8, dist) * (1 - smooth(40, 55, dist)) * (1 - smooth(0.35, 0.7, down));
+}
+
+test('the trail\'s low mist and the Fen\'s from its ground shots are as they were: only a camera high over the cards loses them', async () => {
+  const cardsOf = forest => {
+    const { position, aCard } = forest.mists[0].mesh.geometry.attributes;
+    return Array.from({ length: position.count / 4 }, (_, k) => ({ foot: new THREE.Vector3().fromBufferAttribute(position, k * 4), height: aCard.getY(k * 4) }));
+  };
+  const keep = (label, cards, camera) => {
+    for (const { foot, height } of cards) {
+      const was = mistBefore(camera, foot, height), now = mistStrength(camera, foot, height);
+      assert.ok(now >= 0.9 * was - 1e-9, `${label}: a card ${camera.distanceTo(foot).toFixed(1)} m off, ${(camera.y - foot.y).toFixed(2)} m under the camera, ${was.toFixed(2)} before and ${now.toFixed(2)} now`);
+    }
+  };
+  // the trail: its four ground shots, and the ride's camera (3 m over Mosi, behind him on his right) as it follows him to print 1
+  // and by the prints, its cards down the trail's slope below its ground
+  const trailWorld = nodeWorld();
+  const trail = await createForest(trailWorld, layoutOf(TRAIL));
+  trailWorld.heightAt = trail.heightAt;
+  const trailCards = cardsOf(trail);
+  for (const name of ['trail_fog', 'trail_follow', 'trail_portrait', 'trail_end']) keep(name, trailCards, new THREE.Vector3(...TRAIL.shots[name].position));
+  for (const k of [0, 3, 6, 9]) {
+    const at = mosiAt(k), h = THREE.MathUtils.degToRad(at.heading);
+    const [ox, oy, oz] = RIDE_CAMERA.offset;
+    keep(`the ride's camera by print ${k + 1}`, trailCards, new THREE.Vector3(at.x + Math.cos(h) * ox - Math.sin(h) * oz, trail.heightAt(at.x, at.z) + oy, at.z + Math.sin(h) * ox + Math.cos(h) * oz));
+  }
+  trail.dispose();
+  // the Fen: the reveal's end, 3.8 m up, the slide's end and the low shots; and from her head none of it
+  const fen = await createForest(nodeWorld(), layoutOf(FEN_PLACE));
+  const fenCards = cardsOf(fen);
+  for (const name of ['fen_reveal', 'fen_reveal_end', 'fen_slide_end', 'fen_shore', 'fen_two_shot', 'fen_thorsedla_low']) keep(name, fenCards, new THREE.Vector3(...FEN_PLACE.shots[name].position));
+  const head = new THREE.Vector3(...LOOKOUT_HEAD).add(new THREE.Vector3(-4.76, 0, -2.75)); // the lookout's camera, beside his head
+  const seen = fenCards.map(({ foot, height }) => mistStrength(head, foot, height));
+  assert.ok(seen.every(v => v < 0.05), `from her head: ${seen.map(v => v.toFixed(2)).join(' ')}`);
+  fen.dispose();
 });
 
 // ---- the plan -------------------------------------------------------------------------------
