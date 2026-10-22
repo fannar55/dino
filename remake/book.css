@@ -8,6 +8,8 @@
      .book-spine                 the stitched fold between them
      .book-close                 the big close, on the cover's top right corner
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
+     .spread-turn                a dog-eared corner of the Dýrin pages, .next on the right page and .prev on the left, that turns
+                                 to the next or the last spread of animals (the forest's, the Fen's); a .page-turning spread hides it
      .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
                                  page a .star-tile, .earned once the friend's star is in the book; on the Leikir page the
                                  .game-tile of "Eitt!" and of "Háls og hali", each in its .game-slot, with the stickers won from
@@ -494,8 +496,46 @@
 [data-card="frog"] { --hue: #66ac47; }
 [data-card="snail"] { --hue: #ee8650; }
 [data-card="birds"] { --hue: #7ea7cc; }
+/* the Fen's (chapter 2) */
+[data-card="waterbeetle"] { --hue: #c9a640; } /* its gold rim */
+[data-card="waterstrider"] { --hue: #3f7a6e; } /* the Fen's water it stands on */
+[data-card="salamander"] { --hue: #e2833a; } /* its orange belly */
+[data-card="dragonfly"] { --hue: #2f86bd; } /* its blue tail */
+[data-card="turtle"] { --hue: #b0a45e; } /* the rims of its shell's plates */
+[data-card="fish"] { --hue: #4c6652; } /* its olive back */
+[data-card="earlybird"] { --hue: #d8a23a; } /* its amber eye */
 .tile-picture, .card-image img, .zoom-frame img { /* the picture lies on a soft wash of the animal's hue */
   background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #c9b48a) 16%, var(--book-card)), color-mix(in srgb, var(--hue, #c9b48a) 42%, var(--book-card)));
+}
+
+/* ---- The Dýrin spreads: a dog-eared corner turns on to the next spread of animals, and one on the left turns back --- */
+
+/* The corners lie on the spread (their leaf is display: contents), on the outer bottom corners of the pages: the right page's
+   and the left one's, or both on the lower page on a tablet held upright. The page under the turned-up corner peeps out, and the
+   card's big orange arrow lies on it. Now and then the corner on lifts a little, so the child sees there is more. */
+.spread-turn {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; bottom: var(--edge);
+  width: clamp(124px, 15cqmin, 176px); aspect-ratio: 1; padding: 0; border: 0; background: none;
+  transform-origin: 100% 100%;
+}
+.spread-turn.next { right: var(--edge); animation: corner-beckon 4.6s ease-in-out 1.2s infinite; }
+.spread-turn.prev { left: var(--edge); transform-origin: 0% 100%; }
+.spread-turn .corner-curl { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.spread-turn.prev .corner-curl { transform: scaleX(-1); }
+.corner-under { fill: #e4d3ae; stroke: var(--book-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.corner-flap {
+  fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; stroke-linejoin: round;
+  filter: drop-shadow(-3px -4px 3px rgb(59 47 37 / .28));
+}
+.corner-crease { fill: none; stroke: rgb(59 47 37 / .22); stroke-width: 2; }
+.spread-turn .book-arrow { position: absolute; right: 2%; bottom: 7%; width: 60%; height: auto; aspect-ratio: 6 / 5; }
+.spread-turn.prev .book-arrow { right: auto; left: 2%; transform: scaleX(-1); }
+.page-turning .spread-turn { visibility: hidden; } /* out of the way of a turning page */
+@keyframes corner-beckon {
+  0%, 74%, 100% { transform: none; }
+  82% { transform: rotate(-5deg) scale(1.07); }
+  90% { transform: rotate(1.5deg) scale(1); }
 }
 
 /* ---- The card: an animal's pages, over the spread -------------------------------------------------------------- */

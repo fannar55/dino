@@ -70,8 +70,8 @@ const CLOSE_EASE = 'cubic-bezier(.55, 0, .8, .25)';
 const PERSPECTIVE = 'perspective(2400px)';
 // A page's corner turned up, the page under it peeping out, with the card's big arrow on it (book.css .spread-turn); the corner
 // back is the same, mirrored.
-const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 34L34 100H100Z"/>'
-  + '<path class="corner-flap" d="M100 34C80 37 60 40 42 42C40 60 37 80 34 100Z"/><path class="corner-crease" d="M97 37L37 97"/></svg>';
+const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 26L26 100H100Z"/>'
+  + '<path class="corner-flap" d="M100 26C78 30 56 33 36 36C33 56 30 78 26 100Z"/><path class="corner-crease" d="M97 29L29 97"/></svg>';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
