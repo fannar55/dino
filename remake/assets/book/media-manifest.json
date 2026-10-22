@@ -625,6 +625,21 @@
       "height": 600
     },
     {
+      "id": "fen-turtle-old",
+      "src": "assets/book/images/fen-turtle-old.svg",
+      "thumb": "assets/book/images/fen-turtle-old.svg",
+      "kind": "placeholder",
+      "credit": null,
+      "license": "own",
+      "licenseUrl": null,
+      "source": "Drawn for the book (Task 7, chapter 2) for the turtle card's third page: one of the oldest turtles, Odontochelys's kind (Li et al. 2008), in the colours of the game's turtle (world/critters/models.js). A photograph the owner approves (cards.json, wanted) replaces it.",
+      "alt": "Teikning: ein elsta skjaldbakan, með heila skel bara á maganum, ber rifbein og litlar plötur á bakinu, langt skott og litlar tennur.",
+      "modifications": null,
+      "sha256": null,
+      "width": 800,
+      "height": 600
+    },
+    {
       "id": "fen-fish",
       "src": "assets/book/images/fen-fish.svg",
       "thumb": "assets/book/images/fen-fish.svg",

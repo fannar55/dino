@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
   <!-- The book's drawing of the Fen's water strider, vatnalæsingi (Task 7, chapter 2), from above as it stands on the water: a slender
-       dark bug on long, thin legs, the middle pair rowing and the hind pair steering, each foot resting in a little dimple of the
-       water's skin, with the short front pair held up, in the colours of the game's water strider (world/critters/models.js),
+       dark bug on long, thin legs, the middle pair rowing and the hind pair steering, a faint ring round each foot where the water's
+       skin gives (so faint that an unfound tile's silhouette is the animal alone), with the short front pair held up, in the colours of the game's water strider (world/critters/models.js),
        drawn soft and by hand on a clear background so a tile can show it as a silhouette. Our own drawing, until a photograph the
        owner approves (cards.json, the card's wanted) or the owner's drawing replaces it. -->
   <title>Vatnalæsingi</title>
@@ -12,17 +12,15 @@
     </filter>
     <!-- the left legs (the right ones are their mirror): the middle pair out and forward, the hind pair back -->
     <path id="legs" d="M174 146C140 128 98 104 52 78M196 162C170 192 142 222 104 262M160 132C148 118 140 104 138 92"/>
-    <g id="dimples">
-      <ellipse cx="52" cy="78" rx="18" ry="7"/><ellipse cx="104" cy="262" rx="18" ry="7"/>
+    <g id="rings">
+      <ellipse cx="52" cy="78" rx="16" ry="6"/><ellipse cx="104" cy="262" rx="16" ry="6"/>
     </g>
   </defs>
   <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
-    <!-- the water's skin, and the rings where it gives under each foot -->
-    <ellipse cx="200" cy="168" rx="190" ry="118" fill="#bfe0dc" fill-opacity=".45" stroke="none"/>
-    <g fill="#e3f4f2" stroke="#6fa9a2" stroke-width="3">
-      <use href="#dimples"/><use href="#dimples" transform="matrix(-1 0 0 1 400 0)"/>
+    <!-- a faint ring round each foot, where the water's skin gives -->
+    <g fill="none" stroke="#ffffff" stroke-width="2.5" stroke-opacity=".28">
+      <use href="#rings"/><use href="#rings" transform="matrix(-1 0 0 1 400 0)"/>
     </g>
-    <path d="M120 200C150 214 190 220 240 214M90 120C120 112 150 108 180 110" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity=".7"/>
     <!-- the long thin legs -->
     <use href="#legs" fill="none" stroke-width="8"/>
     <use href="#legs" fill="none" stroke="#2d2a24" stroke-width="3.5"/>

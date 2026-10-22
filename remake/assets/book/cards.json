@@ -265,7 +265,8 @@
           "audio": "book_frog_6",
           "sources": [
             "Chuliver, Agnolín, Scanferla, Aranciaga Rolando, Ezcurra, Novas og Xu 2024, „The oldest tadpole reveals evolutionary stability of the anuran life cycle“, Nature 636: 138–142, doi:10.1038/s41586-024-08055-y, https://doi.org/10.1038/s41586-024-08055-y: elsta halakarta sem fundist hefur, af froskinum Notobatrachus degiustoi, frá miðjúra í Patagóníu í Argentínu, um 161 milljón ára; hún er líka fyrsta forna halakartan sem tengd er fullorðnum froski sömu tegundar.",
-            "Nature, fréttatilkynning um sömu grein, https://www.natureasia.com/ja-jp/nature/pr-highlights/15076: halakartan var næstum 16 cm löng; áður þekktust steingerðar halakörtur ekki fyrr en frá krítartímabilinu, og tvískipt líf froska, halakarta í vatni og svo froskur, var þegar til fyrir 161 milljón árum. Til samanburðar er hönd sex ára barns um 12–13 cm frá úlnlið fram í fingurgóm (mælið hönd Egils til að vera viss)."
+            "Nature, fréttatilkynning um sömu grein, https://www.natureasia.com/ja-jp/nature/pr-highlights/15076: halakartan var næstum 16 cm löng; áður þekktust steingerðar halakörtur ekki fyrr en frá krítartímabilinu, og tvískipt líf froska, halakarta í vatni og svo froskur, var þegar til fyrir 161 milljón árum.",
+            "Wen, Wang, Xu, Wei, Zhang, Ou, Hong, Ji, Chi og Tong 2020, „Hand anthropometry and its relation to grip/pinch strength in children aged 5 to 13 years“, Journal of International Medical Research 48(12), doi:10.1177/0300060520970768, https://doi.org/10.1177/0300060520970768 (opin grein, CC BY-NC, lesin í Europe PMC, PMC7720326): lengd handar, frá miðri úlnliðsfellingu fram í fingurgóm löngutangar, er að meðaltali 13,6–14,2 cm hjá sex ára börnum (1.255 börn í Kína), svo 16 cm halakartan er lengri en hönd flestra sex ára barna."
           ],
           "wanted": "Wikimedia Commons: frog spawn and tadpoles in a pond (a photograph with an open licence), or a figure of the 161-million-year-old tadpole Notobatrachus degiustoi (Chuliver et al. 2024) if one is there with an open licence. For this page; the owner approves before any download."
         }
@@ -523,8 +524,10 @@
           "text": "Drekaflugur voru til löngu á undan risaeðlunum. Í steininum sjást meira að segja æðarnar í vængjunum!",
           "audio": "book_dragonfly_2",
           "sources": [
-            "University of California Museum of Paleontology, Introduction to the Odonata, https://ucmp.berkeley.edu/arthropoda/uniramia/odonatoida.html: fyrstu steingervingar drekaflugna (Odonata) eru úr neðra perm, yfir 250 milljón ára, og forverar þeirra eldri; drekaflugan Protolindenia wittei úr Solnhofen-kalksteini í Bæjaralandi er um 155 milljón ára, með um 15 cm vænghaf. Safnið lýsir steingervingunum eftir gerð vængjanna, til dæmis hvort hnúðurinn (nodus) er í æðum þeirra: æðar vængjanna sjást í steininum.",
+            "University of California Museum of Paleontology, Introduction to the Odonata, https://ucmp.berkeley.edu/arthropoda/uniramia/odonatoida.html: elstu steingervingar hópsins, frumdrekaflugna (Protodonata), eru frá efra kolatímabili, um 325 milljón ára, og fyrstu steingervingar eiginlegra drekaflugna (Odonata) fundust í seti frá neðra perm, yfir 250 milljón ára; drekaflugan Protolindenia wittei úr Solnhofen-kalksteini í Bæjaralandi er um 155 milljón ára, með um 15 cm vænghaf.",
             "Pinkert, Nel og Huang 2017, „A new hawker dragonfly from the Middle Jurassic of China (Odonata: Aeshnoptera)“, Comptes Rendus Palevol 16(4): 378–381, doi:10.1016/j.crpv.2017.01.006, https://doi.org/10.1016/j.crpv.2017.01.006: ný drekafluga frá miðjúra í Innri-Mongólíu í Kína; drekaflugur af þessum hópi voru með þeim fjölbreyttustu á mið- og síðjúra, á tímum Þórseðlu.",
+            "Bayerische Staatssammlung für Paläontologie und Geologie, gripur mánaðarins í janúar 2024, https://bspg.snsb.de/bspg-snsb-de-january-24/?lang=en: drekaflugan Cymatophlebia longialata úr Solnhofen-kalksteini við Eichstätt, frá síðjúra, um 150 milljón ára, mjög vel varðveitt, og vængirnir sýna sérhæft æðanet.",
+            "Bechly og Kin 2013, „First record of the fossil dragonfly family Eumorbaeschnidae from the Upper Jurassic of Poland“, Acta Palaeontologica Polonica 58(1), doi:10.4202/app.2011.0194, https://doi.org/10.4202/app.2011.0194: ný drekafluga frá síðjúra, greind eftir æðum framvængs sem varðveittust í steininum.",
             "Natural History Museum, When did dinosaurs live?, https://www.nhm.ac.uk/discover/when-did-dinosaurs-live.html: risaeðlur (aðrar en fuglar) voru uppi fyrir um 245–66 milljónum ára, á trías-, júra- og krítartímabilinu."
           ]
         },
@@ -569,7 +572,7 @@
           ]
         },
         {
-          "image": "fen-turtle",
+          "image": "fen-turtle-old",
           "text": "Við vitum það af steingervingum. Ein elsta skjaldbakan hafði tennur, og heila skel bara á maganum!",
           "audio": "book_turtle_3",
           "sources": [
