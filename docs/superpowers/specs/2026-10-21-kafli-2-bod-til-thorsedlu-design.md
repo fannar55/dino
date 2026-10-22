@@ -210,3 +210,18 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - Hvort kortið eigi að vera fimmti borðinn eða hægri síða Stjarnanna (tillaga: fimmti borðinn, „Kortið“).
 - Hvernig Egill heldur sér á hnakka Þórseðlu (hendur í fellingu á hálsinum, eða lítill kragi af laufum sem hún er með).
 - Hvort brúin (hálsinn yfir síkið) komi síðar sem leiðin heim, þegar Slóeðla er næst hinum megin.
+
+## 10. Breytingar í smíði (2026-10-22)
+
+Það sem mælingar og rýni breyttu frá forskriftinni hér að ofan, með ástæðu:
+
+- **Sætið er aftan á höfðinu á Þórseðlu, ekki á hálsinum.** Lárétt sæti 0,55 m yfir fimmta hálslið grefur Egil inn í hálsinn (húðin er 0,9 m yfir beinunum og hálsinn 63° brattur efst). Sætið er lárétt (snúningur frá beininu, halli frá heiminum), Egill flýtur upp á það meðan hausinn er niðri við augun hans, og það endar 9,52 m yfir tjarnarbotni. Rennibrautin liggur því niður allan hálsinn.
+- **Tjörnin hennar (p1) er 0,6 m djúp, ekki 0,3.** Ökklaliðir hennar sitja 0,35 m yfir iljunum; í 0,3 m náði vatnið aðeins ökklunum. 0,6 m er enn vað fyrir 22 m dýr, og Egill fer aldrei út í vatnið.
+- **Hausinn kemur niður að augum Egils mælt við jörðina hans**, því rót hennar stendur 0,74 m neðar á botninum. Klippan `lowerHead` er fryst í þeim ramma þar sem augun ná hæðinni, og hún horfir á hann með tveggja liða miði.
+- **Fótsporin eru 1,0 × 0,7 m, þrýst í jörðina með brún**, ein ávöl dæld með þremur klóförum sem renna saman við framkantinn (sauropoda-afturspor), og lítið framfótarspor á undan hverju. 0,7 m „pollur" las ekki sem „risastór". Dýrin í sporunum eru teiknuð 1,1× raunstærð svo þau sjáist.
+- **Karfan er laufkarfa og fer eins hátt og handleggir Egils ná** (að höfuðhæð, út til hægri), ekki yfir höfuð: handleggir líkansins eru 0,27 m. Berin hrúgast upp fyrir brúnina og karfan ljómar meðan hún er uppi.
+- **Leitarsviðið ofan af höfðinu er reiknað (um −33° til +178°)**, ekki ±70°, því vinirnir þrír spanna 187°. Eftir að barnið hefur fengið hjálp við einn vin styttast vísbendingar næstu vina í 6 s og fundur í 24 s, svo heil spilun án snertingar klárist innan 10 mínútna.
+- **Uggeðla sést frá leitarmyndavélinni en ekki frá sjálfu höfðinu** (sjónlínan liggur í gegnum krónu suðaustur-trésins). Færsla hennar hefði stokkað 75–127 plöntum upp á nýtt og eyðilagt samþykktar myndir; myndavélin er augu Egils í sögunni og krónan rammar hana inn.
+- **Útsýnispunktur skipulagsins (`layout.lookout`) er upphaf sjónlínanna fyrir plöntuskipulagið**, 1,4 m frá raunverulegum stað höfuðsins (`LOOKOUT_HEAD`), og er ekki færður af sömu ástæðu.
+- **Línur:** talningin er í hvorugkyni (`k2_mosi_1..10`, „Eitt!" … „Tíu!") og er notuð bæði fyrir spor og ber; kortið talar aðeins þegar pikkað er á fundinn eða kláraðan vin, tómur reitur þegir.
+- **Mosaskeggið dofnar innan 1,2–3 m frá myndavél**, svo skeggin leggist ekki yfir andlit hennar í nærmyndum.
