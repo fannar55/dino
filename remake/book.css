@@ -423,6 +423,67 @@
   color: var(--book-gold); -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill;
 }
 
+/* The Kortið page (engine/book/map-page.js): the hand-drawn map across the spread, each page showing its half of assets/book/map.svg,
+   the halves meeting at the spine; the place names in the book's font; and a round slot for each place, empty (a dashed ring in
+   the place's hue), found (a die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). */
+.ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
+.book-leaf[data-tab="map"] .book-tiles {
+  --pad-x: 3.4cqw; --pad-top: 4cqh; --pad-bottom: 3.6cqh;
+  display: grid; place-items: center; align-content: stretch; gap: 0;
+}
+.map-half { /* half of the map, 900 by 1000, as big as the page lets it be, hugging the spine */
+  position: relative; aspect-ratio: 9 / 10;
+  width: min(100cqw - 2 * var(--pad-x), (100cqh - var(--pad-top) - var(--pad-bottom)) * .9);
+}
+.map-half[data-half="left"] { justify-self: end; }
+.map-half[data-half="right"] { justify-self: start; }
+.map-art { /* the whole drawing, cropped to this half */
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none;
+  object-fit: cover; object-position: 0 50%;
+}
+.map-half[data-half="right"] .map-art { object-position: 100% 50%; }
+.map-name { /* a place name written on the map, with a halo of paper round its letters */
+  position: absolute; z-index: 1; transform: translate(-50%, -50%) rotate(var(--tilt, -2deg)); pointer-events: none;
+  white-space: nowrap; font-size: clamp(24px, 4.2cqmin, 36px); font-weight: 900; line-height: 1;
+  color: var(--book-ink); -webkit-text-stroke: .22em var(--book-paper); paint-order: stroke fill;
+}
+.map-marker {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; width: var(--book-target); height: var(--book-target);
+  transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%; background: none;
+  display: grid; place-items: center;
+}
+.map-marker.empty::before { /* where a place will go: a dashed ring in its hue */
+  content: ""; width: 62%; aspect-ratio: 1; border-radius: 50%;
+  border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
+}
+.map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue */
+  position: relative; width: 84%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 36%, var(--book-card), color-mix(in srgb, var(--hue) 46%, var(--book-card)) 74%);
+  box-shadow: 0 0 0 4px #fff, 0 0 0 6.5px var(--book-ink), 0 6px 10px 2px rgb(59 47 37 / .3);
+  rotate: -6deg;
+}
+.map-marker:nth-of-type(2n) .map-sticker { rotate: 5deg; }
+.map-sticker img, .map-sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; transform: scale(1.16) translateY(4%); }
+.map-sticker svg { transform: none; }
+.map-sticker::after { /* the shine */
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .5) 42%, transparent 52%);
+}
+.map-marker.found { animation: map-breathe 4.6s ease-in-out infinite; }
+.map-marker.found:nth-of-type(3n) { animation-delay: -1.7s; }
+.map-marker.found:nth-of-type(3n + 1) { animation-delay: -3.1s; }
+.map-star { /* a done place: a gold star pinned to its sticker */
+  position: absolute; z-index: 1; top: -4%; right: -8%; width: 46%; aspect-ratio: 1; pointer-events: none;
+  animation: star-shine 3.4s ease-in-out infinite;
+}
+.map-star svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.map-star path { fill: var(--book-gold); stroke: var(--book-ink); stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1.5px 0 rgb(59 47 37 / .35)); }
+@keyframes map-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -54%) scale(1.04); }
+}
+
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
    background, here and on its card. An animal without one takes the page's warm tan. */
 [data-card="mosi"] { --hue: #868862; }
@@ -694,6 +755,8 @@
       linear-gradient(to bottom, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
   }
   .book-tiles { --pad-x: 7cqw; --pad-top: 6.5cqh; --pad-bottom: 6cqh; }
+  .book-leaf[data-tab="map"] .book-tiles { --pad-x: 4cqw; --pad-top: 3.6cqh; --pad-bottom: 3.6cqh; }
+  .map-half[data-half] { justify-self: center; }
 
   .card {
     width: calc(100cqw - 2 * var(--card-gap));

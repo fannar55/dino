@@ -104,6 +104,92 @@ test('ribbons switch pages with a turn sound', () => {
   assert.deepEqual(sounds, ['turn', 'tap', 'turn']);
 });
 
+/** The book over a save of its own, with what it narrates, the sounds it makes and the games it hands on. */
+function savedRig(fill = () => {}) {
+  const save = createSave(null);
+  fill(save);
+  const narrated = [];
+  const played = [];
+  const sounds = [];
+  const audio = { sfx: name => { sounds.push(name); return true; }, stop() {}, narrate: id => { narrated.push(id); return DONE; } };
+  const doc = new FakeDocument(['book']);
+  const book = createBook(doc, { save, audio, onPause() {}, onPlay: game => played.push(game) });
+  const root = doc.getElementById('book');
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  return { save, book, root, narrated, played, sounds, tap };
+}
+
+test('the book has a Kortið page with the found places', () => {
+  const { save, book, root, narrated, sounds, tap } = savedRig(save => {
+    save.addStar('k1_kambedla');
+    save.addPlace('sloedla');
+  });
+  const ribbons = root.findAll(e => e.classList.contains('ribbon'));
+  assert.deepEqual(ribbons.map(r => r.getAttribute('data-tab')), ['stars', 'animals', 'games', 'map', 'fossils'], 'the map after the games');
+  const ribbon = ribbons.find(r => r.getAttribute('data-tab') === 'map');
+  assert.match(ribbon.innerHTML, /<span class="ribbon-label">Kortið<\/span>/, 'its ribbon says Kortið');
+  assert.match(ribbon.innerHTML, /class="book-icon"/, 'with a drawn icon');
+  book.open('map', 'child');
+  assert.equal(book.tab, 'map');
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'map')[0];
+  assert.equal(leaf.hidden, false, 'its leaf shows');
+  // the drawn map lies across the two pages, half on each
+  const halves = leaf.findAll(e => e.tagName === 'IMG' && /assets\/book\/map\.svg$/.test(e.src));
+  assert.equal(halves.length, 2, 'map.svg, half on each page');
+  // a slot for the Fen and for each of the six friends
+  const marker = id => leaf.findAll(e => e.getAttribute('data-place') === id)[0];
+  for (const id of ['fen', 'kambedla', 'thorsedla', 'sloedla', 'flugedla', 'uggedla', 'gramedla']) assert.ok(marker(id), `a slot for ${id}`);
+  // Kambeðla's star is in the book: her place is done, a star with her sticker. Slóeðla was found: her sticker. The rest wait, empty.
+  const state = id => ['empty', 'found', 'done'].filter(name => marker(id).classList.contains(name));
+  assert.deepEqual(state('kambedla'), ['found', 'done']);
+  assert.deepEqual(state('sloedla'), ['found']);
+  for (const id of ['fen', 'thorsedla', 'flugedla', 'uggedla', 'gramedla']) assert.deepEqual(state(id), ['empty'], `${id} waits`);
+  const sticker = id => marker(id).findAll(e => e.tagName === 'IMG')[0];
+  assert.match(sticker('sloedla').src, /parasaurolophus\.webp$/, 'Slóeðla\'s sticker is her picture');
+  assert.equal(sticker('uggedla'), undefined, 'an empty slot shows no one');
+  assert.ok(marker('kambedla').findAll(e => e.classList.contains('map-star')).length === 1, 'a done place wears a star');
+  assert.ok(marker('sloedla').findAll(e => e.classList.contains('map-star')).length === 0, 'a found one not yet');
+  // A tap on a found or done place: Mosi says its name and a sentence. On an empty slot only the book's tap.
+  tap(marker('sloedla'));
+  tap(marker('kambedla'));
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'k2_mosi_map_kambedla']);
+  sounds.length = 0;
+  tap(marker('uggedla'));
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla', 'k2_mosi_map_kambedla'], 'an empty slot is silent');
+  assert.deepEqual(sounds, ['tap'], 'but for the book\'s tap');
+  // The page keeps up with what the chapter adds: a place found from Þórseðla's head, and her star, which is the Fen's too.
+  save.addPlace('uggedla');
+  save.addStar('k2_thorsedla');
+  book.refresh();
+  assert.deepEqual(state('uggedla'), ['found']);
+  assert.deepEqual(state('thorsedla'), ['found', 'done']);
+  assert.deepEqual(state('fen'), ['found', 'done'], 'the Fen is done with Þórseðla\'s star');
+  tap(marker('fen'));
+  assert.equal(narrated.at(-1), 'k2_mosi_map_fen');
+});
+
+test('Háls og hali opens with Þórseðla\'s star', () => {
+  const { save, book, root, played, sounds, tap } = savedRig();
+  const tile = root.findAll(e => e.getAttribute('data-game') === 'hals')[0];
+  book.open('games', 'child');
+  assert.equal(tile.parentNode.hidden, false, 'the tile is on the Leikir page');
+  assert.ok(tile.classList.contains('unfound'), 'shut until her star is in the book');
+  assert.match(tile.getAttribute('aria-label'), /stjörnu Þórseðlu/, 'and says what opens it');
+  sounds.length = 0;
+  tap(tile);
+  assert.deepEqual(played, [], 'it wiggles, and opens nothing');
+  assert.deepEqual(sounds, ['wiggle']);
+  save.addStar('k2_thorsedla');
+  book.refresh();
+  assert.ok(tile.classList.contains('new') && !tile.classList.contains('unfound'), 'with her star it opens, new');
+  tap(tile);
+  assert.deepEqual(played, ['hals'], 'and a tap plays it');
+  assert.ok(tile.classList.contains('found') && !tile.classList.contains('new'), 'new no more once played');
+});
+
 // Review Focus 2: narration never outlives what it reads, and nothing plays after the book is shut.
 test('closing the book stops narration', () => withAudio(() => {
   const audio = createBookAudio({ context: createFakeContext({ state: 'running' }), lines: { book_mosi_1: { src: 'book_mosi_1.mp3', duration: 2 } } });

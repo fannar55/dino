@@ -3,6 +3,7 @@ import { ICONS } from './icons.js';
 import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
+import { renderMap } from './map-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
 import { FOSSIL_KINDS } from '../hals/rules.js';
 import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
@@ -18,9 +19,13 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
 // opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
-// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js), new until it is first played. Then the
+// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js) once her star (k2_thorsedla) is in the book
+// (it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
 // "Risaeðlu-Yatzy" tile, a taped photo of Slóeðla, onPlay('yatzy') (engine/yatzy/table.js), with the "Litla Yatzy" button under it,
 // onPlay('yatzy-junior'): the junior dice game with Mosi, a page of its own that main.js opens in a frame over the book.
+// The Kortið leaf is the map (map-page.js): the forest and the Fen drawn across the spread, with a slot for the Fen and for each
+// friend that fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name
+// and a sentence (k2_mosi_map_<id>), an empty one only taps.
 // The Safn leaf is the fossil collection, Steingervingasafn: the eight finds of "Háls og hali" (engine/hals/rules.js FOSSIL_KINDS),
 // four on each page as taped stickers (engine/hals/fossil-art.js), in colour once found (the save's getHals().found) and a soft
 // silhouette with a "?" until then. A tap on a found one has the narrator say its name and a fact (hals_fossil_<kind>), shows its
@@ -36,17 +41,17 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // A fast second tap cuts the motion under way short and starts its own from there. Where the page has no animations, or the tablet
 // asks for less motion, the book opens and turns at once (it fades in and out).
 
-const TABS = ['stars', 'animals', 'games', 'fossils'];
-const LABELS = { stars: 'Stjörnur', animals: 'Dýrin', games: 'Leikir', fossils: 'Safn' };
+const TABS = ['stars', 'animals', 'games', 'map', 'fossils'];
+const LABELS = { stars: 'Stjörnur', animals: 'Dýrin', games: 'Leikir', map: 'Kortið', fossils: 'Safn' };
 const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
 const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been opened, so the tile is new no more
 const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
 const SLOEDLA_PICTURE = new URL('../../assets/eitt/parasaurolophus.webp', import.meta.url).href;
-// "Háls og hali" and "Risaeðlu-Yatzy" show on the Leikir page always while they are being made: development switches.
-const HALS_OPEN = true;
+const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
+// "Risaeðlu-Yatzy" shows on the Leikir page always while it is being made: a development switch.
 const YATZY_OPEN = true;
 const YATZY_SEEN = 'yatzy'; // kept in the save's seen list once Risaeðlu-Yatzy has been opened
 const NAME_MS = 2600; // a fossil's name stays over its sticker this long
@@ -254,6 +259,8 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     cards, media, save, audio, win,
     onOpenCard: (card, fromRect) => cardViewer.open(card, fromRect),
   });
+  // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
+  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`) });
 
   /** Shows what the save holds: the stars that are lit, the animals found and new, and the game and its stickers. */
   function render() {
@@ -264,6 +271,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     renderGames(state);
     renderHals(state);
     renderYatzy(state);
+    map.render();
     renderFossils();
   }
 
@@ -341,12 +349,14 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
   }
 
-  /** "Háls og hali" is there while HALS_OPEN, and new until it is first played. */
+  /** "Háls og hali" opens with Þórseðla's star, and is new until it is first played. */
   function renderHals(state) {
-    const fresh = HALS_OPEN && !state.seen.includes(HALS_SEEN);
-    halsSlot.hidden = !HALS_OPEN;
-    halsTile.classList.toggle('found', HALS_OPEN && !fresh);
+    const open = state.stars.includes(HALS_STAR);
+    const fresh = open && !state.seen.includes(HALS_SEEN);
+    halsTile.classList.toggle('found', open && !fresh);
     halsTile.classList.toggle('new', fresh);
+    halsTile.classList.toggle('unfound', !open);
+    halsTile.setAttribute('aria-label', open ? 'Háls og hali, spil við Þórseðlu' : 'Háls og hali (opnast með stjörnu Þórseðlu)');
     if (fresh && halsBadge.parentNode !== halsTile) halsTile.append(halsBadge);
     if (!fresh) halsBadge.remove();
   }
@@ -361,9 +371,22 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     if (!fresh) yatzyBadge.remove();
   }
 
-  /** A tap on the "Háls og hali" tile: the game opens over the book. */
+  /** A tile that is not open yet wiggles (and says so with its sound), as a tile does that waits for its star. */
+  function wiggle(tile) {
+    audio?.sfx?.('wiggle');
+    if (typeof tile.animate === 'function') {
+      tile.animate(reducedMotion(win)
+        ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
+        : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-4deg' }, { rotate: '2.5deg' }, { rotate: '0deg' }], { duration: 560, easing: 'ease-in-out' });
+    }
+  }
+
+  /** A tap on the "Háls og hali" tile: the game opens over the book once Þórseðla's star is in, and wiggles before. */
   function tapHals() {
-    if (!HALS_OPEN) return;
+    if (!save.get().stars.includes(HALS_STAR)) {
+      wiggle(halsTile);
+      return;
+    }
     audio?.sfx?.('tile');
     save.addSeen(HALS_SEEN);
     render();
@@ -382,12 +405,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   /** A tap on the "Eitt!" tile: it opens the game once Kambeðla's star is in, and wiggles before. */
   function tapGame() {
     if (!save.get().stars.includes(EITT_STAR)) {
-      audio?.sfx?.('wiggle');
-      if (typeof eittTile.animate === 'function') {
-        eittTile.animate(reducedMotion(win)
-          ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
-          : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-4deg' }, { rotate: '2.5deg' }, { rotate: '0deg' }], { duration: 560, easing: 'ease-in-out' });
-      }
+      wiggle(eittTile);
       return;
     }
     audio?.sfx?.('tile');
