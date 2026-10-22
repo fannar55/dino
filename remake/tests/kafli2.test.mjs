@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import * as THREE from 'three';
 import * as kafli2 from '../chapters/kafli2.js';
 import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { createSave, defaultChapter } from '../engine/save.js';
@@ -151,16 +152,113 @@ test('the default chapter follows the stars', () => {
 // ---------------------------------------------------------------------------------------------
 // Played through by nobody
 
-test('the skeleton plays its eight scenes in order through the harness, in the glade as chapter 1 left it', async () => {
-  const { task, stage, world, director } = await playUnattended(kafli2, { limit: 60 });
+// The chapter played through by nobody on the places' own ground and water (the harness's `shaped`), watched frame by frame
+// through what the script shares (world.chapterState, its `c`): once, for the tests below.
+const V3 = THREE.Vector3;
+const UP = new V3(0, 1, 0);
+let played = null;
+function playTheFen() {
+  played ??= (async () => {
+    const seen = { phases: [], headDown: null, liftTilt: 0, lifting: 0, top: null, landed: null, life: [], ripples: 0 };
+    let phase = null;
+    let eyesOf = null; // her eyes' midpoint, carried by her Head bone (the face pass's eyes)
+    const run = await playUnattended(kafli2, {
+      limit: 300, shaped: true,
+      onFrame({ world, stage }) {
+        const c = world.chapterState;
+        if (!c) return;
+        const thorsedla = world.actors.get('thorsedla'), egill = world.actors.get('egill');
+        if (!eyesOf) {
+          let mesh = null;
+          thorsedla.model.traverse(o => { if (!mesh && o.isSkinnedMesh) mesh = o; });
+          const head = mesh.skeleton.bones.find(bone => bone.name === 'Head');
+          const [a, b] = mesh.userData.face.eyes.map(e => new V3(...e.centre));
+          mesh.updateMatrixWorld(true);
+          const local = head.worldToLocal(a.add(b).multiplyScalar(0.5).applyMatrix4(mesh.matrixWorld));
+          eyesOf = () => head.localToWorld(local.clone());
+        }
+        if (c.phase !== phase) {
+          phase = c.phase;
+          seen.phases.push({ phase, at: stage.s.time });
+          if (phase === 'head down') {
+            const eyes = eyesOf();
+            const ground = world.heightAt(egill.root.position.x, egill.root.position.z);
+            const head = egill.headPosition(new V3());
+            seen.headDown = { eyes, ground, head, up: eyes.y - ground, apart: Math.hypot(eyes.x - head.x, eyes.z - head.z) };
+          }
+          if (phase === 'lookout') {
+            c.seat.update();
+            seen.top = { seat: c.seat.seat.clone(), up: c.seat.seat.y - thorsedla.root.position.y };
+          }
+          if (phase === 'in the saddle') {
+            c.saddle.update();
+            seen.landed = { gap: egill.root.position.distanceTo(c.saddle.seat), controlled: egill.controlled };
+          }
+        }
+        if (phase === 'lifting') {
+          c.seat.update();
+          seen.lifting++;
+          seen.liftTilt = Math.max(seen.liftTilt, THREE.MathUtils.radToDeg(UP.clone().applyQuaternion(c.seat.quaternion).angleTo(UP)));
+        }
+        const water = world.forest.water;
+        if (water) seen.ripples = Math.max(seen.ripples, water.ripples.filter(r => world.clock.time - r.at < 2.6).length);
+      },
+    });
+    seen.life = run.world.chapterState?.life?.log ?? [];
+    return { ...run, seen };
+  })();
+  return played;
+}
+
+test('the chapter plays its eight scenes in order through the harness, from the glade into the Fen', async () => {
+  const { task, stage, world, director, added } = await playTheFen();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.equal(world.location, 'burknalaut');
+  assert.equal(world.location, 'fen');
   const actor = name => world.actors.get(name);
-  assert.equal(actor('thorsedla').root.visible, false, 'Þórseðla is not in the glade');
-  assert.equal(actor('kambedla').root.visible, true, 'Kambeðla is');
-  assert.equal(actor('egill').controlled, true, 'Egill sits in the saddle');
+  assert.equal(actor('thorsedla').root.visible, true, 'Þórseðla stands in the Fen');
+  assert.equal(actor('kambedla').root.visible, false, 'and Kambeðla stayed in her glade');
+  assert.equal(actor('egill').controlled, true, 'Egill sits in the saddle again');
   assert.equal(actor('mosi').root.getObjectByName('mosi saddle')?.visible, true, 'which is on Mosi from the start');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
+  // Her place in the Fen: her root on the pool's bed, where the layout puts her.
+  const at = actor('thorsedla').root.position;
+  assert.ok(Math.hypot(at.x + 2, at.z + 9) < 1e-6 && at.y < -0.5, `she stands at (${at.x.toFixed(2)}, ${at.y.toFixed(2)}, ${at.z.toFixed(2)})`);
+  assert.ok(added.some(o => o.name === 'Þórseðla leaves'), 'she bites the conifer and its leaves fall');
+});
+
+test('Þórseðla is alive: a nod or a bite every 7 to 12 s while her head is up, and the script never takes every ring of the water', async () => {
+  const { seen } = await playTheFen();
+  const idle = seen.life.filter(event => event.kind === 'kink' || event.kind === 'bite');
+  assert.ok(idle.length >= 2, `${idle.length} nods and bites`);
+  assert.ok(idle.some(event => event.kind === 'bite') && idle.some(event => event.kind === 'kink'), 'both');
+  for (let i = 1; i < idle.length; i++) {
+    if (idle[i].afterHold) continue; // the first after her head was busy counts from when it was free again
+    const gap = idle[i].at - idle[i - 1].at;
+    assert.ok(gap >= 7 - 1e-6 && gap <= 12 + 1e-6, `${gap.toFixed(1)} s between two of them`);
+  }
+  assert.ok(seen.ripples <= 4, `the script had ${seen.ripples} rings on the water at once (it has six)`);
+});
+
+test('the head comes down to Egill\'s eyes and the lift keeps him level', async () => {
+  const { seen } = await playTheFen();
+  const names = seen.phases.map(p => p.phase);
+  for (const phase of ['head coming down', 'head down', 'floating up', 'lifting', 'lookout']) assert.ok(names.includes(phase), `${phase} (${names.join(', ')})`);
+  const down = seen.headDown;
+  assert.ok(down, 'her head came down');
+  assert.ok(down.up >= 0.85 && down.up <= 1.15, `her eyes are ${down.up.toFixed(2)} m above Egill's ground (${down.eyes.y.toFixed(2)} m, his ground ${down.ground.toFixed(2)} m)`);
+  assert.ok(down.apart <= 1.5, `her eyes are ${down.apart.toFixed(2)} m from his head, seen from above`);
+  assert.ok(seen.lifting > 30 * 5, `the lift took ${(seen.lifting / 30).toFixed(1)} s`);
+  assert.ok(seen.liftTilt <= 12, `the seat tipped ${seen.liftTilt.toFixed(1)} degrees on the way up`);
+  assert.ok(seen.top, 'he reached the top');
+  assert.ok(seen.top.up >= 8 && seen.top.up <= 9.5, `the seat ends ${seen.top.up.toFixed(2)} m above the ground she stands on`);
+});
+
+test('the slide lands in the saddle', async () => {
+  const { seen } = await playTheFen();
+  assert.ok(seen.phases.some(p => p.phase === 'sliding'), 'he slid');
+  assert.ok(seen.landed, 'and landed');
+  assert.ok(seen.landed.gap < 0.05, `his root is ${(seen.landed.gap * 100).toFixed(1)} cm from the saddle's seat`);
+  assert.equal(seen.landed.controlled, true, 'riding Mosi again');
 });

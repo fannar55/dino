@@ -20,6 +20,7 @@ import { Handle } from '../engine/handle.js';
 import { pickLook } from '../engine/looks.js';
 import { sunDirection } from '../engine/lighting.js';
 import { SUN_RADIUS_DEG, WAVE_SECONDS, HUG_SECONDS, MOUTH_BETWEEN, createSunFace } from '../engine/sun-face.js';
+import { shapeGround } from '../world/forest/forest.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 
 const file = relative => new URL(relative, import.meta.url);
@@ -74,15 +75,46 @@ export async function chapterWorld(chapter) {
   return world;
 }
 
-/** A forest that is only its ground, with two butterflies that can be tapped and sent to a point. */
-export function groundOnly(layout) {
+/**
+ * A forest that is only its ground, with two butterflies that can be tapped and sent to a point. Flat, or `shaped` (given the
+ * world): the place's own ground as its forest shapes it (world/forest/forest.js: shapeGround, with the Fen's pools dug out and
+ * its hummocks raised), and where the place has water, a stand-in for its surface (world/props/water.js) that keeps every ring
+ * asked of it in `ripples` ({ x, z, strength, at }, `at` on the world's clock) and every set of bubbles in `bubbles`.
+ */
+export function groundOnly(layout, { shaped = false, world = null } = {}) {
   const [cx, cz] = layout.clearing.center;
   const targets = [1, 2].map(i => ({ name: `butterfly-${i}`, point: new THREE.Vector3(cx + 2 * i, 1.2, cz + 3), radius: 0.4 }));
   const landed = [];
+  const ground = shaped ? shapeGround(world, layout, layout.seed) : null;
+  const heightAt = ground ? (x, z) => ground.terrain.heightAt(x, z) : () => 0;
+  let water = null;
+  if (ground?.water) {
+    const shape = ground.water;
+    const at = point => (point.isVector3 ? point : Array.isArray(point) ? { x: point[0], z: point[2] } : point);
+    const done = label => new Handle(label).finish();
+    water = {
+      shape, ripples: [], bubbles: [],
+      level: shape.level,
+      surfaceAt: (x, z) => (shape.signedAt(x, z) < 0 ? shape.level : null),
+      depthAt: (x, z) => (shape.signedAt(x, z) < 0 ? Math.max(0, shape.level - heightAt(x, z)) : 0),
+      rippleAt(point, strength = 1) {
+        const { x, z } = at(point);
+        water.ripples.push({ x, z, strength, at: world.clock.time });
+        return done('ripple');
+      },
+      bubblesAt(point) {
+        const { x, z } = at(point);
+        water.bubbles.push({ x, z, at: world.clock.time });
+        return done('bubbles');
+      },
+      wade() {},
+    };
+  }
   return {
     group: new THREE.Group(),
     layout,
-    heightAt: () => 0,
+    heightAt,
+    water,
     butterflies: {
       targets,
       landed,
@@ -131,9 +163,10 @@ export function fakeBook() {
  * as it plays for a child who never touches the screen, or, `eager`, for one who taps everything there is to tap a moment after
  * it appears and drags each flower to Kambeðla's mouth. `noseAt` is for a child who taps only Mosi's nose: the seconds after it
  * becomes a target at which each tap comes. `earlyTap` ({ name, after }) is for a child who taps one target `after` seconds after
- * it appears, and nothing else.
+ * it appears, and nothing else. `shaped` plays on each place's own ground and water (groundOnly) instead of a flat floor, and
+ * `onFrame({ t, world, stage, director, pointer })` is called after every frame, for a test that watches something as it goes.
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -155,7 +188,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     return addEffect(effect);
   };
   const forests = [];
-  const locations = createLocations({ world, locations: chapter.locations, build: layout => { const f = groundOnly(layout); forests.push(f); return f; } });
+  const locations = createLocations({ world, locations: chapter.locations, build: layout => { const f = groundOnly(layout, { shaped, world }); forests.push(f); return f; } });
   await locations.setLocation(chapter.start);
   const shots = Object.assign({}, chapter.shots, ...Object.values(chapter.locations).map(location => location.shots));
   const director = createDirector({ camera: world.camera, world, shots, lint: false });
@@ -478,6 +511,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
       }
     }
     if (earlyTap) earlyReaction();
+    onFrame?.({ t, world, stage, director, pointer });
     for (const [name, jaw] of jaws) {
       const actor = world.actors.get(name);
       if (!actor.talking || !lastLine.has(name)) continue;

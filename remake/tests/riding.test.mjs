@@ -6,7 +6,7 @@ import { GLTFLoader } from '../../dist/vendor/GLTFLoader.js';
 import { createActor, updateActors } from '../engine/actor.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
-import { createSaddle, ride, floatTo, floatDown, headingOf } from '../engine/riding.js';
+import { createSaddle, createSeat, ride, floatTo, floatDown, headingOf } from '../engine/riding.js';
 
 // Mosi (8.5 m) and Egill (1.1 m) as the remake bakes them, read without textures (no DOM in Node).
 function loadGlb(url) {
@@ -40,6 +40,7 @@ function loadGlb(url) {
 
 const mosiGltf = loadGlb(new URL('../assets/characters/mosi.glb', import.meta.url));
 const egillGltf = loadGlb(new URL('../assets/characters/egill.glb', import.meta.url));
+const thorsedlaGltf = loadGlb(new URL('../assets/characters/brontosaurus.glb', import.meta.url));
 
 // A frame as main.js runs it: the actors (riders after their hosts), then the effects.
 async function stage({ egillFirst = false } = {}) {
@@ -380,4 +381,77 @@ test('the float down is the float up backwards, so a spot a float may start from
   let worst = 0;
   for (let i = 0; i < downPath.length; i++) worst = Math.max(worst, downPath[i].distanceTo(upPath[upPath.length - 1 - i]));
   assert.ok(worst < 0.002, `the way down strays ${mm(worst)} from the way up`);
+});
+
+// A seat with no saddle (chapter 2, scene 6): on one of a host's bones, kept level however the bone turns, so a rider sits
+// upright on Þórseðla's neck while she lifts it from the bank to nine metres.
+test('a seat on a neck bone rides and floats', async () => {
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const thorsedla = await createActor(world, { name: 'thorsedla', gltf: await thorsedlaGltf, position: [0, 0, 0], heading: 0 });
+  const egill = await createActor(world, { name: 'egill', gltf: await egillGltf, position: [10.4, 0, 1.2], heading: 180 });
+  world.actors.set('thorsedla', thorsedla);
+  world.actors.set('egill', egill);
+  const frame = (dt = 1 / 30) => {
+    updateActors(world.actors.values(), dt);
+    world.effects.update(dt);
+  };
+  const seat = createSeat(thorsedla, { bone: 'Neck5', offset: [0, 0.55, 0], grips: { left: [-0.35, 0.3, 0.45], right: [0.35, 0.3, 0.45] } });
+  assert.equal(seat.object, null, 'no saddle to see');
+  assert.equal(seat.host, thorsedla);
+  const neck5 = thorsedla.model.getObjectByName('Neck5');
+  const UP = new THREE.Vector3(0, 1, 0);
+  // Level: its up is the world's, its forward the bone's own turned flat, and the seat is 0.55 m straight above the bone.
+  const level = (when) => {
+    seat.update();
+    const up = UP.clone().applyQuaternion(seat.quaternion);
+    const forward = new THREE.Vector3(1, 0, 0).applyQuaternion(seat.quaternion);
+    const along = new THREE.Vector3(1, 0, 0).applyQuaternion(neck5.getWorldQuaternion(new THREE.Quaternion())).setY(0).normalize();
+    assert.ok(up.angleTo(UP) < 1e-6, `${when}: the seat is level`);
+    assert.ok(forward.angleTo(along) < 1e-6, `${when}: facing the way the bone does, seen from above`);
+    const above = seat.seat.clone().sub(neck5.getWorldPosition(new THREE.Vector3()));
+    assert.ok(above.distanceTo(new THREE.Vector3(0, 0.55, 0)) < 1e-6, `${when}: the seat is ${above.toArray().map(v => v.toFixed(3))} from the bone`);
+    // The grips: ahead of the seat, one to each side of it, at the same height.
+    const left = seat.grips.left.clone().sub(seat.seat), right = seat.grips.right.clone().sub(seat.seat);
+    const side = new THREE.Vector3(0, 0, 1).applyQuaternion(seat.quaternion);
+    assert.ok(Math.abs(left.dot(side) + 0.35) < 1e-6 && Math.abs(right.dot(side) - 0.35) < 1e-6, `${when}: a grip on each side`);
+    assert.ok(Math.abs(left.dot(forward) - 0.45) < 1e-6 && Math.abs(left.y - 0.3) < 1e-6 && Math.abs(right.y - 0.3) < 1e-6, `${when}: ahead of the seat, up`);
+  };
+  level('standing');
+  // Her head comes down to the bank, and he floats up onto the seat behind it, as onto a saddle.
+  thorsedla.play('lowerHead');
+  for (let i = 0; i < 30 * 5; i++) frame();
+  level('head down');
+  const float = floatTo(egill, seat);
+  let frames = 0;
+  for (; frames < 120 && !float.done; frames++) frame();
+  assert.equal(float.done, true);
+  assert.ok(Math.abs(frames / 30 - 2.2) < 0.05, `the float took ${(frames / 30).toFixed(2)} s`);
+  seat.update();
+  assert.ok(egill.root.position.distanceTo(seat.seat) < 0.01, `he lands ${mm(egill.root.position.distanceTo(seat.seat))} from the seat`);
+  assert.ok(Math.abs(egill.heading - thorsedla.heading) < 0.5, 'facing her way');
+  // She lifts him to her full height: the ride keeps him on the seat all the way, upright.
+  ride(egill, seat);
+  thorsedla.play('liftUp', { fade: 0.3 });
+  let worst = 0, tipped = 0;
+  for (let i = 0; i < 30 * 8.5; i++) {
+    frame();
+    seat.update();
+    worst = Math.max(worst, egill.root.position.distanceTo(seat.seat));
+    tipped = Math.max(tipped, UP.clone().applyQuaternion(egill.root.quaternion).angleTo(UP));
+  }
+  assert.ok(worst < 0.05, `through the lift he was up to ${mm(worst)} from the seat`);
+  assert.ok(THREE.MathUtils.radToDeg(tipped) < 1e-3, `he leaned ${THREE.MathUtils.radToDeg(tipped).toFixed(2)} degrees`);
+  level('at the top');
+  assert.ok(seat.seat.y > 8 && seat.seat.y < 9.5, `the seat ends ${seat.seat.y.toFixed(2)} m up`);
+  assert.equal(egill.controlled, true);
+  assert.ok(thorsedla.lookYawLimit <= 40 && thorsedla.lookUpLimit <= 30, 'her looks are capped while he rides her neck');
+  // And down again, the float up backwards, onto his feet on the ground, given back.
+  const down = floatDown(egill, seat, [10.4, 1.2], { heading: 180 });
+  for (let i = 0; i < 120 && !down.done; i++) frame();
+  assert.equal(down.done, true);
+  assert.equal(egill.controlled, false);
+  assert.ok(egill.root.position.distanceTo(new THREE.Vector3(10.4, 0, 1.2)) < 0.01, 'he lands where he was told');
+  assert.equal(thorsedla.lookYawLimit, Infinity, 'her caps go when he is down');
 });
