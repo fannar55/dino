@@ -743,11 +743,24 @@ test('the warm-up draws the basket with its glow, which shows only while he hold
   assert.deepEqual(atStart.objects, [...world.actors.values()].map(actor => actor.root));
   assert.deepEqual(atStart.shots, ['glade_leaving']);
   atStart.dispose();
-  for (const place of ['fenjaslod', 'fen']) {
-    const there = kafli2.chapter.warmUp(world, { place });
-    assert.equal(there.objects.length, warm.objects.length, `all of it for ${place}`);
-    there.dispose();
+  // the trail its prints and its animals; the Fen its own animals, the leaf, the berries and the basket
+  const namesOf = w => w.objects.flatMap(root => { const n = []; root.traverse(o => n.push(o.name)); return n; });
+  const trail = kafli2.chapter.warmUp(world, { place: 'fenjaslod' });
+  const fen = kafli2.chapter.warmUp(world, { place: 'fen' });
+  for (const name of ['Mud prints', 'Print water']) {
+    assert.ok(namesOf(trail).includes(name), `${name} on the trail`);
+    assert.ok(!namesOf(fen).includes(name), `${name} not in the Fen`);
   }
+  for (const name of ['Basket', 'Basket berries', 'Basket glow']) {
+    assert.ok(namesOf(fen).includes(name), `${name} in the Fen`);
+    assert.ok(!namesOf(trail).includes(name), `${name} not on the trail`);
+  }
+  const critterNames = w => namesOf(w).filter(name => name.startsWith('Critter warm-up-')).map(name => name.slice('Critter warm-up-'.length)).sort();
+  assert.deepEqual(critterNames(trail), ['frog', 'salamander', 'waterBeetle', 'waterStrider']);
+  assert.deepEqual(critterNames(fen), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  assert.equal(trail.objects.length + fen.objects.length - 2 * world.actors.size - 1, warm.objects.length - world.actors.size, 'and together all of it (one critters group each)');
+  trail.dispose();
+  fen.dispose();
 });
 
 test('a tap on her just before her tail swishes on its own: the swish she does then is a whole one, and so is its shot', async () => {

@@ -29,9 +29,10 @@ import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up'
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import {
-  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail, countPrints,
+  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail,
+  countPrints,
 } from './kafli2-trail.js';
-import { BERRY_BUSHES, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
+import { BERRY_BUSHES, FEN_CRITTERS, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
 import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
@@ -721,39 +722,49 @@ export const chapter = {
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
-   * black as it comes to a place. `place` is the place it is drawn for (main.js): for the glade, where the chapter starts, only the
-   * actors (Þórseðla among them while she waits out of sight), so the start button waits for no more than the glade shows; for any
-   * other (or none) all of it: the actors, one of the leaves she bites off, the trail's prints and the Fen's things, so they are drawn
-   * with the trail behind the start button once it shows, or as the scene comes to the trail, under its black.
+   * black as it comes to a place. `place` is the place it is drawn for (main.js), and each place brings what shows there first, so
+   * each black waits for its own: the glade, where the chapter starts, only the actors (Þórseðla among them while she waits out of
+   * sight), so the start button waits for no more than the glade shows; the trail a print with its water, its digit up and a splash,
+   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, a bush of each berry with one in the air, the basket
+   * with a berry in it, and the far friends once their models are there (their first frame from her head is no stall). No place
+   * (null): all of it.
    */
   warmUp(world, { place = null } = {}) {
     const actors = [...world.actors.values()].map(actor => actor.root);
-    if (place === 'burknalaut') return { objects: actors, shots: ['glade_leaving'], dispose() {} };
-    const leaf = leafWarm(world);
+    const shots = ['glade_leaving'];
+    if (place === 'burknalaut') return { objects: actors, shots, dispose() {} };
+    const trail = place === null || place === 'fenjaslod', fen = place === null || place === 'fen';
     const ground = (x, z) => [x, world.heightAt(x, z), z];
-    // a print with its water, its digit up and a splash; one of each of the Fen's animals; a bush of each berry, one in the air; the
-    // basket with a berry in it; and the far friends, once their models are there, so their first frame from her head is no stall
-    const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }] });
-    prints.count(0);
-    prints.splash(0);
+    const objects = [...actors], throwaways = [];
+    const keep = (made, object) => { objects.push(object); throwaways.push(made); };
+    const kinds = [...(trail ? PRINT_ANIMALS : []), ...(fen ? FEN_CRITTERS : [])].map(animal => animal.kind);
+    if (trail) {
+      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }] });
+      prints.count(0);
+      prints.splash(0);
+      keep(prints, prints.group);
+    }
     const critters = createCritters(world, {
-      spots: ['frog', 'dragonfly', 'waterBeetle', 'salamander', 'turtle', 'earlyBird', 'fish', 'waterStrider'].map((kind, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
+      spots: kinds.map((kind, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
     });
-    const berries = createBerryBushes(world, { bushes: [{ position: ground(2, 2), kind: 'red', count: 1 }, { position: ground(3, 2), kind: 'blue', count: 1 }] });
-    berries.pick('berry_0_0', ground(2, 3));
-    const basket = createBasket(world);
-    basket.group.visible = true;
-    basket.add('red');
-    const far = world.chapterState?.farFriends;
+    keep(critters, critters.group);
+    if (fen) {
+      const leaf = leafWarm(world);
+      keep(leaf, leaf.object);
+      const berries = createBerryBushes(world, { bushes: [{ position: ground(2, 2), kind: 'red', count: 1 }, { position: ground(3, 2), kind: 'blue', count: 1 }] });
+      berries.pick('berry_0_0', ground(2, 3));
+      keep(berries, berries.group);
+      const basket = createBasket(world);
+      basket.group.visible = true;
+      basket.add('red');
+      keep(basket, basket.group);
+      const far = world.chapterState?.farFriends;
+      if (far?.isReady) objects.push(far.group);
+    }
     return {
-      objects: [...actors, leaf.object, prints.group, critters.group, berries.group, basket.group, ...(far?.isReady ? [far.group] : [])],
-      shots: ['glade_leaving'],
+      objects, shots,
       dispose() {
-        leaf.dispose();
-        prints.dispose();
-        critters.dispose();
-        berries.dispose();
-        basket.dispose();
+        for (const made of throwaways) made.dispose();
       },
     };
   },

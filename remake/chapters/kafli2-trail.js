@@ -75,7 +75,7 @@ const NOD_DIP = { x: 0, y: -0.6, z: 0 };
 // to its right; on its floor, in the water, on its water) and which way it faces from the print's own way: a frog in the third,
 // which hops out onto the middle of the path; a diving beetle swimming round in the sixth; a water strider on the ninth's water,
 // which shoots off toward the toes; and a salamander in the tenth, which crawls out over the toes and back.
-const PRINT_ANIMALS = [
+export const PRINT_ANIMALS = [
   { print: 2, kind: 'frog', name: 'print-frog', along: -0.02, across: -0.12, on: 'floor', turn: -90 },
   { print: 5, kind: 'waterBeetle', name: 'print-beetle', along: -0.05, across: 0, on: 'water', turn: 0 },
   { print: 8, kind: 'waterStrider', name: 'print-strider', along: -0.1, across: 0, on: 'water', turn: 0 },
