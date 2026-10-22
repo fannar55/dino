@@ -16,7 +16,7 @@ import { centsFromKey, createFakeContext, FakeMediaElement, peakThrough, pitches
 
 // Each chapter's theme (engine/audio/theme.js): chapter 1's page plays "Little Dino Green Valley" (assets/audio/theme.json), chapter 2's
 // "Dino Trail" (assets/audio/kafli2/theme.json), read once as the page loads, with the default if the chapter's cannot be read. Chapter
-// 2's effects are tuned to its key, B-flat major, and its forest dances on every second of its 134 beats a minute (danceBeats).
+// 2's effects are tuned to its key, B-flat major, and its forest dances on every second of its 133.3 beats a minute (danceBeats).
 
 const AUDIO = new URL('../assets/audio/', import.meta.url); // what main.js reads themes against: assets/audio/ beside it
 const readJson = url => JSON.parse(fs.readFileSync(url, 'utf8'));
@@ -125,7 +125,7 @@ test('a chapter\'s theme that cannot be read gives the default, said once; with 
 // ---------------------------------------------------------------------------------------------
 // Dino Trail's key: chapter 2's sounds in B-flat
 
-const A4 = 443.06; // Dino Trail's tuning: its notes are equal-tempered from this A
+const A4 = 441.04; // Dino Trail's tuning, measured on its file (+4.1 cents): its notes are equal-tempered from this A
 const pitchClass = hz => (((Math.round(12 * Math.log2(hz / A4)) + 9) % 12) + 12) % 12; // C is 0
 const offTuning = hz => Math.abs(12 * Math.log2(hz / A4) - Math.round(12 * Math.log2(hz / A4))) * 100; // cents off the semitones
 const B_FLAT_PENTATONIC = new Set([10, 0, 2, 5, 7]); // B-flat C D F G
@@ -190,7 +190,7 @@ test('with Dino Trail every pitched sound chapter 2 plays, and the book\'s, is i
 });
 
 // ---------------------------------------------------------------------------------------------
-// The forest's dance at 134 beats a minute: on every second beat
+// The forest's dance at 133.3 beats a minute: on every second beat
 
 const beatTime = (theme, n) => theme.beatOffset + (n * 60) / theme.bpm; // the time of the theme's n-th beat
 
@@ -200,12 +200,13 @@ test('danceGrid: the theme itself without danceBeats, its tempo divided by dance
   for (const odd of [0, -2, 1.5, '2', null]) assert.equal(danceGrid({ bpm: 134, beatOffset: 0.36, danceBeats: odd }).bpm, 134, `${odd} is no divisor`);
   const grid = danceGrid(TRAIL);
   assert.equal(TRAIL.danceBeats, 2);
-  assert.equal(grid.bpm, 67);
+  assert.equal(grid.bpm, TRAIL.bpm / 2);
+  assert.ok(grid.bpm > 60 && grid.bpm < 100, `danced at ${grid.bpm} a minute, near chapter 1's 95`);
   assert.equal(grid.beatOffset, TRAIL.beatOffset);
-  assert.equal(TRAIL.bpm, 134, 'the theme keeps its tempo for the effects and the beat grid');
+  assert.ok(TRAIL.bpm > 130 && TRAIL.bpm < 136, 'the theme keeps its own tempo for the effects and the beat grid');
 });
 
-test('with danceBeats 2 the follower nods every other strong beat (every fourth beat of 134), without it every strong beat', () => {
+test('with danceBeats 2 the follower nods every other strong beat (every fourth beat of the song), without it every strong beat', () => {
   const run = (theme, seconds) => {
     const grid = danceGrid(theme);
     const nods = [];
@@ -221,9 +222,9 @@ test('with danceBeats 2 the follower nods every other strong beat (every fourth 
   const plain = run({ ...TRAIL, danceBeats: undefined }, 12);
   for (let n = 0; beatTime(TRAIL, n) < 11.5; n += 2) {
     const at = beatTime(TRAIL, n);
-    if (n % 4 === 0) assert.ok(nodsNear(trail, at) > 0.99, `danced at 67: the flowers are down on beat ${n} (${at.toFixed(3)} s)`);
-    else assert.equal(nodsNear(trail, at), 0, `danced at 67: up on beat ${n}, between two nods`);
-    assert.ok(nodsNear(plain, at) > 0.99, `danced at 134: down on every strong beat, ${n} too`);
+    if (n % 4 === 0) assert.ok(nodsNear(trail, at) > 0.99, `danced at half: the flowers are down on beat ${n} (${at.toFixed(3)} s)`);
+    else assert.equal(nodsNear(trail, at), 0, `danced at half: up on beat ${n}, between two nods`);
+    assert.ok(nodsNear(plain, at) > 0.99, `danced on every beat: down on every strong beat, ${n} too`);
   }
   // the same, read straight from the music's time (danceAt) and snapped (a capture)
   for (const n of [0, 4, 8, 400]) near(danceAt(beatTime(TRAIL, n), TRAIL).nod, 1, 1e-9, `beat ${n}`);
@@ -232,7 +233,7 @@ test('with danceBeats 2 the follower nods every other strong beat (every fourth 
   near(danceOf(followBeat(null, beatsAt(beatTime(TRAIL, 8), grid), FRAME, grid, true).beats, grid).nod, 1, 1e-9, 'a capture on beat 8 has the flowers down');
 });
 
-test('danced at 67 the grass ripples by at most a tenth a frame, as the forest\'s rule asks; danced at 134 it would not', () => {
+test('danced at half its tempo the grass ripples by at most a tenth a frame, as the forest\'s rule asks; danced at its own it would not', () => {
   const steepest = theme => {
     const grid = danceGrid(theme);
     let most = 0, followed = null, last = null;
@@ -244,9 +245,9 @@ test('danced at 67 the grass ripples by at most a tenth a frame, as the forest\'
     }
     return most;
   };
-  assert.ok(steepest(TRAIL) <= 0.1, `Dino Trail danced at 67: ${steepest(TRAIL).toFixed(3)} a frame`);
+  assert.ok(steepest(TRAIL) <= 0.1, `Dino Trail danced at half: ${steepest(TRAIL).toFixed(3)} a frame`);
   assert.ok(steepest(DEFAULT) <= 0.1, `chapter 1 at 95: ${steepest(DEFAULT).toFixed(3)}`);
-  assert.ok(steepest({ ...TRAIL, danceBeats: 1 }) > 0.1, 'at 134 the grass would twitch: why Dino Trail dances on every second beat');
+  assert.ok(steepest({ ...TRAIL, danceBeats: 1 }) > 0.1, 'at 133.3 the grass would twitch: why Dino Trail dances on every second beat');
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -311,10 +312,11 @@ test('the beat read from Dino Trail\'s playhead restarts at the file\'s beatOffs
   assert.ok(before > LENGTH - 4 && after < 1, `round the loop (${before.toFixed(2)} s, then ${after.toFixed(2)} s)`);
   near(after, TRAIL.beatOffset, 0.02, 'on the file\'s first beat again');
   near(foldBeats(beatsAt(after, TRAIL) + 0.5) - 0.5, 0, 0.05, 'where the grid has its beat 0: a strong beat');
-  // the grid restarts: 176.24 s are 393.6 beats, so straight on it would be 1.6 beats elsewhere
+  // the grid restarts: 176.24 s are 391.6 beats, so straight on it would be 0.4 of a beat elsewhere (3.6 round the fold)
   const straightOn = beatsAt(after + LENGTH, TRAIL);
   const gap = Math.abs(foldBeats(straightOn - beatsAt(after, TRAIL) + 2) - 2);
-  near(gap, foldBeats((LENGTH * TRAIL.bpm) / 60), 0.01, 'folded into the loop, not counted on');
+  near(gap, Math.abs(foldBeats((LENGTH * TRAIL.bpm) / 60 + 2) - 2), 0.01, 'folded into the loop, not counted on');
+  assert.ok(gap > 0.1, 'which is a step the follower has to ease over');
   // and the forest never jumped: no wave moved more than a tenth of its range from one frame to the next, the seam included
   assert.ok(most <= 0.1, `the steepest frame: ${most.toFixed(3)}`);
   frames(world, 8, follow);

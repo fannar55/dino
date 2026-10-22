@@ -15,7 +15,7 @@ export function beatAt(time, { bpm, beatOffset = 0 }) {
 }
 
 // The forest may dance on every n-th beat of the theme instead of every one (theme.json `danceBeats`, 1 by default): at a fast tempo the
-// sway and the nod would look twitchy, so Dino Trail's 134 beats a minute are danced at 67 (danceBeats 2), near the 95 of chapter 1's
+// sway and the nod would look twitchy, so Dino Trail's 133.3 beats a minute are danced at 66.7 (danceBeats 2), near the 95 of chapter 1's
 // theme, while the effects and the beat grid keep the song's own tempo. The dance's beat 0 is the theme's (a strong beat), so the
 // dance's beats fall on the theme's strong beats, and its own strong beats, where the flowers nod, on every second one of those.
 /** The grid the forest dances on, { bpm, beatOffset }: `theme` itself, or with `bpm` divided by its whole `danceBeats` above 1. */
@@ -80,8 +80,8 @@ export function followBeat(followed, target, dt, { bpm }, snap = false) {
   if (!(dt > 0)) return followed;
   const tempo = bpm / 60;
   // From 102.3 beats a minute 1.1 times the tempo is above STEEPEST, so this floor keeps up with the music first; from about 104 a
-  // count catching up at 1.1 times the tempo breaks the grass's 0.1 rule. Chapter 1's 95 is safe, and so is Dino Trail's 134 danced at
-  // 67 (danceGrid: main.js follows the dance's grid); danced at 134 it would not be.
+  // count catching up at 1.1 times the tempo breaks the grass's 0.1 rule. Chapter 1's 95 is safe, and so is Dino Trail's 133.3 danced
+  // at 66.7 (danceGrid: main.js follows the dance's grid); danced at 133.3 it would not be.
   const top = Math.max(STEEPEST, 1.1 * tempo);
   const gain = top - tempo, lose = top + tempo; // the most the count can gain on the grid a second, and lose on it
   const beats = foldBeats(followed.beats + tempo * dt); // at the tempo first...

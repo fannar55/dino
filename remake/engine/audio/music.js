@@ -24,7 +24,7 @@
 // Before the theme sounds, or when it cannot (no Web Audio, a missing or undecodable file, a browser that wants a touch first), the
 // playhead is simply the clock's time, so the forest dances and the captions show all the same.
 //
-// The file's length is read from the file itself: chapter 1's is 351.6 s, which is 556.7 beats, and chapter 2's 176.24 s, 393.6 beats,
+// The file's length is read from the file itself: chapter 1's is 351.6 s, which is 556.7 beats, and chapter 2's 176.24 s, 391.6 beats,
 // so at each loop the beat grid restarts from the file's own beatOffset (the forest's follower eases onto it: engine/beat.js).
 
 const LEVEL = 0.6; // the theme's place in the mix, where the old game kept it (dist/audio.js MUSIC_MIX.quiet)
