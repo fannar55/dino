@@ -5,7 +5,7 @@ import { sparkleBurst, sparkleTrail, needEffects } from './sparkles.js';
 
 // The marsh berry bushes of the Fen (chapter 2, scene 4: Egill picks five red berries for Þórseðla, and the blue ones are the
 // birds'). Each bush is a low, round shrub of a few leafy clumps, about 0.9 m high, with its berries hanging on the outside where
-// a child sees them: big glossy berries, red or blue, 11 cm across, so a finger finds them. A berry picked flies in an arc to a
+// a child sees them: big glossy berries, red or blue, 14 cm across, so a finger finds them. A berry picked flies in an arc to a
 // point (Egill's basket), with a trail of glints, and leaves its bush, which shakes, its leaves nodding. All the bushes are one
 // mesh, all the berries one instanced mesh: two draw calls (and a third for a berry in the air).
 //
@@ -19,9 +19,9 @@ import { sparkleBurst, sparkleTrail, needEffects } from './sparkles.js';
 // leaves sway a little in the shader and shake when a berry is picked (a bush index and a sway weight on each vertex); the berries
 // on a shaking bush shake with it. Everything runs on the game clock (world.effects, world.clock.time).
 
-const BUSH = { radius: 0.55, height: 0.9, clumps: 5 };
+const BUSH = { radius: 0.62, height: 1.0, clumps: 5 };
 const LEAF = { dark: '#3e6a38', mid: '#5c8a45', light: '#86ad58' };
-const BERRY = { radius: 0.055, red: '#d4343c', blue: '#4061c2', tip: '#3b2a22' };
+const BERRY = { radius: 0.07, red: '#d8323a', blue: '#3f5fc4', tip: '#3b2a22' };
 const SHAKE = { seconds: 0.8, hz: 7, reach: 0.06 }; // a bush's shake: how long, how fast, how far its top moves (m)
 const FLIGHT = { seconds: 0.85, arc: 0.6 }; // s a picked berry flies, and m it rises above the straight line
 const GLINT_EVERY = 2.6; // s between glints on the red berries while they glimmer

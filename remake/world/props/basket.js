@@ -5,7 +5,7 @@ import { sparkleBurst, needEffects } from './sparkles.js';
 
 // Egill's little woven basket (chapter 2, scene 4): he carries it in both hands, the berries he picks fly into it, and he holds
 // it up as high as his arms go for Þórseðla, whose head comes down to it. A bowl of warm straw woven in a checker, with a darker
-// rim, 0.19 m across; the berries in it are the bushes' berries (world/props/berries.js), smaller. Two draw calls: the basket and
+// rim, 0.25 m across; the berries in it are the bushes' berries (world/props/berries.js), smaller. Two draw calls: the basket and
 // its berries.
 //
 //   const basket = createBasket(world);
@@ -19,13 +19,15 @@ import { sparkleBurst, needEffects } from './sparkles.js';
 // off them. Egill's arms are short (0.27 m from shoulder to wrist; with his big head he cannot reach over it): held up high, the
 // basket is up and out in front of his face, his arms nearly straight, as high as his wrists go there.
 
-const SIZE = { rim: 0.095, depth: 0.095 }; // m: the rim's radius and the depth
+const SIZE = { rim: 0.12, depth: 0.11 }; // m: the rim's radius and the depth
 const STRAW = { light: '#dcb56c', dark: '#b68a48', rim: '#8a6233', inside: '#7a5a34' };
-// Where his wrists hold it, in his own frame (metres forward, up, to his right), and how the basket hangs from them: carried in
-// front of his tummy, and held up high out in front of his face. The wrists stay within his reach (0.26 m of his shoulders).
+// Where his wrists hold it, in his own frame (metres forward, up, half the width between them, how far right of his middle), and
+// how far the basket tips forward: carried in front of his tummy, and held up as high as he reaches, up and out in front of him and
+// a little to his right, so it is seen past his big head from behind his right shoulder, where the camera watches her face come
+// down (Task 3's headDown). The wrists stay within his reach (0.27 m of his shoulders).
 const POSES = {
-  hold: { wrists: [0.17, 0.555, 0.105], tilt: 0 },
-  raise: { wrists: [0.19, 0.85, 0.095], tilt: 0.25 },
+  hold: { wrists: [0.17, 0.555, 0.125, 0], tilt: 0 },
+  raise: { wrists: [0.165, 0.84, 0.12, 0.115], tilt: 0.3 },
 };
 const GRIP_UP = 0.012; // m the rim stands above the middle of his wrists: his hands hold it just under the lip
 const FORWARD = 0.035; // m the basket's middle is ahead of his wrists: his hands are at its sides, a little back
@@ -112,7 +114,8 @@ export function createBasket(world) {
   /** Where a wrist goes now: the pose's, between carried and held up, in the actor's frame. */
   function wristGoal(side, out) {
     const a = POSES.hold.wrists, b = POSES.raise.wrists, k = smooth(lift);
-    local.set(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, (a[2] + (b[2] - a[2]) * k) * (side === 'left' ? -1 : 1));
+    const at = i => a[i] + (b[i] - a[i]) * k;
+    local.set(at(0), at(1), at(2) * (side === 'left' ? -1 : 1) + at(3));
     actor.root.updateMatrixWorld(true);
     return out.copy(local).applyMatrix4(actor.root.matrixWorld);
   }
@@ -192,7 +195,13 @@ export function createBasket(world) {
   }
   function raise(who = actor, { duration = 0.9 } = {}) {
     if (who !== actor) hold(who);
-    return lerpTo(1, duration, 'basket up');
+    const up = lerpTo(1, duration, 'basket up');
+    // and as it gets there, the berries in it glitter: held up for her
+    const glitter = new Handle('basket glitters');
+    live.add(glitter);
+    const at = now + duration * 0.8;
+    world.effects.add({ update() { if (glitter.done || disposed) return false; if (now < at) return true; live.add(sparkleBurst(world, point.clone(), { count: 22, duration: 1.3, size: 0.2, spread: 0.45, seed: 'basket held up' })); glitter.finish(); return false; } });
+    return up;
   }
   function lower({ duration = 0.6 } = {}) { return lerpTo(0, duration, 'basket down'); }
 

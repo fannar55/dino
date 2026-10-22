@@ -252,15 +252,16 @@ const FEN_SHOTS = {
   fen_lift: { position: { actor: 'egill', part: 'feet', offset: LIFT_CAMERA.offset, local: true }, target: 'egill.head', fov: LIFT_CAMERA.fov },
   // Scene 4: the berry hummocks east of Mosi (kept for the planting; the search looks from behind Egill: fen_pick).
   fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
-  // Scene 3: Egill on the bank calling up to her, in profile from his right, Mosi behind him (a shot on him, as the planter skips).
+  // Scene 3: Egill on the bank calling up to her: low in front of him, his face turned up past us to where her head is, the sky
+  // behind him (a shot on him, which the planter skips).
   fen_call: {
-    position: { actor: 'egill', part: 'feet', offset: [0.4, 0.95, 2.7], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [0.5, 1.45, -0.6], local: true }, fov: 44,
+    position: { actor: 'egill', part: 'feet', offset: [1.7, 0.55, 0.4], local: true },
+    target: { actor: 'egill', part: 'feet', offset: [0, 1.15, -0.1], local: true }, fov: 42,
   },
   // Scene 4: the berry search, from behind Egill on the bank, over the berry hummocks (the free look turns from here).
   fen_pick: {
-    position: { actor: 'egill', part: 'feet', offset: [-2.5, 1.5, -1.0], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [5.5, 0.1, 0.4], local: true }, fov: 50,
+    position: { actor: 'egill', part: 'feet', offset: [-2.2, 1.7, -1.8], local: true },
+    target: { actor: 'egill', part: 'feet', offset: [5.5, 0.2, 1.2], local: true }, fov: 50,
   },
   // Scene 6: Egill by her lowered head, about to climb on.
   fen_lift_start: { position: [1.5, 1.35, -1.5], target: [4.6, 1.4, -8.6], fov: 40 },
