@@ -29,7 +29,7 @@ import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up'
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import {
-  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINTS_AHEAD, mosiAt, printShot, printFollow, arriveOnTheTrail, countPrints,
+  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { BERRY_BUSHES, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
 import { ringsFor } from '../engine/neck-ride.js';
@@ -338,7 +338,7 @@ function* footprints(s, c) {
   yield ride;
   // all ten down the trail ahead, into the mist
   yield mosi.turnTo(first.heading, { rate: 40 });
-  yield s.camera.cut(PRINTS_AHEAD);
+  yield s.camera.cut(printsLow(c));
   yield egill.lookAt(c.prints.targets[2].point, { weight: 0.6, maxPitch: 40 });
   yield mosi.lookAt(c.prints.targets[0].point, { weight: 0.8, maxPitch: 40 });
   yield* say(s, c, 'mosi', 'k2_mosi_prints');

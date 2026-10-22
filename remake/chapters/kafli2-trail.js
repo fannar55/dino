@@ -2,7 +2,7 @@
 // Mosi waits by each and where the camera stands, and the counting itself, one to ten, that scene 2 calls:
 //   arriveOnTheTrail(s, c)   under the black: Mosi at the top of the trail with Egill on his back, the prints and their animals
 //   countPrints(s, c)        the child counts the ten, the camera following Mosi from print to print
-// with the places and shots the scene uses (TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, RIDE_CAMERA, PRINTS_AHEAD, mosiAt, printShot,
+// with the places and shots the scene uses (TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, RIDE_CAMERA, mosiAt, printsLow, printShot,
 // printFollow). `c` is the chapter's shared state; `c.say(speaker, id)` says a line one voice at a time (kafli2.js).
 import * as THREE from 'three';
 import { holdWithHands } from '../engine/hand-hold.js';
@@ -61,13 +61,10 @@ export const TRAIL_ON = [82, 88].map(s => { const p = pathAt(TRAIL_PATH, s); ret
 // The ride's camera: behind Mosi on his right, a little above Egill, looking past Mosi's head down the trail.
 export const RIDE_CAMERA = { offset: [-6.2, 3.0, 2.8], local: true, look: 'head', lookOffset: [1.6, -1.0, 1.1], stiffness: 1.4, fov: 50 };
 const PRINT_SHOT = { along: 3.6, out: 3.2, up: 1.6, aimAlong: -1.2, aimIn: 1.4, aimUp: 0.85, fov: 56 };
-// The ten ahead, as Mosi says what they are: what Egill sees from the saddle, from just behind and over his right shoulder, down the
-// trail into the mist, Mosi's frill and horns low in the frame beside the first prints for their size (a shot on Mosi, his frame).
-export const PRINTS_AHEAD = {
-  label: 'prints ahead',
-  position: { actor: 'mosi', part: 'feet', offset: [0.3, 5.2, 1.1], local: true },
-  target: { actor: 'mosi', part: 'feet', offset: [10, -0.6, 2.8], local: true }, fov: 50,
-};
+// The ten ahead, as Mosi says what they are ("Þau eru risastór!"): low on the path behind the first, about a child's height up, the
+// first print big in the near third, Mosi's front foot and leg beside it for its size, and the row on down the trail into the mist
+// (shotAlong: metres along the path from print 1, out from its middle to the south-west, negative toward Mosi; up from the ground).
+const PRINTS_LOW = { along: -3.2, out: 1.05, up: 1.2, aimAlong: 4, aimIn: 2.8, aimUp: -0.2, fov: 46 };
 const PRINT_ON = 1.0; // s after a count before Mosi and the camera go on to the next: the number is up first
 // Seconds the child may be idle before the hint, and before Egill taps the print himself; the quick ones once he has.
 const PRINT_WAIT = { hint: 8, help: 16, quickHint: 4, quickHelp: 8 };
@@ -88,6 +85,11 @@ const ANIMAL_SIZE = 1.1; // the animals in her prints a little larger again than
 export function mosiAt(k) {
   const p = pathAt(TRAIL_PATH, PRINT_FROM + PRINT_PACE * k - MOSI_BACK);
   return { x: p.x + p.dz * MOSI_SIDE, z: p.z - p.dx * MOSI_SIDE, heading: (Math.atan2(p.dz, p.dx) * 180) / Math.PI };
+}
+
+/** The ten ahead from low behind the first, Mosi's front foot beside it (PRINTS_LOW). */
+export function printsLow(c) {
+  return shotAlong(c, 'prints low', 0, PRINTS_LOW);
 }
 
 /**
