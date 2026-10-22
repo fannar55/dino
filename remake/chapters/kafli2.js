@@ -226,7 +226,7 @@ const BERRY_HINTS = ['k2_mosi_hint_berry1', 'k2_mosi_hint_berry2', 'k2_mosi_hint
 const FEN_CRITTERS = [
   { name: 'fen-bird', kind: 'earlyBird', at: [5.4, 8.0], up: 0, heading: 150 },
   { name: 'fen-dragonfly', kind: 'dragonfly', at: [14.4, -11.4], up: 0.9, heading: 200 },
-  { name: 'fen-turtle', kind: 'turtle', at: [17.0, -13.4], up: 0, heading: -100 },
+  { name: 'fen-turtle', kind: 'turtle', at: [17.7, -13.5], up: 0, heading: -150 },
   { name: 'fen-fish', kind: 'fish', at: [16.5, -15.4], up: 0, water: true, heading: 10 },
 ];
 
@@ -261,7 +261,7 @@ const FEN_SHOTS = {
   // Scene 4: the berry search, from behind Egill on the bank, over the berry hummocks (the free look turns from here).
   fen_pick: {
     position: { actor: 'egill', part: 'feet', offset: [-2.2, 1.7, -1.8], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [5.5, 0.2, 1.2], local: true }, fov: 50,
+    target: { actor: 'egill', part: 'feet', offset: [5.5, 0.2, 0.2], local: true }, fov: 50,
   },
   // Scene 6: Egill by her lowered head, about to climb on.
   fen_lift_start: { position: [1.5, 1.35, -1.5], target: [4.6, 1.4, -8.6], fov: 40 },

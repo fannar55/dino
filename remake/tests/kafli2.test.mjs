@@ -448,3 +448,22 @@ test('an idle child still gets the head down', async () => {
   assert.ok(c.picks.every(p => p.kind === 'red'), 'all of them red');
   assert.ok(c.headDownAt > 0 && c.headDownAt < five, 'and her head came down to him before it');
 });
+
+test('a tap on Kambeðla as they go: her plates blink and she says goodbye', async () => {
+  const { seen, captions } = await playUnattended(kafli2, { seeking: false, limit: 22, shaped: true, earlyTap: { name: 'kambedla', after: 1 } });
+  assert.ok(seen.earlyTap, 'Kambeðla could be tapped in scene 1');
+  const bye = captions.find(c => c.text === 'Góða ferð!');
+  assert.ok(bye && bye.who === 'Kambeðla', 'she says goodbye');
+  const others = captions.filter(c => c.who !== 'Kambeðla' && c.at < bye.at + 1.6 && c.at > bye.at - 0.1);
+  assert.deepEqual(others, [], 'when nobody else is speaking');
+});
+
+test('a blue berry is the birds\': Mosi says so, and it stays on its bush', async () => {
+  const blue = `berry_${chapter.locations.fen.layout.berries.findIndex(b => b.kind === 'blue')}_0`;
+  const run = await playUnattended(kafli2, { seeking: false, limit: 215, shaped: true, earlyTap: { name: blue, after: 1 } });
+  assert.ok(run.seen.earlyTap, `the blue berry ${blue} could be tapped`);
+  assert.ok(run.captions.some(c => c.text === 'Nei, bláu berin eru fyrir fuglana. Þau rauðu!' && c.at > run.seen.earlyTap.at), 'Mosi: the blue ones are for the birds');
+  const c = run.world.chapterState;
+  assert.equal(c.berries.picked.has(blue), false, 'it is not picked');
+  assert.ok(c.picks.every(p => p.kind === 'red'), 'only red ones go in the basket');
+});
