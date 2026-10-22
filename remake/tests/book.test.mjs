@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createBook } from '../engine/book/book.js';
+import { createBook, halsOpen } from '../engine/book/book.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
 import { parseManifest } from '../engine/book/media.js';
 import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createSave } from '../engine/save.js';
+import { createGame, applyTurn } from '../engine/hals/rules.js';
 import { DONE } from '../engine/handle.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createFakeContext, FakeAudio, withAudio } from './fake-audio.mjs';
@@ -109,7 +110,7 @@ test('ribbons switch pages with a turn sound', () => {
 });
 
 /** The book over a save of its own, with what it narrates, the sounds it makes and the games it hands on. */
-function savedRig(fill = () => {}) {
+function savedRig(fill = () => {}, { onTab = null } = {}) {
   const save = createSave(null);
   fill(save);
   const narrated = [];
@@ -117,7 +118,7 @@ function savedRig(fill = () => {}) {
   const sounds = [];
   const audio = { sfx: name => { sounds.push(name); return true; }, stop() {}, narrate: id => { narrated.push(id); return DONE; } };
   const doc = new FakeDocument(['book']);
-  const book = createBook(doc, { save, audio, onPause() {}, onPlay: game => played.push(game) });
+  const book = createBook(doc, { save, audio, onPause() {}, onPlay: game => played.push(game), onTab });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -192,6 +193,63 @@ test('Háls og hali opens with Þórseðla\'s star', () => {
   tap(tile);
   assert.deepEqual(played, ['hals'], 'and a tap plays it');
   assert.ok(tile.classList.contains('found') && !tile.classList.contains('new'), 'new no more once played');
+});
+
+// The owner, 22 October: Háls og hali waits for Þórseðla's star, but a game of it already under way in the save keeps it open.
+// The rig's onTab is main.js's, which builds the board on the Leikir page whenever halsOpen says so (kafli2.test.mjs holds main.js
+// to it). Each opens the book on the Leikir page and taps the tile once.
+function halsRig(fill) {
+  const prewarmed = [];
+  let kept = null;
+  const rig = savedRig(save => { kept = save; fill(save); }, { onTab: tab => { if (tab === 'games' && halsOpen(kept)) prewarmed.push(tab); } });
+  const tile = rig.root.findAll(e => e.getAttribute('data-game') === 'hals')[0];
+  rig.book.open('games', 'child');
+  rig.sounds.length = 0;
+  rig.tap(tile);
+  return { ...rig, tile, prewarmed };
+}
+const halsGame = () => applyTurn(createGame({ playerCount: 2, vsComputer: true, mode: 'adventure' }), 3);
+const underWay = save => save.setHalsPlay({ game: { state: halsGame(), setup: { players: 1, mode: 'adventure' } } });
+
+test('Háls og hali with no star and no game under way is shut: it wiggles and its board is not built', () => {
+  const { save, book, tile, played, sounds, prewarmed } = halsRig(() => {});
+  assert.equal(halsOpen(save), false);
+  assert.ok(tile.classList.contains('unfound'), 'shut');
+  assert.deepEqual(sounds, ['wiggle'], 'a tap wiggles it');
+  assert.deepEqual(played, [], 'and opens nothing');
+  assert.deepEqual(prewarmed, [], 'the Leikir page builds no board');
+  // nor does a kept game the game would not go on with: one from the old board of 80 (version 1), or one without its setup
+  save.setHalsPlay({ game: { state: { ...halsGame(), version: 1 }, setup: { players: 1, mode: 'adventure' } } });
+  assert.equal(halsOpen(save), false, 'a game of the old board does not open it');
+  save.setHalsPlay({ game: { state: halsGame() } });
+  assert.equal(halsOpen(save), false, 'nor a game without its setup');
+  book.refresh();
+  assert.ok(tile.classList.contains('unfound'), 'still shut');
+});
+
+test('Háls og hali with no star but a game under way is open: no wiggle, a tap plays it, and its board is built', () => {
+  const { save, book, tile, played, sounds, prewarmed } = halsRig(underWay);
+  assert.equal(save.get().stars.includes('k2_thorsedla'), false, 'no star');
+  assert.equal(halsOpen(save), true);
+  assert.ok(!tile.classList.contains('unfound'), 'open');
+  assert.match(tile.getAttribute('aria-label'), /spil við Þórseðlu/, 'and says what it is');
+  assert.deepEqual(sounds, ['tile'], 'a tap does not wiggle');
+  assert.deepEqual(played, ['hals'], 'it plays the game');
+  assert.deepEqual(prewarmed, ['games'], 'the Leikir page builds its board');
+  // a game won or begun afresh is no longer kept (engine/hals/game.js): then the tile waits for her star again
+  save.setHalsPlay({ game: null });
+  book.refresh();
+  assert.equal(halsOpen(save), false);
+  assert.ok(tile.classList.contains('unfound'), 'shut again without a game');
+});
+
+test('Háls og hali with Þórseðla\'s star is open: a tap plays it, and its board is built', () => {
+  const { save, tile, played, sounds, prewarmed } = halsRig(save => save.addStar('k2_thorsedla'));
+  assert.equal(halsOpen(save), true);
+  assert.ok(!tile.classList.contains('unfound'), 'open');
+  assert.deepEqual(sounds, ['tile'], 'a tap does not wiggle');
+  assert.deepEqual(played, ['hals'], 'it plays the game');
+  assert.deepEqual(prewarmed, ['games'], 'the Leikir page builds its board');
 });
 
 // Review Focus 2: narration never outlives what it reads, and nothing plays after the book is shut.

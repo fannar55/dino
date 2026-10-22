@@ -6,7 +6,7 @@ import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked } from './cards.js';
 import { renderMap } from './map-page.js';
 import { FRIENDS, STAR_SVG, friendOf } from '../scene/journal.js';
-import { FOSSIL_KINDS } from '../hals/rules.js';
+import { FOSSIL_KINDS, validateGame } from '../hals/rules.js';
 import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
@@ -26,7 +26,7 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
 // opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
 // which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js) once her star (k2_thorsedla) is in the book
-// (it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
+// or a game of it is under way in the save (halsOpen; it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
 // "Risaeðlu-Yatzy" tile, a taped photo of Slóeðla, onPlay('yatzy') (engine/yatzy/table.js), with the "Litla Yatzy" button under it,
 // onPlay('yatzy-junior'): the junior dice game with Mosi, a page of its own that main.js opens in a frame over the book.
 // The Kortið leaf is the map (map-page.js): the forest and the Fen drawn across the spread, with a slot for the Fen and for each
@@ -72,6 +72,22 @@ const PERSPECTIVE = 'perspective(2400px)';
 // back is the same, mirrored.
 const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 20L20 100H100Z"/>'
   + '<path class="corner-flap" d="M100 20C76 24 52 28 30 30C28 52 24 76 20 100Z"/><path class="corner-crease" d="M97 23L23 97"/></svg>';
+
+/**
+ * Whether "Háls og hali" is open: once Þórseðla's star is in the `save`, or while the save keeps a game of it under way, one
+ * engine/hals/game.js would offer to go on with (a valid game, with its setup, that nobody has won), so a game begun stays open
+ * (the owner, 22 October). The tile asks it, and so does main.js before it builds the board on the Leikir page.
+ */
+export function halsOpen(save) {
+  if (save.get().stars.includes(HALS_STAR)) return true;
+  const kept = save.getHalsPlay?.().game;
+  if (!kept?.state || !kept.setup) return false;
+  try {
+    return validateGame(kept.state) && kept.state.winner === null;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
@@ -411,9 +427,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
   }
 
-  /** "Háls og hali" opens with Þórseðla's star, and is new until it is first played. */
+  /** "Háls og hali" opens with Þórseðla's star or a game under way (halsOpen), and is new until it is first played. */
   function renderHals(state) {
-    const open = state.stars.includes(HALS_STAR);
+    const open = halsOpen(save);
     const fresh = open && !state.seen.includes(HALS_SEEN);
     halsTile.classList.toggle('found', open && !fresh);
     halsTile.classList.toggle('new', fresh);
@@ -443,9 +459,9 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     }
   }
 
-  /** A tap on the "Háls og hali" tile: the game opens over the book once Þórseðla's star is in, and wiggles before. */
+  /** A tap on the "Háls og hali" tile: the game opens over the book once it is open (halsOpen), and wiggles before. */
   function tapHals() {
-    if (!save.get().stars.includes(HALS_STAR)) {
+    if (!halsOpen(save)) {
       wiggle(halsTile);
       return;
     }

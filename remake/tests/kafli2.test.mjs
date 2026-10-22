@@ -168,8 +168,9 @@ test('chapter 1 hands over to chapter 2 with an "Áfram" when its script ends, a
   assert.match(main, /document\.getElementById\('book'\)\.after\(button\)/, 'over the book, under the games it opens');
   const css = fs.readFileSync(file('../book.css'), 'utf8');
   assert.match(css, /\.next-chapter \{[^}]*min-height: var\(--book-target\)/, 'a pill the size of the book\'s controls');
-  // and the Leikir page builds Háls og hali's board only once Þórseðla's star has opened it
-  assert.match(main, /if \(tab === 'games' && save\.get\(\)\.stars\.includes\(HALS_STAR\)\) setTimeout\(\(\) => hals\.prewarm\(\), 900\)/);
+  // and the Leikir page builds Háls og hali's board only once it is open: Þórseðla's star, or a game of it under way (book.js halsOpen)
+  assert.match(main, /import \{ createBook, halsOpen \} from '\.\/engine\/book\/book\.js';/);
+  assert.match(main, /if \(tab === 'games' && halsOpen\(save\)\) setTimeout\(\(\) => hals\.prewarm\(\), 900\)/);
 });
 
 // ---------------------------------------------------------------------------------------------
