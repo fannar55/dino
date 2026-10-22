@@ -487,3 +487,24 @@ test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing
   assert.equal(world.chapterState.taps, 1, 'one tap');
   assert.ok(world.chapterState.swishLog.some(t => t >= at - 1e-6 && t - at < 0.2), 'and her tail swishes at it');
 });
+
+test('a tap on the next print while Mosi says a number is not lost: it is counted as soon as he has said it', async () => {
+  let tappedAt = null;
+  const run = await playUnattended(kafli2, {
+    seeking: false, limit: 70, shaped: true, earlyTap: { name: 'print1', after: 1 },
+    onFrame({ world, stage, pointer }) {
+      const one = world.chapterState?.printLog?.find(e => e.what === 'count' && e.index === 0);
+      if (one && tappedAt === null && stage.s.time - one.at >= 0.4) {
+        tappedAt = stage.s.time;
+        pointer.tap('print2');
+      }
+    },
+  });
+  const log = run.world.chapterState.printLog;
+  const one = log.find(e => e.what === 'count' && e.index === 0);
+  const two = log.find(e => e.what === 'count' && e.index === 1);
+  assert.equal(one?.by, 'child', 'the child counted the first');
+  assert.ok(tappedAt !== null && two, 'and tapped the second during "Eitt!"');
+  assert.equal(two.by, 'child', 'the second is the child\'s');
+  assert.ok(two.at - tappedAt < 2, `counted ${(two.at - tappedAt).toFixed(1)} s after the tap, as soon as "Eitt!" was said`);
+});

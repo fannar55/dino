@@ -442,15 +442,22 @@ function* footprints(s, c) {
   // and Mosi says it; a tap on another splashes and Mosi nods to the right one.
   const names = c.prints.targets.map(t => t.name);
   for (const t of c.prints.targets) s.target(t.name, t);
-  const unhear = names.map(name => s.onTap(name, tap => { c.lastTap = tap; }));
+  // A tap while Mosi says a number is not lost: on the next print it counts as soon as he has said it; on another, a splash.
+  const unhear = names.map((name, i) => s.onTap(name, tap => {
+    c.lastTap = tap;
+    if (c.waitingPrint) return; // waitForPrint hears it
+    if (i === c.nextPrint) c.queuedTap = tap;
+    else splashPrint(s, c, i, 'child');
+  }));
   let quick = false;
   let walking = null;
   for (let k = 0; k < names.length; k++) {
     c.prints.glimmer(k);
-    c.lastTap = null;
+    c.nextPrint = k;
     const by = yield* waitForPrint(s, c, k, quick);
     quick = by === 'egill';
     c.prints.glimmer(null);
+    c.nextPrint = k + 1;
     const counting = countPrint(s, c, k, by);
     if (k < names.length - 1) {
       // on to the next once the number is up: Mosi to his place beside it, the camera following him and turning to it
@@ -518,6 +525,19 @@ function shotAlong(c, label, k, S) {
 function* waitForPrint(s, c, k, quick) {
   const names = c.prints.targets.map(t => t.name);
   const next = names[k];
+  const queued = c.queuedTap;
+  c.queuedTap = null;
+  if (queued?.name === next) { c.lastTap = queued; return 'child'; } // tapped while the last number was said
+  c.lastTap = null;
+  c.waitingPrint = true;
+  try {
+    return yield* waitingForPrint(s, c, k, quick, names, next);
+  } finally {
+    c.waitingPrint = false;
+  }
+}
+
+function* waitingForPrint(s, c, k, quick, names, next) {
   const wait = quick ? { hint: PRINT_WAIT.quickHint, help: PRINT_WAIT.quickHelp } : PRINT_WAIT;
   let since = s.time;
   let hinted = false;
