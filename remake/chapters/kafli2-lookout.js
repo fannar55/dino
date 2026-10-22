@@ -18,21 +18,23 @@ import { LOOKOUT_CAMERA, MOSI_HEAD, downToMosi } from './kafli2-thorsedla.js';
 const FRIENDS = {
   sloedla: { heading: 64, clip: 'wade', y: 0 }, // wading in the far pool (p5): a few slow steps now and then
   flugedla: { heading: 55, clip: 'idle', y: 0, perch: 'snag' }, // on top of the white snag, facing the lookout
-  uggedla: { heading: -64, clip: 'idle', y: 0, sink: 1.3 }, // lying low in the reed, her sail up out of it
+  uggedla: { heading: -64, clip: 'idle', y: 0, sink: 2.2 }, // lying low in the reed, her back and her sail up out of it
 };
 const HINTS = { sloedla: 'k2_mosi_hint_far1', flugedla: 'k2_mosi_hint_far2', uggedla: 'k2_mosi_hint_far3' };
 const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_flugedla', uggedla: 'k2_mosi_found_uggedla' };
 
-// The camera of the search: behind Egill on his right, 2 m above his feet (his head and shoulder in the lower right of the frame),
-// looking out over the Fen to the north-north-east, where the bearings of the three friends from up here are centred: Slóeðla 94
-// degrees to the left, Flugeðla 60 to the left and Uggeðla 94 to the right (the lookout's view spans 187 degrees). From here the line
-// to Uggeðla passes 4.8 m clear of the south-east conifer's crown, which hides her from his head (the layout's sight line from it
-// passes 1.3 m from its axis at 9.3 m): the search is seen from here, not from his eyes. The free look turns 100 degrees either way
-// and 30 down, 10 up (s.search's explore), so each friend can be brought to the middle of the frame.
-const SEARCH_CAMERA = { offset: [-3.2, 2.0, 2.4], local: true, stiffness: 1.6, fov: 50, maxSpeed: 2.4 };
-const SEARCH_LOOK = { yaw: [-100, 100], pitch: [-30, 10] };
-const SEARCH_BEARING = -62.5; // degrees (0 facing +X, -90 north): the middle of the three bearings
-const SEARCH_PITCH = -7; // degrees: the friends lie 6 to 7 degrees under the level from up here, Flugeðla on her snag at it
+// The camera of the search: behind Egill on his right, 2 m above his feet, over her neck and back curving away below. It turns out
+// over the Fen to the north-west, between Slóeðla and Flugeðla, so the first two friends glitter in the frame as the free look
+// begins, and Uggeðla, to the east-south-east past her conifers, is a long turn to the right (the three bearings span 187 degrees from
+// up here; s.search's explore turns from the first two's middle as far as each friend and 12 degrees more, 30 down and 10 up). From
+// here the line to Uggeðla passes 4.8 m clear of the south-east conifer's crown, which hides her from his head (the layout's sight
+// line from it passes 1.3 m from its axis at 9.3 m): the search is seen from here, not from his eyes.
+const SEARCH_CAMERA = { offset: [-3.2, 2.0, 2.4], local: true, stiffness: 1.6, fov: 46, maxSpeed: 2.4 };
+const SEARCH_PITCH = [-30, 10]; // degrees the free look tilts down and up
+const SEARCH_MARGIN = 12; // degrees the free look turns past the friend furthest round on each side
+const SEARCH_DOWN = 2; // degrees under the level the view looks as it turns out: the far Fen fills the lower part of the frame
+const SEARCH_LEAN = 4; // degrees the view turns out to the right of the first two friends' middle: her tail's tip, rising behind her
+//                       12 m from the camera, stays out of the bottom left of the frame, and both friends in it
 // Hints at 12, 24 and 36 s and a find at 48 s (STYLE.md 10) for the first friend; once one was found for the child the next
 // ones come sooner (hints every 6 s, found at 24 s), so a child who taps nothing is through the lookout in under two minutes.
 const QUICK = { hintAfter: 6, helpAfter: 3 };
@@ -76,7 +78,8 @@ export function* findFriends(s, c) {
   const far = c.farFriends;
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
-  s.camera.follow('egill', { ...SEARCH_CAMERA, look: searchView(c) });
+  const view = searchView(c);
+  s.camera.follow('egill', { ...SEARCH_CAMERA, look: view.look });
   yield* c.say('thorsedla', 'k2_thorsedla_look');
   yield s.wait(SETTLE);
   // Egill looks where the child looks, and the friends glitter until each is found.
@@ -84,15 +87,14 @@ export function* findFriends(s, c) {
   for (const target of far.targets) far.glimmer(target.name, true);
   c.farFinds = [];
   yield s.search({
-    explore: SEARCH_LOOK,
+    explore: { yaw: view.yaw, pitch: SEARCH_PITCH },
     targets: far.targets.map(target => ({ ...target, hint: HINTS[target.name] })),
     quick: QUICK,
     onFound: (name, index, how) => s.after(0, () => found(s, c, name, how)),
   });
   for (const target of far.targets) far.glimmer(target.name, false);
-  // and back to him, the Fen behind him, for her last words up here
+  // her last words up here over the Fen as the child left the view, on whoever was found last
   yield egill.lookAt(null);
-  s.camera.follow('egill', { ...SEARCH_CAMERA, look: 'head', lookOffset: [3, -0.6, -1.6] });
   yield* c.say('thorsedla', 'k2_thorsedla_now');
 }
 
@@ -103,25 +105,32 @@ function* found(s, c, name, how) {
   const target = far.targets.find(t => t.name === name);
   c.farFinds.push({ name, how, at: s.time });
   far.glimmer(name, false);
-  if (how === 'helped' && !inView(world, target.point)) yield world.director.hint(target.point.clone(), { duration: 1.5 });
+  if (how !== 'tapped' && !inView(world, target.point)) yield world.director.hint(target.point.clone(), { duration: 1.5 });
   s.sfx('flower');
   const reaction = far.react(name);
   s.place(name, screenOf(world, target.point));
   yield s.all(reaction, s.after(0.3, () => c.say('mosi', FOUND[name])));
 }
 
-/** The point the search camera looks at as it comes round: out over the Fen along SEARCH_BEARING, SEARCH_PITCH down, from where it is. */
+/**
+ * The search's view, from where its camera stands (his feet and SEARCH_CAMERA's offset: he faces +X at the top): `look`, the point
+ * it looks at as it comes round, 60 m out between the first two friends and SEARCH_DOWN degrees down; and `yaw`, how far the free
+ * look turns from there each way, to each friend and SEARCH_MARGIN more.
+ */
 function searchView(c) {
-  const h = THREE.MathUtils.degToRad(SEARCH_BEARING);
-  const p = THREE.MathUtils.degToRad(SEARCH_PITCH);
-  const along = new THREE.Vector3(Math.cos(h) * Math.cos(p), Math.sin(p), Math.sin(h) * Math.cos(p));
-  const feet = new THREE.Vector3();
-  return out => {
-    // where the camera is going (his feet and the offset: he faces +X at the top), and 60 m out from there
-    c.egill.raw.root.getWorldPosition(feet);
-    const [x, y, z] = SEARCH_CAMERA.offset;
-    return out.set(feet.x + x, feet.y + y, feet.z + z).addScaledVector(along, 60);
-  };
+  const feet = c.egill.raw.root.getWorldPosition(new THREE.Vector3());
+  const [x, y, z] = SEARCH_CAMERA.offset;
+  const eye = new THREE.Vector3(feet.x + x, feet.y + y, feet.z + z);
+  const bearing = point => Math.atan2(point.z - eye.z, point.x - eye.x);
+  const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+  const [first, second] = c.farFriends.targets;
+  const base = bearing(first.point) + wrap(bearing(second.point) - bearing(first.point)) / 2 + THREE.MathUtils.degToRad(SEARCH_LEAN);
+  const turns = c.farFriends.targets.map(t => THREE.MathUtils.radToDeg(wrap(bearing(t.point) - base)));
+  const yaw = [Math.min(0, ...turns) - SEARCH_MARGIN, Math.min(178, Math.max(0, ...turns) + SEARCH_MARGIN)];
+  const down = THREE.MathUtils.degToRad(SEARCH_DOWN);
+  const along = new THREE.Vector3(Math.cos(base) * Math.cos(down), -Math.sin(down), Math.sin(base) * Math.cos(down));
+  const look = eye.clone().addScaledVector(along, 60);
+  return { look: look.toArray(), yaw };
 }
 
 /** A point 40 m out along the camera's view: what Egill looks at while the child looks round. */

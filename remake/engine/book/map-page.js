@@ -27,7 +27,7 @@ export const MAP_PLACES = [
   { id: 'flugedla', at: [1158, 158] }, // on the white snag
   { id: 'thorsedla', at: [1352, 470] }, // her pool under her two conifers
   { id: 'uggedla', at: [1626, 640] }, // in the reed by the channel, to the south-east
-  { id: 'fen', at: [1236, 790] }, // the Fen itself
+  { id: 'fen', at: [1236, 716] }, // the Fen itself
 ];
 const art = path => new URL(`../../assets/${path}`, import.meta.url).href;
 /** Each friend's picture on a sticker: the game's own renders (tools/bake/book-render.js). */
@@ -54,7 +54,7 @@ const NAMES = [
   { text: 'Burknalautin', at: [556, 522] },
   { text: 'Fenjaslóðin', at: [722, 692], tilt: 12 },
   { text: 'Áin', at: [470, 150], tilt: -8 },
-  { text: 'Fenið', at: [1410, 848] },
+  { text: 'Fenið', at: [1392, 770] },
 ];
 // The Fen's star is the one won there: Þórseðla's.
 const PLACE_STARS = { fen: ['k2_thorsedla'] };

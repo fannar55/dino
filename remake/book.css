@@ -427,6 +427,7 @@
    the halves meeting at the spine; the place names in the book's font; and a round slot for each place, empty (a dashed ring in
    the place's hue), found (a die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). */
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
+.book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
 .book-leaf[data-tab="map"] .book-tiles {
   --pad-x: 3.4cqw; --pad-top: 4cqh; --pad-bottom: 3.6cqh;
   display: grid; place-items: center; align-content: stretch; gap: 0;
@@ -664,9 +665,9 @@
 
 /* ---- The hand-over: "Áfram", into the next chapter (main.js), when a chapter's script has ended in the book --------- */
 
-.next-chapter { /* a big raised pill in the journal's orange, rising out of the bottom of the open book and bobbing a little */
+.next-chapter { /* a big raised pill in the journal's orange on the open book's bottom right corner, where the page turns, bobbing a little */
   min-width: var(--book-target); min-height: var(--book-target);
-  position: fixed; left: 50%; bottom: max(26px, env(safe-area-inset-bottom) + 14px); translate: -50% 0;
+  position: fixed; right: max(34px, env(safe-area-inset-right) + 22px); bottom: max(30px, env(safe-area-inset-bottom) + 18px);
   display: inline-flex; align-items: center; gap: .3em; padding: .1em .9em .14em 1.15em; margin: 0;
   border: 3px solid var(--book-ink); border-radius: 999px; cursor: pointer;
   font-family: var(--book-font); font-size: clamp(34px, 4.6vmin, 50px); font-weight: 900; line-height: 1; color: var(--book-card);
@@ -785,6 +786,8 @@
       linear-gradient(to bottom, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
   }
   .book-tiles { --pad-x: 7cqw; --pad-top: 6.5cqh; --pad-bottom: 6cqh; }
+  .book-ribbons { gap: calc(var(--ribbon-size) * .3); } /* five ribbons and the close fit across a tablet held upright */
+  .ribbon { width: 4.9em; }
   .book-leaf[data-tab="map"] .book-tiles { --pad-x: 4cqw; --pad-top: 3.6cqh; --pad-bottom: 3.6cqh; }
   .map-half[data-half] { justify-self: center; }
 

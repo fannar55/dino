@@ -13,8 +13,13 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/eitt/trex.webp --query "who=trex&width=512"
 //
+// The book's map (engine/book/map-page.js) takes its friends' stickers from the cards' pictures and, for Uggeðla, who has no card
+// picture, from the spinosaurus shot here:
+//
+//   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/uggedla-render-thumb.webp --query "who=spinosaurus&width=320"
+//
 // Query: who (mosi, kambedla or both for the book; trex, brontosaurus, parasaurolophus, pteranodon (Flugeðla flying a circle)
-// or stegosaurus-tail (Kambeðla mid tail-swish) for the cards), width (the picture's width in px, 1024; the height is three
+// or stegosaurus-tail (Kambeðla mid tail-swish) for the cards; spinosaurus for the map), width (the picture's width in px, 1024; the height is three
 // quarters of it, and a smaller width is the same picture made smaller: the thumbnail), quality (WebP, 0.9), preview (1: show
 // the picture over the card's paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key
 // is a setting, by its path, of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6
@@ -38,7 +43,7 @@ const SUPERSAMPLE = 2;
 const status = text => { window.__bakeStatus = text; console.log('[book-render]', text); };
 const rad = THREE.MathUtils.degToRad;
 
-const MODELS = Object.fromEntries(['mosi', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon']
+const MODELS = Object.fromEntries(['mosi', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon', 'spinosaurus']
   .map(name => [name, `../../assets/characters/${name}.glb`]));
 
 // The shots. A camera's az is world degrees (0 in front of a character that faces +X, 90 on its +Z side), el is how far
@@ -77,6 +82,11 @@ const SHOTS = {
     camera: { az: 50, el: 12, fov: 22, fill: [0.92, 0.88] },
     actors: [{ model: 'pteranodon', x: 0, z: 0, heading: 0, clip: 'fly', time: 0.25, turn: 30, nod: 0, bank: 22 }],
     look: { shadow: 0 },
+  },
+  // Uggeðla, for her sticker on the map: a three-quarter view with her sail toward us.
+  spinosaurus: {
+    camera: { az: 50, el: 8, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'spinosaurus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 30, nod: 0 }],
   },
   'stegosaurus-tail': {
     camera: { az: 100, el: 30, fov: 22, fill: [0.92, 0.88] },

@@ -190,8 +190,16 @@ const FEN_SHOTS = {
     position: { actor: 'thorsedla', part: 'feet', offset: [15, 2.86, 14], local: true },
     target: { actor: 'thorsedla', part: 'feet', offset: [5.4, 4.76, 2.8], local: true }, fov: 32,
   },
-  // Scene 8: the two of them with Egill between, the pools glittering behind.
+  // Kept for the planting (Task 2 planned the Fen round it: changing it re-deals plants), unused: from here Mosi shows his back and
+  // her head is in the south-east conifer's crown. The star is seen from fen_star_rise.
   fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
+  // Scene 8: from the south, low across the bank with the sun behind us: Mosi in profile with Egill in the saddle, Þórseðla behind
+  // them in her pool, her neck rising into her conifers, where the star rises. Points on her (she does not move), as fen_slide is,
+  // so the planter leaves the Fen as Task 2 planned it.
+  fen_star_rise: {
+    position: { actor: 'thorsedla', part: 'feet', offset: [2.5, 2.0, 18.5], local: true },
+    target: { actor: 'thorsedla', part: 'feet', offset: [6, 5.2, 2.5], local: true }, fov: 50,
+  },
   // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
   fen_shore: { position: [-16, 1.2, -16], target: [-4, 1.6, -8.5], fov: 50 },
   // For a tall screen: her neck rising into the conifers, Mosi and Egill small below.
@@ -526,11 +534,15 @@ function* say(s, c, speaker, id, options) {
 const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, -1, 0] }; // her neck, just under her head
 const SUN_HUGS = 0.2; // seconds after the star appears, as in chapter 1
 const TO_THE_MAP = 1.2; // seconds the book shows its stars before it turns to the map
+const STAR_TURN = -148; // degrees: Mosi's heading as the star rises (he came round to catch Egill facing west, 180)
 function* theStar(s, c) {
   mark(c, 8);
   const { mosi, egill } = c;
-  yield s.camera.cut('fen_star');
+  yield s.camera.cut('fen_star_rise');
   const above = { actor: 'thorsedla', part: 'head', offset: [0, 1.2, 0] };
+  // Mosi turns a little toward her head, still side on to us, so his look (which the saddle keeps within 40 degrees aside and 30 up,
+  // engine/riding.js) reaches the star as it rises
+  mosi.turnTo(STAR_TURN, { rate: 35 });
   yield mosi.lookAt(above, { weight: 0.8, maxAngle: 60, maxPitch: 45 });
   yield egill.lookAt(above, { weight: 0.85, maxAngle: 60, maxPitch: 50 });
   s.sfx('star');
