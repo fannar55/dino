@@ -6,11 +6,12 @@
 // (engine/audio/sfx.js). The game never listens to the music: the beat is the same pure function
 // of the music's time on every run (engine/beat.js).
 //   node remake/tools/theme-tempo.mjs [--encode] [--no-mix]        (needs ffmpeg on the PATH)
-//   node remake/tools/theme-tempo.mjs --theme kafli2 [--no-mix]
+//   node remake/tools/theme-tempo.mjs --theme kafli2 [--key] [--no-mix]
 //
 // --theme <folder> measures a chapter's own theme instead (chapters/<id>.js `theme`): remake/assets/audio/<folder>/theme.mp3, as
 // it is (it was cut to loop by hand, so there is nothing to encode), into remake/assets/audio/<folder>/theme.json, whose other
-// fields (name, danceBeats, comment) it keeps; its click track goes to qa/remake/<folder>/theme-click-track.mp3.
+// fields (name, danceBeats, comment) it keeps, and its key too unless --key is given (the owner picks a key by ear; the measured
+// one is printed); its click track, on the key in the json, goes to qa/remake/<folder>/theme-click-track.mp3.
 //
 // The music that plays is not the game's own file (dist/assets/audio/little-dino-green-valley.mp3,
 // which is never changed) but a compressed copy of it, remake/assets/audio/theme.mp3: an MP3 at
@@ -397,8 +398,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const round = (v, places) => Math.round(v * 10 ** places) / 10 ** places;
   const theme = { src: THEME_SRC, bpm: round(rhythm.bpm, 3), beatOffset: round(rhythm.beatOffset, 4), key: keyNotes(key) };
   const target = path.join(ROOT, folder ? `remake/assets/audio/${folder}/theme.json` : 'remake/assets/audio/theme.json');
-  // a chapter's theme.json keeps what is not measured (its name, danceBeats, comment), each field where it was
-  const fields = folder && fs.existsSync(target) ? { ...JSON.parse(fs.readFileSync(target, 'utf8')), ...theme } : theme;
+  // a chapter's theme.json keeps what is not measured (its name, danceBeats, comment), each field where it was, and the key the owner
+  // picked by ear (a song's notes can name two roots, as Dino Trail's do): --key writes the measured key over it
+  const kept = folder && fs.existsSync(target) ? JSON.parse(fs.readFileSync(target, 'utf8')) : null;
+  const keepKey = Array.isArray(kept?.key) && !process.argv.includes('--key');
+  const fields = kept ? { ...kept, ...theme, ...(keepKey ? { key: kept.key } : {}) } : theme;
   const line = ([name, value]) => ` ${JSON.stringify(name)}: ${Array.isArray(value) ? `[${value.join(', ')}]` : JSON.stringify(value)}`;
   const json = `{\n${Object.entries(fields).map(line).join(',\n')}\n}\n`;
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -408,11 +412,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   console.log(`  sure of the tempo: onsets stack ${round(rhythm.peakToNoise, 0)}x better at the pick than at a typical trial tempo; strong beat ${round(rhythm.strongToWeak, 2)}x the weak one; beats stay within ${round(drift, 1)} ms of the grid across ${SEGMENTS} stretches`);
   if (rhythm.peakToNoise < 8 || drift > 25) console.warn('  WARNING: the tempo is not steady or not clear; a single bpm and offset will not hold for the whole file');
   console.log(`  key ${key.name} (r ${round(key.r, 2)}, then ${key.runnerUp.name} ${round(key.runnerUp.r, 2)}; ${key.agreeing} of ${SEGMENTS} stretches agree; tuning ${key.tuningCents >= 0 ? '+' : ''}${round(key.tuningCents, 1)} cents)`);
-  console.log(`  bell notes (Hz): ${theme.key.join(', ')}`);
+  console.log(`  bell notes (Hz): ${theme.key.join(', ')}${keepKey ? ` (not written: theme.json keeps its key, ${kept.key.join(', ')}; --key writes these)` : ''}`);
   console.log(`wrote ${path.relative(ROOT, target).replace(/\\/g, '/')}`);
   if (!process.argv.includes('--no-mix')) {
     const out = path.join(ROOT, folder ? `qa/remake/${folder}/theme-click-track.mp3` : 'qa/remake/kafli1-t9/theme-click-track.mp3');
-    writeClickTrack(file, out, { bpm: theme.bpm, beatOffset: theme.beatOffset, key: theme.key });
+    writeClickTrack(file, out, { bpm: theme.bpm, beatOffset: theme.beatOffset, key: fields.key });
     console.log(`wrote ${path.relative(ROOT, out).replace(/\\/g, '/')}`);
   }
 }
