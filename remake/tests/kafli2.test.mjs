@@ -18,7 +18,8 @@ const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
 const SOURCE = readJson('../assets/audio/kafli2/lines-source.json');
 const RECORDED = readJson('../assets/audio/lines.json');
-const CHAPTER_TEXT = fs.readFileSync(file('../chapters/kafli2.js'), 'utf8');
+// The script, with Þórseðla's part (kafli2-thorsedla.js), which speaks a line of its own.
+const CHAPTER_TEXT = ['../chapters/kafli2.js', '../chapters/kafli2-thorsedla.js'].map(name => fs.readFileSync(file(name), 'utf8')).join(''); // each ends in a newline
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
 // Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
