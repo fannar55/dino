@@ -25,8 +25,8 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
 // hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
 // opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
-// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js) once her star (k2_thorsedla) is in the book
-// or a game of it is under way in the save (halsOpen; it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
+// which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js) once it is open (halsOpen: her star,
+// k2_thorsedla, or a game of it played; it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
 // "Risaeðlu-Yatzy" tile, a taped photo of Slóeðla, onPlay('yatzy') (engine/yatzy/table.js), with the "Litla Yatzy" button under it,
 // onPlay('yatzy-junior'): the junior dice game with Mosi, a page of its own that main.js opens in a frame over the book.
 // The Kortið leaf is the map (map-page.js): the forest and the Fen drawn across the spread, with a slot for the Fen and for each
@@ -74,13 +74,15 @@ const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="
   + '<path class="corner-flap" d="M100 20C76 24 52 28 30 30C28 52 24 76 20 100Z"/><path class="corner-crease" d="M97 23L23 97"/></svg>';
 
 /**
- * Whether "Háls og hali" is open: once Þórseðla's star is in the `save`, or while the save keeps a game of it under way, one
- * engine/hals/game.js would offer to go on with (a valid game, with its setup, that nobody has won), so a game begun stays open
- * (the owner, 22 October). The tile asks it, and so does main.js before it builds the board on the Leikir page.
+ * Whether "Háls og hali" is open: with Þórseðla's star in the `save`, or once a game of it has been played (the save's
+ * hals.played, which nothing clears: once open, it stays open, the owner on 22 October), or, in a save from before that mark,
+ * while it keeps a game under way that engine/hals/game.js would go on with (valid, with its setup, and nobody has won). The
+ * tile asks it, and so does main.js before it builds the board on the Leikir page.
  */
 export function halsOpen(save) {
-  if (save.get().stars.includes(HALS_STAR)) return true;
-  const kept = save.getHalsPlay?.().game;
+  const play = save.getHalsPlay?.();
+  if (save.get().stars.includes(HALS_STAR) || play?.played) return true;
+  const kept = play?.game;
   if (!kept?.state || !kept.setup) return false;
   try {
     return validateGame(kept.state) && kept.state.winner === null;
@@ -427,7 +429,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
   }
 
-  /** "Háls og hali" opens with Þórseðla's star or a game under way (halsOpen), and is new until it is first played. */
+  /** "Háls og hali" opens with Þórseðla's star or a game of it played (halsOpen), and is new until it is first played. */
   function renderHals(state) {
     const open = halsOpen(save);
     const fresh = open && !state.seen.includes(HALS_SEEN);

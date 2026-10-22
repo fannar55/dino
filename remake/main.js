@@ -201,7 +201,7 @@ const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
   onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
-  // once it is open, by Þórseðla's star or a game of it under way (book.js halsOpen); a locked tile only wiggles, and builds nothing.
+  // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.

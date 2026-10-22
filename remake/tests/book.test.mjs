@@ -110,8 +110,8 @@ test('ribbons switch pages with a turn sound', () => {
 });
 
 /** The book over a save of its own, with what it narrates, the sounds it makes and the games it hands on. */
-function savedRig(fill = () => {}, { onTab = null } = {}) {
-  const save = createSave(null);
+function savedRig(fill = () => {}, { onTab = null, storage = null } = {}) {
+  const save = createSave(storage);
   fill(save);
   const narrated = [];
   const played = [];
@@ -195,13 +195,15 @@ test('Háls og hali opens with Þórseðla\'s star', () => {
   assert.ok(tile.classList.contains('found') && !tile.classList.contains('new'), 'new no more once played');
 });
 
-// The owner, 22 October: Háls og hali waits for Þórseðla's star, but a game of it already under way in the save keeps it open.
-// The rig's onTab is main.js's, which builds the board on the Leikir page whenever halsOpen says so (kafli2.test.mjs holds main.js
-// to it). Each opens the book on the Leikir page and taps the tile once.
-function halsRig(fill) {
+// The owner, 22 October: Háls og hali waits for Þórseðla's star, and once it is open it stays open. A game of it once kept marks the
+// save (hals.played) for good, and a save from before that mark is open while it keeps a game under way. The rig's onTab is
+// main.js's, which builds the board on the Leikir page whenever halsOpen says so (kafli2.test.mjs holds main.js to it). Each rig
+// opens the book on the Leikir page and taps the tile once; `stored` is a save as the page kept it (an older one, say).
+function halsRig(fill, stored = null) {
   const prewarmed = [];
   let kept = null;
-  const rig = savedRig(save => { kept = save; fill(save); }, { onTab: tab => { if (tab === 'games' && halsOpen(kept)) prewarmed.push(tab); } });
+  const storage = stored && { getItem: () => JSON.stringify(stored), setItem() {} };
+  const rig = savedRig(save => { kept = save; fill(save); }, { storage, onTab: tab => { if (tab === 'games' && halsOpen(kept)) prewarmed.push(tab); } });
   const tile = rig.root.findAll(e => e.getAttribute('data-game') === 'hals')[0];
   rig.book.open('games', 'child');
   rig.sounds.length = 0;
@@ -209,38 +211,71 @@ function halsRig(fill) {
   return { ...rig, tile, prewarmed };
 }
 const halsGame = () => applyTurn(createGame({ playerCount: 2, vsComputer: true, mode: 'adventure' }), 3);
-const underWay = save => save.setHalsPlay({ game: { state: halsGame(), setup: { players: 1, mode: 'adventure' } } });
+const SETUP = { players: 1, mode: 'adventure' };
+/** A save from before the mark, with a game under way in it and no star. */
+const OLD_SAVE = () => ({ stars: [], findings: [], seen: ['hals'], hals: { found: ['tooth'], game: { state: halsGame(), setup: SETUP } } });
 
-test('Háls og hali with no star and no game under way is shut: it wiggles and its board is not built', () => {
+/** Open, as the tile shows it: no wiggle, a tap plays the game, and the Leikir page builds its board. */
+function assertHalsOpen({ save, tile, played, sounds, prewarmed }) {
+  assert.equal(save.get().stars.includes('k2_thorsedla'), false, 'without her star');
+  assert.equal(halsOpen(save), true);
+  assert.ok(!tile.classList.contains('unfound'), 'the tile is open');
+  assert.match(tile.getAttribute('aria-label'), /spil við Þórseðlu/, 'and says what it is');
+  assert.deepEqual(sounds, ['tile'], 'a tap does not wiggle it');
+  assert.deepEqual(played, ['hals'], 'it plays the game');
+  assert.deepEqual(prewarmed, ['games'], 'and the Leikir page builds its board');
+}
+
+test('Háls og hali in a fresh save is shut: it wiggles and its board is not built', () => {
   const { save, book, tile, played, sounds, prewarmed } = halsRig(() => {});
   assert.equal(halsOpen(save), false);
   assert.ok(tile.classList.contains('unfound'), 'shut');
   assert.deepEqual(sounds, ['wiggle'], 'a tap wiggles it');
   assert.deepEqual(played, [], 'and opens nothing');
   assert.deepEqual(prewarmed, [], 'the Leikir page builds no board');
-  // nor does a kept game the game would not go on with: one from the old board of 80 (version 1), or one without its setup
-  save.setHalsPlay({ game: { state: { ...halsGame(), version: 1 }, setup: { players: 1, mode: 'adventure' } } });
-  assert.equal(halsOpen(save), false, 'a game of the old board does not open it');
-  save.setHalsPlay({ game: { state: halsGame() } });
-  assert.equal(halsOpen(save), false, 'nor a game without its setup');
   book.refresh();
   assert.ok(tile.classList.contains('unfound'), 'still shut');
+  // nor does an older save's game that the game would not go on with: one of the old board of 80 (version 1), or one without
+  // its setup
+  const old = halsRig(() => {}, { stars: [], hals: { found: [], game: { state: { ...halsGame(), version: 1 }, setup: SETUP } } });
+  assert.equal(halsOpen(old.save), false, 'a game of the old board does not open it');
+  assert.deepEqual(old.sounds, ['wiggle']);
+  const bare = halsRig(() => {}, { stars: [], hals: { found: [], game: { state: halsGame() } } });
+  assert.equal(halsOpen(bare.save), false, 'nor a game without its setup');
 });
 
-test('Háls og hali with no star but a game under way is open: no wiggle, a tap plays it, and its board is built', () => {
-  const { save, book, tile, played, sounds, prewarmed } = halsRig(underWay);
-  assert.equal(save.get().stars.includes('k2_thorsedla'), false, 'no star');
-  assert.equal(halsOpen(save), true);
-  assert.ok(!tile.classList.contains('unfound'), 'open');
-  assert.match(tile.getAttribute('aria-label'), /spil við Þórseðlu/, 'and says what it is');
-  assert.deepEqual(sounds, ['tile'], 'a tap does not wiggle');
-  assert.deepEqual(played, ['hals'], 'it plays the game');
-  assert.deepEqual(prewarmed, ['games'], 'the Leikir page builds its board');
-  // a game won or begun afresh is no longer kept (engine/hals/game.js): then the tile waits for her star again
-  save.setHalsPlay({ game: null });
-  book.refresh();
-  assert.equal(halsOpen(save), false);
-  assert.ok(tile.classList.contains('unfound'), 'shut again without a game');
+test('Háls og hali stays open once a game of it is won, and on the next visit', () => {
+  // the game set up is kept (engine/hals/game.js keep), then won, which forgets it
+  const files = new Map();
+  const storage = { getItem: k => files.get(k) ?? null, setItem: (k, v) => files.set(k, v) };
+  const first = createSave(storage);
+  first.setHalsPlay({ game: { state: halsGame(), setup: SETUP } });
+  first.setHalsPlay({ game: null });
+  const stored = JSON.parse(files.get('mosi-remake-v1'));
+  assert.deepEqual(stored.hals, { found: [], played: true }, 'the game is forgotten, and kept as played');
+  const won = halsRig(() => {}, stored);
+  assert.equal(won.save.getHalsPlay().game, null);
+  assertHalsOpen(won);
+});
+
+test('Háls og hali stays open after "Nýr leikur" and leaving, in a new save and in an older one', () => {
+  // "Nýr leikur" forgets the game under way (engine/hals/game.js), and the child shuts the game before choosing who plays
+  const fresh = halsRig(save => {
+    save.setHalsPlay({ game: { state: halsGame(), setup: SETUP } });
+    save.setHalsPlay({ game: null });
+  });
+  assertHalsOpen(fresh);
+  // the same in a save from before the mark: forgetting its game marks it played
+  const old = halsRig(save => save.setHalsPlay({ game: null }), OLD_SAVE());
+  assert.deepEqual(old.save.getHalsPlay(), { game: null, intro: false, hello: false, played: true });
+  assertHalsOpen(old);
+});
+
+test('Háls og hali in an older save with a game under way and no mark is open', () => {
+  const old = halsRig(() => {}, OLD_SAVE());
+  assert.equal(old.save.getHalsPlay().played, false, 'no mark');
+  assert.ok(old.save.getHalsPlay().game, 'a game under way');
+  assertHalsOpen(old);
 });
 
 test('Háls og hali with Þórseðla\'s star is open: a tap plays it, and its board is built', () => {

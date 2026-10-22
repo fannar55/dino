@@ -925,7 +925,7 @@ test('a full save as the page keeps it loads whole, and the map\'s places start 
   const full = {
     stars: ['k1_kambedla'], findings: ['butterfly', 'frog'], seen: ['mosi', 'frog'],
     eitt: { skill: 0.4, losses: 2, wins: 3, tutorialDone: true },
-    hals: { found: ['ammonite'], game: { turn: 3 }, intro: true, hello: true },
+    hals: { found: ['ammonite'], game: { turn: 3 }, intro: true, hello: true, played: true },
     yatzy: { skill: 0.5, losses: 1, wins: 2, badges: ['yatzy_mosi'], tutorialDone: true },
   };
   let written = null;
@@ -934,7 +934,7 @@ test('a full save as the page keeps it loads whole, and the map\'s places start 
   assert.deepEqual(save.get(), { stars: full.stars, findings: full.findings, seen: full.seen, places: [] });
   assert.deepEqual(save.getEitt(), full.eitt);
   assert.deepEqual(save.getHals(), { found: full.hals.found });
-  assert.deepEqual(save.getHalsPlay(), { game: full.hals.game, intro: true, hello: true });
+  assert.deepEqual(save.getHalsPlay(), { game: full.hals.game, intro: true, hello: true, played: true });
   assert.deepEqual(save.getYatzy(), full.yatzy);
   // a place found keeps every field as it was, with the place
   assert.equal(save.addPlace('fen'), true);

@@ -238,7 +238,7 @@ test('the game under way and the intro are kept beside the collection, and forgo
   const files = new Map();
   const storage = { getItem: k => files.get(k) ?? null, setItem: (k, v) => files.set(k, v) };
   const save = createSave(storage);
-  assert.deepEqual(save.getHalsPlay(), { game: null, intro: false, hello: false }, 'nothing at first');
+  assert.deepEqual(save.getHalsPlay(), { game: null, intro: false, hello: false, played: false }, 'nothing at first');
   const game = applyTurn(createGame({ playerCount: 2, vsComputer: true, mode: 'adventure' }), 3);
   save.setHalsPlay({ game: { state: game, setup: { players: 1, mode: 'adventure' } }, intro: true });
   save.addHalsFound('leaf');
@@ -250,5 +250,10 @@ test('the game under way and the intro are kept beside the collection, and forgo
   next.setHalsPlay({ game: null });
   assert.equal(createSave(storage).getHalsPlay().game, null, 'a finished game is forgotten');
   assert.equal(createSave(storage).getHalsPlay().intro, true, 'and the rest stays');
-  assert.deepEqual(JSON.parse(files.get('mosi-remake-v1')).hals, { found: ['leaf'], intro: true });
+  assert.deepEqual(JSON.parse(files.get('mosi-remake-v1')).hals, { found: ['leaf'], intro: true, played: true });
+  // a game once kept has been played, for good (book.js halsOpen keeps the tile open on it): nothing clears it
+  assert.equal(createSave(storage).getHalsPlay().played, true, 'the game forgotten has been played');
+  next.setHalsPlay({ played: false, game: null, intro: false });
+  assert.equal(createSave(storage).getHalsPlay().played, true, 'for good');
+  assert.equal(createSave(null).getHalsPlay().played, false, 'a fresh save has played nothing');
 });

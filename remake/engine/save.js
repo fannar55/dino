@@ -8,7 +8,8 @@
 // the first find, and a save without it loads as before (engine/hals/rules.js has the kinds). Beside them it keeps the game
 // left under way (hals.game: the rules' state and who plays, which engine/hals/game.js checks with validateGame before it
 // offers "Halda áfram") and whether Mosi has said his intro and Þórseðla her hello (hals.intro, hals.hello), each only
-// once it is there. Beside the stars and the finds it keeps the places on the book's map (Kortið, engine/book/map-page.js): the
+// once it is there, and hals.played, set for good once a game has been kept (nothing clears it, so the book's tile stays open:
+// book.js halsOpen). Beside the stars and the finds it keeps the places on the book's map (Kortið, engine/book/map-page.js): the
 // friends found far away from Þórseðla's head in chapter 2 (sloedla, flugedla, uggedla) and the places themselves (fen), each once;
 // a save from before the map has none.
 //
@@ -39,12 +40,13 @@ function eittOf(value) {
 
 /**
  * The fossil collection as stored: { found } with the ids of the kinds found, in the order they came, and what else the
- * game keeps: `game` (the game under way, a plain object: game.js validates it), `intro` and `hello` (true once said); or null.
+ * game keeps: `game` (the game under way, a plain object: game.js validates it), `intro` and `hello` (true once said) and
+ * `played` (true once a game has been kept); or null.
  */
 function halsOf(value) {
   if (!value || typeof value !== 'object') return null;
   const game = value.game && typeof value.game === 'object' && !Array.isArray(value.game) ? value.game : null;
-  return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }) };
+  return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }), ...(value.played === true && { played: true }) };
 }
 
 /** Risaeðlu-Yatzy's state as stored: { skill (0 to 1, or null), losses, wins, badges, tutorialDone }, or null. */
@@ -61,8 +63,10 @@ function yatzyOf(value) {
  * round), and `setEitt(changes)` keeps what it is given and leaves the rest as it was.
  * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
  * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
- * `getHalsPlay()` is { game, intro, hello }: the game left under way (or null) and whether the intro and the hello have been
- * said; `setHalsPlay(changes)` keeps what it is given (game: null forgets the game) and leaves the rest as it was.
+ * `getHalsPlay()` is { game, intro, hello, played }: the game left under way (or null), whether the intro and the hello have
+ * been said, and whether a game has ever been kept; `setHalsPlay(changes)` keeps what it is given (game: null forgets the game)
+ * and leaves the rest as it was. `played` is set by any call while a game is kept, before it or after it (or by played: true),
+ * and nothing clears it: a game won, "Nýr leikur" and a game forgotten leave it.
  * `getYatzy()` is a copy of Risaeðlu-Yatzy's { skill, losses, wins, badges, tutorialDone }, `setYatzy(changes)` updates it, and
  * `addYatzyBadge(id)` records a dinosaur Yatzy badge once and returns whether it was new.
  */
@@ -126,12 +130,14 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       game: hals?.game ? JSON.parse(JSON.stringify(hals.game)) : null,
       intro: hals?.intro === true,
       hello: hals?.hello === true,
+      played: hals?.played === true,
     }),
     setHalsPlay(changes = {}) {
       const next = { ...hals, found: hals?.found ?? [] };
       if ('game' in changes) next.game = changes.game ? JSON.parse(JSON.stringify(changes.game)) : null;
       if ('intro' in changes) next.intro = changes.intro === true;
       if ('hello' in changes) next.hello = changes.hello === true;
+      if (changes.played === true || hals?.game || next.game) next.played = true; // a game kept has been played, for good
       hals = halsOf(next);
       write();
     },
