@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { lerp, smoothstep } from '../forest/random.js';
 
 // The critters' bodies, built in code (STYLE.md section 2: small, soft, rounded, friendly; section 12: code first, no asset):
-// a frog, a snail, a beetle and a little bird, each ONE vertex-coloured mesh of at most 400 triangles. A model faces +X with its
+// a frog, a snail, a beetle and a little bird, and the Fen's animals (chapter 2: a dragonfly, a diving beetle, a salamander, a
+// turtle, an early bird, a fish and a water strider), each ONE vertex-coloured mesh of at most 400 triangles. A model faces +X with its
 // feet on y = 0 (the beetle's origin is its middle, `pivot` metres up, which it rolls about). Shapes are rounded blobs with
 // smooth normals, coloured a triangle at a time or smoothly where a colour should blend: an eye's pupil is a few black
 // triangles, a belly shades into a back. The shapes a critter's reaction needs are morph targets (three's own, so the shadow pass
@@ -330,6 +331,265 @@ function buildBird() {
   return m;
 }
 
+// ---- the Fen's animals (chapter 2) -------------------------------------------------------------------
+// Animals that lived in the wetlands of the dinosaurs' time, each its own shape first (STYLE.md: science first, then friendly):
+// a dragonfly with two pairs of wings, a diving beetle (brunnklukka) with oar legs, a newt-like salamander, a turtle that draws
+// its head in, an early bird (fornfugl) with feathers, clawed wings and a long feathered tail like Archaeopteryx, a fish with
+// heavy shining scales like Lepidotes, and a water strider standing on the water on long legs. Each faces +X with its lowest point
+// on y = 0, one mesh of at most 400 triangles, a little larger than life so a child sees it (as chapter 1's frog is).
+
+/** A flat polygon seen from both sides (two fans, back to back), for a fin on a critter drawn one side only. */
+function flat2(mesh, points, facing, paint) {
+  flat(mesh, points, facing, paint);
+  flat(mesh, [...points].reverse(), facing.map(v => -v), paint);
+}
+
+// The dragonfly: 0.15 m long, its wings 0.22 m across, flat out at rest as a dragonfly holds them. `hover` (0 to 1) tucks its legs
+// up and lifts its tail a little, as it hangs in the air. Its four wings are tagged for the wing shader (+1 right, -1 left), and turn
+// about the line along its back at DRAGONFLY.shoulder.
+export const DRAGONFLY = { shoulder: [0, 0.046, 0.006] };
+const DRAGON = { thorax: '#4f9e4c', thoraxTop: '#7cc45e', eye: '#3aa6b5', eyeTop: '#8fd8de', tail: '#2f86bd', band: '#246b98', wing: '#e7f3f5', vein: '#b9d3d8', spot: '#3a3226', leg: '#2a2a22' };
+
+function buildDragonfly({ hover = 0 } = {}) {
+  const m = createMesher();
+  ellipsoid(m, { at: [0, 0.032, 0], radii: [0.023, 0.016, 0.015], segments: 8, rings: 4, smooth: true, paint: ({ n }) => tone(DRAGON.thorax, DRAGON.thoraxTop, smoothstep(-0.2, 0.8, n.y)) });
+  ellipsoid(m, { at: [0.03, 0.034, 0], radii: [0.012, 0.013, 0.015], segments: 6, rings: 3, smooth: true, paint: () => colour(DRAGON.thorax) });
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [0.035, 0.039, 0.011 * side], radii: [0.011, 0.012, 0.011], segments: 6, rings: 3, smooth: true, paint: ({ n }) => tone(DRAGON.eye, DRAGON.eyeTop, smoothstep(0.2, 0.9, n.y)) });
+  }
+  // the long tail in four pieces, blue with dark rings, a little up at the tip as it hovers
+  const joints = [0, 1, 2, 3, 4].map(i => [-0.02 - i * 0.025, 0.031 + hover * 0.004 * i * i * 0.4, 0]);
+  for (let i = 0; i < 4; i++) {
+    rod(m, { from: joints[i], to: joints[i + 1], radii: [0.0075 - i * 0.0011, 0.0064 - i * 0.0011], sides: 5, paint: () => colour(i % 2 ? DRAGON.band : DRAGON.tail) });
+  }
+  // six legs under the thorax, down to the ground perched, tucked up in the air
+  for (const side of [-1, 1]) {
+    [0.012, 0.002, -0.008].forEach((x, i) => {
+      const hip = [x, 0.022, 0.006 * side];
+      const foot = mix([x + (1 - i) * 0.012, 0.0016, 0.022 * side], [x + 0.004, 0.017, 0.01 * side], hover);
+      rod(m, { from: hip, to: foot, radii: [0.0022, 0.0016], sides: 3, paint: () => colour(DRAGON.leg) });
+    });
+  }
+  // two pairs of wings, flat out from the back; a dark spot near each tip (the pterostigma)
+  const [sx, sy, sz] = DRAGONFLY.shoulder;
+  const forewing = [[0.008, 0], [0.012, 0.05], [0.008, 0.1], [-0.002, 0.108], [-0.008, 0.06], [-0.006, 0]];
+  const hindwing = [[-0.004, 0], [-0.001, 0.05], [-0.006, 0.098], [-0.016, 0.104], [-0.026, 0.06], [-0.02, 0]];
+  for (const side of [-1, 1]) {
+    m.tag(side);
+    for (const [outline, at] of [[forewing, 0.006], [hindwing, -0.004]]) {
+      const corners = outline.map(([x, out]) => [sx + at + x, sy, (sz + out) * side]);
+      flat(m, corners, [0, 1, 0], p => tone(DRAGON.wing, DRAGON.vein, smoothstep(0.02, 0.1, Math.abs(p.z))));
+      const tip = outline[2];
+      flat(m, [[sx + at + tip[0] - 0.004, sy + 0.0004, (sz + tip[1] - 0.012) * side], [sx + at + tip[0] + 0.002, sy + 0.0004, (sz + tip[1] - 0.012) * side], [sx + at + tip[0] - 0.001, sy + 0.0004, (sz + tip[1] - 0.002) * side]], [0, 1, 0], () => colour(DRAGON.spot));
+    }
+  }
+  m.tag(0);
+  return m;
+}
+
+// The diving beetle (brunnklukka): 0.11 m long, a smooth, flat oval of dark olive with a gold rim, made to swim; its hind legs
+// are flat oars. `paddle` (0 to 1) sweeps the oars back.
+const DIVER = { back: '#273024', backTop: '#3d4a32', rim: '#c9a640', belly: '#5a4128', head: '#2b3326', eye: '#e9dfb8', pupil: '#16160f', leg: '#5a4128' };
+
+function buildWaterBeetle({ paddle = 0 } = {}) {
+  const m = createMesher();
+  const shell = ({ n }) => {
+    const back = tone(DIVER.back, DIVER.backTop, smoothstep(0.5, 1, n.y));
+    const rim = smoothstep(0.55, 0.85, Math.abs(n.z)) * smoothstep(-0.25, 0.1, n.y) * smoothstep(0.55, 0.2, n.y);
+    return back.lerp(colour(DIVER.rim), rim).lerp(colour(DIVER.belly), smoothstep(-0.2, -0.6, n.y));
+  };
+  ellipsoid(m, { at: [-0.008, 0.021, 0], radii: [0.021, 0.05, 0.034], pole: [1, 0, 0], segments: 14, rings: 5, smooth: true, paint: shell });
+  ellipsoid(m, { at: [0.038, 0.02, 0], radii: [0.016, 0.014, 0.027], segments: 10, rings: 4, smooth: true, paint: shell });
+  ellipsoid(m, { at: [0.055, 0.018, 0], radii: [0.012, 0.011, 0.018], segments: 8, rings: 3, smooth: true, paint: () => colour(DIVER.head) });
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [0.061, 0.022, 0.012 * side], radii: [0.006, 0.006, 0.006], pole: [1, 0.2, 0.5 * side], segments: 5, rings: 3, paint: ({ lat }) => (lat < 0.4 ? colour(DIVER.pupil) : colour(DIVER.eye)) });
+    // the front and middle legs, short, out to the sides
+    for (const [x, reach] of [[0.032, 1], [0.012, 0.3]]) {
+      rod(m, { from: [x, 0.012, 0.022 * side], to: [x + 0.014 * reach, 0.006, 0.05 * side], radii: [0.003, 0.0022], sides: 3, paint: () => colour(DIVER.leg) });
+    }
+    // the hind legs: long, flat oars at the end, swept back as it strokes
+    const knee = [-0.012, 0.012, 0.038 * side];
+    const tip = mix([0.006, 0.01, 0.085 * side], [-0.07, 0.01, 0.06 * side], paddle);
+    rod(m, { from: [0.004, 0.012, 0.02 * side], to: knee, radii: [0.0034, 0.0028], sides: 3, paint: () => colour(DIVER.leg) });
+    rod(m, { from: knee, to: tip, radii: [0.0028, 0.0022], sides: 3, paint: () => colour(DIVER.leg) });
+    const along = [tip[0] - knee[0], tip[2] - knee[2]];
+    const len = Math.hypot(...along);
+    const ax = along[0] / len, az = along[1] / len;
+    const oar = [[0, 0], [0.45, 0.012], [1, 0.006], [1, -0.006], [0.45, -0.012]].map(([t, w]) => [knee[0] + (tip[0] - knee[0]) * (0.35 + 0.65 * t) - az * w, 0.011, knee[2] + (tip[2] - knee[2]) * (0.35 + 0.65 * t) + ax * w]);
+    flat2(m, oar, [0, 1, 0], () => colour(DIVER.rim).lerp(colour(DIVER.leg), 0.5));
+  }
+  return m;
+}
+
+// The salamander: 0.24 m from its nose to the tip of its tail, newt-like: dark olive back with gold spots, an orange belly, short
+// splayed legs and a long tail. walkA and walkB put one pair of corners forward and bend the body to the other side, in turn, as
+// it crawls; `curl` turns its head and curls its tail to the side, as it rests.
+const NEWT = { back: '#4c4a2d', backTop: '#5f5c37', belly: '#e2833a', spot: '#d8b23e', eye: '#1c1a12', shine: '#f6f1e4', leg: '#4c4a2d' };
+
+function buildSalamander({ walkA = 0, walkB = 0, curl = 0 } = {}) {
+  const m = createMesher();
+  const bend = walkA - walkB; // + bends the middle to the left (+z)
+  const skin = ({ n, p }) => {
+    const back = tone(NEWT.back, NEWT.backTop, smoothstep(0.4, 0.95, n.y));
+    const spot = n.y > 0.55 && Math.sin(p.x * 260) * Math.sin(p.z * 330 + p.x * 90) > 0.82 ? 1 : 0;
+    return back.lerp(colour(NEWT.spot), spot).lerp(colour(NEWT.belly), smoothstep(-0.05, -0.45, n.y));
+  };
+  const look = 0.012 * curl;
+  ellipsoid(m, { at: [0.086, 0.019, look], radii: [0.026, 0.015, 0.02], rot: [0, -0.5 * curl, 0], segments: 10, rings: 4, smooth: true, paint: skin });
+  ellipsoid(m, { at: [0.046, 0.018, 0.006 * bend], radii: [0.034, 0.016, 0.019], segments: 10, rings: 4, smooth: true, paint: skin });
+  ellipsoid(m, { at: [0.002, 0.017, -0.006 * bend], radii: [0.032, 0.015, 0.018], segments: 10, rings: 4, smooth: true, paint: skin });
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [0.1, 0.027, (0.012 + (side > 0 ? look * 0.6 : 0)) * side + look * 0.5], radii: [0.006, 0.006, 0.006], segments: 5, rings: 3, paint: ({ n }) => (n.y > 0.7 && n.x > 0.2 ? colour(NEWT.shine) : colour(NEWT.eye)) });
+  }
+  // the tail, swinging the other way to the body's bend, and curled to the side at rest
+  const tail = [0, 1, 2, 3].map(i => [-0.025 - i * 0.042, 0.014 - i * 0.003, (0.008 * bend + 0.03 * curl) * i * (i + 1) * 0.25]);
+  for (let i = 0; i < 3; i++) rod(m, { from: tail[i], to: tail[i + 1], radii: [0.013 - i * 0.004, 0.009 - i * 0.004], sides: 5, paint: skin });
+  // four short legs, out to the sides and down, the diagonal pair forward in a step
+  const legs = [[0.054, 1, walkA], [0.054, -1, walkB], [-0.006, 1, walkB], [-0.006, -1, walkA]];
+  for (const [x, side, step] of legs) {
+    const hip = [x, 0.014, 0.014 * side];
+    const elbow = [x + 0.01 * step, 0.016, 0.03 * side];
+    const foot = [x + 0.018 * step - 0.004, 0.0035, 0.034 * side];
+    rod(m, { from: hip, to: elbow, radii: [0.0055, 0.0045], sides: 3, paint: () => colour(NEWT.leg) });
+    rod(m, { from: elbow, to: foot, radii: [0.0045, 0.0035], sides: 3, paint: () => colour(NEWT.leg) });
+  }
+  return m;
+}
+
+// The turtle: a shell 0.32 m long, domed and olive with paler rims to its plates, a pale belly, a grey-green head with a yellow
+// stripe, four stout legs. `hide` draws its head and legs into the shell; `look` turns its head to its left.
+const TURTLE = { shell: '#6b6436', shellTop: '#7d7540', rim: '#b0a45e', edge: '#4f4a2a', belly: '#d8c98a', skin: '#7f8a5e', stripe: '#d9c45a', eye: '#1c1a12' };
+
+function buildTurtle({ hide = 0, look = 0 } = {}) {
+  const m = createMesher();
+  ellipsoid(m, {
+    at: [0, 0.076, 0], radii: [0.16, 0.068, 0.125], segments: 14, rings: 5,
+    paint: ({ n, lat, lon }) => {
+      const plate = Math.abs(((lon * 8 + (lat < 0.4 ? 0.5 : 0)) % 1) - 0.5) < 0.08 || Math.abs(lat - 0.38) < 0.05;
+      const base = tone(TURTLE.edge, TURTLE.shellTop, smoothstep(-0.1, 0.8, n.y));
+      return plate ? base.lerp(colour(TURTLE.rim), 0.7) : base;
+    },
+  });
+  ellipsoid(m, { at: [0, 0.05, 0], radii: [0.142, 0.026, 0.108], segments: 10, rings: 3, paint: () => colour(TURTLE.belly) });
+  // head on its neck, out in front, or in the shell
+  const turn = look * 0.6;
+  const neckEnd = mix([0.19, 0.074, 0.025 * turn], [0.13, 0.068, 0], hide);
+  const head = mix([0.215, 0.078, 0.06 * turn], [0.135, 0.07, 0], hide);
+  rod(m, { from: [0.12, 0.066, 0], to: neckEnd, radii: [0.024, 0.022], sides: 6, paint: () => colour(TURTLE.skin) });
+  ellipsoid(m, {
+    at: head, radii: mix([0.036, 0.026, 0.027], [0.02, 0.016, 0.016], hide), rot: [0, -turn, 0], segments: 8, rings: 4, smooth: true,
+    paint: ({ n }) => (Math.abs(n.z) > 0.55 && Math.abs(n.y) < 0.25 ? colour(TURTLE.stripe) : colour(TURTLE.skin)),
+  });
+  for (const side of [-1, 1]) {
+    const at = [head[0] + 0.02 * (1 - hide), head[1] + 0.009, head[2] + 0.017 * side * (1 - hide * 0.6)];
+    ellipsoid(m, { at, radii: [0.0055, 0.0055, 0.0055], segments: 5, rings: 3, paint: () => colour(TURTLE.eye) });
+  }
+  // four stout legs at the corners, drawn in when it hides
+  for (const [x, side] of [[0.09, 1], [0.09, -1], [-0.09, 1], [-0.09, -1]]) {
+    const out = mix([x * 1.08, 0.025, 0.1 * side], [x * 0.85, 0.045, 0.075 * side], hide);
+    ellipsoid(m, { at: out, radii: mix([0.034, 0.025, 0.026], [0.02, 0.016, 0.016], hide), segments: 6, rings: 3, smooth: true, paint: () => colour(TURTLE.skin) });
+  }
+  rod(m, { from: [-0.14, 0.05, 0], to: mix([-0.19, 0.035, 0], [-0.15, 0.045, 0], hide), radii: [0.012, 0.006], sides: 4, paint: () => colour(TURTLE.skin) });
+  return m;
+}
+
+// The early bird (fornfugl), Archaeopteryx's kind: 0.45 m from its snout to the tip of its long feathered tail, a dark bird with
+// paler tips to its feathers, claws on its wings and a snout with tiny teeth. Its wings are tagged (+1 right, -1 left) for the wing
+// shader, which folds them along its sides at rest (EARLY_BIRD.fold) and beats them in flight; `look` turns its head to its left.
+export const EARLY_BIRD = {
+  shoulder: [0.03, 0.15, 0.04],
+  fold: { rotation: [Math.PI / 2, 0, -1.2], offset: [0, -0.03, 0.012] },
+};
+const FORN = { back: '#3c3e46', belly: '#7b7d84', head: '#4a4c54', face: '#9a8f80', beak: '#2a2a2e', eye: '#d8a23a', pupil: '#16160f', wing: '#33353d', tip: '#8d8f96', tail: '#2f3138', tailTip: '#9a9ca2', leg: '#5a4c3e' };
+
+function buildEarlyBird({ look = 0 } = {}) {
+  const m = createMesher();
+  ellipsoid(m, {
+    at: [0, 0.12, 0], radii: [0.085, 0.06, 0.05], rot: [0, 0, 0.35], segments: 10, rings: 5, smooth: true,
+    paint: ({ n }) => tone(FORN.back, FORN.belly, smoothstep(0.1, -0.6, n.y)),
+  });
+  const turn = look * 0.7;
+  const head = [0.088, 0.19, 0.03 * look];
+  rod(m, { from: [0.045, 0.145, 0], to: [head[0] - 0.012, head[1] - 0.01, head[2] * 0.6], radii: [0.03, 0.026], sides: 5, paint: () => colour(FORN.head) });
+  ellipsoid(m, { at: head, radii: [0.04, 0.034, 0.031], rot: [0, -turn, 0], segments: 8, rings: 4, smooth: true, paint: ({ n }) => tone(FORN.head, FORN.face, smoothstep(0.3, 0.9, n.x)) });
+  const snout = [head[0] + Math.cos(turn) * 0.072, head[1] - 0.006, head[2] + Math.sin(turn) * 0.072];
+  rod(m, { from: [head[0] + Math.cos(turn) * 0.03, head[1] - 0.004, head[2] + Math.sin(turn) * 0.03], to: snout, radii: [0.013, 0.005], sides: 4, paint: () => colour(FORN.beak) });
+  for (const side of [-1, 1]) {
+    const across = [-Math.sin(turn) * side, Math.cos(turn) * side];
+    ellipsoid(m, { at: [head[0] + Math.cos(turn) * 0.02 + across[0] * 0.022, head[1] + 0.01, head[2] + Math.sin(turn) * 0.02 + across[1] * 0.022], radii: [0.008, 0.008, 0.008], segments: 5, rings: 2, paint: ({ lat }) => (lat < 0.5 ? colour(FORN.eye) : colour(FORN.pupil)) });
+  }
+  // the long tail: a bony rod with feathers either side of it, all the way down, as Archaeopteryx's was
+  rod(m, { from: [-0.07, 0.1, 0], to: [-0.31, 0.115, 0], radii: [0.012, 0.004], sides: 4, paint: () => colour(FORN.tail) });
+  const tail = [[-0.07, 0.016], [-0.15, 0.042], [-0.24, 0.05], [-0.3, 0.036], [-0.33, 0], [-0.3, -0.036], [-0.24, -0.05], [-0.15, -0.042], [-0.07, -0.016]];
+  flat(m, tail.map(([x, z]) => [x, 0.108 + (x + 0.07) * -0.06, z]), [0, 1, 0], p => tone(FORN.tail, FORN.tailTip, smoothstep(0.025, 0.05, Math.abs(p.z))));
+  flat(m, [...tail].reverse().map(([x, z]) => [x, 0.107 + (x + 0.07) * -0.06, z]), [0, -1, 0], () => colour(FORN.tail));
+  // legs: a feathered thigh, a bare shin, three toes forward
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [-0.01, 0.075, 0.03 * side], radii: [0.03, 0.03, 0.02], segments: 6, rings: 3, smooth: true, paint: () => colour(FORN.back) });
+    rod(m, { from: [-0.005, 0.055, 0.032 * side], to: [0.002, 0.008, 0.032 * side], radii: [0.006, 0.005], sides: 3, paint: () => colour(FORN.leg) });
+    for (const out of [-0.012, 0.012]) rod(m, { from: [0.002, 0.008, 0.032 * side], to: [0.032, 0.0028, (0.032 + out) * side], radii: [0.004, 0.0028], sides: 3, paint: () => colour(FORN.leg) });
+  }
+  // the wings, spread (critters.js folds them at rest): broad, dark, pale at the tips, two clawed fingers at the wrist
+  const [sx, sy, sz] = EARLY_BIRD.shoulder;
+  const outline = [[0.03, 0], [0.05, 0.08], [0.035, 0.17], [-0.02, 0.24], [-0.08, 0.22], [-0.12, 0.12], [-0.08, 0]];
+  for (const side of [-1, 1]) {
+    m.tag(side);
+    flat(m, outline.map(([x, out]) => [sx + x, sy, (sz + out) * side]), [0, 1, 0], p => tone(FORN.wing, FORN.tip, smoothstep(0.14, 0.24, Math.abs(p.z))));
+    for (const k of [0, 1]) rod(m, { from: [sx + 0.045, sy, (sz + 0.08 + k * 0.02) * side], to: [sx + 0.07, sy - 0.006, (sz + 0.085 + k * 0.022) * side], radii: [0.003, 0.0012], sides: 3, paint: () => colour(FORN.beak) });
+  }
+  m.tag(0);
+  return m;
+}
+
+// The fish: 0.3 m long, heavy-scaled like Lepidotes, olive on its back, gold on its flanks, pale beneath, with a forked tail. It
+// lives under the water and jumps out of it; `flex` bends its tail to the side as it swims or jumps.
+const FISH = { back: '#4c6652', flank: '#c8ad58', belly: '#ece2c2', fin: '#8c8a5a', eye: '#f2eedd', pupil: '#16160f' };
+
+function buildFish({ flex = 0 } = {}) {
+  const m = createMesher();
+  const scales = ({ n, p }) => {
+    const base = tone(FISH.flank, FISH.back, smoothstep(0.15, 0.75, n.y)).lerp(colour(FISH.belly), smoothstep(-0.2, -0.7, n.y));
+    return Math.sin(p.x * 140) * Math.sin(p.y * 160) > 0.6 ? base.multiplyScalar(0.92) : base;
+  };
+  ellipsoid(m, { at: [0.03, 0.044, 0], radii: [0.044, 0.09, 0.03], pole: [1, 0, 0], segments: 12, rings: 5, smooth: true, paint: scales });
+  const swing = 0.03 * flex;
+  ellipsoid(m, { at: [-0.06, 0.044, swing * 0.4], radii: [0.034, 0.065, 0.022], pole: [1, 0, -0.35 * flex], segments: 10, rings: 4, smooth: true, paint: scales });
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [0.098, 0.054, 0.019 * side], radii: [0.008, 0.008, 0.008], pole: [0.3, 0, side], segments: 6, rings: 3, paint: ({ lat }) => (lat < 0.45 ? colour(FISH.pupil) : colour(FISH.eye)) });
+    flat2(m, [[0.06, 0.03, 0.026 * side], [0.035, 0.016, 0.05 * side], [0.03, 0.026, 0.028 * side]], [0, 0, side], () => colour(FISH.fin));
+  }
+  // the forked tail and the fin on its back, both ways round so both sides show
+  const t = [-0.12, 0.044, swing];
+  flat2(m, [t, [-0.185, 0.095, swing * 2.2], [-0.165, 0.046, swing * 2], [-0.185, 0.0, swing * 2.2]], [0, 0, 1], () => colour(FISH.fin));
+  flat2(m, [[0.02, 0.085, 0], [-0.03, 0.112, swing * 0.3], [-0.06, 0.08, swing * 0.4]], [0, 0, 1], () => colour(FISH.fin));
+  return m;
+}
+
+// The water strider: a slender dark bug 0.07 m long standing on the water on long, thin legs (0.25 m across): the middle pair row,
+// the hind pair steer, the short front pair hold. `row` sweeps the middle legs back.
+const STRIDER = { back: '#2d2a24', belly: '#b9bbb6', leg: '#2d2a24', eye: '#6b5a3a' };
+
+function buildWaterStrider({ row = 0 } = {}) {
+  const m = createMesher();
+  ellipsoid(m, { at: [-0.004, 0.028, 0], radii: [0.008, 0.036, 0.009], pole: [1, 0, 0], segments: 8, rings: 4, smooth: true, paint: ({ n }) => tone(STRIDER.belly, STRIDER.back, smoothstep(-0.3, 0.3, n.y)) });
+  ellipsoid(m, { at: [0.038, 0.03, 0], radii: [0.009, 0.007, 0.007], segments: 6, rings: 3, smooth: true, paint: () => colour(STRIDER.back) });
+  for (const side of [-1, 1]) {
+    ellipsoid(m, { at: [0.042, 0.033, 0.006 * side], radii: [0.004, 0.004, 0.004], segments: 4, rings: 2, paint: () => colour(STRIDER.eye) });
+    rod(m, { from: [0.045, 0.033, 0.003 * side], to: [0.075, 0.042, 0.016 * side], radii: [0.0018, 0.0012], sides: 3, paint: () => colour(STRIDER.leg) });
+    // front legs, short and forward; middle legs, the long oars; hind legs, long and back
+    rod(m, { from: [0.026, 0.024, 0.005 * side], to: [0.05, 0.02, 0.022 * side], radii: [0.0035, 0.003], sides: 3, paint: () => colour(STRIDER.leg) });
+    rod(m, { from: [0.05, 0.02, 0.022 * side], to: [0.07, 0.006, 0.026 * side], radii: [0.003, 0.0024], sides: 3, paint: () => colour(STRIDER.leg) });
+    const knee = mix([0.018, 0.052, 0.06 * side], [0.0, 0.05, 0.058 * side], row);
+    const foot = mix([0.03, 0.0024, 0.125 * side], [-0.03, 0.0024, 0.115 * side], row);
+    rod(m, { from: [0.006, 0.026, 0.007 * side], to: knee, radii: [0.0038, 0.003], sides: 3, paint: () => colour(STRIDER.leg) });
+    rod(m, { from: knee, to: foot, radii: [0.003, 0.0024], sides: 3, paint: () => colour(STRIDER.leg) });
+    const hindKnee = [-0.04, 0.046, 0.05 * side];
+    rod(m, { from: [-0.016, 0.026, 0.007 * side], to: hindKnee, radii: [0.0036, 0.003], sides: 3, paint: () => colour(STRIDER.leg) });
+    rod(m, { from: hindKnee, to: [-0.125, 0.0024, 0.085 * side], radii: [0.003, 0.0024], sides: 3, paint: () => colour(STRIDER.leg) });
+  }
+  return m;
+}
+
 // ---- assembling a model -----------------------------------------------------------------------------
 
 /** The kinds a spot can be, with how to build each, the morph targets it moves by, and where a tap on it is aimed. */
@@ -337,12 +597,23 @@ const MODELS = {
   frog: { build: buildFrog, morphs: { leap: { leap: 1 } }, tap: [0, 0.06, 0], radius: 0.28 },
   snail: { build: buildSnail, morphs: { hide: { hide: 1 } }, tap: [0, 0.06, 0], radius: 0.26 },
   beetle: { build: buildBeetle, morphs: { kickA: { kickA: 1 }, kickB: { kickB: 1 } }, tap: [0, 0, 0], radius: 0.24, pivot: BEETLE_SIZE.feet[0] },
-  bird: { build: buildBird, morphs: {}, tap: [0, 0.055, 0], radius: 0.28 },
+  bird: { build: buildBird, morphs: {}, tap: [0, 0.055, 0], radius: 0.28, wings: 2 },
+  // the Fen's (chapter 2)
+  dragonfly: { build: buildDragonfly, morphs: { hover: { hover: 1 } }, tap: [0, 0.03, 0], radius: 0.3, wings: 4 },
+  waterBeetle: { build: buildWaterBeetle, morphs: { paddle: { paddle: 1 } }, tap: [0, 0.02, 0], radius: 0.28 },
+  salamander: { build: buildSalamander, morphs: { walkA: { walkA: 1 }, walkB: { walkB: 1 }, curl: { curl: 1 } }, tap: [0.03, 0.02, 0], radius: 0.3 },
+  turtle: { build: buildTurtle, morphs: { hide: { hide: 1 }, look: { look: 1 } }, tap: [0, 0.07, 0], radius: 0.35 },
+  earlyBird: { build: buildEarlyBird, morphs: { look: { look: 1 } }, tap: [0, 0.12, 0], radius: 0.4, wings: 2 },
+  fish: { build: buildFish, morphs: { flex: { flex: 1 } }, tap: [0, 0.04, 0], radius: 0.45 },
+  waterStrider: { build: buildWaterStrider, morphs: { row: { row: 1 } }, tap: [0, 0.02, 0], radius: 0.3 },
 };
 export const KINDS = Object.keys(MODELS).filter(kind => kind !== 'bird');
+/** The kinds whose wings the wing shader beats (their geometry has aWing): the bird and, among the spots, these. */
+export const WINGED = Object.keys(MODELS).filter(kind => MODELS[kind].wings);
 
 /**
- * The geometry of one kind ('frog', 'snail', 'beetle', or the 'bird'): its morph targets are named on the mesh
+ * The geometry of one kind ('frog', 'snail', 'beetle', the Fen's 'dragonfly', 'waterBeetle', 'salamander', 'turtle', 'earlyBird',
+ * 'fish', 'waterStrider', or the 'bird'): its morph targets are named on the mesh
  * (mesh.morphTargetDictionary), `tap` is where in the model a tap is aimed and `radius` how wide (metres), `pivot` how high
  * the model's origin stands over the ground it rests on.
  */
@@ -354,7 +625,7 @@ export function createModel(kind) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(base.position, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(base.normal, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(base.color, 3));
-  if (kind === 'bird') geometry.setAttribute('aWing', new THREE.Float32BufferAttribute(base.wing, 1));
+  if (model.wings) geometry.setAttribute('aWing', new THREE.Float32BufferAttribute(base.wing, 1));
   const morphs = Object.keys(model.morphs);
   if (morphs.length) {
     const built = morphs.map(name => model.build(model.morphs[name]));
@@ -362,5 +633,5 @@ export function createModel(kind) {
     geometry.morphAttributes.normal = built.map((b, i) => Object.assign(new THREE.Float32BufferAttribute(b.normal, 3), { name: morphs[i] }));
   }
   geometry.computeBoundingSphere();
-  return { geometry, morphs, tap: model.tap, radius: model.radius, pivot: model.pivot ?? 0, triangles: base.triangles };
+  return { geometry, morphs, tap: model.tap, radius: model.radius, pivot: model.pivot ?? 0, triangles: base.triangles, wings: model.wings ?? 0 };
 }

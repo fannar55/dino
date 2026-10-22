@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { DONE, Handle } from '../../engine/handle.js';
 import { seededRandom } from '../../engine/random.js';
 import { clamp, smoothstep } from '../forest/random.js';
-import { BEETLE_SIZE, BIRD, KINDS, createModel } from './models.js';
+import { BEETLE_SIZE, BIRD, DRAGONFLY, EARLY_BIRD, KINDS, WINGED, createModel } from './models.js';
 
 // Critters a child can tap: a frog, a snail and a beetle by the path and in the glade, and little birds in the bushes. A tap
 // makes one react, with no words (the sound and the journal entry are the chapter's): the frog hops to a spot beside it, and
@@ -14,7 +14,15 @@ import { BEETLE_SIZE, BIRD, KINDS, createModel } from './models.js';
 //     spots: [{ name: 'frog-1', kind: 'frog', position: [x, y, z], heading }],   // kind: 'frog', 'snail' or 'beetle'; heading: degrees, optional
 //     birds: [{ name: 'bird-1', position: [x, y, z], heading }],                  // where each sits, and how it faces
 //     onReact(name, kind) {},                                                     // optional: a sound for every reaction
+//     ripple(point, strength) {},                                                 // optional: a ring on the water where a Fen animal touches it
 //   });
+//
+// The Fen's animals (chapter 2) are spots too, each with a life of its own as well as a reaction: the dragonfly (`position` is
+// where it hangs in the air) darts off and back, the diving beetle (`position` on the water) swims round and dips, the
+// salamander crawls two lengths of itself away and back, the turtle draws its head in, the early bird flies up, round and back to
+// where it sat, the fish (`position` on the water, over where it swims) jumps out once, and the water strider (on the water)
+// skates off and back. Their finding ids are their kinds: 'dragonfly', 'waterBeetle', 'salamander', 'turtle', 'earlyBird', 'fish',
+// 'waterStrider'. The dragonfly's and the early bird's wings are beaten by the birds' wing shader, a material each.
 //   for (const t of critters.targets) s.target(t.name, t);        // { name, point, radius }: what a tap aims at
 //   s.onTap('frog-1', () => critters.react('frog-1'));            // returns a Handle, done when the reaction is over
 //   critters.scare(point, 6);                                     // birds within 6 m of a point spec fly up; returns their names
@@ -54,11 +62,12 @@ const PARKED = -1000; // y of the tap target of a bird that has flown off: nothi
 
 const easeOutBack = x => 1 + 2.70158 * (x - 1) ** 3 + 1.70158 * (x - 1) ** 2;
 
-function validate(world, { spots, birds, onReact }) {
+function validate(world, { spots, birds, onReact, ripple }) {
   if (!Array.isArray(spots)) throw new TypeError('createCritters takes `spots` as a list of { name, kind, position }');
   if (!Array.isArray(birds)) throw new TypeError('createCritters takes `birds` as a list of { name, position }');
   if (world.effects && !world.clock) throw new Error('Critters run on world.effects, so they need world.clock (engine/clock.js) to read the game time from');
   if (onReact !== undefined && typeof onReact !== 'function') throw new TypeError(`onReact is a function (name, kind) that makes the sound of a reaction, not ${typeof onReact}`);
+  if (ripple !== undefined && typeof ripple !== 'function') throw new TypeError(`ripple is a function (point, strength) that rings the water, not ${typeof ripple}`);
   const names = new Set();
   const check = (entry, what, kinds) => {
     if (typeof entry?.name !== 'string' || !entry.name) throw new TypeError(`A ${what} needs a name, the one its tap target has ("frog-1")`);
@@ -79,22 +88,34 @@ function validate(world, { spots, birds, onReact }) {
 // What a bird is drawn with: the standard material with its wings folded or flapped in the vertex shader, by two attributes: the
 // wing tag of each vertex (models.js) and the beat of each bird (aFlight: the wing angle, down positive, and 0 at rest to 1 in
 // flight). A wing is rotated about the shoulder line along the body, or, at rest, folded along the flank: a rotation baked in below.
-function birdMaterial() {
-  const e = new THREE.Matrix4().makeRotationZ(BIRD.fold.rotation[2]).multiply(new THREE.Matrix4().makeRotationX(BIRD.fold.rotation[0])).elements;
+// A winged spot (the Fen's dragonfly and early bird) is drawn the same way with its own shoulder and fold, its beat a uniform of
+// its own material (`flight`, kept in material.userData.flight) rather than an attribute of an instance.
+const WINGS = {
+  bird: BIRD,
+  dragonfly: { shoulder: DRAGONFLY.shoulder, fold: { rotation: [0, 0, 0], offset: [0, 0, 0] } }, // a dragonfly never folds its wings
+  earlyBird: EARLY_BIRD,
+};
+function birdMaterial(kind = 'bird', { flight = null } = {}) {
+  const { shoulder, fold: folding } = WINGS[kind];
+  const e = new THREE.Matrix4().makeRotationZ(folding.rotation[2]).multiply(new THREE.Matrix4().makeRotationX(folding.rotation[0])).elements;
   const fold = `mat3( ${[e[0], e[1], e[2], e[4], e[5], e[6], e[8], e[9], e[10]].map(v => v.toFixed(6)).join(', ')} )`;
-  const [sx, sy, sz] = BIRD.shoulder;
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
-  material.name = 'critter birds';
+  const [sx, sy, sz] = shoulder;
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: kind === 'dragonfly' ? 0.6 : 0.85, metalness: 0, side: THREE.DoubleSide });
+  material.name = kind === 'bird' ? 'critter birds' : `critter ${kind}`;
+  if (flight) material.userData.flight = flight;
+  const beat = flight ? 'uniform vec2 uFlight; // x: the angle of the wings (down positive), y: 0 at rest, 1 in flight\n#define aFlight uFlight'
+    : 'attribute vec2 aFlight; // x: the angle of the wings (down positive), y: 0 at rest, 1 in flight';
   material.onBeforeCompile = shader => {
     const anchors = ['#include <common>', '#include <beginnormal_vertex>', '#include <begin_vertex>'];
     if (!anchors.every(anchor => shader.vertexShader.includes(anchor))) {
       console.warn('[critters] three\'s standard shader has changed: the birds will not fold or flap their wings');
       return;
     }
+    if (flight) shader.uniforms.uFlight = flight;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute float aWing; // 0 for the body, +1 for the right wing, -1 for the left
-attribute vec2 aFlight; // x: the angle of the wings (down positive), y: 0 at rest, 1 in flight
+${beat}
 const mat3 BIRD_FOLD = ${fold};
 const vec3 BIRD_SHOULDER = vec3( ${sx.toFixed(4)}, ${sy.toFixed(4)}, ${sz.toFixed(4)} );`)
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
@@ -115,15 +136,203 @@ const vec3 BIRD_SHOULDER = vec3( ${sx.toFixed(4)}, ${sy.toFixed(4)}, ${sz.toFixe
     vec3 rel = position - pivot;
     rel.z *= birdSide;
     vec3 flown = vec3( rel.x, rel.y * birdCos - rel.z * birdSin, rel.y * birdSin + rel.z * birdCos );
-    vec3 folded = BIRD_FOLD * rel + vec3( ${BIRD.fold.offset.map(v => v.toFixed(4)).join(', ')} );
+    vec3 folded = BIRD_FOLD * rel + vec3( ${folding.offset.map(v => v.toFixed(4)).join(', ')} );
     vec3 w = mix( folded, flown, aFlight.y );
     w.z *= birdSide;
     transformed = pivot + w;
   }`);
   };
-  material.customProgramCacheKey = () => 'critter-birds';
+  material.customProgramCacheKey = () => (kind === 'bird' ? 'critter-birds' : `critter-wings-${kind}`);
   return material;
 }
+
+// ---- the Fen's animals: how each lives, and how a tap makes it react ----------------------------------------------------------
+// Each lives a little by itself (its idle), as a pure function of the game time, and a tap makes it react, a pure function of
+// the seconds since the tap laid over its idle, so it starts and ends where its idle has it and never pops. They move their mesh
+// in their own frame (x the way they face, z to their right; `root` stays where they were put).
+const easeOut = k => 1 - (1 - clamp01(k)) ** 2;
+const setMorph = (mesh, name, value) => { mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]] = value; };
+const flap = (c, angle, open) => c.flight?.value.set(angle, open);
+/** The early bird's flight: a loop out to its right and back, landing from behind as it took off, `s` from 0 to 1. */
+const LOOP = { forward: 1.0, right: 0.8, high: 2.1 };
+function loopAt(s, out) {
+  const a = Math.PI * 2 * s;
+  return out.set(LOOP.forward * Math.sin(a), LOOP.high * Math.sin(Math.PI * s) ** 0.7, LOOP.right * (1 - Math.cos(a)));
+}
+const loopA = new THREE.Vector3();
+const loopB = new THREE.Vector3();
+
+const FEN_LIFE = {
+  dragonfly: {
+    // it hangs in the air, drifting a little, its wings a blur; a tap sends it darting off and it comes back
+    idle(c, t) {
+      const p = c.phase;
+      c.mesh.position.set(0.07 * Math.sin(t * 0.83 + p), 0.035 * Math.sin(t * 1.9 + 2 * p), 0.06 * Math.sin(t * 0.61 + 3 * p));
+      c.mesh.rotation.set(0, 0.35 * Math.sin(t * 0.47 + p), 0);
+      setMorph(c.mesh, 'hover', 1);
+      flap(c, 0.12 + 0.6 * Math.sin(TAU * 11 * t + p), 1);
+    },
+    seconds: 2.0,
+    react(c, tau, t) {
+      FEN_LIFE.dragonfly.idle(c, t);
+      const k = tau < 0.28 ? easeOut(tau / 0.28) : tau < 1.45 ? 1 : 1 - smooth((tau - 1.45) / 0.5);
+      c.mesh.position.addScaledVector(c.dart, k);
+      c.mesh.rotation.y += 0.6 * Math.sin(Math.PI * clamp01(tau / 1.9));
+    },
+  },
+  waterBeetle: {
+    // it swims round and round at the top of the water, rowing; a tap: a quick circle more, dipping under, and up again
+    idle(c, t, extra = 0, dip = 0) {
+      const a = (TAU / 6.5) * t + c.phase + extra;
+      c.mesh.position.set(0.085 * Math.cos(a), -0.012 - dip, 0.085 * Math.sin(a));
+      c.mesh.rotation.set(0, -(a + Math.PI / 2), 0);
+      setMorph(c.mesh, 'paddle', 0.5 + 0.5 * Math.sin(TAU * (dip > 0 ? 4 : 2.2) * t));
+    },
+    seconds: 1.3,
+    react(c, tau, t) {
+      const u = clamp01(tau / 1.3);
+      FEN_LIFE.waterBeetle.idle(c, t, TAU * smooth(u), 0.012 * Math.sin(Math.PI * u));
+      if (tau >= 0.6 && !c.reaction.rang) { c.reaction.rang = true; c.ripple(0.25); }
+    },
+    start(c) { c.ripple(0.4); },
+  },
+  salamander: {
+    // it breathes, turns its head and curls its tail; a tap: it crawls two lengths of itself away, turns round, comes back
+    idle(c, t, rest = 1) {
+      setMorph(c.mesh, 'curl', rest * 0.45 * (0.5 + 0.5 * Math.sin((TAU * t) / 7 + c.phase)));
+      setMorph(c.mesh, 'walkA', 0);
+      setMorph(c.mesh, 'walkB', 0);
+      c.mesh.scale.set(1, 1 + 0.035 * Math.sin(TAU * 0.8 * t), 1);
+    },
+    seconds: 4.4,
+    react(c, tau, t) {
+      const away = 0.48; // two lengths of its body
+      const rest = 1 - smooth(tau / 0.3) * smooth((4.4 - tau) / 0.3);
+      FEN_LIFE.salamander.idle(c, t, rest);
+      let x, turn, walking;
+      if (tau < 1.6) { x = away * smooth(tau / 1.6); turn = 0; walking = 1; }
+      else if (tau < 2.2) { x = away; turn = Math.PI * smooth((tau - 1.6) / 0.6); walking = 0.5; }
+      else if (tau < 3.8) { x = away * (1 - smooth((tau - 2.2) / 1.6)); turn = Math.PI; walking = 1; }
+      else { x = 0; turn = Math.PI + Math.PI * smooth((tau - 3.8) / 0.6); walking = 0.5; }
+      const step = Math.sin(TAU * 3 * tau);
+      setMorph(c.mesh, 'walkA', walking * Math.max(0, step));
+      setMorph(c.mesh, 'walkB', walking * Math.max(0, -step));
+      c.mesh.position.set(x, 0, 0);
+      c.mesh.rotation.set(0, -turn, 0);
+      c.followGround = true;
+    },
+  },
+  turtle: {
+    // it looks about, slowly; a tap: it draws its head and legs into its shell, waits, and puts them out again
+    idle(c, t, hidden = 0) {
+      const look = Math.max(0, Math.sin((TAU * t) / 9 + c.phase)) ** 2;
+      setMorph(c.mesh, 'look', look * (1 - hidden));
+      setMorph(c.mesh, 'hide', hidden);
+      c.mesh.scale.set(1, 1 + 0.012 * Math.sin((TAU * t) / 3.2), 1);
+    },
+    seconds: 2.6,
+    react(c, tau, t) {
+      const hide = tau < 0.3 ? smooth(tau / 0.3) : tau < 1.7 ? 1 : 1 - smooth((tau - 1.7) / 0.9);
+      FEN_LIFE.turtle.idle(c, t, hide);
+    },
+  },
+  earlyBird: {
+    // it sits, looking about, its wings folded; a tap: it flies up, round to its right and back, and lands where it sat
+    idle(c, t) {
+      setMorph(c.mesh, 'look', 0.5 + 0.5 * Math.sin((TAU * t) / 5.5 + c.phase));
+      c.mesh.position.set(0, 0.004 * Math.sin(TAU * 0.9 * t), 0);
+      c.mesh.rotation.set(0, 0, 0);
+      flap(c, 0, 0);
+    },
+    seconds: 4.6,
+    react(c, tau, t) {
+      FEN_LIFE.earlyBird.idle(c, t);
+      const open = smooth(tau / 0.25) * (1 - smooth((tau - 4.3) / 0.3));
+      const s = smooth((tau - 0.25) / 4.05);
+      loopAt(s, loopA);
+      loopAt(Math.min(1, s + 0.01), loopB);
+      const flying = tau > 0.25 && tau < 4.3;
+      if (flying) {
+        c.mesh.position.copy(loopA);
+        const dx = loopB.x - loopA.x, dz = loopB.z - loopA.z, dy = loopB.y - loopA.y;
+        if (Math.hypot(dx, dz) > 1e-5) c.mesh.rotation.set(0, -Math.atan2(dz, dx), Math.atan2(dy, Math.hypot(dx, dz)) * 0.6, 'YXZ');
+      } else c.mesh.position.y -= 0.02 * Math.sin(Math.PI * clamp01(tau / 0.25)); // a crouch to spring up
+      // beating up and round, gliding down the far side, beating again to land
+      const beat = s < 0.55 || s > 0.88 ? 0.15 + 0.95 * Math.sin(TAU * 5 * tau + c.phase) : 0.1 + 0.08 * Math.sin(TAU * 1.5 * tau);
+      flap(c, beat * open, open);
+    },
+  },
+  fish: {
+    // it swims round under the water, and now and then rings the surface over it; a tap: it jumps out once and splashes back
+    idle(c, t) {
+      const a = (TAU / 9) * t + c.phase;
+      c.mesh.position.set(0.22 * Math.cos(a), -0.15, 0.22 * Math.sin(a));
+      c.mesh.rotation.set(0, -(a + Math.PI / 2), 0, 'YXZ');
+      setMorph(c.mesh, 'flex', 0.5 + 0.5 * Math.sin(TAU * 1.6 * t));
+      const tick = Math.floor((t + c.phase * 3) / 10.5);
+      if (tick !== c.lastTick) {
+        if (c.lastTick !== undefined) c.ripple(0.25);
+        c.lastTick = tick;
+      }
+    },
+    seconds: 1.6,
+    react(c, tau, t) {
+      const r = c.reaction;
+      if (!r.from) {
+        FEN_LIFE.fish.idle(c, r.start);
+        r.from = c.mesh.position.clone();
+        r.yaw = c.mesh.rotation.y;
+      }
+      const ax = Math.cos(-r.yaw), az = Math.sin(-r.yaw);
+      let x = r.from.x, y = r.from.y, z = r.from.z, pitch = 0;
+      if (tau < 0.25) { y = THREE.MathUtils.lerp(r.from.y, 0, smooth(tau / 0.25)); pitch = 0.9 * smooth(tau / 0.25); }
+      else if (tau < 0.95) {
+        const u = (tau - 0.25) / 0.7;
+        x += ax * 0.5 * u; z += az * 0.5 * u;
+        y = 0.42 * 4 * u * (1 - u);
+        pitch = THREE.MathUtils.lerp(0.9, -1.1, u);
+      } else {
+        const u = smooth((tau - 0.95) / 0.65);
+        x += ax * 0.5; z += az * 0.5;
+        y = THREE.MathUtils.lerp(0, r.from.y, u);
+        pitch = -1.1 * (1 - u);
+      }
+      c.mesh.position.set(x, y, z);
+      c.mesh.rotation.set(0, r.yaw, pitch, 'YXZ');
+      setMorph(c.mesh, 'flex', 0.5 + 0.5 * Math.sin(TAU * 4 * tau));
+      if (tau >= 0.25 && !r.out) { r.out = true; c.ripple(0.8); }
+      if (tau >= 0.95 && !r.in) { r.in = true; c.ripple(1.3); }
+      if (tau > 1.25) {
+        // back into its circle under the water, where its idle is now
+        const at = c.mesh.position.clone();
+        FEN_LIFE.fish.idle(c, t);
+        c.mesh.position.lerp(at, 1 - smooth((tau - 1.25) / 0.35));
+      }
+    },
+  },
+  waterStrider: {
+    // it skates in little pushes, now here, now there, on the water; a tap: it shoots off across the water and back
+    idle(c, t) {
+      const beat = 1.3;
+      const k = Math.floor((t + c.phase) / beat);
+      const into = (t + c.phase) / beat - k;
+      const spot = n => [0.1 * Math.sin(n * 2.3 + c.phase), 0.1 * Math.sin(n * 1.7 + 2 * c.phase)];
+      const [ax, az] = spot(k - 1), [bx, bz] = spot(k);
+      const glide = easeOut(into / 0.45);
+      c.mesh.position.set(ax + (bx - ax) * glide, 0, az + (bz - az) * glide);
+      c.mesh.rotation.set(0, -Math.atan2(bz - az, bx - ax), 0);
+      setMorph(c.mesh, 'row', Math.sin(Math.PI * clamp01(into / 0.3)));
+    },
+    seconds: 1.4,
+    react(c, tau, t) {
+      FEN_LIFE.waterStrider.idle(c, t);
+      const k = tau < 0.3 ? easeOut(tau / 0.3) : tau < 0.65 ? 1 : 1 - smooth((tau - 0.65) / 0.75);
+      c.mesh.position.x += 0.4 * k;
+      setMorph(c.mesh, 'row', Math.max(c.mesh.morphTargetInfluences[c.mesh.morphTargetDictionary.row], tau < 0.3 || (tau > 0.65 && tau < 0.95) ? 1 : 0));
+    },
+    start(c) { c.ripple(0.3); },
+  },
+};
 
 /**
  * Critters standing at their spots in world.scene and, if the world has effects, on them. Returns
@@ -136,14 +345,15 @@ const vec3 BIRD_SHOULDER = vec3( ${sx.toFixed(4)}, ${sy.toFixed(4)}, ${sz.toFixe
  *   update(dt, t)     pose everything for game time t (the registered effect does this every frame)
  *   dispose()
  */
-export function createCritters(world, { spots = [], birds = [], onReact } = {}) {
-  validate(world, { spots, birds, onReact });
+export function createCritters(world, { spots = [], birds = [], onReact, ripple } = {}) {
+  validate(world, { spots, birds, onReact, ripple });
 
   const group = new THREE.Group();
   group.name = 'Critters';
   const groundMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 });
   groundMaterial.name = 'critters';
   const geometries = [];
+  const materials = []; // the winged spots' own
   let disposed = false;
   let lastTime = 0; // the last time update() was given, for a world with no clock
 
@@ -157,6 +367,19 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     }
   }
   const heightAt = (x, z) => world.heightAt?.(x, z) ?? 0;
+  const ringAt = new THREE.Vector3();
+  // a ring where a Fen animal touches the water: under (or over) its middle, on the water its spot stands on
+  function rings(c, strength) {
+    if (!ripple) return;
+    c.root.updateWorldMatrix(true, true);
+    c.mesh.getWorldPosition(ringAt);
+    ringAt.y = c.root.position.y;
+    try {
+      ripple(ringAt.clone(), strength);
+    } catch (error) {
+      console.error(`[critters] ripple failed for ${c.name}:`, error);
+    }
+  }
   function resolve(spec, out) {
     if (world.resolvePoint) return world.resolvePoint(spec, out);
     if (spec?.isVector3) return out.copy(spec);
@@ -169,7 +392,10 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
   const list = spots.map(spot => {
     const model = createModel(spot.kind);
     geometries.push(model.geometry);
-    const mesh = new THREE.Mesh(model.geometry, groundMaterial);
+    const flight = WINGED.includes(spot.kind) ? { value: new THREE.Vector2(0, 0) } : null;
+    const material = flight ? birdMaterial(spot.kind, { flight }) : groundMaterial;
+    if (flight) materials.push(material);
+    const mesh = new THREE.Mesh(model.geometry, material);
     mesh.name = spot.kind;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -182,6 +408,13 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     root.add(mesh);
     group.add(root);
     const c = { name: spot.name, kind: spot.kind, root, mesh, model, heading, leg: 0, reaction: null, point: new THREE.Vector3(), tap: new THREE.Vector3(...model.tap) };
+    c.life = FEN_LIFE[spot.kind] ?? null;
+    if (c.life) {
+      c.phase = seededRandom(`${spot.name} life`)() * TAU; // no two of a kind live in step, and a name always lives the same way
+      c.flight = flight;
+      c.dart = new THREE.Vector3(0.5 * Math.cos(c.phase), 0.22, 0.5 * Math.sin(c.phase));
+      c.ripple = strength => rings(c, strength);
+    }
     if (spot.kind === 'frog') {
       // its home and the spot it hops to: along its heading, the ground at the new spot as it is
       c.home = root.position.clone();
@@ -191,17 +424,31 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     return c;
   });
 
-  /** The way the critter is when it has no reaction going. */
+  /** The way the critter is when it has no reaction going (a Fen animal: its idle, as it is now). */
   function rest(c) {
     c.mesh.scale.set(1, 1, 1);
     c.mesh.rotation.set(0, 0, 0);
-    c.mesh.position.y = c.model.pivot;
+    c.mesh.position.set(0, c.model.pivot, 0);
     for (let i = 0; i < c.mesh.morphTargetInfluences.length; i++) c.mesh.morphTargetInfluences[i] = 0;
+    if (c.life) {
+      c.life.idle(c, now());
+      ground(c);
+    }
     if (c.kind === 'frog') {
       c.root.position.copy(c.leg % 2 === 0 ? c.home : c.far);
       c.root.rotation.y = -rad(c.leg === 0 ? c.heading : c.heading + 180 * (c.leg - 1));
     }
     settle(c);
+  }
+
+  /** A crawler on the ground stands on it wherever it has got to in its own frame. */
+  function ground(c) {
+    if (c.kind !== 'salamander') return;
+    c.root.updateWorldMatrix(true, true);
+    c.mesh.position.y = 0;
+    c.mesh.updateWorldMatrix(false, false);
+    c.mesh.getWorldPosition(ringAt);
+    c.mesh.position.y = heightAt(ringAt.x, ringAt.z) - c.root.position.y;
   }
 
   /** The tap target follows the middle of the critter, as it stands. */
@@ -214,6 +461,7 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     frog: c => (c.leg === 0 ? 0 : HOP.turn) + HOP.crouch + HOP.air + HOP.land,
     snail: () => HIDE.in + HIDE.hold + HIDE.out,
     beetle: () => ROLL.over + ROLL.lie + ROLL.back + ROLL.settle,
+    ...Object.fromEntries(Object.entries(FEN_LIFE).map(([kind, life]) => [kind, () => life.seconds])),
   };
 
   // Each pose is a pure function of the seconds since the tap.
@@ -279,10 +527,18 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
   }
 
   function stepSpot(c, time) {
-    if (!c.reaction) return;
+    if (!c.reaction) {
+      if (!c.life) return;
+      c.life.idle(c, time);
+      ground(c);
+      settle(c);
+      return;
+    }
     const tau = time - c.reaction.start;
     if (tau >= durations[c.kind](c)) { finish(c); return; }
-    poses[c.kind](c, Math.max(0, tau));
+    if (c.life) c.life.react(c, Math.max(0, tau), time);
+    else poses[c.kind](c, Math.max(0, tau));
+    ground(c);
     settle(c);
   }
 
@@ -424,6 +680,7 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     if (c.reaction) return c.reaction.handle; // one reaction a tap: a tap while it goes on is part of it
     const handle = new Handle(`${name} reacts`, () => finish(c));
     c.reaction = { start: now(), handle };
+    c.life?.start?.(c);
     announce(name, c.kind);
     return handle;
   }
@@ -454,6 +711,7 @@ export function createCritters(world, { spots = [], birds = [], onReact } = {}) 
     group.removeFromParent();
     for (const geometry of geometries) geometry.dispose();
     groundMaterial.dispose();
+    for (const material of materials) material.dispose();
     birdMat?.dispose();
     birdMesh?.dispose();
   }
