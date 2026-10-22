@@ -116,8 +116,12 @@ const levelsOf = new WeakMap();
 
 // For each bone of a skin, how far from it the farthest vertex it moves lies (in the bone's own frame, so
 // in metres of the model's bind pose), by source geometry: actors of the same model share it, and their
-// skeletons have the same bind. A vertex several bones move is in each of their spheres as each would
-// put it, so it is inside their union however the weights blend.
+// skeletons have the same bind. A vertex one bone moves lies in that bone's sphere however it turns. A
+// vertex several bones move lies where its weights blend the places each would put it, each in its own
+// sphere: in their convex hull, which near a bent joint can reach a little outside the union of the
+// spheres. The spheres are grown (BONE_REACH, BONE_MARGIN) to cover that in practice: sweeping the
+// camera past the real Mosi, standing and in a swung pose, never hid him while any vertex was in the frame
+// (lod.test). This assumes three's attached bind mode (the GLTFLoader's) and no morph targets on the skin.
 const reachesOf = new WeakMap();
 function boneReaches(mesh) {
   if (reachesOf.has(mesh.geometry)) return reachesOf.get(mesh.geometry);

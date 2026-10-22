@@ -68,6 +68,8 @@ const SWING = { from: 0.65, to: 1, most: 0.5 };
 // Her life: a nod or a bite every 7 to 12 s, the first 2.5 s after she is seen; the nod (kink) is 2.8 s, its lowest 0.95 s in,
 // where her mouth closes on the twigs.
 const LIFE = { first: 2.5, gap: [7, 12], nod: 2.8, bite: 0.95, chew: 1.4 };
+// Her chew as she bites is as loud as near her head the camera is: whole within 8 m of it, gone 25 m off (a wide shot of the Fen).
+const CHEW_HEARD = [8, 25];
 const LEAVES = { count: 6, rest: 2.5, shrink: 0.6, colours: [FEN.canopyMid, FEN.canopySun, FEN.hangingMoss] };
 const TAIL_BONES = ['Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6', 'Tail7']; // the ones her tail swishes with (tailSwish)
 // For the slide she bends her neck down again, liftUp backwards to 5.3 s, so it slopes from her head to her withers like a slide.
@@ -80,6 +82,7 @@ const EGILL_EYES = { actor: 'egill', part: 'head', offset: [0.07, 0.03, 0], loca
 const HER_HEAD = { actor: 'thorsedla', part: 'head' };
 const UP = new THREE.Vector3(0, 1, 0);
 const smooth = t => t * t * (3 - 2 * t);
+const smoothstep01 = t => smooth(Math.max(0, Math.min(1, t)));
 
 /**
  * Þórseðla alive, from when the Fen is reached: she breathes and her tail sways (idle); every 7 to 12 s she nods or bites the
@@ -125,7 +128,8 @@ function* living(s, c) {
       if (life.held) continue;
       leafFall(c, mouthOf(her));
       her.talk({ text: 'namm namm namm', duration: LIFE.chew });
-      s.sfx('chew');
+      const heard = 1 - smoothstep01((her.headPosition(new THREE.Vector3()).distanceTo(c.world.camera.position) - CHEW_HEARD[0]) / (CHEW_HEARD[1] - CHEW_HEARD[0]));
+      if (heard > 0.02) s.sfx('chew', { level: heard });
       yield s.wait(LIFE.nod - LIFE.bite);
     } else {
       yield s.wait(LIFE.nod);

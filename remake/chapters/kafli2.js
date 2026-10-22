@@ -395,7 +395,7 @@ function* theFen(s, c) {
   s.target('thorsedla', { point: HER_MIDDLE, radius: 2.6 });
   const arriving = mosi.walkTo(FEN_ARRIVAL, { speed: 1.45 });
   const reveal = s.camera.move('fen_reveal_end', { duration: REVEAL_SECONDS });
-  s.after(3.2, () => c.fenCritters.critters.react('fen-bird'));
+  s.after(3.2, () => { s.sfx('earlyBird'); return c.fenCritters.critters.react('fen-bird'); }); // it calls as it flies up
   yield s.all(reveal, arriving);
   yield mosi.turnTo(MOSI_FEN.heading, { rate: 30 });
   yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });

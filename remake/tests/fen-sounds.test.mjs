@@ -119,6 +119,17 @@ test('a berry\'s pop steps up the key with the count, and a wrong print\'s splas
   assert.ok(peak <= 0.2, `a splash peaks at ${peak.toFixed(3)}`);
 });
 
+test('her chew is as loud as she is near: detail.level scales it, and none is nothing', () => {
+  const peak = level => {
+    const { context, sfx } = setup();
+    sfx.play('chew', level === undefined ? undefined : { level });
+    return Math.max(0, ...context.started.map(s => peakThrough(s, context.destination)));
+  };
+  assert.ok(peak() > 0.08, 'whole by default');
+  assert.ok(Math.abs(peak(0.5) - peak() / 2) < 1e-9, 'half as loud at half');
+  assert.equal(peak(0), 0, 'and silent at 0');
+});
+
 test('the lift\'s tone rises for as long as the lift does, and ends higher than it starts', () => {
   for (const seconds of [8, 6.5]) {
     const { context, sfx } = setup();
@@ -181,6 +192,18 @@ test('the Fen\'s bed takes over from the forest\'s wind: one quiet loop of water
   const after = context.started.length;
   for (let i = 0; i < 200; i++) sfx.update(0.25);
   assert.equal(context.started.length, after, 'and nothing more is scheduled');
+});
+
+test('a bed let go halfway through its fade-in fades from where it is, also where the browser cannot hold a ramp (Firefox)', () => {
+  const { context, sfx } = setup();
+  sfx.play('fen');
+  const fade = context.of('gain').find(g => g.gain.events.some(e => e.type === 'linear' && e.value === 1));
+  context.advance(1.25); // halfway in
+  const level = fade.gain.valueAt(context.currentTime);
+  assert.ok(level > 0.45 && level < 0.55, `halfway in: ${level.toFixed(2)}`);
+  sfx.play('forest');
+  assert.ok(Math.abs(fade.gain.valueAt(context.currentTime + 1e-4) - level) < 0.01, `it goes out from ${level.toFixed(2)}, not from 0`);
+  assert.ok(fade.gain.valueAt(context.currentTime + 3) < level * 0.05, 'and is gone in about three seconds');
 });
 
 test('a Fen asked for before sound wakes is laid as soon as it does, and replaces a forest that was waiting too', () => {

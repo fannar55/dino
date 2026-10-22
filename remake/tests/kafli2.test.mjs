@@ -770,6 +770,12 @@ test('the sounds come where the script has them: the Fen\'s water, the count, th
   const [sniff] = named('sniff', 4), [breath] = named('breathHuge', 4);
   assert.ok(sniff && breath && sniff.at < breath.at && breath.at - sniff.at < 6, 'a sniff, then her breath');
   assert.ok(named('chew', 4).some(e => e.at > breath.at && e.at < sceneStart(world, 5)), 'and the chew of the berries');
+  // her bites chew as loud as near her head the camera is: soft in the reveal's wide view, whole up close, never from 25 m off
+  const bites = named('chew').filter(e => e.detail?.level !== undefined);
+  assert.ok(bites.length >= 3 && bites.every(e => e.detail.level > 0.02 && e.detail.level <= 1), `${bites.length} bites chewed`);
+  assert.ok(bites.some(e => e.scene === 3 && e.detail.level < 0.5), 'a far one in the reveal, softly');
+  // the early bird calls as it flies up out of the reed in the reveal
+  assert.equal(named('earlyBird', 3).length, 1, 'the early bird calls');
   // the lift: its tone as long as the rise, the wind at the top, a mark on the map for each friend found
   const [lift] = named('liftTone', 6), [wind] = named('windHigh', 6);
   assert.ok(lift && lift.detail.seconds > 5 && lift.detail.seconds <= 8.01, `the lift's tone for ${lift?.detail?.seconds?.toFixed(2)} s`);

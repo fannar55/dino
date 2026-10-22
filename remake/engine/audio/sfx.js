@@ -202,7 +202,11 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     const now = context.currentTime;
     // from where it is now, also halfway through its own fade in (cancelScheduledValues alone would drop it to the start of that)
     if (old.fade.gain.cancelAndHoldAtTime) old.fade.gain.cancelAndHoldAtTime(now);
-    else old.fade.gain.cancelScheduledValues(now);
+    else {
+      const level = old.fade.gain.value; // where it is now, read before the cancel
+      old.fade.gain.cancelScheduledValues(now);
+      old.fade.gain.setValueAtTime(level, now);
+    }
     old.fade.gain.setTargetAtTime(0, now, tau);
     const [first, ...rest] = old.sources;
     for (const source of old.sources) source.stop(now + tau * 6);

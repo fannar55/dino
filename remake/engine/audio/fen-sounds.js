@@ -35,7 +35,6 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
   const scale = n => key[((n % 5) + 5) % 5] * 2 ** Math.floor(n / 5);
   /** A count from 1 to `most` (anything else is 1). */
   const count = (index, most) => Math.max(1, Math.min(most, Math.round(Number(index)) || 1));
-  const pick = list => list[Math.floor(between(0, list.length - 1e-9))];
 
   /** A drop of water: a tiny plink gliding up an octave, from one note of the key to the same an octave higher. */
   const droplet = (hz, delay, level, pan) => {
@@ -89,13 +88,16 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
       noise({ kind: 'warm', type: 'bandpass', frequency: 900, end: 380, q: 0.7, duration: 1.9, level: 0.035, attack: 0.5, delay: 0.1 });
       tone({ frequency: key[0] / 4, duration: 1.9, level: 0.025, type: 'triangle', attack: 0.6, body: 0.6, sustain: 0.8 });
     },
-    // She chews leaves or berries: four soft munches, a muffled crunch and a low thump of her jaw in each.
-    chew() {
+    // She chews leaves or berries: four soft munches, a muffled crunch and a low thump of her jaw in each. detail.level (0 to 1,
+    // 1 by default) is how near she is: her bites far off in a wide shot are quieter.
+    chew({ level = 1 } = {}) {
+      const k = Math.max(0, Math.min(1, Number(level)));
+      if (!(k > 0)) return;
       for (let i = 0; i < 4; i++) {
         const at = i * 0.3 + between(0, 0.04);
-        noise({ kind: 'warm', type: 'lowpass', frequency: 1100, end: 380, duration: 0.1, level: 0.09, attack: 0.006, delay: at });
-        noise({ kind: 'white', type: 'bandpass', frequency: 2600, q: 2, duration: 0.03, level: 0.022, attack: 0.002, delay: at + 0.01 });
-        tone({ frequency: key[0] / 4, end: key[0] / 8, duration: 0.08, level: 0.05, type: 'triangle', attack: 0.004, body: 0, delay: at });
+        noise({ kind: 'warm', type: 'lowpass', frequency: 1100, end: 380, duration: 0.1, level: 0.09 * k, attack: 0.006, delay: at });
+        noise({ kind: 'white', type: 'bandpass', frequency: 2600, q: 2, duration: 0.03, level: 0.022 * k, attack: 0.002, delay: at + 0.01 });
+        tone({ frequency: key[0] / 4, end: key[0] / 8, duration: 0.08, level: 0.05 * k, type: 'triangle', attack: 0.004, body: 0, delay: at });
       }
     },
     // The lift (detail.seconds, the length of her liftUp from where it starts, 8 s by default): a soft note rising two octaves from
