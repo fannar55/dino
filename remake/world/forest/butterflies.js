@@ -49,7 +49,7 @@ uniform vec3 uFlyCentre[${MAX}];
 uniform vec3 uFlyLoop[${MAX}];
 uniform vec4 uFlyHold[${MAX}]; // a butterfly the code holds: xyz where it is, w the angle of its wings
 uniform vec2 uFlyFace[${MAX}]; // x which way it faces (radians), y 1 while the code holds it and 0 while the loop above flies it
-varying float vFlyNear; // 0 at 1 m from the lens or nearer, 1 from 2.5 m on
+varying float vFlyNear; // its alpha: 0 at 1.2 m from the lens or nearer, 1 from 3 m on (and from the wing roots out, between)
 ${FLY_PATH_GLSL}`;
 
 const VERTEX_BODY = `#include <begin_vertex>
@@ -72,9 +72,12 @@ const VERTEX_BODY = `#include <begin_vertex>
   lp *= 1.6;
   float cy = cos( yaw ), sy = sin( yaw );
   transformed = flyP + vec3( lp.x * cy - lp.z * sy, lp.y, lp.x * sy + lp.z * cy );
-  // a butterfly that flies up to the lens wears away from its edges inward, as the hanging moss does (moss.js), instead of
-  // filling the frame as a flat pale card: gone by 1 m, whole from 2.5 m, so further off it is as it always was
-  vFlyNear = smoothstep( 1.0, 2.5, -( modelViewMatrix * vec4( transformed, 1.0 ) ).z );`;
+  // a butterfly that flies up to the lens wears away from the tips of its wings in to their roots, as the hanging moss wears
+  // from its edges (moss.js), instead of filling the frame as a flat pale card: whole from 3 m (alpha 1 everywhere, so further off
+  // it is as it always was), its wing tips going first, gone by 1.2 m
+  float flyNear = smoothstep( 1.2, 3.0, -( modelViewMatrix * vec4( transformed, 1.0 ) ).z );
+  float flyEdge = clamp( length( position.xz ) / 0.11, 0.0, 1.0 ); // 0 at a wing's root, 1 at its tip
+  vFlyNear = clamp( 2.0 * flyNear - 0.8 * flyEdge, 0.0, 1.0 );`;
 // The fragment side of the near fade: before the alpha test, so that alpha to coverage dithers it away where there is multisampling.
 const FRAGMENT_HEAD = `#include <common>
 varying float vFlyNear;`;

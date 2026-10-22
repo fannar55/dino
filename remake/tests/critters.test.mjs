@@ -176,12 +176,20 @@ test('with nothing tapped the shader flies every butterfly, as it did before the
   }
 });
 
-test('a butterfly close to the lens wears away from its edges, as the moss does, and further off is as it was', () => {
+test('a butterfly close to the lens wears away from its wing tips in, as the moss does from its edges, and further off is as it was', () => {
   for (const q of [PRESETS.tablet, PRESETS.low]) {
     const { mesh, shader } = butterflyStage({ q });
     assert.equal(mesh.material.alphaTest, 0.5, 'alpha-tested, so it needs no sorting');
     assert.equal(mesh.material.alphaToCoverage, Boolean(q.antialias), 'and dithered by the multisampling where there is any');
-    assert.match(shader.vertexShader, /vFlyNear = smoothstep\( 1\.0, 2\.5, -\( modelViewMatrix \* vec4\( transformed, 1\.0 \) \)\.z \);/, 'gone by 1 m, whole from 2.5 m');
+    assert.match(shader.vertexShader, /float flyNear = smoothstep\( 1\.2, 3\.0, -\( modelViewMatrix \* vec4\( transformed, 1\.0 \) \)\.z \);/, 'gone by 1.2 m, whole from 3 m');
+    assert.match(shader.vertexShader, /vFlyNear = clamp\( 2\.0 \* flyNear - 0\.8 \* flyEdge, 0\.0, 1\.0 \);/, 'the tips first');
+    // the same sum: from 3 m on every part of a wing is whole (alpha 1, so neither the alpha test nor the coverage touches it); at
+    // 2 m the tips are gone and the roots stay; by 1.2 m all of it
+    const near = depth => { const t = Math.min(1, Math.max(0, (depth - 1.2) / 1.8)); return t * t * (3 - 2 * t); };
+    const alpha = (depth, edge) => Math.min(1, Math.max(0, 2 * near(depth) - 0.8 * edge));
+    for (const edge of [0, 0.5, 1]) assert.equal(alpha(3, edge), 1);
+    assert.ok(alpha(2, 1) < 0.5 && alpha(2, 0) >= 0.5, 'at 2 m the tips go, the roots stay');
+    assert.equal(alpha(1.2, 0), 0);
     assert.match(shader.fragmentShader, /#include <color_fragment>\s*diffuseColor\.a \*= vFlyNear;/, 'before the alpha test');
   }
 });
