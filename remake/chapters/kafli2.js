@@ -281,12 +281,14 @@ function* theInvitation(s, c) {
 function* theLookout(s, c) {
   mark(c, 6);
   yield* liftUp(s, c);
-  // (The fifth task: the three friends, found from up here.) For now he looks about from the top: down past her head at Mosi,
-  // small on his hummock.
-  yield c.egill.lookAt(MOSI_HEAD, { weight: 0.9, maxAngle: 50, maxPitch: 45 });
+  // (The fifth task: the three friends, found from up here.) For now he looks down a while at Mosi, small below, who comes round to
+  // the bank beside her withers, to catch him at the end of the slide; the camera looks down past him (LOOK_DOWN at most).
+  yield c.egill.lookAt(MOSI_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 50 });
   s.camera.follow('egill', { ...LIFT_CAMERA, look: downToMosi(c), fov: 50 });
+  c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES.at[0] + 1.5, MOSI_CATCHES.at[1]], MOSI_CATCHES.at], { speed: 0.9 });
   yield s.wait(6);
   yield c.egill.lookAt(null);
+  s.camera.follow('egill', LIFT_CAMERA);
 }
 
 // 7. The slide down her neck into the saddle.
@@ -310,7 +312,7 @@ const MOSI_CATCHES = { at: [4.6, -4.2], heading: 180 };
 // on the bed of her pool, so lowerHead is held where her eyes get there (3.5 s in) and does not play to its end (0.95 m above her
 // feet: holdAtEyes).
 const EYES_UP = 1.0;
-const HOLD_SETTLE = 1.2; // seconds her look at him has to settle, the clip moved on or back meanwhile to keep her eyes at his
+const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene goes on (holdAtEyes keeps her eyes at his after)
 // The seat on the back of her head (riding.js: createSeat), level however her head and neck turn: 0.15 m behind her Head bone,
 // his root 0.65 m above it, which keeps the lowest of him 1 to 3 cm over her skin with his legs out (neck-ride.js: legsOut) from
 // the bank to the top (kafli2.test asserts none of him inside her). His hands rest on his thighs.
@@ -319,14 +321,13 @@ const FLOAT = 2.2; // seconds he floats up onto it
 // The cameras that follow Egill (director.follow, which may rise above 7.5 m, as the lookout's must). Her face comes down over his
 // right shoulder from 2.8 m behind him, between the trunks of her two conifers (one stands at each of his sides, 1.4 and 2.3 m
 // from him), tilted up LOOK_UP degrees at most: so the camera looks out under their crowns, not up into them, her face comes down
-// into the frame, and the sun shows over Mosi's head to wink. At the top it looks down past him at Mosi, LOOK_DOWN degrees at
-// most (STYLE.md 8: 35).
+// into the frame, and the sun shows over Mosi's head to wink (STYLE.md 8: 35 degrees up or down at most).
 const HEAD_DOWN_CAMERA = { offset: [-2.8, 1.1, 0.35], local: true, fov: 46 };
 // Up with him at his left (the brief's side), 3 m further back, clear of the crown of the conifer north of her lowered head, and
 // as fast as he rises (up to 2 m/s: the camera moves with him, not past anything), so that he stays in the middle of the frame.
 const LIFT_CAMERA = { offset: [-3.0, 1.3, -3.0], local: true, look: 'head', stiffness: 2.0, fov: 40, maxSpeed: 2.4 };
 const LOOK_UP = 14;
-const LOOK_DOWN = 32;
+const LOOK_DOWN = 22;
 // Her life: a nod or a bite every 7 to 12 s, the first 2.5 s after she is seen; the nod (kink) is 2.8 s, its lowest 0.95 s in,
 // where her mouth closes on the twigs.
 const LIFE = { first: 2.5, gap: [7, 12], nod: 2.8, bite: 0.95, chew: 1.4 };
@@ -435,7 +436,11 @@ function* headDown(s, c) {
   c.phase = 'head down';
 }
 
-/** lowerHead plays until her eyes reach Egill's (EYES_UP over his ground), then holds; while her look settles it keeps them there. */
+/**
+ * lowerHead plays until her eyes reach Egill's (EYES_UP over his ground), then holds there until he floats up (c.headHold false):
+ * her look at him turns the base of her neck a little and settles slowly, so the clip is moved on or back to keep her eyes at his,
+ * except while she speaks (her talk nods her head, which it would undo).
+ */
 function* holdAtEyes(s, c, action) {
   const her = c.thorsedla.raw;
   const egill = c.egill.raw;
@@ -445,19 +450,22 @@ function* holdAtEyes(s, c, action) {
   const end = action.getClip().duration - 1e-4;
   yield s.until(() => eyes(at).y <= goal() || action.time >= end);
   action.setEffectiveTimeScale(0);
+  c.held = action.time;
+  c.headHold = true;
   // Her eyes as she is drawn, her look laid over the clip: where they are too high the clip moves on a little, too low it moves back.
-  let left = HOLD_SETTLE;
   c.world.effects.add({
     label: 'her eyes held at his',
-    update(dt) {
-      left -= dt;
-      const off = eyes(at).y - goal();
-      action.time = THREE.MathUtils.clamp(action.time + THREE.MathUtils.clamp(off * 0.25, -0.02, 0.02), 0, end);
-      return left > 0;
+    update() {
+      if (!c.headHold) return false;
+      if (!her.talking) {
+        const off = eyes(at).y - goal();
+        action.time = THREE.MathUtils.clamp(action.time + THREE.MathUtils.clamp(off * 0.25, -0.02, 0.02), 0, end);
+        c.held = action.time;
+      }
+      return true;
     },
   });
   yield s.wait(HOLD_SETTLE);
-  c.held = action.time;
 }
 
 /**
@@ -480,9 +488,12 @@ function* liftUp(s, c) {
     glitter.cancel();
   }
   c.phase = 'floating up';
+  c.headHold = false; // her head stays where it is held now
   c.life.headDown = false; // she stops looking at him: he is coming onto her head
-  yield her.lookAt(null);
+  yield her.lookAt(null, HER_LOOK); // (with the same limits, so her look fades as it was)
   yield egill.lookAt(null);
+  // The camera over his shoulder stays where it is and watches him float up onto the back of her head (it followed him standing).
+  s.camera.lookAt('egill.head', { duration: 1 });
   s.sfx('float');
   c.legs = legsOut(egill.raw);
   s.after(FLOAT - 0.75, () => { c.legs?.to(1, { duration: 0.6 }); });
@@ -512,7 +523,7 @@ function* liftUp(s, c) {
 function* slideDown(s, c) {
   const { thorsedla: her, egill, mosi } = c;
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.7, maxAngle: 40, maxPitch: 30 });
-  const coming = mosi.walkTo([[MOSI_CATCHES.at[0] + 1.5, MOSI_CATCHES.at[1]], MOSI_CATCHES.at], { speed: 0.9 });
+  const coming = c.mosiComing ?? mosi.walkTo([[MOSI_CATCHES.at[0] + 1.5, MOSI_CATCHES.at[1]], MOSI_CATCHES.at], { speed: 0.9 });
   yield s.camera.cut('fen_slide');
   yield s.all(coming, bendNeck(s, c));
   s.target('egill', { point: 'egill', radius: 0.8 });
@@ -696,7 +707,7 @@ function faceInView(c) {
   };
 }
 
-/** A point beyond Egill's head toward Mosi below, for the camera at the top to look at, never more than LOOK_DOWN degrees down. */
+/** A point between Egill's head and Mosi below, for the camera at the top to look at, never more than LOOK_DOWN degrees down. */
 function downToMosi(c) {
   const head = new THREE.Vector3();
   const mosi = new THREE.Vector3();
@@ -704,7 +715,7 @@ function downToMosi(c) {
   return out => {
     c.egill.raw.headPosition(head);
     c.mosi.raw.centre(mosi);
-    out.lerpVectors(head, mosi, 0.5);
+    out.lerpVectors(head, mosi, 0.35);
     const level = Math.hypot(out.x - camera.x, out.z - camera.z);
     out.y = Math.max(out.y, camera.y - level * Math.tan(THREE.MathUtils.degToRad(LOOK_DOWN)));
     return out;

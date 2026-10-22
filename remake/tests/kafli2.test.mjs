@@ -243,15 +243,18 @@ function playTheFen() {
           const local = head.worldToLocal(a.add(b).multiplyScalar(0.5).applyMatrix4(mesh.matrixWorld));
           eyesOf = () => head.localToWorld(local.clone());
         }
+        // Her eyes and Egill's head: how high above his ground they are and how far apart, seen from above.
+        const eyeToEye = () => {
+          const eyes = eyesOf();
+          const ground = world.heightAt(egill.root.position.x, egill.root.position.z);
+          const head = egill.headPosition(new V3());
+          return { eyes, ground, head, up: eyes.y - ground, apart: Math.hypot(eyes.x - head.x, eyes.z - head.z) };
+        };
+        if (c.phase === 'head down') seen.stillDown = eyeToEye(); // the last frame before he floats up, in the end
         if (c.phase !== phase) {
           phase = c.phase;
           seen.phases.push({ phase, at: stage.s.time });
-          if (phase === 'head down') {
-            const eyes = eyesOf();
-            const ground = world.heightAt(egill.root.position.x, egill.root.position.z);
-            const head = egill.headPosition(new V3());
-            seen.headDown = { eyes, ground, head, up: eyes.y - ground, apart: Math.hypot(eyes.x - head.x, eyes.z - head.z) };
-          }
+          if (phase === 'head down') seen.headDown = eyeToEye();
           if (phase === 'lookout') {
             c.seat.update();
             seen.top = { seat: c.seat.seat.clone(), up: c.seat.seat.y - thorsedla.root.position.y };
@@ -327,6 +330,9 @@ test('the head comes down to Egill\'s eyes and the lift keeps him level', async 
   assert.ok(down, 'her head came down');
   assert.ok(down.up >= 0.85 && down.up <= 1.15, `her eyes are ${down.up.toFixed(2)} m above Egill's ground (${down.eyes.y.toFixed(2)} m, his ground ${down.ground.toFixed(2)} m)`);
   assert.ok(down.apart <= 1.5, `her eyes are ${down.apart.toFixed(2)} m from his head, seen from above`);
+  // and there they stay, through the talk and the choice, until he floats up
+  const still = seen.stillDown;
+  assert.ok(still.up >= 0.85 && still.up <= 1.15 && still.apart <= 1.5, `as he floats up her eyes are ${still.up.toFixed(2)} m up and ${still.apart.toFixed(2)} m from his head`);
   assert.ok(seen.lifting > 30 * 5, `the lift took ${(seen.lifting / 30).toFixed(1)} s`);
   assert.ok(seen.liftTilt <= 12, `the seat tipped ${seen.liftTilt.toFixed(1)} degrees on the way up`);
   assert.ok(seen.top, 'he reached the top');
