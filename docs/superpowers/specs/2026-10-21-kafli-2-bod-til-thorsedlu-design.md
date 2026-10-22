@@ -177,7 +177,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 ## 8. Tækni
 
 - **Kaflinn** er `remake/chapters/kafli2.js` með sama sniði og kafli 1: staðir með layout og skotum (engine/locations.js), senur,
-  línur, val og biðreglur. Kafli 1 endar með því að bjóða „Halda áfram“ í kafla 2; vistunin man hvar barnið er.
+  línur, val og biðreglur. Kafli 1 endar með því að bjóða „Áfram“ í kafla 2; vistunin man hvar barnið er.
 - **Nýir staðir:** `fenjaslod` (slóðin með fótsporunum, skógurinn sem breytist í fen) og `fen` (tjarnirnar, síkið, þúfurnar, fenjatrén).
   Landið mótast með layout eins og dalur Háls og hala gerði (terrain.js), með tjarnabotnum, síki og þúfum; gras og sef halda sig frá
   vatninu (keepOut). Fenið fær sína eigin plöntutegundir í skóginum (`world/forest/`): fenjabarrtré með rótum og hangandi mosa, elftingasef
@@ -231,3 +231,5 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Fjarlægt sef Fensins er gisnara** (10 % handan 19 m) til að halda hverjum ramma undir 230 þúsund þríhyrningum með svigrúmi; nærsefið og sefbreiðan í afhjúpuninni eru óbreytt.
 - **Vatnshljóð Fensins byrja á seinni helmingi slóðarinnar** (4 s inn í reiðina) og taka alveg við af skóginum við komuna í Fenið.
 - **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
+- **Bókin (verkefni 7):** froskurinn fær sjöttu síðu (halakörtur) í stað nýs spjalds, undantekning frá reglunni um 3–5 síður því síða Fensins bætist við spjald sem eigandi hafði samþykkt; Fen-dýrin sjö eru á annarri Dýrin-opnu með blaðhorni sem flettir (opna með síðari opnu á eftir rúmar sjö spjöld, hornið tekur áttunda reitinn); fundið dýr opnar bókina á sinni opnu; Fen-reiturinn á Kortinu verður fundinn við komuna og kláraður með stjörnunni; textar spjaldanna eru okkar drög og bíða leiðréttinga eiganda, og 23 sögumannslínur þeirra eru óupplesnar þar til þá.
+- **Háls og hali læsist eftir sameiningu** þar til stjarna Þórseðlu (`k2_thorsedla`) er fengin, eins og forskriftin segir; á main var hann opinn gegnum þróunarrofa. Leikur sem er hálfnaður geymist í vistun og heldur áfram þegar hann opnast.
