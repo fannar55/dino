@@ -259,9 +259,9 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   const journal = createJournal(doc, createSave(null), { book });
   const finds = []; // every find the journal is told of, with where the child tapped it
   const addFinding = journal.addFinding;
-  journal.addFinding = (id, from) => {
-    finds.push({ id, from });
-    return addFinding(id, from);
+  journal.addFinding = (id, from, options) => {
+    finds.push({ id, from, options });
+    return addFinding(id, from, options);
   };
   const pointer = fakePointer();
   const added = []; // what comes into the scene, and when: sparkles, pollen, flowers

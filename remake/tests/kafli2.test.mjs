@@ -587,6 +587,9 @@ test('the fen animals go into the book', async () => {
   for (const id of ['frog', 'waterBeetle', 'waterStrider', 'salamander']) {
     assert.ok(journal.findings.includes(id), `the ${id} in its print is found (${journal.findings.join(', ')})`);
   }
+  // the frog is chapter 1's: found again in a new place, it still flies into the book, where its card has a page for the Fen
+  const { finds } = await playTheFen();
+  assert.equal(finds.find(f => f.id === 'frog')?.options?.again, true, 'the print\'s frog is found again');
   // the others live in the Fen, a tap away: tap targets with their finding
   const fen = world.chapterState.fenCritters;
   assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);

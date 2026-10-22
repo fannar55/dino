@@ -294,6 +294,9 @@ test('the fen cards unlock with their findings and have three pages each', () =>
   assert.ok(fenPage.sources.some(source => source.includes('10.1038/s41586-024-08055-y')), 'with the oldest tadpole (Chuliver et al. 2024) for its wonder');
   assert.match(CARD_DATA.cards.find(c => c.id === 'frog').pages[5].wanted ?? '', /Wikimedia Commons/);
   assert.match(CARD_DATA.note, /six/i, 'and the note says why the frog has six pages');
+  // The turtle's third page is about one of the oldest turtles, with teeth and a shell on its belly only: its own drawing.
+  assert.equal(CARDS.find(c => c.id === 'turtle').pages[2].image, 'fen-turtle-old');
+  assert.equal(MEDIA.get('fen-turtle-old')?.src, 'assets/book/images/fen-turtle-old.svg');
 });
 
 /** The book over the shipped cards and pictures and a save of its own, with what it narrates and the sounds it makes. */
@@ -377,6 +380,57 @@ test('the Dýrin page has a second spread for the Fen, turned at the page corner
   book.open('animals', 'child');
   assert.equal(book.spread, 1, 'the Dýrin page remembers nothing: it opens on the first spread again');
   assert.equal(leaf(2).hidden, true);
+});
+
+test('a corner takes a tap only where it is drawn, so it never takes a tile\'s', () => {
+  // The corner's square is larger than what is drawn of it (its turned-up corner and the arrow): the rest lets taps through to the
+  // tiles beside it (the book lab measures it: __demoStats.cornerSteals, none at any screen).
+  const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  assert.match(/\.spread-turn \{([^}]*)\}/.exec(css)?.[1] ?? '', /pointer-events:\s*none/, 'the square itself takes no tap');
+  assert.match(css, /\.spread-turn :is\(\.corner-under, \.corner-flap, \.book-arrow path\) \{ pointer-events: visiblePainted; \}/, 'what is drawn of it does');
+});
+
+test('an open book that a find asks for turns once, straight to its spread, and the tile nods after the turn', () => {
+  const { book, sounds, animations, tile, leaf, save } = fenRig({ animate: true });
+  save.addFinding('turtle');
+  book.open('stars', 'child');
+  animations.forEach(a => a.animation.finish());
+  sounds.length = 0;
+  animations.length = 0;
+  book.open('animals', 'child', { find: 'turtle' }); // the journal's button, with the book open (a script opened it on its stars)
+  assert.equal(book.tab, 'animals');
+  assert.equal(book.spread, 2, 'on the turtle\'s spread');
+  assert.deepEqual(sounds, ['turn'], 'one turn, and one turn\'s sound');
+  const nod = animations.find(a => a.el === tile('turtle') && /scale/.test(JSON.stringify(a.keyframes)));
+  assert.ok(nod, 'the turtle nods');
+  assert.ok(nod.options.delay >= 500, `once the turn has settled (after ${nod.options.delay} ms)`);
+  animations.forEach(a => a.animation.finish());
+  assert.equal(leaf(1).hidden, true, 'the first spread was never turned to on the way');
+  // On the find's spread already: no turn, and the nod at once.
+  sounds.length = 0;
+  animations.length = 0;
+  book.open('animals', 'child', { find: 'turtle' });
+  assert.deepEqual(sounds, [], 'no turn');
+  assert.equal(animations.find(a => a.el === tile('turtle'))?.options.delay, 0, 'and the nod straight away');
+});
+
+test('chapter 1\'s frog found again in the Fen flies into the book once, and the book opens on its spread', () => {
+  const { doc, save, book, animations, tile } = fenRig({ animate: true, fill: s => s.addFinding('frog') }); // found in the forest
+  const sounds = [];
+  const journal = createJournal(doc, save, { book, audio: { sfx: name => sounds.push(name) } });
+  const flights = doc.getElementById('journal-flights').children;
+  assert.equal(journal.addFinding('frog'), false, 'the same frog again, as chapter 1 finds it: nothing');
+  assert.equal(flights.length, 0);
+  assert.equal(journal.addFinding('frog', null, { again: true }), true, 'found again in a new place (the third print)');
+  assert.equal(flights.length, 1, 'its picture flies');
+  assert.deepEqual(save.get().findings, ['frog'], 'and nothing more is saved');
+  journal.update(FLIGHT_SECONDS + 0.1);
+  assert.deepEqual(sounds, ['newAnimal'], 'it lands with the book\'s bell');
+  assert.equal(doc.getElementById('journal-badge').hidden, false, 'and the badge, for its new page');
+  assert.equal(journal.addFinding('frog', null, { again: true }), false, 'once: a second splash of the print flies nothing');
+  doc.getElementById('journal-button').dispatchEvent(new Event('click'));
+  assert.equal(book.spread, 1, 'the frog is on the first spread');
+  assert.ok(animations.some(a => a.el === tile('frog') && /scale/.test(JSON.stringify(a.keyframes))), 'and it nods there');
 });
 
 test('a page corner turns the spread with the book\'s own page turn', () => {

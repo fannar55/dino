@@ -70,8 +70,8 @@ const CLOSE_EASE = 'cubic-bezier(.55, 0, .8, .25)';
 const PERSPECTIVE = 'perspective(2400px)';
 // A page's corner turned up, the page under it peeping out, with the card's big arrow on it (book.css .spread-turn); the corner
 // back is the same, mirrored.
-const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 26L26 100H100Z"/>'
-  + '<path class="corner-flap" d="M100 26C78 30 56 33 36 36C33 56 30 78 26 100Z"/><path class="corner-crease" d="M97 29L29 97"/></svg>';
+const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="true"><path class="corner-under" d="M100 20L20 100H100Z"/>'
+  + '<path class="corner-flap" d="M100 20C76 24 52 28 30 30C28 52 24 76 20 100Z"/><path class="corner-crease" d="M97 23L23 97"/></svg>';
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
@@ -670,11 +670,20 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const found = next === 'animals' ? cardOfFind(find) : null; // a find asks for its spread, and its tile nods there
     if (isOpen) {
       if (by === 'child') claim();
-      turnTo(next);
-      if (found) {
-        turnSpread(spreadNumbers.indexOf(found.spread ?? 1));
-        animals.nod(found.id);
+      if (!found) {
+        turnTo(next);
+        return;
       }
+      // One turn, straight to the find's spread (from another ribbon's page or another spread), and the nod once it has settled.
+      const target = Math.max(0, spreadNumbers.indexOf(found.spread ?? 1));
+      const turns = tab !== 'animals' || target !== spreadIndex;
+      if (tab !== 'animals') {
+        spreadIndex = target; // the ribbon's turn lands on the find's spread
+        turnTo('animals');
+      } else {
+        turnSpread(target);
+      }
+      animals.nod(found.id, turns && canAnimate() && !reducedMotion(win) ? TURN_MS : 0);
       return;
     }
     isOpen = true;

@@ -63,9 +63,11 @@ function needId(id, call) {
  *   addStar(id, from)       a star flies from `from` ({ x, y } in screen pixels) to its slot; returns a Handle that is done when it
  *                           has landed and been saved. A star already on its way shares its flight; one the book already has
  *                           flies again and is kept once. A cancelled flight lands at once: the star was earned.
- *   addFinding(id, from)    an animal goes in the book (saved at once); false when it was in it already. A new one's picture (the
- *                           book's pictureOf) flies from `from` ({ x, y } in screen pixels; the middle of the screen without it)
- *                           into the button, where the book nods, `newAnimal` sounds and a badge shows until the book is opened.
+ *   addFinding(id, from, { again })  an animal goes in the book (saved at once); false when it was in it already. A new one's
+ *                           picture (the book's pictureOf) flies from `from` ({ x, y } in screen pixels; the middle of the screen
+ *                           without it) into the button, where the book nods, `newAnimal` sounds and a badge shows until the book is
+ *                           opened. With `again`, an animal the book has already, found in a new place (chapter 2's frog, whose card
+ *                           has a page for the Fen), flies in all the same, once while the game runs, and nothing is saved.
  *   addPlace(id, from)      a place goes on the book's map (saved at once); false when it was on it already. A new one's marker, a
  *                           small round pin in its hue (placeHue), flies from `from` ({ x, y } in screen pixels; the middle of the
  *                           screen without it) into the button, where the book nods and badges as for an animal.
@@ -92,6 +94,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
 
   const flights = new Map(); // 'star:<id>' or 'find:<id>' -> the flight in the air
   let newest = null; // the animal found since the book was last opened, which it opens for
+  const foundAgain = new Set(); // the animals found again in a new place while the game runs (addFinding's again): each flies once
   const motions = []; // { el, age, seconds, amount }: a slot swelling, the book nodding
 
   const slots = FRIENDS.map(friend => {
@@ -194,10 +197,11 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     return flight.handle;
   }
 
-  function addFinding(id, from = null) {
+  function addFinding(id, from = null, { again = false } = {}) {
     needId(id, 'journal.addFinding');
     const isNew = save.addFinding(id);
-    if (!isNew) return false;
+    if (!isNew && (!again || foundAgain.has(id))) return false;
+    if (!isNew) foundAgain.add(id); // found again in a new place: it flies in, and the save has it already
     newest = id;
     show();
     const picture = book?.pictureOf?.(id) ?? null;

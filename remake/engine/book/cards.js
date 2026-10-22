@@ -11,7 +11,8 @@
 //   unlock   { start: true } from the start, { found: '<id>' } with the find a chapter passes to s.found, or
 //            { star: '<id>' } with the star it passes to s.star
 //   spread   which spread of the Dýrin page its tile is on, from 1 (chapter 1's animals, which say no spread) up: a spread holds
-//            SPREAD_MAX tiles, four on each page, in card order (chapter 2's are on the second, the Fen's)
+//            SPREAD_MAX tiles, four on each page, in card order (chapter 2's are on the second, the Fen's); one with a later spread
+//            after it holds one fewer, because the corner that turns on lies where the right page's fourth tile would be
 //   image    a picture's id in the media manifest (media.js); page one's picture is also the tile's
 //   audio    the narrator's line in lines.json, book_<card>_<n> with n from 1
 //   sources  where the page's facts come from (a URL or a reference), kept with the data and never shown to a child;
@@ -60,7 +61,7 @@ function spreadLines(spreads) {
  * The cards in cards.json (the file's object, or its list of cards), checked and in card order, each with its spread (1 when
  * it names none) and its spread's find-me line. Throws an Error that names the card, and the page, on a missing field, fewer
  * than PAGE_MIN or more than PAGE_MAX pages, an id used twice, an unknown unlock, a spread that is not a whole number from 1,
- * a spread with more than SPREAD_MAX cards, or a page with no sources.
+ * a spread with more than SPREAD_MAX cards (or SPREAD_MAX - 1 when a later spread follows it), or a page with no sources.
  */
 export function parseCards(data) {
   const list = Array.isArray(data) ? data : data?.cards;
@@ -92,8 +93,12 @@ export function parseCards(data) {
   });
   const counts = new Map();
   for (const card of cards) counts.set(card.spread, (counts.get(card.spread) ?? 0) + 1);
+  const last = Math.max(...counts.keys());
   for (const [spread, count] of counts) {
     if (count > SPREAD_MAX) throw new Error(`cards.json: spread ${spread} has ${count} cards; a spread holds ${SPREAD_MAX}, four on each page`);
+    if (spread < last && count > SPREAD_MAX - 1) {
+      throw new Error(`cards.json: spread ${spread} has ${count} cards; a spread with a later one after it holds ${SPREAD_MAX - 1}, because its corner on takes the eighth place`);
+    }
   }
   return cards.sort((a, b) => a.order - b.order);
 }

@@ -516,12 +516,14 @@
 .spread-turn {
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 2; bottom: var(--edge);
-  width: clamp(124px, 15cqmin, 176px); aspect-ratio: 1; padding: 0; border: 0; background: none;
+  pointer-events: none; /* only what is drawn takes a tap (below): the square's empty corner must not steal a tile's */
+  width: clamp(128px, 15.5cqmin, 180px); aspect-ratio: 1; padding: 0; border: 0; background: none; /* its drawn corner holds an 88 px square */
   transform-origin: 100% 100%;
 }
 .spread-turn.next { right: var(--edge); animation: corner-beckon 4.6s ease-in-out 1.2s infinite; }
 .spread-turn.prev { left: var(--edge); transform-origin: 0% 100%; }
 .spread-turn .corner-curl { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.spread-turn :is(.corner-under, .corner-flap, .book-arrow path) { pointer-events: visiblePainted; } /* the turned corner and its arrow */
 .spread-turn.prev .corner-curl { transform: scaleX(-1); }
 .corner-under { fill: #e4d3ae; stroke: var(--book-ink); stroke-width: 2.5; stroke-linejoin: round; }
 .corner-flap {
@@ -532,6 +534,8 @@
 .spread-turn .book-arrow { position: absolute; right: 2%; bottom: 7%; width: 60%; height: auto; aspect-ratio: 6 / 5; }
 .spread-turn.prev .book-arrow { right: auto; left: 2%; transform: scaleX(-1); }
 .page-turning .spread-turn { visibility: hidden; } /* out of the way of a turning page */
+/* A later spread's tiles keep a little higher, clear of the corner back on its left page's lower corner. */
+.book-leaf[data-tab="animals"]:not([data-spread="1"]) .book-tiles { --pad-bottom: 9cqh; }
 @keyframes corner-beckon {
   0%, 74%, 100% { transform: none; }
   82% { transform: rotate(-5deg) scale(1.07); }

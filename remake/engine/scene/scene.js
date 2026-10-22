@@ -352,9 +352,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return start(starTask(id, fromSpec));
   }
 
-  function found(id, from = null) {
+  function found(id, from = null, options = undefined) {
     needJournal('s.found');
-    journal.addFinding(id, from);
+    journal.addFinding(id, from, options); // options: { again } for an animal found again in a new place (journal.js)
     return DONE;
   }
 
@@ -448,7 +448,8 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     star,
     /**
      * Put the animal `id` in the journal's finds (once per id). `from` is where the child tapped it, a tap's { name, x, y } (canvas
-     * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button.
+     * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button. `{ again: true }`: an
+     * animal the book has already, found in a new place, flies in all the same, once (journal.addFinding).
      */
     found,
     /**

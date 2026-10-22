@@ -195,7 +195,9 @@ function splashPrint(s, c, k, by) {
     c.printCritters.react(animal.name);
     const sound = CRITTER_SOUNDS[animal.kind];
     if (sound) s.after(CROAK_AFTER, () => s.sfx(sound));
-    s.found(animal.kind, by === 'child' ? c.lastTap : null);
+    // Found again in a new place, as chapter 1's frog is in the third print, it still flies into the book (once), whose card has a
+    // page for the Fen; the Fen's own animals are new finds anyway.
+    s.found(animal.kind, by === 'child' ? c.lastTap : null, { again: true });
   }
 }
 

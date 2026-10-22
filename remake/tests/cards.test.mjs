@@ -35,6 +35,9 @@ test('parseCards accepts the shipped cards and refuses broken ones', () => {
   for (const spread of [0, 1.5, '2', -1]) refused([card('frog', { spread })], /"frog".*spread/, `a spread of ${JSON.stringify(spread)}`);
   const nine = Array.from({ length: 9 }, (_, i) => card(`fen${i}`, { spread: 2 }));
   refused(nine, /spread 2.*9 cards/, 'nine cards on one spread: a spread has two pages of four');
+  const eight = Array.from({ length: 8 }, (_, i) => card(`fen${i}`, { spread: 2 }));
+  assert.equal(parseCards({ cards: eight }).length, 8, 'eight on the last spread');
+  refused([...eight, card('owl', { spread: 3 })], /spread 2.*8 cards.*7/, 'but seven when a later spread follows, whose corner takes the eighth place');
 });
 
 test('a card with no spread is on the first, and each spread says where its animals are found', () => {
