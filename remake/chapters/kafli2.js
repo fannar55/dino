@@ -131,8 +131,13 @@ const TRAIL_ON = [82, 88].map(s => { const p = pathAt(TRAIL_PATH, s); return [p.
 // The ride's camera: behind Mosi on his right, a little above Egill, looking past Mosi's head down the trail.
 const RIDE_CAMERA = { offset: [-6.2, 3.0, 2.8], local: true, look: 'head', lookOffset: [1.6, -1.0, 1.1], stiffness: 1.4, fov: 50 };
 const PRINT_SHOT = { along: 3.6, out: 3.2, up: 1.6, aimAlong: -1.2, aimIn: 1.4, aimUp: 0.85, fov: 56 };
-// The ten ahead, as Mosi says what they are: from beside the path behind the first, a little high, down the trail into the mist.
-const PRINTS_AHEAD = { along: -7, out: 2.7, up: 2.8, aimAlong: 8, aimIn: 0.5, aimUp: 0, fov: 44 };
+// The ten ahead, as Mosi says what they are: what Egill sees from the saddle, from just behind and over his right shoulder, down the
+// trail into the mist, Mosi's frill and horns low in the frame beside the first prints for their size (a shot on Mosi, his frame).
+const PRINTS_AHEAD = {
+  label: 'prints ahead',
+  position: { actor: 'mosi', part: 'feet', offset: [0.3, 5.2, 1.1], local: true },
+  target: { actor: 'mosi', part: 'feet', offset: [10, -0.6, 2.8], local: true }, fov: 50,
+};
 const PRINT_ON = 1.0; // s after a count before Mosi and the camera go on to the next: the number is up first
 // Seconds the child may be idle before the hint, and before Egill taps the print himself; the quick ones once he has.
 const PRINT_WAIT = { hint: 8, help: 16, quickHint: 4, quickHelp: 8 };
@@ -255,8 +260,8 @@ const FEN_SHOTS = {
   // Scene 3: Egill on the bank calling up to her: low in front of him, his face turned up past us to where her head is, the sky
   // behind him (a shot on him, which the planter skips).
   fen_call: {
-    position: { actor: 'egill', part: 'feet', offset: [1.7, 0.55, 0.4], local: true },
-    target: { actor: 'egill', part: 'feet', offset: [0, 1.15, -0.1], local: true }, fov: 42,
+    position: { actor: 'egill', part: 'feet', offset: [1.75, 0.55, 0.3], local: true },
+    target: { actor: 'egill', part: 'feet', offset: [0, 1.12, 0.02], local: true }, fov: 38,
   },
   // Scene 4: the berry search, from behind Egill on the bank, over the berry hummocks (the free look turns from here).
   fen_pick: {
@@ -429,10 +434,11 @@ function* footprints(s, c) {
   yield s.wait(7);
   yield ride;
   // all ten down the trail ahead, into the mist
-  yield s.camera.cut(shotAlong(c, 'prints ahead', 0, PRINTS_AHEAD));
+  yield mosi.turnTo(first.heading, { rate: 40 });
+  yield s.camera.cut(PRINTS_AHEAD);
+  yield egill.lookAt(c.prints.targets[2].point, { weight: 0.6, maxPitch: 40 });
   yield mosi.lookAt(c.prints.targets[0].point, { weight: 0.8, maxPitch: 40 });
   yield* say(s, c, 'mosi', 'k2_mosi_prints');
-  yield mosi.turnTo(first.heading, { rate: 40 });
   yield s.camera.cut(printShot(c, 0));
   c.focus = 0; // the print the camera looks at, as it follows Mosi from print to print
   s.camera.follow('mosi', printFollow(c));
@@ -504,7 +510,11 @@ function printFollow(c) {
   const h = THREE.MathUtils.degToRad(at.heading);
   const dx = shot.position[0] - at.x, dz = shot.position[2] - at.z;
   const offset = [dx * Math.cos(h) + dz * Math.sin(h), shot.position[1] - c.world.heightAt(at.x, at.z), -dx * Math.sin(h) + dz * Math.cos(h)];
-  return { offset, local: true, look: out => out.fromArray(printShot(c, c.focus).target), fov: PRINT_SHOT.fov, stiffness: 1.5 };
+  // on a tall screen the lens is wider up and down (director.js keeps the frame's width): look at the print and its number there,
+  // so the print is in the middle and Mosi above it, not an empty foreground
+  const lift = new THREE.Vector3(0, 0.45, 0);
+  const look = out => (c.world.camera.aspect < 1 ? out.copy(c.prints.targets[c.focus].point).add(lift) : out.fromArray(printShot(c, c.focus).target));
+  return { offset, local: true, look, fov: PRINT_SHOT.fov, stiffness: 1.5 };
 }
 
 /** A shot set along the trail from print k (S: metres along the path from it, out from its middle, up from the ground). */
