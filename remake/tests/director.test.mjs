@@ -679,3 +679,37 @@ test('follow can look at a point of its own, another actor\'s head, while it kee
   const toHead = new THREE.Vector3(-4, 3, 0).sub(camera.position).normalize();
   assert.ok(aimOf(camera).angleTo(toHead) < 1e-3, 'and looks at her head');
 });
+
+test('follow adds lookOffset to a point it looks at, as it does to the head or centre of the one it follows', () => {
+  const { director: d, camera, actor, world } = director();
+  const root = new THREE.Object3D();
+  root.position.set(-4, 0, 0);
+  world.actors.set('thorsedla', { root, centre: out => out.copy(root.position), headPosition: out => out.copy(root.position).add(new THREE.Vector3(0, 3, 0)) });
+  actor.root.position.set(2, 0, 0);
+  d.cut({ position: [2, 1.4, 6], target: [2, 1, 0] });
+  d.follow('mosi', { offset: [0, 1.4, 6], look: { actor: 'thorsedla', part: 'head' }, lookOffset: [0, -1.5, 2] });
+  for (let i = 0; i < 900; i++) d.update(1 / 30);
+  assert.ok(nearVec(d.rig.target, [-4, 1.5, 2], 1e-3), `it looks at her head plus the offset: ${d.rig.target.toArray().map(v => v.toFixed(3))}`);
+  const toPoint = new THREE.Vector3(-4, 1.5, 2).sub(camera.position).normalize();
+  assert.ok(aimOf(camera).angleTo(toPoint) < 1e-3, 'and the camera aims there');
+});
+
+test('follow reads an offset given as a function every frame, and settles where it says now', () => {
+  const { director: d, camera, actor } = director();
+  actor.root.position.set(2, 0, 0);
+  let offset = [0, 1.4, 6];
+  d.cut({ position: [2, 1.4, 6], target: [2, 1, 0] });
+  d.follow('mosi', { offset: () => offset, maxSpeed: 2 });
+  for (let i = 0; i < 300; i++) d.update(1 / 30);
+  assert.ok(nearVec(camera.position, [2, 1.4, 6], 1e-3), 'at the offset it gave first');
+  offset = [-6, 1.4, 0];
+  let previous = camera.position.clone();
+  let fastest = 0;
+  for (let i = 0; i < 900; i++) {
+    d.update(1 / 30);
+    fastest = Math.max(fastest, camera.position.distanceTo(previous) * 30);
+    previous = camera.position.clone();
+  }
+  assert.ok(nearVec(camera.position, [-4, 1.4, 0], 1e-3), `and then at the one it gives now: ${camera.position.toArray().map(v => v.toFixed(3))}`);
+  assert.ok(fastest <= 2 + 1e-6, `never faster than its cap on the way: ${fastest.toFixed(2)} m/s`);
+});

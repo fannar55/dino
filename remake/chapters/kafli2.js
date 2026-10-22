@@ -25,7 +25,8 @@ import { createSaddle, ride } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
 import {
-  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, downToMosi, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, MOSI_HEAD,
+  thorsedlaLife, headDown, liftUp, slideDown, leafWarm, downToMosi, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, LOOKOUT_CAMERA,
+  MOSI_HEAD,
 } from './kafli2-thorsedla.js';
 
 export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
@@ -119,7 +120,7 @@ const FEN_SHOTS = {
   fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
   fen_two_shot: { position: [0, 1.4, 1.5], target: [5, 1.3, -8], fov: 46 },
-  // Scene 4: over Egill's shoulder, her face coming down to him.
+  // Kept for the planting (Task 2 planned the Fen round it: changing it re-deals plants), unused; use fen_shoulder.
   fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
   // Scene 4, as her head comes down: over Egill's right shoulder, from behind him on the hummock between her two conifers, looking up
   // to where her face comes down: where the camera that follows him then (HEAD_DOWN_CAMERA) stands, wherever he stands, so that it
@@ -128,7 +129,7 @@ const FEN_SHOTS = {
     position: { actor: 'egill', part: 'feet', offset: HEAD_DOWN_CAMERA.offset, local: true },
     target: { actor: 'egill', part: 'feet', offset: [2.2, 2.2, 0], local: true }, fov: HEAD_DOWN_CAMERA.fov,
   },
-  // Scene 6: as the lift begins, where the camera that rides up with Egill on her head (LIFT_CAMERA) stands then, at his left.
+  // Scene 6: as the lift begins, where the camera that rides up with Egill on her head (LIFT_CAMERA) stands then, at his right.
   fen_lift: { position: { actor: 'egill', part: 'feet', offset: LIFT_CAMERA.offset, local: true }, target: 'egill.head', fov: LIFT_CAMERA.fov },
   // Scene 4: the berry hummocks east of Mosi.
   fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
@@ -300,16 +301,17 @@ function* theInvitation(s, c) {
 function* theLookout(s, c) {
   mark(c, 6);
   yield* liftUp(s, c);
-  // (The fifth task: the three friends, found from up here.) For now he looks down a while at Mosi, small below, who has come round
-  // to the bank beside her withers to catch him at the end of the slide; the camera looks down past him (LOOK_DOWN at most).
-  // "Vá… Mosi er pínulítill!" once the camera has turned down past him to Mosi, so that the child sees what he sees.
+  // (The fifth task: the three friends, found from up here; it rewrites this scene and carries the line and the look down with it.)
+  // For now he looks down a while at Mosi, small below, who has come round to the bank beside her withers to catch him at the end
+  // of the slide; the camera looks down past him, 32 degrees (kafli2-thorsedla.js: LOOK_DOWN), with a wide lens. "Vá… Mosi er
+  // pínulítill!" once the camera has turned down past him to Mosi, so that the child sees what he sees.
   yield c.egill.lookAt(MOSI_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 50 });
-  s.camera.follow('egill', { ...LIFT_CAMERA, look: downToMosi(c), fov: 50 });
+  s.camera.follow('egill', { ...LOOKOUT_CAMERA, look: downToMosi(c) });
   yield s.wait(1.4);
   yield s.say('egill', 'k2_egill_tiny');
   yield s.wait(3.5);
   yield c.egill.lookAt(null);
-  s.camera.follow('egill', LIFT_CAMERA);
+  s.camera.follow('egill', LOOKOUT_CAMERA);
 }
 
 // 7. The slide down her neck into the saddle.
@@ -414,6 +416,9 @@ export const chapter = {
           ...[[-7.5, -6.3], [-7, -12], [-5.5, -14.2], [-6.5, -3.8]].map((position, k) => ({ name: 'waterLily', position, variant: k % 6, scale: 1.1 })),
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
+        // no moss hangs between Egill and where her face comes down to him (x 6.0 to 7.3): the north conifer's lowest strands hung
+        // there, a bright beard across her shoulder and beside her eye over his shoulder
+        mossClear: [{ center: [EGILL_FEN.position[0] - 0.8, EGILL_FEN.position[2]], radius: 1.8 }],
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
         lookout: [5, 9.4, -9], // where the sight lines to the far friends start, that tall plants keep out of (Egill's head: LOOKOUT_HEAD)
         actors: {

@@ -3,10 +3,12 @@
 // alpha-to-coverage where the canvas has MSAA (STYLE.md 7). They sway with the forest's wind (materials.js: forestWind, the
 // tree's own sway where they hang) and swing a little below that, at most FEN.mossCards.swingDeg degrees, with the plants'
 // wave of the beat. Lit like foliage, so they glow when the sun is behind them. Within 3 m of the camera a strand wears away
-// from its edges, gone by 1.2 m, so a camera under a crown never looks through a beard. All of a forest's strands are one mesh,
-// one draw call.
+// from its edges, gone by 1.2 m, so a camera under a crown never looks through a beard. No strand hangs from inside a disc of
+// `clear` (the layout's mossClear: where a face comes down between the trees). All of a forest's strands are one mesh, one draw
+// call.
 //
-//   createHangingMoss(world, placements, shared, { antialias }) -> { mesh, cards, triangles, dispose() } | null (no conifers)
+//   createHangingMoss(world, placements, shared, { antialias, seed, clear: [{ center: [x, z], radius }] })
+//     -> { mesh, cards, triangles, dispose() } | null (no strands)
 import * as THREE from 'three';
 import { FOREST, FEN } from './config.js';
 import { createRng } from './random.js';
@@ -56,7 +58,7 @@ function strandTexture(seed) {
   return tex;
 }
 
-export function createHangingMoss(world, placements, shared, { antialias = true, seed = 1 } = {}) {
+export function createHangingMoss(world, placements, shared, { antialias = true, seed = 1, clear = [] } = {}) {
   const pos = [], nrm = [], uv = [], col = [], wind = [], tree = [], idx = [];
   const base = new THREE.Color(FEN.hangingMoss);
   const swing = THREE.MathUtils.degToRad(FEN.mossCards.swingDeg);
@@ -69,6 +71,7 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
     const phase = Math.round((p.phase % 1) * 255);
     strands.forEach((st, k) => {
       const ax = p.x + (st.p[0] * c - st.p[2] * s) * sc, ay = p.y + st.p[1] * sc, az = p.z + (st.p[0] * s + st.p[2] * c) * sc;
+      if (clear.some(({ center, radius }) => Math.hypot(ax - center[0], az - center[1]) < radius)) return;
       const length = st.length * sc, width = st.width * sc;
       // the tree's sway where the strand hangs (species.js: bendAt), and the strand's own swing below it
       const carried = (FOREST.wind.maxSwayDeg * Math.PI / 180) * 0.85 * (st.p[1] * sc) ** 2 / Math.max(H, 0.5);

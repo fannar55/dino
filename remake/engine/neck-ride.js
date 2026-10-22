@@ -301,7 +301,8 @@ export function waterDrops(world, { seconds = 8, count = 24, seed = 'drops', rin
  * withers (neckCurve), faster and faster, his legs out and leaning back with the slope, the seat of his trousers just over her
  * skin; then he leaves it on a short arc into `saddle.seat` (createSaddle's, on Mosi), bounces once there and rides
  * (ride(rider, saddle)), leaving a trail of sparkles and drops of water falling off her neck with a ring where they meet the
- * water. `legs` is a legsOut of his that is going already (it takes it on), `ring` makes the drops' rings (waterDrops). Takes
+ * water. `legs` is a legsOut of his that is going already (it takes it on), `ring` makes the drops' rings (waterDrops). It runs on
+ * the rider's world.effects, and the drops' rings by default on world.clock (ringsFor), unless `ring` is given. Takes
  * `duration` seconds. Returns a Handle that finishes with him riding: `handle.riding` is the ride, `handle.along`
  * the metres he has slid down her neck so far and `handle.phase` where he is ('neck', 'arc', 'bounce', 'saddle'). The host's
  * neck may move while he slides: the curve follows it every frame.

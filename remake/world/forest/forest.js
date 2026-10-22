@@ -22,6 +22,7 @@
 //   mist    [{ center, radius, height, level }]: low mist over the place (world/props/mist.js), `forest.mists` in order
 //   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
 //           the lines between them
+//   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -254,7 +255,9 @@ export async function createForest(world, layout) {
     : null;
   if (water) group.add(water.group);
   // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing
-  const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, { antialias: q.antialias, seed });
+  const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
+    antialias: q.antialias, seed, clear: layout.mossClear ?? [],
+  });
   if (moss) group.add(moss.mesh);
   // the mist lies over the water where there is any, its cards standing on the surface
   const mists = (layout.mist ?? []).map((spec, i) => createMist(world, {

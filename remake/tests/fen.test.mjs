@@ -294,6 +294,26 @@ test('the fen stays within the forest budget', async () => {
   }
 });
 
+test('no moss hangs between Egill and where her face comes down to him (mossClear), and the trees round it keep theirs', async () => {
+  const discs = FEN_PLACE.layout.mossClear;
+  assert.ok(discs?.length, 'the Fen clears moss where her face comes down');
+  const forest = await createForest(nodeWorld(), layoutOf(FEN_PLACE));
+  const moss = forest.group.getObjectByName('Hanging moss');
+  assert.ok(moss && forest.info.mossCards >= 100, `${forest.info.mossCards} cards of moss`);
+  const pos = moss.geometry.attributes.position;
+  let near = 0;
+  for (let i = 0; i < pos.count; i += 8) { // a card is four rows of two; its first row is where it hangs from
+    const x = (pos.getX(i) + pos.getX(i + 1)) / 2, z = (pos.getZ(i) + pos.getZ(i + 1)) / 2;
+    for (const { center, radius } of discs) {
+      const d = Math.hypot(x - center[0], z - center[1]);
+      assert.ok(d >= radius, `a strand hangs ${d.toFixed(2)} m from the middle of the clear disc at ${center}`);
+      if (d < radius + 2) near++;
+    }
+  }
+  assert.ok(near > 0, 'the conifers by the disc keep their other strands');
+  forest.dispose();
+});
+
 // ---- the look -------------------------------------------------------------------------------
 
 test('the Fen has its own palette', () => {

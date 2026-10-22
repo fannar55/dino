@@ -24,17 +24,24 @@ export const LOOKOUT_HEAD = [3.56, 9.75, -9.0];
 // him): it looks out under their crowns, not up into them, tilted up LOOK_UP degrees at most, so that her face comes down into the
 // frame as a face, and the sun shows over Mosi's head to wink (STYLE.md 8: 35 degrees up or down at most).
 export const HEAD_DOWN_CAMERA = { offset: [-2.8, 0.95, 0.7], local: true, fov: 50 };
-// Up with him at his left (the brief's side), 3 m further back, clear of the crown of the conifer north of her lowered head, and
-// as fast as he rises (up to 2 m/s: the camera moves with him, not past anything), so that he stays in the frame; from 40 % of
-// the rise it begins to look down past him at Mosi coming round below (liftLook), and at the top all the way (theLookout).
-export const LIFT_CAMERA = { offset: [-3.0, 1.3, -3.0], local: true, look: 'head', stiffness: 2.0, fov: 40, maxSpeed: 2.4 };
+// Up with him on his right, 3 m back and 3 m out, as fast as he rises (up to 2.4 m/s: the camera moves with him, not past anything):
+// the north conifer, ahead of him on his left, stays behind him and below his head, so that he rises against the sky with her face
+// in profile below him. From SWING.from of the rise, his head above the treetop by then, it swings round behind him to his left
+// (swingRound) and begins to look down past him at Mosi coming round below (liftLook); at the top it looks all the way down
+// (theLookout: LOOKOUT_CAMERA).
+export const LIFT_CAMERA = { offset: [-3.0, 1.3, 3.0], local: true, look: 'head', stiffness: 2.0, fov: 44, maxSpeed: 2.4 };
+// At the top, behind him on his left, 5.5 m out and 2.2 m above his feet, where Mosi on the bank below is seen past her head and
+// neck: with a look LOOK_DOWN degrees down and a wide lens (12 degrees wider in the follow's 1.5 s: 8 degrees a second, STYLE.md 8),
+// Egill sits in the top fifth of the frame and Mosi, 44 degrees down, whole far below him, above the caption. (Nearer Egill, Mosi
+// would read smaller but lie 50 degrees down, under the caption: he waits 4.8 m out from her neck.)
+export const LOOKOUT_CAMERA = { ...LIFT_CAMERA, offset: [-4.76, 2.2, -2.75], fov: 56 };
 
 // Þórseðla's part (scenes 3 to 7), as pieces the scenes call: her life, her head coming down to Egill's eyes, the lookout on the
 // back of her head and the slide down her neck. Each piece leaves `c.phase` saying where it has got to, for captures and probes.
 
 // Mosi comes round from his hummock, while she lifts Egill, to the bank beside her withers (dry, clear of her by 1.4 m), facing
 // west, with his saddle 5.8 m from them, to catch Egill at the end of the slide.
-export const MOSI_CATCHES = [4.6, -4.2];
+const MOSI_CATCHES = [4.6, -4.2];
 // Her eyes come down to his: this far above the ground he stands on (his own eyes are 0.92 m up). Her root stands 0.74 m lower,
 // on the bed of her pool, so lowerHead is held where her eyes get there (about 3.2 s in, her look at him on it) and does not play
 // to its end (0.95 m above her feet: holdAtEyes).
@@ -47,11 +54,11 @@ const SEAT = { bone: 'Head', offset: [0, 0.65, -0.15], grips: { left: [-0.12, 0.
 const FLOAT = 2.2; // seconds he floats up onto it
 const LEGS_OUT = 0.9; // how far his legs go out on her head (1: straight): bent a little at the knee, so the near one is no kick (0.85 sinks a heel)
 const LOOK_UP = 14;
-const LOOK_DOWN = 22;
-// Where in the rise the lift camera begins to look down past him at Mosi coming round below, and how far it goes before the top
-// (liftLook: half of the way to downToMosi, so he stays in the frame); at the top it looks all the way down and he says how small
-// Mosi is (theLookout).
-const MOSI_SEEN = { from: 0.4, to: 0.8, most: 0.5 };
+const LOOK_DOWN = 32; // the lookout's look down at Mosi (STYLE.md 8: 35 at most)
+// Where in the rise the lift camera swings round from his right (LIFT_CAMERA) to his left (LOOKOUT_CAMERA) and begins to look down
+// past him at Mosi coming round below, and how far that look goes before the top (liftLook: half of the way to downToMosi, so he
+// stays in the frame); at the top it looks all the way down and he says how small Mosi is (theLookout).
+const SWING = { from: 0.65, to: 1, most: 0.5 };
 // Her life: a nod or a bite every 7 to 12 s, the first 2.5 s after she is seen; the nod (kink) is 2.8 s, its lowest 0.95 s in,
 // where her mouth closes on the twigs.
 const LIFE = { first: 2.5, gap: [7, 12], nod: 2.8, bite: 0.95, chew: 1.4 };
@@ -239,7 +246,7 @@ export function* liftUp(s, c) {
   const rising = lift.getClip().duration - lift.time;
   c.lift = { action: lift, from: lift.time, rising };
   s.camera.cut('fen_lift');
-  s.camera.follow('egill', { ...LIFT_CAMERA, look: liftLook(c) });
+  s.camera.follow('egill', { ...LIFT_CAMERA, offset: swingRound(c), look: liftLook(c) });
   c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES[0] + 1.5, MOSI_CATCHES[1]], MOSI_CATCHES], { speed: 0.9 }); // arriving facing west
   const drops = waterDrops(world, { seconds: rising, seed: 'her neck drips', ring: c.ring });
   const dripping = s.after(0.3, () => dripFromNeck(s, c, drops));
@@ -465,20 +472,38 @@ function betweenHimAndHer(c) {
   return out => eyes(out).lerp(c.egill.raw.headPosition(head), 0.5);
 }
 
-/** The lift camera's look: Egill's head, turning down toward Mosi below (downToMosi) between MOSI_SEEN.from and .to of the rise. */
+/** How far through the swing of the lift camera the rise is (0 before SWING.from, 1 at SWING.to), eased. */
+function swung(c) {
+  const { action, from, rising } = c.lift;
+  return smooth(Math.min(1, Math.max(0, ((action.time - from) / rising - SWING.from) / (SWING.to - SWING.from))));
+}
+
+/** The lift camera's offset: LIFT_CAMERA's on his right, swinging round behind him to LOOKOUT_CAMERA's on his left as he nears the top. */
+function swingRound(c) {
+  const [bx, by, bz] = LIFT_CAMERA.offset, [ax, ay, az] = LOOKOUT_CAMERA.offset;
+  const from = Math.atan2(bz, -bx), to = Math.atan2(az, -ax), near = Math.hypot(bx, bz), far = Math.hypot(ax, az);
+  return () => {
+    const k = swung(c), a = from + (to - from) * k, reach = near + (far - near) * k;
+    return [-reach * Math.cos(a), by + (ay - by) * k, reach * Math.sin(a)];
+  };
+}
+
+/** The lift camera's look: Egill's head, turning down toward Mosi below (downToMosi) as the camera swings round. */
 function liftLook(c) {
   const down = downToMosi(c);
   const head = new THREE.Vector3();
   const mosi = new THREE.Vector3();
   return out => {
-    const { action, from, rising } = c.lift;
-    const k = MOSI_SEEN.most * smooth(Math.min(1, Math.max(0, ((action.time - from) / rising - MOSI_SEEN.from) / (MOSI_SEEN.to - MOSI_SEEN.from))));
+    const k = SWING.most * swung(c);
     c.egill.raw.headPosition(head);
     return k > 0 ? out.copy(head).lerp(down(mosi), k) : out.copy(head);
   };
 }
 
-/** A point between Egill's head and Mosi below, for the camera at the top to look at, never more than LOOK_DOWN degrees down. */
+/**
+ * A point between Egill's head and Mosi below, for the camera at the top to look at: halfway, which is further down than LOOK_DOWN
+ * degrees from the camera, so the look is LOOK_DOWN degrees down.
+ */
 export function downToMosi(c) {
   const head = new THREE.Vector3();
   const mosi = new THREE.Vector3();
@@ -486,7 +511,7 @@ export function downToMosi(c) {
   return out => {
     c.egill.raw.headPosition(head);
     c.mosi.raw.centre(mosi);
-    out.lerpVectors(head, mosi, 0.35);
+    out.lerpVectors(head, mosi, 0.5);
     const level = Math.hypot(out.x - camera.x, out.z - camera.z);
     out.y = Math.max(out.y, camera.y - level * Math.tan(THREE.MathUtils.degToRad(LOOK_DOWN)));
     return out;
