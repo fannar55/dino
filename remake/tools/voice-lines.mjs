@@ -355,10 +355,33 @@ async function request({ key, fetch, text, voiceId, seed, context }) {
   return bytes;
 }
 
-/** The raw answer for a request: from the cache, or asked for once and kept. */
+/**
+ * The caches of the repo's other checkouts beside this one (C:/Risaeðla/<worktree>/.tools/elevenlabs-remake), read only: a take
+ * another checkout paid for is the same request, so it is copied rather than asked for again. Only for the real repo root (a
+ * test's root has none).
+ */
+export function siblingCaches(root) {
+  if (path.resolve(root) !== ROOT) return [];
+  const parent = path.dirname(ROOT);
+  return fs.readdirSync(parent, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && path.join(parent, entry.name) !== ROOT)
+    .map(entry => path.join(parent, entry.name, CACHE))
+    .filter(dir => fs.existsSync(dir));
+}
+
+/** The raw answer for a request: from the cache (this checkout's, or copied from another's), or asked for once and kept. */
 async function take({ root, key, fetch, text, voiceId, seed, context, log }) {
-  const file = path.join(root, CACHE, `${cacheKey({ text, voiceId, seed, context })}.mp3`);
+  const name = `${cacheKey({ text, voiceId, seed, context })}.mp3`;
+  const file = path.join(root, CACHE, name);
   if (fs.existsSync(file)) return file;
+  const elsewhere = siblingCaches(root).map(dir => path.join(dir, name)).find(candidate => fs.existsSync(candidate));
+  if (elsewhere) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.copyFileSync(elsewhere, `${file}.part`);
+    fs.renameSync(`${file}.part`, file);
+    log(`From ${path.relative(path.dirname(ROOT), elsewhere).split(path.sep)[0]}'s cache: ${name}`);
+    return file;
+  }
   log(`Asking for ${text.length} characters...`);
   const bytes = await request({ key, fetch, text, voiceId, seed, context });
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -492,6 +515,9 @@ export async function audition({ root, key, fetch, character, log }) {
   return rows;
 }
 
+/** Whether a take is in this checkout's cache or another's: then it costs nothing. */
+const isCached = (root, key) => [path.join(root, CACHE), ...siblingCaches(root)].some(dir => fs.existsSync(path.join(dir, `${key}.mp3`)));
+
 /** How a request reads in a listing: the words found with the recipe each was sent with ("unchosen": sent as written). */
 const describeWords = sent => sent.words.map(word => `${word.id}: ${word.recipe ?? 'unchosen, sent as written'}`).join('; ');
 
@@ -520,7 +546,7 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
       }
       const sent = requestFor(line, lexicon);
       const voiceId = voices[line.speaker];
-      const cached = typeof voiceId === 'string' && fs.existsSync(path.join(root, CACHE, `${cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context })}.mp3`));
+      const cached = typeof voiceId === 'string' && isCached(root, cacheKey({ text: sent.text, voiceId, seed: sent.seed, context: sent.context }));
       const unchosen = sent.words.some(word => !word.recipe);
       rows.push({ set: name, id: line.id, speaker: line.speaker, text: line.text, sent, cached, unchosen });
       out.push(`  ${line.id}: ${JSON.stringify(sent.text)}${sent.seed === undefined ? '' : `  seed ${sent.seed}`}${sent.words.length ? `  [${describeWords(sent)}]` : ''}${sent.own.length ? `  (the line's own ${sent.own.join(', ')})` : ''}  ${cached ? 'cached' : 'to ask'}`);
@@ -534,17 +560,230 @@ export function dry({ root, set = 'kafli1', only = null, log }) {
   return rows;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The pronunciation book: one audition per word, speaker and recipe, for the owner to pick a recipe per word
+
+const BOOK = 'qa/remake/voices/framburdarbok';
+/** The speakers by the names the owner knows them by, in the order the book shows them. */
+export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', narrator: 'Sögumaður' };
+const bySpeaker = (a, b) => {
+  const order = Object.keys(SPEAKER_NAMES);
+  const rank = who => (order.includes(who) ? order.indexOf(who) : order.length);
+  return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+/** A word of the lexicon by its id, its name or one of its forms ("Kambeðla", "kambedla" and "Kambeðlu" are one word). */
+export function resolveWord(lexicon, name) {
+  if (Object.hasOwn(lexicon.words, name)) return name;
+  const found = Object.entries(lexicon.words).find(([, entry]) => entry.word.toLowerCase() === String(name).toLowerCase() || entry.forms.includes(name));
+  if (!found) throw new Error(`${name} is not a word of ${LEXICON}; the words are ${Object.keys(lexicon.words).join(', ')} (or all).`);
+  return found[0];
+}
+
+/** The lexicon with one word's recipe chosen, for an audition: every other word keeps the owner's choice. */
+const withChoice = (lexicon, id, recipe) => ({ ...lexicon, words: { ...lexicon.words, [id]: { ...lexicon.words[id], chosen: recipe } } });
+
+/**
+ * What a speaker says in the book for a word: the entry's own audition sentence for that speaker, or the shortest line of theirs
+ * with the word, a line that is not kept first (that line will be made again with the recipe picked, and its audition is the very
+ * request, so the take heard is the take that goes into the game).
+ */
+function sampleFor(entry, speaker, says) {
+  const mine = says.filter(line => line.speaker === speaker);
+  if (entry.audition?.[speaker]) { // a sentence of the entry's own, or one of the speaker's lines named by its text
+    const line = mine.find(candidate => candidate.text === entry.audition[speaker]);
+    return line ? { text: line.text, seed: line.seed, from: `${line.set}/${line.id}` } : { text: entry.audition[speaker], from: null };
+  }
+  const pool = mine.some(line => line.kept === undefined) ? mine.filter(line => line.kept === undefined) : mine;
+  const line = pool.reduce((best, next) => (next.text.length < best.text.length ? next : best));
+  return { text: line.text, seed: line.seed, from: `${line.set}/${line.id}` };
+}
+
+/**
+ * The book's rows: for each word (all, or the one named), each speaker who says it anywhere (or has an audition sentence), each
+ * recipe (raw among them): the sentence, what would be sent and the file it goes in. Pure.
+ */
+export function bookPlan(lexicon, lines, which = 'all') {
+  const ids = which === 'all' ? Object.keys(lexicon.words) : [resolveWord(lexicon, which)];
+  const rows = [];
+  for (const id of ids) {
+    const entry = lexicon.words[id];
+    const pattern = formsPattern(entry.forms);
+    const says = lines.filter(line => pattern.test(line.text));
+    const speakers = [...new Set([...says.map(line => line.speaker), ...Object.keys(entry.audition ?? {})])].sort(bySpeaker);
+    for (const speaker of speakers) {
+      const sample = sampleFor(entry, speaker, says);
+      for (const [recipe, { note }] of Object.entries(entry.recipes)) {
+        const sent = requestFor({ speaker, text: sample.text, ...(sample.seed === undefined ? {} : { seed: sample.seed }) }, withChoice(lexicon, id, recipe));
+        rows.push({ word: id, speaker, recipe, note, text: sample.text, from: sample.from, sent: { text: sent.text, context: sent.context, seed: sent.seed }, file: `${id}/${speaker}-${recipe}.mp3` });
+      }
+    }
+  }
+  return rows;
+}
+
+const escapeHtml = text => String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const PAGE_STYLE = `:root { --paper: #fbf3e2; --ink: #3b2a1a; --muted: #7a6650; --line: #e3d3b4; --mark: #f3e2bd; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.45 Nunito, system-ui, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 16px 96px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  h2 { margin: 36px 0 4px; font-size: 23px; border-bottom: 2px solid var(--line); padding-bottom: 4px; }
+  p.note, .muted { color: var(--muted); }
+  p.note { margin: 0 0 8px; }
+  code, .sent { font: 13px ui-monospace, monospace; color: var(--muted); word-break: break-word; }
+  .recipe { margin: 14px 0 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+  .recipe:has(input:checked) { background: var(--mark); }
+  .recipe label { font-weight: 800; cursor: pointer; }
+  .row { display: grid; grid-template-columns: 120px 1fr; gap: 2px 14px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+  .row .who { font-weight: 700; }
+  .row audio { grid-column: 1 / -1; width: 100%; height: 36px; }
+  .missing { grid-column: 1 / -1; color: var(--muted); font-style: italic; }
+  .bar { position: sticky; bottom: 0; background: var(--paper); border-top: 2px solid var(--line); padding: 10px 0; display: flex; gap: 12px; align-items: center; }
+  button { font: inherit; font-weight: 800; padding: 8px 18px; border-radius: 999px; border: 2px solid var(--ink); background: #fff8ea; color: var(--ink); cursor: pointer; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }`;
+
+/** The book's page (qa/remake/voices/framburdarbok/index.html): a section per word, a radio per recipe, a row per speaker. */
+export function bookHtml(lexicon, rows, { exists = () => true } = {}) {
+  const sections = [];
+  for (const [id, entry] of Object.entries(lexicon.words)) {
+    const mine = rows.filter(row => row.word === id);
+    if (!mine.length) continue;
+    const recipes = Object.entries(entry.recipes).map(([recipe, { note }]) => {
+      const rowsHtml = mine.filter(row => row.recipe === recipe).map(row => {
+        const sent = [`sent: ${row.sent.text}`, row.sent.context ? `samhengi (ekki talað): ${row.sent.context}` : '', row.sent.seed === undefined ? '' : `fræ ${row.sent.seed}`].filter(Boolean).join(' · ');
+        const audio = exists(row) ? `<audio controls preload="none" src="${escapeHtml(row.file)}"></audio>` : '<span class="missing">Ekki gert enn (node remake/tools/voice-lines.mjs --book ' + escapeHtml(id) + ')</span>';
+        return `<div class="row" data-row="${escapeHtml(`${id}|${row.speaker}|${recipe}`)}"><span class="who">${escapeHtml(SPEAKER_NAMES[row.speaker] ?? row.speaker)}</span><span>${escapeHtml(row.text)}${row.from ? ` <code>${escapeHtml(row.from)}</code>` : ''}<br><span class="sent">${escapeHtml(sent)}</span></span>${audio}</div>`;
+      }).join('\n');
+      const checked = entry.chosen === recipe ? ' checked' : '';
+      return `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value="${escapeHtml(recipe)}"${checked}> ${escapeHtml(recipe)}${entry.chosen === recipe ? ' <span class="muted">(valið núna)</span>' : ''}</label><p class="note">${escapeHtml(note)}</p>\n${rowsHtml}</div>`;
+    }).join('\n');
+    const undecided = `<div class="recipe"><label><input type="radio" name="${escapeHtml(id)}" value=""${entry.chosen === null ? ' checked' : ''}> ekki ákveðið</label><p class="note">Orðið er sent eins og það er skrifað þar til þú velur.</p></div>`;
+    sections.push(`<section data-word="${escapeHtml(id)}"><h2>${escapeHtml(entry.word)}</h2><p class="note">Myndir: ${entry.forms.map(escapeHtml).join(', ')}. ${entry.chosen ? `Valið núna: <b>${escapeHtml(entry.chosen)}</b>.` : 'Ekkert valið enn.'}</p>\n${recipes}\n${undecided}</section>`);
+  }
+  return `<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Framburðarbók</title>
+<style>
+  ${PAGE_STYLE}
+</style>
+</head>
+<body>
+<main>
+  <h1>Framburðarbók</h1>
+  <p class="note">Eitt erfitt orð í einu. Undir hverri uppskrift segir hver persóna sem notar orðið sömu setninguna; uppskriftin breytir aðeins því sem er sent til ElevenLabs (Eleven v4), aldrei textanum sem barnið sér. Veldu uppskrift fyrir orðið: hún gildir um allar línur með orðinu, í öllum köflum og Litlu Yatzy. Ýttu svo á „Vista val“ og sendu mér picks.json.</p>
+${sections.join('\n')}
+  <div class="bar"><button type="button" id="save">Vista val</button><span class="muted" id="count"></span></div>
+</main>
+<script>
+  const words = [...document.querySelectorAll('section[data-word]')].map(section => section.dataset.word);
+  const picks = () => Object.fromEntries(words.flatMap(word => {
+    const input = document.querySelector('input[name="' + word + '"]:checked');
+    return input ? [[word, input.value || null]] : [];
+  }));
+  const count = () => { document.getElementById('count').textContent = Object.values(picks()).filter(Boolean).length + ' af ' + words.length + ' orðum með valda uppskrift'; };
+  document.addEventListener('change', count);
+  count();
+  document.getElementById('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(picks(), null, 2) + '\\n'], { type: 'application/json' });
+    const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'picks.json' });
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });
+</script>
+</body>
+</html>
+`;
+}
+
+/** Writes the book's page and book.json (every row, with what was sent) for every word of the lexicon. */
+function writeBook(root, lexicon) {
+  const rows = bookPlan(lexicon, allLines(root), 'all');
+  const folder = path.join(root, BOOK);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, 'index.html'), bookHtml(lexicon, rows, { exists: row => fs.existsSync(path.join(folder, row.file)) }));
+  fs.writeFileSync(path.join(folder, 'book.json'), `${JSON.stringify(rows, null, 1)}\n`);
+  return rows;
+}
+
+/** --book: renders the auditions of a word (or all) into the book's folder, mastered like the game's lines, and writes its page. Returns the rows made. */
+export async function book({ root, key, fetch, which, log }) {
+  const lexicon = readLexicon(root);
+  const voices = readVoices(root);
+  const rows = bookPlan(lexicon, allLines(root), which);
+  const missing = [...new Set(rows.map(row => row.speaker))].filter(speaker => typeof voices[speaker] !== 'string' || !voices[speaker]);
+  if (missing.length) throw new Error(`No voice is chosen for ${missing.join(' and ')} in ${VOICES}. No request was made.`);
+  needAudioTools();
+  for (const row of rows) {
+    const raw = await take({ root, key, fetch, ...row.sent, voiceId: voices[row.speaker], log });
+    const seconds = master(raw, path.join(root, BOOK, row.file));
+    log(`Ready ${row.file}: ${seconds} s`);
+  }
+  writeBook(root, lexicon);
+  return rows;
+}
+
+/** --book --dry: the auditions that --book would make, what each sends, and which would cost credits. Asks nothing. */
+export function bookDry({ root, which, log }) {
+  const lexicon = readLexicon(root);
+  const voices = readVoices(root);
+  const rows = bookPlan(lexicon, allLines(root), which);
+  let ask = 0;
+  let characters = 0;
+  for (const row of rows) {
+    const cached = typeof voices[row.speaker] === 'string' && isCached(root, cacheKey({ ...row.sent, voiceId: voices[row.speaker] }));
+    if (!cached) { ask++; characters += row.sent.text.length; }
+    log(`  ${row.file}: ${JSON.stringify(row.sent.text)}${row.sent.seed === undefined ? '' : `  seed ${row.sent.seed}`}  ${cached ? 'cached' : 'to ask'}${row.from ? `  (${row.from})` : ''}`);
+    if (row.sent.context !== undefined) log(`      context (not spoken): ${JSON.stringify(row.sent.context)}`);
+  }
+  log(`${rows.length} auditions of ${new Set(rows.map(row => row.word)).size} words; ${ask} to ask (${characters} characters), the rest cached.`);
+  return rows;
+}
+
+/** --pick: writes the owner's picks (word -> recipe, or null) into the lexicon's "chosen". Everything is checked before the file is written. */
+export function pick({ root, file, log }) {
+  const lexicon = readLexicon(root);
+  const picks = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8'));
+  if (!picks || typeof picks !== 'object' || Array.isArray(picks)) throw new Error(`${file}: the book saves word -> recipe.`);
+  const changes = [];
+  for (const [name, recipe] of Object.entries(picks)) {
+    const id = resolveWord(lexicon, name);
+    if (recipe !== null && !Object.hasOwn(lexicon.words[id].recipes, recipe)) throw new Error(`${file}: ${recipe} is not a recipe of ${id} (${Object.keys(lexicon.words[id].recipes).join(', ')}). Nothing was written.`);
+    changes.push([id, recipe]);
+  }
+  for (const [id, recipe] of changes) {
+    const before = lexicon.words[id].chosen;
+    lexicon.words[id].chosen = recipe;
+    log(before === recipe ? `${id}: ${recipe ?? 'not chosen'}, as it was` : `${id}: ${before ?? 'not chosen'} -> ${recipe ?? 'not chosen'}`);
+  }
+  checkLexicon(lexicon);
+  fs.writeFileSync(path.join(root, LEXICON), `${JSON.stringify(lexicon, null, 2)}\n`);
+  log(`${LEXICON} written. Next: node remake/tools/voice-lines.mjs --plan`);
+  return changes;
+}
+
 export async function main(argv, { env = process.env, root = ROOT, fetch = globalThis.fetch, log = console.log } = {}) {
   const args = parseArgs(argv);
   // What asks ElevenLabs nothing needs no key.
-  if (args.dry && !args.book) {
-    dry({ root, set: args.set, only: args.only, log });
+  if (args.dry) {
+    if (args.book) bookDry({ root, which: args.book, log });
+    else dry({ root, set: args.set, only: args.only, log });
+    return;
+  }
+  if (args.pick) {
+    pick({ root, file: args.pick, log });
     return;
   }
   const key = env.ELEVENLABS_API_KEY?.trim();
   if (!key) throw new Error('Set ELEVENLABS_API_KEY in the local environment to make voices. No request was made.');
   try {
-    if (args.audition) {
+    if (args.book) {
+      const rows = await book({ root, key, fetch, which: args.book, log });
+      log(`${rows.length} auditions and the page are in ${BOOK}/ (index.html)`);
+    } else if (args.audition) {
       const rows = await audition({ root, key, fetch, character: args.audition, log });
       log(`${rows.length} samples and ${args.audition}-index.md are in ${AUDITIONS}/`);
     } else {

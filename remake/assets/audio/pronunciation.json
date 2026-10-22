@@ -72,7 +72,10 @@
           "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
         }
       },
-      "chosen": "ipa"
+      "chosen": "ipa",
+      "audition": {
+        "narrator": "Þetta er snigill. Hann ber húsið sitt og það stækkar með honum!"
+      }
     },
     "eitt": {
       "word": "Eitt",

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
-import { applyLexicon, cacheKey, checkLexicon, formsPattern, requestFor } from '../tools/voice-lines.mjs';
+import { SPEAKER_NAMES, applyLexicon, bookHtml, bookPlan, cacheKey, checkLexicon, formsPattern, requestFor, resolveWord } from '../tools/voice-lines.mjs';
 
 // The pronunciation standard (remake/assets/audio/pronunciation.json): one entry per hard word, which the voice tools apply to
 // every line they send. These tests hold the lexicon to the texts: every inflection of a hard word that any line says is one of
@@ -221,4 +221,72 @@ test("Litla Yatzy's tool sends its lines through the same function", async () =>
   assert.equal(VOICE_LINES.yatzyRoll.text, 'Eitt markmið eftir. Kastaðu!', 'the caption stays as written');
   const voiceId = 'osSKuDKznhXBktjJ9Z9F';
   assert.equal(junior.juniorFingerprint(VOICE_LINES.welcome, { voiceId, lexicon: LEXICON }), cacheKey({ text: VOICE_LINES.welcome.text, voiceId }), 'a line with no hard word keeps its old fingerprint');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The pronunciation book
+
+test('the book has a row for every word x every speaker who says it x every recipe, each in a file of its own', () => {
+  const lines = corpus();
+  const rows = bookPlan(LEXICON, lines);
+  const key = row => `${row.word}|${row.speaker}|${row.recipe}`;
+  assert.equal(new Set(rows.map(key)).size, rows.length, 'each combination once');
+  assert.equal(new Set(rows.map(row => row.file)).size, rows.length, 'each in a file of its own');
+  for (const [id, entry] of ENTRIES) {
+    const pattern = formsPattern(entry.forms);
+    const speakers = new Set([...lines.filter(line => pattern.test(line.text)).map(line => line.speaker), ...Object.keys(entry.audition ?? {})]);
+    assert.ok(speakers.size, `${id}: someone says it in the book`);
+    for (const speaker of speakers) {
+      for (const recipe of Object.keys(entry.recipes)) assert.ok(rows.some(row => key(row) === `${id}|${speaker}|${recipe}`), `${id}: ${speaker} reads ${recipe}`);
+    }
+    assert.deepEqual(new Set(rows.filter(row => row.word === id).map(row => row.speaker)), speakers, `${id}: only those who say it`);
+  }
+  for (const row of rows) {
+    assert.match(row.file, /^[a-z0-9-]+\/[a-z]+-[a-z0-9-]+\.mp3$/);
+    assert.ok(formsPattern(LEXICON.words[row.word].forms).test(row.text), `${row.file}: the sentence has the word`);
+    assert.ok(SPEAKER_NAMES[row.speaker], `${row.speaker} has a name on the page`);
+  }
+  assert.deepEqual([...new Set(rows.filter(row => row.word === 'egill').map(row => row.speaker))], ['mosi', 'egill', 'thorsedla']);
+  assert.deepEqual([...new Set(rows.filter(row => row.word === 'gramedla').map(row => row.speaker))], ['mosi'], 'Grameðla, said by no line yet, by her audition sentence');
+});
+
+test("a book row tries one word's recipe and keeps the others' choices, and reads a line that will be made again, so the take heard is the request that goes in", () => {
+  const rows = bookPlan(LEXICON, corpus());
+  const row = (word, speaker, recipe) => rows.find(item => item.word === word && item.speaker === speaker && item.recipe === recipe);
+  const map = row('kambedla', 'mosi', 'samhengi');
+  assert.equal(map.from, 'kafli2/k2_mosi_map_kambedla', "Kambeðla's own map line, the one line of hers not kept");
+  const line = corpus().find(item => item.id === 'k2_mosi_map_kambedla');
+  assert.deepEqual(map.sent, pick(requestFor(line, LEXICON)), 'the same request the line is made with');
+  assert.equal(row('kambedla', 'mosi', 'hratt').sent.context, undefined, 'raw: no context');
+  assert.equal(row('mundu', 'mosi', 'hratt').sent.text, 'Mundu að ýta á Eiht!', 'Eitt keeps its chosen respelling while Mundu is tried raw');
+  assert.equal(row('snigill', 'narrator', 'ipa').from, 'book/book_snail_1', "an audition sentence that is one of the speaker's lines is that line");
+  assert.equal(row('egill', 'thorsedla', 'ipa').sent.text, '"/ˈeiːjɪtl̥/". Takk fyrir berin.');
+  assert.equal(resolveWord(LEXICON, 'Kambeðlu'), 'kambedla');
+  assert.equal(resolveWord(LEXICON, 'Þórseðla'), 'thorsedla');
+  assert.throws(() => resolveWord(LEXICON, 'Mosi'), /not a word/);
+  assert.deepEqual([...new Set(bookPlan(LEXICON, corpus(), 'Egill').map(item => item.word))], ['egill'], 'one word');
+});
+
+test('the book page lists every row with a player and the note, a radio per recipe per word (the chosen one checked), and saves picks.json', () => {
+  const rows = bookPlan(LEXICON, corpus());
+  const html = bookHtml(LEXICON, rows);
+  for (const row of rows) {
+    assert.ok(html.includes(`data-row="${row.word}|${row.speaker}|${row.recipe}"`), `${row.file} has a row`);
+    assert.ok(html.includes(`src="${row.file}"`), `${row.file} plays`);
+  }
+  for (const [id, entry] of ENTRIES) {
+    assert.ok(html.includes(`<section data-word="${id}">`), `${id} has a section`);
+    for (const recipe of Object.keys(entry.recipes)) {
+      const radio = `<input type="radio" name="${id}" value="${recipe}"${entry.chosen === recipe ? ' checked' : ''}>`;
+      assert.ok(html.includes(radio), `${id}: ${radio}`);
+      const note = entry.recipes[recipe].note.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+      assert.ok(html.includes(note), `${id}.${recipe}: its note`);
+    }
+  }
+  assert.match(html, /<title>Framburðarbók<\/title>/);
+  assert.match(html, /Nunito/);
+  assert.match(html, /id="save">Vista val</);
+  assert.match(html, /download: 'picks\.json'/);
+  const missing = bookHtml(LEXICON, rows, { exists: () => false });
+  assert.ok(!missing.includes('<audio') && missing.includes('Ekki gert enn'), 'a row not made yet says so');
 });

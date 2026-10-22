@@ -774,3 +774,83 @@ test('parseArgs takes the lexicon commands, and refuses them together or with wh
     assert.throws(() => parseArgs(argv), Error, argv.join(' '));
   }
 });
+
+// ---------------------------------------------------------------------------------------------
+// The pronunciation book and the owner's picks
+
+const BOOK_LEXICON = { words: { kambedla: REAL_LEXICON.words.kambedla, egill: REAL_LEXICON.words.egill } };
+const BOOK_SOURCE = [
+  { id: 'k1_mosi_greet', speaker: 'mosi', text: 'Kambeðla! Halló!' },
+  { id: 'k1_mosi_long', speaker: 'mosi', text: 'Kambeðla er vinkona mín og plöturnar hennar lýsa.' },
+  { id: 'k1_egill_name', speaker: 'egill', text: 'Ég heiti Egill!' },
+  { id: 'k1_mosi_go', speaker: 'mosi', text: 'Áfram, Egill!' },
+];
+
+test('--book renders an audition per word, speaker and recipe into qa/remake/voices/framburdarbok/<word>/<speaker>-<recipe>.mp3, mastered, with its page; the take heard is the take the line is then made from', needsFfmpeg, async t => {
+  const root = makeRoot(t, { lines: BOOK_SOURCE, lexicon: BOOK_LEXICON });
+  const { fetch, calls } = fakeApi();
+  const env = { ELEVENLABS_API_KEY: KEY };
+  const out = [];
+  await main(['--book', 'all'], { env, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  const folder = path.join(root, 'qa/remake/voices/framburdarbok');
+  const expected = [
+    ...['hratt', 'samhengi', 'samhengi-42'].map(recipe => `kambedla/mosi-${recipe}.mp3`),
+    ...['mosi', 'egill'].flatMap(speaker => ['hratt', 'ipa', 'stafsetning', 'samhengi'].map(recipe => `egill/${speaker}-${recipe}.mp3`)),
+  ];
+  assert.deepEqual(filesUnder(folder), [...expected, 'book.json', 'index.html'].sort());
+  assert.equal(calls.length, expected.length, 'one request per audition');
+  for (const name of expected) {
+    const length = seconds(path.join(folder, name));
+    assert.ok(length > 1.4 && length < 2.2, `${name}: mastered like the lines, the voice and a quarter second, ${length}`);
+  }
+  const bodies = calls.map(call => call.body);
+  assert.ok(bodies.some(body => body.text === 'Kambeðla! Halló!' && body.previous_text === VISIT && body.seed === 1), "the shortest of Mosi's Kambeðla lines, with the context");
+  assert.ok(bodies.some(body => body.text === 'Ég heiti "/ˈeiːjɪtl̥/"!' && body.previous_text === undefined), "Egill's IPA in Egill's line");
+  assert.ok(calls.some(call => call.url.includes(`/${VOICES.egill}?`) && call.body.text === 'Ég heiti Eijitl!'), "in Egill's voice");
+  const page = fs.readFileSync(path.join(folder, 'index.html'), 'utf8');
+  for (const name of expected) {
+    const [word, file] = name.split('/');
+    const [speaker, ...recipe] = file.slice(0, -4).split('-');
+    assert.ok(page.includes(`data-row="${word}|${speaker}|${recipe.join('-')}"`) && page.includes(`src="${name}"`), `${name} is on the page`);
+  }
+  assert.ok(out.some(line => line.includes('framburdarbok')), JSON.stringify(out.slice(-2)));
+  assert.equal(fs.readFileSync(path.join(root, 'remake/assets/audio/kafli1/lines-source.json'), 'utf8'), JSON.stringify(BOOK_SOURCE), 'the lines are untouched');
+
+  // The line the book read with the chosen recipe, and the raw Egill lines (not chosen yet), cost nothing when they are made.
+  await main([], { env, root, fetch, log() {} });
+  assert.deepEqual(calls.slice(expected.length).map(call => call.body.text), ['Kambeðla er vinkona mín og plöturnar hennar lýsa.'], 'only the line the book did not read');
+  // --book --dry lists what it would send and asks nothing; one word at a time works too.
+  const dryOut = [];
+  await main(['--book', 'Egill', '--dry'], { env: {}, root, fetch, log: (...parts) => dryOut.push(parts.join(' ')) });
+  assert.equal(calls.length, expected.length + 1);
+  assert.equal(dryOut.at(-1), '8 auditions of 1 words; 0 to ask (0 characters), the rest cached.');
+});
+
+test("--pick writes the owner's picks into the lexicon's chosen, and nothing else; a pick that is not a recipe or a word writes nothing", async t => {
+  const root = makeRoot(t, { lexicon: null });
+  const lexiconFile = path.join(root, 'remake/assets/audio/pronunciation.json');
+  const real = fs.readFileSync(file('../assets/audio/pronunciation.json'), 'utf8');
+  fs.writeFileSync(lexiconFile, real);
+  const picks = path.join(root, 'picks.json');
+  const { fetch, calls } = fakeApi();
+  const out = [];
+  fs.writeFileSync(picks, JSON.stringify({ egill: 'ipa', 'Þórseðla': 'samhengi', kambedla: 'samhengi', oglir: null }));
+  await main(['--pick', picks], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
+  const after = JSON.parse(fs.readFileSync(lexiconFile, 'utf8'));
+  assert.equal(after.words.egill.chosen, 'ipa');
+  assert.equal(after.words.thorsedla.chosen, 'samhengi', 'by its name as well as its id');
+  assert.equal(after.words.kambedla.chosen, 'samhengi');
+  assert.equal(after.words.oglir.chosen, null);
+  const expected = JSON.parse(real);
+  expected.words.egill.chosen = 'ipa';
+  expected.words.thorsedla.chosen = 'samhengi';
+  assert.equal(fs.readFileSync(lexiconFile, 'utf8'), `${JSON.stringify(expected, null, 2)}\n`, 'the file keeps its form: only the picks changed');
+  assert.ok(out.includes('egill: not chosen -> ipa') && out.includes('kambedla: samhengi, as it was'), JSON.stringify(out));
+  for (const wrong of [{ egill: 'nope' }, { mosi: 'ipa' }, { egill: 'ipa', thorsedla: 'stafsetning' }]) {
+    const before = fs.readFileSync(lexiconFile, 'utf8');
+    fs.writeFileSync(picks, JSON.stringify(wrong));
+    await assert.rejects(main(['--pick', picks], { env: {}, root, fetch, log() {} }), /not a recipe|not a word/, JSON.stringify(wrong));
+    assert.equal(fs.readFileSync(lexiconFile, 'utf8'), before, 'nothing written');
+  }
+  assert.equal(calls.length, 0);
+});
