@@ -5,10 +5,11 @@
 // bucket of plants merged), and one of two runners drives it:
 //
 //   runSync(steps)                  to the end at once, as before (the start place, a seek, the tests): returns its value
-//   runSliced(steps, { budget, wait, onSlice })   a slice at a time: it runs on until `budget()` milliseconds have gone, waits for
-//                                   `wait()` (the next frame), and goes on; resolves to its value. `budget` is read before each
-//                                   slice, so the page can give a build more while the screen is black. `onSlice(ms)` hears how long
-//                                   each slice took (a probe, a test)
+//   runSliced(steps, { budget, wait, onSlice, now })   a slice at a time: it runs on until `budget()` milliseconds have gone,
+//                                   waits for `wait()` (the next frame), and goes on; resolves to its value. `budget` is read before
+//                                   each slice, so the page can give a build more while the screen is black. `onSlice(ms)` hears how
+//                                   long each slice took (a probe, a test). `now()` is the clock, performance.now unless a test gives
+//                                   its own (read as a slice begins, after each step, and as it ends)
 //
 // A step function calls another with `yield* other()`. What it builds is the same however it is driven: the yields only stop it.
 
@@ -32,17 +33,17 @@ export function runSync(steps) {
   return next.value;
 }
 
-export async function runSliced(steps, { budget = () => 20, wait = nextFrame, onSlice = null } = {}) {
+export async function runSliced(steps, { budget = () => 20, wait = nextFrame, onSlice = null, now = () => performance.now() } = {}) {
   for (;;) {
-    const start = performance.now();
+    const start = now();
     const limit = Math.max(1, budget());
     let next;
     let ran = 0;
     do {
       next = steps.next();
       ran++;
-    } while (!next.done && performance.now() - start < limit && !(next.value === FRESH && ran > 1));
-    onSlice?.(performance.now() - start);
+    } while (!next.done && now() - start < limit && !(next.value === FRESH && ran > 1));
+    onSlice?.(now() - start);
     if (next.done) return next.value;
     await wait();
   }

@@ -10,7 +10,10 @@ import { createForest } from '../world/forest/forest.js';
 import { runSync, runSliced, FRESH } from '../world/forest/slices.js';
 
 // A forest built a slice at a time (world/forest/slices.js), as main.js builds a chapter's later places while the start button waits
-// and the first scenes play: the same place as one built at once, its steps short enough to leave a frame room to draw.
+// and the first scenes play: the same place as one built at once, a slice ending as its budget runs out. No test here reads a real
+// clock: runSliced is given one (`now`) that moves a set number of milliseconds each time it is read, once as a slice begins, once
+// after each step and once as it ends. So a budget of B ms on a clock of m ms a read is a budget of ceil(B / m) steps, whatever the
+// machine is doing.
 
 function nodeWorld() {
   const look = pickLook(chapter.look);
@@ -23,79 +26,100 @@ function nodeWorld() {
 }
 const layoutOf = name => ({ ...chapter.locations[name].layout, shots: chapter.locations[name].shots });
 
-test('runSync and runSliced drive the same steps to the same end; the sliced one waits between slices, and begins a long step in a slice of its own', async () => {
-  function* steps() {
-    let sum = 0;
-    for (let i = 0; i < 50; i++) {
-      const until = performance.now() + 0.2;
-      while (performance.now() < until); // a little work
-      sum += i;
-      yield;
-    }
-    return sum;
+/** A clock that moves `ms` each time it is read. */
+const steppingClock = (ms = 1) => { let t = 0; return () => (t += ms); };
+
+/** `n` steps of work, each logged as it is done; returns their sum, as a build returns what it made. */
+function* units(n, log) {
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    sum += i;
+    log.push('x');
+    yield;
   }
-  assert.equal(runSync(steps()), 1225);
+  return sum;
+}
+
+/** Slices as the steps ran: 'xxx|xxx|x|' (a '|' where a slice ended). */
+async function sliced(steps, log, options) {
+  return runSliced(steps, { wait: () => Promise.resolve(), onSlice: () => log.push('|'), ...options });
+}
+
+test('runSliced runs as many steps a slice as its budget allows on its clock, waits between slices, and ends where runSync does', async () => {
+  assert.equal(runSync(units(10, [])), 45);
+  // a budget of 3 ms on a clock of 1 ms a read: 3 steps a slice
+  let log = [];
   let waits = 0;
-  const slices = [];
-  const value = await runSliced(steps(), { budget: () => 1, wait: () => { waits++; return Promise.resolve(); }, onSlice: ms => slices.push(ms) });
-  assert.equal(value, 1225);
-  assert.ok(waits >= 5 && slices.length === waits + 1, `${waits} waits, ${slices.length} slices`);
-  // a budget read before each slice: a bigger one (the screen black) runs it in fewer
-  let big = 0;
-  await runSliced(steps(), { budget: () => 1000, wait: () => { big++; return Promise.resolve(); } });
-  assert.equal(big, 0, 'all in one slice');
-  // a step that yields FRESH ends its slice, so the long step after it begins one of its own; not when it is the slice's first step
-  const busy = ms => { const until = performance.now() + ms; while (performance.now() < until); };
-  const ran = []; // the steps as they run, and '|' where a slice ends
-  function* withLong() {
-    yield FRESH; // the slice's first step: it goes on
-    for (let i = 0; i < 6; i++) { busy(0.5); ran.push('short'); yield; }
-    yield FRESH;
-    busy(4); // the long step, the first of its slice
-    ran.push('long');
-    yield; // (a FRESH it yielded itself would be its slice's first step: no end)
-    yield FRESH;
-    busy(4); // and another
-    ran.push('long');
-    return 'made';
-  }
-  assert.equal(await runSliced(withLong(), { budget: () => 1000, wait: () => Promise.resolve(), onSlice: () => ran.push('|') }), 'made');
-  assert.deepEqual(ran.join(' '), 'short short short short short short | long | long |');
-  assert.equal(runSync(withLong()), 'made');
+  assert.equal(await runSliced(units(10, log), { budget: () => 3, now: steppingClock(1), wait: () => { waits++; return Promise.resolve(); }, onSlice: () => log.push('|') }), 45);
+  assert.equal(log.join(''), 'xxx|xxx|xxx|x|');
+  assert.equal(waits, 3, 'a wait between each two slices, none after the last');
+  // in milliseconds: 7 ms on a clock of 2 ms a read is 4 steps (2, 4 and 6 ms are under 7)
+  log = [];
+  await sliced(units(10, log), log, { budget: () => 7, now: steppingClock(2) });
+  assert.equal(log.join(''), 'xxxx|xxxx|xx|');
+  // the budget is read before each slice: any sequence of budgets, each slice its own; none under a step (0 is 1)
+  log = [];
+  const budgets = [1, 5, 0, 2];
+  await sliced(units(10, log), log, { budget: () => budgets.shift() ?? 100, now: steppingClock(1) });
+  assert.equal(log.join(''), 'x|xxxxx|x|xx|x|');
+  // what a slice took, as onSlice hears it: a read after each step and one that ends it (the last slice's last call to the steps
+  // finds them done, and no read follows it)
+  const heard = [];
+  await runSliced(units(7, []), { budget: () => 3, now: steppingClock(1), wait: () => Promise.resolve(), onSlice: ms => heard.push(ms) });
+  assert.deepEqual(heard, [4, 4, 2]);
 });
 
-test('the trail and the Fen built in slices are the places built at once, and no step of the build holds a frame long', async () => {
+test('a step that yields FRESH ends its slice unless it is the slice\'s first step, so the long step after it begins a slice of its own', async () => {
+  const log = [];
+  function* withLong() {
+    yield FRESH; // the slice's first step: it goes on
+    for (let i = 0; i < 6; i++) { log.push('short'); yield; }
+    yield FRESH;
+    log.push('long'); // the long step, the first of its slice
+    yield; // (a FRESH it yielded itself would be its slice's first step: no end)
+    yield FRESH;
+    log.push('long'); // and another
+    return 'made';
+  }
+  assert.equal(await sliced(withLong(), log, { budget: () => 1000, now: steppingClock(1) }), 'made');
+  assert.equal(log.join(' '), 'short short short short short short | long | long |');
+  log.length = 0;
+  assert.equal(runSync(withLong()), 'made');
+  assert.equal(log.join(' '), 'short short short short short short long long', 'runSync takes no notice');
+});
+
+test('the trail and the Fen built in slices, under any budgets, are the places built at once; a slice never runs past its budget in steps', async () => {
   for (const name of ['fenjaslod', 'fen']) {
     const whole = await createForest(nodeWorld(), layoutOf(name));
-    const slices = [];
-    let waits = 0;
-    const sliced = await createForest(nodeWorld(), layoutOf(name), {
-      slice: { budget: () => 4, wait: () => { waits++; return Promise.resolve(); }, onSlice: ms => slices.push(ms) },
-    });
-    assert.deepEqual(sliced.info.placementList, whole.info.placementList, `${name}: the same plants in the same places`);
-    for (const key of ['grassBlades', 'grassTriangles', 'farTriangles', 'groundTriangles', 'waterTriangles', 'mossCards', 'mistCards']) {
-      assert.equal(sliced.info[key], whole.info[key], `${name}: ${key}`);
-    }
-    assert.deepEqual(sliced.info.meshes, whole.info.meshes, `${name}: the same plant meshes`);
-    const ground = forest => forest.group.getObjectByName('Forest ground').geometry.attributes.position.array;
-    assert.deepEqual(ground(sliced), ground(whole), `${name}: the same ground`);
-    assert.ok(waits > 60, `${name}: built over ${waits} frames`);
-    // each slice is the budget and at most one step more: a step is a plant tried (its model built the first time), a row of the
-    // ground or the grass, a bucket's plant merged; generous for a busy machine (the browser's frames are measured in the report).
-    // A step that is long is long in every build; a pause of the machine's own (the collector, the other tests running beside this
-    // one) is not: so the place is built in slices once more, each slice timed by the CPU time it took (a slice the machine set aside
-    // for another process does not count that), and the shorter of the two builds' longest slices is what counts.
-    const again = [];
-    let cpuAt = null;
-    const twice = await createForest(nodeWorld(), layoutOf(name), { slice: {
-      budget: () => { cpuAt = process.cpuUsage(); return 4; },
-      wait: () => Promise.resolve(),
-      onSlice: ms => { const cpu = process.cpuUsage(cpuAt); again.push(Math.min(ms, (cpu.user + cpu.system) / 1000)); },
+    const same = forest => {
+      assert.deepEqual(forest.info.placementList, whole.info.placementList, `${name}: the same plants in the same places`);
+      for (const key of ['grassBlades', 'grassTriangles', 'farTriangles', 'groundTriangles', 'waterTriangles', 'mossCards', 'mistCards']) {
+        assert.equal(forest.info[key], whole.info[key], `${name}: ${key}`);
+      }
+      assert.deepEqual(forest.info.meshes, whole.info.meshes, `${name}: the same plant meshes`);
+      const ground = f => f.group.getObjectByName('Forest ground').geometry.attributes.position.array;
+      assert.deepEqual(ground(forest), ground(whole), `${name}: the same ground`);
+    };
+    // budgets that change from slice to slice, in steps (a clock of 1 ms a read): each slice runs its budget of steps (fewer only
+    // where a long step begins a slice of its own, FRESH, and at the end), never more
+    const cycle = [1, 3, 8, 2, 13, 5];
+    const given = [], heard = [];
+    let k = 0;
+    const varied = await createForest(nodeWorld(), layoutOf(name), { slice: {
+      now: steppingClock(1), wait: () => Promise.resolve(), onSlice: ms => heard.push(ms),
+      budget: () => { const b = cycle[k++ % cycle.length]; given.push(b); return b; },
     } });
-    const longest = Math.min(Math.max(...slices.slice(1)), Math.max(...again.slice(1))); // the first runs the code cold
-    assert.ok(longest < 60, `${name}: its longest slice took ${longest.toFixed(1)} ms`);
+    same(varied);
+    assert.equal(heard.length, given.length);
+    const ran = heard.map(ms => ms - 1); // the steps of each slice (the last slice's are one more: its last call finds the end)
+    ran.forEach((steps, i) => assert.ok(steps <= given[i], `${name}: slice ${i} ran ${steps} steps on a budget of ${given[i]}`));
+    const full = ran.filter((steps, i) => steps === given[i]).length;
+    assert.ok(full >= ran.length - 10, `${name}: ${ran.length - full} of ${ran.length} slices ran short of their budget`);
+    // and it yields after each piece of work: a build is many steps, each slice of one step on a budget of one
+    const steps = ran.reduce((a, b) => a + b, 0);
+    assert.ok(steps > 1000, `${name}: ${steps} steps`);
+    assert.ok(ran.every((n, i) => given[i] !== 1 || n <= 1), `${name}: a budget of one step is a slice of one`);
     whole.dispose();
-    sliced.dispose();
-    twice.dispose();
+    varied.dispose();
   }
 });
