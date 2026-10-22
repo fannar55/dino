@@ -88,6 +88,8 @@ const CORNER_SVG = '<svg class="corner-curl" viewBox="0 0 100 100" aria-hidden="
  *   refresh()          shows what the save holds now (a star that has landed, an animal that has come)
  *   pictureOf(findId)  the thumbnail of the card that find unlocks, or null
  *   openCard(id, page) shows a card on the animals page, from its own place, as a tap on its tile would (the lab uses it)
+ *   foundAgain(findId) the animal of a find the book has already was found again in a new place (the journal tells it): the next
+ *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
 export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window } = {}) {
@@ -291,9 +293,14 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
   const zoom = createZoom(doc, { audio, win, root });
   const cardViewer = createCardViewer(doc, root, { media, audio, zoom, win, onClose: () => animals.render() });
+  const refound = new Set(); // the cards whose animals were found again in a new place, until each is next opened (foundAgain)
   const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), {
     cards, media, save, audio, win,
-    onOpenCard: (card, fromRect) => cardViewer.open(card, fromRect),
+    onOpenCard: (card, fromRect) => {
+      const page = refound.has(card.id) ? card.refind : 0; // found again: its newest page, once
+      refound.delete(card.id);
+      cardViewer.open(card, fromRect, page);
+    },
   });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
   const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`) });
@@ -665,6 +672,12 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   /** The card a find unlocks, if the book has it. */
   const cardOfFind = find => (find ? cards.find(card => card.unlock.found === find) ?? null : null);
 
+  /** A find the book has already, made again in a new place: its card opens on its newest page the next time the child opens it. */
+  function foundAgain(findId) {
+    const card = cardOfFind(findId);
+    if (card) refound.add(card.id);
+  }
+
   function open(next = tab, by = 'script', { find = null } = {}) {
     if (!TABS.includes(next)) throw new TypeError(`The book has no page "${next}": it has ${TABS.slice(0, -1).join(', ')} and ${TABS.at(-1)}`);
     const found = next === 'animals' ? cardOfFind(find) : null; // a find asks for its spread, and its tile nods there
@@ -762,6 +775,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     refresh: render,
     pictureOf,
     openCard,
+    foundAgain,
     cardViewer,
     zoom,
     get isOpen() { return isOpen; },

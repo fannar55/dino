@@ -415,7 +415,7 @@ test('an open book that a find asks for turns once, straight to its spread, and 
 });
 
 test('chapter 1\'s frog found again in the Fen flies into the book once, and the book opens on its spread', () => {
-  const { doc, save, book, animations, tile } = fenRig({ animate: true, fill: s => s.addFinding('frog') }); // found in the forest
+  const { doc, save, book, animations, tile, tap } = fenRig({ animate: true, fill: s => s.addFinding('frog') }); // found in the forest
   const sounds = [];
   const journal = createJournal(doc, save, { book, audio: { sfx: name => sounds.push(name) } });
   const flights = doc.getElementById('journal-flights').children;
@@ -431,6 +431,19 @@ test('chapter 1\'s frog found again in the Fen flies into the book once, and the
   doc.getElementById('journal-button').dispatchEvent(new Event('click'));
   assert.equal(book.spread, 1, 'the frog is on the first spread');
   assert.ok(animations.some(a => a.el === tile('frog') && /scale/.test(JSON.stringify(a.keyframes))), 'and it nods there');
+  // its card opens on the page the Fen added, its sixth, once; after that on its first, as any card does
+  tap(tile('frog'));
+  assert.equal(book.cardViewer.isOpen, true, 'the frog\'s card opens');
+  assert.equal(book.cardViewer.page, 5, 'on its sixth page, the Fen\'s');
+  book.cardViewer.close(true);
+  const now = Date.now;
+  Date.now = () => now() + 1000; // a second tap, not the same one (animals-page.js: a double tap opens one card)
+  try {
+    tap(tile('frog'));
+  } finally {
+    Date.now = now;
+  }
+  assert.equal(book.cardViewer.page, 0, 'and the next time on its first');
 });
 
 test('a page corner turns the spread with the book\'s own page turn', () => {

@@ -64,6 +64,18 @@ test('a card with no spread is on the first, and each spread says where its anim
   assert.equal(lines.get('book_find_me_fen')?.text, 'Finndu mig í Feninu!');
 });
 
+test('a card found again opens on its refind page: the frog\'s Fen page, the last page of any card that names none', () => {
+  const cards = parseCards(SHIPPED);
+  const frog = cards.find(c => c.id === 'frog');
+  assert.equal(frog.refind, 5, 'the frog\'s sixth page, the one the Fen added');
+  assert.equal(frog.pages[frog.refind].image, 'fen-frog');
+  for (const c of cards.filter(c => c.id !== 'frog')) assert.equal(c.refind, c.pages.length - 1, `${c.id}: its last page`);
+  assert.equal(parseCards([{ ...card('a', { pages: 4 }), refind: 2 }])[0].refind, 1, 'from 1 in the file, from 0 in code');
+  for (const refind of [0, 5, 1.5, '2']) {
+    assert.throws(() => parseCards([{ ...card('a', { pages: 4 }), refind }]), /card "a" has a refind/, `refind ${JSON.stringify(refind)}`);
+  }
+});
+
 test('unlocks follow finds, the star and the start', () => {
   const cards = parseCards(SHIPPED);
   const open = state => cards.filter(c => isUnlocked(c, { stars: [], findings: [], seen: [], ...state })).map(c => c.id);

@@ -2,7 +2,7 @@
 // frog has six: chapter 2 added its Fen page to the card the owner had approved). They are data, in assets/book/cards.json, so a
 // later chapter adds cards, and a spread of the Dýrin page for them, without code:
 //
-//   { "cards": [ { "id", "name", "order", "unlock", "spread", "pages": [ { "image", "text", "audio", "sources" }, ... ] }, ... ],
+//   { "cards": [ { "id", "name", "order", "unlock", "spread", "refind", "pages": [ { "image", "text", "audio", "sources" }, ... ] }, ... ],
 //     "spreads": [ { "spread", "findMe" }, ... ] }
 //
 //   id       the card's name in code, the save's seen list and the style sheet's hues (book.css [data-card])
@@ -10,6 +10,8 @@
 //   order    where its tile is: Mosi and Kambeðla first, then the critters
 //   unlock   { start: true } from the start, { found: '<id>' } with the find a chapter passes to s.found, or
 //            { star: '<id>' } with the star it passes to s.star
+//   refind   (optional) the page, from 1, the card opens on the first time the child opens it after its animal was found again in
+//            a new place (chapter 2's frog, in the third print, whose sixth page is the Fen's); its last page when it says none
 //   spread   which spread of the Dýrin page its tile is on, from 1 (chapter 1's animals, which say no spread) up: a spread holds
 //            SPREAD_MAX tiles, four on each page, in card order (chapter 2's are on the second, the Fen's); one with a later spread
 //            after it holds one fewer, because the corner that turns on lies where the right page's fourth tile would be
@@ -89,7 +91,9 @@ export function parseCards(data) {
       }
       return { image: page.image, text: page.text, audio: page.audio, sources: [...page.sources] };
     });
-    return { id: raw.id, name: raw.name, order: raw.order, unlock, spread, findMe: findMe.get(spread) ?? FIND_ME, pages };
+    const refind = raw.refind ?? pages.length;
+    if (!Number.isInteger(refind) || refind < 1 || refind > pages.length) fail(`has a refind ${JSON.stringify(raw.refind)}: it is one of its pages, from 1`);
+    return { id: raw.id, name: raw.name, order: raw.order, unlock, spread, refind: refind - 1, findMe: findMe.get(spread) ?? FIND_ME, pages };
   });
   const counts = new Map();
   for (const card of cards) counts.set(card.spread, (counts.get(card.spread) ?? 0) + 1);

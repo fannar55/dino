@@ -201,7 +201,10 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     needId(id, 'journal.addFinding');
     const isNew = save.addFinding(id);
     if (!isNew && (!again || foundAgain.has(id))) return false;
-    if (!isNew) foundAgain.add(id); // found again in a new place: it flies in, and the save has it already
+    if (!isNew) {
+      foundAgain.add(id); // found again in a new place: it flies in, and the save has it already
+      book?.foundAgain?.(id); // and its card opens on the page that place added
+    }
     newest = id;
     show();
     const picture = book?.pictureOf?.(id) ?? null;
