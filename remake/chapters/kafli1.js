@@ -88,6 +88,8 @@ const MOSI_FEET = [
 // the ride, away from Mosi coming along the path through the light.
 const RIDE_BIRDS = [[21.0, -5.8, 200], [21.7, -6.35, 160], [22.3, -6.0, 230]];
 const RIDE_BIRDS_UP = { after: 4, from: [20.2, -5.6], reach: 3 };
+// Seconds of quiet on the ride between the end of Mosi's two lines (their captions too) and the cut to the first critter.
+const RIDE_QUIET = 0.3;
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade
@@ -500,9 +502,14 @@ function* onThePath(s, c) {
   // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
   // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
   // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
-  // critter, the beetle in rideFeet. That cut is timed to his front foot reaching the beetle, so it is the start of the two lines that
-  // gives way (tests/kafli1.test.mjs checks it, and the early tap).
-  s.after(0, () => speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters'));
+  // critter, the beetle in rideFeet: that cut comes as his front foot reaches the beetle, or once the two lines are over (their
+  // captions too) and RIDE_QUIET more, whichever is later, so a take of any length fits (tests/kafli1.test.mjs checks it, and the
+  // early tap).
+  let rideLinesOver = null; // the scene time the two lines ended
+  s.after(0, function* rideLines() {
+    yield speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters');
+    rideLinesOver = s.time;
+  });
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
@@ -511,6 +518,7 @@ function* onThePath(s, c) {
   yield s.camera.cut('rideClose');
   yield s.camera.follow('egill', RIDE_CLOSE);
   yield past(17.5, 4);
+  yield s.until(() => rideLinesOver !== null && s.time >= rideLinesOver + RIDE_QUIET);
   // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
   // prints into it.
   yield s.camera.cut('rideFeet');
