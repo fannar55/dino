@@ -49,6 +49,7 @@ uniform vec3 uFlyCentre[${MAX}];
 uniform vec3 uFlyLoop[${MAX}];
 uniform vec4 uFlyHold[${MAX}]; // a butterfly the code holds: xyz where it is, w the angle of its wings
 uniform vec2 uFlyFace[${MAX}]; // x which way it faces (radians), y 1 while the code holds it and 0 while the loop above flies it
+varying float vFlyNear; // 0 at 1 m from the lens or nearer, 1 from 2.5 m on
 ${FLY_PATH_GLSL}`;
 
 const VERTEX_BODY = `#include <begin_vertex>
@@ -70,7 +71,15 @@ const VERTEX_BODY = `#include <begin_vertex>
   lp = vec3( lp.x, lp.y * cos( flap ) + abs( lp.z ) * sin( flap ), lp.z * cos( flap ) );
   lp *= 1.6;
   float cy = cos( yaw ), sy = sin( yaw );
-  transformed = flyP + vec3( lp.x * cy - lp.z * sy, lp.y, lp.x * sy + lp.z * cy );`;
+  transformed = flyP + vec3( lp.x * cy - lp.z * sy, lp.y, lp.x * sy + lp.z * cy );
+  // a butterfly that flies up to the lens wears away from its edges inward, as the hanging moss does (moss.js), instead of
+  // filling the frame as a flat pale card: gone by 1 m, whole from 2.5 m, so further off it is as it always was
+  vFlyNear = smoothstep( 1.0, 2.5, -( modelViewMatrix * vec4( transformed, 1.0 ) ).z );`;
+// The fragment side of the near fade: before the alpha test, so that alpha to coverage dithers it away where there is multisampling.
+const FRAGMENT_HEAD = `#include <common>
+varying float vFlyNear;`;
+const FRAGMENT_BODY = `#include <color_fragment>
+  diffuseColor.a *= vFlyNear;`;
 
 /** Where the shader's loop puts a butterfly when the wind clock reads `time`: flyPath, written out. */
 export function flyPoint(flyer, time, out = new THREE.Vector3()) {
@@ -147,7 +156,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   while (centres.length < MAX) { centres.push(new THREE.Vector3()); loops.push(new THREE.Vector3(1, 1, 1)); }
   const holds = centres.map(() => new THREE.Vector4());
   const faces = centres.map(() => new THREE.Vector2());
-  const material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, alphaTest: 0.5, alphaToCoverage: Boolean(q.antialias) });
   material.name = 'forest-butterflies';
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, {
@@ -157,6 +166,9 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', VERTEX_HEAD)
       .replace('#include <begin_vertex>', VERTEX_BODY);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', FRAGMENT_HEAD)
+      .replace('#include <color_fragment>', FRAGMENT_BODY);
   };
   material.customProgramCacheKey = () => 'forest-butterflies';
   const mesh = new THREE.Mesh(geometry, material);

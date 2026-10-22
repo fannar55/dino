@@ -8,7 +8,7 @@ import { createBerryBushes } from '../world/props/berries.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
-import { createMist, CARDS } from '../world/props/mist.js';
+import { createMist, CARDS, MIST_FADE, mistStrength } from '../world/props/mist.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
 import { createSpeciesLibrary } from '../world/forest/species.js';
@@ -172,6 +172,24 @@ test('the mist is a few soft cards that the sun lifts', () => {
   assert.equal(mist.level, 0.25);
   mist.setLevel(0);
   assert.equal(mist.mesh.visible, false, 'gone mist costs nothing');
+  mist.dispose();
+});
+
+test('a mist card fades as it is looked down on: none of it from her head or the top of the lift, all of it from a child\'s height', () => {
+  const V = THREE.Vector3;
+  const foot = new V(0, -0.08, 0), height = 1.0; // a card standing in the water, its foot just under the surface
+  const from = (x, y) => mistStrength(new V(x, y, 0), foot, height);
+  // at a child's height, and from the reveal's end 3.8 m up across her pool: as it was
+  for (const d of [8, 15, 30]) assert.ok(from(d, 1.4) > 0.97, `${d} m off at 1.4 m: ${from(d, 1.4).toFixed(2)}`);
+  assert.ok(from(24, 3.8) > 0.85, `the reveal's end: ${from(24, 3.8).toFixed(2)}`);
+  // from her head (about 11 m up) and halfway up the lift, a card is a thin streak of light: gone
+  for (const d of [12, 20, 30, 40, 48]) assert.ok(from(d, 10.9) < 0.05, `the lookout, ${d} m off: ${from(d, 10.9).toFixed(2)}`);
+  assert.ok(from(20, 6) < 0.05, `halfway up the lift: ${from(20, 6).toFixed(2)}`);
+  // and the shader reads the same numbers
+  const mist = createMist(nodeWorld(), { center: [0, 0], radius: 20, heightAt: () => 0 });
+  const shader = mist.mesh.material.vertexShader;
+  for (const n of MIST_FADE.steep) assert.ok(shader.includes(n.toFixed(3)), `the shader fades at ${n}`);
+  assert.equal(mist.mesh.geometry.index.count / 6 <= CARDS, true, 'twelve cards at most, one draw');
   mist.dispose();
 });
 

@@ -176,6 +176,16 @@ test('with nothing tapped the shader flies every butterfly, as it did before the
   }
 });
 
+test('a butterfly close to the lens wears away from its edges, as the moss does, and further off is as it was', () => {
+  for (const q of [PRESETS.tablet, PRESETS.low]) {
+    const { mesh, shader } = butterflyStage({ q });
+    assert.equal(mesh.material.alphaTest, 0.5, 'alpha-tested, so it needs no sorting');
+    assert.equal(mesh.material.alphaToCoverage, Boolean(q.antialias), 'and dithered by the multisampling where there is any');
+    assert.match(shader.vertexShader, /vFlyNear = smoothstep\( 1\.0, 2\.5, -\( modelViewMatrix \* vec4\( transformed, 1\.0 \) \)\.z \);/, 'gone by 1 m, whole from 2.5 m');
+    assert.match(shader.fragmentShader, /#include <color_fragment>\s*diffuseColor\.a \*= vFlyNear;/, 'before the alpha test');
+  }
+});
+
 test('the butterflies are tap targets, butterfly-1 and so on, whose points follow them', () => {
   const stage = butterflyStage();
   assert.deepEqual(stage.targets.map(t => t.name), ['butterfly-1', 'butterfly-2', 'butterfly-3', 'butterfly-4']);
