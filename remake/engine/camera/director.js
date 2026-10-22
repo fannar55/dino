@@ -379,8 +379,11 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   function follow(subject, { offset = [0, 1.4, 6], local = false, look = 'centre', lookOffset = [0, 0, 0], fov, stiffness = 1.6, maxSpeed = LIMITS.dolly } = {}) {
     const name = typeof subject === 'string' ? subject.split('.')[0] : subject.actor;
     const posSpec = { actor: name, part: 'feet', offset, local };
-    // 'head' or 'centre' of the one followed, or any point spec: another actor's head, say (chapter 2: her face coming down to him).
-    const lookSpec = typeof look === 'string' ? { actor: name, part: look === 'head' ? 'head' : 'centre', offset: lookOffset } : look;
+    // 'head' or 'centre' of the one followed, or any point spec: another actor's head, say (chapter 2: her face coming down to him);
+    // lookOffset (metres, in the world) is added to either.
+    const lift = new THREE.Vector3().fromArray(lookOffset);
+    const lookSpec = typeof look === 'string' ? { actor: name, part: look === 'head' ? 'head' : 'centre', offset: lookOffset }
+      : lift.lengthSq() > 0 ? out => resolve(look, out).add(lift) : look;
     const goalP = resolve(posSpec, new THREE.Vector3()); // a missing actor throws here, not every frame
     const goalT = resolve(lookSpec, new THREE.Vector3());
     const velP = new THREE.Vector3();

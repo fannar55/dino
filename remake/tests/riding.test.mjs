@@ -455,3 +455,28 @@ test('a seat on a neck bone rides and floats', async () => {
   assert.ok(egill.root.position.distanceTo(new THREE.Vector3(10.4, 0, 1.2)) < 0.01, 'he lands where he was told');
   assert.equal(thorsedla.lookYawLimit, Infinity, 'her caps go when he is down');
 });
+
+test('a seat needs its bone, and faces the host\'s way when its bone points straight up', async () => {
+  const camera = new THREE.PerspectiveCamera(40, 1.6, 0.1, 1000);
+  const world = { scene: new THREE.Scene(), camera, heightAt: () => 0, actors: new Map(), effects: createEffects() };
+  world.resolvePoint = createPointResolver(world);
+  const thorsedla = await createActor(world, { name: 'thorsedla', gltf: await thorsedlaGltf, position: [0, 0, 0], heading: 30 });
+  assert.throws(() => createSeat(thorsedla, { offset: [0, 0.5, 0] }), /needs the bone/);
+  const seat = createSeat(thorsedla, { bone: 'Head' });
+  const head = thorsedla.model.getObjectByName('Head');
+  const faces = () => {
+    seat.update();
+    const f = new THREE.Vector3(1, 0, 0).applyQuaternion(seat.quaternion);
+    return THREE.MathUtils.radToDeg(Math.atan2(f.z, f.x));
+  };
+  // The head turned nearly straight up, straight up and a little past: the seat keeps the host's way, no flip.
+  for (const pitch of [85, 90, 95]) {
+    head.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(pitch));
+    thorsedla.root.updateMatrixWorld(true);
+    assert.ok(Math.abs(((faces() - 30 + 540) % 360) - 180) < 1e-3, `at ${pitch} degrees up the seat faces ${faces().toFixed(2)}, she 30`);
+  }
+  // Turned a little aside and nearly level, it faces the head's own way.
+  head.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(-20));
+  thorsedla.root.updateMatrixWorld(true);
+  assert.ok(Math.abs(faces() - 50) < 0.5, `turned 20 degrees aside the seat faces ${faces().toFixed(2)}`);
+});

@@ -229,11 +229,12 @@ export function legsOut(rider) {
  * `most` of its own are still spreading, so drops never take every one of the six rings the water keeps for the script.
  */
 export function ringsFor(world, { most = RING.most } = {}) {
+  if (!world.clock) throw new Error('ringsFor counts the rings on the game clock, so it needs world.clock (engine/clock.js)');
   const live = [];
   return (point, strength = DROP.ring) => {
     const water = world.forest?.water;
     if (!water?.rippleAt) return null;
-    const now = world.clock?.time ?? 0;
+    const now = world.clock.time;
     while (live.length && now - live[0] > RING.life) live.shift();
     if (live.length >= most) return null;
     live.push(now);

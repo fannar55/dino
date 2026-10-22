@@ -257,7 +257,7 @@ function playTheFen() {
           if (phase === 'head down') seen.headDown = eyeToEye();
           if (phase === 'lookout') {
             c.seat.update();
-            seen.top = { seat: c.seat.seat.clone(), up: c.seat.seat.y - thorsedla.root.position.y };
+            seen.top = { seat: c.seat.seat.clone(), up: c.seat.seat.y - thorsedla.root.position.y, head: egill.headPosition(new V3()), lookout: c.lookout?.clone() };
           }
           if (phase === 'in the saddle') {
             c.saddle.update();
@@ -276,10 +276,12 @@ function playTheFen() {
         }
         if (phase === 'lookout' && !seen.meet.some(m => m.when === 'the top')) meet('the top');
         if (phase === 'sliding' && c.slide?.phase === 'neck' && c.slide.along <= 1) meet(`the slide, ${c.slide.along.toFixed(2)} m down her neck`);
+        // and as he floats up onto her head, while her head rises as her look at him fades (every third frame)
+        if (phase === 'floating up' && (seen.floatFrames = (seen.floatFrames ?? 0) + 1) % 3 === 0) meet(`the float, frame ${seen.floatFrames}`);
         if (phase === 'lifting') {
-          c.seat.update();
           seen.lifting++;
-          seen.liftTilt = Math.max(seen.liftTilt, THREE.MathUtils.radToDeg(UP.clone().applyQuaternion(c.seat.quaternion).angleTo(UP)));
+          // Egill himself, as the ride sets him on the seat: how far his up leans from the world's
+          seen.liftTilt = Math.max(seen.liftTilt, THREE.MathUtils.radToDeg(UP.clone().applyQuaternion(egill.root.quaternion).angleTo(UP)));
         }
         const water = world.forest.water;
         if (water) seen.ripples = Math.max(seen.ripples, water.ripples.filter(r => world.clock.time - r.at < 2.6).length);
@@ -319,7 +321,7 @@ test('Þórseðla is alive: a nod or a bite every 7 to 12 s while her head is up
     const gap = idle[i].at - idle[i - 1].at;
     assert.ok(gap >= 7 - 1e-6 && gap <= 12 + 1e-6, `${gap.toFixed(1)} s between two of them`);
   }
-  assert.ok(seen.ripples <= 4, `the script had ${seen.ripples} rings on the water at once (it has six)`);
+  assert.ok(seen.ripples <= 3, `the script had ${seen.ripples} rings on the water at once (it keeps to three of the six)`);
 });
 
 test('the head comes down to Egill\'s eyes and the lift keeps him level', async () => {
@@ -334,14 +336,25 @@ test('the head comes down to Egill\'s eyes and the lift keeps him level', async 
   const still = seen.stillDown;
   assert.ok(still.up >= 0.85 && still.up <= 1.15 && still.apart <= 1.5, `as he floats up her eyes are ${still.up.toFixed(2)} m up and ${still.apart.toFixed(2)} m from his head`);
   assert.ok(seen.lifting > 30 * 5, `the lift took ${(seen.lifting / 30).toFixed(1)} s`);
-  assert.ok(seen.liftTilt <= 12, `the seat tipped ${seen.liftTilt.toFixed(1)} degrees on the way up`);
+  assert.ok(seen.liftTilt <= 12, `Egill leaned ${seen.liftTilt.toFixed(1)} degrees on the way up`);
   assert.ok(seen.top, 'he reached the top');
   // On the back of her head (the coordinator's ruling of 22 October: a seat 0.55 m over Neck5 buried him in her neck), his root ends
   // 9.52 m above the bed of her pool, a little over the plan's 9.5: the bound is that height and 0.1 m.
   assert.ok(seen.top.up >= 8 && seen.top.up <= 9.62, `the seat ends ${seen.top.up.toFixed(2)} m above the ground she stands on`);
 });
 
-test('Egill sits on her skin and never in it: up the lift and down the first metre of the slide', async () => {
+test('the lookout is where the chapter says: his head at the top of the lift, near the layout\'s sight lines', async () => {
+  const { seen } = await playTheFen();
+  const top = seen.top;
+  assert.ok(top?.lookout, 'the lift measures where he looks out from (c.lookout)');
+  assert.ok(top.lookout.distanceTo(top.head) < 0.05, `his head as he reaches the top (${top.lookout.distanceTo(top.head).toFixed(3)} m off)`);
+  const head = new V3(...kafli2.LOOKOUT_HEAD);
+  assert.ok(top.head.distanceTo(head) <= 0.25, `his head is ${top.head.toArray().map(v => v.toFixed(2))}, ${top.head.distanceTo(head).toFixed(2)} m from LOOKOUT_HEAD`);
+  const lines = new V3(...chapter.locations.fen.layout.lookout);
+  assert.ok(top.head.distanceTo(lines) <= 2, `and ${top.head.distanceTo(lines).toFixed(2)} m from where the sight lines start`);
+});
+
+test('Egill sits on her skin and never in it: up onto her head, up the lift and down the first metre of the slide', async () => {
   const { seen } = await playTheFen();
   const at = when => seen.meet.find(m => m.when === when);
   for (const when of ['the start of the lift', 'halfway up', 'the top']) {
@@ -353,6 +366,9 @@ test('Egill sits on her skin and never in it: up the lift and down the first met
   const slide = seen.meet.filter(m => m.when.startsWith('the slide'));
   assert.ok(slide.length >= 10, `${slide.length} frames of the slide's first metre`);
   for (const meet of slide) assert.equal(meet.inside, 0, `on ${meet.when} ${meet.inside} of his vertices are inside her`);
+  const float = seen.meet.filter(m => m.when.startsWith('the float'));
+  assert.ok(float.length >= 15, `${float.length} frames of the float`);
+  for (const meet of float) assert.equal(meet.inside, 0, `on ${meet.when} ${meet.inside} of his vertices are inside her`);
 });
 
 test('the slide lands in the saddle', async () => {

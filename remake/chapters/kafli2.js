@@ -86,6 +86,24 @@ const TRAIL_SHOTS = {
 // Þórseðla: where she stands (her root, between her four feet) and points along her 22 m from her tail to where her head comes down.
 const THORSEDLA = { position: [-2, 0, -9], heading: 0 };
 const MOSI_FEN = { position: [8, 0, -3.5], heading: -125 }; // on his dry hummock, facing her head
+// Egill meets her face on the hummock under her two conifers, a step in front of where it comes down (her lowered head reaches x
+// 6.0 to 7.3 m, along her middle): the planner and the mist keep this spot clear, and the scenes bring him here before headDown.
+const EGILL_FEN = { position: [7.8, 0, -9.0], heading: 180 };
+/**
+ * Where Egill's head is at the top of the lift, on the back of her head (measured: kafli2.test holds it to 0.25 m), and where the
+ * lookout's far friends are seen from. The layout's `lookout` is the origin of the sight lines tall plants keep out of, 1.5 m from
+ * it: its 14 m wide corridors hold the true lines (moving it would re-deal a third of the Fen's plants).
+ */
+export const LOOKOUT_HEAD = [3.56, 9.75, -9.0];
+// The cameras that follow Egill (director.follow, which may rise above 7.5 m, as the lookout's must). Her face comes down over his
+// right shoulder from 2.8 m behind him, low (0.95 m above his feet), between the trunks of her two conifers (2.1 and 2.3 m from
+// him): it looks out under their crowns, not up into them, tilted up LOOK_UP degrees at most, so that her face comes down into the
+// frame as a face, and the sun shows over Mosi's head to wink (STYLE.md 8: 35 degrees up or down at most).
+const HEAD_DOWN_CAMERA = { offset: [-2.8, 0.95, 0.7], local: true, fov: 50 };
+// Up with him at his left (the brief's side), 3 m further back, clear of the crown of the conifer north of her lowered head, and
+// as fast as he rises (up to 2 m/s: the camera moves with him, not past anything), so that he stays in the frame; from 40 % of
+// the rise it begins to look down past him at Mosi coming round below (liftLook), and at the top all the way (theLookout).
+const LIFT_CAMERA = { offset: [-3.0, 1.3, -3.0], local: true, look: 'head', stiffness: 2.0, fov: 40, maxSpeed: 2.4 };
 const alongHer = metres => {
   const h = (THORSEDLA.heading * Math.PI) / 180;
   return { position: [THORSEDLA.position[0] + Math.cos(h) * metres, 0, THORSEDLA.position[2] + Math.sin(h) * metres] };
@@ -114,19 +132,32 @@ const FEN_SHOTS = {
   fen_thorsedla_low: { position: [-2.5, 0.45, 0.2], target: [1.5, 3.4, -9.5], fov: 56 },
   // Scene 5: her head down by Egill, Mosi beside them, the pool p4 behind Mosi.
   fen_two_shot: { position: [0, 1.4, 1.5], target: [5, 1.3, -8], fov: 46 },
-  // Scene 4: over Egill's right shoulder, from behind him on the hummock between her two conifers, looking up to where her face
-  // comes down to him: where the camera that follows him then (HEAD_DOWN_CAMERA) stands, so that it takes over without a move.
-  fen_head_down: { position: [10.6, 1.36, -9.35], target: [5.7, 2.6, -9.05], fov: 46 },
+  // Scene 4: over Egill's shoulder, her face coming down to him.
+  fen_head_down: { position: [7.8, 1.25, -8.2], target: [3.6, 1.6, -9.2], fov: 40 },
+  // Scene 4, as her head comes down: over Egill's right shoulder, from behind him on the hummock between her two conifers, looking up
+  // to where her face comes down: where the camera that follows him then (HEAD_DOWN_CAMERA) stands, wherever he stands, so that it
+  // takes over without a move.
+  fen_shoulder: {
+    position: { actor: 'egill', part: 'feet', offset: HEAD_DOWN_CAMERA.offset, local: true },
+    target: { actor: 'egill', part: 'feet', offset: [2.2, 2.2, 0], local: true }, fov: HEAD_DOWN_CAMERA.fov,
+  },
   // Scene 6: as the lift begins, where the camera that rides up with Egill on her head (LIFT_CAMERA) stands then, at his left.
-  fen_lift: { position: { actor: 'egill', part: 'feet', offset: [-3.0, 1.3, -3.0], local: true }, target: 'egill.head', fov: 40 },
+  fen_lift: { position: { actor: 'egill', part: 'feet', offset: LIFT_CAMERA.offset, local: true }, target: 'egill.head', fov: LIFT_CAMERA.fov },
   // Scene 4: the berry hummocks east of Mosi.
   fen_berries: { position: [13, 1.45, -14.5], target: [16.5, 0.6, -4], fov: 50 },
   // Scene 6: Egill by her lowered head, about to climb on.
   fen_lift_start: { position: [1.5, 1.35, -1.5], target: [4.6, 1.4, -8.6], fov: 40 },
-  // Scene 7: from the south-east, her neck bent down like a slide from her head to her withers, and Mosi on the bank beside them
-  // (MOSI_CATCHES), where the slide ends in his saddle; then nearer, the two of them as Egill lands.
-  fen_slide: { position: [13, 2.2, 5], target: [2.8, 4.3, -6.6], fov: 44 },
-  fen_slide_end: { position: [9, 1.8, 3], target: [3.2, 2.7, -4.6], fov: 46 },
+  // Scene 7: the slide ends in the saddle on Mosi, by his hummock.
+  fen_slide_end: { position: [5, 3.2, 6], target: [7.6, 2.6, -3.5], fov: 46 },
+  // Scene 7: from the south-east, (13, 2.2, 5) to (3.4, 4.1, -6.2), her neck bent down like a slide from her head to her withers and
+  // Mosi on the bank beside them (MOSI_CATCHES), where the slide ends in his saddle: one shot from the top of the slide to Egill in
+  // the saddle. Put as points on her (she does not move), as the shots on Egill are: a still shot of its own would re-deal some 70
+  // of the Fen's plants (plan.js protects still shots' sight lines), and the static shots above are kept as Task 2 planned them for
+  // the same reason (the head coming down and the slide use the cameras here instead).
+  fen_slide: {
+    position: { actor: 'thorsedla', part: 'feet', offset: [15, 2.86, 14], local: true },
+    target: { actor: 'thorsedla', part: 'feet', offset: [5.4, 4.76, 2.8], local: true }, fov: 32,
+  },
   // Scene 8: the two of them with Egill between, the pools glittering behind.
   fen_star: { position: [14, 1.3, 4], target: [2, 4.2, -6], fov: 52 },
   // Low across the west shore of her pool: reed, lilies and the water's edge near, her legs in the water behind.
@@ -254,7 +285,7 @@ function* theFen(s, c) {
 function* theLure(s, c) {
   mark(c, 4);
   // (The fourth task: the berries, picked into the basket and held up high.) For now a moment, and her head comes down.
-  yield s.camera.cut('fen_head_down');
+  yield s.camera.cut('fen_shoulder');
   yield s.wait(1.5);
   yield* headDown(s, c);
   yield s.say('thorsedla', 'k2_thorsedla_who');
@@ -281,12 +312,14 @@ function* theInvitation(s, c) {
 function* theLookout(s, c) {
   mark(c, 6);
   yield* liftUp(s, c);
-  // (The fifth task: the three friends, found from up here.) For now he looks down a while at Mosi, small below, who comes round to
-  // the bank beside her withers, to catch him at the end of the slide; the camera looks down past him (LOOK_DOWN at most).
+  // (The fifth task: the three friends, found from up here.) For now he looks down a while at Mosi, small below, who has come round
+  // to the bank beside her withers to catch him at the end of the slide; the camera looks down past him (LOOK_DOWN at most).
+  // "Vá… Mosi er pínulítill!" once the camera has turned down past him to Mosi, so that the child sees what he sees.
   yield c.egill.lookAt(MOSI_HEAD, { weight: 0.9, maxAngle: 60, maxPitch: 50 });
   s.camera.follow('egill', { ...LIFT_CAMERA, look: downToMosi(c), fov: 50 });
-  c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES.at[0] + 1.5, MOSI_CATCHES.at[1]], MOSI_CATCHES.at], { speed: 0.9 });
-  yield s.wait(6);
+  yield s.wait(1.4);
+  yield s.say('egill', 'k2_egill_tiny');
+  yield s.wait(3.5);
   yield c.egill.lookAt(null);
   s.camera.follow('egill', LIFT_CAMERA);
 }
@@ -295,7 +328,6 @@ function* theLookout(s, c) {
 function* theSlide(s, c) {
   mark(c, 7);
   yield* slideDown(s, c);
-  yield s.camera.cut('fen_slide_end');
   yield s.say('mosi', 'k2_mosi_oof');
   yield s.say('thorsedla', 'k2_thorsedla_comeback');
 }
@@ -304,10 +336,9 @@ function* theSlide(s, c) {
 // Þórseðla's part (scenes 3 to 7), as pieces the scenes call: her life, her head coming down to Egill's eyes, the lookout on the
 // back of her head and the slide down her neck. Each piece leaves `c.phase` saying where it has got to, for captures and probes.
 
-// Egill meets her face on the hummock under her two conifers, a step in front of where it comes down; Mosi stands on his hummock
-// and, for the slide, on the bank beside her withers (dry, clear of her by 1.4 m), with his saddle 5.8 m from them.
-const EGILL_MEETS = { at: [7.8, -9.0], heading: 180 };
-const MOSI_CATCHES = { at: [4.6, -4.2], heading: 180 };
+// Mosi comes round from his hummock, while she lifts Egill, to the bank beside her withers (dry, clear of her by 1.4 m), facing
+// west, with his saddle 5.8 m from them, to catch Egill at the end of the slide.
+const MOSI_CATCHES = [4.6, -4.2];
 // Her eyes come down to his: this far above the ground he stands on (his own eyes are 0.92 m up). Her root stands 0.74 m lower,
 // on the bed of her pool, so lowerHead is held where her eyes get there (about 3.2 s in, her look at him on it) and does not play
 // to its end (0.95 m above her feet: holdAtEyes).
@@ -318,16 +349,13 @@ const HOLD_SETTLE = 1.2; // seconds her look at him settles in before the scene 
 // the bank to the top (kafli2.test asserts none of him inside her). His hands rest on his thighs.
 const SEAT = { bone: 'Head', offset: [0, 0.65, -0.15], grips: { left: [-0.12, 0.45, 0.08], right: [0.12, 0.45, 0.08] } };
 const FLOAT = 2.2; // seconds he floats up onto it
-// The cameras that follow Egill (director.follow, which may rise above 7.5 m, as the lookout's must). Her face comes down over his
-// right shoulder from 2.8 m behind him, between the trunks of her two conifers (one stands at each of his sides, 1.4 and 2.3 m
-// from him), tilted up LOOK_UP degrees at most: so the camera looks out under their crowns, not up into them, her face comes down
-// into the frame, and the sun shows over Mosi's head to wink (STYLE.md 8: 35 degrees up or down at most).
-const HEAD_DOWN_CAMERA = { offset: [-2.8, 1.1, 0.35], local: true, fov: 46 };
-// Up with him at his left (the brief's side), 3 m further back, clear of the crown of the conifer north of her lowered head, and
-// as fast as he rises (up to 2 m/s: the camera moves with him, not past anything), so that he stays in the middle of the frame.
-const LIFT_CAMERA = { offset: [-3.0, 1.3, -3.0], local: true, look: 'head', stiffness: 2.0, fov: 40, maxSpeed: 2.4 };
+const LEGS_OUT = 0.9; // how far his legs go out on her head (1: straight): bent a little at the knee, so the near one is no kick (0.85 sinks a heel)
 const LOOK_UP = 14;
 const LOOK_DOWN = 22;
+// Where in the rise the lift camera begins to look down past him at Mosi coming round below, and how far it goes before the top
+// (liftLook: half of the way to downToMosi, so he stays in the frame); at the top it looks all the way down and he says how small
+// Mosi is (theLookout).
+const MOSI_SEEN = { from: 0.4, to: 0.8, most: 0.5 };
 // Her life: a nod or a bite every 7 to 12 s, the first 2.5 s after she is seen; the nod (kink) is 2.8 s, its lowest 0.95 s in,
 // where her mouth closes on the twigs.
 const LIFE = { first: 2.5, gap: [7, 12], nod: 2.8, bite: 0.95, chew: 1.4 };
@@ -342,6 +370,7 @@ const MOSI_HEAD = { actor: 'mosi', part: 'head' };
 const EGILL_EYES = { actor: 'egill', part: 'head', offset: [0.07, 0.03, 0], local: true }; // his eyes, in front of his head bone
 const HER_HEAD = { actor: 'thorsedla', part: 'head' };
 const UP = new THREE.Vector3(0, 1, 0);
+const smooth = t => t * t * (3 - 2 * t);
 
 /**
  * Þórseðla alive, from when the Fen is reached: she breathes and her tail sways (idle); every 7 to 12 s she nods or bites the
@@ -420,6 +449,7 @@ function* watching(s, c) {
  */
 function* headDown(s, c) {
   const { thorsedla: her, egill } = c;
+  thorsedlaLife(s, c);
   c.phase = 'head coming down';
   c.life.hold();
   c.life.headDown = false;
@@ -470,12 +500,14 @@ function* holdAtEyes(s, c, action) {
 
 /**
  * The lift (scene 6): the back of her head glitters for a tap; a tap there or on Egill floats him up onto the seat on it (or he
- * floats up by himself after 6 s), his legs going out in front of him as he lands, and he rides there; she lifts him slowly to her
- * full height (liftUp, from the point of its own where her head is as high as it is held), water dripping off her neck, the camera
- * rising with him, and on the way up he sees how small Mosi is. Leaves him at the top, c.phase 'lookout'.
+ * floats up by himself after 6 s), sitting and his legs going out in front of him on the way, and he rides there; she lifts him
+ * slowly to her full height (liftUp, from the point of its own where her head is as high as it is held), water dripping off her
+ * neck, the camera rising with him and turning down toward Mosi, who comes round meanwhile to catch him after the slide. Leaves him
+ * at the top, c.phase 'lookout', and where his head is there in c.lookout.
  */
 function* liftUp(s, c) {
   const { world, thorsedla: her, egill } = c;
+  thorsedlaLife(s, c);
   c.seat ??= createSeat(her.raw, SEAT);
   const glitter = s.after(0, () => glitterSeat(s, c));
   s.target('seat', { point: out => out.copy(c.seat.update()).addScaledVector(UP, 0.45), radius: 0.6 });
@@ -492,11 +524,17 @@ function* liftUp(s, c) {
   c.life.headDown = false; // she stops looking at him: he is coming onto her head
   yield her.lookAt(null, HER_LOOK); // (with the same limits, so her look fades as it was)
   yield egill.lookAt(null);
-  // The camera over his shoulder stays where it is and watches him float up onto the back of her head (it followed him standing).
-  s.camera.lookAt('egill.head', { duration: 1 });
+  // The camera over his shoulder stays where it is and watches him float up onto the back of her head (it followed him standing),
+  // looking between his head and her eyes, so that neither leaves the frame.
+  s.camera.lookAt(betweenHimAndHer(c), { duration: 1 });
   s.sfx('float');
   c.legs = legsOut(egill.raw);
-  s.after(FLOAT - 0.75, () => { c.legs?.to(1, { duration: 0.6 }); });
+  // Halfway up he sits, his legs going out in front of him, so that he comes down onto her head as he will sit on it (the float
+  // itself would sit him only for its last 0.6 s, his legs hanging into her skull till then).
+  s.after(FLOAT * 0.4, () => {
+    egill.raw.play('sit', { fade: 0.5 });
+    c.legs?.to(LEGS_OUT, { duration: 0.5 });
+  });
   yield floatTo(egill.raw, c.seat, { duration: FLOAT });
   c.riding = ride(egill.raw, c.seat);
   c.phase = 'lifting';
@@ -504,14 +542,15 @@ function* liftUp(s, c) {
   const lift = her.raw.play('liftUp', { fade: 0.6 });
   lift.time = clipTimeForEyes(her.raw, 'liftUp', eyeHeightIn(her.raw, 'lowerHead', held));
   const rising = lift.getClip().duration - lift.time;
-  c.lift = { action: lift, rising };
+  c.lift = { action: lift, from: lift.time, rising };
   s.camera.cut('fen_lift');
-  s.camera.follow('egill', LIFT_CAMERA);
+  s.camera.follow('egill', { ...LIFT_CAMERA, look: liftLook(c) });
+  c.mosiComing = c.mosi.walkTo([[MOSI_CATCHES[0] + 1.5, MOSI_CATCHES[1]], MOSI_CATCHES], { speed: 0.9 }); // arriving facing west
   const drops = waterDrops(world, { seconds: rising, seed: 'her neck drips', ring: c.ring });
   const dripping = s.after(0.3, () => dripFromNeck(s, c, drops));
-  s.after(rising * 0.45, () => s.say('egill', 'k2_egill_tiny'));
   yield s.until(() => lift.time >= lift.getClip().duration - 1e-3);
   dripping.cancel();
+  c.lookout = egill.raw.headPosition(new THREE.Vector3()); // where he looks out from: LOOKOUT_HEAD
   c.phase = 'lookout';
 }
 
@@ -522,8 +561,9 @@ function* liftUp(s, c) {
  */
 function* slideDown(s, c) {
   const { thorsedla: her, egill, mosi } = c;
+  thorsedlaLife(s, c);
   yield mosi.lookAt(EGILL_HEAD, { weight: 0.7, maxAngle: 40, maxPitch: 30 });
-  const coming = c.mosiComing ?? mosi.walkTo([[MOSI_CATCHES.at[0] + 1.5, MOSI_CATCHES.at[1]], MOSI_CATCHES.at], { speed: 0.9 });
+  const coming = c.mosiComing ?? mosi.walkTo([[MOSI_CATCHES[0] + 1.5, MOSI_CATCHES[1]], MOSI_CATCHES], { speed: 0.9 });
   yield s.camera.cut('fen_slide');
   yield s.all(coming, bendNeck(s, c));
   s.target('egill', { point: 'egill', radius: 0.8 });
@@ -587,9 +627,7 @@ function* dripFromNeck(s, c, drops) {
 /** Six of the conifer's leaves fall from her mouth, fluttering and turning, and lie on the water or the ground a while. */
 function leafFall(c, from) {
   const { world } = c;
-  leafShape ??= sprigGeometry();
-  const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
-  const mesh = new THREE.InstancedMesh(leafShape, material, LEAVES.count);
+  const mesh = new THREE.InstancedMesh(leafShape(), leafMaterial(), LEAVES.count);
   mesh.name = 'Þórseðla leaves';
   mesh.frustumCulled = false; // they fall out of any bounds taken at the start
   mesh.castShadow = false;
@@ -642,22 +680,40 @@ function leafFall(c, from) {
       mesh.instanceMatrix.needsUpdate = true;
       if (showing) return true;
       mesh.removeFromParent();
-      material.dispose();
-      mesh.dispose();
+      mesh.dispose(); // its instance buffers: the shape and the material are shared
       return false;
     },
   });
 }
 
-// A sprig of the swamp conifer's flat needles, 22 cm long: a pointed leaf in its own XY plane, one shape for every falling leaf.
-let leafShape = null;
-function sprigGeometry() {
+// A sprig of the swamp conifer's flat needles, 22 cm long: a pointed leaf in its own XY plane, and one plain material (each leaf's
+// colour is its instance's), both shared by every falling leaf and drawn once in the chapter's warm-up (chapter.warmUp: leafWarm).
+let sprig = null;
+let sprigMaterial = null;
+function leafShape() {
+  if (sprig) return sprig;
   const rim = [[-0.11, 0], [-0.05, 0.035], [0.04, 0.04], [0.11, 0], [0.04, -0.04], [-0.05, -0.035]];
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, ...rim.flatMap(([x, y]) => [x, y, 0])], 3));
-  geometry.setIndex(rim.flatMap((_, i) => [0, 1 + i, 1 + ((i + 1) % rim.length)]));
-  geometry.computeVertexNormals();
-  return geometry;
+  sprig = new THREE.BufferGeometry();
+  sprig.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, ...rim.flatMap(([x, y]) => [x, y, 0])], 3));
+  sprig.setIndex(rim.flatMap((_, i) => [0, 1 + i, 1 + ((i + 1) % rim.length)]));
+  sprig.computeVertexNormals();
+  return sprig;
+}
+function leafMaterial() {
+  sprigMaterial ??= new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  return sprigMaterial;
+}
+/** One leaf, out of sight, for the warm-up to draw so that the first bite builds no shader mid-scene. dispose() takes it away. */
+function leafWarm(world) {
+  const mesh = new THREE.InstancedMesh(leafShape(), leafMaterial(), 1);
+  mesh.name = 'Þórseðla leaves (warm-up)';
+  mesh.setColorAt(0, new THREE.Color(LEAVES.colours[0]));
+  mesh.frustumCulled = false;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.visible = false;
+  world.scene.add(mesh);
+  return { object: mesh, dispose() { mesh.removeFromParent(); mesh.dispose(); } };
 }
 
 /** Where her mouth closes on the twigs: in front of and under her Head bone, toward the tip of her snout. */
@@ -707,6 +763,26 @@ function faceInView(c) {
   };
 }
 
+/** Between Egill's head and her eyes: what the shoulder camera watches as he floats up onto her head. */
+function betweenHimAndHer(c) {
+  const eyes = eyesOf(c.thorsedla.raw);
+  const head = new THREE.Vector3();
+  return out => eyes(out).lerp(c.egill.raw.headPosition(head), 0.5);
+}
+
+/** The lift camera's look: Egill's head, turning down toward Mosi below (downToMosi) between MOSI_SEEN.from and .to of the rise. */
+function liftLook(c) {
+  const down = downToMosi(c);
+  const head = new THREE.Vector3();
+  const mosi = new THREE.Vector3();
+  return out => {
+    const { action, from, rising } = c.lift;
+    const k = MOSI_SEEN.most * smooth(Math.min(1, Math.max(0, ((action.time - from) / rising - MOSI_SEEN.from) / (MOSI_SEEN.to - MOSI_SEEN.from))));
+    c.egill.raw.headPosition(head);
+    return k > 0 ? out.copy(head).lerp(down(mosi), k) : out.copy(head);
+  };
+}
+
 /** A point between Egill's head and Mosi below, for the camera at the top to look at, never more than LOOK_DOWN degrees down. */
 function downToMosi(c) {
   const head = new THREE.Vector3();
@@ -740,7 +816,7 @@ function arriveInTheFen(s, c) {
   // (The fourth task: Egill floats down from the saddle and goes berrying.) For now he waits on the hummock under her conifers.
   c.riding?.stop();
   c.riding = null;
-  egill.place(EGILL_MEETS.at[0], EGILL_MEETS.at[1], EGILL_MEETS.heading);
+  egill.place(EGILL_FEN.position[0], EGILL_FEN.position[2], EGILL_FEN.heading);
   egill.play('idle', { fade: 0 });
   s.camera.cut('fen_thorsedla_low');
 }
@@ -802,7 +878,7 @@ export const chapter = {
           { center: [15, -3.5], radius: 4, height: 0.3 }, // berries
           { center: [16, -11], radius: 3.5, height: 0.3 }, // berries
         ],
-        // the two conifers whose tops she bites (their crowns from 3 or 4 m up): the north one 8.8 m tall, its top level with her head
+        // the two conifers whose tops she bites (their crowns from 3 or 4 m up): the north one 8.5 m tall, its top level with her head
         // as she stands and below Egill on it at the top of her lift, and her head's way down to him and up again with him on it just
         // clear of its crown (her snout brushes it); the south-east one 11.5 m; a white snag 10.5 m tall for Flugeðla to perch on;
         // reed round where Uggeðla lies, on her side away from the channel
@@ -817,10 +893,10 @@ export const chapter = {
         ],
         mist: [{ center: [-6, -2], radius: 26, height: 1.2 }],
         farFriends: { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] },
-        lookout: [5, 9.4, -9], // where Egill looks out from on her head, nine metres up
+        lookout: [5, 9.4, -9], // where the sight lines to the far friends start, that tall plants keep out of (Egill's head: LOOKOUT_HEAD)
         actors: {
           mosi: MOSI_FEN,
-          egill: { position: [5.8, 0, -8.4], heading: 180 }, // on the bank where her head comes down to him
+          egill: EGILL_FEN, // on the hummock where her face comes down to him
           thorsedla: THORSEDLA,
           thorsedla_tail: alongHer(-9.5),
           thorsedla_neck: alongHer(3),
@@ -852,13 +928,15 @@ export const chapter = {
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
-   * black as it comes to a place. For now the actors, Þórseðla among them while she waits out of sight, from the start shot.
+   * black as it comes to a place. For now the actors, Þórseðla among them while she waits out of sight, and one of the leaves
+   * she bites off, from the start shot.
    */
   warmUp(world) {
+    const leaf = leafWarm(world);
     return {
-      objects: [...world.actors.values()].map(actor => actor.root),
+      objects: [...[...world.actors.values()].map(actor => actor.root), leaf.object],
       shots: ['glade_leaving'],
-      dispose() {},
+      dispose() { leaf.dispose(); },
     };
   },
   shots: {}, // every shot belongs to a place: chapter.locations[name].shots

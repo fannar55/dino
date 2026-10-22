@@ -2,8 +2,9 @@
 // strands hang from). Each strand is two crossed cards, alpha-tested against a small drawn texture of ragged strands, with
 // alpha-to-coverage where the canvas has MSAA (STYLE.md 7). They sway with the forest's wind (materials.js: forestWind, the
 // tree's own sway where they hang) and swing a little below that, at most FEN.mossCards.swingDeg degrees, with the plants'
-// wave of the beat. Lit like foliage, so they glow when the sun is behind them. All of a forest's strands are one mesh, one
-// draw call.
+// wave of the beat. Lit like foliage, so they glow when the sun is behind them. Within 3 m of the camera a strand wears away
+// from its edges, gone by 1.2 m, so a camera under a crown never looks through a beard. All of a forest's strands are one mesh,
+// one draw call.
 //
 //   createHangingMoss(world, placements, shared, { antialias }) -> { mesh, cards, triangles, dispose() } | null (no conifers)
 import * as THREE from 'three';
@@ -115,14 +116,17 @@ export function createHangingMoss(world, placements, shared, { antialias = true,
   });
   material.name = 'forest-moss';
   patchLambert(material, 'forest-moss', { ...shared }, {
-    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\n${WIND_GLSL}`,
+    vertexHead: `attribute vec4 aWind;\nattribute float aTree;\nvarying float vMossNear;\n${WIND_GLSL}`,
     vertexAfter: [['#include <begin_vertex>', `
   vec3 mossRest = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
-  transformed += forestWind( mossRest, aWind, aTree );`]],
-    fragmentHead: LIGHT_GLOBALS,
+  transformed += forestWind( mossRest, aWind, aTree );
+  // a strand right in front of the lens (a camera under the crown) wears away from its edges inward: no beard across a face
+  vMossNear = smoothstep( 1.2, 3.0, -( modelViewMatrix * vec4( transformed, 1.0 ) ).z );`]],
+    fragmentHead: `${LIGHT_GLOBALS}\nvarying float vMossNear;`,
     fragmentAfter: [['#include <color_fragment>', `
   gLeaf = 0.8;
-  gAmb = 0.9;`]],
+  gAmb = 0.9;
+  diffuseColor.a *= vMossNear; // before the alpha test, so that alpha to coverage dithers it away`]],
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'Hanging moss';

@@ -325,13 +325,16 @@ export function createSaddle(host, { bone: boneName = 'Body', ahead = AHEAD } = 
 }
 
 // The seat with no saddle --------------------------------------------------------------------------
+const SEAT_FLAT = 0.3; // below this much of the bone's way lying flat, the seat turns toward the host's own way
 // Chapter 2 (scene 6): Egill sits on the back of Þórseðla's head while she lifts it from the bank to nine metres. Nothing is
 // built: the seat is a frame on one of the host's bones that follows the bone's place and the way it faces seen from above,
 // but never its pitch or roll, so the rider sits upright however steeply the neck rises under him.
 
 /**
- * A seat on the host's bone `bone`, kept level. `offset` is where the rider's root goes, from the bone, and `grips` where his
- * wrists go, from there; each [across (to the rider's right), up, ahead] in metres in the level frame. Returns
+ * A seat on the host's bone `bone` (required), kept level. `offset` is where the rider's root goes, from the bone, and `grips` where
+ * his wrists go, from there; each [across (to the rider's right), up, ahead] in metres in the level frame. The way it faces is the
+ * bone's own seen from above; as the bone comes near to pointing straight up or down (less than SEAT_FLAT of it lies flat), it turns
+ * to the host's own way, so that it never flips. Returns
  *   object      null: there is nothing to see
  *   seat        where a rider's root goes, in the world, as of the last update()
  *   grips       { left, right }: where his wrists go, likewise
@@ -341,6 +344,7 @@ export function createSaddle(host, { bone: boneName = 'Body', ahead = AHEAD } = 
  * ride(), floatTo() and floatDown() take it as they take a saddle (they use seat, grips, host and update).
  */
 export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: hands = {} } = {}) {
+  if (!boneName) throw new TypeError('createSeat needs the bone the seat is on: { bone: \'Head\' }');
   const { bone, inverse } = skinOf(host).bone(boneName);
   // The way the host faces, in the bone's own frame as it was bound (the host faces +X in its model's frame).
   const ahead = new V3(1, 0, 0).transformDirection(inverse);
@@ -353,12 +357,19 @@ export function createSeat(host, { bone: boneName, offset = [0, 0, 0], grips: ha
   const origin = new V3();
   const turn = new THREE.Quaternion();
   const facing = new V3();
+  const hostWay = new V3();
   function update() {
     bone.updateWorldMatrix(true, false);
     bone.matrixWorld.decompose(origin, turn, facing);
     facing.copy(ahead).applyQuaternion(turn).setY(0);
-    // A bone pointing straight up or down has no way it faces seen from above: the host's own way, then.
-    if (facing.lengthSq() < 1e-8) facing.set(1, 0, 0).applyQuaternion(host.root.quaternion).setY(0);
+    // Near straight up or down a bone has little way it faces seen from above: toward the host's own way, all of it at the last.
+    const flat = facing.length();
+    if (flat < SEAT_FLAT) {
+      hostWay.set(1, 0, 0).applyQuaternion(host.root.quaternion).setY(0).normalize();
+      const k = flat / SEAT_FLAT;
+      facing.multiplyScalar(flat > 1e-6 ? k / flat : 0).addScaledVector(hostWay, 1 - k);
+      if (facing.lengthSq() < 1e-8) facing.copy(hostWay);
+    }
     quaternion.setFromAxisAngle(UP, -Math.atan2(facing.z, facing.x));
     grips.left.copy(holds.left).applyQuaternion(quaternion).add(origin);
     grips.right.copy(holds.right).applyQuaternion(quaternion).add(origin);
