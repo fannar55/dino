@@ -9,12 +9,18 @@ import { createRng, smoothstep, clamp } from './random.js';
 import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL, BEAT_GLSL } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
 import { biomeOf, FEN_SHARE_GLSL, fenUniforms } from './biome.js';
+import { runSync } from './slices.js';
 
 const VERTS = 5;
 const INDICES = [0, 1, 3, 0, 3, 2, 2, 3, 4];
 const RIPPLE = FOREST.wind.rippleSpacing; // m between the crests of the beat's ripple, along the wind
 
-export function createGrass(world, { terrain, layout, seed, shared, actorUniforms, blocked, q }) {
+export function createGrass(world, options) {
+  return runSync(createGrassSteps(world, options));
+}
+
+/** createGrass as steps (slices.js): a row of tufts, a few thousand blades or a cell at a time. */
+export function* createGrassSteps(world, { terrain, layout, seed, shared, actorUniforms, blocked, q }) {
   const cfg = FOREST.grass;
   const rng = createRng(seed, 'grass');
   const noise = terrain.noise;
@@ -100,6 +106,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
       if (rng.next() >= d) continue;
       addTuft(x, z, r);
     }
+    yield;
   }
 
   const gain = FOREST.terrain.albedoGain;
@@ -256,11 +263,13 @@ ${LEAF_SHADOW_GLSL}`,
   // receives blades that can be seen, at the density their distance calls for, in one draw call.
   const CELL = 2;
   const cellMap = new Map();
-  for (const b of blades) {
+  for (let n = 0; n < blades.length; n++) {
+    const b = blades[n];
     const i = Math.floor((b.x - cx) / CELL), j = Math.floor((b.z - cz) / CELL);
     const key = `${i},${j}`;
     if (!cellMap.has(key)) cellMap.set(key, { i, j, list: [] });
     cellMap.get(key).list.push(b);
+    if (n % 4096 === 4095) yield;
   }
   const cells = [...cellMap.values()].sort((a, b) => (a.j - b.j) || (a.i - b.i));
   const n = blades.length;
@@ -298,6 +307,7 @@ ${LEAF_SHADOW_GLSL}`,
     box.max.y += 0.6;
     bounds.union(box);
     cellData.push({ start, count: list.length, box });
+    yield;
   }
 
   const g = new THREE.BufferGeometry();

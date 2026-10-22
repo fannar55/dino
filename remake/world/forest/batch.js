@@ -12,6 +12,7 @@
 // so the shadow pass never draws plants the camera cannot see and the main pass never draws plants
 // that are only there for their shadow.
 import * as THREE from 'three';
+import { runSync } from './slices.js';
 import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
@@ -129,7 +130,7 @@ export function createBatcher() {
     }
   }
 
-  function buildGeometry(bucket, { caster = false } = {}) {
+  function* buildGeometry(bucket, { caster = false } = {}) {
     const n = bucket.verts;
     const pos = new Float32Array(n * 3);
     const nrm = caster ? null : new Float32Array(n * 3);
@@ -197,6 +198,7 @@ export function createBatcher() {
           name: p.name, lod: level ?? p.lod, crown: c2 > 0 && crown ? crown : null,
         });
       }
+      yield; // a plant at a time
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -217,12 +219,12 @@ export function createBatcher() {
     return { g, master, ranges };
   }
 
-  function makeMeshes(store, setup, { order, caster = false } = {}) {
+  function* makeMeshes(store, setup, { order, caster = false } = {}) {
     const meshes = [];
     for (const bucket of [...store.buckets.values()].sort((a, b) => a.key.localeCompare(b.key))) {
       // draw near-to-far inside each merged mesh, so early depth testing rejects hidden foliage
       if (order) bucket.items.sort((a, b) => order(a.placement) - order(b.placement));
-      const { g, master, ranges } = buildGeometry(bucket, { caster });
+      const { g, master, ranges } = yield* buildGeometry(bucket, { caster });
       const o = setup(bucket);
       const mesh = new THREE.Mesh(g, o.material);
       mesh.name = `${caster ? 'Forest caster' : 'Forest'} ${bucket.key}`;
@@ -244,12 +246,14 @@ export function createBatcher() {
    * Build the main meshes and the caster meshes. `setup(bucket)` returns { material,
    * depthMaterial, receiveShadow, renderOrder }; `casterSetup(bucket)` the same for casters.
    */
-  function build(setup, { order, casterSetup } = {}) {
-    const meshes = makeMeshes(main, setup, { order });
-    const casterMeshes = casterSetup ? makeMeshes(casters, casterSetup, { caster: true }) : [];
+  function* buildSteps(setup, { order, casterSetup } = {}) {
+    const meshes = yield* makeMeshes(main, setup, { order });
+    const casterMeshes = casterSetup ? yield* makeMeshes(casters, casterSetup, { caster: true }) : [];
     return { meshes, casterMeshes };
   }
-  return { add, addCaster, build };
+  /** build as steps (slices.js): a plant at a time. */
+  const build = (setup, options) => runSync(buildSteps(setup, options));
+  return { add, addCaster, build, buildSteps };
 }
 
 function rebuildIndex(mesh, keep, signature) {

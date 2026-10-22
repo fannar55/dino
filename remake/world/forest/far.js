@@ -4,6 +4,7 @@
 // showing posts, gaps or a hard base line. Unlit vertex colours; the height fog does the rest.
 // Eight sector meshes, so the part behind the camera is culled.
 import * as THREE from 'three';
+import { runSync } from './slices.js';
 import { FOREST } from './config.js';
 import { createRng, clamp } from './random.js';
 import { srgb, mix3 } from './geometry.js';
@@ -27,7 +28,12 @@ function unionOutline(circles, segments) {
   return out;
 }
 
-export function createFarForest({ layout, seed, terrain, q, rings = FOREST.far.rings }) {
+export function createFarForest(options) {
+  return runSync(createFarForestSteps(options));
+}
+
+/** createFarForest as steps (slices.js): a few dozen columns of the strip or a crown at a time. */
+export function* createFarForestSteps({ layout, seed, terrain, q, rings = FOREST.far.rings }) {
   const [cx, cz] = layout.clearing.center;
   const SECTORS = 8;
   const quads = Array.from({ length: SECTORS }, () => ({ pos: [], col: [], idx: [] }));
@@ -35,7 +41,7 @@ export function createFarForest({ layout, seed, terrain, q, rings = FOREST.far.r
   const toLin = v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   let triangles = 0;
 
-  rings.forEach((ring, ri) => {
+  for (const [ri, ring] of rings.entries()) {
     const rng = createRng(seed, `far-ring-${ri}`);
     const R = ring.radius;
     const dark = srgb(ring.color[0]);
@@ -73,6 +79,7 @@ export function createFarForest({ layout, seed, terrain, q, rings = FOREST.far.r
         // two columns of three rows: four triangles
         qd.idx.push(base, base + 3, base + 4, base, base + 4, base + 1, base + 1, base + 4, base + 5, base + 1, base + 5, base + 2);
         triangles += 4;
+        if (i % 32 === 31) yield;
       }
     }
 
@@ -136,9 +143,10 @@ export function createFarForest({ layout, seed, terrain, q, rings = FOREST.far.r
         for (let i = 0; i < SEGMENTS; i++) qd.idx.push(centre, centre + 1 + i, centre + 1 + ((i + 1) % SEGMENTS));
         triangles += SEGMENTS;
         s += spacing * rng.range(0.75, 1.2);
+        yield;
       }
     }
-  });
+  }
 
   const material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
   material.name = 'forest-far';

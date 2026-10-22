@@ -16,6 +16,7 @@
 // out of the lines from the lookout to the far friends (layout.lookout, layout.farFriends). Plants the layout names itself
 // (layout.plants) are placed first, where it says.
 import * as THREE from 'three';
+import { runSync } from './slices.js';
 import { FOREST, FEN, scaled, gladeOf } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
 import { biomeOf } from './biome.js';
@@ -154,7 +155,12 @@ function buildShots(world, layout, terrain, sun) {
 // Plants whose leaves count as a crown for the backdrop rule (fronds and bushes too).
 const FOLIAGE = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail']);
 
-export function planForest({ world, layout, seed, terrain, library, q }) {
+export function planForest(args) {
+  return runSync(planForestSteps(args));
+}
+
+/** planForest as steps (slices.js): it yields after each plant it tries, so a slice stops between two. */
+export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
   const [cx, cz] = layout.clearing.center;
   const clearR = layout.clearing.radius;
   const edgeR = layout.forestEdge;
@@ -172,6 +178,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   const look = pickLook(world.chapter?.look || 'morning');
   const sun = sunDirection(look);
   const shots = buildShots(world, layout, terrain, sun);
+  yield;
   const actors = Object.values(actorSpecs(world, layout)).map(a => ({ x: (a.position || [0, 0, 0])[0], z: (a.position || [0, 0, 0])[2] }));
   const sunSamples = [];
   for (const [dx, dz] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3], [2.2, 2.2], [-2.2, 2.2], [2.2, -2.2], [-2.2, -2.2]]) sunSamples.push(new THREE.Vector3(cx + dx, 1.2, cz + dz));
@@ -192,10 +199,13 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   if (biome.blended) {
     const R = edgeR + FEN.reachBlended;
     let sum = 0, n = 0;
-    for (let j = -20; j <= 20; j++) for (let i = -20; i <= 20; i++) {
-      const x = (i / 20) * R, z = (j / 20) * R;
-      if (x * x + z * z > R * R) continue;
-      sum += biome.shareAt(cx + x, cz + z); n++;
+    for (let j = -20; j <= 20; j++) {
+      yield;
+      for (let i = -20; i <= 20; i++) {
+        const x = (i / 20) * R, z = (j / 20) * R;
+        if (x * x + z * z > R * R) continue;
+        sum += biome.shareAt(cx + x, cz + z); n++;
+      }
     }
     fenShare = sum / n;
     q = { ...q, plants: q.plants * (1 - fenShare) };
@@ -324,7 +334,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     for (let l = first; l <= 2; l++) out.push(l);
     return out;
   }
-  function tryPlace(name, x, z, opts) {
+  function* tryPlace(name, x, z, opts) {
     // a plant the layout places itself (opts.authored) goes where it says; any other gives way to the other biome there
     const authored = Boolean(opts.authored);
     if (biome.fen && !authored && !shareHere(x, z, Boolean(opts.fen))) { stats.rejected.biome = (stats.rejected.biome ?? 0) + 1; return null; }
@@ -334,6 +344,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const levels = levelsFor(name, radiusOf(x, z), opts.lod ?? 0);
     const lod = levels[0];
     const model = library.get(name, opts.variant, lod, shape);
+    yield; // a model built the first time it is asked for takes up to some 15 ms
     const scale = opts.scale ?? 1;
     const tall = Boolean(opts.tall);
     const r = radiusOf(x, z);
@@ -367,9 +378,14 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     }
     if (tall && r < 40 && !authored && sunBlocked(list.filter(s => s.crown || s.c[1] > 4))) { stats.rejected.sun++; return null; }
     const band = bandOf(r);
+    const models = [];
+    for (const level of levels) {
+      models.push({ level, model: level === lod ? model : library.get(name, opts.variant, level, shape) });
+      if (level !== lod) yield; // and each of its other levels too
+    }
     const placement = {
       name, model, variant: opts.variant, lod, x, y, z, rot, scale, band,
-      models: levels.map(level => ({ level, model: level === lod ? model : library.get(name, opts.variant, level, shape) })),
+      models,
       sector: sectorOf(band, x, z), sky: opts.sky ?? skyAt(r), phase: opts.phase ?? 0,
       blocksGrass: opts.blocksGrass ?? false, grassRadius: (opts.grassRadius ?? model.radius * 0.7) * scale,
     };
@@ -389,6 +405,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const a0 = rng.angle();
     let placedLog = null;
     for (let step = 0; step < 144 && !placedLog; step++) {
+      yield; // a plant tried at a time (slices.js)
       const a = a0 + (step % 72) * (Math.PI / 36);
       const rr = edgeR - (step < 72 ? 3.4 : 2.6);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
@@ -401,7 +418,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       if (!ok) continue;
       // three small spheres along the log, not one big one
       const logSpheres = y => [-0.6, 0, 0.6].map(t => ({ c: [x + dx * half * t, y + 0.5, z + dz * half * t], r: 0.9, crown: true }));
-      placedLog = tryPlace('log', x, z, { variant: 0, lod: 0, rot, footprint: 1.0, spacing: 1, pathClear: 0, blocksGrass: true, grassRadius: 0.6, spheres: logSpheres });
+      placedLog = yield* tryPlace('log', x, z, { variant: 0, lod: 0, rot, footprint: 1.0, spacing: 1, pathClear: 0, blocksGrass: true, grassRadius: 0.6, spheres: logSpheres });
       if (placedLog) {
         placedLog.logAxis = [dx, dz];
         placedLog.halfLength = half;
@@ -420,6 +437,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     let ang = rng.angle();
     const end = ang + Math.PI * 2 - 0.2;
     while (ang < end) {
+      yield; // a plant tried at a time (slices.js)
       const ringR = edgeR + rng.range(T.edgeDepth[0], T.edgeDepth[1]);
       let placed = null;
       for (let attempt = 0; attempt < 5 && !placed; attempt++) {
@@ -428,7 +446,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
         const araucaria = rng.chance(T.araucariaShare.edge);
         const name = araucaria ? 'araucaria' : 'broadleaf';
-        placed = tryPlace(name, x, z, {
+        placed = yield* tryPlace(name, x, z, {
           variant: rng.int(0, T.variants[name] - 1), lod: 0, tall: true,
           rot: faceClearing(x, z) + rng.range(-0.45, 0.45), scale: rng.range(0.95, 1.18),
           pathClear: P.treeClear, shape: araucaria ? {} : { reach: 0.9 }, treeSpacing: 5.6, phase: rng.next(),
@@ -447,10 +465,11 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const inv = new THREE.Matrix4().copy(shot.view).invert();
       for (const side of [-1, 1]) {
         for (let attempt = 0; attempt < 6; attempt++) {
+          yield; // a plant tried at a time (slices.js)
           const depth = rng.range(3.6, 6.5);
           const nx = side * rng.range(0.78, 0.98);
           const v = new THREE.Vector3(nx * shot.tanH * depth, 0, -depth).applyMatrix4(inv);
-          const p = tryPlace('broadleaf', v.x, v.z, {
+          const p = yield* tryPlace('broadleaf', v.x, v.z, {
             variant: rng.int(0, T.variants.broadleaf - 1), lod: 0, tall: true, rot: rng.angle(), scale: rng.range(0.95, 1.15),
             pathClear: P.treeClear, shape: { reach: 0.3 }, treeSpacing: 3.2, phase: rng.next(), blocksGrass: true, grassRadius: 1.0, edgeShot: shot.name, soft: 0.5,
           });
@@ -461,11 +480,12 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   }
 
   // ---- 2. second row, inner forest and deep forest --------------------------------------------
-  function scatterTrees(stream, r0, r1, spacing, lod, share, density) {
+  function* scatterTrees(stream, r0, r1, spacing, lod, share, density) {
     const rng = createRng(seed, stream);
     const area = Math.PI * (r1 * r1 - r0 * r0);
     const attempts = Math.round((area / (spacing * spacing)) * 2.2 * density);
     for (let i = 0; i < attempts; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = Math.sqrt(r0 * r0 + rng.next() * (r1 * r1 - r0 * r0));
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
@@ -473,7 +493,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       let name = 'broadleaf';
       if (roll < share.araucaria) name = 'araucaria';
       else if (roll < share.araucaria + (share.treeFern || 0)) name = 'treeFern';
-      tryPlace(name, x, z, {
+      yield* tryPlace(name, x, z, {
         variant: rng.int(0, T.variants[name] - 1), lod: name === 'treeFern' ? Math.min(lod, 1) : lod, tall: true,
         rot: rng.angle(), scale: rng.range(0.9, 1.2), pathClear: name === 'treeFern' ? 1.8 : P.treeClear,
         shape: name === 'broadleaf' ? { reach: 0.25 } : {}, treeSpacing: name === 'treeFern' ? 2.6 : spacing, phase: rng.next(),
@@ -482,12 +502,13 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     }
   }
   // groups of two to four trees with open gaps between the groups: a forest, not an orchard
-  function scatterClusters(stream, r0, r1, clusterSpacing, share, density) {
+  function* scatterClusters(stream, r0, r1, clusterSpacing, share, density) {
     const rng = createRng(seed, stream);
     const area = Math.PI * (r1 * r1 - r0 * r0);
     const count = Math.round((area / (clusterSpacing * clusterSpacing)) * 1.6 * density);
     const centres = [];
     for (let i = 0; i < count * 4 && centres.length < count; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = Math.sqrt(r0 * r0 + rng.next() * (r1 * r1 - r0 * r0));
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
@@ -497,13 +518,14 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     for (const [ux, uz] of centres) {
       const n = rng.int(2, 4);
       for (let k = 0; k < n; k++) {
+        yield; // a plant tried at a time (slices.js)
         const a = rng.angle(), d = k === 0 ? 0 : rng.range(2.6, 5.5);
         const x = ux + Math.cos(a) * d, z = uz + Math.sin(a) * d;
         const roll = rng.next();
         let name = 'broadleaf';
         if (roll < share.araucaria) name = 'araucaria';
         else if (roll < share.araucaria + (share.treeFern || 0)) name = 'treeFern';
-        tryPlace(name, x, z, {
+        yield* tryPlace(name, x, z, {
           variant: rng.int(0, T.variants[name] - 1), lod: 1, tall: true,
           rot: rng.angle(), scale: rng.range(0.85, 1.22), pathClear: name === 'treeFern' ? 1.8 : P.treeClear,
           shape: name === 'broadleaf' ? { reach: 0.25 } : {}, treeSpacing: name === 'treeFern' ? 2.4 : 3.3, phase: rng.next(),
@@ -512,19 +534,20 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       }
     }
   }
-  scatterClusters('edge-row', edgeR + 4.5, edgeR + B.edgeOuter, 9.5, { araucaria: T.araucariaShare.edge + 0.1, treeFern: 0.08 }, q.trees);
-  scatterClusters('inner', edgeR + B.edgeOuter, edgeR + B.innerOuter, 9.5, { araucaria: T.araucariaShare.inner, treeFern: T.treeFernShare.inner }, q.trees);
-  scatterTrees('deep', edgeR + B.innerOuter, edgeR + B.deepOuter, T.deepSpacing, 2, { araucaria: T.araucariaShare.deep, treeFern: T.treeFernShare.deep }, q.trees);
+  yield* scatterClusters('edge-row', edgeR + 4.5, edgeR + B.edgeOuter, 9.5, { araucaria: T.araucariaShare.edge + 0.1, treeFern: 0.08 }, q.trees);
+  yield* scatterClusters('inner', edgeR + B.edgeOuter, edgeR + B.innerOuter, 9.5, { araucaria: T.araucariaShare.inner, treeFern: T.treeFernShare.inner }, q.trees);
+  yield* scatterTrees('deep', edgeR + B.innerOuter, edgeR + B.deepOuter, T.deepSpacing, 2, { araucaria: T.araucariaShare.deep, treeFern: T.treeFernShare.deep }, q.trees);
 
   // ---- 4. rocks: a few in the clearing, more along the edge -----------------------------------
   {
     const rng = createRng(seed, 'rocks');
     let placed = 0;
     for (let i = 0; i < 200 && placed < FOREST.clearing.rocks; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = rng.range(4.5, edgeR - 2.5);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
-      const p = tryPlace(rng.chance(0.5) ? 'rock' : 'rockSmall', x, z, {
+      const p = yield* tryPlace(rng.chance(0.5) ? 'rock' : 'rockSmall', x, z, {
         variant: rng.int(0, T.variants.rock - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.55, 0.9), pathClear: P.rockClear,
         shape: { mossy: 0.7 }, spacing: 1.6, blocksGrass: true, grassRadius: 0.8,
       });
@@ -533,11 +556,12 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const edgeRocks = scaled(U.rocks, q.plants);
     placed = 0;
     for (let i = 0; i < 300 && placed < edgeRocks; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = rng.range(edgeR - 1.5, edgeR + 12);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
       const big = rng.chance(0.55);
-      const p = tryPlace(big ? 'rock' : 'rockSmall', x, z, {
+      const p = yield* tryPlace(big ? 'rock' : 'rockSmall', x, z, {
         variant: rng.int(0, T.variants.rock - 1), lod: rr < edgeR + 5 ? 0 : 1, rot: rng.angle(), scale: rng.range(0.8, 1.3),
         pathClear: P.rockClear, shape: { mossy: 1.15 }, spacing: 1.2, blocksGrass: true, grassRadius: 0.85,
       });
@@ -546,10 +570,11 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
   }
 
   // ---- 5. understory shrubs: tree ferns, cycads, bushes ---------------------------------------
-  function scatterKind(name, stream, count, r0, r1, opts = {}) {
+  function* scatterKind(name, stream, count, r0, r1, opts = {}) {
     const rng = createRng(seed, stream);
     let placed = 0;
     for (let i = 0; i < count * 25 && placed < count; i++) {
+      yield; // a plant tried at a time (slices.js)
       let x, z;
       const nearTrunk = opts.nearTrunk && rng.chance(opts.nearTrunk);
       if (nearTrunk) {
@@ -566,7 +591,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const rr = radiusOf(x, z);
       if (rr < r0 || rr > r1) continue;
       const lod = rr < edgeR + 3 ? 0 : rr < edgeR + 16 ? 1 : 2;
-      const p = tryPlace(name, x, z, {
+      const p = yield* tryPlace(name, x, z, {
         variant: rng.int(0, (T.variants[name] || 3) - 1), lod, rot: opts.face ? faceClearing(x, z) + rng.range(-0.8, 0.8) : rng.angle(),
         scale: rng.range(...(opts.scale || [0.85, 1.15])), pathClear: opts.pathClear ?? P.plantClear, tall: opts.tall,
         spacing: opts.spacing ?? 1, soft: opts.soft ?? 1, actorClear: opts.actorClear, phase: rng.next(),
@@ -577,30 +602,31 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     return placed;
   }
   // medium trees: young broadleaves that fill the middle storey of the forest wall
-  scatterKind('broadleaf', 'saplings', scaled(U.saplings, q.trees), edgeR + 0.5, edgeR + 12, { tall: true, nearTrunk: 0.25, shape: { reach: 0.45, size: 0.6 }, treeSpacing: 3.6, pathClear: P.treeClear - 0.6, scale: [0.85, 1.2], blocksGrass: true, grassRadius: 0.6 });
+  yield* scatterKind('broadleaf', 'saplings', scaled(U.saplings, q.trees), edgeR + 0.5, edgeR + 12, { tall: true, nearTrunk: 0.25, shape: { reach: 0.45, size: 0.6 }, treeSpacing: 3.6, pathClear: P.treeClear - 0.6, scale: [0.85, 1.2], blocksGrass: true, grassRadius: 0.6 });
   // the inner forest gets its own middle storey, so the view between trunks meets foliage
-  scatterKind('broadleaf', 'saplings-inner', scaled(U.saplingsInner, q.trees), edgeR + 12, edgeR + 30, { tall: true, nearTrunk: 0.2, shape: { reach: 0.2, size: 0.6 }, treeSpacing: 3.6, pathClear: P.treeClear - 0.6, scale: [0.85, 1.25] });
-  scatterKind('bush', 'bushes-inner', scaled(U.bushesInner, q.plants), edgeR + 9, edgeR + 28, { spacing: 1.0, nearTrunk: 0.5, soft: 0.8, scale: [0.9, 1.4] });
-  scatterKind('treeFern', 'tree-ferns', scaled(U.treeFerns, q.plants), edgeR - 1, edgeR + 9, { tall: true, nearTrunk: 0.4, spacing: 1.2, pathClear: 1.8, scale: [0.85, 1.2] });
-  scatterKind('cycad', 'cycads', scaled(U.cycads, q.plants), edgeR - 2.5, edgeR + 6, { spacing: 1.1, pathClear: P.plantClear, nearTrunk: 0.2 });
-  scatterKind('bush', 'bushes', scaled(U.bushes, q.plants), edgeR - 1.5, edgeR + 10, { spacing: 1.0, nearTrunk: 0.45, soft: 0.8, blocksGrass: true, grassRadius: 0.7, face: true });
+  yield* scatterKind('broadleaf', 'saplings-inner', scaled(U.saplingsInner, q.trees), edgeR + 12, edgeR + 30, { tall: true, nearTrunk: 0.2, shape: { reach: 0.2, size: 0.6 }, treeSpacing: 3.6, pathClear: P.treeClear - 0.6, scale: [0.85, 1.25] });
+  yield* scatterKind('bush', 'bushes-inner', scaled(U.bushesInner, q.plants), edgeR + 9, edgeR + 28, { spacing: 1.0, nearTrunk: 0.5, soft: 0.8, scale: [0.9, 1.4] });
+  yield* scatterKind('treeFern', 'tree-ferns', scaled(U.treeFerns, q.plants), edgeR - 1, edgeR + 9, { tall: true, nearTrunk: 0.4, spacing: 1.2, pathClear: 1.8, scale: [0.85, 1.2] });
+  yield* scatterKind('cycad', 'cycads', scaled(U.cycads, q.plants), edgeR - 2.5, edgeR + 6, { spacing: 1.1, pathClear: P.plantClear, nearTrunk: 0.2 });
+  yield* scatterKind('bush', 'bushes', scaled(U.bushes, q.plants), edgeR - 1.5, edgeR + 10, { spacing: 1.0, nearTrunk: 0.45, soft: 0.8, blocksGrass: true, grassRadius: 0.7, face: true });
 
   // ---- 6. ferns: thick at the edge, along the forest path, sparse inside ----------------------
-  scatterKind('fern', 'ferns-edge', scaled(Math.round(U.ferns * 0.55) * glade.ferns, q.plants), edgeR - 2.5, edgeR + 6, { spacing: 0.75, soft: 0.6, nearTrunk: 0.35, scale: [0.8 * growth, 1.3 * growth], pathClear: P.plantClear, blocksGrass: lush });
-  scatterKind('fern', 'ferns-inner', scaled(Math.round(U.ferns * 0.3), q.plants), edgeR + 6, edgeR + 22, { spacing: 0.8, soft: 0.6, nearTrunk: 0.5, scale: [0.9, 1.4] });
+  yield* scatterKind('fern', 'ferns-edge', scaled(Math.round(U.ferns * 0.55) * glade.ferns, q.plants), edgeR - 2.5, edgeR + 6, { spacing: 0.75, soft: 0.6, nearTrunk: 0.35, scale: [0.8 * growth, 1.3 * growth], pathClear: P.plantClear, blocksGrass: lush });
+  yield* scatterKind('fern', 'ferns-inner', scaled(Math.round(U.ferns * 0.3), q.plants), edgeR + 6, edgeR + 22, { spacing: 0.8, soft: 0.6, nearTrunk: 0.5, scale: [0.9, 1.4] });
   {
     // ferns lining the forest path
     const rng = createRng(seed, 'ferns-path');
     const count = scaled(Math.round(U.ferns * 0.25), q.plants);
     let placed = 0;
     for (let i = 0; i < count * 20 && placed < count; i++) {
+      yield; // a plant tried at a time (slices.js)
       const s = rng.next() * terrain.path.total;
       const [px, pz, dx, dz] = terrain.path.pointAt(s);
       if (radiusOf(px, pz) < edgeR - 1) continue;
       const side = rng.sign();
       const off = rng.range(1.9, 3.8);
       const x = px - dz * side * off, z = pz + dx * side * off;
-      const p = tryPlace('fern', x, z, {
+      const p = yield* tryPlace('fern', x, z, {
         variant: rng.int(0, T.variants.fern - 1), lod: radiusOf(x, z) < edgeR + 10 ? 0 : 1, rot: rng.angle(), scale: rng.range(0.8, 1.25),
         pathClear: P.plantClear, spacing: 0.8, soft: 0.6, phase: rng.next(),
       });
@@ -614,6 +640,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const count = scaled(U.horsetails, q.plants);
     let placed = 0;
     for (let i = 0; i < count * 30 && placed < count; i++) {
+      yield; // a plant tried at a time (slices.js)
       const s = rng.next() * terrain.path.total;
       const [px, pz, dx, dz] = terrain.path.pointAt(s);
       const side = rng.sign();
@@ -621,7 +648,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const x = px - dz * side * off, z = pz + dx * side * off;
       const rr = radiusOf(x, z);
       if (rr < edgeR - 4 || rr > edgeR + 16) continue;
-      const p = tryPlace('horsetail', x, z, { variant: rng.int(0, T.variants.horsetail - 1), lod: rr < edgeR + 8 ? 0 : 1, rot: rng.angle(), scale: rng.range(0.85, 1.2), pathClear: P.plantClear, spacing: 0.9, phase: rng.next() });
+      const p = yield* tryPlace('horsetail', x, z, { variant: rng.int(0, T.variants.horsetail - 1), lod: rr < edgeR + 8 ? 0 : 1, rot: rng.angle(), scale: rng.range(0.85, 1.2), pathClear: P.plantClear, spacing: 0.9, phase: rng.next() });
       if (p) placed++;
     }
   }
@@ -633,6 +660,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     let placed = 0;
     const hosts = placements.filter(p => (p.name === 'broadleaf' && p.band === 'edge') || p.name === 'log');
     for (let i = 0; i < count * 30 && placed < count && hosts.length; i++) {
+      yield; // a plant tried at a time (slices.js)
       const h = rng.pick(hosts);
       let x, z;
       if (h.name === 'log') {
@@ -644,7 +672,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         const a = rng.angle(), d = h.model.trunk.flare * h.scale * rng.range(0.9, 1.4);
         x = h.x + Math.cos(a) * d; z = h.z + Math.sin(a) * d;
       }
-      const p = tryPlace('mushrooms', x, z, { variant: rng.int(0, T.variants.mushrooms - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.9, 1.4), pathClear: P.plantClear, spacing: 0.5, soft: 0.2, phase: rng.next() });
+      const p = yield* tryPlace('mushrooms', x, z, { variant: rng.int(0, T.variants.mushrooms - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.9, 1.4), pathClear: P.plantClear, spacing: 0.5, soft: 0.2, phase: rng.next() });
       if (p) placed++;
     }
   }
@@ -655,20 +683,22 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     const count = scaled(FOREST.clearing.flowers, q.plants);
     let placed = 0;
     for (let i = 0; i < count * 30 && placed < count; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = Math.sqrt(rng.range(2.5 * 2.5, (edgeR - 1.2) ** 2));
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
       if (terrain.soilMask(x, z) > 0.4) continue;
-      const p = tryPlace('flowers', x, z, { variant: rng.int(0, T.variants.flowers - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.9, 1.2), pathClear: P.plantClear, spacing: 2.2, actorClear: 2.6, phase: rng.next() });
+      const p = yield* tryPlace('flowers', x, z, { variant: rng.int(0, T.variants.flowers - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.9, 1.2), pathClear: P.plantClear, spacing: 2.2, actorClear: 2.6, phase: rng.next() });
       if (p) placed++;
     }
     const ferns = scaled(FOREST.clearing.ferns * glade.ferns, q.plants); // a glade grows more
     placed = 0;
     for (let i = 0; i < ferns * 30 && placed < ferns; i++) {
+      yield; // a plant tried at a time (slices.js)
       const a = rng.angle();
       const rr = rng.range(clearR - 0.5, edgeR - 1.5);
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
-      const p = tryPlace('fern', x, z, { variant: rng.int(0, T.variants.fern - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.7, 1.0) * growth, pathClear: P.plantClear, spacing: 0.9, soft: 0.6, phase: rng.next(), blocksGrass: lush });
+      const p = yield* tryPlace('fern', x, z, { variant: rng.int(0, T.variants.fern - 1), lod: 0, rot: rng.angle(), scale: rng.range(0.7, 1.0) * growth, pathClear: P.plantClear, spacing: 0.9, soft: 0.6, phase: rng.next(), blocksGrass: lush });
       if (p) placed++;
     }
   }
@@ -690,24 +720,25 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       if (shot.kind === 'track') continue;
       let placedHere = 0;
       for (const [nx, ny] of spots) {
+        yield; // a plant tried at a time (slices.js)
         if (placedHere >= 3) break;
         const hit = groundHit(shot, nx + rng.range(-0.06, 0.06), ny + rng.range(-0.05, 0.05));
         if (!hit || hit[2] < 2.2 || hit[2] > 11) { stats.accents.far++; continue; }
         const r = radiusOf(hit[0], hit[1]);
         if (r > edgeR + 4 || terrain.soilMask(hit[0], hit[1]) > 0.5) { stats.accents.ground++; continue; }
-        const p = tryPlace('flowers', hit[0], hit[1], { variant: rng.int(0, T.variants.flowers - 1), lod: 0, rot: rng.angle(), scale: rng.range(1.0, 1.3), pathClear: P.plantClear, spacing: 1.2, actorClear: 2.1, phase: rng.next() });
+        const p = yield* tryPlace('flowers', hit[0], hit[1], { variant: rng.int(0, T.variants.flowers - 1), lod: 0, rot: rng.angle(), scale: rng.range(1.0, 1.3), pathClear: P.plantClear, spacing: 1.2, actorClear: 2.1, phase: rng.next() });
         if (p) { placedHere++; stats.accents.placed++; } else stats.accents.rejected++;
       }
     }
   }
-  if (biome.fen) growFen();
+  if (biome.fen) yield* growFen();
 
   // ---- the Fen --------------------------------------------------------------------------------
   // Open water and golden reed with groves of swamp conifers: the layout's own plants first, then the groves and lone conifers,
   // the dead snags, beds of horsetail reed along the water and in the open, tall horsetails, moss hummocks with ferns, cycads
   // and tree ferns on the dry ground, a fallen log or two along a shore, a few mossy stones, and the lilies on the water. Every count is FEN.counts at the tablet
   // preset; a pass places its plants by the fen's share (a trail grows fewer where it is still half forest).
-  function growFen() {
+  function* growFen() {
     const C = FEN.counts;
     const q = { ...allQ, plants: allQ.plants * fenShare, trees: allQ.trees * fenShare * (biome.blended ? FEN.blendedTrees : 1) };
     const reach = edgeR + (biome.blended ? FEN.reachBlended : FEN.reach);
@@ -763,9 +794,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
     {
       const rng = createRng(seed, 'fen-authored');
       for (const spec of layout.plants ?? []) {
+        yield; // a plant tried at a time (slices.js)
         const [x, z] = spec.position;
         const tall = Boolean(SPECIES[spec.name]?.tall);
-        const p = tryPlace(spec.name, x, z, {
+        const p = yield* tryPlace(spec.name, x, z, {
           variant: spec.variant ?? 0, lod: 0, tall, rot: spec.rot ?? rng.angle(), scale: spec.scale ?? 1,
           authored: true, skipShots: true, sky: FEN.sky, phase: rng.next(), blocksGrass: true, grassRadius: 0.8,
           y: spec.name === 'waterLily' ? water?.surfaceAt(x, z) ?? undefined : undefined,
@@ -774,11 +806,11 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       }
     }
     // a plant of a fen pass: the fen's share decides, the open sky lights it, and tall ones keep out of the sightlines
-    const fenPlace = (name, at, rng, opts = {}) => {
+    const fenPlace = function* fenPlace(name, at, rng, opts = {}) {
       if (!at) return null;
       const [x, z] = at;
       if (opts.tall && inSight(x, z)) { stats.rejected.space++; return null; }
-      return tryPlace(name, x, z, {
+      return yield* tryPlace(name, x, z, {
         variant: rng.int(0, (T.variants[name] || 3) - 1), lod: lodAt(x, z), rot: rng.angle(), phase: rng.next(),
         pathClear: P.plantClear, sky: FEN.sky, fen: true, ...opts,
       });
@@ -792,13 +824,15 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(C.groves, q.trees);
       let made = 0;
       for (let i = 0; i < want * 30 && made < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const roll = rng.next();
         const centre = roll < 0.3 ? shoreSpot(rng, 0.3, 1.0) : roll < 0.65 ? shoreSpot(rng, 1.5, 7) : spot(rng, [0.1, 0.6]);
         if (!centre || radiusOf(...centre) < clearR * 0.55 || inSight(...centre, 9)) continue;
         const n = rng.int(2, 4);
         let grown = 0;
         for (let k = 0; k < n; k++) {
-          const p = fenPlace('swampConifer', k === 0 ? centre : near(rng, centre, 2.8, 6), rng, {
+          yield; // a plant tried at a time (slices.js)
+          const p = yield* fenPlace('swampConifer', k === 0 ? centre : near(rng, centre, 2.8, 6), rng, {
             tall: true, scale: rng.range(0.85, 1.2), pathClear: P.treeClear, treeSpacing: 4.2, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
           });
           if (p) grown++;
@@ -809,9 +843,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const edge = scaled(C.edgeConifers, q.trees);
       let atEdge = 0;
       for (let i = 0; i < edge * 60 && atEdge < edge; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = shoreSpot(rng, 0.25, 0.9);
         if (!at || radiusOf(...at) < clearR * 0.4) continue;
-        const p = fenPlace('swampConifer', at, rng, {
+        const p = yield* fenPlace('swampConifer', at, rng, {
           tall: true, scale: rng.range(0.8, 1.15), pathClear: P.treeClear, treeSpacing: 5, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
         });
         if (p) atEdge++;
@@ -819,7 +854,8 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const lone = scaled(C.loneConifers, q.trees);
       let placed = 0;
       for (let i = 0; i < lone * 40 && placed < lone; i++) {
-        const p = fenPlace('swampConifer', spot(rng, [0.25, 0.55]), rng, {
+        yield; // a plant tried at a time (slices.js)
+        const p = yield* fenPlace('swampConifer', spot(rng, [0.25, 0.55]), rng, {
           tall: true, scale: rng.range(0.75, 1.15), pathClear: P.treeClear, treeSpacing: 6, blocksGrass: true, grassRadius: 1.0, sink: 0.05,
         });
         if (p) placed++;
@@ -839,9 +875,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(C.snags, q.trees);
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = rng.chance(0.5) ? shoreSpot(rng, 0.6, 4) : spot(rng, [0.15, 0.5]);
         if (at && inMiddleThird(...at)) { stats.rejected.shot++; continue; }
-        const p = fenPlace('deadSnag', at, rng, { tall: true, scale: rng.range(0.8, 1.3), pathClear: P.treeClear - 0.8, treeSpacing: 4, blocksGrass: true, grassRadius: 0.4 });
+        const p = yield* fenPlace('deadSnag', at, rng, { tall: true, scale: rng.range(0.8, 1.3), pathClear: P.treeClear - 0.8, treeSpacing: 4, blocksGrass: true, grassRadius: 0.4 });
         if (p) placed++;
       }
     }
@@ -851,12 +888,13 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const rng = createRng(seed, 'fen-reed');
       const want = scaled(C.reedBeds, q.plants);
       for (let i = 0; i < want * 30 && beds.length < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const centre = signed && rng.chance(0.65) ? shoreSpot(rng, 0.3, 2.6) : spot(rng, [0.3, 0.45]);
         if (!centre) continue;
         const n = rng.int(3, 7);
         let grown = 0;
         for (let k = 0; k < n; k++) {
-          const p = fenPlace('horsetailReed', k === 0 ? centre : near(rng, centre, 0.7, 1.8), rng, { scale: rng.range(0.85, 1.25), spacing: 0.7, soft: 0.4 });
+          const p = yield* fenPlace('horsetailReed', k === 0 ? centre : near(rng, centre, 0.7, 1.8), rng, { scale: rng.range(0.85, 1.25), spacing: 0.7, soft: 0.4 });
           if (p) grown++;
         }
         if (grown) beds.push(centre);
@@ -868,8 +906,9 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(C.tallHorsetails, q.plants);
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = beds.length && rng.chance(0.6) ? near(rng, rng.pick(beds), 1.8, 3.5) : spot(rng, [0.35, 0.45]);
-        const p = fenPlace('horsetailTall', at, rng, { scale: rng.range(0.85, 1.2), spacing: 0.9, soft: 0.6 });
+        const p = yield* fenPlace('horsetailTall', at, rng, { scale: rng.range(0.85, 1.2), spacing: 0.9, soft: 0.6 });
         if (p) placed++;
       }
     }
@@ -879,9 +918,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const rng = createRng(seed, 'fen-hummocks');
       const want = scaled(C.hummocks, q.plants);
       for (let i = 0; i < want * 40 && hummocks.length < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = spot(rng, [0.4, 0.4]);
         if (signed && wetness(...at) < 0.8) continue;
-        const p = fenPlace('mossHummock', at, rng, { scale: rng.range(0.8, 1.35), spacing: 1.1, blocksGrass: true, grassRadius: 0.9 });
+        const p = yield* fenPlace('mossHummock', at, rng, { scale: rng.range(0.8, 1.35), spacing: 1.1, blocksGrass: true, grassRadius: 0.9 });
         if (p) hummocks.push([p.x, p.z, p.model.radius * p.scale]);
       }
     }
@@ -907,9 +947,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(count, q.plants);
       let placed = 0;
       for (let i = 0; i < want * 30 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = nearSomething(rng);
         if (!dry(at, 1.2)) continue;
-        const p = fenPlace(name, at, rng, {
+        const p = yield* fenPlace(name, at, rng, {
           scale: rng.range(...opts.scale), spacing: opts.spacing, soft: opts.soft ?? 1, tall: opts.tall, pathClear: opts.pathClear ?? P.plantClear,
           lod: name === 'treeFern' ? Math.min(lodAt(...at), 1) : lodAt(...at),
         });
@@ -922,6 +963,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = Math.max(1, scaled(C.logs, q.plants));
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = shoreSpot(rng, 1.0, 2.8);
         if (!at) continue;
         const [x, z] = at, e = 0.3;
@@ -930,7 +972,7 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
         const half = library.get('log', 0, 0).length / 2;
         const dx = Math.cos(rot), dz = Math.sin(rot);
         if (signed(x + dx * half, z + dz * half) < 0.3 || signed(x - dx * half, z - dz * half) < 0.3) continue;
-        const p = fenPlace('log', at, rng, { variant: 0, lod: 0, rot, footprint: 1.0, spacing: 1, pathClear: P.rockClear + 1, blocksGrass: true, grassRadius: 0.6 });
+        const p = yield* fenPlace('log', at, rng, { variant: 0, lod: 0, rot, footprint: 1.0, spacing: 1, pathClear: P.rockClear + 1, blocksGrass: true, grassRadius: 0.6 });
         if (p) { placed++; p.logAxis = [dx, dz]; p.halfLength = half; }
       }
     }
@@ -940,9 +982,10 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(C.rocks, q.plants);
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         const at = rng.chance(0.5) && signed ? shoreSpot(rng, 0.4, 2.5) : spot(rng, [0.4, 0.5]);
         if (!at || !dry(at, 0.4)) continue;
-        const p = fenPlace(rng.chance(0.5) ? 'rock' : 'rockSmall', at, rng, {
+        const p = yield* fenPlace(rng.chance(0.5) ? 'rock' : 'rockSmall', at, rng, {
           variant: rng.int(0, T.variants.rock - 1), scale: rng.range(0.6, 1.0), shape: { mossy: 1.4 }, spacing: 1.4, pathClear: P.rockClear, blocksGrass: true, grassRadius: 0.8,
         });
         if (p) placed++;
@@ -954,13 +997,14 @@ export function planForest({ world, layout, seed, terrain, library, q }) {
       const want = scaled(C.lilies, q.plants);
       let placed = 0;
       for (let i = 0; i < want * 40 && placed < want; i++) {
+        yield; // a plant tried at a time (slices.js)
         let at;
         if (pools.length && rng.chance(0.8)) {
           const pool = rng.pick(pools);
           at = near(rng, pool.center, pool.radius * 0.25, pool.radius * 0.92);
         } else at = T2(rng, 0, Math.min(reach, 60));
         if (!(wetness(...at) < -0.8) || water.depthAt(...at) <= 0.08) continue;
-        const p = fenPlace('waterLily', at, rng, {
+        const p = yield* fenPlace('waterLily', at, rng, {
           scale: rng.range(0.8, 1.2), spacing: 0.9, inWater: true, pathClear: 0, actorClear: 2.6, y: water.surfaceAt(...at) + 0.012, lod: lodAt(...at),
         });
         if (p) placed++;

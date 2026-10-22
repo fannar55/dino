@@ -6,6 +6,7 @@ import { FOREST, PALETTE, FEN } from './config.js';
 import { createNoise, smoothstep, clamp } from './random.js';
 import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL } from './materials.js';
 import { biomeOf, FEN_SHARE_GLSL, fenUniforms } from './biome.js';
+import { runSync } from './slices.js';
 
 /** Distance from a point to a polyline, with the arc-length position of the closest point. */
 export function createPolyline(points) {
@@ -102,7 +103,8 @@ export function createTerrain(world, layout, seed) {
   // shade edge was a smooth ring. setCanopy() stamps each crown's ground shadow (along the sun) into a
   // grid; shadeAt() is the forest mask raised by those stamps on the clearing's rim.
   let canopy = null;
-  function setCanopy(crowns, sun) {
+  function setCanopy(crowns, sun) { runSync(setCanopySteps(crowns, sun)); }
+  function* setCanopySteps(crowns, sun) {
     const size = 2 * (edgeR + 9), res = 176, cell = size / res;
     const ox = cx - size / 2, oz = cz - size / 2;
     const data = new Float32Array(res * res);
@@ -129,6 +131,7 @@ export function createTerrain(world, layout, seed) {
           if (v > data[k]) data[k] = v;
         }
       }
+      yield;
     }
     canopy = { size, res, cell, ox, oz, data };
   }
@@ -179,7 +182,8 @@ export function createTerrain(world, layout, seed) {
   }
 
   // ---- ground mesh ---------------------------------------------------------------------------
-  function buildGroundGeometry(q) {
+  function buildGroundGeometry(q) { return runSync(buildGroundGeometrySteps(q)); }
+  function* buildGroundGeometrySteps(q) {
     const radii = [0];
     // the ground round the Fen's water is finer, so the banks of its pools and channel are smooth curves
     const fine = biome.fen && Boolean(layout.water);
@@ -214,6 +218,7 @@ export function createTerrain(world, layout, seed) {
         const a = (j / segs) * Math.PI * 2 + (i % 2) * (Math.PI / segs);
         pushVertex(cx + Math.cos(a) * radii[i], cz + Math.sin(a) * radii[i]);
       }
+      yield;
     }
     for (let j = 0; j < segs; j++) idx.push(0, 1 + ((j + 1) % segs), 1 + j);
     for (let i = 1; i < radii.length - 1; i++) {
@@ -239,13 +244,14 @@ export function createTerrain(world, layout, seed) {
   }
 
   /** The canopy shade as a small single-channel texture for the ground shader. */
-  function bakeShadeTexture() {
+  function* bakeShadeTexture() {
     const res = 256, size = cfg.maskSize;
     const data = new Uint8Array(res * res);
     const ox = cx - size / 2, oz = cz - size / 2;
     for (let j = 0; j < res; j++) {
       const z = oz + ((j + 0.5) / res) * size;
       for (let i = 0; i < res; i++) data[j * res + i] = Math.round(shadeAt(ox + ((i + 0.5) / res) * size, z) * 255);
+      yield;
     }
     const tex = new THREE.DataTexture(data, res, res, THREE.RedFormat, THREE.UnsignedByteType);
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -257,7 +263,7 @@ export function createTerrain(world, layout, seed) {
     return tex;
   }
 
-  function bakeMaskTexture() {
+  function* bakeMaskTexture() {
     const res = cfg.maskRes, size = cfg.maskSize;
     const data = new Uint8Array(res * res * 4);
     const ox = cx - size / 2, oz = cz - size / 2;
@@ -271,6 +277,7 @@ export function createTerrain(world, layout, seed) {
         data[k + 2] = Math.round(forestMask(x, z) * 255);
         data[k + 3] = Math.round(litterMask(x, z) * 255);
       }
+      yield;
     }
     const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -282,11 +289,12 @@ export function createTerrain(world, layout, seed) {
     return { tex, origin: new THREE.Vector2(ox, oz), size };
   }
 
-  function createGroundMaterial(shared, actorUniforms) {
+  function createGroundMaterial(shared, actorUniforms) { return runSync(createGroundMaterialSteps(shared, actorUniforms)); }
+  function* createGroundMaterialSteps(shared, actorUniforms) {
     const gain = cfg.albedoGain;
     const col = (hex, k = gain) => new THREE.Color(hex).multiplyScalar(k);
-    const mask = bakeMaskTexture();
-    const shadeTex = bakeShadeTexture();
+    const mask = yield* bakeMaskTexture();
+    const shadeTex = yield* bakeShadeTexture();
     mask.shade = shadeTex;
     const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
     material.name = 'forest-ground';
@@ -424,6 +432,7 @@ ${LEAF_SHADOW_GLSL}`,
   return {
     heightAt, path, pathMask, forestMask, soilMask, litterMask, stampSoil, noise, setCanopy, shadeAt, biome,
     buildGroundGeometry, createGroundMaterial,
+    setCanopySteps, buildGroundGeometrySteps, createGroundMaterialSteps, // the same, as steps (slices.js)
   };
 }
 

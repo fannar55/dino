@@ -1,6 +1,7 @@
 // The forest system: layout in, forest out.
 //
-//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }
+//   createForest(world, layout, { slice }) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }   (a promise; with
+//   `slice` it is built a slice at a time over frames, slices.js, the same forest either way)
 //
 // `butterflies` is the clearing's pale butterflies as tap targets ({ targets: [{ name, point, radius }], flutter(name), land(spec) },
 // atmosphere.js: butterflyLand flies one to a point).
@@ -35,15 +36,16 @@ import * as THREE from 'three';
 import { FOREST, FEN, leafShadowsOf } from './config.js';
 import { createTerrain, ACTOR_GLSL } from './terrain.js';
 import { createSpeciesLibrary } from './species.js';
-import { planForest } from './plan.js';
+import { planForestSteps } from './plan.js';
 import { createBatcher, cullBatches, cullCasters } from './batch.js';
-import { createGrass } from './grass.js';
-import { createFarForest } from './far.js';
+import { createGrassSteps } from './grass.js';
+import { createFarForestSteps } from './far.js';
 import { createAtmosphere } from './atmosphere.js';
 import { createHangingMoss } from './moss.js';
 import { smoothstep, clamp } from './random.js';
-import { createNoiseTexture, createLeafTexture, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
-import { waterShape, createWater } from '../props/water.js';
+import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
+import { runSync, runSliced } from './slices.js';
+import { waterShape, createWaterSteps } from '../props/water.js';
 import { createMist } from '../props/mist.js';
 
 const BAND_SETUP = {
@@ -176,15 +178,26 @@ export function placementInfo(p) {
   };
 }
 
-export async function createForest(world, layout) {
+/**
+ * A forest for `layout` (see the top of this file), built at once, or with `slice` ({ budget, wait, onSlice }: slices.js runSliced)
+ * a slice at a time over frames, so that it can be built while the child watches. Either way it resolves to the same forest.
+ */
+export async function createForest(world, layout, { slice = null } = {}) {
+  const steps = forestSteps(world, layout);
+  return slice ? runSliced(steps, slice) : runSync(steps);
+}
+
+function* forestSteps(world, layout) {
   const t0 = performance.now();
   const { scene, q } = world;
   const seed = (layout.seed ?? 1) >>> 0;
   const group = new THREE.Group();
   group.name = 'Forest';
 
-  const noiseTexture = createNoiseTexture(seed);
-  const leafTexture = createLeafTexture(seed);
+  const noiseTexture = yield* createNoiseTextureSteps(seed);
+  yield 'noise';
+  const leafTexture = yield* createLeafTextureSteps(seed);
+  yield 'leaf';
   const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
     uActors: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) },
@@ -195,21 +208,26 @@ export async function createForest(world, layout) {
 
   // ground: the layout's, with the Fen's water dug out and its hummocks raised
   const ground = shapeGround(world, layout, seed);
+  yield 'ground shaped';
   layout = ground.layout;
   const { terrain } = ground;
   const library = createSpeciesLibrary(seed);
-  const plan = planForest({ world, layout, seed, terrain, library, q });
+  const plan = yield* planForestSteps({ world, layout, seed, terrain, library, q });
+  yield 'planned';
 
   // canopy shade from the crowns round the clearing (their ground shadows along the sun)
-  terrain.setCanopy(plan.placements.filter(p => CANOPY[p.name] && p.model.crown && p.band !== 'deep').map(p => {
+  yield* terrain.setCanopySteps(plan.placements.filter(p => CANOPY[p.name] && p.model.crown && p.band !== 'deep').map(p => {
     const cr = p.model.crown, c = Math.cos(p.rot), s = Math.sin(p.rot);
     return {
       x: p.x + (cr.c[0] * c - cr.c[2] * s) * p.scale, y: p.y + cr.c[1] * p.scale, z: p.z + (cr.c[0] * s + cr.c[2] * c) * p.scale,
       r: cr.r * p.scale, density: CANOPY[p.name],
     };
   }), world.lighting.direction);
-  const floor = terrain.createGroundMaterial(shared, actorUniforms); // after planning: soil stamps, canopy
-  const groundMesh = new THREE.Mesh(terrain.buildGroundGeometry(q), floor.material);
+  yield 'canopy';
+  const floor = yield* terrain.createGroundMaterialSteps(shared, actorUniforms); // after planning: soil stamps, canopy
+  yield 'ground material';
+  const groundMesh = new THREE.Mesh(yield* terrain.buildGroundGeometrySteps(q), floor.material);
+  yield 'ground';
   groundMesh.name = 'Forest ground';
   groundMesh.receiveShadow = true;
   groundMesh.renderOrder = 7;
@@ -229,7 +247,8 @@ export async function createForest(world, layout) {
     if (CASTERS.has(p.name) && p.band !== 'deep' && !(low && p.band === 'inner')) batcher.addCaster(p);
   }
   const [ccx, ccz] = layout.clearing.center;
-  const { meshes, casterMeshes } = batcher.build(bucket => {
+  yield 'batched';
+  const { meshes, casterMeshes } = yield* batcher.buildSteps(bucket => {
     const s = BAND_SETUP[bucket.band];
     return { material: bucket.kind === 'thin' ? thin : solid, receiveShadow: s.receive, renderOrder: s.order };
   }, {
@@ -239,26 +258,32 @@ export async function createForest(world, layout) {
   for (const m of meshes) group.add(m);
   for (const m of casterMeshes) group.add(m);
 
+  yield 'plants';
   // grass
-  const grass = createGrass(world, { terrain, layout, seed, shared, actorUniforms, blocked: plan.blocked, q });
+  const grass = yield* createGrassSteps(world, { terrain, layout, seed, shared, actorUniforms, blocked: plan.blocked, q });
   group.add(grass.group);
+  yield 'grass';
 
   // far forest and air; the Fen's treeline stands well out, so the Fen opens to it
-  const far = createFarForest({ layout, seed, terrain, q, rings: terrain.biome.fen ? FEN.far.rings : FOREST.far.rings });
+  const far = yield* createFarForestSteps({ layout, seed, terrain, q, rings: terrain.biome.fen ? FEN.far.rings : FOREST.far.rings });
   group.add(far.mesh);
+  yield 'far';
   const air = createAtmosphere(world, { layout, seed, terrain, shared, sun: world.lighting.direction, q });
   group.add(air.group);
+  yield 'air';
 
   // the Fen's water, the moss hanging from its conifers, and the mist low over it
   const water = layout.water
-    ? createWater(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center })
+    ? yield* createWaterSteps(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center })
     : null;
   if (water) group.add(water.group);
+  yield 'water';
   // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing
   const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
     antialias: q.antialias, seed, clear: layout.mossClear ?? [],
   });
   if (moss) group.add(moss.mesh);
+  yield 'moss';
   // the mist lies over the water where there is any, its cards standing on the surface
   const mists = (layout.mist ?? []).map((spec, i) => createMist(world, {
     ...spec, seed: seed + i,

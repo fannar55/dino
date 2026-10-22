@@ -30,7 +30,8 @@
 import * as THREE from 'three';
 import { Handle } from '../../engine/handle.js';
 import { FEN } from '../forest/config.js';
-import { createNoiseTexture } from '../forest/materials.js';
+import { createNoiseTexture, createNoiseTextureSteps } from '../forest/materials.js';
+import { runSync } from '../forest/slices.js';
 import { clamp, smoothstep, hash2 } from '../forest/random.js';
 
 const EDGE_DROP = 0.03; // m the bed lies below the surface at the very edge, so the two never touch where the water shows
@@ -367,8 +368,14 @@ void main() {
 /** A point given as a Vector3, [x, y, z] or { x, z }, as [x, z]. */
 const groundOf = point => (Array.isArray(point) ? [point[0], point.length > 2 ? point[2] : point[1]] : [point.x, point.z]);
 
-export function createWater(world, spec, heightAt, { spots = [], seed = 12, centre = [0, 0], level } = {}) {
+export function createWater(world, spec, heightAt, options) {
+  return runSync(createWaterSteps(world, spec, heightAt, options));
+}
+
+/** createWater as steps (forest/slices.js): its noise a row at a time, its surface a row of cells at a time. */
+export function* createWaterSteps(world, spec, heightAt, { spots = [], seed = 12, centre = [0, 0], level } = {}) {
   const shape = waterShape(spec, level === undefined ? {} : { level });
+  yield;
   const group = new THREE.Group();
   group.name = 'Water';
 
@@ -407,6 +414,7 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
           const a = vertexAt(step, i, j), b = vertexAt(step, i + 1, j), c = vertexAt(step, i, j + 1), d = vertexAt(step, i + 1, j + 1);
           idx.push(a, c, b, b, c, d);
         }
+        yield;
       }
     }
   }
@@ -416,7 +424,8 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
   geometry.setAttribute('aFlow', new THREE.Float32BufferAttribute(flow, 2));
   geometry.setIndex(idx);
   geometry.computeBoundingSphere();
-  const { material, uniforms, dispose: disposeMaterial } = createWaterMaterial(world, { seed });
+  const noise = yield* createNoiseTextureSteps((seed ^ 0x77a7e) >>> 0); // the material's own, made a row at a time
+  const { material, uniforms, dispose: disposeMaterial } = createWaterMaterial(world, { seed, noise });
   const ripples = uniforms.uRipples.value;
   const surface = new THREE.Mesh(geometry, material);
   surface.name = 'Water surface';
@@ -591,8 +600,8 @@ export function createWater(world, spec, heightAt, { spots = [], seed = 12, cent
  * the print's shape (`blobs` ellipses in `uniforms.uBlobs`, turned by `uBlobTurn`, fused over `uBlend` m), clear over its mud floor
  * (`bed`). `fade` is the metres it fades out over inside its shore.
  */
-export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed } = {}) {
-  const noise = createNoiseTexture((seed ^ 0x77a7e) >>> 0);
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed, noise: given = null } = {}) {
+  const noise = given ?? createNoiseTexture((seed ^ 0x77a7e) >>> 0); // `noise`: the same texture, made already
   const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
   const uniforms = {
     ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
