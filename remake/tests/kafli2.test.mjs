@@ -156,11 +156,77 @@ test('the default chapter follows the stars', () => {
 // through what the script shares (world.chapterState, its `c`): once, for the tests below.
 const V3 = THREE.Vector3;
 const UP = new V3(0, 1, 0);
+
+// How Egill's skin and hers meet, as both are posed now: how many of his vertices are inside her (and how deep the deepest is), and
+// how much air there is under the rest of him at the least. Her skin's triangles near him go on a grid of cells across the ground;
+// a vertical line through one of his vertices that crosses her skin an odd number of times above it starts inside her.
+const skinOf = actor => {
+  let mesh = null;
+  actor.model.traverse(o => { if (o.isSkinnedMesh && (!mesh || o.geometry.attributes.position.count > mesh.geometry.attributes.position.count)) mesh = o; });
+  return mesh;
+};
+function posedSkin(mesh) {
+  const n = mesh.geometry.attributes.position.count;
+  const out = new Float32Array(n * 3);
+  const v = new V3();
+  for (let i = 0; i < n; i++) {
+    mesh.getVertexPosition(i, v).applyMatrix4(mesh.matrixWorld);
+    out.set([v.x, v.y, v.z], i * 3);
+  }
+  return out;
+}
+function skinsMeet(her, egill) {
+  her.root.updateMatrixWorld(true);
+  egill.root.updateMatrixWorld(true);
+  const mesh = skinOf(her);
+  const skin = posedSkin(mesh), his = posedSkin(skinOf(egill)), index = mesh.geometry.index.array;
+  const near = egill.root.position, cell = 0.08, cells = new Map(), tris = [];
+  for (let t = 0; t < index.length; t += 3) {
+    const [a, b, d] = [index[t] * 3, index[t + 1] * 3, index[t + 2] * 3];
+    const x0 = Math.min(skin[a], skin[b], skin[d]), x1 = Math.max(skin[a], skin[b], skin[d]);
+    const z0 = Math.min(skin[a + 2], skin[b + 2], skin[d + 2]), z1 = Math.max(skin[a + 2], skin[b + 2], skin[d + 2]);
+    if (x1 < near.x - 1.6 || x0 > near.x + 1.6 || z1 < near.z - 1.6 || z0 > near.z + 1.6) continue;
+    const k = tris.push([a, b, d]) - 1;
+    for (let i = Math.floor(x0 / cell); i <= Math.floor(x1 / cell); i++) {
+      for (let j = Math.floor(z0 / cell); j <= Math.floor(z1 / cell); j++) {
+        const key = i * 100003 + j;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(k);
+      }
+    }
+  }
+  let inside = 0, deepest = 0, air = Infinity;
+  for (let p = 0; p < his.length; p += 3) {
+    const [x, y, z] = [his[p], his[p + 1], his[p + 2]];
+    const crossings = [];
+    for (const k of cells.get(Math.floor(x / cell) * 100003 + Math.floor(z / cell)) ?? []) {
+      const [a, b, d] = tris[k];
+      const det = (skin[b + 2] - skin[d + 2]) * (skin[a] - skin[d]) + (skin[d] - skin[b]) * (skin[a + 2] - skin[d + 2]);
+      if (Math.abs(det) < 1e-12) continue;
+      const l1 = ((skin[b + 2] - skin[d + 2]) * (x - skin[d]) + (skin[d] - skin[b]) * (z - skin[d + 2])) / det;
+      const l2 = ((skin[d + 2] - skin[a + 2]) * (x - skin[d]) + (skin[a] - skin[d]) * (z - skin[d + 2])) / det;
+      if (l1 < 0 || l2 < 0 || l1 + l2 > 1) continue;
+      crossings.push(l1 * skin[a + 1] + l2 * skin[b + 1] + (1 - l1 - l2) * skin[d + 1]);
+    }
+    const above = crossings.filter(h => h > y);
+    if (above.length % 2) {
+      inside++;
+      deepest = Math.max(deepest, Math.min(...above) - y);
+    } else {
+      const below = crossings.filter(h => h <= y);
+      if (below.length) air = Math.min(air, y - Math.max(...below));
+    }
+  }
+  return { inside, deepest, air };
+}
+
 let played = null;
 function playTheFen() {
   played ??= (async () => {
-    const seen = { phases: [], headDown: null, liftTilt: 0, lifting: 0, top: null, landed: null, life: [], ripples: 0 };
+    const seen = { phases: [], headDown: null, liftTilt: 0, lifting: 0, top: null, landed: null, life: [], ripples: 0, meet: [] };
     let phase = null;
+    let liftFrom = null;
+    let midway = false;
     let eyesOf = null; // her eyes' midpoint, carried by her Head bone (the face pass's eyes)
     const run = await playUnattended(kafli2, {
       limit: 300, shaped: true,
@@ -195,6 +261,18 @@ function playTheFen() {
             seen.landed = { gap: egill.root.position.distanceTo(c.saddle.seat), controlled: egill.controlled };
           }
         }
+        // Egill's skin and hers at the start of the lift, halfway up and at the top, and on every frame of the slide's first metre.
+        const meet = when => seen.meet.push({ when, ...skinsMeet(thorsedla, egill) });
+        if (phase === 'lifting' && liftFrom === null) {
+          liftFrom = stage.s.time;
+          meet('the start of the lift');
+        }
+        if (phase === 'lifting' && !midway && stage.s.time - liftFrom >= c.lift.rising / 2) {
+          midway = true;
+          meet('halfway up');
+        }
+        if (phase === 'lookout' && !seen.meet.some(m => m.when === 'the top')) meet('the top');
+        if (phase === 'sliding' && c.slide?.phase === 'neck' && c.slide.along <= 1) meet(`the slide, ${c.slide.along.toFixed(2)} m down her neck`);
         if (phase === 'lifting') {
           c.seat.update();
           seen.lifting++;
@@ -252,7 +330,23 @@ test('the head comes down to Egill\'s eyes and the lift keeps him level', async 
   assert.ok(seen.lifting > 30 * 5, `the lift took ${(seen.lifting / 30).toFixed(1)} s`);
   assert.ok(seen.liftTilt <= 12, `the seat tipped ${seen.liftTilt.toFixed(1)} degrees on the way up`);
   assert.ok(seen.top, 'he reached the top');
-  assert.ok(seen.top.up >= 8 && seen.top.up <= 9.5, `the seat ends ${seen.top.up.toFixed(2)} m above the ground she stands on`);
+  // On the back of her head (the coordinator's ruling of 22 October: a seat 0.55 m over Neck5 buried him in her neck), his root ends
+  // 9.52 m above the bed of her pool, a little over the plan's 9.5: the bound is that height and 0.1 m.
+  assert.ok(seen.top.up >= 8 && seen.top.up <= 9.62, `the seat ends ${seen.top.up.toFixed(2)} m above the ground she stands on`);
+});
+
+test('Egill sits on her skin and never in it: up the lift and down the first metre of the slide', async () => {
+  const { seen } = await playTheFen();
+  const at = when => seen.meet.find(m => m.when === when);
+  for (const when of ['the start of the lift', 'halfway up', 'the top']) {
+    const meet = at(when);
+    assert.ok(meet, `measured at ${when}`);
+    assert.equal(meet.inside, 0, `at ${when} ${meet.inside} of his vertices are inside her, ${(meet.deepest * 100).toFixed(1)} cm at most`);
+    assert.ok(meet.air < 0.08, `at ${when} he sits ${(meet.air * 100).toFixed(1)} cm over her skin`);
+  }
+  const slide = seen.meet.filter(m => m.when.startsWith('the slide'));
+  assert.ok(slide.length >= 10, `${slide.length} frames of the slide's first metre`);
+  for (const meet of slide) assert.equal(meet.inside, 0, `on ${meet.when} ${meet.inside} of his vertices are inside her`);
 });
 
 test('the slide lands in the saddle', async () => {
