@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, REMAKE_AUDIO, SETS, buildLines, remakeLines, updateLines } from '../tools/audio-lines.mjs';
-import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines, regenerationPlan } from '../tools/voice-lines.mjs';
+import { CANDIDATES, MODEL, SETTINGS, cacheKey, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -853,6 +853,15 @@ test("--pick writes the owner's picks into the lexicon's chosen, and nothing els
     assert.equal(fs.readFileSync(lexiconFile, 'utf8'), before, 'nothing written');
   }
   assert.equal(calls.length, 0);
+});
+
+test("takes are shared with the repo's other checkouts only from the real repo: a test's root sees no cache but its own", t => {
+  assert.deepEqual(siblingCaches(makeRoot(t)), []);
+  const own = path.join(REAL.repo, '.tools/elevenlabs-remake');
+  for (const dir of siblingCaches(REAL.repo)) {
+    assert.notEqual(path.resolve(dir), path.resolve(own));
+    assert.equal(path.dirname(path.dirname(path.dirname(dir))), path.dirname(REAL.repo), `${dir} is a checkout beside this one`);
+  }
 });
 
 // ---------------------------------------------------------------------------------------------

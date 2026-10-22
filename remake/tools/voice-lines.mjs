@@ -1,10 +1,40 @@
 #!/usr/bin/env node
-// Voices the remake's chapters and book with ElevenLabs Eleven v3, the way scripts/generate-narration.mjs voices the game:
+// Voices the remake's chapters and book with ElevenLabs Eleven v4 (MODEL), the way scripts/generate-narration.mjs voices the game:
 //   node remake/tools/voice-lines.mjs [--set book|eitt|hals|kafli2] [--only id,id]   make the lines of assets/audio/<set>/lines-source.json (all, or just these)
 //   node remake/tools/voice-lines.mjs --audition kambedla    one sample line per candidate voice, in qa/remake/voices/, to choose from
 //   node remake/tools/voice-lines.mjs --audition egill
 //   node remake/tools/voice-lines.mjs --audition narrator
-// (needs ffmpeg and ffprobe on the PATH, and ELEVENLABS_API_KEY in the environment)
+//   node remake/tools/voice-lines.mjs --dry [--set <set>|all|yatzy-junior] [--only id,id]   what each line would send; asks nothing
+//   node remake/tools/voice-lines.mjs --book <word|all> [--dry]   the pronunciation book: auditions in qa/remake/voices/framburdarbok/
+//   node remake/tools/voice-lines.mjs --pick picks.json           the owner's picks from the book into pronunciation.json
+//   node remake/tools/voice-lines.mjs --plan                      the lines to make again, set by set, with the commands
+//   node remake/tools/voice-lines.mjs --ab <set|yatzy-junior> [--only id,id]   snapshot the old takes, then an old-beside-new page
+// (making lines, --audition and --book need ffmpeg and ffprobe on the PATH and ELEVENLABS_API_KEY in the environment; --dry, --pick,
+// --plan and --ab ask ElevenLabs nothing and need no key)
+//
+// THE PRONUNCIATION STANDARD. remake/assets/audio/pronunciation.json lists the hard words (Kambeðla, Snigill, Eitt, Egill, ...), each
+// with every form the lines say, candidate recipes and the one the owner chose by ear ("chosen", null until then). A recipe is what is
+// sent instead of the plain word: "say" (a respelling such as Eiht, or IPA in double quotes and slashes, "/ˈstniːjɪtl̥/", which Eleven v4
+// reads), "context" (a sentence sent as previous_text, never spoken: what won Kambeðla), and a "seed". Every request goes through
+// requestFor -> applyLexicon: each form of a chosen word is replaced by its recipe's say, the chosen contexts are joined in the order the
+// words are said, and the first recipe seed is used; a word with no recipe chosen is sent as written. A line may still carry its own
+// "say", "context" or "seed", which win. The text the child sees (lines-source.json's text, the captions, lines.json) never changes:
+// only the request does. tools/yatzy-junior-voices.mjs sends Litla Yatzy's Mosi lines through the same functions.
+//
+// THE BOOK, ONCE PER WORD. --book renders, for each hard word, each speaker who says it anywhere and each recipe (raw, "hratt",
+// among them), one audition: the speaker's shortest line with the word (one that is not kept first) or the entry's "audition"
+// sentence, sent with that recipe for the word and the chosen recipes for the others, mastered like the game's lines into
+// qa/remake/voices/framburdarbok/<word>/<speaker>-<recipe>.mp3, and writes index.html there: a section per word, a radio per recipe,
+// and "Vista val", which saves picks.json (word -> recipe). --pick writes those into "chosen"; every line with the word then sends that
+// recipe. A real line's audition is the very request it is made with, so the take the owner heard is the take that goes in.
+//
+// THE PLAN AND THE A/B PAGES. --plan lists the lines whose MP3 is not what the tool would send now: an eleven_v3 take, a take of
+// another request (a recipe chosen or changed since), a changed MP3 or none. It knows which request made an MP3 from the record the
+// tool keeps when it masters one (.tools/voice-lines-made.json, and Litla Yatzy's index), else from the caches of every checkout
+// (the line's text hashed for eleven_v3 and eleven_v4; when both are cached, the take whose length plus the quarter second is the
+// MP3's). Per set it prints --ab <set>, then the --only to run. --ab copies the MP3s about to be made again into
+// qa/remake/voices/ab/<set>/old/ (never over a copy already there: run it BEFORE --only) and writes qa/remake/voices/ab/<set>.html,
+// the old take beside the new, for the owner to approve the v4 voice set by set.
 //
 // The lines come in sets (audio-lines.mjs SETS), each with a lines-source.json in a folder of its own: kafli1, the chapter's, which
 // is made unless --set says otherwise, book, the narrator's reading of the education cards, eitt, Kambeðla's and Mosi's lines at
@@ -20,8 +50,9 @@
 // makes the same entries for the game's own lines). Lines are approved before they are made: voices.json names a voice for each speaker, null until the owner has chosen it
 // (the narrator has no entry until then), and a speaker without a voice stops the run before any request.
 //
-// Eleven v3 gives another take every time it is asked, so what ElevenLabs answers is kept in .tools/elevenlabs-remake/, named by a
-// hash of everything that decides the sound: the text, the voice, the model, the settings and the seed. A line costs credits once.
+// Eleven gives another take every time it is asked, so what ElevenLabs answers is kept in .tools/elevenlabs-remake/, named by a
+// hash of everything that decides the sound: the text sent (after the lexicon), the context, the voice, the model, the settings and
+// the seed. A line costs credits once (a take another checkout of the repo already has is copied from its cache, not asked for).
 // For another take of a line, change its "seed" in lines-source.json. Lines that say the same thing (the three "Mmm!") have seeds of
 // their own, or they would share one take.
 //
@@ -503,8 +534,8 @@ export async function audition({ root, key, fetch, character, log }) {
     '',
     `Every file is the same line, ${line.id}, spoken by one candidate: "${line.text}"`,
     '',
-    `Eleven v3, Icelandic, stability ${SETTINGS.stability}, similarity ${SETTINGS.similarity_boost}, speed ${SETTINGS.speed}; mastered to the loudness of the game's narration, so the files compare fairly.`,
-    'Each file is one take. Eleven v3 gives another take every time it is asked, with its own pace, so judge the voice rather than one reading.',
+    `${MODEL}, Icelandic, stability ${SETTINGS.stability}, similarity ${SETTINGS.similarity_boost}, speed ${SETTINGS.speed}; mastered to the loudness of the game's narration, so the files compare fairly.`,
+    'Each file is one take. Eleven gives another take every time it is asked, with its own pace, so judge the voice rather than one reading.',
     'Choose one, then put its voice id in remake/assets/audio/voices.json.',
     '',
     '| # | Voice | Voice id | File | About |',
