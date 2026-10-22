@@ -196,6 +196,18 @@ test('a Fen asked for before sound wakes is laid as soon as it does, and replace
   assert.equal(sfx.play('forest'), true, 'and the forest can come back');
 });
 
+test('a game with a sound of its own by one of their names keeps its own: Háls og hali\'s splash', () => {
+  const context = createFakeContext({ state: 'running' });
+  let played = 0;
+  const sfx = createSfx({ context, theme: THEME, sounds: () => ({ splash: () => { played++; } }) });
+  assert.equal(sfx.play('splash'), true);
+  assert.equal(played, 1, 'its own splash, not the Fen\'s');
+  assert.equal(context.started.length, 0);
+  assert.equal(sfx.play('splash'), true, 'with no gap of the Fen\'s splash\'s');
+  assert.equal(sfx.play('countTone', { index: 2 }), true, 'and the Fen\'s others are still there');
+  assert.throws(() => createSfx({ context, theme: THEME, sounds: () => ({ frog() {} }) }), /"frog" is one of the game's own sounds/);
+});
+
 test('s.sfx passes a sound its detail (the count, the lift\'s length)', () => {
   const played = [];
   const { s } = createScene({

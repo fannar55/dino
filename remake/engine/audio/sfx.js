@@ -16,7 +16,7 @@ import { FEN_GAPS, fenCall, fenSounds } from './fen-sounds.js';
 const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot pile up more than this
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
-const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15, ...FEN_GAPS };
+const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
 const BEDS = ['forest', 'fen'];
 const CROSS_FADE = 0.8; // the time constant (s) of a bed fading out as the other comes in: about three seconds
 const FEN_IN = 2.5; // seconds the Fen's water takes to come in
@@ -371,14 +371,16 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     },
   };
 
-  // chapter 2's, the game's own as well (engine/audio/fen-sounds.js)
-  Object.assign(SOUNDS, fenSounds({ tone, noise, bell, hum, key, between }));
-
-  for (const [name, sound] of Object.entries(sounds?.({ tone, noise, bell, key }) ?? {})) {
+  // An instance's own sounds (`sounds`) may not take a name of the ones above. Chapter 2's (engine/audio/fen-sounds.js) are the
+  // game's as well, but give way to an instance's own of the same name: Háls og hali's table has a splash of its own, and never plays
+  // the Fen's.
+  const own = sounds?.({ tone, noise, bell, key }) ?? {};
+  for (const name of Object.keys(own)) {
     if (Object.hasOwn(SOUNDS, name)) throw new TypeError(`createSfx: "${name}" is one of the game's own sounds`);
-    SOUNDS[name] = sound;
   }
-  const least = { ...GAPS, ...gaps };
+  const fen = Object.entries(fenSounds({ tone, noise, bell, hum, key, between })).filter(([name]) => !Object.hasOwn(own, name));
+  Object.assign(SOUNDS, Object.fromEntries(fen), own);
+  const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();
   const allowed = () => !muted && !paused && context.state === 'running';
