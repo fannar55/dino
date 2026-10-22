@@ -62,7 +62,7 @@ const FAR_DROP = 0.12;
 // Near the clearing the ground at the water's edge stands this much above it, so no bare ground lies lower than the water.
 const BANK = 0.02;
 // Hanging moss is a few centimetres of strand: past this far from the clearing it is not seen, so it is not drawn there.
-const MOSS_REACH = 50;
+const MOSS_REACH = 100;
 
 /**
  * A layout's ground, shaped as the forest grows it: the layout itself, or a copy whose `lift` digs the Fen's water out of the

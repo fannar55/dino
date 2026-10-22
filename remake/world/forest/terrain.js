@@ -391,7 +391,8 @@ ${LEAF_SHADOW_GLSL}`,
   fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
   fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
   fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD ) );
-  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ), smoothstep( 0.0, -0.25, shoreD ) ); // the bed under the water, from its very edge
+  // the bed under the water, from its very edge: wet and darker in its first 0.3 m, where the surface fades in over it
+  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ) * mix( 0.7, 1.0, smoothstep( 0.0, -0.3, shoreD ) ), smoothstep( 0.0, -0.25, shoreD ) );
 
   col = mix( col, fenC, fen );
   pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );
