@@ -116,8 +116,8 @@
   },
   "lastRoll": {
     "src": "assets/audio/yatzy-junior/lastRoll.mp3",
-    "duration": 2.17,
-    "mouth": "00efff80007d9000056fc0000ae000a6300000000000"
+    "duration": 2.25,
+    "mouth": "00eeffb300000ce64000307fe007d6006630000000000"
   },
   "noRolls": {
     "src": "assets/audio/yatzy-junior/noRolls.mp3",
@@ -181,8 +181,8 @@
   },
   "help": {
     "src": "assets/audio/yatzy-junior/help.mp3",
-    "duration": 7.37,
-    "mouth": "0dfa500dfbfc0df730000ec00ceff767a53000000000000ffeb0da00ceeeffc8ddd30de06dc009d30efeb85400000000008bfd907d74dd09fe0000009eed97504076e930000000000000"
+    "duration": 7.93,
+    "mouth": "08fc700edcf80ff730000ed00bdfe67874400000000002effb0d800beeffeabeeb00df65ad308c30efdb7500000000000bfeb07d858deed500000bee40000000000bdfea600298e8400000000000000"
   },
   "resume": {
     "src": "assets/audio/yatzy-junior/resume.mp3",
@@ -346,8 +346,8 @@
   },
   "points_21": {
     "src": "assets/audio/yatzy-junior/points_21.mp3",
-    "duration": 2.25,
-    "mouth": "06ef400ed6ffe500ff40ef64000000fd9500000000000"
+    "duration": 2.81,
+    "mouth": "04eb000aa2ddc50cfffa5000000cfb000000000009930000000000000"
   },
   "points_23": {
     "src": "assets/audio/yatzy-junior/points_23.mp3",
@@ -391,8 +391,8 @@
   },
   "points_31": {
     "src": "assets/audio/yatzy-junior/points_31.mp3",
-    "duration": 2.091,
-    "mouth": "000fffda036defe35ee4000000ab80000000000000"
+    "duration": 2.41,
+    "mouth": "000ffeec607adec0cffa000aec20000009a20000000000000"
   },
   "points_32": {
     "src": "assets/audio/yatzy-junior/points_32.mp3",
@@ -441,8 +441,8 @@
   },
   "points_41": {
     "src": "assets/audio/yatzy-junior/points_41.mp3",
-    "duration": 2.41,
-    "mouth": "005fffcd303afea40ed006fb00000000c9600000000000000"
+    "duration": 2.81,
+    "mouth": "003dffebd507ded80cfffc000004dc22000000000bb53000000000000"
   },
   "points_42": {
     "src": "assets/audio/yatzy-junior/points_42.mp3",
@@ -486,8 +486,8 @@
   },
   "points_51": {
     "src": "assets/audio/yatzy-junior/points_51.mp3",
-    "duration": 1.93,
-    "mouth": "00ef4000affd08eb0000000aa60000000000000"
+    "duration": 2.49,
+    "mouth": "000fd00005cfd48fffb0000be7000000009940000000000000"
   },
   "points_52": {
     "src": "assets/audio/yatzy-junior/points_52.mp3",
@@ -536,8 +536,8 @@
   },
   "points_61": {
     "src": "assets/audio/yatzy-junior/points_61.mp3",
-    "duration": 2.33,
-    "mouth": "0000f959400cfd90ff406fd00000008ca50000000000000"
+    "duration": 2.81,
+    "mouth": "000eb064006dfd200cfffc300000dd40000000000ab60000000000000"
   },
   "points_62": {
     "src": "assets/audio/yatzy-junior/points_62.mp3",
@@ -586,8 +586,8 @@
   },
   "points_71": {
     "src": "assets/audio/yatzy-junior/points_71.mp3",
-    "duration": 2.25,
-    "mouth": "0068dfe306bed90fd009fb20000000ca5000000000000"
+    "duration": 2.65,
+    "mouth": "007acfe803beeb04effd500000cc5000000004da5000000000000"
   },
   "points_72": {
     "src": "assets/audio/yatzy-junior/points_72.mp3",
@@ -636,8 +636,8 @@
   },
   "points_81": {
     "src": "assets/audio/yatzy-junior/points_81.mp3",
-    "duration": 2.33,
-    "mouth": "9fb360dc05bdfc70df700cfa00000007eb5000000000000"
+    "duration": 2.81,
+    "mouth": "cf9450d806bedb08fffe70000000bfc00000000006b53000000000000"
   },
   "points_82": {
     "src": "assets/audio/yatzy-junior/points_82.mp3",
@@ -686,8 +686,8 @@
   },
   "points_91": {
     "src": "assets/audio/yatzy-junior/points_91.mp3",
-    "duration": 2.25,
-    "mouth": "7fffec006eec400fd404ed0000000ab53000000000000"
+    "duration": 2.73,
+    "mouth": "7dffe9055ddb400deb7000000dff500000000950000000000000000"
   },
   "points_92": {
     "src": "assets/audio/yatzy-junior/points_92.mp3",
@@ -736,8 +736,8 @@
   },
   "points_101": {
     "src": "assets/audio/yatzy-junior/points_101.mp3",
-    "duration": 2.25,
-    "mouth": "00ffeb09afd000ff409da00000000bb73000000000000"
+    "duration": 2.49,
+    "mouth": "00fed30adf955effd500000cc400000000b840000000000000"
   },
   "points_102": {
     "src": "assets/audio/yatzy-junior/points_102.mp3",
