@@ -285,10 +285,12 @@ export function* slideDown(s, c) {
   yield s.camera.cut('fen_slide');
   yield s.all(coming, bendNeck(s, c));
   s.target('egill', { point: 'egill', radius: 0.8 });
+  const glitter = s.after(0, () => glitterRider(s, c)); // the cue that he is the one to tap, as the seat's glitter is for the lift
   try {
     yield s.race(s.tap('egill'), s.wait(SLIDE_WAIT));
   } finally {
     s.target('egill', null);
+    glitter.cancel();
   }
   c.phase = 'sliding';
   s.say('egill', 'k2_egill_wuuu');
@@ -327,6 +329,19 @@ function* glitterSeat(s, c) {
     at.x += Math.cos(k) * 0.3;
     at.z += Math.sin(k) * 0.3;
     sparkleBurst(c.world, at.clone(), { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `seat glitter ${i % 8}` });
+    yield s.wait(1.4);
+  }
+}
+
+/** Egill glitters on her head while the slide waits for a tap on him: soft gold glints round him every 1.4 s, as the seat's do. */
+function* glitterRider(s, c) {
+  const at = new THREE.Vector3();
+  for (let i = 0; ; i++) {
+    c.egill.raw.centre(at);
+    const k = i * 2.39996; // a golden angle at a time round him
+    at.x += Math.cos(k) * 0.35;
+    at.z += Math.sin(k) * 0.35;
+    sparkleBurst(c.world, at.clone(), { count: 12, duration: 1.2, size: 0.32, spread: 0.7, seed: `slide glitter ${i % 8}` });
     yield s.wait(1.4);
   }
 }

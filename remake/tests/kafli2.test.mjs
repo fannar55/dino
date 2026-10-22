@@ -413,7 +413,7 @@ function playIdle() {
   idled ??= (async () => {
     const seen = {
       frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null,
-      uggedlaFirst: null, disposed: null, openings: [], fog: {},
+      uggedlaFirst: null, disposed: null, openings: [], fog: {}, wet: 0, wetAt: null,
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
@@ -458,6 +458,12 @@ function playIdle() {
           if (phase === 'sliding') seen.sliding = stage.s.time;
         }
         if (pointer.targets.has('seat') && seen.floatTarget === null) seen.floatTarget = stage.s.time;
+        // Egill on his own feet (not riding, floating or sliding) is never in the water: the depth of it where he stands
+        const egill = world.actors.get('egill'), water = world.forest?.water;
+        if (water && !egill.controlled) {
+          const depth = water.depthAt(egill.root.position.x, egill.root.position.z);
+          if (depth > seen.wet) { seen.wet = depth; seen.wetAt = { at: stage.s.time, x: egill.root.position.x, z: egill.root.position.z }; }
+        }
         // the fog's density in each scene: the least, the most, and the last
         const scene = world.chapterTimeline?.at(-1)?.scene;
         if (scene && world.scene.fog) {
@@ -480,7 +486,7 @@ test('the chapter plays to its end unattended with no director warnings', async 
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.equal(world.location, 'fen');
   assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
-  assert.deepEqual([...journal.places].sort(), [...FAR].sort(), 'and the three far friends\' places are on its map');
+  assert.deepEqual([...journal.places].sort(), [...FAR, 'fen'].sort(), 'and the Fen and the three far friends\' places are on its map');
   assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['stars', 'map'], 'the book opens on the stars and turns to the map');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
 });
@@ -818,4 +824,44 @@ test('the sun winks as her head comes down, on the screen with nobody in front o
   const wink = sunCalls.find(c => c.call === 'wink' && c.scene === 4);
   const down = seen.phases.find(p => p.phase === 'head coming down'), there = seen.phases.find(p => p.phase === 'head down');
   assert.ok(wink.at > down.at && wink.at + WINK_SECONDS < there.at, 'while her head comes down');
+});
+
+test('Egill on his own feet is never in the water: not on the bank, by the berries, nor where her face comes down', async () => {
+  const { seen } = await playIdle();
+  assert.equal(seen.wet, 0, `he stood ${seen.wet.toFixed(2)} m deep at ${JSON.stringify(seen.wetAt)}`);
+});
+
+test('the Fen goes onto the book\'s map as it opens: its marker flies in after "Þarna er hún!", found until her star makes it done', async () => {
+  const { journal, captions, soundLog, world } = await playIdle();
+  assert.equal(journal.places[0], 'fen', 'the Fen first, before the far friends');
+  const there = captions.find(c => c.text === chapter.lines.k2_mosi_there.text);
+  const mark = soundLog.find(e => e.name === 'mapMark' && e.scene === 3);
+  assert.ok(there && mark && mark.at >= there.at && mark.at - there.at < 4, 'its mark right after Mosi\'s first line in the Fen');
+  assert.ok(mark.at < sceneStart(world, 4), 'in scene 3');
+});
+
+test('while the slide waits for a tap on Egill he glitters, as the seat does before the lift', async () => {
+  const { seen, added } = await playIdle();
+  const glints = added.filter(o => o.name === 'Sparkles' && o.at >= seen.slideTarget - 1e-6 && o.at < seen.sliding);
+  assert.ok(glints.length >= 3, `${glints.length} glints in the ${(seen.sliding - seen.slideTarget).toFixed(1)} s he waited`);
+});
+
+test('a full save as the page keeps it loads whole, and the map\'s places start empty', () => {
+  const full = {
+    stars: ['k1_kambedla'], findings: ['butterfly', 'frog'], seen: ['mosi', 'frog'],
+    eitt: { skill: 0.4, losses: 2, wins: 3, tutorialDone: true },
+    hals: { found: ['ammonite'], game: { turn: 3 }, intro: true, hello: true },
+    yatzy: { skill: 0.5, losses: 1, wins: 2, badges: ['yatzy_mosi'], tutorialDone: true },
+  };
+  let written = null;
+  const storage = { getItem: () => JSON.stringify(full), setItem: (key, value) => { written = JSON.parse(value); } };
+  const save = createSave(storage);
+  assert.deepEqual(save.get(), { stars: full.stars, findings: full.findings, seen: full.seen, places: [] });
+  assert.deepEqual(save.getEitt(), full.eitt);
+  assert.deepEqual(save.getHals(), { found: full.hals.found });
+  assert.deepEqual(save.getHalsPlay(), { game: full.hals.game, intro: true, hello: true });
+  assert.deepEqual(save.getYatzy(), full.yatzy);
+  // a place found keeps every field as it was, with the place
+  assert.equal(save.addPlace('fen'), true);
+  assert.deepEqual(written, { ...full, places: ['fen'] });
 });

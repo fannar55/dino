@@ -400,6 +400,9 @@ function* theFen(s, c) {
   yield mosi.turnTo(MOSI_FEN.heading, { rate: 30 });
   yield mosi.lookAt(HER_HEAD, { weight: 0.8, maxPitch: 45 });
   yield* say(s, c, 'mosi', 'k2_mosi_there');
+  // the Fen goes onto the book's map, its marker flying in from the middle of the view over it: found now, and done with her star
+  s.place('fen');
+  s.sfx('mapMark');
   // Egill floats down to the bank and calls up to her. Nothing happens: her tail swishes, and she bites the treetop again.
   yield floatDown(egill.raw, c.saddle, [EGILL_CALLS.position[0], EGILL_CALLS.position[2]], { duration: 2.2, heading: EGILL_CALLS.heading });
   c.riding = null;
@@ -504,8 +507,8 @@ function* theSlide(s, c) {
   c.farFriends.dispose();
   // and Mosi turns toward her head as she speaks, so that he looks up at her star as it rises (scene 8: STAR_TURN)
   c.mosi.turnTo(STAR_TURN, { rate: 30 });
-  yield s.say('mosi', 'k2_mosi_oof');
-  yield s.say('thorsedla', 'k2_thorsedla_comeback');
+  yield* say(s, c, 'mosi', 'k2_mosi_oof');
+  yield* say(s, c, 'thorsedla', 'k2_thorsedla_comeback');
 }
 
 /** Fade to another place, set it up while the screen is black, and fade in (as chapter 1 does). */
