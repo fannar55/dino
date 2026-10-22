@@ -841,10 +841,22 @@
    "duration": 3.45,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_critters": {
+   "key": "a4b3bdcf638ab023569242d55bbdb0df59f9491b6e68bb9041243761f8d870f6",
+   "mp3": "1b916bd483407e2e42618e4718fbfc7a2b4e10b21d75b3a61f6e0301d0015675",
+   "duration": 8.89,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_explain": {
    "key": "9a7ac205589ada3108ac3c4962343689c9cc29f4ebb45a2ad05eed44c33b9ade",
    "mp3": "e94b1097cd5df6c0bc467ab1a5158430c57b0e3f48b7b5ff9b19f85bdb8f55e6",
    "duration": 9.61,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_festival": {
+   "key": "767d7071215cf8a47b3ceec38b4dc24311ce1b260e70a604d675e2a1646ec762",
+   "mp3": "fa6d3fadf1cd68255e77dfdf586894d1b27376ec09be6323ac47ba72723b4083",
+   "duration": 7.77,
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_friends": {
@@ -871,6 +883,12 @@
    "duration": 3.371,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_greet": {
+   "key": "afcb5c3e289d3ef21fc860c4656ea4f00aca1c955a6e4f164b9ca1a78f4bd416",
+   "mp3": "d4c9de91743f34f1d986e56da90918af4fea592706a02efb8bdeac8ae8ee0d77",
+   "duration": 2.091,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_help": {
    "key": "70901e23dcc939e974e6b722cf612d68104a95501f6653113c49dfa183da9253",
    "mp3": "f6582154108c2772143e92e0537dc7a0c8a7f743399d6481dd733eecf1a3e65b",
@@ -895,6 +913,12 @@
    "duration": 2.25,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_hocus": {
+   "key": "b1261ee76899592a4121b06f416bc0bfae804bf96ec227ffade81931969ec0d4",
+   "mp3": "1d58ea03761605268fe6bb5b1c59ce90d8eb983e6254d930847ed9ad69f4ef43",
+   "duration": 4.25,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_hold": {
    "key": "0540fe10d8bd9b1f05ae18432e34947266483b82df7f4066ee21b61a00f07345",
    "mp3": "cf83eeb8364d9272c63a961d4ccafc8c298ab94185bcdf9a6c31edaaa925755e",
@@ -907,16 +931,40 @@
    "duration": 8.09,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_invite": {
+   "key": "71e7baf605dc04c8c0c348b74dbd6cdc49460b8d4717a6c73e615389825b4e6c",
+   "mp3": "619cb9f129fa0f0f3edcb876bc7742d78c5c92173411f2db7c182cf2aefe5871",
+   "duration": 3.53,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_look": {
    "key": "5c89fb6ff1092c4e1e8e9b9b7e55f3df369520a780f2f1fc290ffca036824853",
    "mp3": "615e974bb193864b5471bbfbdab67b19b1a5c16a5727a09b4202d61afacdfa21",
    "duration": 4.73,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_next": {
+   "key": "0e4966323ffba5e0229d598ac40457311b82266b426e5051f6929d052fd0fe9a",
+   "mp3": "ea34ed0bcba04fca58e913b6b18afe7000d60dfeecf34e0b6bfd63462f110bfa",
+   "duration": 2.73,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_snail": {
+   "key": "058c2168489a75379a7574b5ec48004be4f338af81833575f951bc265c7a2029",
+   "mp3": "5adc1a0919da23556cac6e2a21cc75edd31313522793c8404bf16f5ea0bf246e",
+   "duration": 3.45,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_sneeze": {
    "key": "91684db5e2850cf1cafd3f17912249b5a8034e5539196b80a13888e71cf7c996",
    "mp3": "6e41c0f028599fb5658a468d1167494b7f95058185782624974e548b96bf162c",
    "duration": 2.49,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_star": {
+   "key": "abf454e535755a6f2b4fa33208381664288c79bdbf1383c90352e4802b322872",
+   "mp3": "6954b6a9473427156e24165f6e6e8363b2bea4f56b9af0825b672fec03446418",
+   "duration": 3.05,
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_three": {
@@ -937,10 +985,22 @@
    "duration": 1.13,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_visit": {
+   "key": "d7b73be7fbc231daba787b78bd29b6a58b3c872b559cdc1886da1e6accbd96dd",
+   "mp3": "5a9c2b69dd3cf44a959c004c350611021cbdee7e67eaf17a1367132d5f470dbd",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_waving": {
    "key": "f3bdf2fd83c7e2b977081806d5ccd13ace064a094a642393c51c05df5c15320e",
    "mp3": "d438bea2fa1e2426af8326d50e215c2448f905f6f8a59e561aaf636ed79ff8e5",
    "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_worry": {
+   "key": "d3f3d6f510549446e92e012862c7394a9196d63044118a97e4fbaded2c8be2df",
+   "mp3": "64fe83290bfb6daa25b798872f54a355641cc2e74c86b482642ddf958c85095a",
+   "duration": 4.81,
    "model": "eleven_v4"
   },
   "kafli2/k2_egill_bigger": {
