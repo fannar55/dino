@@ -164,8 +164,9 @@ test('every line of every set and Litla Yatzy that says a chosen word is sent wi
   for (const line of corpus()) {
     const sent = requestFor(line, LEXICON);
     const chosen = sent.words.filter(word => word.recipe);
-    if (line.say !== undefined || line.context !== undefined) { // a line's own say or context stands in for the lexicon (voice-lines.mjs)
-      assert.equal(sent.text, line.say ?? line.text, `${line.set}/${line.id} is sent as its own say`);
+    if (line.say !== undefined || line.context !== undefined) { // a line's own say or context stands in for the lexicon's (voice-lines.mjs)
+      if (line.say !== undefined) assert.equal(sent.text, line.say, `${line.set}/${line.id} is sent as its own say`);
+      if (line.context !== undefined) assert.equal(sent.context, line.context, `${line.set}/${line.id} is sent with its own context`);
       if (chosen.length) changed++;
       continue;
     }
