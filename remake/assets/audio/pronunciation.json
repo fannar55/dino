@@ -749,6 +749,102 @@
           "note": "Sent eins og skrifað, með samhengi um o-ið (ekki talað)."
         }
       }
+    },
+    "tiu": {
+      "chosen": null,
+      "word": "Tíu",
+      "stem": "[Tt]íu$",
+      "forms": [
+        "Tíu",
+        "tíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir j í orðinu („Tíju“)."
+        },
+        "ipa": {
+          "say": {
+            "Tíu": "\"/ˈtʰiːʏ/\"",
+            "tíu": "\"/ˈtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰiːʏ/: langt í og svo stutt u, ekkert j."
+        },
+        "stafsetning": {
+          "say": {
+            "Tíu": "Tí-u",
+            "tíu": "tí-u"
+          },
+          "seed": 42,
+          "note": "„Tí-u“: bandstrik svo hljóðin tvö séu borin fram hvort í sínu lagi (tilraun)."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "ploturnar": {
+      "chosen": null,
+      "word": "Plöturnar",
+      "stem": "[Pp]lötu",
+      "forms": [
+        "Plöturnar",
+        "plöturnar",
+        "plötur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð og áherslu í kortalínu Kambeðlu."
+        },
+        "ipa": {
+          "say": {
+            "Plöturnar": "\"/ˈplœːtʏrnar/\"",
+            "plöturnar": "\"/ˈplœːtʏrnar/\"",
+            "plötur": "\"/ˈplœːtʏr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈplœːtʏrnar/: áhersla á fyrsta atkvæði, langt ö."
+        },
+        "samhengi": {
+          "context": "Plöturnar á bakinu hennar. Plöturnar lýsa.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu tvisvar í samhengi (ekki talað)."
+        }
+      }
+    },
+    "ljosker": {
+      "chosen": null,
+      "word": "Ljósker",
+      "stem": "[Ll]jósker",
+      "forms": [
+        "ljósker"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð og áherslu."
+        },
+        "ipa": {
+          "say": {
+            "ljósker": "\"/ˈljouːsˌcʰɛːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈljouːsˌcʰɛːr/: ljós + ker, áhersla fremst."
+        },
+        "stafsetning": {
+          "say": {
+            "ljósker": "jós-ker"
+          },
+          "seed": 42,
+          "note": "„ljós-ker“: bandstrik milli orðhlutanna (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ljós í ljóskeri. Ljóskerin lýsa í myrkrinu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+        }
+      }
     }
   }
 }
