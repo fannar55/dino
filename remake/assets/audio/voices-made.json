@@ -32,9 +32,9 @@
    "model": "eleven_v4"
   },
   "book/book_birds_2": {
-   "key": "27764090430efa918fc273a272db738b996cbc7b4bf257cd6f20cb79d0936151",
-   "mp3": "211112d24dc3d7204a00b6d6aba46e90073e5cabcc88302bd74a0d34c00b7cc3",
-   "duration": 6.73,
+   "key": "c1adb4cedd49269cbfef9a87725198bd69f1716e757f10dd8e44fdb80ed1b4ee",
+   "mp3": "40f0d6daf12b083282a56271ea66b736321c093f5027f11fe702b8a318a8db53",
+   "duration": 6.65,
    "model": "eleven_v4"
   },
   "book/book_birds_3": {
@@ -344,8 +344,8 @@
    "model": "eleven_v4"
   },
   "book/book_waterstrider_3": {
-   "key": "6bf9c13f8d0a9d602cfd1f3df949f8cc73775235f0adafd7b440885fe4e444c1",
-   "mp3": "3f458300ae94c5e72111454355330b834215b10b5b4602276b442009bdcb6d8d",
+   "key": "055c766a6694975ae9a4435fd0104c494ec034556002e874059faf4190343223",
+   "mp3": "b321752acc32dc75750114c548e1e5124af9aa03b0db55e7904b55c752c396c7",
    "duration": 6.97,
    "model": "eleven_v4"
   },
@@ -404,9 +404,9 @@
    "model": "eleven_v4"
   },
   "eitt/eitt_tut_again": {
-   "key": "b70bbf98fc2456382088b9d8acdf44134b12d8765bc9b4d5c0b1b50600f4789b",
-   "mp3": "fb1018c26970dbc712ab67bdb43328213d7ed4caf2f88fd55a7e44e50bd05430",
-   "duration": 2.89,
+   "key": "4c69888ea0d1c6c5e3d056382c47264ac9e670d034ed225a2c8a241d4f3ba0b6",
+   "mp3": "b2d1e781fc100f4a0ac60595e78168a4af9c6f88c5d37416120acd985977153d",
+   "duration": 3.13,
    "model": "eleven_v4"
   },
   "eitt/eitt_tut_catch": {
@@ -686,8 +686,8 @@
    "model": "eleven_v4"
   },
   "hals/hals_mosi_1": {
-   "key": "31f28d152dc5fa1391f52e802e429dd5096121145465a096d30a985eed94e818",
-   "mp3": "0bc5f08e6de7d2ecf3306efd806a41508c2658a2d7b8bbb0cd39fa3441482e8d",
+   "key": "493e80dadd1c17b453585d02d7964c0c3e70db8b78e35a68beaa65f3800fa7f7",
+   "mp3": "599feb6fb11b0de03fecf05a5b8cdf2343db1537242059784c0940baf365d69e",
    "duration": 1.13,
    "model": "eleven_v4"
   },
@@ -2306,9 +2306,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/smallStraight": {
-   "key": "b86c48510f6b18442de447c223a9ce8fda18bad96ea89f3ce4c9df0e10c6c301",
-   "mp3": "62667fc82edcb286d5fb8b164c5508f831279d7800fe4c8e28fa29f20ca9bcdb",
-   "duration": 6.81,
+   "key": "485c3af874317009a8e0831a8868fb7484bbfab6e413d87fceff2ae08e0cdb6a",
+   "mp3": "c39f7bcd08899c561813363a0caa70d3eeb4d131ff79b51416590ac95a7f9d0a",
+   "duration": 6.73,
    "model": "eleven_v4"
   },
   "yatzy-junior/smallStraightHelp": {

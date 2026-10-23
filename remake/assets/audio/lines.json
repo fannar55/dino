@@ -1851,8 +1851,8 @@
  },
  "book_birds_2": {
   "src": "assets/audio/book/book_birds_2.mp3",
-  "duration": 6.73,
-  "mouth": "7fc0a60ffea000d700ea000000dcc40a900009a9300ba0a940d300096000000000000000000affffbfc050bda9300cccfe9009bca99700b004de60a8655400000000000"
+  "duration": 6.65,
+  "mouth": "df0080bfec000cb06e8000000dcd50990000baa5009a0b806d000550000000000000000000dfdfdbc5003dc9b300accfea006ab88760087039dd04860320000000000"
  },
  "book_birds_3": {
   "src": "assets/audio/book/book_birds_3.mp3",
@@ -2046,8 +2046,8 @@
  },
  "eitt_tut_again": {
   "src": "assets/audio/eitt/eitt_tut_again.mp3",
-  "duration": 2.97,
-  "mouth": "0cffeb6eec600000000000ffdb606cbbcdceeec4000de530377970000000"
+  "duration": 3.13,
+  "mouth": "6bffec70bfeb6000000000000000dfffe308dfaefedd9dc0007450000000000"
  },
  "eitt_tut_draw": {
   "src": "assets/audio/eitt/eitt_tut_draw.mp3",
@@ -2142,7 +2142,7 @@
  "hals_mosi_1": {
   "src": "assets/audio/hals/hals_mosi_1.mp3",
   "duration": 1.13,
-  "mouth": "00fffeeb950000000000000"
+  "mouth": "0effffca700000000000000"
  },
  "hals_mosi_2": {
   "src": "assets/audio/hals/hals_mosi_2.mp3",
@@ -2642,7 +2642,7 @@
  "book_waterstrider_3": {
   "src": "assets/audio/book/book_waterstrider_3.mp3",
   "duration": 6.97,
-  "mouth": "007fe70dadff9addb00a7000bd700ad863000bdaabb70698443000000000000ef30400ffc009a0009c4985dc00ccb00c90000bc000008fffafb700fba8507703000000000000"
+  "mouth": "00aff90b9bffca4edd40890000ea300db533009cbabbb33996030000000000000cfb0000ffc008a8406c88a6cc50dc900b0000dd000007edd8f840dca8506603330000000000"
  },
  "book_salamander_1": {
   "src": "assets/audio/book/book_salamander_1.mp3",

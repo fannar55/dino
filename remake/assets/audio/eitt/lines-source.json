@@ -33,7 +33,7 @@
  { "id": "eitt_tut_draw2", "speaker": "mosi", "text": "Tvö egg! Þá dregur kambeðlan tvö spil og missir umferð." },
  { "id": "eitt_tut_wild", "speaker": "mosi", "text": "Glóandi plöturnar skipta um lit. Þær passa á öll spil, og þú velur litinn." },
  { "id": "eitt_tut_wild4", "speaker": "mosi", "text": "Plöturnar og fjögur egg! Kambeðlan dregur fjögur spil, og þú velur litinn." },
- { "id": "eitt_tut_again", "speaker": "mosi", "text": "Vel gert! Nú gefum við aftur.", "kept": "the owner's pick on the A/B page of 2026-10-23: the earlier (Eleven v3) take, kept over the v4 lexicon take" },
+ { "id": "eitt_tut_again", "speaker": "mosi", "text": "Vel gert! Nú gefum við aftur." },
  { "id": "eitt_tut_draw", "speaker": "mosi", "text": "Ekkert spil passar. Þá dregurðu eitt spil úr bunkanum." },
  { "id": "eitt_tut_drew", "speaker": "mosi", "text": "Það passar ekki heldur. Þá á kambeðlan leik." },
  { "id": "eitt_tut_last", "speaker": "mosi", "text": "Settu spilið sem passar. Þá áttu bara eitt spil eftir!" },

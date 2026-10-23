@@ -71,8 +71,8 @@
   },
   "smallStraight": {
     "src": "assets/audio/yatzy-junior/smallStraight.mp3",
-    "duration": 6.81,
-    "mouth": "0cefeeda00000060bfedca80300000009dcaa970000000008fddebdda0000000defea5000000000008edddfbbbefeed73000000000039ded907eccffebdca600000000000"
+    "duration": 6.73,
+    "mouth": "0cffffec000000209feedb7000000000eeecba9000000006efeccbec30000006feea700000000000deeffcbbeefd60000000000059fec50bebfffbcb880000000000000"
   },
   "yatzy": {
     "src": "assets/audio/yatzy-junior/yatzy.mp3",
