@@ -2041,8 +2041,8 @@
  },
  "eitt_tut_wild4": {
   "src": "assets/audio/eitt/eitt_tut_wild4.mp3",
-  "duration": 6.89,
-  "mouth": "08fffc30de86dfe906fb4004cdfddcbfc4dfd00060000000000007deda0dedaedd82cffdea0008cddc9c5420cddb940000009d000cdc98dffddbabcfe00997000000000000"
+  "duration": 6.73,
+  "mouth": "24ffeb0cf9beee830cfa0009eecdcfe96fe000060000000000067ffd0afebefdb0cefedd8000ccdc8c6530bddcb2000000db00bdcc9cffdddabdfd02b85000000000000"
  },
  "eitt_tut_again": {
   "src": "assets/audio/eitt/eitt_tut_again.mp3",
@@ -2361,8 +2361,8 @@
  },
  "k2_mosi_4": {
   "src": "assets/audio/kafli2/k2_mosi_4.mp3",
-  "duration": 1.21,
-  "mouth": "0039dfffa8843000000000000"
+  "duration": 1.13,
+  "mouth": "00efffdab73000000000000"
  },
  "k2_mosi_5": {
   "src": "assets/audio/kafli2/k2_mosi_5.mp3",
@@ -2376,18 +2376,18 @@
  },
  "k2_mosi_7": {
   "src": "assets/audio/kafli2/k2_mosi_7.mp3",
-  "duration": 1.21,
-  "mouth": "0005beffd9700000000000000"
+  "duration": 0.97,
+  "mouth": "059bffffd80000000000"
  },
  "k2_mosi_8": {
   "src": "assets/audio/kafli2/k2_mosi_8.mp3",
-  "duration": 1.13,
-  "mouth": "df970000fc5000000000000"
+  "duration": 1.05,
+  "mouth": "ef803406fb40000000000"
  },
  "k2_mosi_9": {
   "src": "assets/audio/kafli2/k2_mosi_9.mp3",
-  "duration": 1.13,
-  "mouth": "8effffec963000000000000"
+  "duration": 1.05,
+  "mouth": "afffeeefdb40000000000"
  },
  "k2_mosi_10": {
   "src": "assets/audio/kafli2/k2_mosi_10.mp3",
@@ -2401,13 +2401,13 @@
  },
  "k2_mosi_hint_print": {
   "src": "assets/audio/kafli2/k2_mosi_hint_print.mp3",
-  "duration": 2.97,
-  "mouth": "006edccccc9309c507843000000000009b500cfccffc0672000000000000"
+  "duration": 3.45,
+  "mouth": "00cfecdeffb2000aeed730009e90065000000000007fa300bfccdfe90640000000000"
  },
  "k2_mosi_nextprint": {
   "src": "assets/audio/kafli2/k2_mosi_nextprint.mp3",
-  "duration": 1.69,
-  "mouth": "0bde70005fedd76f80bb73000000000000"
+  "duration": 2.25,
+  "mouth": "0cffc70000dd90000afb300ff700eec80000000000000"
  },
  "k2_mosi_there": {
   "src": "assets/audio/kafli2/k2_mosi_there.mp3",
@@ -2576,8 +2576,8 @@
  },
  "k2_mosi_two": {
   "src": "assets/audio/kafli2/k2_mosi_two.mp3",
-  "duration": 4.25,
-  "mouth": "000cfddc50bcffeb84300000000000005effffeec7ee60cdde9064de400bd08dddeefe500000000000000"
+  "duration": 4.651,
+  "mouth": "000dfedc4009ffec93000000000000004bcdeffeedb59ddc00cb9dfc00040cd2005eb0bdcdecf90000000000000000"
  },
  "k2_mosi_map_fen": {
   "src": "assets/audio/kafli2/k2_mosi_map_fen.mp3",

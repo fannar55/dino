@@ -509,7 +509,7 @@
       "chosen": "samhengi"
     },
     "fjogur": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Fjögur",
       "stem": "[Ff]jögur$",
       "forms": [
@@ -536,7 +536,7 @@
       }
     },
     "sjo": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Sjö",
       "stem": "Sjö$",
       "forms": [
@@ -568,7 +568,7 @@
       }
     },
     "atta": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Átta",
       "stem": "Átta$",
       "forms": [
@@ -600,7 +600,7 @@
       }
     },
     "niu": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Níu",
       "stem": "Níu$",
       "forms": [
@@ -632,7 +632,7 @@
       }
     },
     "tvaer": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Tvær",
       "stem": "Tvær$",
       "forms": [
@@ -664,7 +664,7 @@
       }
     },
     "naesta": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Næsta",
       "stem": "[Nn]æsta$",
       "forms": [
@@ -691,7 +691,7 @@
       }
     },
     "fotspor": {
-      "chosen": null,
+      "chosen": "hratt",
       "word": "Fótspor",
       "stem": "[Ff]ótspor$",
       "forms": [
@@ -726,7 +726,7 @@
       }
     },
     "mosi": {
-      "chosen": null,
+      "chosen": "hratt",
       "word": "Mosi",
       "stem": "Mosi$",
       "forms": [

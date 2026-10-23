@@ -530,9 +530,9 @@
    "model": "eleven_v4"
   },
   "eitt/eitt_tut_wild4": {
-   "key": "2c335a8a79ef3129bae11bbc119e13fdd3fec675264390ebb1f8d8494c613ae3",
-   "mp3": "fd89eba6a1e344dad6ed01acbf33048df38c5f452d3785057c7ee7072d80298b",
-   "duration": 6.89,
+   "key": "dd21db966c41763a6151c2fba9d2cdaed7d301f9c083f540fe811e190881c951",
+   "mp3": "8bd2419df380d0ddaad5fa20530b71569c43a0f2882661f2ef7af76f74ae9645",
+   "duration": 6.73,
    "model": "eleven_v4"
   },
   "eitt/eitt_why_attack": {
@@ -1166,9 +1166,9 @@
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_4": {
-   "key": "42f5bf91fd8c816c6deffb56fd28e51fb45dd892a4cf7f4dda0c737c4bfe2187",
-   "mp3": "73ad223e7bc3fd6f3e87da59a30c6578ae1ec60e57b85b9651ed7e7911ddd4f6",
-   "duration": 1.21,
+   "key": "9f7dd3f30456988eaa81f920936a561fa25c11f3051e0ab0d385a3b116aded03",
+   "mp3": "9a099cbb53af1c15d278559eb393c4a4a83713b256d99c21652e0fee38f14cf9",
+   "duration": 1.13,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_5": {
@@ -1184,21 +1184,21 @@
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_7": {
-   "key": "ca83985145204ea9d98be58d8b64281c9f97816a9a0cd9915b44e3721da592d5",
-   "mp3": "879bf46bc600fc6aed09899ebcf17648d7faaabfceabf8eabdc3e23d16c1eabe",
-   "duration": 1.21,
+   "key": "7c0adb0567b9fef82d0d3f61d8302a06b9fe9ba758552f84c77e47c8409b97d3",
+   "mp3": "1327d06dc97551e16a8047c23b8e78b0864ce5e0ce85c0a3a88fdc8db4f9082e",
+   "duration": 0.97,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_8": {
-   "key": "6c3dbdf6427fef54acee981a6ec072f49df501bde085498aff7f495a3051606b",
-   "mp3": "df8a772eab81452dcf8fd0d30debf1f3e01d417592a9c8111c12e685f1ce26ee",
-   "duration": 1.13,
+   "key": "70c22107974709f77afab3616861835b58d837f99c67fb95d390bedc2a6987ba",
+   "mp3": "b525949b286362292bf58798ba610a06efc81c83a8cde7a2daa8a175ea1bb7ac",
+   "duration": 1.05,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_9": {
-   "key": "3062b1624e919dcbb040da67a5fcc8451fcc27e37fd7a28bb22824328fa6796b",
-   "mp3": "2d7ff4a45d33c35cc7eb4dc70461b3d5f93609eb21167642b130415edd83e9bb",
-   "duration": 1.13,
+   "key": "3b66f797c13eaab85a688078930e24dc998f7a6e84e8e2fcd04983c85b27d355",
+   "mp3": "7516c17eb38e74456b4329ca48616bb1f78bd5cd2100f1bcdfa09a135d5b0590",
+   "duration": 1.05,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_berries": {
@@ -1280,9 +1280,9 @@
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_hint_print": {
-   "key": "b97a804164071c7e4f421227cda83b68da3f0a9ec459e8fa6a9f3666051906c1",
-   "mp3": "ae5d3aa98d2b573a65ca024e421a19f7ec4844c7468457d97a60ddf1e2453a48",
-   "duration": 2.97,
+   "key": "ea5eb5b4f627f8ac543590da98c5eb7a8314eb383fde5b238e0a249357b35f32",
+   "mp3": "1c1f25846486b8ea558a1add01ddae4a51f73b2c724fb2e6ba0b610b2519fb73",
+   "duration": 3.45,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_invite": {
@@ -1340,9 +1340,9 @@
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_nextprint": {
-   "key": "c2fedcb748e012fe20d495a43ca10a4664845a0b65b6cc80f93904fa46962ec1",
-   "mp3": "803ac69886a3c505d43861d2510f758462e2cd3966dcc5a5e2f9e64495f93555",
-   "duration": 1.69,
+   "key": "76068cf403b91ca2ea1943a3c66e3f4545f75b581e314c7713c1c9d871aeb6c3",
+   "mp3": "9c0ff89803e552f1a470b6029b6439a4530a8fb2a29355b34d81e7db47806c80",
+   "duration": 2.25,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_notsmall": {
@@ -1388,9 +1388,9 @@
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_two": {
-   "key": "5ea50083f56e56e5b8af7e06eb934c9ded82df69ca0d1f732c1d940fb69f45c2",
-   "mp3": "7d112185befde3476a1ca62e7a4423d25a83a369bbb4e71fd2ec14349f8f7700",
-   "duration": 4.25,
+   "key": "894a8fd2909c95cf938cedb594310c66bd1b01ae2896306cf418e690b14613b9",
+   "mp3": "b990ebc4a2b1ede2b50da0ff7492abc21ba232e2ea327905b678a74aecedf2b2",
+   "duration": 4.651,
    "model": "eleven_v4"
   },
   "kafli2/k2_thorsedla_accept": {
@@ -1616,9 +1616,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_104": {
-   "key": "52c6df333d9000a6fe73433791413fd0af884381f2c4f055ac37c87c4f55a5e1",
-   "mp3": "483cd667502c3c0ec05104c9358d9589c93e507a419a1d1b76476e687643823f",
-   "duration": 2.25,
+   "key": "d60b211f0de8e8ae29dcfd3e7fad658dd998fa6437a60540d426015cfffd9be7",
+   "mp3": "0af30fba32962beb8066f434a5035ec77c4e638b9ee3981d51f287a388210abb",
+   "duration": 2.33,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_105": {
@@ -1778,9 +1778,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_24": {
-   "key": "561c9127adc084f23dfe954589bc42e7904d49dcb8fc62362ace358129bb91d4",
-   "mp3": "98296801404e42fa0b99a73bb9c2f96fd5377b3b6eae5827782d0a51cb1b83a3",
-   "duration": 2.25,
+   "key": "3b992366f02a8e9ed6bcfaf17783c8956536e32fbe18386a22e0a1d5deb9c1f9",
+   "mp3": "9a9c00c02fb1fbd92e7f2f1cbebe1796267cfe2681e654a44696503ce39ab138",
+   "duration": 2.33,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_25": {
@@ -1844,9 +1844,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_34": {
-   "key": "54d9bb1887b60f33167535c3840a1bec22deed53227cc30dde456d88300112bb",
-   "mp3": "f2d6e57ca074bd900d07ef647b5721cc618488c69e4718d6208ef32213bd0a02",
-   "duration": 2.33,
+   "key": "61a4ce0ca1a5e99d771619b0ebbdd6f45ace2d774ce7cd0742d1c709c2cda871",
+   "mp3": "f3ab224719906f9dc87d117c0e78782e120bf3400634f182ef8987604afc53a3",
+   "duration": 2.49,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_35": {
@@ -1880,9 +1880,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_4": {
-   "key": "5b7ba82f18a445713f13d4d60231d97631c597e69a1ddeaa0e8b1803328ad312",
-   "mp3": "4e9f59f9a889674d548359765572aab3a8518d9e8aac503484863f52d0189df1",
-   "duration": 1.69,
+   "key": "7a92acb33d31e76f2f10f708f7e3e00caca9debc60f5631f93028d537e2ca192",
+   "mp3": "5e04d8e9bf29bd9b38e3a1b1b4c247b377b5dedd8e72fadb0492ae2e68cc7df9",
+   "duration": 1.53,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_40": {
@@ -1910,9 +1910,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_44": {
-   "key": "c404c4a139b087f22d1ea5e0ae9393945a06f77534cf507cd5be61ccfee31c26",
-   "mp3": "bfb445d64cbe9c009132a9e8771371acdec6eaffc3070d9488314c89882d982f",
-   "duration": 2.41,
+   "key": "76c0c8d809904e626edbaa2c7783e2598efe38ade9487537e79c483fe541cb34",
+   "mp3": "60d4f0bdbe47b35133b6949323ab61da3de0fbafd9400df1882eeb002b66b1fb",
+   "duration": 2.49,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_45": {
@@ -1976,9 +1976,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_54": {
-   "key": "dcd89d0cb348980f30bb82e46c3e0a01a9d5d5a52c6dd2234d062639ca7e1b05",
-   "mp3": "efb3e5116367b8f5aaf767192ca06908a5f2ae52c12c2e645c15071b8b40e5e5",
-   "duration": 2.17,
+   "key": "6322ddbb13fa1788fc0ba33ec6c9e146eb72802955df16f7807f6cb60095419e",
+   "mp3": "e8ef0218e479e205763370145c912fb9da64c98c76f46adf105ef071718a564f",
+   "duration": 2.41,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_55": {
@@ -2042,9 +2042,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_64": {
-   "key": "1794e7d9b92c17f13fcbb9b238ce0f12eca1bb5b53fdc628af236c08c8525a37",
-   "mp3": "f8bc07ffc89ae94a328132f2d409eefeb99e707227c4a61a01cdb5128e915b97",
-   "duration": 2.33,
+   "key": "f8ab903c78d69174217a63d7d832430e3cd7e95008de8346bf5f8a69082a6828",
+   "mp3": "baf54603668711b8ba69e8806602cd92ff1eb9bafc3afd754f8fabb68143d568",
+   "duration": 2.41,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_65": {
@@ -2078,9 +2078,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_7": {
-   "key": "99aa9fc04a2981391b3d3fba2b6f87f4e8e142220daadb2aec8fd1214c8e32ed",
-   "mp3": "a9324ecf4e8d50ad529fade428b2c990a1843570122c1f1e4ff7ba50c8be47d6",
-   "duration": 1.61,
+   "key": "3bdad10fe787ce1054f3238cda0cd742911e6170b09619f69859cfde105ff504",
+   "mp3": "7f32f25cabe0501e80a408ea5d11da83e8c0b0a353dc717099d61d1337cac749",
+   "duration": 1.45,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_70": {
@@ -2108,9 +2108,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_74": {
-   "key": "c29e5a4ce824b473ae4737fa2f18178d81ecbade0604429e51e2c3af701e9cee",
-   "mp3": "4bebc643ccac090eaa4086be236edfd1506f88d0fc622faf0d81f855bc00a2f0",
-   "duration": 2.33,
+   "key": "fa162b18a4e96e5be0120801ce0292518e08f48b8e4dc33affc57025d398299a",
+   "mp3": "0fa2dae0b1f29ba0f30517778155541ef8d00f44aad081605e183ea92577b329",
+   "duration": 2.41,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_75": {
@@ -2144,9 +2144,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_8": {
-   "key": "b8195488a3ed1ed5124ce5ac4540e400fdaa7e9f912ae8b57f15c23b6eb92157",
-   "mp3": "c94a28a4861d555c0494f3a788fa942ba919f795703d18e963ec3e651b4b56f6",
-   "duration": 1.53,
+   "key": "d19f5903e932e5fbf0d234af5bb85cddffb1bb018c84cc675640e2b127c60859",
+   "mp3": "c12e02bea1f384cc00f12998c60a93b8636a1d7a566803f579e5a1dcb9bc7565",
+   "duration": 1.37,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_80": {
@@ -2174,9 +2174,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_84": {
-   "key": "ae471510b9eee40669dea9b9f5b02d49fbc59d441d18069c413b411ff0e2c07d",
-   "mp3": "de2cb2f9f10887c4521c40869ab074043620a3abaccd813724fe8fd6e9152376",
-   "duration": 2.49,
+   "key": "ad26a1377ed675b67584649530a0f6ce59d352a9a768a543df8b350f11a0de65",
+   "mp3": "51e3e10acac14bfe70c730e757f121f1112a8b4d24eb21bbbc2f68671f2101c0",
+   "duration": 2.41,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_85": {
@@ -2210,9 +2210,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_9": {
-   "key": "6b8c8c8b9853f234795b5094c43b09b7c007d8b7f6132e1af4459a90957a3d8e",
-   "mp3": "a3433107ffa692305398d910c61911483411d621307e384106af51cc08baa0d1",
-   "duration": 1.45,
+   "key": "fa5376f2f3aca0a55740a899b5aa89805ed282bcd960ce4d15c6481dd609585b",
+   "mp3": "9ffa6c5598848bdbbce711c23c2d583e61c1b44cbdf7ee0bc3215f16f4a14a91",
+   "duration": 1.37,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_90": {
@@ -2240,9 +2240,9 @@
    "model": "eleven_v4"
   },
   "yatzy-junior/points_94": {
-   "key": "0b30c7b0a1f0133cb7b58a02dc4f8752bd5ee5d53f2a9957150d535d4e5be055",
-   "mp3": "ac61c44503faa7b193ce5cdb4c4421e6aaaf642fd3e3df655c3a7c6f38342f15",
-   "duration": 2.41,
+   "key": "feae1d73466b7e44d373cb6218159fbe794fa1b3f98b2b770858a00c64dd7b42",
+   "mp3": "a3914b35ce1caa10a997aa55073f6eb5e2e8d665160ca76ebc8f2926e72c1909",
+   "duration": 2.33,
    "model": "eleven_v4"
   },
   "yatzy-junior/points_95": {
