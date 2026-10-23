@@ -1576,8 +1576,8 @@
  },
  "k1_mosi_visit": {
   "src": "assets/audio/kafli1/k1_mosi_visit.mp3",
-  "duration": 6.97,
-  "mouth": "00fe83004cefb4de99efebf9099ddda0bfededcfe79dfeba8674000000000000050fffe80cd8afef80edcb02feefedcd889aba900bccd9feeddec86bb4086500000000000000"
+  "duration": 6.73,
+  "mouth": "008f960007fed50de79ffddd079edc80dffdeeaffb8beea97574000000000000000efda0cb4deee57ebb60ddeffccca6008bba70addc9ddccdb839b7047300000000000"
  },
  "k1_mosi_critters": {
   "src": "assets/audio/kafli1/k1_mosi_critters.mp3",
@@ -1611,8 +1611,8 @@
  },
  "k1_kambedla_lost": {
   "src": "assets/audio/kafli1/k1_kambedla_lost.mp3",
-  "duration": 5.29,
-  "mouth": "00dd300dfffa0c903dedd80adccca8850300000000000cefe0bfccbacb90009ba8000050addd00c07b67b996350000020000000000"
+  "duration": 5.05,
+  "mouth": "0c5004fffd0ab03deed04dccba96444300000000000beff00dea8aba957aabc605a060bd80b0abacb98060000000000000000"
  },
  "k1_mosi_worry": {
   "src": "assets/audio/kafli1/k1_mosi_worry.mp3",
@@ -1726,8 +1726,8 @@
  },
  "book_kambedla_1": {
   "src": "assets/audio/book/book_kambedla_1.mp3",
-  "duration": 6.81,
-  "mouth": "00eb06fd0027dffb06c98565000000aa0630760030000000000000000bfffbdfc00000cdefe000395000990aa700867860000a002ca000049607934ab9754400000000000"
+  "duration": 6.25,
+  "mouth": "07f70aff80456cffb0bca96660000006c6270463400000000000000005fefef9003cec708ae70ca6008877730087009b000039707726ba875420000000000"
  },
  "book_kambedla_2": {
   "src": "assets/audio/book/book_kambedla_2.mp3",
@@ -1746,8 +1746,8 @@
  },
  "book_kambedla_5": {
   "src": "assets/audio/book/book_kambedla_5.mp3",
-  "duration": 6.89,
-  "mouth": "00fe600f805dfe5000dff0093054000000000000006bb8000bdeccb0000000007bcceffb009bb400b008a0ac00640000000000000000ffaff06ecba84098aa840000000000"
+  "duration": 6.57,
+  "mouth": "00fd300f736efe000fe0a50740000000000000cca000bdeccb6000000007bc9defe500cba00d706b4bd004530000000000000dfebfe0adba96059898300000000000"
  },
  "book_kalligrammatid_1": {
   "src": "assets/audio/book/book_kalligrammatid_1.mp3",
@@ -2037,12 +2037,12 @@
  "eitt_tut_wild": {
   "src": "assets/audio/eitt/eitt_tut_wild.mp3",
   "duration": 6.49,
-  "mouth": "0dfffffe0d4005dfe02e8edc34000c7000bccefddc7000000000000000ef807ec000eefd36f8400500bcb9400000000c000bbba79dedccbaccd906860000000000"
+  "mouth": "47fffefd9cc04cff0cd0efd7440bb000cdcefdbec70000000000000000ee708eb000effc45e7200403dcbb500000000d000cccb8bfecce8bbdc009830000000000"
  },
  "eitt_tut_wild4": {
   "src": "assets/audio/eitt/eitt_tut_wild4.mp3",
   "duration": 6.73,
-  "mouth": "36fffe00fc6deea50000df4004effdecfc63fe90005000000000006cfdd0decbedc0befddb600addeaba6600dccb90000000c800bedaaeeddc9bdec04a8000000000000"
+  "mouth": "24ffeb0cf9beee830cfa0009eecdcfe96fe000060000000000067ffd0afebefdb0cefedd8000ccdc8c6530bddcb2000000db00bdcc9cffdddabdfd02b85000000000000"
  },
  "eitt_tut_again": {
   "src": "assets/audio/eitt/eitt_tut_again.mp3",
@@ -2606,8 +2606,8 @@
  },
  "k2_mosi_map_kambedla": {
   "src": "assets/audio/kafli2/k2_mosi_map_kambedla.mp3",
-  "duration": 4.49,
-  "mouth": "5acfcb30eeecb970000000000030feed80bc6dfdfddccb7309cbbbb006c7ce7bdecbdca5785078530000000000"
+  "duration": 4.33,
+  "mouth": "3bffbc40fefdca700000000000ceec34d5bfcffeeda96bbbbb009caec6cdddbdec758704763000000000000"
  },
  "book_frog_6": {
   "src": "assets/audio/book/book_frog_6.mp3",
