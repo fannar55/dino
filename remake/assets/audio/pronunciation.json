@@ -691,7 +691,7 @@
       }
     },
     "fotspor": {
-      "chosen": "hratt",
+      "chosen": "samhengi",
       "word": "Fótspor",
       "stem": "[Ff]ótspor$",
       "forms": [
@@ -751,7 +751,7 @@
       }
     },
     "tiu": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Tíu",
       "stem": "[Tt]íu$",
       "forms": [
@@ -786,7 +786,7 @@
       }
     },
     "ploturnar": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Plöturnar",
       "stem": "[Pp]lötu",
       "forms": [
@@ -815,7 +815,7 @@
       }
     },
     "ljosker": {
-      "chosen": null,
+      "chosen": "hratt",
       "word": "Ljósker",
       "stem": "[Ll]jósker",
       "forms": [
