@@ -36,7 +36,7 @@ export const MISSED_PINGS = 3;
 /** A data channel not open 4 seconds after the offer: the messages go through the meeting point instead (spec §6.2). */
 export const RTC_FALLBACK_MS = 4000;
 
-/** "Halda áfram án Önnu" shows 20 seconds into the wait for an absent guest (spec §4, step 6). */
+/** "Halda áfram án Önnu" shows 20 seconds into the wait for an absent guest's turn (spec §4, step 6). */
 export const COVER_AFTER_MS = 20000;
 
 /** The longest message anyone reads: a turn-based game's messages are small, so a longer one is not ours (spec §9.1). */

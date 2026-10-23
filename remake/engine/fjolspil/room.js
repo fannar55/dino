@@ -31,6 +31,7 @@ export function restoreRoom({ code, hostKey, lastSeen }, { now, ttlMs, join } = 
   return roomOf({ now, ttlMs, code, join, hostKey, lastSeen });
 }
 
+/** The room itself: a new one and a restored one differ only in the host key and the clock they start with. */
 function roomOf({ now = () => Date.now(), ttlMs = ROOM_TTL_MS, code, join = [], hostKey = null, lastSeen = now() }) {
   let host = null;
   const guests = new Map(); // guest id → conn, in the order they came
@@ -146,7 +147,7 @@ export function createRooms({ now, ttlMs, join } = {}) {
       for (const [code, room] of rooms) {
         if (!room.isExpired()) continue;
         rooms.delete(code);
-        for (const conn of [...(room.host ? [room.host] : []), ...room.guests().map(guest => guest.conn)]) {
+        for (const conn of [room.host, ...room.guests().map(guest => guest.conn)].filter(conn => conn !== null)) {
           codes.delete(conn);
           closing.push(conn);
         }
