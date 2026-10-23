@@ -847,7 +847,7 @@
       }
     },
     "o": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Ó (upphrópun)",
       "stem": "Ó$",
       "forms": [
@@ -887,26 +887,40 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað; þú vilt heyra það meira eins og „kítlar“ með í."
+          "note": "Sent eins og það er skrifað; þú heyrðir það rangt."
         },
-        "ipa": {
+        "stafsetning-i": {
           "say": {
-            "kitlar": "\"/ˈcʰɪʰtlar/\""
+            "kitlar": "kítlar"
           },
           "seed": 42,
-          "note": "IPA /ˈcʰɪʰtlar/: mjúkt k, fráblástur á undan tl."
+          "note": "„kítlar“ með í, eins og þú segir að orðið sé borið fram (fyrri tilraun sendi „ítlar“ fyrir mistök)."
         },
-        "stafsetning": {
+        "stafsetning-itt": {
           "say": {
-            "kitlar": "ítlar"
+            "kitlar": "kíttlar"
           },
           "seed": 42,
-          "note": "„kítlar“: skrifað með í eins og þú heyrir það."
+          "note": "„kíttlar“: í og tvöfalt t svo lokhljóðið sé snöggt."
+        },
+        "ipa-langt": {
+          "say": {
+            "kitlar": "\"/ˈcʰiːtlar/\""
+          },
+          "seed": 42,
+          "note": "IPA með löngu í, /ˈcʰiːtlar/."
+        },
+        "ipa-frablastur": {
+          "say": {
+            "kitlar": "\"/ˈcʰiʰtlar/\""
+          },
+          "seed": 42,
+          "note": "IPA með í og fráblæstri á undan tl, /ˈcʰiʰtlar/."
         },
         "samhengi": {
-          "context": "Þetta kitlar! Hættu að kitla mig!",
+          "context": "Þetta kitlar! Kítlar, kítlar! Hættu að kitla mig!",
           "seed": 42,
-          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+          "note": "Sent eins og skrifað, með „kítlar“ í samhenginu sem ekki er talað."
         }
       }
     }
