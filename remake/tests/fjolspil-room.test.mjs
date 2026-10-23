@@ -106,3 +106,48 @@ test('the registry makes a room on a host connect, refuses a guest to no room, a
   assert.deepEqual(rooms.sweep(), [host, guest]);
   assert.equal(rooms.get('GULL'), undefined);
 });
+
+test('a connection that connects twice has not replaced itself, and the registry still carries its messages', () => {
+  const rooms = createRooms();
+  const host = {}, a = {}, b = {}, c = {};
+  rooms.connect('GULL', host, { role: 'host', key: 'k' });
+  for (const [conn, id] of [[a, 'a'], [b, 'b'], [c, 'c']]) rooms.connect('GULL', conn, { role: 'guest', id });
+  const twice = rooms.connect('GULL', c, { role: 'guest', id: 'c' });
+  assert.equal(twice.ok, true, 'not full: c is already in the room');
+  assert.equal(twice.replaced, null);
+  assert.deepEqual(twice.deliveries, [{ conn: host, message: message('joined', { id: 'c' }) }]);
+  const hostTwice = rooms.connect('GULL', host, { role: 'host', key: 'k' });
+  assert.equal(hostTwice.replaced, null);
+  assert.deepEqual(hostTwice.deliveries.map(d => d.conn), [host, host, host, host], 'no replaced error to itself');
+  assert.equal(rooms.route(c, message('relay', { body: 1 }))[0].conn, host);
+  assert.equal(rooms.route(host, message('relay', { to: 'c', body: 2 }))[0].conn, c);
+  assert.deepEqual(rooms.disconnect(c), { role: 'guest', id: 'c', deliveries: [{ conn: host, message: message('left', { id: 'c' }) }] });
+  assert.deepEqual(rooms.get('GULL').guests().map(g => g.id), ['a', 'b']);
+  assert.equal(rooms.disconnect(host).role, 'host');
+});
+
+test('an accepted connect, a disconnect and a relay are signs of life; a refused connect is not', () => {
+  let t = 0;
+  const room = createRoom({ now: () => t, code: 'GULL' });
+  const host = {}, guest = {};
+  t = 10; room.connect(host, { role: 'host', key: 'k' });
+  assert.equal(room.expiresAt, 10 + ROOM_TTL_MS, "the host's connect");
+  t = 20; room.connect(guest, { role: 'guest', id: 'g' });
+  assert.equal(room.expiresAt, 20 + ROOM_TTL_MS, "a guest's connect");
+  t = 30; room.route(guest, message('relay', { body: 1 }));
+  assert.equal(room.expiresAt, 30 + ROOM_TTL_MS, "a guest's relay");
+  t = 40; room.route(host, message('relay', { to: 'g', body: 2 }));
+  assert.equal(room.expiresAt, 40 + ROOM_TTL_MS, "the host's relay");
+  t = 50; assert.equal(room.connect({}, { role: 'host', key: 'other' }).reason, 'taken');
+  assert.equal(room.expiresAt, 40 + ROOM_TTL_MS, "a stranger's key does not keep the room alive");
+  t = 60; room.disconnect(guest);
+  assert.equal(room.expiresAt, 60 + ROOM_TTL_MS, "a guest's disconnect");
+  t = 70; room.disconnect(host);
+  assert.equal(room.expiresAt, 70 + ROOM_TTL_MS, "the host's disconnect");
+  t = 80; assert.equal(room.connect({}, { role: 'guest', id: 'g' }).reason, 'no-host');
+  assert.equal(room.expiresAt, 70 + ROOM_TTL_MS, 'a phone retrying while the host is away does not keep the room alive');
+  t = 70 + ROOM_TTL_MS - 1;
+  assert.equal(room.isExpired(), false);
+  t = 70 + ROOM_TTL_MS;
+  assert.equal(room.isExpired(), true);
+});

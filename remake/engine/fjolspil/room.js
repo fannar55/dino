@@ -42,7 +42,7 @@ function roomOf({ now = () => Date.now(), ttlMs = ROOM_TTL_MS, code, join = [], 
   function connectHost(conn, key) {
     if (!isName(key)) return refused('bad-id');
     if (hostKey !== null && key !== hostKey) return refused('taken');
-    const replaced = host;
+    const replaced = host === conn ? null : host; // the same connection twice has not replaced itself
     hostKey = key;
     host = conn;
     touch();
@@ -55,8 +55,9 @@ function roomOf({ now = () => Date.now(), ttlMs = ROOM_TTL_MS, code, join = [], 
   function connectGuest(conn, id) {
     if (!isName(id)) return refused('bad-id');
     if (!host) return refused('no-host');
-    const replaced = guests.get(id) ?? null;
-    if (!replaced && guests.size >= MAX_GUESTS) return refused('full');
+    const holder = guests.get(id) ?? null;
+    if (!holder && guests.size >= MAX_GUESTS) return refused('full');
+    const replaced = holder === conn ? null : holder;
     guests.set(id, conn);
     touch();
     const deliveries = replaced ? [{ conn: replaced, message: message('error', { reason: 'replaced' }) }] : [];
@@ -126,7 +127,7 @@ export function createRooms({ now, ttlMs, join } = {}) {
       if (!result.ok) return result;
       rooms.set(code, room);
       codes.set(conn, code);
-      if (result.replaced) codes.delete(result.replaced);
+      if (result.replaced && result.replaced !== conn) codes.delete(result.replaced);
       return result;
     },
 
