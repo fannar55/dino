@@ -37,7 +37,7 @@
   "twoPairsRoll": {
     "src": "assets/audio/yatzy-junior/twoPairsRoll.mp3",
     "duration": 3.45,
-    "mouth": "06effa06efa000aefc000feb56300000000008da000ecdc00bdeeb9a9530000000000"
+    "mouth": "007fffeaeff40006eff802cb63200000000008fb000ecdc02bdedc9a8430000000000"
   },
   "threeRoll": {
     "src": "assets/audio/yatzy-junior/threeRoll.mp3",
@@ -61,8 +61,8 @@
   },
   "straightRoll": {
     "src": "assets/audio/yatzy-junior/straightRoll.mp3",
-    "duration": 2.81,
-    "mouth": "4dfed6006efd9ddcae9c8dedb40000000000009f707ec900000000000"
+    "duration": 2.89,
+    "mouth": "5ffed6036efedbddecfdaedb50000000000067f504db95000000000000"
   },
   "yatzyRoll": {
     "src": "assets/audio/yatzy-junior/yatzyRoll.mp3",
@@ -71,18 +71,18 @@
   },
   "smallStraight": {
     "src": "assets/audio/yatzy-junior/smallStraight.mp3",
-    "duration": 6.73,
-    "mouth": "0cffffec000000209feedb7000000000eeecba9000000006efeccbec30000006feea700000000000deeffcbbeefd60000000000059fec50bebfffbcb880000000000000"
+    "duration": 7.05,
+    "mouth": "bff40000000000040ffeed90000000009eecbcb20000000008fefecdd3000000000fffc820000000000000cffbfecccfdee930000000000089ecd708febeefbcba75000000000"
   },
   "yatzy": {
     "src": "assets/audio/yatzy-junior/yatzy.mp3",
-    "duration": 4.09,
-    "mouth": "00fffa00efeefda300000000000feee4d9a9ee000009800000000007bfc80cb88e8007500000000000"
+    "duration": 4.41,
+    "mouth": "00fdeda4cefec8000000000000000cffcfe0ebcde700006a8400000000009dfe90ada8fd50097000000000000"
   },
   "noMatch": {
     "src": "assets/audio/yatzy-junior/noMatch.mp3",
-    "duration": 6.01,
-    "mouth": "00fb008ea704d4007eb00cb5000000009ffceab83de0000cefb6009db43000000000000000df7ef600bea800ce50000eeccd4dd67a478500000000000"
+    "duration": 6.17,
+    "mouth": "9ea00dc600bc005ce600cfd800000007dfddd9c800ec000cddc960008cb65000000000000000cf9bea008d8500bf70000bfedcd5ce90c638630000000000"
   },
   "finishedLesson": {
     "src": "assets/audio/yatzy-junior/finishedLesson.mp3",
@@ -131,8 +131,8 @@
   },
   "zero": {
     "src": "assets/audio/yatzy-junior/zero.mp3",
-    "duration": 3.93,
-    "mouth": "00fc09b0aff95000cfc009c73009d80000bd800000000000003ec3ceeed0ded90bc000000000000"
+    "duration": 4.17,
+    "mouth": "00fc09e06bfe640000ffc006d96006eb30004eca00000000000000de4affef6bd3e94eb0000000000000"
   },
   "scored": {
     "src": "assets/audio/yatzy-junior/scored.mp3",
@@ -151,8 +151,8 @@
   },
   "great": {
     "src": "assets/audio/yatzy-junior/great.mp3",
-    "duration": 2.65,
-    "mouth": "089feffc990000000007cdcb9cb7c5a90656eb000000000000000"
+    "duration": 2.89,
+    "mouth": "07998becddfeb90000000003bffcdbfe8f8cb0a7efb000000000000000"
   },
   "bad": {
     "src": "assets/audio/yatzy-junior/bad.mp3",
@@ -216,18 +216,18 @@
   },
   "points_0": {
     "src": "assets/audio/yatzy-junior/points_0.mp3",
-    "duration": 1.45,
-    "mouth": "0fe0bfb5000098400000000000000"
+    "duration": 1.61,
+    "mouth": "be93006ec400000cffc70000000000000"
   },
   "points_2": {
     "src": "assets/audio/yatzy-junior/points_2.mp3",
-    "duration": 1.53,
-    "mouth": "0303effec3000bed640000000000000"
+    "duration": 1.45,
+    "mouth": "000effc95000eda60000000000000"
   },
   "points_3": {
     "src": "assets/audio/yatzy-junior/points_3.mp3",
-    "duration": 1.29,
-    "mouth": "000feffdc60de9500000000000"
+    "duration": 1.45,
+    "mouth": "00fefeed99006fda6000000000000"
   },
   "points_4": {
     "src": "assets/audio/yatzy-junior/points_4.mp3",
@@ -236,8 +236,8 @@
   },
   "points_6": {
     "src": "assets/audio/yatzy-junior/points_6.mp3",
-    "duration": 1.37,
-    "mouth": "0000fe062000fc25000000000000"
+    "duration": 1.53,
+    "mouth": "000fe074000000dfc70000000000000"
   },
   "points_8": {
     "src": "assets/audio/yatzy-junior/points_8.mp3",
@@ -256,43 +256,43 @@
   },
   "points_12": {
     "src": "assets/audio/yatzy-junior/points_12.mp3",
-    "duration": 1.61,
-    "mouth": "050ffdedb37007da50000000000000000"
+    "duration": 1.45,
+    "mouth": "56effdc508000feb7000000000000"
   },
   "points_14": {
     "src": "assets/audio/yatzy-junior/points_14.mp3",
     "duration": 1.69,
-    "mouth": "005dfc5700fffc80588000000000000000"
+    "mouth": "00bfd64006fff8308eb540000000000000"
   },
   "points_15": {
     "src": "assets/audio/yatzy-junior/points_15.mp3",
-    "duration": 1.53,
-    "mouth": "000f80000ffe8009950000000000000"
+    "duration": 1.61,
+    "mouth": "00cf90000dfff7008ec64000000000000"
   },
   "points_16": {
     "src": "assets/audio/yatzy-junior/points_16.mp3",
     "duration": 1.69,
-    "mouth": "000db56003ffffeb000a70000000000000"
+    "mouth": "008f339000effe7009fe84000000000000"
   },
   "points_18": {
     "src": "assets/audio/yatzy-junior/points_18.mp3",
-    "duration": 1.37,
-    "mouth": "8ffe000eca6bb076230000000000"
+    "duration": 1.53,
+    "mouth": "efd9003efff500adc60000000000000"
   },
   "points_20": {
     "src": "assets/audio/yatzy-junior/points_20.mp3",
     "duration": 1.69,
-    "mouth": "0cf0003ffeabf700bc8300000000000000"
+    "mouth": "05fb0000ecdeb500afd860000000000000"
   },
   "points_22": {
     "src": "assets/audio/yatzy-junior/points_22.mp3",
-    "duration": 2.33,
-    "mouth": "0bf3009d42eec00fc300200deff9000b730000000000000"
+    "duration": 2.25,
+    "mouth": "06fd000cbdfc5fc406009effe7009eb74000000000000"
   },
   "points_50": {
     "src": "assets/audio/yatzy-junior/points_50.mp3",
-    "duration": 1.53,
-    "mouth": "000fa00007ffb008960000000000000"
+    "duration": 1.61,
+    "mouth": "00ff50000bffea00cb740000000000000"
   },
   "winningRule": {
     "src": "assets/audio/yatzy-junior/winningRule.mp3",
@@ -316,8 +316,8 @@
   },
   "points_5": {
     "src": "assets/audio/yatzy-junior/points_5.mp3",
-    "duration": 1.37,
-    "mouth": "0006fffec004b700000000000000"
+    "duration": 1.45,
+    "mouth": "00cfedb7000afea60000000000000"
   },
   "points_7": {
     "src": "assets/audio/yatzy-junior/points_7.mp3",
@@ -326,492 +326,492 @@
   },
   "points_11": {
     "src": "assets/audio/yatzy-junior/points_11.mp3",
-    "duration": 1.53,
-    "mouth": "0ffceffc3dc700cdc40400000000000"
+    "duration": 1.45,
+    "mouth": "5f9007ffddd609da3000000000000"
   },
   "points_13": {
     "src": "assets/audio/yatzy-junior/points_13.mp3",
-    "duration": 1.61,
-    "mouth": "000bdf9300dffd706a700000000000000"
+    "duration": 1.53,
+    "mouth": "00efa600afffc40cd95000000000000"
   },
   "points_17": {
     "src": "assets/audio/yatzy-junior/points_17.mp3",
-    "duration": 1.69,
-    "mouth": "000ff9309dfffc00085000000000000000"
+    "duration": 1.61,
+    "mouth": "368eeec006fefb00adc60000000000000"
   },
   "points_19": {
     "src": "assets/audio/yatzy-junior/points_19.mp3",
-    "duration": 1.45,
-    "mouth": "6ffd000beba695064030000000000"
+    "duration": 1.61,
+    "mouth": "affdec04dfff9300ed970000000000000"
   },
   "points_21": {
     "src": "assets/audio/yatzy-junior/points_21.mp3",
-    "duration": 2.81,
-    "mouth": "04eb000aa2ddc50cfffa5000000cfb000000000009930000000000000"
+    "duration": 2.49,
+    "mouth": "03fb000acadd40efc000bfd300000000007ec6000000000000"
   },
   "points_23": {
     "src": "assets/audio/yatzy-junior/points_23.mp3",
     "duration": 2.25,
-    "mouth": "04df400ca5dfd600ef5000ccefda830a9700000000000"
+    "mouth": "26fe000cddff8cf8200edffeb9605db80000000000000"
   },
   "points_24": {
     "src": "assets/audio/yatzy-junior/points_24.mp3",
     "duration": 2.33,
-    "mouth": "3efa000cdbee4bfc2009deffced8600ed95000000000000"
+    "mouth": "05fd000ccdeb4ee4000deffebed8700ec84000000000000"
   },
   "points_25": {
     "src": "assets/audio/yatzy-junior/points_25.mp3",
-    "duration": 2.33,
-    "mouth": "03fa008efe36ed90dfb3000ceffe7008a70000000000000"
+    "duration": 2.091,
+    "mouth": "05fd000dcded6fb000efffd400cd74000000000000"
   },
   "points_26": {
     "src": "assets/audio/yatzy-junior/points_26.mp3",
-    "duration": 2.57,
-    "mouth": "06fa048efed5cfe93eee7000c00300000fdca800000000000000"
+    "duration": 2.25,
+    "mouth": "04fc000ccdea4fb6306fb080000005fc6500000000000"
   },
   "points_27": {
     "src": "assets/audio/yatzy-junior/points_27.mp3",
-    "duration": 2.49,
-    "mouth": "04f3000edecbdfea00efb689cedcb3000ddc70000000000000"
+    "duration": 2.25,
+    "mouth": "06fd0007dcee73fe0b878defeda606fd8500000000000"
   },
   "points_28": {
     "src": "assets/audio/yatzy-junior/points_28.mp3",
     "duration": 2.25,
-    "mouth": "04ee0009c9eeb30ef70ff3440cd000ca4000000000000"
+    "mouth": "05fc0009cbee70ff806f90300de300db7400000000000"
   },
   "points_29": {
     "src": "assets/audio/yatzy-junior/points_29.mp3",
-    "duration": 2.41,
-    "mouth": "08f0006ca979eda40bf9beffedddcca500852000000000000"
+    "duration": 2.25,
+    "mouth": "03fa0009badc40ffffedccbbcb8209dc7000000000000"
   },
   "points_30": {
     "src": "assets/audio/yatzy-junior/points_30.mp3",
-    "duration": 1.61,
-    "mouth": "000cdffb9058dda008800000000000000"
+    "duration": 1.53,
+    "mouth": "00efffc706ceed30bd7000000000000"
   },
   "points_31": {
     "src": "assets/audio/yatzy-junior/points_31.mp3",
-    "duration": 2.41,
-    "mouth": "000ffeec607adec0cffa000aec20000009a20000000000000"
+    "duration": 2.97,
+    "mouth": "00ddfeda0048dcdc30bfffc20000ada0000000000008db73000000000000"
   },
   "points_32": {
     "src": "assets/audio/yatzy-junior/points_32.mp3",
-    "duration": 2.17,
-    "mouth": "000dffca005dcad600605dffd6009850000000000000"
+    "duration": 2.25,
+    "mouth": "07ffedb007cdea4e960600bfeeb200bb5300000000000"
   },
   "points_33": {
     "src": "assets/audio/yatzy-junior/points_33.mp3",
-    "duration": 2.25,
-    "mouth": "000fffeb026eed9ea009cefec9709b860000000000000"
+    "duration": 2.33,
+    "mouth": "00fffdc6069eeea0de5000dcedc9900cc83000000000000"
   },
   "points_34": {
     "src": "assets/audio/yatzy-junior/points_34.mp3",
     "duration": 2.49,
-    "mouth": "00fffeb607bdee8afa0009ddedcaec9700dd95000000000000"
+    "mouth": "00effec508aeeea4fe0006defecae8a600deb6000000000000"
   },
   "points_35": {
     "src": "assets/audio/yatzy-junior/points_35.mp3",
-    "duration": 2.17,
-    "mouth": "000effeb035cdc5e9000dffda0048500000000000000"
+    "duration": 2.01,
+    "mouth": "06ffedc007eedeb00afffe500aa60000000000000"
   },
   "points_36": {
     "src": "assets/audio/yatzy-junior/points_36.mp3",
-    "duration": 2.25,
-    "mouth": "000fffeb007de98d5800ee04300000aa6000000000000"
+    "duration": 2.49,
+    "mouth": "00ffedc6079cdd49f78008e6080000000ec860000000000000"
   },
   "points_37": {
     "src": "assets/audio/yatzy-junior/points_37.mp3",
     "duration": 2.25,
-    "mouth": "000dffd9054ddd9e887678dffc5406a62000000000000"
+    "mouth": "06fffdb007bdec7ea9899adeec700bc80000000000000"
   },
   "points_38": {
     "src": "assets/audio/yatzy-junior/points_38.mp3",
-    "duration": 2.17,
-    "mouth": "000dffda056eec8fe04fc0400d800664000000000000"
+    "duration": 2.25,
+    "mouth": "04ffeec008cded0afe40ff0430fc007c8500000000000"
   },
   "points_39": {
     "src": "assets/audio/yatzy-junior/points_39.mp3",
     "duration": 2.25,
-    "mouth": "000dffda005cdda0effffeeeedc720584000000000000"
+    "mouth": "00fffec008bddd0dfffeeeddddc700ba6000000000000"
   },
   "points_40": {
     "src": "assets/audio/yatzy-junior/points_40.mp3",
     "duration": 1.61,
-    "mouth": "000bffdbee04adb600850000000000000"
+    "mouth": "00efffcfc07dffb30cc84000000000000"
   },
   "points_41": {
     "src": "assets/audio/yatzy-junior/points_41.mp3",
-    "duration": 2.81,
-    "mouth": "003dffebd507ded80cfffc000004dc22000000000bb53000000000000"
+    "duration": 2.89,
+    "mouth": "00cffdbd9003ccdb00aefe70000aed0000000000007eb6500000000000"
   },
   "points_42": {
     "src": "assets/audio/yatzy-junior/points_42.mp3",
     "duration": 2.33,
-    "mouth": "000cffcd5009efa0cd340300cefe6000a70000000000000"
+    "mouth": "00cffcdb08addb0bf8005409efed600ac85000000000000"
   },
   "points_43": {
     "src": "assets/audio/yatzy-junior/points_43.mp3",
-    "duration": 2.17,
-    "mouth": "005dffcc008ef95e5300dddeb9704a60000000000000"
+    "duration": 2.25,
+    "mouth": "02fffece909cefd0ee600dddedb830bb7000000000000"
   },
   "points_44": {
     "src": "assets/audio/yatzy-junior/points_44.mp3",
     "duration": 2.49,
-    "mouth": "00dffdbd308ceec58fc2003deedacc8a00cea5000000000000"
+    "mouth": "00cffdd9079ddd80ed0000deffebdbb905fd70000000000000"
   },
   "points_45": {
     "src": "assets/audio/yatzy-junior/points_45.mp3",
-    "duration": 2.33,
-    "mouth": "000cfffce706cee907e7000befec5006630000000000000"
+    "duration": 2.25,
+    "mouth": "00affbd907bedb4fd000ceffdb0006eb6400000000000"
   },
   "points_46": {
     "src": "assets/audio/yatzy-junior/points_46.mp3",
-    "duration": 2.33,
-    "mouth": "006fffcd007efb3ae5900bf607000004b73000000000000"
+    "duration": 2.25,
+    "mouth": "00dffcd006bdcba300fd0a0000008ffb5000000000000"
   },
   "points_47": {
     "src": "assets/audio/yatzy-junior/points_47.mp3",
-    "duration": 2.33,
-    "mouth": "006fffce406adfea0bf49788adfea500962000000000000"
+    "duration": 2.41,
+    "mouth": "00cffcea079ddd90dd6a798cefdb800beb630000000000000"
   },
   "points_48": {
     "src": "assets/audio/yatzy-junior/points_48.mp3",
-    "duration": 2.49,
-    "mouth": "000dfebc0039dda0bfb00fc00307c600696000000000000000"
+    "duration": 2.33,
+    "mouth": "00bffcd908adec47fd30af50000dd003c94000000000000"
   },
   "points_49": {
     "src": "assets/audio/yatzy-junior/points_49.mp3",
-    "duration": 2.25,
-    "mouth": "009ffb7000adca30dffeecccccb750084000000000000"
+    "duration": 2.33,
+    "mouth": "00bfeaa0059ccb4afffeddcccdc800ba800000000000000"
   },
   "points_51": {
     "src": "assets/audio/yatzy-junior/points_51.mp3",
-    "duration": 2.49,
-    "mouth": "000fd00005cfd48fffb0000be7000000009940000000000000"
+    "duration": 2.89,
+    "mouth": "00ef900007dedc700cfffd30000adc3400000000009fc6300000000000"
   },
   "points_52": {
     "src": "assets/audio/yatzy-junior/points_52.mp3",
-    "duration": 2.091,
-    "mouth": "00ef50008de8eb60400bfffb600a73000000000000"
+    "duration": 2.25,
+    "mouth": "00ff80003dfe64f930600defd8304da43000000000000"
   },
   "points_53": {
     "src": "assets/audio/yatzy-junior/points_53.mp3",
-    "duration": 1.93,
-    "mouth": "000fc00007efd300defdb720984000000000000"
+    "duration": 2.17,
+    "mouth": "00ff00005ced97fd000cdeec9807db70000000000000"
   },
   "points_54": {
     "src": "assets/audio/yatzy-junior/points_54.mp3",
-    "duration": 2.41,
-    "mouth": "00ff90002bded39fc3000cdeedbda700acb60000000000000"
+    "duration": 2.33,
+    "mouth": "00ffa0003bffd49fb000adefebeda603ed9400000000000"
   },
   "points_55": {
     "src": "assets/audio/yatzy-junior/points_55.mp3",
-    "duration": 1.93,
-    "mouth": "00ef70005ee700afffea0009740000000000000"
+    "duration": 2.17,
+    "mouth": "00ef70005dff67fd300afffeb400cc96000000000000"
   },
   "points_56": {
     "src": "assets/audio/yatzy-junior/points_56.mp3",
-    "duration": 2.091,
-    "mouth": "00ef30007efba00ef987000000cc86000000000000"
+    "duration": 2.41,
+    "mouth": "00ef70000def70fc8500dc067000000cfa700000000000000"
   },
   "points_57": {
     "src": "assets/audio/yatzy-junior/points_57.mp3",
-    "duration": 2.01,
-    "mouth": "000fc00004ded39888dffd9306950000000000000"
+    "duration": 2.33,
+    "mouth": "00ff90003beec3afab999adffec700dec60000000000000"
   },
   "points_58": {
     "src": "assets/audio/yatzy-junior/points_58.mp3",
-    "duration": 2.17,
-    "mouth": "00df00000bed6cfb00fb0040bb500862000000000000"
+    "duration": 2.25,
+    "mouth": "00fe70000addb49fe60cf4030cf700cb7000000000000"
   },
   "points_59": {
     "src": "assets/audio/yatzy-junior/points_59.mp3",
-    "duration": 2.091,
-    "mouth": "00ef40008df9bffffffeedca600773000000000000"
+    "duration": 2.25,
+    "mouth": "00ee500009ddc39fffffecbbccb800cb6000000000000"
   },
   "points_60": {
     "src": "assets/audio/yatzy-junior/points_60.mp3",
-    "duration": 1.53,
-    "mouth": "0008f067303efb80895000000000000"
+    "duration": 1.61,
+    "mouth": "000e738000dffe900fea7000000000000"
   },
   "points_61": {
     "src": "assets/audio/yatzy-junior/points_61.mp3",
-    "duration": 2.81,
-    "mouth": "000eb064006dfd200cfffc300000dd40000000000ab60000000000000"
+    "duration": 2.73,
+    "mouth": "000f877000beec50dffe40008fe30000000000feb60000000000000"
   },
   "points_62": {
     "src": "assets/audio/yatzy-junior/points_62.mp3",
-    "duration": 2.25,
-    "mouth": "000fd0a500bfeb0ef60230afffd500a93000000000000"
+    "duration": 2.41,
+    "mouth": "004f859004deed0af950620bffed700cfb620000000000000"
   },
   "points_63": {
     "src": "assets/audio/yatzy-junior/points_63.mp3",
-    "duration": 2.17,
-    "mouth": "000ff0a8006efd0ff000aefeec970aa9000000000000"
+    "duration": 2.33,
+    "mouth": "003f929400aefd5df6000deeecb930cc740000000000000"
   },
   "points_64": {
     "src": "assets/audio/yatzy-junior/points_64.mp3",
     "duration": 2.41,
-    "mouth": "000f768000cefd3ef6300deffdceb930aec84000000000000"
+    "mouth": "004f668003dee76fc0003eeffccda900cfd63000000000000"
   },
   "points_65": {
     "src": "assets/audio/yatzy-junior/points_65.mp3",
     "duration": 2.25,
-    "mouth": "000eb08000aeeb0fc4000ffffd7008860000000000000"
+    "mouth": "002f748003bdeda0fe5008effec000db6000000000000"
   },
   "points_66": {
     "src": "assets/audio/yatzy-junior/points_66.mp3",
-    "duration": 2.25,
-    "mouth": "000fc79000cfec70eb9300fb060006b63000000000000"
+    "duration": 2.33,
+    "mouth": "009f769004ffe6bf8a00df909000000dfb8000000000000"
   },
   "points_67": {
     "src": "assets/audio/yatzy-junior/points_67.mp3",
-    "duration": 2.33,
-    "mouth": "000fd0b500aefc80de4a897ceffe7009c62000000000000"
+    "duration": 2.41,
+    "mouth": "005f758000defe84ee4a9bbdffee800dfd830000000000000"
   },
   "points_68": {
     "src": "assets/audio/yatzy-junior/points_68.mp3",
-    "duration": 2.25,
-    "mouth": "0000ea79400bfd90dfa00f90400ec0087300000000000"
+    "duration": 2.41,
+    "mouth": "000f757000cdec70dfa00cf50640ee500dc75000000000000"
   },
   "points_69": {
     "src": "assets/audio/yatzy-junior/points_69.mp3",
-    "duration": 2.25,
-    "mouth": "000ae045000cca60dfffeeeddcb860070000000000000"
+    "duration": 2.33,
+    "mouth": "003f608003bded70dfffffdcbcdc900bb63000000000000"
   },
   "points_70": {
     "src": "assets/audio/yatzy-junior/points_70.mp3",
     "duration": 1.61,
-    "mouth": "007acdffe005efd800a86000000000000"
+    "mouth": "06bcefe606cffea00dc92000000000000"
   },
   "points_71": {
     "src": "assets/audio/yatzy-junior/points_71.mp3",
-    "duration": 2.65,
-    "mouth": "007acfe803beeb04effd500000cc5000000004da5000000000000"
+    "duration": 2.81,
+    "mouth": "06aefeb009cdec609fff90005de600000000000dfb620000000000000"
   },
   "points_72": {
     "src": "assets/audio/yatzy-junior/points_72.mp3",
-    "duration": 2.25,
-    "mouth": "0369ffd005cdd88f8007008effc700980000000000000"
+    "duration": 2.41,
+    "mouth": "35befeb008defb0bf8305509efff9400d9530000000000000"
   },
   "points_73": {
     "src": "assets/audio/yatzy-junior/points_73.mp3",
-    "duration": 2.17,
-    "mouth": "006adffe008deeabf4000ceeea7708a8000000000000"
+    "duration": 2.25,
+    "mouth": "45beffe00acefe6fe600ddeedb960bc85000000000000"
   },
   "points_74": {
     "src": "assets/audio/yatzy-junior/points_74.mp3",
-    "duration": 2.41,
-    "mouth": "47cefec008defe80ff3005deffdceca30dea4000000000000"
+    "duration": 2.49,
+    "mouth": "34bdeee009defd65fe3000defedcfdb40dfb73000000000000"
   },
   "points_75": {
     "src": "assets/audio/yatzy-junior/points_75.mp3",
-    "duration": 2.17,
-    "mouth": "0077fff006eeea7f9000aeffd9006a73000000000000"
+    "duration": 2.25,
+    "mouth": "449dec7079dec4df3004fffdc7007c960000000000000"
   },
   "points_76": {
     "src": "assets/audio/yatzy-junior/points_76.mp3",
-    "duration": 2.25,
-    "mouth": "006afff407dfea9f3700de056000009b7400000000000"
+    "duration": 2.49,
+    "mouth": "36ceffd008cdfc0be67302fc0a0000000ff850000000000000"
   },
   "points_77": {
     "src": "assets/audio/yatzy-junior/points_77.mp3",
-    "duration": 2.25,
-    "mouth": "0057fff405cffc7f998567defec700bb7500000000000"
+    "duration": 2.41,
+    "mouth": "369deec009cdfd55fcaa798defed920bfc750000000000000"
   },
   "points_78": {
     "src": "assets/audio/yatzy-junior/points_78.mp3",
     "duration": 2.33,
-    "mouth": "0078cffb005ded90cfa03f90500db008950000000000000"
+    "mouth": "07adeeb00adefc47ff40fc0020ce400dc72000000000000"
   },
   "points_79": {
     "src": "assets/audio/yatzy-junior/points_79.mp3",
     "duration": 2.25,
-    "mouth": "008ccffb06aeec3dffffedbbcb8700a85000000000000"
+    "mouth": "079bcca007abca37fffffdccbdc800985300000000000"
   },
   "points_80": {
     "src": "assets/audio/yatzy-junior/points_80.mp3",
-    "duration": 1.85,
-    "mouth": "dfc7400f804bfff90000efc83000000000000"
+    "duration": 1.61,
+    "mouth": "ef60409f60adcca00bb60000000000000"
   },
   "points_81": {
     "src": "assets/audio/yatzy-junior/points_81.mp3",
-    "duration": 2.81,
-    "mouth": "cf9450d806bedb08fffe70000000bfc00000000006b53000000000000"
+    "duration": 3.05,
+    "mouth": "dfa060bf304bcbdd70aeff800004dfb30000000000000edb5000000000000"
   },
   "points_82": {
     "src": "assets/audio/yatzy-junior/points_82.mp3",
     "duration": 2.33,
-    "mouth": "3fe540da04ddec50f9006709effd6009b63000000000000"
+    "mouth": "efa573df20beefd5ee60670bfffd700ceb5000000000000"
   },
   "points_83": {
     "src": "assets/audio/yatzy-junior/points_83.mp3",
     "duration": 2.33,
-    "mouth": "5fe040cf037dffb0ee0000ceefdca30dd94000000000000"
+    "mouth": "ffc055fc05ceefc4ee7005efffdba50dfa6200000000000"
   },
   "points_84": {
     "src": "assets/audio/yatzy-junior/points_84.mp3",
-    "duration": 2.41,
-    "mouth": "ff560ce038dded0bf8300bdeedacd9609dc50000000000000"
+    "duration": 2.49,
+    "mouth": "ff760ae008ddeeb0ee5000ceffdbeba700feb7000000000000"
   },
   "points_85": {
     "src": "assets/audio/yatzy-junior/points_85.mp3",
-    "duration": 2.17,
-    "mouth": "6fb540e903cee96f9000cffec9006b64000000000000"
+    "duration": 2.33,
+    "mouth": "cfc020ae35bdeed6ff3009fffdd400dd850000000000000"
   },
   "points_86": {
     "src": "assets/audio/yatzy-junior/points_86.mp3",
-    "duration": 2.33,
-    "mouth": "dfa552f308efd87f78000fc063000009d84000000000000"
+    "duration": 2.57,
+    "mouth": "eff353bf008eefd7afa6000cf7090000008fd860000000000000"
   },
   "points_87": {
     "src": "assets/audio/yatzy-junior/points_87.mp3",
-    "duration": 2.33,
-    "mouth": "cfc583dc05cefd48f699889dfffb700cd94000000000000"
+    "duration": 2.41,
+    "mouth": "efa363be33bdefd5ce6a999dffdc600dfc730000000000000"
   },
   "points_88": {
     "src": "assets/audio/yatzy-junior/points_88.mp3",
-    "duration": 2.33,
-    "mouth": "0fb450c903cdec60ef600fd0070ac500782000000000000"
+    "duration": 2.41,
+    "mouth": "efc053be03bdded60ff60df60407fb00beb60000000000000"
   },
   "points_89": {
     "src": "assets/audio/yatzy-junior/points_89.mp3",
-    "duration": 2.17,
-    "mouth": "0fb320d006dca46effeeeeddb8500584000000000000"
+    "duration": 2.41,
+    "mouth": "efc040be008dddc0aefffeddccdda504ea740000000000000"
   },
   "points_90": {
     "src": "assets/audio/yatzy-junior/points_90.mp3",
     "duration": 1.61,
-    "mouth": "0cffeb059e90007640000000000000000"
+    "mouth": "affeed0049ddd900ab750000000000000"
   },
   "points_91": {
     "src": "assets/audio/yatzy-junior/points_91.mp3",
-    "duration": 2.73,
-    "mouth": "7dffe9055ddb400deb7000000dff500000000950000000000000000"
+    "duration": 2.65,
+    "mouth": "affddd0047ccdb35ffa000adc30000000000bc850000000000000"
   },
   "points_92": {
     "src": "assets/audio/yatzy-junior/points_92.mp3",
-    "duration": 2.33,
-    "mouth": "0efffe007cedb30fd402709ffec400ab760000000000000"
+    "duration": 2.17,
+    "mouth": "fffff507aefc0df600600dffe8206c75000000000000"
   },
   "points_93": {
     "src": "assets/audio/yatzy-junior/points_93.mp3",
     "duration": 2.33,
-    "mouth": "0dffe8005efb00bf60005beedba40aa7400000000000000"
+    "mouth": "dffeefe908ceee92ee4008deeeda820ce85000000000000"
   },
   "points_94": {
     "src": "assets/audio/yatzy-junior/points_94.mp3",
-    "duration": 2.33,
-    "mouth": "dffeffc04aeee97fc0009eefebfea80aeb7000000000000"
+    "duration": 2.49,
+    "mouth": "afffeefc007cdeb0ad5000adedd9cc9700de86000000000000"
   },
   "points_95": {
     "src": "assets/audio/yatzy-junior/points_95.mp3",
-    "duration": 2.17,
-    "mouth": "8fffd804bcc80be63000beffe9005842000000000000"
+    "duration": 2.25,
+    "mouth": "cffeea004ded6bd4000defed9000bc840000000000000"
   },
   "points_96": {
     "src": "assets/audio/yatzy-junior/points_96.mp3",
-    "duration": 2.17,
-    "mouth": "0dfff9059dcb60bf76000dd030009a73200000000000"
+    "duration": 2.33,
+    "mouth": "bffeec005ddd69f67000fd074000000cd94000000000000"
   },
   "points_97": {
     "src": "assets/audio/yatzy-junior/points_97.mp3",
     "duration": 2.25,
-    "mouth": "9fffd8069ddc80be869898eedea000b95300000000000"
+    "mouth": "cffffb046ded77ea67579cfec600ce850000000000000"
   },
   "points_98": {
     "src": "assets/audio/yatzy-junior/points_98.mp3",
     "duration": 2.25,
-    "mouth": "2efffa038bb9600ec700fd4000a300463000000000000"
+    "mouth": "cffee9035ddd84fe50de00000dd002db5000000000000"
   },
   "points_99": {
     "src": "assets/audio/yatzy-junior/points_99.mp3",
-    "duration": 2.17,
-    "mouth": "aeffe9039db8005ec8dfffeeb0006750000000000000"
+    "duration": 2.25,
+    "mouth": "cffde9024ccd909ffffedcccdc800ba70000000000000"
   },
   "points_100": {
     "src": "assets/audio/yatzy-junior/points_100.mp3",
-    "duration": 1.53,
-    "mouth": "00cefe70bcfc2000c74000000000000"
+    "duration": 1.61,
+    "mouth": "0affe00cdea0000bfd930000000000000"
   },
   "points_101": {
     "src": "assets/audio/yatzy-junior/points_101.mp3",
-    "duration": 2.49,
-    "mouth": "00fed30adf955effd500000cc400000000b840000000000000"
+    "duration": 2.57,
+    "mouth": "0efeb09dfa000dff8000deb000000000000ddc73000000000000"
   },
   "points_102": {
     "src": "assets/audio/yatzy-junior/points_102.mp3",
-    "duration": 2.091,
-    "mouth": "00effe08bfc8ee003009deeb400a73000000000000"
+    "duration": 2.25,
+    "mouth": "0dffd00bfe600ed406407defe9400dc84000000000000"
   },
   "points_103": {
     "src": "assets/audio/yatzy-junior/points_103.mp3",
-    "duration": 2.17,
-    "mouth": "00fffc00cff64dc3000cdddca7308a50000000000000"
+    "duration": 2.25,
+    "mouth": "0effd00cffa000fb0003ecdeba860cdb6000000000000"
   },
   "points_104": {
     "src": "assets/audio/yatzy-junior/points_104.mp3",
     "duration": 2.33,
-    "mouth": "0dffc05dfd000ee4007defecdea900ed950000000000000"
+    "mouth": "00ffea0bcfb00cf54007eeeebdea900efb7000000000000"
   },
   "points_105": {
     "src": "assets/audio/yatzy-junior/points_105.mp3",
-    "duration": 1.93,
-    "mouth": "00fee00befdd2000feffc200970000000000000"
+    "duration": 2.17,
+    "mouth": "0effd00cff902fd300afffe9002ec850000000000000"
   },
   "points_106": {
     "src": "assets/audio/yatzy-junior/points_106.mp3",
-    "duration": 2.25,
-    "mouth": "00ffe40bfe79d68006e9060000000bd80000000000000"
+    "duration": 2.33,
+    "mouth": "0fffc0cef800ac2500ad7070000003fd740000000000000"
   },
   "points_107": {
     "src": "assets/audio/yatzy-junior/points_107.mp3",
-    "duration": 2.091,
-    "mouth": "00ffe409ef95da97457acedc400853000000000000"
+    "duration": 2.17,
+    "mouth": "0dffe00aefc00ce6a999eeeeb400ec65000000000000"
   },
   "points_108": {
     "src": "assets/audio/yatzy-junior/points_108.mp3",
-    "duration": 2.17,
-    "mouth": "00fed00adfb30ef70af70000bd500865000000000000"
+    "duration": 2.25,
+    "mouth": "0dffd00adfa008fc00ce00400dd400da6200000000000"
   },
   "points_109": {
     "src": "assets/audio/yatzy-junior/points_109.mp3",
-    "duration": 2.17,
-    "mouth": "00deeb06afe700eeffffddddc8307940000000000000"
+    "duration": 2.091,
+    "mouth": "0efec0acfb008ffffddcddcb604db6300000000000"
   },
   "points_110": {
     "src": "assets/audio/yatzy-junior/points_110.mp3",
-    "duration": 2.25,
-    "mouth": "08ffe00bff900ec0044cdcdeec40aeb80000000000000"
+    "duration": 2.33,
+    "mouth": "0effd00bffb00be700079babeeea00cfd94000000000000"
   },
   "points_111": {
     "src": "assets/audio/yatzy-junior/points_111.mp3",
     "duration": 2.33,
-    "mouth": "00eeec00bfe300ffc309e004debba506740000000000000"
+    "mouth": "0cfec50bdfa007fc30bc000bfedc800dd84000000000000"
   },
   "points_112": {
     "src": "assets/audio/yatzy-junior/points_112.mp3",
     "duration": 2.25,
-    "mouth": "00fff60aff96fd30546ffeea20600dda5000000000000"
+    "mouth": "0dffd0adfb00ae80060dedea06000ddb6000000000000"
   },
   "points_113": {
     "src": "assets/audio/yatzy-junior/points_113.mp3",
-    "duration": 2.17,
-    "mouth": "00fffd09dfd9ec300df9600dfe800963000000000000"
+    "duration": 2.41,
+    "mouth": "0dffd70aefd000dc000ddc7000fff900dec60000000000000"
   },
   "points_114": {
     "src": "assets/audio/yatzy-junior/points_114.mp3",
-    "duration": 2.33,
-    "mouth": "00fffc06bff85de9000ec6500ded9009950000000000000"
+    "duration": 2.41,
+    "mouth": "0cffd00bfe800dd4009fb6500cffe800bec73000000000000"
   },
   "points_115": {
     "src": "assets/audio/yatzy-junior/points_115.mp3",
-    "duration": 2.25,
-    "mouth": "00fffc08cfd70fb00afa0003edb500a80000000000000"
+    "duration": 2.33,
+    "mouth": "0affe00bfe500fa000fc0000effd508fd95000000000000"
   },
   "points_117": {
     "src": "assets/audio/yatzy-junior/points_117.mp3",
-    "duration": 2.25,
-    "mouth": "00ffe50bff89e59987dedb009ddb60094200000000000"
+    "duration": 2.41,
+    "mouth": "00ffec08bfe500de7867bdda00beed900ce95000000000000"
   }
 }

@@ -1191,7 +1191,7 @@
           "note": "„átta-tíu“: bandstrik milli orðhlutanna."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "niutiu": {
       "word": "Níutíu",
@@ -1226,7 +1226,7 @@
           "note": "„níu-tíu“: bandstrik milli orðhlutanna."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "sextan": {
       "word": "Sextán",
@@ -1253,7 +1253,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "sautjan": {
       "word": "Sautján",
@@ -1280,7 +1280,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "atjan": {
       "word": "Átján",
@@ -1307,7 +1307,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "nitjan": {
       "word": "Nítján",
@@ -1334,7 +1334,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "tuttugu": {
       "word": "Tuttugu",
@@ -1361,7 +1361,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "ellefu": {
       "word": "Ellefu",
@@ -1388,7 +1388,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "sex": {
       "word": "Sex",
@@ -1415,7 +1415,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "ekkert": {
       "word": "Ekkert",
@@ -1442,7 +1442,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "samhengi"
     },
     "profum": {
       "word": "Prófum",
@@ -1469,7 +1469,7 @@
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
         }
       },
-      "chosen": null
+      "chosen": "ipa"
     },
     "laus": {
       "word": "Laus",
@@ -1497,6 +1497,277 @@
         }
       },
       "chosen": null
+    },
+    "tolf": {
+      "word": "Tólf",
+      "stem": "[Tt]ólf$",
+      "forms": [
+        "Tólf",
+        "tólf"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Tólf": "\"/ˈtʰoulv/\"",
+            "tólf": "\"/ˈtʰoulv/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰoulv/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "threttan": {
+      "word": "Þrettán",
+      "stem": "[Þþ]rettán$",
+      "forms": [
+        "Þrettán",
+        "þrettán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Þrettán": "\"/ˈθrɛhˌtauːn/\"",
+            "þrettán": "\"/ˈθrɛhˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈθrɛhˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fjortan": {
+      "word": "Fjórtán",
+      "stem": "[Ff]jórtán$",
+      "forms": [
+        "Fjórtán",
+        "fjórtán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fjórtán": "\"/ˈfjourˌtauːn/\"",
+            "fjórtán": "\"/ˈfjourˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjourˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fimmtan": {
+      "word": "Fimmtán",
+      "stem": "[Ff]immtán$",
+      "forms": [
+        "Fimmtán",
+        "fimmtán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fimmtán": "\"/ˈfɪmˌtauːn/\"",
+            "fimmtán": "\"/ˈfɪmˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfɪmˌtauːn/."
+        },
+        "samhengi": {
+          "context": {
+            "mosi": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán."
+          },
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað), hjá Mosa; sögumaðurinn segir orðið rétt eins og það er."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "thrjatiu": {
+      "word": "Þrjátíu",
+      "stem": "[Þþ]rjátíu$",
+      "forms": [
+        "Þrjátíu",
+        "þrjátíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Þrjátíu": "\"/ˈθrjauːˌtʰiːʏ/\"",
+            "þrjátíu": "\"/ˈθrjauːˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈθrjauːˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fjorutiu": {
+      "word": "Fjörutíu",
+      "stem": "[Ff]jörutíu$",
+      "forms": [
+        "Fjörutíu",
+        "fjörutíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fjörutíu": "\"/ˈfjœːrʏˌtʰiːʏ/\"",
+            "fjörutíu": "\"/ˈfjœːrʏˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjœːrʏˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fimmtiu": {
+      "word": "Fimmtíu",
+      "stem": "[Ff]immtíu$",
+      "forms": [
+        "Fimmtíu",
+        "fimmtíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fimmtíu": "\"/ˈfɪmˌtʰiːʏ/\"",
+            "fimmtíu": "\"/ˈfɪmˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfɪmˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sextiu": {
+      "word": "Sextíu",
+      "stem": "[Ss]extíu$",
+      "forms": [
+        "Sextíu",
+        "sextíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Sextíu": "\"/ˈsɛxsˌtʰiːʏ/\"",
+            "sextíu": "\"/ˈsɛxsˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxsˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sjotiu": {
+      "word": "Sjötíu",
+      "stem": "[Ss]jötíu$",
+      "forms": [
+        "Sjötíu",
+        "sjötíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Sjötíu": "\"/ˈsjœːˌtʰiːʏ/\"",
+            "sjötíu": "\"/ˈsjœːˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsjœːˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "hundrad": {
+      "word": "Hundrað",
+      "stem": "[Hh]undrað$",
+      "forms": [
+        "Hundrað",
+        "hundrað"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Hundrað": "\"/ˈhʏntrað/\"",
+            "hundrað": "\"/ˈhʏntrað/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈhʏntrað/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: níutíu, hundrað, hundrað og eitt, hundrað og tvö.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
     }
   }
 }

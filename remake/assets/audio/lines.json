@@ -1597,7 +1597,7 @@
  "k1_mosi_snail": {
   "src": "assets/audio/kafli1/k1_mosi_snail.mp3",
   "duration": 3.45,
-  "mouth": "00000fffedda0400000000000000afff500bd9400cc49d50ce80ba304200000000000"
+  "mouth": "00009fffffa60000000000000004fffc009d76003fd49d80cec0bd447730000000000"
  },
  "k1_mosi_greet": {
   "src": "assets/audio/kafli1/k1_mosi_greet.mp3",
@@ -1956,13 +1956,13 @@
  },
  "eitt_why_only_wild": {
   "src": "assets/audio/eitt/eitt_why_only_wild.mp3",
-  "duration": 4.33,
-  "mouth": "08fb0bf029fdbefa4ee7096300000000000deffd9306cecbcc50cd400dcdd69dbdd0ca08903750000000000"
+  "duration": 4.09,
+  "mouth": "be930bd000feeff70bf800b750000000030cdefeed70cfc300cffef59edcec0b807900775000000000"
  },
  "eitt_why_attack": {
   "src": "assets/audio/eitt/eitt_why_attack.mp3",
-  "duration": 4.81,
-  "mouth": "8affe80effdffefeffa0db006ebc805ff09ec0006b4400000000000bfe000fefdfb0ecefeafb600deea30000000000000"
+  "duration": 5.13,
+  "mouth": "8affda0eecdfeb8ffed80cd000bc99600afc3ae800088300000000000cf8008ebede50dbdcdccc0600ccd940000000000000000"
  },
  "eitt_why_keep_attack": {
   "src": "assets/audio/eitt/eitt_why_keep_attack.mp3",
@@ -1986,8 +1986,8 @@
  },
  "eitt_why_draw": {
   "src": "assets/audio/eitt/eitt_why_draw.mp3",
-  "duration": 4.33,
-  "mouth": "8fc50be00020cdcb70be60ddefec84000000000000dffdaed00bdb0000000006ec64fc09ab7400000000000"
+  "duration": 4.57,
+  "mouth": "afb6002dc00000deeda06ec00dcdffed950000000000004dfcb8e900bda000000000cfb0bfb07bb7600000000000"
  },
  "eitt_why_eitt": {
   "src": "assets/audio/eitt/eitt_why_eitt.mp3",
@@ -2051,8 +2051,8 @@
  },
  "eitt_tut_draw": {
   "src": "assets/audio/eitt/eitt_tut_draw.mp3",
-  "duration": 4.73,
-  "mouth": "8fb404da00000dffe74cd44500000000000000dfc0ceedecfd007cc000000400cdcb8000be90cf50abb940000000000"
+  "duration": 4.89,
+  "mouth": "cfa606dc000400ffee70de7076400000000000dfea0cefeedcfa00bd7300000400dddca400ec70ed00adda740000000000"
  },
  "eitt_tut_drew": {
   "src": "assets/audio/eitt/eitt_tut_drew.mp3",
@@ -2167,7 +2167,7 @@
  "hals_mosi_6": {
   "src": "assets/audio/hals/hals_mosi_6.mp3",
   "duration": 1.05,
-  "mouth": "0000ff300300000000000"
+  "mouth": "003ff8053000000000000"
  },
  "hals_mosi_good": {
   "src": "assets/audio/hals/hals_mosi_good.mp3",
@@ -2371,8 +2371,8 @@
  },
  "k2_mosi_6": {
   "src": "assets/audio/kafli2/k2_mosi_6.mp3",
-  "duration": 1.13,
-  "mouth": "0000ff70200000000000000"
+  "duration": 1.05,
+  "mouth": "003ff8053000000000000"
  },
  "k2_mosi_7": {
   "src": "assets/audio/kafli2/k2_mosi_7.mp3",
