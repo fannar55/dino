@@ -845,6 +845,70 @@
           "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
         }
       }
+    },
+    "o": {
+      "chosen": null,
+      "word": "Ó (upphrópun)",
+      "stem": "Ó$",
+      "forms": [
+        "Ó"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir enskt „oh“ hjá Mosa í kafla 1."
+        },
+        "ipa": {
+          "say": {
+            "Ó": "\"/ouː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ouː/: íslenskt ó, tvíhljóð."
+        },
+        "stafsetning": {
+          "say": {
+            "Ó": "Óó"
+          },
+          "seed": 42,
+          "note": "„Óó“: ó-ið dregið (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ó, sjáðu! Ó, hvað þetta er fallegt!",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskum upphrópunum sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "kitla": {
+      "chosen": null,
+      "word": "Kitlar",
+      "stem": "[Kk]itl",
+      "forms": [
+        "kitlar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú vilt heyra það meira eins og „kítlar“ með í."
+        },
+        "ipa": {
+          "say": {
+            "kitlar": "\"/ˈcʰɪʰtlar/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈcʰɪʰtlar/: mjúkt k, fráblástur á undan tl."
+        },
+        "stafsetning": {
+          "say": {
+            "kitlar": "ítlar"
+          },
+          "seed": 42,
+          "note": "„kítlar“: skrifað með í eins og þú heyrir það."
+        },
+        "samhengi": {
+          "context": "Þetta kitlar! Hættu að kitla mig!",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+        }
+      }
     }
   }
 }
