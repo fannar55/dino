@@ -1,7 +1,7 @@
 [
  { "id": "eitt_your_turn", "speaker": "kambedla", "text": "Þín umferð!" },
  { "id": "eitt_i_draw", "speaker": "kambedla", "text": "Ég dreg." },
- { "id": "eitt_eitt", "speaker": "kambedla", "text": "Eitt!" },
+ { "id": "eitt_eitt", "speaker": "kambedla", "text": "Eitt!", "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm.", "seed": 42, "note": "Kambeðla says the game's name; the owner picked the counting-context take for her on 2026-10-23 (Eitt stays as written for Mosi and Egill)" },
  { "id": "eitt_red", "speaker": "kambedla", "text": "Nú er það rautt!" },
  { "id": "eitt_yellow", "speaker": "kambedla", "text": "Nú er það gult!" },
  { "id": "eitt_green", "speaker": "kambedla", "text": "Nú er það grænt!" },

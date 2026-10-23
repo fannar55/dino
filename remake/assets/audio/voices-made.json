@@ -368,9 +368,9 @@
    "model": "eleven_v4"
   },
   "eitt/eitt_eitt": {
-   "key": "3d85e3aeb935335b1e164190ac8d6348777d582a6ecb656891ea611756a733de",
-   "mp3": "676cdccbfcb6a07f22dad9bf8e17f9bdd2cc8e69e2a9552d3ee0e56a92094b8e",
-   "duration": 1.13,
+   "key": "2b3d244956139155f44ae2ded4674f15b2bca49907749a29beaf9ec4632962e8",
+   "mp3": "a4c5862c57b98e65fccd219c666b86a6c0b187dd0b959bca47a1f714fcaf937b",
+   "duration": 1.21,
    "model": "eleven_v4"
   },
   "eitt/eitt_green": {
@@ -1070,8 +1070,8 @@
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_tickle": {
-   "key": "c3ea07368a3a0090bc09d8f8a5496e6b4e4efe78dc85cc9209e68a8b7c545f94",
-   "mp3": "178cab79703a153e79615729645eeb13103bafcd4f80752dc7c66f96d558af24",
+   "key": "e8a892b219c73bede30c3a3a7edbf69664af7ce77eaf93e057ffce917363f011",
+   "mp3": "355e634a20b32fae96de53f26d4dd7d380f3efeba8cdfe8c54143f0d402e7175",
    "duration": 2.49,
    "model": "eleven_v4"
   },

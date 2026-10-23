@@ -2,7 +2,7 @@
  { "id": "k1_mosi_hum", "speaker": "mosi", "text": "[humming] Mm, mm-mm-mm, mm-mm-mmm… mm-mm-mm, mmm." },
  { "id": "k1_egill_hey", "speaker": "egill", "text": "Hey þú! Ég er hérna niðri!", "kept": "the owner's pick, an Eleven v4 take (seed 1), 2026-10-17, raised 0.9 dB (ffmpeg volume=0.9dB before the voice tool's encode: mono, 44.1 kHz, 96 kbps, no loudnorm, no pad; net +0.4 dB, −19.6 LUFS, true peak −2.1 dBTP): the true peak allows no more (0.92 dB peaks at −1.97), so it stays 1.6 LU under −18" },
  { "id": "k1_mosi_waving", "speaker": "mosi", "text": "Ó! Ég sé einhvern veifa!" },
- { "id": "k1_mosi_tickle", "speaker": "mosi", "text": "Hí, hí, það kitlar!", "kept": "the owner's pick on the A/B page of 2026-10-23: the earlier (Eleven v3) take, kept over the v4 lexicon take" },
+ { "id": "k1_mosi_tickle", "speaker": "mosi", "text": "Hí, hí, það kitlar!" },
  { "id": "k1_mosi_sneeze", "speaker": "mosi", "text": "A… a… atsjú!" },
  { "id": "k1_mosi_festival", "speaker": "mosi", "text": "Veistu hvað, Egill? Í kvöld kvikna fyrstu stjörnur sumarsins. Þá höldum við Stjörnuhátíðina!", "seed": 1 },
  { "id": "k1_mosi_friends", "speaker": "mosi", "text": "Allir vinir mínir koma, og hver og einn kemur með eitthvað alveg sérstakt." },

@@ -1516,8 +1516,8 @@
  },
  "k1_mosi_tickle": {
   "src": "assets/audio/kafli1/k1_mosi_tickle.mp3",
-  "duration": 2.33,
-  "mouth": "004dfca620cdcbb9990000dfe4053fc0006bdc930000000"
+  "duration": 2.49,
+  "mouth": "00bffd500000cc000000000b6047fc0008fe94000000000000"
  },
  "k1_mosi_sneeze": {
   "src": "assets/audio/kafli1/k1_mosi_sneeze.mp3",
@@ -1886,8 +1886,8 @@
  },
  "eitt_eitt": {
   "src": "assets/audio/eitt/eitt_eitt.mp3",
-  "duration": 1.13,
-  "mouth": "3ffc3000000000000000000"
+  "duration": 1.21,
+  "mouth": "eff5000000000000000000000"
  },
  "eitt_red": {
   "src": "assets/audio/eitt/eitt_red.mp3",
