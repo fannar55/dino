@@ -263,6 +263,39 @@
           },
           "seed": 42,
           "note": "IPA /ˈɛitn̥/: ei með opnu e, tn með raddlausu n (ný tilraun)."
+        },
+        "hratt-frae7": {
+          "seed": 7,
+          "note": "Sent eins og skrifað, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae7": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 7,
+          "note": "IPA /ˈeitn̥/, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "hratt-frae19": {
+          "seed": 19,
+          "note": "Sent eins og skrifað, fræ 19 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae19": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 19,
+          "note": "IPA /ˈeitn̥/, fræ 19 (önnur taka af sömu beiðni)."
+        },
+        "hratt-frae77": {
+          "seed": 77,
+          "note": "Sent eins og skrifað, fræ 77 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae77": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 77,
+          "note": "IPA /ˈeitn̥/, fræ 77 (önnur taka af sömu beiðni)."
         }
       },
       "chosen": "hratt"
@@ -946,7 +979,7 @@
       }
     },
     "teldu": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Teldu",
       "stem": "[Tt]eldu$",
       "forms": [
@@ -978,7 +1011,7 @@
       }
     },
     "laufblad": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Laufblað",
       "stem": "[Ll]aufblað",
       "forms": [
@@ -1010,7 +1043,7 @@
       }
     },
     "vel": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Vel",
       "stem": "[Vv]el$",
       "forms": [
@@ -1037,7 +1070,7 @@
       }
     },
     "gert": {
-      "chosen": null,
+      "chosen": "samhengi",
       "word": "Gert",
       "stem": "[Gg]ert$",
       "forms": [
@@ -1069,7 +1102,7 @@
       }
     },
     "langt": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Langt",
       "stem": "[Ll]angt$",
       "forms": [
@@ -1101,7 +1134,7 @@
       }
     },
     "of": {
-      "chosen": null,
+      "chosen": "ipa",
       "word": "Of",
       "stem": "[Oo]f$",
       "forms": [

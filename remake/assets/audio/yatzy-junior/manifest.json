@@ -31,8 +31,8 @@
   },
   "once": {
     "src": "assets/audio/yatzy-junior/once.mp3",
-    "duration": 5.61,
-    "mouth": "0abffcc403bdc750000000000009afc2003bbfa4439effedc0cd09ddffe96cb75000000000000eeb07d8000bdceeeb6dbc287200000000000"
+    "duration": 5.85,
+    "mouth": "bcfddc30dffa5000000000000003cf70056de6403dfffeed00fa4dffeda39986000000000000bfeb200eec8000cdceeda0cbba045500000000000"
   },
   "twoPairsRoll": {
     "src": "assets/audio/yatzy-junior/twoPairsRoll.mp3",
@@ -86,8 +86,8 @@
   },
   "finishedLesson": {
     "src": "assets/audio/yatzy-junior/finishedLesson.mp3",
-    "duration": 3.85,
-    "mouth": "08aff9b004dfa500000000000aefd479e706ebd908600000000000cbbcc90bffbb94000000000"
+    "duration": 4.09,
+    "mouth": "6befedc34efe860000000000009ffc0a8f8008e9ee43ba000000000006ededea0afffea95000000000"
   },
   "yourTurn": {
     "src": "assets/audio/yatzy-junior/yourTurn.mp3",
@@ -136,8 +136,8 @@
   },
   "scored": {
     "src": "assets/audio/yatzy-junior/scored.mp3",
-    "duration": 3.371,
-    "mouth": "5beffbb008dfc6000000000000006fdccdd90cdd608fddbc37bb4007800000000000"
+    "duration": 3.45,
+    "mouth": "adffdc00cffa63000000000000000dcdedeedcd048efffefabcd70088000000000000"
   },
   "mosiScored": {
     "src": "assets/audio/yatzy-junior/mosiScored.mp3",
