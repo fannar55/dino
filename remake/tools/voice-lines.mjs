@@ -263,9 +263,35 @@ export function readLines(root, set = 'kafli1') {
   return lines;
 }
 
-/** The lines of a set as { set, id, speaker, text, ... }; yatzy-junior's from Litla Yatzy's script (Mosi speaks them all). */
+/**
+ * Litla Yatzy's lines live in its script, not in a lines-source.json, so this file beside its MP3s carries what such a line may
+ * carry of its own: { "<id>": { say?, context?, seed?, note? } }, which win over the lexicon just as in a lines-source.json line.
+ * The script stays the caption. Both tools read it, so --plan, --ab and the fingerprints agree.
+ */
+export const JUNIOR_OVERRIDES = 'remake/assets/audio/yatzy-junior/lines-overrides.json';
+export function juniorOverrides(root, junior = VOICE_LINES) {
+  const file = path.join(root, JUNIOR_OVERRIDES);
+  if (!fs.existsSync(file)) return {};
+  const overrides = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) throw new Error(`${JUNIOR_OVERRIDES} is an object: line id -> { say, context, seed, note }.`);
+  for (const [id, fields] of Object.entries(overrides)) {
+    if (!Object.hasOwn(junior, id)) throw new Error(`${JUNIOR_OVERRIDES}: ${id} is not a line of Litla Yatzy.`);
+    const unknown = Object.keys(fields ?? {}).filter(key => !['say', 'context', 'seed', 'note'].includes(key));
+    if (unknown.length) throw new Error(`${JUNIOR_OVERRIDES}: ${id} has ${unknown.join(', ')}; a line carries say, context, seed and note only.`);
+    for (const field of ['say', 'context', 'note']) {
+      if (fields[field] !== undefined && !isText(fields[field])) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.${field} is text.`);
+    }
+    if (fields.seed !== undefined && !(Number.isInteger(fields.seed) && fields.seed >= 0 && fields.seed <= 4294967295)) throw new Error(`${JUNIOR_OVERRIDES}: ${id}.seed is a whole number from 0 to 4294967295.`);
+  }
+  return overrides;
+}
+
+/** The lines of a set as { set, id, speaker, text, ... }; yatzy-junior's from Litla Yatzy's script (Mosi speaks them all), with its overrides. */
 export function linesOf(root, set, junior = VOICE_LINES) {
-  if (set === JUNIOR) return Object.entries(junior).map(([id, line]) => ({ set, id, speaker: 'mosi', text: line.text, ...(line.seed === undefined ? {} : { seed: line.seed }) }));
+  if (set === JUNIOR) {
+    const overrides = juniorOverrides(root, junior);
+    return Object.entries(junior).map(([id, line]) => ({ set, id, speaker: 'mosi', text: line.text, ...(line.seed === undefined ? {} : { seed: line.seed }), ...(overrides[id] ?? {}) }));
+  }
   return readLines(root, set).map(line => ({ set, ...line }));
 }
 

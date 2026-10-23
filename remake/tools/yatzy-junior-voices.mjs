@@ -8,13 +8,15 @@
 // fingerprint hashes what is sent, so a changed recipe makes the line again. voice-lines.mjs --plan lists them.
 // Which request made each MP3 is kept in the committed record, remake/assets/audio/voices-made.json ("yatzy-junior/<id>"),
 // with voice-lines.mjs's lines; a take another checkout of the repo has in its cache is copied, not asked for again.
+// A line may carry its own say, context or seed in remake/assets/audio/yatzy-junior/lines-overrides.json (voice-lines.mjs
+// juniorOverrides), which win over the lexicon as in a lines-source.json line; the script stays the caption.
 // node remake/tools/yatzy-junior-voices.mjs [--only id,id] [--dry-run|--verify]
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {VOICE_LINES} from '../engine/yatzy-junior/voice-lines.js';
-import {cacheKey,MODEL,SETTINGS,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
+import {cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
 import {readLexicon,requestFor} from './pronunciation.mjs';
 import {lineEntry} from './audio-lines.mjs';
 
@@ -25,8 +27,8 @@ const MASTER='loudnorm=I=-18:TP=-2:LRA=7,apad=pad_dur=0.25';
 export const SPEAKER='mosi';
 const readJson=(file,fallback)=>fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback;
 
-/** What is sent for a junior line: voice-lines.mjs's requestFor (the lexicon applied), in Mosi's voice. */
-export const juniorRequest=(line,lexicon)=>requestFor({speaker:SPEAKER,text:line.text,...(line.seed===undefined?{}:{seed:line.seed})},lexicon);
+/** What is sent for a junior line: voice-lines.mjs's requestFor (the lexicon applied; the line's own say, context or seed win), in Mosi's voice. */
+export const juniorRequest=(line,lexicon)=>requestFor({speaker:SPEAKER,text:line.text,...Object.fromEntries(['say','context','seed'].filter(field=>line[field]!==undefined).map(field=>[field,line[field]]))},lexicon);
 /** The cache key of what is sent: the same as voice-lines.mjs's for the same request (no context, no seed: as it always was). */
 export const juniorFingerprint=(line,{voiceId,lexicon})=>{const sent=juniorRequest(line,lexicon);return cacheKey({text:sent.text,voiceId,seed:sent.seed,context:sent.context});};
 
@@ -35,7 +37,8 @@ async function main(argv){
   if(voiceId!=='osSKuDKznhXBktjJ9Z9F')throw new Error('The established Mosi voice changed; review before generating junior audio.');
   if(MODEL!=='eleven_v4'||SETTINGS.speed!==.95)throw new Error('Junior audio requires the approved Eleven v4 model at speed .95.');
   const lexicon=readLexicon(ROOT);
-  const all=Object.entries(VOICE_LINES);
+  const overrides=juniorOverrides(ROOT,VOICE_LINES);
+  const all=Object.entries(VOICE_LINES).map(([id,line])=>[id,{...line,...(overrides[id]??{})}]);
   for(const[id,line]of all)if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||typeof line.text!=='string'||!line.text.trim())throw new Error('Invalid voice script entry.');
   const onlyAt=argv.indexOf('--only'),only=onlyAt>=0?(argv[onlyAt+1]||'').split(','):null;
   for(const id of only||[])if(!Object.hasOwn(VOICE_LINES,id))throw new Error(`Unknown junior line: ${id}`);

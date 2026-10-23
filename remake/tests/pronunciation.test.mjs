@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
-import { allLines, bookPlan, cacheKey } from '../tools/voice-lines.mjs';
+import { JUNIOR_OVERRIDES, allLines, bookPlan, cacheKey, juniorOverrides, linesOf } from '../tools/voice-lines.mjs';
 import { applyLexicon, checkLexicon, formsPattern, lexiconText, requestFor, resolveWord } from '../tools/pronunciation.mjs';
 import { SPEAKER_NAMES, bookHtml } from '../tools/voice-pages.mjs';
 import { VISIT, fixtureLexicon } from './lexicon-fixture.mjs';
@@ -241,6 +241,37 @@ test("Litla Yatzy's tool sends its lines through the same function", async () =>
   assert.equal(VOICE_LINES.yatzyRoll.text, 'Eitt markmið eftir. Kastaðu!', 'the caption stays as written');
   const voiceId = 'osSKuDKznhXBktjJ9Z9F';
   assert.equal(junior.juniorFingerprint(VOICE_LINES.welcome, { voiceId, lexicon: LEXICON }), cacheKey({ text: VOICE_LINES.welcome.text, voiceId }), 'a line with no hard word keeps its old fingerprint');
+});
+
+test("a Litla Yatzy line's own say, context or seed win, read from lines-overrides.json by both tools", async () => {
+  const junior = await import('../tools/yatzy-junior-voices.mjs');
+  const own = junior.juniorRequest({ text: 'Fimm eins! Það heitir Jatsí.', say: 'Fimm "/ˈeins/"! Það heitir Jatsí.', context: 'Allir teningarnir eins.', seed: 5 }, LEXICON);
+  assert.equal(own.text, 'Fimm "/ˈeins/"! Það heitir Jatsí.', 'the line's say is sent');
+  assert.equal(own.context, 'Allir teningarnir eins.', 'the line's context is sent');
+  assert.equal(own.seed, 5, 'the line's seed is sent');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'junior-overrides-'));
+  try {
+    const script = { welcome: { text: 'Hæ!' }, yatzy: { text: 'Fimm eins!' } };
+    assert.deepEqual(juniorOverrides(root, script), {}, 'no file: no overrides');
+    const file = path.join(root, JUNIOR_OVERRIDES);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ yatzy: { context: 'Allir teningarnir eins.', seed: 5, note: 'by ear' } }));
+    const lines = linesOf(root, 'yatzy-junior', script);
+    assert.deepEqual(lines.find(line => line.id === 'yatzy'), { set: 'yatzy-junior', id: 'yatzy', speaker: 'mosi', text: 'Fimm eins!', context: 'Allir teningarnir eins.', seed: 5, note: 'by ear' }, 'the overrides ride on the line');
+    assert.deepEqual(lines.find(line => line.id === 'welcome'), { set: 'yatzy-junior', id: 'welcome', speaker: 'mosi', text: 'Hæ!' }, 'a line without overrides is as it was');
+    for (const [why, overrides, message] of [
+      ['a line Litla Yatzy does not have', { nobody: { seed: 5 } }, /not a line of Litla Yatzy/],
+      ['a field a line cannot carry', { yatzy: { voice: 'x' } }, /say, context, seed and note only/],
+      ['an empty context', { yatzy: { context: '' } }, /is text/],
+      ['a seed that is not a whole number', { yatzy: { seed: 1.5 } }, /whole number/],
+      ['a list instead of an object', [], /is an object/],
+    ]) {
+      fs.writeFileSync(file, JSON.stringify(overrides));
+      assert.throws(() => juniorOverrides(root, script), message, why);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 // ---------------------------------------------------------------------------------------------

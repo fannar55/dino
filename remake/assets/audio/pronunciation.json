@@ -1157,6 +1157,346 @@
           "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
         }
       }
+    },
+    "attatiu": {
+      "word": "Áttatíu",
+      "stem": "[Áá]ttatíu$",
+      "forms": [
+        "Áttatíu",
+        "áttatíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Áttatíu": "\"/ˈauhtaˌtʰiːʏ/\"",
+            "áttatíu": "\"/ˈauhtaˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauhtaˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Áttatíu": "Átta-tíu",
+            "áttatíu": "átta-tíu"
+          },
+          "seed": 42,
+          "note": "„átta-tíu“: bandstrik milli orðhlutanna."
+        }
+      },
+      "chosen": null
+    },
+    "niutiu": {
+      "word": "Níutíu",
+      "stem": "[Nn]íutíu$",
+      "forms": [
+        "Níutíu",
+        "níutíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Níutíu": "\"/ˈniːʏˌtʰiːʏ/\"",
+            "níutíu": "\"/ˈniːʏˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːʏˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Níutíu": "Níu-tíu",
+            "níutíu": "níu-tíu"
+          },
+          "seed": 42,
+          "note": "„níu-tíu“: bandstrik milli orðhlutanna."
+        }
+      },
+      "chosen": null
+    },
+    "sextan": {
+      "word": "Sextán",
+      "stem": "[Ss]extán$",
+      "forms": [
+        "Sextán",
+        "sextán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sextán": "\"/ˈsɛxsˌtauːn/\"",
+            "sextán": "\"/ˈsɛxsˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxsˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "sautjan": {
+      "word": "Sautján",
+      "stem": "[Ss]autján$",
+      "forms": [
+        "Sautján",
+        "sautján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sautján": "\"/ˈsœyːˌtjauːn/\"",
+            "sautján": "\"/ˈsœyːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsœyːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "atjan": {
+      "word": "Átján",
+      "stem": "[Áá]tján$",
+      "forms": [
+        "Átján",
+        "átján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Átján": "\"/ˈauːˌtjauːn/\"",
+            "átján": "\"/ˈauːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "nitjan": {
+      "word": "Nítján",
+      "stem": "[Nn]ítján$",
+      "forms": [
+        "Nítján",
+        "nítján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Nítján": "\"/ˈniːˌtjauːn/\"",
+            "nítján": "\"/ˈniːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "tuttugu": {
+      "word": "Tuttugu",
+      "stem": "[Tt]uttugu$",
+      "forms": [
+        "Tuttugu",
+        "tuttugu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Tuttugu": "\"/ˈtʰʏhtʏˌɣʏ/\"",
+            "tuttugu": "\"/ˈtʰʏhtʏˌɣʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰʏhtʏˌɣʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tuttugu, tuttugu og eitt, tuttugu og tvö, þrjátíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "ellefu": {
+      "word": "Ellefu",
+      "stem": "[Ee]llefu$",
+      "forms": [
+        "Ellefu",
+        "ellefu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Ellefu": "\"/ˈɛtlɛvʏ/\"",
+            "ellefu": "\"/ˈɛtlɛvʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛtlɛvʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "sex": {
+      "word": "Sex",
+      "stem": "[Ss]ex$",
+      "forms": [
+        "Sex",
+        "sex"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sex": "\"/ˈsɛxs/\"",
+            "sex": "\"/ˈsɛxs/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxs/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimm, sex, sjö, átta.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "ekkert": {
+      "word": "Ekkert",
+      "stem": "[Ee]kkert$",
+      "forms": [
+        "Ekkert",
+        "ekkert"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Ekkert": "\"/ˈɛhcɛr̥t/\"",
+            "ekkert": "\"/ˈɛhcɛr̥t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛhcɛr̥t/."
+        },
+        "samhengi": {
+          "context": "Ekkert stig í þessari umferð. Ekkert kort.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "profum": {
+      "word": "Prófum",
+      "stem": "[Pp]rófum$",
+      "forms": [
+        "Prófum",
+        "prófum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Prófum": "\"/ˈpʰrouːvʏm/\"",
+            "prófum": "\"/ˈpʰrouːvʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈpʰrouːvʏm/."
+        },
+        "samhengi": {
+          "context": "Prófum þetta saman. Prófum aftur.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
+    },
+    "laus": {
+      "word": "Laus",
+      "stem": "[Ll]aus$",
+      "forms": [
+        "Laus",
+        "laus"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Laus": "\"/ˈlœyːs/\"",
+            "laus": "\"/ˈlœyːs/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœyːs/."
+        },
+        "samhengi": {
+          "context": "Teningurinn er laus. Laus aftur.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": null
     }
   }
 }
