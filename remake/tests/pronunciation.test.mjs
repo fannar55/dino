@@ -246,9 +246,9 @@ test("Litla Yatzy's tool sends its lines through the same function", async () =>
 test("a Litla Yatzy line's own say, context or seed win, read from lines-overrides.json by both tools", async () => {
   const junior = await import('../tools/yatzy-junior-voices.mjs');
   const own = junior.juniorRequest({ text: 'Fimm eins! Það heitir Jatsí.', say: 'Fimm "/ˈeins/"! Það heitir Jatsí.', context: 'Allir teningarnir eins.', seed: 5 }, LEXICON);
-  assert.equal(own.text, 'Fimm "/ˈeins/"! Það heitir Jatsí.', 'the line's say is sent');
-  assert.equal(own.context, 'Allir teningarnir eins.', 'the line's context is sent');
-  assert.equal(own.seed, 5, 'the line's seed is sent');
+  assert.equal(own.text, 'Fimm "/ˈeins/"! Það heitir Jatsí.', 'its own say is sent');
+  assert.equal(own.context, 'Allir teningarnir eins.', 'its own context is sent');
+  assert.equal(own.seed, 5, 'its own seed is sent');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'junior-overrides-'));
   try {
     const script = { welcome: { text: 'Hæ!' }, yatzy: { text: 'Fimm eins!' } };
