@@ -1494,6 +1494,39 @@
           "context": "Teningurinn er laus. Laus aftur.",
           "seed": 42,
           "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Laus": "Löys",
+            "laus": "löys"
+          },
+          "seed": 42,
+          "note": "„Löys“: au skrifað sem öy, eins og það heyrist."
+        },
+        "ipa-stutt": {
+          "say": {
+            "Laus": "\"/ˈlœys/\"",
+            "laus": "\"/ˈlœys/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœys/ án lengdarmerkis."
+        },
+        "ipa-frae7": {
+          "say": {
+            "Laus": "\"/ˈlœyːs/\"",
+            "laus": "\"/ˈlœyːs/\""
+          },
+          "seed": 7,
+          "note": "IPA /ˈlœyːs/, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "samhengi-laus": {
+          "context": "Teningurinn er ekki fastur lengur, hann er laus. Laus aftur!",
+          "seed": 7,
+          "note": "Lengra samhengi (ekki talað) með orðinu tvisvar, fræ 7."
+        },
+        "hratt-frae19": {
+          "seed": 19,
+          "note": "Sent eins og skrifað, fræ 19 (önnur taka af sömu beiðni)."
         }
       },
       "chosen": null
