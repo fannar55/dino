@@ -507,6 +507,248 @@
         }
       },
       "chosen": "samhengi"
+    },
+    "fjogur": {
+      "chosen": null,
+      "word": "Fjögur",
+      "stem": "[Ff]jögur$",
+      "forms": [
+        "Fjögur",
+        "fjögur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir það „næstum rétt, smá skrítið“."
+        },
+        "ipa": {
+          "say": {
+            "Fjögur": "\"/ˈfjœːɣʏr/\"",
+            "fjögur": "\"/ˈfjœːɣʏr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjœːɣʏr/: ö langt, g sem mjúkt ɣ."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "sjo": {
+      "chosen": null,
+      "word": "Sjö",
+      "stem": "Sjö$",
+      "forms": [
+        "Sjö"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „hv“ í orðinu."
+        },
+        "ipa": {
+          "say": {
+            "Sjö": "\"/ˈsjœː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsjœː/: s + j, langt ö."
+        },
+        "ipa-mjukt": {
+          "say": {
+            "Sjö": "\"/ˈɕœː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɕœː/: sj sem eitt mjúkt hljóð (eins og margir segja það)."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "atta": {
+      "chosen": null,
+      "word": "Átta",
+      "stem": "Átta$",
+      "forms": [
+        "Átta"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „Atta“."
+        },
+        "ipa": {
+          "say": {
+            "Átta": "\"/ˈauʰta/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauʰta/: á sem au, fráblástur á undan tt."
+        },
+        "stafsetning": {
+          "say": {
+            "Átta": "Áhtta"
+          },
+          "seed": 42,
+          "note": "„Áhtta“: h fyrir fráblásturinn, eins og Eiht-bragðið."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "niu": {
+      "chosen": null,
+      "word": "Níu",
+      "stem": "Níu$",
+      "forms": [
+        "Níu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir skrýtinn framburð."
+        },
+        "ipa": {
+          "say": {
+            "Níu": "\"/ˈniːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːʏ/: langt í, svo stutt u-hljóð."
+        },
+        "stafsetning": {
+          "say": {
+            "Níu": "Níju"
+          },
+          "seed": 42,
+          "note": "„Níju“: j-ið sem heyrist á milli í og u."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "tvaer": {
+      "chosen": null,
+      "word": "Tvær",
+      "stem": "Tvær$",
+      "forms": [
+        "Tvær"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „tver“."
+        },
+        "ipa": {
+          "say": {
+            "Tvær": "\"/ˈtʰvaiːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰvaiːr/: æ sem tvíhljóðið ai."
+        },
+        "stafsetning": {
+          "say": {
+            "Tvær": "Tvæ-ær"
+          },
+          "seed": 42,
+          "note": "„Tvæ-ær“: æ-ið dregið svo tvíhljóðið heyrist (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ein komin, tvær komnar, þrjár komnar.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „ein, tvær, þrjár“ sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "naesta": {
+      "chosen": null,
+      "word": "Næsta",
+      "stem": "[Nn]æsta$",
+      "forms": [
+        "Næsta",
+        "næsta"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „nesta“."
+        },
+        "ipa": {
+          "say": {
+            "Næsta": "\"/ˈnaista/\"",
+            "næsta": "\"/ˈnaista/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈnaista/: æ sem ai."
+        },
+        "samhengi": {
+          "context": "Næsta spor, og svo það næsta.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi sem segir orðið tvisvar (ekki talað)."
+        }
+      }
+    },
+    "fotspor": {
+      "chosen": null,
+      "word": "Fótspor",
+      "stem": "[Ff]ótspor$",
+      "forms": [
+        "Fótspor",
+        "fótspor"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir auka h, „fhótspor“."
+        },
+        "ipa": {
+          "say": {
+            "Fótspor": "\"/ˈfouːtˌspɔːr/\"",
+            "fótspor": "\"/ˈfouːtˌspɔːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfouːtˌspɔːr/: ó sem ou, tvö orð í einu."
+        },
+        "stafsetning": {
+          "say": {
+            "Fótspor": "Fótsbor",
+            "fótspor": "fótsbor"
+          },
+          "seed": 42,
+          "note": "„fótsbor“: b svo p-ið fái ekki fráblástur (tilraun)."
+        },
+        "samhengi": {
+          "context": "Stór fótspor í leðjunni, tíu fótspor í röð.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi sem segir orðið (ekki talað)."
+        }
+      }
+    },
+    "mosi": {
+      "chosen": null,
+      "word": "Mosi",
+      "stem": "Mosi$",
+      "forms": [
+        "Mosi"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; Þórseðla sagði „Mósi“."
+        },
+        "ipa": {
+          "say": {
+            "Mosi": "\"/ˈmɔːsɪ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈmɔːsɪ/: stutt opið o, ekki ó."
+        },
+        "samhengi": {
+          "context": "Mosi er lítil þríhyrna; o-ið í Mosi er stutt, eins og í „kosinn“.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi um o-ið (ekki talað)."
+        }
+      }
     }
   }
 }
