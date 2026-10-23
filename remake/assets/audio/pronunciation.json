@@ -242,6 +242,27 @@
           "context": "Við teljum saman á íslensku: einn, tveir, þrír, fjórir, fimm.",
           "seed": 42,
           "note": "„Eitn“ og talningarsamhengið saman. Ný tilraun 2026-10-22."
+        },
+        "stafsetning-ittn": {
+          "say": {
+            "Einn": "Eittn"
+          },
+          "seed": 42,
+          "note": "„Eittn“: tt og n svo tn-hljóðið heyrist (ný tilraun)."
+        },
+        "stafsetning-eidn": {
+          "say": {
+            "Einn": "Eidn"
+          },
+          "seed": 42,
+          "note": "„Eidn“: d fyrir mýkra tn (ný tilraun)."
+        },
+        "ipa-opid": {
+          "say": {
+            "Einn": "\"/ˈɛitn̥/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛitn̥/: ei með opnu e, tn með raddlausu n (ný tilraun)."
         }
       },
       "chosen": "hratt"
@@ -921,6 +942,186 @@
           "context": "Þetta kitlar! Kítlar, kítlar! Hættu að kitla mig!",
           "seed": 42,
           "note": "Sent eins og skrifað, með „kítlar“ í samhenginu sem ekki er talað."
+        }
+      }
+    },
+    "teldu": {
+      "chosen": null,
+      "word": "Teldu",
+      "stem": "[Tt]eldu$",
+      "forms": [
+        "Teldu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð í Háls og hala."
+        },
+        "ipa": {
+          "say": {
+            "Teldu": "\"/ˈtʰɛltʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰɛltʏ/: e opið, d sem t á eftir l."
+        },
+        "stafsetning": {
+          "say": {
+            "Teldu": "Teltu"
+          },
+          "seed": 42,
+          "note": "„Teltu“: d skrifað sem t eins og það heyrist."
+        },
+        "samhengi": {
+          "context": "Teldu með mér! Einn, tveir, þrír.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "laufblad": {
+      "chosen": null,
+      "word": "Laufblað",
+      "stem": "[Ll]aufblað",
+      "forms": [
+        "laufblað"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð hjá sögumanni."
+        },
+        "ipa": {
+          "say": {
+            "laufblað": "\"/ˈlœyːvˌplaːð/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœyːvˌplaːð/: au sem öy, f sem v á undan b."
+        },
+        "stafsetning": {
+          "say": {
+            "laufblað": "lauf-blað"
+          },
+          "seed": 42,
+          "note": "„lauf-blað“: bandstrik milli orðhlutanna."
+        },
+        "samhengi": {
+          "context": "Laufblað af tré. Steingert laufblað í steini.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+        }
+      }
+    },
+    "vel": {
+      "chosen": null,
+      "word": "Vel",
+      "stem": "[Vv]el$",
+      "forms": [
+        "Vel",
+        "vel"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; „Vel gert!“ hljómaði mjög rangt."
+        },
+        "ipa": {
+          "say": {
+            "Vel": "\"/ˈvɛːl/\"",
+            "vel": "\"/ˈvɛːl/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈvɛːl/: opið e, langt."
+        },
+        "samhengi": {
+          "context": "Vel gert! Þú stóðst þig vel.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „Vel gert“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "gert": {
+      "chosen": null,
+      "word": "Gert",
+      "stem": "[Gg]ert$",
+      "forms": [
+        "gert"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; „Vel gert!“ hljómaði mjög rangt."
+        },
+        "ipa": {
+          "say": {
+            "gert": "\"/ˈcɛr̥t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈcɛr̥t/: mjúkt g (gj), raddlaust r á undan t."
+        },
+        "stafsetning": {
+          "say": {
+            "gert": "gjert"
+          },
+          "seed": 42,
+          "note": "„gjert“: j-ið skrifað svo g-ið verði mjúkt."
+        },
+        "samhengi": {
+          "context": "Vel gert! Þú stóðst þig vel.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „Vel gert“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "langt": {
+      "chosen": null,
+      "word": "Langt",
+      "stem": "[Ll]angt$",
+      "forms": [
+        "langt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; áherslan röng og h-hljóð í „of langt“."
+        },
+        "ipa": {
+          "say": {
+            "langt": "\"/ˈlauŋ̊t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlauŋ̊t/: a sem au, raddlaust ng á undan t."
+        },
+        "stafsetning": {
+          "say": {
+            "langt": "lángt"
+          },
+          "seed": 42,
+          "note": "„lángt“: á fyrir au-hljóðið."
+        },
+        "samhengi": {
+          "context": "Of langt! Allt of langt í burtu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "of": {
+      "chosen": null,
+      "word": "Of",
+      "stem": "[Oo]f$",
+      "forms": [
+        "of"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir h-hljóð í „of langt“ hjá Þórseðlu."
+        },
+        "ipa": {
+          "say": {
+            "of": "\"/ˈɔːv/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɔːv/: opið o, f sem v."
+        },
+        "samhengi": {
+          "context": "Of langt! Allt of langt í burtu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
         }
       }
     }
