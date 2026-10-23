@@ -1717,7 +1717,7 @@
  "book_mosi_4": {
   "src": "assets/audio/book/book_mosi_4.mp3",
   "duration": 8.25,
-  "mouth": "06f009f009cc6300000000000000cbdeb0ca70fd96b8034aff00a8736600079ec76da98200099604aaa6008c9500000000000007dfda8eefbff04dadebb90008900008cab0bdb8adce9300000000000000000"
+  "mouth": "38f508f009cc7300000000000000dbcdb0cb60fea6c9035bff00a964680007aec88da88000099600aaa6008d9500000000000008dfeb5eefaef00dadecb90008900007cbb0ada8adce9400000000000000000"
  },
  "book_mosi_5": {
   "src": "assets/audio/book/book_mosi_5.mp3",
@@ -1727,12 +1727,12 @@
  "book_kambedla_1": {
   "src": "assets/audio/book/book_kambedla_1.mp3",
   "duration": 6.25,
-  "mouth": "08f70aff80066cffb0bca95762000005c6370462000000000000000007fefef9004dfd807ad80ca6008777730097009b000039737706aa866430000000000"
+  "mouth": "07f70aff80456cffb0bca96660000006c6270463400000000000000005fefef9003cec708ae70ca6008877730087009b000039707726ba875420000000000"
  },
  "book_kambedla_2": {
   "src": "assets/audio/book/book_kambedla_2.mp3",
   "duration": 6.73,
-  "mouth": "03bfff0cefdde76efebbc0008ea0beac4cdb00bde60abbb605c000007cedcdccdbbba5899043000000000006bbffffa003b830abbcd909900ac8a607654300000000000"
+  "mouth": "03beff0ceedde65efeabc0008ea0aeac4cdb00bdf509bbb605c000006cedddccdbbba3998333000000000006bbffffa000b940bbacd9089309b79705654000000000000"
  },
  "book_kambedla_3": {
   "src": "assets/audio/book/book_kambedla_3.mp3",
@@ -1742,7 +1742,7 @@
  "book_kambedla_4": {
   "src": "assets/audio/book/book_kambedla_4.mp3",
   "duration": 4.97,
-  "mouth": "05cffb0efedfe9c400008fec700000000000a93009eddeecab78c400cc8abbdb90005ddb9ad0000ceefadb96530000000000"
+  "mouth": "06cffb0efedfe9c400008fec700000000000a93009ecddecbb88b300aa99aacb83005dcc9ad0000dfffcda86440000000000"
  },
  "book_kambedla_5": {
   "src": "assets/audio/book/book_kambedla_5.mp3",
@@ -1851,8 +1851,8 @@
  },
  "book_birds_2": {
   "src": "assets/audio/book/book_birds_2.mp3",
-  "duration": 6.97,
-  "mouth": "0ff00909fdd0000d00de0000000bcbb06a400078a8005b809800c80007430000000000000000005ffdfabd6000aeb9a000cbefd2009998886069006cd0686340000000000000"
+  "duration": 6.73,
+  "mouth": "7fc0a60ffea000d700ea000000dcc40a900009a9300ba0a940d300096000000000000000000affffbfc050bda9300cccfe9009bca99700b004de60a8655400000000000"
  },
  "book_birds_3": {
   "src": "assets/audio/book/book_birds_3.mp3",

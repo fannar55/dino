@@ -1,9 +1,21 @@
 {
- "name": "Dino Trail",
- "src": "theme.mp3",
- "bpm": 133.321,
- "beatOffset": 0.3017,
- "key": [467.27, 524.49, 588.72, 700.11, 785.85],
- "danceBeats": 2,
- "comment": "Chapter 2's theme (chapters/kafli2.js theme). bpm and beatOffset measured on the loop file with tools/theme-tempo.mjs --theme kafli2 (steady from 28 s to 138 s; from 143 s on the song plays about 120 ms late). Its notes are E-flat major's (E-flat Ionian = B-flat Mixolydian). Key: B-flat major pentatonic at A4 = 441.04 Hz (+4.1 cents), root first (B-flat4 C5 D5 F5 G5), as theme-tempo.mjs bellNotes writes a key: every sound treats key[0] as do. The owner picks B-flat or E-flat as do by ear (qa/remake/kafli2/music/key.html); E-flat would be [623.73, 700.11, 785.85, 934.54, 1048.98]. danceBeats 2: the forest sways and the flowers nod on every second beat (66.7 a minute); the effects and the beat grid keep the song's tempo."
+  "name": "Dino Trail",
+  "src": "theme.mp3",
+  "bpm": 133.321,
+  "beatOffset": 0.3017,
+  "key": [
+    467.27,
+    524.49,
+    588.72,
+    700.11,
+    785.85
+  ],
+  "danceBeats": 2,
+  "comment": "Chapter 2's theme (chapters/kafli2.js theme). bpm and beatOffset measured on the loop file with tools/theme-tempo.mjs --theme kafli2 (steady from 28 s to 138 s; from 143 s on the song plays about 120 ms late). Its notes are E-flat major's (E-flat Ionian = B-flat Mixolydian). Key: B-flat major pentatonic at A4 = 441.04 Hz (+4.1 cents), root first (B-flat4 C5 D5 F5 G5), as theme-tempo.mjs bellNotes writes a key: every sound treats key[0] as do. The owner picks B-flat or E-flat as do by ear (qa/remake/kafli2/music/key.html); E-flat would be [623.73, 700.11, 785.85, 934.54, 1048.98]. danceBeats 2: the forest sways and the flowers nod on every second beat (66.7 a minute); the effects and the beat grid keep the song's tempo. Root: B♭, the owner’s pick by ear 2026-10-23 (bells B♭ C D F G).",
+  "loop": {
+    "source": "Dino Trail.mp3 (the owner’s Suno track, 213.2 s)",
+    "from": 2.04,
+    "to": 189.108,
+    "note": "option B of qa/remake/voices/music/dino-trail.html, the owner’s pick 2026-10-23: the song from 2.04 s to 189.1 s, its last second an equal-power crossfade into 2.04 s; the outro (from 208 s) is not used"
+  }
 }

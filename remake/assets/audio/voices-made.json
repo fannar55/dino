@@ -31,6 +31,12 @@
    "duration": 6.89,
    "model": "eleven_v4"
   },
+  "book/book_birds_2": {
+   "key": "27764090430efa918fc273a272db738b996cbc7b4bf257cd6f20cb79d0936151",
+   "mp3": "211112d24dc3d7204a00b6d6aba46e90073e5cabcc88302bd74a0d34c00b7cc3",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
   "book/book_birds_3": {
    "key": "5fda3277fb3215ce3ca56fe78cdef01f2fcf246acd396be69c25aeb8a4a67135",
    "mp3": "b04837ca68ef907b96d9ffd1e5af9fcd26a004409836b1dbf05120849a884006",
@@ -181,10 +187,28 @@
    "duration": 5.931,
    "model": "eleven_v4"
   },
+  "book/book_kambedla_1": {
+   "key": "4994d446ce6d185c0ba3827f353f62e3f2df18c7dc241156082be3b9c6391155",
+   "mp3": "775c6478a724311fa9b1c1dcf49d3319b7643a4b94d7e676e3593af089617300",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
+  "book/book_kambedla_2": {
+   "key": "54fe77b698f94ab9173c396f9503eeaaa156568cbc1aed8ba35d22eb67b91530",
+   "mp3": "ccbe79393a0501b31de3145ab6188e71c9e942d84abbd5809900b876ed1aee41",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
   "book/book_kambedla_3": {
    "key": "de7bbec5e2bd605edec8a0ed6d00cd36cd473d09d0e54c0051a6e87fefcba569",
    "mp3": "b99953b4345d633f5c07d33009657de1bbeeb9b0d681a9750f87e9c1d3e88c6a",
    "duration": 6.09,
+   "model": "eleven_v4"
+  },
+  "book/book_kambedla_4": {
+   "key": "61e82b8aede1ccc5e92fc3997c9a883a126a9807d14d5abd83af03cab7f51448",
+   "mp3": "e2314d808a011b060b30177d245779d8ebccf4c530b918d8afac4be3f3e4fe57",
+   "duration": 4.97,
    "model": "eleven_v4"
   },
   "book/book_kambedla_5": {
@@ -209,6 +233,12 @@
    "key": "9fb2650de53f61505df72d4741c510cb2917a90d649ff65b4fd7f507b4e42bdc",
    "mp3": "9d2685c3ea949fdee3300c3dfdd333ce7893ff8c394cbbe27bf58381d10d878a",
    "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "book/book_mosi_4": {
+   "key": "39baf4a549a631652d0087473fbc34dd9e7c0457a6ee0e3e98cc5307978af24f",
+   "mp3": "246a914977fcca8e5ab177862f641d37757deeb52b22112715bcef62d77116e6",
+   "duration": 8.25,
    "model": "eleven_v4"
   },
   "book/book_mosi_5": {
