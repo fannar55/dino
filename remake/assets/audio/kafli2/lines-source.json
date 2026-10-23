@@ -28,7 +28,7 @@
  { "id": "k2_mosi_hint_berry3", "speaker": "mosi", "text": "Þarna, undir laufinu!" },
  { "id": "k2_mosi_raise", "speaker": "mosi", "text": "Réttu þau upp, Egill! Hátt!" },
  { "id": "k2_thorsedla_mmm", "speaker": "thorsedla", "text": "Mmm… rauðber!" },
- { "id": "k2_thorsedla_who", "speaker": "thorsedla", "text": "Ó! Mosi! Og hver ert þú, litli vinur?", "say": "Ó! \"/ˈmɔːsɪ/\"! Og hver ert þú, litli vinur?", "seed": 42, "note": "Þórseðla said Mósi; the owner picked the IPA take for her on 2026-10-23 (the lexicon keeps Mosi as written for everyone else)" },
+ { "id": "k2_thorsedla_who", "speaker": "thorsedla", "text": "Ó! Mosi! Og hver ert þú, litli vinur?", "say": "Ó! \"/ˈmɔːsɪ/\"! Og hver ert þú, litli vinur?", "seed": 42, "kept": "the owner's pick 2026-10-23: the IPA take of Mosi with a short o, made before the Ó rule; kept so no later rule (Ó's context) changes the take they approved" },
  { "id": "k2_egill_name", "speaker": "egill", "text": "Ég heiti Egill!" },
  { "id": "k2_thorsedla_thanks", "speaker": "thorsedla", "text": "Egill. Takk fyrir berin." },
  { "id": "k2_mosi_invite", "speaker": "mosi", "text": "Þórseðla, viltu koma á Stjörnuhátíðina í kvöld?" },
