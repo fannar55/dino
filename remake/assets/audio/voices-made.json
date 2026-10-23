@@ -728,9 +728,9 @@
    "model": "eleven_v4"
   },
   "hals/hals_mosi_bounce": {
-   "key": "27b5743b58c88a8cdcdcfced88537136452dc8b2e2738fd4f0accedeb4aa54a7",
-   "mp3": "991f037ae31036f273285f881a50a9a15059dfbca6f9f7a2f1cadb4725885dfd",
-   "duration": 4.17,
+   "key": "8ef7f947773baef8148906b4a00732abc7f229d3e88e292f47e22af242e55042",
+   "mp3": "737aa4357ce46a089d9c270a9097d38b3daffb2ca7e2b1241d9974687cd85044",
+   "duration": 3.69,
    "model": "eleven_v4"
   },
   "hals/hals_mosi_count": {
@@ -752,9 +752,9 @@
    "model": "eleven_v4"
   },
   "hals/hals_mosi_good": {
-   "key": "22bc86b5960c85b23f12524af031ce8523dca406fe3d3fe8c6bbd1c28d77d465",
-   "mp3": "48e06dc4eda475e789f24c6a16b3a5ab80fc4445329203ec2423965595d63571",
-   "duration": 1.45,
+   "key": "8c4773e0b8c73e33c88277faa459e4413df21a2315469f08749b4d1170a190ba",
+   "mp3": "38c2797654f5e833a58e741bfd25cff8db1872f6c42e2b495a22300dcac38690",
+   "duration": 1.37,
    "model": "eleven_v4"
   },
   "hals/hals_mosi_intro": {

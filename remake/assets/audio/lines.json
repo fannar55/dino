@@ -2171,8 +2171,8 @@
  },
  "hals_mosi_good": {
   "src": "assets/audio/hals/hals_mosi_good.mp3",
-  "duration": 1.45,
-  "mouth": "5acfedd906fff9600000000000000"
+  "duration": 1.37,
+  "mouth": "ccfddb703efe5500000000000000"
  },
  "hals_mosi_go": {
   "src": "assets/audio/hals/hals_mosi_go.mp3",
@@ -2306,8 +2306,8 @@
  },
  "hals_mosi_bounce": {
   "src": "assets/audio/hals/hals_mosi_bounce.mp3",
-  "duration": 4.17,
-  "mouth": "0de30340000000000bffb7400000006abcefe5000000000000000b750bf500ceadacfc04850000000000"
+  "duration": 3.69,
+  "mouth": "0ef005500200000ef79bbbefec70000000000000009f060cf800bfdda9fe87850000000000"
  },
  "hals_thor_bounce": {
   "src": "assets/audio/hals/hals_thor_bounce.mp3",
