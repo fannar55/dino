@@ -102,7 +102,11 @@ test('the registry makes a room on a host connect, refuses a guest to no room, a
   const guest = {};
   assert.equal(rooms.connect('GULL', guest, { role: 'guest', id: 'g' }).ok, true);
   assert.equal(rooms.route(guest, message('relay', { body: 1 }))[0].conn, host);
+  t = ROOM_TTL_MS - 1;
+  assert.deepEqual(rooms.route(host, message('alive', null)), []); // the big screen's minute, its guests on WebRTC
   t = ROOM_TTL_MS + 1;
+  assert.deepEqual(rooms.sweep(), [], 'the alive kept it');
+  t = 2 * ROOM_TTL_MS;
   assert.deepEqual(rooms.sweep(), [host, guest]);
   assert.equal(rooms.get('GULL'), undefined);
 });
@@ -126,7 +130,7 @@ test('a connection that connects twice has not replaced itself, and the registry
   assert.equal(rooms.disconnect(host).role, 'host');
 });
 
-test('an accepted connect, a disconnect and a relay are signs of life; a refused connect is not', () => {
+test('an accepted connect, a disconnect, a relay and an alive are signs of life; a refused connect is not', () => {
   let t = 0;
   const room = createRoom({ now: () => t, code: 'GULL' });
   const host = {}, guest = {};
@@ -138,8 +142,14 @@ test('an accepted connect, a disconnect and a relay are signs of life; a refused
   assert.equal(room.expiresAt, 30 + ROOM_TTL_MS, "a guest's relay");
   t = 40; room.route(host, message('relay', { to: 'g', body: 2 }));
   assert.equal(room.expiresAt, 40 + ROOM_TTL_MS, "the host's relay");
+  t = 45; assert.deepEqual(room.route(host, message('alive', null)), [], "the host's alive goes nowhere");
+  assert.equal(room.expiresAt, 45 + ROOM_TTL_MS, "and is a sign of life: over WebRTC it is the only one the room hears");
+  t = 47; assert.deepEqual(room.route(guest, message('alive', null)), [], "a guest's alive goes nowhere either");
+  assert.equal(room.expiresAt, 47 + ROOM_TTL_MS, 'and keeps the room alive as well');
+  t = 48; assert.deepEqual(room.route({}, message('alive', null)), []);
+  assert.equal(room.expiresAt, 47 + ROOM_TTL_MS, 'a stranger\'s alive is nothing');
   t = 50; assert.equal(room.connect({}, { role: 'host', key: 'other' }).reason, 'taken');
-  assert.equal(room.expiresAt, 40 + ROOM_TTL_MS, "a stranger's key does not keep the room alive");
+  assert.equal(room.expiresAt, 47 + ROOM_TTL_MS, "a stranger's key does not keep the room alive");
   t = 60; room.disconnect(guest);
   assert.equal(room.expiresAt, 60 + ROOM_TTL_MS, "a guest's disconnect");
   t = 70; room.disconnect(host);

@@ -137,7 +137,10 @@ export class Room {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  /** A text from a socket: a relay goes where the room says; anything else (binary, not JSON, too long) is nothing. */
+  /**
+   * A text from a socket: a relay goes where the room says, and any message from someone in the room (the host's alive
+   * too) moves the alarm on; anything else (binary, not JSON, too long) is nothing.
+   */
   async webSocketMessage(ws, text) {
     if (typeof text !== 'string') return;
     const room = await this.load(ws);

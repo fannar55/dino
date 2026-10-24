@@ -2,7 +2,7 @@
 // WebSocket, the RTCPeerConnection and its data channel, and the timers: what the big screen and a phone send each other.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message } from '../engine/fjolspil/protocol.js';
+import { ALIVE_MS, MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message } from '../engine/fjolspil/protocol.js';
 import { createGuestNet, createHostNet, iceServersFor, wsUrlFor } from '../engine/fjolspil/net.js';
 
 // ---- The fakes ----------------------------------------------------------------------------------------------------------
@@ -115,6 +115,7 @@ function fakeTimers() {
     clearTimeout(id) { queue.delete(id); },
     setInterval(fn, ms) { const id = next++; queue.set(id, { at: now + ms, fn, ms, every: ms }); return id; },
     clearInterval(id) { queue.delete(id); },
+    get now() { return now; },
     get delays() { return [...queue.values()].filter(timer => !timer.every).map(timer => timer.ms); },
     get count() { return queue.size; },
     advance(ms) {
@@ -461,6 +462,28 @@ test('a listener that throws while the host\'s socket drops is reported, and the
   net.close();
 });
 
+test('the host says alive on its socket every minute, so a room played over WebRTC is not forgotten', () => {
+  const { net, ws, sockets, timers } = hostRig();
+  const alives = socket => socket.messages.filter(m => m.type === 'alive');
+  assert.equal(ALIVE_MS, 60000);
+  timers.advance(59999);
+  assert.deepEqual(alives(ws), [], 'nothing before a minute');
+  timers.advance(1);
+  assert.deepEqual(alives(ws), [message('alive', null)]);
+  timers.advance(60000);
+  assert.deepEqual(alives(ws), [message('alive', null), message('alive', null)], 'and again after two');
+  ws.close(1006); // while the socket is down, there is no one to tell
+  timers.advance(60000);
+  assert.equal(alives(ws).length, 2);
+  const again = sockets.made.at(-1);
+  assert.notEqual(again, ws);
+  again.open();
+  timers.advance(60000);
+  assert.deepEqual(alives(again), [message('alive', null)], 'the socket opened again says it too');
+  net.close();
+  assert.equal(timers.count, 0);
+});
+
 test('close lets everything go, and nothing after it throws or is heard', async () => {
   const { net, ws, rtc, timers, log } = hostRig();
   ws.receive(message('joined', { id: 'g1' }));
@@ -647,6 +670,69 @@ test('server errors become statuses', () => {
   assert.equal(replaced.net.status, 'replaced');
   assert.deepEqual(replaced.timers.delays, [], 'the other tab keeps the seat: no try again');
   replaced.net.close();
+});
+
+test('a guest that was in the room hears no-room as a wait for a minute, then as the end of the game', () => {
+  const { net, sockets, timers, log } = guestRig({ now: () => timers.now });
+  const first = sockets.made[0];
+  first.open();
+  first.receive(fromHost(message('ping', {}))); // the big screen has spoken: this phone was in the room
+  first.close(1001); // the room was forgotten (or the server restarted), and every socket closed
+  assert.equal(net.status, 'offline');
+  /** The next try: its socket opens and is refused no-room, as the meeting point does, and closes. */
+  const refusedNoRoom = () => {
+    timers.advance(timers.delays[0]);
+    const ws = sockets.made.at(-1);
+    ws.open();
+    ws.receive(message('error', { reason: 'no-room' }));
+    ws.close(1000);
+  };
+  const since = timers.now + 1000; // the first no-room
+  while (timers.now + timers.delays[0] < since + 60000) {
+    refusedNoRoom();
+    assert.notEqual(net.status, 'no-room', `still waiting for the big screen at ${timers.now - since} ms`);
+    assert.equal(net.status, 'offline');
+    assert.equal(timers.delays.length, 1, 'a retry is queued');
+  }
+  assert.ok(!log.statuses.includes('no-room'));
+  refusedNoRoom(); // a minute after the first no-room
+  assert.ok(timers.now - since >= 60000);
+  assert.equal(net.status, 'no-room', 'now the game is over');
+  assert.deepEqual(timers.delays, [], 'and not tried again');
+  net.close();
+
+  // The big screen back inside the minute: a later no-room has a minute of its own.
+  const back = guestRig({ now: () => back.timers.now });
+  back.sockets.made[0].open();
+  back.sockets.made[0].receive(fromHost(message('ping', {})));
+  back.sockets.made[0].close(1001);
+  for (let n = 0; n < 4; n++) {
+    back.timers.advance(back.timers.delays[0]);
+    const ws = back.sockets.made.at(-1);
+    ws.open();
+    ws.receive(message('error', { reason: 'no-room' }));
+    ws.close(1000);
+  }
+  back.timers.advance(back.timers.delays[0]); // 30 s after the first no-room the room is there again
+  back.sockets.made.at(-1).open();
+  back.sockets.made.at(-1).receive(fromHost(message('ping', {})));
+  back.timers.advance(45000);
+  back.sockets.made.at(-1).close(1001); // and is gone again, 75 s after the first no-room
+  back.timers.advance(back.timers.delays[0]);
+  back.sockets.made.at(-1).open();
+  back.sockets.made.at(-1).receive(message('error', { reason: 'no-room' }));
+  back.sockets.made.at(-1).close(1000);
+  assert.equal(back.net.status, 'offline', 'a minute counted from this no-room, not the first');
+  back.net.close();
+
+  // A phone that never heard the big screen: a no-room is a wrong code, at once.
+  const fresh = guestRig({ now: () => fresh.timers.now });
+  fresh.sockets.made[0].open();
+  fresh.sockets.made[0].receive(message('error', { reason: 'no-room' }));
+  fresh.sockets.made[0].close(1000);
+  assert.equal(fresh.net.status, 'no-room');
+  assert.deepEqual(fresh.timers.delays, []);
+  fresh.net.close();
 });
 
 test('a phone without WebRTC leaves the offer unanswered and talks on the relay', async () => {

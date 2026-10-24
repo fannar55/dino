@@ -11,7 +11,8 @@
 // guest (the same phone back, or in a second tab) takes over in the same way. A fourth guest is 'full'. While the host is
 // away a new guest is refused 'no-host' (the phone tries again), and the guests already there stay, told 'no-host', until
 // the host is back and hears 'joined' for each of them. Only relay is carried. Every accepted connect, every disconnect
-// and every message from someone in the room is a sign of life; the room expires ttlMs after the last one.
+// and every message from someone in the room, of any type, is a sign of life (the host's alive, once a minute, is one
+// that goes nowhere); the room expires ttlMs after the last one.
 //
 // A refused connect delivers nothing: the transport sends error { reason } and closes the socket.
 

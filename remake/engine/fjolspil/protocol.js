@@ -14,6 +14,10 @@
 //   relay { to?, from?, body }  a message carried through the meeting point while no data channel is open (spec §6.2): a
 //                               guest sends { body } and the host gets { from, body }; the host sends { to, body } and that
 //                               guest gets { body }
+// and what the big screen sends it besides relay:
+//   alive null                  every ALIVE_MS while its socket is open: a sign of life, carried nowhere. Over WebRTC the
+//                               socket is otherwise quiet for as long as the game goes on, and a room is forgotten
+//                               ROOM_TTL_MS after its last sign of life (spec §6.1)
 
 /** The letters of a room code: no I, O or Q, no digits, nothing Icelandic, so any keyboard can type it (spec §6.1). */
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPRSTUVWXYZ';
@@ -28,6 +32,9 @@ export const NAME_MAX = 12;
 
 /** A room is forgotten two hours after its last sign of life, a message or a connection (spec §6.1). */
 export const ROOM_TTL_MS = 7200000;
+
+/** The big screen's alive on its socket, once a minute: far inside ROOM_TTL_MS, so a room in play is never forgotten. */
+export const ALIVE_MS = 60000;
 
 /** The host pings every guest every 5 seconds; three pings without a pong make the seat absent (spec §6.4). */
 export const PING_MS = 5000;

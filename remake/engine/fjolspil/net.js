@@ -11,7 +11,9 @@
 // The big screen pings every guest every PING_MS, on whichever way that guest's messages go, and a phone answers pong on
 // the way the ping came; MISSED_PINGS pings without a pong make the guest absent (onPresence(id, false)) and the next pong
 // present again. A guest that joins (again, even without a left first: another tab of the phone took over) is there, and her
-// pings count from none: onJoin says so, with no onPresence(id, true) beside it. A socket that closes under either side is
+// pings count from none: onJoin says so, with no onPresence(id, true) beside it. The big screen also says alive on its own
+// socket every ALIVE_MS (protocol.js), as the meeting point hears nothing else of a room whose every guest is on a data
+// channel, and forgets a room ROOM_TTL_MS after the last thing it heard. A socket that closes under either side is
 // opened again after 1, 2, 4 and 8 seconds and then every 15, never giving up; an answer from the other side (the welcome,
 // or anything from the big screen) starts the waits again from one second, and so does a phone's reconnect() (the page
 // calls it when it comes into view or the network is back).
@@ -24,7 +26,9 @@
 //           taken        the code is another host's: pick another (the session does, with a new net)
 //           replaced     another tab with this key took the room: closed follows
 //   guest   connected    the socket is open, or the big screen is heard again after no-host or host-gone
-//           no-room      no room has this code (never opened, or forgotten): not tried again
+//           no-room      no room has this code (never opened, or forgotten): not tried again. A phone that was in the room
+//                        (it heard the big screen) tries again for NO_ROOM_GRACE_MS first, saying offline, since its big
+//                        screen opens the room again after the meeting point restarted or forgot it under a game
 //           full         the room has three guests: tried again, as a seat may free
 //           no-host      the room's big screen is not there, and has not been since this net began: waiting
 //           host-gone    the big screen this net heard has gone (the socket stays, or is tried again): waiting
@@ -35,15 +39,19 @@
 // which by default throws it again in a microtask, so the console still shows it.
 //
 // Plain JavaScript for the browser that loads in Node for the tests: the timers, the WebSocket and the RTCPeerConnection
-// come in as options, defaulting to the page's own, read when a net is made (no RTCPeerConnection: the relay carries all).
+// (and a phone's clock, `now`) come in as options, defaulting to the page's own, read when a net is made (no
+// RTCPeerConnection: the relay carries all).
 
-import { MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message, parseMessage } from './protocol.js';
+import { ALIVE_MS, MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message, parseMessage } from './protocol.js';
 
 /** The data channel's label: one for each guest, reliable and in order (spec §6.2). */
 export const CHANNEL_LABEL = 'fjolspil';
 
 /** The waits before each try after a socket closed under us; the last one repeats (spec §6.4: 1, 2, 4 … 15 seconds). */
 export const RECONNECT_MS = Object.freeze([1000, 2000, 4000, 8000, 15000]);
+
+/** How long a phone that was in the room hears no-room as a wait, from the first one, before it is the end of the game. */
+export const NO_ROOM_GRACE_MS = 60000;
 
 /** The refusals worth trying again: the big screen may come back, and a seat may free. */
 const RETRY_AFTER = new Set(['no-host', 'full']);
@@ -279,6 +287,9 @@ export function createHostNet({
 
   const relayTo = (id, msg) => socket.send(message('relay', { to: id, body: msg }));
 
+  // A sign of life for the meeting point, on the socket whenever it is open (one that is not has no one to tell).
+  const alive = timers.setInterval(() => { if (!closed) socket.send(message('alive', null)); }, ALIVE_MS);
+
   function send(id, msg) {
     const guest = guests.get(id);
     if (!guest || closed) return false;
@@ -455,6 +466,7 @@ export function createHostNet({
   function shut() {
     if (closed) return;
     closed = true;
+    timers.clearInterval(alive);
     socket.stop();
     for (const guest of guests.values()) {
       timers.clearInterval(guest.pinger);
@@ -493,17 +505,19 @@ export function createHostNet({
  * it came, and opens its socket again when it closes under it. Returns { onMessage(fn(msg)), onStatus(fn(status)),
  * send(msg) → boolean, reconnect(), transport ('rtc', 'relay' or null), status, close() }; the on… calls return their
  * unsubscribe, and `report` gets what a listener throws. Only the game's messages reach onMessage: never the signaling,
- * the pings or the meeting point's own words.
+ * the pings or the meeting point's own words. `noRoomGraceMs` is how long a phone that was in the room tries again after
+ * no-room, on the clock `now`.
  */
 export function createGuestNet({
   url, timers = PAGE_TIMERS, WebSocketImpl = globalThis.WebSocket, PeerConnectionImpl = globalThis.RTCPeerConnection,
-  iceServers = [], report = PAGE_REPORT,
+  iceServers = [], report = PAGE_REPORT, now = () => Date.now(), noRoomGraceMs = NO_ROOM_GRACE_MS,
 } = {}) {
   const on = { message: listeners(report), status: listeners(report) };
   let status = null;
   let closed = false;
   let refusal = null; // this socket's refusal; a no-host one is lifted when the big screen is heard again
-  let heardHost = false; // the big screen has spoken to this net: its no-host from now on is host-gone
+  let heardHost = false; // the big screen has spoken to this net: its no-host from now on is host-gone, its no-room a wait
+  let noRoomSince = null; // when the first no-room came since the big screen was last heard (null: none since)
   let link = null; // { peer, channel, remote }: the big screen's peer and its data channel
 
   function setStatus(next) {
@@ -536,9 +550,17 @@ export function createGuestNet({
 
   function refused(reason) {
     const why = isId(reason) ? reason : 'error';
-    refusal = why;
     unpeer(); // the big screen's peer is gone with it, or this tab's seat is another's
+    if (why === 'no-room' && heardHost && !noRoomOver()) return; // the room may come back: the close after it is a drop
+    refusal = why;
     setStatus(why === 'no-host' && heardHost ? 'host-gone' : why);
+  }
+
+  /** A no-room heard by a phone that was in the room: whether NO_ROOM_GRACE_MS have passed since the first of them. */
+  function noRoomOver() {
+    const time = now();
+    noRoomSince ??= time;
+    return time - noRoomSince >= noRoomGraceMs;
   }
 
   function lost() {
@@ -551,6 +573,7 @@ export function createGuestNet({
   /** The big screen is heard: the waits start again, and a wait for it is over. */
   function heard() {
     heardHost = true;
+    noRoomSince = null;
     socket.answered();
     if (refusal === 'no-host') refusal = null;
     if (status === 'no-host' || status === 'host-gone') setStatus('connected');

@@ -127,6 +127,14 @@ test('a host is welcomed, a guest is announced, and relays flow', async t => {
   assert.deepEqual(guest.take(), [message('relay', { body: ping })]);
   assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS);
 
+  clock.tick(1000);
+  await room.webSocketMessage(host, JSON.stringify(message('alive', null)));
+  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'the host\'s alive re-arms the alarm: over WebRTC it is all the room hears');
+  clock.tick(1000);
+  await room.webSocketMessage(guest, JSON.stringify(message('alive', null)));
+  assert.equal(ctx.alarmAt, clock.now + ROOM_TTL_MS, 'a guest\'s too');
+  assert.deepEqual([...host.take(), ...guest.take()], [], 'and an alive is carried to no one');
+
   const armed = ctx.alarmAt;
   clock.tick(1000);
   await room.webSocketMessage(guest, new ArrayBuffer(3));
