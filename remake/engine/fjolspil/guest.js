@@ -127,8 +127,7 @@ export function createGuestPage(doc, {
     chosen: guest.avatar, // the avatar picked on the join screen
     pending: null, // the hello sent, { name, avatar }, until its seat comes back
     hadSeat: false, // a seat in this room: its no-room is the end of the game, not a wrong code
-    code: null,
-    connection: null,
+    connection: null, // the room's, from net({ code, guestId, url })
     game: null, // which game's screen `gameEl` holds
     said: { text: '', kind: null }, // the status line: 'net' (the connection's) or 'page' (the guest's own doing)
   };
@@ -574,7 +573,7 @@ export function createGuestPage(doc, {
     const code = normalizeCode(text);
     if (!code) return false;
     at.connection?.close?.();
-    Object.assign(at, { code, connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, hadSeat: false });
+    Object.assign(at, { connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, hadSeat: false });
     at.taken.clear();
     clearCode();
     fillCode(code);
