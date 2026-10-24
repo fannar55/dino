@@ -324,6 +324,24 @@ test('three missed pings make a guest absent, and a pong brings it back', async 
   net.close();
 });
 
+test('a guest that joins again while absent is there, and three missed pings make her absent again', async () => {
+  const { net, ws, timers, log } = hostRig();
+  ws.receive(message('joined', { id: 'g1' }));
+  await settle();
+  timers.advance(PING_MS * MISSED_PINGS);
+  assert.deepEqual(log.presence, [['g1', false]]);
+  ws.receive(message('joined', { id: 'g1' })); // another tab of the phone took over: no left before it
+  await settle();
+  assert.deepEqual(log.presence, [['g1', false]], 'the join says she is there: no onPresence beside it');
+  timers.advance(PING_MS * (MISSED_PINGS - 1));
+  assert.deepEqual(log.presence, [['g1', false]], 'her pings count from none again');
+  timers.advance(PING_MS); // and she never answered one
+  assert.deepEqual(log.presence, [['g1', false], ['g1', false]]);
+  ws.receive(fromGuest('g1', message('pong', {})));
+  assert.deepEqual(log.presence, [['g1', false], ['g1', false], ['g1', true]]);
+  net.close();
+});
+
 test('a guest that leaves is let go: onLeave, its peer closed, no more pings', async () => {
   const { net, ws, rtc, timers, log, relayed } = hostRig();
   ws.receive(message('joined', { id: 'g1' }));

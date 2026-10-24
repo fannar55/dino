@@ -19,6 +19,10 @@
 // she is sent, the lobby's included (a phone never shows one older than the last, spec §6.3). The last game view each guest
 // was sent is kept, so a phone that comes back gets it again. What a phone sees of the seats never holds another guest's id,
 // which is her secret (spec §6.1). Nothing here knows a game's rules: the games decide what each seat sees and when.
+//
+// A game whose turn comes to a guest who is not there waits for her with waitFor(seat), one seat at a time, over the board
+// (the lobby's waiting card, spec §4 step 6): 'back' when she is there again, 'cover' when "Halda áfram án …" makes her seat
+// the computer's, and 'closed' when the game is closed (closeGame) or another tab takes the room, so the game stops its turns.
 
 import { makeCode, message, normalizeCode, randomKey } from './protocol.js';
 import { createSeats } from './seats.js';
@@ -115,6 +119,7 @@ export function createFjolspil(doc, {
     onStart: () => {
       seats.dropAbsent();
       endLobby({ seats: seats.list() });
+      for (const id of at.inRoom) if (!seats.byGuest(id)) deliver(id, lobbyView(id)); // dropped, socket open: no seat now
     },
     onClose: () => {
       endLobby(null);
@@ -184,6 +189,7 @@ export function createFjolspil(doc, {
         lobby.hide();
         endLobby(null);
       }
+      if (at.waiting) endWait('closed');
     }
   }
 
@@ -204,10 +210,16 @@ export function createFjolspil(doc, {
     presence(id, false);
   }
 
-  /** A guest's phone is there or not: her seat says so, an open lobby shows it, and a wait for her ends. */
+  /**
+   * A guest's phone is there or not: her seat says so, an open lobby shows it, and a wait for her ends. A phone with no seat
+   * that answers again (dropped at "Byrjum!" while away) is shown the lobby, so it offers her the join screen.
+   */
   function presence(id, present) {
     const seat = seats.byGuest(id);
-    if (!seat) return;
+    if (!seat) {
+      if (present && at.inRoom.has(id)) deliver(id, lobbyView(id));
+      return;
+    }
     seats.presence(seat.seat, present);
     if (present) checkWaiting();
     if (at.lobbyOpen) lobbyChanged();
@@ -260,9 +272,11 @@ export function createFjolspil(doc, {
     for (const seat of seats.list()) if (seat.guestId) toGuest(seat.guestId, body);
   }
 
+  /** The game is over or closed: the phones wait for the next lobby, and a wait for a guest ends with 'closed'. */
   function closeGame() {
     broadcast(CLOSED);
     at.lastView.clear();
+    if (at.waiting) endWait('closed');
   }
 
   /** The lobby as the guest with this id sees it: the seats, the avatars free, and `you`, her seat (null: none yet). */
@@ -317,11 +331,13 @@ export function createFjolspil(doc, {
 
   /**
    * Waits for the guest of seat `n`, whose turn it is and who is not there, over the game: 'back' when she is there again
-   * (her seat uncovered), 'cover' when "Halda áfram án …" is pressed (her seat the computer's). One wait at a time: a second
-   * call while one is on gives the same promise.
+   * (her seat uncovered), 'cover' when "Halda áfram án …" is pressed (her seat the computer's), 'closed' when the game is
+   * closed or another tab takes the room. One wait at a time: a second call for the same seat gives the same promise, and a
+   * call for another seat while one is on is a game's mistake, rejected with an Error (nobody is covered by it).
    */
   function waitFor(n) {
-    if (at.waiting) return at.waiting.promise;
+    if (at.waiting?.seat === n) return at.waiting.promise;
+    if (at.waiting) return Promise.reject(new Error(`a wait is pending for seat ${at.waiting.seat}`));
     const seat = seats.bySeat(n);
     if (!seat?.guestId || seat.present) {
       if (seat?.present) seats.uncover(n);

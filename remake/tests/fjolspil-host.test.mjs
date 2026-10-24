@@ -454,3 +454,65 @@ test('a kept game seats its guests again without the lobby', async () => {
   r.fjolspil.send(1, { screen: 'hals', turn: 2 });
   assert.deepEqual(net.last('g1').body, { screen: 'hals', turn: 2 });
 });
+
+test('a guest dropped at Byrjum! whose phone stays connected is told she has no seat', async () => {
+  const r = rig();
+  const { started, net } = seated(r, [['g1', 'Anna', 'kambedla'], ['g2', 'Bjarni', 'sloedla']]);
+  net.presence('g1', false); // her pings went unanswered, and her socket is still open
+  const bjarni = net.to('g2').length;
+  tap($(r.root, '.fjolspil-start'));
+  await started;
+  assert.equal(r.fjolspil.seats.byGuest('g1'), null);
+  const told = net.last('g1');
+  assert.equal(told.type, 'view');
+  assert.equal(told.body.screen, 'lobby');
+  assert.equal(told.body.you, null, 'no seat: her phone goes back to the join screen');
+  assert.deepEqual(told.body.seats.map(seat => seat.name), ['Egill', 'Bjarni']);
+  assert.equal(net.to('g2').length, bjarni, 'a guest who plays is sent nothing by the lobby');
+
+  net.presence('g1', true); // her pongs come again
+  assert.ok(net.last('g1').seq > told.seq);
+  assert.equal(net.last('g1').body.screen, 'lobby');
+  assert.equal(net.last('g1').body.you, null);
+  net.hello('g1', 'Anna', 'kambedla');
+  assert.deepEqual(net.to('g1').at(-2), { v: 1, type: 'seat', body: { ok: true, seat: 2, name: 'Anna' } });
+  assert.deepEqual(net.last('g1').body, { screen: 'closed' }, 'she plays the next game');
+  assert.ok(rising(seqs(net, 'g1')));
+});
+
+test('one wait at a time: a wait for another seat is refused while one is on', async () => {
+  const r = rig();
+  const { started, net } = seated(r, [['g1', 'Anna', 'kambedla'], ['g2', 'Bjarni', 'sloedla']]);
+  tap($(r.root, '.fjolspil-start'));
+  await started;
+  net.presence('g1', false);
+  net.presence('g2', false);
+  const anna = r.fjolspil.waitFor(1);
+  assert.equal(r.fjolspil.waitFor(1), anna, 'the same seat: the same wait');
+  await assert.rejects(r.fjolspil.waitFor(2), { message: 'a wait is pending for seat 1' });
+  assert.equal($(r.root, '.fjolspil-wait-words').textContent, 'Bíðum eftir Anna…', 'the first wait goes on');
+  assert.equal(r.fjolspil.seats.bySeat(2).covered, false, 'nobody is covered by it');
+  net.presence('g1', true);
+  assert.equal(await anna, 'back');
+});
+
+test('closing the game, or another tab taking the room, ends a wait with closed', async () => {
+  const r = rig();
+  const { started, net } = seated(r, [['g1', 'Anna', 'kambedla']]);
+  tap($(r.root, '.fjolspil-start'));
+  await started;
+  net.presence('g1', false);
+  const closing = r.fjolspil.waitFor(1);
+  r.fjolspil.closeGame();
+  assert.equal(await closing, 'closed');
+  assert.equal($(r.root, '.fjolspil-wait'), null, 'the waiting card is gone');
+  assert.equal(r.root.hidden, true);
+  assert.equal(r.fjolspil.seats.bySeat(1).covered, false);
+
+  const replaced = r.fjolspil.waitFor(1);
+  assert.notEqual(replaced, closing, 'a new wait');
+  net.setStatus('replaced');
+  assert.equal(await replaced, 'closed');
+  assert.equal($(r.root, '.fjolspil-wait'), null);
+  assert.equal(r.root.hidden, true);
+});

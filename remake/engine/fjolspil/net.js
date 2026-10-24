@@ -10,9 +10,11 @@
 //
 // The big screen pings every guest every PING_MS, on whichever way that guest's messages go, and a phone answers pong on
 // the way the ping came; MISSED_PINGS pings without a pong make the guest absent (onPresence(id, false)) and the next pong
-// present again. A socket that closes under either side is opened again after 1, 2, 4 and 8 seconds and then every 15,
-// never giving up; an answer from the other side (the welcome, or anything from the big screen) starts the waits again
-// from one second, and so does a phone's reconnect() (the page calls it when it comes into view or the network is back).
+// present again. A guest that joins (again, even without a left first: another tab of the phone took over) is there, and her
+// pings count from none: onJoin says so, with no onPresence(id, true) beside it. A socket that closes under either side is
+// opened again after 1, 2, 4 and 8 seconds and then every 15, never giving up; an answer from the other side (the welcome,
+// or anything from the big screen) starts the waits again from one second, and so does a phone's reconnect() (the page
+// calls it when it comes into view or the network is back).
 //
 // The statuses, onStatus(fn) (which tells fn the status there is now, then every one after) and `status`:
 //   both    connecting   a socket is being opened: the first, every try after a wait, and reconnect()
@@ -325,11 +327,15 @@ export function createHostNet({
     socket.retry();
   }
 
-  /** A guest is in the room (again): a fresh peer and offer, and the pings from the first time on. */
+  /**
+   * A guest is in the room (again): a fresh peer and offer, and the pings from the first time on. She is there now (onJoin
+   * says it, so no onPresence too), and the next MISSED_PINGS pings without a pong make her absent again.
+   */
   function joined(id) {
     const guest = guests.get(id) ?? newGuest(id);
     unpeer(guest);
     guest.unanswered = 0;
+    guest.present = true;
     if (forceRelay || !PeerConnectionImpl || !offerTo(guest)) guest.transport = 'relay';
     on.join.emit(id);
   }
