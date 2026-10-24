@@ -354,8 +354,9 @@ export function createGuestPage(doc, {
     return el;
   });
   avatarsEl.append(...avatarButtons);
-  avatarsEl.addEventListener('animationend', () => avatarsEl.classList.remove('nope'));
-  digitsEl.addEventListener('animationend', () => digitsEl.classList.remove('nope'));
+  for (const el of [avatarsEl, digitsEl]) { // the shake is over (not a tick's pop inside it)
+    el.addEventListener('animationend', event => { if (event.target === el) el.classList.remove('nope'); });
+  }
   const readyEl = make('button', 'spil-ready spil-big');
   readyEl.innerHTML = `${PLAY}<span>${WORDS.ready}</span>`;
   joinEl.append(askEl, nameEl, avatarsEl, readyEl);

@@ -85,7 +85,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-page {
   position: relative; width: min(620px, 100%); min-height: min(700px, calc(100dvh - 40px));
   display: flex; flex-direction: column; align-items: center; gap: var(--spil-gap);
-  padding: clamp(26px, 4vh, 40px) clamp(24px, 4vw, 44px) clamp(18px, 3vh, 28px);
+  padding: clamp(30px, 5vh, 48px) clamp(24px, 4vw, 44px) clamp(18px, 3vh, 28px);
   border-radius: 30px;
   background: var(--frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat, var(--card);
   box-shadow: 0 30px 60px rgb(14 8 3 / .28), 0 8px 18px rgb(14 8 3 / .2);
@@ -103,13 +103,12 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 
 /* ---- The seat at the top: a name tag with her avatar ---------------------------------------------------------------- */
 
-.spil-me {
+.spil-me { /* a name tag, not a button: flat on the paper */
   display: flex; align-items: center; gap: 12px; max-width: 100%;
-  padding: 6px 22px 6px 6px; border-radius: 999px; rotate: -1.5deg;
-  background: var(--paper); border: 3px solid var(--ink);
-  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 9px 12px 2px rgb(40 24 10 / .18);
+  padding: 0 24px 0 0; border-radius: 999px; rotate: -1.5deg;
+  background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 6px 12px rgb(40 24 10 / .14);
 }
-.spil-me-face { width: 58px; flex: none; }
+.spil-me-face { width: 62px; flex: none; margin: -3px 0 -3px -3px; box-shadow: 0 0 0 3px var(--ink); } /* the tag's round end */
 .spil-me-name {
   min-width: 0; font-size: clamp(24px, 6.4vw, 30px); font-weight: 900; line-height: 1.25;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -157,7 +156,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
 }
 .spil-title img { width: 2.2em; height: auto; margin: -.4em 0 -.3em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
-.spil-digits { display: grid; grid-template-columns: repeat(4, minmax(80px, 100px)); justify-content: center; gap: clamp(8px, 2.4vw, 16px); width: 100%; }
+.spil-digits { display: grid; grid-template-columns: repeat(4, minmax(80px, 100px)); justify-content: center; gap: clamp(8px, 2vw, 16px); width: 100%; }
 .spil-digit { /* a letter tile each, as the code's on the big screen */
   width: 100%; min-width: 0; height: 104px; padding: 0; border-radius: 18px;
   font: 900 clamp(48px, 13vw, 62px) / 1 var(--spil-font); color: var(--ink); text-align: center; text-transform: uppercase;
@@ -170,11 +169,15 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   background: color-mix(in srgb, var(--paper) 55%, var(--card)); border-style: dashed; border-color: color-mix(in srgb, var(--ink) 45%, transparent);
   box-shadow: none;
 }
-.spil-digit:focus { border-style: solid; border-color: var(--ink); box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 0 0 9px color-mix(in srgb, var(--teal) 45%, transparent); }
+.spil-digit:focus { /* where the next letter goes: a teal edge and a soft ring inside, which never crosses the frame line */
+  border-style: solid; border-color: var(--teal); background: var(--card);
+  box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--teal) 28%, transparent), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--teal);
+}
+.spil-digit::selection, .spil-name::selection { background: color-mix(in srgb, var(--teal) 30%, transparent); color: var(--ink); }
 
 /* ---- join: the name and the six friends ----------------------------------------------------------------------------- */
 
-.spil-ask { font-size: clamp(32px, 8.4vw, 42px); font-weight: 900; line-height: 1.15; }
+.spil-ask { font-size: clamp(32px, 8.4vw, 42px); font-weight: 900; line-height: 1.15; text-wrap: balance; }
 .spil-name {
   width: 100%; min-height: var(--spil-target); padding: 0 .6em; border-radius: 22px;
   font: 900 clamp(32px, 8.4vw, 42px) / 1.1 var(--spil-font); color: var(--ink); text-align: center;
@@ -182,8 +185,8 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   box-shadow: inset 0 4px 0 rgb(59 47 37 / .07), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
   user-select: text; -webkit-user-select: text; appearance: none;
 }
-.spil-name:focus { box-shadow: inset 0 4px 0 rgb(59 47 37 / .07), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 0 0 9px color-mix(in srgb, var(--teal) 45%, transparent); }
-.spil-avatars { display: grid; grid-template-columns: repeat(3, minmax(var(--spil-target), 150px)); justify-content: center; gap: clamp(12px, 3vw, 18px); width: 100%; }
+.spil-name:focus { border-color: var(--teal); background: var(--card); box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--teal) 28%, transparent), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--teal); }
+.spil-avatars { display: grid; grid-template-columns: repeat(3, minmax(var(--spil-target), 132px)); justify-content: center; gap: clamp(14px, 3.6vw, 20px); width: 100%; padding: 0 10px; }
 .spil-avatar { /* a taped photo of a friend */
   position: relative; width: 100%; aspect-ratio: 1; padding: 11%; border-radius: 24px;
   background: var(--paper); border: 3px solid var(--ink);
@@ -193,7 +196,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-avatar .spil-face { width: 100%; }
 .spil-avatar[aria-pressed="true"] { /* the chosen one: in her colour, gold round it and a tick on its corner */
   background: color-mix(in srgb, var(--c) 34%, var(--card));
-  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 0 0 9px var(--gold), 0 0 0 12px var(--ink);
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 0 9.5px var(--ink);
 }
 .spil-avatar[aria-pressed="true"]::after {
   content: ""; position: absolute; top: -12px; right: -12px; width: 40px; height: 40px; border-radius: 50%;
@@ -208,7 +211,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 /* ---- lobby: her avatar big, "Þú ert með!" and the table ------------------------------------------------------------- */
 
 .spil-hero { width: clamp(130px, 22vh, 190px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .2); animation: spil-pop .5s .1s cubic-bezier(.3, 1.6, .5, 1) both; }
-.spil-words { font-size: clamp(34px, 9vw, 48px); font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
+.spil-words { font-size: clamp(34px, 9vw, 48px); font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; text-wrap: balance; }
 .spil-seats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; padding: 0; list-style: none; }
 .spil-seat {
   display: grid; justify-items: center; gap: 6px; width: 92px; padding: 10px 6px 8px; border-radius: 16px;
@@ -233,7 +236,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-winner { width: clamp(150px, 26vh, 210px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 0 0 17px var(--gold), 0 0 0 20px var(--ink); }
 .spil-burst { position: relative; display: block; isolation: isolate; }
 .spil-burst::before { /* a gold burst behind the winner, turning slowly */
-  content: ""; position: absolute; inset: -46%; z-index: -1; border-radius: 50%;
+  content: ""; position: absolute; inset: -30%; z-index: -1; border-radius: 50%;
   background: repeating-conic-gradient(color-mix(in srgb, var(--gold) 55%, transparent) 0 10deg, transparent 10deg 20deg);
   -webkit-mask: radial-gradient(circle, #000 40%, transparent 70%); mask: radial-gradient(circle, #000 40%, transparent 70%);
   animation: spil-turn 24s linear infinite;
@@ -275,7 +278,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   .spil { padding: 0; place-items: stretch; }
   .spil-page {
     width: 100%; min-height: 100vh; min-height: 100dvh; border-radius: 0; box-shadow: none;
-    padding: max(30px, calc(env(safe-area-inset-top) + 18px)) max(18px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    padding: max(30px, calc(env(safe-area-inset-top) + 18px)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
     background: var(--frame) center / calc(100% - 14px) calc(100% - 14px) no-repeat, var(--card);
   }
   .spil-page::before { top: -6px; }
@@ -284,15 +287,15 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 /* ---- Sideways on a phone: the name beside the friends, the pictures beside their words ------------------------------ */
 
 @media (orientation: landscape) and (max-height: 560px) {
-  .spil-page { gap: 10px; padding-top: max(18px, env(safe-area-inset-top)); }
+  .spil-page { gap: 10px; padding: max(18px, env(safe-area-inset-top)) max(40px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(40px, env(safe-area-inset-left)); }
   .spil-title { font-size: 40px; }
   .spil-join {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "ask avatars" "name avatars" "ready avatars";
-    align-items: center; column-gap: 28px; row-gap: 14px;
+    align-items: center; column-gap: 32px; row-gap: 14px; max-width: 760px;
   }
   .spil-ask { grid-area: ask; } .spil-name { grid-area: name; } .spil-ready { grid-area: ready; justify-self: center; }
   .spil-avatars { grid-area: avatars; grid-template-columns: repeat(3, var(--spil-target)); gap: 12px; }
-  .spil-lobby, .spil-note { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: center; column-gap: 28px; }
+  .spil-lobby, .spil-note { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; justify-items: center; column-gap: 40px; }
   .spil-lobby .spil-hero { grid-row: span 2; }
   .spil-hero, .spil-note-face, .spil-winner { width: 128px; }
 }
