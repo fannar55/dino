@@ -22,6 +22,7 @@ Velgengni lítur svona út:
 - **Jafningjatenging (WebRTC)** á milli tækja; þjónninn (serve.mjs heima, Durable Object í skýinu) er aðeins stefnumót (signaling), með áframsendingu um hann til vara. Stóri skjárinn keyrir reglurnar og er sannleikurinn.
 - **Dettur sími út:** beðið með QR-kóðann þegar röðin kemur að honum; eftir smástund „Halda áfram án Önnu“, sem lætur tölvuna spila sætið þar til hún kemur aftur. Endurtenging með sama nafni er sjálfvirk.
 - **Cloudflare:** allt tilbúið til ýtingar (`cloud/` með wrangler-stillingum, Worker og Durable Object). Engir lyklar í skrám eða spjalli; eigandinn skráir sig inn og ýtir sjálfur.
+- **Eitt! án sameiginlegs skjás (24. október, eftir áfanga 1):** í Eitt! má enginn sjá spil annarra, svo enginn horfir á annarra skjá. Skjár Egils er leikjasíðan sjálf (spjaldtölvan eða tölvan sem hýsir herbergið) með hans hendi, eins og einspilið; hvert hinna tækja sýnir leikinn allan með sinni hendi og hljóðbrellum á tækinu. Enginn sameiginlegur sjónvarpsskjár í Eitt!.
 
 ## 3. Hlutar
 
@@ -142,8 +143,8 @@ Borðið sendir hverju fjarsæti `view` eftir hverja breytingu sem það varðar
 - **Með þremur eða fjórum:** snúningur snýr `direction` og röðin fer til þess sem var á undan; sleppa sleppir næsta; +2 og +4 láta næsta draga og hann missir umferð; litaskipti velur lit.
 - **„Eitt!“:** sá sem spilar niður í eitt spil á `unsaid` þar til hann kallar eða næsti gerir; hver hinna sem er má grípa hann (`catchEitt(game, catcher)`), og hann dregur tvö.
 - `kambedla.js`: `chooseMove(game, seat, skill, random)`; „hinn“ í árásarmatinu verður næsti leikmaður; `willCatch` gildir fyrir hvert tölvusæti. `advice.js`: `advise(game, seat = 0)`; Mosi ráðleggur Agli einum.
-- **Borðið:** hendur hinna sjást á hvolfi með nafni og avatar, ein röð fyrir hvert sæti; Kambeðlu-glugginn í þrívídd aðeins þegar hún spilar. „Spyrja Mosa“ er á stóra skjánum (Egils). Eitt! fær vistun leiks undir vöxtum eins og Háls og hali: `save.js` fær `game` og `seats` í `eitt` (`setEitt({ game, seats })`, `game: null` gleymir honum; eldri vistun án þeirra les eins og áður), og „Halda áfram“ við opnun.
-- **Síminn:** sín hendi í boga (sama útlit spilanna, `eitt.css` endurnýtt), það sem má spila lyftist, bunkinn (pikk = draga), litavalið þegar við á, „Eitt!“-hnappurinn þegar hann á við, „Áfram“ eftir dregið spil, „Grípa!“ þegar annar gleymdi, efsta spilið og liturinn, og fjöldi spila hvers hins.
+- **Skjár Egils (leikjasíðan, sem hýsir herbergið):** borðið með HANS hendi eins og einspilið í dag; hendur hinna sjást á hvolfi með nafni og avatar, ein röð fyrir hvert sæti; Kambeðlu-glugginn í þrívídd aðeins þegar hún spilar; raddir Mosa og Kambeðlu og „Spyrja Mosa“ eru hér. Enginn annar þarf að líta á þennan skjá (ákvörðun eigandans 24. október: enginn sameiginlegur sjónvarpsskjár í Eitt!). Eitt! fær vistun leiks undir vöxtum eins og Háls og hali: `save.js` fær `game` og `seats` í `eitt` (`setEitt({ game, seats })`, `game: null` gleymir honum; eldri vistun án þeirra les eins og áður), og „Halda áfram“ við opnun.
+- **Hin tækin (sími eða spjaldtölva), full útgáfa:** hvert tæki sýnir leikinn allan, svo enginn þurfi á öðrum skjá að halda: hendur hinna á hvolfi með andliti, nafni og fjölda (og hver á leik), bunkann í miðju (pikk = draga), efsta spilið með litahringnum, og eigin hendi í boga (sama útlit spilanna, `eitt.css` endurnýtt), það sem má spila lyftist; litavalið þegar við á, „Eitt!“-hnappurinn þegar hann á við, „Áfram“ eftir dregið spil, „Grípa!“ þegar annar gleymdi. Spilin fljúga á tækinu eins og á borðinu (annars spil á bunkann frá hans röð, dregið spil í eigin hendi), og hljóðbrellur Eitt! (spil smellur, dregið, dillar, lúður, fanfari) spilast á tækinu sjálfu; raddir aldrei. Útlitið er sömu ættar og borðið: upprétt á síma með hendur hinna efst, borðið í miðju og eigin hendi neðst; á spjaldtölvu á hlið eins og borðið.
 
 ### 7.4 Seinni leikir (utan þessarar áætlunar)
 
@@ -152,7 +153,7 @@ Risaeðlu-Yatzy og Litla Yatzy fá sömu sæti; síminn sýnir teningana, „hal
 ## 8. Útlit
 
 - **Lobbíið og biðspjaldið** eru í stíl bókarinnar og leikjanna (STYLE.md): Nunito, pappír og límband, hnappar minnst 88 px, litir úr STYLE.md, hreyfingar aðeins með transform og opacity og sem dofnun undir minni hreyfingu. QR-kóðinn er dökkur á ljósum pappír, minnst 40% af styttri hlið skjásins, með kóðann stóran undir.
-- **Símasíðan** fyllir skjáinn upprétt og liggjandi, á síma, spjaldtölvu og PC (snerting, mús, lyklaborð: Enter staðfestir, örvar og Tab komast um). Efst sætið (avatar, nafn), í miðju stýringin, neðst línan um hver á leik. Hún hefur smellhljóð bókarinnar (`book/fx.js`) og engin önnur hljóð. Demó-slóðir fyrir útlitsmyndir án tengingar: `spil.html?demo=join|lobby|hals|eitt|over`.
+- **Símasíðan** fyllir skjáinn upprétt og liggjandi, á síma, spjaldtölvu og PC (snerting, mús, lyklaborð: Enter staðfestir, örvar og Tab komast um). Efst sætið (avatar, nafn), í miðju stýringin, neðst línan um hver á leik. Hún hefur smellhljóð bókarinnar (`book/fx.js`) og, í Eitt!, hljóðbrellur leiksins á tækinu (kafli 7.3); raddir aldrei. Demó-slóðir fyrir útlitsmyndir án tengingar: `spil.html?demo=join|lobby|hals|eitt|over`.
 - **Á stóra skjánum** sýna portrettin (Háls) og handraðirnar (Eitt!) avatar og nafn sætisins; fjarverandi sæti er dauft með litlu „…“.
 
 ## 9. Hýsing
