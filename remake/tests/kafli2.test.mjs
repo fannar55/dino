@@ -948,7 +948,7 @@ test('a full save as the page keeps it loads whole, and the map\'s places start 
   const storage = { getItem: () => JSON.stringify(full), setItem: (key, value) => { written = JSON.parse(value); } };
   const save = createSave(storage);
   assert.deepEqual(save.get(), { stars: full.stars, findings: full.findings, seen: full.seen, places: [] });
-  assert.deepEqual(save.getEitt(), full.eitt);
+  assert.deepEqual(save.getEitt(), { ...full.eitt, game: null, seats: null }); // no round of "Fjölspil" kept
   assert.deepEqual(save.getHals(), { found: full.hals.found });
   assert.deepEqual(save.getHalsPlay(), { game: full.hals.game, intro: true, hello: true, played: true });
   assert.deepEqual(save.getYatzy(), full.yatzy);

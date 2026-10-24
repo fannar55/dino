@@ -186,6 +186,8 @@ const CAP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 9.5L12 5l
 /** Where a card sits in the child's hand: by colour, then number, then the action cards, and the wilds last. */
 const sortKey = card => (isWild(card) ? KIND_ORDER[card.kind] : ORDER[card.colour] * 20 + (card.kind === 'number' ? card.value : KIND_ORDER[card.kind]));
 const sorted = cards => [...cards].sort((a, b) => sortKey(a) - sortKey(b));
+/** A hand in the order the child's lies in (a guest's device lays hers out the same way, guest-eitt.js). */
+export const sortHand = sorted;
 
 /** How a card lies on the pile: askew by its own id, so it lies the same way every time it is drawn. */
 function tiltOf(id) {
@@ -195,8 +197,8 @@ function tiltOf(id) {
   return { r: unit(0) * 10, x: unit(10) * 4, y: unit(20) * 3 };
 }
 
-/** A card's markup in eitt.css's classes, from the rules' card (null for a back). */
-function makeCard(doc, card, tag = 'div') {
+/** A card's markup in eitt.css's classes, from the rules' card (null for a back); a guest's device draws the same (guest-eitt.js). */
+export function cardElement(doc, card, tag = 'div') {
   const el = doc.createElement(tag);
   if (tag === 'button') el.type = 'button';
   if (!card) {
@@ -586,7 +588,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     const before = animate ? rects(handEls) : new Map();
     handEl.classList.remove('rows');
     layOut(handEl, handEls, cards, card => {
-      const el = makeCard(doc, card, 'button');
+      const el = cardElement(doc, card, 'button');
       tappable(el, () => tapCard(card.id));
       return el;
     }, n => (n > 7 ? 5 / (n - 1) : 1), hidden);
@@ -622,7 +624,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   function renderTheirs(cards, { hidden = new Set(), animate = true } = {}) {
     const before = animate ? rects(theirEls) : new Map();
     layOut(theirsEl, theirEls, cards, card => {
-      const el = makeCard(doc, null);
+      const el = cardElement(doc, null);
       el.dataset.id = card.id;
       return el;
     }, n => (n > 7 ? 6 / (n - 1) : 1), hidden);
@@ -638,7 +640,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   function renderPile(cards, { hidden = null } = {}) {
     const shown = cards.slice(-4);
     layOut(pileEl, pileEls, shown, card => {
-      const el = makeCard(doc, card);
+      const el = cardElement(doc, card);
       const tilt = tiltOf(card.id);
       el.style.setProperty('--r', `${tilt.r.toFixed(1)}deg`);
       el.style.setProperty('--x', `${tilt.x.toFixed(1)}%`);
@@ -692,9 +694,9 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     el.style.setProperty('--fly-w', `${to.w.toFixed(1)}px`);
     const inner = make('div', 'eitt-flyer-turn');
     const both = Boolean(card) && turn === 'up';
-    if (card) inner.append(makeCard(doc, card));
+    if (card) inner.append(cardElement(doc, card));
     if (!card || both) {
-      const back = makeCard(doc, null);
+      const back = cardElement(doc, null);
       if (both) back.classList.add('under');
       inner.append(back);
     }

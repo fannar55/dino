@@ -15,7 +15,7 @@
                                     (/fjolspil/ws/GULL, net.js), and asks for a name and an avatar
        ?demo=code|join|lobby|wait|closed|over|hals|eitt
                                     a sample of each screen with no connection, for the captures (capture.mjs waits for
-                                    __demoReady); eitt shows the closed screen until its phone screen comes
+                                    __demoReady)
      It never draws a QR code: the phone is the one that scans. -->
 </head>
 <body>
@@ -24,11 +24,12 @@
 import { createGuestPage } from './engine/fjolspil/guest.js';
 import { createGuestNet, iceServersFor, wsUrlFor } from './engine/fjolspil/net.js';
 import { renderHals } from './engine/fjolspil/guest-hals.js';
+import { renderEitt } from './engine/fjolspil/guest-eitt.js';
 
 // The room's meeting point beside this page (serve.mjs at home, the Worker in the cloud), as this phone's guest id.
 const net = ({ code, guestId }) => createGuestNet({ url: wsUrlFor(location, code, { role: 'guest', id: guestId }), iceServers: iceServersFor(location) });
 // The games' phone screens, by the view's screen (spec §6.3).
-const views = { hals: renderHals };
+const views = { hals: renderHals, eitt: renderEitt };
 window.__spil = createGuestPage(document, { net, views });
 </script>
 </body>

@@ -12,11 +12,12 @@
 //   wait     "Bíðum eftir stóra skjánum…": the big screen has gone (or another tab took this seat); the connection tries again
 //   closed   "Bíðum eftir næsta leik": the game was closed on the big screen; the next lobby comes by itself
 //   over     "{name} vann!" with the winner's avatar
-//   game     a game's own screen: views[view.screen](el, view, { send, doc, control }) renders it (Háls og hali and Eitt!
-//            register theirs: spil.html passes guest-hals.js's renderHals); `el` is the game's element in the middle of the
-//            page, the same one while that game's views follow one another and a new one after any other screen, send(act)
-//            sends act { … } to the big screen, and control(button, onTap) makes a button of the page's own (the tap, its
-//            sound and the keyboard)
+//   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio }) renders it (Háls og hali and
+//            Eitt! register theirs: spil.html passes guest-hals.js's renderHals and guest-eitt.js's renderEitt); `el` is the
+//            game's element in the middle of the page, the same one while that game's views follow one another and a new one
+//            after any other screen, send(act) sends act { … } to the big screen, control(button, onTap) makes a button of the
+//            page's own (the tap, its sound and the keyboard), and audio.effects(options) a game's own effects on the page's
+//            audio (Eitt!'s, spec §7.3)
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
 // the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
@@ -26,8 +27,9 @@
 // so the big screen seats her where she was (spec §6.4). The words for what goes wrong are spec §10's.
 //
 // Names are text, never markup: they go in with textContent. Every button is the book's (book/fx.js's pressable: the squash,
-// the sparkle and the tap sound, the page's only sound, from its own audio context made at the first touch), and Enter or
-// Space on a focused one is a tap too. The look is spil.css.
+// the sparkle and the tap sound, from the page's own audio context made at the first touch), and Enter or Space on a focused
+// one is a tap too. The tap is the page's only sound but a game's own effects, which a game screen asks for on the same
+// context and output (Eitt!'s; never a voice or music, spec §13). The look is spil.css.
 
 import { CODE_ALPHABET, CODE_LENGTH, NAME_MAX, message, normalizeCode, randomKey } from './protocol.js';
 import { AVATARS, HOST_AVATAR, avatarOf, cleanName } from './seats.js';
@@ -35,6 +37,7 @@ import { pressable } from '../book/fx.js';
 import { bookSounds, BOOK_GAPS } from '../book/book-sounds.js';
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { createGameSfx } from '../audio/game-music.js';
+import { makeDeck } from '../eitt/rules.js';
 
 export const STORAGE_KEY = 'mosi-fjolspil-guest';
 
@@ -78,9 +81,20 @@ const DEMOS = {
   hals: { seat: ASTA, view: { screen: 'hals', you: 1, turn: 1, canRoll: true, roll: { value: 5, by: 0 }, winner: null, players: [
     { ...EGILL, square: 23 }, { ...ASTA, square: 17 }, { seat: 2, name: 'Þórseðla', avatar: 'thorsedla', square: 41 },
   ] } },
-  // Eitt!'s phone screen comes with Task 12, with a sample view here; until then, closed.
-  eitt: { seat: ASTA, view: { screen: 'closed' } },
+  // Eitt!, Ásta's turn among three: five cards, the blue four and the wild playable, Egill and Bjarni's fans at the top
+  // (spil.html registers renderEitt)
+  eitt: { seat: ASTA, view: {
+    screen: 'eitt', you: 1, turn: 1, direction: 1, colour: 'blue', top: cardOf('blue-7-a'), lastPlay: { seat: 0, cardId: 'blue-7-a' },
+    hand: ['red-2-a', 'yellow-skip-a', 'blue-4-a', 'green-9-a', 'wild-a'].map(cardOf), playable: ['blue-4-a', 'wild-a'],
+    canDraw: false, canPass: false, needsColour: null, eittNeeded: false, canCatch: null, winner: null,
+    counts: [{ ...EGILL, cards: 4 }, { ...ASTA, cards: 5 }, { ...BJARNI, cards: 6 }],
+  } },
 };
+
+/** A card of the deck by its id, for the demo's Eitt! view. */
+function cardOf(id) {
+  return makeDeck().find(card => card.id === id);
+}
 
 /** The window's localStorage, or null where the browser will not give it (a private window can throw on the getter). */
 function localStorageOf(win) {
@@ -150,15 +164,26 @@ export function createGuestPage(doc, {
   // ---- Sound: the book's tap, from the page's own audio context, made at the first touch (browsers wait for one) --------
 
   let context;
+  let output = null;
   let effects = null;
+  const games = new Map(); // a game's own effects, by its sounds, on the same context and output
   function wake() {
     if (!effects) {
       context = createAudioContext();
-      effects = createGameSfx({ context, output: context ? createOutput(context) : null, sounds: bookSounds, gaps: BOOK_GAPS });
+      output = context ? createOutput(context) : null;
+      effects = createGameSfx({ context, output, sounds: bookSounds, gaps: BOOK_GAPS });
     }
     if (context?.state === 'suspended') context.resume?.()?.catch?.(() => {});
   }
-  const audio = { sfx: name => { wake(); return effects.play(name); } };
+  const audio = {
+    sfx: name => { wake(); return effects.play(name); },
+    /** A game screen's own effects (createGameSfx's music, sounds and gaps), made once on the page's context and output. */
+    effects(options) {
+      wake();
+      if (!games.has(options.sounds)) games.set(options.sounds, createGameSfx({ ...options, context, output }));
+      return games.get(options.sounds);
+    },
+  };
   doc.addEventListener?.('pointerdown', wake, { capture: true });
   doc.addEventListener?.('keydown', wake, { capture: true });
 
@@ -493,7 +518,7 @@ export function createGuestPage(doc, {
     }
     unsay('page');
     show('game');
-    render(gameEl, view, { send, doc, control });
+    render(gameEl, view, { send, doc, control, audio });
   }
 
   /** The lobby: her place at the table when it says she has one (`you`); otherwise the join screen, with the free avatars. */

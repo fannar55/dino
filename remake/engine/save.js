@@ -2,7 +2,9 @@
 // friends who accepted the invitation, the animals found along the way, and the book's cards the child
 // has opened (a card is "Nýtt!" until it is seen). A save from before the book has no seen list, and
 // reads as having seen nothing. Kambeðla's card game, "Eitt!", keeps its own: her skill, the rounds the
-// child has lost in a row, the stickers won and whether the tutorial has been through (engine/eitt/table.js);
+// child has lost in a row, the stickers won and whether the tutorial has been through (engine/eitt/table.js), and a round of
+// "Fjölspil" left under way with its seats (eitt.game: the rules' data, which table.js checks before it offers "Halda áfram",
+// and eitt.seats: the seats' snapshot, fjolspil/seats.js), the two kept together and forgotten together;
 // it is stored only once the game has been played, so a save from before the game reads as it always did.
 // "Háls og hali" keeps the fossil kinds the child has found, as hals: { found: [...] }, in the same way: stored with
 // the first find, and a save without it loads as before (engine/hals/rules.js has the kinds). Beside them it keeps the game
@@ -31,11 +33,22 @@ const idsOf = value => (Array.isArray(value) ? [...new Set(value.filter(id => ty
 
 const count = value => (Number.isInteger(value) && value > 0 ? value : 0);
 
-/** The game's state as stored: { skill (0 to 1, or null before the first round), losses, wins, tutorialDone }, or null. */
+/** A plain object as stored (not a list), or null. */
+const objectOf = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
+
+/** A deep copy of what is kept as JSON, so nobody outside holds the save's own objects. */
+const copied = value => JSON.parse(JSON.stringify(value));
+
+/**
+ * The game's state as stored: { skill (0 to 1, or null before the first round), losses, wins, tutorialDone }, and `game` and
+ * `seats` (plain objects) while a round of "Fjölspil" is kept, the seats only with a game; or null.
+ */
 function eittOf(value) {
   if (!value || typeof value !== 'object') return null;
   const skill = Number.isFinite(value.skill) && value.skill >= 0 && value.skill <= 1 ? value.skill : null;
-  return { skill, losses: count(value.losses), wins: count(value.wins), tutorialDone: value.tutorialDone === true };
+  const game = objectOf(value.game);
+  const seats = game ? objectOf(value.seats) : null;
+  return { skill, losses: count(value.losses), wins: count(value.wins), tutorialDone: value.tutorialDone === true, ...(game && { game }), ...(seats && { seats }) };
 }
 
 /**
@@ -59,8 +72,9 @@ function yatzyOf(value) {
 /**
  * `get()` is a copy of { stars, findings, seen, places }, each a list of ids in the order they came. `addStar(id)`,
  * `addFinding(id)`, `addSeen(id)` and `addPlace(id)` keep an id once however often they are called, and say whether it was new.
- * `getEitt()` is a copy of the card game's { skill, losses, wins, tutorialDone } (skill null before the first
- * round), and `setEitt(changes)` keeps what it is given and leaves the rest as it was.
+ * `getEitt()` is a copy of the card game's { skill, losses, wins, tutorialDone, game, seats } (skill null before the first
+ * round; game and seats deep copies of the round of "Fjölspil" kept, or null), and `setEitt(changes)` keeps what it is given and
+ * leaves the rest as it was (game: null forgets the round kept, its seats with it).
  * `getHals()` is a copy of the fossil collection, { found }, and `addHalsFound(kind)` adds a kind of fossil, once however
  * often it is called, and says whether it was new (get() leaves the collection out, so its shape stays the same).
  * `getHalsPlay()` is { game, intro, hello, played }: the game left under way (or null), whether the intro and the hello have
@@ -113,9 +127,19 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
     addFinding: id => add('findings', id),
     addSeen: id => add('seen', id),
     addPlace: id => add('places', id),
-    getEitt: () => ({ skill: eitt?.skill ?? null, losses: eitt?.losses ?? 0, wins: eitt?.wins ?? 0, tutorialDone: eitt?.tutorialDone ?? false }),
-    setEitt(changes) {
-      eitt = eittOf({ ...eitt, ...changes }) ?? eittOf({});
+    getEitt: () => ({
+      skill: eitt?.skill ?? null,
+      losses: eitt?.losses ?? 0,
+      wins: eitt?.wins ?? 0,
+      tutorialDone: eitt?.tutorialDone ?? false,
+      game: eitt?.game ? copied(eitt.game) : null,
+      seats: eitt?.seats ? copied(eitt.seats) : null,
+    }),
+    setEitt(changes = {}) {
+      const next = { ...eitt, ...changes };
+      if ('game' in changes) next.game = changes.game ? copied(changes.game) : null;
+      if ('seats' in changes) next.seats = changes.seats ? copied(changes.seats) : null;
+      eitt = eittOf(next) ?? eittOf({});
       write();
     },
     getHals: () => ({ found: [...(hals?.found ?? [])] }),
