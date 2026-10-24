@@ -6,6 +6,8 @@ import { createGuestPage } from '../engine/fjolspil/guest.js';
 import { renderHals } from '../engine/fjolspil/guest-hals.js';
 import { renderEitt } from '../engine/fjolspil/guest-eitt.js';
 import { makeDeck } from '../engine/eitt/rules.js';
+import { bookSounds, BOOK_GAPS } from '../engine/book/book-sounds.js';
+import { FakeContext } from './fake-audio.mjs';
 
 class FakeStorage { constructor() { this.map = new Map(); } getItem(k) { return this.map.get(k) ?? null; } setItem(k, v) { this.map.set(k, String(v)); } }
 function fakeNet() {
@@ -139,6 +141,41 @@ test('the page coming back into view, or the network coming back, reconnects at 
   assert.equal(net.reconnects, 1);
   fire('online');
   assert.equal(net.reconnects, 2);
+});
+
+test('the page makes no sound before the first touch, and wakes its audio inside every touch, even after an iPhone lock', t => {
+  const contexts = [];
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
+  globalThis.AudioContext = class extends FakeContext { constructor() { super(); contexts.push(this); } };
+  t.after(() => { if (had) Object.defineProperty(globalThis, 'AudioContext', had); else delete globalThis.AudioContext; });
+  let audio = null;
+  const { doc, net } = rig({ search: '?r=GULL', views: { probe: (el, v, tools) => { audio = tools.audio; } } });
+  net.message(view('probe', {}, 1)); // a game screen, as Eitt!'s, with the page's audio
+  const options = { sounds: bookSounds, gaps: BOOK_GAPS };
+  assert.equal(audio.effects(options), null, 'before any touch a sound is skipped');
+  assert.equal(contexts.length, 0, 'and no audio context is made');
+
+  doc.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 })); // on an iPhone only the finger lifting is a gesture
+  assert.equal(contexts.length, 1, 'the touch made the context');
+  const [context] = contexts;
+  assert.equal(context.resumes, 1, 'and woke it inside the touch');
+  const effects = audio.effects(options);
+  assert.ok(effects, 'a game\'s effects now');
+  assert.equal(audio.effects(options), effects, 'made once');
+
+  context.setState('interrupted'); // WebKit after the phone was locked, or a call
+  const resumes = context.resumes;
+  assert.equal(audio.effects(options), effects);
+  assert.equal(context.resumes, resumes + 1, 'the next sound asked for (inside a tap) resumes the context');
+  assert.equal(context.state, 'running');
+  context.setState('suspended');
+  doc.dispatchEvent(new Event('touchend'));
+  assert.equal(context.resumes, resumes + 2, 'a touch ending anywhere on the page resumes it too');
+  context.setState('closed');
+  audio.effects(options);
+  doc.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+  assert.equal(context.resumes, resumes + 2, 'a closed context is not resumed');
+  assert.equal(contexts.length, 1, 'nor made again');
 });
 
 test('the hals screen rolls once per view and names whose turn it is', () => {

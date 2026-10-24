@@ -29,7 +29,10 @@
 // Names are text, never markup: they go in with textContent. Every button is the book's (book/fx.js's pressable: the squash,
 // the sparkle and the tap sound, from the page's own audio context made at the first touch), and Enter or Space on a focused
 // one is a tap too. The tap is the page's only sound but a game's own effects, which a game screen asks for on the same
-// context and output (Eitt!'s; never a voice or music, spec §13). The look is spil.css.
+// context and output (Eitt!'s; never a voice or music, spec §13). The audio rule: no context, and no sound, before the
+// page's first touch or key; from then on every touch (its start and its end: an iPhone counts only a finger lifting as the
+// gesture) and every key wakes it, and so does every sound asked for (a tap's own, inside it), whenever it is not running
+// (suspended, or WebKit's 'interrupted' after a phone lock). The look is spil.css.
 
 import { CODE_ALPHABET, CODE_LENGTH, NAME_MAX, message, normalizeCode, randomKey } from './protocol.js';
 import { AVATARS, HOST_AVATAR, avatarOf, cleanName } from './seats.js';
@@ -167,7 +170,8 @@ export function createGuestPage(doc, {
   let output = null;
   let effects = null;
   const games = new Map(); // a game's own effects, by its sounds, on the same context and output
-  let woken = false; // the page's first touch (or key) has come: the audio context is made and woken only from one
+  let woken = false; // the page's first touch (or key) has come: the audio context is made only from one
+  /** The page's audio, made at the first touch and resumed whenever it is not running (a sound asked for inside a tap). */
   function wake() {
     woken = true;
     if (!effects) {
@@ -175,7 +179,7 @@ export function createGuestPage(doc, {
       output = context ? createOutput(context) : null;
       effects = createGameSfx({ context, output, sounds: bookSounds, gaps: BOOK_GAPS });
     }
-    if (context?.state === 'suspended') context.resume?.()?.catch?.(() => {});
+    if (context && context.state !== 'running' && context.state !== 'closed') context.resume?.()?.catch?.(() => {});
   }
   const audio = {
     sfx: name => { wake(); return effects.play(name); },
@@ -185,12 +189,13 @@ export function createGuestPage(doc, {
      */
     effects(options) {
       if (!woken) return null;
+      wake(); // a sound asked for inside a tap wakes the context a phone lock put to sleep (it is made already: this resumes)
       if (!games.has(options.sounds)) games.set(options.sounds, createGameSfx({ ...options, context, output }));
       return games.get(options.sounds);
     },
   };
-  doc.addEventListener?.('pointerdown', wake, { capture: true });
-  doc.addEventListener?.('keydown', wake, { capture: true });
+  // Every touch's start and its end (an iPhone's gesture is the end, and it ends on the control before its tap sound plays)
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown']) doc.addEventListener?.(type, wake, { capture: true });
 
   // ---- Building blocks ---------------------------------------------------------------------------------------------
 
