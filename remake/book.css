@@ -370,7 +370,7 @@
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.25) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.18);
 }
 .game-tile[data-game="hals"] .tile-picture img,
-.game-tile[data-game="yatzy"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
+.game-tile[data-game="yatzy-junior"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
 
 /* The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's title. */
 .ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */
