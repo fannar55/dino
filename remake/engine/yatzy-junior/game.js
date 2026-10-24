@@ -12,7 +12,7 @@ import {createPickEffects} from './pick-vfx.js';
 import {createJuice} from './juice.js';
 import {createFjolspil} from '../fjolspil/fjolspil.js';
 import {avatarOf} from '../fjolspil/seats.js';
-import {MOSI_AI,STORAGE_KEY,playersOf,yatzyView,actOf,keepFjolspil,forgetFjolspil} from './fjolspil.js';
+import {MOSI_AI,STORAGE_KEY,playersOf,phaseOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from './fjolspil.js';
 
 const $=id=>document.getElementById(id),SAVE='mosi.yatzy.junior.save.v1',PREFS='mosi.yatzy.junior.prefs.v1';
 const read=key=>{try{return JSON.parse(localStorage.getItem(key));}catch{return null;}};
@@ -35,7 +35,7 @@ function diceMargins(width,height){
   const screen=document.getElementById('table')?.getBoundingClientRect(),cards=$$('#score-rows .card-select');
   if(!screen?.height||!cards.length)return null;
   const u=document.querySelector('#score-rows .card-select').offsetWidth/176,clear=24,phone=width<=560,coach=document.getElementById('lesson-center');
-  const cardTop=Math.min(...cards.map(r=>r.top))-(16+14)*u-4; // a badge sticks up 16u over a card and the best card lifts 14u more
+  const cardTop=Math.min(Math.min(...cards.map(r=>r.top))-(16+14)*u-4,...$$('#card-owner').map(r=>r.top)); // a badge sticks up 16u over a card and the best card lifts 14u more; in Fjölspil the owner's tag over the row
   // The players' bar: on a wide screen the dice keep beside it (the bubble's band runs along the top beside it), on an upright one
   // or a phone below it.
   const bar=$$('.player-card, .rounds'),barBottom=Math.max(...bar.map(r=>r.bottom)),barRight=Math.max(...bar.map(r=>r.right)),below=phone||height>width;
@@ -121,11 +121,14 @@ const step=()=>lesson?LESSON_STEPS[lesson.index]:null;
 const isHuman=()=>started&&!paused&&phase==='human'&&state.currentPlayer===0&&state.status==='playing';
 const seatOf=i=>multi?fjolspil.seats.bySeat(i):null;
 // Who plays the turn, and how: the child at the big screen ('human'; Egill's seat 0 in Fjölspil), a guest from her phone
-// ('remote'), or the computer ('ai-wait': Mosi, or a guest's seat he covers while she is away).
-function turnPhase(){const who=state.currentPlayer;if(!multi)return who===0?'human':'ai-wait';const kind=seatOf(who)?.kind;return kind==='host'?'human':kind==='remote'?'remote':'ai-wait';}
+// ('remote'), the computer ('ai-wait': Mosi, or a guest's seat he covers while she is away), or nobody yet ('waiting': her phone
+// has gone, and the waiting card is up). fjolspil.js phaseOf reads it off the seat.
+function turnPhase(){const who=state.currentPlayer;return multi?phaseOf(seatOf(who)):who===0?'human':'ai-wait';}
+function takeTurn(){phase=turnPhase();if(phase==='waiting')waitTurn(state.currentPlayer);}
 const mosiPlays=i=>players[i]?.isMosi===true; // Mosi himself: his lines and sounds, and his side of the table for the dice
 const side=i=>mosiPlays(i)?1:0;
-// Mosi's lines for a game of seats are still to come (Task 7): until then he speaks to the child at the big screen and of his own play.
+// Mosi's lines for a game of seats are still to come (Task 7): until then he speaks to the child at the big screen and of his own play,
+// never on a guest's turn, nor on one he plays for her while she is away (spec §7: silently, his reactions allowed).
 const voiced=i=>!multi||i===0||mosiPlays(i);
 // A guest's phone may act only while the table waits for it: her turn from her phone, nothing moving, the page not paused.
 const phoneMay=()=>!paused&&phase==='remote'&&settled();
@@ -199,6 +202,8 @@ function renderUI(){
   const pipsDone=over?5:round-1;if(started&&!lesson&&pipDone>=0&&pipsDone===pipDone+1)juice.pop(roundPips[pipsDone-1],1.7);pipDone=lesson?-1:pipsDone; // a round's pip fills with a pop
   roundPips.forEach((pip,i)=>{pip.classList.toggle('done',over||i<round-1);pip.classList.toggle('now',!over&&i===round-1);});
   $('turn-label').textContent=lesson?'Mosi kennir þér':!started?'Spilum saman':state.status==='finished'?'Leik lokið':multi?`${players[who].name} á leik`:who?'Mosi á leik':'Þú átt leik';
+  // Whose five cards these are, in Fjölspil: a tag with her name in her colour at the row's left end; the solo game's are the child's.
+  const tag=$('card-owner');tag.hidden=!multi;if(multi){const {name,colour}=players[owner];if(tag.textContent!==name)tag.textContent=name;tag.style.setProperty('--c',colour);}
   if(started&&!lesson&&lastWho!==null&&who!==lastWho)juice.pulse(playerEls[who].portrait);lastWho=started?who:null; // the turn passes: a pulse
   // Who plays is lit; in Fjölspil a guest whose phone has gone is dimmed (her seat waits for her, or Mosi covers it).
   playerEls.forEach(({card},i)=>{card.classList.toggle('current',i===who);if(multi){const seat=seatOf(i);card.classList.toggle('absent',Boolean(seat?.guestId)&&!seat.present);}});document.querySelector('.turn').classList.toggle('ai',mosiPlays(who));
@@ -224,7 +229,7 @@ function placeTag(){
   const width=tag.offsetWidth,height=tag.offsetHeight+10,gap=12,cx=(ring.left+ring.right)/2,cy=(ring.top+ring.bottom)/2,natural=ring.left-ring.width*.04;
   const slide=left=>Math.min(Math.max(left,gap),innerWidth-gap-width);
   const spots=[['above',slide(natural),ring.top-15-height],['right',ring.right+15,cy-height/2],['left',ring.left-15-width,cy-height/2],['below',slide(natural),ring.bottom+15]];
-  const rects=e=>e.getBoundingClientRect(),obstacles=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help, #score-rows .card-select, #score-rows .card-value')].map(rects);
+  const rects=e=>e.getBoundingClientRect(),obstacles=[...document.querySelectorAll('.player-card, .rounds, .corner > button, #lesson-center, #help, #card-owner, #score-rows .card-select, #score-rows .card-value')].map(rects);
   for(const b of dieButtons)if(!b.hidden){const r=rects(b);obstacles.push({left:r.left,right:r.right,top:r.top-56,bottom:r.bottom});} // a die and its number chip
   const live=obstacles.filter(r=>r.right>r.left),clash=(left,top)=>live.reduce((sum,r)=>sum+Math.max(0,Math.min(r.right,left+width)+gap-Math.max(r.left,left)-0)*Math.max(0,Math.min(r.bottom,top+height)+gap-Math.max(r.top,top)),0);
   const scored=spots.map(([name,left,top])=>({name,left,top,cost:clash(left,top)+(left<gap||top<gap||left+width>innerWidth-gap||top+height>innerHeight-gap?1e9:0)}));
@@ -285,7 +290,7 @@ function rolled(){
   const values=Object.values(previews(state)),best=Math.max(0,...values),kind=best>=40?'great':best>0?'good':'bad',who=state.currentPlayer;
   opponent.react(kind);audio.cue(kind,{strength:.6});effects.emit(dice.getWatchTarget(),{kind:best>=50?'yatzy':kind,reduced});
   if(reduced)view('dice',true);else pendingDiceView=.7;
-  phase=turnPhase();timer=2.6;if(multi){multi.before=null;multi.lastRoll={seq:++multi.seq,by:who};} // the dice lie: every phone tumbles onto them
+  takeTurn();timer=2.6;if(multi){multi.before=null;multi.lastRoll={seq:++multi.seq,by:who};} // the dice lie: every phone tumbles onto them
   if(lesson)nextLesson();else if(voiced(who))say(mosiPlays(who)?kind:state.rollCount===3?'noRolls':state.rollCount===2?'lastRoll':'choose');renderUI();sendViews();
 }
 function chooseScore(id){
@@ -334,7 +339,7 @@ function advanceTurn(){
     // Confetti, two volleys of fireworks over the table and Mosi's celebration play out before the result card comes up.
     const open=()=>{if(phase==='finished'&&state.status==='finished')openDialog('win-dialog',resultSpeech());};if(reduced)open();else{effects.celebrate();later={t:2.7,fn:open};}renderUI();sendViews();return;}
   // The turn moves on to the next seat round the ring, played as its seat is (turnPhase); the cards are its player's now.
-  const who=state.currentPlayer;recent=null;if(multi)owner=who;dice.sync(state.dice,state.held,side(who),{animate:!reduced});phase=turnPhase();timer=.9;aiDecision=null;audio.cue('turn',{player:side(who)});if(voiced(who))say(mosiPlays(who)?'mosiTurn':'yourTurn');renderUI();sendViews();
+  const who=state.currentPlayer;recent=null;if(multi)owner=who;dice.sync(state.dice,state.held,side(who),{animate:!reduced});takeTurn();timer=.9;aiDecision=null;audio.cue('turn',{player:side(who)});if(voiced(who))say(mosiPlays(who)?'mosiTurn':'yourTurn');renderUI();sendViews();
 }
 // The computer's turn, for whichever seat it plays: Mosi's own, or a guest's he covers while she is away.
 function aiStep(){
@@ -364,33 +369,59 @@ function leaveLesson(play=false){
   if(!lesson)return;voice.stop();lessonAdvance=-1;const previous=lessonReturn;lesson=null;lessonReturn=null;audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();state=previous.state;started=previous.started;recent=null;aiDecision=null;zeroCategory=null;
   phase=!started?'intro':state.status==='finished'?'finished':state.currentPlayer===0?'human':'ai-wait';timer=.9;
   dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount>0?'dice':'table',true);$('controls').hidden=!started;coach.hidden=true;closeDialogs();renderUI();$('score-rows').scrollTo({top:previous.scoreScroll,behavior:'instant'});
-  if(!started){if(play)start(Boolean(saved));else{$('continue').hidden=!saved;openDialog('welcome');}}else if(state.status==='finished'){resultCopy();openDialog('win-dialog');}else say('resume');
+  if(!started){if(play)start(Boolean(saved));else welcome();}else if(state.status==='finished'){resultCopy();openDialog('win-dialog');}else say('resume');
 }
+// Every game starts from a quiet table: no line, sound, flight or glow left from the one before, and no lesson.
+function hush(){voice.stop();resetIdle();audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;}
+// The welcome card, with "Halda áfram" when a solo game is kept and "Halda áfram (Fjölspil)" when a game of seats is.
+function welcome(){$('continue').hidden=!saved;$('continue-multi').hidden=!readFjolspil(local());openDialog('welcome');}
 function start(continuing=false){
-  if(multi)leaveMulti();
-  voice.stop();resetIdle();audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;
+  if(multi)endMulti();
+  hush();
   state=continuing&&saved?structuredClone(saved):createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0]});started=true;phase=state.status==='finished'?'finished':turnPhase();timer=.9;
   dice.sync(state.dice,state.held,state.currentPlayer);view(state.rollCount>0&&state.status==='playing'?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
   if(state.status==='finished'){resultCopy();openDialog('win-dialog',resultSpeech());}else say(continuing?'resume':'yourTurn');
 }
 // "Byrjum!" in the lobby: a game of its seats, player i in seat i; Egill in seat 0 starts, as the child does alone. Mosi joins in
 // when the lobby added him; the phones are sent the table at once.
-function startMulti(seats){
-  voice.stop();resetIdle();audio.cancel();effects.clear();juice.cancel();chipHold.fill(null);later=null;opponent.reset();lesson=null;lessonReturn=null;lessonAdvance=-1;zeroCategory=null;aiDecision=null;recent=null;
-  seatsOff?.();multi={seats,lastRoll:null,seq:0,before:null};seatsOff=fjolspil.seats.onChange(()=>{if(multi&&world)renderUI();}); // a guest's phone goes or comes back: her card dims or lights
-  state=createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0],players:playersOf(fjolspil.seats)});owner=state.currentPlayer;started=true;
-  buildPlayers(seats.map(seat=>({name:seat.name,avatar:seat.avatar,colour:avatarOf(seat.avatar)?.colour??'var(--teal)',isMosi:seat.kind==='ai'&&!seat.covered})));
-  phase=turnPhase();timer=.9;dice.sync(state.dice,state.held,side(state.currentPlayer));view('table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
-  if(voiced(state.currentPlayer))say(mosiPlays(state.currentPlayer)?'mosiTurn':'yourTurn');sendViews();
+function startMulti(seats){seatGame(seats,createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0],players:playersOf(fjolspil.seats)}));}
+// "Halda áfram (Fjölspil)": the kept game where it was left, in the seats fjolspil.resume took back, in the room this tab had (its
+// sessionStorage), so the guests' phones come back to it by themselves; the turn of one who is not back yet waits for her.
+function resumeMulti(kept){seatGame(fjolspil.seats.list(),structuredClone(kept),true);}
+function seatGame(seats,game,resumed=false){
+  hush();seatsOff?.();multi={seats,lastRoll:null,seq:0,before:null};seatsOff=fjolspil.seats.onChange(seatsChanged);state=game;owner=state.currentPlayer;started=true;
+  buildPlayers(seats.map(seat=>({name:seat.name,avatar:seat.avatar,colour:avatarOf(seat.avatar)?.colour??'var(--teal)',isMosi:seat.kind==='ai'&&!seat.covered})));syncMultiButtons();
+  takeTurn();timer=.9;dice.sync(state.dice,state.held,side(state.currentPlayer));view(resumed&&state.rollCount>0?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
+  const who=state.currentPlayer;if(resumed)say('resume');else if(voiced(who))say(mosiPlays(who)?'mosiTurn':'yourTurn');sendViews();
 }
-// A solo game ends the game of seats: the phones wait for the next lobby, its kept game is let go, and the bar is the child's and
-// Mosi's again.
-function leaveMulti(){fjolspil.closeGame();forgetFjolspil(local());seatsOff?.();seatsOff=null;multi=null;owner=0;buildPlayers(SOLO_PLAYERS);}
+// A guest's phone goes or comes back: her card dims or lights; when it goes on her own turn, the turn waits for her (once the seats'
+// own change is over).
+function seatsChanged(){if(!multi||!world)return;renderUI();if(phase==='remote'&&turnPhase()==='waiting')setTimeout(()=>{if(multi&&phase==='remote'&&turnPhase()==='waiting')takeTurn();});}
+// A guest's turn while her phone is away: the lobby's waiting card over the table (fjolspil.waitFor: "Bíðum eftir …", and after 20 s
+// "Halda áfram án …"). 'back': she plays it from her phone; 'cover': Mosi plays her seat, silently, until she is back for its next
+// turn (which waitFor gives her at once); 'closed': the game of seats is over (another tab took the room).
+async function waitTurn(who){
+  const game=multi,result=await fjolspil.waitFor(who);
+  if(multi!==game||state.currentPlayer!==who||phase!=='waiting')return; // the game ended, or the turn moved on, meanwhile
+  if(result==='closed'){endMulti();welcome();return;}
+  takeTurn();timer=.9;renderUI();sendViews();
+}
+// The game of seats ends ("Hætta Fjölspili", a solo game, a new lobby, the room taken by another tab): the phones wait for the next
+// lobby, its kept game is let go, and the table is the solo one again, not started, with the child's and Mosi's bar (what comes next
+// is the caller's: the welcome card, or the game it starts).
+function endMulti(){
+  fjolspil.closeGame();forgetFjolspil(local());seatsOff?.();seatsOff=null;multi=null;owner=0;hush();state=createGame();started=false;phase='intro';timer=0;
+  buildPlayers(SOLO_PLAYERS);syncMultiButtons();dice.sync(state.dice,state.held,0);view('table',true);$('controls').hidden=true;renderUI();
+}
+// While a game of seats is on, the lesson and its demonstration are closed (spec §7: "Læra með Mosa", "Sýndu mér"), and the pause
+// card's "Byrja upp á nýtt" is "Hætta Fjölspili", which ends it.
+function syncMultiButtons(){$('learn').hidden=$('learn-help').hidden=Boolean(multi);$('new-game').textContent=multi?'Hætta Fjölspili':'Byrja upp á nýtt';}
 // What each guest's phone shows (fjolspil.js yatzyView), sent after every change of the table: to the players of this game only
 // (a guest seated since is not in it), never broadcast. While the dice are in the air the phones see the table as it stood, so the
-// new faces show on both screens once they lie; a phone's controls are live only while the table waits for it.
-function sendView(seat){fjolspil.send(seat,yatzyView(multi.before??state,fjolspil.seats,seat,{settled:phase==='remote'&&settled(),paused,lastRoll:multi.lastRoll}));}
-function sendViews(){if(!multi)return;for(const seat of fjolspil.seats.list())if(seat.guestId&&seat.seat<state.players.length)sendView(seat.seat);}
+// new faces show on both screens once they lie; a phone's controls are live only while the table waits for it. Nothing is sent
+// while the lobby is up (the phones see its views then), and a game that is over is not said to be paused (its result card is up).
+function sendView(seat){if(!multi||lobbyUp)return;fjolspil.send(seat,yatzyView(multi.before??state,fjolspil.seats,seat,{settled:phase==='remote'&&settled(),paused:paused&&state.status==='playing',lastRoll:multi.lastRoll}));}
+function sendViews(){if(!multi||lobbyUp)return;for(const seat of fjolspil.seats.list())if(seat.guestId&&seat.seat<state.players.length)sendView(seat.seat);}
 // A guest's act from her phone (fjolspil.js hears only a guest who is there and plays her own seat). It is played when actOf finds
 // it fits now; anything else (not her turn, the dice moving, a card used) is let be, and her phone is sent her view again so it
 // shows what it may do. The question before a card that scores nothing is her phone's.
@@ -400,15 +431,25 @@ function guestAct(seat,body){
   if(!act){sendView(seat);return;}
   if(act.type==='roll')beginRoll();else if(act.type==='hold')holdDie(act.die);else record(act.card);
 }
-// "Fjölspil" on the welcome card: the lobby over the table (which holds still under it); its X goes back to the welcome card.
+// "Fjölspil" on the welcome card: the lobby over the table (which holds still under it); its X goes back to the welcome card. A
+// game of seats still on ends first: one at a time.
 async function openMulti(){
-  closeDialogs();lobbyUp=true;syncPause();
-  const opened=await fjolspil.openLobby({ai:MOSI_AI});lobbyUp=false;
-  if(!opened){openDialog('welcome');return;}
+  if(multi)endMulti();
+  closeDialogs();lobbyUp=true;syncPause();let opened=null;
+  try{opened=await fjolspil.openLobby({ai:MOSI_AI});}finally{lobbyUp=false;syncPause();}
+  if(!opened){welcome();return;}
   startMulti(opened.seats);
 }
+// "Halda áfram (Fjölspil)": the room again with the kept seats; when this tab cannot have it (another took it), the seats there are
+// not the kept game's, and the welcome card stays.
+async function continueMulti(){
+  const kept=readFjolspil(local());if(!kept||multi){welcome();return;}
+  await fjolspil.resume(kept.seats);
+  if(fjolspil.seats.count!==kept.state.players.length){welcome();return;}
+  resumeMulti(kept.state);
+}
 
-$('start').addEventListener('click',()=>start());$('continue').addEventListener('click',()=>start(true));$('multi').addEventListener('click',()=>{if(fjolspil)openMulti();});
+$('start').addEventListener('click',()=>start());$('continue').addEventListener('click',()=>start(true));$('continue-multi').addEventListener('click',()=>{if(fjolspil)continueMulti();});$('multi').addEventListener('click',()=>{if(fjolspil)openMulti();});
 $('play-again').addEventListener('click',()=>{if(multi)startMulti(fjolspil.seats.list());else start();}); // a game of seats plays again in the same seats
 $('welcome-voice')?.addEventListener('click',()=>{enableNarration();openDialog('welcome','welcomeMenu');});
 $('pause-voice')?.addEventListener('click',()=>{enableNarration();openDialog('pause-dialog','pause');});
@@ -425,7 +466,7 @@ $('sound').addEventListener('click',()=>{muted=!muted;audio.mute(muted);voice.mu
 $('motion').addEventListener('click',()=>{reduced=!reduced;dice.setReducedMotion(reduced);if(reduced){effects.clear();view(pendingDiceView>=0?'dice':world.getViewState().mode,true);}savePrefs();});
 $('pause').addEventListener('click',()=>{if(started)openDialog('pause-dialog');});
 $('help').addEventListener('click',()=>{enableNarration();openDialog('help-dialog','help');});
-$('new-game').addEventListener('click',()=>{if(lesson)leaveLesson();voice.stop();closeDialogs();$('continue').hidden=!saved;openDialog('welcome');});
+$('new-game').addEventListener('click',()=>{if(lesson)leaveLesson();if(multi)endMulti();voice.stop();closeDialogs();welcome();}); // "Hætta Fjölspili" in a game of seats
 $('confirm-zero').addEventListener('click',()=>{const id=zeroCategory;zeroCategory=null;voice.stop();closeDialogs();if(id&&isHuman())record(id);});
 document.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog=>{
@@ -440,6 +481,9 @@ document.addEventListener('keydown',event=>{if(event.repeat||event.ctrlKey||even
   if(/^[1-5]$/.test(event.key)&&isHuman()){event.preventDefault();toggleHold(Number(event.key)-1);}else if(event.code==='Space'&&isHuman()&&document.activeElement?.tagName!=='BUTTON'){event.preventDefault();beginRoll();}else if(event.code==='Escape'&&started&&!paused){event.preventDefault();openDialog('pause-dialog');}});
 function cleanupScene(){pick?.dispose();effects?.dispose();dice?.dispose();opponent?.dispose();world?.dispose();}
 function dispose(){if(disposed)return;disposed=true;cancelAnimationFrame(frame);resizeObserver?.disconnect();voice?.dispose();audio.dispose();cleanupScene();}
+// The page goes (the book closes its frame, a reload): the phones wait for the next lobby, but the kept game stays, for "Halda áfram
+// (Fjölspil)" when the page is back; a wait for a guest that this ends ('closed') ends nothing more here.
+addEventListener('pagehide',()=>{if(multi){multi=null;fjolspil.closeGame();}});
 addEventListener('pagehide',dispose,{once:true});addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 
 export async function initialize({signal,onStage=()=>{}}={}){
@@ -476,7 +520,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     if(world.renderer.getContext().isContextLost())throw new Error('WebGL context lost while drawing the board');
     // "Fjölspil": the page's own room, apart from the book's in the same tab (STORAGE_KEY); the lobby's taps are the page's tap.
     fjolspil=createFjolspil(document,{storageKey:STORAGE_KEY,audio:{sfx:()=>audio.cue('tap')}});fjolspil.onAct(guestAct);
-    $('loading').hidden=true;$('game').inert=false;$('continue').hidden=!saved;savePrefs();renderUI();openDialog('welcome');
+    $('loading').hidden=true;$('game').inert=false;savePrefs();renderUI();welcome();
     let dirty=true;const measure=()=>{targetWidth=canvas.clientWidth;targetHeight=canvas.clientHeight;};measure();resizeObserver=new ResizeObserver(()=>{measure();dirty=true;updateTargets();});resizeObserver.observe(canvas);
     document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{dirty=true;}));
     const tick=now=>{

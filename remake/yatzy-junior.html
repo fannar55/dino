@@ -54,7 +54,8 @@
       <button id="advice" type="button" tabindex="-1" hidden>Hjálp</button>
     </div>
 
-    <!-- The five cards along the bottom. -->
+    <!-- The five cards along the bottom; in "Fjölspil" they are the player's on turn, and her name is on the tag at the row's left end. -->
+    <p id="card-owner" hidden></p>
     <div id="score-rows" role="group" aria-label="Veldu eitt laust spjald"></div>
 
     <!-- "Spyrja Mosa": his face with a "?", bottom left. -->
@@ -72,6 +73,7 @@
   <h2>Litla Yatzy við Mosa</h2>
   <div class="panel-say"><p>Fimm teningar. Fimm spjöld. Við prófum saman!</p><button id="welcome-voice" class="hear" type="button" aria-label="Heyra Mosa lesa upphafsvalmyndina"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button></div>
   <div class="panel-actions">
+    <button id="continue-multi" class="big" type="button" hidden>Halda áfram (Fjölspil)</button>
     <button id="continue" class="big" type="button" autofocus hidden>Halda áfram</button>
     <button id="learn" class="big" type="button" autofocus>Læra með Mosa</button>
     <div class="panel-row">
