@@ -9,10 +9,11 @@
 // qa/yatzy-junior-fjolspil/.
 //   PLAYWRIGHT_PATH=… FJOLSPIL_URL=http://127.0.0.1:4198/remake/ npm run check:yatzy-junior:fjolspil   (the dev server, --lan)
 import {createRequire} from 'node:module';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {COVER_AFTER_MS} from '../engine/fjolspil/protocol.js';
 import {maxTurns} from '../engine/yatzy-junior/rules.js';
+import {MULTI_LINES} from '../engine/yatzy-junior/voice-lines.js';
 
 const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');
 const base=process.env.FJOLSPIL_URL||'http://127.0.0.1:4198/remake/',out='qa/yatzy-junior-fjolspil';
@@ -45,16 +46,21 @@ async function sameDice(phone){
   return dice;
 }
 // Mosi's every line is logged with whose turn it is for (the scorer's, while a score is handed on), whether Mosi covers that seat,
-// and what the bubble showed for it, so each seat's lines can be held to spec §8 (the owner's decision of 2026-10-24).
+// and what the bubble showed for it, so each seat's lines can be held to spec §8 (the owner's decision of 2026-10-24), with how it
+// was said (a clip starting, or its caption alone) and any line that could not play, read as the next one starts.
 const logLines=()=>big.evaluate(()=>{
-  const qa=window.__juniorQA,voice=qa.voice,say=voice.say.bind(voice);window.__lines=[];
+  const qa=window.__juniorQA,voice=qa.voice,say=voice.say.bind(voice);window.__lines=[];window.__voiceFailures=window.__voiceFailures??[];
   voice.say=(id,options)=>{
+    const failed=voice.getDebugState().failure;if(failed)window.__voiceFailures.push(failed);
     const g=qa.getState(),phase=qa.getStatus().phase,n=g.players.length,seat=['handoff','finished'].includes(phase)?(g.turnCount+n-1)%n:g.currentPlayer;
-    const covered=qa.getMulti()?.seats[seat]?.covered===true,said=say(id,options);
-    window.__lines.push({id,phase,seat,covered,caption:document.getElementById('lesson-line').textContent,mode:voice.getDebugState().mode});return said;
+    const covered=qa.getMulti()?.seats[seat]?.covered===true,said=say(id,options),{mode,reason}=voice.getDebugState();
+    window.__lines.push({id,phase,seat,covered,caption:document.getElementById('lesson-line').textContent,mode,reason});return said;
   };
 });
-const takeLines=async()=>{report.lines.push(...await big.evaluate(()=>window.__lines??[]));};
+const takeLines=async()=>{
+  const {lines,failures}=await big.evaluate(()=>{const failed=window.__juniorQA.voice.getDebugState().failure;return {lines:window.__lines??[],failures:[...(window.__voiceFailures??[]),...(failed?[failed]:[])]};});
+  report.lines.push(...lines);report.voiceFailures=[...(report.voiceFailures??[]),...failures];
+};
 async function join(page,name,avatar){
   await page.goto(`${base}spil.html?r=${code}`,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>{const e=document.querySelector('.spil-name');return e&&e.getBoundingClientRect().width>0;});
@@ -207,7 +213,8 @@ try{
   check('"Hætta Fjölspili": the phones wait for the next lobby, nothing is kept; "Spila" is the solo game, the bar back to two (#you-card, #mosi-card), no owner\'s tag');
 
   // Mosi's voice (spec §8): Egill and Mosi himself hear what they hear alone; a guest's turn has the generic lines, her name in the
-  // bubble; a seat Mosi covers only his reactions to its rolls and its score. The six are not recorded yet: their captions alone.
+  // bubble; a seat Mosi covers only his reactions to its rolls and its score. The six of a table of many are optional
+  // (voice-lines.js MULTI_LINES): each one the owner has recorded (all six since 0278150) plays its clip, any other is its caption alone.
   const lines=report.lines,ids=list=>[...new Set(list.map(line=>line.id))].sort(),points=id=>/^points_\d+$/.test(id);
   const playing=lines.filter(line=>line.phase!=='finished'),guest=playing.filter(line=>GUESTS.includes(line.seat)&&!line.covered),cover=playing.filter(line=>line.covered);
   const fits=(list,allowed)=>list.filter(line=>!allowed.includes(line.id)&&!points(line.id));
@@ -218,7 +225,14 @@ try{
   assert.deepEqual(fits(playing.filter(line=>line.seat===0),['multiWelcome','help','yourTurn','choose','lastRoll','noRolls','hold','release','allHeld','zero','scored','resume']),[],'Egill at the big screen: his lines as alone');
   assert.deepEqual(fits(playing.filter(line=>line.seat===MOSI),['mosiTurn','good','great','bad','mosiScored']),[],'Mosi\'s own turn: his lines as alone');
   const welcome=lines.filter(line=>line.id==='multiWelcome');assert.equal(welcome.length,2,'"Byrjum!" and "Spila aftur" are welcomed');
-  assert.ok(welcome.every(line=>line.caption==='Velkomin að borðinu! Við skiptumst á.'&&line.mode==='fallback'),'the welcome in its own words, its caption alone');
+  assert.ok(welcome.every(line=>line.caption==='Velkomin að borðinu! Við skiptumst á.'),'the welcome in its own words');
+  const manifest=JSON.parse(await readFile(new URL('../assets/audio/yatzy-junior/manifest.json',import.meta.url),'utf8'));
+  const multi=Object.keys(MULTI_LINES),recorded=multi.filter(id=>typeof manifest[id]?.src==='string'&&manifest[id].src!=='');
+  for(const line of lines.filter(line=>multi.includes(line.id))){
+    if(recorded.includes(line.id))assert.ok(['pending','audio','ended'].includes(line.mode)&&line.reason===null,`${line.id} "${line.caption}": its recording plays (${line.mode}, ${line.reason})`);
+    else assert.ok(line.mode==='fallback'&&line.reason==='unrecorded',`${line.id} "${line.caption}": its caption alone until it is recorded (${line.mode}, ${line.reason})`);
+  }
+  assert.deepEqual((report.voiceFailures??[]).filter(failure=>multi.includes(failure.id)),[],'every recorded line of the six played');
   for(const seat of GUESTS)assert.ok(lines.some(line=>line.id==='multiTurn'&&line.seat===seat&&line.caption===`${NAMES[seat]} á leik`),`${NAMES[seat]}'s turn: "${NAMES[seat]} á leik"`);
   assert.equal(lines.filter(line=>line.id==='multiTurn'&&line.seat===BJARNI&&line.covered).length,0,'no turn\'s line while Mosi covers him');
   lines.forEach((line,i)=>{
@@ -230,7 +244,7 @@ try{
   assert.ok(lines.some(line=>line.id==='yourTurn'&&line.seat===0)&&lines.some(line=>line.id==='scored'&&line.seat===0),'Egill hears his own lines');
   assert.ok(lines.some(line=>line.id==='mosiTurn'&&line.seat===MOSI)&&lines.some(line=>line.id==='mosiScored'&&line.seat===MOSI),'Mosi speaks of his own play');
   const over=lines.filter(line=>line.id==='multiOver');assert.equal(over.length,1,'the end of the game');assert.equal(over[0].caption,report.final.title,'"… vann!" or "Jafntefli!" in the bubble, as on the result card');
-  check(`Mosi said ${lines.length} lines: Egill's and his own as alone, a guest's turn "Anna á leik" and "Bjarni á leik", her score "${lines.find(line=>line.id==='multiScored')?.caption}", the waiting card "Við bíðum aðeins.", the covered seat only ${ids(cover).join(', ')}, and "${over[0].caption}" at the end`);
+  check(`Mosi said ${lines.length} lines: Egill's and his own as alone, a guest's turn "Anna á leik" and "Bjarni á leik", her score "${lines.find(line=>line.id==='multiScored')?.caption}", the waiting card "Við bíðum aðeins.", the covered seat only ${ids(cover).join(', ')}, and "${over[0].caption}" at the end; of the six, ${recorded.length} recorded and played from their clips, ${multi.length-recorded.length} caption alone`);
   assert.deepEqual(errors,[]);report.passed=true;
   console.log(JSON.stringify({checks:report.checks.length,captures:report.captures,errors},null,2));
 }catch(error){
