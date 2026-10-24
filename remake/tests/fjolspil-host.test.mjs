@@ -120,7 +120,7 @@ function seated(r, guests, { ai = THORSEDLA } = {}) {
   return { started, net };
 }
 
-test('the first lobby opens a room with a code and a key kept for a reload', async () => {
+test('the first lobby opens a room with a code and a key kept for a reload', () => {
   const r = rig();
   assert.equal(r.fjolspil.active, false);
   assert.equal(r.nets.made.length, 0, 'no room until a lobby is asked for');
@@ -169,7 +169,7 @@ test('?relay=1 sends everything through the meeting point, and https asks a STUN
   assert.ok(r.net().options.url.startsWith('wss://mosi.example/fjolspil/ws/'));
 });
 
-test('a guest is shown the lobby on arrival, seated on hello, and everyone sees the new seat', async () => {
+test('a guest is shown the lobby on arrival, seated on hello, and everyone sees the new seat', () => {
   const r = rig();
   r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
   const net = r.net();
@@ -316,7 +316,7 @@ test('waitFor resolves back when the guest returns, and cover when the button is
   assert.equal(await r.fjolspil.waitFor(1), 'back', 'a guest who is there is not waited for');
 });
 
-test('the join address is the page\'s own unless the page is on loopback', async () => {
+test('the join address is the page\'s own unless the page is on loopback', () => {
   const lan = rig({ origin: LAN });
   lan.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
   assert.equal(lan.fjolspil.joinUrl, SPIL);
@@ -370,7 +370,7 @@ test('a phone that comes back to its seat is sent its newest view, never the joi
   assert.ok(rising(seqs(net, 'g1')));
 });
 
-test('taking the computer player out sends every guest the lobby again, with its new seat', async () => {
+test('taking the computer player out sends every guest the lobby again, with its new seat', () => {
   const r = rig();
   r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
   const net = r.net();
