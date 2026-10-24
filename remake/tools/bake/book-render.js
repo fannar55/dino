@@ -72,7 +72,7 @@ const SHOTS = {
     ],
   },
   // Egill, for his seat in "Fjölspil": his head and shoulders, his face turned to us, for the round crops of the lobby, the
-  // phones and the games' bars (a 4:3 picture shown as a circle of its middle, 56 to 90 px across). No ground, so no shadow.
+  // phones and the games' bars (a 4:3 picture shown as a circle of its middle, about 40 to 200 px across). No ground, so no shadow.
   egill: {
     camera: { az: 30, el: 6, fov: 22, fill: [0.7, 0.84], top: 0.42 },
     actors: [{ model: 'egill', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 30, nod: 3 }],
