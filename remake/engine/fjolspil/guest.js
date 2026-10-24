@@ -9,7 +9,11 @@
 //            character are dim) and "Tilbúin/n", which sends hello { name, avatar }. The phone remembers both
 //            (localStorage, mosi-fjolspil-guest, with the guest's id), so the next time one tap is enough
 //   lobby    "Þú ert með!" with her avatar and the seats at the table
-//   wait     "Bíðum eftir stóra skjánum…": the big screen has gone (or another tab took this seat); the connection tries again
+//   wait     "Bíðum eftir stóra skjánum…": the big screen has gone; the connection tries again, and while its socket is open
+//            a seated page says hello again every ASK_EVERY_MS, ASK_TIMES times, until a seat or a view comes. When
+//            another tab took this seat (replaced) nothing is tried by itself: a second line, "Pikkaðu hér til að taka
+//            sætið þitt aftur", reconnects on a tap, and the new socket takes the seat back (the owner's phone test,
+//            2026-10-24: a phone sat on this screen until a refresh)
 //   closed   "Bíðum eftir næsta leik": the game was closed on the big screen; the next lobby comes by itself
 //   over     "{name} vann!" with the winner's avatar
 //   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio }) renders it (Háls og hali and
@@ -24,7 +28,11 @@
 // around net.js's createGuestNet) with onMessage(fn), onStatus(fn), send(msg), reconnect() and close(); without one the
 // page only shows (?demo=…, or the join screen and "Tengist…"). It tries again by itself when it comes back into view or
 // the network is back, and a guest with a seat (or a hello on its way) says hello again whenever the connection is back,
-// so the big screen seats her where she was (spec §6.4). The words for what goes wrong are spec §10's.
+// so the big screen seats her where she was (spec §6.4). A seat's hello again is the seat's own name and avatar, never the
+// join screen's checks (its name field, or a lobby's free avatars, which a game leaves stale): the big screen keeps a known
+// guest's seat and never refuses her own avatar (seats.join), and a hello that reaches it always brings her seat and her
+// newest view back. The words for what goes wrong are spec §10's. With ?debug=1 the status line also shows, in small type,
+// [status · transport · seconds since the big screen was last heard · seat], every second (for the owner's tests).
 //
 // Names are text, never markup: they go in with textContent. Every button is the book's (book/fx.js's pressable: the squash,
 // the sparkle and the tap sound, from the page's own audio context made at the first touch), and Enter or Space on a focused
@@ -60,7 +68,15 @@ const WORDS = {
   offline: 'Ekkert net',
   taken: 'Þessi var tekinn, veldu annan',
   noName: 'Skrifaðu nafnið þitt',
+  retake: 'Pikkaðu hér til að taka sætið þitt aftur', // under "Bíðum eftir stóra skjánum…" when another tab took the seat
 };
+
+/** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
+export const ASK_EVERY_MS = 5000;
+export const ASK_TIMES = 24;
+
+// Wrapped, so the page's timers are called as functions and never as methods of another object.
+const PAGE_TIMERS = { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: id => clearTimeout(id) };
 
 const REMAKE = new URL('../../', import.meta.url);
 const asset = path => new URL(path, REMAKE).href;
@@ -127,16 +143,18 @@ function readGuest(storage, crypto) {
 
 /**
  * The guest's page in `doc`'s #spil. `params` is the address's query (?r=GULL connects at once, ?demo=… shows a sample),
- * `net` makes the connection to a room ({ code, guestId, url: serverUrl } → net), `views` the games' phone screens by name.
+ * `net` makes the connection to a room ({ code, guestId, url: serverUrl } → net), `views` the games' phone screens by name;
+ * `timers` ({ setTimeout, clearTimeout }) and the clock `now` are the wait screen's hellos' and the ?debug=1 readout's.
  * Returns { screen, state, connect(code), submit(), send(act), onStatus(status), onView(view) }; `state` is the last view.
  */
 export function createGuestPage(doc, {
   win = globalThis.window, storage = localStorageOf(win), params = new URLSearchParams(win?.location?.search ?? ''),
-  net = null, serverUrl = null, views = {},
+  net = null, serverUrl = null, views = {}, timers = PAGE_TIMERS, now = () => Date.now(),
 } = {}) {
   const root = doc.getElementById('spil');
   if (!root) throw new Error('The guest page of "Fjölspil" needs #spil (see spil.html)');
   const demo = params.get('demo');
+  const debug = params.get('debug') === '1';
   const keep = demo === null ? storage : null; // a demo neither reads nor writes what the phone remembers
   const guest = readGuest(keep, win?.crypto ?? globalThis.crypto);
   if (guest.fresh) save();
@@ -150,8 +168,12 @@ export function createGuestPage(doc, {
     taken: new Set(), // avatars refused since that view (avatar-taken)
     chosen: guest.avatar, // the avatar picked on the join screen
     pending: null, // the hello sent, { name, avatar }, until its seat comes back
+    again: false, // that hello is her seat's, asked for again (rehello): its answer is not what she typed
     hadSeat: false, // a seat in this room: its no-room is the end of the game, not a wrong code
     connection: null, // the room's, from net({ code, guestId, url })
+    status: null, // what the connection said last
+    replaced: false, // another tab took this seat: the wait screen offers it back
+    heardAt: null, // when the big screen's last message came (now()), for the ?debug=1 readout
     game: null, // which game's screen `gameEl` holds
     said: { text: '', kind: null }, // the status line: 'net' (the connection's) or 'page' (the guest's own doing)
   };
@@ -237,6 +259,7 @@ export function createGuestPage(doc, {
   function say(text, kind = null) {
     at.said = { text, kind: text ? kind : null };
     statusEl.textContent = text;
+    if (debugEl) statusEl.append(debugEl); // the readout stays after the words
   }
   function unsay(kind) {
     if (at.said.kind === kind) say('');
@@ -262,6 +285,7 @@ export function createGuestPage(doc, {
   const statusEl = make('p', 'spil-status');
   statusEl.setAttribute('role', 'status');
   statusEl.setAttribute('aria-live', 'polite');
+  const debugEl = debug ? make('span', 'spil-debug') : null; // ?debug=1's readout, in the status line
   pageEl.append(meEl, mainEl, statusEl);
   root.replaceChildren(pageEl);
 
@@ -445,8 +469,42 @@ export function createGuestPage(doc, {
       return false;
     }
     at.pending = { name, avatar: at.chosen };
+    at.again = false;
     at.connection?.send?.(message('hello', at.pending));
     return true;
+  }
+
+  /**
+   * Her seat asked for again (spec §6.4): hello with the seat's own name and avatar (or, before any came, what the phone
+   * remembers), without "Tilbúin/n"'s checks. Those read the join screen, which a game leaves stale: a lobby's free avatars
+   * leave out hers once she has a seat, and a second tab may have no name in its field, so the hello never went and the
+   * phone waited for good. The big screen keeps a known guest's seat, her own avatar always (seats.join).
+   */
+  function rehello() {
+    const name = at.seat?.name ?? guest.name;
+    const avatar = at.seat?.avatar ?? guest.avatar;
+    if (!name || !avatar) return false; // nothing to ask with: the join screen's tap is the hello
+    at.pending = { name, avatar };
+    at.again = true;
+    return at.connection?.send?.(message('hello', at.pending)) ?? false;
+  }
+
+  // The wait screen keeps asking: a seated page whose socket is open says hello again every ASK_EVERY_MS, ASK_TIMES
+  // times, in case the first was lost; a seat or a view from the big screen, or any status but connected, stops it.
+  let asking = null;
+  function keepAsking(left = ASK_TIMES) {
+    stopAsking();
+    if (left <= 0) return;
+    asking = timers.setTimeout(() => {
+      asking = null;
+      if (at.screen !== 'wait' || at.status !== 'connected') return;
+      rehello();
+      keepAsking(left - 1);
+    }, ASK_EVERY_MS);
+  }
+  function stopAsking() {
+    if (asking !== null) timers.clearTimeout(asking);
+    asking = null;
   }
 
   // ---- lobby, wait, closed, over ------------------------------------------------------------------------------------
@@ -480,6 +538,12 @@ export function createGuestPage(doc, {
   const waitFace = face('spil-note-face');
   setFace(waitFace, HOST_AVATAR.id); // Mosi, for the big screen
   const wait = note('spil-wait', waitFace.el, WORDS.wait);
+  // Another tab took the seat (replaced): a tap opens this page's socket again, and the room gives the seat to the newer
+  // connection. The big screen gone (host-gone) is the connection's to try by itself, so the line is hidden then.
+  const retakeEl = make('button', 'spil-retake', WORDS.retake);
+  retakeEl.hidden = true;
+  wait.el.append(retakeEl);
+  control(retakeEl, () => { if (at.replaced) at.connection?.reconnect?.(); });
   const closedPicture = make('img', 'spil-note-picture');
   closedPicture.src = TITLE_PICTURE;
   closedPicture.alt = '';
@@ -552,10 +616,14 @@ export function createGuestPage(doc, {
   /** The big screen's answer to hello: a seat, or why not (spec §10). */
   function onSeat(body) {
     const sent = at.pending;
+    const again = at.again;
     at.pending = null;
+    at.again = false;
     if (body.ok) {
-      if (!sent) { // her seat, told to a page that said no hello (a fresh one): the big screen's name for it ("Anna 2")
-        seatAs({ seat: body.seat, name: typeof body.name === 'string' ? body.name : guest.name, avatar: guest.avatar });
+      // Her seat, told to a page that said no hello (a fresh one), or asked for again: the big screen's name for it ("Anna 2")
+      if (!sent || again) {
+        const name = typeof body.name === 'string' ? body.name : sent?.name ?? guest.name;
+        seatAs({ seat: body.seat, name, avatar: sent?.avatar ?? at.seat?.avatar ?? guest.avatar });
         unsay('page');
         return; // what she typed stays what the phone remembers
       }
@@ -582,13 +650,21 @@ export function createGuestPage(doc, {
 
   function onMessage(msg) {
     if (msg?.v !== 1) return;
+    at.heardAt = now();
     unsay('net'); // the big screen is there
+    if (msg.type === 'view' || msg.type === 'seat') stopAsking(); // it answered
     if (msg.type === 'view') onView(msg);
     else if (msg.type === 'seat') onSeat(msg.body ?? {});
+    readout();
   }
 
   /** What the connection says about itself (net.js): the words of spec §10. */
   function onStatus(status) {
+    at.status = status;
+    at.replaced = status === 'replaced';
+    retakeEl.hidden = !at.replaced;
+    if (status !== 'connected') stopAsking();
+    readout();
     switch (status) {
       case 'connecting': // a new socket: nothing of the old one comes after this, and the big screen may have reloaded
         at.lastSeq = 0; // a reloaded one counts its views afresh, from its clock (a reconnect gets the newest view, spec §6.4)
@@ -613,7 +689,12 @@ export function createGuestPage(doc, {
       }
       case 'connected': // the socket is open (again), or the big screen is back: a seat had or asked for is asked for again
         unsay('net');
-        if (at.hadSeat || at.pending) submit(); // spec §6.4: hello again, and her seat and the newest view come back
+        if (at.hadSeat) { // spec §6.4: hello again, and her seat and the newest view come back
+          rehello();
+          if (at.screen === 'wait') keepAsking(); // and again, until they do
+        } else if (at.pending) {
+          submit(); // her tap's hello, sent before the socket opened
+        }
         return;
       default: return unsay('net'); // nothing to say
     }
@@ -626,7 +707,12 @@ export function createGuestPage(doc, {
     const code = normalizeCode(text);
     if (!code) return false;
     at.connection?.close?.();
-    Object.assign(at, { connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, hadSeat: false });
+    stopAsking();
+    Object.assign(at, {
+      connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, again: false, hadSeat: false,
+      status: null, replaced: false, heardAt: null,
+    });
+    retakeEl.hidden = true;
     at.taken.clear();
     clearCode();
     fillCode(code);
@@ -651,6 +737,24 @@ export function createGuestPage(doc, {
   // §6.4). visibilitychange is the document's, and comes up to the window.
   win?.addEventListener?.('visibilitychange', () => { if (doc.visibilityState !== 'hidden') at.connection?.reconnect?.(); });
   win?.addEventListener?.('online', () => at.connection?.reconnect?.());
+
+  // ---- ?debug=1: the connection as the phone sees it, for the owner's tests (not Icelandic: nobody else reads it) ------
+
+  /** [status · transport · seconds since the big screen was last heard (its pings too: net.js's heardAt) · seat]. */
+  function readout() {
+    if (!debugEl) return;
+    const heard = at.connection?.heardAt ?? at.heardAt;
+    const age = typeof heard === 'number' ? `${Math.max(0, Math.floor((now() - heard) / 1000))}s` : '–';
+    debugEl.textContent = `[${at.status ?? '–'} · ${at.connection?.transport ?? '–'} · ${age} · seat ${at.seat?.seat ?? '–'}]`;
+  }
+  function tick() {
+    readout();
+    timers.setTimeout(tick, 1000);
+  }
+  if (debugEl) {
+    statusEl.append(debugEl);
+    tick();
+  }
 
   // ---- The start: a demo, the room in the address, or the code to type -------------------------------------------------
 

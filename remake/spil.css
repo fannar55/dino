@@ -17,7 +17,7 @@
        .spil-lobby               her avatar big (.spil-hero), "Þú ert með!" (.spil-words) and the seats (.spil-seats of
                                  .spil-seat, .mine hers, .absent dim)
        .spil-note                a picture (.spil-note-face, .spil-note-picture, or the winner's .spil-hero in its .spil-burst)
-                                 over .spil-words
+                                 over .spil-words; the wait's .spil-retake under them when another tab took the seat
        .spil-game                a game's own; Háls og hali's (data-game="hals", engine/fjolspil/guest-hals.js): whose turn
                                  (.spil-hals-turn, .mine when hers), the die (.spil-hals-die: data-face, its .spil-hals-face of
                                  pips as i.tl .tr .ml .mr .bl .br .c and "Kasta!" .spil-hals-roll; .live while she may roll,
@@ -145,6 +145,9 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   background: color-mix(in srgb, var(--orange) 12%, var(--card)); border: 2.5px dashed var(--orange);
   animation: spil-fade .3s ease-out both;
 }
+.spil-debug { /* ?debug=1: the connection for the owner's tests, small, after any words */
+  font: 700 13px/1.3 ui-monospace, "Cascadia Mono", Menlo, monospace; color: var(--ink-soft); overflow-wrap: anywhere;
+}
 
 /* ---- The big green raised pill: "Áfram" and "Tilbúin/n", as "Byrjum!" ------------------------------------------------ */
 
@@ -240,6 +243,12 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-note { gap: clamp(20px, 4vh, 36px); }
 .spil-note-face { width: clamp(140px, 24vh, 200px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .2); }
 .spil-wait .spil-note-face .spil-picture { animation: spil-look 4.8s ease-in-out infinite; } /* the big screen is looked for */
+.spil-retake { /* "Pikkaðu hér til að taka sætið þitt aftur": the seat another tab took, back with a tap */
+  min-height: var(--spil-target); width: min(100%, 440px); padding: 12px 24px; border-radius: 24px;
+  font-size: clamp(22px, 6vw, 28px); font-weight: 900; line-height: 1.2;
+  background: color-mix(in srgb, var(--gold) 24%, var(--card)); border: 3px dashed var(--ink);
+  animation: spil-fade .3s ease-out both;
+}
 .spil-note-picture { width: clamp(200px, 56vw, 300px); height: auto; filter: drop-shadow(0 8px 8px rgb(40 24 10 / .25)); animation: spil-bob 3.6s ease-in-out infinite; }
 .spil-over .spil-words, .spil-hals-won .spil-words { /* the winner's name, gold as a title */
   font-size: clamp(42px, 11vw, 60px); color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
@@ -378,6 +387,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   .spil-avatars { grid-area: avatars; grid-template-columns: repeat(3, var(--spil-target)); gap: 12px; }
   .spil-lobby, .spil-note { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; justify-items: center; column-gap: 40px; }
   .spil-lobby .spil-hero { grid-row: span 2; }
+  .spil-retake { grid-column: 1 / -1; } /* under the picture and the words, across both */
   .spil-hero, .spil-note-face, .spil-winner { width: 128px; }
 }
 

@@ -11,17 +11,39 @@ import { FakeContext } from './fake-audio.mjs';
 
 class FakeStorage { constructor() { this.map = new Map(); } getItem(k) { return this.map.get(k) ?? null; } setItem(k, v) { this.map.set(k, String(v)); } }
 function fakeNet() {
-  const net = { sent: [], connected: [], reconnects: 0, status: 'idle', onMessage: fn => { net.message = fn; }, onStatus: fn => { net.statusFn = fn; }, send: m => { net.sent.push(m); return true; }, reconnect() { net.reconnects += 1; }, close() {} };
+  const net = { sent: [], connected: [], reconnects: 0, status: 'idle', transport: null, onMessage: fn => { net.message = fn; }, onStatus: fn => { net.statusFn = fn; }, send: m => { net.sent.push(m); return true; }, reconnect() { net.reconnects += 1; }, close() {} };
   return net;
 }
-function rig({ search = '', storage = new FakeStorage(), views = {} } = {}) {
+/** Timers that run when the test says: advance(ms) runs everything due by then, in order. */
+function fakeTimers() {
+  let now = 0;
+  let next = 1;
+  const queue = new Map(); // id -> { at, fn }
+  return {
+    setTimeout(fn, ms = 0) { queue.set(next, { at: now + ms, fn }); return next++; },
+    clearTimeout(id) { queue.delete(id); },
+    get count() { return queue.size; },
+    advance(ms) {
+      const end = now + ms;
+      for (;;) {
+        const due = [...queue].filter(([, timer]) => timer.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
+        if (!due) break;
+        queue.delete(due[0]);
+        now = due[1].at;
+        due[1].fn();
+      }
+      now = end;
+    },
+  };
+}
+function rig({ search = '', storage = new FakeStorage(), views = {}, timers = fakeTimers(), now = () => 0 } = {}) {
   const doc = new FakeDocument(['spil']);
   const net = fakeNet();
   const listeners = {}; // the window's, by event type
   const win = { location: { search, origin: 'http://192.168.1.10:4198', protocol: 'http:', host: '192.168.1.10:4198' }, addEventListener(type, fn) { (listeners[type] ??= []).push(fn); } };
-  const page = createGuestPage(doc, { win, storage, params: new URLSearchParams(search), net: ({ code }) => { net.connected.push(code); return net; }, views });
+  const page = createGuestPage(doc, { win, storage, params: new URLSearchParams(search), net: ({ code }) => { net.connected.push(code); return net; }, views, timers, now });
   const fire = type => { for (const fn of listeners[type] ?? []) fn(new Event(type)); };
-  return { doc, page, net, storage, fire, root: doc.getElementById('spil') };
+  return { doc, page, net, storage, fire, timers, root: doc.getElementById('spil') };
 }
 const $ = (root, s) => root.querySelector(s);
 const $$ = (root, s) => root.querySelectorAll(s);
@@ -30,6 +52,20 @@ const tap = el => { // a finger down and up where it landed, as book/fx.js's pre
   el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
   el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
 };
+const hellos = net => net.sent.filter(m => m.type === 'hello');
+const ANNA_IN_LOBBY = view('lobby', { seats: [{ seat: 0, name: 'Egill', avatar: 'egill' }, { seat: 1, name: 'Anna', avatar: 'kambedla' }], available: ['sloedla'], you: 1 }, 1);
+/** A remembered guest seated in seat 1 by her tap, in a lobby whose free avatars are no longer hers, and then a game. */
+function seatedRig(options = {}) {
+  const storage = new FakeStorage();
+  storage.setItem('mosi-fjolspil-guest', JSON.stringify({ guestId: 'a'.repeat(32), name: 'Anna', avatar: 'kambedla' }));
+  const r = rig({ search: '?r=GULL', storage, views: { hals: () => {} }, ...options });
+  r.net.statusFn('connected');
+  tap($(r.root, '.spil-ready'));
+  r.net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
+  r.net.message(ANNA_IN_LOBBY);
+  r.net.message(view('hals', { you: 1, turn: 1 }, 2));
+  return r;
+}
 
 test('without a code in the address the page asks for one, in any case', () => {
   const { page, root, net } = rig();
@@ -205,7 +241,9 @@ test('a seat that comes with no hello of hers (a fresh page) is the big screen\'
   assert.equal($(root, '.spil-me-name').textContent, 'Anna 2', 'the name seats.js made unique');
   assert.deepEqual(net.sent, [], 'no hello of her own yet');
   net.statusFn('connected');
-  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'hello', body: { name: 'Anna', avatar: 'flugedla' } }, 'seated: hello again (spec §6.4)');
+  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'hello', body: { name: 'Anna 2', avatar: 'flugedla' } }, 'seated: hello again with her seat (spec §6.4)');
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna 2' } });
+  assert.equal($(root, '.spil-me-name').textContent, 'Anna 2');
   assert.equal(JSON.parse(storage.getItem('mosi-fjolspil-guest')).name, 'Anna', 'what she typed is what she remembers');
   net.statusFn('no-room');
   assert.equal($(root, '.spil-status').textContent, 'Leiknum er lokið');
@@ -233,4 +271,96 @@ test('the eitt screen plays a card once, asks a colour for a wild, and offers Ei
   net.message(view('eitt', { ...base, turn: 0, eittNeeded: false, canCatch: 0 }, 4));
   assert.equal($(root, '.spil-eitt-catch').hidden, false);
   assert.equal($(root, '.spil-eitt-turn').textContent, 'Egill á leik');
+});
+
+test('a seated page asks for its seat again with the seat\'s own name and avatar, never the join screen\'s checks', () => {
+  // A second tab of her phone, opened before the first had its seat: it remembers her id, but no name and no avatar
+  const storage = new FakeStorage();
+  storage.setItem('mosi-fjolspil-guest', JSON.stringify({ guestId: 'a'.repeat(32), name: null, avatar: null }));
+  const { root, net } = rig({ search: '?r=GULL', storage, views: { hals: () => {} } });
+  net.statusFn('connected');
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } }); // the big screen knows her id
+  net.message(ANNA_IN_LOBBY); // her seat with her avatar, which the free ones do not list
+  net.message(view('hals', { you: 1, turn: 1 }, 2));
+  assert.deepEqual(hellos(net), []);
+  net.statusFn('host-gone');
+  net.statusFn('connected');
+  assert.deepEqual(hellos(net).at(-1), { v: 1, type: 'hello', body: { name: 'Anna', avatar: 'kambedla' } });
+  assert.equal($(root, '.spil-status').textContent, '', 'never "Skrifaðu nafnið þitt" over a game');
+
+  const seated = seatedRig(); // seated by her own tap, in a lobby whose free avatars are no longer hers
+  seated.net.statusFn('host-gone');
+  seated.net.statusFn('connected');
+  assert.deepEqual(hellos(seated.net).at(-1).body, { name: 'Anna', avatar: 'kambedla' });
+});
+
+test('on the wait screen with the socket open the page asks for its seat every five seconds, until the big screen answers', () => {
+  const { page, net, timers } = seatedRig();
+  net.statusFn('host-gone');
+  assert.equal(page.screen, 'wait');
+  let before = hellos(net).length;
+  net.statusFn('connected'); // a socket open again, the big screen not heard yet
+  assert.equal(hellos(net).length, before + 1, 'at once');
+  timers.advance(5000);
+  assert.equal(hellos(net).length, before + 2, 'and again five seconds later');
+  assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'kambedla' });
+  net.message(view('hals', { you: 1, turn: 0 }, 3)); // the big screen answers with her game
+  assert.equal(page.screen, 'game');
+  timers.advance(60000);
+  assert.equal(hellos(net).length, before + 2, 'none after a view came');
+
+  net.statusFn('host-gone');
+  before = hellos(net).length;
+  net.statusFn('connected');
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
+  timers.advance(60000);
+  assert.equal(hellos(net).length, before + 1, 'none after her seat came');
+
+  net.statusFn('host-gone');
+  before = hellos(net).length;
+  net.statusFn('connected');
+  net.statusFn('offline'); // the socket closed under it
+  timers.advance(60000);
+  assert.equal(hellos(net).length, before + 1, 'none once the status is not connected');
+  net.statusFn('connected');
+  timers.advance(10 * 60000);
+  assert.equal(hellos(net).length, before + 2 + 24, 'at once, then 24 more five seconds apart: two minutes');
+  assert.equal(timers.count, 0, 'and then it stops');
+});
+
+test('a page whose seat another tab took offers it back: a tap on the wait screen takes it again', () => {
+  const { page, root, net } = seatedRig();
+  net.statusFn('host-gone');
+  assert.equal($(root, '.spil-retake').hidden, true, 'the big screen gone: the page tries by itself, nothing to tap');
+  net.statusFn('connected');
+  net.message(view('hals', { you: 1, turn: 1 }, 3));
+  net.statusFn('replaced');
+  assert.equal(page.screen, 'wait');
+  assert.equal($(root, '.spil-words').textContent, 'Bíðum eftir stóra skjánum…');
+  const retake = $(root, '.spil-retake');
+  assert.equal(retake.hidden, false);
+  assert.equal(retake.textContent, 'Pikkaðu hér til að taka sætið þitt aftur');
+  tap(retake);
+  assert.equal(net.reconnects, 1, 'a new socket takes the seat back from the other tab');
+  net.statusFn('connecting');
+  assert.equal(retake.hidden, true, 'asked: the line goes');
+  net.statusFn('connected');
+  assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'kambedla' });
+  net.statusFn('host-gone');
+  assert.equal(retake.hidden, true);
+  tap(retake);
+  assert.equal(net.reconnects, 1, 'after host-gone a tap does nothing of its own');
+});
+
+test('?debug=1 shows the connection in small type on the status line, every second: status, way, last word heard and seat', () => {
+  let clock = 1000;
+  const { root, net, timers } = seatedRig({ search: '?r=GULL&debug=1', now: () => clock });
+  net.transport = 'relay';
+  clock = 4000;
+  timers.advance(1000);
+  assert.equal($(root, '.spil-debug').textContent, '[connected · relay · 3s · seat 1]');
+  net.statusFn('connecting'); // the status line's words change, and the readout stays beside them
+  assert.equal($(root, '.spil-status').textContent.startsWith('Tengist…'), true);
+  assert.match($(root, '.spil-debug').textContent, /^\[connecting · relay · 3s · seat 1\]$/);
+  assert.equal(rig({ search: '?r=GULL' }).root.querySelector('.spil-debug'), null, 'not without ?debug=1');
 });
