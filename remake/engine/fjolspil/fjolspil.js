@@ -197,10 +197,14 @@ export function createFjolspil(doc, {
 
   function joined(id) {
     at.inRoom.add(id);
-    if (!seats.byGuest(id)) {
+    const seat = seats.byGuest(id);
+    if (!seat) {
       deliver(id, lobbyView(id)); // the join screen, with the avatars that are free
       return;
     }
+    // Her seat as this screen has it, as the answer to a hello is: a fresh page with her remembered id (a new tab, a reload)
+    // has said no hello, and so learns it is seated, with her name tag and her hello after every reconnect
+    at.net.send(id, message('seat', { ok: true, seat: seat.seat, name: seat.name }));
     presence(id, true); // a guest with a seat, back: the lobby (presence sends it), or her game
     if (!at.lobbyOpen) resend(id);
   }

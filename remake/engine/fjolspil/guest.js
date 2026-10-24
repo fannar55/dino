@@ -519,7 +519,12 @@ export function createGuestPage(doc, {
     const sent = at.pending;
     at.pending = null;
     if (body.ok) {
-      const { name, avatar } = sent ?? { name: guest.name, avatar: guest.avatar };
+      if (!sent) { // her seat, told to a page that said no hello (a fresh one): the big screen's name for it ("Anna 2")
+        seatAs({ seat: body.seat, name: typeof body.name === 'string' ? body.name : guest.name, avatar: guest.avatar });
+        unsay('page');
+        return; // what she typed stays what the phone remembers
+      }
+      const { name, avatar } = sent;
       seatAs({ seat: body.seat, name, avatar });
       guest.name = name;
       guest.avatar = avatar;

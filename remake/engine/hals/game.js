@@ -1198,7 +1198,10 @@ export function createHalsGame(doc, {
     if (!game) return;
     try {
       if (multi) setup = { ...setup, seats: keptSeats() };
-      save?.setHalsPlay?.({ game: game.winner === null ? { state: game, setup: { players: setup.players, seats: multi ? setup.seats : null } } : null });
+      // setup.players is the one-tablet choice (1: "Ég og Þórseðla"), which a game of "Fjölspil" leaves alone; its kept game
+      // says how many play
+      const players = multi ? game.players.length : setup.players;
+      save?.setHalsPlay?.({ game: game.winner === null ? { state: game, setup: { players, seats: multi ? setup.seats : null } } : null });
     } catch (error) {
       console.warn('[hals] the game could not be kept', error);
     }
@@ -1238,7 +1241,7 @@ export function createHalsGame(doc, {
   }
 
   function showWin(winner, computer) {
-    const solo = setup.players === 1;
+    const solo = !multi && setup.players === 1;
     winWords.textContent = multi ? `${nameOf(game.winner)} vann!` // the seat's name ("Anna vann!"), whoever played it
       : solo ? (computer ? 'Þórseðla vann!' : 'Þú vannst!') : `${computer ? 'Þórseðla' : NAMES[winner.id]} vann!`;
     showPicture(winPicture, winner.id);
@@ -1341,7 +1344,8 @@ export function createHalsGame(doc, {
     skipEl.hidden = true;
     const seated = fjolspil && Array.isArray(choice.seats) ? choice.seats : null;
     multi = seated !== null;
-    setup = seated ? { players: seated.length, seats: fjolspil.seats.snapshot() } : { players: kept?.setup.players ?? choice.players, seats: null };
+    // a game of seats keeps the child's one-tablet choice for the next "Byrjum!" (setup.players)
+    setup = seated ? { players: setup.players, seats: fjolspil.seats.snapshot() } : { players: kept?.setup.players ?? choice.players, seats: null };
     seatsOff?.();
     seatsOff = multi ? fjolspil.seats.onChange(seatsChanged) : null;
     setupEl.hidden = true;

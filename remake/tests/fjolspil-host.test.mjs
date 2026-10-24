@@ -516,3 +516,18 @@ test('closing the game, or another tab taking the room, ends a wait with closed'
   assert.equal($(r.root, '.fjolspil-wait'), null);
   assert.equal(r.root.hidden, true);
 });
+
+test('a fresh page of a seated guest is told her seat, as a hello is answered, before her newest view', async () => {
+  const r = rig();
+  const { started, net } = seated(r, [['g1', 'Anna', 'kambedla']]);
+  tap($(r.root, '.fjolspil-start'));
+  await started;
+  r.fjolspil.send(1, { screen: 'hals', turn: 1 });
+  net.left('g1');
+  const before = net.to('g1').length;
+  net.joined('g1'); // a new tab with the same remembered id, which has said no hello
+  const got = net.to('g1').slice(before);
+  assert.deepEqual(got.map(msg => msg.type), ['seat', 'view']);
+  assert.deepEqual(got[0], { v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
+  assert.deepEqual(got[1].body, { screen: 'hals', turn: 1 });
+});

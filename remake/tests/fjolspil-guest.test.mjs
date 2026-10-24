@@ -156,3 +156,18 @@ test('the hals screen rolls once per view and names whose turn it is', () => {
   net.message(view('hals', { you: 1, turn: 0, canRoll: false, roll: null, players, winner: 0 }, 3));
   assert.equal($(root, '.spil-words').textContent, 'Egill vann!');
 });
+
+test('a seat that comes with no hello of hers (a fresh page) is the big screen\'s: its name on her tag, and hello again later', () => {
+  const storage = new FakeStorage();
+  storage.setItem('mosi-fjolspil-guest', JSON.stringify({ guestId: 'a'.repeat(32), name: 'Anna', avatar: 'flugedla' }));
+  const { root, net } = rig({ search: '?r=GULL', storage });
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna 2' } });
+  assert.equal($(root, '.spil-me').hidden, false);
+  assert.equal($(root, '.spil-me-name').textContent, 'Anna 2', 'the name seats.js made unique');
+  assert.deepEqual(net.sent, [], 'no hello of her own yet');
+  net.statusFn('connected');
+  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'hello', body: { name: 'Anna', avatar: 'flugedla' } }, 'seated: hello again (spec §6.4)');
+  assert.equal(JSON.parse(storage.getItem('mosi-fjolspil-guest')).name, 'Anna', 'what she typed is what she remembers');
+  net.statusFn('no-room');
+  assert.equal($(root, '.spil-status').textContent, 'Leiknum er lokið');
+});
