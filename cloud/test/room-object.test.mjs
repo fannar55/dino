@@ -183,20 +183,21 @@ test('a refused connect is told why and closed 1000, a replaced one too, and gue
   await clientCloses(room, tab1);
   assert.deepEqual(host.take(), [], 'the replaced tab leaving is not the guest leaving');
 
-  for (const guest of ['g2', 'g3']) await connect(room, ctx, `/fjolspil/ws/GULL?role=guest&id=${guest}`);
+  const more = ['g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8']; // eight phones: more than the seats, which the big screen keeps
+  for (const guest of more) await connect(room, ctx, `/fjolspil/ws/GULL?role=guest&id=${guest}`);
   host.take();
-  const fourth = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g4');
-  assert.deepEqual(fourth.take(), [message('error', { reason: 'full' })]);
-  assert.equal(fourth.closed, 1000);
+  const ninth = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g9');
+  assert.deepEqual(ninth.take(), [message('error', { reason: 'full' })]);
+  assert.equal(ninth.closed, 1000);
 
   await clientCloses(room, host);
   assert.deepEqual(tab2.take(), [message('error', { reason: 'no-host' })]);
   assert.equal(tab2.closed, null, 'a guest keeps its socket while the host is away');
-  const late = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g5');
+  const late = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g10');
   assert.deepEqual(late.take(), [message('error', { reason: 'no-host' })]);
   assert.equal(late.closed, 1000);
   const back = await connect(room, ctx, '/fjolspil/ws/GULL?role=host&key=abc');
-  assert.deepEqual(back.take(), [message('welcome', { code: 'GULL', join: [] }), ...['g1', 'g2', 'g3'].map(id => message('joined', { id }))]);
+  assert.deepEqual(back.take(), [message('welcome', { code: 'GULL', join: [] }), ...['g1', ...more].map(id => message('joined', { id }))]);
 
   const reload = await connect(room, ctx, '/fjolspil/ws/GULL?role=host&key=abc');
   assert.deepEqual(back.take(), [message('error', { reason: 'replaced' })]);

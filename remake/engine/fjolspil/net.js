@@ -29,7 +29,8 @@
 //           no-room      no room has this code (never opened, or forgotten): not tried again. A phone that was in the room
 //                        (it heard the big screen) tries again for NO_ROOM_GRACE_MS first, saying offline, since its big
 //                        screen opens the room again after the meeting point restarted or forgot it under a game
-//           full         the room has three guests: tried again, as a seat may free
+//           full         the room has MAX_GUESTS phones in it (more than the seats, so a phone with no seat never keeps out
+//                        a seated one coming back): tried again, as one may go
 //           no-host      the room's big screen is not there, and has not been since this net began: waiting
 //           host-gone    the big screen this net heard has gone (the socket stays, or is tried again): waiting
 //           replaced     this guest's id connected from another tab, which has the seat now: not tried again

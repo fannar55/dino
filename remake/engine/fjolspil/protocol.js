@@ -23,8 +23,13 @@
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPRSTUVWXYZ';
 export const CODE_LENGTH = 4;
 
-/** Up to three guests beside the host: four seats in all, the child's at the big screen first (spec §4, §6.1). */
-export const MAX_GUESTS = 3;
+/**
+ * Four seats in all, the child's at the big screen first, so up to three guests play (spec §4): the seats (seats.js, the
+ * host's) refuse a fourth guest 'full'. The room lets in up to eight phones beside the host, more than the seats, so a
+ * phone with no seat that keeps trying never takes the place of a seated guest whose phone slept (spec §10: a full table
+ * tries again when a seat frees); a ninth is refused 'full'.
+ */
+export const MAX_GUESTS = 8;
 export const MAX_SEATS = 4;
 
 /** The longest name a guest types (spec §4: 1–12 letters). */

@@ -517,6 +517,35 @@ test('closing the game, or another tab taking the room, ends a wait with closed'
   assert.equal(r.root.hidden, true);
 });
 
+test('a phone at a full table is told so and stays in the room, and a seated guest whose phone slept keeps her seat', async () => {
+  const r = rig();
+  const { started, net } = seated(r, [['g1', 'Anna', 'kambedla'], ['g2', 'Bjarni', 'sloedla'], ['g3', 'Dóra', 'gramedla']]);
+  tap($(r.root, '.fjolspil-start'));
+  await started;
+  r.fjolspil.send(1, { screen: 'hals', turn: 1 });
+  net.joined('g4'); // a fifth phone: the room holds more phones than the table has seats
+  net.hello('g4', 'Siggi', 'flugedla');
+  assert.deepEqual(net.last('g4'), { v: 1, type: 'seat', body: { ok: false, reason: 'full' } }, 'her phone says "Borðið er fullt (4)"');
+  assert.equal(r.fjolspil.seats.byGuest('g4'), null);
+  assert.equal(net.closed, false, 'nothing is closed');
+
+  net.left('g1'); // Anna's phone sleeps, and its socket closes
+  assert.equal(r.fjolspil.seats.bySeat(1).present, false);
+  net.hello('g4', 'Siggi', 'flugedla'); // the fifth phone tries again
+  assert.deepEqual(net.last('g4').body, { ok: false, reason: 'full' }, 'Anna\'s seat is not free: it waits for her');
+  assert.equal(r.fjolspil.seats.count, 4);
+  net.joined('g1'); // her phone is back
+  assert.deepEqual(net.to('g1').slice(-2).map(msg => msg.type), ['seat', 'view']);
+  assert.deepEqual(net.to('g1').at(-2).body, { ok: true, seat: 1, name: 'Anna' });
+  assert.deepEqual(net.last('g1').body, { screen: 'hals', turn: 1 });
+  assert.equal(r.fjolspil.seats.bySeat(1).present, true);
+
+  r.fjolspil.closeGame();
+  r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
+  assert.equal(net.last('g4').body.screen, 'lobby', 'the fifth phone is still in the room: the next lobby reaches it');
+  assert.equal(net.last('g4').body.you, null);
+});
+
 test('a fresh page of a seated guest is told her seat, as a hello is answered, before her newest view', async () => {
   const r = rig();
   const { started, net } = seated(r, [['g1', 'Anna', 'kambedla']]);

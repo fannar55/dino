@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seededRandom } from '../engine/random.js';
-import { makeCode, normalizeCode, parseMessage, message, randomKey, CODE_ALPHABET, ROOM_TTL_MS } from '../engine/fjolspil/protocol.js';
+import { makeCode, normalizeCode, parseMessage, message, randomKey, CODE_ALPHABET, MAX_GUESTS, MAX_SEATS, ROOM_TTL_MS } from '../engine/fjolspil/protocol.js';
 import { createRoom, restoreRoom, createRooms } from '../engine/fjolspil/room.js';
 
 test('a code is four letters of the alphabet, and reads back in any case', () => {
@@ -45,7 +45,7 @@ test('a host opens the room, is welcomed, and hears every guest come and go', ()
   assert.equal(room.disconnect(anna), null);
 });
 
-test('a second host needs the same key, a fourth guest is refused, and a guest without a host waits', () => {
+test('a second host needs the same key, a ninth guest is refused, and a guest without a host waits', () => {
   const room = createRoom({ code: 'GULL' });
   const h1 = {}, h2 = {}, h3 = {};
   room.connect(h1, { role: 'host', id: 'host', key: 'k1' });
@@ -54,14 +54,19 @@ test('a second host needs the same key, a fourth guest is refused, and a guest w
   assert.equal(again.ok, true);
   assert.equal(again.replaced, h1);
   assert.deepEqual(again.deliveries[0], { conn: h1, message: message('error', { reason: 'replaced' }) });
-  const guests = ['a', 'b', 'c', 'd'].map(id => ({ id }));
-  for (const g of guests.slice(0, 3)) assert.equal(room.connect(g, { role: 'guest', id: g.id }).ok, true);
-  assert.equal(room.connect(guests[3], { role: 'guest', id: 'd' }).reason, 'full');
+  // The room holds more phones than the table has seats: the seats (the host's) refuse the extra ones, so a phone with no
+  // seat that keeps trying never takes the place of a seated guest whose phone slept (spec §10).
+  assert.equal(MAX_GUESTS, 8);
+  assert.ok(MAX_GUESTS > MAX_SEATS);
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+  const guests = ids.map(id => ({ id }));
+  for (const g of guests.slice(0, 8)) assert.equal(room.connect(g, { role: 'guest', id: g.id }).ok, true, g.id);
+  assert.equal(room.connect(guests[8], { role: 'guest', id: 'i' }).reason, 'full');
   const gone = room.disconnect(h3);
-  assert.deepEqual(gone.deliveries.map(d => d.message), guests.slice(0, 3).map(() => message('error', { reason: 'no-host' })));
-  assert.equal(room.connect({ id: 'e' }, { role: 'guest', id: 'e' }).reason, 'no-host');
+  assert.deepEqual(gone.deliveries.map(d => d.message), guests.slice(0, 8).map(() => message('error', { reason: 'no-host' })));
+  assert.equal(room.connect({ id: 'j' }, { role: 'guest', id: 'j' }).reason, 'no-host');
   const back = room.connect({}, { role: 'host', id: 'host', key: 'k1' });
-  assert.deepEqual(back.deliveries.slice(1).map(d => d.message), ['a', 'b', 'c'].map(id => message('joined', { id })), 'the host hears who is still there');
+  assert.deepEqual(back.deliveries.slice(1).map(d => d.message), ids.slice(0, 8).map(id => message('joined', { id })), 'the host hears who is still there');
   assert.equal(room.connect({}, { role: 'guest' }).reason, 'bad-id');
   assert.equal(room.connect({}, { role: 'fish', id: 'x' }).reason, 'bad-role');
 });
