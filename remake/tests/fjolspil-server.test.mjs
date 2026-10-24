@@ -1,4 +1,3 @@
-// remake/tests/fjolspil-server.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -33,7 +32,7 @@ test('the host is welcomed with the join addresses, and guests reach it through 
 });
 
 test('a refused connect gets the reason and is closed; bad frames close with their codes', async () => {
-  await serving(async base => {
+  await serving(async (base, fjolspil) => {
     const guest = await open(`${base}/fjolspil/ws/GULL?role=guest&id=g1`);
     assert.deepEqual(await next(guest), message('error', { reason: 'no-room' }));
     assert.equal(await closed(guest), 1000);
@@ -46,7 +45,8 @@ test('a refused connect gets the reason and is closed; bad frames close with the
     binary.send(new Uint8Array([1, 2, 3]));
     assert.equal(await closed(binary), 1003);
     const junk = await open(`${base}/fjolspil/ws/GULL?role=guest&id=junk`);
-    await next(host); await next(host); await next(host); // joined big, bin, junk
+    // The host heard joined and left for big and bin while no next() was waiting; the room says who is in.
+    assert.deepEqual(fjolspil.rooms.get('GULL').guests().map(guest => guest.id), ['junk'], 'big and bin left the room, junk is in');
     junk.send('not json');
     junk.send(JSON.stringify({ v: 1, type: 'relay' }));
     host.send(JSON.stringify(message('relay', { to: 'junk', body: 'still here' })));
