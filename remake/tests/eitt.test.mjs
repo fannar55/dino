@@ -299,6 +299,27 @@ test('Mosi advises seat 0 against the player about to move', () => {
   assert.equal(advise(game, 0).reason, 'attack');
 });
 
+test('where the player about to move is not Kambeðla, Mosi gives the same move with its plain reason, never an attack line', () => {
+  const low = table({ top: 'red-5-a', hands: [['red-draw2-a', 'red-1-a'], ['green-1-a', 'green-2-a'], ['yellow-1-a', 'yellow-2-a', 'yellow-3-a']] });
+  assert.deepEqual(advise(low, 0, { attackable: false }), { ...advise(low, 0), reason: 'colour' }, 'the +2, for its colour');
+  const keep = table({ top: 'red-5-a', hands: [['red-draw2-a', 'red-1-a'], ['green-1-a', 'green-2-a', 'green-3-a', 'green-4-a'], ['yellow-1-a']] });
+  assert.equal(advise(keep, 0).reason, 'keep-attack');
+  assert.deepEqual(advise(keep, 0, { attackable: false }), { ...advise(keep, 0), reason: 'colour' });
+  const wild = table({ top: 'red-5-a', hands: [['wild4-a', 'red-1-a'], ['green-1-a'], ['yellow-1-a', 'yellow-2-a', 'yellow-3-a']] });
+  assert.equal(advise(wild, 0).reason, 'attack');
+  assert.equal(advise(wild, 0, { attackable: false }).reason, 'change-colour', 'a +4 when something else fits is its colour change');
+  for (let seed = 0; seed < 60; seed++) { // and in whole rounds of three and four, never
+    const random = seededRandom(`not-hers-${seed}`);
+    let game = newGame({ players: 3 + (seed % 2), random });
+    for (let steps = 0; game.winner === null && steps < 2000; steps++) {
+      const advice = advise(game, 0, { attackable: false });
+      assert.ok(!['attack', 'keep-attack'].includes(advice?.reason), `round ${seed}: "${advice?.reason}"`);
+      game = apply(game, game.turn, chooseMove(game, game.turn, random(), random));
+      if (game.unsaid !== null) game = callEitt(game, game.unsaid);
+    }
+  }
+});
+
 test('Mosi says why: every piece of his advice is legal and carries one of his reasons, which fits the move', () => {
   assert.deepEqual([...REASONS].sort(), ['attack', 'change-colour', 'colour', 'draw', 'eitt', 'keep-attack', 'keep-wild', 'most-colour', 'number', 'only-wild', 'play-drawn', 'skip']);
   const given = new Set();

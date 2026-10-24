@@ -72,12 +72,16 @@ const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 
 
 /** Each .spil-game this screen has been built in, and its parts. */
 const built = new WeakMap();
+/** The screen shown last (a page shows one at a time), and the windows that already lay its hand out again when resized. */
+let shown = null;
+const resizing = new WeakSet();
 
 /** The screen of `view` in `root`: built the first time, updated after. */
 export function renderEitt(root, view, { send, doc = root.ownerDocument, audio = null } = {}) {
   const at = built.get(root) ?? build(root, doc);
   at.send = send;
   at.audio = audio;
+  shown = at;
   update(at, view && typeof view === 'object' ? view : {});
 }
 
@@ -141,7 +145,10 @@ function build(root, doc) {
   press(at, eittEl, () => { if (act(at, { type: 'eitt' })) play(at, 'horn'); });
   press(at, catchEl, () => { if (act(at, { type: 'catch' })) play(at, 'horn'); });
   for (const button of colourEls) press(at, button, () => chooseColour(at, button.dataset.colour));
-  at.win?.addEventListener?.('resize', () => { if (at.view && screen.isConnected) layHand(at); });
+  if (at.win && !resizing.has(at.win)) { // one listener for the page, whichever screen is on it (a new root after every wait)
+    resizing.add(at.win);
+    at.win.addEventListener?.('resize', () => { if (shown?.view && shown.screen.isConnected) layHand(shown); });
+  }
   built.set(root, at);
   return at;
 }
@@ -161,7 +168,7 @@ function press(at, el, onTap, sound = null) {
   });
 }
 
-/** One of the game's effects on this device: silent until the first tap wakes the page's audio (guest.js), and never in the way. */
+/** One of the game's effects on this device: skipped until the first touch wakes the page's audio (guest.js), never in the way. */
 function play(at, name) {
   try {
     at.audio?.effects?.(EFFECTS)?.play(name);

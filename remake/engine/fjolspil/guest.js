@@ -167,7 +167,9 @@ export function createGuestPage(doc, {
   let output = null;
   let effects = null;
   const games = new Map(); // a game's own effects, by its sounds, on the same context and output
+  let woken = false; // the page's first touch (or key) has come: the audio context is made and woken only from one
   function wake() {
+    woken = true;
     if (!effects) {
       context = createAudioContext();
       output = context ? createOutput(context) : null;
@@ -177,9 +179,12 @@ export function createGuestPage(doc, {
   }
   const audio = {
     sfx: name => { wake(); return effects.play(name); },
-    /** A game screen's own effects (createGameSfx's music, sounds and gaps), made once on the page's context and output. */
+    /**
+     * A game screen's own effects (createGameSfx's music, sounds and gaps), made once on the page's context and output; null
+     * before the page's first touch, so a sound asked for then (a card landing from another's move) is skipped, silently.
+     */
     effects(options) {
-      wake();
+      if (!woken) return null;
       if (!games.has(options.sounds)) games.set(options.sounds, createGameSfx({ ...options, context, output }));
       return games.get(options.sounds);
     },

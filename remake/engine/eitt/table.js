@@ -914,7 +914,8 @@ export function createEittGame(doc, {
       sync({ animate: false });
       return;
     }
-    const advice = advise(game, CHILD);
+    // His attack lines name Kambeðla: where the player about to move is not her (a round of Fjölspil), the card's plain reason
+    const advice = advise(game, CHILD, { attackable: !multi || next(game) === KAMBEDLA });
     if (!advice || (busy && advice.type !== 'eitt')) {
       nope(mosiEl); // Kambeðla's turn: nothing to advise yet
       return;
@@ -1931,17 +1932,18 @@ export function createEittGame(doc, {
     settleChild();
     sync();
     const childWon = game.winner === CHILD;
-    // Her sticker and her skill come from a round she played: always on this tablet, and in Fjölspil when she was added.
+    // Her sticker comes from a round she played: always on this tablet, and in Fjölspil when she was added. Her skill and the
+    // counts follow only a round Egill or she won: a guest's win is neither his loss to her nor hers to him.
     const herRound = KAMBEDLA !== null;
+    const between = herRound && (childWon || game.winner === KAMBEDLA);
     const was = eittState();
     const wins = was.wins + (childWon ? 1 : 0);
-    if (herRound) save?.setEitt?.({ ...afterRound(was, childWon), wins });
+    if (between) save?.setEitt?.({ ...afterRound(was, childWon), wins });
     await wait(500);
     if (token !== round) return;
     view?.cheer();
     sfx(childWon ? 'fanfare' : 'horn');
-    const herWords = herRound && (childWon || game.winner === KAMBEDLA); // she never says "Ég vann!" for a guest
-    const said = herWords ? say(childWon ? 'eitt_you_won' : 'eitt_i_won') : 0;
+    const said = between ? say(childWon ? 'eitt_you_won' : 'eitt_i_won') : 0; // she never says "Ég vann!" for a guest
     winWords.textContent = multi ? `${nameOf(game.winner)} vann!` : childWon ? 'Þú vannst!' : 'Kambeðla vann!';
     stickerEl.hidden = !(childWon && herRound);
     stickerWords.hidden = !(childWon && herRound);
