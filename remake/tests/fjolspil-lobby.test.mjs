@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { FakeDocument } from './fake-dom.mjs';
+import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createLobby } from '../engine/fjolspil/lobby.js';
 import { createSeats } from '../engine/fjolspil/seats.js';
 import { COVER_AFTER_MS } from '../engine/fjolspil/protocol.js';
@@ -60,7 +60,11 @@ test('the waiting card names the guest and offers to go on without her after 20 
   assert.equal(timer.ms, COVER_AFTER_MS);
   timer.fn();
   assert.equal($(root, '.fjolspil-continue').textContent, 'Halda áfram án Anna');
-  $(root, '.fjolspil-continue').dispatchEvent(new Event('click'));
+  const tap = el => { // a finger down and up where it landed, as book/fx.js's pressable counts a tap (book.test.mjs)
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  tap($(root, '.fjolspil-continue'));
   assert.deepEqual(calls.cont, [1]);
   lobby.hideWaiting();
   assert.equal($(root, '.fjolspil-wait-words'), null);
