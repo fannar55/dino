@@ -69,10 +69,10 @@ const cupAnchor={x:0,y:0},opponentFrame={thinking:false,rolling:false,target:nul
 let targetWidth=0,targetHeight=0;
 // "Fjölspil" (the owner's decisions of 2026-10-24): the page hosts a room of its own (STORAGE_KEY) for Egill at the big screen in
 // seat 0, up to three guests whose phones are their cups, and Mosi, the one computer player, when the lobby adds him; player i of
-// the rules is seat i. `multi` is the game of seats while one is on: its seats at "Byrjum!", the latest roll { seq, by } that tells
-// the phones to tumble their dice, and `before`, the table as it stood while a roll is in the air (the phones see the new faces
-// only once the dice lie). The five cards along the bottom are `owner`'s: the child's alone, in Fjölspil the player on turn's,
-// kept through the score's flight until the turn moves on.
+// the rules is seat i. `multi` is the game of seats while one is on (its seats are fjolspil.seats, live): the latest roll
+// { seq, by } that tells the phones to tumble their dice, and `before`, the table as it stood while a roll is in the air (the
+// phones see the new faces only once the dice lie). The five cards along the bottom are `owner`'s: the child's alone, in Fjölspil
+// the player on turn's, kept through the score's flight until the turn moves on.
 let fjolspil=null,multi=null,owner=0,seatsOff=null,lobbyUp=false;
 
 function miniDice(values){
@@ -415,12 +415,13 @@ function start(continuing=false){
 // when the lobby added him; the phones are sent the table at once.
 function startMulti(seats){seatGame(seats,createGame({seed:crypto.getRandomValues(new Uint32Array(1))[0],players:playersOf(fjolspil.seats)}));}
 // "Halda áfram (Fjölspil)": the kept game where it was left, in the seats fjolspil.resume took back, in the room this tab had (its
-// sessionStorage), so the guests' phones come back to it by themselves; the turn of one who is not back yet waits for her.
+// sessionStorage), so the guests' phones come back to it by themselves; the turn of one who is not back yet waits for her, and a
+// turn kept after a roll goes on as it was played (going: a seat Mosi covers stays his till it is over, spec §11).
 function resumeMulti(kept){seatGame(fjolspil.seats.list(),structuredClone(kept),true);}
 function seatGame(seats,game,resumed=false){
-  hush();seatsOff?.();multi={seats,lastRoll:null,seq:0,before:null};seatsOff=fjolspil.seats.onChange(seatsChanged);state=game;owner=state.currentPlayer;started=true;
+  hush();seatsOff?.();multi={lastRoll:null,seq:0,before:null};seatsOff=fjolspil.seats.onChange(seatsChanged);state=game;owner=state.currentPlayer;started=true;
   buildPlayers(seats.map(seat=>({name:seat.name,avatar:seat.avatar,colour:avatarOf(seat.avatar)?.colour??'var(--teal)',isMosi:seat.kind==='ai'&&!seat.covered})));syncMultiButtons();
-  takeTurn();timer=.9;dice.sync(state.dice,state.held,side(state.currentPlayer));view(resumed&&state.rollCount>0?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
+  takeTurn(resumed&&state.rollCount>0);timer=.9;dice.sync(state.dice,state.held,side(state.currentPlayer));view(resumed&&state.rollCount>0?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
   // A new game is welcomed, then its first turn's line; a kept one goes on, unless its turn waits for a guest (waitTurn's line).
   const who=state.currentPlayer;if(!resumed)say('multiWelcome',()=>{if(multi&&state.currentPlayer===who&&state.rollCount===0)speakTurn(who);});else if(phase!=='waiting')say('resume');sendViews();
 }
@@ -435,7 +436,7 @@ async function waitTurn(who){
   const game=multi,seat=seatOf(who);if(seat?.guestId&&!seat.present)say('multiWait'); // the waiting card comes up (fjolspil.waitFor)
   const result=await fjolspil.waitFor(who);
   if(multi!==game||state.currentPlayer!==who||phase!=='waiting')return; // the game ended, or the turn moved on, meanwhile
-  if(result==='closed'){endMulti();welcome();return;}
+  if(result==='closed'){endMulti();closeDialogs();welcome();return;} // one card at a time: the pause card may be up
   takeTurn();timer=.9;speakTurn(who);renderUI();sendViews(); // "Næsti kastar!" when she is back; nothing while Mosi covers her
 }
 // The game of seats ends ("Hætta Fjölspili", a solo game, a new lobby, the room taken by another tab): the phones wait for the next
@@ -463,19 +464,20 @@ function guestAct(seat,body){
   if(!act){sendView(seat);return;}
   if(act.type==='roll')beginRoll();else if(act.type==='hold')holdDie(act.die);else record(act.card);
 }
-// "Fjölspil" on the welcome card: the lobby over the table (which holds still under it); its X goes back to the welcome card. A
-// game of seats still on ends first: one at a time.
+// "Fjölspil" on the welcome card: the lobby over the table (which holds still under it); its X goes back to the welcome card, as
+// does a lobby that cannot open (logged). A game of seats still on ends first: one at a time.
 async function openMulti(){
   if(multi)endMulti();
   closeDialogs();lobbyUp=true;syncPause();let opened=null;
-  try{opened=await fjolspil.openLobby({ai:MOSI_AI});}finally{lobbyUp=false;syncPause();}
+  try{opened=await fjolspil.openLobby({ai:MOSI_AI});}catch(error){console.error('[yatzy-junior] lobby',error);}finally{lobbyUp=false;syncPause();}
   if(!opened){welcome();return;}
   startMulti(opened.seats);
 }
 // "Halda áfram (Fjölspil)": the room again with the kept seats; when this tab cannot have it (another took it), the seats there are
 // not the kept game's, and the welcome card stays.
 async function continueMulti(){
-  const kept=readFjolspil(local());if(!kept||multi){welcome();return;}
+  if(multi)return; // the welcome card's button, and no game of seats is on while that card is up
+  const kept=readFjolspil(local());if(!kept){welcome();return;}
   await fjolspil.resume(kept.seats);
   if(fjolspil.seats.count!==kept.state.players.length){welcome();return;}
   resumeMulti(kept.state);
@@ -566,7 +568,8 @@ export async function initialize({signal,onStage=()=>{}}={}){
         if(phase==='rolling'&&dice.update(dt))rolled();else if(phase!=='rolling')dice.update(dt);
         if(lessonAdvance>=0){lessonAdvance-=dt;if(lessonAdvance<=0){lessonAdvance=-1;if(step()?.type==='finish')leaveLesson(true);else nextLesson();}}
         if(!lesson&&timer<=0&&!voice.busy&&!later){if(phase==='handoff')advanceTurn();else if(phase.startsWith('ai-'))aiStep();}
-        opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';watchAt??=new world.THREE.Vector3();opponentFrame.target=opponentFrame.rolling?dice.getWatchTarget(watchAt):null;const perch=effects.butterfly;opponentFrame.waiting=phase==='human'||phase==='remote'||(phase==='handoff'&&Boolean(perch));opponentFrame.watch=perch||(opponentFrame.waiting?dice.getWatchTarget(watchAt):null); // his eyes on the dice, or on a butterfly coming to sitopponentFrame.reducedMotion=reduced;
+        opponentFrame.thinking=phase==='ai-wait'||phase==='ai-score';opponentFrame.rolling=phase==='rolling';watchAt??=new world.THREE.Vector3();opponentFrame.target=opponentFrame.rolling?dice.getWatchTarget(watchAt):null;const perch=effects.butterfly;opponentFrame.waiting=phase==='human'||phase==='remote'||(phase==='handoff'&&Boolean(perch));opponentFrame.watch=perch||(opponentFrame.waiting?dice.getWatchTarget(watchAt):null); // his eyes on the dice, or on a butterfly coming to sit
+        opponentFrame.reducedMotion=reduced;
         if(opponentFrame.thinking&&!voice.busy&&timer>0)audio.cue('think'); // tick, tock while Mosi decides
         // The idle hint: ten quiet seconds on the child's turn with rolls left, and the dice Mosi would keep (or his card) glow.
         if(!lesson&&isHuman()&&settled()&&state.rollCount>0&&state.rollCount<3&&!idleHint){idle+=dt;if(idle>=10){const d=decideAI(state);idleHint={dice:d?.type==='roll'?d.held.flatMap((keep,i)=>keep&&!state.held[i]?[i]:[]):[],card:d?.type==='score'?d.categoryId:null};renderUI();opponent.react('nod');}}
