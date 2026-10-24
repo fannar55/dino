@@ -354,8 +354,9 @@ plays on, and the beat follows it instead). The theme must come from the page's 
 Audio, which hears silence from media on another origin without CORS.
 
 **Cloudflare.** `cloud/` puts the same page on Cloudflare: one Worker with the site staged as static assets
-(`npm run stage:cloud` copies `remake/` without its tests, tools, prompts and Tripo sources, and `dist/vendor/`) and
-Fjölspil's rooms as a Durable Object running the same `engine/fjolspil/room.js` as the home server. The steps, from
-`npm install` to `wrangler deploy`, are in [cloud/README.md](../cloud/README.md), in Icelandic. Under `wrangler dev` the
-theme's byte ranges were answered 200 with the whole file, not 206, so check the deployed site with `curl -r 0-99` before
-counting on Safari.
+(`npm run stage:cloud` copies `remake/` without its tests, tools, prompts and Tripo sources, `dist/vendor/`, and the old
+game's voice lines in `dist/assets/audio/`) and Fjölspil's rooms as a Durable Object running the same
+`engine/fjolspil/room.js` as the home server. Under `wrangler dev` the static assets answered the theme's byte ranges with
+200 and the whole file, so the Worker runs first for the audio paths and cuts the ranges itself (`cloud/src/range.mjs`, as
+`tools/serve.mjs` does). The steps, from `npm install` to `wrangler deploy`, are in [cloud/README.md](../cloud/README.md),
+in Icelandic.

@@ -167,9 +167,12 @@ export class Room {
     await this.save();
   }
 
-  /** Two hours without a sign of life: every socket closed 1001, and the room forgotten. */
+  /** Two hours without a sign of life: every socket let go and closed 1001, and the room forgotten. */
   async alarm() {
-    for (const ws of this.ctx.getWebSockets()) close(ws, 1001);
+    for (const ws of this.ctx.getWebSockets()) {
+      forget(ws); // a closed socket still listed at a wake is no one: a dead phone does not come back as a guest
+      close(ws, 1001);
+    }
     await this.ctx.storage.deleteAll();
     this.room = null;
     this.loaded = true;

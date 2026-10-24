@@ -1,6 +1,9 @@
-// Stages the site for the cloud (spec §9.2): remake/ into cloud/site/remake/ and dist/vendor/ (three.js) into
-// cloud/site/dist/vendor/, so the paths are the ones tools/serve.mjs serves at home. What the game never loads stays behind:
-// remake/tests/, remake/tools/, remake/prompts/, the Tripo sources in remake/assets/characters/source/ and any node_modules/.
+// Stages the site for the cloud (spec §9.2): remake/ into cloud/site/remake/, dist/vendor/ (three.js) into
+// cloud/site/dist/vendor/ and dist/assets/audio/ (the old game's voice lines, which remake/assets/audio/lines.json points at)
+// into cloud/site/dist/assets/audio/, so the paths are the ones tools/serve.mjs serves at home. What the game never loads
+// stays behind: remake/tests/, remake/tools/, remake/prompts/, the Tripo sources in remake/assets/characters/source/ and any
+// node_modules/. Nothing that may be a secret is published: no file or folder whose name starts with a dot (.env, .git,
+// .wrangler and the like) and no *.pem or *.key, even when git ignores it and it sits in the working tree.
 // Workers Static Assets take no file over 25 MiB, so one is refused here, by name, before anything is copied. Run it again
 // whenever the game changes: cloud/site/ is emptied first. Prints { files, bytes }.
 //
@@ -18,12 +21,17 @@ const MAX_BYTES = 25 * 1024 * 1024;
 const SOURCES = [
   { from: 'remake', to: 'remake', skip: ['tests', 'tools', 'prompts', 'assets/characters/source'] },
   { from: 'dist/vendor', to: 'dist/vendor', skip: [] },
+  { from: 'dist/assets/audio', to: 'dist/assets/audio', skip: [] },
 ];
 
-/** Every file under `dir`, as paths relative to it with forward slashes, leaving out `skip` and any node_modules/. */
+/** A name never published: a dotfile or dot-folder, or a key or certificate. */
+const isPrivate = name => name.startsWith('.') || /\.(?:pem|key)$/i.test(name);
+
+/** Every file under `dir`, as paths relative to it with forward slashes, leaving out `skip`, any node_modules/ and the private names. */
 function filesOf(dir, skip, prefix = '') {
   return fs.readdirSync(path.join(dir, prefix), { withFileTypes: true }).flatMap(entry => {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (isPrivate(entry.name)) return [];
     if (entry.isDirectory()) return entry.name === 'node_modules' || skip.includes(rel) ? [] : filesOf(dir, skip, rel);
     return entry.isFile() ? [rel] : [];
   });

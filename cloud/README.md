@@ -19,10 +19,11 @@ npm run deploy       # setur leikinn í loftið
 ```
 
 - `npm install` og `npx wrangler login` þarf bara einu sinni. `npm run dev` þarf ekki innskráningu, `npm run deploy` þarf hana.
-- `npm run stage` afritar `remake/` (án `tests/`, `tools/`, `prompts/` og Tripo-frumskránna í `assets/characters/source/`) og
-  `dist/vendor/` (three.js) í `cloud/site/`. Keyrðu það aftur eftir hverja breytingu á leiknum, áður en þú keyrir `dev` eða
-  `deploy`. Það segir hve margar skrár og hve mörg bæti fóru, og hafnar skrá yfir 25 MiB (Cloudflare tekur ekki stærri skrár)
-  og nefnir hana.
+- `npm run stage` afritar `remake/` (án `tests/`, `tools/`, `prompts/` og Tripo-frumskránna í `assets/characters/source/`),
+  `dist/vendor/` (three.js) og `dist/assets/audio/` (raddlínur gamla leiksins, sem leikurinn les) í `cloud/site/`. Skrár og
+  möppur sem byrja á punkti (eins og `.env`) og `*.pem`- og `*.key`-skrár fara aldrei með. Keyrðu það aftur eftir hverja
+  breytingu á leiknum, áður en þú keyrir `dev` eða `deploy`. Það segir hve margar skrár og hve mörg bæti fóru, og hafnar
+  skrá yfir 25 MiB (Cloudflare tekur ekki stærri skrár) og nefnir hana.
 - Með `npm run dev` er skýjaleiðin prófuð heima, líka frá síma: opnaðu `http://<ip-tala-tölvunnar>:8787/remake/` á stóra
   skjánum og skannaðu QR-kóðann með símanum (á sama Wi-Fi). IP-töluna sýnir `ipconfig` (IPv4 Address). QR-kóðinn ber slóðina
   sem síðan var opnuð á, svo opnaðu hana á IP-tölunni en ekki á `127.0.0.1`. Windows getur spurt hvort Node.js megi nota

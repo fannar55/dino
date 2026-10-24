@@ -283,6 +283,7 @@ test('the alarm closes every socket and forgets the room', async () => {
   assert.deepEqual(host.sent, [], 'no error: the close says it');
   assert.deepEqual(guest.sent, []);
   assert.equal(ctx.data.size, 0, 'storage is empty');
+  for (const ws of [host, guest]) assert.equal(ws.deserializeAttachment(), null, 'a closed socket still listed is no one at the next wake');
 
   for (const ws of [host, guest]) await clientCloses(b, ws);
   const retry = await connect(b, ctx, '/fjolspil/ws/GULL?role=guest&id=g1');
