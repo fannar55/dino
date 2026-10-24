@@ -22,7 +22,7 @@
 //            after any other screen, send(act) sends act { … } to the big screen, control(button, onTap) makes a button of the
 //            page's own (the tap, its sound and the keyboard), and audio.effects(options) a game's own effects on the page's
 //            audio (Eitt!'s, spec §7.3). A game's view with `paused: true` (the big screen is paused) says so in the
-//            status line, "Stóri skjárinn er í hléi", until a view comes without it
+//            status line, "Stóri skjárinn er í hléi", until a view of any screen comes without it or the big screen goes
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
 // the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
@@ -178,7 +178,7 @@ export function createGuestPage(doc, {
     replaced: false, // another tab took this seat: the wait screen offers it back
     heardAt: null, // when the big screen's last message came (now()), for the ?debug=1 readout
     game: null, // which game's screen `gameEl` holds
-    said: { text: '', kind: null }, // the status line: 'net' (the connection's) or 'page' (the guest's own doing)
+    said: { text: '', kind: null }, // the status line: 'net' (the connection's), 'page' (the guest's own doing) or 'pause'
   };
 
   function save() {
@@ -258,7 +258,10 @@ export function createGuestPage(doc, {
     el.style.setProperty('--c', avatar?.colour ?? 'transparent');
   }
 
-  /** The status line: what the connection says ('net') or what the guest should do ('page'); '' clears it. */
+  /**
+   * The status line: what the connection says ('net'), what the guest should do ('page'), or that the big screen is paused
+   * ('pause', which only views and the big screen going take away); '' clears it.
+   */
   function say(text, kind = null) {
     at.said = { text, kind: text ? kind : null };
     statusEl.textContent = text;
@@ -585,6 +588,7 @@ export function createGuestPage(doc, {
     if (!own && typeof render !== 'function') return; // a game this page has no screen for
     at.lastSeq = seq;
     at.state = view;
+    unsay('pause'); // every view says afresh whether the big screen is paused: only a game's can
     if (view.screen === 'lobby') return lobby(view);
     if (view.screen === 'over') renderOver(view);
     if (own) return show(view.screen);
@@ -596,7 +600,7 @@ export function createGuestPage(doc, {
     unsay('page');
     show('game');
     render(gameEl, view, { send, doc, control, audio });
-    if (view.paused === true) say(WORDS.paused, 'page'); // the next view's unsay('page') takes it away
+    if (view.paused === true) say(WORDS.paused, 'pause');
   }
 
   /** The lobby: her place at the table when it says she has one (`you`); otherwise the join screen, with the free avatars. */
@@ -680,6 +684,7 @@ export function createGuestPage(doc, {
       // falls through
       case 'replaced': // this guest's id connected from another tab, which has the seat now
         unsay('net');
+        unsay('pause'); // the wait screen has its own words
         return show('wait');
       case 'no-room': {
         const words = at.hadSeat ? WORDS.ended : WORDS.noRoom;

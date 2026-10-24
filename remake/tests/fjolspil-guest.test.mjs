@@ -133,6 +133,14 @@ test('a view that says the big screen is paused puts it in the status line, and 
   assert.equal($(root, '.spil-status').textContent, 'Stóri skjárinn er í hléi');
   net.message(view('yatzy', {}, 6));
   assert.equal($(root, '.spil-status').textContent, '');
+  net.message(view('yatzy', { paused: true }, 7));
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Ásta' } });
+  assert.equal($(root, '.spil-status').textContent, 'Stóri skjárinn er í hléi', 'her seat told again is no new view');
+  net.message(view('closed', {}, 8));
+  assert.equal($(root, '.spil-status').textContent, '', 'a screen of the page\'s own clears it too');
+  net.message(view('yatzy', { paused: true }, 9));
+  net.statusFn('host-gone');
+  assert.equal($(root, '.spil-status').textContent, '', 'the big screen gone: the wait screen has its own words');
 });
 
 test('a new connection starts the views afresh, so a big screen that reloaded while the phone slept is not ignored', () => {
