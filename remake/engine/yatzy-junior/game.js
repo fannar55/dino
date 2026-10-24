@@ -5,7 +5,7 @@ import {createYatzyEffects} from '../yatzy-mosi/effects.js';
 import {createJuniorAudio} from './sounds.js';
 import {CATEGORIES,createGame,roll,hold,score,scoringDice,previews,totals,decideAI,restoreGame,validateGame,roundOf} from './rules.js';
 import {LESSON_STEPS,allowsAction} from './lesson.js';
-import {VOICE_LINES} from './voice-lines.js';
+import {VOICE_LINES,MULTI_LINES} from './voice-lines.js';
 import {createJuniorVoice} from './voice.js';
 import {waitForStartup} from './startup.js';
 import {createPickEffects} from './pick-vfx.js';
@@ -49,6 +49,8 @@ function diceMargins(width,height){
 // the held row sits a little nearer the middle and to the right, so the cup's gold ring, the held dice and the cards never touch.
 const TABLE_LAYOUT=Object.freeze({home:[-1.75,.85,.55],park:[-1.85,.6],held:{left:-1.0,step:.58,near:1.2}});
 const prefs=read(PREFS)||{},EXAMPLES={pair:[2,2],twoPairs:[2,2,4,4],threeKind:[3,3,3],smallStraight:[1,2,3,4,5],yatzy:[5,5,5,5,5]};
+// Every line Mosi may say: the solo script, which the startup requires recorded, and Fjölspil's optional lines (voice.js).
+const LINES=Object.freeze({...VOICE_LINES,...MULTI_LINES});
 // Full Icelandic speech is separate from its brief reading support.
 const CAPTIONS={welcomeMenu:'Hæ! Spilum saman.',yourTurn:'Þú átt leik!',mosiTurn:'Mosi á leik.',hold:'Geymdur!',release:'Laus aftur.',choose:'Veldu kort.',lastRoll:'Eitt kast eftir.',noRolls:'Veldu laust kort.',allHeld:'Allir geymdir!',zero:'Nota kortið fyrir 0 stig?',scored:'Stigin þín!',mosiScored:'Stigin hans Mosa!',good:'Gott kast!',great:'Vá!',bad:'Prófum aftur.',youWin:'Þú vannst!',mosiWin:'Mosi vann!',tie:'Jafntefli!',help:'Kasta · geyma · velja kort',pause:'Mosi bíður.',resume:'Höldum áfram!',pairHelp:'Par = 2 eins.',twoPairsHelp:'Tvö pör = 2 eins + 2 aðrir eins.',threeKindHelp:'Þrír teningar eins.',smallStraightHelp:'Röð: 1 · 2 · 3 · 4 · 5',yatzyHelp:'Yatzy = 5 eins.',yourTotal:'Þú fékkst',mosiTotal:'Mosi fékk'};
 let muted=prefs.muted===true,reduced=typeof prefs.reduced==='boolean'?prefs.reduced:matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -130,9 +132,14 @@ function turnPhase(going=false){const who=state.currentPlayer;return multi?phase
 function takeTurn(going=false){phase=turnPhase(going);if(phase==='waiting')waitTurn(state.currentPlayer);}
 const mosiPlays=i=>players[i]?.isMosi===true; // Mosi himself: his lines and sounds, and his side of the table for the dice
 const side=i=>mosiPlays(i)?1:0;
-// Mosi's lines for a game of seats are still to come (Task 7): until then he speaks to the child at the big screen and of his own play,
-// never on a guest's turn, nor on one he plays for her while she is away (spec §7: silently, his reactions allowed).
-const voiced=i=>!multi||i===0||mosiPlays(i);
+// Whom Mosi speaks to (spec §8; the owner's decision of 2026-10-24: new generic lines for a table of many, which he records himself):
+// the child at the big screen ('you', Egill's seat 0 in Fjölspil) hears what he hears alone, and Mosi speaks of his own play
+// ('mosi') as he does there. Any other seat ('seat': a guest on her phone, or one Mosi plays for her while she is away) gets the
+// lines that fit anyone and the generic ones (MULTI_LINES), her name in the bubble (captionFor). A seat Mosi covers is played
+// silently (spec §7) but for his reactions to its rolls and the score it gets: it has no turn's line, and he holds no die by tap.
+const speaker=i=>i===0?'you':mosiPlays(i)?'mosi':'seat';
+// Whose turn or score a generic line is about, for its bubble: { player, points }.
+let named=null;
 // A guest's phone may act only while the table waits for it: her turn from her phone, nothing moving, the page not paused.
 const phoneMay=()=>!paused&&phase==='remote'&&settled();
 const settled=()=>!!world&&phase!=='rolling'&&pendingDiceView<0&&!world.isViewTransitioning();
@@ -160,10 +167,27 @@ function say(id,onEnd){
   captionTime=0;
   return voice?.say(id,{onEnd:()=>{if(!lesson)captionTime=1.2;onEnd?.();}});
 }
-function speakScore(player,points){if(voiced(player))say(mosiPlays(player)?'mosiScored':'scored',()=>say(`points_${points}`));}
+function speakScore(player,points){
+  const by=speaker(player);if(by!=='seat'){say(by==='mosi'?'mosiScored':'scored',()=>say(`points_${points}`));return;}
+  named={player,points};if(points)say('multiScored',()=>say(`points_${points}`));else say('multiZero');
+}
+// A turn's first line: the child's and Mosi's own as alone, "Næsti kastar!" for a guest playing from her phone. A seat Mosi covers
+// has none, and one whose guest has gone has the waiting card's (waitTurn).
+function speakTurn(who){const by=speaker(who);if(by==='you')say('yourTurn');else if(by==='mosi')say('mosiTurn');else if(phase==='remote'){named={player:who};say('multiTurn');}}
+// The bubble's words for a line: its brief reading support, and for Fjölspil's generic lines the player's name in the nominative
+// (spec §8): "Anna á leik", "Anna: 12 stig", "Anna vann!" or "Jafntefli!". The welcome and the wait show their own words.
+function captionFor(id){
+  const name=players[named?.player]?.name;
+  if(name&&id==='multiTurn')return `${name} á leik`;
+  if(name&&(id==='multiScored'||id==='multiZero'))return `${name}: ${named.points} stig`;
+  if(id==='multiOver'&&state.winner)return state.winner==='tie'?'Jafntefli!':`${players[Number(state.winner)]?.name} vann!`;
+  return CAPTIONS[id];
+}
 function saySequence(ids,index=0){if(index<ids.length)say(ids[index],()=>saySequence(ids,index+1));}
 function resultSpeech(){
-  if(multi){const at=Number(state.winner);return state.winner==='tie'?null:at===0?['youWin']:mosiPlays(at)?['mosiWin']:null;} // a guest's win is Task 7's line
+  // In Fjölspil "Leik lokið! Sjáum hver vann." with the winner's name in the bubble, then the child's win or Mosi's own as alone;
+  // the totals are the result card's (the solo game's "Þú fékkst … Ég fékk …" is for two).
+  if(multi){const at=Number(state.winner);return ['multiOver',...(state.winner==='tie'?[]:at===0?['youWin']:mosiPlays(at)?['mosiWin']:[])];}
   return ['yourTotal',`points_${totals(state.players[0].scores).total}`,'mosiTotal',`points_${totals(state.players[1].scores).total}`,state.winner==='you'?'youWin':state.winner==='mosi'?'mosiWin':'tie'];}
 function paintCoach(){
   const spec=step();$('game').dataset.tutorial=String(Boolean(lesson));coach.dataset.voice=voice?.getDebugState().mode||'idle';coach.dataset.phase=voice?.unavailable||(spec&&['listen','finish'].includes(spec.type))?'listen':'action';
@@ -278,7 +302,7 @@ function holdDie(index){
   state=hold(state,index);dice.setHeld(state.held);world.setDiceFocus(dice.getFramingPoints(),{snap:reduced});save();audio.cue(state.held[index]?'hold':'release',{index,count:state.held.filter(Boolean).length});
   if(!reduced)effects.trail(dice.dice[index],.36,state.held[index]?'hold':'settle'); // glitter behind it, gold stars where it lands
   if(state.held[index])opponent.react('lean',{target:dice.getFramingPoints()[index]});
-  if(lesson){if(step().indices.every(i=>state.held[i]))nextLesson();}else if(voiced(state.currentPlayer))say(state.held.every(Boolean)?'allHeld':state.held[index]?'hold':'release');renderUI();sendViews();
+  if(lesson){if(step().indices.every(i=>state.held[i]))nextLesson();}else say(state.held.every(Boolean)?'allHeld':state.held[index]?'hold':'release');renderUI();sendViews();
 }
 // A roll: the child's, Mosi's, or a guest's from her phone (phase 'remote', her act checked by actOf).
 function beginRoll(){
@@ -294,7 +318,9 @@ function rolled(){
   opponent.react(kind);audio.cue(kind,{strength:.6});effects.emit(dice.getWatchTarget(),{kind:best>=50?'yatzy':kind,reduced});
   if(reduced)view('dice',true);else pendingDiceView=.7;
   takeTurn(true);timer=2.6;if(multi){multi.before=null;multi.lastRoll={seq:++multi.seq,by:who};} // the dice lie: every phone tumbles onto them
-  if(lesson)nextLesson();else if(voiced(who))say(mosiPlays(who)?kind:state.rollCount===3?'noRolls':state.rollCount===2?'lastRoll':'choose');renderUI();sendViews();
+  // The child is told what he may do next; any other seat's roll gets Mosi's reaction. A guest who went while it rolled is waited
+  // for (takeTurn), and the waiting card's line stands.
+  if(lesson)nextLesson();else if(phase!=='waiting')say(speaker(who)!=='you'?kind:state.rollCount===3?'noRolls':state.rollCount===2?'lastRoll':'choose');renderUI();sendViews();
 }
 function chooseScore(id){
   if(!isHuman()||!settled()||!state.rollCount||state.players[0].scores[id]!==null||!allowed('score',id))return;
@@ -342,7 +368,7 @@ function advanceTurn(){
     // Confetti, two volleys of fireworks over the table and Mosi's celebration play out before the result card comes up.
     const open=()=>{if(phase==='finished'&&state.status==='finished')openDialog('win-dialog',resultSpeech());};if(reduced)open();else{effects.celebrate();later={t:2.7,fn:open};}renderUI();sendViews();return;}
   // The turn moves on to the next seat round the ring, played as its seat is (turnPhase); the cards are its player's now.
-  const who=state.currentPlayer;recent=null;if(multi)owner=who;dice.sync(state.dice,state.held,side(who),{animate:!reduced});takeTurn();timer=.9;aiDecision=null;audio.cue('turn',{player:side(who)});if(voiced(who))say(mosiPlays(who)?'mosiTurn':'yourTurn');renderUI();sendViews();
+  const who=state.currentPlayer;recent=null;if(multi)owner=who;dice.sync(state.dice,state.held,side(who),{animate:!reduced});takeTurn();timer=.9;aiDecision=null;audio.cue('turn',{player:side(who)});speakTurn(who);renderUI();sendViews();
 }
 // The computer's turn, for whichever seat it plays: Mosi's own, or a guest's he covers while she is away.
 function aiStep(){
@@ -395,19 +421,22 @@ function seatGame(seats,game,resumed=false){
   hush();seatsOff?.();multi={seats,lastRoll:null,seq:0,before:null};seatsOff=fjolspil.seats.onChange(seatsChanged);state=game;owner=state.currentPlayer;started=true;
   buildPlayers(seats.map(seat=>({name:seat.name,avatar:seat.avatar,colour:avatarOf(seat.avatar)?.colour??'var(--teal)',isMosi:seat.kind==='ai'&&!seat.covered})));syncMultiButtons();
   takeTurn();timer=.9;dice.sync(state.dice,state.held,side(state.currentPlayer));view(resumed&&state.rollCount>0?'dice':'table',true);$('controls').hidden=false;closeDialogs();audio.unlock();save();renderUI();$('score-rows').scrollTo({top:0,behavior:'instant'});
-  const who=state.currentPlayer;if(resumed)say('resume');else if(voiced(who))say(mosiPlays(who)?'mosiTurn':'yourTurn');sendViews();
+  // A new game is welcomed, then its first turn's line; a kept one goes on, unless its turn waits for a guest (waitTurn's line).
+  const who=state.currentPlayer;if(!resumed)say('multiWelcome',()=>{if(multi&&state.currentPlayer===who&&state.rollCount===0)speakTurn(who);});else if(phase!=='waiting')say('resume');sendViews();
 }
 // A guest's phone goes or comes back: her card dims or lights; when it goes on her own turn, the turn waits for her (once the seats'
 // own change is over).
 function seatsChanged(){if(!multi||!world)return;renderUI();if(phase==='remote'&&turnPhase()==='waiting')setTimeout(()=>{if(multi&&phase==='remote'&&turnPhase()==='waiting')takeTurn();});}
 // A guest's turn while her phone is away: the lobby's waiting card over the table (fjolspil.waitFor: "Bíðum eftir …", and after 20 s
-// "Halda áfram án …"). 'back': she plays it from her phone; 'cover': Mosi plays her seat, silently, until she is back for its next
-// turn (which waitFor gives her at once); 'closed': the game of seats is over (another tab took the room).
+// "Halda áfram án …"). 'back': she plays it from her phone; 'cover': Mosi plays her seat, saying only his reactions to its rolls
+// and its score (speaker), until she is back for its next turn (which waitFor gives her at once); 'closed': the game of seats is
+// over (another tab took the room).
 async function waitTurn(who){
-  const game=multi,result=await fjolspil.waitFor(who);
+  const game=multi,seat=seatOf(who);if(seat?.guestId&&!seat.present)say('multiWait'); // the waiting card comes up (fjolspil.waitFor)
+  const result=await fjolspil.waitFor(who);
   if(multi!==game||state.currentPlayer!==who||phase!=='waiting')return; // the game ended, or the turn moved on, meanwhile
   if(result==='closed'){endMulti();welcome();return;}
-  takeTurn();timer=.9;renderUI();sendViews();
+  takeTurn();timer=.9;speakTurn(who);renderUI();sendViews(); // "Næsti kastar!" when she is back; nothing while Mosi covers her
 }
 // The game of seats ends ("Hætta Fjölspili", a solo game, a new lobby, the room taken by another tab): the phones wait for the next
 // lobby, its kept game is let go, and the table is the solo one again, not started, with the child's and Mosi's bar (what comes next
@@ -500,10 +529,11 @@ export async function initialize({signal,onStage=()=>{}}={}){
     check();onStage('voice');
     const response=await fetch('./assets/audio/yatzy-junior/manifest.json',{signal});if(!response.ok)throw new Error('Mosi voice recordings are missing');voiceManifest=await response.json();check();
     for(const id of Object.keys(VOICE_LINES))if(!voiceManifest[id]?.src)throw new Error(`Missing recorded line: ${id}`);
-    voice=createJuniorVoice({lines:VOICE_LINES,manifest:voiceManifest,
-      onLine(id,text){if(coach.hidden){audio.cue('bubble');juice.bubble(coach);}coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:CAPTIONS[id]||text;paintCoach();},
+    voice=createJuniorVoice({lines:LINES,manifest:voiceManifest,
+      onLine(id,text){if(coach.hidden){audio.cue('bubble');juice.bubble(coach);}coach.hidden=false;captionTime=0;coach.dataset.voice='pending';$('voice-recovery').hidden=true;$('lesson-line').textContent=lesson?step().caption:captionFor(id)||text;paintCoach();},
       onUnavailable(){lessonAdvance=-1;coach.dataset.voice='unavailable';syncVoiceRecovery();renderUI();},
-      onSpeaking(speaking){audio.duck(speaking);coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],at=voice.getDebugState().elapsed;opponent.actor.talk({duration:Math.max(0,clip.duration-at),mouth:clip.mouth.slice(Math.floor(at*20)),text:VOICE_LINES[id].text});}else opponent?.actor.stopTalking();}
+      // A line not recorded yet (Fjölspil's) moves his mouth from its words over the time they take (talk.js mouthFromText).
+      onSpeaking(speaking){audio.duck(speaking);coach.dataset.voice=voice.getDebugState().mode;if(speaking&&opponent){const id=voice.currentId,clip=voiceManifest[id],{elapsed:at,duration}=voice.getDebugState();opponent.actor.talk({duration:Math.max(0,duration-at),mouth:clip?.mouth?.slice(Math.floor(at*20))??null,text:LINES[id].text});}else opponent?.actor.stopTalking();}
     });voice.mute(muted);
     // A font download is optional; it must never hold the entire board hostage.
     await waitForStartup(document.fonts.ready,{signal,timeoutMs:1500,optional:true});check();
