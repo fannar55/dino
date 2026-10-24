@@ -7,8 +7,9 @@ import { createThorsedlaLod, PIECE_PX } from './thorsedla-lod.js';
 // The pieces of "Háls og hali" (spec section 4): the chapter's own characters, small enough to stand on a block, each in a
 // lane of its own across the block so two or four share a square side by side. Egill rides Mosi in his saddle (riding.js);
 // the friends of a game of two to four are Kambeðla, Slóeðla and Grameðla; against the computer the other piece is a little
-// Þórseðla. They hop square by square (a crouch, a hop with a stretch, a squash on landing), climb the stairs at the ends of
-// the tiers with small quick hops, ride a Þórseðla's neck where it carries them and slide down her tail.
+// Þórseðla; a game of "Fjölspil" takes each guest's avatar as her piece, Flugeðla and Uggeðla among them. They hop square by
+// square (a crouch, a hop with a stretch, a squash on landing), climb the stairs at the ends of the tiers with small quick hops,
+// ride a Þórseðla's neck where it carries them and slide down her tail.
 //
 //   const pieces = await createPieces(world, board, { roster: ['egill', 'kambedla'] })
 //   pieces.list[i]: { id, name, colour, actor, square, position, place(n), hopTo(n), hopOnto(point), follow(fn), slide(curve),
@@ -25,6 +26,9 @@ const CHARACTERS = {
   sloedla: { name: 'Slóeðla', model: 'parasaurolophus', length: 7.5, colour: '#6793d0', happy: 'happy' },
   gramedla: { name: 'Grameðla', model: 'trex', length: 12, colour: '#d69a6e', happy: 'roar' },
   thorsedla: { name: 'Þórseðla', model: 'brontosaurus', length: 22, colour: '#e9b14d', happy: 'happy' },
+  // a guest of "Fjölspil" may pick these two too (spec §7.2): they hop as the others do (no flight)
+  flugedla: { name: 'Flugeðla', model: 'pteranodon', length: 6.5, colour: '#8ec5d6', happy: 'happy' },
+  uggedla: { name: 'Uggeðla', model: 'spinosaurus', length: 15, colour: '#d47a8a', happy: 'happy' },
 };
 const ARMS = /^(Left|Right)(Shoulder|UpperArm|LowerArm|Hand)$/; // Egill's arm bones, which a gesture takes from his wave clips
 export { CHARACTERS as PIECE_CHARACTERS };

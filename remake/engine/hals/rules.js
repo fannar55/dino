@@ -184,20 +184,27 @@ export function resolveTurn(from, roll, {mode = 'classic'} = {}) {
  * A new game, as plain data that can go straight into JSON:
  *   { version, mode, players: [{ id, position, isComputer, fossils }], currentPlayer, winner, turnCount, lastTurn, fossilKinds }
  * `fossils` are the fossil squares that player has found in this game; `fossilKinds` says which kind lies on each
- * fossil square (placeFossils(random)). The last player is the computer when `vsComputer`.
+ * fossil square (placeFossils(random)). The last player is the computer when `vsComputer`; or `computers` says it
+ * for each player, one boolean per player (the seats of "Fjölspil", spec §7.2), and `vsComputer` is then not read.
  */
-export function createGame({playerCount = 2, vsComputer = false, mode = 'classic', random = Math.random} = {}) {
+export function createGame({playerCount = 2, vsComputer = false, computers = null, mode = 'classic', random = Math.random} = {}) {
   integerInRange(playerCount, 1, 4, 'playerCount');
   validateMode(mode);
-  if (typeof vsComputer !== 'boolean') throw new TypeError('vsComputer must be a boolean.');
-  if (vsComputer && playerCount < 2) throw new RangeError('A computer game needs at least two players.');
+  if (computers !== null) {
+    if (!Array.isArray(computers) || computers.length !== playerCount || !computers.every(value => typeof value === 'boolean')) {
+      throw new RangeError('computers must have one boolean per player');
+    }
+  } else {
+    if (typeof vsComputer !== 'boolean') throw new TypeError('vsComputer must be a boolean.');
+    if (vsComputer && playerCount < 2) throw new RangeError('A computer game needs at least two players.');
+  }
   return {
     version: GAME_VERSION,
     mode,
     players: Array.from({length: playerCount}, (_, id) => ({
       id,
       position: 0,
-      isComputer: vsComputer && id === playerCount - 1,
+      isComputer: computers ? computers[id] : vsComputer && id === playerCount - 1,
       fossils: [],
     })),
     currentPlayer: 0,

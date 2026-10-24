@@ -12,9 +12,11 @@
 //   wait     "Bíðum eftir stóra skjánum…": the big screen has gone (or another tab took this seat); the connection tries again
 //   closed   "Bíðum eftir næsta leik": the game was closed on the big screen; the next lobby comes by itself
 //   over     "{name} vann!" with the winner's avatar
-//   game     a game's own screen: views[view.screen](el, view, { send, doc }) renders it (Háls og hali and Eitt! register
-//            theirs); `el` is the game's element in the middle of the page, the same one while that game's views follow one
-//            another and a new one after any other screen, and send(act) sends act { … } to the big screen
+//   game     a game's own screen: views[view.screen](el, view, { send, doc, control }) renders it (Háls og hali and Eitt!
+//            register theirs: spil.html passes guest-hals.js's renderHals); `el` is the game's element in the middle of the
+//            page, the same one while that game's views follow one another and a new one after any other screen, send(act)
+//            sends act { … } to the big screen, and control(button, onTap) makes a button of the page's own (the tap, its
+//            sound and the keyboard)
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
 // the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
@@ -72,8 +74,11 @@ const DEMOS = {
   wait: { seat: ASTA, view: { screen: 'wait', reason: 'host-gone' } },
   closed: { seat: ASTA, view: { screen: 'closed' } },
   over: { seat: ASTA, view: { screen: 'over', winner: { name: 'Ásta', avatar: 'kambedla' } } },
-  // Háls og hali's and Eitt!'s phone screens come with Tasks 9 and 12, each with a sample view here; until then, closed.
-  hals: { seat: ASTA, view: { screen: 'closed' } },
+  // Háls og hali's die, Ásta's turn: Egill rolled a five before her, and Þórseðla plays too (spil.html registers renderHals)
+  hals: { seat: ASTA, view: { screen: 'hals', you: 1, turn: 1, canRoll: true, roll: { value: 5, by: 0 }, winner: null, players: [
+    { ...EGILL, square: 23 }, { ...ASTA, square: 17 }, { seat: 2, name: 'Þórseðla', avatar: 'thorsedla', square: 41 },
+  ] } },
+  // Eitt!'s phone screen comes with Task 12, with a sample view here; until then, closed.
   eitt: { seat: ASTA, view: { screen: 'closed' } },
 };
 
@@ -488,7 +493,7 @@ export function createGuestPage(doc, {
     }
     unsay('page');
     show('game');
-    render(gameEl, view, { send, doc });
+    render(gameEl, view, { send, doc, control });
   }
 
   /** The lobby: her place at the table when it says she has one (`you`); otherwise the join screen, with the free avatars. */
