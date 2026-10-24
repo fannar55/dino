@@ -17,6 +17,7 @@
        ?state=ai                    Anna and Þórseðla, "Taka Þórseðlu út"
        ?state=wait                  the waiting card over the game for Anna, with "Halda áfram án Anna" already shown
        &lan=0                       the server without --lan: the lobby says so
+       &join=http://…/remake/spil.html   a real address in the QR code, to scan it with a phone (the default is a sample)
      The buttons work on the seats here: the character comes and goes, "Halda áfram án …" covers the seat; the key g seats
      the next guest (the sparkle). capture.mjs waits for __demoReady, which comes once the pictures are in and the cards have
      finished coming in. -->
@@ -46,7 +47,8 @@ import { createLobby } from './engine/fjolspil/lobby.js';
 const params = new URLSearchParams(location.search);
 const state = params.get('state') || 'lobby';
 const lanMissing = params.get('lan') === '0';
-const joinUrl = lanMissing ? 'http://127.0.0.1:4198/remake/spil.html' : 'http://192.168.1.10:4198/remake/spil.html';
+// ?join=<address> puts a real address in the QR code (the server's LAN address, for a scan with a phone); otherwise a sample
+const joinUrl = params.get('join') || (lanMissing ? 'http://127.0.0.1:4198/remake/spil.html' : 'http://192.168.1.10:4198/remake/spil.html');
 const code = 'GULL';
 const THORSEDLA = { name: 'Þórseðla', avatar: 'thorsedla', add: 'Bæta við Þórseðlu', remove: 'Taka Þórseðlu út' };
 
