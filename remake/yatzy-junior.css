@@ -283,7 +283,8 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 .panel-actions .big{min-width:min(100%,320px)}
 .panel-actions>.plain{min-width:min(100%,220px)}
 .panel-row{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 14px}
-#welcome .panel-row .plain{min-width:min(100%,200px)} /* "Fjölspil" beside "Spila", the two of a size */
+#welcome .panel-row{justify-self:stretch} /* "Fjölspil" beside "Spila", the two of a size (one over the other on a phone) */
+#welcome .panel-row .plain{min-width:min(100%,200px)}
 
 /* ---- Loading and failure: the clearing, with Mosi trotting on the spot over three bouncing dots ---- */
 #loading,#error{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:var(--ink);
