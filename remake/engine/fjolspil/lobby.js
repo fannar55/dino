@@ -89,7 +89,7 @@ export function createLobby(doc, {
   // ---- The lobby ------------------------------------------------------------------------------------------------------
 
   const lobbyEl = make('div', 'fjolspil-lobby');
-  const card = make('div', 'fjolspil-card');
+  const lobbyCard = make('div', 'fjolspil-card');
   const closeEl = make('button', 'fjolspil-close', CROSS);
   closeEl.setAttribute('aria-label', 'Aftur í bókina');
   const titleEl = make('h2', 'fjolspil-title', `<img src="${TITLE_PICTURE}" alt=""><span>Fjölspil</span>`);
@@ -113,8 +113,8 @@ export function createLobby(doc, {
   const startEl = make('button', 'fjolspil-start', `${PLAY}<span>Byrjum!</span>`);
   actionsEl.append(aiEl, startEl);
   tableEl.append(seatsEl, actionsEl);
-  card.append(closeEl, titleEl, join.el, tableEl);
-  lobbyEl.append(card);
+  lobbyCard.append(closeEl, titleEl, join.el, tableEl);
+  lobbyEl.append(lobbyCard);
 
   root.classList.add('fjolspil');
   root.setAttribute('role', 'dialog');
@@ -214,7 +214,7 @@ export function createLobby(doc, {
     },
 
     /** Shows the seats again after a change (seats.js's onChange, the host's hello). */
-    refresh: () => render({ arrive: isOpen }),
+    refresh: () => render({ arrive: isOpen && !waiting }), // a lobby under the waiting card is hidden: nothing to sparkle
 
     hide,
     get isOpen() { return isOpen; },
@@ -225,7 +225,7 @@ export function createLobby(doc, {
       const sitting = seats.bySeat(seat);
       const avatar = sitting ? avatarOf(sitting.avatar) : undefined;
       const el = make('div', 'fjolspil-wait');
-      const cardEl = make('div', 'fjolspil-wait-card');
+      const waitCard = make('div', 'fjolspil-wait-card');
       const who = make('div', 'fjolspil-wait-who');
       const { el: faceEl, picture } = face('fjolspil-face fjolspil-wait-face');
       if (avatar) picture.src = asset(avatar.picture);
@@ -237,8 +237,8 @@ export function createLobby(doc, {
       who.append(faceEl, words);
       const block = joinBlock();
       fillJoin(block, joinUrl, code);
-      cardEl.append(who, block.el);
-      el.append(cardEl);
+      waitCard.append(who, block.el);
+      el.append(waitCard);
       const card = { el, who, seat, name, timer: null, done: false };
       waiting = card;
       card.timer = timers.setTimeout(() => {
