@@ -7,7 +7,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { MOUTH_RATE, REMAKE_AUDIO, SETS, buildLines, remakeLines, updateLines } from '../tools/audio-lines.mjs';
 import { createHash } from 'node:crypto';
-import { CANDIDATES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
+import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
+import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
@@ -774,6 +775,7 @@ test('--dry prints, per line, the text that would be sent, its context and seed,
   out.length = 0;
   await main(['--dry', '--set', 'all'], { env: {}, root, fetch, log: (...parts) => out.push(parts.join(' ')) });
   assert.ok(out.some(line => line.startsWith('yatzy-junior: ')) && out.some(line => line.startsWith('  yatzyRoll: "Eiht markmið eftir. Kastaðu!"')), 'and Litla Yatzy with all');
+  assert.ok(out.some(line => line.startsWith('  multiTurn: "Næsti kastar!"')), "and Fjölspil's lines with it");
   assert.equal(calls.length, 0);
 });
 
@@ -981,6 +983,14 @@ test('--plan lists, per set, the lines whose MP3 is an eleven_v3 take or not of 
   assert.ok(out.includes('  node remake/tools/voice-lines.mjs --set kafli1 --only k1_mosi_old,k1_mosi_greet,k1_mosi_lost,k1_mosi_missing'));
   assert.ok(out.includes('  kept, never made again: k1_mosi_worry (a kept eleven_v3 take)'));
   assert.ok(out.includes('  stale entry: k1_mosi_new (no entry): node remake/tools/audio-lines.mjs'));
+  assert.ok(out.includes('  multiTurn: no MP3 yet (optional: its caption alone until made)'), "Fjölspil's lines are in Litla Yatzy's plan, marked optional");
+  assert.ok(out.includes('  yatzyRoll: no MP3 yet'), 'a line the solo game requires is not');
+});
+
+test("Litla Yatzy's script for the voice tools is the solo game's lines, then Fjölspil's six, which carry their optional flag", () => {
+  assert.deepEqual(Object.keys(JUNIOR_LINES), [...Object.keys(VOICE_LINES), ...Object.keys(MULTI_LINES)]);
+  assert.deepEqual(Object.keys(JUNIOR_LINES).filter(id => JUNIOR_LINES[id].optional), ['multiWelcome', 'multiTurn', 'multiScored', 'multiZero', 'multiWait', 'multiOver']);
+  assert.ok(Object.isFrozen(JUNIOR_LINES));
 });
 
 test('outside chapter 1, a line that neither the record nor a cached take of its length accounts for is unknown: listed to listen to, never in an --only', needsFfmpeg, async t => {
@@ -1021,7 +1031,9 @@ test("the committed record accounts for every MP3 in the repo: --plan with an em
   const plan = regenerationPlan(REAL.repo, { caches: [] });
   for (const [set, found] of Object.entries(plan)) {
     const hint = 'run node remake/tools/voice-lines.mjs --plan and make these lines again (or node remake/tools/audio-lines.mjs for stale entries)';
-    assert.deepEqual(found.make.map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
+    // Fjölspil's optional lines are to make until the owner records them himself (his decision of 2026-10-24): listed, not a fault.
+    const owners = found.make.filter(item => set === 'yatzy-junior' && item.optional && Object.hasOwn(MULTI_LINES, item.id) && item.reasons.join('; ') === 'no MP3 yet');
+    assert.deepEqual(found.make.filter(item => !owners.includes(item)).map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
     assert.deepEqual(found.unknown.map(item => item.id), [], `${set}: ${hint}`);
     assert.deepEqual(found.stale.map(item => item.id), [], `${set}: ${hint}`);
     assert.ok(found.current > 0, `${set}: lines as they should be`);

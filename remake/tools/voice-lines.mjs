@@ -90,7 +90,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LINES_FILE, SETS, durationOf, setFolder, updateLines } from './audio-lines.mjs';
-import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
+import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { LEXICON, checkLexicon, formsPattern, isText, readLexicon, requestFor, resolveWord, withChoice, writeLexicon } from './pronunciation.mjs';
 import { SPEAKER_NAMES, abHtml, bookHtml } from './voice-pages.mjs';
 
@@ -102,6 +102,11 @@ const CACHE = '.tools/elevenlabs-remake';
 const AUDITIONS = 'qa/remake/voices';
 /** Litla Yatzy's Mosi lines: made by tools/yatzy-junior-voices.mjs, from engine/yatzy-junior/voice-lines.js, with the same lexicon. */
 export const JUNIOR = 'yatzy-junior';
+/**
+ * Litla Yatzy's whole script: the solo game's lines, then Fjölspil's (MULTI_LINES, optional: the page plays them as captions until
+ * the owner records them). Both tools make, plan and audition them all alike; a line carries its `optional` flag along.
+ */
+export const JUNIOR_LINES = Object.freeze({ ...VOICE_LINES, ...MULTI_LINES });
 const JUNIOR_FOLDER = 'remake/assets/audio/yatzy-junior';
 
 const API = 'https://api.elevenlabs.io/v1/text-to-speech';
@@ -269,7 +274,7 @@ export function readLines(root, set = 'kafli1') {
  * The script stays the caption. Both tools read it, so --plan, --ab and the fingerprints agree.
  */
 export const JUNIOR_OVERRIDES = 'remake/assets/audio/yatzy-junior/lines-overrides.json';
-export function juniorOverrides(root, junior = VOICE_LINES) {
+export function juniorOverrides(root, junior = JUNIOR_LINES) {
   const file = path.join(root, JUNIOR_OVERRIDES);
   if (!fs.existsSync(file)) return {};
   const overrides = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -287,16 +292,16 @@ export function juniorOverrides(root, junior = VOICE_LINES) {
 }
 
 /** The lines of a set as { set, id, speaker, text, ... }; yatzy-junior's from Litla Yatzy's script (Mosi speaks them all), with its overrides. */
-export function linesOf(root, set, junior = VOICE_LINES) {
+export function linesOf(root, set, junior = JUNIOR_LINES) {
   if (set === JUNIOR) {
     const overrides = juniorOverrides(root, junior);
-    return Object.entries(junior).map(([id, line]) => ({ set, id, speaker: 'mosi', text: line.text, ...(line.seed === undefined ? {} : { seed: line.seed }), ...(overrides[id] ?? {}) }));
+    return Object.entries(junior).map(([id, line]) => ({ set, id, speaker: 'mosi', text: line.text, ...(line.seed === undefined ? {} : { seed: line.seed }), ...(line.optional ? { optional: true } : {}), ...(overrides[id] ?? {}) }));
   }
   return readLines(root, set).map(line => ({ set, ...line }));
 }
 
 /** Every line any voice says: the five sets, then Litla Yatzy's (or `junior`, for a test). */
-export function allLines(root, junior = VOICE_LINES) {
+export function allLines(root, junior = JUNIOR_LINES) {
   return [...Object.keys(SETS).filter(set => fs.existsSync(path.join(root, sourceOf(set)))).flatMap(set => linesOf(root, set)), ...linesOf(root, JUNIOR, junior)];
 }
 
@@ -754,14 +759,14 @@ function entriesOf(root, set) {
 
 /**
  * --plan's findings, per set (and Litla Yatzy): `make`, the lines whose MP3 is not what the tool would send now (a take of another
- * request, a recipe chosen since, a changed MP3, no MP3, an eleven_v3 take), each with its reasons; `unknown`, lines outside chapter 1
- * that neither the record nor a cached take accounts for (to listen to, never made blindly); `waiting`, lines with a word the owner
- * has not picked (sent as written meanwhile); `kept`, kept lines worth knowing about; `stale`, lines whose entry in lines.json (or
- * Litla Yatzy's manifest) is not their MP3's length; and `current`, the count of lines as the tool would make them. Which take made
- * an MP3 is read from the committed record (voices-made.json); only a line it does not know is looked for in the caches. Asks
- * nothing and writes nothing.
+ * request, a recipe chosen since, a changed MP3, no MP3, an eleven_v3 take), each with its reasons (and `optional` for Fjölspil's
+ * lines, which the page plays as captions until they are made); `unknown`, lines outside chapter 1 that neither the record nor a
+ * cached take accounts for (to listen to, never made blindly); `waiting`, lines with a word the owner has not picked (sent as
+ * written meanwhile); `kept`, kept lines worth knowing about; `stale`, lines whose entry in lines.json (or Litla Yatzy's manifest)
+ * is not their MP3's length; and `current`, the count of lines as the tool would make them. Which take made an MP3 is read from the
+ * committed record (voices-made.json); only a line it does not know is looked for in the caches. Asks nothing and writes nothing.
  */
-export function regenerationPlan(root, { caches = cachesOf(root), junior = VOICE_LINES } = {}) {
+export function regenerationPlan(root, { caches = cachesOf(root), junior = JUNIOR_LINES } = {}) {
   const lexicon = readLexicon(root);
   const voices = readVoices(root);
   const made = readMade(root);
@@ -809,7 +814,7 @@ export function regenerationPlan(root, { caches = cachesOf(root), junior = VOICE
         else if (from === null) reasons.push('no record and no cached take: eleven_v3, made before the switch to v4 on 2026-10-18');
         if (from !== key && changed) reasons.push(`the lexicon changes its request (${recipes})`);
       }
-      if (reasons.length) found.make.push({ id: line.id, speaker: line.speaker, reasons, sent: { text: sent.text, context: sent.context, seed: sent.seed }, cached: caches.some(dir => fs.existsSync(path.join(dir, `${key}.mp3`))), unchosen });
+      if (reasons.length) found.make.push({ id: line.id, speaker: line.speaker, reasons, sent: { text: sent.text, context: sent.context, seed: sent.seed }, cached: caches.some(dir => fs.existsSync(path.join(dir, `${key}.mp3`))), unchosen, ...(line.optional ? { optional: true } : {}) });
       else if (unchosen.length) found.waiting.push({ id: line.id, words: unchosen });
       else found.current++;
     }
@@ -834,7 +839,7 @@ export function printPlan({ root, log }) {
     log('');
     log(`${set}: ${found.make.length} to make, ${found.unknown.length} unknown, ${found.waiting.length} waiting for a pick, ${found.kept.length} kept to know about, ${found.stale.length} stale entries, ${found.current} as they should be`);
     for (const item of found.make) {
-      log(`  ${item.id}: ${item.reasons.join('; ')}${item.cached ? ' (cached)' : ''}`);
+      log(`  ${item.id}: ${item.reasons.join('; ')}${item.optional ? ' (optional: its caption alone until made)' : ''}${item.cached ? ' (cached)' : ''}`);
       if (!item.cached) { lines++; characters += item.sent.text.length; }
     }
     for (const item of found.unknown) log(`  unknown, listen before making it again: ${item.id} (${item.why})`);

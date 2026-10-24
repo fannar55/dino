@@ -10,13 +10,16 @@
 // with voice-lines.mjs's lines; a take another checkout of the repo has in its cache is copied, not asked for again.
 // A line may carry its own say, context or seed in remake/assets/audio/yatzy-junior/lines-overrides.json (voice-lines.mjs
 // juniorOverrides), which win over the lexicon as in a lines-source.json line; the script stays the caption.
+// The script is the solo game's lines and Fjölspil's (voice-lines.mjs JUNIOR_LINES). Fjölspil's are optional: the page plays them
+// as captions until they are made, so --verify passes them by (as "unrecorded") until then, and --dry-run lists what is to make.
+// The owner makes them himself (his decision of 2026-10-24), with his key in the environment:
+//   node remake/tools/yatzy-junior-voices.mjs --only multiWelcome,multiTurn,multiScored,multiZero,multiWait,multiOver
 // node remake/tools/yatzy-junior-voices.mjs [--only id,id] [--dry-run|--verify]
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
-import {VOICE_LINES} from '../engine/yatzy-junior/voice-lines.js';
-import {cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
+import {JUNIOR_LINES,cacheKey,MODEL,SETTINGS,juniorOverrides,madeEntry,readMade,recordMade,siblingCaches} from './voice-lines.mjs';
 import {readLexicon,requestFor} from './pronunciation.mjs';
 import {lineEntry} from './audio-lines.mjs';
 
@@ -37,11 +40,11 @@ async function main(argv){
   if(voiceId!=='osSKuDKznhXBktjJ9Z9F')throw new Error('The established Mosi voice changed; review before generating junior audio.');
   if(MODEL!=='eleven_v4'||SETTINGS.speed!==.95)throw new Error('Junior audio requires the approved Eleven v4 model at speed .95.');
   const lexicon=readLexicon(ROOT);
-  const overrides=juniorOverrides(ROOT,VOICE_LINES);
-  const all=Object.entries(VOICE_LINES).map(([id,line])=>[id,{...line,...(overrides[id]??{})}]);
+  const overrides=juniorOverrides(ROOT,JUNIOR_LINES);
+  const all=Object.entries(JUNIOR_LINES).map(([id,line])=>[id,{...line,...(overrides[id]??{})}]);
   for(const[id,line]of all)if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||typeof line.text!=='string'||!line.text.trim())throw new Error('Invalid voice script entry.');
   const onlyAt=argv.indexOf('--only'),only=onlyAt>=0?(argv[onlyAt+1]||'').split(','):null;
-  for(const id of only||[])if(!Object.hasOwn(VOICE_LINES,id))throw new Error(`Unknown junior line: ${id}`);
+  for(const id of only||[])if(!Object.hasOwn(JUNIOR_LINES,id))throw new Error(`Unknown junior line: ${id}`);
   const selected=only?all.filter(([id])=>only.includes(id)):all;
   const fingerprint=line=>juniorFingerprint(line,{voiceId,lexicon});
   const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -49,11 +52,14 @@ async function main(argv){
   const manifestFile=path.join(FOLDER,'manifest.json');
   const manifest=readJson(manifestFile,{});
   const recorded=id=>readMade(ROOT)[`yatzy-junior/${id}`]?.key;
+  // What a run would make: a line with no MP3 or manifest entry yet, or one made from another request than it would send now.
+  const toMake=([id,line])=>!manifest[id]?.src||!fs.existsSync(path.join(FOLDER,`${id}.mp3`))||recorded(id)!==fingerprint(line);
 
   function verify(){
-    const issues=[];let duration=0,bytes=0;
+    const issues=[],unrecorded=[];let duration=0,bytes=0;
     for(const[id,line]of all){
       const entry=manifest[id],file=path.join(FOLDER,`${id}.mp3`);
+      if(!entry&&!fs.existsSync(file)&&line.optional){unrecorded.push(id);continue;} // Fjölspil's, until the owner makes them
       if(!entry||!fs.existsSync(file)){issues.push(`${id}: missing audio/manifest`);continue;}
       if(entry.src!==`assets/audio/yatzy-junior/${id}.mp3`||!(entry.duration>.3&&entry.duration<40)||!/^[0-9a-f]+$/.test(entry.mouth))issues.push(`${id}: invalid manifest entry`);
       if(!/[1-9a-f]/.test(entry.mouth)||!entry.mouth.endsWith('000'))issues.push(`${id}: silent voice or missing closing silence`);
@@ -64,7 +70,8 @@ async function main(argv){
       duration+=entry.duration;bytes+=fs.statSync(file).size;
     }
     if(issues.length)throw new Error(issues.join('\n'));
-    return{clips:all.length,spokenLines:all.filter(([id])=>!id.startsWith('points_')).length,pointLines:all.filter(([id])=>id.startsWith('points_')).length,durationSeconds:Math.round(duration*1000)/1000,bytes,model:MODEL,voiceId,language:'is',mouthRate:20};
+    const made=all.filter(([id])=>!unrecorded.includes(id));
+    return{clips:made.length,spokenLines:made.filter(([id])=>!id.startsWith('points_')).length,pointLines:made.filter(([id])=>id.startsWith('points_')).length,unrecorded,durationSeconds:Math.round(duration*1000)/1000,bytes,model:MODEL,voiceId,language:'is',mouthRate:20};
   }
 
   run('ffmpeg',['-version']);run('ffprobe',['-version']);
@@ -73,7 +80,7 @@ async function main(argv){
     const sent=selected.map(([id,line])=>({id,...juniorRequest(line,lexicon),caption:line.text}));
     console.log(JSON.stringify({clips:selected.length,characters:sent.reduce((n,line)=>n+line.text.length,0),cached:selected.filter(([,line])=>fs.existsSync(path.join(CACHE,`${fingerprint(line)}.mp3`))).length,model:MODEL,voiceId,language:'is',settings:SETTINGS,
       withRecipe:sent.filter(line=>line.text!==line.caption||line.context!==undefined).map(line=>({id:line.id,text:line.text,...(line.context===undefined?{}:{context:line.context}),...(line.seed===undefined?{}:{seed:line.seed})})),
-      unchosen:sent.filter(line=>line.words.some(word=>!word.recipe)).map(line=>line.id)},null,2));
+      unchosen:sent.filter(line=>line.words.some(word=>!word.recipe)).map(line=>line.id),toMake:selected.filter(toMake).map(([id])=>id)},null,2));
     return;
   }
   const key=process.env.ELEVENLABS_API_KEY;if(!key)throw new Error('ELEVENLABS_API_KEY must be available in the environment.');

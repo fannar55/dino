@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
-import { JUNIOR_OVERRIDES, allLines, bookPlan, cacheKey, juniorOverrides, linesOf } from '../tools/voice-lines.mjs';
+import { JUNIOR_LINES, JUNIOR_OVERRIDES, allLines, bookPlan, cacheKey, juniorOverrides, linesOf } from '../tools/voice-lines.mjs';
 import { applyLexicon, checkLexicon, formsPattern, lexiconText, requestFor, resolveWord } from '../tools/pronunciation.mjs';
 import { SPEAKER_NAMES, bookHtml } from '../tools/voice-pages.mjs';
 import { VISIT, fixtureLexicon } from './lexicon-fixture.mjs';
@@ -22,13 +22,13 @@ const readJson = path_ => JSON.parse(fs.readFileSync(path_, 'utf8'));
 const LEXICON = fixtureLexicon();
 const ENTRIES = Object.entries(LEXICON.words);
 
-/** Every line any voice says: the five sets and Litla Yatzy's Mosi lines (its own tool, the same lexicon). */
+/** Every line any voice says: the five sets and Litla Yatzy's Mosi lines, Fjölspil's optional ones too (its own tool, the same lexicon). */
 function corpus() {
   const lines = [];
   for (const set of Object.keys(SETS)) {
     for (const line of readJson(file(`../../${SETS[set]}/lines-source.json`))) lines.push({ set, ...line });
   }
-  for (const [id, line] of Object.entries(VOICE_LINES)) lines.push({ set: 'yatzy-junior', id, speaker: 'mosi', text: line.text });
+  for (const [id, line] of Object.entries(JUNIOR_LINES)) lines.push({ set: 'yatzy-junior', id, speaker: 'mosi', text: line.text, ...(line.optional ? { optional: true } : {}) });
   return lines;
 }
 const tokens = text => text.match(/\p{L}+/gu) ?? [];
@@ -48,6 +48,7 @@ test('the shipped lexicon, whatever the owner picked: valid, every choice a reci
   // Every inflection of every hard word that a line of the five sets or Litla Yatzy says is one of its forms.
   const lines = corpus();
   assert.ok(lines.length > 400, `${lines.length} lines read`);
+  assert.deepEqual(lines.filter(line => line.optional).map(line => `${line.set}/${line.id}`), ['multiWelcome', 'multiTurn', 'multiScored', 'multiZero', 'multiWait', 'multiOver'].map(id => `yatzy-junior/${id}`), "Fjölspil's six are read, optional");
   const uncovered = [];
   for (const [id, entry] of entries) {
     const stem = new RegExp(`^(?:${entry.stem})`, 'u');
@@ -241,6 +242,11 @@ test("Litla Yatzy's tool sends its lines through the same function", async () =>
   assert.equal(VOICE_LINES.yatzyRoll.text, 'Eitt markmið eftir. Kastaðu!', 'the caption stays as written');
   const voiceId = 'osSKuDKznhXBktjJ9Z9F';
   assert.equal(junior.juniorFingerprint(VOICE_LINES.welcome, { voiceId, lexicon: LEXICON }), cacheKey({ text: VOICE_LINES.welcome.text, voiceId }), 'a line with no hard word keeps its old fingerprint');
+  // Fjölspil's optional lines go the same way: the flag rides along, the request is the lexicon's as for any line.
+  const own = linesOf(file('../..'), 'yatzy-junior').filter(line => line.optional);
+  assert.deepEqual(own.map(line => line.id), ['multiWelcome', 'multiTurn', 'multiScored', 'multiZero', 'multiWait', 'multiOver']);
+  for (const line of own) assert.deepEqual(pick(junior.juniorRequest(line, LEXICON)), pick(requestFor({ speaker: 'mosi', text: line.text }, LEXICON)), line.id);
+  assert.match(source, /JUNIOR_LINES/, 'the tool makes the whole script, Fjölspil\'s lines too');
 });
 
 test("a Litla Yatzy line's own say, context or seed win, read from lines-overrides.json by both tools", async () => {

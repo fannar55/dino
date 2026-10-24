@@ -113,7 +113,7 @@ try{
   await click(big,'.fjolspil-ai');await big.waitForFunction(()=>document.querySelectorAll('.fjolspil-seat[data-state="ai"]').length===1);
   await join(bjarni,'Bjarni','gramedla');await big.waitForFunction(()=>document.querySelectorAll('.fjolspil-seat[data-state="taken"]').length===2);
   await capture(big,'lobby');check(`the lobby (${code}): Egill, Anna from her phone, Mosi added, Bjarni from his phone`);
-  await click(big,'.fjolspil-start');await waitPhase('human',0);
+  await logLines();await click(big,'.fjolspil-start');await waitPhase('human',0); // the welcome is logged too
   const bar=await big.evaluate(()=>({count:document.querySelector('.players').dataset.count,names:[...document.querySelectorAll('.player-card .pname')].map(e=>e.textContent)}));
   assert.deepEqual(bar,{count:'4',names:NAMES});assert.deepEqual((await state()).players.map(p=>p.id),['0','1','2','3']);
   const closed=await big.evaluate(()=>({learn:document.getElementById('learn').hidden,learnHelp:document.getElementById('learn-help').hidden,newGame:document.getElementById('new-game').textContent}));
@@ -121,7 +121,6 @@ try{
   await click(big,'#help');await big.waitForFunction(()=>document.getElementById('help-dialog').open);assert.equal(await big.locator('#learn-help').isVisible(),false,'no "Sýndu mér" in Fjölspil');
   await click(big,'#help-dialog [data-close]');await big.waitForFunction(()=>!document.getElementById('help-dialog').open);
   check('"Byrjum!": four seats, the bar Egill · Anna · Mosi · Bjarni, the lesson and "Sýndu mér" closed, the pause card says "Hætta Fjölspili"');
-  await logLines();
 
   // Round 1: every way of playing a turn.
   await egillTurn({hold:true,shot:'egill-turn'});check('Egill plays from the cup: a roll, a held die, a roll again and a card; his name on the cards\' tag');
@@ -217,7 +216,7 @@ try{
   assert.deepEqual(fits(cover,['good','great','bad','multiScored','multiZero']),[],'a covered seat: his reactions to its rolls and its score, nothing more');
   assert.ok(cover.some(line=>['multiScored','multiZero'].includes(line.id)),'the covered turn\'s score is said');
   assert.deepEqual(lines.filter(line=>['yourTotal','mosiTotal','tie'].includes(line.id)),[],'no solo totals in Fjölspil');
-  assert.deepEqual(fits(playing.filter(line=>line.seat===0),['multiWelcome','yourTurn','choose','lastRoll','noRolls','hold','release','allHeld','zero','scored','resume']),[],'Egill at the big screen: his lines as alone');
+  assert.deepEqual(fits(playing.filter(line=>line.seat===0),['multiWelcome','help','yourTurn','choose','lastRoll','noRolls','hold','release','allHeld','zero','scored','resume']),[],'Egill at the big screen: his lines as alone');
   assert.deepEqual(fits(playing.filter(line=>line.seat===MOSI),['mosiTurn','good','great','bad','mosiScored']),[],'Mosi\'s own turn: his lines as alone');
   const welcome=lines.filter(line=>line.id==='multiWelcome');assert.equal(welcome.length,2,'"Byrjum!" and "Spila aftur" are welcomed');
   assert.ok(welcome.every(line=>line.caption==='Velkomin að borðinu! Við skiptumst á.'&&line.mode==='fallback'),'the welcome in its own words, its caption alone');
