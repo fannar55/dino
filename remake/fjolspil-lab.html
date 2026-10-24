@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fjölspil — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./fjolspil.css">
+<!-- The lobby and the waiting card of "Fjölspil" (engine/fjolspil/lobby.js) on a page of their own, never linked from the game,
+     over a stand-in for the book (the lobby) or for a game's board (the waiting card), with seats set out for each state and no
+     network: the QR code holds a sample address.
+       ?state=lobby (the default)   Egill alone, "Bæta við Þórseðlu", "Byrjum!" waiting for a second seat
+       ?state=joined                Anna and Bjarni there, Dóra gone (dim, "…"), no computer player: the table is full
+       ?state=ai                    Anna and Þórseðla, "Taka Þórseðlu út"
+       ?state=wait                  the waiting card over the game for Anna, with "Halda áfram án Anna" already shown
+       &lan=0                       the server without --lan: the lobby says so
+     The buttons work on the seats here: the character comes and goes, "Halda áfram án …" covers the seat; the key g seats
+     the next guest (the sparkle). capture.mjs waits for __demoReady, which comes once the pictures are in and the cards have
+     finished coming in. -->
+<style>
+  /* A stand-in for the open book behind the lobby, and for a game's board behind the waiting card. */
+  .standin { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(#cfe4ee, #e9efd8 55%, #9fbb62); }
+  .standin-book { display: grid; grid-template-columns: 1fr 1fr; width: min(1100px, 86vw); height: min(680px, 80vh); filter: drop-shadow(0 24px 30px rgb(40 24 10 / .3)); }
+  .standin-book > div { background: repeating-linear-gradient(#f6efdf 0 38px, #e9dfc8 38px 40px); border: 3px solid #3b2f25; }
+  .standin-book > div:first-child { border-radius: 26px 6px 6px 26px; border-right-width: 1.5px; }
+  .standin-book > div:last-child { border-radius: 6px 26px 26px 6px; border-left-width: 1.5px; }
+  .standin.board { background:
+    radial-gradient(ellipse 22% 30% at 8% 30%, #8fb07c 0 60%, transparent 100%),
+    radial-gradient(ellipse 24% 32% at 92% 28%, #84a874 0 60%, transparent 100%),
+    radial-gradient(ellipse 60% 22% at 50% 52%, #c4d27c 0 60%, transparent 100%),
+    linear-gradient(#d7e7ee 0%, #edf0dc 30%, #bccf7e 48%, #8fae52 70%, #6f8f3c 100%); }
+  .standin.board .standin-book { display: none; }
+</style>
+</head>
+<body>
+<div class="standin" id="standin"><div class="standin-book"><div></div><div></div></div></div>
+<div id="fjolspil" class="fjolspil" hidden></div>
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
+<script type="module">
+import { createSeats } from './engine/fjolspil/seats.js';
+import { createLobby } from './engine/fjolspil/lobby.js';
+
+const params = new URLSearchParams(location.search);
+const state = params.get('state') || 'lobby';
+const lanMissing = params.get('lan') === '0';
+const joinUrl = lanMissing ? 'http://127.0.0.1:4198/remake/spil.html' : 'http://192.168.1.10:4198/remake/spil.html';
+const code = 'GULL';
+const THORSEDLA = { name: 'Þórseðla', avatar: 'thorsedla', add: 'Bæta við Þórseðlu', remove: 'Taka Þórseðlu út' };
+
+const seats = createSeats({ reserved: [THORSEDLA.avatar] });
+const GUESTS = [
+  { guestId: 'g1', name: 'Anna', avatar: 'kambedla' },
+  { guestId: 'g2', name: 'Bjarni', avatar: 'uggedla' },
+  { guestId: 'g3', name: 'Dóra', avatar: 'flugedla' },
+];
+if (state === 'joined') {
+  for (const guest of GUESTS) seats.join(guest);
+  seats.presence(3, false);
+}
+if (state === 'ai') {
+  seats.join(GUESTS[0]);
+  seats.addAi(THORSEDLA);
+}
+if (state === 'wait') {
+  seats.join(GUESTS[0]);
+  seats.presence(1, false);
+}
+
+// The waiting card's state shows "Halda áfram án …" at once; otherwise the page's own timers (20 s).
+const timers = state === 'wait' ? { setTimeout: fn => { fn(); return 0; }, clearTimeout() {} } : undefined;
+const lobby = createLobby(document, {
+  seats, timers,
+  onAddAi: () => seats.addAi(THORSEDLA),
+  onRemoveAi: () => seats.removeAi(),
+  onStart: () => console.log('[fjolspil-lab] Byrjum!', seats.list()),
+  onClose: () => console.log('[fjolspil-lab] back to the book'),
+  onContinue: seat => { seats.cover(seat); lobby.hideWaiting(); console.log('[fjolspil-lab] the computer plays seat', seat); },
+});
+window.__lobby = lobby;
+window.__seats = seats;
+
+if (state === 'wait') {
+  document.getElementById('standin').classList.add('board');
+  lobby.waitFor({ seat: 1, joinUrl, code });
+} else {
+  lobby.show({ joinUrl, code, ai: THORSEDLA, lanMissing });
+}
+
+addEventListener('keydown', event => {
+  if (event.key !== 'g') return;
+  const next = GUESTS.find(guest => !seats.byGuest(guest.guestId));
+  if (next) seats.join(next);
+  lobby.refresh();
+});
+
+// Ready once the pictures are in and the cards have come in (their entrance is under half a second).
+const pictures = [...document.querySelectorAll('#fjolspil img')].filter(img => !img.hidden && img.src);
+await Promise.all([document.fonts.ready, ...pictures.map(img => img.decode().catch(() => {}))]);
+await new Promise(resolve => setTimeout(resolve, 700));
+window.__demoReady = true;
+</script>
+</body>
+</html>

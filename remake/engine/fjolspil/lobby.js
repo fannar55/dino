@@ -240,11 +240,11 @@ export function createLobby(doc, {
       cardEl.append(who, block.el);
       el.append(cardEl);
       const card = { el, who, seat, name, timer: null, done: false };
+      waiting = card;
       card.timer = timers.setTimeout(() => {
         card.timer = null;
         if (waiting === card) offerContinue(card);
       }, COVER_AFTER_MS);
-      waiting = card;
       root.append(el);
       lobbyEl.hidden = true;
       root.hidden = false;
