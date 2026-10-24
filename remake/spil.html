@@ -21,9 +21,11 @@
 <div id="spil" class="spil"></div>
 <script type="module">
 import { createGuestPage } from './engine/fjolspil/guest.js';
+import { createGuestNet, iceServersFor, wsUrlFor } from './engine/fjolspil/net.js';
 
-// The connection comes with Task 7 (net.js's createGuestNet); until then there is none, and a code shows "Tengist…".
-window.__spil = createGuestPage(document, { net: null });
+// The room's meeting point beside this page (serve.mjs at home, the Worker in the cloud), as this phone's guest id.
+const net = ({ code, guestId }) => createGuestNet({ url: wsUrlFor(location, code, { role: 'guest', id: guestId }), iceServers: iceServersFor(location) });
+window.__spil = createGuestPage(document, { net });
 </script>
 </body>
 </html>

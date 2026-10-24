@@ -18,6 +18,11 @@
        ?state=wait                  the waiting card over the game for Anna, with "Halda áfram án Anna" already shown
        &lan=0                       the server without --lan: the lobby says so
        &join=http://…/remake/spil.html   a real address in the QR code, to scan it with a phone (the default is a sample)
+       ?live=1                      a real room at the meeting point beside this page (net.js's createHostNet): a new code,
+                                    the phone page's address in the QR code (the server's LAN one when this page is on
+                                    loopback), and each guest seated as it says hello, listed at the bottom left with the
+                                    way its messages go (rtc or relay); &relay=1 forces the relay. Only that: no seat is
+                                    answered and no view sent (the host session is fjolspil.js); window.__net is the net
      The buttons work on the seats here: the character comes and goes, "Halda áfram án …" covers the seat; the key g seats
      the next guest (the sparkle). capture.mjs waits for __demoReady, which comes once the pictures are in and the cards have
      finished coming in. -->
@@ -34,6 +39,8 @@
     radial-gradient(ellipse 60% 22% at 50% 52%, #c4d27c 0 60%, transparent 100%),
     linear-gradient(#d7e7ee 0%, #edf0dc 30%, #bccf7e 48%, #8fae52 70%, #6f8f3c 100%); }
   .standin.board .standin-book { display: none; }
+  /* ?live=1: the room's code and status, and each guest with the way its messages go. */
+  .live { position: fixed; left: 12px; bottom: 12px; z-index: 1000; margin: 0; padding: 8px 14px 8px 30px; background: rgb(255 250 240 / .92); border: 2px solid #3b2f25; border-radius: 12px; font: 600 15px/1.4 ui-monospace, monospace; color: #3b2f25; }
 </style>
 </head>
 <body>
@@ -43,13 +50,16 @@
 <script type="module">
 import { createSeats } from './engine/fjolspil/seats.js';
 import { createLobby } from './engine/fjolspil/lobby.js';
+import { createHostNet, iceServersFor, wsUrlFor } from './engine/fjolspil/net.js';
+import { makeCode, randomKey } from './engine/fjolspil/protocol.js';
 
 const params = new URLSearchParams(location.search);
-const state = params.get('state') || 'lobby';
+const live = params.get('live') === '1';
+const state = live ? 'lobby' : params.get('state') || 'lobby';
 const lanMissing = params.get('lan') === '0';
 // ?join=<address> puts a real address in the QR code (the server's LAN address, for a scan with a phone); otherwise a sample
 const joinUrl = params.get('join') || (lanMissing ? 'http://127.0.0.1:4198/remake/spil.html' : 'http://192.168.1.10:4198/remake/spil.html');
-const code = 'GULL';
+let code = live ? makeCode() : 'GULL';
 const THORSEDLA = { name: 'Þórseðla', avatar: 'thorsedla', add: 'Bæta við Þórseðlu', remove: 'Taka Þórseðlu út' };
 
 const seats = createSeats({ reserved: [THORSEDLA.avatar] });
@@ -87,8 +97,71 @@ window.__seats = seats;
 if (state === 'wait') {
   document.getElementById('standin').classList.add('board');
   lobby.waitFor({ seat: 1, joinUrl, code });
+} else if (live) {
+  goLive();
 } else {
   lobby.show({ joinUrl, code, ai: THORSEDLA, lanMissing });
+}
+
+/** ?live=1: a real room, its real address in the QR code, and the guests seated as they say hello (see the top). */
+function goLive() {
+  const key = randomKey();
+  const forceRelay = params.get('relay') === '1';
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  const named = new Map(); // guest id → the name its seat has
+  const list = document.createElement('ol');
+  list.className = 'live';
+  document.body.append(list);
+  let net = null;
+
+  function render() {
+    const lines = [`${code} · ${net?.status ?? ''}${forceRelay ? ' · relay=1' : ''}`];
+    for (const [id, name] of named) lines.push(`${name} · ${net.transportOf(id) ?? '…'}`);
+    list.replaceChildren(...lines.map(line => Object.assign(document.createElement('li'), { textContent: line })));
+  }
+  const seatOf = id => seats.byGuest(id)?.seat;
+
+  function open() {
+    const mine = createHostNet({ url: wsUrlFor(location, code, { role: 'host', key }), iceServers: iceServersFor(location), forceRelay });
+    net = mine;
+    window.__net = mine;
+    mine.onStatus(status => {
+      console.log('[fjolspil-lab] live', code, status);
+      if (status === 'taken' && net === mine) { // another host has this code: another one
+        mine.close();
+        code = makeCode();
+        return open();
+      }
+      render();
+    });
+    mine.onWelcome(({ join }) => {
+      const phonePage = loopback ? join[0] ?? `${location.origin}/remake/spil.html` : `${location.origin}/remake/spil.html`;
+      lobby.show({ joinUrl: phonePage, code, ai: THORSEDLA, lanMissing: loopback && join.length === 0 });
+      console.log('[fjolspil-lab] the phone page:', `${phonePage}?r=${code}`);
+    });
+    mine.onJoin(id => console.log('[fjolspil-lab] joined', id));
+    mine.onLeave(id => {
+      console.log('[fjolspil-lab] left', id);
+      if (seatOf(id) !== undefined) seats.presence(seatOf(id), false);
+      lobby.refresh();
+      render();
+    });
+    mine.onPresence((id, present) => {
+      if (seatOf(id) !== undefined) seats.presence(seatOf(id), present);
+      lobby.refresh();
+    });
+    mine.onMessage((id, msg) => {
+      if (msg.type !== 'hello') return;
+      const result = seats.join({ guestId: id, name: msg.body?.name, avatar: msg.body?.avatar });
+      console.log('[fjolspil-lab] hello', id, msg.body, result, mine.transportOf(id));
+      if (result.ok) named.set(id, result.name);
+      lobby.refresh();
+      render();
+    });
+  }
+
+  open();
+  setInterval(render, 1000); // a guest's way can change after its hello (the channel opens, or the relay takes over)
 }
 
 addEventListener('keydown', event => {

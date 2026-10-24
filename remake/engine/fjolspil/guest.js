@@ -17,9 +17,11 @@
 //            another and a new one after any other screen, and send(act) sends act { … } to the big screen
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
-// the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (net.js's
-// createGuestNet, Task 7) with onMessage(fn), onStatus(fn), send(msg), reconnect() and close(); without one the page only
-// shows (?demo=…, or the join screen and "Tengist…"). The words for what goes wrong are spec §10's.
+// the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
+// around net.js's createGuestNet) with onMessage(fn), onStatus(fn), send(msg), reconnect() and close(); without one the
+// page only shows (?demo=…, or the join screen and "Tengist…"). It tries again by itself when it comes back into view or
+// the network is back, and a guest with a seat (or a hello on its way) says hello again whenever the connection is back,
+// so the big screen seats her where she was (spec §6.4). The words for what goes wrong are spec §10's.
 //
 // Names are text, never markup: they go in with textContent. Every button is the book's (book/fx.js's pressable: the squash,
 // the sparkle and the tap sound, the page's only sound, from its own audio context made at the first touch), and Enter or
@@ -564,7 +566,11 @@ export function createGuestPage(doc, {
         show('code');
         return say(words, 'page');
       }
-      default: return unsay('net'); // connected (again): nothing to say
+      case 'connected': // the socket is open (again), or the big screen is back: a seat had or asked for is asked for again
+        unsay('net');
+        if (at.hadSeat || at.pending) submit(); // spec §6.4: hello again, and her seat and the newest view come back
+        return;
+      default: return unsay('net'); // nothing to say
     }
   }
 
@@ -583,7 +589,7 @@ export function createGuestPage(doc, {
     renderAvatars();
     show('join');
     say(WORDS.connecting, 'net');
-    if (!net) return true; // no connection yet (Task 7): the join screen, and "Tengist…"
+    if (!net) return true; // no connection to make: the join screen, and "Tengist…"
     const connection = net({ code, guestId: guest.guestId, url: serverUrl });
     at.connection = connection;
     connection?.onMessage?.(msg => { if (at.connection === connection) onMessage(msg); });
@@ -595,6 +601,11 @@ export function createGuestPage(doc, {
   function send(act) {
     return at.connection?.send?.(message('act', act)) ?? false;
   }
+
+  // The phone wakes, the tab comes to the front or the network is back: try again now, not at the end of a wait (spec
+  // §6.4). visibilitychange is the document's, and comes up to the window.
+  win?.addEventListener?.('visibilitychange', () => { if (doc.visibilityState !== 'hidden') at.connection?.reconnect?.(); });
+  win?.addEventListener?.('online', () => at.connection?.reconnect?.());
 
   // ---- The start: a demo, the room in the address, or the code to type -------------------------------------------------
 
