@@ -2,7 +2,8 @@
 // lobby shows on the big screen and a phone's camera opens (spec §4 step 2). The encoding is Kazuhiko Arase's
 // qrcode-generator 1.4.4 (MIT), vendored unmodified in remake/vendor/qrcode-generator/ with its licence beside it, since
 // the remake has no npm packages and no build step. It is a classic script that defines the global `qrcode`, which the
-// page loads before its module script; the tests hand the same function in as `lib`, from require.
+// page loads before its module script; the tests hand the same function in as `lib`, from require (the package.json
+// beside it keeps it CommonJS under the repo's "type": "module").
 //
 // This module only draws. qrModules lets the encoder pick the smallest version that holds the text (type number 0) at the
 // error-correction level asked for, in byte mode; the addresses are plain ASCII, which that mode takes as they are.
@@ -28,6 +29,6 @@ export function qrSvg(text, { lib, level, quiet = 4 } = {}) {
   for (let row = 0; row < size; row++) {
     for (let col = 0; col < size; col++) if (dark(row, col)) d += `M${col + quiet} ${row + quiet}h1v1h-1z`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${side} ${side}" shape-rendering="crispEdges" role="img" aria-label="QR-kóði">`
-    + `<path fill="currentColor" d="${d}"/></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${side} ${side}" shape-rendering="crispEdges"`
+    + ` role="img" aria-label="QR-kóði"><path fill="currentColor" d="${d}"/></svg>`;
 }
