@@ -352,3 +352,10 @@ front of it, must answer byte-range requests for `remake/assets/audio/theme.mp3`
 move it, so the music can no longer follow the game's clock (after the book, a hidden tab or a long frame it just
 plays on, and the beat follows it instead). The theme must come from the page's own origin: it plays through Web
 Audio, which hears silence from media on another origin without CORS.
+
+**Cloudflare.** `cloud/` puts the same page on Cloudflare: one Worker with the site staged as static assets
+(`npm run stage:cloud` copies `remake/` without its tests, tools, prompts and Tripo sources, and `dist/vendor/`) and
+Fjölspil's rooms as a Durable Object running the same `engine/fjolspil/room.js` as the home server. The steps, from
+`npm install` to `wrangler deploy`, are in [cloud/README.md](../cloud/README.md), in Icelandic. Under `wrangler dev` the
+theme's byte ranges were answered 200 with the whole file, not 206, so check the deployed site with `curl -r 0-99` before
+counting on Safari.

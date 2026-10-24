@@ -1,7 +1,8 @@
 // The cloud's meeting point (spec §9.2, §11): the Worker's paths and the Room, the Durable Object that runs the same
 // engine/fjolspil/room.js as the home server, here over a fake ctx and fake sockets. The fakes behave as the Workers runtime
 // does where it matters: a socket the server closed is still among ctx.getWebSockets() until its client's close comes back
-// (`gone`), sending on or closing a closed socket throws, and an attachment comes back as a copy.
+// (`gone`), a socket must be accepted (in hibernation by ctx.acceptWebSocket, or outside it by accept()) before it sends,
+// sending on or closing a closed socket throws, and an attachment comes back as a copy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Room } from '../src/room-object.mjs';
@@ -9,11 +10,14 @@ import worker from '../src/worker.mjs';
 import { ROOM_TTL_MS, message } from '../../remake/engine/fjolspil/protocol.js';
 
 class FakeSocket {
+  accepted = null; // 'hibernatable' (ctx.acceptWebSocket) or 'plain' (accept())
   sent = [];
   closed = null; // the code the server closed it with
   gone = false; // the client's half of the close came back: the runtime has let the socket go
   attachment = null;
+  accept() { this.accepted = 'plain'; }
   send(text) {
+    if (this.accepted === null) throw new TypeError('send() before accept()');
     if (this.closed !== null) throw new TypeError('send() after close()');
     this.sent.push(text);
   }
@@ -42,7 +46,10 @@ class FakeCtx {
     deleteAll: async () => { this.data.clear(); },
     setAlarm: async at => { this.alarmAt = at; },
   };
-  acceptWebSocket(ws) { this.sockets.push(ws); }
+  acceptWebSocket(ws) {
+    ws.accepted = 'hibernatable';
+    this.sockets.push(ws);
+  }
   getWebSockets() {
     const open = this.sockets.filter(ws => !ws.gone);
     return this.reversed ? open.reverse() : open;
@@ -50,10 +57,12 @@ class FakeCtx {
 }
 
 // The runtime's pair is an object with the client at 0 and the server at 1; a 101 Response carries the client end.
+const servers = []; // the server end of every pair made
 globalThis.WebSocketPair = class {
   constructor() {
     this[0] = new FakeSocket();
     this[1] = new FakeSocket();
+    servers.push(this[1]);
   }
 };
 globalThis.Response = class {
@@ -73,7 +82,7 @@ async function connect(room, ctx, path) {
   const response = await room.fetch(request(path));
   assert.equal(response.status, 101);
   assert.ok(response.webSocket instanceof FakeSocket, 'the 101 carries the client end');
-  return ctx.sockets.at(-1);
+  return servers.at(-1);
 }
 /** The client closes its socket: the runtime lets it go and calls the Room's close handler. */
 async function clientCloses(room, ws, code = 1000) {
@@ -139,6 +148,8 @@ test('a refused connect is told why and closed 1000, a replaced one too, and gue
   const early = await connect(room, ctx, '/fjolspil/ws/GULL?role=guest&id=g1');
   assert.deepEqual(early.take(), [message('error', { reason: 'no-room' })]);
   assert.equal(early.closed, 1000);
+  assert.equal(early.accepted, 'plain', 'a refused socket is kept out of hibernation');
+  assert.ok(!ctx.sockets.includes(early));
   const keyless = await connect(room, ctx, '/fjolspil/ws/GULL?role=host');
   assert.deepEqual(keyless.take(), [message('error', { reason: 'bad-id' })]);
   assert.equal(keyless.closed, 1000);
@@ -260,14 +271,15 @@ test('the alarm closes every socket and forgets the room', async () => {
   const a = new Room(ctx, {});
   const host = await connect(a, ctx, '/fjolspil/ws/GULL?role=host&key=abc');
   const guest = await connect(a, ctx, '/fjolspil/ws/GULL?role=guest&id=g1');
-  const refused = await connect(a, ctx, '/fjolspil/ws/GULL?role=host&key=zzz'); // closed already, not yet gone
-  for (const ws of [host, guest, refused]) ws.take();
+  const old = await connect(a, ctx, '/fjolspil/ws/GULL?role=guest&id=g2');
+  await connect(a, ctx, '/fjolspil/ws/GULL?role=guest&id=g2'); // old is replaced: closed already, not yet gone
+  for (const ws of [host, guest, old]) ws.take();
 
   const b = new Room(ctx, {}); // two hours on, the room has long been asleep
   await b.alarm();
   assert.equal(host.closed, 1001);
   assert.equal(guest.closed, 1001);
-  assert.equal(refused.closed, 1000, 'a socket closed already keeps its close, and the rest are closed all the same');
+  assert.equal(old.closed, 1000, 'a socket closed already keeps its close, and the rest are closed all the same');
   assert.deepEqual(host.sent, [], 'no error: the close says it');
   assert.deepEqual(guest.sent, []);
   assert.equal(ctx.data.size, 0, 'storage is empty');
@@ -282,6 +294,7 @@ test('the alarm closes every socket and forgets the room', async () => {
 
 test('a bad code or a non-upgrade is refused', async () => {
   const ctx = new FakeCtx();
+  const made = servers.length;
   const named = [];
   const fetched = [];
   const env = {
@@ -296,7 +309,7 @@ test('a bad code or a non-upgrade is refused', async () => {
   assert.equal((await worker.fetch(request('/fjolspil/ws/GULL?role=host&key=k', {}), env)).status, 426, 'not an upgrade');
   assert.equal((await new Room(ctx, {}).fetch(request('/fjolspil/ws/GULL?role=host&key=k', { upgrade: 'h2c' }))).status, 426);
   assert.equal((await new Room(ctx, {}).fetch(request('/fjolspil/ws/QQQQ?role=host&key=k'))).status, 400);
-  assert.equal(ctx.sockets.length, 0, 'no socket was made for any of them');
+  assert.equal(servers.length, made, 'no socket was made for any of them');
 
   const upgraded = await worker.fetch(request('/fjolspil/ws/gull?role=host&key=k'), env);
   assert.equal(upgraded.status, 101);

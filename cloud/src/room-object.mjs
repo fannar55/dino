@@ -118,13 +118,16 @@ export class Room {
     const current = await this.load();
     const room = current ?? (who.role === 'guest' ? null : createRoom({ code, join: [] }));
     const { 0: client, 1: server } = new WebSocketPair();
-    this.ctx.acceptWebSocket(server);
     const result = room ? room.connect(server, who) : { ok: false, reason: 'no-room' };
     if (!result.ok) {
+      // A refused socket is accepted outside hibernation: it never comes back at a wake, and its close goes out at once
+      // (a hibernatable one closed at its upgrade lingered 10 s under wrangler dev, and a phone retries only on the close).
+      server.accept();
       send(server, JSON.stringify(message('error', { reason: result.reason })));
       close(server, 1000);
       return new Response(null, { status: 101, webSocket: client });
     }
+    this.ctx.acceptWebSocket(server);
     server.serializeAttachment(identityOf(who));
     this.room = room;
     if (result.replaced) forget(result.replaced);
