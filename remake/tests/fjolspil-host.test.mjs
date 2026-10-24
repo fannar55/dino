@@ -87,7 +87,7 @@ function stepping() {
   return () => ((n++ % CODE_ALPHABET.length) + 0.5) / CODE_ALPHABET.length;
 }
 
-function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), random = stepping(), now } = {}) {
+function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), storageKey, random = stepping(), now } = {}) {
   const doc = new FakeDocument(['fjolspil']);
   const location = new URL(`${origin}/remake/${search}`);
   const listeners = {}; // the window's, by event type
@@ -96,7 +96,7 @@ function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), r
   const nets = fakeNets();
   const timers = fakeTimers();
   const sfx = [];
-  const fjolspil = createFjolspil(doc, { win, storage, random, timers, now, net: nets.create, audio: { sfx: name => sfx.push(name) } });
+  const fjolspil = createFjolspil(doc, { win, storage, storageKey, random, timers, now, net: nets.create, audio: { sfx: name => sfx.push(name) } });
   const root = doc.getElementById('fjolspil');
   return { doc, win, storage, nets, timers, sfx, fjolspil, root, fire, net: () => nets.made.at(-1) };
 }
@@ -162,6 +162,20 @@ test('a code another host has is swapped for a new one, with the same key', () =
   assert.ok(r.net().options.url.includes(`/fjolspil/ws/${kept.code}?role=host&key=${key}`));
   assert.equal(r.fjolspil.code, kept.code);
   assert.deepEqual([...$$(r.root, '.fjolspil-letter')].map(el => el.textContent), [...kept.code], 'the lobby shows the new code');
+});
+
+test('a session keeps its room under its own storage key', () => {
+  const storage = fakeStorage(); // one tab's sessionStorage, which the book's page and the junior page in its frame share
+  const random = stepping(); // one walk for both: the second session's code is its own only if it makes one
+  const book = rig({ storage, random });
+  const junior = rig({ storage, random, storageKey: 'fjolspil.room.yatzy-junior' });
+  book.fjolspil.openLobby({});
+  junior.fjolspil.openLobby({});
+  assert.notEqual(book.fjolspil.code, junior.fjolspil.code);
+  assert.deepEqual([...storage.items.keys()].sort(), ['fjolspil.room.yatzy-junior', 'mosi-fjolspil-host']);
+  const again = rig({ storage, random, storageKey: 'fjolspil.room.yatzy-junior' }); // the junior page reloaded
+  again.fjolspil.openLobby({});
+  assert.equal(again.fjolspil.code, junior.fjolspil.code);
 });
 
 test('?relay=1 sends everything through the meeting point, and https asks a STUN server', () => {

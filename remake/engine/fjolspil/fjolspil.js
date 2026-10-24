@@ -38,7 +38,12 @@ import { createSeats } from './seats.js';
 import { createLobby } from './lobby.js';
 import { createHostNet, iceServersFor, wsUrlFor } from './net.js';
 
-/** Where this tab keeps its room, { code, key }, for a reload (sessionStorage: one room per tab, spec §6.5). */
+/**
+ * Where the book's page keeps its room, { code, key }, for a reload (sessionStorage: a reload finds the same room, a new tab
+ * gets a new one, spec §6.5). A page that hosts a room of its own in the same tab passes its own storageKey: Litla Yatzy's
+ * junior page, a frame of the same origin, shares the book's sessionStorage and runs its own session (the owner's decision,
+ * 2026-10-24); under one key the two would take the same room, and each would put the other out ('replaced').
+ */
 export const STORAGE_KEY = 'mosi-fjolspil-host';
 
 const PHONE_PAGE = '/remake/spil.html';
@@ -58,10 +63,10 @@ function sessionStorageOf(win) {
 /** ?relay=1: every message through the meeting point, no WebRTC (for trying the fallback). */
 const relayAsked = win => new URLSearchParams(win?.location?.search ?? '').get('relay') === '1';
 
-/** The room this tab had before a reload, { code, key }; null when there was none, or what is kept is not one. */
-function readRoom(storage) {
+/** The room kept under `storageKey` before a reload, { code, key }; null when there was none, or what is kept is not one. */
+function readRoom(storage, storageKey) {
   try {
-    const kept = JSON.parse(storage?.getItem(STORAGE_KEY) ?? 'null');
+    const kept = JSON.parse(storage?.getItem(storageKey) ?? 'null');
     if (kept && normalizeCode(kept.code) === kept.code && KEY_PATTERN.test(kept.key)) return { code: kept.code, key: kept.key };
   } catch {
     // nothing readable is kept
@@ -69,9 +74,9 @@ function readRoom(storage) {
   return null;
 }
 
-function keepRoom(storage, room) {
+function keepRoom(storage, storageKey, room) {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(room));
+    storage?.setItem(storageKey, JSON.stringify(room));
   } catch {
     // no storage: a reload opens a new room
   }
@@ -90,12 +95,13 @@ function deferred() {
 /**
  * The host session in `doc` (#fjolspil holds the lobby). `net` and `lobby` make the network and the lobby (net.js's
  * createHostNet and lobby.js's createLobby; the tests pass their own), `audio` is the lobby's { sfx(name) }, `timers` the
- * waiting card's and the network's, and `now` the clock a guest's views count from. Returns { openLobby, resume, seats,
- * active, code, joinUrl, send, broadcast, onAct, waitFor, closeGame, lobbyView }.
+ * waiting card's and the network's, `now` the clock a guest's views count from, and `storageKey` where in `storage` the
+ * room is kept (STORAGE_KEY, the book's, unless the page hosts a room of its own beside it). Returns { openLobby, resume,
+ * seats, active, code, joinUrl, send, broadcast, onAct, waitFor, closeGame, lobbyView }.
  */
 export function createFjolspil(doc, {
-  win = globalThis.window, random = Math.random, storage = sessionStorageOf(win), audio = null, timers, now = () => Date.now(),
-  net: createNet = createHostNet, lobby: makeLobby = createLobby, forceRelay = relayAsked(win),
+  win = globalThis.window, random = Math.random, storage = sessionStorageOf(win), storageKey = STORAGE_KEY, audio = null,
+  timers, now = () => Date.now(), net: createNet = createHostNet, lobby: makeLobby = createLobby, forceRelay = relayAsked(win),
 } = {}) {
   let seats = createSeats();
   const acts = new Set();
@@ -171,10 +177,10 @@ export function createFjolspil(doc, {
   /** Opens the room on first use: the one this tab had, or a new code and key. */
   function openRoom() {
     if (at.net) return;
-    const kept = readRoom(storage);
+    const kept = readRoom(storage, storageKey);
     at.code = kept?.code ?? makeCode(random);
     at.key = kept?.key ?? randomKey();
-    keepRoom(storage, { code: at.code, key: at.key });
+    keepRoom(storage, storageKey, { code: at.code, key: at.key });
     connect();
   }
 
@@ -206,7 +212,7 @@ export function createFjolspil(doc, {
       at.net = null;
       old.close();
       at.code = makeCode(random);
-      keepRoom(storage, { code: at.code, key: at.key });
+      keepRoom(storage, storageKey, { code: at.code, key: at.key });
       connect();
       if (at.lobbyOpen) showLobby();
     } else if (next === 'replaced') { // another tab has the room now; taking it back would only take it from that one

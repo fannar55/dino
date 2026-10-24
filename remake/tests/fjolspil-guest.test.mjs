@@ -125,6 +125,16 @@ test('views arrive in order, status screens have their words, and a game view go
   assert.equal($(root, '.spil-status').textContent, 'Þessi kóði er ekki í gangi');
 });
 
+test('a view that says the big screen is paused puts it in the status line, and the next view clears it', () => {
+  const { root, net } = rig({ search: '?r=GULL', views: { yatzy: () => {} } });
+  net.statusFn('connected');
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Ásta' } });
+  net.message(view('yatzy', { paused: true }, 5));
+  assert.equal($(root, '.spil-status').textContent, 'Stóri skjárinn er í hléi');
+  net.message(view('yatzy', {}, 6));
+  assert.equal($(root, '.spil-status').textContent, '');
+});
+
 test('a new connection starts the views afresh, so a big screen that reloaded while the phone slept is not ignored', () => {
   const { page, root, net } = rig({ search: '?r=GULL' });
   net.message(view('closed', {}, 5));

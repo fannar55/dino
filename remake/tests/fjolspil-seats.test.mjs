@@ -1,13 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AVATARS, HOST_AVATAR, avatarOf, cleanName, createSeats } from '../engine/fjolspil/seats.js';
+import { AVATARS, HOST_AVATAR, MOSI_AVATAR, avatarOf, cleanName, createSeats } from '../engine/fjolspil/seats.js';
 
 test('the six friends are the avatars, with their pictures and colours', () => {
   assert.deepEqual(AVATARS.map(a => a.id), ['kambedla', 'sloedla', 'gramedla', 'thorsedla', 'flugedla', 'uggedla']);
   assert.equal(avatarOf('flugedla').colour, '#8ec5d6');
   assert.equal(avatarOf('uggedla').picture, 'assets/eitt/spinosaurus.webp');
   assert.equal(avatarOf('egill'), HOST_AVATAR);
-  assert.equal(avatarOf('mosi'), undefined);
+  assert.equal(avatarOf('mosi'), MOSI_AVATAR);
+});
+
+test('Mosi is an avatar the computer may have and a guest may not', () => {
+  const seats = createSeats();
+  assert.equal(seats.join({ guestId: 'g1', name: 'Anna', avatar: 'mosi' }).reason, 'bad-avatar');
+  assert.deepEqual(seats.addAi({ name: 'Mosi', avatar: 'mosi' }), { ok: true, seat: 1 });
+  assert.equal(MOSI_AVATAR.picture, 'assets/book/images/mosi-render.webp');
 });
 
 test('a name is trimmed, collapsed and cut to 12', () => {

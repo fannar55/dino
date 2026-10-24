@@ -21,7 +21,8 @@
 //            game's element in the middle of the page, the same one while that game's views follow one another and a new one
 //            after any other screen, send(act) sends act { … } to the big screen, control(button, onTap) makes a button of the
 //            page's own (the tap, its sound and the keyboard), and audio.effects(options) a game's own effects on the page's
-//            audio (Eitt!'s, spec §7.3)
+//            audio (Eitt!'s, spec §7.3). A game's view with `paused: true` (the big screen is paused) says so in the
+//            status line, "Stóri skjárinn er í hléi", until a view comes without it
 //
 // The big screen decides what the page shows: every `view` it sends (spec §6.3) is the whole picture, and one older than
 // the last is never shown. The connection is the caller's: `net({ code, guestId, url })` makes it (spil.html passes one
@@ -70,6 +71,7 @@ const WORDS = {
   taken: 'Þessi var tekinn, veldu annan',
   noName: 'Skrifaðu nafnið þitt',
   retake: 'Pikkaðu hér til að taka sætið þitt aftur', // under "Bíðum eftir stóra skjánum…" when another tab took the seat
+  paused: 'Stóri skjárinn er í hléi', // a game's view while the big screen is paused (Litla Yatzy's junior page, 2026-10-24)
 };
 
 /** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
@@ -594,6 +596,7 @@ export function createGuestPage(doc, {
     unsay('page');
     show('game');
     render(gameEl, view, { send, doc, control, audio });
+    if (view.paused === true) say(WORDS.paused, 'page'); // the next view's unsay('page') takes it away
   }
 
   /** The lobby: her place at the table when it says she has one (`you`); otherwise the join screen, with the free avatars. */

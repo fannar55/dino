@@ -11,7 +11,9 @@
 // `covered` and keeps its guest, name and avatar until uncover gives it back. A guest that goes keeps its seat, absent.
 //
 // The six friends are the avatars a guest picks from; no two seats share one, and the game's own character is reserved
-// (not on offer, spec §4 step 4). Names are text, never markup: the screens put them in with textContent.
+// (not on offer, spec §4 step 4). Mosi is an avatar no guest picks either: Litla Yatzy's own character, who plays at the
+// junior table as its computer player (the owner's decision, 2026-10-24), with the book's picture of him, since Egill's
+// seat already has the one from Eitt!. Names are text, never markup: the screens put them in with textContent.
 
 import { MAX_SEATS, NAME_MAX } from './protocol.js';
 
@@ -30,9 +32,15 @@ export const AVATARS = Object.freeze([
 /** Egill's, at the big screen: Mosi's picture, and not one a guest can pick. */
 export const HOST_AVATAR = avatar('egill', 'Egill', '#79c7a1', 'assets/eitt/mosi.webp');
 
-/** The avatar with this id, Egill's included; undefined for any other. */
-export const avatarOf = id => (id === HOST_AVATAR.id ? HOST_AVATAR : AVATARS.find(a => a.id === id));
+/** Mosi's, for the junior table's computer player (Litla Yatzy's own character): the book's picture, and not a guest's. */
+export const MOSI_AVATAR = avatar('mosi', 'Mosi', '#868862', 'assets/book/images/mosi-render.webp');
 
+const EVERY_AVATAR = Object.freeze([...AVATARS, HOST_AVATAR, MOSI_AVATAR]);
+
+/** The avatar with this id, Egill's and Mosi's included; undefined for any other. */
+export const avatarOf = id => EVERY_AVATAR.find(a => a.id === id);
+
+/** Only the six friends: Egill's and Mosi's are never a guest's. */
 const isGuestAvatar = id => AVATARS.some(a => a.id === id);
 
 /**
