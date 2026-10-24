@@ -164,11 +164,11 @@ function hostRig(options = {}) {
 }
 
 /** A phone's net, its socket made but not yet open, and everything it tells its listeners. */
-function guestRig() {
+function guestRig(options = {}) {
   const sockets = fakeSockets();
   const rtc = fakePeers();
   const timers = fakeTimers();
-  const net = createGuestNet({ url: GUEST_URL, timers, WebSocketImpl: sockets.FakeWebSocket, PeerConnectionImpl: rtc.FakePeer, iceServers: [] });
+  const net = createGuestNet({ url: GUEST_URL, timers, WebSocketImpl: sockets.FakeWebSocket, PeerConnectionImpl: rtc.FakePeer, iceServers: [], ...options });
   const log = { messages: [], statuses: [] };
   net.onMessage(msg => log.messages.push(msg));
   net.onStatus(status => log.statuses.push(status));
@@ -425,6 +425,24 @@ test('a host whose socket drops lets its guests go and comes back to the same ro
   net.close();
 });
 
+test('a listener that throws while the host\'s socket drops is reported, and the host still tries again', async () => {
+  const reported = [];
+  const { net, ws, timers, log } = hostRig({ report: error => reported.push(error) });
+  const boom = new Error('the session tripped over onLeave');
+  net.onLeave(() => { throw boom; });
+  const after = [];
+  net.onLeave(id => after.push(id));
+  ws.receive(message('joined', { id: 'g1' }));
+  await settle();
+  ws.close(1006);
+  assert.deepEqual(reported, [boom], 'the error is reported, not swallowed');
+  assert.deepEqual(after, ['g1'], 'a listener after the one that threw is still called');
+  assert.deepEqual(log.leaves, ['g1']);
+  assert.equal(net.status, 'offline');
+  assert.deepEqual(timers.delays, [1000], 'the next try is queued');
+  net.close();
+});
+
 test('close lets everything go, and nothing after it throws or is heard', async () => {
   const { net, ws, rtc, timers, log } = hostRig();
   ws.receive(message('joined', { id: 'g1' }));
@@ -547,6 +565,25 @@ test('the guest says connecting on every try: the first, each one after a wait, 
   assert.equal(sockets.made.length, 5);
   net.close();
   assert.equal(log.statuses.at(-1), 'closed');
+});
+
+test('a status listener that throws on offline is reported, and the guest still tries again', () => {
+  const reported = [];
+  const { net, sockets, timers, log } = guestRig({ report: error => reported.push(error) });
+  const boom = new Error('the page tripped over offline');
+  net.onStatus(status => { if (status === 'offline') throw boom; });
+  const after = [];
+  net.onStatus(status => after.push(status));
+  sockets.made[0].open();
+  sockets.made[0].close(1006);
+  assert.deepEqual(reported, [boom]);
+  assert.equal(net.status, 'offline');
+  assert.deepEqual(timers.delays, [1000], 'the next try is queued');
+  timers.advance(1000);
+  assert.equal(sockets.made.length, 2);
+  assert.deepEqual(after, ['connecting', 'connected', 'offline', 'connecting'], 'later statuses still reach the next listener');
+  assert.deepEqual(log.statuses, ['connecting', 'connected', 'offline', 'connecting']);
+  net.close();
 });
 
 test('server errors become statuses', () => {

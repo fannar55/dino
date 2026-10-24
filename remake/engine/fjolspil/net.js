@@ -29,6 +29,9 @@
 //           replaced     this guest's id connected from another tab, which has the seat now: not tried again
 // A refusal's reason the server may add later is a status of its own, and is not tried again.
 //
+// A listener that throws never stops the net (its socket loop, its pings, the other listeners): the error goes to `report`,
+// which by default throws it again in a microtask, so the console still shows it.
+//
 // Plain JavaScript for the browser that loads in Node for the tests: the timers, the WebSocket and the RTCPeerConnection
 // come in as options, defaulting to the page's own, read when a net is made (no RTCPeerConnection: the relay carries all).
 
@@ -54,6 +57,9 @@ const PAGE_TIMERS = {
   clearInterval: id => clearInterval(id),
 };
 
+/** A listener's error, thrown again where nothing of the net is on the stack: the page's console shows it as uncaught. */
+const PAGE_REPORT = error => queueMicrotask(() => { throw error; });
+
 /** The meeting point's address beside the page: ws:// (wss:// on https) + the page's host + /fjolspil/ws/<code>?<params>. */
 export function wsUrlFor(location, code, params = {}) {
   const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -70,17 +76,28 @@ const isMessage = value => value !== null && typeof value === 'object' && value.
 const objectOf = value => (value !== null && typeof value === 'object' ? value : {});
 const isId = value => typeof value === 'string' && value !== '';
 
-/** A set of listeners: add(fn) returns the unsubscribe; emit(...) calls each one there is now. */
-function listeners() {
+/**
+ * A set of listeners: add(fn) returns the unsubscribe; emit(...) calls each one there is now, and tell(fn, ...) one alone.
+ * A listener that throws goes to report(error), and the next one is called all the same.
+ */
+function listeners(report) {
   const fns = new Set();
+  const tell = (fn, ...args) => {
+    try {
+      fn(...args);
+    } catch (error) {
+      report(error);
+    }
+  };
   return {
     add(fn) {
       fns.add(fn);
       return () => { fns.delete(fn); };
     },
     emit(...args) {
-      for (const fn of [...fns]) fn(...args);
+      for (const fn of [...fns]) tell(fn, ...args);
     },
+    tell,
   };
 }
 
@@ -226,13 +243,16 @@ function meetingPoint({ url, timers, WebSocketImpl, attempt, open, text, lost })
  * RTCPeerConnection; send(id, msg) and broadcast(msg) go on its channel or through the relay. Returns { onJoin, onLeave,
  * onMessage(fn(id, msg)), onPresence(fn(id, present)), onStatus, onWelcome(fn({ code, join })), send, broadcast,
  * transportOf(id) ('rtc', 'relay', or null while its channel is being set up or for a guest not there), status, close }.
- * The on… calls return their unsubscribe.
+ * The on… calls return their unsubscribe; `report` gets what a listener throws.
  */
 export function createHostNet({
   url, timers = PAGE_TIMERS, WebSocketImpl = globalThis.WebSocket, PeerConnectionImpl = globalThis.RTCPeerConnection,
-  iceServers = [], forceRelay = false,
+  iceServers = [], forceRelay = false, report = PAGE_REPORT,
 } = {}) {
-  const on = { join: listeners(), leave: listeners(), message: listeners(), presence: listeners(), status: listeners(), welcome: listeners() };
+  const on = {
+    join: listeners(report), leave: listeners(report), message: listeners(report), presence: listeners(report),
+    status: listeners(report), welcome: listeners(report),
+  };
   const guests = new Map(); // id → { id, peer, channel, remote, transport, fallback, pinger, unanswered, present }
   let status = null;
   let closed = false;
@@ -448,7 +468,7 @@ export function createHostNet({
     onWelcome: fn => on.welcome.add(fn),
     onStatus(fn) {
       const off = on.status.add(fn);
-      if (status !== null) fn(status);
+      if (status !== null) on.status.tell(fn, status);
       return off;
     },
     send,
@@ -466,13 +486,14 @@ export function createHostNet({
  * screen's offer, sends on the data channel while it is open and through the relay otherwise, answers each ping on the way
  * it came, and opens its socket again when it closes under it. Returns { onMessage(fn(msg)), onStatus(fn(status)),
  * send(msg) → boolean, reconnect(), transport ('rtc', 'relay' or null), status, close() }; the on… calls return their
- * unsubscribe. Only the game's messages reach onMessage: never the signaling, the pings or the meeting point's own words.
+ * unsubscribe, and `report` gets what a listener throws. Only the game's messages reach onMessage: never the signaling,
+ * the pings or the meeting point's own words.
  */
 export function createGuestNet({
   url, timers = PAGE_TIMERS, WebSocketImpl = globalThis.WebSocket, PeerConnectionImpl = globalThis.RTCPeerConnection,
-  iceServers = [],
+  iceServers = [], report = PAGE_REPORT,
 } = {}) {
-  const on = { message: listeners(), status: listeners() };
+  const on = { message: listeners(report), status: listeners(report) };
   let status = null;
   let closed = false;
   let refusal = null; // this socket's refusal; a no-host one is lifted when the big screen is heard again
@@ -605,7 +626,7 @@ export function createGuestNet({
     onMessage: fn => on.message.add(fn),
     onStatus(fn) {
       const off = on.status.add(fn);
-      if (status !== null) fn(status);
+      if (status !== null) on.status.tell(fn, status);
       return off;
     },
     send(msg) {
