@@ -21,7 +21,7 @@ Viðbót við `2026-10-24-fjolspil-design.md` (áfangi 3). Allt sem sú forskrif
 Síða Litla Yatzý flytur inn `engine/fjolspil/fjolspil.js` (lotan), `lobby.js` og `fjolspil.css` og gerir sína eigin lotu (`createFjolspil`) með sömu stillingum og bókin: sama fundarstaður (`/fjolspil/ws/<kóði>`, sama uppruna), sama WebRTC/relay, sama símasíða (`spil.html`). Bókin breytist ekki nema í flísinni (kafli 9).
 
 - **Geymslulykill:** `createFjolspil` fær valkostinn `storageKey` (sjálfgefið lykillinn sem er í dag). Lota síðu Litla Yatzý notar sinn eigin (`fjolspil.room.yatzy-junior`), því sami uppruni í sama flipa deilir sessionStorage með rammanum; annars tækju bókin og ramminn sama herbergið (sama kóða og lykil) og hvor lotan ræki hina út („replaced“).
-- **Lokun:** X bókarinnar yfir rammanum fjarlægir rammann og síðan afhleðst (sökklar lokast, símarnir sjá `host-gone` og bíða). Síðan kallar `closeGame()` í `pagehide` eftir bestu getu svo símarnir fái „Leiknum er lokið“ um leið þegar netið nær því; náist það ekki bíða þeir eins og forskrift §10 segir, og herbergið rennur út.
+- **Lokun:** X bókarinnar yfir rammanum fjarlægir rammann og síðan afhleðst (sökklar lokast, símarnir sjá `host-gone` og bíða). Síðan kallar `closeGame()` í `pagehide` eftir bestu getu svo símarnir fái `closed` („Bíðum eftir næsta leik“) um leið þegar netið nær því og síðan biðskjáinn („Bíðum eftir stóra skjánum…“) þegar sökkullinn fer, ekki „Leiknum er lokið“ (það segir sími hvers herbergi er útrunnið); náist það ekki bíða þeir eins og forskrift §10 segir, og herbergið rennur út.
 - **Hljóð lobbísins:** smellhljóð bókarinnar (`book/fx.js`) úr hljóðsamhengi síðunnar sjálfrar (`createJuniorAudio` á það); raddir eins og nú.
 
 ## 4. Reglurnar fyrir 2–4 (`engine/yatzy-junior/rules.js`)

@@ -63,6 +63,21 @@ practice hands, save validation, narration lifecycle and real audio coverage.
 practice exit and a complete match in the browser. Captures and the report go
 to `qa/yatzy-junior/`.
 
+Fjölspil in Litla Yatzy seats two to four players. Egill plays at the big
+screen in seat 0; up to three others join from their phones, which are their
+cups: they roll, hold dice and pick a card there, and a card that scores nothing
+asks first. Mosi is always at the table, and the lobby's “Bæta Mosa við” makes
+him its one computer player. The page hosts a room of its own, beside the
+book's. A guest who leaves is waited for, and Mosi can play her seat until she
+is back; a game of seats is kept under its own key and continues from
+“Halda áfram (Fjölspil)”. `npm run check:yatzy-junior:fjolspil` plays four
+seats with two phones in headless Edge; it needs `PLAYWRIGHT_PATH` and the dev
+server on port 4198 (`node remake/tools/serve.mjs --port 4198 --lan`). Mosi's
+six optional lines for a table of many (`MULTI_LINES`) are shown as their
+captions alone until they are recorded with
+`node remake/tools/yatzy-junior-voices.mjs --only multiWelcome,multiTurn,multiScored,multiZero,multiWait,multiOver`,
+which reads the key from the environment.
+
 ## Yatzy við Mosa — full rules, preserved
 
 The table game is at `/remake/yatzy-mosi.html`. Run `npm run start:yatzy-mosi`
