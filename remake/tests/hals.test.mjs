@@ -257,3 +257,10 @@ test('the game under way and the intro are kept beside the collection, and forgo
   assert.equal(createSave(storage).getHalsPlay().played, true, 'for good');
   assert.equal(createSave(null).getHalsPlay().played, false, 'a fresh save has played nothing');
 });
+
+test('createGame takes which seats are the computer', () => {
+  const game = createGame({ playerCount: 3, computers: [false, true, false], random: seededRandom('c') });
+  assert.deepEqual(game.players.map(p => p.isComputer), [false, true, false]);
+  assert.throws(() => createGame({ playerCount: 3, computers: [true] }), RangeError);
+  assert.equal(createGame({ playerCount: 2, vsComputer: true }).players[1].isComputer, true, 'the old way still works');
+});

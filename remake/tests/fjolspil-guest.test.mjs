@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createGuestPage } from '../engine/fjolspil/guest.js';
+import { renderHals } from '../engine/fjolspil/guest-hals.js';
 
 class FakeStorage { constructor() { this.map = new Map(); } getItem(k) { return this.map.get(k) ?? null; } setItem(k, v) { this.map.set(k, String(v)); } }
 function fakeNet() {
@@ -136,4 +137,22 @@ test('the page coming back into view, or the network coming back, reconnects at 
   assert.equal(net.reconnects, 1);
   fire('online');
   assert.equal(net.reconnects, 2);
+});
+
+test('the hals screen rolls once per view and names whose turn it is', () => {
+  const { page, root, net } = rig({ search: '?r=GULL', views: { hals: renderHals } });
+  const players = [{ seat: 0, name: 'Egill', avatar: 'egill', square: 23 }, { seat: 1, name: 'Anna', avatar: 'flugedla', square: 17 }];
+  net.message(view('hals', { you: 1, turn: 1, canRoll: true, roll: null, players, winner: null }, 1));
+  assert.equal($(root, '.spil-hals-turn').textContent, 'Þú átt leik!');
+  const die = $(root, '.spil-hals-die');
+  tap(die);
+  tap(die);
+  assert.deepEqual(net.sent.filter(m => m.type === 'act'), [{ v: 1, type: 'act', body: { type: 'roll' } }], 'a double tap rolls once');
+  assert.equal(die.disabled, true);
+  net.message(view('hals', { you: 1, turn: 0, canRoll: false, roll: { value: 4, by: 1 }, players, winner: null }, 2));
+  assert.equal($(root, '.spil-hals-turn').textContent, 'Egill á leik');
+  assert.equal($(root, '.spil-hals-die').getAttribute('data-face'), '4');
+  assert.equal([...$$(root, '.spil-hals-player')][1].textContent.includes('reitur 17'), true);
+  net.message(view('hals', { you: 1, turn: 0, canRoll: false, roll: null, players, winner: 0 }, 3));
+  assert.equal($(root, '.spil-words').textContent, 'Egill vann!');
 });
