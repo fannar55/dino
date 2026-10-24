@@ -1,9 +1,13 @@
 const ASSET_ROOT=new URL('../../',import.meta.url);
 const finiteTime=value=>Number.isFinite(value)&&value>=0?value:0;
 
-/** Native audio owns progression. A failed audible line waits for retry; only muted captions use dt. */
+/**
+ * Native audio owns progression. A failed audible line waits for retry; only muted captions use dt. A line marked optional
+ * ({ text, optional: true }: Fjölspil's, voice-lines.js MULTI_LINES) that has no recording yet is its caption alone for the time
+ * its words take, muted or not, and never reports itself unavailable: the owner records those himself, after the page has them.
+ */
 export function createJuniorVoice({lines={},manifest={},onLine=()=>{},onSpeaking=()=>{},onUnavailable=()=>{},AudioClass=globalThis.Audio}={}){
-  const entries=new Map(Object.entries(lines).map(([id,line])=>[id,typeof line==='string'?line:line?.text]));
+  const entries=new Map(Object.entries(lines).map(([id,line])=>[id,typeof line==='string'?{text:line,optional:false}:{text:line?.text,optional:line?.optional===true}]));
   let current=null,audio=null,busy=false,speaking=false,paused=false,muted=false,disposed=false;
   let generation=0,playAttempt=0,elapsed=0,mode='idle',reason=null,failure=null,pendingEnd=false,listeners=null;
 
@@ -47,6 +51,8 @@ export function createJuniorVoice({lines={},manifest={},onLine=()=>{},onSpeaking
     playAttempt++;releaseAudio();
     elapsed=Math.min(record.duration,at);reason=why;selectFailureMode();
   }
+  // An optional line not recorded yet: expected, so no warning and no failure for the sound button to turn into "unavailable".
+  function captionOnly(){mode='fallback';reason='unrecorded';setSpeaking(!paused);}
   function requestPlay(){
     if(!audio||!current||!busy||paused)return;
     const clip=audio,record=current,token=generation,attempt=++playAttempt;
@@ -69,8 +75,10 @@ export function createJuniorVoice({lines={},manifest={},onLine=()=>{},onSpeaking
     if(!isCurrent(record,token))return false;
     onLine(record.id,record.text);
     if(!isCurrent(record,token))return false;
+    const unrecorded=typeof record.asset.src!=='string'||!record.asset.src;
+    if(unrecorded&&record.optional){captionOnly();return true;}
     if(typeof AudioClass!=='function'){fallback('audio-unavailable');return true;}
-    if(typeof record.asset.src!=='string'||!record.asset.src){fallback('asset-unavailable');return true;}
+    if(unrecorded){fallback('asset-unavailable');return true;}
     try{
       const src=new URL(record.asset.src,ASSET_ROOT).href,clip=new AudioClass(src);
       audio=clip;clip.src=src;clip.preload='auto';clip.muted=muted;
@@ -84,10 +92,10 @@ export function createJuniorVoice({lines={},manifest={},onLine=()=>{},onSpeaking
     return true;
   }
   function say(id,{onEnd}={}){
-    if(disposed||!entries.has(id)||typeof entries.get(id)!=='string')return false;
-    const text=entries.get(id),asset=manifest[id]||{},words=text.trim().split(/\s+/).filter(Boolean).length;
+    if(disposed||!entries.has(id)||typeof entries.get(id).text!=='string')return false;
+    const {text,optional}=entries.get(id),asset=manifest[id]||{},words=text.trim().split(/\s+/).filter(Boolean).length;
     const duration=Number.isFinite(asset.duration)&&asset.duration>0?asset.duration:Math.min(20,Math.max(2,.5+words*.45));
-    return start({id,text,asset,duration,onEnd:typeof onEnd==='function'?onEnd:null,completed:false});
+    return start({id,text,optional,asset,duration,onEnd:typeof onEnd==='function'?onEnd:null,completed:false});
   }
   function replay(){return !disposed&&current?start(current):false;}
   function stop(){
