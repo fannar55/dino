@@ -12,8 +12,9 @@
 //
 // The six friends are the avatars a guest picks from; no two seats share one, and the game's own character is reserved
 // (not on offer, spec §4 step 4). Mosi is an avatar no guest picks either: Litla Yatzy's own character, who plays at the
-// junior table as its computer player (the owner's decision, 2026-10-24), with the book's picture of him, since Egill's
-// seat already has the one from Eitt!. Names are text, never markup: the screens put them in with textContent.
+// junior table as its computer player (the owner's decision, 2026-10-24), with the book's picture of him; Egill's seat,
+// which had Eitt!'s Mosi, shows Egill's own portrait so the two are told apart at that table (the owner's decision,
+// 2026-10-25). Names are text, never markup: the screens put them in with textContent.
 
 import { MAX_SEATS, NAME_MAX } from './protocol.js';
 
@@ -29,8 +30,8 @@ export const AVATARS = Object.freeze([
   avatar('uggedla', 'Uggeðla', '#d47a8a', 'assets/eitt/spinosaurus.webp'),
 ]);
 
-/** Egill's, at the big screen: Mosi's picture, and not one a guest can pick. */
-export const HOST_AVATAR = avatar('egill', 'Egill', '#79c7a1', 'assets/eitt/mosi.webp');
+/** Egill's, at the big screen: his own picture (2026-10-25); not one a guest can pick. */
+export const HOST_AVATAR = avatar('egill', 'Egill', '#79c7a1', 'assets/book/images/egill-render.webp');
 
 /** Mosi's, for the junior table's computer player (Litla Yatzy's own character): the book's picture, and not a guest's. */
 export const MOSI_AVATAR = avatar('mosi', 'Mosi', '#868862', 'assets/book/images/mosi-render.webp');

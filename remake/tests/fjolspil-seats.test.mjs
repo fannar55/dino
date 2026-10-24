@@ -8,6 +8,8 @@ test('the six friends are the avatars, with their pictures and colours', () => {
   assert.equal(avatarOf('uggedla').picture, 'assets/eitt/spinosaurus.webp');
   assert.equal(avatarOf('egill'), HOST_AVATAR);
   assert.equal(avatarOf('mosi'), MOSI_AVATAR);
+  // Egill's seat has his own portrait, so he and Mosi are told apart at the Litla Yatzy table (2026-10-25).
+  assert.equal(HOST_AVATAR.picture, 'assets/book/images/egill-render.webp');
 });
 
 test('Mosi is an avatar the computer may have and a guest may not', () => {

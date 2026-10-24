@@ -557,7 +557,7 @@ export function createGuestPage(doc, {
     return { el, words: wordsEl };
   }
   const waitFace = face('spil-note-face');
-  setFace(waitFace, HOST_AVATAR.id); // Mosi, for the big screen
+  setFace(waitFace, HOST_AVATAR.id); // Egill's face, for the big screen he sits at
   const wait = note('spil-wait', waitFace.el, WORDS.wait);
   // Another tab took the seat (replaced): a tap opens this page's socket again, and the room gives the seat to the newer
   // connection. The big screen gone (host-gone) is the connection's to try by itself, so the line is hidden then.
