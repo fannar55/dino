@@ -19,8 +19,9 @@ const STATE_FIELDS=['version','players','currentPlayer','startingPlayer','turnCo
 const assert=(condition,message)=>{if(!condition)throw new TypeError(message);};
 const integer=(value,min,max)=>Number.isInteger(value)&&value>=min&&value<=max;
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
-// Two to four seats, each a distinct non-empty string; Array.from turns holes into undefined so a sparse list fails too.
-const distinctIds=ids=>Array.isArray(ids)&&integer(ids.length,2,4)&&Array.from(ids).every(id=>typeof id==='string'&&id.length>0)&&new Set(ids).size===ids.length;
+// Two to four seats, each a distinct non-empty string; 'tie' is the winner's word for a shared top, so no seat may be called that.
+// Array.from turns holes into undefined so a sparse list fails too.
+const distinctIds=ids=>Array.isArray(ids)&&integer(ids.length,2,4)&&Array.from(ids).every(id=>typeof id==='string'&&id.length>0&&id!=='tie')&&new Set(ids).size===ids.length;
 function ownValue(object,key){const descriptor=Object.getOwnPropertyDescriptor(object,key);assert(descriptor&&Object.hasOwn(descriptor,'value'),`Missing or non-data field: ${key}`);return descriptor.value;}
 function categoryFor(id){const category=BY_ID.get(id);assert(category,`Unknown Yatzy Junior category: ${String(id)}`);return category;}
 function diceCounts(dice){
