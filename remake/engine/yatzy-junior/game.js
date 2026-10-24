@@ -114,8 +114,10 @@ function buildPlayers(list){
     if(solo){card.id=isMosi?'mosi-card':'you-card';total.id=isMosi?'mosi-total':'you-total';}else card.dataset.seat=String(i); // the check tools read the solo ids
     card.append(portrait,total,label);return {card,portrait,total,colour,deep};
   });
-  bar.dataset.count=String(list.length);bar.setAttribute('aria-label',list.length===2?'Stig beggja':'Stig leikmanna');bar.replaceChildren(...playerEls.map(p=>p.card));
+  bar.dataset.count=String(list.length);bar.setAttribute('aria-label',list.length===2?'Stig beggja':'Stig leikmanna');bar.replaceChildren(...playerEls.map(p=>p.card));barEnd();world?.resize(); // the dice view measured round the new bar
 }
+// Where the bar ends (--bar-right): over the dice, Mosi's bubble keeps beside a bar of three or four (yatzy-junior.css).
+function barEnd(){$('game').style.setProperty('--bar-right',`${Math.ceil(document.querySelector('.players').getBoundingClientRect().right)}px`);}
 buildPlayers(SOLO_PLAYERS);
 const step=()=>lesson?LESSON_STEPS[lesson.index]:null;
 const isHuman=()=>started&&!paused&&phase==='human'&&state.currentPlayer===0&&state.status==='playing';
@@ -522,7 +524,7 @@ export async function initialize({signal,onStage=()=>{}}={}){
     // "Fjölspil": the page's own room, apart from the book's in the same tab (STORAGE_KEY); the lobby's taps are the page's tap.
     fjolspil=createFjolspil(document,{storageKey:STORAGE_KEY,audio:{sfx:()=>audio.cue('tap')}});fjolspil.onAct(guestAct);
     $('loading').hidden=true;$('game').inert=false;savePrefs();renderUI();welcome();
-    let dirty=true;const measure=()=>{targetWidth=canvas.clientWidth;targetHeight=canvas.clientHeight;};measure();resizeObserver=new ResizeObserver(()=>{measure();dirty=true;updateTargets();});resizeObserver.observe(canvas);
+    let dirty=true;const measure=()=>{targetWidth=canvas.clientWidth;targetHeight=canvas.clientHeight;barEnd();};measure();resizeObserver=new ResizeObserver(()=>{measure();dirty=true;updateTargets();});resizeObserver.observe(canvas);
     document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('close',()=>{dirty=true;}));
     const tick=now=>{
       if(disposed)return;const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;voice.update(dt);

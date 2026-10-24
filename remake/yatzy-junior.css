@@ -335,6 +335,10 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
   .mosi-help{width:100px;height:100px}
 }
 
+/* ---- "Fjölspil" on a screen held wide: over the dice the bubble keeps beside a bar of three or four (game.js measures where it ends,
+   --bar-right). Upright there is no room beside it, and the bubble, there only while Mosi speaks, may cover its end a moment. ---- */
+@media (min-aspect-ratio:1/1) and (min-width:561px){#game[data-view="dice"] .players:not([data-count="2"]) ~ .bubble{left:max(246px,calc(var(--bar-right,0px) + 24px))}}
+
 /* ---- A phone: smaller portraits and buttons, and the cards in a row to scroll ---- */
 @media (max-width:560px){
   :root{--target:64px}
