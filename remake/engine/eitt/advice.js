@@ -2,8 +2,8 @@
 // (kambedla.js), the same every time he is asked, so asking again never changes his mind. And he says why (task 3b, the
 // owner's wish that he teach): each piece of advice carries a reason, whose line he speaks while his card glows. The
 // lines are recorded once (assets/audio/eitt/lines-source.json, eitt_why_<reason>), so they name no card: the glowing
-// card shows which one he means. He advises one seat, the child's (seat 0 unless said otherwise; spec §7.3: Mosi advises
-// Egill alone), and his attack is on the player about to move next, as hers is.
+// card shows which one he means. He advises one seat, the child's (seat 0 unless said otherwise; spec §7.3 of the Fjölspil
+// design: Mosi advises Egill alone), and his attack is on the player about to move next, as hers is.
 
 import { canDraw, isWild } from './rules.js';
 import { ATTACK_AT, bestColour, nextAfter, sharpMove } from './kambedla.js';
@@ -59,7 +59,7 @@ export function advise(game, who = 0) {
   return { ...move, reason: reasonFor(game, who, move) };
 }
 
-/** The colour Mosi suggests when the child in seat `who` plays the wild `cardId`: the one held most among the other cards ('most-colour'). */
+/** The colour Mosi suggests when the child in seat `who` plays the wild `cardId`: the one held most of the rest ('most-colour'). */
 export function adviseColour(game, cardId, who = 0) {
   return bestColour(game.hands[who].filter(card => card.id !== cardId));
 }

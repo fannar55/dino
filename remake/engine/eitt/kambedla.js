@@ -2,8 +2,8 @@
 // are.
 //
 // At skill 1 she plays sharp: she keeps her wilds for last and her +2s for the attack, plays a +2 or a +4 as soon as the
-// next player, the one about to move after her and the one it hits, is down to 2 cards or fewer (spec section 6: "spilar +2 og +4
-// þegar barnið nálgast Eitt!"; at a table of more, spec §7.3: the next player, whoever else is low), and picks the colour she holds
+// next player (the one about to move after her, whom it hits) is down to 2 cards or fewer, however few anyone else holds (spec
+// section 6: "spilar +2 og +4 þegar barnið nálgast Eitt!", and spec §7.3 of the Fjölspil design), and picks the colour she holds
 // most of. Mosi's advice is the same sharp choice, made with the child's cards (advice.js). At skill 0 she is mild: any card that
 // may be played, and a colour at random. In between, each choice is a sharp one with a chance equal to her skill, and she
 // forgets to call "Eitt!", or to notice that another player forgot it, more and more as her skill falls.

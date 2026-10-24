@@ -1,7 +1,7 @@
-// The rules of "Eitt!", our own Uno, for two to four players (spec §7.3). The deck, what may be played on what, what each card
-// does, the "Eitt!" call and catching a player who forgot it. It is all plain data and pure functions, with no DOM, no three.js
-// and no sound: a Game goes in, a new Game comes out (the one that went in is never changed), and a move the rules do not allow
-// throws. The table, Kambeðla's choices and Mosi's advice are built on top of it.
+// The rules of "Eitt!", our own Uno, for two to four players (spec §7.3, the Fjölspil design). The deck, what may be played on
+// what, what each card does, the "Eitt!" call and catching a player who forgot it. It is all plain data and pure functions, with no
+// DOM, no three.js and no sound: a Game goes in, a new Game comes out (the one that went in is never changed), and a move the
+// rules do not allow throws. The table, Kambeðla's choices and Mosi's advice are built on top of it.
 //
 // A Card is { id, colour, kind, value }:
 //   id      a name that is unique in the deck: 'red-5-a', 'blue-skip-b', 'wild4-c'
