@@ -5,6 +5,7 @@ import { COLOURS, isWild, makeDeck, newGame, next, canPlay, playable, play, draw
 import { chooseMove, willCallEitt, willCatch } from '../engine/eitt/kambedla.js';
 import { SKILL_START, afterRound, inRound } from '../engine/eitt/skill.js';
 import { advise, REASONS } from '../engine/eitt/advice.js';
+import { createSave } from '../engine/save.js';
 
 const cards = makeDeck();
 const card = id => cards.find(c => c.id === id);
@@ -359,4 +360,18 @@ test('skill rises after wins, falls after losses, and eases when the child is fa
     assert.equal(remembered(ask, 1), 1000, 'she always remembers at skill 1');
     assert.ok(remembered(ask, 0) < remembered(ask, 0.5) && remembered(ask, 0.5) < 1000, 'and forgets more as her skill falls');
   }
+});
+
+test('the save keeps a game under way with its seats, and forgets it on null', () => {
+  const save = createSave(null);
+  assert.equal(save.getEitt().game, null);
+  const game = newGame({ players: 3, random: seededRandom('kept') });
+  save.setEitt({ game, seats: { max: 4, reserved: ['kambedla'], seats: [] } });
+  assert.deepEqual(save.getEitt().game, game);
+  assert.notEqual(save.getEitt().game, game, 'a copy');
+  assert.deepEqual(save.getEitt().seats.reserved, ['kambedla']);
+  save.setEitt({ wins: 1 });
+  assert.deepEqual(save.getEitt().game, game, 'other changes leave it');
+  save.setEitt({ game: null });
+  assert.equal(save.getEitt().game, null);
 });

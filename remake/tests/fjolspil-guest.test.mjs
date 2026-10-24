@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createGuestPage } from '../engine/fjolspil/guest.js';
 import { renderHals } from '../engine/fjolspil/guest-hals.js';
+import { renderEitt } from '../engine/fjolspil/guest-eitt.js';
+import { makeDeck } from '../engine/eitt/rules.js';
 
 class FakeStorage { constructor() { this.map = new Map(); } getItem(k) { return this.map.get(k) ?? null; } setItem(k, v) { this.map.set(k, String(v)); } }
 function fakeNet() {
@@ -170,4 +172,28 @@ test('a seat that comes with no hello of hers (a fresh page) is the big screen\'
   assert.equal(JSON.parse(storage.getItem('mosi-fjolspil-guest')).name, 'Anna', 'what she typed is what she remembers');
   net.statusFn('no-room');
   assert.equal($(root, '.spil-status').textContent, 'Leiknum er lokið');
+});
+
+test('the eitt screen plays a card once, asks a colour for a wild, and offers Eitt! and Grípa!', () => {
+  const { root, net } = rig({ search: '?r=GULL', views: { eitt: renderEitt } });
+  const card = id => makeDeck().find(c => c.id === id);
+  const base = { you: 1, turn: 1, direction: 1, colour: 'red', top: card('red-5-a'), hand: [card('red-7-a'), card('blue-2-a'), card('wild-a')], playable: ['red-7-a', 'wild-a'], canDraw: false, canPass: false, needsColour: null, eittNeeded: false, canCatch: null, counts: [{ seat: 0, name: 'Egill', avatar: 'egill', cards: 5 }, { seat: 1, name: 'Anna', avatar: 'sloedla', cards: 3 }], winner: null };
+  net.message(view('eitt', base, 1));
+  const cards = [...$$(root, '.spil-eitt-hand .eitt-card')];
+  assert.deepEqual(cards.map(el => el.classList.contains('playable')), [true, false, true]);
+  tap(cards[0]);
+  tap(cards[0]);
+  assert.deepEqual(net.sent.filter(m => m.type === 'act'), [{ v: 1, type: 'act', body: { type: 'play', cardId: 'red-7-a' } }]);
+  net.message(view('eitt', { ...base, hand: [card('blue-2-a'), card('wild-a')], playable: ['wild-a'] }, 2));
+  tap([...$$(root, '.spil-eitt-hand .eitt-card')][1]);
+  assert.equal($$(root, '.spil-eitt-colours button').length, 4);
+  tap($$(root, '.spil-eitt-colours button')[2]);
+  assert.deepEqual(net.sent.at(-1).body, { type: 'play', cardId: 'wild-a', colour: 'green' });
+  net.message(view('eitt', { ...base, turn: 0, hand: [card('blue-2-a')], playable: [], eittNeeded: true }, 3));
+  assert.equal($(root, '.spil-eitt-eitt').hidden, false);
+  tap($(root, '.spil-eitt-eitt'));
+  assert.deepEqual(net.sent.at(-1).body, { type: 'eitt' });
+  net.message(view('eitt', { ...base, turn: 0, eittNeeded: false, canCatch: 0 }, 4));
+  assert.equal($(root, '.spil-eitt-catch').hidden, false);
+  assert.equal($(root, '.spil-eitt-turn').textContent, 'Egill á leik');
 });
