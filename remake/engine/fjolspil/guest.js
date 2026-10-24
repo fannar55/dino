@@ -443,7 +443,9 @@ export function createGuestPage(doc, {
   closedPicture.alt = '';
   const closed = note('spil-closed', closedPicture, WORDS.closed);
   const winnerFace = face('spil-hero spil-winner');
-  const over = note('spil-over', winnerFace.el, '');
+  const burst = make('span', 'spil-burst'); // a gold burst behind the winner
+  burst.append(winnerFace.el);
+  const over = note('spil-over', burst, '');
 
   function renderOver(view) {
     const winner = view.winner ?? {};

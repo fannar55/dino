@@ -1,0 +1,306 @@
+/* The guest's page of "Fjölspil" (spec §8): what a phone, a tablet or a PC beside the big screen shows (spil.html), in the
+   look of the lobby on the big screen (fjolspil.css) and Háls og hali's cards (hals.css), so the two screens are one family.
+   engine/fjolspil/guest.js renders into these classes:
+
+     .spil                       the root (#spil): the clearing behind the paper, the font; data-screen names the screen
+     .spil-page                  the paper with its tape and frame line, one column: a card on a tablet or a PC, the whole
+                                 screen on a phone
+       .spil-me                  the guest's seat once she has one, a name tag at the top: .spil-me-face and .spil-me-name
+       .spil-main                the screen in the middle, one .spil-screen at a time
+       .spil-status              the status line at the bottom (what the connection says); empty, it keeps its place
+     .spil-screen                a screen: .spil-code, .spil-join, .spil-lobby, .spil-note (.spil-wait, .spil-closed,
+                                 .spil-over) or .spil-game (a game's own, rendered by its view)
+       .spil-code                .spil-title (two friends and "Fjölspil"), the four .spil-digit boxes in .spil-digits (an
+                                 empty box is dashed, :placeholder-shown) and "Áfram" (.spil-go)
+       .spil-join                "Hvað heitirðu?" (.spil-ask, the label of .spil-name), the six .spil-avatar buttons in
+                                 .spil-avatars (aria-pressed, the chosen one; disabled, one not free) and "Tilbúin/n" (.spil-ready)
+       .spil-lobby               her avatar big (.spil-hero), "Þú ert með!" (.spil-words) and the seats (.spil-seats of
+                                 .spil-seat, .mine hers, .absent dim)
+       .spil-note                a picture (.spil-note-face, .spil-note-picture, or the winner's .spil-hero in its .spil-burst)
+                                 over .spil-words
+     .spil-face                  a round picture in an avatar's colour (--c), an img.spil-picture in it
+     .spil-big                   the big green raised pill ("Áfram", "Tilbúin/n"), as "Byrjum!" on the big screen
+     .nope                       a little shake: what is missing ("Áfram" with the code unfinished, "Tilbúin/n" with no avatar)
+
+   The rules it keeps, as the games and the book do (STYLE.md section 10):
+   - the journal's palette for the paper, the ink and the buttons, and the avatars' own colours (seats.js);
+   - every control is at least --spil-target (88 px) high, and as wide where the screen has the room (the code's four boxes
+     share a phone's width: 80 px at the least);
+   - Nunito, few words, big and rounded; every input at 16 px or more, so a phone does not zoom into it;
+   - motion is transform and opacity only, and under prefers-reduced-motion every move is a fade and nothing sways.
+   This page links only this sheet (and eitt.css, for Eitt!'s cards on the phone), so it declares the Nunito face itself,
+   word for word as style.css and book.css do, and carries book.css's touch (fx.js: the squash and the sparks). */
+
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: block; /* a local file is there before the first frame, so no frame shows another face first */
+}
+
+:root {
+  color-scheme: light;
+  /* The sparks' twinkle (book.css): fx.js puts the sparks on the body, outside .spil. */
+  --book-twinkle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 3C21.6 13 27 18.4 37 20C27 21.6 21.6 27 20 37C18.4 27 13 21.6 3 20C13 18.4 18.4 13 20 3Z' fill='%23f2b630' stroke='%233b2f25' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+html, body { margin: 0; min-height: 100%; background: #e9efd8; }
+
+.spil {
+  /* The journal's colours (STYLE.md section 10), as hals.css and fjolspil.css have them. */
+  --paper: #f6efdf;
+  --card: #fffaf0;
+  --card-deep: #e3d4b5;
+  --ink: #3b2f25;
+  --ink-soft: #6b5a4a;
+  --orange: #e07a3f;
+  --orange-deep: #b75e2e;
+  --teal: #2f8f86;
+  --gold: #f2b630;
+  --green: #6fae4f;
+  --green-deep: #4a8434;
+
+  --spil-target: 88px;
+  --spil-font: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --spil-gap: clamp(14px, 2.6vh, 26px);
+  --tape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E");
+  --frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+
+  min-height: 100vh; min-height: 100dvh;
+  display: grid; place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  font-family: var(--spil-font); font-weight: 800; color: var(--ink);
+  background: linear-gradient(#cfe4ee, #e9efd8 55%, #9fbb62);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.spil *, .spil *::before, .spil *::after { box-sizing: border-box; }
+.spil[hidden], .spil [hidden] { display: none !important; }
+:where(.spil) button { font: inherit; color: inherit; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.spil button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
+.spil img { display: block; -webkit-user-drag: none; }
+.spil h1, .spil h2, .spil p, .spil ul { margin: 0; }
+
+/* ---- The paper: a card with tape on its top corner and a hand-drawn frame line, as the lobby's ------------------------ */
+
+.spil-page {
+  position: relative; width: min(620px, 100%); min-height: min(700px, calc(100dvh - 40px));
+  display: flex; flex-direction: column; align-items: center; gap: var(--spil-gap);
+  padding: clamp(26px, 4vh, 40px) clamp(24px, 4vw, 44px) clamp(18px, 3vh, 28px);
+  border-radius: 30px;
+  background: var(--frame) center / calc(100% - 24px) calc(100% - 24px) no-repeat, var(--card);
+  box-shadow: 0 30px 60px rgb(14 8 3 / .28), 0 8px 18px rgb(14 8 3 / .2);
+}
+.spil-page::before { /* tape on its top corner, as on the book's photos */
+  content: ""; position: absolute; top: -14px; left: 7%; width: min(24%, 120px); height: 34px; rotate: -8deg;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--teal) 55%, transparent);
+  -webkit-mask: var(--tape) center / 100% 100% no-repeat; mask: var(--tape) center / 100% 100% no-repeat;
+}
+.spil-main { flex: 1; width: 100%; display: grid; place-items: center; }
+.spil-screen {
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: var(--spil-gap); text-align: center;
+  animation: spil-in .42s cubic-bezier(.3, 1.35, .5, 1) both;
+}
+
+/* ---- The seat at the top: a name tag with her avatar ---------------------------------------------------------------- */
+
+.spil-me {
+  display: flex; align-items: center; gap: 12px; max-width: 100%;
+  padding: 6px 22px 6px 6px; border-radius: 999px; rotate: -1.5deg;
+  background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 9px 12px 2px rgb(40 24 10 / .18);
+}
+.spil-me-face { width: 58px; flex: none; }
+.spil-me-name {
+  min-width: 0; font-size: clamp(24px, 6.4vw, 30px); font-weight: 900; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- The faces: a round picture in the avatar's colour, as on the big screen --------------------------------------- */
+
+.spil-face {
+  position: relative; display: block; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c, var(--card-deep)) 45%, #fffaf0) 72%);
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 5.5px var(--ink);
+}
+.spil-face .spil-picture { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 55% 45%; }
+
+/* ---- The status line: what the connection says, on a note of its own; empty, it keeps its place --------------------- */
+
+.spil-status {
+  min-height: 52px; max-width: 100%; display: grid; place-items: center; padding: 8px 18px; border-radius: 16px;
+  font-size: clamp(20px, 5vw, 24px); font-weight: 800; line-height: 1.2; color: var(--orange-deep); text-align: center;
+}
+.spil-status:not(:empty) {
+  background: color-mix(in srgb, var(--orange) 12%, var(--card)); border: 2.5px dashed var(--orange);
+  animation: spil-fade .3s ease-out both;
+}
+
+/* ---- The big green raised pill: "Áfram" and "Tilbúin/n", as "Byrjum!" ------------------------------------------------ */
+
+.spil-big {
+  position: relative; min-height: var(--spil-target); min-width: min(100%, 280px); max-width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: .4em; padding: .1em 1.1em;
+  font-size: clamp(30px, 8vw, 40px); font-weight: 900; line-height: 1.1; color: #fff;
+  border: 3px solid var(--ink); border-radius: 999px;
+  background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--green);
+  box-shadow: 0 7px 0 var(--green-deep), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .3);
+}
+.spil-big span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.spil-big svg { flex: none; width: 1.1em; height: 1.1em; overflow: visible; }
+.spil-big.pressable.pressed { translate: 0 4px; } /* a raised button goes down onto its side */
+
+/* ---- code: the title and the four letters ---------------------------------------------------------------------------- */
+
+.spil-title {
+  display: flex; align-items: center; gap: .25em;
+  font-size: clamp(42px, 11vw, 64px); font-weight: 900; line-height: 1; color: var(--gold);
+  -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
+}
+.spil-title img { width: 2.2em; height: auto; margin: -.4em 0 -.3em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
+.spil-digits { display: grid; grid-template-columns: repeat(4, minmax(80px, 100px)); justify-content: center; gap: clamp(8px, 2.4vw, 16px); width: 100%; }
+.spil-digit { /* a letter tile each, as the code's on the big screen */
+  width: 100%; min-width: 0; height: 104px; padding: 0; border-radius: 18px;
+  font: 900 clamp(48px, 13vw, 62px) / 1 var(--spil-font); color: var(--ink); text-align: center; text-transform: uppercase;
+  caret-color: var(--teal); background: var(--paper); border: 3px solid var(--ink); outline: none;
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
+  user-select: text; -webkit-user-select: text; appearance: none;
+}
+.spil-digit:nth-child(odd) { rotate: -2deg; } .spil-digit:nth-child(even) { rotate: 2deg; }
+.spil-digit:placeholder-shown { /* still empty: a soft dashed place, as a free seat */
+  background: color-mix(in srgb, var(--paper) 55%, var(--card)); border-style: dashed; border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+  box-shadow: none;
+}
+.spil-digit:focus { border-style: solid; border-color: var(--ink); box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 0 0 9px color-mix(in srgb, var(--teal) 45%, transparent); }
+
+/* ---- join: the name and the six friends ----------------------------------------------------------------------------- */
+
+.spil-ask { font-size: clamp(32px, 8.4vw, 42px); font-weight: 900; line-height: 1.15; }
+.spil-name {
+  width: 100%; min-height: var(--spil-target); padding: 0 .6em; border-radius: 22px;
+  font: 900 clamp(32px, 8.4vw, 42px) / 1.1 var(--spil-font); color: var(--ink); text-align: center;
+  caret-color: var(--teal); background: var(--paper); border: 3px solid var(--ink); outline: none;
+  box-shadow: inset 0 4px 0 rgb(59 47 37 / .07), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
+  user-select: text; -webkit-user-select: text; appearance: none;
+}
+.spil-name:focus { box-shadow: inset 0 4px 0 rgb(59 47 37 / .07), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 0 0 9px color-mix(in srgb, var(--teal) 45%, transparent); }
+.spil-avatars { display: grid; grid-template-columns: repeat(3, minmax(var(--spil-target), 150px)); justify-content: center; gap: clamp(12px, 3vw, 18px); width: 100%; }
+.spil-avatar { /* a taped photo of a friend */
+  position: relative; width: 100%; aspect-ratio: 1; padding: 11%; border-radius: 24px;
+  background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .18);
+}
+.spil-avatar:nth-child(3n + 1) { rotate: -1.6deg; } .spil-avatar:nth-child(3n + 2) { rotate: 1.2deg; } .spil-avatar:nth-child(3n) { rotate: -.8deg; }
+.spil-avatar .spil-face { width: 100%; }
+.spil-avatar[aria-pressed="true"] { /* the chosen one: in her colour, gold round it and a tick on its corner */
+  background: color-mix(in srgb, var(--c) 34%, var(--card));
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 0 0 9px var(--gold), 0 0 0 12px var(--ink);
+}
+.spil-avatar[aria-pressed="true"]::after {
+  content: ""; position: absolute; top: -12px; right: -12px; width: 40px; height: 40px; border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 70% no-repeat, var(--green);
+  box-shadow: 0 0 0 3px var(--ink);
+  animation: spil-pop .35s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+.spil-avatar:disabled { /* taken, or the game's own character: dim, and a finger on it does nothing */
+  opacity: .3; box-shadow: none; border-style: dashed; cursor: default; pointer-events: none;
+}
+
+/* ---- lobby: her avatar big, "Þú ert með!" and the table ------------------------------------------------------------- */
+
+.spil-hero { width: clamp(130px, 22vh, 190px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .2); animation: spil-pop .5s .1s cubic-bezier(.3, 1.6, .5, 1) both; }
+.spil-words { font-size: clamp(34px, 9vw, 48px); font-weight: 900; line-height: 1.15; overflow-wrap: anywhere; }
+.spil-seats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 14px; padding: 0; list-style: none; }
+.spil-seat {
+  display: grid; justify-items: center; gap: 6px; width: 92px; padding: 10px 6px 8px; border-radius: 16px;
+  background: var(--paper); border: 2.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.spil-seat:nth-child(odd) { rotate: -1.5deg; } .spil-seat:nth-child(even) { rotate: 1.5deg; }
+.spil-seat.mine { border: 3px solid var(--ink); background: color-mix(in srgb, var(--gold) 26%, var(--card)); box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink); }
+.spil-seat.absent { opacity: .5; }
+.spil-seat-face { width: 58px; }
+.spil-seat-name { max-width: 100%; font-size: 19px; font-weight: 900; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- The notes: the waits and the end ---------------------------------------------------------------------------- */
+
+.spil-note { gap: clamp(20px, 4vh, 36px); }
+.spil-note-face { width: clamp(140px, 24vh, 200px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .2); }
+.spil-wait .spil-note-face .spil-picture { animation: spil-look 4.8s ease-in-out infinite; } /* the big screen is looked for */
+.spil-note-picture { width: clamp(200px, 56vw, 300px); height: auto; filter: drop-shadow(0 8px 8px rgb(40 24 10 / .25)); animation: spil-bob 3.6s ease-in-out infinite; }
+.spil-over .spil-words { /* the winner's name, gold as a title */
+  font-size: clamp(42px, 11vw, 60px); color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
+  text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
+}
+.spil-winner { width: clamp(150px, 26vh, 210px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 0 0 17px var(--gold), 0 0 0 20px var(--ink); }
+.spil-burst { position: relative; display: block; isolation: isolate; }
+.spil-burst::before { /* a gold burst behind the winner, turning slowly */
+  content: ""; position: absolute; inset: -46%; z-index: -1; border-radius: 50%;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--gold) 55%, transparent) 0 10deg, transparent 10deg 20deg);
+  -webkit-mask: radial-gradient(circle, #000 40%, transparent 70%); mask: radial-gradient(circle, #000 40%, transparent 70%);
+  animation: spil-turn 24s linear infinite;
+}
+
+/* ---- Touch (engine/book/fx.js), as book.css has it: a finger squashes a control, a tap springs it back with sparks ---- */
+
+.pressable { transition: scale .45s cubic-bezier(.3, 1.8, .45, 1), translate .45s cubic-bezier(.3, 1.8, .45, 1), opacity .2s ease-out; }
+.pressable.pressed { scale: .9; transition-duration: .07s; }
+.pressable.pressed-fade { opacity: .6; transition-duration: .08s; } /* less motion: a short fade instead of the squash */
+.book-spark { /* a twinkle bursting from where the finger lifted; fx.js puts it on the page's body, over everything */
+  position: fixed; z-index: 40; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+  pointer-events: none; background: var(--book-twinkle) center / contain no-repeat;
+  opacity: 0; animation: book-spark-burst .55s cubic-bezier(.2, .75, .3, 1) var(--delay, 0s) both;
+}
+.book-spark.fade { animation: book-spark-fade .4s ease-out var(--delay, 0s) both; }
+@keyframes book-spark-burst {
+  0% { opacity: 0; transform: translate(0, 0) scale(.3) rotate(0deg); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(.9) rotate(var(--spin, 120deg)); }
+}
+@keyframes book-spark-fade { 0%, 100% { opacity: 0; } 35% { opacity: .9; } }
+
+/* ---- Motion ------------------------------------------------------------------------------------------------------ */
+
+.nope { animation: spil-nope .42s ease-in-out; }
+@keyframes spil-in { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes spil-pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+@keyframes spil-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spil-look { 0%, 100% { transform: translateX(0) rotate(0deg); } 30% { transform: translateX(-4%) rotate(-3deg); } 70% { transform: translateX(4%) rotate(3deg); } }
+@keyframes spil-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes spil-turn { to { transform: rotate(1turn); } }
+@keyframes spil-nope { 0%, 100% { transform: none; } 20% { transform: translateX(-10px); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(4px); } }
+@keyframes spil-blink { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* ---- A phone: the paper is the whole screen ------------------------------------------------------------------------- */
+
+@media (max-width: 560px), (max-height: 560px) {
+  .spil { padding: 0; place-items: stretch; }
+  .spil-page {
+    width: 100%; min-height: 100vh; min-height: 100dvh; border-radius: 0; box-shadow: none;
+    padding: max(30px, calc(env(safe-area-inset-top) + 18px)) max(18px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    background: var(--frame) center / calc(100% - 14px) calc(100% - 14px) no-repeat, var(--card);
+  }
+  .spil-page::before { top: -6px; }
+}
+
+/* ---- Sideways on a phone: the name beside the friends, the pictures beside their words ------------------------------ */
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .spil-page { gap: 10px; padding-top: max(18px, env(safe-area-inset-top)); }
+  .spil-title { font-size: 40px; }
+  .spil-join {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "ask avatars" "name avatars" "ready avatars";
+    align-items: center; column-gap: 28px; row-gap: 14px;
+  }
+  .spil-ask { grid-area: ask; } .spil-name { grid-area: name; } .spil-ready { grid-area: ready; justify-self: center; }
+  .spil-avatars { grid-area: avatars; grid-template-columns: repeat(3, var(--spil-target)); gap: 12px; }
+  .spil-lobby, .spil-note { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: center; column-gap: 28px; }
+  .spil-lobby .spil-hero { grid-row: span 2; }
+  .spil-hero, .spil-note-face, .spil-winner { width: 128px; }
+}
+
+/* ---- Less motion, when the screen asks for it: everything comes as a fade and nothing sways or turns ------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .spil-screen, .spil-hero, .spil-avatar[aria-pressed="true"]::after { animation-name: spil-fade !important; animation-timing-function: ease-out !important; }
+  .spil-wait .spil-note-face .spil-picture, .spil-note-picture, .spil-burst::before { animation: none !important; }
+  .nope { animation-name: spil-blink; }
+}
