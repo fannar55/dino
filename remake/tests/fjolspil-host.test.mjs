@@ -24,7 +24,8 @@ function fakeNets() {
     const guests = new Set();
     const sent = new Map(); // id -> every message that reached that guest, in order
     const net = {
-      options, sent, closed: false, status: 'connecting',
+      options, sent, closed: false, status: 'connecting', reconnects: 0,
+      reconnect() { net.reconnects += 1; },
       onJoin: fn => add(on.join, fn),
       onLeave: fn => add(on.leave, fn),
       onMessage: fn => add(on.message, fn),
@@ -89,13 +90,15 @@ function stepping() {
 function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), random = stepping(), now } = {}) {
   const doc = new FakeDocument(['fjolspil']);
   const location = new URL(`${origin}/remake/${search}`);
-  const win = { location };
+  const listeners = {}; // the window's, by event type
+  const win = { location, addEventListener(type, fn) { (listeners[type] ??= []).push(fn); } };
+  const fire = type => { for (const fn of listeners[type] ?? []) fn(new Event(type)); };
   const nets = fakeNets();
   const timers = fakeTimers();
   const sfx = [];
   const fjolspil = createFjolspil(doc, { win, storage, random, timers, now, net: nets.create, audio: { sfx: name => sfx.push(name) } });
   const root = doc.getElementById('fjolspil');
-  return { doc, win, storage, nets, timers, sfx, fjolspil, root, net: () => nets.made.at(-1) };
+  return { doc, win, storage, nets, timers, sfx, fjolspil, root, fire, net: () => nets.made.at(-1) };
 }
 
 const $ = (root, selector) => root.querySelector(selector);
@@ -580,4 +583,24 @@ test('a fresh page of a seated guest is told her seat, as a hello is answered, b
   assert.deepEqual(got.map(msg => msg.type), ['seat', 'view']);
   assert.deepEqual(got[0], { v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
   assert.deepEqual(got[1].body, { screen: 'hals', turn: 1 });
+});
+
+test('the big screen tries its socket again when its page comes back into view or the network is back', () => {
+  const r = rig();
+  r.fire('online'); // no room yet: nothing to try
+  r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
+  const net = r.net();
+  net.welcome();
+  r.doc.visibilityState = 'hidden';
+  r.fire('visibilitychange');
+  assert.equal(net.reconnects, 0, 'not when it goes away');
+  r.doc.visibilityState = 'visible';
+  r.fire('visibilitychange');
+  assert.equal(net.reconnects, 1);
+  r.fire('online');
+  assert.equal(net.reconnects, 2);
+  net.setStatus('replaced'); // another tab has the room: taking it back would take it from that one
+  r.fire('online');
+  r.fire('visibilitychange');
+  assert.equal(net.reconnects, 2);
 });

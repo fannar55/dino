@@ -15,8 +15,16 @@
 // socket every ALIVE_MS (protocol.js), as the meeting point hears nothing else of a room whose every guest is on a data
 // channel, and forgets a room ROOM_TTL_MS after the last thing it heard. A socket that closes under either side is
 // opened again after 1, 2, 4 and 8 seconds and then every 15, never giving up; an answer from the other side (the welcome,
-// or anything from the big screen) starts the waits again from one second, and so does a phone's reconnect() (the page
-// calls it when it comes into view or the network is back).
+// or anything from the big screen) starts the waits again from one second, and so does reconnect(): a phone's opens a new
+// socket at once, and the big screen's one that is not open (the guest page and the host session call it when their page
+// comes into view or the network is back; the big screen never had a wake of its own before the owner's phone test,
+// 2026-10-24, so a sleeping PC waited out the 15 seconds).
+//
+// A phone that is connected and hears nothing at all from the big screen (no ping, no view, on either way) for
+// HOST_SILENCE_MS has a link that died without a word: in the cloud a phone sat on "Bíðum eftir stóra skjánum…" with its
+// socket looking open until a refresh (the owner's phone test, 2026-10-24). Since the big screen pings every PING_MS, the
+// phone then lets its peer and its socket go and opens a fresh one at once (connecting, then connected); the room's joined
+// brings the big screen's seat and newest view back to it. The watch runs only while the status is connected.
 //
 // The statuses, onStatus(fn) (which tells fn the status there is now, then every one after) and `status`:
 //   both    connecting   a socket is being opened: the first, every try after a wait, and reconnect()
@@ -53,6 +61,9 @@ export const RECONNECT_MS = Object.freeze([1000, 2000, 4000, 8000, 15000]);
 
 /** How long a phone that was in the room hears no-room as a wait, from the first one, before it is the end of the game. */
 export const NO_ROOM_GRACE_MS = 60000;
+
+/** How long a connected phone hears nothing from the big screen (which pings every PING_MS) before its link is dead. */
+export const HOST_SILENCE_MS = 20000;
 
 /** The refusals worth trying again: the big screen may come back, and a seat may free. */
 const RETRY_AFTER = new Set(['no-host', 'full']);
@@ -253,8 +264,8 @@ function meetingPoint({ url, timers, WebSocketImpl, attempt, open, text, lost })
  * the room lets in is told to onJoin(id), and gets a peer and a data channel unless `forceRelay` (?relay=1) or there is no
  * RTCPeerConnection; send(id, msg) and broadcast(msg) go on its channel or through the relay. Returns { onJoin, onLeave,
  * onMessage(fn(id, msg)), onPresence(fn(id, present)), onStatus, onWelcome(fn({ code, join })), send, broadcast,
- * transportOf(id) ('rtc', 'relay', or null while its channel is being set up or for a guest not there), status, close }.
- * The on… calls return their unsubscribe; `report` gets what a listener throws.
+ * transportOf(id) ('rtc', 'relay', or null while its channel is being set up or for a guest not there), reconnect(),
+ * status, close }. The on… calls return their unsubscribe; `report` gets what a listener throws.
  */
 export function createHostNet({
   url, timers = PAGE_TIMERS, WebSocketImpl = globalThis.WebSocket, PeerConnectionImpl = globalThis.RTCPeerConnection,
@@ -495,6 +506,13 @@ export function createHostNet({
       for (const id of [...guests.keys()]) send(id, msg);
     },
     transportOf: id => guests.get(id)?.transport ?? null,
+    /**
+     * The page woke or the network is back: a socket that is not open is tried at once, the waits from the first. An open
+     * one is left be, since a new socket would let every guest go and offer each a new peer.
+     */
+    reconnect() {
+      if (!closed && !socket.open) socket.now();
+    },
     get status() { return status; },
     close: shut,
   };
@@ -503,28 +521,49 @@ export function createHostNet({
 /**
  * A phone's side: `url` is the meeting point's address with role guest and the phone's id (wsUrlFor). It answers the big
  * screen's offer, sends on the data channel while it is open and through the relay otherwise, answers each ping on the way
- * it came, and opens its socket again when it closes under it. Returns { onMessage(fn(msg)), onStatus(fn(status)),
- * send(msg) → boolean, reconnect(), transport ('rtc', 'relay' or null), status, close() }; the on… calls return their
- * unsubscribe, and `report` gets what a listener throws. Only the game's messages reach onMessage: never the signaling,
- * the pings or the meeting point's own words. `noRoomGraceMs` is how long a phone that was in the room tries again after
- * no-room, on the clock `now`.
+ * it came, and opens its socket again when it closes under it, or when the big screen has said nothing for
+ * `hostSilenceMs` while connected. Returns { onMessage(fn(msg)), onStatus(fn(status)), send(msg) → boolean, reconnect(),
+ * transport ('rtc', 'relay' or null), heardAt (when the big screen was last heard, on `now`; null before), status,
+ * close() }; the on… calls return their unsubscribe, and `report` gets what a listener throws. Only the game's messages
+ * reach onMessage: never the signaling, the pings or the meeting point's own words. `noRoomGraceMs` is how long a phone
+ * that was in the room tries again after no-room, on the clock `now`.
  */
 export function createGuestNet({
   url, timers = PAGE_TIMERS, WebSocketImpl = globalThis.WebSocket, PeerConnectionImpl = globalThis.RTCPeerConnection,
   iceServers = [], report = PAGE_REPORT, now = () => Date.now(), noRoomGraceMs = NO_ROOM_GRACE_MS,
+  hostSilenceMs = HOST_SILENCE_MS,
 } = {}) {
   const on = { message: listeners(report), status: listeners(report) };
   let status = null;
   let closed = false;
   let refusal = null; // this socket's refusal; a no-host one is lifted when the big screen is heard again
   let heardHost = false; // the big screen has spoken to this net: its no-host from now on is host-gone, its no-room a wait
+  let heardAt = null; // when it last did (now())
   let noRoomSince = null; // when the first no-room came since the big screen was last heard (null: none since)
   let link = null; // { peer, channel, remote }: the big screen's peer and its data channel
+  let silence = null; // the watch's timer while connected: the big screen's silence for hostSilenceMs is a dead link
 
   function setStatus(next) {
     if (closed && next !== 'closed') return;
     status = next;
+    if (next === 'connected') watch();
+    else unwatch();
     on.status.emit(next);
+  }
+
+  /** The watch on the big screen, from now: a fresh socket at once when nothing of it comes for hostSilenceMs. */
+  function watch() {
+    unwatch();
+    silence = timers.setTimeout(() => {
+      silence = null;
+      if (closed || status !== 'connected') return;
+      unpeer();
+      socket.now(); // the silent socket let go, a new one made: connecting, then connected
+    }, hostSilenceMs);
+  }
+  function unwatch() {
+    if (silence !== null) timers.clearTimeout(silence);
+    silence = null;
   }
 
   const socket = meetingPoint({
@@ -574,10 +613,12 @@ export function createGuestNet({
   /** The big screen is heard: the waits start again, and a wait for it is over. */
   function heard() {
     heardHost = true;
+    heardAt = now();
     noRoomSince = null;
     socket.answered();
     if (refusal === 'no-host') refusal = null;
     if (status === 'no-host' || status === 'host-gone') setStatus('connected');
+    else if (status === 'connected') watch(); // the link is alive: the watch starts again
   }
 
   /** A message from the big screen, `way` it came ('rtc' or 'relay'); the offer and the candidates only come by relay. */
@@ -671,10 +712,12 @@ export function createGuestNet({
       if (link?.channel?.readyState === 'open') return 'rtc';
       return socket.open ? 'relay' : null;
     },
+    get heardAt() { return heardAt; },
     get status() { return status; },
     close() {
       if (closed) return;
       closed = true;
+      unwatch();
       socket.stop();
       unpeer();
       setStatus('closed');

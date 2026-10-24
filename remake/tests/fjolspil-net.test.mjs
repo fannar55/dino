@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ALIVE_MS, MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message } from '../engine/fjolspil/protocol.js';
-import { createGuestNet, createHostNet, iceServersFor, wsUrlFor } from '../engine/fjolspil/net.js';
+import { HOST_SILENCE_MS, createGuestNet, createHostNet, iceServersFor, wsUrlFor } from '../engine/fjolspil/net.js';
 
 // ---- The fakes ----------------------------------------------------------------------------------------------------------
 
@@ -716,7 +716,10 @@ test('a guest that was in the room hears no-room as a wait for a minute, then as
   back.timers.advance(back.timers.delays[0]); // 30 s after the first no-room the room is there again
   back.sockets.made.at(-1).open();
   back.sockets.made.at(-1).receive(fromHost(message('ping', {})));
-  back.timers.advance(45000);
+  for (let n = 0; n < 9; n++) { // 45 s of the big screen's pings, so the phone's watch on it never fires
+    back.timers.advance(5000);
+    back.sockets.made.at(-1).receive(fromHost(message('ping', {})));
+  }
   back.sockets.made.at(-1).close(1001); // and is gone again, 75 s after the first no-room
   back.timers.advance(back.timers.delays[0]);
   back.sockets.made.at(-1).open();
@@ -779,4 +782,66 @@ test('the guest drops what is not a message, and nothing after close is heard', 
   assert.deepEqual(log.messages, []);
   assert.equal(sockets.made.length, 1);
   assert.equal(net.send(message('hello', {})), false);
+});
+
+test('the host opens a closed socket again at once when its page wakes, and leaves an open one be', () => {
+  const { net, ws, sockets, timers } = hostRig();
+  net.reconnect();
+  assert.equal(sockets.made.length, 1, 'an open socket is left as it is');
+  assert.equal(ws.closed, false);
+  ws.close(1006);
+  timers.advance(1000);
+  sockets.made[1].close(1006);
+  timers.advance(2000);
+  sockets.made[2].close(1006);
+  assert.deepEqual(timers.delays, [4000], 'the waits have grown');
+  net.reconnect();
+  assert.equal(sockets.made.length, 4, 'a closed one is opened again now, not after the wait');
+  assert.equal(sockets.made[3].url, HOST_URL);
+  assert.equal(net.status, 'connecting');
+  assert.deepEqual(timers.delays, [], 'the wait is let go');
+  net.reconnect();
+  assert.equal(sockets.made.length, 4, 'a socket still connecting is the try already');
+  sockets.made[3].close(1006);
+  assert.deepEqual(timers.delays, [1000], 'and the waits start again from the first');
+  net.close();
+  net.reconnect();
+  assert.equal(sockets.made.length, 4, 'nothing after close');
+});
+
+test('the guest says when it last heard the big screen, its pings too', () => {
+  let clock = 0;
+  const { net, sockets } = guestRig({ now: () => clock });
+  assert.equal(net.heardAt, null);
+  sockets.made[0].open();
+  assert.equal(net.heardAt, null, 'an open socket is not the big screen');
+  clock = 7000;
+  sockets.made[0].receive(fromHost(message('ping', {})));
+  assert.equal(net.heardAt, 7000);
+  net.close();
+});
+
+test('a connected guest that hears nothing from the big screen for twenty seconds opens a fresh socket at once', () => {
+  const { net, sockets, timers, log } = guestRig();
+  sockets.made[0].open();
+  timers.advance(15000);
+  sockets.made[0].receive(fromHost(message('ping', {}))); // the big screen pings every five seconds
+  timers.advance(HOST_SILENCE_MS - 15000);
+  assert.equal(sockets.made.length, 1, 'twenty seconds after connected, five after a ping: the link is alive');
+  timers.advance(15000); // twenty seconds after the ping, and nothing since
+  assert.equal(sockets.made.length, 2, 'a silent link is dead: a new socket at once');
+  assert.equal(sockets.made[0].closed, true, 'and the silent one is let go');
+  sockets.made[1].open();
+  assert.deepEqual(log.statuses, ['connecting', 'connected', 'connecting', 'connected']);
+
+  sockets.made[1].receive(message('error', { reason: 'no-host' })); // the big screen gone: nothing to watch for
+  assert.equal(net.status, 'host-gone');
+  timers.advance(HOST_SILENCE_MS * 3);
+  assert.equal(sockets.made.length, 2, 'the watch runs only while connected');
+  sockets.made[1].receive(fromHost(message('ping', {}))); // it is back
+  assert.equal(net.status, 'connected');
+  net.close();
+  timers.advance(HOST_SILENCE_MS * 3);
+  assert.equal(sockets.made.length, 2, 'nothing after close');
+  assert.equal(log.statuses.at(-1), 'closed');
 });

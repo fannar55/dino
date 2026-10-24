@@ -25,6 +25,10 @@
 // A game whose turn comes to a guest who is not there waits for her with waitFor(seat), one seat at a time, over the board
 // (the lobby's waiting card, spec §4 step 6): 'back' when she is there again, 'cover' when "Halda áfram án …" makes her seat
 // the computer's, and 'closed' when the game is closed (closeGame) or another tab takes the room, so the game stops its turns.
+//
+// The big screen wakes as a phone does: when its page comes back into view or the network is back, a socket of the room's
+// that is not open is tried at once (net.js's reconnect), not after the rest of a wait of up to 15 seconds, while the phones
+// show "Bíðum eftir stóra skjánum…" (the final review's M2, after the owner's phone test, 2026-10-24).
 
 import { makeCode, message, normalizeCode, randomKey } from './protocol.js';
 import { createSeats } from './seats.js';
@@ -133,6 +137,12 @@ export function createFjolspil(doc, {
       endWait('cover');
     },
   });
+
+  // The page wakes, or the network is back: the room's socket, if it is not open, is tried now. Not once another tab took
+  // the room (its net is closed): taking it back would only take it from that one. visibilitychange comes up to the window.
+  const wake = () => { if (!at.replaced) at.net?.reconnect?.(); };
+  win?.addEventListener?.('visibilitychange', () => { if (doc.visibilityState !== 'hidden') wake(); });
+  win?.addEventListener?.('online', wake);
 
   // ---- The room ---------------------------------------------------------------------------------------------------
 
