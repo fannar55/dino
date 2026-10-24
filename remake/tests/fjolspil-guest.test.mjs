@@ -352,15 +352,28 @@ test('a page whose seat another tab took offers it back: a tap on the wait scree
   assert.equal(net.reconnects, 1, 'after host-gone a tap does nothing of its own');
 });
 
-test('?debug=1 shows the connection in small type on the status line, every second: status, way, last word heard and seat', () => {
+test('?debug=1 shows the connection in small type under the status line, every second: status, way, last word heard and seat', () => {
   let clock = 1000;
   const { root, net, timers } = seatedRig({ search: '?r=GULL&debug=1', now: () => clock });
   net.transport = 'relay';
   clock = 4000;
   timers.advance(1000);
   assert.equal($(root, '.spil-debug').textContent, '[connected · relay · 3s · seat 1]');
-  net.statusFn('connecting'); // the status line's words change, and the readout stays beside them
-  assert.equal($(root, '.spil-status').textContent.startsWith('Tengist…'), true);
+  net.statusFn('connecting'); // the status line's words change, and the readout stays under them
+  assert.equal($(root, '.spil-status').textContent, 'Tengist…');
   assert.match($(root, '.spil-debug').textContent, /^\[connecting · relay · 3s · seat 1\]$/);
+  assert.equal($(root, '.spil-debug').getAttribute('aria-hidden'), 'true', 'a screen reader keeps to the words');
+  assert.equal($(root, '.spil-status .spil-debug'), null, 'outside the status line, which stays empty (and small) without words');
   assert.equal(rig({ search: '?r=GULL' }).root.querySelector('.spil-debug'), null, 'not without ?debug=1');
+});
+
+test('a guest dropped at Byrjum! who taps again with another avatar keeps her own hello when the connection comes back', () => {
+  const { page, root, net } = seatedRig();
+  net.message(view('lobby', { seats: [{ seat: 0, name: 'Egill', avatar: 'egill' }], available: ['kambedla', 'sloedla'], you: null }, 3));
+  assert.equal(page.screen, 'join', 'dropped while away: one tap seats her again');
+  tap($$(root, '.spil-avatar')[1]);
+  tap($(root, '.spil-ready'));
+  assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'sloedla' });
+  net.statusFn('connected'); // before the answer came
+  assert.deepEqual(hellos(net).at(-1).body, { name: 'Anna', avatar: 'sloedla' }, 'her tap, not the avatar she had');
 });

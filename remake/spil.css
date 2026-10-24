@@ -8,6 +8,7 @@
        .spil-me                  the guest's seat once she has one, a name tag at the top: .spil-me-face and .spil-me-name
        .spil-main                the screen in the middle, one .spil-screen at a time
        .spil-status              the status line at the bottom (what the connection says); empty, it keeps its place
+       .spil-debug               ?debug=1's readout, small at the paper's foot, over its padding (it takes no room)
      .spil-screen                a screen: .spil-code, .spil-join, .spil-lobby, .spil-note (.spil-wait, .spil-closed,
                                  .spil-over) or .spil-game (a game's own, rendered by its view)
        .spil-code                .spil-title (two friends and "Fjölspil"), the four .spil-digit boxes in .spil-digits (an
@@ -145,8 +146,9 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   background: color-mix(in srgb, var(--orange) 12%, var(--card)); border: 2.5px dashed var(--orange);
   animation: spil-fade .3s ease-out both;
 }
-.spil-debug { /* ?debug=1: the connection for the owner's tests, small, after any words */
-  font: 700 13px/1.3 ui-monospace, "Cascadia Mono", Menlo, monospace; color: var(--ink-soft); overflow-wrap: anywhere;
+.spil-debug { /* ?debug=1: the connection for the owner's tests, in the paper's bottom padding, so no screen is squeezed */
+  position: absolute; left: 16px; right: 16px; bottom: 2px; text-align: center; pointer-events: none;
+  font: 700 12px/1.3 ui-monospace, "Cascadia Mono", Menlo, monospace; color: var(--ink-soft); overflow-wrap: anywhere;
 }
 
 /* ---- The big green raised pill: "Áfram" and "Tilbúin/n", as "Byrjum!" ------------------------------------------------ */

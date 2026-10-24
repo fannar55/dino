@@ -31,8 +31,9 @@
 // so the big screen seats her where she was (spec §6.4). A seat's hello again is the seat's own name and avatar, never the
 // join screen's checks (its name field, or a lobby's free avatars, which a game leaves stale): the big screen keeps a known
 // guest's seat and never refuses her own avatar (seats.join), and a hello that reaches it always brings her seat and her
-// newest view back. The words for what goes wrong are spec §10's. With ?debug=1 the status line also shows, in small type,
-// [status · transport · seconds since the big screen was last heard · seat], every second (for the owner's tests).
+// newest view back. The words for what goes wrong are spec §10's. With ?debug=1 a small line at the paper's foot, outside
+// the status line (which keeps its empty look) and hidden from screen readers, shows [status · transport · seconds since
+// the big screen was last heard · seat], every second (for the owner's tests).
 //
 // Names are text, never markup: they go in with textContent. Every button is the book's (book/fx.js's pressable: the squash,
 // the sparkle and the tap sound, from the page's own audio context made at the first touch), and Enter or Space on a focused
@@ -259,7 +260,6 @@ export function createGuestPage(doc, {
   function say(text, kind = null) {
     at.said = { text, kind: text ? kind : null };
     statusEl.textContent = text;
-    if (debugEl) statusEl.append(debugEl); // the readout stays after the words
   }
   function unsay(kind) {
     if (at.said.kind === kind) say('');
@@ -285,8 +285,9 @@ export function createGuestPage(doc, {
   const statusEl = make('p', 'spil-status');
   statusEl.setAttribute('role', 'status');
   statusEl.setAttribute('aria-live', 'polite');
-  const debugEl = debug ? make('span', 'spil-debug') : null; // ?debug=1's readout, in the status line
-  pageEl.append(meEl, mainEl, statusEl);
+  const debugEl = debug ? make('p', 'spil-debug') : null; // ?debug=1's readout, at the paper's foot
+  debugEl?.setAttribute('aria-hidden', 'true');
+  pageEl.append(meEl, mainEl, statusEl, ...(debugEl ? [debugEl] : []));
   root.replaceChildren(pageEl);
 
   function showSeat() {
@@ -689,11 +690,11 @@ export function createGuestPage(doc, {
       }
       case 'connected': // the socket is open (again), or the big screen is back: a seat had or asked for is asked for again
         unsay('net');
-        if (at.hadSeat) { // spec §6.4: hello again, and her seat and the newest view come back
+        if (at.pending && !at.again) { // her own tap's hello, sent before the socket opened: hers, even when she had a seat
+          submit(); // (dropped at "Byrjum!", she may have chosen another avatar than the one she had)
+        } else if (at.hadSeat) { // spec §6.4: hello again, and her seat and the newest view come back
           rehello();
           if (at.screen === 'wait') keepAsking(); // and again, until they do
-        } else if (at.pending) {
-          submit(); // her tap's hello, sent before the socket opened
         }
         return;
       default: return unsay('net'); // nothing to say
@@ -751,10 +752,7 @@ export function createGuestPage(doc, {
     readout();
     timers.setTimeout(tick, 1000);
   }
-  if (debugEl) {
-    statusEl.append(debugEl);
-    tick();
-  }
+  if (debugEl) tick();
 
   // ---- The start: a demo, the room in the address, or the code to type -------------------------------------------------
 

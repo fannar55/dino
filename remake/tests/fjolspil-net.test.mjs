@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ALIVE_MS, MISSED_PINGS, PING_MS, RTC_FALLBACK_MS, message } from '../engine/fjolspil/protocol.js';
-import { HOST_SILENCE_MS, createGuestNet, createHostNet, iceServersFor, wsUrlFor } from '../engine/fjolspil/net.js';
+import { HOST_AWAY_SILENCE_MS, HOST_SILENCE_MS, createGuestNet, createHostNet, iceServersFor, wsUrlFor } from '../engine/fjolspil/net.js';
 
 // ---- The fakes ----------------------------------------------------------------------------------------------------------
 
@@ -834,14 +834,63 @@ test('a connected guest that hears nothing from the big screen for twenty second
   sockets.made[1].open();
   assert.deepEqual(log.statuses, ['connecting', 'connected', 'connecting', 'connected']);
 
-  sockets.made[1].receive(message('error', { reason: 'no-host' })); // the big screen gone: nothing to watch for
+  sockets.made[1].receive(message('error', { reason: 'no-host' })); // the big screen gone: its pings stop, rightly
   assert.equal(net.status, 'host-gone');
-  timers.advance(HOST_SILENCE_MS * 3);
-  assert.equal(sockets.made.length, 2, 'the watch runs only while connected');
+  timers.advance(HOST_AWAY_SILENCE_MS - 1);
+  assert.equal(sockets.made.length, 2, 'while it is away the watch allows the longer silence');
   sockets.made[1].receive(fromHost(message('ping', {}))); // it is back
   assert.equal(net.status, 'connected');
   net.close();
   timers.advance(HOST_SILENCE_MS * 3);
   assert.equal(sockets.made.length, 2, 'nothing after close');
   assert.equal(log.statuses.at(-1), 'closed');
+});
+
+test('a guest waiting for a big screen that went, its socket open, opens a fresh one after thirty seconds of silence', () => {
+  const { net, sockets, timers } = guestRig();
+  sockets.made[0].open();
+  sockets.made[0].receive(fromHost(message('ping', {})));
+  sockets.made[0].receive(message('error', { reason: 'no-host' })); // the room keeps this socket, and says nothing more
+  assert.equal(net.status, 'host-gone');
+  timers.advance(10000);
+  sockets.made[0].receive(message('error', { reason: 'no-host' })); // a word from the meeting point, 10 s in
+  timers.advance(HOST_AWAY_SILENCE_MS - 1);
+  assert.equal(sockets.made.length, 1, 'thirty seconds from the last word, not from the first');
+  timers.advance(1);
+  assert.equal(sockets.made.length, 2, 'a silent socket is let go and a new one made');
+  assert.equal(sockets.made[0].closed, true);
+  sockets.made[1].open();
+  sockets.made[1].receive(message('error', { reason: 'no-host' })); // still away: the room refuses the new socket and closes it
+  sockets.made[1].close(1000);
+  assert.equal(net.status, 'host-gone');
+  assert.deepEqual(timers.delays, [1000], 'the backoff tries again, and no watch runs on a closed socket');
+  timers.advance(1000);
+  sockets.made[2].open();
+  sockets.made[2].receive(fromHost(message('view', { screen: 'closed' }, { seq: 1 }))); // the big screen is back
+  assert.equal(net.status, 'connected');
+  net.close();
+  timers.advance(HOST_AWAY_SILENCE_MS * 3);
+  assert.equal(sockets.made.length, 3, 'nothing after close');
+});
+
+test('a big screen that wakes with an open socket silent for thirty seconds opens a fresh one; one heard lately is left be', async () => {
+  let clock = 0;
+  const { net, ws, sockets, log } = hostRig({ now: () => clock });
+  ws.receive(message('joined', { id: 'g1' }));
+  await settle();
+  clock = 5000;
+  net.reconnect();
+  assert.equal(sockets.made.length, 1, 'heard five seconds ago: left be');
+  net.send('g1', message('view', { screen: 'closed' }, { seq: 1 })); // what the big screen says itself is not hearing
+  clock = 31000;
+  net.reconnect();
+  assert.equal(sockets.made.length, 2, 'nothing heard for thirty-one seconds: a new socket');
+  assert.equal(ws.closed, true, 'and the silent one let go');
+  assert.deepEqual(log.leaves, ['g1'], 'its guests let go, as when a socket closes under it');
+  sockets.made[1].open();
+  sockets.made[1].receive(message('welcome', { code: 'GULL', join: [] }));
+  sockets.made[1].receive(message('joined', { id: 'g1' }));
+  assert.equal(net.status, 'connected');
+  assert.deepEqual(log.joins, ['g1', 'g1'], 'the room brings them back');
+  net.close();
 });
