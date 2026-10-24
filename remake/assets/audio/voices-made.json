@@ -1543,6 +1543,42 @@
    "duration": 3.13,
    "model": "eleven_v4"
   },
+  "yatzy-junior/multiOver": {
+   "key": "efbd8a678440524c4d584e44b5e359824879ed3795c1f928597f281b2aa38759",
+   "mp3": "3bffe727eafc8cc986e8148fb759f435acb2bd0070e3fb8c044752cf24bd2eb1",
+   "duration": 2.81,
+   "model": "eleven_v4"
+  },
+  "yatzy-junior/multiScored": {
+   "key": "65ae0e75544e646220ea7c5b49ac00fc3fcd8a7a1586f16c0d646df8e6500ec1",
+   "mp3": "839318534efe15ea45c034c67d2c4410ff63d413e9da8724e703db09b6d49a78",
+   "duration": 2.89,
+   "model": "eleven_v4"
+  },
+  "yatzy-junior/multiTurn": {
+   "key": "899598a5665fdb2fbcaab03fff0b347959deebdddb1b895869dbb73bc2a99433",
+   "mp3": "34f04daea9d432c28d1ccd2ffe33cae77a5f4ae242af932abf398724dd67592f",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "yatzy-junior/multiWait": {
+   "key": "50d5f75db3b2ffc52558060f28ad1de45f4ac186638bf9d05c10a22ff7ddc9c2",
+   "mp3": "baac3326d9708c49de855750877e9a9b736483f193e39a999950c3f61fec0adc",
+   "duration": 1.53,
+   "model": "eleven_v4"
+  },
+  "yatzy-junior/multiWelcome": {
+   "key": "4f44e66001ac4320e49dad9482dee5df149691c4503a9dcfcbd7200bf94543f6",
+   "mp3": "5a09fcd91828f42728969cecbb14138b09e879f4a78379d47620b6b4f1e96800",
+   "duration": 2.97,
+   "model": "eleven_v4"
+  },
+  "yatzy-junior/multiZero": {
+   "key": "2daee542b7b3632ddeb15bb8d750d1c502cecbf30c7c888670fa578175059ee4",
+   "mp3": "9f5c26aca8f2fd447400bb491f692d1b167d3be4f07e39025fff62e2597471e5",
+   "duration": 3.371,
+   "model": "eleven_v4"
+  },
   "yatzy-junior/noMatch": {
    "key": "7d5f348dcb8f8782aaa92e2e1c653add81a38aefbc228c57dac9fb38836c94a3",
    "mp3": "78133b4f768ef8e7dd9e11d7341e2868bf21a6eafd519aff34a17507fc2c36db",

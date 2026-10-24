@@ -813,5 +813,35 @@
     "src": "assets/audio/yatzy-junior/points_117.mp3",
     "duration": 2.41,
     "mouth": "00ffec08bfe500de7867bdda00beed900ce95000000000000"
+  },
+  "multiTurn": {
+    "src": "assets/audio/yatzy-junior/multiTurn.mp3",
+    "duration": 1.53,
+    "mouth": "3cefc0009e5dfa00cea400000000000"
+  },
+  "multiWelcome": {
+    "src": "assets/audio/yatzy-junior/multiWelcome.mp3",
+    "duration": 2.97,
+    "mouth": "38feb0adfeded4afcacdc93000000005ce9009c009ea07dda30000000000"
+  },
+  "multiScored": {
+    "src": "assets/audio/yatzy-junior/multiScored.mp3",
+    "duration": 2.89,
+    "mouth": "007eff9530000000000000dfdeed30afdedffe39cc5007400000000000"
+  },
+  "multiZero": {
+    "src": "assets/audio/yatzy-junior/multiZero.mp3",
+    "duration": 3.371,
+    "mouth": "cfa7003ef40df0ff50eb0bb60000000000aeff70005eedcd77ffb0ba630000000000"
+  },
+  "multiWait": {
+    "src": "assets/audio/yatzy-junior/multiWait.mp3",
+    "duration": 1.53,
+    "mouth": "06dd30defaffedb7500000000000000"
+  },
+  "multiOver": {
+    "src": "assets/audio/yatzy-junior/multiOver.mp3",
+    "duration": 2.81,
+    "mouth": "0beffd406efe8880000000000007eeccca900aeecbfda630000000000"
   }
 }
