@@ -16,9 +16,11 @@
 // A guest is always found by her id, never by a seat number, which a removal changes (removeAi, dropAbsent at "Byrjum!").
 //
 // A game's views go through send(seat, body): message('view', body, { seq }), the seq rising for each guest across every view
-// she is sent, the lobby's included (a phone never shows one older than the last, spec §6.3). The last game view each guest
-// was sent is kept, so a phone that comes back gets it again. What a phone sees of the seats never holds another guest's id,
-// which is her secret (spec §6.1). Nothing here knows a game's rules: the games decide what each seat sees and when.
+// she is sent, the lobby's included (a phone never shows one older than the last, spec §6.3). It starts at the page's clock
+// (`now`, milliseconds), so a big screen reloaded in the same room sends views newer than the old page's, even to a phone
+// that never heard it go. The last game view each guest was sent is kept, so a phone that comes back gets it again. What a
+// phone sees of the seats never holds another guest's id, which is her secret (spec §6.1). Nothing here knows a game's
+// rules: the games decide what each seat sees and when.
 //
 // A game whose turn comes to a guest who is not there waits for her with waitFor(seat), one seat at a time, over the board
 // (the lobby's waiting card, spec §4 step 6): 'back' when she is there again, 'cover' when "Halda áfram án …" makes her seat
@@ -80,12 +82,12 @@ function deferred() {
 
 /**
  * The host session in `doc` (#fjolspil holds the lobby). `net` and `lobby` make the network and the lobby (net.js's
- * createHostNet and lobby.js's createLobby; the tests pass their own), `audio` is the lobby's { sfx(name) } and `timers` the
- * waiting card's and the network's. Returns { openLobby, resume, seats, active, code, joinUrl, send, broadcast, onAct,
- * waitFor, closeGame, lobbyView }.
+ * createHostNet and lobby.js's createLobby; the tests pass their own), `audio` is the lobby's { sfx(name) }, `timers` the
+ * waiting card's and the network's, and `now` the clock a guest's views count from. Returns { openLobby, resume, seats,
+ * active, code, joinUrl, send, broadcast, onAct, waitFor, closeGame, lobbyView }.
  */
 export function createFjolspil(doc, {
-  win = globalThis.window, random = Math.random, storage = sessionStorageOf(win), audio = null, timers,
+  win = globalThis.window, random = Math.random, storage = sessionStorageOf(win), audio = null, timers, now = () => Date.now(),
   net: createNet = createHostNet, lobby: makeLobby = createLobby, forceRelay = relayAsked(win),
 } = {}) {
   let seats = createSeats();
@@ -101,7 +103,7 @@ export function createFjolspil(doc, {
     waiting: null, // the wait for a guest: { seat, guestId, promise, resolve }
     inRoom: new Set(), // the guests the meeting point says are in the room, seated or still choosing
     lastView: new Map(), // guestId -> the last game view she was sent
-    seq: new Map(), // guestId -> the seq of the last view she was sent
+    seq: new Map(), // guestId -> the seq of the last view she was sent (the first is the page's clock then)
   };
 
   // The lobby reads the seats through this, so after resume it shows the kept game's.
@@ -252,9 +254,9 @@ export function createFjolspil(doc, {
 
   // ---- Views ------------------------------------------------------------------------------------------------------
 
-  /** One view to a guest, with her next seq. */
+  /** One view to a guest, with her next seq: the page's clock for her first. */
   function deliver(id, body) {
-    const seq = (at.seq.get(id) ?? 0) + 1;
+    const seq = at.seq.has(id) ? at.seq.get(id) + 1 : now();
     at.seq.set(id, seq);
     return at.net?.send(id, message('view', body, { seq })) ?? false;
   }

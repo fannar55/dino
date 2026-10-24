@@ -86,14 +86,14 @@ function stepping() {
   return () => ((n++ % CODE_ALPHABET.length) + 0.5) / CODE_ALPHABET.length;
 }
 
-function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), random = stepping() } = {}) {
+function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), random = stepping(), now } = {}) {
   const doc = new FakeDocument(['fjolspil']);
   const location = new URL(`${origin}/remake/${search}`);
   const win = { location };
   const nets = fakeNets();
   const timers = fakeTimers();
   const sfx = [];
-  const fjolspil = createFjolspil(doc, { win, storage, random, timers, net: nets.create, audio: { sfx: name => sfx.push(name) } });
+  const fjolspil = createFjolspil(doc, { win, storage, random, timers, now, net: nets.create, audio: { sfx: name => sfx.push(name) } });
   const root = doc.getElementById('fjolspil');
   return { doc, win, storage, nets, timers, sfx, fjolspil, root, net: () => nets.made.at(-1) };
 }
@@ -178,7 +178,6 @@ test('a guest is shown the lobby on arrival, seated on hello, and everyone sees 
   assert.equal(net.to('g1').length, 1);
   const first = net.to('g1')[0];
   assert.equal(first.type, 'view');
-  assert.equal(first.seq, 1);
   assert.equal(first.body.screen, 'lobby');
   assert.equal(first.body.you, null);
   assert.deepEqual(first.body.seats.map(seat => seat.name), ['Egill']);
@@ -190,7 +189,7 @@ test('a guest is shown the lobby on arrival, seated on hello, and everyone sees 
   const [, seat, lobby] = net.to('g1');
   assert.deepEqual(seat, { v: 1, type: 'seat', body: { ok: true, seat: 1, name: 'Anna' } });
   assert.equal(lobby.type, 'view');
-  assert.equal(lobby.seq, 2);
+  assert.equal(lobby.seq, first.seq + 1);
   assert.equal(lobby.body.screen, 'lobby');
   assert.equal(lobby.body.you, 1);
   assert.deepEqual(lobby.body.seats.map(entry => [entry.seat, entry.name, entry.avatar, entry.present]), [[0, 'Egill', 'egill', true], [1, 'Anna', 'kambedla', true]]);
@@ -544,6 +543,28 @@ test('a phone at a full table is told so and stays in the room, and a seated gue
   r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
   assert.equal(net.last('g4').body.screen, 'lobby', 'the fifth phone is still in the room: the next lobby reaches it');
   assert.equal(net.last('g4').body.you, null);
+});
+
+test('a page\'s views count from its clock, so a reloaded big screen\'s are newer than the old page\'s on every phone', async () => {
+  let time = 1_000_000;
+  const first = rig({ now: () => time });
+  const one = seated(first, [['g1', 'Anna', 'kambedla']]);
+  const seq = views(one.net, 'g1')[0].seq;
+  assert.ok(seq >= 1_000_000, `the first view to a guest counts from the page's clock (${seq})`);
+  for (let n = 0; n < 5; n++) first.fjolspil.send(1, { screen: 'hals', turn: n });
+  const old = one.net.last('g1').seq;
+
+  time += 2000; // the big screen reloads two seconds on, in the same tab: the same room, and a phone that never heard host-gone
+  const again = rig({ now: () => time, storage: first.storage });
+  const two = seated(again, [['g1', 'Anna', 'kambedla']]);
+  assert.equal(again.fjolspil.code, first.fjolspil.code, 'the same room');
+  assert.ok(views(two.net, 'g1')[0].seq > old, 'its first view is newer than the old page\'s last');
+  assert.ok(rising(seqs(two.net, 'g1')));
+
+  const real = rig(); // and the page's own clock by default
+  const before = Date.now();
+  const three = seated(real, [['g1', 'Anna', 'kambedla']]);
+  assert.ok(views(three.net, 'g1')[0].seq >= before);
 });
 
 test('a fresh page of a seated guest is told her seat, as a hello is answered, before her newest view', async () => {

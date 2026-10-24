@@ -591,11 +591,11 @@ export function createGuestPage(doc, {
   function onStatus(status) {
     switch (status) {
       case 'connecting': // a new socket: nothing of the old one comes after this, and the big screen may have reloaded
-        at.lastSeq = 0; // while the phone slept, its views counted from 1 again (a reconnect gets the newest view, spec §6.4)
+        at.lastSeq = 0; // a reloaded one counts its views afresh, from its clock (a reconnect gets the newest view, spec §6.4)
         return say(WORDS.connecting, 'net');
       case 'offline': return say(WORDS.offline, 'net');
       case 'full': return say(WORDS.full, 'page');
-      case 'no-host': case 'host-gone': // a big screen that comes back counts its views from the start again
+      case 'no-host': case 'host-gone': // a big screen that comes back counts its views afresh
         at.lastSeq = 0;
       // falls through
       case 'replaced': // this guest's id connected from another tab, which has the seat now
