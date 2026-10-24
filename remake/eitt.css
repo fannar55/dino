@@ -35,6 +35,16 @@
      .teaching                   on .eitt while Mosi teaches: everything is dimmed but what he means (.live)
      .eitt-caption               Egill's "Eitt!", a caption over the button (.eitt-caption-speaker and a p); Mosi's longer
                                  sentences make his bubble's p .long
+     .eitt-setup                 with the page's host session, the card before a round (.eitt-setup-card): its .eitt-setup-title,
+                                 "Halda áfram" (.eitt-continue) and "Spila við Kambeðlu" (.eitt-solo), both .eitt-big (the look of
+                                 "Spilum aftur?"), "Fjölspil" (.eitt-multi, .eitt-plain) and .eitt-close
+     .multi                      on .eitt and .eitt-table in a round of "Fjölspil": a .eitt-seat for each seat after Egill's, across
+                                 the top in seat order (--col, its column), each a tag (.eitt-seat-label: .eitt-seat-face,
+                                 .eitt-seat-name, .eitt-seat-count) over its .eitt-their-hand; .turn lights whose turn it is,
+                                 .absent dims a seat whose guest is away (with "…"), .won the winner's; Kambeðla's window stands in
+                                 her row's column (--k-col on .eitt-table), and is hidden when she does not play
+   A guest's device draws the same cards (spil.html links this sheet; spil.css's .spil-eitt, engine/fjolspil/guest-eitt.js): the
+   palette and the colours are .spil-eitt's too.
 
    The rules it keeps, as the book does (STYLE.md section 10, book.css):
    - the journal's palette for the paper, the ink and the buttons, and four bright card colours chosen to sit beside it (below);
@@ -43,7 +53,8 @@
    - motion is transform and opacity only, and none of the idle life plays under prefers-reduced-motion.
    The page that shows this links style.css too, which declares the Nunito face (the game links it already). */
 
-.eitt {
+/* The palette, the font and the touch target: the game's, and a guest's device's that draws the same cards (.spil-eitt). */
+.eitt, .spil-eitt {
   /* The journal's colours (STYLE.md section 10). */
   --paper: #f6efdf;
   --card: #fffaf0;
@@ -70,6 +81,9 @@
 
   --eitt-target: 88px;
   --eitt-font: "Nunito", ui-rounded, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --tape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E");
+}
+.eitt {
   /* How big the cards are: the child's, the table's and Kambeðla's. */
   --hand-w: clamp(96px, min(9.6cqw, 20cqh), 150px);
   --pile-w: clamp(108px, min(10.4cqw, 22cqh), 184px);
@@ -96,12 +110,12 @@
 .eitt button:focus-visible { outline: 4px solid var(--teal); outline-offset: 5px; }
 .eitt img { display: block; -webkit-user-drag: none; }
 
-/* Each colour, for whatever wears it: a card, the ring, a colour button. */
-.eitt .red { --c: var(--red); --c-light: var(--red-light); --c-deep: var(--red-deep); }
-.eitt .yellow { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
-.eitt .green { --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep); }
-.eitt .blue { --c: var(--blue); --c-light: var(--blue-light); --c-deep: var(--blue-deep); }
-.eitt .wild { --c: var(--night); --c-light: var(--night-light); --c-deep: var(--night-deep); }
+/* Each colour, for whatever wears it: a card, the ring, a colour button (on the table and on a guest's device). */
+:is(.eitt, .spil-eitt) .red { --c: var(--red); --c-light: var(--red-light); --c-deep: var(--red-deep); }
+:is(.eitt, .spil-eitt) .yellow { --c: var(--yellow); --c-light: var(--yellow-light); --c-deep: var(--yellow-deep); }
+:is(.eitt, .spil-eitt) .green { --c: var(--green-card); --c-light: var(--green-light); --c-deep: var(--green-card-deep); }
+:is(.eitt, .spil-eitt) .blue { --c: var(--blue); --c-light: var(--blue-light); --c-deep: var(--blue-deep); }
+:is(.eitt, .spil-eitt) .wild { --c: var(--night); --c-light: var(--night-light); --c-deep: var(--night-deep); }
 
 /* ---- The table: a slab of a big tree in the clearing, its far edge under Kambeðla's window ----------------------- */
 
@@ -158,7 +172,7 @@
 }
 .eitt-kambedla-frame::before { left: -6%; transform: rotate(-24deg); }
 .eitt-kambedla-frame::after { right: -6%; transform: rotate(22deg); background-color: color-mix(in srgb, var(--gold) 58%, transparent); }
-.eitt { --tape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30' preserveAspectRatio='none'%3E%3Cpath d='M4 1L96 0L99 5L95 10L100 15L95 20L99 25L96 30L4 29L1 25L5 20L0 15L5 10L1 5Z'/%3E%3C/svg%3E"); }
+
 
 /* Her cards, face down in front of her on the table, fanned so each one shows. */
 .eitt-their-hand {
@@ -547,7 +561,7 @@
   background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .55) 42%, transparent 52%);
 }
 .eitt-win-words { margin: 0; font-size: clamp(26px, 3cqmin, 32px); font-weight: 800; color: var(--ink-soft); }
-.eitt-again { /* "Spilum aftur?": a big green raised pill */
+.eitt-again, .eitt-big { /* "Spilum aftur?" (and the setup card's "Halda áfram", "Spila við Kambeðlu"): a big green raised pill */
   position: relative; min-height: var(--eitt-target); margin-top: 6px;
   display: inline-flex; align-items: center; gap: .45em; padding: 0 1.1em 0 .8em;
   font-size: clamp(30px, 3.6cqmin, 38px); font-weight: 900; color: #fff;
@@ -555,8 +569,8 @@
   background: radial-gradient(circle at 30% 18%, rgb(255 255 255 / .38), transparent 46%), var(--green);
   box-shadow: 0 7px 0 var(--green-deep), 0 7px 0 3px var(--ink), 0 14px 16px 2px rgb(40 24 10 / .34);
 }
-.eitt-again span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
-.eitt-again svg { width: 1.2em; height: 1.2em; overflow: visible; }
+.eitt-again span, .eitt-big span { -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.eitt-again svg, .eitt-big svg { width: 1.2em; height: 1.2em; overflow: visible; }
 .eitt-close { /* back to the book: the book's round close, on the card's corner */
   position: absolute; top: -26px; right: -26px;
   width: var(--eitt-target); height: var(--eitt-target); border-radius: 50%; display: grid; place-items: center;
@@ -717,6 +731,94 @@
   to { transform: translateY(106cqh) rotate(540deg); }
 }
 
+/* ---- The setup card, with the page's host session: this tablet against Kambeðla, "Fjölspil", or the round kept --------- */
+
+.eitt-setup {
+  position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgb(24 17 11 / .18), rgb(24 17 11 / .45));
+}
+.eitt:has(.eitt-setup:not([hidden])) :is(.eitt-quit, .eitt-teach, .eitt-skip) { visibility: hidden; } /* the card has its own close */
+.eitt-setup-card {
+  position: relative; display: grid; justify-items: center; gap: clamp(14px, 2.6cqh, 24px);
+  width: min(620px, 88cqw); padding: clamp(28px, 4.4cqh, 44px) 36px clamp(30px, 4.6cqh, 46px);
+  border-radius: 30px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpath d='M7 3C110 1.6 290 4.4 393 2.6C396.4 2.8 397.6 4.6 397.4 8C396 110 398.4 200 397.2 292C396.9 295.8 395 297.3 391 297.2C280 298.6 120 296.2 9 297.6C5.2 297.6 3 295.8 3 292C3.8 190 1.8 100 2.8 8C3 4.6 4.4 3.1 7 3Z' fill='none' stroke='%233b2f25' stroke-opacity='.34' stroke-width='2.4' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / calc(100% - 24px) calc(100% - 24px) no-repeat,
+    var(--card);
+  box-shadow: 0 30px 60px rgb(14 8 3 / .45), 0 8px 18px rgb(14 8 3 / .3);
+}
+.eitt-setup-card::before { /* tape on its top corner, as on the book's photos */
+  content: ""; position: absolute; top: -14px; left: 7%; width: min(22%, 120px); height: 34px; rotate: -8deg;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 3px, transparent 3px 9px), color-mix(in srgb, var(--lilac) 62%, transparent);
+  -webkit-mask: var(--tape) center / 100% 100% no-repeat; mask: var(--tape) center / 100% 100% no-repeat;
+}
+.eitt-setup-title {
+  margin: 0 0 4px; display: flex; align-items: center; gap: .3em;
+  font-size: clamp(56px, 8cqmin, 84px); font-weight: 900; line-height: 1;
+  color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink);
+  rotate: -3deg;
+}
+.eitt-setup-title img { width: 1.6em; height: auto; margin: -.35em 0 -.25em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
+.eitt-plain { /* "Fjölspil": the plain cream raised pill, with a phone */
+  position: relative; min-height: var(--eitt-target);
+  display: inline-flex; align-items: center; gap: .4em; padding: 0 1em 0 .7em;
+  font-size: clamp(26px, 3cqmin, 32px); font-weight: 900; color: var(--ink);
+  border: 3px solid var(--ink); border-radius: 999px; background: var(--paper);
+  box-shadow: 0 6px 0 #e3d4b5, 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .25);
+}
+.eitt-plain svg { width: 1.5em; height: 1.5em; margin: -.2em 0; overflow: visible; }
+
+/* ---- A round of "Fjölspil": the other seats' hands across the top, Kambeðla's window over hers when she plays -------- */
+
+.eitt.multi {
+  --window-w: clamp(220px, min(21cqw, 24cqh * 1.6), 400px);
+  --them-w: clamp(46px, min(3.9cqw, 7.4cqh), 66px);
+}
+.eitt-table.multi { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); }
+.eitt-table.multi > :is(.eitt-kambedla, .eitt-kambedla-frame) { grid-column: var(--k-col, 2); }
+.eitt-seat { /* a seat's row: its tag over its cards, face down */
+  grid-row: 2; grid-column: var(--col, 2); justify-self: stretch; align-self: end; min-width: 0;
+  position: relative; z-index: 3;
+  display: grid; justify-items: center; gap: 6px;
+  padding: 0 6px;
+  transition: opacity .3s;
+}
+.eitt-table.multi:has(.eitt-kambedla[hidden]) .eitt-seat { margin-top: 10px; } /* no window above: clear of the table's edge */
+.eitt-seat .eitt-their-hand { margin-top: 0; padding: 0 calc(var(--them-w) * .3); } /* under its tag, not under a window */
+.eitt-seat-label { /* a name tag: the face, the name, and how many cards on a little violet card */
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
+  padding: 0 8px 0 0; border-radius: 999px;
+  font-size: clamp(20px, 2.2cqmin, 26px); font-weight: 900; line-height: 1.25;
+  background: var(--card); border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 #e3d4b5, 0 4px 0 3px var(--ink), 0 8px 12px rgb(40 24 10 / .22);
+  rotate: -1.5deg;
+}
+.eitt-seat:nth-of-type(even) .eitt-seat-label { rotate: 1.5deg; }
+.eitt-seat-face {
+  flex: none; width: clamp(44px, 5cqmin, 56px); aspect-ratio: 1; margin: -3px 0 -3px -3px; border-radius: 50%;
+  object-fit: cover; object-position: 55% 45%;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c, #e3d4b5) 45%, #fffaf0) 72%);
+  box-shadow: 0 0 0 3px var(--ink);
+}
+.eitt-seat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eitt-seat-count {
+  flex: none; min-width: 1.5em; padding: .05em .3em .1em; border-radius: 8px; text-align: center;
+  color: #fff; -webkit-text-stroke: .1em var(--ink); paint-order: stroke fill;
+  background: linear-gradient(165deg, #a17cb6, var(--violet) 45%, var(--violet-deep)); border: 2.5px solid var(--ink);
+}
+.eitt-seat.turn .eitt-seat-label { /* whose turn it is: gold round the tag, and it breathes */
+  background: #fff3c8;
+  box-shadow: 0 4px 0 var(--gold-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 26px 10px rgb(255 214 110 / .85);
+  animation: seat-turn 1.6s ease-in-out infinite;
+}
+.eitt-seat.won .eitt-seat-label { background: #fff3c8; box-shadow: 0 4px 0 var(--gold-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold); }
+.eitt-seat.absent { opacity: .5; } /* away: dim, and "…" after the name */
+.eitt-seat.absent .eitt-seat-name::after { content: " …"; }
+@keyframes seat-turn {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.05; }
+}
+
 /* ---- A tablet held upright: Kambeðla bigger at the top, the buttons on a row of their own over the cards -------- */
 
 @media (max-aspect-ratio: 1/1) {
@@ -751,10 +853,21 @@
   .eitt-colours button:nth-of-type(3) { grid-area: 1 / 3; }
   .eitt-colours button:nth-of-type(4) { grid-area: 2 / 3; }
   .eitt-hand .eitt-card { margin: 0 calc(var(--hand-w) * var(--overlap, .08) * -1); }
+  /* a round of Fjölspil upright: three columns for the rows, Kambeðla's window over hers */
+  .eitt.multi { --window-w: min(30cqw, 19cqh * 1.6); --them-w: clamp(44px, min(6.6cqw, 6.4cqh), 70px); }
+  .eitt-table.multi {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "kambedla kambedla kambedla"
+      "them them them"
+      "centre centre centre"
+      "mosi . eitt"
+      "hand hand hand";
+  }
 }
 
 /* ---- Less motion, when the tablet asks for it: everything holds still, its look unchanged --------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .eitt *, .eitt *::before, .eitt *::after { animation: none !important; transition-duration: .01s !important; }
+  :is(.eitt, .spil-eitt) *, :is(.eitt, .spil-eitt) *::before, :is(.eitt, .spil-eitt) *::after { animation: none !important; transition-duration: .01s !important; }
 }
