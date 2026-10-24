@@ -410,13 +410,18 @@ test('a host whose socket drops lets its guests go and comes back to the same ro
   assert.equal(sockets.made.length, 2);
   assert.equal(sockets.made[1].url, HOST_URL, 'the same room and key');
   assert.equal(net.status, 'connecting');
-  sockets.made[1].open();
-  sockets.made[1].receive(message('welcome', { code: 'GULL', join: [] }));
-  sockets.made[1].receive(message('joined', { id: 'g1' }));
+  sockets.made[1].close(1006);
+  assert.deepEqual(timers.delays, [2000], 'no answer yet: a longer wait');
+  timers.advance(2000);
+  sockets.made[2].open();
+  sockets.made[2].receive(message('welcome', { code: 'GULL', join: [] }));
+  sockets.made[2].receive(message('joined', { id: 'g1' }));
   await settle();
   assert.equal(net.status, 'connected');
   assert.deepEqual(log.joins, ['g1', 'g1']);
   assert.equal(rtc.peers.length, 2, 'a fresh offer');
+  sockets.made[2].close(1006);
+  assert.deepEqual(timers.delays, [1000], 'the welcome started the waits again');
   net.close();
 });
 
@@ -509,6 +514,15 @@ test('the waits grow to fifteen seconds and stay there', () => {
     timers.advance(timers.delays[0]);
   }
   assert.deepEqual(waits, [1000, 2000, 4000, 8000, 15000, 15000, 15000]);
+  const ws = sockets.made.at(-1);
+  ws.open();
+  ws.close(1006);
+  assert.deepEqual(timers.delays, [15000], 'an open socket the big screen never spoke on is no answer');
+  timers.advance(15000);
+  sockets.made.at(-1).open();
+  sockets.made.at(-1).receive(fromHost(message('ping', {})));
+  sockets.made.at(-1).close(1006);
+  assert.deepEqual(timers.delays, [1000], 'once the big screen has spoken, the waits start again');
   net.close();
 });
 
