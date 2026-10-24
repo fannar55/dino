@@ -1299,8 +1299,9 @@ export function createHalsGame(doc, {
   async function resume(kept) {
     if (!kept.setup.seats) return start(kept.setup, kept);
     await fjolspil.resume(kept.setup.seats);
-    if (!isOpen) return;
-    return start({ seats: fjolspil.seats.list() }, kept);
+    const seats = fjolspil.seats.list();
+    if (!isOpen || seats.length !== kept.state.players.length) return; // another tab has the room: its seats are not this game's
+    return start({ seats }, kept);
   }
 
   /** "Fjölspil": the lobby, and at its "Byrjum!" a game of its seats; its X leaves the setup as it was. */
