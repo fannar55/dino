@@ -111,6 +111,21 @@ const DEMOS = {
     canDraw: false, canPass: false, needsColour: null, eittNeeded: false, canCatch: null, winner: null,
     counts: [{ ...EGILL, cards: 4 }, { ...ASTA, cards: 5 }, { ...BJARNI, cards: 6 }],
   } },
+  // Litla Yatzy, Ásta's own turn after one roll: two threes held, the cup offering a roll again and a pair worth six, Egill,
+  // Bjarni and Mosi at the table too (spil.html registers renderYatzy)
+  yatzy: { seat: ASTA, view: {
+    screen: 'yatzy', you: 1, turn: 1, round: 2, rolls: 1, dice: [3, 3, 1, 5, 6], held: [true, true, false, false, false],
+    roll: { seq: 1, by: 1 }, canRoll: true, canHold: true, canScore: true,
+    cards: [
+      { id: 'pair', label: 'Eitt par', score: null, preview: 6, faces: [3, 3] },
+      { id: 'twoPairs', label: 'Tvö pör', score: null, preview: 0, faces: [] },
+      { id: 'threeKind', label: 'Þrír eins', score: null, preview: 0, faces: [] },
+      { id: 'smallStraight', label: 'Röð', score: null, preview: 0, faces: [] },
+      { id: 'yatzy', label: 'Yatzy', score: null, preview: 0, faces: [] },
+    ],
+    players: [{ ...EGILL, total: 23 }, { ...ASTA, total: 15 }, { ...BJARNI, total: 9 }, { seat: 3, name: 'Mosi', avatar: 'mosi', total: 12 }],
+    winner: null,
+  } },
 };
 
 /** A card of the deck by its id, for the demo's Eitt! view. */

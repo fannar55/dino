@@ -30,7 +30,14 @@
                                  .turn, .won), the table (.spil-eitt-table: .spil-eitt-deck, .spil-eitt-pile with eitt.css's
                                  ring and cards, .spil-eitt-actions with .spil-eitt-pass, .spil-eitt-eitt and .spil-eitt-catch,
                                  and .spil-eitt-colours) and her hand (.spil-eitt-hand of eitt.css's cards at --x, --y and --r;
-                                 .playable lifted, .going and .picked higher)
+                                 .playable lifted, .going and .picked higher). Litla Yatzy's (data-game="yatzy",
+                                 engine/fjolspil/guest-yatzy.js): whose turn (.spil-yatzy-turn, .mine), the rolls left
+                                 (.spil-yatzy-rolls of three i, .left), the dice (.spil-yatzy-dice of .spil-yatzy-die: data-face,
+                                 0 its back; .held, disabled, .spil-tumble), the cup (.spil-yatzy-cup), the cards
+                                 (.spil-yatzy-cards of .spil-yatzy-card[data-card]: .spil-yatzy-pick of .spil-yatzy-minis,
+                                 .spil-yatzy-name and .spil-yatzy-value, and .spil-yatzy-confirm; .filled, .available, .zero),
+                                 the players (.spil-yatzy-players of .spil-yatzy-player: .spil-yatzy-face, .spil-yatzy-pname,
+                                 .spil-yatzy-total; .current, .won) and the winner (.spil-yatzy-won)
      .spil-face                  a round picture in an avatar's colour (--c), an img.spil-picture in it
      .spil-big                   the big green raised pill ("Áfram", "Tilbúin/n"), as "Byrjum!" on the big screen
      .nope                       a little shake: what is missing ("Áfram" with the code unfinished, "Tilbúin/n" with no avatar)
@@ -252,7 +259,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   animation: spil-fade .3s ease-out both;
 }
 .spil-note-picture { width: clamp(200px, 56vw, 300px); height: auto; filter: drop-shadow(0 8px 8px rgb(40 24 10 / .25)); animation: spil-bob 3.6s ease-in-out infinite; }
-.spil-over .spil-words, .spil-hals-won .spil-words { /* the winner's name, gold as a title */
+.spil-over .spil-words, .spil-hals-won .spil-words, .spil-yatzy-won .spil-words { /* the winner's name, gold as a title */
   font-size: clamp(42px, 11vw, 60px); color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
   text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
 }
@@ -528,4 +535,176 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 
 @media (prefers-reduced-motion: reduce) {
   .spil-eitt-hand .eitt-card { transition: none; }
+}
+
+/* ---- Litla Yatzy: the cup on her device, the table on the big screen (guest-yatzy.js, spec §6) ------------------------ */
+
+/* The paper is wider on a tablet, for the five cards in a row; the name tag smaller and an empty status line takes no room. */
+.spil:has(.spil-game[data-game="yatzy"]) .spil-page { width: min(940px, 100%); gap: clamp(8px, 1.6vh, 16px); }
+.spil:has(.spil-game[data-game="yatzy"]) .spil-status:empty { min-height: 0; padding: 0; }
+.spil:has(.spil-game[data-game="yatzy"]) .spil-me-face { width: 46px; }
+.spil:has(.spil-game[data-game="yatzy"]) .spil-me-name { font-size: clamp(20px, 5.4vw, 24px); }
+.spil-game[data-game="yatzy"] {
+  --yatzy-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%233b2f25' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  gap: clamp(10px, 1.8vh, 18px);
+}
+.spil-yatzy-turn { font-size: clamp(28px, 7.6vw, 38px); font-weight: 900; line-height: 1.15; color: var(--ink-soft); overflow-wrap: anywhere; text-wrap: balance; }
+.spil-yatzy-turn.mine { /* her turn: gold as a title */
+  font-size: clamp(36px, 9.6vw, 50px); color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
+  text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
+}
+
+/* The rolls left, three dots as on the table's cup: gold for each one left, a pale ring for each one used. */
+.spil-yatzy-rolls { display: flex; gap: 10px; margin-top: -4px; }
+.spil-yatzy-rolls i { width: 18px; height: 18px; border-radius: 50%; background: var(--card); border: 3px solid var(--ink); opacity: .4; transition: opacity .3s; }
+.spil-yatzy-rolls i.left { background: var(--gold); opacity: 1; }
+
+/* The five dice: a tile each with the friend's picture, round, and the number on a chip on its top edge, as the cards' little
+   dice; never under --spil-target tall. A held one in a gold frame with a check on its corner, lifted a little (the nest). */
+.spil-yatzy-dice { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(8px, 2.4vw, 16px); width: min(100%, 560px); padding: 14px 6px 6px; list-style: none; }
+.spil-yatzy-dice li { min-width: 0; } /* a block, so a die is its column wide and its height grows from that */
+.spil-yatzy-die {
+  position: relative; display: block; width: 100%; min-height: var(--spil-target); aspect-ratio: 4 / 5; border-radius: 18px;
+  background: radial-gradient(circle at 32% 22%, #fff, var(--card) 70%); border: 3px solid var(--ink);
+  box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink);
+}
+.spil-yatzy-die .spil-picture {
+  position: absolute; left: 50%; top: 56%; width: 86%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; object-fit: cover;
+  background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--gold) 28%, #fffaf0) 72%); box-shadow: 0 0 0 2.5px var(--ink);
+}
+.spil-yatzy-die b { /* the number on a chip, as .mini-die b on the table's cards */
+  position: absolute; left: 50%; top: -14px; translate: -50% 0; min-width: 1.5em; padding: 0 .25em; border-radius: 9px;
+  font-size: clamp(18px, 5vw, 26px); font-weight: 900; line-height: 1.2; text-align: center;
+  background: var(--card); border: 2.5px solid var(--ink); box-shadow: 0 2px 0 var(--card-deep);
+}
+.spil-yatzy-die[data-face="0"] { background: var(--paper); border-style: dashed; } /* its back, before the first roll */
+.spil-yatzy-die[data-face="0"] b { inset: 0; top: 0; translate: none; display: grid; place-items: center; font-size: clamp(34px, 9vw, 52px); background: none; border: 0; box-shadow: none; opacity: .35; }
+.spil-yatzy-die.held { translate: 0 -6px; box-shadow: 0 5px 0 var(--card-deep), 0 5px 0 3px var(--ink), 0 0 0 4px var(--gold), 0 0 0 6.5px var(--ink), 0 0 20px 8px rgb(255 214 110 / .7); }
+.spil-yatzy-die.held::after { /* the check, as on the table's held die */
+  content: ""; position: absolute; right: -12px; bottom: -12px; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--yatzy-check) center / 64% no-repeat, var(--gold); border: 3px solid var(--ink);
+}
+.spil-yatzy-die:disabled { cursor: default; }
+.spil-yatzy-die.spil-tumble { animation: spil-tumble .95s cubic-bezier(.2, .75, .3, 1) both; } /* as long as the big screen's roll */
+
+/* The cup: the big green raised pill, dim while it is not hers to roll. */
+.spil-yatzy-cup { min-width: min(100%, 300px); font-size: clamp(32px, 8.4vw, 42px); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.spil-yatzy-cup:disabled { opacity: .4; cursor: default; }
+
+/* The five cards of whoever plays, in a row, each a paper card tilted a little: the little dice that score on it (or its
+   example), its name and its badge ("+6" free, the score once used). Lit while she may pick it, dim once used. */
+.spil-yatzy-cards { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px 12px; width: 100%; padding-top: 14px; }
+.spil-yatzy-card { display: grid; min-width: 0; opacity: .72; transition: opacity .3s; } /* no transform here: the confirm sits over the whole row */
+.spil-yatzy-card.available { opacity: 1; }
+.spil-yatzy-card.filled { opacity: .5; }
+.spil-yatzy-pick {
+  container-type: inline-size; position: relative; display: grid; justify-items: center; align-content: center; gap: 6px;
+  min-width: 0; min-height: var(--spil-target); padding: 12px 6px 10px; border-radius: 16px;
+  background: var(--paper); border: 2.5px solid color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.spil-yatzy-card:nth-child(odd) .spil-yatzy-pick { rotate: -1.5deg; } .spil-yatzy-card:nth-child(even) .spil-yatzy-pick { rotate: 1.5deg; }
+.spil-yatzy-card.available .spil-yatzy-pick { border: 3px solid var(--ink); background: var(--card); box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink); }
+.spil-yatzy-card.available:not(.zero) .spil-yatzy-pick { /* it scores: lit gold */
+  background: color-mix(in srgb, var(--gold) 22%, var(--card));
+  box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 0 9.5px var(--ink);
+}
+.spil-yatzy-pick:disabled { cursor: default; }
+.spil-yatzy-minis { display: flex; justify-content: center; align-items: flex-start; }
+.spil-yatzy-mini {
+  display: grid; grid-template-rows: 38% 1fr; justify-items: center; align-items: center; flex: none;
+  flex: 0 1 28px; flex: 0 1 30cqi; min-width: 0; aspect-ratio: 27 / 36; /* two of them big, five as wide as the card lets them */ border-radius: 6px; overflow: hidden; background: #fff; border: 2px solid var(--ink);
+}
+.spil-yatzy-mini + .spil-yatzy-mini { margin-left: -2.5cqi; }
+.spil-yatzy-mini b { font-size: 11px; font-size: 10.5cqi; font-weight: 900; line-height: 1; }
+.spil-yatzy-mini img { width: 82%; height: 92%; object-fit: contain; }
+.spil-yatzy-card.zero .spil-yatzy-mini { opacity: .45; } /* the hand does not make this card: its example, faded */
+.spil-yatzy-name { max-width: 100%; font-size: clamp(17px, 4.6vw, 22px); font-weight: 900; line-height: 1.1; overflow-wrap: anywhere; }
+.spil-yatzy-value { /* on the card's corner, as the table's badge */
+  position: absolute; right: -10px; top: -16px; min-width: 46px; height: 36px; padding: 0 8px; display: grid; place-items: center; border-radius: 999px;
+  font-size: 22px; font-weight: 900; line-height: 1; color: #fff; -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
+  background: var(--green); border: 2.5px solid var(--ink); box-shadow: 0 3px 0 var(--green-deep);
+}
+.spil-yatzy-value:empty { display: none; }
+.spil-yatzy-card.filled .spil-yatzy-value { background: var(--teal); box-shadow: 0 3px 0 color-mix(in srgb, var(--teal) 60%, var(--ink)); }
+.spil-yatzy-card.zero .spil-yatzy-value { background: var(--ink-soft); box-shadow: 0 3px 0 var(--ink); }
+
+/* "Nota spjaldið? 0 stig": over the whole row of cards (its card is no box for it), with room for two big buttons. */
+.spil-yatzy-confirm {
+  position: absolute; inset: 4px -6px auto; z-index: 3; min-height: calc(100% + 2px);
+  display: flex; flex-wrap: wrap; align-items: center; align-content: center; justify-content: center; gap: 10px 16px; padding: 12px;
+  border-radius: 22px; background: color-mix(in srgb, var(--card) 95%, transparent); border: 3px dashed var(--ink);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--gold) 70%, transparent), 0 12px 26px rgb(40 24 10 / .24);
+  animation: spil-fade .25s ease-out both;
+}
+.spil-yatzy-ask { font-size: clamp(24px, 6.4vw, 32px); font-weight: 900; line-height: 1.15; text-wrap: balance; }
+.spil-yatzy-use { min-width: 132px; font-size: clamp(28px, 7.4vw, 34px); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; }
+.spil-yatzy-other {
+  min-height: var(--spil-target); padding: .1em .9em; border-radius: 999px; font-size: clamp(22px, 6vw, 28px); font-weight: 900; line-height: 1.1;
+  background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink);
+}
+
+/* The players: a tag each, the face over the name, the total on a gold chip on its corner; whoever plays in their colour. */
+.spil-yatzy-players { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 12px; width: 100%; padding: 6px 4px 0; list-style: none; }
+.spil-yatzy-player {
+  position: relative; display: grid; justify-items: center; gap: 4px; width: min(calc((100% - 36px) / 4), 150px); padding: 8px 6px 6px;
+  border-radius: 16px; background: var(--paper); border: 2.5px solid color-mix(in srgb, var(--ink) 50%, transparent);
+}
+.spil-yatzy-player:nth-child(odd) { rotate: -1.2deg; } .spil-yatzy-player:nth-child(even) { rotate: 1.2deg; }
+.spil-yatzy-face { width: 44px; }
+.spil-yatzy-pname { max-width: 100%; font-size: 16px; font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spil-yatzy-total {
+  position: absolute; top: -9px; right: -9px; min-width: 1.7em; padding: .05em .3em .1em; border-radius: 9px; text-align: center;
+  font-size: 19px; font-weight: 900; line-height: 1.15; font-variant-numeric: tabular-nums;
+  background: var(--gold); border: 2.5px solid var(--ink); box-shadow: 0 2px 0 var(--ink);
+}
+.spil-yatzy-player:is(.current, .won) { /* whoever plays (or won): in their colour, raised */
+  border: 3px solid var(--ink); background: color-mix(in srgb, var(--c) 30%, var(--card));
+  box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink);
+}
+
+.spil-yatzy-won { order: -1; display: grid; justify-items: center; gap: clamp(20px, 4vh, 36px); padding-top: 10px; } /* where the dice were */
+
+/* ---- Litla Yatzy on a phone, sideways on a phone, and with less motion ----------------------------------------------- */
+
+@media (max-width: 560px), (max-height: 560px) {
+  .spil-yatzy-cards { grid-template-columns: repeat(6, minmax(0, 1fr)); } /* three over two, the two under the gaps */
+  .spil-yatzy-card { grid-column: span 2; }
+  .spil-yatzy-card:nth-child(4) { grid-column: 2 / span 2; }
+  .spil-yatzy-card:nth-child(5) { grid-column: 4 / span 2; }
+}
+
+@media (max-width: 560px) and (max-height: 700px) { /* a short phone (an iPhone SE): closer together, every button as big */
+  .spil:has(.spil-game[data-game="yatzy"]) .spil-page { gap: 6px; }
+  .spil-game[data-game="yatzy"] { gap: 6px; }
+  .spil-yatzy-turn { font-size: 26px; } .spil-yatzy-turn.mine { font-size: 32px; }
+  .spil-yatzy-rolls { margin: 0; } .spil-yatzy-rolls i { width: 14px; height: 14px; }
+  .spil-yatzy-dice { padding-top: 12px; } .spil-yatzy-cards { row-gap: 14px; padding-top: 12px; }
+  .spil-yatzy-player { padding: 5px 6px 4px; } .spil-yatzy-face { width: 36px; }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .spil-game[data-game="yatzy"] { /* the dice and the cup on the left, the cards and the players on the right */
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); /* halves: the dice at least 64 px across */
+    grid-template-areas: "turn cards" "rolls cards" "dice cards" "cup players";
+    align-items: center; justify-items: center; column-gap: 28px; row-gap: 8px; max-width: 900px;
+  }
+  .spil-game[data-game="yatzy"]:has(> .spil-yatzy-won:not([hidden])) { grid-template-areas: "won players"; }
+  .spil-yatzy-turn { grid-area: turn; font-size: 28px; } .spil-yatzy-turn.mine { font-size: 36px; }
+  .spil-yatzy-rolls { grid-area: rolls; margin: 0; }
+  .spil-yatzy-dice { grid-area: dice; gap: 8px; padding-top: 12px; }
+  .spil-yatzy-cup { grid-area: cup; min-width: min(100%, 260px); font-size: 32px; }
+  .spil-yatzy-cards { grid-area: cards; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 8px; } /* one row of five */
+  .spil-yatzy-card:nth-child(n) { grid-column: auto; }
+  .spil-yatzy-name { font-size: 15px; }
+  .spil-yatzy-ask { font-size: 26px; } .spil-yatzy-use { min-width: 112px; font-size: 28px; } .spil-yatzy-other { font-size: 24px; }
+  .spil-yatzy-value { right: -8px; top: -14px; min-width: 38px; height: 30px; font-size: 18px; }
+  .spil-yatzy-players { grid-area: players; }
+  .spil-yatzy-face { width: 38px; }
+  .spil-yatzy-won { grid-area: won; }
+  .spil-yatzy-won .spil-hero { width: 128px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spil-yatzy-die.spil-tumble { animation: spil-fade .5s ease-out both !important; } /* the new faces fade in */
+  .spil-yatzy-die.held { translate: none; }
 }
