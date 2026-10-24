@@ -1629,11 +1629,13 @@ export function createEittGame(doc, {
 
   /**
    * What seat `seat`'s device shows now (spec §6.3): the whole round as she may see it, her own hand and nobody else's, and what
-   * she may do (only on her turn while the table waits for her: what goes, the deck, "Áfram"; "Eitt!" and "Grípa!" whenever).
+   * she may do (only on her turn while the table waits for her: what goes, the deck, "Áfram"; "Eitt!" and "Grípa!" whenever,
+   * but never while her seat is covered: the computer plays it, and her acts are not heard until it is hers again).
    */
   function eittView(seat) {
     const seats = fjolspil.seats.list();
     const hers = remoteSeat === seat && game.turn === seat && game.winner === null;
+    const covered = seats[seat]?.covered === true;
     return {
       screen: 'eitt', you: seat, turn: game.turn, direction: game.direction, colour: game.colour,
       top: topCard(game), lastPlay,
@@ -1642,8 +1644,8 @@ export function createEittGame(doc, {
       canDraw: hers && canDraw(game, seat),
       canPass: hers && game.drew,
       needsColour: null, // a guest's wild goes with its colour: her device asks her for it (guest-eitt.js)
-      eittNeeded: game.unsaid === seat,
-      canCatch: game.unsaid !== null && game.unsaid !== seat ? game.unsaid : null,
+      eittNeeded: !covered && game.unsaid === seat,
+      canCatch: !covered && game.unsaid !== null && game.unsaid !== seat ? game.unsaid : null,
       counts: game.hands.map((hand, i) => ({ seat: i, name: seats[i]?.name ?? '', avatar: seats[i]?.avatar ?? null, cards: hand.length })),
       winner: game.winner,
     };
