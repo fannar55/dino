@@ -89,7 +89,7 @@
   font-size: clamp(44px, 6.4cqmin, 70px); font-weight: 900; line-height: 1; color: var(--gold);
   -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
 }
-.fjolspil-title img { width: 1.9em; height: auto; margin: -.4em 0 -.3em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
+.fjolspil-title img { width: 2.3em; height: auto; margin: -.55em 0 -.4em; filter: drop-shadow(0 4px 4px rgb(40 24 10 / .3)); }
 
 /* The X: the games' round close, on the card's corner. */
 .fjolspil-close {
@@ -103,7 +103,7 @@
 
 /* ---- The QR code and the code under it ------------------------------------------------------------------------------ */
 
-.fjolspil-join { grid-area: join; display: grid; justify-items: center; gap: clamp(14px, 2.4cqh, 22px); }
+.fjolspil-join { display: grid; justify-items: center; gap: clamp(14px, 2.4cqh, 22px); }
 .fjolspil-qr { /* dark on light paper, taped on, square to the screen so the phone's camera reads it at once */
   position: relative; width: var(--fjolspil-qr); aspect-ratio: 1; border-radius: 14px; background: #fffdf8; color: var(--ink);
   box-shadow: 0 0 0 3px var(--ink), 0 12px 18px 2px rgb(40 24 10 / .26);
@@ -132,6 +132,7 @@
 
 /* ---- The seats --------------------------------------------------------------------------------------------------- */
 
+.fjolspil-card > .fjolspil-join { grid-area: join; }
 .fjolspil-table { grid-area: table; display: grid; gap: clamp(18px, 3.4cqh, 32px); }
 .fjolspil-seats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 2.2cqh, 24px) clamp(14px, 1.8cqw, 24px); }
 .fjolspil-seat { /* a taped photo of who sits there */
