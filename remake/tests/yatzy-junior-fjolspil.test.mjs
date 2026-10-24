@@ -135,6 +135,20 @@ test('a kept Fjölspil game reads back only when its seats fit its state',()=>{
   assert.doesNotThrow(()=>keepFjolspil(blocked,{state,seats:snapshot}));assert.equal(readFjolspil(blocked),null);assert.doesNotThrow(()=>forgetFjolspil(blocked));
 });
 
+test('a kept Fjölspil game whose seat list is damaged is let go, never thrown at the table',()=>{
+  const seats=table(),storage=memory(),state=roll(createGame({seed:9,players:playersOf(seats)})),snapshot=seats.snapshot();
+  const damaged=change=>{const copy=structuredClone(snapshot);change(copy.seats);keepFjolspil(storage,{state,seats:copy});return readFjolspil(storage);};
+  assert.equal(damaged(list=>{list[1]=null;}),null,'a null seat');assert.equal(storage.map.has(SAVE_KEY),false,'and it is let go');
+  assert.equal(damaged(list=>{list[2].kind='x';}),null,'a seat of a kind the seats do not have');assert.equal(storage.map.has(SAVE_KEY),false);
+  for(const [why,change] of [['a seat that is a list',list=>{list[1]=[];}],['a seat that is a word',list=>{list[1]='Anna';}],['a nameless seat',list=>{list[1].name='';}],
+    ['no name',list=>{delete list[2].name;}],['an avatar that is not a word',list=>{list[1].avatar=7;}],['a second Egill',list=>{list[2].kind='host';}]]){
+    assert.equal(damaged(change),null,why);assert.equal(storage.map.has(SAVE_KEY),false,why);
+  }
+  seats.presence(1,false);seats.cover(1);const covered=seats.snapshot();
+  keepFjolspil(storage,{state,seats:covered});assert.deepEqual(readFjolspil(storage),{state,seats:covered},'a seat Mosi covers is whole');
+  assert.equal(createSeats({from:readFjolspil(storage).seats}).count,3,'and a whole one seats its table again');
+});
+
 test('the winner in the view is a seat number or tie',()=>{
   const seats=createSeats();seats.join({guestId:'anna-phone',name:'Anna',avatar:'sloedla'});
   const finished=(you,anna)=>{

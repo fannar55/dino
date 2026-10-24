@@ -937,7 +937,7 @@ test('while the slide waits for a tap on Egill he glitters, as the seat does bef
   assert.ok(glints.length >= 3, `${glints.length} glints in the ${(seen.sliding - seen.slideTarget).toFixed(1)} s he waited`);
 });
 
-test('a full save as the page keeps it loads whole, and the map\'s places start empty', () => {
+test('a full save as the page keeps it loads whole but Risaeðlu-Yatzy\'s old block, and the map\'s places start empty', () => {
   const full = {
     stars: ['k1_kambedla'], findings: ['butterfly', 'frog'], seen: ['mosi', 'frog'],
     eitt: { skill: 0.4, losses: 2, wins: 3, tutorialDone: true },

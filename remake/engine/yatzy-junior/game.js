@@ -474,13 +474,16 @@ async function openMulti(){
   startMulti(opened.seats);
 }
 // "Halda áfram (Fjölspil)": the room again with the kept seats; when this tab cannot have it (another took it), the seats there are
-// not the kept game's, and the welcome card stays.
+// not the kept game's, and the welcome card stays. A kept game that cannot be seated again is let go (logged), and the welcome
+// card comes back without it.
 async function continueMulti(){
   if(multi)return; // the welcome card's button, and no game of seats is on while that card is up
   const kept=readFjolspil(local());if(!kept){welcome();return;}
-  await fjolspil.resume(kept.seats);
-  if(fjolspil.seats.count!==kept.state.players.length){welcome();return;}
-  resumeMulti(kept.state);
+  try{
+    await fjolspil.resume(kept.seats);
+    if(fjolspil.seats.count!==kept.state.players.length){welcome();return;}
+    resumeMulti(kept.state);
+  }catch(error){console.error('[yatzy-junior] kept game',error);if(multi)endMulti();forgetFjolspil(local());welcome();}
 }
 
 $('start').addEventListener('click',()=>start());$('continue').addEventListener('click',()=>start(true));$('continue-multi').addEventListener('click',()=>{if(fjolspil)continueMulti();});$('multi').addEventListener('click',()=>{if(fjolspil)openMulti();});

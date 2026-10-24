@@ -14,6 +14,10 @@ export const STORAGE_KEY='fjolspil.room.yatzy-junior';
 export const SAVE_KEY='mosi.yatzy.junior.fjolspil.v1';
 
 const CARD_IDS=new Set(CATEGORIES.map(category=>category.id));
+const SEAT_KINDS=new Set(['host','remote','ai']);
+/** A kept seat the seats can take back (seats.js createSeats): an object of a kind they have, Egill's in seat 0 alone, named and pictured. */
+const wholeSeat=(seat,i)=>seat!==null&&typeof seat==='object'&&!Array.isArray(seat)&&SEAT_KINDS.has(seat.kind)&&(seat.kind==='host')===(i===0)&&
+  typeof seat.name==='string'&&seat.name!==''&&typeof seat.avatar==='string';
 
 /** The rules' player ids for these seats (seats.js): the seat numbers. */
 export const playersOf=seats=>seats.list().map(seat=>String(seat.seat));
@@ -76,7 +80,7 @@ export function keepFjolspil(storage,{state,seats}){
 
 /**
  * The kept game of seats, { state, seats }, or null: one whose state the rules refuse, that is over (a finished game is never
- * offered), or whose seats are not its players (as many, Egill first, player i the seat i), is let go.
+ * offered), or whose seats are not its players (as many, Egill first, player i the seat i) or not seats (wholeSeat), is let go.
  */
 export function readFjolspil(storage){
   let raw=null,kept=null;
@@ -84,7 +88,7 @@ export function readFjolspil(storage){
   if(raw===null)return null;
   try{kept=JSON.parse(raw);}catch{/* not a game: let go below */}
   const state=restoreGame(kept?.state),list=kept?.seats?.seats;
-  if(state?.status==='playing'&&Array.isArray(list)&&list.length===state.players.length&&list[0]?.kind==='host'&&state.players.every((player,i)=>player.id===String(i)))return {state,seats:kept.seats};
+  if(state?.status==='playing'&&Array.isArray(list)&&list.length===state.players.length&&list.every(wholeSeat)&&state.players.every((player,i)=>player.id===String(i)))return {state,seats:kept.seats};
   forgetFjolspil(storage);
   return null;
 }
