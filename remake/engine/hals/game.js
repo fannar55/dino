@@ -9,6 +9,8 @@ import { createEittMusic } from '../eitt/eitt-sounds.js';
 import { pressable, sparkle, reducedMotion } from '../book/fx.js';
 import { createGameSfx } from '../audio/game-music.js';
 import { createVoice } from '../scene/voice.js';
+import { AVATARS, HOST_AVATAR } from '../fjolspil/seats.js';
+import { rosterOf, computersOf, withComputer } from './seating.js';
 
 // "Háls og hali", the game the child opens from the book's Leikir page (spec sections 3 to 6): Þórseðla's snakes and ladders on the
 // board world of Task 2 (world.js, pieces.js, turn.js), with the look, sound and feel of "Eitt!" (hals.css, whose class list is at
@@ -28,6 +30,14 @@ import { createVoice } from '../scene/voice.js';
 //   - The end: fireworks over square 100, every Þórseðla cheering, the words and "Spilum aftur?".
 //   - "Allt borðið": the whole board between turns instead of following the piece. The X goes back to the book; the game under way
 //     is kept in the save after every turn.
+//   - "Fjölspil" (spec §7.2): the setup's "Fjölspil" opens the lobby of the page's host session (fjolspil/fjolspil.js), and the
+//     game is played by its seats (seating.js) in place of the one-tablet rosters: Egill on Mosi in seat 0, each guest as the
+//     friend she picked, and Þórseðla as the computer when she was added. On a guest's turn the die shows her picture and waits
+//     for her roll from her phone (guest-hals.js); the value is made here, never on the phone (the owner's rule). A guest who is
+//     not there when her turn comes is waited for over the board, and after "Halda áfram án …" the computer plays her seat,
+//     silently (it is not Þórseðla), until a turn of hers finds her back. Every guest's phone is sent her view after each
+//     change (a roll, a move, a turn, the end); Mosi's calls and nudges stay Egill's. The kept game holds the seats, so a
+//     reload takes it up with them, and "Spilum aftur?" plays again in the same seats.
 // Under prefers-reduced-motion the game goes calm by itself: the world's calm (the whole board, gentle motion), and every move of
 // the page a fade.
 //
@@ -44,19 +54,16 @@ const REMAKE = new URL('../../', import.meta.url);
 const asset = path => new URL(path, REMAKE).href;
 const MUSIC = asset('assets/audio/hals/music.mp3');
 
-const PICTURES = {
-  egill: asset('assets/eitt/mosi.webp'),
-  kambedla: asset('assets/book/images/kambedla-render.webp'),
-  sloedla: asset('assets/eitt/parasaurolophus.webp'),
-  gramedla: asset('assets/eitt/trex.webp'),
-  thorsedla: asset('assets/eitt/brontosaurus.webp'),
-};
+// Every piece's picture, name and colour: Egill's and the six friends' (fjolspil/seats.js), which a game on one tablet and a
+// game of "Fjölspil" share, so a guest's Flugeðla or Uggeðla has her face here too.
+const FRIENDS = [HOST_AVATAR, ...AVATARS];
+const PICTURES = Object.fromEntries(FRIENDS.map(friend => [friend.id, asset(friend.picture)]));
 /** An img shows the player's picture: the same clean face everywhere (the setup, the portraits, the die's pad, the end). */
 function showPicture(img, id) {
   img.src = PICTURES[id] ?? PICTURES.egill;
 }
-const NAMES = { egill: 'Egill', kambedla: 'Kambeðla', sloedla: 'Slóeðla', gramedla: 'Grameðla', thorsedla: 'Þórseðla' };
-const COLOURS = { egill: '#79c7a1', kambedla: '#ab85c1', sloedla: '#6793d0', gramedla: '#d69a6e', thorsedla: '#e9b14d' };
+const NAMES = Object.fromEntries(FRIENDS.map(friend => [friend.id, friend.name]));
+const COLOURS = Object.fromEntries(FRIENDS.map(friend => [friend.id, friend.colour]));
 const ROSTERS = {
   1: ['egill', 'thorsedla'],
   2: ['egill', 'kambedla'],
@@ -88,6 +95,8 @@ const CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M1
 const AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BOOK_ICON = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 14c8-3 15-2 22 3v38c-7-5-14-6-22-3z" fill="#2f8f86" stroke="#3b2f25" stroke-width="3.4" stroke-linejoin="round"/><path d="M54 14c-8-3-15-2-22 3v38c7-5 14-6 22-3z" fill="#3aa79c" stroke="#3b2f25" stroke-width="3.4" stroke-linejoin="round"/><path d="M43 26l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round"/></svg>';
+const PHONE = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="12" y="4" width="24" height="40" rx="6" fill="#2f8f86" stroke="#3b2f25" stroke-width="3.4"/><rect x="16" y="10" width="16" height="25" rx="2.5" fill="#fffaf0"/><circle cx="20.5" cy="15.5" r="2.4" fill="#3b2f25"/><circle cx="24" cy="22.5" r="2.4" fill="#3b2f25"/><circle cx="27.5" cy="29.5" r="2.4" fill="#3b2f25"/><circle cx="24" cy="39.5" r="1.8" fill="#fffaf0"/></svg>';
+const AI = { name: 'Þórseðla', avatar: 'thorsedla', add: 'Bæta við Þórseðlu', remove: 'Taka Þórseðlu út' }; // the lobby's computer player
 const ARROW_UP = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 40V10M11 22l13-13 13 13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ARROW_DOWN = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#3b2f25" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 8v30M11 26l13 13 13-13" fill="none" stroke="#fffaf0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const BOARD_ICON = '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="6" fill="#fffaf0" stroke="#3b2f25" stroke-width="3.4"/><path d="M12 34h24M12 26h24M12 18h24" stroke="#6fae4f" stroke-width="4" stroke-linecap="round"/><path d="M30 33c0-8 4-12 6-15" fill="none" stroke="#e07a3f" stroke-width="3.4" stroke-linecap="round"/></svg>';
@@ -108,21 +117,23 @@ function spokenOf(line) {
  * The game in `doc`'s #hals. `save` is engine/save.js's (getHals, addHalsFound, getHalsPlay, setHalsPlay); `audio` is { context,
  * output, theme, lines, muted } as "Eitt!" has it; `renderer` is the page's WebGLRenderer (its canvas moves into the game while it is
  * open), `q` the quality preset. `onPause(paused)` holds the chapter while the game is open; `onClose()` is told when it shuts.
+ * `fjolspil` is the page's host session of "Fjölspil" (fjolspil/fjolspil.js; null: no "Fjölspil" on the setup).
  * Returns
  *   open()         opens it over the book: the setup (or "Halda áfram"), the world loading behind it the first time
  *   close()        shuts it; the game under way stays in the save
  *   isOpen         whether it is open
- *   phase          what it waits for, for a probe: 'shut', 'setup', 'loading', 'intro', 'child', 'busy' or 'over'
+ *   phase          what it waits for, for a probe: 'shut', 'setup', 'loading', 'intro', 'child', 'remote' (a guest's roll from
+ *                  her phone), 'busy' or 'over'
  *   game           the rules' state now; world, pieces: the board world and its pieces, for the lab
- *   start(setup)   a new game ({ players: 1 to 4 }, always the adventure mode), as "Byrjum!"; roll(value) the child's roll (value:
- *                  for a probe)
+ *   start(setup)   a new game ({ players: 1 to 4 }, or { seats }: the seats of "Fjölspil", always the adventure mode), as
+ *                  "Byrjum!"; roll(value) the child's roll (value: for a probe)
  *   muted          silences its effects, music and voices
  *   calm           whether it is calm (prefers-reduced-motion); a lab may set it
  * `musicUrl` is the track (assets/audio/hals/music.mp3 unless a lab tries another).
  */
 export function createHalsGame(doc, {
   save = null, audio = {}, renderer = null, q = undefined, params = undefined, onPause = null, onClose = null,
-  win = globalThis.window, random = Math.random, musicUrl = MUSIC,
+  win = globalThis.window, random = Math.random, musicUrl = MUSIC, fjolspil = null,
 } = {}) {
   const root = doc.getElementById('hals');
   if (!root) throw new Error('"Háls og hali" needs #hals on the page (see index.html)');
@@ -198,7 +209,11 @@ export function createHalsGame(doc, {
     return button;
   });
   const startEl = make('button', 'hals-big hals-start', `${PLAY}<span>Byrjum!</span>`);
-  chooseEl.append(whoEl, startEl);
+  const multiEl = make('button', 'hals-plain hals-multi', `${PHONE}<span>Fjölspil</span>`); // the lobby: phones join in
+  multiEl.hidden = !fjolspil;
+  const goEl = make('div', 'hals-go');
+  goEl.append(startEl, multiEl);
+  chooseEl.append(whoEl, goEl);
   setupCard.append(setupClose, titleEl, resumeEl, chooseEl);
   setupEl.append(setupCard);
 
@@ -373,7 +388,10 @@ export function createHalsGame(doc, {
   let roster = null; // their ids
   let stale = false; // a turn was cut short by a close: the pieces are made anew for the next game
   let game = null; // the rules' state
-  let setup = { players: 1 }; // who plays; every new game is the adventure forest
+  let setup = { players: 1, seats: null }; // who plays (seats: the seats' snapshot in a game of "Fjölspil"); always the adventure
+  let multi = false; // a game of "Fjölspil" is on: its players are the host session's seats, seat n player n and piece n
+  let lastRoll = null; // this game's newest roll, { value, by }, which the phones show
+  let seatsOff = null; // stops listening to the seats' changes (a portrait dims while its guest is away)
   let active = null; // the piece whose turn it is
   let shownPlayer = 0; // whose turn the portraits and the die show: it passes only when the next turn begins
   let cardUntil = 0; // when the event card showing now will have gone
@@ -572,27 +590,39 @@ export function createHalsGame(doc, {
       playerEls.length = 0;
       return;
     }
-    if (playerEls.length !== roster.length || playerEls.some((el, i) => el.dataset.id !== roster[i])) {
+    const names = roster.map((_, i) => nameOf(i));
+    if (playerEls.length !== roster.length || playerEls.some((el, i) => el.dataset.id !== roster[i] || el.dataset.name !== names[i])) {
       playerEls.length = 0;
       playersEl.replaceChildren(...roster.map((id, i) => {
         const el = make('div', 'hals-player');
         el.dataset.id = id;
+        el.dataset.name = names[i];
         el.style.setProperty('--c', COLOURS[id]);
-        el.innerHTML = `<span class="hals-portrait"><img alt=""></span><span class="hals-square"></span><span class="hals-name">${game.players[i].isComputer ? 'Þórseðla' : NAMES[id]}</span>`;
+        el.innerHTML = '<span class="hals-portrait"><img alt=""></span><span class="hals-square"></span><span class="hals-name"></span>';
         const img = el.querySelector?.('img');
         if (img) showPicture(img, id);
+        const name = el.querySelector?.('.hals-name');
+        if (name) name.textContent = names[i]; // a guest's name is text, never markup
         playerEls.push(el);
         return el;
       }));
     }
     const current = game.winner ?? shownPlayer;
+    const seats = multi ? fjolspil.seats.list() : null;
     playerEls.forEach((el, i) => {
       const at = liveSquare?.index === i ? liveSquare.square : game.players[i].position;
       el.classList.toggle('active', i === current);
+      el.classList.toggle('absent', Boolean(seats?.[i]?.guestId && !seats[i].present)); // a guest away: dim, with "…" (spec §8)
       const square = el.querySelector?.('.hals-square');
       if (square) square.textContent = String(at);
-      el.setAttribute('aria-label', `${NAMES[roster[i]]}: reitur ${at}`);
+      el.setAttribute('aria-label', `${names[i]}: reitur ${at}`);
     });
+  }
+
+  /** Player i's name: its seat's in a game of "Fjölspil", else the one tablet's (the computer is Þórseðla). */
+  function nameOf(i) {
+    if (multi) return fjolspil.seats.bySeat(i)?.name ?? NAMES[roster[i]];
+    return game.players[i].isComputer ? 'Þórseðla' : NAMES[roster[i]];
   }
 
   /** The dock: the die, live on a child's turn and dimmed otherwise, in a ring of the colour of whoever plays, with their portrait. */
@@ -605,6 +635,7 @@ export function createHalsGame(doc, {
     const live = childMoves();
     dockEl.classList.toggle('live', live);
     dockEl.classList.toggle('computer', Boolean(game && game.players[index]?.isComputer && game.winner === null));
+    dockEl.classList.toggle('remote', phase === 'remote'); // a guest's turn: her picture big on the pad, the die waits for her phone
     dockEl.hidden = !game || game.winner !== null || phase === 'setup';
     dieEl.classList.remove('call');
   }
@@ -848,6 +879,14 @@ export function createHalsGame(doc, {
     sfx('turn');
     if (whole || calm()) hw.view.overview();
     else hw.view.follow(() => active.position);
+    if (multi && fjolspil.seats.bySeat(index)?.guestId) { // a guest's seat: hers from her phone, or the computer's while she is away
+      busy = true;
+      phase = 'busy';
+      renderDock();
+      run(guestTurn(token, index));
+      return;
+    }
+    sendViews(); // whose turn it is, on every phone
     if (game.players[index].isComputer) {
       busy = true;
       phase = 'busy';
@@ -874,13 +913,78 @@ export function createHalsGame(doc, {
   }
 
   async function computerTurn(token) {
-    if (!saidMyTurn && turnNumber > 2 && random() < 0.45) {
-      say('hals_thor_my_turn', { by: active.actor, within: 2500 });
-      saidMyTurn = true;
-    } else saidMyTurn = false;
+    if (!coveredSeat(game.currentPlayer)) { // a guest's seat the computer covers says nothing: it is not Þórseðla
+      if (!saidMyTurn && turnNumber > 2 && random() < 0.45) {
+        say('hals_thor_my_turn', { by: active.actor, within: 2500 });
+        saidMyTurn = true;
+      } else saidMyTurn = false;
+    }
     await wait(THINK_MS);
     if (token !== round || !isOpen) return;
     await roll();
+  }
+
+  /**
+   * A guest's seat whose turn it is (spec §7.1). She plays it from her phone when she is there. When she is not, the
+   * waiting card over the board ("Bíðum eftir …", fjolspil.waitFor) until she is back, or until "Halda áfram án …" makes the
+   * seat the computer's, which then plays it, silently, as long as she is away; a covered seat whose guest is back is hers
+   * again at its next turn (waitFor gives it back at once). The rules' isComputer follows the seat.
+   */
+  async function guestTurn(token, index) {
+    let seat = fjolspil.seats.bySeat(index);
+    if (seat.kind === 'remote' ? !seat.present : seat.present) {
+      const result = await fjolspil.waitFor(index);
+      if (token !== round || !isOpen || result === 'closed') return; // 'closed': the game is being shut
+      seat = fjolspil.seats.bySeat(index);
+    }
+    const covered = seat.kind !== 'remote';
+    if (game.players[index].isComputer !== covered) {
+      game = withComputer(game, index, covered);
+      keep();
+    }
+    if (covered) {
+      sendViews();
+      run(computerTurn(token));
+      return;
+    }
+    remoteTurn();
+  }
+
+  /** A guest's turn: the die shows her picture and waits for her roll from her phone (onAct); no call and no nudge here. */
+  function remoteTurn() {
+    busy = true; // the big screen's own taps and keys wait: this roll is hers
+    phase = 'remote';
+    pieces.waiting = active;
+    renderDock();
+    sendViews(); // her die may roll now
+  }
+
+  /** Whether player i is a guest's seat the computer plays while she is away (not the game's Þórseðla). */
+  const coveredSeat = i => multi && Boolean(fjolspil.seats.bySeat(i)?.covered);
+  /** Whether Þórseðla herself plays player i: the computer, and not on a guest's behalf. */
+  const thorPlays = i => Boolean(game.players[i]?.isComputer) && !coveredSeat(i);
+
+  /** What seat `seat`'s phone shows now (spec §6.3): whose turn, whether she may roll, the last roll, the squares, the winner. */
+  function halsView(seat) {
+    const seats = fjolspil.seats.list();
+    return {
+      screen: 'hals', you: seat, turn: game.currentPlayer,
+      canRoll: phase === 'remote' && game.currentPlayer === seat,
+      roll: lastRoll ? { value: lastRoll.value, by: lastRoll.by } : null,
+      players: game.players.map((player, i) => ({
+        seat: i, name: seats[i]?.name ?? NAMES[roster[i]], avatar: seats[i]?.avatar ?? roster[i], square: player.position,
+      })),
+      winner: game.winner,
+    };
+  }
+  const sendView = seat => { if (multi && game) fjolspil.send(seat, halsView(seat)); };
+  /**
+   * Every guest of this game is sent her view, a covered seat's too, so the view she gets on her way back is the newest; the
+   * players only (seats < players), never broadcast, since a guest seated by a hello since is not in this game.
+   */
+  function sendViews() {
+    if (!multi || !game) return;
+    for (let i = 0; i < game.players.length; i++) if (fjolspil.seats.bySeat(i)?.guestId) sendView(i);
   }
 
   /** The child's turn with nothing done: the die calls after a while, and Mosi says "Ýttu á teninginn!" now and then. */
@@ -912,8 +1016,11 @@ export function createHalsGame(doc, {
     const index = game.currentPlayer;
     const piece = pieces.list[index];
     const human = !game.players[index].isComputer;
-    const value = forced ?? 1 + Math.floor(random() * 6);
+    const thor = thorPlays(index);
+    const value = forced ?? 1 + Math.floor(random() * 6); // made here, a guest's roll too (spec §7.2)
     forced = null;
+    lastRoll = { value, by: index };
+    sendViews(); // the die tumbles on the phones as it does here
     await tumble(value);
     if (token !== round) return;
     const result = resolveTurn(game.players[index].position, value, { mode: game.mode });
@@ -946,7 +1053,7 @@ export function createHalsGame(doc, {
       },
       onLand: (kind, data) => {
         if (token !== round) return;
-        landed(kind, data, { piece, human, egill, fossilKind, result });
+        landed(kind, data, { piece, human, thor, egill, fossilKind, result });
       },
       onPhase: (name, data) => {
         if (token !== round) return;
@@ -954,7 +1061,7 @@ export function createHalsGame(doc, {
           liveSquare = { index, square: result.destination };
           renderPlayers();
         }
-        phaseEffect(name, data, { piece, egill, result });
+        phaseEffect(name, data, { piece, human, thor, egill, result });
       },
     });
     fxPhase = null;
@@ -965,6 +1072,7 @@ export function createHalsGame(doc, {
     turning = false;
     keep();
     renderPlayers();
+    sendViews();
     if (result.shortcut?.type === 'tail' && egill) say('hals_mosi_after_tail', { within: 5000 });
     if (human) {
       quietTurns++;
@@ -982,7 +1090,7 @@ export function createHalsGame(doc, {
   }
 
   /** Where a piece lands decides the card, the voice, the sound and the effect (turn.js's onLand). */
-  function landed(kind, data, { piece, human, egill, fossilKind }) {
+  function landed(kind, data, { piece, human, thor, egill, fossilKind }) {
     if (kind === 'neck') {
       showCard({ kind, word: 'Upp hálsinn!', mark: ARROW_UP, picture: PICTURES.thorsedla });
       say('hals_thor_neck', { by: data.thorsedla });
@@ -1001,7 +1109,8 @@ export function createHalsGame(doc, {
       showCard({ kind, word: 'Leðja!', mark: '−2' });
       sfx('squelch');
       sparks.mud(piece.position);
-      say(human ? 'hals_mosi_mud' : 'hals_thor_mud', human ? {} : { by: piece.actor });
+      if (human) say('hals_mosi_mud');
+      else if (thor) say('hals_thor_mud', { by: piece.actor }); // a guest's seat the computer covers says nothing
       quietTurns = 0;
     } else if (kind === 'fossil') {
       const isNew = human && fossilKind ? save?.addHalsFound?.(fossilKind) === true : false;
@@ -1035,15 +1144,14 @@ export function createHalsGame(doc, {
   }
 
   /** The effects that come with where a turn is (turn.js's onPhase). */
-  function phaseEffect(name, data, { piece, egill, result }) {
+  function phaseEffect(name, data, { piece, human, thor, egill, result }) {
     if (name === 'boing') {
       // up on 100 with a roll too big: boing, and "Úps, of langt!" (Mosi's for a child, Þórseðla's own for the computer)
       sfx('boing');
       sparks.pop(data.at.clone().add(new THREE.Vector3(0, 1.2, 0.4)));
       sparks.glitter(data.at, { count: 6 });
-      const computer = game.players[game.currentPlayer]?.isComputer;
-      if (computer) say('hals_thor_bounce', { by: piece.actor, within: 3000 });
-      else say('hals_mosi_bounce', { within: 3000 });
+      if (thor) say('hals_thor_bounce', { by: piece.actor, within: 3000 });
+      else if (human) say('hals_mosi_bounce', { within: 3000 });
       return;
     }
     if (name === 'lift') {
@@ -1089,10 +1197,17 @@ export function createHalsGame(doc, {
   function keep() {
     if (!game) return;
     try {
-      save?.setHalsPlay?.({ game: game.winner === null ? { state: game, setup } : null });
+      if (multi) setup = { ...setup, seats: keptSeats() };
+      save?.setHalsPlay?.({ game: game.winner === null ? { state: game, setup: { players: setup.players, seats: multi ? setup.seats : null } } : null });
     } catch (error) {
       console.warn('[hals] the game could not be kept', error);
     }
+  }
+
+  /** The seats as a kept game takes them up again (seats.snapshot()), the players only. */
+  function keptSeats() {
+    const snapshot = fjolspil.seats.snapshot();
+    return { ...snapshot, seats: snapshot.seats.slice(0, game.players.length) };
   }
 
   async function endGame(token, before) {
@@ -1102,11 +1217,12 @@ export function createHalsGame(doc, {
     const winner = pieces.list[game.winner];
     const computer = game.players[game.winner].isComputer;
     renderPlayers();
+    sendViews(); // who won, on every phone
     let said = 0;
     if (winner.id === 'egill') {
       say('hals_mosi_won');
       said = say('hals_thor_you_won', { by: nearestThorsedla() });
-    } else if (computer) {
+    } else if (thorPlays(game.winner)) {
       say('hals_mosi_lost');
       said = say('hals_thor_won', { by: winner.actor });
     } else said = say('hals_thor_you_won', { by: nearestThorsedla() });
@@ -1123,7 +1239,8 @@ export function createHalsGame(doc, {
 
   function showWin(winner, computer) {
     const solo = setup.players === 1;
-    winWords.textContent = solo ? (computer ? 'Þórseðla vann!' : 'Þú vannst!') : `${computer ? 'Þórseðla' : NAMES[winner.id]} vann!`;
+    winWords.textContent = multi ? `${nameOf(game.winner)} vann!` // the seat's name ("Anna vann!"), whoever played it
+      : solo ? (computer ? 'Þórseðla vann!' : 'Þú vannst!') : `${computer ? 'Þórseðla' : NAMES[winner.id]} vann!`;
     showPicture(winPicture, winner.id);
     const found = [];
     game.players.forEach(player => {
@@ -1157,12 +1274,40 @@ export function createHalsGame(doc, {
     try {
       validateGame(kept.state);
       if (kept.state.winner !== null) return null;
+      const seats = seatsOfKept(kept);
+      if (seats) return { state: kept.state, setup: { players: kept.state.players.length, seats } }; // a game of "Fjölspil"
       const ids = ROSTERS[kept.setup.players];
       if (!ids || ids.length !== kept.state.players.length) return null;
-      return kept;
+      return { state: kept.state, setup: { players: kept.setup.players, seats: null } }; // a game on one tablet, as before
     } catch {
       return null;
     }
+  }
+
+  /**
+   * A kept game's seats (seats.snapshot(): an object with its list of seats, Egill's first, one for each player), or null:
+   * kept before "Fjölspil", or kept where there is no host session, it is taken up as a game on one tablet.
+   */
+  function seatsOfKept(kept) {
+    const seats = kept.setup.seats;
+    if (!fjolspil || !seats || typeof seats !== 'object' || !Array.isArray(seats.seats)) return null;
+    if (seats.seats.length !== kept.state.players.length || seats.seats[0]?.kind !== 'host') return null;
+    return seats;
+  }
+
+  /** "Halda áfram": the kept game, with its seats when it has them (the room opens again and the guests come back to it). */
+  async function resume(kept) {
+    if (!kept.setup.seats) return start(kept.setup, kept);
+    await fjolspil.resume(kept.setup.seats);
+    if (!isOpen) return;
+    return start({ seats: fjolspil.seats.list() }, kept);
+  }
+
+  /** "Fjölspil": the lobby, and at its "Byrjum!" a game of its seats; its X leaves the setup as it was. */
+  async function openLobby() {
+    const opened = await fjolspil.openLobby({ game: 'hals', ai: AI });
+    if (!opened || !isOpen || phase !== 'setup') return; // the X, or another tab took the room
+    return start({ seats: opened.seats });
   }
 
   function showSetup() {
@@ -1180,7 +1325,10 @@ export function createHalsGame(doc, {
     }
   }
 
-  /** A new game for `choice` ({ players }), always in the adventure mode, or the kept one (`kept`: { state, setup }, in its own mode). */
+  /**
+   * A new game for `choice` ({ players } on one tablet, or { seats }, the seats of "Fjölspil" in order), always in the adventure
+   * mode, or the kept one (`kept`: { state, setup }, in its own mode; one with seats comes with them as `choice`).
+   */
   async function start(choice = setup, kept = null) {
     const token = ++round;
     for (const id of timers) clearTimeout(id);
@@ -1190,7 +1338,11 @@ export function createHalsGame(doc, {
     hideAdvice();
     hideCard();
     skipEl.hidden = true;
-    setup = { players: kept?.setup.players ?? choice.players };
+    const seated = fjolspil && Array.isArray(choice.seats) ? choice.seats : null;
+    multi = seated !== null;
+    setup = seated ? { players: seated.length, seats: fjolspil.seats.snapshot() } : { players: kept?.setup.players ?? choice.players, seats: null };
+    seatsOff?.();
+    seatsOff = multi ? fjolspil.seats.onChange(seatsChanged) : null;
     setupEl.hidden = true;
     winEl.hidden = true;
     confettiEl.replaceChildren();
@@ -1201,11 +1353,14 @@ export function createHalsGame(doc, {
     veil.classList.toggle('waiting', !hw);
     await ensureWorld();
     if (token !== round) return;
-    const ids = ROSTERS[setup.players];
+    const ids = seated ? rosterOf(seated) : ROSTERS[setup.players];
     await ensurePieces(ids);
     if (token !== round) return;
     veil.classList.remove('waiting');
-    game = kept?.state ?? createGame({ playerCount: ids.length, vsComputer: setup.players === 1, mode: 'adventure', random });
+    game = kept?.state ?? createGame(seated
+      ? { playerCount: ids.length, computers: computersOf(seated), mode: 'adventure', random }
+      : { playerCount: ids.length, vsComputer: setup.players === 1, mode: 'adventure', random });
+    lastRoll = null;
     hw.board.decorate(game.mode === 'adventure' ? SPECIAL_TILES : []);
     pieces.list.forEach((piece, i) => piece.place(game.players[i].position));
     active = pieces.list[game.currentPlayer];
@@ -1219,6 +1374,7 @@ export function createHalsGame(doc, {
     keep();
     renderPlayers();
     renderDock();
+    sendViews(); // the board on every phone, before the first turn
     hw.view.overview();
     if (!introDone && !(save?.getHalsPlay?.().intro)) {
       phase = 'intro';
@@ -1231,6 +1387,25 @@ export function createHalsGame(doc, {
     } else await wait(350);
     if (token !== round) return;
     beginTurn();
+  }
+
+  /**
+   * The seats changed while a game of "Fjölspil" is on: the portraits show who is away, and a guest whose phone goes while
+   * the die waits for it is waited for over the board, as when her turn finds her away.
+   */
+  function seatsChanged() {
+    if (!isOpen || !game) return;
+    renderPlayers();
+    if (phase !== 'remote' || turning) return;
+    const index = game.currentPlayer;
+    if (fjolspil.seats.bySeat(index)?.present) return;
+    const token = round;
+    later(0, () => { // out of the seats' own change, which is still under way
+      if (token !== round || phase !== 'remote' || turning || game.currentPlayer !== index) return;
+      phase = 'busy';
+      renderDock();
+      run(guestTurn(token, index));
+    });
   }
 
   // ---- Opening and shutting -------------------------------------------------------------------------------------------------
@@ -1300,6 +1475,10 @@ export function createHalsGame(doc, {
     cardEl.hidden = true;
     detachCanvas();
     root.hidden = true;
+    if (multi) fjolspil.closeGame(); // the phones wait for the next lobby, and a wait for a guest ends
+    multi = false;
+    seatsOff?.();
+    seatsOff = null;
     pause(false);
     try {
       onClose?.();
@@ -1330,6 +1509,7 @@ export function createHalsGame(doc, {
 
   function tapRoll() {
     wake();
+    if (phase === 'remote') return; // a guest's turn: her phone's die rolls, and a tap here does nothing (spec §7.2)
     if (!childMoves()) {
       if (isOpen && game && game.winner === null && phase !== 'intro') {
         sfx('wiggle');
@@ -1364,10 +1544,20 @@ export function createHalsGame(doc, {
       },
     });
   }
-  pressable(startEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start(setup)); } });
-  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); const kept = savedGame(); if (isOpen) run(kept ? start(kept.setup, kept) : start(setup)); } });
+  pressable(startEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start({ players: setup.players })); } });
+  pressable(multiEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && fjolspil) run(openLobby()); } });
+  pressable(continueEl, { audio: tap, win, onTap: () => { wake(); const kept = savedGame(); if (isOpen) run(kept ? resume(kept) : start({ players: setup.players })); } });
   pressable(freshEl, { audio: tap, win, onTap: () => { wake(); save?.setHalsPlay?.({ game: null }); resumeEl.hidden = true; chooseEl.hidden = false; } });
-  pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start(setup)); } });
+  // "Spilum aftur?" after a game of "Fjölspil" plays again in the same seats, with no lobby (spec §4 step 7)
+  pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) run(start(multi ? { seats: fjolspil.seats.list() } : { players: setup.players })); } });
+  // A guest's roll from her phone (spec §7.2): heard only on her own turn while the die waits for her; anything else (not her
+  // turn, a second tap, a late joiner's act) is ignored, and a player of this game is sent her view again so her phone
+  // rights itself (spec §6.3).
+  fjolspil?.onAct((seat, act) => {
+    if (!multi || !isOpen || !game || seat >= game.players.length) return;
+    if (act?.type === 'roll' && phase === 'remote' && !turning && seat === game.currentPlayer) run(roll());
+    else sendView(seat);
+  });
   root.addEventListener('pointerdown', event => {
     wake();
     if (renderer && event.target === renderer.domElement) event.stopPropagation(); // the chapter's own taps on its canvas wait
