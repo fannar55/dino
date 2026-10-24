@@ -1,0 +1,14 @@
+{
+  "name": "mosi-cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "stage": "node stage.mjs",
+    "dev": "wrangler dev --ip 0.0.0.0 --port 8787",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

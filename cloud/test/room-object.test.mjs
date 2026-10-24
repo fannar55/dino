@@ -35,6 +35,7 @@ class FakeCtx {
   sockets = [];
   data = new Map();
   alarmAt = null;
+  reversed = false; // the runtime promises no order for its sockets
   storage = {
     get: async key => structuredClone(this.data.get(key)),
     put: async (key, value) => { this.data.set(key, structuredClone(value)); },
@@ -42,7 +43,10 @@ class FakeCtx {
     setAlarm: async at => { this.alarmAt = at; },
   };
   acceptWebSocket(ws) { this.sockets.push(ws); }
-  getWebSockets() { return this.sockets.filter(ws => !ws.gone); }
+  getWebSockets() {
+    const open = this.sockets.filter(ws => !ws.gone);
+    return this.reversed ? open.reverse() : open;
+  }
 }
 
 // The runtime's pair is an object with the client at 0 and the server at 1; a 101 Response carries the client end.
@@ -200,6 +204,11 @@ test('after hibernation the room is rebuilt from storage and the sockets\' attac
   await b.webSocketMessage(host, fromHost('g2', ping));
   assert.deepEqual(g2.take(), [message('relay', { body: ping })]);
   assert.deepEqual(old.sent, []);
+  ctx.reversed = true;
+  await new Room(ctx, {}).webSocketMessage(host, fromHost('g1', ping));
+  assert.deepEqual(guest.take(), [message('relay', { body: ping })], 'in whatever order the sockets come back');
+  assert.deepEqual(old.sent, []);
+  ctx.reversed = false;
 
   const c = new Room(ctx, {});
   await clientCloses(c, g2);
