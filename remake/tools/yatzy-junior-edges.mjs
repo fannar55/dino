@@ -174,9 +174,10 @@ try{
   await page.evaluate(value=>window.__juniorQA.setState(value),zeroHand);await waitStill();
   const zeroSelector=`.card-select[data-category="${zeroId}"]`;
   // Normal card choice is intentionally user-scrollable; unlike the lesson
-  // target tests, this wheel gesture represents the child's own browsing.
-  await page.locator('#score-rows').hover();await page.mouse.wheel(0,-600);await page.waitForTimeout(250);
-  if(!(await hitInfo(zeroSelector)).inside){await page.mouse.wheel(0,250);await page.waitForTimeout(250);}
+  // target tests, this scroll stands for the child's own swipe along the row.
+  // (A vertical wheel no longer scrolls the phone's horizontal row in Edge 156,
+  // so the row itself is scrolled until the card is whole on screen.)
+  await page.locator(zeroSelector).evaluate(e=>e.scrollIntoView({block:'nearest',inline:'center',behavior:'instant'}));await page.waitForTimeout(250);
   await activate(zeroSelector);await page.waitForFunction(()=>document.getElementById('zero-dialog').open);
   await activate('#zero-dialog [data-close]');assert.deepEqual(await currentState(),zeroHand,'cancel leaves scorecard and hand untouched');assert.equal(await saved(),savedBytes,'cancel writes no save');
   await activate(zeroSelector);await page.waitForFunction(()=>document.getElementById('zero-dialog').open);
