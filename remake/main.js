@@ -29,6 +29,7 @@ import { parseCards } from './engine/book/cards.js';
 import { parseManifest } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
+import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createYatzyGame } from './engine/yatzy/table.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
@@ -212,12 +213,16 @@ const book = createBook(document, {
     hold('book', paused);
   },
 });
+// "Fjölspil", the minigames played from phones round the big screen (engine/fjolspil/fjolspil.js): the room and the seats are
+// the page's, not one game's, so it is made before the games that use it. Its lobby's buttons tap with the book's sound, which
+// has the tap and sounds while a game holds the chapter's (the lobby opens over a game).
+const fjolspil = createFjolspil(document, { audio: bookAudio });
 // Kambeðla's card game, "Eitt!" (engine/eitt/table.js), which the book's Leikir page opens over the book. Like the child's book it
 // holds the chapter while it is open, the chapter's voice, music and effects included (its own hold, so the two never play at once),
 // and the clock stays held after it while the book is still open. Its effects, music and voices are its own, through the page's
 // output, and silent wherever the game's sound is (captures and review shots have no audio context at all).
 const eitt = createEittGame(document, {
-  save, audio: { context: audio, output, theme, lines, muted: !playing },
+  save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('eitt', paused);
@@ -246,7 +251,7 @@ const junior = createJuniorFrame(document, {
 // holding the chapter the same way (its own hold). It draws its board with this page's renderer: the canvas moves into the game
 // while it is open, so the chapter draws nothing then (render() below), and draws once more when the game shuts, under the book.
 const hals = createHalsGame(document, {
-  save, renderer, q, params, audio: { context: audio, output, theme, lines, muted: !playing },
+  save, renderer, q, params, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('hals', paused);
@@ -749,4 +754,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
