@@ -77,13 +77,13 @@ Leikurinn fær leikmannalista í stað „you/mosi“ og helst að öðru leyti 
 
 - **Upphafsspjaldið** („Litla Yatzý við Mosa“) fær „Fjölspil“ við hlið „Spila“ (og „Læra með Mosa“). Hann opnar lobbíið yfir þrívíddarborðinu (QR-kóði, kóðinn stór, sætin, „Bæta Mosa við“, „Byrjum!“, „Hætta“ aftur á upphafsspjaldið). „Byrjum!“ byrjar leik með sætunum; Egill byrjar (sæti 0) eins og í dag.
 - **Á meðan Fjölspil stendur** eru kennslan („Læra með Mosa“, „Sýndu mér“) og „Byrja upp á nýtt“ í hlévalmyndinni ekki í boði (hið síðara verður „Hætta Fjölspili“, sem lokar leiknum: `closeGame()`, símarnir á lobbíbið). Hlé síðunnar (hlévalmyndin, falinn flipi) heldur leiknum eins og nú; símarnir fá sýn með öllu ósönnu á meðan og „Stóri skjárinn er í hléi“ í stöðulínunni (nýr texti í `guest.js` fyrir `paused: true` í sýn, sem Háls og Eitt! nota ekki).
-- **Brottfall:** eigi gestur leik og er farinn (`!seat.present`) kemur biðspjaldið yfir borðið (`fjolspil.waitFor(seat)`: „Bíðum eftir …“ með QR); eftir 20 s „Halda áfram án …“ og Mosi spilar sætið hljóðlega (`decideAI`, engin lína, viðbrögð hans leyfð) þar til hún er komin; þá er sætið hennar við næsta leik hennar. `'closed'` stöðvar leikinn. Nákvæmlega forskrift §6.4 og Háls og hali.
+- **Brottfall:** eigi gestur leik og er farinn (`!seat.present`) kemur biðspjaldið yfir borðið (`fjolspil.waitFor(seat)`: „Bíðum eftir …“ með QR); eftir 20 s „Halda áfram án …“ og Mosi spilar sætið (`decideAI`) þar til hún er komin — engin leiklína („Næsti kastar!“) fyrir hulið sæti, en kastviðbrögð hans og stigalínan („Bjarni: 18 stig“) halda sér svo borðið viti hvað gerðist (úrskurður 24. október); þá er sætið hennar við næsta leik hennar. `'closed'` stöðvar leikinn. Nákvæmlega forskrift §6.4 og Háls og hali.
 - **Fleiri tæki en sæti:** eins og forskrift (I3): herbergið heldur sökklum, sætin takmarka.
 
 ## 8. Rödd Mosa í Fjölspili (`engine/yatzy-junior/voice-lines.js`)
 
 - **Halda sér** (passa öllum): kastviðbrögðin (`good`, `great`, `bad`), `hold`, `release`, `allHeld`, `choose`, `lastRoll`, `noRolls`, `zero`, `pause`, `resume`, `help`, spjaldaskýringarnar, tölulínurnar (`points_N`).
-- **Víkja í Fjölspili** („þú/Mosi“): `yourTurn`, `scored`, `youWin`, `yourTotal`, `mosiTotal`, `tie` (hljómar sem „við“). Spili Mosi sjálfur halda `mosiTurn`, `mosiScored` og `mosiWin` sér fyrir hann.
+- **Víkja í Fjölspili** fyrir gesti og hulin sæti („þú/Mosi“): `yourTurn`, `scored`, `youWin`, `yourTotal`, `mosiTotal`, `tie` (hljómar sem „við“). Egill við stóra skjáinn er „þú“ og heldur `yourTurn`, `scored` og `youWin` (úrskurður 24. október); spili Mosi sjálfur halda `mosiTurn`, `mosiScored` og `mosiWin` sér fyrir hann. Í lokin segir Mosi `multiOver` og svo `youWin`/`mosiWin` eigi þær við; `yourTotal`/`mosiTotal`/`tie` aldrei.
 - **Nýjar almennar línur** (`MULTI_LINES`, sama snið og `VOICE_LINES`, bólan sýnir nafnið í nefnifalli):
   - `multiWelcome` „Velkomin að borðinu! Við skiptumst á.“ (þegar leikurinn byrjar)
   - `multiTurn` „Næsti kastar!“ (bólan: „Anna á leik“)
