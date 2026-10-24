@@ -80,3 +80,13 @@ test('views arrive in order, status screens have their words, and a game view go
   assert.equal(page.screen, 'code');
   assert.equal($(root, '.spil-status').textContent, 'Þessi kóði er ekki í gangi');
 });
+
+test('a new connection starts the views afresh, so a big screen that reloaded while the phone slept is not ignored', () => {
+  const { page, root, net } = rig({ search: '?r=GULL' });
+  net.message(view('closed', {}, 5));
+  assert.equal(page.screen, 'closed');
+  net.statusFn('connecting');
+  net.message(view('over', { winner: { name: 'Bjarni', avatar: 'gramedla' } }, 1));
+  assert.equal(page.screen, 'over');
+  assert.equal($(root, '.spil-words').textContent, 'Bjarni vann!');
+});
