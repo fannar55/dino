@@ -11,6 +11,7 @@
      .rounds                   five little dice under them (.done gold, .now glowing) and #round ("2 af 5")
      .corner                   top right: #lesson-skip ("Hætta æfingu"), #pause, #close (hidden in the book)
      #lesson-center.bubble     Mosi's one voice on screen: #lesson-line, #lesson-replay (.hear), #lesson-next, #voice-recovery
+                               (over the dice, beside a bar of three or four on a wide screen: --bar-right, from game.js)
      #cup-target               the cup is the roll: .cup-ring and the orange .cup-tag ("Kasta" and the rolls left as pips,
                                data-rolls); data-parked once the cup lies on its side; data-remote while a guest rolls from her
                                phone (the ring in her colour, --c, and no tag: the cup here waits)
