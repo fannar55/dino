@@ -5,7 +5,7 @@
 // `conn` of the rooms, connected once, right after the handshake; what the rooms hand back as deliveries goes on the wire
 // as JSON text frames; and a socket is closed with the code its case calls for: 1000 for a refused connect and for a
 // connection another one took over, 1001 when its room expires, 1003 for a binary frame, 1009 for a message too long and
-// 1002 for anything else RFC 6455 forbids.
+// 1002 for any other frame RFC 6455 forbids.
 
 import crypto from 'node:crypto';
 import os from 'node:os';
@@ -125,8 +125,9 @@ export function attachFjolspil(server, { now, join = () => [], rooms = createRoo
     sockets.add(socket);
 
     let closing = false;
+    const write = bytes => { if (socket.writable) socket.write(bytes); };
     const conn = {
-      send(text) { if (!closing && socket.writable) socket.write(frame(text)); },
+      send(text) { if (!closing) write(frame(text)); },
       /** The server's half of the closing handshake (no code: an empty close, as the client's was); the room forgets it now. */
       close(code) {
         if (closing) return;
@@ -142,7 +143,7 @@ export function attachFjolspil(server, { now, join = () => [], rooms = createRoo
     const read = frameReader({
       onText: text => { const parsed = parseMessage(text); if (parsed) deliver(rooms.route(conn, parsed)); },
       onControl: (opcode, payload) => {
-        if (opcode === OP.ping) socket.write(frameOf(OP.pong, payload));
+        if (opcode === OP.ping) write(frameOf(OP.pong, payload));
         else if (opcode === OP.close) conn.close(payload.length >= 2 ? payload.readUInt16BE(0) : undefined);
       },
       onRefuse: code => conn.close(code),
