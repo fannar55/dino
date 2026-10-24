@@ -5,21 +5,27 @@
 // to write. The clock comes in as `now`, so the same module runs in serve.mjs at home (tools/fjolspil-server.mjs), in the
 // Durable Object in the cloud and in the tests.
 //
-// The rules (spec §6.1, §6.4): a host is known by its secret key and a guest by its id; either missing is 'bad-id'. The
-// first host's key owns the room. A host with another key is told 'taken' (it picks a new code); one with the same key
-// (the big screen reloaded) takes over, and the old connection is told 'replaced'. A guest with the id of a connected
-// guest (the same phone back, or in a second tab) takes over in the same way. A ninth guest is 'full' (MAX_GUESTS, more
-// phones than the table has seats: the seats are the host's to refuse, protocol.js). While the host is away a new guest is
-// refused 'no-host' (the phone tries again), and the guests already there stay, told 'no-host', until the host is back and
-// hears 'joined' for each of them. Only relay is carried. Every accepted connect, every disconnect and every message from
-// someone in the room, of any type, is a sign of life (the host's alive, once a minute, is one that goes nowhere); the room
-// expires ttlMs after the last one.
+// The rules (spec §6.1, §6.4): a host is known by its secret key and a guest by its id; either missing, or longer than
+// ID_MAX characters, is 'bad-id', at home and in the cloud alike. The first host's key owns the room. A host with another
+// key is told 'taken' (it picks a new code); one with the same key (the big screen reloaded) takes over, and the old
+// connection is told 'replaced'. A guest with the id of a connected guest (the same phone back, or in a second tab) takes
+// over in the same way. A ninth guest is 'full' (MAX_GUESTS, more phones than the table has seats: the seats are the
+// host's to refuse, protocol.js). While the host is away a new guest is refused 'no-host' (the phone tries again), and the
+// guests already there stay, told 'no-host', until the host is back and hears 'joined' for each of them. Only relay is
+// carried. Every accepted connect, every disconnect and every message from someone in the room, of any type, is a sign of
+// life (the host's alive, once a minute, is one that goes nowhere); the room expires ttlMs after the last one.
 //
 // A refused connect delivers nothing: the transport sends error { reason } and closes the socket.
 
 import { MAX_GUESTS, ROOM_TTL_MS, message } from './protocol.js';
 
-const isName = value => typeof value === 'string' && value !== '';
+/**
+ * The longest key or id the room takes: twice what randomKey makes (32 hex characters). A longer one is not ours, and one
+ * long enough would not fit the attachment (2 KiB) that keeps a cloud socket's identity after the room let it in.
+ */
+export const ID_MAX = 64;
+
+const isName = value => typeof value === 'string' && value !== '' && value.length <= ID_MAX;
 
 const refused = reason => ({ ok: false, reason, deliveries: [] });
 

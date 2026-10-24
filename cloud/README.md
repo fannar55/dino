@@ -26,8 +26,8 @@ npm run deploy       # setur leikinn í loftið
   skrá yfir 25 MiB (Cloudflare tekur ekki stærri skrár) og nefnir hana.
 - Með `npm run dev` er skýjaleiðin prófuð heima, líka frá síma: opnaðu `http://<ip-tala-tölvunnar>:8787/remake/` á stóra
   skjánum og skannaðu QR-kóðann með símanum (á sama Wi-Fi). IP-töluna sýnir `ipconfig` (IPv4 Address). QR-kóðinn ber slóðina
-  sem síðan var opnuð á, svo opnaðu hana á IP-tölunni en ekki á `127.0.0.1`. Windows getur spurt hvort Node.js megi nota
-  netið: leyfðu það á einkaneti.
+  sem síðan var opnuð á, svo opnaðu hana á IP-tölunni en ekki á `127.0.0.1`. Windows getur spurt hvort workerd
+  (`workerd.exe`, sem keyrir Workerinn undir `npm run dev`) megi nota netið: leyfðu það á einkaneti.
 - `npm run deploy` setur leikinn á `https://mosi.<undirlénið-þitt>.workers.dev/` (wrangler prentar slóðina). Þar er síðan á
   `https`, svo símasíðan tengist herberginu með `wss://` og WebRTC virkar.
 - `npm test` hér (eða `npm run test:cloud` í rót repósins) keyrir prófin á herberginu.

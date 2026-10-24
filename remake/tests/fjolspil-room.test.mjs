@@ -71,6 +71,15 @@ test('a second host needs the same key, a ninth guest is refused, and a guest wi
   assert.equal(room.connect({}, { role: 'fish', id: 'x' }).reason, 'bad-role');
 });
 
+test('an id or a key longer than 64 characters is bad-id, so home and the cloud agree (a socket\'s attachment holds 2 KiB)', () => {
+  const room = createRoom({ code: 'GULL' });
+  assert.equal(room.connect({}, { role: 'host', key: 'k'.repeat(65) }).reason, 'bad-id');
+  assert.equal(room.connect({}, { role: 'host', key: 'k'.repeat(64) }).ok, true);
+  assert.equal(room.connect({}, { role: 'guest', id: 'g'.repeat(65) }).reason, 'bad-id');
+  assert.equal(room.connect({}, { role: 'guest', id: 'a'.repeat(32) }).ok, true, 'a phone\'s id, 32 hex characters');
+  assert.deepEqual(room.guests().map(guest => guest.id), ['a'.repeat(32)], 'the long one never came in');
+});
+
 test('a guest that comes back with its id takes over its old connection', () => {
   const room = createRoom({ code: 'GULL' });
   const host = {}, old = {}, fresh = {};
