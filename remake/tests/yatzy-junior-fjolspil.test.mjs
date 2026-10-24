@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CATEGORIES,createGame,roll,hold,score,scoringDice,previews,totals,validateGame,maxTurns} from '../engine/yatzy-junior/rules.js';
 import {createSeats} from '../engine/fjolspil/seats.js';
-import {MOSI_AI,STORAGE_KEY,SAVE_KEY,playersOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from '../engine/yatzy-junior/fjolspil.js';
+import {MOSI_AI,STORAGE_KEY,SAVE_KEY,playersOf,phaseOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from '../engine/yatzy-junior/fjolspil.js';
 
 const ids=CATEGORIES.map(category=>category.id);
 /** Egill, Anna on her phone and Mosi: the table of three the tests play at. */
@@ -129,9 +129,37 @@ test('the winner in the view is a seat number or tie',()=>{
     const [a,b]=game.players.map(player=>totals(player.scores).total);game.winner=a===b?'tie':a>b?'0':'1';
     validateGame(game);return game;
   };
-  const anna=yatzyView(finished({pair:4},{yatzy:50}),seats,1,still);
+  const over=finished({pair:4},{yatzy:50}),anna=yatzyView(over,seats,1,still);
   assert.equal(anna.winner,1);assert.deepEqual(can(anna),[false,false,false]);assert.equal(anna.round,5);
   assert.deepEqual(anna.players.map(player=>player.total),[4,50]);
   assert.equal(yatzyView(finished({pair:12},{pair:4}),seats,1,still).winner,0);
   assert.equal(yatzyView(finished({},{}),seats,0,still).winner,'tie');
+  assert.equal(over.currentPlayer,0);assert.deepEqual(can(yatzyView(over,seats,0,still)),[false,false,false],'a finished game allows nothing, not even its current player');
+  for(const act of [{type:'roll'},{type:'hold',die:0},{type:'score',card:'pair'}])assert.equal(actOf(over,0,act,{settled:true}),null,`${act.type} after the end`);
+});
+
+test('a finished game of seats is never offered again, and forgetting lets the kept one go',()=>{
+  const seats=table(),storage=memory(),snapshot=seats.snapshot();
+  let game=createGame({seed:13,players:playersOf(seats)});
+  while(game.status==='playing')game=score(roll(game),ids.find(id=>game.players[game.currentPlayer].scores[id]===null));
+  assert.equal(game.turnCount,maxTurns(3));validateGame(game);
+  keepFjolspil(storage,{state:game,seats:snapshot});
+  assert.equal(readFjolspil(storage),null,'a finished game is not offered');assert.equal(storage.map.has(SAVE_KEY),false,'and is let go');
+  const playing=roll(createGame({seed:13,players:playersOf(seats)}));
+  keepFjolspil(storage,{state:playing,seats:snapshot});assert.ok(readFjolspil(storage));
+  forgetFjolspil(storage);assert.equal(storage.map.has(SAVE_KEY),false);assert.equal(readFjolspil(storage),null);
+  storage.setItem('mosi.yatzy.junior.save.v1','{"solo":true}');forgetFjolspil(storage);
+  assert.equal(storage.getItem('mosi.yatzy.junior.save.v1'),'{"solo":true}','the solo save is the child\'s and stays');
+});
+
+test('a seat\'s turn is played as the seat is: at the big screen, from a phone, waited for, or by the computer',()=>{
+  const seats=table();
+  assert.equal(phaseOf(seats.bySeat(0)),'human','Egill at the big screen');
+  assert.equal(phaseOf(seats.bySeat(1)),'remote','Anna from her phone');
+  assert.equal(phaseOf(seats.bySeat(2)),'ai-wait','Mosi by himself');
+  seats.presence(1,false);assert.equal(phaseOf(seats.bySeat(1)),'waiting','her phone has gone: the waiting card');
+  seats.cover(1);assert.equal(phaseOf(seats.bySeat(1)),'ai-wait','"Halda áfram án …": the computer plays her seat');
+  seats.presence(1,true);assert.equal(phaseOf(seats.bySeat(1)),'waiting','she is back: the wait gives her seat back at once');
+  seats.uncover(1);assert.equal(phaseOf(seats.bySeat(1)),'remote');
+  assert.equal(phaseOf(null),'ai-wait');assert.equal(phaseOf(undefined),'ai-wait');
 });

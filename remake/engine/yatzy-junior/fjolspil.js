@@ -19,6 +19,18 @@ const CARD_IDS=new Set(CATEGORIES.map(category=>category.id));
 export const playersOf=seats=>seats.list().map(seat=>String(seat.seat));
 
 /**
+ * How the big screen plays a seat's turn (game.js's phase): 'human' for Egill at the big screen, 'remote' for a guest whose
+ * phone is there, 'waiting' for a guest who has gone (the lobby's waiting card, fjolspil.waitFor) or whose seat the computer
+ * covers while she is back (the wait gives it back to her at once), and 'ai-wait' for Mosi, a seat the computer covers while
+ * its guest is away, or no seat.
+ */
+export function phaseOf(seat){
+  if(seat?.kind==='host')return 'human';
+  if(seat?.kind==='remote')return seat.present?'remote':'waiting';
+  return seat?.covered&&seat.present?'waiting':'ai-wait';
+}
+
+/**
  * What seat `seat`'s phone shows now (guest-yatzy.js): whose turn and round, the dice and the latest roll (`lastRoll`,
  * { seq, by }, so every phone tumbles its dice once per roll), what this seat may do, the five cards of whoever plays (an open
  * card's preview and the dice that score on it after a roll; a filled one's score and the dice that filled it), everyone's
@@ -62,8 +74,8 @@ export function keepFjolspil(storage,{state,seats}){
 }
 
 /**
- * The kept game of seats, { state, seats }, or null: one whose state the rules refuse, or whose seats are not its players
- * (as many, Egill first, player i the seat i), is let go.
+ * The kept game of seats, { state, seats }, or null: one whose state the rules refuse, that is over (a finished game is never
+ * offered), or whose seats are not its players (as many, Egill first, player i the seat i), is let go.
  */
 export function readFjolspil(storage){
   let raw=null,kept=null;
@@ -71,7 +83,7 @@ export function readFjolspil(storage){
   if(raw===null)return null;
   try{kept=JSON.parse(raw);}catch{/* not a game: let go below */}
   const state=restoreGame(kept?.state),list=kept?.seats?.seats;
-  if(state&&Array.isArray(list)&&list.length===state.players.length&&list[0]?.kind==='host'&&state.players.every((player,i)=>player.id===String(i)))return {state,seats:kept.seats};
+  if(state?.status==='playing'&&Array.isArray(list)&&list.length===state.players.length&&list[0]?.kind==='host'&&state.players.every((player,i)=>player.id===String(i)))return {state,seats:kept.seats};
   forgetFjolspil(storage);
   return null;
 }
