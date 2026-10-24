@@ -6,14 +6,17 @@ import { createGuestPage } from '../engine/fjolspil/guest.js';
 
 class FakeStorage { constructor() { this.map = new Map(); } getItem(k) { return this.map.get(k) ?? null; } setItem(k, v) { this.map.set(k, String(v)); } }
 function fakeNet() {
-  const net = { sent: [], connected: [], status: 'idle', onMessage: fn => { net.message = fn; }, onStatus: fn => { net.statusFn = fn; }, send: m => { net.sent.push(m); return true; }, reconnect() {}, close() {} };
+  const net = { sent: [], connected: [], reconnects: 0, status: 'idle', onMessage: fn => { net.message = fn; }, onStatus: fn => { net.statusFn = fn; }, send: m => { net.sent.push(m); return true; }, reconnect() { net.reconnects += 1; }, close() {} };
   return net;
 }
 function rig({ search = '', storage = new FakeStorage(), views = {} } = {}) {
   const doc = new FakeDocument(['spil']);
   const net = fakeNet();
-  const page = createGuestPage(doc, { win: { location: { search, origin: 'http://192.168.1.10:4198', protocol: 'http:', host: '192.168.1.10:4198' }, addEventListener() {} }, storage, params: new URLSearchParams(search), net: ({ code }) => { net.connected.push(code); return net; }, views });
-  return { doc, page, net, storage, root: doc.getElementById('spil') };
+  const listeners = {}; // the window's, by event type
+  const win = { location: { search, origin: 'http://192.168.1.10:4198', protocol: 'http:', host: '192.168.1.10:4198' }, addEventListener(type, fn) { (listeners[type] ??= []).push(fn); } };
+  const page = createGuestPage(doc, { win, storage, params: new URLSearchParams(search), net: ({ code }) => { net.connected.push(code); return net; }, views });
+  const fire = type => { for (const fn of listeners[type] ?? []) fn(new Event(type)); };
+  return { doc, page, net, storage, fire, root: doc.getElementById('spil') };
 }
 const $ = (root, s) => root.querySelector(s);
 const $$ = (root, s) => root.querySelectorAll(s);
@@ -89,4 +92,48 @@ test('a new connection starts the views afresh, so a big screen that reloaded wh
   net.message(view('over', { winner: { name: 'Bjarni', avatar: 'gramedla' } }, 1));
   assert.equal(page.screen, 'over');
   assert.equal($(root, '.spil-words').textContent, 'Bjarni vann!');
+});
+
+test('a guest with a seat says hello again when the connection is back, and one without waits for her tap', () => {
+  const storage = new FakeStorage();
+  storage.setItem('mosi-fjolspil-guest', JSON.stringify({ guestId: 'a'.repeat(32), name: 'Anna', avatar: 'kambedla' }));
+  const { page, root, net } = rig({ search: '?r=GULL', storage });
+  net.statusFn('connected');
+  assert.deepEqual(net.sent, [], 'remembered is not seated: the first hello is her tap');
+  tap($(root, '.spil-ready'));
+  net.message({ v: 1, type: 'seat', body: { ok: true, seat: 1 } });
+  net.message(view('lobby', { seats: [{ seat: 0, name: 'Egill', avatar: 'egill' }, { seat: 1, name: 'Anna', avatar: 'kambedla' }], available: ['sloedla'], you: 1 }, 1));
+  assert.equal(page.screen, 'lobby');
+  assert.equal(net.sent.length, 1);
+  net.statusFn('offline');
+  net.statusFn('connecting');
+  net.statusFn('connected');
+  assert.equal(net.sent.length, 2);
+  assert.deepEqual(net.sent.at(-1), { v: 1, type: 'hello', body: { name: 'Anna', avatar: 'kambedla' } }, 'her seat is asked for again (spec §6.4)');
+  net.statusFn('host-gone');
+  assert.equal(page.screen, 'wait');
+  net.statusFn('connected'); // the big screen is back
+  assert.equal(net.sent.length, 3);
+  assert.deepEqual(net.sent.at(-1).body, { name: 'Anna', avatar: 'kambedla' });
+});
+
+test('a hello sent before the socket opened is sent again once it has', () => {
+  const { root, net } = rig({ search: '?r=GULL' });
+  $(root, '.spil-name').value = 'Bjarni';
+  tap($$(root, '.spil-avatar')[2]);
+  tap($(root, '.spil-ready'));
+  net.statusFn('connected');
+  assert.deepEqual(net.sent.map(m => m.body), [{ name: 'Bjarni', avatar: 'gramedla' }, { name: 'Bjarni', avatar: 'gramedla' }]);
+});
+
+test('the page coming back into view, or the network coming back, reconnects at once', () => {
+  const { doc, net, fire } = rig({ search: '?r=GULL' });
+  doc.visibilityState = 'hidden';
+  fire('visibilitychange');
+  assert.equal(net.reconnects, 0, 'not when it goes away');
+  doc.visibilityState = 'visible';
+  fire('visibilitychange');
+  assert.equal(net.reconnects, 1);
+  fire('online');
+  assert.equal(net.reconnects, 2);
 });
