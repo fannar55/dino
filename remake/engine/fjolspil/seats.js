@@ -60,8 +60,8 @@ const refused = reason => ({ ok: false, reason });
  * they are the snapshot's, every guest absent until its phone says hello again.
  */
 export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}) {
-  const limit = from ? from.max ?? MAX_SEATS : max;
-  let held = [...(from ? from.reserved ?? [] : reserved)];
+  const limit = from ? (from.max ?? MAX_SEATS) : max;
+  let held = [...(from ? (from.reserved ?? []) : reserved)];
   let seats = [hostSeat()];
   for (const kept of from?.seats ?? []) {
     if (kept.kind === 'host') continue;
