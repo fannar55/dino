@@ -85,8 +85,7 @@ async function phoneTurn(phone,seat,{hold=false,shot=null,between=null}={}){
   await phone.waitForFunction(()=>document.querySelector('.spil-yatzy-card.available'));
   const card=await phone.evaluate(()=>{const cards=[...document.querySelectorAll('.spil-yatzy-card.available')];return (cards.find(c=>!c.classList.contains('zero'))||cards[0]).dataset.card;});
   const zero=await phone.evaluate(card=>document.querySelector(`.spil-yatzy-card[data-card="${card}"]`).classList.contains('zero'),card);
-  // A card lights up over 0.3 s (spil.css), and until it has, its 0 question is drawn under the cards after it: wait for it.
-  await phone.waitForFunction(card=>getComputedStyle(document.querySelector(`.spil-yatzy-card[data-card="${card}"]`)).opacity==='1',card);
+  // No wait for the card to light (0.3 s, spil.css): its 0 question is on top at once, and click's hit test fails if it is not.
   await click(phone,`.spil-yatzy-card[data-card="${card}"] .spil-yatzy-pick`);if(zero)await click(phone,`.spil-yatzy-card[data-card="${card}"] .spil-yatzy-use`);
   await waitBig(([seat,card])=>window.__juniorQA.getState().players[seat].scores[card]!==null,[seat,card]);return card;
 }

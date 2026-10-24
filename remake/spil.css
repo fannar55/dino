@@ -597,6 +597,9 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-yatzy-card { display: grid; min-width: 0; opacity: .72; transition: opacity .3s; } /* no transform here: the confirm sits over the whole row */
 .spil-yatzy-card.available { opacity: 1; }
 .spil-yatzy-card.filled { opacity: .5; }
+/* The card that asks over the rest (z-index on a grid item: no position, so the row stays the question's box). While a card lights,
+   its opacity makes it a stacking context its question cannot leave, and the cards after it would be drawn over "Nota". */
+.spil-yatzy-card:has(> .spil-yatzy-confirm:not([hidden])) { z-index: 3; }
 .spil-yatzy-pick {
   container-type: inline-size; position: relative; display: grid; justify-items: center; align-content: center; gap: 6px;
   min-width: 0; min-height: var(--spil-target); padding: 12px 6px 10px; border-radius: 16px;
