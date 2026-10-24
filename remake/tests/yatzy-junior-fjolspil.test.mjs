@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {CATEGORIES,createGame,roll,hold,score,scoringDice,previews,totals,validateGame,maxTurns} from '../engine/yatzy-junior/rules.js';
 import {createSeats} from '../engine/fjolspil/seats.js';
 import {MOSI_AI,STORAGE_KEY,SAVE_KEY,playersOf,phaseOf,yatzyView,actOf,keepFjolspil,readFjolspil,forgetFjolspil} from '../engine/yatzy-junior/fjolspil.js';
+import {VOICE_LINES,MULTI_LINES} from '../engine/yatzy-junior/voice-lines.js';
 
 const ids=CATEGORIES.map(category=>category.id);
 /** Egill, Anna on her phone and Mosi: the table of three the tests play at. */
@@ -26,6 +27,20 @@ test('Mosi joins the lobby as the one computer player, and a game of seats is ke
   assert.equal(STORAGE_KEY,'fjolspil.room.yatzy-junior');
   assert.equal(SAVE_KEY,'mosi.yatzy.junior.fjolspil.v1');
   assert.deepEqual(playersOf(table()),['0','1','2'],'the rules\' player ids are the seat numbers');
+});
+
+test('Mosi has six generic lines for a table of many, optional, and apart from the solo script the startup requires',()=>{
+  assert.deepEqual(Object.keys(MULTI_LINES),['multiWelcome','multiTurn','multiScored','multiZero','multiWait','multiOver']);
+  assert.deepEqual(MULTI_LINES,{
+    multiWelcome:{text:'Velkomin að borðinu! Við skiptumst á.',optional:true},multiTurn:{text:'Næsti kastar!',optional:true},
+    multiScored:{text:'Flott! Stigin fara á kortið.',optional:true},multiZero:{text:'Ekkert í þetta sinn. Næst gengur betur!',optional:true},
+    multiWait:{text:'Við bíðum aðeins.',optional:true},multiOver:{text:'Leik lokið! Sjáum hver vann.',optional:true}});
+  assert.ok(Object.isFrozen(MULTI_LINES)&&Object.values(MULTI_LINES).every(Object.isFrozen),'frozen as VOICE_LINES is');
+  for(const [id,line] of Object.entries(MULTI_LINES)){
+    assert.equal(line.optional,true,`${id} is optional`);assert.match(line.text,/^\p{Lu}[\p{L} ,]+[.!?](?: \p{Lu}[\p{L} ,]+[.!?])*$/u,`${id}: Icelandic sentences`);
+    assert.match(line.text,/[áðéíóúýþæö]/i,`${id}: Icelandic letters`);assert.equal(Object.hasOwn(VOICE_LINES,id),false,`${id} is not one the startup requires`);
+  }
+  for(const line of Object.values(VOICE_LINES))assert.equal(line.optional,undefined,'the solo script is all required');
 });
 
 test('the view of a guest on her turn after one roll: what she may do, her cards with previews, everyone\'s totals',()=>{
