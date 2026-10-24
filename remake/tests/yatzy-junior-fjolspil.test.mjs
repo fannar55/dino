@@ -160,6 +160,9 @@ test('a seat\'s turn is played as the seat is: at the big screen, from a phone, 
   seats.presence(1,false);assert.equal(phaseOf(seats.bySeat(1)),'waiting','her phone has gone: the waiting card');
   seats.cover(1);assert.equal(phaseOf(seats.bySeat(1)),'ai-wait','"Halda áfram án …": the computer plays her seat');
   seats.presence(1,true);assert.equal(phaseOf(seats.bySeat(1)),'waiting','she is back: the wait gives her seat back at once');
+  assert.equal(phaseOf(seats.bySeat(1),{going:true}),'ai-wait','back in the middle of a turn Mosi plays for her: he finishes it (spec §11)');
+  assert.equal(phaseOf(seats.bySeat(2),{going:true}),'ai-wait');assert.equal(phaseOf(seats.bySeat(0),{going:true}),'human');
   seats.uncover(1);assert.equal(phaseOf(seats.bySeat(1)),'remote');
+  assert.equal(phaseOf(seats.bySeat(1),{going:true}),'remote');seats.presence(1,false);assert.equal(phaseOf(seats.bySeat(1),{going:true}),'waiting','gone while her dice rolled: waited for');
   assert.equal(phaseOf(null),'ai-wait');assert.equal(phaseOf(undefined),'ai-wait');
 });

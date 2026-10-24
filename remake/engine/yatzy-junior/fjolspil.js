@@ -22,12 +22,13 @@ export const playersOf=seats=>seats.list().map(seat=>String(seat.seat));
  * How the big screen plays a seat's turn (game.js's phase): 'human' for Egill at the big screen, 'remote' for a guest whose
  * phone is there, 'waiting' for a guest who has gone (the lobby's waiting card, fjolspil.waitFor) or whose seat the computer
  * covers while she is back (the wait gives it back to her at once), and 'ai-wait' for Mosi, a seat the computer covers while
- * its guest is away, or no seat.
+ * its guest is away, or no seat. With going, the turn is under way (after a roll), and a seat the computer covers stays its own
+ * until the turn is over, even with its guest back (spec §11: Mosi finishes the turn, her next one is hers).
  */
-export function phaseOf(seat){
+export function phaseOf(seat,{going=false}={}){
   if(seat?.kind==='host')return 'human';
   if(seat?.kind==='remote')return seat.present?'remote':'waiting';
-  return seat?.covered&&seat.present?'waiting':'ai-wait';
+  return seat?.covered&&seat.present&&!going?'waiting':'ai-wait';
 }
 
 /**

@@ -122,9 +122,10 @@ const isHuman=()=>started&&!paused&&phase==='human'&&state.currentPlayer===0&&st
 const seatOf=i=>multi?fjolspil.seats.bySeat(i):null;
 // Who plays the turn, and how: the child at the big screen ('human'; Egill's seat 0 in Fjölspil), a guest from her phone
 // ('remote'), the computer ('ai-wait': Mosi, or a guest's seat he covers while she is away), or nobody yet ('waiting': her phone
-// has gone, and the waiting card is up). fjolspil.js phaseOf reads it off the seat.
-function turnPhase(){const who=state.currentPlayer;return multi?phaseOf(seatOf(who)):who===0?'human':'ai-wait';}
-function takeTurn(){phase=turnPhase();if(phase==='waiting')waitTurn(state.currentPlayer);}
+// has gone, and the waiting card is up), read off the seat (fjolspil.js phaseOf). After a roll the turn goes on as it was played
+// (going): a seat Mosi covers stays his till the turn is over, and a guest who went while her dice rolled is waited for.
+function turnPhase(going=false){const who=state.currentPlayer;return multi?phaseOf(seatOf(who),{going}):who===0?'human':'ai-wait';}
+function takeTurn(going=false){phase=turnPhase(going);if(phase==='waiting')waitTurn(state.currentPlayer);}
 const mosiPlays=i=>players[i]?.isMosi===true; // Mosi himself: his lines and sounds, and his side of the table for the dice
 const side=i=>mosiPlays(i)?1:0;
 // Mosi's lines for a game of seats are still to come (Task 7): until then he speaks to the child at the big screen and of his own play,
@@ -290,7 +291,7 @@ function rolled(){
   const values=Object.values(previews(state)),best=Math.max(0,...values),kind=best>=40?'great':best>0?'good':'bad',who=state.currentPlayer;
   opponent.react(kind);audio.cue(kind,{strength:.6});effects.emit(dice.getWatchTarget(),{kind:best>=50?'yatzy':kind,reduced});
   if(reduced)view('dice',true);else pendingDiceView=.7;
-  takeTurn();timer=2.6;if(multi){multi.before=null;multi.lastRoll={seq:++multi.seq,by:who};} // the dice lie: every phone tumbles onto them
+  takeTurn(true);timer=2.6;if(multi){multi.before=null;multi.lastRoll={seq:++multi.seq,by:who};} // the dice lie: every phone tumbles onto them
   if(lesson)nextLesson();else if(voiced(who))say(mosiPlays(who)?kind:state.rollCount===3?'noRolls':state.rollCount===2?'lastRoll':'choose');renderUI();sendViews();
 }
 function chooseScore(id){
