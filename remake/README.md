@@ -68,8 +68,7 @@ to `qa/yatzy-junior/`.
 The table game is at `/remake/yatzy-mosi.html`. Run `npm run start:yatzy-mosi`
 and open http://127.0.0.1:4197/remake/yatzy-mosi.html.
 It uses this remake's real Mosi model, eyelids, actor control, forest, lighting,
-character illustrations and Nunito font. Its source is in `engine/yatzy-mosi/`;
-the earlier Slóeðla game in `engine/yatzy/` is separate.
+character illustrations and Nunito font. Its source is in `engine/yatzy-mosi/`.
 
 Five rounded 3D dice, enlarged by 18%, carry both numbers and dinosaur pictures. A black textured
 Yatzy cup has opaque walls, an open mouth, a thick rim and dark felt inside.

@@ -1,6 +1,6 @@
 import { createSfx } from './sfx.js';
 
-// A game with music of its own tunes its effects to that music, not to the page's theme: "Eitt!" and Risaeðlu-Yatzy play
+// A game with music of its own tunes its effects to that music, not to the page's theme: "Eitt!" plays
 // assets/audio/eitt/music.mp3, Háls og hali assets/audio/hals/music.mp3. Beside each track a music.json (written by
 // tools/theme-tempo.mjs --file) says its tempo and its key, five notes of its major pentatonic, root first, at its own tuning. A game
 // whose track has none (no music yet, or a file that cannot be read) tunes its effects to the page's theme, as every game once did.

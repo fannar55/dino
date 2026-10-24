@@ -30,7 +30,6 @@ import { parseManifest } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
-import { createYatzyGame } from './engine/yatzy/table.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
@@ -202,7 +201,7 @@ const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
   cards, media, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
   onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
@@ -228,15 +227,6 @@ const eitt = createEittGame(document, {
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
-});
-// Slóeðla's dice game, "Risaeðlu-Yatzy" (engine/yatzy/table.js), which the Leikir page opens over the book.
-const yatzy = createYatzyGame(document, {
-  save, audio: { context: audio, output, theme, lines, muted: !playing },
-  onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
-    hold('yatzy', paused);
-  },
-  onClose: () => book.refresh(),
 });
 // "Litla Yatzy við Mosa" (remake/yatzy-junior.html, a page of its own) in a frame over the book (engine/yatzy-junior/frame.js),
 // the chapter held meanwhile as for the other games.

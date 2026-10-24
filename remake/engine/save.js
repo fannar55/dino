@@ -62,13 +62,6 @@ function halsOf(value) {
   return { found: idsOf(value.found), ...(game && { game }), ...(value.intro === true && { intro: true }), ...(value.hello === true && { hello: true }), ...(value.played === true && { played: true }) };
 }
 
-/** Risaeðlu-Yatzy's state as stored: { skill (0 to 1, or null), losses, wins, badges, tutorialDone }, or null. */
-function yatzyOf(value) {
-  if (!value || typeof value !== 'object') return null;
-  const skill = Number.isFinite(value.skill) && value.skill >= 0 && value.skill <= 1 ? value.skill : null;
-  return { skill, losses: count(value.losses), wins: count(value.wins), badges: idsOf(value.badges), tutorialDone: value.tutorialDone === true };
-}
-
 /**
  * `get()` is a copy of { stars, findings, seen, places }, each a list of ids in the order they came. `addStar(id)`,
  * `addFinding(id)`, `addSeen(id)` and `addPlace(id)` keep an id once however often they are called, and say whether it was new.
@@ -81,14 +74,11 @@ function yatzyOf(value) {
  * been said, and whether a game has ever been kept; `setHalsPlay(changes)` keeps what it is given (game: null forgets the game)
  * and leaves the rest as it was. `played` is set by any call while a game is kept, before it or after it (or by played: true),
  * and nothing clears it: a game won, "Nýr leikur" and a game forgotten leave it.
- * `getYatzy()` is a copy of Risaeðlu-Yatzy's { skill, losses, wins, badges, tutorialDone }, `setYatzy(changes)` updates it, and
- * `addYatzyBadge(id)` records a dinosaur Yatzy badge once and returns whether it was new.
  */
 export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
   const data = { stars: [], findings: [], seen: [], places: [] }; // all there is when the storage does not work
   let eitt = null; // the card game's, once a round has been played
   let hals = null; // the fossil collection, once the first fossil has been found
-  let yatzy = null; // Risaeðlu-Yatzy's, once played
 
   try {
     const stored = JSON.parse(storage?.getItem(key) ?? 'null');
@@ -99,7 +89,6 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       data.places = idsOf(stored.places); // none in a save from before the map
       eitt = eittOf(stored.eitt); // none in a save from before the game
       hals = halsOf(stored.hals); // none in a save from before the fossils
-      yatzy = yatzyOf(stored.yatzy); // none in a save from before Yatzy
     }
   } catch {
     // nothing stored, or nothing that can be read: start empty
@@ -107,7 +96,7 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
 
   function write() {
     try {
-      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(hals && { hals }), ...(yatzy && { yatzy }) }));
+      storage?.setItem(key, JSON.stringify({ ...data, ...(eitt && { eitt }), ...(hals && { hals }) }));
     } catch {
       // not kept for next time; still kept for now
     }
@@ -164,24 +153,6 @@ export function createSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
       if (changes.played === true || hals?.game || next.game) next.played = true; // a game kept has been played, for good
       hals = halsOf(next);
       write();
-    },
-    getYatzy: () => ({
-      skill: yatzy?.skill ?? null,
-      losses: yatzy?.losses ?? 0,
-      wins: yatzy?.wins ?? 0,
-      badges: [...(yatzy?.badges ?? [])],
-      tutorialDone: yatzy?.tutorialDone ?? false,
-    }),
-    setYatzy(changes = {}) {
-      yatzy = yatzyOf({ ...yatzy, ...changes }) ?? yatzyOf({});
-      write();
-    },
-    addYatzyBadge(id) {
-      if (typeof id !== 'string' || !id) throw new TypeError(`A save keeps ids, which are names, not ${String(id)}`);
-      if (yatzy?.badges.includes(id)) return false;
-      yatzy = yatzyOf({ ...yatzy, badges: [...(yatzy?.badges ?? []), id] });
-      write();
-      return true;
     },
   };
 }

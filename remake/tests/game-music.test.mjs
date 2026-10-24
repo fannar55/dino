@@ -5,12 +5,10 @@ import { createGameSfx, musicJsonUrl, readMusic, tunedTheme } from '../engine/au
 import { createSfx } from '../engine/audio/sfx.js';
 import { eittSounds, EITT_SFX, EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
 import { halsSounds, HALS_SFX, HALS_GAPS } from '../engine/hals/hals-sounds.js';
-import { yatzySounds, YATZY_SFX, YATZY_GAPS } from '../engine/yatzy/yatzy-sounds.js';
 import { createFakeContext, pitchesOf, withFetch } from './fake-audio.mjs';
 
-// A game with music of its own tunes its effects to that music (engine/audio/game-music.js): "Eitt!" and Risaeðlu-Yatzy to Eitt!'s
-// track, Háls og hali to its own, each by the music.json beside the track (tools/theme-tempo.mjs --file). A game without one follows
-// the page's theme.
+// A game with music of its own tunes its effects to that music (engine/audio/game-music.js): "Eitt!" and Háls og hali each to its
+// own track, by the music.json beside the track (tools/theme-tempo.mjs --file). A game without one follows the page's theme.
 
 const AUDIO = new URL('../assets/audio/', import.meta.url);
 const read = path => JSON.parse(fs.readFileSync(new URL(path, AUDIO), 'utf8'));
@@ -19,7 +17,6 @@ const TRAIL = read('kafli2/theme.json'); // chapter 2's page: Dino Trail, B-flat
 const ELSEWHERE = { ...PAGE, key: [440, 495, 556.25, 660, 742.5] }; // A major, so nothing passes by luck
 const GAMES = [
   { name: 'Eitt!', music: 'eitt/music.mp3', sounds: eittSounds, names: EITT_SFX, gaps: EITT_GAPS, source: '../engine/eitt/table.js' },
-  { name: 'Risaeðlu-Yatzy', music: 'eitt/music.mp3', sounds: yatzySounds, names: YATZY_SFX, gaps: YATZY_GAPS, source: '../engine/yatzy/table.js' },
   { name: 'Háls og hali', music: 'hals/music.mp3', sounds: halsSounds, names: HALS_SFX, gaps: HALS_GAPS, source: '../engine/hals/game.js' },
 ];
 const seeded = seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
@@ -114,7 +111,7 @@ test('a game whose track has no music.json follows the page\'s theme, as every g
 });
 
 test('effects tuned once the music is known keep whether they are muted and held', async () => {
-  const game = GAMES[2];
+  const game = GAMES[1];
   const context = createFakeContext({ state: 'running' });
   await withFetch(async () => {
     const sfx = createGameSfx({ music: new URL(game.music, AUDIO).href, context, theme: ELSEWHERE, sounds: game.sounds, gaps: game.gaps });

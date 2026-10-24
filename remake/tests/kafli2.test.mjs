@@ -942,7 +942,7 @@ test('a full save as the page keeps it loads whole, and the map\'s places start 
     stars: ['k1_kambedla'], findings: ['butterfly', 'frog'], seen: ['mosi', 'frog'],
     eitt: { skill: 0.4, losses: 2, wins: 3, tutorialDone: true },
     hals: { found: ['ammonite'], game: { turn: 3 }, intro: true, hello: true, played: true },
-    yatzy: { skill: 0.5, losses: 1, wins: 2, badges: ['yatzy_mosi'], tutorialDone: true },
+    yatzy: { skill: 0.5, losses: 1, wins: 2, badges: ['yatzy_mosi'], tutorialDone: true }, // an older save's Risaeðlu-Yatzy, which nothing reads now
   };
   let written = null;
   const storage = { getItem: () => JSON.stringify(full), setItem: (key, value) => { written = JSON.parse(value); } };
@@ -951,8 +951,8 @@ test('a full save as the page keeps it loads whole, and the map\'s places start 
   assert.deepEqual(save.getEitt(), { ...full.eitt, game: null, seats: null }); // no round of "Fjölspil" kept
   assert.deepEqual(save.getHals(), { found: full.hals.found });
   assert.deepEqual(save.getHalsPlay(), { game: full.hals.game, intro: true, hello: true, played: true });
-  assert.deepEqual(save.getYatzy(), full.yatzy);
-  // a place found keeps every field as it was, with the place
+  // a place found keeps every field as it was, with the place, but Risaeðlu-Yatzy's: the game left (the owner's choice of 2026-10-24)
   assert.equal(save.addPlace('fen'), true);
-  assert.deepEqual(written, { ...full, places: ['fen'] });
+  const { yatzy, ...kept } = full;
+  assert.deepEqual(written, { ...kept, places: ['fen'] });
 });

@@ -350,7 +350,7 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
-/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Risaeðlu-Yatzy" in the second. */
+/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Litla Yatzy" in the second. */
 .book-leaf[data-tab="games"] .book-tiles {
   --pad-top: 6cqh; --pad-bottom: 5.5cqh; --gap: max(16px, 3.4cqmin);
   display: grid;
