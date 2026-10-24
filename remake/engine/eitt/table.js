@@ -1,4 +1,4 @@
-import { makeDeck, newGame, play, draw, pass, callEitt, catchEitt, canDraw, canPlay, playable, isWild } from './rules.js';
+import { makeDeck, newGame, next, play, draw, pass, callEitt, catchEitt, canDraw, canPlay, playable, isWild } from './rules.js';
 import { chooseMove, willCallEitt, willCatch } from './kambedla.js';
 import { SKILL_START, afterRound, inRound } from './skill.js';
 import { advise, adviseColour } from './advice.js';
@@ -69,6 +69,9 @@ const MARK = { draw2: '+2', wild4: '+4' };
 const ORDER = { red: 0, yellow: 1, green: 2, blue: 3 };
 const KIND_ORDER = { number: 0, skip: 10, reverse: 11, draw2: 12, wild: 100, wild4: 101 };
 const MOVES_AGAIN = new Set(['skip', 'reverse', 'draw2', 'wild4']);
+// The seats of the round on one device (rules.js knows its players by seat): the child's, who begins, and Kambeðla's.
+const CHILD = 0;
+const KAMBEDLA = 1;
 
 /** Mosi's words for each reason he gives (advice.js REASONS; his lines eitt_why_<reason> in assets/audio/eitt/lines-source.json). */
 const WHY = {
@@ -101,14 +104,15 @@ const whyLine = reason => `eitt_why_${reason.replace(/-/g, '_')}`;
 const TUTORIAL_DEALS = {
   cards: {
     top: 'red-5-a',
-    child: ['red-3-a', 'blue-8-a', 'yellow-skip-a', 'yellow-reverse-a', 'yellow-draw2-a', 'wild-a', 'wild4-a', 'green-6-a'],
-    kambedla: ['red-8-a', 'yellow-8-a', 'red-2-a', 'yellow-2-a', 'green-2-a', 'blue-2-a'],
+    hands: [
+      ['red-3-a', 'blue-8-a', 'yellow-skip-a', 'yellow-reverse-a', 'yellow-draw2-a', 'wild-a', 'wild4-a', 'green-6-a'], // the child's
+      ['red-8-a', 'yellow-8-a', 'red-2-a', 'yellow-2-a', 'green-2-a', 'blue-2-a'], // Kambeðla's
+    ],
     next: [],
   },
   eitt: {
     top: 'yellow-7-a',
-    child: ['blue-3-a'],
-    kambedla: ['yellow-3-a', 'blue-9-a', 'red-4-a'],
+    hands: [['blue-3-a'], ['yellow-3-a', 'blue-9-a', 'red-4-a']], // the child's, Kambeðla's
     next: ['green-1-a', 'yellow-6-a', 'blue-1-a'], // drawn in this order: the child's draw, then her two when she is caught
   },
 };
@@ -159,13 +163,14 @@ const REAL = { id: 'eitt_tut_real', text: 'Nú kanntu reglurnar! Nú spilum við
 function tutorialGame(deal) {
   const deck = makeDeck();
   const byId = id => deck.find(card => card.id === id);
-  const used = new Set([deal.top, ...deal.child, ...deal.kambedla, ...deal.next]);
+  const used = new Set([deal.top, ...deal.hands.flat(), ...deal.next]);
   return {
     deck: [...deck.filter(card => !used.has(card.id)), ...[...deal.next].reverse().map(byId)], // the next card is the last
     pile: [byId(deal.top)],
-    hands: { child: deal.child.map(byId), kambedla: deal.kambedla.map(byId) },
+    hands: deal.hands.map(hand => hand.map(byId)),
     colour: byId(deal.top).colour,
-    turn: 'child',
+    turn: CHILD,
+    direction: 1,
     drew: false,
     unsaid: null,
     winner: null,
@@ -450,9 +455,9 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   }
 
   const eittState = () => save?.getEitt?.() ?? { skill: null, losses: 0, wins: 0 };
-  const skillNow = () => inRound(eittState().skill ?? SKILL_START, game.hands.child.length, game.hands.kambedla.length);
-  const childMoves = () => isOpen && game && !game.winner && game.turn === 'child' && !busy && !pendingWild && !animating;
-  const handCards = () => sorted(game ? game.hands.child.filter(card => card.id !== pendingWild?.id) : []);
+  const skillNow = () => inRound(eittState().skill ?? SKILL_START, game.hands[CHILD].length, game.hands[KAMBEDLA].length);
+  const childMoves = () => isOpen && game && game.winner === null && game.turn === CHILD && !busy && !pendingWild && !animating;
+  const handCards = () => sorted(game ? game.hands[CHILD].filter(card => card.id !== pendingWild?.id) : []);
   const pileCards = () => (game ? (pendingWild ? [...game.pile, pendingWild] : game.pile) : []);
 
   // ---- Kambeðla's view: loaded the first time the game opens; until then (and without WebGL) her picture stands in --------------
@@ -645,7 +650,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   /** What may be tapped shows: the cards that go lift when hinted or picked by Mosi, the deck calls, "Eitt!" glows. */
   function marks() {
     if (!game) return;
-    const goes = childMoves() ? new Set(playable(game, 'child').map(card => card.id)) : new Set();
+    const goes = childMoves() ? new Set(playable(game, CHILD).map(card => card.id)) : new Set();
     for (const [id, el] of handEls) {
       el.classList.toggle('playable', goes.has(id));
       el.classList.toggle('hint', goes.has(id) && (tutorial ? tutorial.live === id || tutorial.lit === id : hinting || mosiPick === id || game.drew));
@@ -657,13 +662,13 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   function sync({ animate = true } = {}) {
     if (!game) return;
     renderHand(handCards(), { animate });
-    renderTheirs(game.hands.kambedla, { animate });
+    renderTheirs(game.hands[KAMBEDLA], { animate });
     renderPile(pileCards());
     ringEl.hidden = false;
     ringEl.className = `eitt-ring ${pendingWild ? 'wild' : game.colour}`;
-    passEl.hidden = !(game.drew && game.turn === 'child' && !game.winner) || Boolean(tutorial);
-    eittEl.classList.toggle('needed', Boolean(game.unsaid) && !game.winner);
-    deckEl.classList.toggle('draw', childMoves() && canDraw(game, 'child') && (tutorial ? tutorial.live === 'deck' : hinting || mosiPick === 'draw'));
+    passEl.hidden = !(game.drew && game.turn === CHILD && game.winner === null) || Boolean(tutorial);
+    eittEl.classList.toggle('needed', game.unsaid !== null && game.winner === null);
+    deckEl.classList.toggle('draw', childMoves() && canDraw(game, CHILD) && (tutorial ? tutorial.live === 'deck' : hinting || mosiPick === 'draw'));
     coloursEl.hidden = !pendingWild;
     for (const button of colourButtons) {
       button.classList.toggle('hint', Boolean(pendingWild) && mosiColour === button.dataset.colour);
@@ -752,14 +757,14 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     }
     if (!added.length) return;
     const hidden = new Set(added.map(card => card.id));
-    if (who === 'child') renderHand(handCards(), { hidden });
-    else renderTheirs(game.hands.kambedla, { hidden });
+    if (who === CHILD) renderHand(handCards(), { hidden });
+    else renderTheirs(game.hands[KAMBEDLA], { hidden });
     const flights = [];
     for (const card of added) {
-      const el = (who === 'child' ? handEls : theirEls).get(card.id);
+      const el = (who === CHILD ? handEls : theirEls).get(card.id);
       if (!el) continue;
-      flights.push(fly(who === 'child' ? card : null, placeDeck(), who === 'child' ? placeHand(el) : placeTheirs(el), {
-        turn: who === 'child' ? 'up' : 'none',
+      flights.push(fly(who === CHILD ? card : null, placeDeck(), who === CHILD ? placeHand(el) : placeTheirs(el), {
+        turn: who === CHILD ? 'up' : 'none',
         duration: DRAW_MS,
         onLand: () => {
           el.style.visibility = '';
@@ -818,7 +823,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
 
   function askMosi() {
     wake();
-    if (!isOpen || !game || game.winner || ending) return;
+    if (!isOpen || !game || game.winner !== null || ending) return;
     if (tutorial) { // he says the step again
       const step = TUTORIAL[tutorial.step];
       if (step) showAdvice(step.id, step.text, { stay: true });
@@ -826,12 +831,12 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     }
     if (flying) return;
     if (pendingWild) {
-      mosiColour = adviseColour(game, pendingWild.id);
+      mosiColour = adviseColour(game, pendingWild.id, CHILD);
       explain('most-colour');
       sync({ animate: false });
       return;
     }
-    const advice = advise(game);
+    const advice = advise(game, CHILD);
     if (!advice || (busy && advice.type !== 'eitt')) {
       nope(mosiEl); // Kambeðla's turn: nothing to advise yet
       return;
@@ -883,8 +888,8 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   async function dealMore(ids) {
     const before = game;
     const cards = ids.map(id => game.deck.find(card => card.id === id)).filter(Boolean);
-    game = { ...game, deck: game.deck.filter(card => !cards.includes(card)), hands: { ...game.hands, child: [...game.hands.child, ...cards] } };
-    await giveCards(before, 'child', 'deal');
+    game = { ...game, deck: game.deck.filter(card => !cards.includes(card)), hands: game.hands.map((hand, seat) => (seat === CHILD ? [...hand, ...cards] : hand)) };
+    await giveCards(before, CHILD, 'deal');
   }
 
   /** A card tapped at a check that does not fit: it wiggles, and Mosi says gently what to look for; after two, the right one lights. */
@@ -906,8 +911,8 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   function tutorialMove() {
     const top = game.pile.at(-1);
     const want = isWild(top) ? `${game.colour}-2-a` : HER_MOVES[top.id];
-    const card = game.hands.kambedla.find(held => held.id === want);
-    return card && canPlay(card, game) ? { type: 'play', cardId: card.id } : chooseMove(game, 1, random);
+    const card = game.hands[KAMBEDLA].find(held => held.id === want);
+    return card && canPlay(card, game) ? { type: 'play', cardId: card.id } : chooseMove(game, KAMBEDLA, 1, random);
   }
 
   /**
@@ -1017,7 +1022,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   }
 
   function startChildTurn() {
-    if (!isOpen || game.winner) return;
+    if (!isOpen || game.winner !== null) return;
     busy = false;
     nopes = 0;
     nudged = false;
@@ -1052,21 +1057,21 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     if (!childMoves()) return;
     if (tutorial?.live === 'check' && id !== tutorial.check) return wrongAnswer(id);
     if (tutorial && tutorial.live !== 'check' && tutorial.live !== id) return;
-    const card = game.hands.child.find(held => held.id === id);
+    const card = game.hands[CHILD].find(held => held.id === id);
     const el = handEls.get(id);
     if (!card || !el) return;
     if (tutorial?.live === 'check') showAdvice(HINTS.right.id, HINTS.right.text); // found it
     if (!canPlay(card, game)) {
       nope(el);
       nopes++;
-      const nothing = playable(game, 'child').length === 0;
+      const nothing = playable(game, CHILD).length === 0;
       if (nopes >= (nothing ? 1 : 2) && !hinting) {
         hinting = true; // what goes lifts (or, with nothing that goes, the deck calls)
         sync({ animate: false });
       }
       return;
     }
-    if (isWild(card) && game.hands.child.length > 1) run(playWild(card, el));
+    if (isWild(card) && game.hands[CHILD].length > 1) run(playWild(card, el));
     else run(childPlays(card, placeHand(el)));
   }
 
@@ -1074,19 +1079,19 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
    * In the tutorial, a card that leaves the child one before "Eitt!" is the lesson (the +4 does) is called for the child, quietly, so
    * the button does not glow for it.
    */
-  const quietEitt = next => (tutorial && next.unsaid === 'child' && !(nextStep()?.live === 'eitt' && !nextStep().forget) ? callEitt(next, 'child') : next);
+  const quietEitt = played => (tutorial && played.unsaid === CHILD && !(nextStep()?.live === 'eitt' && !nextStep().forget) ? callEitt(played, CHILD) : played);
 
   async function childPlays(card, from) {
     const token = round;
     busy = true;
     settleChild();
     const before = game;
-    game = quietEitt(play(game, 'child', card.id));
+    game = quietEitt(play(game, CHILD, card.id));
     renderHand(handCards());
-    eittEl.classList.toggle('needed', game.unsaid === 'child');
+    eittEl.classList.toggle('needed', game.unsaid === CHILD);
     await toPile(card, from);
     if (token !== round) return;
-    await afterPlay(before, 'child', card);
+    await afterPlay(before, CHILD, card);
   }
 
   async function playWild(card, el) {
@@ -1100,7 +1105,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     ringEl.className = 'eitt-ring wild';
     await toPile(card, from);
     if (token !== round) return;
-    mosiColour = picked ? adviseColour(game, card.id) : null; // Mosi chose the wild, so he shows the colour too
+    mosiColour = picked ? adviseColour(game, card.id, CHILD) : null; // Mosi chose the wild, so he shows the colour too
     if (tutorial) tutorial.live = 'colours';
     sync({ animate: false });
   }
@@ -1115,20 +1120,20 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     if (tutorial) tutorial.live = null;
     else hideAdvice();
     const before = game;
-    game = quietEitt(play(game, 'child', card.id, colour));
+    game = quietEitt(play(game, CHILD, card.id, colour));
     sync({ animate: false });
     sfx('sparkle');
     wave(colour);
     view?.glow(colour, { hold: 1.4 }); // her plates catch the child's colour
     await wait(250);
     if (token !== round) return;
-    await afterPlay(before, 'child', card, { coloured: true });
+    await afterPlay(before, CHILD, card, { coloured: true });
   }
 
   async function tapDeck() {
     poke();
     if (!childMoves() || (tutorial && tutorial.live !== 'deck')) return;
-    if (!canDraw(game, 'child')) {
+    if (!canDraw(game, CHILD)) {
       nope(deckEl);
       if (!game.drew && !hinting) {
         hinting = true; // a card goes: it lifts
@@ -1140,12 +1145,12 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     busy = true;
     settleChild();
     const before = game;
-    const { game: next, card } = draw(game, 'child');
-    game = next;
+    const { game: after, card } = draw(game, CHILD);
+    game = after;
     if (card) sfx('draw');
-    await giveCards(before, 'child', 'deal');
+    await giveCards(before, CHILD, 'deal');
     if (token !== round) return;
-    if (game.turn === 'kambedla') run(herTurn()); // the card does not go: her turn
+    if (game.turn === KAMBEDLA) run(herTurn()); // the card does not go: her turn
     else startChildTurn(); // it goes: it lifts, and "Áfram" keeps it
   }
 
@@ -1153,17 +1158,17 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     poke();
     if (!childMoves() || !game.drew || tutorial) return;
     settleChild();
-    game = pass(game, 'child');
+    game = pass(game, CHILD);
     run(herTurn());
   }
 
   /** The round button: the child's own "Eitt!", or catching Kambeðla when she forgot hers. */
   async function tapEitt() {
     wake();
-    if (!isOpen || !game || game.winner || ending) return;
+    if (!isOpen || !game || game.winner !== null || ending) return;
     if (tutorial && tutorial.live !== 'eitt') return;
-    if (game.unsaid === 'child') {
-      game = callEitt(game, 'child');
+    if (game.unsaid === CHILD) {
+      game = callEitt(game, CHILD);
       eittEl.classList.remove('needed');
       sfx('horn');
       egillSays();
@@ -1172,7 +1177,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       if (tutorial) { // the lesson goes on: her turn, when she forgets hers
         tutorial.live = null;
         sync({ animate: false });
-        if (game.turn === 'kambedla') run(herTurn());
+        if (game.turn === KAMBEDLA) run(herTurn());
         else startChildTurn();
         return;
       }
@@ -1180,10 +1185,10 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       if (childMoves()) armIdle();
       return;
     }
-    if (game.unsaid === 'kambedla' && !flying && !animating) {
+    if (game.unsaid === KAMBEDLA && !flying && !animating) {
       const token = round;
       const before = game;
-      game = catchEitt(game, 'child'); // the child's cards wait while hers fly in (childMoves looks at `animating`)
+      game = catchEitt(game, CHILD); // the child's cards wait while hers fly in (childMoves looks at `animating`)
       eittEl.classList.remove('needed');
       sfx('horn');
       egillSays();
@@ -1191,7 +1196,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       view?.think(false);
       animating = (async () => {
         const said = say('eitt_oops');
-        await giveCards(before, 'kambedla');
+        await giveCards(before, KAMBEDLA);
         if (said) await wait(Math.max(0, said * 1000 - GIVE_GAP * 2));
       })();
       await animating;
@@ -1216,7 +1221,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   async function afterPlay(before, who, card, { coloured = false, called = false } = {}) {
     const token = round;
     sync();
-    if (isWild(card) && !game.winner && !coloured) {
+    if (isWild(card) && game.winner === null && !coloured) {
       // Kambeðla picked the colour: her plates glow in it and she says it.
       wave(game.colour);
       sfx('sparkle');
@@ -1225,18 +1230,18 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       await wait(Math.max(500, said * 1000));
       if (token !== round) return;
     }
-    if (game.winner) return endRound();
+    if (game.winner !== null) return endRound();
     if (card.kind === 'skip' || card.kind === 'reverse') {
       sfx('swish');
-      if (who === 'kambedla') view?.swish();
+      if (who === KAMBEDLA) view?.swish();
     }
     if (card.kind === 'draw2' || card.kind === 'wild4') {
       await wait(200);
       if (token !== round) return;
-      await giveCards(before, who === 'child' ? 'kambedla' : 'child');
+      await giveCards(before, next(before)); // the player after `who`
       if (token !== round) return;
     }
-    if (who === 'child' && MOVES_AGAIN.has(card.kind)) view?.hop(); // a good card: she hops for joy all the same
+    if (who === CHILD && MOVES_AGAIN.has(card.kind)) view?.hop(); // a good card: she hops for joy all the same
     if (called) {
       // She played down to one card and remembered (decided as she played, so the button never glowed for it): "Eitt!"
       await wait(250);
@@ -1248,17 +1253,17 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       if (token !== round) return;
     }
     // If she forgot, game.unsaid is hers: "Eitt!" glows for the child to catch her (sync below).
-    if (tutorial && game.unsaid === 'child') { // the lesson (quietEitt): the tutorial waits for the child's "Eitt!"
+    if (tutorial && game.unsaid === CHILD) { // the lesson (quietEitt): the tutorial waits for the child's "Eitt!"
       showStep(tutorial.step + 1);
       return;
     }
-    if (tutorial && game.unsaid === 'kambedla' && nextStep()?.forget) { // she forgot on purpose: the child catches her
+    if (tutorial && game.unsaid === KAMBEDLA && nextStep()?.forget) { // she forgot on purpose: the child catches her
       showStep(tutorial.step + 1);
       return;
     }
     sync();
-    if (tutorial && game.turn === 'kambedla' && nextStep()?.auto) return run(teach()); // the last check: the recap, not her turn
-    if (game.turn === 'kambedla') run(herTurn());
+    if (tutorial && game.turn === KAMBEDLA && nextStep()?.auto) return run(teach()); // the last check: the recap, not her turn
+    if (game.turn === KAMBEDLA) run(herTurn());
     else startChildTurn();
   }
 
@@ -1271,34 +1276,34 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     view?.think(true);
     if (nextStep()?.her) showStep(tutorial.step + 1);
     else if (tutorial && !TUTORIAL[tutorial.step]?.check) hideAdvice(); // her move needs no words (after a check, his "Rétt!" stays a while)
-    await wait(tutorial ? THINK_MS + 1000 : game.unsaid === 'child' ? OWED_MS : THINK_MS);
+    await wait(tutorial ? THINK_MS + 1000 : game.unsaid === CHILD ? OWED_MS : THINK_MS);
     while (animating) await animating; // the child is catching her
     if (token !== round || !isOpen) return;
-    if (!tutorial && game.unsaid === 'child' && willCatch(skillNow(), random)) {
+    if (!tutorial && game.unsaid === CHILD && willCatch(skillNow(), random)) {
       // The child forgot "Eitt!": she noticed.
       const before = game;
-      game = catchEitt(game, 'kambedla');
+      game = catchEitt(game, KAMBEDLA);
       view?.think(false);
       sfx('horn');
       view?.glow('yellow', { hold: 1.2 });
       const said = say('eitt_eitt');
       eittEl.classList.remove('needed');
-      await giveCards(before, 'child');
+      await giveCards(before, CHILD);
       await wait(Math.max(500, said * 1000 - 300));
       if (token !== round) return;
       view?.think(true);
       await wait(500);
       if (token !== round) return;
     }
-    const move = tutorial ? tutorialMove() : chooseMove(game, skillNow(), random);
+    const move = tutorial ? tutorialMove() : chooseMove(game, KAMBEDLA, skillNow(), random);
     if (move.type === 'draw') {
-      if (!saidDraw || random() < DRAW_TALK) say('eitt_i_draw', { still: () => token === round && game.turn === 'kambedla', within: 1200 });
+      if (!saidDraw || random() < DRAW_TALK) say('eitt_i_draw', { still: () => token === round && game.turn === KAMBEDLA, within: 1200 });
       saidDraw = true;
       const before = game;
-      const { game: next, card } = draw(game, 'kambedla');
-      game = next;
+      const { game: after, card } = draw(game, KAMBEDLA);
+      game = after;
       if (card) sfx('draw');
-      await giveCards(before, 'kambedla', 'deal');
+      await giveCards(before, KAMBEDLA, 'deal');
       if (token !== round) return;
       if (!game.drew) {
         view?.think(false);
@@ -1307,32 +1312,32 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
       }
       await wait(650); // the card she drew goes: she plays it
       if (token !== round) return;
-      return herPlays(chooseMove(game, skillNow(), random));
+      return herPlays(chooseMove(game, KAMBEDLA, skillNow(), random));
     }
     return herPlays(move);
   }
 
   async function herPlays(move) {
     const token = round;
-    const card = game.hands.kambedla.find(held => held.id === move.cardId);
+    const card = game.hands[KAMBEDLA].find(held => held.id === move.cardId);
     const el = theirEls.get(card.id);
     const from = el ? placeTheirs(el) : placeDeck();
     const before = game;
-    game = play(game, 'kambedla', card.id, move.colour);
+    game = play(game, KAMBEDLA, card.id, move.colour);
     // Down to one card: she remembers "Eitt!" as her skill lets her, there and then, or forgets it and may be caught.
     // In the tutorial she always remembers, but once: when the lesson is to catch her.
-    const called = game.unsaid === 'kambedla' && (tutorial ? !nextStep()?.forget : willCallEitt(skillNow(), random));
-    if (called) game = callEitt(game, 'kambedla');
+    const called = game.unsaid === KAMBEDLA && (tutorial ? !nextStep()?.forget : willCallEitt(skillNow(), random));
+    if (called) game = callEitt(game, KAMBEDLA);
     view?.think(false);
-    renderTheirs(game.hands.kambedla);
+    renderTheirs(game.hands[KAMBEDLA]);
     await toPile(card, from, 'up');
     if (token !== round) return;
-    await afterPlay(before, 'kambedla', card, { called });
+    await afterPlay(before, KAMBEDLA, card, { called });
   }
 
   // ---- The round ------------------------------------------------------------------------------------------------------------------
 
-  async function deal(start = newGame(random)) {
+  async function deal(start = newGame({ random })) {
     const token = ++round;
     for (const id of timers) clearTimeout(id);
     timers.clear();
@@ -1365,19 +1370,19 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     eittEl.classList.remove('needed');
     const mine = handCards();
     renderHand(mine, { hidden: new Set(mine.map(card => card.id)), animate: false });
-    renderTheirs(game.hands.kambedla, { hidden: new Set(game.hands.kambedla.map(card => card.id)), animate: false });
+    renderTheirs(game.hands[KAMBEDLA], { hidden: new Set(game.hands[KAMBEDLA].map(card => card.id)), animate: false });
     sfx('shuffle');
     if (!calm()) deckEl.animate?.([{ rotate: '0deg' }, { rotate: '-5deg' }, { rotate: '4deg' }, { rotate: '-2deg' }, { rotate: '0deg' }], { duration: 620 });
     await wait(650);
     if (token !== round) return;
     const flights = [];
-    for (let k = 0; k < Math.max(mine.length, game.hands.kambedla.length); k++) {
-      for (const who of ['child', 'kambedla']) {
-        const card = who === 'child' ? mine[k] : game.hands.kambedla[k];
+    for (let k = 0; k < Math.max(mine.length, game.hands[KAMBEDLA].length); k++) {
+      for (const who of [CHILD, KAMBEDLA]) {
+        const card = who === CHILD ? mine[k] : game.hands[KAMBEDLA][k];
         if (!card) continue;
-        const el = (who === 'child' ? handEls : theirEls).get(card.id);
-        flights.push(fly(who === 'child' ? card : null, placeDeck(), who === 'child' ? placeHand(el) : placeTheirs(el), {
-          turn: who === 'child' ? 'up' : 'none',
+        const el = (who === CHILD ? handEls : theirEls).get(card.id);
+        flights.push(fly(who === CHILD ? card : null, placeDeck(), who === CHILD ? placeHand(el) : placeTheirs(el), {
+          turn: who === CHILD ? 'up' : 'none',
           duration: DEAL_MS,
           onLand: () => { el.style.visibility = ''; },
         }));
@@ -1403,7 +1408,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     busy = true;
     settleChild();
     sync();
-    const childWon = game.winner === 'child';
+    const childWon = game.winner === CHILD;
     const was = eittState();
     const wins = was.wins + (childWon ? 1 : 0);
     save?.setEitt?.({ ...afterRound(was, childWon), wins });
@@ -1496,7 +1501,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
   pressable(eittEl, { audio: tap, sound: null, win, onTap: () => run(tapEitt()) });
   pressable(mosiEl, { audio: tap, win, onTap: () => askMosi() });
   for (const button of colourButtons) pressable(button, { audio: tap, sound: null, win, onTap: () => run(chooseColour(button.dataset.colour)) });
-  pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && game?.winner) run(deal()); } });
+  pressable(againEl, { audio: tap, win, onTap: () => { wake(); if (isOpen && game && game.winner !== null) run(deal()); } });
   pressable(closeEl, { audio: tap, win, onTap: () => close() });
   pressable(quitEl, { audio: tap, win, onTap: () => close() });
   pressable(teachEl, { audio: tap, win, onTap: () => { wake(); if (isOpen) startTutorial(); } });
@@ -1514,7 +1519,7 @@ export function createEittGame(doc, { save = null, audio = {}, onClose = null, o
     get phase() {
       if (!isOpen) return 'shut';
       if (tutorial) return `tutorial ${TUTORIAL[tutorial.step]?.id.slice(9) ?? 'deal'}${tutorial.live ? ` ${tutorial.live}` : ''}${childMoves() || pendingWild || tutorial.live === 'eitt' ? '' : ' busy'}`;
-      if (game?.winner) return 'over';
+      if (game && game.winner !== null) return 'over';
       if (pendingWild) return flying ? 'busy' : 'colour';
       return childMoves() ? 'child' : 'busy';
     },
