@@ -136,7 +136,7 @@ const side=i=>mosiPlays(i)?1:0;
 // the child at the big screen ('you', Egill's seat 0 in Fjölspil) hears what he hears alone, and Mosi speaks of his own play
 // ('mosi') as he does there. Any other seat ('seat': a guest on her phone, or one Mosi plays for her while she is away) gets the
 // lines that fit anyone and the generic ones (MULTI_LINES), her name in the bubble (captionFor). A seat Mosi covers is played
-// silently (spec §7) but for his reactions to its rolls and the score it gets: it has no turn's line, and he holds no die by tap.
+// silently (spec §7) but for his reactions to its rolls and the score it gets (speakTurn has no line for it).
 const speaker=i=>i===0?'you':mosiPlays(i)?'mosi':'seat';
 // Whose turn or score a generic line is about, for its bubble: { player, points }.
 let named=null;
