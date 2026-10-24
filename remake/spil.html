@@ -11,7 +11,8 @@
 <link rel="stylesheet" href="./eitt.css">
 <!-- The guest's page of "Fjölspil" (engine/fjolspil/guest.js, spec §4 and §8): what a phone, a tablet or a PC beside the big
      screen opens, from the lobby's QR code (spil.html?r=GULL) or typed by hand (then it asks for the four letters).
-       ?r=GULL                      the room: the page goes in at once and asks for a name and an avatar
+       ?r=GULL                      the room: the page goes in at once, through the meeting point beside it
+                                    (/fjolspil/ws/GULL, net.js), and asks for a name and an avatar
        ?demo=code|join|lobby|wait|closed|over|hals|eitt
                                     a sample of each screen with no connection, for the captures (capture.mjs waits for
                                     __demoReady); hals and eitt show the closed screen until their phone screens come
