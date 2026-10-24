@@ -286,7 +286,7 @@ export function createHostNet({
       }
       case 'error':
         return refused(body.reason);
-      default:
+      default: // nothing else is the meeting point's to say
     }
   }
 
@@ -307,17 +307,19 @@ export function createHostNet({
 
   /** A guest is in the room (again): a fresh peer and offer, and the pings from the first time on. */
   function joined(id) {
-    let guest = guests.get(id);
-    if (!guest) {
-      guest = { id, peer: null, channel: null, remote: null, transport: null, fallback: null, pinger: null, unanswered: 0, present: true };
-      guests.set(id, guest);
-      const pinged = guest;
-      guest.pinger = timers.setInterval(() => ping(pinged), PING_MS);
-    }
+    const guest = guests.get(id) ?? newGuest(id);
     unpeer(guest);
     guest.unanswered = 0;
     if (forceRelay || !PeerConnectionImpl || !offerTo(guest)) guest.transport = 'relay';
     on.join.emit(id);
+  }
+
+  /** A guest's own state, one small object each; its pings run from its first joined until it leaves. */
+  function newGuest(id) {
+    const guest = { id, peer: null, channel: null, remote: null, transport: null, fallback: null, pinger: null, unanswered: 0, present: true };
+    guests.set(id, guest);
+    guest.pinger = timers.setInterval(() => ping(guest), PING_MS);
+    return guest;
   }
 
   /** A peer and its channel for the guest, and the offer through the relay; false when no peer can be made. */
