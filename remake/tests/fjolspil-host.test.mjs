@@ -24,8 +24,8 @@ function fakeNets() {
     const guests = new Set();
     const sent = new Map(); // id -> every message that reached that guest, in order
     const net = {
-      options, sent, closed: false, status: 'connecting', reconnects: 0,
-      reconnect() { net.reconnects += 1; },
+      options, sent, closed: false, status: 'connecting', reconnects: 0, awayMs: [],
+      reconnect(awayMs) { net.reconnects += 1; net.awayMs.push(awayMs); },
       onJoin: fn => add(on.join, fn),
       onLeave: fn => add(on.leave, fn),
       onMessage: fn => add(on.message, fn),
@@ -603,4 +603,22 @@ test('the big screen tries its socket again when its page comes back into view o
   r.fire('online');
   r.fire('visibilitychange');
   assert.equal(net.reconnects, 2);
+});
+
+test('a waking big screen tells its net how long the page was away; the network coming back tells it nothing', () => {
+  let clock = 1000;
+  const r = rig({ now: () => clock });
+  r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
+  const net = r.net();
+  net.welcome();
+  const show = state => { r.doc.visibilityState = state; r.fire('visibilitychange'); };
+  show('hidden');
+  clock += 5000;
+  show('visible'); // a window over the game for a moment
+  show('hidden');
+  clock += 40000;
+  show('visible'); // the PC slept, or another tab was in front
+  r.fire('online');
+  show('visible'); // visible with no hidden before it: not away at all
+  assert.deepEqual(net.awayMs, [5000, 40000, undefined, 0], 'online gives no time: the net\'s default, Infinity');
 });

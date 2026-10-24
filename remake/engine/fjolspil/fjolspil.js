@@ -28,7 +28,10 @@
 //
 // The big screen wakes as a phone does: when its page comes back into view or the network is back, a socket of the room's
 // that is not open is tried at once (net.js's reconnect), not after the rest of a wait of up to 15 seconds, while the phones
-// show "Bíðum eftir stóra skjánum…" (the final review's M2, after the owner's phone test, 2026-10-24).
+// show "Bíðum eftir stóra skjánum…" (the final review's M2, after the owner's phone test, 2026-10-24). An open socket is
+// replaced only when the page was hidden for net.js's HOST_AWAY_SILENCE_MS and the socket heard nothing as long, or the
+// network came back to a socket that silent: a window over the game for a moment changes nothing, as every guest would be
+// let go and see the wait screen.
 
 import { makeCode, message, normalizeCode, randomKey } from './protocol.js';
 import { createSeats } from './seats.js';
@@ -138,11 +141,22 @@ export function createFjolspil(doc, {
     },
   });
 
-  // The page wakes, or the network is back: the room's socket, if it is not open, is tried now. Not once another tab took
-  // the room (its net is closed): taking it back would only take it from that one. visibilitychange comes up to the window.
-  const wake = () => { if (!at.replaced) at.net?.reconnect?.(); };
-  win?.addEventListener?.('visibilitychange', () => { if (doc.visibilityState !== 'hidden') wake(); });
-  win?.addEventListener?.('online', wake);
+  // The page wakes, or the network is back: the room's socket, if it is not open, is tried now, and an open one that has
+  // gone silent may be replaced (net.js's reconnect decides, from how long the page was hidden, on `now`; the network back
+  // gives no time). Not once another tab took the room (its net is closed): taking it back would only take it from that
+  // one. visibilitychange comes up to the window.
+  let hiddenAt = null;
+  const wake = awayMs => { if (!at.replaced) at.net?.reconnect?.(awayMs); };
+  win?.addEventListener?.('visibilitychange', () => {
+    if (doc.visibilityState === 'hidden') {
+      hiddenAt ??= now();
+      return;
+    }
+    const away = hiddenAt === null ? 0 : now() - hiddenAt;
+    hiddenAt = null;
+    wake(away);
+  });
+  win?.addEventListener?.('online', () => wake());
 
   // ---- The room ---------------------------------------------------------------------------------------------------
 

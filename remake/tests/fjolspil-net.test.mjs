@@ -894,3 +894,28 @@ test('a big screen that wakes with an open socket silent for thirty seconds open
   assert.deepEqual(log.joins, ['g1', 'g1'], 'the room brings them back');
   net.close();
 });
+
+test('a waking big screen replaces a silent open socket only when the page was away as long as that', async () => {
+  let clock = 0;
+  const { net, ws, sockets, log } = hostRig({ now: () => clock });
+  ws.receive(message('joined', { id: 'g1' }));
+  await settle();
+  clock = 5000;
+  net.reconnect(60000);
+  assert.equal(sockets.made.length, 1, 'heard five seconds ago: left be, however long the page was away');
+  clock = 31000; // nothing heard since: the guest is on its data channel, so the socket is rightly quiet
+  net.reconnect(5000);
+  assert.equal(sockets.made.length, 1, 'away five seconds (a window over the game): the quiet socket is left be');
+  assert.equal(ws.closed, false);
+  assert.deepEqual(log.leaves, [], 'and no guest let go');
+  net.reconnect(31000);
+  assert.equal(sockets.made.length, 2, 'away, and silent, thirty-one seconds: a new socket');
+  assert.equal(ws.closed, true);
+  assert.deepEqual(log.leaves, ['g1']);
+  sockets.made[1].open();
+  sockets.made[1].receive(message('welcome', { code: 'GULL', join: [] }));
+  clock = 62000;
+  net.reconnect(); // the network back: no time given, so only the silence counts
+  assert.equal(sockets.made.length, 3, 'silent thirty-one seconds when the network is back: a new socket');
+  net.close();
+});

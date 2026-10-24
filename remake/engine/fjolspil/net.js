@@ -28,9 +28,11 @@
 // a phone's socket open and says nothing, so a socket that dies then would be found by nothing: the same watch runs there
 // too, with HOST_AWAY_SILENCE_MS, restarted by any word from the meeting point; the fresh socket hears no-host (and the
 // waits go on) or, when the old one was the dead side, the big screen's seat and view. No other status is watched. The big
-// screen's reconnect() on a wake also replaces an open socket that has heard nothing for HOST_AWAY_SILENCE_MS (only what
-// comes in counts: its alive is never answered), but never on a timer, since a room whose guests are all on data channels
-// is rightly silent on the socket.
+// screen's reconnect(awayMs) on a wake also replaces an open socket that has heard nothing for HOST_AWAY_SILENCE_MS (only
+// what comes in counts: its alive is never answered), but only when the page was away at least as long, and never on a
+// timer: a room whose guests are all on data channels is rightly silent on the socket, and a window over the game for a
+// moment (which fires visibilitychange too) must not let every guest go. The network coming back gives no time (awayMs
+// is Infinity): then the silence alone decides.
 //
 // The statuses, onStatus(fn) (which tells fn the status there is now, then every one after) and `status`:
 //   both    connecting   a socket is being opened: the first, every try after a wait, and reconnect()
@@ -524,14 +526,16 @@ export function createHostNet({
     },
     transportOf: id => guests.get(id)?.transport ?? null,
     /**
-     * The page woke or the network is back: a socket that is not open is tried at once, the waits from the first. An open
-     * one is left be while it has heard the meeting point within HOST_AWAY_SILENCE_MS, since a new socket lets every guest
-     * go and offers each a new peer; one silent longer may have died without a word, and a fresh one takes its place, its
-     * guests let go as when a socket closes under us (the room's joined brings each back).
+     * The page woke after `awayMs` hidden (Infinity, the default, when the network is back): a socket that is not open is
+     * tried at once, the waits from the first. An open one is left be, since a new socket lets every guest go and offers
+     * each a new peer, unless the page was away for HOST_AWAY_SILENCE_MS and the socket has heard nothing as long: then it
+     * may have died without a word, and a fresh one takes its place, its guests let go as when a socket closes under us
+     * (the room's joined brings each back).
      */
-    reconnect() {
+    reconnect(awayMs = Infinity) {
       if (closed) return;
       if (socket.open) {
+        if (awayMs < HOST_AWAY_SILENCE_MS) return; // a moment away (a window over the game): a quiet socket is a healthy one
         if (heardAt !== null && now() - heardAt < HOST_AWAY_SILENCE_MS) return;
         for (const id of [...guests.keys()]) left(id);
       }
