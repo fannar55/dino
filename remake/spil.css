@@ -417,13 +417,15 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil:has(.spil-game[data-game="eitt"]) .spil-status:empty { min-height: 0; padding: 0; }
 .spil:has(.spil-game[data-game="eitt"]) .spil-me-face { width: 46px; }
 .spil:has(.spil-game[data-game="eitt"]) .spil-me-name { font-size: clamp(20px, 5.4vw, 24px); }
+.spil-main:has(> .spil-game[data-game="eitt"]) { place-items: stretch; } /* the game fills the paper: the hand at the bottom */
 .spil-game[data-game="eitt"] { align-items: stretch; gap: 0; }
 .spil-eitt {
   --spil-eitt-card: clamp(88px, min(22vw, 12.5vh), 140px); /* her cards: never under 88 px across (STYLE.md) */
   --pile-w: clamp(80px, min(23vw, 12.5vh), 150px); /* eitt.css's ring and deck go by it */
   --spil-eitt-deck: calc(var(--pile-w) * .86);
   --spil-eitt-back: clamp(22px, min(6.4vw, 3.6vh), 40px);
-  width: 100%; display: grid; justify-items: center; gap: clamp(8px, 1.6vh, 16px);
+  flex: 1; width: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; justify-items: center; align-items: center;
+  gap: clamp(8px, 1.6vh, 16px);
 }
 .spil-eitt-turn { font-size: clamp(26px, 7vw, 36px); font-weight: 900; line-height: 1.15; color: var(--ink-soft); overflow-wrap: anywhere; text-wrap: balance; }
 .spil-eitt-turn:is(.mine, .won) { /* her turn, or the end: gold as a title */
@@ -433,10 +435,10 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 
 /* The others: a tag each, its fan of backs over its face and name, the number of cards on a little violet card. */
 .spil-eitt-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 12px; width: 100%; padding: 0; list-style: none; }
-.spil-eitt-seat {
-  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "fan fan fan" "face name count";
-  align-items: center; column-gap: 6px; row-gap: 4px;
-  width: min(calc((100% - 24px) / 3), 210px); min-width: 0; padding: 8px 8px 7px; border-radius: 16px;
+.spil-eitt-seat { /* the fan, with the face on its left corner and the number on its right, over the name */
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "fan" "name";
+  align-items: center; row-gap: 4px;
+  flex: 1 1 0; min-width: 0; max-width: 220px; padding: 8px 8px 7px; border-radius: 16px;
   background: var(--paper); border: 2.5px solid color-mix(in srgb, var(--ink) 50%, transparent);
   transition: background .3s, box-shadow .3s;
 }
@@ -448,10 +450,10 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   rotate: calc(var(--i, 0) * 7deg); transform-origin: 50% 150%;
   box-shadow: 0 0 0 1.5px var(--ink), 0 2px 4px rgb(40 24 10 / .25);
 }
-.spil-eitt-face { grid-area: face; width: 34px; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ink); }
-.spil-eitt-name { grid-area: name; min-width: 0; font-size: 17px; font-weight: 900; line-height: 1.2; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.spil-eitt-count {
-  grid-area: count; min-width: 1.6em; padding: .05em .3em .1em; border-radius: 7px; text-align: center;
+.spil-eitt-face { position: absolute; top: -9px; left: -9px; width: 34px; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ink); }
+.spil-eitt-name { grid-area: name; min-width: 0; font-size: 16px; font-weight: 900; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spil-eitt-count { /* on the fan's corner */
+  position: absolute; top: -8px; right: -8px; min-width: 1.6em; padding: .05em .3em .1em; border-radius: 7px; text-align: center;
   font-size: 18px; font-weight: 900; color: #fff; -webkit-text-stroke: .1em var(--ink); paint-order: stroke fill;
   background: linear-gradient(165deg, #a17cb6, var(--violet) 45%, var(--violet-deep)); border: 2px solid var(--ink);
 }
@@ -507,9 +509,9 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
     --pile-w: clamp(96px, min(10vw, 16vh), 150px);
     --spil-eitt-back: clamp(28px, 3.4vh, 40px);
   }
-  .spil-eitt-seat { width: min(calc((100% - 24px) / 3), 260px); }
+  .spil-eitt-seat { max-width: 260px; }
   .spil-eitt-name { font-size: 20px; }
-  .spil-eitt-face { width: 40px; }
+  .spil-eitt-face { width: 42px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

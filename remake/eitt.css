@@ -783,8 +783,9 @@
   padding: 0 6px;
   transition: opacity .3s;
 }
-.eitt-table.multi:has(.eitt-kambedla[hidden]) .eitt-seat { margin-top: 10px; } /* no window above: clear of the table's edge */
-.eitt-seat .eitt-their-hand { margin-top: 0; padding: 0 calc(var(--them-w) * .3); } /* under its tag, not under a window */
+.eitt-table.multi:has(.eitt-kambedla[hidden]) .eitt-seat { margin-top: 84px; } /* no window above: the rows clear the X */
+.eitt-table.multi[data-k-col="3"] > .eitt-quit { right: auto; left: max(18px, env(safe-area-inset-left)); } /* her window has its corner */
+.eitt-seat .eitt-their-hand { grid-area: auto; margin-top: 0; padding: 0 calc(var(--them-w) * .3); } /* under its tag, not a window */
 .eitt-seat-label { /* a name tag: the face, the name, and how many cards on a little violet card */
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
   padding: 0 8px 0 0; border-radius: 999px;

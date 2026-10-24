@@ -1764,6 +1764,7 @@ export function createEittGame(doc, {
     seatRows.clear();
     root.classList.remove('multi');
     table.classList.remove('multi');
+    delete table.dataset.kCol;
     theirsEl.hidden = false;
     windowEl.hidden = false;
     frameEl.hidden = false;
@@ -1786,6 +1787,7 @@ export function createEittGame(doc, {
     root.classList.add('multi');
     table.classList.add('multi');
     table.style.setProperty('--k-col', String(rowOf(KAMBEDLA)?.col ?? 2));
+    table.dataset.kCol = String(rowOf(KAMBEDLA)?.col ?? ''); // her window in the right column: the X goes to the left (eitt.css)
     theirsEl.hidden = true;
     windowEl.hidden = KAMBEDLA === null; // her window only when she plays
     frameEl.hidden = KAMBEDLA === null;
