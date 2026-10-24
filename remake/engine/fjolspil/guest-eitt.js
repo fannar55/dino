@@ -23,9 +23,9 @@
 // card drawn flies from the deck into her hand, the cards of a +2, a +4 or a catch one after another, and a new round is dealt
 // into it. The device plays Eitt!'s own effects (eitt-sounds.js through game-music.js's createGameSfx, tuned to the game's music
 // as the table's are), on the guest page's audio context, which her first tap wakes: the flick of a card landing on the pile, the
-// draw, the wiggle, the horn of her "Eitt!" or her catch, the pop of each card a +2, a +4 or a catch gives her, the sparkle of a
-// colour chosen and the fanfare of her win (the horn of another's). The others' draws sound on their own devices. Never a voice
-// and never the music: those are Egill's screen's (spec §7.3, §13).
+// draw, the wiggle, the horn of her "Eitt!" or her catch, the pop of a +2 or a +4 as it lands and of each card one (or a catch)
+// gives her, the sparkle of a colour chosen and the fanfare of her win (the horn of another's). The others' draws sound on their
+// own devices. Never a voice and never the music: those are Egill's screen's (spec §7.3, §13).
 //
 // renderEitt(root, view, { send, doc, audio }) is guest.js's game screen for 'eitt': `root` is the page's .spil-game, the same one
 // while eitt views follow one another, so the screen is built in it once and updated after; send(act) sends act { … } to the big
@@ -392,6 +392,7 @@ function renderPile(at, view, lastPlay, before, dealt) {
   fly(at, el, from ?? before.deck, { duration: FLY_MS, delay: dealt ? dealt * DEAL_GAP + DEAL_MS : 0 }).then(() => {
     play(at, 'flick');
     sparkle(at.pileEl, 6, at.win);
+    if (top.kind === 'draw2' || top.kind === 'wild4') play(at, 'pop'); // the next one draws
     if (isWild(top) && lastPlay !== null && lastPlay.seat !== view.you) play(at, 'sparkle'); // hers sparkled as she chose it
   });
 }
