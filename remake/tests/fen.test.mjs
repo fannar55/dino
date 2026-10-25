@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { chapter } from '../chapters/kafli2.js';
 import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
-import { createMudPrints } from '../world/props/mud-prints.js';
+import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
 import { createMist, CARDS, MIST_FADE, mistStrength } from '../world/props/mist.js';
-import { mosiAt, RIDE_CAMERA } from '../chapters/kafli2-trail.js';
+import { mosiAt, RIDE_CAMERA, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import { LOOKOUT_HEAD } from '../chapters/kafli2-thorsedla.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
@@ -435,11 +435,25 @@ test('ten mud prints lie on the trail with water in them', () => {
     assert.ok(off <= 25, `print ${i + 1} points ${off.toFixed(0)} degrees off the way down the trail`);
     if (i === 0) continue;
     const step = Math.hypot(p.position[0] - placed[i - 1].position[0], p.position[1] - placed[i - 1].position[1]);
-    assert.ok(p.s > placed[i - 1].s && step >= 2 && step <= 2.8, `print ${i + 1} is ${step.toFixed(2)} m on from the one before`);
+    assert.ok(p.s > placed[i - 1].s && step >= 2.6 && step <= 3.4, `print ${i + 1} is ${step.toFixed(2)} m on from the one before`);
     assert.equal(p.side, -placed[i - 1].side, `print ${i + 1} is the other foot's`);
   }
+  // Drawn larger than a real sauropod's (the owner's play: at real size they were no bigger than Mosi's feet), and the trail's grass
+  // and plants keep out of them: none of their mud lies under another's, and the verge is bare round each.
+  assert.ok(PRINT_SIZE >= 1.5, `the prints are ${PRINT_SIZE} times a real one`);
+  const bare = TRAIL.layout.keepOut;
+  for (const [i, p] of prints.entries()) assert.equal(bare(...p.position), 1, `no grass in print ${i + 1}`);
+  const mudOf = prints.map(p => printsKeepOut([p], { size: PRINT_SIZE, margin: 0.001 })); // 1 where a print's mud is, under the ground or not
+  const xs = prints.map(p => p.position[0]), zs = prints.map(p => p.position[1]);
+  for (let x = Math.min(...xs) - 2; x < Math.max(...xs) + 2; x += 0.1) {
+    for (let z = Math.min(...zs) - 2; z < Math.max(...zs) + 2; z += 0.1) {
+      const under = mudOf.filter(inside => inside(x, z) >= 1).length;
+      assert.ok(under <= 1, `two prints' mud at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+    }
+  }
+  assert.equal(bare(prints[0].position[0] - 3, prints[0].position[1] - 3), 0, 'and the ground away from them keeps its grass');
   const { world, run } = propWorld(terrain.heightAt);
-  const mud = createMudPrints(world, { prints, heightAt: terrain.heightAt });
+  const mud = createMudPrints(world, { prints, heightAt: terrain.heightAt, size: PRINT_SIZE });
   assert.equal(mud.group.parent, world.scene);
   const meshes = [];
   mud.group.traverse(o => { if (o.isMesh) meshes.push(o); });
@@ -452,7 +466,7 @@ test('ten mud prints lie on the trail with water in them', () => {
   assert.deepEqual(mud.targets.map(t => t.name), prints.map((_, i) => `print${i + 1}`));
   for (const [i, t] of mud.targets.entries()) {
     const [x, z] = prints[i].position;
-    assert.equal(t.radius, 0.6);
+    assert.equal(t.radius, 0.6 * PRINT_SIZE, 'a tap radius as large as the print');
     assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.3, `print${i + 1}'s target is over it`);
     const up = t.point.y - terrain.heightAt(x, z);
     assert.ok(up > 0 && up < 0.2, `print${i + 1}'s target is ${up.toFixed(2)} m above the ground`);
@@ -468,7 +482,7 @@ test('ten mud prints lie on the trail with water in them', () => {
     highest = Math.max(highest, up);
     if (edge.getX(i) > 0.5 && up > -0.005) edgeAbove++;
   }
-  assert.ok(highest <= 0.1, `the rim stands ${(highest * 100).toFixed(1)} cm above the path (6 cm at the heel, more where the trail falls away under the toes)`);
+  assert.ok(highest <= 0.1 * PRINT_SIZE, `the rim stands ${(highest * 100).toFixed(1)} cm above the path (6 cm at the heel of a real-size print, more where the trail falls away under the toes)`);
   assert.equal(edgeAbove, 0, 'the outer edge of every print is under the ground');
   // The water: the water's own shader (the same as the pools of the Fen), with a print's state, 2 cm below each rim.
   const pools = createWaterMaterial(world, {});
@@ -482,7 +496,7 @@ test('ten mud prints lie on the trail with water in them', () => {
   for (let i = 0; i < wpos.count; i++) {
     const k = owner.getX(i);
     const [x, z] = prints[k].position;
-    assert.ok(Math.hypot(wpos.getX(i) - x, wpos.getZ(i) - z) < 0.8, `the water of print ${k + 1} is over it`);
+    assert.ok(Math.hypot(wpos.getX(i) - x, wpos.getZ(i) - z) < 0.8 * PRINT_SIZE, `the water of print ${k + 1} is over it`);
     levels[k].add(wpos.getY(i).toFixed(4));
   }
   for (const [k, set] of levels.entries()) {
@@ -490,6 +504,11 @@ test('ten mud prints lie on the trail with water in them', () => {
     const level = Number([...set][0]);
     assert.ok(Math.abs(mud.rimOf(k) - level - 0.02) < 0.003, `print ${k + 1}'s water lies ${((mud.rimOf(k) - level) * 100).toFixed(1)} cm below its rim`);
     assert.ok(level > mud.floorOf(k) + 0.01, 'above its floor');
+    // a giant's: the pool of her hind foot alone is over one and a half metres long, nearly three of Mosi's feet (0.6 m)
+    const corners = [];
+    for (let i = 0; i < wpos.count; i++) if (owner.getX(i) === k) corners.push([wpos.getX(i), wpos.getZ(i)]);
+    const longest = Math.max(...corners.flatMap(a => corners.map(b => Math.hypot(a[0] - b[0], a[1] - b[1]))));
+    assert.ok(longest >= 1.5, `print ${k + 1}'s water reaches ${longest.toFixed(2)} m`);
   }
   // A splash rings the water; the count raises a big digit 0.6 m out of it for 1.6 s; a counted print's water goes still and gold.
   run(0.5);

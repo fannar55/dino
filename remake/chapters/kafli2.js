@@ -29,8 +29,8 @@ import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up'
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import {
-  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail,
-  countPrints,
+  TRAIL_PATH, TRAIL_PRINTS, TRAIL_BARE, PRINT_SIZE, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot,
+  printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { BERRY_BUSHES, FEN_CRITTERS, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
 import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
@@ -652,6 +652,7 @@ export const chapter = {
         leafShadows: true,
         actors: { mosi: { position: [0, 0, 0], heading: 34 } },
         prints: TRAIL_PRINTS, // Þórseðla's ten footprints (world/props/mud-prints.js): not the forest's, it reads no `prints`
+        keepOut: TRAIL_BARE, // but it keeps its grass and plants out of them
       },
       shots: TRAIL_SHOTS,
       warmUp: ['trail_wide', 'trail_fog'],
@@ -753,7 +754,7 @@ export const chapter = {
     const keep = (made, object) => { objects.push(object); throwaways.push(made); };
     const kinds = [...(trail ? PRINT_ANIMALS : []), ...(fen ? FEN_CRITTERS : [])].map(animal => animal.kind);
     if (trail) {
-      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }] });
+      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }], size: PRINT_SIZE });
       prints.count(0);
       prints.splash(0);
       keep(prints, prints.group);
