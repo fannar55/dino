@@ -1,0 +1,34 @@
+/* The bug report tool (engine/villa/villa.js): a transparent drawing layer over the frozen game and a paper panel at the bottom,
+   in the game's own paper and ink (style.css: --paper, --ink, --accent). It lies over everything, the book and the games included. */
+.villa { position: fixed; inset: 0; z-index: 60; }
+.villa[hidden] { display: none; }
+.villa-draw { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+.villa-panel {
+  position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: min(720px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px 12px;
+  background: var(--paper, #f6efdf); color: var(--ink, #3b2f25); border: 2px solid rgba(59, 47, 37, .25); border-radius: 14px;
+  box-shadow: var(--shadow, 0 6px 24px rgba(40, 30, 15, .25)); font: 15px/1.4 Nunito, system-ui, sans-serif;
+  display: grid; gap: 8px;
+}
+.villa-hint { color: var(--ink-soft, #6b5a4a); font-size: 14px; }
+.villa-text {
+  width: 100%; box-sizing: border-box; resize: vertical; min-height: 64px; padding: 8px 10px;
+  font: inherit; color: inherit; background: var(--card, #fffaf0); border: 2px solid rgba(59, 47, 37, .25); border-radius: 10px;
+}
+.villa-text:focus { outline: 3px solid var(--accent, #e07a3f); outline-offset: 1px; }
+.villa-buttons { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.villa-buttons button {
+  font: inherit; font-weight: 800; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer; min-height: 44px;
+  background: rgba(59, 47, 37, .12); color: var(--ink, #3b2f25);
+}
+.villa-buttons .villa-save { background: var(--accent, #e07a3f); color: #fff; }
+.villa-buttons .villa-cancel { background: transparent; text-decoration: underline; }
+.villa-status { font-weight: 700; color: var(--teal, #2f8f86); word-break: break-all; }
+.villa-status[hidden] { display: none; }
+/* The ?villa=1 button, for a screen with no F1 key: small, in the corner, out of the game's way. */
+.villa-button {
+  position: fixed; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); z-index: 59;
+  font: 700 13px/1 Nunito, system-ui, sans-serif; padding: 8px 10px; border: 0; border-radius: 8px; cursor: pointer;
+  background: rgba(59, 47, 37, .55); color: #fff; opacity: .7;
+}
+.villa-button:hover { opacity: 1; }

@@ -38,6 +38,8 @@ import { loadTheme } from './engine/audio/theme.js';
 import { createHold } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
+import { installConsoleLog } from './engine/console-log.js';
+import { createVilla } from './engine/villa/villa.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -49,6 +51,8 @@ import { warmUp } from './engine/warm-up.js';
 //   play=1                start the scene at once, without the start button
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
+//   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
+const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
@@ -253,6 +257,47 @@ const hals = createHalsGame(document, {
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
+// The bug report tool (engine/villa/villa.js): F1, three fingers held or the ?villa=1 button holds the game as the book does, and
+// the owner draws boxes over the screen and writes what is wrong; the report goes to the dev server's qa/villur/ (tools/serve.mjs),
+// or downloads where no server answers. Each part of the game is handed as a thunk: it is read at the moment of the report, and
+// one that throws is reported as such instead of stopping the report (engine/villa/skyrsla.js).
+let villaHeldClock = false;
+const villa = createVilla(document, {
+  button: params.get('villa') === '1',
+  shoot: () => { if (!hals.isOpen) drawNow(); return canvas.toDataURL('image/png'); }, // the frame as it stands (the board game draws its own)
+  onPause: paused => {
+    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
+    hold('villa', paused);
+  },
+  context: () => ({
+    chapterId,
+    params: Object.fromEntries(params),
+    canvas: () => ({ width: canvas.width, height: canvas.height }),
+    clock: () => ({ time: clock.time, paused: clock.paused }),
+    stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
+    location: () => world.location ?? null,
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    caption: () => {
+      const el = document.getElementById('caption');
+      return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
+    },
+    voice: () => voice.current,
+    actors: () => [...world.actors.entries()].map(([name, actor]) => ({ name, position: actor.root?.position.toArray(), heading: actor.heading ?? null })),
+    camera: () => ({ position: camera.position.toArray(), target: director.rig.target.toArray(), fov: camera.fov, mode: director.mode }),
+    save: () => ({ ...save.get(), chapterAt: defaultChapter(save) }),
+    quality: () => ({ name: q.name, renderScale: display.resolutionScale, pixelRatio: renderer.getPixelRatio(), look: chapter.look ?? null }),
+    stats: () => window.__demoStats ?? null,
+    gpu: () => {
+      const gl = renderer.getContext();
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    },
+    audio: () => ({ context: audio?.state ?? 'none', musicPosition: music.position, theme: theme?.name ?? (themeUrl ? String(themeUrl).split('/').slice(-2).join('/') : null), playing }),
+    fjolspil: () => ({ active: fjolspil.active, code: fjolspil.code ?? null, seats: fjolspil.seats.list().map(({ seat, kind, name, avatar, present, covered }) => ({ seat, kind, name, avatar, present, covered })) }), // never a guest's id, her secret
+    memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
+    consoleLog: () => consoleLog.entries(),
+  }),
+});
 // A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
 // while the scene plays (the frame keeps room to draw), and 80 under the black, where no frame is seen (no more: the game clock
 // counts a frame as 0.1 s at most, and a black that waits some seconds for a build, the chapter's own, must last that long).
