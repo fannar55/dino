@@ -84,7 +84,7 @@ test('the layers page shows the stylesheets, the layers and the screenshot behin
   const html = snapshotHtml({ width: 1280, height: 800, styles: ['/remake/style.css', '/remake/book.css'], bodyClass: 'playing', parts: ['<div id="caption">Hæ</div>'], note: 'two <layers>' });
   assert.match(html, /<link rel="stylesheet" href="\/remake\/style\.css">\n<link rel="stylesheet" href="\/remake\/book\.css">/);
   assert.match(html, /width: 1280px; height: 800px/);
-  assert.match(html, /url\("skjaskot\.png"\)/);
+  assert.match(html, /url\("skjaskot\.jpg"\)/);
   assert.match(html, /<body class="playing">/);
   assert.match(html, /<div id="caption">Hæ<\/div>/);
   assert.match(html, /<!-- two &lt;layers&gt; -->/, 'the note cannot end the comment or start a tag');

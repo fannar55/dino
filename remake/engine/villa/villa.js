@@ -2,9 +2,11 @@
 // child's book does (the clock and the sound held, nothing else changes), takes the WebGL frame as it stands, and lays a
 // transparent drawing layer over the live screen: the owner drags numbered boxes round what is wrong, writes what it is, and
 // saves. The report goes to the dev server (POST /villa, tools/serve.mjs), which files it under qa/villur/<time>-<chapter>/:
-// skjaskot.png (the frame), merkt.png (the frame with the boxes), spjold.html (the HTML layers that lay over the canvas, to
+// skjaskot.jpg (the frame), merkt.jpg (the frame with the boxes), spjold.html (the HTML layers that lay over the canvas, to
 // open over the frame) and skyrsla.json (the owner's text and boxes with everything the game knows: engine/villa/skyrsla.js).
-// Where no dev server answers (the game on Cloudflare) the browser downloads the same as one file, mosi-villa-<time>.json.
+// The pictures travel as JPEG no wider than PICTURE_MAX, so a report is a few hundred kilobytes, not several megabytes of PNG.
+// The tool first asks GET /villa whether the dev server is there (it answers 204 with X-Villa in a moment; the game on Cloudflare
+// has no such thing) and only then sends; where there is none the browser downloads the same at once, as mosi-villa-<time>.json.
 //
 //   createVilla(document, { context, shoot, onPause, button })
 //     context()  -> the thunks skyrsla.js buildReport reads (main.js hands the game's parts)
@@ -16,6 +18,9 @@ import { buildReport, normalizeBox, boxToImage, snapshotHtml, fileStamp } from '
 const MIN_BOX = 6; // CSS px: a smaller drag is a tap, not a box
 const HOLD_MS = 700; // three fingers held this long open the tool
 const SAVE_TIMEOUT = 20000;
+const PROBE_TIMEOUT = 3000; // ms to learn whether a dev server is there at all
+const PICTURE_MAX = 1600; // px, the longest side of the saved pictures: a 4K frame would be 10 MB as PNG, this is a few hundred KB
+const PICTURE_QUALITY = 0.85;
 const CLOSE_AFTER = 2500; // ms the "Vistað" line shows before the tool closes
 
 export function createVilla(doc, { context, shoot, onPause, button = false, win = globalThis, fetchFn = (...args) => fetch(...args) }) {
@@ -187,20 +192,37 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     g.restore();
   }
 
-  /** The frame with the boxes drawn in, as a PNG data URL (null without a frame). */
-  async function annotated() {
-    if (!shot) return null;
+  /**
+   * The frame and the frame with the boxes drawn in, as JPEG data URLs no wider or taller than PICTURE_MAX ({ raw, marked }, both
+   * null without a frame). The boxes keep their place: they are scaled from the view they were drawn in to the saved picture.
+   */
+  async function pictures() {
+    if (!shot) return { raw: null, marked: null };
     const image = await loadImage(shot.url);
     shot.width = image.naturalWidth || image.width;
     shot.height = image.naturalHeight || image.height;
+    const k = Math.min(1, PICTURE_MAX / Math.max(shot.width, shot.height));
+    const size = { width: Math.round(shot.width * k), height: Math.round(shot.height * k) };
     const canvas = doc.createElement('canvas');
-    canvas.width = shot.width;
-    canvas.height = shot.height;
+    canvas.width = size.width;
+    canvas.height = size.height;
     const g = canvas.getContext('2d');
-    g.drawImage(image, 0, 0);
-    const scale = Math.max(1, shot.width / win.innerWidth);
-    boxes.forEach((box, i) => paintBox(g, boxToImage(box, box.view, shot), i + 1, scale));
-    return canvas.toDataURL('image/png');
+    g.drawImage(image, 0, 0, size.width, size.height);
+    const raw = canvas.toDataURL('image/jpeg', PICTURE_QUALITY);
+    const scale = Math.max(1, size.width / win.innerWidth);
+    boxes.forEach((box, i) => paintBox(g, boxToImage(box, box.view, size), i + 1, scale));
+    shot.saved = size;
+    return { raw, marked: canvas.toDataURL('image/jpeg', PICTURE_QUALITY) };
+  }
+
+  /** Whether the dev server (tools/serve.mjs) is behind this page: it answers GET /villa with 204 and X-Villa at once. */
+  async function devServer() {
+    try {
+      const response = await fetchFn('/villa', { method: 'GET', cache: 'no-store', signal: AbortSignal.timeout(PROBE_TIMEOUT) });
+      return response.status === 204 && response.headers.get('x-villa') === '1';
+    } catch {
+      return false;
+    }
   }
 
   function loadImage(url) {
@@ -227,7 +249,7 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     });
     return snapshotHtml({
       title: `Villutilkynning ${fileStamp(new Date())}`,
-      width: win.innerWidth, height: win.innerHeight, styles, bodyClass: doc.body.className, parts,
+      width: win.innerWidth, height: win.innerHeight, styles, bodyClass: doc.body.className, parts, screenshot: 'skjaskot.jpg',
       note: `Lögin sem lágu yfir striganum þegar skýrslan var gerð; ${parts.length} sýnileg. Opnist af þróunarþjóninum, sem finnur stílblöðin.`,
     });
   }
@@ -237,24 +259,28 @@ export function createVilla(doc, { context, shoot, onPause, button = false, win 
     saving = true;
     status('Vista…');
     try {
-      const marked = await annotated();
+      const { raw, marked } = await pictures();
       const ctx = { ...context(), text: textEl.value.trim(), boxes: boxes.map(box => ({ ...box })) };
       ctx.href = win.location?.href ?? null;
       ctx.window = { width: win.innerWidth, height: win.innerHeight, dpr: win.devicePixelRatio || 1 };
       ctx.screen = win.screen ? { width: win.screen.width, height: win.screen.height } : null;
       ctx.navigator = win.navigator ? { userAgent: win.navigator.userAgent, platform: win.navigator.platform, language: win.navigator.language, touchPoints: win.navigator.maxTouchPoints } : null;
-      ctx.screenshot = shot ? { width: shot.width, height: shot.height, mayBeBlank: shot.mayBeBlank } : null;
+      ctx.screenshot = shot ? { width: shot.width, height: shot.height, saved: shot.saved, mayBeBlank: shot.mayBeBlank } : null;
       const report = buildReport(ctx);
       const files = { 'spjold.html': layersHtml() };
-      if (shot) { files['skjaskot.png'] = shot.url; files['merkt.png'] = marked; }
+      if (shot) { files['skjaskot.jpg'] = raw; files['merkt.jpg'] = marked; }
       const body = JSON.stringify({ report, files });
       let folder = null;
-      try {
-        const response = await fetchFn('/villa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(SAVE_TIMEOUT) });
-        if (response.ok) folder = (await response.json()).folder;
-        else console.warn('[villa] the server said', response.status, await response.text().catch(() => ''));
-      } catch (error) {
-        console.warn('[villa] no dev server for the report:', error?.message ?? error);
+      if (await devServer()) {
+        try {
+          const response = await fetchFn('/villa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, signal: AbortSignal.timeout(SAVE_TIMEOUT) });
+          if (response.ok) folder = (await response.json()).folder;
+          else console.warn('[villa] the server said', response.status, await response.text().catch(() => ''));
+        } catch (error) {
+          console.warn('[villa] the dev server did not take the report:', error?.message ?? error);
+        }
+      } else {
+        console.info('[villa] no dev server behind this page: the report downloads');
       }
       if (folder) {
         status(`Vistað: ${folder}`);

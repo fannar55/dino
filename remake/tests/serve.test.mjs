@@ -90,6 +90,7 @@ async function servingWith(handler, run) {
 }
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'); // one transparent pixel
+const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==', 'base64'); // one grey pixel
 
 test('POST /villa files a bug report under qa/villur: the report with the build and where it went, the frame, the marked frame and the layers page', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'villa-root-'));
@@ -97,15 +98,20 @@ test('POST /villa files a bug report under qa/villur: the report with the build 
     await servingWith((req, res) => handle(req, res, { root, reportLimit: 4000 }), async base => {
       const post = body => fetch(`${base}/villa`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       const dataUrl = `data:image/png;base64,${PNG.toString('base64')}`;
+      const jpegUrl = `data:image/jpeg;base64,${JPEG.toString('base64')}`;
       const response = await post(JSON.stringify({
         report: { chapter: { id: 'kafli2' }, text: 'Fiðrildið svífur', boxes: [{ x: 1, y: 2, w: 3, h: 4 }] },
-        files: { 'skjaskot.png': dataUrl, 'merkt.png': dataUrl, 'spjold.html': '<!doctype html><html lang="is"></html>', '../evil.txt': 'no', 'skyrsla.json': '{"not":"mine"}' },
+        files: { 'skjaskot.png': dataUrl, 'merkt.jpg': jpegUrl, 'skjaskot.jpg': dataUrl, 'spjold.html': '<!doctype html><html lang="is"></html>', '../evil.txt': 'no', 'skyrsla.json': '{"not":"mine"}' },
       }));
       assert.equal(response.status, 200);
       const { folder } = await response.json();
       assert.match(folder, /^qa\/villur\/\d{4}-\d{2}-\d{2}_\d{6}-kafli2$/, 'the folder is named by the time and the chapter');
       const dir = path.join(root, folder);
-      assert.deepEqual(fs.readdirSync(dir).sort(), ['merkt.png', 'skjaskot.png', 'skyrsla.json', 'spjold.html'], 'the report, the two frames and the page, and nothing a report may not bring');
+      assert.deepEqual(fs.readdirSync(dir).sort(), ['merkt.jpg', 'skjaskot.png', 'skyrsla.json', 'spjold.html'], 'the report, the frames that came as what their names say, the page, and nothing a report may not bring');
+      assert.ok(fs.readFileSync(path.join(dir, 'merkt.jpg')).equals(JPEG), 'a JPEG is the bytes of its data URL');
+      const probe = await fetch(`${base}/villa`);
+      assert.equal(probe.status, 204, 'GET /villa says the server is here');
+      assert.equal(probe.headers.get('x-villa'), '1');
       assert.ok(!fs.existsSync(path.join(root, 'qa', 'evil.txt')) && !fs.existsSync(path.join(root, 'evil.txt')));
       const report = JSON.parse(fs.readFileSync(path.join(dir, 'skyrsla.json'), 'utf8'));
       assert.equal(report.text, 'Fiðrildið svífur');
@@ -124,7 +130,7 @@ test('POST /villa files a bug report under qa/villur: the report with the build 
       assert.equal((await post('{not json')).status, 400);
       assert.equal((await post(JSON.stringify({ report: 'x' }))).status, 400);
       assert.equal((await post(JSON.stringify({ report: {}, files: { 'spjold.html': 'x'.repeat(5000) } }))).status, 413, 'over the limit is refused');
-      assert.equal((await fetch(`${base}/villa`)).status, 404, 'GET /villa is no file');
+      assert.equal((await fetch(`${base}/villa`, { method: 'PUT' })).status, 404, 'PUT /villa is no file');
     });
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

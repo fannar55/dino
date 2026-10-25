@@ -78,7 +78,7 @@ export function boxToImage(box, view, image) {
  * dev server serves them to this page wherever it is filed), `parts` the outerHTML of each visible layer, `width`/`height` the
  * view they were laid out for, `screenshot` the image file beside it. Opened from qa/villur/<report>/spjold.html on the dev server.
  */
-export function snapshotHtml({ title = 'Villutilkynning', width, height, styles = [], bodyClass = '', parts = [], screenshot = 'skjaskot.png', note = '' }) {
+export function snapshotHtml({ title = 'Villutilkynning', width, height, styles = [], bodyClass = '', parts = [], screenshot = 'skjaskot.jpg', note = '' }) {
   const links = styles.map(href => `<link rel="stylesheet" href="${escapeAttr(href)}">`).join('\n');
   return `<!doctype html>
 <html lang="is">

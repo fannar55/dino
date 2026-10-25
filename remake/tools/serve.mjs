@@ -12,8 +12,9 @@
 // and with --lan the phone page's addresses are printed too, as the host's QR code carries them.
 //
 // It also files the game's bug reports (engine/villa): POST /villa with { report, files } writes qa/villur/<time>-<chapter>/ with
-// skyrsla.json (the report, with this checkout's commit added), skjaskot.png, merkt.png and spjold.html, and answers { folder }.
-// qa/ is outside git. A report over REPORT_LIMIT bytes is refused (413), one that is not { report, files } too (400).
+// skyrsla.json (the report, with this checkout's commit added), skjaskot.jpg, merkt.jpg and spjold.html, and answers { folder }.
+// qa/ is outside git. A report over REPORT_LIMIT bytes is refused (413), one that is not { report, files } too (400). GET /villa
+// answers 204 with X-Villa: 1, which is how the tool learns that this server is there before it sends (the cloud has no /villa).
 
 import http from 'node:http';
 import os from 'node:os';
@@ -36,7 +37,8 @@ const MIME = {
 
 const REPORTS = 'qa/villur'; // where the bug reports land: one folder each, under the repo root, outside git
 const REPORT_LIMIT = 25 * 1024 * 1024; // bytes of one report: two PNGs of the frame, the layers page and the JSON
-const REPORT_FILES = { 'skjaskot.png': 'png', 'merkt.png': 'png', 'spjold.html': 'text' }; // the files a report may bring, and nothing else
+// The files a report may bring, and nothing else: the pictures as JPEG (PNG from an older page still taken), the layers page as text.
+const REPORT_FILES = { 'skjaskot.jpg': 'jpeg', 'merkt.jpg': 'jpeg', 'skjaskot.png': 'png', 'merkt.png': 'png', 'spjold.html': 'text' };
 
 /**
  * Answers one request (exported so a test can run it on a server of its own, with a `root` and a `reportLimit` of its own):
@@ -45,7 +47,10 @@ const REPORT_FILES = { 'skjaskot.png': 'png', 'merkt.png': 'png', 'spjold.html':
 export async function handle(req, res, { root = ROOT, reportLimit = REPORT_LIMIT } = {}) {
   try {
     const url = new URL(req.url, 'http://localhost');
-    if (req.method === 'POST' && url.pathname === '/villa') { await saveReport(req, res, { root, reportLimit }); return; }
+    if (url.pathname === '/villa') {
+      if (req.method === 'POST') { await saveReport(req, res, { root, reportLimit }); return; }
+      if (req.method === 'GET' || req.method === 'HEAD') { res.writeHead(204, { 'X-Villa': '1', 'Cache-Control': 'no-store' }); res.end(); return; } // "I am here"
+    }
     if (url.pathname === '/') { res.writeHead(302, { Location: '/remake/' }); res.end(); return; }
     const file = path.resolve(root, '.' + decodeURIComponent(url.pathname));
     if (file !== root && !file.startsWith(root + path.sep)) { res.writeHead(403); res.end(); return; }
@@ -137,8 +142,8 @@ async function saveReport(req, res, { root, reportLimit }) {
   for (const [file, kind] of Object.entries(REPORT_FILES)) {
     const value = sent.files[file];
     if (typeof value !== 'string') continue;
-    if (kind === 'png') {
-      const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(value);
+    if (kind === 'png' || kind === 'jpeg') {
+      const match = new RegExp(`^data:image/${kind};base64,([A-Za-z0-9+/=]+)$`).exec(value);
       if (match) await fsp.writeFile(path.join(folder, file), Buffer.from(match[1], 'base64'));
     } else {
       await fsp.writeFile(path.join(folder, file), value);
