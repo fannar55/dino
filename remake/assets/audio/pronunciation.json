@@ -43,8 +43,7 @@
         "Snigill",
         "snigill",
         "snigilinn",
-        "snigillinn",
-        "Sniglar"
+        "snigillinn"
       ],
       "recipes": {
         "hratt": {
@@ -55,79 +54,19 @@
             "Snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "\"/ˈstnɪklar/\""
+            "snigillinn": "\"/ˈstniːjɪtlɪn/\""
           },
           "seed": 1,
-          "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/, Sniglar /ˈstnɪklar/."
+          "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/. Fleirtalan Sniglar er orð út af fyrir sig (sniglar)."
         },
         "stafsetning": {
           "say": {
             "Snigill": "Sníjitl",
             "snigill": "sníjitl",
             "snigilinn": "sníjilinn",
-            "snigillinn": "sníjitlinn",
-            "Sniglar": "Sniglar"
+            "snigillinn": "sníjitlinn"
           },
           "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
-        },
-        "sniglar-ipa-langt": {
-          "say": {
-            "Snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "\"/ˈstnɪːklar/\""
-          },
-          "seed": 1,
-          "note": "Fleirtalan með löngu i: /ˈstnɪːklar/; hinar beygingarnar óbreyttar."
-        },
-        "sniglar-ipa-g": {
-          "say": {
-            "Snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "\"/ˈstnɪɣlar/\""
-          },
-          "seed": 1,
-          "note": "Fleirtalan með g sem raddað önghljóð: /ˈstnɪɣlar/; hinar óbreyttar."
-        },
-        "sniglar-stafsetning": {
-          "say": {
-            "Snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "Stniglar"
-          },
-          "seed": 1,
-          "note": "Fleirtalan skrifuð „Stniglar“ (t-ið sem heyrist í sn-); hinar óbreyttar."
-        },
-        "sniglar-hratt": {
-          "say": {
-            "Snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "Sniglar"
-          },
-          "seed": 1,
-          "note": "Fleirtalan send eins og hún er skrifuð; hinar óbreyttar."
-        },
-        "sniglar-samhengi": {
-          "say": {
-            "Snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigill": "\"/ˈstniːjɪtl̥/\"",
-            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
-            "Sniglar": "Sniglar"
-          },
-          "context": {
-            "narrator": "Snigill, sniglar. Sniglarnir skríða hægt."
-          },
-          "seed": 1,
-          "note": "Fleirtalan eins og skrifuð, með beygingunni sem samhengi (ekki talað); hinar óbreyttar."
         }
       },
       "chosen": "ipa",
@@ -1859,6 +1798,59 @@
         }
       },
       "chosen": "samhengi"
+    },
+    "sniglar": {
+      "word": "Sniglar",
+      "stem": "[Ss]niglar$",
+      "forms": [
+        "Sniglar",
+        "sniglar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað."
+        },
+        "ipa": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪklar/\"",
+            "sniglar": "\"/ˈstnɪklar/\""
+          },
+          "seed": 1,
+          "note": "IPA /ˈstnɪklar/ eins og það var inni í snigill-reglunni; þú heyrðir það rangt í bókinni (2026-10-25)."
+        },
+        "ipa-langt": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪːklar/\"",
+            "sniglar": "\"/ˈstnɪːklar/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu i: /ˈstnɪːklar/."
+        },
+        "ipa-g": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪɣlar/\"",
+            "sniglar": "\"/ˈstnɪɣlar/\""
+          },
+          "seed": 1,
+          "note": "IPA með g sem rödduðu önghljóði: /ˈstnɪɣlar/."
+        },
+        "stafsetning": {
+          "say": {
+            "Sniglar": "Stniglar",
+            "sniglar": "stniglar"
+          },
+          "seed": 1,
+          "note": "„Stniglar“: t-ið sem heyrist í sn- skrifað."
+        },
+        "samhengi": {
+          "context": {
+            "narrator": "Snigill, sniglar. Sniglarnir skríða hægt."
+          },
+          "seed": 1,
+          "note": "Sent eins og skrifað, með beygingunni sem samhengi (ekki talað) hjá sögumanni."
+        }
+      },
+      "chosen": "ipa"
     }
   }
 }
