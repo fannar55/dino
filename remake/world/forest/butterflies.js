@@ -13,7 +13,13 @@
 // update does it), and, so that a script waiting on a Handle is never left waiting by a forest that is not in view, on
 // world.effects too for as long as a Handle is pending. The tap targets, butterfly-1 and so on, hold a point that
 // follows each butterfly.
+//
+// One more, the hero (HERO, 'butterfly-hero'), is a model of its own under the pale ones' mesh (createHero:
+// assets/critters/butterfly.glb, the Tripo moth the owner picked, made small by tools/blender-butterfly.py and
+// tools/quantize-glb.mjs), flown by the same code on a loop of its own: chapter 1 sends it to Mosi's horn by name. It is
+// one tap target more, and a landing asked without a name never takes it, so the pale butterflies do all they did.
 import * as THREE from 'three';
+import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 import { Handle } from '../../engine/handle.js';
 import { FOREST } from './config.js';
 import { clamp, createRng, lerp, smoothstep } from './random.js';
@@ -22,6 +28,11 @@ const MAX = 4; // the shader's arrays hold this many butterflies
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const AHEAD = 0.05; // how far down its loop (in the loop's own time) the shader looks to find which way a butterfly faces
 const BLEND = 0.35; // seconds over which a butterfly the code takes over turns and beats its wings into the new motion
+/** The hero butterfly's name: butterflyLand(world, spec, { name: HERO }) sends it to a point, and nothing else does. */
+export const HERO = 'butterfly-hero';
+const HERO_MODEL = new URL('../../assets/critters/butterfly.glb', import.meta.url).href;
+const HERO_FEET = 0.0756; // metres its feet stand below its body axis, until its model says (the Body node's extras)
+const heroModels = new Map(); // url -> promise of its GLTF: fetched once a page, however many forests have a hero
 
 const clamp01 = k => clamp(k, 0, 1);
 const smooth = k => smoothstep(0, 1, k);
@@ -110,8 +121,60 @@ function wingAngle(flyer, time, extra = 0, lo = 0.25, hi = 1.3) {
 }
 
 /**
- * The clearing's butterflies: the mesh (for the atmosphere's group) and the controller. `clearing` is [x, z] of its centre.
- * Returns { mesh, targets, flutter, land, update, dispose }.
+ * The hero butterfly's model and how it is posed. The GLB holds Body, WingL and WingR, facing +X with +Y up, the origin on the
+ * body axis between the wing roots, the wings lying flat: the group goes where the code puts a butterfly, turns the way it faces
+ * and each wing turns about the body axis by the angle the pale ones' wings are lifted to (their shader's flap). It stands on
+ * its feet: the point it is given is where they are (Body's extras say how far below the body axis; HERO_FEET until then). The
+ * model comes through world.loadModel (the tests read the file) or three's loader (the page); until it is here, or where neither
+ * can be, the group is empty and the hero flies, lands and finishes its handles unseen.
+ */
+function createHero(world) {
+  const group = new THREE.Group();
+  group.name = 'Hero butterfly';
+  const wings = { L: null, R: null };
+  let feet = HERO_FEET;
+  let disposed = false;
+  let load = null;
+  if (world.loadModel) load = world.loadModel(HERO_MODEL);
+  else if (typeof document !== 'undefined') {
+    if (!heroModels.has(HERO_MODEL)) heroModels.set(HERO_MODEL, new GLTFLoader().loadAsync(HERO_MODEL));
+    load = heroModels.get(HERO_MODEL);
+  }
+  const loaded = Promise.resolve(load).then(gltf => {
+    if (!gltf || disposed) return false;
+    const model = gltf.scene.clone(true); // the file's scene is shared: each forest's hero is a copy, with the same geometry and maps
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.castShadow = false; // too small for the sun shadow's cost; the pale ones cast none either
+      o.receiveShadow = true;
+    });
+    for (const side of ['L', 'R']) wings[side] = model.getObjectByName(`Wing${side}`) ?? null;
+    feet = model.getObjectByName('Body')?.userData.feet ?? feet;
+    group.add(model);
+    return true;
+  }).catch(error => {
+    console.warn('[butterflies] the hero butterfly has no model, so it flies unseen:', error?.message ?? error);
+    return false;
+  });
+  return {
+    group, loaded,
+    /** Pose it where a butterfly is: `position` under its feet, facing `yaw` (the shader's: radians about the vertical, 0 along +X), wings lifted by `flap`. */
+    pose(position, yaw, flap) {
+      group.position.set(position.x, position.y + feet, position.z);
+      group.rotation.y = -yaw; // the shader turns +X to (cos yaw, 0, sin yaw); three's rotation.y turns it the other way round
+      if (wings.L) wings.L.rotation.x = flap;
+      if (wings.R) wings.R.rotation.x = -flap; // along +Z, it lifts when turned the other way about X
+    },
+    dispose() {
+      disposed = true;
+      group.clear(); // the geometry and maps stay with the file's scene (heroModels), for the next forest with a hero
+    },
+  };
+}
+
+/**
+ * The clearing's butterflies: the mesh (for the atmosphere's group; the hero's group is under it) and the controller. `clearing`
+ * is [x, z] of its centre. Returns { mesh, targets, hero, flutter, land, update, dispose }; hero is { name, group, loaded }.
  */
 export function createButterflies(world, { seed, clearing: [cx, cz], terrain, shared, q }) {
   const B = FOREST.butterflies;
@@ -179,12 +242,25 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   mesh.frustumCulled = false;
   mesh.renderOrder = 3;
 
+  // The hero: a loop of its own over the clearing, drawn from a stream of its own (the pale ones' loops are drawn as they were),
+  // and its model under the mesh, so it goes where the butterflies go and the atmosphere stays three objects.
+  const hrng = createRng(seed, 'butterfly-hero');
+  const heroAngle = hrng.angle(), heroRadius = hrng.range(3.5, 7.5);
+  const heroCentre = new THREE.Vector3(cx + Math.cos(heroAngle) * heroRadius, 0, cz + Math.sin(heroAngle) * heroRadius);
+  heroCentre.y = terrain.heightAt(heroCentre.x, heroCentre.z);
+  const heroFlyer = {
+    centre: heroCentre, loop: new THREE.Vector3(hrng.range(1.4, 2.6), hrng.range(1.2, 2.2), hrng.range(0.7, 1.6)),
+    speed: hrng.range(0.55, 0.85), phase: hrng.angle(),
+  };
+  const hero = createHero(world);
+  mesh.add(hero.group);
+
   // ---- the code's side: where each butterfly is, and what it is doing -----------------------------------------------
   // mode: 'loop' (the shader flies it), 'leave' (fluttering up and away, then back to its loop), 'land' (flying to a point)
   // or 'landed' (sitting on it).
   const tune = createRng(seed, 'butterfly-flutter'); // its own stream: the loops above are drawn as they were
-  const list = flyers.map((flyer, index) => ({
-    flyer, name: `butterfly-${index + 1}`,
+  const entry = (flyer, name, hero) => ({
+    flyer, name, hero, // hero: posed through its own group (createHero), not the shader's arrays, and never picked by distance
     mode: 'loop', t0: 0, handle: null,
     pos: new THREE.Vector3(), yaw: 0, flap: 0, // as of the last update
     point: new THREE.Vector3(), // the tap target's point: pos, for good the same vector
@@ -192,7 +268,9 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     away: new THREE.Vector2(), awayTurn: tune.angle(), wobble: tune.angle(), flutters: 0, // the flutter's way out
     to: new THREE.Vector3(), spec: null, duration: 0, reach: 0, side: new THREE.Vector2(), approachYaw: 0, // the landing
     perch: false, // a flutter that starts from a landing, not from the loop
-  }));
+  });
+  // the hero last: the tune's draws go to the pale ones first, as they did
+  const list = [...flyers.map((flyer, index) => entry(flyer, `butterfly-${index + 1}`, false)), entry(heroFlyer, HERO, true)];
   const byName = new Map(list.map(b => [b.name, b]));
   const targets = list.map(b => ({ name: b.name, point: b.point, radius: B.radius }));
   const scratch = new THREE.Vector3();
@@ -364,6 +442,10 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     list.forEach((b, i) => {
       const held = pose(b, time);
       b.point.copy(b.pos);
+      if (b.hero) {
+        hero.pose(b.pos, b.yaw, b.flap);
+        return;
+      }
       holds[i].set(b.pos.x, b.pos.y, b.pos.z, b.flap);
       faces[i].set(b.yaw, held ? 1 : 0);
     });
@@ -387,7 +469,7 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
   }
 
   /**
-   * Fly a butterfly (the one nearest the point, unless `name` says which) to `spec`, a point spec resolved every frame, over
+   * Fly a butterfly (the one nearest the point, unless `name` says which; the hero only by name) to `spec`, a point spec resolved every frame, over
    * `duration` seconds and settle it there. The handle finishes when it has landed. It stays on the point, wherever that goes,
    * until flutter(name) sends it away; cancelling the handle on the way sends it away too.
    */
@@ -399,8 +481,8 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     if (name !== undefined) {
       b = named(name);
     } else {
-      // the one nearest the point, from those still looping if there are any, else from those not sitting
-      const pick = (...modes) => list.filter(c => modes.includes(c.mode)).sort((p, r) => p.pos.distanceToSquared(target) - r.pos.distanceToSquared(target))[0];
+      // the one nearest the point, from those still looping if there are any, else from those not sitting; never the hero
+      const pick = (...modes) => list.filter(c => !c.hero && modes.includes(c.mode)).sort((p, r) => p.pos.distanceToSquared(target) - r.pos.distanceToSquared(target))[0];
       b = pick('loop') ?? pick('loop', 'leave') ?? pick('loop', 'leave', 'land', 'landed');
     }
     if (disposed) return new Handle(`${b.name} lands`).finish();
@@ -434,8 +516,9 @@ export function createButterflies(world, { seed, clearing: [cx, cz], terrain, sh
     for (const b of list) release(b); // a script waiting on a butterfly goes on
     geometry.dispose();
     material.dispose();
+    hero.dispose();
   }
 
   update(); // the points are right from the start
-  return { mesh, targets, flutter, land, update, dispose };
+  return { mesh, targets, hero: { name: HERO, group: hero.group, loaded: hero.loaded }, flutter, land, update, dispose };
 }

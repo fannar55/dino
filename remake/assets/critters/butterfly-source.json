@@ -1,0 +1,25 @@
+{
+  "file": "butterfly.glb",
+  "bytes": 205372,
+  "triangles": 3798,
+  "vertices": 5443,
+  "meshes": ["Body", "WingL", "WingR"],
+  "maps": "colour and normal, 512 x 512 WebP (EXT_texture_webp); no roughness map, roughness 0.7, metallic 0, double-sided (the wing shells are open at their roots)",
+  "extensions": ["KHR_mesh_quantization", "EXT_texture_webp"],
+  "author": "Tripo AI (Tripo3D) moth model downloaded by the game owner (moth+3d+model.glb, 6,019,480 bytes, md5 10748cf79fb8fa778ceb9cc2ea8b8139, 102,850 triangles, three 2048 px JPEG maps); Stjörnufar (the three meshes, the flat wings, the frame and the size)",
+  "sourceUrl": "https://www.tripo3d.ai",
+  "license": "Tripo3D output generated on the owner's paid Tripo plan, used under Tripo terms",
+  "licenseUrl": "https://www.tripo3d.ai/help/privacy-policy/how-to-use-tripo-models-commercially",
+  "rightsNote": "The owner generated this model on a paid Tripo plan (as the characters, mosi-source.json). Keep a copy of the Tripo terms in force at publication.",
+  "use": "The hero butterfly of world/forest/butterflies.js (HERO): the one chapter 1 sends to Mosi's horn by name. Faces +X, +Y up, the origin on the body axis between the wing roots; WingL lies along -Z and WingR along +Z, flat, and the game turns each about X by the pale butterflies' wing angle. Body's extras: feet 0.0756 (metres its feet stand below the body axis; the game sets it down on them) and span 0.36.",
+  "size": {
+    "spanMetres": 0.36,
+    "lengthMetres": 0.25,
+    "sourceScale": 0.3599
+  },
+  "modifications": "blender-butterfly.py: the fore and hind wings turned flat about the body axis (forewings 25 degrees down, hindwings 6 degrees up), Tripo's fourteen parts welded into three meshes (seam vertices merged, no T-junctions or pinholes found; 162, 123 and 109 open edges stay, at the wing roots and the legs), decimated by collapse to 1,900 + 949 + 949 triangles, custom normals from the welded whole, maps scaled to 512 and written as WebP at quality 80, the roughness map dropped. quantize-glb.mjs: positions 16-bit over the model's extent (0.18 m, the nodes' scale), normals 8-bit, texture coordinates 16-bit, indices 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-butterfly.py -- <moth+3d+model.glb> butterfly-blender.glb span=0.36 tris=3800 tex=512",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs butterfly-blender.glb remake/assets/critters/butterfly.glb",
+  "passes": "blenderCommand (Blender 5.2, glTF I/O 5.2.41; 302,800 bytes), then quantizeCommand (205,372 bytes).",
+  "sourceExport": "The owner's download, not in the repository (6 MB)."
+}
