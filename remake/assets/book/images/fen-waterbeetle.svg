@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- The book's drawing of the Fen's diving beetle, brunnklukka (Task 7, chapter 2), from above as it swims: a smooth, flat oval of
+       dark olive with a gold rim, its hind legs wide flat oars with a fringe of hairs, and the bubble of air it carries under its
+       wing covers peeping out at its tail, in the colours of the game's beetle (world/critters/models.js), drawn soft and by hand
+       on a clear background so a tile can show it as a silhouette. Our own drawing, until a photograph the owner approves
+       (cards.json, the card's wanted) or the owner's drawing replaces it. -->
+  <title>Brunnklukka</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="23" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- the left legs; the right ones are their mirror -->
+    <path id="legs" d="M178 92C164 86 154 78 148 66M170 130C150 126 132 126 116 132"/>
+    <path id="oar" d="M166 176C140 186 116 200 96 222C88 232 80 244 76 254C72 262 80 266 88 260C106 246 124 228 142 212C152 202 162 194 172 188Z"/>
+    <path id="fringe" d="M84 248L74 244M92 238L82 232M102 228L92 220M112 218L104 210M122 208L116 200"/>
+  </defs>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- feelers -->
+    <path d="M190 58C184 44 176 34 164 26M210 58C216 44 224 34 236 26" fill="none" stroke-width="8"/>
+    <path d="M190 58C184 44 176 34 164 26M210 58C216 44 224 34 236 26" fill="none" stroke="#5a4128" stroke-width="3.5"/>
+    <!-- front and middle legs -->
+    <use href="#legs" fill="none" stroke-width="11"/>
+    <use href="#legs" fill="none" stroke="#5a4128" stroke-width="5.5"/>
+    <use href="#legs" fill="none" stroke-width="11" transform="matrix(-1 0 0 1 400 0)"/>
+    <use href="#legs" fill="none" stroke="#5a4128" stroke-width="5.5" transform="matrix(-1 0 0 1 400 0)"/>
+    <!-- the oars: flat hind legs with their fringe of swimming hairs -->
+    <use href="#fringe" fill="none" stroke-width="3"/>
+    <use href="#fringe" fill="none" stroke-width="3" transform="matrix(-1 0 0 1 400 0)"/>
+    <use href="#oar" fill="#5a4128"/>
+    <use href="#oar" fill="#5a4128" transform="matrix(-1 0 0 1 400 0)"/>
+    <!-- the bubble of air under its wing covers, at its tail -->
+    <circle cx="200" cy="262" r="16" fill="#eaf6f6" fill-opacity=".9" stroke-width="3.5"/>
+    <circle cx="224" cy="282" r="7" fill="#eaf6f6" fill-opacity=".9" stroke-width="3"/>
+    <path d="M192 256C194 252 198 250 202 250" fill="none" stroke="#fff" stroke-width="3"/>
+    <!-- the body: a flat oval with a gold rim -->
+    <path d="M200 70C246 70 276 112 276 166C276 222 242 258 200 258C158 258 124 222 124 166C124 112 154 70 200 70Z" fill="#c9a640"/>
+    <path d="M200 80C238 80 264 116 264 166C264 214 236 248 200 248C164 248 136 214 136 166C136 116 162 80 200 80Z" fill="#273024" stroke-width="3.5"/>
+    <path d="M200 98L200 246" fill="none" stroke="#1a2018" stroke-width="3.5"/>
+    <path d="M160 120C170 104 186 96 196 96M150 170C152 140 162 120 176 112" fill="none" stroke="#3d4a32" stroke-width="7" stroke-opacity=".9"/>
+    <path d="M168 112C176 104 186 100 194 100" fill="none" stroke="#7d8f62" stroke-width="4" stroke-opacity=".6"/>
+    <!-- the head, with its eyes and a smile -->
+    <path d="M200 46C222 46 236 60 236 78C236 92 222 100 200 100C178 100 164 92 164 78C164 60 178 46 200 46Z" fill="#2b3326"/>
+    <circle cx="182" cy="70" r="11" fill="#e9dfb8" stroke-width="3"/>
+    <circle cx="218" cy="70" r="11" fill="#e9dfb8" stroke-width="3"/>
+    <g stroke="none">
+      <circle cx="183" cy="72" r="6" fill="#16160f"/>
+      <circle cx="217" cy="72" r="6" fill="#16160f"/>
+      <circle cx="180" cy="68" r="2.3" fill="#fff"/>
+      <circle cx="214" cy="68" r="2.3" fill="#fff"/>
+    </g>
+    <path d="M190 88C196 93 204 93 210 88" fill="none" stroke="#e9dfb8" stroke-width="3.5"/>
+  </g>
+</svg>

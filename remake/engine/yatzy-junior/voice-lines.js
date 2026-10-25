@@ -164,3 +164,14 @@ export const VOICE_LINES = Object.freeze(Object.fromEntries(Object.entries({
   points_115:'Hundrað og fimmtán stig.',
   points_117:'Hundrað og sautján stig.',
 }).map(([id,text])=>[id,Object.freeze({text})])));
+// "Fjölspil", a table of two to four (the owner's decision of 2026-10-24): new generic lines, with no names, said by Mosi to
+// whoever plays; the bubble shows the name (game.js captionFor). Optional: the page opens before the owner records them himself
+// (remake/tools/yatzy-junior-voices.mjs --only …), and until he does each is its caption alone, with no "Rödd Mosa náðist ekki".
+export const MULTI_LINES = Object.freeze(Object.fromEntries(Object.entries({
+  multiWelcome:'Velkomin að borðinu! Við skiptumst á.',
+  multiTurn:'Næsti kastar!',
+  multiScored:'Flott! Stigin fara á kortið.',
+  multiZero:'Ekkert í þetta sinn. Næst gengur betur!',
+  multiWait:'Við bíðum aðeins.',
+  multiOver:'Leik lokið! Sjáum hver vann.',
+}).map(([id,text])=>[id,Object.freeze({text,optional:true})])));

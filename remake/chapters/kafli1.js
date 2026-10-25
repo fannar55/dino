@@ -26,9 +26,11 @@ import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
 import { butterflyLand } from '../world/forest/atmosphere.js';
 import { pollenBurst } from '../world/props/pollen.js';
+import { MOUTH_RATE } from '../engine/talk.js';
 import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { WINK_SECONDS } from '../engine/sun-face.js';
+import { tapOrWait } from '../engine/scene/tap-or-wait.js';
 
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
@@ -86,6 +88,8 @@ const MOSI_FEET = [
 // the ride, away from Mosi coming along the path through the light.
 const RIDE_BIRDS = [[21.0, -5.8, 200], [21.7, -6.35, 160], [22.3, -6.0, 230]];
 const RIDE_BIRDS_UP = { after: 4, from: [20.2, -5.6], reach: 3 };
+// Seconds of quiet on the ride between the end of Mosi's two lines (their captions too) and the cut to the first critter.
+const RIDE_QUIET = 0.3;
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade
@@ -340,9 +344,19 @@ function* mosiComes(s, c) {
   yield s.say('mosi', 'k1_mosi_waving');
 }
 
-// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins (its mouth track in
-// assets/audio/lines.json; tests/kafli1.test.mjs reads it there).
-const ATSJU = 1.95;
+// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins, read from its mouth track
+// (assets/audio/lines.json; tests/kafli1.test.mjs reads it the same way), so a new take of the line moves the pollen with it.
+// A line without a recording (no mouth track) sneezes ATSJU seconds in.
+export function lastBurst(mouth) {
+  const loud = [...(mouth ?? '')].map(level => parseInt(level, 16) > 0);
+  let at = loud.lastIndexOf(true);
+  if (at < 0) return null;
+  while (at > 0 && loud[at - 1]) at--;
+  return at / MOUTH_RATE;
+}
+const ATSJU = 1.5;
+/** Seconds into the sneeze where the pollen flies: the last burst of its mouth track, or ATSJU without one. */
+export const atsjuOf = mouth => lastBurst(mouth) ?? ATSJU;
 // Seconds the nose still waits for its second tap once the giggle of the first is over.
 const NOSE_AGAIN = 4;
 
@@ -364,7 +378,7 @@ function* hello(s, c) {
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
-    if (taps === 2) s.after(ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
+    if (taps === 2) s.after(atsjuOf(s.lineMouth('k1_mosi_sneeze')), () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
     until = Math.max(until, s.time + NOSE_AGAIN);
   }
@@ -488,9 +502,14 @@ function* onThePath(s, c) {
   // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
   // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
   // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
-  // critter, the beetle in rideFeet. That cut is timed to his front foot reaching the beetle, so it is the start of the two lines that
-  // gives way (tests/kafli1.test.mjs checks it, and the early tap).
-  s.after(0, () => speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters'));
+  // critter, the beetle in rideFeet: that cut comes as his front foot reaches the beetle, or once the two lines are over (their
+  // captions too) and RIDE_QUIET more, whichever is later, so a take of any length fits (tests/kafli1.test.mjs checks it, and the
+  // early tap).
+  let rideLinesOver = null; // the scene time the two lines ended
+  s.after(0, function* rideLines() {
+    yield speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters');
+    rideLinesOver = s.time;
+  });
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
@@ -499,6 +518,7 @@ function* onThePath(s, c) {
   yield s.camera.cut('rideClose');
   yield s.camera.follow('egill', RIDE_CLOSE);
   yield past(17.5, 4);
+  yield s.until(() => rideLinesOver !== null && s.time >= rideLinesOver + RIDE_QUIET);
   // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
   // prints into it.
   yield s.camera.cut('rideFeet');
@@ -745,16 +765,6 @@ function* glitterSaddle(s, c) {
   }
 }
 
-/** A required tap on an actor that also ends by itself when `idle` is done (R12): a hint-free wait for the child. */
-function* tapOrWait(s, name, idle) {
-  s.target(name, { point: name, radius: 0.7 });
-  try {
-    return yield s.race(s.tap(name), idle);
-  } finally {
-    s.target(name, null);
-  }
-}
-
 /**
  * A line of Mosi's on the ride, or several one right after the other: the critters' remarks wait for the last of them
  * and it waits for them. (Said together they keep the one claim on his voice, so no remark gets in between.) A number
@@ -896,6 +906,7 @@ function setUpGlade(s, c) {
 export const chapter = {
   id: 'kafli1',
   title: 'Boð til kambeðlunnar',
+  next: 'kafli2', // when its script ends, the book shows an "Áfram" into chapter 2 (main.js)
   look: 'morning',
   start: 'rjodur',
   locations: {
@@ -995,8 +1006,8 @@ export const chapter = {
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.
   startShot: 'dawn',
-  // The glade is built behind the start button and kept, hidden (engine/locations.js: prepare), so the change of place in scene 6
-  // is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
+  // The glade is built once the start button shows, a slice at a time (main.js: prepareLater), and kept, hidden (engine/locations.js:
+  // prepare), so the change of place in scene 6 is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
   // more JS heap, the textures under 40 MB (measured 2026-10-17).
   prepare: ['burknalaut'],
 

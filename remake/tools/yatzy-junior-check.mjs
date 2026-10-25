@@ -29,7 +29,7 @@ try{
     window.Audio=class extends NativeAudio{constructor(src){super(src);this.addEventListener('playing',()=>window.__clipEvents.push({kind:'playing',src,time:this.currentTime}));this.addEventListener('ended',()=>window.__clipEvents.push({kind:'ended',src}));}};
   },{SAVE,PREFS,savedBytes});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});page.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
-  await page.goto('http://127.0.0.1:4197/remake/yatzy-junior.html?qa',{waitUntil:'networkidle',timeout:90000});
+  await page.goto(process.env.JUNIOR_URL||'http://127.0.0.1:4197/remake/yatzy-junior.html?qa',{waitUntil:'networkidle',timeout:90000});
   await page.waitForFunction(()=>window.__juniorQA||!document.getElementById('error').hidden,undefined,{timeout:90000});assert.deepEqual(errors,[]);assert.ok(await page.evaluate(()=>Boolean(window.__juniorQA)));
   await capture('welcome');await click('#learn');
   await page.waitForFunction(()=>window.__juniorQA.voice.getDebugState().mode==='audio');
@@ -43,7 +43,7 @@ try{
     if(previous===spec.id){await page.waitForTimeout(100);continue;}previous=spec.id;
     await waitStill();const before=await state();
     assert.equal(await page.evaluate(key=>localStorage.getItem(key),SAVE),savedBytes,'lesson does not overwrite the normal game');
-    const measure=await layout();assert.equal(measure.overflow,false);assert.ok(measure.totals.every(Boolean));assert.ok(Math.abs((measure.coach.x+measure.coach.w/2)-(measure.scene.x+measure.scene.w/2))<2,'coach stays centered over the board');
+    const measure=await layout();assert.equal(measure.overflow,false);assert.ok(measure.totals.every(Boolean));assert.ok(measure.coach.x>=-.5&&measure.coach.y>=-.5&&measure.coach.x+measure.coach.w<=measure.viewport[0]+.5,'Mosi’s bubble stays on screen');
     if(spec.type==='listen'||spec.type==='finish'){
       assert.equal(await page.locator('#lesson-next').isVisible(),spec.type==='finish','informational lessons advance by spoken completion, not Next');
       if(spec.id==='welcome')await capture('centered-intro');
@@ -71,6 +71,7 @@ try{
   await page.evaluate(value=>window.__juniorQA.setState(value),createGame({seed:6081}));
   while((await state()).status!=='finished'){
     const game=await state();
+    if(game.status==='finished')break; // Mosi's last card may land between the two reads
     if(game.currentPlayer===1){await page.waitForTimeout(250);continue;}
     await page.waitForFunction(()=>window.__juniorQA.getStatus().phase==='human'&&window.__juniorQA.getStatus().settled);
     const current=await state(),decision=decideAI(current);
@@ -79,7 +80,7 @@ try{
       if(await page.locator('#zero-dialog').isVisible())await click('#confirm-zero');
     }else{
       for(let i=0;i<5;i++)if(current.held[i]!==decision.held[i]){await waitStill();await click(`.die-target[data-index="${i}"]`);}
-      await waitStill();await click('#roll');await page.waitForFunction(()=>window.__juniorQA.getStatus().phase!=='rolling');
+      await waitStill();await click('#cup-target');await page.waitForFunction(()=>window.__juniorQA.getStatus().phase!=='rolling');
     }
   }
   await page.waitForFunction(()=>document.getElementById('win-dialog').open);await capture('finished');report.final=await state();assert.equal(report.final.turnCount,10);

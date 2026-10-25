@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CATEGORIES,DICE_COUNT,MAX_ROLLS,SAVE_VERSION,ROUND_COUNT,MAX_TURNS,createGame,roll,hold,score,scoreCategory,previews,totals,decideAI,validateGame,restoreGame} from '../engine/yatzy-junior/rules.js';
+import {CATEGORIES,DICE_COUNT,MAX_ROLLS,SAVE_VERSION,ROUND_COUNT,MAX_TURNS,maxTurns,roundOf,createGame,roll,hold,score,scoreCategory,previews,totals,decideAI,validateGame,restoreGame} from '../engine/yatzy-junior/rules.js';
 import {createGame as createClassicGame} from '../engine/yatzy-mosi/rules.js';
 const ids=CATEGORIES.map(category=>category.id);
 const clone=value=>structuredClone(value);
@@ -108,7 +108,7 @@ test('restore preserves exact held rerolls, owns all data and rejects classic15-
 });
 
 test('save guards reject impossible scores, malformed phase and forged ten-turn endings',()=>{
-  const changes=[state=>{state.version=0;},state=>{state.rng=-1;},state=>{state.rng=2**32;},state=>{state.players.reverse();},state=>{state.players[0].scores.pair=9;},state=>{state.players[0].scores.threeKind=20;},state=>{state.players[0].scores.smallStraight=20;},state=>{state.players[0].scores.yatzy=40;},state=>{state.players[0].scores.twoPairs=12;},state=>{delete state.players[0].scores.pair;},state=>{state.currentPlayer=1;},state=>{state.startingPlayer=2;},state=>{state.turnCount=1;},state=>{state.turnCount=11;},state=>{state.rollCount=4;},state=>{state.dice[0]=1;},state=>{state.held[0]=true;},state=>{state.held[0]=0;},state=>{state.dice=Array(5);},state=>{state.held=Array(5);},state=>{state.status='finished';},state=>{state.winner='you';},state=>{delete state.status;}];
+  const changes=[state=>{state.version=0;},state=>{state.rng=-1;},state=>{state.rng=2**32;},state=>{state.players[1].id='you';},state=>{state.players.pop();},state=>{state.players[0].scores.pair=9;},state=>{state.players[0].scores.threeKind=20;},state=>{state.players[0].scores.smallStraight=20;},state=>{state.players[0].scores.yatzy=40;},state=>{state.players[0].scores.twoPairs=12;},state=>{delete state.players[0].scores.pair;},state=>{state.currentPlayer=1;},state=>{state.startingPlayer=2;},state=>{state.turnCount=1;},state=>{state.turnCount=11;},state=>{state.rollCount=4;},state=>{state.dice[0]=1;},state=>{state.held[0]=true;},state=>{state.held[0]=0;},state=>{state.dice=Array(5);},state=>{state.held=Array(5);},state=>{state.status='finished';},state=>{state.winner='you';},state=>{delete state.status;}];
   for(const change of changes){const state=createGame();change(state);assert.throws(()=>validateGame(state));assert.equal(restoreGame(state),null);}
   for(const input of [null,undefined,[],1,'','{','null','[]',' '.repeat(20001),Object.create(createGame())])assert.equal(restoreGame(input),null);
   let called=false;const accessor=createGame();Object.defineProperty(accessor,'rng',{get(){called=true;return 1;}});assert.equal(restoreGame(accessor),null);assert.equal(called,false);
@@ -163,4 +163,49 @@ test('seeded complete Junior matches terminate legally with only five filled car
   }
   assert.ok(results.size>20,'different seeded hands produce varied matches');
   let first=createGame({seed:173}),second=createGame({seed:173});while(first.status==='playing'){first=applyDecision(first);second=applyDecision(second);assert.deepEqual(first,second);}
+});
+
+test('a game of three or four goes round the ring, five rounds each, and the highest total wins',()=>{
+  let game=createGame({seed:7,players:['0','1','2']});
+  assert.deepEqual(game.players.map(p=>p.id),['0','1','2']);
+  assert.equal(maxTurns(3),15);
+  for(let turn=0;turn<15;turn++){assert.equal(game.currentPlayer,turn%3);assert.equal(roundOf(game),Math.min(5,Math.floor(turn/3)+1));game=applyDecision(roll(game),{type:'score',categoryId:ids[Math.floor(turn/3)]});}
+  assert.equal(game.status,'finished');assert.equal(game.turnCount,15);
+  assert.deepEqual(game.players.map(p=>totals(p.scores).total),[6,34,22]);assert.equal(game.winner,'1'); // seed 7: the middle seat's 34 wins outright
+  const four=createGame({seed:1,players:['a','b','c','d'],startingPlayer:2});
+  assert.equal(four.currentPlayer,2);assert.equal(score(roll(four),'pair').currentPlayer,3);assert.equal(maxTurns(4),20);
+});
+test('two players are the old game: old saves read and play on',()=>{
+  const old=createGame({seed:3});assert.deepEqual(old.players.map(p=>p.id),['you','mosi']);assert.equal(MAX_TURNS,10);
+  const saved=JSON.parse(JSON.stringify(old));for(const p of saved.players)delete p.faces; // a save from before kept dice
+  assert.ok(restoreGame(saved));
+});
+test('a bad player list is refused',()=>{
+  for(const players of [['solo'],['a','a'],['a','b','c','d','e'],[1,2],['a','tie']])assert.throws(()=>createGame({players}),TypeError);
+  assert.throws(()=>createGame({players:['a','b','c'],startingPlayer:3}),TypeError);
+});
+test('validateGame follows the ring: a three-player state with the wrong current player is refused',()=>{
+  const game=score(roll(createGame({seed:5,players:['0','1','2']})),'pair');
+  assert.equal(validateGame(game),true);
+  const wrong={...structuredClone(game),currentPlayer:0};assert.throws(()=>validateGame(wrong),TypeError);
+  const tie=structuredClone(game);for(const p of tie.players)for(const id of ids)p.scores[id]=0;tie.turnCount=15;tie.rollCount=0;tie.dice=[0,0,0,0,0];tie.held=[false,false,false,false,false];tie.currentPlayer=0;tie.status='finished';tie.winner='tie';
+  assert.equal(validateGame(tie),true);
+});
+test('the ring holds from any starting seat: every step validates, and a card filled on the wrong seat is refused',()=>{
+  for(const [n,startingPlayer] of [[3,1],[3,2],[4,1],[4,3]]){
+    let game=createGame({seed:11+startingPlayer,players:Array.from({length:n},(_,i)=>String(i)),startingPlayer});
+    for(let turn=0;turn<maxTurns(n);turn++){assert.equal(game.currentPlayer,(startingPlayer+turn)%n);game=score(roll(game),ids[Math.floor(turn/n)]);assert.equal(validateGame(game),true);}
+    assert.equal(game.status,'finished');assert.equal(game.currentPlayer,startingPlayer);
+  }
+  const game=score(roll(createGame({seed:5,players:['0','1','2'],startingPlayer:1})),'pair'),moved=structuredClone(game);
+  assert.equal(game.currentPlayer,2);assert.equal(validateGame(game),true);
+  // The current player is still right, so only the count of filled cards per seat can catch this.
+  moved.players[2].scores.pair=moved.players[1].scores.pair;moved.players[1].scores.pair=null;assert.throws(()=>validateGame(moved),/turn order/);
+});
+test('with three or more a single top total wins whichever seat holds it, and only a shared top is a tie',()=>{
+  const finished=(points,winner)=>{const game=createGame({players:['0','1','2']});game.players.forEach((p,i)=>{for(const id of ids)p.scores[id]=0;p.scores.pair=points[i];});game.turnCount=15;game.status='finished';game.winner=winner;return game;};
+  assert.equal(validateGame(finished([10,10,4],'tie')),true);assert.throws(()=>validateGame(finished([10,10,4],'0')),/winner/);
+  assert.equal(validateGame(finished([4,6,10],'2')),true);for(const winner of ['tie','0'])assert.throws(()=>validateGame(finished([4,6,10],winner)),/winner/);
+  const last=finished([4,6,0],null);last.players[2].scores.yatzy=null;last.turnCount=14;last.status='playing';last.currentPlayer=2;last.dice=[6,6,6,6,6];last.rollCount=1;
+  assert.equal(score(last,'yatzy').winner,'2');
 });

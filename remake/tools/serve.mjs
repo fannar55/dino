@@ -7,12 +7,16 @@
 //
 // It answers byte-range requests, as any real host does. A browser moves about in a sound by asking for ranges of the file: from a
 // server that gives none, the theme (assets/audio/theme.mp3) cannot be moved to where the game's clock is, and Safari will not play it.
+//
+// It is also Fjölspil's meeting point at home (spec §9.1): the WebSocket at /fjolspil/ws/<code> is tools/fjolspil-server.mjs,
+// and with --lan the phone page's addresses are printed too, as the host's QR code carries them.
 
 import http from 'node:http';
 import os from 'node:os';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachFjolspil, lanJoinUrls } from './fjolspil-server.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MIME = {
@@ -33,7 +37,7 @@ export async function handle(req, res) {
     const stat = await fsp.stat(file);
     const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
     const body = await fsp.readFile(target);
-    const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes' };
+    const headers = { 'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || ''); // bytes=a-b, bytes=a- (to the end), bytes=-n (the last n)
     if (range && (range[1] || range[2])) {
       const start = range[1] ? Number(range[1]) : Math.max(0, body.length - Number(range[2]));
@@ -55,12 +59,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const lan = args.includes('--lan');
   const portArg = args.indexOf('--port');
   const port = portArg >= 0 ? Number(args[portArg + 1]) : 4190;
-  http.createServer(handle).listen(port, lan ? '0.0.0.0' : '127.0.0.1', () => {
+  const server = http.createServer(handle);
+  attachFjolspil(server, { join: () => lan ? lanJoinUrls(port) : [] });
+  server.listen(port, lan ? '0.0.0.0' : '127.0.0.1', () => {
     console.log(`Mosi remake: http://127.0.0.1:${port}/remake/`);
     if (lan) {
       for (const nets of Object.values(os.networkInterfaces())) {
         for (const n of nets || []) if (n.family === 'IPv4' && !n.internal) console.log(`On your tablet: http://${n.address}:${port}/remake/`);
       }
+      for (const url of lanJoinUrls(port)) console.log(`Fjölspil: ${url}`);
     }
   });
 }

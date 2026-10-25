@@ -5,6 +5,8 @@ node_modules/
 .tools/
 qa/
 __pycache__/
+cloud/site/
+cloud/.wrangler/
 
 # Local credentials and hosting metadata
 .env

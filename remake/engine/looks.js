@@ -1,13 +1,21 @@
 // Light "looks" from the style guide (remake/STYLE.md). A chapter picks one by name.
 // Colours are sRGB hex. Sun azimuth is in degrees from +X toward +Z; elevation in degrees above
 // the horizon. Fog density is per metre at ground level and thins with height (heightFalloff, 1/m).
+const morning = {
+  sun: { azimuth: 135, elevation: 32, color: '#ffe3b8', intensity: 2.9 },
+  hemi: { sky: '#cfe3f2', ground: '#5f6a3a', intensity: 0.55 },
+  sky: { zenith: '#4f93d6', horizon: '#e9e8d8', glow: '#fff0d2', cloud: '#ffffff', cloudShade: '#d9e1ec', cloudCover: 0.55 },
+  fog: { color: '#d6e2dc', sunColor: '#f6e2bf', sunStrength: 0.8, density: 0.014, heightFalloff: 0.08 },
+  exposure: 1.0, envIntensity: 0.7,
+};
+
 export const LOOKS = {
-  morning: {
-    sun: { azimuth: 135, elevation: 32, color: '#ffe3b8', intensity: 2.9 },
-    hemi: { sky: '#cfe3f2', ground: '#5f6a3a', intensity: 0.55 },
-    sky: { zenith: '#4f93d6', horizon: '#e9e8d8', glow: '#fff0d2', cloud: '#ffffff', cloudShade: '#d9e1ec', cloudCover: 0.55 },
-    fog: { color: '#d6e2dc', sunColor: '#f6e2bf', sunStrength: 0.8, density: 0.014, heightFalloff: 0.08 },
-    exposure: 1.0, envIntensity: 0.7,
+  morning,
+  // Chapter 2's: later the same morning, the sun a little further round, lower and warmer, and the mist a touch lighter.
+  lateMorning: {
+    ...morning,
+    sun: { azimuth: 150, elevation: 26, color: '#ffe0b0', intensity: 2.8 },
+    fog: { ...morning.fog, color: '#dfe7df' },
   },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },

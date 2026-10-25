@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1800 1000" width="1800" height="1000">
+  <!-- Egill's map in the explorer's journal (engine/book/map-page.js): the forest on the left half, the Fen on the right, drawn
+       in ink with soft washes as the book's doodles are. The words and the slots for the places are the page's own (map-page.js),
+       so the drawing leaves room for them: Rjóðrið, Burknalautin, Fenjaslóðin, Áin, Fenið, and seven round slots. -->
+  <defs>
+    <!-- a round tree of the forest -->
+    <symbol id="broadleaf" viewBox="-34 -74 68 82" overflow="visible">
+      <path d="M-28 -36c-6-14 4-26 16-26 2-10 18-14 26-4 10-4 22 4 20 16 10 4 10 20 0 26 2 10-10 16-18 12-6 8-20 8-26 0-12 4-22-4-18-14z" fill="#9cc36a" opacity=".55" transform="translate(4 3)"/>
+      <path d="M-28 -36c-6-14 4-26 16-26 2-10 18-14 26-4 10-4 22 4 20 16 10 4 10 20 0 26 2 10-10 16-18 12-6 8-20 8-26 0-12 4-22-4-18-14z" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linejoin="round" opacity=".72"/>
+      <path d="M-1 -18c0 9 1 17 0 24M-1 -6l-7-7M0 -10l8-6" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linecap="round" opacity=".72"/>
+    </symbol>
+    <!-- a tall pine of the forest, in tiers -->
+    <symbol id="pine" viewBox="-26 -92 52 100" overflow="visible">
+      <path d="M0 -88l14 24h-7l16 24h-8l18 26h-66l18-26h-8l16-24h-7z" fill="#6f9e4e" opacity=".5" transform="translate(4 3)"/>
+      <path d="M0 -88l14 24h-7l16 24h-8l18 26h-66l18-26h-8l16-24h-7z" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linejoin="round" opacity=".72"/>
+      <path d="M0 -14v20" stroke="#3b2f25" stroke-width="3.4" stroke-linecap="round" opacity=".72"/>
+    </symbol>
+    <!-- a fern, a fan of fronds -->
+    <symbol id="fern" viewBox="-30 -36 60 40" overflow="visible">
+      <path d="M0 2c-4-12-14-22-26-26M0 2c-2-14-6-26-12-34M0 2c2-14 6-26 12-34M0 2c4-12 14-22 26-26" fill="none" stroke="#5f8f3e" stroke-width="5" stroke-linecap="round" opacity=".45" transform="translate(3 2)"/>
+      <path d="M0 2c-4-12-14-22-26-26M0 2c-2-14-6-26-12-34M0 2c2-14 6-26 12-34M0 2c4-12 14-22 26-26M-8-8l-5 2M-14-14l-5 1M-4-14l-4-3M4-14l4-3M8-8l5 2M14-14l5 1" fill="none" stroke="#3b2f25" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>
+    </symbol>
+    <!-- a swamp conifer of the Fen: flared roots, narrow tiers, moss hanging -->
+    <symbol id="swamp" viewBox="-26 -110 52 118" overflow="visible">
+      <path d="M0 -104c6 8 10 16 9 22 8 6 12 16 10 24 8 8 10 18 6 26h-50c-4-8-2-18 6-26-2-8 2-18 10-24-1-6 3-14 9-22z" fill="#5f8a4a" opacity=".5" transform="translate(4 3)"/>
+      <path d="M0 -104c6 8 10 16 9 22 8 6 12 16 10 24 8 8 10 18 6 26h-50c-4-8-2-18 6-26-2-8 2-18 10-24-1-6 3-14 9-22z" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linejoin="round" opacity=".72"/>
+      <path d="M-14 -50c-1 8 0 14-2 20M12 -48c1 8 0 12 2 18M-6 -78c0 6 1 10 0 14" fill="none" stroke="#a8bd6a" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+      <path d="M0 -32v30M0 -4c-6 2-12 6-14 10M0 -4c6 2 12 6 14 10M0 -6c-2 4-4 8-4 12M0 -6c2 4 4 8 4 12" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linecap="round" opacity=".72"/>
+    </symbol>
+    <!-- a tuft of the Fen's golden reed -->
+    <symbol id="reed" viewBox="-20 -40 40 44" overflow="visible">
+      <path d="M-2 2c-2-12-2-24 2-36M4 2c1-10 4-20 10-28M-6 2c-4-8-8-16-14-22M8 2c3-6 7-10 12-14" fill="none" stroke="#c9b45a" stroke-width="4.5" stroke-linecap="round" opacity=".85" transform="translate(2 1)"/>
+      <path d="M-2 2c-2-12-2-24 2-36M4 2c1-10 4-20 10-28M-6 2c-4-8-8-16-14-22M8 2c3-6 7-10 12-14" fill="none" stroke="#3b2f25" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+    </symbol>
+    <!-- a lily pad with its flower -->
+    <symbol id="lily" viewBox="-14 -10 28 20" overflow="visible">
+      <path d="M0 0l12-4c2 6-2 12-12 12S-13 4-12-2C-10-8-2-9 0 0z" fill="#6f9e4e" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round" opacity=".85"/>
+      <circle cx="-4" cy="1" r="3" fill="#f6f1e4" stroke="#3b2f25" stroke-width="1.2"/>
+    </symbol>
+    <symbol id="lilyPink" viewBox="-14 -10 28 20" overflow="visible">
+      <path d="M0 0l12-4c2 6-2 12-12 12S-13 4-12-2C-10-8-2-9 0 0z" fill="#6f9e4e" stroke="#3b2f25" stroke-width="1.8" stroke-linejoin="round" opacity=".85"/>
+      <circle cx="-4" cy="1" r="3" fill="#f0a3b6" stroke="#3b2f25" stroke-width="1.2"/>
+    </symbol>
+    <!-- one of Þórseðla's prints in the mud: a round pad with three short claws -->
+    <symbol id="print" viewBox="-12 -12 24 24" overflow="visible">
+      <ellipse cx="0" cy="1" rx="9" ry="7" fill="#a9c9c4" stroke="#3b2f25" stroke-width="2" opacity=".85"/>
+      <path d="M-5-6l-1-3M0-7v-3M5-6l1-3" fill="none" stroke="#3b2f25" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+    </symbol>
+    <!-- a flower of the clearing -->
+    <symbol id="flower" viewBox="-6 -6 12 12" overflow="visible">
+      <circle cx="0" cy="0" r="4.5" fill="#f2b630" stroke="#3b2f25" stroke-width="1.4"/>
+      <circle cx="0" cy="0" r="1.6" fill="#e07a3f"/>
+    </symbol>
+  </defs>
+
+  <!-- ===================================================== the forest (left half) ===================================================== -->
+
+  <!-- the forest's wash, a soft green ground under the trees -->
+  <path d="M30 330c40-30 90-40 130-30 50-30 120-30 170-10 60-30 140-30 200-10 70-20 160-14 230 4 50 4 90 0 130-10l20 690H40c-20-90-30-200-20-320-10-110-20-200 10-320z" fill="#c7dc9c" opacity=".38"/>
+  <path d="M60 860c60 30 160 40 260 30 120 20 260 16 380-4 70 0 130-10 190-20v100H60z" fill="#b5d08a" opacity=".3"/>
+
+  <!-- the mountains beyond the forest, and a smoking mountain among them: a land nobody has been to yet -->
+  <path d="M18 286l70-132 46 70 62-150 58 104 40-58 72 130 46-40 58 76z" fill="#cbd6dc" opacity=".7" transform="translate(5 4)"/>
+  <path d="M18 286l70-132 46 70 62-150 58 104 40-58 72 130 46-40 58 76" fill="none" stroke="#3b2f25" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" opacity=".72"/>
+  <path d="M68 192l20-38 18 27-12-2-9 10zM172 114l24-40 22 38-14-4-10 12-8-10z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>
+  <path d="M396 282l26-66h22l26 66" fill="#c9a98a" opacity=".55" transform="translate(4 3)"/>
+  <path d="M376 286l46-70h22l50 70M422 216c0-6 22-6 22 0" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" opacity=".72"/>
+  <path d="M432 206c-10-16 8-22 0-38 10-12 26-6 22-24" fill="none" stroke="#6b5a4a" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 9" opacity=".7"/>
+  <path d="M118 250l14-14M146 256l12-12M262 240l14-14M300 246l12-12" stroke="#3b2f25" stroke-width="2.4" stroke-linecap="round" opacity=".45"/>
+
+  <!-- the river, Áin, from the mountains along the top of the forest and out into the Fen, where it is the slow channel -->
+  <path d="M332 226c30-18 60-30 96-34 50-6 70 22 116 18 54-4 72-38 128-38 54 0 70 34 120 28 40-4 70-30 108-40" fill="none" stroke="#3b2f25" stroke-width="30" stroke-linecap="round" opacity=".55"/>
+  <path d="M332 226c30-18 60-30 96-34 50-6 70 22 116 18 54-4 72-38 128-38 54 0 70 34 120 28 40-4 70-30 108-40" fill="none" stroke="#9cc6c4" stroke-width="24" stroke-linecap="round"/>
+  <path d="M380 210c14-6 26-10 40-12M520 214c20 2 34 0 50-4M690 176c24-2 40 4 56 12M820 196c14-2 30-8 42-16" fill="none" stroke="#fffaf0" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+
+  <!-- trees along the river's far bank -->
+  <use href="#pine" xlink:href="#pine" x="500" y="88" width="40" height="78"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="560" y="96" width="54" height="66"/>
+  <use href="#pine" xlink:href="#pine" x="640" y="74" width="44" height="86"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="720" y="94" width="50" height="60"/>
+  <use href="#pine" xlink:href="#pine" x="800" y="64" width="40" height="80"/>
+
+  <!-- the forest round the clearing and the glade -->
+  <use href="#broadleaf" xlink:href="#broadleaf" x="36" y="330" width="70" height="86"/>
+  <use href="#pine" xlink:href="#pine" x="120" y="310" width="48" height="94"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="300" y="300" width="64" height="78"/>
+  <use href="#pine" xlink:href="#pine" x="380" y="318" width="46" height="90"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="196" y="380" width="68" height="84"/>
+  <use href="#pine" xlink:href="#pine" x="40" y="470" width="50" height="98"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="104" y="452" width="66" height="80"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="300" y="440" width="58" height="72"/>
+  <use href="#pine" xlink:href="#pine" x="680" y="292" width="50" height="98"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="760" y="300" width="66" height="80"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="820" y="390" width="62" height="76"/>
+  <use href="#pine" xlink:href="#pine" x="700" y="410" width="44" height="88"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="22" y="620" width="66" height="80"/>
+  <use href="#pine" xlink:href="#pine" x="52" y="740" width="48" height="94"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="130" y="820" width="64" height="78"/>
+  <use href="#pine" xlink:href="#pine" x="420" y="640" width="46" height="90"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="470" y="760" width="66" height="80"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="410" y="850" width="60" height="72"/>
+  <use href="#pine" xlink:href="#pine" x="560" y="820" width="46" height="90"/>
+  <use href="#broadleaf" xlink:href="#broadleaf" x="250" y="860" width="62" height="74"/>
+  <use href="#pine" xlink:href="#pine" x="620" y="580" width="42" height="84"/>
+
+  <!-- the clearing, Rjóðrið, where it all began: sunny grass and flowers -->
+  <path d="M170 640c0-50 60-84 128-84 72 0 132 34 130 86-2 50-62 82-132 82-70 0-126-34-126-84z" fill="#f2e3a0" opacity=".6" transform="translate(5 4)"/>
+  <path d="M170 640c0-50 60-84 128-84 72 0 132 34 130 86-2 50-62 82-132 82-70 0-126-34-126-84z" fill="none" stroke="#3b2f25" stroke-width="3" stroke-dasharray="14 9" stroke-linecap="round" opacity=".6"/>
+  <use href="#flower" xlink:href="#flower" x="232" y="616" width="12" height="12"/>
+  <use href="#flower" xlink:href="#flower" x="262" y="664" width="12" height="12"/>
+  <use href="#flower" xlink:href="#flower" x="318" y="598" width="12" height="12"/>
+  <use href="#flower" xlink:href="#flower" x="350" y="672" width="12" height="12"/>
+  <use href="#flower" xlink:href="#flower" x="300" y="700" width="12" height="12"/>
+  <use href="#flower" xlink:href="#flower" x="380" y="630" width="12" height="12"/>
+  <path d="M212 650c6-6 14-6 20 0M282 628c6-6 14-6 20 0M330 652c6-6 14-6 20 0" fill="none" stroke="#6f9e4e" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+
+  <!-- the fern glade, Burknalautin, Kambeðla's: a soft hollow ringed with ferns, her plates' glow in it -->
+  <path d="M470 404c0-38 40-64 88-64 50 0 90 26 90 64 0 38-40 66-90 66-48 0-88-28-88-66z" fill="#cfe6a8" opacity=".7" transform="translate(5 4)"/>
+  <path d="M470 404c0-38 40-64 88-64 50 0 90 26 90 64 0 38-40 66-90 66-48 0-88-28-88-66z" fill="none" stroke="#3b2f25" stroke-width="3" stroke-dasharray="12 8" stroke-linecap="round" opacity=".55"/>
+  <circle cx="556" cy="404" r="58" fill="#ab85c1" opacity=".18"/>
+  <use href="#fern" xlink:href="#fern" x="438" y="352" width="44" height="30"/>
+  <use href="#fern" xlink:href="#fern" x="458" y="436" width="46" height="30"/>
+  <use href="#fern" xlink:href="#fern" x="616" y="330" width="44" height="30"/>
+  <use href="#fern" xlink:href="#fern" x="636" y="420" width="46" height="30"/>
+  <use href="#fern" xlink:href="#fern" x="530" y="474" width="44" height="28"/>
+  <use href="#fern" xlink:href="#fern" x="540" y="318" width="40" height="26"/>
+
+  <!-- the dotted way from the clearing to the glade -->
+  <path d="M372 584c22-34 46-60 78-84 18-14 32-30 46-42" fill="none" stroke="#3b2f25" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="1 15" opacity=".75"/>
+
+  <!-- the trail, Fenjaslóðin, out of the glade and down to the Fen, with Þórseðla's ten prints in its mud -->
+  <path d="M640 440c30 40 46 80 84 118 44 44 104 66 176 84" fill="none" stroke="#c9a674" stroke-width="22" stroke-linecap="round" opacity=".45"/>
+  <path d="M640 440c30 40 46 80 84 118 44 44 104 66 176 84" fill="none" stroke="#3b2f25" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="1 15" opacity=".75"/>
+  <use href="#print" xlink:href="#print" x="694" y="532" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="716" y="560" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="734" y="574" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="758" y="598" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="776" y="606" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="802" y="626" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="822" y="628" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="848" y="646" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="866" y="644" width="18" height="18"/>
+  <use href="#print" xlink:href="#print" x="886" y="662" width="18" height="18"/>
+  <!-- where the forest turns to fen, by the trail -->
+  <use href="#swamp" xlink:href="#swamp" x="780" y="700" width="44" height="100"/>
+  <use href="#swamp" xlink:href="#swamp" x="846" y="760" width="40" height="92"/>
+  <use href="#reed" xlink:href="#reed" x="700" y="770" width="34" height="38"/>
+  <use href="#reed" xlink:href="#reed" x="760" y="834" width="34" height="38"/>
+  <use href="#reed" xlink:href="#reed" x="832" y="872" width="34" height="38"/>
+
+  <!-- ===================================================== the Fen (right half) ===================================================== -->
+
+  <!-- the Fen's golden reed and green hummocks -->
+  <path d="M902 80c90-30 200-36 300-20 110-18 230-14 330 6 90 0 170 10 250 30l10 860c-110 30-260 40-400 30-120 12-260 10-380-10-50-6-90-10-120-16z" fill="#ecdc9c" opacity=".45"/>
+  <path d="M960 880c60-40 140-50 220-30 40-30 100-34 150-14l-10 90H960zM1500 900c50-36 120-40 190-20l20 70h-220z" fill="#b8cf86" opacity=".4"/>
+  <path d="M1400 560c10-20 40-30 70-24 30 6 44 24 36 40-10 18-46 24-74 16-24-6-38-18-32-32z" fill="#a8c47a" opacity=".6"/>
+  <path d="M1400 560c10-20 40-30 70-24 30 6 44 24 36 40-10 18-46 24-74 16-24-6-38-18-32-32z" fill="none" stroke="#3b2f25" stroke-width="2.4" opacity=".45"/>
+
+  <!-- the slow channel, winding from the north-west out to the far side -->
+  <path d="M900 150c40-6 66 10 96 34 32 26 64 48 112 56 52 10 98 50 140 104 34 44 80 50 130 40 54-10 96 6 128 44 30 36 70 64 120 70 40 6 64 40 82 86 16 40 42 76 92 112" fill="none" stroke="#3b2f25" stroke-width="32" stroke-linecap="round" opacity=".55"/>
+  <path d="M900 150c40-6 66 10 96 34 32 26 64 48 112 56 52 10 98 50 140 104 34 44 80 50 130 40 54-10 96 6 128 44 30 36 70 64 120 70 40 6 64 40 82 86 16 40 42 76 92 112" fill="none" stroke="#9cc6c4" stroke-width="25" stroke-linecap="round"/>
+  <path d="M1012 196c16 12 30 20 46 26M1186 262c18 10 32 24 46 40M1352 344c22-4 40-2 58 6M1556 434c16 8 32 12 48 14M1690 540c8 16 16 30 26 44" fill="none" stroke="#fffaf0" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+
+  <!-- Þórseðla's pool, under her two conifers, and the far pool to the north-west where Slóeðla wades -->
+  <path d="M1270 474c0-34 38-60 84-60 48 0 82 24 82 58 0 34-36 60-82 60-46 0-84-24-84-58z" fill="#7fb3a8" opacity=".75" transform="translate(5 4)"/>
+  <path d="M1296 476c0-20 24-36 56-36 32 0 54 16 54 36 0 20-22 36-54 36-32 0-56-16-56-36z" fill="#a9c9c4" opacity=".7"/>
+  <path d="M1270 474c0-34 38-60 84-60 48 0 82 24 82 58 0 34-36 60-82 60-46 0-84-24-84-58z" fill="none" stroke="#3b2f25" stroke-width="3" opacity=".72"/>
+  <path d="M1008 354c0-28 32-48 70-48 40 0 70 20 70 46 0 28-30 48-70 48-38 0-70-20-70-46z" fill="#7fb3a8" opacity=".75" transform="translate(5 4)"/>
+  <path d="M1030 356c0-16 20-28 48-28 26 0 46 12 46 28 0 16-20 28-46 28-28 0-48-12-48-28z" fill="#a9c9c4" opacity=".7"/>
+  <path d="M1008 354c0-28 32-48 70-48 40 0 70 20 70 46 0 28-30 48-70 48-38 0-70-20-70-46z" fill="none" stroke="#3b2f25" stroke-width="3" opacity=".72"/>
+  <!-- and the small pools between -->
+  <path d="M1170 602c0-18 20-30 42-30 24 0 40 12 40 30 0 16-18 28-40 28-24 0-42-12-42-28z" fill="#9cc6c4" opacity=".8"/>
+  <path d="M1170 602c0-18 20-30 42-30 24 0 40 12 40 30 0 16-18 28-40 28-24 0-42-12-42-28z" fill="none" stroke="#3b2f25" stroke-width="2.6" opacity=".7"/>
+  <path d="M1482 328c0-18 22-30 48-30 26 0 46 12 46 30s-20 30-46 30c-26 0-48-12-48-30z" fill="#9cc6c4" opacity=".8"/>
+  <path d="M1482 328c0-18 22-30 48-30 26 0 46 12 46 30s-20 30-46 30c-26 0-48-12-48-30z" fill="none" stroke="#3b2f25" stroke-width="2.6" opacity=".7"/>
+  <path d="M1526 522c0-14 16-24 36-24 20 0 36 10 36 24s-16 22-36 22c-20 0-36-8-36-22z" fill="#9cc6c4" opacity=".8"/>
+  <path d="M1526 522c0-14 16-24 36-24 20 0 36 10 36 24s-16 22-36 22c-20 0-36-8-36-22z" fill="none" stroke="#3b2f25" stroke-width="2.6" opacity=".7"/>
+  <path d="M988 524c0-12 14-22 32-22 18 0 32 10 32 22s-14 20-32 20c-18 0-32-8-32-20z" fill="#9cc6c4" opacity=".8"/>
+  <path d="M988 524c0-12 14-22 32-22 18 0 32 10 32 22s-14 20-32 20c-18 0-32-8-32-20z" fill="none" stroke="#3b2f25" stroke-width="2.6" opacity=".7"/>
+  <!-- lilies on the pools -->
+  <use href="#lily" xlink:href="#lily" x="1284" y="494" width="22" height="16"/>
+  <use href="#lilyPink" xlink:href="#lilyPink" x="1402" y="446" width="22" height="16"/>
+  <use href="#lily" xlink:href="#lily" x="1022" y="372" width="22" height="16"/>
+  <use href="#lilyPink" xlink:href="#lilyPink" x="1118" y="336" width="22" height="16"/>
+  <use href="#lily" xlink:href="#lily" x="1194" y="600" width="20" height="14"/>
+  <use href="#lilyPink" xlink:href="#lilyPink" x="1508" y="320" width="20" height="14"/>
+
+  <!-- the white snag standing out of the Fen, where Flugeðla perches -->
+  <path d="M1150 290c4-30 2-60 6-96 2-14 4-22 2-34 6 4 10 14 8 28-2 30 2 66 6 102z" fill="#fffaf0" stroke="#3b2f25" stroke-width="3" stroke-linejoin="round" opacity=".92"/>
+  <path d="M1156 228c-12-8-22-10-30-20M1166 206c10-6 18-14 22-26M1160 252c10-2 18 0 24-6" fill="none" stroke="#3b2f25" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+  <path d="M1136 292c8-6 34-6 44 0" fill="none" stroke="#3b2f25" stroke-width="2.6" stroke-linecap="round" opacity=".6"/>
+
+  <!-- swamp conifers: Þórseðla's two by her pool, and groves along the Fen's edges -->
+  <use href="#swamp" xlink:href="#swamp" x="1436" y="358" width="48" height="108"/>
+  <use href="#swamp" xlink:href="#swamp" x="1466" y="418" width="44" height="98"/>
+  <use href="#swamp" xlink:href="#swamp" x="930" y="250" width="40" height="92"/>
+  <use href="#swamp" xlink:href="#swamp" x="964" y="390" width="44" height="100"/>
+  <use href="#swamp" xlink:href="#swamp" x="1240" y="120" width="42" height="96"/>
+  <use href="#swamp" xlink:href="#swamp" x="1290" y="150" width="38" height="88"/>
+  <use href="#swamp" xlink:href="#swamp" x="1620" y="120" width="44" height="100"/>
+  <use href="#swamp" xlink:href="#swamp" x="1702" y="250" width="42" height="96"/>
+  <use href="#swamp" xlink:href="#swamp" x="1736" y="380" width="40" height="92"/>
+  <use href="#swamp" xlink:href="#swamp" x="1060" y="700" width="44" height="100"/>
+  <use href="#swamp" xlink:href="#swamp" x="1110" y="780" width="40" height="92"/>
+  <use href="#swamp" xlink:href="#swamp" x="1540" y="740" width="46" height="104"/>
+  <use href="#swamp" xlink:href="#swamp" x="1600" y="800" width="40" height="92"/>
+  <use href="#swamp" xlink:href="#swamp" x="1716" y="840" width="42" height="96"/>
+
+  <!-- reed: round the pools, along the channel, and thick where Uggeðla lies by the channel -->
+  <use href="#reed" xlink:href="#reed" x="1248" y="420" width="34" height="38"/>
+  <use href="#reed" xlink:href="#reed" x="1340" y="524" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="990" y="300" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1134" y="390" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1560" y="584" width="36" height="40"/>
+  <use href="#reed" xlink:href="#reed" x="1580" y="672" width="38" height="42"/>
+  <use href="#reed" xlink:href="#reed" x="1664" y="604" width="36" height="40"/>
+  <use href="#reed" xlink:href="#reed" x="1652" y="690" width="38" height="42"/>
+  <use href="#reed" xlink:href="#reed" x="1612" y="712" width="34" height="38"/>
+  <use href="#reed" xlink:href="#reed" x="1050" y="430" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1200" y="660" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1300" y="680" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1380" y="620" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1460" y="660" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1500" y="420" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1620" y="380" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1700" y="480" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1440" y="240" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1360" y="220" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1040" y="610" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="940" y="700" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1000" y="820" width="30" height="34"/>
+  <use href="#reed" xlink:href="#reed" x="1320" y="880" width="32" height="36"/>
+  <use href="#reed" xlink:href="#reed" x="1500" y="860" width="30" height="34"/>
+
+  <!-- the trail comes on out of the forest into the Fen, to Mosi's dry hummock by her pool -->
+  <path d="M900 642c40 10 74 24 108 30 54 10 92-10 140-16 60-8 110 10 160-10 36-14 64-40 100-60 20-10 40-16 64-16" fill="none" stroke="#c9a674" stroke-width="20" stroke-linecap="round" opacity=".4"/>
+  <path d="M900 642c40 10 74 24 108 30 54 10 92-10 140-16 60-8 110 10 160-10 36-14 64-40 100-60 20-10 40-16 64-16" fill="none" stroke="#3b2f25" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="1 15" opacity=".75"/>
+
+  <!-- the compass rose in the Fen's corner -->
+  <g transform="translate(1712 118)">
+    <circle r="50" fill="#fffaf0" opacity=".7"/>
+    <circle r="50" fill="none" stroke="#3b2f25" stroke-width="3" opacity=".7"/>
+    <circle r="40" fill="none" stroke="#3b2f25" stroke-width="2" stroke-dasharray="2 7" opacity=".55"/>
+    <path d="M0-46l9 37 37 9-37 9-9 37-9-37-37-9 37-9z" fill="#f6efdf" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round" opacity=".9"/>
+    <path d="M0-46l9 37H-9z" fill="#e07a3f" stroke="#3b2f25" stroke-width="2.6" stroke-linejoin="round"/>
+    <circle r="4" fill="#3b2f25"/>
+  </g>
+</svg>

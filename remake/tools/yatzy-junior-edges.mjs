@@ -51,15 +51,15 @@ async function layout(){return page.evaluate(()=>{
   const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};};
   const inside=r=>r.x>=-.5&&r.y>=-.5&&r.x+r.w<=innerWidth+.5&&r.y+r.h<=innerHeight+.5;
   const overlap=(a,b)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>.5&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>.5;
-  const coach=document.getElementById('lesson-center'),coachRect=rect(coach),scene=rect(document.querySelector('.scene'));
+  const coach=document.getElementById('lesson-center'),coachRect=rect(coach);
   const dice=[...document.querySelectorAll('.die-target')].filter(e=>!e.hidden&&e.getClientRects().length).map(e=>({index:Number(e.dataset.index),rect:rect(e),disabled:e.disabled}));
   const labels=[...document.querySelectorAll('.die-target')].filter(e=>!e.hidden&&e.getClientRects().length).map(e=>{const r=rect(e),css=getComputedStyle(e,'::before'),border=parseFloat(getComputedStyle(e).borderTopWidth),w=parseFloat(css.width),h=parseFloat(css.height);return{index:Number(e.dataset.index),rect:{x:r.x+border+parseFloat(css.left)-w/2,y:r.y+border+parseFloat(css.top),w,h}};});
-  return{overflow:document.documentElement.scrollWidth>innerWidth,totals:[...document.querySelectorAll('.player-card')].map(e=>({rect:rect(e),visible:inside(rect(e))})),coach:coachRect,centerError:Math.abs(coachRect.x+coachRect.w/2-scene.x-scene.w/2),phase:coach.dataset.phase,coachHidden:coach.hidden,overlappingDice:coach.hidden||coach.dataset.phase!=='action'?[]:dice.filter(d=>overlap(coachRect,d.rect)).map(d=>d.index),overlappingLabels:coach.hidden||coach.dataset.phase!=='action'?[]:labels.filter(d=>overlap(coachRect,d.rect)).map(d=>d.index),cards:document.querySelectorAll('.junior-card').length,scroll:document.getElementById('score-rows').scrollTop};
+  return{overflow:document.documentElement.scrollWidth>innerWidth,totals:[...document.querySelectorAll('.player-card')].map(e=>({rect:rect(e),visible:inside(rect(e))})),coach:coachRect,coachInside:coach.hidden||inside(coachRect),phase:coach.dataset.phase,coachHidden:coach.hidden,overlappingDice:coach.hidden||coach.dataset.phase!=='action'?[]:dice.filter(d=>overlap(coachRect,d.rect)).map(d=>d.index),overlappingLabels:coach.hidden||coach.dataset.phase!=='action'?[]:labels.filter(d=>overlap(coachRect,d.rect)).map(d=>d.index),cards:document.querySelectorAll('.junior-card').length,scroll:document.getElementById('score-rows').scrollTop};
 });}
 async function checkLayout(label){
   const value=await layout();assert.equal(value.overflow,false,`${label}: no page overflow`);assert.equal(value.cards,5);
   assert.ok(value.totals.every(t=>t.visible),`${label}: both totals remain visible`);
-  if(!value.coachHidden)assert.ok(value.centerError<2,`${label}: one centered coach`);
+  assert.ok(value.coachInside,`${label}: Mosi’s one bubble stays on screen`);
   assert.deepEqual(value.overlappingDice,[],`${label}: action coach does not cover any die hit area`);assert.deepEqual(value.overlappingLabels,[],`${label}: action coach leaves every number badge visible`);return value;
 }
 async function waitNative(id){await page.waitForFunction(id=>{const v=window.__juniorQA.voice.getDebugState();return v.currentId===id&&v.mode==='audio'&&v.speaking;},id,{timeout:15000});}
@@ -174,9 +174,10 @@ try{
   await page.evaluate(value=>window.__juniorQA.setState(value),zeroHand);await waitStill();
   const zeroSelector=`.card-select[data-category="${zeroId}"]`;
   // Normal card choice is intentionally user-scrollable; unlike the lesson
-  // target tests, this wheel gesture represents the child's own browsing.
-  await page.locator('#score-rows').hover();await page.mouse.wheel(0,-600);await page.waitForTimeout(250);
-  if(!(await hitInfo(zeroSelector)).inside){await page.mouse.wheel(0,250);await page.waitForTimeout(250);}
+  // target tests, this scroll stands for the child's own swipe along the row.
+  // (A vertical wheel no longer scrolls the phone's horizontal row in Edge 156,
+  // so the row itself is scrolled until the card is whole on screen.)
+  await page.locator(zeroSelector).evaluate(e=>e.scrollIntoView({block:'nearest',inline:'center',behavior:'instant'}));await page.waitForTimeout(250);
   await activate(zeroSelector);await page.waitForFunction(()=>document.getElementById('zero-dialog').open);
   await activate('#zero-dialog [data-close]');assert.deepEqual(await currentState(),zeroHand,'cancel leaves scorecard and hand untouched');assert.equal(await saved(),savedBytes,'cancel writes no save');
   await activate(zeroSelector);await page.waitForFunction(()=>document.getElementById('zero-dialog').open);

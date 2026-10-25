@@ -8,6 +8,8 @@
      .book-spine                 the stitched fold between them
      .book-close                 the big close, on the cover's top right corner
      .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
+     .spread-turn                a dog-eared corner of the Dýrin pages, .next on the right page and .prev on the left, that turns
+                                 to the next or the last spread of animals (the forest's, the Fen's); a .page-turning spread hides it
      .tile                       a taped photo of an animal: .found, .new (with its .badge-new) or .unfound; on the Stjörnur
                                  page a .star-tile, .earned once the friend's star is in the book; on the Leikir page the
                                  .game-tile of "Eitt!" and of "Háls og hali", each in its .game-slot, with the stickers won from
@@ -348,7 +350,7 @@
 .game-teach .book-icon { width: 1.3em; height: 1.3em; color: var(--book-ink); }
 .game-teach .book-icon .icon-fill { fill: var(--book-card); stroke: var(--book-ink); stroke-width: 2; }
 .game-tile { margin-bottom: 4px; }
-/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Risaeðlu-Yatzy" in the second. */
+/* Three games on the left page: "Eitt!" with its "Kennsla" in the first column, "Háls og hali" and "Litla Yatzy" in the second. */
 .book-leaf[data-tab="games"] .book-tiles {
   --pad-top: 6cqh; --pad-bottom: 5.5cqh; --gap: max(16px, 3.4cqmin);
   display: grid;
@@ -363,12 +365,12 @@
 .game-slot:nth-child(2) { grid-column: 2; grid-row: 1; }
 .game-slot:nth-child(3) { grid-column: 2; grid-row: 2; }
 .game-slot:nth-child(2) .tile { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
-.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
+.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); } /* Litla Yatzy: Mosi's green tape (the owner's choice, 2026-10-25) */
 .book-leaf[data-tab="games"] .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.25) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.18);
 }
 .game-tile[data-game="hals"] .tile-picture img,
-.game-tile[data-game="yatzy"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
+.game-tile[data-game="yatzy-junior"] .tile-picture img { inset: 2% 4% 4%; width: 92%; height: 94%; }
 
 /* The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's title. */
 .ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */
@@ -423,6 +425,68 @@
   color: var(--book-gold); -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill;
 }
 
+/* The Kortið page (engine/book/map-page.js): the hand-drawn map across the spread, each page showing its half of assets/book/map.svg,
+   the halves meeting at the spine; the place names in the book's font; and a round slot for each place, empty (a dashed ring in
+   the place's hue), found (a die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). */
+.ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
+.book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
+.book-leaf[data-tab="map"] .book-tiles {
+  --pad-x: 3.4cqw; --pad-top: 4cqh; --pad-bottom: 3.6cqh;
+  display: grid; place-items: center; align-content: stretch; gap: 0;
+}
+.map-half { /* half of the map, 900 by 1000, as big as the page lets it be, hugging the spine */
+  position: relative; aspect-ratio: 9 / 10;
+  width: min(100cqw - 2 * var(--pad-x), (100cqh - var(--pad-top) - var(--pad-bottom)) * .9);
+}
+.map-half[data-half="left"] { justify-self: end; }
+.map-half[data-half="right"] { justify-self: start; }
+.map-art { /* the whole drawing, cropped to this half */
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none;
+  object-fit: cover; object-position: 0 50%;
+}
+.map-half[data-half="right"] .map-art { object-position: 100% 50%; }
+.map-name { /* a place name written on the map, with a halo of paper round its letters */
+  position: absolute; z-index: 1; transform: translate(-50%, -50%) rotate(var(--tilt, -2deg)); pointer-events: none;
+  white-space: nowrap; font-size: clamp(24px, 4.2cqmin, 36px); font-weight: 900; line-height: 1;
+  color: var(--book-ink); -webkit-text-stroke: .22em var(--book-paper); paint-order: stroke fill;
+}
+.map-marker {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; width: var(--book-target); height: var(--book-target);
+  transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%; background: none;
+  display: grid; place-items: center;
+}
+.map-marker.empty::before { /* where a place will go: a dashed ring in its hue */
+  content: ""; width: 62%; aspect-ratio: 1; border-radius: 50%;
+  border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
+}
+.map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue */
+  position: relative; width: 84%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 36%, var(--book-card), color-mix(in srgb, var(--hue) 46%, var(--book-card)) 74%);
+  box-shadow: 0 0 0 4px #fff, 0 0 0 6.5px var(--book-ink), 0 6px 10px 2px rgb(59 47 37 / .3);
+  rotate: -6deg;
+}
+.map-marker:nth-of-type(2n) .map-sticker { rotate: 5deg; }
+.map-sticker img, .map-sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; transform: scale(1.16) translateY(4%); }
+.map-sticker svg { transform: none; }
+.map-sticker::after { /* the shine */
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / .5) 42%, transparent 52%);
+}
+.map-marker.found { animation: map-breathe 4.6s ease-in-out infinite; }
+.map-marker.found:nth-of-type(3n) { animation-delay: -1.7s; }
+.map-marker.found:nth-of-type(3n + 1) { animation-delay: -3.1s; }
+.map-star { /* a done place: a gold star pinned to its sticker */
+  position: absolute; z-index: 1; top: -4%; right: -8%; width: 46%; aspect-ratio: 1; pointer-events: none;
+  animation: star-shine 3.4s ease-in-out infinite;
+}
+.map-star svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.map-star path { fill: var(--book-gold); stroke: var(--book-ink); stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 1.5px 0 rgb(59 47 37 / .35)); }
+@keyframes map-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -54%) scale(1.04); }
+}
+
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
    background, here and on its card. An animal without one takes the page's warm tan. */
 [data-card="mosi"] { --hue: #868862; }
@@ -432,8 +496,50 @@
 [data-card="frog"] { --hue: #66ac47; }
 [data-card="snail"] { --hue: #ee8650; }
 [data-card="birds"] { --hue: #7ea7cc; }
+/* the Fen's (chapter 2) */
+[data-card="waterbeetle"] { --hue: #c9a640; } /* its gold rim */
+[data-card="waterstrider"] { --hue: #3f7a6e; } /* the Fen's water it stands on */
+[data-card="salamander"] { --hue: #e2833a; } /* its orange belly */
+[data-card="dragonfly"] { --hue: #2f86bd; } /* its blue tail */
+[data-card="turtle"] { --hue: #b0a45e; } /* the rims of its shell's plates */
+[data-card="fish"] { --hue: #4c6652; } /* its olive back */
+[data-card="earlybird"] { --hue: #d8a23a; } /* its amber eye */
 .tile-picture, .card-image img, .zoom-frame img { /* the picture lies on a soft wash of the animal's hue */
   background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #c9b48a) 16%, var(--book-card)), color-mix(in srgb, var(--hue, #c9b48a) 42%, var(--book-card)));
+}
+
+/* ---- The Dýrin spreads: a dog-eared corner turns on to the next spread of animals, and one on the left turns back --- */
+
+/* The corners lie on the spread (their leaf is display: contents), on the outer bottom corners of the pages: the right page's
+   and the left one's, or both on the lower page on a tablet held upright. The page under the turned-up corner peeps out, and the
+   card's big orange arrow lies on it. Now and then the corner on lifts a little, so the child sees there is more. */
+.spread-turn {
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: absolute; z-index: 2; bottom: var(--edge);
+  pointer-events: none; /* only what is drawn takes a tap (below): the square's empty corner must not steal a tile's */
+  width: clamp(128px, 15.5cqmin, 180px); aspect-ratio: 1; padding: 0; border: 0; background: none; /* its drawn corner holds an 88 px square */
+  transform-origin: 100% 100%;
+}
+.spread-turn.next { right: var(--edge); animation: corner-beckon 4.6s ease-in-out 1.2s infinite; }
+.spread-turn.prev { left: var(--edge); transform-origin: 0% 100%; }
+.spread-turn .corner-curl { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.spread-turn :is(.corner-under, .corner-flap, .book-arrow path) { pointer-events: visiblePainted; } /* the turned corner and its arrow */
+.spread-turn.prev .corner-curl { transform: scaleX(-1); }
+.corner-under { fill: #e4d3ae; stroke: var(--book-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.corner-flap {
+  fill: var(--book-card); stroke: var(--book-ink); stroke-width: 3; stroke-linejoin: round;
+  filter: drop-shadow(-3px -4px 3px rgb(59 47 37 / .28));
+}
+.corner-crease { fill: none; stroke: rgb(59 47 37 / .22); stroke-width: 2; }
+.spread-turn .book-arrow { position: absolute; right: 2%; bottom: 7%; width: 60%; height: auto; aspect-ratio: 6 / 5; }
+.spread-turn.prev .book-arrow { right: auto; left: 2%; transform: scaleX(-1); }
+.page-turning .spread-turn { visibility: hidden; } /* out of the way of a turning page */
+/* A later spread's tiles keep a little higher, clear of the corner back on its left page's lower corner. */
+.book-leaf[data-tab="animals"]:not([data-spread="1"]) .book-tiles { --pad-bottom: 9cqh; }
+@keyframes corner-beckon {
+  0%, 74%, 100% { transform: none; }
+  82% { transform: rotate(-5deg) scale(1.07); }
+  90% { transform: rotate(1.5deg) scale(1); }
 }
 
 /* ---- The card: an animal's pages, over the spread -------------------------------------------------------------- */
@@ -601,6 +707,36 @@
   35% { opacity: .9; }
 }
 
+/* ---- The hand-over: "Áfram", into the next chapter (main.js), when a chapter's script has ended in the book --------- */
+
+.next-chapter { /* a big raised pill in the journal's orange on the open book's bottom right corner, where the page turns, bobbing a little */
+  min-width: var(--book-target); min-height: var(--book-target);
+  position: fixed; right: max(34px, env(safe-area-inset-right) + 22px); bottom: max(30px, env(safe-area-inset-bottom) + 18px);
+  display: inline-flex; align-items: center; gap: .3em; padding: .1em .9em .14em 1.15em; margin: 0;
+  border: 3px solid var(--book-ink); border-radius: 999px; cursor: pointer;
+  font-family: var(--book-font); font-size: clamp(34px, 4.6vmin, 50px); font-weight: 900; line-height: 1; color: var(--book-card);
+  background: radial-gradient(circle at 30% 20%, rgb(255 255 255 / .38), transparent 52%), var(--book-orange);
+  box-shadow: 0 7px 0 var(--book-orange-deep), 0 7px 0 3px var(--book-ink), 0 14px 18px 2px rgb(40 24 10 / .4);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  animation: next-rise .6s cubic-bezier(.3, 1.5, .5, 1) both, next-bob 1.9s ease-in-out .6s infinite;
+}
+.next-chapter span { -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill; }
+.next-chapter svg { width: 1.05em; height: 1.05em; display: block; overflow: visible; fill: none; stroke: var(--book-card); stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 0 var(--book-ink)) drop-shadow(1.5px 1.5px 0 var(--book-ink)) drop-shadow(-1.5px -1.5px 0 var(--book-ink)) drop-shadow(1.5px -1.5px 0 var(--book-ink)) drop-shadow(-1.5px 1.5px 0 var(--book-ink)); }
+.next-chapter:active { scale: .94; }
+.next-chapter:focus-visible { outline: 4px solid var(--book-teal); outline-offset: 5px; }
+@keyframes next-rise {
+  from { opacity: 0; transform: translateY(40px) scale(.7); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes next-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .next-chapter { animation: next-fade .3s ease-out both; }
+  @keyframes next-fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
 /* ---- Icons: drawn in one stroke weight, coloured by the control they sit in -------------------------------------- */
 
 .book-icon { display: block; overflow: visible; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
@@ -694,6 +830,10 @@
       linear-gradient(to bottom, transparent, rgb(59 47 37 / .14) 38%, rgb(59 47 37 / .3) 50%, rgb(59 47 37 / .14) 62%, transparent);
   }
   .book-tiles { --pad-x: 7cqw; --pad-top: 6.5cqh; --pad-bottom: 6cqh; }
+  .book-ribbons { gap: calc(var(--ribbon-size) * .3); } /* five ribbons and the close fit across a tablet held upright */
+  .ribbon { width: 4.9em; }
+  .book-leaf[data-tab="map"] .book-tiles { --pad-x: 4cqw; --pad-top: 3.6cqh; --pad-bottom: 3.6cqh; }
+  .map-half[data-half] { justify-self: center; }
 
   .card {
     width: calc(100cqw - 2 * var(--card-gap));

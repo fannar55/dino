@@ -23,6 +23,8 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 | `orbit=1` | free camera instead of the director |
 | `debug=1` | frame stats, scene time and camera mode |
 
+With `--lan` it also prints the join address for Fjölspil's guests, `Fjölspil: http://<ip>:<port>/remake/spil.html`, which the host's QR code carries; the rooms' WebSocket is `/fjolspil/ws/<code>` on the same port (`tools/fjolspil-server.mjs`).
+
 ## Litla Yatzy við Mosa
 
 The simplified game is at `/remake/yatzy-junior.html`:
@@ -61,13 +63,27 @@ practice hands, save validation, narration lifecycle and real audio coverage.
 practice exit and a complete match in the browser. Captures and the report go
 to `qa/yatzy-junior/`.
 
+Fjölspil in Litla Yatzy seats two to four players. Egill plays at the big
+screen in seat 0; up to three others join from their phones, which are their
+cups: they roll, hold dice and pick a card there, and a card that scores nothing
+asks first. Mosi is always at the table, and the lobby's “Bæta Mosa við” makes
+him its one computer player. The page hosts a room of its own, beside the
+book's. A guest who leaves is waited for, and Mosi can play her seat until she
+is back; a game of seats is kept under its own key and continues from
+“Halda áfram (Fjölspil)”. `npm run check:yatzy-junior:fjolspil` plays four
+seats with two phones in headless Edge; it needs `PLAYWRIGHT_PATH` and the dev
+server on port 4198 (`node remake/tools/serve.mjs --port 4198 --lan`). Mosi's
+six optional lines for a table of many (`MULTI_LINES`) are shown as their
+captions alone until they are recorded with
+`node remake/tools/yatzy-junior-voices.mjs --only multiWelcome,multiTurn,multiScored,multiZero,multiWait,multiOver`,
+which reads the key from the environment.
+
 ## Yatzy við Mosa — full rules, preserved
 
 The table game is at `/remake/yatzy-mosi.html`. Run `npm run start:yatzy-mosi`
 and open http://127.0.0.1:4197/remake/yatzy-mosi.html.
 It uses this remake's real Mosi model, eyelids, actor control, forest, lighting,
-character illustrations and Nunito font. Its source is in `engine/yatzy-mosi/`;
-the earlier Slóeðla game in `engine/yatzy/` is separate.
+character illustrations and Nunito font. Its source is in `engine/yatzy-mosi/`.
 
 Five rounded 3D dice, enlarged by 18%, carry both numbers and dinosaur pictures. A black textured
 Yatzy cup has opaque walls, an open mouth, a thick rim and dark felt inside.
@@ -233,11 +249,18 @@ Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.h
 or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
 `walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts, and walks
 with the `walk` clip or another walking clip (`{ clip: 'wade' }`: Uggeðla wading in shallow water).
-A chapter can also give `warmUp(world)`, which returns `{ objects, shots, tray, dispose }`: what to draw
-once behind the start button so nothing builds its shaders while the child watches (the actors, and
-throwaways of what comes later), from which shots, and the tray's items; a place adds its own shots
-(`locations[name].warmUp`). `prepare: ['place']` builds a place behind the start button too, so going
-there later is only the two fades.
+A chapter can also give `warmUp(world, { place })`, which returns `{ objects, shots, tray, dispose }`:
+what to draw once where nobody sees a frame stall so nothing builds its shaders while the child watches
+(the actors, and throwaways of what comes later), from which shots, and the tray's items. `place` is the
+place it is drawn for (the start place behind the start button, another as main.js draws it or the scene
+comes there, `null` for everything): a place can bring only what shows there first. A place adds its own
+shots (`locations[name].warmUp`). `prepare: ['place']` builds a place once the start button shows, a slice
+at a time (`world/forest/slices.js`), and draws it while the button still waits, so going there later is
+only the two fades; `yield s.prepare('place')` waits for that build (a child who tapped before it was done
+waits under the black), and `s.goTo(name, { hold })` keeps the black until the promise `hold()` returns
+settles (models the chapter makes there). `later: { fetch, make }` is what main.js fetches as the button
+shows and makes once the places are, if the button still waits (chapter 2's far friends), and `firstFind`
+names the first animal the chapter puts in the book, whose drawing is shown once beforehand.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:
@@ -343,3 +366,11 @@ front of it, must answer byte-range requests for `remake/assets/audio/theme.mp3`
 move it, so the music can no longer follow the game's clock (after the book, a hidden tab or a long frame it just
 plays on, and the beat follows it instead). The theme must come from the page's own origin: it plays through Web
 Audio, which hears silence from media on another origin without CORS.
+
+**Cloudflare.** `cloud/` puts the same page on Cloudflare: one Worker with the site staged as static assets
+(`npm run stage:cloud` copies `remake/` without its tests, tools, prompts and Tripo sources, `dist/vendor/`, and the old
+game's voice lines in `dist/assets/audio/`) and Fjölspil's rooms as a Durable Object running the same
+`engine/fjolspil/room.js` as the home server. Under `wrangler dev` the static assets answered the theme's byte ranges with
+200 and the whole file, so the Worker runs first for the audio paths and cuts the ranges itself (`cloud/src/range.mjs`, as
+`tools/serve.mjs` does). The steps, from `npm install` to `wrangler deploy`, are in [cloud/README.md](../cloud/README.md),
+in Icelandic.

@@ -32,11 +32,11 @@ test('save works when storage throws', () => {
   };
   for (const [name, storage] of Object.entries(storages)) {
     const save = createSave(storage);
-    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, name);
+    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [], places: [] }, name);
     assert.equal(save.addStar('k1_kambedla'), true, name);
     assert.equal(save.addStar('k1_kambedla'), false, `${name}: the star is kept once`);
     save.addFinding('frog');
-    assert.deepEqual(save.get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [] }, `${name}: what the page was told stays in memory`);
+    assert.deepEqual(save.get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [], places: [] }, `${name}: what the page was told stays in memory`);
   }
 
   // Blocked site data can throw on reading globalThis.localStorage itself, which is the default storage.
@@ -61,10 +61,10 @@ test('save keeps what was earned for the next visit', () => {
   first.addFinding('frog');
   first.addFinding('beetle');
   first.addSeen('mosi');
-  assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'] });
+  assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'], places: [] });
 
-  assert.deepEqual(createSave(storage).get(), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'] }, 'the next visit has them');
-  assert.deepEqual(createSave(storage, 'another-game').get(), { stars: [], findings: [], seen: [] }, 'under its own key');
+  assert.deepEqual(createSave(storage).get(), { stars: ['k1_kambedla'], findings: ['beetle', 'frog'], seen: ['mosi'], places: [] }, 'the next visit has them');
+  assert.deepEqual(createSave(storage, 'another-game').get(), { stars: [], findings: [], seen: [], places: [] }, 'under its own key');
 
   const copy = first.get();
   copy.stars.push('not-earned');
@@ -76,12 +76,12 @@ test('save starts empty from damaged data and mends it with the next change', ()
   for (const text of damaged) {
     const storage = memoryStorage({ [KEY]: text });
     const save = createSave(storage);
-    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, text);
+    assert.deepEqual(save.get(), { stars: [], findings: [], seen: [], places: [] }, text);
     save.addStar('k1_kambedla');
-    assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: [], seen: [] }, text);
+    assert.deepEqual(JSON.parse(storage.getItem(KEY)), { stars: ['k1_kambedla'], findings: [], seen: [], places: [] }, text);
   }
   const mixed = memoryStorage({ [KEY]: '{"stars":["k1_kambedla",7,"",null,"k1_kambedla"],"findings":["frog",{}],"seen":["mosi",3]}' });
-  assert.deepEqual(createSave(mixed).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: ['mosi'] }, 'what is not an id is dropped, and a repeat');
+  assert.deepEqual(createSave(mixed).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: ['mosi'], places: [] }, 'what is not an id is dropped, and a repeat');
 });
 
 test('save refuses an id that is not a name', () => {
@@ -96,13 +96,32 @@ test('save refuses an id that is not a name', () => {
 // Review Focus 5: a save from before the book, or a storage that throws, still opens the book, and "Nýtt!" shows until each card is opened.
 test('old saves and blocked storage', () => {
   const old = memoryStorage({ [KEY]: JSON.stringify({ stars: ['k1_kambedla'], findings: ['frog'] }) });
-  assert.deepEqual(createSave(old).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [] }, 'a save from before the book has seen nothing');
+  assert.deepEqual(createSave(old).get(), { stars: ['k1_kambedla'], findings: ['frog'], seen: [], places: [] }, 'a save from before the book has seen nothing');
 
   const save = createSave({ getItem: blocked, setItem: blocked });
-  assert.deepEqual(save.get(), { stars: [], findings: [], seen: [] }, 'a storage that throws still gives the lists');
+  assert.deepEqual(save.get(), { stars: [], findings: [], seen: [], places: [] }, 'a storage that throws still gives the lists');
   assert.equal(save.addSeen('mosi'), true);
   assert.equal(save.addSeen('mosi'), false);
   assert.deepEqual(save.get().seen, ['mosi'], 'and keeps what was seen in memory');
+});
+
+test('places survive a round trip', () => {
+  const storage = memoryStorage();
+  const save = createSave(storage);
+  assert.equal(save.addPlace('sloedla'), true, 'a new place');
+  assert.equal(save.addPlace('sloedla'), false, 'the same place again is kept once');
+  assert.equal(save.addPlace('fen'), true);
+  assert.deepEqual(save.get().places, ['sloedla', 'fen'], 'in the order they came');
+  assert.deepEqual(JSON.parse(storage.getItem(KEY)).places, ['sloedla', 'fen'], 'written with the rest');
+  assert.deepEqual(createSave(storage).get().places, ['sloedla', 'fen'], 'and there on the next visit');
+  assert.throws(() => save.addPlace(''), TypeError);
+  // A save from before the map has no places, and one with a damaged list keeps only the ids, each once.
+  assert.deepEqual(createSave(memoryStorage({ [KEY]: JSON.stringify({ stars: ['k1_kambedla'] }) })).get().places, []);
+  assert.deepEqual(createSave(memoryStorage({ [KEY]: '{"places":["uggedla",3,"",null,"uggedla","flugedla"]}' })).get().places, ['uggedla', 'flugedla']);
+  // Without storage, in memory.
+  const bare = createSave(null);
+  bare.addPlace('uggedla');
+  assert.deepEqual(bare.get().places, ['uggedla']);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -182,6 +201,47 @@ test('a find flies its picture from the tap to the button, sounds once on landin
   el('journal-button').dispatchEvent(new Event('click'));
   assert.deepEqual(book.opened, [['animals', 'child']], 'the button opens the child\'s book on its animals');
   assert.equal(el('journal-badge').hidden, true, 'and the badge is gone once the book is open');
+});
+
+test('addPlace writes the save once and flies a marker', () => {
+  const sounds = [];
+  // the storage counts its writes: a place is written when it comes, and never again for the same place
+  const storage = memoryStorage();
+  let writes = 0;
+  const setItem = storage.setItem;
+  storage.setItem = (key, value) => { writes++; return setItem(key, value); };
+  const { journal, save, el, book } = journalRig({ save: createSave(storage), audio: { sfx: name => sounds.push(name) } });
+  el('journal-button').rect = { left: 1100, top: 12, width: 160, height: 64 }; // its middle is at 1180, 44
+  const flying = el('journal-flights').children;
+  assert.equal(journal.addPlace('sloedla', { x: 300, y: 420 }), true, 'a new place on the map');
+  assert.deepEqual(save.get().places, ['sloedla'], 'saved at once');
+  assert.equal(writes, 1, 'in one write');
+  assert.deepEqual(JSON.parse(storage.getItem(KEY)).places, ['sloedla'], 'to the storage');
+  assert.equal(el('journal-button').hidden, false, 'the book comes out for it');
+  assert.equal(flying.length, 1, 'a marker flies');
+  assert.ok(flying[0].classList.contains('flying-place'), 'a small round marker');
+  assert.equal(String(flying[0].style['--hue']).toLowerCase(), '#6793d0', 'in Slóeðla\'s hue');
+  assert.deepEqual(placeOf(flying[0].style), { x: 300, y: 420 }, 'from where she was on the screen');
+  assert.equal(journal.addPlace('sloedla', { x: 10, y: 10 }), false, 'the same place again');
+  assert.equal(flying.length, 1, 'flies nothing more');
+  assert.deepEqual(save.get().places, ['sloedla'], 'and is kept once');
+  assert.equal(writes, 1, 'without writing the save again');
+  journal.update(FLIGHT_SECONDS - 0.02);
+  const arriving = placeOf(flying[0].style);
+  assert.ok(Math.abs(arriving.x - 1180) < 3 && Math.abs(arriving.y - 44) < 3, `into the button: ${arriving.x}, ${arriving.y}`);
+  assert.deepEqual(sounds, []);
+  journal.update(0.03);
+  assert.equal(flying.length, 0, 'it has landed');
+  assert.equal(writes, 1, 'landing writes nothing more');
+  assert.deepEqual(sounds, ['newAnimal'], 'the book\'s bell, once');
+  assert.equal(el('journal-badge').hidden, false, 'the button wears its badge');
+  assert.ok(book.refreshed >= 1, 'and the book shows the place');
+  assert.ok(el('journal-button').style.transform.startsWith('scale('), 'the book nods');
+  // the Fen is a place too, in the Fen's water teal; a name that is no place is refused
+  assert.equal(journal.addPlace('fen'), true);
+  assert.equal(String(flying[0].style['--hue']).toLowerCase(), '#3f7a6e');
+  assert.deepEqual(journal.places, ['sloedla', 'fen']);
+  assert.throws(() => journal.addPlace(''), TypeError);
 });
 
 test('a paused game holds a find\'s flight in the air', () => {
@@ -419,10 +479,12 @@ function starRig({ withJournal = true } = {}) {
   const rig = journalRig();
   const asked = [];
   const finds = [];
+  const places = [];
   const journal = withJournal
     ? {
       addStar(id, from) { asked.push({ id, from }); return rig.journal.addStar(id, from); },
       addFinding(id, from) { finds.push({ id, from }); return rig.journal.addFinding(id, from); },
+      addPlace(id, from) { places.push({ id, from }); return rig.journal.addPlace(id, from); },
       open: () => rig.journal.open(),
       close: () => rig.journal.close(),
     }
@@ -437,7 +499,7 @@ function starRig({ withJournal = true } = {}) {
       stage.update(dt);
     }
   };
-  return { ...rig, world, scene3, pointer, stage, s: stage.s, step, asked, finds };
+  return { ...rig, world, scene3, pointer, stage, s: stage.s, step, asked, finds, places };
 }
 
 const STAR = 'k1_kambedla';
@@ -565,6 +627,18 @@ test('s.found puts an animal in the book, once, from where the child tapped it',
   assert.deepEqual(journal.findings, ['frog', 'beetle']);
   assert.deepEqual(save.get().findings, ['frog', 'beetle']);
   assert.equal(finds[0].from, tap, 'the tap goes to the journal, which flies the picture from it');
+});
+
+test('s.place puts a place on the book\'s map, once, from where it is on the screen', () => {
+  const { s, journal, save, places } = starRig();
+  const from = { x: 512, y: 330 };
+  assert.equal(s.place('uggedla', from), DONE);
+  assert.equal(s.place('uggedla'), DONE);
+  assert.deepEqual(journal.places, ['uggedla']);
+  assert.deepEqual(save.get().places, ['uggedla']);
+  assert.equal(places[0].from, from, 'the point goes to the journal, which flies the marker from it');
+  const { s: bare } = starRig({ withJournal: false });
+  assert.throws(() => bare.place('uggedla'), /journal/);
 });
 
 test('s.journal.open and close open and shut the book on its stars, as the script\'s, while the scene goes on', () => {

@@ -374,12 +374,18 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
   /**
    * Keep the camera at an offset from a moving actor (world offset, or local to its heading).
    * The camera never moves faster than the dolly rule; a local offset swings with the actor's turns,
-   * so prefer world offsets while it turns quickly.
+   * so prefer world offsets while it turns quickly. `offset` may be a function returning the offset,
+   * read every frame, for a camera that swings round the one it follows as it goes.
    */
   function follow(subject, { offset = [0, 1.4, 6], local = false, look = 'centre', lookOffset = [0, 0, 0], fov, stiffness = 1.6, maxSpeed = LIMITS.dolly } = {}) {
     const name = typeof subject === 'string' ? subject.split('.')[0] : subject.actor;
-    const posSpec = { actor: name, part: 'feet', offset, local };
-    const lookSpec = { actor: name, part: look === 'head' ? 'head' : 'centre', offset: lookOffset };
+    const offsetNow = typeof offset === 'function' ? offset : null;
+    const posSpec = { actor: name, part: 'feet', offset: offsetNow ? offsetNow() : offset, local };
+    // 'head' or 'centre' of the one followed, or any point spec: another actor's head, say (chapter 2: her face coming down to him);
+    // lookOffset (metres, in the world) is added to either.
+    const lift = new THREE.Vector3().fromArray(lookOffset);
+    const lookSpec = typeof look === 'string' ? { actor: name, part: look === 'head' ? 'head' : 'centre', offset: lookOffset }
+      : lift.lengthSq() > 0 ? out => resolve(look, out).add(lift) : look;
     const goalP = resolve(posSpec, new THREE.Vector3()); // a missing actor throws here, not every frame
     const goalT = resolve(lookSpec, new THREE.Vector3());
     const velP = new THREE.Vector3();
@@ -388,6 +394,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
     const f1 = fov ?? f0;
     held = null;
     return begin('follow', `follow ${name}`, m => {
+      if (offsetNow) posSpec.offset = offsetNow();
       resolve(posSpec, goalP);
       resolve(lookSpec, goalT);
       spring(rig.position, velP, goalP, stiffness, m.dt, maxSpeed);

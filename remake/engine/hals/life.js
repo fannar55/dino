@@ -3,7 +3,6 @@ import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { BOARD, SPECIAL_TILES } from './rules.js';
 import { STONE } from './board.js';
 import { THORSEDLA_MODEL, shelfFor } from './places.js';
-import { createModel } from '../../world/critters/models.js';
 
 // The board's small life (the owner's polish round, 2026-10-19: "meira af smádýrum í bakgrunn, drekaflugu, fiðrildi og fleira"):
 // always on, cheap and never in the way of a number or the piece whose turn it is.
@@ -120,6 +119,58 @@ function pterosaurGeometry() {
   return g;
 }
 
+/**
+ * A beetle about 0.3 m long, facing +x, in the chapter's beetle's colours (world/critters/models.js) but light: a teal shell
+ * with a gold spot and a seam, a dark head, six legs (about 90 triangles, where the chapter's has 400 for a close look).
+ */
+function beetleGeometry() {
+  const parts = [];
+  parts.push(part(ellipsoid([0.15, 0.085, 0.11], [0, 0.1, 0], 6, 3), '#2a9689'));
+  parts.push(part(ellipsoid([0.1, 0.03, 0.075], [-0.01, 0.165, 0], 5, 2), '#5ec4b2'));
+  parts.push(part(ellipsoid([0.025, 0.012, 0.025], [-0.05, 0.19, 0.03], 4, 2), '#f2c443'));
+  parts.push(part(ellipsoid([0.055, 0.05, 0.06], [0.16, 0.085, 0], 4, 2), '#2f4747'));
+  for (const s of [-1, 1]) {
+    parts.push(part(ellipsoid([0.012, 0.012, 0.012], [0.2, 0.11, 0.03 * s], 3, 2), '#f6f1e4'));
+    for (const fx of [0.08, 0, -0.08]) {
+      const leg = new THREE.CylinderGeometry(0.008, 0.008, 0.13, 3, 1, true).rotateX(s * 1.0).translate(fx, 0.05, 0.12 * s);
+      parts.push(part(leg, '#58412f'));
+    }
+  }
+  const g = mergeGeometries(parts);
+  parts.forEach(p => p.dispose());
+  return g;
+}
+
+/** A frog about 0.4 m long, facing +x, in the chapter's frog's colours: a round green body, a pale belly, big eyes, folded legs. */
+function frogGeometry() {
+  const parts = [];
+  parts.push(part(ellipsoid([0.16, 0.1, 0.13], [0, 0.11, 0], 6, 3), '#66ac47'));
+  parts.push(part(ellipsoid([0.12, 0.05, 0.1], [0.03, 0.06, 0], 5, 2), '#f4edbb'));
+  for (const s of [-1, 1]) {
+    parts.push(part(ellipsoid([0.04, 0.04, 0.04], [0.1, 0.2, 0.065 * s], 4, 2), '#f6f1e4'));
+    parts.push(part(ellipsoid([0.018, 0.02, 0.02], [0.135, 0.205, 0.07 * s], 3, 2), '#2b2a1c'));
+    parts.push(part(ellipsoid([0.11, 0.04, 0.05], [-0.07, 0.05, 0.12 * s], 4, 2), '#58a23f'));
+  }
+  const g = mergeGeometries(parts);
+  parts.forEach(p => p.dispose());
+  return g;
+}
+
+/** A snail about 0.36 m long, facing +x, in the chapter's snail's colours: a pale foot, an orange spiral shell, two eye stalks. */
+function snailGeometry() {
+  const parts = [];
+  parts.push(part(ellipsoid([0.17, 0.035, 0.06], [0.02, 0.035, 0], 5, 2), '#ead9ae'));
+  parts.push(part(ellipsoid([0.11, 0.11, 0.07], [-0.03, 0.14, 0], 6, 3), '#ee8650'));
+  parts.push(part(ellipsoid([0.06, 0.06, 0.072], [-0.02, 0.15, 0], 5, 2), '#f9ebcb'));
+  for (const s of [-1, 1]) {
+    parts.push(part(new THREE.CylinderGeometry(0.006, 0.008, 0.1, 3, 1, true).rotateZ(-0.4).translate(0.17, 0.09, 0.025 * s), '#d6c293'));
+    parts.push(part(ellipsoid([0.014, 0.014, 0.014], [0.19, 0.14, 0.025 * s], 3, 2), '#2b2a1c'));
+  }
+  const g = mergeGeometries(parts);
+  parts.forEach(p => p.dispose());
+  return g;
+}
+
 /** A little lizard, 0.6 m nose to tail, facing +x: green above, yellow under, a long tail (its body bends in the shader). */
 function lizardGeometry() {
   const parts = [];
@@ -154,19 +205,6 @@ function flowerGeometry() {
 /** A leaf for falling: a flat pointed oval, white so each instance takes its colour. */
 function leafGeometry() {
   return part(wingShape([[0, 0], [0.06, 0.05], [0.13, 0.03], [0.17, 0], [0.13, -0.03], [0.06, -0.05]].map(([x, z]) => [x - 0.08, z]), 1), '#ffffff');
-}
-
-/** One of the chapter's critters (world/critters/models.js) as a plain mesh for instancing: no morphs, rgba colours, no wings. */
-function critterGeometry(kind, scale) {
-  const { geometry, pivot } = createModel(kind);
-  geometry.morphAttributes = {};
-  geometry.translate(0, pivot, 0); // its feet on the ground
-  const n = geometry.attributes.position.count;
-  const rgb = geometry.attributes.color.array, col = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) col.set([rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2], 1], i * 4);
-  geometry.setAttribute('color', new THREE.BufferAttribute(col, 4));
-  geometry.setAttribute('aWing', new THREE.BufferAttribute(new Float32Array(n), 1));
-  return geometry.scale(scale, scale, scale);
 }
 
 // ---- materials: lit and fogged as the scene is, with the wing beat (and a lizard's wiggle) in the vertex shader -------------------
@@ -293,7 +331,7 @@ void main() {
 
 // ---- the life itself -------------------------------------------------------------------------------------------------------
 
-const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 52, beetles: 6, lizards: 6, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 3 };
+const COUNTS = { dragonflies: 14, butterflies: 27, birds: 26, flowers: 36, beetles: 6, lizards: 5, frogs: 3, snails: 1, leaves: 22, motes: 320, shafts: 3 };
 const GROUP = 3; // butterflies go about in little groups
 const BUTTERFLY_COLOURS = ['#f39a3a', '#6fc0ee', '#f5dc4a', '#f08bb4', '#fffaf0', '#b48cf0'];
 const FLOWER_COLOURS = ['#fff4f0', '#f7a6c4', '#ffd84a', '#c9a2f2', '#ff9a6a'];
@@ -570,6 +608,7 @@ export function createLife(hw) {
     flock.wait = flock.kind === 'far' ? rand(10, 22) : flock.kind === 'near' ? rand(10, 20) : rand(8, 18);
   }
   function updateFlocks(dt) {
+    birds.visible = flocks.some(flock => flock.flying); // (not drawn at all while none flies)
     for (const flock of flocks) {
       if (!flock.flying) {
         flock.wait -= dt;
@@ -589,10 +628,10 @@ export function createLife(hw) {
   }
 
   // ---- ground critters: beetles and lizards scurrying, frogs by the mud, a snail on a log --------------------------------------
-  const beetleMesh = kindMesh('beetles', critterGeometry('beetle', 2.6), COUNTS.beetles);
+  const beetleMesh = kindMesh('beetles', beetleGeometry(), COUNTS.beetles);
   const lizardMesh = kindMesh('lizards', lizardGeometry(), COUNTS.lizards, { bend: 0.035 });
-  const frogMesh = kindMesh('frogs', critterGeometry('frog', 2.2), COUNTS.frogs);
-  const snailMesh = kindMesh('snail', critterGeometry('snail', 3), COUNTS.snails);
+  const frogMesh = kindMesh('frogs', frogGeometry(), COUNTS.frogs);
+  const snailMesh = kindMesh('snail', snailGeometry(), COUNTS.snails);
   // where they go: the grass before the bottom tier, and the front edge of each log under the blocks (y, z, and an x range)
   const grass = { ground: true, x: [-24, 24], z: [tierZ(0) + STONE.depth / 2 + 1.4, tierZ(0) + STONE.depth / 2 + 5] };
   const logs = [];

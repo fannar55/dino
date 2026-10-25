@@ -17,7 +17,7 @@ function fixture(options={}){
     load(){this.loads++;}
   }
   const voice=createJuniorVoice({
-    lines:{first:{text:'Sæl! Prófum að kasta.'},second:{text:'Geymum tvo eins.'},missing:{text:'Textinn bíður eftir þér.'}},
+    lines:{first:{text:'Sæl! Prófum að kasta.'},second:{text:'Geymum tvo eins.'},missing:{text:'Textinn bíður eftir þér.'},optional:{text:'Næsti kastar!',optional:true}},
     manifest:{first:{src:'assets/audio/yatzy-junior/first.mp3',duration:2,mouth:'0f80f000'},second:{src:'assets/audio/yatzy-junior/second.mp3',duration:3,mouth:'0c400'}},
     onLine:(...args)=>captions.push(args),onSpeaking:value=>speaking.push(value),onUnavailable:info=>unavailable.push(info),AudioClass:FakeAudio,...options,
   });
@@ -115,6 +115,31 @@ test('missing assets and synchronous failures hold audible lessons, but explicit
   }
   const f=fixture();f.behaviors.push(()=>{throw new TypeError('unsupported');});f.voice.say('first');
   assert.equal(f.voice.getDebugState().mode,'unavailable');assert.equal(f.voice.getDebugState().reason,'TypeError');assert.equal(f.unavailable.length,1);
+});
+
+// Fjölspil's lines (MULTI_LINES) are optional: the page opens before the owner records them, and until he does each is its
+// caption alone for the time its words take, with no "Rödd Mosa náðist ekki" whether the sound is on or off (spec §8).
+test('an optional line not recorded yet is its caption alone, sound on or off, and never waits for a voice',()=>{
+  const f=fixture();let count=0;
+  assert.equal(f.voice.say('optional',{onEnd:()=>count++}),true);
+  assert.deepEqual(f.captions,[['optional','Næsti kastar!']]);assert.deepEqual(f.unavailable,[]);assert.deepEqual(f.speaking,[true]);
+  assert.equal(f.voice.getDebugState().mode,'fallback');assert.equal(f.voice.unavailable,false);assert.equal(f.instances.length,0,'no audio is asked for');
+  const {duration}=f.voice.getDebugState();assert.ok(duration>=2&&duration<3,`the time its two words take: ${duration}`);
+  f.voice.mute(true);f.voice.mute(false);assert.equal(f.voice.getDebugState().mode,'fallback','the sound button changes nothing');
+  f.voice.pause(true);f.voice.update(99);assert.equal(f.voice.speaking,false);assert.equal(count,0);f.voice.pause(false);assert.equal(f.voice.speaking,true);
+  f.voice.update(duration-.05);assert.equal(count,0);f.voice.update(.1);assert.equal(count,1);assert.equal(f.voice.busy,false);
+  assert.equal(f.voice.replay(),true);assert.equal(f.voice.getDebugState().mode,'fallback');assert.deepEqual(f.unavailable,[]);
+  // A line that must be recorded keeps today's way: with no recording, an audible game waits for it.
+  f.voice.say('missing');assert.equal(f.voice.getDebugState().mode,'unavailable');assert.equal(f.voice.getDebugState().reason,'asset-unavailable');assert.equal(f.unavailable.length,1);
+  // No audio at all on the page: an optional line not recorded is still its caption alone.
+  const silent=fixture({AudioClass:null});silent.voice.say('optional');assert.equal(silent.voice.getDebugState().mode,'fallback');assert.deepEqual(silent.unavailable,[]);
+  const muted=fixture();muted.voice.mute(true);muted.voice.say('optional');assert.equal(muted.voice.getDebugState().mode,'fallback');assert.deepEqual(muted.speaking,[true]);
+});
+
+test('an optional line once recorded plays as any other line',async()=>{
+  const f=fixture({manifest:{optional:{src:'assets/audio/yatzy-junior/multiTurn.mp3',duration:1.4,mouth:'0f8000'}}});let count=0;
+  f.voice.say('optional',{onEnd:()=>count++});assert.match(f.clip().src,/\/remake\/assets\/audio\/yatzy-junior\/multiTurn\.mp3$/);
+  await flush();assert.equal(f.voice.getDebugState().mode,'audio');f.voice.update(99);assert.equal(count,0);f.clip().emit('ended');assert.equal(count,1);
 });
 
 test('mouth sampling follows recorded 20 Hz activity and closes when paused or complete',async()=>{

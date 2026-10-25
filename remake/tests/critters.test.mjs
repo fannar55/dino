@@ -176,6 +176,24 @@ test('with nothing tapped the shader flies every butterfly, as it did before the
   }
 });
 
+test('a butterfly close to the lens wears away from its wing tips in, as the moss does from its edges, and further off is as it was', () => {
+  for (const q of [PRESETS.tablet, PRESETS.low]) {
+    const { mesh, shader } = butterflyStage({ q });
+    assert.equal(mesh.material.alphaTest, 0.5, 'alpha-tested, so it needs no sorting');
+    assert.equal(mesh.material.alphaToCoverage, Boolean(q.antialias), 'and dithered by the multisampling where there is any');
+    assert.match(shader.vertexShader, /float flyNear = smoothstep\( 1\.2, 3\.0, -\( modelViewMatrix \* vec4\( transformed, 1\.0 \) \)\.z \);/, 'gone by 1.2 m, whole from 3 m');
+    assert.match(shader.vertexShader, /vFlyNear = clamp\( 2\.0 \* flyNear - 0\.8 \* flyEdge, 0\.0, 1\.0 \);/, 'the tips first');
+    // the same sum: from 3 m on every part of a wing is whole (alpha 1, so neither the alpha test nor the coverage touches it); at
+    // 2 m the tips are gone and the roots stay; by 1.2 m all of it
+    const near = depth => { const t = Math.min(1, Math.max(0, (depth - 1.2) / 1.8)); return t * t * (3 - 2 * t); };
+    const alpha = (depth, edge) => Math.min(1, Math.max(0, 2 * near(depth) - 0.8 * edge));
+    for (const edge of [0, 0.5, 1]) assert.equal(alpha(3, edge), 1);
+    assert.ok(alpha(2, 1) < 0.5 && alpha(2, 0) >= 0.5, 'at 2 m the tips go, the roots stay');
+    assert.equal(alpha(1.2, 0), 0);
+    assert.match(shader.fragmentShader, /#include <color_fragment>\s*diffuseColor\.a \*= vFlyNear;/, 'before the alpha test');
+  }
+});
+
 test('the butterflies are tap targets, butterfly-1 and so on, whose points follow them', () => {
   const stage = butterflyStage();
   assert.deepEqual(stage.targets.map(t => t.name), ['butterfly-1', 'butterfly-2', 'butterfly-3', 'butterfly-4']);
@@ -1121,6 +1139,91 @@ test('the birds\' wings fold at rest and beat in flight', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   birds.material.onBeforeCompile({ vertexShader: 'void main() {}', fragmentShader: '', uniforms: {} });
   assert.equal(warn.mock.callCount(), 1, 'if three\'s shader changes so the anchors are gone, it says so rather than draw broken birds');
+});
+
+// ---- the Fen's animals ----------------------------------------------------------------------------
+
+// The Fen's own critters (chapter 2), all of them animals that lived alongside the dinosaurs: a dragonfly, a diving beetle
+// (brunnklukka), a newt-like salamander, a turtle, an early bird (fornfugl, feathered, with a long tail), a fish and a water strider.
+const FEN_KINDS = ['dragonfly', 'waterBeetle', 'salamander', 'turtle', 'earlyBird', 'fish', 'waterStrider'];
+
+test('every fen critter has a model under 400 triangles and a reaction', () => {
+  for (const kind of FEN_KINDS) {
+    assert.ok(KINDS.includes(kind), `${kind} is a kind a spot can be`);
+    const { geometry, triangles } = createModel(kind);
+    assert.equal(geometry.attributes.position.count / 3, triangles);
+    assert.ok(triangles <= 400 && triangles >= 100, `${kind}: ${triangles} triangles`);
+    assert.ok(geometry.attributes.color && geometry.attributes.normal, `${kind}: vertex colours and normals, no texture`);
+    geometry.dispose();
+  }
+  // the dragonfly's two pairs of wings and the early bird's two wings are tagged for the wing shader the birds have
+  for (const [kind, wings] of [['dragonfly', 4], ['earlyBird', 2]]) {
+    const { geometry } = createModel(kind);
+    const tag = geometry.attributes.aWing;
+    assert.ok(tag, `${kind}'s wings are tagged`);
+    const pos = geometry.attributes.position;
+    let left = 0, right = 0;
+    for (let i = 0; i < tag.count; i++) {
+      if (tag.getX(i) > 0) { right++; assert.ok(pos.getZ(i) > -0.001, `${kind}: a right wing is on the right`); }
+      if (tag.getX(i) < 0) { left++; assert.ok(pos.getZ(i) < 0.001, `${kind}: a left wing is on the left`); }
+    }
+    assert.ok(left > 0 && left === right, `${kind}: as much wing on each side`);
+    assert.equal(createModel(kind).wings, wings, `${kind} has ${wings} wings`);
+  }
+  const s = stage();
+  // the fish and the strider and the beetle on the water, the rest on the ground; whatever they touch on the water rings it
+  const rings = [];
+  const spots = FEN_KINDS.map((kind, i) => ({ name: kind, kind, position: [i * 2, 0, 0], heading: 0 }));
+  const critters = createCritters(s.world, { spots, ripple: (point, strength) => rings.push({ x: point.x, z: point.z, strength }) });
+  const meshes = [];
+  critters.group.traverse(o => { if (o.isMesh) meshes.push(o); });
+  assert.equal(meshes.length, FEN_KINDS.length, 'one mesh, one draw call, each');
+  // its own idle: each lives a little without a tap (the old critters sit still until tapped)
+  const pose = name => {
+    const mesh = meshOf(critters, name);
+    mesh.updateWorldMatrix(true, false);
+    const flight = mesh.material.userData?.flight?.value;
+    return [...mesh.matrixWorld.elements, ...(mesh.morphTargetInfluences ?? []), ...(flight ? [flight.x, flight.y] : [])];
+  };
+  const differ = (a, b) => a.some((v, i) => Math.abs(v - b[i]) > 1e-4);
+  const before = Object.fromEntries(FEN_KINDS.map(kind => [kind, pose(kind)]));
+  const still = Object.fromEntries(FEN_KINDS.map(kind => [kind, false]));
+  for (let t = 0; t < 6; t += 1 / 30) {
+    s.frame();
+    for (const kind of FEN_KINDS) if (differ(pose(kind), before[kind])) still[kind] = true;
+  }
+  for (const kind of FEN_KINDS) assert.ok(still[kind], `${kind} lives a little by itself`);
+  // its reaction: a tap starts one, a second joins it, and it ends where it began
+  const home = name => critters.group.getObjectByName(`Critter ${name}`).position.clone();
+  for (const kind of FEN_KINDS) {
+    const from = home(kind);
+    const handle = critters.react(kind);
+    assert.equal(handle.done, false, `${kind}: a tap starts a reaction`);
+    assert.equal(critters.react(kind), handle, `${kind}: a second tap joins it`);
+    let far = 0, high = -Infinity;
+    for (let t = 0; t < 10 && !handle.done; t += 1 / 30) {
+      s.frame();
+      const point = pointOf(critters, kind);
+      far = Math.max(far, Math.hypot(point.x - from.x, point.z - from.z));
+      high = Math.max(high, point.y);
+    }
+    assert.equal(handle.done, true, `${kind}: the reaction ends`);
+    s.run(0.2);
+    assert.ok(home(kind).distanceTo(from) < 0.02, `${kind} is back where it was`);
+    if (kind === 'salamander') assert.ok(far >= 0.3, `the salamander crawls two body lengths: ${far.toFixed(2)} m`);
+    if (kind === 'earlyBird') assert.ok(high >= 1.5, `the early bird flies up: ${high.toFixed(2)} m`);
+    if (kind === 'fish') assert.ok(high >= 0.25, `the fish jumps out of the water: ${high.toFixed(2)} m`);
+    if (kind === 'dragonfly') assert.ok(far >= 0.4, `the dragonfly darts off: ${far.toFixed(2)} m`);
+  }
+  // the turtle draws its head in, and out again
+  const turtle = meshOf(critters, 'turtle');
+  const hiding = critters.react('turtle');
+  const hide = [];
+  for (let t = 0; t < 6 && !hiding.done; t += 1 / 30) { s.frame(); hide.push(influence(turtle, 'hide')); }
+  assert.ok(Math.max(...hide) > 0.95 && hide.at(-1) < 0.05, 'the turtle pulls its head in and puts it out again');
+  // the fish's jump rings the water where it goes in and comes out
+  assert.ok(rings.some(r => Math.hypot(r.x - home('fish').x, r.z - home('fish').z) < 1), 'the fish rings the water');
+  critters.dispose();
 });
 
 test('createCritters says what is wrong with what it is given, and leaves nothing behind', () => {

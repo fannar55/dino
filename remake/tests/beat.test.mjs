@@ -175,15 +175,17 @@ test('setBeats feeds one shared uBeats uniform, the beat count held to [0, 4) or
   assert.equal(shared.uBeats.value, 1.5);
 });
 
-test('every frame main.js follows the music\'s beat and feeds the follower\'s count to the waves and the dance; without a theme it feeds nothing', () => {
+test('every frame main.js follows the music\'s beat on the dance\'s grid and feeds the follower\'s count to the waves and the dance; without a theme it feeds nothing', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
-  assert.match(main, /import \{ beatsAt, followBeat, danceOf \} from '\.\/engine\/beat\.js';/);
-  // the music's grid, followed without a jump, and snapped to exactly while seeking or frozen (captures)
-  assert.match(main, /followed = followBeat\(followed, beatsAt\(musicTime\(\), theme\), dt, theme, stage\.seeking \|\| clock\.frozen\);/);
+  assert.match(main, /import \{ beatsAt, followBeat, danceOf, danceGrid \} from '\.\/engine\/beat\.js';/);
+  // the dance's grid (the theme's beats, or every danceBeats-th of them), made once from the page's theme
+  assert.match(main, /const dance = theme && danceGrid\(theme\);/);
+  // the music's playhead on that grid, followed without a jump, and snapped to exactly while seeking or frozen (captures)
+  assert.match(main, /followed = followBeat\(followed, beatsAt\(musicTime\(\), dance\), dt, dance, stage\.seeking \|\| clock\.frozen\);/);
   assert.match(main, /wind\.setBeats\(followed\.beats\);/);
-  assert.match(main, /wind\.setDance\(danceOf\(followed\.beats, theme\)\);/);
+  assert.match(main, /wind\.setDance\(danceOf\(followed\.beats, dance\)\);/);
   // only with a theme: without theme.json the count stays NO_BEAT, and the forest holds its waves' middle
-  assert.match(main, /if \(theme\) \{\s*followed = followBeat\(/);
+  assert.match(main, /if \(dance\) \{\s*followed = followBeat\(/);
   assert.doesNotMatch(main, /setBeat\(|\.pulse\b|danceAt\(/, 'nothing in the frame reads the pulse, or the playhead\'s own dance');
 });
 

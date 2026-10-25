@@ -9,7 +9,8 @@
                                  the board is still coming, and Mosi trots on the spot over three bouncing dots (.hals-loading)
      .hals-hud                   the controls over the board, laid out on its edges:
        .hals-players             the players' portraits along the top: each .hals-player (--c, its colour) with its .hals-portrait,
-                                 .hals-square (the square it stands on) and .hals-name; .active is raised and glows
+                                 .hals-square (the square it stands on) and .hals-name; .active is raised and glows; .absent (a
+                                 guest of "Fjölspil" whose phone is away) is dim, with "…" after the name
        .hals-tools               "Allt borðið" (.hals-view), a pill on the top left; aria-pressed when on
        .hals-close               back to the book: the round close, on the top right (and on a card's corner, .hals-card-close)
        .hals-mosi                "Spyrja Mosa", his face with a "?", bottom left; .hals-advice is Mosi popping up over it with his
@@ -19,7 +20,9 @@
                                  pips as i.tl .tr .ml .mr .bl .br .c, and the player's small portrait .hals-die-who); --c is the
                                  player's colour; .live while the child may roll (it glows, pulses and hops), dimmed and still
                                  otherwise; .computer while Þórseðla plays, .rolling while it tumbles; .call on the die after a while
-                                 with nothing done; .hals-puff, a puff of dust on its pad as it lands
+                                 with nothing done; .remote on a guest's turn ("Fjölspil": her picture big on the pad, the die
+                                 small at its side, waiting for her phone and not for a tap); .hals-puff, a puff of dust on its
+                                 pad as it lands
        .hals-book, .hals-flying  a new find: the sticker (.hals-sticker.hals-flying) flies from the card to a little book that pops
                                  up beside Mosi
        .hals-card                an event card in the "Eitt!" card's look, on the right: a kind (.neck, .tail, .firefly, .mud, .fossil)
@@ -28,8 +31,9 @@
                                  (.hals-card-confetti) for a new find
      .hals-setup                 who plays: .hals-setup-card with .hals-title, .hals-resume ("Halda áfram" .hals-continue and "Nýr
                                  leikur" .hals-fresh) or .hals-choose: the four .hals-choice (data-players, aria-pressed; each with its
-                                 .hals-choice-pics and .hals-choice-name) and "Byrjum!" (.hals-start); no mode to choose (every
-                                 game is the adventure forest)
+                                 .hals-choice-pics and .hals-choice-name), then .hals-go: "Byrjum!" (.hals-start) and "Fjölspil"
+                                 (.hals-multi, a plain pill with a phone, there when the page has the host session); no mode to
+                                 choose (every game is the adventure forest)
      .hals-win                   the end: .hals-win-card with the winner's picture (.hals-win-picture), its words (h2), the fossils found
                                  this game (.hals-win-finds of .hals-sticker) and "Spilum aftur?" (.hals-again); .hals-confetti
      .hals-big, .hals-plain      the big green raised pill and the plain cream one
@@ -155,6 +159,10 @@
   animation: hals-glow 1.8s ease-in-out infinite;
 }
 .hals-player.active .hals-name { opacity: 1; }
+.hals-player.absent { opacity: .45; } /* a guest's phone is away (spec §8): dim, the name shown with "…" */
+.hals-player.absent .hals-portrait img { filter: grayscale(.7); }
+.hals-player.absent .hals-name { opacity: 1; }
+.hals-player.absent .hals-name::after { content: "…"; }
 .hals.overview .hals-players { scale: .82; transform-origin: 50% 0; } /* the whole board in view: the bar keeps to the sky over it */
 .hals-players { transform-origin: 50% 0; transition: scale .4s ease; }
 
@@ -307,6 +315,15 @@
   animation: hals-glow-soft 1.4s ease-in-out infinite;
 }
 
+/* A guest's turn in "Fjölspil": her picture big on the pad and the die small at its side, both bright; the die waits for her
+   phone, so a tap here is not taken (no press, no call). Moved by transform alone, back as soon as it rolls. */
+.hals-die-who { transition: opacity .35s, transform .45s cubic-bezier(.3, 1.4, .5, 1); }
+.hals-die-hop { transition: scale .45s cubic-bezier(.3, 1.4, .5, 1), translate .45s cubic-bezier(.3, 1.4, .5, 1); }
+.hals-dock.remote .hals-die { pointer-events: none; cursor: default; }
+.hals-dock.remote:not(.rolling) :is(.hals-die-ring, .hals-die-who) { opacity: 1; }
+.hals-dock.remote:not(.rolling) .hals-die-who { z-index: 1; transform: translate(124%, 60%) scale(1.8); }
+.hals-dock.remote:not(.rolling) .hals-die-hop { translate: 52% 48%; scale: .48; }
+
 /* A puff of dust on the pad as the die lands: six little clouds blowing out and fading. */
 .hals-puff { position: absolute; left: 50%; bottom: 16%; width: 0; height: 0; pointer-events: none; z-index: 2; }
 .hals-puff i {
@@ -440,6 +457,8 @@
 .hals-choice-pics img:nth-child(even) { translate: 0 14px; }
 .hals-choice-name { font-size: clamp(22px, 2.6cqmin, 28px); font-weight: 900; line-height: 1.1; text-align: center; }
 .hals-resume { display: grid; justify-items: center; gap: 14px; }
+.hals-go { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 16px 26px; }
+.hals-multi svg { width: 1.5em; height: 1.5em; margin: -.2em -.1em -.2em -.3em; overflow: visible; }
 
 /* The big green raised pill ("Byrjum!", "Halda áfram", "Spilum aftur?") and the plain cream one ("Nýr leikur"). */
 .hals-big, .hals-plain {

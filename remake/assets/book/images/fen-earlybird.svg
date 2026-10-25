@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 400 300">
+  <!-- The book's drawing of the Fen's early bird, fornfugl (Task 7, chapter 2), Archaeopteryx's kind, perched on a reed stem: a dark
+       bird with paler tips to its feathers, a long tail with a feather on each side of every bone, three little claws at each wing's
+       bend and a snout with tiny teeth, in the colours of the game's early bird (world/critters/models.js), drawn soft and by hand
+       on a clear background so a tile can show it as a silhouette. Our own drawing, until a photograph the owner approves
+       (cards.json, the card's wanted) or the owner's drawing replaces it. -->
+  <title>Fornfugl</title>
+  <defs>
+    <filter id="hand" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="29" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <path id="feather" d="M0 0C12 -7 30 -8 46 -3C34 4 16 5 0 0Z"/>
+    <path id="tip" d="M30 -5C36 -6 42 -5 46 -3C40 0 34 1 28 1Z"/>
+  </defs>
+  <g filter="url(#hand)" stroke="#3b2f25" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- the reed stem it sits on -->
+    <path d="M40 236C120 230 220 228 360 232" fill="none" stroke-width="14"/>
+    <path d="M40 236C120 230 220 228 360 232" fill="none" stroke="#9aa65a" stroke-width="8"/>
+    <!-- the long tail: a bony tail with a feather on each side of it, pale at the tips -->
+    <g stroke-width="3.5">
+      <g fill="#2f3138">
+        <use href="#feather" transform="translate(214 188) rotate(-8)"/><use href="#feather" transform="translate(214 188) rotate(52)"/>
+        <use href="#feather" transform="translate(240 200) rotate(-6)"/><use href="#feather" transform="translate(240 200) rotate(54)"/>
+        <use href="#feather" transform="translate(266 212) rotate(-4)"/><use href="#feather" transform="translate(266 212) rotate(56)"/>
+        <use href="#feather" transform="translate(290 224) rotate(0)"/><use href="#feather" transform="translate(290 224) rotate(56)"/>
+        <use href="#feather" transform="translate(312 236) rotate(8)"/><use href="#feather" transform="translate(312 236) rotate(52)"/>
+      </g>
+      <g fill="#9a9ca2" stroke="none">
+        <use href="#tip" transform="translate(214 188) rotate(-8)"/><use href="#tip" transform="translate(214 188) rotate(52)"/>
+        <use href="#tip" transform="translate(240 200) rotate(-6)"/><use href="#tip" transform="translate(240 200) rotate(54)"/>
+        <use href="#tip" transform="translate(266 212) rotate(-4)"/><use href="#tip" transform="translate(266 212) rotate(56)"/>
+        <use href="#tip" transform="translate(290 224) rotate(0)"/><use href="#tip" transform="translate(290 224) rotate(56)"/>
+        <use href="#tip" transform="translate(312 236) rotate(8)"/><use href="#tip" transform="translate(312 236) rotate(52)"/>
+      </g>
+    </g>
+    <path d="M196 180C236 196 290 222 336 246" fill="none" stroke-width="9"/>
+    <path d="M196 180C236 196 290 222 336 246" fill="none" stroke="#2f3138" stroke-width="4"/>
+    <!-- legs and toes gripping the stem -->
+    <path d="M164 196L156 226M184 198L184 226" fill="none" stroke="#5a4c3e" stroke-width="6"/>
+    <path d="M144 232C150 226 158 226 164 230M172 232C178 226 188 226 196 232" fill="none" stroke="#5a4c3e" stroke-width="5"/>
+    <!-- the body -->
+    <path d="M118 150C118 122 140 104 168 104C200 104 222 130 220 164C218 190 200 206 172 206C140 206 118 182 118 150Z" fill="#3c3e46"/>
+    <path d="M128 160C134 186 150 200 172 200C150 192 138 176 136 156Z" fill="#7b7d84" stroke-width="3.5"/>
+    <!-- the wing, folded, its long feathers pale at the tips -->
+    <path d="M150 128C176 116 210 124 226 146C238 162 238 182 228 190C210 178 186 170 164 164C150 160 142 144 150 128Z" fill="#33353d"/>
+    <path d="M200 172C214 176 226 184 236 196C226 198 214 192 206 184ZM184 168C200 170 214 176 226 186C214 188 200 182 190 176Z" fill="#33353d" stroke-width="3.5"/>
+    <path d="M222 186C228 190 232 194 236 196M208 178C214 181 220 184 226 186" fill="none" stroke="#8d8f96" stroke-width="4"/>
+    <path d="M168 132C186 128 204 134 214 146" fill="none" stroke="#8d8f96" stroke-width="3.5" stroke-opacity=".7"/>
+    <!-- three little claws at the bend of the wing -->
+    <g fill="#e2d2ad" stroke-width="3">
+      <path d="M146 124C138 118 132 116 126 118C132 122 138 126 144 130Z"/>
+      <path d="M144 132C136 130 128 130 122 134C128 136 136 138 144 138Z"/>
+      <path d="M146 140C140 142 134 146 130 152C136 152 142 148 148 146Z"/>
+    </g>
+    <!-- the head, with a short snout of tiny teeth and a big amber eye -->
+    <path d="M128 92C128 72 146 60 166 64C184 68 192 84 186 100C180 114 164 120 146 116C134 112 128 104 128 92Z" fill="#4a4c54"/>
+    <path d="M134 82C122 84 110 88 102 92C98 96 102 102 110 102C120 102 130 102 138 100Z" fill="#4a4c54"/>
+    <path d="M104 96C114 97 126 97 136 95" fill="none" stroke-width="3.5"/>
+    <path d="M110 96L112 100.5L114 96M118 96.4L120 101L122 96.4M126 96.4L128 101L130 96.2" fill="#f6f1e4" stroke="#f6f1e4" stroke-width="1.6"/>
+    <path d="M108 88C114 86 120 84 126 84" fill="none" stroke="#9a8f80" stroke-width="3" stroke-opacity=".8"/>
+    <circle cx="154" cy="84" r="13" fill="#d8a23a" stroke-width="3.5"/>
+    <g stroke="none">
+      <circle cx="152" cy="86" r="7" fill="#16160f"/>
+      <circle cx="149" cy="81" r="3" fill="#fff"/>
+      <ellipse cx="166" cy="104" rx="8" ry="5" fill="#f0a3b6" opacity=".5"/>
+    </g>
+    <path d="M158 64C162 54 170 50 178 52C174 58 168 62 162 66Z" fill="#4a4c54" stroke-width="3.5"/>
+  </g>
+</svg>

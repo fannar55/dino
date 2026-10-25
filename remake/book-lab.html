@@ -16,7 +16,11 @@
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
-     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page; ?found=all finds every animal, as after the whole chapter. */
+     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page; ?found=all finds every animal, as after the whole chapter;
+     ?find=<id>,<id> finds those animals; ?spread=<n> turns the Dýrin page to that spread at its corner, as a child would.
+     __demoStats.cornerSteals counts the points of the tiles in view that a corner takes instead (none is right), on a 24 × 24 grid
+     over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels. */
+  .no-corner-hits .spread-turn * { pointer-events: none !important; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
     background:
@@ -72,6 +76,7 @@
   save.addFinding('butterfly');
   save.addSeen('mosi');
   save.addSeen('kambedla');
+  for (const id of (params.get('find') ?? '').split(',').filter(Boolean)) save.addFinding(id);
   if (params.get('found') === 'all') {
     for (const card of cards) {
       if (card.unlock.found) save.addFinding(card.unlock.found);
@@ -116,15 +121,41 @@
       return Boolean(hit) && (hit === el || el.contains(hit));
     });
     const rects = live.map(el => el.getBoundingClientRect());
+    // The corners take only what is drawn of them: no point of a tile in view may land on one instead.
+    const tiles = [...document.querySelectorAll('.tile')].filter(el => el.getClientRects().length && el.closest('.book-leaf:not([hidden])'));
+    const corners = [...document.querySelectorAll('.spread-turn')].filter(el => !el.hidden && el.closest('.book-leaf:not([hidden])'));
+    const points = tiles.flatMap(tile => {
+      const r = tile.getBoundingClientRect();
+      return Array.from({ length: 576 }, (_, i) => ({ tile, x: r.left + r.width * ((i % 24) + 0.5) / 24, y: r.top + r.height * (Math.floor(i / 24) + 0.5) / 24 }));
+    });
+    document.body.classList.add('no-corner-hits');
+    const onTile = points.filter(p => p.tile.contains(document.elementFromPoint(p.x, p.y)));
+    document.body.classList.remove('no-corner-hits');
+    const cornerSteals = onTile.filter(p => document.elementFromPoint(p.x, p.y)?.closest('.spread-turn')).length;
+    const box = list => {
+      const rs = list.map(el => el.getBoundingClientRect());
+      const [l, t, r, b] = [Math.min(...rs.map(q => q.left)), Math.min(...rs.map(q => q.top)), Math.max(...rs.map(q => q.right)), Math.max(...rs.map(q => q.bottom))];
+      return { left: Math.round(l), top: Math.round(t), width: Math.round(r - l), height: Math.round(b - t) };
+    };
     return {
       smallestTargetPx: Math.round(Math.min(...rects.map(r => Math.min(r.width, r.height)))),
       controls: live.length,
       offscreen: rects.filter(r => r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight).length,
+      tilePoints: onTile.length,
+      cornerSteals,
+      cornerBoxes: corners.map(c => ({ way: c.classList.contains('next') ? 'next' : 'prev', drawn: box([...c.querySelectorAll('.corner-under, .corner-flap, .book-arrow')]) })),
+      tileBoxes: tiles.map(t => ({ card: t.getAttribute('data-card'), ...box([t]) })),
     };
   }
 
   book.open(state === 'stars' ? 'stars' : 'animals', 'child');
   await settle();
+  for (let n = 1; n < Number(params.get('spread') ?? 1); n++) {
+    const corner = document.querySelector(`.book-leaf[data-spread="${n}"] .spread-turn.next`);
+    if (!corner || corner.hidden) break;
+    tap(`.book-leaf[data-spread="${n}"] .spread-turn.next`);
+    await settle();
+  }
   if (state === 'card' || state === 'zoom' || state === 'info' || params.has('card')) {
     const id = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
     const page = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
