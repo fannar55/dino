@@ -21,7 +21,7 @@ import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
-import { createSave, defaultChapter } from './engine/save.js';
+import { createSave, defaultChapter, forgetSave } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
 import { createBook, halsOpen } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
@@ -52,6 +52,8 @@ import { createVilla } from './engine/villa/villa.js';
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
+//   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
+//                         reload does not forget again)
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
@@ -63,7 +65,13 @@ const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
 const clock = createClock();
 
 // A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory. An address that names no
-// chapter plays the one the save is at.
+// chapter plays the one the save is at. ?nyr=1 forgets the save first, and leaves the address without the parameter, so the
+// next reload keeps what the child wins from here on.
+if (params.get('nyr') === '1') {
+  forgetSave();
+  params.delete('nyr');
+  try { history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`); } catch { /* an address that cannot be rewritten is left as it is */ }
+}
 const save = createSave(params.get('t') === null ? undefined : null);
 const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
 const { chapter } = await import(`./chapters/${chapterId}.js`);

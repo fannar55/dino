@@ -22,6 +22,7 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 | `play=1` | start at once, without the start button |
 | `orbit=1` | free camera instead of the director |
 | `debug=1` | frame stats, scene time and camera mode |
+| `nyr=1` | forget the save and start from the first chapter (the address drops the parameter at once) |
 
 With `--lan` it also prints the join address for Fjölspil's guests, `Fjölspil: http://<ip>:<port>/remake/spil.html`, which the host's QR code carries; the rooms' WebSocket is `/fjolspil/ws/<code>` on the same port (`tools/fjolspil-server.mjs`).
 

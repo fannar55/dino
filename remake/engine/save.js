@@ -28,6 +28,15 @@ function defaultStorage() {
   }
 }
 
+/** Forgets the child's save (the address ?nyr=1: the game starts from the first chapter again). Never throws. */
+export function forgetSave(storage = defaultStorage(), key = 'mosi-remake-v1') {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    // nothing to forget, or a storage that cannot be touched: the game starts over in memory anyway
+  }
+}
+
 /** The ids of a stored list: strings only, each once. */
 const idsOf = value => (Array.isArray(value) ? [...new Set(value.filter(id => typeof id === 'string' && id))] : []);
 
