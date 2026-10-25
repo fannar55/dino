@@ -31,6 +31,8 @@ export function createVoice({ onSpeaking } = {}) {
 
   return {
     get muted() { return muted; },
+    /** The recording playing now, { src, time }, or null: for the bug report. */
+    get current() { return current ? { src: current.src, time: current.currentTime } : null; },
     set muted(value) {
       muted = Boolean(value);
       if (muted) stop();
