@@ -36,7 +36,13 @@ import { tapOrWait } from '../engine/scene/tap-or-wait.js';
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
 
-const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the clearing, out of sight until scene 2
+const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the clearing: where scene 2 finds him, already trotting
+// Where he is at the first frame, 25 m further down the path in the forest (the path's corner at [-32, 9.6] between): at WALK_IN_SPEED
+// he reaches MOSI_ENTERS as scene 2 begins, 22.9 s into the story (the fade, the 15 s down from the sun, the handheld, the 5 s look
+// round), so he is seen trotting in through the trees while the camera comes down, and never pops into the picture (the owner's
+// bug report of 2026-10-25); scene 2 goes on exactly as before.
+const MOSI_FAR = [-48, 14.3];
+const WALK_IN_SPEED = 1.1;
 const MOSI_WALK_IN = [[-16, 4], [-9.9, 2.3], [-4.8, 1]];
 const MOSI_STOP = [0.5, 0.1];
 const EGILL_WAITS = { position: [7.9, 0, 2.3], heading: 209 };
@@ -293,9 +299,12 @@ const SUN_WAVES = 1.2;
 // Seconds after the star appears (scene 10) at which the sun hugs itself.
 const SUN_HUGS = 0.2;
 
-// 1. Morning in the forest: no words. Wide over the treetops toward the smiling sun, then slowly down and in.
+// 1. Morning in the forest: no words. Wide over the treetops toward the smiling sun, then slowly down and in, and Mosi already
+// trotting in along the path through the trees, far off (MOSI_FAR), as the clearing comes into the picture.
 function* morning(s, c) {
   mark(c, 1);
+  // The whole walk in, from the forest to his place by Egill: scene 2 picks it up at MOSI_ENTERS (c.walkIn).
+  c.walkIn = c.mosi.walkTo([[-32, 9.6], MOSI_ENTERS, ...MOSI_WALK_IN, MOSI_STOP], { speed: WALK_IN_SPEED });
   const flowers = flowersNear(c.world, BUTTERFLY_FLOWERS);
   if (flowers) butterflyLand(c.world, flowers);
   // As the picture comes up the sun waves hello with a big grin (added after the test play of 17 October).
@@ -307,14 +316,14 @@ function* morning(s, c) {
   yield s.lookAround({ yaw: [-28, 28], pitch: [-8, 10] }, 5);
 }
 
-// 2. Mosi comes, humming the theme; Egill calls up to him with a hop and a wave, and Mosi sees him (the call was added after the
-// test play of 17 October). The hum is over long before the call, as Mosi comes out of the trees, so nothing cuts it short.
+// 2. Mosi comes out of the trees (he has been trotting in since the first frame: morning), humming the theme; Egill calls up to him
+// with a hop and a wave, and Mosi sees him (the call was added after the test play of 17 October). The hum is over long before the
+// call, so nothing cuts it short.
 function* mosiComes(s, c) {
   mark(c, 2);
   const { mosi, egill } = c;
   yield s.camera.cut('waiting');
-  mosi.raw.root.visible = true;
-  const walk = mosi.walkTo([...MOSI_WALK_IN, MOSI_STOP], { speed: 1.1 });
+  const walk = c.walkIn;
   yield s.wait(2.2);
   yield s.say('mosi', 'k1_mosi_hum');
   yield s.camera.cut('track');
@@ -818,18 +827,29 @@ function* footfalls(s, c) {
   const lift = foot => foot.getWorldPosition(p).y - c.world.heightAt(p.x, p.z);
   const rest = feet.map(lift);
   const down = feet.map(() => true);
+  // How loud a step is: full within STEPS_NEAR metres of the camera, nothing beyond STEPS_FAR, so his trot in from the forest
+  // (scene 1, from MOSI_FAR) is heard coming rather than thumping at full volume from 48 m away.
+  const level = () => {
+    const rig = c.world.director?.rig?.position;
+    if (!rig) return 1;
+    const d = c.mosi.raw.root.position.distanceTo(rig);
+    return Math.min(1, Math.max(0, (STEPS_FAR - d) / (STEPS_FAR - STEPS_NEAR)));
+  };
   for (;;) {
     feet.forEach((foot, i) => {
       const up = lift(foot) - rest[i];
       if (down[i] && up > 0.03) down[i] = false;
       else if (!down[i] && up < 0.008) {
         down[i] = true;
-        s.sfx('step');
+        const loud = level();
+        if (loud > 0) s.sfx('step', { level: loud });
       }
     });
     yield;
   }
 }
+const STEPS_NEAR = 12;
+const STEPS_FAR = 40;
 
 /** The clearing's critters and butterflies, ready to tap; `leave()` takes them away again. */
 function setUpClearing(s, c) {
@@ -947,7 +967,7 @@ export const chapter = {
     },
   },
   actors: {
-    mosi: { url: '../assets/characters/mosi.glb', position: [MOSI_ENTERS[0], 0, MOSI_ENTERS[1]], heading: -19 },
+    mosi: { url: '../assets/characters/mosi.glb', position: [MOSI_FAR[0], 0, MOSI_FAR[1]], heading: -16 }, // facing down the path
     egill: { url: '../assets/characters/egill.glb', ...EGILL_WAITS },
     kambedla: { url: '../assets/characters/stegosaurus.glb', position: [0, 0, -400], heading: 0 },
   },
@@ -1063,8 +1083,7 @@ export const chapter = {
     world.chapterTimeline = [];
     egill.raw.footprintScale = EGILL_FOOTPRINT;
     const c = { s, world, mosi, egill, kambedla, talking: false };
-    // Mosi waits out of sight on the path until scene 2; Kambeðla is in her glade, not in the clearing.
-    mosi.raw.root.visible = false;
+    // Mosi is far down the path in the forest, to trot in from the first frame (MOSI_FAR); Kambeðla is in her glade, not in the clearing.
     kambedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw); // hidden until it pops on in scene 5
     c.glow = world.effects.add(addPlateGlow(kambedla.raw)); // her plates are grey until the flowers light them

@@ -299,12 +299,13 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     // the beds, laid by play and update, which treat them apart from the one-shots; they are here so that the names are known
     forest: () => startBed('forest'),
     fen: () => startBed('fen'),
-    // Mosi's footfall: a low thump and a puff of earth, from the left and the right in turn (the old game's footstep).
-    step() {
+    // Mosi's footfall: a low thump and a puff of earth, from the left and the right in turn (the old game's footstep). `level`
+    // scales it: chapter 1 plays his steps softly while he trots in from far down the path, and full once he is near.
+    step({ level = 1 } = {}) {
       stepSide = 1 - stepSide;
       const pan = stepSide ? 0.13 : -0.13;
-      tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15, pan });
-      noise({ duration: 0.18, level: 0.34, frequency: 850, end: 350, pan, attack: 0.008 });
+      tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15 * level, pan });
+      noise({ duration: 0.18, level: 0.34 * level, frequency: 850, end: 350, pan, attack: 0.008 });
     },
     // A ribbit: two throaty croaks, the second one rising.
     frog() {
