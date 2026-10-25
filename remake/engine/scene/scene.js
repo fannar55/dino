@@ -36,6 +36,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return world.chapter.lines?.[line] ?? { text: line };
   }
 
+  const SOUND_START_GRACE = 3; // seconds of scene time a line waits for its sound to be heard before it goes on without it
+  const SOUND_END_GRACE = 1.5; // seconds a sound may run past its recorded length before the line ends anyway
+
   /** Seconds a line takes: its recording when there is one, else a calm reading pace for children. */
   function lineDuration(entry) {
     const recording = entry.audio ? lines[entry.audio] : null;
@@ -52,9 +55,22 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     const caption = ui.caption(who.name, entry.text, who.colour);
     const sound = recording && !seeking ? voice.play(recording.src) : null;
     const actor = world.actors?.get(speaker);
-    const talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
+    let talking = null;
     try {
-      yield wait(lineDuration(entry) + hold);
+      // The mouth and the line's time start when the sound is heard, not when it was asked for: over the network a recording
+      // starts late (a page on Cloudflare: a few tenths of a second to two seconds), and the mouth ran ahead of the voice while
+      // the next line cut this one short (the owner's bug reports of 2026-10-25). A sound that never starts (blocked, missing)
+      // is waited for SOUND_START_GRACE seconds at most, and the line then runs on its recorded length as before.
+      if (sound) {
+        const asked = scheduler.now;
+        yield until(() => voice.started(sound) || voice.done(sound) || scheduler.now - asked >= SOUND_START_GRACE);
+      }
+      talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
+      const began = scheduler.now;
+      // The line is over when its sound is: a sound that stalls is given SOUND_END_GRACE beyond the recording's length.
+      if (sound) yield until(() => voice.done(sound) || scheduler.now - began >= lineDuration(entry) + SOUND_END_GRACE);
+      else yield wait(lineDuration(entry));
+      yield wait(hold);
     } finally {
       // Only this line's own sound, mouth and caption: a newer line may already be showing.
       if (sound) voice.stop(sound);

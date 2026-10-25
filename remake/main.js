@@ -200,6 +200,10 @@ const musicTime = () => music.position;
 let followed = null;
 const ui = createStageUI(document);
 const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
+// The chapter's recordings are fetched ahead, in the background, so a line starts the moment the scene asks for it: over the
+// network a recording asked for at its cue starts late, and the mouth ran ahead of the voice (the owner's reports of 2026-10-25).
+// The scene keeps time with the sound either way (scene.js sayTask); this makes the wait a few milliseconds instead of seconds.
+if (playing) voice.preload(Object.values(chapter.lines ?? {}).map(line => lines[line.audio]?.src).filter(Boolean));
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
 const hold = createHold([voice, music, sfx]);
