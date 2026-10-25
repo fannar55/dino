@@ -25,6 +25,7 @@ import { addPlateGlow } from '../engine/plate-glow.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
 import { butterflyLand } from '../world/forest/atmosphere.js';
+import { HERO } from '../world/forest/butterflies.js';
 import { pollenBurst } from '../world/props/pollen.js';
 import { MOUTH_RATE } from '../engine/talk.js';
 import { createFootprints } from '../world/props/footprints.js';
@@ -390,7 +391,7 @@ function* festival(s, c) {
   mark(c, 4);
   const { world, mosi } = c;
   yield s.camera.cut('face');
-  butterflyLand(world, onBone(mosi.raw, ...POINTS.mosiHorn)); // a butterfly comes to rest on his horn
+  butterflyLand(world, onBone(mosi.raw, ...POINTS.mosiHorn), { name: HERO }); // the hero butterfly (its own model) comes to rest on his horn
   s.camera.handheld(0.5, { duration: 1.5 });
   yield mosi.lookAt('camera', { weight: 0.7 });
   s.camera.push({ distance: 0.6, duration: 8 });
@@ -1015,7 +1016,8 @@ export const chapter = {
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
    * black as it comes to a place. The first draw of anything builds its shaders, which held the first play up for 0.2 to 0.6 s
    * wherever something showed for the first time. `objects` are drawn in every view whatever their state: the actors (their
-   * eyelids as if shut, Mosi's saddle before it pops on, Kambeðla with her plate glow, out of sight in the clearing) and
+   * eyelids as if shut, Mosi's saddle before it pops on, Kambeðla with her plate glow, out of sight in the clearing), the hero
+   * butterfly's model (world/forest/butterflies.js: under the clearing's butterflies, wherever its loop has it) and
    * throwaways of what comes later: a glow flower glimmering, one of each critter and a bird, a print of Mosi's feet, a sparkle
    * burst and a puff of pollen. `shots` are the views whose shadow passes draw what the story's do (the forest's casters as the
    * camera rises with the float, the ride's critters); a place adds its own (locations[name].warmUp). `tray` is the tray's
@@ -1036,7 +1038,10 @@ export const chapter = {
       pollenBurst(world, new THREE.Vector3(...ground(0, 0)), { count: 4, seed: 'warm-up' }),
     ];
     return {
-      objects: [...[...world.actors.values()].map(actor => actor.root), flower.group, critters.group, prints.mesh],
+      objects: [
+        ...[...world.actors.values()].map(actor => actor.root), flower.group, critters.group, prints.mesh,
+        ...(world.forest?.butterflies?.hero ? [world.forest.butterflies.hero.group] : []),
+      ],
       shots: ['dawn', 'egillWaves', 'mountHigh', 'rideFeet'],
       tray: TRAY,
       dispose() {

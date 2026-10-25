@@ -209,6 +209,9 @@ the normal game does not expose them. Frame-time results are device-specific.
   typeface in `assets/fonts/`: Nunito (`nunito-latin.woff2`, the Latin subset of Google Fonts' variable font, with
   every Icelandic letter; both pages preload it) and its licence `OFL.txt` (SIL Open Font License 1.1), which must
   stay beside it wherever the font goes.
+- `assets/critters/`: the hero butterfly, `butterfly.glb` (the one chapter 1 lands on Mosi's horn: world/forest/butterflies.js), with its
+  provenance `butterfly-source.json`; `tools/blender-butterfly.py` and `tools/quantize-glb.mjs` make it from the owner's Tripo moth
+  (STYLE.md section 12).
 - `assets/book/`: the book's data. `cards.json` has the seven cards, page by page (each page's picture, text, narrator's
   line and the sources of its facts); `media-manifest.json` lists every picture with its licence, credit and source
   (`tests/media.test.mjs` runs `checkMedia`: an outside picture needs its credit, open licence, source and sha256, and every
@@ -235,7 +238,8 @@ the normal game does not expose them. Frame-time results are device-specific.
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
   `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), `bake/book-render.html` that renders the
   book's pictures of Mosi and Kambeðla from their models (its header has the commands), and
-  `prep-character.mjs` for static models (see STYLE.md section 12).
+  `prep-character.mjs` for static models, and `blender-butterfly.py` with `quantize-glb.mjs` for the hero butterfly, a small prop
+  out of a Tripo moth (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
 ## Writing a chapter
