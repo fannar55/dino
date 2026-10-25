@@ -937,6 +937,24 @@
    "duration": 3.45,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_book": {
+   "key": "d9813b590699bcfbc2ef79d309e06c95142b7d0b1525353f0d5e807d49489363",
+   "mp3": "31d278eb7b260221fccac0c6b69f57aa3ef2a92771261276f6bd5b2011e44384",
+   "duration": 14.41,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_book_close": {
+   "key": "0c951440e6c1503c0f75b4534e015ab605777d99165c4867b2008e394891c3bb",
+   "mp3": "614038c7f3b932154e6c487acc8519fe4a92138c52dbfffd05404993483f2b7e",
+   "duration": 6.01,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_butterfly": {
+   "key": "cfbfa1b2322f900557a551a6eb6b898b809232aaf8b9816aef0075d9b67fb851",
+   "mp3": "d3daf1689f3fc0f635903fa6030038401053ca12e50c366e9412a83371e8555c",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_critters": {
    "key": "0396da9063eec996ce2afcdd372171a0f7a3653316fa384c89cf4beec09f9155",
    "mp3": "00e47918e0188afb6f8440fd60af6b58fdac9fdf8747b4ae0aa51355bd6af349",
@@ -947,6 +965,12 @@
    "key": "9a7ac205589ada3108ac3c4962343689c9cc29f4ebb45a2ad05eed44c33b9ade",
    "mp3": "e94b1097cd5df6c0bc467ab1a5158430c57b0e3f48b7b5ff9b19f85bdb8f55e6",
    "duration": 9.61,
+   "model": "eleven_v4"
+  },
+  "kafli1/k1_mosi_fannar": {
+   "key": "4f7a98970fe925db0b4dcf7e80833c4219febdf66ff98a5b57eb63612dccbafc",
+   "mp3": "22b4a57632bba194ae482e87a9b4affed3d17375cb34827f398bd74ec0ae44b5",
+   "duration": 9.69,
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_festival": {

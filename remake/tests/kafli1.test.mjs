@@ -203,7 +203,7 @@ test('every required wait has an auto option for seeking: the chapter plays to i
   assert.equal(flowers.length, 3, 'three glow flowers in the glade');
   for (const flower of flowers) assert.equal(flower.visible, false, `${flower.name} was picked`);
   assert.deepEqual(journal.stars, ['k1_kambedla']);
-  assert.deepEqual(book.opened, [['games', 'script']], 'the chapter ends in the book, open on its games (where "Eitt!" waits) as the script\'s');
+  assert.deepEqual(book.opened, [['animals', 'script'], ['games', 'script']], 'the chapter ends in the book, open on its games (where "Eitt!" waits) as the script\'s');
   assert.equal(journal.isOpen, true);
   assert.equal(winks.length, 2, 'the sun winks twice: "Sólin bíður ekki" and the star');
   assert.deepEqual(seen.held, { atTray: 3, atMmm: [2, 1, 0] }, 'the three flowers stay in his hands until each goes into her mouth');
@@ -383,7 +383,7 @@ test('a critter tapped in the ride\'s first second reacts at once, and Mosi rema
   const visit = chapter.lines.k1_mosi_visit;
   const critters = chapter.lines.k1_mosi_critters;
   const beetle = chapter.lines.k1_mosi_beetle;
-  const { captions, lines, seen, world, finds } = await playUnattended(kafli1, { limit: 190, earlyTap: { name: 'beetle', after: 0.3 } });
+  const { captions, lines, seen, world, finds } = await playUnattended(kafli1, { limit: 240, earlyTap: { name: 'beetle', after: 0.3 } });
   const ride = world.chapterTimeline.find(m => m.scene === 6).at;
   const tap = seen.earlyTap;
   assert.ok(tap, 'the beetle was tapped');

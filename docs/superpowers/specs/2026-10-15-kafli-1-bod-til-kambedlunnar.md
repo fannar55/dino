@@ -47,7 +47,9 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 
 - **Markmið:** vináttan byrjar.
 - **Skot:** Egill gengur nokkur skref til Mosa. Skot yfir vinstri öxl Egils og Mosi beygir höfuðið niður að honum.
-- **Línur:** Mosi: „Halló, Egill! Velkominn heim til mín! Ég heiti Mosi. Eigum við að skoða okkur aðeins um saman?“ (til í upptöku)
+- **Línur:**
+    - Mosi: „Ég hef ekki séð manneskju á þessum slóðum mjög lengi, ekki síðan Fannar var hér. Hann sendi mér skilaboð um að núna væri Egill að koma.“ (bætt við eftir prufuspilun 25. október)
+    - Mosi: „Halló, Egill! Velkominn heim til mín! Ég heiti Mosi. Eigum við að skoða okkur aðeins um saman?“ (til í upptöku)
 - **Barnið:** getur pikkað á nefið á Mosa. Mosi: „Hí, hí, það kitlar!“ Í annað skiptið hnerrar hann, „A… a… atsjú!“, og frjókornin þyrlast upp.
 
 ### 4. Stjörnuhátíðin (um 30 s)
@@ -70,8 +72,11 @@ T-rexinn er ekki í þessum kafla; hann kemur síðar.
 - **Línur:**
     - Mosi: „Hókus pókus, hnakkur! Upp með þig, Egill!“
     - Egill, uppi í hnakknum: „Vá! Ég sé yfir allt!“
+    - Fiðrildið sem settist á horn Mosa í senu 4 fer í bókina, fyrsta dýrið þar, og bókin opnast í fyrsta sinn (bætt við eftir prufuspilun 25. október): nærmynd yfir öxl Egils á hornið og fiðrildið, sem glitrar. Mosi: „Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.“ Við smell flýgur það upp og burt og myndin af því svífur í bókartakkann; geri barnið ekkert í 8 s flýgur það sjálft í bókina. Bókin opnast sjálf á dýrasíðunni með fiðrildinu.
+    - Mosi: „Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og stjörnurnar frá vinunum sem við bjóðum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.“
+    - Mosi: „Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.“ Krossinn glóir og bifast á meðan; barnið lokar bókinni, og geri það ekkert í 10 s lokast hún sjálf. Barn sem pikkar inni í bókinni gerir hana að sinni og leikurinn bíður þar til það lokar henni.
     - Mosi: „Haltu þér fast. Af stað!“
-- **Barnið:** pikkar á Egil og hann svífur upp í hnakkinn. Geri barnið ekkert svífur hann sjálfur eftir smá stund.
+- **Barnið:** pikkar á Egil og hann svífur upp í hnakkinn. Geri barnið ekkert svífur hann sjálfur eftir smá stund. Pikkar svo á fiðrildið á horninu og lokar bókinni.
 
 ## Senur 6–10: reiðferðin og stöð kambeðlunnar
 

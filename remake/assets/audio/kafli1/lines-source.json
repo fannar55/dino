@@ -13,6 +13,9 @@
  { "id": "k1_mosi_great", "speaker": "mosi", "text": "Frábært! Sólin bíður ekki eftir okkur." },
  { "id": "k1_mosi_hocus", "speaker": "mosi", "text": "Hókus pókus, hnakkur! Upp með þig, Egill!", "seed": 1 },
  { "id": "k1_egill_wow", "speaker": "egill", "text": "Vá! Ég sé yfir allt!" },
+ { "id": "k1_mosi_butterfly", "speaker": "mosi", "text": "Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill." },
+ { "id": "k1_mosi_book", "speaker": "mosi", "text": "Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og stjörnurnar frá vinunum sem við bjóðum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni." },
+ { "id": "k1_mosi_book_close", "speaker": "mosi", "text": "Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur." },
  { "id": "k1_mosi_hold", "speaker": "mosi", "text": "Haltu þér fast. Af stað!" },
  { "id": "k1_mosi_visit", "speaker": "mosi", "text": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!" },
  { "id": "k1_mosi_critters", "speaker": "mosi", "text": "Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína." },
@@ -38,5 +41,6 @@
  { "id": "k1_mosi_invite", "speaker": "mosi", "text": "Kambeðla, viltu koma á Stjörnuhátíðina í kvöld?" },
  { "id": "k1_kambedla_accept", "speaker": "kambedla", "text": "Já! Ég skal lýsa upp alla hátíðina!", "kept": "the owner's pick on the A/B page of 2026-10-23: the earlier (Eleven v3) take, kept over the v4 lexicon take" },
  { "id": "k1_mosi_star", "speaker": "mosi", "text": "Sjáðu, Egill! Fyrsta stjarnan!", "seed": 1 },
+ { "id": "k1_mosi_fannar", "speaker": "mosi", "text": "Ég hef ekki séð manneskju á þessum slóðum mjög lengi, ekki síðan Fannar var hér. Hann sendi mér skilaboð um að núna væri Egill að koma." },
  { "id": "k1_mosi_next", "speaker": "mosi", "text": "Ein komin. Hver ætli sé næst?" }
 ]

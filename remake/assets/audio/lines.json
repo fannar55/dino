@@ -2723,5 +2723,25 @@
   "src": "assets/audio/book/book_find_me_fen.mp3",
   "duration": 1.93,
   "mouth": "000fff06cedcd8308a000bdbb76430000000000"
+ },
+ "k1_mosi_butterfly": {
+  "src": "assets/audio/kafli1/k1_mosi_butterfly.mp3",
+  "duration": 5.85,
+  "mouth": "ceedc84000000dd80d9000ec8c9fe96ecbd60009bbcefcef908fefffeed840000000000029ed600eed9ba0bffffec9008dca70300000000000000"
+ },
+ "k1_mosi_book": {
+  "src": "assets/audio/kafli1/k1_mosi_book.mp3",
+  "duration": 14.41,
+  "mouth": "0007fffecbb6000000000000fdbccc79d900ded8004eb00000bfdefe939ffeec8dd9adc87b65600000000000dfe99fc0afdd300ce000009bbccdda0dcdb0addccdb6000ccd6930beb80dc6bcc704debbedeeeccc90ccdc0deec77500000000000cefbfffeed86eacdc98c9085d6500d4758deddb955000000beebbcdb00596000aeeedfffcdeeddffca68500000000000"
+ },
+ "k1_mosi_book_close": {
+  "src": "assets/audio/kafli1/k1_mosi_book_close.mp3",
+  "duration": 6.01,
+  "mouth": "ada000cfd089fd753bddeb0bdddbbdfe0bd0efc49cdcc8000ad7bca0bccfd3664000000000000acd9c800b94008e8dd26cddccbcc0045500000000000"
+ },
+ "k1_mosi_fannar": {
+  "src": "assets/audio/kafli1/k1_mosi_fannar.mp3",
+  "duration": 9.69,
+  "mouth": "9ffeedce703c708edeffdccdeb08eedacd9bea408dddbdeeddeeedddcddefd038600000000000c80bc0bddc500fddefeccdc40b9430000000000000aff50feb8dee96409cccfe7accb000dffefffeddeffcdede60cdbde96cc08eea56000000000"
  }
 }

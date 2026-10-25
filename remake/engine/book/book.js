@@ -724,6 +724,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   }
 
   function close() {
+    closeEl.classList.remove('beckon');
     if (!isOpen) return;
     const was = holder;
     isOpen = false;
@@ -782,6 +783,8 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   return {
     open,
     close,
+    /** The close pulses to be tapped (on), as when a scene has opened the book and waits for the child to shut it. */
+    beckonClose(on = true) { closeEl.classList.toggle('beckon', Boolean(on)); },
     refresh: render,
     pictureOf,
     openCard,

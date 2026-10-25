@@ -378,6 +378,7 @@ function* hello(s, c) {
   yield s.camera.cut('intro');
   yield s.all(mosi.turnTo('egill'), s.camera.push({ distance: 0.4, duration: 4 }));
   s.camera.handheld(0.5, { duration: 1.5 });
+  yield s.say('mosi', 'k1_mosi_fannar'); // he has not seen a person since Fannar, who sent word that Egill was coming (the owner, 2026-10-25)
   yield s.say('mosi', 'welcome');
   // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!". The nose
   // waits 5 s for a first tap, and after the giggle at least NOSE_AGAIN more for the second, so a child who finds it late
@@ -474,8 +475,85 @@ function* upOnBack(s, c) {
   yield rising;
   yield spellSaid();
   yield s.say('egill', 'k1_egill_wow');
+  yield* butterflyIntoTheBook(s, c);
   yield mosi.lookAt(null);
   yield s.say('mosi', 'k1_mosi_hold');
+}
+
+// Seconds the child has to tap the butterfly on his horn, from the end of Mosi's asking, before it flies off into the book by itself.
+const BUTTERFLY_ASK_WAIT = 8;
+// Seconds the book a script opened stays open after Mosi has said how to shut it, before it shuts by itself.
+const BOOK_SHUTS_AFTER = 10;
+// Metres: the hero butterfly within this of the horn's point still sits on it.
+const ON_HORN = 0.35;
+// Seconds the butterfly's picture takes to fly into the book's button, and a moment to land (engine/scene/journal.js FLIGHT_SECONDS).
+const INTO_THE_BOOK = 1.8;
+// Close over Egill's right shoulder, from the saddle, toward the butterfly on the right brow horn.
+const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.2, 0.3, 0.42], local: true }, fov: 34 };
+
+/**
+ * The butterfly that came to rest on his horn in the festival scene goes into the book, the first animal there, and the book opens
+ * for the first time (the owner, 2026-10-25). Close over Egill's shoulder, Mosi says it is in his way and asks Egill to tap it; the
+ * tap sends it up and away and its picture into the book (butterflyTaps), and a child who taps nothing sees it fly off by itself
+ * after BUTTERFLY_ASK_WAIT. A child who tapped it (or another butterfly) earlier has the book's first animal already, and hears only
+ * the book. Then the book opens by itself on its animals, Mosi tells what the book is for and how to shut it, its close beckoning
+ * meanwhile; the child shuts it, or it shuts by itself after BOOK_SHUTS_AFTER. A child who taps inside it makes it theirs, and the
+ * game then waits (the clock held) until they shut it.
+ */
+function* butterflyIntoTheBook(s, c) {
+  const { world, mosi } = c;
+  const butterflies = world.forest?.butterflies;
+  const horn = onBone(mosi.raw, ...POINTS.mosiHorn);
+  const at = new THREE.Vector3();
+  const hornAt = new THREE.Vector3();
+  const onHorn = () => Boolean(butterflies?.hero?.group) && butterflies.hero.group.getWorldPosition(at).distanceTo(world.resolvePoint(horn, hornAt)) < ON_HORN;
+  // Ask while it sits on the horn; where there is no hero to see (a test's world), while no butterfly is in the book yet.
+  const ask = butterflies?.hero?.group ? onHorn() : !s.journal.findings.includes('butterfly');
+  if (ask) {
+    yield s.camera.cut({ position: BUTTERFLY_CLOSE.position, target: horn, fov: BUTTERFLY_CLOSE.fov });
+    s.camera.handheld(0.4, { duration: 1 });
+    const glitter = s.after(0, () => glitterAt(s, c, out => world.resolvePoint(horn, out)));
+    try {
+      yield s.say('mosi', 'k1_mosi_butterfly');
+      yield s.race(s.tap(HERO), s.wait(BUTTERFLY_ASK_WAIT));
+      // A tap sent it off and into the book (butterflyTaps); with none (or a capture's stand-in tap) it flies off by itself, and into
+      // the book all the same.
+      if (!s.journal.findings.includes('butterfly')) {
+        butterflies?.flutter?.(HERO);
+        sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 14, duration: 0.8, seed: 'hero off' });
+        s.sfx('butterfly');
+        s.found('butterfly');
+      }
+    } finally {
+      glitter.cancel();
+    }
+    yield s.wait(INTO_THE_BOOK);
+  }
+  s.journal.open('animals');
+  yield s.say('mosi', 'k1_mosi_book');
+  s.journal.beckonClose(true);
+  try {
+    yield s.say('mosi', 'k1_mosi_book_close');
+    yield s.race(s.until(() => !s.journal.isOpen), s.wait(BOOK_SHUTS_AFTER));
+  } finally {
+    s.journal.beckonClose(false);
+  }
+  if (s.journal.isOpen) s.journal.close();
+  yield s.wait(0.6);
+}
+
+/** Sparkles round a point, a burst every GLITTER_EVERY seconds, asking for a tap there; `pointOf(out)` says where. */
+function* glitterAt(s, c, pointOf) {
+  const at = new THREE.Vector3();
+  for (let i = 0; ; i++) {
+    pointOf(at);
+    const k = i * 2.39996;
+    at.x += Math.cos(k) * 0.12;
+    at.z += Math.sin(k) * 0.12;
+    at.y += 0.05;
+    sparkleBurst(c.world, at.clone(), { count: 10, duration: 1.0, size: 0.22, spread: 0.3, seed: `horn glitter ${i % 8}` });
+    yield s.wait(GLITTER_EVERY);
+  }
 }
 
 // 6. On the path: the ride to Kambeðla, past critters the child may tap.
@@ -984,6 +1062,7 @@ export const chapter = {
     k1_mosi_hum: { text: 'Mm, mm-mm-mm, mm-mm-mmm… mm-mm-mm, mmm.', audio: 'k1_mosi_hum' },
     k1_egill_hey: { text: 'Hey þú! Ég er hérna niðri!', audio: 'k1_egill_hey' },
     k1_mosi_waving: { text: 'Ó! Ég sé einhvern veifa!', audio: 'k1_mosi_waving' },
+    k1_mosi_fannar: { text: 'Ég hef ekki séð manneskju á þessum slóðum mjög lengi, ekki síðan Fannar var hér. Hann sendi mér skilaboð um að núna væri Egill að koma.', audio: 'k1_mosi_fannar' },
     welcome: { text: 'Halló, Egill! Velkominn heim til mín! Ég heiti Mosi. Eigum við að skoða okkur aðeins um saman?', audio: 'welcome' },
     k1_mosi_tickle: { text: 'Hí, hí, það kitlar!', audio: 'k1_mosi_tickle' },
     k1_mosi_sneeze: { text: 'A… a… atsjú!', audio: 'k1_mosi_sneeze' },
@@ -996,6 +1075,9 @@ export const chapter = {
     k1_mosi_great: { text: 'Frábært! Sólin bíður ekki eftir okkur.', audio: 'k1_mosi_great' },
     k1_mosi_hocus: { text: 'Hókus pókus, hnakkur! Upp með þig, Egill!', audio: 'k1_mosi_hocus' },
     k1_egill_wow: { text: 'Vá! Ég sé yfir allt!', audio: 'k1_egill_wow' },
+    k1_mosi_butterfly: { text: 'Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.', audio: 'k1_mosi_butterfly' },
+    k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og stjörnurnar frá vinunum sem við bjóðum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
+    k1_mosi_book_close: { text: 'Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.', audio: 'k1_mosi_book_close' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },
     k1_mosi_critters: { text: 'Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.', audio: 'k1_mosi_critters' },

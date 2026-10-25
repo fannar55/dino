@@ -272,6 +272,8 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     show,
     open: (tab = 'stars') => openBook(tab, 'script'),
     close: () => book?.close(),
+    /** The book's close beckons the child (book.js beckonClose): a scene that opened the book and waits for them to shut it. */
+    beckonClose: on => book?.beckonClose?.(on),
     get isOpen() { return book?.isOpen ?? false; },
     get stars() { return save.get().stars; },
     get findings() { return save.get().findings; },

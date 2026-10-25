@@ -493,6 +493,12 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     journal: {
       open: tab => { needJournal('s.journal.open'); journal.open(tab); return DONE; },
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
+      /** Whether the book is open, the child's or a script's. */
+      get isOpen() { return journal?.isOpen ?? false; },
+      /** The animals the book has (their ids), for a scene that asks whether one is in it yet. */
+      get findings() { return journal?.findings ?? []; },
+      /** The book's close beckons (on) while a script waits for the child to shut it, or stops (off). */
+      beckonClose: on => { needJournal('s.journal.beckonClose'); journal.beckonClose?.(on); return DONE; },
     },
     /**
      * The smiling sun (engine/sun-face.js). `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go
