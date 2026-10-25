@@ -23,8 +23,8 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // when it opens on that animal's spread and its tile nods. The Leikir leaf (part 3) has the "Eitt!" tile,
 // Kambeðla's card game, which opens once her star (k1_kambedla) is in the book and is new until it is first played, and on the
 // right page the stickers the child has won from her, one for each round won (the save's getEitt().wins). A tap on the open tile
-// hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); the "Kennsla" button under it
-// opens it on Mosi's tutorial, onPlay('eitt', { tutorial: true }). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
+// hands the game to onPlay('eitt'), which opens it over the book (engine/eitt/table.js, from main.js); its tutorial is the game's
+// own (the table's Kennsla button; the book's went on 2026-10-26). Beside it is the "Háls og hali" tile, a taped photo of Þórseðla,
 // which hands Þórseðla's snakes and ladders to onPlay('hals') (engine/hals/game.js) once it is open (halsOpen: her star,
 // k2_thorsedla, or a game of it played; it wiggles before, as "Eitt!" does without Kambeðla's), new until it is first played. Then the
 // "Litla Yatzy" tile, a taped photo of Mosi, always open and new until it is first played, which hands the junior dice game with Mosi
@@ -208,9 +208,6 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   eittBadge.textContent = 'Nýtt!';
   eittBadge.setAttribute('aria-hidden', 'true');
   eittTile.append(eittPicture, eittName);
-  const teachButton = make('button', 'game-teach'); // the tutorial again: "Kennsla"
-  teachButton.setAttribute('type', 'button');
-  teachButton.innerHTML = '<svg class="book-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="icon-fill" d="M2.5 9.5L12 5l9.5 4.5L12 14z"/><path d="M6.5 11.6v4.2c3.3 2.6 7.7 2.6 11 0v-4.2M20 10.5v5" stroke-width="2"/></svg><span>Kennsla</span>';
   const sheet = make('div', 'sticker-sheet');
   sheet.setAttribute('role', 'img');
   // "Háls og hali": a taped photo of Þórseðla beside "Eitt!".
@@ -232,7 +229,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   halsBadge.setAttribute('aria-hidden', 'true');
   halsTile.append(halsPicture, halsName);
   const eittSlot = make('div', 'game-slot');
-  eittSlot.append(eittTile, teachButton);
+  eittSlot.append(eittTile); // the tutorial is the game's own (its Kennsla button): the book had one too until 2026-10-26
   const halsSlot = make('div', 'game-slot');
   halsSlot.append(halsTile);
   // "Litla Yatzy": a taped photo of Mosi beside "Eitt!" and "Háls og hali".
@@ -407,7 +404,6 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     eittTile.classList.toggle('new', fresh);
     eittTile.classList.toggle('unfound', !open);
     eittTile.setAttribute('aria-label', open ? 'Eitt!, spil við Kambeðlu' : 'Eitt! (opnast með stjörnu Kambeðlu)');
-    teachButton.hidden = !open;
     if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
     if (!fresh) eittBadge.remove();
     const wins = save.getEitt?.().wins ?? 0;
@@ -770,7 +766,6 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
   pressable(juniorTile, { audio, sound: null, win, onTap: () => tapJunior() });
   for (const fossil of fossilTiles) pressable(fossil.tile, { audio, sound: null, win, onTap: () => tapFossil(fossil) });
-  pressable(teachButton, { audio, sound: 'tile', win, onTap: () => { if (save.get().stars.includes(EITT_STAR)) onPlay?.('eitt', { tutorial: true }); } });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's
