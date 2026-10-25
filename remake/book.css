@@ -365,7 +365,7 @@
 .game-slot:nth-child(2) { grid-column: 2; grid-row: 1; }
 .game-slot:nth-child(3) { grid-column: 2; grid-row: 2; }
 .game-slot:nth-child(2) .tile { --tilt: 1.8deg; --lag: -1.6s; --tape: color-mix(in srgb, var(--book-gold) 62%, transparent); }
-.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-orange) 50%, transparent); }
+.game-slot:nth-child(3) .tile { --tilt: -1.6deg; --lag: -2.9s; --tape: color-mix(in srgb, var(--book-green) 56%, transparent); } /* Litla Yatzy: Mosi's green tape (the owner's choice, 2026-10-25) */
 .book-leaf[data-tab="games"] .game-tile {
   --tile-w: min((100cqw - 2 * var(--pad-x) - var(--gap) * 1.25) / 2, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--gap)) / 2.18);
 }
