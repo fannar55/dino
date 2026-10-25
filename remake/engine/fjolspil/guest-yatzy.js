@@ -30,7 +30,7 @@ import { yatzyPhoneSounds, YATZY_PHONE_GAPS } from './yatzy-phone-sounds.js';
 const TUMBLE_MS = 950;
 const ROLLS = 3; // a turn's rolls
 
-// The dice's six faces, 1 to 6: copied from engine/yatzy-mosi/dice.js's DINO_FACES (the big screen's dice and the cards'
+// The dice's six faces, 1 to 6: copied from engine/yatzy-table/dice.js's DINO_FACES (the big screen's dice and the cards'
 // little dice), which this page must not import: dice.js imports three.js, and spil.html has no import map for it.
 const FACES = [
   { name: 'Mosi', image: 'eitt/mosi.webp' },

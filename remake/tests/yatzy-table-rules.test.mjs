@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CATEGORIES, DICE_COUNT, MAX_ROLLS, SAVE_VERSION, UPPER_BONUS, UPPER_BONUS_THRESHOLD,
   createGame, roll, hold, score, scoreCategory, previews, totals, decideAI, validateGame, restoreGame,
-} from '../engine/yatzy-mosi/rules.js';
+} from '../engine/yatzy-table/rules.js';
 
 const ids = CATEGORIES.map(category => category.id);
 const clone = value => JSON.parse(JSON.stringify(value));

@@ -10,13 +10,10 @@
     "test:remake": "node --import ./remake/tests/setup.mjs --test remake/tests/*.test.mjs",
     "stage:cloud": "node cloud/stage.mjs",
     "test:cloud": "node --test cloud/test/*.test.mjs",
-    "start:yatzy-mosi": "node remake/tools/serve.mjs --port 4197",
     "start:yatzy-junior": "node remake/tools/serve.mjs --port 4197",
     "test:yatzy-junior": "node --import ./remake/tests/setup.mjs --test remake/tests/yatzy-junior-*.test.mjs",
     "check:yatzy-junior": "node remake/tools/yatzy-junior-check.mjs && node remake/tools/yatzy-junior-edges.mjs && node remake/tools/yatzy-junior-speech-check.mjs",
     "check:yatzy-junior:startup": "node remake/tools/yatzy-junior-startup-check.mjs",
-    "check:yatzy-junior:fjolspil": "node remake/tools/yatzy-junior-fjolspil-check.mjs",
-    "test:yatzy-mosi": "node --import ./remake/tests/setup.mjs --test remake/tests/yatzy-mosi-*.test.mjs",
-    "check:yatzy-mosi": "node remake/tools/yatzy-mosi-check.mjs && node remake/tools/yatzy-mosi-animation-check.mjs && node remake/tools/yatzy-mosi-readability-check.mjs && node remake/tools/yatzy-mosi-readability-check.mjs --cup-safety && node remake/tools/yatzy-mosi-tutorial-check.mjs && node remake/tools/yatzy-mosi-complete-check.mjs && node remake/tools/yatzy-mosi-perf.mjs"
+    "check:yatzy-junior:fjolspil": "node remake/tools/yatzy-junior-fjolspil-check.mjs"
   }
 }

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { createDiceAndCup, faceQuaternion, upwardFace } from '../engine/yatzy-mosi/dice.js';
-import { createYatzyEffects } from '../engine/yatzy-mosi/effects.js';
+import { createDiceAndCup, faceQuaternion, upwardFace } from '../engine/yatzy-table/dice.js';
+import { createYatzyEffects } from '../engine/yatzy-table/effects.js';
 
 async function diceFixture(run) {
   const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');

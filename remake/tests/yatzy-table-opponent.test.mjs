@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { loadCharacter, emptyWorld } from './characters.mjs';
-import { createMosiOpponent } from '../engine/yatzy-mosi/opponent.js';
+import { createMosiOpponent } from '../engine/yatzy-table/opponent.js';
 
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} differs from ${b}`);
 async function harness(options = {}) {

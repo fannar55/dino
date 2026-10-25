@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CATEGORIES,DICE_COUNT,MAX_ROLLS,SAVE_VERSION,ROUND_COUNT,MAX_TURNS,maxTurns,roundOf,createGame,roll,hold,score,scoreCategory,previews,totals,decideAI,validateGame,restoreGame} from '../engine/yatzy-junior/rules.js';
-import {createGame as createClassicGame} from '../engine/yatzy-mosi/rules.js';
+import {createGame as createClassicGame} from '../engine/yatzy-table/rules.js';
 const ids=CATEGORIES.map(category=>category.id);
 const clone=value=>structuredClone(value);
 function deepFreeze(value){Object.freeze(value);for(const child of Object.values(value))if(child&&typeof child==='object')deepFreeze(child);return value;}

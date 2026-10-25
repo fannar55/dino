@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { TABLE, createYatzyTable, createYatzyCameraRig } from '../engine/yatzy-mosi/world.js';
+import { TABLE, createYatzyTable, createYatzyCameraRig } from '../engine/yatzy-table/world.js';
 
 test('Yatzy furniture gives dice one level felt surface and a raised rounded rail', () => {
   const furniture = createYatzyTable();
