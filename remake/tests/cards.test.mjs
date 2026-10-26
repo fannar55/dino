@@ -22,6 +22,7 @@ test('parseCards accepts the shipped cards and refuses broken ones', () => {
     'mosi', 'kambedla', 'thorsedla', 'gramedla', 'uggedla', 'sloedla', 'flugedla', // the seven dinosaurs, Risaeðlur's tiles
     'kalligrammatid', 'beetle', 'frog', 'snail', 'birds', // chapter 1's five animals
     'waterbeetle', 'waterstrider', 'salamander', 'dragonfly', 'turtle', 'fish', 'earlybird', // and the Fen's, as the child meets them
+    'ammonite', 'trilobite', 'tooth', 'footprint', 'leaf', 'amber', 'egg', 'skeleton', // and the eight fossils, Safnið's stickers
   ], 'in card order');
 
   const refused = (cards, pattern, what) => assert.throws(() => parseCards({ cards }), pattern, what);
@@ -60,7 +61,7 @@ test('a card with no spread is on the first, and each spread says where its anim
   // The shipped cards: chapter 1's five animals on the first spread, written as they were (no spread), and the Fen's seven on the
   // second. The dinosaurs name no spread either, but they are on the Risaeðlur page and do not count toward a spread's tiles.
   const shipped = parseCards(SHIPPED);
-  const first = SHIPPED.cards.filter(c => !('spread' in c) && c.group !== 'dinosaur').map(c => c.id);
+  const first = SHIPPED.cards.filter(c => !('spread' in c) && c.group === 'animal').map(c => c.id);
   assert.deepEqual(first, ['kalligrammatid', 'beetle', 'frog', 'snail', 'birds']);
   assert.deepEqual(shipped.filter(c => c.group === 'animal' && c.spread === 1).map(c => c.id), first);
   assert.deepEqual(shipped.filter(c => c.spread === 2).map(c => c.findMe), Array(7).fill('book_find_me_fen'), 'the Fen\'s say "Finndu mig í Feninu!"');
@@ -104,7 +105,8 @@ test("the shipped cards are written and sourced, and the narrator has a line for
   const lines = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/book/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
   // Mosi's and Kambeðla's ten pages: the five each had keep their lines (1 to 5), the five added later are 6 to 10, in the owner's page
   // order; the other five dinosaurs have nine pages, lines 1 to 9 in page order. The twelve animal cards have six or seven pages
-  // (the owner's order, twenty-nine of the pages new): their lines 1 to 5 or 7 go in the pages' places the same way.
+  // (the owner's order, twenty-nine of the pages new): their lines 1 to 5 or 7 go in the pages' places the same way. The eight fossil
+  // cards have three pages each, lines 1 to 3 in page order.
   const LINE_ORDER = {
     mosi: [1, 6, 7, 3, 8, 9, 10, 2, 4, 5], kambedla: [1, 6, 7, 3, 8, 9, 4, 10, 2, 5],
     kalligrammatid: [1, 2, 3, 4, 6, 7, 5], beetle: [1, 2, 5, 3, 6, 4], frog: [1, 2, 3, 4, 5, 7, 6], snail: [1, 2, 6, 3, 7, 4, 5], birds: [1, 2, 3, 4, 6, 5],
@@ -166,5 +168,22 @@ test("the shipped dinosaurs are the seven, in order; the five after Kambeðla ha
   ]);
   assert.deepEqual(dinosaurs.slice(2).map(c => c.unlock), [{ star: 'k2_thorsedla' }, { star: 'k3_gramedla' }, { place: 'uggedla' }, { place: 'sloedla' }, { place: 'flugedla' }]);
   assert.deepEqual(dinosaurs.slice(0, 2).map(c => c.pages.length), [10, 10], 'Mosi and Kambeðla have ten pages each');
-  assert.ok(parseCards(SHIPPED).filter(c => c.group !== 'dinosaur').every(c => c.group === 'animal'), 'the rest are animals');
+  assert.deepEqual([...new Set(parseCards(SHIPPED).filter(c => c.group !== 'dinosaur').map(c => c.group))], ['animal', 'fossil'], 'the rest are animals, then the fossils');
+});
+
+test('the eight fossil cards are the Safnið stickers, one for each fossil of Háls og hali, three pages each, opened by that fossil alone, and page one says what the narrator says of the fossil in the game', () => {
+  const cards = parseCards(SHIPPED).filter(c => c.group === 'fossil');
+  assert.deepEqual(cards.map(c => c.id), ['ammonite', 'trilobite', 'tooth', 'footprint', 'leaf', 'amber', 'egg', 'skeleton']);
+  assert.deepEqual(cards.map(c => c.unlock), cards.map(c => ({ fossil: c.id })), 'each opens with its own fossil');
+  assert.deepEqual(cards.map(c => c.pages.length), Array(8).fill(3));
+  assert.ok(cards.every(c => c.say === null && c.spread === 1), 'they are no teasers and on no spread of the animals');
+  const open = state => cards.filter(c => isUnlocked(c, { stars: [], findings: [], seen: [], places: [], fossils: [], ...state })).map(c => c.id);
+  assert.deepEqual(open({}), [], 'none before a fossil is found');
+  assert.deepEqual(open({ fossils: ['egg', 'tooth'] }), ['tooth', 'egg'], 'a fossil found opens its card and no other');
+  assert.equal(open({ fossils: cards.map(c => c.id) }).length, 8);
+
+  const hals = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/hals/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
+  for (const card of cards) {
+    assert.equal(card.pages[0].text, hals.get(`hals_fossil_${card.id}`)?.text, `${card.id}: page one says what the narrator says of the fossil in Háls og hali`);
+  }
 });

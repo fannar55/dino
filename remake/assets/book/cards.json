@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card is the card's tile too: a render of the game for a dinosaur (and so is the picture of Mosi and Kambeðla on Mosi's page nine), an open photograph of the animal for a living one, and a scientist's drawing of how it looked for the early bird (the owner approved photographs as tile pictures, 2026-10-26). The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's five are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint. The twelve animal cards (the owner approved them, word for word, on 2026-10-26) have six or seven pages each, and every picture on them is an open-licensed photograph, fossil photograph or scientist's drawing from Wikimedia Commons (assets/book/images/*.jpg, each credited in media-manifest.json): none is a drawing of ours any more. A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's seventh, the Fen's page about the tadpoles, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's and Kambeðla's cards have ten pages, the other five's nine each; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card is the card's tile too: a render of the game for a dinosaur (and so is the picture of Mosi and Kambeðla on Mosi's page nine), an open photograph of the animal for a living one, and a scientist's drawing of how it looked for the early bird (the owner approved photographs as tile pictures, 2026-10-26). The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's five are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint. The twelve animal cards (the owner approved them, word for word, on 2026-10-26) have six or seven pages each, and every picture on them is an open-licensed photograph, fossil photograph or scientist's drawing from Wikimedia Commons (assets/book/images/*.jpg, each credited in media-manifest.json): none is a drawing of ours any more. A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's seventh, the Fen's page about the tadpoles, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's and Kambeðla's cards have ten pages, the other five's nine each; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker). The eight fossil cards (the owner approved them, word for word, on 2026-10-26) are the Safnið page's: each is the card of one fossil of Háls og hali (\"group\": \"fossil\", unlocked with that fossil, \"unlock\": { \"fossil\": \"<kind>\" }), has three pages, and opens when the child taps the fossil's sticker once the fossil is found; page one says what the narrator already says of the fossil in Háls og hali (the same words, and so the same take, book_<card>_1 and hals_fossil_<kind>), and the other pages are new, each with an open-licensed photograph from Wikimedia Commons.",
   "cards": [
     {
       "id": "mosi",
@@ -1421,6 +1421,290 @@
           "audio": "book_earlybird_6",
           "sources": [
             "Wikipedia, Archaeopteryx: um 14 beinagrindur eru þekktar, allar frá Solnhofen-svæðinu í Bæjaralandi."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ammonite",
+      "name": "Ammónít",
+      "order": 20,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "ammonite"
+      },
+      "pages": [
+        {
+          "image": "ammonite-nhm",
+          "text": "Ammónít. Ammónítar voru sjávardýr með undna skel. Þeir syntu í sjónum á tímum risaeðlanna.",
+          "audio": "book_ammonite_1",
+          "sources": [
+            "Natural History Museum, What are ammonites?, https://www.nhm.ac.uk/discover/what-are-ammonites.html: sjávardýr með undna skel, uppi frá því fyrir um 400 milljónum ára þar til risaeðlurnar dóu út."
+          ]
+        },
+        {
+          "image": "ammonite-giant",
+          "text": "Sá stærsti sem hefur fundist var breiðari en þú ert hár!",
+          "audio": "book_ammonite_2",
+          "sources": [
+            "Wikipedia, Parapuzosia, https://en.wikipedia.org/wiki/Parapuzosia: stærsti þekkti ammónítinn, Parapuzosia seppenradensis, um 1,8 m í þvermál; myndin er af honum á safni í Münster.",
+            "CDC, vaxtartöflur 2000: sex ára barn er um 1,15 m."
+          ]
+        },
+        {
+          "image": "ammonite-section",
+          "text": "Inni í skelinni voru mörg hólf með lofti, svo ammónítinn gat svifið í sjónum.",
+          "audio": "book_ammonite_3",
+          "sources": [
+            "Wikipedia, Ammonoidea, https://en.wikipedia.org/wiki/Ammonoidea: skelin var skipt í hólf sem dýrið fyllti lofti og vökva til að stjórna flotinu; myndin sýnir ammónít skorinn í sundur."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trilobite",
+      "name": "Þríbroti",
+      "order": 21,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "trilobite"
+      },
+      "pages": [
+        {
+          "image": "trilobite-fossil",
+          "text": "Þríbroti. Þríbrotar skriðu á hafsbotninum löngu, löngu áður en risaeðlurnar komu.",
+          "audio": "book_trilobite_1",
+          "sources": [
+            "University of California Museum of Paleontology, Introduction to the Trilobita, https://ucmp.berkeley.edu/arthropoda/trilobita/trilobita.html: sjávardýr frá kambríum til perms, fyrir um 521–252 milljónum ára."
+          ]
+        },
+        {
+          "image": "trilobite-eye",
+          "text": "Augun voru úr steinefni, eins og ótal litlir kristallar.",
+          "audio": "book_trilobite_2",
+          "sources": [
+            "Wikipedia, Trilobite, https://en.wikipedia.org/wiki/Trilobite: linsur augnanna voru úr kalsíti, steinefni; myndin sýnir auga þríbrota með linsunum."
+          ]
+        },
+        {
+          "image": "trilobite-enrolled",
+          "text": "Sumir gátu rúllað sér upp í kúlu til að verja sig.",
+          "audio": "book_trilobite_3",
+          "sources": [
+            "Wikipedia, Trilobite: margir þríbrotar gátu hringað sig upp til varnar, eins og grápöddur nútímans; myndin er af uppröðuðum Drotops armatus."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tooth",
+      "name": "Risaeðlutönn",
+      "order": 22,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "tooth"
+      },
+      "pages": [
+        {
+          "image": "tooth-trex",
+          "text": "Risaeðlutönn. Þegar risaeðla missti tönn, óx ný tönn í staðinn.",
+          "audio": "book_tooth_1",
+          "sources": [
+            "Wikipedia, Tyrannosaurus, https://en.wikipedia.org/wiki/Tyrannosaurus: tennurnar endurnýjuðust alla ævi; myndin er af tönn grameðlu á Museum of the Rockies."
+          ]
+        },
+        {
+          "image": "tooth-edmontosaurus",
+          "text": "Tennurnar segja okkur hvað risaeðlan át: hvassar tennur fyrir kjöt, flatar fyrir plöntur.",
+          "audio": "book_tooth_2",
+          "sources": [
+            "Wikipedia, Dinosaur, https://en.wikipedia.org/wiki/Dinosaur: tennurnar sýna fæðuna, beittar og sagtenntar hjá kjötætum, til að skera og mala hjá plöntuætum; myndin er kjálki plöntuætunnar Edmontosaurus með röðum af tönnum."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-teeth",
+          "text": "Tennur eru svo harðar að þær verða oft að steini þegar allt annað er horfið.",
+          "audio": "book_tooth_3",
+          "sources": [
+            "Natural History Museum, How are fossils formed?, https://www.nhm.ac.uk/discover/how-are-fossils-formed.html: mjúkir hlutar rotna yfirleitt, en harðir hlutar eins og bein og tennur geta orðið að steingervingum."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "footprint",
+      "name": "Fótspor",
+      "order": 23,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "footprint"
+      },
+      "pages": [
+        {
+          "image": "footprint-lark",
+          "text": "Fótspor. Risaeðla steig í mjúka leðju, og sporið varð að steini.",
+          "audio": "book_footprint_1",
+          "sources": [
+            "Wikipedia, Trace fossil, https://en.wikipedia.org/wiki/Trace_fossil: spor í mjúku seti sem harðnaði; myndin er frá Lark Quarry í Ástralíu."
+          ]
+        },
+        {
+          "image": "footprint-trackways",
+          "text": "Út frá sporunum sjáum við hvort risaeðlan gekk eða hljóp, og hvort hún var ein eða í hópi.",
+          "audio": "book_footprint_2",
+          "sources": [
+            "Wikipedia, Fossil trackway, https://en.wikipedia.org/wiki/Fossil_trackway: sporaraðir sýna hraða, göngulag og hvort dýrin fóru saman í hópum; myndin er frá Pegadas de Dinossáurios í Portúgal."
+          ]
+        },
+        {
+          "image": "footprint-utah",
+          "text": "Spor sýna hvað risaeðlan gerði, ekki bara hvernig hún leit út.",
+          "audio": "book_footprint_3",
+          "sources": [
+            "Wikipedia, Trace fossil: snefilsteingervingar eins og spor sýna atferli dýranna; myndin er af sporum í Utah (Bureau of Land Management)."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "leaf",
+      "name": "Steingert laufblað",
+      "order": 24,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "leaf"
+      },
+      "pages": [
+        {
+          "image": "leaf-fern-japan",
+          "text": "Steingert laufblað. Það sýnir hvaða plöntur uxu þegar risaeðlurnar voru uppi.",
+          "audio": "book_leaf_1",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: steingert blað burknans Dictyophyllum kotakiense frá árjúra, National Museum of Nature and Science í Tókýó."
+          ]
+        },
+        {
+          "image": "leaf-cladophlebis",
+          "text": "Á tímum risaeðlanna uxu burknar, köngulpálmar og barrtré. Lengst af var ekkert gras til.",
+          "audio": "book_leaf_2",
+          "sources": [
+            "Wikipedia, Mesozoic, https://en.wikipedia.org/wiki/Mesozoic: burknar, köngulpálmar og barrtré ríktu í gróðri miðlífsaldar.",
+            "Wikipedia, Poaceae, https://en.wikipedia.org/wiki/Poaceae: grös komu fram undir lok krítartímabilsins.",
+            "Wikimedia Commons, lýsing myndarinnar: steingerður burkni (Cladophlebis) á National Natural History Museum of China."
+          ]
+        },
+        {
+          "image": "leaf-ginkgo",
+          "text": "Ginkgó-tréð var til á tímum risaeðlanna og vex enn í dag!",
+          "audio": "book_leaf_3",
+          "sources": [
+            "Wikipedia, Ginkgo biloba, https://en.wikipedia.org/wiki/Ginkgo_biloba: ginkgó er „lifandi steingervingur“; ættkvíslin var til á júratímabilinu og eitt tré lifir enn; myndin er steingert ginkgóblað á Tellus Science Museum."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amber",
+      "name": "Raf með flugu",
+      "order": 25,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "amber"
+      },
+      "pages": [
+        {
+          "image": "amber-chiapas",
+          "text": "Raf með flugu. Flugan festist í trjákvoðu sem harðnaði og varð að rafi.",
+          "audio": "book_amber_1",
+          "sources": [
+            "Wikipedia, Amber, https://en.wikipedia.org/wiki/Amber: raf er steingerð trjákvoða og geymir oft skordýr; myndin er raf með skordýrum frá Chiapas í Mexíkó."
+          ]
+        },
+        {
+          "image": "amber-feathers",
+          "text": "Í rafi hafa fundist skordýr, köngulær og meira að segja fjaðrir!",
+          "audio": "book_amber_2",
+          "sources": [
+            "Wikipedia, Burmese amber, https://en.wikipedia.org/wiki/Burmese_amber: raf frá miðkrít með skordýrum, köngulóm og fjöðrum; myndin er af fjöðrum í rafi á National Museum of Natural Science í Taichung."
+          ]
+        },
+        {
+          "image": "amber-necklace",
+          "text": "Fólk hefur búið til skartgripi úr rafi í þúsundir ára.",
+          "audio": "book_amber_3",
+          "sources": [
+            "Wikipedia, Amber: raf hefur verið notað í skartgripi frá því á nýsteinöld; myndin er hálsfesti úr Eystrasaltsrafi með skordýrum."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "egg",
+      "name": "Risaeðluegg",
+      "order": 26,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "egg"
+      },
+      "pages": [
+        {
+          "image": "egg-xixia",
+          "text": "Risaeðluegg. Risaeðlur verptu eggjum, eins og fuglarnir gera í dag.",
+          "audio": "book_egg_1",
+          "sources": [
+            "Wikipedia, Dinosaur egg, https://en.wikipedia.org/wiki/Dinosaur_egg: allar risaeðlur verptu eggjum; myndin er frá risaeðlueggjasafninu í Xixia í Kína."
+          ]
+        },
+        {
+          "image": "egg-nest",
+          "text": "Risaeðlur verptu oft mörgum eggjum saman í hreiður.",
+          "audio": "book_egg_2",
+          "sources": [
+            "Wikipedia, Dinosaur egg: egg finnast oft mörg saman í hreiðrum; myndin sýnir egg þar sem þau fundust, í Xixia í Kína."
+          ]
+        },
+        {
+          "image": "egg-embryo",
+          "text": "Í sumum eggjum hafa fundist steingerðir ungar, sem lágu hringaðir eins og fuglsungar.",
+          "audio": "book_egg_3",
+          "sources": [
+            "Xi o.fl. 2021, „An exquisitely preserved in-ovo theropod dinosaur embryo sheds light on avian-like prehatching postures“, iScience 25: 103516, https://doi.org/10.1016/j.isci.2021.103516: unginn „Baby Yingliang“ lá hringaður í egginu eins og fuglsungi; ljósmyndin af honum á safni."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skeleton",
+      "name": "Beinagrind",
+      "order": 27,
+      "group": "fossil",
+      "unlock": {
+        "fossil": "skeleton"
+      },
+      "pages": [
+        {
+          "image": "tyrannosaurus-sue",
+          "text": "Beinagrind. Úr steingerðum beinum lærum við hvernig risaeðlurnar litu út.",
+          "audio": "book_skeleton_1",
+          "sources": [
+            "Field Museum, Chicago: beinagrind grameðlunnar „Sue“ (FMNH PR 2081), sama mynd og á spjaldi Grameðlu."
+          ]
+        },
+        {
+          "image": "skeleton-zigong",
+          "text": "Þegar dýr dó og grófst í sandi eða leðju urðu beinin smám saman að steini.",
+          "audio": "book_skeleton_2",
+          "sources": [
+            "Natural History Museum, How are fossils formed?, https://www.nhm.ac.uk/discover/how-are-fossils-formed.html: bein sem grafast í seti verða á löngum tíma að steini.",
+            "Wikimedia Commons, lýsing myndarinnar: bein risaeðlna í jörðinni á risaeðlusafninu í Zigong í Kína."
+          ]
+        },
+        {
+          "image": "skeleton-lohueco",
+          "text": "Steingervingafræðingar grafa beinin varlega upp, með burstum og litlum hömrum.",
+          "audio": "book_skeleton_3",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: uppgröftur risaeðlubeina frá síðkrít í Lo Hueco á Spáni (UNED)."
           ]
         }
       ]

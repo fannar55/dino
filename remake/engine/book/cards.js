@@ -1,5 +1,5 @@
 // The book's cards (spec sections 3 and 6): one per dinosaur the child meets, animal the child finds and fossil the child digs up,
-// each with 3 to 10 short pages that the narrator reads (the dinosaurs' have nine or ten, the animals' six or seven; a page's picture
+// each with 3 to 10 short pages that the narrator reads (the dinosaurs' have nine or ten, the animals' six or seven, the fossils' three; a page's picture
 // may be of any kind, a photograph as well as a drawing, and page one's is also the tile's). A dinosaur whose card is not written
 // yet is a teaser: no pages, only a tile, a picture and a line Mosi says when the tile is tapped. They are data, in
 // assets/book/cards.json, so a later chapter adds cards, and a spread of the Dýrin page for them, without code:
@@ -40,7 +40,7 @@
 // unlocks read from the save is bookState's: the book takes it from there and hands it to isUnlocked and isNew.
 
 export const PAGE_MIN = 3;
-export const PAGE_MAX = 10; // the animals' cards have six or seven, the dinosaurs' nine or ten (the spec allows up to ten: 3D page, size, fossils)
+export const PAGE_MAX = 10; // the animals' cards have six or seven, the dinosaurs' nine or ten, the fossils' three (the spec allows up to ten: 3D page, size, fossils)
 export const SPREAD_MAX = 8;
 export const GROUPS = ['dinosaur', 'animal', 'fossil'];
 export const PLACEHOLDER = 'placeholder';
