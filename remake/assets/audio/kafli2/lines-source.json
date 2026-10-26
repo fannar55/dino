@@ -46,6 +46,7 @@
  { "id": "k2_mosi_found_sloedla", "speaker": "mosi", "text": "Slóeðla! Hún er að vaða í tjörninni!" },
  { "id": "k2_mosi_found_flugedla", "speaker": "mosi", "text": "Flugeðla! Uppi á gamla trénu!" },
  { "id": "k2_mosi_found_uggedla", "speaker": "mosi", "text": "Uggeðla! Hún liggur í sefinu, sjáðu seglið!" },
+ { "id": "k2_mosi_gramedla", "speaker": "mosi", "text": "Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!" },
  { "id": "k2_thorsedla_now", "speaker": "thorsedla", "text": "Nú veistu hvar þau eru. Við skrifum það í bókina." },
  { "id": "k2_egill_wuuu", "speaker": "egill", "text": "Vúúú!" },
  { "id": "k2_mosi_oof", "speaker": "mosi", "text": "Úff!" },

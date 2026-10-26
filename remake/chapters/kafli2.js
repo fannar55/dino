@@ -280,6 +280,8 @@ const WORDS = {
   k2_mosi_found_sloedla: 'Slóeðla! Hún er að vaða í tjörninni!',
   k2_mosi_found_flugedla: 'Flugeðla! Uppi á gamla trénu!',
   k2_mosi_found_uggedla: 'Uggeðla! Hún liggur í sefinu, sjáðu seglið!',
+  // and after the third, Grameðla far off at the edge of the forest, seen and not found: she comes in a later chapter
+  k2_mosi_gramedla: 'Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!',
   k2_thorsedla_now: 'Nú veistu hvar þau eru. Við skrifum það í bókina.',
   // 7. The slide, into the saddle with an "úff" from Mosi
   k2_egill_wuuu: 'Vúúú!',
