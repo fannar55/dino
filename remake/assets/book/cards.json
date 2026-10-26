@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page nine); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded. The Fen's texts are ours, not the owner's draft, and await the owner's corrections. Until the photographs the cards' wanted name are approved, pages 2 and 3 of the Fen's cards show the card's drawing again (the turtle's third and the early bird's third have pictures of their own). A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's sixth, the Fen's page, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's and Kambeðla's cards have ten pages, the other five's nine each; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card is the card's tile too: a render of the game for a dinosaur (and so is the picture of Mosi and Kambeðla on Mosi's page nine), an open photograph of the animal for a living one, and a scientist's drawing of how it looked for the early bird (the owner approved photographs as tile pictures, 2026-10-26). The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's five are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint. The twelve animal cards (the owner approved them, word for word, on 2026-10-26) have six or seven pages each, and every picture on them is an open-licensed photograph, fossil photograph or scientist's drawing from Wikimedia Commons (assets/book/images/*.jpg, each credited in media-manifest.json): none is a drawing of ours any more. A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's seventh, the Fen's page about the tadpoles, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's and Kambeðla's cards have ten pages, the other five's nine each; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
   "cards": [
     {
       "id": "mosi",
@@ -641,7 +641,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-kalligrammatid",
+          "image": "kalligrammatid-life",
           "text": "Þetta lítur út eins og fiðrildi. En það er ekki fiðrildi!",
           "audio": "book_kalligrammatid_1",
           "sources": [
@@ -677,6 +677,23 @@
           ]
         },
         {
+          "image": "kalligramma-nnhm",
+          "text": "Sumar voru með vængi sem voru stærri en höndin á þér!",
+          "audio": "book_kalligrammatid_6",
+          "sources": [
+            "Wikipedia, Kalligrammatidae, https://en.wikipedia.org/wiki/Kalligrammatidae: vænghaf þeirra stærstu allt að um 16 cm.",
+            "Wen o.fl. 2020, Journal of International Medical Research 48(12), https://doi.org/10.1177/0300060520970768: hönd sex ára barns er um 14 cm."
+          ]
+        },
+        {
+          "image": "kalligrammatid-amber",
+          "text": "Ein festist meira að segja í trjákvoðu sem varð að rafi!",
+          "audio": "book_kalligrammatid_7",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: kalligrammatíð í rafi frá Mjanmar, á National Museum of Natural Science í Taichung."
+          ]
+        },
+        {
           "image": "kalligramma-fossil-beijing",
           "text": "Litina vitum við ekki enn, því steinninn geymir þá ekki. Hvaða liti heldur þú?",
           "audio": "book_kalligrammatid_5",
@@ -696,7 +713,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-beetle",
+          "image": "stag-beetle",
           "text": "Þetta er bjalla. Bjöllur voru til á undan risaeðlunum og þær eru enn til!",
           "audio": "book_beetle_1",
           "sources": [
@@ -715,12 +732,30 @@
           ]
         },
         {
+          "image": "hercules-beetle",
+          "text": "Stærsta bjallan er lengri en höndin á þér, en þær minnstu sjást varla.",
+          "audio": "book_beetle_5",
+          "sources": [
+            "Wikipedia, Beetle, https://en.wikipedia.org/wiki/Beetle: herkúlesbjallan verður allt að um 17 cm með horninu; minnstu bjöllurnar eru um 0,3 mm.",
+            "Wen o.fl. 2020: hönd sex ára barns er um 14 cm."
+          ]
+        },
+        {
           "image": "beetle-in-amber",
           "text": "Við vitum þetta af steingervingum. Sumar bjöllur festust í trjákvoðu sem varð að rafi.",
           "audio": "book_beetle_3",
           "sources": [
             "Smith og Marcot 2015: í gagnasafni þeirra, 5.553 fundum frá 221 stað, varðveita raf og vatnaset mest af steingerðum bjöllum.",
             "Seyfullah o.fl. 2018, „Production and preservation of resins – past and present“, Biological Reviews 93: 1684–1714, doi:10.1111/brv.12414, https://doi.org/10.1111/brv.12414 (CC BY, útdráttur lesinn): raf er steingerð trjákvoða."
+          ]
+        },
+        {
+          "image": "buprestites-fossil",
+          "text": "Þessi bjalla varð að steini fyrir um 150 milljónum ára, þegar kambeðlur voru uppi.",
+          "audio": "book_beetle_6",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: Buprestites suprajurensis, steingerð bjalla frá síðjúra, Jura-Museum Eichstätt (Solnhofen-svæðið).",
+            "Natural History Museum, Dino Directory: Stegosaurus, 152–145 milljón ár."
           ]
         },
         {
@@ -742,10 +777,10 @@
       "unlock": {
         "found": "frog"
       },
-      "refind": 6,
+      "refind": 7,
       "pages": [
         {
-          "image": "placeholder-frog",
+          "image": "frog-common",
           "text": "Þetta er froskur. Froskar hoppuðu um þegar risaeðlurnar voru uppi!",
           "audio": "book_frog_1",
           "sources": [
@@ -788,15 +823,22 @@
           ]
         },
         {
-          "image": "fen-frog",
+          "image": "frog-bartz",
+          "text": "Á veturna sefur froskurinn á botni tjarnarinnar, þar til vorar.",
+          "audio": "book_frog_7",
+          "sources": [
+            "Wikipedia, Common frog, https://en.wikipedia.org/wiki/Common_frog: froskarnir leggjast í dvala yfir veturinn, margir á botni tjarna."
+          ]
+        },
+        {
+          "image": "frog-growth",
           "text": "Úr froskaeggjum í vatninu koma halakörtur. Elsta halakartan sem við þekkjum var lengri en höndin á þér!",
           "audio": "book_frog_6",
           "sources": [
             "Chuliver, Agnolín, Scanferla, Aranciaga Rolando, Ezcurra, Novas og Xu 2024, „The oldest tadpole reveals evolutionary stability of the anuran life cycle“, Nature 636: 138–142, doi:10.1038/s41586-024-08055-y, https://doi.org/10.1038/s41586-024-08055-y: elsta halakarta sem fundist hefur, af froskinum Notobatrachus degiustoi, frá miðjúra í Patagóníu í Argentínu, um 161 milljón ára; hún er líka fyrsta forna halakartan sem tengd er fullorðnum froski sömu tegundar.",
             "Nature, fréttatilkynning um sömu grein, https://www.natureasia.com/ja-jp/nature/pr-highlights/15076: halakartan var næstum 16 cm löng; áður þekktust steingerðar halakörtur ekki fyrr en frá krítartímabilinu, og tvískipt líf froska, halakarta í vatni og svo froskur, var þegar til fyrir 161 milljón árum.",
             "Wen, Wang, Xu, Wei, Zhang, Ou, Hong, Ji, Chi og Tong 2020, „Hand anthropometry and its relation to grip/pinch strength in children aged 5 to 13 years“, Journal of International Medical Research 48(12), doi:10.1177/0300060520970768, https://doi.org/10.1177/0300060520970768 (opin grein, CC BY-NC, lesin í Europe PMC, PMC7720326): lengd handar, frá miðri úlnliðsfellingu fram í fingurgóm löngutangar, er að meðaltali 13,6–14,2 cm hjá sex ára börnum (1.255 börn í Kína), svo 16 cm halakartan er lengri en hönd flestra sex ára barna."
-          ],
-          "wanted": "Wikimedia Commons: frog spawn and tadpoles in a pond (a photograph with an open licence), or a figure of the 161-million-year-old tadpole Notobatrachus degiustoi (Chuliver et al. 2024) if one is there with an open licence. For this page; the owner approves before any download."
+          ]
         }
       ]
     },
@@ -810,7 +852,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-snail",
+          "image": "snail-garden",
           "text": "Þetta er snigill. Hann ber húsið sitt og það stækkar með honum!",
           "audio": "book_snail_1",
           "sources": [
@@ -829,11 +871,27 @@
           ]
         },
         {
+          "image": "snail-foot",
+          "text": "Snigillinn rennur áfram á einum stórum fæti og skilur eftir sig slímslóð.",
+          "audio": "book_snail_6",
+          "sources": [
+            "Wikipedia, Snail, https://en.wikipedia.org/wiki/Snail: sniglar skríða á vöðvamiklum fæti yfir slím sem þeir gefa frá sér."
+          ]
+        },
+        {
           "image": "snail-photo",
           "text": "Ef skuggi fellur á snigilinn, felur hann sig í kuðungnum.",
           "audio": "book_snail_3",
           "sources": [
             "Natural History Museum, Snails and slugs, https://www.nhm.ac.uk/discover/snails-and-slugs.html: sniglar hafa ljósnæmar frumur um allan líkamann, og ef skuggi fellur á þá draga þeir sig inn í skelina; skelin ver þá gegn rándýrum og þornun. Í leiknum felur snigillinn sig líka í kuðungnum þegar barnið pikkar á hann."
+          ]
+        },
+        {
+          "image": "snail-jurassic",
+          "text": "Þessir kuðungar urðu að steini á tímum risaeðlanna, í Frakklandi.",
+          "audio": "book_snail_7",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: steingerðir kuðungar (Nerinea) í kalksteini frá síðjúra við Coisia í Jura í Frakklandi."
           ]
         },
         {
@@ -866,7 +924,7 @@
       },
       "pages": [
         {
-          "image": "placeholder-birds",
+          "image": "robin",
           "text": "Vissir þú? Fuglar eru risaeðlur! Þeir eru einu risaeðlurnar sem lifa enn.",
           "audio": "book_birds_1",
           "sources": [
@@ -905,7 +963,16 @@
           ]
         },
         {
-          "image": "placeholder-birds",
+          "image": "robin-juvenile",
+          "text": "Í dag eru til um ellefu þúsund tegundir fugla, og allir eru þeir risaeðlur!",
+          "audio": "book_birds_6",
+          "sources": [
+            "Wikipedia, Bird, https://en.wikipedia.org/wiki/Bird: um 11.000 núlifandi tegundir.",
+            "Natural History Museum, How dinosaurs evolved into birds: fuglar eru lifandi risaeðlur."
+          ]
+        },
+        {
+          "image": "archaeopteryx-durbed",
           "text": "Gat öglir flogið vel eða bara svifið? Það vitum við ekki enn.",
           "audio": "book_birds_5",
           "sources": [
@@ -926,7 +993,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-waterbeetle",
+          "image": "diving-beetle",
           "text": "Þetta er brunnklukka. Hún syndir með afturfótunum, eins og hún sé að róa með árum!",
           "audio": "book_waterbeetle_1",
           "sources": [
@@ -935,7 +1002,15 @@
           ]
         },
         {
-          "image": "fen-waterbeetle",
+          "image": "diving-beetle-leaf",
+          "text": "Brunnklukkan er um þrír sentímetrar á lengd, á stærð við stórt vínber.",
+          "audio": "book_waterbeetle_4",
+          "sources": [
+            "Wikipedia, Dytiscus marginalis, https://en.wikipedia.org/wiki/Dytiscus_marginalis: 27–35 mm."
+          ]
+        },
+        {
+          "image": "coptoclava-fossil",
           "text": "Við vitum af steingervingum að brunnklukkur syntu í vötnum á tímum risaeðlanna.",
           "audio": "book_waterbeetle_2",
           "sources": [
@@ -944,16 +1019,31 @@
           ]
         },
         {
-          "image": "fen-waterbeetle",
+          "image": "diving-beetle-water",
           "text": "Brunnklukkan tekur loftbólu með sér undir vængina og andar úr henni í kafi, eins og kafari!",
           "audio": "book_waterbeetle_3",
           "sources": [
             "Bateman og Hulcr, University of Florida IFAS Extension, FOR330/FR398, https://ask.ifas.ufl.edu/publication/FR398: stór loftbóla undir skjaldvængjunum (elytra), sem brunnklukkan sækir upp á yfirborðið, gerir henni kleift að anda lengi í kafi.",
             "Seymour og Matthews 2013, „Physical gills in diving insects and spiders: theory and experiment“, Journal of Experimental Biology 216: 164–170, doi:10.1242/jeb.070276, https://doi.org/10.1242/jeb.070276: skordýr sem kafa bera loftbólu með sér og anda úr henni í kafi. Í teikningunni gægist loftbólan út undan vængjunum."
           ]
+        },
+        {
+          "image": "diving-beetle-larva",
+          "text": "Lirfan heitir vatnatígur. Hún býr í vatninu og veiðir sér til matar.",
+          "audio": "book_waterbeetle_5",
+          "sources": [
+            "Wikipedia, Dytiscus, https://en.wikipedia.org/wiki/Dytiscus: lirfurnar eru kallaðar „water tigers“ og eru ránlirfur í vatni."
+          ]
+        },
+        {
+          "image": "diving-beetle-top",
+          "text": "Á nóttunni flýgur brunnklukkan og finnur nýjar tjarnir eftir glampa tunglsins á vatninu.",
+          "audio": "book_waterbeetle_6",
+          "sources": [
+            "Wikipedia, Dytiscus marginalis: flýgur að nóttu og finnur vatn eftir ljósi sem endurkastast af yfirborðinu."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: a fossil diving beetle (Dytiscidae) from the Early Cretaceous Yixian Formation of China, or a living great diving beetle (Dytiscus marginalis) at the surface with its bubble of air showing, for pages 2 and 3; the owner approves before any download."
+      ]
     },
     {
       "id": "waterstrider",
@@ -966,7 +1056,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-waterstrider",
+          "image": "waterstrider-river",
           "text": "Þetta er vatnalæsingi. Hann gengur á vatninu eins og á gólfi!",
           "audio": "book_waterstrider_1",
           "sources": [
@@ -974,7 +1064,15 @@
           ]
         },
         {
-          "image": "fen-waterstrider",
+          "image": "waterstrider-lake",
+          "text": "Hann rær með miðfótunum og stýrir með afturfótunum.",
+          "audio": "book_waterstrider_4",
+          "sources": [
+            "Wikipedia, Gerridae, https://en.wikipedia.org/wiki/Gerridae: miðfæturnir róa og afturfæturnir stýra."
+          ]
+        },
+        {
+          "image": "waterstrider-sharp",
           "text": "Sá elsti sem við þekkjum situr fastur í rafi. Hvenær þeir fóru fyrst að ganga á vatni vitum við ekki enn.",
           "audio": "book_waterstrider_2",
           "sources": [
@@ -983,15 +1081,30 @@
           ]
         },
         {
-          "image": "fen-waterstrider",
+          "image": "waterstrider-gerridae",
+          "text": "Hann finnur gárurnar þegar lítið skordýr dettur í vatnið, og skýst þangað.",
+          "audio": "book_waterstrider_5",
+          "sources": [
+            "Wikipedia, Gerridae: þeir finna titring og gárur frá skordýrum sem detta í vatnið og veiða þau."
+          ]
+        },
+        {
+          "image": "waterstrider-remigis",
           "text": "Fæturnir eru þaktir örsmáum hárum. Einn fótur gæti haldið uppi fimmtán vatnalæsingjum!",
           "audio": "book_waterstrider_3",
           "sources": [
             "Gao og Jiang 2004, Nature 432: 36, doi:10.1038/432036a, https://doi.org/10.1038/432036a: fæturnir eru þaktir ótal örsmáum hárum með fínum rákum, sem hrinda vatninu frá sér; einn fótur ber allt að 152 dyn á vatninu, um fimmtánfalda þyngd dýrsins."
           ]
+        },
+        {
+          "image": "waterstrider-pair",
+          "text": "Hann er fljótur. Hann skýst metra á sekúndu yfir vatnið!",
+          "audio": "book_waterstrider_6",
+          "sources": [
+            "Wikipedia, Gerridae: þeir fara um 1 m á sekúndu eða hraðar."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: a living water strider (Gerris) standing on the water, the dimples under its feet showing, or a water strider in Cretaceous amber, for pages 2 and 3; the owner approves before any download."
+      ]
     },
     {
       "id": "salamander",
@@ -1004,7 +1117,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-salamander",
+          "image": "fire-salamander",
           "text": "Þetta er salamandra. Ef hún missir fót, vex nýr fótur í staðinn!",
           "audio": "book_salamander_1",
           "sources": [
@@ -1012,7 +1125,15 @@
           ]
         },
         {
-          "image": "fen-salamander",
+          "image": "chunerpeton-life",
+          "text": "Svona leit salamandra frá júratímabilinu kannski út. Hún hélt tálknunum alla ævi.",
+          "audio": "book_salamander_4",
+          "sources": [
+            "Wikipedia, Chunerpeton, https://en.wikipedia.org/wiki/Chunerpeton: frá miðjúra í Innri-Mongólíu; hélt ytri tálknum fullorðin, eins og axólótl."
+          ]
+        },
+        {
+          "image": "chunerpeton-fossil",
           "text": "Salamöndrur voru uppi á tímum risaeðlanna. Í Kína hafa fundist þúsundir steingerðra salamandra!",
           "audio": "book_salamander_2",
           "sources": [
@@ -1022,16 +1143,31 @@
           ]
         },
         {
-          "image": "fen-salamander",
+          "image": "jeholotriton-fossil",
           "text": "Í einum steingervingnum sést meira að segja maginn, fullur af litlum skeljum!",
           "audio": "book_salamander_3",
           "sources": [
             "University of Chicago Medicine, fréttatilkynning 26. mars 2003, https://www.uchicagomedicine.org/forefront/news/new-species-of-earliest-known-salamanders-found-in-china: margir steingervinganna geyma alla beinagrindina og för mjúkvefja, og í einum er maginn fullur af smáum skeljum (samlokum).",
             "Gao og Shubin 2003, Nature 422: 424–428, doi:10.1038/nature01491, https://doi.org/10.1038/nature01491."
           ]
+        },
+        {
+          "image": "giant-salamander",
+          "text": "Frænka hennar, kínverska risasalamandran, er stærsta froskdýr í heimi.",
+          "audio": "book_salamander_5",
+          "sources": [
+            "Wikipedia, Chinese giant salamander, https://en.wikipedia.org/wiki/Chinese_giant_salamander: stærsta froskdýr heims, allt að 1,8 m."
+          ]
+        },
+        {
+          "image": "salamander-eggs",
+          "text": "Margar salamöndrur verpa eggjum í vatn, og úr þeim koma lirfur með tálkn.",
+          "audio": "book_salamander_6",
+          "sources": [
+            "Wikipedia, Salamander, https://en.wikipedia.org/wiki/Salamander: flestar verpa eggjum í vatn og lirfurnar anda með tálknum."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: a Jurassic salamander fossil from China (Chunerpeton tianyiensis or Jeholotriton paradoxus), the whole animal in the stone, for pages 2 and 3; the owner approves before any download."
+      ]
     },
     {
       "id": "dragonfly",
@@ -1044,7 +1180,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-dragonfly",
+          "image": "emperor-dragonfly",
           "text": "Þetta er drekafluga. Augun eru svo stór að hún sér næstum í allar áttir í einu!",
           "audio": "book_dragonfly_1",
           "sources": [
@@ -1052,7 +1188,15 @@
           ]
         },
         {
-          "image": "fen-dragonfly",
+          "image": "dragonfly-eyes",
+          "text": "Í hvoru auga eru tugþúsundir lítilla linsa.",
+          "audio": "book_dragonfly_4",
+          "sources": [
+            "Natural History Museum, Dragonflies: The ultimate hunters, https://www.nhm.ac.uk/discover/dragonflies-the-ultimate-hunters.html: allt að um 30.000 linsur í hvoru auga."
+          ]
+        },
+        {
+          "image": "isophlebia-fossil",
           "text": "Drekaflugur voru til löngu á undan risaeðlunum. Í steininum sjást meira að segja æðarnar í vængjunum!",
           "audio": "book_dragonfly_2",
           "sources": [
@@ -1064,7 +1208,23 @@
           ]
         },
         {
-          "image": "fen-dragonfly",
+          "image": "meganeura-model",
+          "text": "Forfaðir þeirra var risadrekafluga, með vængi sem voru meira en hálfur metri!",
+          "audio": "book_dragonfly_5",
+          "sources": [
+            "Wikipedia, Meganeura, https://en.wikipedia.org/wiki/Meganeura: frá kolatímabilinu, vænghaf um 65–75 cm; myndin er líkan á náttúrugripasafninu í Lille."
+          ]
+        },
+        {
+          "image": "emperor-dragonfly",
+          "text": "Stórar drekaflugur fljúga hraðar en reiðhjól, um fimmtíu kílómetra á klukkustund!",
+          "audio": "book_dragonfly_6",
+          "sources": [
+            "Wikipedia, Dragonfly, https://en.wikipedia.org/wiki/Dragonfly: stórar drekaflugur fljúga 36–54 km/klst."
+          ]
+        },
+        {
+          "image": "dragonfly-nymph",
           "text": "Lirfur drekaflugunnar búa í vatninu. Þær grípa sér mat með kjálka sem skýst út!",
           "audio": "book_dragonfly_3",
           "sources": [
@@ -1072,8 +1232,7 @@
             "University of California Museum of Paleontology, Introduction to the Odonata, https://ucmp.berkeley.edu/arthropoda/uniramia/odonatoida.html: steingerðar lirfur drekaflugna þekkjast frá miðlífsöld, tímum risaeðlanna."
           ]
         }
-      ],
-      "wanted": "Wikimedia Commons: a Late Jurassic dragonfly from the Solnhofen limestone of Germany (for example Cymatophlebia or Aeschnogomphus), its four wings spread with their veins showing, for page 2; the owner approves before any download."
+      ]
     },
     {
       "id": "turtle",
@@ -1086,7 +1245,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-turtle",
+          "image": "pond-turtle",
           "text": "Þetta er skjaldbaka. Skelin er vaxin úr rifbeinum hennar og hrygg, svo hún kemst aldrei úr henni!",
           "audio": "book_turtle_1",
           "sources": [
@@ -1095,7 +1254,7 @@
           ]
         },
         {
-          "image": "fen-turtle",
+          "image": "proganochelys-fossil",
           "text": "Skjaldbökur voru til á tímum fyrstu risaeðlanna, og þær eru enn til!",
           "audio": "book_turtle_2",
           "sources": [
@@ -1105,16 +1264,39 @@
           ]
         },
         {
-          "image": "fen-turtle-old",
+          "image": "proganochelys-life",
+          "text": "Ein fyrsta skjaldbakan gat ekki dregið höfuðið inn í skelina, svo hún var með gadda á hálsinum.",
+          "audio": "book_turtle_4",
+          "sources": [
+            "Wikipedia, Proganochelys, https://en.wikipedia.org/wiki/Proganochelys: frá síðtrías í Þýskalandi, um 210 milljón ára; gat ekki dregið höfuðið inn og hafði gadda á hálsi og hala."
+          ]
+        },
+        {
+          "image": "odontochelys-fossil",
           "text": "Við vitum það af steingervingum. Ein elsta skjaldbakan hafði tennur, og heila skel bara á maganum!",
           "audio": "book_turtle_3",
           "sources": [
             "Li, Wu, Rieppel, Wang og Zhao 2008, Nature 456: 497–501, doi:10.1038/nature07533, https://doi.org/10.1038/nature07533: Odontochelys semitestacea („tennt skjaldbaka með hálfa skel“), um 220 milljón ára, frá Kína; kviðskelin var fullgerð en á bakinu aðeins hryggplötur, og hún hafði tennur í kjálkunum.",
             "Pecor, Animal Diversity Web, Testudines, https://animaldiversity.org/accounts/Testudines/: núlifandi skjaldbökur hafa engar tennur."
           ]
+        },
+        {
+          "image": "odontochelys-life",
+          "text": "Svona leit tennta skjaldbakan kannski út. Hún var bara um fjörutíu sentímetrar.",
+          "audio": "book_turtle_5",
+          "sources": [
+            "Wikipedia, Odontochelys, https://en.wikipedia.org/wiki/Odontochelys: um 40 cm löng, frá Kína, um 220 milljón ára."
+          ]
+        },
+        {
+          "image": "pond-turtle",
+          "text": "Sumar skjaldbökur verða meira en hundrað ára gamlar!",
+          "audio": "book_turtle_6",
+          "sources": [
+            "Wikipedia, Turtle, https://en.wikipedia.org/wiki/Turtle: sumar tegundir geta lifað í meira en 100 ár."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: the Late Triassic turtle Proganochelys quenstedti (for example its skeleton or shell at the Staatliches Museum für Naturkunde Stuttgart), or the half-shelled Odontochelys semitestacea, for pages 2 and 3; the owner approves before any download."
+      ]
     },
     {
       "id": "fish",
@@ -1127,7 +1309,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-fish",
+          "image": "gar-longnose",
           "text": "Þetta er fiskur. Hreistrið hans er hart og glansandi, eins og litlar flísar.",
           "audio": "book_fish_1",
           "sources": [
@@ -1136,7 +1318,7 @@
           ]
         },
         {
-          "image": "fen-fish",
+          "image": "lepidotes-solnhofen",
           "text": "Svona fiskar syntu í vötnum og sjó á tímum risaeðlanna. Frændur þeirra lifa enn í Ameríku!",
           "audio": "book_fish_2",
           "sources": [
@@ -1146,16 +1328,39 @@
           ]
         },
         {
-          "image": "fen-fish",
+          "image": "lepidotes-scarborough",
+          "text": "Hann var með flatar, kringlóttar tennur til að mylja skeljar.",
+          "audio": "book_fish_4",
+          "sources": [
+            "Wikipedia, Lepidotes, https://en.wikipedia.org/wiki/Lepidotes: flatar, kúptar tennur til að mylja skeldýr."
+          ]
+        },
+        {
+          "image": "lepidotes-lehavre",
+          "text": "Hann gat skotið munninum fram eins og röri og sogið til sín mat.",
+          "audio": "book_fish_5",
+          "sources": [
+            "Wikipedia, Lepidotes: gat skotið kjálkunum fram og sogið til sín bráð, eins og karpi."
+          ]
+        },
+        {
+          "image": "spinosaurus-life",
           "text": "Frænka Uggeðlu hafði borðað svona fisk. Hreistrið fannst inni í maganum á henni!",
           "audio": "book_fish_3",
           "sources": [
             "Natural History Museum, How did Baryonyx change what we knew about spinosaurs?, https://www.nhm.ac.uk/discover/how-did-baryonyx-change-what-we-knew-about-spinosaurs.html: þar sem magi Baryonyx var fannst fiskhreistur (og bein ungs Iguanodon); Baryonyx er spínósáreðla, eins og Spinosaurus, Uggeðla leiksins.",
             "Charig og Milner 1997, „Baryonyx walkeri, a fish-eating dinosaur from the Wealden of Surrey“, Bulletin of the Natural History Museum, Geology 53: 11–70: hreistrið í maga Baryonyx var af Lepidotes, ætað af magasýrum."
           ]
+        },
+        {
+          "image": "gar-boston",
+          "text": "Frændur hans í dag geta andað að sér lofti við vatnsborðið.",
+          "audio": "book_fish_6",
+          "sources": [
+            "Wikipedia, Gar, https://en.wikipedia.org/wiki/Gar: gar-fiskar geta andað að sér lofti með sundmaganum."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: a fossil Lepidotes (for example Lepidotes gigas from the Early Jurassic of Holzmaden) with its shining diamond-shaped scales, for pages 2 and 3; the owner approves before any download."
+      ]
     },
     {
       "id": "earlybird",
@@ -1168,7 +1373,7 @@
       "spread": 2,
       "pages": [
         {
-          "image": "fen-earlybird",
+          "image": "archaeopteryx-nt",
           "text": "Þetta er fornfugl, öglir, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón.",
           "audio": "book_earlybird_1",
           "sources": [
@@ -1177,12 +1382,29 @@
           ]
         },
         {
-          "image": "fen-earlybird",
+          "image": "archaeopteryx-eichstatt",
+          "text": "Öglir var á stærð við hrafn.",
+          "audio": "book_earlybird_4",
+          "sources": [
+            "Wikipedia, Archaeopteryx, https://en.wikipedia.org/wiki/Archaeopteryx: allt að um 50 cm langur, á stærð við hrafn."
+          ]
+        },
+        {
+          "image": "archaeopteryx-durbed",
           "text": "Fornfuglar voru uppi um svipað leyti og Þórseðla, en langt í burtu. Í ævintýrinu okkar hittast þau!",
           "audio": "book_earlybird_2",
           "sources": [
             "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: síðjúra, fyrir 149–145 milljónum ára, í Evrópu; University of California Museum of Paleontology, Archaeopteryx, https://ucmp.berkeley.edu/diapsids/birds/archaeopteryx.html: um 150 milljón ára.",
             "Tschopp, Mateus og Benson 2015, „A specimen-level phylogenetic analysis and taxonomic revision of Diplodocidae (Dinosauria, Sauropoda)“, PeerJ 3: e857, doi:10.7717/peerj.857, https://doi.org/10.7717/peerj.857 (opin grein, CC BY): Brontosaurus, Þórseðla leiksins, er úr Morrison-myndun í vestanverðri Norður-Ameríku, frá síðjúra, fyrir um 150 milljónum ára. Öglir var í Evrópu en Þórseðla í Norður-Ameríku, og þau hittast aðeins í ævintýrinu."
+          ]
+        },
+        {
+          "image": "archaeopteryx-feather",
+          "text": "Þetta er fjöðrin sem fannst fyrst, árið 1861. Hún var líklega dökk, kannski svört.",
+          "audio": "book_earlybird_5",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: stök steingerð fjöður sem fannst 1861.",
+            "Carney o.fl. 2012, „New evidence on the colour and nature of the isolated Archaeopteryx feather“, Nature Communications 3: 637, https://doi.org/10.1038/ncomms1642: fjöðrin var líklega svört."
           ]
         },
         {
@@ -1192,9 +1414,16 @@
           "sources": [
             "Natural History Museum, Dino Directory: Archaeopteryx, https://www.nhm.ac.uk/discover/dino-directory/archaeopteryx.html: fyrsti fundurinn var ein fjöður; fyrsti steingervingur Archaeopteryx fannst í Þýskalandi árið 1861, og safnið keypti Lundúnaeintakið, heila beinagrind með förum fjaðranna, árið 1862. Myndin á síðunni er Berlínareintakið, heill fugl í steini."
           ]
+        },
+        {
+          "image": "archaeopteryx-skull",
+          "text": "Aðeins um fjórtán beinagrindur hafa fundist, allar í Þýskalandi.",
+          "audio": "book_earlybird_6",
+          "sources": [
+            "Wikipedia, Archaeopteryx: um 14 beinagrindur eru þekktar, allar frá Solnhofen-svæðinu í Bæjaralandi."
+          ]
         }
-      ],
-      "wanted": "Wikimedia Commons: the single fossil feather of Archaeopteryx found in 1861 (Museum für Naturkunde Berlin), for page 3 beside the Berlin specimen already in the book; the owner approves before any download."
+      ]
     }
   ],
   "spreads": [

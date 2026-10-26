@@ -13,7 +13,7 @@ const SHIPPED = JSON.parse(fs.readFileSync(new URL('../assets/book/cards.json', 
 function card(id, { pages = 3, unlock = { start: true }, spread } = {}) {
   return {
     id, name: id, order: 1, unlock, ...(spread === undefined ? {} : { spread }),
-    pages: Array.from({ length: pages }, (_, i) => ({ image: `placeholder-${id}`, text: 'Texti.', audio: `book_${id}_${i + 1}`, sources: [PLACEHOLDER] })),
+    pages: Array.from({ length: pages }, (_, i) => ({ image: `picture-${id}`, text: 'Texti.', audio: `book_${id}_${i + 1}`, sources: [PLACEHOLDER] })),
   };
 }
 
@@ -26,7 +26,7 @@ test('parseCards accepts the shipped cards and refuses broken ones', () => {
 
   const refused = (cards, pattern, what) => assert.throws(() => parseCards({ cards }), pattern, what);
   refused([card('frog', { pages: 2 })], /"frog".*2 pages/, 'two pages');
-  assert.equal(parseCards({ cards: [card('frog', { pages: 6 })] })[0].pages.length, 6, "six pages: the frog's, with its Fen page");
+  assert.equal(parseCards({ cards: [card('frog', { pages: 7 })] })[0].pages.length, 7, "seven pages: the frog's, with its Fen page");
   refused([card('frog', { pages: 11 })], /"frog".*11 pages/, 'eleven pages');
   assert.equal(parseCards({ cards: [card('frog', { pages: 10 })] })[0].pages.length, 10, 'ten pages: a card may have up to ten');
   refused([card('frog'), card('snail'), card('frog')], /"frog".*twice/, 'a duplicate id');
@@ -68,11 +68,12 @@ test('a card with no spread is on the first, and each spread says where its anim
   assert.equal(lines.get('book_find_me_fen')?.text, 'Finndu mig í Feninu!');
 });
 
-test('a card found again opens on its refind page: the frog\'s Fen page, the last page of any card that names none', () => {
+test('a card found again opens on its refind page: the frog\'s Fen page (its seventh), the last page of any card that names none', () => {
   const cards = parseCards(SHIPPED);
   const frog = cards.find(c => c.id === 'frog');
-  assert.equal(frog.refind, 5, 'the frog\'s sixth page, the one the Fen added');
-  assert.equal(frog.pages[frog.refind].image, 'fen-frog');
+  assert.equal(frog.refind, 6, 'the frog\'s seventh page, the one the Fen added');
+  assert.equal(frog.pages[frog.refind].image, 'frog-growth');
+  assert.equal(frog.pages[frog.refind].audio, 'book_frog_6', 'its tadpole page: the sixth line, the seventh page');
   for (const c of cards.filter(c => c.id !== 'frog' && c.pages.length)) assert.equal(c.refind, c.pages.length - 1, `${c.id}: its last page`);
   assert.equal(parseCards([{ ...card('a', { pages: 4 }), refind: 2 }])[0].refind, 1, 'from 1 in the file, from 0 in code');
   for (const refind of [0, 5, 1.5, '2']) {
@@ -102,8 +103,14 @@ test('new until seen', () => {
 test("the shipped cards are written and sourced, and the narrator has a line for each page with the page's own text", () => {
   const lines = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/book/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
   // Mosi's and Kambeðla's ten pages: the five each had keep their lines (1 to 5), the five added later are 6 to 10, in the owner's page
-  // order; the other five dinosaurs have nine pages, lines 1 to 9 in page order.
-  const LINE_ORDER = { mosi: [1, 6, 7, 3, 8, 9, 10, 2, 4, 5], kambedla: [1, 6, 7, 3, 8, 9, 4, 10, 2, 5] };
+  // order; the other five dinosaurs have nine pages, lines 1 to 9 in page order. The twelve animal cards have six or seven pages
+  // (the owner's order, twenty-nine of the pages new): their lines 1 to 5 or 7 go in the pages' places the same way.
+  const LINE_ORDER = {
+    mosi: [1, 6, 7, 3, 8, 9, 10, 2, 4, 5], kambedla: [1, 6, 7, 3, 8, 9, 4, 10, 2, 5],
+    kalligrammatid: [1, 2, 3, 4, 6, 7, 5], beetle: [1, 2, 5, 3, 6, 4], frog: [1, 2, 3, 4, 5, 7, 6], snail: [1, 2, 6, 3, 7, 4, 5], birds: [1, 2, 3, 4, 6, 5],
+    waterbeetle: [1, 4, 2, 3, 5, 6], waterstrider: [1, 4, 2, 5, 3, 6], salamander: [1, 4, 2, 3, 5, 6], dragonfly: [1, 4, 2, 5, 6, 3],
+    turtle: [1, 2, 4, 3, 5, 6], fish: [1, 2, 4, 5, 3, 6], earlybird: [1, 4, 2, 5, 3, 6],
+  };
   for (const card of parseCards(SHIPPED)) {
     card.pages.forEach((page, i) => {
       assert.ok(!page.sources.includes(PLACEHOLDER), `${card.id} page ${i + 1} is still a placeholder`);
@@ -123,7 +130,7 @@ test('a teaser card has no pages, but a line for Mosi to say and a picture for i
   assert.throws(() => parseCards({ cards: [teaser({ say: 'k2_mosi_map_sloedla', picture: 'render-sloedla', group: 'plant' })] }), /"sloedla".*group/, 'an unknown group');
 
   const frog = parseCards({ cards: [card('frog')] })[0];
-  assert.deepEqual([frog.group, frog.say, frog.picture], ['animal', null, 'placeholder-frog'], "a card with pages is an animal, says nothing, and its tile is page one's picture");
+  assert.deepEqual([frog.group, frog.say, frog.picture], ['animal', null, 'picture-frog'], "a card with pages is an animal, says nothing, and its tile is page one's picture");
   const own = card('frog');
   own.picture = 'render-frog';
   own.pages[2].model = 'assets/characters/frog.glb';

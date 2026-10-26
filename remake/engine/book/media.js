@@ -8,10 +8,11 @@
 // drawings and the placeholders) have license 'own', and their source names the render command or the owner. Every other
 // picture is external: it needs a credit, an open licence and that licence's URL, its source, and its file's sha256.
 // `alt` says in a sentence what the picture shows. Paths are read from remake/, as the page reads them. A tile shows its card's
-// `picture` (cards.js; page one's picture unless the card names one, as a teaser does), so that one is a drawing.
+// `picture` (cards.js; page one's picture unless the card names one, as a teaser does), and that one may be of any kind: the
+// owner approved photographs as tile pictures (2026-10-26), so a living animal's tile is a photograph of it and an extinct one's
+// a scientist's drawing of how it looked.
 
 export const KINDS = ['fossil', 'photo', 'illustration', 'render', 'placeholder'];
-const TILE_KINDS = ['illustration', 'render', 'placeholder']; // what page one, and so the tile, may show
 const MAX_SIDE = 1024; // px, the long side
 const FIELDS = ['id', 'src', 'thumb', 'kind', 'alt', 'credit', 'license', 'licenseUrl', 'source', 'modifications', 'sha256', 'width', 'height'];
 const EXTERNAL = { credit: 'a credit', license: 'a licence', licenseUrl: 'a licence URL', source: 'a source', sha256: 'a sha256' };
@@ -57,20 +58,11 @@ export function licenceFamily(license) {
 export function checkMedia(manifest, cards, { exists, size }) {
   const problems = [];
   for (const card of cards) {
-    const ownTile = card.picture !== undefined && card.picture !== card.pages[0]?.image; // a picture of the tile's own: page one may be a photo
-    if (ownTile) {
-      const tile = manifest.get(card.picture);
-      if (!tile) problems.push(`card "${card.id}": the tile's picture ${card.picture} is not in the manifest`);
-      else if (!TILE_KINDS.includes(tile.kind)) {
-        problems.push(`card "${card.id}": its tile's picture is a drawing (an illustration, a render or a placeholder), not ${tile.id}, a ${tile.kind}`);
-      }
-    }
+    const ownTile = card.picture !== undefined && card.picture !== card.pages[0]?.image; // a picture of the tile's own, not page one's
+    if (ownTile && !manifest.get(card.picture)) problems.push(`card "${card.id}": the tile's picture ${card.picture} is not in the manifest`);
     card.pages.forEach((page, i) => {
       const image = manifest.get(page.image);
       if (!image) problems.push(`card "${card.id}" page ${i + 1}: the picture ${page.image} is not in the manifest`);
-      else if (i === 0 && !ownTile && !TILE_KINDS.includes(image.kind)) {
-        problems.push(`card "${card.id}": page 1's picture is its tile, so it is a drawing (an illustration, a render or a placeholder), not ${image.id}, a ${image.kind}`);
-      }
     });
   }
   for (const image of manifest.values()) {

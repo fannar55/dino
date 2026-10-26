@@ -399,16 +399,28 @@ const MEDIA = parseManifest(readJson('assets/book/media-manifest.json'));
 /** The Fen's seven new cards, each by the finding that opens it (world/critters/models.js's kinds, which chapter 2 passes to s.found). */
 const FEN = { waterbeetle: 'waterBeetle', waterstrider: 'waterStrider', salamander: 'salamander', dragonfly: 'dragonfly', turtle: 'turtle', fish: 'fish', earlybird: 'earlyBird' };
 const FEN_NAMES = { waterbeetle: 'Brunnklukka', waterstrider: 'Vatnalæsingi', salamander: 'Salamandra', dragonfly: 'Drekafluga', turtle: 'Skjaldbaka', fish: 'Fiskur', earlybird: 'Fornfugl' };
-/** The frog's five pages as chapter 1 wrote and recorded them, which its Fen page must leave alone. */
+/** The frog's seven pages in the owner's order (2026-10-26): the five chapter 1 wrote and recorded (page one has a photograph now), a new one, and the Fen's tadpole page last. */
 const FROG_PAGES = [
-  ['placeholder-frog', 'Þetta er froskur. Froskar hoppuðu um þegar risaeðlurnar voru uppi!'],
-  ['frog-skeleton', 'Forfeður froskanna fengu lengri fætur og styttra skott. Þá fóru þeir að hoppa!'],
-  ['triadobatrachus-fossil', 'Við vitum þetta af steingervingum. Þessi forni ættingi froska var enn með skott!'],
-  ['frog-photo', 'Froskar lifðu af þegar risaeðlurnar dóu út. Þeir eru enn að hoppa!'],
-  ['eopelobates-fossil', 'Stukku fyrstu froskarnir langt eða hoppuðu þeir stutt? Það vitum við ekki enn.'],
+  ['frog-common', 'Þetta er froskur. Froskar hoppuðu um þegar risaeðlurnar voru uppi!', 'book_frog_1'],
+  ['frog-skeleton', 'Forfeður froskanna fengu lengri fætur og styttra skott. Þá fóru þeir að hoppa!', 'book_frog_2'],
+  ['triadobatrachus-fossil', 'Við vitum þetta af steingervingum. Þessi forni ættingi froska var enn með skott!', 'book_frog_3'],
+  ['frog-photo', 'Froskar lifðu af þegar risaeðlurnar dóu út. Þeir eru enn að hoppa!', 'book_frog_4'],
+  ['eopelobates-fossil', 'Stukku fyrstu froskarnir langt eða hoppuðu þeir stutt? Það vitum við ekki enn.', 'book_frog_5'],
+  ['frog-bartz', 'Á veturna sefur froskurinn á botni tjarnarinnar, þar til vorar.', 'book_frog_7'],
+  ['frog-growth', 'Úr froskaeggjum í vatninu koma halakörtur. Elsta halakartan sem við þekkjum var lengri en höndin á þér!', 'book_frog_6'],
 ];
+/** The Fen's seven cards, page by page as the owner approved them: each page's picture and the number of its line (book_<card>_<n>). */
+const FEN_PAGES = {
+  waterbeetle: [['diving-beetle', 1], ['diving-beetle-leaf', 4], ['coptoclava-fossil', 2], ['diving-beetle-water', 3], ['diving-beetle-larva', 5], ['diving-beetle-top', 6]],
+  waterstrider: [['waterstrider-river', 1], ['waterstrider-lake', 4], ['waterstrider-sharp', 2], ['waterstrider-gerridae', 5], ['waterstrider-remigis', 3], ['waterstrider-pair', 6]],
+  salamander: [['fire-salamander', 1], ['chunerpeton-life', 4], ['chunerpeton-fossil', 2], ['jeholotriton-fossil', 3], ['giant-salamander', 5], ['salamander-eggs', 6]],
+  dragonfly: [['emperor-dragonfly', 1], ['dragonfly-eyes', 4], ['isophlebia-fossil', 2], ['meganeura-model', 5], ['emperor-dragonfly', 6], ['dragonfly-nymph', 3]],
+  turtle: [['pond-turtle', 1], ['proganochelys-fossil', 2], ['proganochelys-life', 4], ['odontochelys-fossil', 3], ['odontochelys-life', 5], ['pond-turtle', 6]],
+  fish: [['gar-longnose', 1], ['lepidotes-solnhofen', 2], ['lepidotes-scarborough', 4], ['lepidotes-lehavre', 5], ['spinosaurus-life', 3], ['gar-boston', 6]],
+  earlybird: [['archaeopteryx-nt', 1], ['archaeopteryx-eichstatt', 4], ['archaeopteryx-durbed', 2], ['archaeopteryx-feather', 5], ['archaeopteryx-berlin', 3], ['archaeopteryx-skull', 6]],
+};
 
-test('the fen cards unlock with their findings and have three pages each', () => {
+test('the fen cards unlock with their findings and have six pages each, every picture a photograph, a fossil or a scientist\'s drawing', () => {
   const nobody = { stars: [], findings: [], seen: [] };
   for (const [id, find] of Object.entries(FEN)) {
     const card = CARDS.find(c => c.id === id);
@@ -418,34 +430,40 @@ test('the fen cards unlock with their findings and have three pages each', () =>
     assert.equal(isUnlocked(card, nobody), false, `${id} waits for its animal`);
     assert.equal(isUnlocked(card, { ...nobody, findings: [find] }), true, `${id} opens once it is found`);
     assert.equal(card.name, FEN_NAMES[id], 'with the name the game gives it');
-    assert.equal(card.pages.length, 3, `${id} has three pages`);
+    assert.equal(card.pages.length, 6, `${id} has six pages`);
     assert.equal(card.spread, 2, `${id} is on the Fen's spread`);
-    assert.equal(card.pages[0].image, `fen-${id}`, 'its tile is our drawing of it');
-    assert.equal(MEDIA.get(`fen-${id}`)?.src, `assets/book/images/fen-${id}.svg`);
+    assert.deepEqual(card.pages.map(page => [page.image, Number(page.audio.replace(`book_${id}_`, ''))]), FEN_PAGES[id], `${id}: its pictures and lines, page by page`);
+    assert.equal(card.picture, FEN_PAGES[id][0][0], 'its tile is page one\'s picture');
+    assert.notEqual(MEDIA.get(card.picture)?.kind, 'placeholder', 'which is no placeholder drawing of ours');
+    for (const [image] of FEN_PAGES[id]) {
+      assert.match(MEDIA.get(image)?.src ?? '', /^assets\/book\/images\/[a-z0-9-]+\.jpg$/, `${id}: ${image} is a JPEG in the pictures folder`);
+    }
     card.pages.forEach((page, i) => {
-      assert.equal(page.audio, `book_${id}_${i + 1}`);
       assert.ok(!page.sources.includes(PLACEHOLDER) && page.sources.every(source => source.length > 40), `${id} page ${i + 1} says where its facts are from`);
       assert.ok(page.text.length <= 105, `${id} page ${i + 1} is short enough to read aloud: ${page.text.length} letters`);
     });
     const raw = CARD_DATA.cards.find(c => c.id === id);
-    assert.match(raw.wanted ?? '', /Wikimedia Commons/, `${id} names the photograph it wants, for the owner to approve`);
+    assert.equal(raw.wanted, undefined, `${id} wants no photograph any more: every page has one`);
   }
-  // The frog is chapter 1's card: the Fen adds a sixth page about its eggs and tadpoles, and leaves the five it had alone.
+  // The frog is chapter 1's card: it has seven pages in the owner's order, the Fen's page about its tadpoles last, and the five
+  // chapter 1 wrote and recorded keep their words and lines.
   const frog = CARDS.find(c => c.id === 'frog');
   assert.deepEqual(frog.unlock, { found: 'frog' }, 'the frog in the third print opens the frog\'s card, as the forest\'s frog does');
   assert.equal(frog.spread, 1, 'on the first spread still');
-  assert.equal(frog.pages.length, 6);
-  assert.deepEqual(frog.pages.slice(0, 5).map(page => [page.image, page.text]), FROG_PAGES, 'its five pages as they were recorded');
-  frog.pages.forEach((page, i) => assert.equal(page.audio, `book_frog_${i + 1}`));
-  const fenPage = frog.pages[5];
-  assert.equal(fenPage.image, 'fen-frog');
+  assert.equal(frog.pages.length, 7);
+  assert.deepEqual(frog.pages.map(page => [page.image, page.text, page.audio]), FROG_PAGES, 'its pages as the owner ordered them');
+  const fenPage = frog.pages[6];
   assert.match(fenPage.text, /halakört/, 'the Fen page is about tadpoles');
   assert.ok(fenPage.sources.some(source => source.includes('10.1038/s41586-024-08055-y')), 'with the oldest tadpole (Chuliver et al. 2024) for its wonder');
-  assert.match(CARD_DATA.cards.find(c => c.id === 'frog').pages[5].wanted ?? '', /Wikimedia Commons/);
-  assert.match(CARD_DATA.note, /six/i, 'and the note says why the frog has six pages');
-  // The turtle's third page is about one of the oldest turtles, with teeth and a shell on its belly only: its own drawing.
-  assert.equal(CARDS.find(c => c.id === 'turtle').pages[2].image, 'fen-turtle-old');
-  assert.equal(MEDIA.get('fen-turtle-old')?.src, 'assets/book/images/fen-turtle-old.svg');
+  assert.equal(CARD_DATA.cards.find(c => c.id === 'frog').pages.some(page => 'wanted' in page), false, 'and no page waits for a photograph');
+  assert.match(CARD_DATA.note, /frog's seventh/i, 'and the note says which page is the frog\'s Fen page');
+  // No card shows a placeholder drawing (the owner's photographs and renders replaced them), and no card's page is an SVG.
+  for (const card of CARDS) {
+    for (const page of card.pages) {
+      assert.notEqual(MEDIA.get(page.image)?.kind, 'placeholder', `${card.id}: ${page.image} is no placeholder drawing`);
+      assert.doesNotMatch(MEDIA.get(page.image)?.src ?? '', /\.svg$/, `${card.id}: ${page.image} is no SVG`);
+    }
+  }
 });
 
 /** The book over the shipped cards and pictures and a save of its own, with what it narrates and the sounds it makes. */
@@ -580,10 +598,10 @@ test('chapter 1\'s frog found again in the Fen flies into the book once, and the
   doc.getElementById('journal-button').dispatchEvent(new Event('click'));
   assert.equal(book.spread, 1, 'the frog is on the first spread');
   assert.ok(animations.some(a => a.el === tile('frog') && /scale/.test(JSON.stringify(a.keyframes))), 'and it nods there');
-  // its card opens on the page the Fen added, its sixth, once; after that on its first, as any card does
+  // its card opens on the page the Fen added, its seventh, once; after that on its first, as any card does
   tap(tile('frog'));
   assert.equal(book.cardViewer.isOpen, true, 'the frog\'s card opens');
-  assert.equal(book.cardViewer.page, 5, 'on its sixth page, the Fen\'s');
+  assert.equal(book.cardViewer.page, 6, 'on its seventh page, the Fen\'s');
   book.cardViewer.close(true);
   const now = Date.now;
   Date.now = () => now() + 1000; // a second tap, not the same one (animals-page.js: a double tap opens one card)

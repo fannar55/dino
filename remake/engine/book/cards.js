@@ -1,8 +1,8 @@
 // The book's cards (spec sections 3 and 6): one per dinosaur the child meets, animal the child finds and fossil the child digs up,
-// each with 3 to 10 short pages that the narrator reads (the owner's first cards have 3 to 5; the frog has six, its Fen page added
-// to the card the owner had approved). A dinosaur whose card is not written yet is a teaser: no pages, only a tile, a picture and a
-// line Mosi says when the tile is tapped. They are data, in assets/book/cards.json, so a later chapter adds cards, and a spread of
-// the Dýrin page for them, without code:
+// each with 3 to 10 short pages that the narrator reads (the dinosaurs' have nine or ten, the animals' six or seven; a page's picture
+// may be of any kind, a photograph as well as a drawing, and page one's is also the tile's). A dinosaur whose card is not written
+// yet is a teaser: no pages, only a tile, a picture and a line Mosi says when the tile is tapped. They are data, in
+// assets/book/cards.json, so a later chapter adds cards, and a spread of the Dýrin page for them, without code:
 //
 //   { "cards": [ { "id", "name", "order", "group", "unlock", "spread", "refind", "say", "picture",
 //                  "pages": [ { "image", "text", "audio", "sources", "model" }, ... ] }, ... ],
@@ -17,7 +17,7 @@
 //            star it passes to s.star, { place: '<id>' } with a place on the book's map (the save's places: sloedla, flugedla,
 //            uggedla, fen) or { fossil: '<kind>' } with a fossil of "Háls og hali" in the collection (the save's getHals().found)
 //   refind   (optional) the page, from 1, the card opens on the first time the child opens it after its animal was found again in
-//            a new place (chapter 2's frog, in the third print, whose sixth page is the Fen's); its last page when it says none
+//            a new place (chapter 2's frog, in the third print, whose seventh page is the Fen's); its last page when it says none
 //   spread   which spread of the Dýrin page its tile is on, from 1 (chapter 1's animals, which say no spread) up: a spread holds
 //            SPREAD_MAX tiles, four on each page, in card order (chapter 2's are on the second, the Fen's); one with a later spread
 //            after it holds one fewer, because the corner that turns on lies where the right page's fourth tile would be. Only
@@ -40,7 +40,7 @@
 // unlocks read from the save is bookState's: the book takes it from there and hands it to isUnlocked and isNew.
 
 export const PAGE_MIN = 3;
-export const PAGE_MAX = 10; // the owner's cards have 3 to 5; the frog has six, and the spec allows a dinosaur's up to ten (3D page, size, fossils)
+export const PAGE_MAX = 10; // the animals' cards have six or seven, the dinosaurs' nine or ten (the spec allows up to ten: 3D page, size, fossils)
 export const SPREAD_MAX = 8;
 export const GROUPS = ['dinosaur', 'animal', 'fossil'];
 export const PLACEHOLDER = 'placeholder';

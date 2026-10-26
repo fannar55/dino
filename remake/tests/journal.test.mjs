@@ -174,12 +174,12 @@ test('findings are counted once per id', () => {
 
 test('a find flies its picture from the tap to the button, sounds once on landing, and badges the button until the book opens', () => {
   const sounds = [];
-  const { journal, book, el } = journalRig({ book: fakeBook({ butterfly: 'assets/book/lab/kalligrammatid.svg', frog: 'assets/book/lab/frog.svg' }), audio: { sfx: name => sounds.push(name) } });
+  const { journal, book, el } = journalRig({ book: fakeBook({ butterfly: 'assets/book/images/kalligrammatid-life-thumb.jpg', frog: 'assets/book/images/frog-common-thumb.jpg' }), audio: { sfx: name => sounds.push(name) } });
   el('journal-button').rect = { left: 1100, top: 12, width: 160, height: 64 }; // its middle is at 1180, 44
   const flying = el('journal-flights').children;
   assert.equal(journal.addFinding('butterfly', { name: 'butterfly-1', x: 400, y: 300 }), true);
   assert.equal(flying.length, 1);
-  assert.equal(flying[0].children[0].src, 'assets/book/lab/kalligrammatid.svg', 'the card\'s own picture flies');
+  assert.equal(flying[0].children[0].src, 'assets/book/images/kalligrammatid-life-thumb.jpg', 'the card\'s own picture flies');
   assert.deepEqual(placeOf(flying[0].style), { x: 400, y: 300 }, 'from where the child tapped');
 
   journal.update(FLIGHT_SECONDS - 0.02);
@@ -245,7 +245,7 @@ test('addPlace writes the save once and flies a marker', () => {
 });
 
 test('a paused game holds a find\'s flight in the air', () => {
-  const { journal, el } = journalRig({ book: fakeBook({ frog: 'assets/book/lab/frog.svg' }) });
+  const { journal, el } = journalRig({ book: fakeBook({ frog: 'assets/book/images/frog-common-thumb.jpg' }) });
   journal.addFinding('frog', { x: 200, y: 600 });
   journal.update(0.5);
   const held = placeOf(el('journal-flights').children[0].style);

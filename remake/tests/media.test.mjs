@@ -5,7 +5,8 @@ import { parseManifest, checkMedia, imageSize } from '../engine/book/media.js';
 import { parseCards } from '../engine/book/cards.js';
 
 // The book's pictures (assets/book/media-manifest.json): every real image open-licensed and credited, small enough for a tablet,
-// in a format it reads, and every tile a drawing. checkMedia says what is wrong, one line per problem.
+// in a format it reads, and every tile a picture that is there (of any kind: the owner approved photographs as tile pictures).
+// checkMedia says what is wrong, one line per problem.
 
 /** The frog's card: page one shows `first`, pages two and three `second`. */
 const frogCard = (first, second) => ({
@@ -34,6 +35,8 @@ function problems(entries, { card = frogCard(drawing.id, fossil.id), missing = [
 
 test('checkMedia names every problem', () => {
   assert.deepEqual(problems([drawing, fossil]), [], 'a drawing on page one, and a credited fossil after it');
+  assert.deepEqual(problems([drawing, fossil], { card: frogCard(fossil.id, drawing.id) }), [], "a fossil on a card's first page is its tile, and that is all right: any kind may be a tile");
+  assert.deepEqual(problems([drawing, { ...fossil, kind: 'photo' }], { card: frogCard(fossil.id, drawing.id) }), [], 'so is a photograph');
   const one = (what, found, pattern) => {
     assert.equal(found.length, 1, `${what}: ${JSON.stringify(found)}`);
     assert.match(found[0], pattern, what);
@@ -43,13 +46,12 @@ test('checkMedia names every problem', () => {
   one('a missing file', problems([drawing, fossil], { missing: [fossil.src] }), /frog-fossil.*frog-fossil\.jpg/);
   one('a 2048 px image', problems([drawing, { ...fossil, width: 2048, height: 1536 }]), /frog-fossil.*2048/);
   one('a PNG photo', problems([drawing, { ...fossil, kind: 'photo', src: 'assets/book/images/frog.png' }]), /frog-fossil.*frog\.png/);
-  one('a fossil on a card\'s first page', problems([drawing, fossil], { card: frogCard(fossil.id, drawing.id) }), /"frog".*frog-fossil.*fossil/);
 
-  // A teaser has no pages: its tile is its `picture`, which has to be in the manifest and a drawing like page one's
+  // A teaser has no pages: its tile is its `picture`, which has to be in the manifest (and may be of any kind, like page one's)
   const teaser = picture => ({ id: 'sloedla', name: 'Slóeðla', order: 6, unlock: { place: 'sloedla' }, say: 'k2_mosi_map_sloedla', picture, pages: [] });
   assert.deepEqual(problems([drawing], { card: teaser(drawing.id) }), [], 'a teaser whose tile is a drawing');
   one('a teaser whose picture is not there', problems([drawing], { card: teaser('render-sloedla') }), /"sloedla".*render-sloedla.*not in the manifest/);
-  one('a teaser whose picture is a fossil', problems([drawing, fossil], { card: teaser(fossil.id) }), /"sloedla".*frog-fossil.*fossil/);
+  assert.deepEqual(problems([drawing, fossil], { card: teaser(fossil.id) }), [], 'a teaser whose tile is a fossil');
 });
 
 test('the shipped manifest is complete', () => {
