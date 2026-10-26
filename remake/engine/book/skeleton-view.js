@@ -13,7 +13,7 @@ import { reducedMotion, TAP_SLOP_PX } from './fx.js';
 // card keeps its picture.
 //
 // The model turns slowly by itself until the first touch (never, when the tablet asks for less motion). One finger turns it about
-// its vertical, a little, and tilts it, never past TILT_MAX; two fingers that both move pinch it from 1 to 3 times. Fingers count one by
+// its vertical and tilts it, never past TILT_MAX; two fingers that both move pinch it from 1 to 3 times. Fingers count one by
 // one as in zoom.js: a finger that has not moved TAP_SLOP_PX moves nothing, so a thumb resting on the glass turns nobody's model and
 // makes no pinch. A turning finger stays with the canvas wherever it slides (pointer capture), and the browser keeps its own gestures
 // out of it (book.css, .card-model: touch-action none). On this page the card viewer lets only the arrows flip, so a finger turns the
