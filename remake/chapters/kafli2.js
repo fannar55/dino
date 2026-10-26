@@ -43,6 +43,7 @@ import {
 
 export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
 export { EGILL_PICKS }; // where Egill stands for the berry search (the tests look from behind him, as fen_pick does)
+export { GRAMEDLA_FAR }; // where Grameðla stands far off (the tests hold it to the way the book's map has her)
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade: chapter 1's

@@ -234,14 +234,13 @@ function* farOff(s, c) {
   const her = far.actorOf(FAR_OFF);
   if (!her) return;
   c.teaser = { turn: s.time };
-  far.withhold(FAR_OFF, false); // behind the camera until it turns
+  far.withhold(FAR_OFF, false); // out of the frame until the camera has turned to her
   haze(c, 1, TEASE.clear);
   yield* turnToHer(s, c, her.centre(new THREE.Vector3()));
   c.teaser.roar = s.time;
   her.play('roar', { fade: 0.3, once: true });
   s.sfx('farRoar');
   const roaring = her.clips.get('roar')?.duration ?? 3.6;
-
   const line = s.after(ROAR.line, () => c.say('mosi', 'k2_mosi_gramedla'));
   yield s.wait(roaring - ROAR.walk);
   // on along the trees and away from the lookout, into them

@@ -12,6 +12,8 @@ import { HUG_SECONDS, WINK_SECONDS } from '../engine/sun-face.js';
 import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS, FEN_CRITTERS } from '../chapters/kafli2-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
+import { FEN } from '../world/forest/config.js';
+import { MAP_PLACES } from '../engine/book/map-page.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 
@@ -416,6 +418,11 @@ function playIdle() {
     const seen = {
       frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null,
       uggedlaFirst: null, disposed: null, openings: [], fog: {}, wet: 0, wetAt: null,
+      // Grameðla far off: when she shows (first, last), roars and walks, how far off the ground she stands as she roars, where on the
+      // screen she is then, and where she is as she is hidden; the camera's fastest turn and zoom and its look down meanwhile; and every
+      // call the script makes that puts something in the book, and every tap target it sets
+      rex: { first: null, last: null, low: false, roarAt: null, walkAt: null, ground: null, onScreen: null, hidden: null },
+      teaserCamera: { turn: 0, zoom: 0, down: 0, frames: 0 }, prevView: null, bookCalls: null, targetNames: new Set(),
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
@@ -423,6 +430,46 @@ function playIdle() {
       onFrame({ world, stage, pointer }) {
         const c = world.chapterState;
         const far = c?.farFriends;
+        if (!seen.bookCalls) {
+          seen.bookCalls = [];
+          for (const call of ['place', 'found', 'star']) {
+            const real = stage.s[call];
+            stage.s[call] = (...args) => { seen.bookCalls.push({ call, id: args[0], at: stage.s.time }); return real(...args); };
+          }
+          const target = stage.s.target;
+          stage.s.target = (name, ...args) => { seen.targetNames.add(name); return target(name, ...args); };
+        }
+        const rex = far?.actorOf('gramedla');
+        if (rex && !far.disposed) {
+          const t = stage.s.time, g = seen.rex;
+          const shownNow = rex.root.visible && far.group.visible && Boolean(far.group.parent);
+          if (shownNow) {
+            g.first ??= t;
+            g.last = t;
+            if (world.camera.position.y <= 6) g.low = true;
+          } else if (g.last !== null && !g.hidden) g.hidden = { at: t, radius: Math.hypot(rex.root.position.x, rex.root.position.z) };
+          if (g.roarAt === null && rex.mixer.existingAction(rex.clips.get('roar'))?.isRunning()) {
+            g.roarAt = t;
+            const { x, y, z } = rex.root.position;
+            g.ground = Math.abs(y - world.heightAt(x, z));
+            world.camera.updateMatrixWorld();
+            const p = rex.centre(new V3()).project(world.camera);
+            g.onScreen = { x: ((p.x + 1) / 2) * 1280, y: ((1 - p.y) / 2) * 800, front: p.z < 1, fov: world.camera.fov };
+          }
+          if (g.walkAt === null && rex.walking) g.walkAt = t;
+          // the camera from the turn to her until the lens has opened again
+          const teaser = c.teaser;
+          if (teaser && (teaser.done === undefined || t <= teaser.done + 3)) {
+            const dir = world.camera.getWorldDirection(new V3()), prev = seen.prevView, cam = seen.teaserCamera;
+            if (prev && t > prev.t) {
+              cam.turn = Math.max(cam.turn, THREE.MathUtils.radToDeg(dir.angleTo(prev.dir)) / (t - prev.t));
+              cam.zoom = Math.max(cam.zoom, Math.abs(world.camera.fov - prev.fov) / (t - prev.t));
+              cam.frames++;
+            }
+            cam.down = Math.max(cam.down, -THREE.MathUtils.radToDeg(Math.asin(dir.y)));
+            seen.prevView = { t, dir, fov: world.camera.fov };
+          }
+        }
         if (far) {
           seen.frames++;
           const shown = FAR.filter(name => far.actorOf(name)?.root.visible && far.group.visible && far.group.parent);
@@ -600,6 +647,54 @@ test('the far friends only show from above', async () => {
   assert.ok(seen.uggedlaFirst && seen.uggedlaFirst.finds === 2, `Uggeðla first shows after the first two are found (${JSON.stringify(seen.uggedlaFirst)})`);
   // and once Egill is down in the saddle they let go of what they hold, and leave the scene
   assert.ok(seen.disposed && seen.disposed.scene === 7 && seen.disposed.phase === 'in the saddle' && !seen.disposed.inScene, `disposed of ${JSON.stringify(seen.disposed)}`);
+});
+
+test('Grameðla far off after the third find: the camera turns to her, she roars, Mosi says who she is, she walks into the trees, and nothing goes in the book', async () => {
+  const { seen, captions, world, task } = await playIdle();
+  const c = world.chapterState, t = c.teaser, rex = seen.rex, lines = world.chapter.lines;
+  assert.equal(task.done, true, 'the chapter still plays to its end');
+  assert.ok(t && t.turn && t.roar && t.walk && t.gone && t.done, `every beat of the look at her (${JSON.stringify(t)})`);
+  // After Uggeðla is found and Mosi has said her line, and before Þórseðla's last words up there
+  const uggedla = c.farFinds.find(f => f.name === 'uggedla');
+  const named = captions.find(x => x.text === lines.k2_mosi_found_uggedla.text);
+  assert.ok(uggedla && named && t.turn >= named.at + RECORDED.k2_mosi_found_uggedla.duration - 0.05, `the turn to her at ${t.turn.toFixed(1)} s, after "Uggeðla!…" at ${named?.at.toFixed(1)} s`);
+  const now = captions.find(x => x.text === lines.k2_thorsedla_now.text);
+  assert.ok(now && now.at >= t.done, '"Nú veistu hvar þau eru." once she is gone, as before');
+  // She is seen only from the turn to her until she is behind the trees, from her head
+  assert.ok(rex.first !== null && rex.first >= t.turn && rex.last <= t.gone, `she shows from ${rex.first?.toFixed(1)} to ${rex.last?.toFixed(1)} s, the turn at ${t.turn.toFixed(1)} s and gone at ${t.gone.toFixed(1)} s`);
+  assert.equal(rex.low, false, 'never with the camera at 6 m or lower');
+  // As the camera settles on her she roars, on the ground and in the middle of the screen above the caption, and Mosi says who she is
+  assert.ok(rex.roarAt !== null && Math.abs(rex.roarAt - t.roar) < 0.1, `she roars as the turn ends (${rex.roarAt?.toFixed(2)} s)`);
+  assert.ok(rex.ground < 0.05, `standing on the ground (${rex.ground?.toFixed(3)} m off it)`);
+  const { x, y, front, fov } = rex.onScreen;
+  assert.ok(front && Math.abs(x - 640) < 160 && y > 64 + 40 && y < 800 * 0.7, `in the middle of the screen as she roars (${x.toFixed(0)}, ${y.toFixed(0)})`);
+  assert.ok(Math.abs(fov - 30) < 0.5, `seen through the narrowed lens (${fov.toFixed(1)} degrees)`);
+  const said = captions.filter(x => x.text === lines.k2_mosi_gramedla.text);
+  assert.equal(said.length, 1, 'Mosi says "Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!" once');
+  assert.equal(said[0].who, 'Mosi');
+  assert.ok(said[0].at >= rex.roarAt && said[0].at < rex.walkAt, 'as she roars, before she goes');
+  // Then she walks into the trees, and is hidden only once she is behind the far treeline
+  assert.ok(rex.walkAt > rex.roarAt, `she roars (${rex.roarAt.toFixed(1)} s) before she walks (${rex.walkAt.toFixed(1)} s)`);
+  assert.ok(rex.hidden && rex.hidden.radius > FEN.far.rings[0].radius + 2, `hidden ${rex.hidden?.radius.toFixed(1)} m from the Fen's middle, behind its far treeline (${FEN.far.rings[0].radius} m)`);
+  // The camera keeps the style's limits all the while (STYLE.md 8): pan, zoom, and the look down
+  assert.ok(seen.teaserCamera.frames > 100, 'the camera was watched');
+  assert.ok(seen.teaserCamera.turn <= LIMITS.pan * 1.05, `it turns ${seen.teaserCamera.turn.toFixed(1)} degrees a second at most`);
+  assert.ok(seen.teaserCamera.zoom <= LIMITS.zoom * 1.05, `its lens changes ${seen.teaserCamera.zoom.toFixed(1)} degrees a second at most`);
+  assert.ok(seen.teaserCamera.down <= LIMITS.maxDown, `it looks ${seen.teaserCamera.down.toFixed(0)} degrees down at most`);
+  // Nothing goes in the book: no find, no place, no star while she is seen, and she is no tap target
+  const during = seen.bookCalls.filter(call => call.at >= t.turn && call.at <= t.done + 3);
+  assert.deepEqual(during, [], 'nothing goes in the book while she is seen');
+  assert.ok(!seen.bookCalls.some(call => /gramedla/.test(call.id)), 'and nothing of hers ever');
+  assert.ok(![...seen.targetNames].some(name => /gramedla/.test(name)) && !c.farFriends.targets.some(target => target.name === 'gramedla'), 'she is no tap target');
+  // Where she stands is the way the book's map has her from Þórseðla's pool: the map's Fen is the Fen's own ground, north up
+  const slot = id => MAP_PLACES.find(place => place.id === id).at;
+  const [gx, gy] = slot('gramedla'), [tx, ty] = slot('thorsedla');
+  const mapWay = Math.atan2(gy - ty, gx - tx);
+  const [lx, , lz] = kafli2.LOOKOUT_HEAD;
+  const [sx, sz] = kafli2.GRAMEDLA_FAR;
+  const way = Math.atan2(sz - lz, sx - lx);
+  const apart = Math.abs(THREE.MathUtils.radToDeg(Math.atan2(Math.sin(way - mapWay), Math.cos(way - mapWay))));
+  assert.ok(apart < 20, `she stands ${apart.toFixed(0)} degrees from the way the map has her`);
 });
 
 /** The sun on the screen and in front of nobody, each time the run looked (chapter 1's test, kafli1.test.mjs). */

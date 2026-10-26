@@ -37,7 +37,8 @@ lendir í hnakknum. Önnur stjarnan kviknar, og gjöf Þórseðlu á hátíðina
 | Vinirnir í fjarska | raunstærð, langt í burtu | Slóeðla vaðandi í tjörn, Flugeðla á dauðum trjástofni sem stendur upp úr feninu, Uggeðla liggjandi í sefinu með seglið upp úr: sjást aðeins ofan af Þórseðlu og glitra þegar þau finnast. | Engin |
 | Dýr Fensins | smá | Ný dýr sem eiga heima í votlendi og hvergi annars staðar í leiknum, öll tegundir sem lifðu með risaeðlunum: froskar, drekaflugur, brunnklukkur og vatnalæsingjar í tjörnunum og fótsporunum, salamöndrur á mosaþúfum, skjaldbaka á trjábol, fornfugl (fjaðraður, eins og Archaeopteryx í bókinni) sem situr í sefinu og flýgur upp, fiskar sem hoppa, sniglar. Þau bregðast við pikki og fara í bókina. | Hljóð |
 
-Kambeðla sést í upphafi, með plöturnar logandi, og veifar þeim af stað. Grameðla kemur ekki enn.
+Kambeðla sést í upphafi, með plöturnar logandi, og veifar þeim af stað. Grameðla sést aðeins úr fjarska, í senu 6, við skógarjaðarinn
+handan Fensins; hún kemur seinna.
 
 ## 3. Staðirnir
 
@@ -120,17 +121,23 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
   sé fyrstu stjörnuna á undan ykkur og segi ykkur frá henni.“ Þórseðla: „Egill… viltu sjá hvað ég sé héðan að ofan?“ Egill: „Já!“
 - **Barnið:** hlustar; val: „Já!“ eða „Er það hátt?“ (Þórseðla: „Mjög hátt. En ég held á þér.“ sama val).
 
-### 6. Útsýnisturninn (90–120 s, á hraða barnsins)
-- **Markmið:** stóra stundin, og barnið finnur vinina þrjá í fjarska.
+### 6. Útsýnisturninn (115–145 s, á hraða barnsins)
+- **Markmið:** stóra stundin, og barnið finnur vinina þrjá í fjarska og sér Grameðlu lengst í burtu.
 - **Skot:** Þórseðla leggur höfuðið á jörðina. Egill klifrar upp á hnakka hennar, rétt aftan við höfuðið, og heldur sér í (eins og
   hnakkurinn: hann svífur upp með glitri sé pikkað á hann, annars sjálfur eftir 6 s). Hún lyftir hægt (klippan liftUp, 8 s, höfuðið
   lárétt); myndavélin rís með honum, trén falla niður fyrir, Mosi verður lítill á þúfunni og veifar, og efst opnast allt Fenið:
   tjarnir sem glitra, síkið að sjóndeildarhring, sefbreiður, dauðir trjástofnar, þokan að leysast upp, og sólin brosir stór og nálæg. Svo verður myndavélin frjáls (drag) í 9 m hæð.
 - **Línur:** Egill, á leiðinni upp: „Vá… Mosi er pínulítill!“ Mosi, að neðan: „Ég er ekki lítill, ég er langt í burtu!“ Þórseðla:
   „Horfðu vel, Egill. Sérðu vinina okkar?“ Þegar vinur finnst: Mosi: „Slóeðla! Hún er að vaða í tjörninni!“, „Flugeðla! Uppi á gamla trénu!“,
-  „Uggeðla! Hún liggur í sefinu, sjáðu seglið!“ Þórseðla eftir þann þriðja: „Nú veistu hvar þau eru. Við skrifum það í bókina.“ Vísbendingar eftir
+  „Uggeðla! Hún liggur í sefinu, sjáðu seglið!“ Eftir þann þriðja, þegar Grameðla sést lengst í burtu: Mosi: „Sjáðu, lengst þarna! Þetta er
+  Grameðla. Hana heimsækjum við seinna!“ Þórseðla svo: „Nú veistu hvar þau eru. Við skrifum það í bókina.“ Vísbendingar eftir
   12, 24 og 36 s (pan að staðnum); eftir 48 s finnst vinurinn sjálfur.
 - **Barnið:** dregur fingur til að líta um og pikkar á vinina sem glitra; hver fer inn á kortið í bókinni (sjá 7).
+- **Grameðla í fjarska:** þegar Mosi hefur nefnt Uggeðlu snýr myndavélin sér hægt til vesturs (mest 15° á sekúndu, mjúkt af stað og
+  mjúkt í stopp) og linsan þrengist, að skógarjaðrinum handan Fensins, þangað sem kortið segir að Grameðla eigi heima. Þar stendur hún,
+  um 144 m í burtu, lítil í mistrinu en greinilega grameðla: stór haus, tveir fætur og langur hali. Hún öskrar, Mosi segir hver hún er,
+  og svo snýr hún sér og gengur inn í skóginn og hverfur á bak við trén. Hún er ekki pikkmark, fer hvorki á kortið né í bókina, og
+  senan heldur svo áfram eins og áður með orðum Þórseðlu.
 
 ### 7. Rennibrautin (um 20 s)
 - **Skot:** Þórseðla beygir hálsinn í mjúkan boga niður að Mosa; Egill rennur eftir hálsinum, glitur á eftir og vatnsdropar af hálsinum, og lendir í hnakknum
@@ -164,7 +171,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Hljóð:** Fenið hefur sitt eigið hljóðteppi: froskakvak, drekaflugusuð, dropar, loftbólur sem springa, sef sem skrjáfar, fornfuglinn
   sem kallar; skvettur og hringgárur við fótsporin, tónn sem hækkar með hverri tölu, berjapopp,
   þefið og þungt, hlýtt andardráttarhljóð þegar höfuðið kemur niður, tyggið, lyftutónn sem hækkar í átta sekúndur, vindur í hæðinni,
-  rennslishljóð og skopp í hnakkinn, stjörnuhljómurinn úr kafla 1. Allt í tóntegund stefsins.
+  rennslishljóð og skopp í hnakkinn, fjarlægt og vinalegt öskur Grameðlu, stjörnuhljómurinn úr kafla 1. Allt í tóntegund stefsins.
 - **Tónlist:** stefið heldur áfram, en í Feninu bætist við mjúkt hljóðteppi votlendisins (froskar, dropar, suð) sem gefur staðnum sinn
   eigin hljóm; ekki nýtt lag.
 
@@ -241,3 +248,4 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
 - **Bókin (verkefni 7):** froskurinn fær sjöttu síðu (halakörtur) í stað nýs spjalds, undantekning frá reglunni um 3–5 síður því síða Fensins bætist við spjald sem eigandi hafði samþykkt; Fen-dýrin sjö eru á annarri Dýrin-opnu með blaðhorni sem flettir (opna með síðari opnu á eftir rúmar sjö spjöld, hornið tekur áttunda reitinn); fundið dýr opnar bókina á sinni opnu; Fen-reiturinn á Kortinu verður fundinn við komuna og kláraður með stjörnunni; textar spjaldanna eru okkar drög og bíða leiðréttinga eiganda, og 23 sögumannslínur þeirra eru óupplesnar þar til þá.
 - **Háls og hali læsist eftir sameiningu** þar til stjarna Þórseðlu (`k2_thorsedla`) er fengin, eins og forskriftin segir; á main var hann opinn gegnum þróunarrofa. Úrskurður eiganda 2026-10-22: þegar reiturinn hefur opnast er hann opinn áfram. Leikur sem hefur verið hafinn merkir vistunina (`hals.played`) fyrir fullt og allt, og eldri vistun með hálfnuðum leik er opin; þá vaggar reiturinn ekki og borðið byggist á Leikir-síðunni, líka eftir sigur eða „Nýr leikur“. Ný vistun án stjörnu er læst.
+- **Grameðla sést úr fjarska í senu 6** (ákvörðun eiganda 2026-10-26; „Grameðla kemur ekki enn“ áður). Eftir að Mosi hefur nefnt Uggeðlu snýr myndavélin sér að Grameðlu við skógarjaðarinn vestan Fensins, 144 m frá útsýnisstaðnum og 5 m framan við fjarlægu trjárröndina (150 m frá miðju Fensins). Áttin er af kortinu: Fen-hluti þess er Fenið sjálft, norður upp, um 3,9 punktar á metra, og reitur Grameðlu er vestan og ögn norðan við reit Þórseðlu (192°); hún stendur 207,5° frá leitarmyndavélinni, í næsta bili milli fenjatrjánna í þá átt sem er nógu breitt fyrir allar 12 m hennar á hlið. Hún er ekki í `farFriends` skipulagsins, því þá héldi plöntuskipulagið sjónlínu að henni opinni og stokkaði plöntum Fensins upp á nýtt. Myndavélin snýr sér á 15°/s, hámarki STYLE.md, milli 1,5 s mjúkra ramma (um 13 s frá Uggeðlu), og linsan þrengist úr 44° í 30° á leiðinni (mest 1,6°/s), svo hún sést um 130 × 55 punktar á 1280×800. Á meðan léttir þokan í hæðinni (1,6×) niður í þoku útlitsins sjálfs: í 1,6× var hún föl vofa við trjárröndina, en í venjulegri þoku sést hún eins og vinirnir sjást í 80–100 m í þykkari þokunni. Hún öskrar (klippan `roar`, með nýju lágu og vinalegu hljóði, `farRoar`, sem eigandinn á eftir að heyra), Mosi segir línuna sína 0,8 s inn í öskrið, og þegar öskrinu lýkur snýr hún sér og gengur á bak við fenjatrén hægra megin og inn fyrir trjárröndina. Hún er falin þegar ekkert af henni sést lengur, og linsan opnast aftur á 3 s meðan Þórseðla segir „Nú veistu hvar þau eru“. Hún er ekki pikkmark og ekkert fer í bókina. Líkanið er gert með vinunum í fjarska, eftir að upphafshnappurinn sést eða undir svarta skjánum, í léttustu útgáfu þeirra (1.400 þríhyrningar, eitt teiknikall), og því er hent með þeim eftir rennibrautina; skrár vinanna eru nú 9,5 MB. Bekkur á spjaldtölvustillingu við öskrið: 3,4–5,2 ms á skjákorti, 43 köll og 133 þúsund þríhyrningar (án hennar 3,9–4,6 ms og 42 köll). Heil spilun án snertingar lengist um 24 s, í 596 s af 600: litlu má bæta við kaflann áður en eitthvað þarf að stytta.
