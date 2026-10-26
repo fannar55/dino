@@ -2310,19 +2310,19 @@
       "height": 683
     },
     {
-      "id": "egg-embryo",
-      "src": "assets/book/images/egg-embryo.jpg",
-      "thumb": "assets/book/images/egg-embryo-thumb.jpg",
+      "id": "egg-embryo-jiangxi",
+      "src": "assets/book/images/egg-embryo-jiangxi.jpg",
+      "thumb": "assets/book/images/egg-embryo-jiangxi-thumb.jpg",
       "kind": "fossil",
-      "credit": "Sourabh.biswas003",
-      "license": "CC BY-SA 4.0",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "source": "https://commons.wikimedia.org/wiki/File:PXL_20231218_111916909_Natural_History_Museum_Exhibits_34_preserved_dinosaur_embryo,_nicknamed_%22Baby_Yingliang.jpg",
-      "alt": "Steingerð risaeðlubein liggja í sandlituðu bergi í glerskáp á safni: stór hauskúpa neðst til hægri, rifbein og fótleggir ofar.",
-      "modifications": "Stærð minnkuð úr 4080 × 3072 í 1024 × 771 punkta, með 320 punkta smámynd, og vistuð sem JPEG; lýsigögn (EXIF) fjarlægð. Myndinni er ekki breytt að öðru leyti. Upprunaleg skrá af Wikimedia Commons: sha256 92e051394c01b7d4bef476ce0dfc7b06148cf2d824e2708f0c77a8f674920862.",
-      "sha256": "7b28b64da57f11aa0c697c9cbe9ec10ae8bae1cb8e6dba4d61a2d781a8b12b48",
+      "credit": "乌拉跨氪",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "source": "https://commons.wikimedia.org/wiki/File:%E6%81%90%E9%BE%99%E8%83%9A%E8%83%8E%E5%8C%96%E7%9F%B3_dinosaur_fossil_embryo.jpg",
+      "alt": "Steingert risaeðluegg frá Jiangxi í Kína, þar sem sést hvernig unginn liggur hringaður inni í egginu.",
+      "modifications": "Stærð minnkuð úr 3000 × 2000 í 1024 × 682 punkta, með 320 punkta smámynd, og vistuð sem JPEG; lýsigögn (EXIF) fjarlægð. Myndinni er ekki breytt að öðru leyti. Upprunaleg skrá af Wikimedia Commons: sha256 4c8a43ec1dbc96b2cb64a297b5db69bae1c0dce9683d4e135675f97d57739efe.",
+      "sha256": "c19414f052273d1951bdfcc3e92d89a07063199202b7a926bf064965bf480a3e",
       "width": 1024,
-      "height": 771
+      "height": 682
     },
     {
       "id": "skeleton-zigong",
