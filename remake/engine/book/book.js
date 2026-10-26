@@ -100,7 +100,7 @@ export function halsOpen(save) {
 }
 
 /**
- * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest) and the `save`, with the book's sound (`audio`,
+ * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
  * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape). Returns
@@ -120,7 +120,7 @@ export function halsOpen(save) {
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -277,7 +277,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   // The card and the zoom lie over the spread (in #book, so the book's container units size them); the animals page fills the Dýrin
   // leaf with its tiles. A card that is shut tells the page, whose tile is no longer new.
   const zoom = createZoom(doc, { audio, win, root });
-  const cardViewer = createCardViewer(doc, root, { media, audio, zoom, win, onClose: () => { animals.render(); dinosaurs.render(); } });
+  const cardViewer = createCardViewer(doc, root, { media, models, audio, zoom, win, onClose: () => { animals.render(); dinosaurs.render(); } });
   const refound = new Set(); // the cards whose animals were found again in a new place, until each is next opened (foundAgain)
   const onOpenCard = (card, fromRect) => {
     const page = refound.has(card.id) ? card.refind : 0; // found again: its newest page, once

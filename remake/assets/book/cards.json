@@ -32,8 +32,9 @@
           "text": "Þetta er beinagrind þríhyrnu. Hún heitir Hatcher og stendur á safni í Ameríku.",
           "audio": "book_mosi_7",
           "sources": [
-            "Smithsonian National Museum of Natural History, uppsett beinagrind þríhyrnu, „Hatcher“, í David H. Koch Hall of Fossils – Deep Time, Washington; ljósmyndin á Wikimedia Commons, https://commons.wikimedia.org/wiki/File:Triceratops_Skeleton_-_National_Museum_of_Natural_History_(14611729991).jpg. Í áfanga 3 kemur þrívíddarskanni Smithsonian af sömu beinagrind (CC0) á þessa síðu."
-          ]
+            "Smithsonian National Museum of Natural History, uppsett beinagrind þríhyrnu, „Hatcher“, í David H. Koch Hall of Fossils – Deep Time, Washington; ljósmyndin á Wikimedia Commons, https://commons.wikimedia.org/wiki/File:Triceratops_Skeleton_-_National_Museum_of_Natural_History_(14611729991).jpg. Þrívíddarlíkanið er skanni Smithsonian af sömu beinagrind, CC0, https://3d.si.edu/object/3d/triceratops-horridus-marsh-1889:d8c623be-4ebc-11ea-b77f-2e728ce88125; það er reist upp á fæturna, því í risaeðlusalnum liggur hún á hliðinni."
+          ],
+          "model": "assets/book/models/mosi-skeleton.glb"
         },
         {
           "image": "triceratops-skull-paris",

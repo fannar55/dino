@@ -12,12 +12,13 @@ import { reducedMotion, TAP_SLOP_PX } from './fx.js';
 // for each src for the page's life, and a model that will not load (or a tablet with no WebGL) makes `show` resolve false, so the
 // card keeps its picture.
 //
-// The model turns slowly by itself until the first touch (never, when the tablet asks for less motion). One finger turns it about
+// The model turns slowly by itself until a finger first turns it (never, when the tablet asks for less motion). One finger turns it about
 // its vertical and tilts it, never past TILT_MAX; two fingers that both move pinch it from 1 to 3 times. Fingers count one by
 // one as in zoom.js: a finger that has not moved TAP_SLOP_PX moves nothing, so a thumb resting on the glass turns nobody's model and
 // makes no pinch. A turning finger stays with the canvas wherever it slides (pointer capture), and the browser keeps its own gestures
 // out of it (book.css, .card-model: touch-action none). On this page the card viewer lets only the arrows flip, so a finger turns the
-// model and never the page. The look of the canvas is book.css's.
+// model and never the page. A tap (a finger that lifts where it landed, with no turn or pinch while it was down) tells `onTap`: the
+// card viewer then takes the canvas to the whole screen (zoom.js openModel), and back. The look of the canvas is book.css's.
 
 export const AUTO_TURN = 0.25; // radians a second
 export const DRAG_TURN = 0.008; // radians a pixel
@@ -52,6 +53,7 @@ function release(root) {
  *                      a model that will not load) or when hide, or a show of another model, came first
  *   hide()             the canvas goes and nothing is drawn; the model stays for next time
  *   dispose()          everything is let go
+ *   canvas, onTap      the canvas (the zoom carries it to the whole screen and back), and who is told of a tap on the model
  */
 export function createSkeletonView(doc, { win = globalThis.window, loadModel = null } = {}) {
   const canvas = doc.createElement('canvas');
@@ -71,9 +73,9 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   let yaw = START_YAW;
   let tilt = START_TILT;
   let zoom = MIN_ZOOM;
-  let touched = false; // a finger has been on it: it stops turning by itself
+  let touched = false; // a finger has turned it: it stops turning by itself
   let calm = false; // the tablet asks for less motion: it does not turn by itself at all
-  const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved }
+  const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved, disturbed }
   let pinch = null; // the two fingers that pinch, and how far apart they were and how big the model was when they began
 
   /** The renderer, the camera and the lights, made once; null when this page cannot draw (no canvas to draw on, no WebGL). */
@@ -170,8 +172,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
 
   canvas.addEventListener('pointerdown', event => {
     if (!shown || event.button > 0) return;
-    touched = true;
-    fingers.set(event.pointerId, { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false });
+    fingers.set(event.pointerId, { x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY, moved: false, disturbed: false });
     try {
       canvas.setPointerCapture?.(event.pointerId); // so the finger goes on turning wherever it slides
     } catch {
@@ -188,7 +189,9 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     if (!finger.moved) {
       if (Math.hypot(finger.x - finger.x0, finger.y - finger.y0) < TAP_SLOP_PX) return; // a finger at rest moves nothing
       finger.moved = true; // it moves the model from here on, from where it is
+      touched = true;
       pinch = null;
+      for (const other of fingers.values()) other.disturbed = true; // none of the fingers down is a tap now
       return;
     }
     const movers = [...fingers.entries()].filter(([, other]) => other.moved).slice(0, 2); // a still finger is not one of them
@@ -204,8 +207,10 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     if (pinch.apart > 1) zoom = clamp(pinch.zoom * (apart / pinch.apart), MIN_ZOOM, MAX_ZOOM);
   });
   const lift = event => {
+    const finger = fingers.get(event.pointerId);
     fingers.delete(event.pointerId);
     pinch = null; // the finger that is left turns the model from where it is
+    if (event.type === 'pointerup' && finger && !finger.moved && !finger.disturbed && shown) view.onTap?.();
   };
   canvas.addEventListener('pointerup', lift);
   canvas.addEventListener('pointercancel', lift);
@@ -216,8 +221,9 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     zoom = clamp(zoom * (event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP), MIN_ZOOM, MAX_ZOOM);
   }, { passive: false });
 
-  return {
+  const view = {
     canvas,
+    onTap: null, // told of a tap on the model (the card viewer sets it)
     mount(container) {
       container.append(canvas);
     },
@@ -240,6 +246,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       touched = false;
       calm = reducedMotion(win);
       last = 0;
+      canvas.classList.remove('moved'); // a model shown afresh fades in (book.css); one the zoom carried over and back did not
       canvas.hidden = false;
       resize();
       draw(); // drawn before it is shown, so the picture is never replaced by a blank
@@ -263,4 +270,5 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       broken = true; // a view that is disposed shows nothing more
     },
   };
+  return view;
 }

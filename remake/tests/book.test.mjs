@@ -7,6 +7,7 @@ import { parseManifest } from '../engine/book/media.js';
 import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
+import { createZoom } from '../engine/book/zoom.js';
 import { createSave } from '../engine/save.js';
 import { createGame, applyTurn, FOSSIL_KINDS } from '../engine/hals/rules.js';
 import { DONE } from '../engine/handle.js';
@@ -387,6 +388,96 @@ test('a 3D page keeps its picture and reads its line where the model cannot show
   assert.equal(viewer.page, 2, 'the arrow flips');
   assert.ok(sent > before, 'and the model is sent away');
   viewer.close(true);
+});
+
+// The owner (2026-10-26): a tap on the model takes it to the whole screen, as a tap on a picture does; and the ⓘ says who made it.
+test('a tap on the model takes it to the whole screen and back, and while the model shows the ⓘ names its maker', async () => {
+  const doc = new FakeDocument(['book']);
+  const root = doc.getElementById('book');
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const zoomed = [];
+  const zoom = { isOpen: false, open() {}, openModel(canvas, back) { zoomed.push({ canvas, back }); this.isOpen = true; return true; }, close() {} };
+  const canvas = doc.createElement('canvas');
+  const mounts = [];
+  let modelShows = true;
+  const view = { canvas, mount: into => mounts.push(into), show: async () => modelShows, hide() {} };
+  const media = parseManifest({ images: [{ id: 'hatcher', src: 'a.jpg', kind: 'fossil', credit: 'Gareth Milner', license: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:A.jpg' }] });
+  const models = new Map([['assets/book/models/mosi-skeleton.glb', { credit: 'Smithsonian Institution', license: 'CC0', source: 'https://3d.si.edu/object/3d/x' }]]);
+  const card = {
+    id: 'mosi', name: 'Mosi',
+    pages: [1, 2].map(n => ({ image: 'hatcher', text: `Texti ${n}.`, audio: `book_mosi_${n}`, sources: ['heimild'], model: n === 1 ? 'assets/book/models/mosi-skeleton.glb' : null })),
+  };
+  const viewer = createCardViewer(doc, root, { audio: { sfx() {}, stop() {}, narrate: () => DONE }, zoom, media, models, skeleton: view });
+  const figure = root.findAll(e => e.classList.contains('card-image'))[0];
+  const credit = root.findAll(e => e.classList.contains('card-credit'))[0];
+  const words = () => credit.children.map(row => row.children.map(part => part.textContent).join(' ')).join(' / ');
+
+  viewer.open(card, null, 0);
+  assert.match(words(), /Mynd Gareth Milner/, 'before the model is on, the ⓘ is the photo\'s');
+  await flush();
+  assert.match(words(), /Líkan Smithsonian Institution \/ Leyfi CC0 \/ Frá 3d\.si\.edu/, 'with the model on, the ⓘ names the model\'s maker, its licence and where it is from');
+  view.onTap();
+  assert.equal(zoomed.length, 1, 'a tap on the model takes it to the whole screen');
+  assert.equal(zoomed[0].canvas, canvas, 'its own canvas, as it is');
+  view.onTap();
+  assert.equal(zoomed.length, 1, 'a tap on the model at full screen does not open it again (the zoom shuts it)');
+  zoom.isOpen = false;
+  zoomed[0].back();
+  assert.equal(mounts.at(-1), figure, 'and when the zoom is shut the canvas goes back to the card\'s photo');
+  viewer.next();
+  assert.match(words(), /Mynd Gareth Milner/, 'the next page, which has no model, has the photo\'s ⓘ again');
+  view.onTap();
+  assert.equal(zoomed.length, 1, 'and a tap where no model shows takes nothing to the screen');
+  viewer.close(true);
+
+  modelShows = false; // no WebGL: the picture stays, and so does its ⓘ
+  viewer.open(card, null, 0);
+  await flush();
+  assert.match(words(), /Mynd Gareth Milner/);
+  view.onTap();
+  assert.equal(zoomed.length, 1, 'a model that cannot show is never taken to the screen');
+  viewer.close(true);
+});
+
+test('the zoom carries a model\'s canvas to the whole screen: a finger that turns it keeps it there, a tap or the close puts it back', () => {
+  const doc = new FakeDocument(['book']);
+  const root = doc.getElementById('book');
+  const zoom = createZoom(doc, { root, win: null });
+  const layer = root.findAll(e => e.classList.contains('zoom'))[0];
+  const frame = root.findAll(e => e.classList.contains('zoom-frame'))[0];
+  const home = doc.createElement('figure');
+  const canvas = doc.createElement('canvas');
+  canvas.rect = { left: 100, top: 80, width: 400, height: 300 };
+  home.append(canvas);
+  let backs = 0;
+  const back = () => { backs++; home.append(canvas); };
+  const press = (type, x, id = 1) => layer.dispatchEvent(pointerEvent(type, { id, x, y: 100 }));
+
+  assert.equal(zoom.openModel(canvas, back), true);
+  assert.equal(layer.hidden, false, 'the zoom shows');
+  assert.equal(canvas.parentNode, frame, 'with the canvas on its mat');
+  assert.ok(frame.classList.contains('model'), 'in place of a picture');
+  assert.equal(frame.style['--ratio'], '400 / 300', 'in the shape the canvas had on the card');
+  press('pointerdown', 100);
+  press('pointermove', 160);
+  press('pointerup', 160);
+  assert.equal(zoom.isOpen, true, 'a finger that turns the model does not shut it');
+  assert.equal(frame.style.transform, undefined, 'nor moves the mat');
+  press('pointerdown', 100, 2);
+  press('pointerup', 100, 2);
+  assert.equal(zoom.isOpen, false, 'a tap shuts it');
+  assert.equal(backs, 1, 'and the canvas is let go back to its card');
+  assert.equal(canvas.parentNode, home);
+  assert.ok(!frame.classList.contains('model'));
+
+  const img = doc.createElement('img');
+  img.src = 'a.jpg';
+  assert.equal(zoom.open(img), true, 'a picture zooms as before');
+  assert.ok(!frame.classList.contains('model'));
+  zoom.close(true);
+  assert.equal(zoom.openModel(canvas, back), true);
+  assert.equal(zoom.close(true), true, 'the book shut with the model at full screen');
+  assert.equal(backs, 2, 'still puts the canvas back');
 });
 
 // ---------------------------------------------------------------------------------------------

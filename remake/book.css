@@ -21,7 +21,8 @@
                                  .card-model (the canvas of a 3D page's model, on the photo, where it takes the picture's place),
                                  .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
                                  and, on the last page, .card-done
-     .zoom                       a picture at full screen on its .zoom-frame mat (--ratio is the picture's shape), with its .zoom-close
+     .zoom                       a picture at full screen on its .zoom-frame mat (--ratio is the picture's shape), with its .zoom-close;
+                                 a 3D page's model too (.zoom-frame.model, its .card-model canvas carried there and back)
      .chunky                     the raised button every round control is made of
 
    The rules it keeps (the plan's Global Constraints and STYLE.md section 10):
@@ -714,6 +715,12 @@
 .zoom-frame img {
   display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 9px;
 }
+.zoom-frame.model { position: relative; } /* a 3D page's model at full screen (zoom.js openModel): its canvas fills the mat */
+.zoom-frame.model img { display: none; }
+.zoom-frame .card-model {
+  top: var(--mat); left: var(--mat); width: calc(100% - 2 * var(--mat)); height: calc(100% - 2 * var(--mat)); border-radius: 9px;
+}
+.card-model.moved { animation: none; } /* carried to the zoom and back as it is, with no fade-in */
 .zoom-close {
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 1; top: clamp(16px, 2.6cqmin, 32px); right: clamp(16px, 2.6cqmin, 32px);

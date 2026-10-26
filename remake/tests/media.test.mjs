@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { parseManifest, checkMedia, imageSize } from '../engine/book/media.js';
+import { createHash } from 'node:crypto';
+import { parseManifest, checkMedia, imageSize, parseModels, checkModels, MODEL_BYTES } from '../engine/book/media.js';
 import { parseCards } from '../engine/book/cards.js';
 
 // The book's pictures (assets/book/media-manifest.json): every real image open-licensed and credited, small enough for a tablet,
@@ -62,4 +63,45 @@ test('the shipped manifest is complete', () => {
     size: path => imageSize(fs.readFileSync(file(path))),
   });
   assert.deepEqual(found, []);
+});
+
+// The 3D pages' models (the manifest's "models"): a museum's scan is credited and open-licensed like a picture, and light enough
+// for the tablet; every page that has a model finds it there.
+test('checkModels names every problem', () => {
+  const scan = {
+    id: 'mosi-skeleton', src: 'assets/book/models/mosi-skeleton.glb', credit: 'Smithsonian Institution', license: 'CC0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/', source: 'https://3d.si.edu/object/3d/x', sha256: 'cd'.repeat(32), triangles: 49998, bytes: 1696276,
+  };
+  const card = model => ({ id: 'mosi', name: 'Mosi', order: 1, unlock: { start: true }, pages: [{ image: 'x', text: 'Texti.', audio: 'book_mosi_1', sources: ['heimild'], model }] });
+  const check = (entries, model = scan.src, sizes = { [scan.src]: scan.bytes }) => checkModels(parseModels({ models: entries }), [card(model)], { bytes: path => sizes[path] ?? null });
+  const one = (what, found, pattern) => {
+    assert.equal(found.length, 1, `${what}: ${JSON.stringify(found)}`);
+    assert.match(found[0], pattern, what);
+  };
+  assert.deepEqual(check([scan]), [], 'a credited CC0 scan on its page');
+  assert.deepEqual(check([], null, {}), [], 'no models and no page that has one');
+  one('a page whose model is not listed', check([], scan.src), /"mosi" page 1.*mosi-skeleton.glb.*not in the manifest/);
+  one('no credit', check([{ ...scan, credit: undefined }]), /mosi-skeleton.*credit/);
+  one('a licence that is not open', check([{ ...scan, license: 'CC BY-NC 4.0' }]), /mosi-skeleton.*CC BY-NC 4.0/);
+  one('too many triangles', check([{ ...scan, triangles: 150000 }]), /mosi-skeleton.*150000 triangles/);
+  one('too heavy', check([scan], scan.src, { [scan.src]: MODEL_BYTES + 1 }), /mosi-skeleton.*bytes/);
+  one('not there', check([scan], scan.src, {}), /mosi-skeleton.*not there/);
+  assert.throws(() => parseModels({ models: [scan, { ...scan }] }), /model "mosi-skeleton" is there twice/);
+});
+
+test('the shipped models are complete, and each file is the one its sha256 names', () => {
+  const file = path => new URL(`../${path}`, import.meta.url);
+  const read = path => JSON.parse(fs.readFileSync(file(path), 'utf8'));
+  const data = read('assets/book/media-manifest.json');
+  const models = parseModels(data);
+  const found = checkModels(models, parseCards(read('assets/book/cards.json')), {
+    bytes: path => (fs.existsSync(file(path)) ? fs.statSync(file(path)).size : null),
+  });
+  assert.deepEqual(found, []);
+  assert.ok(models.has('assets/book/models/mosi-skeleton.glb'), "Mosi's skeleton is there (the owner's pick, 2026-10-26)");
+  for (const model of models.values()) {
+    const bytes = fs.readFileSync(file(model.src));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), model.sha256, `${model.id}: the file is the one the manifest names`);
+    assert.equal(bytes.length, model.bytes, `${model.id}: its size`);
+  }
 });

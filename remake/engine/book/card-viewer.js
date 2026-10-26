@@ -13,8 +13,9 @@ import { createSkeletonView } from './skeleton-view.js';
 //
 // A page can have a model (cards.js, `model`): a 3D page (spec section 3.4). Its picture shows first and stays if the model cannot be
 // shown; once skeleton-view.js has the model on its canvas over the photo, that takes the picture's place and a finger turns it. While
-// it does, only the arrows flip (a swipe would fight the finger that turns the model) and a tap on the picture does not zoom it. Turning
-// the page, or shutting the card, sends the model away.
+// it does, only the arrows flip (a swipe would fight the finger that turns the model), a tap on the model takes it to the whole screen
+// as a tap on a picture does (zoom.js openModel; the owner's wish, 2026-10-26), and the ⓘ says who made the model (the manifest's
+// models, media.js parseModels). Turning the page, or shutting the card, sends the model away.
 //
 // A flip is a short slide, and while it goes on the arrows and swipes wait: rapid taps cannot skip a page or pile up. A picture that
 // is missing from the manifest, or will not load, shows a faint paw print; a line with no recording is silent (book-audio.js); neither
@@ -45,15 +46,16 @@ function siteOf(source) {
 
 /**
  * The card viewer inside `root` (the book's #book), over the book's pictures (`media`, parseManifest) and sound (`audio`), with
- * the picture zoom (`zoom`: open(img), close(), isOpen). `onClose(card)` is told when a card is shut. `skeleton` is the 3D page's model
- * view (createSkeletonView's: mount, show, hide), made here when none is given. Returns
+ * the picture zoom (`zoom`: open(img), openModel(canvas, back), close(), isOpen). `models` are the 3D pages' models by src (parseModels),
+ * for the ⓘ. `onClose(card)` is told when a card is shut. `skeleton` is the 3D page's model view (createSkeletonView's: canvas, mount,
+ * show, hide, and onTap, which is set here), made here when none is given. Returns
  *   open(card, fromRect = null, page = 0)   shows a card; false when one is open already. It grows from `fromRect`, the
  *                                           rectangle of the tile's picture, or from just below its own place without one
  *   close(instant = false)                  shuts it and stops the narration; instant skips the motion (the book is being shut)
  *   next(), prev()                          flip a page; false at the ends and while a flip is still going on
  *   page, card, isOpen                      the page's number (the first is 0), the card shown, and whether one is open
  */
-export function createCardViewer(doc, root, { media = new Map(), audio = null, zoom = null, onClose = null, win = globalThis.window, skeleton = null } = {}) {
+export function createCardViewer(doc, root, { media = new Map(), models: modelInfo = new Map(), audio = null, zoom = null, onClose = null, win = globalThis.window, skeleton = null } = {}) {
   const make = (tag, className) => {
     const element = doc.createElement(tag);
     element.className = className;
@@ -80,6 +82,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
   figure.append(photo, info, credit);
   const models = skeleton ?? createSkeletonView(doc, { win });
   models.mount(figure);
+  models.onTap = () => enlargeModel(); // a tap on the model, as on a picture, takes it to the whole screen
   const prevButton = control('card-arrow prev', 'Til baka', ICONS.arrow);
   const nextButton = control('card-arrow next', 'Áfram', ICONS.arrow);
   const done = control('card-done chunky', 'Aftur á dýrasíðuna', ICONS.animals);
@@ -133,7 +136,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     dots.replaceChildren(...pages.map(() => make('span', '')));
   }
 
-  /** A page with a model asks for it, and once it is on the canvas the finger is the model's. Else the picture stays. */
+  /** A page with a model asks for it, and once it is on the canvas the finger is the model's and the ⓘ tells of it. Else the picture stays. */
   function showModel() {
     const at = index;
     const src = pages[at]?.model;
@@ -141,6 +144,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     models.show(src).then(on => {
       if (!on || !isOpen || index !== at) return;
       modelOn = true;
+      credits(modelInfo.get(src) ?? null, 'Líkan');
       fingers.clear(); // a swipe that began over the picture is not one now
       if (drag) {
         drag = null;
@@ -155,10 +159,10 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     models.hide();
   }
 
-  /** The ⓘ window for a picture that is not our own: who made it, its licence and where it is from. */
-  function describe(image) {
-    const licence = /^public domain$/i.test(image.license) ? 'Almenningseign' : image.license;
-    const rows = [['Mynd', image.credit], ['Leyfi', licence], ['Frá', siteOf(image.source)]].filter(([, value]) => value);
+  /** The ⓘ window for a picture or a model that is not our own (`what` says which): who made it, its licence and where it is from. */
+  function describe(item, what = 'Mynd') {
+    const licence = /^public domain$/i.test(item.license) ? 'Almenningseign' : item.license;
+    const rows = [[what, item.credit], ['Leyfi', licence], ['Frá', siteOf(item.source)]].filter(([, value]) => value);
     credit.replaceChildren(...rows.map(([label, value]) => {
       const row = make('p', '');
       const name = make('span', 'credit-label');
@@ -182,6 +186,21 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     audio?.sfx?.(opening ? 'info' : 'tap');
   }
 
+  /** The ⓘ, shut, for this picture or model (`what`), or none where it is our own (or unknown). */
+  function credits(item, what) {
+    closeCredit();
+    const external = Boolean(item?.license) && item.license !== 'own';
+    info.hidden = !external;
+    if (external) describe(item, what);
+  }
+
+  /** The model on the canvas goes to the whole screen (a tap on it), and comes back to the photo when the zoom is shut. */
+  function enlargeModel() {
+    if (!isOpen || !modelOn || zoom?.isOpen || !models.canvas) return;
+    closeCredit();
+    zoom?.openModel?.(models.canvas, () => models.mount(figure));
+  }
+
   /** Shows page `i`: its picture, text and dots, the arrows that make sense there, and the ⓘ for a picture that is not our own. */
   function show(i) {
     index = i;
@@ -195,10 +214,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     prevButton.hidden = i === 0;
     nextButton.hidden = last;
     done.hidden = !last;
-    closeCredit();
-    const external = Boolean(image?.license) && image.license !== 'own';
-    info.hidden = !external;
-    if (external) describe(image);
+    credits(image, 'Mynd');
   }
 
   /**

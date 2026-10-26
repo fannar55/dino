@@ -2354,5 +2354,20 @@
       "width": 1024,
       "height": 768
     }
+  ],
+  "models": [
+    {
+      "id": "mosi-skeleton",
+      "src": "assets/book/models/mosi-skeleton.glb",
+      "credit": "Smithsonian Institution, National Museum of Natural History",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source": "https://3d.si.edu/object/3d/triceratops-horridus-marsh-1889:d8c623be-4ebc-11ea-b77f-2e728ce88125",
+      "alt": "Þrívíddarskanni Smithsonian-safnsins af beinagrind þríhyrnunnar „Hatcher“, sem barnið snýr með fingrinum.",
+      "modifications": "Skráin Triceratops_20M-150k-1024-low.glb af síðu Smithsonian (150 þúsund þríhyrningar, Draco-þjöppuð, sha256 504bae8233f46f09de2abda5a5560401a8f35ba3858b91e1ac4d56d269ed89f9) opnuð í Blender, þríhyrningum fækkað í 50 þúsund (remake/tools/blender-decimate.py), hnitin pökkuð smátt (remake/tools/quantize-glb.mjs) og grindin reist upp á fæturna: Smithsonian sýnir hana liggjandi á hliðinni, eins og hún liggur í risaeðlusalnum. Áferðirnar (1024 punktar) eru óbreyttar.",
+      "sha256": "268297a825d4a27ecdcfc6351b087b9db00f8022ec1bc046ed49e1f640d26b9a",
+      "triangles": 49998,
+      "bytes": 1696276
+    }
   ]
 }

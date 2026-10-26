@@ -64,7 +64,7 @@
   import { createBook } from './engine/book/book.js';
   import { createBookAudio } from './engine/book/book-audio.js';
   import { parseCards } from './engine/book/cards.js';
-  import { parseManifest } from './engine/book/media.js';
+  import { parseManifest, parseModels } from './engine/book/media.js';
   import { createJournal } from './engine/scene/journal.js';
   import { createSave } from './engine/save.js';
   import { FOSSIL_KINDS } from './engine/hals/rules.js';
@@ -103,7 +103,7 @@
   const context = createAudioContext();
   addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
   const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
-  const book = createBook(document, { cards, media: parseManifest(mediaData), save, audio, win: window, onPause: () => {} });
+  const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {} });
   createJournal(document, save, { book, audio });
   Object.assign(window, { __book: book, __bookAudio: audio });
 

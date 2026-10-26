@@ -26,7 +26,7 @@ import { createJournal } from './engine/scene/journal.js';
 import { createBook, halsOpen } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
-import { parseManifest } from './engine/book/media.js';
+import { parseManifest, parseModels } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
 import { createFjolspil } from './engine/fjolspil/fjolspil.js';
@@ -156,6 +156,7 @@ try {
 // works; only its Dýrin page is empty.
 let cards = [];
 let media = new Map();
+let models = new Map(); // the 3D pages' models, from the same manifest
 try {
   const read = async path => {
     const response = await fetch(new URL(path, import.meta.url));
@@ -165,6 +166,7 @@ try {
   const [cardData, mediaData] = await Promise.all([read('./assets/book/cards.json'), read('./assets/book/media-manifest.json')]);
   cards = parseCards(cardData);
   media = parseManifest(mediaData);
+  models = parseModels(mediaData);
 } catch (error) {
   cards = [];
   media = new Map();
@@ -216,7 +218,7 @@ const updateMusic = guard('music', () => music.update());
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
 const book = createBook(document, {
-  cards, media, save, audio: bookAudio, win: window,
+  cards, media, models, save, audio: bookAudio, win: window,
   onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
   // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
   // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
