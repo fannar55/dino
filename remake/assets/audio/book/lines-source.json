@@ -45,7 +45,7 @@
  { "id": "book_uggedla_6", "speaker": "narrator", "text": "Seglið á bakinu var um einn og hálfur metri, hærra en þú!" },
  { "id": "book_uggedla_7", "speaker": "narrator", "text": "Halinn var flatur eins og ár. Með honum gat hún synt í vatninu." },
  { "id": "book_uggedla_8", "speaker": "narrator", "text": "Spinosaurus var uppi fyrir um 95 milljónum ára, í Afríku, þar sem nú er eyðimörk." },
- { "id": "book_uggedla_9", "speaker": "narrator", "text": "Synti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það." },
+ { "id": "book_uggedla_9", "speaker": "narrator", "text": "Synti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "say": "Sinnti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.", "note": "Own say: Synti respelled Sinnti, the owner's pick by ear (prufa 2) on 2026-10-26; the plain take said Synti wrong. Only this line has the word." },
  { "id": "book_sloedla_1", "speaker": "narrator", "text": "Þetta er Slóeðla. Hún er Parasaurolophus, með langan kamb á höfðinu." },
  { "id": "book_sloedla_2", "speaker": "narrator", "text": "Svona leit Parasaurolophus kannski út. Hún gat gengið á tveimur eða fjórum fótum." },
  { "id": "book_sloedla_3", "speaker": "narrator", "text": "Þetta er beinagrind Parasaurolophus. Kamburinn er hluti af höfuðkúpunni." },

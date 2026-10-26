@@ -1951,8 +1951,8 @@
  },
  "book_uggedla_9": {
   "src": "assets/audio/book/book_uggedla_9.mp3",
-  "duration": 7.13,
-  "mouth": "000dfd000efffdfa3a0000bdb008c04ca00000008cbbeddc800affbc000ffddd8bc09000c50000040000000000000004aee0df9d0be600000dffdea5addc8499006000000000000"
+  "duration": 7.211,
+  "mouth": "000ff8009d9effbaf8690008cd804d00cb0000000005ddbde0dfdd70bffeed89d066000b00000400000000000000004df82ffd70fe2000000effeec76bdc929a00740000000000000"
  },
  "book_sloedla_1": {
   "src": "assets/audio/book/book_sloedla_1.mp3",
@@ -2141,8 +2141,8 @@
  },
  "book_snail_2": {
   "src": "assets/audio/book/book_snail_2.mp3",
-  "duration": 4.81,
-  "mouth": "00000cfe30004dfb3005aede06eddefffed4009ec600009befffeb000a86006abbee08b98bc4057653444000000000000"
+  "duration": 4.49,
+  "mouth": "0009ffe807ddc9efda0adcccefeeca000bca04aabdeeed90009960009a9cea0ab78da006673444200000000000"
  },
  "book_snail_3": {
   "src": "assets/audio/book/book_snail_3.mp3",
