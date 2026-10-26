@@ -44,7 +44,8 @@
         "Snigill",
         "snigill",
         "snigilinn",
-        "snigillinn"
+        "snigillinn",
+        "Snigillinn"
       ],
       "recipes": {
         "hratt": {
@@ -55,7 +56,8 @@
             "Snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\""
+            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
+            "Snigillinn": "\"/ˈstniːjɪtlɪn/\""
           },
           "seed": 1,
           "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/. Fleirtalan Sniglar er orð út af fyrir sig (sniglar)."
@@ -65,7 +67,8 @@
             "Snigill": "Sníjitl",
             "snigill": "sníjitl",
             "snigilinn": "sníjilinn",
-            "snigillinn": "sníjitlinn"
+            "snigillinn": "sníjitlinn",
+            "Snigillinn": "Sníjitlinn"
           },
           "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
         }

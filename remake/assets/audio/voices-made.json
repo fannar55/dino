@@ -25,6 +25,18 @@
    "duration": 4.89,
    "model": "eleven_v4"
   },
+  "book/book_beetle_5": {
+   "key": "0a19fa4a8f1602a607efef8f245be2a096d2f61964c2bfc4f23ce0798dac06af",
+   "mp3": "91a0cd1e4460d76f06cee130ce21e53f0b30a129f456cdf3d8f3fbccf7fe3fa7",
+   "duration": 5.37,
+   "model": "eleven_v4"
+  },
+  "book/book_beetle_6": {
+   "key": "d97dca4538d5282bc2664672397fd9a06c8a7d025cdda09cce5dd5c7fdcefc1f",
+   "mp3": "933e01bd4c68ddec9ffc6cf982c56c0e91a565734c0aa920bec7a8fbbd0aa2e5",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
   "book/book_birds_1": {
    "key": "d208a401848463ce3223bdb8985eab91539eb581526f2b2008366448fcaadc5d",
    "mp3": "c46b7b582be920a62f1a70506d24410a8e783b98d7bd81dd3f99f9e965e80576",
@@ -55,6 +67,12 @@
    "duration": 5.37,
    "model": "eleven_v4"
   },
+  "book/book_birds_6": {
+   "key": "90cbc5b563ae1094b3723ef71ecbc7df42df9b0d3da29825c81aca2f77b80fec",
+   "mp3": "07563be6e742c116543c4820fca84b7f439a1c6459a9cda356ffb9a1a0a99ab5",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
   "book/book_dragonfly_1": {
    "key": "0ffa1a5d3524dabc8bcdb64179e88feb5a266f26fab5505cb6834afb0a0a0ccf",
    "mp3": "a70595c7833cfd61978986a9b216b53562711077499806e84ab45dc6eea63c10",
@@ -73,6 +91,24 @@
    "duration": 6.73,
    "model": "eleven_v4"
   },
+  "book/book_dragonfly_4": {
+   "key": "f84fbfef5298f2cc95c99545c4fd8a1a74da6e5f2f59ece044426936e0abea33",
+   "mp3": "ac61dc224746138363e6d39278a979d2b889054c047c8a132c8f9dd0480f03c4",
+   "duration": 4.25,
+   "model": "eleven_v4"
+  },
+  "book/book_dragonfly_5": {
+   "key": "82ca09d843003bb4390bf9c2e3644c33e40f1d02e9d10bf50a4b557eade50664",
+   "mp3": "a10f719d98bae89604de45c0f6d4b8c713e8953669cca426695aad104306f8f6",
+   "duration": 6.17,
+   "model": "eleven_v4"
+  },
+  "book/book_dragonfly_6": {
+   "key": "18a873607193ea282ae9375602872961564d653085fb3bd1729da0a00f35bfa5",
+   "mp3": "a8220e05c166fa44c3c90dcf09400b44a601eb990a7aae4272c11ea1bf8c4de7",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
   "book/book_earlybird_1": {
    "key": "c04a1e477cf0ce4128fd1a71dc31ff5d6f4e670d2b1f795b3b97a593636354fd",
    "mp3": "3718a3a9ca9141295f029ff513c5a48fb20cdc742051f2f39940e099a537fef2",
@@ -89,6 +125,24 @@
    "key": "76beb7a1305cae8c015d82a4866e46b31c2c0b00b81c19e4b9974850eb039f31",
    "mp3": "5beaf94cfd1a9545be11ad60550e5b8a7a8f63edc9cf2f5b7c635543ddae4cbb",
    "duration": 7.37,
+   "model": "eleven_v4"
+  },
+  "book/book_earlybird_4": {
+   "key": "30df9f03492fde853d4c9e874a70cebb45861164f6a08acbf4043104b5a87623",
+   "mp3": "e5e0005f67f7e9e18faacbd77da8d6cc70ef3c31a74875dbbb39ba933993a774",
+   "duration": 2.57,
+   "model": "eleven_v4"
+  },
+  "book/book_earlybird_5": {
+   "key": "461db51b4650ecbc87cad2742a922b5a8ac0359ca2ebbff3d2b38a447737983b",
+   "mp3": "5845096a0080f0b018128eaf34d2b8e8dbe50a08d13b07b85acfcdd04d6cef5e",
+   "duration": 8.09,
+   "model": "eleven_v4"
+  },
+  "book/book_earlybird_6": {
+   "key": "4a969fc10f38c102abd1b96c96c6f2b52800dd3d62d4f47fdef1514d96d6616d",
+   "mp3": "6d7f5487238a782fe1fec987a8567896d0e612b8018a97b0f4ed9ae65ef185a4",
+   "duration": 5.13,
    "model": "eleven_v4"
   },
   "book/book_find_me": {
@@ -119,6 +173,24 @@
    "key": "4f15e40f8d44a6ed398c4eabd5b31132e5c8c47e15e29a5df13bb9b46689f54d",
    "mp3": "9a76164d04603ed998e02504d0cb34a2decdd8965fe889f565c00e5147b41046",
    "duration": 6.41,
+   "model": "eleven_v4"
+  },
+  "book/book_fish_4": {
+   "key": "3867cc7d2f15b6320a4f92c8e1aee5b5d58d5cafcc47a10e7d52ab3d4868ed99",
+   "mp3": "48fd0ab608e0800b73a7e159c78ae0887bbee078e2146510b2a9e5dbf65b7adf",
+   "duration": 4.651,
+   "model": "eleven_v4"
+  },
+  "book/book_fish_5": {
+   "key": "e169c2c7477e67d23822e0cf56fdfac2daa4b396716f6e385dbcf571b103331c",
+   "mp3": "402f3453c9852bff7a48dc590e46666a9346580b0b34eb009f737214ab108bca",
+   "duration": 5.21,
+   "model": "eleven_v4"
+  },
+  "book/book_fish_6": {
+   "key": "61c52d5e0d14da4e251b772f10495997357ac8576440f141227c7cdc9faf1e9c",
+   "mp3": "653926bc55a037fbe2d8c63d303ca061f1e20b7d1ea89d2954283ee127685665",
+   "duration": 4.49,
    "model": "eleven_v4"
   },
   "book/book_flugedla_1": {
@@ -211,6 +283,12 @@
    "duration": 7.85,
    "model": "eleven_v4"
   },
+  "book/book_frog_7": {
+   "key": "2631381223c94ee30991eec80799aeecf10ceaecb67825670a2aa05c349cf8d8",
+   "mp3": "a0524fe97a06251d85fff49f373da935349ffd0eedb23ba05e503420e2a8a911",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
   "book/book_gramedla_1": {
    "key": "e356e22ff81f8325e8596cfde04786f74b1b4b4e4f302f9e59208596eaadda9b",
    "mp3": "7e527cf3a910345d8eed257d08b0b114d81794a854e4ad560d9cfaa8311a6b4d",
@@ -293,6 +371,18 @@
    "key": "d2c530c5dcf63a91ed196fd3dd6af32abf0852644c7983609513427ef7128e0f",
    "mp3": "dc811ab8e1535f4d171b5a7ca862f3f1202d16824a0ca3fb098b3eb2545c1a05",
    "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "book/book_kalligrammatid_6": {
+   "key": "850859c10051f00fc887019eee3534178d71913b0a314ab779670cb38f0a33ec",
+   "mp3": "796bd1411ea7422088ff328b0dd46ff2e47694f1a5bea819a246e61178aa4247",
+   "duration": 4.09,
+   "model": "eleven_v4"
+  },
+  "book/book_kalligrammatid_7": {
+   "key": "2d611b49ed28eb29646c0edc758c0242d5a02f4412e50f478df34829163c4f51",
+   "mp3": "06dc2a56d3c6b909f782e8e77e49024251e549c7b7daf67f4be2f5478e3dcc01",
+   "duration": 4.25,
    "model": "eleven_v4"
   },
   "book/book_kambedla_1": {
@@ -445,6 +535,24 @@
    "duration": 5.85,
    "model": "eleven_v4"
   },
+  "book/book_salamander_4": {
+   "key": "c88e51f4918a0a35d72f0611f50f5aa75d5d99aad88649e5acc79a117ca1c83d",
+   "mp3": "7337c388c883ab62a5f843c77b16c1b3f6ea89e9182477fe84b18d1d14767782",
+   "duration": 6.33,
+   "model": "eleven_v4"
+  },
+  "book/book_salamander_5": {
+   "key": "67f46caf1dee05231408ed914aa7617c4bca63ffb89235671883b5842b4994bc",
+   "mp3": "5a17bdb912120bd50947abbc49f0a6d202cdf149abc223a438af6b9cec63cfab",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
+  "book/book_salamander_6": {
+   "key": "5ff27dc3d3b100b740a007cd26a7e81a8fc6056e46818b85bad098e58f375e4b",
+   "mp3": "828c925c246d61fb16e3c46ff8c59e25f1f6931f9ca3f795e5c1fef154b034ac",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
   "book/book_sloedla_1": {
    "key": "ca68c5f497d8c409a35e963ee8bf79901839dbf6fc86f365a1db0398b4343cfc",
    "mp3": "c152ad7e0f4b541672eeda736f462cf34d4247615fe7000eec29b02246ca1f13",
@@ -529,6 +637,18 @@
    "duration": 7.37,
    "model": "eleven_v4"
   },
+  "book/book_snail_6": {
+   "key": "9802c0e8e9938aa2ee2a1864e801e52ad91b7ba7d5d6be67dbf6fca78d027a9f",
+   "mp3": "ba48ea2af8e3d6c36f65112a167b64ee9fe411cb6c0c51188b2386d871d7391a",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
+  "book/book_snail_7": {
+   "key": "216e12be4dae4947a644669376a8cae6f034c1305ae61a12105d338f694df808",
+   "mp3": "b990c3f8eccfa94b842411a8c23017d3bfad185fa1dcf61f6ab0fe5bd750bc08",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
   "book/book_thorsedla_1": {
    "key": "3d8b3dc8a6da7bf73d2e82bb782a52a7d570ec969970e49f6a473689b629d759",
    "mp3": "2dd8e537a12bc3fd57a6bf4d278e2391854ab3022aea8ff375d92d186ccba9ab",
@@ -599,6 +719,24 @@
    "key": "f70394970d6dfc8348e752ea30e50b9cccb7ab63e2e1e2b0255189f5469f3cfe",
    "mp3": "32011fe8796b697303e0693178a4167776e3228eb49349d87c204e210eb03142",
    "duration": 7.93,
+   "model": "eleven_v4"
+  },
+  "book/book_turtle_4": {
+   "key": "58e66e1cff371b3f4b7f50873988f50db1c35ece8e6703bec2da3a33a4693a9a",
+   "mp3": "23b3054b50161e8c245311a0a4b39a310ffd4e983ba44dae912036ed1fda74b9",
+   "duration": 6.57,
+   "model": "eleven_v4"
+  },
+  "book/book_turtle_5": {
+   "key": "d2b4c11854b862bd5481ef57080bad6bad44142c8b368cb343aa22c6a7e0fa48",
+   "mp3": "4296cea0227aa8617c23d911d1132cf43f9b36ce1179fa96e5f11b3ca50d5c0d",
+   "duration": 6.01,
+   "model": "eleven_v4"
+  },
+  "book/book_turtle_6": {
+   "key": "d2757b8e6c11b5df6424cedd65e9b78636ce8f13730acbdaba0acdca43351ef6",
+   "mp3": "4e6faeab4080d2f545acf427838a456f40a18e887be44536675832cf06e456ce",
+   "duration": 4.25,
    "model": "eleven_v4"
   },
   "book/book_uggedla_1": {
@@ -673,6 +811,24 @@
    "duration": 6.73,
    "model": "eleven_v4"
   },
+  "book/book_waterbeetle_4": {
+   "key": "418295b57bc5a63c0c41de1016be1949325f24a60ea96c0f5e0e24887de2cb21",
+   "mp3": "ad4c7c71dbd58ca77cda94ba688f23e244e8b30e0f617a5ecacbf4bab3678aff",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "book/book_waterbeetle_5": {
+   "key": "ac8c7c8517ca475b90a0ab6f3f0af70a1d898c1673cc13ef0a0417449027ada3",
+   "mp3": "0faef6b9c0ee2daa9665813816f7eec47bdf877f42b26aaa7b550e61fe072985",
+   "duration": 5.45,
+   "model": "eleven_v4"
+  },
+  "book/book_waterbeetle_6": {
+   "key": "fd18db43841f4676b9df9f39de964240d9d9cf389a02bbfee2d551e659246a2b",
+   "mp3": "5deeb4d56e9bf4eeaee9d326ce1f55bedb40ce0d3157f377e8e4171ff0fc433c",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
   "book/book_waterstrider_1": {
    "key": "ce77349b9f7444b36f5291d49892c4561d66adb73cb5bc5b3d46b8f3a9aacdd8",
    "mp3": "ca0a48340c4ff24729be3ee26915a5f08e0814f072d3c265e9034c6d0b9f3482",
@@ -689,6 +845,24 @@
    "key": "055c766a6694975ae9a4435fd0104c494ec034556002e874059faf4190343223",
    "mp3": "b321752acc32dc75750114c548e1e5124af9aa03b0db55e7904b55c752c396c7",
    "duration": 6.97,
+   "model": "eleven_v4"
+  },
+  "book/book_waterstrider_4": {
+   "key": "1c138261e73fb0a9436a5fc76e4b3593b4100b4b341f194ae4aa191c7135caff",
+   "mp3": "508ada24811624b5a7f1a8e35d381838960ade43011f13865fa60021ab8ad866",
+   "duration": 4.09,
+   "model": "eleven_v4"
+  },
+  "book/book_waterstrider_5": {
+   "key": "42b134f872e30d884404b1cacba127f63ed42384e9d992b592117ca8565206bf",
+   "mp3": "9fabe727500a14babcd6ce1e6b883520225308be901015b130371e902e9f96b0",
+   "duration": 5.61,
+   "model": "eleven_v4"
+  },
+  "book/book_waterstrider_6": {
+   "key": "8c0218035540f273006c1c56d064fc5fb7ed75bab89161eb970d4b651b5595d8",
+   "mp3": "6dfca8bb35908836bffea3e82b5df1246bc0b0df6f9afdd56d5e493828eaa549",
+   "duration": 4.57,
    "model": "eleven_v4"
   },
   "eitt/eitt_again": {
