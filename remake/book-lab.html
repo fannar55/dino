@@ -8,6 +8,7 @@
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./style.css">
 <link rel="stylesheet" href="./book.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script>
 <style>
   /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
      journal button. The real book (engine/book/book.js) opens over it on the cards in assets/book/, with a save in memory. ?state= picks
@@ -20,7 +21,9 @@
      Also: ?card=<id> and ?page=<n> (from 1) open any card at any page, on the Risaeðlur or the Dýrin page as its group says;
      ?found=all finds every animal and fossil and meets every dinosaur, and opens every game, as after the whole book is full (the
      first look at Safnið then cheers, once); ?fossils=<kind>,<kind> finds those fossils (ammonite, trilobite, tooth, footprint, leaf, amber, egg, skeleton);
-     ?find=<id>,<id> finds those animals; ?spread=<n> turns the Dýrin page to that spread at its corner, as a child would.
+     ?find=<id>,<id> finds those animals; ?spread=<n> turns the Dýrin page to that spread at its corner, as a child would;
+     ?card=<id>&page=<n>&model=<path> makes that page a 3D page, its model a GLB read from remake/ (model=assets/characters/mosi.glb), as
+     a card's page does with a "model" of its own (the picture stays where there is no WebGL or the model will not load).
      __demoStats.cornerSteals counts the points of the tiles in view that a corner takes instead (none is right), on a 24 × 24 grid
      over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels. */
   .no-corner-hits .spread-turn * { pointer-events: none !important; }
@@ -75,6 +78,12 @@
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
   ]);
   const cards = parseCards(cardData);
+  // The card that ?state= or ?card= asks for (kalligrammatid unless told another, kambedla for the zoom and ⓘ), and the page of it.
+  const cardAsked = state === 'card' || state === 'zoom' || state === 'info' || params.has('card');
+  const cardId = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
+  const pageAsked = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
+  const modelPage = cards.find(card => card.id === cardId)?.pages[Math.max(0, pageAsked)];
+  if (cardAsked && params.has('model') && modelPage) modelPage.model = params.get('model'); // a look at a 3D page
   const save = createSave(null);
   save.addStar('k1_kambedla');
   save.addFinding('butterfly');
@@ -157,8 +166,6 @@
   }
 
   // The page the book opens on: the dinosaurs' for ?state=dinosaurs, and for a card of a dinosaur (Mosi's, Kambeðla's), else the animals'.
-  const cardAsked = state === 'card' || state === 'zoom' || state === 'info' || params.has('card');
-  const cardId = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
   const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
   book.open(state === 'fossils' ? 'fossils' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
   await settle();
@@ -169,9 +176,13 @@
     await settle();
   }
   if (cardAsked) {
-    const page = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
-    book.openCard(cardId, Math.max(0, page));
+    book.openCard(cardId, Math.max(0, pageAsked));
     await settle();
+    if (params.has('model')) { // the model comes after the page: wait for it (or for the picture to stay, when it cannot come)
+      const since = Date.now();
+      while (!document.querySelector('.card-model:not([hidden])') && Date.now() - since < 8000) await new Promise(resolve => setTimeout(resolve, 100));
+      await settle();
+    }
     if (state === 'info') tap('.card-info');
     if (state === 'zoom') tap('.card-photo');
     await settle();

@@ -334,6 +334,61 @@ test('rapid taps on next turn one page per settled flip and stop at the last pag
   assert.equal(viewer.page, 2, 'never past the last page');
 });
 
+test('a 3D page keeps its picture and reads its line where the model cannot show, and the arrows flip; with the model on, only the arrows flip', async () => {
+  const doc = new FakeDocument(['book', 'book-two']);
+  const lines = [];
+  const zoomed = [];
+  const audio = { sfx() {}, stop() {}, narrate: id => { lines.push(id); return DONE; } };
+  const zoom = { open: img => zoomed.push(img), close() {} };
+  const card = {
+    id: 'bones', name: 'Beinagrind',
+    pages: [1, 2, 3].map(n => ({ image: 'none', text: `Texti ${n}.`, audio: `book_bones_${n}`, sources: ['heimild'], model: n === 2 ? 'assets/characters/mosi.glb' : null })),
+  };
+  const press = (el, type, x) => el.dispatchEvent(pointerEvent(type, { x, y: 100 }));
+  const tap = el => { press(el, 'pointerdown', 10); press(el, 'pointerup', 10); };
+  const swipeLeft = el => { press(el, 'pointerdown', 200); press(el, 'pointermove', 100); press(el, 'pointerup', 100); };
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const partsOf = (root, name) => root.findAll(e => e.classList.contains(name));
+  const arrow = root => partsOf(root, 'card-arrow').find(e => e.classList.contains('next'));
+
+  // Here there is no WebGL: the page's picture stays, its line is read, and the arrow goes on to the next page.
+  const root = doc.getElementById('book');
+  const bare = createCardViewer(doc, root, { audio, zoom });
+  assert.equal(bare.open(card, null, 1), true);
+  await flush();
+  const [first, second] = root.findAll(e => e.tagName === 'IMG');
+  assert.equal(second.hidden, false, 'the picture of the page is showing');
+  assert.equal(first.hidden, true);
+  assert.equal(partsOf(root, 'card-model')[0].hidden, true, 'and the canvas for the model is not');
+  assert.equal(lines.at(-1), 'book_bones_2', 'the page is read');
+  tap(partsOf(root, 'card-photo')[0]);
+  assert.equal(zoomed.length, 1, 'a tap on the picture still zooms it, as it is only a picture here');
+  tap(arrow(root));
+  assert.equal(bare.page, 2, 'the arrow flips to the third page');
+  bare.close(true);
+
+  // With a model on the canvas the finger is the model's: a swipe does not flip and a tap does not zoom; the arrows do, and the model goes.
+  const asked = [];
+  let sent = 0;
+  const view = { mount() {}, show: async src => { asked.push(src); return true; }, hide: () => { sent++; } };
+  const root2 = doc.getElementById('book-two');
+  const viewer = createCardViewer(doc, root2, { audio, zoom, skeleton: view });
+  viewer.open(card, null, 0);
+  swipeLeft(partsOf(root2, 'card')[0]);
+  assert.equal(viewer.page, 1, 'a page with no model flips with a swipe');
+  await flush();
+  assert.deepEqual(asked, ['assets/characters/mosi.glb'], 'the model of the page is asked for once it is turned to');
+  swipeLeft(partsOf(root2, 'card')[0]);
+  assert.equal(viewer.page, 1, 'with the model on, a swipe does not flip');
+  tap(partsOf(root2, 'card-photo')[0]);
+  assert.equal(zoomed.length, 1, 'and a tap on the picture does not zoom');
+  const before = sent;
+  tap(arrow(root2));
+  assert.equal(viewer.page, 2, 'the arrow flips');
+  assert.ok(sent > before, 'and the model is sent away');
+  viewer.close(true);
+});
+
 // ---------------------------------------------------------------------------------------------
 // The Fen's animals (chapter 2): their cards, on a second Dýrin spread of their own
 

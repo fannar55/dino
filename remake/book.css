@@ -18,6 +18,7 @@
                                  page a .fossil-tile for each of the eight fossils (.found, .new with its .badge-new, or .unfound), under .fossil-title, with
                                  .fossil-count and the .fossil-name that shows over a sticker tapped
      .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
+                                 .card-model (the canvas of a 3D page's model, on the photo, where it takes the picture's place),
                                  .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
                                  and, on the last page, .card-done
      .zoom                       a picture at full screen on its .zoom-frame mat (--ratio is the picture's shape), with its .zoom-close
@@ -529,7 +530,7 @@
 [data-card="uggedla"] { --hue: #47908a; }
 [data-card="sloedla"] { --hue: #6793d0; }
 [data-card="flugedla"] { --hue: #dc8090; }
-.tile-picture, .card-image img, .zoom-frame img { /* the picture lies on a soft wash of the animal's hue */
+.tile-picture, .card-image img, .card-model, .zoom-frame img { /* the picture, and a 3D page's model, lie on a soft wash of the animal's hue */
   background: radial-gradient(115% 95% at 50% 30%, color-mix(in srgb, var(--hue, #c9b48a) 16%, var(--book-card)), color-mix(in srgb, var(--hue, #c9b48a) 42%, var(--book-card)));
 }
 
@@ -599,9 +600,10 @@
 .book:has(.card:not([hidden])) .book-spread *::after { animation-play-state: paused; }
 
 .card-image { /* the page's picture, a photo taped on the card; a tap on it zooms it */
+  --photo-pad: clamp(10px, 1.7cqmin, 20px);
   grid-area: image; position: relative; margin: 0; justify-self: center; align-self: center;
   height: 100%; max-width: 100%; aspect-ratio: 4 / 3;
-  padding: clamp(10px, 1.7cqmin, 20px);
+  padding: var(--photo-pad);
   border-radius: 10px; background: var(--book-card);
   box-shadow: 0 2px 0 rgb(59 47 37 / .1), 0 16px 30px -4px rgb(59 47 37 / .34), 0 3px 6px rgb(59 47 37 / .18);
   transform: rotate(-1.2deg);
@@ -621,6 +623,15 @@
 .card-image img { /* every page's picture lies in the photo, one on another, and only the page's shows */
   position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 6px;
 }
+.card-model { /* a 3D page's model (skeleton-view.js): its canvas lies on the photo, where the page's picture gives way to it */
+  position: absolute; z-index: 1; top: var(--photo-pad); left: var(--photo-pad);
+  width: calc(100% - 2 * var(--photo-pad)); height: calc(100% - 2 * var(--photo-pad));
+  border-radius: 6px; touch-action: none; cursor: grab; /* a finger turns the model: the browser keeps its own gestures out */
+  animation: model-in .24s ease-out;
+}
+.card-model:active { cursor: grabbing; }
+.card-image:has(.card-model:not([hidden])) .card-photo img { visibility: hidden; }
+@keyframes model-in { from { opacity: 0; } to { opacity: 1; } }
 .card-info { /* small to look at (spec 3.3), full size to the finger, and above the window it opens so the window never covers it */
   min-width: var(--book-target); min-height: var(--book-target);
   position: absolute; z-index: 4; right: calc(var(--book-target) * -.32); bottom: calc(var(--book-target) * -.32);

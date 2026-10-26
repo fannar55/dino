@@ -1,5 +1,6 @@
 import { pressable, reducedMotion, sparkle, TAP_SLOP_PX } from './fx.js';
 import { ICONS } from './icons.js';
+import { createSkeletonView } from './skeleton-view.js';
 
 // The card viewer (spec section 3.3): an animal's pages over the spread, one big picture and a sentence at a time.
 //
@@ -9,6 +10,11 @@ import { ICONS } from './icons.js';
 // the animals in place of the arrow on. The narrator reads each page as it shows, and stops when the page flips, the card closes or
 // another card opens. A swipe flips too: the first finger to move TAP_SLOP_PX drags the page, and a sideways drag of SWIPE_PX flips.
 // A picture that is not our own has a small ⓘ whose window says who made it, its licence and where it is from.
+//
+// A page can have a model (cards.js, `model`): a 3D page (spec section 3.4). Its picture shows first and stays if the model cannot be
+// shown; once skeleton-view.js has the model on its canvas over the photo, that takes the picture's place and a finger turns it. While
+// it does, only the arrows flip (a swipe would fight the finger that turns the model) and a tap on the picture does not zoom it. Turning
+// the page, or shutting the card, sends the model away.
 //
 // A flip is a short slide, and while it goes on the arrows and swipes wait: rapid taps cannot skip a page or pile up. A picture that
 // is missing from the manifest, or will not load, shows a faint paw print; a line with no recording is silent (book-audio.js); neither
@@ -39,14 +45,15 @@ function siteOf(source) {
 
 /**
  * The card viewer inside `root` (the book's #book), over the book's pictures (`media`, parseManifest) and sound (`audio`), with
- * the picture zoom (`zoom`: open(img), close(), isOpen). `onClose(card)` is told when a card is shut. Returns
+ * the picture zoom (`zoom`: open(img), close(), isOpen). `onClose(card)` is told when a card is shut. `skeleton` is the 3D page's model
+ * view (createSkeletonView's: mount, show, hide), made here when none is given. Returns
  *   open(card, fromRect = null, page = 0)   shows a card; false when one is open already. It grows from `fromRect`, the
  *                                           rectangle of the tile's picture, or from just below its own place without one
  *   close(instant = false)                  shuts it and stops the narration; instant skips the motion (the book is being shut)
  *   next(), prev()                          flip a page; false at the ends and while a flip is still going on
  *   page, card, isOpen                      the page's number (the first is 0), the card shown, and whether one is open
  */
-export function createCardViewer(doc, root, { media = new Map(), audio = null, zoom = null, onClose = null, win = globalThis.window } = {}) {
+export function createCardViewer(doc, root, { media = new Map(), audio = null, zoom = null, onClose = null, win = globalThis.window, skeleton = null } = {}) {
   const make = (tag, className) => {
     const element = doc.createElement(tag);
     element.className = className;
@@ -71,6 +78,8 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
   credit.hidden = true;
   const figure = make('figure', 'card-image');
   figure.append(photo, info, credit);
+  const models = skeleton ?? createSkeletonView(doc, { win });
+  models.mount(figure);
   const prevButton = control('card-arrow prev', 'Til baka', ICONS.arrow);
   const nextButton = control('card-arrow next', 'Áfram', ICONS.arrow);
   const done = control('card-done chunky', 'Aftur á dýrasíðuna', ICONS.animals);
@@ -96,6 +105,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
   let flipping = null; // the flip under way: { animations, timer, settle }
   const fingers = new Map(); // pointerId -> where it landed, for the swipe
   let drag = null; // the finger that drags the page: { id, x, y, dx, dy }
+  let modelOn = false; // the page's model is on the canvas: a finger turns it, so no swipe flips and no tap zooms
 
   const canAnimate = () => typeof card.animate === 'function';
   const read = () => audio?.narrate?.(pages[index]?.audio);
@@ -121,6 +131,28 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     });
     photo.replaceChildren(...imgs);
     dots.replaceChildren(...pages.map(() => make('span', '')));
+  }
+
+  /** A page with a model asks for it, and once it is on the canvas the finger is the model's. Else the picture stays. */
+  function showModel() {
+    const at = index;
+    const src = pages[at]?.model;
+    if (!src) return;
+    models.show(src).then(on => {
+      if (!on || !isOpen || index !== at) return;
+      modelOn = true;
+      fingers.clear(); // a swipe that began over the picture is not one now
+      if (drag) {
+        drag = null;
+        unfollow();
+      }
+    }, () => {});
+  }
+
+  /** The model goes (the page turns, or the card shuts), and the page is the picture's again. */
+  function hideModel() {
+    modelOn = false;
+    models.hide();
   }
 
   /** The ⓘ window for a picture that is not our own: who made it, its licence and where it is from. */
@@ -201,9 +233,11 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     const leaving = imgs[index];
     audio?.sfx?.('turn');
     text.style.removeProperty('translate'); // the text starts over from the side; the picture leaving keeps its drag until it is gone
+    hideModel();
     show(to);
     fitText();
     read();
+    showModel();
     if (to === pages.length - 1) celebrate();
     if (!canAnimate() || typeof imgs[to].animate !== 'function') {
       leaving.style.removeProperty('translate');
@@ -256,7 +290,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
   }
 
   card.addEventListener('pointerdown', event => {
-    if (!isOpen || event.button > 0) return;
+    if (!isOpen || modelOn || event.button > 0) return;
     fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   });
   card.addEventListener('pointermove', event => {
@@ -374,6 +408,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     fitText();
     grow();
     read();
+    showModel();
     if (index === pages.length - 1) celebrate();
     return true;
   }
@@ -385,6 +420,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
     settleFlip();
     fingers.clear();
     drag = null;
+    hideModel();
     closeCredit();
     audio?.stop?.(); // nothing reads on after the card is shut
     zoom?.close?.(true);
@@ -401,7 +437,7 @@ export function createCardViewer(doc, root, { media = new Map(), audio = null, z
   pressable(nextButton, { audio, sound: null, win, onTap: () => next() });
   pressable(replay, { audio, win, onTap: () => read() });
   pressable(info, { audio, sound: null, win, onTap: () => toggleCredit() });
-  pressable(photo, { audio, sound: null, win, onTap: () => zoom?.open?.(imgs[index]) }); // the zoom sounds `zoomIn`
+  pressable(photo, { audio, sound: null, win, onTap: () => { if (!modelOn) zoom?.open?.(imgs[index]); } }); // the zoom sounds `zoomIn`
 
   return {
     open,
