@@ -791,15 +791,10 @@ test('a save from before this change opens the new book with the right dinosaurs
 // ---------------------------------------------------------------------------------------------
 // Safnið (museum-page.js): new fossils, the full collection celebrated once, a fossil's card
 
-test('a fossil found and not tapped yet wears Nýtt!, so does the Safnið ribbon, and a tap clears both; a fossil with a card opens it', () => {
-  // the data has no fossil cards yet (a later stage writes them): this one is the test's own, for the amber
-  const amber = {
-    id: 'amber', name: 'Raf með flugu', order: 99, group: 'fossil', unlock: { fossil: 'amber' },
-    pages: [1, 2, 3].map(n => ({ image: CARDS.find(c => c.id === 'mosi').pages[0].image, text: `Raf, síða ${n}.`, audio: `book_amber_${n}`, sources: ['test'] })),
-  };
+test('a fossil found and not tapped yet wears Nýtt!, so does the Safnið ribbon, and a tap clears both and opens the fossil card', () => {
+  // the data has the eight fossil cards: a found fossil's sticker opens its card, an unfound one wiggles
   const { save, book, root, narrated, sounds, tap } = fenRig({
     fill: s => { s.addHalsFound('tooth'); s.addHalsFound('amber'); },
-    cards: parseCards([...CARD_DATA.cards, amber]),
   });
   const sticker = kind => root.findAll(e => e.getAttribute('data-fossil') === kind)[0];
   const badges = el => el.findAll(e => e.classList.contains('badge-new')).map(e => e.textContent);
@@ -810,20 +805,34 @@ test('a fossil found and not tapped yet wears Nýtt!, so does the Safnið ribbon
   assert.deepEqual(dots(), ['Nýtt!'], 'and the Safnið ribbon shows its dot');
 
   book.open('fossils', 'child');
-  tap(sticker('tooth')); // no card: today's tap, the narrator says its name and a fact
-  assert.equal(narrated.at(-1), 'hals_fossil_tooth');
+  sounds.length = 0;
+  tap(sticker('egg')); // not found: it wiggles and no card opens
+  assert.deepEqual(sounds, ['wiggle']);
+  assert.equal(book.cardViewer.isOpen, false);
+  tap(sticker('tooth')); // its card opens in the card viewer
+  assert.equal(book.cardViewer.isOpen, true, 'the tooth card opens');
+  assert.equal(book.cardViewer.card.id, 'tooth');
+  assert.equal(book.cardViewer.card.pages.length, 3, 'three pages');
+  assert.ok(!narrated.includes('hals_fossil_tooth'), 'in place of the fact the game says');
   assert.deepEqual(badges(sticker('tooth')), [], 'the tooth is new no more');
   assert.ok(save.get().seen.includes('fossil:tooth'));
   assert.deepEqual(dots(), ['Nýtt!'], 'the ribbon keeps its dot while the amber is new');
-  sounds.length = 0;
-  tap(sticker('egg')); // not found: it wiggles and the card path is not taken
-  assert.deepEqual(sounds, ['wiggle']);
-  assert.equal(book.cardViewer.isOpen, false);
-  tap(sticker('amber')); // its card opens in the card viewer
-  assert.equal(book.cardViewer.isOpen, true, 'the amber card opens');
-  assert.equal(book.cardViewer.card.id, 'amber');
-  assert.ok(!narrated.includes('hals_fossil_amber'), 'in place of the fact');
+  book.cardViewer.close(true);
+  tap(sticker('amber'));
+  assert.equal(book.cardViewer.card.id, 'amber', 'the amber card opens');
   assert.deepEqual([badges(sticker('amber')), dots()], [[], []], 'and the sticker and the ribbon are clear');
+});
+
+test('a fossil whose card the book was not given keeps the tap it had: the narrator says its name and a fact', () => {
+  const { save, book, root, narrated, tap } = fenRig({
+    fill: s => s.addHalsFound('tooth'),
+    cards: CARDS.filter(c => c.group !== 'fossil'),
+  });
+  book.open('fossils', 'child');
+  tap(root.findAll(e => e.getAttribute('data-fossil') === 'tooth')[0]);
+  assert.equal(narrated.at(-1), 'hals_fossil_tooth');
+  assert.equal(book.cardViewer.isOpen, false, 'no card opens');
+  assert.ok(save.get().seen.includes('fossil:tooth'), 'and the fossil is seen all the same');
 });
 
 test('with all eight fossils found, Safnið is celebrated the first time the child shows it and never again, and a book a script opened keeps quiet', () => {
