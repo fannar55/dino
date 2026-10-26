@@ -10,7 +10,8 @@ import { shapeGround } from '../world/forest/forest.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { HUG_SECONDS, WINK_SECONDS } from '../engine/sun-face.js';
 import { createSfx } from '../engine/audio/sfx.js';
-import { CRITTER_SOUNDS } from '../chapters/kafli2-fen.js';
+import { CRITTER_SOUNDS, FEN_CRITTERS } from '../chapters/kafli2-fen.js';
+import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 
@@ -658,15 +659,21 @@ test('the prints are counted one to ten in order, and the berries one to five', 
 
 test('the fen animals go into the book', async () => {
   const { journal, world } = await playTheFen();
-  for (const id of ['frog', 'waterBeetle', 'waterStrider', 'salamander']) {
+  for (const id of ['dragonfly', 'waterBeetle', 'waterStrider', 'salamander']) {
     assert.ok(journal.findings.includes(id), `the ${id} in its print is found (${journal.findings.join(', ')})`);
   }
-  // the frog is chapter 1's: found again in a new place, it still flies into the book, where its card has a page for the Fen
+  // none in the prints is an animal chapter 1 finds (the owner's play of 2026-10-25), and the dragonfly over the third is the first
+  // the chapter puts in the book, whose drawing main.js warms (chapter.firstFind)
   const { finds } = await playTheFen();
-  assert.equal(finds.find(f => f.id === 'frog')?.options?.again, true, 'the print\'s frog is found again');
-  // the others live in the Fen, a tap away: tap targets with their finding
+  const chapterOne = ['beetle', 'frog', 'snail', 'butterfly', 'birds'];
+  assert.deepEqual(PRINT_ANIMALS.filter(a => chapterOne.includes(a.kind)), [], 'no animal of chapter 1 in a print');
+  assert.ok(finds.every(f => !f.options?.again), 'and nothing in them is found again');
+  assert.equal(finds[0].id, 'dragonfly');
+  assert.equal(chapter.firstFind, finds[0].id);
+  // the others live in the Fen, a tap away: tap targets with their finding; chapter 1's frog among them, found again there
   const fen = world.chapterState.fenCritters;
-  assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['earlyBird', 'fish', 'frog', 'turtle']);
+  assert.deepEqual(fen.spots.filter(s => s.again).map(s => s.kind), ['frog'], 'the frog is found again in a new place');
   // until he goes up her neck: from then on a tap is for the far friends, never an animal far below: not as scene 5 ends, nor after
   const { pointer, seen } = await playTheFen();
   assert.ok(seen.targetsAtSix, 'scene 6 began');
@@ -731,12 +738,71 @@ test('a blue berry is the birds\': Mosi says so, and it stays on its bush', asyn
   assert.ok(c.picks.every(p => p.kind === 'red'), 'only red ones go in the basket');
 });
 
-test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book', async () => {
-  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'fen-dragonfly', after: 1 } });
-  assert.ok(run.seen.earlyTap, 'the dragonfly could be tapped in the Fen');
-  assert.ok(run.journal.findings.includes('dragonfly'), `the dragonfly is in the book (${run.journal.findings.join(', ')})`);
-  assert.ok(run.seen.earlyTap.movedAt !== null, 'and it darted off');
-  assert.ok(run.soundLog.some(e => e.name === CRITTER_SOUNDS.dragonfly && Math.abs(e.at - run.seen.earlyTap.at) < 0.1), 'with its own sound');
+test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book (the frog, found again in a new place)', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'fen-frog', after: 1 } });
+  assert.ok(run.seen.earlyTap, 'the frog could be tapped in the Fen');
+  assert.ok(run.journal.findings.includes('frog'), `the frog is in the book (${run.journal.findings.join(', ')})`);
+  assert.equal(run.finds.find(f => f.id === 'frog')?.options?.again, true, 'found again: it flies into the book though chapter 1 found it');
+  assert.ok(run.seen.earlyTap.movedAt !== null, 'and it hopped');
+  assert.ok(run.soundLog.some(e => e.name === CRITTER_SOUNDS.frog && Math.abs(e.at - run.seen.earlyTap.at) < 0.1), 'with its own sound');
+});
+
+test('the frog in the Fen is hidden: on the channel\'s bank, out of every shot\'s view, found by turning the berry search all the way left', async () => {
+  const frog = FEN_CRITTERS.find(f => f.kind === 'frog');
+  const { layout, shots } = chapter.locations.fen;
+  const { terrain: ground, water } = shapeGround({ chapter }, { ...layout, shots }, layout.seed);
+  const at = new THREE.Vector3(frog.at[0], ground.heightAt(...frog.at) + 0.08, frog.at[1]);
+  assert.ok(water.signedAt(...frog.at) > 0 && water.signedAt(...frog.at) < 0.4, 'at the edge of the water, on its bank');
+  // a view: is the frog inside it (a 16:10 screen)?
+  const inView = ({ position, target, fov }) => {
+    const camera = new THREE.PerspectiveCamera(fov, 1.6, 0.1, 500);
+    camera.position.fromArray(position);
+    camera.lookAt(new THREE.Vector3().fromArray(target));
+    camera.updateMatrixWorld();
+    const p = at.clone().project(camera);
+    return p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
+  };
+  // out of every still shot, or so far off (the low shot under her, the two shot behind Mosi) that a 20 cm frog would be some ten
+  // pixels in the reed
+  for (const [label, shot] of Object.entries(shots)) {
+    if (!Array.isArray(shot.position) || !Array.isArray(shot.target)) continue;
+    const far = at.distanceTo(new THREE.Vector3().fromArray(shot.position));
+    assert.ok(!inView(shot) || far > 15, `the frog is out of ${label} (${far.toFixed(1)} m off)`);
+  }
+  // the berry search's own view, from behind Egill where he picks (fen_pick, actor-relative): not in it, but turned 70 degrees left it is
+  const egill = { x: 12.4, z: -8.4 };
+  const pick = shots.fen_pick;
+  const from = [egill.x + pick.position.offset[0], ground.heightAt(egill.x, egill.z) + pick.position.offset[1], egill.z + pick.position.offset[2]];
+  const to = [egill.x + pick.target.offset[0], ground.heightAt(egill.x, egill.z) + pick.target.offset[1], egill.z + pick.target.offset[2]];
+  assert.equal(inView({ position: from, target: to, fov: pick.fov }), false, 'not in the berry search as it opens');
+  const turned = yaw => {
+    const a = THREE.MathUtils.degToRad(yaw), dx = to[0] - from[0], dz = to[2] - from[2];
+    return [from[0] + dx * Math.cos(a) - dz * Math.sin(a), to[1], from[2] + dx * Math.sin(a) + dz * Math.cos(a)];
+  };
+  assert.equal(inView({ position: from, target: turned(-70), fov: pick.fov }), true, 'but there with the view turned all the way left');
+});
+
+test('the dragonfly hangs over the third print\'s water, and darts up and away, buzzing, as the print splashes', async () => {
+  let watched = null;
+  const run = await playUnattended(kafli2, {
+    seeking: false, limit: 100, shaped: true, // as a child who taps nothing plays it: Egill taps each print in the end
+    onFrame({ world, stage }) {
+      const c = world.chapterState;
+      const fly = c?.printCritters?.group.getObjectByName('Critter print-dragonfly');
+      if (!fly || !c.prints) return;
+      const body = fly.children[0].getWorldPosition(new THREE.Vector3());
+      watched ??= { over: body.y - c.prints.levelOf(2), off: Math.hypot(body.x - c.prints.targets[2].point.x, body.z - c.prints.targets[2].point.z) };
+      const splash = c.printLog.find(e => e.what === 'splash' && e.index === 2);
+      if (splash && !watched.splash) watched.splash = { at: splash.at, from: body.clone() };
+      if (watched.splash && stage.s.time - watched.splash.at < 1.2) watched.farthest = Math.max(watched.farthest ?? 0, body.distanceTo(watched.splash.from));
+    },
+  });
+  assert.ok(watched && watched.over > 0.15 && watched.over < 0.6, `low over the water, ${watched?.over.toFixed(2)} m up`);
+  assert.ok(watched.off < 0.6 * PRINT_SIZE, `over the print, ${watched.off.toFixed(2)} m from its middle`);
+  assert.ok(watched.splash, 'its print splashed');
+  assert.ok(watched.farthest > 0.4, `it darted ${watched.farthest?.toFixed(2)} m as it did`);
+  const buzz = run.soundLog.find(e => e.name === CRITTER_SOUNDS.dragonfly && e.at >= watched.splash.at - 1e-6);
+  assert.ok(buzz && buzz.at - watched.splash.at < 0.3, 'with its buzz');
 });
 
 test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing more', async () => {
@@ -773,8 +839,8 @@ test('the warm-up draws the basket with its glow, which shows only while he hold
     assert.ok(!namesOf(trail).includes(name), `${name} not on the trail`);
   }
   const critterNames = w => namesOf(w).filter(name => name.startsWith('Critter warm-up-')).map(name => name.slice('Critter warm-up-'.length)).sort();
-  assert.deepEqual(critterNames(trail), ['frog', 'salamander', 'waterBeetle', 'waterStrider']);
-  assert.deepEqual(critterNames(fen), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  assert.deepEqual(critterNames(trail), ['dragonfly', 'salamander', 'waterBeetle', 'waterStrider']);
+  assert.deepEqual(critterNames(fen), ['earlyBird', 'fish', 'frog', 'turtle']);
   assert.equal(trail.objects.length + fen.objects.length - 2 * world.actors.size - 1, warm.objects.length - world.actors.size, 'and together all of it (one critters group each)');
   trail.dispose();
   fen.dispose();

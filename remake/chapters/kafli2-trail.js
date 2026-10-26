@@ -81,11 +81,14 @@ const PRINT_WAIT = { hint: 8, help: 16, quickHint: 4, quickHelp: 8 };
 const NOD_DIP = { x: 0, y: -0.6, z: 0 };
 // The animals that live in four of her prints (critters.js), each where it lives in its print (metres along it from its middle and
 // to its right, as a real-size print's: mud-prints.js pointIn keeps them in their place in a larger one; on its floor, in the water,
-// on its water) and which way it faces from the print's own way: a frog in the third, which hops out onto the middle of the path; a
-// diving beetle swimming round in the sixth; a water strider on the ninth's water, which shoots off toward the toes; and a
-// salamander in the tenth, near enough the toes that its crawl of two lengths takes it out over them, and back.
+// on its water; `up` m over that), which way it faces from the print's own way, and how large it is drawn when not ANIMAL_SIZE: a
+// dragonfly hanging low over the third's water, as dragonflies hang over a puddle, drawn larger so a child sees it there, which
+// darts up and away as its print splashes and comes back; a diving beetle swimming round in the sixth; a water strider on the
+// ninth's water, which shoots off toward the toes; and a salamander in the tenth, near enough the toes that its crawl of two
+// lengths takes it out over them, and back. None of them is an animal chapter 1 finds (the owner's play of 2026-10-25: its frog
+// was in the third, and is in the Fen now, where the child has to look for it: kafli2-fen.js).
 export const PRINT_ANIMALS = [
-  { print: 2, kind: 'frog', name: 'print-frog', along: -0.02, across: -0.12, on: 'floor', turn: -90 },
+  { print: 2, kind: 'dragonfly', name: 'print-dragonfly', along: 0.1, across: 0.12, on: 'water', up: 0.28, turn: 40, scale: 1.6 },
   { print: 5, kind: 'waterBeetle', name: 'print-beetle', along: -0.05, across: 0, on: 'water', turn: 0 },
   { print: 8, kind: 'waterStrider', name: 'print-strider', along: -0.1, across: 0, on: 'water', turn: 0 },
   { print: 9, kind: 'salamander', name: 'print-salamander', along: 0.26, across: 0.02, on: 'floor', turn: 0 },
@@ -93,7 +96,7 @@ export const PRINT_ANIMALS = [
 // The animals in her prints larger again than the critters' own (already larger than life), so they still show in prints 1.6
 // times a real one's, seen from as far as before.
 const ANIMAL_SIZE = 1.3;
-const CROAK_AFTER = 0.35; // s after its print's splash that the frog in it croaks, as it hops out
+const BUZZ_AFTER = 0.08; // s after its print's splash that the dragonfly over it buzzes, darting up off the water
 
 /** Where Mosi waits by print k: back along the path from it and out on its north-east side, facing down the trail. */
 export function mosiAt(k) {
@@ -205,10 +208,8 @@ function splashPrint(s, c, k, by) {
   if (animal) {
     c.printCritters.react(animal.name);
     const sound = CRITTER_SOUNDS[animal.kind];
-    if (sound) s.after(CROAK_AFTER, () => s.sfx(sound));
-    // Found again in a new place, as chapter 1's frog is in the third print, it still flies into the book (once), whose card has a
-    // page for the Fen; the Fen's own animals are new finds anyway.
-    s.found(animal.kind, by === 'child' ? c.lastTap : null, { again: true });
+    if (sound) s.after(BUZZ_AFTER, () => s.sfx(sound));
+    s.found(animal.kind, by === 'child' ? c.lastTap : null); // each is new to the book: none is chapter 1's
   }
 }
 
@@ -266,9 +267,10 @@ export function arriveOnTheTrail(s, c) {
   const start = pathAt(TRAIL_PATH, RIDE_FROM);
   mosi.place(start.x, start.z, (Math.atan2(start.dz, start.dx) * 180) / Math.PI);
   c.prints = createMudPrints(world, { prints: TRAIL_PRINTS, heightAt: world.heightAt, size: PRINT_SIZE });
-  const animals = PRINT_ANIMALS.map(({ print, kind, name, along, across, on, turn }) => ({
-    name, kind, position: c.prints.pointIn(print, along, across, on), heading: TRAIL_PRINTS[print].heading + turn, scale: ANIMAL_SIZE,
-  }));
+  const animals = PRINT_ANIMALS.map(({ print, kind, name, along, across, on, up = 0, turn, scale = ANIMAL_SIZE }) => {
+    const [x, y, z] = c.prints.pointIn(print, along, across, on);
+    return { name, kind, position: [x, y + up, z], heading: TRAIL_PRINTS[print].heading + turn, scale };
+  });
   c.printCritters = createCritters(world, { spots: animals, heightAt: c.prints.groundAt, ripple: (point, strength) => c.prints.rippleAt(point, strength) });
   s.camera.cut({ label: 'trail ride', position: { actor: 'mosi', part: 'feet', offset: RIDE_CAMERA.offset, local: true }, target: 'mosi.head', fov: RIDE_CAMERA.fov });
 }

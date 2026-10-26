@@ -733,9 +733,9 @@ export const chapter = {
     fetch: world => world.chapterState?.farFriends?.prefetch(),
     make: world => world.chapterState?.farFriends?.load(),
   },
-  // The first animal the chapter puts in the book (the frog in the trail's third print): main.js shows its card's drawing once
+  // The first animal the chapter puts in the book (the dragonfly over the trail's third print): main.js shows its card's drawing once
   // where nobody sees a frame stall, so its flight into the book is not the first drawing with the hand-drawn filter.
-  firstFind: 'frog',
+  firstFind: 'dragonfly',
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the

@@ -1,6 +1,6 @@
 // Chapter 2's Fen staging (remake/chapters/kafli2.js, scenes 3 to 5): the Fen's own animals, the berry bushes and Egill's basket,
 // what scene 4 does with them, and the data they stand on:
-//   fenAnimals(s, c)        the dragonfly, the turtle, the fish and the early bird, a tap on one makes it react and puts it in the book
+//   fenAnimals(s, c)        the frog, the turtle, the fish and the early bird, a tap on one makes it react and puts it in the book
 //   berryBushes(world)      the bushes on the berry hummocks (BERRY_BUSHES)
 //   pickBerries(s, c)       the search for the five red bunches, each flying into the basket and counted; the blue ones the birds'
 //   holdUpBasket(s, c)      the child drags the basket up over Egill (or taps him; after 6 s he holds it up himself)
@@ -24,22 +24,27 @@ export const BERRY_BUSHES = [
 
 // The child drags the basket up to over Egill's head, or taps him (scene 4).
 const OVER_EGILL = { actor: 'egill', part: 'head', offset: [0.15, 0.45, 0], local: true };
-// The berry search: the free look's limits round the view behind Egill (fen_pick), and Mosi's three hints, one after another.
-const PICK_LOOK = { yaw: [-45, 45], pitch: [-12, 16] };
+// The berry search: the free look's limits round the view behind Egill (fen_pick), wide enough to turn to the channel's bank on the
+// left, where the frog sits, and Mosi's hummock on the right; and Mosi's three hints, one after another.
+const PICK_LOOK = { yaw: [-70, 70], pitch: [-12, 16] };
 const BERRY_HINTS = ['k2_mosi_hint_berry1', 'k2_mosi_hint_berry2', 'k2_mosi_hint_berry3'];
 
 // The Fen's own animals (critters.js), where the child sees them: the early bird in the reed on the west shore of p4, where the
-// camera's rise over the Fen starts, and flies up as it pans; and by the berry hummocks a dragonfly hanging in the air, a turtle on
-// the bank of the channel, and a fish in the channel. `up` is metres above the ground, or the water (`water`).
+// camera's rise over the Fen starts, and flies up as it pans; by the berry hummocks a turtle on the bank of the channel and a fish in
+// the channel; and chapter 1's frog, hidden: on the channel's bank north-west of where Egill picks the berries, at the edge of the
+// water among the reed, out of sight of every shot until the child turns the berry search's free look all the way left (it was in
+// the third footprint, an animal the child had found already: the owner's play of 2026-10-25). A tap on it finds it again in a new
+// place (`again`: its card has a page for the Fen, journal.js), and it hops along the bank, never into the water. `up` is metres
+// above the ground, or the water (`water`).
 export const FEN_CRITTERS = [
   { name: 'fen-bird', kind: 'earlyBird', at: [5.4, 8.0], up: 0, heading: 150 },
-  { name: 'fen-dragonfly', kind: 'dragonfly', at: [14.4, -11.4], up: 0.9, heading: 200 },
   { name: 'fen-turtle', kind: 'turtle', at: [17.7, -13.5], up: 0, heading: -150 },
   { name: 'fen-fish', kind: 'fish', at: [16.5, -15.4], up: 0, water: true, heading: 10 },
+  { name: 'fen-frog', kind: 'frog', at: [11.0, -14.25], up: 0, heading: 10, again: true },
 ];
 
 // The sound each of the chapter's animals makes when it reacts (engine/audio/fen-sounds.js, and chapter 1's frog): the Fen's four
-// when tapped, and the frog in the third print as it hops out (kafli2-trail.js). The others in the prints splash with their print.
+// when tapped, and the dragonfly over the third print as it darts up (kafli2-trail.js). The others in the prints only splash.
 export const CRITTER_SOUNDS = { earlyBird: 'earlyBird', dragonfly: 'dragonfly', turtle: 'turtle', fish: 'fish', frog: 'frog' };
 
 /**
@@ -55,13 +60,13 @@ export function fenAnimals(s, c) {
   }));
   const critters = createCritters(world, { spots, ripple: (point, strength) => c.ring(point, strength) });
   const unhear = critters.targets.map(t => {
-    const { kind } = FEN_CRITTERS.find(f => f.name === t.name);
+    const { kind, again = false } = FEN_CRITTERS.find(f => f.name === t.name);
     s.target(t.name, t);
     const sound = CRITTER_SOUNDS[kind];
     return s.onTap(t.name, tap => {
       critters.react(t.name);
       if (sound) s.sfx(sound);
-      s.found(kind, tap);
+      s.found(kind, tap, again ? { again } : undefined);
     });
   });
   // they can be tapped on the ground until Egill goes up her neck (scene 6), where a tap is for the far friends, not for them

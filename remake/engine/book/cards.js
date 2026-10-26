@@ -11,7 +11,7 @@
 //   unlock   { start: true } from the start, { found: '<id>' } with the find a chapter passes to s.found, or
 //            { star: '<id>' } with the star it passes to s.star
 //   refind   (optional) the page, from 1, the card opens on the first time the child opens it after its animal was found again in
-//            a new place (chapter 2's frog, in the third print, whose sixth page is the Fen's); its last page when it says none
+//            a new place (chapter 2's frog, in the Fen, whose sixth page is the Fen's); its last page when it says none
 //   spread   which spread of the Dýrin page its tile is on, from 1 (chapter 1's animals, which say no spread) up: a spread holds
 //            SPREAD_MAX tiles, four on each page, in card order (chapter 2's are on the second, the Fen's); one with a later spread
 //            after it holds one fewer, because the corner that turns on lies where the right page's fourth tile would be

@@ -77,8 +77,9 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 ### 2. Fótsporin í leðjunni (60–90 s, á hraða barnsins)
 - **Markmið:** barnið telur upp í tíu.
 - **Skot:** reiðskot niður úr skóginum inn í þokuna; trén breytast í fenjatré. Fótsporin tíu liggja í boga framundan í leðjunni,
-  vatnið í þeim glitrar. Myndavélin fylgir Mosa og sveigir svo að næsta spori sem bíður. Froskur hoppar upp úr þriðja sporinu,
-  brunnklukka syndir í því sjötta, drekafluga situr á brún þess níunda, og salamandra skríður yfir það tíunda.
+  vatnið í þeim glitrar. Myndavélin fylgir Mosa og sveigir svo að næsta spori sem bíður. Drekafluga sveimar lágt yfir vatninu í þriðja sporinu
+  og skýst upp með suði þegar skvettist, brunnklukka syndir í því sjötta, vatnalæsingi skautar á því níunda, og salamandra skríður
+  yfir það tíunda. Ekkert þeirra er dýr sem kafli 1 hefur fundið; froskurinn er falinn í Feninu (sena 4).
 - **Línur:** Mosi: „Sjáðu! Fótspor Þórseðlu. Þau eru risastór! Teljum þau!“ Við hvert pikk telur Mosi í hvorugkyni, því spor eru hvorugkyns: „Eitt!“, „Tvö!“, „Þrjú!“ … „Tíu!“ (ný
   talning kafla 2, sömu línur og berin nota). Eftir tíunda: Mosi: „Tíu fótspor! Hún hlýtur að vera rétt hjá.“ Vísbending eftir 8 s:
   „Hvað með næsta spor? Pikkaðu á það!“ Eftir 16 s pikkar Egill sjálfur.
@@ -106,7 +107,8 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
   augun eru í augnhæð Egils; myndavélin yfir öxl Egils horfir upp í risaandlitið sem kemur niður, og sólin blikkar. Hún borðar berin úr
   körfunni: „Mmm… rauðber!“ Svo sér hún þau: Þórseðla: „Ó! Mosi! Og hver ert þú, litli vinur?“ Egill: „Ég heiti Egill!“ Þórseðla:
   „Egill. Takk fyrir berin.“
-- **Barnið:** tínir berin, réttir þau upp.
+- **Barnið:** tínir berin, réttir þau upp. Í leitinni getur það líka snúið sér alveg til vinstri að bakka síkisins, þar sem froskurinn úr
+  kafla 1 situr falinn í sefinu við vatnsborðið, utan allra skota; pikk á hann finnur hann aftur á nýjum stað (síða Fensins á spjaldi hans).
 
 ### 5. Boðið (um 30 s)
 - **Skot:** tvískot: höfuð Þórseðlu niðri, Mosi og Egill við hliðina.
@@ -144,7 +146,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 | --- | --- |
 | Vatnið | Glitrandi yfirborð í takt, gárur sem breiðast frá rótum, steinum og fótum Þórseðlu, loftbólur sem stíga upp úr leðjunni, sólglampi í átt að sólinni; drekaflugur og vatnalæsingjar rétt yfir og á vatninu, fiskur sem hoppar öðru hvoru. |
 | Þokan | Lág þoka í botninum við komuna sem sólin leysir upp á meðan kaflinn líður; sólargeislar lágt gegnum hana. |
-| Fótsporin | Spegilgljái á vatninu í þeim (himinlitur, enginn spegill), skvetta og hringgárur við pikk; froskur, brunnklukka, drekafluga og salamandra. |
+| Fótsporin | Spegilgljái á vatninu í þeim (himinlitur, enginn spegill), skvetta og hringgárur við pikk; drekafluga, brunnklukka, vatnalæsingi og salamandra. |
 | Þórseðla | Alltaf lifandi: andar, deplar, bítur og tyggur lauf (lauf falla í vatnið), halinn sveiflast, hún vegur sér hægt og vatnið gárast við fæturna; horfir á Egil þegar hún er komin niður; vatn drýpur af hálsinum þegar hún lyftir honum. |
 | Berjarunnarnir | Berin glitra lítillega, runninn hristist og laufin kinka þegar ber er tínt. |
 | Plönturnar | Elftingasef og elftingar í takt við stefið, hangandi mosi sem bærist, vatnaliljur sem vagga á gárunum, burknar sem sveigja frá Mosa. |
@@ -230,6 +232,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Þokuslæðurnar dofna þegar horft er bratt niður á þær** (útsýnið, lyftan), svo þær lesi ekki sem flatar rákir ofan frá; á jörðu niðri haldast þær.
 - **Fjarlægt sef Fensins er gisnara** (10 % handan 19 m) til að halda hverjum ramma undir 230 þúsund þríhyrningum með svigrúmi; nærsefið og sefbreiðan í afhjúpuninni eru óbreytt.
 - **Vatnshljóð Fensins byrja á seinni helmingi slóðarinnar** (4 s inn í reiðina) og taka alveg við af skóginum við komuna í Fenið.
+- **Í fótsporunum er ekkert dýr sem kafli 1 hefur fundið** (prófun eigandans 2026-10-25, við „Þrjú!“: froskurinn í þriðja sporinu var dýr sem barnið hafði þegar fundið). Drekaflugan, sem áður hékk í loftinu við berjaþúfurnar, sveimar nú lágt yfir vatninu í þriðja sporinu, teiknuð stærri svo hún sjáist, og skýst upp með suði þegar skvettist; hún er fyrsti fundur kaflans (`firstFind`). Froskurinn situr í staðinn falinn á bakka síkisins norðvestan við þar sem Egill tínir berin, utan allra skota, og finnst aftur á nýjum stað þegar barnið snýr sér alveg til vinstri í berjaleitinni; frjálsa sýnin þar nær ±70° til hliðanna.
 - **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
 - **Bókin (verkefni 7):** froskurinn fær sjöttu síðu (halakörtur) í stað nýs spjalds, undantekning frá reglunni um 3–5 síður því síða Fensins bætist við spjald sem eigandi hafði samþykkt; Fen-dýrin sjö eru á annarri Dýrin-opnu með blaðhorni sem flettir (opna með síðari opnu á eftir rúmar sjö spjöld, hornið tekur áttunda reitinn); fundið dýr opnar bókina á sinni opnu; Fen-reiturinn á Kortinu verður fundinn við komuna og kláraður með stjörnunni; textar spjaldanna eru okkar drög og bíða leiðréttinga eiganda, og 23 sögumannslínur þeirra eru óupplesnar þar til þá.
 - **Háls og hali læsist eftir sameiningu** þar til stjarna Þórseðlu (`k2_thorsedla`) er fengin, eins og forskriftin segir; á main var hann opinn gegnum þróunarrofa. Úrskurður eiganda 2026-10-22: þegar reiturinn hefur opnast er hann opinn áfram. Leikur sem hefur verið hafinn merkir vistunina (`hals.played`) fyrir fullt og allt, og eldri vistun með hálfnuðum leik er opin; þá vaggar reiturinn ekki og borðið byggist á Leikir-síðunni, líka eftir sigur eða „Nýr leikur“. Ný vistun án stjörnu er læst.
