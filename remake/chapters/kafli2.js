@@ -2,8 +2,9 @@
 // (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-design.md): from Kambeðla's fern glade Mosi and Egill ride out of
 // the forest and down into the Fen, count Þórseðla's ten water-filled footprints, lure her nine-metre head down with five red
 // berries, invite her to the Star Festival, ride her neck up to look out over the Fen and find three far friends for the book's
-// map, slide down her neck into the saddle, and win the second star. Seven to nine minutes for a six-year-old, who can never fail
-// it: every wait for the child has hints where the script gives them and ends by itself.
+// map (and see Grameðla far off, who comes later), slide down her neck into the saddle, and win the second star. Seven to nine
+// minutes for a six-year-old, who can never fail it: every wait for the child has hints where the script gives them and ends by
+// itself.
 //
 // The chapter's skeleton (the plan's first task) gives its places, actors, cast, lines and look, and the eight scenes in their
 // order; the trail and the Fen have their own ground, plants, water, mist and shots (the second task: world/forest/ grows them as
@@ -53,8 +54,8 @@ const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
 const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
-// Seconds the black at the start waits at most for the far friends' files (7.3 MB: on a slow connection they come later, and the
-// Fen makes the friends under its own black: arriveInTheFen).
+// Seconds the black at the start waits at most for the far friends' files (9.5 MB with Grameðla's: on a slow connection they come
+// later, and the Fen makes the friends under its own black: arriveInTheFen).
 const FAR_WAIT = 4;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
@@ -123,6 +124,13 @@ const alongHer = metres => {
 // channel. Uggeðla's line from Egill's head passes through the south-east conifer's crown: the search sees her from its camera
 // instead (kafli2-lookout.js), as moving her would re-deal 75 to 127 of the Fen's plants.
 const FEN_FAR = { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] };
+// Grameðla, seen once after the third find and not found (she comes in a later chapter): at the edge of the forest beyond the Fen,
+// 144 m west of the lookout and 5 m in front of the far treeline (150 m round the Fen's middle), toward where the book's map has her
+// beyond the mountains (engine/book/map-page.js: the map's Fen is the Fen's own ground, north up, about 3.9 px a metre, and her slot
+// lies west by north of Þórseðla's, 192 degrees). Here, 207.5 degrees from the search camera, is the nearest gap that way between
+// the Fen's conifers wide enough for all 12 m of her side-on. She is not in the layout's farFriends: the planner keeps tall plants out
+// of their sight lines, and one more would re-deal the Fen's plants.
+const GRAMEDLA_FAR = [-125.7, -72.2];
 
 const FEN_WATER = {
   pools: [
@@ -495,7 +503,7 @@ function* theInvitation(s, c) {
 }
 
 // 6. The lookout: up her neck to nine metres (Task 3's lift), where he sees how small Mosi is down there and the child finds the
-// three friends far away, each going onto the book's map (kafli2-lookout.js).
+// three friends far away, each going onto the book's map, and then sees Grameðla far off at the forest's edge (kafli2-lookout.js).
 function* theLookout(s, c) {
   mark(c, 6);
   yield c.farFriends.ready(); // made behind the start button or under the Fen's black: long since there
@@ -730,7 +738,7 @@ export const chapter = {
   // either waits for its build.
   prepare: ['fenjaslod', 'fen'],
   // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
-  // models made (three parses and their light levels: long frames) once the places are, if the button still waits; else the
+  // models made (four parses and their light levels: long frames) once the places are, if the button still waits; else the
   // script makes them under its first black (and, should that ever not have, the Fen under its own: arriveInTheFen).
   later: {
     fetch: world => world.chapterState?.farFriends?.prefetch(),
@@ -805,8 +813,8 @@ export const chapter = {
     c.ring = ringsFor(world, { most: 3 });
     c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's and the Fen's pieces
     world.chapterState = c; // what the scenes share, for captures and probes
-    // The three friends far out in the Fen (kafli2-lookout.js): set up now, their models made later (chapter.later).
-    c.farFriends = farFriends(s, c, FEN_FAR);
+    // The three friends far out in the Fen and Grameðla beyond it (kafli2-lookout.js): set up now, their models made later (chapter.later).
+    c.farFriends = farFriends(s, c, { ...FEN_FAR, gramedla: GRAMEDLA_FAR });
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight. Þórseðla is in the Fen, not here.
     thorsedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw);
@@ -817,7 +825,7 @@ export const chapter = {
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
     // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (it is drawn
-    // as the scene comes there, under that black), and the far friends, made (three models parsed: long frames, here where none
+    // as the scene comes there, under that black), and the far friends, made (four models parsed: long frames, here where none
     // shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
     // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
     const far = c.farFriends;
