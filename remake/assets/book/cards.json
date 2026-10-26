@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page nine); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded. The Fen's texts are ours, not the owner's draft, and await the owner's corrections. Until the photographs the cards' wanted name are approved, pages 2 and 3 of the Fen's cards show the card's drawing again (the turtle's third and the early bird's third have pictures of their own). A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's sixth, the Fen's page, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi, Kambeðla and five teasers, whose cards come in stage 2: no pages, a tile with a render of the game, and the line Mosi says when it is tapped, which for the four he has met on the map is his map line about her) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page nine); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded. The Fen's texts are ours, not the owner's draft, and await the owner's corrections. Until the photographs the cards' wanted name are approved, pages 2 and 3 of the Fen's cards show the card's drawing again (the turtle's third and the early bird's third have pictures of their own). A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's sixth, the Fen's page, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's and Kambeðla's cards have ten pages, the other five's nine each; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
   "cards": [
     {
       "id": "mosi",
@@ -114,13 +114,19 @@
           ]
         },
         {
-          "image": "stegosaurus-mount-carnegie",
-          "text": "Kambeðlur voru uppi fyrir um 150 milljónum ára, löngu á undan þríhyrnunum.",
-          "audio": "book_kambedla_2",
+          "image": "stegosaurus-life",
+          "text": "Svona leit kambeðla kannski út. Plöturnar stóðu upp úr bakinu í tveimur röðum.",
+          "audio": "book_kambedla_6",
           "sources": [
-            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: síðjúra, fyrir 152–145 milljónum ára. Drög hönnunarinnar segja 155–145; „um 150“ passar við hvort tveggja.",
-            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: Sophie lifði fyrir um 150 milljónum ára.",
-            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: 68–66 milljón ár."
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: plöturnar sátu í húðinni og stóðu upp sitt á hvað meðfram hryggnum, í tveimur röðum."
+          ]
+        },
+        {
+          "image": "stegosaurus-senckenberg",
+          "text": "Þetta er beinagrind kambeðlu. Sjáðu plöturnar og gaddana á halanum!",
+          "audio": "book_kambedla_7",
+          "sources": [
+            "Senckenberg-safnið í Frankfurt: afsteypa beinagrindarinnar AMNH 650 (Stegosaurus stenops); ljósmyndin á Wikimedia Commons."
           ]
         },
         {
@@ -133,12 +139,49 @@
           ]
         },
         {
+          "image": "stegosaurus-scale",
+          "text": "Kambeðla var um sjö metrar á lengd. Það er lengra en einn og hálfur bíll!",
+          "audio": "book_kambedla_8",
+          "sources": [
+            "Wikipedia, Stegosaurus, https://en.wikipedia.org/wiki/Stegosaurus: S. stenops um 6,5 m, S. ungulatus 7–9 m; leikurinn hefur hana 7 m (remake/STYLE.md).",
+            "Fólksbíll er um 4,5 m: Volkswagen Golf Mk8 4,28 m, Toyota Corolla E210 4,63 m (Wikipedia)."
+          ]
+        },
+        {
+          "image": "stegosaurus-skull-amnh",
+          "text": "Kambeðla borðaði lágar plöntur. Hún beit þær með goggi fremst í munninum.",
+          "audio": "book_kambedla_9",
+          "sources": [
+            "Wikipedia, Stegosaurus, https://en.wikipedia.org/wiki/Stegosaurus: tannlaus goggur fremst og smáar tennur innar; höfuðið bar hún lágt, ekki hærra en um einn metra, og át lágvaxnar plöntur.",
+            "Natural History Museum, Dino Directory: Stegosaurus: plöntuæta."
+          ]
+        },
+        {
           "image": "stegosaurus-sophie-skull",
           "text": "Kambeðlan var stór, en heilinn var bara á stærð við plómu!",
           "audio": "book_kambedla_4",
           "sources": [
             "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: allt að 9 m löng; heilinn var á stærð við plómu.",
             "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: hún hafði einn heila; sagan um annan heila í mjöðmunum er misskilningur."
+          ]
+        },
+        {
+          "image": "stegosaurus-thagomizer",
+          "text": "Gaddarnir á halanum voru vörn. Hún sveiflaði halanum ef svöng rándýr komu of nálægt.",
+          "audio": "book_kambedla_10",
+          "sources": [
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: gaddahalinn var vörn hennar.",
+            "Carpenter, Sanders, McWhinney og Wood 2005, „Evidence for predator-prey relationships: examples for Allosaurus and Stegosaurus“, í The Carnivorous Dinosaurs (Indiana University Press): hryggjarliður ránrisaeðlu (Allosaurus) með gati sem passar við halagadd kambeðlu."
+          ]
+        },
+        {
+          "image": "stegosaurus-mount-carnegie",
+          "text": "Kambeðlur voru uppi fyrir um 150 milljónum ára, löngu á undan þríhyrnunum.",
+          "audio": "book_kambedla_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Stegosaurus, https://www.nhm.ac.uk/discover/dino-directory/stegosaurus.html: síðjúra, fyrir 152–145 milljónum ára. Drög hönnunarinnar segja 155–145; „um 150“ passar við hvort tveggja.",
+            "Natural History Museum, A Stegosaurus brought to life, https://www.nhm.ac.uk/discover/stegosaurus-brought-to-life.html: Sophie lifði fyrir um 150 milljónum ára.",
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: 68–66 milljón ár."
           ]
         },
         {
@@ -160,9 +203,86 @@
       "unlock": {
         "star": "k2_thorsedla"
       },
-      "say": "k2_mosi_map_thorsedla",
       "picture": "render-thorsedla",
-      "pages": []
+      "pages": [
+        {
+          "image": "render-thorsedla",
+          "text": "Þetta er Þórseðla. Hún er brontósárus, risaeðla með langan háls og langan hala.",
+          "audio": "book_thorsedla_1",
+          "sources": [
+            "Tschopp, Mateus og Benson 2015, „A specimen-level phylogenetic analysis and taxonomic revision of Diplodocidae“, PeerJ 3: e857, https://doi.org/10.7717/peerj.857 (CC BY): Brontosaurus er sjálfstæð ættkvísl.",
+            "Wikipedia, Brontosaurus, https://en.wikipedia.org/wiki/Brontosaurus: langur háls og langur, mjór hali."
+          ]
+        },
+        {
+          "image": "brontosaurus-life",
+          "text": "Svona leit brontósárus kannski út. Hún var jafn þung og þrír fílar!",
+          "audio": "book_thorsedla_2",
+          "sources": [
+            "Wikipedia, Brontosaurus, https://en.wikipedia.org/wiki/Brontosaurus: B. excelsus um 15–20 tonn.",
+            "Wikipedia, African bush elephant: fullorðinn tarfur um 6 tonn."
+          ]
+        },
+        {
+          "image": "brontosaurus-yale",
+          "text": "Þetta er beinagrind brontósárusar. Hún stendur á safni í Ameríku.",
+          "audio": "book_thorsedla_3",
+          "sources": [
+            "Yale Peabody Museum, New Haven: beinagrind Brontosaurus excelsus (YPM 1980), endurreist 2024; ljósmyndin á Wikimedia Commons."
+          ]
+        },
+        {
+          "image": "brontosaurus-life-nt",
+          "text": "Brontosaurus þýðir þrumueðla. Þess vegna heitir hún Þórseðla, eftir Þór sem ræður þrumunum!",
+          "audio": "book_thorsedla_4",
+          "sources": [
+            "Wikipedia, Brontosaurus, https://en.wikipedia.org/wiki/Brontosaurus: nafnið er úr grísku, brontē „þruma“ og sauros „eðla“.",
+            "Þór er þrumuguðinn í norrænni goðafræði; nafnið Þórseðla er úr ævintýrinu."
+          ]
+        },
+        {
+          "image": "brontosaurus-scale",
+          "text": "Hún var um tuttugu og tveir metrar á lengd, næstum eins og tveir strætóar í röð!",
+          "audio": "book_thorsedla_5",
+          "sources": [
+            "Wikipedia, Brontosaurus: B. excelsus 21–23 m; leikurinn hefur hana 22 m (remake/STYLE.md).",
+            "Wikipedia, Single-decker bus: flestir strætisvagnar eru allt að 12 m langir."
+          ]
+        },
+        {
+          "image": "brontosaurus-parvus",
+          "text": "Hún borðaði plöntur og gleypti laufin án þess að tyggja þau.",
+          "audio": "book_thorsedla_6",
+          "sources": [
+            "Wikipedia, Apatosaurus og Brontosaurus: plöntuæta; tennurnar rifu lauf af greinum og sauropodar tuggðu ekki matinn."
+          ]
+        },
+        {
+          "image": "sauropod-footprint",
+          "text": "Fótspor svona risaeðla hafa fundist í steini. Sum eru svo stór að þú gætir setið í þeim!",
+          "audio": "book_thorsedla_7",
+          "sources": [
+            "Ljósmynd frá 1952 (almenningseign): Roland T. Bird mælir fótspor sauropoda í Texas; slík spor eru um metri á breidd."
+          ]
+        },
+        {
+          "image": "brontosaurus-yale-old",
+          "text": "Brontósárusar voru uppi fyrir um 150 milljónum ára, í Ameríku.",
+          "audio": "book_thorsedla_8",
+          "sources": [
+            "Wikipedia, Brontosaurus: síðjúra, fyrir um 156–147 milljónum ára, Morrison-myndun í vestanverðri Norður-Ameríku."
+          ]
+        },
+        {
+          "image": "brontosaurus-skull-sculpt",
+          "text": "Höfuðkúpur brontósárusa eru afar sjaldgæfar. Þessi var búin til eftir höfuðkúpum frænkna hennar.",
+          "audio": "book_thorsedla_9",
+          "sources": [
+            "Wikimedia Commons, lýsing myndarinnar: mótuð höfuðkúpa á beinagrind Yale frá 1931.",
+            "Wikipedia, Brontosaurus: höfuðkúpur eru sjaldgæfar og flestar beinagrindur fundust án þeirra."
+          ]
+        }
+      ]
     },
     {
       "id": "gramedla",
@@ -172,9 +292,84 @@
       "unlock": {
         "star": "k3_gramedla"
       },
-      "say": "book_mosi_later",
       "picture": "render-gramedla",
-      "pages": []
+      "pages": [
+        {
+          "image": "render-gramedla",
+          "text": "Þetta er Grameðla, Tyrannosaurus rex. Hún var ein stærsta kjötæta sem hefur lifað á landi.",
+          "audio": "book_gramedla_1",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus, https://www.nhm.ac.uk/discover/dino-directory/tyrannosaurus.html: ein stærsta kjötæta sem lifað hefur á landi."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-life",
+          "text": "Svona leit grameðla kannski út. Hún var með stórt höfuð og litlar hendur með tveimur fingrum.",
+          "audio": "book_gramedla_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus: stórt höfuð, stuttir framfætur með tveimur fingrum."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-sue",
+          "text": "Þetta er beinagrind grameðlu. Beinagrindur hennar standa á mörgum söfnum.",
+          "audio": "book_gramedla_3",
+          "sources": [
+            "Field Museum, Chicago: beinagrindin „Sue“ (FMNH PR 2081); ljósmyndin á Wikimedia Commons."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-teeth",
+          "text": "Tennurnar voru eins stórar og bananar! Þegar tönn datt úr óx ný í staðinn.",
+          "audio": "book_gramedla_4",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus: tennur allt að 20 cm, með rót allt að 30 cm.",
+            "Wikipedia, Tyrannosaurus, https://en.wikipedia.org/wiki/Tyrannosaurus: tennurnar endurnýjuðust alla ævi."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-scale",
+          "text": "Grameðla var um tólf metrar á lengd, jafn löng og strætó!",
+          "audio": "book_gramedla_5",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus: 12 m.",
+            "Wikipedia, Single-decker bus: allt að 12 m."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-skull-burke",
+          "text": "Hún hafði frábært lyktarskyn. Stór hluti heilans var til að finna lykt.",
+          "audio": "book_gramedla_6",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus: stór hluti heilans var lyktarskynið."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-skin",
+          "text": "Steingervingar sýna að húðin var þakin smáum hreistrum.",
+          "audio": "book_gramedla_7",
+          "sources": [
+            "Bell, Campione, Persons, Currie, Larson, Tanke og Bakker 2017, „Tyrannosauroid integument reveals conflicting patterns of gigantism and feather evolution“, Biology Letters 13: 20170092, https://doi.org/10.1098/rsbl.2017.0092: húðför grameðlu sýna smá hreistur."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-skull-mor",
+          "text": "Grameðlur voru uppi fyrir um 66 milljónum ára, á sama tíma og þríhyrnur eins og Mosi!",
+          "audio": "book_gramedla_8",
+          "sources": [
+            "Natural History Museum, Dino Directory: Tyrannosaurus og Triceratops: báðar síðkrít, fyrir 68–66 milljónum ára, í Norður-Ameríku."
+          ]
+        },
+        {
+          "image": "tyrannosaurus-feathers",
+          "text": "Var grameðla með fjaðrir? Frændur hennar voru það, en á henni hafa bara fundist hreistur. Það vitum við ekki alveg.",
+          "audio": "book_gramedla_9",
+          "sources": [
+            "Bell o.fl. 2017 (sjá síðu 7): smá hreistur á grameðlu.",
+            "Xu o.fl. 2012, „A gigantic feathered dinosaur from the Lower Cretaceous of China“, Nature 484: 92–95, https://doi.org/10.1038/nature10906: Yutyrannus, frændi grameðlu, var með fjaðrir. Myndin er ímynduð grameðla með fjaðrir."
+          ]
+        }
+      ]
     },
     {
       "id": "uggedla",
@@ -184,9 +379,84 @@
       "unlock": {
         "place": "uggedla"
       },
-      "say": "k2_mosi_map_uggedla",
       "picture": "render-uggedla",
-      "pages": []
+      "pages": [
+        {
+          "image": "render-uggedla",
+          "text": "Þetta er Uggeðla. Hún er Spinosaurus, með stórt segl á bakinu.",
+          "audio": "book_uggedla_1",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus, https://www.nhm.ac.uk/discover/dino-directory/spinosaurus.html: segl á bakinu."
+          ]
+        },
+        {
+          "image": "spinosaurus-life",
+          "text": "Svona leit Spinosaurus kannski út. Hún var með langt trýni eins og krókódíll.",
+          "audio": "book_uggedla_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus: langt, mjótt trýni eins og á krókódíl."
+          ]
+        },
+        {
+          "image": "spinosaurus-natgeo",
+          "text": "Þetta er beinagrind Spinosaurus. Enginn hefur fundið heila beinagrind, svo hún var sett saman úr mörgum fundum.",
+          "audio": "book_uggedla_3",
+          "sources": [
+            "Ibrahim o.fl. 2014, „Semiaquatic adaptations in a giant predatory dinosaur“, Science 345: 1613–1616, https://doi.org/10.1126/science.1258750: beinagrindin var sett saman úr mörgum eintökum; sýnd á National Geographic-safninu í Washington 2014."
+          ]
+        },
+        {
+          "image": "spinosaurus-tooth",
+          "text": "Hún veiddi fisk. Tennurnar voru keilulaga, góðar til að halda hálum fiski.",
+          "audio": "book_uggedla_4",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus: fiskæta.",
+            "Wikipedia, Spinosaurus, https://en.wikipedia.org/wiki/Spinosaurus: keilulaga tennur án skurðbrúna."
+          ]
+        },
+        {
+          "image": "spinosaurus-scale",
+          "text": "Spinosaurus var um fjórtán metrar á lengd, lengri en strætó!",
+          "audio": "book_uggedla_5",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus: 14 m.",
+            "Wikipedia, Single-decker bus: allt að 12 m."
+          ]
+        },
+        {
+          "image": "spinosaurus-field",
+          "text": "Seglið á bakinu var um einn og hálfur metri, hærra en þú!",
+          "audio": "book_uggedla_6",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus: seglið allt að 1,5 m hátt.",
+            "CDC, vaxtartöflur 2000 (statage.csv): sex ára barn er um 1,15 m."
+          ]
+        },
+        {
+          "image": "spinosaurus-tail",
+          "text": "Halinn var flatur eins og ár. Með honum gat hún synt í vatninu.",
+          "audio": "book_uggedla_7",
+          "sources": [
+            "Ibrahim o.fl. 2020, „Tail-propelled aquatic locomotion in a theropod dinosaur“, Nature 581: 67–70, https://doi.org/10.1038/s41586-020-2190-3: flatur, árarlaga hali."
+          ]
+        },
+        {
+          "image": "spinosaurus-skull",
+          "text": "Spinosaurus var uppi fyrir um 95 milljónum ára, í Afríku, þar sem nú er eyðimörk.",
+          "audio": "book_uggedla_8",
+          "sources": [
+            "Natural History Museum, Dino Directory: Spinosaurus: síðkrít, fyrir 99–94 milljónum ára, í Egyptalandi og Marokkó."
+          ]
+        },
+        {
+          "image": "spinosaurus-skeleton-white",
+          "text": "Synti hún eins og krókódíll eða óð hún um eins og storkur? Vísindafólk deilir enn um það.",
+          "audio": "book_uggedla_9",
+          "sources": [
+            "Ibrahim o.fl. 2020 (sund) og Sereno o.fl. 2022, „Spinosaurus is not an aquatic dinosaur“, eLife 11: e80092, https://doi.org/10.7554/eLife.80092 (óð í grunnu vatni): ekki sammála."
+          ]
+        }
+      ]
     },
     {
       "id": "sloedla",
@@ -196,9 +466,83 @@
       "unlock": {
         "place": "sloedla"
       },
-      "say": "k2_mosi_map_sloedla",
       "picture": "render-sloedla",
-      "pages": []
+      "pages": [
+        {
+          "image": "render-sloedla",
+          "text": "Þetta er Slóeðla. Hún er Parasaurolophus, með langan kamb á höfðinu.",
+          "audio": "book_sloedla_1",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus, https://www.nhm.ac.uk/discover/dino-directory/parasaurolophus.html: langur, holur kambur aftur af höfðinu."
+          ]
+        },
+        {
+          "image": "parasaurolophus-life",
+          "text": "Svona leit Parasaurolophus kannski út. Hún gat gengið á tveimur eða fjórum fótum.",
+          "audio": "book_sloedla_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus: gekk á tveimur eða fjórum fótum."
+          ]
+        },
+        {
+          "image": "parasaurolophus-field",
+          "text": "Þetta er beinagrind Parasaurolophus. Kamburinn er hluti af höfuðkúpunni.",
+          "audio": "book_sloedla_3",
+          "sources": [
+            "Field Museum, Chicago: Parasaurolophus cyrtocristatus; ljósmyndin á Wikimedia Commons.",
+            "Wikipedia, Parasaurolophus, https://en.wikipedia.org/wiki/Parasaurolophus: kamburinn er úr beinum höfuðkúpunnar."
+          ]
+        },
+        {
+          "image": "parasaurolophus-crest",
+          "text": "Kamburinn var holur að innan, eins og lúður. Hún gat gefið frá sér djúpt hljóð!",
+          "audio": "book_sloedla_4",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus: holur kambur.",
+            "Wikipedia, Parasaurolophus: hljóðið var endurgert í tölvu á tíunda áratugnum, djúpt og drynjandi."
+          ]
+        },
+        {
+          "image": "parasaurolophus-scale",
+          "text": "Hún var um níu metrar á lengd, álíka löng og þríhyrna!",
+          "audio": "book_sloedla_5",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus 9 m og Triceratops 9 m."
+          ]
+        },
+        {
+          "image": "parasaurolophus-fmnh",
+          "text": "Hún var andaeðla, með breiðan gogg eins og önd.",
+          "audio": "book_sloedla_6",
+          "sources": [
+            "Wikipedia, Hadrosauridae, https://en.wikipedia.org/wiki/Hadrosauridae: „andarnefjueðlur“ með breiðan, flatan gogg; Parasaurolophus er ein þeirra."
+          ]
+        },
+        {
+          "image": "parasaurolophus-head",
+          "text": "Hún borðaði lauf og barr og var með hundruð tanna sem uxu aftur þegar þær slitnuðu.",
+          "audio": "book_sloedla_7",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus: át barr og lauf; hundruð tanna, með varatennur tilbúnar."
+          ]
+        },
+        {
+          "image": "parasaurolophus-utah",
+          "text": "Parasaurolophus var uppi fyrir um 75 milljónum ára, í Ameríku.",
+          "audio": "book_sloedla_8",
+          "sources": [
+            "Natural History Museum, Dino Directory: Parasaurolophus: síðkrít, fyrir 77–73 milljónum ára, í Kanada og Bandaríkjunum."
+          ]
+        },
+        {
+          "image": "parasaurolophus-skull",
+          "text": "Til hvers var kamburinn? Til að kalla á vini eða til að þekkjast? Það vitum við ekki alveg.",
+          "audio": "book_sloedla_9",
+          "sources": [
+            "Natural History Museum, Dino Directory og Wikipedia, Parasaurolophus: hljóð, að þekkja sína tegund og hitastjórnun hafa öll verið nefnd; ekki er vitað fyrir víst."
+          ]
+        }
+      ]
     },
     {
       "id": "flugedla",
@@ -208,9 +552,84 @@
       "unlock": {
         "place": "flugedla"
       },
-      "say": "k2_mosi_map_flugedla",
       "picture": "render-flugedla",
-      "pages": []
+      "pages": [
+        {
+          "image": "render-flugedla",
+          "text": "Þetta er Flugeðla. Hún er Pteranodon, skriðdýr sem gat flogið.",
+          "audio": "book_flugedla_1",
+          "sources": [
+            "American Museum of Natural History, Pteranodon, https://www.amnh.org/explore/news-blogs/on-exhibit-posts/thursday-s-pterosaur-pteranodon: flugeðla (pterosaur)."
+          ]
+        },
+        {
+          "image": "pteranodon-life",
+          "text": "Vissir þú? Flugeðlur voru ekki risaeðlur, heldur frænkur þeirra sem gátu flogið.",
+          "audio": "book_flugedla_2",
+          "sources": [
+            "American Museum of Natural History (sjá síðu 1): flugeðlur eru ekki risaeðlur heldur skyldur hópur skriðdýra."
+          ]
+        },
+        {
+          "image": "pteranodon-skeleton",
+          "text": "Þetta er beinagrind Pteranodon. Vængirnir voru úr húð sem lá frá einum löngum fingri.",
+          "audio": "book_flugedla_3",
+          "sources": [
+            "Wikipedia, Pteranodon, https://en.wikipedia.org/wiki/Pteranodon: vængurinn var húðfit sem lá frá mjög löngum fjórða fingri."
+          ]
+        },
+        {
+          "image": "pteranodon-skull",
+          "text": "Pteranodon þýðir vængur án tanna. Hún var með langan gogg en engar tennur.",
+          "audio": "book_flugedla_4",
+          "sources": [
+            "American Museum of Natural History (sjá síðu 1) og Wikipedia, Pteranodon: nafnið þýðir „vængur án tanna“; tannlaus goggur."
+          ]
+        },
+        {
+          "image": "pteranodon-fish",
+          "text": "Hún veiddi fisk. Einn steingervingur er meira að segja með fisk í hálsinum!",
+          "audio": "book_flugedla_5",
+          "sources": [
+            "Wikipedia, Pteranodon: fiskleifar hafa fundist í kokinu og magastaðnum.",
+            "Wikimedia Commons, lýsing myndarinnar: steingerð höfuðkúpa Pteranodon með fisk í kokinu, á sýningunni „Pterosaurs: Flight in the Age of Dinosaurs“ í Cleveland Museum of Natural History."
+          ]
+        },
+        {
+          "image": "pteranodon-scale",
+          "text": "Vængirnir voru um sex metrar frá enda til enda, lengri en bíll!",
+          "audio": "book_flugedla_6",
+          "sources": [
+            "Wikipedia, Pteranodon: vænghaf karldýra að meðaltali um 5,6 m.",
+            "Fólksbíll um 4,5 m (Wikipedia)."
+          ]
+        },
+        {
+          "image": "pteranodon-life-nt",
+          "text": "En hún var létt, um jafn þung og sex ára barn! Beinin voru hol að innan.",
+          "audio": "book_flugedla_7",
+          "sources": [
+            "Witton og Habib 2010, „On the size and flight diversity of giant pterosaurs“, PLoS ONE 5(11): e13982, https://doi.org/10.1371/journal.pone.0013982: stórar flugeðlur voru léttar; Pteranodon um 20–35 kg; hol bein.",
+            "CDC, vaxtartöflur 2000 (wtage): sex ára barn er um 21 kg."
+          ]
+        },
+        {
+          "image": "pteranodon-amnh",
+          "text": "Pteranodon flaug yfir sjó fyrir um 85 milljónum ára, þar sem nú er Ameríka.",
+          "audio": "book_flugedla_8",
+          "sources": [
+            "Wikipedia, Pteranodon: síðkrít, fyrir um 86–84 milljónum ára, yfir innhafi Norður-Ameríku (Niobrara-myndun í Kansas)."
+          ]
+        },
+        {
+          "image": "pteranodon-skull-tenerife",
+          "text": "Til hvers var kamburinn á höfðinu? Kannski til að sýnast. Það vitum við ekki enn.",
+          "audio": "book_flugedla_9",
+          "sources": [
+            "Wikipedia, Pteranodon: kamburinn var stærri á karldýrum og líklega til að sýnast, en það er ekki vitað fyrir víst."
+          ]
+        }
+      ]
     },
     {
       "id": "kalligrammatid",
