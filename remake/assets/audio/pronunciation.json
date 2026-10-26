@@ -1848,6 +1848,54 @@
           },
           "seed": 1,
           "note": "Sent eins og skrifað, með beygingunni sem samhengi (ekki talað) hjá sögumanni."
+        },
+        "stafsetning-gg": {
+          "say": {
+            "Sniglar": "Snigglar",
+            "sniglar": "snigglar"
+          },
+          "seed": 1,
+          "note": "„Snigglar“: tvöfalt g lokar atkvæðinu svo i-ið verði stutt (hljómaði eins og Sníglar með einföldu g)."
+        },
+        "stafsetning-gg-bandstrik": {
+          "say": {
+            "Sniglar": "Snigg-lar",
+            "sniglar": "snigg-lar"
+          },
+          "seed": 1,
+          "note": "„Snigg-lar“: tvöfalt g og bandstrik á atkvæðaskilum."
+        },
+        "ipa-kk": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪkːlar/\"",
+            "sniglar": "\"/ˈstnɪkːlar/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu k, /ˈstnɪkːlar/, svo i-ið á undan verði stutt."
+        },
+        "ipa-atkvaedi": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪk.lar/\"",
+            "sniglar": "\"/ˈstnɪk.lar/\""
+          },
+          "seed": 1,
+          "note": "IPA með atkvæðaskilum eftir k: /ˈstnɪk.lar/."
+        },
+        "ipa-kk-r": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪkːlar̥/\"",
+            "sniglar": "\"/ˈstnɪkːlar̥/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu k og raddlausu r í endann: /ˈstnɪkːlar̥/."
+        },
+        "stafsetning-gg-frae7": {
+          "say": {
+            "Sniglar": "Snigglar",
+            "sniglar": "snigglar"
+          },
+          "seed": 7,
+          "note": "„Snigglar“ með öðru fræi (7)."
         }
       },
       "chosen": "ipa"
