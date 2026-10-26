@@ -663,8 +663,14 @@ test('the ribbons are Risaeðlur, Dýrin, Leikir, Kortið and Safnið, and there
   assert.throws(() => book.open('stars', 'child'), /no page "stars"/);
 });
 
+// Every shipped dinosaur has its card now; this is the book as it was before the last five were written: they are teasers (no pages,
+// Mosi's line), which the code still supports for a dinosaur whose card comes later.
+const WITH_TEASERS = CARDS.map(c => (['thorsedla', 'gramedla', 'uggedla', 'sloedla', 'flugedla'].includes(c.id)
+  ? { ...c, pages: [], say: c.id === 'gramedla' ? 'book_mosi_later' : `k2_mosi_map_${c.id}` } : c));
+
 test('the Risaeðlur page has the seven dinosaurs: the ones met in colour, the rest dark, and a teaser says Mosi\'s line and opens no card', () => {
   const { book, narrated, sounds, tap, tilesOn, tile, root } = fenRig({
+    cards: WITH_TEASERS,
     fill: save => { save.addStar('k1_kambedla'); save.addPlace('sloedla'); save.addSeen('mosi'); },
   });
   const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'dinosaurs')[0];
@@ -691,6 +697,21 @@ test('the Risaeðlur page has the seven dinosaurs: the ones met in colour, the r
   assert.equal(book.cardViewer.isOpen, false);
   tap(tile('kambedla')); // met, with a card: it opens
   assert.equal(book.cardViewer.isOpen, true, 'Kambeðla\'s card opens');
+});
+
+test('with the shipped cards every dinosaur met opens its own card, and one not met still says Mosi\'s later line', () => {
+  const { book, narrated, tap, tile } = fenRig({
+    fill: save => { save.addStar('k1_kambedla'); save.addPlace('sloedla'); save.addPlace('flugedla'); },
+  });
+  book.open('dinosaurs', 'child');
+  assert.ok(tile('sloedla').classList.contains('new'), 'her tile is new');
+  tap(tile('sloedla'));
+  assert.equal(book.cardViewer.isOpen, true, "Slóeðla's card opens (nine pages)");
+  assert.equal(narrated.includes('k2_mosi_map_sloedla'), false, 'and Mosi says no map line in its place');
+  book.cardViewer.close?.();
+  tap(tile('gramedla')); // not met
+  assert.equal(narrated.at(-1), 'book_mosi_later');
+  assert.equal(book.cardViewer.isOpen, false, 'a dinosaur not met opens nothing');
 });
 
 test('the Leikir page shows only the games that are open', () => {

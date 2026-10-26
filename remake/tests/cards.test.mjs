@@ -101,11 +101,13 @@ test('new until seen', () => {
 
 test("the shipped cards are written and sourced, and the narrator has a line for each page with the page's own text", () => {
   const lines = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/book/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
-  const MOSI_LINES = [1, 6, 7, 3, 8, 9, 10, 2, 4, 5]; // Mosi's ten pages: the five he had keep their lines (1 to 5), the five added later are 6 to 10
+  // Mosi's and Kambeðla's ten pages: the five each had keep their lines (1 to 5), the five added later are 6 to 10, in the owner's page
+  // order; the other five dinosaurs have nine pages, lines 1 to 9 in page order.
+  const LINE_ORDER = { mosi: [1, 6, 7, 3, 8, 9, 10, 2, 4, 5], kambedla: [1, 6, 7, 3, 8, 9, 4, 10, 2, 5] };
   for (const card of parseCards(SHIPPED)) {
     card.pages.forEach((page, i) => {
       assert.ok(!page.sources.includes(PLACEHOLDER), `${card.id} page ${i + 1} is still a placeholder`);
-      assert.equal(page.audio, `book_${card.id}_${card.id === 'mosi' ? MOSI_LINES[i] : i + 1}`, `${card.id} page ${i + 1}: the line's id`);
+      assert.equal(page.audio, `book_${card.id}_${LINE_ORDER[card.id]?.[i] ?? i + 1}`, `${card.id} page ${i + 1}: the line's id`);
       assert.equal(lines.get(page.audio)?.text, page.text, `${page.audio}: the line says what the page says`);
       assert.equal(lines.get(page.audio)?.speaker, 'narrator');
     });
@@ -145,17 +147,17 @@ test('a place and a fossil unlock a card, read from the save by bookState', () =
   assert.equal(isUnlocked(place, bookState(createSave(null))), false, 'another save has neither');
 });
 
-test("the shipped dinosaurs are the seven, in order; the five teasers say Mosi's line and show a render", () => {
+test("the shipped dinosaurs are the seven, in order; the five after Kambeðla have nine pages each, no say, and a render as page one and tile", () => {
   const dinosaurs = parseCards(SHIPPED).filter(c => c.group === 'dinosaur');
   assert.deepEqual(dinosaurs.map(c => c.id), ['mosi', 'kambedla', 'thorsedla', 'gramedla', 'uggedla', 'sloedla', 'flugedla']);
-  assert.deepEqual(dinosaurs.slice(2).map(c => [c.id, c.pages.length, c.say, c.picture]), [
-    ['thorsedla', 0, 'k2_mosi_map_thorsedla', 'render-thorsedla'],
-    ['gramedla', 0, 'book_mosi_later', 'render-gramedla'],
-    ['uggedla', 0, 'k2_mosi_map_uggedla', 'render-uggedla'],
-    ['sloedla', 0, 'k2_mosi_map_sloedla', 'render-sloedla'],
-    ['flugedla', 0, 'k2_mosi_map_flugedla', 'render-flugedla'],
+  assert.deepEqual(dinosaurs.slice(2).map(c => [c.id, c.pages.length, c.say, c.picture, c.pages[0].image]), [
+    ['thorsedla', 9, null, 'render-thorsedla', 'render-thorsedla'],
+    ['gramedla', 9, null, 'render-gramedla', 'render-gramedla'],
+    ['uggedla', 9, null, 'render-uggedla', 'render-uggedla'],
+    ['sloedla', 9, null, 'render-sloedla', 'render-sloedla'],
+    ['flugedla', 9, null, 'render-flugedla', 'render-flugedla'],
   ]);
   assert.deepEqual(dinosaurs.slice(2).map(c => c.unlock), [{ star: 'k2_thorsedla' }, { star: 'k3_gramedla' }, { place: 'uggedla' }, { place: 'sloedla' }, { place: 'flugedla' }]);
-  assert.deepEqual(dinosaurs.slice(0, 2).map(c => c.pages.length), [10, 5], "Mosi has ten pages, Kambeðla keeps her five");
+  assert.deepEqual(dinosaurs.slice(0, 2).map(c => c.pages.length), [10, 10], 'Mosi and Kambeðla have ten pages each');
   assert.ok(parseCards(SHIPPED).filter(c => c.group !== 'dinosaur').every(c => c.group === 'animal'), 'the rest are animals');
 });
