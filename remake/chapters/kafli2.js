@@ -381,8 +381,8 @@ function* footprints(s, c) {
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
   yield* say(s, c, 'mosi', 'k2_mosi_tenprints');
-  // and on down the trail, toward the Fen
-  mosi.walkTo(TRAIL_ON, { speed: 1.2 });
+  // and on down the trail, toward the Fen (a walk the Fen stops under its black: arriveInTheFen)
+  c.trailWalk = mosi.walkTo(TRAIL_ON, { speed: 1.2 });
   s.camera.follow('mosi', RIDE_CAMERA);
   yield s.wait(3);
 }
@@ -543,6 +543,8 @@ function arriveInTheFen(s, c) {
   kambedla.raw.root.visible = false;
   thorsedla.raw.root.visible = true;
   thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
+  // his walk on down the trail ends here (it went on in the Fen and took him from the trail's end to wherever it led, out in the reed)
+  c.trailWalk?.cancel();
   mosi.place(FEN_ENTRY.position[0], FEN_ENTRY.position[2], FEN_ENTRY.heading);
   c.fenCritters = fenAnimals(s, c);
   c.berries = berryBushes(world);
