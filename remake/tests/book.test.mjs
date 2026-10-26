@@ -667,3 +667,29 @@ test('the book opened for a dinosaur nods its tile once it has grown, and the jo
   journal.open('map'); // then it turns to the map
   assert.equal(book.tab, 'map');
 });
+
+// Review Focus 1: a child's save from before the change opens the new book with every find still there.
+test('a save from before this change opens the new book with the right dinosaurs met and no animal missing', () => {
+  // as chapter 2's print wrote it: both stars, the far friends' places, the finds of both chapters, and some cards seen; no hals mark
+  const old = {
+    stars: ['k1_kambedla', 'k2_thorsedla'],
+    findings: ['butterfly', 'beetle', 'frog', 'snail', 'birds', 'waterBeetle', 'turtle'],
+    seen: ['mosi', 'kambedla', 'kalligrammatid', 'frog'],
+    places: ['fen', 'sloedla', 'flugedla', 'uggedla'],
+  };
+  const doc = new FakeDocument(['book']);
+  const save = createSave({ getItem: () => JSON.stringify(old), setItem() {} });
+  const book = createBook(doc, { cards: CARDS, media: MEDIA, save, audio: { sfx: () => true, stop() {}, narrate: () => DONE }, onPause() {} });
+  const root = doc.getElementById('book');
+  const state = id => root.findAll(e => e.classList.contains('tile') && e.getAttribute('data-card') === id)[0].classList;
+  const unfound = group => CARDS.filter(c => c.group === group && state(c.id).contains('unfound')).map(c => c.id);
+  assert.deepEqual(unfound('dinosaur'), ['gramedla'], 'every friend met is met: only Grameðla, who waits for chapter 3, is dark');
+  assert.ok(state('mosi').contains('found') && state('kambedla').contains('found'), 'Mosi and Kambeðla, seen before, are just found');
+  assert.ok(['thorsedla', 'uggedla', 'sloedla', 'flugedla'].every(id => state(id).contains('new')), 'and the four met since are new');
+  assert.deepEqual(unfound('animal'), ['waterstrider', 'salamander', 'dragonfly', 'fish', 'earlybird'], 'every animal found is found; the rest wait');
+  assert.ok(state('frog').contains('found') && state('beetle').contains('new'), 'with their new and seen as they were');
+  assert.deepEqual(save.get().seen, old.seen, 'opening the book marks nothing seen');
+  const slot = game => root.findAll(e => e.getAttribute('data-game') === game)[0].parentNode;
+  assert.deepEqual(['eitt', 'hals', 'yatzy-junior'].map(game => slot(game).hidden), [false, false, false], 'and the three games it had earned are on the Leikir page');
+  assert.equal(book.tab, 'animals');
+});
