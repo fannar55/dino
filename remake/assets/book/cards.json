@@ -19,12 +19,20 @@
           ]
         },
         {
-          "image": "triceratops-front",
-          "text": "Þríhyrnur voru uppi fyrir um 66 milljónum ára. Þær voru meðal síðustu risaeðlanna.",
-          "audio": "book_mosi_2",
+          "image": "triceratops-life",
+          "text": "Svona leit þríhyrna kannski út. Hún var jafn þung og stór fíll, eða enn þyngri!",
+          "audio": "book_mosi_6",
           "sources": [
-            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: síðkrít, fyrir 68–66 milljónum ára.",
-            "Natural History Museum, How an asteroid caused the extinction of the dinosaurs, https://www.nhm.ac.uk/discover/how-an-asteroid-caused-extinction-of-dinosaurs.html: þríhyrnan var ein síðasta risaeðlan (önnur en fuglar), og risaeðlurnar dóu út fyrir 66,0 milljónum ára þegar loftsteinninn féll."
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: um 10.000 kg.",
+            "Wikipedia, African bush elephant, https://en.wikipedia.org/wiki/African_bush_elephant: fullorðinn tarfur er um 6 tonn."
+          ]
+        },
+        {
+          "image": "triceratops-hatcher",
+          "text": "Þetta er beinagrind þríhyrnu. Hún heitir Hatcher og stendur á safni í Ameríku.",
+          "audio": "book_mosi_7",
+          "sources": [
+            "Smithsonian National Museum of Natural History, uppsett beinagrind þríhyrnu, „Hatcher“, í David H. Koch Hall of Fossils – Deep Time, Washington; ljósmyndin á Wikimedia Commons, https://commons.wikimedia.org/wiki/File:Triceratops_Skeleton_-_National_Museum_of_Natural_History_(14611729991).jpg. Í áfanga 3 kemur þrívíddarskanni Smithsonian af sömu beinagrind (CC0) á þessa síðu."
           ]
         },
         {
@@ -33,6 +41,41 @@
           "audio": "book_mosi_3",
           "sources": [
             "Horner, Goodwin og Myhrvold 2011, „Dinosaur census reveals abundant Tyrannosaurus and rare ontogenetic stages in the Upper Cretaceous Hell Creek Formation (Maastrichtian), Montana, USA“, PLoS ONE 6(2): e16574, doi:10.1371/journal.pone.0016574, https://doi.org/10.1371/journal.pone.0016574 (opin grein, CC BY): í talningu risaeðlusteingervinga í Hell Creek-myndun er þríhyrnan algengasta risaeðlan, og stakar höfuðkúpur eru stór hluti fundanna."
+          ]
+        },
+        {
+          "image": "triceratops-scale",
+          "text": "Þríhyrna var um níu metrar á lengd, eins og tveir bílar í röð!",
+          "audio": "book_mosi_8",
+          "sources": [
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: 9,0 m.",
+            "Fólksbíll er um 4,5 m: Volkswagen Golf Mk8 4,28 m (https://en.wikipedia.org/wiki/Volkswagen_Golf_Mk8), Toyota Corolla E210 4,63 m (https://en.wikipedia.org/wiki/Toyota_Corolla_(E210))."
+          ]
+        },
+        {
+          "image": "triceratops-skull-ucmp",
+          "text": "Þríhyrna borðaði plöntur. Hún klippti þær með goggnum og tuggði með hundruðum tanna.",
+          "audio": "book_mosi_9",
+          "sources": [
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: plöntuæta.",
+            "Wikipedia, Triceratops, https://en.wikipedia.org/wiki/Triceratops: goggur fremst í munninum og 400–800 tennur í röðum sem endurnýjuðust."
+          ]
+        },
+        {
+          "image": "triceratops-skin",
+          "text": "Steingervingar sýna meira að segja húðina. Hún var þakin hreistri.",
+          "audio": "book_mosi_10",
+          "sources": [
+            "Wikipedia, Triceratops, https://en.wikipedia.org/wiki/Triceratops: húðför með hreistrum allt að 9 cm, meðal annars á eintakinu „Lane“ í Houston Museum of Natural Science, þar sem ljósmyndin var tekin."
+          ]
+        },
+        {
+          "image": "triceratops-front",
+          "text": "Þríhyrnur voru uppi fyrir um 66 milljónum ára. Þær voru meðal síðustu risaeðlanna.",
+          "audio": "book_mosi_2",
+          "sources": [
+            "Natural History Museum, Dino Directory: Triceratops, https://www.nhm.ac.uk/discover/dino-directory/triceratops.html: síðkrít, fyrir 68–66 milljónum ára.",
+            "Natural History Museum, How an asteroid caused the extinction of the dinosaurs, https://www.nhm.ac.uk/discover/how-an-asteroid-caused-extinction-of-dinosaurs.html: þríhyrnan var ein síðasta risaeðlan (önnur en fuglar), og risaeðlurnar dóu út fyrir 66,0 milljónum ára þegar loftsteinninn féll."
           ]
         },
         {
