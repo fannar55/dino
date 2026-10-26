@@ -1,6 +1,42 @@
 {
  "about": "Which request made each MP3 of the remake's voices: \"<set>/<id>\" -> the cache key of the request (tools/voice-lines.mjs cacheKey), the MP3's sha256 and its length. Written by tools/voice-lines.mjs and tools/yatzy-junior-voices.mjs as they master a line; read by voice-lines.mjs --plan.",
  "lines": {
+  "book/book_amber_1": {
+   "key": "f7ae935aaedf724cccb89a696e7fa1a433779dce6bd27e3f8a09a81bb01e8aa6",
+   "mp3": "5ec4a7f21c93acf9b95cd2d8d7b1e8f6e43d4185b971e733ef452a0a00c18dd1",
+   "duration": 6.65,
+   "model": "eleven_v4"
+  },
+  "book/book_amber_2": {
+   "key": "5bd0a9e93a169964d791611f60a2d7647b4e958bfbedc7eb84e51ab8a77b5490",
+   "mp3": "6c088a867a6356453f5878ce422ad0d563e764593bd535c0430ed5ef95ca7b6c",
+   "duration": 5.61,
+   "model": "eleven_v4"
+  },
+  "book/book_amber_3": {
+   "key": "4abbd9f45e250862369cbb8f8fea37e9a3190a9c7231a84724b80ecf528c41da",
+   "mp3": "cdf3d787f15de37bbc7288c2a6abe4208edb2fdf556d582ffb6790ce81f6fac0",
+   "duration": 4.33,
+   "model": "eleven_v4"
+  },
+  "book/book_ammonite_1": {
+   "key": "199fc316a42c34ba642d4de509bb618c85385510538fa0807cd905c9b439c4c1",
+   "mp3": "3d7983a1319778efc0eb0aa727018ec03395c2c40e212811d3105f355c673ef7",
+   "duration": 8.09,
+   "model": "eleven_v4"
+  },
+  "book/book_ammonite_2": {
+   "key": "741eac1629470a6b4bef227f7aa6df03d2348fe5d928c187292969322d6378ca",
+   "mp3": "434a72d646d1c77dac43aae44158fa397c20a1ce38d84cd03fdeec711f903a7c",
+   "duration": 4.97,
+   "model": "eleven_v4"
+  },
+  "book/book_ammonite_3": {
+   "key": "786426e39c17b7c9da67b1d986b64b1dceebbffd4b00324431168226dd69b767",
+   "mp3": "8c6a169f62a694131f405c89f29ef1e25196585f1f608a1e541a52dfba3136c1",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
   "book/book_beetle_1": {
    "key": "3de45fd7d337ae7b1c5964965caf6828cfe9cdc88fb11430cde5ec5eca1e27c0",
    "mp3": "1f6d85e6348b64dfa6872f5f2a2d987a659ffe2b2a43c89d969e2a4f69bee0cb",
@@ -145,6 +181,24 @@
    "duration": 5.13,
    "model": "eleven_v4"
   },
+  "book/book_egg_1": {
+   "key": "90d3bb904f586d783fc7c6b11ac974e77aba93ca0ef84587eae3ae60d5f9fed0",
+   "mp3": "38bc546aeb5d90e875053d8b8c066d9fd83aef4f8dd99405e94c6246f45b6c67",
+   "duration": 6.09,
+   "model": "eleven_v4"
+  },
+  "book/book_egg_2": {
+   "key": "d93d226058f2eed3d3acae660f25d5d96523f5d21ec705ea11591573872ba754",
+   "mp3": "5b4b125dee170b66635755981dbf8dba5b46c9a91a1209fe4106c46c4aefa7f7",
+   "duration": 4.41,
+   "model": "eleven_v4"
+  },
+  "book/book_egg_3": {
+   "key": "cb1a73cadd02fe606b546590fde67a66cf5a3cb2965e18ba6eea1b6f55fc1d97",
+   "mp3": "e93e16d0cd431b5470d78499a9183fd6b9032dff4d58a27bf7e19fa5f78a566e",
+   "duration": 6.01,
+   "model": "eleven_v4"
+  },
   "book/book_find_me": {
    "key": "aa2bb7b08383875e79983b8c536da3e4f86a17f5008e13a66b3981b127ab3383",
    "mp3": "fa985220fa7631f4f2f0e949a122173697f163106c3a193993713eb4c3417682",
@@ -245,6 +299,24 @@
    "key": "34aa211b08ab18340b36a37c76bcd961f56ff1a4d655bb9e5efc6dc35cc5fa5b",
    "mp3": "0cef740553f086244c8e848f8918073e65cd5411cdcb27b78261a326c8e02d7c",
    "duration": 5.69,
+   "model": "eleven_v4"
+  },
+  "book/book_footprint_1": {
+   "key": "230812eb27462ee4fb9b85a3966ba67c00c44144e2dbef91ca0ce9fd2a62a75a",
+   "mp3": "d156293c1a0078550f7b7e67faae3c8312890d520b5cb156da2a46a5de95dc78",
+   "duration": 6.73,
+   "model": "eleven_v4"
+  },
+  "book/book_footprint_2": {
+   "key": "34728d87cbf95e7b3fc4fae7712df76cb1b0671fdb96eb366bb60d57c4ca8249",
+   "mp3": "45df5b6adebf88a151953bf2e3d7667a46a9e7d0b06f4d763b7dc68a0d8b6d33",
+   "duration": 7.13,
+   "model": "eleven_v4"
+  },
+  "book/book_footprint_3": {
+   "key": "75b59cf8e42ee16be4f2b822bf5f749fe14ec7969a47ba00dd1b9fcdb1dd242d",
+   "mp3": "38e62f2e0da64682476040a15ea77e1ab762b6136d0de1fe65c5929703380f59",
+   "duration": 5.05,
    "model": "eleven_v4"
   },
   "book/book_frog_1": {
@@ -445,6 +517,24 @@
    "duration": 5.931,
    "model": "eleven_v4"
   },
+  "book/book_leaf_1": {
+   "key": "09de8103900f3eafdea13856da221a0ba1ac6dd1efebde38aaecf8b376be7542",
+   "mp3": "4816dcba798fd417ea314fda2c600c853c0fa5fff3c83557524538dc19c9ad23",
+   "duration": 6.81,
+   "model": "eleven_v4"
+  },
+  "book/book_leaf_2": {
+   "key": "e3dbd0f11dacb476830c92b3115da9f3775923afa7c8f1c006a4da617fe665d5",
+   "mp3": "b3e246bd5d465ff9b116180c99e04d1b6d2060b431c730641b8e570cbfaf6f9d",
+   "duration": 8.65,
+   "model": "eleven_v4"
+  },
+  "book/book_leaf_3": {
+   "key": "81e92f4d082bf6fb31dbca062a9dbc2450546f705a6c1220a5b0417bed7e0efd",
+   "mp3": "33824ebac63aefbf0af2a78c279f63422b994b98b78ff0b62b24722542079bf9",
+   "duration": 4.73,
+   "model": "eleven_v4"
+  },
   "book/book_mosi_1": {
    "key": "e94e73bc8ae0d9162afbd2399611f48dea07a80bda500f0de34bce973815cf43",
    "mp3": "d562d096c5ca2c797040dd8983925c33bfd6a74c21f676f658ff8348b9410bf6",
@@ -550,6 +640,24 @@
   "book/book_salamander_6": {
    "key": "5ff27dc3d3b100b740a007cd26a7e81a8fc6056e46818b85bad098e58f375e4b",
    "mp3": "828c925c246d61fb16e3c46ff8c59e25f1f6931f9ca3f795e5c1fef154b034ac",
+   "duration": 6.25,
+   "model": "eleven_v4"
+  },
+  "book/book_skeleton_1": {
+   "key": "6ee3f845e3467cf27ea2d5fff2b79e7228a7c02262ec8555ba7eb0ac33be60c1",
+   "mp3": "a1455b2cd1919203341b5b568019e93df6eb95623befade795d3ef7c3f793f2e",
+   "duration": 6.33,
+   "model": "eleven_v4"
+  },
+  "book/book_skeleton_2": {
+   "key": "5ed13917aa6c41d74cc4335ec699d2187108b2d0d9c893432476ade9f1a2fc85",
+   "mp3": "0998653f30a0de82cde1bb66be41b7bbe90709411eb7a99ee3f9dd06e0119f52",
+   "duration": 6.49,
+   "model": "eleven_v4"
+  },
+  "book/book_skeleton_3": {
+   "key": "277aafbe3a8ec03993d412337372030d7fbfe5f1c77fa12fede7a10ecc7189a0",
+   "mp3": "1032aee8fdf4ac6f400a927fb3377afc497e12427fd11829146ad35f519ef8f4",
    "duration": 6.25,
    "model": "eleven_v4"
   },
@@ -701,6 +809,42 @@
    "key": "2fb88c6de7987af41be7711ceb0bbe8b0f9abed544acbdd589c3ed33dd3db2fc",
    "mp3": "ec3a686d1725d60184732e52120e777faff9e4a74a4ba24e2a8d574b6c86e5fa",
    "duration": 7.29,
+   "model": "eleven_v4"
+  },
+  "book/book_tooth_1": {
+   "key": "38d2f9a64545cb6e8c0a6d5f9e561be59359b853b09916465e993b3c9c2fb64d",
+   "mp3": "2bbc344c3f7304b02feb63fe01225274f59eec06863cd435e3b5f5c286c89bb3",
+   "duration": 5.85,
+   "model": "eleven_v4"
+  },
+  "book/book_tooth_2": {
+   "key": "bda37a2d041e7f0326f631082330174ae761c6a7ba00c7a5969f8043897ee8d7",
+   "mp3": "b47ef378ff5cd9129e016b125cb85402ae1d8978df5da7fb9d34172004d03a30",
+   "duration": 7.211,
+   "model": "eleven_v4"
+  },
+  "book/book_tooth_3": {
+   "key": "aab2ca39f1b066a330413dc6fcfd5bd569ac757a56cdf37721ee75704e3d4afd",
+   "mp3": "8fecf2082036a74d6553385d88dd344fc7fbd366345f68ed4b6a491f5cc89f6b",
+   "duration": 5.53,
+   "model": "eleven_v4"
+  },
+  "book/book_trilobite_1": {
+   "key": "6b51c5b7879f4b75f48749f620d5e139371ceb26e5f3eb09df4313e91da6a43b",
+   "mp3": "371fc1f291d8b5f7099e76f5d182b10bbffed087cd03bf6e5862d08bf154cf94",
+   "duration": 8.33,
+   "model": "eleven_v4"
+  },
+  "book/book_trilobite_2": {
+   "key": "085576bbcd54d48950994eda85a1e925fd9f0a793f8603f2b965df47c68d25cb",
+   "mp3": "d02d6c7c9d82d8a499347fa2236ee03d3fb0f589f0492deb6a974ae6b02428bd",
+   "duration": 4.57,
+   "model": "eleven_v4"
+  },
+  "book/book_trilobite_3": {
+   "key": "0dc9a54e5eb4c74ed4d9b6a5767778132083ccf370c57404c8a6c2c12bdcce27",
+   "mp3": "3e5548ea0947c47ac7b62d22cbc2e23e3255fe09cb1d90efc7e810b274e0fe21",
+   "duration": 3.61,
    "model": "eleven_v4"
   },
   "book/book_turtle_1": {
