@@ -1,10 +1,11 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page four); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded. The Fen's texts are ours, not the owner's draft, and await the owner's corrections. Until the photographs the cards' wanted name are approved, pages 2 and 3 of the Fen's cards show the card's drawing again (the turtle's third and the early bird's third have pictures of their own). A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's sixth, the Fen's page, for the frog in the third print.",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card shows its placeholder until the owner's drawing or the game's render exists (it is the card's tile too; Mosi's and Kambeðla's are the game's renders, and so is the picture of the two of them on Mosi's page four); so do the pages whose picture cannot be a photograph. The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals, each card with three pages, on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's seven are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a sixth page to the frog's card about its eggs and tadpoles, for the frog the child finds in the third footprint: six pages is the frog's exception to the owner's rule of three to five, because the Fen page is added to a card the owner had already approved. Their pictures are our drawings (assets/book/images/fen-*.svg, placeholders until photographs come), and each card's wanted (the frog's, on its sixth page) names the photograph it would like from Wikimedia Commons, which the owner approves before anything is downloaded. The Fen's texts are ours, not the owner's draft, and await the owner's corrections. Until the photographs the cards' wanted name are approved, pages 2 and 3 of the Fen's cards show the card's drawing again (the turtle's third and the early bird's third have pictures of their own). A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's sixth, the Fen's page, for the frog in the third print. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi, Kambeðla and five teasers, whose cards come in stage 2: no pages, a tile with a render of the game, and the line Mosi says when it is tapped, which for the four he has met on the map is his map line about her) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker).",
   "cards": [
     {
       "id": "mosi",
       "name": "Mosi",
       "order": 1,
+      "group": "dinosaur",
       "unlock": {
         "start": true
       },
@@ -56,6 +57,7 @@
       "id": "kambedla",
       "name": "Kambeðla",
       "order": 2,
+      "group": "dinosaur",
       "unlock": {
         "star": "k1_kambedla"
       },
@@ -108,9 +110,70 @@
       ]
     },
     {
+      "id": "thorsedla",
+      "name": "Þórseðla",
+      "order": 3,
+      "group": "dinosaur",
+      "unlock": {
+        "star": "k2_thorsedla"
+      },
+      "say": "k2_mosi_map_thorsedla",
+      "picture": "render-thorsedla",
+      "pages": []
+    },
+    {
+      "id": "gramedla",
+      "name": "Grameðla",
+      "order": 4,
+      "group": "dinosaur",
+      "unlock": {
+        "star": "k3_gramedla"
+      },
+      "say": "book_mosi_later",
+      "picture": "render-gramedla",
+      "pages": []
+    },
+    {
+      "id": "uggedla",
+      "name": "Uggeðla",
+      "order": 5,
+      "group": "dinosaur",
+      "unlock": {
+        "place": "uggedla"
+      },
+      "say": "k2_mosi_map_uggedla",
+      "picture": "render-uggedla",
+      "pages": []
+    },
+    {
+      "id": "sloedla",
+      "name": "Slóeðla",
+      "order": 6,
+      "group": "dinosaur",
+      "unlock": {
+        "place": "sloedla"
+      },
+      "say": "k2_mosi_map_sloedla",
+      "picture": "render-sloedla",
+      "pages": []
+    },
+    {
+      "id": "flugedla",
+      "name": "Flugeðla",
+      "order": 7,
+      "group": "dinosaur",
+      "unlock": {
+        "place": "flugedla"
+      },
+      "say": "k2_mosi_map_flugedla",
+      "picture": "render-flugedla",
+      "pages": []
+    },
+    {
       "id": "kalligrammatid",
       "name": "Fiðrildi",
-      "order": 3,
+      "order": 8,
+      "group": "animal",
       "unlock": {
         "found": "butterfly"
       },
@@ -164,7 +227,8 @@
     {
       "id": "beetle",
       "name": "Bjalla",
-      "order": 4,
+      "order": 9,
+      "group": "animal",
       "unlock": {
         "found": "beetle"
       },
@@ -211,7 +275,8 @@
     {
       "id": "frog",
       "name": "Froskur",
-      "order": 5,
+      "order": 10,
+      "group": "animal",
       "unlock": {
         "found": "frog"
       },
@@ -276,7 +341,8 @@
     {
       "id": "snail",
       "name": "Snigill",
-      "order": 6,
+      "order": 11,
+      "group": "animal",
       "unlock": {
         "found": "snail"
       },
@@ -331,7 +397,8 @@
     {
       "id": "birds",
       "name": "Fuglar",
-      "order": 7,
+      "order": 12,
+      "group": "animal",
       "unlock": {
         "found": "birds"
       },
@@ -389,7 +456,8 @@
     {
       "id": "waterbeetle",
       "name": "Brunnklukka",
-      "order": 8,
+      "order": 13,
+      "group": "animal",
       "unlock": {
         "found": "waterBeetle"
       },
@@ -428,7 +496,8 @@
     {
       "id": "waterstrider",
       "name": "Vatnalæsingi",
-      "order": 9,
+      "order": 14,
+      "group": "animal",
       "unlock": {
         "found": "waterStrider"
       },
@@ -465,7 +534,8 @@
     {
       "id": "salamander",
       "name": "Salamandra",
-      "order": 10,
+      "order": 15,
+      "group": "animal",
       "unlock": {
         "found": "salamander"
       },
@@ -504,7 +574,8 @@
     {
       "id": "dragonfly",
       "name": "Drekafluga",
-      "order": 11,
+      "order": 16,
+      "group": "animal",
       "unlock": {
         "found": "dragonfly"
       },
@@ -545,7 +616,8 @@
     {
       "id": "turtle",
       "name": "Skjaldbaka",
-      "order": 12,
+      "order": 17,
+      "group": "animal",
       "unlock": {
         "found": "turtle"
       },
@@ -585,7 +657,8 @@
     {
       "id": "fish",
       "name": "Fiskur",
-      "order": 13,
+      "order": 18,
+      "group": "animal",
       "unlock": {
         "found": "fish"
       },
@@ -625,7 +698,8 @@
     {
       "id": "earlybird",
       "name": "Fornfugl",
-      "order": 14,
+      "order": 19,
+      "group": "animal",
       "unlock": {
         "found": "earlyBird"
       },

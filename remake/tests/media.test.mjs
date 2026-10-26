@@ -44,6 +44,12 @@ test('checkMedia names every problem', () => {
   one('a 2048 px image', problems([drawing, { ...fossil, width: 2048, height: 1536 }]), /frog-fossil.*2048/);
   one('a PNG photo', problems([drawing, { ...fossil, kind: 'photo', src: 'assets/book/images/frog.png' }]), /frog-fossil.*frog\.png/);
   one('a fossil on a card\'s first page', problems([drawing, fossil], { card: frogCard(fossil.id, drawing.id) }), /"frog".*frog-fossil.*fossil/);
+
+  // A teaser has no pages: its tile is its `picture`, which has to be in the manifest and a drawing like page one's
+  const teaser = picture => ({ id: 'sloedla', name: 'Slóeðla', order: 6, unlock: { place: 'sloedla' }, say: 'k2_mosi_map_sloedla', picture, pages: [] });
+  assert.deepEqual(problems([drawing], { card: teaser(drawing.id) }), [], 'a teaser whose tile is a drawing');
+  one('a teaser whose picture is not there', problems([drawing], { card: teaser('render-sloedla') }), /"sloedla".*render-sloedla.*not in the manifest/);
+  one('a teaser whose picture is a fossil', problems([drawing, fossil], { card: teaser(fossil.id) }), /"sloedla".*frog-fossil.*fossil/);
 });
 
 test('the shipped manifest is complete', () => {
