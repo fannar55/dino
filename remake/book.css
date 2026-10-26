@@ -431,9 +431,11 @@
   color: var(--book-gold); -webkit-text-stroke: .12em var(--book-ink); paint-order: stroke fill;
 }
 
-/* The Kortið page (engine/book/map-page.js): the hand-drawn map across the spread, each page showing its half of assets/book/map.svg,
-   the halves meeting at the spine; the place names in the book's font; and a round slot for each place, empty (a dashed ring in
-   the place's hue), found (a die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). */
+/* The Kortið page (engine/book/map-page.js): the painted map across the spread, each page showing its half of assets/book/map.webp,
+   the halves meeting at the spine; the trail the child has travelled, dashed in ink on the path; the place names in the book's
+   font; and a round slot for each place, on its pale circle in the picture: empty (a dashed ring in the place's hue), found (a
+   die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). Everything on a half is sized from
+   the half's own width (it is a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
 .book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
 .book-leaf[data-tab="map"] .book-tiles {
@@ -441,35 +443,42 @@
   display: grid; place-items: center; align-content: stretch; gap: 0;
 }
 .map-half { /* half of the map, 900 by 1000, as big as the page lets it be, hugging the spine */
-  position: relative; aspect-ratio: 9 / 10;
+  position: relative; aspect-ratio: 9 / 10; overflow: hidden; container-type: size;
   width: min(100cqw - 2 * var(--pad-x), (100cqh - var(--pad-top) - var(--pad-bottom)) * .9);
 }
 .map-half[data-half="left"] { justify-self: end; }
 .map-half[data-half="right"] { justify-self: start; }
-.map-art { /* the whole drawing, cropped to this half */
-  position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none;
-  object-fit: cover; object-position: 0 50%;
+.map-art { /* the whole painting, twice the width of a half, stretched to the view (it is 1681 by 936, the view 1800 by 1000), this half of it showing */
+  position: absolute; top: 0; left: 0; width: 200%; height: 100%; display: block; pointer-events: none; object-fit: fill;
 }
-.map-half[data-half="right"] .map-art { object-position: 100% 50%; }
+.map-half[data-half="right"] .map-art { left: -100%; }
+.map-route { /* the trail: this half of the view, over the painting and under the names and the slots */
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; overflow: hidden;
+}
+.map-route-piece[data-state="hidden"] { display: none; }
+.map-route-reveal { fill: none; stroke: #fff; stroke-width: 14; stroke-linecap: butt; } /* what shows the ink: a pen that draws itself along the path */
+.map-route-line { /* the ink of the book, as the old painted dots were: short dashes with round ends, as thick as they were */
+  fill: none; stroke: var(--book-ink); stroke-width: 4.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 7 9.8;
+}
 .map-name { /* a place name written on the map, with a halo of paper round its letters */
   position: absolute; z-index: 1; transform: translate(-50%, -50%) rotate(var(--tilt, -2deg)); pointer-events: none;
-  white-space: nowrap; font-size: clamp(24px, 4.2cqmin, 36px); font-weight: 900; line-height: 1;
+  white-space: nowrap; font-size: clamp(18px, 4.6cqw, 40px); font-weight: 900; line-height: 1;
   color: var(--book-ink); -webkit-text-stroke: .22em var(--book-paper); paint-order: stroke fill;
 }
-.map-marker {
-  min-width: var(--book-target); min-height: var(--book-target);
-  position: absolute; z-index: 2; width: var(--book-target); height: var(--book-target);
+.map-marker { /* a button as wide as its pale circle, and at least a target (--size is in the map's units: 9 to the cqw) */
+  --d: calc(var(--size, 80) / 9 * 1cqw);
+  position: absolute; z-index: 2; width: max(var(--book-target), var(--d)); aspect-ratio: 1;
   transform: translate(-50%, -50%); padding: 0; border: 0; border-radius: 50%; background: none;
   display: grid; place-items: center;
 }
 .map-marker.empty::before { /* where a place will go: a dashed ring in its hue */
-  content: ""; width: 62%; aspect-ratio: 1; border-radius: 50%;
+  content: ""; width: calc(var(--d) * .74); aspect-ratio: 1; border-radius: 50%;
   border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
 }
-.map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue */
-  position: relative; width: 84%; aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+.map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue; the rim brings it to --d across */
+  position: relative; width: calc(var(--d) * .9); aspect-ratio: 1; border-radius: 50%; overflow: hidden; font-size: var(--d);
   background: radial-gradient(circle at 50% 36%, var(--book-card), color-mix(in srgb, var(--hue) 46%, var(--book-card)) 74%);
-  box-shadow: 0 0 0 4px #fff, 0 0 0 6.5px var(--book-ink), 0 6px 10px 2px rgb(59 47 37 / .3);
+  box-shadow: 0 0 0 .03em #fff, 0 0 0 .05em var(--book-ink), 0 .06em .1em .02em rgb(59 47 37 / .3);
   rotate: -6deg;
 }
 .map-marker:nth-of-type(2n) .map-sticker { rotate: 5deg; }
@@ -482,8 +491,8 @@
 .map-marker.found { animation: map-breathe 4.6s ease-in-out infinite; }
 .map-marker.found:nth-of-type(3n) { animation-delay: -1.7s; }
 .map-marker.found:nth-of-type(3n + 1) { animation-delay: -3.1s; }
-.map-star { /* a done place: a gold star pinned to its sticker */
-  position: absolute; z-index: 1; top: -4%; right: -8%; width: 46%; aspect-ratio: 1; pointer-events: none;
+.map-star { /* a done place: a gold star pinned to the top right of its sticker */
+  position: absolute; z-index: 1; top: calc(50% - var(--d) * .56); left: calc(50% + var(--d) * .14); width: calc(var(--d) * .42); aspect-ratio: 1; pointer-events: none;
   animation: star-shine 3.4s ease-in-out infinite;
 }
 .map-star svg { width: 100%; height: 100%; display: block; overflow: visible; }

@@ -30,7 +30,8 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // "Litla Yatzy" tile, a taped photo of Mosi, always open and new until it is first played, which hands the junior dice game with Mosi
 // to onPlay('yatzy-junior'): a page of its own that main.js opens in a frame over the book. It has had the third tile since
 // Slóeðla's Risaeðlu-Yatzy left the game (the owner's choice of 2026-10-24); before, it was a small button under hers.
-// The Kortið leaf is the map (map-page.js): the forest and the Fen drawn across the spread, with a slot for the Fen and for each
+// The Kortið leaf is the map (map-page.js): the forest and the Fen painted across the spread, the trail the child has travelled drawn
+// along it in ink (each piece draws itself in the first time the page is on view), with a slot for the Fen and for each
 // friend that fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name
 // and a sentence (k2_mosi_map_<id>), an empty one only taps.
 // The Safn leaf is the fossil collection, Steingervingasafn: the eight finds of "Háls og hali" (engine/hals/rules.js FOSSIL_KINDS),
@@ -489,8 +490,11 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     cardViewer.close(true);
   }
 
-  /** The page an open book shows, told to onTab (a callback that fails must not stop the book). */
+  /** The page an open book shows, told to onTab (a callback that fails must not stop the book). On the map the trail not yet seen
+   *  draws itself in once the page has settled (the book's growing or turning); on any other page it is off view. */
   function tellTab() {
+    if (tab === 'map') map.show(TURN_MS);
+    else map.hide();
     try {
       onTab?.(tab);
     } catch (error) {
@@ -728,6 +732,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     audio?.stop?.(); // nothing reads on after the book is shut
     putCardAway();
     finishTurn();
+    map.hide(); // a trail still drawing in is finished: the page is off view
     audio?.sfx?.('close');
     shrink();
     if (was === 'child') pause(false);
