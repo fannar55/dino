@@ -1744,6 +1744,31 @@
   "duration": 6.49,
   "mouth": "00fc000f600dd0007ddca76500000000000000dfd07d0bb6bca400ced9000003acc6cddc009bc700ddd940000000000000000dfeefc0ddaa700878960000000000"
  },
+ "book_mosi_6": {
+  "src": "assets/audio/book/book_mosi_6.mp3",
+  "duration": 6.73,
+  "mouth": "0000cdffedcfd0009adbc90a707900087720000000000000005cd9a9af200000eecc900a700004ddb70000b8000000000005cbde0099effa000dffa0076300000000000"
+ },
+ "book_mosi_7": {
+  "src": "assets/audio/book/book_mosi_7.mp3",
+  "duration": 6.01,
+  "mouth": "00ee500eadd30afeeffd09dff0000adc5a5006400000000000dd9c90a503a90033bb93309cc600bee5bbb306b000bdb94aa4abba65002300000000000"
+ },
+ "book_mosi_8": {
+  "src": "assets/audio/book/book_mosi_8.mp3",
+  "duration": 5.21,
+  "mouth": "000cefe8d80eedb8eefffffefffefeeed807b98a8aa9630000000000ab3ea00008eeeb3002dcbedb9978dc8bffd70000000000000"
+ },
+ "book_mosi_9": {
+  "src": "assets/audio/book/book_mosi_9.mp3",
+  "duration": 6.41,
+  "mouth": "00eeef4ce69edc008fcc8c7c005d800004200000000000000ed00cf7000e7feefc08e3009a898200690007fbb84eccb8006efe904cc7ab7006864000000000000"
+ },
+ "book_mosi_10": {
+  "src": "assets/audio/book/book_mosi_10.mp3",
+  "duration": 5.21,
+  "mouth": "0000efff90eecee5ae9000acffeddddbc409aa7007aba4753000000000000000dfbc0000baa600dd5000b30000003000000000000"
+ },
  "book_kambedla_1": {
   "src": "assets/audio/book/book_kambedla_1.mp3",
   "duration": 6.25,
