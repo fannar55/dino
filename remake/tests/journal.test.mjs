@@ -133,8 +133,8 @@ const FRIENDS = ['Kambeðla', 'Þórseðla', 'Grameðla', 'Uggeðla', 'Slóeðla
 /** A stand-in for the book (engine/book/book.js): what it was asked to do, and a picture for each find in `pictures`. */
 function fakeBook(pictures = {}) {
   return {
-    opened: [], closed: 0, refreshed: 0, isOpen: false,
-    open(tab, by) { this.opened.push([tab, by]); this.isOpen = true; },
+    opened: [], options: [], closed: 0, refreshed: 0, isOpen: false,
+    open(tab, by, options) { this.opened.push([tab, by]); this.options.push(options); this.isOpen = true; },
     close() { this.closed++; this.isOpen = false; },
     refresh() { this.refreshed++; },
     pictureOf: id => pictures[id] ?? null,
@@ -371,7 +371,7 @@ test('the book shows what the save already holds', () => {
   assert.deepEqual(journal.findings, ['frog', 'snail']);
 });
 
-test('the button opens the child\'s book on its animals, and a scene opens it on its stars', () => {
+test('the button opens the child\'s book on its animals, and a scene opens it on its dinosaurs', () => {
   const { journal, book, el } = journalRig({ stored: { stars: ['k1_kambedla'], findings: ['frog'] } });
   assert.equal(journal.isOpen, false);
   el('journal-button').dispatchEvent(new Event('click'));
@@ -381,14 +381,18 @@ test('the button opens the child\'s book on its animals, and a scene opens it on
   assert.equal(book.closed, 1);
   assert.equal(journal.isOpen, false);
   journal.open(); // as s.journal.open does: the last scene opens the book while Mosi speaks
-  assert.deepEqual(book.opened.at(-1), ['stars', 'script'], 'the script\'s, which holds nothing');
+  assert.deepEqual(book.opened.at(-1), ['dinosaurs', 'script'], 'the script\'s, which holds nothing');
+  assert.equal(book.options.at(-1).nod, null, 'and nods no tile');
+  journal.open('dinosaurs', { nod: 'thorsedla' }); // chapter 2's end: Þórseðla, new, nods
+  assert.deepEqual(book.opened.at(-1), ['dinosaurs', 'script']);
+  assert.equal(book.options.at(-1).nod, 'thorsedla', 'the book is asked to nod her tile');
 });
 
 test('the book keeps up with a star that lands', () => {
   const { journal, book } = journalRig();
   journal.addStar('k1_kambedla', { x: 0, y: 0 });
   journal.update(FLIGHT_SECONDS + 0.01);
-  assert.equal(book.refreshed, 1, 'its Stjörnur page lights the star');
+  assert.equal(book.refreshed, 1, 'the book shows what the star opened (a friend\'s card, her game, her place on the map)');
 });
 
 test('the book can be brought out and put away', () => {
@@ -485,7 +489,7 @@ function starRig({ withJournal = true } = {}) {
       addStar(id, from) { asked.push({ id, from }); return rig.journal.addStar(id, from); },
       addFinding(id, from) { finds.push({ id, from }); return rig.journal.addFinding(id, from); },
       addPlace(id, from) { places.push({ id, from }); return rig.journal.addPlace(id, from); },
-      open: () => rig.journal.open(),
+      open: (tab, options) => rig.journal.open(tab, options),
       close: () => rig.journal.close(),
     }
     : null;
@@ -641,10 +645,12 @@ test('s.place puts a place on the book\'s map, once, from where it is on the scr
   assert.throws(() => bare.place('uggedla'), /journal/);
 });
 
-test('s.journal.open and close open and shut the book on its stars, as the script\'s, while the scene goes on', () => {
+test('s.journal.open and close open and shut the book on its dinosaurs, as the script\'s, while the scene goes on', () => {
   const { stage, s, journal, book, step } = starRig();
   assert.equal(s.journal.open(), DONE);
-  assert.deepEqual(book.opened, [['stars', 'script']], 'which holds nothing (book.js)');
+  assert.deepEqual(book.opened, [['dinosaurs', 'script']], 'which holds nothing (book.js)');
+  assert.equal(s.journal.open('dinosaurs', { nod: 'thorsedla' }), DONE);
+  assert.equal(book.options.at(-1).nod, 'thorsedla', 'a scene can ask for a tile to nod');
   assert.equal(s.journal.close(), DONE);
   assert.equal(journal.isOpen, false);
 
@@ -684,7 +690,7 @@ test('the button\'s slots are in each friend\'s main hue as STYLE.md section 3 h
     assert.ok(row, `STYLE.md has a row for ${name}`);
     return /#[0-9a-f]{6}/i.exec(row[main])[0].toLowerCase();
   };
-  const { slots } = journalRig(); // the book's Stjörnur page takes its hues from the same list (journal.js FRIENDS)
+  const { slots } = journalRig(); // the map's markers take their hues from the same list (journal.js FRIENDS)
   FRIENDS.forEach((name, i) => {
     assert.equal(String(slots()[i].style['--hue']).toLowerCase(), hueOf(name), `${name}'s slot`);
   });

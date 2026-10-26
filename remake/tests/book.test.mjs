@@ -54,7 +54,7 @@ test('a child\'s open holds the game and closing lets it go', () => {
   console.error = (...args) => reported.push(args);
   try {
     const broken = rig({ onPause: () => { throw new Error('no audio'); } });
-    broken.book.open('stars', 'child');
+    broken.book.open('dinosaurs', 'child');
     assert.equal(broken.root.hidden, false);
     broken.close();
     assert.equal(broken.root.hidden, true);
@@ -66,13 +66,13 @@ test('a child\'s open holds the game and closing lets it go', () => {
 
 test('a book code opened holds nothing until the child taps inside it', () => {
   const { book, root, pauses, close } = rig();
-  book.open('stars', 'script'); // the chapter's last scene, while Mosi speaks
+  book.open('dinosaurs', 'script'); // the chapter's last scene, while Mosi speaks
   assert.equal(book.isOpen, true);
   assert.deepEqual(pauses, [], 'the scene goes on under it');
   book.close();
   assert.deepEqual(pauses, [], 'and shutting it lets nothing go');
 
-  book.open('stars', 'script');
+  book.open('dinosaurs', 'script');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 400, y: 300 })); // the child touches the book
   assert.deepEqual(pauses, [true], 'it is the child\'s now');
   root.dispatchEvent(pointerEvent('pointerdown', { x: 420, y: 300 }));
@@ -80,32 +80,32 @@ test('a book code opened holds nothing until the child taps inside it', () => {
   close();
   assert.deepEqual(pauses, [true, false], 'and the game goes on when the child shuts it');
 
-  book.open('stars', 'script');
+  book.open('dinosaurs', 'script');
   close(); // a child who only shuts it
   assert.deepEqual(pauses, [true, false], 'resumes nothing that was not held');
 });
 
 test('ribbons switch pages with a turn sound', () => {
   const { book, all, ribbon, tap, sounds } = rig();
-  book.open('stars', 'child');
+  book.open('dinosaurs', 'child');
   const leaf = tab => all('book-leaf').find(l => l.getAttribute('data-tab') === tab);
-  assert.equal(ribbon('stars').getAttribute('aria-selected'), 'true');
-  assert.equal(leaf('stars').hidden, false);
+  assert.equal(ribbon('dinosaurs').getAttribute('aria-selected'), 'true');
+  assert.equal(leaf('dinosaurs').hidden, false);
   sounds.length = 0;
 
   tap(ribbon('animals'));
   assert.equal(book.tab, 'animals');
   assert.equal(ribbon('animals').getAttribute('aria-selected'), 'true');
-  assert.equal(ribbon('stars').getAttribute('aria-selected'), 'false');
+  assert.equal(ribbon('dinosaurs').getAttribute('aria-selected'), 'false');
   assert.equal(leaf('animals').hidden, false);
-  assert.equal(leaf('stars').hidden, true);
+  assert.equal(leaf('dinosaurs').hidden, true);
   assert.deepEqual(sounds, ['turn']);
 
   tap(ribbon('animals')); // the page that is open already
   assert.equal(book.tab, 'animals');
   assert.deepEqual(sounds, ['turn', 'tap'], 'a tap, and no turn');
-  tap(ribbon('stars'));
-  assert.equal(book.tab, 'stars');
+  tap(ribbon('dinosaurs'));
+  assert.equal(book.tab, 'dinosaurs');
   assert.deepEqual(sounds, ['turn', 'tap', 'turn']);
 });
 
@@ -133,7 +133,7 @@ test('the book has a Kortið page with the found places', () => {
     save.addPlace('sloedla');
   });
   const ribbons = root.findAll(e => e.classList.contains('ribbon'));
-  assert.deepEqual(ribbons.map(r => r.getAttribute('data-tab')), ['stars', 'animals', 'games', 'map', 'fossils'], 'the map after the games');
+  assert.deepEqual(ribbons.map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils'], 'the map after the games');
   const ribbon = ribbons.find(r => r.getAttribute('data-tab') === 'map');
   assert.match(ribbon.innerHTML, /<span class="ribbon-label">Kortið<\/span>/, 'its ribbon says Kortið');
   assert.match(ribbon.innerHTML, /class="book-icon"/, 'with a drawn icon');
@@ -180,15 +180,16 @@ test('Háls og hali opens with Þórseðla\'s star', () => {
   const { save, book, root, played, sounds, tap } = savedRig();
   const tile = root.findAll(e => e.getAttribute('data-game') === 'hals')[0];
   book.open('games', 'child');
-  assert.equal(tile.parentNode.hidden, false, 'the tile is on the Leikir page');
+  assert.equal(tile.parentNode.hidden, true, 'no slot for it on the Leikir page until it is open: the page shows only the games that are');
   assert.ok(tile.classList.contains('unfound'), 'shut until her star is in the book');
   assert.match(tile.getAttribute('aria-label'), /stjörnu Þórseðlu/, 'and says what opens it');
   sounds.length = 0;
   tap(tile);
-  assert.deepEqual(played, [], 'it wiggles, and opens nothing');
+  assert.deepEqual(played, [], 'a tap that did reach it wiggles it, and opens nothing');
   assert.deepEqual(sounds, ['wiggle']);
   save.addStar('k2_thorsedla');
   book.refresh();
+  assert.equal(tile.parentNode.hidden, false, 'with her star its slot appears');
   assert.ok(tile.classList.contains('new') && !tile.classList.contains('unfound'), 'with her star it opens, new');
   tap(tile);
   assert.deepEqual(played, ['hals'], 'and a tap plays it');
@@ -432,8 +433,8 @@ function fenRig({ fill = () => {}, animate = false } = {}) {
 test('the Dýrin page has a second spread for the Fen, turned at the page corner', () => {
   const { save, book, narrated, sounds, tap, leaves, leaf, tilesOn, corner, tile } = fenRig();
   assert.deepEqual(leaves().map(e => e.getAttribute('data-spread')), ['1', '2'], 'a spread for the forest and one for the Fen');
-  assert.deepEqual(tilesOn(1, 'left'), ['mosi', 'kambedla', 'kalligrammatid', 'beetle'], 'chapter 1\'s animals as they were: four on the left');
-  assert.deepEqual(tilesOn(1, 'right'), ['frog', 'snail', 'birds'], 'and three on the right');
+  assert.deepEqual(tilesOn(1, 'left'), ['kalligrammatid', 'beetle', 'frog', 'snail'], 'chapter 1\'s animals, the dinosaurs being on the Risaeðlur page: four on the left');
+  assert.deepEqual(tilesOn(1, 'right'), ['birds'], 'and the last on the right');
   assert.deepEqual(tilesOn(2, 'left'), ['waterbeetle', 'waterstrider', 'salamander', 'dragonfly'], 'the Fen\'s, four on the left');
   assert.deepEqual(tilesOn(2, 'right'), ['turtle', 'fish', 'earlybird'], 'and three on the right, in the order the child meets them');
 
@@ -486,7 +487,7 @@ test('a corner takes a tap only where it is drawn, so it never takes a tile\'s',
 test('an open book that a find asks for turns once, straight to its spread, and the tile nods after the turn', () => {
   const { book, sounds, animations, tile, leaf, save } = fenRig({ animate: true });
   save.addFinding('turtle');
-  book.open('stars', 'child');
+  book.open('dinosaurs', 'child');
   animations.forEach(a => a.animation.finish());
   sounds.length = 0;
   animations.length = 0;
@@ -586,9 +587,83 @@ test('the book opened after a find lands on the spread that holds the new animal
 
   journal.addFinding('fish');
   journal.update(FLIGHT_SECONDS + 0.1);
-  journal.open('stars'); // a scene opens the book on its stars: the find does not turn it
-  assert.equal(book.tab, 'stars');
+  journal.open('dinosaurs'); // a scene opens the book on its dinosaurs: the find does not turn it
+  assert.equal(book.tab, 'dinosaurs');
   book.close();
   button.dispatchEvent(new Event('click'));
   assert.equal(book.spread, 1, 'the book was opened since the fish came: the first spread');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The new structure (Landkönnuðabók, stage 1): Risaeðlur first, no Stjörnur, the games that are open, the nod at the chapter's end
+
+test('the ribbons are Risaeðlur, Dýrin, Leikir, Kortið and Safnið, and there is no Stjörnur page', () => {
+  const { root, all, ribbon, book } = rig();
+  assert.deepEqual(all('ribbon').map(r => r.getAttribute('data-tab')), ['dinosaurs', 'animals', 'games', 'map', 'fossils']);
+  const labels = all('ribbon').map(r => /<span class="ribbon-label">([^<]*)<\/span>/.exec(r.innerHTML)?.[1]);
+  assert.deepEqual(labels, ['Risaeðlur', 'Dýrin', 'Leikir', 'Kortið', 'Safnið']);
+  assert.match(ribbon('dinosaurs').innerHTML, /<img class="book-icon ribbon-pic"[^>]*mosi-render-thumb\.webp[^>]*alt=""/, 'Mosi\'s render, small, is the dinosaurs\' icon');
+  assert.equal(root.findAll(e => e.getAttribute('data-tab') === 'stars').length, 0, 'no ribbon, leaf or panel of the stars');
+  assert.equal(root.findAll(e => e.classList.contains('star-tile')).length, 0, 'and none of its star tiles');
+  assert.throws(() => book.open('stars', 'child'), /no page "stars"/);
+});
+
+test('the Risaeðlur page has the seven dinosaurs: the ones met in colour, the rest dark, and a teaser says Mosi\'s line and opens no card', () => {
+  const { book, narrated, sounds, tap, tilesOn, tile, root } = fenRig({
+    fill: save => { save.addStar('k1_kambedla'); save.addPlace('sloedla'); save.addSeen('mosi'); },
+  });
+  const leaf = root.findAll(e => e.classList.contains('book-leaf') && e.getAttribute('data-tab') === 'dinosaurs')[0];
+  const onPage = side => leaf.findAll(e => e.classList.contains('book-page') && e.classList.contains(side))[0]
+    .findAll(e => e.classList.contains('tile')).map(e => e.getAttribute('data-card'));
+  assert.deepEqual(onPage('left'), ['mosi', 'kambedla', 'thorsedla', 'gramedla'], 'four on the left page');
+  assert.deepEqual(onPage('right'), ['uggedla', 'sloedla', 'flugedla'], 'and three on the right');
+  const unfound = ['thorsedla', 'gramedla', 'uggedla', 'flugedla'];
+  for (const id of ['mosi', 'kambedla', 'sloedla']) assert.ok(!tile(id).classList.contains('unfound'), `${id} has been met`);
+  for (const id of unfound) assert.ok(tile(id).classList.contains('unfound'), `${id} has not`);
+  assert.ok(tile('kambedla').classList.contains('new') && tile('sloedla').classList.contains('new'), 'Kambeðla and Slóeðla are new');
+  assert.ok(tile('mosi').classList.contains('found'), 'Mosi, seen already, is just found');
+  assert.equal(tilesOn(1, 'left').includes('mosi'), false, 'Mosi is not on the Dýrin page');
+
+  book.open('dinosaurs', 'child');
+  sounds.length = 0;
+  tap(tile('sloedla')); // met, with no card yet: Mosi says his map line about her
+  assert.deepEqual(narrated, ['k2_mosi_map_sloedla']);
+  assert.equal(book.cardViewer.isOpen, false, 'no card opens');
+  assert.ok(!tile('sloedla').classList.contains('new'), 'and her tile is seen: no Nýtt! any more');
+  assert.deepEqual(sounds, ['tile']);
+  tap(tile('flugedla')); // not met: Mosi says he will find her later
+  assert.equal(narrated.at(-1), 'book_mosi_later');
+  assert.equal(book.cardViewer.isOpen, false);
+  tap(tile('kambedla')); // met, with a card: it opens
+  assert.equal(book.cardViewer.isOpen, true, 'Kambeðla\'s card opens');
+});
+
+test('the Leikir page shows only the games that are open', () => {
+  const { save, book, root } = savedRig();
+  const slot = game => root.findAll(e => e.getAttribute('data-game') === game)[0].parentNode;
+  book.open('games', 'child');
+  assert.equal(slot('eitt').hidden, true, 'no Eitt! without Kambeðla\'s star');
+  assert.equal(slot('hals').hidden, true, 'no Háls og hali without Þórseðla\'s');
+  assert.equal(slot('yatzy-junior').hidden, false, 'Litla Yatzy always');
+  save.addStar('k1_kambedla');
+  book.refresh();
+  assert.equal(slot('eitt').hidden, false, 'Eitt! appears with k1_kambedla');
+  assert.equal(slot('hals').hidden, true);
+  save.addStar('k2_thorsedla');
+  book.refresh();
+  assert.equal(slot('hals').hidden, false, 'and Háls og hali with her star');
+});
+
+test('the book opened for a dinosaur nods its tile once it has grown, and the journal passes the nod on', () => {
+  const { doc, save, book, animations, tile } = fenRig({ animate: true, fill: s => s.addStar('k2_thorsedla') });
+  const nods = id => animations.filter(a => a.el === tile(id) && /scale/.test(JSON.stringify(a.keyframes)));
+  const journal = createJournal(doc, save, { book, audio: { sfx() {} } });
+  journal.open('dinosaurs', { nod: 'thorsedla' }); // chapter 2's end
+  assert.equal(book.tab, 'dinosaurs');
+  assert.equal(nods('thorsedla').length, 1, 'Þórseðla\'s tile nods');
+  assert.ok(nods('thorsedla')[0].options.delay >= 300, `once the book has grown (after ${nods('thorsedla')[0].options.delay} ms)`);
+  assert.equal(nods('mosi').length, 0, 'and only hers');
+  assert.ok(tile('thorsedla').classList.contains('new'), 'she is new');
+  journal.open('map'); // then it turns to the map
+  assert.equal(book.tab, 'map');
 });

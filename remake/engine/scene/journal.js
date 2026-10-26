@@ -23,8 +23,8 @@ const TOP_MARGIN_PX = 44; // and it never bows so high that the star (72 px acro
 
 /**
  * The six friends of the Star Festival, one slot each, in the main hue of each: the Main column of STYLE.md section 3's species
- * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here. The book's Stjörnur page
- * shows them too.
+ * colour map, which tests/journal.test.mjs holds them to, so a hue that changes there must change here. The book's map (Kortið)
+ * marks their places in the same hues (placeHue).
  */
 export const FRIENDS = [
   { key: 'kambedla', name: 'Kambeðla', colour: '#8f6aa3' },
@@ -73,8 +73,9 @@ function needId(id, call) {
  *                           screen without it) into the button, where the book nods and badges as for an animal.
  *   update(dt)              moves what moves, with game time
  *   show(on = true)         brings the button out, or puts it away; it comes out by itself with the first star or find
- *   open(tab), close(), isOpen  the book for a scene that ends in it: open() opens it on its stars (or on `tab`, such as 'games')
- *                           as the script's, which holds nothing (book.js), so the scene goes on under it
+ *   open(tab, { nod }), close(), isOpen  the book for a scene that ends in it: open() opens it on its dinosaurs (or on `tab`, such as
+ *                           'games' or 'map') as the script's, which holds nothing (book.js), so the scene goes on under it; `nod` (a card's id)
+ *                           nods that card's tile once the book has grown, as chapter 2's end has Þórseðla's, new, nod on the Risaeðlur page
  *   stars, findings, places the ids, in the order they came
  * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it. An animal found
  * since the book was last opened asks it to open on that animal's spread of the Dýrin page, where its tile nods (the newest, if
@@ -117,11 +118,11 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
   }
 
   /** Opening the book takes the badge off: the child has seen what is new in it. On its animals, it opens for the newest find. */
-  function openBook(tab, by) {
+  function openBook(tab, by, { nod = null } = {}) {
     badgeEl.hidden = true;
     const find = newest;
     newest = null;
-    book?.open(tab, by, { find });
+    book?.open(tab, by, { find, nod });
   }
 
   /** Swell an element and let it settle, over `seconds` of game time. */
@@ -270,7 +271,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     addPlace,
     update,
     show,
-    open: (tab = 'stars') => openBook(tab, 'script'),
+    open: (tab = 'dinosaurs', { nod = null } = {}) => openBook(tab, 'script', { nod }),
     close: () => book?.close(),
     /** The book's close beckons the child (book.js beckonClose): a scene that opened the book and waits for them to shut it. */
     beckonClose: on => book?.beckonClose?.(on),

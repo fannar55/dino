@@ -12,11 +12,13 @@
   /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
      journal button. The real book (engine/book/book.js) opens over it on the cards in assets/book/, with a save in memory. ?state= picks
      what shows:
-       animals (the default), stars   the book open on that ribbon; it closes into the button, and the button opens it again
+       animals (the default), dinosaurs   the book open on that ribbon (Risaeðlur, Dýrin); it closes into the button, and the
+                                      button opens it again
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
-     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page; ?found=all finds every animal, as after the whole chapter;
+     Also: ?card=<id> and ?page=<n> (from 1) open any card at any page, on the Risaeðlur or the Dýrin page as its group says;
+     ?found=all finds every animal and meets every dinosaur, and opens every game, as after the whole book is full;
      ?find=<id>,<id> finds those animals; ?spread=<n> turns the Dýrin page to that spread at its corner, as a child would.
      __demoStats.cornerSteals counts the points of the tiles in view that a corner takes instead (none is right), on a 24 × 24 grid
      over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels. */
@@ -50,8 +52,8 @@
 <div id="book" class="book" hidden></div>
 <script type="module">
   // The lab's logic. The book opens over the cards (assets/book/) with a save in memory that has Kambeðla's star and the butterfly,
-  // as after chapter 1's ride, and Mosi and Kambeðla already opened, so the animals page shows a new animal, two found and the rest
-  // unfound. The card, zoom and info states open the card by tapping through it, as a child would. Sound starts with the first touch, as
+  // as after chapter 1's ride, and Mosi and Kambeðla already opened, so the Risaeðlur page shows the two found and the five others not
+  // met, and the animals page a new animal and the rest unfound. The card, zoom and info states open the card by tapping through it, as a child would. Sound starts with the first touch, as
   // the browser wants. capture.mjs waits for __demoReady, which comes once every picture has loaded, the book and what the state
   // asked for have finished moving and the page has drawn; __demoStats then says how big the smallest control within reach is, and
   // how many are off the screen (Review Focus 4).
@@ -65,7 +67,7 @@
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['stars', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
@@ -81,6 +83,8 @@
     for (const card of cards) {
       if (card.unlock.found) save.addFinding(card.unlock.found);
       if (card.unlock.star) save.addStar(card.unlock.star);
+      if (card.unlock.place) save.addPlace(card.unlock.place);
+      if (card.unlock.fossil) save.addHalsFound(card.unlock.fossil);
     }
   }
   const context = createAudioContext();
@@ -148,7 +152,11 @@
     };
   }
 
-  book.open(state === 'stars' ? 'stars' : 'animals', 'child');
+  // The page the book opens on: the dinosaurs' for ?state=dinosaurs, and for a card of a dinosaur (Mosi's, Kambeðla's), else the animals'.
+  const cardAsked = state === 'card' || state === 'zoom' || state === 'info' || params.has('card');
+  const cardId = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
+  const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
+  book.open(onDinosaurs ? 'dinosaurs' : 'animals', 'child');
   await settle();
   for (let n = 1; n < Number(params.get('spread') ?? 1); n++) {
     const corner = document.querySelector(`.book-leaf[data-spread="${n}"] .spread-turn.next`);
@@ -156,10 +164,9 @@
     tap(`.book-leaf[data-spread="${n}"] .spread-turn.next`);
     await settle();
   }
-  if (state === 'card' || state === 'zoom' || state === 'info' || params.has('card')) {
-    const id = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
+  if (cardAsked) {
     const page = Number(params.get('page') ?? (state === 'zoom' || state === 'info' ? 3 : 1)) - 1;
-    book.openCard(id, Math.max(0, page));
+    book.openCard(cardId, Math.max(0, page));
     await settle();
     if (state === 'info') tap('.card-info');
     if (state === 'zoom') tap('.card-photo');
