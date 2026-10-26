@@ -97,11 +97,15 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 
 ### 4. Tálbeitan (60–90 s, á hraða barnsins)
 - **Markmið:** barnið tínir fimm rauð ber og fær höfuð Þórseðlu niður.
-- **Skot:** mýrarberjarunnarnir á þúfunum; myndavélin frjáls innan þúfnanna (drag) eins og í leitinni í kafla 1. Egill heldur á
+- **Skot:** mýrarberjarunnarnir í kringum bakkann þar sem Egill tínir; myndavélin frjáls (drag, 70° til hvorrar hliðar) eins og í
+  leitinni í kafla 1. Rauðu berin fimm eru á fjórum runnum: tvö á stóra runnanum, sem barnið sér strax ásamt bláu berjunum, en hin
+  þrjú finnur það með því að snúa sér: eitt við vatnið hjá mosaþúfunni og eitt á síkisbakkanum til vinstri, og eitt sem hangir lágt
+  undir laufinu til hægri. Hvert ber sést sem ber þegar myndavélin snýr að því (ekkert lauf yfir því). Egill heldur á
   laufkörfu og gengur á þúfunum, aldrei út í vatnið.
 - **Línur:** Mosi: „Rauðu berin! Tíndu fimm handa henni.“ Mosi telur við hvert ber: „Eitt!“ … „Fimm!“ Pikk á blátt ber: Mosi: „Nei,
-  bláu berin eru fyrir fuglana. Þau rauðu!“ Vísbendingar eftir 12, 24 og 36 s: „Ég sé rauð ber við stóra runnann!“, „Kíktu nær vatninu!“,
-  „Þarna, undir laufinu!“ Eftir 48 s tínir Egill sjálfur.
+  bláu berin eru fyrir fuglana. Þau rauðu!“ Vísbendingar eftir 12, 24 og 36 s, hver sú sem á við næsta ber, og myndavélin snýr sér
+  að því: „Ég sé rauð ber við stóra runnann!“ (stóri runninn), „Kíktu nær vatninu!“ (berin tvö við vatnið), „Þarna, undir laufinu!“
+  (það síðasta). Eftir 48 s tínir Egill sjálfur.
 - **Þegar fimm eru komin:** Mosi: „Réttu þau upp, Egill! Hátt!“ Barnið dregur körfuna upp (eða pikkar á Egil); Egill teygir hana upp
   yfir höfuð sér. Þórseðla hættir að bíta, þefar, og höfuðið kemur hægt niður úr trjánum (klippan lowerHead, 4,5 s), nær og nær, þar til
   augun eru í augnhæð Egils; myndavélin yfir öxl Egils horfir upp í risaandlitið sem kemur niður, og sólin blikkar. Hún borðar berin úr
@@ -232,6 +236,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Þokuslæðurnar dofna þegar horft er bratt niður á þær** (útsýnið, lyftan), svo þær lesi ekki sem flatar rákir ofan frá; á jörðu niðri haldast þær.
 - **Fjarlægt sef Fensins er gisnara** (10 % handan 19 m) til að halda hverjum ramma undir 230 þúsund þríhyrningum með svigrúmi; nærsefið og sefbreiðan í afhjúpuninni eru óbreytt.
 - **Vatnshljóð Fensins byrja á seinni helmingi slóðarinnar** (4 s inn í reiðina) og taka alveg við af skóginum við komuna í Fenið.
+- **Berjaleitin er leit** (prófun eigandans 2026-10-25: öll berin voru á sama skjá og það síðasta náðist aðeins með því að pikka á glitrið). Rauðu berin fimm eru á fjórum runnum í kringum bakkann og aðeins stóri runninn (1,4 sinnum stærri en hinir) með sín tvö sést þegar leitin hefst; barnið snýr frjálsu sýninni (70° til hvorrar hliðar) að hinum. Klasarnir hanga rétt utan við laufin og runninn skilur eftir rými kringum hvern klasa, svo ekkert lauf hylur ber. Hver vísbending Mosa á við runnann sem næsta ber er á, í röð leitarinnar: stóri runninn, berin tvö við vatnið, og loks það sem hangir lágt undir laufinu.
 - **Í fótsporunum er ekkert dýr sem kafli 1 hefur fundið** (prófun eigandans 2026-10-25, við „Þrjú!“: froskurinn í þriðja sporinu var dýr sem barnið hafði þegar fundið). Drekaflugan, sem áður hékk í loftinu við berjaþúfurnar, sveimar nú lágt yfir vatninu í þriðja sporinu, teiknuð stærri svo hún sjáist, og skýst upp með suði þegar skvettist; hún er fyrsti fundur kaflans (`firstFind`). Froskurinn situr í staðinn falinn á bakka síkisins norðvestan við þar sem Egill tínir berin, utan allra skota, og finnst aftur á nýjum stað þegar barnið snýr sér alveg til vinstri í berjaleitinni; frjálsa sýnin þar nær ±70° til hliðanna.
 - **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
 - **Bókin (verkefni 7):** froskurinn fær sjöttu síðu (halakörtur) í stað nýs spjalds, undantekning frá reglunni um 3–5 síður því síða Fensins bætist við spjald sem eigandi hafði samþykkt; Fen-dýrin sjö eru á annarri Dýrin-opnu með blaðhorni sem flettir (opna með síðari opnu á eftir rúmar sjö spjöld, hornið tekur áttunda reitinn); fundið dýr opnar bókina á sinni opnu; Fen-reiturinn á Kortinu verður fundinn við komuna og kláraður með stjörnunni; textar spjaldanna eru okkar drög og bíða leiðréttinga eiganda, og 23 sögumannslínur þeirra eru óupplesnar þar til þá.

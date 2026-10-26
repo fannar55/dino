@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { chapter } from '../chapters/kafli2.js';
+import { chapter, EGILL_PICKS } from '../chapters/kafli2.js';
+import { PICK_LOOK } from '../chapters/kafli2-fen.js';
 import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
 import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { createBerryBushes } from '../world/props/berries.js';
@@ -566,7 +567,7 @@ test('berry bushes expose five red targets and the blue ones', () => {
     const [b] = t.name.split('_').slice(1).map(Number);
     const [x, y, z] = bushes[b].position;
     assert.equal(t.kind, bushes[b].kind);
-    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.9, `${t.name} hangs on its bush`);
+    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.75 * (bushes[b].size ?? 1), `${t.name} hangs on its bush`);
     assert.ok(t.point.y - y > 0.15 && t.point.y - y < 1.3, `${t.name} is ${(t.point.y - y).toFixed(2)} m up`);
   }
   // on dry hummocks, clear of the Fen's plants, and never in the water
@@ -590,6 +591,75 @@ test('berry bushes expose five red targets and the blue ones', () => {
   assert.ok(berries.flying.position.distanceTo(to) < 0.01, 'and ends at the point');
   berries.dispose();
   assert.equal(berries.group.parent, null);
+});
+
+// The berry search from behind Egill where he picks (fen_pick), on a 16:10 screen: the camera at `from` looking at `to`, turned
+// `yaw` degrees about the vertical (negative to the left, as the free look turns).
+function pickView(terrain, yaw = 0) {
+  const { position: [ex, , ez], heading } = EGILL_PICKS;
+  const h = THREE.MathUtils.degToRad(heading);
+  const local = ([x, y, z]) => [ex + x * Math.cos(h) - z * Math.sin(h), terrain.heightAt(ex, ez) + y, ez + x * Math.sin(h) + z * Math.cos(h)];
+  const { position, target, fov } = FEN_PLACE.shots.fen_pick;
+  const from = local(position.offset), to = local(target.offset);
+  const a = THREE.MathUtils.degToRad(yaw), dx = to[0] - from[0], dz = to[2] - from[2];
+  const camera = new THREE.PerspectiveCamera(fov, 1.6, 0.1, 300);
+  camera.position.fromArray(from);
+  camera.lookAt(from[0] + dx * Math.cos(a) - dz * Math.sin(a), to[1], from[2] + dx * Math.sin(a) + dz * Math.cos(a));
+  camera.updateMatrixWorld();
+  return camera;
+}
+const seenBy = (camera, point, margin = 0.95) => {
+  const p = point.clone().project(camera);
+  return p.z < 1 && Math.abs(p.x) < margin && Math.abs(p.y) < margin;
+};
+
+test('the berry search is a search: five red bunches on four bushes round the bank, each seen whole as the free look turns to it, and the hints true of where they are', () => {
+  const { layout, terrain } = planOf(FEN_PLACE);
+  const spec = FEN_PLACE.layout.berries;
+  const bushes = spec.map(b => ({ ...b, position: [b.position[0], terrain.heightAt(...b.position), b.position[1]] }));
+  const { world } = propWorld(terrain.heightAt);
+  const berries = createBerryBushes(world, { bushes });
+  const red = berries.targets.filter(t => t.kind === 'red');
+  const bushOf = t => spec[Number(t.name.split('_')[1])];
+  assert.equal(red.length, 5, 'five red bunches still');
+  const redBushes = spec.filter(b => b.kind === 'red');
+  assert.ok(redBushes.length >= 4, `on ${redBushes.length} bushes (the owner's play of 2026-10-25: all five were on one screen)`);
+  // As the search opens, the child sees at most the big bush's two; the rest are found by turning, never further than the free look
+  // reaches, and each is a bunch to see, not a glint: no leaf of any bush between the camera and it.
+  const opening = pickView(terrain);
+  const atStart = red.filter(t => seenBy(opening, t.point));
+  assert.ok(atStart.length <= 2, `${atStart.map(t => t.name).join(', ')} in the opening view`);
+  const leaves = berries.group.children.find(o => o.name === 'Berry bushes'); // the leaves (the group has the name too, and holds the berries)
+  const ray = new THREE.Raycaster();
+  const flat = new THREE.Vector3();
+  for (const t of red) {
+    const yaws = [];
+    for (let yaw = PICK_LOOK.yaw[0]; yaw <= PICK_LOOK.yaw[1]; yaw += 5) if (seenBy(pickView(terrain, yaw), t.point, 0.8)) yaws.push(yaw);
+    assert.ok(yaws.length, `${t.name} comes into view as the free look turns`);
+    const camera = pickView(terrain, yaws[Math.floor(yaws.length / 2)]);
+    const toIt = t.point.clone().sub(camera.position);
+    ray.set(camera.position, toIt.clone().normalize());
+    const hit = ray.intersectObject(leaves)[0];
+    assert.ok(!hit || hit.distance > toIt.length() - 0.03, `${t.name} is behind a leaf ${hit ? (toIt.length() - hit.distance).toFixed(2) : 0} m in front of it`);
+    flat.copy(toIt).setY(0);
+    assert.ok(flat.length() < 9, `${t.name} is ${flat.length().toFixed(1)} m off: near enough to see as berries`);
+  }
+  // Mosi's hints, one to each bush, in the order the search gives them (the first bunch not found yet): the big bush, then near the
+  // water, then under the leaves, each true of its bush.
+  const HINTS = ['k2_mosi_hint_berry1', 'k2_mosi_hint_berry2', 'k2_mosi_hint_berry3'];
+  const order = red.map(t => HINTS.indexOf(bushOf(t).hint));
+  assert.ok(order.every((k, i) => k >= 0 && (i === 0 || k >= order[i - 1])), `the hints go ${order.map(k => k + 1).join(', ')}`);
+  for (const b of redBushes) {
+    const water = layout.water.shape.signedAt(...b.position);
+    if (b.hint === HINTS[0]) assert.ok((b.size ?? 1) > Math.max(...spec.filter(o => o !== b).map(o => o.size ?? 1)), '"Ég sé rauð ber við stóra runnann!": the biggest bush');
+    if (b.hint === HINTS[1]) assert.ok(water < 1.5, `"Kíktu nær vatninu!": ${water.toFixed(2)} m from the water`);
+    if (b.hint === HINTS[2]) assert.ok(b.low, '"Þarna, undir laufinu!": its bunch hangs under its leaves');
+  }
+  for (const t of red.filter(r => bushOf(r).low)) {
+    const b = bushes[Number(t.name.split('_')[1])];
+    assert.ok(t.point.y - b.position[1] < 0.35, `${t.name} hangs low, ${(t.point.y - b.position[1]).toFixed(2)} m up`);
+  }
+  berries.dispose();
 });
 
 // ---- the look -------------------------------------------------------------------------------

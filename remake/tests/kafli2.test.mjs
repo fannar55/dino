@@ -717,6 +717,12 @@ test('an idle child still gets the head down', async () => {
   assert.deepEqual(c.picks.map(p => p.by), Array(5).fill('egill'), 'each picked by Egill');
   assert.ok(c.picks.every(p => p.kind === 'red'), 'all of them red');
   assert.ok(c.headDownAt > 0 && c.headDownAt < five, 'and her head came down to him before it');
+  // Mosi's hints, each the one true of where the next bunch is: the big bush's first (three, then one once Egill has helped), then
+  // the two by the water, then the one under the leaves
+  const lines = world.chapter.lines;
+  const hints = run.captions.filter(caption => caption.at >= sceneStart(world, 4) && caption.at < five)
+    .map(caption => [1, 2, 3].find(k => lines[`k2_mosi_hint_berry${k}`].text === caption.text)).filter(Boolean);
+  assert.deepEqual(hints, [1, 1, 1, 1, 2, 2, 3]);
 });
 
 test('a tap on Kambeðla as they go: her plates blink and she says goodbye', async () => {

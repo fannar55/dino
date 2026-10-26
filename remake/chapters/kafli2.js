@@ -41,6 +41,7 @@ import {
 } from './kafli2-thorsedla.js';
 
 export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
+export { EGILL_PICKS }; // where Egill stands for the berry search (the tests look from behind him, as fen_pick does)
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade: chapter 1's
@@ -742,7 +743,7 @@ export const chapter = {
    * black as it comes to a place. `place` is the place it is drawn for (main.js), and each place brings what shows there first, so
    * each black waits for its own: the glade, where the chapter starts, only the actors (Þórseðla among them while she waits out of
    * sight), so the start button waits for no more than the glade shows; the trail a print with its water, its digit up and a splash,
-   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, a bush of each berry with one in the air, the basket
+   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, its berry bushes (a bunch each, one in the air), the basket
    * with a berry in it, and the far friends once their models are there (their first frame from her head is no stall). No place
    * (null): all of it.
    */
@@ -768,7 +769,8 @@ export const chapter = {
     if (fen) {
       const leaf = leafWarm(world);
       keep(leaf, leaf.object);
-      const berries = createBerryBushes(world, { bushes: [{ position: ground(2, 2), kind: 'red', count: 1 }, { position: ground(3, 2), kind: 'blue', count: 1 }] });
+      // as many bushes as the Fen has: their shader is one a number of bushes (its shake per bush), so this draws the Fen's own
+      const berries = createBerryBushes(world, { bushes: BERRY_BUSHES.map(({ kind }, i) => ({ position: ground(2 + i, 2), kind, count: 1 })) });
       berries.pick('berry_0_0', ground(2, 3));
       keep(berries, berries.group);
       const basket = createBasket(world);
