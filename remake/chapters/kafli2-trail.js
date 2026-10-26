@@ -7,20 +7,24 @@
 import * as THREE from 'three';
 import { holdWithHands } from '../engine/hand-hold.js';
 import { createCritters } from '../world/critters/critters.js';
-import { createMudPrints } from '../world/props/mud-prints.js';
+import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { sparkleTrail } from '../world/props/sparkles.js';
 import { CRITTER_SOUNDS } from './kafli2-fen.js';
 
 // The path from the glade's side in the north-west down to the Fen in the south-east (the trail's layout path, kafli2.js).
 export const TRAIL_PATH = [[-46, -30], [-26, -17], [-12, -8], [0, 0], [12, 7], [26, 14], [46, 24]];
 
-// Þórseðla's ten footprints down the fen half of the trail, the way she walked to the Fen: a 22 m sauropod's walk scaled down to
-// read on a tablet (her real stride, one foot to the same foot again, is about 4 m; here it is 4.6), her hind feet in turn, left
-// and right, PRINT_PACE m along the path apart and PRINT_GAUGE m either side of its middle, each toe turned a little out, as a
-// sauropod's were. The first is 4 m past the middle of the blend, where the trail is all fen; the ten end 21 m on, in the mist.
+// Þórseðla's ten footprints down the fen half of the trail, the way she walked to the Fen. Each is drawn PRINT_SIZE times a real
+// 22 m sauropod's (world/props/mud-prints.js: 1.6 m long and 1.1 m wide here), so that beside Mosi they read as the giant's that
+// Mosi says they are; at real size they were no bigger than his own feet (the owner's play of 2026-10-25). Her walk is the narrow
+// gauge of her kin (Brontosaurus left narrow trackways): her hind feet in turn, left and right, PRINT_PACE m along the path apart
+// and PRINT_GAUGE m either side of its middle, so close that a print's inner edge reaches over the middle and the next print, the
+// other foot's, lies a pace on, clear of it; each toe turned a little out, as a sauropod's were. The first is 4 m past the middle
+// of the blend, where the trail is all fen; the ten end 27 m on, in the mist.
+export const PRINT_SIZE = 1.6;
 const PRINT_FROM = 57.5; // m along the path to the first print
-const PRINT_PACE = 2.3; // m along the path from one print to the next
-const PRINT_GAUGE = 0.45; // m from the middle of the path to the middle of a print: her left and right prints never touch
+const PRINT_PACE = 3.0; // m along the path from one print to the next: her front foot's crescent and the next heel never touch
+const PRINT_GAUGE = 0.35; // m from the middle of the path to the middle of a print: the prints keep to the path and its worn edge
 const PRINT_TURN = 8; // degrees a print's toes turn out
 /** Where a path is `s` metres along it, and its way there (unit). */
 export function pathAt(path, s) {
@@ -44,6 +48,9 @@ function printsAlong(path) {
   });
 }
 export const TRAIL_PRINTS = printsAlong(TRAIL_PATH);
+// The ground her prints leave bare, the trail's keepOut: the reed and grass of the verge keep out of them, where a print's outer
+// edge reaches past the path.
+export const TRAIL_BARE = printsKeepOut(TRAIL_PRINTS, { size: PRINT_SIZE });
 
 // Scene 2. Mosi rides Egill down from the forest half (RIDE_FROM m along the path) to the first print, then waits beside each print
 // in turn on its north-east side (the left of the way down), his head over it: MOSI_BACK m back along the path from it and MOSI_SIDE
@@ -52,37 +59,44 @@ export const TRAIL_PRINTS = printsAlong(TRAIL_PATH);
 // and up from the ground).
 export const RIDE_FROM = 44;
 const MOSI_BACK = 3.2;
-const MOSI_SIDE = 2.3;
+const MOSI_SIDE = 2.9; // his near feet (0.9 m in from his line, 0.3 m across) stay clear of her left prints' mud, out to 1.4 m
 export const RIDE_POINTS = [49, 52].map((s, i) => {
   const p = pathAt(TRAIL_PATH, s);
   const out = [0.6, 1.4][i];
   return [p.x + p.dz * out, p.z - p.dx * out];
 });
-export const TRAIL_ON = [82, 88].map(s => { const p = pathAt(TRAIL_PATH, s); return [p.x + p.dz * MOSI_SIDE, p.z - p.dx * MOSI_SIDE]; });
+export const TRAIL_ON = [91, 97].map(s => { const p = pathAt(TRAIL_PATH, s); return [p.x + p.dz * MOSI_SIDE, p.z - p.dx * MOSI_SIDE]; });
 // The ride's camera: behind Mosi on his right, a little above Egill, looking past Mosi's head down the trail.
 export const RIDE_CAMERA = { offset: [-6.2, 3.0, 2.8], local: true, look: 'head', lookOffset: [1.6, -1.0, 1.1], stiffness: 1.4, fov: 50 };
-const PRINT_SHOT = { along: 3.6, out: 3.2, up: 1.6, aimAlong: -1.2, aimIn: 1.4, aimUp: 0.85, fov: 56 };
-const TALL_CLOSER = 0.4; // of the way in to the print the print camera comes on a tall screen (printFollow)
+const PRINT_SHOT = { along: 3.6, out: 3.4, up: 1.8, aimAlong: -1.5, aimIn: 1.5, aimUp: 0.55, fov: 56 };
+const TALL_CLOSER = 0.15; // of the way in to the print the print camera comes on a tall screen (printFollow): a big print needs little
 // The ten ahead, as Mosi says what they are ("Þau eru risastór!"): low on the path behind the first, about a child's height up, the
 // first print big in the near third, Mosi's front foot and leg beside it for its size, and the row on down the trail into the mist
 // (shotAlong: metres along the path from print 1, out from its middle to the south-west, negative toward Mosi; up from the ground).
 const PRINTS_LOW = { along: -3.2, out: 1.05, up: 1.2, aimAlong: 4, aimIn: 2.8, aimUp: -0.2, fov: 46 };
 const PRINT_ON = 1.0; // s after a count before Mosi and the camera go on to the next: the number is up first
+const PRINT_WALK = 1.2; // m/s Mosi walks to the next: her 3 m pace in about the time a quick child takes to count on
 // Seconds the child may be idle before the hint, and before Egill taps the print himself; the quick ones once he has.
 const PRINT_WAIT = { hint: 8, help: 16, quickHint: 4, quickHelp: 8 };
 const NOD_DIP = { x: 0, y: -0.6, z: 0 };
 // The animals that live in four of her prints (critters.js), each where it lives in its print (metres along it from its middle and
-// to its right; on its floor, in the water, on its water) and which way it faces from the print's own way: a frog in the third,
-// which hops out onto the middle of the path; a diving beetle swimming round in the sixth; a water strider on the ninth's water,
-// which shoots off toward the toes; and a salamander in the tenth, which crawls out over the toes and back.
+// to its right, as a real-size print's: mud-prints.js pointIn keeps them in their place in a larger one; on its floor, in the water,
+// on its water; `up` m over that), which way it faces from the print's own way, and how large it is drawn when not ANIMAL_SIZE: a
+// dragonfly hanging low over the third's water, as dragonflies hang over a puddle, drawn larger so a child sees it there, which
+// darts up and away as its print splashes and comes back; a diving beetle swimming round in the sixth; a water strider on the
+// ninth's water, which shoots off toward the toes; and a salamander in the tenth, near enough the toes that its crawl of two
+// lengths takes it out over them, and back. None of them is an animal chapter 1 finds (the owner's play of 2026-10-25: its frog
+// was in the third, and is in the Fen now, where the child has to look for it: kafli2-fen.js).
 export const PRINT_ANIMALS = [
-  { print: 2, kind: 'frog', name: 'print-frog', along: -0.02, across: -0.12, on: 'floor', turn: -90 },
+  { print: 2, kind: 'dragonfly', name: 'print-dragonfly', along: 0.1, across: 0.12, on: 'water', up: 0.28, turn: 40, scale: 1.6 },
   { print: 5, kind: 'waterBeetle', name: 'print-beetle', along: -0.05, across: 0, on: 'water', turn: 0 },
   { print: 8, kind: 'waterStrider', name: 'print-strider', along: -0.1, across: 0, on: 'water', turn: 0 },
-  { print: 9, kind: 'salamander', name: 'print-salamander', along: 0.14, across: 0.02, on: 'floor', turn: 0 },
+  { print: 9, kind: 'salamander', name: 'print-salamander', along: 0.26, across: 0.02, on: 'floor', turn: 0 },
 ];
-const ANIMAL_SIZE = 1.1; // the animals in her prints a little larger again than the critters' own (already larger than life)
-const CROAK_AFTER = 0.35; // s after its print's splash that the frog in it croaks, as it hops out
+// The animals in her prints larger again than the critters' own (already larger than life), so they still show in prints 1.6
+// times a real one's, seen from as far as before.
+const ANIMAL_SIZE = 1.3;
+const BUZZ_AFTER = 0.08; // s after its print's splash that the dragonfly over it buzzes, darting up off the water
 
 /** Where Mosi waits by print k: back along the path from it and out on its north-east side, facing down the trail. */
 export function mosiAt(k) {
@@ -194,10 +208,8 @@ function splashPrint(s, c, k, by) {
   if (animal) {
     c.printCritters.react(animal.name);
     const sound = CRITTER_SOUNDS[animal.kind];
-    if (sound) s.after(CROAK_AFTER, () => s.sfx(sound));
-    // Found again in a new place, as chapter 1's frog is in the third print, it still flies into the book (once), whose card has a
-    // page for the Fen; the Fen's own animals are new finds anyway.
-    s.found(animal.kind, by === 'child' ? c.lastTap : null, { again: true });
+    if (sound) s.after(BUZZ_AFTER, () => s.sfx(sound));
+    s.found(animal.kind, by === 'child' ? c.lastTap : null); // each is new to the book: none is chapter 1's
   }
 }
 
@@ -254,10 +266,11 @@ export function arriveOnTheTrail(s, c) {
   c.leavingWalk?.cancel();
   const start = pathAt(TRAIL_PATH, RIDE_FROM);
   mosi.place(start.x, start.z, (Math.atan2(start.dz, start.dx) * 180) / Math.PI);
-  c.prints = createMudPrints(world, { prints: TRAIL_PRINTS, heightAt: world.heightAt });
-  const animals = PRINT_ANIMALS.map(({ print, kind, name, along, across, on, turn }) => ({
-    name, kind, position: c.prints.pointIn(print, along, across, on), heading: TRAIL_PRINTS[print].heading + turn, scale: ANIMAL_SIZE,
-  }));
+  c.prints = createMudPrints(world, { prints: TRAIL_PRINTS, heightAt: world.heightAt, size: PRINT_SIZE });
+  const animals = PRINT_ANIMALS.map(({ print, kind, name, along, across, on, up = 0, turn, scale = ANIMAL_SIZE }) => {
+    const [x, y, z] = c.prints.pointIn(print, along, across, on);
+    return { name, kind, position: [x, y + up, z], heading: TRAIL_PRINTS[print].heading + turn, scale };
+  });
   c.printCritters = createCritters(world, { spots: animals, heightAt: c.prints.groundAt, ripple: (point, strength) => c.prints.rippleAt(point, strength) });
   s.camera.cut({ label: 'trail ride', position: { actor: 'mosi', part: 'feet', offset: RIDE_CAMERA.offset, local: true }, target: 'mosi.head', fov: RIDE_CAMERA.fov });
 }
@@ -292,7 +305,7 @@ export function* countPrints(s, c) {
     if (k < names.length - 1) {
       // on to the next once the number is up: Mosi to his place beside it, the camera following him and turning to it
       const next = mosiAt(k + 1);
-      walking = s.after(PRINT_ON, () => { c.focus = k + 1; return mosi.walkTo([next.x, next.z], { speed: 0.95 }); });
+      walking = s.after(PRINT_ON, () => { c.focus = k + 1; return mosi.walkTo([next.x, next.z], { speed: PRINT_WALK }); });
       s.after(PRINT_ON + 0.3, () => mosi.lookAt(c.prints.targets[k + 1].point, { weight: 0.8, maxPitch: 40 }));
       s.after(PRINT_ON + 0.5, () => egill.lookAt(c.prints.targets[k + 1].point, { weight: 0.7, maxPitch: 45 }));
     }

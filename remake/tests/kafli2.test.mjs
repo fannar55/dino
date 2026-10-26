@@ -10,7 +10,10 @@ import { shapeGround } from '../world/forest/forest.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { HUG_SECONDS, WINK_SECONDS } from '../engine/sun-face.js';
 import { createSfx } from '../engine/audio/sfx.js';
-import { CRITTER_SOUNDS } from '../chapters/kafli2-fen.js';
+import { CRITTER_SOUNDS, FEN_CRITTERS } from '../chapters/kafli2-fen.js';
+import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
+import { FEN } from '../world/forest/config.js';
+import { MAP_PLACES } from '../engine/book/map-page.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 
@@ -415,6 +418,11 @@ function playIdle() {
     const seen = {
       frames: 0, shownLow: [], shownHigh: 0, lightest: Infinity, heaviest: 0, casters: 0, slideTarget: null, sliding: null, floatTarget: null, floating: null,
       uggedlaFirst: null, disposed: null, openings: [], fog: {}, wet: 0, wetAt: null,
+      // Grameðla far off: when she shows (first, last), roars and walks, how far off the ground she stands as she roars, where on the
+      // screen she is then, and where she is as she is hidden; the camera's fastest turn and zoom and its look down meanwhile; and every
+      // call the script makes that puts something in the book, and every tap target it sets
+      rex: { first: null, last: null, low: false, roarAt: null, walkAt: null, ground: null, onScreen: null, hidden: null },
+      teaserCamera: { turn: 0, zoom: 0, down: 0, frames: 0 }, prevView: null, bookCalls: null, targetNames: new Set(),
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
@@ -422,6 +430,46 @@ function playIdle() {
       onFrame({ world, stage, pointer }) {
         const c = world.chapterState;
         const far = c?.farFriends;
+        if (!seen.bookCalls) {
+          seen.bookCalls = [];
+          for (const call of ['place', 'found', 'star']) {
+            const real = stage.s[call];
+            stage.s[call] = (...args) => { seen.bookCalls.push({ call, id: args[0], at: stage.s.time }); return real(...args); };
+          }
+          const target = stage.s.target;
+          stage.s.target = (name, ...args) => { seen.targetNames.add(name); return target(name, ...args); };
+        }
+        const rex = far?.actorOf('gramedla');
+        if (rex && !far.disposed) {
+          const t = stage.s.time, g = seen.rex;
+          const shownNow = rex.root.visible && far.group.visible && Boolean(far.group.parent);
+          if (shownNow) {
+            g.first ??= t;
+            g.last = t;
+            if (world.camera.position.y <= 6) g.low = true;
+          } else if (g.last !== null && !g.hidden) g.hidden = { at: t, radius: Math.hypot(rex.root.position.x, rex.root.position.z) };
+          if (g.roarAt === null && rex.mixer.existingAction(rex.clips.get('roar'))?.isRunning()) {
+            g.roarAt = t;
+            const { x, y, z } = rex.root.position;
+            g.ground = Math.abs(y - world.heightAt(x, z));
+            world.camera.updateMatrixWorld();
+            const p = rex.centre(new V3()).project(world.camera);
+            g.onScreen = { x: ((p.x + 1) / 2) * 1280, y: ((1 - p.y) / 2) * 800, front: p.z < 1, fov: world.camera.fov };
+          }
+          if (g.walkAt === null && rex.walking) g.walkAt = t;
+          // the camera from the turn to her until the lens has opened again
+          const teaser = c.teaser;
+          if (teaser && (teaser.done === undefined || t <= teaser.done + 3)) {
+            const dir = world.camera.getWorldDirection(new V3()), prev = seen.prevView, cam = seen.teaserCamera;
+            if (prev && t > prev.t) {
+              cam.turn = Math.max(cam.turn, THREE.MathUtils.radToDeg(dir.angleTo(prev.dir)) / (t - prev.t));
+              cam.zoom = Math.max(cam.zoom, Math.abs(world.camera.fov - prev.fov) / (t - prev.t));
+              cam.frames++;
+            }
+            cam.down = Math.max(cam.down, -THREE.MathUtils.radToDeg(Math.asin(dir.y)));
+            seen.prevView = { t, dir, fov: world.camera.fov };
+          }
+        }
         if (far) {
           seen.frames++;
           const shown = FAR.filter(name => far.actorOf(name)?.root.visible && far.group.visible && far.group.parent);
@@ -601,6 +649,54 @@ test('the far friends only show from above', async () => {
   assert.ok(seen.disposed && seen.disposed.scene === 7 && seen.disposed.phase === 'in the saddle' && !seen.disposed.inScene, `disposed of ${JSON.stringify(seen.disposed)}`);
 });
 
+test('Grameðla far off after the third find: the camera turns to her, she roars, Mosi says who she is, she walks into the trees, and nothing goes in the book', async () => {
+  const { seen, captions, world, task } = await playIdle();
+  const c = world.chapterState, t = c.teaser, rex = seen.rex, lines = world.chapter.lines;
+  assert.equal(task.done, true, 'the chapter still plays to its end');
+  assert.ok(t && t.turn && t.roar && t.walk && t.gone && t.done, `every beat of the look at her (${JSON.stringify(t)})`);
+  // After Uggeðla is found and Mosi has said her line, and before Þórseðla's last words up there
+  const uggedla = c.farFinds.find(f => f.name === 'uggedla');
+  const named = captions.find(x => x.text === lines.k2_mosi_found_uggedla.text);
+  assert.ok(uggedla && named && t.turn >= named.at + RECORDED.k2_mosi_found_uggedla.duration - 0.05, `the turn to her at ${t.turn.toFixed(1)} s, after "Uggeðla!…" at ${named?.at.toFixed(1)} s`);
+  const now = captions.find(x => x.text === lines.k2_thorsedla_now.text);
+  assert.ok(now && now.at >= t.done, '"Nú veistu hvar þau eru." once she is gone, as before');
+  // She is seen only from the turn to her until she is behind the trees, from her head
+  assert.ok(rex.first !== null && rex.first >= t.turn && rex.last <= t.gone, `she shows from ${rex.first?.toFixed(1)} to ${rex.last?.toFixed(1)} s, the turn at ${t.turn.toFixed(1)} s and gone at ${t.gone.toFixed(1)} s`);
+  assert.equal(rex.low, false, 'never with the camera at 6 m or lower');
+  // As the camera settles on her she roars, on the ground and in the middle of the screen above the caption, and Mosi says who she is
+  assert.ok(rex.roarAt !== null && Math.abs(rex.roarAt - t.roar) < 0.1, `she roars as the turn ends (${rex.roarAt?.toFixed(2)} s)`);
+  assert.ok(rex.ground < 0.05, `standing on the ground (${rex.ground?.toFixed(3)} m off it)`);
+  const { x, y, front, fov } = rex.onScreen;
+  assert.ok(front && Math.abs(x - 640) < 160 && y > 64 + 40 && y < 800 * 0.7, `in the middle of the screen as she roars (${x.toFixed(0)}, ${y.toFixed(0)})`);
+  assert.ok(Math.abs(fov - 30) < 0.5, `seen through the narrowed lens (${fov.toFixed(1)} degrees)`);
+  const said = captions.filter(x => x.text === lines.k2_mosi_gramedla.text);
+  assert.equal(said.length, 1, 'Mosi says "Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!" once');
+  assert.equal(said[0].who, 'Mosi');
+  assert.ok(said[0].at >= rex.roarAt && said[0].at < rex.walkAt, 'as she roars, before she goes');
+  // Then she walks into the trees, and is hidden only once she is behind the far treeline
+  assert.ok(rex.walkAt > rex.roarAt, `she roars (${rex.roarAt.toFixed(1)} s) before she walks (${rex.walkAt.toFixed(1)} s)`);
+  assert.ok(rex.hidden && rex.hidden.radius > FEN.far.rings[0].radius + 2, `hidden ${rex.hidden?.radius.toFixed(1)} m from the Fen's middle, behind its far treeline (${FEN.far.rings[0].radius} m)`);
+  // The camera keeps the style's limits all the while (STYLE.md 8): pan, zoom, and the look down
+  assert.ok(seen.teaserCamera.frames > 100, 'the camera was watched');
+  assert.ok(seen.teaserCamera.turn <= LIMITS.pan * 1.05, `it turns ${seen.teaserCamera.turn.toFixed(1)} degrees a second at most`);
+  assert.ok(seen.teaserCamera.zoom <= LIMITS.zoom * 1.05, `its lens changes ${seen.teaserCamera.zoom.toFixed(1)} degrees a second at most`);
+  assert.ok(seen.teaserCamera.down <= LIMITS.maxDown, `it looks ${seen.teaserCamera.down.toFixed(0)} degrees down at most`);
+  // Nothing goes in the book: no find, no place, no star while she is seen, and she is no tap target
+  const during = seen.bookCalls.filter(call => call.at >= t.turn && call.at <= t.done + 3);
+  assert.deepEqual(during, [], 'nothing goes in the book while she is seen');
+  assert.ok(!seen.bookCalls.some(call => /gramedla/.test(call.id)), 'and nothing of hers ever');
+  assert.ok(![...seen.targetNames].some(name => /gramedla/.test(name)) && !c.farFriends.targets.some(target => target.name === 'gramedla'), 'she is no tap target');
+  // Where she stands is the way the book's map has her from Þórseðla's pool: the map's Fen is the Fen's own ground, north up
+  const slot = id => MAP_PLACES.find(place => place.id === id).at;
+  const [gx, gy] = slot('gramedla'), [tx, ty] = slot('thorsedla');
+  const mapWay = Math.atan2(gy - ty, gx - tx);
+  const [lx, , lz] = kafli2.LOOKOUT_HEAD;
+  const [sx, sz] = kafli2.GRAMEDLA_FAR;
+  const way = Math.atan2(sz - lz, sx - lx);
+  const apart = Math.abs(THREE.MathUtils.radToDeg(Math.atan2(Math.sin(way - mapWay), Math.cos(way - mapWay))));
+  assert.ok(apart < 20, `she stands ${apart.toFixed(0)} degrees from the way the map has her`);
+});
+
 /** The sun on the screen and in front of nobody, each time the run looked (chapter 1's test, kafli1.test.mjs). */
 function assertInView(views, why) {
   assert.ok(views.length >= 5, `${why}: ${views.length} views`);
@@ -658,15 +754,21 @@ test('the prints are counted one to ten in order, and the berries one to five', 
 
 test('the fen animals go into the book', async () => {
   const { journal, world } = await playTheFen();
-  for (const id of ['frog', 'waterBeetle', 'waterStrider', 'salamander']) {
+  for (const id of ['dragonfly', 'waterBeetle', 'waterStrider', 'salamander']) {
     assert.ok(journal.findings.includes(id), `the ${id} in its print is found (${journal.findings.join(', ')})`);
   }
-  // the frog is chapter 1's: found again in a new place, it still flies into the book, where its card has a page for the Fen
+  // none in the prints is an animal chapter 1 finds (the owner's play of 2026-10-25), and the dragonfly over the third is the first
+  // the chapter puts in the book, whose drawing main.js warms (chapter.firstFind)
   const { finds } = await playTheFen();
-  assert.equal(finds.find(f => f.id === 'frog')?.options?.again, true, 'the print\'s frog is found again');
-  // the others live in the Fen, a tap away: tap targets with their finding
+  const chapterOne = ['beetle', 'frog', 'snail', 'butterfly', 'birds'];
+  assert.deepEqual(PRINT_ANIMALS.filter(a => chapterOne.includes(a.kind)), [], 'no animal of chapter 1 in a print');
+  assert.ok(finds.every(f => !f.options?.again), 'and nothing in them is found again');
+  assert.equal(finds[0].id, 'dragonfly');
+  assert.equal(chapter.firstFind, finds[0].id);
+  // the others live in the Fen, a tap away: tap targets with their finding; chapter 1's frog among them, found again there
   const fen = world.chapterState.fenCritters;
-  assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  assert.deepEqual(fen.spots.map(s => s.kind).sort(), ['earlyBird', 'fish', 'frog', 'turtle']);
+  assert.deepEqual(fen.spots.filter(s => s.again).map(s => s.kind), ['frog'], 'the frog is found again in a new place');
   // until he goes up her neck: from then on a tap is for the far friends, never an animal far below: not as scene 5 ends, nor after
   const { pointer, seen } = await playTheFen();
   assert.ok(seen.targetsAtSix, 'scene 6 began');
@@ -710,6 +812,12 @@ test('an idle child still gets the head down', async () => {
   assert.deepEqual(c.picks.map(p => p.by), Array(5).fill('egill'), 'each picked by Egill');
   assert.ok(c.picks.every(p => p.kind === 'red'), 'all of them red');
   assert.ok(c.headDownAt > 0 && c.headDownAt < five, 'and her head came down to him before it');
+  // Mosi's hints, each the one true of where the next bunch is: the big bush's first (three, then one once Egill has helped), then
+  // the two by the water, then the one under the leaves
+  const lines = world.chapter.lines;
+  const hints = run.captions.filter(caption => caption.at >= sceneStart(world, 4) && caption.at < five)
+    .map(caption => [1, 2, 3].find(k => lines[`k2_mosi_hint_berry${k}`].text === caption.text)).filter(Boolean);
+  assert.deepEqual(hints, [1, 1, 1, 1, 2, 2, 3]);
 });
 
 test('a tap on Kambeðla as they go: her plates blink and she says goodbye', async () => {
@@ -731,12 +839,71 @@ test('a blue berry is the birds\': Mosi says so, and it stays on its bush', asyn
   assert.ok(c.picks.every(p => p.kind === 'red'), 'only red ones go in the basket');
 });
 
-test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book', async () => {
-  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'fen-dragonfly', after: 1 } });
-  assert.ok(run.seen.earlyTap, 'the dragonfly could be tapped in the Fen');
-  assert.ok(run.journal.findings.includes('dragonfly'), `the dragonfly is in the book (${run.journal.findings.join(', ')})`);
-  assert.ok(run.seen.earlyTap.movedAt !== null, 'and it darted off');
-  assert.ok(run.soundLog.some(e => e.name === CRITTER_SOUNDS.dragonfly && Math.abs(e.at - run.seen.earlyTap.at) < 0.1), 'with its own sound');
+test('a tap on one of the Fen\'s own animals: it reacts, and goes in the book (the frog, found again in a new place)', async () => {
+  const run = await playUnattended(kafli2, { seeking: false, limit: 175, shaped: true, earlyTap: { name: 'fen-frog', after: 1 } });
+  assert.ok(run.seen.earlyTap, 'the frog could be tapped in the Fen');
+  assert.ok(run.journal.findings.includes('frog'), `the frog is in the book (${run.journal.findings.join(', ')})`);
+  assert.equal(run.finds.find(f => f.id === 'frog')?.options?.again, true, 'found again: it flies into the book though chapter 1 found it');
+  assert.ok(run.seen.earlyTap.movedAt !== null, 'and it hopped');
+  assert.ok(run.soundLog.some(e => e.name === CRITTER_SOUNDS.frog && Math.abs(e.at - run.seen.earlyTap.at) < 0.1), 'with its own sound');
+});
+
+test('the frog in the Fen is hidden: on the channel\'s bank, out of every shot\'s view, found by turning the berry search all the way left', async () => {
+  const frog = FEN_CRITTERS.find(f => f.kind === 'frog');
+  const { layout, shots } = chapter.locations.fen;
+  const { terrain: ground, water } = shapeGround({ chapter }, { ...layout, shots }, layout.seed);
+  const at = new THREE.Vector3(frog.at[0], ground.heightAt(...frog.at) + 0.08, frog.at[1]);
+  assert.ok(water.signedAt(...frog.at) > 0 && water.signedAt(...frog.at) < 0.4, 'at the edge of the water, on its bank');
+  // a view: is the frog inside it (a 16:10 screen)?
+  const inView = ({ position, target, fov }) => {
+    const camera = new THREE.PerspectiveCamera(fov, 1.6, 0.1, 500);
+    camera.position.fromArray(position);
+    camera.lookAt(new THREE.Vector3().fromArray(target));
+    camera.updateMatrixWorld();
+    const p = at.clone().project(camera);
+    return p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
+  };
+  // out of every still shot, or so far off (the low shot under her, the two shot behind Mosi) that a 20 cm frog would be some ten
+  // pixels in the reed
+  for (const [label, shot] of Object.entries(shots)) {
+    if (!Array.isArray(shot.position) || !Array.isArray(shot.target)) continue;
+    const far = at.distanceTo(new THREE.Vector3().fromArray(shot.position));
+    assert.ok(!inView(shot) || far > 15, `the frog is out of ${label} (${far.toFixed(1)} m off)`);
+  }
+  // the berry search's own view, from behind Egill where he picks (fen_pick, actor-relative): not in it, but turned 70 degrees left it is
+  const egill = { x: 12.4, z: -8.4 };
+  const pick = shots.fen_pick;
+  const from = [egill.x + pick.position.offset[0], ground.heightAt(egill.x, egill.z) + pick.position.offset[1], egill.z + pick.position.offset[2]];
+  const to = [egill.x + pick.target.offset[0], ground.heightAt(egill.x, egill.z) + pick.target.offset[1], egill.z + pick.target.offset[2]];
+  assert.equal(inView({ position: from, target: to, fov: pick.fov }), false, 'not in the berry search as it opens');
+  const turned = yaw => {
+    const a = THREE.MathUtils.degToRad(yaw), dx = to[0] - from[0], dz = to[2] - from[2];
+    return [from[0] + dx * Math.cos(a) - dz * Math.sin(a), to[1], from[2] + dx * Math.sin(a) + dz * Math.cos(a)];
+  };
+  assert.equal(inView({ position: from, target: turned(-70), fov: pick.fov }), true, 'but there with the view turned all the way left');
+});
+
+test('the dragonfly hangs over the third print\'s water, and darts up and away, buzzing, as the print splashes', async () => {
+  let watched = null;
+  const run = await playUnattended(kafli2, {
+    seeking: false, limit: 100, shaped: true, // as a child who taps nothing plays it: Egill taps each print in the end
+    onFrame({ world, stage }) {
+      const c = world.chapterState;
+      const fly = c?.printCritters?.group.getObjectByName('Critter print-dragonfly');
+      if (!fly || !c.prints) return;
+      const body = fly.children[0].getWorldPosition(new THREE.Vector3());
+      watched ??= { over: body.y - c.prints.levelOf(2), off: Math.hypot(body.x - c.prints.targets[2].point.x, body.z - c.prints.targets[2].point.z) };
+      const splash = c.printLog.find(e => e.what === 'splash' && e.index === 2);
+      if (splash && !watched.splash) watched.splash = { at: splash.at, from: body.clone() };
+      if (watched.splash && stage.s.time - watched.splash.at < 1.2) watched.farthest = Math.max(watched.farthest ?? 0, body.distanceTo(watched.splash.from));
+    },
+  });
+  assert.ok(watched && watched.over > 0.15 && watched.over < 0.6, `low over the water, ${watched?.over.toFixed(2)} m up`);
+  assert.ok(watched.off < 0.6 * PRINT_SIZE, `over the print, ${watched.off.toFixed(2)} m from its middle`);
+  assert.ok(watched.splash, 'its print splashed');
+  assert.ok(watched.farthest > 0.4, `it darted ${watched.farthest?.toFixed(2)} m as it did`);
+  const buzz = run.soundLog.find(e => e.name === CRITTER_SOUNDS.dragonfly && e.at >= watched.splash.at - 1e-6);
+  assert.ok(buzz && buzz.at - watched.splash.at < 0.3, 'with its buzz');
 });
 
 test('a tap on Þórseðla in the Fen: her tail swishes and leaves fall, nothing more', async () => {
@@ -773,8 +940,8 @@ test('the warm-up draws the basket with its glow, which shows only while he hold
     assert.ok(!namesOf(trail).includes(name), `${name} not on the trail`);
   }
   const critterNames = w => namesOf(w).filter(name => name.startsWith('Critter warm-up-')).map(name => name.slice('Critter warm-up-'.length)).sort();
-  assert.deepEqual(critterNames(trail), ['frog', 'salamander', 'waterBeetle', 'waterStrider']);
-  assert.deepEqual(critterNames(fen), ['dragonfly', 'earlyBird', 'fish', 'turtle']);
+  assert.deepEqual(critterNames(trail), ['dragonfly', 'salamander', 'waterBeetle', 'waterStrider']);
+  assert.deepEqual(critterNames(fen), ['earlyBird', 'fish', 'frog', 'turtle']);
   assert.equal(trail.objects.length + fen.objects.length - 2 * world.actors.size - 1, warm.objects.length - world.actors.size, 'and together all of it (one critters group each)');
   trail.dispose();
   fen.dispose();

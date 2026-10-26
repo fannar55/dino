@@ -15,13 +15,13 @@
 /** The names, in the order the chapter meets them, and the Fen's animals'. */
 export const FEN_SFX = [
   'splash', 'ripple', 'countTone', 'berryPop', 'sniff', 'breathHuge', 'chew', 'liftTone', 'windHigh', 'slide', 'landSaddle', 'mapMark',
-  'dragonfly', 'turtle', 'fish', 'earlyBird',
+  'dragonfly', 'turtle', 'fish', 'earlyBird', 'farRoar',
 ];
 
 /** The least time, in audio seconds, between two of the same: a child tapping fast piles nothing up. */
 export const FEN_GAPS = {
   splash: 0.12, ripple: 0.2, countTone: 0.05, berryPop: 0.1, sniff: 1, breathHuge: 2, chew: 0.8, liftTone: 4, windHigh: 3, slide: 2,
-  landSaddle: 1, mapMark: 0.3, dragonfly: 0.4, turtle: 0.4, fish: 0.5, earlyBird: 0.6,
+  landSaddle: 1, mapMark: 0.3, dragonfly: 0.4, turtle: 0.4, fish: 0.5, earlyBird: 0.6, farRoar: 2,
 };
 
 const LIFT_SECONDS = 8; // Þórseðla's liftUp clip, when the lift does not say
@@ -159,6 +159,17 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
       tone({ frequency: key[4] * 2, end: key[2] * 2, duration: 0.22, level: 0.05, pan, attack: 0.02 });
       tone({ frequency: key[3] * 2, duration: 0.12, level: 0.04, pan, attack: 0.01, delay: 0.3 });
       for (let i = 0; i < 4; i++) noise({ kind: 'warm', type: 'bandpass', frequency: 1400, q: 1, duration: 0.07, level: 0.035, attack: 0.01, delay: 0.05 + i * 0.09, pan });
+    },
+    // Grameðla roars far off at the forest's edge, seen from the lookout: a big, round, friendly roar softened by 144 m of air, no
+    // edge to it and nothing to fear. A low growl glides up from sol to do two octaves down and falls back, under a rumble of breath
+    // that swells and fades, and ends in three soft wobbles as her head shakes (her roar clip's happy shake).
+    farRoar() {
+      noise({ kind: 'brown', type: 'lowpass', frequency: 300, end: 650, duration: 1.4, level: 0.1, attack: 0.45 });
+      noise({ kind: 'brown', type: 'lowpass', frequency: 650, end: 220, duration: 1.6, level: 0.08, attack: 0.2, delay: 1.2 });
+      noise({ kind: 'warm', type: 'bandpass', frequency: 700, end: 420, q: 0.8, duration: 2.2, level: 0.025, attack: 0.5 });
+      tone({ frequency: key[3] / 4, end: key[0] / 2, duration: 1.3, level: 0.035, type: 'triangle', attack: 0.4, body: 0.7, sustain: 0.8 });
+      tone({ frequency: key[0] / 2, end: key[3] / 4, duration: 1.4, level: 0.03, type: 'triangle', attack: 0.15, delay: 1.2 });
+      [0, 1, 2].forEach(i => tone({ frequency: key[i % 2 ? 2 : 3] / 4, duration: 0.18, level: 0.018, type: 'triangle', attack: 0.04, delay: 2.1 + i * 0.2 }));
     },
   };
 }

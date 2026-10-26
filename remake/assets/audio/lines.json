@@ -2743,5 +2743,10 @@
   "src": "assets/audio/kafli1/k1_mosi_fannar.mp3",
   "duration": 9.69,
   "mouth": "9ffeedce703c708edeffdccdeb08eedacd9bea408dddbdeeddeeedddcddefd038600000000000c80bc0bddc500fddefeccdc40b9430000000000000aff50feb8dee96409cccfe7accb000dffefffeddeffcdede60cdbde96cc08eea56000000000"
+ },
+ "k2_mosi_gramedla": {
+  "src": "assets/audio/kafli2/k2_mosi_gramedla.mp3",
+  "duration": 5.77,
+  "mouth": "007fffedeb0000000dfec97005fc68eb5000000000006eb400eeec08ddedfffec978400000000004ffdefeeda4dd5dddd00e70bc740000000000"
  }
 }

@@ -10,13 +10,16 @@ import { FEN } from '../forest/config.js';
 // left foot's the mirror of her right's. Its mud is pushed up round it into a lip 6 to 8 cm high, a light crest along it, dark down
 // the inner wall, a wet band outside it, and goes on down under the ground 30 cm out in the path's own colour (so it never floats
 // on the path, whatever the ground does); and just ahead of it lies the crescent of her front foot, shallower, as real sauropod
-// trackways have. Water stands in the hind print 2 cm below the lowest of its lip, flat however the trail slopes,
+// trackways have. Those are a real 22 m sauropod's measures: `size` draws the whole print that many times larger, its pool, lip,
+// front foot, water, tap radius and glimmer alike (chapter 2 draws them 1.6 times, so that beside Mosi they read as the giant's
+// Mosi says they are: at real size they were no bigger than his own feet). Water stands in the hind print 2 cm below the lowest
+// of its lip, flat however the trail slopes,
 // drawn with the Fen's own water material (water.js, its print variant): clear enough that the dark mud floor shows through it
 // looking down, the sky by a fresnel looking along it, its shore drawn per pixel from the print's shape. All ten are two meshes,
 // two draw calls: the mud and the water.
 //
-//   const prints = createMudPrints(world, { prints: layout.prints, heightAt });   // [{ position: [x, z], heading, foot }]
-//   for (const t of prints.targets) s.target(t.name, t);  // print1 .. print10: { name, point, radius: 0.6 }
+//   const prints = createMudPrints(world, { prints: layout.prints, heightAt, size });   // [{ position: [x, z], heading, foot }]
+//   for (const t of prints.targets) s.target(t.name, t);  // print1 .. print10: { name, point, radius: 0.6 times the size }
 //   prints.glimmer(0);       // the next to count glimmers: its water swells with light, glints rise off its rim, a soft ring
 //   prints.splash(4);        // a tap: a ring in its water and a splash of drops; returns a Handle
 //   prints.count(4);         // the number: a big cream digit (here 5) with a dark edge rises out of the water for 1.6 s
@@ -26,6 +29,11 @@ import { FEN } from '../forest/config.js';
 // each a tube with an inverted hull for its edge, so the number reads against mud, reed, mist or sky; it turns to face the
 // camera as it rises. Everything runs on the game clock (world.effects and world.clock.time), so a capture lands on the same
 // frame. heightAt is the place's ground (the trail's lift and all).
+//
+// The shape below is a real-size print's, in metres in its own frame: the mud's grid and the water's shore are worked out there,
+// and only the step out into the world (toWorld) and the heights of the mud pushed up round it are times `size`, so a larger print
+// is the same print drawn larger, with as many triangles. The water's clearances (1.5 cm over the ground, 2 cm under the rim) stay
+// as they are: they only keep surfaces apart.
 
 const WATER_UP = 0.015; // m the water stands over the highest ground inside the print
 const RIM_UP = 0.02; // m the lowest of the rim's crest stands over the water (it rises higher where the ground falls away)
@@ -118,30 +126,33 @@ function manusDistance(u, v) {
   return Math.max(ellipseDistance(u, v, ...MANUS.outer), -ellipseDistance(u, v, ...MANUS.inner));
 }
 const lerp = THREE.MathUtils.lerp;
-/** The hind print's mud at distance d from its edge, over ground `ground`, its water at `level`: floor, inner wall, lip, skirt. */
-function pesHeight(d, ground, level) {
+/**
+ * The hind print's mud at distance d from its edge (in its own frame), over ground `ground`, its water at `level`: floor, inner
+ * wall, lip, skirt. `k` is the print's size: the mud a larger foot pushes up stands as many times higher.
+ */
+function pesHeight(d, ground, level, k = 1) {
   if (d <= -WALL) return ground + FLOOR_UP;
   if (d <= 0) return lerp(ground + FLOOR_UP, level + 0.004, smooth((d + WALL) / WALL));
-  const crest = Math.max(level + RIM_UP, ground + CREST_UP);
+  const crest = Math.max(level + RIM_UP, ground + CREST_UP * k);
   if (d <= CREST) return lerp(level + 0.004, crest, smooth(d / CREST));
-  if (d >= SKIRT) return ground - SINK;
-  return lerp(crest, ground - SINK, smooth((d - CREST) / (SKIRT - CREST)));
+  if (d >= SKIRT) return ground - SINK * k;
+  return lerp(crest, ground - SINK * k, smooth((d - CREST) / (SKIRT - CREST)));
 }
-/** The front foot's crescent, shallower and dry. */
-function manusHeight(d, ground) {
+/** The front foot's crescent, shallower and dry, its heights `k` times a real-size one's. */
+function manusHeight(d, ground, k = 1) {
   const M = MANUS;
-  if (d <= -M.wall) return ground + M.floor;
-  if (d <= 0) return lerp(ground + M.floor, ground + M.edge, smooth((d + M.wall) / M.wall));
-  if (d <= M.wall) return lerp(ground + M.edge, ground + M.crest, smooth(d / M.wall));
-  if (d >= M.skirt) return ground - SINK;
-  return lerp(ground + M.crest, ground - SINK, smooth((d - M.wall) / (M.skirt - M.wall)));
+  if (d <= -M.wall) return ground + M.floor * k;
+  if (d <= 0) return lerp(ground + M.floor * k, ground + M.edge * k, smooth((d + M.wall) / M.wall));
+  if (d <= M.wall) return lerp(ground + M.edge * k, ground + M.crest * k, smooth(d / M.wall));
+  if (d >= M.skirt) return ground - SINK * k;
+  return lerp(ground + M.crest * k, ground - SINK * k, smooth((d - M.wall) / (M.skirt - M.wall)));
 }
 /** The mud of one print (both feet) at (u, v): inside a print its floor and wall, outside the higher of their lips and skirts. */
-function mudAt(u, v, ground, level) {
+function mudAt(u, v, ground, level, k = 1) {
   const dp = printDistance(u, v), dm = manusDistance(u, v);
-  if (dp < 0) return { h: pesHeight(dp, ground, level), dp, dm };
-  if (dm < 0) return { h: manusHeight(dm, ground), dp, dm };
-  return { h: Math.max(pesHeight(dp, ground, level), manusHeight(dm, ground)), dp, dm };
+  if (dp < 0) return { h: pesHeight(dp, ground, level, k), dp, dm };
+  if (dm < 0) return { h: manusHeight(dm, ground, k), dp, dm };
+  return { h: Math.max(pesHeight(dp, ground, level, k), manusHeight(dm, ground, k)), dp, dm };
 }
 const covered = (dp, dm) => dp < SKIRT || dm < MANUS.skirt; // mud there, above the ground or under it
 
@@ -160,6 +171,36 @@ const POOL = (() => {
   return { x0: Math.min(...xs) - 0.02, x1: Math.max(...xs) + 0.02, z0: Math.min(...zs) - 0.02, z1: Math.max(...zs) + 0.02 };
 })();
 const PAD = [-0.02, 0]; // the middle of the sole: where a tap aims and a digit rises
+
+/** A print's frame from its layout entry: where it is, its way (ax, az; its right is (-az, ax)) and the outside of the foot. */
+function frameOf({ position: [x, z], heading = 0, foot = 'right' }) {
+  const a = THREE.MathUtils.degToRad(heading);
+  // the outside of the foot is to its right for her right foot, its left for her left
+  return { x, z, ax: Math.cos(a), az: Math.sin(a), out: foot === 'left' ? -1 : 1 };
+}
+
+/**
+ * Where prints at `prints` (as createMudPrints takes them, `size` times a real one) leave the ground bare, 0 to 1: 1 over each
+ * print's mud out to where it goes under the ground, fading to nothing `margin` m beyond. A place's layout gives it as its keepOut
+ * (world/forest: grass and plants keep out of it), so no blade of grass stands in a print's water, whether the print lies on the
+ * path or its outer edge reaches the verge.
+ */
+export function printsKeepOut(prints, { size = 1, margin = 0.25 } = {}) {
+  const frames = prints.map(frameOf);
+  const near = (EXTENT.x1 - EXTENT.x0) * size + margin;
+  return (x, z) => {
+    let keep = 0;
+    for (const f of frames) {
+      const dx = x - f.x, dz = z - f.z;
+      if (dx * dx + dz * dz > near * near) continue;
+      const u = (dx * f.ax + dz * f.az) / size, w = ((-dx * f.az + dz * f.ax) * f.out) / size;
+      const beyond = Math.min(printDistance(u, w) - SKIRT, manusDistance(u, w) - MANUS.skirt) * size; // m past the mud's edge
+      keep = Math.max(keep, 1 - smooth(beyond / margin));
+      if (keep >= 1) break;
+    }
+    return keep;
+  };
+}
 
 // ---- the digits ------------------------------------------------------------------------------------------------
 
@@ -288,32 +329,30 @@ export function digitGeometry(number) {
 
 /**
  * Þórseðla's prints in the mud at `prints` ([{ position: [x, z], heading }], degrees: 0 points +X, 90 +Z), on the ground of
- * `heightAt`. Returns
+ * `heightAt`, each `size` times a real 22 m sauropod's. Returns
  *   group          the mud and the water (and a digit while one rises), in world.scene
- *   targets        [{ name: 'print1'..'printN', point, radius: 0.6 }]: the middle of each pad, over its water
+ *   targets        [{ name: 'print1'..'printN', point, radius }]: the middle of each pad, over its water; radius 0.6 m times the size
  *   splash(i)      a ring in print i's water and a splash of drops; a Handle, done when the drops are down
  *   count(i)       the number i + 1 rises out of print i's water and is gone 1.6 s later; a Handle, done then
  *   done(i)        print i's water goes still and warm gold
  *   glimmer(i)     print i is the next to count: it glimmers (null: none does)
  *   levelOf(i), rimOf(i), floorOf(i)   heights: its water, its rim, its floor at the middle of its pad
- *   pointIn(i, along, across, on)      a point in print i's frame (metres along it and to its right) on 'floor', 'water' or 'rim'
+ *   pointIn(i, along, across, on)      a point in print i's frame (metres along it and to its right in a real-size print, so
+ *                                      the point keeps its place in the print at any size) on 'floor', 'water' or 'rim'
  *   groundAt(x, z) the ground with the prints in it (for a frog that hops out of one, a salamander that crawls out)
  *   rippleAt(point, strength)          a ring on the prints' water (an animal in a print touching it)
  *   update(t)      pose everything for game time t (the registered effect does it every frame)
  *   dispose()
  */
-export function createMudPrints(world, { prints, heightAt = world.heightAt, seed = 12 } = {}) {
+export function createMudPrints(world, { prints, heightAt = world.heightAt, seed = 12, size = 1 } = {}) {
   if (!Array.isArray(prints) || !prints.length) throw new TypeError('createMudPrints takes `prints`: [{ position: [x, z], heading, foot }]');
+  if (!(size > 0)) throw new TypeError(`A print's size is how many times a real one's it is drawn, above 0, not ${JSON.stringify(size)}`);
   needEffects(world, 'createMudPrints');
   const group = new THREE.Group();
   group.name = 'Þórseðla prints';
-  const frames = prints.map(({ position: [x, z], heading = 0, foot = 'right' }) => {
-    const a = THREE.MathUtils.degToRad(heading);
-    // its way (ax, az); its right is (-az, ax); the outside of the foot is to its right for her right foot, its left for her left
-    return { x, z, ax: Math.cos(a), az: Math.sin(a), out: foot === 'left' ? -1 : 1 };
-  });
-  /** A point in print f's frame (u along it, v to its right) in the world. */
-  const toWorld = (f, u, v) => [f.x + f.ax * u - f.az * v, f.z + f.az * u + f.ax * v];
+  const frames = prints.map(frameOf);
+  /** A point in print f's frame (u along it, v to its right, in a real-size print's metres) in the world, `size` times out. */
+  const toWorld = (f, u, v) => [f.x + (f.ax * u - f.az * v) * size, f.z + (f.az * u + f.ax * v) * size];
   /** A point in its shape's frame (u along it, w toward the outside of the foot) in the world. */
   const shapeToWorld = (f, u, w) => toWorld(f, u, w * f.out);
 
@@ -353,7 +392,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     const at = (i, j) => grid[j * (nu + 1) + i];
     const base = pos.length / 3;
     for (const g of grid) {
-      const m = mudAt(g.u, g.v, g.ground, level);
+      const m = mudAt(g.u, g.v, g.ground, level, size);
       g.h = m.h;
       g.dm = m.dm;
       pos.push(g.x, m.h, g.z);
@@ -430,7 +469,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   const targets = frames.map((_, k) => {
     const point = pointOf(k);
     point.y += 0.05;
-    return { name: `print${k + 1}`, point, radius: 0.6 };
+    return { name: `print${k + 1}`, point, radius: 0.6 * size };
   });
   const state = frames.map(() => ({ done: 0, doneGoal: 0, glimmer: 0, glimmerGoal: 0 }));
   let next = null;
@@ -453,12 +492,13 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
   /** The ground with the prints pressed into it: the mud of a print where there is one (its floor under the water), else heightAt. */
   function groundAt(x, z) {
     const ground = heightAt(x, z);
+    const near = 1.6 * size;
     for (let k = 0; k < frames.length; k++) {
       const f = frames[k];
       const dx = x - f.x, dz = z - f.z;
-      if (dx * dx + dz * dz > 1.6 * 1.6) continue;
-      const u = dx * f.ax + dz * f.az, w = (-dx * f.az + dz * f.ax) * f.out;
-      const m = mudAt(u, w, ground, levels[k]);
+      if (dx * dx + dz * dz > near * near) continue;
+      const u = (dx * f.ax + dz * f.az) / size, w = ((-dx * f.az + dz * f.ax) * f.out) / size;
+      const m = mudAt(u, w, ground, levels[k], size);
       if (covered(m.dp, m.dm)) return Math.max(ground, m.h);
     }
     return ground;
@@ -469,7 +509,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
     ring(k, 1.3);
     ring(k, 0.6, now + 0.18);
     const drops = glints(world, {
-      count: 16, life: 0.7, spread: 0.5, fall: 0.85, size: 0.085, colour: '#e3f1ec', seed: `print splash ${k}`,
+      count: 16, life: 0.7, spread: 0.5 * size, fall: 0.85, size: 0.085, colour: '#e3f1ec', seed: `print splash ${k}`,
       look: { glow: 0.8, falloff: 2.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.NormalBlending, floor: 0.5, span: 0.5 },
     });
     drops.points.name = 'Print splash';
@@ -564,7 +604,7 @@ export function createMudPrints(world, { prints, heightAt = world.heightAt, seed
         nextGlint = now + GLIMMER.every;
         const turn = (now * 2.39996) % (Math.PI * 2);
         const [x, z] = toWorld(frames[next], PAD[0] + Math.cos(turn) * 0.3, Math.sin(turn) * 0.24);
-        keep(sparkleBurst(world, new THREE.Vector3(x, rims[next] + 0.05, z), { count: 9, duration: 1.2, size: 0.2, spread: 0.36, seed: `print glimmer ${Math.floor(now * 10) % 9}` }));
+        keep(sparkleBurst(world, new THREE.Vector3(x, rims[next] + 0.05, z), { count: 9, duration: 1.2, size: 0.2 * size, spread: 0.36 * size, seed: `print glimmer ${Math.floor(now * 10) % 9}` }));
       }
       if (now >= nextRing) {
         nextRing = now + GLIMMER.ring;

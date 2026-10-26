@@ -1267,6 +1267,12 @@
    "duration": 4.17,
    "model": "eleven_v4"
   },
+  "kafli2/k2_mosi_gramedla": {
+   "key": "59d3b10b25e3982de9aa69a4153acbdad8dd90312cc6b6c4bf79ad85cf7c2ac4",
+   "mp3": "266794c510edb1c6f398cdf765cb37a21a7a79b370472931d5cdbe6ce1649f52",
+   "duration": 5.77,
+   "model": "eleven_v4"
+  },
   "kafli2/k2_mosi_hint_berry1": {
    "key": "fc8d589321243f57282ac3909dbcdca04963ac45b17b7d31b74eac1358e2debe",
    "mp3": "1a5b66e15ac838529d438889718808e1bd0b5f113fae3c0d0929d07721550790",

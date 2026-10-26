@@ -492,7 +492,7 @@ test('the fen cards unlock with their findings and have three pages each', () =>
   }
   // The frog is chapter 1's card: the Fen adds a sixth page about its eggs and tadpoles, and leaves the five it had alone.
   const frog = CARDS.find(c => c.id === 'frog');
-  assert.deepEqual(frog.unlock, { found: 'frog' }, 'the frog in the third print opens the frog\'s card, as the forest\'s frog does');
+  assert.deepEqual(frog.unlock, { found: 'frog' }, 'the frog in the Fen opens the frog\'s card, as the forest\'s frog does');
   assert.equal(frog.spread, 1, 'on the first spread still');
   assert.equal(frog.pages.length, 6);
   assert.deepEqual(frog.pages.slice(0, 5).map(page => [page.image, page.text]), FROG_PAGES, 'its five pages as they were recorded');
@@ -630,13 +630,13 @@ test('chapter 1\'s frog found again in the Fen flies into the book once, and the
   const flights = doc.getElementById('journal-flights').children;
   assert.equal(journal.addFinding('frog'), false, 'the same frog again, as chapter 1 finds it: nothing');
   assert.equal(flights.length, 0);
-  assert.equal(journal.addFinding('frog', null, { again: true }), true, 'found again in a new place (the third print)');
+  assert.equal(journal.addFinding('frog', null, { again: true }), true, 'found again in a new place (the Fen)');
   assert.equal(flights.length, 1, 'its picture flies');
   assert.deepEqual(save.get().findings, ['frog'], 'and nothing more is saved');
   journal.update(FLIGHT_SECONDS + 0.1);
   assert.deepEqual(sounds, ['newAnimal'], 'it lands with the book\'s bell');
   assert.equal(doc.getElementById('journal-badge').hidden, false, 'and the badge, for its new page');
-  assert.equal(journal.addFinding('frog', null, { again: true }), false, 'once: a second splash of the print flies nothing');
+  assert.equal(journal.addFinding('frog', null, { again: true }), false, 'once: a second tap on it flies nothing');
   doc.getElementById('journal-button').dispatchEvent(new Event('click'));
   assert.equal(book.spread, 1, 'the frog is on the first spread');
   assert.ok(animations.some(a => a.el === tile('frog') && /scale/.test(JSON.stringify(a.keyframes))), 'and it nods there');

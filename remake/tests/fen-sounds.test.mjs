@@ -13,7 +13,7 @@ import { centsFromKey, createFakeContext, peakThrough, pitchesOf } from './fake-
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
 const NAMES = [
   'splash', 'ripple', 'countTone', 'berryPop', 'sniff', 'breathHuge', 'chew', 'liftTone', 'windHigh', 'slide', 'landSaddle', 'mapMark',
-  'dragonfly', 'turtle', 'fish', 'earlyBird',
+  'dragonfly', 'turtle', 'fish', 'earlyBird', 'farRoar',
 ];
 const seeded = seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 

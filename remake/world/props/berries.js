@@ -10,13 +10,16 @@ import { sparkleBurst, sparkleTrail, needEffects } from './sparkles.js';
 // a trail of glints, and leaves its bush, which shakes, its leaves nodding. All the bushes are one mesh, all the berries one
 // instanced mesh: two draw calls (and a third for a bunch in the air).
 //
-//   const berries = createBerryBushes(world, { bushes: [{ position: [x, y, z], kind: 'red', count: 2, facing }] });
+//   const berries = createBerryBushes(world, { bushes: [{ position: [x, y, z], kind: 'red', count: 2, facing, size, low }] });
 //   for (const t of berries.targets) s.target(t.name, t);    // berry_<bush>_<i>: { name, point, radius: 0.35, kind }: a bunch
 //   yield berries.pick('berry_0_1', basket.point);           // it flies there; a Handle, done when it is there
 //   berries.shake(0);                                         // a Handle, done when the bush is still again
 //   berries.glimmer(true);                                    // now and then a glint on a red bunch still on its bush
 //
-// `facing` (degrees, 0 is +X and 90 is +Z) is the side of the bush its bunches hang on: the side the camera sees. The leaves sway a
+// `facing` (degrees, 0 is +X and 90 is +Z) is the side of the bush its bunches hang on: the side the camera sees. They hang just
+// outside the tips of its leaves, so no leaf ever covers one: a bunch is always seen as a bunch, not only by its glint. `size`
+// draws a bush that many times larger (a big one, 1 by default), and `low` hangs its bunches low under its leaves, below the widest
+// of it, where a child looks for them last (chapter 2's "Þarna, undir laufinu!"). The leaves sway a
 // little in the shader and shake when a bunch is picked (a bush index and a sway weight on each vertex); the berries on a shaking
 // bush shake with it. Everything runs on the game clock (world.effects, world.clock.time). The basket (basket.js) draws a bunch
 // that lands in it the same: BUNCH and berryGeometry.
@@ -30,6 +33,7 @@ export const BUNCH = [[0, 0, 0], [0.037, 0.014, 0.014], [-0.035, 0.012, 0.018], 
 const SHAKE = { seconds: 0.8, hz: 7, reach: 0.06 }; // a bush's shake: how long, how fast, how far its top moves (m)
 const FLIGHT = { seconds: 0.85, arc: 0.6 }; // s a picked bunch flies, and m it rises above the straight line
 const GLINT_EVERY = 2.6; // s between glints on the red bunches while they glimmer
+const ROOM = 0.1; // m a leaf keeps from the middle of a bunch: no leaf lies over one, so it is always seen whole
 
 const smooth = t => { const k = Math.min(1, Math.max(0, t)); return k * k * (3 - 2 * k); };
 
@@ -70,14 +74,18 @@ export function bunchGeometry() {
   return out;
 }
 
-/** Where one bush's bunches hang: on the side it faces, spread across it, half to three quarters of the way up, on its leaves. */
-function bunchesOf(random, count, facing) {
+/**
+ * Where one bush's bunches hang: on the side it faces, spread across it, half to three quarters of the way up and just outside its
+ * leaves' tips (which reach 1.05 of its radius); or, `low`, a quarter of the way up under the widest of it, outside the shorter
+ * leaves there. `size` is the bush's.
+ */
+function bunchesOf(random, count, facing, size = 1, low = false) {
   const f = THREE.MathUtils.degToRad(facing);
   return Array.from({ length: count }, (_, i) => {
     const spread = count > 1 ? (i / (count - 1) - 0.5) * 1.5 : 0;
     const a = f + spread + (random() - 0.5) * 0.25;
-    const up = BUSH.height * (0.42 + 0.22 * random());
-    const out = BUSH.radius * (0.98 + 0.06 * random());
+    const up = BUSH.height * size * (low ? 0.24 + 0.05 * random() : 0.42 + 0.22 * random());
+    const out = BUSH.radius * size * (low ? 1.0 + 0.03 * random() : 1.1 + 0.03 * random());
     return [Math.cos(a) * out, up, Math.sin(a) * out];
   });
 }
@@ -85,25 +93,33 @@ function bunchesOf(random, count, facing) {
 /**
  * One bush: a small dark heart (an 80-triangle ball) and BUSH.leaves leaves over it, each two triangles, laid along the bush's
  * round in layers from BUSH.shell[0] to [1] of the way out, each lapping over the ones under it (shingled, as a shrub's leaves are):
- * flat to the round and tipped a little out, pointing round it and mostly down it, the inner ones darker.
+ * flat to the round and tipped a little out, pointing round it and mostly down it, the inner ones darker. A leaf that would come
+ * within ROOM of one of its bunches (`room`: where they hang, from the bush's foot) is left off, so none covers a bunch.
  */
-function bushGeometry(random, b, [x, y, z]) {
+function bushGeometry(random, b, [x, y, z], size = 1, room = []) {
   const position = [], colour = [], sway = [];
   const tone = [LEAF.dark, LEAF.mid, LEAF.light].map(hex => new THREE.Color(hex));
   const core = new THREE.Color(LEAF.core);
   const push = (p, c, up) => { position.push(p.x, p.y, p.z); colour.push(c.r, c.g, c.b); sway.push(b, Math.max(0, up)); };
-  const R = BUSH.radius, H = BUSH.height * 0.5, middle = y + BUSH.height * 0.47;
+  const R = BUSH.radius * size, H = BUSH.height * size * 0.5, middle = y + BUSH.height * size * 0.47;
   const heart = new THREE.IcosahedronGeometry(1, 1);
   const hp = heart.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < hp.count; i++) {
     v.fromBufferAttribute(hp, i);
     const p = new THREE.Vector3(x + v.x * R * BUSH.heart, middle + v.y * H * BUSH.heart, z + v.z * R * BUSH.heart);
-    push(p, core, (p.y - y) / BUSH.height);
+    push(p, core, (p.y - y) / (BUSH.height * size));
   }
   heart.dispose();
   const out = new THREE.Vector3(), round = new THREE.Vector3(), down = new THREE.Vector3(), along = new THREE.Vector3(), side = new THREE.Vector3();
   const UP = new THREE.Vector3(0, 1, 0);
+  const bunches = room.map(([ox, oy, oz]) => new THREE.Vector3(x + ox, y + oy, z + oz));
+  const near = new THREE.Vector3(), halves = [new THREE.Triangle(), new THREE.Triangle()];
+  const covers = (base, left, tip, right) => {
+    halves[0].set(base, left, tip);
+    halves[1].set(base, tip, right);
+    return bunches.some(p => halves.some(half => half.closestPointToPoint(p, near).distanceTo(p) < ROOM));
+  };
   for (let i = 0; i < BUSH.leaves; i++) {
     const a = random() * Math.PI * 2;
     const h = 0.06 + 0.94 * random(); // from the foot of the bush (0) to its top (1)
@@ -120,7 +136,7 @@ function bushGeometry(random, b, [x, y, z]) {
     const turn = THREE.MathUtils.degToRad(-75 + (random() - 0.5) * 150); // from round it (0) to down it (-90) and back up
     along.copy(round).multiplyScalar(Math.cos(turn)).addScaledVector(down, -Math.sin(turn)).addScaledVector(out, 0.35).normalize();
     side.crossVectors(along, out).normalize();
-    const length = BUSH.leaf[0] * (0.8 + 0.4 * random()), width = BUSH.leaf[1] * (0.8 + 0.4 * random());
+    const length = BUSH.leaf[0] * size * (0.8 + 0.4 * random()), width = BUSH.leaf[1] * size * (0.8 + 0.4 * random());
     const tip = base.clone().addScaledVector(along, length);
     const mid = base.clone().addScaledVector(along, length * 0.45);
     const fold = out.clone().multiplyScalar(width * 0.12); // a little convex over its rib
@@ -129,7 +145,8 @@ function bushGeometry(random, b, [x, y, z]) {
     const c = tone[Math.min(2, Math.floor(random() * 1.6 + h * 1.2 + layer * 0.6))].clone()
       .offsetHSL(0, 0, (random() - 0.5) * 0.06).multiplyScalar(0.62 + 0.38 * layer);
     const rib = c.clone().multiplyScalar(0.82);
-    const up = p => (p.y - y) / BUSH.height;
+    if (covers(base, left, tip, right)) continue;
+    const up = p => (p.y - y) / (BUSH.height * size);
     push(base, rib, up(base)); push(left, c, up(left)); push(tip, c, up(tip));
     push(base, rib, up(base)); push(tip, c, up(tip)); push(right, c, up(right));
   }
@@ -142,8 +159,8 @@ function bushGeometry(random, b, [x, y, z]) {
 }
 
 /**
- * Berry bushes at `bushes` ([{ position: [x, y, z], kind: 'red' | 'blue', count, facing = 0 }]: the ground under each; `count`
- * bunches). Returns
+ * Berry bushes at `bushes` ([{ position: [x, y, z], kind: 'red' | 'blue', count, facing = 0, size = 1, low = false }]: the ground under
+ * each; `count` bunches; `size` times the bush's own measures; `low`: its bunches under its leaves). Returns
  *   group           the bushes and their berries, in world.scene
  *   targets         [{ name: 'berry_<b>_<i>', point, radius: 0.35, kind }]: every bunch, picked or not
  *   picked          the names of the bunches picked
@@ -158,13 +175,16 @@ export function createBerryBushes(world, { bushes = [], seed = 'berries' } = {})
   needEffects(world, 'createBerryBushes');
   for (const b of bushes) {
     if (!['red', 'blue'].includes(b.kind)) throw new TypeError(`A bush's berries are 'red' or 'blue', not ${JSON.stringify(b.kind)}`);
+    if (b.size !== undefined && !(b.size > 0)) throw new TypeError(`A bush's size is how many times the usual it is, above 0, not ${JSON.stringify(b.size)}`);
   }
   const random = seededRandom(seed);
   const group = new THREE.Group();
   group.name = 'Berry bushes';
 
   // ---- the bushes: leaves round a dark heart, one mesh ----
-  const parts = bushes.map((b, i) => bushGeometry(random, i, b.position));
+  // where each bush's bunches hang, first, so that its leaves leave room for them
+  const hung = bushes.map(b => bunchesOf(random, b.count, b.facing ?? 0, b.size, b.low).map(at => ({ at, turn: random() * Math.PI * 2 })));
+  const parts = bushes.map((b, i) => bushGeometry(random, i, b.position, b.size, hung[i].map(bunch => bunch.at)));
   const bushGeometryAll = mergeAll(parts);
   const shakes = bushes.map(() => 0);
   const bushUniforms = { uBushTime: { value: 0 }, uShake: { value: new Float32Array(Math.max(1, bushes.length)) } };
@@ -195,11 +215,11 @@ uniform float uShake[ ${Math.max(1, bushes.length)} ];`)
   const bunchList = [];
   bushes.forEach((bush, b) => {
     const [x, y, z] = bush.position;
-    bunchesOf(random, bush.count, bush.facing ?? 0).forEach((at, i) => bunchList.push({
+    hung[b].forEach(({ at, turn }, i) => bunchList.push({
       name: `berry_${b}_${i}`, bush: b, kind: bush.kind,
       home: new THREE.Vector3(x + at[0], y + at[1], z + at[2]),
       point: new THREE.Vector3(x + at[0], y + at[1], z + at[2]),
-      turn: random() * Math.PI * 2,
+      turn,
     }));
   });
   const geometry = berryGeometry();
@@ -223,7 +243,7 @@ uniform float uShake[ ${Math.max(1, bushes.length)} ];`)
     bunchList.forEach((bunch, i) => {
       const k = shakes[bunch.bush];
       const swing = 0.012 * Math.sin(now * 1.7 + bunch.bush * 2.1 + bunch.home.x * 0.9) + k * SHAKE.reach * Math.sin(now * SHAKE.hz * Math.PI * 2 + bunch.home.z * 3);
-      const up = (bunch.home.y - bushes[bunch.bush].position[1]) / BUSH.height;
+      const up = (bunch.home.y - bushes[bunch.bush].position[1]) / (BUSH.height * (bushes[bunch.bush].size ?? 1));
       shakeOffset.set(swing * up, 0, 0.6 * swing * up);
       bunch.point.copy(bunch.home).add(shakeOffset);
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, bunch.turn);

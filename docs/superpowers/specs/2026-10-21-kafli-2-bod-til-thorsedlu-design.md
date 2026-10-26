@@ -37,13 +37,14 @@ lendir í hnakknum. Önnur stjarnan kviknar, og gjöf Þórseðlu á hátíðina
 | Vinirnir í fjarska | raunstærð, langt í burtu | Slóeðla vaðandi í tjörn, Flugeðla á dauðum trjástofni sem stendur upp úr feninu, Uggeðla liggjandi í sefinu með seglið upp úr: sjást aðeins ofan af Þórseðlu og glitra þegar þau finnast. | Engin |
 | Dýr Fensins | smá | Ný dýr sem eiga heima í votlendi og hvergi annars staðar í leiknum, öll tegundir sem lifðu með risaeðlunum: froskar, drekaflugur, brunnklukkur og vatnalæsingjar í tjörnunum og fótsporunum, salamöndrur á mosaþúfum, skjaldbaka á trjábol, fornfugl (fjaðraður, eins og Archaeopteryx í bókinni) sem situr í sefinu og flýgur upp, fiskar sem hoppa, sniglar. Þau bregðast við pikki og fara í bókina. | Hljóð |
 
-Kambeðla sést í upphafi, með plöturnar logandi, og veifar þeim af stað. Grameðla kemur ekki enn.
+Kambeðla sést í upphafi, með plöturnar logandi, og veifar þeim af stað. Grameðla sést aðeins úr fjarska, í senu 6, við skógarjaðarinn
+handan Fensins; hún kemur seinna.
 
 ## 3. Staðirnir
 
 - **Burknalautin** (til): upphafsskotið, Kambeðla lýsandi.
 - **Fenjaslóðin** (nýr staður): stígurinn liggur út úr skóginum og niður; trén breytast, jörðin verður blaut og mosavaxin, þoka liggur
-  lágt. Þórseðla hefur gengið þar á undan og skilið eftir tíu risafótspor í leðjunni, hvert um 70 cm í þvermál og fullt af vatni sem
+  lágt. Þórseðla hefur gengið þar á undan og skilið eftir tíu risafótspor í leðjunni, hvert um 1,6 m á lengd og 1,1 m á breidd og fullt af vatni sem
   speglar himininn. Í nokkrum þeirra býr dýr. Slóðin endar við Fenið.
 - **Fenið** (nýr staður, aðalsvið kaflans): opið votlendi með mörgum tjörnum og einu breiðu, hægu síki; elftingasef og hávaxnar
   elftingar í gulgrænum breiðum, burknar og köngulpálmar á þúfunum, mosaþúfur, flotholt af vatnaliljum með hvítum og bleikum blómum;
@@ -77,8 +78,9 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 ### 2. Fótsporin í leðjunni (60–90 s, á hraða barnsins)
 - **Markmið:** barnið telur upp í tíu.
 - **Skot:** reiðskot niður úr skóginum inn í þokuna; trén breytast í fenjatré. Fótsporin tíu liggja í boga framundan í leðjunni,
-  vatnið í þeim glitrar. Myndavélin fylgir Mosa og sveigir svo að næsta spori sem bíður. Froskur hoppar upp úr þriðja sporinu,
-  brunnklukka syndir í því sjötta, drekafluga situr á brún þess níunda, og salamandra skríður yfir það tíunda.
+  vatnið í þeim glitrar. Myndavélin fylgir Mosa og sveigir svo að næsta spori sem bíður. Drekafluga sveimar lágt yfir vatninu í þriðja sporinu
+  og skýst upp með suði þegar skvettist, brunnklukka syndir í því sjötta, vatnalæsingi skautar á því níunda, og salamandra skríður
+  yfir það tíunda. Ekkert þeirra er dýr sem kafli 1 hefur fundið; froskurinn er falinn í Feninu (sena 4).
 - **Línur:** Mosi: „Sjáðu! Fótspor Þórseðlu. Þau eru risastór! Teljum þau!“ Við hvert pikk telur Mosi í hvorugkyni, því spor eru hvorugkyns: „Eitt!“, „Tvö!“, „Þrjú!“ … „Tíu!“ (ný
   talning kafla 2, sömu línur og berin nota). Eftir tíunda: Mosi: „Tíu fótspor! Hún hlýtur að vera rétt hjá.“ Vísbending eftir 8 s:
   „Hvað með næsta spor? Pikkaðu á það!“ Eftir 16 s pikkar Egill sjálfur.
@@ -96,17 +98,22 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 
 ### 4. Tálbeitan (60–90 s, á hraða barnsins)
 - **Markmið:** barnið tínir fimm rauð ber og fær höfuð Þórseðlu niður.
-- **Skot:** mýrarberjarunnarnir á þúfunum; myndavélin frjáls innan þúfnanna (drag) eins og í leitinni í kafla 1. Egill heldur á
+- **Skot:** mýrarberjarunnarnir í kringum bakkann þar sem Egill tínir; myndavélin frjáls (drag, 70° til hvorrar hliðar) eins og í
+  leitinni í kafla 1. Rauðu berin fimm eru á fjórum runnum: tvö á stóra runnanum, sem barnið sér strax ásamt bláu berjunum, en hin
+  þrjú finnur það með því að snúa sér: eitt við vatnið hjá mosaþúfunni og eitt á síkisbakkanum til vinstri, og eitt sem hangir lágt
+  undir laufinu til hægri. Hvert ber sést sem ber þegar myndavélin snýr að því (ekkert lauf yfir því). Egill heldur á
   laufkörfu og gengur á þúfunum, aldrei út í vatnið.
 - **Línur:** Mosi: „Rauðu berin! Tíndu fimm handa henni.“ Mosi telur við hvert ber: „Eitt!“ … „Fimm!“ Pikk á blátt ber: Mosi: „Nei,
-  bláu berin eru fyrir fuglana. Þau rauðu!“ Vísbendingar eftir 12, 24 og 36 s: „Ég sé rauð ber við stóra runnann!“, „Kíktu nær vatninu!“,
-  „Þarna, undir laufinu!“ Eftir 48 s tínir Egill sjálfur.
+  bláu berin eru fyrir fuglana. Þau rauðu!“ Vísbendingar eftir 12, 24 og 36 s, hver sú sem á við næsta ber, og myndavélin snýr sér
+  að því: „Ég sé rauð ber við stóra runnann!“ (stóri runninn), „Kíktu nær vatninu!“ (berin tvö við vatnið), „Þarna, undir laufinu!“
+  (það síðasta). Eftir 48 s tínir Egill sjálfur.
 - **Þegar fimm eru komin:** Mosi: „Réttu þau upp, Egill! Hátt!“ Barnið dregur körfuna upp (eða pikkar á Egil); Egill teygir hana upp
   yfir höfuð sér. Þórseðla hættir að bíta, þefar, og höfuðið kemur hægt niður úr trjánum (klippan lowerHead, 4,5 s), nær og nær, þar til
   augun eru í augnhæð Egils; myndavélin yfir öxl Egils horfir upp í risaandlitið sem kemur niður, og sólin blikkar. Hún borðar berin úr
   körfunni: „Mmm… rauðber!“ Svo sér hún þau: Þórseðla: „Ó! Mosi! Og hver ert þú, litli vinur?“ Egill: „Ég heiti Egill!“ Þórseðla:
   „Egill. Takk fyrir berin.“
-- **Barnið:** tínir berin, réttir þau upp.
+- **Barnið:** tínir berin, réttir þau upp. Í leitinni getur það líka snúið sér alveg til vinstri að bakka síkisins, þar sem froskurinn úr
+  kafla 1 situr falinn í sefinu við vatnsborðið, utan allra skota; pikk á hann finnur hann aftur á nýjum stað (síða Fensins á spjaldi hans).
 
 ### 5. Boðið (um 30 s)
 - **Skot:** tvískot: höfuð Þórseðlu niðri, Mosi og Egill við hliðina.
@@ -114,17 +121,23 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
   sé fyrstu stjörnuna á undan ykkur og segi ykkur frá henni.“ Þórseðla: „Egill… viltu sjá hvað ég sé héðan að ofan?“ Egill: „Já!“
 - **Barnið:** hlustar; val: „Já!“ eða „Er það hátt?“ (Þórseðla: „Mjög hátt. En ég held á þér.“ sama val).
 
-### 6. Útsýnisturninn (90–120 s, á hraða barnsins)
-- **Markmið:** stóra stundin, og barnið finnur vinina þrjá í fjarska.
+### 6. Útsýnisturninn (115–145 s, á hraða barnsins)
+- **Markmið:** stóra stundin, og barnið finnur vinina þrjá í fjarska og sér Grameðlu lengst í burtu.
 - **Skot:** Þórseðla leggur höfuðið á jörðina. Egill klifrar upp á hnakka hennar, rétt aftan við höfuðið, og heldur sér í (eins og
   hnakkurinn: hann svífur upp með glitri sé pikkað á hann, annars sjálfur eftir 6 s). Hún lyftir hægt (klippan liftUp, 8 s, höfuðið
   lárétt); myndavélin rís með honum, trén falla niður fyrir, Mosi verður lítill á þúfunni og veifar, og efst opnast allt Fenið:
   tjarnir sem glitra, síkið að sjóndeildarhring, sefbreiður, dauðir trjástofnar, þokan að leysast upp, og sólin brosir stór og nálæg. Svo verður myndavélin frjáls (drag) í 9 m hæð.
 - **Línur:** Egill, á leiðinni upp: „Vá… Mosi er pínulítill!“ Mosi, að neðan: „Ég er ekki lítill, ég er langt í burtu!“ Þórseðla:
   „Horfðu vel, Egill. Sérðu vinina okkar?“ Þegar vinur finnst: Mosi: „Slóeðla! Hún er að vaða í tjörninni!“, „Flugeðla! Uppi á gamla trénu!“,
-  „Uggeðla! Hún liggur í sefinu, sjáðu seglið!“ Þórseðla eftir þann þriðja: „Nú veistu hvar þau eru. Við skrifum það í bókina.“ Vísbendingar eftir
+  „Uggeðla! Hún liggur í sefinu, sjáðu seglið!“ Eftir þann þriðja, þegar Grameðla sést lengst í burtu: Mosi: „Sjáðu, lengst þarna! Þetta er
+  Grameðla. Hana heimsækjum við seinna!“ Þórseðla svo: „Nú veistu hvar þau eru. Við skrifum það í bókina.“ Vísbendingar eftir
   12, 24 og 36 s (pan að staðnum); eftir 48 s finnst vinurinn sjálfur.
 - **Barnið:** dregur fingur til að líta um og pikkar á vinina sem glitra; hver fer inn á kortið í bókinni (sjá 7).
+- **Grameðla í fjarska:** þegar Mosi hefur nefnt Uggeðlu snýr myndavélin sér hægt til vesturs (mest 15° á sekúndu, mjúkt af stað og
+  mjúkt í stopp) og linsan þrengist, að skógarjaðrinum handan Fensins, þangað sem kortið segir að Grameðla eigi heima. Þar stendur hún,
+  um 144 m í burtu, lítil í mistrinu en greinilega grameðla: stór haus, tveir fætur og langur hali. Hún öskrar, Mosi segir hver hún er,
+  og svo snýr hún sér og gengur inn í skóginn og hverfur á bak við trén. Hún er ekki pikkmark, fer hvorki á kortið né í bókina, og
+  senan heldur svo áfram eins og áður með orðum Þórseðlu.
 
 ### 7. Rennibrautin (um 20 s)
 - **Skot:** Þórseðla beygir hálsinn í mjúkan boga niður að Mosa; Egill rennur eftir hálsinum, glitur á eftir og vatnsdropar af hálsinum, og lendir í hnakknum
@@ -144,7 +157,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 | --- | --- |
 | Vatnið | Glitrandi yfirborð í takt, gárur sem breiðast frá rótum, steinum og fótum Þórseðlu, loftbólur sem stíga upp úr leðjunni, sólglampi í átt að sólinni; drekaflugur og vatnalæsingjar rétt yfir og á vatninu, fiskur sem hoppar öðru hvoru. |
 | Þokan | Lág þoka í botninum við komuna sem sólin leysir upp á meðan kaflinn líður; sólargeislar lágt gegnum hana. |
-| Fótsporin | Spegilgljái á vatninu í þeim (himinlitur, enginn spegill), skvetta og hringgárur við pikk; froskur, brunnklukka, drekafluga og salamandra. |
+| Fótsporin | Spegilgljái á vatninu í þeim (himinlitur, enginn spegill), skvetta og hringgárur við pikk; drekafluga, brunnklukka, vatnalæsingi og salamandra. |
 | Þórseðla | Alltaf lifandi: andar, deplar, bítur og tyggur lauf (lauf falla í vatnið), halinn sveiflast, hún vegur sér hægt og vatnið gárast við fæturna; horfir á Egil þegar hún er komin niður; vatn drýpur af hálsinum þegar hún lyftir honum. |
 | Berjarunnarnir | Berin glitra lítillega, runninn hristist og laufin kinka þegar ber er tínt. |
 | Plönturnar | Elftingasef og elftingar í takt við stefið, hangandi mosi sem bærist, vatnaliljur sem vagga á gárunum, burknar sem sveigja frá Mosa. |
@@ -158,7 +171,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Hljóð:** Fenið hefur sitt eigið hljóðteppi: froskakvak, drekaflugusuð, dropar, loftbólur sem springa, sef sem skrjáfar, fornfuglinn
   sem kallar; skvettur og hringgárur við fótsporin, tónn sem hækkar með hverri tölu, berjapopp,
   þefið og þungt, hlýtt andardráttarhljóð þegar höfuðið kemur niður, tyggið, lyftutónn sem hækkar í átta sekúndur, vindur í hæðinni,
-  rennslishljóð og skopp í hnakkinn, stjörnuhljómurinn úr kafla 1. Allt í tóntegund stefsins.
+  rennslishljóð og skopp í hnakkinn, fjarlægt og vinalegt öskur Grameðlu, stjörnuhljómurinn úr kafla 1. Allt í tóntegund stefsins.
 - **Tónlist:** stefið heldur áfram, en í Feninu bætist við mjúkt hljóðteppi votlendisins (froskar, dropar, suð) sem gefur staðnum sinn
   eigin hljóm; ekki nýtt lag.
 
@@ -218,7 +231,7 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Sætið er aftan á höfðinu á Þórseðlu, ekki á hálsinum.** Lárétt sæti 0,55 m yfir fimmta hálslið grefur Egil inn í hálsinn (húðin er 0,9 m yfir beinunum og hálsinn 63° brattur efst). Sætið er lárétt (snúningur frá beininu, halli frá heiminum), Egill flýtur upp á það meðan hausinn er niðri við augun hans, og það endar 9,52 m yfir tjarnarbotni. Rennibrautin liggur því niður allan hálsinn.
 - **Tjörnin hennar (p1) er 0,6 m djúp, ekki 0,3.** Ökklaliðir hennar sitja 0,35 m yfir iljunum; í 0,3 m náði vatnið aðeins ökklunum. 0,6 m er enn vað fyrir 22 m dýr, og Egill fer aldrei út í vatnið.
 - **Hausinn kemur niður að augum Egils mælt við jörðina hans**, því rót hennar stendur 0,74 m neðar á botninum. Klippan `lowerHead` er fryst í þeim ramma þar sem augun ná hæðinni, og hún horfir á hann með tveggja liða miði.
-- **Fótsporin eru 1,0 × 0,7 m, þrýst í jörðina með brún**, ein ávöl dæld með þremur klóförum sem renna saman við framkantinn (sauropoda-afturspor), og lítið framfótarspor á undan hverju. 0,7 m „pollur" las ekki sem „risastór". Dýrin í sporunum eru teiknuð 1,1× raunstærð svo þau sjáist.
+- **Fótsporin eru 1,6 × 1,1 m, þrýst í jörðina með brún**, ein ávöl dæld með þremur klóförum sem renna saman við framkantinn (sauropoda-afturspor), og lítið framfótarspor á undan hverju. 0,7 m „pollur" las ekki sem „risastór", og í prófun eigandans 2026-10-25 voru sporin í raunstærð 22 m sauropoda (1,0 × 0,7 m) ekki stærri en fætur Mosa þótt hann segi „Þau eru risastór!": þau eru því teiknuð 1,6 sinnum raunstærð (ein stærðartala í `mud-prints.js`, `size`), með mjórri sporvídd ættingja Brontosaurus, 3 m milli spora, og hvorki gras né sef vex í þeim. Dýrin í sporunum eru teiknuð 1,3× raunstærð svo þau sjáist.
 - **Karfan er laufkarfa og fer eins hátt og handleggir Egils ná** (að höfuðhæð, út til hægri), ekki yfir höfuð: handleggir líkansins eru 0,27 m. Berin hrúgast upp fyrir brúnina og karfan ljómar meðan hún er uppi.
 - **Leitin ofan af höfðinu er í tveimur hlutum**, ekki ein ±70° leit: fyrst Slóeðla og Flugeðla saman (um −23° til +35°), svo snýr myndavélin sér (15°/s) að Uggeðlu og leitar að henni með ±70°, því vinirnir þrír spanna 187° og ein leit næði þeim ekki. Eftir að barnið hefur fengið hjálp við einn vin styttast vísbendingar næstu vina í 6 s og fundur í 24 s, svo heil spilun án snertingar klárist innan 10 mínútna.
 - **Uggeðla sést frá leitarmyndavélinni en ekki frá sjálfu höfðinu** (sjónlínan liggur í gegnum krónu suðaustur-trésins). Færsla hennar hefði stokkað 75–127 plöntum upp á nýtt og eyðilagt samþykktar myndir; myndavélin er augu Egils í sögunni og krónan rammar hana inn.
@@ -230,6 +243,9 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Þokuslæðurnar dofna þegar horft er bratt niður á þær** (útsýnið, lyftan), svo þær lesi ekki sem flatar rákir ofan frá; á jörðu niðri haldast þær.
 - **Fjarlægt sef Fensins er gisnara** (10 % handan 19 m) til að halda hverjum ramma undir 230 þúsund þríhyrningum með svigrúmi; nærsefið og sefbreiðan í afhjúpuninni eru óbreytt.
 - **Vatnshljóð Fensins byrja á seinni helmingi slóðarinnar** (4 s inn í reiðina) og taka alveg við af skóginum við komuna í Fenið.
+- **Berjaleitin er leit** (prófun eigandans 2026-10-25: öll berin voru á sama skjá og það síðasta náðist aðeins með því að pikka á glitrið). Rauðu berin fimm eru á fjórum runnum í kringum bakkann og aðeins stóri runninn (1,4 sinnum stærri en hinir) með sín tvö sést þegar leitin hefst; barnið snýr frjálsu sýninni (70° til hvorrar hliðar) að hinum. Klasarnir hanga rétt utan við laufin og runninn skilur eftir rými kringum hvern klasa, svo ekkert lauf hylur ber. Hver vísbending Mosa á við runnann sem næsta ber er á, í röð leitarinnar: stóri runninn, berin tvö við vatnið, og loks það sem hangir lágt undir laufinu.
+- **Í fótsporunum er ekkert dýr sem kafli 1 hefur fundið** (prófun eigandans 2026-10-25, við „Þrjú!“: froskurinn í þriðja sporinu var dýr sem barnið hafði þegar fundið). Drekaflugan, sem áður hékk í loftinu við berjaþúfurnar, sveimar nú lágt yfir vatninu í þriðja sporinu, teiknuð stærri svo hún sjáist, og skýst upp með suði þegar skvettist; hún er fyrsti fundur kaflans (`firstFind`). Froskurinn situr í staðinn falinn á bakka síkisins norðvestan við þar sem Egill tínir berin, utan allra skota, og finnst aftur á nýjum stað þegar barnið snýr sér alveg til vinstri í berjaleitinni; frjálsa sýnin þar nær ±70° til hliðanna.
 - **Hljóðin voru samþykkt af eiganda með eyrunum 2026-10-22** (hlustunarsíða með öllum 16 hljóðum og talningarstiganum); rýnir lagði til fínpússun (gára rísandi, stiginn endi á grunntóni, bjöllur lyftutónsins á nótunum, mýkri drekafluga) sem bíður þess að eigandi biðji um hana.
 - **Bókin (verkefni 7):** froskurinn fær sjöttu síðu (halakörtur) í stað nýs spjalds, undantekning frá reglunni um 3–5 síður því síða Fensins bætist við spjald sem eigandi hafði samþykkt; Fen-dýrin sjö eru á annarri Dýrin-opnu með blaðhorni sem flettir (opna með síðari opnu á eftir rúmar sjö spjöld, hornið tekur áttunda reitinn); fundið dýr opnar bókina á sinni opnu; Fen-reiturinn á Kortinu verður fundinn við komuna og kláraður með stjörnunni; textar spjaldanna eru okkar drög og bíða leiðréttinga eiganda, og 23 sögumannslínur þeirra eru óupplesnar þar til þá.
 - **Háls og hali læsist eftir sameiningu** þar til stjarna Þórseðlu (`k2_thorsedla`) er fengin, eins og forskriftin segir; á main var hann opinn gegnum þróunarrofa. Úrskurður eiganda 2026-10-22: þegar reiturinn hefur opnast er hann opinn áfram. Leikur sem hefur verið hafinn merkir vistunina (`hals.played`) fyrir fullt og allt, og eldri vistun með hálfnuðum leik er opin; þá vaggar reiturinn ekki og borðið byggist á Leikir-síðunni, líka eftir sigur eða „Nýr leikur“. Ný vistun án stjörnu er læst.
+- **Grameðla sést úr fjarska í senu 6** (ákvörðun eiganda 2026-10-26; „Grameðla kemur ekki enn“ áður). Eftir að Mosi hefur nefnt Uggeðlu snýr myndavélin sér að Grameðlu við skógarjaðarinn vestan Fensins, 144 m frá útsýnisstaðnum og 5 m framan við fjarlægu trjárröndina (150 m frá miðju Fensins). Áttin er af kortinu: Fen-hluti þess er Fenið sjálft, norður upp, um 3,9 punktar á metra, og reitur Grameðlu er vestan og ögn norðan við reit Þórseðlu (192°); hún stendur 207,5° frá leitarmyndavélinni, í næsta bili milli fenjatrjánna í þá átt sem er nógu breitt fyrir allar 12 m hennar á hlið. Hún er ekki í `farFriends` skipulagsins, því þá héldi plöntuskipulagið sjónlínu að henni opinni og stokkaði plöntum Fensins upp á nýtt. Myndavélin snýr sér á 15°/s, hámarki STYLE.md, milli 1,5 s mjúkra ramma (um 13 s frá Uggeðlu), og linsan þrengist úr 44° í 30° á leiðinni (mest 1,6°/s), svo hún sést um 130 × 55 punktar á 1280×800. Á meðan léttir þokan í hæðinni (1,6×) niður í þoku útlitsins sjálfs: í 1,6× var hún föl vofa við trjárröndina, en í venjulegri þoku sést hún eins og vinirnir sjást í 80–100 m í þykkari þokunni. Hún öskrar (klippan `roar`, með nýju lágu og vinalegu hljóði, `farRoar`, sem eigandinn á eftir að heyra), Mosi segir línuna sína 0,8 s inn í öskrið, og þegar öskrinu lýkur snýr hún sér og gengur á bak við fenjatrén hægra megin og inn fyrir trjárröndina. Hún er falin þegar ekkert af henni sést lengur, og linsan opnast aftur á 3 s meðan Þórseðla segir „Nú veistu hvar þau eru“. Hún er ekki pikkmark og ekkert fer í bókina. Líkanið er gert með vinunum í fjarska, eftir að upphafshnappurinn sést eða undir svarta skjánum, í léttustu útgáfu þeirra (1.400 þríhyrningar, eitt teiknikall), og því er hent með þeim eftir rennibrautina; skrár vinanna eru nú 9,5 MB. Bekkur á spjaldtölvustillingu við öskrið: 3,4–5,2 ms á skjákorti, 43 köll og 133 þúsund þríhyrningar (án hennar 3,9–4,6 ms og 42 köll). Heil spilun án snertingar lengist um 24 s, í 596 s af 600: litlu má bæta við kaflann áður en eitthvað þarf að stytta.

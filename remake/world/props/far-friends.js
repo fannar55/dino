@@ -8,11 +8,12 @@ import { sparkleBurst } from './sparkles.js';
 
 // The far friends of chapter 2's lookout (spec scene 6, "Vinirnir í fjarska"): Slóeðla wading in a far pool, Flugeðla on a dead white
 // snag standing out of the Fen and Uggeðla lying in the reed with her sail up, each at real size and 80 to 100 m from Þórseðla's
-// head, where Egill finds them. They are the game's own models drawn only with Háls og hali's light levels (engine/hals/
-// thorsedla-lod.js: a welded copy of the skin, 1,400 triangles, coloured from its texture in its vertices), as the board's watching
-// friends are: made in a world of their own whose renderer is null, so character-lod.js keeps no full levels of them, casting no
-// shadow and without their eyelid shells (a speck at that distance). They show only while the camera is more than 6 m up, from her
-// head: in every frame on the ground they are hidden and are not even moved, so they cost nothing there.
+// head, where Egill finds them; and Grameðla, the sixth friend, at the edge of the forest beyond the Fen, seen from there once and
+// not found (find: false), as she comes in a later chapter. They are the game's own models drawn only with Háls og hali's light
+// levels (engine/hals/thorsedla-lod.js: a welded copy of the skin, 1,400 triangles, coloured from its texture in its vertices), as
+// the board's watching friends are: made in a world of their own whose renderer is null, so character-lod.js keeps no full levels
+// of them, casting no shadow and without their eyelid shells (a speck at that distance). They show only while the camera is more
+// than 6 m up, from her head: in every frame on the ground they are hidden and are not even moved, so they cost nothing there.
 //
 //   const far = createFarFriends(world, { friends: { sloedla: { position: [x, y, z], heading, clip: 'wade' }, ... }, sun, defer })
 //     defer      true: nothing is fetched or made until prefetch() or load() (chapter 2 makes them after the start button shows)
@@ -24,6 +25,8 @@ import { sparkleBurst } from './sparkles.js';
 //     heading    degrees, 0 facing +X and 90 facing +Z, as everywhere
 //     clip       what she does while she waits: 'idle', or 'wade' (a few slow steps along her pool now and then, on the walk clip
 //                where the model has no wading clip of its own)
+//     find       false for one who is only seen, not found (Grameðla): no target for the search; the chapter moves her itself
+//                (far.actorOf(name): her clips and walks, on the ground there)
 //   far.targets                     [{ name, point, radius: 2.5 }] for s.search: each point is the friend's middle, kept up to date
 //   far.show(on)                    puts them out (in the place they belong to, grounded on its ground), or away
 //   far.glimmer(name, on)           gold glints round her now and then, while she waits to be found
@@ -45,7 +48,7 @@ import { sparkleBurst } from './sparkles.js';
 //                                   them (no prefetch)
 //   far.actorOf(name), far.group, far.isReady, far.disposed
 
-const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus' };
+const MODELS = { sloedla: 'parasaurolophus', flugedla: 'pteranodon', uggedla: 'spinosaurus', gramedla: 'trex' };
 const url = model => new URL(`../../assets/characters/${model}.glb`, import.meta.url).href;
 export const SHOW_ABOVE = 6; // metres the camera must be above for them to show
 const LIGHT_ONLY = [Infinity, Infinity, Infinity, Infinity]; // thorsedla-lod's levels by pixels: always the lightest
@@ -123,7 +126,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     withheld: false, skins: [], // skins: the meshes' own geometry and material, from the models (the light levels replace them)
     target: { name, point: new THREE.Vector3(spec.position[0], (spec.position[1] ?? 0) + 2, spec.position[2]), radius: TARGET_RADIUS },
   }]));
-  const targets = [...entries.values()].map(entry => entry.target);
+  const targets = [...entries.values()].filter(entry => entry.spec.find !== false).map(entry => entry.target);
 
   /** The ground a friend stands on: the place's ground, the top of the snag she perches on, or a little under it for one lying. */
   function groundOf(entry) {
@@ -165,7 +168,7 @@ export function createFarFriends(world, { friends, sun = null, defer = false } =
     // tests read the file themselves; a page that fetched it already (prefetch) parses those bytes; else actor.js loads it
     const bytes = files.get(entry.name);
     const gltf = world.loadModel ? await world.loadModel(address) : bytes ? await parse(await bytes, address) : undefined;
-    files.delete(entry.name); // the file's 2.3-2.7 MB, let go once its model is made
+    files.delete(entry.name); // the file's 2.2-2.7 MB, let go once its model is made
     const actor = await createActor(own, { name: `far-${entry.name}`, url: address, gltf, position: entry.spec.position, heading: entry.spec.heading ?? 0 });
     // A speck at 80 m: no eyelid shells, no shadow either way.
     const lids = [];
