@@ -56,5 +56,7 @@
  { "id": "book_earlybird_1", "speaker": "narrator", "text": "Þetta er fornfugl, öglir, einn af fyrstu fuglunum. Hann átti heima á eyjum við hlýtt lón." },
  { "id": "book_earlybird_2", "speaker": "narrator", "text": "Fornfuglar voru uppi um svipað leyti og Þórseðla, en langt í burtu. Í ævintýrinu okkar hittast þau!" },
  { "id": "book_earlybird_3", "speaker": "narrator", "text": "Við vitum það af steingervingum. Fyrst fannst bara ein fjöður, og svo heill fugl í steini!" },
- { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" }
+ { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" },
+ { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!" },
+ { "id": "book_mosi_fossils_all", "speaker": "mosi", "text": "Vá! Þú fannst alla átta steingervingana. Safnið er fullt!" }
 ]

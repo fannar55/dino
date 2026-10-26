@@ -1076,7 +1076,7 @@ export const chapter = {
     k1_mosi_hocus: { text: 'Hókus pókus, hnakkur! Upp með þig, Egill!', audio: 'k1_mosi_hocus' },
     k1_egill_wow: { text: 'Vá! Ég sé yfir allt!', audio: 'k1_egill_wow' },
     k1_mosi_butterfly: { text: 'Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.', audio: 'k1_mosi_butterfly' },
-    k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og stjörnurnar frá vinunum sem við bjóðum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
+    k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og risaeðlurnar sem við hittum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
     k1_mosi_book_close: { text: 'Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.', audio: 'k1_mosi_book_close' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },
