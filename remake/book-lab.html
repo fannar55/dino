@@ -12,13 +12,14 @@
   /* The lab only, and never linked from the game: a stand-in for the paused forest behind the book, with the game's own
      journal button. The real book (engine/book/book.js) opens over it on the cards in assets/book/, with a save in memory. ?state= picks
      what shows:
-       animals (the default), dinosaurs   the book open on that ribbon (Risaeðlur, Dýrin); it closes into the button, and the
+       animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
      Also: ?card=<id> and ?page=<n> (from 1) open any card at any page, on the Risaeðlur or the Dýrin page as its group says;
-     ?found=all finds every animal and meets every dinosaur, and opens every game, as after the whole book is full;
+     ?found=all finds every animal and fossil and meets every dinosaur, and opens every game, as after the whole book is full (the
+     first look at Safnið then cheers, once); ?fossils=<kind>,<kind> finds those fossils (ammonite, trilobite, tooth, footprint, leaf, amber, egg, skeleton);
      ?find=<id>,<id> finds those animals; ?spread=<n> turns the Dýrin page to that spread at its corner, as a child would.
      __demoStats.cornerSteals counts the points of the tiles in view that a corner takes instead (none is right), on a 24 × 24 grid
      over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels. */
@@ -63,11 +64,12 @@
   import { parseManifest } from './engine/book/media.js';
   import { createJournal } from './engine/scene/journal.js';
   import { createSave } from './engine/save.js';
+  import { FOSSIL_KINDS } from './engine/hals/rules.js';
   import { createAudioContext, createOutput } from './engine/audio/output.js';
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['dinosaurs', 'animals', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'fossils', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
@@ -79,6 +81,7 @@
   save.addSeen('mosi');
   save.addSeen('kambedla');
   for (const id of (params.get('find') ?? '').split(',').filter(Boolean)) save.addFinding(id);
+  for (const kind of (params.get('fossils') ?? '').split(',').filter(Boolean)) save.addHalsFound(kind);
   if (params.get('found') === 'all') {
     for (const card of cards) {
       if (card.unlock.found) save.addFinding(card.unlock.found);
@@ -86,6 +89,7 @@
       if (card.unlock.place) save.addPlace(card.unlock.place);
       if (card.unlock.fossil) save.addHalsFound(card.unlock.fossil);
     }
+    for (const kind of FOSSIL_KINDS) save.addHalsFound(kind.id);
   }
   const context = createAudioContext();
   addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
@@ -156,7 +160,7 @@
   const cardAsked = state === 'card' || state === 'zoom' || state === 'info' || params.has('card');
   const cardId = params.get('card') ?? (state === 'zoom' || state === 'info' ? 'kambedla' : 'kalligrammatid');
   const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
-  book.open(onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  book.open(state === 'fossils' ? 'fossils' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
   await settle();
   for (let n = 1; n < Number(params.get('spread') ?? 1); n++) {
     const corner = document.querySelector(`.book-leaf[data-spread="${n}"] .spread-turn.next`);

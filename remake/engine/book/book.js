@@ -1,12 +1,12 @@
-import { pressable, reducedMotion, sparkle } from './fx.js';
+import { pressable, reducedMotion } from './fx.js';
 import { ICONS } from './icons.js';
 import { createZoom } from './zoom.js';
 import { createCardViewer } from './card-viewer.js';
 import { createAnimalsPage } from './animals-page.js';
 import { isUnlocked, bookState } from './cards.js';
 import { renderMap } from './map-page.js';
-import { FOSSIL_KINDS, validateGame } from '../hals/rules.js';
-import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
+import { createMuseumPage } from './museum-page.js';
+import { validateGame } from '../hals/rules.js';
 
 // The living book (spec sections 3.1 and 4): Egill's journal opened over the paused game as a full-screen, illustrated two-page
 // spread, with Task 1's look (book.css). This is its shell: the spread, the ribbons that turn between its pages, the close, and the
@@ -41,10 +41,10 @@ import { FOSSIL_ART, FOSSIL_HUES } from '../hals/fossil-art.js';
 // The Kortið leaf is the map (map-page.js): the forest and the Fen drawn across the spread, with a slot for the Fen and for each
 // friend that fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name
 // and a sentence (k2_mosi_map_<id>), an empty one only taps.
-// The Safnið leaf is the fossil collection, Steingervingasafn: the eight finds of "Háls og hali" (engine/hals/rules.js FOSSIL_KINDS),
-// four on each page as taped stickers (engine/hals/fossil-art.js), in colour once found (the save's getHals().found) and a soft
-// silhouette with a "?" until then. A tap on a found one has the narrator say its name and a fact (hals_fossil_<kind>), shows its
-// name over it, and sparkles; an unfound one wiggles.
+// The Safnið leaf is the fossil collection, Steingervingasafn, which museum-page.js makes: the eight finds of "Háls og hali" as
+// taped stickers, a found one new ("Nýtt!") until tapped, a tap opening its card when the book has one, and a full collection
+// celebrated once. The Safnið ribbon wears a small "Nýtt!" (.ribbon-new) while a fossil is new. The celebration is for a book the
+// child holds only: it runs when the child opens the book on Safnið, or turns to it (see "Who holds it").
 //
 // Who holds it. A book the child opens (the journal's button) holds the game: onPause(true) as it opens and onPause(false) when it
 // is shut, however it is shut. A book a script opens (the chapter's last scene) holds nothing, so the scene's last line plays on,
@@ -69,7 +69,6 @@ const MOSI_PICTURE = new URL('../../assets/eitt/mosi.webp', import.meta.url).hre
 export const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
 const HALS_SEEN = 'hals'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 const JUNIOR_SEEN = 'yatzy-junior'; // kept in the save's seen list once Litla Yatzy has been opened, so its tile is new no more
-const NAME_MS = 2600; // a fossil's name stays over its sticker this long
 const OPEN_MS = 460;
 const CLOSE_MS = 340;
 const FADE_MS = 160; // the open and close with less motion
@@ -255,33 +254,10 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   gamesLeft.append(eittSlot, halsSlot, juniorSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
-  // The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page.
-  const fossilTiles = FOSSIL_KINDS.map(kind => {
-    const tile = make('button', 'tile fossil-tile');
-    tile.setAttribute('type', 'button');
-    tile.setAttribute('data-fossil', kind.id);
-    tile.style.setProperty('--hue', FOSSIL_HUES[kind.id]);
-    const picture = make('span', 'tile-picture');
-    picture.innerHTML = FOSSIL_ART[kind.id];
-    const name = make('span', 'tile-name');
-    tile.append(picture, name);
-    return { tile, name, kind };
-  });
-  const fossilTitle = make('h2', 'fossil-title');
-  fossilTitle.textContent = 'Steingervingasafn';
-  const fossilCount = make('p', 'fossil-count');
-  const fossilName = make('div', 'fossil-name'); // the name over a sticker tapped
-  fossilName.setAttribute('aria-live', 'polite');
-  fossilName.hidden = true;
-  const fossilLeaf = leaves.get('fossils');
-  const [fossilsLeft, fossilsRight] = fossilLeaf.tiles;
-  fossilsLeft.classList.add('fossil-tiles');
-  fossilsRight.classList.add('fossil-tiles');
-  fossilsLeft.append(...fossilTiles.slice(0, 4).map(f => f.tile));
-  fossilsRight.append(...fossilTiles.slice(4).map(f => f.tile));
-  fossilLeaf.pages[0].append(fossilTitle);
-  fossilLeaf.pages[1].append(fossilCount);
-  fossilLeaf.el.append(fossilName);
+  // The Safnið ribbon's own "Nýtt!", while a fossil is found and not tapped yet (renderRibbonNew).
+  const ribbonNew = make('span', 'ribbon-new');
+  ribbonNew.textContent = 'Nýtt!';
+  ribbonNew.setAttribute('aria-hidden', 'true');
 
   const spine = make('div', 'book-spine');
   spine.setAttribute('aria-hidden', 'true');
@@ -308,13 +284,15 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     refound.delete(card.id);
     cardViewer.open(card, fromRect, page);
   };
+  // The Safnið leaf: the fossil collection (museum-page.js), whose cards (group 'fossil', when the data has them) open as an animal's do.
+  const museum = createMuseumPage(leaves.get('fossils'), { save, audio, win, cards, onOpenCard, onChange: () => renderRibbonNew() });
   const animals = createAnimalsPage(doc, animalLeaves.map(leaf => leaf.el), { cards: animalCards, media, save, audio, win, onOpenCard });
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
   const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
   const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`) });
 
-  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers. */
+  /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils. */
   function render() {
     const state = bookState(save);
     dinosaurs.render();
@@ -325,7 +303,8 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     renderJunior(state);
     renderGameSlots(state);
     map.render();
-    renderFossils();
+    museum.render();
+    renderRibbonNew();
   }
 
   /** A spread the child can turn to: the first always, and a later one once an animal on it is found. */
@@ -346,53 +325,20 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     });
   }
 
-  /** The fossils found are in colour with their names; the rest are soft silhouettes with a "?". */
-  function renderFossils() {
-    const found = new Set(save.getHals?.().found ?? []);
-    for (const { tile, name, kind } of fossilTiles) {
-      const has = found.has(kind.id);
-      tile.classList.toggle('found', has);
-      tile.classList.toggle('unfound', !has);
-      name.textContent = has ? kind.name : '?';
-      tile.setAttribute('aria-label', has ? kind.name : 'Ófundinn steingervingur');
-    }
-    const count = FOSSIL_KINDS.filter(kind => found.has(kind.id)).length;
-    fossilCount.textContent = `${count} af ${FOSSIL_KINDS.length}`;
+  /** The Safnið ribbon wears its "Nýtt!" while a fossil is found and not tapped yet (the museum page says so). */
+  function renderRibbonNew() {
+    const ribbon = ribbons.get('fossils');
+    const fresh = museum.hasNew();
+    if (fresh && ribbonNew.parentNode !== ribbon) ribbon.append(ribbonNew);
+    if (!fresh) ribbonNew.remove();
   }
 
-  let nameTimer = 0;
-  /** A tap on a sticker: a found one says its name and fact, shows its name over it and sparkles; an unfound one wiggles. */
-  function tapFossil({ tile, kind }) {
-    if (!tile.classList.contains('found')) {
-      audio?.sfx?.('wiggle');
-      if (typeof tile.animate === 'function') {
-        tile.animate(reducedMotion(win)
-          ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
-          : [{ rotate: '0deg' }, { rotate: '-7deg' }, { rotate: '6deg' }, { rotate: '-3deg' }, { rotate: '0deg' }], { duration: 520, easing: 'ease-in-out' });
-      }
-      return;
-    }
-    audio?.narrate?.(`hals_fossil_${kind.id}`);
-    sparkle(tile, 12, win);
-    if (typeof tile.animate === 'function' && !reducedMotion(win)) {
-      tile.animate([{ scale: '1' }, { scale: '1.1' }, { scale: '1' }], { duration: 480, easing: 'cubic-bezier(.3, 1.6, .5, 1)' });
-    }
-    // The name over the sticker, placed in the spread's own pixels (its leaf lies on the spread).
-    fossilName.textContent = kind.name;
-    fossilName.hidden = false;
-    const rect = tile.getBoundingClientRect?.();
-    const box = spread.getBoundingClientRect?.();
-    if (rect?.width && box) {
-      fossilName.style.setProperty('left', `${(rect.left + rect.width / 2 - box.left).toFixed(1)}px`);
-      fossilName.style.setProperty('top', `${(rect.top - box.top).toFixed(1)}px`);
-    }
-    fossilName.getAnimations?.().forEach(animation => animation.cancel());
-    if (typeof fossilName.animate === 'function') {
-      fossilName.animate(reducedMotion(win) ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translate(-50%, -80%) scale(.6)' }, { opacity: 1, transform: 'translate(-50%, -100%) scale(1)' }],
-        { duration: 360, easing: 'cubic-bezier(.3, 1.6, .5, 1)' });
-    }
-    clearTimeout(nameTimer);
-    nameTimer = setTimeout(() => { fossilName.hidden = true; }, NAME_MS);
+  /**
+   * The full fossil collection is celebrated, once (museum-page.js), in a book the child holds that shows Safnið: a book a script
+   * opened holds nothing and keeps quiet. `delay` is how long the sparkles wait, for a book still growing or turning to the page.
+   */
+  function celebrateIfShown(delay = 0) {
+    if (isOpen && holder === 'child' && tab === 'fossils') museum.celebrate({ delay });
   }
 
   /** "Eitt!" opens with Kambeðla's star and is new until first played; each round won is a sticker on the right page. */
@@ -665,6 +611,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     const from = tab;
     finishTurn(); // a turn still under way lands where it was going
     putCardAway();
+    museum.stop(); // a celebration's sparkles still to come do not follow the child to another page
     const old = leafOf(from);
     tab = next;
     render();
@@ -672,6 +619,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     audio?.sfx?.('turn');
     if (isOpen) pageTurn(old, leafOf(next), TABS.indexOf(next) > TABS.indexOf(from));
     if (isOpen) tellTab();
+    celebrateIfShown(canAnimate() && !reducedMotion(win) ? TURN_MS : 0); // once the page has landed
   }
 
   /** A card's tile nods, on the page the book shows (the dinosaurs' or the animals'), after `delay` ms; nothing when it is on another. */
@@ -713,6 +661,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
       if (!found) {
         const turns = next !== tab;
         turnTo(next);
+        celebrateIfShown(); // a script's book on Safnið the child has just opened is the child's now
         if (nod) nodTile(nod, turns && canAnimate() && !reducedMotion(win) ? TURN_MS : 0);
         return;
       }
@@ -739,6 +688,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     grow();
     if (found) animals.nod(found.id, reducedMotion(win) ? FADE_MS : OPEN_MS); // once the book has grown
     else if (nod) nodTile(nod, reducedMotion(win) ? FADE_MS : OPEN_MS);
+    celebrateIfShown(canAnimate() ? (reducedMotion(win) ? FADE_MS : OPEN_MS) : 0); // once the book has grown
     tellTab();
   }
 
@@ -749,6 +699,7 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
     isOpen = false;
     holder = null;
     audio?.stop?.(); // nothing reads on after the book is shut
+    museum.stop();
     putCardAway();
     finishTurn();
     audio?.sfx?.('close');
@@ -792,7 +743,6 @@ export function createBook(doc, { cards = [], media = new Map(), save, audio = n
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
   pressable(juniorTile, { audio, sound: null, win, onTap: () => tapJunior() });
-  for (const fossil of fossilTiles) pressable(fossil.tile, { audio, sound: null, win, onTap: () => tapFossil(fossil) });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound
   root.addEventListener('pointerdown', event => {
     if (event.target === closeEl || closeEl.contains?.(event.target)) return; // shutting a script's book does not make it the child's

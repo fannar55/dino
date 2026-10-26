@@ -8,7 +8,7 @@ import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createSave } from '../engine/save.js';
-import { createGame, applyTurn } from '../engine/hals/rules.js';
+import { createGame, applyTurn, FOSSIL_KINDS } from '../engine/hals/rules.js';
 import { DONE } from '../engine/handle.js';
 import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 import { createFakeContext, FakeAudio, withAudio } from './fake-audio.mjs';
@@ -394,7 +394,7 @@ test('the fen cards unlock with their findings and have three pages each', () =>
 });
 
 /** The book over the shipped cards and pictures and a save of its own, with what it narrates and the sounds it makes. */
-function fenRig({ fill = () => {}, animate = false } = {}) {
+function fenRig({ fill = () => {}, animate = false, cards = CARDS } = {}) {
   const save = createSave(null);
   fill(save);
   const narrated = [];
@@ -415,7 +415,7 @@ function fenRig({ fill = () => {}, animate = false } = {}) {
     doc.createElement = tag => animated(create(tag));
     animated(doc.getElementById('book'));
   }
-  const book = createBook(doc, { cards: CARDS, media: MEDIA, save, audio, onPause() {} });
+  const book = createBook(doc, { cards, media: MEDIA, save, audio, onPause() {} });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -692,4 +692,64 @@ test('a save from before this change opens the new book with the right dinosaurs
   const slot = game => root.findAll(e => e.getAttribute('data-game') === game)[0].parentNode;
   assert.deepEqual(['eitt', 'hals', 'yatzy-junior'].map(game => slot(game).hidden), [false, false, false], 'and the three games it had earned are on the Leikir page');
   assert.equal(book.tab, 'animals');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Safnið (museum-page.js): new fossils, the full collection celebrated once, a fossil's card
+
+test('a fossil found and not tapped yet wears Nýtt!, so does the Safnið ribbon, and a tap clears both; a fossil with a card opens it', () => {
+  // the data has no fossil cards yet (a later stage writes them): this one is the test's own, for the amber
+  const amber = {
+    id: 'amber', name: 'Raf með flugu', order: 99, group: 'fossil', unlock: { fossil: 'amber' },
+    pages: [1, 2, 3].map(n => ({ image: CARDS.find(c => c.id === 'mosi').pages[0].image, text: `Raf, síða ${n}.`, audio: `book_amber_${n}`, sources: ['test'] })),
+  };
+  const { save, book, root, narrated, sounds, tap } = fenRig({
+    fill: s => { s.addHalsFound('tooth'); s.addHalsFound('amber'); },
+    cards: parseCards([...CARD_DATA.cards, amber]),
+  });
+  const sticker = kind => root.findAll(e => e.getAttribute('data-fossil') === kind)[0];
+  const badges = el => el.findAll(e => e.classList.contains('badge-new')).map(e => e.textContent);
+  const dots = () => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === 'fossils')[0]
+    .findAll(e => e.classList.contains('ribbon-new')).map(e => e.textContent);
+  assert.deepEqual([badges(sticker('tooth')), badges(sticker('amber')), badges(sticker('egg'))], [['Nýtt!'], ['Nýtt!'], []], 'the two found wear Nýtt!, the unfound none');
+  assert.ok(sticker('tooth').classList.contains('new') && sticker('egg').classList.contains('unfound'));
+  assert.deepEqual(dots(), ['Nýtt!'], 'and the Safnið ribbon shows its dot');
+
+  book.open('fossils', 'child');
+  tap(sticker('tooth')); // no card: today's tap, the narrator says its name and a fact
+  assert.equal(narrated.at(-1), 'hals_fossil_tooth');
+  assert.deepEqual(badges(sticker('tooth')), [], 'the tooth is new no more');
+  assert.ok(save.get().seen.includes('fossil:tooth'));
+  assert.deepEqual(dots(), ['Nýtt!'], 'the ribbon keeps its dot while the amber is new');
+  sounds.length = 0;
+  tap(sticker('egg')); // not found: it wiggles and the card path is not taken
+  assert.deepEqual(sounds, ['wiggle']);
+  assert.equal(book.cardViewer.isOpen, false);
+  tap(sticker('amber')); // its card opens in the card viewer
+  assert.equal(book.cardViewer.isOpen, true, 'the amber card opens');
+  assert.equal(book.cardViewer.card.id, 'amber');
+  assert.ok(!narrated.includes('hals_fossil_amber'), 'in place of the fact');
+  assert.deepEqual([badges(sticker('amber')), dots()], [[], []], 'and the sticker and the ribbon are clear');
+});
+
+test('with all eight fossils found, Safnið is celebrated the first time the child shows it and never again, and a book a script opened keeps quiet', () => {
+  const eight = save => FOSSIL_KINDS.forEach(kind => save.addHalsFound(kind.id));
+  const { save, book, narrated, sounds, tap, root } = fenRig({ fill: eight });
+  const ribbon = tab => root.findAll(e => e.classList.contains('ribbon') && e.getAttribute('data-tab') === tab)[0];
+  book.open('games', 'child');
+  assert.equal(narrated.includes('book_mosi_fossils_all'), false, 'not before the child turns to Safnið');
+  tap(ribbon('fossils')); // a ribbon turn
+  assert.deepEqual(narrated.filter(id => id === 'book_mosi_fossils_all'), ['book_mosi_fossils_all'], 'Mosi cheers');
+  assert.ok(sounds.includes('celebrate'), 'with the celebration sound');
+  assert.ok(save.get().seen.includes('fossils-all'), 'and the save says it was done');
+  tap(ribbon('games'));
+  tap(ribbon('fossils'));
+  book.close();
+  book.open('fossils', 'child');
+  assert.equal(narrated.filter(id => id === 'book_mosi_fossils_all').length, 1, 'a second turn, and a second open, do not cheer again');
+  // a save that has all eight and was never celebrated, on a book a script opened: silent
+  const quiet = fenRig({ fill: eight });
+  quiet.book.open('fossils', 'script');
+  assert.equal(quiet.narrated.length, 0, 'a book the child does not hold says nothing');
+  assert.equal(quiet.save.get().seen.includes('fossils-all'), false, 'and keeps the celebration for the child');
 });

@@ -7,14 +7,15 @@
                                  its own two in a .book-leaf[data-tab], and .turning marks the one turning over the spine
      .book-spine                 the stitched fold between them
      .book-close                 the big close, on the cover's top right corner
-     .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it
+     .book-ribbons > .ribbon     the tabs, ribbons standing up out of the pages; [data-tab] names the page, aria-selected marks it;
+                                 the Safnið ribbon wears a .ribbon-new while a fossil is new
      .spread-turn                a dog-eared corner of the Dýrin pages, .next on the right page and .prev on the left, that turns
                                  to the next or the last spread of animals (the forest's, the Fen's); a .page-turning spread hides it
      .tile                       a taped photo of an animal, or of a dinosaur on the Risaeðlur page: .found, .new (with its .badge-new)
                                  or .unfound; on the Leikir page the .game-tile of "Eitt!", of "Háls og hali" and of "Litla Yatzy",
                                  each in its .game-slot (only the games that are open show; .book-tiles[data-open] says how many),
                                  with the stickers won from Kambeðla beside them (.sticker-sheet of .book-sticker); on the Safnið
-                                 page a .fossil-tile for each of the eight fossils (.found or .unfound), under .fossil-title, with
+                                 page a .fossil-tile for each of the eight fossils (.found, .new with its .badge-new, or .unfound), under .fossil-title, with
                                  .fossil-count and the .fossil-name that shows over a sticker tapped
      .card                       an animal's card over the spread, with its parts: .card-photo (the picture, a button that zooms it),
                                  .card-info and .card-credit (the ⓘ and the window it opens), .card-arrow, .card-replay, .card-back
@@ -245,6 +246,15 @@
 .ribbon[aria-selected="false"] { height: 4.55em; filter: drop-shadow(0 3px 2px rgb(40 24 10 / .3)) saturate(.88) brightness(.96); }
 .ribbon[aria-selected="true"] { z-index: 1; }
 .ribbon-label { white-space: nowrap; }
+.ribbon-new { /* the Safnið ribbon's "Nýtt!", while a fossil there is new: a text badge as .badge-new is, on the band's top corner */
+  position: absolute; z-index: 4; top: -.2em; right: -.4em; pointer-events: none;
+  padding: .14em .42em .2em; border-radius: 999px;
+  font-size: max(24px, .86em); line-height: 1; white-space: nowrap; /* never under STYLE.md's 24 px */
+  color: var(--book-card); background: #d0682e;
+  -webkit-text-stroke: .13em var(--book-ink); paint-order: stroke fill;
+  box-shadow: 0 0 0 2px var(--book-card), 0 0 0 4px var(--book-ink), 0 5px 8px 2px rgb(59 47 37 / .3);
+  transform: rotate(12deg); animation: badge-wobble 1.7s ease-in-out infinite;
+}
 
 /* ---- Tiles: taped photos of the animals --------------------------------------------------------------------------- */
 
@@ -379,7 +389,9 @@
   --tile-w: min((100cqw - 2 * var(--pad-x)) * .74, (100cqh - var(--pad-top) - var(--pad-bottom) - 30px) / 1.12);
 }
 
-/* The Safn page: Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's title. */
+/* The Safn page (engine/book/museum-page.js): Steingervingasafn, the eight fossils as taped stickers, four on each page under the page's
+   title. A fossil found and not tapped yet is .new, with a .badge-new, as an animal's tile is; the glow, the rocking and the badge are
+   the tile rules above. */
 .ribbon[data-tab="fossils"] { --ribbon: #b9824a; color: var(--book-card); } /* sandstone */
 .book-leaf[data-tab="fossils"] .book-tiles {
   --pad-top: 17cqh; --pad-bottom: 6cqh;
