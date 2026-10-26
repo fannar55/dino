@@ -247,6 +247,18 @@
    "duration": 6.49,
    "model": "eleven_v4"
   },
+  "book/book_mosi_fossils_all": {
+   "key": "53a72687059e995403329ed89b764f205827e1b3fc09534780a25ecf35b052b3",
+   "mp3": "a6de483957458131aa19563ce232c9ab8124ae96abc9d2f9668ed40726a61481",
+   "duration": 5.13,
+   "model": "eleven_v4"
+  },
+  "book/book_mosi_later": {
+   "key": "8eb276cedad845bf2e3a164b5686e83d36087d7d09e07256eda06237d658f2ff",
+   "mp3": "d1dee19739dfeb635d7abdc4263fc899b004af05f06e52feb437263ad4d8fc0e",
+   "duration": 1.93,
+   "model": "eleven_v4"
+  },
   "book/book_salamander_1": {
    "key": "db6a12be394ead3ca6febe256a2cf09c3e18074643d7f1c00f339d96417128f3",
    "mp3": "a54af1e0892e7a779b70e387ffb5c5a5ed0198164d4633e495014e17129cc933",
@@ -938,9 +950,9 @@
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_book": {
-   "key": "d9813b590699bcfbc2ef79d309e06c95142b7d0b1525353f0d5e807d49489363",
-   "mp3": "31d278eb7b260221fccac0c6b69f57aa3ef2a92771261276f6bd5b2011e44384",
-   "duration": 14.41,
+   "key": "93f9868470c793579d887f4de083c03be628522644d00f19951a1d0b889a94d8",
+   "mp3": "e032cc443998456ebac08b25e90df46174bbbc944da16f3f826b5a54c995966c",
+   "duration": 14.01,
    "model": "eleven_v4"
   },
   "kafli1/k1_mosi_book_close": {
