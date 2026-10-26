@@ -112,6 +112,6 @@
  { "id": "book_earlybird_2", "speaker": "narrator", "text": "Fornfuglar voru uppi um svipað leyti og Þórseðla, en langt í burtu. Í ævintýrinu okkar hittast þau!" },
  { "id": "book_earlybird_3", "speaker": "narrator", "text": "Við vitum það af steingervingum. Fyrst fannst bara ein fjöður, og svo heill fugl í steini!" },
  { "id": "book_find_me_fen", "speaker": "narrator", "text": "Finndu mig í Feninu!" },
- { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!" },
+ { "id": "book_mosi_later", "speaker": "mosi", "text": "Hana hittum við seinna!", "context": "Við hittum Kambeðlu í gær, og á morgun hittum við Þórseðlu.", "seed": 42, "note": "Own context and seed 42: the plain take said hitum for hittum; the owner chose this take (prufa 4) by ear on 2026-10-26. No word rule, since hittum is right in k1_mosi_book." },
  { "id": "book_mosi_fossils_all", "speaker": "mosi", "text": "Vá! Þú fannst alla átta steingervingana. Safnið er fullt!" }
 ]
