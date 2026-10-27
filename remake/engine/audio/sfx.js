@@ -14,6 +14,14 @@
 import { FEN_GAPS, fenCall, fenSounds } from './fen-sounds.js';
 
 const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot pile up more than this
+// Recorded sounds, by name, beside the made ones: Grameðla's roar and breath, far off from chapter 2's lookout. Both from
+// tunetank.com, free for non-commercial use with credit (the owner, 2026-10-27): "Sound Effect: Dinosaur creature moan" and
+// "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
+// effects' master.
+const SAMPLES = {
+  gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 0.9 },
+  gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 0.7 },
+};
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
@@ -25,7 +33,7 @@ const FEN_IN = 2.5; // seconds the Fen's water takes to come in
  * `sounds({ tone, noise, bell, key })`, when given, returns more sounds by name, which play as the game's own do, each at least
  * `gaps[name]` audio seconds after the last of its name.
  */
-export function createSfx({ context = null, theme = null, output, random = Math.random, sounds = null, gaps = {} } = {}) {
+export function createSfx({ context = null, theme = null, output, random = Math.random, sounds = null, gaps = {}, recorded = false } = {}) {
   let muted = false;
   let paused = false;
 
@@ -387,6 +395,30 @@ export function createSfx({ context = null, theme = null, output, random = Math.
   }
   const fen = Object.entries(fenSounds({ tone, noise, bell, hum, key, between })).filter(([name]) => !Object.hasOwn(own, name));
   Object.assign(SOUNDS, Object.fromEntries(fen), own);
+  // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
+  // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
+  // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
+  const buffers = new Map();
+  for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
+    if (Object.hasOwn(SOUNDS, name)) continue;
+    SOUNDS[name] = () => {
+      const buffer = buffers.get(name);
+      if (!buffer) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const volume = context.createGain();
+      volume.gain.value = sample.level;
+      source.connect(volume);
+      track(source, [volume, ...outlet(volume, 0, master)]);
+      source.start(context.currentTime);
+    };
+    Promise.resolve()
+      .then(() => globalThis.fetch(sample.url))
+      .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+      .then(bytes => context.decodeAudioData(bytes))
+      .then(buffer => buffers.set(name, buffer))
+      .catch(() => {}); // a sound that cannot be had is simply not heard
+  }
   const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();

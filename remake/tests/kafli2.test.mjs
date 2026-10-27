@@ -997,7 +997,7 @@ test('a tap on the next print while Mosi says a number is not lost: it is counte
 
 test('every sound the script asks for exists', () => {
   const context = createFakeContext({ state: 'running' });
-  const sfx = createSfx({ context, theme: readJson('../assets/audio/theme.json') });
+  const sfx = createSfx({ context, theme: readJson('../assets/audio/theme.json'), recorded: true }); // as main.js makes it: Grameðla's roar and breath are recorded
   const known = name => {
     sfx.stop(); // a bed (the forest, the Fen) is laid once: each is asked for afresh
     context.advance(12);

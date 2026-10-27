@@ -77,7 +77,9 @@ const TEASE = { down: 2, speed: 15, ease: 1.5, fov: 30, clear: 6, back: 3 };
 // 1.12: a brisk walk), `ahead` m on along the tree line and `out` m away from the lookout, past the conifers on her right and behind
 // the far treeline (radius 150 round the Fen's middle, world/forest/config.js: FEN.far), where she is hidden: nothing of her shows
 // by then.
-const ROAR = { line: 0.8, walk: 0.5, speed: 2.0, ahead: 6, out: 10 };
+// The roar is the recorded one (2.4 s, engine/audio/sfx.js SAMPLES), and her breath out comes as it ends; Mosi's line waits for
+// the roar's peak, so the roar is heard and not talked over (the owner, 2026-10-27).
+const ROAR = { line: 1.8, exhale: 2.3, walk: 0.5, speed: 2.0, ahead: 6, out: 10 };
 const HAZE = { up: 1.6, rise: 4 }; // the fog 1.6 times as thick at the lookout (twice washed the friends out), eased in over the lift's first 4 s
 const smooth = t => t * t * (3 - 2 * t);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -239,7 +241,8 @@ function* farOff(s, c) {
   yield* turnToHer(s, c, her.centre(new THREE.Vector3()));
   c.teaser.roar = s.time;
   her.play('roar', { fade: 0.3, once: true });
-  s.sfx('farRoar');
+  s.sfx('gramedlaRoar');
+  s.after(ROAR.exhale, () => s.sfx('gramedlaExhale'));
   const roaring = her.clips.get('roar')?.duration ?? 3.6;
   const line = s.after(ROAR.line, () => c.say('mosi', 'k2_mosi_gramedla'));
   yield s.wait(roaring - ROAR.walk);

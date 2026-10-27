@@ -186,7 +186,7 @@ const playing = params.get('t') === null && params.get('shot') === null && Boole
 const audio = playing ? createAudioContext() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
-const sfx = createSfx({ context: audio, theme, output });
+const sfx = createSfx({ context: audio, theme, output, recorded: true }); // recorded: Grameðla's roar and breath (sfx.js SAMPLES)
 // The book's narrator and effects (engine/book/book-audio.js): outside the hold below, so they sound while the game stands still
 // behind the child's book, and muted wherever the game's sound is silent (captures and review shots).
 const bookAudio = createBookAudio({ context: audio, output, theme, lines });

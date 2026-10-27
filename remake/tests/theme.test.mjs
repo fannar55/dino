@@ -90,7 +90,7 @@ test('main.js reads the chapter\'s theme once, before it makes the music, and ha
   const musicAt = MAIN.indexOf('createMusic({');
   assert.ok(chapterAt > 0 && chapterAt < themeAt && themeAt < musicAt, 'the chapter is chosen, then its theme read, then the music made');
   assert.match(MAIN, /createMusic\(\{ context: audio, theme, clock, base: themeUrl, output \}\)/);
-  assert.match(MAIN, /createSfx\(\{ context: audio, theme, output \}\)/);
+  assert.match(MAIN, /createSfx\(\{ context: audio, theme, output, recorded: true \}\)/); // recorded: the page's recorded sounds (sfx.js SAMPLES)
   assert.match(MAIN, /createBookAudio\(\{ context: audio, output, theme, lines \}\)/);
   assert.match(MAIN, /no live switch/, 'it says why one read is enough: the hand-over is a new page');
   assert.equal(MAIN.match(/loadTheme\(/g).length, 1, 'read once');
