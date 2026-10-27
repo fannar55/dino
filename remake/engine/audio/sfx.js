@@ -19,8 +19,8 @@ const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot 
 // "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
 // effects' master.
 const SAMPLES = {
-  gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 0.9 },
-  gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 0.7 },
+  gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
+  gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
 };
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
