@@ -15,6 +15,10 @@
      what shows:
        animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
+       map                            the Kortið page; ?progress= says how far the child has got: 0 (a fresh save, no trail), 1 (chapter 1 done),
+                                      2 (chapter 2 come to the Fen) or 3 (Þórseðla's star too, the default); the trail draws itself in once, and
+                                      ?seen=1 has it drawn in before, as on a later visit, and ?at=<ms> holds the drawing at that moment
+                                      from the page's opening (the first piece starts at 560, each next 2150 later) for a picture of it half drawn
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
@@ -72,7 +76,7 @@
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['dinosaurs', 'animals', 'fossils', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'fossils', 'map', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
@@ -85,7 +89,11 @@
   const modelPage = cards.find(card => card.id === cardId)?.pages[Math.max(0, pageAsked)];
   if (cardAsked && params.has('model') && modelPage) modelPage.model = params.get('model'); // a look at a 3D page
   const save = createSave(null);
-  save.addStar('k1_kambedla');
+  const progress = state === 'map' ? Number(params.get('progress') ?? 3) : 1; // the map's states: how far the child has got
+  if (progress >= 1) save.addStar('k1_kambedla');
+  if (progress >= 2) save.addPlace('fen');
+  if (progress >= 3) save.addStar('k2_thorsedla');
+  if (state === 'map' && params.get('seen') === '1') for (const id of ['a', 'b', 'c']) save.addSeen(`map-route-${id}`);
   save.addFinding('butterfly');
   save.addSeen('mosi');
   save.addSeen('kambedla');
@@ -105,7 +113,7 @@
   const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
   const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {} });
   createJournal(document, save, { book, audio });
-  Object.assign(window, { __book: book, __bookAudio: audio });
+  Object.assign(window, { __book: book, __bookAudio: audio, __save: save });
 
   /** A finger that touches `selector`'s element and lifts again, which is all a tap is. */
   function tap(selector) {
@@ -122,7 +130,7 @@
     if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
     for (let round = 0; round < 3; round++) {
       await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
-      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity && animation.playState !== 'paused');
       await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }
@@ -167,7 +175,12 @@
 
   // The page the book opens on: the dinosaurs' for ?state=dinosaurs, and for a card of a dinosaur (Mosi's, Kambeðla's), else the animals'.
   const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
-  book.open(state === 'fossils' ? 'fossils' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  book.open(state === 'fossils' ? 'fossils' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.target?.classList?.contains('map-route-reveal')) { animation.pause(); animation.currentTime = Number(params.get('at')); }
+    }
+  }
   await settle();
   for (let n = 1; n < Number(params.get('spread') ?? 1); n++) {
     const corner = document.querySelector(`.book-leaf[data-spread="${n}"] .spread-turn.next`);

@@ -2,8 +2,9 @@
 // (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-design.md): from Kambeðla's fern glade Mosi and Egill ride out of
 // the forest and down into the Fen, count Þórseðla's ten water-filled footprints, lure her nine-metre head down with five red
 // berries, invite her to the Star Festival, ride her neck up to look out over the Fen and find three far friends for the book's
-// map, slide down her neck into the saddle, and win the second star. Seven to nine minutes for a six-year-old, who can never fail
-// it: every wait for the child has hints where the script gives them and ends by itself.
+// map (and see Grameðla far off, who comes later), slide down her neck into the saddle, and win the second star. Seven to nine
+// minutes for a six-year-old, who can never fail it: every wait for the child has hints where the script gives them and ends by
+// itself.
 //
 // The chapter's skeleton (the plan's first task) gives its places, actors, cast, lines and look, and the eight scenes in their
 // order; the trail and the Fen have their own ground, plants, water, mist and shots (the second task: world/forest/ grows them as
@@ -29,8 +30,8 @@ import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up'
 import { createCritters } from '../world/critters/critters.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import {
-  TRAIL_PATH, TRAIL_PRINTS, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot, printFollow, arriveOnTheTrail,
-  countPrints,
+  TRAIL_PATH, TRAIL_PRINTS, TRAIL_BARE, PRINT_SIZE, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot,
+  printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { BERRY_BUSHES, FEN_CRITTERS, fenAnimals, berryBushes, pickBerries, holdUpBasket, eatFromBasket } from './kafli2-fen.js';
 import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
@@ -41,6 +42,8 @@ import {
 } from './kafli2-thorsedla.js';
 
 export { LOOKOUT_HEAD }; // where Egill's head is at the top of the lift (kafli2-thorsedla.js)
+export { EGILL_PICKS }; // where Egill stands for the berry search (the tests look from behind him, as fen_pick does)
+export { GRAMEDLA_FAR }; // where Grameðla stands far off (the tests hold it to the way the book's map has her)
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade: chapter 1's
@@ -52,8 +55,8 @@ const KAMBEDLA_GLADE = GLADE.layout.actors.kambedla;
 const OFF_STAGE = [0, 0, -400];
 // Egill's footprint in the grass and the ferns is a boy's, as in chapter 1 (world/forest/forest.js: footprintScale).
 const EGILL_FOOTPRINT = 0.3;
-// Seconds the black at the start waits at most for the far friends' files (7.3 MB: on a slow connection they come later, and the
-// Fen makes the friends under its own black: arriveInTheFen).
+// Seconds the black at the start waits at most for the far friends' files (9.5 MB with Grameðla's: on a slow connection they come
+// later, and the Fen makes the friends under its own black: arriveInTheFen).
 const FAR_WAIT = 4;
 
 // Scene 1: out of the glade the way they came, up the path to the north-east (chapter 1's), and a tap on Kambeðla's middle.
@@ -122,6 +125,13 @@ const alongHer = metres => {
 // channel. Uggeðla's line from Egill's head passes through the south-east conifer's crown: the search sees her from its camera
 // instead (kafli2-lookout.js), as moving her would re-deal 75 to 127 of the Fen's plants.
 const FEN_FAR = { sloedla: [-70, -38], flugedla: [-52, -88], uggedla: [78, 40] };
+// Grameðla, seen once after the third find and not found (she comes in a later chapter): at the edge of the forest beyond the Fen,
+// 144 m west of the lookout and 5 m in front of the far treeline (150 m round the Fen's middle), toward where the book's map has her
+// beyond the mountains (engine/book/map-page.js: the map's Fen is the Fen's own ground, north up, about 3.9 px a metre, and her slot
+// lies west by north of Þórseðla's, 192 degrees). Here, 207.5 degrees from the search camera, is the nearest gap that way between
+// the Fen's conifers wide enough for all 12 m of her side-on. She is not in the layout's farFriends: the planner keeps tall plants out
+// of their sight lines, and one more would re-deal the Fen's plants.
+const GRAMEDLA_FAR = [-125.7, -72.2];
 
 const FEN_WATER = {
   pools: [
@@ -279,6 +289,8 @@ const WORDS = {
   k2_mosi_found_sloedla: 'Slóeðla! Hún er að vaða í tjörninni!',
   k2_mosi_found_flugedla: 'Flugeðla! Uppi á gamla trénu!',
   k2_mosi_found_uggedla: 'Uggeðla! Hún liggur í sefinu, sjáðu seglið!',
+  // and after the third, Grameðla far off at the edge of the forest, seen and not found: she comes in a later chapter
+  k2_mosi_gramedla: 'Sjáðu, lengst þarna! Þetta er Grameðla. Hana heimsækjum við seinna!',
   k2_thorsedla_now: 'Nú veistu hvar þau eru. Við skrifum það í bókina.',
   // 7. The slide, into the saddle with an "úff" from Mosi
   k2_egill_wuuu: 'Vúúú!',
@@ -381,8 +393,8 @@ function* footprints(s, c) {
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
   yield* say(s, c, 'mosi', 'k2_mosi_tenprints');
-  // and on down the trail, toward the Fen
-  mosi.walkTo(TRAIL_ON, { speed: 1.2 });
+  // and on down the trail, toward the Fen (a walk the Fen stops under its black: arriveInTheFen)
+  c.trailWalk = mosi.walkTo(TRAIL_ON, { speed: 1.2 });
   s.camera.follow('mosi', RIDE_CAMERA);
   yield s.wait(3);
 }
@@ -492,7 +504,7 @@ function* theInvitation(s, c) {
 }
 
 // 6. The lookout: up her neck to nine metres (Task 3's lift), where he sees how small Mosi is down there and the child finds the
-// three friends far away, each going onto the book's map (kafli2-lookout.js).
+// three friends far away, each going onto the book's map, and then sees Grameðla far off at the forest's edge (kafli2-lookout.js).
 function* theLookout(s, c) {
   mark(c, 6);
   yield c.farFriends.ready(); // made behind the start button or under the Fen's black: long since there
@@ -543,6 +555,8 @@ function arriveInTheFen(s, c) {
   kambedla.raw.root.visible = false;
   thorsedla.raw.root.visible = true;
   thorsedla.place(THORSEDLA.position[0], THORSEDLA.position[2], THORSEDLA.heading);
+  // his walk on down the trail ends here (it went on in the Fen and took him from the trail's end to wherever it led, out in the reed)
+  c.trailWalk?.cancel();
   mosi.place(FEN_ENTRY.position[0], FEN_ENTRY.position[2], FEN_ENTRY.heading);
   c.fenCritters = fenAnimals(s, c);
   c.berries = berryBushes(world);
@@ -653,6 +667,7 @@ export const chapter = {
         leafShadows: true,
         actors: { mosi: { position: [0, 0, 0], heading: 34 } },
         prints: TRAIL_PRINTS, // Þórseðla's ten footprints (world/props/mud-prints.js): not the forest's, it reads no `prints`
+        keepOut: TRAIL_BARE, // but it keeps its grass and plants out of them
       },
       shots: TRAIL_SHOTS,
       warmUp: ['trail_wide', 'trail_fog'],
@@ -725,22 +740,22 @@ export const chapter = {
   // either waits for its build.
   prepare: ['fenjaslod', 'fen'],
   // Made after the start button shows (main.js), not before it: the far friends' model files are fetched as it shows, and the
-  // models made (three parses and their light levels: long frames) once the places are, if the button still waits; else the
+  // models made (four parses and their light levels: long frames) once the places are, if the button still waits; else the
   // script makes them under its first black (and, should that ever not have, the Fen under its own: arriveInTheFen).
   later: {
     fetch: world => world.chapterState?.farFriends?.prefetch(),
     make: world => world.chapterState?.farFriends?.load(),
   },
-  // The first animal the chapter puts in the book (the frog in the trail's third print): main.js shows its card's drawing once
+  // The first animal the chapter puts in the book (the dragonfly over the trail's third print): main.js shows its card's drawing once
   // where nobody sees a frame stall, so its flight into the book is not the first drawing with the hand-drawn filter.
-  firstFind: 'frog',
+  firstFind: 'dragonfly',
 
   /**
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
    * black as it comes to a place. `place` is the place it is drawn for (main.js), and each place brings what shows there first, so
    * each black waits for its own: the glade, where the chapter starts, only the actors (Þórseðla among them while she waits out of
    * sight), so the start button waits for no more than the glade shows; the trail a print with its water, its digit up and a splash,
-   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, a bush of each berry with one in the air, the basket
+   * and its animals; the Fen its animals, one of the leaves Þórseðla bites off, its berry bushes (a bunch each, one in the air), the basket
    * with a berry in it, and the far friends once their models are there (their first frame from her head is no stall). No place
    * (null): all of it.
    */
@@ -754,7 +769,7 @@ export const chapter = {
     const keep = (made, object) => { objects.push(object); throwaways.push(made); };
     const kinds = [...(trail ? PRINT_ANIMALS : []), ...(fen ? FEN_CRITTERS : [])].map(animal => animal.kind);
     if (trail) {
-      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }] });
+      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }], size: PRINT_SIZE });
       prints.count(0);
       prints.splash(0);
       keep(prints, prints.group);
@@ -766,7 +781,8 @@ export const chapter = {
     if (fen) {
       const leaf = leafWarm(world);
       keep(leaf, leaf.object);
-      const berries = createBerryBushes(world, { bushes: [{ position: ground(2, 2), kind: 'red', count: 1 }, { position: ground(3, 2), kind: 'blue', count: 1 }] });
+      // as many bushes as the Fen has: their shader is one a number of bushes (its shake per bush), so this draws the Fen's own
+      const berries = createBerryBushes(world, { bushes: BERRY_BUSHES.map(({ kind }, i) => ({ position: ground(2 + i, 2), kind, count: 1 })) });
       berries.pick('berry_0_0', ground(2, 3));
       keep(berries, berries.group);
       const basket = createBasket(world);
@@ -799,8 +815,8 @@ export const chapter = {
     c.ring = ringsFor(world, { most: 3 });
     c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's and the Fen's pieces
     world.chapterState = c; // what the scenes share, for captures and probes
-    // The three friends far out in the Fen (kafli2-lookout.js): set up now, their models made later (chapter.later).
-    c.farFriends = farFriends(s, c, FEN_FAR);
+    // The three friends far out in the Fen and Grameðla beyond it (kafli2-lookout.js): set up now, their models made later (chapter.later).
+    c.farFriends = farFriends(s, c, { ...FEN_FAR, gramedla: GRAMEDLA_FAR });
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight. Þórseðla is in the Fen, not here.
     thorsedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw);
@@ -811,7 +827,7 @@ export const chapter = {
     yield s.camera.cut('glade_leaving');
     yield s.ready(); // the start button; immediate in captures
     // What main.js readies once the start button shows, for a child who tapped before it got there: the trail, built (it is drawn
-    // as the scene comes there, under that black), and the far friends, made (three models parsed: long frames, here where none
+    // as the scene comes there, under that black), and the far friends, made (four models parsed: long frames, here where none
     // shows). The black holds for them, its star breathing (main.js). A capture (seeking) waits for
     // neither, so its frames stay where they were: it builds the trail as it goes there, and the friends' models are made meanwhile.
     const far = c.farFriends;

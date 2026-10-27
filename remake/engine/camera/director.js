@@ -375,9 +375,10 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
    * Keep the camera at an offset from a moving actor (world offset, or local to its heading).
    * The camera never moves faster than the dolly rule; a local offset swings with the actor's turns,
    * so prefer world offsets while it turns quickly. `offset` may be a function returning the offset,
-   * read every frame, for a camera that swings round the one it follows as it goes.
+   * read every frame, for a camera that swings round the one it follows as it goes. `fov` is reached in `fovSeconds`, eased: a
+   * long change of lens needs longer than the default to keep within the zoom limit (chapter 2's look at Grameðla far off).
    */
-  function follow(subject, { offset = [0, 1.4, 6], local = false, look = 'centre', lookOffset = [0, 0, 0], fov, stiffness = 1.6, maxSpeed = LIMITS.dolly } = {}) {
+  function follow(subject, { offset = [0, 1.4, 6], local = false, look = 'centre', lookOffset = [0, 0, 0], fov, fovSeconds = 1.5, stiffness = 1.6, maxSpeed = LIMITS.dolly } = {}) {
     const name = typeof subject === 'string' ? subject.split('.')[0] : subject.actor;
     const offsetNow = typeof offset === 'function' ? offset : null;
     const posSpec = { actor: name, part: 'feet', offset: offsetNow ? offsetNow() : offset, local };
@@ -399,7 +400,7 @@ export function createDirector({ camera, world, shots = {}, lint = true }) {
       resolve(lookSpec, goalT);
       spring(rig.position, velP, goalP, stiffness, m.dt, maxSpeed);
       spring(rig.target, velT, goalT, stiffness * 1.6, m.dt, maxSpeed * 2);
-      rig.fov = f0 + (f1 - f0) * EASE.inOut(Math.min(1, m.elapsed / 1.5));
+      rig.fov = f0 + (f1 - f0) * EASE.inOut(Math.min(1, m.elapsed / fovSeconds));
       return false;
     }, { continuous: true });
   }

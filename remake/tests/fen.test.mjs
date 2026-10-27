@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { chapter } from '../chapters/kafli2.js';
+import { chapter, EGILL_PICKS } from '../chapters/kafli2.js';
+import { PICK_LOOK } from '../chapters/kafli2-fen.js';
 import { createWater, createWaterMaterial, waterShape } from '../world/props/water.js';
-import { createMudPrints } from '../world/props/mud-prints.js';
+import { createMudPrints, printsKeepOut } from '../world/props/mud-prints.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
 import { createPointResolver } from '../engine/points.js';
 import { createMist, CARDS, MIST_FADE, mistStrength } from '../world/props/mist.js';
-import { mosiAt, RIDE_CAMERA } from '../chapters/kafli2-trail.js';
+import { mosiAt, RIDE_CAMERA, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import { LOOKOUT_HEAD } from '../chapters/kafli2-thorsedla.js';
 import { createForest, shapeGround } from '../world/forest/forest.js';
 import { planForest } from '../world/forest/plan.js';
@@ -435,11 +436,25 @@ test('ten mud prints lie on the trail with water in them', () => {
     assert.ok(off <= 25, `print ${i + 1} points ${off.toFixed(0)} degrees off the way down the trail`);
     if (i === 0) continue;
     const step = Math.hypot(p.position[0] - placed[i - 1].position[0], p.position[1] - placed[i - 1].position[1]);
-    assert.ok(p.s > placed[i - 1].s && step >= 2 && step <= 2.8, `print ${i + 1} is ${step.toFixed(2)} m on from the one before`);
+    assert.ok(p.s > placed[i - 1].s && step >= 2.6 && step <= 3.4, `print ${i + 1} is ${step.toFixed(2)} m on from the one before`);
     assert.equal(p.side, -placed[i - 1].side, `print ${i + 1} is the other foot's`);
   }
+  // Drawn larger than a real sauropod's (the owner's play: at real size they were no bigger than Mosi's feet), and the trail's grass
+  // and plants keep out of them: none of their mud lies under another's, and the verge is bare round each.
+  assert.ok(PRINT_SIZE >= 1.5, `the prints are ${PRINT_SIZE} times a real one`);
+  const bare = TRAIL.layout.keepOut;
+  for (const [i, p] of prints.entries()) assert.equal(bare(...p.position), 1, `no grass in print ${i + 1}`);
+  const mudOf = prints.map(p => printsKeepOut([p], { size: PRINT_SIZE, margin: 0.001 })); // 1 where a print's mud is, under the ground or not
+  const xs = prints.map(p => p.position[0]), zs = prints.map(p => p.position[1]);
+  for (let x = Math.min(...xs) - 2; x < Math.max(...xs) + 2; x += 0.1) {
+    for (let z = Math.min(...zs) - 2; z < Math.max(...zs) + 2; z += 0.1) {
+      const under = mudOf.filter(inside => inside(x, z) >= 1).length;
+      assert.ok(under <= 1, `two prints' mud at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+    }
+  }
+  assert.equal(bare(prints[0].position[0] - 3, prints[0].position[1] - 3), 0, 'and the ground away from them keeps its grass');
   const { world, run } = propWorld(terrain.heightAt);
-  const mud = createMudPrints(world, { prints, heightAt: terrain.heightAt });
+  const mud = createMudPrints(world, { prints, heightAt: terrain.heightAt, size: PRINT_SIZE });
   assert.equal(mud.group.parent, world.scene);
   const meshes = [];
   mud.group.traverse(o => { if (o.isMesh) meshes.push(o); });
@@ -452,7 +467,7 @@ test('ten mud prints lie on the trail with water in them', () => {
   assert.deepEqual(mud.targets.map(t => t.name), prints.map((_, i) => `print${i + 1}`));
   for (const [i, t] of mud.targets.entries()) {
     const [x, z] = prints[i].position;
-    assert.equal(t.radius, 0.6);
+    assert.equal(t.radius, 0.6 * PRINT_SIZE, 'a tap radius as large as the print');
     assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.3, `print${i + 1}'s target is over it`);
     const up = t.point.y - terrain.heightAt(x, z);
     assert.ok(up > 0 && up < 0.2, `print${i + 1}'s target is ${up.toFixed(2)} m above the ground`);
@@ -468,7 +483,7 @@ test('ten mud prints lie on the trail with water in them', () => {
     highest = Math.max(highest, up);
     if (edge.getX(i) > 0.5 && up > -0.005) edgeAbove++;
   }
-  assert.ok(highest <= 0.1, `the rim stands ${(highest * 100).toFixed(1)} cm above the path (6 cm at the heel, more where the trail falls away under the toes)`);
+  assert.ok(highest <= 0.1 * PRINT_SIZE, `the rim stands ${(highest * 100).toFixed(1)} cm above the path (6 cm at the heel of a real-size print, more where the trail falls away under the toes)`);
   assert.equal(edgeAbove, 0, 'the outer edge of every print is under the ground');
   // The water: the water's own shader (the same as the pools of the Fen), with a print's state, 2 cm below each rim.
   const pools = createWaterMaterial(world, {});
@@ -482,7 +497,7 @@ test('ten mud prints lie on the trail with water in them', () => {
   for (let i = 0; i < wpos.count; i++) {
     const k = owner.getX(i);
     const [x, z] = prints[k].position;
-    assert.ok(Math.hypot(wpos.getX(i) - x, wpos.getZ(i) - z) < 0.8, `the water of print ${k + 1} is over it`);
+    assert.ok(Math.hypot(wpos.getX(i) - x, wpos.getZ(i) - z) < 0.8 * PRINT_SIZE, `the water of print ${k + 1} is over it`);
     levels[k].add(wpos.getY(i).toFixed(4));
   }
   for (const [k, set] of levels.entries()) {
@@ -490,6 +505,11 @@ test('ten mud prints lie on the trail with water in them', () => {
     const level = Number([...set][0]);
     assert.ok(Math.abs(mud.rimOf(k) - level - 0.02) < 0.003, `print ${k + 1}'s water lies ${((mud.rimOf(k) - level) * 100).toFixed(1)} cm below its rim`);
     assert.ok(level > mud.floorOf(k) + 0.01, 'above its floor');
+    // a giant's: the pool of her hind foot alone is over one and a half metres long, nearly three of Mosi's feet (0.6 m)
+    const corners = [];
+    for (let i = 0; i < wpos.count; i++) if (owner.getX(i) === k) corners.push([wpos.getX(i), wpos.getZ(i)]);
+    const longest = Math.max(...corners.flatMap(a => corners.map(b => Math.hypot(a[0] - b[0], a[1] - b[1]))));
+    assert.ok(longest >= 1.5, `print ${k + 1}'s water reaches ${longest.toFixed(2)} m`);
   }
   // A splash rings the water; the count raises a big digit 0.6 m out of it for 1.6 s; a counted print's water goes still and gold.
   run(0.5);
@@ -547,7 +567,7 @@ test('berry bushes expose five red targets and the blue ones', () => {
     const [b] = t.name.split('_').slice(1).map(Number);
     const [x, y, z] = bushes[b].position;
     assert.equal(t.kind, bushes[b].kind);
-    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.9, `${t.name} hangs on its bush`);
+    assert.ok(Math.hypot(t.point.x - x, t.point.z - z) < 0.75 * (bushes[b].size ?? 1), `${t.name} hangs on its bush`);
     assert.ok(t.point.y - y > 0.15 && t.point.y - y < 1.3, `${t.name} is ${(t.point.y - y).toFixed(2)} m up`);
   }
   // on dry hummocks, clear of the Fen's plants, and never in the water
@@ -571,6 +591,75 @@ test('berry bushes expose five red targets and the blue ones', () => {
   assert.ok(berries.flying.position.distanceTo(to) < 0.01, 'and ends at the point');
   berries.dispose();
   assert.equal(berries.group.parent, null);
+});
+
+// The berry search from behind Egill where he picks (fen_pick), on a 16:10 screen: the camera at `from` looking at `to`, turned
+// `yaw` degrees about the vertical (negative to the left, as the free look turns).
+function pickView(terrain, yaw = 0) {
+  const { position: [ex, , ez], heading } = EGILL_PICKS;
+  const h = THREE.MathUtils.degToRad(heading);
+  const local = ([x, y, z]) => [ex + x * Math.cos(h) - z * Math.sin(h), terrain.heightAt(ex, ez) + y, ez + x * Math.sin(h) + z * Math.cos(h)];
+  const { position, target, fov } = FEN_PLACE.shots.fen_pick;
+  const from = local(position.offset), to = local(target.offset);
+  const a = THREE.MathUtils.degToRad(yaw), dx = to[0] - from[0], dz = to[2] - from[2];
+  const camera = new THREE.PerspectiveCamera(fov, 1.6, 0.1, 300);
+  camera.position.fromArray(from);
+  camera.lookAt(from[0] + dx * Math.cos(a) - dz * Math.sin(a), to[1], from[2] + dx * Math.sin(a) + dz * Math.cos(a));
+  camera.updateMatrixWorld();
+  return camera;
+}
+const seenBy = (camera, point, margin = 0.95) => {
+  const p = point.clone().project(camera);
+  return p.z < 1 && Math.abs(p.x) < margin && Math.abs(p.y) < margin;
+};
+
+test('the berry search is a search: five red bunches on four bushes round the bank, each seen whole as the free look turns to it, and the hints true of where they are', () => {
+  const { layout, terrain } = planOf(FEN_PLACE);
+  const spec = FEN_PLACE.layout.berries;
+  const bushes = spec.map(b => ({ ...b, position: [b.position[0], terrain.heightAt(...b.position), b.position[1]] }));
+  const { world } = propWorld(terrain.heightAt);
+  const berries = createBerryBushes(world, { bushes });
+  const red = berries.targets.filter(t => t.kind === 'red');
+  const bushOf = t => spec[Number(t.name.split('_')[1])];
+  assert.equal(red.length, 5, 'five red bunches still');
+  const redBushes = spec.filter(b => b.kind === 'red');
+  assert.ok(redBushes.length >= 4, `on ${redBushes.length} bushes (the owner's play of 2026-10-25: all five were on one screen)`);
+  // As the search opens, the child sees at most the big bush's two; the rest are found by turning, never further than the free look
+  // reaches, and each is a bunch to see, not a glint: no leaf of any bush between the camera and it.
+  const opening = pickView(terrain);
+  const atStart = red.filter(t => seenBy(opening, t.point));
+  assert.ok(atStart.length <= 2, `${atStart.map(t => t.name).join(', ')} in the opening view`);
+  const leaves = berries.group.children.find(o => o.name === 'Berry bushes'); // the leaves (the group has the name too, and holds the berries)
+  const ray = new THREE.Raycaster();
+  const flat = new THREE.Vector3();
+  for (const t of red) {
+    const yaws = [];
+    for (let yaw = PICK_LOOK.yaw[0]; yaw <= PICK_LOOK.yaw[1]; yaw += 5) if (seenBy(pickView(terrain, yaw), t.point, 0.8)) yaws.push(yaw);
+    assert.ok(yaws.length, `${t.name} comes into view as the free look turns`);
+    const camera = pickView(terrain, yaws[Math.floor(yaws.length / 2)]);
+    const toIt = t.point.clone().sub(camera.position);
+    ray.set(camera.position, toIt.clone().normalize());
+    const hit = ray.intersectObject(leaves)[0];
+    assert.ok(!hit || hit.distance > toIt.length() - 0.03, `${t.name} is behind a leaf ${hit ? (toIt.length() - hit.distance).toFixed(2) : 0} m in front of it`);
+    flat.copy(toIt).setY(0);
+    assert.ok(flat.length() < 9, `${t.name} is ${flat.length().toFixed(1)} m off: near enough to see as berries`);
+  }
+  // Mosi's hints, one to each bush, in the order the search gives them (the first bunch not found yet): the big bush, then near the
+  // water, then under the leaves, each true of its bush.
+  const HINTS = ['k2_mosi_hint_berry1', 'k2_mosi_hint_berry2', 'k2_mosi_hint_berry3'];
+  const order = red.map(t => HINTS.indexOf(bushOf(t).hint));
+  assert.ok(order.every((k, i) => k >= 0 && (i === 0 || k >= order[i - 1])), `the hints go ${order.map(k => k + 1).join(', ')}`);
+  for (const b of redBushes) {
+    const water = layout.water.shape.signedAt(...b.position);
+    if (b.hint === HINTS[0]) assert.ok((b.size ?? 1) > Math.max(...spec.filter(o => o !== b).map(o => o.size ?? 1)), '"Ég sé rauð ber við stóra runnann!": the biggest bush');
+    if (b.hint === HINTS[1]) assert.ok(water < 1.5, `"Kíktu nær vatninu!": ${water.toFixed(2)} m from the water`);
+    if (b.hint === HINTS[2]) assert.ok(b.low, '"Þarna, undir laufinu!": its bunch hangs under its leaves');
+  }
+  for (const t of red.filter(r => bushOf(r).low)) {
+    const b = bushes[Number(t.name.split('_')[1])];
+    assert.ok(t.point.y - b.position[1] < 0.35, `${t.name} hangs low, ${(t.point.y - b.position[1]).toFixed(2)} m up`);
+  }
+  berries.dispose();
 });
 
 // ---- the look -------------------------------------------------------------------------------

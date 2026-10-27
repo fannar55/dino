@@ -3234,6 +3234,11 @@
   "duration": 4.17,
   "mouth": "2eb0007ffecc990000000006ffdbc005cab8006dcc8cdb64000000006cdbada60d604ab7000000000000"
  },
+ "k2_mosi_gramedla": {
+  "src": "assets/audio/kafli2/k2_mosi_gramedla.mp3",
+  "duration": 5.77,
+  "mouth": "007fffedeb0000000dfec97005fc68eb5000000000006eb400eeec08ddedfffec978400000000004ffdefeeda4dd5dddd00e70bc740000000000"
+ },
  "k2_thorsedla_now": {
   "src": "assets/audio/kafli2/k2_thorsedla_now.mp3",
   "duration": 3.61,
