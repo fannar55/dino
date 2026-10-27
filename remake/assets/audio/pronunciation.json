@@ -17,7 +17,8 @@
         "Kambeðlur",
         "kambeðlur",
         "Kambeðlan",
-        "kambeðlan"
+        "kambeðlan",
+        "kambeðlu"
       ],
       "recipes": {
         "hratt": {
@@ -43,7 +44,8 @@
         "Snigill",
         "snigill",
         "snigilinn",
-        "snigillinn"
+        "snigillinn",
+        "Snigillinn"
       ],
       "recipes": {
         "hratt": {
@@ -54,7 +56,8 @@
             "Snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigill": "\"/ˈstniːjɪtl̥/\"",
             "snigilinn": "\"/ˈstniːjɪlɪn/\"",
-            "snigillinn": "\"/ˈstniːjɪtlɪn/\""
+            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
+            "Snigillinn": "\"/ˈstniːjɪtlɪn/\""
           },
           "seed": 1,
           "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/. Fleirtalan Sniglar er orð út af fyrir sig (sniglar)."
@@ -64,7 +67,8 @@
             "Snigill": "Sníjitl",
             "snigill": "sníjitl",
             "snigilinn": "sníjilinn",
-            "snigillinn": "sníjitlinn"
+            "snigillinn": "sníjitlinn",
+            "Snigillinn": "Sníjitlinn"
           },
           "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
         }
@@ -321,7 +325,8 @@
       "forms": [
         "Flugeðla",
         "Flugeðlu",
-        "Flugeðlan"
+        "Flugeðlan",
+        "Flugeðlur"
       ],
       "recipes": {
         "hratt": {
@@ -331,7 +336,8 @@
           "say": {
             "Flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
             "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
-            "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\""
+            "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
+            "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\""
           },
           "seed": 42,
           "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
@@ -428,7 +434,10 @@
       "stem": "[Gg]rameðl",
       "forms": [
         "Grameðla",
-        "Grameðlu"
+        "Grameðlu",
+        "grameðla",
+        "grameðlu",
+        "Grameðlur"
       ],
       "recipes": {
         "hratt": {
@@ -437,7 +446,10 @@
         "ipa": {
           "say": {
             "Grameðla": "\"/ˈkraːmˌɛðla/\"",
-            "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\""
+            "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
+            "grameðla": "\"/ˈkraːmˌɛðla/\"",
+            "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
+            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\""
           },
           "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
         },
@@ -1898,7 +1910,7 @@
           "note": "„Snigglar“ með öðru fræi (7)."
         }
       },
-      "chosen": "ipa"
+      "chosen": "hratt"
     }
   }
 }

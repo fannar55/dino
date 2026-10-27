@@ -1,8 +1,8 @@
 // The book's drawn icons, one stroke weight each, coloured by the control they sit in (book.css: .book-icon and .book-arrow).
-// They are markup for a button's innerHTML; the shell (book.js), the card (card-viewer.js) and the zoom (zoom.js) share them.
+// They are markup for a button's innerHTML; the shell (book.js), the card (card-viewer.js) and the zoom (zoom.js) share them. The Risaeðlur
+// ribbon has no drawn icon: it shows Mosi's render (book.js).
 
 export const ICONS = {
-  stars: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><path class="icon-fill" d="M24 5.5c1.3 0 2 1 2.6 2.3l3.8 8.4 9.1 1.1c1.5.2 2.5 1 2.8 2.1.3 1.2-.3 2.2-1.3 3l-6.8 6.2 1.9 9c.3 1.4-.1 2.6-1.1 3.3-1 .7-2.3.6-3.5-.1L24 36.2l-7.5 4.6c-1.2.7-2.5.8-3.5.1-1-.7-1.4-1.9-1.1-3.3l1.9-9L7 22.4c-1-.8-1.6-1.8-1.3-3 .3-1.1 1.3-1.9 2.8-2.1l9.1-1.1 3.8-8.4C22 6.5 22.7 5.5 24 5.5z"/></svg>',
   animals: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><ellipse class="icon-fill" cx="24" cy="34" rx="10.5" ry="9.5"/><ellipse class="icon-fill" cx="24" cy="11" rx="5.4" ry="7.2"/><ellipse class="icon-fill" cx="11.6" cy="16.6" rx="5.2" ry="7" transform="rotate(-30 11.6 16.6)"/><ellipse class="icon-fill" cx="36.4" cy="16.6" rx="5.2" ry="7" transform="rotate(30 36.4 16.6)"/></svg>',
   games: '<svg class="book-icon" viewBox="0 0 48 48" aria-hidden="true"><rect class="icon-fill" x="7" y="11" width="21" height="29" rx="4.5" transform="rotate(-13 17.5 25.5)"/><rect class="icon-fill" x="20" y="8" width="21" height="29" rx="4.5" transform="rotate(11 30.5 22.5)"/><path d="M30.5 15.8l2 4.1 4.5.6-3.3 3.2.8 4.4-4-2.1-4 2.1.8-4.4-3.3-3.2 4.5-.6z" fill="#f2b630" stroke="#3b2f25" stroke-width="1.8" transform="rotate(11 30.5 22.5)"/></svg>',
   // A compass rose: the map's ribbon, Kortið; its north point in the journal's orange.

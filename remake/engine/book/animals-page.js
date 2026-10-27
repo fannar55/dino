@@ -1,15 +1,19 @@
 import { pressable, reducedMotion } from './fx.js';
-import { isUnlocked, isNew, FIND_ME } from './cards.js';
+import { isUnlocked, isNew, bookState, FIND_ME } from './cards.js';
 
-// The animals page (spec section 3.2): one taped photo of each animal on the Dýrin pages, in card order, Mosi and Kambeðla first and
-// then the critters. Each card's spread (cards.js) is a leaf of two pages of its own: chapter 1's animals on the first, the Fen's on
-// the second (book.js turns between them). A tile shows its card's first picture and its name in big letters, and it is one of three:
+// The animals page (spec section 3.2), which the book makes twice: the Dýrin pages' (the animal cards, one taped photo of each in card
+// order, the critters) and the Risaeðlur page's (the dinosaur cards: one leaf of two pages, four tiles on the left and three on the
+// right). Each card's spread (cards.js) is a leaf of two pages of its own: chapter 1's animals on the first, the Fen's on the second
+// (book.js turns between them). A tile shows its card's picture (cards.js `picture`) and its name in big letters, and it is one of three:
 //   found    full colour, breathing, with a twinkle now and then
 //   new      found but not opened yet: it glows, rocks a little and wears its "Nýtt!" until its card is opened
-//   unfound  the same picture as a dark silhouette with a big "?"; a tap wiggles it, the narrator says where it is (its spread's
-//            find-me line: "Finndu mig í skóginum!", or "Finndu mig í Feninu!" for the Fen's) and no card opens
+//   unfound  the same picture as a dark silhouette with a big "?"; a tap wiggles it and the narrator says where it is (its spread's
+//            find-me line: "Finndu mig í skóginum!", or "Finndu mig í Feninu!" for the Fen's; the page's own `findMe` when it is
+//            given: Mosi's "Hana hittum við seinna!" on the Risaeðlur page) and no card opens
 // A tap on a found tile sounds `tile`, marks the card seen and hands the card to onOpenCard with the rectangle of the tile's
-// picture, which the card grows out of. All the look is book.css's; the tiles are made once and render() only changes their state.
+// picture, which the card grows out of. A found teaser, a dinosaur whose card is not written yet (no pages, cards.js), opens no card:
+// its tap marks it seen, nods it and has Mosi say the card's `say` line (his map line about her). What the unlocks read from the save
+// is cards.js's bookState. All the look is book.css's; the tiles are made once and render() only changes their state.
 
 const PER_PAGE = 4; // the left page of a spread holds four photos, two rows of two; the right page takes the rest
 const SAME_TAP_MS = 700; // a second tap this soon after a card opened is the same tap (a double tap)
@@ -19,13 +23,14 @@ const MISSING = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' vi
 
 /**
  * The animals page, rendered into the two `.book-tiles` boxes inside each of `roots` (the Dýrin leaves, one for each spread of the
- * cards in order, see book.js; one leaf alone may be given as it is), over the book's `cards` (parseCards), their pictures (`media`,
- * parseManifest) and the `save`, with the book's sound (`audio`). `onOpenCard(card, fromRect)` shows a found card. Returns
+ * cards in order, see book.js; one leaf alone may be given as it is, as the Risaeðlur page's), over the book's `cards` (parseCards), their
+ * pictures (`media`, parseManifest) and the `save`, with the book's sound (`audio`). `onOpenCard(card, fromRect)` shows a found card.
+ * `findMe`, when given, is the narrator's line for every tile not found yet, in place of its card's. Returns
  *   render()          shows what the save holds now: which animals are found, which are new
  *   nod(id, delay)    the card's tile nods, after `delay` ms (a new animal, where the book has opened for it)
  *   dispose()         takes the page away
  */
-export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), save, audio = null, onOpenCard = null, win = globalThis.window } = {}) {
+export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), save, audio = null, onOpenCard = null, findMe = null, win = globalThis.window } = {}) {
   const leaves = (Array.isArray(roots) ? roots : [roots]).map(root => [...root.querySelectorAll('.book-tiles')]);
   const spreads = [...new Set(cards.map(card => card.spread ?? 1))].sort((a, b) => a - b); // leaves[i] is spreads[i]'s
   const make = (tag, className) => {
@@ -35,15 +40,15 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   };
   const tiles = new Map(); // card id -> { card, el, picture, badge, undo }
   let lastOpen = -Infinity;
-  let findLine = null; // the narrator saying where an animal is, so a second wiggle does not start it over
+  let findLine = null; // the narrator saying where an animal is, or Mosi saying his line of a teaser, so a second tap does not start it over
 
-  /** A tile: a taped photo of the card's first picture, with the animal's name. */
+  /** A tile: a taped photo of the card's picture, with the animal's name. */
   function build(card) {
     const el = make('button', 'tile');
     el.setAttribute('type', 'button');
     el.setAttribute('data-card', card.id);
     const picture = make('span', 'tile-picture');
-    const image = media.get(card.pages[0].image);
+    const image = media.get(card.picture);
     const img = doc.createElement('img');
     img.src = image?.thumb ?? image?.src ?? MISSING;
     img.alt = '';
@@ -61,8 +66,18 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   }
 
   function tap(tile) {
-    if (isUnlocked(tile.card, save.get())) openCard(tile);
-    else wiggle(tile);
+    if (!isUnlocked(tile.card, bookState(save))) wiggle(tile);
+    else if (tile.card.pages.length === 0) say(tile);
+    else openCard(tile);
+  }
+
+  /** A teaser found (a dinosaur whose card is not written yet): it is seen, nods, and Mosi says what the card says. No card opens. */
+  function say(tile) {
+    audio?.sfx?.('tile');
+    save.addSeen(tile.card.id);
+    if (!findLine || findLine.done) findLine = audio?.narrate?.(tile.card.say) ?? null;
+    nod(tile.card.id);
+    render(); // "Nýtt!" is gone
   }
 
   function openCard(tile) {
@@ -78,7 +93,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   /** An animal not found yet: it wiggles, the narrator says where it is, and the card stays shut. */
   function wiggle(tile) {
     audio?.sfx?.('wiggle');
-    if (!findLine || findLine.done) findLine = audio?.narrate?.(tile.card.findMe ?? FIND_ME) ?? null;
+    if (!findLine || findLine.done) findLine = audio?.narrate?.(findMe ?? tile.card.findMe ?? FIND_ME) ?? null;
     if (typeof tile.el.animate !== 'function') return;
     const turns = reducedMotion(win)
       ? [{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }]
@@ -97,7 +112,7 @@ export function createAnimalsPage(doc, roots, { cards = [], media = new Map(), s
   }
 
   function render() {
-    const state = save.get();
+    const state = bookState(save);
     const ordered = [...cards].sort((a, b) => a.order - b.order);
     const placed = new Map(); // spread -> how many of its tiles are placed so far
     ordered.forEach(card => {

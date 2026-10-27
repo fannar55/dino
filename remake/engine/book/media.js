@@ -8,10 +8,11 @@
 // drawings and the placeholders) have license 'own', and their source names the render command or the owner. Every other
 // picture is external: it needs a credit, an open licence and that licence's URL, its source, and its file's sha256.
 // `alt` says in a sentence what the picture shows. Paths are read from remake/, as the page reads them. A tile shows its card's
-// first picture, so that one is a drawing.
+// `picture` (cards.js; page one's picture unless the card names one, as a teaser does), and that one may be of any kind: the
+// owner approved photographs as tile pictures (2026-10-26), so a living animal's tile is a photograph of it and an extinct one's
+// a scientist's drawing of how it looked.
 
 export const KINDS = ['fossil', 'photo', 'illustration', 'render', 'placeholder'];
-const TILE_KINDS = ['illustration', 'render', 'placeholder']; // what page one, and so the tile, may show
 const MAX_SIDE = 1024; // px, the long side
 const FIELDS = ['id', 'src', 'thumb', 'kind', 'alt', 'credit', 'license', 'licenseUrl', 'source', 'modifications', 'sha256', 'width', 'height'];
 const EXTERNAL = { credit: 'a credit', license: 'a licence', licenseUrl: 'a licence URL', source: 'a source', sha256: 'a sha256' };
@@ -57,12 +58,11 @@ export function licenceFamily(license) {
 export function checkMedia(manifest, cards, { exists, size }) {
   const problems = [];
   for (const card of cards) {
+    const ownTile = card.picture !== undefined && card.picture !== card.pages[0]?.image; // a picture of the tile's own, not page one's
+    if (ownTile && !manifest.get(card.picture)) problems.push(`card "${card.id}": the tile's picture ${card.picture} is not in the manifest`);
     card.pages.forEach((page, i) => {
       const image = manifest.get(page.image);
       if (!image) problems.push(`card "${card.id}" page ${i + 1}: the picture ${page.image} is not in the manifest`);
-      else if (i === 0 && !TILE_KINDS.includes(image.kind)) {
-        problems.push(`card "${card.id}": page 1's picture is its tile, so it is a drawing (an illustration, a render or a placeholder), not ${image.id}, a ${image.kind}`);
-      }
     });
   }
   for (const image of manifest.values()) {
@@ -93,6 +93,67 @@ export function checkMedia(manifest, cards, { exists, size }) {
         problems.push(`${image.id}: the picture ${path} is ${measured.width}x${measured.height} px; its long side is at most ${MAX_SIDE}`);
       }
     }
+  }
+  return problems;
+}
+
+// The book's 3D models (spec section 3.4) are in the same file, under "models":
+//
+//   { "models": [ { "id", "src", "credit", "license", "licenseUrl", "source", "alt", "modifications", "sha256", "triangles",
+//                   "bytes" }, ... ] }
+//
+// A page's `model` (cards.js) names one by its src, a GLB read from remake/. The card's ⓘ says who made the model while it shows.
+// A museum's scan needs what a picture that is not our own needs; the owner's own Tripo models have license 'own'. A model is light
+// enough for the tablet: at most MODEL_TRIANGLES triangles and MODEL_BYTES bytes.
+
+export const MODEL_TRIANGLES = 50000;
+export const MODEL_BYTES = 2 * 1024 * 1024;
+const MODEL_FIELDS = ['id', 'src', 'credit', 'license', 'licenseUrl', 'source', 'alt', 'modifications', 'sha256', 'triangles', 'bytes'];
+
+/** The manifest's models by src (none when it has no "models"). Throws an Error naming a model with no id or src, or one there twice. */
+export function parseModels(data) {
+  const list = data?.models ?? [];
+  if (!Array.isArray(list)) throw new Error('media-manifest.json: the models should be a list, under "models"');
+  const models = new Map();
+  const ids = new Set();
+  list.forEach((raw, index) => {
+    const name = text(raw?.id) ? `"${raw.id}"` : `number ${index + 1}`;
+    const fail = problem => { throw new Error(`media-manifest.json: model ${name} ${problem}`); };
+    if (!text(raw?.id)) fail('has no id');
+    if (!text(raw.src)) fail('has no src');
+    if (ids.has(raw.id) || models.has(raw.src)) fail('is there twice');
+    ids.add(raw.id);
+    models.set(raw.src, Object.fromEntries(MODEL_FIELDS.map(field => [field, raw[field] ?? null])));
+  });
+  return models;
+}
+
+/**
+ * Everything wrong with the models the cards' pages use, one line per problem; none is all right. `bytes(path)` is the size of
+ * the file at a path as the manifest gives it, or null when it is not there.
+ */
+export function checkModels(models, cards, { bytes }) {
+  const problems = [];
+  for (const card of cards) {
+    card.pages.forEach((page, i) => {
+      if (page.model && !models.has(page.model)) problems.push(`card "${card.id}" page ${i + 1}: the model ${page.model} is not in the manifest`);
+    });
+  }
+  for (const model of models.values()) {
+    if (model.license !== 'own') {
+      const missing = Object.keys(EXTERNAL).filter(field => !text(model[field]));
+      if (missing.length) problems.push(`${model.id}: a model that is not our own needs ${and(missing.map(field => EXTERNAL[field]))}`);
+    }
+    if (text(model.license) && !licenceFamily(model.license)) {
+      problems.push(`${model.id}: the licence ${model.license} is not an open one (CC BY, CC BY-SA, CC0 or public domain)`);
+    }
+    if (!/\.glb$/i.test(model.src)) problems.push(`${model.id}: the model ${model.src} is not a GLB`);
+    if (!(model.triangles > 0) || model.triangles > MODEL_TRIANGLES) {
+      problems.push(`${model.id}: it has ${model.triangles ?? 'no count of'} triangles; a model has at most ${MODEL_TRIANGLES}`);
+    }
+    const size = bytes(model.src);
+    if (size === null) problems.push(`${model.id}: the model ${model.src} is not there`);
+    else if (size > MODEL_BYTES) problems.push(`${model.id}: the model ${model.src} is ${size} bytes; a model is at most ${MODEL_BYTES}`);
   }
   return problems;
 }

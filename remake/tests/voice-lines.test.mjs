@@ -489,14 +489,17 @@ test("the line sets are chapter 1's, the book's, the card game's, Háls og hali'
   assert.equal(REMAKE_AUDIO, SETS.kafli1, 'the chapter stays the default');
 });
 
-test("the book's lines-source.json holds the narrator's lines, which the tool reads like the chapter's", () => {
+test("the book's lines-source.json holds the narrator's lines and Mosi's two, which the tool reads like the chapter's", () => {
   const lines = readLines(REAL.repo, 'book');
   const byId = new Map(lines.map(line => [line.id, line]));
   assert.ok(byId.has('book_kalligrammatid_1'), "the Kalligrammatid card's first page, which the narrator's candidates read");
+  // Mosi speaks in the book twice (the Risaeðlur page's unmet tile, Safnið's full collection); the narrator reads all the rest.
+  const MOSI = { book_mosi_later: 'Hana hittum við seinna!', book_mosi_fossils_all: 'Vá! Þú fannst alla átta steingervingana. Safnið er fullt!' };
   for (const line of lines) {
     assert.match(line.id, /^book_[a-z0-9_]+$/, 'book_<card>_<page> or book_<what>');
-    assert.equal(line.speaker, 'narrator', `${line.id}: the narrator reads the whole book`);
+    assert.equal(line.speaker, line.id in MOSI ? 'mosi' : 'narrator', `${line.id}: Mosi's two, and the narrator reads the rest of the book`);
   }
+  for (const [id, text] of Object.entries(MOSI)) assert.equal(byId.get(id)?.text, text, `${id} says exactly this`);
   // The unfound animal's tile (spec 3.2): the narrator says exactly this.
   assert.equal(byId.get('book_find_me')?.text, 'Finndu mig í skóginum!');
   assert.ok(fs.readFileSync(REAL.bookSpec, 'utf8').includes('„Finndu mig í skóginum!“'), 'and so does the spec');

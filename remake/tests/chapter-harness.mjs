@@ -170,11 +170,11 @@ export function fakePointer() {
 
 const PAGE = ['caption', 'choices', 'fade', 'tray', 'view', 'journal-button', 'star-slots', 'journal-flights', 'journal-badge'];
 
-/** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened, and no pictures to fly. */
+/** A stand-in for the book (engine/book/book.js), which the journal opens: how it was opened (and which tile it was asked to nod), and no pictures to fly. */
 export function fakeBook() {
   return {
-    opened: [], isOpen: false,
-    open(tab, by) { this.opened.push([tab, by]); this.isOpen = true; },
+    opened: [], nods: [], isOpen: false,
+    open(tab, by, options) { this.opened.push([tab, by]); this.nods.push(options?.nod ?? null); this.isOpen = true; },
     close() { this.isOpen = false; },
     refresh() {},
     pictureOf: () => null,

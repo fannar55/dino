@@ -110,9 +110,9 @@ The 3D table it plays on (the world, the dice and the cup, the effects, Mosi as 
   (`music.js`); the sound effects, made in Web Audio as in the old game (`sfx.js`); what holds the
   sound while the book is open or the tab hidden (`hold.js`); the one audio context (`output.js`).
 - `engine/book/`: the book, Egill's journal opened over the paused game; its look is `book.css`. `book.js` is the shell
-  (the spread, the ribbons that turn its pages, the close, the Stjörnur page); `animals-page.js` the animals page, a taped
-  photo of each animal that is found, new or an unfound silhouette; `card-viewer.js` a card that grows out of its tile, a
-  picture and a sentence at a time, read aloud; `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
+  (the spread, the ribbons that turn its pages, the close, the five ribbons Risaeðlur, Dýrin, Leikir, Kortið and Safnið); `animals-page.js` the animals page (the Dýrin pages' and the Risaeðlur page's), a taped
+  photo of each animal that is found, new or an unfound silhouette; `museum-page.js` the Safnið page, the fossil collection (new fossils wear Nýtt!, a full collection is celebrated once, a fossil's card opens); `card-viewer.js` a card that grows out of its tile, a
+  picture and a sentence at a time, read aloud, and a page with a model shows it in the picture's place (`skeleton-view.js`, a small three.js view of its own that a finger turns and two fingers pinch); `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
   the squash, sparkle and sound of every touch, counting a tap as the game does; `book-audio.js` the book's own narrator and
   effects, and `book-sounds.js` the effects, made with the game's tools in the theme's key; `cards.js` and `media.js` read
   and check its data (`parseCards`, `parseManifest`, `checkMedia`). Under reduced motion it moves as fades.

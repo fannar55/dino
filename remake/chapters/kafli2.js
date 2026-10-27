@@ -586,12 +586,12 @@ function* say(s, c, speaker, id, options) {
 }
 
 // 8. The second star, and the book: the star rises from her head into the sky, the child taps it into the book, the sun hugs itself
-// and winks in a shot of its own, and the book opens on its stars, two of them alight now, and turns to the map, where the friends
-// found today are.
+// and winks in a shot of its own, and the book opens on its dinosaurs, where Þórseðla is new and nods, and turns to the map, where
+// the friends found today are.
 // The star rises from just over her head (the brief's 1 m under it, on her neck, put a gold star on her gold skin) and goes up 2.4 m
 // into the sky (engine/scene/star-sprite.js), where it waits for the tap.
 const STAR_FROM = { actor: 'thorsedla', part: 'head', offset: [0, 0.3, 0] };
-const TO_THE_MAP = 1.2; // seconds the book shows its stars before it turns to the map
+const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (Þórseðla nodding) before it turns to the map
 // Mosi's heading as the star rises (he came round to catch Egill facing west, 180): turned north toward her head, so the star is
 // 33 degrees aside of his head (the saddle lets his look go 40 aside and 30 up, engine/riding.js); from the south he reads three
 // quarters from behind, looking up with Egill.
@@ -620,9 +620,10 @@ function* theStar(s, c) {
   s.sun.hug();
   s.after(SUN_WINKS, () => s.sun.wink());
   yield s.wait(HUG_HOLD);
-  // Into the book, which opens over the Fen on its stars and turns to the map, while Mosi says where they stand.
+  // Into the book, which opens over the Fen on its dinosaurs, where Þórseðla's tile is new and nods, and turns to the map, while Mosi
+  // says where they stand.
   s.fade(0.45, 1.6);
-  s.journal.open('stars');
+  s.journal.open('dinosaurs', { nod: 'thorsedla' });
   s.after(TO_THE_MAP, () => s.journal.open('map'));
   yield* say(s, c, 'mosi', 'k2_mosi_two');
 }

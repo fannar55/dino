@@ -1569,6 +1569,21 @@
   "duration": 3.13,
   "mouth": "000008aa989300000000004f900009fe50a9770009f99000000000000000000"
  },
+ "k1_mosi_butterfly": {
+  "src": "assets/audio/kafli1/k1_mosi_butterfly.mp3",
+  "duration": 5.85,
+  "mouth": "ceedc84000000dd80d9000ec8c9fe96ecbd60009bbcefcef908fefffeed840000000000029ed600eed9ba0bffffec9008dca70300000000000000"
+ },
+ "k1_mosi_book": {
+  "src": "assets/audio/kafli1/k1_mosi_book.mp3",
+  "duration": 14.01,
+  "mouth": "0006dffcdba970000000000bfdebeb2da409edb500cd700002addffeb09ffeddc7dd6bdd88977300000000000dfeb8ed50fdd300db03000abbdeed3bdcc57eeddcc8000dddbbccc809eddccc79bb408ccddee40486000000000000dffbffecded44ebccca07c086ab4300c6a88cdcdcb863000000ceddcdd9007b90009feeddffebdddddeecba970000000000"
+ },
+ "k1_mosi_book_close": {
+  "src": "assets/audio/kafli1/k1_mosi_book_close.mp3",
+  "duration": 6.01,
+  "mouth": "ada000cfd089fd753bddeb0bdddbbdfe0bd0efc49cdcc8000ad7bca0bccfd3664000000000000acd9c800b94008e8dd26cddccbcc0045500000000000"
+ },
  "k1_mosi_hold": {
   "src": "assets/audio/kafli1/k1_mosi_hold.mp3",
   "duration": 2.49,
@@ -1694,6 +1709,11 @@
   "duration": 3.05,
   "mouth": "00afffdadd7000dfefd704000000000e7300ac400ceb80eec400000000000"
  },
+ "k1_mosi_fannar": {
+  "src": "assets/audio/kafli1/k1_mosi_fannar.mp3",
+  "duration": 9.69,
+  "mouth": "9ffeedce703c708edeffdccdeb08eedacd9bea408dddbdeeddeeedddcddefd038600000000000c80bc0bddc500fddefeccdc40b9430000000000000aff50feb8dee96409cccfe7accb000dffefffeddeffcdede60cdbde96cc08eea56000000000"
+ },
  "k1_mosi_next": {
   "src": "assets/audio/kafli1/k1_mosi_next.mp3",
   "duration": 2.73,
@@ -1724,6 +1744,31 @@
   "duration": 6.49,
   "mouth": "00fc000f600dd0007ddca76500000000000000dfd07d0bb6bca400ced9000003acc6cddc009bc700ddd940000000000000000dfeefc0ddaa700878960000000000"
  },
+ "book_mosi_6": {
+  "src": "assets/audio/book/book_mosi_6.mp3",
+  "duration": 6.73,
+  "mouth": "0000cdffedcfd0009adbc90a707900087720000000000000005cd9a9af200000eecc900a700004ddb70000b8000000000005cbde0099effa000dffa0076300000000000"
+ },
+ "book_mosi_7": {
+  "src": "assets/audio/book/book_mosi_7.mp3",
+  "duration": 6.01,
+  "mouth": "00ee500eadd30afeeffd09dff0000adc5a5006400000000000dd9c90a503a90033bb93309cc600bee5bbb306b000bdb94aa4abba65002300000000000"
+ },
+ "book_mosi_8": {
+  "src": "assets/audio/book/book_mosi_8.mp3",
+  "duration": 5.21,
+  "mouth": "000cefe8d80eedb8eefffffefffefeeed807b98a8aa9630000000000ab3ea00008eeeb3002dcbedb9978dc8bffd70000000000000"
+ },
+ "book_mosi_9": {
+  "src": "assets/audio/book/book_mosi_9.mp3",
+  "duration": 6.41,
+  "mouth": "00eeef4ce69edc008fcc8c7c005d800004200000000000000ed00cf7000e7feefc08e3009a898200690007fbb84eccb8006efe904cc7ab7006864000000000000"
+ },
+ "book_mosi_10": {
+  "src": "assets/audio/book/book_mosi_10.mp3",
+  "duration": 5.21,
+  "mouth": "0000efff90eecee5ae9000acffeddddbc409aa7007aba4753000000000000000dfbc0000baa600dd5000b30000003000000000000"
+ },
  "book_kambedla_1": {
   "src": "assets/audio/book/book_kambedla_1.mp3",
   "duration": 6.25,
@@ -1748,6 +1793,256 @@
   "src": "assets/audio/book/book_kambedla_5.mp3",
   "duration": 6.57,
   "mouth": "00fd300f736efe000fe0a50740000000000000cca000bdeccb6000000007bc9defe500cba00d706b4bd004530000000000000dfebfe0adba96059898300000000000"
+ },
+ "book_kambedla_6": {
+  "src": "assets/audio/book/book_kambedla_6.mp3",
+  "duration": 6.25,
+  "mouth": "7008effeccd80007df80cb986089003b999000000000000000000009ff49b0dc7400adebabaa038a40b97007887600900008cddba746bb703000000000000"
+ },
+ "book_kambedla_7": {
+  "src": "assets/audio/book/book_kambedla_7.mp3",
+  "duration": 5.53,
+  "mouth": "09f900efd000dfdfffeb09bc8000aec04975453000000000000000cfedcb00bfe00c00a850b804da000caa99cb66cbba876400000000000"
+ },
+ "book_kambedla_8": {
+  "src": "assets/audio/book/book_kambedla_8.mp3",
+  "duration": 6.41,
+  "mouth": "06bffe0cffdcdd96decd503040cdddeeddc008890479bba7400000000000000000effbeecfefc03a9998ca004d800adb0003edea9d5000fe00000000000000000"
+ },
+ "book_kambedla_9": {
+  "src": "assets/audio/book/book_kambedla_9.mp3",
+  "duration": 5.931,
+  "mouth": "04dffe0effdee30debae9eddccbdec095000b700003000000000000005ec06ffe000adbcdc00cc000007970000bddc40005cccba643200000000000"
+ },
+ "book_kambedla_10": {
+  "src": "assets/audio/book/book_kambedla_10.mp3",
+  "duration": 7.61,
+  "mouth": "0bfb00ee4ffded67cdddcccbbb606bcc94cea4000000000000000006f9000ee000efce86cdbaaaaaba509600007dfefd09b9deefd0049600000bccb30ccb83000000698643000000000000000"
+ },
+ "book_thorsedla_1": {
+  "src": "assets/audio/book/book_thorsedla_1.mp3",
+  "duration": 7.61,
+  "mouth": "0afb200dd9e000efe5404a9766300000000000000ffff905efb0000c80487233000000000004adffc00ad9eedbdeb57b9878bdeb00dc43aba940000000aceccba607a83799644200000000000"
+ },
+ "book_thorsedla_2": {
+  "src": "assets/audio/book/book_thorsedla_2.mp3",
+  "duration": 5.931,
+  "mouth": "0000adeffdace000ad8005b33965500870059896000000000000000effecb55efe0000000bffca9000e5000acafcdb3000beae85320000000000000"
+ },
+ "book_thorsedla_3": {
+  "src": "assets/audio/book/book_thorsedla_3.mp3",
+  "duration": 5.21,
+  "mouth": "00db00efec0bfffffc06cfe90000cd7000a50883640300000000000009e900dec0bc900a9000bb9738a7abcb95500030000000000"
+ },
+ "book_thorsedla_4": {
+  "src": "assets/audio/book/book_thorsedla_4.mp3",
+  "duration": 8.01,
+  "mouth": "0dfd000d80cdc9a9400000acc8d60000dcffffcb588743400000000000000000fe00ad5ec8beb0ca8ec000cec7300886344000000000a00ac000bffd83000000dec9ca90b400bdffda764000000000000"
+ },
+ "book_thorsedla_5": {
+  "src": "assets/audio/book/book_thorsedla_5.mp3",
+  "duration": 6.01,
+  "mouth": "00fffdffded000d9000bbd9000efdbcedb058a66abcba64000000000005885008dee09000009dcb80000abcbc007b9a749dd8acddb500000000000000"
+ },
+ "book_thorsedla_6": {
+  "src": "assets/audio/book/book_thorsedla_6.mp3",
+  "duration": 4.33,
+  "mouth": "00ff73ffe7fcd500cd00000aa600006b00add2000cccddca08ba900bedd806807600b005500000000000000"
+ },
+ "book_thorsedla_7": {
+  "src": "assets/audio/book/book_thorsedla_7.mp3",
+  "duration": 7.53,
+  "mouth": "000ffb00007fe600adeeb8bdc900aa896787305b8b00ac90660090007ccca4400000000000000000007ffffbcdd50008ca0000adc9630000656c08cb0d00008dc8009857404300000000000"
+ },
+ "book_thorsedla_8": {
+  "src": "assets/audio/book/book_thorsedla_8.mp3",
+  "duration": 5.85,
+  "mouth": "0cff300ad47cb9a509a9769ecf7ec0000ee90afce8ffc00def507db8b00ad00000befeefeedebcbb799655000000000cdbdeeb650000000000000"
+ },
+ "book_thorsedla_9": {
+  "src": "assets/audio/book/book_thorsedla_9.mp3",
+  "duration": 7.29,
+  "mouth": "00bffede90bd0da0bfd000c45bb7a508a9709cbc508dbcdb3b9308b5006503000000000000000fe007ebf80ceff403aa96639009928ffdbf606a00bc805cb005b98740000000000000"
+ },
+ "book_gramedla_1": {
+  "src": "assets/audio/book/book_gramedla_1.mp3",
+  "duration": 7.77,
+  "mouth": "00fa00bffc04eeeffeb855630000000000dbccedca00ba9890098c3000000000000000000000004ffcfcadd60000c90000aa000de7079505763009b8b8a39acb9077009899a90020000000000000"
+ },
+ "book_gramedla_2": {
+  "src": "assets/audio/book/book_gramedla_2.mp3",
+  "duration": 7.45,
+  "mouth": "0003fffffeefe004eeeefdba79608a000a8b9400000000000000000000000efbeadb50009fa50000ddc63994000009bccd0000d909cd900a90000ab0000cedca008dc3043000000000000"
+ },
+ "book_gramedla_3": {
+  "src": "assets/audio/book/book_gramedla_3.mp3",
+  "duration": 6.33,
+  "mouth": "00fd306eae9009fffffd90a9bc0000cdbbb7763420000000000000000007eefdda0cec0b069a866000000aba009846899bc8600892008003500000000000000"
+ },
+ "book_gramedla_4": {
+  "src": "assets/audio/book/book_gramedla_4.mp3",
+  "duration": 6.09,
+  "mouth": "03afffa0b945aa905dfc000000ccbacbc9b8000fcdb9ff97500000000000000ddb0003bcefd00bb2000a840ea000009ccca60064009860000000000000"
+ },
+ "book_gramedla_5": {
+  "src": "assets/audio/book/book_gramedla_5.mp3",
+  "duration": 5.05,
+  "mouth": "0ddeefffddbdc77dbed40009ecc00beec507a7699aa9520000000000005afb00ddbffca8000793003ccb80045000000000000"
+ },
+ "book_gramedla_6": {
+  "src": "assets/audio/book/book_gramedla_6.mp3",
+  "duration": 5.61,
+  "mouth": "00ffbeccf0000adffd000a80008a000600004000000000000000007ffdc00be86c36cdc8767500007b007aa308a988a940000000000000000"
+ },
+ "book_gramedla_7": {
+  "src": "assets/audio/book/book_gramedla_7.mp3",
+  "duration": 4.73,
+  "mouth": "0000ffff0afcce8ba000bddcb999706a72009b9c7dec8b0005a99000ab930000bb9abccb42490000423000000000000"
+ },
+ "book_gramedla_8": {
+  "src": "assets/audio/book/book_gramedla_8.mp3",
+  "duration": 7.69,
+  "mouth": "0ccdcdffddb8aa40006cbd7d8000bc06e97ab6000b000005b8002a0000bddbbdbbaa589602000000000000a500bdeff9009a97786059000cbcd08a40386004dc0dfffee7000600000000000000"
+ },
+ "book_gramedla_9": {
+  "src": "assets/audio/book/book_gramedla_9.mp3",
+  "duration": 9.45,
+  "mouth": "07ffea00cdedfffdccddda00bdbb93400000000000000000000000009deff08e9bdc866a862065400000000009acca5cb66bdffdcb83a9c707caa9a00da090000680000030000000000000000000eeaefb0abb97600888500000000000000"
+ },
+ "book_uggedla_1": {
+  "src": "assets/audio/book/book_uggedla_1.mp3",
+  "duration": 5.61,
+  "mouth": "00ef300adbdd90e4000b9754400000000000000fffe0000effe940984320000000005900000d90000000bb000000880a93045300000000000"
+ },
+ "book_uggedla_2": {
+  "src": "assets/audio/book/book_uggedla_2.mp3",
+  "duration": 5.931,
+  "mouth": "0000ceeffddef00000cfff809967005a00498a70000000000000000bdacaea99988cd300000000005cdeb7650006a39600aeb009033000000000000"
+ },
+ "book_uggedla_3": {
+  "src": "assets/audio/book/book_uggedla_3.mp3",
+  "duration": 8.33,
+  "mouth": "00ef500edf800effffe87bde90000aeda505530000000000000000000efff00dfb9dab00bee00d8009dbabb07ded920466000000000000b9bdab408b40000bccbb89a63a7ccddc006aa008a6004300000000000"
+ },
+ "book_uggedla_4": {
+  "src": "assets/audio/book/book_uggedla_4.mp3",
+  "duration": 5.931,
+  "mouth": "00fffddf004c009b3000000000000000000003effe6becaaed8005cccba66534000000000eedd8d9008bc65b907700abb98900a0000000000000000"
+ },
+ "book_uggedla_5": {
+  "src": "assets/audio/book/book_uggedla_5.mp3",
+  "duration": 5.37,
+  "mouth": "0000beffd50cba6a830003bcac5000db0000acdddda057846a9a975200000000000099efffd0bcdbdb0007dddd8000a6000000000000"
+ },
+ "book_uggedla_6": {
+  "src": "assets/audio/book/book_uggedla_6.mp3",
+  "duration": 4.651,
+  "mouth": "000de00bfefb0ffd00ccbbc937dcdea0bd0006c848eebaedfeb0006400000000058ffdb9bc8ef00cdc400000000000"
+ },
+ "book_uggedla_7": {
+  "src": "assets/audio/book/book_uggedla_7.mp3",
+  "duration": 5.37,
+  "mouth": "004defceffcac0002dccc7009c400cb30940b99400000000000000000cffe46eccabb9008b06e6000c80000a8a700085430000000000"
+ },
+ "book_uggedla_8": {
+  "src": "assets/audio/book/book_uggedla_8.mp3",
+  "duration": 6.65,
+  "mouth": "0006dffd00cda7a94003ccad6009d80deaaeeddcdba000b9007efffeedccbba688606640000003a8ded805850274000000a50cedeffd86955ba564000000000000000"
+ },
+ "book_uggedla_9": {
+  "src": "assets/audio/book/book_uggedla_9.mp3",
+  "duration": 7.211,
+  "mouth": "000ff8009d9effbaf8690008cd804d00cb0000000005ddbde0dfdd70bffeed89d066000b00000400000000000000004df82ffd70fe2000000effeec76bdc929a00740000000000000"
+ },
+ "book_sloedla_1": {
+  "src": "assets/audio/book/book_sloedla_1.mp3",
+  "duration": 5.931,
+  "mouth": "08fa00befc000affecb86342000000000000004fffc0004bd9c608decfedb8004000000000069999bdeda00cd9006aa84037a5ac748654000000000"
+ },
+ "book_sloedla_2": {
+  "src": "assets/audio/book/book_sloedla_2.mp3",
+  "duration": 6.25,
+  "mouth": "0000dffffdcdfc000adecc07ccabbb7057023a500a8970000000000000000ef3ec00dfea0dbdb0000cdddfec9006b9a004dedc8a900a94003000000000000"
+ },
+ "book_sloedla_3": {
+  "src": "assets/audio/book/book_sloedla_3.mp3",
+  "duration": 6.09,
+  "mouth": "00dd400ddc80efffec08bbc900000009bab709cacca83000000000000000000000eff00caa9aa70a6007cdb000aa59200bec6a00056006400000000000"
+ },
+ "book_sloedla_4": {
+  "src": "assets/audio/book/book_sloedla_4.mp3",
+  "duration": 6.65,
+  "mouth": "00affc05edfec8bb3000accdcbc7a85cda75000000000bd08fcca9b89c800400000000000000000fd8e000dfffe03bb50a500004bde70000000089630000000000000"
+ },
+ "book_sloedla_5": {
+  "src": "assets/audio/book/book_sloedla_5.mp3",
+  "duration": 4.651,
+  "mouth": "00efdeefffeedffefdefdc609a8bbb87565000000000006bcbddd08cbbbcce900a0000b9bc60480003000000000000"
+ },
+ "book_sloedla_6": {
+  "src": "assets/audio/book/book_sloedla_6.mp3",
+  "duration": 4.33,
+  "mouth": "00ffdfec0ddffc00b986554000000005a800cccffed5eec00bb000000009a308705cb840000000000000000"
+ },
+ "book_sloedla_7": {
+  "src": "assets/audio/book/book_sloedla_7.mp3",
+  "duration": 6.33,
+  "mouth": "00fe0bfeecfaeeedefdcc6005c800b88560000006c8fdefd403bfff00be9036cb97760000da0ac00330d6eb00000950000aa940a0006a000840000000000000"
+ },
+ "book_sloedla_8": {
+  "src": "assets/audio/book/book_sloedla_8.mp3",
+  "duration": 5.53,
+  "mouth": "00cfef60efefdefc000a940020cc9d9030bd70bebbaed90006bc4009b000bdffeeedbbabaa588544000000003c9bccc9340030000000000"
+ },
+ "book_sloedla_9": {
+  "src": "assets/audio/book/book_sloedla_9.mp3",
+  "duration": 6.97,
+  "mouth": "00fd408f505ee005bff0097640000000000000bde33cb06dddc89ddfdddcca4000acbceec008cc50c500340000000000000000000cefebff30fedca50aaaa744000000000000"
+ },
+ "book_flugedla_1": {
+  "src": "assets/audio/book/book_flugedla_1.mp3",
+  "duration": 5.931,
+  "mouth": "00fd300dd9e0009eeff9a975540000000000000000fffe500007eebcb8500530000000000000adedc00398400000ba0780000aca730000000000000"
+ },
+ "book_flugedla_2": {
+  "src": "assets/audio/book/book_flugedla_2.mp3",
+  "duration": 6.57,
+  "mouth": "0bf50f70aed8400000000000000000cffffefeb9ca54aedc9c6000cfbee708b985060000000007c0e8009dd50009c0097077400bd09a708309dcb652000000000000"
+ },
+ "book_flugedla_3": {
+  "src": "assets/audio/book/book_flugedla_3.mp3",
+  "duration": 6.89,
+  "mouth": "00ee400ffe60efffff77bdea0002009ddb975004300000000000045fef00c5eea7cedeec5006ca753000008ccbcd805ca09bcbdccedcbcccc400ab700bb603000000000000"
+ },
+ "book_flugedla_4": {
+  "src": "assets/audio/book/book_flugedla_4.mp3",
+  "duration": 6.65,
+  "mouth": "000efeffffa0bbbb80009cc7c5644ceddc000dd430cceca0029ca73000000000000000bffcceebaadeeb0cec03db0000000008ba008ede7088000ab84000000000000"
+ },
+ "book_flugedla_5": {
+  "src": "assets/audio/book/book_flugedla_5.mp3",
+  "duration": 5.53,
+  "mouth": "00fffdee008c007c40000000000000000007fc000006feff00dc99a549954badcdedcec04cbbcb0000b500007c49da00096300000000000"
+ },
+ "book_flugedla_6": {
+  "src": "assets/audio/book/book_flugedla_6.mp3",
+  "duration": 5.61,
+  "mouth": "48ddd80c60dd76cdbd9ab50009900009ccb30468400069609acb00a808809ba003300000000006aeffffd05decfd00efa0000000000000000"
+ },
+ "book_flugedla_7": {
+  "src": "assets/audio/book/book_flugedla_7.mp3",
+  "duration": 6.49,
+  "mouth": "9ebaffbeab9cd60000000000000ded5dc000000beca800a72000770007bbad005daab400000000000000003dfeffff8cdb70000bcb960057358a74000000000000"
+ },
+ "book_flugedla_8": {
+  "src": "assets/audio/book/book_flugedla_8.mp3",
+  "duration": 6.17,
+  "mouth": "000fffffff3dfe009dfec7adbb0000ccb973000c9b5cc80c9008c00bc000ddffeeddcbcb9489605400000000880adddffb8407788aba5500000000000000"
+ },
+ "book_flugedla_9": {
+  "src": "assets/audio/book/book_flugedla_9.mp3",
+  "duration": 5.69,
+  "mouth": "0afc000e805dd6027ffb00feffd9ae9a8964300000000000004b900880bbb00cfeb72000000000000000beebff08dba9800978860000000000"
  },
  "book_kalligrammatid_1": {
   "src": "assets/audio/book/book_kalligrammatid_1.mp3",
@@ -1774,6 +2069,16 @@
   "duration": 5.931,
   "mouth": "5cffe00ffeaaef00aecdca00995bba73000000004c000bd000abc907dded80087530003000000000000009fffeeeee006ca9a408009720000000000"
  },
+ "book_kalligrammatid_6": {
+  "src": "assets/audio/book/book_kalligrammatid_6.mp3",
+  "duration": 4.09,
+  "mouth": "0000defffcaafeeed74dcee8003a96006cbca9000005ab358cddc6009ef8006c954000000000000000"
+ },
+ "book_kalligrammatid_7": {
+  "src": "assets/audio/book/book_kalligrammatid_7.mp3",
+  "duration": 4.25,
+  "mouth": "0bfff90b907a08eeddbdc608bcb94a000035ccbef500069646500bdadeb5dd889c97ab730400000000000"
+ },
  "book_beetle_1": {
   "src": "assets/audio/book/book_beetle_1.mp3",
   "duration": 6.25,
@@ -1793,6 +2098,16 @@
   "src": "assets/audio/book/book_beetle_4.mp3",
   "duration": 4.89,
   "mouth": "00afb02af0fe9cdce900ed4000ed00beddca000040000000000000000007cccc8aff07fdcba04bba9987a8500000000000"
+ },
+ "book_beetle_5": {
+  "src": "assets/audio/book/book_beetle_5.mp3",
+  "duration": 5.37,
+  "mouth": "0000ee7000dc0df8008abcb64dbcffffe00dfefa3aefd00cb97245000000000000a60ddeeddd92003a00a90000690000000000000000"
+ },
+ "book_beetle_6": {
+  "src": "assets/audio/book/book_beetle_6.mp3",
+  "duration": 6.73,
+  "mouth": "00fd0be00ff0007ac8bda9a00000dedeeda8800bcc9cd900fffa09bcb9008e000006effefefeeeed7bba576000000000add9037dffa0cba7a836baabc00033000000000"
  },
  "book_frog_1": {
   "src": "assets/audio/book/book_frog_1.mp3",
@@ -1826,8 +2141,8 @@
  },
  "book_snail_2": {
   "src": "assets/audio/book/book_snail_2.mp3",
-  "duration": 4.81,
-  "mouth": "00000cfe30004dfb3005aede06eddefffed4009ec600009befffeb000a86006abbee08b98bc4057653444000000000000"
+  "duration": 4.49,
+  "mouth": "0009ffe807ddc9efda0adcccefeeca000bca04aabdeeed90009960009a9cea0ab78da006673444200000000000"
  },
  "book_snail_3": {
   "src": "assets/audio/book/book_snail_3.mp3",
@@ -1843,6 +2158,16 @@
   "src": "assets/audio/book/book_snail_5.mp3",
   "duration": 7.37,
   "mouth": "6fd00000df90000ebccbc000efddd70845300000000000000000e8afeffe00eeed303dd5000009eeeceea0058706730000000000000000000bcd8ef70cc9886068600040000000000000"
+ },
+ "book_snail_6": {
+  "src": "assets/audio/book/book_snail_6.mp3",
+  "duration": 6.25,
+  "mouth": "0000bfffff805effb7beffffc8ddb00099b9259708defeedc0000aeecbdeb00aa800078500000480000dfcec8a40084009500007aec400043000000000000"
+ },
+ "book_snail_7": {
+  "src": "assets/audio/book/book_snail_7.mp3",
+  "duration": 5.13,
+  "mouth": "00fd0f604cff8ff87cc7356fc8ded0000bedeeda98630bb000defeeccff708a8984555000000000b80ab3047730000000000000"
  },
  "book_birds_1": {
   "src": "assets/audio/book/book_birds_1.mp3",
@@ -1869,10 +2194,370 @@
   "duration": 5.37,
   "mouth": "0ffd05df005fd000bffdb9fba5bca88000007dbc0db9000abde80500000000000000000beeabec09bba9830777995000000000000000"
  },
+ "book_birds_6": {
+  "src": "assets/audio/book/book_birds_6.mp3",
+  "duration": 6.57,
+  "mouth": "bc00feeda030eefd00ddb97dd309e5000cdad309ca609eb00bdcfb6900b800464000000000bc000fe0000adc338ecc60df9779eff900bebba7564000000000000000"
+ },
  "book_find_me": {
   "src": "assets/audio/book/book_find_me.mp3",
   "duration": 2.01,
   "mouth": "000eff00cfedb50a80008fddba753000000000000"
+ },
+ "book_frog_6": {
+  "src": "assets/audio/book/book_frog_6.mp3",
+  "duration": 7.85,
+  "mouth": "4ee504ff5000ddcc00cfcce8e8500cba996000dcd775bddda0066000000000000000000efed0008e87cedda08704aa09cdb0794000899504bbadcdfffb08cdefb437efc700cdb8534300000000000"
+ },
+ "book_frog_7": {
+  "src": "assets/audio/book/book_frog_7.mp3",
+  "duration": 5.13,
+  "mouth": "08ff9fff60d60cdc9000bead8005c60020bdedc6ad00c7000dd00ac606958754000000000009a300ba56aa80330000000000000"
+ },
+ "book_waterbeetle_1": {
+  "src": "assets/audio/book/book_waterbeetle_1.mp3",
+  "duration": 6.01,
+  "mouth": "00fa007d8e700befff00085004000000000000ea0004ddf800dbeb6b0000c33960665400007a36cfd0bddc95bccaaeedc6058cded7203000000000000"
+ },
+ "book_waterbeetle_2": {
+  "src": "assets/audio/book/book_waterbeetle_2.mp3",
+  "duration": 6.09,
+  "mouth": "07ff6efc00cd9a0000bdefb0bdb89a80689950008a800befee000c800bc000cb0000a8ac6c900009a88306a300accbbb9cea0397873443000000000000"
+ },
+ "book_waterbeetle_3": {
+  "src": "assets/audio/book/book_waterbeetle_3.mp3",
+  "duration": 6.73,
+  "mouth": "0cffff00fb0ace60cc0f8cce500000ddcdeecb8008c79d8bb7ccc50688770000acacfeec00ec9dec7bddbc90046a9900400000000ef3ff0657cd800bc65300000000000"
+ },
+ "book_waterbeetle_4": {
+  "src": "assets/audio/book/book_waterbeetle_4.mp3",
+  "duration": 5.45,
+  "mouth": "0cffff00eb08ede95eeffc007cded000cb00add906a63abdc975000000000000893008dc9a0003ba0007d500045bfc303300000000000"
+ },
+ "book_waterbeetle_5": {
+  "src": "assets/audio/book/book_waterbeetle_5.mp3",
+  "duration": 5.45,
+  "mouth": "5cffcc6ffe6bfa0de948c5007c8008705000000000000006ff06cddfcdb400cbbaab630add6fffcec008a0079ccb80040000000000000"
+ },
+ "book_waterbeetle_6": {
+  "src": "assets/audio/book/book_waterbeetle_6.mp3",
+  "duration": 6.25,
+  "mouth": "0effff520aeffa00ddbcc40bfeb00870088950000900ceed5bedddcdc3000cb50497400007009407bcb0000c400cdc5000860000994a30086330000000000"
+ },
+ "book_waterstrider_1": {
+  "src": "assets/audio/book/book_waterstrider_1.mp3",
+  "duration": 5.21,
+  "mouth": "00de6000bb9adb84c66308c9776008400000000000000bfc0efee07efd8c84300cbb99960dfa0befe003fffbeb406300000000000"
+ },
+ "book_waterstrider_2": {
+  "src": "assets/audio/book/book_waterstrider_2.mp3",
+  "duration": 7.69,
+  "mouth": "006ff6cfdc0000d44ede50b900009aa9300ca0a00009500006a007a59a960330000000000000000efffe5ed0bfec00ba000aa0bdd40bcb8a00006998600005ffa09b9986007788500000000000"
+ },
+ "book_waterstrider_3": {
+  "src": "assets/audio/book/book_waterstrider_3.mp3",
+  "duration": 6.97,
+  "mouth": "00aff90b9bffca4edd40890000ea300db533009cbabbb33996030000000000000cfb0000ffc008a8406c88a6cc50dc900b0000dd000007edd8f840dca8506603330000000000"
+ },
+ "book_waterstrider_4": {
+  "src": "assets/audio/book/book_waterstrider_4.mp3",
+  "duration": 4.09,
+  "mouth": "00cfebbefee8efeeffed008a0099889b60005a04000ccdc5a8006aa6a8000800550333000000000000"
+ },
+ "book_waterstrider_5": {
+  "src": "assets/audio/book/book_waterstrider_5.mp3",
+  "duration": 5.61,
+  "mouth": "00df90dfffb35effdd90aa87000005cba7a9aa900b90009dba005a8000b7000bca890003874000000005a3005b00000574000000000000000"
+ },
+ "book_waterstrider_6": {
+  "src": "assets/audio/book/book_waterstrider_6.mp3",
+  "duration": 4.57,
+  "mouth": "00cefe000cffd70045000000000000af000e900cddefec608bdab4004dd900b805767cad9ac50076000000000000"
+ },
+ "book_salamander_1": {
+  "src": "assets/audio/book/book_salamander_1.mp3",
+  "duration": 5.53,
+  "mouth": "00ed500beb0da000bbcdaa863035000000000000febffef800c000aa775000000044f90000efeff8000cb8009648009b996530000000000"
+ },
+ "book_salamander_2": {
+  "src": "assets/audio/book/book_salamander_2.mp3",
+  "duration": 7.77,
+  "mouth": "000ceddeffee058ca63adccca40adb006cddedcabee8009778444320000000000000b9000ffffcb960abba07fd0a80000009cbc700dea0c40000cefff00ba96995007bbdccb86034300000000000"
+ },
+ "book_salamander_3": {
+  "src": "assets/audio/book/book_salamander_3.mp3",
+  "duration": 5.85,
+  "mouth": "3aa0efffff000cfffd0cdaab4088775000aa009edcba08bcddb99a78705320000000000ad00000aeb7b88baa0000ae70008dbcb65220000000000"
+ },
+ "book_salamander_4": {
+  "src": "assets/audio/book/book_salamander_4.mp3",
+  "duration": 6.33,
+  "mouth": "000affffddfb000baabddcc078a507cbacc9bd007cb70a78a9307700578960000000000000000cf50fa0000009b0000cbbaa600b70007967984043000000000"
+ },
+ "book_salamander_5": {
+  "src": "assets/audio/book/book_salamander_5.mp3",
+  "duration": 5.85,
+  "mouth": "00affa00cfbcdb9a0000000008ffeea000dde9bdfe30c0499aa984069a800000000ae00000e80000bc00ad540000a74009930acb9530000000000"
+ },
+ "book_salamander_6": {
+  "src": "assets/audio/book/book_salamander_6.mp3",
+  "duration": 6.25,
+  "mouth": "7dffd900f8009ddddefee905bb5445eb0008c9ca0000cec6cd6bb600000000000007baefd6007cb9a90003eddddbffcb6495008a9004a0000000000000000"
+ },
+ "book_dragonfly_1": {
+  "src": "assets/audio/book/book_dragonfly_1.mp3",
+  "duration": 6.57,
+  "mouth": "00ce4000cb77c8000cbed90080047404000000000000cffdcffecb00068b80000b976300568c7007dc7da9000acb300900009ba6b40006db95ccdcf9400000000000"
+ },
+ "book_dragonfly_2": {
+  "src": "assets/audio/book/book_dragonfly_2.mp3",
+  "duration": 7.37,
+  "mouth": "00dcffb07b08deced88dde00dccbadeffe0008970acadd48dc7ac4078734540000000000000098000ccbfffdbba03c605dccbc509ad00659aa90ca57cadc6dde7000c974400000000000"
+ },
+ "book_dragonfly_3": {
+  "src": "assets/audio/book/book_dragonfly_3.mp3",
+  "duration": 6.73,
+  "mouth": "5ccffe9cf800eff40d04cdcbba960000cdcacaac8d7300a75400000000000000fd07eeb0da0fcffcb9600bd6003b700000763000d90000bc00005bca400000000000000"
+ },
+ "book_dragonfly_4": {
+  "src": "assets/audio/book/book_dragonfly_4.mp3",
+  "duration": 4.25,
+  "mouth": "0d4005fffed6effec49a9609dac0000acdd00009b8600bb08b0008789b009608779bb4000000000000000"
+ },
+ "book_dragonfly_5": {
+  "src": "assets/audio/book/book_dragonfly_5.mp3",
+  "duration": 6.17,
+  "mouth": "000fe600ffff00ee5aa933ab9679eddc007b09ce80800663320000000bed74feefb007b920cd9ddeeddddbbbd9c83007effd8accdefe3005400000000000"
+ },
+ "book_dragonfly_6": {
+  "src": "assets/audio/book/book_dragonfly_6.mp3",
+  "duration": 6.57,
+  "mouth": "0000cffdceb50ecfe07b008b96a9000007dbda530bedda39806cf9aefc0046400000000000cfd000bf00000cec00cdcdcb804983ad020f850b300630000000000000"
+ },
+ "book_turtle_1": {
+  "src": "assets/audio/book/book_turtle_1.mp3",
+  "duration": 7.211,
+  "mouth": "00fd500ed5c80000eec000680040000000000000000bffedfeb9cb7e60009eeebbee700cccb68887830a7440eb00000000000006fcfc0cea00000ffee40bbb9bcb874300000000000"
+ },
+ "book_turtle_2": {
+  "src": "assets/audio/book/book_turtle_2.mp3",
+  "duration": 5.53,
+  "mouth": "0000afdc0000eb0ad98dfe9007aa80008a000beded9008c00006ebdfb05a98746533000000000940dfedede0bdfff000aa7000000000000"
+ },
+ "book_turtle_3": {
+  "src": "assets/audio/book/book_turtle_3.mp3",
+  "duration": 7.93,
+  "mouth": "0efaeec0cf609aa45a00000cdff00a85550030000000000000dfec0bc90008900ab60058037850867c00008fe94000000000000a503addecd8000002cecea5000ecbcdfffffccdaa864200000000000"
+ },
+ "book_turtle_4": {
+  "src": "assets/audio/book/book_turtle_4.mp3",
+  "duration": 6.57,
+  "mouth": "0fff60ad0000c000cc700a906898500c900b94007c0bdecf906effa8b7cb07cdd9000bec876540000000030bcadd9cbeb00dc000088509839c700754300000000000"
+ },
+ "book_turtle_5": {
+  "src": "assets/audio/book/book_turtle_5.mp3",
+  "duration": 6.01,
+  "mouth": "000dfffecceb00009c0000c200cd9007a06a800a8006baa70000000000000000000dfecf90bedbdcbdc3000dca0007970a90066500000000000000000"
+ },
+ "book_turtle_6": {
+  "src": "assets/audio/book/book_turtle_6.mp3",
+  "duration": 4.25,
+  "mouth": "0007feffd6000cc90008903990004b96accbbdec8cb8b8000afff00ba759878409cefc600000000000000"
+ },
+ "book_fish_1": {
+  "src": "assets/audio/book/book_fish_1.mp3",
+  "duration": 6.41,
+  "mouth": "008fb300fccc000e7003036000000000000000005bfc000cfbaeeb006b6335c9000000b905eeef700a90045000009a0bba9c0000c000aca300000000000000000"
+ },
+ "book_fish_2": {
+  "src": "assets/audio/book/book_fish_2.mp3",
+  "duration": 7.61,
+  "mouth": "000bfffb06b00006a7000ab000789c39b00000a98955900007cbb9630078005bbbba9beb008776033000000000000000009ddf0aa36a6698709afe7ed00dbffc59cabbdfc8700200000000000"
+ },
+ "book_fish_3": {
+  "src": "assets/audio/book/book_fish_3.mp3",
+  "duration": 6.41,
+  "mouth": "00cfd000bf9dc007db968b930b99b00def87a6008ba306b5000000000000000000000048e9000097c6005de00005efffffefffdbabbbbcaa86554300000000000"
+ },
+ "book_fish_4": {
+  "src": "assets/audio/book/book_fish_4.mp3",
+  "duration": 4.651,
+  "mouth": "00efcfcfe300deee5003600000000000008effecc00aa0009bcb9860000999bccdbbba600089753000000000000000"
+ },
+ "book_fish_5": {
+  "src": "assets/audio/book/book_fish_5.mp3",
+  "duration": 5.21,
+  "mouth": "00df0ed00000bde00acffefffdedd500898997509c50bc67bdfe8345300000074000addb9bc000c8006aaa8600000000000000000"
+ },
+ "book_fish_6": {
+  "src": "assets/audio/book/book_fish_6.mp3",
+  "duration": 4.49,
+  "mouth": "00affff0cbaee0bc06da99600003e49b49deeb00db7cc806d6bdc900000098407db5a400007540000000000000"
+ },
+ "book_earlybird_1": {
+  "src": "assets/audio/book/book_earlybird_1.mp3",
+  "duration": 8.01,
+  "mouth": "00fe50fff200ffd03006a0000000000000ed0009860000000000000ff04dc000d57008c0ae0088664000000000000000000bfff40db3affeffccdc0bcb98bbb60048a4008c000009aa864000000000000"
+ },
+ "book_earlybird_2": {
+  "src": "assets/audio/book/book_earlybird_2.mp3",
+  "duration": 8.73,
+  "mouth": "00bfe7004d40aa9605cde7cd5000ddbe9000bfd00ccacba5007a66900dd000687443000000039cb99aef600000000790970003000000000000000000008cadfffdfd0ddefebb4007b70000d9004a0000830000000000000"
+ },
+ "book_earlybird_3": {
+  "src": "assets/audio/book/book_earlybird_3.mp3",
+  "duration": 7.37,
+  "mouth": "06ff7ffa0ef20baa36a3000defd06b7566000000000000000000ce600000bc5009bb70bbce9000ab8000000000000053300ae8000aa0000006c0000007900000afd6fe70300000000000"
+ },
+ "book_earlybird_4": {
+  "src": "assets/audio/book/book_earlybird_4.mp3",
+  "duration": 2.57,
+  "mouth": "dfe00beefb00309fde7200cfed905dc0449c0000400000000000"
+ },
+ "book_earlybird_5": {
+  "src": "assets/audio/book/book_earlybird_5.mp3",
+  "duration": 8.09,
+  "mouth": "00fe40bfe20cffcdccd90ad60cea00000d900000000000009aaab850feb06dcdb8aa05800006ba5b700000000000000000007ffeecdb00cdc000d93000000000000000a7006ba3030a9000000000000000"
+ },
+ "book_earlybird_6": {
+  "src": "assets/audio/book/book_earlybird_6.mp3",
+  "duration": 5.13,
+  "mouth": "8ffeeff07dfd000db0000cde90eeefc08bb50a56a6b30cd8004000000000000000ee0006b93008908c000866600000000000000"
+ },
+ "book_ammonite_1": {
+  "src": "assets/audio/book/book_ammonite_1.mp3",
+  "duration": 8.09,
+  "mouth": "bfffda9740000000000000000009fefffffb0ce8538cbc000bdd99a4008660009b80ced707a7000586300000000000000000eb00af7000bbc000dccbbaaa620a7000babaaaaee706776333300000000000"
+ },
+ "book_ammonite_2": {
+  "src": "assets/audio/book/book_ammonite_2.mp3",
+  "duration": 4.97,
+  "mouth": "004eb0000fc00000ec0efcfff300ffc009970000002bc900debefdfe7bb7995bb0008edd9d602433bceb0000000000000000"
+ },
+ "book_ammonite_3": {
+  "src": "assets/audio/book/book_ammonite_3.mp3",
+  "duration": 5.85,
+  "mouth": "0ffffedc000addbaa9888606bacdccecb00000cec8009ccaaa0000043000000000b8dcbbfefe07db80a400007dec49707500ba964300000000000"
+ },
+ "book_trilobite_1": {
+  "src": "assets/audio/book/book_trilobite_1.mp3",
+  "duration": 8.33,
+  "mouth": "00fdfe00ab4004300000000000000000000000bdedb09ee00d90000cbfed8adaca33b4000095089a8a9005abbceeedc0004dc9000008abeffffc00086400acca8aacb68cb008798570670006753000000000000"
+ },
+ "book_trilobite_2": {
+  "src": "assets/audio/book/book_trilobite_2.mp3",
+  "duration": 4.57,
+  "mouth": "0efffccffd69dccc9a30000bccdb70064300000000a9068008cc94004a6788700098000760004000000000000000"
+ },
+ "book_trilobite_3": {
+  "src": "assets/audio/book/book_trilobite_3.mp3",
+  "duration": 3.61,
+  "mouth": "0004ffffd60bd09f8ccbbcb00cb9b00a3000adcb867300078987c88650000000000000000"
+ },
+ "book_tooth_1": {
+  "src": "assets/audio/book/book_tooth_1.mp3",
+  "duration": 5.85,
+  "mouth": "08deeb0099967700753000000000000000cfffcadeb00cdcaacddc0008400498787000000007e30003befff800798630070068840000000000000"
+ },
+ "book_tooth_2": {
+  "src": "assets/audio/book/book_tooth_2.mp3",
+  "duration": 7.211,
+  "mouth": "06ffffaafc206dffdca00ac8000cdbcffd009a9889a49b83000000000000000000cf000bc000cefd900970000bca90000000000000006eeec000a8000baa00cc00032000000000000"
+ },
+ "book_tooth_3": {
+  "src": "assets/audio/book/book_tooth_3.mp3",
+  "duration": 5.53,
+  "mouth": "00dfffff99ecc005ee536dac72774000002809db6ebada0e700009700009eceda653000088650e5000069ba76403705a650000000000000"
+ },
+ "book_footprint_1": {
+  "src": "assets/audio/book/book_footprint_1.mp3",
+  "duration": 6.73,
+  "mouth": "00ffd0000497300000000000000000000004afff00bedddabb4000bdcb8006bcccdfb009dddca3688740000000352000bffdbda0004bb8600850009a975300000000000"
+ },
+ "book_footprint_2": {
+  "src": "assets/audio/book/book_footprint_2.mp3",
+  "duration": 7.13,
+  "mouth": "7cd00cb0008ffeedcabcb80000deeffebffb009900baed009abcabcc006a750000000aab9004eda00000000000000a909d606cba756bbabcc60006ca9abc49fd000530000000000"
+ },
+ "book_footprint_3": {
+  "src": "assets/audio/book/book_footprint_3.mp3",
+  "duration": 5.05,
+  "mouth": "00003fffc300dffebb700eeadeb00bcba9ab00db830430000000008b00b00cdcd9ba009b4ab9ca89800794000000000000000"
+ },
+ "book_leaf_1": {
+  "src": "assets/audio/book/book_leaf_1.mp3",
+  "duration": 6.81,
+  "mouth": "0000ffff00db3000008ddefd60002640000000000000000000d800bdfffd006dac000cb0000c90c8030008973000cbbb7efe009b8aa776079438998a80004300000000000"
+ },
+ "book_leaf_2": {
+  "src": "assets/audio/book/book_leaf_2.mp3",
+  "duration": 8.65,
+  "mouth": "aea007dfffffdaddb008cbab888877400090007600e90004ba8000000002efd07d800abbaa900007b06d9700005000000000000000000007ceffd00047b99700002a9000a730003900006885000000000000000000000"
+ },
+ "book_leaf_3": {
+  "src": "assets/audio/book/book_leaf_3.mp3",
+  "duration": 4.73,
+  "mouth": "0cf3000bfa0049885004c600aedcb009cdddcbccc500b88864554300000bb4e900000cdfffd909a8600000000000000"
+ },
+ "book_amber_1": {
+  "src": "assets/audio/book/book_amber_1.mp3",
+  "duration": 6.65,
+  "mouth": "0acffeb3000afe6007dfda0540000000000000000000dfffeefd00bb0000c90ac005aded000992875008c603bcb0dedc6ca4000ab4cb7700a898a9860300000000000"
+ },
+ "book_amber_2": {
+  "src": "assets/audio/book/book_amber_2.mp3",
+  "duration": 5.61,
+  "mouth": "3cfcefeee88dca6a9b709d9080000030cfca000bba000000032ffe700edcddc00000006cfffeecfec00ba50000bca35c65400000000000000"
+ },
+ "book_amber_3": {
+  "src": "assets/audio/book/book_amber_3.mp3",
+  "duration": 4.33,
+  "mouth": "00efb003fdfa0dfff00e7000cc2000acc0aedb9cbb8ddeec65cc836a5000cba039b67968733400000000000"
+ },
+ "book_egg_1": {
+  "src": "assets/audio/book/book_egg_1.mp3",
+  "duration": 6.09,
+  "mouth": "4ccfff305caaa957530000000000000000007afff40bdbdc97cc4749e70000c7aa0000496300000007dc0aa00e008b79b000a968908b84000000000000"
+ },
+ "book_egg_2": {
+  "src": "assets/audio/book/book_egg_2.mp3",
+  "duration": 4.41,
+  "mouth": "0bdffd00dddfeb9cb0607dd5000bbeb005eeffbb00df9bb000bfb000ccbba99957a50acb80530000000000000"
+ },
+ "book_egg_3": {
+  "src": "assets/audio/book/book_egg_3.mp3",
+  "duration": 6.01,
+  "mouth": "4c900cfffffbb8000aaba707ab904dc0780000006cdea00da9d70bdc00064000000005ba99aba00dfc008cbcb60a9045003a000008500000000000000"
+ },
+ "book_skeleton_1": {
+  "src": "assets/audio/book/book_skeleton_1.mp3",
+  "duration": 6.33,
+  "mouth": "00dfffea60565000000000000000000cd0000deff08ebcfe05dddc999a8209acddccdd6aa800009a0bca6ccb006a8885734870057a306668400000000000000"
+ },
+ "book_skeleton_2": {
+  "src": "assets/audio/book/book_skeleton_2.mp3",
+  "duration": 6.49,
+  "mouth": "00effd000deff0000bedca98508c60ace904009800bdd7006cba7b7aaaa905699600000000afc8f70deddedda000cccd700889a9942700008bb973300000000000"
+ },
+ "book_skeleton_3": {
+  "src": "assets/audio/book/book_skeleton_3.mp3",
+  "duration": 6.25,
+  "mouth": "0000efff0bfdef9ca09ccbb62aa60000bbdedaf00deffeeda65ddbaccdccc6a80000000000009b700de400003edc700ccbcb0000dd44bcc73520000000000"
+ },
+ "book_find_me_fen": {
+  "src": "assets/audio/book/book_find_me_fen.mp3",
+  "duration": 1.93,
+  "mouth": "000fff06cedcd8308a000bdbb76430000000000"
+ },
+ "book_mosi_later": {
+  "src": "assets/audio/book/book_mosi_later.mp3",
+  "duration": 1.93,
+  "mouth": "05fffdefeefa0aeddb00ec00cda600000000000"
+ },
+ "book_mosi_fossils_all": {
+  "src": "assets/audio/book/book_mosi_fossils_all.mp3",
+  "duration": 5.13,
+  "mouth": "5abeffdeb940000007eb0ffc000008da000abfdcf3078e50cdd5eeeec86660000000000fd00deddf60008ed3000000000000000"
  },
  "eitt_your_turn": {
   "src": "assets/audio/eitt/eitt_your_turn.mp3",
@@ -2204,6 +2889,11 @@
   "duration": 2.49,
   "mouth": "4cffeee56000cdeeda0efecff9ddea0de00bb5000000000000"
  },
+ "hals_mosi_bounce": {
+  "src": "assets/audio/hals/hals_mosi_bounce.mp3",
+  "duration": 3.69,
+  "mouth": "0ef005500200000ef79bbbefec70000000000000009f060cf800bfdda9fe87850000000000"
+ },
  "hals_mosi_won": {
   "src": "assets/audio/hals/hals_mosi_won.mp3",
   "duration": 3.371,
@@ -2248,6 +2938,11 @@
   "src": "assets/audio/hals/hals_thor_mud.mp3",
   "duration": 2.17,
   "mouth": "0efe8875300000004899affddb542620000000000000"
+ },
+ "hals_thor_bounce": {
+  "src": "assets/audio/hals/hals_thor_bounce.mp3",
+  "duration": 3.05,
+  "mouth": "0df5007567000000006dfefa50000000000068acdfc000000000000000000"
  },
  "hals_thor_won": {
   "src": "assets/audio/hals/hals_thor_won.mp3",
@@ -2304,21 +2999,6 @@
   "duration": 6.33,
   "mouth": "00dfffea60565000000000000000000cd0000deff08ebcfe05dddc999a8209acddccdd6aa800009a0bca6ccb006a8885734870057a306668400000000000000"
  },
- "hals_mosi_bounce": {
-  "src": "assets/audio/hals/hals_mosi_bounce.mp3",
-  "duration": 3.69,
-  "mouth": "0ef005500200000ef79bbbefec70000000000000009f060cf800bfdda9fe87850000000000"
- },
- "hals_thor_bounce": {
-  "src": "assets/audio/hals/hals_thor_bounce.mp3",
-  "duration": 3.05,
-  "mouth": "0df5007567000000006dfefa50000000000068acdfc000000000000000000"
- },
- "k2_mosi_1": {
-  "src": "assets/audio/kafli2/k2_mosi_1.mp3",
-  "duration": 1.21,
-  "mouth": "0dffc60000000000000000000"
- },
  "k2_mosi_next": {
   "src": "assets/audio/kafli2/k2_mosi_next.mp3",
   "duration": 7.05,
@@ -2348,6 +3028,11 @@
   "src": "assets/audio/kafli2/k2_mosi_count.mp3",
   "duration": 1.53,
   "mouth": "05feddefffec45ba700000000000000"
+ },
+ "k2_mosi_1": {
+  "src": "assets/audio/kafli2/k2_mosi_1.mp3",
+  "duration": 1.21,
+  "mouth": "0dffc60000000000000000000"
  },
  "k2_mosi_2": {
   "src": "assets/audio/kafli2/k2_mosi_2.mp3",
@@ -2549,6 +3234,11 @@
   "duration": 4.17,
   "mouth": "2eb0007ffecc990000000006ffdbc005cab8006dcc8cdb64000000006cdbada60d604ab7000000000000"
  },
+ "k2_mosi_gramedla": {
+  "src": "assets/audio/kafli2/k2_mosi_gramedla.mp3",
+  "duration": 5.77,
+  "mouth": "007fffedeb0000000dfec97005fc68eb5000000000006eb400eeec08ddedfffec978400000000004ffdefeeda4dd5dddd00e70bc740000000000"
+ },
  "k2_thorsedla_now": {
   "src": "assets/audio/kafli2/k2_thorsedla_now.mp3",
   "duration": 3.61,
@@ -2584,6 +3274,11 @@
   "duration": 4.41,
   "mouth": "000effffd900000000000006fddb99cdb035ed900ab80000000000becca600007d508d9574487000000000000"
  },
+ "k2_mosi_map_kambedla": {
+  "src": "assets/audio/kafli2/k2_mosi_map_kambedla.mp3",
+  "duration": 4.33,
+  "mouth": "3bffbc40fefdca700000000000ceec34d5bfcffeeda96bbbbb009caec6cdddbdec758704763000000000000"
+ },
  "k2_mosi_map_thorsedla": {
   "src": "assets/audio/kafli2/k2_mosi_map_thorsedla.mp3",
   "duration": 3.93,
@@ -2603,150 +3298,5 @@
   "src": "assets/audio/kafli2/k2_mosi_map_uggedla.mp3",
   "duration": 5.37,
   "mouth": "dfe0000ffeddaa70000000000dfe000deedef989ecec000dfeaeec87000000bfd000cc000ced6004dc00000d50007b40000000000000"
- },
- "k2_mosi_map_kambedla": {
-  "src": "assets/audio/kafli2/k2_mosi_map_kambedla.mp3",
-  "duration": 4.33,
-  "mouth": "3bffbc40fefdca700000000000ceec34d5bfcffeeda96bbbbb009caec6cdddbdec758704763000000000000"
- },
- "book_frog_6": {
-  "src": "assets/audio/book/book_frog_6.mp3",
-  "duration": 7.85,
-  "mouth": "4ee504ff5000ddcc00cfcce8e8500cba996000dcd775bddda0066000000000000000000efed0008e87cedda08704aa09cdb0794000899504bbadcdfffb08cdefb437efc700cdb8534300000000000"
- },
- "book_waterbeetle_1": {
-  "src": "assets/audio/book/book_waterbeetle_1.mp3",
-  "duration": 6.01,
-  "mouth": "00fa007d8e700befff00085004000000000000ea0004ddf800dbeb6b0000c33960665400007a36cfd0bddc95bccaaeedc6058cded7203000000000000"
- },
- "book_waterbeetle_2": {
-  "src": "assets/audio/book/book_waterbeetle_2.mp3",
-  "duration": 6.09,
-  "mouth": "07ff6efc00cd9a0000bdefb0bdb89a80689950008a800befee000c800bc000cb0000a8ac6c900009a88306a300accbbb9cea0397873443000000000000"
- },
- "book_waterbeetle_3": {
-  "src": "assets/audio/book/book_waterbeetle_3.mp3",
-  "duration": 6.73,
-  "mouth": "0cffff00fb0ace60cc0f8cce500000ddcdeecb8008c79d8bb7ccc50688770000acacfeec00ec9dec7bddbc90046a9900400000000ef3ff0657cd800bc65300000000000"
- },
- "book_waterstrider_1": {
-  "src": "assets/audio/book/book_waterstrider_1.mp3",
-  "duration": 5.21,
-  "mouth": "00de6000bb9adb84c66308c9776008400000000000000bfc0efee07efd8c84300cbb99960dfa0befe003fffbeb406300000000000"
- },
- "book_waterstrider_2": {
-  "src": "assets/audio/book/book_waterstrider_2.mp3",
-  "duration": 7.69,
-  "mouth": "006ff6cfdc0000d44ede50b900009aa9300ca0a00009500006a007a59a960330000000000000000efffe5ed0bfec00ba000aa0bdd40bcb8a00006998600005ffa09b9986007788500000000000"
- },
- "book_waterstrider_3": {
-  "src": "assets/audio/book/book_waterstrider_3.mp3",
-  "duration": 6.97,
-  "mouth": "00aff90b9bffca4edd40890000ea300db533009cbabbb33996030000000000000cfb0000ffc008a8406c88a6cc50dc900b0000dd000007edd8f840dca8506603330000000000"
- },
- "book_salamander_1": {
-  "src": "assets/audio/book/book_salamander_1.mp3",
-  "duration": 5.53,
-  "mouth": "00ed500beb0da000bbcdaa863035000000000000febffef800c000aa775000000044f90000efeff8000cb8009648009b996530000000000"
- },
- "book_salamander_2": {
-  "src": "assets/audio/book/book_salamander_2.mp3",
-  "duration": 7.77,
-  "mouth": "000ceddeffee058ca63adccca40adb006cddedcabee8009778444320000000000000b9000ffffcb960abba07fd0a80000009cbc700dea0c40000cefff00ba96995007bbdccb86034300000000000"
- },
- "book_salamander_3": {
-  "src": "assets/audio/book/book_salamander_3.mp3",
-  "duration": 5.85,
-  "mouth": "3aa0efffff000cfffd0cdaab4088775000aa009edcba08bcddb99a78705320000000000ad00000aeb7b88baa0000ae70008dbcb65220000000000"
- },
- "book_dragonfly_1": {
-  "src": "assets/audio/book/book_dragonfly_1.mp3",
-  "duration": 6.57,
-  "mouth": "00ce4000cb77c8000cbed90080047404000000000000cffdcffecb00068b80000b976300568c7007dc7da9000acb300900009ba6b40006db95ccdcf9400000000000"
- },
- "book_dragonfly_2": {
-  "src": "assets/audio/book/book_dragonfly_2.mp3",
-  "duration": 7.37,
-  "mouth": "00dcffb07b08deced88dde00dccbadeffe0008970acadd48dc7ac4078734540000000000000098000ccbfffdbba03c605dccbc509ad00659aa90ca57cadc6dde7000c974400000000000"
- },
- "book_dragonfly_3": {
-  "src": "assets/audio/book/book_dragonfly_3.mp3",
-  "duration": 6.73,
-  "mouth": "5ccffe9cf800eff40d04cdcbba960000cdcacaac8d7300a75400000000000000fd07eeb0da0fcffcb9600bd6003b700000763000d90000bc00005bca400000000000000"
- },
- "book_turtle_1": {
-  "src": "assets/audio/book/book_turtle_1.mp3",
-  "duration": 7.211,
-  "mouth": "00fd500ed5c80000eec000680040000000000000000bffedfeb9cb7e60009eeebbee700cccb68887830a7440eb00000000000006fcfc0cea00000ffee40bbb9bcb874300000000000"
- },
- "book_turtle_2": {
-  "src": "assets/audio/book/book_turtle_2.mp3",
-  "duration": 5.53,
-  "mouth": "0000afdc0000eb0ad98dfe9007aa80008a000beded9008c00006ebdfb05a98746533000000000940dfedede0bdfff000aa7000000000000"
- },
- "book_turtle_3": {
-  "src": "assets/audio/book/book_turtle_3.mp3",
-  "duration": 7.93,
-  "mouth": "0efaeec0cf609aa45a00000cdff00a85550030000000000000dfec0bc90008900ab60058037850867c00008fe94000000000000a503addecd8000002cecea5000ecbcdfffffccdaa864200000000000"
- },
- "book_fish_1": {
-  "src": "assets/audio/book/book_fish_1.mp3",
-  "duration": 6.41,
-  "mouth": "008fb300fccc000e7003036000000000000000005bfc000cfbaeeb006b6335c9000000b905eeef700a90045000009a0bba9c0000c000aca300000000000000000"
- },
- "book_fish_2": {
-  "src": "assets/audio/book/book_fish_2.mp3",
-  "duration": 7.61,
-  "mouth": "000bfffb06b00006a7000ab000789c39b00000a98955900007cbb9630078005bbbba9beb008776033000000000000000009ddf0aa36a6698709afe7ed00dbffc59cabbdfc8700200000000000"
- },
- "book_fish_3": {
-  "src": "assets/audio/book/book_fish_3.mp3",
-  "duration": 6.41,
-  "mouth": "00cfd000bf9dc007db968b930b99b00def87a6008ba306b5000000000000000000000048e9000097c6005de00005efffffefffdbabbbbcaa86554300000000000"
- },
- "book_earlybird_1": {
-  "src": "assets/audio/book/book_earlybird_1.mp3",
-  "duration": 8.01,
-  "mouth": "00fe50fff200ffd03006a0000000000000ed0009860000000000000ff04dc000d57008c0ae0088664000000000000000000bfff40db3affeffccdc0bcb98bbb60048a4008c000009aa864000000000000"
- },
- "book_earlybird_2": {
-  "src": "assets/audio/book/book_earlybird_2.mp3",
-  "duration": 8.73,
-  "mouth": "00bfe7004d40aa9605cde7cd5000ddbe9000bfd00ccacba5007a66900dd000687443000000039cb99aef600000000790970003000000000000000000008cadfffdfd0ddefebb4007b70000d9004a0000830000000000000"
- },
- "book_earlybird_3": {
-  "src": "assets/audio/book/book_earlybird_3.mp3",
-  "duration": 7.37,
-  "mouth": "06ff7ffa0ef20baa36a3000defd06b7566000000000000000000ce600000bc5009bb70bbce9000ab8000000000000053300ae8000aa0000006c0000007900000afd6fe70300000000000"
- },
- "book_find_me_fen": {
-  "src": "assets/audio/book/book_find_me_fen.mp3",
-  "duration": 1.93,
-  "mouth": "000fff06cedcd8308a000bdbb76430000000000"
- },
- "k1_mosi_butterfly": {
-  "src": "assets/audio/kafli1/k1_mosi_butterfly.mp3",
-  "duration": 5.85,
-  "mouth": "ceedc84000000dd80d9000ec8c9fe96ecbd60009bbcefcef908fefffeed840000000000029ed600eed9ba0bffffec9008dca70300000000000000"
- },
- "k1_mosi_book": {
-  "src": "assets/audio/kafli1/k1_mosi_book.mp3",
-  "duration": 14.41,
-  "mouth": "0007fffecbb6000000000000fdbccc79d900ded8004eb00000bfdefe939ffeec8dd9adc87b65600000000000dfe99fc0afdd300ce000009bbccdda0dcdb0addccdb6000ccd6930beb80dc6bcc704debbedeeeccc90ccdc0deec77500000000000cefbfffeed86eacdc98c9085d6500d4758deddb955000000beebbcdb00596000aeeedfffcdeeddffca68500000000000"
- },
- "k1_mosi_book_close": {
-  "src": "assets/audio/kafli1/k1_mosi_book_close.mp3",
-  "duration": 6.01,
-  "mouth": "ada000cfd089fd753bddeb0bdddbbdfe0bd0efc49cdcc8000ad7bca0bccfd3664000000000000acd9c800b94008e8dd26cddccbcc0045500000000000"
- },
- "k1_mosi_fannar": {
-  "src": "assets/audio/kafli1/k1_mosi_fannar.mp3",
-  "duration": 9.69,
-  "mouth": "9ffeedce703c708edeffdccdeb08eedacd9bea408dddbdeeddeeedddcddefd038600000000000c80bc0bddc500fddefeccdc40b9430000000000000aff50feb8dee96409cccfe7accb000dffefffeddeffcdede60cdbde96cc08eea56000000000"
- },
- "k2_mosi_gramedla": {
-  "src": "assets/audio/kafli2/k2_mosi_gramedla.mp3",
-  "duration": 5.77,
-  "mouth": "007fffedeb0000000dfec97005fc68eb5000000000006eb400eeec08ddedfffec978400000000004ffdefeeda4dd5dddd00e70bc740000000000"
  }
 }

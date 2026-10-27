@@ -536,7 +536,8 @@ test('the chapter plays to its end unattended with no director warnings', async 
   assert.equal(world.location, 'fen');
   assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
   assert.deepEqual([...journal.places].sort(), [...FAR, 'fen'].sort(), 'and the Fen and the three far friends\' places are on its map');
-  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['stars', 'map'], 'the book opens on the stars and turns to the map');
+  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
+  assert.deepEqual(book.nods.slice(-2), ['thorsedla', null], 'Þórseðla, new on the Risaeðlur page, nods as it opens');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
 });
 
