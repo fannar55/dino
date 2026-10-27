@@ -163,13 +163,17 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
     // Grameðla roars far off at the forest's edge, seen from the lookout: a big, round, friendly roar softened by 144 m of air, no
     // edge to it and nothing to fear. A low growl glides up from sol to do two octaves down and falls back, under a rumble of breath
     // that swells and fades, and ends in three soft wobbles as her head shakes (her roar clip's happy shake).
+    // It was first all under 300 Hz and very soft, and on a tablet's or a laptop's small speakers it was hardly heard (the owner,
+    // 2026-10-27): so it is twice as loud, as loud as the chapter's sounds may sum to (0.6), and its growl has a voice an octave up (round 350 to 470 Hz) over the low one,
+    // which small speakers can play, the rumble's lowpass opened to 900 Hz.
     farRoar() {
-      noise({ kind: 'brown', type: 'lowpass', frequency: 300, end: 650, duration: 1.4, level: 0.1, attack: 0.45 });
-      noise({ kind: 'brown', type: 'lowpass', frequency: 650, end: 220, duration: 1.6, level: 0.08, attack: 0.2, delay: 1.2 });
-      noise({ kind: 'warm', type: 'bandpass', frequency: 700, end: 420, q: 0.8, duration: 2.2, level: 0.025, attack: 0.5 });
-      tone({ frequency: key[3] / 4, end: key[0] / 2, duration: 1.3, level: 0.035, type: 'triangle', attack: 0.4, body: 0.7, sustain: 0.8 });
-      tone({ frequency: key[0] / 2, end: key[3] / 4, duration: 1.4, level: 0.03, type: 'triangle', attack: 0.15, delay: 1.2 });
-      [0, 1, 2].forEach(i => tone({ frequency: key[i % 2 ? 2 : 3] / 4, duration: 0.18, level: 0.018, type: 'triangle', attack: 0.04, delay: 2.1 + i * 0.2 }));
+      noise({ kind: 'brown', type: 'lowpass', frequency: 320, end: 900, duration: 1.4, level: 0.18, attack: 0.35 });
+      noise({ kind: 'brown', type: 'lowpass', frequency: 900, end: 280, duration: 1.6, level: 0.15, attack: 0.2, delay: 1.2 });
+      noise({ kind: 'warm', type: 'bandpass', frequency: 820, end: 460, q: 0.9, duration: 2.2, level: 0.06, attack: 0.4 });
+      tone({ frequency: key[3] / 2, end: key[0], duration: 1.3, level: 0.08, type: 'triangle', attack: 0.35, body: 0.7, sustain: 0.8 });
+      tone({ frequency: key[3] / 4, end: key[0] / 2, duration: 1.3, level: 0.05, type: 'triangle', attack: 0.4, body: 0.7, sustain: 0.8 });
+      tone({ frequency: key[0], end: key[3] / 2, duration: 1.4, level: 0.07, type: 'triangle', attack: 0.15, delay: 1.2 });
+      [0, 1, 2].forEach(i => tone({ frequency: key[i % 2 ? 2 : 3] / 2, duration: 0.18, level: 0.05, type: 'triangle', attack: 0.04, delay: 2.1 + i * 0.2 }));
     },
   };
 }
