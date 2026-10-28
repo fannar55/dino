@@ -1,0 +1,1918 @@
+{
+  "about": [
+    "The pronunciation standard of the remake's voices: remake/tools/voice-lines.mjs and remake/tools/yatzy-junior-voices.mjs apply it to every line they send.",
+    "One entry per hard word: \"word\" (its name in the pronunciation book), \"stem\" (a regular expression for the start of every inflection, which remake/tests/pronunciation.test.mjs checks over all the sets and Litla Yatzy), \"forms\" (the surface forms, matched case-sensitively as whole words), optional \"except\" (words the stem matches that are not this word), \"recipes\" and \"chosen\".",
+    "A recipe: \"say\" (what is sent in place of the form: one string for every form, or form -> string; IPA goes in double quotes and slashes, \"/.../\", the way Eleven v4 reads it), \"context\" (sent as previous_text, never spoken: a string, or speaker -> string with \"*\" for the rest), \"seed\", and \"note\" (for the owner, shown in the book). \"hratt\" sends the word as written.",
+    "\"chosen\" is the recipe the owner picked by ear in the pronunciation book (node remake/tools/voice-lines.mjs --pick picks.json), or null: then the word is sent as written. \"audition\" (speaker -> sentence) gives the book a sentence for a speaker who has no line with the word.",
+    "The text the child sees (lines-source.json, the captions, lines.json) is never changed: only the request is."
+  ],
+  "words": {
+    "kambedla": {
+      "word": "Kambeðla",
+      "stem": "[Kk]ambeðl",
+      "forms": [
+        "Kambeðla",
+        "kambeðla",
+        "Kambeðlu",
+        "Kambeðlur",
+        "kambeðlur",
+        "Kambeðlan",
+        "kambeðlan",
+        "kambeðlu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven segir þá oft „kabella“ eða „kampedla“."
+        },
+        "samhengi": {
+          "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!",
+          "seed": 1,
+          "note": "Vann hjá þér í 16 línum (kafli 1, bókin, Eitt!): heimsóknarlínan úr kafla 1 er send á undan sem samhengi en ekki töluð. Fræ 1, eins og í bókinni og Eitt!."
+        },
+        "samhengi-42": {
+          "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!",
+          "seed": 42,
+          "note": "Sama samhengi með fræi 42, eins og kveðjan og boðið í kafla 1."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "snigill": {
+      "word": "Snigill",
+      "stem": "[Ss]nigil",
+      "forms": [
+        "Snigill",
+        "snigill",
+        "snigilinn",
+        "snigillinn",
+        "Snigillinn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven segir þá oft „snill“ eða með hörðu g."
+        },
+        "ipa": {
+          "say": {
+            "Snigill": "\"/ˈstniːjɪtl̥/\"",
+            "snigill": "\"/ˈstniːjɪtl̥/\"",
+            "snigilinn": "\"/ˈstniːjɪlɪn/\"",
+            "snigillinn": "\"/ˈstniːjɪtlɪn/\"",
+            "Snigillinn": "\"/ˈstniːjɪtlɪn/\""
+          },
+          "seed": 1,
+          "note": "IPA /ˈstniːjɪtl̥/ vann hjá þér í kafla 1 (fræ 1). Hinar beygingarnar eru skrifaðar eftir sömu reglum en óheyrðar: snigilinn /ˈstniːjɪlɪn/, snigillinn /ˈstniːjɪtlɪn/. Fleirtalan Sniglar er orð út af fyrir sig (sniglar)."
+        },
+        "stafsetning": {
+          "say": {
+            "Snigill": "Sníjitl",
+            "snigill": "sníjitl",
+            "snigilinn": "sníjilinn",
+            "snigillinn": "sníjitlinn",
+            "Snigillinn": "Sníjitlinn"
+          },
+          "note": "Stafsett eins og það hljómar, „Sníjitl“ (í kafla 1 heyrði talgreiningin það sem „snigill“, en þú valdir IPA). „Sniglar“ er sent eins og það er."
+        }
+      },
+      "chosen": "ipa",
+      "audition": {
+        "narrator": "Þetta er snigill. Hann ber húsið sitt og það stækkar með honum!"
+      }
+    },
+    "eitt": {
+      "word": "Eitt",
+      "stem": "Eitt$",
+      "forms": [
+        "Eitt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Sérhljóðið byrjar þá oft opið, „Ætt“ eða „Átt“."
+        },
+        "stafsetning": {
+          "say": {
+            "Eitt": "Eiht"
+          },
+          "seed": 42,
+          "note": "Vann hjá þér í kafla 1 og 2 (talningin): „Eiht“, h-ið fyrir fráblásturinn á undan tt. Fræ 42. Gildir um „Eitt“ með stórum staf: talninguna, leikinn Eitt! og setningarbyrjun."
+        },
+        "ipa": {
+          "say": {
+            "Eitt": "\"/ˈeiht/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈeiht/, fræ 42: boðið í kafla 1 en þú valdir stafsetninguna."
+        },
+        "ipa-frablastur": {
+          "say": {
+            "Eitt": "\"/ˈeiʰt/\""
+          },
+          "seed": 42,
+          "note": "IPA með réttu fráblásturstákni, /ˈeiʰt/ (ʰ fyrir fráblásturinn á undan tt), fræ 42. Ný tilraun 2026-10-22."
+        },
+        "stafsetning-ey": {
+          "say": {
+            "Eitt": "Eyht"
+          },
+          "seed": 42,
+          "note": "„Eyht“: ey eins og í „Eyn“ sem vann fyrir Ein, h fyrir fráblásturinn. Ný tilraun 2026-10-22."
+        },
+        "stafsetning-tt": {
+          "say": {
+            "Eitt": "Eihtt"
+          },
+          "seed": 42,
+          "note": "„Eihtt“: h-ið og tvöfalt t svo lokhljóðið haldist snöggt. Ný tilraun 2026-10-22."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm.",
+          "seed": 42,
+          "note": "Sent eins og það er skrifað, en með talningu á íslensku sem samhengi (ekki talað), svo líkanið viti að þetta er íslenska talan. Ný tilraun 2026-10-22."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "eitt-inni": {
+      "word": "eitt (inni í setningu)",
+      "stem": "eitt$",
+      "forms": [
+        "eitt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag (t.d. „Tuttugu og eitt stig.“ í Litlu Yatzy)."
+        },
+        "stafsetning": {
+          "say": {
+            "eitt": "eiht"
+          },
+          "note": "Sama stafsetning og vann fyrir „Eitt!“, hér inni í setningu (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "eitt": "\"/ˈeiht/\""
+          },
+          "note": "IPA /ˈeiht/ inni í setningu (óheyrt)."
+        }
+      },
+      "chosen": "ipa"
+    },
+    "ein": {
+      "word": "Ein",
+      "stem": "Ein$",
+      "forms": [
+        "Ein"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Eleven les það þá oft eins og þýska „ein“ eða „Æ“."
+        },
+        "stafsetning": {
+          "say": {
+            "Ein": "Eyn"
+          },
+          "seed": 42,
+          "note": "Vann hjá þér í kafla 1 („Ein komin.“): „Eyn“, því ey hljómar eins og ei á íslensku. Fræ 42."
+        }
+      },
+      "chosen": "stafsetning"
+    },
+    "ein-inni": {
+      "word": "ein (inni í setningu)",
+      "stem": "ein$",
+      "forms": [
+        "ein"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag."
+        },
+        "stafsetning": {
+          "say": {
+            "ein": "eyn"
+          },
+          "note": "Sama stafsetning og vann fyrir „Ein komin.“, hér inni í setningu (óheyrt)."
+        }
+      },
+      "chosen": "hratt"
+    },
+    "einn": {
+      "word": "Einn",
+      "stem": "Einn$",
+      "forms": [
+        "Einn"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað, eins og í dag („Einn!“ í Háls og hala, „Einn, tveir, þrír…“ í Litlu Yatzy)."
+        },
+        "stafsetning": {
+          "say": {
+            "Einn": "Eynn"
+          },
+          "note": "Sama bragð og „Eyn“ (óheyrt)."
+        },
+        "ipa": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "note": "IPA /ˈeitn̥/: nn á eftir tvíhljóði er borið fram „tn“ (óheyrt)."
+        },
+        "stafsetning-tn": {
+          "say": {
+            "Einn": "Eitn"
+          },
+          "seed": 42,
+          "note": "„Eitn“: nn á eftir tvíhljóði er borið fram tn, skrifað beint. Ný tilraun 2026-10-22."
+        },
+        "stafsetning-dn": {
+          "say": {
+            "Einn": "Eydn"
+          },
+          "seed": 42,
+          "note": "„Eydn“: ey fyrir ei og dn fyrir mýkra tn. Ný tilraun 2026-10-22."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: einn, tveir, þrír, fjórir, fimm.",
+          "seed": 42,
+          "note": "Sent eins og það er skrifað, með talningu á íslensku sem samhengi (ekki talað). Ný tilraun 2026-10-22."
+        },
+        "samhengi-tn": {
+          "say": {
+            "Einn": "Eitn"
+          },
+          "context": "Við teljum saman á íslensku: einn, tveir, þrír, fjórir, fimm.",
+          "seed": 42,
+          "note": "„Eitn“ og talningarsamhengið saman. Ný tilraun 2026-10-22."
+        },
+        "stafsetning-ittn": {
+          "say": {
+            "Einn": "Eittn"
+          },
+          "seed": 42,
+          "note": "„Eittn“: tt og n svo tn-hljóðið heyrist (ný tilraun)."
+        },
+        "stafsetning-eidn": {
+          "say": {
+            "Einn": "Eidn"
+          },
+          "seed": 42,
+          "note": "„Eidn“: d fyrir mýkra tn (ný tilraun)."
+        },
+        "ipa-opid": {
+          "say": {
+            "Einn": "\"/ˈɛitn̥/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛitn̥/: ei með opnu e, tn með raddlausu n (ný tilraun)."
+        },
+        "hratt-frae7": {
+          "seed": 7,
+          "note": "Sent eins og skrifað, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae7": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 7,
+          "note": "IPA /ˈeitn̥/, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "hratt-frae19": {
+          "seed": 19,
+          "note": "Sent eins og skrifað, fræ 19 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae19": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 19,
+          "note": "IPA /ˈeitn̥/, fræ 19 (önnur taka af sömu beiðni)."
+        },
+        "hratt-frae77": {
+          "seed": 77,
+          "note": "Sent eins og skrifað, fræ 77 (önnur taka af sömu beiðni)."
+        },
+        "ipa-frae77": {
+          "say": {
+            "Einn": "\"/ˈeitn̥/\""
+          },
+          "seed": 77,
+          "note": "IPA /ˈeitn̥/, fræ 77 (önnur taka af sömu beiðni)."
+        }
+      },
+      "chosen": "hratt-frae7"
+    },
+    "mundu": {
+      "word": "Mundu",
+      "stem": "[Mm]und",
+      "forms": [
+        "Mundu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. v4 sagði það rangt í Eitt! (þar er v3-takan geymd)."
+        },
+        "samhengi": {
+          "context": "Mundu að ýta á Eitt!",
+          "seed": 1,
+          "note": "Vann hjá þér (eitt_tut_recap): „Mundu að ýta á Eitt!“ sent á undan sem samhengi en ekki talað. Fræ 1."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "flugedla": {
+      "word": "Flugeðla",
+      "stem": "[Ff]lugeðl",
+      "forms": [
+        "Flugeðla",
+        "Flugeðlu",
+        "Flugeðlan",
+        "Flugeðlur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línur kafla 2 í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Flugeðla": "\"/ˈflʏːɣˌɛðla/\"",
+            "Flugeðlu": "\"/ˈflʏːɣˌɛðlʏ/\"",
+            "Flugeðlan": "\"/ˈflʏːɣˌɛðlan/\"",
+            "Flugeðlur": "\"/ˈflʏːɣˌɛðlʏr/\""
+          },
+          "seed": 42,
+          "note": "Vann einu sinni hjá þér (eitt_tut_reverse: /ˈflʏːɣˌɛðlan/, fræ 42). „Flugeðla“ /ˈflʏːɣˌɛðla/ er sama regla, óheyrð í kafla 2."
+        },
+        "samhengi": {
+          "context": "Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum.",
+          "seed": 42,
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð, fræ 42 (tapaði fyrir IPA í Eitt!)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "thorsedla": {
+      "word": "Þórseðla",
+      "stem": "[Þþ]órseðl",
+      "forms": [
+        "Þórseðla",
+        "Þórseðlu",
+        "Þórseðlan",
+        "þórseðlan"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru allar línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Þórseðla": "\"/ˈθoursˌɛðla/\"",
+            "Þórseðlu": "\"/ˈθoursˌɛðlʏ/\"",
+            "Þórseðlan": "\"/ˈθoursˌɛðlan/\"",
+            "þórseðlan": "\"/ˈθoursˌɛðlan/\""
+          },
+          "note": "IPA /ˈθoursˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!",
+          "note": "Línan þar sem Mosi kynnir hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "uggedla": {
+      "word": "Uggeðla",
+      "stem": "[Uu]ggeðl",
+      "forms": [
+        "Uggeðla",
+        "Uggeðlu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Uggeðla": "\"/ˈʏkːˌɛðla/\"",
+            "Uggeðlu": "\"/ˈʏkːˌɛðlʏ/\""
+          },
+          "note": "IPA /ˈʏkːˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Uggeðla á heima í Feninu. Hún felur sig í sefinu, en seglið sést alltaf.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sloedla": {
+      "word": "Slóeðla",
+      "stem": "[Ss]lóeðl",
+      "forms": [
+        "Slóeðla",
+        "Slóeðlu",
+        "slóeðlu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með henni í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Slóeðla": "\"/ˈstlouːˌɛðla/\"",
+            "Slóeðlu": "\"/ˈstlouːˌɛðlʏ/\"",
+            "slóeðlu": "\"/ˈstlouːˌɛðlʏ/\""
+          },
+          "note": "IPA /ˈstlouːˌɛðla/, með t-inu sem íslenskan setur í sl- eins og í „slá“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "gramedla": {
+      "word": "Grameðla",
+      "stem": "[Gg]rameðl",
+      "forms": [
+        "Grameðla",
+        "Grameðlu",
+        "grameðla",
+        "grameðlu",
+        "Grameðlur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. Enginn segir hana enn; hún kemur seinna."
+        },
+        "ipa": {
+          "say": {
+            "Grameðla": "\"/ˈkraːmˌɛðla/\"",
+            "Grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
+            "grameðla": "\"/ˈkraːmˌɛðla/\"",
+            "grameðlu": "\"/ˈkraːmˌɛðlʏ/\"",
+            "Grameðlur": "\"/ˈkraːmˌɛðlʏr/\""
+          },
+          "note": "IPA /ˈkraːmˌɛðla/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Grameðla er vinkona Mosa. Hún er með stórar og sterkar tennur.",
+          "note": "Setning um hana send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi",
+      "audition": {
+        "mosi": "Grameðla! Hún er með stærstu tennurnar af öllum."
+      }
+    },
+    "egill": {
+      "word": "Egill",
+      "stem": "Egil|Agl",
+      "forms": [
+        "Egill"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað. v4 segir það stundum rangt (k1_mosi_worry er geymd v3-taka sem segir það rétt)."
+        },
+        "ipa": {
+          "say": {
+            "Egill": "\"/ˈeiːjɪtl̥/\""
+          },
+          "note": "IPA /ˈeiːjɪtl̥/, venjulegur framburður, sama regla og vann fyrir Snigil (óheyrt)."
+        },
+        "stafsetning": {
+          "say": {
+            "Egill": "Eijitl"
+          },
+          "note": "Stafsett eins og það hljómar, „Eijitl“, sama bragð og „Sníjitl“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins!",
+          "note": "Línan úr kafla 1 sem segir Egil rétt send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "oglir": {
+      "word": "öglir",
+      "stem": "[Öö]gl",
+      "forms": [
+        "öglir",
+        "Öglir",
+        "öglis"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línurnar með honum í dag)."
+        },
+        "ipa": {
+          "say": {
+            "öglir": "\"/ˈœklɪr/\"",
+            "Öglir": "\"/ˈœklɪr/\"",
+            "öglis": "\"/ˈœklɪs/\""
+          },
+          "note": "IPA /ˈœklɪr/: gl er borið fram „kl“, eins og í „fugl“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Einn elsti fugl sem við þekkjum heitir öglir.",
+          "note": "Byrjunin á línunni sem þú valdir í bókinni (book_birds_2) send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "stjornuhatid": {
+      "word": "Stjörnuhátíð",
+      "stem": "[Ss]tjörnuhátíð",
+      "forms": [
+        "Stjörnuhátíð",
+        "stjörnuhátíð",
+        "Stjörnuhátíðina"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona eru línan í kafla 2 og spurning Egils í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
+            "stjörnuhátíð": "\"/ˈstjœrtnʏˌhauːtʰiθ/\"",
+            "Stjörnuhátíðina": "\"/ˈstjœrtnʏˌhauːtʰiðɪna/\""
+          },
+          "note": "IPA /ˈstjœrtnʏˌhauːtʰiθ/: rn borið fram „rtn“ eins og í „stjarna“ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Veistu hvað, Egill? Í kvöld kvikna fyrstu stjörnur sumarsins. Þá höldum við Stjörnuhátíðina!",
+          "note": "Línan úr kafla 1 sem þú valdir send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "thribroti": {
+      "word": "Þríbroti",
+      "stem": "[Þþ]ríbrot",
+      "forms": [
+        "Þríbroti",
+        "Þríbrotar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað (svona er línan í Háls og hala í dag)."
+        },
+        "ipa": {
+          "say": {
+            "Þríbroti": "\"/ˈθriːˌprɔːtɪ/\"",
+            "Þríbrotar": "\"/ˈθriːˌprɔːtar/\""
+          },
+          "note": "IPA /ˈθriːˌprɔːtɪ/ (óheyrt)."
+        },
+        "samhengi": {
+          "context": "Þríbrotar voru sjávardýr sem skriðu á hafsbotninum.",
+          "note": "Setning um þá send á undan sem samhengi en ekki töluð (óheyrt)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fjogur": {
+      "chosen": "samhengi",
+      "word": "Fjögur",
+      "stem": "[Ff]jögur$",
+      "forms": [
+        "Fjögur",
+        "fjögur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir það „næstum rétt, smá skrítið“."
+        },
+        "ipa": {
+          "say": {
+            "Fjögur": "\"/ˈfjœːɣʏr/\"",
+            "fjögur": "\"/ˈfjœːɣʏr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjœːɣʏr/: ö langt, g sem mjúkt ɣ."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "sjo": {
+      "chosen": "samhengi",
+      "word": "Sjö",
+      "stem": "Sjö$",
+      "forms": [
+        "Sjö"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „hv“ í orðinu."
+        },
+        "ipa": {
+          "say": {
+            "Sjö": "\"/ˈsjœː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsjœː/: s + j, langt ö."
+        },
+        "ipa-mjukt": {
+          "say": {
+            "Sjö": "\"/ˈɕœː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɕœː/: sj sem eitt mjúkt hljóð (eins og margir segja það)."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "atta": {
+      "chosen": "samhengi",
+      "word": "Átta",
+      "stem": "Átta$",
+      "forms": [
+        "Átta"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „Atta“."
+        },
+        "ipa": {
+          "say": {
+            "Átta": "\"/ˈauʰta/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauʰta/: á sem au, fráblástur á undan tt."
+        },
+        "stafsetning": {
+          "say": {
+            "Átta": "Áhtta"
+          },
+          "seed": 42,
+          "note": "„Áhtta“: h fyrir fráblásturinn, eins og Eiht-bragðið."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "niu": {
+      "chosen": "samhengi",
+      "word": "Níu",
+      "stem": "Níu$",
+      "forms": [
+        "Níu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir skrýtinn framburð."
+        },
+        "ipa": {
+          "say": {
+            "Níu": "\"/ˈniːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːʏ/: langt í, svo stutt u-hljóð."
+        },
+        "stafsetning": {
+          "say": {
+            "Níu": "Níju"
+          },
+          "seed": 42,
+          "note": "„Níju“: j-ið sem heyrist á milli í og u."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi."
+        }
+      }
+    },
+    "tvaer": {
+      "chosen": "ipa",
+      "word": "Tvær",
+      "stem": "Tvær$",
+      "forms": [
+        "Tvær"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „tver“."
+        },
+        "ipa": {
+          "say": {
+            "Tvær": "\"/ˈtʰvaiːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰvaiːr/: æ sem tvíhljóðið ai."
+        },
+        "stafsetning": {
+          "say": {
+            "Tvær": "Tvæ-ær"
+          },
+          "seed": 42,
+          "note": "„Tvæ-ær“: æ-ið dregið svo tvíhljóðið heyrist (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ein komin, tvær komnar, þrjár komnar.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „ein, tvær, þrjár“ sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "naesta": {
+      "chosen": "ipa",
+      "word": "Næsta",
+      "stem": "[Nn]æsta$",
+      "forms": [
+        "Næsta",
+        "næsta"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir „nesta“."
+        },
+        "ipa": {
+          "say": {
+            "Næsta": "\"/ˈnaista/\"",
+            "næsta": "\"/ˈnaista/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈnaista/: æ sem ai."
+        },
+        "samhengi": {
+          "context": "Næsta spor, og svo það næsta.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi sem segir orðið tvisvar (ekki talað)."
+        }
+      }
+    },
+    "fotspor": {
+      "chosen": "samhengi",
+      "word": "Fótspor",
+      "stem": "[Ff]ótspor$",
+      "forms": [
+        "Fótspor",
+        "fótspor"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir auka h, „fhótspor“."
+        },
+        "ipa": {
+          "say": {
+            "Fótspor": "\"/ˈfouːtˌspɔːr/\"",
+            "fótspor": "\"/ˈfouːtˌspɔːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfouːtˌspɔːr/: ó sem ou, tvö orð í einu."
+        },
+        "stafsetning": {
+          "say": {
+            "Fótspor": "Fótsbor",
+            "fótspor": "fótsbor"
+          },
+          "seed": 42,
+          "note": "„fótsbor“: b svo p-ið fái ekki fráblástur (tilraun)."
+        },
+        "samhengi": {
+          "context": "Stór fótspor í leðjunni, tíu fótspor í röð.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi sem segir orðið (ekki talað)."
+        }
+      }
+    },
+    "mosi": {
+      "chosen": "hratt",
+      "word": "Mosi",
+      "stem": "Mosi$",
+      "forms": [
+        "Mosi"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; Þórseðla sagði „Mósi“."
+        },
+        "ipa": {
+          "say": {
+            "Mosi": "\"/ˈmɔːsɪ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈmɔːsɪ/: stutt opið o, ekki ó."
+        },
+        "samhengi": {
+          "context": "Mosi er lítil þríhyrna; o-ið í Mosi er stutt, eins og í „kosinn“.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með samhengi um o-ið (ekki talað)."
+        }
+      }
+    },
+    "tiu": {
+      "chosen": "samhengi",
+      "word": "Tíu",
+      "stem": "[Tt]íu$",
+      "forms": [
+        "Tíu",
+        "tíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir j í orðinu („Tíju“)."
+        },
+        "ipa": {
+          "say": {
+            "Tíu": "\"/ˈtʰiːʏ/\"",
+            "tíu": "\"/ˈtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰiːʏ/: langt í og svo stutt u, ekkert j."
+        },
+        "stafsetning": {
+          "say": {
+            "Tíu": "Tí-u",
+            "tíu": "tí-u"
+          },
+          "seed": 42,
+          "note": "„Tí-u“: bandstrik svo hljóðin tvö séu borin fram hvort í sínu lagi (tilraun)."
+        },
+        "samhengi": {
+          "context": "Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "ploturnar": {
+      "chosen": "hratt",
+      "word": "Plöturnar",
+      "stem": "[Pp]lötu",
+      "forms": [
+        "Plöturnar",
+        "plöturnar",
+        "plötur"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð og áherslu í kortalínu Kambeðlu."
+        },
+        "ipa": {
+          "say": {
+            "Plöturnar": "\"/ˈplœːtʏrnar/\"",
+            "plöturnar": "\"/ˈplœːtʏrnar/\"",
+            "plötur": "\"/ˈplœːtʏr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈplœːtʏrnar/: áhersla á fyrsta atkvæði, langt ö."
+        },
+        "samhengi": {
+          "context": "Plöturnar á bakinu hennar. Plöturnar lýsa.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu tvisvar í samhengi (ekki talað)."
+        }
+      }
+    },
+    "ljosker": {
+      "chosen": "hratt",
+      "word": "Ljósker",
+      "stem": "[Ll]jósker",
+      "forms": [
+        "ljósker"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð og áherslu."
+        },
+        "ipa": {
+          "say": {
+            "ljósker": "\"/ˈljouːsˌcʰɛːr/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈljouːsˌcʰɛːr/: ljós + ker, áhersla fremst."
+        },
+        "stafsetning": {
+          "say": {
+            "ljósker": "jós-ker"
+          },
+          "seed": 42,
+          "note": "„ljós-ker“: bandstrik milli orðhlutanna (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ljós í ljóskeri. Ljóskerin lýsa í myrkrinu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+        }
+      }
+    },
+    "o": {
+      "chosen": "samhengi",
+      "word": "Ó (upphrópun)",
+      "stem": "Ó$",
+      "forms": [
+        "Ó"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir enskt „oh“ hjá Mosa í kafla 1."
+        },
+        "ipa": {
+          "say": {
+            "Ó": "\"/ouː/\""
+          },
+          "seed": 42,
+          "note": "IPA /ouː/: íslenskt ó, tvíhljóð."
+        },
+        "stafsetning": {
+          "say": {
+            "Ó": "Óó"
+          },
+          "seed": 42,
+          "note": "„Óó“: ó-ið dregið (tilraun)."
+        },
+        "samhengi": {
+          "context": "Ó, sjáðu! Ó, hvað þetta er fallegt!",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskum upphrópunum sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "kitla": {
+      "chosen": "ipa-langt",
+      "word": "Kitlar",
+      "stem": "[Kk]itl",
+      "forms": [
+        "kitlar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir það rangt."
+        },
+        "stafsetning-i": {
+          "say": {
+            "kitlar": "kítlar"
+          },
+          "seed": 42,
+          "note": "„kítlar“ með í, eins og þú segir að orðið sé borið fram (fyrri tilraun sendi „ítlar“ fyrir mistök)."
+        },
+        "stafsetning-itt": {
+          "say": {
+            "kitlar": "kíttlar"
+          },
+          "seed": 42,
+          "note": "„kíttlar“: í og tvöfalt t svo lokhljóðið sé snöggt."
+        },
+        "ipa-langt": {
+          "say": {
+            "kitlar": "\"/ˈcʰiːtlar/\""
+          },
+          "seed": 42,
+          "note": "IPA með löngu í, /ˈcʰiːtlar/."
+        },
+        "ipa-frablastur": {
+          "say": {
+            "kitlar": "\"/ˈcʰiʰtlar/\""
+          },
+          "seed": 42,
+          "note": "IPA með í og fráblæstri á undan tl, /ˈcʰiʰtlar/."
+        },
+        "samhengi": {
+          "context": "Þetta kitlar! Kítlar, kítlar! Hættu að kitla mig!",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „kítlar“ í samhenginu sem ekki er talað."
+        }
+      }
+    },
+    "teldu": {
+      "chosen": "samhengi",
+      "word": "Teldu",
+      "stem": "[Tt]eldu$",
+      "forms": [
+        "Teldu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð í Háls og hala."
+        },
+        "ipa": {
+          "say": {
+            "Teldu": "\"/ˈtʰɛltʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰɛltʏ/: e opið, d sem t á eftir l."
+        },
+        "stafsetning": {
+          "say": {
+            "Teldu": "Teltu"
+          },
+          "seed": 42,
+          "note": "„Teltu“: d skrifað sem t eins og það heyrist."
+        },
+        "samhengi": {
+          "context": "Teldu með mér! Einn, tveir, þrír.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með talningu sem samhengi (ekki talað)."
+        }
+      }
+    },
+    "laufblad": {
+      "chosen": "ipa",
+      "word": "Laufblað",
+      "stem": "[Ll]aufblað",
+      "forms": [
+        "laufblað"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir rangan framburð hjá sögumanni."
+        },
+        "ipa": {
+          "say": {
+            "laufblað": "\"/ˈlœyːvˌplaːð/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœyːvˌplaːð/: au sem öy, f sem v á undan b."
+        },
+        "stafsetning": {
+          "say": {
+            "laufblað": "lauf-blað"
+          },
+          "seed": 42,
+          "note": "„lauf-blað“: bandstrik milli orðhlutanna."
+        },
+        "samhengi": {
+          "context": "Laufblað af tré. Steingert laufblað í steini.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með orðinu í samhengi (ekki talað)."
+        }
+      }
+    },
+    "vel": {
+      "chosen": "samhengi",
+      "word": "Vel",
+      "stem": "[Vv]el$",
+      "forms": [
+        "Vel",
+        "vel"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; „Vel gert!“ hljómaði mjög rangt."
+        },
+        "ipa": {
+          "say": {
+            "Vel": "\"/ˈvɛːl/\"",
+            "vel": "\"/ˈvɛːl/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈvɛːl/: opið e, langt."
+        },
+        "samhengi": {
+          "context": "Vel gert! Þú stóðst þig vel.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „Vel gert“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "gert": {
+      "chosen": "samhengi",
+      "word": "Gert",
+      "stem": "[Gg]ert$",
+      "forms": [
+        "gert"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; „Vel gert!“ hljómaði mjög rangt."
+        },
+        "ipa": {
+          "say": {
+            "gert": "\"/ˈcɛr̥t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈcɛr̥t/: mjúkt g (gj), raddlaust r á undan t."
+        },
+        "stafsetning": {
+          "say": {
+            "gert": "gjert"
+          },
+          "seed": 42,
+          "note": "„gjert“: j-ið skrifað svo g-ið verði mjúkt."
+        },
+        "samhengi": {
+          "context": "Vel gert! Þú stóðst þig vel.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „Vel gert“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "langt": {
+      "chosen": "ipa",
+      "word": "Langt",
+      "stem": "[Ll]angt$",
+      "forms": [
+        "langt"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; áherslan röng og h-hljóð í „of langt“."
+        },
+        "ipa": {
+          "say": {
+            "langt": "\"/ˈlauŋ̊t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlauŋ̊t/: a sem au, raddlaust ng á undan t."
+        },
+        "stafsetning": {
+          "say": {
+            "langt": "lángt"
+          },
+          "seed": 42,
+          "note": "„lángt“: á fyrir au-hljóðið."
+        },
+        "samhengi": {
+          "context": "Of langt! Allt of langt í burtu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "of": {
+      "chosen": "ipa",
+      "word": "Of",
+      "stem": "[Oo]f$",
+      "forms": [
+        "of"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; þú heyrðir h-hljóð í „of langt“ hjá Þórseðlu."
+        },
+        "ipa": {
+          "say": {
+            "of": "\"/ˈɔːv/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɔːv/: opið o, f sem v."
+        },
+        "samhengi": {
+          "context": "Of langt! Allt of langt í burtu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með „of langt“ í samhenginu (ekki talað)."
+        }
+      }
+    },
+    "attatiu": {
+      "word": "Áttatíu",
+      "stem": "[Áá]ttatíu$",
+      "forms": [
+        "Áttatíu",
+        "áttatíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Áttatíu": "\"/ˈauhtaˌtʰiːʏ/\"",
+            "áttatíu": "\"/ˈauhtaˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauhtaˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Áttatíu": "Átta-tíu",
+            "áttatíu": "átta-tíu"
+          },
+          "seed": 42,
+          "note": "„átta-tíu“: bandstrik milli orðhlutanna."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "niutiu": {
+      "word": "Níutíu",
+      "stem": "[Nn]íutíu$",
+      "forms": [
+        "Níutíu",
+        "níutíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Níutíu": "\"/ˈniːʏˌtʰiːʏ/\"",
+            "níutíu": "\"/ˈniːʏˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːʏˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Níutíu": "Níu-tíu",
+            "níutíu": "níu-tíu"
+          },
+          "seed": 42,
+          "note": "„níu-tíu“: bandstrik milli orðhlutanna."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sextan": {
+      "word": "Sextán",
+      "stem": "[Ss]extán$",
+      "forms": [
+        "Sextán",
+        "sextán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sextán": "\"/ˈsɛxsˌtauːn/\"",
+            "sextán": "\"/ˈsɛxsˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxsˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sautjan": {
+      "word": "Sautján",
+      "stem": "[Ss]autján$",
+      "forms": [
+        "Sautján",
+        "sautján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sautján": "\"/ˈsœyːˌtjauːn/\"",
+            "sautján": "\"/ˈsœyːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsœyːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "atjan": {
+      "word": "Átján",
+      "stem": "[Áá]tján$",
+      "forms": [
+        "Átján",
+        "átján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Átján": "\"/ˈauːˌtjauːn/\"",
+            "átján": "\"/ˈauːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈauːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "nitjan": {
+      "word": "Nítján",
+      "stem": "[Nn]ítján$",
+      "forms": [
+        "Nítján",
+        "nítján"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Nítján": "\"/ˈniːˌtjauːn/\"",
+            "nítján": "\"/ˈniːˌtjauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈniːˌtjauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimmtán, sextán, sautján, átján, nítján, tuttugu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "tuttugu": {
+      "word": "Tuttugu",
+      "stem": "[Tt]uttugu$",
+      "forms": [
+        "Tuttugu",
+        "tuttugu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Tuttugu": "\"/ˈtʰʏhtʏˌɣʏ/\"",
+            "tuttugu": "\"/ˈtʰʏhtʏˌɣʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰʏhtʏˌɣʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tuttugu, tuttugu og eitt, tuttugu og tvö, þrjátíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "ellefu": {
+      "word": "Ellefu",
+      "stem": "[Ee]llefu$",
+      "forms": [
+        "Ellefu",
+        "ellefu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Ellefu": "\"/ˈɛtlɛvʏ/\"",
+            "ellefu": "\"/ˈɛtlɛvʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛtlɛvʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sex": {
+      "word": "Sex",
+      "stem": "[Ss]ex$",
+      "forms": [
+        "Sex",
+        "sex"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Sex": "\"/ˈsɛxs/\"",
+            "sex": "\"/ˈsɛxs/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxs/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: fimm, sex, sjö, átta.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "ekkert": {
+      "word": "Ekkert",
+      "stem": "[Ee]kkert$",
+      "forms": [
+        "Ekkert",
+        "ekkert"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Ekkert": "\"/ˈɛhcɛr̥t/\"",
+            "ekkert": "\"/ˈɛhcɛr̥t/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈɛhcɛr̥t/."
+        },
+        "samhengi": {
+          "context": "Ekkert stig í þessari umferð. Ekkert kort.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "profum": {
+      "word": "Prófum",
+      "stem": "[Pp]rófum$",
+      "forms": [
+        "Prófum",
+        "prófum"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Prófum": "\"/ˈpʰrouːvʏm/\"",
+            "prófum": "\"/ˈpʰrouːvʏm/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈpʰrouːvʏm/."
+        },
+        "samhengi": {
+          "context": "Prófum þetta saman. Prófum aftur.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        }
+      },
+      "chosen": "ipa"
+    },
+    "laus": {
+      "word": "Laus",
+      "stem": "[Ll]aus$",
+      "forms": [
+        "Laus",
+        "laus"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; hljómaði danskt/norskt í Litla Yatzy."
+        },
+        "ipa": {
+          "say": {
+            "Laus": "\"/ˈlœyːs/\"",
+            "laus": "\"/ˈlœyːs/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœyːs/."
+        },
+        "samhengi": {
+          "context": "Teningurinn er laus. Laus aftur.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað)."
+        },
+        "stafsetning": {
+          "say": {
+            "Laus": "Löys",
+            "laus": "löys"
+          },
+          "seed": 42,
+          "note": "„Löys“: au skrifað sem öy, eins og það heyrist."
+        },
+        "ipa-stutt": {
+          "say": {
+            "Laus": "\"/ˈlœys/\"",
+            "laus": "\"/ˈlœys/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈlœys/ án lengdarmerkis."
+        },
+        "ipa-frae7": {
+          "say": {
+            "Laus": "\"/ˈlœyːs/\"",
+            "laus": "\"/ˈlœyːs/\""
+          },
+          "seed": 7,
+          "note": "IPA /ˈlœyːs/, fræ 7 (önnur taka af sömu beiðni)."
+        },
+        "samhengi-laus": {
+          "context": "Teningurinn er ekki fastur lengur, hann er laus. Laus aftur!",
+          "seed": 7,
+          "note": "Lengra samhengi (ekki talað) með orðinu tvisvar, fræ 7."
+        },
+        "hratt-frae19": {
+          "seed": 19,
+          "note": "Sent eins og skrifað, fræ 19 (önnur taka af sömu beiðni)."
+        }
+      },
+      "chosen": "ipa-frae7"
+    },
+    "tolf": {
+      "word": "Tólf",
+      "stem": "[Tt]ólf$",
+      "forms": [
+        "Tólf",
+        "tólf"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Tólf": "\"/ˈtʰoulv/\"",
+            "tólf": "\"/ˈtʰoulv/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈtʰoulv/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "threttan": {
+      "word": "Þrettán",
+      "stem": "[Þþ]rettán$",
+      "forms": [
+        "Þrettán",
+        "þrettán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Þrettán": "\"/ˈθrɛhˌtauːn/\"",
+            "þrettán": "\"/ˈθrɛhˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈθrɛhˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fjortan": {
+      "word": "Fjórtán",
+      "stem": "[Ff]jórtán$",
+      "forms": [
+        "Fjórtán",
+        "fjórtán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fjórtán": "\"/ˈfjourˌtauːn/\"",
+            "fjórtán": "\"/ˈfjourˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjourˌtauːn/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fimmtan": {
+      "word": "Fimmtán",
+      "stem": "[Ff]immtán$",
+      "forms": [
+        "Fimmtán",
+        "fimmtán"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fimmtán": "\"/ˈfɪmˌtauːn/\"",
+            "fimmtán": "\"/ˈfɪmˌtauːn/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfɪmˌtauːn/."
+        },
+        "samhengi": {
+          "context": {
+            "mosi": "Við teljum á íslensku: tíu, ellefu, tólf, þrettán, fjórtán, fimmtán."
+          },
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað), hjá Mosa; sögumaðurinn segir orðið rétt eins og það er."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "thrjatiu": {
+      "word": "Þrjátíu",
+      "stem": "[Þþ]rjátíu$",
+      "forms": [
+        "Þrjátíu",
+        "þrjátíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Þrjátíu": "\"/ˈθrjauːˌtʰiːʏ/\"",
+            "þrjátíu": "\"/ˈθrjauːˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈθrjauːˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fjorutiu": {
+      "word": "Fjörutíu",
+      "stem": "[Ff]jörutíu$",
+      "forms": [
+        "Fjörutíu",
+        "fjörutíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fjörutíu": "\"/ˈfjœːrʏˌtʰiːʏ/\"",
+            "fjörutíu": "\"/ˈfjœːrʏˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfjœːrʏˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "fimmtiu": {
+      "word": "Fimmtíu",
+      "stem": "[Ff]immtíu$",
+      "forms": [
+        "Fimmtíu",
+        "fimmtíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Fimmtíu": "\"/ˈfɪmˌtʰiːʏ/\"",
+            "fimmtíu": "\"/ˈfɪmˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈfɪmˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sextiu": {
+      "word": "Sextíu",
+      "stem": "[Ss]extíu$",
+      "forms": [
+        "Sextíu",
+        "sextíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Sextíu": "\"/ˈsɛxsˌtʰiːʏ/\"",
+            "sextíu": "\"/ˈsɛxsˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsɛxsˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sjotiu": {
+      "word": "Sjötíu",
+      "stem": "[Ss]jötíu$",
+      "forms": [
+        "Sjötíu",
+        "sjötíu"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Sjötíu": "\"/ˈsjœːˌtʰiːʏ/\"",
+            "sjötíu": "\"/ˈsjœːˌtʰiːʏ/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈsjœːˌtʰiːʏ/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "hundrad": {
+      "word": "Hundrað",
+      "stem": "[Hh]undrað$",
+      "forms": [
+        "Hundrað",
+        "hundrað"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað; stuttu stigalínurnar í Litla Yatzy renna þá út í dönsku/norsku."
+        },
+        "ipa": {
+          "say": {
+            "Hundrað": "\"/ˈhʏntrað/\"",
+            "hundrað": "\"/ˈhʏntrað/\""
+          },
+          "seed": 42,
+          "note": "IPA /ˈhʏntrað/."
+        },
+        "samhengi": {
+          "context": "Við teljum á íslensku: níutíu, hundrað, hundrað og eitt, hundrað og tvö.",
+          "seed": 42,
+          "note": "Sent eins og skrifað, með íslenskri talningu sem samhengi (ekki talað): sama meðferð og hinar tölurnar (eigandinn, 2026-10-23)."
+        }
+      },
+      "chosen": "samhengi"
+    },
+    "sniglar": {
+      "word": "Sniglar",
+      "stem": "[Ss]niglar$",
+      "forms": [
+        "Sniglar",
+        "sniglar"
+      ],
+      "recipes": {
+        "hratt": {
+          "note": "Sent eins og það er skrifað."
+        },
+        "ipa": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪklar/\"",
+            "sniglar": "\"/ˈstnɪklar/\""
+          },
+          "seed": 1,
+          "note": "IPA /ˈstnɪklar/ eins og það var inni í snigill-reglunni; þú heyrðir það rangt í bókinni (2026-10-25)."
+        },
+        "ipa-langt": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪːklar/\"",
+            "sniglar": "\"/ˈstnɪːklar/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu i: /ˈstnɪːklar/."
+        },
+        "ipa-g": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪɣlar/\"",
+            "sniglar": "\"/ˈstnɪɣlar/\""
+          },
+          "seed": 1,
+          "note": "IPA með g sem rödduðu önghljóði: /ˈstnɪɣlar/."
+        },
+        "stafsetning": {
+          "say": {
+            "Sniglar": "Stniglar",
+            "sniglar": "stniglar"
+          },
+          "seed": 1,
+          "note": "„Stniglar“: t-ið sem heyrist í sn- skrifað."
+        },
+        "samhengi": {
+          "context": {
+            "narrator": "Snigill, sniglar. Sniglarnir skríða hægt."
+          },
+          "seed": 1,
+          "note": "Sent eins og skrifað, með beygingunni sem samhengi (ekki talað) hjá sögumanni."
+        },
+        "stafsetning-gg": {
+          "say": {
+            "Sniglar": "Snigglar",
+            "sniglar": "snigglar"
+          },
+          "seed": 1,
+          "note": "„Snigglar“: tvöfalt g lokar atkvæðinu svo i-ið verði stutt (hljómaði eins og Sníglar með einföldu g)."
+        },
+        "stafsetning-gg-bandstrik": {
+          "say": {
+            "Sniglar": "Snigg-lar",
+            "sniglar": "snigg-lar"
+          },
+          "seed": 1,
+          "note": "„Snigg-lar“: tvöfalt g og bandstrik á atkvæðaskilum."
+        },
+        "ipa-kk": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪkːlar/\"",
+            "sniglar": "\"/ˈstnɪkːlar/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu k, /ˈstnɪkːlar/, svo i-ið á undan verði stutt."
+        },
+        "ipa-atkvaedi": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪk.lar/\"",
+            "sniglar": "\"/ˈstnɪk.lar/\""
+          },
+          "seed": 1,
+          "note": "IPA með atkvæðaskilum eftir k: /ˈstnɪk.lar/."
+        },
+        "ipa-kk-r": {
+          "say": {
+            "Sniglar": "\"/ˈstnɪkːlar̥/\"",
+            "sniglar": "\"/ˈstnɪkːlar̥/\""
+          },
+          "seed": 1,
+          "note": "IPA með löngu k og raddlausu r í endann: /ˈstnɪkːlar̥/."
+        },
+        "stafsetning-gg-frae7": {
+          "say": {
+            "Sniglar": "Snigglar",
+            "sniglar": "snigglar"
+          },
+          "seed": 7,
+          "note": "„Snigglar“ með öðru fræi (7)."
+        }
+      },
+      "chosen": "hratt"
+    }
+  }
+}

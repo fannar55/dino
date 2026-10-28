@@ -41,7 +41,7 @@ export const PRINT_SECONDS = LIFE + FADE; // how long a print can be seen at all
 // One print in its own frame, at size 1: x the way the walker faces, z to its right, on the ground plane. Each blob is a
 // middle, a ring at seven tenths of its reach where it is nearly as dark and a ring at its edge where it has faded, so the
 // print has no hard edge and is deepest in the middle. aSoft carries the darkness each vertex has.
-const BLOBS = [
+export const BLOBS = [
   { x: -0.05, z: 0, rx: 0.28, rz: 0.26 }, // the pad
   { x: 0.29, z: -0.18, rx: 0.1, rz: 0.085 }, // three toes
   { x: 0.33, z: 0, rx: 0.105, rz: 0.09 },

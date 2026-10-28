@@ -10,7 +10,7 @@ import { installFog } from './engine/fog.js';
 import { createSky } from './engine/sky.js';
 import { createSunFace, addMosiCloud } from './engine/sun-face.js';
 import { createWind } from './engine/wind.js';
-import { beatsAt, followBeat, danceOf } from './engine/beat.js';
+import { beatsAt, followBeat, danceOf, danceGrid } from './engine/beat.js';
 import { createActor, updateActors } from './engine/actor.js';
 import { createEffects } from './engine/effects.js';
 import { installStats } from './engine/stats.js';
@@ -21,32 +21,40 @@ import { createScene } from './engine/scene/scene.js';
 import { createStageUI } from './engine/scene/ui.js';
 import { createVoice } from './engine/scene/voice.js';
 import { createPointer } from './engine/input/pointer.js';
-import { createSave } from './engine/save.js';
+import { createSave, defaultChapter, forgetSave } from './engine/save.js';
 import { createJournal } from './engine/scene/journal.js';
-import { createBook } from './engine/book/book.js';
+import { createBook, halsOpen } from './engine/book/book.js';
 import { createBookAudio } from './engine/book/book-audio.js';
 import { parseCards } from './engine/book/cards.js';
-import { parseManifest } from './engine/book/media.js';
+import { parseManifest, parseModels } from './engine/book/media.js';
 import { createEittGame } from './engine/eitt/table.js';
 import { createHalsGame } from './engine/hals/game.js';
-import { createYatzyGame } from './engine/yatzy/table.js';
+import { createFjolspil } from './engine/fjolspil/fjolspil.js';
 import { createJuniorFrame } from './engine/yatzy-junior/frame.js';
 import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
+import { loadTheme } from './engine/audio/theme.js';
 import { createHold } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
+import { installConsoleLog } from './engine/console-log.js';
+import { createVilla } from './engine/villa/villa.js';
 
 // URL parameters
-//   chapter=<id>          chapter module in chapters/ (default: kafli1, the game's first chapter; grunnur is the foundation test scene)
+//   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
+//                         until Kambeðla's star, then kafli2; grunnur is the foundation test scene)
 //   quality=low|tablet|high
-//   look=morning|golden|evening   override the chapter's light
+//   look=morning|lateMorning|golden|evening   override the chapter's light
 //   shot=<name>           hold a static review shot from the chapter instead of playing the scene
 //   t=<seconds>           seek to that time and freeze it (the scene, or a review shot's animation); silent
 //   play=1                start the scene at once, without the start button
 //   orbit=1               free camera (mouse and touch) instead of the director
 //   debug=1               stats overlay
+//   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
+//   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
+//                         reload does not forget again)
+const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
@@ -56,7 +64,16 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1200);
 const clock = createClock();
 
-const chapterId = (params.get('chapter') || 'kafli1').replace(/[^a-z0-9_-]/gi, '');
+// A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory. An address that names no
+// chapter plays the one the save is at. ?nyr=1 forgets the save first, and leaves the address without the parameter, so the
+// next reload keeps what the child wins from here on.
+if (params.get('nyr') === '1') {
+  forgetSave();
+  params.delete('nyr');
+  try { history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`); } catch { /* an address that cannot be rewritten is left as it is */ }
+}
+const save = createSave(params.get('t') === null ? undefined : null);
+const chapterId = (params.get('chapter') || defaultChapter(save)).replace(/[^a-z0-9_-]/gi, '');
 const { chapter } = await import(`./chapters/${chapterId}.js`);
 const look = pickLook(params.get('look') || chapter.look);
 renderer.toneMappingExposure = look.exposure;
@@ -82,12 +99,28 @@ let locations = null;
 // A place's forest is built in one long frame (seconds on a tablet), and its first draws are long frames too: the music is told
 // before each build (music.lenient, set up once the music exists), so it moves its playhead instead of jumping back.
 let beforeBuild = null;
+// The places a chapter goes to later (chapter.prepare) are built once the start button shows, a slice at a time over frames
+// (world/forest/slices.js: prepareLater below). slicing.budget() is how many ms of a frame the build may take (set once the scene
+// exists); a slice that held its frame long (under the black) tells the music as a build at once does, and a frame with a slice
+// in it says nothing of drawing (adapt).
+let slicedInFrame = false;
+const slicing = {
+  budget: () => 25,
+  stats: { slices: 0, longest: 0 },
+  onSlice(ms) {
+    slicedInFrame = true;
+    slicing.stats.slices++;
+    slicing.stats.longest = Math.max(slicing.stats.longest, ms);
+    if (ms > 50) beforeBuild?.();
+  },
+};
 if (chapter.locations) {
-  // Several places: the start location is built now, the others behind the start button (chapter.prepare) or when the scene
-  // first goes there.
+  // Several places: the start location is built now, the others once the start button shows (chapter.prepare, a slice at a
+  // time) or, at once, when the scene first goes there.
   locations = createLocations({
     world, locations: chapter.locations,
-    build: layout => {
+    build: (layout, { sliced = false } = {}) => {
+      if (sliced) return createForest(world, layout, { slice: slicing });
       beforeBuild?.();
       return createForest(world, layout);
     },
@@ -123,6 +156,7 @@ try {
 // works; only its Dýrin page is empty.
 let cards = [];
 let media = new Map();
+let models = new Map(); // the 3D pages' models, from the same manifest
 try {
   const read = async path => {
     const response = await fetch(new URL(path, import.meta.url));
@@ -132,27 +166,29 @@ try {
   const [cardData, mediaData] = await Promise.all([read('./assets/book/cards.json'), read('./assets/book/media-manifest.json')]);
   cards = parseCards(cardData);
   media = parseManifest(mediaData);
+  models = parseModels(mediaData);
 } catch (error) {
   cards = [];
   media = new Map();
   console.warn('[book] Its cards could not be read, so its Dýrin page is empty.', error);
 }
-// The theme's tempo, measured once by tools/theme-tempo.mjs: the forest sways in time with it. The music reads the
-// theme's file against this URL (theme.json's src), and the effects tune their bells to its key.
-const themeUrl = new URL('./assets/audio/theme.json', import.meta.url);
-let theme = null;
-try {
-  theme = await (await fetch(themeUrl)).json();
-} catch {
-  console.warn('No theme tempo found; the forest sways without the beat.');
-}
+// The theme: the chapter's song (chapter.theme, a theme.json under assets/audio/: chapter 1 the default, "Little Dino Green Valley",
+// chapter 2 "Dino Trail"), its tempo, measured once by tools/theme-tempo.mjs, which the forest sways in time with, and its key, which
+// the effects tune their bells to. The music reads the theme's file against the URL it came from (theme.json's src). It is read once,
+// for the chapter this page plays, before the music is made: the hand-over to the next chapter loads a new page (?chapter=kafli2,
+// below), so the theme never changes while a page lives and needs no live switch. A chapter's theme that cannot be read gives the
+// default (said once in the console); with none at all the forest sways without the beat (engine/audio/theme.js).
+const { theme, url: themeUrl } = await loadTheme(chapter, new URL('./assets/audio/', import.meta.url));
+// The grid the forest dances on: the theme's beats, or every second of them for a fast song (theme.json danceBeats, engine/beat.js
+// danceGrid: Dino Trail's 134 a minute are danced at 67). The effects and the music keep the theme's own tempo.
+const dance = theme && danceGrid(theme);
 // Sound. A capture (?t=) and a review shot (?shot=) are silent and make no audio context at all; a scene somebody plays
 // gets one, which the browser keeps asleep until the first touch (the start button), so nothing sounds before it.
 const playing = params.get('t') === null && params.get('shot') === null && Boolean(chapter.script);
 const audio = playing ? createAudioContext() : null;
 const output = audio && createOutput(audio);
 const music = createMusic({ context: audio, theme, clock, base: themeUrl, output });
-const sfx = createSfx({ context: audio, theme, output });
+const sfx = createSfx({ context: audio, theme, output, recorded: true }); // recorded: Grameðla's roar and breath (sfx.js SAMPLES)
 // The book's narrator and effects (engine/book/book-audio.js): outside the hold below, so they sound while the game stands still
 // behind the child's book, and muted wherever the game's sound is silent (captures and review shots).
 const bookAudio = createBookAudio({ context: audio, output, theme, lines });
@@ -160,12 +196,16 @@ const bookAudio = createBookAudio({ context: audio, output, theme, lines });
 // the clock's own time while the music is not sounding), so the forest dances to what is heard, and a seek or a capture lands
 // on the same beat every time.
 const musicTime = () => music.position;
-// The forest's beat, { beats, speed }: the music's grid, followed without a jump when the playhead jumps (at the first touch, and
-// where the theme loops), and the grid exactly while seeking and in a frozen capture (engine/beat.js: followBeat). Without a theme
-// there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
+// The forest's beat, { beats, speed }: the dance's grid on the music's playhead, followed without a jump when the playhead jumps (at
+// the first touch, and where the theme loops), and the grid exactly while seeking and in a frozen capture (engine/beat.js: followBeat).
+// Without a theme there is none: the wind's count stays NO_BEAT, and the forest holds the middle of its waves.
 let followed = null;
 const ui = createStageUI(document);
 const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lowers itself under a recorded line
+// The chapter's recordings are fetched ahead, in the background, so a line starts the moment the scene asks for it: over the
+// network a recording asked for at its cue starts late, and the mouth ran ahead of the voice (the owner's reports of 2026-10-25).
+// The scene keeps time with the sound either way (scene.js sayTask); this makes the wait a few milliseconds instead of seconds.
+if (playing) voice.preload(Object.values(chapter.lines ?? {}).map(line => lines[line.audio]?.src).filter(Boolean));
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
 const hold = createHold([voice, music, sfx]);
@@ -177,13 +217,12 @@ beforeBuild = () => music.lenient(PLACE_CHANGE);
 const updateMusic = guard('music', () => music.update());
 const updateSfx = guard('sfx', dt => sfx.update(dt));
 const pointer = createPointer({ canvas, camera, world });
-// A capture (?t=) neither reads nor changes the child's progress: it keeps its own save, in memory.
-const save = createSave(params.get('t') === null ? undefined : null);
 const book = createBook(document, {
-  cards, media, save, audio: bookAudio, win: window,
-  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy' ? yatzy.open(options) : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
-  // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once.
-  onTab: tab => { if (tab === 'games') setTimeout(() => hals.prewarm(), 900); },
+  cards, media, models, save, audio: bookAudio, win: window,
+  onPlay: (game, options) => (game === 'hals' ? hals.open() : game === 'yatzy-junior' ? junior.open() : eitt.open(options)), // the Leikir page's games
+  // On the Leikir page the board world of "Háls og hali" starts building, once the page has turned in, so the game opens at once:
+  // once it is open, by Þórseðla's star or a game of it played (book.js halsOpen); a locked tile only wiggles, and builds nothing.
+  onTab: tab => { if (tab === 'games' && halsOpen(save)) setTimeout(() => hals.prewarm(), 900); },
   // A book the child opens holds the whole game, the sound included, until the child shuts it. A book a script opens
   // (s.journal.open) does not, until the child taps inside it: the last scene fades into the book while Mosi speaks.
   onPause: paused => {
@@ -191,26 +230,21 @@ const book = createBook(document, {
     hold('book', paused);
   },
 });
+// "Fjölspil", the minigames played from phones round the big screen (engine/fjolspil/fjolspil.js): the room and the seats are
+// the page's, not one game's, so it is made before the games that use it. Its lobby's buttons tap with the book's sound, which
+// has the tap and sounds while a game holds the chapter's (the lobby opens over a game).
+const fjolspil = createFjolspil(document, { audio: bookAudio });
 // Kambeðla's card game, "Eitt!" (engine/eitt/table.js), which the book's Leikir page opens over the book. Like the child's book it
 // holds the chapter while it is open, the chapter's voice, music and effects included (its own hold, so the two never play at once),
 // and the clock stays held after it while the book is still open. Its effects, music and voices are its own, through the page's
 // output, and silent wherever the game's sound is (captures and review shots have no audio context at all).
 const eitt = createEittGame(document, {
-  save, audio: { context: audio, output, theme, lines, muted: !playing },
+  save, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('eitt', paused);
   },
   onClose: () => book.refresh(), // a sticker won is in the book now
-});
-// Slóeðla's dice game, "Risaeðlu-Yatzy" (engine/yatzy/table.js), which the Leikir page opens over the book.
-const yatzy = createYatzyGame(document, {
-  save, audio: { context: audio, output, theme, lines, muted: !playing },
-  onPause: paused => {
-    clock.setPaused(paused || book.isOpen);
-    hold('yatzy', paused);
-  },
-  onClose: () => book.refresh(),
 });
 // "Litla Yatzy við Mosa" (remake/yatzy-junior.html, a page of its own) in a frame over the book (engine/yatzy-junior/frame.js),
 // the chapter held meanwhile as for the other games.
@@ -225,7 +259,7 @@ const junior = createJuniorFrame(document, {
 // holding the chapter the same way (its own hold). It draws its board with this page's renderer: the canvas moves into the game
 // while it is open, so the chapter draws nothing then (render() below), and draws once more when the game shuts, under the book.
 const hals = createHalsGame(document, {
-  save, renderer, q, params, audio: { context: audio, output, theme, lines, muted: !playing },
+  save, renderer, q, params, fjolspil, audio: { context: audio, output, theme, lines, muted: !playing },
   onPause: paused => {
     clock.setPaused(paused || book.isOpen);
     hold('hals', paused);
@@ -237,6 +271,51 @@ const hals = createHalsGame(document, {
 });
 const journal = createJournal(document, save, { book, audio: bookAudio });
 const stage = createScene({ world, director, ui, voice, lines, cast: chapter.cast, locations, pointer, journal, sun: sunFace, sfx });
+// The bug report tool (engine/villa/villa.js): F1, three fingers held or the ?villa=1 button holds the game as the book does, and
+// the owner draws boxes over the screen and writes what is wrong; the report goes to the dev server's qa/villur/ (tools/serve.mjs),
+// or downloads where no server answers. Each part of the game is handed as a thunk: it is read at the moment of the report, and
+// one that throws is reported as such instead of stopping the report (engine/villa/skyrsla.js).
+let villaHeldClock = false;
+const villa = createVilla(document, {
+  button: params.get('villa') === '1',
+  shoot: () => { if (!hals.isOpen) drawNow(); return canvas.toDataURL('image/png'); }, // the frame as it stands (the board game draws its own)
+  onPause: paused => {
+    if (paused) { villaHeldClock = clock.paused; clock.setPaused(true); } else clock.setPaused(villaHeldClock);
+    hold('villa', paused);
+  },
+  context: () => ({
+    chapterId,
+    params: Object.fromEntries(params),
+    canvas: () => ({ width: canvas.width, height: canvas.height }),
+    clock: () => ({ time: clock.time, paused: clock.paused }),
+    stage: () => ({ started: stage.started, elapsed: stage.elapsed, fadeLevel: ui.fadeLevel }),
+    location: () => world.location ?? null,
+    panels: () => ({ book: book.isOpen, eitt: eitt.isOpen, hals: hals.isOpen, yatzyJunior: junior.isOpen, fjolspil: fjolspil.active, journalOpen: !document.getElementById('journal-button').hidden }),
+    caption: () => {
+      const el = document.getElementById('caption');
+      return el.hidden ? null : { speaker: el.querySelector('.caption-speaker').textContent, text: el.querySelector('.caption-text').textContent };
+    },
+    voice: () => voice.current,
+    actors: () => [...world.actors.entries()].map(([name, actor]) => ({ name, position: actor.root?.position.toArray(), heading: actor.heading ?? null })),
+    camera: () => ({ position: camera.position.toArray(), target: director.rig.target.toArray(), fov: camera.fov, mode: director.mode }),
+    save: () => ({ ...save.get(), chapterAt: defaultChapter(save) }),
+    quality: () => ({ name: q.name, renderScale: display.resolutionScale, pixelRatio: renderer.getPixelRatio(), look: chapter.look ?? null }),
+    stats: () => window.__demoStats ?? null,
+    gpu: () => {
+      const gl = renderer.getContext();
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    },
+    audio: () => ({ context: audio?.state ?? 'none', musicPosition: music.position, theme: theme?.name ?? (themeUrl ? String(themeUrl).split('/').slice(-2).join('/') : null), playing }),
+    fjolspil: () => ({ active: fjolspil.active, code: fjolspil.code ?? null, seats: fjolspil.seats.list().map(({ seat, kind, name, avatar, present, covered }) => ({ seat, kind, name, avatar, present, covered })) }), // never a guest's id, her secret
+    memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
+    consoleLog: () => consoleLog.entries(),
+  }),
+});
+// A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
+// while the scene plays (the frame keeps room to draw), and 80 under the black, where no frame is seen (no more: the game clock
+// counts a frame as 0.1 s at most, and a black that waits some seconds for a build, the chapter's own, must last that long).
+slicing.budget = () => (!stage.started ? 25 : ui.fadeLevel >= 0.999 ? 80 : 8);
 
 // A tab that is hidden draws no frames and the clock stands still: the sound holds with it, also when the page opens hidden.
 document.addEventListener('visibilitychange', () => hold('hidden', document.hidden));
@@ -260,8 +339,9 @@ let controls = null;
 
 // The warm-up draw (engine/warm-up.js). A material's first draw builds its shaders, a stall of 0.2 to 0.6 s on the reference laptop,
 // so before the start button shows, the chapter is drawn once behind the black from the views it names (chapter.warmUp), with what
-// would otherwise show for the first time later; the places it will go to are built then too (chapter.prepare) and drawn the same
-// way, and as the scene comes to a place it is drawn once more, under the black, before the fade back in.
+// would otherwise show for the first time later. The places it will go to (chapter.prepare) are built once the button shows, and
+// each is drawn the same way while the button still waits (prepareLater); and as the scene comes to a place it is drawn once more,
+// under the black, before the fade back in.
 const nextFrames = count => new Promise(resolve => {
   let left = count;
   const step = () => (--left <= 0 ? resolve() : requestAnimationFrame(step));
@@ -291,9 +371,12 @@ function warmViews(views, warm) {
   return result;
 }
 
-/** Draw the place in view once, with the chapter's warm-up objects (their throwaways stand on its ground). */
-function warmPlace(views) {
-  const warm = chapter.warmUp?.(world) ?? { objects: [], dispose() {} };
+/**
+ * Draw the place in view once, with the chapter's warm-up objects (their throwaways stand on its ground). `place`: the place the
+ * chapter is told it is drawn for (chapter.warmUp's), the one in view unless said; null for all the chapter has.
+ */
+function warmPlace(views, place = world.location) {
+  const warm = chapter.warmUp?.(world, { place }) ?? { objects: [], dispose() {} };
   try {
     return warmViews(views, warm);
   } finally {
@@ -301,16 +384,59 @@ function warmPlace(views) {
   }
 }
 
-/** Build a place the chapter goes to later and draw it once, shown for that in place of the one in view. */
-async function prepareAndWarm(name) {
-  const forest = await locations.prepare(name);
+/** One draw of `objects` from the view as it is, under the black: models a chapter makes as it comes to a place (kafli2's far friends). */
+world.warmObjects = objects => {
+  const warmed = warmViews([], { objects });
+  (world.warmUps ??= []).push({ label: 'objects', ...warmed });
+  return warmed;
+};
+
+// The chapter's first find flies into the book as its card's picture (scene/journal.js). The Fen's drawings are SVGs with a
+// hand-drawn filter, and the first such drawing shown builds the filter's shaders on the GPU, a frame of some 0.4 s (and in a new
+// game the book's button first shows then too, some 0.1 s more). They are shown once, all but transparent, for a few frames where
+// nobody sees a frame stall: behind the start button once it shows, else under the scene's first black (chapter.firstFind: the
+// find; only a drawing, an SVG, needs it).
+let drawingToWarm = (() => {
+  const picture = chapter.firstFind ? book.pictureOf?.(chapter.firstFind) : null;
+  return picture && /\.svg([?#]|$)/i.test(picture) ? picture : null;
+})();
+function warmDrawing() {
+  if (!drawingToWarm) return;
+  // as the flight shows it (style.css .flying-find: its round frame and glow too)
+  const flight = document.createElement('div');
+  flight.className = 'flying-find';
+  flight.setAttribute('aria-hidden', 'true');
+  flight.style.cssText = 'position: fixed; opacity: 0.01; pointer-events: none; z-index: 2147483647;';
+  const image = document.createElement('img');
+  image.src = drawingToWarm;
+  image.alt = '';
+  flight.append(image);
+  document.body.append(flight);
+  // and the book's button, when it is not showing yet (a new game: it comes with the first find), its first drawing as costly
+  const button = document.querySelector('.journal-button');
+  const copy = button?.hidden ? button.cloneNode(true) : null;
+  if (copy) {
+    copy.hidden = false;
+    copy.removeAttribute('id');
+    for (const part of copy.querySelectorAll('[id]')) part.removeAttribute('id');
+    copy.setAttribute('aria-hidden', 'true');
+    copy.tabIndex = -1;
+    copy.style.cssText = 'opacity: 0.01; pointer-events: none; z-index: 2147483647;';
+    document.body.append(copy);
+  }
+  drawingToWarm = null;
+  image.decode().catch(() => {}).then(() => nextFrames(6)).finally(() => { flight.remove(); copy?.remove(); });
+}
+
+/** Runs `fn` with a place the chapter goes to later (its built `forest`) shown in place of the one in view, and puts that back. */
+function withPlace(forest, fn) {
   const here = { forest: world.forest, heightAt: world.heightAt };
   here.forest.group.visible = false;
   forest.group.visible = true;
   world.forest = forest;
   world.heightAt = (x, z) => forest.heightAt(x, z);
   try {
-    return warmPlace(chapter.locations[name].warmUp ?? []);
+    return fn();
   } finally {
     forest.group.visible = false;
     here.forest.group.visible = true;
@@ -320,18 +446,97 @@ async function prepareAndWarm(name) {
   }
 }
 
-/** Everything that is done behind the black before the start button shows. */
+// A place drawn once while the start button waits is drawn in parts, a frame each, so the picture behind the button never holds
+// long (a place at once was a frame of 2.1-2.4 s): its meshes, and then the chapter's things for it (chapter.warmUp's), grouped by
+// the materials they draw with, each group building its own shaders. A group's frame draws only it, on a layer of its own (the
+// lights too, so the shaders are the ones the whole scene builds).
+const WARM_LAYER = 31;
+function byMaterial(roots) {
+  const groups = new Map();
+  for (const root of roots) {
+    root.traverse(o => {
+      if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return;
+      const key = [...[o.material].flat(), o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean).map(m => m.uuid).join()
+        + (o.isSkinnedMesh ? ' skinned' : '') + (o.isInstancedMesh ? ' instanced' : '');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(o);
+    });
+  }
+  // and a group of many meshes a few at a time: the first draw of a mesh uploads it (a skinned one most of all)
+  return [...groups.values()].flatMap(meshes => {
+    const most = meshes[0].isSkinnedMesh ? 1 : 4;
+    return Array.from({ length: Math.ceil(meshes.length / most) }, (_, i) => meshes.slice(i * most, (i + 1) * most));
+  });
+}
+function warmPart(views, meshes) {
+  const lights = [];
+  scene.traverse(o => { if (o.isLight) lights.push(o); });
+  const added = [...meshes, ...lights].filter(o => !o.layers.isEnabled(WARM_LAYER));
+  for (const o of added) o.layers.enable(WARM_LAYER);
+  const mask = camera.layers.mask;
+  camera.layers.set(WARM_LAYER);
+  try {
+    return warmViews(views, { objects: meshes });
+  } finally {
+    camera.layers.mask = mask;
+    for (const o of added) o.layers.disable(WARM_LAYER);
+  }
+}
+/** Not while a game has the canvas (Háls og hali draws its board on it, over the book, before the child has tapped Byrja). */
+async function canvasFree() {
+  while (hals.isOpen) await nextFrames(15);
+}
+/**
+ * Draw `roots` from `views` a group of their meshes a frame (above), each inside `around` (a place shown for it). Stops when the scene
+ * plays in view (it draws a place as it comes there); returns the sums.
+ */
+async function warmInParts(views, roots, around = fn => fn()) {
+  const sum = { draws: 0, programs: 0, ms: 0, frames: 0, longestPart: 0 };
+  for (const meshes of byMaterial(roots)) {
+    await canvasFree();
+    if (stage.started && ui.fadeLevel < 0.999) break;
+    const part = around(() => warmPart(views, meshes));
+    if (ui.fadeLevel < 0.999 && !hals.isOpen) drawNow(); // the view behind the button over the part's draws
+    sum.draws += part.draws;
+    sum.programs += part.programs;
+    sum.ms += part.ms;
+    sum.frames++;
+    sum.longestPart = Math.max(sum.longestPart, Math.round(part.ms));
+    await nextFrames(1);
+  }
+  return sum;
+}
+/** The chapter's warm-up for `place` (null: all of it), made inside `around`; its own things (not the actors) out of sight between frames. */
+async function warmChapterInParts(views, place, forest = null) {
+  const around = forest ? fn => withPlace(forest, fn) : fn => fn();
+  const actors = new Set([...world.actors.values()].map(actor => actor.root));
+  const warm = around(() => chapter.warmUp?.(world, { place }) ?? { objects: [], dispose() {} });
+  const own = warm.objects.filter(o => !actors.has(o));
+  const shown = own.map(o => o.visible);
+  for (const o of own) o.visible = false;
+  try {
+    return await warmInParts(views, forest ? [forest.group, ...own] : own, around);
+  } finally {
+    own.forEach((o, i) => { o.visible = shown[i]; });
+    warm.dispose?.();
+  }
+}
+/** Draw a place the chapter goes to later once (its built `forest`), shown for that in place of the one in view, in parts. */
+function warmPrepared(name, forest) {
+  return warmChapterInParts(chapter.locations[name].warmUp ?? [], name, forest);
+}
+
+/** Everything that is done behind the black before the start button shows: the start place and the chapter, drawn once. */
 async function getReady() {
   await characterLodsReady(); // the shadow casters the levels bring are drawn too
   await nextFrames(2); // the script's setup has run and the start shot holds
   const warmed = [];
-  const warm = chapter.warmUp?.(world) ?? { objects: [], shots: [], dispose() {} };
+  const warm = chapter.warmUp?.(world, { place: world.location }) ?? { objects: [], shots: [], dispose() {} };
   try {
-    warmed.push(warmViews(warm.shots ?? [], warm));
+    warmed.push({ label: 'start', ...warmViews(warm.shots ?? [], warm) });
   } finally {
     warm.dispose?.();
   }
-  for (const name of chapter.prepare ?? []) warmed.push(await prepareAndWarm(name));
   if (warm.tray?.length) {
     // The tray's pockets are built once and laid out under the black, so its first show in the story is not a long frame.
     ui.tray.prepare(warm.tray);
@@ -339,8 +544,48 @@ async function getReady() {
     await nextFrames(2);
     ui.tray.hide();
   }
-  world.warmUps = warmed; // for a probe: { draws, ms, programs } of each warm-up behind the start button
-  console.info('[warm-up]', warmed.map(w => `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms`).join('; '));
+  world.warmUps = warmed; // for a probe: { label, draws, ms, programs } of each warm-up (prepareLater adds the places')
+  console.info('[warm-up]', warmed.map(describeWarm).join('; '));
+}
+
+const describeWarm = w => `${w.label}: ${w.built ? `built in ${w.built} ms (${w.slices} slices, the longest ${w.longest} ms)${w.draws ? ', ' : ''}` : ''}${w.draws ? `${w.draws} draws, ${w.programs} programs, ${Math.round(w.ms)} ms${w.frames ? ` over ${w.frames} frames (the longest ${w.longestPart} ms)` : ''}` : ''}`;
+
+/**
+ * Once the start button shows: the places the chapter goes to later (chapter.prepare), built one after another a slice at a time
+ * (the scene's first change of place waits for its build if the child gets there first), each drawn once while the button still
+ * waits or the screen is black (else the scene draws each as it comes there, under the black: the frame loop); then what the chapter makes
+ * later (chapter.later: its files fetched as the button shows, the rest made while the button still waits, else the chapter makes
+ * it under a black of its own). A warm-up's draws on the canvas are drawn over at once with the view behind the button.
+ */
+async function prepareLater() {
+  const warmed = (world.warmUps ??= []);
+  chapter.later?.fetch?.(world);
+  if (!stage.started) warmDrawing();
+  for (const name of locations ? chapter.prepare ?? [] : []) {
+    const began = performance.now();
+    slicing.stats = { slices: 0, longest: 0 };
+    let forest;
+    try {
+      forest = await locations.prepare(name, { sliced: true });
+    } catch (error) {
+      // said once, here; the scene builds it at once as it goes there (locations.js drops a failed build)
+      console.warn(`[warm-up] ${name} could not be built ahead; the scene builds it as it goes there:`, error?.message ?? error);
+      continue;
+    }
+    const entry = { label: name, built: Math.round(performance.now() - began), slices: slicing.stats.slices, longest: Math.round(slicing.stats.longest) };
+    // drawn while the button waits, in parts; once the scene plays in view the rest is drawn as the scene comes there, under its black
+    if (!stage.started || ui.fadeLevel >= 0.999) Object.assign(entry, await warmPrepared(name, forest));
+    warmed.push(entry);
+  }
+  if (chapter.later?.make && !stage.started) {
+    const began = performance.now();
+    await chapter.later.make(world);
+    const entry = { label: 'later', made: Math.round(performance.now() - began) };
+    // all the chapter's warm-up again, with what it made, from the view behind the button, in parts (what is drawn already is quick)
+    if (!stage.started) Object.assign(entry, await warmChapterInParts([], null));
+    warmed.push(entry);
+  }
+  console.info('[warm-up] later:', warmed.filter(w => w.label !== 'start').map(describeWarm).join('; '));
 }
 
 function update(dt) {
@@ -349,10 +594,10 @@ function update(dt) {
   wind.update(clock.time);
   updateMusic(); // if the clock lost time (a long frame) the sound is brought back to the playhead
   updateSfx(dt); // the forest's birds and rustles
-  if (theme) {
-    followed = followBeat(followed, beatsAt(musicTime(), theme), dt, theme, stage.seeking || clock.frozen);
+  if (dance) {
+    followed = followBeat(followed, beatsAt(musicTime(), dance), dt, dance, stage.seeking || clock.frozen);
     wind.setBeats(followed.beats); // the forest sways smoothly in time: the trees once in four beats, the ferns in two, the grass ripples every beat
-    wind.setDance(danceOf(followed.beats, theme)); // and on each strong beat the flowers nod and the mushrooms hop
+    wind.setDance(danceOf(followed.beats, dance)); // and on each strong beat the flowers nod and the mushrooms hop
   }
   updateActors(world.actors.values(), dt); // a rider after its host, whatever the chapter's order
   world.effects.update(dt); // after the actors, so a trail follows where a rider is now
@@ -369,8 +614,29 @@ function update(dt) {
   mosiCloud.update(clock.time, camera);
 }
 
+let scriptTask = null; // the chapter's script, once it runs: when it ends, the hand-over (below)
 function startScene() {
-  stage.start(chapter.script);
+  scriptTask = stage.start(chapter.script);
+}
+
+// The hand-over (spec section 8): a chapter whose script has ended and that names the next one (chapter.next: kafli1's is kafli2) puts
+// a raised "Áfram" pill over the open book, in the book's style (book.css .next-chapter), and a tap on it goes on to that chapter's
+// page. It stands under a game the book opens (it comes before them on the page), and stays if the child shuts the book.
+let handedOver = false;
+function handOver() {
+  if (handedOver || !chapter.next || !scriptTask?.done || scriptTask.failed || scriptTask.cancelled) return;
+  handedOver = true;
+  const next = new URLSearchParams();
+  for (const key of ['quality', 'debug']) if (params.get(key)) next.set(key, params.get(key));
+  next.set('chapter', chapter.next);
+  const button = document.createElement('button');
+  button.id = 'next-chapter';
+  button.type = 'button';
+  button.className = 'next-chapter';
+  button.setAttribute('aria-label', 'Áfram í næsta kafla');
+  button.innerHTML = '<span>Áfram</span><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 24h24M24 11l13 13-13 13" stroke-width="7"/></svg>';
+  button.addEventListener('click', () => { location.search = `?${next}`; }, { once: true });
+  document.getElementById('book').after(button);
 }
 
 if (shotName || !chapter.script) {
@@ -421,6 +687,9 @@ if (shotName || !chapter.script) {
     const loading = document.getElementById('loading');
     loading.hidden = false;
     const button = document.getElementById('start');
+    // pressed as the finger comes down (style.css .start.pressed), before the click: the press shows in the next frame
+    button.addEventListener('pointerdown', () => button.classList.add('pressed'));
+    button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
     button.addEventListener('click', () => {
       button.hidden = true;
       ui.setFade(1); // the scene opens from black, the same as in captures
@@ -434,6 +703,7 @@ if (shotName || !chapter.script) {
       ui.setFade(0.35);
       button.hidden = false;
       startReady = true;
+      prepareLater().catch(error => console.error('[warm-up]', error));
     });
   }
 }
@@ -474,6 +744,30 @@ const stats = installStats({
   extra: () => `scene ${stage.elapsed.toFixed(1)} s  camera ${director.mode}`,
 });
 
+// A black the scene holds for longer than a moment (it waits for a place's build, or for models it makes there) shows the start's
+// small gold star breathing in its middle (style.css: .loading), as the black before the start button does; it fades with the black.
+const STAR_AFTER = 1000; // ms of black before the star shows
+const star = document.getElementById('loading');
+let blackSince = null;
+let starShows = 0; // each show of the star: a fade-out hides it only if it has not shown again meanwhile
+function starInTheBlack(now) {
+  if (stage.started && ui.fadeLevel >= 0.999) {
+    blackSince ??= now;
+    if (now - blackSince >= STAR_AFTER && (star.hidden || star.classList.contains('done'))) {
+      starShows++;
+      star.hidden = false;
+      star.classList.remove('done');
+    }
+  } else if (blackSince !== null) {
+    blackSince = null;
+    if (!star.hidden && !star.classList.contains('done')) {
+      star.classList.add('done');
+      const show = starShows;
+      setTimeout(() => { if (show === starShows && star.classList.contains('done')) star.hidden = true; }, 600); // once it has faded
+    }
+  }
+}
+
 let last = performance.now();
 let frames = 0;
 let failures = 0;
@@ -486,6 +780,9 @@ renderer.setAnimationLoop(now => {
     // Keep drawing: a broken scene object must not freeze the picture. Report the first few.
     if (failures++ < 5) console.error('[frame]', error);
   }
+  handOver(); // the script may have ended in this frame
+  if (warmedPlace !== null) starInTheBlack(now);
+  if (warmedPlace !== null && stage.started && ui.fadeLevel >= 0.999) warmDrawing();
   if (warmedPlace !== null && world.location !== warmedPlace) {
     // The scene has just come to a place and set it up, and the screen is black: draw it once before its first frame shows.
     warmedPlace = world.location;
@@ -499,8 +796,11 @@ renderer.setAnimationLoop(now => {
   render();
   if (drew) {
     stats.sample(real);
-    adapt(real, clock.frozen || ui.fadeLevel >= 0.999); // not to frames under the black (the warm-up, a build): they say nothing of drawing; nor to ones not drawn
+    // not to frames under the black (the warm-up, a build) nor to ones with a slice of a build in them: they say nothing of
+    // drawing; nor to ones not drawn
+    adapt(real, clock.frozen || ui.fadeLevel >= 0.999 || slicedInFrame);
   }
+  slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });

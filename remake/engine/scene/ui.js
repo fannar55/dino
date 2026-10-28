@@ -8,8 +8,11 @@ export const DRAG_LIFT = 18;
 const PETALS = [0, 72, 144, 216, 288]
   .map(angle => `<ellipse cx="32" cy="16.5" rx="9.5" ry="14" transform="rotate(${angle} 32 32)" fill="#f3e9ff" stroke="#9a72b8" stroke-width="2.2"/>`)
   .join('');
+// Egill's woven basket with the red berries in it (chapter 2, scene 4: the child drags it up to hold it up for Þórseðla).
+const WEAVE = [0, 1, 2, 3, 4].map(i => `<path d="M${17 + i * 7.5} 34 L${19.5 + i * 6.2} 53" stroke="#8a6233" stroke-width="1.8" stroke-linecap="round"/>`).join('');
 const ICONS = {
   glowFlower: `<svg viewBox="0 0 64 64" aria-hidden="true">${PETALS}<circle cx="32" cy="32" r="7" fill="#f2c443" stroke="#b9770e" stroke-width="2.2"/><circle cx="30" cy="30" r="2.2" fill="#fff1cf"/></svg>`,
+  basket: `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="24" cy="28" r="7" fill="#d4343c" stroke="#8e1f25" stroke-width="2"/><circle cx="38" cy="26" r="7" fill="#d4343c" stroke="#8e1f25" stroke-width="2"/><circle cx="31" cy="21" r="6.5" fill="#e04a50" stroke="#8e1f25" stroke-width="2"/><circle cx="29" cy="19" r="1.8" fill="#ffd9d0"/><path d="M10 32 Q32 37 54 32 L48 54 Q32 58 16 54 Z" fill="#dcb56c" stroke="#8a6233" stroke-width="2.4" stroke-linejoin="round"/>${WEAVE}<path d="M13 43 Q32 47 51 43" fill="none" stroke="#b68a48" stroke-width="2"/><path d="M9 32 Q32 38 55 32" fill="none" stroke="#8a6233" stroke-width="3.4" stroke-linecap="round"/></svg>`,
 };
 
 /**

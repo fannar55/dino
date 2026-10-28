@@ -18,9 +18,9 @@ import { DONE } from '../handle.js';
 //     const answer = yield s.choose([{ label: 'Já!', value: 'yes' }, { label: 'Seinna', value: 'later' }]);
 //   }
 
-// `locations` (engine/locations.js) is optional: only s.goTo needs it, and says so when it is missing.
+// `locations` (engine/locations.js) is optional: only s.goTo and s.prepare need it, and say so when it is missing.
 // So is `pointer` (engine/input/pointer.js), which s.target, s.tap, s.onTap, s.search and s.lookAround need, and
-// `journal` (scene/journal.js), which s.star, s.found and s.journal need, and `sun` (engine/sun-face.js),
+// `journal` (scene/journal.js), which s.star, s.found, s.place and s.journal need, and `sun` (engine/sun-face.js),
 // which s.sun needs, and `sfx` (engine/audio/sfx.js), which s.sfx needs. s.drag and s.tray need `ui.tray`.
 // The music is not the script's to direct: it plays the theme, lowers itself under the voice (main.js) and holds with the clock.
 export function createScene({ world, director, ui, voice, lines = {}, cast = {}, locations = null, pointer = null, journal = null, sun = null, sfx = null }) {
@@ -35,6 +35,9 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     if (typeof line !== 'string') return line;
     return world.chapter.lines?.[line] ?? { text: line };
   }
+
+  const SOUND_START_GRACE = 3; // seconds of scene time a line waits for its sound to be heard before it goes on without it
+  const SOUND_END_GRACE = 1.5; // seconds a sound may run past its recorded length before the line ends anyway
 
   /** Seconds a line takes: its recording when there is one, else a calm reading pace for children. */
   function lineDuration(entry) {
@@ -52,9 +55,22 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     const caption = ui.caption(who.name, entry.text, who.colour);
     const sound = recording && !seeking ? voice.play(recording.src) : null;
     const actor = world.actors?.get(speaker);
-    const talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
+    let talking = null;
     try {
-      yield wait(lineDuration(entry) + hold);
+      // The mouth and the line's time start when the sound is heard, not when it was asked for: over the network a recording
+      // starts late (a page on Cloudflare: a few tenths of a second to two seconds), and the mouth ran ahead of the voice while
+      // the next line cut this one short (the owner's bug reports of 2026-10-25). A sound that never starts (blocked, missing)
+      // is waited for SOUND_START_GRACE seconds at most, and the line then runs on its recorded length as before.
+      if (sound) {
+        const asked = scheduler.now;
+        yield until(() => voice.started(sound) || voice.done(sound) || scheduler.now - asked >= SOUND_START_GRACE);
+      }
+      talking = actor?.talk?.({ mouth: recording?.mouth, duration: lineDuration(entry), text: entry.text });
+      const began = scheduler.now;
+      // The line is over when its sound is: a sound that stalls is given SOUND_END_GRACE beyond the recording's length.
+      if (sound) yield until(() => voice.done(sound) || scheduler.now - began >= lineDuration(entry) + SOUND_END_GRACE);
+      else yield wait(lineDuration(entry));
+      yield wait(hold);
     } finally {
       // Only this line's own sound, mouth and caption: a newer line may already be showing.
       if (sound) voice.stop(sound);
@@ -95,16 +111,20 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
   }
 
   // Fade to black, change location, fade back in. The change is real work (a location's forest is
-  // built the first time), so it is a promise: a seek waits for it through the scheduler's pending count.
-  function* goToTask(name, fade) {
+  // built the first time, or its build, begun earlier, finished), so it is a promise: a seek waits for it through the scheduler's
+  // pending count. `hold()`, when given, is asked once the place is there: what it returns (a promise) is waited for under the
+  // black too, before the fade back in (a chapter's models that must be made before the place shows).
+  function* goToTask(name, fade, hold) {
     yield fadeTask(1, fade);
     yield locations.setLocation(name);
+    const wait = hold?.();
+    if (wait) yield wait;
     yield fadeTask(0, fade);
   }
 
-  function goTo(name, { fade = 1.2 } = {}) {
+  function goTo(name, { fade = 1.2, hold = null } = {}) {
     if (!locations) throw new Error('s.goTo needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
-    return start(goToTask(name, fade));
+    return start(goToTask(name, fade, hold));
   }
 
   // Taps. A script waits for one with s.tap; the waits are served in the order they began, one tap to
@@ -352,9 +372,15 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     return start(starTask(id, fromSpec));
   }
 
-  function found(id, from = null) {
+  function found(id, from = null, options = undefined) {
     needJournal('s.found');
-    journal.addFinding(id, from);
+    journal.addFinding(id, from, options); // options: { again } for an animal found again in a new place (journal.js)
+    return DONE;
+  }
+
+  function place(id, from = null) {
+    needJournal('s.place');
+    journal.addPlace(id, from);
     return DONE;
   }
 
@@ -409,6 +435,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     fade: (to, duration) => start(fadeTask(to, duration)),
     /** Go to another of the chapter's locations: fade to black, switch, fade back in (`fade` s each way, 1.2 by default). */
     goTo,
+    /**
+     * A place the scene goes to later, built now and kept hidden (or its build, begun already, finished: main.js builds the
+     * chapter's places once the start button shows). A promise: yield it to wait, under the black.
+     */
+    prepare(name) {
+      if (!locations) throw new Error('s.prepare needs the chapter\'s locations: pass `locations` (createLocations) to createScene');
+      return locations.prepare(name);
+    },
     /** Add or replace a tap target: `{ point, radius }`, a point spec and metres. `s.target(name, null)` removes it. */
     target,
     /** Wait for the player to tap one of the targets (a name or a list); resolves with the name tapped. Seeking: `auto` (the first name) after 2 s. */
@@ -418,7 +452,7 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     /**
      * The child looks around and finds hidden things; resolves when all are found. `explore` gives the
      * free-look limits for director.explore ({ yaw, pitch, speed }), `targets` what to find, and the rest
-     * is searchFlow's (search.js): hintAfter, helpAfter, speaker and onFound(name, index). Seeking: one find every 3 s.
+     * is searchFlow's (search.js): hintAfter, helpAfter, quick, speaker and onFound(name, index, how). Seeking: one find every 3 s.
      */
     search,
     /**
@@ -442,17 +476,30 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
     star,
     /**
      * Put the animal `id` in the journal's finds (once per id). `from` is where the child tapped it, a tap's { name, x, y } (canvas
-     * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button.
+     * pixels, and the canvas fills the screen): a new find's picture flies from there into the book's button. `{ again: true }`: an
+     * animal the book has already, found in a new place, flies in all the same, once (journal.addFinding).
      */
     found,
     /**
-     * The book, for a scene that ends in it: `open()` opens it on its stars (`open('games')` on its games) and `close()` shuts it.
+     * Put the place `id` on the book's map (once per id): a friend found far away (chapter 2's sloedla, flugedla, uggedla) or a
+     * place (fen). `from` is where it is on the screen ({ x, y }, canvas pixels): its marker flies from there into the book's button.
+     */
+    place,
+    /**
+     * The book, for a scene that ends in it: `open()` opens it on its dinosaurs (`open('games')` on its games; `open('dinosaurs', { nod: 'thorsedla' })`
+     * nods that card's tile once the book has grown) and `close()` shuts it.
      * Unlike the child's own tap on the button, they do not pause the game, so a scene can go on talking under the open book (until
      * the child taps inside it).
      */
     journal: {
-      open: tab => { needJournal('s.journal.open'); journal.open(tab); return DONE; },
+      open: (tab, options) => { needJournal('s.journal.open'); journal.open(tab, options); return DONE; },
       close: () => { needJournal('s.journal.close'); journal.close(); return DONE; },
+      /** Whether the book is open, the child's or a script's. */
+      get isOpen() { return journal?.isOpen ?? false; },
+      /** The animals the book has (their ids), for a scene that asks whether one is in it yet. */
+      get findings() { return journal?.findings ?? []; },
+      /** The book's close beckons (on) while a script waits for the child to shut it, or stops (off). */
+      beckonClose: on => { needJournal('s.journal.beckonClose'); journal.beckonClose?.(on); return DONE; },
     },
     /**
      * The smiling sun (engine/sun-face.js). `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go
@@ -473,13 +520,14 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       hide: () => { needTray('s.tray.hide'); ui.tray.hide(); return DONE; },
     },
     /**
-     * Play a sound effect by name and carry on: forest (a quiet loop, laid once), step, frog, snail, beetle, birds, butterfly,
-     * flower, plate, star, journal, saddle or float (engine/audio/sfx.js). An unknown name does nothing. Seeking (a capture's
-     * silent replay, critter reactions included) makes no sound.
+     * Play a sound effect by name and carry on: forest or fen (a quiet bed, laid once, the one taking over from the other), step,
+     * frog, snail, beetle, birds, butterfly, flower, plate, star, journal, saddle or float (engine/audio/sfx.js), or chapter 2's
+     * (engine/audio/fen-sounds.js), some of which take a detail: s.sfx('countTone', { index: 3 }). An unknown name does nothing.
+     * Seeking (a capture's silent replay, critter reactions included) makes no sound.
      */
-    sfx: name => {
+    sfx: (name, detail) => {
       needSfx('s.sfx');
-      if (!seeking) sfx.play(name);
+      if (!seeking) sfx.play(name, detail);
       return DONE;
     },
     /** Start something after a delay. Pass a function, so its action starts late, not now. */
@@ -488,6 +536,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       return yield (typeof item === 'function' ? item() : item);
     })()),
     lineDuration: line => lineDuration(resolveLine(line)),
+    /** A line's mouth track (lines.json: its loudness, MOUTH_RATE frames a second), or null when it has no recording. */
+    lineMouth: line => {
+      const entry = resolveLine(line);
+      return (entry.audio ? lines[entry.audio]?.mouth : null) ?? null;
+    },
   };
 
   return {

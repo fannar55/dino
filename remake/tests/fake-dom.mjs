@@ -14,6 +14,7 @@ export class FakeElement extends EventTarget {
     this.textContent = '';
     this.innerHTML = '';
     this.attributes = new Map();
+    this.dataset = {}; // data-* as a page sets them through dataset (not reflected in the attributes)
     this.rect = { left: 0, top: 0, width: 0, height: 0 };
     this.captured = new Set();
     this.style = {
@@ -86,14 +87,27 @@ export class FakeElement extends EventTarget {
     return found;
   }
 
-  /** Only `.class` selectors: all the screen layer asks for. */
+  /**
+   * `.class` selectors, a tag, a tag with classes (`button.red`), and descendants of those (`.spil-eitt-hand .eitt-card`): all
+   * the screen layer asks for.
+   */
   querySelector(selector) {
     return this.querySelectorAll(selector)[0] ?? null;
   }
 
   querySelectorAll(selector) {
-    const name = selector.replace(/^\./, '');
-    return this.findAll(element => element.classList.contains(name));
+    const parts = selector.trim().split(/\s+/);
+    if (!parts.every(part => /^[a-z0-9]*(\.[\w-]+)*$/i.test(part))) { // anything else: as a class name, as it always was
+      const name = selector.replace(/^\./, '');
+      return this.findAll(element => element.classList.contains(name));
+    }
+    const matches = part => element => {
+      const [tag, ...names] = part.split('.');
+      return (!tag || element.tagName === tag.toUpperCase()) && names.every(name => element.classList.contains(name));
+    };
+    let found = this.findAll(matches(parts[0]));
+    for (const part of parts.slice(1)) found = [...new Set(found.flatMap(element => element.findAll(matches(part))))];
+    return found;
   }
 }
 

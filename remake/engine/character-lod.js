@@ -14,10 +14,17 @@ import { FEATHER } from './eyelids.js';
 // half the triangles, within 0.1 % of its size, and a quarter, within 0.25 %. updateCharacterLods()
 // picks one by the size on screen (the bind-pose bounding box's diagonal): the half below 700 px,
 // the quarter below 200 px, which keeps the difference at about a pixel or less (on average a tenth
-// of one); a character out of view (by its bind-pose sphere, half as big again for the poses) draws
-// the quarter. The quarter also casts the sun shadow, bound to the same skeleton (within 2 to 3 cm
+// of one). The quarter also casts the sun shadow, bound to the same skeleton (within 2 to 3 cm
 // on Grameðla, under a shadow texel), and only takes part in the shadow pass; the full skin still
 // receives shadows.
+//
+// A character out of the frame is not drawn at all (the actors' meshes are never frustum-culled by
+// three, whose bounds would be the bind pose's): each bone of the skin has a sphere that holds every
+// vertex it moves, measured once in the bone's own frame, and the skin is shown only while one of
+// those spheres, where the bones are now, touches the view. So a character just past the edge of
+// the frame costs nothing, and one whose tail or nose comes in is drawn from the frame it does. Its
+// shadow caster stands beside the skin (as the eyelid shells do, eyelids.js), not under it, so it
+// still casts while the skin is hidden: a character out of the frame can throw its shadow into it.
 //
 // The skin under each eyelid keeps every triangle at every level: the lid shells are cut from the full
 // skin there (eyelids.js), so a shut lid sits on the same skin whatever level draws.
@@ -32,7 +39,8 @@ const LEVELS = [
 ];
 const HYSTERESIS = 0.08; // a level changes 8 % past its threshold, so it does not flicker
 const MIN_TRIANGLES = 4000;
-const REACH = 1.5; // animated poses reach past the bind-pose bounding sphere
+const BONE_REACH = 1.05; // a bone's sphere grown 5 %, and BONE_MARGIN more: a vertex two bones share stays inside
+const BONE_MARGIN = 0.05; // m
 
 let worker; // undefined until first asked for, null where module workers are not available
 let nextJob = 1;
@@ -106,6 +114,35 @@ function eyelidVertices(geometry, eyes) {
 // one set of levels per source geometry (actors of the same model share their geometry)
 const levelsOf = new WeakMap();
 
+// For each bone of a skin, how far from it the farthest vertex it moves lies (in the bone's own frame, so
+// in metres of the model's bind pose), by source geometry: actors of the same model share it, and their
+// skeletons have the same bind. A vertex one bone moves lies in that bone's sphere however it turns. A
+// vertex several bones move lies where its weights blend the places each would put it, each in its own
+// sphere: in their convex hull, which near a bent joint can reach a little outside the union of the
+// spheres. The spheres are grown (BONE_REACH, BONE_MARGIN) to cover that in practice: sweeping the
+// camera past the real Mosi, standing and in a swung pose, never hid him while any vertex was in the frame
+// (lod.test). This assumes three's attached bind mode (the GLTFLoader's) and no morph targets on the skin.
+const reachesOf = new WeakMap();
+function boneReaches(mesh) {
+  if (reachesOf.has(mesh.geometry)) return reachesOf.get(mesh.geometry);
+  const { skeleton, bindMatrix } = mesh;
+  const position = mesh.geometry.attributes.position;
+  const skinIndex = mesh.geometry.attributes.skinIndex, skinWeight = mesh.geometry.attributes.skinWeight;
+  const reaches = new Float32Array(skeleton.bones.length);
+  const bound = new THREE.Vector3(), local = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    bound.fromBufferAttribute(position, i).applyMatrix4(bindMatrix);
+    for (let k = 0; k < 4; k++) {
+      if (!(skinWeight.getComponent(i, k) > 0)) continue;
+      const b = skinIndex.getComponent(i, k);
+      const r = local.copy(bound).applyMatrix4(skeleton.boneInverses[b]).length();
+      if (r > reaches[b]) reaches[b] = r;
+    }
+  }
+  reachesOf.set(mesh.geometry, reaches);
+  return reaches;
+}
+
 /** [full, half, quarter] geometries for a skinned geometry; the simpler ones share its attributes. */
 function lodGeometries(geometry, eyes) {
   if (levelsOf.has(geometry)) return levelsOf.get(geometry);
@@ -167,7 +204,7 @@ function shadowOnly(light, object) {
   return set;
 }
 
-const entries = new Set(); // meshes with levels: { mesh, geometries, centre, diagonal, level, caster }
+const entries = new Set(); // meshes with levels: { mesh, geometries, centre, diagonal, level, caster, reaches, roots }
 
 /**
  * Give the large skinned meshes under `model` their levels and a shadow caster for `light`. Returns
@@ -183,8 +220,9 @@ export function prepareCharacter(model, light) {
     const entry = {
       mesh, geometries, level: 0, caster: null, casters: null,
       centre: mesh.geometry.boundingSphere.center.clone(),
-      radius: mesh.geometry.boundingSphere.radius,
       diagonal: mesh.geometry.boundingBox.getSize(new THREE.Vector3()).length(),
+      reaches: boneReaches(mesh),
+      roots: mesh.skeleton.bones.filter(bone => !bone.parent?.isBone), // brought up to date before the bones are read
     };
     entries.add(entry);
     if (light?.castShadow && mesh.castShadow) {
@@ -195,7 +233,11 @@ export function prepareCharacter(model, light) {
       caster.castShadow = true;
       caster.receiveShadow = false;
       caster.frustumCulled = false;
-      mesh.add(caster); // same world matrix as the skin, so the same skinning
+      // beside the skin, with its place (as the eyelid shells), so that it casts while the skin is hidden out of the frame
+      caster.position.copy(mesh.position);
+      caster.quaternion.copy(mesh.quaternion);
+      caster.scale.copy(mesh.scale);
+      mesh.parent.add(caster);
       entry.caster = caster;
       entry.casters = shadowOnly(light, caster);
       mesh.castShadow = false;
@@ -210,7 +252,26 @@ export function prepareCharacter(model, light) {
 
 const camPos = new THREE.Vector3(), centre = new THREE.Vector3();
 const frustum = new THREE.Frustum(), viewProjection = new THREE.Matrix4(), sphere = new THREE.Sphere();
-/** Pick each character mesh's level by its size on screen (`height`: the view's height in px). */
+
+/** Is any of the skin in the view: does one of its bones' spheres, where the bones are now, touch it? */
+function inTheView(e) {
+  for (const root of e.roots) root.updateWorldMatrix(true, true);
+  const bones = e.mesh.skeleton.bones;
+  for (let b = 0; b < bones.length; b++) {
+    const reach = e.reaches[b];
+    if (!(reach > 0)) continue;
+    const m = bones[b].matrixWorld;
+    sphere.center.setFromMatrixPosition(m);
+    sphere.radius = reach * m.getMaxScaleOnAxis() * BONE_REACH + BONE_MARGIN;
+    if (frustum.intersectsSphere(sphere)) return true;
+  }
+  return false;
+}
+
+/**
+ * Pick each character mesh's level by its size on screen (`height`: the view's height in px), and show
+ * it only while some of it is in the view.
+ */
 export function updateCharacterLods(camera, height) {
   if (!entries.size) return;
   camera.updateMatrixWorld();
@@ -219,9 +280,11 @@ export function updateCharacterLods(camera, height) {
   const pxPerUnit = height / (2 * Math.tan((camera.fov * Math.PI) / 360));
   for (const e of entries) {
     const { mesh } = e;
+    if (!shown(mesh)) continue; // a hidden actor (one not yet in the story): nothing to draw, nothing to decide
     centre.copy(e.centre).applyMatrix4(mesh.matrixWorld);
     const scale = mesh.matrixWorld.getMaxScaleOnAxis();
-    const inView = frustum.intersectsSphere(sphere.set(centre, e.radius * scale * REACH));
+    const inView = inTheView(e);
+    mesh.visible = inView;
     const px = inView ? (e.diagonal * scale * pxPerUnit) / Math.max(0.1, camPos.distanceTo(centre)) : 0;
     let level = e.level;
     while (level < LEVELS.length && px < LEVELS[level].below * (1 - HYSTERESIS)) level++;
@@ -238,6 +301,8 @@ export function releaseCharacter(model) {
     if (o !== model) continue;
     entries.delete(e);
     e.casters?.delete(e.caster);
+    e.caster?.removeFromParent();
+    e.mesh.visible = true;
   }
 }
 

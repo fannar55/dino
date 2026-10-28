@@ -1,0 +1,32 @@
+{
+  "yatzy": {
+    "context": "Allir fimm teningarnir eins. Fimm eins!",
+    "seed": 42,
+    "note": "The owner chose this take (y1) by ear on 2026-10-23: eins sounded like æns without the context; the word eins stays as written elsewhere."
+  },
+  "great": {
+    "say": "\"/ˈvauː/\"! Sjáðu þetta kast!",
+    "seed": 42,
+    "note": "The owner chose this take (g1) by ear on 2026-10-23: Vá in IPA; Egill's Vá lines are right as written."
+  },
+  "smallStraight": {
+    "context": "Við teljum á íslensku: einn, tveir, þrír, fjórir, fimm.",
+    "seed": 7,
+    "note": "The owner chose this take (s1) by ear on 2026-10-23: the Einn rule's seed with the counting as context, since Einn alone sounded like ein in this line."
+  },
+  "points_2": {
+    "context": "Við teljum á íslensku: eitt, tvö, þrjú, fjögur, fimm.",
+    "seed": 42,
+    "note": "Every number line of Litla Yatzy is sent with an Icelandic counting context (the owner, 2026-10-23: the same treatment for all numbers); eitt, tvö, þrjú and fimm have no word rule of their own because they are right as written in the chapters."
+  },
+  "points_3": {
+    "context": "Við teljum á íslensku: eitt, tvö, þrjú, fjögur, fimm.",
+    "seed": 42,
+    "note": "Every number line of Litla Yatzy is sent with an Icelandic counting context (the owner, 2026-10-23: the same treatment for all numbers); eitt, tvö, þrjú and fimm have no word rule of their own because they are right as written in the chapters."
+  },
+  "points_5": {
+    "context": "Við teljum á íslensku: eitt, tvö, þrjú, fjögur, fimm.",
+    "seed": 42,
+    "note": "Every number line of Litla Yatzy is sent with an Icelandic counting context (the owner, 2026-10-23: the same treatment for all numbers); eitt, tvö, þrjú and fimm have no word rule of their own because they are right as written in the chapters."
+  }
+}

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import * as THREE from 'three';
 import { createClock } from '../engine/clock.js';
 import { createEffects } from '../engine/effects.js';
@@ -12,6 +13,8 @@ import { sunDirection } from '../engine/lighting.js';
 import { createTerrain } from '../world/forest/terrain.js';
 import { createForest } from '../world/forest/forest.js';
 import * as atmosphere from '../world/forest/atmosphere.js';
+import { HERO } from '../world/forest/butterflies.js';
+import { loadGlb } from './glb.mjs';
 import { createCritters } from '../world/critters/critters.js';
 import { BIRD, KINDS, createModel } from '../world/critters/models.js';
 import { DONE } from '../engine/handle.js';
@@ -42,11 +45,12 @@ const OLD_GRUNNUR = {
 };
 
 /** The atmosphere of grunnur's layout on a world as main.js makes one, and the frame the loop runs: the clock, then the wind, then the forest. */
-function butterflyStage({ layout = grunnur.layout, q = PRESETS.tablet } = {}) {
+function butterflyStage({ layout = grunnur.layout, q = PRESETS.tablet, loadModel = null } = {}) {
   const world = {
     renderer: { getDrawingBufferSize: v => v.set(1280, 800) }, scene: new THREE.Scene(), clock: createClock(), effects: createEffects(),
     actors: new Map(), camera: new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200),
   };
+  if (loadModel) world.loadModel = loadModel; // else the hero butterfly has no model here, and flies unseen
   world.camera.position.set(-9, 1.3, 6);
   world.resolvePoint = createPointResolver(world);
   const shared = { uWindTime: { value: 0 }, uWindDirection: { value: new THREE.Vector2(0.8, 0.6).normalize() } };
@@ -63,7 +67,8 @@ function butterflyStage({ layout = grunnur.layout, q = PRESETS.tablet } = {}) {
     air.update(world.camera);
   };
   const butterflies = air.butterflies;
-  return { world, air, shared, frame, mesh, shader, butterflies, targets: butterflies.targets, run: seconds => step(frame, seconds) };
+  // pale: the targets the shader's arrays hold, by index (the hero, the last target, is posed through its own group)
+  return { world, air, shared, frame, mesh, shader, butterflies, targets: butterflies.targets, pale: butterflies.targets.filter(t => t.name !== HERO), run: seconds => step(frame, seconds) };
 }
 
 /** Runs the shader's own flyPath, from its source text, on numbers: it is plain scalar GLSL, which JavaScript reads as it is. */
@@ -120,11 +125,11 @@ const wait = (stage, handle, limit = 20) => {
 
 test('the butterflies\' CPU positions are the shader\'s own formula', () => {
   const stage = butterflyStage();
-  assert.equal(stage.targets.length, 4);
+  assert.equal(stage.pale.length, 4);
   for (const time of [0, 0.37, 1.5, 12.84, 100.2, 601.9]) {
     stage.shared.uWindTime.value = time;
     stage.air.update(stage.world.camera);
-    stage.targets.forEach((target, id) => {
+    stage.pale.forEach((target, id) => {
       const expected = loopPosition(stage, id, time);
       assert.ok(target.point.distanceTo(expected) < 1e-9, `butterfly ${id + 1} at ${time} s is ${target.point.distanceTo(expected)} m from where the shader puts it`);
     });
@@ -171,14 +176,33 @@ test('with nothing tapped the shader flies every butterfly, as it did before the
 
     // and nothing is held in code: the shader is let fly them, frame after frame
     stage.run(40);
-    stage.targets.forEach((_, id) => assert.equal(held(stage, id), 0, `butterfly ${id + 1} is flown by the shader`));
-    assert.equal(stage.targets.length, q.name === 'low' ? 2 : 4);
+    stage.pale.forEach((_, id) => assert.equal(held(stage, id), 0, `butterfly ${id + 1} is flown by the shader`));
+    assert.equal(stage.pale.length, q.name === 'low' ? 2 : 4);
+    assert.equal(stage.targets.length, stage.pale.length + 1, 'and the hero');
+  }
+});
+
+test('a butterfly close to the lens wears away from its wing tips in, as the moss does from its edges, and further off is as it was', () => {
+  for (const q of [PRESETS.tablet, PRESETS.low]) {
+    const { mesh, shader } = butterflyStage({ q });
+    assert.equal(mesh.material.alphaTest, 0.5, 'alpha-tested, so it needs no sorting');
+    assert.equal(mesh.material.alphaToCoverage, Boolean(q.antialias), 'and dithered by the multisampling where there is any');
+    assert.match(shader.vertexShader, /float flyNear = smoothstep\( 1\.2, 3\.0, -\( modelViewMatrix \* vec4\( transformed, 1\.0 \) \)\.z \);/, 'gone by 1.2 m, whole from 3 m');
+    assert.match(shader.vertexShader, /vFlyNear = clamp\( 2\.0 \* flyNear - 0\.8 \* flyEdge, 0\.0, 1\.0 \);/, 'the tips first');
+    // the same sum: from 3 m on every part of a wing is whole (alpha 1, so neither the alpha test nor the coverage touches it); at
+    // 2 m the tips are gone and the roots stay; by 1.2 m all of it
+    const near = depth => { const t = Math.min(1, Math.max(0, (depth - 1.2) / 1.8)); return t * t * (3 - 2 * t); };
+    const alpha = (depth, edge) => Math.min(1, Math.max(0, 2 * near(depth) - 0.8 * edge));
+    for (const edge of [0, 0.5, 1]) assert.equal(alpha(3, edge), 1);
+    assert.ok(alpha(2, 1) < 0.5 && alpha(2, 0) >= 0.5, 'at 2 m the tips go, the roots stay');
+    assert.equal(alpha(1.2, 0), 0);
+    assert.match(shader.fragmentShader, /#include <color_fragment>\s*diffuseColor\.a \*= vFlyNear;/, 'before the alpha test');
   }
 });
 
 test('the butterflies are tap targets, butterfly-1 and so on, whose points follow them', () => {
   const stage = butterflyStage();
-  assert.deepEqual(stage.targets.map(t => t.name), ['butterfly-1', 'butterfly-2', 'butterfly-3', 'butterfly-4']);
+  assert.deepEqual(stage.targets.map(t => t.name), ['butterfly-1', 'butterfly-2', 'butterfly-3', 'butterfly-4', 'butterfly-hero']);
   for (const target of stage.targets) {
     assert.ok(target.point.isVector3, 'a point spec a tap target takes');
     assert.ok(target.radius >= 0.2 && target.radius <= 1, `${target.radius} m round a butterfly`);
@@ -235,6 +259,90 @@ test('flutter sends one butterfly up and away for 3 s, and it comes back to its 
   assert.notEqual(again, handle);
   assert.equal(again.done, false);
   assert.ok(wait(stage, again));
+});
+
+// ---- the hero butterfly: a model of its own, flown as the pale ones are -------------------------------
+test('the hero butterfly is one more, under the mesh, on a loop of its own, and sent to a point only by name', async () => {
+  const stage = butterflyStage();
+  const hero = stage.butterflies.hero;
+  assert.equal(hero.name, HERO);
+  assert.equal(HERO, 'butterfly-hero');
+  assert.equal(stage.targets.at(-1).name, HERO, 'the last tap target');
+  assert.equal(hero.group.parent, stage.mesh, 'under the butterflies\' mesh, so the atmosphere is still three objects');
+  assert.equal(await hero.loaded, false, 'this world reads no model: it flies unseen');
+  assert.equal(hero.group.children.length, 0);
+  stage.run(2);
+  const point = stage.targets.at(-1).point;
+  const was = point.clone();
+  const feet = hero.group.position.y - point.y;
+  assert.ok(feet > 0.05 && feet < 0.1, `it stands ${feet} m above its point: on its feet`);
+  assert.ok(hero.group.position.x === point.x && hero.group.position.z === point.z, 'over the point');
+  stage.run(2);
+  assert.ok(point.distanceTo(was) > 0.3, 'it flies on the wind clock');
+  assert.ok(Math.abs(hero.group.position.y - point.y - feet) < 1e-9, 'still on its feet');
+
+  // a landing asked without a name takes the nearest pale butterfly, never the hero, even where the hero is the nearest
+  const target = point.clone().add(new THREE.Vector3(0.05, 0, 0));
+  const handle = stage.butterflies.land(target);
+  assert.notEqual(handle.label, `${HERO} lands`);
+  stage.run(3.5);
+  assert.equal(handle.done, true);
+  assert.ok(point.distanceTo(target) > 0.3, 'the hero went on with its loop');
+  const landed = stage.pale.map((_, id) => here(stage, id).distanceTo(target));
+  assert.ok(Math.min(...landed) < 1e-6, `a pale butterfly sits on the point (${landed.map(d => d.toFixed(2))})`);
+
+  // by name it flies there and stands on the point, and no pale butterfly more is held
+  const heldBefore = stage.pale.map((_, id) => held(stage, id));
+  const named = stage.butterflies.land(target, { name: HERO });
+  assert.equal(named.label, `${HERO} lands`);
+  stage.run(3.5);
+  assert.equal(named.done, true);
+  assert.ok(point.distanceTo(target) < 1e-9, 'the hero sits on the point');
+  assert.ok(hero.group.position.distanceTo(target.clone().setY(target.y + feet)) < 1e-9, 'its feet on it');
+  assert.deepEqual(stage.pale.map((_, id) => held(stage, id)), heldBefore, 'the pale butterflies are as they were');
+
+  // a tap sends it off again, back to its loop
+  const off = stage.butterflies.flutter(HERO);
+  assert.equal(off.label, `${HERO} flutters`);
+  stage.run(3.5);
+  assert.equal(off.done, true);
+  assert.ok(point.distanceTo(target) > 0.5, 'off the point');
+});
+
+test('the hero butterfly\'s model: under 300 KB and 4,000 triangles, its wings turned by the beat and its feet on its point', async () => {
+  const models = new Map(); // as the chapter harness reads models: once a file
+  const loadModel = url => models.get(url) ?? models.set(url, loadGlb(new URL(url))).get(url);
+  const stage = butterflyStage({ loadModel });
+  const hero = stage.butterflies.hero;
+  assert.equal(await hero.loaded, true);
+  const body = hero.group.getObjectByName('Body'), wingL = hero.group.getObjectByName('WingL'), wingR = hero.group.getObjectByName('WingR');
+  assert.ok(body && wingL && wingR, 'Body, WingL and WingR');
+  let triangles = 0;
+  hero.group.traverse(o => { if (o.isMesh) triangles += o.geometry.index.count / 3; });
+  assert.ok(triangles > 2000 && triangles <= 4000, `${triangles} triangles`);
+  const bytes = fs.statSync(new URL('../assets/critters/butterfly.glb', import.meta.url)).size;
+  assert.ok(bytes < 300 * 1024, `${bytes} bytes`);
+  hero.group.traverse(o => { if (o.isMesh) assert.equal(o.castShadow, false, 'no shadow caster'); });
+
+  stage.run(1);
+  const point = stage.targets.at(-1).point;
+  assert.ok(body.userData.feet > 0.05 && body.userData.feet < 0.1, 'the model says where its feet are');
+  assert.ok(Math.abs(hero.group.position.y - point.y - body.userData.feet) < 1e-9, 'it stands on its feet, as far below the body axis as the model says');
+  // the wings: one lifted by the shader's beat, the other the same the other way about the body axis
+  const l = wingL.rotation.x, r = wingR.rotation.x;
+  assert.ok(l > 0 && l < 1.6 && Math.abs(l + r) < 1e-12, `wings at ${l} and ${r}`);
+  const seen = new Set();
+  for (let i = 0; i < 30; i++) { stage.frame(); seen.add(wingL.rotation.x.toFixed(3)); }
+  assert.ok(seen.size > 10, 'and they beat');
+
+  // the file's scene is shared: another forest's hero is a copy with the same geometry, and a disposed one leaves it be
+  const other = butterflyStage({ loadModel });
+  assert.equal(await other.butterflies.hero.loaded, true);
+  assert.notEqual(other.butterflies.hero.group.getObjectByName('Body'), body);
+  assert.equal(other.butterflies.hero.group.getObjectByName('Body').geometry, body.geometry);
+  stage.butterflies.dispose();
+  assert.equal(hero.group.children.length, 0);
+  assert.equal(other.butterflies.hero.group.getObjectByName('Body').geometry.attributes.position.count > 0, true);
 });
 
 test('flutter takes a name the forest has', () => {
@@ -326,7 +434,7 @@ test('butterflyLand flies one butterfly to the point and settles it there', () =
   assert.ok(away[Math.floor(away.length / 2)] < away[0] && away[Math.floor(away.length / 2)] > 0.2, 'half way there at half the time');
   for (let i = 1; i < seen.length; i++) assert.ok(seen[i].at.distanceTo(seen[i - 1].at) < 0.6, `a jump of ${seen[i].at.distanceTo(seen[i - 1].at).toFixed(2)} m in frame ${i}`);
   // the other butterflies flew on
-  stage.targets.forEach((_, id) => { if (id !== nearest) assert.equal(held(stage, id), 0); });
+  stage.pale.forEach((_, id) => { if (id !== nearest) assert.equal(held(stage, id), 0); });
 });
 
 test('a landed butterfly follows the moving point', () => {
@@ -432,7 +540,7 @@ test('butterflyLand takes the butterfly nearest the point, or the one it is told
     const spot = here(fresh, id).add(new THREE.Vector3(0.3, 0.4, -0.2));
     atmosphere.butterflyLand(fresh.world, spot);
     fresh.frame();
-    assert.deepEqual(fresh.targets.map((_, i) => held(fresh, i)), [0, 1, 2, 3].map(i => (i === id ? 1 : 0)), `the point beside butterfly ${id + 1}`);
+    assert.deepEqual(fresh.pale.map((_, i) => held(fresh, i)), [0, 1, 2, 3].map(i => (i === id ? 1 : 0)), `the point beside butterfly ${id + 1}`);
   }
   // one that is told which
   const spot = new THREE.Vector3(1, 1, 1);
@@ -455,7 +563,7 @@ test('butterflyLand refuses what it cannot do at the call, and leaves the butter
   assert.throws(() => atmosphere.butterflyLand({ resolvePoint: stage.world.resolvePoint }, [0, 1, 0]), /butterflies/);
   assert.throws(() => atmosphere.butterflyLand({ forest: {} }, [0, 1, 0]), /butterflies/);
   stage.run(0.5);
-  stage.targets.forEach((_, id) => assert.equal(held(stage, id), 0));
+  stage.pale.forEach((_, id) => assert.equal(held(stage, id), 0));
 });
 
 test('a butterfly whose point can no longer be found is let go, not held for good', t => {
@@ -471,7 +579,7 @@ test('a butterfly whose point can no longer be found is let go, not held for goo
   assert.equal(errors.mock.callCount(), 1, 'and it says so once');
   stage.run(4);
   assert.equal(errors.mock.callCount(), 1);
-  assert.deepEqual(stage.targets.map((_, id) => held(stage, id)), [0, 0, 0, 0], 'the shader flies them all again');
+  assert.deepEqual(stage.pale.map((_, id) => held(stage, id)), [0, 0, 0, 0], 'the shader flies them all again');
 });
 
 test('a script waiting on a butterfly is not left waiting when its forest goes out of view', () => {
@@ -539,7 +647,7 @@ test('a forest exposes its butterflies and drives them from its update', async (
   world.forest = forest;
   const { butterflies } = forest;
   assert.ok(butterflies, 'world.forest.butterflies');
-  assert.deepEqual(butterflies.targets.map(t => t.name), ['butterfly-1', 'butterfly-2'], 'low quality flies two');
+  assert.deepEqual(butterflies.targets.map(t => t.name), ['butterfly-1', 'butterfly-2', 'butterfly-hero'], 'low quality flies two pale ones, and the hero');
   const mesh = forest.group.getObjectByName('Butterflies');
   const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.basic.vertexShader, fragmentShader: THREE.ShaderLib.basic.fragmentShader };
   mesh.material.onBeforeCompile(shader);
@@ -548,7 +656,7 @@ test('a forest exposes its butterflies and drives them from its update', async (
   for (const time of [0, 4.5, 20]) {
     world.wind.update(time);
     forest.update(1 / 30, time);
-    butterflies.targets.forEach((target, id) => {
+    butterflies.targets.filter(t => t.name !== HERO).forEach((target, id) => { // the hero is posed through its own group, not the shader
       let speed;
       let phase;
       for (let i = 0; i < aFly.count; i++) if (Math.round(aFly.getX(i)) === id) { speed = aFly.getZ(i); phase = aFly.getW(i); break; }
@@ -1121,6 +1229,91 @@ test('the birds\' wings fold at rest and beat in flight', t => {
   const warn = t.mock.method(console, 'warn', () => {});
   birds.material.onBeforeCompile({ vertexShader: 'void main() {}', fragmentShader: '', uniforms: {} });
   assert.equal(warn.mock.callCount(), 1, 'if three\'s shader changes so the anchors are gone, it says so rather than draw broken birds');
+});
+
+// ---- the Fen's animals ----------------------------------------------------------------------------
+
+// The Fen's own critters (chapter 2), all of them animals that lived alongside the dinosaurs: a dragonfly, a diving beetle
+// (brunnklukka), a newt-like salamander, a turtle, an early bird (fornfugl, feathered, with a long tail), a fish and a water strider.
+const FEN_KINDS = ['dragonfly', 'waterBeetle', 'salamander', 'turtle', 'earlyBird', 'fish', 'waterStrider'];
+
+test('every fen critter has a model under 400 triangles and a reaction', () => {
+  for (const kind of FEN_KINDS) {
+    assert.ok(KINDS.includes(kind), `${kind} is a kind a spot can be`);
+    const { geometry, triangles } = createModel(kind);
+    assert.equal(geometry.attributes.position.count / 3, triangles);
+    assert.ok(triangles <= 400 && triangles >= 100, `${kind}: ${triangles} triangles`);
+    assert.ok(geometry.attributes.color && geometry.attributes.normal, `${kind}: vertex colours and normals, no texture`);
+    geometry.dispose();
+  }
+  // the dragonfly's two pairs of wings and the early bird's two wings are tagged for the wing shader the birds have
+  for (const [kind, wings] of [['dragonfly', 4], ['earlyBird', 2]]) {
+    const { geometry } = createModel(kind);
+    const tag = geometry.attributes.aWing;
+    assert.ok(tag, `${kind}'s wings are tagged`);
+    const pos = geometry.attributes.position;
+    let left = 0, right = 0;
+    for (let i = 0; i < tag.count; i++) {
+      if (tag.getX(i) > 0) { right++; assert.ok(pos.getZ(i) > -0.001, `${kind}: a right wing is on the right`); }
+      if (tag.getX(i) < 0) { left++; assert.ok(pos.getZ(i) < 0.001, `${kind}: a left wing is on the left`); }
+    }
+    assert.ok(left > 0 && left === right, `${kind}: as much wing on each side`);
+    assert.equal(createModel(kind).wings, wings, `${kind} has ${wings} wings`);
+  }
+  const s = stage();
+  // the fish and the strider and the beetle on the water, the rest on the ground; whatever they touch on the water rings it
+  const rings = [];
+  const spots = FEN_KINDS.map((kind, i) => ({ name: kind, kind, position: [i * 2, 0, 0], heading: 0 }));
+  const critters = createCritters(s.world, { spots, ripple: (point, strength) => rings.push({ x: point.x, z: point.z, strength }) });
+  const meshes = [];
+  critters.group.traverse(o => { if (o.isMesh) meshes.push(o); });
+  assert.equal(meshes.length, FEN_KINDS.length, 'one mesh, one draw call, each');
+  // its own idle: each lives a little without a tap (the old critters sit still until tapped)
+  const pose = name => {
+    const mesh = meshOf(critters, name);
+    mesh.updateWorldMatrix(true, false);
+    const flight = mesh.material.userData?.flight?.value;
+    return [...mesh.matrixWorld.elements, ...(mesh.morphTargetInfluences ?? []), ...(flight ? [flight.x, flight.y] : [])];
+  };
+  const differ = (a, b) => a.some((v, i) => Math.abs(v - b[i]) > 1e-4);
+  const before = Object.fromEntries(FEN_KINDS.map(kind => [kind, pose(kind)]));
+  const still = Object.fromEntries(FEN_KINDS.map(kind => [kind, false]));
+  for (let t = 0; t < 6; t += 1 / 30) {
+    s.frame();
+    for (const kind of FEN_KINDS) if (differ(pose(kind), before[kind])) still[kind] = true;
+  }
+  for (const kind of FEN_KINDS) assert.ok(still[kind], `${kind} lives a little by itself`);
+  // its reaction: a tap starts one, a second joins it, and it ends where it began
+  const home = name => critters.group.getObjectByName(`Critter ${name}`).position.clone();
+  for (const kind of FEN_KINDS) {
+    const from = home(kind);
+    const handle = critters.react(kind);
+    assert.equal(handle.done, false, `${kind}: a tap starts a reaction`);
+    assert.equal(critters.react(kind), handle, `${kind}: a second tap joins it`);
+    let far = 0, high = -Infinity;
+    for (let t = 0; t < 10 && !handle.done; t += 1 / 30) {
+      s.frame();
+      const point = pointOf(critters, kind);
+      far = Math.max(far, Math.hypot(point.x - from.x, point.z - from.z));
+      high = Math.max(high, point.y);
+    }
+    assert.equal(handle.done, true, `${kind}: the reaction ends`);
+    s.run(0.2);
+    assert.ok(home(kind).distanceTo(from) < 0.02, `${kind} is back where it was`);
+    if (kind === 'salamander') assert.ok(far >= 0.3, `the salamander crawls two body lengths: ${far.toFixed(2)} m`);
+    if (kind === 'earlyBird') assert.ok(high >= 1.5, `the early bird flies up: ${high.toFixed(2)} m`);
+    if (kind === 'fish') assert.ok(high >= 0.25, `the fish jumps out of the water: ${high.toFixed(2)} m`);
+    if (kind === 'dragonfly') assert.ok(far >= 0.4, `the dragonfly darts off: ${far.toFixed(2)} m`);
+  }
+  // the turtle draws its head in, and out again
+  const turtle = meshOf(critters, 'turtle');
+  const hiding = critters.react('turtle');
+  const hide = [];
+  for (let t = 0; t < 6 && !hiding.done; t += 1 / 30) { s.frame(); hide.push(influence(turtle, 'hide')); }
+  assert.ok(Math.max(...hide) > 0.95 && hide.at(-1) < 0.05, 'the turtle pulls its head in and puts it out again');
+  // the fish's jump rings the water where it goes in and comes out
+  assert.ok(rings.some(r => Math.hypot(r.x - home('fish').x, r.z - home('fish').z) < 1), 'the fish rings the water');
+  critters.dispose();
 });
 
 test('createCritters says what is wrong with what it is given, and leaves nothing behind', () => {

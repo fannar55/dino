@@ -4,16 +4,23 @@
 // blade has a rank; far away only low ranks stay). The CPU rebuilds one index buffer from 2 m
 // cells when the camera moves, so only visible blades at the right density reach the GPU.
 import * as THREE from 'three';
-import { FOREST, PALETTE, GRASS_BEAT_SHARE } from './config.js';
+import { FOREST, PALETTE, GRASS_BEAT_SHARE, FEN } from './config.js';
 import { createRng, smoothstep, clamp } from './random.js';
 import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL, BEAT_GLSL } from './materials.js';
 import { ACTOR_GLSL } from './terrain.js';
+import { biomeOf, FEN_SHARE_GLSL, fenUniforms } from './biome.js';
+import { runSync } from './slices.js';
 
 const VERTS = 5;
 const INDICES = [0, 1, 3, 0, 3, 2, 2, 3, 4];
 const RIPPLE = FOREST.wind.rippleSpacing; // m between the crests of the beat's ripple, along the wind
 
-export function createGrass(world, { terrain, layout, seed, shared, actorUniforms, blocked, q }) {
+export function createGrass(world, options) {
+  return runSync(createGrassSteps(world, options));
+}
+
+/** createGrass as steps (slices.js): a row of tufts, a few thousand blades or a cell at a time. */
+export function* createGrassSteps(world, { terrain, layout, seed, shared, actorUniforms, blocked, q }) {
   const cfg = FOREST.grass;
   const rng = createRng(seed, 'grass');
   const noise = terrain.noise;
@@ -25,6 +32,10 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
   const widthScale = low ? 1.35 : 1;
   const density = cfg.density * q.grass;
   const tuftSize = (cfg.clump[0] + cfg.clump[1]) / 2;
+  // In the Fen (biome.js) the grass is golden reed: sparser and taller, mixed in by the fen's share, and sparser far off.
+  const biome = biomeOf(layout);
+  // how the blades thin with distance from the camera (the shader's uGrassLod and the cull's rebuild, below, the same)
+  const fade = { near: cfg.lodNear, far: biome.fen ? FEN.grass.lodFar : cfg.lodFar, min: biome.fen ? FEN.grass.lodMin : cfg.lodMin };
 
   /** Relative tuft density 0..1 at a point. */
   function densityAt(x, z) {
@@ -40,7 +51,13 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     const pm = terrain.pathMask(x, z);
     d *= 1 - (1 - cfg.pathDensity) * smoothstep(0.15, 0.7, pm);
     d *= 1 - 0.7 * smoothstep(0.15, 0.65, terrain.soilMask(x, z));
-    if (layout.keepOut) d *= 1 - layout.keepOut(x, z); // a layout's own bare ground (the valley of Háls og hali: its stream)
+    if (layout.keepOut) d *= 1 - layout.keepOut(x, z); // a layout's own bare ground (the Fen's water)
+    if (biome.fen) {
+      // the Fen's reed is fullest on the stage round its middle, lighter toward the rim and beyond; a trail keeps it light
+      const G = FEN.grass;
+      const fenD = biome.blended ? G.densityBlended : G.density + (G.densityRim - G.density) * smoothstep(G.near[0], G.near[1], r);
+      d *= 1 + (fenD - 1) * biome.shareAt(x, z);
+    }
     return clamp(d, 0, 1);
   }
 
@@ -49,7 +66,8 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     const n = rng.int(cfg.clump[0], cfg.clump[1]);
     const pm = terrain.pathMask(x, z);
     const forest = terrain.forestMask(x, z);
-    const tall = 0.85 + 0.35 * smoothstep(clearR - 4, clearR + 1, r) + 0.25 * (noise.noise(x * 0.18, z * 0.18, 71) - 0.5);
+    let tall = 0.85 + 0.35 * smoothstep(clearR - 4, clearR + 1, r) + 0.25 * (noise.noise(x * 0.18, z * 0.18, 71) - 0.5);
+    if (biome.fen) tall *= 1 + (FEN.grass.tall - 1) * biome.shareAt(x, z);
     const dryPatch = smoothstep(0.32, 0.6, noise.fbm(x * 0.11 + 5, z * 0.11 - 3, 2, 73));
     const sun = 1 - (1 - FOREST.shade.edgeSun) * terrain.shadeAt(x, z);
     for (let k = 0; k < n; k++) {
@@ -78,6 +96,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
   const tuftDensity = density / tuftSize;
   const cell = 1 / Math.sqrt(tuftDensity);
   const reach = cfg.corridorReach;
+  let tried = 0;
   for (let gz = -reach; gz < reach; gz += cell) {
     for (let gx = -reach; gx < reach; gx += cell) {
       const x = cx + gx + (rng.next() - 0.5) * cell;
@@ -85,16 +104,26 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
       const r = Math.hypot(x - cx, z - cz);
       if (r > reach) { rng.next(); continue; }
       const d = densityAt(x, z);
-      if (rng.next() >= d) continue;
+      if (rng.next() >= d) { if (++tried % 32 === 0) yield; continue; }
       addTuft(x, z, r);
+      if (++tried % 32 === 0) yield; // a row of the Fen's reed is up to 35 ms
     }
+    yield;
   }
 
   const gain = FOREST.terrain.albedoGain;
   const col = (hex, k = gain) => new THREE.Color(hex).multiplyScalar(k);
   const material = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   material.name = 'forest-grass';
-  const lod = new THREE.Vector4(cfg.lodNear, cfg.lodFar, cfg.lodMin, cfg.cameraClear);
+  if (biome.fen) material.defines = { FOREST_FEN: '' };
+  const fen = biome.fen ? {
+    ...fenUniforms(biome, THREE),
+    uFenGrassBase: { value: col(FEN.grassBase, 1.05) },
+    uFenGrassMid: { value: col(FEN.grassSun, 1.0) },
+    uFenGrassTip: { value: col(FEN.grassTip, 1.06) },
+    uFenGrassShade: { value: col(FEN.grassShade, 1.0) },
+  } : {};
+  const lod = new THREE.Vector4(fade.near, fade.far, fade.min, cfg.cameraClear);
   const uniforms = {
     ...shared,
     ...actorUniforms,
@@ -105,6 +134,7 @@ export function createGrass(world, { terrain, layout, seed, shared, actorUniform
     uGrassMid: { value: new THREE.Color(PALETTE.grassSun).lerp(new THREE.Color(PALETTE.clover), 0.2).multiplyScalar(1.12) },
     uGrassTip: { value: col(PALETTE.grassTip, 1.08) },
     uGrassShade: { value: col(PALETTE.grassShade, 1.0) },
+    ...fen,
   };
   patchLambert(material, 'forest-grass', uniforms, {
     vertexHead: `
@@ -120,6 +150,10 @@ uniform float uFootprintSoft;
 varying float vT;
 varying vec3 vInfo;
 varying vec3 vGrassBase;
+#ifdef FOREST_FEN
+varying float vFen;
+${FEN_SHARE_GLSL}
+#endif
 ${ACTOR_GLSL}`,
     vertexAfter: [
       ['#include <batching_vertex>', `
@@ -170,7 +204,10 @@ ${ACTOR_GLSL}`,
   vec3 grassNormal = normalize( mix( vec3( gFace.x, 0.0, gFace.y ), vec3( 0.0, 1.0, 0.0 ), 0.62 ) );
   vT = gT;
   vInfo = aInfo.xyz;
-  vGrassBase = gBase;`],
+  vGrassBase = gBase;
+  #ifdef FOREST_FEN
+  vFen = fenShare( gBase.xz );
+  #endif`],
       ['#include <beginnormal_vertex>', '  objectNormal = grassNormal;'],
       ['#include <begin_vertex>', '  transformed = grassPos;'],
     ],
@@ -182,13 +219,27 @@ uniform vec3 uGrassBase, uGrassMid, uGrassTip, uGrassShade;
 varying float vT;
 varying vec3 vInfo;
 varying vec3 vGrassBase;
+#ifdef FOREST_FEN
+varying float vFen;
+uniform vec3 uFenGrassBase, uFenGrassMid, uFenGrassTip, uFenGrassShade;
+#endif
 ${ACTOR_GLSL}
 ${LIGHT_GLOBALS}
 ${LEAF_SHADOW_GLSL}`,
     fragmentAfter: [
       ['#include <color_fragment>', `
-  vec3 gc = mix( uGrassBase, uGrassMid, smoothstep( 0.0, 0.45, vT ) );
-  vec3 gTip = mix( uGrassMid, uGrassTip, 0.45 + 0.55 * vInfo.y );
+  vec3 cBase = uGrassBase, cMid = uGrassMid, cTip = uGrassTip, cShade = uGrassShade;
+  float gLeafCover = 1.0;
+  #ifdef FOREST_FEN
+  // the Fen's golden reed, and no leaves overhead there
+  cBase = mix( cBase, uFenGrassBase, vFen );
+  cMid = mix( cMid, uFenGrassMid, vFen );
+  cTip = mix( cTip, uFenGrassTip, vFen );
+  cShade = mix( cShade, uFenGrassShade, vFen );
+  gLeafCover = 1.0 - vFen;
+  #endif
+  vec3 gc = mix( cBase, cMid, smoothstep( 0.0, 0.45, vT ) );
+  vec3 gTip = mix( cMid, cTip, 0.45 + 0.55 * vInfo.y );
   gc = mix( gc, gTip, smoothstep( 0.42, 0.95, vT ) * ( 0.7 + 0.3 * vInfo.y ) );
   gc *= mix( vec3( 1.0 ), vec3( 1.06, 1.0, 0.78 ), vInfo.y * 0.4 );
   gc *= 0.82 + 0.3 * vInfo.x;
@@ -196,11 +247,11 @@ ${LEAF_SHADOW_GLSL}`,
   // near a character the grass is lighter and more golden (STYLE.md 5.1)
   float gNear = forestActorNear( vGrassBase );
   gc = mix( gc, gc * vec3( 1.16, 1.1, 0.8 ) + vec3( 0.02, 0.016, 0.0 ), gNear * 0.7 * uActorWarm );
-  gc = mix( uGrassShade, gc, 0.35 + 0.65 * vInfo.z );
+  gc = mix( cShade, gc, 0.35 + 0.65 * vInfo.z );
   diffuseColor.rgb = gc * forestActorShade( vGrassBase );
   float gDap = smoothstep( 0.6, 0.78, texture2D( uNoise, vGrassBase.xz * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
   gSun = vInfo.z + ( 1.0 - vInfo.z ) * gDap * uDapple;
-  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( vGrassBase.xz ) * ( 1.0 - gNear ); // as on the ground
+  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( vGrassBase.xz ) * gLeafCover * ( 1.0 - gNear ); // as on the ground
   gAmb = mix( 0.65, 1.0, vInfo.z );
   gShadowUse = smoothstep( 0.52, 0.64, vInfo.z ); // as on the ground: real shadows reach under the edge
   gLeaf = 0.42 * vT;`],
@@ -214,11 +265,13 @@ ${LEAF_SHADOW_GLSL}`,
   // receives blades that can be seen, at the density their distance calls for, in one draw call.
   const CELL = 2;
   const cellMap = new Map();
-  for (const b of blades) {
+  for (let n = 0; n < blades.length; n++) {
+    const b = blades[n];
     const i = Math.floor((b.x - cx) / CELL), j = Math.floor((b.z - cz) / CELL);
     const key = `${i},${j}`;
     if (!cellMap.has(key)) cellMap.set(key, { i, j, list: [] });
     cellMap.get(key).list.push(b);
+    if (n % 4096 === 4095) yield;
   }
   const cells = [...cellMap.values()].sort((a, b) => (a.j - b.j) || (a.i - b.i));
   const n = blades.length;
@@ -256,6 +309,7 @@ ${LEAF_SHADOW_GLSL}`,
     box.max.y += 0.6;
     bounds.union(box);
     cellData.push({ start, count: list.length, box });
+    yield;
   }
 
   const g = new THREE.BufferGeometry();
@@ -301,7 +355,7 @@ ${LEAF_SHADOW_GLSL}`,
         grown.copy(c.box).expandByScalar(2.5);
         if (!frustum.intersectsBox(grown)) continue;
       }
-      const dens = 1 + (cfg.lodMin - 1) * smoothstep(cfg.lodNear, cfg.lodFar, Math.max(0, d - MARGIN));
+      const dens = 1 + (fade.min - 1) * smoothstep(fade.near, fade.far, Math.max(0, d - MARGIN));
       const k = Math.min(c.count, Math.ceil(dens * c.count + 0.5));
       out.set(master.subarray(c.start * 9, (c.start + k) * 9), offset);
       offset += k * 9;

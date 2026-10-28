@@ -3,21 +3,37 @@
 // star and their kin) are tuned to the key of the theme (theme.json), so they sit in the music instead of against it.
 //
 // A sound plays only when the browser has let sound begin (the first touch), nothing holds the game (the book is open, the tab is
-// hidden) and the effects are not muted (a capture's silent replay). The scene asks for one by name: s.sfx(name).
-// The forest is a loop, laid once; the birds and rustles that come and go over it are scheduled by update(dt) on the game clock.
+// hidden) and the effects are not muted (a capture's silent replay). The scene asks for one by name: s.sfx(name), or with a detail
+// for the sounds that take one, s.sfx(name, detail) (chapter 2's counting tone takes its number: engine/audio/fen-sounds.js).
+// A bed is a loop, laid once: the forest's wind, or the Fen's water (chapter 2), which takes over from the forest with a slow
+// cross-fade, and the forest from it; the small sounds that come and go over each (the forest's birds and rustles, the Fen's
+// frogs, drips, bubbles and dragonflies) are scheduled by update(dt) on the game clock.
 // A second instance can carry more sounds, made with the same tools in the same key: the book's (engine/book/book-sounds.js), whose
 // instance is outside the game's hold, so it sounds while the game stands still behind the child's book.
 
+import { FEN_GAPS, fenCall, fenSounds } from './fen-sounds.js';
+
 const MAX_SOUNDS = 48; // sources sounding at once: a child tapping fast cannot pile up more than this
+// Recorded sounds, by name, beside the made ones: Grameðla's roar and breath, far off from chapter 2's lookout. Both from
+// tunetank.com, free for non-commercial use with credit (the owner, 2026-10-27): "Sound Effect: Dinosaur creature moan" and
+// "Sound Effect: T-rex exhale", download from https://tunetank.com (assets/audio/kafli2/CREDITS.md). `level` is the gain into the
+// effects' master.
+const SAMPLES = {
+  gramedlaRoar: { url: new URL('../../assets/audio/kafli2/gramedla-roar.mp3', import.meta.url).href, level: 1.3 },
+  gramedlaExhale: { url: new URL('../../assets/audio/kafli2/gramedla-exhale.mp3', import.meta.url).href, level: 1.0 },
+};
 const DEFAULT_KEY = [523.25, 587.33, 659.25, 783.99, 880]; // C major pentatonic, for a page with no theme.json
 // The least time, in audio seconds, between two plays of the same sound, for the ones a child can tap again and again.
 const GAPS = { frog: 0.45, snail: 0.4, beetle: 0.4, birds: 0.5, butterfly: 0.25, flower: 0.15 };
+const BEDS = ['forest', 'fen'];
+const CROSS_FADE = 0.8; // the time constant (s) of a bed fading out as the other comes in: about three seconds
+const FEN_IN = 2.5; // seconds the Fen's water takes to come in
 
 /**
  * `sounds({ tone, noise, bell, key })`, when given, returns more sounds by name, which play as the game's own do, each at least
  * `gaps[name]` audio seconds after the last of its name.
  */
-export function createSfx({ context = null, theme = null, output, random = Math.random, sounds = null, gaps = {} } = {}) {
+export function createSfx({ context = null, theme = null, output, random = Math.random, sounds = null, gaps = {}, recorded = false } = {}) {
   let muted = false;
   let paused = false;
 
@@ -131,18 +147,86 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     tone({ frequency: frequency * 2, duration: duration * 0.36, level: level * 0.19, delay, pan });
   }
 
+  /**
+   * Wings going by: a soft note whose loudness flutters at a wingbeat (the key's root four octaves down, about 33 a second, so even
+   * the flutter is in the key), panned from `from` to `to`. The dragonflies' (fen-sounds.js).
+   */
+  function hum({ frequency, end = frequency, duration = 1.2, level = 0.02, from = -0.5, to = 0.5, delay = 0, type = 'triangle', bus = master }) {
+    const at = context.currentTime + delay;
+    const source = context.createOscillator();
+    source.type = type;
+    source.frequency.setValueAtTime(frequency, at);
+    source.frequency.exponentialRampToValueAtTime(Math.max(30, end), at + duration);
+    const flutter = context.createGain(); // half open, and the wings open and close it the other half
+    flutter.gain.setValueAtTime(0.5, at);
+    const wings = context.createOscillator();
+    wings.frequency.setValueAtTime(key[0] / 16, at);
+    const depth = context.createGain();
+    depth.gain.setValueAtTime(0.5, at);
+    const volume = context.createGain();
+    envelope(volume.gain, at, duration, level, duration * 0.3, 0.6, 0.85);
+    wings.connect(depth);
+    depth.connect(flutter.gain);
+    source.connect(flutter);
+    flutter.connect(volume);
+    const out = [];
+    if (context.createStereoPanner) {
+      const panner = context.createStereoPanner();
+      panner.pan.setValueAtTime(from, at);
+      panner.pan.linearRampToValueAtTime(to, at + duration);
+      volume.connect(panner);
+      panner.connect(bus);
+      out.push(panner);
+    } else volume.connect(bus);
+    track(source, [flutter, depth, wings, volume, ...out]);
+    source.start(at);
+    wings.start(at);
+    source.stop(at + duration + 0.015);
+    wings.stop(at + duration + 0.015);
+  }
+
   /** Little rising chirps, as a bird makes them. */
   function chirps({ pitch = between(1350, 1850), count = 3, level, pan = between(-0.65, 0.65), delay = 0, bus }) {
     for (let i = 0; i < count; i++) tone({ frequency: pitch + i * 85, end: pitch * 1.26, duration: 0.11, level, delay: delay + i * 0.16, pan, bus });
   }
 
-  // The forest: a bed of wind that swells and fades slowly, laid once, with birds and rustles on top of it.
-  let forest = null;
-  let forestWanted = false; // the scene asked for it: it is laid as soon as sound is allowed (the context wakes a moment after the touch)
-  let callIn = 0; // game seconds until the next bird or rustle
+  // The beds: the forest's wind or the Fen's water, one at a time, each laid once, with its small sounds on top of it.
+  let bed = null; // the one laid: { name, sources, fade, nodes }
+  let wanted = null; // the one the scene asked for: it is laid as soon as sound is allowed (the context wakes a moment after the touch)
+  let callIn = 0; // game seconds until the next small sound over the bed
 
-  function startForest() {
-    if (forest) return false;
+  /** Lays the bed called `name`, fading out the other one if it is laid. Whether it laid it (not when it was laid already). */
+  function startBed(name) {
+    if (bed?.name === name) return false;
+    if (bed) fadeOut(bed, CROSS_FADE);
+    bed = name === 'fen' ? layFen() : layForest();
+    callIn = name === 'fen' ? between(1.2, 2.4) : between(1.5, 3.5);
+    return true;
+  }
+
+  /** A bed fades out (over about 4.6 time constants) and lets go of its nodes. */
+  function fadeOut(old, tau) {
+    if (bed === old) bed = null;
+    const now = context.currentTime;
+    // from where it is now, also halfway through its own fade in (cancelScheduledValues alone would drop it to the start of that)
+    if (old.fade.gain.cancelAndHoldAtTime) old.fade.gain.cancelAndHoldAtTime(now);
+    else {
+      const level = old.fade.gain.value; // where it is now, read before the cancel
+      old.fade.gain.cancelScheduledValues(now);
+      old.fade.gain.setValueAtTime(level, now);
+    }
+    old.fade.gain.setTargetAtTime(0, now, tau);
+    const [first, ...rest] = old.sources;
+    for (const source of old.sources) source.stop(now + tau * 6);
+    first.onended = () => {
+      for (const source of old.sources) source.disconnect();
+      for (const node of old.nodes) node.disconnect();
+    };
+    for (const source of rest) source.onended = null;
+  }
+
+  // The forest: a bed of wind that swells and fades slowly, with birds and rustles on top of it.
+  function layForest() {
     const now = context.currentTime;
     const source = context.createBufferSource();
     source.buffer = noiseBuffer('brown');
@@ -168,36 +252,68 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     fade.connect(ambience);
     source.start(now);
     swell.start(now);
-    forest = { source, swell, fade, nodes: [filter, bed, depth, fade] };
-    callIn = between(1.5, 3.5);
-    return true;
+    return { name: 'forest', sources: [source, swell], fade, nodes: [filter, bed, depth, fade] };
   }
 
-  function stopForest() {
-    if (!forest) return;
-    const { source, swell, fade, nodes } = forest;
-    forest = null;
+  // The Fen (chapter 2): water lapping at the hummocks, a slow swell under a thin hiss of reed, coming in over FEN_IN seconds,
+  // with frogs, drips, bubbles, a dragonfly going by and the early bird calling on top of it (fen-sounds.js: fenCall).
+  function layFen() {
     const now = context.currentTime;
-    fade.gain.cancelScheduledValues(now);
-    fade.gain.setTargetAtTime(0, now, 0.2);
-    source.stop(now + 1.2);
-    swell.stop(now + 1.2);
-    source.onended = () => {
-      source.disconnect();
-      swell.disconnect();
-      for (const node of nodes) node.disconnect();
-    };
+    const fade = context.createGain();
+    fade.gain.setValueAtTime(0, now);
+    fade.gain.linearRampToValueAtTime(1, now + FEN_IN);
+    fade.connect(ambience);
+    const sources = [], nodes = [fade];
+    // the water: brown noise through a low filter, its level lapping about every four seconds
+    const water = context.createBufferSource();
+    water.buffer = noiseBuffer('brown');
+    water.loop = true;
+    const low = context.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.value = 600;
+    low.Q.value = 0.5;
+    const lap = context.createGain();
+    lap.gain.value = 0.016;
+    const lapping = context.createOscillator();
+    lapping.frequency.value = 0.24;
+    const lapDepth = context.createGain();
+    lapDepth.gain.value = 0.007;
+    lapping.connect(lapDepth);
+    lapDepth.connect(lap.gain);
+    water.connect(low);
+    low.connect(lap);
+    lap.connect(fade);
+    // the reed: a thin, high hiss, swelling slowly
+    const reed = context.createBufferSource();
+    reed.buffer = noiseBuffer('white');
+    reed.loop = true;
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 3400;
+    band.Q.value = 0.7;
+    const hiss = context.createGain();
+    hiss.gain.value = 0.0028;
+    band.connect(hiss);
+    reed.connect(band);
+    hiss.connect(fade);
+    for (const source of [water, lapping, reed]) source.start(now);
+    sources.push(water, lapping, reed);
+    nodes.push(low, lap, lapDepth, band, hiss);
+    return { name: 'fen', sources, fade, nodes };
   }
 
   let stepSide = 0;
   const SOUNDS = {
-    forest: startForest, // laid by play and update, which treat it apart from the one-shots; it is here so that the name is known
-    // Mosi's footfall: a low thump and a puff of earth, from the left and the right in turn (the old game's footstep).
-    step() {
+    // the beds, laid by play and update, which treat them apart from the one-shots; they are here so that the names are known
+    forest: () => startBed('forest'),
+    fen: () => startBed('fen'),
+    // Mosi's footfall: a low thump and a puff of earth, from the left and the right in turn (the old game's footstep). `level`
+    // scales it: chapter 1 plays his steps softly while he trots in from far down the path, and full once he is near.
+    step({ level = 1 } = {}) {
       stepSide = 1 - stepSide;
       const pan = stepSide ? 0.13 : -0.13;
-      tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15, pan });
-      noise({ duration: 0.18, level: 0.34, frequency: 850, end: 350, pan, attack: 0.008 });
+      tone({ frequency: between(105, 125), end: 65, duration: 0.11, level: 0.15 * level, pan });
+      noise({ duration: 0.18, level: 0.34 * level, frequency: 850, end: 350, pan, attack: 0.008 });
     },
     // A ribbit: two throaty croaks, the second one rising.
     frog() {
@@ -270,11 +386,40 @@ export function createSfx({ context = null, theme = null, output, random = Math.
     },
   };
 
-  for (const [name, sound] of Object.entries(sounds?.({ tone, noise, bell, key }) ?? {})) {
+  // An instance's own sounds (`sounds`) may not take a name of the ones above. Chapter 2's (engine/audio/fen-sounds.js) are the
+  // game's as well, but give way to an instance's own of the same name: Háls og hali's table has a splash of its own, and never plays
+  // the Fen's.
+  const own = sounds?.({ tone, noise, bell, key }) ?? {};
+  for (const name of Object.keys(own)) {
     if (Object.hasOwn(SOUNDS, name)) throw new TypeError(`createSfx: "${name}" is one of the game's own sounds`);
-    SOUNDS[name] = sound;
   }
-  const least = { ...GAPS, ...gaps };
+  const fen = Object.entries(fenSounds({ tone, noise, bell, hum, key, between })).filter(([name]) => !Object.hasOwn(own, name));
+  Object.assign(SOUNDS, Object.fromEntries(fen), own);
+  // The recorded ones, for the chapter's page only (`recorded`: main.js; the games make effects of their own and have no use for
+  // them): each file fetched and decoded once, in the background, as the effects are made, and played through the master like the
+  // rest, so it mutes and holds with them. One asked for before its file has decoded is not played.
+  const buffers = new Map();
+  for (const [name, sample] of recorded ? Object.entries(SAMPLES) : []) {
+    if (Object.hasOwn(SOUNDS, name)) continue;
+    SOUNDS[name] = () => {
+      const buffer = buffers.get(name);
+      if (!buffer) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const volume = context.createGain();
+      volume.gain.value = sample.level;
+      source.connect(volume);
+      track(source, [volume, ...outlet(volume, 0, master)]);
+      source.start(context.currentTime);
+    };
+    Promise.resolve()
+      .then(() => globalThis.fetch(sample.url))
+      .then(response => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`${response.status}`))))
+      .then(bytes => context.decodeAudioData(bytes))
+      .then(buffer => buffers.set(name, buffer))
+      .catch(() => {}); // a sound that cannot be had is simply not heard
+  }
+  const least = { ...GAPS, ...Object.fromEntries(fen.map(([name]) => [name, FEN_GAPS[name] ?? 0])), ...gaps };
 
   const lastPlayed = new Map();
   const allowed = () => !muted && !paused && context.state === 'running';
@@ -282,30 +427,39 @@ export function createSfx({ context = null, theme = null, output, random = Math.
 
   return {
     /**
-     * Plays the sound called `name`. Returns whether it did: not for an unknown name, a page the browser has not let sound begin, a
-     * muted or held game, or a tap too soon after the last one. The forest is the exception that waits instead of being dropped:
-     * asked for before sound is allowed, it is laid by update() as soon as it is.
+     * Plays the sound called `name`, handing it `detail` (a sound that takes one: chapter 2's counting tone its number). Returns
+     * whether it did: not for an unknown name, a page the browser has not let sound begin, a muted or held game, or a tap too soon
+     * after the last one. A bed (the forest, the Fen) is the exception that waits instead of being dropped: asked for before sound
+     * is allowed, it is laid by update() as soon as it is, and the last one asked for is the one laid.
      */
-    play(name) {
+    play(name, detail) {
       if (typeof name !== 'string' || !Object.hasOwn(SOUNDS, name)) return false;
-      if (name === 'forest') {
-        forestWanted = true;
-        return allowed() && startForest();
+      if (BEDS.includes(name)) {
+        wanted = name;
+        return allowed() && startBed(name);
       }
       if (!allowed() || sounding >= MAX_SOUNDS) return false;
       const now = context.currentTime;
       if (now - (lastPlayed.get(name) ?? -Infinity) < (least[name] ?? 0)) return false;
       lastPlayed.set(name, now);
-      SOUNDS[name]();
+      SOUNDS[name](detail ?? {});
       return true;
     },
-    /** Each frame, with the game clock's step: the forest's birds and rustles, every 4 to 8 seconds of game time. */
+    /**
+     * Each frame, with the game clock's step: the small sounds over the bed, the forest's birds and rustles every 4 to 8 seconds of
+     * game time, the Fen's frogs, drips, bubbles and dragonflies every 1.2 to 3.4.
+     */
     update(dt) {
       if (!allowed()) return;
-      if (forestWanted && !forest) startForest();
-      if (!forest) return;
+      if (wanted && bed?.name !== wanted) startBed(wanted);
+      if (!bed) return;
       callIn -= dt;
       if (callIn > 0) return;
+      if (bed.name === 'fen') {
+        callIn = between(1.2, 3.4);
+        fenCall({ tone, noise, hum, key, between }, ambience);
+        return;
+      }
       callIn = between(4.3, 7.6);
       if (random() > 0.4) {
         chirps({ level: 0.018, bus: ambience });
@@ -315,10 +469,10 @@ export function createSfx({ context = null, theme = null, output, random = Math.
         for (let i = 0; i < 3; i++) noise({ kind: 'white', type: 'bandpass', frequency: 3900, q: 5, duration: 0.08, level: 0.015, delay: 0.8 + i * 0.17, bus: ambience });
       }
     },
-    /** Ends the forest's loop (the scene is over), or the wish for it; the effects that are playing finish by themselves. */
+    /** Ends the bed's loop (the scene is over), or the wish for one; the effects that are playing finish by themselves. */
     stop() {
-      forestWanted = false;
-      stopForest();
+      wanted = null;
+      if (bed) fadeOut(bed, 0.2);
     },
     /** Held with the game clock: silent while the book is open or the tab is hidden, and back after. */
     setPaused(value) {

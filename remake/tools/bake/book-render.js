@@ -13,12 +13,23 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/eitt/trex.webp --query "who=trex&width=512"
 //
-// Query: who (mosi, kambedla or both for the book; trex, brontosaurus, parasaurolophus, pteranodon (Flugeðla flying a circle)
-// or stegosaurus-tail (Kambeðla mid tail-swish) for the cards), width (the picture's width in px, 1024; the height is three
+// Egill's seat in "Fjölspil" (engine/fjolspil/seats.js) shows his portrait from here, his head and shoulders with his face to
+// us, since Mosi sits at the Litla Yatzy table himself (the owner's decision, 2026-10-25):
+//
+//   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/egill-render.webp --query "who=egill&width=512"
+//
+// The book's map (engine/book/map-page.js) takes its friends' stickers from the cards' pictures and, for Uggeðla, who has no card
+// picture, from the spinosaurus shot here:
+//
+//   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/uggedla-render-thumb.webp --query "who=spinosaurus&width=320"
+//
+// Query: who (mosi, kambedla or both for the book; egill for his seat; trex, brontosaurus, parasaurolophus, pteranodon (Flugeðla flying a circle)
+// or stegosaurus-tail (Kambeðla mid tail-swish) for the cards; spinosaurus for the map), width (the picture's width in px, 1024; the height is three
 // quarters of it, and a smaller width is the same picture made smaller: the thumbnail), quality (WebP, 0.9), preview (1: show
 // the picture over the card's paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key
 // is a setting, by its path, of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6
-// camera.fov=22 camera.fill=0.92,0.88, actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the
+// camera.fov=22 camera.fill=0.92,0.88 camera.top=0.4 (the share of the characters' height, from the top down, the frame
+// holds: 1, all of them, when left out), actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the
 // head turns, + toward heading 90) actors.0.nod=3 (degrees the head dips) actors.0.x, actors.0.y and actors.0.z (metres),
 // actors.0.bank and actors.0.pitch (degrees the whole body rolls about its length and tips its nose up), actors.0.swish
 // (degrees the tail swings sideways, spread along its bones, + toward heading 90) and actors.0.lift (degrees it rises),
@@ -38,11 +49,12 @@ const SUPERSAMPLE = 2;
 const status = text => { window.__bakeStatus = text; console.log('[book-render]', text); };
 const rad = THREE.MathUtils.degToRad;
 
-const MODELS = Object.fromEntries(['mosi', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon']
+const MODELS = Object.fromEntries(['mosi', 'egill', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon', 'spinosaurus']
   .map(name => [name, `../../assets/characters/${name}.glb`]));
 
 // The shots. A camera's az is world degrees (0 in front of a character that faces +X, 90 on its +Z side), el is how far
-// above the level it looks from, fill is how much of the frame the characters take. The key light's az is measured from the camera's.
+// above the level it looks from, fill is how much of the frame the characters take (and top, when there, how much of their
+// height from the top down: a portrait's head and shoulders). The key light's az is measured from the camera's.
 const SHOTS = {
   mosi: {
     camera: { az: 40, el: 6, fov: 22, fill: [0.92, 0.88] },
@@ -58,6 +70,13 @@ const SHOTS = {
       { model: 'stegosaurus', x: -1.6, z: 1.2, heading: 56, clip: 'idle', time: 1.0, turn: 14, nod: 2 },
       { model: 'mosi', x: 2.5, z: -0.6, heading: 124, clip: 'idle', time: 1.0, turn: -14, nod: 0 },
     ],
+  },
+  // Egill, for his seat in "Fjölspil": his head and shoulders, his face turned to us, for the round crops of the lobby, the
+  // phones and the games' bars (a 4:3 picture shown as a circle of its middle, about 40 to 200 px across). No ground, so no shadow.
+  egill: {
+    camera: { az: 30, el: 6, fov: 22, fill: [0.7, 0.84], top: 0.42 },
+    actors: [{ model: 'egill', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 30, nod: 3 }],
+    look: { shadow: 0 },
   },
   // The cards of "Eitt!": red is Grameðla, yellow Þórseðla, green Mosi (the shot above) and blue Slóeðla; skip is Kambeðla's
   // tail swish and reverse Flugeðla flying a circle.
@@ -77,6 +96,11 @@ const SHOTS = {
     camera: { az: 50, el: 12, fov: 22, fill: [0.92, 0.88] },
     actors: [{ model: 'pteranodon', x: 0, z: 0, heading: 0, clip: 'fly', time: 0.25, turn: 30, nod: 0, bank: 22 }],
     look: { shadow: 0 },
+  },
+  // Uggeðla, for her sticker on the map: a three-quarter view with her sail toward us.
+  spinosaurus: {
+    camera: { az: 50, el: 8, fov: 22, fill: [0.92, 0.88] },
+    actors: [{ model: 'spinosaurus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 30, nod: 0 }],
   },
   'stegosaurus-tail': {
     camera: { az: 100, el: 30, fov: 22, fill: [0.92, 0.88] },
@@ -191,6 +215,16 @@ function posedPoints(actors) {
   return out;
 }
 
+/** The points in the top `share` of the characters' height, for a portrait's head and shoulders. */
+function topShare(points, share) {
+  let [y0, y1] = [Infinity, -Infinity];
+  for (let i = 1; i < points.length; i += 3) { y0 = Math.min(y0, points[i]); y1 = Math.max(y1, points[i]); }
+  const cut = y1 - share * (y1 - y0);
+  const out = [];
+  for (let i = 0; i < points.length; i += 3) if (points[i + 1] >= cut) out.push(points[i], points[i + 1], points[i + 2]);
+  return out;
+}
+
 /** Puts the camera where the characters take `fill` of the frame, centred, looking from azimuth and elevation (degrees). */
 function frame(camera, points, { az, el, fov, fill }) {
   const dir = new THREE.Vector3(Math.cos(rad(el)) * Math.cos(rad(az)), Math.sin(rad(el)), Math.cos(rad(el)) * Math.sin(rad(az)));
@@ -294,6 +328,7 @@ try {
     scene.add(actor.root);
   }
   const points = posedPoints(actors);
+  const framed = (shot.camera.top ?? 1) < 1 ? topShare(points, shot.camera.top) : points;
   const camera = new THREE.PerspectiveCamera();
   // The frame holds the characters and the ground their shadows fall on (each vertex carried along the key's light to the ground).
   const toLight = new THREE.Vector3(
@@ -301,12 +336,12 @@ try {
     Math.cos(rad(look.key.el)) * Math.sin(rad(shot.camera.az + look.key.az)),
   );
   const shadows = [];
-  if (look.shadow > 0) {
+  if (look.shadow > 0 && framed === points) {
     for (let i = 0; i < points.length; i += 3) {
       if (points[i + 1] > 0.05) shadows.push(points[i] - toLight.x * (points[i + 1] / toLight.y), 0, points[i + 2] - toLight.z * (points[i + 1] / toLight.y));
     }
   }
-  const { target, distance } = frame(camera, points.concat(shadows), shot.camera);
+  const { target, distance } = frame(camera, framed.concat(shadows), shot.camera);
 
   // Light, all measured from the camera: a warm key from above and to its right, a cool fill from the left, the sky all round.
   const at = (az, el, d = 1) => new THREE.Vector3(

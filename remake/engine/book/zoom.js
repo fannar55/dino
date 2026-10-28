@@ -10,6 +10,11 @@ import { ICONS } from './icons.js';
 // make a drag into a pinch (a pinch is two fingers that both move), and a tap is a finger that lifts within TAP_SLOP_PX of where it
 // landed without a drag or a pinch going on. A tap while the picture is still growing turns it round from where it has got to.
 // The frame's size comes from the picture's own shape (--ratio, book.css .zoom-frame).
+//
+// A 3D page's model goes to the whole screen the same way (openModel; the owner's wish, 2026-10-26): its canvas (skeleton-view.js)
+// is carried from the card to the frame, the frame grows from where the canvas lay, and the canvas keeps its own fingers, so one
+// finger turns the model and two pinch it there too; the frame itself is not panned or pinched. A tap shuts it as it shuts a
+// picture, and once the frame is back where the canvas lay, `back` puts the canvas back on its card.
 
 export const MIN_SCALE = 1;
 export const MAX_SCALE = 4;
@@ -35,6 +40,7 @@ const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
  * The zoom inside `root` (the book's #book, where the container units of book.css size it), with the book's sound (`audio`).
  * Returns
  *   open(img)       zooms the <img> of a card up to the screen; false when a picture is zoomed already
+ *   openModel(canvas, back)  takes a 3D page's canvas up to the screen; back() is told when it may go back to its card
  *   close(instant)  puts it back where it lies (instant: at once, as when the book is shut); false when none is open
  *   isOpen          whether a picture is zoomed (until it is back in its place)
  */
@@ -66,6 +72,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
   let isOpen = false;
   let closing = false;
   let source = null; // the card's <img> it came from and goes back to
+  let held = null; // a model's canvas the frame holds instead: { canvas, home (the rectangle it lay in), back }
   let view = { scale: 1, x: 0, y: 0 }; // how the pinch and the drag have the frame: scaled about its middle, and moved
   let motion = null; // the way in or out under way: { animations }
   const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved, disturbed }
@@ -81,9 +88,9 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     return { x: area.left + area.width / 2, y: area.top + area.height / 2 };
   }
 
-  /** The transform that lays the frame over `rect`, as small as that, with its picture on it. Measured with no transform on the frame. */
+  /** The transform that lays the frame over `rect`, as small as that, with its picture (or model) on it. Measured with no transform on the frame. */
   function over(rect) {
-    const box = picture.getBoundingClientRect();
+    const box = (held?.canvas ?? picture).getBoundingClientRect();
     if (!(rect?.width > 0) || !(box.width > 0)) return 'scale(.8)';
     const scale = rect.width / box.width;
     const dx = rect.left + rect.width / 2 - (box.left + box.width / 2);
@@ -164,6 +171,10 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     finger.y = event.clientY;
     if (!finger.moved && Math.hypot(finger.x - finger.x0, finger.y - finger.y0) >= TAP_SLOP_PX) finger.moved = true;
     if (!finger.moved || motion || closing) return; // the way in and out are not interrupted by a drag
+    if (held) { // the model's canvas turns or pinches the model: no finger down is a tap now, and the frame stays where it is
+      for (const other of fingers.values()) other.disturbed = true;
+      return;
+    }
     retarget();
     drive();
   });
@@ -180,7 +191,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
   layer.addEventListener('pointerup', lift);
   layer.addEventListener('pointercancel', lift);
   layer.addEventListener('wheel', event => {
-    if (!isOpen || motion || closing) return;
+    if (!isOpen || motion || closing || held) return; // a model's canvas zooms the model with the wheel itself
     event.preventDefault?.();
     const centre = middle();
     const scale = clamp(view.scale * (event.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP), MIN_SCALE, MAX_SCALE);
@@ -199,7 +210,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     motion = null;
   }
 
-  /** The picture is back in its place: the layer is put away. */
+  /** The picture (or model) is back in its place: the layer is put away, and a model's canvas goes back to its card. */
   function finish() {
     halt();
     layer.hidden = true;
@@ -208,6 +219,17 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     closing = false;
     fingers.clear();
     gesture = null;
+    if (!held) return;
+    const { back } = held;
+    held = null;
+    frame.classList.remove('model');
+    frame.style.removeProperty('--hue');
+    back?.();
+  }
+
+  /** The frame's shape, from a width and a height, or from the box of what it shows. */
+  function shape(w, h, box) {
+    frame.style.setProperty('--ratio', w > 0 && h > 0 ? `${w} / ${h}` : box.width > 0 && box.height > 0 ? `${Math.round(box.width)} / ${Math.round(box.height)}` : '4 / 3');
   }
 
   function open(img) {
@@ -215,9 +237,27 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     source = img;
     picture.src = img.currentSrc || img.src;
     picture.alt = img.alt || '';
-    const { naturalWidth: w, naturalHeight: h } = img;
-    const box = img.getBoundingClientRect();
-    frame.style.setProperty('--ratio', w > 0 && h > 0 ? `${w} / ${h}` : box.width > 0 && box.height > 0 ? `${Math.round(box.width)} / ${Math.round(box.height)}` : '4 / 3');
+    shape(img.naturalWidth, img.naturalHeight, img.getBoundingClientRect());
+    return reveal(() => visibleRect(img));
+  }
+
+  function openModel(canvas, back = null) {
+    if (isOpen || !canvas) return false;
+    const home = canvas.getBoundingClientRect();
+    const hue = win?.getComputedStyle?.(canvas)?.getPropertyValue?.('--hue')?.trim(); // the animal's colour, which it lies on (book.css)
+    held = { canvas, home, back };
+    source = null;
+    picture.alt = '';
+    frame.classList.add('model'); // book.css: no picture, and the canvas fills the mat
+    if (hue) frame.style.setProperty('--hue', hue);
+    shape(0, 0, home);
+    canvas.classList.add('moved'); // it comes over as it is, with no fade-in (book.css)
+    frame.append(canvas);
+    return reveal(() => home);
+  }
+
+  /** The frame grows from `from()` (where its picture or model lay) to the middle of the screen. */
+  function reveal(from) {
     view = { scale: 1, x: 0, y: 0 };
     frame.style.removeProperty('transform');
     layer.hidden = false;
@@ -230,7 +270,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     const animations = reducedMotion(win)
       ? [layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 })]
       : [
-        frame.animate([{ transform: over(visibleRect(img)) }, { transform: 'none' }], { duration: IN_MS, easing: IN_EASE }),
+        frame.animate([{ transform: over(from()) }, { transform: 'none' }], { duration: IN_MS, easing: IN_EASE }),
         layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: IN_MS * 0.7, easing: 'ease-out' }),
       ];
     const mine = { animations };
@@ -254,7 +294,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
     halt();
     frame.style.setProperty('transform', 'none');
     const calm = reducedMotion(win);
-    const back = calm ? 'none' : over(visibleRect(source));
+    const back = calm ? 'none' : over(held ? held.home : visibleRect(source));
     frame.style.setProperty('transform', at);
     const animations = calm
       ? [layer.animate([{ opacity: shown }, { opacity: 0 }], { duration: 160, fill: 'forwards' })]
@@ -274,6 +314,7 @@ export function createZoom(doc, { audio = null, win = globalThis.window, root = 
 
   return {
     open,
+    openModel,
     close,
     get isOpen() { return isOpen; },
   };

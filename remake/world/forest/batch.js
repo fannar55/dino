@@ -12,18 +12,19 @@
 // so the shadow pass never draws plants the camera cannot see and the main pass never draws plants
 // that are only there for their shadow.
 import * as THREE from 'three';
+import { runSync } from './slices.js';
 import { FOREST, PIVOT } from './config.js';
 
 const SWAY = FOREST.wind.swayScale;
 // Small things vanish into the grass and mist long before this distance (metres to the camera).
-const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36 };
+const CULL_DISTANCE = { flowers: 20, mushrooms: 18, horsetail: 30, fern: 40, rockSmall: 36, waterLily: 45, horsetailReed: 64, horsetailTall: 55, mossHummock: 45 };
 const LOD_SWITCH = FOREST.lod.switch;
 // small understory plants drop to their far shape sooner than the trees
-const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail']);
+const UNDERSTORY = new Set(['bush', 'fern', 'cycad', 'treeFern', 'horsetail', 'horsetailReed', 'horsetailTall', 'mossHummock', 'waterLily']);
 const LOD_SWITCH_SMALL = FOREST.lod.switchSmall || LOD_SWITCH;
 // Trees whose crown is its own cull piece pick the crown's level by its projected size, not by
 // the distance to the tree's mid-height: a big crown right overhead counts as near.
-const CROWN_LOD = new Set(['broadleaf', 'araucaria']);
+const CROWN_LOD = new Set(['broadleaf', 'araucaria', 'swampConifer']);
 const [CROWN_T0, CROWN_T1] = FOREST.lod.crownSize;
 const CROWN_FINE = FOREST.lod.crownFine ?? 4;
 
@@ -129,7 +130,7 @@ export function createBatcher() {
     }
   }
 
-  function buildGeometry(bucket, { caster = false } = {}) {
+  function* buildGeometry(bucket, { caster = false } = {}) {
     const n = bucket.verts;
     const pos = new Float32Array(n * 3);
     const nrm = caster ? null : new Float32Array(n * 3);
@@ -197,6 +198,7 @@ export function createBatcher() {
           name: p.name, lod: level ?? p.lod, crown: c2 > 0 && crown ? crown : null,
         });
       }
+      yield; // a plant at a time
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -217,12 +219,12 @@ export function createBatcher() {
     return { g, master, ranges };
   }
 
-  function makeMeshes(store, setup, { order, caster = false } = {}) {
+  function* makeMeshes(store, setup, { order, caster = false } = {}) {
     const meshes = [];
     for (const bucket of [...store.buckets.values()].sort((a, b) => a.key.localeCompare(b.key))) {
       // draw near-to-far inside each merged mesh, so early depth testing rejects hidden foliage
       if (order) bucket.items.sort((a, b) => order(a.placement) - order(b.placement));
-      const { g, master, ranges } = buildGeometry(bucket, { caster });
+      const { g, master, ranges } = yield* buildGeometry(bucket, { caster });
       const o = setup(bucket);
       const mesh = new THREE.Mesh(g, o.material);
       mesh.name = `${caster ? 'Forest caster' : 'Forest'} ${bucket.key}`;
@@ -244,12 +246,14 @@ export function createBatcher() {
    * Build the main meshes and the caster meshes. `setup(bucket)` returns { material,
    * depthMaterial, receiveShadow, renderOrder }; `casterSetup(bucket)` the same for casters.
    */
-  function build(setup, { order, casterSetup } = {}) {
-    const meshes = makeMeshes(main, setup, { order });
-    const casterMeshes = casterSetup ? makeMeshes(casters, casterSetup, { caster: true }) : [];
+  function* buildSteps(setup, { order, casterSetup } = {}) {
+    const meshes = yield* makeMeshes(main, setup, { order });
+    const casterMeshes = casterSetup ? yield* makeMeshes(casters, casterSetup, { caster: true }) : [];
     return { meshes, casterMeshes };
   }
-  return { add, addCaster, build };
+  /** build as steps (slices.js): a plant at a time. */
+  const build = (setup, options) => runSync(buildSteps(setup, options));
+  return { add, addCaster, build, buildSteps };
 }
 
 function rebuildIndex(mesh, keep, signature) {

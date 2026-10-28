@@ -131,7 +131,7 @@ test('a shot that fails still puts every flag and the camera back', () => {
   assert.ok(camera.position.equals(was));
 });
 
-test('main.js draws the chapter once before the start button shows, builds its later places then, and draws each new place before it fades in', async () => {
+test('main.js draws the chapter once before the start button shows, builds its later places once it shows, and draws each new place before it fades in', async () => {
   const fs = await import('node:fs');
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(main, /import \{ warmUp \} from '\.\/engine\/warm-up\.js';/);
@@ -140,19 +140,40 @@ test('main.js draws the chapter once before the start button shows, builds its l
   assert.match(start, /ui\.setFade\(1\);/);
   assert.match(start, /getReady\(\)[\s\S]*\.finally\(\(\) => \{[\s\S]*ui\.setFade\(0\.35\);[\s\S]*button\.hidden = false;/);
   assert.doesNotMatch(start.slice(0, start.indexOf('getReady()')), /button\.hidden = false/, 'the button waits for the warm-up');
-  const ready = main.slice(main.indexOf('async function getReady()'), main.indexOf('// Wait for a tap'));
+  const ready = main.slice(main.indexOf('async function getReady()'), main.indexOf('const describeWarm'));
   assert.match(ready, /await characterLodsReady\(\);/);
-  assert.match(ready, /chapter\.warmUp\?\.\(world\)/);
-  assert.match(ready, /for \(const name of chapter\.prepare \?\? \[\]\) warmed\.push\(await prepareAndWarm\(name\)\);/);
+  assert.match(ready, /chapter\.warmUp\?\.\(world, \{ place: world\.location \}\)/, 'drawn for the start place: what it shows');
+  assert.doesNotMatch(ready, /locations\.prepare|chapter\.prepare/, 'the start button does not wait for the later places');
   assert.match(ready, /ui\.tray\.prepare\(warm\.tray\);/);
+  // once the button shows: the later places built a slice at a time, each drawn while the button still waits, then the chapter's later
+  // things (kafli2's far friends), made only while it still waits
+  assert.match(start, /button\.hidden = false;[\s\S]*prepareLater\(\)\.catch\(/);
+  const later = main.slice(main.indexOf('async function prepareLater()'), main.indexOf('function update(dt)'));
+  assert.match(later, /chapter\.later\?\.fetch\?\.\(world\);/);
+  assert.match(later, /forest = await locations\.prepare\(name, \{ sliced: true \}\);\s*\} catch \(error\) \{[\s\S]*?console\.warn\([\s\S]*?continue;/, 'a place that fails to build is said once and left to the scene');
+  assert.match(later, /if \(!stage\.started \|\| ui\.fadeLevel >= 0\.999\) Object\.assign\(entry, await warmPrepared\(name, forest\)\);/);
+  // drawn in parts, a group of meshes by their materials a frame, never over a game that has the canvas (Háls og hali)
+  const parts = main.slice(main.indexOf('async function canvasFree()'), main.indexOf('/** Everything that is done behind the black'));
+  assert.match(parts, /while \(hals\.isOpen\) await nextFrames\(\d+\);/);
+  assert.match(parts, /for \(const meshes of byMaterial\(roots\)\) \{\s*await canvasFree\(\);[\s\S]*?await nextFrames\(1\);/);
+  assert.match(later, /await chapter\.later\.make\(world\);[\s\S]*?await warmChapterInParts\(\[\], null\)/);
+  // the chapter's first find's drawing, shown once behind the button or under the first black; a long black shows the star
+  assert.match(later, /if \(!stage\.started\) warmDrawing\(\);/);
+  const frame = main.slice(main.indexOf('renderer.setAnimationLoop('));
+  assert.match(frame, /if \(warmedPlace !== null\) starInTheBlack\(now\);\s*if \(warmedPlace !== null && stage\.started && ui\.fadeLevel >= 0\.999\) warmDrawing\(\);/);
+  assert.match(later, /if \(chapter\.later\?\.make && !stage\.started\) \{\s*const began = performance\.now\(\);\s*await chapter\.later\.make\(world\);/);
+  // a slice may take 25 ms of a frame while the button waits, 8 while the scene plays, 80 under the black
+  assert.match(main, /slicing\.budget = \(\) => \(!stage\.started \? 25 : ui\.fadeLevel >= 0\.999 \? 80 : 8\);/);
+  assert.match(main, /world\.warmObjects = objects => \{/);
   // a new place: drawn once in the frame it is set up, under the black, with the music lenient round it
   const loop = main.slice(main.indexOf('renderer.setAnimationLoop('));
   assert.match(loop, /if \(warmedPlace !== null && world\.location !== warmedPlace\) \{[\s\S]*music\.lenient\(PLACE_CHANGE\);[\s\S]*warmPlace\([\s\S]*\}\s*render\(\);/);
   assert.match(main, /beforeBuild = \(\) => music\.lenient\(PLACE_CHANGE\);/);
-  assert.match(main, /build: layout => \{\s*beforeBuild\?\.\(\);\s*return createForest\(world, layout\);/);
+  assert.match(main, /build: \(layout, \{ sliced = false \} = \{\}\) => \{\s*if \(sliced\) return createForest\(world, layout, \{ slice: slicing \}\);\s*beforeBuild\?\.\(\);\s*return createForest\(world, layout\);/);
   assert.match(loop, /lodsReady && startReady\) window\.__demoReady = true;/, 'a page is ready for a probe only once the button shows');
-  // A frame under a black screen (the warm-up, a build) says nothing of how the scene draws: the resolution does not adapt to it.
-  assert.match(loop, /adapt\(real, clock\.frozen \|\| ui\.fadeLevel >= 0\.999\);/);
+  // A frame under a black screen (the warm-up, a build) or with a slice of a build in it says nothing of how the scene draws: the
+  // resolution does not adapt to it.
+  assert.match(loop, /adapt\(real, clock\.frozen \|\| ui\.fadeLevel >= 0\.999 \|\| slicedInFrame\);\s*\}\s*slicedInFrame = false;/);
 });
 
 test('while the start screen is black for the warm-up a small gold star breathes in the middle, and fades with the black as the button shows', async () => {

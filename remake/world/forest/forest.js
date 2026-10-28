@@ -1,6 +1,7 @@
 // The forest system: layout in, forest out.
 //
-//   createForest(world, layout) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }
+//   createForest(world, layout, { slice }) -> { group, update(dt, time), heightAt(x, z), butterflies, dispose() }   (a promise; with
+//   `slice` it is built a slice at a time over frames, slices.js, the same forest either way)
 //
 // `butterflies` is the clearing's pale butterflies as tap targets ({ targets: [{ name, point, radius }], flutter(name), land(spec) },
 // atmosphere.js: butterflyLand flies one to a point).
@@ -12,6 +13,17 @@
 //           the clearing (config.js: FOREST.glade), and leaf shadows over its floor unless `leafShadows` says false
 //   leafShadows  true puts leaf shadows on the floor, slowly drifting with the wind (config.js: FOREST.leafShadow); a glade has
 //           them by default, any other forest does not
+//   biome   'fen' grows the Fen instead of the forest (biome.js, FEN in config.js), with `blend: { from, to }` only beyond
+//           the line between those points (the trail from the forest into the Fen)
+//   water   { pools, channel }: the Fen's water (world/props/water.js). The ground is dug out under it (shapeGround below),
+//           plants keep out of it (keepOut), lilies grow on it, and `forest.water` draws it; heightAt is the bed, so an actor
+//           in the water stands on the bottom
+//   hummocks [{ center, radius, height }]: dry mounds raised out of the Fen's floor
+//   plants  [{ name, position: [x, z], scale, variant, rot }]: plants the chapter places itself, first and where it says
+//   mist    [{ center, radius, height, level }]: low mist over the place (world/props/mist.js), `forest.mists` in order
+//   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
+//           the lines between them
+//   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -21,15 +33,20 @@
 //   far.js         the far treeline rings
 //   atmosphere.js  light shafts and motes
 import * as THREE from 'three';
-import { FOREST, leafShadowsOf } from './config.js';
+import { FOREST, FEN, leafShadowsOf } from './config.js';
 import { createTerrain, ACTOR_GLSL } from './terrain.js';
 import { createSpeciesLibrary } from './species.js';
-import { planForest } from './plan.js';
+import { planForestSteps } from './plan.js';
 import { createBatcher, cullBatches, cullCasters } from './batch.js';
-import { createGrass } from './grass.js';
-import { createFarForest } from './far.js';
+import { createGrassSteps } from './grass.js';
+import { createFarForestSteps } from './far.js';
 import { createAtmosphere } from './atmosphere.js';
-import { createNoiseTexture, createLeafTexture, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
+import { createHangingMoss } from './moss.js';
+import { smoothstep, clamp } from './random.js';
+import { createNoiseTextureSteps, createLeafTextureSteps, createSharedUniforms, createVegetationMaterial, createWindDepthMaterial } from './materials.js';
+import { runSync, runSliced, FRESH } from './slices.js';
+import { waterShape, createWaterSteps } from '../props/water.js';
+import { createMist } from '../props/mist.js';
 
 const BAND_SETUP = {
   // receiveShadow near the playable area; shadows come from the caster meshes (batch.js)
@@ -39,7 +56,112 @@ const BAND_SETUP = {
   deep: { receive: false, order: 5 },
 };
 // Kinds whose shadows matter; small plants cast none. The deep band casts nothing.
-const CASTERS = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'rockSmall', 'log']);
+const CASTERS = new Set(['broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'rockSmall', 'log', 'swampConifer', 'deadSnag']);
+// Kinds whose crowns shade the ground round the clearing (terrain.setCanopy), and how much.
+const CANOPY = { broadleaf: 0.9, araucaria: 0.6, swampConifer: 0.75 };
+// Far out the ground mesh is coarse (terrain.js: its rings), so round the water there a broad, shallow hollow keeps the ground
+// under the whole surface: this much lower than the water's edge, past 60 m from the clearing's centre.
+const FAR_DROP = 0.12;
+// Near the clearing the ground at the water's edge stands this much above it, so no bare ground lies lower than the water.
+const BANK = 0.02;
+// Hanging moss is a few centimetres of strand: past this far from the clearing it is not seen, so it is not drawn there.
+const MOSS_REACH = 100;
+
+/**
+ * A layout's ground, shaped as the forest grows it: the layout itself, or a copy whose `lift` digs the Fen's water out of the
+ * floor and raises its hummocks, whose `keepOut` keeps plants and grass out of the water (1 inside its edge, fading to nothing
+ * 0.4 m outside it), and whose `water` answers surfaceAt(x, z) and depthAt(x, z) on that ground. Returns { layout, terrain,
+ * water } (water: the shape, world/props/water.js: waterShape, or null). Each pool and the channel is dug to its depth below
+ * the one level all the water lies at, its bed smooth-stepped over 2.5 times its depth inside the edge (waterShape.bedAt); round
+ * it the ground stands a little above the water at its edge and eases back to its own height within two metres near the
+ * clearing; far out, where the ground mesh is coarse, it lies in a wider hollow a little below the water's edge.
+ */
+export function shapeGround(world, layout, seed = layout.seed ?? 1) {
+  const water = layout.water ? waterShape(layout.water) : null;
+  const hummocks = layout.hummocks ?? [];
+  let shaped = layout;
+  if (water || hummocks.length) {
+    const own = layout.lift;
+    const [cx, cz] = layout.clearing.center;
+    const lift = (x, z, natural) => {
+      let h = natural + (own ? own(x, z, natural) : 0);
+      for (const { center: [hx, hz], radius, height } of hummocks) {
+        const d = Math.hypot(x - hx, z - hz) / radius;
+        if (d < 1) h += height * smoothstep(1, 0.3, d);
+      }
+      if (water) {
+        const r = Math.hypot(x - cx, z - cz);
+        const margin = clamp(2 + (r - 30) * 0.35, 2, 22);
+        const { s, depth } = water.nearest(x, z);
+        if (s < margin) {
+          const bed = s < 0
+            ? water.level - (water.edgeDrop + (depth - water.edgeDrop) * smoothstep(0, 2.5 * depth, -s))
+            : water.level + BANK - (BANK + water.edgeDrop + FAR_DROP) * smoothstep(34, 60, r);
+          const eased = s <= 0 ? bed : bed + (h - bed) * smoothstep(margin * 0.25, margin, s);
+          if (eased < h) h = eased;
+        }
+      }
+      return h - natural;
+    };
+    shaped = { ...layout, lift };
+    if (water) {
+      const ownKeep = layout.keepOut;
+      shaped.keepOut = (x, z) => {
+        const s = water.signedAt(x, z);
+        const wet = s <= 0 ? 1 : 1 - smoothstep(0, 0.4, s);
+        return ownKeep ? Math.max(ownKeep(x, z), wet) : wet;
+      };
+    }
+  }
+  const terrain = createTerrain(world, shaped, seed);
+  if (water) {
+    shaped.water = {
+      ...layout.water, level: water.level, shape: water,
+      surfaceAt: (x, z) => (water.signedAt(x, z) < 0 ? water.level : null),
+      depthAt: (x, z) => (water.signedAt(x, z) < 0 ? Math.max(0, water.level - terrain.heightAt(x, z)) : 0),
+    };
+  }
+  return { layout: shaped, terrain, water };
+}
+
+/** Where the water's faint rings start by themselves: at the lilies, and in the water by roots, reed and stones at its edge. */
+function waterSpots(placements, water) {
+  const kinds = { lily: [], root: [], reed: [], stone: [] };
+  const kindOf = { waterLily: 'lily', swampConifer: 'root', deadSnag: 'root', horsetailReed: 'reed', rock: 'stone', rockSmall: 'stone', log: 'stone' };
+  const e = 0.3;
+  for (const p of placements) {
+    const kind = kindOf[p.name];
+    if (!kind) continue;
+    if (kind === 'lily') { kinds.lily.push([p.x, p.z]); continue; }
+    const s = water.signedAt(p.x, p.z);
+    if (!(s > 0 && s < 2.5)) continue;
+    const gx = water.signedAt(p.x + e, p.z) - water.signedAt(p.x - e, p.z), gz = water.signedAt(p.x, p.z + e) - water.signedAt(p.x, p.z - e);
+    const l = Math.hypot(gx, gz) || 1;
+    kinds[kind].push([p.x - (gx / l) * (s + 0.4), p.z - (gz / l) * (s + 0.4)]);
+  }
+  // some of each kind, spread through each list (placements come in the order the passes grew them, lilies last)
+  const some = (list, n) => list.length <= n ? list : Array.from({ length: n }, (_, i) => list[Math.floor((i * list.length) / n)]);
+  return [...some(kinds.lily, 10), ...some(kinds.root, 10), ...some(kinds.reed, 8), ...some(kinds.stone, 4)];
+}
+
+/**
+ * Points over a place's open water within a mist's disc (a 2 m grid, more than a metre from any edge), for its cards to stand
+ * on: none where an actor stands in the water, so no mist veils legs at the waterline (MIST_CLEAR m round Þórseðla's root,
+ * MIST_CLEAR_OTHERS round every other point the layout's actors name).
+ */
+const MIST_CLEAR = 9, MIST_CLEAR_OTHERS = 5;
+function mistPoints(water, [cx, cz], radius, actors = {}) {
+  const clear = Object.entries(actors).map(([name, a]) => [a.position[0], a.position[2], name === 'thorsedla' ? MIST_CLEAR : MIST_CLEAR_OTHERS]);
+  const points = [];
+  for (let z = cz - radius; z <= cz + radius; z += 2) {
+    for (let x = cx - radius; x <= cx + radius; x += 2) {
+      if (Math.hypot(x - cx, z - cz) > radius || water.signedAt(x, z) >= -1) continue;
+      if (clear.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r)) continue;
+      points.push([x, z]);
+    }
+  }
+  return points;
+}
 
 /**
  * What the forest tells of one plant it grew (info.placementList): its kind, detail level, place and scale, the triangles
@@ -56,15 +178,26 @@ export function placementInfo(p) {
   };
 }
 
-export async function createForest(world, layout) {
+/**
+ * A forest for `layout` (see the top of this file), built at once, or with `slice` ({ budget, wait, onSlice }: slices.js runSliced)
+ * a slice at a time over frames, so that it can be built while the child watches. Either way it resolves to the same forest.
+ */
+export async function createForest(world, layout, { slice = null } = {}) {
+  const steps = forestSteps(world, layout);
+  return slice ? runSliced(steps, slice) : runSync(steps);
+}
+
+function* forestSteps(world, layout) {
   const t0 = performance.now();
   const { scene, q } = world;
   const seed = (layout.seed ?? 1) >>> 0;
   const group = new THREE.Group();
   group.name = 'Forest';
 
-  const noiseTexture = createNoiseTexture(seed);
-  const leafTexture = createLeafTexture(seed);
+  const noiseTexture = yield* createNoiseTextureSteps(seed);
+  yield 'noise';
+  const leafTexture = yield* createLeafTextureSteps(seed);
+  yield 'leaf';
   const shared = createSharedUniforms(world, noiseTexture, leafTexture, leafShadowsOf(layout) ? FOREST.leafShadow.strength : 0);
   const actorUniforms = {
     uActors: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) },
@@ -73,21 +206,28 @@ export async function createForest(world, layout) {
     uActorWarm: { value: FOREST.actorWarm }, // the lighter, warmer ground round characters
   };
 
-  // ground
-  const terrain = createTerrain(world, layout, seed);
+  // ground: the layout's, with the Fen's water dug out and its hummocks raised
+  const ground = shapeGround(world, layout, seed);
+  yield 'ground shaped';
+  layout = ground.layout;
+  const { terrain } = ground;
   const library = createSpeciesLibrary(seed);
-  const plan = planForest({ world, layout, seed, terrain, library, q });
+  const plan = yield* planForestSteps({ world, layout, seed, terrain, library, q });
+  yield 'planned';
 
   // canopy shade from the crowns round the clearing (their ground shadows along the sun)
-  terrain.setCanopy(plan.placements.filter(p => (p.name === 'broadleaf' || p.name === 'araucaria') && p.model.crown && p.band !== 'deep').map(p => {
+  yield* terrain.setCanopySteps(plan.placements.filter(p => CANOPY[p.name] && p.model.crown && p.band !== 'deep').map(p => {
     const cr = p.model.crown, c = Math.cos(p.rot), s = Math.sin(p.rot);
     return {
       x: p.x + (cr.c[0] * c - cr.c[2] * s) * p.scale, y: p.y + cr.c[1] * p.scale, z: p.z + (cr.c[0] * s + cr.c[2] * c) * p.scale,
-      r: cr.r * p.scale, density: p.name === 'araucaria' ? 0.6 : 0.9,
+      r: cr.r * p.scale, density: CANOPY[p.name],
     };
   }), world.lighting.direction);
-  const ground = terrain.createGroundMaterial(shared, actorUniforms); // after planning: soil stamps, canopy
-  const groundMesh = new THREE.Mesh(terrain.buildGroundGeometry(q), ground.material);
+  yield 'canopy';
+  const floor = yield* terrain.createGroundMaterialSteps(shared, actorUniforms); // after planning: soil stamps, canopy
+  yield 'ground material';
+  const groundMesh = new THREE.Mesh(yield* terrain.buildGroundGeometrySteps(q), floor.material);
+  yield 'ground';
   groundMesh.name = 'Forest ground';
   groundMesh.receiveShadow = true;
   groundMesh.renderOrder = 7;
@@ -107,7 +247,8 @@ export async function createForest(world, layout) {
     if (CASTERS.has(p.name) && p.band !== 'deep' && !(low && p.band === 'inner')) batcher.addCaster(p);
   }
   const [ccx, ccz] = layout.clearing.center;
-  const { meshes, casterMeshes } = batcher.build(bucket => {
+  yield 'batched';
+  const { meshes, casterMeshes } = yield* batcher.buildSteps(bucket => {
     const s = BAND_SETUP[bucket.band];
     return { material: bucket.kind === 'thin' ? thin : solid, receiveShadow: s.receive, renderOrder: s.order };
   }, {
@@ -117,15 +258,45 @@ export async function createForest(world, layout) {
   for (const m of meshes) group.add(m);
   for (const m of casterMeshes) group.add(m);
 
+  yield 'plants';
   // grass
-  const grass = createGrass(world, { terrain, layout, seed, shared, actorUniforms, blocked: plan.blocked, q });
+  const grass = yield* createGrassSteps(world, { terrain, layout, seed, shared, actorUniforms, blocked: plan.blocked, q });
   group.add(grass.group);
+  yield 'grass';
 
-  // far forest and air
-  const far = createFarForest({ layout, seed, terrain, q });
+  // far forest and air; the Fen's treeline stands well out, so the Fen opens to it
+  const far = yield* createFarForestSteps({ layout, seed, terrain, q, rings: terrain.biome.fen ? FEN.far.rings : FOREST.far.rings });
   group.add(far.mesh);
+  yield 'far';
   const air = createAtmosphere(world, { layout, seed, terrain, shared, sun: world.lighting.direction, q });
   group.add(air.group);
+  yield 'air';
+
+  // the Fen's water, the moss hanging from its conifers, and the mist low over it
+  const water = layout.water
+    ? yield* createWaterSteps(world, layout.water, terrain.heightAt, { spots: waterSpots(plan.placements, ground.water), seed, centre: layout.clearing.center })
+    : null;
+  if (water) group.add(water.group);
+  yield 'water';
+  // moss hangs only where it can be seen, on the conifers within MOSS_REACH m of the clearing (some 25 ms: a slice of its own)
+  yield FRESH;
+  const moss = createHangingMoss(world, plan.placements.filter(p => Math.hypot(p.x - ccx, p.z - ccz) < MOSS_REACH), shared, {
+    antialias: q.antialias, seed, clear: layout.mossClear ?? [],
+  });
+  if (moss) group.add(moss.mesh);
+  yield 'moss';
+  // the mist lies over the water where there is any, its cards standing on the surface
+  const mists = [];
+  for (const [i, spec] of (layout.mist ?? []).entries()) {
+    yield FRESH; // each some 25 ms: a slice of its own
+    mists.push(createMist(world, {
+      ...spec, seed: seed + i,
+      heightAt: ground.water ? (x, z) => layout.water.surfaceAt(x, z) ?? terrain.heightAt(x, z) : terrain.heightAt,
+      over: ground.water ? mistPoints(ground.water, spec.center, spec.radius, layout.actors) : null,
+    }));
+    yield; // so the next FRESH is not the step this slice began with
+  }
+  for (const mist of mists) group.add(mist.group);
 
   scene.add(group);
 
@@ -143,6 +314,9 @@ export async function createForest(world, layout) {
     casters: casterMeshes.map(m => ({ name: m.name, tris: m.userData.triangles })),
     farTriangles: far.triangles,
     groundTriangles: groundMesh.geometry.index.count / 3,
+    waterTriangles: water ? water.triangles : 0,
+    mossCards: moss ? moss.cards : 0,
+    mistCards: mists.reduce((n, m) => n + m.cards, 0),
     placementList: plan.placements.map(placementInfo),
   };
   if (world.params?.get?.('debug') === '1') console.info('[forest]', info);
@@ -225,6 +399,9 @@ export async function createForest(world, layout) {
     cullIfMoved();
     grass.update(world.camera);
     air.update(world.camera);
+    water?.update(time ?? 0);
+    water?.wade(world.actors.values()); // rings round the feet of whoever stands in the water
+    for (const mist of mists) mist.update(time ?? 0);
   }
 
   return {
@@ -237,12 +414,19 @@ export async function createForest(world, layout) {
     set actorWarm(v) { actorUniforms.uActorWarm.value = v; },
     heightAt: terrain.heightAt,
     butterflies: air.butterflies,
+    /** The Fen's water (world/props/water.js: surfaceAt, depthAt, rippleAt, bubblesAt), or null where there is none. */
+    water,
+    /** The place's low mists (world/props/mist.js: setLevel), in the layout's order. */
+    mists,
     dispose() {
       scene.remove(group);
       groundMesh.geometry.dispose();
-      ground.material.dispose();
-      ground.mask.tex.dispose();
-      ground.mask.shade?.dispose();
+      floor.material.dispose();
+      floor.mask.tex.dispose();
+      floor.mask.shade?.dispose();
+      water?.dispose();
+      moss?.dispose();
+      for (const mist of mists) mist.dispose();
       for (const m of meshes) m.geometry.dispose();
       for (const m of casterMeshes) m.geometry.dispose();
       if (shadow && updateShadowMatrices) shadow.updateMatrices = updateShadowMatrices;

@@ -3,8 +3,9 @@ import { DUCK_DB } from '../audio/music.js';
 // The sound of "Eitt!" (spec section 9): the table's effects and the game's own music.
 //
 // The effects are small, bright sounds made on the spot with the game's own tools (engine/audio/sfx.js: tone, noise and bell),
-// tuned as the book's are (engine/book/book-sounds.js): every note is a note of the theme's key (theme.json) or an octave of one.
-// The table plays them through its own instance of the effects (createSfx with `sounds: eittSounds`), which the chapter's hold does
+// tuned as the book's are (engine/book/book-sounds.js): every note is a note of the key they are given or an octave of one, the
+// game's own music's (assets/audio/eitt/music.json, C major), else the page theme's (engine/audio/game-music.js).
+// The table plays them through its own instance of the effects (createGameSfx with `sounds: eittSounds`), which the chapter's hold does
 // not reach, so they sound while the chapter stands still behind the game.
 //
 // The music is a track of its own (assets/audio/eitt/music.mp3, which the owner picked by ear and which is cut to loop): it loops with

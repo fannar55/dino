@@ -94,18 +94,20 @@ function rig() {
     return stage.s.say(speaker, line, options);
   };
   const found = [];
+  const hows = []; // [name, how] for every find
   const search = ({ onFound, ...options } = {}) => stage.start(() => searchFlow({ s, director }, {
     targets: FLOWERS,
-    onFound(name, index) {
+    onFound(name, index, how) {
       found.push({ name, index, time: stage.s.time });
-      return onFound?.(name, index);
+      hows.push([name, how]);
+      return onFound?.(name, index, how);
     },
     ...options,
   }));
   const run = (seconds, dt = 0.1) => {
     for (let i = 0; i < Math.round(seconds / dt); i++) stage.update(dt);
   };
-  return { stage, pointer, director, captions, said, found, search, run };
+  return { stage, pointer, director, captions, said, found, hows, search, run };
 }
 
 test('search completes when all targets are tapped in any order', () => {
@@ -323,6 +325,53 @@ test('hintAfter, helpAfter and speaker are the knobs of the hint', () => {
   run(4.8);
   assert.deepEqual(found.map(f => [f.name, f.time]), [['stone', 10]], 'one hint, then it is found');
   assert.equal(director.calls.hint.length, 1);
+});
+
+test('a target may have a line for each hint, and a child who was helped is helped sooner until they tap again (quick)', () => {
+  const { said, pointer, found, search, run } = rig();
+  const lines = ['hint.stone', 'hint.ferns', 'hint.tree']; // first, second, third hint (any lines will do)
+  const task = search({ targets: FLOWERS.map(f => ({ ...f, hint: lines })), quick: { hintAfter: 6, helpAfter: 1 } });
+  run(48.1);
+  assert.deepEqual(said.map(l => [l.time, l.line]), [[12, 'hint.stone'], [24, 'hint.ferns'], [36, 'hint.tree']], "the stone's three hints, a line each");
+  assert.deepEqual(found.map(f => [f.name, f.time]), [['stone', 48]], 'found for the child at 48 s');
+  run(6);
+  assert.deepEqual(said.at(-1), { time: 54, speaker: 'mosi', line: 'hint.stone' }, "the ferns' first hint comes 6 s after the help, its first line");
+  run(6);
+  assert.deepEqual(found.map(f => [f.name, f.time]), [['stone', 48], ['ferns', 60]], 'and the ferns are found for the child 6 s after that');
+  pointer.tap('tree');
+  run(0.2);
+  assert.equal(task.done, true);
+  run(20);
+  assert.equal(said.length, 4, 'nothing more after the end');
+});
+
+test('after the child taps one again, the quick pacing is over: the next waits the whole time', () => {
+  const { said, pointer, found, search, run } = rig();
+  search({ quick: { hintAfter: 6, helpAfter: 1 } });
+  run(48.1); // the stone is found for the child at 48 s: the ferns are hinted at sooner now
+  pointer.tap('ferns'); // but the child taps the ferns
+  run(0.2);
+  const at = found.at(-1).time;
+  assert.deepEqual(found.map(f => f.name), ['stone', 'ferns']);
+  run(11.7);
+  assert.equal(said.length, 3, 'no quick hint 6 s after the tap: the three for the stone only');
+  run(0.4);
+  assert.equal(said.length, 4, "the tree's first hint comes 12 s after the tap");
+  assert.ok(near(said.at(-1).time, at + 12));
+});
+
+test('onFound hears how each was found: tapped, helped or by the seek', () => {
+  const child = rig();
+  child.search({ targets: FLOWERS.slice(0, 2) });
+  child.run(0.2);
+  child.pointer.tap('ferns');
+  child.run(48.2);
+  assert.deepEqual(child.hows, [['ferns', 'tapped'], ['stone', 'helped']]);
+  const seek = rig();
+  seek.stage.seeking = true;
+  seek.search({ targets: FLOWERS.slice(0, 1) });
+  seek.run(3.2);
+  assert.deepEqual(seek.hows, [['stone', 'seeking']]);
 });
 
 test('a search needs a hint line for each target and a different name for each', () => {

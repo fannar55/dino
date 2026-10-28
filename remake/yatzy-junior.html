@@ -8,6 +8,7 @@
   <link rel="icon" href="data:,">
   <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./yatzy-junior.css">
+  <link rel="stylesheet" href="./fjolspil.css">
   <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script>
 </head>
 <body>
@@ -21,11 +22,9 @@
       <span class="cup-ring" aria-hidden="true"><span class="cup-tag"><span id="cup-label">Kasta</span><span class="cup-pips"><i></i><i></i><i></i></span></span></span>
     </button>
 
-    <!-- The two players, top left: round portraits with the score hanging under them, and the five rounds as pips. -->
-    <div class="players" aria-label="Stig beggja">
-      <div id="you-card" class="player-card current" style="--c:var(--teal);--c-deep:var(--teal-deep)"><span class="portrait" aria-hidden="true"><b>Þú</b></span><strong id="you-total" class="score">0</strong><span class="pname">Þú</span></div>
-      <div id="mosi-card" class="player-card" style="--c:var(--sage);--c-deep:var(--sage-deep)"><span class="portrait" aria-hidden="true"><img src="./assets/eitt/mosi.webp" alt=""></span><strong id="mosi-total" class="score">0</strong><span class="pname">Mosi</span></div>
-    </div>
+    <!-- The players, top left: round portraits with the score hanging under them (game.js buildPlayers: the child and Mosi, or
+         the two to four seats of "Fjölspil"), and the five rounds as pips. -->
+    <div class="players" aria-label="Stig beggja"></div>
     <div class="rounds" id="rounds"><i></i><i></i><i></i><i></i><i></i><span id="round">1 af 5</span></div>
 
     <!-- Top right: leave the practice, pause, and (on its own page) back to the book. In the book, the book draws the close. -->
@@ -55,7 +54,8 @@
       <button id="advice" type="button" tabindex="-1" hidden>Hjálp</button>
     </div>
 
-    <!-- The five cards along the bottom. -->
+    <!-- The five cards along the bottom; in "Fjölspil" they are the player's on turn, and her name is on the tag at the row's left end. -->
+    <p id="card-owner" hidden></p>
     <div id="score-rows" role="group" aria-label="Veldu eitt laust spjald"></div>
 
     <!-- "Spyrja Mosa": his face with a "?", bottom left. -->
@@ -63,6 +63,8 @@
 
     <div id="loading"><span class="loading-mosi" aria-hidden="true"><img src="./assets/book/images/mosi-render.webp" alt=""><i></i><i></i><i></i></span><h2>Mosi gerir borðið tilbúið…</h2><p>Rétt að byrja!</p></div>
     <div id="error" hidden><img class="error-mosi" src="./assets/eitt/mosi.webp" alt=""><h2>Borðið náði ekki að opnast</h2><p>Prófum aftur.</p><button class="big" type="button" onclick="location.reload()">Reyna aftur</button></div>
+    <!-- "Fjölspil": the lobby and the waiting card of the page's own room (engine/fjolspil/lobby.js, fjolspil.css), over the table. -->
+    <div id="fjolspil" class="fjolspil" hidden></div>
   </section>
 </main>
 
@@ -71,9 +73,13 @@
   <h2>Litla Yatzy við Mosa</h2>
   <div class="panel-say"><p>Fimm teningar. Fimm spjöld. Við prófum saman!</p><button id="welcome-voice" class="hear" type="button" aria-label="Heyra Mosa lesa upphafsvalmyndina"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button></div>
   <div class="panel-actions">
+    <button id="continue-multi" class="big" type="button" hidden>Halda áfram (Fjölspil)</button>
     <button id="continue" class="big" type="button" autofocus hidden>Halda áfram</button>
     <button id="learn" class="big" type="button" autofocus>Læra með Mosa</button>
-    <button id="start" class="plain" type="button">Spila</button>
+    <div class="panel-row">
+      <button id="multi" class="plain" type="button">Fjölspil</button>
+      <button id="start" class="plain" type="button">Spila</button>
+    </div>
   </div>
 </dialog>
 <dialog id="pause-dialog" class="panel">
@@ -115,6 +121,8 @@
     <button class="plain" type="button" data-close>Skoða spjöldin</button>
   </div>
 </dialog>
+<!-- The QR code's encoder for the lobby (engine/fjolspil/qr.js): a classic script that defines the global qrcode. -->
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
 <script>
 // In the book (engine/yatzy-junior/frame.js opens this page in a frame, ?inbook=1) the book draws its round close top right, so
 // the page's own close stays hidden there; on its own page that close goes back to where the child came from.

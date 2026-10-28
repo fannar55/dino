@@ -25,15 +25,24 @@ import { addPlateGlow } from '../engine/plate-glow.js';
 import { createGlowFlower } from '../world/props/glow-flower.js';
 import { createCritters } from '../world/critters/critters.js';
 import { butterflyLand } from '../world/forest/atmosphere.js';
+import { HERO } from '../world/forest/butterflies.js';
 import { pollenBurst } from '../world/props/pollen.js';
+import { MOUTH_RATE } from '../engine/talk.js';
 import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { WINK_SECONDS } from '../engine/sun-face.js';
+import { tapOrWait } from '../engine/scene/tap-or-wait.js';
 
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
 
-const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the clearing, out of sight until scene 2
+const MOSI_ENTERS = [-24, 6.95]; // on the path in the forest west of the clearing: where scene 2 finds him, already trotting
+// Where he is at the first frame, 25 m further down the path in the forest (the path's corner at [-32, 9.6] between): at WALK_IN_SPEED
+// he reaches MOSI_ENTERS as scene 2 begins, 22.9 s into the story (the fade, the 15 s down from the sun, the handheld, the 5 s look
+// round), so he is seen trotting in through the trees while the camera comes down, and never pops into the picture (the owner's
+// bug report of 2026-10-25); scene 2 goes on exactly as before.
+const MOSI_FAR = [-48, 14.3];
+const WALK_IN_SPEED = 1.1;
 const MOSI_WALK_IN = [[-16, 4], [-9.9, 2.3], [-4.8, 1]];
 const MOSI_STOP = [0.5, 0.1];
 const EGILL_WAITS = { position: [7.9, 0, 2.3], heading: 209 };
@@ -86,6 +95,8 @@ const MOSI_FEET = [
 // the ride, away from Mosi coming along the path through the light.
 const RIDE_BIRDS = [[21.0, -5.8, 200], [21.7, -6.35, 160], [22.3, -6.0, 230]];
 const RIDE_BIRDS_UP = { after: 4, from: [20.2, -5.6], reach: 3 };
+// Seconds of quiet on the ride between the end of Mosi's two lines (their captions too) and the cut to the first critter.
+const RIDE_QUIET = 0.3;
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade
@@ -288,9 +299,12 @@ const SUN_WAVES = 1.2;
 // Seconds after the star appears (scene 10) at which the sun hugs itself.
 const SUN_HUGS = 0.2;
 
-// 1. Morning in the forest: no words. Wide over the treetops toward the smiling sun, then slowly down and in.
+// 1. Morning in the forest: no words. Wide over the treetops toward the smiling sun, then slowly down and in, and Mosi already
+// trotting in along the path through the trees, far off (MOSI_FAR), as the clearing comes into the picture.
 function* morning(s, c) {
   mark(c, 1);
+  // The whole walk in, from the forest to his place by Egill: scene 2 picks it up at MOSI_ENTERS (c.walkIn).
+  c.walkIn = c.mosi.walkTo([[-32, 9.6], MOSI_ENTERS, ...MOSI_WALK_IN, MOSI_STOP], { speed: WALK_IN_SPEED });
   const flowers = flowersNear(c.world, BUTTERFLY_FLOWERS);
   if (flowers) butterflyLand(c.world, flowers);
   // As the picture comes up the sun waves hello with a big grin (added after the test play of 17 October).
@@ -302,14 +316,14 @@ function* morning(s, c) {
   yield s.lookAround({ yaw: [-28, 28], pitch: [-8, 10] }, 5);
 }
 
-// 2. Mosi comes, humming the theme; Egill calls up to him with a hop and a wave, and Mosi sees him (the call was added after the
-// test play of 17 October). The hum is over long before the call, as Mosi comes out of the trees, so nothing cuts it short.
+// 2. Mosi comes out of the trees (he has been trotting in since the first frame: morning), humming the theme; Egill calls up to him
+// with a hop and a wave, and Mosi sees him (the call was added after the test play of 17 October). The hum is over long before the
+// call, so nothing cuts it short.
 function* mosiComes(s, c) {
   mark(c, 2);
   const { mosi, egill } = c;
   yield s.camera.cut('waiting');
-  mosi.raw.root.visible = true;
-  const walk = mosi.walkTo([...MOSI_WALK_IN, MOSI_STOP], { speed: 1.1 });
+  const walk = c.walkIn;
   yield s.wait(2.2);
   yield s.say('mosi', 'k1_mosi_hum');
   yield s.camera.cut('track');
@@ -340,9 +354,19 @@ function* mosiComes(s, c) {
   yield s.say('mosi', 'k1_mosi_waving');
 }
 
-// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins (its mouth track in
-// assets/audio/lines.json; tests/kafli1.test.mjs reads it there).
-const ATSJU = 1.95;
+// The "atsjú!" of "A… a… atsjú!": seconds into its recording, where the last burst of sound begins, read from its mouth track
+// (assets/audio/lines.json; tests/kafli1.test.mjs reads it the same way), so a new take of the line moves the pollen with it.
+// A line without a recording (no mouth track) sneezes ATSJU seconds in.
+export function lastBurst(mouth) {
+  const loud = [...(mouth ?? '')].map(level => parseInt(level, 16) > 0);
+  let at = loud.lastIndexOf(true);
+  if (at < 0) return null;
+  while (at > 0 && loud[at - 1]) at--;
+  return at / MOUTH_RATE;
+}
+const ATSJU = 1.5;
+/** Seconds into the sneeze where the pollen flies: the last burst of its mouth track, or ATSJU without one. */
+export const atsjuOf = mouth => lastBurst(mouth) ?? ATSJU;
 // Seconds the nose still waits for its second tap once the giggle of the first is over.
 const NOSE_AGAIN = 4;
 
@@ -354,6 +378,7 @@ function* hello(s, c) {
   yield s.camera.cut('intro');
   yield s.all(mosi.turnTo('egill'), s.camera.push({ distance: 0.4, duration: 4 }));
   s.camera.handheld(0.5, { duration: 1.5 });
+  yield s.say('mosi', 'k1_mosi_fannar'); // he has not seen a person since Fannar, who sent word that Egill was coming (the owner, 2026-10-25)
   yield s.say('mosi', 'welcome');
   // The child may tap his nose: once it tickles, the second time he sneezes, and the pollen flies on the "atsjú!". The nose
   // waits 5 s for a first tap, and after the giggle at least NOSE_AGAIN more for the second, so a child who finds it late
@@ -364,7 +389,7 @@ function* hello(s, c) {
   for (let taps = 0; taps < 2 && s.time < until;) {
     if ((yield s.race(s.tap('nose'), s.wait(until - s.time))) === undefined) break;
     taps++;
-    if (taps === 2) s.after(ATSJU, () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
+    if (taps === 2) s.after(atsjuOf(s.lineMouth('k1_mosi_sneeze')), () => pollenBurst(world, onBone(mosi.raw, ...POINTS.mosiSneeze)));
     yield s.say('mosi', taps === 1 ? 'k1_mosi_tickle' : 'k1_mosi_sneeze');
     until = Math.max(until, s.time + NOSE_AGAIN);
   }
@@ -376,7 +401,7 @@ function* festival(s, c) {
   mark(c, 4);
   const { world, mosi } = c;
   yield s.camera.cut('face');
-  butterflyLand(world, onBone(mosi.raw, ...POINTS.mosiHorn)); // a butterfly comes to rest on his horn
+  butterflyLand(world, onBone(mosi.raw, ...POINTS.mosiHorn), { name: HERO }); // the hero butterfly (its own model) comes to rest on his horn
   s.camera.handheld(0.5, { duration: 1.5 });
   yield mosi.lookAt('camera', { weight: 0.7 });
   s.camera.push({ distance: 0.6, duration: 8 });
@@ -450,8 +475,85 @@ function* upOnBack(s, c) {
   yield rising;
   yield spellSaid();
   yield s.say('egill', 'k1_egill_wow');
+  yield* butterflyIntoTheBook(s, c);
   yield mosi.lookAt(null);
   yield s.say('mosi', 'k1_mosi_hold');
+}
+
+// Seconds the child has to tap the butterfly on his horn, from the end of Mosi's asking, before it flies off into the book by itself.
+const BUTTERFLY_ASK_WAIT = 8;
+// Seconds the book a script opened stays open after Mosi has said how to shut it, before it shuts by itself.
+const BOOK_SHUTS_AFTER = 10;
+// Metres: the hero butterfly within this of the horn's point still sits on it.
+const ON_HORN = 0.35;
+// Seconds the butterfly's picture takes to fly into the book's button, and a moment to land (engine/scene/journal.js FLIGHT_SECONDS).
+const INTO_THE_BOOK = 1.8;
+// Close over Egill's right shoulder, from the saddle, toward the butterfly on the right brow horn.
+const BUTTERFLY_CLOSE = { position: { actor: 'egill', part: 'head', offset: [-0.2, 0.3, 0.42], local: true }, fov: 34 };
+
+/**
+ * The butterfly that came to rest on his horn in the festival scene goes into the book, the first animal there, and the book opens
+ * for the first time (the owner, 2026-10-25). Close over Egill's shoulder, Mosi says it is in his way and asks Egill to tap it; the
+ * tap sends it up and away and its picture into the book (butterflyTaps), and a child who taps nothing sees it fly off by itself
+ * after BUTTERFLY_ASK_WAIT. A child who tapped it (or another butterfly) earlier has the book's first animal already, and hears only
+ * the book. Then the book opens by itself on its animals, Mosi tells what the book is for and how to shut it, its close beckoning
+ * meanwhile; the child shuts it, or it shuts by itself after BOOK_SHUTS_AFTER. A child who taps inside it makes it theirs, and the
+ * game then waits (the clock held) until they shut it.
+ */
+function* butterflyIntoTheBook(s, c) {
+  const { world, mosi } = c;
+  const butterflies = world.forest?.butterflies;
+  const horn = onBone(mosi.raw, ...POINTS.mosiHorn);
+  const at = new THREE.Vector3();
+  const hornAt = new THREE.Vector3();
+  const onHorn = () => Boolean(butterflies?.hero?.group) && butterflies.hero.group.getWorldPosition(at).distanceTo(world.resolvePoint(horn, hornAt)) < ON_HORN;
+  // Ask while it sits on the horn; where there is no hero to see (a test's world), while no butterfly is in the book yet.
+  const ask = butterflies?.hero?.group ? onHorn() : !s.journal.findings.includes('butterfly');
+  if (ask) {
+    yield s.camera.cut({ position: BUTTERFLY_CLOSE.position, target: horn, fov: BUTTERFLY_CLOSE.fov });
+    s.camera.handheld(0.4, { duration: 1 });
+    const glitter = s.after(0, () => glitterAt(s, c, out => world.resolvePoint(horn, out)));
+    try {
+      yield s.say('mosi', 'k1_mosi_butterfly');
+      yield s.race(s.tap(HERO), s.wait(BUTTERFLY_ASK_WAIT));
+      // A tap sent it off and into the book (butterflyTaps); with none (or a capture's stand-in tap) it flies off by itself, and into
+      // the book all the same.
+      if (!s.journal.findings.includes('butterfly')) {
+        butterflies?.flutter?.(HERO);
+        sparkleBurst(world, world.resolvePoint(horn, hornAt).clone(), { count: 14, duration: 0.8, seed: 'hero off' });
+        s.sfx('butterfly');
+        s.found('butterfly');
+      }
+    } finally {
+      glitter.cancel();
+    }
+    yield s.wait(INTO_THE_BOOK);
+  }
+  s.journal.open('animals');
+  yield s.say('mosi', 'k1_mosi_book');
+  s.journal.beckonClose(true);
+  try {
+    yield s.say('mosi', 'k1_mosi_book_close');
+    yield s.race(s.until(() => !s.journal.isOpen), s.wait(BOOK_SHUTS_AFTER));
+  } finally {
+    s.journal.beckonClose(false);
+  }
+  if (s.journal.isOpen) s.journal.close();
+  yield s.wait(0.6);
+}
+
+/** Sparkles round a point, a burst every GLITTER_EVERY seconds, asking for a tap there; `pointOf(out)` says where. */
+function* glitterAt(s, c, pointOf) {
+  const at = new THREE.Vector3();
+  for (let i = 0; ; i++) {
+    pointOf(at);
+    const k = i * 2.39996;
+    at.x += Math.cos(k) * 0.12;
+    at.z += Math.sin(k) * 0.12;
+    at.y += 0.05;
+    sparkleBurst(c.world, at.clone(), { count: 10, duration: 1.0, size: 0.22, spread: 0.3, seed: `horn glitter ${i % 8}` });
+    yield s.wait(GLITTER_EVERY);
+  }
 }
 
 // 6. On the path: the ride to Kambeðla, past critters the child may tap.
@@ -488,9 +590,14 @@ function* onThePath(s, c) {
   // A second into the ride Mosi names the visit and then tells Egill to look out for small animals, said as one. His voice is theirs
   // from the ride's first frame, the second's wait inside the claim, so a remark about a critter tapped at once, even in that second,
   // waits for both (the critter itself reacts and goes in the journal at the tap). He must be done before the camera shows the first
-  // critter, the beetle in rideFeet. That cut is timed to his front foot reaching the beetle, so it is the start of the two lines that
-  // gives way (tests/kafli1.test.mjs checks it, and the early tap).
-  s.after(0, () => speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters'));
+  // critter, the beetle in rideFeet: that cut comes as his front foot reaches the beetle, or once the two lines are over (their
+  // captions too) and RIDE_QUIET more, whichever is later, so a take of any length fits (tests/kafli1.test.mjs checks it, and the
+  // early tap).
+  let rideLinesOver = null; // the scene time the two lines ended
+  s.after(0, function* rideLines() {
+    yield speak(s, c, 1, 'k1_mosi_visit', 'k1_mosi_critters');
+    rideLinesOver = s.time;
+  });
   // Ahead in the forest, looking back along the path through the light: Mosi comes, Egill on his back.
   yield s.camera.cut('rideWide');
   s.camera.handheld(0.4, { duration: 2 });
@@ -499,6 +606,7 @@ function* onThePath(s, c) {
   yield s.camera.cut('rideClose');
   yield s.camera.follow('egill', RIDE_CLOSE);
   yield past(17.5, 4);
+  yield s.until(() => rideLinesOver !== null && s.time >= rideLinesOver + RIDE_QUIET);
   // By the path, looking down at the soft soil: the beetle near, and Mosi's big feet stepping past and pressing their
   // prints into it.
   yield s.camera.cut('rideFeet');
@@ -745,16 +853,6 @@ function* glitterSaddle(s, c) {
   }
 }
 
-/** A required tap on an actor that also ends by itself when `idle` is done (R12): a hint-free wait for the child. */
-function* tapOrWait(s, name, idle) {
-  s.target(name, { point: name, radius: 0.7 });
-  try {
-    return yield s.race(s.tap(name), idle);
-  } finally {
-    s.target(name, null);
-  }
-}
-
 /**
  * A line of Mosi's on the ride, or several one right after the other: the critters' remarks wait for the last of them
  * and it waits for them. (Said together they keep the one claim on his voice, so no remark gets in between.) A number
@@ -807,18 +905,29 @@ function* footfalls(s, c) {
   const lift = foot => foot.getWorldPosition(p).y - c.world.heightAt(p.x, p.z);
   const rest = feet.map(lift);
   const down = feet.map(() => true);
+  // How loud a step is: full within STEPS_NEAR metres of the camera, nothing beyond STEPS_FAR, so his trot in from the forest
+  // (scene 1, from MOSI_FAR) is heard coming rather than thumping at full volume from 48 m away.
+  const level = () => {
+    const rig = c.world.director?.rig?.position;
+    if (!rig) return 1;
+    const d = c.mosi.raw.root.position.distanceTo(rig);
+    return Math.min(1, Math.max(0, (STEPS_FAR - d) / (STEPS_FAR - STEPS_NEAR)));
+  };
   for (;;) {
     feet.forEach((foot, i) => {
       const up = lift(foot) - rest[i];
       if (down[i] && up > 0.03) down[i] = false;
       else if (!down[i] && up < 0.008) {
         down[i] = true;
-        s.sfx('step');
+        const loud = level();
+        if (loud > 0) s.sfx('step', { level: loud });
       }
     });
     yield;
   }
 }
+const STEPS_NEAR = 12;
+const STEPS_FAR = 40;
 
 /** The clearing's critters and butterflies, ready to tap; `leave()` takes them away again. */
 function setUpClearing(s, c) {
@@ -896,6 +1005,7 @@ function setUpGlade(s, c) {
 export const chapter = {
   id: 'kafli1',
   title: 'Boð til kambeðlunnar',
+  next: 'kafli2', // when its script ends, the book shows an "Áfram" into chapter 2 (main.js)
   look: 'morning',
   start: 'rjodur',
   locations: {
@@ -935,7 +1045,7 @@ export const chapter = {
     },
   },
   actors: {
-    mosi: { url: '../assets/characters/mosi.glb', position: [MOSI_ENTERS[0], 0, MOSI_ENTERS[1]], heading: -19 },
+    mosi: { url: '../assets/characters/mosi.glb', position: [MOSI_FAR[0], 0, MOSI_FAR[1]], heading: -16 }, // facing down the path
     egill: { url: '../assets/characters/egill.glb', ...EGILL_WAITS },
     kambedla: { url: '../assets/characters/stegosaurus.glb', position: [0, 0, -400], heading: 0 },
   },
@@ -952,6 +1062,7 @@ export const chapter = {
     k1_mosi_hum: { text: 'Mm, mm-mm-mm, mm-mm-mmm… mm-mm-mm, mmm.', audio: 'k1_mosi_hum' },
     k1_egill_hey: { text: 'Hey þú! Ég er hérna niðri!', audio: 'k1_egill_hey' },
     k1_mosi_waving: { text: 'Ó! Ég sé einhvern veifa!', audio: 'k1_mosi_waving' },
+    k1_mosi_fannar: { text: 'Ég hef ekki séð manneskju á þessum slóðum mjög lengi, ekki síðan Fannar var hér. Hann sendi mér skilaboð um að núna væri Egill að koma.', audio: 'k1_mosi_fannar' },
     welcome: { text: 'Halló, Egill! Velkominn heim til mín! Ég heiti Mosi. Eigum við að skoða okkur aðeins um saman?', audio: 'welcome' },
     k1_mosi_tickle: { text: 'Hí, hí, það kitlar!', audio: 'k1_mosi_tickle' },
     k1_mosi_sneeze: { text: 'A… a… atsjú!', audio: 'k1_mosi_sneeze' },
@@ -964,6 +1075,9 @@ export const chapter = {
     k1_mosi_great: { text: 'Frábært! Sólin bíður ekki eftir okkur.', audio: 'k1_mosi_great' },
     k1_mosi_hocus: { text: 'Hókus pókus, hnakkur! Upp með þig, Egill!', audio: 'k1_mosi_hocus' },
     k1_egill_wow: { text: 'Vá! Ég sé yfir allt!', audio: 'k1_egill_wow' },
+    k1_mosi_butterfly: { text: 'Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.', audio: 'k1_mosi_butterfly' },
+    k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og risaeðlurnar sem við hittum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
+    k1_mosi_book_close: { text: 'Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.', audio: 'k1_mosi_book_close' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },
     k1_mosi_critters: { text: 'Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.', audio: 'k1_mosi_critters' },
@@ -995,8 +1109,8 @@ export const chapter = {
   },
   // The camera shows this shot while the start button waits: the sunrise over the clearing.
   startShot: 'dawn',
-  // The glade is built behind the start button and kept, hidden (engine/locations.js: prepare), so the change of place in scene 6
-  // is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
+  // The glade is built once the start button shows, a slice at a time (main.js: prepareLater), and kept, hidden (engine/locations.js:
+  // prepare), so the change of place in scene 6 is only its two fades. Two forests stay resident from then on, as they did from scene 7 before: 31.5 MB more geometry and 32 MB
   // more JS heap, the textures under 40 MB (measured 2026-10-17).
   prepare: ['burknalaut'],
 
@@ -1004,7 +1118,8 @@ export const chapter = {
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
    * black as it comes to a place. The first draw of anything builds its shaders, which held the first play up for 0.2 to 0.6 s
    * wherever something showed for the first time. `objects` are drawn in every view whatever their state: the actors (their
-   * eyelids as if shut, Mosi's saddle before it pops on, Kambeðla with her plate glow, out of sight in the clearing) and
+   * eyelids as if shut, Mosi's saddle before it pops on, Kambeðla with her plate glow, out of sight in the clearing), the hero
+   * butterfly's model (world/forest/butterflies.js: under the clearing's butterflies, wherever its loop has it) and
    * throwaways of what comes later: a glow flower glimmering, one of each critter and a bird, a print of Mosi's feet, a sparkle
    * burst and a puff of pollen. `shots` are the views whose shadow passes draw what the story's do (the forest's casters as the
    * camera rises with the float, the ride's critters); a place adds its own (locations[name].warmUp). `tray` is the tray's
@@ -1025,7 +1140,10 @@ export const chapter = {
       pollenBurst(world, new THREE.Vector3(...ground(0, 0)), { count: 4, seed: 'warm-up' }),
     ];
     return {
-      objects: [...[...world.actors.values()].map(actor => actor.root), flower.group, critters.group, prints.mesh],
+      objects: [
+        ...[...world.actors.values()].map(actor => actor.root), flower.group, critters.group, prints.mesh,
+        ...(world.forest?.butterflies?.hero ? [world.forest.butterflies.hero.group] : []),
+      ],
       shots: ['dawn', 'egillWaves', 'mountHigh', 'rideFeet'],
       tray: TRAY,
       dispose() {
@@ -1047,8 +1165,7 @@ export const chapter = {
     world.chapterTimeline = [];
     egill.raw.footprintScale = EGILL_FOOTPRINT;
     const c = { s, world, mosi, egill, kambedla, talking: false };
-    // Mosi waits out of sight on the path until scene 2; Kambeðla is in her glade, not in the clearing.
-    mosi.raw.root.visible = false;
+    // Mosi is far down the path in the forest, to trot in from the first frame (MOSI_FAR); Kambeðla is in her glade, not in the clearing.
     kambedla.raw.root.visible = false;
     c.saddle = createSaddle(mosi.raw); // hidden until it pops on in scene 5
     c.glow = world.effects.add(addPlateGlow(kambedla.raw)); // her plates are grey until the flowers light them

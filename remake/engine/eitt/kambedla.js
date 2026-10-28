@@ -1,20 +1,25 @@
-// Kambeðla's choices at the table. She has no view of the child's cards, only of how many there are.
+// Kambeðla's choices at the table, in whichever seat she sits. She has no view of the other players' cards, only of how many there
+// are.
 //
 // At skill 1 she plays sharp: she keeps her wilds for last and her +2s for the attack, plays a +2 or a +4 as soon as the
-// other player is down to 2 cards or fewer (spec section 6: "spilar +2 og +4 þegar barnið nálgast Eitt!"), and picks the
-// colour she holds most of. Mosi's advice is the same sharp choice, made with the child's cards (advice.js). At skill 0 she is mild: any card that may be
-// played, and a colour at random. In between, each choice is a sharp one with a chance equal to her skill, and she
-// forgets to call "Eitt!", or to notice that the child forgot it, more and more as her skill falls.
+// next player (the one about to move after her, whom it hits) is down to 2 cards or fewer, however few anyone else holds (spec
+// section 6: "spilar +2 og +4 þegar barnið nálgast Eitt!", and spec §7.3 of the Fjölspil design), and picks the colour she holds
+// most of. Mosi's advice is the same sharp choice, made with the child's cards (advice.js). At skill 0 she is mild: any card that
+// may be played, and a colour at random. In between, each choice is a sharp one with a chance equal to her skill, and she
+// forgets to call "Eitt!", or to notice that another player forgot it, more and more as her skill falls.
 //
 // All the random numbers come in as `random()`, a function that gives numbers in [0, 1), so a seeded round is
 // played the same way every time.
 
-import { COLOURS, isWild, other, playable } from './rules.js';
+import { COLOURS, isWild, next, playable } from './rules.js';
 import { clampSkill } from './skill.js';
 
-export const ATTACK_AT = 2; // a +2 or +4 is played when the other player is down to this many cards, or fewer
+export const ATTACK_AT = 2; // a +2 or +4 is played when the next player is down to this many cards, or fewer
 const REMEMBER_EITT_AT_ZERO = 0.2; // the chance that she calls "Eitt!" at skill 0 (at skill 1 it is 1)
 const NOTICE_AT_ZERO = 0.3; // the chance that she catches a forgotten "Eitt!" at skill 0
+
+/** The seat that moves after `who`, the one a +2 or a +4 of theirs hits: on `who`'s turn, next(game). */
+export const nextAfter = (game, who) => next({ ...game, turn: who });
 
 const pick = (list, random) => list[Math.min(list.length - 1, Math.floor(random() * list.length))];
 
@@ -25,25 +30,25 @@ export function bestColour(cards, random = () => 0) {
   return pick(COLOURS.filter((colour, i) => held[i] === most), random);
 }
 
-// How much a sharp player wants to play `card` now (higher is better): attacks when the other is nearly out, then
+// How much a sharp player wants to play `card` now (higher is better): attacks when the next player is nearly out, then
 // the skips and reverses that give another turn, then numbers, with the colour held most winning among equals, then a
 // +2 kept for the attack, then the wilds.
-function worth(card, hand, otherCards) {
-  const attack = otherCards <= ATTACK_AT;
+function worth(card, hand, nextCards) {
+  const attack = nextCards <= ATTACK_AT;
   if (attack && card.kind === 'draw2') return 400;
   if (attack && card.kind === 'wild4') return 390;
   if (card.kind === 'wild') return 0; // wilds are kept for last, the +4 longest of all
   if (card.kind === 'wild4') return -10;
   const held = hand.filter(mine => mine.colour === card.colour).length;
-  if (card.kind === 'draw2') return 50 + held; // kept until the other is nearly out, unless nothing else but a wild goes
+  if (card.kind === 'draw2') return 50 + held; // kept until the next player is nearly out, unless nothing else but a wild goes
   return (card.kind === 'number' ? 100 : 200) + held; // skip and reverse give another turn
 }
 
 function sharpCard(game, who, options, random) {
   const hand = game.hands[who];
-  const otherCards = game.hands[other(who)].length;
-  const best = Math.max(...options.map(card => worth(card, hand, otherCards)));
-  return pick(options.filter(card => worth(card, hand, otherCards) === best), random);
+  const nextCards = game.hands[nextAfter(game, who)].length;
+  const best = Math.max(...options.map(card => worth(card, hand, nextCards)));
+  return pick(options.filter(card => worth(card, hand, nextCards) === best), random);
 }
 
 // The play of `card`; a wild takes the colour from `colourFrom(the rest of the hand)`, except as the last card.
@@ -55,9 +60,8 @@ function playing(game, who, card, colourFrom) {
 }
 
 /**
- * The move a sharp player makes as `who`: { type: 'play', cardId, colour? } or { type: 'draw' }. It is the same
- * choice for the same cards (ties go to `random`, which gives the first by default), so it is also what Mosi
- * advises the child.
+ * The move a sharp player makes as `who`, on their turn: { type: 'play', cardId, colour? } or { type: 'draw' }. It is the same
+ * choice for the same cards (ties go to `random`, which gives the first by default), so it is also what Mosi advises the child.
  */
 export function sharpMove(game, who, random = () => 0) {
   const options = playable(game, who);
@@ -66,17 +70,17 @@ export function sharpMove(game, who, random = () => 0) {
 }
 
 /**
- * Kambeðla's move on her turn: { type: 'play', cardId, colour? } or { type: 'draw' }. She draws only when she has
- * nothing to play, and after drawing a card that can be played she plays it (a wild as her last card needs no
- * colour). Both the card and the colour are chosen sharply with a chance equal to `skill`, otherwise by chance.
+ * Kambeðla's move on her turn, in seat `who`: { type: 'play', cardId, colour? } or { type: 'draw' }. She draws only when she has
+ * nothing to play, and after drawing a card that can be played she plays it (a wild as her last card needs no colour). Both the
+ * card and the colour are chosen sharply with a chance equal to `skill`, otherwise by chance. It throws unless it is `who`'s turn.
  */
-export function chooseMove(game, skill, random = Math.random) {
-  if (game.winner || game.turn !== 'kambedla') throw new Error('It is not Kambeðla\'s turn');
-  const options = playable(game, 'kambedla');
+export function chooseMove(game, who, skill, random = Math.random) {
+  if (game.winner !== null || game.turn !== who) throw new Error(`It is not Kambeðla's turn in seat ${who}`);
+  const options = playable(game, who);
   if (options.length === 0) return { type: 'draw' };
   const sharp = clampSkill(skill);
-  const card = random() < sharp ? sharpCard(game, 'kambedla', options, random) : pick(options, random);
-  return playing(game, 'kambedla', card, rest => (random() < sharp ? bestColour(rest, random) : pick(COLOURS, random)));
+  const card = random() < sharp ? sharpCard(game, who, options, random) : pick(options, random);
+  return playing(game, who, card, rest => (random() < sharp ? bestColour(rest, random) : pick(COLOURS, random)));
 }
 
 const remembers = (skill, atZero, random) => {
@@ -87,5 +91,5 @@ const remembers = (skill, atZero, random) => {
 /** Whether she remembers to call "Eitt!" after playing down to one card: always at skill 1. */
 export const willCallEitt = (skill, random = Math.random) => remembers(skill, REMEMBER_EITT_AT_ZERO, random);
 
-/** Whether she notices that the child forgot "Eitt!": always at skill 1. */
+/** Whether she notices that another player forgot "Eitt!": always at skill 1. It is asked for each of her seats alike. */
 export const willCatch = (skill, random = Math.random) => remembers(skill, NOTICE_AT_ZERO, random);

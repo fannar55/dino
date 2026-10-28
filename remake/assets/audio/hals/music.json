@@ -1,0 +1,9 @@
+{
+ "name": "Háls og hali (song C)",
+ "src": "music.mp3",
+ "bpm": 108,
+ "beatOffset": 0.2329,
+ "key": [524.09, 588.27, 660.31, 785.25, 881.41],
+ "tuningCents": 2.8,
+ "comment": "The music of Háls og hali (engine/hals/game.js), measured with tools/theme-tempo.mjs --file: C major at +2.8 cents, root first; the game's effects are tuned to this key (engine/audio/game-music.js)."
+}

@@ -22,6 +22,9 @@ Then open http://127.0.0.1:4190/remake/ (add `--lan` to reach it from a tablet o
 | `play=1` | start at once, without the start button |
 | `orbit=1` | free camera instead of the director |
 | `debug=1` | frame stats, scene time and camera mode |
+| `nyr=1` | forget the save and start from the first chapter (the address drops the parameter at once) |
+
+With `--lan` it also prints the join address for Fjölspil's guests, `Fjölspil: http://<ip>:<port>/remake/spil.html`, which the host's QR code carries; the rooms' WebSocket is `/fjolspil/ws/<code>` on the same port (`tools/fjolspil-server.mjs`).
 
 ## Litla Yatzy við Mosa
 
@@ -61,88 +64,22 @@ practice hands, save validation, narration lifecycle and real audio coverage.
 practice exit and a complete match in the browser. Captures and the report go
 to `qa/yatzy-junior/`.
 
-## Yatzy við Mosa — full rules, preserved
+Fjölspil in Litla Yatzy seats two to four players. Egill plays at the big
+screen in seat 0; up to three others join from their phones, which are their
+cups: they roll, hold dice and pick a card there, and a card that scores nothing
+asks first. Mosi is always at the table, and the lobby's “Bæta Mosa við” makes
+him its one computer player. The page hosts a room of its own, beside the
+book's. A guest who leaves is waited for, and Mosi can play her seat until she
+is back; a game of seats is kept under its own key and continues from
+“Halda áfram (Fjölspil)”. `npm run check:yatzy-junior:fjolspil` plays four
+seats with two phones in headless Edge; it needs `PLAYWRIGHT_PATH` and the dev
+server on port 4198 (`node remake/tools/serve.mjs --port 4198 --lan`). Mosi's
+six optional lines for a table of many (`MULTI_LINES`) are shown as their
+captions alone until they are recorded with
+`node remake/tools/yatzy-junior-voices.mjs --only multiWelcome,multiTurn,multiScored,multiZero,multiWait,multiOver`,
+which reads the key from the environment.
 
-The table game is at `/remake/yatzy-mosi.html`. Run `npm run start:yatzy-mosi`
-and open http://127.0.0.1:4197/remake/yatzy-mosi.html.
-It uses this remake's real Mosi model, eyelids, actor control, forest, lighting,
-character illustrations and Nunito font. Its source is in `engine/yatzy-mosi/`;
-the earlier Slóeðla game in `engine/yatzy/` is separate.
-
-Five rounded 3D dice, enlarged by 18%, carry both numbers and dinosaur pictures. A black textured
-Yatzy cup has opaque walls, an open mouth, a thick rim and dark felt inside.
-The cup floats above the middle of the table without a hand. A soft halo and
-glints invite a click when the human can throw; it parks to the left of the
-result so it stays clickable without hiding dice. It collects and shakes the
-unheld dice by itself, then releases them sequentially through its mouth. On a
-new turn the cup glides back to the middle with the dice already inside. Gravity
-trajectories, decreasing rebounds, continuous rotation and
-frictional settling lead to the rules engine's already committed result; this
-is authored motion, not a general rigid-body simulation. Visual variation never
-consumes gameplay randomness. The actual upward faces match the scored hand.
-
-After each throw, Mosi reacts before the camera moves above the dice and smoothly
-dollies in to their actual settled layout. Holding a die gently reframes its
-destination; both held rows stay clear of controls on desktop and mobile. The
-parked cup shrinks to about half its throwing size and moves to the near-left
-side. Its tight hit area follows the actual cup silhouette, with dice taking
-pointer priority and an extra near-die guard against accidental rerolls. Its
-invitation stays inside the cup outline and hides while the result camera or a
-held die is moving; the separate roll button remains available.
-The camera returns across the table for the next throw or score, freezes in
-pause, and snaps in reduced-motion mode. Mosi's anticipation, good/great casts,
-near misses, disappointment and Yatzy celebrations have distinct head, jaw,
-eyelid, body and paw gestures. Feedback uses the current player's open score
-categories. Mosi watches the autonomous cup with a smooth gaze and planted
-forelegs; celebratory paw taps happen after the throw.
-
-One frame loop drives the character, cup, dice, camera and forest. Projected
-hit targets reuse their records, update labels only on game state changes, and
-move through cached CSS transforms without per-frame layout reads. Number badges
-and hold marks sit outside each die's projected silhouette, keeping its artwork
-clear while the camera moves. Two bounded
-instance pools provide felt dust, contact waves, release glints and celebrations.
-Web Audio provides muted cup thuds, dice rattles, felt impacts, hold notes and
-different good/bad result cues. Enabling calm mode clears active effects and
-finishes the current throw without another shake.
-
-Both totals and score columns remain visible. On a narrow screen the board is
-above a scrolling scorecard. Click dice or press 1–5 to hold/release; use the
-floating cup, roll button or Space to throw, then choose an open score cell.
-Zero scores ask for confirmation. The pause menu offers reduced motion and a new game. Progress
-and preferences save locally, including a roll committed before its animation,
-so reloading does not grant another throw. Dialogs and hidden tabs pause the game.
-
-“Læra með Mosa” opens a hands-on Icelandic lesson from the welcome screen or Help.
-Its original instructions and illustrated examples cover the complete rules:
-two guided turns teach casting, keeping and releasing dice, repeating a hold,
-using three rolls, scoring early, and taking turns with Mosi. Small visual
-questions explain every score category, Chance, the upper bonus, used rows and
-zero scores. A wrong answer gives a gentle hint and another try. The coach stays
-beside the table, highlights only the required control, waits for camera motion,
-and supports mouse, touch and keyboard. Children can exit at any step or repeat
-the lesson at the end. Teaching hands are selected examples using the real rules,
-models and animations; practice never writes to the normal game save. Exiting
-restores the committed normal hand, including when the lesson was interrupted.
-
-Rules follow the Scandinavian 15-category game: three rolls, 50 bonus points at
-63 in the upper section, exact 3+2 full house, and 50 for Yatzy. Pair and kind
-scores count only the matching dice. See the [Alga Yatzy rules](https://algaspel.se/wp-content/uploads/2023/10/yatzyrese.pdf).
-Mosi uses the same visible hand and rules, without inspecting future random rolls.
-
-`npm run test:yatzy-mosi` checks scoring (all 7,776 hands), complete AI matches,
-controller transitions and saves, real model poses, dice orientation/contact,
-particle limits, sound lifecycle and disposal. With the server already running,
-`npm run check:yatzy-mosi` runs normal browser interaction, camera/cup/reaction
-captures, independent mesh/overlay readability and near-edge cup/dice tap checks,
-complete teaching flows with save-preservation checks, a complete match with
-reloads, and a hardware-rendered frame-time/resource
-check, sequentially. The performance report separates dice rolls and both camera
-transitions, and compares resource counts only after returning to the same view.
-These browser tools require Playwright (or `PLAYWRIGHT_PATH` pointing to its
-installed package), and Edge on Windows. They write reports and screenshots under
-the ignored `qa/yatzy-mosi/` directory. The `?qa` URL enables their inspection hooks;
-the normal game does not expose them. Frame-time results are device-specific.
+The 3D table it plays on (the world, the dice and the cup, the effects, Mosi as the opponent and the classic rules) is `engine/yatzy-table/`: what remains of "Yatzy við Mosa", the full game, which went out of the remake on 2026-10-25.
 
 ## Layout
 
@@ -173,9 +110,9 @@ the normal game does not expose them. Frame-time results are device-specific.
   (`music.js`); the sound effects, made in Web Audio as in the old game (`sfx.js`); what holds the
   sound while the book is open or the tab hidden (`hold.js`); the one audio context (`output.js`).
 - `engine/book/`: the book, Egill's journal opened over the paused game; its look is `book.css`. `book.js` is the shell
-  (the spread, the ribbons that turn its pages, the close, the Stjörnur page); `animals-page.js` the animals page, a taped
-  photo of each animal that is found, new or an unfound silhouette; `card-viewer.js` a card that grows out of its tile, a
-  picture and a sentence at a time, read aloud; `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
+  (the spread, the ribbons that turn its pages, the close, the five ribbons Risaeðlur, Dýrin, Leikir, Kortið and Safnið); `animals-page.js` the animals page (the Dýrin pages' and the Risaeðlur page's), a taped
+  photo of each animal that is found, new or an unfound silhouette; `museum-page.js` the Safnið page, the fossil collection (new fossils wear Nýtt!, a full collection is celebrated once, a fossil's card opens); `card-viewer.js` a card that grows out of its tile, a
+  picture and a sentence at a time, read aloud, and a page with a model shows it in the picture's place (`skeleton-view.js`, a small three.js view of its own that a finger turns and two fingers pinch); `zoom.js` a picture taken to the whole screen, with pinch and drag; `fx.js`
   the squash, sparkle and sound of every touch, counting a tap as the game does; `book-audio.js` the book's own narrator and
   effects, and `book-sounds.js` the effects, made with the game's tools in the theme's key; `cards.js` and `media.js` read
   and check its data (`parseCards`, `parseManifest`, `checkMedia`). Under reduced motion it moves as fades.
@@ -193,6 +130,9 @@ the normal game does not expose them. Frame-time results are device-specific.
   typeface in `assets/fonts/`: Nunito (`nunito-latin.woff2`, the Latin subset of Google Fonts' variable font, with
   every Icelandic letter; both pages preload it) and its licence `OFL.txt` (SIL Open Font License 1.1), which must
   stay beside it wherever the font goes.
+- `assets/critters/`: the hero butterfly, `butterfly.glb` (the one chapter 1 lands on Mosi's horn: world/forest/butterflies.js), with its
+  provenance `butterfly-source.json`; `tools/blender-butterfly.py` and `tools/quantize-glb.mjs` make it from the owner's Tripo moth
+  (STYLE.md section 12).
 - `assets/book/`: the book's data. `cards.json` has the seven cards, page by page (each page's picture, text, narrator's
   line and the sources of its facts); `media-manifest.json` lists every picture with its licence, credit and source
   (`tests/media.test.mjs` runs `checkMedia`: an outside picture needs its credit, open licence, source and sha256, and every
@@ -219,7 +159,8 @@ the normal game does not expose them. Frame-time results are device-specific.
   face pass `bake/face.html` that finds the painted eyes for the eyelids after every bake, the mouth pass
   `bake/mouth.html` that cuts a jaw for a character without one (Mosi's beak), `bake/book-render.html` that renders the
   book's pictures of Mosi and Kambeðla from their models (its header has the commands), and
-  `prep-character.mjs` for static models (see STYLE.md section 12).
+  `prep-character.mjs` for static models, and `blender-butterfly.py` with `quantize-glb.mjs` for the hero butterfly, a small prop
+  out of a Tripo moth (see STYLE.md section 12).
 - `tests/`: `npm run test:remake`.
 
 ## Writing a chapter
@@ -233,11 +174,18 @@ Positions, targets and subjects are point specs: `[x, y, z]`, `'mosi'`, `'mosi.h
 or `{ actor, part, offset, local }`, so a shot can follow a character. A walk can head for one too:
 `walkTo` takes `[x, z]` points or point specs, read where they are when the walk starts, and walks
 with the `walk` clip or another walking clip (`{ clip: 'wade' }`: Uggeðla wading in shallow water).
-A chapter can also give `warmUp(world)`, which returns `{ objects, shots, tray, dispose }`: what to draw
-once behind the start button so nothing builds its shaders while the child watches (the actors, and
-throwaways of what comes later), from which shots, and the tray's items; a place adds its own shots
-(`locations[name].warmUp`). `prepare: ['place']` builds a place behind the start button too, so going
-there later is only the two fades.
+A chapter can also give `warmUp(world, { place })`, which returns `{ objects, shots, tray, dispose }`:
+what to draw once where nobody sees a frame stall so nothing builds its shaders while the child watches
+(the actors, and throwaways of what comes later), from which shots, and the tray's items. `place` is the
+place it is drawn for (the start place behind the start button, another as main.js draws it or the scene
+comes there, `null` for everything): a place can bring only what shows there first. A place adds its own
+shots (`locations[name].warmUp`). `prepare: ['place']` builds a place once the start button shows, a slice
+at a time (`world/forest/slices.js`), and draws it while the button still waits, so going there later is
+only the two fades; `yield s.prepare('place')` waits for that build (a child who tapped before it was done
+waits under the black), and `s.goTo(name, { hold })` keeps the black until the promise `hold()` returns
+settles (models the chapter makes there). `later: { fetch, make }` is what main.js fetches as the button
+shows and makes once the places are, if the button still waits (chapter 2's far friends), and `firstFind`
+names the first animal the chapter puts in the book, whose drawing is shown once beforehand.
 
 The script is a generator function. It yields what it waits for, and everything runs on the game
 clock, so pausing, seeking and cancelling work:
@@ -343,3 +291,11 @@ front of it, must answer byte-range requests for `remake/assets/audio/theme.mp3`
 move it, so the music can no longer follow the game's clock (after the book, a hidden tab or a long frame it just
 plays on, and the beat follows it instead). The theme must come from the page's own origin: it plays through Web
 Audio, which hears silence from media on another origin without CORS.
+
+**Cloudflare.** `cloud/` puts the same page on Cloudflare: one Worker with the site staged as static assets
+(`npm run stage:cloud` copies `remake/` without its tests, tools, prompts and Tripo sources, `dist/vendor/`, and the old
+game's voice lines in `dist/assets/audio/`) and Fjölspil's rooms as a Durable Object running the same
+`engine/fjolspil/room.js` as the home server. Under `wrangler dev` the static assets answered the theme's byte ranges with
+200 and the whole file, so the Worker runs first for the audio paths and cuts the ranges itself (`cloud/src/range.mjs`, as
+`tools/serve.mjs` does). The steps, from `npm install` to `wrangler deploy`, are in [cloud/README.md](../cloud/README.md),
+in Icelandic.

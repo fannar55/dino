@@ -2,9 +2,11 @@
 // ground mesh with its material. The masks exist twice: as CPU functions (the planner and the
 // grass use them) and baked into one small RGBA texture that the ground shader reads.
 import * as THREE from 'three';
-import { FOREST, PALETTE } from './config.js';
+import { FOREST, PALETTE, FEN } from './config.js';
 import { createNoise, smoothstep, clamp } from './random.js';
 import { patchLambert, LIGHT_GLOBALS, LEAF_SHADOW_GLSL } from './materials.js';
+import { biomeOf, FEN_SHARE_GLSL, fenUniforms } from './biome.js';
+import { runSync } from './slices.js';
 
 /** Distance from a point to a polyline, with the arc-length position of the closest point. */
 export function createPolyline(points) {
@@ -46,22 +48,36 @@ export function createTerrain(world, layout, seed) {
   const edgeR = layout.forestEdge;
   const path = createPolyline(layout.path);
   const P = FOREST.path;
+  // The Fen (biome.js) is a calm basin: where a point is fen, the undulation, the hummocks and the bowl are the Fen's own.
+  const biome = biomeOf(layout);
+  const F = FEN.terrain;
 
-  function rawHeight(x, z) {
+  function naturalHeight(x, z) {
     const r = Math.hypot(x - cx, z - cz);
-    let h = (noise.fbm(x * 0.032, z * 0.032, 3, 1) - 0.5) * 2 * cfg.undulation;
-    h += (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * cfg.bumps;
+    const fen = biome.shareAt(x, z);
+    const und = fen > 0 ? cfg.undulation + (F.undulation - cfg.undulation) * fen : cfg.undulation;
+    const bumps = fen > 0 ? cfg.bumps + (F.bumps - cfg.bumps) * fen : cfg.bumps;
+    const bowl = fen > 0 ? cfg.bowlRise + (F.bowlRise - cfg.bowlRise) * fen : cfg.bowlRise;
+    const beyond = fen > 0 ? 0.012 * (1 - fen) : 0.012;
+    let h = (noise.fbm(x * 0.032, z * 0.032, 3, 1) - 0.5) * 2 * und;
+    h += (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * bumps;
     const calm = smoothstep(clearR * 0.55, clearR + 7, r);
     h *= cfg.clearingCalm + (1 - cfg.clearingCalm) * calm;
     // a gentle bowl: the forest floor rises away from the clearing
-    h += smoothstep(clearR, cfg.bowlRadius, r) * cfg.bowlRise + Math.max(0, r - cfg.bowlRadius) * 0.012;
+    h += smoothstep(clearR, cfg.bowlRadius, r) * bowl + Math.max(0, r - cfg.bowlRadius) * beyond;
     // keep the path walkable: flatten hummocks along it
     const pd = path.query(x, z).d;
     const flat = smoothstep(3.5, 0.5, pd);
-    h -= flat * (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * cfg.bumps * 0.8;
-    // a layout may shape the ground further (the valley of Háls og hali: its slope, the nest's hill and the stream's bed)
-    if (layout.lift) h += layout.lift(x, z);
+    h -= flat * (noise.fbm(x * 0.12 + 17, z * 0.12 - 9, 2, 2) - 0.5) * 2 * bumps * 0.8;
     return h;
+  }
+  // A layout may shape the ground further with lift(x, z, natural): metres added to the ground's height there, given the height
+  // the ground has there without it (with the clearing centre at 0). The Fen's pools, channel and hummocks are one (forest.js:
+  // shapeGround). Keep the clearing centre itself unlifted, so heights stay counted from it.
+  const n0 = naturalHeight(cx, cz);
+  function rawHeight(x, z) {
+    const h = naturalHeight(x, z);
+    return layout.lift ? h + layout.lift(x, z, h - n0) : h;
   }
   const h0 = rawHeight(cx, cz);
   const heightAt = (x, z) => rawHeight(x, z) - h0;
@@ -87,7 +103,8 @@ export function createTerrain(world, layout, seed) {
   // shade edge was a smooth ring. setCanopy() stamps each crown's ground shadow (along the sun) into a
   // grid; shadeAt() is the forest mask raised by those stamps on the clearing's rim.
   let canopy = null;
-  function setCanopy(crowns, sun) {
+  function setCanopy(crowns, sun) { runSync(setCanopySteps(crowns, sun)); }
+  function* setCanopySteps(crowns, sun) {
     const size = 2 * (edgeR + 9), res = 176, cell = size / res;
     const ox = cx - size / 2, oz = cz - size / 2;
     const data = new Float32Array(res * res);
@@ -114,6 +131,7 @@ export function createTerrain(world, layout, seed) {
           if (v > data[k]) data[k] = v;
         }
       }
+      yield;
     }
     canopy = { size, res, cell, ox, oz, data };
   }
@@ -126,12 +144,17 @@ export function createTerrain(world, layout, seed) {
     const tx = fx - i, tz = fz - j, k = j * res + i;
     return (data[k] * (1 - tx) + data[k + 1] * tx) * (1 - tz) + (data[k + res] * (1 - tx) + data[k + res + 1] * tx) * tz;
   }
-  /** Canopy shade, 0 open sky to 1 deep shade: the forest mask plus crown shadows on the rim. */
+  /**
+   * Canopy shade, 0 open sky to 1 deep shade: the forest mask plus crown shadows on the rim. The Fen has no closed canopy: there
+   * the shade is only the crown shadows of its conifers, wherever they fall beyond the clearing.
+   */
   function shadeAt(x, z) {
     const r = Math.hypot(x - cx, z - cz);
     const rim = smoothstep(clearR - 1.5, clearR + 1.5, r); // the clearing itself keeps the real shadows
     const fleck = 0.85 + 0.3 * noise.noise(x * 0.4, z * 0.4, 39);
-    return Math.max(forestMask(x, z), clamp(canopyAt(x, z) * rim * fleck, 0, 1));
+    const forest = Math.max(forestMask(x, z), clamp(canopyAt(x, z) * rim * fleck, 0, 1));
+    const fen = biome.shareAt(x, z);
+    return fen > 0 ? forest + (clamp(canopyAt(x, z) * rim * fleck * 0.8, 0, 1) - forest) * fen : forest;
   }
   function soilMask(x, z) {
     const r = Math.hypot(x - cx, z - cz);
@@ -159,9 +182,12 @@ export function createTerrain(world, layout, seed) {
   }
 
   // ---- ground mesh ---------------------------------------------------------------------------
-  function buildGroundGeometry(q) {
+  function buildGroundGeometry(q) { return runSync(buildGroundGeometrySteps(q)); }
+  function* buildGroundGeometrySteps(q) {
     const radii = [0];
-    for (const [from, to, step] of cfg.rings) {
+    // the ground round the Fen's water is finer, so the banks of its pools and channel are smooth curves
+    const fine = biome.fen && Boolean(layout.water);
+    for (const [from, to, step] of fine ? F.rings : cfg.rings) {
       if (step > 0) {
         const s = step / Math.max(0.6, q.trees);
         for (let r = from + s; r <= to + 1e-6; r += s) radii.push(r);
@@ -170,8 +196,12 @@ export function createTerrain(world, layout, seed) {
         while (r < to) { r = Math.min(to, r * 1.22); radii.push(r); }
       }
     }
-    const segs = q.name === 'low' ? Math.round(cfg.segments * 0.75) : cfg.segments;
+    const segments = fine ? F.segments : cfg.segments;
+    const segs = q.name === 'low' ? Math.round(segments * 0.75) : segments;
     const pos = [], nrm = [], idx = [];
+    // round the Fen's water each vertex knows how far it is from the water's edge (negative under it): the shore's colours
+    const signedAt = layout.water?.shape?.signedAt ?? null;
+    const shore = signedAt ? [] : null;
     const e = 0.5;
     const pushVertex = (x, z) => {
       const y = heightAt(x, z);
@@ -180,13 +210,16 @@ export function createTerrain(world, layout, seed) {
       const l = Math.hypot(nx, 2 * e, nz);
       pos.push(x, y, z);
       nrm.push(nx / l, (2 * e) / l, nz / l);
+      if (shore) shore.push(clamp(signedAt(x, z), -3, 20));
     };
     pushVertex(cx, cz);
     for (let i = 1; i < radii.length; i++) {
       for (let j = 0; j < segs; j++) {
         const a = (j / segs) * Math.PI * 2 + (i % 2) * (Math.PI / segs);
         pushVertex(cx + Math.cos(a) * radii[i], cz + Math.sin(a) * radii[i]);
+        if (j % 64 === 63) yield; // round the Fen's water a vertex is five reads of its height: a ring is up to 30 ms
       }
+      yield;
     }
     for (let j = 0; j < segs; j++) idx.push(0, 1 + ((j + 1) % segs), 1 + j);
     for (let i = 1; i < radii.length - 1; i++) {
@@ -201,23 +234,26 @@ export function createTerrain(world, layout, seed) {
           idx.push(a0 + j, a0 + j1, b0 + j1);
         }
       }
+      if (i % 8 === 0) yield;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    if (shore) g.setAttribute('aShore', new THREE.Float32BufferAttribute(shore, 1));
     g.setIndex(idx);
     g.computeBoundingSphere();
     return g;
   }
 
   /** The canopy shade as a small single-channel texture for the ground shader. */
-  function bakeShadeTexture() {
+  function* bakeShadeTexture() {
     const res = 256, size = cfg.maskSize;
     const data = new Uint8Array(res * res);
     const ox = cx - size / 2, oz = cz - size / 2;
     for (let j = 0; j < res; j++) {
       const z = oz + ((j + 0.5) / res) * size;
       for (let i = 0; i < res; i++) data[j * res + i] = Math.round(shadeAt(ox + ((i + 0.5) / res) * size, z) * 255);
+      yield;
     }
     const tex = new THREE.DataTexture(data, res, res, THREE.RedFormat, THREE.UnsignedByteType);
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -229,7 +265,7 @@ export function createTerrain(world, layout, seed) {
     return tex;
   }
 
-  function bakeMaskTexture() {
+  function* bakeMaskTexture() {
     const res = cfg.maskRes, size = cfg.maskSize;
     const data = new Uint8Array(res * res * 4);
     const ox = cx - size / 2, oz = cz - size / 2;
@@ -243,6 +279,7 @@ export function createTerrain(world, layout, seed) {
         data[k + 2] = Math.round(forestMask(x, z) * 255);
         data[k + 3] = Math.round(litterMask(x, z) * 255);
       }
+      yield;
     }
     const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -254,17 +291,34 @@ export function createTerrain(world, layout, seed) {
     return { tex, origin: new THREE.Vector2(ox, oz), size };
   }
 
-  function createGroundMaterial(shared, actorUniforms) {
+  function createGroundMaterial(shared, actorUniforms) { return runSync(createGroundMaterialSteps(shared, actorUniforms)); }
+  function* createGroundMaterialSteps(shared, actorUniforms) {
     const gain = cfg.albedoGain;
     const col = (hex, k = gain) => new THREE.Color(hex).multiplyScalar(k);
-    const mask = bakeMaskTexture();
-    const shadeTex = bakeShadeTexture();
+    const mask = yield* bakeMaskTexture();
+    const shadeTex = yield* bakeShadeTexture();
     mask.shade = shadeTex;
     const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
     material.name = 'forest-ground';
+    // the Fen's ground (FEN in config.js): golden reed, moss, and dark mud at and under the water, mixed in by its share
+    // the shore's colours read aShore, which buildGroundGeometry gives the ground only where the water has its shape: key both on it
+    if (biome.fen) material.defines = layout.water?.shape ? { FOREST_FEN: '', FEN_SHORE: '' } : { FOREST_FEN: '' };
+    const fen = biome.fen ? {
+      ...fenUniforms(biome, THREE),
+      uWaterLevel: { value: layout.water ? FEN.waterLevel : -10 },
+      uFenReed: { value: col(FEN.grassSun, gain * 0.9) },
+      uFenReedBase: { value: col(FEN.grassBase, gain * 1.02) },
+      uFenMoss: { value: col(FEN.moss, gain * 0.98) },
+      uFenMossWet: { value: col(FEN.mossWet, gain * 0.95) },
+      uFenMud: { value: col(FEN.mud, gain * 1.05) },
+      uFenPath: { value: col(FEN.path, gain * 0.98) },
+      uFenStraw: { value: col(FEN.grassTip, gain * 0.85) },
+      uFenSilt: { value: col(FEN.waterBed, gain * 0.95) },
+    } : {};
     const uniforms = {
       ...shared,
       ...actorUniforms,
+      ...fen,
       uGroundMask: { value: mask.tex },
       uShadeMask: { value: shadeTex },
       uMaskOrigin: { value: mask.origin },
@@ -284,8 +338,8 @@ export function createTerrain(world, layout, seed) {
       uLitterB: { value: col(PALETTE.litterB, 0.95) },
     };
     patchLambert(material, 'forest-ground', uniforms, {
-      vertexHead: 'varying vec3 vGroundPos;',
-      vertexAfter: [['#include <begin_vertex>', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;']],
+      vertexHead: 'varying vec3 vGroundPos;\n#ifdef FEN_SHORE\nattribute float aShore;\nvarying float vShore;\n#endif',
+      vertexAfter: [['#include <begin_vertex>', 'vGroundPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n#ifdef FEN_SHORE\nvShore = aShore;\n#endif']],
       fragmentHead: `
 varying vec3 vGroundPos;
 uniform sampler2D uNoise;
@@ -297,6 +351,14 @@ uniform float uForestSun;
 uniform float uDapple;
 uniform float uWindTime;
 uniform vec3 uGrassBase, uGrassSun, uClover, uForestA, uForestB, uMoss, uSoil, uSoilDark, uPath, uPathEdge, uLitterA, uLitterB;
+#ifdef FOREST_FEN
+uniform float uWaterLevel;
+uniform vec3 uFenReed, uFenReedBase, uFenMoss, uFenMossWet, uFenMud, uFenPath, uFenStraw, uFenSilt;
+${FEN_SHARE_GLSL}
+#endif
+#ifdef FEN_SHORE
+varying float vShore;
+#endif
 ${ACTOR_GLSL}
 ${LIGHT_GLOBALS}
 ${LEAF_SHADOW_GLSL}`,
@@ -320,6 +382,31 @@ ${LEAF_SHADOW_GLSL}`,
   float pathCore = smoothstep( 0.5, 0.85, m.r + ( med - 0.5 ) * 0.25 );
   vec3 pathC = mix( uPathEdge, uPath, pathCore ) * ( 0.9 + 0.18 * fine );
   pathC = mix( pathC, uPathEdge * 0.9, smoothstep( 0.62, 0.7, nC.g ) * 0.35 );
+  #ifdef FOREST_FEN
+  // The Fen: golden reed meadow broken by broad patches of moss, of wet dark moss in the hollows and of pale straw, moss on
+  // the hummocks; at the water's edge a narrow ragged band of mud and wet moss a metre out, olive silt under the water; the
+  // path a trodden, damp track.
+  float fen = fenShare( gp );
+  float above = vGroundPos.y - uWaterLevel; // height over the water's level
+  #ifdef FEN_SHORE
+  float shoreD = vShore; // m from the water's edge, negative under it
+  #else
+  float shoreD = 99.0;
+  #endif
+  vec4 nD = texture2D( uNoise, gp * 0.028 + vec2( 0.31, 0.77 ) ); // broad patches, some 35 m apart
+  vec3 fenC = mix( uFenReedBase, uFenReed, 0.62 + 0.38 * med ) * ( 0.88 + 0.26 * nA.a );
+  fenC = mix( fenC, uFenStraw * ( 0.9 + 0.2 * fine ), smoothstep( 0.56, 0.76, nD.b + ( fine - 0.5 ) * 0.2 ) * 0.55 );
+  fenC = mix( fenC, mix( uFenMossWet, uFenMoss, smoothstep( 0.3, 0.7, fine ) ), smoothstep( 0.5, 0.72, nD.g + ( med - 0.5 ) * 0.3 ) * 0.7 );
+  fenC = mix( fenC, uFenMossWet * 0.82 * ( 0.85 + 0.3 * fine ), smoothstep( 0.6, 0.8, nD.r + ( fine - 0.5 ) * 0.2 ) * 0.7 );
+  fenC = mix( fenC, uFenMoss * ( 0.92 + 0.16 * fine ), smoothstep( 0.22, 0.42, above ) * 0.35 );
+  fenC = mix( fenC, uFenMossWet * ( 0.85 + 0.25 * fine ), ( 1.0 - smoothstep( 0.25, 1.0 + 0.3 * med, shoreD ) ) * 0.3 );
+  fenC = mix( fenC, uFenMud * ( 0.85 + 0.3 * fine ), ( 1.0 - smoothstep( 0.04 + 0.08 * fine, 0.22 + 0.06 * med, shoreD ) ) * smoothstep( -0.03, 0.02, shoreD ) );
+  // the bed under the water, from its very edge: wet and darker in its first 0.3 m, where the surface fades in over it
+  fenC = mix( fenC, uFenSilt * ( 0.9 + 0.2 * fine ) * mix( 0.7, 1.0, smoothstep( 0.0, -0.3, shoreD ) ), smoothstep( 0.0, -0.25, shoreD ) );
+
+  col = mix( col, fenC, fen );
+  pathC = mix( pathC, uFenPath * ( 0.88 + 0.22 * fine ), fen * 0.85 );
+  #endif
   col = mix( col, pathC, pathEdge );
   float ao = forestActorShade( vGroundPos );
   float actorNear = forestActorNear( vGroundPos );
@@ -331,7 +418,11 @@ ${LEAF_SHADOW_GLSL}`,
   float dap = smoothstep( 0.6, 0.78, texture2D( uNoise, gp * 0.16 + vec2( uWindTime * 0.003, uWindTime * 0.002 ) ).r );
   gSun = openSky + ( 1.0 - openSky ) * dap * uDapple;
   // a glade's leaf shadows drift over its floor, but never over the ground round a character
-  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( gp ) * ( 1.0 - actorNear );
+  float leafCover = 1.0;
+  #ifdef FOREST_FEN
+  leafCover = 1.0 - fen; // the Fen is open: no leaves overhead
+  #endif
+  if ( uLeafShadow > 0.0 ) gSun *= 1.0 - uLeafShadow * forestLeafShadow( gp ) * leafCover * ( 1.0 - actorNear );
   gAmb = mix( 0.5, 1.0, openSky );
   // the real shadow map keeps counting well under the canopy edge, where the baked shade is
   // already dark, so no lit band opens between the two
@@ -341,8 +432,9 @@ ${LEAF_SHADOW_GLSL}`,
   }
 
   return {
-    heightAt, path, pathMask, forestMask, soilMask, litterMask, stampSoil, noise, setCanopy, shadeAt,
+    heightAt, path, pathMask, forestMask, soilMask, litterMask, stampSoil, noise, setCanopy, shadeAt, biome,
     buildGroundGeometry, createGroundMaterial,
+    setCanopySteps, buildGroundGeometrySteps, createGroundMaterialSteps, // the same, as steps (slices.js)
   };
 }
 

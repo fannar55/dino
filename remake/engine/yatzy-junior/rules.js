@@ -1,4 +1,4 @@
-// Five-card Scandinavian Yatzy. Rendering, clocks and persistence live elsewhere.
+// Five-card Scandinavian Yatzy for two to four, the solo game the two-player case. Rendering, clocks and persistence live elsewhere.
 export const DICE_COUNT=5;
 export const MAX_ROLLS=3;
 export const SAVE_VERSION=1;
@@ -10,13 +10,18 @@ export const CATEGORIES=Object.freeze([
   {id:'yatzy',label:'Yatzy',section:'lower',max:50,description:'Allir fimm teningarnir eins. Gefur 50 stig í þessum reit.'},
 ].map(category=>Object.freeze(category)));
 export const ROUND_COUNT=CATEGORIES.length;
-export const MAX_TURNS=ROUND_COUNT*2;
+// Every player fills each card once: five rounds, a turn each round.
+export const maxTurns=n=>ROUND_COUNT*n;
+export const MAX_TURNS=maxTurns(2);
 const BY_ID=new Map(CATEGORIES.map(category=>[category.id,category]));
-const PLAYERS=['you','mosi'],UINT32_MAX=0xffffffff;
+const PLAYERS=['you','mosi'],UINT32_MAX=0xffffffff; // the solo game's seats, the default player list
 const STATE_FIELDS=['version','players','currentPlayer','startingPlayer','turnCount','rollCount','dice','held','rng','status','winner'];
 const assert=(condition,message)=>{if(!condition)throw new TypeError(message);};
 const integer=(value,min,max)=>Number.isInteger(value)&&value>=min&&value<=max;
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
+// Two to four seats, each a distinct non-empty string; 'tie' is the winner's word for a shared top, so no seat may be called that.
+// Array.from turns holes into undefined so a sparse list fails too.
+const distinctIds=ids=>Array.isArray(ids)&&integer(ids.length,2,4)&&Array.from(ids).every(id=>typeof id==='string'&&id.length>0&&id!=='tie')&&new Set(ids).size===ids.length;
 function ownValue(object,key){const descriptor=Object.getOwnPropertyDescriptor(object,key);assert(descriptor&&Object.hasOwn(descriptor,'value'),`Missing or non-data field: ${key}`);return descriptor.value;}
 function categoryFor(id){const category=BY_ID.get(id);assert(category,`Unknown Yatzy Junior category: ${String(id)}`);return category;}
 function diceCounts(dice){
@@ -92,28 +97,32 @@ function sumCard(card){
   return {upper:0,bonus:0,lower:total,total};
 }
 export function totals(card){validateScorecard(card);return sumCard(card);}
-function findWinner(players){const difference=sumCard(players[0].scores).total-sumCard(players[1].scores).total;return difference===0?'tie':PLAYERS[difference>0?0:1];}
+// The highest total wins, whoever holds it; a top total shared by two or more is a tie.
+function findWinner(players){const points=players.map(player=>sumCard(player.scores).total),best=Math.max(...points);return points.indexOf(best)===points.lastIndexOf(best)?players[points.indexOf(best)].id:'tie';}
 export function validateGame(value){
   assert(record(value),'Game must be a plain object');for(const key of STATE_FIELDS)ownValue(value,key);
   assert(value.version===SAVE_VERSION,'Unsupported Yatzy Junior save version');
-  assert(integer(value.startingPlayer,0,1)&&integer(value.currentPlayer,0,1),'Invalid player index');
-  assert(integer(value.turnCount,0,MAX_TURNS),'Invalid scored turn count');assert(integer(value.rollCount,0,MAX_ROLLS),'Invalid roll count');
-  assert(integer(value.rng,0,UINT32_MAX),'Invalid random state');assert(Array.isArray(value.players)&&value.players.length===2,'Exactly two players are required');
-  const filled=[];
-  for(let i=0;i<2;i++){
-    const player=ownValue(value.players,i);assert(record(player),'Invalid player');assert(ownValue(player,'id')===PLAYERS[i],'Unexpected player identity or order');
+  assert(Array.isArray(value.players)&&integer(value.players.length,2,4),'Two to four distinct players are required');const n=value.players.length;
+  assert(integer(value.startingPlayer,0,n-1)&&integer(value.currentPlayer,0,n-1),'Invalid player index');
+  assert(integer(value.turnCount,0,maxTurns(n)),'Invalid scored turn count');assert(integer(value.rollCount,0,MAX_ROLLS),'Invalid roll count');
+  assert(integer(value.rng,0,UINT32_MAX),'Invalid random state');
+  const ids=[],filled=[];
+  for(let i=0;i<n;i++){
+    const player=ownValue(value.players,i);assert(record(player),'Invalid player');ids.push(ownValue(player,'id'));
     const card=ownValue(player,'scores');validateScorecard(card);filled.push(CATEGORIES.filter(category=>card[category.id]!==null).length);
     if(Object.hasOwn(player,'faces'))validateFaces(ownValue(player,'faces')); // older saves have no kept dice
   }
-  const first=value.startingPlayer,next=(first+value.turnCount)%2;
-  assert(filled[first]===Math.ceil(value.turnCount/2)&&filled[1-first]===Math.floor(value.turnCount/2),'Scores do not match alternating turns');
-  assert(value.currentPlayer===next,'Current player does not match turn count');
+  assert(distinctIds(ids),'Two to four distinct players are required');
+  // Turns go round the ring from the starting player: the player k seats on from them has had a turn in each lap that reached them.
+  const first=value.startingPlayer;
+  assert(filled.every((count,i)=>count===Math.floor((value.turnCount+(n-1-((i-first+n)%n)))/n)),'Scores do not match the turn order');
+  assert(value.currentPlayer===(first+value.turnCount)%n,'Current player does not match turn count');
   assert(Array.isArray(value.dice)&&value.dice.length===DICE_COUNT,'Exactly five dice are required');assert(Array.isArray(value.held)&&value.held.length===DICE_COUNT,'Exactly five hold flags are required');
   for(let i=0;i<DICE_COUNT;i++){
     const die=ownValue(value.dice,i),held=ownValue(value.held,i);assert(typeof held==='boolean','Hold flags must be booleans');
     assert(value.rollCount===0?die===0&&!held:integer(die,1,6),'Dice/holds do not match roll phase');
   }
-  if(value.turnCount===MAX_TURNS){assert(value.status==='finished'&&value.rollCount===0,'Finished game has an active turn');assert(value.winner===findWinner(value.players),'Incorrect saved winner');}
+  if(value.turnCount===maxTurns(n)){assert(value.status==='finished'&&value.rollCount===0,'Finished game has an active turn');assert(value.winner===findWinner(value.players),'Incorrect saved winner');}
   else{assert(value.status==='playing'&&value.winner===null,'Playing game has a terminal result');}
   return true;
 }
@@ -125,10 +134,12 @@ function copyGame(game){return {
 export function restoreGame(serializedOrObject){
   try{if(typeof serializedOrObject==='string'&&serializedOrObject.length>20000)return null;const candidate=typeof serializedOrObject==='string'?JSON.parse(serializedOrObject):serializedOrObject;validateGame(candidate);return copyGame(candidate);}catch{return null;}
 }
-export function createGame({seed=1,startingPlayer=0}={}){
-  assert(integer(seed,0,UINT32_MAX),'Seed must be an unsigned 32-bit integer');assert(integer(startingPlayer,0,1),'Invalid starting player');
-  return {version:SAVE_VERSION,players:PLAYERS.map(id=>({id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,null])),faces:emptyFaces()})),currentPlayer:startingPlayer,startingPlayer,turnCount:0,rollCount:0,dice:Array(DICE_COUNT).fill(0),held:Array(DICE_COUNT).fill(false),rng:seed,status:'playing',winner:null};
+export function createGame({seed=1,startingPlayer=0,players=PLAYERS}={}){
+  assert(integer(seed,0,UINT32_MAX),'Seed must be an unsigned 32-bit integer');assert(distinctIds(players),'Two to four distinct players are required');assert(integer(startingPlayer,0,players.length-1),'Invalid starting player');
+  return {version:SAVE_VERSION,players:players.map(id=>({id,scores:Object.fromEntries(CATEGORIES.map(category=>[category.id,null])),faces:emptyFaces()})),currentPlayer:startingPlayer,startingPlayer,turnCount:0,rollCount:0,dice:Array(DICE_COUNT).fill(0),held:Array(DICE_COUNT).fill(false),rng:seed,status:'playing',winner:null};
 }
+// The round being played, 1 to 5: a round is a turn for everyone, and a finished game stays in the last round.
+export function roundOf(game){return Math.min(ROUND_COUNT,Math.floor(game.turnCount/game.players.length)+1);}
 function requirePlaying(game){validateGame(game);assert(game.status==='playing','The game is finished');}
 function randomWord(rng){const next=(rng+0x6d2b79f5)>>>0;let value=Math.imul(next^next>>>15,next|1);value^=value+Math.imul(value^value>>>7,value|61);return {rng:next,word:(value^value>>>14)>>>0};}
 export function roll(game){
@@ -148,9 +159,9 @@ export function previews(game){
 }
 export function score(game,categoryId){
   requirePlaying(game);const category=categoryFor(categoryId);assert(game.rollCount>0,'Roll before choosing a score');assert(game.players[game.currentPlayer].scores[categoryId]===null,'That score category is already filled');
-  const next=copyGame(game),counts=diceCounts(game.dice);next.players[game.currentPlayer].scores[categoryId]=scoreCounts(category,counts);next.players[game.currentPlayer].faces[categoryId]=facesFor(category,counts);next.turnCount++;next.currentPlayer=(next.startingPlayer+next.turnCount)%2;
+  const next=copyGame(game),counts=diceCounts(game.dice);next.players[game.currentPlayer].scores[categoryId]=scoreCounts(category,counts);next.players[game.currentPlayer].faces[categoryId]=facesFor(category,counts);next.turnCount++;next.currentPlayer=(next.startingPlayer+next.turnCount)%next.players.length;
   next.rollCount=0;next.dice.fill(0);next.held.fill(false);
-  if(next.turnCount===MAX_TURNS){next.status='finished';next.winner=findWinner(next.players);}return next;
+  if(next.turnCount===maxTurns(next.players.length)){next.status='finished';next.winner=findWinner(next.players);}return next;
 }
 
 // Bounded pattern estimates: deterministic, independent of future RNG, and small

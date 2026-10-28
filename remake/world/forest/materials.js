@@ -7,9 +7,15 @@
 import * as THREE from 'three';
 import { FOREST, BEAT_SHARE, PIVOT } from './config.js';
 import { createRng } from './random.js';
+import { runSync } from './slices.js';
 
 /** Tileable 128x128 noise: R dapple blobs, G medium fbm, B coarse fbm, A fine grain. */
 export function createNoiseTexture(seed, size = 128) {
+  return runSync(createNoiseTextureSteps(seed, size));
+}
+
+/** createNoiseTexture as steps (slices.js): a row at a time. */
+export function* createNoiseTextureSteps(seed, size = 128) {
   const rng = createRng(seed, 'noise-texture');
   const lattice = (n) => Float32Array.from({ length: n * n }, () => rng.next());
   const layers = [4, 8, 16, 32, 64].map(n => ({ n, L: lattice(n) }));
@@ -36,6 +42,7 @@ export function createNoiseTexture(seed, size = 128) {
       data[i + 2] = Math.round(coarse * 255);
       data[i + 3] = Math.round(fine * 255);
     }
+    yield;
   }
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -53,6 +60,11 @@ export function createNoiseTexture(seed, size = 128) {
  * of leaves and hides the facets of the low-poly lobes.
  */
 export function createLeafTexture(seed, size = 128, cells = 6) {
+  return runSync(createLeafTextureSteps(seed, size, cells));
+}
+
+/** createLeafTexture as steps (slices.js): a row at a time. */
+export function* createLeafTextureSteps(seed, size = 128, cells = 6) {
   const rng = createRng(seed, 'leaf-texture');
   const pts = [];
   for (let j = 0; j < cells; j++) for (let i = 0; i < cells; i++) pts.push([(i + 0.15 + 0.7 * rng.next()) / cells, (j + 0.15 + 0.7 * rng.next()) / cells]);
@@ -76,6 +88,7 @@ export function createLeafTexture(seed, size = 128, cells = 6) {
       data[i + 2] = Math.round(rng.next() * 255);
       data[i + 3] = 255;
     }
+    yield;
   }
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;

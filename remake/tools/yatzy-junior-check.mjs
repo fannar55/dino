@@ -71,6 +71,7 @@ try{
   await page.evaluate(value=>window.__juniorQA.setState(value),createGame({seed:6081}));
   while((await state()).status!=='finished'){
     const game=await state();
+    if(game.status==='finished')break; // Mosi's last card may land between the two reads
     if(game.currentPlayer===1){await page.waitForTimeout(250);continue;}
     await page.waitForFunction(()=>window.__juniorQA.getStatus().phase==='human'&&window.__juniorQA.getStatus().settled);
     const current=await state(),decision=decideAI(current);

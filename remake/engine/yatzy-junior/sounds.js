@@ -14,7 +14,7 @@ import { DUCK_DB } from '../audio/music.js';
 // from a tap, cue('score', { points, player }) when a card is chosen. This file decides what that sounds like. Some sounds take a
 // detail (how many dice are in the cup, which card, how many points): it is handed to the sound in `args` as it plays.
 //
-// "Yatzy við Mosa" (yatzy-mosi.html) keeps its own small foley (engine/yatzy-mosi/audio.js); this has the same API (unlock, cue,
+// "Yatzy við Mosa", the full game (gone since 2026-10-25), kept its own small foley; this has the same API (unlock, cue,
 // mute, pause, cancel, getStats, dispose) and adds duck(speaking).
 
 export const JUNIOR_SFX = [
@@ -30,14 +30,14 @@ export const JUNIOR_SFX = [
   'pip', 'fanfare', 'confetti', 'warm', 'draw',
   // The page.
   'tap', 'bubble', 'open', 'close', 'pause', 'resume',
-  // Mosi's reactions, as he starts each one (engine/yatzy-mosi/opponent.js onEvent, cued as mosi-*). His "aww" ('mosi-aww') plays
+  // Mosi's reactions, as he starts each one (engine/yatzy-table/opponent.js onEvent, cued as mosi-*). His "aww" ('mosi-aww') plays
   // 'aww', so it can never sound twice with the one his own empty card gives; his other reactions are silent.
   'mosi-hop', 'mosi-cheer', 'mosi-nod', 'mosi-lean', 'mosi-good', 'mosi-win',
 ];
 
 /**
  * The least time, in audio seconds, between two of the same: nothing machine-guns, however fast a child taps. A die's clack and
- * knock have none: the dice send each landing once a roll (engine/yatzy-mosi/dice.js), and two dice can land in the same frame.
+ * knock have none: the dice send each landing once a roll (engine/yatzy-table/dice.js), and two dice can land in the same frame.
  */
 export const JUNIOR_GAPS = {
   pickup: 0.4, gather: 0.4, rattle: 0.035, pour: 0.5, clack: 0, knock: 0, rimRoll: 0.08, cupDown: 0.4, calmRoll: 0.3,
@@ -508,7 +508,7 @@ export function createJuniorAudio({ theme: givenTheme } = {}) {
     if (!sfx || muted || held || disposed) return false;
     const { strength = 1, pan = 0, die, at } = options;
     switch (kind) {
-      // The cup and the dice (engine/yatzy-mosi/dice.js onEvent, and the roll itself).
+      // The cup and the dice (engine/yatzy-table/dice.js onEvent, and the roll itself).
       case 'roll':
         rolls++;
         roll.count = Math.max(1, Math.min(5, options.count ?? 5));

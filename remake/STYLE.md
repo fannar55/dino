@@ -137,9 +137,10 @@ face), misty far forest, forest wall.
 
 - One sun as the warm key, plus sky fill (hemisphere light and sky image-based lighting). Shadows
   are never black or neutral grey; they lean blue-green.
-- Looks live in `engine/looks.js`: `morning` (default, sun azimuth 135, elevation 32), `golden`
-  (late afternoon, elevation 15) and `evening` (sunset, elevation 6). A chapter picks one. Looks
-  change only between chapters or as a slow authored change.
+- Looks live in `engine/looks.js`: `morning` (default, sun azimuth 135, elevation 32), `lateMorning`
+  (chapter 2: later the same morning, azimuth 150, elevation 26, a warmer sun and a lighter mist),
+  `golden` (late afternoon, elevation 15) and `evening` (sunset, elevation 6). A chapter picks one.
+  Looks change only between chapters or as a slow authored change.
 - The shadow map covers the hero focus (10 to 20 m) and stays sharp near the camera. Beyond it,
   shade is faked: darker vertex colour under trees and dappled light as cheap patterns, not more
   shadow maps.
@@ -594,6 +595,24 @@ Environment:
   soft chunky rounded shapes, broad simple leaf clusters, hand-painted matte texture in [hexes from
   section 4], no tiny leaves, no photo detail, one isolated object, front three-quarter view, plain
   light grey background, soft even light."
+
+A small prop out of a Tripo model goes through a script of its own, as the hero butterfly did (the owner's moth,
+102,850 triangles and three 2K JPEG maps in 6 MB, to `assets/critters/butterfly.glb`, 3,798 triangles and two 512 px WebP
+maps in 205 KB):
+
+```bash
+"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python remake/tools/blender-butterfly.py -- <moth.glb> butterfly-blender.glb span=0.36 tris=3800 tex=512
+node remake/tools/quantize-glb.mjs butterfly-blender.glb remake/assets/critters/butterfly.glb
+```
+
+`blender-butterfly.py` lays the wings flat about the body axis (the game lifts them by the pale butterflies' wing angle),
+welds Tripo's parts into Body, WingL and WingR (the same welding as `blender-decimate.py`), turns the model to face +X
+with the origin on the body axis between the wing roots, scales it to its span in metres, decimates each mesh by collapse,
+shrinks the colour and normal maps and drops the roughness map (matte, roughness 0.7), and writes the feet's height below
+the body axis into Body's extras so the game can set it down on them. `quantize-glb.mjs` then packs the vertices with
+KHR_mesh_quantization (16-bit positions over the model's extent, which becomes the nodes' scale; 8-bit normals; 16-bit
+texture coordinates and indices), which three's loader reads with no decoder, unlike Draco: a 300 KB file became 205 KB.
+The budget for such a prop: under 300 KB, a few thousand triangles, maps at 512 px, one material.
 
 ## 13. Review checklist
 

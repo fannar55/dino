@@ -4,17 +4,23 @@
 
      #game / .scene            the whole screen: the 3D table (#table) under everything; data-inbook="1" when the book frames it
                                (the book then draws the close), data-tutorial while Mosi teaches
-     .players                  top left: #you-card and #mosi-card (.player-card; .current is the one who plays, raised with a gold
-                               ring), each a round .portrait with its .score chip (#you-total, #mosi-total) and .pname
+     .players                  top left, built by game.js (buildPlayers), data-count the number of players: a .player-card each
+                               (.current is the one who plays, raised with a gold ring), a round .portrait with its .score chip
+                               and .pname; the solo game's two are #you-card and #mosi-card (#you-total, #mosi-total), the seats
+                               of "Fjölspil" carry data-seat (.absent: a guest whose phone has gone, dim, "…" after the name)
      .rounds                   five little dice under them (.done gold, .now glowing) and #round ("2 af 5")
      .corner                   top right: #lesson-skip ("Hætta æfingu"), #pause, #close (hidden in the book)
      #lesson-center.bubble     Mosi's one voice on screen: #lesson-line, #lesson-replay (.hear), #lesson-next, #voice-recovery
+                               (over the dice, beside a bar of three or four on a wide screen: --bar-right, from game.js)
      #cup-target               the cup is the roll: .cup-ring and the orange .cup-tag ("Kasta" and the rolls left as pips,
-                               data-rolls); data-parked once the cup lies on its side
+                               data-rolls); data-parked once the cup lies on its side; data-remote while a guest rolls from her
+                               phone (the ring in her colour, --c, and no tag: the cup here waits)
      .die-target               a die's hit area: ::before is its number chip; .held wears the gold frame and its .die-check
      #score-rows               the five cards along the bottom: .junior-card (.best lifts and glows, .filled is used, .recent was
                                just chosen, .tutorial-target is the lesson's), its .card-select face (.card-picture of .mini-die,
                                .card-name, .card-rule, the .card-value badge with data-who) and .card-scores (who used it)
+     #card-owner               in "Fjölspil", whose cards they are: a paper tag with her name (.pname's letters) and her colour
+                               (--c) at the row's left end, over its first card; hidden in the solo game
      #help.mosi-help           "Spyrja Mosa", his face with a "?", bottom left
      .panel                    the dialogs: taped cards with big raised pills (.big green, .plain cream) and a round .hear
      #loading, #error          the clearing with Mosi trotting, and the retry
@@ -76,6 +82,16 @@ svg{overflow:visible}
 .score{position:relative;z-index:1;margin-top:-16px;min-width:2.2em;padding:.02em .5em .1em;text-align:center;font-size:28px;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums;
   color:#fff;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill;background:var(--c);border:3px solid var(--ink);border-radius:999px;box-shadow:0 4px 0 var(--c-deep)}
 .pname{margin-top:7px;font-size:18px;font-weight:900;color:var(--card);-webkit-text-stroke:.2em var(--ink);paint-order:stroke fill}
+/* "Fjölspil" seats two to four (game.js buildPlayers): smaller portraits closer together for three and four, a long name cut
+   short, and a guest whose phone has gone dimmed, "…" after her name. */
+.players[data-count="3"]{gap:18px}
+.players[data-count="3"] .portrait{width:72px}
+.players[data-count="4"]{gap:14px}
+.players[data-count="4"] .portrait{width:64px}
+.player-card[data-seat] .pname{max-width:7.5em;padding:0 .2em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player-card.absent{opacity:.55}
+.player-card.absent .portrait{filter:saturate(.3)}
+.player-card.absent .pname::after{content:"…"}
 .rounds{position:absolute;z-index:5;left:calc(max(22px,env(safe-area-inset-left)) + 8px);top:calc(max(14px,env(safe-area-inset-top)) + 164px);display:flex;gap:6px;align-items:center;pointer-events:none}
 .rounds i{width:24px;height:24px;border:3px solid var(--ink);border-radius:7px;background:var(--card);box-shadow:0 3px 0 var(--card-deep)}
 .rounds i.done{background:var(--gold)}
@@ -142,6 +158,9 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 #cup-target:disabled[data-rolls="2"] .cup-pips i:nth-child(n+3),#cup-target:disabled[data-rolls="1"] .cup-pips i:nth-child(n+2),#cup-target:disabled[data-rolls="0"] .cup-pips i{background:#7d7262}
 #cup-target.tutorial-target .cup-ring{animation:ring-call 1.4s ease-in-out infinite}
 @keyframes ring-call{50%{scale:1.08}}
+/* A guest rolls from her phone: the cup here waits, its ring in her colour and no tag (it takes no tap). */
+#cup-target[data-remote="true"] .cup-ring{border-color:var(--c);box-shadow:0 0 0 3px var(--ink),0 0 34px 10px color-mix(in srgb,var(--c) 70%,transparent),inset 0 0 30px color-mix(in srgb,var(--c) 35%,transparent)}
+#cup-target[data-remote="true"] .cup-tag{display:none}
 
 /* ---- The dice keep their 3D bodies: their numbers are journal chips, and a held die wears a gold frame and check ---- */
 #dice-targets{position:absolute;inset:0;z-index:3;pointer-events:none}
@@ -222,12 +241,22 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 /* The authored moment: a chosen card's score flies up to the player's portrait and the chip there pops. */
 .score-flyer{position:fixed;z-index:30;right:auto;margin:0;padding:0 12px;pointer-events:none}
 .score-flyer[data-who="mosi"]{background:var(--sage);box-shadow:0 4px 0 var(--sage-deep)}
+.score-flyer[data-who="seat"]{background:var(--c);box-shadow:0 4px 0 var(--c-deep)} /* a seat of "Fjölspil": in its own colour */
 /* The vfx round (engine/yatzy-junior/juice.js): gold sparks bursting up out of a card or a chip, the dice tiles flying from the table
    into a card, and the sweep of light over a card that can be chosen now. All of it moves by transform and opacity only. */
 .yj-spark{position:fixed;z-index:31;display:block;pointer-events:none;filter:drop-shadow(0 0 3px rgb(242 182 48 / .95))}
 .yj-flier{position:fixed;z-index:29;margin:0;pointer-events:none;box-shadow:0 8px 12px rgb(40 24 10 / .3);transform-origin:50% 50%}
 .card-shine{position:absolute;inset:0;border-radius:calc(15 * var(--u));overflow:hidden;pointer-events:none}
 .card-shine i{position:absolute;top:-12%;bottom:-12%;left:0;width:34%;opacity:0;background:linear-gradient(90deg,rgb(255 255 255 / 0),rgb(255 250 225 / .9),rgb(255 255 255 / 0))}
+
+/* The cards' owner in "Fjölspil": a small paper tag at the row's left end, a little over the first card's corner, in .pname's
+   letters with a dot of her colour; the row's own measures (--u) place it over the first card at every size, and it takes no tap. */
+#card-owner{--u:min(1px,calc((100vw - 330px) / 936));position:absolute;z-index:5;left:calc(50% - 468 * var(--u) - 8px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 12px + 142 * var(--u) + 2px);
+  display:flex;align-items:center;gap:.4em;max-width:12em;margin:0;padding:.12em .7em .18em .45em;rotate:-3deg;pointer-events:none;
+  font-size:18px;font-weight:900;line-height:1.25;white-space:nowrap;color:var(--card);-webkit-text-stroke:.2em var(--ink);paint-order:stroke fill;
+  background:var(--paper);border:3px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 var(--card-deep),0 4px 0 3px var(--ink),0 8px 10px 1px rgb(40 24 10 / .25)}
+#card-owner::before{content:"";flex:none;width:.8em;height:.8em;border-radius:50%;background:var(--c,var(--teal));border:3px solid var(--ink)}
+#card-owner[hidden]{display:none}
 
 /* ---- "Spyrja Mosa": his face with a "?", bottom left, as in the other games ---- */
 .mosi-help{position:absolute;z-index:5;left:max(22px,env(safe-area-inset-left));bottom:max(24px,env(safe-area-inset-bottom));width:112px;height:112px;padding:0;border-radius:50%;border:3px solid var(--ink);
@@ -266,6 +295,8 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
 .panel-actions .big{min-width:min(100%,320px)}
 .panel-actions>.plain{min-width:min(100%,220px)}
 .panel-row{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 14px}
+#welcome .panel-row{justify-self:stretch} /* "Fjölspil" beside "Spila", the two of a size (one over the other on a phone) */
+#welcome .panel-row .plain{min-width:min(100%,200px)}
 
 /* ---- Loading and failure: the clearing, with Mosi trotting on the spot over three bouncing dots ---- */
 #loading,#error{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:var(--ink);
@@ -301,8 +332,13 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
   #game[data-view="dice"] .bubble::before{display:none}
   .skip{position:absolute;top:calc(var(--target) + 10px);right:0;white-space:nowrap} /* under the round buttons, out of the bubble's band */
   #score-rows{--u:min(1px,calc((100vw - 48px) / 584));flex-wrap:wrap;width:calc(3 * 176 * var(--u) + 2 * 14 * var(--u) + 32px);row-gap:calc(44 * var(--u))} /* a lifted card's badge (14u lift + 16u) stays 8u+ clear of the row above */
+  #card-owner{--u:min(1px,calc((100vw - 48px) / 584));left:calc(50% - 278 * var(--u) - 8px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 12px + 328 * var(--u) + 2px)} /* over the upper row's first card */
   .mosi-help{width:100px;height:100px}
 }
+
+/* ---- "Fjölspil" on a screen held wide: over the dice the bubble keeps beside a bar of three or four (game.js measures where it ends,
+   --bar-right). Upright there is no room beside it, and the bubble, there only while Mosi speaks, may cover its end a moment. ---- */
+@media (min-aspect-ratio:1/1) and (min-width:561px){#game[data-view="dice"] .players:not([data-count="2"]) ~ .bubble{left:max(246px,calc(var(--bar-right,0px) + 24px))}}
 
 /* ---- A phone: smaller portraits and buttons, and the cards in a row to scroll ---- */
 @media (max-width:560px){
@@ -312,6 +348,11 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
   .portrait b{font-size:24px}
   .score{margin-top:-12px;font-size:20px}
   .pname{font-size:14px}
+  .players[data-count="3"]{gap:12px}
+  .players[data-count="3"] .portrait{width:50px}
+  .players[data-count="4"]{gap:10px}
+  .players[data-count="4"] .portrait{width:44px}
+  .player-card[data-seat] .pname{max-width:5.5em}
   .rounds{left:14px;top:calc(max(10px,env(safe-area-inset-top)) + 116px);gap:4px}
   .rounds i{width:18px;height:18px;border-radius:5px}
   .rounds span{font-size:15px;margin-left:4px}
@@ -329,6 +370,7 @@ body:has(dialog[open]) .bubble,#lesson-center.bubble[hidden]{opacity:0;visibilit
   #lesson-next{font-size:24px}
   #score-rows{--u:.74px;left:0;right:0;width:auto;flex-wrap:nowrap;translate:none;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain;scrollbar-width:none;padding:22px 16px 12px 104px;scroll-padding-left:104px}
   #score-rows::-webkit-scrollbar{display:none}
+  #card-owner{--u:.74px;left:96px;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 12px + 142 * var(--u) + 2px);max-width:9em;font-size:14px} /* at the row's start, which scrolls under it */
   .mosi-help{left:10px;bottom:max(14px,env(safe-area-inset-bottom));width:80px;height:80px}
   .mosi-help::after{width:32px;height:32px;font-size:22px}
   .cup-tag{min-height:58px;font-size:22px}

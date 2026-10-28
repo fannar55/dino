@@ -91,7 +91,11 @@ export const FOREST = {
     deepSpacing: 7.4,
     araucariaShare: { edge: 0.1, inner: 0.22, deep: 0.3 },
     treeFernShare: { inner: 0.1, deep: 0.04 },
-    variants: { broadleaf: 8, araucaria: 8, treeFern: 4, cycad: 3, fern: 5, bush: 8, horsetail: 3, flowers: 8, mushrooms: 3, rock: 5, log: 1 },
+    variants: {
+      broadleaf: 8, araucaria: 8, treeFern: 4, cycad: 3, fern: 5, bush: 8, horsetail: 3, flowers: 8, mushrooms: 3, rock: 5, log: 1,
+      // the Fen's own (FEN below)
+      swampConifer: 6, horsetailReed: 4, horsetailTall: 3, waterLily: 6, mossHummock: 4, deadSnag: 4,
+    },
   },
   understory: {
     treeFerns: 20,
@@ -213,6 +217,89 @@ export const FOREST = {
   // The cap keeps the fine crowns' cost bounded in every frame, wherever the camera is.
   actorWarm: 0.5, // strength of the lighter, warmer ground and grass round characters (STYLE.md 5.1); halved, it read as a spotlight following Mosi in the tracking shot
   lod: { switch: [10, 32], switchSmall: [8, 22], crownSize: [0.3, 0.19], crownFine: 3 },
+};
+
+// The Fen (layout.biome 'fen', chapter 2): a wetland with its own look, the spec's palette (docs/superpowers/specs/
+// 2026-10-21-kafli-2-bod-til-thorsedlu-design.md, section 3: wet, golden and clear, never dark), and how it grows: open water
+// and golden reed with groves of swamp conifers, where the forest is a wall of broadleaves. A layout with `blend: { from, to }`
+// turns from forest to fen between those two points (biome.js); everything here is mixed in by that share.
+export const FEN = {
+  // ground: golden reed, moss on the hummocks, dark mud at the water
+  grassSun: '#c9b45a',
+  grassTip: '#e3d08a',
+  grassBase: '#6b7a3a',
+  grassShade: '#566a3e',
+  moss: '#6f8f3c',
+  mossWet: '#4e7a3a',
+  mud: '#4a3a2c',
+  path: '#8a7152', // a trodden, damp path
+  // water (world/props/water.js): teal in shade, sky-coloured toward the horizon, a golden glint toward the sun
+  waterDeep: '#3f7a6e',
+  waterSky: '#a9c9c4',
+  waterBed: '#8b8a5a', // the bed's olive silt, seen through the shallows at the very edge
+  waterTreeline: '#4b6a5e', // the far treeline the water reflects at a low angle
+  glint: '#fff0c6',
+  mist: '#cfe0d6',
+  // trees and plants
+  bark: '#5a4636',
+  barkCrevice: '#3d2f25',
+  barkHighlight: '#7b6450',
+  hangingMoss: '#8aa05a',
+  canopyShadow: '#2f5847',
+  canopyMid: '#4a7752',
+  canopySun: '#8cae5c',
+  reed: '#c9b45a',
+  reedTip: '#e3d08a',
+  reedBase: '#6b7a3a',
+  horsetail: '#7c9c48',
+  lilyPad: '#4f8a4a',
+  lilyWhite: '#f6f1e4',
+  lilyPink: '#f0a3b6',
+  lilyHeart: '#f2c443',
+  snag: '#b5ad9e', // dead wood weathered silver-grey
+  snagShade: '#6f685c', // its cracks
+  // The ground is a calm basin: little undulation, a shallow bowl, the hummocks small. The ground mesh is finer than the forest's
+  // so the banks of the pools and the channel are smooth (terrain.js), and the water lies at one level everywhere (water.js),
+  // `waterLevel` metres from the clearing's centre.
+  terrain: { undulation: 0.16, bumps: 0.08, bowlRise: 0.3, rings: [[0, 40, 1.0], [40, 80, 3.2], [80, 260, 0]], segments: 180 },
+  waterLevel: -0.06,
+  // Open sky: what a plant in the fen sees of it (the forest's deep band sees 0.09), and the shade a grove of conifers throws.
+  sky: 0.86,
+  // Grass in the Fen: golden reed, fullest within near[0] m of the middle, easing to densityRim by near[1] m and beyond; a trail,
+  // part forest, keeps the lighter densityBlended (its budget). Away from the camera it thins as the forest's grass does but further
+  // (FOREST.grass: to 0.18 by 19 m): to lodMin by lodFar m, so the reed near and in the middle distance is as it was, and only the
+  // far reed, a few pixels a blade, is sparser: it reads by the ground's own gold under it, and the Fen's frames with all three
+  // characters in them need the triangles (7k in the head-down frames: the budget pass of 22 October).
+  grass: { density: 0.85, densityRim: 0.55, near: [14, 24], densityBlended: 0.55, tall: 1.5, lodFar: 19, lodMin: 0.1 },
+  // How much the fen grows (per place, at tablet; scaled by the quality preset).
+  counts: {
+    groves: 16, // groups of two to four swamp conifers
+    loneConifers: 14,
+    edgeConifers: 7, // standing at the water's edge, roots and knees in it
+    snags: 10,
+    reedBeds: 60, // each a bed of three to seven clumps
+    tallHorsetails: 30,
+    hummocks: 44,
+    ferns: 80,
+    cycads: 16,
+    treeFerns: 10,
+    lilies: 44,
+    rocks: 8,
+    logs: 2,
+  },
+  // Where it grows: out to this far beyond the forest edge (m), most of it on the clearing's rim (plan.js: growFen).
+  reach: 70,
+  reachBlended: 35, // a place that is part forest grows its fen nearer: it is seen from its path
+  blendedTrees: 0.65, // and fewer of its trees, which a trail sees many of at once
+  // Hanging moss under a conifer's lower tiers (forest.js): cards, how long and how wide (m), and how far they swing (degrees).
+  mossCards: { perTree: [5, 8], length: [2.5, 4.5], width: [0.55, 0.9], swingDeg: 4 },
+  // The far treeline: well out, so the fen opens to it (far.js).
+  far: {
+    rings: [
+      { radius: 150, rows: 1, spacing: 6.5, height: [12, 17], crown: [6, 9.5], strip: [2.4, 4.0], color: ['#3a5a4c', '#5d7d6b'], haze: '#c7d8d0', topHaze: 0.45, araucaria: 0.15 },
+      { radius: 190, rows: 1, spacing: 6, height: [12, 16], crown: [6, 9], strip: [2.6, 4.2], color: ['#4b6a5e', '#6d8b7d'], haze: '#d0dfd8', topHaze: 0.6, araucaria: 0.1 },
+    ],
+  },
 };
 
 /** The beat adds this share of a part's own full-wind sway, along the wind, at the crest of its wave (forestWind in materials.js). */

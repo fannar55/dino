@@ -1,0 +1,9 @@
+{
+ "name": "Eitt! (the owner's loop, 2b)",
+ "src": "music.mp3",
+ "bpm": 103.998,
+ "beatOffset": 0.5582,
+ "key": [523.43, 587.53, 659.48, 784.26, 880.31],
+ "tuningCents": 0.6,
+ "comment": "The music of Eitt! (engine/eitt/table.js), measured with tools/theme-tempo.mjs --file: C major at +0.6 cents, root first; the games' effects are tuned to this key (engine/audio/game-music.js)."
+}

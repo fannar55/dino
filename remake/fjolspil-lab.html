@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fjölspil — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./fjolspil.css">
+<!-- The lobby and the waiting card of "Fjölspil" (engine/fjolspil/lobby.js) on a page of their own, never linked from the game,
+     over a stand-in for the book (the lobby) or for a game's board (the waiting card), with seats set out for each state and no
+     network: the QR code holds a sample address.
+       ?state=lobby (the default)   Egill alone, "Bæta við Þórseðlu", "Byrjum!" waiting for a second seat
+       ?state=joined                Anna and Bjarni there, Dóra gone (dim, "…"), no computer player: the table is full
+       ?state=ai                    Anna and Þórseðla, "Taka Þórseðlu út"
+       ?state=wait                  the waiting card over the game for Anna, with "Halda áfram án Anna" already shown
+       &lan=0                       the server without --lan: the lobby says so
+       &join=http://…/remake/spil.html   a real address in the QR code, to scan it with a phone (the default is a sample)
+       ?live=1                      a real room at the meeting point beside this page (net.js's createHostNet): a new code,
+                                    the phone page's address in the QR code (the server's LAN one when this page is on
+                                    loopback), and each guest seated as it says hello, listed at the bottom left with the
+                                    way its messages go (rtc or relay); &relay=1 forces the relay. Only that: no seat is
+                                    answered and no view sent (the host session is fjolspil.js); window.__net is the net
+     The buttons work on the seats here: the character comes and goes, "Halda áfram án …" covers the seat; the key g seats
+     the next guest (the sparkle). capture.mjs waits for __demoReady, which comes once the pictures are in and the cards have
+     finished coming in. -->
+<style>
+  /* A stand-in for the open book behind the lobby, and for a game's board behind the waiting card. */
+  .standin { position: fixed; inset: 0; display: grid; place-items: center; background: linear-gradient(#cfe4ee, #e9efd8 55%, #9fbb62); }
+  .standin-book { display: grid; grid-template-columns: 1fr 1fr; width: min(1100px, 86vw); height: min(680px, 80vh); filter: drop-shadow(0 24px 30px rgb(40 24 10 / .3)); }
+  .standin-book > div { background: repeating-linear-gradient(#f6efdf 0 38px, #e9dfc8 38px 40px); border: 3px solid #3b2f25; }
+  .standin-book > div:first-child { border-radius: 26px 6px 6px 26px; border-right-width: 1.5px; }
+  .standin-book > div:last-child { border-radius: 6px 26px 26px 6px; border-left-width: 1.5px; }
+  .standin.board { background:
+    radial-gradient(ellipse 22% 30% at 8% 30%, #8fb07c 0 60%, transparent 100%),
+    radial-gradient(ellipse 24% 32% at 92% 28%, #84a874 0 60%, transparent 100%),
+    radial-gradient(ellipse 60% 22% at 50% 52%, #c4d27c 0 60%, transparent 100%),
+    linear-gradient(#d7e7ee 0%, #edf0dc 30%, #bccf7e 48%, #8fae52 70%, #6f8f3c 100%); }
+  .standin.board .standin-book { display: none; }
+  /* ?live=1: the room's code and status, and each guest with the way its messages go. */
+  .live { position: fixed; left: 12px; bottom: 12px; z-index: 1000; margin: 0; padding: 8px 14px 8px 30px; background: rgb(255 250 240 / .92); border: 2px solid #3b2f25; border-radius: 12px; font: 600 15px/1.4 ui-monospace, monospace; color: #3b2f25; }
+</style>
+</head>
+<body>
+<div class="standin" id="standin"><div class="standin-book"><div></div><div></div></div></div>
+<div id="fjolspil" class="fjolspil" hidden></div>
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
+<script type="module">
+import { createSeats } from './engine/fjolspil/seats.js';
+import { createLobby } from './engine/fjolspil/lobby.js';
+import { createHostNet, iceServersFor, wsUrlFor } from './engine/fjolspil/net.js';
+import { makeCode, randomKey } from './engine/fjolspil/protocol.js';
+
+const params = new URLSearchParams(location.search);
+const live = params.get('live') === '1';
+const state = live ? 'lobby' : params.get('state') || 'lobby';
+const lanMissing = params.get('lan') === '0';
+// ?join=<address> puts a real address in the QR code (the server's LAN address, for a scan with a phone); otherwise a sample
+const joinUrl = params.get('join') || (lanMissing ? 'http://127.0.0.1:4198/remake/spil.html' : 'http://192.168.1.10:4198/remake/spil.html');
+let code = live ? makeCode() : 'GULL';
+const THORSEDLA = { name: 'Þórseðla', avatar: 'thorsedla', add: 'Bæta við Þórseðlu', remove: 'Taka Þórseðlu út' };
+
+const seats = createSeats({ reserved: [THORSEDLA.avatar] });
+const GUESTS = [
+  { guestId: 'g1', name: 'Anna', avatar: 'kambedla' },
+  { guestId: 'g2', name: 'Bjarni', avatar: 'uggedla' },
+  { guestId: 'g3', name: 'Dóra', avatar: 'flugedla' },
+];
+if (state === 'joined') {
+  for (const guest of GUESTS) seats.join(guest);
+  seats.presence(3, false);
+}
+if (state === 'ai') {
+  seats.join(GUESTS[0]);
+  seats.addAi(THORSEDLA);
+}
+if (state === 'wait') {
+  seats.join(GUESTS[0]);
+  seats.presence(1, false);
+}
+
+// The waiting card's state shows "Halda áfram án …" at once; otherwise the page's own timers (20 s).
+const timers = state === 'wait' ? { setTimeout: fn => { fn(); return 0; }, clearTimeout() {} } : undefined;
+const lobby = createLobby(document, {
+  seats, timers,
+  onAddAi: () => seats.addAi(THORSEDLA),
+  onRemoveAi: () => seats.removeAi(),
+  onStart: () => console.log('[fjolspil-lab] Byrjum!', seats.list()),
+  onClose: () => console.log('[fjolspil-lab] back to the book'),
+  onContinue: seat => { seats.cover(seat); lobby.hideWaiting(); console.log('[fjolspil-lab] the computer plays seat', seat); },
+});
+window.__lobby = lobby;
+window.__seats = seats;
+
+if (state === 'wait') {
+  document.getElementById('standin').classList.add('board');
+  lobby.waitFor({ seat: 1, joinUrl, code });
+} else if (live) {
+  goLive();
+} else {
+  lobby.show({ joinUrl, code, ai: THORSEDLA, lanMissing });
+}
+
+/** ?live=1: a real room, its real address in the QR code, and the guests seated as they say hello (see the top). */
+function goLive() {
+  const key = randomKey();
+  const forceRelay = params.get('relay') === '1';
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  const named = new Map(); // guest id → the name its seat has
+  const list = document.createElement('ol');
+  list.className = 'live';
+  document.body.append(list);
+  let net = null;
+
+  function render() {
+    const lines = [`${code} · ${net?.status ?? ''}${forceRelay ? ' · relay=1' : ''}`];
+    for (const [id, name] of named) lines.push(`${name} · ${net.transportOf(id) ?? '…'}`);
+    list.replaceChildren(...lines.map(line => Object.assign(document.createElement('li'), { textContent: line })));
+  }
+  const seatOf = id => seats.byGuest(id)?.seat;
+
+  function open() {
+    const mine = createHostNet({ url: wsUrlFor(location, code, { role: 'host', key }), iceServers: iceServersFor(location), forceRelay });
+    net = mine;
+    window.__net = mine;
+    mine.onStatus(status => {
+      console.log('[fjolspil-lab] live', code, status);
+      if (status === 'taken' && net === mine) { // another host has this code: another one
+        mine.close();
+        code = makeCode();
+        return open();
+      }
+      render();
+    });
+    mine.onWelcome(({ join }) => {
+      const phonePage = loopback ? join[0] ?? `${location.origin}/remake/spil.html` : `${location.origin}/remake/spil.html`;
+      lobby.show({ joinUrl: phonePage, code, ai: THORSEDLA, lanMissing: loopback && join.length === 0 });
+      console.log('[fjolspil-lab] the phone page:', `${phonePage}?r=${code}`);
+    });
+    mine.onJoin(id => console.log('[fjolspil-lab] joined', id));
+    mine.onLeave(id => {
+      console.log('[fjolspil-lab] left', id);
+      if (seatOf(id) !== undefined) seats.presence(seatOf(id), false);
+      lobby.refresh();
+      render();
+    });
+    mine.onPresence((id, present) => {
+      if (seatOf(id) !== undefined) seats.presence(seatOf(id), present);
+      lobby.refresh();
+    });
+    mine.onMessage((id, msg) => {
+      if (msg.type !== 'hello') return;
+      const result = seats.join({ guestId: id, name: msg.body?.name, avatar: msg.body?.avatar });
+      console.log('[fjolspil-lab] hello', id, msg.body, result, mine.transportOf(id));
+      if (result.ok) named.set(id, result.name);
+      lobby.refresh();
+      render();
+    });
+  }
+
+  open();
+  setInterval(render, 1000); // a guest's way can change after its hello (the channel opens, or the relay takes over)
+}
+
+addEventListener('keydown', event => {
+  if (event.key !== 'g') return;
+  const next = GUESTS.find(guest => !seats.byGuest(guest.guestId));
+  if (next) seats.join(next);
+  lobby.refresh();
+});
+
+// Ready once the pictures are in and the cards have come in (their entrance is under half a second).
+const pictures = [...document.querySelectorAll('#fjolspil img')].filter(img => !img.hidden && img.src);
+await Promise.all([document.fonts.ready, ...pictures.map(img => img.decode().catch(() => {}))]);
+await new Promise(resolve => setTimeout(resolve, 700));
+window.__demoReady = true;
+</script>
+</body>
+</html>
