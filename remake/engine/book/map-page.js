@@ -134,8 +134,8 @@ const ROUTE = [
   { id: 'f', end: 'uggedla', by: 'star', points: [[1360, 205], [1385, 260], [1400, 320], [1405, 380], [1400, 440], [1405, 500], [1420, 560], [1440, 620], [1452, 645]] },
   { id: 'g', end: 'gramedla', by: 'star', points: [[1413, 684], [1330, 645], [1240, 606], [1150, 570], [1060, 535], [970, 500], [880, 462], [790, 420], [700, 375], [610, 340], [530, 300], [470, 262], [420, 228], [360, 190], [300, 158], [250, 135], [214, 122]] },
 ];
-export const ROUTE_MS = 2000; // a piece draws itself over this long
-export const ROUTE_GAP_MS = 150; // and the next begins this long after it
+export const ROUTE_MS = 2650; // a piece draws itself over this long
+export const ROUTE_GAP_MS = 200; // and the next begins this long after it
 const DOT_R = 9; // the dot that says where the child is, in the view's units
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const seenOf = id => `map-route-${id}`;

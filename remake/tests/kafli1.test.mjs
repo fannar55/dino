@@ -262,7 +262,7 @@ test('the map comes up as the ride begins: piece a drawn before "Haltu þér fas
     assert.equal(said[0].who, 'Mosi');
     assert.ok(Math.abs(said[0].at - moment.at) < 0.1, `${how}: he begins as the map slides up (${said[0].at.toFixed(2)} s, the map at ${moment.at.toFixed(2)} s)`);
     // The line is drawn on the map, and kept as seen.
-    assert.equal(moment.drawMs, 2600, `${how}: the slide up and the one piece`);
+    assert.equal(moment.drawMs, 3250, `${how}: the slide up and the one piece`);
     assert.deepEqual(moment.states, { a: ['drawing'] }, `${how}: piece a draws itself, in the overlay`);
     assert.deepEqual(moment.seenAfter, ['map-route-a'], `${how}: and the save has it as seen`);
     assert.ok(save.get().seen.includes('map-route-a'), `${how}: for good`);
@@ -300,7 +300,7 @@ test('a child who plays the chapter again, with piece a seen already, sees the m
   assert.equal(run.moments.length, 1, 'the moment still plays');
   const [moment] = run.moments;
   assert.deepEqual(moment.seenBefore, ['map-route-a'], 'the piece was seen already');
-  assert.equal(moment.drawMs, 2600, 'and is drawn again, over the slide');
+  assert.equal(moment.drawMs, 3250, 'and is drawn again, over the slide');
   assert.deepEqual(moment.states, { a: ['drawing'] }, 'drawing in the overlay');
   assert.deepEqual(run.save.get().seen, ['map-route-a'], 'seen once, as before');
   assert.ok(run.seen.spoken.has('k1_mosi_map_ride'), 'with Mosi saying where they go');

@@ -418,7 +418,7 @@ test('the journal owns the map moment: it draws on the journal\'s save, sounds t
   };
   assert.equal(journal.mapMoment.isOpen, false, 'there from the start, and not showing');
   const { drawMs } = journal.mapMoment.play(['a']);
-  assert.equal(drawMs, 2600);
+  assert.equal(drawMs, 3250);
   assert.equal(journal.mapMoment.isOpen, true);
   assert.deepEqual(save.get().seen, ['map-route-a'], 'on the journal\'s own save');
   assert.deepEqual(sounds, ['mapOpen'], 'through the audio the journal was given');
@@ -437,7 +437,7 @@ test('the two sounds of the map moment exist, in the effects of the game and in 
   const theme = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
   const SOUNDS = {
     mapOpen: { shortest: 0.35, longest: 0.6, least: 2 }, // it comes as the map slides up in 0.6 s
-    mapPen: { shortest: 1.6, longest: 2.0, least: 6 }, // a tick at a time, as long as a piece takes to draw (2 s)
+    mapPen: { shortest: 2.2, longest: 2.65, least: 6 }, // a tick at a time, as long as a piece takes to draw (2.65 s)
   };
   const ways = {
     'the effects of the game': context => name => createSfx({ context, theme }).play(name),

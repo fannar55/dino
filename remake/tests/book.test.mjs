@@ -435,14 +435,14 @@ test('each piece of the trail draws itself in the first time the page shows it, 
   assert.deepEqual(trailOf(root), ['pending', 'pending', 'pending', 'next', 'hidden', 'hidden', 'hidden']);
   assert.equal(drawings.length, 0, 'nothing is drawn while the book is shut');
   book.open('map', 'child');
-  // A, then B, then C: each over two seconds on both pages at once, each beginning after the one before and after the book's turn;
+  // A, then B, then C: each over 2.65 seconds on both pages at once, each beginning after the one before and after the book's turn;
   // D, the way ahead, and the three after it are not drawn
   assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['a', 'a', 'b', 'b', 'c', 'c']);
-  assert.deepEqual(drawings.map(drawing => drawing.options.duration), [2000, 2000, 2000, 2000, 2000, 2000]);
+  assert.deepEqual(drawings.map(drawing => drawing.options.duration), [2650, 2650, 2650, 2650, 2650, 2650]);
   const delays = drawings.map(drawing => drawing.options.delay);
   assert.equal(delays[0], delays[1], 'both pages\' copies of a piece start together');
   assert.ok(delays[0] > 0, 'once the book has settled');
-  assert.ok(delays[2] >= delays[0] + 2000 && delays[4] >= delays[2] + 2000, 'one piece after another');
+  assert.ok(delays[2] >= delays[0] + 2650 && delays[4] >= delays[2] + 2650, 'one piece after another');
   assert.ok(drawings.every(drawing => drawing.options.fill === 'both'), 'a piece waits hidden until its turn');
   assert.deepEqual(trailOf(root), ['drawing', 'drawing', 'drawing', 'next', 'hidden', 'hidden', 'hidden']);
   assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c'], 'each is kept as seen as it is begun');
@@ -684,27 +684,27 @@ test('the mist opens at Grameðla once she is found, the first time drawn open, 
 test('drawPieces draws named pieces whether or not the save has reached them, and keeps them seen', () => {
   const rig = mapRig({ animated: true });
   assert.equal(rig.map.routeOf('a'), 'next', 'a fresh save has reached nothing');
-  assert.equal(rig.map.drawPieces(['a']), 2000, 'one piece takes two seconds');
+  assert.equal(rig.map.drawPieces(['a']), 2650, 'one piece takes 2.65 seconds');
   assert.equal(rig.map.routeOf('a'), 'drawing');
   assert.deepEqual(rig.save.get().seen, ['map-route-a'], 'kept as seen');
-  assert.deepEqual(rig.reveals().map(({ options }) => [options.delay, options.duration]), [[0, 2000], [0, 2000]], 'on both pages at once, at once');
+  assert.deepEqual(rig.reveals().map(({ options }) => [options.delay, options.duration]), [[0, 2650], [0, 2650]], 'on both pages at once, at once');
   rig.reveals()[0].animation.finish();
   assert.equal(rig.map.routeOf('a'), 'drawn');
   assert.equal(rig.map.dotAt(), 'kambedla', 'the dot rests where it ended');
 
   // two pieces: each after the one before; the delay is when the first begins and is not part of how long it takes
   const two = mapRig({ animated: true });
-  assert.equal(two.map.drawPieces(['b', 'c'], { delay: 600 }), 4150, 'two pieces and the gap between them');
-  assert.deepEqual(two.reveals().map(({ options }) => options.delay), [600, 600, 2750, 2750]);
+  assert.equal(two.map.drawPieces(['b', 'c'], { delay: 600 }), 5500, 'two pieces and the gap between them');
+  assert.deepEqual(two.reveals().map(({ options }) => options.delay), [600, 600, 3450, 3450]);
   const dots = two.animations.filter(({ el }) => el.getAttribute('class') === 'map-dot');
-  assert.deepEqual(dots.map(({ options }) => [options.delay, options.duration]), [[600, 2000], [600, 2000], [2750, 2000], [2750, 2000]], 'the dot rides each piece\'s head');
+  assert.deepEqual(dots.map(({ options }) => [options.delay, options.duration]), [[600, 2650], [600, 2650], [3450, 2650], [3450, 2650]], 'the dot rides each piece\'s head');
   assert.deepEqual(['a', 'b', 'c'].map(id => two.map.routeOf(id)), ['next', 'drawing', 'drawing']);
   assert.deepEqual(two.save.get().seen, ['map-route-b', 'map-route-c']);
 
   // a piece the child has seen is drawn again from its start, and the dot goes back to where it begins
   const again = mapRig({ animated: true, fill: save => { playedTo(2)(save); for (const id of ['a', 'b', 'c']) save.addSeen(`map-route-${id}`); } });
   assert.deepEqual(['a', 'b', 'c'].map(id => again.map.routeOf(id)), ['drawn', 'drawn', 'drawn']);
-  assert.equal(again.map.drawPieces(['b', 'c']), 4150);
+  assert.equal(again.map.drawPieces(['b', 'c']), 5500);
   assert.deepEqual(['a', 'b', 'c'].map(id => again.map.routeOf(id)), ['drawn', 'drawing', 'drawing'], 'b and c are waiting to be drawn again');
   assert.equal(again.map.dotAt(), 'kambedla', 'the dot waits at the end of a, where b begins');
   assert.deepEqual(again.save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c'], 'and nothing is kept twice');
@@ -833,7 +833,7 @@ test('the map moment slides up over the game, draws the leg ahead and goes', () 
   assert.equal(rig.overlays().length, 0, 'nothing on the page until it is played');
   assert.equal(rig.moment.isOpen, false);
   const { drawMs } = rig.moment.play(['a']);
-  assert.equal(drawMs, 2600, 'the slide up (0.6 s) and the one piece (2 s)');
+  assert.equal(drawMs, 3250, 'the slide up (0.6 s) and the one piece (2.65 s)');
   assert.equal(rig.overlays().length, 1, 'one overlay');
   assert.equal(rig.moment.isOpen, true);
   const [overlay] = rig.overlays();
@@ -853,11 +853,11 @@ test('the map moment slides up over the game, draws the leg ahead and goes', () 
   assert.match(slideIn.keyframes.at(-1).transform, /^translateY\(0(px)?\)$/, 'to its place');
   assert.ok(rig.animations.some(({ el, keyframes }) => el === veil && keyframes[0].opacity === 0 && keyframes.at(-1).opacity === 1), 'the game goes dim as it comes');
   const move = rig.animations.find(({ el }) => el === zoom);
-  assert.equal(move.options.duration, 2600, 'the zoom lasts as long as the slide and the drawing');
+  assert.equal(move.options.duration, 3250, 'the zoom lasts as long as the slide and the drawing');
   assert.equal(move.options.fill, 'forwards');
   assert.equal(move.options.easing, 'ease-in-out');
   const reveals = rig.animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
-  assert.deepEqual(reveals.map(({ options }) => [options.delay, options.duration]), [[600, 2000], [600, 2000]], 'the line begins as the map has arrived');
+  assert.deepEqual(reveals.map(({ options }) => [options.delay, options.duration]), [[600, 2650], [600, 2650]], 'the line begins as the map has arrived');
 
   // the sounds: the map's on its arrival, and a pen's as the piece begins, in game time
   assert.deepEqual(rig.sounds, ['mapOpen']);
@@ -888,16 +888,16 @@ test('the map moment slides up over the game, draws the leg ahead and goes', () 
 test('the map moment draws two pieces for a long leg, over the pieces already drawn, and a held game holds the closing', () => {
   const rig = momentRig({ fill: save => { save.addStar('k1_kambedla'); save.addSeen('map-route-a'); } });
   const { drawMs } = rig.moment.play(['b', 'c']);
-  assert.equal(drawMs, 4750, 'the slide, two pieces and the gap between them');
+  assert.equal(drawMs, 6100, 'the slide, two pieces and the gap between them');
   const [overlay] = rig.overlays();
   const states = id => [...new Set(overlay.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state')))];
   assert.deepEqual(['a', 'b', 'c'].map(states), [['drawn'], ['drawing'], ['drawing']], 'the glade\'s piece stays as it was, the two ahead draw');
   assert.ok(sameSpot(dotSpot(overlay), inView(ENDS.kambedla)), 'the dot waits where the child is, at the glade, until the line goes on');
   const reveals = rig.animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
-  assert.deepEqual(reveals.map(({ options }) => options.delay), [600, 600, 2750, 2750]);
+  assert.deepEqual(reveals.map(({ options }) => options.delay), [600, 600, 3450, 3450]);
   assert.deepEqual(rig.save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c']);
   rig.moment.update(0.6);
-  rig.moment.update(2.15);
+  rig.moment.update(2.85);
   assert.deepEqual(rig.sounds, ['mapOpen', 'mapPen', 'mapPen'], 'a pen for each piece, as each begins');
   // the zoom frames the two pieces with room round them, short of the 1.6 times
   const zoom = overlay.findAll(e => e.classList.contains('map-zoom'))[0];
@@ -934,10 +934,10 @@ test('with reduced motion the map appears and goes without sliding or zooming, t
 
 test('the map moment plays again over pieces the child has seen, and a second play replaces a first', () => {
   const rig = momentRig({ fill: save => { save.addStar('k1_kambedla'); save.addSeen('map-route-a'); } });
-  assert.equal(rig.moment.play(['a']).drawMs, 2600, 'a seen piece is drawn again');
+  assert.equal(rig.moment.play(['a']).drawMs, 3250, 'a seen piece is drawn again');
   const [first] = rig.overlays();
   assert.deepEqual(first.findAll(e => e.getAttribute('data-piece') === 'a').map(e => e.getAttribute('data-state')), ['drawing', 'drawing']);
-  assert.equal(rig.moment.play(['a']).drawMs, 2600);
+  assert.equal(rig.moment.play(['a']).drawMs, 3250);
   assert.equal(rig.overlays().length, 1, 'one overlay, never two');
   assert.notEqual(rig.overlays()[0], first, 'the new one');
   assert.equal(first.parentNode, null, 'the old one gone');
@@ -1020,7 +1020,7 @@ test('the book opened during a map moment leaves no overlay behind, and the piec
   const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
 
   const { drawMs } = journal.mapMoment.play(['a']);
-  assert.equal(drawMs, 2600);
+  assert.equal(drawMs, 3250);
   assert.equal(drawings.length, 2, 'piece a drawing, on the overlay\'s two pages');
   doc.getElementById('journal-button').dispatchEvent(new Event('click'));
   assert.equal(book.isOpen, true, 'the child\'s book opens');

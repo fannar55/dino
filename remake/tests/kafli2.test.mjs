@@ -880,7 +880,7 @@ test('the map comes up as they leave the glade: b and c drawn before Mosi walks 
     assert.ok(during.length > 10 && during.every(f => f.saying === 1), `${how}: c.saying counts Mosi's line while he says it`);
     assert.equal(watched.saying.find(f => f.at >= moment.goneAt).saying, 0, `${how}: and nothing after it`);
     // Both pieces are drawn on the map, and kept as seen.
-    assert.equal(moment.drawMs, 4750, `${how}: the slide up, two pieces and the gap between them`);
+    assert.equal(moment.drawMs, 6100, `${how}: the slide up, two pieces and the gap between them`);
     assert.deepEqual(moment.states, { b: ['drawing'], c: ['drawing'] }, `${how}: both draw themselves, in the overlay`);
     assert.deepEqual(moment.seenAfter, ['map-route-b', 'map-route-c'], `${how}: and the save has them as seen`);
     assert.ok(['map-route-b', 'map-route-c'].every(id => save.get().seen.includes(id)), `${how}: for good`);

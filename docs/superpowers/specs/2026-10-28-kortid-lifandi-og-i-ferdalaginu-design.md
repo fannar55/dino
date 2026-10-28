@@ -43,7 +43,7 @@ Lífið er hluti af kortinu sjálfu (`map-page.js`), svo það er eins í bókin
 2. Kortið rennur upp neðan frá á um 0,6 sekúndum, eins og kort sem er lagt fram: allt kortið sem ein mynd (báðar síður bókarinnar hlið við hlið, 1800 × 1000 eininga sýn), yfir um 86 % af skjánum, með pappírsjaðri og skugga. Leikurinn sést daufur í kring (dökk slæða, um 35 %). Kortahljóð þegar það birtist.
 3. Á kortinu er sama staða og í bókinni: límmiðarnir, rauðu línurnar sem eru komnar, punkturinn þar sem við erum, og lífið.
 4. Myndin færist hægt nær bútunum sem teiknast (frá öllu kortinu að ramma utan um bútana, mest 1,6 × stækkun) á meðan línan teiknast.
-5. Rauða línan teiknast eftir bútunum með punktinum fremst, eins og í bókinni (2 sekúndur hver bútur, 0,15 sekúndur á milli). Pennahljóð á meðan. Mosi segir línuna sína á sama tíma, með skjátexta eins og aðrar línur.
+5. Rauða línan teiknast eftir bútunum með punktinum fremst, eins og í bókinni (2,65 sekúndur hver bútur, 0,2 sekúndur á milli; eigandinn bað um þriðjungi hægari línu 2026-10-28). Pennahljóð á meðan. Mosi segir línuna sína á sama tíma, með skjátexta eins og aðrar línur.
 6. Þegar bæði línan og orð Mosa eru búin stendur kortið kyrrt í 0,8 sekúndur, rennur svo niður og burt á 0,6 sekúndum, og senan heldur áfram þar sem hún var (Mosi segir „Haltu þér fast. Af stað!“ í kafla 1, gengur úr lautinni í kafla 2).
 
 - **Tími:** kafli 1 um 5–6 sekúndur, kafli 2 um 6–7.

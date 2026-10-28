@@ -6,7 +6,7 @@
 //
 // The game goes on under the map: nothing is cut, and the actors and the camera are as the scene left them (Mosi stands ready, looking
 // at Egill, or at whoever he was looking at). The map slides up (0.6 s) and Mosi begins his line at the same moment; the line and the
-// drawing (the slide up and each piece, 2 s, with 0.15 s between) go on side by side, and the map waits for whichever is longer, and
+// drawing (the slide up and each piece, 2.65 s, with 0.2 s between) go on side by side, and the map waits for whichever is longer, and
 // for Mosi's line in any case (with reduced motion there is no drawing to wait for, and Mosi's line is the only wait); then it stands
 // HOLD s, slides away (what close() says: 0.6 s, none with reduced motion) and the scene goes on. Every wait is on the game clock
 // (s.say, s.until, s.wait), never on a Web Animation, so a capture or a test that seeks through the moment, or a child who opens the book
