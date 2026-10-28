@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createBook, halsOpen } from '../engine/book/book.js';
 import { renderMap } from '../engine/book/map-page.js';
+import { createMapMoment, fitMap, zoomTo } from '../engine/book/map-moment.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
 import { parseManifest, imageSize } from '../engine/book/media.js';
 import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
@@ -676,6 +677,377 @@ test('the mist opens at Grameðla once she is found, the first time drawn open, 
   assert.equal(openingOf(calm).length, 0, 'no animation');
   assert.equal(mistsOf(calm)[0].style['--map-hole'], to, 'the hole is open');
   assert.ok(calm.save.get().seen.includes(GRAMEDLA_SEEN), 'still kept as seen');
+});
+
+// ---- The map in the journey: pieces drawn on request, and the map moment over the game (map-moment.js) -----------------
+
+test('drawPieces draws named pieces whether or not the save has reached them, and keeps them seen', () => {
+  const rig = mapRig({ animated: true });
+  assert.equal(rig.map.routeOf('a'), 'next', 'a fresh save has reached nothing');
+  assert.equal(rig.map.drawPieces(['a']), 2000, 'one piece takes two seconds');
+  assert.equal(rig.map.routeOf('a'), 'drawing');
+  assert.deepEqual(rig.save.get().seen, ['map-route-a'], 'kept as seen');
+  assert.deepEqual(rig.reveals().map(({ options }) => [options.delay, options.duration]), [[0, 2000], [0, 2000]], 'on both pages at once, at once');
+  rig.reveals()[0].animation.finish();
+  assert.equal(rig.map.routeOf('a'), 'drawn');
+  assert.equal(rig.map.dotAt(), 'kambedla', 'the dot rests where it ended');
+
+  // two pieces: each after the one before; the delay is when the first begins and is not part of how long it takes
+  const two = mapRig({ animated: true });
+  assert.equal(two.map.drawPieces(['b', 'c'], { delay: 600 }), 4150, 'two pieces and the gap between them');
+  assert.deepEqual(two.reveals().map(({ options }) => options.delay), [600, 600, 2750, 2750]);
+  const dots = two.animations.filter(({ el }) => el.getAttribute('class') === 'map-dot');
+  assert.deepEqual(dots.map(({ options }) => [options.delay, options.duration]), [[600, 2000], [600, 2000], [2750, 2000], [2750, 2000]], 'the dot rides each piece\'s head');
+  assert.deepEqual(['a', 'b', 'c'].map(id => two.map.routeOf(id)), ['next', 'drawing', 'drawing']);
+  assert.deepEqual(two.save.get().seen, ['map-route-b', 'map-route-c']);
+
+  // a piece the child has seen is drawn again from its start, and the dot goes back to where it begins
+  const again = mapRig({ animated: true, fill: save => { playedTo(2)(save); for (const id of ['a', 'b', 'c']) save.addSeen(`map-route-${id}`); } });
+  assert.deepEqual(['a', 'b', 'c'].map(id => again.map.routeOf(id)), ['drawn', 'drawn', 'drawn']);
+  assert.equal(again.map.drawPieces(['b', 'c']), 4150);
+  assert.deepEqual(['a', 'b', 'c'].map(id => again.map.routeOf(id)), ['drawn', 'drawing', 'drawing'], 'b and c are waiting to be drawn again');
+  assert.equal(again.map.dotAt(), 'kambedla', 'the dot waits at the end of a, where b begins');
+  assert.deepEqual(again.save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c'], 'and nothing is kept twice');
+
+  // reduced motion draws nothing: the pieces are just there, and kept; so for a page that cannot animate; and an id that is no piece is none
+  const calm = mapRig({ reduced: true, animated: true });
+  assert.equal(calm.map.drawPieces(['a', 'b']), 0);
+  assert.deepEqual(['a', 'b'].map(id => calm.map.routeOf(id)), ['drawn', 'drawn']);
+  assert.equal(calm.animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal').length, 0, 'no animation');
+  assert.deepEqual(calm.save.get().seen, ['map-route-a', 'map-route-b']);
+  const plain = mapRig();
+  assert.equal(plain.map.drawPieces(['a']), 0, 'a page that cannot animate has it there at once');
+  assert.equal(plain.map.routeOf('a'), 'drawn');
+  assert.equal(mapRig({ animated: true }).map.drawPieces(['z']), 0);
+});
+
+test('bounds(ids) is the box round the pieces\' curves, in the view\'s units', () => {
+  const { map } = mapRig();
+  const near = (got, want, what) => assert.ok(Math.abs(got - want) < 10, `${what}: ${got.toFixed(1)} is not near ${want.toFixed(1)}`);
+  // a: from the clearing to the glade, x 249 to 531 and y 532 to 736 in the painting's pixels
+  const a = map.bounds(['a']);
+  near(a.x, inView([249, 0])[0], 'a left');
+  near(a.y, inView([0, 532])[1], 'a top');
+  near(a.x + a.width, inView([531, 0])[0], 'a right');
+  near(a.y + a.height, inView([0, 736])[1], 'a bottom');
+  // b and c together: from the glade's far side to Þórseðla's pool and the north of it
+  const both = map.bounds(['b', 'c']);
+  near(both.x, inView([628, 0])[0], 'b+c left');
+  near(both.y, inView([0, 373])[1], 'b+c top');
+  near(both.x + both.width, inView([1628, 0])[0], 'b+c right');
+  near(both.y + both.height, inView([0, 730])[1], 'b+c bottom');
+  const whole = { x: 0, y: 0, width: 1800, height: 1000 };
+  assert.deepEqual(map.bounds([]), whole, 'no piece: the whole map');
+  assert.deepEqual(map.bounds(['z']), whole, 'and an id that is no piece is none');
+});
+
+test('the ids in the map stay unique when a second map is drawn in the same page', () => {
+  // the book's map and the map moment's are on the page together: a mask is found by its id, so the two must not share one
+  const doc = new FakeDocument();
+  const make = () => {
+    const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
+    leaf.el.append(...leaf.tiles);
+    renderMap(leaf, { save: createSave(null), win: { matchMedia: () => ({ matches: false }) } });
+    return leaf;
+  };
+  const maps = [make(), make(), make()];
+  const idsOf = leaf => leaf.el.findAll(e => e.getAttribute('id')).map(e => e.getAttribute('id'));
+  const all = maps.flatMap(idsOf);
+  assert.equal(all.length, 3 * 7 * 2, 'a mask for each of seven pieces on each of two pages, in each map');
+  assert.equal(new Set(all).size, all.length, 'every id is one of a kind');
+  for (const leaf of maps) { // and each map's lines are masked by its own masks
+    const own = new Set(idsOf(leaf));
+    const lines = leaf.el.findAll(e => e.getAttribute('class') === 'map-route-line');
+    assert.equal(lines.length, 14);
+    for (const line of lines) assert.ok(own.has(/^url\(#(.+)\)$/.exec(line.getAttribute('mask'))[1]), 'a line is masked by a mask of its own map');
+  }
+});
+
+test('fitMap keeps the whole map inside the screen, landscape and upright', () => {
+  for (const [width, height] of [[1366, 1024], [1024, 1366], [1920, 1080], [820, 1180], [1180, 820]]) {
+    const box = fitMap(width, height);
+    assert.ok(box.width <= width * 0.86 + 1e-9 && box.height <= height * 0.86 + 1e-9, `${width}x${height}: within 86 % of each side`);
+    assert.ok(Math.abs(box.width / box.height - 1.8) < 1e-9, `${width}x${height}: the map's own shape, 1.8 to 1`);
+    assert.ok(box.width >= width * 0.86 - 1e-9 || box.height >= height * 0.86 - 1e-9, `${width}x${height}: and as big as that lets it be`);
+  }
+  assert.deepEqual(fitMap(1000, 1000), { width: 860, height: 860 / 1.8 }, 'a square screen: the width limits, and the map is letterboxed');
+  const upright = fitMap(1024, 1366);
+  assert.ok(upright.width < 1024 && upright.height < 1366 / 2, 'upright: as wide as the screen lets it be, a band across the middle');
+});
+
+test('the zoom eases toward the leg, at most 1.6 times, and never cuts the pieces out of the card', () => {
+  const { map } = mapRig();
+  const boxes = [
+    map.bounds(['a']), map.bounds(['b', 'c']), map.bounds(['d']), map.bounds(['g']), map.bounds(['a', 'b', 'c', 'd', 'e', 'f', 'g']),
+    { x: 0, y: 0, width: 10, height: 10 }, { x: 1790, y: 990, width: 10, height: 10 }, { x: 900, y: 500, width: 0, height: 0 },
+    { x: 20, y: 400, width: 700, height: 300 }, { x: 1100, y: 40, width: 650, height: 80 },
+  ];
+  for (const box of boxes) {
+    const { scale, x, y } = zoomTo(box);
+    const what = JSON.stringify(box);
+    assert.ok(scale >= 1 && scale <= 1.6 + 1e-9, `${what}: at least 1 and at most 1.6 times (${scale})`);
+    assert.ok(x <= 1e-9 && x >= -(scale - 1) * 1800 - 1e-9 && y <= 1e-9 && y >= -(scale - 1) * 1000 - 1e-9, `${what}: the map still covers the card`);
+    const [left, right, top, bottom] = [box.x * scale + x, (box.x + box.width) * scale + x, box.y * scale + y, (box.y + box.height) * scale + y];
+    assert.ok(left >= -1e-9 && right <= 1800 + 1e-9 && top >= -1e-9 && bottom <= 1000 + 1e-9, `${what}: the pieces stay inside the card (${[left, right, top, bottom].map(Math.round)})`);
+  }
+  assert.deepEqual(zoomTo({ x: 0, y: 0, width: 1800, height: 1000 }), { scale: 1, x: 0, y: 0 }, 'the whole map is not zoomed');
+  assert.ok(zoomTo(map.bounds(['a'])).scale > 1.5, 'a short leg is brought near');
+  assert.ok(zoomTo(map.bounds(['b', 'c'])).scale < 1.5, 'a long one is not, or it would be cut off');
+});
+
+/** The box round some pieces of the trail, as the map says it. */
+const boundsOf = ids => mapRig().map.bounds(ids);
+
+/**
+ * The map moment on a page of its own, over a save of its own, in a window `size` big: the animations it asks for (recorded, and
+ * finished by hand), the sounds it makes, and the page's resize listener. `ids` are the elements the page already has.
+ */
+function momentRig({ fill = () => {}, reduced = false, size = [1366, 1024], ids = [] } = {}) {
+  const save = createSave(null);
+  fill(save);
+  const doc = new FakeDocument(ids);
+  const animations = []; // { el, keyframes, options, animation }
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => {
+    const element = create(tag);
+    element.animate = (keyframes, options) => {
+      const animation = { cancelled: false, cancel() { this.cancelled = true; }, finish() { this.onfinish?.(); } };
+      animations.push({ el: element, keyframes, options, animation });
+      return animation;
+    };
+    return element;
+  };
+  const sounds = [];
+  const listeners = new Map();
+  const win = {
+    innerWidth: size[0], innerHeight: size[1], matchMedia: () => ({ matches: reduced }),
+    addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener: type => listeners.delete(type),
+  };
+  const moment = createMapMoment(doc, { save, audio: { sfx: name => { sounds.push(name); return true; } }, win });
+  const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
+  return { save, doc, moment, animations, sounds, win, listeners, overlays };
+}
+
+test('the map moment slides up over the game, draws the leg ahead and goes', () => {
+  const rig = momentRig();
+  assert.equal(rig.overlays().length, 0, 'nothing on the page until it is played');
+  assert.equal(rig.moment.isOpen, false);
+  const { drawMs } = rig.moment.play(['a']);
+  assert.equal(drawMs, 2600, 'the slide up (0.6 s) and the one piece (2 s)');
+  assert.equal(rig.overlays().length, 1, 'one overlay');
+  assert.equal(rig.moment.isOpen, true);
+  const [overlay] = rig.overlays();
+  assert.equal(overlay.findAll(e => e.classList.contains('map-tiles')).length, 2, 'the map as one picture: both its pages, side by side');
+  const states = id => overlay.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state'));
+  assert.deepEqual(states('a'), ['drawing', 'drawing'], 'piece a is drawing, on both pages');
+  assert.deepEqual(rig.save.get().seen, ['map-route-a'], 'and kept as seen');
+  assert.equal(overlay.getAttribute('aria-hidden'), 'true', 'a picture for the eyes: Mosi says the words');
+  assert.notEqual(overlay.getAttribute('inert'), null, 'and nothing in it takes a touch or a tab');
+
+  const card = overlay.findAll(e => e.classList.contains('map-card'))[0];
+  const zoom = overlay.findAll(e => e.classList.contains('map-zoom'))[0];
+  const veil = overlay.findAll(e => e.classList.contains('map-veil'))[0];
+  const slideIn = rig.animations.find(({ el }) => el === card);
+  assert.equal(slideIn.options.duration, 600, 'it slides up in 0.6 s');
+  assert.match(slideIn.keyframes[0].transform, /^translateY\(100vh\)$/, 'from below the screen');
+  assert.match(slideIn.keyframes.at(-1).transform, /^translateY\(0(px)?\)$/, 'to its place');
+  assert.ok(rig.animations.some(({ el, keyframes }) => el === veil && keyframes[0].opacity === 0 && keyframes.at(-1).opacity === 1), 'the game goes dim as it comes');
+  const move = rig.animations.find(({ el }) => el === zoom);
+  assert.equal(move.options.duration, 2600, 'the zoom lasts as long as the slide and the drawing');
+  assert.equal(move.options.fill, 'forwards');
+  assert.equal(move.options.easing, 'ease-in-out');
+  const reveals = rig.animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
+  assert.deepEqual(reveals.map(({ options }) => [options.delay, options.duration]), [[600, 2000], [600, 2000]], 'the line begins as the map has arrived');
+
+  // the sounds: the map's on its arrival, and a pen's as the piece begins, in game time
+  assert.deepEqual(rig.sounds, ['mapOpen']);
+  rig.moment.update(0.5);
+  assert.deepEqual(rig.sounds, ['mapOpen'], 'the pen is not yet at work');
+  rig.moment.update(0.1);
+  assert.deepEqual(rig.sounds, ['mapOpen', 'mapPen'], 'it is, as the piece begins');
+  rig.moment.update(3);
+  assert.deepEqual(rig.sounds, ['mapOpen', 'mapPen'], 'once for a piece');
+
+  // away: it slides down in 0.6 s, the line finished where it was, and the overlay is gone when that is over
+  assert.equal(rig.moment.close(), 600);
+  assert.equal(rig.moment.isOpen, false, 'the moment is over');
+  assert.equal(rig.overlays().length, 1, 'but it is still sliding away');
+  assert.deepEqual(states('a'), ['drawn', 'drawn'], 'the line is finished');
+  const slideOut = rig.animations.filter(({ el }) => el === card)[1];
+  assert.equal(slideOut.options.duration, 600);
+  assert.match(slideOut.keyframes.at(-1).transform, /^translateY\(100vh\)$/, 'down and off the screen');
+  assert.equal(slideOut.options.fill, 'forwards', 'and it stays off until it is taken away');
+  rig.moment.update(0.59);
+  assert.equal(rig.overlays().length, 1);
+  rig.moment.update(0.02);
+  assert.equal(rig.overlays().length, 0, 'the overlay is gone after 0.6 s of the game clock');
+  assert.equal(rig.moment.close(), 0, 'nothing to close');
+  assert.deepEqual(rig.save.get().seen, ['map-route-a']);
+});
+
+test('the map moment draws two pieces for a long leg, over the pieces already drawn, and a held game holds the closing', () => {
+  const rig = momentRig({ fill: save => { save.addStar('k1_kambedla'); save.addSeen('map-route-a'); } });
+  const { drawMs } = rig.moment.play(['b', 'c']);
+  assert.equal(drawMs, 4750, 'the slide, two pieces and the gap between them');
+  const [overlay] = rig.overlays();
+  const states = id => [...new Set(overlay.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state')))];
+  assert.deepEqual(['a', 'b', 'c'].map(states), [['drawn'], ['drawing'], ['drawing']], 'the glade\'s piece stays as it was, the two ahead draw');
+  assert.ok(sameSpot(dotSpot(overlay), inView(ENDS.kambedla)), 'the dot waits where the child is, at the glade, until the line goes on');
+  const reveals = rig.animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
+  assert.deepEqual(reveals.map(({ options }) => options.delay), [600, 600, 2750, 2750]);
+  assert.deepEqual(rig.save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c']);
+  rig.moment.update(0.6);
+  rig.moment.update(2.15);
+  assert.deepEqual(rig.sounds, ['mapOpen', 'mapPen', 'mapPen'], 'a pen for each piece, as each begins');
+  // the zoom frames the two pieces with room round them, short of the 1.6 times
+  const zoom = overlay.findAll(e => e.classList.contains('map-zoom'))[0];
+  const [, to] = rig.animations.find(({ el }) => el === zoom).keyframes.map(({ transform }) => transform);
+  const [, tx, ty, scale] = /^translate\((-?[\d.]+)%, (-?[\d.]+)%\) scale\(([\d.]+)\)$/.exec(to).map(Number);
+  const want = zoomTo(boundsOf(['b', 'c']));
+  assert.ok(Math.abs(scale - want.scale) < 0.001 && Math.abs(tx - want.x / 18) < 0.01 && Math.abs(ty - want.y / 10) < 0.01, 'toward the two pieces, in percent of the card');
+  assert.ok(scale > 1 && scale < 1.6);
+  // a game that is held (the child's book open) does not move the closing on
+  assert.equal(rig.moment.close(), 600);
+  rig.moment.update(0);
+  rig.moment.update(-1);
+  assert.equal(rig.overlays().length, 1, 'held where it was');
+  rig.moment.update(0.6);
+  assert.equal(rig.overlays().length, 0);
+});
+
+test('with reduced motion the map appears and goes without sliding or zooming, the line simply there', () => {
+  const rig = momentRig({ reduced: true });
+  const { drawMs } = rig.moment.play(['b', 'c']);
+  assert.equal(drawMs, 0, 'nothing to wait for: the scene waits for Mosi\'s line');
+  assert.equal(rig.animations.length, 0, 'nothing slides, zooms or draws');
+  assert.equal(rig.overlays().length, 1, 'but the map is there');
+  assert.equal(rig.moment.isOpen, true, 'and stays until it is closed');
+  const [overlay] = rig.overlays();
+  const states = id => [...new Set(overlay.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state')))];
+  assert.deepEqual(['b', 'c'].map(states), [['drawn'], ['drawn']]);
+  assert.deepEqual(rig.save.get().seen, ['map-route-b', 'map-route-c'], 'still kept as seen');
+  assert.deepEqual(rig.sounds, ['mapOpen'], 'the map\'s sound, and no pen: nothing is drawn');
+  assert.equal(rig.moment.close(), 0);
+  assert.equal(rig.moment.isOpen, false);
+  assert.equal(rig.overlays().length, 0, 'it goes at once');
+});
+
+test('the map moment plays again over pieces the child has seen, and a second play replaces a first', () => {
+  const rig = momentRig({ fill: save => { save.addStar('k1_kambedla'); save.addSeen('map-route-a'); } });
+  assert.equal(rig.moment.play(['a']).drawMs, 2600, 'a seen piece is drawn again');
+  const [first] = rig.overlays();
+  assert.deepEqual(first.findAll(e => e.getAttribute('data-piece') === 'a').map(e => e.getAttribute('data-state')), ['drawing', 'drawing']);
+  assert.equal(rig.moment.play(['a']).drawMs, 2600);
+  assert.equal(rig.overlays().length, 1, 'one overlay, never two');
+  assert.notEqual(rig.overlays()[0], first, 'the new one');
+  assert.equal(first.parentNode, null, 'the old one gone');
+});
+
+test('the card is sized by fitMap, and keeps to it when the window changes', () => {
+  const rig = momentRig({ size: [1024, 1366] });
+  rig.moment.play(['a']);
+  const card = rig.overlays()[0].findAll(e => e.classList.contains('map-card'))[0];
+  const upright = fitMap(1024, 1366);
+  assert.equal(card.style['--moment-w'], `${upright.width}px`);
+  assert.equal(card.style['--moment-h'], `${upright.height}px`);
+  rig.win.innerWidth = 1366;
+  rig.win.innerHeight = 1024;
+  rig.listeners.get('resize')();
+  assert.equal(card.style['--moment-w'], `${fitMap(1366, 1024).width}px`, 'turned on its side');
+  rig.moment.close();
+  assert.equal(rig.listeners.has('resize'), false, 'the window is let go when it closes');
+});
+
+test('the overlay stands after the canvas and before the caption, the buttons and the book, so the book opens over it', () => {
+  const rig = momentRig({ ids: ['view', 'caption', 'journal-button', 'book'] });
+  const page = ['view', 'caption', 'journal-button', 'book'].map(id => rig.doc.getElementById(id));
+  rig.doc.body.append(...page);
+  rig.moment.play(['a']);
+  assert.deepEqual(rig.doc.body.children.map(e => e.id || e.className), ['view', 'map-moment', 'caption', 'journal-button', 'book'], 'over the game, under all the rest');
+  rig.moment.close();
+  rig.moment.update(0.6);
+  assert.deepEqual(rig.doc.body.children.map(e => e.id), ['view', 'caption', 'journal-button', 'book']);
+  // a page with no canvas (the lab): the first of its body
+  const lab = momentRig({ ids: ['book'] });
+  lab.doc.body.append(lab.doc.getElementById('book'));
+  lab.moment.play(['a']);
+  assert.deepEqual(lab.doc.body.children.map(e => e.id || e.className), ['map-moment', 'book']);
+});
+
+test('the overlay\'s style: over the game and let touches through, a veil, a paper card, and still with less motion', () => {
+  const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  const rule = selector => {
+    const at = css.indexOf(`\n${selector} {`);
+    assert.ok(at >= 0, `a rule for ${selector}`);
+    return css.slice(at, css.indexOf('\n}', at));
+  };
+  const moment = rule('.map-moment');
+  assert.match(moment, /position: fixed; inset: 0/, 'over the whole screen');
+  assert.match(moment, /pointer-events: none/, 'a tap goes through to the game');
+  assert.doesNotMatch(moment, /z-index/, 'its place in the page, after the canvas, puts it under the caption and the book (map-moment.js)');
+  assert.match(rule('.map-veil'), /background: rgb\(20 16 10 \/ \.35\)/, 'the game dims by 35 %');
+  const card = rule('.map-card');
+  assert.match(card, /width: var\(--moment-w, min\(86vw, 154\.8vh\)\)/, 'about 86 % of the screen, 1.8 to 1, before the script sizes it');
+  assert.match(card, /box-shadow/, 'with a shadow');
+  assert.match(css, /\.map-moment \.map-tiles \{[^}]*container-type: size/, 'each page of the map is a box that sizes its half, as the book\'s tiles do');
+  const calm = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce) {'));
+  assert.match(calm, /\.map-moment \*, \.map-moment \*::before, \.map-moment \*::after \{ animation: none !important; \}/, 'the map outside the book stands as still as in it');
+});
+
+test('the book opened during a map moment leaves no overlay behind, and the pieces are seen', () => {
+  // The child taps the journal button while the map is up: the book opens over it (the page's order, above), the game is held, and when
+  // the child shuts the book the scene goes on, ends the moment and the overlay goes. What the moment drew is kept: the book does not
+  // draw it again when its place is found.
+  const save = createSave(null);
+  const doc = new FakeDocument(['book', 'journal-button', 'star-slots', 'journal-flights', 'journal-badge']);
+  const drawings = []; // the red lines drawn in, in the book or on the map moment
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => {
+    const element = create(tag);
+    element.animate = () => {
+      const animation = { cancel() {}, finish() { this.onfinish?.(); } };
+      if (element.getAttribute('class') === 'map-route-reveal') drawings.push(animation);
+      return animation;
+    };
+    return element;
+  };
+  const root = doc.getElementById('book');
+  root.animate = () => ({ cancel() {}, finish() {} });
+  const audio = { sfx: () => true, stop() {}, narrate: () => DONE };
+  const paused = [];
+  const book = createBook(doc, { save, audio, onPause: on => paused.push(on), win: { matchMedia: () => ({ matches: false }) } });
+  const journal = createJournal(doc, save, { book, audio, win: { matchMedia: () => ({ matches: false }) } });
+  const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
+
+  const { drawMs } = journal.mapMoment.play(['a']);
+  assert.equal(drawMs, 2600);
+  assert.equal(drawings.length, 2, 'piece a drawing, on the overlay\'s two pages');
+  doc.getElementById('journal-button').dispatchEvent(new Event('click'));
+  assert.equal(book.isOpen, true, 'the child\'s book opens');
+  assert.deepEqual(paused, [true], 'and holds the game');
+  assert.equal(overlays().length, 1, 'the map goes on under it: it is not the book\'s to close');
+  journal.update(0); // the held game's clock does not move
+  assert.equal(overlays().length, 1);
+
+  book.close(); // the child is done; the scene's wait goes on and then ends the moment
+  assert.deepEqual(paused, [true, false]);
+  assert.equal(journal.mapMoment.isOpen, true, 'the moment is still its scene\'s to end');
+  assert.equal(journal.mapMoment.close(), 600);
+  journal.update(0.6);
+  assert.equal(overlays().length, 0, 'no overlay left behind');
+  assert.deepEqual(save.get().seen, ['map-route-a'], 'the piece is seen');
+
+  // the book's map: Kambeðla not found yet, so a is still the way ahead there; once she is, it is simply drawn, not drawn in again
+  const reveals = () => root.findAll(e => e.getAttribute('class') === 'map-route-reveal');
+  const piece = id => [...new Set(root.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state')))];
+  book.open('map', 'child');
+  assert.deepEqual(piece('a'), ['next'], 'the way ahead, as before');
+  save.addStar('k1_kambedla');
+  const before = drawings.length;
+  book.refresh();
+  assert.deepEqual(piece('a'), ['drawn'], 'her place found: a is simply there');
+  assert.equal(drawings.length, before, 'not drawn in again');
+  assert.ok(reveals().length > 0);
 });
 
 test('Háls og hali opens with Þórseðla\'s star', () => {

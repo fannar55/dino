@@ -28,7 +28,10 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // in chapter 2 and their stickers go on the map then, but that is not a trip to them; the line goes there in the chapter of each,
 // and not before. A later piece reached carries the earlier ones with it, so the trail never has a gap. The first time the page
 // shows a piece the child has not seen yet it draws itself along its length, one piece after another, and the save's seen list keeps
-// `map-route-<piece>` so it happens once; afterwards, and with reduced motion, the piece is simply there.
+// `map-route-<piece>` so it happens once; afterwards, and with reduced motion, the piece is simply there. The map in the journey
+// (map-moment.js) draws the pieces of the leg ahead on request (drawPieces) whenever a chapter sets out, whether or not they were drawn
+// before, and keeps them seen, so the book does not draw them again when the place is found; it draws a map of its own in the overlay
+// (each map's mask ids carry its number) from a leaf whose two pages sit side by side.
 //
 // A red dot says where the child is. While a piece draws in, the dot rides at the head of the line: it moves along the same curve
 // over the same time with the same easing, so the two never part. At rest it stands at the end of the last piece drawn (at the start
@@ -131,11 +134,14 @@ const ROUTE = [
   { id: 'f', end: 'uggedla', by: 'star', points: [[1360, 205], [1385, 260], [1400, 320], [1405, 380], [1400, 440], [1405, 500], [1420, 560], [1440, 620], [1452, 645]] },
   { id: 'g', end: 'gramedla', by: 'star', points: [[1413, 684], [1330, 645], [1240, 606], [1150, 570], [1060, 535], [970, 500], [880, 462], [790, 420], [700, 375], [610, 340], [530, 300], [470, 262], [420, 228], [360, 190], [300, 158], [250, 135], [214, 122]] },
 ];
-const ROUTE_MS = 2000; // a piece draws itself over this long
-const ROUTE_GAP_MS = 150; // and the next begins this long after it
+export const ROUTE_MS = 2000; // a piece draws itself over this long
+export const ROUTE_GAP_MS = 150; // and the next begins this long after it
 const DOT_R = 9; // the dot that says where the child is, in the view's units
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const seenOf = id => `map-route-${id}`;
+// Each trail piece's mask is found by its id, which must be one of a kind in the page: the book's map and the map in the journey's
+// overlay (map-moment.js) are on the page together, so each map's ids carry its own number.
+let mapsMade = 0;
 
 /**
  * A smooth curve through the points (a Catmull-Rom spline, as cubic Béziers): its path data, its length and the short chords the
@@ -174,7 +180,11 @@ function curve(points) {
  *   show(delayMs)   the page is on view (the book's turn to it has this long to settle): the pieces waiting draw themselves in,
  *                   one after another, and each is kept in the save's seen list; pieces found while it is on view draw at once
  *   hide()          the page is off view: a piece still drawing is finished where it was going
- *   markers         id -> the slot's button, for the lab and for probes
+ *   drawPieces(ids, { delay })  the named pieces ('a' to 'g') draw themselves in on request, in the order given, whether or not the save
+ *                   has reached them or they were drawn before, and are kept as seen; returns the ms it takes after `delay` (0 with
+ *                   reduced motion: they are simply there). It is the map in the journey's (map-moment.js), and it is not show()'s
+ *   bounds(ids)     the box round the named pieces' curves, { x, y, width, height } in the view's units (the whole view for none)
+ *   markers        id -> the slot's button, for the lab and for probes
  *   stateOf(id)     'empty', 'found' or 'done'
  *   routeOf(id)     a piece of the trail ('a' to 'g'): 'hidden' (not got that far), 'next' (the first not got to: a dotted
  *                   line), 'pending' (got there, not yet drawn in), 'drawing' or 'drawn'
@@ -238,10 +248,12 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   };
   const pieces = ROUTE.map(({ id, end, points }) => ({ id, end, ...curve(points.map(onMap)), state: 'hidden', groups: [], reveals: [], animations: [] }));
   const dots = []; // each half's copy of the dot
+  mapsMade += 1;
+  const mapNumber = mapsMade;
   halves.forEach((el, half) => {
     const svg = svgEl('svg', { class: 'map-route', viewBox: `${half * HALF} 0 ${HALF} ${VIEW.height}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
     for (const piece of pieces) {
-      const maskId = `${seenOf(piece.id)}-${half ? 'right' : 'left'}`;
+      const maskId = `${seenOf(piece.id)}-${half ? 'right' : 'left'}-${mapNumber}`;
       const group = svgEl('g', { class: 'map-route-piece', 'data-piece': piece.id, 'data-state': 'hidden' });
       const mask = svgEl('mask', { id: maskId, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: VIEW.width, height: VIEW.height });
       // the red line is seen through this: a plain wide stroke that draws itself along the path (its dash is the path's whole
@@ -365,10 +377,13 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     for (const animation of animations) animation.cancel();
   }
 
-  /** A piece the child has not seen drawn: kept in the save as seen, and drawn along its length after `delay` ms, or just there. */
+  /** Whether a piece can be drawn in over time: not with reduced motion, and not on a page that cannot animate (then it is just there). */
+  const canAnimate = () => !reducedMotion(win) && [...pieces[0].reveals, ...dots].every(element => typeof element.animate === 'function');
+
+  /** A piece: kept in the save as seen, and drawn along its length after `delay` ms, or just there. */
   function draw(piece, delay) {
     save.addSeen(seenOf(piece.id));
-    if (reducedMotion(win) || ![...piece.reveals, ...dots].every(element => typeof element.animate === 'function')) {
+    if (!canAnimate()) {
       setState(piece, 'drawn');
       return;
     }
@@ -400,6 +415,39 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       before += 1;
     }
     showMist(delay);
+  }
+
+  const piecesOf = ids => [...new Set(ids)].map(id => pieces.find(piece => piece.id === id)).filter(Boolean);
+
+  /**
+   * The named pieces draw themselves in on request, in the order given, the first after `delay` ms and each next after the one before
+   * (and the gap): whether or not the save has reached them, and whether or not they were drawn before (one that was is drawn again
+   * from its start, the dot waiting where the piece before it ended). Each is kept in the save's seen list. Returns how long it all
+   * takes in ms, from the first piece's start to the last one's end, not counting `delay`: 0 where nothing is drawn over time (reduced
+   * motion, a page that cannot animate, ids that are no pieces), the pieces simply there.
+   */
+  function drawPieces(ids, { delay = 0 } = {}) {
+    const chosen = piecesOf(ids);
+    for (const piece of chosen) finish(piece); // one still drawing is brought to its end first
+    if (canAnimate()) for (const piece of chosen) setState(piece, 'drawing'); // all hidden at once, each waiting its turn, so the dot rests where the piece before them ends
+    chosen.forEach((piece, i) => draw(piece, delay + i * (ROUTE_MS + ROUTE_GAP_MS)));
+    return canAnimate() && chosen.length ? chosen.length * ROUTE_MS + (chosen.length - 1) * ROUTE_GAP_MS : 0;
+  }
+
+  /** The box round the named pieces' curves, in the view's units ({ x, y, width, height }): the whole view for no piece. */
+  function bounds(ids) {
+    const chosen = piecesOf(ids);
+    if (!chosen.length) return { x: 0, y: 0, width: VIEW.width, height: VIEW.height };
+    let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const piece of chosen) {
+      for (const { x, y } of piece.samples) {
+        left = Math.min(left, x);
+        top = Math.min(top, y);
+        right = Math.max(right, x);
+        bottom = Math.max(bottom, y);
+      }
+    }
+    return { x: left, y: top, width: right - left, height: bottom - top };
   }
 
   function show(delay = 0) {
@@ -460,6 +508,8 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     render,
     show,
     hide,
+    drawPieces,
+    bounds,
     markers: new Map([...markers].map(([id, marker]) => [id, marker.el])),
     stateOf: id => states.get(id),
     routeOf: id => pieces.find(piece => piece.id === id)?.state,

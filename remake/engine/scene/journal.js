@@ -1,4 +1,5 @@
 import { Handle } from '../handle.js';
+import { createMapMoment } from '../book/map-moment.js';
 
 // Egill's explorer's journal (STYLE.md section 10): a book in the top right corner of the screen with a slot for the star of
 // each friend. A tap on it opens the book itself (engine/book/book.js), the living book over the paused game. A star from a
@@ -77,11 +78,16 @@ function needId(id, call) {
  *                           'games' or 'map') as the script's, which holds nothing (book.js), so the scene goes on under it; `nod` (a card's id)
  *                           nods that card's tile once the book has grown, as chapter 2's end has Þórseðla's, new, nod on the Risaeðlur page
  *   stars, findings, places the ids, in the order they came
+ *   mapMoment               the map in the journey (engine/book/map-moment.js), which a scene plays at a departure: the whole map slides
+ *                           up over the game, draws the leg ahead and slides away. The journal owns it because it has the save (the
+ *                           pieces drawn are kept as seen) and the sound, and it is counted on the game clock by update(dt) below.
+ *                           (map-moment.js draws the map, map-page.js, which takes its friends and hues from this file: the two
+ *                           import each other, and each uses the other only when called, not as it loads.)
  * A tap on the button opens the book on its animals as the child's, which holds the game until the child shuts it. An animal found
  * since the book was last opened asks it to open on that animal's spread of the Dýrin page, where its tile nods (the newest, if
  * there were more); any opening of the book answers it.
  */
-export function createJournal(doc, save, { book = null, audio = null } = {}) {
+export function createJournal(doc, save, { book = null, audio = null, win = globalThis.window } = {}) {
   const need = id => {
     const element = doc.getElementById(id);
     if (!element) throw new Error(`The journal needs #${id} on the page (see index.html)`);
@@ -97,6 +103,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
   let newest = null; // the animal found since the book was last opened, which it opens for
   const foundAgain = new Set(); // the animals found again in a new place while the game runs (addFinding's again): each flies once
   const motions = []; // { el, age, seconds, amount }: a slot swelling, the book nodding
+  const mapMoment = createMapMoment(doc, { save, audio, win });
 
   const slots = FRIENDS.map(friend => {
     const slot = doc.createElement('span');
@@ -245,6 +252,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
 
   function update(dt) {
     if (!(dt > 0)) return; // paused or frozen
+    mapMoment.update(dt);
     for (const flight of [...flights.values()]) {
       flight.age += dt;
       if (flight.age >= FLIGHT_SECONDS - 1e-9) land(flight);
@@ -271,6 +279,7 @@ export function createJournal(doc, save, { book = null, audio = null } = {}) {
     addPlace,
     update,
     show,
+    mapMoment,
     open: (tab = 'dinosaurs', { nod = null } = {}) => openBook(tab, 'script', { nod }),
     close: () => book?.close(),
     /** The book's close beckons the child (book.js beckonClose): a scene that opened the book and waits for them to shut it. */

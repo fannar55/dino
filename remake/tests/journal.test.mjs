@@ -403,6 +403,33 @@ test('the book can be brought out and put away', () => {
   assert.equal(el('journal-button').hidden, true);
 });
 
+test('the journal owns the map moment: it draws on the journal\'s save, sounds through its audio and ends on the game clock', () => {
+  const sounds = [];
+  const audio = { sfx: name => { sounds.push(name); return true; } };
+  const { doc, journal, save } = journalRig({ audio });
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => { // a page that can animate
+    const element = create(tag);
+    element.animate = () => ({ cancel() {}, finish() {} });
+    return element;
+  };
+  assert.equal(journal.mapMoment.isOpen, false, 'there from the start, and not showing');
+  const { drawMs } = journal.mapMoment.play(['a']);
+  assert.equal(drawMs, 2600);
+  assert.equal(journal.mapMoment.isOpen, true);
+  assert.deepEqual(save.get().seen, ['map-route-a'], 'on the journal\'s own save');
+  assert.deepEqual(sounds, ['mapOpen'], 'through the audio the journal was given');
+  const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
+  assert.equal(overlays().length, 1);
+  journal.update(0.6); // the journal's update is the game clock's: it moves the moment on
+  assert.deepEqual(sounds, ['mapOpen', 'mapPen']);
+  assert.equal(journal.mapMoment.close(), 600);
+  journal.update(0);
+  assert.equal(overlays().length, 1, 'a held game holds it');
+  journal.update(0.6);
+  assert.equal(overlays().length, 0);
+});
+
 test('main.js ties the book the child holds to the clock and the sound', () => {
   const main = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   // The sound (the voice, the music and the effects: engine/audio/hold.js) is held with the clock, and let go with it.
