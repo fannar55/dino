@@ -24,7 +24,9 @@ import { createMosiPuppet } from './mosi-puppet.js';
 import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js';
 
 const CELLS = [[-6.4, 2.8], [-2, 2.8], [2.4, 2.8], [-6.4, 7.2], [-2, 7.2], [2.4, 7.2]];
-const NESTS = [[-.8, -.4], [5.0, 6.0], [-6.4, -1.8]];
+// The Þórseðla babies' rest (the third) stands 1.15 m nearer the leaves than the adults' did, so their longer tails
+// stay clear of the branch lying behind them.
+const NESTS = [[-.8, -.4], [5.0, 6.0], [-6.9, -1.25]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
@@ -156,6 +158,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   const nose = cell => cell.actor.getNosePosition(new THREE.Vector3());
   const stage = {
     head: nose,
+    crown: cell => cell.actor.getSupportPosition(new THREE.Vector3()),
     camera: () => camera.position.clone(),
     look(cell, point, options) { if (point) cell.actor.lookAt(point, options); else cell.actor.clearLook(); },
     gesture: (cell, name) => cell.actor.gesture(name),
@@ -197,7 +200,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   function planMeeting(a, b) {
     const front = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize(), side = new THREE.Vector3(front.z, 0, -front.x);
     if (side.dot(b.actor.root.position.clone().sub(a.actor.root.position)) < 0) side.negate();
-    const reach = cell => cell.actor.noseLocal.x + .03;
+    // The larger Þórseðla babies stand a little further apart: their nuzzle leans in with their size.
+    const reach = cell => cell.actor.noseLocal.x + .03 + .16 * ((cell.actor.lengthFactor ?? 1) - 1);
     const others = cells.filter(cell => cell !== a && cell !== b && !cell.moved && !matchedStatus(cell.status));
     const clearance = point => Math.min(Infinity, ...others.map(cell => Math.hypot(point.x - cell.root.position.x, point.z - cell.root.position.z)));
     const middle = a.actor.root.position.clone().add(b.actor.root.position).multiplyScalar(.5);
@@ -318,7 +322,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     }
     adventure = createBridgeAdventure({ scene, heightAt: world.heightAt, nests, fx, onwardTravel: true, cancelWalk: actor => homeNav.release(actor), planWalk: (actor, end, { yaw } = {}) => {
       const action = adventure?.getDebug().action, pushing = actor.species === 'triceratops' && action?.id === 'roll';
-      const route = homeNav.request(actor, end, yaw ?? actor.root.rotation.y, { allowEndContact: pushing && action.phase === 'approach', allowStartContact: pushing && action.phase === 'return' });
+      // A friend parked by the log for the crossing may start beside the Þórseðla babies holding the branch: their
+      // capsules overlap there (theirs is as wide as the round belly all along the neck), so near the start the
+      // planner checks the measured bodies instead.
+      const crossing = action?.id === 'cross' && action.phase === 'cross';
+      const route = homeNav.request(actor, end, yaw ?? actor.root.rotation.y, { allowEndContact: pushing && action.phase === 'approach', allowStartContact: pushing && action.phase === 'return' || crossing });
       if (route === undefined) return undefined;
       homeNav.release(actor);
       return route?.points ?? null;

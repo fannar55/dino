@@ -48,7 +48,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     member=action.phase==='approach'&&action.id==='roll'||action.phase==='return'&&action.species==='brontosaurus'?1-member:member;
     const actor=pairActors(action.species)[member],returning=action.phase==='return',goal=returning?{point:homePoint(action.species,member),yaw:homeYaw(action.species)}:action.id==='lift'?{point:holdPoint(actor,member),yaw:HOLD_YAW}:triPose(member);
     if(!returning){
-      goal.point.add(new THREE.Vector3(action.id==='lift'?-.55:-.4,0,0).applyAxisAngle(Y,goal.yaw));
+      goal.point.add(new THREE.Vector3(action.id==='lift'?-.55*(actor.lengthFactor??1):-.4,0,0).applyAxisAngle(Y,goal.yaw));
       // Wait south of the held branch, then lower the head during the brace.
       if(action.id==='roll'){goal.point.z+=.35;goal.point.y=heightAt(goal.point.x,goal.point.z)+.04;}
     }
@@ -108,7 +108,8 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     const member=order[index],actor=allActors()[member];
     actor.clearSupport?.();actor.clearLook?.();actor.walk?.(false);
     const yaw=!final&&actor.species!=='triceratops'?Math.PI:actor.species==='brontosaurus'?-.2:actor.species==='stegosaurus'?-Math.PI*.37:-Math.PI/2;
-    if(!final){action.pending={actor,member,goal:{point:props.deckPoint(-3),yaw:props.finalYaw},finalYaw:yaw,age:0,kind:'cross'};return;}
+    // A larger friend waits further back, so her head stays off the log while she lines up.
+    if(!final){action.pending={actor,member,goal:{point:props.deckPoint(-3-1.6*((actor.lengthFactor??1)-1)),yaw:props.finalYaw},finalYaw:yaw,age:0,kind:'cross'};return;}
     const end=ground(...FINAL_PARKING[member]),points=[actor.root.position.clone(),ground(4.5,actor.root.position.z),build.deckPoint(-16.65)];
     for(let z=-17;z>-22.35;z-=.35)points.push(build.deckPoint(z));points.push(build.deckPoint(-22.35));
     if(actor.species==='triceratops'&&member===0)points.push(ground(end.x,-22.6));else points.push(ground(4.5,-23.1));

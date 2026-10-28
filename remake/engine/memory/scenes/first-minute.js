@@ -47,7 +47,7 @@ export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
   const nuzzleAt = .14 + meeting.duration, wideAt = nuzzleAt + 1.05;
   const pair = [first, second];
   return [
-    { at: 0, shot: { kind: 'face', subjects: () => [stage.head(first), stage.head(second), meeting.point], cut: true },
+    { at: 0, shot: { kind: 'face', subjects: () => [stage.head(first), stage.head(second), stage.crown?.(first), stage.crown?.(second), meeting.point], cut: true },
       act: all(() => stage.look(first, stage.head(second), { weight: .9, maxAngle: 24 }), () => stage.look(second, stage.head(first), { weight: .9, maxAngle: 24 }),
         () => stage.gesture(first, 'hop'), () => stage.gesture(second, 'hop'), () => stage.mosi.look(meeting.point)) },
     { at: .14, act: () => meeting.start() },

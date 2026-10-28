@@ -9,11 +9,13 @@ import { GESTURES, GESTURE_ALIASES } from './gestures.js';
 // The three friends are babies baked from the owner's adult models (scripts/memory-baby-bake.mjs).
 // lengthFactor is each species' nose-to-tail size against the `length` asked for: the Þórseðla baby
 // is shown larger so she stands tallest, her head top 1.25 times the Þríhyrna baby's (1.88 m against
-// 1.50 m at the game's 2.6), while the Kambeðla baby stays at 1.23 m.
+// 1.50 m at the game's 2.6), while the Kambeðla baby stays at 1.23 m. reach is how far into lowerHead her
+// reach pose goes: .53 brings the taller baby's crown down to 1.07 m, under the resting branch, as .34 did the
+// adult's (1.04 m).
 export const MEMORY_CHARACTER_ART = Object.freeze({
   triceratops: { name: 'Þríhyrna', url: new URL('../../assets/memory/triceratops-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1 },
   stegosaurus: { name: 'Kambeðla', url: new URL('../../assets/memory/stegosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1 },
-  brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/memory/brontosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1.62 },
+  brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/memory/brontosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1.62, reach: .53 },
 });
 
 /**
@@ -69,7 +71,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       }
       // These are the existing authored S-curve poses, measured against the actual
       // Neck..Neck5 rig (+X forward, +Y up), with no stretching or guessed axes.
-      const reachPose=sampleSupport('lowerhead',(clips.get('lowerhead')?.duration||0)*.34);
+      const reachPose=sampleSupport('lowerhead',(clips.get('lowerhead')?.duration||0)*(art.reach??.34));
       const liftedPose=sampleSupport('liftup',clips.get('liftup')?.duration||0);
       const jawRest = jaw?.quaternion.clone();
       root.updateMatrixWorld(true);
