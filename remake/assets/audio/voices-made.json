@@ -1741,6 +1741,12 @@
    "duration": 4.73,
    "model": "eleven_v4"
   },
+  "kafli1/k1_mosi_map_ride": {
+   "key": "2d853af76470f8a786934bc2b206fdaeba4984b4f552b2163ec9a89a8e81a18a",
+   "mp3": "f28d44e017b4ba4de409f888544811e23e362948dce7adf0d4ed0516670f5a00",
+   "duration": 5.53,
+   "model": "eleven_v4"
+  },
   "kafli1/k1_mosi_next": {
    "key": "0e4966323ffba5e0229d598ac40457311b82266b426e5051f6929d052fd0fe9a",
    "mp3": "ea34ed0bcba04fca58e913b6b18afe7000d60dfeecf34e0b6bfd63462f110bfa",
@@ -2027,6 +2033,12 @@
    "key": "8c261f827d8b0fb4cd839cdf5b87749c9c698d66aecfe24049018ab85f2d6c7c",
    "mp3": "907e40c94cc1578cff59cd8ad4adeab105d5d1956d553e9ee531f58db4d10cab",
    "duration": 3.93,
+   "model": "eleven_v4"
+  },
+  "kafli2/k2_mosi_map_trail": {
+   "key": "4c3d40460783bf35b603dbd57b06bd793b5ffff359f2af15ee0e40ab5a12bf61",
+   "mp3": "5d67b5f625a4ee985d575484d410b3bda99a7a06f8c22222c4f588424119255d",
+   "duration": 6.81,
    "model": "eleven_v4"
   },
   "kafli2/k2_mosi_map_uggedla": {
