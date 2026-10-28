@@ -1,0 +1,309 @@
+import * as THREE from 'three';
+import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
+import { clone as cloneSkinned } from '../../../dist/vendor/SkeletonUtils.js';
+import { createEyelids } from '../eyelids.js';
+import { createFooting, QUADRUPED } from '../footing.js';
+import { measureWalkGait, gaitFoot } from './walk-gait.js';
+
+// Phase-one review: Triceratops is the authored baby mesh. The two other species
+// retain existing textured adult art temporarily, explicitly exposed in metadata.
+export const MEMORY_CHARACTER_ART = Object.freeze({
+  triceratops: { name: 'Þríhyrna', url: new URL('../../assets/memory/triceratops-baby.glb', import.meta.url).href, isBaby: true },
+  stegosaurus: { name: 'Kambeðla', url: new URL('../../assets/characters/stegosaurus.glb', import.meta.url).href, isBaby: false },
+  brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/characters/brontosaurus.glb', import.meta.url).href, isBaby: false },
+});
+
+/**
+ * Six rigged characters (two of each species by default), all facing local +X.
+ * World owns root position/rotation/visibility. This controller only animates
+ * the model below root. Call update(dt) on the game clock, never during pause.
+ */
+export async function createBabyActors({ scene, length = 1.55, instancesPerSpecies = 2, species = Object.keys(MEMORY_CHARACTER_ART), loader = new GLTFLoader() } = {}) {
+  if (!scene?.add) throw new TypeError('createBabyActors needs a THREE.Scene or Group');
+  const templates = await Promise.all(species.map(id => {
+    if (!MEMORY_CHARACTER_ART[id]) throw new Error(`Unknown memory character: ${id}`);
+    return loader.loadAsync(MEMORY_CHARACTER_ART[id].url);
+  }));
+  const actors = [];
+  const walkGaits = new Map();
+  for (let s = 0; s < species.length; s++) {
+    const id = species[s], art = MEMORY_CHARACTER_ART[id], gltf = templates[s];
+    for (let instance = 0; instance < instancesPerSpecies; instance++) {
+      const root = new THREE.Group(); root.name = `Memory ${id} ${instance}`;
+      root.userData.memoryArt = { species: id, isBaby: art.isBaby, review: art.isBaby ? 'baby-proportions-v1' : 'temporary-adult-art' };
+      const pose = new THREE.Group(); root.add(pose);
+      const model = cloneSkinned(gltf.scene); pose.add(model);
+      const materials = new Set();
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        const copy = material => { const m=material.clone();m.shadowSide=THREE.FrontSide;materials.add(m);return m; };
+        o.material = Array.isArray(o.material) ? o.material.map(copy) : copy(o.material);
+        o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+      });
+      model.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(model, true);
+      model.scale.multiplyScalar(length / bounds.getSize(new THREE.Vector3()).x);
+      model.updateMatrixWorld(true); bounds.setFromObject(model, true);
+      const center = bounds.getCenter(new THREE.Vector3());
+      model.position.set(-center.x, -bounds.min.y, -center.z);
+      const mixer = new THREE.AnimationMixer(model);
+      const clips = new Map(gltf.animations.map(c => [c.name.toLowerCase(), c]));
+      const bone = name => model.getObjectByName(name) || model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
+      const head = bone('Head'), jaw = bone('Jaw'), body = bone('Body'), shoulders = bone('Shoulders'), tail = bone('Tail1');
+      const legs = ['FrontLeg.L','FrontLeg.R','BackLeg.L','BackLeg.R'].map(name=>({leg:bone(name),foot:bone(name.replace('Leg','Foot')),front:name.startsWith('Front')})).filter(pair=>pair.leg&&pair.foot);
+      const supportBones=id==='brontosaurus' ? ['Hips','Spine','Chest','Neck','Neck2','Neck3','Neck4','Neck5','Head'].map(bone).filter(Boolean) : [];
+      const copyPose=bones=>new Map(bones.map(b=>[b,{position:b.position.clone(),quaternion:b.quaternion.clone()}]));
+      const supportRest=copyPose(supportBones);
+      function sampleSupport(name,time){
+        const sampled=new Map([...supportRest].map(([b,p])=>[b,{position:p.position.clone(),quaternion:p.quaternion.clone()}]));
+        for(const track of clips.get(name)?.tracks||[]){
+          const binding=THREE.PropertyBinding.parseTrackName(track.name),b=bone(binding.nodeName),p=sampled.get(b);
+          if(p&&(binding.propertyName==='position'||binding.propertyName==='quaternion'))p[binding.propertyName].fromArray(track.createInterpolant().evaluate(time));
+        }
+        return sampled;
+      }
+      // These are the existing authored S-curve poses, measured against the actual
+      // Neck..Neck5 rig (+X forward, +Y up), with no stretching or guessed axes.
+      const reachPose=sampleSupport('lowerhead',(clips.get('lowerhead')?.duration||0)*.34);
+      const liftedPose=sampleSupport('liftup',clips.get('liftup')?.duration||0);
+      const jawRest = jaw?.quaternion.clone();
+      root.updateMatrixWorld(true);
+      let landmarkMesh=null,characterMesh=null,carryVertex=null;
+      model.traverse(o=>{if(o.userData.memoryLandmarks?.nose)landmarkMesh=o;if(o.isSkinnedMesh&&!characterMesh)characterMesh=o;});
+      const nose=new THREE.Object3D();nose.name='Memory nose contact';
+      if(landmarkMesh&&head){
+        const p=landmarkMesh.localToWorld(new THREE.Vector3(...landmarkMesh.userData.memoryLandmarks.nose));
+        nose.position.copy(head.worldToLocal(p));head.add(nose);
+      }else if(id==='brontosaurus'&&characterMesh&&head){
+        // Snout tip and skull crown measured from Head-weighted source vertices.
+        // Attach to Head so both landmarks follow the complete neck chain.
+        const p=characterMesh.localToWorld(new THREE.Vector3(8.407457,7.833949,-.018225));
+        nose.position.copy(head.worldToLocal(p));head.add(nose);
+      }else if(id==='stegosaurus'&&characterMesh&&head){
+        const {position,skinIndex,skinWeight}=characterMesh.geometry.attributes;let tip=null,tipBone=head,front=-Infinity;const snout=[];
+        for(let i=0;i<position.count;i++){
+          let strongest=0;for(let j=1;j<4;j++)if(skinWeight.getComponent(i,j)>skinWeight.getComponent(i,strongest))strongest=j;
+          const b=characterMesh.skeleton.bones[skinIndex.getComponent(i,strongest)];if(!/Head|Jaw/.test(b.name))continue;
+          const p=characterMesh.localToWorld(new THREE.Vector3().fromBufferAttribute(position,i)),local=root.worldToLocal(p.clone()),x=local.x;snout.push({index:i,x,y:local.y});
+          if(x>front){front=x;tip=p;tipBone=b}
+        }
+        nose.position.copy(tipBone.worldToLocal(tip));tipBone.add(nose);
+        // The front tip sits below the upper beak. Wood rests on this measured
+        // upper-snout vertex, not through the face at the lower nose-tip height.
+        carryVertex=snout.filter(p=>p.x>=front-length*.02).reduce((a,b)=>b.y>a.y?b:a).index;
+      }else{nose.position.set(length*.48,bounds.getSize(new THREE.Vector3()).y*.65,0);pose.add(nose);}
+      const supportPoint=new THREE.Object3D();supportPoint.name='Memory branch support';
+      if(id==='brontosaurus'&&characterMesh&&head){
+        const p=characterMesh.localToWorld(new THREE.Vector3(7.348676,8.623104,.001605));
+        supportPoint.position.copy(head.worldToLocal(p));head.add(supportPoint);
+      }else{supportPoint.position.copy(nose.position);nose.parent.add(supportPoint);}
+      root.updateMatrixWorld(true);
+      const noseLocal=root.worldToLocal(nose.getWorldPosition(new THREE.Vector3()));
+      const supportLocal=root.worldToLocal(supportPoint.getWorldPosition(new THREE.Vector3()));
+      if(!walkGaits.has(id))walkGaits.set(id,measureWalkGait(model,root,clips.get('walk'),legs.map(pair=>pair.foot),length*(id==='brontosaurus'?.45:.42)));
+      const gait=walkGaits.get(id),pivotHeight=legs.reduce((sum,pair)=>sum+root.worldToLocal(pair.leg.getWorldPosition(new THREE.Vector3())).y,0)/Math.max(1,legs.length);
+      const footing=createFooting({root,rootFrame:true,legs:legs.map(pair=>({foot:pair.foot,girdle:pair.front?0:1})),pivotHeight,tuning:{...QUADRUPED,strideReach:.8,joinTime:[.05,.1,.12]}});
+      const lids = createEyelids(model, { seed: `memory-${id}-${instance}` });
+      let action = null, motion = 'idle', elapsed = 0, gesture = null, disposed = false;
+      let motionAge=0, stance=0, pushYaw=0, reducedMotion=false, lookEnabled=false, lookWeight=0, lookWanted=.65, lookMaxAngle=18;
+      let support=null;
+      const lastPosition=root.position.clone();let travelSpeed=0,walkRate=0,walkDistance=0,footingMode=false;
+      const lookTarget=new THREE.Vector3(), rootQ=new THREE.Quaternion(), parentQ=new THREE.Quaternion(), offsetQ=new THREE.Quaternion();
+      const axisX=new THREE.Vector3(1,0,0),axisY=new THREE.Vector3(0,1,0),axisZ=new THREE.Vector3(0,0,1);
+      const gestures = { reveal: .72, greet: .95, nuzzle: .95, delight: .95, mismatch: .65, settle: .7 };
+      // Restore the mixer's exact base pose before the next animation step.
+      // Otherwise unkeyed legs and constant head tracks accumulate additives.
+      const additiveBones=[...new Set([head,jaw,body,shoulders,tail,...supportBones,...legs.flatMap(p=>[p.leg,p.foot])].filter(Boolean))];
+      const basePose=new Map(additiveBones.map(b=>[b,{position:b.position.clone(),quaternion:b.quaternion.clone()}]));
+      let basePoseActive=false;
+      function restoreBasePose(){if(!basePoseActive)return;for(const [b,p]of basePose){b.position.copy(p.position);b.quaternion.copy(p.quaternion);}basePoseActive=false;}
+      function captureBasePose(){for(const [b,p]of basePose){p.position.copy(b.position);p.quaternion.copy(b.quaternion);}basePoseActive=true;}
+      function rotateInRoot(b,axis,angle){
+        if(!b||Math.abs(angle)<1e-8)return;
+        root.getWorldQuaternion(rootQ);b.parent.getWorldQuaternion(parentQ);
+        offsetQ.setFromAxisAngle(axis.clone().applyQuaternion(rootQ),angle);
+        offsetQ.premultiply(parentQ.clone().invert()).multiply(parentQ);
+        b.quaternion.premultiply(offsetQ);b.updateMatrixWorld(true);
+      }
+      function offsetInRoot(b,x,y,z=0){
+        if(!b)return;
+        const delta=root.localToWorld(new THREE.Vector3(x,y,z)).sub(root.getWorldPosition(new THREE.Vector3()));
+        const p=b.getWorldPosition(new THREE.Vector3()).add(delta);
+        b.position.copy(b.parent.worldToLocal(p));b.updateMatrixWorld(true);
+      }
+      function applyStance(amount){
+        if(amount<1e-5)return;
+        // Lower the face and shoulder gently. The beak remains the contact point;
+        // there is no charging or horn-first thrust.
+        rotateInRoot(body,axisZ,-.025*amount);
+        offsetInRoot(shoulders,.008*length*amount,-.009*length*amount);
+        rotateInRoot(head,axisZ,-.115*amount);
+        for(const pair of legs){
+          const planted=pair.foot.getWorldPosition(new THREE.Vector3());
+          offsetInRoot(pair.leg,(pair.front ? .012 : -.008)*length*amount,-.009*length*amount);
+          pair.foot.position.copy(pair.foot.parent.worldToLocal(planted));pair.foot.updateMatrixWorld(true);
+        }
+      }
+      function beginSupport(name,{duration,walking=false}={}){
+        if(!supportBones.length)return;
+        // Repeated hold calls never restart a lift or recapture a moving pose.
+        if(name==='hold'&&support&&support.mode!=='release'){support.mode='hold';return;}
+        if(name==='release'&&!support)return;
+        const planted=walking?null:support?.planted||copyPose(legs.flatMap(p=>[p.leg,p.foot]));
+        support={mode:name,age:0,duration:Math.max(.01,duration??(name==='lift'?.9:name==='hold'?.25:.45)),from:copyPose(supportBones),planted,target:name==='reach'?reachPose:liftedPose};
+        lookEnabled=false;lookWeight=0;
+      }
+      function applySupport(dt){
+        if(!support)return;
+        support.age=Math.min(support.duration,support.age+dt);
+        const t=support.age/support.duration,ease=t*t*(3-2*t),release=support.mode==='release';
+        for(const b of supportBones){
+          const from=support.from.get(b),to=release?basePose.get(b):support.target.get(b);
+          b.position.lerpVectors(from.position,to.position,ease);b.quaternion.slerpQuaternions(from.quaternion,to.quaternion,ease);
+        }
+        // Legs hang directly from the rig root. Preserve their arrival stance;
+        // neither the neck lift nor idle breathing may unplant the feet.
+        for(const [b,p]of support.planted??[]){
+          const to=release?basePose.get(b):p;
+          b.position.lerpVectors(p.position,to.position,ease);b.quaternion.slerpQuaternions(p.quaternion,to.quaternion,ease);
+        }
+        if(release&&t===1){support=null;if(motion==='release')motion='idle';}
+        root.updateMatrixWorld(true);
+      }
+      function play(name) {
+        const clip=clips.get(name) || clips.get('idle') || gltf.animations[0];
+        if(!clip) return;
+        const next=mixer.clipAction(clip);
+        if(next===action) return;
+        next.reset().setEffectiveTimeScale(name==='walk' ? 0 : 1).setEffectiveWeight(1).play();
+        if(action) action.crossFadeTo(next,.16,false);
+        action=next;
+      }
+      function setMotion(name,options={}) {
+        if(disposed) return;
+        if(name===motion&&!gestures[name])return;
+        if(name==='reach-walk')beginSupport('reach',{...options,walking:true});
+        else if(['reach','lift','hold','release'].includes(name))beginSupport(name,options);
+        else if(support&&support.mode!=='release')beginSupport('release',{duration:name==='walk'?.18:.45});
+        motion=name;motionAge=0;
+        const walking=name==='walk'||name==='reach-walk';
+        if(walking){lastPosition.copy(root.position);footing.restore();footing.reset();footingMode=true;}
+        else if(footingMode){footing.restore();footing.stand();footingMode=false;}
+        if(name==='brace'||name==='push')lookEnabled=false;
+        if(gestures[name]) { gesture={name,t:0,duration:gestures[name]};play('idle'); }
+        else {gesture=null;play(name==='walk'||name==='reach-walk'?'walk':'idle');}
+        if(walking)footing.walk(gait?{foot:(k,out)=>gaitFoot(gait,action.time/gait.cycle,k,out),stance:()=>gait.duty*gait.cycle/Math.max(.15,Math.abs(walkRate))}:null);
+        if(name==='sleep') lids?.blink.rest(.55,.35); else lids?.blink.rest(0,.2);
+      }
+      play('idle');
+      const actor = {
+        root, model, species: id, name: art.name, isBaby: art.isBaby, noseLocal, supportLocal,
+        setMotion,
+        reveal() { root.visible=true;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
+        conceal() { root.visible=false; gesture=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
+        walk(active=true) { setMotion(active?'walk':'idle'); },
+        greet() { setMotion('greet'); },
+        nuzzle() { setMotion('nuzzle'); },
+        brace() { setMotion('brace'); },
+        push(active=true) { setMotion(active?'push':'idle'); },
+        setPushYaw(angle=0) { pushYaw=THREE.MathUtils.clamp(angle,-.72,.72); },
+        reach(options) { setMotion('reach',options); },
+        reachWalk(options) { setMotion('reach-walk',options); },
+        lift(options) { setMotion('lift',options); },
+        hold() { setMotion('hold'); },
+        release(options) { setMotion('release',options); },
+        clearSupport() { support=null;restoreBasePose();if(['reach','lift','hold','release'].includes(motion))setMotion('idle'); },
+        delight() { setMotion('delight'); },
+        lookAt(target,{weight=.65,maxAngle=18}={}) {
+          if(!target){lookEnabled=false;return;}
+          lookTarget.copy(target);lookEnabled=true;lookWanted=THREE.MathUtils.clamp(weight,0,1);lookMaxAngle=THREE.MathUtils.clamp(maxAngle,0,24);
+        },
+        clearLook() { lookEnabled=false; },
+        setReducedMotion(value) { reducedMotion=Boolean(value); },
+        getNosePosition(out=new THREE.Vector3()) { root.updateMatrixWorld(true);return nose.getWorldPosition(out); },
+        getCarrySupportPosition(out=new THREE.Vector3()) { root.updateMatrixWorld(true);if(carryVertex===null)return nose.getWorldPosition(out);out.fromBufferAttribute(characterMesh.geometry.attributes.position,carryVertex);characterMesh.applyBoneTransform(carryVertex,out);return out.applyMatrix4(characterMesh.matrixWorld); },
+        getSupportPosition(out=new THREE.Vector3()) { root.updateMatrixWorld(true);return supportPoint.getWorldPosition(out); },
+        mismatch() { setMotion('mismatch'); },
+        blink() { lids?.blink.blink(); },
+        update(dt) {
+          if(disposed || !root.visible) return;
+          // A paused frame must preserve the exact skeleton pose. Mixer.update(0)
+          // can leave unchanged tracks untouched, so applying the gesture again
+          // would accumulate its additive head rotation while time is stopped.
+          if(!Number.isFinite(dt) || dt<=0) return;
+          dt=Math.min(.1,dt); elapsed+=dt;motionAge+=dt;
+          restoreBasePose();
+          footing.restore();
+          const dx=root.position.x-lastPosition.x,dz=root.position.z-lastPosition.z,distance=Math.hypot(dx,dz),walking=motion==='walk'||motion==='reach-walk';
+          const signed=dx*Math.cos(root.rotation.y)-dz*Math.sin(root.rotation.y)<-.15*distance?-1:1;
+          travelSpeed=distance/dt;lastPosition.copy(root.position);
+          if(walking&&gait){walkRate=signed*travelSpeed/(gait.naturalSpeed*root.scale.x);action?.setEffectiveTimeScale(walkRate);walkDistance+=distance;}
+          else walkRate=0;
+          mixer.update(dt); lids?.update(dt);
+          pose.position.y=0; pose.rotation.set(0,0,0);
+          if(jaw) jaw.quaternion.copy(jawRest);
+          captureBasePose();root.updateMatrixWorld(true);
+          const bracing=motion==='brace'||motion==='push';
+          const wanted=bracing?1:0;
+          stance+=THREE.MathUtils.clamp(wanted-stance,-dt/.22,dt/.35);
+          const effort=motion==='push'&&!reducedMotion ? .84+.16*Math.sin(motionAge/.85*Math.PI*2) : 1;
+          applyStance(stance*effort);
+          rotateInRoot(head,axisY,pushYaw);
+          if(gesture) {
+            gesture.t=Math.min(gesture.duration,gesture.t+dt);
+            const t=gesture.t/gesture.duration, pulse=Math.sin(Math.PI*t);
+            if(gesture.name==='reveal') {
+              if(head) head.rotateX(.14*pulse*(reducedMotion ? .3 : 1));
+              if(jaw) jaw.rotateX(.065*pulse);
+              pose.position.y=reducedMotion?0:.035*Math.sin(Math.PI*t);
+            } else if(gesture.name==='greet') {
+              if(head) head.rotateX(.21*Math.sin(Math.PI*t*2)*pulse*(reducedMotion ? .3 : 1));
+              if(jaw) jaw.rotateX(.07*pulse);
+            } else if(gesture.name==='nuzzle') {
+              if(head) head.rotateX(.06*pulse*(reducedMotion ? .3 : 1));
+              if(t>.35&&t<.55)lids?.blink.blink();
+            } else if(gesture.name==='delight') {
+              const energy=reducedMotion ? .25 : 1;
+              rotateInRoot(head,axisZ,.08*pulse*energy);
+              rotateInRoot(head,axisX,.06*Math.sin(4*Math.PI*t)*pulse*energy);
+              rotateInRoot(tail,axisY,.17*Math.sin(4*Math.PI*t)*pulse*energy);
+              if(jaw)jaw.rotateX(.06*pulse);
+              if(t>.32&&t<.46)lids?.blink.blink();
+            } else if(gesture.name==='mismatch') {
+              if(head) head.rotateZ(.16*pulse*(reducedMotion ? .3 : 1));
+            } else if(gesture.name==='settle') {
+              pose.position.y=reducedMotion?0:-.015*pulse;
+            }
+            if(t===1) {gesture=null;motion='idle';}
+          }
+          lookWeight+=( (lookEnabled?lookWanted:0)-lookWeight)*(1-Math.exp(-dt/.22));
+          if(head&&lookWeight>.001){
+            root.updateMatrixWorld(true);
+            const origin=head.getWorldPosition(new THREE.Vector3());
+            const forward=nose.getWorldPosition(new THREE.Vector3()).sub(origin).normalize();
+            const desired=lookTarget.clone().sub(origin);
+            if(desired.lengthSq()>1e-6){
+              desired.normalize();const delta=new THREE.Quaternion().setFromUnitVectors(forward,desired);
+              const angle=2*Math.acos(THREE.MathUtils.clamp(delta.w,-1,1));
+              const max=THREE.MathUtils.degToRad(lookMaxAngle)*(reducedMotion ? .5 : 1);
+              delta.slerp(new THREE.Quaternion(),1-Math.min(1,max/Math.max(angle,1e-6))*lookWeight);
+              head.parent.getWorldQuaternion(parentQ);delta.premultiply(parentQ.clone().invert()).multiply(parentQ);
+              head.quaternion.premultiply(delta);head.updateMatrixWorld(true);
+            }
+          }
+          applySupport(dt);
+          // Work contacts keep their authored planted pose. Ordinary locomotion
+          // uses the same planted-foot solver as Mosi, including bends and stops.
+          if(walking){footing.update(dt);}
+        },
+        getDebugState() { return {species:id,isBaby:art.isBaby,motion,elapsed,gesture:gesture?.name || null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
+        dispose() {
+          if(disposed)return;disposed=true;lids?.dispose();mixer.stopAllAction();mixer.uncacheRoot(model);
+          materials.forEach(m=>m.dispose());root.removeFromParent();
+        },
+      };
+      scene.add(root); actors.push(actor);
+    }
+  }
+  return actors;
+}

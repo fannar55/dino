@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="is">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#344b37">
+  <link rel="icon" href="./assets/eitt/mosi.webp" type="image/webp">
+  <title>Hvar er vinur minn? · Mosi</title>
+  <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./minnisspil.css">
+  <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"../dist/vendor/addons/"}}</script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="trail-branch" viewBox="0 0 64 64"><path d="M9 49 53 21" fill="none" stroke="#624027" stroke-width="10" stroke-linecap="round"/><path d="m10 46 41-26" fill="none" stroke="#bc8550" stroke-width="5" stroke-linecap="round"/><path d="m30 35-3-15m10 10 13 3" fill="none" stroke="#79522d" stroke-width="5" stroke-linecap="round"/><path d="M27 24C12 25 13 11 16 8c12 1 17 7 11 16Z" fill="#91bd5c" stroke="#426e36" stroke-width="2"/><path d="M40 29c-1-14 12-17 17-13-1 10-7 16-17 13Z" fill="#75a64f" stroke="#426e36" stroke-width="2"/><path d="m30 48 0-11m-5 5 5-5 5 5" fill="none" stroke="#fff2a3" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="trail-log" viewBox="0 0 64 64"><path d="M5 49c10-8 16 9 27 0s17 6 27-1" fill="none" stroke="#58bec9" stroke-width="8" stroke-linecap="round"/><path d="m17 39 32-19c12-5 18 17 8 23L25 58" transform="translate(-3 -7)" fill="#af7543" stroke="#684323" stroke-width="2.5"/><path d="m27 27 20-11m-17 19 23-13" stroke="#dca268" stroke-width="3" stroke-linecap="round"/><ellipse cx="19" cy="38" rx="10" ry="14" transform="rotate(-28 19 38)" fill="#f0cc8f" stroke="#684323" stroke-width="3"/><ellipse cx="19" cy="38" rx="4" ry="7" transform="rotate(-28 19 38)" fill="none" stroke="#ba864f" stroke-width="2.5"/><path d="m49 7 2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="#ffdc77"/></symbol>
+    <symbol id="trail-bark" viewBox="0 0 64 64"><ellipse cx="32" cy="43" rx="27" ry="13" fill="#64bdb8"/><path d="m11 45 13-30 31 8-13 30Z" fill="#78522f" stroke="#513923" stroke-width="2"/><path d="m20 21 30 8m-33 0 29 8m-32 0 28 8" stroke="#d4a267" stroke-width="6"/><path d="m20 19 29 8m-32 0 29 8m-32 0 28 8" stroke="#efc589" stroke-width="2"/><path d="M8 47 5 33m3 9 6-9m38 14 4-14" fill="none" stroke="#497d46" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="13" r="5" fill="#a974aa"/><circle cx="56" cy="18" r="4" fill="#c18fba"/><path d="M50 9c-3-8 4-8 8-7-1 5-4 8-8 7Z" fill="#7faa54"/></symbol>
+    <symbol id="leaf-mark" viewBox="0 0 40 40"><path d="M6 29C1 9 18 4 34 6c1 18-8 31-23 27Z" fill="#93bb5d" stroke="#47743e" stroke-width="2"/><path d="M7 34 27 14m-11 11-1-9m5 5 9 1" fill="none" stroke="#e7e6a0" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="berry-mark" viewBox="0 0 64 64"><path d="M30 24c-16-1-17-14-14-19 14 0 20 9 14 19Zm2 0C30 10 43 4 53 7c-1 12-12 19-21 17Z" fill="#85ab50" stroke="#456b36" stroke-width="2"/><circle cx="23" cy="36" r="13" fill="#9a6fa6" stroke="#674c79" stroke-width="2"/><circle cx="42" cy="36" r="13" fill="#a67ab2" stroke="#674c79" stroke-width="2"/><circle cx="32" cy="49" r="13" fill="#b78cc0" stroke="#674c79" stroke-width="2"/><path d="m19 32 4-3m14 3 4-3m-14 16 4-3" stroke="#e9cce7" stroke-width="3" stroke-linecap="round"/></symbol>
+  </defs></svg>
+  <main id="game" aria-label="Hvar er vinur minn? Minnisspil með Mosa">
+    <canvas id="world" aria-hidden="true"></canvas>
+    <div id="targets" aria-label="Lauf, vinapör og leiðin að berjalundinum"></div>
+    <header class="topbar">
+      <section class="adventure-ribbon" aria-label="Vinirnir okkar og leiðin áfram">
+        <div class="ribbon-heading"><svg class="ribbon-leaf" aria-hidden="true"><use href="#leaf-mark"/></svg><div class="game-title"><h1>Hvar er vinur minn?</h1><span>Leiðin að berjalundinum</span></div><svg class="ribbon-berries" aria-hidden="true"><use href="#berry-mark"/></svg></div>
+        <div class="ribbon-progress">
+          <div id="progress" class="progress" aria-label="0 af 3 pörum fundin" hidden><div class="nest-dots" aria-hidden="true"><i></i><i></i><i></i></div><span id="progress-text">0 / 3 pör</span></div>
+          <ol id="journey" class="journey" aria-label="Þrjú verkefni á leiðinni" hidden>
+            <li data-step="lift"><span class="trail-medallion"><svg aria-hidden="true"><use href="#trail-branch"/></svg><b>1</b></span><span class="trail-label">Greinin</span></li>
+            <li data-step="roll"><span class="trail-medallion"><svg aria-hidden="true"><use href="#trail-log"/></svg><b>2</b></span><span class="trail-label">Trjábrúin</span></li>
+            <li data-step="lay"><span class="trail-medallion"><svg aria-hidden="true"><use href="#trail-bark"/></svg><b>3</b></span><span class="trail-label">Mýrin</span></li>
+          </ol>
+        </div>
+      </section>
+      <nav aria-label="Stillingar leiks">
+        <button id="camera" class="round-control" type="button" aria-label="Sjá allt svæðið" aria-pressed="false"><span aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M10 4H4v6m14-6h6v6M4 18v6h6m14-6v6h-6M10 10h8v8h-8z"/></svg></span><small>Yfirlit</small></button>
+        <button id="sound" class="round-control" type="button" aria-label="Slökkva á hljóði" aria-pressed="false"><span aria-hidden="true">♫</span><small>Hljóð</small></button>
+        <button id="help" class="round-control" type="button" aria-label="Sjá leiðbeiningar"><span aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M9 9a5 5 0 0 1 10 0c0 4-5 4-5 8m0 5v.1"/></svg></span><small>Hjálp</small></button>
+        <button id="pause" class="round-control" type="button" aria-label="Gera hlé"><span aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M10 6v16M18 6v16"/></svg></span><small>Hlé</small></button>
+      </nav>
+    </header>
+    <div id="overview-hint" class="overview-hint" hidden><svg aria-hidden="true"><use href="#berry-mark"/></svg><div>Allt ævintýrið <span>Veldu „Nær“ til að leika áfram</span></div></div>
+    <section id="coach" class="coach" hidden aria-label="Mosi leiðbeinir">
+      <div class="coach-portrait"><img src="./assets/eitt/mosi.webp" alt="Mosi" width="112" height="112"><svg aria-hidden="true"><use href="#leaf-mark"/></svg></div>
+      <div class="coach-message"><span class="speaker">Mosi</span><p id="caption" role="status" aria-live="polite">Veldu lauf og finndu tvo eins unga.</p>
+        <div id="holding" class="holding" role="status" hidden><span aria-hidden="true">↑</span> Þórseðlurnar halda greininni</div>
+        <div class="coach-actions"><button id="next-action" class="adventure-action" type="button" hidden><span id="next-action-label">Áfram!</span><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 14h17m-7-7 7 7-7 7"/></svg></button><button id="cancel-choice" type="button" class="choice-back" hidden aria-label="Til baka"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m11 7-7 7 7 7m-7-7h12a7 7 0 0 1 7 7"/></svg><span>Aftur</span></button></div>
+      </div>
+    </section>
+    <section id="ending" class="ending" hidden aria-label="Leik lokið">
+      <svg class="ending-berries" aria-hidden="true"><use href="#berry-mark"/></svg><div><span class="eyebrow">SEX VINIR · EIN LEIÐ</span><h2>Öll komumst við!</h2><p id="ending-copy">Þið lyftuð, ýttuð og byggðuð. Nú njóta allir vinirnir berjalundarins.</p></div>
+      <button id="again" class="primary" type="button">Spila aftur <span aria-hidden="true">↻</span></button>
+    </section>
+    <div id="loading" class="loading" role="status"><div class="loading-mark" aria-hidden="true"></div><h2>Hreiðurlundurinn vaknar…</h2><p id="loading-copy">Mosi finnur ungana.</p></div>
+    <section id="error" class="error-panel" hidden role="alert"><h2>Lundurinn náði ekki að opnast.</h2><p id="error-copy">Prófaðu að endurhlaða síðunni.</p><button id="retry" class="primary" type="button">Reyna aftur</button></section>
+  </main>
+  <dialog id="welcome" class="journal-panel">
+    <div class="welcome-mosi" aria-hidden="true"><img src="./assets/eitt/mosi.webp" alt="" width="160" height="160"><svg><use href="#leaf-mark"/></svg></div>
+    <span class="eyebrow">ÆVINTÝRI MEÐ MOSA</span><h2>Hvar er vinur minn?</h2>
+    <p>Finndu tvo eins vini.<br>Saman opnum við leiðina í berjalundinn!</p>
+    <div class="intro-pairs" aria-hidden="true"><span><svg><use href="#trail-branch"/></svg></span><i>···</i><span><svg><use href="#trail-log"/></svg></span><i>···</i><span><svg><use href="#trail-bark"/></svg></span></div>
+    <button id="start" class="primary" type="button">Leikum saman <span aria-hidden="true">→</span></button>
+    <p class="fine">Finna vini · hjálpast að · halda saman</p>
+  </dialog>
+  <dialog id="pause-dialog" class="journal-panel">
+    <span class="eyebrow">RÓLEG STUND</span><h2>Mosi bíður eftir þér.</h2><p>Laufin og ungarnir halda sínum stað.</p>
+    <button class="primary" data-resume type="button">Halda áfram</button>
+    <button id="motion" class="secondary" type="button" aria-pressed="false">Rólegri hreyfing</button>
+    <button id="restart" class="text-button" type="button">Byrja upp á nýtt</button>
+  </dialog>
+  <dialog id="help-dialog" class="journal-panel">
+    <span class="eyebrow">HJÁLPUMST AÐ</span><h2>Opnum leiðina saman.</h2>
+    <ol><li>Opnaðu lauf. Finndu tvo eins vini!</li><li>Fylgdu Mosa og gullna merkinu. Þórseðlurnar lyfta greininni.</li><li>Þríhyrnurnar ýta bolnum. Þegar brúin er tilbúin fara vinirnir saman yfir.</li><li>Kambeðlurnar byggja yfir mýrina. Þá ganga allir í berjalundinn!</li></ol>
+    <p>Gullni takkinn hjálpar þér áfram. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.</p>
+    <button class="primary" data-resume type="button">Aftur í feluleikinn</button>
+  </dialog>
+  <script type="module" src="./engine/memory/game.js"></script>
+</body>
+</html>

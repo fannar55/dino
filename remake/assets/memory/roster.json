@@ -1,0 +1,6 @@
+{
+  "phase": "First playable 3-pair review",
+  "triceratops": { "status": "New baby adaptation of the owner's Mosi mesh", "model": "triceratops-baby.glb", "source": "triceratops-baby-source.json" },
+  "stegosaurus": { "status": "Temporary existing adult art for this review; baby design not yet made", "model": "../characters/stegosaurus.glb" },
+  "brontosaurus": { "status": "Temporary existing adult art for this review; baby design not yet made", "model": "../characters/brontosaurus.glb" }
+}
