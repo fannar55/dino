@@ -3298,5 +3298,10 @@
   "src": "assets/audio/kafli2/k2_mosi_map_uggedla.mp3",
   "duration": 5.37,
   "mouth": "dfe0000ffeddaa70000000000dfe000deedef989ecec000dfeaeec87000000bfd000cc000ced6004dc00000d50007b40000000000000"
+ },
+ "book_thorsedla_10": {
+  "src": "assets/audio/book/book_thorsedla_10.mp3",
+  "duration": 9.61,
+  "mouth": "00ea00efd000dfdffed30dfe767eba0ae909b9505755300000000000087abbca005b300cc8b4006b60008708c800275000000000000000000cfefeedc600ad67dff000bddb99000880000d8bbad00000babc900aa8869da9cdca0000000000000"
  }
 }

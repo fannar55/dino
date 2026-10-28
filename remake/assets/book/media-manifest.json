@@ -2353,6 +2353,21 @@
       "sha256": "d63f0d801130a46ca355dba7f55cda55ad325efa3bfa9671489454c2dd118feb",
       "width": 1024,
       "height": 768
+    },
+    {
+      "id": "argentinosaurus-render",
+      "src": "assets/book/images/argentinosaurus-render.jpg",
+      "thumb": "assets/book/images/argentinosaurus-render-thumb.jpg",
+      "kind": "render",
+      "credit": "William Sellers o.fl. (Manchester-háskóli)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://github.com/wol101/Model-Zoo/tree/main/Argentinosaurus",
+      "alt": "Beinagrind argentínósárusar séð á ská frá hlið: langur, láréttur háls, háir fætur og afar langur hali.",
+      "modifications": "Mynd tekin í Blender (Workbench) af þrívíddarlíkani síðunnar (argentinosaurus-skeleton.glb, sjá líkönin), á rjómalitum grunni, 1024 × 682 punktar, með 320 punkta smámynd. Myndin er af líkaninu eins og það er; engu er bætt við.",
+      "sha256": "387815351506dc47596728e6127c1b7b9cb1081ed3b82699b0f3a74ba6a8eb0c",
+      "width": 1024,
+      "height": 682
     }
   ],
   "models": [
@@ -2368,6 +2383,19 @@
       "sha256": "268297a825d4a27ecdcfc6351b087b9db00f8022ec1bc046ed49e1f640d26b9a",
       "triangles": 49998,
       "bytes": 1696276
+    },
+    {
+      "id": "argentinosaurus-skeleton",
+      "src": "assets/book/models/argentinosaurus-skeleton.glb",
+      "credit": "William Sellers o.fl. (Manchester-háskóli)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://github.com/wol101/Model-Zoo/tree/main/Argentinosaurus",
+      "alt": "Þrívíddarlíkan af beinagrind argentínósárusar, risastórrar frænku Þórseðlu, sem barnið snýr með fingrinum.",
+      "modifications": "Skanni Sellers, Manning, Margetts og Coria af uppsettu grindinni á Museo Municipal Carmen Funes, Plaza Huincul. Beinin úr möppunni „GaitSym Bones“ (AxialSkeleton.obj með axla- og mjaðmagrind, og útlimirnir átta, hendur og fætur; 1,14 milljón þríhyrningar alls) skeytt saman í Blender, þríhyrningum fækkað í 50 þúsund (scratchpad blender-join-obj.py), gefinn einn beinlitur (líkanið hefur enga áferð) og hnitin pökkuð smátt (remake/tools/quantize-glb.mjs). Beinin standa eins og í uppsettu grindinni; engu er breytt um lögun eða stöðu. Heimild: Sellers o.fl. 2013, „March of the Titans“, PLoS ONE 8(10): e78733.",
+      "sha256": "49e3049fb05db7a01ec206efb3688044c9f975fc6a0f923341cf99b5131cb3f4",
+      "triangles": 49972,
+      "bytes": 617196
     }
   ]
 }
