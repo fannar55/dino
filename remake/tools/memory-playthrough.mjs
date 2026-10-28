@@ -1,0 +1,520 @@
+#!/usr/bin/env node
+// Plays a round of "Hvar er vinur minn?" (remake/minnisspil.html) in headless Edge, the way a child does:
+// through the real buttons on the page, with window.__memory only used to read the state back. It takes
+// screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
+//
+//   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
+//     [--size 1280x800] [--mode full|first-minute|rapid] [--reduced-motion]
+//     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
+//     [--limit 25]            minutes before the run gives up
+//
+//   full          the whole round: a first reveal, one mismatch, the three pairs, lift, roll, cross, lay, finish.
+//   first-minute  stops when the first pair is matched and its friends have walked home.
+//   rapid         like full, but at every step it taps the right button three times in a row and then every other
+//                 enabled button three times as well, the way a six-year-old does. The round must still finish.
+//
+// <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
+// frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps).
+// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, ... }. `steps` are the driver's
+// actions with the wall-clock seconds since launch; `timeline` is what the page itself went through (caption, phase,
+// bridge, camera, work button), sampled every 100 ms inside the page.
+// The flow is driven by what the page shows (state-driven), so later chapters change the driver where the flow changes.
+// The page is served from the repo root by a throwaway static server on a free port; nothing is left running.
+
+import http from 'node:http';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const BROWSERS = {
+  edge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  chrome: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+};
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2',
+  '.hdr': 'application/octet-stream', '.exr': 'application/octet-stream', '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
+  '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
+};
+const MODES = ['full', 'first-minute', 'rapid'];
+const VIDEO_FPS = 15;
+
+function parseArgs(argv) {
+  const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25 };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
+    if (a === '--out') o.out = next();
+    else if (a === '--size') o.size = next();
+    else if (a === '--mode') o.mode = next();
+    else if (a === '--reduced-motion') o.reducedMotion = true;
+    else if (a === '--video') o.video = true;
+    else if (a === '--seed') o.seed = next();
+    else if (a === '--query') o.query = next();
+    else if (a === '--page') o.page = next();
+    else if (a === '--browser') o.browser = next();
+    else if (a === '--limit') o.limit = Number(next());
+    else if (a === '--help' || a === '-h') {
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 22).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
+      process.exit(0);
+    } else throw new Error(`Unknown argument ${a}`);
+  }
+  if (!o.out) throw new Error('--out <dir> is required');
+  if (!MODES.includes(o.mode)) throw new Error(`--mode must be one of ${MODES.join(', ')}`);
+  const m = /^(\d+)x(\d+)$/.exec(o.size);
+  if (!m) throw new Error('--size must look like 1280x800');
+  o.width = Number(m[1]); o.height = Number(m[2]);
+  return o;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Waits for a promise, but at most ms, and leaves no timer behind to hold the process open.
+const within = (promise, ms) => {
+  let timer;
+  return Promise.race([promise, new Promise(r => { timer = setTimeout(r, ms); })]).finally(() => clearTimeout(timer));
+};
+
+function startServer() {
+  const server = http.createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      const file = path.resolve(ROOT, '.' + decodeURIComponent(url.pathname));
+      if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.writeHead(403); res.end(); return; }
+      const stat = await fsp.stat(file);
+      const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
+      const body = await fsp.readFile(target);
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch {
+      res.writeHead(404); res.end('not found');
+    }
+  });
+  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
+}
+
+class CDP {
+  constructor(ws) {
+    this.ws = ws; this.id = 0; this.pending = new Map(); this.handlers = new Set();
+    ws.addEventListener('message', ev => {
+      const msg = JSON.parse(typeof ev.data === 'string' ? ev.data : Buffer.from(ev.data).toString('utf8'));
+      if (msg.id && this.pending.has(msg.id)) {
+        const { resolve, reject } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.error) reject(new Error(`${msg.error.message} ${msg.error.data || ''}`));
+        else resolve(msg.result);
+      } else if (msg.method) {
+        for (const h of this.handlers) h(msg);
+      }
+    });
+    // A dropped socket (the browser closing or crashing) fails the calls it will never answer instead of leaving them waiting.
+    ws.addEventListener('close', () => {
+      for (const { reject } of this.pending.values()) reject(new Error('DevTools socket closed'));
+      this.pending.clear();
+    });
+  }
+  send(method, params = {}, sessionId) {
+    if (this.ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('DevTools socket closed'));
+    const id = ++this.id;
+    const payload = { id, method, params };
+    if (sessionId) payload.sessionId = sessionId;
+    this.ws.send(JSON.stringify(payload));
+    return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject }));
+  }
+}
+
+async function launchBrowser(o) {
+  const exe = BROWSERS[o.browser] || o.browser;
+  const userDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'memplay-'));
+  const args = [
+    '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${userDir}`,
+    `--window-size=${o.width},${o.height}`, '--hide-scrollbars', '--mute-audio', '--no-first-run',
+    '--no-default-browser-check', '--disable-extensions', '--use-angle=d3d11', '--ignore-gpu-blocklist',
+    '--enable-gpu-rasterization', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
+    '--autoplay-policy=no-user-gesture-required', 'about:blank',
+  ];
+  // With __COMPAT_LAYER set (it is on this laptop) Edge relaunches itself without it and the process we spawn exits
+  // at once, so waiting for it or killing it misses the real browser. Leave it out, as Edge's relaunch does.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== '__COMPAT_LAYER'));
+  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'ignore'], env });
+  const browser = { exe, proc, exited: new Promise(r => proc.once('exit', r)), userDir, ws: null, cdp: null };
+  try {
+    const portFile = path.join(userDir, 'DevToolsActivePort');
+    for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
+    if (!fs.existsSync(portFile)) throw new Error('Browser did not start (no DevToolsActivePort)');
+    let lines = [];
+    for (let i = 0; i < 50; i++) {
+      lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
+      if (lines.length >= 2) break;
+      await sleep(100);
+    }
+    const ws = new WebSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
+    await new Promise((resolve, reject) => {
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', reject, { once: true });
+    });
+    return Object.assign(browser, { ws, cdp: new CDP(ws) });
+  } catch (e) {
+    await stopBrowser(browser);
+    throw e;
+  }
+}
+
+// Browser.close is not enough on Windows: the browser can take a minute or more to exit after it, its helper
+// processes (GPU, crashpad) can outlive it, and while any of them runs the profile folder cannot be removed.
+async function stopBrowser(browser) {
+  if (browser.cdp) await within(browser.cdp.send('Browser.close').catch(() => {}), 2000);
+  try { browser.ws?.close(); } catch {}
+  await within(browser.exited, 5000);
+  try { browser.proc.kill(); } catch {}
+  killProfileProcesses(browser.exe, browser.userDir);
+  // A killed browser keeps its files open until it has torn down, which took up to 13 s in tests here.
+  await within(browser.exited, 15000);
+  for (let i = 0; i < 40; i++) {
+    try { await fsp.rm(browser.userDir, { recursive: true, force: true }); return; } catch { await sleep(250); }
+  }
+  console.warn(`Could not remove ${browser.userDir}`);
+}
+
+// Windows only: kill() reaches the browser but not its helpers, so stop every process of this browser that was
+// started with this run's profile folder.
+function killProfileProcesses(exe, userDir) {
+  if (process.platform !== 'win32') return;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='${path.basename(exe)}'" | Where-Object { $_.CommandLine -like '*${path.basename(userDir)}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+  try { spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch {}
+}
+
+// Runs inside the page: caption, phase, bridge, camera and work-button changes with the page's own clock, plus the
+// largest draw-call and triangle counts seen. Reads window.__demoStats (the world's own per-frame debug copy).
+const TIMELINE_JS = `(() => {
+  window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; let last = '';
+  setInterval(() => {
+    const m = window.__memory; if (!m) return;
+    const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), na = document.getElementById('next-action');
+    window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
+    window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
+    const caption = document.getElementById('caption')?.textContent || '', button = na.hidden ? null : na.textContent.trim();
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, button].join('|');
+    if (key !== last) {
+      last = key;
+      window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), button });
+    }
+  }, 100);
+})()`;
+
+// One read of everything the driver decides on.
+const SNAPSHOT_JS = `(() => {
+  const m = window.__memory, s = m.state(), b = m.bridge(), d = window.__demoStats || {}, cam = d.camera || {};
+  const na = document.getElementById('next-action'), cancel = document.getElementById('cancel-choice');
+  const buttons = [...document.querySelectorAll('#targets [data-target]')];
+  return {
+    phase: s.phase, matched: s.matchedPairs, paused: s.paused,
+    cards: s.cards.map(c => ({ id: c.id, species: c.species, status: c.status })),
+    bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving) },
+    work: { visible: !na.hidden, disabled: na.disabled, action: na.dataset.action || '', label: na.textContent.trim() },
+    cancel: !cancel.hidden && !cancel.disabled,
+    enabled: buttons.filter(x => !x.disabled).map(x => x.dataset.target),
+    walking: (d.cells || []).some(c => c.moving || c.queued) || (d.cells || []).some(c => c.status === 'matched' && !c.moved),
+    ending: !document.getElementById('ending').hidden,
+    caption: document.getElementById('caption')?.textContent || '',
+  };
+})()`;
+
+// Taps buttons inside the page, `times` clicks each, gapMs apart. A disabled or hidden button ignores the tap, as it does for a child.
+const tapJs = (keys, times, gapMs) => `(async () => {
+  const find = key => key === 'work' ? document.getElementById('next-action') : document.querySelector('[data-target="' + key + '"]');
+  let taps = 0;
+  for (const key of ${JSON.stringify(keys)}) for (let i = 0; i < ${times}; i++) {
+    const el = find(key);
+    if (el && !el.hidden && !el.disabled) { el.click(); taps++; }
+    await new Promise(r => setTimeout(r, ${gapMs}));
+  }
+  return taps;
+})()`;
+
+const PERF_JS = seconds => `new Promise(res => {
+  const d = []; let last = performance.now(); const t0 = last;
+  const f = now => {
+    d.push(now - last); last = now;
+    if (now - t0 < ${seconds * 1000}) { requestAnimationFrame(f); return; }
+    d.shift();
+    const s = [...d].sort((a, b) => a - b);
+    res({ seconds: +((now - t0) / 1000).toFixed(1), frames: d.length,
+      fps: +(1000 / (d.reduce((a, b) => a + b, 0) / d.length)).toFixed(1),
+      p50ms: +s[Math.floor(s.length * .5)].toFixed(1), p95ms: +s[Math.floor(s.length * .95)].toFixed(1), worstMs: +s[s.length - 1].toFixed(1) });
+  };
+  requestAnimationFrame(f);
+})`;
+
+const GPU_JS = `(() => {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  if (!gl) return 'no webgl2';
+  const e = gl.getExtension('WEBGL_debug_renderer_info');
+  return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+})()`;
+
+async function main() {
+  const o = parseArgs(process.argv.slice(2));
+  const outDir = path.resolve(ROOT, o.out);
+  await fsp.mkdir(outDir, { recursive: true });
+  const framesDir = path.join(outDir, 'frames');
+  if (o.video) { await fsp.rm(framesDir, { recursive: true, force: true }); await fsp.mkdir(framesDir, { recursive: true }); }
+
+  const errors = [];
+  const report = {
+    page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, startedAt: new Date().toISOString(),
+    finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
+  };
+  const server = await startServer();
+  const query = [`seed=${o.seed}`, o.query].filter(Boolean).join('&');
+  const url = `http://127.0.0.1:${server.address().port}/${o.page.replace(/\\/g, '/').replace(/^\//, '')}?${query}`;
+  const browser = await launchBrowser(o);
+  const { cdp } = browser;
+  const t0 = Date.now();
+  const T = () => +((Date.now() - t0) / 1000).toFixed(1);
+  const frames = { n: 0, stamps: [], writes: [] };
+  let fatal = null;
+  try {
+    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    const send = (m, p) => cdp.send(m, p, sessionId);
+    cdp.handlers.add(msg => {
+      if (msg.sessionId !== sessionId) return;
+      if (msg.method === 'Runtime.exceptionThrown') {
+        const d = msg.params.exceptionDetails;
+        errors.push(`exception: ${d.exception?.description || d.text} @${d.url || ''}:${d.lineNumber}`.slice(0, 900));
+      } else if (msg.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(msg.params.type)) {
+        errors.push(`console.${msg.params.type}: ${msg.params.args.map(a => a.value ?? a.description ?? a.type).join(' ')}`.slice(0, 600));
+      } else if (msg.method === 'Log.entryAdded' && ['error', 'warning'].includes(msg.params.entry.level)) {
+        const e = msg.params.entry;
+        if (!/favicon\.ico/.test(e.url || e.text || '')) errors.push(`log.${e.level}: ${e.text} ${e.url || ''}`.slice(0, 600));
+      } else if (msg.method === 'Page.screencastFrame') {
+        const n = ++frames.n, p = msg.params;
+        frames.stamps.push(p.metadata?.timestamp ?? null);
+        frames.writes.push(fsp.writeFile(path.join(framesDir, `${String(n).padStart(5, '0')}.jpg`), Buffer.from(p.data, 'base64')));
+        send('Page.screencastFrameAck', { sessionId: p.sessionId }).catch(() => {});
+      }
+    });
+    await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
+    const phone = o.width < 768;
+    await send('Emulation.setDeviceMetricsOverride', { width: o.width, height: o.height, deviceScaleFactor: 1, mobile: phone });
+    if (phone) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    if (o.reducedMotion) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+
+    const ev = async (expression, awaitPromise = true) => {
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    const step = (what, extra = {}) => { report.steps.push({ t: T(), what, ...extra }); console.log(`[${T()}] ${what}${Object.keys(extra).length ? ' ' + JSON.stringify(extra) : ''}`); };
+    let shotCount = 0;
+    const shot = async name => {
+      const label = `${String(++shotCount).padStart(2, '0')}-${name}`;
+      const d = await send('Page.captureScreenshot', { format: 'png' });
+      await fsp.writeFile(path.join(outDir, `${label}.png`), Buffer.from(d.data, 'base64'));
+      report.shots.push({ name: label, t: T() }); console.log(`[${T()}] shot ${label}`);
+    };
+    const waitFor = async (expr, ms, label) => {
+      const s = Date.now();
+      while (Date.now() - s < ms) { try { if (await ev(`Boolean(${expr})`)) return (Date.now() - s) / 1000; } catch {} await sleep(150); }
+      step(`TIMEOUT waiting for ${label}`); return -1;
+    };
+
+    await send('Page.navigate', { url });
+    if (await waitFor('window.__memoryReady === true', 120000, 'the page to be ready') < 0) throw new Error('The page never became ready');
+    report.gpu = await ev(GPU_JS).catch(e => `error: ${e.message}`);
+    report.reducedMotionActive = await ev("matchMedia('(prefers-reduced-motion: reduce)').matches").catch(() => null);
+    step('loaded', { url: url.replace(/^http:\/\/127\.0\.0\.1:\d+/, '') });
+    if (o.video) await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: 960, maxHeight: 960, everyNthFrame: 2 });
+    await ev(TIMELINE_JS);
+    await sleep(700);
+    await shot('welcome');
+
+    await ev(`document.getElementById('start').click()`);
+    const roundStart = Date.now();
+    step('start clicked');
+    await sleep(2500);
+    await shot('glade');
+
+    // ---- the round, driven by what the page shows -------------------------------------------------------------
+    const rapid = o.mode === 'rapid', shots = o.mode !== 'rapid';
+    const seen = new Set();
+    // A picture the first time `key` is seen (after delayMs, so the thing has had time to show). True if it waited.
+    const milestone = async (key, name, delayMs = 0) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (!shots) return false;
+      if (delayMs) await sleep(delayMs);
+      await shot(name);
+      return true;
+    };
+    const first = await ev(SNAPSHOT_JS);
+    step('cards', { cards: first.cards.map(c => `${c.id}:${c.species}`).join(' ') });
+    // The story asks for the pairs in this order. The first try is a deliberate mismatch: a card of the first
+    // species, then a card of the last one.
+    const order = ['brontosaurus', 'triceratops', 'stegosaurus'].filter(sp => first.cards.some(c => c.species === sp));
+    for (const sp of new Set(first.cards.map(c => c.species))) if (!order.includes(sp)) order.push(sp);
+    const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
+    let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
+    let lastKey = '', lastProgress = Date.now(), lastWorkClick = 0, lastCancel = 0, overviewDone = false;
+    const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
+
+    // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
+    const act = async (key, what, extra = {}) => {
+      const s = await ev(SNAPSHOT_JS);
+      const keys = [key];
+      if (rapid) for (const other of [...s.enabled, ...(s.work.visible && !s.work.disabled ? ['work'] : [])]) if (!keys.includes(other)) keys.push(other);
+      const taps = await ev(tapJs(keys, rapid ? 3 : 1, rapid ? 10 : 0));
+      let after = {};
+      if (rapid) { await sleep(300); const a = await ev(SNAPSHOT_JS); after = { after: `${a.phase}/${a.matched}${a.bridge.selected ? '/sel:' + a.bridge.selected : ''}`, open: a.cards.filter(c => c.status !== 'hidden').map(c => c.id + c.status[0]).join(',') }; }
+      step(what, { ...extra, ...(rapid ? { targets: keys.length, taps, ...after } : {}) });
+    };
+
+    for (;;) {
+      if (Date.now() - roundStart > limitMs) { report.stalled = `over the ${o.limit} minute limit`; step('TIMEOUT round limit'); break; }
+      const s = await ev(SNAPSHOT_JS);
+      const progress = [s.phase, s.matched, s.bridge.active, s.bridge.branch, s.bridge.bridgeBuilt, s.bridge.atStaging, s.bridge.boardwalkBuilt, s.bridge.visited,
+        s.bridge.selected, s.work.visible, s.work.action, s.cam.moving, s.walking].join('|');
+      if (progress !== lastKey) { lastKey = progress; lastProgress = Date.now(); }
+      if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
+
+      if (s.ending) { report.finished = true; step('ending'); await sleep(1500); await shot('ending'); break; }
+      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving) {
+        report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home'); break;
+      }
+
+      // Milestone pictures. Waiting for one makes the snapshot stale, so the loop starts over after it.
+      let waited = false;
+      if (s.phase === 'one-open') waited ||= await milestone('one-open', 'first-reveal', 350);
+      if (s.phase === 'mismatch') waited ||= await milestone('mismatch', 'mismatch', 400);
+      if (s.matched > 0) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 900);
+      if (s.work.visible && !s.work.disabled) waited ||= await milestone(`work-${s.work.action}`, `work-offered-${s.work.action || 'next'}`);
+      if (s.bridge.active) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
+      if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
+      if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
+      if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
+      if (s.bridge.boardwalkBuilt) waited ||= await milestone('walkway', 'walkway-built', 600);
+      if (waited) continue;
+
+      // The overview button once, when the log is across, as a child would peek at the whole place.
+      if (o.mode === 'full' && !overviewDone && s.bridge.bridgeBuilt && !s.bridge.active && s.phase === 'ready' && !s.cam.moving) {
+        overviewDone = true;
+        await ev(`window.__memory.camera('overview')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'overview camera'); await sleep(500);
+        await shot('overview');
+        await ev(`window.__memory.camera('auto')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'play camera');
+        continue;
+      }
+
+      const mayAct = !s.paused && !s.cam.moving && !s.bridge.active;
+      const leaf = id => id !== undefined && s.enabled.includes(`leaf-${id}`);
+      if (o.mode === 'first-minute' && s.matched >= 1) {
+        // The first pair is found: wait for its friends to walk home, and pick nothing more.
+      } else if (s.work.visible && !s.work.disabled && mayAct && Date.now() - lastWorkClick > 1500) {
+        lastWorkClick = Date.now();
+        await act('work', `work: ${s.work.action || s.work.label}`, { label: s.work.label, since: +((Date.now() - lastProgress) / 1000).toFixed(1) });
+      } else if (s.phase === 'one-open' && mayAct) {
+        const open = s.cards.find(c => c.status === 'open');
+        if (missPlan === 1 && order.length > 1) {
+          const miss = hidden(s, order[order.length - 1])[0];
+          if (leaf(miss)) { missPlan = 2; await act(`leaf-${miss}`, `pick leaf ${miss} (${s.cards[miss].species}) to miss on purpose`); continue; }
+        }
+        const partner = hidden(s, open?.species).find(leaf);
+        if (partner !== undefined) await act(`leaf-${partner}`, `pick leaf ${partner} (partner of ${open.id}, ${open.species})`);
+      } else if (s.phase === 'ready' && mayAct && !s.bridge.selected) {
+        let id;
+        if (missPlan === 0 && s.matched === 0) { id = hidden(s, order[0])[0]; if (leaf(id)) missPlan = 1; }
+        else {
+          const species = order.find(sp => s.cards.some(c => c.species === sp && c.status !== 'matched'));
+          id = species === undefined ? undefined : hidden(s, species)[0];
+        }
+        if (leaf(id)) await act(`leaf-${id}`, `pick leaf ${id} (${s.cards[id].species})`);
+      } else if (s.bridge.selected && s.cancel && s.phase === 'ready' && !s.work.visible && Date.now() - lastProgress > 8000 && Date.now() - lastCancel > 8000) {
+        // A stray tap selected a pair that has no work to offer: "Aftur" puts it back.
+        lastCancel = Date.now();
+        await ev(`document.getElementById('cancel-choice').click()`);
+        step('cancel stray pair choice', { selected: s.bridge.selected });
+      }
+      await sleep(rapid ? 120 : 150);
+    }
+    report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
+
+    // ---- what the run looked like -----------------------------------------------------------------------------
+    try { report.timeline = await ev('window.__tl'); } catch {}
+    try {
+      report.perf = await ev(PERF_JS(4));
+      report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
+      report.renderMax = await ev('window.__max');
+    } catch (e) { report.perf = { error: e.message }; }
+    if (o.video) {
+      await send('Page.stopScreencast').catch(() => {});
+      await sleep(300);
+    }
+  } catch (e) {
+    fatal = e; errors.push(`driver: ${e.stack || e.message}`.slice(0, 900));
+  } finally {
+    if (o.video) {
+      await Promise.allSettled(frames.writes);
+      report.video = await makeVideo(framesDir, outDir, frames);
+    }
+    report.finishedAt = new Date().toISOString();
+    report.totalSeconds = T();
+    await stopBrowser(browser);
+    server.close();
+    await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+  }
+  const r = report;
+  console.log(`${r.finished ? 'FINISHED' : 'NOT FINISHED'} ${o.mode} ${o.size}: round ${r.roundSeconds}s, ${r.errors.length} errors, ${r.steps.length} steps, perf ${JSON.stringify(r.perf)}, render ${JSON.stringify(r.render)}`);
+  if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
+  console.log(`GPU: ${r.gpu}`);
+  console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
+  if (fatal || !r.finished || r.errors.length) process.exitCode = 1;
+}
+
+// frames/%05d.jpg -> round.mp4 at 15 fps. The screencast sends a frame only when the picture changes (about 22 a second
+// while the scene moves here), so the frames are laid out by the time the browser stamped on each (frames.txt, ffmpeg's
+// concat list) and the video plays at the speed the round was played. Without usable stamps it falls back to a plain
+// 15 fps sequence, and the report's captureSeconds against videoSeconds shows by how much that speed is off.
+async function makeVideo(framesDir, outDir, frames) {
+  const info = { frames: frames.n, file: null, bytes: null, captureSeconds: null, videoSeconds: null, timing: null };
+  if (!frames.n) { info.error = 'the screencast sent no frames'; return info; }
+  const stamps = frames.stamps;
+  if (stamps.length > 1 && stamps.every(Number.isFinite)) info.captureSeconds = +(stamps[stamps.length - 1] - stamps[0]).toFixed(1);
+  const file = path.join(outDir, 'round.mp4');
+  const name = i => `frames/${String(i + 1).padStart(5, '0')}.jpg`;
+  const pad = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  let args;
+  if (info.captureSeconds !== null) {
+    info.timing = 'real';
+    const list = [];
+    for (let i = 0; i < frames.n; i++) {
+      const next = i + 1 < frames.n ? stamps[i + 1] - stamps[i] : 1 / VIDEO_FPS;
+      list.push(`file '${name(i)}'`, `duration ${Math.max(next, 0.001).toFixed(4)}`);
+    }
+    list.push(`file '${name(frames.n - 1)}'`); // ffmpeg's concat demuxer drops the last duration unless the file comes once more
+    await fsp.writeFile(path.join(outDir, 'frames.txt'), list.join('\n') + '\n');
+    args = ['-f', 'concat', '-safe', '0', '-i', path.join(outDir, 'frames.txt'), '-vf', `fps=${VIDEO_FPS},${pad}`, '-fps_mode', 'cfr'];
+    info.videoSeconds = info.captureSeconds;
+  } else {
+    info.timing = 'sequence';
+    args = ['-framerate', String(VIDEO_FPS), '-i', path.join(framesDir, '%05d.jpg'), '-vf', pad];
+    info.videoSeconds = +(frames.n / VIDEO_FPS).toFixed(1);
+  }
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '23', file], { encoding: 'utf8', timeout: 10 * 60 * 1000 });
+  if (r.status !== 0) { info.error = `ffmpeg failed: ${(r.stderr || r.error?.message || '').slice(0, 400)}`; return info; }
+  info.file = path.relative(ROOT, file).replace(/\\/g, '/');
+  info.bytes = fs.statSync(file).size;
+  return info;
+}
+
+main().catch(e => { console.error(e); process.exit(2); });
