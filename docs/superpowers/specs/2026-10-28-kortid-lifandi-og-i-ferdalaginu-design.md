@@ -20,7 +20,7 @@ Egill, sex ára, á að finna að kortið sé lifandi og að það segi frá fer
 
 - **Vatnið gárar hægt:** vatnslagið liggur yfir myndinni með gárusíu (SVG `feTurbulence` og `feDisplacementMap`, 2–3 punkta sveifla) sem breytist hægt, um 8 sekúndna hringur. Ef sían reynist of þung fyrir spjaldtölvu í mælingu kemur í staðinn ljósbjarmi sem líður hægt yfir vatnið (gráða sem rennur innan vatnslagsins). Ákveðið í byggingu eftir mælingu, sjá 6. kafla.
 - **Þokan liðast:** þokulagið liggur yfir myndinni við hálfan styrk og líður hægt fram og til baka (um 1,5 % af breiddinni, 14 sekúndna hringur) og andar örlítið í styrk.
-- **Þokan opnast að Grameðlu:** þegar hringur Grameðlu er fundinn eða búinn (staðurinn hennar eða stjarnan `k3_gramedla`) dregst þokan frá hringnum hennar: kringlótt gat í þokulaginu umhverfis hringinn víkkar mjúklega á um 2 sekúndum. Fyrsta skiptið gerist það þegar síðan sést; eftir það er gatið einfaldlega opið.
+- **Þokan opnast að Grameðlu:** þegar hringur Grameðlu er fundinn eða búinn (staðurinn hennar eða stjarnan hennar, `k6_gramedla` í kafla 6) dregst þokan frá hringnum hennar: kringlótt gat í þokulaginu umhverfis hringinn víkkar mjúklega á um 2 sekúndum. Fyrsta skiptið gerist það þegar síðan sést; eftir það er gatið einfaldlega opið.
 - **Minni hreyfing** (`prefers-reduced-motion`): lögin standa kyrr og gatið er bara opið.
 
 Lífið er hluti af kortinu sjálfu (`map-page.js`), svo það er eins í bókinni og á kortinu í ferðalaginu.
@@ -33,7 +33,9 @@ Lífið er hluti af kortinu sjálfu (`map-page.js`), svo það er eins í bókin
 |---|---|---|---|
 | 1 | Í `upOnBack` (`kafli1.js`, sena 5): eftir bókina og fiðrildið (`butterflyIntoTheBook`), á undan „Haltu þér fast. Af stað!“ (`k1_mosi_hold`) | a (Rjóðrið → Burknalautin) | `k1_mosi_map_ride`: „Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.“ |
 | 2 | Í `leaving` (`kafli2.js`, sena 1): eftir `k2_mosi_muchbigger`, á undan því að Mosi gengur úr lautinni | b og c (Fenjaslóðin, og yfir Fenið að tjörn Þórseðlu) | `k2_mosi_map_trail`: „Nú förum við út úr skóginum, niður Fenjaslóðina og alla leið að Feninu, til Þórseðlu.“ |
-| 3 | Þegar kafli 3 er byggður | d (að Grameðlu) | Skrifuð með kafla 3 |
+| 3–6 | Þegar hver kafli er byggður | d (að fjarlægu tjörninni, til Slóeðlu), e (að hvíta trénu, til Flugeðlu), f (að sefinu við síkið, til Uggeðlu), g (yfir ána við fossinn og fjöllin, til Grameðlu) | Skrifaðar með köflunum |
+
+**Röð leiðarinnar fylgir handriti leiksins** (`2026-10-28-handrit-leiksins.md`, ákvörðun eigandans 2026-10-28: „Já, Slóeðla næst“): einn vinur í hverjum kafla, 3 Slóeðla, 4 Flugeðla, 5 Uggeðla, 6 Grameðla síðust. Eftir tjörn Þórseðlu liggur punktalínan því að fjarlægu tjörn Slóeðlu, ekki beint að Grameðlu. Bútur sem endar hjá vini sem sást úr fjarska í kafla 2 (Slóeðla, Flugeðla, Uggeðla) telst ekki farinn þótt límmiðinn sé kominn á kortið, heldur aðeins þegar stjarnan hennar er komin (þegar kaflinn hennar hefur verið spilaður). Hringur næsta vinar slær líka þegar límmiðinn hennar er kominn.
 
 **Hvernig það gerist** (ein sameiginleg aðgerð í senunum, til dæmis `yield* mapMoment(s, c, { pieces: ['a'], line: 'k1_mosi_map_ride' })`):
 
@@ -76,5 +78,5 @@ Skoðað í prófunarsíðu bókarinnar og í leiknum sjálfum á spjaldtölvust
 
 ## 7. Opið
 
-- Lína Mosa og bútur d í kafla 3 bíða kaflans.
+- Línur Mosa við brottför í köflum 3–6 bíða kaflanna.
 - Litlu dýrin (fugl, drekafluga) bíða þar til eigandinn býr þau til.

@@ -72,6 +72,41 @@
 - [ ] **Step 5: Run the suite**, expect PASS.
 - [ ] **Step 6: Commit** `WIP map: the water ripples, the mist drifts and opens at Grameðla`.
 
+### Task 2b: The route in the script's order (the owner, 2026-10-28: "Já, Slóeðla næst")
+
+The game's script (`docs/superpowers/specs/2026-10-28-handrit-leiksins.md`, in main) has one friend a chapter: 3 Slóeðla (the far pool), 4 Flugeðla (the white snag), 5 Uggeðla (the reed by the channel), 6 Grameðla (beyond the mountains, "the longest trip, across the river by the waterfall"). Today's piece `d` runs from Þórseðla's pool straight to Grameðla; it goes, and four pieces take its place.
+
+**Files:**
+- Modify: `remake/engine/book/map-page.js`, `remake/book.css`, `remake/book-lab.html`
+- Test: `remake/tests/book.test.mjs`
+
+**Interfaces:**
+- Produces: ROUTE pieces `a`, `b`, `c` as now, then `d` (end `sloedla`), `e` (end `flugedla`), `f` (end `uggedla`), `g` (end `gramedla`); `next()` and `dotAt()` over all seven; lab `?progress=` 0..7 (4 adds `k3_sloedla`, 5 `k4_flugedla`, 6 `k5_uggedla`, 7 `k6_gramedla`; each also the ones before), `?seen=1` marks every piece reached.
+
+**Points (picture px; adjust only if the lab look shows a piece touching a circle, a name or the compass):**
+- d, Þórseðla's pool → Slóeðla's far pool (round the north of Þórseðla's circle, then west above the Fen, under Flugeðla's circle): `[[1566,373],[1572,335],[1552,300],[1515,285],[1470,282],[1420,280],[1370,272],[1320,262],[1270,252],[1220,240],[1170,228],[1125,212],[1098,200]]`
+- e, Slóeðla → Flugeðla (a low arc to the north, clear of d): `[[1100,160],[1140,140],[1200,128],[1260,135],[1300,155]]`
+- f, Flugeðla → Uggeðla (south between the Fen's circle and Þórseðla's, crossing c once): `[[1360,205],[1385,260],[1400,320],[1405,380],[1400,440],[1405,500],[1420,560],[1440,620],[1452,645]]`
+- g, Uggeðla → Grameðla, the longest (west-north-west over the Fen and the forest, south of "Áin", across the river at the waterfall's foot, up into the mist): `[[1413,684],[1330,645],[1240,606],[1150,570],[1060,535],[970,500],[880,462],[790,420],[700,375],[610,340],[530,300],[470,262],[420,228],[360,190],[300,158],[250,135],[214,122]]`
+
+**The reach rule:** a, b, c are reached as now (their place found or done, or a later piece reached). d, e, f, g are reached only when their friend is **done** (her star), never by her place alone: Slóeðla, Flugeðla and Uggeðla are found from Þórseðla's head in chapter 2, and that is not a trip. A later piece reached still carries the earlier ones (no gaps).
+
+**The next slot:** the `next` class goes on the next piece's end slot whether it is empty or found. An empty slot pulses its dashed ring as now; a found one pulses a soft ring in its hue round the sticker (`.map-marker.next.found::after`).
+
+- [ ] **Step 1: Update and add failing tests:**
+  - The trail tests list seven pieces.
+  - After chapter 2 (k1_kambedla, fen, k2_thorsedla, and the places sloedla, flugedla, uggedla), `next()` is `d`, `routeOf('d')` is 'next', d through g are otherwise hidden, and Slóeðla's slot (found) has `next`.
+  - The sequence: + `k3_sloedla` gives `e`, + `k4_flugedla` gives `f`, + `k5_uggedla` gives `g`, + `k6_gramedla` gives null.
+  - `dotAt()` follows the same sequence once each piece is seen ('sloedla', 'flugedla', 'uggedla', 'gramedla').
+  - A star alone, `k5_uggedla`, reaches a to f with no gap.
+  - The places alone of the three far friends reach nothing (as the existing test says).
+  - Remove or rewrite the old d-to-Grameðla assertions.
+- [ ] **Step 2: Run them**, expect FAIL.
+- [ ] **Step 3: Implement.** A per-piece `by: 'place' | 'star'` field (a, b, c `place`; d to g `star`) used by update()'s reach. Update the header comment's trail paragraph (seven pieces, the script's order, why the far friends need their star), the ROUTE comment, the CSS comment, and the lab's comment lines.
+- [ ] **Step 4: Look** in the lab at `progress=3&seen=1` (the dotted d to Slóeðla, her sticker's ring pulsing) and `progress=7`. Check that no piece crosses a circle, a name or the compass.
+- [ ] **Step 5: Run the suite**, expect PASS.
+- [ ] **Step 6: Commit** `WIP map: the route in the script's order, Slóeðla next`.
+
 ### Task 3: The map in an overlay, drawing pieces on request
 
 **Files:**
