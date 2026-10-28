@@ -103,8 +103,8 @@ const seenOf = id => `map-route-${id}`;
 /**
  * A smooth curve through the points (a Catmull-Rom spline, as cubic Béziers): its path data, its length and the short chords the
  * length was walked by, in the view's units. `samples` are the chords' ends, from the curve's start (at 0) to its end (at its
- * length), each as { x, y, at } with `at` the distance along the curve: where the line's head is, whatever the browser's own
- * measuring of a path.
+ * length), each as { x, y, at } with `at` the distance along the curve, so where the line's head is at any share of the length is
+ * known without asking the browser to measure the path.
  */
 function curve(points) {
   const at = i => points[Math.max(0, Math.min(points.length - 1, i))];
