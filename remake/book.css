@@ -55,6 +55,8 @@
   --book-teal: #2f8f86;
   --book-gold: #f2b630;
   --book-green: #6fae4f;
+  /* The map's red: the travelled trail, the dot that says where the child is, and the dotted way ahead (a warm red, as the travel lines of old adventure films). */
+  --map-red: #c63b2f;
   /* Every control in the book is at least this big. */
   --book-target: 88px;
   /* Nunito, then the rounded faces a system has, for a glyph Nunito lacks (the same stack as the game's page, STYLE.md section 10). */
@@ -447,9 +449,12 @@
 }
 
 /* The Kortið page (engine/book/map-page.js): the painted map across the spread, each page showing its half of assets/book/map.webp,
-   the halves meeting at the spine; the trail the child has travelled, dashed in ink on the path; the place names in the book's
-   font; and a round slot for each place, on its pale circle in the picture: empty (a dashed ring in the place's hue), found (a
-   die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). Everything on a half is sized from
+   the halves meeting at the spine; the trail the child has travelled, a solid red line on the path, with a red dot at its head that
+   says where the child is (it pulses a ring at rest) and, for the next leg, a faint dotted red line, its empty slot's ring pulsing;
+   the place names in the book's font; and a round slot for each place, on its pale circle in the picture: empty (a dashed ring in
+   the place's hue), found (a die-cut sticker of the friend on a wash of its hue, rocking gently on its tilt) or done (the sticker
+   wears a gold star). The motions are all stilled by the book's reduced-motion rule at the end of this file: the dot then simply
+   stands at its place, the ring that pulses is not shown, and the stickers keep their tilt. Everything on a half is sized from
    the half's own width (it is a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
 .book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
@@ -471,10 +476,20 @@
   position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; overflow: hidden;
 }
 .map-route-piece[data-state="hidden"] { display: none; }
-.map-route-reveal { fill: none; stroke: #fff; stroke-width: 14; stroke-linecap: butt; } /* what shows the ink: a pen that draws itself along the path */
-.map-route-line { /* the ink of the book, as the old painted dots were: short dashes with round ends, as thick as they were */
-  fill: none; stroke: var(--book-ink); stroke-width: 4.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 7 9.8;
+.map-route-reveal { fill: none; stroke: #fff; stroke-width: 16; stroke-linecap: butt; } /* what shows the red line: a pen, wider than it, that draws itself along the path */
+.map-route-line { /* the trail travelled: a solid red line with round ends and joins, as the travel lines in the Indiana Jones films */
+  fill: none; stroke: var(--map-red); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round;
 }
+.map-route-ahead { /* the way ahead: the same path as a faint dotted red line, under the red line, which covers it as it is drawn in */
+  display: none; fill: none; stroke: var(--map-red); stroke-opacity: .55; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: .1 15;
+}
+.map-route-piece[data-state="next"] .map-route-ahead, .map-route-piece[data-state="pending"] .map-route-ahead, .map-route-piece[data-state="drawing"] .map-route-ahead { display: inline; }
+.map-dot-core { fill: var(--map-red); stroke: var(--book-paper); stroke-width: 3; } /* the dot that says where the child is, with a rim of paper */
+.map-dot-ring { /* at rest a ring grows from the dot and fades; shown only while it grows, so that without the motion there is none */
+  fill: none; stroke: var(--map-red); stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: map-dot-pulse 2.4s ease-out infinite;
+}
+.map-dot[data-moving="yes"] .map-dot-ring { animation: none; } /* while it travels with the line's head there is no ring */
 .map-name { /* a place name written on the map, with a halo of paper round its letters */
   position: absolute; z-index: 1; transform: translate(-50%, -50%) rotate(var(--tilt, -2deg)); pointer-events: none;
   white-space: nowrap; font-size: clamp(18px, 4.6cqw, 40px); font-weight: 900; line-height: 1;
@@ -490,13 +505,18 @@
   content: ""; width: calc(var(--d) * .74); aspect-ratio: 1; border-radius: 50%;
   border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
 }
+.map-marker.next::before { animation: map-next-pulse 2.4s ease-in-out infinite; } /* the place the way ahead leads to: its ring breathes, the only one that does */
 .map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue; the rim brings it to --d across */
+  --lean: -6deg; /* its tilt, which it rocks about */
   position: relative; width: calc(var(--d) * .9); aspect-ratio: 1; border-radius: 50%; overflow: hidden; font-size: var(--d);
   background: radial-gradient(circle at 50% 36%, var(--book-card), color-mix(in srgb, var(--hue) 46%, var(--book-card)) 74%);
   box-shadow: 0 0 0 .03em #fff, 0 0 0 .05em var(--book-ink), 0 .06em .1em .02em rgb(59 47 37 / .3);
-  rotate: -6deg;
+  rotate: var(--lean); animation: map-rock 4.2s ease-in-out infinite;
 }
-.map-marker:nth-of-type(2n) .map-sticker { rotate: 5deg; }
+.map-marker:nth-of-type(2n) .map-sticker { --lean: 5deg; animation-duration: 3.7s; animation-delay: -1.3s; }
+.map-marker:nth-of-type(3n) .map-sticker { animation-duration: 4.8s; animation-delay: -2.9s; }
+.map-marker:nth-of-type(4n) .map-sticker { animation-duration: 4.4s; animation-delay: -.7s; }
+.map-marker:nth-of-type(5n) .map-sticker { animation-duration: 3.6s; animation-delay: -2.2s; }
 .map-sticker img, .map-sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; transform: scale(1.16) translateY(4%); }
 .map-sticker svg { transform: none; }
 .map-sticker::after { /* the shine */
@@ -515,6 +535,18 @@
 @keyframes map-breathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -54%) scale(1.04); }
+}
+@keyframes map-rock { /* the sticker leans three degrees either side of its tilt */
+  0%, 100% { rotate: calc(var(--lean) - 3deg); }
+  50% { rotate: calc(var(--lean) + 3deg); }
+}
+@keyframes map-next-pulse {
+  0%, 100% { scale: 1; opacity: .6; }
+  50% { scale: 1.12; opacity: 1; }
+}
+@keyframes map-dot-pulse {
+  0% { transform: scale(1); opacity: .7; }
+  100% { transform: scale(2.8); opacity: 0; }
 }
 
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's

@@ -11,17 +11,26 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // On it a slot for each place a chapter can find: the Fen itself and the six friends of the Star Festival, each on its pale circle
 // (Slóeðla, Flugeðla and Uggeðla where they were found from Þórseðla's head, chapter 2). A slot is one of three:
 //   empty  a dashed ring in the place's hue: nothing there yet; a tap is only the book's tap
-//   found  the place is in the save's places: a round die-cut sticker of the friend (the Fen's is drawn)
+//   found  the place is in the save's places: a round die-cut sticker of the friend (the Fen's is drawn), which rocks gently
 //   done   its star is in the book (`k<N>_<key>` for a friend; the Fen's star is Þórseðla's, k2_thorsedla): the sticker wears a star
 // A tap on a found or done slot hands it to onTap(id, state, marker): Mosi says its name and one sentence (k2_mosi_map_<id>,
 // book.js). The slots are made once and render() only changes their state.
 //
-// And the trail the child has travelled, in ink, drawn by the game (the picture has no line of its own): three pieces, each along
-// the middle of the sandy trail, A from the clearing to the glade (chapter 1's ride), B out of the forest along the prints to the
-// Fen (chapter 2's trail) and C across the wetland to Þórseðla's pool. A piece is there once the child has got as far as the place
-// it ends at (a place found or done; a later place carries the earlier pieces with it, so the trail never has a gap). The first time
-// the page shows a piece the child has not seen yet it draws itself along its length, one piece after another, and the save's
-// seen list keeps `map-route-<piece>` so it happens once; afterwards, and with reduced motion, the piece is simply there.
+// And the trail the child has travelled, drawn by the game (the picture has no line of its own) as a solid red line, like the travel
+// lines in the Indiana Jones films: four pieces, each along the middle of the sandy trail, A from the clearing to the glade
+// (chapter 1's ride), B out of the forest along the prints to the Fen (chapter 2's trail), C across the wetland to Þórseðla's pool
+// and D in a high arc over the mountains to Grameðla in the mist (chapter 3's, which is not built yet). A piece is there once the
+// child has got as far as the place it ends at (a place found or done; a later place carries the earlier pieces with it, so the
+// trail never has a gap). The first time the page shows a piece the child has not seen yet it draws itself along its length, one
+// piece after another, and the save's seen list keeps `map-route-<piece>` so it happens once; afterwards, and with reduced motion,
+// the piece is simply there.
+//
+// A red dot says where the child is. While a piece draws in, the dot rides at the head of the line: it moves along the same curve
+// over the same time with the same easing, so the two never part. At rest it stands at the end of the last piece drawn (at the start
+// of A while none is), and pulses softly; a piece the child has reached but not yet seen drawn leaves it where it was until the page
+// shows. Where the story goes next is shown before the child gets there: the first piece not yet reached is a faint dotted red
+// line (under the drawn ones), and the empty slot it leads to pulses its dashed ring. Exactly one piece is next, none once every
+// piece is reached.
 
 export const MAP_SRC = new URL('../../assets/book/map.webp', import.meta.url).href;
 const VIEW = { width: 1800, height: 1000 }; // the view the map is laid out in: each page shows half its width
@@ -75,26 +84,34 @@ const BOUNCE_MS = 480;
 
 // The trail, in picture pixels, along the middle of the sandy path (the points follow where the path's old painted dots lay, which
 // tools/erase-map-dots.py has taken out; its lists are the same but for B). B runs along Þórseðla's prints, which are painted on the
-// path, so it keeps 15 pixels to the lower side of them, on the sand, and the prints stay clear. Each piece ends at a place: it is
-// there once that place is found or done, or any place after it is.
+// path, so it keeps 15 pixels to the lower side of them, on the sand, and the prints stay clear. D has no path in the picture: it
+// leaves Þórseðla's pool in a high arc over the mountains and runs level above the river to the edge of Grameðla's circle,
+// keeping clear of Slóeðla's and Flugeðla's circles and of the river's name. Each piece ends at a place: it is there once that
+// place is found or done, or any place after it is.
 const ROUTE = [
   { id: 'a', end: 'kambedla', points: [[249, 736], [277, 710], [307, 690], [343, 675], [375, 667], [405, 663], [421, 659], [436, 651], [446, 639], [453, 625], [457, 610], [464, 595], [473, 581], [484, 569], [497, 557], [511, 546], [531, 532]] },
   { id: 'b', end: 'fen', points: [[628, 497], [651, 494], [667, 492], [689, 500], [716, 514], [747, 532], [788, 554], [829, 579], [872, 606], [911, 635], [951, 665], [995, 695], [1043, 717], [1096, 728], [1126, 730]] },
   { id: 'c', end: 'thorsedla', points: [[1126, 730], [1165, 728], [1198, 720], [1230, 709], [1261, 693], [1291, 673], [1317, 652], [1345, 629], [1373, 611], [1401, 595], [1430, 580], [1457, 567], [1487, 553], [1519, 538], [1548, 523], [1576, 506], [1600, 487], [1621, 463], [1628, 434], [1626, 417], [1608, 391], [1586, 378], [1566, 373]] },
+  { id: 'd', end: 'gramedla', points: [[1566, 373], [1545, 300], [1490, 225], [1420, 150], [1340, 105], [1240, 82], [1120, 75], [990, 78], [860, 84], [730, 90], [600, 95], [480, 100], [360, 104], [260, 106], [222, 107]] },
 ];
 const ROUTE_MS = 2000; // a piece draws itself over this long
 const ROUTE_GAP_MS = 150; // and the next begins this long after it
+const DOT_R = 9; // the dot that says where the child is, in the view's units
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const seenOf = id => `map-route-${id}`;
 
 /**
- * A smooth curve through the points (a Catmull-Rom spline, as cubic Béziers): its path data and its length, in the view's units.
+ * A smooth curve through the points (a Catmull-Rom spline, as cubic Béziers): its path data, its length and the short chords the
+ * length was walked by, in the view's units. `samples` are the chords' ends, from the curve's start (at 0) to its end (at its
+ * length), each as { x, y, at } with `at` the distance along the curve: where the line's head is, whatever the browser's own
+ * measuring of a path.
  */
 function curve(points) {
   const at = i => points[Math.max(0, Math.min(points.length - 1, i))];
   let d = `M${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)}`;
   let length = 0;
   let from = points[0];
+  const samples = [{ x: from[0], y: from[1], at: 0 }];
   for (let i = 0; i < points.length - 1; i += 1) {
     const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
     const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
@@ -107,9 +124,10 @@ function curve(points) {
       const y = u ** 3 * p1[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t ** 3 * p2[1];
       length += Math.hypot(x - from[0], y - from[1]);
       from = [x, y];
+      samples.push({ x, y, at: length });
     }
   }
-  return { d, length };
+  return { d, length, samples };
 }
 
 /**
@@ -121,8 +139,11 @@ function curve(points) {
  *   hide()          the page is off view: a piece still drawing is finished where it was going
  *   markers         id -> the slot's button, for the lab and for probes
  *   stateOf(id)     'empty', 'found' or 'done'
- *   routeOf(id)     a piece of the trail ('a', 'b', 'c'): 'hidden' (not got that far), 'pending' (got there, not yet drawn in),
- *                   'drawing' or 'drawn'
+ *   routeOf(id)     a piece of the trail ('a', 'b', 'c', 'd'): 'hidden' (not got that far), 'next' (the first not got to: a dotted
+ *                   line), 'pending' (got there, not yet drawn in), 'drawing' or 'drawn'
+ *   next()          the piece shown as next, or null once every piece is reached
+ *   dotAt()         where the dot rests: the place the last piece drawn ends at ('kambedla', 'fen', 'thorsedla', 'gramedla'),
+ *                   or 'start' (the clearing) while none is drawn
  */
 export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window } = {}) {
   const doc = leaf.el.ownerDocument;
@@ -154,30 +175,38 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     box.append(el);
     return el;
   });
-  // The trail: over each half's drawing an svg of that half (the same view, cropped to it), holding every piece, so a piece that
-  // crosses the spine is drawn on both pages, and drawn in on both at once.
+  // The trail: over each half's drawing an svg of that half (the same view, cropped to it), holding every piece and the dot, so a
+  // piece or the dot that crosses the spine is drawn on both pages, and moves on both at once.
   const svgEl = (tag, attributes = {}) => {
     const element = doc.createElementNS ? doc.createElementNS(SVG_NS, tag) : doc.createElement(tag);
     for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
     return element;
   };
   const pieces = ROUTE.map(({ id, end, points }) => ({ id, end, ...curve(points.map(onMap)), state: 'hidden', groups: [], reveals: [], animations: [] }));
+  const dots = []; // each half's copy of the dot
   halves.forEach((el, half) => {
     const svg = svgEl('svg', { class: 'map-route', viewBox: `${half * HALF} 0 ${HALF} ${VIEW.height}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
     for (const piece of pieces) {
       const maskId = `${seenOf(piece.id)}-${half ? 'right' : 'left'}`;
       const group = svgEl('g', { class: 'map-route-piece', 'data-piece': piece.id, 'data-state': 'hidden' });
       const mask = svgEl('mask', { id: maskId, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: VIEW.width, height: VIEW.height });
-      // the ink is the dashed line, seen through this: a plain wide stroke that draws itself along the path (its dash is the
-      // path's whole length, shifted back until it has all come in), so the dashes themselves stay as they are
+      // the red line is seen through this: a plain wide stroke that draws itself along the path (its dash is the path's whole
+      // length, shifted back until it has all come in)
       const reveal = svgEl('path', { class: 'map-route-reveal', d: piece.d, 'stroke-dasharray': `${piece.length.toFixed(1)} ${piece.length.toFixed(1)}`, 'stroke-dashoffset': piece.length.toFixed(1) });
       mask.append(reveal);
+      // the dotted way ahead, under the line that will cover it, which the style shows for a piece that is next or being drawn in
+      const ahead = svgEl('path', { class: 'map-route-ahead', d: piece.d });
       const line = svgEl('path', { class: 'map-route-line', d: piece.d, mask: `url(#${maskId})` });
-      group.append(mask, line);
+      group.append(mask, ahead, line);
       svg.append(group);
       piece.groups.push(group);
       piece.reveals.push(reveal);
     }
+    // the dot: a ring that pulses at rest behind a red disc, in a group that is moved to where it is (the start of A for now)
+    const dot = svgEl('g', { class: 'map-dot', transform: `translate(${pieces[0].samples[0].x.toFixed(1)} ${pieces[0].samples[0].y.toFixed(1)})` });
+    dot.append(svgEl('circle', { class: 'map-dot-ring', r: DOT_R }), svgEl('circle', { class: 'map-dot-core', r: DOT_R }));
+    svg.append(dot);
+    dots.push(dot);
     el.append(svg);
   });
   for (const name of NAMES) {
@@ -228,12 +257,26 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   // ---- The trail ----------------------------------------------------------------------------------------------------------
 
   let shown = false; // the page is on view: a piece that has not been drawn in is drawn in now, not kept for later
+  let rests = 'start'; // where the dot stands when it is not travelling: the place the last piece drawn ends at, or 'start'
+
+  /** Puts the dot where the pieces drawn say it rests (it only moves along a piece while that is being drawn in). */
+  function settleDot() {
+    const last = pieces.findLast(piece => piece.state === 'drawn');
+    rests = last ? last.end : 'start';
+    const { x, y } = (last ?? pieces[0]).samples[last ? last.samples.length - 1 : 0];
+    const travelling = pieces.some(piece => piece.state === 'drawing');
+    for (const dot of dots) {
+      dot.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+      dot.setAttribute('data-moving', travelling ? 'yes' : 'no'); // it pulses only when it is not travelling
+    }
+  }
 
   function setState(piece, state) {
     piece.state = state;
     const hidden = piece.length.toFixed(1);
     for (const group of piece.groups) group.setAttribute('data-state', state);
     for (const reveal of piece.reveals) reveal.setAttribute('stroke-dashoffset', state === 'drawn' ? '0' : hidden);
+    settleDot();
   }
 
   /** A piece drawn in to its end, by its animation or at once. */
@@ -248,16 +291,23 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   /** A piece the child has not seen drawn: kept in the save as seen, and drawn along its length after `delay` ms, or just there. */
   function draw(piece, delay) {
     save.addSeen(seenOf(piece.id));
-    if (reducedMotion(win) || !piece.reveals.every(reveal => typeof reveal.animate === 'function')) {
+    if (reducedMotion(win) || ![...piece.reveals, ...dots].every(element => typeof element.animate === 'function')) {
       setState(piece, 'drawn');
       return;
     }
     setState(piece, 'drawing');
     // both pages' copies start together and run alike, so a piece that crosses the spine is one line
+    const timing = { duration: ROUTE_MS, delay, easing: 'ease-in-out' };
     piece.animations = piece.reveals.map(reveal => reveal.animate(
       [{ strokeDashoffset: piece.length }, { strokeDashoffset: 0 }],
-      { duration: ROUTE_MS, delay, easing: 'ease-in-out', fill: 'both' },
+      { ...timing, fill: 'both' },
     ));
+    // The dot rides at the line's head: a keyframe for every chord of the curve, at its share of the length, under the same
+    // timing, so it is where the head is at every moment. Unlike the line it does not wait at the piece's start for its turn
+    // (it would stand over the piece before, which is still being drawn): it stays where it was until the piece begins, and
+    // stays at the end when it is done, until the piece is finished and the dot rests there.
+    const keyframes = piece.samples.map(({ x, y, at }) => ({ transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, offset: Math.min(1, at / piece.length) }));
+    piece.animations.push(...dots.map(dot => dot.animate(keyframes, { ...timing, fill: 'forwards' })));
     piece.animations[0].onfinish = () => finish(piece);
   }
 
@@ -306,14 +356,17 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       el.replaceChildren(...(state === 'empty' ? [] : state === 'done' ? [sticker, star] : [sticker]));
       el.setAttribute('aria-label', state === 'empty' ? 'Ófundinn staður' : nameOf(place.id));
     }
-    // the trail: a piece is there once its place or a later one is, and is waiting to be drawn in until the child has seen that
+    // the trail: a piece is there once its place or a later one is, and is waiting to be drawn in until the child has seen that;
+    // the first one not there yet is next, a dotted way ahead, and the slot it leads to pulses
     const got = ROUTE.map(({ end }) => states.get(end) !== 'empty');
+    const reachedAt = i => got.slice(i).some(Boolean);
+    const next = ROUTE.findIndex((_, i) => !reachedAt(i));
     pieces.forEach((piece, i) => {
       if (piece.state === 'drawing' || piece.state === 'drawn') return;
-      const reached = got.slice(i).some(Boolean);
-      const state = !reached ? 'hidden' : seen.includes(seenOf(piece.id)) ? 'drawn' : 'pending';
+      const state = reachedAt(i) ? (seen.includes(seenOf(piece.id)) ? 'drawn' : 'pending') : i === next ? 'next' : 'hidden';
       if (piece.state !== state) setState(piece, state);
     });
+    for (const [id, { el }] of markers) el.classList.toggle('next', next >= 0 && ROUTE[next].end === id);
   }
 
   render();
@@ -324,5 +377,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     markers: new Map([...markers].map(([id, marker]) => [id, marker.el])),
     stateOf: id => states.get(id),
     routeOf: id => pieces.find(piece => piece.id === id)?.state,
+    next: () => pieces.find(piece => piece.state === 'next')?.id ?? null,
+    dotAt: () => rests,
   };
 }

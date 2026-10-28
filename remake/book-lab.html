@@ -16,8 +16,10 @@
        animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
        map                            the Kortið page; ?progress= says how far the child has got: 0 (a fresh save, no trail), 1 (chapter 1 done),
-                                      2 (chapter 2 come to the Fen) or 3 (Þórseðla's star too, the default); the trail draws itself in once, and
-                                      ?seen=1 has it drawn in before, as on a later visit, and ?at=<ms> holds the drawing at that moment
+                                      2 (chapter 2 come to the Fen), 3 (Þórseðla's star too, the default) or 4 (Grameðla's star too: every piece
+                                      of the trail, a to d); the piece not reached yet shows ahead as a dotted line, and the red dot stands at the
+                                      end of the last piece drawn; the trail draws itself in once, with the dot riding at its head, and
+                                      ?seen=1 has it drawn in before, as on a later visit, and ?at=<ms> holds the drawing and the dot at that moment
                                       from the page's opening (the first piece starts at 560, each next 2150 later) for a picture of it half drawn
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
@@ -93,7 +95,8 @@
   if (progress >= 1) save.addStar('k1_kambedla');
   if (progress >= 2) save.addPlace('fen');
   if (progress >= 3) save.addStar('k2_thorsedla');
-  if (state === 'map' && params.get('seen') === '1') for (const id of ['a', 'b', 'c']) save.addSeen(`map-route-${id}`);
+  if (progress >= 4) save.addStar('k3_gramedla');
+  if (state === 'map' && params.get('seen') === '1') for (const id of ['a', 'b', 'c', 'd']) save.addSeen(`map-route-${id}`);
   save.addFinding('butterfly');
   save.addSeen('mosi');
   save.addSeen('kambedla');
@@ -176,9 +179,10 @@
   // The page the book opens on: the dinosaurs' for ?state=dinosaurs, and for a card of a dinosaur (Mosi's, Kambeðla's), else the animals'.
   const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
   book.open(state === 'fossils' ? 'fossils' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
-  if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at
+  if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at: the line's, and the dot's riding at its head
     for (const animation of document.getAnimations()) {
-      if (animation.effect?.target?.classList?.contains('map-route-reveal')) { animation.pause(); animation.currentTime = Number(params.get('at')); }
+      const target = animation.effect?.target;
+      if (target?.classList?.contains('map-route-reveal') || target?.classList?.contains('map-dot')) { animation.pause(); animation.currentTime = Number(params.get('at')); }
     }
   }
   await settle();

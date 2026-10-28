@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createBook, halsOpen } from '../engine/book/book.js';
+import { renderMap } from '../engine/book/map-page.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
 import { parseManifest } from '../engine/book/media.js';
 import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
@@ -185,24 +186,41 @@ test('the book has a Kortið page with the found places', () => {
   assert.equal(narrated.at(-1), 'k2_mosi_map_fen');
 });
 
-/** The trail's three pieces on the Kortið page of the rig's book, each with the state of its copies on the two pages (alike). */
+const PIECES = ['a', 'b', 'c', 'd'];
+/** A spot in the painting's pixels (1681 by 936), in the map's view units (1800 by 1000). */
+const inView = ([x, y]) => [x * 1800 / 1681, y * 1000 / 936];
+const START = [249, 736]; // where the trail begins, in the clearing
+const ENDS = { kambedla: [531, 532], fen: [1126, 730], thorsedla: [1566, 373], gramedla: [222, 107] }; // where each piece ends
+const sameSpot = (spot, want) => Math.hypot(spot[0] - want[0], spot[1] - want[1]) < 0.2;
+
+/** The trail's four pieces on the Kortið page of the rig's book, each with the state of its copies on the two pages (alike). */
 function trailOf(root) {
-  return ['a', 'b', 'c'].map(id => {
+  return PIECES.map(id => {
     const states = new Set(root.findAll(e => e.getAttribute('data-piece') === id).map(e => e.getAttribute('data-state')));
     assert.equal(states.size, 1, `piece ${id} is the same on both pages`);
     return [...states][0];
   });
 }
 
+/** Where the dot stands on the Kortið page of the rig's book (the view's units): the same on both pages. */
+function dotSpot(root) {
+  const dots = root.findAll(e => e.getAttribute('class') === 'map-dot');
+  assert.equal(dots.length, 2, 'a dot on each page');
+  const spots = new Set(dots.map(dot => dot.getAttribute('transform')));
+  assert.equal(spots.size, 1, 'the dot is in the same place on both pages');
+  return /translate\(([\d.]+) ([\d.]+)\)/.exec([...spots][0]).slice(1).map(Number);
+}
+
 test('the map\'s trail reaches as far as the child has got, and waits unseen until the page is on view', () => {
   const rigs = [
-    ['a fresh save', () => {}, ['hidden', 'hidden', 'hidden']],
-    ['chapter 1 done: Kambeðla\'s star', save => save.addStar('k1_kambedla'), ['drawn', 'hidden', 'hidden']],
-    ['her place alone', save => save.addPlace('kambedla'), ['drawn', 'hidden', 'hidden']],
-    ['chapter 2 at the Fen', save => { save.addStar('k1_kambedla'); save.addPlace('fen'); }, ['drawn', 'drawn', 'hidden']],
-    ['with Þórseðla\'s star', save => { save.addStar('k1_kambedla'); save.addPlace('fen'); save.addStar('k2_thorsedla'); }, ['drawn', 'drawn', 'drawn']],
-    ['her star alone: the trail has no gap before it', save => save.addStar('k2_thorsedla'), ['drawn', 'drawn', 'drawn']],
-    ['a friend found from her head is not on the trail', save => { save.addPlace('sloedla'); save.addPlace('uggedla'); }, ['hidden', 'hidden', 'hidden']],
+    ['a fresh save', () => {}, ['next', 'hidden', 'hidden', 'hidden']],
+    ['chapter 1 done: Kambeðla\'s star', save => save.addStar('k1_kambedla'), ['drawn', 'next', 'hidden', 'hidden']],
+    ['her place alone', save => save.addPlace('kambedla'), ['drawn', 'next', 'hidden', 'hidden']],
+    ['chapter 2 at the Fen', save => { save.addStar('k1_kambedla'); save.addPlace('fen'); }, ['drawn', 'drawn', 'next', 'hidden']],
+    ['with Þórseðla\'s star', save => { save.addStar('k1_kambedla'); save.addPlace('fen'); save.addStar('k2_thorsedla'); }, ['drawn', 'drawn', 'drawn', 'next']],
+    ['her star alone: the trail has no gap before it', save => save.addStar('k2_thorsedla'), ['drawn', 'drawn', 'drawn', 'next']],
+    ['with Grameðla\'s star: every piece is reached', save => { save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); }, ['drawn', 'drawn', 'drawn', 'drawn']],
+    ['a friend found from her head is not on the trail', save => { save.addPlace('sloedla'); save.addPlace('uggedla'); }, ['next', 'hidden', 'hidden', 'hidden']],
   ];
   for (const [what, fill, shown] of rigs) {
     const { save, book, root } = savedRig(fill);
@@ -210,23 +228,74 @@ test('the map\'s trail reaches as far as the child has got, and waits unseen unt
     assert.deepEqual(save.get().seen, [], `${what}: nothing is kept as seen before it is`);
     book.open('map', 'child');
     assert.deepEqual(trailOf(root), shown, what);
-    const kept = ['a', 'b', 'c'].filter((id, i) => shown[i] === 'drawn').map(id => `map-route-${id}`);
+    const kept = PIECES.filter((id, i) => shown[i] === 'drawn').map(id => `map-route-${id}`);
     assert.deepEqual(save.get().seen, kept, `${what}: each piece drawn is kept as seen`);
   }
 });
 
-/** The book on the map with an animation for every element, a record of the ones that draw the trail, and a save of its own. */
+/** The map page alone over a save of its own (no book round it), with the animations it asks for (if `animated`) in the order they began. */
+function mapRig({ fill = () => {}, reduced = false, animated = false } = {}) {
+  const save = createSave(null);
+  fill(save);
+  const doc = new FakeDocument();
+  const animations = []; // { el, keyframes, options, animation }
+  if (animated) {
+    const create = doc.createElement.bind(doc);
+    doc.createElement = tag => {
+      const element = create(tag);
+      element.animate = (keyframes, options) => {
+        const animation = { cancelled: false, cancel() { this.cancelled = true; }, finish() { this.onfinish?.(); } };
+        animations.push({ el: element, keyframes, options, animation });
+        return animation;
+      };
+      return element;
+    };
+  }
+  const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
+  leaf.el.append(...leaf.tiles);
+  const map = renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }) } });
+  const reveals = () => animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
+  const spot = () => dotSpot(leaf.el);
+  return { save, map, animations, reveals, spot };
+}
+
+test('the way ahead is the first piece not reached, and the empty slot it leads to is the one that pulses', () => {
+  const steps = [
+    ['a fresh save', () => {}, 'a', 'kambedla'],
+    ['chapter 1 done', save => save.addStar('k1_kambedla'), 'b', 'fen'],
+    ['at the Fen', save => { save.addStar('k1_kambedla'); save.addPlace('fen'); }, 'c', 'thorsedla'],
+    ['after Þórseðla\'s star', save => { save.addStar('k1_kambedla'); save.addStar('k2_thorsedla'); }, 'd', 'gramedla'],
+    ['Grameðla reached', save => { save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); }, null, null],
+    ['her place alone is reached too', save => { save.addStar('k2_thorsedla'); save.addPlace('gramedla'); }, null, null],
+    ['friends found from Þórseðla\'s head only', save => { save.addPlace('sloedla'); save.addPlace('uggedla'); }, 'a', 'kambedla'],
+  ];
+  for (const [what, fill, next, slot] of steps) {
+    const { map } = mapRig({ fill });
+    assert.equal(map.next(), next, `${what}: the piece ahead`);
+    assert.deepEqual(PIECES.filter(id => map.routeOf(id) === 'next'), next ? [next] : [], `${what}: exactly one piece is next, or none`);
+    // in the book, the slot the way ahead leads to pulses and no other
+    const { root } = savedRig(fill);
+    const pulsing = root.findAll(e => e.classList.contains('map-marker') && e.classList.contains('next')).map(e => e.getAttribute('data-place'));
+    assert.deepEqual(pulsing, slot ? [slot] : [], `${what}: the slot that pulses`);
+    if (slot) assert.ok(root.findAll(e => e.getAttribute('data-place') === slot)[0].classList.contains('empty'), `${what}: and it is an empty one`);
+  }
+});
+
+/** The book on the map with an animation for every element, a record of the ones that draw the trail and move the dot, and a save of its own. */
 function trailRig({ fill = () => {}, reduced = false } = {}) {
   const save = createSave(null);
   fill(save);
   const doc = new FakeDocument(['book']);
   const drawings = []; // { el, keyframes, options, animation }, in the order the pieces began
+  const dots = []; // the same for the dot, a pair (one on each page) after each piece's pair of drawings
   const create = doc.createElement.bind(doc);
   doc.createElement = tag => {
     const element = create(tag);
     element.animate = (keyframes, options) => {
       const animation = { cancelled: false, cancel() { this.cancelled = true; }, finish() { this.onfinish?.(); } };
-      if (element.getAttribute('class') === 'map-route-reveal') drawings.push({ el: element, keyframes, options, animation }); // the book's own motions are not the trail's
+      // the book's own motions are not the trail's
+      if (element.getAttribute('class') === 'map-route-reveal') drawings.push({ el: element, keyframes, options, animation });
+      if (element.getAttribute('class') === 'map-dot') dots.push({ el: element, keyframes, options, animation });
       return animation;
     };
     return element;
@@ -235,18 +304,19 @@ function trailRig({ fill = () => {}, reduced = false } = {}) {
   const root = doc.getElementById('book');
   root.animate = () => ({ cancel() {}, finish() {} });
   const book = createBook(doc, { save, audio: { sfx: () => true, stop() {}, narrate: () => DONE }, onPause() {}, win });
-  /** The piece ('a', 'b' or 'c') whose drawing animation this is: the one whose group holds the animated path. */
+  /** The piece ('a' to 'd') whose drawing animation this is: the one whose group holds the animated path. */
   const pieceOf = drawing => root.findAll(e => e.getAttribute('data-piece') && e.findAll(p => p === drawing.el).length).map(g => g.getAttribute('data-piece'))[0];
-  return { save, book, root, drawings, pieceOf };
+  return { save, book, root, drawings, dots, pieceOf };
 }
 
 test('each piece of the trail draws itself in the first time the page shows it, one after another, and then is simply there', () => {
   const all = save => { save.addStar('k1_kambedla'); save.addPlace('fen'); save.addStar('k2_thorsedla'); };
   const { save, book, root, drawings, pieceOf } = trailRig({ fill: all });
-  assert.deepEqual(trailOf(root), ['pending', 'pending', 'pending']);
+  assert.deepEqual(trailOf(root), ['pending', 'pending', 'pending', 'next']);
   assert.equal(drawings.length, 0, 'nothing is drawn while the book is shut');
   book.open('map', 'child');
-  // A, then B, then C: each over two seconds on both pages at once, each beginning after the one before and after the book's turn
+  // A, then B, then C: each over two seconds on both pages at once, each beginning after the one before and after the book's turn;
+  // D, the way ahead, is not drawn
   assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['a', 'a', 'b', 'b', 'c', 'c']);
   assert.deepEqual(drawings.map(drawing => drawing.options.duration), [2000, 2000, 2000, 2000, 2000, 2000]);
   const delays = drawings.map(drawing => drawing.options.delay);
@@ -254,26 +324,38 @@ test('each piece of the trail draws itself in the first time the page shows it, 
   assert.ok(delays[0] > 0, 'once the book has settled');
   assert.ok(delays[2] >= delays[0] + 2000 && delays[4] >= delays[2] + 2000, 'one piece after another');
   assert.ok(drawings.every(drawing => drawing.options.fill === 'both'), 'a piece waits hidden until its turn');
-  assert.deepEqual(trailOf(root), ['drawing', 'drawing', 'drawing']);
+  assert.deepEqual(trailOf(root), ['drawing', 'drawing', 'drawing', 'next']);
   assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c'], 'each is kept as seen as it is begun');
   // the piece drawn in to its end is there for good
   drawings[0].animation.finish();
-  assert.deepEqual(trailOf(root), ['drawn', 'drawing', 'drawing']);
+  assert.deepEqual(trailOf(root), ['drawn', 'drawing', 'drawing', 'next']);
   assert.ok(drawings[0].animation.cancelled && drawings[1].animation.cancelled, 'its animations are let go, the line staying');
   // the book shut mid-way finishes what is drawing
   const close = root.findAll(e => e.classList.contains('book-close'))[0];
   close.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
   close.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
-  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn']);
+  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn', 'next']);
   // and the next time the page is shown there is nothing to draw
   book.open('map', 'child');
   assert.equal(drawings.length, 6, 'no piece draws in twice');
-  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn']);
+  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn', 'next']);
+});
+
+test('Grameðla\'s piece draws in as the others do once she is reached', () => {
+  const { save, book, root, drawings, pieceOf } = trailRig({ fill: s => { s.addStar('k1_kambedla'); s.addPlace('fen'); s.addStar('k2_thorsedla'); for (const id of ['a', 'b', 'c']) s.addSeen(`map-route-${id}`); } });
+  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn', 'next'], 'the three before are there, the fourth ahead');
+  book.open('map', 'child');
+  assert.equal(drawings.length, 0);
+  save.addStar('k3_gramedla');
+  book.refresh();
+  assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['d', 'd']);
+  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn', 'drawing']);
+  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d']);
 });
 
 test('a piece the child has seen drawn in is there at once in a book made later, and the one reached since draws in alone', () => {
   const { save, book, root, drawings, pieceOf } = trailRig({ fill: s => { s.addStar('k1_kambedla'); s.addSeen('map-route-a'); } });
-  assert.deepEqual(trailOf(root), ['drawn', 'hidden', 'hidden'], 'A was drawn in on an earlier visit');
+  assert.deepEqual(trailOf(root), ['drawn', 'next', 'hidden', 'hidden'], 'A was drawn in on an earlier visit');
   book.open('map', 'child');
   assert.equal(drawings.length, 0, 'and does not draw again');
   // chapter 2 comes to the Fen while the map is on view: B draws in as soon as the book hears of it
@@ -281,17 +363,101 @@ test('a piece the child has seen drawn in is there at once in a book made later,
   book.refresh();
   assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['b', 'b']);
   assert.equal(drawings[0].options.delay, 0, 'at once: the page is already on view');
-  assert.deepEqual(trailOf(root), ['drawn', 'drawing', 'hidden']);
+  assert.deepEqual(trailOf(root), ['drawn', 'drawing', 'next', 'hidden']);
   book.refresh();
   assert.equal(drawings.length, 2, 'a refresh does not draw it again');
 });
 
 test('with reduced motion the trail is simply there, and still kept as seen', () => {
-  const { save, book, root, drawings } = trailRig({ reduced: true, fill: s => { s.addStar('k1_kambedla'); s.addPlace('fen'); } });
+  const { save, book, root, drawings, dots } = trailRig({ reduced: true, fill: s => { s.addStar('k1_kambedla'); s.addPlace('fen'); } });
   book.open('map', 'child');
   assert.equal(drawings.length, 0, 'no animation');
-  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'hidden']);
+  assert.equal(dots.length, 0, 'the dot does not travel either');
+  assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'next', 'hidden']);
   assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b']);
+  assert.ok(sameSpot(dotSpot(root), inView(ENDS.fen)), 'the dot stands at its final place, the end of the last piece');
+});
+
+test('the dot rides at the head of the line: along the same curve, over the same time, with the same easing', () => {
+  const all = save => { save.addStar('k1_kambedla'); save.addPlace('fen'); save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); };
+  const { save, book, root, drawings, dots, pieceOf } = trailRig({ fill: all });
+  assert.ok(sameSpot(dotSpot(root), inView(START)), 'before the page shows, the dot stands at the clearing');
+  book.open('map', 'child');
+  assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'], 'Grameðla\'s piece draws in like the others');
+  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d']);
+  assert.equal(dots.length, drawings.length, 'the dot travels each piece, on both pages');
+  const starts = [START, [628, 497], ENDS.fen, ENDS.thorsedla]; // each piece begins where the one before ended, but B, which takes up on the far side of Kambeðla's circle
+  const stops = [ENDS.kambedla, ENDS.fen, ENDS.thorsedla, ENDS.gramedla];
+  const spots = keyframes => keyframes.map(({ transform }) => /translate\(([\d.]+)px, ([\d.]+)px\)/.exec(transform).slice(1).map(Number));
+  drawings.forEach((drawing, i) => {
+    const dot = dots[i];
+    assert.equal(dot.options.duration, drawing.options.duration, `piece ${pieceOf(drawing)}: the same time`);
+    assert.equal(dot.options.delay, drawing.options.delay, `piece ${pieceOf(drawing)}: starting together`);
+    assert.equal(dot.options.easing, drawing.options.easing, `piece ${pieceOf(drawing)}: the same easing`);
+    assert.equal(dot.options.easing, 'ease-in-out');
+    assert.equal(dot.options.fill, 'forwards', `piece ${pieceOf(drawing)}: it waits where it was for its turn and stays at the end`);
+    // a position at every share of the line's length: the head's distance along the curve is the keyframe's offset
+    const at = spots(dot.keyframes);
+    const offsets = dot.keyframes.map(keyframe => keyframe.offset);
+    assert.equal(offsets[0], 0);
+    assert.equal(offsets.at(-1), 1);
+    assert.ok(offsets.every((offset, k) => k === 0 || offset >= offsets[k - 1]), 'the offsets rise');
+    const along = at.reduce((sums, spot, k) => [...sums, k === 0 ? 0 : sums[k - 1] + Math.hypot(spot[0] - at[k - 1][0], spot[1] - at[k - 1][1])], []);
+    offsets.forEach((offset, k) => assert.ok(Math.abs(along[k] / along.at(-1) - offset) < 0.003, `piece ${pieceOf(drawing)}: the position at ${offset.toFixed(3)} is that far along the curve`));
+    assert.ok(sameSpot(at[0], inView(starts[Math.floor(i / 2)])), `piece ${pieceOf(drawing)}: from its start`);
+    assert.ok(sameSpot(at.at(-1), inView(stops[Math.floor(i / 2)])), `piece ${pieceOf(drawing)}: to its end`);
+  });
+  // the pieces take their turns: the dot stays where it was until its own begins, and the first is on the clearing
+  assert.ok(sameSpot(dotSpot(root), inView(START)), 'while the first waits and draws, the dot is not moved but by its animation');
+  for (const piece of PIECES) {
+    drawings.filter(drawing => pieceOf(drawing) === piece)[0].animation.finish();
+    assert.ok(dots[PIECES.indexOf(piece) * 2].animation.cancelled && dots[PIECES.indexOf(piece) * 2 + 1].animation.cancelled, `piece ${piece}: its dot animations are let go when it is drawn`);
+    assert.ok(sameSpot(dotSpot(root), inView(stops[PIECES.indexOf(piece)])), `piece ${piece} drawn: the dot rests at its end`);
+  }
+});
+
+test('the dot stands where the child is, and a piece reached but not yet seen drawn leaves it there until the page shows', () => {
+  const chapter1 = save => save.addStar('k1_kambedla');
+  assert.equal(mapRig().map.dotAt(), 'start', 'a fresh save: the clearing, where chapter 1 begins');
+  assert.ok(sameSpot(mapRig().spot(), inView(START)));
+  const seenA = mapRig({ fill: save => { chapter1(save); save.addSeen('map-route-a'); } });
+  assert.equal(seenA.map.dotAt(), 'kambedla', 'chapter 1 done and its trail seen');
+  assert.ok(sameSpot(seenA.spot(), inView(ENDS.kambedla)));
+
+  // reached, not yet seen: the dot stays at the clearing until the page is on view; then it travels, and rests at the glade
+  const rig = mapRig({ animated: true, fill: chapter1 });
+  assert.equal(rig.map.routeOf('a'), 'pending');
+  assert.equal(rig.map.dotAt(), 'start', 'the unseen piece does not move it');
+  rig.map.show(500);
+  assert.equal(rig.map.routeOf('a'), 'drawing');
+  assert.equal(rig.map.dotAt(), 'start', 'it is on its way, not yet there');
+  rig.reveals()[0].animation.finish();
+  assert.equal(rig.map.routeOf('a'), 'drawn');
+  assert.equal(rig.map.dotAt(), 'kambedla');
+  assert.ok(sameSpot(rig.spot(), inView(ENDS.kambedla)));
+  // the Fen is reached while the page is on view: the dot stays at the glade until B has been drawn in
+  rig.save.addPlace('fen');
+  rig.map.render();
+  assert.equal(rig.map.routeOf('b'), 'drawing');
+  assert.equal(rig.map.dotAt(), 'kambedla');
+  rig.reveals()[2].animation.finish(); // B's, the first of its two copies
+  assert.equal(rig.map.dotAt(), 'fen');
+
+  // reached while the page is not on view, with reduced motion: it waits there, then rests at the new end as the page shows
+  const calm = mapRig({ reduced: true, fill: save => { chapter1(save); save.addSeen('map-route-a'); } });
+  calm.save.addPlace('fen');
+  calm.map.render();
+  assert.equal(calm.map.routeOf('b'), 'pending');
+  assert.equal(calm.map.dotAt(), 'kambedla', 'B is reached but not seen: the dot stays at the glade');
+  calm.map.show(500);
+  assert.equal(calm.map.routeOf('b'), 'drawn');
+  assert.equal(calm.map.dotAt(), 'fen');
+  assert.ok(sameSpot(calm.spot(), inView(ENDS.fen)));
+
+  // the whole trail, as far as Grameðla
+  const far = mapRig({ fill: save => { save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); for (const id of PIECES) save.addSeen(`map-route-${id}`); } });
+  assert.equal(far.map.dotAt(), 'gramedla');
+  assert.ok(sameSpot(far.spot(), inView(ENDS.gramedla)));
 });
 
 test('Háls og hali opens with Þórseðla\'s star', () => {
