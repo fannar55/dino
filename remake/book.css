@@ -449,16 +449,18 @@
 }
 
 /* The Kortið page (engine/book/map-page.js): the painted map across the spread, each page showing its half of assets/book/map.webp,
-   the halves meeting at the spine; the trail the child has travelled, a solid red line on the path, with a red dot at its head that
-   says where the child is (it pulses a ring at rest) and, for the next leg, a faint dotted red line, its empty slot's ring pulsing;
+   the halves meeting at the spine; the trail the child has travelled, seven pieces (a to g, in the order of the game's script, one
+   friend a chapter) of a solid red line, with a red dot at its head that says where the child is (it pulses a ring at rest) and, for
+   the next leg, a faint dotted red line and its slot's ring pulsing: the dashed ring of an empty slot, or, once the friend is found
+   (the far friends are, in chapter 2, before the line goes to them), a soft ring in her hue round her sticker;
    the place names in the book's font; and a round slot for each place, on its pale circle in the picture: empty (a dashed ring in
    the place's hue), found (a die-cut sticker of the friend on a wash of its hue, rocking gently on its tilt) or done (the sticker
    wears a gold star). Over the painting, the water and the mist, two layers cut from it (tools/map-life-layers.py) that lie exactly
    where it does: a light glides over the water (the layer shows only inside a soft band that crosses it, a little brighter than the
    painting under it: map-water-glide), the mist drifts and breathes (map-mist-drift, map-mist-breathe) and is masked by a round hole
    round Grameðla's circle whose radius, --map-hole, map-page.js opens when she is reached. The motions are all stilled by the
-   reduced-motion rules at the end of this file: the dot then simply stands at its place, the ring that pulses is not shown, the
-   stickers keep their tilt, the water layer is not shown and the mist stands still. Everything on a half is sized from the half's own width (it is
+   reduced-motion rules at the end of this file: the dot then simply stands at its place, the ring that grows from it is not shown,
+   the ring round the next slot stands still, the stickers keep their tilt, the water layer is not shown and the mist stands still. Everything on a half is sized from the half's own width (it is
    a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
 .book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
@@ -537,6 +539,11 @@
   border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
 }
 .map-marker.next::before { animation: map-next-pulse 2.4s ease-in-out infinite; } /* the place the way ahead leads to: its ring breathes, the only one that does */
+.map-marker.next.found::after { /* the same place once its friend is found (the far friends are, a chapter or more before the line goes to them): her sticker is there, so the ring is a soft one in her hue just outside its rim, breathing as the dashed one does */
+  content: ""; position: absolute; top: 50%; left: 50%; box-sizing: border-box; width: calc(var(--d) * 1.1 + 8px); aspect-ratio: 1; translate: -50% -50%;
+  border-radius: 50%; border: 3px solid color-mix(in srgb, var(--hue) 80%, var(--book-card)); box-shadow: 0 0 .4em color-mix(in srgb, var(--hue) 70%, transparent);
+  opacity: .85; pointer-events: none; animation: map-next-ring 2.4s ease-in-out infinite;
+}
 .map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue; the rim brings it to --d across */
   --lean: -6deg; /* its tilt, which it rocks about */
   position: relative; width: calc(var(--d) * .9); aspect-ratio: 1; border-radius: 50%; overflow: hidden; font-size: var(--d);
@@ -573,6 +580,10 @@
 }
 @keyframes map-next-pulse {
   0%, 100% { scale: 1; opacity: .6; }
+  50% { scale: 1.12; opacity: 1; }
+}
+@keyframes map-next-ring {
+  0%, 100% { scale: 1; opacity: .55; }
   50% { scale: 1.12; opacity: 1; }
 }
 @keyframes map-dot-pulse {

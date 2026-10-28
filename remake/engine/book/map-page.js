@@ -17,28 +17,35 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // book.js). The slots are made once and render() only changes their state.
 //
 // And the trail the child has travelled, drawn by the game (the picture has no line of its own) as a solid red line, like the travel
-// lines in the Indiana Jones films: four pieces, each along the middle of the sandy trail, A from the clearing to the glade
-// (chapter 1's ride), B out of the forest along the prints to the Fen (chapter 2's trail), C across the wetland to Þórseðla's pool
-// and D in a high arc over the mountains to Grameðla in the mist (chapter 3's, which is not built yet). A piece is there once the
-// child has got as far as the place it ends at (a place found or done; a later place carries the earlier pieces with it, so the
-// trail never has a gap). The first time the page shows a piece the child has not seen yet it draws itself along its length, one
-// piece after another, and the save's seen list keeps `map-route-<piece>` so it happens once; afterwards, and with reduced motion,
-// the piece is simply there.
+// lines in the Indiana Jones films: seven pieces, in the order of the game's script (docs/superpowers/specs/2026-10-28-handrit-leiksins.md,
+// one friend a chapter), each from the place before to the next. The first three go along the middle of the sandy trail: A from the
+// clearing to the glade (chapter 1's ride), B out of the forest along the prints to the Fen (chapter 2's trail) and C across the
+// wetland to Þórseðla's pool. Then D from her pool, round the north of it and west above the Fen, to Slóeðla's far pool (chapter 3),
+// E in a low arc to Flugeðla's snag (chapter 4), F south between the Fen and Þórseðla's pool to Uggeðla in her reed (chapter 5) and
+// G, the longest, west over the Fen and the forest and across the river at the waterfall's foot, up into the mist to Grameðla
+// (chapter 6). A piece is there once the child has got as far as the place it ends at, which the piece's `by` says: A, B and C by
+// the place (found or done), D to G by the friend's star alone (done). Slóeðla, Flugeðla and Uggeðla are found from Þórseðla's head
+// in chapter 2 and their stickers go on the map then, but that is not a trip to them; the line goes there in the chapter of each,
+// and not before. A later piece reached carries the earlier ones with it, so the trail never has a gap. The first time the page
+// shows a piece the child has not seen yet it draws itself along its length, one piece after another, and the save's seen list keeps
+// `map-route-<piece>` so it happens once; afterwards, and with reduced motion, the piece is simply there.
 //
 // A red dot says where the child is. While a piece draws in, the dot rides at the head of the line: it moves along the same curve
 // over the same time with the same easing, so the two never part. At rest it stands at the end of the last piece drawn (at the start
 // of A while none is), and pulses softly; a piece the child has reached but not yet seen drawn leaves it where it was until the page
 // shows. Where the story goes next is shown before the child gets there: the first piece not yet reached is a faint dotted red
-// line (under the drawn ones), and the empty slot it leads to pulses its dashed ring. Exactly one piece is next, none once every
-// piece is reached.
+// line (under the drawn ones), and the slot it leads to pulses: its dashed ring while it is empty, and once the friend is found (the
+// far friends are, in chapter 2, before the line goes to them) a soft ring in her hue round her sticker. Exactly one piece is next,
+// none once every piece is reached.
 //
 // And the map is alive. Two layers cut from the painting itself (tools/map-life-layers.py), the same size as it and lying exactly
 // over it on each page, keep it moving without a line drawn: a soft light glides across the water (the river, the waterfall, the
 // Fen's pools: the layer shows only inside a band that crosses the spread in nine seconds, a little brighter than the painting
 // under it, so the light lies on the water and nowhere else); the mist (the cloud over the mountains in the top left) slides gently
-// from side to side and breathes over fourteen. The mist hangs round Grameðla's circle until she is found (her place, or her star:
-// reached): the first time the page shows her reached the mist is drawn back from her, a round hole in it widening over two
-// seconds, and the save's seen list keeps `map-mist-gramedla` so that happens once; afterwards the hole is simply open. With
+// from side to side and breathes over fourteen. The mist hangs round Grameðla's circle until she is found (her place, or her star):
+// the first time the page shows her so, the mist is drawn back from her, a round hole in it widening over two seconds, and the
+// save's seen list keeps `map-mist-gramedla` so that happens once; afterwards the hole is simply open. (The mist is the slot's: it
+// opens when she is found or done, and not when her piece of the trail is reached, which only her star does.) With
 // reduced motion nothing glides, drifts or widens: the water layer is not shown, the mist stands, and the hole is just open.
 // (The water was first to ripple, an animated SVG noise pushing its pixels about; its noise is drawn again every frame, which
 // took about five milliseconds a frame on a laptop's graphics at a tablet's size, more than the four allowed. The light is a mask
@@ -105,17 +112,24 @@ const MIST_SEEN = 'map-mist-gramedla';
 const HOLE_SHUT = '0cqw';
 const holeOpen = size => `${(size * 1.6 / (HALF / 100)).toFixed(2)}cqw`;
 
-// The trail, in picture pixels, along the middle of the sandy path (the points follow where the path's old painted dots lay, which
-// tools/erase-map-dots.py has taken out; its lists are the same but for B). B runs along Þórseðla's prints, which are painted on the
-// path, so it keeps 15 pixels to the lower side of them, on the sand, and the prints stay clear. D has no path in the picture: it
-// leaves Þórseðla's pool in a high arc over the mountains and runs level above the river to the edge of Grameðla's circle,
-// keeping clear of Slóeðla's and Flugeðla's circles and of the river's name. Each piece ends at a place: it is there once that
-// place is found or done, or any place after it is.
+// The trail, in picture pixels (the points follow where the path's old painted dots lay, which tools/erase-map-dots.py has taken
+// out; its lists are the same but for B). A, B and C go along the middle of the sandy path; B runs along Þórseðla's prints, which are
+// painted on the path, so it keeps 15 pixels to the lower side of them, on the sand, and the prints stay clear. D to G have no path
+// in the picture and go over open ground, each keeping clear of the circles, the place names and the compass: D leaves Þórseðla's
+// pool in an arc round the north of her circle and runs west above the Fen, under Flugeðla's circle, to the edge of Slóeðla's; E is
+// a low arc to the north, clear of D, from Slóeðla's circle to Flugeðla's; F goes south between the Fen's circle and Þórseðla's,
+// crossing D and C once each, to Uggeðla's; G, from Uggeðla's, runs west-north-west over the Fen and the forest (crossing C once),
+// south of "Áin", across the river at the waterfall's foot and up into the mist to the edge of Grameðla's circle. Each piece ends at a place and says how it
+// is reached: `by: 'place'`, once that place is found or done, or `by: 'star'`, once the friend's star is in the book (a place
+// found does not do); any place reached after it reaches it too.
 const ROUTE = [
-  { id: 'a', end: 'kambedla', points: [[249, 736], [277, 710], [307, 690], [343, 675], [375, 667], [405, 663], [421, 659], [436, 651], [446, 639], [453, 625], [457, 610], [464, 595], [473, 581], [484, 569], [497, 557], [511, 546], [531, 532]] },
-  { id: 'b', end: 'fen', points: [[628, 497], [651, 494], [667, 492], [689, 500], [716, 514], [747, 532], [788, 554], [829, 579], [872, 606], [911, 635], [951, 665], [995, 695], [1043, 717], [1096, 728], [1126, 730]] },
-  { id: 'c', end: 'thorsedla', points: [[1126, 730], [1165, 728], [1198, 720], [1230, 709], [1261, 693], [1291, 673], [1317, 652], [1345, 629], [1373, 611], [1401, 595], [1430, 580], [1457, 567], [1487, 553], [1519, 538], [1548, 523], [1576, 506], [1600, 487], [1621, 463], [1628, 434], [1626, 417], [1608, 391], [1586, 378], [1566, 373]] },
-  { id: 'd', end: 'gramedla', points: [[1566, 373], [1545, 300], [1490, 225], [1420, 150], [1340, 105], [1240, 82], [1120, 75], [990, 78], [860, 84], [730, 90], [600, 95], [480, 100], [360, 104], [260, 106], [222, 107]] },
+  { id: 'a', end: 'kambedla', by: 'place', points: [[249, 736], [277, 710], [307, 690], [343, 675], [375, 667], [405, 663], [421, 659], [436, 651], [446, 639], [453, 625], [457, 610], [464, 595], [473, 581], [484, 569], [497, 557], [511, 546], [531, 532]] },
+  { id: 'b', end: 'fen', by: 'place', points: [[628, 497], [651, 494], [667, 492], [689, 500], [716, 514], [747, 532], [788, 554], [829, 579], [872, 606], [911, 635], [951, 665], [995, 695], [1043, 717], [1096, 728], [1126, 730]] },
+  { id: 'c', end: 'thorsedla', by: 'place', points: [[1126, 730], [1165, 728], [1198, 720], [1230, 709], [1261, 693], [1291, 673], [1317, 652], [1345, 629], [1373, 611], [1401, 595], [1430, 580], [1457, 567], [1487, 553], [1519, 538], [1548, 523], [1576, 506], [1600, 487], [1621, 463], [1628, 434], [1626, 417], [1608, 391], [1586, 378], [1566, 373]] },
+  { id: 'd', end: 'sloedla', by: 'star', points: [[1566, 373], [1572, 335], [1552, 300], [1515, 285], [1470, 282], [1420, 280], [1370, 272], [1320, 262], [1270, 252], [1220, 240], [1170, 228], [1125, 212], [1098, 200]] },
+  { id: 'e', end: 'flugedla', by: 'star', points: [[1100, 160], [1140, 140], [1200, 128], [1260, 135], [1300, 155]] },
+  { id: 'f', end: 'uggedla', by: 'star', points: [[1360, 205], [1385, 260], [1400, 320], [1405, 380], [1400, 440], [1405, 500], [1420, 560], [1440, 620], [1452, 645]] },
+  { id: 'g', end: 'gramedla', by: 'star', points: [[1413, 684], [1330, 645], [1240, 606], [1150, 570], [1060, 535], [970, 500], [880, 462], [790, 420], [700, 375], [610, 340], [530, 300], [470, 262], [420, 228], [360, 190], [300, 158], [250, 135], [214, 122]] },
 ];
 const ROUTE_MS = 2000; // a piece draws itself over this long
 const ROUTE_GAP_MS = 150; // and the next begins this long after it
@@ -162,14 +176,14 @@ function curve(points) {
  *   hide()          the page is off view: a piece still drawing is finished where it was going
  *   markers         id -> the slot's button, for the lab and for probes
  *   stateOf(id)     'empty', 'found' or 'done'
- *   routeOf(id)     a piece of the trail ('a', 'b', 'c', 'd'): 'hidden' (not got that far), 'next' (the first not got to: a dotted
+ *   routeOf(id)     a piece of the trail ('a' to 'g'): 'hidden' (not got that far), 'next' (the first not got to: a dotted
  *                   line), 'pending' (got there, not yet drawn in), 'drawing' or 'drawn'
  *   next()          the piece shown as next, or null once every piece is reached
- *   dotAt()         where the dot rests: the place the last piece drawn ends at ('kambedla', 'fen', 'thorsedla', 'gramedla'),
- *                   or 'start' (the clearing) while none is drawn
- *   mistOpen()      whether the mist has been drawn back from Grameðla's circle: false until she is reached and the page has
+ *   dotAt()         where the dot rests: the place the last piece drawn ends at ('kambedla', 'fen', 'thorsedla', 'sloedla', 'flugedla',
+ *                   'uggedla', 'gramedla'), or 'start' (the clearing) while none is drawn
+ *   mistOpen()      whether the mist has been drawn back from Grameðla's circle: false until she is found or done and the page has
  *                   shown it (show() opens it, over two seconds the first time, and keeps `map-mist-gramedla` in the save's seen
- *                   list), true from then on, and true as soon as she is reached with reduced motion
+ *                   list), true from then on, and true as soon as she is found with reduced motion
  */
 export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window } = {}) {
   const doc = leaf.el.ownerDocument;
@@ -310,7 +324,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     opening.onfinish = () => { opening = null; };
   }
 
-  /** Once she is reached, the page on view draws the mist back (the first time it sees her so) and keeps that in the save. */
+  /** Once she is found or done, the page on view draws the mist back (the first time it sees her so) and keeps that in the save. */
   function showMist(delay) {
     if (states.get('gramedla') === 'empty') return;
     save.addSeen(MIST_SEEN);
@@ -425,9 +439,10 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       el.replaceChildren(...(state === 'empty' ? [] : state === 'done' ? [sticker, star] : [sticker]));
       el.setAttribute('aria-label', state === 'empty' ? 'Ófundinn staður' : nameOf(place.id));
     }
-    // the trail: a piece is there once its place or a later one is, and is waiting to be drawn in until the child has seen that;
-    // the first one not there yet is next, a dotted way ahead, and the slot it leads to pulses
-    const got = ROUTE.map(({ end }) => states.get(end) !== 'empty');
+    // the trail: a piece is there once its place (A to C: found or done) or its friend's star (D to G: done; her place is found from
+    // Þórseðla's head, not visited) or a later piece's is, and is waiting to be drawn in until the child has seen that; the first one
+    // not there yet is next, a dotted way ahead, and the slot it leads to pulses, empty or found
+    const got = ROUTE.map(({ end, by }) => (by === 'star' ? states.get(end) === 'done' : states.get(end) !== 'empty'));
     const reachedAt = i => got.slice(i).some(Boolean);
     const next = ROUTE.findIndex((_, i) => !reachedAt(i));
     pieces.forEach((piece, i) => {

@@ -15,14 +15,17 @@
      what shows:
        animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
-       map                            the Kortið page; ?progress= says how far the child has got: 0 (a fresh save, no trail), 1 (chapter 1 done),
-                                      2 (chapter 2 come to the Fen), 3 (Þórseðla's star too, the default) or 4 (Grameðla's star too: every piece
-                                      of the trail, a to d); the piece not reached yet shows ahead as a dotted line, and the red dot stands at the
-                                      end of the last piece drawn; the trail draws itself in once, with the dot riding at its head, and
+       map                            the Kortið page; ?progress= says how far the child has got, one friend a chapter as the game's script has it:
+                                      0 (a fresh save, no trail), 1 (chapter 1 done), 2 (chapter 2 come to the Fen), 3 (Þórseðla's star too, the
+                                      default: the three far friends are found from her head, so Slóeðla's, Flugeðla's and Uggeðla's stickers are
+                                      on the map, and the way ahead is d, to Slóeðla), 4 (Slóeðla's star too, chapter 3), 5 (Flugeðla's, chapter 4),
+                                      6 (Uggeðla's, chapter 5) or 7 (Grameðla's star too, chapter 6: every piece of the trail, a to g); the piece
+                                      not reached yet shows ahead as a dotted line, its slot pulsing, and the red dot stands at the end of the
+                                      last piece drawn; the trail draws itself in once, with the dot riding at its head, and
                                       ?seen=1 has it drawn in before, as on a later visit (and the mist already drawn back from Grameðla), and
                                       ?at=<ms> holds the drawing and the dot at that moment from the page's opening (the first piece starts at 560,
-                                      each next 2150 later) for a picture of it half drawn; the water ripples and the mist drifts on every map,
-                                      and with ?progress=4 and no ?seen=1 the mist opens round Grameðla's circle (560 ms in, over 2 s)
+                                      each next 2150 later) for a picture of it half drawn; the water is lit by a gliding light and the mist drifts
+                                      on every map, and with ?progress=7 and no ?seen=1 the mist opens round Grameðla's circle (560 ms in, over 2 s)
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
@@ -96,9 +99,15 @@
   const progress = state === 'map' ? Number(params.get('progress') ?? 3) : 1; // the map's states: how far the child has got
   if (progress >= 1) save.addStar('k1_kambedla');
   if (progress >= 2) save.addPlace('fen');
-  if (progress >= 3) save.addStar('k2_thorsedla');
-  if (progress >= 4) save.addStar('k3_gramedla');
-  if (state === 'map' && params.get('seen') === '1') for (const id of ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d', 'map-mist-gramedla']) save.addSeen(id);
+  if (progress >= 3) { // Þórseðla's star, and the three far friends found from her head (chapter 2): on the map, but not yet visited
+    save.addStar('k2_thorsedla');
+    for (const id of ['sloedla', 'flugedla', 'uggedla']) save.addPlace(id);
+  }
+  if (progress >= 4) save.addStar('k3_sloedla'); // chapters 3 to 6, one friend each: Slóeðla, Flugeðla, Uggeðla, Grameðla
+  if (progress >= 5) save.addStar('k4_flugedla');
+  if (progress >= 6) save.addStar('k5_uggedla');
+  if (progress >= 7) save.addStar('k6_gramedla');
+  if (state === 'map' && params.get('seen') === '1') for (const id of ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d', 'map-route-e', 'map-route-f', 'map-route-g', 'map-mist-gramedla']) save.addSeen(id);
   save.addFinding('butterfly');
   save.addSeen('mosi');
   save.addSeen('kambedla');
