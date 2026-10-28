@@ -341,7 +341,7 @@ window.addEventListener('pagehide', () => { userPaused = true; syncPause(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { userPaused = false; syncPause(); } });
 
 window.__memory = {
-  state: () => game.getState(), stats: () => world?.getDebug(), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
+  state: () => game.getState(), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
   targets: () => world?.getTargets(),
   bridge: () => bridge.getState(), task: chooseTask,
   camera: setCameraMode,

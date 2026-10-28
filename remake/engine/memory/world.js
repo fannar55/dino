@@ -486,7 +486,39 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     lighting.sun.shadow.map = null; lighting.sun.dispose(); scene.environment = null; scene.clear(); renderer.renderLists.dispose(); renderer.dispose(); renderer.forceContextLoss();
   }
 
-  function getDebug({ collision = params.has('qa') } = {}) {
+  // On-screen size of a whole character (its posed, skinned bounds) or of a leaf (its own corners),
+  // every corner projected. QA only: the playthrough measures the glade view with it.
+  function screenBox(points) {
+    let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+    for (const point of points) {
+      projection.copy(point).project(camera);
+      const px = (projection.x + 1) * width / 2, py = (1 - projection.y) * height / 2;
+      left = Math.min(left, px); right = Math.max(right, px); top = Math.min(top, py); bottom = Math.max(bottom, py);
+    }
+    const round = value => Math.round(value * 10) / 10;
+    return { left: round(left), top: round(top), right: round(right), bottom: round(bottom), width: round(right - left), height: round(bottom - top), inside: left >= 0 && top >= 0 && right <= width && bottom <= height };
+  }
+  // The posed skin's vertices (skinned meshes that draw, not their shadow twins), every third one.
+  function skinPoints(object) {
+    object.updateMatrixWorld(true);
+    const points = [];
+    object.traverse(mesh => {
+      if (!mesh.isSkinnedMesh || !mesh.visible || mesh.name.endsWith(' shadow')) return;
+      const count = mesh.geometry.attributes.position.count;
+      for (let i = 0; i < count; i += 3) points.push(mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld));
+    });
+    return points;
+  }
+  function measureFrame() {
+    return {
+      size: { width, height }, camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray() },
+      babies: cells.filter(cell => cell.actor).map(cell => ({ cell: cell.index, species: cell.species, visible: cell.actor.root.visible, ...screenBox(skinPoints(cell.actor.model)) })),
+      mosi: screenBox(skinPoints(mosi.model)),
+      leaves: cells.filter(cell => !cell.moved).map(cell => ({ cell: cell.index, status: cell.status, ...screenBox(leafCorners.map(corner => corner.clone().applyMatrix4(cell.leaf.matrixWorld))) })),
+    };
+  }
+
+  function getDebug({ collision = params.has('qa'), measure = false } = {}) {
     const project = point => { const p = point.clone().project(camera); return { x: (p.x + 1) * width / 2, y: (1 - p.y) * height / 2, visible: Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && Math.abs(p.z) <= 1 }; };
     const leafBounds = cell => {
       if (cell.moved) return null;
@@ -527,6 +559,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
+      ...(measure ? { frame: measureFrame() } : {}),
     };
   }
 

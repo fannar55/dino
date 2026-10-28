@@ -4,7 +4,7 @@
 // screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
 //
 //   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
-//     [--size 1280x800] [--mode full|first-minute|rapid] [--reduced-motion]
+//     [--size 1280x800] [--mode full|first-minute|rapid|glade] [--reduced-motion]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
@@ -12,6 +12,7 @@
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, the way a six-year-old does. The round must still finish.
+//   glade         only the search view: the glade picture and its measurement (report.glade), then stops.
 //
 // <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
 // frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps).
@@ -42,7 +43,7 @@ const MIME = {
   '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
   '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
 };
-const MODES = ['full', 'first-minute', 'rapid'];
+const MODES = ['full', 'first-minute', 'rapid', 'glade'];
 const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
@@ -62,7 +63,7 @@ function parseArgs(argv) {
     else if (a === '--browser') o.browser = next();
     else if (a === '--limit') o.limit = Number(next());
     else if (a === '--help' || a === '-h') {
-      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 22).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 23).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
       process.exit(0);
     } else throw new Error(`Unknown argument ${a}`);
   }
@@ -264,6 +265,18 @@ const GPU_JS = `(() => {
   return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
 })()`;
 
+// How far the search view moved between two measurements: camera position and the leaves still on the board.
+function frameDrift(before, after) {
+  if (!before?.camera || !after?.camera) return null;
+  const camera = Math.max(...before.camera.position.map((v, i) => Math.abs(v - after.camera.position[i])), ...before.camera.quaternion.map((v, i) => Math.abs(v - after.camera.quaternion[i])));
+  let leafPixels = 0;
+  for (const leaf of after.leaves) {
+    const old = before.leaves.find(value => value.cell === leaf.cell);
+    if (old && leaf.status === 'hidden' && old.status === 'hidden') leafPixels = Math.max(leafPixels, ...['left', 'top', 'right', 'bottom'].map(k => Math.abs(leaf[k] - old[k])));
+  }
+  return { camera: +camera.toExponential(2), leafPixels: +leafPixels.toFixed(2) };
+}
+
 async function main() {
   const o = parseArgs(process.argv.slice(2));
   const outDir = path.resolve(ROOT, o.out);
@@ -346,6 +359,11 @@ async function main() {
     step('start clicked');
     await sleep(2500);
     await shot('glade');
+    // The search view: every baby's on-screen size (projected posed bounds, hidden ones measured at their cells),
+    // Mosi and the leaves, with whether each is inside the frame.
+    report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
+    if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
+    if (o.mode === 'glade') report.finished = Boolean(report.glade?.babies);
 
     // ---- the round, driven by what the page shows -------------------------------------------------------------
     const rapid = o.mode === 'rapid', shots = o.mode !== 'rapid';
@@ -382,6 +400,7 @@ async function main() {
     };
 
     for (;;) {
+      if (o.mode === 'glade') break;
       if (Date.now() - roundStart > limitMs) { report.stalled = `over the ${o.limit} minute limit`; step('TIMEOUT round limit'); break; }
       const s = await ev(SNAPSHOT_JS);
       const progress = [s.phase, s.matched, s.bridge.active, s.bridge.branch, s.bridge.bridgeBuilt, s.bridge.atStaging, s.bridge.boardwalkBuilt, s.bridge.visited,
@@ -391,7 +410,12 @@ async function main() {
 
       if (s.ending) { report.finished = true; step('ending'); await sleep(1500); await shot('ending'); break; }
       if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving) {
-        report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home'); break;
+        report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home');
+        // After the match script has glided back, the search view must be the frame it was before.
+        report.gladeAfter = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
+        report.gladeDrift = frameDrift(report.glade, report.gladeAfter);
+        step('glade after the first pair', report.gladeDrift ?? {});
+        break;
       }
 
       // Milestone pictures. Waiting for one makes the snapshot stale, so the loop starts over after it.
