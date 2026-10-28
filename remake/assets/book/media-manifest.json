@@ -2467,6 +2467,32 @@
       "sha256": "b72f0c6ce2a94cf7f3d94b3bd6429f2413d6f96e7c32511204b4292c269aa48d",
       "bytes": 1883272,
       "turn": "rock"
+    },
+    {
+      "id": "kambedla-skeleton",
+      "credit": "Artec 3D og Triebold Paleontology (Sketchfab)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://sketchfab.com/3d-models/stegosaurus-skeleton-dc6e1c748484449587b81426d41da6cb",
+      "alt": "Þrívíddarskanni af beinagrind kambeðlu í Náttúru- og vísindasafninu í Denver, með plöturnar á bakinu og gaddana á halanum; barnið snýr henni með fingrinum.",
+      "modifications": "Skráin „Stegosaurus Skeleton“ af Sketchfab (stegosaurus_skeleton.glb, 172 MB, 5,7 milljónir þríhyrninga í 67 bútum), sótt af eigandanum, opnuð í Blender og bútarnir skeyttir saman. Skanninn er úr mörgum opnum flötum sem brotna í sundur þegar þríhyrningum er fækkað beint, svo honum var fyrst fækkað í 1,5 milljón, fletirnir gefnir 8 mm þykkt, yfirborðið byggt upp á ný í 4 mm grind (voxel remesh) og þríhyrningum svo fækkað í 50 þúsund (scratchpad blender-remesh-glb.py). Beinin verða því örlítið sverari, um 4 mm á hvorri hlið á 6 m langri grind, en lögun og stelling eru óbreytt og liturinn sá sem fylgir skannanum. Hnitin pökkuð smátt (remake/tools/quantize-glb.mjs) og grindinni snúið um 90° svo hliðin snúi að myndavélinni.",
+      "src": "assets/book/models/kambedla-skeleton.glb",
+      "sha256": "bffd2c29fef7110cea627177ac428225b14d0f94fc5715f3ee515e2fbd9106ff",
+      "triangles": 49904,
+      "bytes": 539192
+    },
+    {
+      "id": "uggedla-skeleton",
+      "credit": "Gravinuke (Sketchfab)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://sketchfab.com/3d-models/realistic-spinosaurus-skeleton-280b66d2692c4c6d9cc3cf0daa62e81b",
+      "alt": "Þrívíddarlíkan listamanns af beinagrind Spinosaurus, með háa seglið á bakinu og langan, mjóan haus; barnið snýr henni með fingrinum.",
+      "modifications": "Skráin „Realistic Spinosaurus Skeleton“ af Sketchfab (realistic_spinosaurus_skeleton.glb, 11,2 MB, 122 þúsund þríhyrningar, smíðuð úr mörgum einföldum formum, upphaflega í Rec Room), sótt af eigandanum, opnuð í Blender. Stallinum og málmstoðunum undir grindinni er sleppt; hlutarnir skeyttir í eitt og þríhyrningum fækkað í 50 þúsund (scratchpad blender-join-glb.py). Litaáferðin minnkuð í 1024 punkta JPEG og hnykkjakortunum (normal) sleppt; litirnir eru höfundarins. Hnitin pökkuð smátt (remake/tools/quantize-glb.mjs). Grindin liggur á hlið að myndavélinni eins og höfundurinn setti hana.",
+      "src": "assets/book/models/uggedla-skeleton.glb",
+      "sha256": "2b3debf6d2ee6631531f33f264e780573b5bfe481d20a757e2f0b2a0c01cc43d",
+      "triangles": 49964,
+      "bytes": 1581012
     }
   ]
 }
