@@ -167,7 +167,7 @@ function startRecording() {
   recorder.onstop = () => {
     const reader = new FileReader();
     reader.onload = () => { window.__recording = reader.result; };
-    reader.readAsDataURL(new Blob(chunks, { type }));
+    reader.readAsDataURL(new Blob(chunks, { type: 'video/webm' }));
   };
   recorder.start(1000);
 }
