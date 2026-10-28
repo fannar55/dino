@@ -1,5 +1,5 @@
 {
-  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card is the card's tile too: a render of the game for a dinosaur (and so is the picture of Mosi and Kambeðla on Mosi's page nine), an open photograph of the animal for a living one, and a scientist's drawing of how it looked for the early bird (the owner approved photographs as tile pictures, 2026-10-26). The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's five are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a page to the frog's card about its eggs and tadpoles, for the frog the child finds again in the Fen, hidden on the channel's bank. The twelve animal cards (the owner approved them, word for word, on 2026-10-26) have six or seven pages each, and every picture on them is an open-licensed photograph, fossil photograph or scientist's drawing from Wikimedia Commons (assets/book/images/*.jpg, each credited in media-manifest.json): none is a drawing of ours any more. A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's seventh, the Fen's page about the tadpoles, for the frog in the Fen. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's, Kambeðla's and Þórseðla's cards have ten pages, the other four's nine each; Þórseðla's page four, added 2026-10-28, is the skeleton of her giant cousin Argentinosaurus in 3D, its line book_thorsedla_10; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker). The eight fossil cards (the owner approved them, word for word, on 2026-10-26) are the Safnið page's: each is the card of one fossil of Háls og hali (\"group\": \"fossil\", unlocked with that fossil, \"unlock\": { \"fossil\": \"<kind>\" }), has three pages, and opens when the child taps the fossil's sticker once the fossil is found; page one says what the narrator already says of the fossil in Háls og hali (the same words, and so the same take, book_<card>_1 and hals_fossil_<kind>), and the other pages are new, each with an open-licensed photograph from Wikimedia Commons.",
+  "note": "The seven cards, page by page: the texts the owner's draft (spjaldatextar.md) gives, each page with the sources its facts come from (kept with the data, never shown to a child) and the picture it shows. Page one of every card is the card's tile too: a render of the game for a dinosaur (and so is the picture of Mosi and Kambeðla on Mosi's page nine), an open photograph of the animal for a living one, and a scientist's drawing of how it looked for the early bird (the owner approved photographs as tile pictures, 2026-10-26). The narrator's recording of each page is book_<card>_<n> in lines.json (assets/audio/book/lines-source.json has the lines). Chapter 2 adds the Fen's seven animals on the Dýrin page's second spread (\"spread\": 2; a card that names none is on the first, as chapter 1's five are), whose animals not found yet say \"Finndu mig í Feninu!\" (spreads), and a page to the frog's card about its eggs and tadpoles, for the frog the child finds again in the Fen, hidden on the channel's bank. The twelve animal cards (the owner approved them, word for word, on 2026-10-26) have six or seven pages each, and every picture on them is an open-licensed photograph, fossil photograph or scientist's drawing from Wikimedia Commons (assets/book/images/*.jpg, each credited in media-manifest.json): none is a drawing of ours any more. A card's refind is the page it opens on the first time the child opens it after its animal was found again in a new place: the frog's seventh, the Fen's page about the tadpoles, for the frog in the Fen. The book's second print (Landkönnuðabók, stage 1) gives every card a group: the dinosaurs (Mosi's, Kambeðla's, Þórseðla's, Slóeðla's and Flugeðla's cards have ten pages, Grameðla's and Uggeðla's nine each; Þórseðla's page four, added 2026-10-28, is the skeleton of her giant cousin Argentinosaurus in 3D, its line book_thorsedla_10; Slóeðla's page four (book_sloedla_10) is the young Parasaurolophus Joe and Flugeðla's (book_flugedla_10) her toothed cousin Anhanguera, both skeletons lying in their stone, in 3D, added the same day, when Grameðla's page three got the Smithsonian's T. rex; page one of every card is a render of the game, which is also its tile) are the Risaeðlur page's, the animals the Dýrin page's, so the animals' orders now start at 8. Þórseðla's, Grameðla's, Uggeðla's, Slóeðla's and Flugeðla's tiles are the game's renders (assets/eitt/*.webp and Uggeðla's from the map's sticker). The eight fossil cards (the owner approved them, word for word, on 2026-10-26) are the Safnið page's: each is the card of one fossil of Háls og hali (\"group\": \"fossil\", unlocked with that fossil, \"unlock\": { \"fossil\": \"<kind>\" }), has three pages, and opens when the child taps the fossil's sticker once the fossil is found; page one says what the narrator already says of the fossil in Háls og hali (the same words, and so the same take, book_<card>_1 and hals_fossil_<kind>), and the other pages are new, each with an open-licensed photograph from Wikimedia Commons.",
   "cards": [
     {
       "id": "mosi",
@@ -326,8 +326,10 @@
           "text": "Þetta er beinagrind grameðlu. Beinagrindur hennar standa á mörgum söfnum.",
           "audio": "book_gramedla_3",
           "sources": [
-            "Field Museum, Chicago: beinagrindin „Sue“ (FMNH PR 2081); ljósmyndin á Wikimedia Commons."
-          ]
+            "Field Museum, Chicago: beinagrindin „Sue“ (FMNH PR 2081); ljósmyndin á Wikimedia Commons.",
+            "Þrívíddarlíkanið er skanni Smithsonian af „T. rex þjóðarinnar“ (USNM PAL 555000) í David H. Koch Hall of Fossils – Deep Time, Washington, CC0, https://3d.si.edu/object/3d/tyrannosaurus-rex:d8c62d28-4ebc-11ea-b77f-2e728ce88125; á safninu stendur hún beygð yfir þríhyrnu og bítur í hana, og líkanið er grameðlan ein."
+          ],
+          "model": "assets/book/models/gramedla-skeleton.glb"
         },
         {
           "image": "tyrannosaurus-teeth",
@@ -505,6 +507,15 @@
           ]
         },
         {
+          "image": "sloedla-joe-render",
+          "text": "Þetta er beinagrind ungrar slóeðlu, líklega innan við eins árs. Kamburinn var bara lítill hnúður. Skólastrákur fann hana!",
+          "audio": "book_sloedla_10",
+          "sources": [
+            "Farke, Chok, Herrero, Scolieri og Werning 2013, „Ontogeny in the tube-crested dinosaur Parasaurolophus (Hadrosauridae) and heterochrony in hadrosaurids“, PeerJ 1:e182, https://doi.org/10.7717/peerj.182: ung slóeðla (RAM 14000, „Joe“) úr Kaiparowits-mynduninni í Utah, um 2,5 m löng og líklega á fyrsta ári; kamburinn lágur og hálfhringlaga; framhaldsskólaneminn Kevin Terris fann hana árið 2009. Líkanið er skanni hennar á Wikimedia Commons (CC BY 4.0)."
+          ],
+          "model": "assets/book/models/sloedla-skeleton.glb"
+        },
+        {
           "image": "parasaurolophus-crest",
           "text": "Kamburinn var holur að innan, eins og lúður. Hún gat gefið frá sér djúpt hljóð!",
           "audio": "book_sloedla_4",
@@ -588,6 +599,16 @@
           "sources": [
             "Wikipedia, Pteranodon, https://en.wikipedia.org/wiki/Pteranodon: vængurinn var húðfit sem lá frá mjög löngum fjórða fingri."
           ]
+        },
+        {
+          "image": "anhanguera-render",
+          "text": "Þetta er beinagrind Anhanguera, frænku Flugeðlu. Hún var með fullt af beittum tönnum til að grípa fisk!",
+          "audio": "book_flugedla_10",
+          "sources": [
+            "Anhanguera piscator (Kellner og Tomida 2000), flugeðla úr Santana-mynduninni í Brasilíu, um 110 milljón ára gömul: hún hafði keilulaga tennur og veiddi fisk (piscator þýðir fiskimaður), en Pteranodon var tannlaus.",
+            "Líkanið er ljósmyndaskanni luiscoya af endurgerðri beinagrind á plötu í Cosmocaixa-safninu í Barcelona, með nokkrum upprunalegum beinum, https://sketchfab.com/3d-models/pterosauro-cosmocaixa-7d330b6bbab54158a3a58edb47de3c47 (CC BY 4.0)."
+          ],
+          "model": "assets/book/models/anhanguera-skeleton.glb"
         },
         {
           "image": "pteranodon-skull",

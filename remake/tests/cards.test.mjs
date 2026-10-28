@@ -104,12 +104,13 @@ test('new until seen', () => {
 test("the shipped cards are written and sourced, and the narrator has a line for each page with the page's own text", () => {
   const lines = new Map(JSON.parse(fs.readFileSync(new URL('../assets/audio/book/lines-source.json', import.meta.url), 'utf8')).map(line => [line.id, line]));
   // Mosi's and Kambeðla's ten pages: the five each had keep their lines (1 to 5), the five added later are 6 to 10, in the owner's page
-  // order; Þórseðla has ten, her page four (her giant cousin Argentinosaurus in 3D, added 2026-10-28) line 10; the other four dinosaurs
-  // have nine pages, lines 1 to 9 in page order. The twelve animal cards have six or seven pages
+  // order; Þórseðla, Slóeðla and Flugeðla have ten, their page four (a skeleton in 3D: Þórseðla's giant cousin Argentinosaurus, the young
+  // Slóeðla Joe, Flugeðla's toothed cousin Anhanguera; added 2026-10-28) line 10; Grameðla and Uggeðla have nine pages, lines 1 to 9 in page order. The twelve animal cards have six or seven pages
   // (the owner's order, twenty-nine of the pages new): their lines 1 to 5 or 7 go in the pages' places the same way. The eight fossil
   // cards have three pages each, lines 1 to 3 in page order.
   const LINE_ORDER = {
     mosi: [1, 6, 7, 3, 8, 9, 10, 2, 4, 5], kambedla: [1, 6, 7, 3, 8, 9, 4, 10, 2, 5], thorsedla: [1, 2, 3, 10, 4, 5, 6, 7, 8, 9],
+    sloedla: [1, 2, 3, 10, 4, 5, 6, 7, 8, 9], flugedla: [1, 2, 3, 10, 4, 5, 6, 7, 8, 9],
     kalligrammatid: [1, 2, 3, 4, 6, 7, 5], beetle: [1, 2, 5, 3, 6, 4], frog: [1, 2, 3, 4, 5, 7, 6], snail: [1, 2, 6, 3, 7, 4, 5], birds: [1, 2, 3, 4, 6, 5],
     waterbeetle: [1, 4, 2, 3, 5, 6], waterstrider: [1, 4, 2, 5, 3, 6], salamander: [1, 4, 2, 3, 5, 6], dragonfly: [1, 4, 2, 5, 6, 3],
     turtle: [1, 2, 4, 3, 5, 6], fish: [1, 2, 4, 5, 3, 6], earlybird: [1, 4, 2, 5, 3, 6],
@@ -157,19 +158,23 @@ test('a place and a fossil unlock a card, read from the save by bookState', () =
   assert.equal(isUnlocked(place, bookState(createSave(null))), false, 'another save has neither');
 });
 
-test("the shipped dinosaurs are the seven, in order; the five after Kambeðla have nine pages each (Þórseðla ten), no say, and a render as page one and tile", () => {
+test("the shipped dinosaurs are the seven, in order; the five after Kambeðla have nine pages each (Þórseðla, Slóeðla and Flugeðla ten), no say, and a render as page one and tile", () => {
   const dinosaurs = parseCards(SHIPPED).filter(c => c.group === 'dinosaur');
   assert.deepEqual(dinosaurs.map(c => c.id), ['mosi', 'kambedla', 'thorsedla', 'gramedla', 'uggedla', 'sloedla', 'flugedla']);
   assert.deepEqual(dinosaurs.slice(2).map(c => [c.id, c.pages.length, c.say, c.picture, c.pages[0].image]), [
     ['thorsedla', 10, null, 'render-thorsedla', 'render-thorsedla'],
     ['gramedla', 9, null, 'render-gramedla', 'render-gramedla'],
     ['uggedla', 9, null, 'render-uggedla', 'render-uggedla'],
-    ['sloedla', 9, null, 'render-sloedla', 'render-sloedla'],
-    ['flugedla', 9, null, 'render-flugedla', 'render-flugedla'],
+    ['sloedla', 10, null, 'render-sloedla', 'render-sloedla'],
+    ['flugedla', 10, null, 'render-flugedla', 'render-flugedla'],
   ]);
   assert.deepEqual(dinosaurs.slice(2).map(c => c.unlock), [{ star: 'k2_thorsedla' }, { star: 'k3_gramedla' }, { place: 'uggedla' }, { place: 'sloedla' }, { place: 'flugedla' }]);
   assert.deepEqual(dinosaurs.slice(0, 2).map(c => c.pages.length), [10, 10], 'Mosi and Kambeðla have ten pages each');
   assert.equal(parseCards(SHIPPED).find(c => c.id === 'thorsedla').pages[3].model, 'assets/book/models/argentinosaurus-skeleton.glb', "Þórseðla's page four turns her cousin's skeleton");
+  const model = (id, page) => parseCards(SHIPPED).find(c => c.id === id).pages[page - 1].model;
+  assert.deepEqual([model('gramedla', 3), model('sloedla', 4), model('flugedla', 4)],
+    ['assets/book/models/gramedla-skeleton.glb', 'assets/book/models/sloedla-skeleton.glb', 'assets/book/models/anhanguera-skeleton.glb'],
+    "Grameðla's page three turns the Smithsonian's T. rex; Slóeðla's and Flugeðla's page four the skeletons in their stone");
   assert.deepEqual([...new Set(parseCards(SHIPPED).filter(c => c.group !== 'dinosaur').map(c => c.group))], ['animal', 'fossil'], 'the rest are animals, then the fossils');
 });
 

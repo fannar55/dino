@@ -12,7 +12,9 @@ import { reducedMotion, TAP_SLOP_PX } from './fx.js';
 // for each src for the page's life, and a model that will not load (or a tablet with no WebGL) makes `show` resolve false, so the
 // card keeps its picture.
 //
-// The model turns slowly by itself until a finger first turns it (never, when the tablet asks for less motion). One finger turns it about
+// The model turns slowly by itself until a finger first turns it (never, when the tablet asks for less motion). A slab, a skeleton
+// lying in its stone (the manifest's turn: 'rock'), rocks to and fro face on instead (rockYaw), so it never shows its flat back by
+// itself; a finger turns it as it turns any model. One finger turns it about
 // its vertical and tilts it, never past TILT_MAX; two fingers that both move pinch it from 1 to 3 times. Fingers count one by
 // one as in zoom.js: a finger that has not moved TAP_SLOP_PX moves nothing, so a thumb resting on the glass turns nobody's model and
 // makes no pinch. A turning finger stays with the canvas wherever it slides (pointer capture), and the browser keeps its own gestures
@@ -30,6 +32,12 @@ const MAX_PIXEL_RATIO = 1.5;
 const WHEEL_STEP = 1.2; // a notch of a mouse wheel, for trying the pinch on a laptop
 const START_YAW = 0.6; // radians: the model starts turned a little away from side-on, and from level
 const START_TILT = THREE.MathUtils.degToRad(8);
+export const ROCK_SWING = 0.45; // radians each way that a slab rocks from face on
+
+/** How far a rocking slab is turned `seconds` after it began: face on at first, as fast at the middle of a swing as a model turns. */
+export function rockYaw(seconds) {
+  return ROCK_SWING * Math.sin(seconds * AUTO_TURN / ROCK_SWING);
+}
 
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
@@ -49,8 +57,9 @@ function release(root) {
  * The model view, its canvas (made here, put in the page by mount). `loadModel(src)` resolves the glTF for a path (read from the
  * page's folder, as the cards' pictures are); without one the GLTFLoader loads it. Returns
  *   mount(container)   puts the canvas in `container`, hidden until a model shows (the card's photo is its place)
- *   show(src)          resolves true once the model is drawn on the canvas, which shows then; false when it cannot be (no WebGL,
- *                      a model that will not load) or when hide, or a show of another model, came first
+ *   show(src, { rock }) resolves true once the model is drawn on the canvas, which shows then; false when it cannot be (no WebGL,
+ *                      a model that will not load) or when hide, or a show of another model, came first; with rock, a slab that
+ *                      rocks face on instead of turning round
  *   hide()             the canvas goes and nothing is drawn; the model stays for next time
  *   dispose()          everything is let go
  *   canvas, onTap      the canvas (the zoom carries it to the whole screen and back), and who is told of a tap on the model
@@ -75,6 +84,8 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
   let zoom = MIN_ZOOM;
   let touched = false; // a finger has turned it: it stops turning by itself
   let calm = false; // the tablet asks for less motion: it does not turn by itself at all
+  let rocking = false; // the model shown is a slab: it rocks face on instead of turning round
+  let rockTime = 0;
   const fingers = new Map(); // pointerId -> { x0, y0, x, y, moved, disturbed }
   let pinch = null; // the two fingers that pinch, and how far apart they were and how big the model was when they began
 
@@ -153,7 +164,10 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     frameId = requestAnimationFrame(loop);
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
-    if (!touched && !calm) yaw += AUTO_TURN * dt;
+    if (!touched && !calm) {
+      if (rocking) yaw = rockYaw(rockTime += dt);
+      else yaw += AUTO_TURN * dt;
+    }
     draw();
   }
 
@@ -227,7 +241,7 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
     mount(container) {
       container.append(canvas);
     },
-    async show(src) {
+    async show(src, { rock = false } = {}) {
       const mine = ++token;
       stop();
       if (!makeStage()) return false;
@@ -240,7 +254,9 @@ export function createSkeletonView(doc, { win = globalThis.window, loadModel = n
       if (mine !== token) return false; // the page was turned, or the card shut, while it loaded
       shown = loaded;
       stage.pivot.add(loaded.holder);
-      yaw = START_YAW;
+      rocking = rock;
+      rockTime = 0;
+      yaw = rock ? rockYaw(0) : START_YAW;
       tilt = START_TILT;
       zoom = MIN_ZOOM;
       touched = false;

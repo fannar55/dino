@@ -108,7 +108,7 @@ export function checkMedia(manifest, cards, { exists, size }) {
 
 export const MODEL_TRIANGLES = 50000;
 export const MODEL_BYTES = 2 * 1024 * 1024;
-const MODEL_FIELDS = ['id', 'src', 'credit', 'license', 'licenseUrl', 'source', 'alt', 'modifications', 'sha256', 'triangles', 'bytes'];
+const MODEL_FIELDS = ['id', 'src', 'credit', 'license', 'licenseUrl', 'source', 'alt', 'modifications', 'sha256', 'triangles', 'bytes', 'turn'];
 
 /** The manifest's models by src (none when it has no "models"). Throws an Error naming a model with no id or src, or one there twice. */
 export function parseModels(data) {
@@ -148,6 +148,7 @@ export function checkModels(models, cards, { bytes }) {
       problems.push(`${model.id}: the licence ${model.license} is not an open one (CC BY, CC BY-SA, CC0 or public domain)`);
     }
     if (!/\.glb$/i.test(model.src)) problems.push(`${model.id}: the model ${model.src} is not a GLB`);
+    if (model.turn !== null && model.turn !== 'rock') problems.push(`${model.id}: turn is ${model.turn}; a model turns round, or rocks with turn "rock"`);
     if (!(model.triangles > 0) || model.triangles > MODEL_TRIANGLES) {
       problems.push(`${model.id}: it has ${model.triangles ?? 'no count of'} triangles; a model has at most ${MODEL_TRIANGLES}`);
     }
