@@ -506,9 +506,9 @@
     "credits": {
       "tier": "creator",
       "usedBefore": 1922,
-      "usedAfter": 1922,
-      "cost": 0,
-      "limit": 163030
+      "limit": 163030,
+      "cost": 1777,
+      "note": "credits the account counter showed for this generation: about 13.75 per second of music"
     },
     "composition_plan": {
       "chunks": [
@@ -903,5 +903,55 @@
       "[on-hold music] 1-129 s"
     ],
     "languageGuess": "eng"
+  },
+  "stems": {
+    "files": [
+      {
+        "stem": "guitar",
+        "from": "guitar.mp3",
+        "src": "el-funk-guitar.mp3",
+        "bytes": 2071866,
+        "meanDb": -44.2,
+        "maxDb": -15.6
+      },
+      {
+        "stem": "drums",
+        "from": "drums.mp3",
+        "src": "el-funk-drums.mp3",
+        "bytes": 2071866,
+        "meanDb": -20.5,
+        "maxDb": -1.4
+      },
+      {
+        "stem": "bass",
+        "from": "bass.mp3",
+        "src": "el-funk-bass.mp3",
+        "bytes": 2071866,
+        "meanDb": -24.5,
+        "maxDb": -1.5
+      }
+    ],
+    "cost": {
+      "credits": 3712,
+      "note": "stem separation of the 129.4 s track: about 28.7 credits per second, twice the composition"
+    },
+    "silentStemsNotKept": [
+      {
+        "stem": "vocals",
+        "meanDb": -91,
+        "maxDb": -90.3
+      },
+      {
+        "stem": "other",
+        "meanDb": -91,
+        "maxDb": -90.3
+      },
+      {
+        "stem": "piano",
+        "meanDb": -91,
+        "maxDb": -91
+      }
+    ],
+    "note": "POST /v1/music/stem-separation gave six stems: guitar, drums, vocals, other, bass, piano. vocals, other and piano are digital silence (-91 dB) and were not kept: there is no singing in the track, and its chords are mostly in the guitar and the bass. The full mix is el-funk.mp3."
   }
 }

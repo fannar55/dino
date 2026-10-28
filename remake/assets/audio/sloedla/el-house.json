@@ -506,9 +506,9 @@
     "credits": {
       "tier": "creator",
       "usedBefore": 5189,
-      "usedAfter": 5189,
-      "cost": 0,
-      "limit": 163030
+      "limit": 163030,
+      "cost": 1467,
+      "note": "credits the account counter showed for this generation: about 13.75 per second of music"
     },
     "composition_plan": {
       "chunks": [

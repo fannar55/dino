@@ -3,6 +3,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, makeChart, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { scaleOf } from '../engine/sloedla/sounds.js';
+import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
+import { SONGS } from '../engine/sloedla/songs/index.js';
+
+test('every song reads, and its child\'s notes are two beats apart at least (four when calm), in all three lanes', async () => {
+  for (const entry of SONGS) {
+    const song = (await entry.load()).default;
+    const { beat, sections, length } = timeline(song);
+    assert.ok(length > 60 && length < 240, `${song.id}: a round of one to four minutes (${length.toFixed(0)} s)`);
+    for (const variant of ['normal', 'big', 'calm']) {
+      const notes = sections.flatMap((_, i) => chartOf(compileSection(song, i, variant), { level: 'barn', beat, section: i }));
+      const gap = variant === 'calm' ? 4 : 2;
+      for (let i = 1; i < notes.length; i++) assert.ok((notes[i].t - notes[i - 1].t) / beat >= gap - 1e-6, `${song.id} ${variant}: notes ${i - 1} and ${i} are ${gap} beats apart`);
+      if (variant === 'normal') for (const role of ['a', 'b', 'c']) assert.ok(notes.filter(n => n.role === role).length >= 8, `${song.id}: the child plays ${role} too`);
+    }
+  }
+  assert.ok(Math.abs(rootHz('A') * 2 - 440) < 1e-9, 'A4 is 440 Hz');
+  const lifted = pitchOf({ root: 'Bb', scale: 'major' }, 2)(0);
+  assert.ok(Math.abs(lifted - rootHz('C') * 2) < 1e-9, 'a lift of two semitones takes B-flat3 to C4');
+});
 
 const SONG = new URL('../assets/audio/sloedla/dino-trail.json', import.meta.url);
 const SHEET = new URL('../assets/audio/sloedla/dino-trail.notes.json', import.meta.url);

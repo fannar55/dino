@@ -65,10 +65,19 @@ const canvas = $('field');
 const context = createAudioContext();
 const output = context ? createOutput(context) : null;
 if (output && params.get('hljod') === '0') output.gain.value = 0;
-const mix = context?.createGain(); // everything the round plays, before the page's output (a recording takes it here)
+const mix = context?.createGain(); // everything the round plays, before the page's output
+let glue = null; // a gentle compressor over the whole mix, so the band, the parts and the room never clip (a recording takes it here)
 let room = null;
 if (mix) {
-  mix.connect(output);
+  mix.gain.value = 0.7;
+  glue = context.createDynamicsCompressor();
+  glue.threshold.value = -12;
+  glue.knee.value = 8;
+  glue.ratio.value = 4;
+  glue.attack.value = 0.004;
+  glue.release.value = 0.2;
+  mix.connect(glue);
+  glue.connect(output);
   room = createReverb(context);
   const wet = context.createGain();
   wet.gain.value = 0.5;
@@ -98,6 +107,11 @@ async function start() {
   $('end').hidden = true;
   round?.conductor.stop();
   const song = await loadSong(options.song);
+  if (song.backing?.src && !song.backing.buffer) {
+    // a recorded backing (an ElevenLabs track), decoded whole once
+    const bytes = await fetch(asset(song.backing.src)).then(r => r.arrayBuffer());
+    song.backing.buffer = await context.decodeAudioData(bytes);
+  }
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const fall = LEVELS[options.level].fall;
@@ -150,7 +164,7 @@ function finish(result) {
 function startRecording() {
   if (!globalThis.MediaRecorder || !canvas.captureStream) return;
   const sink = context.createMediaStreamDestination();
-  mix.connect(sink);
+  glue.connect(sink);
   const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...sink.stream.getAudioTracks()]);
   const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
   const chunks = [];

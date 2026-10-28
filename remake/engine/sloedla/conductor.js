@@ -45,6 +45,12 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
     gain.connect(mood);
     return gain;
   });
+  // a song may have a recorded backing (song.backing: { buffer, beatOffset, gain }), which plays under it on the same grid, its beat
+  // 0 at the song's time 0, through the mood filter like the band
+  const backingGain = context.createGain();
+  backingGain.gain.value = song.backing?.gain ?? 0.8;
+  backingGain.connect(mood);
+  let backingSource = null;
   const partBus = context.createGain();
   partBus.gain.value = 1;
   partBus.connect(out);
@@ -146,6 +152,15 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
     start(lead = 0.4) {
       clock.start(null, lead);
       started = true;
+      if (song.backing?.buffer) {
+        backingSource = context.createBufferSource();
+        backingSource.buffer = song.backing.buffer;
+        backingSource.connect(backingGain);
+        const fileStart = clock.contextTimeOf(0) - (song.backing.beatOffset ?? 0);
+        const now = context.currentTime;
+        if (fileStart >= now) backingSource.start(fileStart);
+        else backingSource.start(now, now - fileStart);
+      }
       for (const role of ['a', 'b', 'c']) setGate(role, true);
       decide(0);
       if (sections.length > 1 && sections[1].start - decideAhead <= 0) decide(1);
@@ -159,6 +174,8 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
       queue.length = 0;
       for (const role of ['a', 'b', 'c']) setGate(role, false);
       bandBus.gain.setTargetAtTime(0, context.currentTime, 0.1);
+      try { backingSource?.stop(context.currentTime + 0.3); } catch { /* not started */ }
+      backingSource = null;
     },
     pump,
     /** The child hit chart note `note`: her part plays on (or comes back, the note played now if its time has passed). */

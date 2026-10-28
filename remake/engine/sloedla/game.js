@@ -575,10 +575,14 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
       const k = s.life / s.max;
       g.globalAlpha = 1 - k * k;
       if (s.hue) {
-        g.fillStyle = s.hue;
+        // a firework's spark: a coloured dot with a short tail behind it
+        g.strokeStyle = s.hue;
+        g.lineWidth = 3.2 * (1 - k * 0.5);
+        g.lineCap = 'round';
         g.beginPath();
-        g.arc(s.x, s.y, 2.6 * (1 - k * 0.5), 0, Math.PI * 2);
-        g.fill();
+        g.moveTo(s.x - s.vx * 0.06, s.y - s.vy * 0.06);
+        g.lineTo(s.x, s.y);
+        g.stroke();
       } else {
         const size = s.size * (1 - k * 0.4);
         g.drawImage(spark, s.x - size / 2, s.y - size / 2, size, size);

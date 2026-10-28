@@ -15,8 +15,9 @@
 //                                                                  asks the API to split the track: el-<id>-<stem>.mp3 beside it
 //   node remake/tools/sloedla-music.mjs <preset> --vocals [--version N]
 //                                                                  speech-to-text on the track, to find out whether anyone sings in it
-// <id> is the preset's name, and "-N" after it for a later version (--version 2 makes el-funk-2). A track that exists is never
-// made again (that costs credits) unless --force is given.
+// <id> is the preset's name, and "-N" after it for a later version (--version 2 makes el-funk-2; a preset's `revisions` map says
+// what version N asks for differently). A track that exists is never made again (that costs credits) unless --force is given.
+// A stem that comes back as digital silence (the separator found nothing of that kind) is not worth keeping: delete it by hand.
 //
 // The plan: music_v2_5 takes a composition plan of chunks with exact durations ("for v2 models section durations are always
 // enforced"), so every section is one chunk of bars x 4 x 60000 / bpm ms and the boundaries are known. A plan cannot be combined
@@ -35,6 +36,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FOLDER = 'remake/assets/audio/sloedla';
@@ -81,6 +83,17 @@ export const PRESETS = {
       'upbeat synth-pop disco', 'four-on-the-floor kick drum', 'crisp claps and open hi-hats', 'driving disco bass guitar with octave jumps',
       'bright plucky synth chord stabs', 'clean funky rhythm guitar chops', 'shimmering analog synth pads', 'joyful modern dance-floor energy',
     ],
+    revisions: {
+      2: {
+        revision: 'version 1 came out in F major (chords B-flat, F, D minor, two bars each); this one names the tonic and the bass roots',
+        extra: [
+          'the tonic is B-flat: the song starts and ends on the B-flat major chord',
+          'bass guitar plays only the chord roots B-flat, F, G and E-flat, one root per bar',
+          'four different chords in a loop, each chord lasts exactly one bar of four beats',
+          'only these four chords: B-flat major, F major, G minor, E-flat major',
+        ],
+      },
+    },
   },
   funk: {
     name: 'Funky groove',
@@ -95,6 +108,21 @@ export const PRESETS = {
       'clean funky rhythm guitar scratches', 'warm electric piano chords', 'short punchy brass stabs on the chord changes',
       'straight sixteenth-note feel', 'fun, playful and danceable',
     ],
+    revisions: {
+      2: {
+        revision: 'version 1 was drums and bass on one vamp (the stems: no chord instruments); this one asks for audible chord instruments and a chord per bar',
+        core: [
+          'tight modern funk groove', 'live drum kit with a crisp snare and ghost notes', 'warm slap-style electric bass guitar playing the chord roots',
+          'prominent warm electric piano playing the chords', 'clean funky rhythm guitar strumming the chords in sixteenth notes',
+          'short punchy brass stabs on the chord changes', 'straight sixteenth-note feel', 'fun, playful and danceable',
+        ],
+        extra: [
+          'four different chords in a loop, each chord lasts exactly one bar of four beats',
+          'bass guitar plays only the chord roots F, D, G and C, one root per bar',
+          'the chords are clearly audible in the electric piano and guitar',
+        ],
+      },
+    },
   },
   cinema: {
     name: 'Adventure pop',
@@ -124,6 +152,9 @@ export const PRESETS = {
   },
 };
 
+/** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
+export const presetOf = (preset, version = 1) => ({ ...PRESETS[preset], ...(PRESETS[preset].revisions?.[version] ?? {}) });
+
 /** The song's id (the file is el-<id>.mp3): the preset's name, and "-N" for a later version. */
 export const trackId = (preset, version = 1) => (version > 1 ? `${preset}-${version}` : preset);
 
@@ -145,8 +176,8 @@ export function sectionsOf(preset) {
 }
 
 /** The composition plan (music_v2_5: chunks): one chunk a section, no lyric lines. */
-export function planOf(preset) {
-  const p = PRESETS[preset];
+export function planOf(preset, version = 1) {
+  const p = presetOf(preset, version);
   const chunks = sectionsOf(preset).map(section => {
     const chords = section.kind === 'bridge' ? p.bridgeChords : p.chords;
     return {
@@ -155,7 +186,7 @@ export function planOf(preset) {
       positive_styles: [
         `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
         `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
-        ...p.core, 'instrumental backing track', 'no vocals', ...KINDS[section.kind],
+        ...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals', ...KINDS[section.kind],
       ],
       negative_styles: NEGATIVE,
     };
@@ -241,8 +272,8 @@ async function compose({ preset, version, seed, cache, force }) {
   const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
   if (fs.existsSync(mp3) && !force) throw new Error(`${path.relative(ROOT, mp3)} exists: --force makes it again (that costs credits).`);
   const key = keyOf();
-  const p = PRESETS[preset];
-  const plan = planOf(preset);
+  const p = presetOf(preset, version);
+  const plan = planOf(preset, version);
   const body = { composition_plan: plan, model_id: MODEL, ...(seed === undefined ? {} : { seed }) };
   const before = await credits(key);
   console.log(`asking for ${id}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${plan.chunks.length} sections, ${(plan.chunks.reduce((s, c) => s + c.duration_ms, 0) / 1000).toFixed(1)} s (credits used ${before.used} of ${before.limit})`);
@@ -292,6 +323,7 @@ async function compose({ preset, version, seed, cache, force }) {
     requested: {
       bpm: p.bpm, key: p.key, chords: { ...p.chords }, bridgeChords: { ...p.bridgeChords },
     },
+    revision: p.revision ?? null,
     request: { endpoint: 'POST /v1/music/detailed', model_id: MODEL, output_format: OUTPUT_FORMAT, ...(seed === undefined ? {} : { seed }), composition_plan: plan },
     api: {
       songId: headers['song-id'] ?? null,
@@ -392,31 +424,60 @@ function measure({ preset, version }) {
   console.log(`  sections (start, grid offset, level): ${sections.map(s => `${s.name} ${s.startSec}s ${s.gridOffsetMs >= 0 ? '+' : ''}${s.gridOffsetMs}ms ${s.levelDb}dB ${s.brightnessHz}Hz`).join(' | ')}`);
 }
 
-/** Asks the API to split the track into stems: the zip it answers with is unpacked in the cache and each stem becomes an mp3. */
-async function stems({ preset, version, cache }) {
+/** The files of a zip (stored or deflated): [{ name, data }]. Only the API's own zip goes through this. */
+export function unzip(buffer) {
+  let end = buffer.length - 22;
+  while (end >= 0 && buffer.readUInt32LE(end) !== 0x06054b50) end--;
+  if (end < 0) throw new Error('Not a zip file.');
+  const count = buffer.readUInt16LE(end + 10);
+  let at = buffer.readUInt32LE(end + 16);
+  const files = [];
+  for (let i = 0; i < count; i++) {
+    if (buffer.readUInt32LE(at) !== 0x02014b50) throw new Error('Broken zip directory.');
+    const method = buffer.readUInt16LE(at + 10), size = buffer.readUInt32LE(at + 20);
+    const nameLength = buffer.readUInt16LE(at + 28), extraLength = buffer.readUInt16LE(at + 30), commentLength = buffer.readUInt16LE(at + 32);
+    const local = buffer.readUInt32LE(at + 42);
+    const name = buffer.subarray(at + 46, at + 46 + nameLength).toString('utf8');
+    const data = local + 30 + buffer.readUInt16LE(local + 26) + buffer.readUInt16LE(local + 28);
+    const packed = buffer.subarray(data, data + size);
+    if (!name.endsWith('/')) files.push({ name, data: method === 0 ? packed : zlib.inflateRawSync(packed) });
+    at += 46 + nameLength + extraLength + commentLength;
+  }
+  return files;
+}
+
+/**
+ * Asks the API to split the track into stems: the zip it answers with is kept in the cache (and used again, since the request costs
+ * credits) and each stem in it becomes el-<id>-<stem>.mp3.
+ */
+async function stems({ preset, version, cache, force }) {
   const id = trackId(preset, version);
   const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
   if (!fs.existsSync(mp3)) throw new Error(`el-${id}.mp3 has not been made yet.`);
-  const key = keyOf();
-  const form = new FormData();
-  form.append('file', new Blob([fs.readFileSync(mp3)], { type: 'audio/mpeg' }), path.basename(mp3));
-  console.log(`asking for the stems of ${id} ...`);
-  const response = await ask(key, `${API}/music/stem-separation?output_format=${OUTPUT_FORMAT}`, { method: 'POST', headers: {}, body: form });
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const zip = path.join(cache, `${id}-stems.zip`);
+  fs.mkdirSync(cache, { recursive: true });
+  if (!fs.existsSync(zip) || force) {
+    const key = keyOf();
+    const form = new FormData();
+    form.append('file', new Blob([fs.readFileSync(mp3)], { type: 'audio/mpeg' }), path.basename(mp3));
+    console.log(`asking for the stems of ${id} ...`);
+    const response = await ask(key, `${API}/music/stem-separation?output_format=${OUTPUT_FORMAT}`, { method: 'POST', headers: {}, body: form });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(zip, bytes); // before anything is read from it: the credits are spent
+    console.log(`answer: ${response.headers.get('content-type')}, ${bytes.length} bytes`);
+  }
   const dir = path.join(cache, `${id}-stems`);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const zip = path.join(cache, `${id}-stems.zip`);
-  fs.writeFileSync(zip, bytes);
-  console.log(`answer: ${response.headers.get('content-type')}, ${bytes.length} bytes`);
-  run('tar', ['-xf', zip, '-C', dir]);
   const made = [];
-  for (const file of fs.readdirSync(dir).sort()) {
-    const stem = path.parse(file).name.replace(/^.*?[-_ ]?(vocals|drums|bass|other|guitar|piano|keys|synth|strings|percussion|instrumental)$/i, '$1').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  for (const { name, data } of unzip(fs.readFileSync(zip))) {
+    const file = path.join(dir, path.basename(name));
+    fs.writeFileSync(file, data);
+    const stem = path.parse(name).name.toLowerCase().replace(/^el-[a-z0-9-]*?-?(?=[a-z]+$)/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'stem';
     const target = fileOf(`${id}-${stem}`, 'mp3');
-    run('ffmpeg', ['-v', 'error', '-y', '-i', path.join(dir, file), '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', '-ac', '2', target]);
-    made.push({ stem, from: file, src: path.basename(target), bytes: fs.statSync(target).size });
-    console.log(`wrote ${path.relative(ROOT, target)} (from ${file})`);
+    run('ffmpeg', ['-v', 'error', '-y', '-i', file, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', '-ac', '2', target]);
+    made.push({ stem, from: path.basename(name), src: path.basename(target), bytes: fs.statSync(target).size });
+    console.log(`wrote ${path.relative(ROOT, target)} (from ${path.basename(name)})`);
   }
   if (fs.existsSync(json)) writeJson(json, { ...readJson(json), stems: { files: made } });
 }
@@ -477,7 +538,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else if (!args.preset) {
     throw new Error(`Name a preset: ${Object.keys(PRESETS).join(', ')} (or --list, --credits)`);
   } else if (has('--plan')) {
-    console.log(JSON.stringify({ composition_plan: planOf(args.preset), model_id: MODEL }, null, 2));
+    console.log(JSON.stringify({ composition_plan: planOf(args.preset, args.version), model_id: MODEL }, null, 2));
   } else if (has('--measure')) {
     measure(args);
   } else if (has('--stems')) {
