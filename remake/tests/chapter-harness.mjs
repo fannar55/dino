@@ -196,8 +196,14 @@ export function fakeBook() {
  * shows, one after another in the order of chapter.prepare and over frames: each build is done that many seconds of the run after
  * it is asked for. Each place's build is in `builds` ({ name: { asked, built, failed } }, the run's seconds). `failBuilds`
  * ({ name: times }) makes a place's first builds fail, as a build that throws would.
+ *
+ * The page the journal's map moment (engine/book/map-moment.js) stands in can animate, as a tablet's does: its elements have an
+ * `animate` that only takes the call, and the moment slides, draws and closes on the game clock as it does in the game. `reduced`
+ * is a tablet that asks for less motion (prefers-reduced-motion: reduce): the moment then comes and goes without sliding or drawing.
+ * Every moment the script plays is in `moments`. `seenBefore` are the ids the child's save has seen already (the map's pieces, such as
+ * 'map-route-a', from an earlier play of the chapter).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {} } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [] } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -263,6 +269,12 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   };
 
   const doc = new FakeDocument(PAGE);
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => { // a page that can animate: the map moment asks its elements to slide and draw
+    const element = create(tag);
+    element.animate = () => ({ cancel() {}, finish() {} });
+    return element;
+  };
   for (const name of ['caption-speaker', 'caption-text']) {
     const part = doc.createElement('span');
     part.className = name;
@@ -292,7 +304,30 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   world.renderer = { domElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 800 }) } };
 
   const book = fakeBook();
-  const journal = createJournal(doc, createSave(null), { book });
+  const win = reduced ? { matchMedia: () => ({ matches: true }) } : undefined;
+  const save = createSave(null);
+  for (const id of seenBefore) save.addSeen(id);
+  const journal = createJournal(doc, save, { book, win });
+  // Every map moment the script plays: the pieces, when it came up (scene time), how long it said the slide and the drawing take,
+  // when it was closed and how long it said the slide away takes, when the overlay was gone from the page, the lines said by the time
+  // it came up, what the save had seen of the map's pieces before and after, and each piece's state in the overlay as it came up.
+  const moments = [];
+  const overlayUp = () => doc.body.children.some(element => element.classList.contains('map-moment'));
+  const { play, close } = journal.mapMoment;
+  journal.mapMoment.play = ids => {
+    const before = [...save.get().seen];
+    const made = play(ids);
+    const [overlay] = doc.body.children.filter(element => element.classList.contains('map-moment'));
+    const states = Object.fromEntries(ids.map(id => [id, [...new Set(overlay?.findAll(element => element.getAttribute('data-piece') === id).map(element => element.getAttribute('data-state')))]]));
+    moments.push({ ids: [...ids], at: stage.s.time, drawMs: made.drawMs, closeAt: null, closeMs: null, goneAt: null, saidBefore: new Set(spoken), seenBefore: before, seenAfter: [...save.get().seen], states });
+    return made;
+  };
+  journal.mapMoment.close = () => {
+    const ms = close();
+    const open = moments.findLast(moment => moment.closeAt === null);
+    if (open) Object.assign(open, { closeAt: stage.s.time, closeMs: ms });
+    return ms;
+  };
   const finds = []; // every find the journal is told of, with where the child tapped it
   const addFinding = journal.addFinding;
   journal.addFinding = (id, from, options) => {
@@ -556,6 +591,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     if (earlyTap) earlyChild(t);
     world.clock.step(dt);
     journal.update(dt);
+    for (const moment of moments) if (moment.closeAt !== null && moment.goneAt === null && !overlayUp()) moment.goneAt = stage.s.time;
     stage.update(dt);
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
@@ -632,7 +668,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     // A place being built is a promise the scene waits on (s.goTo); a choice waiting for a finger is one too.
     if (stage.scheduler.pending > 0) await new Promise(resolve => setImmediate(resolve));
   }
-  return { world, task, stage, director, journal, book, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
+  return { world, task, stage, director, journal, book, save, moments, finds, doc, captions, winks, sunCalls, sunFace, sounds, soundLog, forests, pointer, seen, added, lines, builds };
 }
 
 export const EARLY_TAP_AT = { x: 612, y: 455 }; // where on the screen the child who taps early taps

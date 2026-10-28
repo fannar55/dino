@@ -384,6 +384,24 @@ export function createSfx({ context = null, theme = null, output, random = Math.
       tone({ frequency: key[0] * 2, end: key[0] * 4, duration: 1.8, level: 0.025, attack: 0.5, body: 0.6, sustain: 0.8 });
       bell(key[0] * 2, { delay: 1.7, level: 0.05, duration: 1.2 });
     },
+    // The map is laid out over the game (the map in the journey, engine/book/map-moment.js, which asks the journal's audio for it as
+    // the map slides up in 0.6 s): a soft paper unroll, a band of noise that swells and climbs for half a second, and the last rustle
+    // of the edge settling. Quiet, and with no note in it: it comes under Mosi's line.
+    mapOpen() {
+      noise({ kind: 'warm', type: 'bandpass', frequency: 450, end: 1700, q: 0.8, duration: 0.5, level: 0.05, attack: 0.28 });
+      noise({ kind: 'white', type: 'bandpass', frequency: 2800, end: 2000, q: 1.4, duration: 0.12, level: 0.018, attack: 0.01, delay: 0.38 });
+    },
+    // A pen draws a piece of the trail (asked for as each piece begins, which takes 2 s): a faint scratch under a run of short, light
+    // ticks, a hair higher or lower each time, drifting across the speakers as the line goes on. Always ten ticks, over 1.8 s.
+    mapPen() {
+      noise({ kind: 'white', type: 'bandpass', frequency: 3600, end: 2400, q: 1, duration: 1.8, level: 0.012, attack: 0.1 });
+      for (let i = 0; i < 10; i++) {
+        noise({
+          kind: 'white', type: 'bandpass', frequency: between(2800, 4200), end: between(1900, 2600), q: 1.8, duration: 0.05 + (i % 3) * 0.01,
+          level: 0.04 + (i % 3) * 0.006, delay: 0.02 + i * 0.18 + between(0, 0.04), pan: -0.25 + i * 0.055, attack: 0.004,
+        });
+      }
+    },
   };
 
   // An instance's own sounds (`sounds`) may not take a name of the ones above. Chapter 2's (engine/audio/fen-sounds.js) are the

@@ -233,6 +233,95 @@ test('no fail states: a child who never touches the screen is helped through eve
   assert.ok(stage.s.time > (await unattended()).stage.s.time + 120, "and the waits were real ones, longer than a capture's");
 });
 
+// ---------------------------------------------------------------------------------------------
+// The map in the journey (docs/superpowers/specs/2026-10-28-kortid-lifandi-og-i-ferdalaginu-design.md, section 3): as the ride begins
+// the map slides up over the game, draws the leg ahead while Mosi says where they are going, and slides away
+
+const MOMENT_HOLD = 0.8; // seconds the map stands once the line and the drawing are over
+const LINE_HOLD = 0.5; // seconds a line is held after its recording (engine/scene/scene.js)
+
+/** How long a map moment lasts in scene time: the drawing or Mosi's line (and its hold), whichever is longer, the map standing, and the slide away. */
+const lasts = (run, moment, line) => Math.max(moment.drawMs / 1000, run.stage.s.lineDuration(line) + LINE_HOLD) + MOMENT_HOLD + moment.closeMs / 1000;
+
+test('the map comes up as the ride begins: piece a drawn before "Haltu þér fast", Mosi saying where they go, and over by itself within 8 s', async () => {
+  const ride = chapter.lines.k1_mosi_map_ride;
+  const hold = chapter.lines.k1_mosi_hold;
+  assert.equal(ride.text, 'Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.');
+  for (const [how, play] of [['a capture', unattended], ['a child who waits', ignoredByAChild], ['an eager child', playedByAnEagerChild]]) {
+    const run = await play();
+    const { moments, captions, doc, save, world, task, seen } = run;
+    assert.equal(task.done, true, `${how}: the chapter plays on to its end`);
+    assert.equal(moments.length, 1, `${how}: one map moment in the chapter, as the ride begins`);
+    const [moment] = moments;
+    assert.deepEqual(moment.ids, ['a'], `${how}: the leg from the clearing to the fern glade`);
+    // After the book and the butterfly, before "Haltu þér fast", with Mosi's line about the map beside it.
+    assert.ok(moment.saidBefore.has('k1_mosi_book') && moment.saidBefore.has('k1_mosi_book_close'), `${how}: it comes after the book`);
+    assert.ok(!moment.saidBefore.has('k1_mosi_hold') && !moment.saidBefore.has('k1_mosi_map_ride'), `${how}: and before "Haltu þér fast", Mosi's line not yet said`);
+    const said = captions.filter(c => c.text === ride.text);
+    assert.equal(said.length, 1, `${how}: Mosi says where they are going, once`);
+    assert.equal(said[0].who, 'Mosi');
+    assert.ok(Math.abs(said[0].at - moment.at) < 0.1, `${how}: he begins as the map slides up (${said[0].at.toFixed(2)} s, the map at ${moment.at.toFixed(2)} s)`);
+    // The line is drawn on the map, and kept as seen.
+    assert.equal(moment.drawMs, 2600, `${how}: the slide up and the one piece`);
+    assert.deepEqual(moment.states, { a: ['drawing'] }, `${how}: piece a draws itself, in the overlay`);
+    assert.deepEqual(moment.seenAfter, ['map-route-a'], `${how}: and the save has it as seen`);
+    assert.ok(save.get().seen.includes('map-route-a'), `${how}: for good`);
+    // Nothing is cut: the game goes on under the map.
+    assert.ok(moment.goneAt !== null, `${how}: the overlay was taken off the page`);
+    assert.deepEqual(seen.cuts.filter(cut => cut.at > moment.at + 1e-6 && cut.at < moment.goneAt), [], `${how}: the camera cuts nowhere while the map is up`);
+    // It ends by itself, on the game clock: Mosi's line and the drawing, 0.8 s of the map standing, 0.6 s sliding away.
+    assert.equal(moment.closeMs, 600, `${how}: it slides away in 0.6 s`);
+    const lasted = moment.goneAt - moment.at;
+    assert.ok(lasted < 8, `${how}: the moment lasted ${lasted.toFixed(2)} s of scene time`);
+    assert.ok(Math.abs(lasted - lasts(run, moment, 'k1_mosi_map_ride')) < 0.15, `${how}: it waits for Mosi's line, then 0.8 s, then the slide (${lasted.toFixed(2)} s)`);
+    assert.ok(moment.closeAt >= said[0].at + run.stage.s.lineDuration('k1_mosi_map_ride') + LINE_HOLD + MOMENT_HOLD - 0.1, `${how}: the map never goes while Mosi still speaks`);
+    // Then "Haltu þér fast. Af stað!" and the ride, with no map left on the page.
+    const holdFast = captions.find(c => c.text === hold.text);
+    assert.ok(holdFast.at >= moment.goneAt - 1e-6, `${how}: "Haltu þér fast" comes once the map is gone`);
+    assert.ok(world.chapterTimeline.find(m => m.scene === 6).at >= moment.goneAt, `${how}: and so does the ride`);
+    assert.equal(doc.body.children.filter(e => e.classList.contains('map-moment')).length, 0, `${how}: no overlay is left on the page`);
+    assert.ok(seen.spoken.has('k1_mosi_hold'), `${how}: the ride goes on`);
+  }
+});
+
+test('the moment is silent here (no sound allowed, no effects) and still times itself by Mosi\'s line', async () => {
+  // The harness's journal has no audio, as a page whose sound the browser has not yet allowed has none to play: the map comes and
+  // goes all the same, on the game clock and Mosi's line.
+  const run = await unattended();
+  assert.equal(run.journal.mapMoment.isOpen, false);
+  const [moment] = run.moments;
+  assert.ok(Math.abs(moment.goneAt - moment.at - lasts(run, moment, 'k1_mosi_map_ride')) < 0.15);
+  assert.ok(!run.soundLog.some(e => e.name === 'mapOpen' || e.name === 'mapPen'), 'the scene asks the game\'s effects for nothing: the journal\'s own audio sounds the map');
+});
+
+test('a child who plays the chapter again, with piece a seen already, sees the map draw it again, and the book is as it was', async () => {
+  const first = await unattended();
+  const run = await playUnattended(kafli1, { seenBefore: ['map-route-a'], limit: first.moments[0].goneAt + 3 });
+  assert.equal(run.moments.length, 1, 'the moment still plays');
+  const [moment] = run.moments;
+  assert.deepEqual(moment.seenBefore, ['map-route-a'], 'the piece was seen already');
+  assert.equal(moment.drawMs, 2600, 'and is drawn again, over the slide');
+  assert.deepEqual(moment.states, { a: ['drawing'] }, 'drawing in the overlay');
+  assert.deepEqual(run.save.get().seen, ['map-route-a'], 'seen once, as before');
+  assert.ok(run.seen.spoken.has('k1_mosi_map_ride'), 'with Mosi saying where they go');
+  assert.deepEqual(run.book.opened, [['animals', 'script']], 'the book was opened by the story as before, and by the map not at all');
+  assert.equal(run.doc.body.children.filter(e => e.classList.contains('map-moment')).length, 0, 'nothing left behind');
+});
+
+test('with less motion the map comes and goes without sliding or drawing, the line simply there, and the map still waits for Mosi', async () => {
+  const first = await unattended();
+  const run = await playUnattended(kafli1, { reduced: true, limit: first.moments[0].goneAt + 3 });
+  const [moment] = run.moments;
+  assert.equal(moment.drawMs, 0, 'no slide to wait for, no drawing');
+  assert.deepEqual(moment.states, { a: ['drawn'] }, 'piece a is simply there');
+  assert.deepEqual(moment.seenAfter, ['map-route-a'], 'and kept as seen');
+  assert.equal(moment.closeMs, 0, 'it goes at once');
+  const line = run.stage.s.lineDuration('k1_mosi_map_ride');
+  assert.ok(Math.abs(moment.closeAt - moment.at - (line + LINE_HOLD + MOMENT_HOLD)) < 0.15, `the map waits for Mosi's line, then stands 0.8 s (${(moment.closeAt - moment.at).toFixed(2)} s)`);
+  assert.ok(moment.goneAt - moment.closeAt < 0.1, 'and is gone as it closes');
+  assert.ok(run.seen.spoken.has('k1_mosi_map_ride'));
+});
+
 test('the chapter draws once, behind the black, everything that would build its shaders as the child watches', async () => {
   const { world } = await playUnattended(kafli1, { limit: 0.2 }); // the script's setup has run: the saddle is made, her plates are grey
   const effects = world.effects.size;

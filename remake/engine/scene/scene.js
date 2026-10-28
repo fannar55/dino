@@ -500,6 +500,11 @@ export function createScene({ world, director, ui, voice, lines = {}, cast = {},
       get findings() { return journal?.findings ?? []; },
       /** The book's close beckons (on) while a script waits for the child to shut it, or stops (off). */
       beckonClose: on => { needJournal('s.journal.beckonClose'); journal.beckonClose?.(on); return DONE; },
+      /**
+       * The map in the journey (engine/book/map-moment.js), which a scene plays at a departure: `play(ids)` slides the map up over the
+       * game and draws the named pieces, `close()` slides it away (scene/map-moment-scene.js times both beside Mosi's line).
+       */
+      get mapMoment() { needJournal('s.journal.mapMoment'); return journal.mapMoment; },
     },
     /**
      * The smiling sun (engine/sun-face.js). `wink()` shuts its eyes for 0.35 s of game time and returns at once, so a line can go

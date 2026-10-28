@@ -8,7 +8,10 @@ import { createStarSprite } from '../engine/scene/star-sprite.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createPointResolver } from '../engine/points.js';
 import { DONE } from '../engine/handle.js';
+import { createSfx } from '../engine/audio/sfx.js';
+import { createBookAudio } from '../engine/book/book-audio.js';
 import { FakeDocument } from './fake-dom.mjs';
+import { createFakeContext, peakThrough } from './fake-audio.mjs';
 
 const KEY = 'mosi-remake-v1';
 
@@ -428,6 +431,29 @@ test('the journal owns the map moment: it draws on the journal\'s save, sounds t
   assert.equal(overlays().length, 1, 'a held game holds it');
   journal.update(0.6);
   assert.equal(overlays().length, 0);
+});
+
+test('the two sounds of the map moment exist, in the effects of the game and in the journal\'s own, and are quiet: a paper unrolling in half a second, a pen scratching for each piece', () => {
+  const theme = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
+  const SOUNDS = {
+    mapOpen: { shortest: 0.35, longest: 0.6, least: 2 }, // it comes as the map slides up in 0.6 s
+    mapPen: { shortest: 1.6, longest: 2.0, least: 6 }, // a tick at a time, as long as a piece takes to draw (2 s)
+  };
+  const ways = {
+    'the effects of the game': context => name => createSfx({ context, theme }).play(name),
+    'the audio of the journal (the book)': context => name => createBookAudio({ context, theme }).sfx(name),
+  };
+  for (const [how, make] of Object.entries(ways)) {
+    for (const [name, { shortest, longest, least }] of Object.entries(SOUNDS)) {
+      const context = createFakeContext({ state: 'running' });
+      assert.equal(make(context)(name), true, `${how} play ${name}`);
+      const made = context.started;
+      assert.ok(made.length >= least, `${how}: ${name} starts ${made.length} sources`);
+      const ends = Math.max(...made.map(source => source.stopTime));
+      assert.ok(ends > shortest && ends <= longest, `${how}: ${name} lasts ${ends.toFixed(2)} s`);
+      for (const source of made) assert.ok(peakThrough(source, context.destination) < 0.1, `${how}: ${name} is quiet (${peakThrough(source, context.destination)})`);
+    }
+  }
 });
 
 test('main.js ties the book the child holds to the clock and the sound', () => {
