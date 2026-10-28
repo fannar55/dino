@@ -39,14 +39,20 @@ const SPECIES = {
   },
   brontosaurus: {
     source: 'brontosaurus.glb', asset: 'brontosaurus-baby.glb', name: 'Þórseðla', rootName: 'Baby Þórseðla (Brontosaurus)', skinName: 'Baby Þórseðla skin',
-    design: 'large head and eyes; short legs; slightly shorter torso and tail; the long neck kept to reach the branch; original Þórseðla painted skin',
+    design: 'large head and big eyes; round, deep belly; short sturdy legs; short tail; the long neck kept to reach the branch; original Þórseðla painted skin',
+    // Second pass (owner, 2026-10-28: the first read as a small adult): head 1.7, a clearly larger
+    // eye region, torso girth 1.2 (deeper above the belly line and wider), tail 0.65, legs 0.75 long
+    // and 1.15 thick, neck 0.85 as before. Girth factors are on top of the part's own factor.
     map: babyQuadruped({
-      factors: { head: 1.4, neck: .85, torso: .85, tail: .8, legs: .75 },
-      eye: QUADRUPED_EYE,
+      factors: { head: 1.7, neck: .85, torso: .85, tail: .65, legs: .75 },
+      eye: { gain: .5, inner: 1.3, outer: 4.5 }, // the eye and its lids grow 1.5 times within 1.3 eye sizes, fading out by 4.5 (more turns the face over between the eyes)
       head: { angle: 30, band: [-1.2, -.15], centre: -.15 }, // the top metre of the neck widens into the head; growing about the band's end keeps the neck from lengthening
       neck: { bone: 'Neck', band: 1 },
       tail: { bone: 'Tail1', band: 1 },
       legs: { band: [1.4, 2.6] }, // the visible legs below the belly, which is lowest at 1.6 m
+      // The torso between the tail base (Tail1 -3.66) and the neck base (Neck 3.26), fading over
+      // about 2 m into both; the legs thicken around their own axes (radius 0.9 m, fading over 0.9 m).
+      girth: { torso: 1.2, x: [-4.8, -2.6, 2.6, 4.4], legs: 1.15, legBones: ['FrontLeg.L', 'BackLeg.L'], legRadius: .9, legFade: .9 },
       landmarks: ({ positions }) => ({ nose: extreme(positions, 0), support: extreme(positions, 1), bone: 'Head' }), // snout tip; skull crown under the branch
     }),
   },
@@ -253,9 +259,20 @@ function babyQuadruped(P) {
     const eyes = originalEyes.map(e => { const size = (e.halfWidth + (e.top + e.bottom) / 2) / 2; return { c: new V(...e.centre).setY(e.centre[1] - ground), inner: P.eye.inner * size, outer: P.eye.outer * size }; });
     const tailX = bonePosition(P.tail.bone).x, neckBase = bonePosition(P.neck.bone), headJoint = bonePosition('Head');
     const neckDir = headJoint.clone().sub(neckBase).normalize(), headN = new V(Math.cos(P.head.angle * Math.PI / 180), Math.sin(P.head.angle * Math.PI / 180), 0);
+    const girth = P.girth, torsoMask = x => smooth(girth.x[0], girth.x[1], x) * (1 - smooth(girth.x[2], girth.x[3], x));
+    const legX = girth ? girth.legBones.map(name => bonePosition(name).x) : [];
     function body(q) {
+      if (girth) { // thicker legs (along x, below the belly band): an expansion about each leg's axis
+        const below = 1 - smooth(P.legs.band[0], P.legs.band[1], q.y);
+        let dx = 0; for (const c of legX) { const u = q.x - c; dx += u * (1 - smooth(girth.legRadius, girth.legRadius + girth.legFade, Math.abs(u))); }
+        q.x += (girth.legs - 1) * below * dx;
+      }
       if (rel.tail !== 1) { const u = tailX - q.x; q.x = tailX - (u - (1 - rel.tail) * ramp(-P.tail.band / 2, P.tail.band / 2, u)); }
-      if (rel.legs !== 1) q.y = rel.legs * q.y + (1 - rel.legs) * ramp(P.legs.band[0], P.legs.band[1], q.y);
+      if (girth) { // a deeper torso above the belly line (the legs keep their length) and a wider one
+        const m = torsoMask(q.x);
+        q.y = rel.legs * q.y + (1 - rel.legs + (girth.torso - 1) * m) * ramp(P.legs.band[0], P.legs.band[1], q.y);
+        q.z *= 1 + (girth.torso - 1) * m;
+      } else if (rel.legs !== 1) q.y = rel.legs * q.y + (1 - rel.legs) * ramp(P.legs.band[0], P.legs.band[1], q.y);
       if (rel.neck !== 1) { const t = q.clone().sub(neckBase).dot(neckDir); q.addScaledVector(neckDir, -(1 - rel.neck) * ramp(-P.neck.band / 2, P.neck.band / 2, t)); }
       return q;
     }
@@ -303,7 +320,7 @@ function babyQuadruped(P) {
     return {
       deform, partOf: (p, i) => partIndex[i],
       landmarks: P.landmarks ?? (() => null),
-      values: { factors: f, relativeToTorso: Object.fromEntries(Object.entries(rel).map(([k, v]) => [k, r3(v)])), eye: P.eye, head: { ...P.head, centrePoint: headJoint.clone().addScaledVector(headN, at).toArray().map(r3) }, neck: P.neck, tail: { ...P.tail, x: r3(tailX) }, legs: P.legs },
+      values: { factors: f, relativeToTorso: Object.fromEntries(Object.entries(rel).map(([k, v]) => [k, r3(v)])), eye: P.eye, head: { ...P.head, centrePoint: headJoint.clone().addScaledVector(headN, at).toArray().map(r3) }, neck: P.neck, tail: { ...P.tail, x: r3(tailX) }, legs: P.legs, girth: P.girth },
       partSummary: parts.length ? parts.map(p => ({ kind: p.kind, vertices: p.vertices, scale: p.scale, base: p.base.toArray().map(r3), height: r3(p.height) })) : undefined,
     };
   };

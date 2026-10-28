@@ -20,12 +20,17 @@ eyelid renderer. The GLB has a measured beak landmark for pair contact.
 
 `brontosaurus-baby.glb` (Þórseðla) and `stegosaurus-baby.glb` (Kambeðla) are
 computed the same way from the owner's game models: no drawing, sculpting or new
-modelling. The owner's starting values are factors on each source part: head
-×1.4 with larger eye sockets, neck ×0.85, torso ×0.85, tail ×0.8 and legs ×0.75
-(length only; their girth follows the torso); Kambeðla's eleven plates and two
-tail-spike parts also shrink ×0.8 toward their own foot. The GLB is normalized
-afterwards, so only the ratios show (the head is 1.65 times larger against the
-torso). Every triangle, UV, texture, skin weight and clip is kept (Þórseðla:
+modelling. The values are factors on each source part. Kambeðla (approved by the
+owner as first baked): head ×1.4 with larger eye sockets, neck ×0.85, torso ×0.85,
+tail ×0.8 and legs ×0.75 (length only; their girth follows the torso); her eleven
+plates and two tail-spike parts also shrink ×0.8 toward their own foot.
+Þórseðla, second pass after the first read as a small adult: head ×1.7 with the
+eye region ×1.5 on top, torso girth ×1.2 (deeper above the belly line and wider),
+tail ×0.65, legs ×0.75 long and ×1.15 thick, neck ×0.85, torso ×0.85. The GLB is
+normalized afterwards, so only the ratios show (her head is 2.0 times larger
+against the torso, Kambeðla's 1.65). In the game Þórseðla is shown larger than
+the others (`MEMORY_CHARACTER_ART.brontosaurus.lengthFactor`), so she stands
+tallest. Every triangle, UV, texture, skin weight and clip is kept (Þórseðla:
 idle, walk, kink, lowerHead, liftUp, happy; Kambeðla: idle, walk, kink, eat,
 happy, and the `_PLATEROW` plate mask). Þórseðla's GLB carries `nose` (snout tip)
 and `support` (skull crown) landmarks. The values, measured head bands and part

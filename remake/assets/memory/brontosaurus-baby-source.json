@@ -20,29 +20,29 @@
     "happy"
   ],
   "normalizedLength": 1,
-  "normalizedHeight": 0.4045430544544902,
-  "normalizedWidth": 0.2140105216636398,
-  "minDeformationJacobian": 0.3989623968904142,
+  "normalizedHeight": 0.4453644217905945,
+  "normalizedWidth": 0.26539858262291177,
+  "minDeformationJacobian": 0.24907834401651868,
   "flippedTriangles": 0,
-  "flippedSlivers": 0,
+  "flippedSlivers": 1,
   "map": {
     "factors": {
-      "head": 1.4,
+      "head": 1.7,
       "neck": 0.85,
       "torso": 0.85,
-      "tail": 0.8,
+      "tail": 0.65,
       "legs": 0.75
     },
     "relativeToTorso": {
-      "head": 1.647,
+      "head": 2,
       "neck": 1,
-      "tail": 0.941,
+      "tail": 0.765,
       "legs": 0.882
     },
     "eye": {
-      "gain": 0.3,
-      "inner": 1,
-      "outer": 2.8
+      "gain": 0.5,
+      "inner": 1.3,
+      "outer": 4.5
     },
     "head": {
       "angle": 30,
@@ -71,9 +71,25 @@
         1.4,
         2.6
       ]
+    },
+    "girth": {
+      "torso": 1.2,
+      "x": [
+        -4.8,
+        -2.6,
+        2.6,
+        4.4
+      ],
+      "legs": 1.15,
+      "legBones": [
+        "FrontLeg.L",
+        "BackLeg.L"
+      ],
+      "legRadius": 0.9,
+      "legFade": 0.9
     }
   },
-  "design": "large head and eyes; short legs; slightly shorter torso and tail; the long neck kept to reach the branch; original Þórseðla painted skin",
+  "design": "large head and big eyes; round, deep belly; short sturdy legs; short tail; the long neck kept to reach the branch; original Þórseðla painted skin",
   "bake": "node scripts/memory-baby-bake.mjs --species brontosaurus",
   "status": "Review candidate for the owner; not in the game until he approves it (MEMORY_CHARACTER_ART still loads the adult)"
 }
