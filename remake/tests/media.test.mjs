@@ -86,6 +86,8 @@ test('checkModels names every problem', () => {
   one('too many triangles', check([{ ...scan, triangles: 150000 }]), /mosi-skeleton.*150000 triangles/);
   one('too heavy', check([scan], scan.src, { [scan.src]: MODEL_BYTES + 1 }), /mosi-skeleton.*bytes/);
   one('not there', check([scan], scan.src, {}), /mosi-skeleton.*not there/);
+  assert.deepEqual(check([{ ...scan, turn: 'rock' }]), [], 'a slab that rocks');
+  one('a turn the view does not know', check([{ ...scan, turn: 'spin' }]), /mosi-skeleton.*turn is spin/);
   assert.throws(() => parseModels({ models: [scan, { ...scan }] }), /model "mosi-skeleton" is there twice/);
 });
 

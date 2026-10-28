@@ -8,6 +8,7 @@ import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
 import { createZoom } from '../engine/book/zoom.js';
+import { rockYaw, ROCK_SWING } from '../engine/book/skeleton-view.js';
 import { createSave } from '../engine/save.js';
 import { createGame, applyTurn, FOSSIL_KINDS } from '../engine/hals/rules.js';
 import { DONE } from '../engine/handle.js';
@@ -504,6 +505,32 @@ test('a 3D page keeps its picture and reads its line where the model cannot show
   assert.equal(viewer.page, 2, 'the arrow flips');
   assert.ok(sent > before, 'and the model is sent away');
   viewer.close(true);
+});
+
+// A skeleton lying in its stone (Slóeðla's Joe, Flugeðla's cousin; the manifest's turn: 'rock') rocks face on, so its flat back
+// is not shown unless a finger turns it; a standing skeleton turns round (2026-10-28).
+test('a slab model is asked to rock face on, a standing skeleton to turn round', async () => {
+  const doc = new FakeDocument(['book']);
+  const flush = () => new Promise(resolve => setImmediate(resolve));
+  const asked = [];
+  const view = { canvas: doc.createElement('canvas'), mount() {}, show: async (src, options) => { asked.push([src, options?.rock === true]); return true; }, hide() {} };
+  const models = new Map([
+    ['standing.glb', { credit: 'Smithsonian Institution', license: 'CC0', source: 'https://3d.si.edu/t-rex' }],
+    ['slab.glb', { credit: 'luiscoya', license: 'CC BY 4.0', source: 'https://sketchfab.com/x', turn: 'rock' }],
+  ]);
+  const card = { id: 'two', name: 'Tvær', pages: ['standing.glb', 'slab.glb'].map((model, i) => ({ image: 'none', text: `Texti ${i + 1}.`, audio: `book_two_${i + 1}`, sources: ['heimild'], model })) };
+  const viewer = createCardViewer(doc, doc.getElementById('book'), { audio: { sfx() {}, stop() {}, narrate: () => DONE }, models, skeleton: view });
+  viewer.open(card, null, 0);
+  await flush();
+  viewer.next();
+  await flush();
+  assert.deepEqual(asked, [['standing.glb', false], ['slab.glb', true]]);
+  viewer.close(true);
+
+  assert.equal(rockYaw(0), 0, 'a slab starts face on');
+  const swing = Array.from({ length: 600 }, (_, i) => rockYaw(i / 10));
+  assert.ok(Math.max(...swing.map(Math.abs)) <= ROCK_SWING + 1e-9, 'and never turns further than its swing');
+  assert.ok(Math.min(...swing) < -0.9 * ROCK_SWING && Math.max(...swing) > 0.9 * ROCK_SWING, 'it goes both ways within a minute');
 });
 
 // The owner (2026-10-26): a tap on the model takes it to the whole screen, as a tap on a picture does; and the ⓘ says who made it.

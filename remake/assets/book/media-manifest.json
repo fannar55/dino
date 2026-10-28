@@ -2368,6 +2368,36 @@
       "sha256": "387815351506dc47596728e6127c1b7b9cb1081ed3b82699b0f3a74ba6a8eb0c",
       "width": 1024,
       "height": 682
+    },
+    {
+      "id": "sloedla-joe-render",
+      "src": "assets/book/images/sloedla-joe-render.jpg",
+      "thumb": "assets/book/images/sloedla-joe-render-thumb.jpg",
+      "kind": "render",
+      "credit": "Andrew A. Farke o.fl. (Raymond M. Alf-safnið)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_Juvenile_Right_Skeleton_RAM14000_Scan.stl",
+      "alt": "Beinagrind ungrar slóeðlu eins og hún liggur á hliðinni í steininum.",
+      "modifications": "Mynd tekin í Blender (Workbench) af þrívíddarlíkani síðunnar (sloedla-skeleton.glb, sjá líkönin), á rjómalitum grunni, 1024 × 682 punktar, með 320 punkta smámynd. Myndin er af líkaninu eins og það er; engu er bætt við.",
+      "sha256": "684a166388ef39063165e884ed186c3013062ef9eee5ae7c6d0729db0448e857",
+      "width": 1024,
+      "height": 682
+    },
+    {
+      "id": "anhanguera-render",
+      "src": "assets/book/images/anhanguera-render.jpg",
+      "thumb": "assets/book/images/anhanguera-render-thumb.jpg",
+      "kind": "render",
+      "credit": "luiscoya (Sketchfab)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://sketchfab.com/3d-models/pterosauro-cosmocaixa-7d330b6bbab54158a3a58edb47de3c47",
+      "alt": "Beinagrind flugeðlunnar Anhanguera á steinplötu: langur haus til hægri og vængirnir brotnir saman.",
+      "modifications": "Mynd tekin í Blender (Workbench) af þrívíddarlíkani síðunnar (anhanguera-skeleton.glb, sjá líkönin), á rjómalitum grunni, 1024 × 682 punktar, með 320 punkta smámynd. Myndin er af líkaninu eins og það er; engu er bætt við.",
+      "sha256": "30d11329d7e79ab350beabad745e24b27293804f5b747f9044489e2b1105015d",
+      "width": 1024,
+      "height": 682
     }
   ],
   "models": [
@@ -2396,6 +2426,47 @@
       "sha256": "49e3049fb05db7a01ec206efb3688044c9f975fc6a0f923341cf99b5131cb3f4",
       "triangles": 49972,
       "bytes": 617196
+    },
+    {
+      "id": "gramedla-skeleton",
+      "triangles": 49998,
+      "credit": "Smithsonian Institution, National Museum of Natural History",
+      "license": "CC0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "source": "https://3d.si.edu/object/3d/tyrannosaurus-rex:d8c62d28-4ebc-11ea-b77f-2e728ce88125",
+      "alt": "Þrívíddarskanni Smithsonian-safnsins af beinagrind grameðlunnar „T. rex þjóðarinnar“, sem barnið snýr með fingrinum.",
+      "modifications": "Fjórir hlutar grindarinnar af síðu Smithsonian (t-rex-p1 til p4-75k-1024-web-low.glb, 75 þúsund þríhyrningar hver, Draco-þjappaðir, alls 5,2 MB) opnaðir saman í Blender, án þríhyrnunnar sem hún bítur í á safninu, skeyttir í eitt og þríhyrningum fækkað í 50 þúsund (scratchpad blender-join-glb.py). Litaáferðirnar eru minnkaðar í 768 punkta og hnykkja- og skuggakortunum (normal, occlusion) sleppt, svo líkanið sé undir 2 MB. Hnitin eru pökkuð smátt (remake/tools/quantize-glb.mjs) og grindin reist eins og Smithsonian sýnir hana; stellingunni er ekki breytt.",
+      "src": "assets/book/models/gramedla-skeleton.glb",
+      "sha256": "751fa2c1aae018c1c321d5ef884ff0195e38e4dd7d8f64c5ac31125257569d52",
+      "bytes": 1765292
+    },
+    {
+      "id": "sloedla-skeleton",
+      "triangles": 50000,
+      "credit": "Andrew A. Farke o.fl. (Raymond M. Alf-safnið)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://commons.wikimedia.org/wiki/File:Parasaurolophus_Juvenile_Right_Skeleton_RAM14000_Scan.stl",
+      "alt": "Þrívíddarskanni af beinagrind ungrar slóeðlu, „Joe“, eins og hún liggur á hliðinni í steininum; hún vaggar fram og til baka og barnið snýr henni með fingrinum.",
+      "modifications": "Skráin Parasaurolophus_Juvenile_Right_Skeleton_RAM14000_Scan.stl af Wikimedia Commons (400 þúsund þríhyrningar, 20 MB; skanninn úr grein Farke o.fl., lagaður til prentunar í 1/10 af raunstærð) opnuð í Blender, þríhyrningum fækkað í 50 þúsund, gefinn einn beinlitur (skanninn hefur enga áferð; scratchpad blender-join-obj.py) og hnitin pökkuð smátt (remake/tools/quantize-glb.mjs). Hann sýnir hægri hlið beinagrindarinnar eins og hún liggur í steininum; engu er breytt um lögun. Í bókinni vaggar platan fram og til baka (turn: rock) í stað þess að snúast heilan hring.",
+      "src": "assets/book/models/sloedla-skeleton.glb",
+      "sha256": "a95f6c50948951070c1bdac4b1d325effbfe9631fb18d817064e01008b119898",
+      "bytes": 551352,
+      "turn": "rock"
+    },
+    {
+      "id": "anhanguera-skeleton",
+      "triangles": 49985,
+      "credit": "luiscoya (Sketchfab)",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "source": "https://sketchfab.com/3d-models/pterosauro-cosmocaixa-7d330b6bbab54158a3a58edb47de3c47",
+      "alt": "Þrívíddarskanni af beinagrind flugeðlunnar Anhanguera á steinplötu, frænku Flugeðlu; platan vaggar fram og til baka og barnið snýr henni með fingrinum.",
+      "modifications": "Skráin úr Objaverse-safni Allen-stofnunarinnar á Hugging Face (glbs/000-042/7d330b6bbab54158a3a58edb47de3c47.glb, 7 MB, 137 þúsund þríhyrningar, áferðir 1024 punktar; sama líkan og á Sketchfab, sama leyfi) opnuð í Blender, hlutarnir tveir skeyttir í eitt og þríhyrningum fækkað í 50 þúsund (scratchpad blender-join-glb.py), hnitin pökkuð smátt (remake/tools/quantize-glb.mjs) og platan snúin svo framhlið hennar vísi að barninu. Ljósmyndaáferðirnar eru óbreyttar. Í bókinni vaggar platan fram og til baka (turn: rock) í stað þess að snúast heilan hring.",
+      "src": "assets/book/models/anhanguera-skeleton.glb",
+      "sha256": "b72f0c6ce2a94cf7f3d94b3bd6429f2413d6f96e7c32511204b4292c269aa48d",
+      "bytes": 1883272,
+      "turn": "rock"
     }
   ]
 }

@@ -141,7 +141,7 @@ export function createCardViewer(doc, root, { media = new Map(), models: modelIn
     const at = index;
     const src = pages[at]?.model;
     if (!src) return;
-    models.show(src).then(on => {
+    models.show(src, { rock: modelInfo.get(src)?.turn === 'rock' }).then(on => {
       if (!on || !isOpen || index !== at) return;
       modelOn = true;
       credits(modelInfo.get(src) ?? null, 'Líkan');

@@ -409,7 +409,8 @@
       "stem": "[Ss]lóeðl",
       "forms": [
         "Slóeðla",
-        "Slóeðlu"
+        "Slóeðlu",
+        "slóeðlu"
       ],
       "recipes": {
         "hratt": {
@@ -418,7 +419,8 @@
         "ipa": {
           "say": {
             "Slóeðla": "\"/ˈstlouːˌɛðla/\"",
-            "Slóeðlu": "\"/ˈstlouːˌɛðlʏ/\""
+            "Slóeðlu": "\"/ˈstlouːˌɛðlʏ/\"",
+            "slóeðlu": "\"/ˈstlouːˌɛðlʏ/\""
           },
           "note": "IPA /ˈstlouːˌɛðla/, með t-inu sem íslenskan setur í sl- eins og í „slá“ (óheyrt)."
         },
