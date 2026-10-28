@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createBook, halsOpen } from '../engine/book/book.js';
 import { renderMap } from '../engine/book/map-page.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
-import { parseManifest } from '../engine/book/media.js';
+import { parseManifest, imageSize } from '../engine/book/media.js';
 import { createJournal, FLIGHT_SECONDS } from '../engine/scene/journal.js';
 import { createBookAudio } from '../engine/book/book-audio.js';
 import { createCardViewer } from '../engine/book/card-viewer.js';
@@ -184,6 +184,16 @@ test('the book has a Kortið page with the found places', () => {
   assert.deepEqual(state('fen'), ['found', 'done'], 'the Fen is done with Þórseðla\'s star');
   tap(marker('fen'));
   assert.equal(narrated.at(-1), 'k2_mosi_map_fen');
+});
+
+test('the map\'s life layers are cut from the painting at its size', () => {
+  // the water and the mist (tools/map-life-layers.py) are pixels of map.webp, so each lies exactly over it
+  const size = path => imageSize(fs.readFileSync(new URL(`../assets/book/${path}`, import.meta.url)));
+  assert.deepEqual(size('map.webp'), { width: 1681, height: 936 }, 'the painting');
+  for (const layer of ['map-water.webp', 'map-mist.webp']) {
+    assert.ok(fs.existsSync(new URL(`../assets/book/${layer}`, import.meta.url)), `${layer} is there`);
+    assert.deepEqual(size(layer), { width: 1681, height: 936 }, `${layer} is the painting's size`);
+  }
 });
 
 const PIECES = ['a', 'b', 'c', 'd'];
