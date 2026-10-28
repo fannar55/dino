@@ -203,6 +203,10 @@ function killProfileProcesses(exe, userDir) {
 // largest draw-call and triangle counts seen. Reads window.__demoStats (the world's own per-frame debug copy).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; let last = '';
+  // Frame times while a script runs (shots re-solve, gestures, dashes), apart from the idle sample at the end.
+  window.__scenePerf = []; let previous = 0;
+  const tick = now => { const d = window.__demoStats; if (previous && d && d.scene && d.scene.busy) window.__scenePerf.push(now - previous); previous = now; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
   setInterval(() => {
     const m = window.__memory; if (!m) return;
     const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), na = document.getElementById('next-action');
@@ -518,6 +522,7 @@ async function main() {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
       report.renderMax = await ev('window.__max');
+      report.scenePerf = await ev(`(() => { const d = window.__scenePerf.slice(1), s = [...d].sort((a, b) => a - b); return d.length ? { frames: d.length, fps: +(1000 / (d.reduce((a, b) => a + b, 0) / d.length)).toFixed(1), p95ms: +s[Math.floor(s.length * .95)].toFixed(1), worstMs: +s[s.length - 1].toFixed(1) } : null; })()`);
     } catch (e) { report.perf = { error: e.message }; }
     if (o.video) {
       await send('Page.stopScreencast').catch(() => {});
