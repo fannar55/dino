@@ -24,6 +24,12 @@ const CELLS = [[-6.4, 2.8], [-2, 2.8], [2.4, 2.8], [-6.4, 7.2], [-2, 7.2], [2.4,
 const NESTS = [[-.8, -.4], [5.0, 6.0], [-6.4, -1.8]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
+// Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
+const MOSI_SPOT = Object.freeze({ x: -10.6, z: 5, heading: 0 });
+// The search view: low and from the side, as in the approved mock. Landscape looks in from the south-east
+// with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
+// fill the width, the rows fill the height and Mosi watches from the far end.
+const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.77, .64, 0] });
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const visibleStatus = value => ['open', 'revealed', 'selected', 'matched', 'found'].includes(value);
 const matchedStatus = value => ['matched', 'found'].includes(value);
@@ -68,7 +74,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
       return Math.max(bare, water, cameraCorridor ? 1 : 0);
     },
     shots: { board: SHOT },
-    actors: { mosi: { position: [-7.2, 0, 4.5], heading: 65 }, ...Object.fromEntries(CELLS.map(([x, z], i) => [`place${i}`, { position: [x, 0, z], heading: 90 }])) },
+    actors: { mosi: { position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading }, ...Object.fromEntries(CELLS.map(([x, z], i) => [`place${i}`, { position: [x, 0, z], heading: 90 }])) },
     lift(x, z) { return bridgeValley(x, z); },
   };
   const actors = new Map();
@@ -101,15 +107,30 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   const actorFrustum = new THREE.Frustum(), actorView = new THREE.Matrix4(), actorSphere = new THREE.Sphere();
   let cheerAge = 100, lastStats = {}, reducedMotion = false;
 
-  function gladeCue() {
+  // Mosi's standing place: his posed bounds (scaled rig, x forward) turned to his heading.
+  function mosiPoints() {
+    const heading = MOSI_SPOT.heading, yaw = -THREE.MathUtils.degToRad(heading), c = Math.cos(yaw), s = Math.sin(yaw), y0 = world.heightAt(MOSI_SPOT.x, MOSI_SPOT.z), points = [];
+    for (const lx of [-2, 2.17]) for (const lz of [-.65, .65]) for (const ly of [0, 2.1]) points.push([MOSI_SPOT.x + lx * c + lz * s, y0 + ly, MOSI_SPOT.z - lx * s + lz * c]);
+    return points;
+  }
+  function boardPoints() {
     const points = [];
     for (const [x, z] of CELLS) for (const dx of [-1.45, 1.45]) for (const dz of [-1.4, 1.4]) for (const y of [.03, 1.15]) points.push([x + dx, world.heightAt(x, z) + y, z + dz]);
+    return points;
+  }
+  function nestPoints() {
+    const points = [];
     for (const [x, z] of NESTS) for (const dx of [-1.85, 1.85]) for (const dz of [-1.1, 1.1]) points.push([x + dx, 1.6, z + dz]);
-    points.push([-10.3, 2, 9.3], [-7.2, 1.7, 11.8]);
-    return { key: 'glade', phase: 'memory', focus: [-1.5, .5, 3.2], points, scale: 'wide' };
+    return points;
+  }
+  // Every leaf and Mosi whole; the home spots only by their centres, so found pairs stay in view
+  // without pushing the camera back (the babies are what must read at this size).
+  function gladeCue() {
+    const points = [...boardPoints(), ...mosiPoints(), ...NESTS.map(([x, z]) => [x, world.heightAt(x, z) + 1.2, z])];
+    return { key: 'glade', phase: 'memory', focus: [-1.5, .5, 3.2], points, scale: 'wide', direction: width / height < 1 ? GLADE_VIEW.portrait : GLADE_VIEW.landscape };
   }
   function overviewCue() {
-    return { key: 'overview', phase: 'overview', focus: [0, .5, -10], scale: 'wide', points: [...gladeCue().points, [-2, 1.8, -30], [10.5, 2.4, -30], [-2, 1, -22], [11, 1, -22], [-1, 1.5, -14], [10, 1.5, -14]] };
+    return { key: 'overview', phase: 'overview', focus: [0, .5, -10], scale: 'wide', points: [...boardPoints(), ...nestPoints(), ...mosiPoints(), [-2, 1.8, -30], [10.5, 2.4, -30], [-2, 1, -22], [11, 1, -22], [-1, 1.5, -14], [10, 1.5, -14]] };
   }
   const cameraDirector = createCameraDirector({ camera, overview: overviewCue, fallback: gladeCue });
   const cameraCue = () => {
@@ -135,8 +156,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     renderer.setPixelRatio(Math.min(q.pixelRatio * resolution, globalThis.devicePixelRatio || 1, q.maxPixelRatio));
     renderer.setSize(width, height, false);
     camera.fov = SHOT.fov; cameraDirector.setViewport(width, height);
-    if (mosi) { const x = -8.8, z = 9.7; mosi.root.position.set(x, world.heightAt(x, z), z); }
-    if (mosiShade && mosi) mosiShade.position.copy(mosi.root.position).add(new THREE.Vector3(0, .095, 0));
+    if (mosi) mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading);
+    // The contact shade is long along its z: lay it along Mosi's body.
+    if (mosiShade && mosi) { mosiShade.position.copy(mosi.root.position).add(new THREE.Vector3(0, .095, 0)); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2; }
     lighting.focus(new THREE.Vector3(-.7, .6, -3.6), 15);
     forest?.update(0, time);
     updateTargets();
@@ -202,10 +224,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
       return route?.points ?? null;
     } });
     onProgress('Mosi kemur að hjálpa…');
-    mosi = await createActor(world, { name: 'mosi-memory', url: new URL('../../assets/characters/mosi.glb', import.meta.url).href, position: [-7.2, 0, 4.5], heading: 65 });
+    mosi = await createActor(world, { name: 'mosi-memory', url: new URL('../../assets/characters/mosi.glb', import.meta.url).href, position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading });
     mosi.root.scale.setScalar(.49); mosi.controlled = true; mosi.lookYawLimit = 25; mosi.lookUpLimit = 20; mosi.species = 'mosi'; measureActor(mosi);
     mosi.lookAt(camera.position, { weight: .38, maxAngle: 20 }); actors.set('mosi', mosi);
-    mosiShade = makeContact(contactResources, 2.6, 3.8); mosiShade.position.set(-7.2, world.heightAt(-7.2, 4.5) + .095, 4.5); scene.add(mosiShade);
+    mosiShade = makeContact(contactResources, 2.6, 3.8); mosiShade.position.set(MOSI_SPOT.x, world.heightAt(MOSI_SPOT.x, MOSI_SPOT.z) + .095, MOSI_SPOT.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2; scene.add(mosiShade);
     contactMeshes.push(mosiShade); contactMeshes.forEach(mesh => { mesh.visible = false; });
     contactBatch = new THREE.InstancedMesh(contactResources.geometry, contactResources.material, contactMeshes.length); contactBatch.frustumCulled = false; contactBatch.renderOrder = 8; scene.add(contactBatch);
     onProgress('Ungarnir finna felustaði…');
@@ -514,6 +536,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
       size: { width, height }, camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray() },
       babies: cells.filter(cell => cell.actor).map(cell => ({ cell: cell.index, species: cell.species, visible: cell.actor.root.visible, ...screenBox(skinPoints(cell.actor.model)) })),
       mosi: screenBox(skinPoints(mosi.model)),
+      homes: nests.map(nest => ({ index: nest.physicalIndex, ...screenBox([nest.root.position.clone().add(new THREE.Vector3(0, 1, 0))]) })),
       leaves: cells.filter(cell => !cell.moved).map(cell => ({ cell: cell.index, status: cell.status, ...screenBox(leafCorners.map(corner => corner.clone().applyMatrix4(cell.leaf.matrixWorld))) })),
     };
   }
