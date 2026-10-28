@@ -4,6 +4,7 @@ import { clone as cloneSkinned } from '../../../dist/vendor/SkeletonUtils.js';
 import { createEyelids } from '../eyelids.js';
 import { createFooting, QUADRUPED } from '../footing.js';
 import { measureWalkGait, gaitFoot } from './walk-gait.js';
+import { GESTURES, GESTURE_ALIASES } from './gestures.js';
 
 // Phase-one review: Triceratops is the authored baby mesh. The two other species
 // retain existing textured adult art temporarily, explicitly exposed in metadata.
@@ -50,6 +51,8 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       const clips = new Map(gltf.animations.map(c => [c.name.toLowerCase(), c]));
       const bone = name => model.getObjectByName(name) || model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
       const head = bone('Head'), jaw = bone('Jaw'), body = bone('Body'), shoulders = bone('Shoulders'), tail = bone('Tail1');
+      // The gesture rig: the long-necked adult rigs have Hips/Chest where the baby rig has Body/Shoulders.
+      const neck = bone('Neck'), rigBody = body || bone('Hips'), rigShoulders = shoulders || bone('Chest');
       const legs = ['FrontLeg.L','FrontLeg.R','BackLeg.L','BackLeg.R'].map(name=>({leg:bone(name),foot:bone(name.replace('Leg','Foot')),front:name.startsWith('Front')})).filter(pair=>pair.leg&&pair.foot);
       const supportBones=id==='brontosaurus' ? ['Hips','Spine','Chest','Neck','Neck2','Neck3','Neck4','Neck5','Head'].map(bone).filter(Boolean) : [];
       const copyPose=bones=>new Map(bones.map(b=>[b,{position:b.position.clone(),quaternion:b.quaternion.clone()}]));
@@ -105,15 +108,15 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       const footing=createFooting({root,rootFrame:true,legs:legs.map(pair=>({foot:pair.foot,girdle:pair.front?0:1})),pivotHeight,tuning:{...QUADRUPED,strideReach:.8,joinTime:[.05,.1,.12]}});
       const lids = createEyelids(model, { seed: `memory-${id}-${instance}` });
       let action = null, motion = 'idle', elapsed = 0, gesture = null, disposed = false;
+      let gestureFrom = 0;
       let motionAge=0, stance=0, pushYaw=0, reducedMotion=false, lookEnabled=false, lookWeight=0, lookWanted=.65, lookMaxAngle=18;
       let support=null;
       const lastPosition=root.position.clone();let travelSpeed=0,walkRate=0,walkDistance=0,footingMode=false;
       const lookTarget=new THREE.Vector3(), rootQ=new THREE.Quaternion(), parentQ=new THREE.Quaternion(), offsetQ=new THREE.Quaternion();
       const axisX=new THREE.Vector3(1,0,0),axisY=new THREE.Vector3(0,1,0),axisZ=new THREE.Vector3(0,0,1);
-      const gestures = { reveal: .72, greet: .95, nuzzle: .95, delight: .95, mismatch: .65, settle: .7 };
       // Restore the mixer's exact base pose before the next animation step.
       // Otherwise unkeyed legs and constant head tracks accumulate additives.
-      const additiveBones=[...new Set([head,jaw,body,shoulders,tail,...supportBones,...legs.flatMap(p=>[p.leg,p.foot])].filter(Boolean))];
+      const additiveBones=[...new Set([head,jaw,body,shoulders,tail,neck,rigBody,rigShoulders,...supportBones,...legs.flatMap(p=>[p.leg,p.foot])].filter(Boolean))];
       const basePose=new Map(additiveBones.map(b=>[b,{position:b.position.clone(),quaternion:b.quaternion.clone()}]));
       let basePoseActive=false;
       function restoreBasePose(){if(!basePoseActive)return;for(const [b,p]of basePose){b.position.copy(p.position);b.quaternion.copy(p.quaternion);}basePoseActive=false;}
@@ -179,9 +182,18 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(action) action.crossFadeTo(next,.16,false);
         action=next;
       }
+      // A gesture is laid over the current motion (idle or walk), so a friend can hop while it runs.
+      function startGesture(name){
+        const id=GESTURE_ALIASES[name]??name;
+        if(disposed||!GESTURES[id])return false;
+        gesture={name:id,t:0,duration:GESTURES[id].duration};gestureFrom=0;return true;
+      }
+      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length,crossed:at=>gestureFrom<at&&gesture.t>=at};
       function setMotion(name,options={}) {
         if(disposed) return;
-        if(name===motion&&!gestures[name])return;
+        // The older gesture names start the matching gesture over a still stance.
+        if(GESTURE_ALIASES[name]){setMotion('idle',options);startGesture(name);return;}
+        if(name===motion)return;
         if(name==='reach-walk')beginSupport('reach',{...options,walking:true});
         else if(['reach','lift','hold','release'].includes(name))beginSupport(name,options);
         else if(support&&support.mode!=='release')beginSupport('release',{duration:name==='walk'?.18:.45});
@@ -190,8 +202,8 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(walking){lastPosition.copy(root.position);footing.restore();footing.reset();footingMode=true;}
         else if(footingMode){footing.restore();footing.stand();footingMode=false;}
         if(name==='brace'||name==='push')lookEnabled=false;
-        if(gestures[name]) { gesture={name,t:0,duration:gestures[name]};play('idle'); }
-        else {gesture=null;play(name==='walk'||name==='reach-walk'?'walk':'idle');}
+        if(['brace','push','reach','lift','hold','release','sleep'].includes(name))gesture=null;
+        play(name==='walk'||name==='reach-walk'?'walk':'idle');
         if(walking)footing.walk(gait?{foot:(k,out)=>gaitFoot(gait,action.time/gait.cycle,k,out),stance:()=>gait.duty*gait.cycle/Math.max(.15,Math.abs(walkRate))}:null);
         if(name==='sleep') lids?.blink.rest(.55,.35); else lids?.blink.rest(0,.2);
       }
@@ -200,6 +212,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         root, model, species: id, name: art.name, isBaby: art.isBaby, noseLocal, supportLocal,
         setMotion,
         reveal() { root.visible=true;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
+        gesture(name) { return startGesture(name); },
         conceal() { root.visible=false; gesture=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
         walk(active=true) { setMotion(active?'walk':'idle'); },
         greet() { setMotion('greet'); },
@@ -249,33 +262,6 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           const effort=motion==='push'&&!reducedMotion ? .84+.16*Math.sin(motionAge/.85*Math.PI*2) : 1;
           applyStance(stance*effort);
           rotateInRoot(head,axisY,pushYaw);
-          if(gesture) {
-            gesture.t=Math.min(gesture.duration,gesture.t+dt);
-            const t=gesture.t/gesture.duration, pulse=Math.sin(Math.PI*t);
-            if(gesture.name==='reveal') {
-              if(head) head.rotateX(.14*pulse*(reducedMotion ? .3 : 1));
-              if(jaw) jaw.rotateX(.065*pulse);
-              pose.position.y=reducedMotion?0:.035*Math.sin(Math.PI*t);
-            } else if(gesture.name==='greet') {
-              if(head) head.rotateX(.21*Math.sin(Math.PI*t*2)*pulse*(reducedMotion ? .3 : 1));
-              if(jaw) jaw.rotateX(.07*pulse);
-            } else if(gesture.name==='nuzzle') {
-              if(head) head.rotateX(.06*pulse*(reducedMotion ? .3 : 1));
-              if(t>.35&&t<.55)lids?.blink.blink();
-            } else if(gesture.name==='delight') {
-              const energy=reducedMotion ? .25 : 1;
-              rotateInRoot(head,axisZ,.08*pulse*energy);
-              rotateInRoot(head,axisX,.06*Math.sin(4*Math.PI*t)*pulse*energy);
-              rotateInRoot(tail,axisY,.17*Math.sin(4*Math.PI*t)*pulse*energy);
-              if(jaw)jaw.rotateX(.06*pulse);
-              if(t>.32&&t<.46)lids?.blink.blink();
-            } else if(gesture.name==='mismatch') {
-              if(head) head.rotateZ(.16*pulse*(reducedMotion ? .3 : 1));
-            } else if(gesture.name==='settle') {
-              pose.position.y=reducedMotion?0:-.015*pulse;
-            }
-            if(t===1) {gesture=null;motion='idle';}
-          }
           lookWeight+=( (lookEnabled?lookWanted:0)-lookWeight)*(1-Math.exp(-dt/.22));
           if(head&&lookWeight>.001){
             root.updateMatrixWorld(true);
@@ -295,6 +281,13 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           // Work contacts keep their authored planted pose. Ordinary locomotion
           // uses the same planted-foot solver as Mosi, including bends and stops.
           if(walking){footing.update(dt);}
+          // Gestures go last, over the look and the planted feet: a hop lifts the whole friend, feet too.
+          if(gesture){
+            gestureFrom=gesture.t;gesture.t=Math.min(1,gesture.t+dt/gesture.duration);
+            const current=gesture;GESTURES[current.name].apply(rig,current.t,reducedMotion?.3:1);
+            if(gesture===current&&current.t>=1)gesture=null;
+            root.updateMatrixWorld(true);
+          }
         },
         getDebugState() { return {species:id,isBaby:art.isBaby,motion,elapsed,gesture:gesture?.name || null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
         dispose() {
