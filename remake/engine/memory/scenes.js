@@ -7,8 +7,10 @@
  * A line is { at, shot?, act?, fx?, sound?, say?, wait? }. perform(line) runs every key except `wait`
  * (the world decides what they mean). `wait = { tap, count, timeout, onTap?(i), onTimeout?() }` stops
  * that script's clock until `count` taps on `tap` or until `timeout` seconds have passed; either way the
- * script then goes on. Lines due at a script's start run inside play(). update(dt) with dt <= 0 (a paused
- * or hidden game) changes nothing. cancelAll() drops every script without calling its onDone.
+ * script then goes on. A wait can instead (or also) give `until: () => boolean`, checked on every game
+ * tick, for the world's own events (friends arrived home); such a wait is not a tap target and
+ * waiting() does not report it. Lines due at a script's start run inside play(). update(dt) with dt <= 0
+ * (a paused or hidden game) changes nothing. cancelAll() drops every script without calling its onDone.
  */
 export function createSceneRunner({ perform = () => {} } = {}) {
   let scripts = [], nextId = 1;
@@ -19,8 +21,8 @@ export function createSceneRunner({ perform = () => {} } = {}) {
     if (performs(line)) perform(line, script.id);
     if (script.cancelled) return;
     if (line.wait) {
-      const { tap = '', count = 1, timeout = Infinity } = line.wait;
-      script.wait = { spec: line.wait, tap: String(tap), count: Math.max(1, Math.floor(count) || 1), timeout: Math.max(0, Number(timeout) || 0), taps: 0, elapsed: 0 };
+      const { tap = null, count = 1, timeout = Infinity, until = null } = line.wait;
+      script.wait = { spec: line.wait, tap: tap == null ? null : String(tap), until: typeof until === 'function' ? until : null, count: Math.max(1, Math.floor(count) || 1), timeout: Math.max(0, Number(timeout) || 0), taps: 0, elapsed: 0 };
     }
   }
 
@@ -33,7 +35,9 @@ export function createSceneRunner({ perform = () => {} } = {}) {
   function advance(script, available) {
     while (!script.cancelled) {
       if (script.wait) {
-        const wait = script.wait, need = wait.timeout - wait.elapsed;
+        const wait = script.wait;
+        if (wait.until && available > 0 && wait.until()) { script.wait = null; continue; }
+        const need = wait.timeout - wait.elapsed;
         if (available + EPSILON < need) { wait.elapsed += available; return; }
         available = Math.max(0, available - Math.max(0, need)); wait.elapsed = wait.timeout; script.wait = null;
         wait.spec.onTimeout?.();
@@ -64,7 +68,7 @@ export function createSceneRunner({ perform = () => {} } = {}) {
     },
     /** A tap on `target`. True when a waiting script took it. */
     tap(target) {
-      const script = scripts.find(value => !value.cancelled && value.wait?.tap === target);
+      const script = target != null && scripts.find(value => !value.cancelled && value.wait?.tap === target);
       if (!script) return false;
       const wait = script.wait, index = wait.taps++;
       if (wait.taps >= wait.count) script.wait = null;
@@ -74,7 +78,7 @@ export function createSceneRunner({ perform = () => {} } = {}) {
     },
     /** The first script that waits for taps: what to tap, how many taps are still needed, seconds left. */
     waiting() {
-      const wait = scripts.find(value => value.wait)?.wait;
+      const wait = scripts.find(value => value.wait?.tap != null)?.wait;
       return wait ? { target: wait.tap, count: wait.count - wait.taps, left: Math.max(0, wait.timeout - wait.elapsed) } : null;
     },
     cancel(id) {

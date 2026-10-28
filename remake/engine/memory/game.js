@@ -60,6 +60,13 @@ function reflectJourney() {
     step.querySelector('b').textContent = done[index] ? '✓' : String(index + 1);
   });
 }
+// What a script asked to be heard. The world never touches audio; game.js does.
+function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
+  if (name === 'reveal') audio.reveal(species, index);
+  else if (name === 'call') audio.nest(species, index);
+  else if (name === 'match') audio.match(species, nestIndex);
+  else if (name === 'conceal') audio.conceal();
+}
 function cameraState() { return world?.getCameraState?.() ?? world?.getDebug().camera ?? { mode: 'auto', moving: false, worldInputEnabled: true }; }
 function setCameraMode(mode) {
   if (!world || !['auto', 'overview'].includes(mode)) return;
@@ -71,7 +78,8 @@ function targetAvailable(type, id) {
   return world.getTargets().some(target => target.type === type && (type === 'nest' ? target.index : target.id) === id && target.enabled !== false);
 }
 function guidance() {
-  if (time < captionUntil) return;
+  // While a script holds the camera its own caption stays up (the child cannot act on a new hint yet).
+  if (time < captionUntil || cameraState().held) return;
   const story = currentStory(); caption(pendingIntent ? 'Komið, hjálpumst að!' : story.prompt);
   $('coach').dataset.tone = story.kind === 'action' ? 'action' : story.kind === 'celebrate' ? 'celebrate' : 'hint';
   if (bridge.getState().visited && !held()) speech.queue('won', { delay: .35 });
@@ -99,7 +107,7 @@ function requestStoryAction() {
 function updateStory(dt) {
   const story = currentStory(), camera = cameraState();
   if (captionUntil > 0 && time >= captionUntil) { captionUntil = 0; storyKey = ''; }
-  if (storyKey !== story.key && time >= captionUntil) { storyKey = story.key; guidance(); }
+  if (storyKey !== story.key && time >= captionUntil && !camera.held) { storyKey = story.key; guidance(); }
   if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) return;
   if (pendingIntent) { launchAction(pendingIntent.action); return; }
   if (story.automatic && story.available && blockedAuto !== story.action) {
@@ -122,13 +130,15 @@ function reflectEnding() {
 function accept(events) {
   for (const event of events) {
     if (event.type === 'reveal') {
-      const id = event.ids[0]; world.reveal(id); speech.stop(); audio.reveal(event.species, id);
+      // The leaf and the friend's call come from the reveal script (scene-sound below).
+      const id = event.ids[0]; world.reveal(id); speech.stop();
       caption(`${roster[event.species]}! Hvar er vinur hans?`, .8);
     } else if (event.type === 'conceal') {
       world.conceal(event.ids); audio.conceal(); caption('Úps! Kíkjum annars staðar.', .65);
     } else if (event.type === 'match') {
-      world.match(event.ids, event.nestIndex, event.species); audio.match(event.species, event.nestIndex);
-      nestSpecies[event.nestIndex] = event.species; caption('Já! Vinirnir fundu hvor annan!', 1.4); speech.play('match');
+      // The match script plays the chime, the call and Mosi's line at their moments (scene-sound, scene-say).
+      world.match(event.ids, event.nestIndex, event.species);
+      nestSpecies[event.nestIndex] = event.species; caption('Já! Vinirnir fundu hvor annan!', 3.4);
       if (bridge.unlock(event.species)) syncBridge();
     } else if (event.type === 'won') {
       guidance(); reflectEnding();
@@ -192,7 +202,7 @@ function refreshControls() {
   const next = $('next-action');
   if (next) {
     next.hidden = !started || !story.available || Boolean(task.active || pendingIntent) || overview || Boolean(story.automatic && blockedAuto !== story.action) || !betweenTurns();
-    next.disabled = held() || camera.moving;
+    next.disabled = held() || camera.moving || Boolean(camera.held);
     $('next-action-label').textContent = story.label ?? 'Áfram!';
     next.dataset.action = story.action ?? '';
   }
@@ -250,6 +260,7 @@ function refreshControls() {
 function start({ restart = false } = {}) {
   if (!world) return;
   for (const dialog of dialogs) if (dialog.open) dialog.close();
+  // setBoard cancels every running script, shot and gesture before the new board is laid out.
   if (restart) { game.restart(); bridge.restart(); celebrated = false; nestSpecies.length = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   pendingIntent = null; autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0;
@@ -286,7 +297,9 @@ function frame(timestamp) {
     audio.duck?.(voice); audio.river(!frozen, voice || action);
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollBridgeEvents()) {
-      if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
+      if (event.type === 'scene-sound') playSceneSound(event);
+      else if (event.type === 'scene-say') speech.play(event.line);
+      else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'branch-lift') { audio.branchLift(); speech.queue('lift', { delay: .12 }); }
       else if (event.type === 'branch-lower') audio.branchLower();
       else if (event.type === 'log-roll') { audio.logRoll(); speech.queue('roll', { delay: .12 }); }

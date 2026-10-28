@@ -205,11 +205,12 @@ const TIMELINE_JS = `(() => {
     window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
     const caption = document.getElementById('caption')?.textContent || '', button = na.hidden ? null : na.textContent.trim();
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, button].join('|');
+    const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy);
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, button, shot, scene].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), button });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), button, shot, scene });
     }
   }, 100);
 })()`;
@@ -222,7 +223,7 @@ const SNAPSHOT_JS = `(() => {
   return {
     phase: s.phase, matched: s.matchedPairs, paused: s.paused,
     cards: s.cards.map(c => ({ id: c.id, species: c.species, status: c.status })),
-    bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving) },
+    bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving), held: Boolean(cam.held), shot: cam.shot || null }, scene: Boolean(d.scene && d.scene.busy),
     work: { visible: !na.hidden, disabled: na.disabled, action: na.dataset.action || '', label: na.textContent.trim() },
     cancel: !cancel.hidden && !cancel.disabled,
     enabled: buttons.filter(x => !x.disabled).map(x => x.dataset.target),
@@ -374,7 +375,11 @@ async function main() {
       seen.add(key);
       if (!shots) return false;
       if (delayMs) await sleep(delayMs);
+      // A capture takes a second or more here. Without a video the game is paused for it (the game clock
+      // stops, as it does for a child's pause), so the picture is the moment it is named after.
+      if (!o.video) await ev('window.__memory.pause(true)');
       await shot(name);
+      if (!o.video) await ev('window.__memory.pause(false)');
       return true;
     };
     const first = await ev(SNAPSHOT_JS);
@@ -404,12 +409,13 @@ async function main() {
       if (Date.now() - roundStart > limitMs) { report.stalled = `over the ${o.limit} minute limit`; step('TIMEOUT round limit'); break; }
       const s = await ev(SNAPSHOT_JS);
       const progress = [s.phase, s.matched, s.bridge.active, s.bridge.branch, s.bridge.bridgeBuilt, s.bridge.atStaging, s.bridge.boardwalkBuilt, s.bridge.visited,
-        s.bridge.selected, s.work.visible, s.work.action, s.cam.moving, s.walking].join('|');
+        s.bridge.selected, s.work.visible, s.work.action, s.cam.moving, s.cam.held, s.cam.shot, s.scene, s.walking].join('|');
       if (progress !== lastKey) { lastKey = progress; lastProgress = Date.now(); }
       if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
 
       if (s.ending) { report.finished = true; step('ending'); await sleep(1500); await shot('ending'); break; }
-      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving) {
+      // The match script holds the camera until it has glided back to the glade.
+      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home');
         // After the match script has glided back, the search view must be the frame it was before.
         report.gladeAfter = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
@@ -421,8 +427,15 @@ async function main() {
       // Milestone pictures. Waiting for one makes the snapshot stale, so the loop starts over after it.
       let waited = false;
       if (s.phase === 'one-open') waited ||= await milestone('one-open', 'first-reveal', 350);
+      // The first friend waiting alone wonders (from 1.3 s after its leaf opened).
+      if (s.phase === 'one-open' && seen.has('one-open')) waited ||= await milestone('wonder', 'wonder', 1300);
       if (s.phase === 'mismatch') waited ||= await milestone('mismatch', 'mismatch', 400);
-      if (s.matched > 0) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 900);
+      if (s.phase === 'mismatch' && seen.has('mismatch')) waited ||= await milestone('mismatch-duck', 'mismatch-duck', 350);
+      // The match script: the face cut (startle), then the run and nuzzle, then the wide cut home.
+      if (s.cam.shot === 'face') waited ||= await milestone('match-closeup', 'match-closeup', 150);
+      if (s.cam.shot === 'face' && seen.has('match-closeup')) waited ||= await milestone('run-together', 'run-together', 450);
+      if (s.cam.shot === 'wide') waited ||= await milestone('match-wide', 'match-wide', 700);
+      if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);
       if (s.work.visible && !s.work.disabled) waited ||= await milestone(`work-${s.work.action}`, `work-offered-${s.work.action || 'next'}`);
       if (s.bridge.active) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
@@ -440,7 +453,7 @@ async function main() {
         continue;
       }
 
-      const mayAct = !s.paused && !s.cam.moving && !s.bridge.active;
+      const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
       const leaf = id => id !== undefined && s.enabled.includes(`leaf-${id}`);
       if (o.mode === 'first-minute' && s.matched >= 1) {
         // The first pair is found: wait for its friends to walk home, and pick nothing more.

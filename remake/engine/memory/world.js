@@ -19,6 +19,9 @@ import { createWorldFx } from './world-fx.js';
 import { measureActor, actorCollisionSnapshot, bridgeCollisionObjects } from './memory-clearance.js';
 import { createHomeNavigation, homeTravelProgress, sampleHomeTravel } from './world-home-nav.js';
 import { createForestVisibility } from './world-forest-visibility.js';
+import { createSceneRunner } from './scenes.js';
+import { createMosiPuppet } from './mosi-puppet.js';
+import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js';
 
 const CELLS = [[-6.4, 2.8], [-2, 2.8], [2.4, 2.8], [-6.4, 7.2], [-2, 7.2], [2.4, 7.2]];
 const NESTS = [[-.8, -.4], [5.0, 6.0], [-6.4, -1.8]];
@@ -31,6 +34,7 @@ const MOSI_SPOT = Object.freeze({ x: -10.6, z: 5, heading: 0 });
 // fill the width, the rows fill the height and Mosi watches from the far end.
 const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.77, .64, 0] });
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
 const visibleStatus = value => ['open', 'revealed', 'selected', 'matched', 'found'].includes(value);
 const matchedStatus = value => ['matched', 'found'].includes(value);
 const actorScale = actor => actor.species === 'brontosaurus' ? 1.2 : 1;
@@ -81,7 +85,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
   world.resolvePoint = createPointResolver(world); world.points = world.resolvePoint;
   let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0;
-  let forest, forestVisibility, floor, gladeScenery, mosi, mosiShade, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure;
+  let forest, forestVisibility, floor, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure;
   const leafResources = createLeafResources(), contactResources = createContactResources();
   leafResources.geometry.computeBoundingBox();
   const leafCorners = [], footBones = new WeakMap(), actorIds = new WeakMap(), leafBox = leafResources.geometry.boundingBox;
@@ -133,6 +137,97 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     return { key: 'overview', phase: 'overview', focus: [0, .5, -10], scale: 'wide', points: [...boardPoints(), ...nestPoints(), ...mosiPoints(), [-2, 1.8, -30], [10.5, 2.4, -30], [-2, 1, -22], [11, 1, -22], [-1, 1.5, -14], [10, 1.5, -14]] };
   }
   const cameraDirector = createCameraDirector({ camera, overview: overviewCue, fallback: gladeCue });
+  // Scripts (scenes.js) run on the game clock. Their lines say what to do; this is where it happens.
+  const call = value => typeof value === 'function' ? value() : value;
+  const scenes = createSceneRunner({ perform(line) {
+    if (line.shot?.release) cameraDirector.release({ cut: line.shot.cut, duration: line.shot.duration });
+    else if (line.shot?.nudge) cameraDirector.nudge(call(line.shot.nudge), line.shot.amount ?? .06, line.shot.seconds ?? .5);
+    else if (line.shot) cameraDirector.shot(line.shot);
+    for (const act of [line.act ?? []].flat()) act();
+    for (const effect of [line.fx ?? []].flat()) {
+      if (effect.kind === 'shake') cameraDirector.shake(effect.strength, effect.seconds);
+      else fx.emit(effect.kind, call(effect.at), { count: effect.count, strength: effect.strength ?? 1 });
+    }
+    for (const sound of [line.sound ?? []].flat()) deferredEvents.push({ type: 'scene-sound', ...(typeof sound === 'string' ? { name: sound } : sound) });
+    if (line.say) deferredEvents.push({ type: 'scene-say', line: line.say });
+  } });
+  const nose = cell => cell.actor.getNosePosition(new THREE.Vector3());
+  const stage = {
+    head: nose,
+    camera: () => camera.position.clone(),
+    look(cell, point, options) { if (point) cell.actor.lookAt(point, options); else cell.actor.clearLook(); },
+    gesture: (cell, name) => cell.actor.gesture(name),
+    mosi: {
+      look(point) { mosi.lookAt(point.clone(), { weight: .6, maxAngle: 28 }); },
+      gesture: name => mosiPuppet.gesture(name),
+      head: () => mosi.headPosition(new THREE.Vector3()),
+    },
+    planMeeting,
+    sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) cell.transfer = { age: 0, waiting: true, retry: cell.home.member * .14, nest: cell.home.nest, end: cell.home.end, member: cell.home.member, endYaw: cell.home.nest.restYaw, queuedAt: time }; },
+    home: cell => cell.moved,
+    forceHome(cell) {
+      if (cell.moved || !cell.home) return;
+      cell.dash = null; cell.transfer = null; homeNav.release(cell.actor);
+      cell.actor.root.position.copy(cell.home.end); cell.actor.root.rotation.y = cell.home.nest.restYaw;
+      cell.actor.walk?.(false); cell.actor.greet?.(); cell.moved = true; cell.home.nest.pulse = 0;
+    },
+    homePoint: cell => (cell.home?.nest.root.position ?? cell.root.position).clone().add(new THREE.Vector3(0, .9, 0)),
+    homeEnd: cell => (cell.home?.end ?? cell.root.position).clone(),
+    // Turn to show the face: three-quarters toward the camera, a little to the friend's own side.
+    faceCamera(cell) {
+      const toward = camera.position.clone().sub(cell.actor.root.position).setY(0), yaw = Math.atan2(-toward.z, toward.x);
+      cell.faceYaw = turnToward(yaw, cell.actor.root.rotation.y, .35);
+    },
+    // A camera beside a walk, on the search camera's side of it: the walkers in profile, not from behind.
+    sideOn(from, to) {
+      const travel = to.clone().sub(from).setY(0), front = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize();
+      if (travel.lengthSq() < 1e-4) return front;
+      const side = new THREE.Vector3(travel.z, 0, -travel.x).normalize();
+      return (side.dot(front) < 0 ? side.negate() : side).lerp(front, .3).normalize();
+    },
+  };
+
+  // Where two friends meet nose to nose: across the screen, so the face shot sees both in profile,
+  // in the open between leaves. Each runs there along a straight line on the game clock.
+  function planMeeting(a, b) {
+    const front = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize(), side = new THREE.Vector3(front.z, 0, -front.x);
+    if (side.dot(b.actor.root.position.clone().sub(a.actor.root.position)) < 0) side.negate();
+    const reach = cell => cell.actor.noseLocal.x * actorScale(cell.actor) + .03;
+    const others = cells.filter(cell => cell !== a && cell !== b && !cell.moved && !matchedStatus(cell.status));
+    const clearance = point => Math.min(Infinity, ...others.map(cell => Math.hypot(point.x - cell.root.position.x, point.z - cell.root.position.z)));
+    const middle = a.actor.root.position.clone().add(b.actor.root.position).multiplyScalar(.5);
+    let point = middle, best = -Infinity;
+    for (const k of [0, 1.1, 2.2, -1.1, 3.1, -2.2]) {
+      const candidate = middle.clone().addScaledVector(front, k), spots = [candidate.clone().addScaledVector(side, -reach(a)), candidate.clone().addScaledVector(side, reach(b))];
+      const room = Math.min(clearance(candidate), ...spots.map(clearance)) - Math.abs(k) * .15;
+      if (room > best + 1e-6) { best = room; point = candidate; }
+      if (clearance(candidate) >= 2.1 && Math.min(...spots.map(clearance)) >= 1.7) { point = candidate; break; }
+    }
+    const yawA = Math.atan2(-side.z, side.x), plan = [
+      { cell: a, to: point.clone().addScaledVector(side, -reach(a)), yaw: yawA },
+      { cell: b, to: point.clone().addScaledVector(side, reach(b)), yaw: yawA + Math.PI },
+    ];
+    for (const spot of plan) spot.to.y = world.heightAt(spot.to.x, spot.to.z) + .085;
+    const distance = Math.max(...plan.map(spot => spot.to.distanceTo(spot.cell.actor.root.position)));
+    const duration = THREE.MathUtils.clamp(distance / 3.4, .5, 1.05);
+    const meetPoint = point.clone().setY(Math.max(...plan.map(spot => spot.cell.actor.noseLocal.y * actorScale(spot.cell.actor))) + point.y);
+    return {
+      point: meetPoint, duration,
+      start() { for (const spot of plan) { const actor = spot.cell.actor; spot.cell.away = true; spot.cell.dash = { from: actor.root.position.clone(), fromYaw: actor.root.rotation.y, to: spot.to, yaw: spot.yaw, age: 0, duration }; actor.walk?.(true); } },
+      finish() { for (const spot of plan) { const actor = spot.cell.actor; spot.cell.dash = null; spot.cell.away = true; actor.root.position.copy(spot.to); actor.root.rotation.y = spot.yaw; actor.walk?.(false); } },
+    };
+  }
+  function updateDash(cell, dt) {
+    const dash = cell.dash, actor = cell.actor; if (!dash || !(dt > 0)) return;
+    dash.age = Math.min(dash.duration, dash.age + dt);
+    const t = dash.age / dash.duration, eased = smooth(t), heading = dash.to.clone().sub(dash.from).setY(0);
+    actor.root.position.lerpVectors(dash.from, dash.to, eased);
+    if (heading.lengthSq() < 2.2 * 2.2) actor.root.rotation.y = turnToward(dash.fromYaw, dash.yaw, smooth(t / .55));
+    else { const travelYaw = Math.atan2(-heading.z, heading.x); actor.root.rotation.y = t < .7 ? turnToward(dash.fromYaw, travelYaw, smooth(t / .25)) : turnToward(travelYaw, dash.yaw, smooth((t - .7) / .3)); }
+    if (t >= 1) { actor.root.position.copy(dash.to); actor.root.rotation.y = dash.yaw; actor.walk?.(false); cell.dash = null; }
+  }
+  const sceneIds = new Map();
+  function playFor(cell, lines) { if (sceneIds.has(cell)) scenes.cancel(sceneIds.get(cell)); sceneIds.set(cell, scenes.play(lines)); }
   const cameraCue = () => {
     const cue = adventure?.getCameraCue?.(); if (!cue || cue.key === 'glade') return gladeCue();
     if (cue.key === 'branch') return { ...cue, points: [...cue.points, [-10.2, 2.3, -5.0], [-10.2, 0, -1.8]], direction: [.85, .9, .35] };
@@ -227,6 +322,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     mosi = await createActor(world, { name: 'mosi-memory', url: new URL('../../assets/characters/mosi.glb', import.meta.url).href, position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading });
     mosi.root.scale.setScalar(.49); mosi.controlled = true; mosi.lookYawLimit = 25; mosi.lookUpLimit = 20; mosi.species = 'mosi'; measureActor(mosi);
     mosi.lookAt(camera.position, { weight: .38, maxAngle: 20 }); actors.set('mosi', mosi);
+    mosiPuppet = createMosiPuppet(mosi);
     mosiShade = makeContact(contactResources, 2.6, 3.8); mosiShade.position.set(MOSI_SPOT.x, world.heightAt(MOSI_SPOT.x, MOSI_SPOT.z) + .095, MOSI_SPOT.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2; scene.add(mosiShade);
     contactMeshes.push(mosiShade); contactMeshes.forEach(mesh => { mesh.visible = false; });
     contactBatch = new THREE.InstancedMesh(contactResources.geometry, contactResources.material, contactMeshes.length); contactBatch.frustumCulled = false; contactBatch.renderOrder = 8; scene.add(contactBatch);
@@ -256,6 +352,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   }
 
   function resetBoard(cards) {
+    scenes.cancelAll(); sceneIds.clear(); mosiPuppet?.cancel();
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
     for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(actorScale(actor)); actor.walk?.(false); actor.setMotion?.('idle'); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
@@ -265,13 +362,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
       const actorIndex = available.findIndex(actor => actor.species === card.species);
       if (actorIndex < 0) throw new Error(`Missing baby for ${card.species}.`);
       const actor = available.splice(actorIndex, 1)[0];
-      Object.assign(cell, { id: card.id, species: card.species, status: card.status ?? 'hidden', actor, targetOpen: 0, open: 0, revealAge: 100, transfer: null, moved: false });
+      Object.assign(cell, { id: card.id, species: card.species, status: card.status ?? 'hidden', actor, targetOpen: 0, open: 0, revealAge: 100, transfer: null, moved: false, dash: null, away: false, home: null, wonderAt: 0, faceYaw: null, hideYaw: 0 });
       cell.leaf.visible = true; cell.leaf.rotation.set(0, 0, 0); cell.leaf.scale.setScalar(1); cell.shade.visible = false;
       actor.root.position.copy(cell.root.position); actor.root.position.y += .085;
       // The Triceratops beak points 21° across its body; its own turn restores
       // a welcoming three-quarter face while the two long-bodied species show profile.
-      actor.root.rotation.y = card.species === 'triceratops' ? -Math.PI * .39 : -Math.PI / 5;
-      actor.root.visible = false; byId.set(card.id, cell);
+      actor.root.rotation.y = cell.hideYaw = card.species === 'triceratops' ? -Math.PI * .39 : -Math.PI / 5;
+      actor.clearLook?.(); actor.root.visible = false; byId.set(card.id, cell);
       cell.hit.userData.memory.id = card.id;
     });
   }
@@ -291,17 +388,22 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   }
 
   function reveal(id) {
-    const cell = byId.get(id); if (!cell || cell.moved || cell.transfer) return false;
-    cell.status = 'revealed'; cell.targetOpen = 1; cell.revealAge = 0;
+    const cell = byId.get(id); if (!cell || cell.moved || cell.transfer || cell.away) return false;
+    const other = cells.find(value => value !== cell && value.status === 'revealed' && !value.away);
+    cell.status = 'revealed'; cell.targetOpen = 1; cell.revealAge = 0; cell.wonderAt = 1.3;
     cell.actor.reveal?.(); cell.actor.root.visible = true;
-    mosi.lookAt(cell.actor.root.position.clone().add(new THREE.Vector3(0, .45, 0)), { weight: .48, maxAngle: 26 });
+    playFor(cell, revealScene(stage, cell, { second: Boolean(other) }));
+    // A different friend under the second leaf: both react before the leaves close.
+    if (other && other.species !== cell.species) scenes.play(mismatchScene(stage, other, cell));
     return true;
   }
 
   function conceal(ids) {
     for (const id of ids) {
-      const cell = byId.get(id); if (!cell || cell.moved || cell.transfer) continue;
-      cell.status = 'hidden'; cell.targetOpen = 0; cell.actor.mismatch?.();
+      const cell = byId.get(id); if (!cell || cell.moved || cell.transfer || cell.away) continue;
+      // The friends already said "oops" (mismatchScene); they only duck under the closing leaf.
+      cell.status = 'hidden'; cell.targetOpen = 0; cell.actor.clearLook?.(); cell.faceYaw = cell.hideYaw;
+      if (!cell.actor.getDebugState?.().gesture) cell.actor.gesture?.('settle');
     }
   }
 
@@ -317,13 +419,16 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     logicalToPhysical[nestIndex] = physicalIndex; logicalToPhysical[oldLogical] = displaced;
     nests.forEach(value => { value.index = logicalToPhysical.indexOf(value.physicalIndex); });
     nest.species = species; nest.members = []; nest.reunited = false;
+    const pair = [];
     ids.forEach((id, member) => {
       const cell = byId.get(id); if (!cell || cell.moved || cell.transfer) return;
       cell.status = 'matched'; cell.targetOpen = 1; cell.actor.root.visible = true;
-      const start = cell.actor.root.position.clone(), end = nest.root.position.clone().add(nest.restOffsets[member]);
-      cell.transfer = { age: 0, waiting: true, retry: member * .14, nest, end, member, endYaw: nest.restYaw, queuedAt: time };
-      cell.actor.walk?.(false); cell.actor.setMotion?.('idle'); nest.members.push(cell.actor); fx.emit('match',start,{count:18,strength:1});
+      // The walk home starts when the script says (matchScene: after the nuzzle).
+      cell.home = { nest, member, end: nest.root.position.clone().add(nest.restOffsets[member]) };
+      cell.actor.walk?.(false); cell.actor.setMotion?.('idle'); nest.members.push(cell.actor); pair.push(cell);
     });
+    if (pair.length === 2) { for (const cell of pair) { scenes.cancel(sceneIds.get(cell)); sceneIds.delete(cell); } scenes.play(matchScene(stage, pair[0], pair[1], { nestIndex })); }
+    else pair.forEach(cell => stage.sendHome(cell));
     mosi.blink(); return true;
   }
 
@@ -376,17 +481,26 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     const actionDelta = focusHold ? 0 : delta;
     const homeDelta = adventure.isBusy() ? 0 : delta;
     if (delta > 0) homeNav.pump(cells.some(cell => cell.transfer?.waiting) ? 6 : 3);
+    scenes.update(delta);
+    // One friend waits under an open leaf: it wonders where its friend is, again and again.
+    const waitingAlone = cells.filter(cell => cell.status === 'revealed' && !cell.away);
+    if (waitingAlone.length === 1 && delta > 0) {
+      const cell = waitingAlone[0]; cell.wonderAt -= revealDelta;
+      if (cell.wonderAt <= 0) { if (!cell.actor.getDebugState?.().gesture) cell.actor.gesture('wonder'); cell.wonderAt = 2.7; }
+    }
     for (const cell of cells) {
       const before = cell.open, step = !(delta > 0) || cameraTravel ? 0 : reducedMotion ? 1 : revealDelta / .25;
       cell.open += THREE.MathUtils.clamp(cell.targetOpen - cell.open, -step, step);
       const opening = smooth(cell.open); cell.leaf.rotation.x = -opening * 2.7;
       cell.leaf.rotation.z = Math.sin(opening * Math.PI) * .055;
       cell.leaf.scale.setScalar(cell.moved ? 0 : 1 - opening * .65);
-      if (cell.actor && !cell.moved && !cell.transfer) {
+      if (cell.dash) updateDash(cell, delta);
+      if (cell.actor && !cell.moved && !cell.transfer && !cell.away) {
         cell.actor.root.visible = cell.open > .17;
         if (cell.open > 0) cell.revealAge += revealDelta;
-        // Small grounded rise; no whole-character squash or teleporting.
-        cell.actor.root.position.y = cell.root.position.y + .085 + (reducedMotion ? 0 : Math.sin(Math.min(1, cell.revealAge / .45) * Math.PI) * .09);
+        // The spring out of the leaf is the friend's own peek gesture; the root stays on the ground.
+        cell.actor.root.position.y = cell.root.position.y + .085;
+        if (cell.faceYaw != null && delta > 0) cell.actor.root.rotation.y = turnToward(cell.actor.root.rotation.y, cell.faceYaw, reducedMotion ? 1 : 1 - Math.exp(-delta / .16));
       }
       if (before !== cell.open) cell.leaf.updateMatrixWorld();
       if (before < .2 && cell.open >= .2 && !cell.transfer && !cell.moved) burst(cell.root.position, 5);
@@ -441,7 +555,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     lighting.focus(cameraDirector.focus(), cameraDirector.mode() === 'overview' ? 22 : 15);
     cheerAge += delta;
     if (cheerAge > 1.2 && cheerAge - delta <= 1.2) mosi.openEyes();
-    mosi.update(delta);
+    mosiPuppet.update(delta); mosi.update(delta);
     wind.update(reducedMotion ? 0 : time); sky.update(reducedMotion ? 0 : time, camera);
     gladeScenery.update(time, reducedMotion);
     scene.updateMatrixWorld();
@@ -502,7 +616,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     for (const actor of babyActors) { if (actor.model) releaseCharacter(actor.model); actor.dispose?.(); }
     babyShadows?.dispose();
     if (!Array.isArray(babyLibrary)) babyLibrary?.dispose?.();
-    adventure?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); floor?.dispose(); gladeScenery?.dispose(); sky.dispose();
+    scenes.cancelAll(); mosiPuppet?.dispose(); adventure?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); floor?.dispose(); gladeScenery?.dispose(); sky.dispose();
     leafResources.dispose(); contactResources.dispose(); hitGeometry.dispose(); hitMaterial.dispose();
     fx.dispose(); depthShadow?.target.dispose();
     lighting.sun.shadow.map = null; lighting.sun.dispose(); scene.environment = null; scene.clear(); renderer.renderLists.dispose(); renderer.dispose(); renderer.forceContextLoss();
@@ -578,7 +692,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     });
     if (collision) collisionObjects.push(...gladeScenery.collisionObjects);
     const homeNavigation = { ...homeNav.getDebug(), queued: cells.filter(cell => cell.transfer?.waiting).map(cell => cell.id), active: cells.filter(cell => cell.transfer && !cell.transfer.waiting).map(cell => cell.id) };
-    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
+    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), mosi: mosiPuppet?.current ?? null }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
@@ -587,17 +701,22 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   }
 
   return { setBoard, reveal, conceal, match, celebrate, playNest, update, resize, pick,
+    /** Play a script (scenes.js lines) on the game clock; game.js never reaches the runner itself. */
+    runScene: (lines, options) => scenes.play(lines, options),
+    /** A tap the child made that a waiting script may take (true when one did). */
+    tapScene: target => scenes.tap(target),
+    sceneBusy: () => scenes.busy(),
     getPairReadiness: () => Object.fromEntries(nests.filter(nest => nest.species).map(nest => [nest.species, nest.members.length === 2 && nest.members.every(actor => cells.some(cell => cell.actor === actor && cell.moved))])),
     setBridgeState(snapshot) { bridgeSnapshot = { ...snapshot }; adventure.setState(snapshot); cameraDirector.setCue(cameraCue()); updateTargets(); },
     startBridgeTask(id) { if (!cameraDirector.isInteractive()) return false; const started = adventure.start(id); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
     pollBridgeEvents() {
       deferredEvents.push(...adventure.pollEvents(), ...fx.pollSteps());
-      if (cameraDirector.mode() === 'auto' && cameraDirector.isMoving() && adventure.isBusy()) { const ready = deferredEvents.filter(event => event.type === 'bridge-complete' || event.type === 'footstep'); for (const event of ready) deferredEvents.splice(deferredEvents.indexOf(event), 1); return ready; }
+      if (cameraDirector.mode() === 'auto' && cameraDirector.isMoving() && adventure.isBusy()) { const ready = deferredEvents.filter(event => event.type === 'bridge-complete' || event.type === 'footstep' || event.type.startsWith('scene-')); for (const event of ready) deferredEvents.splice(deferredEvents.indexOf(event), 1); return ready; }
       return deferredEvents.splice(0);
     },
     setCameraMode(mode) { const changed = cameraDirector.setMode(mode); updateTargets(); return changed; },
     getCameraState: () => cameraDirector.getDebug(),
-    setReducedMotion(value) { reducedMotion = Boolean(value); fx.setReducedMotion(reducedMotion); cameraDirector.setReducedMotion(reducedMotion); adventure.setReducedMotion(reducedMotion); babyActors.forEach(actor => actor.setReducedMotion?.(reducedMotion)); mosi.play('idle', { timeScale: reducedMotion ? 0 : 1 }); },
+    setReducedMotion(value) { reducedMotion = Boolean(value); fx.setReducedMotion(reducedMotion); cameraDirector.setReducedMotion(reducedMotion); mosiPuppet.setReducedMotion(reducedMotion); adventure.setReducedMotion(reducedMotion); babyActors.forEach(actor => actor.setReducedMotion?.(reducedMotion)); mosi.play('idle', { timeScale: reducedMotion ? 0 : 1 }); },
     setMosiSpeech(amplitude = 0) { const level = THREE.MathUtils.clamp(Number(amplitude) || 0, 0, 1); if (level < .015) mosi.stopTalking(); else mosi.talk({ mouth: Math.round(level * 15).toString(16).repeat(5), duration: .25 }); },
     getTargets: () => renderTargets.map(target => ({ ...target })),
     getDebug,
