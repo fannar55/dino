@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Söngur Slóeðlu — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./sloedla.css">
+<!-- Slóeðla's song game, stage 0 (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
+     The options are in engine/sloedla/lab.js: ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1, ?upptaka=1. -->
+</head>
+<body>
+<main class="sl">
+  <canvas class="sl-field" id="field" aria-label="Söngur Slóeðlu"></canvas>
+
+  <section class="sl-start" id="start">
+    <div class="sl-card">
+      <img class="sl-hero" src="./assets/eitt/parasaurolophus.webp" alt="Slóeðla">
+      <h1>Söngur Slóeðlu</h1>
+      <p class="sl-how" id="loading-words">Pikkaðu á eðluna þegar ljósið kemur til hennar!</p>
+      <button class="sl-play" id="play" type="button" data-play disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span>Spila</span>
+      </button>
+      <div class="sl-options" role="group" aria-label="Stillingar">
+        <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
+        <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="sl-end" id="end" hidden>
+    <p class="sl-end-words" id="end-words">Viltu spila aftur?</p>
+    <button class="sl-play ready" type="button" data-play>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Spilum aftur</span>
+    </button>
+    <div class="sl-options" role="group" aria-label="Stillingar">
+      <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
+      <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
+    </div>
+  </section>
+</main>
+<script type="module" src="./engine/sloedla/lab.js"></script>
+</body>
+</html>
