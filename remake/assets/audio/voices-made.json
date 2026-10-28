@@ -253,6 +253,12 @@
    "duration": 5.931,
    "model": "eleven_v4"
   },
+  "book/book_flugedla_10": {
+   "key": "2c0253eaad378a02f5e81671636ead097e84c02a24904ddac918d6ddbc78ff85",
+   "mp3": "1afc8a8b148795a9d25bf37eca9c8dbe8949967387dbd2659489c0ee99138322",
+   "duration": 7.61,
+   "model": "eleven_v4"
+  },
   "book/book_flugedla_2": {
    "key": "7347df3a9fdbc2f588129b45eabe8eebc2475dccabaea736a61ffc62843d8695",
    "mp3": "705fb76a50054300c2654733d4ed4b752a03d8a04a1bb67dd4be781fe39cb7ac",
@@ -665,6 +671,12 @@
    "key": "ca68c5f497d8c409a35e963ee8bf79901839dbf6fc86f365a1db0398b4343cfc",
    "mp3": "c152ad7e0f4b541672eeda736f462cf34d4247615fe7000eec29b02246ca1f13",
    "duration": 5.931,
+   "model": "eleven_v4"
+  },
+  "book/book_sloedla_10": {
+   "key": "60e190271911b0abec7bd2c852e61d39d4be4b9ca5e018f3f192608ef41ecdeb",
+   "mp3": "d0b9abcc3aeed6f19600c0ff5b5f8bc8473a0e52e2a27ea2cf43704eea2b5364",
+   "duration": 9.85,
    "model": "eleven_v4"
   },
   "book/book_sloedla_2": {

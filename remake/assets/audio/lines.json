@@ -3303,5 +3303,15 @@
   "src": "assets/audio/book/book_thorsedla_10.mp3",
   "duration": 9.61,
   "mouth": "00ea00efd000dfdffed30dfe767eba0ae909b9505755300000000000087abbca005b300cc8b4006b60008708c800275000000000000000000cfefeedc600ad67dff000bddb99000880000d8bbad00000babc900aa8869da9cdca0000000000000"
+ },
+ "book_sloedla_10": {
+  "src": "assets/audio/book/book_sloedla_10.mp3",
+  "duration": 9.85,
+  "mouth": "07d80bee700cecdfdb06adc600abc708ab00009cca9640200000000006b800bcbcc0bcbbc9b808bb000000000000000000000000008dc00abeec2ab00b9aa9578704900000bba50000000000000000000000fffffd0acd0cb00eff7aa954000000000"
+ },
+ "book_flugedla_10": {
+  "src": "assets/audio/book/book_flugedla_10.mp3",
+  "duration": 7.61,
+  "mouth": "0bd30df900efdeffc0bedb50bddb46ab7076340000000008d7000a609eea86304000000000000000ffefbdc5000ac00000b6000cb0000aec008cdba88000aca0def0b800b8000000000000000"
  }
 }
