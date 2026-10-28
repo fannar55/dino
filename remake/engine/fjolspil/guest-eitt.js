@@ -1,17 +1,29 @@
 // The guest's screen of "Eitt!" on her phone or tablet (spec §7.3, §6.3 and §8). Eitt! has no shared screen (the owner's decision
 // of 24 October, spec §7.3): nobody needs to look at anyone else's screen. Egill's screen is the big screen's own table with his
 // hand, and every other device shows the whole game, with its own hand:
-//   at the top     the others' hands face down, a fan for each other seat in the order the turn goes after hers, with its
-//                  picture, its name and how many cards it holds (.spil-eitt-counts of .spil-eitt-seat; .turn on the one whose
-//                  turn it is, .won on the winner)
+//   at the top     the others' hands face down, a fan for each other seat in seat order after hers (the order the big screen lays
+//                  them across its top, which the turn goes through while it goes the usual way), with its picture, its name and
+//                  how many cards it holds (.spil-eitt-counts of .spil-eitt-seat; .turn on the one whose turn it is, its picture
+//                  then larger and ringed in its own colour, pulsing; .won on the winner)
 //   in the middle  the table: the deck (.spil-eitt-deck, the table's .eitt-deck: a tap draws, and it calls, while the view says
 //                  she may) and the card on top inside the ring of the colour in play (.spil-eitt-pile, the table's .eitt-ring),
 //                  with "Áfram" (.spil-eitt-pass) after a card drawn that goes, "Eitt!" (.spil-eitt-eitt) while she owes it and
-//                  "Grípa!" (.spil-eitt-catch) while another seat forgot hers, beside it (.spil-eitt-actions)
+//                  "Grípa!" (.spil-eitt-catch) while another seat forgot hers, beside it (.spil-eitt-actions); with three seats or
+//                  four, the pair of arrows round the pile that shows the way the turn goes (way.js, the table's)
 //   at the bottom  her own hand in an arc (.spil-eitt-hand), the table's cards (table.js's cardElement and eitt.css) in the
 //                  order the table lays Egill's in, each showing at least 88 px across (a hand too big for one row lies in
-//                  rows, as on the table), what may be played lifted (.playable)
-// and whose turn it is over them all (.spil-eitt-turn: "Þú átt leik!", "Anna á leik"; at the end "{name} vann!").
+//                  rows, as on the table), what may be played lifted (.playable); while another seat has the turn the hand is
+//                  dimmed and lowered a little (.waiting)
+// and whose turn it is over them all (.spil-eitt-turn: "Þú átt leik!", "Anna á leik", in that seat's own colour; at the end
+// "{name} vann!").
+//
+// The turn is hard to miss on her own device. When it passes to her (the view says the turn is hers and the last did not; a screen
+// that opens on her turn counts too), a frame in her own colour glows round the whole screen for as long as the turn is hers
+// (.spil-eitt-frame, .on), and a big card with her picture and "Þú átt leik!" slides in over the middle (.spil-eitt-cue) for about
+// two seconds and a half, or until her first touch anywhere, which it lets through (the card takes no touch, and the page
+// listens for the touch only to put the card away). With them go the chime (eitt-sounds.js' turn) and a short buzz where the
+// phone can (Android; an iPhone has none). Under reduced motion the card simply shows and the frame is steady. Only a turn that
+// passes to her does this, never a view that repeats her turn or one that gives it to somebody else.
 //
 // A tap on a card that may be played sends act { type: 'play', cardId }; a wild that is not her last card first brings up the
 // four colours (.spil-eitt-colours, the table's .eitt-colours) and goes with the one picked. A card that may not go wiggles, and
@@ -37,6 +49,7 @@ import { COLOURS, isWild } from '../eitt/rules.js';
 import { eittSounds, EITT_GAPS } from '../eitt/eitt-sounds.js';
 import { avatarOf } from './seats.js';
 import { pressable, reducedMotion, sparkle } from '../book/fx.js';
+import { wayElement, setWay } from '../eitt/way.js';
 
 /** Everything the screen says. */
 const WORDS = {
@@ -67,6 +80,9 @@ const GIVE_GAP = 170; // and between the cards of a +2, a +4 or a catch
 const GLIDE_MS = 320; // the hand closing up or making room
 const FAN_MAX = 8; // the backs a seat's fan shows at most; its number says how many there are
 const PILE_KEEP = 3; // the cards the pile shows, the top one last
+const CUE_MS = 2500; // her card of "Þú átt leik!" stays this long, or until her first touch
+const CUE_FADE_MS = 220; // and fades out this long
+const BUZZ = [60, 40, 60]; // ms of buzz, quiet, buzz: where the phone has a motor
 
 const ARROW = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h13M12 5.5l6.5 6.5L12 18.5" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -105,7 +121,9 @@ function build(root, doc) {
   const pileEl = make('div', 'spil-eitt-pile');
   const ringEl = make('div', 'eitt-ring');
   ringEl.hidden = true;
-  pileEl.append(ringEl);
+  const wayEl = wayElement(doc);
+  wayEl.hidden = true;
+  pileEl.append(ringEl, wayEl);
   const actionsEl = make('div', 'spil-eitt-actions');
   const passEl = make('button', 'eitt-pass spil-eitt-pass', `<span>${WORDS.pass}</span>${ARROW}`);
   const eittEl = make('button', 'eitt-eitt needed spil-eitt-eitt', `<span>${WORDS.eitt}</span>`);
@@ -126,12 +144,29 @@ function build(root, doc) {
   tableEl.append(deckEl, pileEl, actionsEl, coloursEl);
   const handEl = make('div', 'spil-eitt-hand');
   handEl.setAttribute('aria-label', WORDS.hand);
-  screen.append(turnEl, countsEl, tableEl, handEl);
+  // The frame round the screen for her turn, and the card that comes over the middle as it begins (both out of the layout: fixed).
+  const frameEl = make('div', 'spil-eitt-frame');
+  frameEl.setAttribute('aria-hidden', 'true');
+  const cueEl = make('div', 'spil-eitt-cue');
+  cueEl.setAttribute('aria-hidden', 'true'); // the heading says it to a screen reader
+  cueEl.hidden = true;
+  const cueFace = make('span', 'spil-face spil-eitt-cue-face');
+  const cuePicture = make('img', 'spil-picture');
+  cuePicture.alt = '';
+  cueFace.append(cuePicture);
+  const cueWords = make('span', 'spil-eitt-cue-words');
+  cueWords.textContent = WORDS.mine;
+  cueEl.append(cueFace, cueWords);
+  screen.append(frameEl, turnEl, countsEl, tableEl, handEl, cueEl);
   root.replaceChildren(screen);
 
   const at = {
     doc, win: doc.defaultView ?? undefined, make,
-    screen, turnEl, countsEl, deckEl, pileEl, ringEl, coloursEl, passEl, eittEl, catchEl, handEl,
+    screen, turnEl, countsEl, deckEl, pileEl, ringEl, wayEl, coloursEl, passEl, eittEl, catchEl, handEl,
+    frameEl, cueEl, cuePicture,
+    cue: null, // her card of "Þú átt leik!" while it shows: { timer, token, touch }
+    cues: 0, // the cards shown so far, so a card put away does not hide a newer one
+    cueFade: null, // the animation fading her card out
     send: null, audio: null,
     view: null, // the view shown
     sent: false, // an act is on its way to the big screen: nothing more until the next view
@@ -248,6 +283,67 @@ function nope(at, el) {
 
 const isSeat = value => Number.isInteger(value);
 
+// ---- Her turn: the frame, and the card that comes over the middle -----------------------------------------------------
+
+/** The frame round the screen in her own colour, glowing while the turn is hers. */
+function turnFrame(at, mine, colour) {
+  if (colour) at.frameEl.style.setProperty('--c', colour);
+  at.frameEl.classList.toggle('on', mine);
+}
+
+/**
+ * The turn has just passed to her: her card slides in over the middle (her picture and "Þú átt leik!", in her colour), the chime
+ * sounds and the phone buzzes where it can. The card goes at her first touch anywhere or after CUE_MS, whichever comes first; it
+ * takes no touch itself (pointer-events: none), and the page's listener only watches, so the tap that plays a card plays it.
+ */
+function turnCue(at, avatar) {
+  endCue(at, { quick: true });
+  at.cueFade?.cancel(); // an earlier card's fade-out would hold this one at nothing
+  at.cueFade = null;
+  if (avatar) at.cueEl.style.setProperty('--c', avatar.colour);
+  const src = avatar ? asset(avatar.picture) : null;
+  if (src && at.cuePicture.src !== src) at.cuePicture.src = src; // never an empty src, which a browser would read as the page
+  at.cuePicture.hidden = !avatar;
+  at.cueEl.hidden = false;
+  const token = ++at.cues;
+  const touch = () => endCue(at);
+  at.doc.addEventListener?.('pointerdown', touch, true); // watching only: the touch goes on to whatever it was for
+  const timer = (at.win?.setTimeout ?? globalThis.setTimeout)(() => endCue(at), CUE_MS);
+  at.cue = { timer, token, touch };
+  play(at, 'turn');
+  try {
+    const phone = at.win?.navigator ?? globalThis.navigator;
+    if (phone?.userActivation?.hasBeenActive !== false) phone?.vibrate?.(BUZZ); // a page nobody has touched is not let to buzz (and says so in the console)
+  } catch {
+    // no buzz here
+  }
+}
+
+/** Her card goes: at once where `quick` (another view took her turn, or a newer card begins), else it fades out. */
+function endCue(at, { quick = false } = {}) {
+  const cue = at.cue;
+  if (!cue) return;
+  at.cue = null;
+  (at.win?.clearTimeout ?? globalThis.clearTimeout)(cue.timer);
+  at.doc.removeEventListener?.('pointerdown', cue.touch, true);
+  const el = at.cueEl;
+  const hide = () => {
+    if (at.cues === cue.token && !at.cue) el.hidden = true; // not a newer card's
+  };
+  if (quick || reducedMotion(at.win) || typeof el.animate !== 'function') {
+    hide();
+    return;
+  }
+  const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CUE_FADE_MS, easing: 'ease-in', fill: 'forwards' });
+  at.cueFade = fade;
+  const done = () => {
+    if (at.cueFade === fade) at.cueFade = null;
+    fade.cancel(); // the card is hidden (or a newer one shows): its fade-out must not go on holding the opacity
+    hide();
+  };
+  fade.finished.then(done, done);
+}
+
 function update(at, view) {
   const prev = at.view;
   at.view = view;
@@ -261,9 +357,21 @@ function update(at, view) {
   // Where the cards, the fans and the deck were, for the flights (as this screen first opens: the deck, for a deal).
   const before = prev ? where(at) : fresh ? { hand: new Map(), fans: new Map(), deck: rectOf(at.deckEl.firstElementChild ?? at.deckEl) } : null;
 
+  const mine = !over && view.turn === view.you;
   at.turnEl.textContent = over ? WORDS.won(nameOf(view.winner)) : view.turn === view.you ? WORDS.mine : WORDS.theirs(nameOf(view.turn));
-  at.turnEl.classList.toggle('mine', !over && view.turn === view.you);
+  at.turnEl.classList.toggle('mine', mine);
   at.turnEl.classList.toggle('won', over);
+  const avatarOfSeat = seat => avatarOf(counts.find(entry => entry.seat === seat)?.avatar);
+  const turnColour = over ? null : avatarOfSeat(view.turn)?.colour;
+  if (turnColour) at.turnEl.style.setProperty('--c', turnColour); // the heading wears the colour of whoever has the turn
+  else at.turnEl.style.removeProperty('--c');
+  at.handEl.classList.toggle('waiting', !over && !mine); // another seat plays: her hand is dimmed and lowered
+  at.wayEl.hidden = over || counts.length < 3; // with two a reverse is only a skip
+  if (!at.wayEl.hidden) setWay(at.wayEl, view.direction, { calm: reducedMotion(at.win) });
+  const wasMine = Boolean(prev) && !isSeat(prev.winner) && prev.turn === prev.you;
+  turnFrame(at, mine, avatarOfSeat(view.you)?.colour);
+  if (mine && !wasMine) turnCue(at, avatarOfSeat(view.you));
+  else if (!mine) endCue(at, { quick: true });
 
   renderSeats(at, view, counts, over);
   const cards = handOf(view);
@@ -377,7 +485,7 @@ function renderPile(at, view, lastPlay, before, dealt) {
   const top = typeof view.top?.id === 'string' ? view.top : null;
   at.ringEl.hidden = !top;
   at.ringEl.className = COLOURS.includes(view.colour) ? `eitt-ring ${view.colour}` : 'eitt-ring';
-  const old = [...at.pileEl.children].filter(el => el !== at.ringEl);
+  const old = [...at.pileEl.children].filter(el => el !== at.ringEl && el !== at.wayEl);
   if (!top) {
     for (const el of old) el.remove();
     at.topId = null;
@@ -392,7 +500,7 @@ function renderPile(at, view, lastPlay, before, dealt) {
   el.style.setProperty('--x', `${tilt.x.toFixed(1)}%`);
   el.style.setProperty('--y', `${tilt.y.toFixed(1)}%`);
   at.pileEl.append(el);
-  const shown = [...at.pileEl.children].filter(child => child !== at.ringEl);
+  const shown = [...at.pileEl.children].filter(child => child !== at.ringEl && child !== at.wayEl);
   for (const gone of shown.slice(0, Math.max(0, shown.length - PILE_KEEP))) gone.remove();
   if (!before) return; // the screen as it opens on a round under way: the table as it stands
   const from = lastPlay === null ? before.deck : lastPlay.seat === view.you ? before.hand.get(lastPlay.cardId) : before.fans.get(lastPlay.seat);

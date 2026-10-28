@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eitt! í fjölspili — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./eitt.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<!-- A round of "Fjölspil" of "Eitt!" on the big screen, kept under way and taken up by engine/eitt/table.js with stand-in seats (no
+     network): to look at whose turn it is and the way the turn goes. Nothing is sent; window.__views holds the view each guest would
+     get (and localStorage 'eitt-rod-views', for a guest page of the same origin).
+       ?players=2|3|4      Egill, Ásta, Bjarni and Dóra (with &ai=1 the last of them is Kambeðla)
+       &turn=N             whose turn it is (seat 0 is Egill)
+       &dir=-1             the turn goes the other way (after a reverse)
+     window.__setWay(1|-1) turns the arrows over at once, for a capture of the spin; capture.mjs waits for __demoReady. -->
+</head>
+<body>
+<main class="eitt" id="eitt"></main>
+<script type="module">
+import { createEittGame } from './engine/eitt/table.js';
+import { newGame } from './engine/eitt/rules.js';
+import { createSeats } from './engine/fjolspil/seats.js';
+import { setWay } from './engine/eitt/way.js';
+
+const q = new URLSearchParams(location.search);
+const players = Number(q.get('players') ?? 3);
+const turn = Number(q.get('turn') ?? 0);
+const direction = Number(q.get('dir') ?? 1) === -1 ? -1 : 1;
+const ai = q.get('ai') === '1';
+
+let seed = 7;
+const random = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+
+const seats = createSeats({});
+const guests = [['Ásta', 'kambedla'], ['Bjarni', 'gramedla'], ['Dóra', 'thorsedla']];
+const nGuests = ai ? players - 2 : players - 1;
+for (let k = 0; k < nGuests; k++) seats.join({ guestId: String(k + 1).repeat(32), name: guests[k][0], avatar: guests[k][1] });
+if (ai) seats.addAi({ name: 'Kambeðla', avatar: 'kambedla' });
+
+const game = { ...newGame({ players, random }), turn, direction };
+const views = {};
+const fjolspil = {
+  seats,
+  send(seat, view) {
+    views[seat] = view;
+    try { localStorage.setItem('eitt-rod-views', JSON.stringify(views)); } catch {}
+    window.__views = views;
+  },
+  onAct() {},
+  async resume() {},
+  async openLobby() { return null; },
+  async waitFor() { return 'back'; },
+  closeGame() {},
+};
+const snapshot = seats.snapshot();
+const save = {
+  getEitt: () => ({ tutorialDone: true, game, seats: { ...snapshot, seats: snapshot.seats.slice(0, players) } }),
+  setEitt() {},
+};
+const eitt = createEittGame(document, { save, fjolspil, win: window, random });
+window.__eitt = eitt;
+window.__setWay = (d) => setWay(document.querySelector('.eitt-way'), d, { calm: false });
+eitt.open();
+setTimeout(() => {
+  const b = document.querySelector('.eitt-continue'); for (const type of ['pointerdown', 'pointerup']) b.dispatchEvent(new PointerEvent(type, { pointerId: 1, clientX: 10, clientY: 10, button: 0, bubbles: true }));
+}, 400);
+setTimeout(() => { window.__demoReady = true; }, 2500);
+</script>
+</body>
+</html>

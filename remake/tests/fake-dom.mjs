@@ -53,6 +53,15 @@ export class FakeElement extends EventTarget {
     for (const node of nodes) this.appendChild(node);
   }
 
+  /** `node` in this element's children just before `before` (at the end when `before` is not one of them). */
+  insertBefore(node, before) {
+    node.remove();
+    node.parentNode = this;
+    const at = this.children.indexOf(before);
+    this.children.splice(at < 0 ? this.children.length : at, 0, node);
+    return node;
+  }
+
   replaceChildren(...nodes) {
     for (const child of this.children) child.parentNode = null;
     this.children = [];
