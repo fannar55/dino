@@ -3,18 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Eitt! rod lab (scratch, not committed)</title>
+<title>Eitt! í fjölspili — tilraunasíða</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./style.css">
 <link rel="stylesheet" href="./book.css">
 <link rel="stylesheet" href="./eitt.css">
 <script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<!-- A round of "Fjölspil" of "Eitt!" on the big screen, kept under way and taken up by engine/eitt/table.js with stand-in seats (no
+     network): to look at whose turn it is and the way the turn goes. Nothing is sent; window.__views holds the view each guest would
+     get (and localStorage 'eitt-rod-views', for a guest page of the same origin).
+       ?players=2|3|4      Egill, Ásta, Bjarni and Dóra (with &ai=1 the last of them is Kambeðla)
+       &turn=N             whose turn it is (seat 0 is Egill)
+       &dir=-1             the turn goes the other way (after a reverse)
+     window.__setWay(1|-1) turns the arrows over at once, for a capture of the spin; capture.mjs waits for __demoReady. -->
 </head>
 <body>
 <main class="eitt" id="eitt"></main>
 <script type="module">
 import { createEittGame } from './engine/eitt/table.js';
-import { newGame, play } from './engine/eitt/rules.js';
+import { newGame } from './engine/eitt/rules.js';
 import { createSeats } from './engine/fjolspil/seats.js';
 import { setWay } from './engine/eitt/way.js';
 
