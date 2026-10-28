@@ -6,12 +6,14 @@ import { createFooting, QUADRUPED } from '../footing.js';
 import { measureWalkGait, gaitFoot } from './walk-gait.js';
 import { GESTURES, GESTURE_ALIASES } from './gestures.js';
 
-// Phase-one review: Triceratops is the authored baby mesh. The two other species
-// retain existing textured adult art temporarily, explicitly exposed in metadata.
+// The three friends are babies baked from the owner's adult models (scripts/memory-baby-bake.mjs).
+// lengthFactor is each species' nose-to-tail size against the `length` asked for: the Þórseðla baby
+// is shown larger so she stands tallest, her head top 1.25 times the Þríhyrna baby's (1.88 m against
+// 1.50 m at the game's 2.6), while the Kambeðla baby stays at 1.23 m.
 export const MEMORY_CHARACTER_ART = Object.freeze({
-  triceratops: { name: 'Þríhyrna', url: new URL('../../assets/memory/triceratops-baby.glb', import.meta.url).href, isBaby: true },
-  stegosaurus: { name: 'Kambeðla', url: new URL('../../assets/characters/stegosaurus.glb', import.meta.url).href, isBaby: false },
-  brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/characters/brontosaurus.glb', import.meta.url).href, isBaby: false },
+  triceratops: { name: 'Þríhyrna', url: new URL('../../assets/memory/triceratops-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1 },
+  stegosaurus: { name: 'Kambeðla', url: new URL('../../assets/memory/stegosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1 },
+  brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/memory/brontosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1.62 },
 });
 
 /**
@@ -28,10 +30,10 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
   const actors = [];
   const walkGaits = new Map();
   for (let s = 0; s < species.length; s++) {
-    const id = species[s], art = MEMORY_CHARACTER_ART[id], gltf = templates[s];
+    const id = species[s], art = MEMORY_CHARACTER_ART[id], gltf = templates[s], size = art.lengthFactor ?? 1, L = length * size;
     for (let instance = 0; instance < instancesPerSpecies; instance++) {
       const root = new THREE.Group(); root.name = `Memory ${id} ${instance}`;
-      root.userData.memoryArt = { species: id, isBaby: art.isBaby, review: art.isBaby ? 'baby-proportions-v1' : 'temporary-adult-art' };
+      root.userData.memoryArt = { species: id, isBaby: art.isBaby, lengthFactor: size, review: art.isBaby ? 'baby-proportions-v1' : 'temporary-adult-art' };
       const pose = new THREE.Group(); root.add(pose);
       const model = cloneSkinned(gltf.scene); pose.add(model);
       const materials = new Set();
@@ -43,7 +45,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       });
       model.updateMatrixWorld(true);
       const bounds = new THREE.Box3().setFromObject(model, true);
-      model.scale.multiplyScalar(length / bounds.getSize(new THREE.Vector3()).x);
+      model.scale.multiplyScalar(L / bounds.getSize(new THREE.Vector3()).x);
       model.updateMatrixWorld(true); bounds.setFromObject(model, true);
       const center = bounds.getCenter(new THREE.Vector3());
       model.position.set(-center.x, -bounds.min.y, -center.z);
@@ -74,13 +76,11 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       let landmarkMesh=null,characterMesh=null,carryVertex=null;
       model.traverse(o=>{if(o.userData.memoryLandmarks?.nose)landmarkMesh=o;if(o.isSkinnedMesh&&!characterMesh)characterMesh=o;});
       const nose=new THREE.Object3D();nose.name='Memory nose contact';
-      if(landmarkMesh&&head){
-        const p=landmarkMesh.localToWorld(new THREE.Vector3(...landmarkMesh.userData.memoryLandmarks.nose));
-        nose.position.copy(head.worldToLocal(p));head.add(nose);
-      }else if(id==='brontosaurus'&&characterMesh&&head){
-        // Snout tip and skull crown measured from Head-weighted source vertices.
-        // Attach to Head so both landmarks follow the complete neck chain.
-        const p=characterMesh.localToWorld(new THREE.Vector3(8.407457,7.833949,-.018225));
+      const landmarks=landmarkMesh?.userData.memoryLandmarks;
+      if(landmarks&&head){
+        // The baked baby's own landmarks (the Þórseðla baby: snout tip and skull crown),
+        // attached to Head so they follow the complete neck chain.
+        const p=landmarkMesh.localToWorld(new THREE.Vector3(...landmarks.nose));
         nose.position.copy(head.worldToLocal(p));head.add(nose);
       }else if(id==='stegosaurus'&&characterMesh&&head){
         const {position,skinIndex,skinWeight}=characterMesh.geometry.attributes;let tip=null,tipBone=head,front=-Infinity;const snout=[];
@@ -93,17 +93,17 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         nose.position.copy(tipBone.worldToLocal(tip));tipBone.add(nose);
         // The front tip sits below the upper beak. Wood rests on this measured
         // upper-snout vertex, not through the face at the lower nose-tip height.
-        carryVertex=snout.filter(p=>p.x>=front-length*.02).reduce((a,b)=>b.y>a.y?b:a).index;
-      }else{nose.position.set(length*.48,bounds.getSize(new THREE.Vector3()).y*.65,0);pose.add(nose);}
+        carryVertex=snout.filter(p=>p.x>=front-L*.02).reduce((a,b)=>b.y>a.y?b:a).index;
+      }else{nose.position.set(L*.48,bounds.getSize(new THREE.Vector3()).y*.65,0);pose.add(nose);}
       const supportPoint=new THREE.Object3D();supportPoint.name='Memory branch support';
-      if(id==='brontosaurus'&&characterMesh&&head){
-        const p=characterMesh.localToWorld(new THREE.Vector3(7.348676,8.623104,.001605));
+      if(landmarks?.support&&head){
+        const p=landmarkMesh.localToWorld(new THREE.Vector3(...landmarks.support));
         supportPoint.position.copy(head.worldToLocal(p));head.add(supportPoint);
       }else{supportPoint.position.copy(nose.position);nose.parent.add(supportPoint);}
       root.updateMatrixWorld(true);
       const noseLocal=root.worldToLocal(nose.getWorldPosition(new THREE.Vector3()));
       const supportLocal=root.worldToLocal(supportPoint.getWorldPosition(new THREE.Vector3()));
-      if(!walkGaits.has(id))walkGaits.set(id,measureWalkGait(model,root,clips.get('walk'),legs.map(pair=>pair.foot),length*(id==='brontosaurus'?.45:.42)));
+      if(!walkGaits.has(id))walkGaits.set(id,measureWalkGait(model,root,clips.get('walk'),legs.map(pair=>pair.foot),L*(id==='brontosaurus'?.45:.42)));
       const gait=walkGaits.get(id),pivotHeight=legs.reduce((sum,pair)=>sum+root.worldToLocal(pair.leg.getWorldPosition(new THREE.Vector3())).y,0)/Math.max(1,legs.length);
       const footing=createFooting({root,rootFrame:true,legs:legs.map(pair=>({foot:pair.foot,girdle:pair.front?0:1})),pivotHeight,tuning:{...QUADRUPED,strideReach:.8,joinTime:[.05,.1,.12]}});
       const lids = createEyelids(model, { seed: `memory-${id}-${instance}` });
@@ -139,11 +139,11 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         // Lower the face and shoulder gently. The beak remains the contact point;
         // there is no charging or horn-first thrust.
         rotateInRoot(body,axisZ,-.025*amount);
-        offsetInRoot(shoulders,.008*length*amount,-.009*length*amount);
+        offsetInRoot(shoulders,.008*L*amount,-.009*L*amount);
         rotateInRoot(head,axisZ,-.115*amount);
         for(const pair of legs){
           const planted=pair.foot.getWorldPosition(new THREE.Vector3());
-          offsetInRoot(pair.leg,(pair.front ? .012 : -.008)*length*amount,-.009*length*amount);
+          offsetInRoot(pair.leg,(pair.front ? .012 : -.008)*L*amount,-.009*L*amount);
           pair.foot.position.copy(pair.foot.parent.worldToLocal(planted));pair.foot.updateMatrixWorld(true);
         }
       }
@@ -188,7 +188,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(disposed||!GESTURES[id])return false;
         gesture={name:id,t:0,duration:GESTURES[id].duration};gestureFrom=0;return true;
       }
-      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length,crossed:at=>gestureFrom<at&&gesture.t>=at};
+      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length:L,crossed:at=>gestureFrom<at&&gesture.t>=at};
       function setMotion(name,options={}) {
         if(disposed) return;
         // The older gesture names start the matching gesture over a still stance.
@@ -209,7 +209,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       }
       play('idle');
       const actor = {
-        root, model, species: id, name: art.name, isBaby: art.isBaby, noseLocal, supportLocal,
+        root, model, species: id, name: art.name, isBaby: art.isBaby, lengthFactor: size, noseLocal, supportLocal,
         setMotion,
         reveal() { root.visible=true;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
         gesture(name) { return startGesture(name); },

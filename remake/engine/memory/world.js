@@ -37,7 +37,9 @@ const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
 const visibleStatus = value => ['open', 'revealed', 'selected', 'matched', 'found'].includes(value);
 const matchedStatus = value => ['matched', 'found'].includes(value);
-const actorScale = actor => actor.species === 'brontosaurus' ? 1.2 : 1;
+// Each friend's size is baked into its model (baby-actors.js lengthFactor: the Þórseðla baby stands
+// tallest); the roots stay at scale 1. The culling sphere grows with that size.
+const actorSize = actor => actor.lengthFactor ?? 1;
 const restOffset = species => species === 'triceratops' ? 1.25 : species === 'stegosaurus' ? .95 : 1.15;
 const restHeading = () => -Math.PI * 70 / 180;
 const restVector = (species, member) => new THREE.Vector3(Math.sin(restHeading()) * restOffset(species) * (member ? -1 : 1), .1, Math.cos(restHeading()) * restOffset(species) * (member ? -1 : 1));
@@ -195,7 +197,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   function planMeeting(a, b) {
     const front = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize(), side = new THREE.Vector3(front.z, 0, -front.x);
     if (side.dot(b.actor.root.position.clone().sub(a.actor.root.position)) < 0) side.negate();
-    const reach = cell => cell.actor.noseLocal.x * actorScale(cell.actor) + .03;
+    const reach = cell => cell.actor.noseLocal.x + .03;
     const others = cells.filter(cell => cell !== a && cell !== b && !cell.moved && !matchedStatus(cell.status));
     const clearance = point => Math.min(Infinity, ...others.map(cell => Math.hypot(point.x - cell.root.position.x, point.z - cell.root.position.z)));
     const middle = a.actor.root.position.clone().add(b.actor.root.position).multiplyScalar(.5);
@@ -213,7 +215,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     for (const spot of plan) spot.to.y = world.heightAt(spot.to.x, spot.to.z) + .085;
     const distance = Math.max(...plan.map(spot => spot.to.distanceTo(spot.cell.actor.root.position)));
     const duration = THREE.MathUtils.clamp(distance / 3.4, .5, 1.05);
-    const meetPoint = point.clone().setY(Math.max(...plan.map(spot => spot.cell.actor.noseLocal.y * actorScale(spot.cell.actor))) + point.y);
+    const meetPoint = point.clone().setY(Math.max(...plan.map(spot => spot.cell.actor.noseLocal.y)) + point.y);
     return {
       point: meetPoint, duration,
       start() { for (const spot of plan) { const actor = spot.cell.actor; spot.cell.away = true; spot.cell.dash = { from: actor.root.position.clone(), fromYaw: actor.root.rotation.y, to: spot.to, yaw: spot.yaw, age: 0, duration }; actor.walk?.(true); } },
@@ -336,7 +338,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     if (babyActors.length < 6) throw new Error('Minnisspil needs six baby instances.');
     const memberCounts = {};
     for (const actor of babyActors) {
-      actor.root.visible = false; actor.root.scale.setScalar(actorScale(actor));
+      actor.root.visible = false; actor.root.scale.setScalar(1);
       actorIds.set(actor, `${actor.species}-${memberCounts[actor.species] ?? 0}`); memberCounts[actor.species] = (memberCounts[actor.species] ?? 0) + 1; measureActor(actor);
       const feet = []; actor.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); }); footBones.set(actor, feet);
     }
@@ -357,7 +359,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   function resetBoard(cards) {
     scenes.cancelAll(); sceneIds.clear(); mosiPuppet?.cancel();
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
-    for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(actorScale(actor)); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
+    for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(1); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
     const available = [...babyActors];
     cards.forEach((card, i) => {
@@ -525,7 +527,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
         move.age += homeDelta;
         const progress=homeTravelProgress(move,move.age),sampled=sampleHomeTravel(move,move.age);
         cell.actor.root.position.copy(sampled.point);
-        cell.actor.root.scale.setScalar(actorScale(cell.actor));
+        cell.actor.root.scale.setScalar(1);
         const wanted = progress>.97?move.endYaw:sampled.yaw, difference = Math.atan2(Math.sin(wanted - cell.actor.root.rotation.y), Math.cos(wanted - cell.actor.root.rotation.y));
         cell.actor.root.rotation.y += difference * (1 - Math.exp(-homeDelta / .09));
         if (move.age >= move.duration) {
@@ -568,7 +570,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     // skins and their shadow-only twins. The generous spheres cover every
     // authored head/tail pose plus a nearby contact shadow.
     for (const actor of babyActors) {
-      actorSphere.center.copy(actor.root.position); actorSphere.center.y += .8 * actorScale(actor); actorSphere.radius = 3 * actorScale(actor);
+      actorSphere.center.copy(actor.root.position); actorSphere.center.y += .8 * actorSize(actor); actorSphere.radius = 3 * actorSize(actor);
       actor.model.visible = !actor.root.visible || actorFrustum.intersectsSphere(actorSphere);
     }
     actorSphere.center.copy(mosi.root.position); actorSphere.center.y += 1.2; actorSphere.radius = 4.2;

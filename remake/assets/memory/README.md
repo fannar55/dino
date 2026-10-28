@@ -36,8 +36,11 @@ happy, and the `_PLATEROW` plate mask). Þórseðla's GLB carries `nose` (snout 
 and `support` (skull crown) landmarks. The values, measured head bands and part
 summary are in each `-source.json`.
 
-The game does not load them yet: `MEMORY_CHARACTER_ART` and `roster.json` still
-name the adults until the owner approves the babies.
+The owner approved Kambeðla's baby as first baked and asked for the stronger
+Þórseðla pass; the game now loads all three babies (`MEMORY_CHARACTER_ART`,
+`roster.json`). `baby-actors.js` places Þórseðla's nose and branch support on her
+GLB landmarks; Kambeðla's nose and bark-carry point are measured from her Head
+and Jaw skin as before.
 
 ## Source and rights
 
@@ -84,9 +87,7 @@ head tip; the scene positions the two characters for contact.
 
 ## Review scope
 
-Only Triceratops has the new baby design in the game so far. Stegosaurus and
-Brontosaurus use the existing adult assets temporarily, clearly marked in
-`roster.json` and in actor metadata (`isBaby: false`); their baby candidates
-above wait for the owner's review. The inherited adult sculpt and painted skin are still visible
+All three friends are babies in the game (`isBaby: true` in actor metadata).
+The inherited adult sculpt and painted skin are still visible
 in the adapted baby; this pass asks whether its proportions and expression fit
 the intended family and whether the character reads at actual game size.
