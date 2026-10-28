@@ -9,6 +9,7 @@
 //   debug=1               the clock's numbers in a corner: the latency, the taps' mean error (to set seinkun by), fps
 //   sjalf=1               plays itself (a pretend child who hits most notes), for a look or a capture
 //   upptaka=1             records the round, picture and sound, into window.__recording (a data: URL of a webm), for a video
+//   hljod=0               silent (the sound is made but not heard), for a look on a computer that should not play aloud
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
@@ -66,10 +67,13 @@ const $ = id => document.getElementById(id);
 const canvas = $('field');
 const context = createAudioContext();
 const output = context ? createOutput(context) : null;
+if (output && params.get('hljod') === '0') output.gain.value = 0; // silent, for a look on a computer that should not play aloud
+const mix = context?.createGain(); // the song and the friends together, before the page's output (a recording takes it here)
 const music = context?.createGain();
-if (music) {
+if (mix) {
+  mix.connect(output);
   music.gain.value = 0.62;
-  music.connect(output);
+  music.connect(mix);
 }
 
 function loadImage(src) {
@@ -117,7 +121,7 @@ async function start() {
   const cast = castFor(options.lanes);
   const notes = level.notes.map(note => ({ ...note, lane: laneOf(note.role, options.lanes) }));
   const clock = createSongClock(context, { output: music, extra: options.extra });
-  const sounds = createSongSounds({ context, key: grid.key, output });
+  const sounds = createSongSounds({ context, key: grid.key, output: mix });
   const game = createSongGame({
     canvas, cast, notes, fall: level.fall, song: { bpm: sheet.bpm, beatOffset: sheet.beatOffset, danceBeats: grid.danceBeats },
     clock, sounds, debug: options.debug,
@@ -154,7 +158,7 @@ function finish(result) {
 function startRecording() {
   if (!globalThis.MediaRecorder || !canvas.captureStream) return;
   const sink = context.createMediaStreamDestination();
-  output.connect(sink);
+  mix.connect(sink);
   const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...sink.stream.getAudioTracks()]);
   const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
   const chunks = [];

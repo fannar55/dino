@@ -56,8 +56,10 @@ html, body {
   border-radius: 999px;
   background: #e07a3f;
   color: #fffaf0;
-  font: 900 clamp(32px, 5vw, 42px) / 1 inherit;
   font-family: inherit;
+  font-weight: 900;
+  font-size: clamp(32px, 5vw, 42px);
+  line-height: 1;
   box-shadow: 0 6px 0 #a9542a, 0 12px 24px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   opacity: 0.5;
@@ -77,8 +79,10 @@ html, body {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  font: 800 20px / 1 inherit;
   font-family: inherit;
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1;
   color: #6b5a4a;
   cursor: pointer;
 }

@@ -17,6 +17,7 @@ const MORE = ['Áfram svona!', 'Stórkostlegt!', 'Ótrúlegt!']; // every eight 
 const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
 const END_AFTER = 1.2; // s after the last note before the round ends
 const STAR_GAP = 0.75; // s between the stars rising at the end
+const SNAP_AHEAD = 0.12; // s: the longest an early tap's sound waits to land on its note's beat
 
 /**
  * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `notes` the
@@ -122,7 +123,7 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     g.fillStyle = sky;
     g.fillRect(0, 0, w, h);
     // a soft hill of the festival's meadow along the bottom
-    g.fillStyle = 'rgba(40, 70, 70, 0.55)';
+    g.fillStyle = 'rgba(28, 58, 84, 0.85)';
     g.beginPath();
     g.moveTo(0, h);
     g.lineTo(0, h * 0.86);
@@ -153,7 +154,7 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
   }
 
   function paintSprites() {
-    const size = laneW * 0.78;
+    const size = laneW * 0.95;
     glows = cast.map(({ hue }) => {
       const [c, g] = offscreen(size, size);
       const r = size / 2;
@@ -257,7 +258,8 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     flashes[lane] = time;
     const result = judge.tap(lane, time);
     if (result.kind === 'hit') {
-      sounds.play(role, stepFor(role, result.note));
+      // an early tap's note waits for its beat (a little: SNAP_AHEAD at most), so what she plays sounds in time with the song
+      sounds.play(role, stepFor(role, result.note), { on: clock.contextTimeOf?.(result.note.t), within: SNAP_AHEAD });
       hops[lane] = time;
       burst(lane, result.great);
       floaters.push({ lane, at: time, wobble: random() * 2 - 1 });
@@ -367,8 +369,8 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     g.globalAlpha = 1;
 
     drawAudience(g, time, beat, tier);
-    drawNotes(g, time);
     drawDinosaurs(g, time, tier);
+    drawNotes(g, time); // over the dinosaurs: the child sees the note come right into her
     drawEffects(g, time);
     drawBar(g, time);
     if (phase !== 'play') drawEnd(g, time);
@@ -396,7 +398,7 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
         scale *= 1 - fade * 0.5;
       }
       const sprite = glows[note.lane];
-      const size = laneW * 0.78 * scale;
+      const size = laneW * 0.95 * scale;
       g.globalAlpha = Math.max(0, alpha);
       g.drawImage(sprite, laneX[note.lane] - size / 2, y - size / 2, size, size);
       // the note's mark at its heart
@@ -584,7 +586,7 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     }
     if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
       outlined(g, END_WORDS[endStars], w / 2, cy + size * 1.6, portrait ? 40 : 52, '#fff6c8');
-      outlined(g, `Þú spilaðir ${score.hits} af ${score.total} tónum`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
+      outlined(g, `Þú spilaðir ${score.hits} af ${score.total} ${score.total % 10 === 1 && score.total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
     }
   }
 

@@ -88,6 +88,8 @@ export function createSongClock(context, { output, extra = 0, now = () => perfor
       const ago = Math.max(0, Math.min(0.25, (perf - stamp) / 1000));
       return time() - ago;
     },
+    /** The context time the song's sample at song time `t` is played at (a sound scheduled then is heard with it). */
+    contextTimeOf: t => (startAt === null ? null : startAt + t),
     latency: () => latency + extra,
     playing: () => source !== null,
   };

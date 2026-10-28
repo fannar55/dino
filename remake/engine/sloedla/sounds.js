@@ -178,10 +178,15 @@ export function createSongSounds({ context, key, output, random = Math.random })
   const INSTRUMENTS = { a: horn, b: plates, c: drum };
 
   return {
-    /** `role`'s instrument plays `step` (chart.js: a Slóeðla, b Kambeðla, c Þórseðla); `soft` for a tap with no note. */
-    play(role, step, { soft = false } = {}) {
+    /**
+     * `role`'s instrument plays `step` (chart.js: a Slóeðla, b Kambeðla, c Þórseðla); `soft` for a tap with no note. Now, or at
+     * context time `on` if that is still to come, but no more than `within` seconds from now (an early tap waits for its beat).
+     */
+    play(role, step, { soft = false, on = null, within = 0 } = {}) {
       if (context.state !== 'running') return;
-      (INSTRUMENTS[role] ?? horn)(step, { soft });
+      const now = context.currentTime;
+      const at = Number.isFinite(on) ? Math.max(now, Math.min(on, now + within)) : now;
+      (INSTRUMENTS[role] ?? horn)(step, { soft, at });
     },
     /** The audience cheers, more of them the higher the `tier` (1 to 3): frogs croak, birds chirp, and at the top bells ring. */
     cheer(tier = 1) {
