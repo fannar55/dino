@@ -175,6 +175,9 @@ test("the shipped dinosaurs are the seven, in order; the five after Kambeðla ha
   assert.deepEqual([model('gramedla', 3), model('sloedla', 4), model('flugedla', 4)],
     ['assets/book/models/gramedla-skeleton.glb', 'assets/book/models/sloedla-skeleton.glb', 'assets/book/models/anhanguera-skeleton.glb'],
     "Grameðla's page three turns the Smithsonian's T. rex; Slóeðla's and Flugeðla's page four the skeletons in their stone");
+  assert.deepEqual([model('kambedla', 3), model('uggedla', 3)], ['assets/book/models/kambedla-skeleton.glb', 'assets/book/models/uggedla-skeleton.glb'],
+    "Kambeðla's page three turns the Denver Stegosaurus, Uggeðla's an artist's Spinosaurus");
+  assert.ok(dinosaurs.every(card => card.pages.some(page => page.model)), 'every dinosaur has a skeleton in 3D');
   assert.deepEqual([...new Set(parseCards(SHIPPED).filter(c => c.group !== 'dinosaur').map(c => c.group))], ['animal', 'fossil'], 'the rest are animals, then the fossils');
 });
 
