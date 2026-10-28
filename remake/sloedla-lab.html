@@ -8,7 +8,7 @@
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./sloedla.css">
 <!-- Slóeðla's song game, stage 0 (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
-     The options are in engine/sloedla/lab.js: ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1, ?upptaka=1. -->
+     The options are in engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0. -->
 </head>
 <body>
 <main class="sl">
@@ -24,6 +24,7 @@
         <span>Spila</span>
       </button>
       <div class="sl-options" role="group" aria-label="Stillingar">
+        <span class="sl-chips sl-songs" data-songs></span>
         <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
         <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
       </div>
@@ -37,6 +38,7 @@
       <span>Spilum aftur</span>
     </button>
     <div class="sl-options" role="group" aria-label="Stillingar">
+      <span class="sl-chips sl-songs" data-songs></span>
       <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
       <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
     </div>

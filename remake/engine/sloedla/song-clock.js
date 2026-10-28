@@ -66,14 +66,17 @@ export function createSongClock(context, { output, extra = 0, now = () => perfor
   }
 
   return {
+    /** Starts the song's time `lead` seconds from now, playing `buffer` from its start then (none: a song the game plays itself). */
     start(buffer, lead = 0.2) {
       this.stop();
-      source = context.createBufferSource();
-      source.buffer = buffer;
-      source.connect(output ?? context.destination);
       startAt = context.currentTime + lead;
       estimate = null;
-      source.start(startAt);
+      if (buffer) {
+        source = context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(output ?? context.destination);
+        source.start(startAt);
+      }
       return startAt;
     },
     stop() {

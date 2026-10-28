@@ -122,15 +122,16 @@ export function laneOf(role, lanes = 3) {
  * returns their indices. state(i) is 'waiting', 'hit' or 'missed'; left() how many are still waiting.
  */
 export function createJudge(notes, { window = HIT_WINDOW, great = GREAT_WINDOW, near = NEAR_WINDOW } = {}) {
-  const states = notes.map(() => 'waiting');
+  // `notes` may grow while the round plays (a song decided a section at a time: conductor.js), always later notes at its end
+  const states = [];
   let first = 0; // every note before this one is hit or missed
-  let waiting = notes.length;
+  let resolved = 0;
   return {
     tap(lane, time) {
       let best = -1;
       let gap = Infinity;
       for (let i = first; i < notes.length && notes[i].t <= time + near; i++) {
-        if (states[i] !== 'waiting' || notes[i].lane !== lane) continue;
+        if (states[i] || notes[i].lane !== lane) continue;
         const d = Math.abs(time - notes[i].t);
         if (d < gap) { gap = d; best = i; }
       }
@@ -139,23 +140,23 @@ export function createJudge(notes, { window = HIT_WINDOW, great = GREAT_WINDOW, 
       const offset = time - note.t;
       if (gap > window) return { kind: 'near', index: best, note, offset };
       states[best] = 'hit';
-      waiting--;
+      resolved++;
       return { kind: 'hit', index: best, note, offset, great: gap <= great };
     },
     sweep(time) {
       const gone = [];
       while (first < notes.length && notes[first].t + window < time) {
-        if (states[first] === 'waiting') {
+        if (!states[first]) {
           states[first] = 'missed';
-          waiting--;
+          resolved++;
           gone.push(first);
         }
         first++;
       }
       return gone;
     },
-    state: i => states[i],
-    left: () => waiting,
+    state: i => states[i] ?? 'waiting',
+    left: () => notes.length - resolved,
   };
 }
 

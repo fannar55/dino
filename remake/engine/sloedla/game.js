@@ -1,66 +1,65 @@
 // Slóeðla's song game, the round itself, drawn on one canvas (cheap on a tablet, and recordable with its sound: lab.js ?upptaka=1):
 // lanes down the screen, each ending in a big round button with its dinosaur; glowing notes fall in time with the song, and the
-// child taps the lane when a note reaches the dinosaur, who then plays it on her instrument, hops and sparkles. A note missed just
-// fades away. A run of hits makes the sky glitter more and the audience (Mosi and the small animals the child has met) bounce and
-// cheer louder; the bar at the top fills with every note played and lights its three stars as the share passes each one. At the end
-// of the song the stars won rise one by one. Nobody loses.
+// child taps the lane when a note reaches the dinosaur. The song is played by the conductor (conductor.js), and the round tells it
+// what the child does: a hit keeps that dinosaur's part playing, a miss lets it drop out of the song (her button dims until she is
+// hit again), a run of hits brings in more of the band. Around the lanes the sky answers the music: northern lights that sway on
+// the beat and grow brighter the better it goes, a constellation that draws itself star by star as the notes are played (a section
+// played well flashes it), fireworks when a section comes in big, and at the top of a run everything turns gold. Nobody loses: a
+// missed note fades away, the song plays to its end, and the stars won rise one by one.
 //
-// It takes the song's time from `clock` (song-clock.js: the heard time of the audio that plays it), so the notes keep to the music
-// even when frames come late, and a tap from tap(lane, time) is judged at the song time given (the page passes its event's time).
-// Where the taps come from is the page's business: the canvas's pointers and the keyboard here, a phone later (Fjölspil).
+// The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
+// frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
 
 import { danceGrid, beatAt } from '../beat.js';
-import { HIT_WINDOW, NEAR_WINDOW, STAR_SHARES, createJudge, createScore, count, shareOf, starsFor, tierOf } from './chart.js';
+import { HIT_WINDOW, NEAR_WINDOW, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
+import { seededRandom } from '../random.js';
 
-const WORDS = ['', 'Flott!', 'Vá!', 'Frábært!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read: short words)
+const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const MORE = ['Áfram svona!', 'Stórkostlegt!', 'Ótrúlegt!']; // every eight hits further on
 const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
-const END_AFTER = 1.2; // s after the last note before the round ends
+const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
-const SNAP_AHEAD = 0.12; // s: the longest an early tap's sound waits to land on its note's beat
+const GOLD = '#f2b630';
 
 /**
- * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `notes` the
- * sheet's notes, each with its `lane`; `fall` how long a note takes to fall; `song` the song's grid ({ bpm, beatOffset,
- * danceBeats }); `clock` its clock; `sounds` the instruments (sounds.js); `audience` images ({ image, big }); `random`.
- * Returns { tap(lane, time), frame(), resize(), state(), finish() }; frame() is called every animation frame; `onEnd(result)`
- * when the stars have risen.
+ * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `conductor` the
+ * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
+ * ({ star(n) }). Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds, audience = [], random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   const lanes = cast.length;
+  const notes = conductor.chart; // grows a section at a time
   const judge = createJudge(notes);
-  const score = createScore(notes.length);
-  const dance = danceGrid({ bpm: song.bpm, beatOffset: song.beatOffset, danceBeats: song.danceBeats ?? 2 });
-  const first = notes[0]?.t ?? 0;
-  const last = notes.at(-1)?.t ?? 0;
+  const score = createScore(conductor.expected);
+  const dance = danceGrid({ bpm: conductor.bpm, beatOffset: 0, danceBeats: 2 });
 
   let w = 0, h = 0, dpr = 1, portrait = false;
-  let laneW = 0, laneX = [], dinoR = 0, hitY = 0, topY = 0, seats = [], bar = null;
-  let background = null; // the sky and the lanes, drawn once a size
-  let glows = []; // a note's glow, one a lane
-  let buttons = []; // a dinosaur's round button, one a lane
-  let spark = null; // a little four-pointed star
-  const twinkles = Array.from({ length: 70 }, () => ({ x: random(), y: random() * 0.62, r: 0.6 + random() * 1.6, phase: random() * 6.28, tier: Math.floor(random() * 4) }));
+  let laneW = 0, laneX = [], dinoR = 0, hitY = 0, topY = 0, bar = null, sky = null;
+  let background = null;
+  let glows = [], goldGlow = null, buttons = [], spark = null;
+  let laned = 0; // notes given their lane so far
 
-  // what is moving: bursts of sparks, rings, hops, floating notes, words, falling stars
-  const sparks = [];
+  const twinkles = Array.from({ length: 80 }, () => ({ x: random(), y: random() * 0.7, r: 0.5 + random() * 1.5, phase: random() * 6.28 }));
+  const sparks = []; // short-lived glitter: { x, y, vx, vy, life, max, size, gold }
   const rings = [];
-  const hops = new Array(lanes).fill(-Infinity); // the song time each dinosaur last hopped
-  const flashes = new Array(lanes).fill(-Infinity); // the song time each lane was last tapped
+  const waves = []; // Slóeðla's sound waves, Þórseðla's ground wave
+  const hops = new Array(lanes).fill(-Infinity);
+  const flashes = new Array(lanes).fill(-Infinity);
   const floaters = [];
   const words = [];
-  const shooting = [];
-  let starsLit = 0; // markers lit on the bar
-  let cheerAt = -Infinity; // the last time the audience jumped for a run
-  let phase = 'play'; // 'play' → 'end' (the stars rise) → 'done'
-  let endAt = null; // song time the end began
-  let endStars = 0;
-  let starsShown = 0;
+  const rockets = []; // fireworks on their way up: { x, y, vy, burstAt, hue }
+  const constellations = []; // one a section: { section, stars: [{ x, y, lit }], lit, flashAt, good }
+  let shakeAt = -Infinity;
+  let starsLit = 0;
+  let phase = 'play';
+  let endAt = null, endStars = 0, starsShown = 0;
   let lastTime = 0;
-  let fps = { frames: 0, since: 0, value: 0 };
+  let lastSection = -1;
+  let tierNow = 0;
+  const fps = { frames: 0, since: 0, value: 0 };
 
-  // ---------------------------------------------------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------------------------------------
   // Size
 
   function resize() {
@@ -78,30 +77,17 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     laneX = Array.from({ length: lanes }, (_, i) => x0 + laneW / 2 + i * (laneW + gap));
     dinoR = Math.min(laneW * 0.5, h * 0.13);
     hitY = h - dinoR - Math.max(14, h * 0.035);
-    // the bar and its stars at the top, the audience on both sides (in a wide screen) or along the top (upright)
     const barW = Math.min(w * (portrait ? 0.7 : 0.42), 520);
     bar = { x: (w - barW) / 2, y: Math.max(22, h * 0.045), w: barW, h: Math.max(18, Math.min(26, h * 0.03)) };
-    topY = bar.y + bar.h + (portrait ? h * 0.12 : h * 0.06);
-    seats = [];
-    const people = audience.length;
-    if (portrait) {
-      const r = Math.min(w / (people * 2.6), 40);
-      for (let i = 0; i < people; i++) seats.push({ x: (w * (i + 0.5)) / people, y: bar.y + bar.h + r + 16, r: r * (audience[i].big ? 1.2 : 1) });
-    } else {
-      const side = x0 - gap; // room each side of the lanes
-      const r = Math.max(22, Math.min(side / 3.2, h * 0.075, 64));
-      const half = Math.ceil(people / 2);
-      for (let i = 0; i < people; i++) {
-        const left = i < half;
-        const k = left ? i : i - half;
-        const n = left ? half : people - half;
-        const y = h * 0.3 + (k * (h * 0.48)) / Math.max(1, n - 1);
-        const inward = (k % 2 ? 0.62 : 0.38) * side;
-        seats.push({ x: left ? inward : w - inward, y, r: r * (audience[i].big ? 1.2 : 1) });
-      }
-    }
+    topY = bar.y + bar.h + (portrait ? h * 0.06 : h * 0.06);
+    // where the constellations may go: the sky beside the lanes (or above them, upright)
+    const left = x0 - gap, right = w - (x0 + span + gap);
+    sky = portrait || left < 120
+      ? [{ x: w * 0.08, y: topY, w: w * 0.84, h: h * 0.22 }]
+      : [{ x: w * 0.03, y: h * 0.14, w: left - w * 0.03, h: h * 0.5 }, { x: x0 + span + gap, y: h * 0.14, w: right - w * 0.03, h: h * 0.5 }];
     paintBackground();
     paintSprites();
+    for (const c of constellations) place(c);
   }
 
   function offscreen(width, height) {
@@ -115,32 +101,29 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
 
   function paintBackground() {
     const [c, g] = offscreen(w, h);
-    const sky = g.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#1b2150');
-    sky.addColorStop(0.55, '#3d3b78');
-    sky.addColorStop(0.85, '#6c578a');
-    sky.addColorStop(1, '#8c6a8c');
-    g.fillStyle = sky;
+    const gradient = g.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, '#10173f');
+    gradient.addColorStop(0.5, '#2c2c66');
+    gradient.addColorStop(0.85, '#5b4a82');
+    gradient.addColorStop(1, '#7a5d88');
+    g.fillStyle = gradient;
     g.fillRect(0, 0, w, h);
-    // a soft hill of the festival's meadow along the bottom
-    g.fillStyle = 'rgba(28, 58, 84, 0.85)';
+    g.fillStyle = 'rgba(24, 44, 70, 0.92)';
     g.beginPath();
     g.moveTo(0, h);
-    g.lineTo(0, h * 0.86);
-    g.quadraticCurveTo(w * 0.5, h * 0.74, w, h * 0.86);
+    g.lineTo(0, h * 0.87);
+    g.quadraticCurveTo(w * 0.5, h * 0.75, w, h * 0.87);
     g.lineTo(w, h);
     g.fill();
-    // the lanes: soft light columns, warmer at the foot, ending in the dinosaur's circle
     for (let i = 0; i < lanes; i++) {
       const x = laneX[i] - laneW / 2;
       const column = g.createLinearGradient(0, topY, 0, hitY);
       column.addColorStop(0, 'rgba(255,255,255,0)');
       column.addColorStop(0.35, 'rgba(255,255,255,0.05)');
-      column.addColorStop(1, hexAlpha(cast[i].hue, 0.28));
+      column.addColorStop(1, hexAlpha(cast[i].hue, 0.3));
       g.fillStyle = column;
       roundRect(g, x, topY - 30, laneW, hitY - topY + 30, laneW * 0.3);
       g.fill();
-      // a guide line down the middle, dotted, for the eye
       g.strokeStyle = 'rgba(255,255,255,0.10)';
       g.setLineDash([4, 14]);
       g.lineWidth = 2;
@@ -153,27 +136,29 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     background = c;
   }
 
+  function glowSprite(hue, size) {
+    const [c, g] = offscreen(size, size);
+    const r = size / 2;
+    const glow = g.createRadialGradient(r, r, 0, r, r, r);
+    glow.addColorStop(0, 'rgba(255,255,255,1)');
+    glow.addColorStop(0.2, 'rgba(255,255,255,0.95)');
+    glow.addColorStop(0.32, hexAlpha(hue, 0.95));
+    glow.addColorStop(0.55, hexAlpha(hue, 0.35));
+    glow.addColorStop(1, hexAlpha(hue, 0));
+    g.fillStyle = glow;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+
   function paintSprites() {
     const size = laneW * 0.95;
-    glows = cast.map(({ hue }) => {
-      const [c, g] = offscreen(size, size);
-      const r = size / 2;
-      const glow = g.createRadialGradient(r, r, 0, r, r, r);
-      glow.addColorStop(0, 'rgba(255,255,255,1)');
-      glow.addColorStop(0.2, 'rgba(255,255,255,0.95)');
-      glow.addColorStop(0.32, hexAlpha(hue, 0.95));
-      glow.addColorStop(0.55, hexAlpha(hue, 0.35));
-      glow.addColorStop(1, hexAlpha(hue, 0));
-      g.fillStyle = glow;
-      g.fillRect(0, 0, size, size);
-      return c;
-    });
+    glows = cast.map(({ hue }) => glowSprite(hue, size));
+    goldGlow = glowSprite(GOLD, size);
     buttons = cast.map(({ hue, light, image }) => {
       const pad = 12;
       const d = dinoR * 2 + pad * 2;
       const [c, g] = offscreen(d, d);
       const r = dinoR;
-      g.save();
       g.translate(d / 2, d / 2);
       g.shadowColor = 'rgba(0,0,0,0.35)';
       g.shadowBlur = 14;
@@ -203,7 +188,6 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       g.beginPath();
       g.arc(0, 0, r - 3, 0, Math.PI * 2);
       g.stroke();
-      g.restore();
       return { canvas: c, size: d };
     });
     const s = 32;
@@ -223,84 +207,146 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     spark = c;
   }
 
-  // ---------------------------------------------------------------------------------------------------------------------------
-  // Play
+  // -------------------------------------------------------------------------------------------------------------------------
+  // Constellations: one a section, a little walk of stars in the sky beside the lanes, lit one by one as its notes are played
 
-  /** The step the lane's instrument plays for `note`: its own, or, for a note written for someone else, the nearest of hers. */
-  function stepFor(role, note) {
-    if (note.role === role) return note.step;
-    const degree = ((note.step % 5) + 5) % 5;
-    if (role === 'c') return degree >= 3 ? 3 : 0;
-    if (role === 'b') return 5 + degree;
-    return degree;
+  function constellationFor(section) {
+    let c = constellations.find(x => x.section === section);
+    if (!c) {
+      const count = Math.max(4, Math.min(12, notes.filter(n => n.section === section).length));
+      c = { section, seed: seededRandom(`stjornumerki-${section}`), stars: Array.from({ length: count }, () => ({ lit: -Infinity })), lit: 0, flashAt: -Infinity, good: false };
+      place(c);
+      constellations.push(c);
+    }
+    return c;
   }
 
-  function burst(lane, great) {
+  /** Lays a constellation's stars out in its part of the sky (again after a resize: the same walk, scaled). */
+  function place(c) {
+    const random = seededRandom(`stjornumerki-${c.section}`);
+    const zone = sky[c.section % sky.length];
+    const step = Math.min(zone.w, zone.h) * 0.2;
+    let x = zone.x + zone.w * (0.25 + random() * 0.5), y = zone.y + zone.h * (0.2 + random() * 0.6);
+    let angle = random() * Math.PI * 2;
+    for (const star of c.stars) {
+      star.x = x;
+      star.y = y;
+      angle += (random() - 0.5) * 1.8;
+      x = Math.max(zone.x, Math.min(zone.x + zone.w, x + Math.cos(angle) * step * (0.7 + random() * 0.6)));
+      y = Math.max(zone.y, Math.min(zone.y + zone.h, y + Math.sin(angle) * step * (0.7 + random() * 0.6)));
+      star.r = 2.2 + random() * 1.6;
+    }
+  }
+
+  // -------------------------------------------------------------------------------------------------------------------------
+  // Play
+
+  function burst(lane, great, gold) {
     const x = laneX[lane], y = hitY;
     const many = great ? 18 : 11;
     for (let i = 0; i < many; i++) {
       const a = (i / many) * Math.PI * 2 + random() * 0.4;
       const speed = (great ? 260 : 190) * (0.6 + random() * 0.6);
-      sparks.push({ x, y: y - dinoR * 0.2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 120, life: 0, max: 0.55 + random() * 0.35, size: (great ? 22 : 16) * (0.7 + random() * 0.6) });
+      sparks.push({ x, y: y - dinoR * 0.2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 120, life: 0, max: 0.55 + random() * 0.35, size: (great ? 22 : 16) * (0.7 + random() * 0.6), gravity: 380 });
     }
-    rings.push({ lane, at: lastTime, hue: cast[lane].hue, great });
+    rings.push({ lane, at: lastTime, hue: gold ? GOLD : cast[lane].hue, great });
   }
 
-  function say(text, { x = w / 2, y = h * 0.4, size = 54, hue = '#fff6c8' } = {}) {
-    words.push({ text, x, y, size, hue, at: lastTime });
+  function firework(x, y, hue) {
+    rockets.push({ x, y: h * 0.85, vy: -(h * 0.9), target: y, hue });
+  }
+
+  function say(text, { y = h * 0.4, size = 54, hue = '#fff6c8' } = {}) {
+    words.push({ text, x: w / 2, y, size, hue, at: lastTime });
     if (words.length > 3) words.shift();
+  }
+
+  function giveLanes() {
+    for (; laned < notes.length; laned++) notes[laned].lane = laneOf(notes[laned].role, lanes);
+  }
+
+  function setTier() {
+    const next = tierOf(score.streak);
+    if (next === tierNow) return 0;
+    const up = next > tierNow;
+    tierNow = next;
+    conductor.setTier(next);
+    return up ? next : 0;
   }
 
   /** A tap on `lane` at song time `time`. */
   function tap(lane, time = clock.time()) {
     if (phase !== 'play' || !(lane >= 0 && lane < lanes)) return null;
+    giveLanes();
     const role = cast[lane].role;
     flashes[lane] = time;
     const result = judge.tap(lane, time);
     if (result.kind === 'hit') {
-      // an early tap's note waits for its beat (a little: SNAP_AHEAD at most), so what she plays sounds in time with the song
-      sounds.play(role, stepFor(role, result.note), { on: clock.contextTimeOf?.(result.note.t), within: SNAP_AHEAD });
+      conductor.hit(result.note);
       hops[lane] = time;
-      burst(lane, result.great);
+      const gold = tierNow >= 3;
+      burst(lane, result.great, gold);
       floaters.push({ lane, at: time, wobble: random() * 2 - 1 });
-      const tier = count(score, result);
-      if (tier) {
-        sounds.cheer(tier);
-        cheerAt = time;
-        say(WORDS[tier]);
-      } else if (score.streak >= 24 && score.streak % 8 === 0) {
-        sounds.cheer(3);
-        cheerAt = time;
-        say(MORE[(score.streak / 8) % MORE.length]);
-      }
-      const lit = STAR_SHARES.filter(least => shareOf(score) >= least).length;
+      // what the instrument looks like when it plays: her horn's waves, the drum's thump, the plates' glitter
+      const noteRole = result.note.role;
+      if (noteRole === 'a') waves.push({ lane, at: time, kind: 'horn' });
+      else if (noteRole === 'c') { waves.push({ lane, at: time, kind: 'ground' }); shakeAt = time; }
+      else for (let i = 0; i < 8; i++) sparks.push({ x: laneX[lane] + (random() - 0.5) * dinoR, y: hitY - dinoR * 0.5, vx: (random() - 0.5) * 60, vy: -120 - random() * 120, life: 0, max: 0.9, size: 12, gravity: -20 });
+      const c = constellationFor(result.note.section);
+      if (c.lit < c.stars.length) c.stars[c.lit++].lit = time;
+      count(score, result);
+      const crossed = setTier();
+      if (crossed) say(WORDS[crossed]);
+      else if (score.streak >= 24 && score.streak % 8 === 0) say(MORE[(score.streak / 8) % MORE.length]);
+      const lit = STAR_SHARES.filter(least => shareNow() >= least).length;
       if (lit > starsLit) {
         starsLit = lit;
-        sounds.sparkle(5 + lit * 2);
+        chimes?.sparkle?.();
       }
     } else {
-      // early, late or no note at all: she still plays, softly, so tapping is always music; a stray (no note near, while the
-      // notes are coming) breaks the run
-      sounds.play(role, role === 'b' ? 5 : 0, { soft: true });
-      if (result.kind === 'stray' && time > first - 1 && time < last + NEAR_WINDOW) count(score, result);
+      conductor.stray(role);
+      if (result.kind === 'stray' && notes.length && time > notes[0].t - 1 && time < conductor.length) {
+        count(score, result);
+        setTier();
+      }
     }
     return result;
   }
 
+  /** The share played so far, against the song as written until the end (when the notes that fell are all that count). */
+  function shareNow() {
+    return shareOf({ ...score, total: Math.max(score.total, notes.length) });
+  }
+
   function update(time, dt) {
+    giveLanes();
     if (phase === 'play') {
-      for (const index of judge.sweep(time)) count(score, { kind: 'miss', index });
-      if (time > last + HIT_WINDOW + END_AFTER) {
+      for (const index of judge.sweep(time)) {
+        conductor.miss(notes[index]);
+        count(score, { kind: 'miss' });
+        setTier();
+      }
+      // a new section: a section that comes in big brings fireworks; the constellation of the one before flashes if it went well
+      const section = conductor.sectionAt(time);
+      if (section && section.index !== lastSection) {
+        const before = constellations.find(c => c.section === lastSection);
+        if (before && before.lit >= before.stars.length * 0.75) { before.good = true; before.flashAt = time; }
+        lastSection = section.index;
+        if (section.variant === 'big') {
+          for (let i = 0; i < 4; i++) firework(w * (0.15 + 0.7 * random()), h * (0.12 + random() * 0.25), [GOLD, '#ff7eb6', '#7fe3ff', '#b8ff8a'][i]);
+          say('Allir með!', { y: h * 0.32 });
+        }
+      }
+      if (time > conductor.length + END_AFTER) {
         phase = 'end';
         endAt = time;
+        score.total = notes.length;
         endStars = starsFor(score);
+        if (endStars === 3) for (let i = 0; i < 6; i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff'][i % 3]);
       }
     } else if (phase === 'end') {
       const due = Math.min(endStars, Math.floor((time - endAt - 0.6) / STAR_GAP) + 1);
-      while (starsShown < due) {
-        starsShown++;
-        sounds.star(starsShown);
-      }
+      while (starsShown < due) chimes?.star?.(++starsShown);
       if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) + 0.4) {
         phase = 'done';
         onEnd(result());
@@ -310,82 +356,151 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       s.life += dt;
       s.x += s.vx * dt;
       s.y += s.vy * dt;
-      s.vy += 380 * dt;
+      s.vy += (s.gravity ?? 380) * dt;
       s.vx *= 1 - 1.5 * dt;
     }
     for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life > sparks[i].max) sparks.splice(i, 1);
-    // at the highest tier a star now and then shoots across the sky
-    const tier = tierOf(score.streak);
-    if (phase === 'play' && tier >= 3 && random() < dt * 0.6) shooting.push({ x: random() * w * 0.6, y: random() * h * 0.25, at: time });
-    while (shooting.length && time - shooting[0].at > 1.2) shooting.shift();
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.y += r.vy * dt;
+      if (r.y <= r.target) {
+        rockets.splice(i, 1);
+        for (let k = 0; k < 36; k++) {
+          const a = (k / 36) * Math.PI * 2;
+          const v = 120 + random() * 110;
+          sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0, max: 1.1 + random() * 0.5, size: 10, gravity: 90, hue: r.hue });
+        }
+      }
+    }
+    if (sparks.length > 400) sparks.splice(0, sparks.length - 400);
   }
 
-  // ---------------------------------------------------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------------------------------------
   // Draw
 
   function draw(time) {
     const g = ctx;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const since = time - shakeAt;
+    const shake = since >= 0 && since < 0.18 ? (1 - since / 0.18) * 5 : 0;
+    g.setTransform(dpr, 0, 0, dpr, shake ? (random() - 0.5) * shake * dpr : 0, shake ? (random() - 0.5) * shake * dpr : 0);
     g.drawImage(background, 0, 0, w, h);
-    const tier = tierOf(score.streak);
     const beat = beatAt(Math.max(0, time), dance);
-    const pulse = Math.max(0, 1 - beat.phase * 3); // a flash on each danced beat, gone a third of the way through it
+    const pulse = Math.max(0, 1 - beat.phase * 3);
+    const section = conductor.sectionAt(time);
+    const big = section?.variant === 'big';
+    const calm = section?.variant === 'calm';
 
-    // the sky twinkles, more of it the longer the run
     for (const star of twinkles) {
-      if (star.tier > tier) continue;
-      const a = 0.35 + 0.35 * Math.sin(time * 2.2 + star.phase) + pulse * 0.25 * (star.tier > 0 ? 1 : 0.4);
-      g.globalAlpha = Math.max(0, Math.min(1, a));
+      g.globalAlpha = Math.max(0, Math.min(1, 0.3 + 0.3 * Math.sin(time * 2.2 + star.phase) + pulse * 0.15 * (tierNow + 1) * 0.5));
       g.fillStyle = '#fff8dc';
       g.beginPath();
-      g.arc(star.x * w, star.y * h, star.r * (1 + tier * 0.15), 0, Math.PI * 2);
+      g.arc(star.x * w, star.y * h, star.r, 0, Math.PI * 2);
       g.fill();
     }
     g.globalAlpha = 1;
-    for (const s of shooting) {
-      const p = (time - s.at) / 1.2;
-      const x = s.x + p * w * 0.35, y = s.y + p * h * 0.12;
-      const trail = g.createLinearGradient(x - 90, y - 30, x, y);
-      trail.addColorStop(0, 'rgba(255,248,220,0)');
-      trail.addColorStop(1, `rgba(255,248,220,${(1 - p) * 0.9})`);
-      g.strokeStyle = trail;
-      g.lineWidth = 3;
-      g.beginPath();
-      g.moveTo(x - 90, y - 30);
-      g.lineTo(x, y);
-      g.stroke();
-    }
+    drawAurora(g, time, pulse, big, calm);
+    drawConstellations(g, time);
 
-    // a tapped lane lights for a moment
+    // the lanes' edges glow on the beat; gold at the top of a run
     for (let i = 0; i < lanes; i++) {
-      const since = time - flashes[i];
-      if (since >= 0 && since < 0.25) {
-        g.globalAlpha = (1 - since / 0.25) * 0.22;
+      const x = laneX[i] - laneW / 2;
+      const edge = tierNow >= 3 ? GOLD : cast[i].hue;
+      g.globalAlpha = 0.12 + pulse * (0.25 + tierNow * 0.08);
+      g.strokeStyle = edge;
+      g.lineWidth = 3;
+      roundRect(g, x, topY - 30, laneW, hitY - topY + 30, laneW * 0.3);
+      g.stroke();
+      const tapped = time - flashes[i];
+      if (tapped >= 0 && tapped < 0.25) {
+        g.globalAlpha = (1 - tapped / 0.25) * 0.22;
         g.fillStyle = cast[i].hue;
-        roundRect(g, laneX[i] - laneW / 2, topY, laneW, hitY - topY, laneW * 0.3);
+        roundRect(g, x, topY, laneW, hitY - topY, laneW * 0.3);
         g.fill();
       }
     }
     g.globalAlpha = 1;
 
-    drawAudience(g, time, beat, tier);
-    drawDinosaurs(g, time, tier);
-    drawNotes(g, time); // over the dinosaurs: the child sees the note come right into her
+    drawDinosaurs(g, time);
+    drawNotes(g, time);
     drawEffects(g, time);
-    drawBar(g, time);
+    drawBar(g);
     if (phase !== 'play') drawEnd(g, time);
-    if (debug) drawDebug(g, time);
+    if (debug) drawDebug(g, time, section);
+  }
+
+  // Northern lights: three ribbons over the sky, swaying slowly, brightening on the beat and with the run, quieter when calm
+  function drawAurora(g, time, pulse, big, calm) {
+    const strength = (calm ? 0.06 : 0.11) + tierNow * 0.05 + (big ? 0.08 : 0) + pulse * 0.05;
+    const colours = tierNow >= 3 ? ['#ffd36b', '#ff9de0', '#8ff7c1'] : ['#5effa0', '#4fd8ff', '#b07cff'];
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 3; k++) {
+      const base = h * (0.1 + k * 0.08);
+      const height = h * (0.16 + 0.04 * Math.sin(time * 0.4 + k));
+      const gradient = g.createLinearGradient(0, base - height * 0.4, 0, base + height);
+      gradient.addColorStop(0, hexAlpha(colours[k], 0));
+      gradient.addColorStop(0.35, hexAlpha(colours[k], strength));
+      gradient.addColorStop(1, hexAlpha(colours[k], 0));
+      g.fillStyle = gradient;
+      g.beginPath();
+      const steps = 36;
+      for (let i = 0; i <= steps; i++) {
+        const x = (i / steps) * w;
+        const y = base + Math.sin(x * 0.006 + time * (0.5 + k * 0.17) + k * 2) * h * 0.04 + Math.sin(x * 0.017 - time * 0.9) * h * 0.012;
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      for (let i = steps; i >= 0; i--) {
+        const x = (i / steps) * w;
+        const y = base + height + Math.sin(x * 0.005 + time * 0.35 + k) * h * 0.05;
+        g.lineTo(x, y);
+      }
+      g.closePath();
+      g.fill();
+    }
+    g.restore();
+  }
+
+  function drawConstellations(g, time) {
+    for (const c of constellations) {
+      const flash = time - c.flashAt;
+      const glow = flash >= 0 && flash < 1.2 ? 1 - flash / 1.2 : 0;
+      const base = c.section === lastSection ? 1 : c.good ? 0.7 : 0.4;
+      g.strokeStyle = `rgba(255, 246, 200, ${0.25 * base + glow * 0.6})`;
+      g.lineWidth = 1.5 + glow * 2;
+      g.beginPath();
+      for (let i = 1; i < c.lit; i++) {
+        g.moveTo(c.stars[i - 1].x, c.stars[i - 1].y);
+        g.lineTo(c.stars[i].x, c.stars[i].y);
+      }
+      g.stroke();
+      for (const star of c.stars) {
+        const lit = Number.isFinite(star.lit);
+        const pop = lit ? Math.max(0, 1 - (time - star.lit) / 0.4) : 0;
+        g.globalAlpha = lit ? Math.min(1, base + glow) : 0.18;
+        g.fillStyle = lit ? '#fff6c8' : '#c8c3ff';
+        g.beginPath();
+        g.arc(star.x, star.y, star.r * (1 + pop * 1.5 + glow * 0.6), 0, Math.PI * 2);
+        g.fill();
+        if (pop > 0 || glow > 0) {
+          const size = 26 * (pop + glow);
+          g.globalAlpha = Math.min(1, pop + glow);
+          g.drawImage(spark, star.x - size / 2, star.y - size / 2, size, size);
+        }
+      }
+      g.globalAlpha = 1;
+    }
   }
 
   function drawNotes(g, time) {
     const span = hitY - topY;
+    const gold = tierNow >= 3;
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       const ahead = note.t - time;
       if (ahead > fall + 0.1) break;
       const state = judge.state(i);
       if (state === 'hit') continue;
-      const gone = -ahead; // how long ago it reached the dinosaur
+      const gone = -ahead;
       if (state === 'missed' && gone > HIT_WINDOW + 0.35) continue;
       const y = hitY - (ahead / fall) * span;
       if (y < topY - laneW) continue;
@@ -397,25 +512,23 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
         alpha *= 1 - fade;
         scale *= 1 - fade * 0.5;
       }
-      const sprite = glows[note.lane];
+      const sprite = gold ? goldGlow : glows[note.lane];
       const size = laneW * 0.95 * scale;
       g.globalAlpha = Math.max(0, alpha);
       g.drawImage(sprite, laneX[note.lane] - size / 2, y - size / 2, size, size);
-      // the note's mark at its heart
-      g.fillStyle = cast[note.lane].dark;
+      g.fillStyle = gold ? '#7a4e00' : cast[note.lane].dark;
       g.font = `900 ${Math.round(size * 0.24)}px Nunito, ui-rounded, sans-serif`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.fillText('♪', laneX[note.lane], y + size * 0.01);
+      g.fillText(gold ? '★' : '♪', laneX[note.lane], y + size * 0.01);
     }
     g.globalAlpha = 1;
   }
 
-  function drawDinosaurs(g, time, tier) {
+  function drawDinosaurs(g, time) {
     for (let i = 0; i < lanes; i++) {
-      // a ring that brightens as the next note comes near, to say "now!"
       let soon = Infinity;
-      for (let k = 0; k < notes.length; k++) {
+      for (let k = Math.max(0, judge.first ?? 0); k < notes.length; k++) {
         const note = notes[k];
         if (note.t - time > 0.6) break;
         if (note.lane !== i || judge.state(k) !== 'waiting') continue;
@@ -426,12 +539,12 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       const hop = since >= 0 && since < 0.32 ? Math.sin((since / 0.32) * Math.PI) : 0;
       const y = hitY - hop * dinoR * 0.32;
       const s = 1 + hop * 0.08;
-      if (soon < 0.6 || tier >= 2) {
-        const glow = Math.max(soon < 0.6 ? 1 - soon / 0.6 : 0, tier >= 2 ? 0.35 + 0.1 * tier : 0);
+      if (soon < 0.6 || tierNow >= 2) {
+        const glow = Math.max(soon < 0.6 ? 1 - soon / 0.6 : 0, tierNow >= 2 ? 0.35 + 0.1 * tierNow : 0);
         g.globalAlpha = Math.min(1, glow);
-        g.strokeStyle = '#fff6c8';
+        g.strokeStyle = tierNow >= 3 ? GOLD : '#fff6c8';
         g.lineWidth = 6 + glow * 6;
-        g.shadowColor = cast[i].hue;
+        g.shadowColor = tierNow >= 3 ? GOLD : cast[i].hue;
         g.shadowBlur = 24 * glow;
         g.beginPath();
         g.arc(x, hitY, dinoR + 8 + glow * 4, 0, Math.PI * 2);
@@ -443,62 +556,42 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       const { canvas: button, size } = buttons[i];
       const d = size * s;
       g.drawImage(button, x - d / 2, y - d / 2, d, d);
-    }
-  }
-
-  function drawAudience(g, time, beat, tier) {
-    const cheering = time - cheerAt < 1.2;
-    const bounce = [3, 7, 12, 18][tier] + (cheering ? 16 : 0);
-    for (let i = 0; i < seats.length; i++) {
-      const seat = seats[i];
-      const own = audience[i];
-      const offbeat = i % 2 ? 0.5 : 0; // half of them bounce between the others' beats
-      const p = (beat.phase + offbeat) % 1;
-      const up = Math.abs(Math.sin(p * Math.PI)) * bounce;
-      const y = seat.y - up;
-      g.save();
-      g.shadowColor = 'rgba(0,0,0,0.3)';
-      g.shadowBlur = 8;
-      g.fillStyle = '#fffaf0';
-      g.beginPath();
-      g.arc(seat.x, y, seat.r + 4, 0, Math.PI * 2);
-      g.fill();
-      g.shadowBlur = 0;
-      g.beginPath();
-      g.arc(seat.x, y, seat.r, 0, Math.PI * 2);
-      g.clip();
-      const image = own.image;
-      if (image?.naturalWidth) {
-        const scale = (seat.r * 2 * (own.zoom ?? 1)) / Math.min(image.naturalWidth, image.naturalHeight);
-        const iw = image.naturalWidth * scale, ih = image.naturalHeight * scale;
-        if (own.big) {
-          g.fillStyle = '#e7ecd6';
-          g.fillRect(seat.x - seat.r, y - seat.r, seat.r * 2, seat.r * 2);
-        }
-        g.drawImage(image, seat.x - iw / 2 + (own.dx ?? 0) * seat.r, y - ih / 2 + (own.dy ?? 0) * seat.r, iw, ih);
-      }
-      g.restore();
-      // while they cheer, a few sparks go up from them
-      if (cheering && tier >= 1) {
-        const k = (time - cheerAt) / 1.2;
-        g.globalAlpha = 1 - k;
-        for (let j = 0; j < 3; j++) {
-          const sx = seat.x + (j - 1) * seat.r * 0.7;
-          const sy = y - seat.r - 10 - k * 60 - j * 8;
-          g.drawImage(spark, sx - 9, sy - 9, 18, 18);
-        }
+      // her part has dropped out of the song: her button dims until a note of hers is hit again
+      if (!conductor.isOpen(cast[i].role)) {
+        g.globalAlpha = 0.42;
+        g.fillStyle = '#1b1840';
+        g.beginPath();
+        g.arc(x, y, dinoR * s, 0, Math.PI * 2);
+        g.fill();
         g.globalAlpha = 1;
       }
     }
   }
 
   function drawEffects(g, time) {
+    g.save();
+    g.globalCompositeOperation = 'lighter';
     for (const s of sparks) {
       const k = s.life / s.max;
       g.globalAlpha = 1 - k * k;
-      const size = s.size * (1 - k * 0.4);
-      g.drawImage(spark, s.x - size / 2, s.y - size / 2, size, size);
+      if (s.hue) {
+        g.fillStyle = s.hue;
+        g.beginPath();
+        g.arc(s.x, s.y, 2.6 * (1 - k * 0.5), 0, Math.PI * 2);
+        g.fill();
+      } else {
+        const size = s.size * (1 - k * 0.4);
+        g.drawImage(spark, s.x - size / 2, s.y - size / 2, size, size);
+      }
     }
+    for (const r of rockets) {
+      g.globalAlpha = 1;
+      g.fillStyle = r.hue;
+      g.beginPath();
+      g.arc(r.x, r.y, 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.restore();
     g.globalAlpha = 1;
     for (let i = rings.length - 1; i >= 0; i--) {
       const ring = rings[i];
@@ -511,8 +604,30 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       g.arc(laneX[ring.lane], hitY, dinoR * (1 + k * (ring.great ? 0.75 : 0.5)), 0, Math.PI * 2);
       g.stroke();
     }
+    // Slóeðla's sound going up out of her crest in arcs; Þórseðla's thump rolling out along the ground
+    for (let i = waves.length - 1; i >= 0; i--) {
+      const wave = waves[i];
+      const k = (time - wave.at) / 0.7;
+      if (k > 1 || k < 0) { if (k > 1) waves.splice(i, 1); continue; }
+      const x = laneX[wave.lane];
+      g.globalAlpha = (1 - k) * 0.8;
+      g.strokeStyle = cast[wave.lane].hue === undefined ? '#fff' : '#e6f0ff';
+      g.lineWidth = 4 * (1 - k) + 1;
+      if (wave.kind === 'horn') {
+        for (let j = 0; j < 3; j++) {
+          const r = dinoR * (0.6 + k * 1.6 + j * 0.3);
+          g.beginPath();
+          g.arc(x, hitY - dinoR * 0.4, r, Math.PI * 1.2, Math.PI * 1.8);
+          g.stroke();
+        }
+      } else {
+        g.strokeStyle = '#ffe2a8';
+        g.beginPath();
+        g.ellipse(x, hitY + dinoR * 0.85, dinoR * (0.8 + k * 2.2), dinoR * (0.12 + k * 0.25), 0, 0, Math.PI * 2);
+        g.stroke();
+      }
+    }
     g.globalAlpha = 1;
-    // the note she played floats up out of her
     for (let i = floaters.length - 1; i >= 0; i--) {
       const f = floaters[i];
       const k = (time - f.at) / 0.9;
@@ -525,7 +640,6 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       g.fillText('♪', laneX[f.lane] + f.wobble * dinoR * 0.5 + Math.sin(k * 6) * 8, hitY - dinoR - k * dinoR * 1.6);
     }
     g.globalAlpha = 1;
-    // words
     for (let i = words.length - 1; i >= 0; i--) {
       const word = words[i];
       const k = (time - word.at) / 1.1;
@@ -535,16 +649,15 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       outlined(g, word.text, word.x, word.y - k * 30, Math.round(word.size * pop), word.hue);
     }
     g.globalAlpha = 1;
-    // the run, while there is one
     if (score.streak >= 3 && phase === 'play') {
-      const y = bar.y + bar.h + (portrait ? 70 : 34);
-      outlined(g, `${score.streak} í röð`, w / 2, portrait ? y + 40 : y, portrait ? 26 : 28, '#fff6c8');
+      const y = bar.y + bar.h + (portrait ? 30 : 34);
+      outlined(g, `${score.streak} í röð`, w / 2, y, portrait ? 26 : 28, tierNow >= 3 ? '#ffe27a' : '#fff6c8');
     }
   }
 
-  function drawBar(g, time) {
+  function drawBar(g) {
     const { x, y, w: bw, h: bh } = bar;
-    const share = shareOf(score);
+    const share = shareNow();
     g.fillStyle = 'rgba(20, 18, 50, 0.55)';
     roundRect(g, x - 4, y - 4, bw + 8, bh + 8, (bh + 8) / 2);
     g.fill();
@@ -553,16 +666,15 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     g.fill();
     if (share > 0) {
       const fill = g.createLinearGradient(x, 0, x + bw, 0);
-      fill.addColorStop(0, '#f2b630');
+      fill.addColorStop(0, GOLD);
       fill.addColorStop(1, '#ffe27a');
       g.fillStyle = fill;
       roundRect(g, x, y, Math.max(bh, bw * share), bh, bh / 2);
       g.fill();
     }
-    STAR_SHARES.forEach((least, i) => {
+    STAR_SHARES.forEach(least => {
       const lit = share >= least;
-      const sx = x + bw * least;
-      star(g, sx, y + bh / 2, bh * (lit ? 1.05 : 0.85), lit ? '#f2b630' : 'rgba(255,255,255,0.35)', lit ? '#fff6c8' : 'rgba(255,255,255,0.5)');
+      star(g, x + bw * least, y + bh / 2, bh * (lit ? 1.05 : 0.85), lit ? GOLD : 'rgba(255,255,255,0.35)', lit ? '#fff6c8' : 'rgba(255,255,255,0.5)');
     });
   }
 
@@ -576,42 +688,43 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
     const size = Math.min(w, h) * (portrait ? 0.12 : 0.11);
     for (let i = 0; i < 3; i++) {
       const sx = w / 2 + (i - 1) * size * 2.3;
-      const shownAt = endAt + 0.6 + i * STAR_GAP;
-      const won = i < endStars;
-      const since = time - shownAt;
-      if (won && since >= 0) {
+      const since = time - (endAt + 0.6 + i * STAR_GAP);
+      if (i < endStars && since >= 0) {
         const pop = since < 0.25 ? 0.4 + (since / 0.25) * 0.8 : 1.2 - Math.min(0.2, (since - 0.25) * 0.8);
-        star(g, sx, cy - (i === 1 ? size * 0.3 : 0), size * pop, '#f2b630', '#fff6c8', 6);
+        star(g, sx, cy - (i === 1 ? size * 0.3 : 0), size * pop, GOLD, '#fff6c8', 6);
       } else star(g, sx, cy - (i === 1 ? size * 0.3 : 0), size * 0.9, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.35)', 4);
     }
     if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
+      const total = notes.length;
       outlined(g, END_WORDS[endStars], w / 2, cy + size * 1.6, portrait ? 40 : 52, '#fff6c8');
-      outlined(g, `Þú spilaðir ${score.hits} af ${score.total} ${score.total % 10 === 1 && score.total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
+      outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
     }
   }
 
-  function drawDebug(g, time) {
+  function drawDebug(g, time, section) {
     const offsets = score.offsets;
     const mean = offsets.length ? (offsets.reduce((a, b) => a + b, 0) / offsets.length) * 1000 : 0;
+    const gates = cast.map(c => `${c.name[0]}${conductor.isOpen(c.role) ? '+' : '-'}`).join(' ');
     const lines = [
-      `tími ${time.toFixed(2)} s · ${fps.value} fps`,
-      `seinkun hljóðs ${(clock.latency() * 1000).toFixed(0)} ms`,
-      `hitt ${score.hits}/${score.total} · mis ${score.misses} · auka ${score.strays} · best ${score.best}`,
+      `tími ${time.toFixed(2)} s · ${fps.value} fps · ${section ? `${section.name} (${section.variant})` : ''}`,
+      `seinkun hljóðs ${(clock.latency() * 1000).toFixed(0)} ms · rásir ${gates} · stig ${tierNow}`,
+      `hitt ${score.hits}/${notes.length} · mis ${score.misses} · auka ${score.strays} · best ${score.best}`,
       `meðalskekkja ${mean >= 0 ? '+' : ''}${mean.toFixed(0)} ms (${offsets.length})`,
     ];
     g.font = '600 14px ui-monospace, monospace';
     g.textAlign = 'left';
     g.textBaseline = 'top';
     g.fillStyle = 'rgba(0,0,0,0.5)';
-    g.fillRect(8, h - 14 - lines.length * 18, 330, lines.length * 18 + 8);
+    g.fillRect(8, h - 14 - lines.length * 18, 420, lines.length * 18 + 8);
     g.fillStyle = '#fff';
     lines.forEach((line, i) => g.fillText(line, 14, h - 10 - (lines.length - i) * 18));
   }
 
-  // ---------------------------------------------------------------------------------------------------------------------------
+  // -------------------------------------------------------------------------------------------------------------------------
 
   function result() {
-    return { stars: starsFor(score), share: shareOf(score), hits: score.hits, total: score.total, misses: score.misses, strays: score.strays, best: score.best, great: score.great };
+    const final = { ...score, total: notes.length };
+    return { stars: starsFor(final), share: shareOf(final), hits: score.hits, total: notes.length, misses: score.misses, strays: score.strays, best: score.best, great: score.great };
   }
 
   let lastPerf = null;
@@ -619,7 +732,6 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
   return {
     tap,
     resize,
-    /** One animation frame: the song's time from the clock, the round moved on to it, and drawn. */
     frame(perf = performance.now()) {
       const time = clock.time();
       const dt = lastPerf === null ? 0 : Math.min(0.1, Math.max(0, (perf - lastPerf) / 1000));
@@ -630,13 +742,12 @@ export function createSongGame({ canvas, cast, notes, fall, song, clock, sounds,
       update(lastTime, dt);
       draw(lastTime);
     },
-    /** The lane under a point on the canvas (CSS pixels), or -1 when it is far from every lane. */
     laneAt(x) {
       let best = -1, gap = Infinity;
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });
       return gap <= laneW * 0.9 ? best : -1;
     },
-    state: () => ({ phase, time: lastTime, score: { ...score, offsets: undefined }, stars: starsFor(score), share: shareOf(score), tier: tierOf(score.streak) }),
+    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow }),
     result,
   };
 }
@@ -655,7 +766,6 @@ function roundRect(g, x, y, width, height, r) {
   g.closePath();
 }
 
-/** A five-pointed star of radius `r` at (x, y). */
 function star(g, x, y, r, fill, line, width = 2) {
   g.beginPath();
   for (let i = 0; i < 10; i++) {
@@ -672,7 +782,6 @@ function star(g, x, y, r, fill, line, width = 2) {
   g.stroke();
 }
 
-/** Big words with a dark outline, centred at (x, y). */
 function outlined(g, text, x, y, size, fill) {
   g.font = `900 ${size}px Nunito, ui-rounded, "Arial Rounded MT Bold", sans-serif`;
   g.textAlign = 'center';
@@ -685,7 +794,6 @@ function outlined(g, text, x, y, size, fill) {
   g.fillText(text, x, y);
 }
 
-/** `#rrggbb` as rgba with `alpha`. */
 function hexAlpha(hex, alpha) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
