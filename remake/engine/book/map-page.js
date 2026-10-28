@@ -31,8 +31,22 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // shows. Where the story goes next is shown before the child gets there: the first piece not yet reached is a faint dotted red
 // line (under the drawn ones), and the empty slot it leads to pulses its dashed ring. Exactly one piece is next, none once every
 // piece is reached.
+//
+// And the map is alive. Two layers cut from the painting itself (tools/map-life-layers.py), the same size as it and lying exactly
+// over it on each page, keep it moving without a line drawn: a soft light glides across the water (the river, the waterfall, the
+// Fen's pools: the layer shows only inside a band that crosses the spread in nine seconds, a little brighter than the painting
+// under it, so the light lies on the water and nowhere else); the mist (the cloud over the mountains in the top left) slides gently
+// from side to side and breathes over fourteen. The mist hangs round Grameðla's circle until she is found (her place, or her star:
+// reached): the first time the page shows her reached the mist is drawn back from her, a round hole in it widening over two
+// seconds, and the save's seen list keeps `map-mist-gramedla` so that happens once; afterwards the hole is simply open. With
+// reduced motion nothing glides, drifts or widens: the water layer is not shown, the mist stands, and the hole is just open.
+// (The water was first to ripple, an animated SVG noise pushing its pixels about; its noise is drawn again every frame, which
+// took about five milliseconds a frame on a laptop's graphics at a tablet's size, more than the four allowed. The light is a mask
+// sliding over a picture, which costs next to nothing.)
 
 export const MAP_SRC = new URL('../../assets/book/map.webp', import.meta.url).href;
+export const WATER_SRC = new URL('../../assets/book/map-water.webp', import.meta.url).href;
+export const MIST_SRC = new URL('../../assets/book/map-mist.webp', import.meta.url).href;
 const VIEW = { width: 1800, height: 1000 }; // the view the map is laid out in: each page shows half its width
 const PICTURE = { width: 1681, height: 936 }; // map.webp's pixels: stretched to the view, a fifth of a percent off its proportions
 const HALF = VIEW.width / 2;
@@ -81,6 +95,15 @@ const NAMES = [
 // The Fen's star is the one won there: Þórseðla's.
 const PLACE_STARS = { fen: ['k2_thorsedla'] };
 const BOUNCE_MS = 480;
+
+// The life. (The water's light is the stylesheet's alone: .map-water.) The mist round Grameðla (the slot 'gramedla'): a round hole in the mist layer, 1.6 times the width across her circle in radius,
+// which the layer's mask draws from its --map-hole (a radius in the page's own units, cqw: 9 to the cqw as the slots are sized) and
+// which the first time she is reached widens from nothing over MIST_OPEN_MS. Her circle was cleared of mist when the layer was
+// cut, so the hole shows once it is wider than that clearing.
+const MIST_OPEN_MS = 2000;
+const MIST_SEEN = 'map-mist-gramedla';
+const HOLE_SHUT = '0cqw';
+const holeOpen = size => `${(size * 1.6 / (HALF / 100)).toFixed(2)}cqw`;
 
 // The trail, in picture pixels, along the middle of the sandy path (the points follow where the path's old painted dots lay, which
 // tools/erase-map-dots.py has taken out; its lists are the same but for B). B runs along Þórseðla's prints, which are painted on the
@@ -144,6 +167,9 @@ function curve(points) {
  *   next()          the piece shown as next, or null once every piece is reached
  *   dotAt()         where the dot rests: the place the last piece drawn ends at ('kambedla', 'fen', 'thorsedla', 'gramedla'),
  *                   or 'start' (the clearing) while none is drawn
+ *   mistOpen()      whether the mist has been drawn back from Grameðla's circle: false until she is reached and the page has
+ *                   shown it (show() opens it, over two seconds the first time, and keeps `map-mist-gramedla` in the save's seen
+ *                   list), true from then on, and true as soon as she is reached with reduced motion
  */
 export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window } = {}) {
   const doc = leaf.el.ownerDocument;
@@ -151,6 +177,13 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     const element = doc.createElement(tag);
     element.className = className;
     return element;
+  };
+  const layer = (className, src) => {
+    const image = make('img', className);
+    image.src = src;
+    image.alt = '';
+    image.draggable = false;
+    return image;
   };
   const friendNames = new Map(FRIENDS.map(friend => [friend.key, friend.name]));
   const nameOf = id => (id === 'fen' ? 'Fenið' : friendNames.get(id) ?? id);
@@ -161,20 +194,27 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     el.style.setProperty('top', `${((y / VIEW.height) * 100).toFixed(2)}%`);
   };
 
-  // Each page: its half of the drawing, with the names and the slots on it.
+  // Each page: its half of the drawing, with the water and the mist over it, and the names and the slots on them. The layers are
+  // the painting's own size and lie exactly where it does (the stylesheet puts all three alike), so they match it pixel for pixel.
+  const mists = []; // each page's mist layer
   const halves = leaf.tiles.map((box, half) => {
     box.classList.add('map-tiles');
     const el = make('div', 'map-half');
     el.setAttribute('data-half', half ? 'right' : 'left');
-    const drawing = doc.createElement('img');
-    drawing.className = 'map-art';
-    drawing.src = MAP_SRC;
-    drawing.alt = '';
-    drawing.draggable = false;
-    el.append(drawing);
+    const drawing = layer('map-art', MAP_SRC);
+    const water = layer('map-water', WATER_SRC);
+    const mist = layer('map-mist', MIST_SRC);
+    el.append(drawing, water, mist);
+    mists.push(mist);
     box.append(el);
     return el;
   });
+  // Grameðla's hole is in the left page's mist, round her slot (the layer is the whole view, so her place on it is her place on
+  // the map, in percent), shut until she is reached.
+  const gramedla = MAP_PLACES.find(place => place.id === 'gramedla');
+  mists[0].style.setProperty('--map-hole-x', `${(gramedla.at[0] / VIEW.width * 100).toFixed(2)}%`);
+  mists[0].style.setProperty('--map-hole-y', `${(gramedla.at[1] / VIEW.height * 100).toFixed(2)}%`);
+  mists[0].style.setProperty('--map-hole', HOLE_SHUT);
   // The trail: over each half's drawing an svg of that half (the same view, cropped to it), holding every piece and the dot, so a
   // piece or the dot that crosses the spine is drawn on both pages, and moves on both at once.
   const svgEl = (tag, attributes = {}) => {
@@ -254,6 +294,29 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     onTap?.(id, state, el);
   }
 
+  // ---- The mist round Grameðla --------------------------------------------------------------------------------------------
+
+  let mistIsOpen = false; // drawn back from her circle: set as soon as it is begun, the animation only shows the way
+  let opening = null; // the animation widening the hole, while it runs
+
+  /** Draws the mist back from her circle: the hole is open, widening to it after `delay` ms, or at once (`delay` null). */
+  function openMist(delay) {
+    mistIsOpen = true;
+    const open = holeOpen(gramedla.size);
+    const [mist] = mists;
+    mist.style.setProperty('--map-hole', open); // what stays when the animation is let go
+    if (delay === null || reducedMotion(win) || typeof mist.animate !== 'function') return;
+    opening = mist.animate([{ '--map-hole': HOLE_SHUT }, { '--map-hole': open }], { duration: MIST_OPEN_MS, delay, easing: 'ease-out', fill: 'backwards' });
+    opening.onfinish = () => { opening = null; };
+  }
+
+  /** Once she is reached, the page on view draws the mist back (the first time it sees her so) and keeps that in the save. */
+  function showMist(delay) {
+    if (states.get('gramedla') === 'empty') return;
+    save.addSeen(MIST_SEEN);
+    if (!mistIsOpen) openMist(delay);
+  }
+
   // ---- The trail ----------------------------------------------------------------------------------------------------------
 
   let shown = false; // the page is on view: a piece that has not been drawn in is drawn in now, not kept for later
@@ -311,7 +374,10 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     piece.animations[0].onfinish = () => finish(piece);
   }
 
-  /** The pieces waiting draw in, in the trail's order, each after the one before (those still drawing count as before). */
+  /**
+   * The pieces waiting draw in, in the trail's order, each after the one before (those still drawing count as before); and the mist
+   * is drawn back from Grameðla if she is reached and it has not been.
+   */
   function drawWaiting(delay) {
     let before = pieces.filter(piece => piece.state === 'drawing').length;
     for (const piece of pieces) {
@@ -319,6 +385,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       draw(piece, delay + before * (ROUTE_MS + ROUTE_GAP_MS));
       before += 1;
     }
+    showMist(delay);
   }
 
   function show(delay = 0) {
@@ -330,6 +397,8 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   function hide() {
     shown = false;
     for (const piece of pieces) finish(piece);
+    opening?.cancel(); // the hole stays as wide as it was going to be
+    opening = null;
   }
 
   /** Shows what the save holds now; a piece of the trail it has just reached draws in at once if the page is on view. */
@@ -367,6 +436,8 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       if (piece.state !== state) setState(piece, state);
     });
     for (const [id, { el }] of markers) el.classList.toggle('next', next >= 0 && ROUTE[next].end === id);
+    // the mist: once she is reached and it was seen drawn back (or with less motion, which draws nothing), it is simply open
+    if (!mistIsOpen && states.get('gramedla') !== 'empty' && (seen.includes(MIST_SEEN) || reducedMotion(win))) openMist(null);
   }
 
   render();
@@ -379,5 +450,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     routeOf: id => pieces.find(piece => piece.id === id)?.state,
     next: () => pieces.find(piece => piece.state === 'next')?.id ?? null,
     dotAt: () => rests,
+    mistOpen: () => mistIsOpen,
   };
 }

@@ -196,6 +196,53 @@ test('the map\'s life layers are cut from the painting at its size', () => {
   }
 });
 
+test('the map\'s water and mist lie over the painting, under the trail and the slots', () => {
+  const { root } = savedRig();
+  const halves = root.findAll(e => e.classList.contains('map-half'));
+  assert.equal(halves.length, 2, 'a half of the map on each page');
+  const layers = ['map-art', 'map-water', 'map-mist', 'map-route', 'map-name', 'map-marker'];
+  for (const half of halves) {
+    const side = half.getAttribute('data-half');
+    const named = (child, name) => child.classList.contains(name) || child.getAttribute('class') === name; // the trail is an svg: its class is an attribute
+    const order = half.children.map(child => layers.find(name => named(child, name))).filter(Boolean);
+    assert.deepEqual([...new Set(order)], layers, `${side}: the painting, the water, the mist, the trail, then the names and the slots`);
+    const layer = name => half.children.find(child => child.classList.contains(name));
+    assert.equal(layer('map-art').tagName, 'IMG');
+    assert.equal(layer('map-water').tagName, 'IMG');
+    assert.equal(layer('map-mist').tagName, 'IMG');
+    assert.match(layer('map-water').src, /assets\/book\/map-water\.webp$/, `${side}: the water layer`);
+    assert.match(layer('map-mist').src, /assets\/book\/map-mist\.webp$/, `${side}: the mist layer`);
+    assert.equal(layer('map-water').alt, '', `${side}: the water is decoration`);
+    assert.equal(layer('map-mist').alt, '', `${side}: the mist is decoration`);
+  }
+});
+
+test('a light glides over the water and the mist drifts, in the stylesheet, and reduced motion stills both', () => {
+  const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
+  const rule = (selector, from = 0) => {
+    const at = css.indexOf(`\n${selector} {`, from);
+    assert.ok(at >= 0, `a rule for ${selector}`);
+    return css.slice(at, css.indexOf('\n}', at));
+  };
+  const water = rule('.map-water');
+  assert.match(water, /mask-image: linear-gradient/, 'the water layer shows through a soft band');
+  assert.match(water, /mask-size: 30% 100%/, 'a third of the layer wide');
+  assert.match(water, /animation: map-water-glide 9s linear infinite/, 'which crosses it in nine seconds, over and over');
+  const glide = /@keyframes map-water-glide \{\s*from \{([^}]*)\}\s*to \{([^}]*)\}/.exec(css);
+  assert.ok(glide, 'from one side of the layer to the other');
+  const places = glide.slice(1).map(text => Number(/(?<![-\w])mask-position: (-?[\d.]+)%/.exec(text)[1]));
+  assert.ok(places[0] < -30 / 0.7 + 0.01 && places[1] > 100 / 0.7 - 0.01, 'the band starts wholly off the layer\'s left edge and ends wholly off its right');
+  assert.match(water, /mask-position: -42\.86% 0/, 'and stands there when it is not moving: the water layer shows nothing');
+  const mist = rule('.map-mist');
+  assert.match(mist, /animation: map-mist-drift 14s [^;]*infinite/, 'the mist slides over fourteen seconds');
+  assert.match(css, /@keyframes map-mist-drift \{[^}]*translate: -\.75% 0;[^}]*\}[^}]*translate: \.75% 0;/, 'a little either way: .75 % of a layer twice the page wide is 1.5 % of the page');
+  // less motion: the book's own rule (every animation in it) and one for a map outside the book
+  const calm = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce) {'));
+  assert.match(calm, /\.map-water \{ animation: none; \}/);
+  assert.match(calm, /\.map-mist \{ animation: none; \}/);
+  assert.match(calm, /\.book \*, \.book \*::before, \.book \*::after \{ animation: none !important; \}/);
+});
+
 const PIECES = ['a', 'b', 'c', 'd'];
 /** A spot in the painting's pixels (1681 by 936), in the map's view units (1800 by 1000). */
 const inView = ([x, y]) => [x * 1800 / 1681, y * 1000 / 936];
@@ -239,6 +286,7 @@ test('the map\'s trail reaches as far as the child has got, and waits unseen unt
     book.open('map', 'child');
     assert.deepEqual(trailOf(root), shown, what);
     const kept = PIECES.filter((id, i) => shown[i] === 'drawn').map(id => `map-route-${id}`);
+    if (shown[3] === 'drawn') kept.push('map-mist-gramedla'); // her piece drawn: she is reached, and the mist opens at her
     assert.deepEqual(save.get().seen, kept, `${what}: each piece drawn is kept as seen`);
   }
 });
@@ -266,7 +314,7 @@ function mapRig({ fill = () => {}, reduced = false, animated = false } = {}) {
   const map = renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }) } });
   const reveals = () => animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
   const spot = () => dotSpot(leaf.el);
-  return { save, map, animations, reveals, spot };
+  return { save, map, animations, reveals, spot, leaf };
 }
 
 test('the way ahead is the first piece not reached, and the empty slot it leads to is the one that pulses', () => {
@@ -360,7 +408,7 @@ test('Grameðla\'s piece draws in as the others do once she is reached', () => {
   book.refresh();
   assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['d', 'd']);
   assert.deepEqual(trailOf(root), ['drawn', 'drawn', 'drawn', 'drawing']);
-  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d']);
+  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d', 'map-mist-gramedla'], 'and the mist opens at her');
 });
 
 test('a piece the child has seen drawn in is there at once in a book made later, and the one reached since draws in alone', () => {
@@ -394,7 +442,7 @@ test('the dot rides at the head of the line: along the same curve, over the same
   assert.ok(sameSpot(dotSpot(root), inView(START)), 'before the page shows, the dot stands at the clearing');
   book.open('map', 'child');
   assert.deepEqual(drawings.map(drawing => pieceOf(drawing)), ['a', 'a', 'b', 'b', 'c', 'c', 'd', 'd'], 'Grameðla\'s piece draws in like the others');
-  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d']);
+  assert.deepEqual(save.get().seen, ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d', 'map-mist-gramedla']);
   assert.equal(dots.length, drawings.length, 'the dot travels each piece, on both pages');
   const starts = [START, [628, 497], ENDS.fen, ENDS.thorsedla]; // each piece begins where the one before ended, but B, which takes up on the far side of Kambeðla's circle
   const stops = [ENDS.kambedla, ENDS.fen, ENDS.thorsedla, ENDS.gramedla];
@@ -468,6 +516,89 @@ test('the dot stands where the child is, and a piece reached but not yet seen dr
   const far = mapRig({ fill: save => { save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); for (const id of PIECES) save.addSeen(`map-route-${id}`); } });
   assert.equal(far.map.dotAt(), 'gramedla');
   assert.ok(sameSpot(far.spot(), inView(ENDS.gramedla)));
+});
+
+/** The animations that open the mist's hole (a mapRig made `animated`), and the mist layers of the map. */
+const openingOf = rig => rig.animations.filter(({ el, keyframes }) => el.classList.contains('map-mist') && keyframes.some(keyframe => '--map-hole' in keyframe));
+const mistsOf = rig => rig.leaf.el.findAll(e => e.classList.contains('map-mist'));
+const GRAMEDLA_SEEN = 'map-mist-gramedla';
+
+test('the mist opens at Grameðla once she is found, the first time drawn open, then simply open', () => {
+  // nobody found: the mist keeps to its place, and nothing is kept
+  const fresh = mapRig({ animated: true });
+  assert.equal(fresh.map.mistOpen(), false, 'a fresh save');
+  fresh.map.show(500);
+  assert.equal(fresh.map.mistOpen(), false, 'shown with nobody found');
+  assert.ok(!fresh.save.get().seen.includes(GRAMEDLA_SEEN));
+  assert.equal(openingOf(fresh).length, 0);
+  assert.match(mistsOf(fresh)[0].style['--map-hole'], /^0(cqw|px)?$/, 'the hole is shut: no width');
+  // a friend found elsewhere does not open it either
+  const other = mapRig({ animated: true, fill: save => { save.addPlace('kambedla'); save.addStar('k2_thorsedla'); } });
+  other.map.show(0);
+  assert.equal(other.map.mistOpen(), false, 'the others are not Grameðla');
+
+  // her star: reached, but the page has not shown it yet
+  const star = mapRig({ animated: true, fill: save => { save.addStar('k2_thorsedla'); save.addStar('k3_gramedla'); } });
+  assert.equal(star.map.mistOpen(), false, 'reached, but not yet on view');
+  assert.ok(!star.save.get().seen.includes(GRAMEDLA_SEEN), 'and not kept as seen');
+  assert.equal(openingOf(star).length, 0);
+  star.map.show(500);
+  assert.equal(star.map.mistOpen(), true, 'the page shows her reached: the mist opens');
+  assert.ok(star.save.get().seen.includes(GRAMEDLA_SEEN), 'kept as seen');
+  const opening = openingOf(star);
+  assert.equal(opening.length, 1, 'drawn once: one animation, on the left page\'s mist, where her slot is');
+  const [{ el, keyframes, options }] = opening;
+  assert.equal(mistsOf(star).indexOf(el), 0, 'on the left page');
+  assert.equal(options.duration, 2000, 'over two seconds');
+  assert.equal(options.delay, 500, 'once the book has turned to the page');
+  assert.equal(options.fill, 'backwards', 'shut while it waits for its turn');
+  const [from, to] = keyframes.map(keyframe => keyframe['--map-hole']);
+  assert.match(from, /^0(cqw|px)?$/, 'from shut');
+  assert.ok(/cqw$/.test(to), 'to a width that holds to the page it is on');
+  const circle = 80 * 1800 / 1681; // the width across her pale circle, in the view's units
+  assert.ok(Math.abs(parseFloat(to) * 9 - circle * 1.6) < 1, `a radius of 1.6 times her circle (${to}, 9 to the cqw)`);
+  assert.equal(el.style['--map-hole'], to, 'and it stays open when the animation is let go');
+  // later renders and shows do not draw it again
+  star.map.render();
+  star.map.show(0);
+  star.map.hide();
+  star.map.show(0);
+  assert.equal(openingOf(star).length, 1, 'once');
+  assert.equal(star.map.mistOpen(), true);
+
+  // her place alone opens it too; and found while the page is on view it opens at once
+  const place = mapRig({ animated: true, fill: save => save.addPlace('gramedla') });
+  place.map.show(0);
+  assert.equal(place.map.mistOpen(), true, 'her place alone');
+  const live = mapRig({ animated: true });
+  live.map.show(0);
+  assert.equal(live.map.mistOpen(), false);
+  live.save.addPlace('gramedla');
+  live.map.render();
+  assert.equal(live.map.mistOpen(), true, 'found while the page is on view');
+  assert.equal(openingOf(live)[0].options.delay, 0, 'at once');
+
+  // the next time, it is simply open: the save says it was seen
+  const later = mapRig({ animated: true, fill: save => { save.addStar('k3_gramedla'); save.addSeen(GRAMEDLA_SEEN); } });
+  assert.equal(later.map.mistOpen(), true, 'open from the start');
+  later.map.show(500);
+  assert.equal(openingOf(later).length, 0, 'not drawn again');
+  assert.equal(mistsOf(later)[0].style['--map-hole'], to, 'but open');
+
+  // hiding the page finishes the opening where it was going
+  const half = mapRig({ animated: true, fill: save => save.addPlace('gramedla') });
+  half.map.show(0);
+  half.map.hide();
+  assert.ok(openingOf(half)[0].animation.cancelled, 'the animation is let go');
+  assert.equal(mistsOf(half)[0].style['--map-hole'], to, 'the hole stays open');
+
+  // with less motion: simply open, and nothing animates
+  const calm = mapRig({ reduced: true, animated: true, fill: save => save.addStar('k3_gramedla') });
+  calm.map.show(500);
+  assert.equal(calm.map.mistOpen(), true);
+  assert.equal(openingOf(calm).length, 0, 'no animation');
+  assert.equal(mistsOf(calm)[0].style['--map-hole'], to, 'the hole is open');
+  assert.ok(calm.save.get().seen.includes(GRAMEDLA_SEEN), 'still kept as seen');
 });
 
 test('Háls og hali opens with Þórseðla\'s star', () => {
