@@ -15,10 +15,14 @@
 //   glade         only the search view: the glade picture and its measurement (report.glade), then stops.
 //
 // <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
-// frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps).
-// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, ... }. `steps` are the driver's
-// actions with the wall-clock seconds since launch; `timeline` is what the page itself went through (caption, phase,
-// bridge, camera, work button), sampled every 100 ms inside the page.
+// frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
+// game is paused for each milestone picture (report.pauseHolds says nothing moved meanwhile); with --video a milestone
+// is the screencast's frame at that instant (NN-name.jpg, 960 px), so the video keeps real time.
+// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, ... }.
+// `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
+// through (caption, phase, bridge, camera and scripted shot, work button), sampled every 100 ms inside the page.
+// `glade` measures the search view (each baby's on-screen height, Mosi, leaves, homes); after the first pair,
+// `gladeDrift` is how far that view moved (camera and leaf pixels; 0 means the match script glided back exactly).
 // The flow is driven by what the page shows (state-driven), so later chapters change the driver where the flow changes.
 // The page is served from the repo root by a throwaway static server on a free port; nothing is left running.
 
@@ -63,7 +67,7 @@ function parseArgs(argv) {
     else if (a === '--browser') o.browser = next();
     else if (a === '--limit') o.limit = Number(next());
     else if (a === '--help' || a === '-h') {
-      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 23).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 27).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
       process.exit(0);
     } else throw new Error(`Unknown argument ${a}`);
   }
@@ -233,6 +237,13 @@ const SNAPSHOT_JS = `(() => {
   };
 })()`;
 
+// Everything that moves, as one list of numbers: the camera, every visible friend's root and nose, Mosi's head.
+const POSE_JS = `(() => {
+  const d = window.__memory.stats(), values = [...d.camera.position, ...d.camera.target];
+  for (const c of d.cells) if (c.position) values.push(...c.position, ...c.feet.flatMap(f => f.position));
+  return { values, scene: Boolean(d.scene && d.scene.busy), shot: d.camera.shot || null };
+})()`;
+
 // Taps buttons inside the page, `times` clicks each, gapMs apart. A disabled or hidden button ignores the tap, as it does for a child.
 const tapJs = (keys, times, gapMs) => `(async () => {
   const find = key => key === 'work' ? document.getElementById('next-action') : document.querySelector('[data-target="' + key + '"]');
@@ -288,7 +299,7 @@ async function main() {
   const errors = [];
   const report = {
     page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, startedAt: new Date().toISOString(),
-    finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
+    finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], pauseHolds: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
   };
   const server = await startServer();
   const query = [`seed=${o.seed}`, o.query].filter(Boolean).join('&');
@@ -316,6 +327,7 @@ async function main() {
       } else if (msg.method === 'Page.screencastFrame') {
         const n = ++frames.n, p = msg.params;
         frames.stamps.push(p.metadata?.timestamp ?? null);
+        frames.last = p.data;
         frames.writes.push(fsp.writeFile(path.join(framesDir, `${String(n).padStart(5, '0')}.jpg`), Buffer.from(p.data, 'base64')));
         send('Page.screencastFrameAck', { sessionId: p.sessionId }).catch(() => {});
       }
@@ -377,9 +389,22 @@ async function main() {
       if (delayMs) await sleep(delayMs);
       // A capture takes a second or more here. Without a video the game is paused for it (the game clock
       // stops, as it does for a child's pause), so the picture is the moment it is named after.
-      if (!o.video) await ev('window.__memory.pause(true)');
+      if (o.video) {
+        // With the screencast running a full capture lags by a second or more, so the moment's picture is
+        // the screencast's latest frame (960 px JPEG), taken the instant it is due.
+        if (!frames.last) return true;
+        const label = `${String(++shotCount).padStart(2, '0')}-${name}`;
+        await fsp.writeFile(path.join(outDir, `${label}.jpg`), Buffer.from(frames.last, 'base64'));
+        report.shots.push({ name: label, t: T(), from: 'screencast' }); console.log(`[${T()}] frame ${label}`);
+        return true;
+      }
+      await ev('window.__memory.pause(true)');
+      const held = await ev(POSE_JS);
       await shot(name);
-      if (!o.video) await ev('window.__memory.pause(false)');
+      // While paused nothing may move: not the camera, not a friend, not a running script.
+      const after = await ev(POSE_JS), drift = Math.max(...held.values.map((v, i) => Math.abs(v - after.values[i])));
+      report.pauseHolds.push({ shot: name, drift: +drift.toExponential(2), scene: held.scene, shotKind: held.shot });
+      await ev('window.__memory.pause(false)');
       return true;
     };
     const first = await ev(SNAPSHOT_JS);
@@ -431,10 +456,11 @@ async function main() {
       if (s.phase === 'one-open' && seen.has('one-open')) waited ||= await milestone('wonder', 'wonder', 1300);
       if (s.phase === 'mismatch') waited ||= await milestone('mismatch', 'mismatch', 400);
       if (s.phase === 'mismatch' && seen.has('mismatch')) waited ||= await milestone('mismatch-duck', 'mismatch-duck', 350);
-      // The match script: the face cut (startle), then the run and nuzzle, then the wide cut home.
+      // The match script: the face cut (startle), the run and nuzzle, the walk home (follow), Mosi's clap (wide).
       if (s.cam.shot === 'face') waited ||= await milestone('match-closeup', 'match-closeup', 150);
       if (s.cam.shot === 'face' && seen.has('match-closeup')) waited ||= await milestone('run-together', 'run-together', 450);
-      if (s.cam.shot === 'wide') waited ||= await milestone('match-wide', 'match-wide', 700);
+      if (s.cam.shot === 'follow') waited ||= await milestone('walk-home', 'walk-home', 900);
+      if (s.cam.shot === 'wide') waited ||= await milestone('home-clap', 'home-clap', 500);
       if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);
       if (s.work.visible && !s.work.disabled) waited ||= await milestone(`work-${s.work.action}`, `work-offered-${s.work.action || 'next'}`);
       if (s.bridge.active) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);

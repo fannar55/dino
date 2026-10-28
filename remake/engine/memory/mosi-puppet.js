@@ -116,7 +116,7 @@ export function createMosiPuppet(mosi) {
       if (!gesture || !(dt > 0)) return;
       from = gesture.t; gesture.t = Math.min(1, gesture.t + dt / gesture.duration);
     },
-    cancel() { gesture = null; },
+    cancel() { gesture = null; mosi.eyelids?.blink.rest(0, .2); },
     setReducedMotion(value) { reduced = Boolean(value); },
     get current() { return gesture?.name ?? null; },
     dispose() { disposed = true; gesture = null; mosi.control(null); },

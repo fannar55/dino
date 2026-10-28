@@ -173,17 +173,20 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
     },
     homePoint: cell => (cell.home?.nest.root.position ?? cell.root.position).clone().add(new THREE.Vector3(0, .9, 0)),
     homeEnd: cell => (cell.home?.end ?? cell.root.position).clone(),
-    // Turn to show the face: three-quarters toward the camera, a little to the friend's own side.
+    // Turn to show the face three-quarters, on the friend's own side: the triceratops nearly to the camera
+    // (horns and frill), the long necks well round so the neck is not hidden behind the head.
     faceCamera(cell) {
       const toward = camera.position.clone().sub(cell.actor.root.position).setY(0), yaw = Math.atan2(-toward.z, toward.x);
-      cell.faceYaw = turnToward(yaw, cell.actor.root.rotation.y, .35);
+      const side = Math.sign(Math.atan2(Math.sin(cell.hideYaw - yaw), Math.cos(cell.hideYaw - yaw))) || 1;
+      cell.faceYaw = yaw + side * (cell.species === 'triceratops' ? .45 : .8);
     },
     // A camera beside a walk, on the search camera's side of it: the walkers in profile, not from behind.
     sideOn(from, to) {
       const travel = to.clone().sub(from).setY(0), front = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize();
       if (travel.lengthSq() < 1e-4) return front;
       const side = new THREE.Vector3(travel.z, 0, -travel.x).normalize();
-      return (side.dot(front) < 0 ? side.negate() : side).lerp(front, .3).normalize();
+      // Halfway to the search camera's side keeps the bridge log and the branch out of the foreground.
+      return (side.dot(front) < 0 ? side.negate() : side).lerp(front, .5).normalize();
     },
   };
 
@@ -354,7 +357,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {} }) {
   function resetBoard(cards) {
     scenes.cancelAll(); sceneIds.clear(); mosiPuppet?.cancel();
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
-    for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(actorScale(actor)); actor.walk?.(false); actor.setMotion?.('idle'); }
+    for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(actorScale(actor)); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
     const available = [...babyActors];
     cards.forEach((card, i) => {

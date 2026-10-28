@@ -213,6 +213,8 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         setMotion,
         reveal() { root.visible=true;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
         gesture(name) { return startGesture(name); },
+        /** Drop a running gesture and open the eyes (a restart or a cancelled script). */
+        stopGesture() { gesture=null;lids?.blink.rest(0,.2); },
         conceal() { root.visible=false; gesture=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
         walk(active=true) { setMotion(active?'walk':'idle'); },
         greet() { setMotion('greet'); },
