@@ -27,10 +27,12 @@
                                  .turn, .won). Eitt!'s (data-game="eitt", engine/fjolspil/guest-eitt.js), the whole game in
                                  .spil-eitt: whose turn (.spil-eitt-turn, .mine, .won), the others (.spil-eitt-counts of
                                  .spil-eitt-seat: .spil-eitt-fan of backs, .spil-eitt-face, .spil-eitt-name, .spil-eitt-count;
-                                 .turn, .won), the table (.spil-eitt-table: .spil-eitt-deck, .spil-eitt-pile with eitt.css's
+                                 .turn, .won), her turn's .spil-eitt-frame (.on) and .spil-eitt-cue (its .spil-eitt-cue-face and
+                                 .spil-eitt-cue-words), the table (.spil-eitt-table: .spil-eitt-deck, .spil-eitt-pile with eitt.css's
                                  ring and cards, .spil-eitt-actions with .spil-eitt-pass, .spil-eitt-eitt and .spil-eitt-catch,
-                                 and .spil-eitt-colours) and her hand (.spil-eitt-hand of eitt.css's cards at --x, --y and --r;
-                                 .playable lifted, .going and .picked higher). Litla Yatzy's (data-game="yatzy",
+                                 and .spil-eitt-colours, and eitt.css's .eitt-way in the pile) and her hand (.spil-eitt-hand of
+                                 eitt.css's cards at --x, --y and --r; .waiting while another seat has the turn; .playable
+                                 lifted, .going and .picked higher). Litla Yatzy's (data-game="yatzy",
                                  engine/fjolspil/guest-yatzy.js): whose turn (.spil-yatzy-turn, .mine), the rolls left
                                  (.spil-yatzy-rolls of three i, .left), the dice (.spil-yatzy-dice of .spil-yatzy-die: data-face,
                                  0 its back; .held, disabled, .spil-tumble), the cup (.spil-yatzy-cup), the cards
@@ -437,7 +439,10 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil:has(.spil-game[data-game="eitt"]) .spil-me-face { width: 46px; }
 .spil:has(.spil-game[data-game="eitt"]) .spil-me-name { font-size: clamp(20px, 5.4vw, 24px); }
 .spil-main:has(> .spil-game[data-game="eitt"]) { place-items: stretch; } /* the game fills the paper: the hand at the bottom */
-.spil-game[data-game="eitt"] { align-items: stretch; gap: 0; }
+.spil-game[data-game="eitt"] { align-items: stretch; gap: 0; animation-name: spil-eitt-in; }
+/* Only a fade as the screen comes: a screen that has slid in keeps a transform on it (the animation's fill), which would make it the
+   frame of her turn's fixed parts (.spil-eitt-frame, .spil-eitt-cue) instead of the page. */
+@keyframes spil-eitt-in { from { opacity: 0; } to { opacity: 1; } }
 .spil-eitt {
   --spil-eitt-card: clamp(88px, min(22vw, 12.5vh), 140px); /* her cards: never under 88 px across (STYLE.md) */
   --pile-w: clamp(80px, min(23vw, 12.5vh), 150px); /* eitt.css's ring and deck go by it */
@@ -446,11 +451,12 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   flex: 1; width: 100%; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; justify-items: center; align-items: center;
   gap: clamp(8px, 1.6vh, 16px);
 }
-.spil-eitt-turn { font-size: clamp(26px, 7vw, 36px); font-weight: 900; line-height: 1.15; color: var(--ink-soft); overflow-wrap: anywhere; text-wrap: balance; }
-.spil-eitt-turn:is(.mine, .won) { /* her turn, or the end: gold as a title */
-  font-size: clamp(34px, 9vw, 48px); color: var(--gold); -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill;
-  text-shadow: 0 .07em 0 var(--ink); rotate: -2deg;
+.spil-eitt-turn { /* whose turn: in that seat's own colour (--c, guest-eitt.js), as a title with an ink edge; bigger when it is hers */
+  font-size: clamp(30px, 8.2vw, 42px); font-weight: 900; line-height: 1.15; color: var(--c, var(--gold)); overflow-wrap: anywhere; text-wrap: balance;
+  -webkit-text-stroke: .12em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink);
 }
+.spil-eitt-turn.mine { font-size: clamp(38px, 10.4vw, 52px); rotate: -2deg; }
+.spil-eitt-turn.won { color: var(--gold); font-size: clamp(34px, 9vw, 48px); rotate: -2deg; } /* the end: gold */
 
 /* The others: a tag each, its fan of backs over its face and name, the number of cards on a little violet card. */
 .spil-eitt-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 12px; width: 100%; padding: 0; list-style: none; }
@@ -476,9 +482,45 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   font-size: 18px; font-weight: 900; color: #fff; -webkit-text-stroke: .1em var(--ink); paint-order: stroke fill;
   background: linear-gradient(165deg, #a17cb6, var(--violet) 45%, var(--violet-deep)); border: 2px solid var(--ink);
 }
-.spil-eitt-seat:is(.turn, .won) { /* whose turn it is (or who won): in their colour, gold round it */
+.spil-eitt-seat:is(.turn, .won) { /* whose turn it is (or who won): in their colour, ringed */
   border: 3px solid var(--ink); background: color-mix(in srgb, var(--c) 30%, var(--card));
   box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 0 9.5px var(--ink);
+}
+.spil-eitt-seat.turn { /* the one with the turn: its tag in its own colour, breathing, and its picture grown and glowing */
+  z-index: 1; box-shadow: 0 4px 0 var(--card-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--c), 0 0 0 9.5px var(--ink), 0 0 22px 10px color-mix(in srgb, var(--c) 70%, transparent);
+  animation: spil-eitt-seat 1.3s ease-in-out infinite;
+}
+.spil-eitt-seat.turn .spil-eitt-face {
+  top: -17px; left: -8px; width: 50px;
+  box-shadow: 0 0 0 3px var(--ink), 0 0 0 7px var(--c), 0 0 0 9.5px var(--ink), 0 0 20px 9px color-mix(in srgb, var(--c) 80%, transparent);
+  animation: spil-eitt-face 1.3s ease-in-out infinite;
+}
+@keyframes spil-eitt-seat { 0%, 100% { scale: 1; } 50% { scale: 1.045; } }
+@keyframes spil-eitt-face { 0%, 100% { scale: 1; } 50% { scale: 1.08; } }
+
+/* Her turn (guest-eitt.js): a frame in her own colour glowing round the screen, and a card with her picture that slides in over the middle. */
+.spil-eitt-frame {
+  position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .3s;
+  box-shadow: inset 0 0 0 clamp(5px, 1.7vw, 9px) var(--c, var(--gold)), inset 0 0 38px 14px color-mix(in srgb, var(--c, var(--gold)) 60%, transparent);
+}
+.spil-eitt-frame.on { opacity: 1; animation: spil-eitt-frame 1.6s ease-in-out infinite; }
+.spil-eitt-cue { /* over the middle; takes no touch, so a tap on a card goes through it */
+  position: fixed; z-index: 6; left: 50%; top: 44%; translate: -50% -50%; pointer-events: none;
+  width: min(86vw, 360px); padding: 20px 14px 18px; display: grid; justify-items: center; gap: 8px;
+  border-radius: 30px; background: var(--card); border: 4px solid var(--ink);
+  box-shadow: 0 0 0 8px var(--c, var(--gold)), 0 0 0 11px var(--ink), 0 20px 36px rgb(40 24 10 / .42);
+  animation: spil-eitt-cue .6s cubic-bezier(.3, .8, .4, 1) both; /* in; the page puts it away (CUE_MS, or a touch) */
+}
+.spil-eitt-cue-face { width: min(44vw, 160px); box-shadow: 0 0 0 5px var(--c, var(--gold)), 0 0 0 8px var(--ink); }
+.spil-eitt-cue-words {
+  font-size: clamp(38px, 11vw, 52px); font-weight: 900; line-height: 1.1; color: var(--c, var(--gold)); text-wrap: balance;
+  -webkit-text-stroke: .13em var(--ink); paint-order: stroke fill; text-shadow: 0 .07em 0 var(--ink);
+}
+@keyframes spil-eitt-frame { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes spil-eitt-cue {
+  0% { transform: translateY(-62vh) rotate(-9deg) scale(.7); opacity: 0; }
+  60% { transform: translateY(2vh) rotate(2deg) scale(1.05); opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
 
 /* The table: the deck, the card on top in its ring, and what she may tap beside them. */
@@ -508,7 +550,8 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil .spil-eitt .spil-eitt-colours button { grid-area: auto; order: 0; width: 96px; height: 96px; }
 
 /* Her hand: the cards in an arc, laid out by guest-eitt.js (--x, --y, --r; the hand's --hand-h), what goes lifted. */
-.spil-eitt-hand { position: relative; width: 100%; height: var(--hand-h, 220px); }
+.spil-eitt-hand { position: relative; width: 100%; height: var(--hand-h, 220px); transition: opacity .35s, translate .35s; }
+.spil-eitt-hand.waiting { opacity: .6; translate: 0 clamp(6px, 1.4vh, 14px); } /* another seat has the turn: waiting looks like waiting */
 .spil-eitt-hand .eitt-card {
   --card-w: var(--spil-eitt-card);
   position: absolute; left: var(--x, 0); top: var(--y, 0); rotate: var(--r, 0deg); transform-origin: 50% 130%;
@@ -531,6 +574,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   .spil-eitt-seat { max-width: 260px; }
   .spil-eitt-name { font-size: 20px; }
   .spil-eitt-face { width: 42px; }
+  .spil-eitt-seat.turn .spil-eitt-face { top: -20px; left: -9px; width: 58px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,7 +9,8 @@
      .eitt-their-hand            Kambeðla's cards, face down in front of her, so the child sees how many she has
      .eitt-centre                the middle of the table: .eitt-deck (a button: tap to draw; .draw makes it call), .eitt-pile (the
                                  cards played, the top one last, each askew by --r, --x and --y) with its .eitt-ring (the colour in
-                                 play, glowing; a colour class names it, .wild while a colour is being chosen) and .eitt-pass
+                                 play, glowing; a colour class names it, .wild while a colour is being chosen), .eitt-way (in a
+                                 round of Fjölspil of three or four: the pair of arrows round it, data-way 1 or -1, way.js) and .eitt-pass
                                  ("Áfram", keep the card drawn)
      .eitt-hand                  the child's cards in an arc; each card's --i is its place from the middle (-3 … 3), a bigger
                                  hand sets --overlap (a share of a card's width, .04 by default), .playable marks a card that may
@@ -40,8 +41,10 @@
                                  "Spilum aftur?"), "Fjölspil" (.eitt-multi, .eitt-plain) and .eitt-close
      .multi                      on .eitt and .eitt-table in a round of "Fjölspil": a .eitt-seat for each seat after Egill's, across
                                  the top in seat order (--col, its column), each a tag (.eitt-seat-label: .eitt-seat-face,
-                                 .eitt-seat-name, .eitt-seat-count) over its .eitt-their-hand; .turn lights whose turn it is,
-                                 .absent dims a seat whose guest is away (with "…"), .won the winner's; Kambeðla's window stands in
+                                 .eitt-seat-name, .eitt-seat-count) over its .eitt-their-hand; .turn marks whose turn it is (its
+                                 picture bigger, ringed in its own colour --c and pulsing), .absent dims a seat whose guest is
+                                 away (with "…"), .won the winner's; Egill's own tag is .eitt-me (the same label, over Mosi's
+                                 button, .turn on his turn); Kambeðla's window stands in
                                  her row's column (--k-col on .eitt-table), and is hidden when she does not play
    A guest's device draws the same cards (spil.html links this sheet; spil.css's .spil-eitt, engine/fjolspil/guest-eitt.js): the
    palette and the colours are .spil-eitt's too.
@@ -243,6 +246,12 @@
   mask: radial-gradient(circle closest-side, transparent 0 calc(100% - var(--pile-w) * .07 - 1px), #000 calc(100% - var(--pile-w) * .07));
   animation: ring-turn 6s linear infinite;
 }
+.eitt-way { /* the way the turn goes (way.js): two arrows round the ring, turning slowly the way the turn goes, on every screen */
+  position: absolute; z-index: -1; left: 50%; top: 50%; pointer-events: none;
+  width: calc(var(--pile-w) * 2.4); aspect-ratio: 1; margin: calc(var(--pile-w) * -1.2) 0 0 calc(var(--pile-w) * -1.2);
+}
+.eitt-way[data-way="-1"] { scale: -1 1; } /* after a reverse: the same arrows the other way round (the mirror turns the spin too) */
+.eitt-way svg { display: block; width: 100%; height: 100%; overflow: visible; animation: way-turn 24s linear infinite; }
 
 .eitt-pass { /* "Áfram": keep the card drawn and let Kambeðla play. A small pill in a full-size hit area. */
   position: relative; grid-column: 3; justify-self: start; min-width: var(--eitt-target); min-height: var(--eitt-target);
@@ -683,6 +692,7 @@
   50% { opacity: 1; transform: scale(1.02); }
 }
 @keyframes ring-turn { to { transform: rotate(1turn); } }
+@keyframes way-turn { to { transform: rotate(1turn); } }
 @keyframes glow {
   0%, 100% { opacity: .55; }
   50% { opacity: 1; }
@@ -787,7 +797,7 @@
 .eitt-table.multi[data-k-col="3"] > .eitt-quit { right: auto; left: max(18px, env(safe-area-inset-left)); } /* her window has its corner */
 .eitt-seat .eitt-their-hand { grid-area: auto; margin-top: 0; padding: 0 calc(var(--them-w) * .3); } /* under its tag, not a window */
 .eitt-seat-label { /* a name tag: the face, the name, and how many cards on a little violet card */
-  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0;
+  display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0;
   padding: 0 8px 0 0; border-radius: 999px;
   font-size: clamp(20px, 2.2cqmin, 26px); font-weight: 900; line-height: 1.25;
   background: var(--card); border: 3px solid var(--ink);
@@ -795,29 +805,41 @@
   rotate: -1.5deg;
 }
 .eitt-seat:nth-of-type(even) .eitt-seat-label { rotate: 1.5deg; }
+.eitt-me { /* Egill's own place: his tag over Mosi's button, beside his cards, ringed on his turn as the rows' tags are */
+  grid-area: mosi; justify-self: start; align-self: start; position: relative; z-index: 3; margin: 8px 0 0 30px;
+}
 .eitt-seat-face {
-  flex: none; width: clamp(44px, 5cqmin, 56px); aspect-ratio: 1; margin: -3px 0 -3px -3px; border-radius: 50%;
+  flex: none; width: clamp(44px, 5cqmin, 56px); aspect-ratio: 1; margin: -3px 6px -3px -3px; border-radius: 50%;
   object-fit: cover; object-position: 55% 45%;
   background: radial-gradient(circle at 50% 38%, #fffaf0, color-mix(in srgb, var(--c, #e3d4b5) 45%, #fffaf0) 72%);
   box-shadow: 0 0 0 3px var(--ink);
 }
-.eitt-seat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eitt-seat-name { position: relative; z-index: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* over the glow of a picture on its turn */
 .eitt-seat-count {
   flex: none; min-width: 1.5em; padding: .05em .3em .1em; border-radius: 8px; text-align: center;
   color: #fff; -webkit-text-stroke: .1em var(--ink); paint-order: stroke fill;
   background: linear-gradient(165deg, #a17cb6, var(--violet) 45%, var(--violet-deep)); border: 2.5px solid var(--ink);
 }
-.eitt-seat.turn .eitt-seat-label { /* whose turn it is: gold round the tag, and it breathes */
-  background: #fff3c8;
-  box-shadow: 0 4px 0 var(--gold-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 26px 10px rgb(255 214 110 / .85);
-  animation: seat-turn 1.6s ease-in-out infinite;
+:is(.eitt-seat, .eitt-me).turn .eitt-seat-label { /* whose turn it is: the tag ringed in the seat's own colour, and it breathes */
+  background: color-mix(in srgb, var(--c, var(--gold)) 26%, #fff3c8);
+  box-shadow: 0 4px 0 var(--ink), 0 0 0 6px var(--c, var(--gold)), 0 0 0 9px var(--ink), 0 0 38px 18px color-mix(in srgb, var(--c, var(--gold)) 80%, transparent);
+  animation: seat-turn 1.3s ease-in-out infinite;
 }
-.eitt-seat.won .eitt-seat-label { background: #fff3c8; box-shadow: 0 4px 0 var(--gold-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold); }
+:is(.eitt-seat, .eitt-me).turn .eitt-seat-face { /* and her picture grows out of its left end, with its own glowing ring */
+  scale: 1.5; transform-origin: 100% 50%;
+  box-shadow: 0 0 0 3px var(--ink), 0 0 0 6px var(--c, var(--gold)), 0 0 0 8px var(--ink), 0 0 24px 12px color-mix(in srgb, var(--c, var(--gold)) 80%, transparent);
+  animation: seat-face 1.3s ease-in-out infinite;
+}
+:is(.eitt-seat, .eitt-me).won .eitt-seat-label { background: #fff3c8; box-shadow: 0 4px 0 var(--gold-deep), 0 4px 0 3px var(--ink), 0 0 0 7px var(--gold); }
 .eitt-seat.absent { opacity: .5; } /* away: dim, and "…" after the name */
 .eitt-seat.absent .eitt-seat-name::after { content: " …"; }
 @keyframes seat-turn {
-  0%, 100% { scale: 1; }
-  50% { scale: 1.05; }
+  0%, 100% { scale: 1.08; }
+  50% { scale: 1.16; }
+}
+@keyframes seat-face {
+  0%, 100% { scale: 1.5; }
+  50% { scale: 1.68; }
 }
 
 /* ---- A tablet held upright: Kambeðla bigger at the top, the buttons on a row of their own over the cards -------- */
@@ -865,6 +887,7 @@
       "mosi . eitt"
       "hand hand hand";
   }
+  .eitt-table.multi > .eitt-me { grid-area: 4 / 2; justify-self: center; align-self: center; margin: 0; } /* Egill's tag between Mosi and "Eitt!" */
 }
 
 /* ---- Less motion, when the tablet asks for it: everything holds still, its look unchanged --------------------- */

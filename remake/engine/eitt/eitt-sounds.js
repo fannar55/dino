@@ -13,10 +13,10 @@ import { DUCK_DB } from '../audio/music.js';
 // page's audio output. Without the file it is simply quiet. A tablet's speaker is small, so the file is baked small: mono at 16 kHz,
 // 64 kbps (1.7 MB), exactly one period of the loop, and it is decoded at its own rate, so the whole track takes 13 MB, not 80.
 
-export const EITT_SFX = ['flick', 'deal', 'shuffle', 'draw', 'wiggle', 'horn', 'swish', 'pop', 'sparkle', 'fanfare', 'tap'];
+export const EITT_SFX = ['flick', 'deal', 'shuffle', 'draw', 'wiggle', 'horn', 'swish', 'pop', 'sparkle', 'fanfare', 'tap', 'turn'];
 
 /** The least time, in audio seconds, between two of the same, for the sounds that come in quick runs or from a child's taps. */
-export const EITT_GAPS = { flick: 0.03, deal: 0.03, draw: 0.04, pop: 0.04, wiggle: 0.3, tap: 0.05, horn: 0.25, swish: 0.3, shuffle: 0.5 };
+export const EITT_GAPS = { flick: 0.03, deal: 0.03, draw: 0.04, pop: 0.04, wiggle: 0.3, tap: 0.05, horn: 0.25, swish: 0.3, shuffle: 0.5, turn: 1.2 };
 
 /** One sound per name in EITT_SFX, for createSfx's `sounds`. */
 export function eittSounds({ tone, noise, bell, key }) {
@@ -89,6 +89,12 @@ export function eittSounds({ tone, noise, bell, key }) {
       tone({ frequency: key[4], duration: 0.06, level: 0.09, type: 'triangle', attack: 0.002, body: 0 });
       tone({ frequency: key[4] * 2, duration: 0.03, level: 0.03, attack: 0.002, body: 0 });
       noise({ kind: 'white', type: 'bandpass', frequency: 2600, q: 2, duration: 0.03, level: 0.04, attack: 0.002 });
+    },
+    // It becomes her turn (on her own device, guest-eitt.js): three bells climbing the key, the last one let ring, over a soft
+    // round note, so a phone on a table is heard across it without being as loud as the horn.
+    turn() {
+      [0, 2, 4].forEach((n, i) => bell(key[n] * 2, { delay: i * 0.1, level: 0.05, duration: i === 2 ? 0.75 : 0.4 }));
+      tone({ frequency: key[0], duration: 0.4, level: 0.05, type: 'triangle', attack: 0.01, body: 0.5, sustain: 0.6 });
     },
   };
 }
