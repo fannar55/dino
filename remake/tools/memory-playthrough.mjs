@@ -5,15 +5,16 @@
 // paths during scripts). It takes screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
 //
 //   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
-//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order]
+//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
 //   full          the whole round: a first reveal, one mismatch, the three pairs (Þríhyrnur first, so the branch has a wrong
 //                 friend to pick), the branch (after ~5 s of waiting for the gold arrow, one wrong pick, then the right one and
 //                 three taps in the hero shot), then the Kambeðlur, the log (one wrong pick, the Kambeðlur, then the Þríhyrnur and
-//                 three taps on "Einn, tveir, ÝTA!"), the crossing, the bark and the grove. The two surprise leaves are
-//                 opened as well, one before the first pair and one before the last (report.surprises).
+//                 three taps on "Einn, tveir, ÝTA!"), the crossing, the bark (one wrong pick, the Þórseðlur, then the Kambeðlur
+//                 and a tap on each of the three panels) and the grove. The two surprise leaves are opened as well, one before
+//                 the first pair and one before the last (report.surprises).
 //   branch        like full, but stops when the branch is up and the camera is back on the glade.
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
@@ -23,6 +24,9 @@
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
+//   --clearance     while a task or a wrong friend's go runs, measures the clearance between the animated bodies (the
+//                   game's own anatomical envelopes) every 150 ms; report.clearance has the worst overlaps per moment
+//                   (it slows the game down a little, so use it for a check run, not for timings).
 //
 // <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
 // frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
@@ -30,10 +34,14 @@
 // is the screencast's frame at that instant (NN-name.jpg, 960 px), so the video keeps real time.
 // report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, surprises, who, marks, ... }.
 // `who` measures the bubbles the first time they open (each portrait's on-screen size); `marks` are named moments with
-// their time into round.mp4 (branch-start / log-start: the first tap on the obstacle, branch-end / log-end: the cheer).
+// their time into round.mp4 (branch-start / log-start / bark-start: the first tap on the obstacle, branch-end / log-end: the
+// cheer, bark-end: the third panel is down).
 // `timelineCheck` reads the page's own timeline: the crossing (Mosi's first step onto the deck, the arrival, input back,
-// and the seconds between) and the longest stretch of watching (a script, a task or a wrong friend's go running) with
-// no new camera framing and no tap, with where it falls; with --video each moment also has its time in round.mp4.
+// and the seconds between), the marsh (the first tap on the bark, the lay's start, the third panel down, the boardwalk
+// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after) and the
+// longest stretches of watching (a script, a task or a wrong friend's go running) with no new camera framing and no tap,
+// with where they fall; with --video each moment also has its time in round.mp4. `takes` lists every camera framing's
+// most triangles and draw calls (the shot, what was going on), the heaviest first.
 // `surprises` lists each surprise leaf the driver opened: { id, item, at (s) }; `found` and `basketEnd` say what the rules
 // and the basket in the ribbon held at the end.
 // `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
@@ -71,7 +79,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -82,6 +90,7 @@ function parseArgs(argv) {
     else if (a === '--video') o.video = true;
     else if (a === '--no-tap-along') o.tapAlong = false;
     else if (a === '--usual-order') o.usualOrder = true;
+    else if (a === '--clearance') o.clearance = true;
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
     else if (a === '--page') o.page = next();
@@ -227,7 +236,7 @@ function killProfileProcesses(exe, userDir) {
 // child (the driver) clicks is logged with the same clock in window.__taps; window.__origin turns that clock into
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
-  window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; let last = '';
+  window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
   window.__taps = []; window.__origin = performance.timeOrigin;
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
@@ -243,16 +252,36 @@ const TIMELINE_JS = `(() => {
     window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
-    const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), take = cam.takes || 0;
+    const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
     const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
+    const placed = d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0;
+    // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
+    const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
+    take.tris = Math.max(take.tris, d.triangles || 0); take.calls = Math.max(take.calls, d.drawCalls || 0); take.actEnd = act;
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, take, act, mosi, s.paused].join('|');
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take, act, mosi, paused: Boolean(s.paused) });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused) });
     }
   }, 100);
+})()`;
+
+// --clearance: while the adventure runs (a task or a wrong friend's go), the game's own clearance audit (the anatomical
+// envelopes of the six friends and Mosi, the props) every 150 ms; the worst overlap of each pair at each moment is kept.
+const CLEARANCE_JS = `(async () => {
+  const { assessSceneClearances } = await import('/remake/engine/memory/memory-clearance.js');
+  window.__clr = { samples: 0, minimum: null, worst: {} };
+  setInterval(() => {
+    const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action) return;
+    const result = assessSceneClearances(window.__memory.stats({ collision: true })), clr = window.__clr;
+    clr.samples++; if (result.minimum !== null) clr.minimum = clr.minimum === null ? result.minimum : Math.min(clr.minimum, result.minimum);
+    for (const hit of result.violations) {
+      const key = action.id + '/' + action.phase + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
+      if (!clr.worst[key] || hit.clearance < clr.worst[key].clearance) clr.worst[key] = { key, clearance: +hit.clearance.toFixed(3), age: +(action.age || 0).toFixed(2), t: +(performance.now() / 1000).toFixed(2) };
+    }
+  }, 150);
 })()`;
 
 // One read of everything the driver decides on.
@@ -265,7 +294,7 @@ const SNAPSHOT_JS = `(() => {
     phase: s.phase, matched: s.matchedPairs, paused: s.paused,
     cards: s.cards.map(c => ({ id: c.id, species: c.species, item: c.item || null, status: c.status })), found: [...s.found], basket: m.basket(),
     bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving), held: Boolean(cam.held), shot: cam.shot || null, take: cam.takes || 0 }, scene: Boolean(d.scene && d.scene.busy),
-    act: d.bridge && d.bridge.action ? d.bridge.action.id + ':' + d.bridge.action.phase : null, landed: Boolean(d.bridge && d.bridge.bridge && d.bridge.bridge.built),
+    act: d.bridge && d.bridge.action ? d.bridge.action.id + ':' + d.bridge.action.phase : null, placed: d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0, fxActive: d.fx ? d.fx.active : 0, landed: Boolean(d.bridge && d.bridge.bridge && d.bridge.bridge.built),
     mosi: d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : d.scene && d.scene.mosiAcross ? 'across' : null,
     who, story: { kind: story.kind, target: story.target || null, available: Boolean(story.available), automatic: Boolean(story.automatic) },
     wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
@@ -368,12 +397,19 @@ function timelineCheck(timeline = [], taps = []) {
     }
     i = j + 1;
   }
-  const firstStep = timeline.find(e => e.mosi === 'walk' || e.mosi === 'deck'), deck = timeline.find(e => e.mosi === 'deck'), arrive = timeline.find(e => e.staging);
+  const firstStep = timeline.find(e => (e.mosi === 'walk' || e.mosi === 'deck') && e.active === 'cross'), deck = timeline.find(e => e.mosi === 'deck' && e.active === 'cross'), arrive = timeline.find(e => e.staging);
   const input = arrive && timeline.find(e => e.t >= arrive.t && e.staging && !e.scene && !e.held && e.cam === 'auto');
   const span = (a, b) => a && b ? +(game(b.t) - game(a.t)).toFixed(2) : null;
+  // The marsh: the first tap on the bark, the lay's start, the third panel down, the boardwalk built.
+  const barkTap = (taps ?? []).find(tap => tap.key === 'task-bark'), layStart = timeline.find(e => e.act && e.act.startsWith('lay:')), lastPanel = timeline.find(e => (e.placed ?? 0) >= 3), built = timeline.find(e => e.walk);
+  // The walk to the grove: Mosi's first step, all six arrived (the walk is over), the camera back and the ending up.
+  const groveStep = timeline.find(e => e.active === 'finish' && (e.mosi === 'walk' || e.mosi === 'deck')), groveArrive = timeline.find(e => e.visited);
+  const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && !e.scene && !e.held && e.cam === 'auto');
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
+    marsh: layStart ? { firstTap: barkTap?.t ?? null, layStart: layStart.t, lastPanel: lastPanel?.t ?? null, boardwalk: built?.t ?? null, tapToLastPanel: barkTap && lastPanel ? span(barkTap, lastPanel) : null, layToLastPanel: span(layStart, lastPanel), layToBoardwalk: span(layStart, built) } : null,
+    grove: groveStep ? { firstStep: groveStep.t, arrive: groveArrive?.t ?? null, input: groveInput?.t ?? null, firstStepToArrive: span(groveStep, groveArrive), watchAfterArrival: span(groveArrive, groveInput) } : null,
     // The longest stretch, and the five longest (with what was going on), so a long one can be placed.
     longestWatch: stretches.sort((a, b) => b.seconds - a.seconds)[0] ?? { seconds: 0 }, longestWatches: stretches.slice(0, 5),
   };
@@ -469,6 +505,7 @@ async function main() {
     report.marks = [];
     const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
     await ev(TIMELINE_JS);
+    if (o.clearance) await ev(CLEARANCE_JS);
     await sleep(700);
     await shot('welcome');
 
@@ -525,7 +562,9 @@ async function main() {
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, overviewDone = false, arrowWaited = false, tapWait = null;
-    const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each, at the branch and the log)
+    const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
+    const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
+    let barkTaps = 0;
     const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
 
     // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
@@ -552,6 +591,10 @@ async function main() {
       if (progress !== lastKey) { lastKey = progress; lastProgress = Date.now(); }
       if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
 
+      if (!s.wait) tapWait = null;
+      if (s.placed >= 3 && s.bridge.active === 'lay') mark('bark-end');
+      if (s.bridge.active === 'finish' && (s.mosi === 'walk' || s.mosi === 'deck')) mark('grove-start');
+      if (s.bridge.visited) mark('grove-end');
       if (s.ending) { report.finished = true; step('ending'); await sleep(1500); await shot('ending'); break; }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
@@ -593,7 +636,7 @@ async function main() {
       if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(`fail-${s.bridge.failing}`, `fail-${s.bridge.failing}`, 500);
       if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(`mosi-laugh-${s.bridge.asking}`, `mosi-laughs-${s.bridge.asking}`, 350);
       if (s.bridge.active === 'lift' && s.cam.shot === 'follow') waited ||= await milestone('bronto-walk', 'brontos-walk-to-branch', 500);
-      if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone(`together-${s.bridge.active}`, `timeout-together-${s.bridge.active === 'roll' ? 'log' : 'branch'}`, 300);
+      if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone(`together-${s.bridge.active}`, `timeout-together-${s.bridge.active === 'roll' ? 'log' : s.bridge.active === 'lay' ? 'bark' : 'branch'}`, 300);
       if (s.bridge.branch === 'held' && !s.bridge.active && !s.landed && s.scene && s.cam.shot === 'hero') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
       // The log: the Þríhyrnur walking over, the landing (its splash, the jolt), the low hero shot of the bridge, the cheer,
       // then the branch let go and the Þórseðlur walking home.
@@ -608,7 +651,19 @@ async function main() {
       if (s.bridge.active === 'cross' && s.cam.shot === 'shoulder') waited ||= await milestone('cross-shoulder', 'cross-shoulder-mid-bridge', 500);
       if (s.bridge.active === 'cross' && s.cam.shot === 'follow' && seen.has('cross-shoulder')) waited ||= await milestone('cross-behind', 'cross-friends-behind', 400);
       if ((s.bridge.active === 'cross' || s.bridge.atStaging) && s.cam.shot === 'wide' && seen.has('cross-shoulder')) waited ||= await milestone('cross-arrival', 'cross-arrival', 600);
-      if (s.bridge.active && !['lift', 'roll', 'cross'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
+      // The marsh: the wrong friend wading in (steps and hops in the mud), the Kambeðlur lifting the bark and carrying it, each
+      // panel down with its mud thrown up and the finished boardwalk (below: walkway-built).
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:run' && s.fxActive >= 8) waited ||= await milestone('mud-steps', 'footsteps-in-the-mud', 0);
+      if (s.act === 'lay:pickup') waited ||= await milestone('bark-pickup', 'kambedlur-pick-up-bark', 120);
+      if (s.act === 'lay:carry') waited ||= await milestone('bark-carry', 'kambedlur-carry-bark', 800);
+      for (let n = 1; n <= 3; n++) if (s.placed >= n && s.bridge.active === 'lay') waited ||= await milestone(`bark-splash-${n}`, `bark-${n}-lands-splash`, 150);
+      // The walk to the grove: Mosi leads (wide, then beside the boardwalk, over his shoulder, the friends behind, the arrival).
+      if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && !seen.has('grove-walk')) waited ||= await milestone('grove-walk', 'grove-walk-starts', 500);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'follow') waited ||= await milestone('grove-follow', 'grove-follow', 450);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
+      if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
       if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
@@ -632,20 +687,25 @@ async function main() {
         // The tap-along under the still shot: three taps, a picture after each (its "Upp!" or "Einn!", "Tveir!", "ÝTA!" is
         // up), or none at all.
         if (o.tapAlong && tapWait !== s.wait.target) {
-          tapWait = s.wait.target; await sleep(rapid ? 100 : 500);
-          for (let i = 1; i <= 3; i++) {
-            const tapped = await ev(tapJs([`task-${s.wait.target}`], 1, 0));
-            step(`tap along ${s.wait.target} ${i}`, { taken: tapped });
-            // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s).
-            if (shots) await milestone(`tap-${s.wait.target}-${i}`, `${s.wait.target === 'branch' ? 'hero' : s.wait.target}-tap-${i}`, s.wait.target === 'log' ? 450 : 520);
+          const target = s.wait.target, bark = target === 'bark', count = s.wait.count;
+          tapWait = target;
+          // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
+          if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
+          else await sleep(rapid ? 100 : 500);
+          for (let i = 1; i <= count; i++) {
+            const tapped = await ev(tapJs([`task-${target}`], 1, 0));
+            step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
+            // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s, the big word
+            // of a panel is up at once).
+            if (shots) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
             await sleep(rapid ? 120 : 250);
           }
         }
       } else if (s.who.open && mayAct) {
-        // The bubbles: at the branch and the log in the story modes one wrong friend first (at the branch the Þríhyrnur,
-        // at the log the Kambeðlur, the only other free pair there), then the right one.
-        const right = RIGHT[s.who.asking], wrong = s.who.candidates.find(sp => sp === 'triceratops' && sp !== right) ?? s.who.candidates.find(sp => sp !== right);
-        const pick = story && !wrongDone.has(s.who.asking) && ['branch', 'log'].includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
+        // The bubbles: at the branch, the log and the bark in the story modes one wrong friend first (at the branch the
+        // Þríhyrnur, at the log the Kambeðlur, the only other free pair there, at the bark the Þórseðlur), then the right one.
+        const right = RIGHT[s.who.asking], wrong = s.who.candidates.find(sp => sp === WRONG[s.who.asking] && sp !== right) ?? s.who.candidates.find(sp => sp !== right);
+        const pick = story && !wrongDone.has(s.who.asking) && ['branch', 'log', 'bark'].includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
         if (pick === wrong && pick) wrongDone.add(s.who.asking);
         if (pick) await act(`who-${pick}`, `pick ${pick} for the ${s.who.asking}${pick === right ? '' : ' (the wrong friend, on purpose)'}`);
         else if (s.cancel) { await ev(`document.getElementById('cancel-choice').click()`); step('close the bubbles: nobody there can do it'); }
@@ -659,7 +719,7 @@ async function main() {
           continue;
         }
         lastAsk = Date.now();
-        if (['branch', 'log'].includes(s.story.target)) mark(`${s.story.target}-start`);
+        if (['branch', 'log', 'bark'].includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
         await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1), at: where });
       } else if (s.phase === 'one-open' && mayAct) {
@@ -700,7 +760,13 @@ async function main() {
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
-    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
+    try {
+      const takes = Object.values(await ev('window.__takes')).sort((a, b) => b.tris - a.tris);
+      report.takes = takes.slice(0, 14);
+      if (report.timelineCheck) report.timelineCheck.takes = takes.length;
+      if (o.clearance) report.clearance = await ev('window.__clr');
+    } catch {}
+    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
     try {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
@@ -723,6 +789,8 @@ async function main() {
       if (Number.isFinite(first) && report.timelineCheck && report.pageOrigin) {
         const video = t => Number.isFinite(t) ? +(report.pageOrigin / 1000 + t - first).toFixed(1) : null, check = report.timelineCheck;
         check.video = { crossingFirstStep: video(check.crossing?.firstStep), crossingDeck: video(check.crossing?.deck), crossingArrive: video(check.crossing?.arrive), crossingInput: video(check.crossing?.input),
+          marshFirstTap: video(check.marsh?.firstTap), marshLayStart: video(check.marsh?.layStart), marshLastPanel: video(check.marsh?.lastPanel), marshBoardwalk: video(check.marsh?.boardwalk),
+          groveFirstStep: video(check.grove?.firstStep), groveArrive: video(check.grove?.arrive), groveInput: video(check.grove?.input),
           longestWatchFrom: video(check.longestWatch?.from), longestWatchTo: video(check.longestWatch?.to) };
       }
     }
@@ -736,7 +804,9 @@ async function main() {
   console.log(`${r.finished ? 'FINISHED' : 'NOT FINISHED'} ${o.mode} ${o.size}: round ${r.roundSeconds}s, ${r.errors.length} errors, ${r.steps.length} steps, perf ${JSON.stringify(r.perf)}, render ${JSON.stringify(r.render)}`);
   if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
   if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
-  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
+  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
+  if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls}`).join(' | ')}`);
+  if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
   if (fatal || !r.finished || r.errors.length) process.exitCode = 1;

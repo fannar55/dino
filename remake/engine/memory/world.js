@@ -11,7 +11,7 @@ import { createActor } from '../actor.js';
 import { prepareCharacter, releaseCharacter, updateCharacterLods } from '../character-lod.js';
 import { createForest } from '../../world/forest/forest.js';
 import { createLeafResources, makeLeaf, poseLeaf, LEAF_SCALE, createContactResources, makeContact, createClearingFloor, createGladeScenery } from './world-props.js';
-import { createBridgeAdventure } from './bridge-adventure.js';
+import { createBridgeAdventure, wetGround } from './bridge-adventure.js';
 import { bridgeValley, refineBridgeGround, riverDistance, RIVER, MARSH, BRIDGE } from './bridge-props.js';
 import { createMemoryShadowLods } from './world-character-shadows.js';
 import { createCameraDirector } from './camera-director.js';
@@ -25,6 +25,8 @@ import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js
 import { branchScene, failScene } from './scenes/branch.js';
 import { rollScene } from './scenes/roll.js';
 import { crossScene } from './scenes/cross.js';
+import { layScene } from './scenes/lay.js';
+import { finishScene } from './scenes/finish.js';
 import { sampleTravel } from './travel-traffic.js';
 import { measureWalkGait } from './walk-gait.js';
 import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
@@ -127,7 +129,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const pickables = [];
   const hitGeometry = new THREE.SphereGeometry(1, 12, 8);
   const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  const fx = createWorldFx({ scene, heightAt: (x, z) => world.heightAt(x, z) });
+  const fx = createWorldFx({ scene, heightAt: (x, z) => world.heightAt(x, z), wet: wetGround });
   const renderTargets = [];
   const deferredEvents = [];
   let bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false };
@@ -231,6 +233,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       logEnd: progress => adventure.logEnd(progress),
       builderSpots: () => adventure.builderSpots(),
       alongBridge: point => (point.x - BRIDGE.near[0]) * BRIDGE.axis[0] + (point.z - BRIDGE.near[1]) * BRIDGE.axis[1],
+      // The marsh (scenes/lay.js, scenes/finish.js): the lay's phase and panel, the panel the pair carries, where the panels lie and the stack they come from.
+      layState: () => adventure.layState(),
+      cargo: () => adventure.cargoPoint(),
+      panelCentre: i => adventure.panelCentre(i),
+      supply: () => adventure.supplyPoint(),
       // The bridge is built: the Þórseðlur let the branch go and walk home.
       lowerBranch() { const started = adventure.start('lower'); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
     },
@@ -351,7 +358,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const feet = []; mosi.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); });
       mosiPace = (measureWalkGait(mosi.model, mosi.root, mosi.clips.get('walk'), feet)?.naturalSpeed ?? 2) * mosi.root.scale.x;
     }
-    const speed = adventure.crossSpeed();
+    const speed = plan.speed ?? adventure.crossSpeed();
     mosiWalk = { route: { points: plan.points, lengths, total: lengths.at(-1) }, speed, yaw: plan.yaw, age: 0, settle: 0, deckAt: lengths[Math.max(0, plan.deckStart)] ?? 0, onDeck: false, stopped: false };
     mosi.lookAt(null); mosi.play('walk', { fade: .25, timeScale: THREE.MathUtils.clamp(speed / Math.max(.1, mosiPace), .5, 3) });
     return true;
@@ -713,7 +720,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const waiting = scenes.waiting();
     for (const target of adventure?.getTargets() ?? []) {
       const tapAlong = waiting?.target === target.id, crowns = tapAlong && target.id === 'branch' ? stage.pair('brontosaurus').map(actor => actor.getSupportPosition(new THREE.Vector3())) : [];
-      const point = crowns.length ? crowns.reduce((sum, crown) => sum.add(crown), new THREE.Vector3()).multiplyScalar(1 / crowns.length).add(new THREE.Vector3(0, .35, 0)) : target.point;
+      const point = crowns.length ? crowns.reduce((sum, crown) => sum.add(crown), new THREE.Vector3()).multiplyScalar(1 / crowns.length).add(new THREE.Vector3(0, .35, 0)) : tapAlong && target.id === 'bark' ? adventure.cargoPoint().add(new THREE.Vector3(0, .5, 0)) : target.point;
       const p = project(point), size = tapAlong ? Math.round(Math.max(width < 600 ? 150 : 200, Math.min(width, height) * .42)) : width < 600 ? 44 : 64;
       // An obstacle at the very edge of the view (the log on a phone) keeps its button just inside the screen.
       if (tapAlong || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
@@ -971,6 +978,26 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       }
       taskScript = scenes.play(crossScene(stage, plan, timing));
       if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
+      return true;
+    },
+    /** The bark across the marsh with the child's taps (scenes/lay.js). False when the camera or the friends cannot start it now. */
+    playLay() {
+      if (cameraDirector.mode() !== 'auto' || adventure.isBusy()) return false;
+      taskScript = scenes.play(layScene(stage));
+      if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
+      return true;
+    },
+    /** Mosi leads all six over the boardwalk to the berry grove (scenes/finish.js). False when it cannot start now (it is tried again later). */
+    playFinish() {
+      if (!cameraDirector.isInteractive() || adventure.isBusy() || mosiWalk) return false;
+      const plan = adventure.groveRoute(mosi.root.position.clone()), speed = plan.speed;
+      const lengths = [0]; for (let i = 1; i < plan.points.length; i++) lengths.push(lengths[i - 1] + plan.points[i].distanceTo(plan.points[i - 1]));
+      // The friends line up behind where his middle passes the foot of the boardwalk; he is mid-boardwalk when his z passes the second panel.
+      const middle = Math.max(1, plan.points.findIndex(point => point.z <= -19.5));
+      const timing = { lead: { at: Math.max(0, lengths[plan.deckStart] - plan.ahead) / speed, half: MOSI_HALF }, deck: lengths[plan.deckStart] / speed, mid: lengths[middle] / speed, arrive: lengths.at(-1) / speed + .45 };
+      mosiAcross = false;
+      taskScript = scenes.play(finishScene(stage, plan, timing));
+      if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; mosiAcross = true; cameraDirector.release({ cut: true }); return false; }
       return true;
     },
     /** A wrong friend's funny go at an obstacle; the adventure's fail-done event says when the pair is back. */

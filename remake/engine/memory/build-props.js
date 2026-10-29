@@ -104,11 +104,19 @@ export function createBuildProps({ scene, heightAt }) {
   const cargo = new THREE.Object3D(); cargo.name = 'Börkur borinn lágt milli kambeðlna'; cargo.visible = false; root.add(cargo);
   const placed = [false, false, false], taken = [false, false, false]; let cargoPanel = -1;
   const panelCenter = i => new THREE.Vector3(4.5, deckY, -18 - i * 1.5);
+  // The supply stack waiting to be carried rocks on its base (the next obstacle, as the branch and the log do): a tilt
+  // across the stack and a small lift, set by sway(); it never touches the panels placed or carried.
+  const stackBase = new THREE.Vector3(7, heightAt(7, -15.6), -15.6), stackRock = new THREE.Matrix4(), stackPart = new THREE.Matrix4();
+  let swayTilt = 0, swayLift = 0;
   function refreshPanels() {
+    stackRock.makeTranslation(stackBase.x, stackBase.y + swayLift, stackBase.z).multiply(stackPart.makeRotationX(swayTilt)).multiply(stackPart.makeTranslation(-stackBase.x, -stackBase.y, -stackBase.z));
     for (let i = 0; i < 3; i++) {
-      if (placed[i]) { dummy.position.copy(panelCenter(i)); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1); }
-      else { dummy.position.set(7, heightAt(7, -15.6) + .23 + (2 - i) * .19, -15.6); dummy.rotation.set(0, Math.PI / 2 + (i - 1) * .035, 0); dummy.scale.setScalar(taken[i] ? 0 : 1); }
-      dummy.updateMatrix(); panels.setMatrixAt(i, dummy.matrix);
+      if (placed[i]) { dummy.position.copy(panelCenter(i)); dummy.rotation.set(0, 0, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); }
+      else {
+        dummy.position.set(7, heightAt(7, -15.6) + .23 + (2 - i) * .19, -15.6); dummy.rotation.set(0, Math.PI / 2 + (i - 1) * .035, 0); dummy.scale.setScalar(taken[i] ? 0 : 1); dummy.updateMatrix();
+        if (swayTilt || swayLift) dummy.matrix.premultiply(stackRock);
+      }
+      panels.setMatrixAt(i, dummy.matrix);
     }
     refreshCargo();
   }
@@ -185,6 +193,10 @@ export function createBuildProps({ scene, heightAt }) {
     takePanel(i) { cargoPanel = i; taken[i] = true; cargo.position.set(7, heightAt(7, -15.6) + .23 + (2 - i) * .19, -15.6); cargo.rotation.set(0, Math.PI / 2, 0); cargo.visible = true; refreshPanels(); },
     placePanel(i) { placed[i] = true; cargoPanel = -1; cargo.visible = false; access.visible = placed[0]; access.geometry.setDrawRange(0, placed[2] ? Infinity : nearRampVertices); refreshPanels(); },
     setCargo(position, orientation) { cargo.position.copy(position);if(orientation?.isQuaternion)cargo.quaternion.copy(orientation);else cargo.rotation.set(0, orientation, 0); cargo.visible = true; refreshCargo(); },
+    placedCount: () => placed.filter(Boolean).length,
+    /** The waiting stack rocks (tilt in radians, lift in metres) and its wood warms to a glow (0..1) while it is the next obstacle. */
+    sway(tilt = 0, lift = 0) { if (tilt === swayTilt && lift === swayLift) return; swayTilt = tilt; swayLift = lift; refreshPanels(); },
+    setGlow(amount = 0) { barkMaterial.emissive.set('#ffc65c'); barkMaterial.emissiveIntensity = Math.max(0, amount) * .32; },
     openDestination() { open = true; burst('arrival', new THREE.Vector3(4.5, heightAt(4.5, -26) + .4, -26)); },
     getDebug() { return { built: placed.every(Boolean), panels: placed.map((isPlaced, i) => ({ placed: isPlaced, start: [4.5, deckY, -17.25 - i * 1.5], end: [4.5, deckY, -18.75 - i * 1.5], halfWidth: WALKWAY.halfWidth, deckY })), access: { drawnVertices: access.visible ? Math.min(access.geometry.drawRange.count, access.geometry.attributes.position.count) : 0, nearRampVertices }, cargo: { visible: cargo.visible, position: cargo.position.toArray(), rotation: cargo.rotation.y, supports: cargo.visible? supportLocal.map(p=>cargo.localToWorld(p.clone()).toArray()):[], slices:cargo.visible?cargoSlices.map(transformedCorners):[], corners: cargo.visible ? cargoCorners() : [] } }; },
     dispose() { root.removeFromParent(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); },

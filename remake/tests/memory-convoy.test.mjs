@@ -226,7 +226,7 @@ test('a leader parked at a shared destination remains a solid reservation', () =
   } finally { follower.dispose(); leader.dispose(); }
 });
 
-test('a blocked final route never falls back to the near-bank planner without a destination', () => {
+test('the walk to the grove is authored and on a timetable: it never asks the near-bank planner and every friend arrives, whatever their size', () => {
   const f = fixture({ skinned: true, plan: ({ actor, end, action }) => {
     assert.ok(end?.isVector3, `${action.id}/${action.phase} must provide a real destination`);
     assert.notEqual(action.id, 'finish', 'the marsh route is authored entirely on the far bank');
@@ -234,27 +234,15 @@ test('a blocked final route never falls back to the near-bank planner without a 
   } });
   try {
     f.build(); f.start('cross'); f.finish(); f.start('lay', 'stegosaurus'); f.finish();
-    // Deliberately create an impossible final parking reservation. This checks
-    // recovery, not an acceptable creature size or production collision pose.
+    // The walk keeps to its timetable (Mosi's lead, the rows two abreast) and does not wait for headway, so even
+    // a friend far too big for her place cannot hold it up: all six arrive, once.
     f.pairs.brontosaurus.forEach(actor => actor.root.scale.setScalar(10));
-    f.adventure.pollEvents(); f.start('finish'); f.finish();
-    assert.ok(f.pairs.brontosaurus[0].root.position.z < -28, 'the leader arrives while its follower is still waiting');
-    assert.equal(f.adventure.getDebug().grove.visited, false);
-    const events = f.adventure.pollEvents();
-    const blocked = events.filter(event => event.type === 'bridge-blocked' && event.id === 'finish');
-    assert.equal(blocked.length, 1);
-    assert.equal(blocked[0].reason, 'no-clear-headway');
-    assert.equal(events.some(event => event.type === 'final-arrival'), false);
-    const arrived = f.pairs.brontosaurus[0], finalPosition = arrived.root.position.toArray();
-    f.pairs.brontosaurus.forEach(actor => actor.root.scale.setScalar(1));
-    f.start('finish');
-    for (let i = 0; i < 6000 && f.adventure.isBusy(); i++) {
-      f.tick();
-      assert.deepEqual(arrived.root.position.toArray(), finalPosition, 'retry leaves an arrived helper in the grove');
-    }
-    assert.equal(f.adventure.isBusy(), false);
-    assert.equal(f.adventure.getDebug().grove.visited, true);
-    assert.equal(f.adventure.pollEvents().filter(event => event.type === 'final-arrival').length, 1);
+    f.adventure.pollEvents(); f.start('finish', null); f.finish();
+    const debug = f.adventure.getDebug(), events = f.adventure.pollEvents();
+    assert.equal(debug.grove.visited, true);
+    assert.equal(events.filter(event => event.type === 'bridge-blocked').length, 0);
+    assert.equal(events.filter(event => event.type === 'final-arrival').length, 1);
+    assert.equal(events.filter(event => event.type === 'bridge-complete' && event.id === 'finish').length, 1);
   } finally { f.dispose(); }
 });
 

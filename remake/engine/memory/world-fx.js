@@ -2,7 +2,9 @@ import * as THREE from 'three';
 
 const MAX = 192;
 const dust = new THREE.Color('#c4ad7d'), leaf = new THREE.Color('#8aab55'), gold = new THREE.Color('#f4cd71'), cream = new THREE.Color('#fff1bf');
-const puff = new THREE.Color('#f3ead2'), water = new THREE.Color('#cfeaf0'), spray = new THREE.Color('#9fd2e0');
+const puff = new THREE.Color('#f3ead2'), water = new THREE.Color('#cfeaf0'), spray = new THREE.Color('#9fd2e0'), mud = new THREE.Color('#8f7248'), silt = new THREE.Color('#b0925f');
+// What a splash of mud is made of (a landing in the marsh passes it as `colours`): mostly brown, a little spray.
+export const MUD_COLOURS = Object.freeze([mud, silt, mud, water]);
 // The game's own bursts, each a small recipe: how fast they spread and rise, how long they last, how big they are,
 // how hard they fall, how opaque; `grow` keeps a drop's size where a puff swells. Shapes: 0 soft ball, 2 star.
 const STYLES = {
@@ -10,14 +12,14 @@ const STYLES = {
   poof: { shape: 0, colours: [puff], spread: [.5, .5], rise: [.15, .3], life: [.55, .3], size: [.26, .2], fall: .02, alpha: .8 },
   // Something found: bigger golden stars thrown up and falling slowly, twinkling as they turn.
   stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
-  // Water thrown up from a landing: little drops that arc and drop back.
-  splash: { shape: 0, colours: [water, spray], spread: [.35, .6], rise: [1.2, 1.1], life: [.5, .3], size: [.07, .07], fall: 4.6, alpha: .9, grow: 1 },
+  // Water thrown up from a landing: big drops that arc high and drop back (the size is a radius in metres), easy to see from the search view.
+  splash: { shape: 0, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.7, .4], size: [.12, .1], fall: 5, alpha: 1, grow: 1 },
 };
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
 /** One transparent draw for grounded dust and soft leaf fragments. All motion
  * uses the game clock; foot contacts remain independent of camera/action time. */
-export function createWorldFx({ scene, heightAt }) {
+export function createWorldFx({ scene, heightAt, wet = () => false }) {
   const particles = [], steps = [], positions = new Float32Array(MAX * 3), colours = new Float32Array(MAX * 3), sizes = new Float32Array(MAX), alpha = new Float32Array(MAX), kinds = new Float32Array(MAX), angles = new Float32Array(MAX);
   const geometry = new THREE.BufferGeometry();
   for (const [name, array, size] of [['position', positions, 3], ['color', colours, 3], ['aSize', sizes, 1], ['aAlpha', alpha, 1], ['aKind', kinds, 1], ['aAngle', angles, 1]]) geometry.setAttribute(name, new THREE.BufferAttribute(array, size));
@@ -48,7 +50,7 @@ export function createWorldFx({ scene, heightAt }) {
   });
   const mesh = new THREE.Points(geometry, material); mesh.name = 'Fótaryk, lauf og vinaglampi'; mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 10; scene.add(mesh);
   let sequence = 0, reduced = false, clock = 0, lastStep = -1, emitted = 0, footPuffs = 0, tracking = new WeakMap();
-  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0 } = {}) {
+  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0, colours = null } = {}) {
     if (reduced) return;
     const style = STYLES[kind];
     if (style) {
@@ -57,7 +59,7 @@ export function createWorldFx({ scene, heightAt }) {
         const seed = sequence++, a = ring ? (i + hash(seed) * .5) / count * Math.PI * 2 : hash(seed) * Math.PI * 2, speed = (style.spread[0] + hash(seed + 7) * style.spread[1]) * strength;
         particles.push({ x: point.x + Math.cos(a) * (.1 + ring), y: point.y + .1, z: point.z + Math.sin(a) * (.1 + ring), vx: Math.cos(a) * speed, vy: (style.rise[0] + hash(seed + 21) * style.rise[1]) * Math.min(1.3, strength), vz: Math.sin(a) * speed,
           age: 0, life: style.life[0] + hash(seed + 41) * style.life[1], size: style.size[0] + hash(seed + 63) * style.size[1], angle: a, spin: (hash(seed + 19) - .5) * (style.spin ?? 4), kind: style.shape,
-          colour: style.colours[i % style.colours.length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow });
+          colour: (colours ?? style.colours)[i % (colours ?? style.colours).length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow });
       }
       emitted += count; if (particles.length > MAX) particles.splice(0, particles.length - MAX);
       return;
@@ -90,8 +92,10 @@ export function createWorldFx({ scene, heightAt }) {
       let foot = points.findIndex((p, i) => i !== track.lastFoot && p.y <= lowest + .04);
       if (foot < 0) foot = points.findIndex(p => p.y === lowest);
       const contact = points[foot]; track.lastFoot = foot; track.age = 0; track.distance = 0;
-      const surface = root.y > heightAt(root.x, root.z) + .30 ? 'wood' : 'soil';
+      // Wood on the log and the boardwalk, splashes in the river and the marsh and the mud sloping into it, dust on soil.
+      const surface = root.y > heightAt(root.x, root.z) + .30 ? 'wood' : wet(contact.x, contact.z) ? 'mud' : 'soil';
       if (surface === 'soil') { emit('dust', contact, { count: 2, strength: .6 }); footPuffs++; }
+      else if (surface === 'mud') { emit('splash', contact, { count: 7, strength: .7, colours: MUD_COLOURS }); footPuffs++; }
       if (clock - lastStep >= .16) {
         const projected = camera ? contact.clone().project(camera).x : 0;
         steps.push({ type: 'footstep', surface, pan: THREE.MathUtils.clamp(projected * .65, -.8, .8) }); lastStep = clock;
