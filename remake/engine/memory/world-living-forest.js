@@ -25,7 +25,8 @@ export function installStoryBreeze(material, geometry, heightAt) {
 /** Planted detail is kept on the outer shoulders of all three play spaces.
  * It never becomes an unregistered obstacle in an animal's walking corridor.
  * Everything botanical shares one draw; the six butterflies share another. */
-export function createLivingForest(world) {
+/** `avoid(x, z)` says where nothing may be planted (the leaves' ground and a margin round it). */
+export function createLivingForest(world, { avoid = () => false } = {}) {
   const root = new THREE.Group(); root.name = 'Lifandi skógarjaðar'; world.scene.add(root);
   const positions = [], colours = [], weights = [], tint = new THREE.Color();
   const height = (x, z) => world.heightAt(x, z);
@@ -68,6 +69,7 @@ export function createLivingForest(world) {
     leaf(x+dx*length*.78,y+length*.27,z+dz*length*.78,angle,length*.24,length*.055,colour,.025);
   }
   function safe(x,z) {
+    if (avoid(x,z)) return false;
     // The first clearing's centre and its leaf aisles remain open.
     if (x>-9.4&&x<5.9&&z>-5.7&&z<10.3) return false;
     if (x>-1.9&&x<10.6&&z>-17.4&&z<-9.8) return false;
@@ -101,7 +103,7 @@ export function createLivingForest(world) {
   for(let i=0;i<100;i++) {
     const zone=i%3,cx=zone?-2+zone*3.25:-2,cz=zone===0?4:zone===1?-13.7:-26.5;
     const x=cx+(random(i*7)-.5)*(zone?8.7:14),z=cz+(random(i*7+1)-.5)*(zone?5.6:10.3);
-    if(riverDistance(x,z).distance<2.4)continue;
+    if(riverDistance(x,z).distance<2.4||avoid(x,z))continue;
     const y=height(x,z)+.083,a=random(i+14)*Math.PI*2,l=.06+random(i+19)*.13;
     leaf(x,y,z,a,l,l*.31,['#9c9159','#9d7844','#b5a168','#7a8c4c'][i%4],-.015);
   }

@@ -10,7 +10,7 @@ import { createPointResolver } from '../points.js';
 import { createActor } from '../actor.js';
 import { prepareCharacter, releaseCharacter, updateCharacterLods } from '../character-lod.js';
 import { createForest } from '../../world/forest/forest.js';
-import { createLeafResources, makeLeaf, poseLeaf, createContactResources, makeContact, createClearingFloor, createGladeScenery } from './world-props.js';
+import { createLeafResources, makeLeaf, poseLeaf, LEAF_SCALE, createContactResources, makeContact, createClearingFloor, createGladeScenery } from './world-props.js';
 import { createBridgeAdventure } from './bridge-adventure.js';
 import { bridgeValley, refineBridgeGround, riverDistance, RIVER, MARSH } from './bridge-props.js';
 import { createMemoryShadowLods } from './world-character-shadows.js';
@@ -34,7 +34,7 @@ function leafGrid({ centre: [cx, cz], angle, across, deep }) {
 const CELLS = leafGrid({ centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, deep: 3.6 });
 // The Þórseðla babies' rest (the third) stands 1.15 m nearer the leaves than the adults' did, so their longer tails
 // stay clear of the branch lying behind them.
-const NESTS = [[-.8, -.4], [3.8, 6.4], [-6.9, -1.25]];
+const NESTS = [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
@@ -52,6 +52,8 @@ const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
 // walking route): metres per hop, average metres a second, the root's own arc, the lift over a leaf and how far its reach is.
 const HOP = Object.freeze({ reach: 2.8, speed: 6.4, arc: .2, leap: .75, dome: 1, margin: 1.9 });
+// Where a ground plant may not stand: under a leaf (it would show on top of it) or where an opened leaf lies, with a margin.
+const onLeafGround = (x, z, margin = 0) => CELLS.some(([cx, cz], i) => Math.hypot(x - cx, z - cz) < 1.3 * LEAF_SCALE + .75 + margin || Math.hypot(x - cx - (i % 2 ? -.4 : .4), z - cz + 1.35) < 1.3 * LEAF_SCALE + .5 + margin);
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const easeOutBack = t => { const k = THREE.MathUtils.clamp(t, 0, 1) - 1; return 1 + 2.4 * k * k * k + 1.4 * k * k; };
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
@@ -149,9 +151,15 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const [x, z] of NESTS) for (const dx of [-1.85, 1.85]) for (const dz of [-1.1, 1.1]) points.push([x + dx, 1.6, z + dz]);
     return points;
   }
-  // Every leaf and Mosi whole, and both places of each home spot (head height), so a found pair stays in view.
+  // Every leaf and Mosi whole, and both places of each home spot with the friends' length (nose and tail), so a found pair
+  // stays in the frame whichever way the search camera looks along the board.
+  const HALF_LENGTH = { triceratops: 1.3, stegosaurus: 1, brontosaurus: 2.2 };
   function homePoints() {
-    return NESTS.flatMap(([x, z], i) => [0, 1].map(member => { const rest = restVector(SPECIES[i], member); return [x + rest.x, world.heightAt(x, z) + 1.2, z + rest.z]; }));
+    const along = new THREE.Vector3(Math.cos(restHeading()), 0, -Math.sin(restHeading()));
+    return NESTS.flatMap(([x, z], i) => [0, 1].flatMap(member => {
+      const rest = restVector(SPECIES[i], member), y = world.heightAt(x, z);
+      return [[0, 1.2], [HALF_LENGTH[SPECIES[i]], .5], [-HALF_LENGTH[SPECIES[i]], .5]].map(([reach, height]) => [x + rest.x + along.x * reach, y + height, z + rest.z + along.z * reach]);
+    }));
   }
   function gladeCue() {
     const points = [...boardPoints(), ...mosiPoints(), ...homePoints()];
@@ -351,7 +359,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     }
     refineBridgeGround(forest, world.heightAt);
     floor = createClearingFloor(world, { width: 29, depth: 47, centerZ: -9, glade: true });
-    gladeScenery = createGladeScenery(world);
+    gladeScenery = createGladeScenery(world, { avoid: onLeafGround });
     for (let i = 0; i < CELLS.length; i++) {
       const [x, z] = CELLS[i], y = world.heightAt(x, z);
       const root = new THREE.Group(); root.name = `Felustaður ${i + 1}`; root.position.set(x, y, z); scene.add(root);

@@ -283,10 +283,11 @@ function roundedFern(variant) {
 }
 
 /** Low, lush edge detail round the glade and its flowers, stones and ferns. */
-export function createGladeScenery(world) {
+/** `avoid(x, z, margin)` says where a plant, flower or stone may not stand: on a leaf's ground (world.js knows the leaves). */
+export function createGladeScenery(world, { avoid = () => false } = {}) {
   const root = new THREE.Group(); root.name = 'Laufbeð og blóm í rjóðri'; world.scene.add(root);
   const geometries = [], materials = [], collisionObjects = [], navigationObjects = [], breezeMaterials = [], dummy = new THREE.Object3D();
-  const living = createLivingForest(world);
+  const living = createLivingForest(world, { avoid: (x, z) => avoid(x, z, 0) });
   function solidBounds(id, positions, transform) {
     const box = new THREE.Box3();
     for (let i = 0; i < positions.length; i += 3) box.expandByPoint(new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]));
@@ -307,7 +308,7 @@ export function createGladeScenery(world) {
   frondGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); frondGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   const clumps = [];
   const rim = [[-8.3, 1], [-12.3, 8], [-9.8, 14], [-6.6, 14.4], [-3.4, 14.2], [-.4, 13.4], [3.7, 10.7], [5.1, 1.0], [3.8, -.1], [-7.2, -1.5]];
-  for (const [x, z] of rim) for (let i = 0; i < 9; i++) clumps.push({ x: x + Math.cos(i * 2.4) * .25, z: z + Math.sin(i * 2.4) * .25, scale: .9 + i % 3 * .2, angle: i * 2.4 });
+  for (const [x, z] of rim) for (let i = 0; i < 9; i++) if (!avoid(x, z, .6)) clumps.push({ x: x + Math.cos(i * 2.4) * .25, z: z + Math.sin(i * 2.4) * .25, scale: .9 + i % 3 * .2, angle: i * 2.4 });
   const fronds = new THREE.InstancedMesh(frondGeometry, material({ color: '#7c9f42', side: THREE.DoubleSide }), clumps.length); fronds.receiveShadow = true; root.add(fronds);
   clumps.forEach((part, i) => { dummy.position.set(part.x, world.heightAt(part.x, part.z) + .1, part.z); dummy.rotation.set(.06, part.angle, 0); dummy.scale.setScalar(part.scale); dummy.updateMatrix(); fronds.setMatrixAt(i, dummy.matrix); fronds.setColorAt(i, new THREE.Color(i % 3 === 0 ? '#a2b85a' : i % 3 === 1 ? '#77913f' : '#526f36')); });
 
@@ -315,6 +316,7 @@ export function createGladeScenery(world) {
   function triangle(a, b, c, tint) { flowerVertices.push(...a, ...b, ...c); for (let i = 0; i < 3; i++) flowerColors.push(tint.r, tint.g, tint.b); }
   for (let plant = 0; plant < 14; plant++) {
     const [cx, cz] = rim[plant % rim.length], x = cx + Math.sin(plant * 3.4) * .35, z = cz + Math.cos(plant * 3.4) * .3, y = world.heightAt(x, z) + .26 + (plant % 3) * .05;
+    if (avoid(x, z, .3)) continue;
     const petals = new THREE.Color(plant % 4 ? '#f3e8c2' : '#e6b951'), centre = new THREE.Color('#d7ac45');
     const stem = new THREE.Color('#617b3b'), ground = world.heightAt(x, z) + .07;
     triangle([x - .012, ground, z], [x + .012, ground, z], [x + .01, y, z], stem);
@@ -327,7 +329,7 @@ export function createGladeScenery(world) {
   const flowers = new THREE.Mesh(flowerGeometry, material({ vertexColors: true, side: THREE.DoubleSide })); flowers.receiveShadow = true; root.add(flowers);
 
   const pebbleGeometry = geometry(new THREE.SphereGeometry(1, 9, 6)), mossGeometry = geometry(new THREE.SphereGeometry(1, 8, 4));
-  const stonePlaces = [[-12.3, 8], [-6.6, 14.4], [5.1, 1.0], [-12.2, -1.3]];
+  const stonePlaces = [[-12.3, 8], [-6.6, 14.4], [5.1, 1.0], [-12.2, -1.3]].filter(([x, z]) => !avoid(x, z, .6));
   const rocks = new THREE.InstancedMesh(pebbleGeometry, material({ color: '#928d73' }), stonePlaces.length), moss = new THREE.InstancedMesh(mossGeometry, material({ color: '#7e9844' }), stonePlaces.length); rocks.castShadow = true; rocks.receiveShadow = moss.receiveShadow = true; root.add(rocks, moss);
   stonePlaces.forEach(([x, z], i) => { const radius = .24 + (i % 3) * .08; dummy.position.set(x + .24, world.heightAt(x, z) + radius * .28, z - .25); dummy.scale.set(radius * 1.35, radius * .65, radius); dummy.rotation.set(.12, i * 1.3, .08); dummy.updateMatrix(); rocks.setMatrixAt(i, dummy.matrix); solidBounds(`glade-stone-${i}`, pebbleGeometry.attributes.position.array, dummy.matrix); dummy.position.y += radius * .28; dummy.scale.set(radius * 1.1, radius * .28, radius * .9); dummy.updateMatrix(); moss.setMatrixAt(i, dummy.matrix); });
 
@@ -350,6 +352,7 @@ export function createGladeScenery(world) {
   ];
   const tint = new THREE.Color();
   plants.forEach(([kind, x, z, scale, yaw, lod], variant) => {
+    if (avoid(x, z, scale * .55)) return;
     const model = kind === 'fern' ? roundedFern(variant % 3) : library.get(kind, variant % 3, lod), cos = Math.cos(yaw), sin = Math.sin(yaw), y = world.heightAt(x, z) + .045;
     if (model.solid?.pos.length) solidBounds(`glade-${kind}-${variant}`, model.solid.pos, new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(scale, scale, scale)));
     for (const part of ['solid', 'thin']) {
