@@ -311,8 +311,9 @@ function refreshControls() {
     } else if (target.type === 'task') {
       // Obstacles can always be asked about (Mosi answers); staging and grove only retry a blocked crossing.
       const obstacle = Object.hasOwn(BRIDGE_OBSTACLES, target.id), available = obstacle || mayTask(target.id);
-      const tapAlong = Boolean(target.tapAlong) && target.enabled !== false && !held();
-      button.disabled = !tapAlong && (!mayExplore || !available || target.enabled === false);
+      // The tap-along ring stays drawn through a pause; only its taps wait for play.
+      const tapAlong = Boolean(target.tapAlong) && target.enabled !== false;
+      button.disabled = tapAlong ? held() : !mayExplore || !available || target.enabled === false;
       button.classList.toggle('tap-along', tapAlong);
       button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false);
       button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false || target.id === story.target && hesitating);
