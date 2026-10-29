@@ -1,8 +1,8 @@
 // "Norðurljós": a shimmering dance track under the northern lights, G major, 124 a minute, about two minutes. Written as data for the
 // game to play itself (song.js says how to read it). Airy pads and soft plucks in the verses, a build in the bridge (the kick goes
 // away, comes back in halves, then a snare roll), and a big happy drop of a chorus: four-on-the-floor kick, claps, open hats on the
-// offbeats and a pumping offbeat bass. Slóeðla (a) sings the hook on her horn in long notes (B, A, G ... E, G ...), Kambeðla (b)
-// rings sparkling arpeggios on her plates, Þórseðla (c) booms the big drum on the drops. Star layers (tier) come in on a run of hits:
+// offbeats and a pumping offbeat bass. Slóeðla (a) sings the hook on a wide, airy synth in long notes (B, A, G ... E, G ...), Kambeðla (b)
+// rings sparkling arpeggios on glass bells, Þórseðla (c) booms an 808 on the drops. Star layers (tier) come in on a run of hits:
 // shaker and shimmering plucks, then bells, then a choir.
 //
 // The '!' notes are the child's, never closer than two beats (a calm section thins them to four): in the verse Þórseðla on the first

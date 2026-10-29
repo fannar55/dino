@@ -1,15 +1,15 @@
 // "Þrumutaktur" (Thunder Beat): Þórseðla's song, a stomping arena-rock funk groove in E dorian, 104 a minute, about two minutes
 // ten. Written as data for the game to play itself (song.js says how to read it). The band is a stomp-stomp-clap kick and claps,
 // a strutting octave bass, a pad and, as the child plays well, plucks, shaker, bells and a choir (tier). Þórseðla (c) booms the big
-// drum on the strong beats and fills the ends of lines; Slóeðla (a) shouts a short hook on her horn (a leap up to the root, then
-// G and back: "Þrum-ur-takt-ur!"); Kambeðla (b) rings a funky riff of plates, three sixteenths apart, that answers the horn.
+// drum on the strong beats and fills the ends of lines; Slóeðla (a) shouts a short hook on a horn section (a leap up to the root, then
+// G and back: "Þrum-ur-takt-ur!"); Kambeðla (b) plays a funky clavinet riff, three sixteenths apart, that answers the horns.
 //
 // The '!' notes are the child's, never closer than two beats and always on a first or a third beat, so a six-year-old can follow:
 //   intro   Þórseðla on the third bar, Slóeðla on the last
-//   verse   a boom, then Slóeðla lands on the next bar's first beat and Kambeðla answers two beats later (boom, horn, plates)
-//   chorus  two a bar: booms on the first beats, the hook on the third beats, the plates answering at the ends of the lines
+//   verse   a boom, then Slóeðla lands on the next bar's first beat and Kambeðla answers two beats later (boom, horns, clavinet)
+//   chorus  two a bar: booms on the first beats, the hook on the third beats, the clavinet answering at the ends of the lines
 //   bridge  long notes, one every four beats, and a short run of three at the end that builds into the last chorus
-//   ending  boom, horn, plates, and the last boom
+//   ending  boom, horns, clavinet, and the last boom
 // When a section comes calm only the first-beat notes are left (four beats apart). The last chorus goes up a whole step (F-sharp
 // dorian) if the child is playing well.
 

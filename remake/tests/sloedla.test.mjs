@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, makeChart, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { scaleOf } from '../engine/sloedla/sounds.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
+import { VOICES_DEFAULT, VOICE_LEVELS } from '../engine/sloedla/voices.js';
 import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
 import { SONGS } from '../engine/sloedla/songs/index.js';
 
@@ -126,4 +127,16 @@ test('the crowd answers now and then: a quiet spell between its sounds, a sigh s
       assert.equal(made[`${sound}-${take}`]?.kind, sound, `crowd.json says what crowd-${sound}-${take} is`);
     }
   }
+});
+
+test('each song gives the dinosaurs instruments of its own, every one known, a tapped note louder than one that plays by itself', async () => {
+  const kits = new Set();
+  for (const entry of SONGS) {
+    const song = (await entry.load()).default;
+    for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[song.voices?.[role]], `${song.id}: role ${role} plays a known instrument (${song.voices?.[role]})`);
+    kits.add(['a', 'b', 'c'].map(role => song.voices[role]).join(' '));
+  }
+  assert.equal(kits.size, SONGS.length, 'no two songs sound alike');
+  for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[VOICES_DEFAULT[role]], 'a song that names none has the first instruments');
+  for (const [name, { play, tapped, soft }] of Object.entries(VOICE_LEVELS)) assert.ok(soft < play && play < tapped && tapped <= 1, `${name}: a stray tap is softest, a tapped note loudest`);
 });

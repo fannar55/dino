@@ -1,6 +1,6 @@
 // "Stjörnudans": disco-flavoured synth pop for the Star Festival, B-flat major, 116 a minute, about two minutes. Written as data for
-// the game to play itself (song.js says how to read it). Slóeðla (a) sings the tune on her horn, Kambeðla (b) rings the hook on her
-// plates, Þórseðla (c) booms the big drum; the band is a four-on-the-floor kick, claps, hats, an octave bass and a pad, with star
+// the game to play itself (song.js says how to read it). Slóeðla (a) sings the tune on a disco synth brass, Kambeðla (b) rings the
+// hook on a plucky synth, Þórseðla (c) plays disco's falling syndrum; the band is a four-on-the-floor kick, claps, hats, an octave bass and a pad, with star
 // layers (tier) that come in on a run of hits. The '!' notes are the child's: never closer than two beats, so a six-year-old can
 // follow: in the verse Þórseðla on the first beat, Slóeðla on the third, Kambeðla answering at the end of each line; in the chorus
 // Slóeðla on every first beat and her friends on the thirds. The last chorus goes up a whole step if the child is playing well.
