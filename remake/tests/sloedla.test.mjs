@@ -157,7 +157,7 @@ test('a tap is praised by how close it was: Fullkomið! right on, Frábært!, F�
 });
 
 test('the DJ calls the milestones and the big moments, never on top of himself, and the end always; his lines are on disk', async () => {
-  const { DJ_LINES, DJ_QUIET, djCueOf, endLineOf } = await import('../engine/sloedla/dj.js');
+  const { DJ_LINES, DJ_TAKES, DJ_QUIET, djCueOf, endLineOf } = await import('../engine/sloedla/dj.js');
   const memory = {};
   assert.equal(djCueOf({ kind: 'start' }, 0, memory), 'byrjun');
   assert.equal(djCueOf({ kind: 'tier', tier: 1 }, 1, memory), null, 'a quiet spell after a line');
@@ -174,7 +174,9 @@ test('the DJ calls the milestones and the big moments, never on top of himself, 
   assert.equal(endLineOf({ stars: 0, misses: 40 }), 'aftur');
   const made = JSON.parse(fs.readFileSync(new URL('../assets/audio/sloedla/dj/dj.json', import.meta.url), 'utf8'));
   assert.ok(made.voice?.id, 'the DJ has a voice of his own');
-  for (const [id, text] of Object.entries(DJ_LINES)) {
+  for (const [key, texts] of Object.entries(DJ_LINES)) assert.ok(texts.length >= 2, `${key}: more than one way of saying it, so he does not repeat himself`);
+  assert.equal(djCueOf({ kind: 'clap' }, 71, memory), 'klapp', 'the clapping is called for');
+  for (const { id, text } of DJ_TAKES) {
     assert.ok(fs.existsSync(new URL(`../assets/audio/sloedla/dj/${id}.mp3`, import.meta.url)), `${id}.mp3 is there`);
     assert.equal(made.lines[id]?.text, text, `dj.json says ${id} is "${text}"`);
   }

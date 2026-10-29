@@ -4,7 +4,7 @@
 // so cueOf() lets one through only after a quiet spell, and the smaller moments only some of the time.
 
 /** The takes of each sound (crowd.json has what was asked for). */
-export const CROWD_TAKES = { va: 3, ae: 3, fagn: 2, klapp: 2 };
+export const CROWD_TAKES = { va: 3, ae: 3, fagn: 2, klapp: 2, takt: 4 }; // takt: one clap of the whole crowd, played on the beat
 
 /** What may set the crowd off, the sound it makes, how often (chance) and how long since the last sound of that kind (s). */
 const CUES = {
@@ -40,7 +40,8 @@ export function cueOf(event, time, memory, random = Math.random) {
 
 /**
  * The crowd's voice: `play(sound, { gain })` plays one of its takes, never the one played last, a moment later (people react), a little
- * over the band (it must be heard over a full chorus).
+ * over the band (it must be heard over a full chorus); `at(sound, when, { gain, rate })` plays one at a context time (the claps
+ * along with the song, on the beat).
  * load() fetches and decodes the takes one at a time (the page calls it while the start card waits); a take not ready yet is just
  * not heard.
  */
@@ -73,20 +74,27 @@ export function createCrowd({ context, output, room = null, src, random = Math.r
     return queue;
   }
 
-  function play(sound, { gain = 1, delay = 0.12 } = {}) {
+  /** Plays one of `sound`'s takes (never the one played last) at context time `when`, `gain` loud, at `rate` speed (pitch). */
+  function at(sound, when, { gain = 1, rate = 1 } = {}) {
     const takes = (buffers[sound] ?? []).map((buffer, i) => [buffer, i]).filter(([buffer, i]) => buffer && (i !== last[sound] || buffers[sound].filter(Boolean).length === 1));
     if (!takes.length) return false;
     const [buffer, i] = takes[Math.floor(random() * takes.length)];
     last[sound] = i;
     const source = context.createBufferSource();
     source.buffer = buffer;
+    source.playbackRate.value = rate;
     const g = context.createGain();
     g.gain.value = gain;
     source.connect(g);
     g.connect(bus);
-    source.start(context.currentTime + delay);
+    source.start(Math.max(when, context.currentTime));
+    source.onended = () => { source.disconnect(); g.disconnect(); };
     return true;
   }
 
-  return { load, play, bus };
+  function play(sound, { gain = 1, delay = 0.12 } = {}) {
+    return at(sound, context.currentTime + delay, { gain });
+  }
+
+  return { load, play, at, bus };
 }

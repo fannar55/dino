@@ -35,11 +35,12 @@ export const RECENTRE = { taps: 8, most: 0.12 }; // the window follows the media
 /**
  * The levels: a note on every `every` beats at most, falling `fall` seconds from the top of the lane to the dinosaur; a tap from
  * `early` s before a note to `late` s after it plays it, within `great` it is right on. The word over her dinosaur (text.js
- * gradeOf) says "Fullkomið!" within `perfect`, "Frábært!" within `great`, "Fínt!" within `fine` and "OK!" further off.
+ * gradeOf) says "Fullkomið!" within `perfect`, "Frábært!" within `great`, "Fínt!" within `fine` and "OK!" further off. The star
+ * meter (game.js) is full after `meter` hits.
  */
 export const LEVELS = {
-  barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, perfect: 0.07, great: 0.15, fine: 0.24 },
-  fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, perfect: 0.035, great: 0.07, fine: 0.12 },
+  barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, perfect: 0.07, great: 0.15, fine: 0.24, meter: 12 },
+  fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, perfect: 0.035, great: 0.07, fine: 0.12, meter: 24 },
 };
 
 // The sheet is phrases of four bars (16 beats). At the child's level a phrase has eight places, one on every second beat (the

@@ -14,8 +14,11 @@
 // won, and at the top of a run everything turns gold. Words come with juice (text.js): over the dinosaur she tapped, how close to
 // the beat it was ("Fullkomið!" in a rainbow right on it, "Frábært!", "Fínt!", "OK!"); a run's milestones ("10 í röð!", "15 í
 // röð!" ...) rise from low on the screen, letter by letter, in the rainbow from twenty. The festival's DJ (dj.js) calls them out:
-// the numbers, the tiers, a section coming in big, a friend back in, the start and the end ("Fullt hús!" for every note in one run). Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run
-// breaks, cheering for a section that comes in big, applause at the end.
+// the numbers, the tiers, a section coming in big, a friend back in, the start and the end ("Fullt hús!" for every note in one
+// run). Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run breaks, cheering for a section that comes
+// in big, applause at the end. The star meter, a star beside the lanes, fills with every hit (a glint flies into it); a miss spills
+// a little, never all. Full, it is Stjörnukraftur (tier 3: the choir, gold everywhere) while it slowly empties, a hit topping it
+// up; two bars in, the DJ calls for clapping and the crowd claps along on the second and fourth beats, more of them as it goes on.
 //
 // The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
@@ -33,6 +36,11 @@ const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes ofte
 const SAY_LIFE = 1.8; // s a word in the middle stays (an early reader needs one or two seconds for a new word)
 const SAY_TURN = 1.1; // s a word in the middle has to itself before the next may come
 const RISE_LIFE = 2.2; // s a milestone takes to rise and fade
+const STAR_DRAIN = 1 / 14; // of the star meter a second while it is Stjörnukraftur (about 14 s with no hits)
+const STAR_HIT = 0.5; // a hit during Stjörnukraftur tops the meter up by this share of a hit's fill
+const STAR_MISS = 0.12; // and a miss spills this much of it
+const CLAP_AFTER = 8; // beats into Stjörnukraftur before the crowd claps along
+const CLAP_LEVEL = 0.8; // how loud the crowd's claps are (they grow from 45 % to this over two bars)
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
 const GOLD = '#f2b630';
@@ -69,6 +77,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const twinkles = Array.from({ length: 110 }, () => ({ x: random(), y: random() * 0.62, r: 0.4 + random() * 1.6, phase: random() * 6.28, speed: 1.2 + random() * 2.4 }));
   const fireflies = Array.from({ length: 30 }, () => ({ x: random(), y: random(), phase: random() * 6.28, speed: 0.4 + random() * 0.8 }));
   const sparks = []; // short-lived glitter: { x, y, vx, vy, life, max, size, gravity, hue }
+  const fill = 1 / (windows.meter ?? 12); // of the star meter a hit fills
+  let meter = 0, meterShown = 0, meterPop = -Infinity, meterAt = { x: 0, y: 0, r: 0 };
+  let starMode = false, starAt = -Infinity, clapFrom = Infinity, clapping = false, nextClapBeat = 0;
+  const feeds = []; // glints flying from a dinosaur into the star meter: { x, y, at }
   const rings = [];
   const waves = []; // Slóeðla's sound waves, Þórseðla's ground wave
   const pillars = []; // light going up a lane on a hit
@@ -132,6 +144,15 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     bar = { x: (w - barW) / 2, y: Math.max(22, h * 0.045), w: barW, h: Math.max(18, Math.min(26, h * 0.03)) };
     topY = bar.y + bar.h + h * 0.06;
     counterY = bar.y + bar.h + (portrait ? 30 : 34);
+    // the star meter: in the margin left of the lanes, low down; on a narrow screen, left of the bar of stars
+    const margin = x0 - gap;
+    if (margin >= 140) {
+      const r = Math.min(margin * 0.32, h * 0.1, 80);
+      meterAt = { x: margin / 2, y: Math.min(h * 0.68, hitY - dinoR * 0.2), r };
+    } else {
+      const r = Math.max(14, Math.min(26, (bar.x - 10) / 2.2));
+      meterAt = { x: Math.max(r + 4, bar.x - r - 6), y: bar.y + bar.h / 2 + 2, r };
+    }
     // where the constellations may go: the sky beside the lanes (or above them, upright)
     const left = x0 - gap, right = w - (x0 + span + gap);
     sky = portrait || left < 120
@@ -493,8 +514,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     for (; laned < notes.length; laned++) notes[laned].lane = laneOf(notes[laned].role, lanes);
   }
 
+  /** The tier: a run of hits raises it to Flott! and Vá! (tierOf), and the star meter, full, to Stjörnukraftur. */
   function setTier() {
-    const next = tierOf(score.streak);
+    const next = starMode ? 3 : Math.min(2, tierOf(score.streak));
     if (next === tierNow) return 0;
     const up = next > tierNow;
     tierNow = next;
@@ -549,6 +571,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const c = constellationFor(result.note.section);
       if (c.lit < c.stars.length) c.stars[c.lit++].lit = time;
       count(score, result);
+      feedMeter(lane, time);
       comboAt = time;
       if (score.streak % 10 === 0) comboBigAt = time;
       if (result.great && tierNow >= 2) punch(0.012);
@@ -576,10 +599,59 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (result.kind === 'stray' && notes.length && time > notes[0].t - 1 && time < conductor.length) {
         breakRun(time, false);
         count(score, result);
+        spillMeter(fill);
         setTier();
       }
     }
     return result;
+  }
+
+  /** A hit fills the star meter (a glint flies into it from her button); full, it is Stjörnukraftur. */
+  function feedMeter(lane, time) {
+    meter = Math.min(1, meter + fill * (starMode ? STAR_HIT : 1));
+    feeds.push({ x: laneX[lane], y: hitY - dinoR * 0.7, at: time });
+    if (!starMode && meter >= 1) {
+      starMode = true;
+      starAt = time;
+      clapFrom = time + beatLength * CLAP_AFTER;
+      clapping = false;
+      for (let i = 0; i < 26; i++) {
+        const a = random() * Math.PI * 2, speed = 120 + random() * 260;
+        sparks.push({ x: meterAt.x, y: meterAt.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 60, life: 0, max: 0.7 + random() * 0.5, size: 10 + random() * 12, gravity: 160, hue: `hsl(${Math.floor(random() * 360)}, 100%, 72%)` });
+      }
+    }
+  }
+
+  /** A miss or a stray spills some of the meter; Stjörnukraftur ends when it is empty. */
+  function spillMeter(amount) {
+    meter = Math.max(0, meter - amount);
+  }
+
+  /** Stjörnukraftur: the meter empties slowly; the crowd claps along on the second and fourth beats, more of them as it goes on. */
+  function starTime(time, dt) {
+    if (!starMode) return;
+    meter = Math.max(0, meter - dt * STAR_DRAIN);
+    if (meter <= 0) {
+      starMode = false;
+      clapping = false;
+      setTier();
+      return;
+    }
+    if (!crowd?.at || time < clapFrom) return;
+    if (!clapping) {
+      clapping = true;
+      nextClapBeat = Math.ceil(time / beatLength);
+      call({ kind: 'clap' });
+    }
+    for (; nextClapBeat * beatLength <= time + 0.25; nextClapBeat++) {
+      const k = nextClapBeat;
+      if (k % 4 !== 1 && k % 4 !== 3) continue;
+      const t = k * beatLength;
+      const at = clock.contextTimeOf(t);
+      if (at === null || t < time - 0.02) continue;
+      const grow = Math.min(1, Math.max(0, (t - clapFrom) / (beatLength * 8)));
+      crowd.at('takt', at, { gain: CLAP_LEVEL * (0.45 + 0.55 * grow), rate: 0.95 + random() * 0.1 });
+    }
   }
 
   /** The share played so far, against the song as written until the end (when the notes that fell are all that count). */
@@ -589,6 +661,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
 
   function update(time, dt) {
     giveLanes();
+    meterShown += (meter - meterShown) * Math.min(1, dt * 7);
     // a big line that waited for the DJ to finish (the end's too, so this is before the round's own checks)
     if (djPending && time >= djBusyUntil) {
       if (time <= djPending.until) speak(djPending.line);
@@ -596,6 +669,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     if (phase === 'play') {
       if (!djStarted && time >= -0.2) { djStarted = true; call({ kind: 'start' }); }
+      starTime(time, dt);
       for (const index of judge.sweep(time)) {
         const note = notes[index];
         conductor.miss(note);
@@ -603,6 +677,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         for (let i = 0; i < 5; i++) puffs.push({ x: laneX[note.lane] + (random() - 0.5) * laneW * 0.3, y: hitY - dinoR * 1.1, vx: (random() - 0.5) * 40, vy: -20 - random() * 30, at: time, r: laneW * (0.06 + random() * 0.05) });
         breakRun(time, true);
         count(score, { kind: 'miss' });
+        spillMeter(starMode ? STAR_MISS : fill * 2);
         setTier();
       }
       // a new section: a section that comes in big brings fireworks; the constellation of the one before flashes if it went well
@@ -720,6 +795,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     drawNotes(g, time, kick);
     drawEffects(g, time);
     drawBar(g, time);
+    drawMeter(g, time);
     if (tierNow >= 3) {
       g.globalAlpha = 0.22 + pulse * 0.12;
       g.drawImage(vignetteGold, 0, 0, w, h);
@@ -1313,6 +1389,96 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     });
   }
 
+  // The star meter: a star that fills like a glass of gold, its top a little wave; glints fly into it from the dinosaurs. Nearly
+  // full, it glows on the beat; full (Stjörnukraftur), it turns to the rainbow, sways, and rays turn behind it.
+  function drawMeter(g, time) {
+    const { x, y, r } = meterAt;
+    if (!(r > 0)) return;
+    for (let i = feeds.length - 1; i >= 0; i--) {
+      const f = feeds[i];
+      const k = (time - f.at) / 0.42;
+      if (k < 0) continue;
+      if (k >= 1) { feeds.splice(i, 1); meterPop = time; continue; }
+      const e = k * k;
+      const fx = f.x + (x - f.x) * e, fy = f.y + (y - f.y) * e - Math.sin(k * Math.PI) * h * 0.08;
+      g.globalAlpha = 0.9;
+      g.fillStyle = '#fff3b0';
+      g.shadowColor = GOLD;
+      g.shadowBlur = 12;
+      g.beginPath();
+      g.arc(fx, fy, Math.max(3, r * 0.12) * (1 - k * 0.4), 0, Math.PI * 2);
+      g.fill();
+      g.shadowBlur = 0;
+      g.globalAlpha = 1;
+    }
+    const kick = Math.max(0, 1 - beatNow.phase * 4);
+    const since = time - meterPop;
+    const pop = 1 + (since >= 0 ? 0.14 * Math.exp(-since * 9) : 0) + (starMode ? kick * 0.06 : 0);
+    const ready = !starMode && meterShown > 0.75;
+    g.save();
+    g.translate(x, y);
+    g.scale(pop, pop);
+    if (starMode) {
+      g.rotate(Math.sin(time * 2.2) * 0.1);
+      // rays turning behind it
+      g.save();
+      g.rotate(time * 0.6);
+      for (let i = 0; i < 12; i++) {
+        g.rotate(Math.PI / 6);
+        g.fillStyle = `hsla(${(time * 120 + i * 30) % 360}, 100%, 70%, 0.28)`;
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(-r * 0.16, -r * 2.1);
+        g.lineTo(r * 0.16, -r * 2.1);
+        g.closePath();
+        g.fill();
+      }
+      g.restore();
+    }
+    starPath(g, r);
+    g.fillStyle = 'rgba(18, 14, 48, 0.72)';
+    g.fill();
+    // the gold (or the rainbow) inside, up to the meter's level, its top a little wave
+    g.save();
+    starPath(g, r * 0.9);
+    g.clip();
+    const top = -r * 0.9, foot = r * 0.75;
+    const level = foot - (foot - top) * Math.min(1, meterShown);
+    const wavy = meterShown > 0.02 && meterShown < 0.98 ? r * 0.05 : 0;
+    g.beginPath();
+    g.moveTo(-r, r);
+    for (let i = 0; i <= 24; i++) g.lineTo(-r + (2 * r * i) / 24, level + Math.sin(i * 0.8 + time * 5) * wavy);
+    g.lineTo(r, r);
+    g.closePath();
+    if (starMode) {
+      const rainbow = g.createLinearGradient(-r, 0, r, 0);
+      for (let k = 0; k <= 6; k++) rainbow.addColorStop(k / 6, `hsl(${(time * 160 + k * 60) % 360}, 100%, 66%)`);
+      g.fillStyle = rainbow;
+    } else {
+      const goldFill = g.createLinearGradient(0, top, 0, foot);
+      goldFill.addColorStop(0, '#fff3b0');
+      goldFill.addColorStop(0.5, GOLD);
+      goldFill.addColorStop(1, '#d9820f');
+      g.fillStyle = goldFill;
+    }
+    g.fill();
+    // a shine across the gold
+    g.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    g.fillRect(-r, level, r * 0.5, foot - level);
+    g.restore();
+    starPath(g, r);
+    g.lineJoin = 'round';
+    g.lineWidth = Math.max(3, r * 0.1);
+    if (starMode || ready) {
+      g.shadowColor = starMode ? `hsl(${(time * 200) % 360}, 100%, 65%)` : GOLD;
+      g.shadowBlur = r * (starMode ? 0.5 : 0.25 + kick * 0.3);
+    }
+    g.strokeStyle = starMode ? `hsl(${(time * 200) % 360}, 100%, 80%)` : ready ? '#ffe9a8' : 'rgba(255, 255, 255, 0.8)';
+    g.stroke();
+    g.shadowBlur = 0;
+    g.restore();
+  }
+
   function drawEnd(g, time) {
     const k = Math.min(1, (time - endAt) / 0.5);
     g.globalAlpha = k * 0.55;
@@ -1332,7 +1498,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
       const total = notes.length;
       const since = time - (endAt + 0.4 + STAR_GAP * Math.max(1, endStars));
-      drawWord(g, DJ_LINES[endLine], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
+      drawWord(g, DJ_LINES[endLine][0], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
       outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
     }
   }
@@ -1383,7 +1549,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });
       return gap <= laneW * 0.9 ? best : -1;
     },
-    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, crowd: heard.slice(), dj: spoken.slice() }),
+    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, meter: Number(meter.toFixed(2)), star: starMode, crowd: heard.slice(), dj: spoken.slice() }),
     result,
   };
 }
@@ -1399,6 +1565,17 @@ function roundRect(g, x, y, width, height, r) {
   g.arcTo(x + width, y + height, x, y + height, radius);
   g.arcTo(x, y + height, x, y, radius);
   g.arcTo(x, y, x + width, y, radius);
+  g.closePath();
+}
+
+/** A five-pointed star's path round (0, 0), point up, `r` to its points. */
+function starPath(g, r) {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r * 0.5 : r;
+    g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
   g.closePath();
 }
 

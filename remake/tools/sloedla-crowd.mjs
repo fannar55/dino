@@ -31,6 +31,8 @@ const KINDS = {
   ae: { seconds: 2.0, takes: 3, text: `${PLACE}: everyone goes "ohhhh" together at once, a gentle, warm, sympathetic sigh at a near miss, kind and not mocking, falling in pitch` },
   fagn: { seconds: 3.5, takes: 2, text: `${PLACE}: a happy burst of cheering, whoops and a little clapping, excited children, no words` },
   klapp: { seconds: 5.0, takes: 2, text: `${PLACE}: warm applause and cheering at the end of a song, kids whooping, clapping that fades out at the end, no words` },
+  // one clap of the whole crowd at once, cut to its first `cut` s: the game plays it on the beat when the crowd claps along
+  takt: { seconds: 0.8, takes: 4, cut: 0.42, text: `${PLACE}: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words` },
 };
 /** Every sound the tool makes: va-1, va-2 … klapp-2. */
 export const SOUNDS = Object.entries(KINDS).flatMap(([kind, k]) => Array.from({ length: k.takes }, (_, i) => ({ id: `${kind}-${i + 1}`, kind, ...k })));
@@ -76,8 +78,14 @@ async function make({ only, force }) {
     fs.writeFileSync(raw, Buffer.from(await answer.arrayBuffer()));
     const trimmed = path.join(cache, `crowd-${sound.id}-trim.wav`);
     run('ffmpeg', ['-y', '-v', 'error', '-i', raw, '-af', 'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.02,loudnorm=I=-18:TP=-2:LRA=11', '-ar', '44100', trimmed]);
+    if (sound.cut) {
+      // a one-shot: its first clap only, the tail faded
+      const cut = path.join(cache, `crowd-${sound.id}-cut.wav`);
+      run('ffmpeg', ['-y', '-v', 'error', '-i', trimmed, '-af', `atrim=0:${sound.cut},afade=t=out:st=${(sound.cut * 0.55).toFixed(3)}:d=${(sound.cut * 0.45).toFixed(3)}`, cut]);
+      fs.renameSync(cut, trimmed);
+    }
     const length = seconds(trimmed);
-    const fade = Math.min(0.4, length * 0.2);
+    const fade = sound.cut ? 0.01 : Math.min(0.4, length * 0.2);
     run('ffmpeg', ['-y', '-v', 'error', '-i', trimmed, '-af', `afade=t=out:st=${(length - fade).toFixed(3)}:d=${fade.toFixed(3)}`, '-c:a', 'libmp3lame', '-b:a', '128k', out]);
     manifest.sounds[sound.id] = { kind: sound.kind, file: path.basename(out), seconds: Number(length.toFixed(2)), asked: body, made: new Date().toISOString().slice(0, 10) };
     writeManifest(manifest);
