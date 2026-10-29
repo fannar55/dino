@@ -18,7 +18,8 @@
 // run). Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run breaks, cheering for a section that comes
 // in big, applause at the end. The star meter, a star beside the lanes, fills with every hit (a glint flies into it); a miss spills
 // a little, never all. Full, it is Stjörnukraftur (tier 3: the choir, gold everywhere) while it slowly empties, a hit topping it
-// up; two bars in, the DJ calls for clapping and the crowd claps along on the second and fourth beats, more of them as it goes on.
+// up; two bars in, the DJ calls for clapping and the crowd claps along on every beat (as a crowd does when the MC asks), more of
+// them as it goes on.
 //
 // The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
@@ -40,7 +41,7 @@ const STAR_DRAIN = 1 / 14; // of the star meter a second while it is Stjörnukra
 const STAR_HIT = 0.5; // a hit during Stjörnukraftur tops the meter up by this share of a hit's fill
 const STAR_MISS = 0.12; // and a miss spills this much of it
 const CLAP_AFTER = 8; // beats into Stjörnukraftur before the crowd claps along
-const CLAP_LEVEL = 0.8; // how loud the crowd's claps are (they grow from 45 % to this over two bars)
+const CLAP_LEVEL = 1.5; // how loud the crowd's claps are (they grow from 45 % to this over two bars; measured to stand a little over the band)
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
 const GOLD = '#f2b630';
@@ -114,7 +115,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
   let djStarted = false;
   let djBusyUntil = -Infinity; // song time he has finished talking
-  let djPending = null; // a big line waiting for him to finish: { line, until }
+  const djPending = []; // lines waiting for him to finish, in turn: { line, until } (two at most; each waits DJ_WAIT after the one before)
   const played = new Set(); // the roles that have played a note this round (a later "X er með!" means she is back)
   let lastTime = 0;
   let lastSection = -1;
@@ -499,7 +500,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (!dj) return;
     const line = djCueOf(event, lastTime, djMemory);
     if (!line) return;
-    if (lastTime < djBusyUntil) djPending = { line, until: lastTime + DJ_WAIT };
+    if (lastTime < djBusyUntil || djPending.length) {
+      if (djPending.length >= 2) djPending.shift();
+      djPending.push({ line, until: Math.max(lastTime, djPending.at(-1)?.until ?? djBusyUntil) + DJ_WAIT });
+    }
     else speak(line);
   }
 
@@ -627,7 +631,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     meter = Math.max(0, meter - amount);
   }
 
-  /** Stjörnukraftur: the meter empties slowly; the crowd claps along on the second and fourth beats, more of them as it goes on. */
+  /** Stjörnukraftur: the meter empties slowly; the crowd claps along on every beat, more of them as it goes on. */
   function starTime(time, dt) {
     if (!starMode) return;
     meter = Math.max(0, meter - dt * STAR_DRAIN);
@@ -645,7 +649,6 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     for (; nextClapBeat * beatLength <= time + 0.25; nextClapBeat++) {
       const k = nextClapBeat;
-      if (k % 4 !== 1 && k % 4 !== 3) continue;
       const t = k * beatLength;
       const at = clock.contextTimeOf(t);
       if (at === null || t < time - 0.02) continue;
@@ -662,10 +665,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   function update(time, dt) {
     giveLanes();
     meterShown += (meter - meterShown) * Math.min(1, dt * 7);
-    // a big line that waited for the DJ to finish (the end's too, so this is before the round's own checks)
-    if (djPending && time >= djBusyUntil) {
-      if (time <= djPending.until) speak(djPending.line);
-      djPending = null;
+    // the lines that waited for the DJ to finish, in turn (the end's too, so this is before the round's own checks)
+    while (djPending.length && time >= djBusyUntil) {
+      const next = djPending.shift();
+      if (time <= next.until) speak(next.line);
     }
     if (phase === 'play') {
       if (!djStarted && time >= -0.2) { djStarted = true; call({ kind: 'start' }); }
