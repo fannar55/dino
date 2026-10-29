@@ -40,7 +40,7 @@ const LAY={carry:3.2,back:3.6,straighten:.35,hold:.5,calm:{straighten:.15,hold:.
 // by member: -1 the west one) that opens out to `exit` past its far end, so each goes straight to its place on its own
 // side of Mosi's and nobody crosses in front of another. The deepest places go first. Row mates go in together; a body
 // length and `gap` separate the rows; they all walk at `speed`.
-const FINISH={speed:3.3,gap:.2,lane:1,exit:1.25,rows:[[2,3],[0,5],[1,4]],side:[-1,-1,-1,1,1,1]};
+const FINISH={speed:3.4,gap:.6,lane:1,exit:1.25,rows:[[2,3],[0,5],[1,4]],side:[-1,-1,-1,1,1,1]};
 // Where each friend ends the walk (by member): the existing ending's places, their headings are in beginCrossTravel.
 // Mosi walks the boardwalk first, steps aside past it (`way`) and turns to welcome them (facing `welcome`).
 const GROVE_LEADER={way:[[4.5,-23.6],[4.5,-24.9]],welcome:[4.5,-20.5]};

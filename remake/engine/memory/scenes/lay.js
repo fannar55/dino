@@ -15,11 +15,11 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 // The still shot of each panel looks back from beyond the marsh (the pair turned to it, faces on, the panel hanging
 // between them); the finished boardwalk from the east, low, along its length.
 const LAY_FRONT = [.55, 0, -.83], DONE_FRONT = [1, 0, -.15];
-// (trying three views, one for each panel, to see which one keeps under the triangle budget)
+// Each panel has its own view of each shot (measured: all under 250k triangles); the stills look from the south-east, the follow shots from the east.
 const SE = [.55, 0, .83], E = [1, 0, .2], ENE = [1, 0, -.25], ESE = [1, 0, .5];
 const STILL = [{ front: SE, elevation: 34 }, { front: SE, elevation: 34 }, { front: SE, elevation: 34 }];
 const CARRY = [{ front: E, elevation: 32 }, { front: ENE, elevation: 32 }, { front: E, elevation: 32 }];
-const BACK = [{ front: ESE, elevation: 30 }, { front: ENE, elevation: 30 }];
+const BACK = [{ front: ESE, elevation: 30 }, { front: ESE, elevation: 32 }];
 
 /**
  * The marsh: a wide cut on the pair fetching the first panel; for each panel a follow cut on the carry, then the still shot
