@@ -21,10 +21,12 @@ export function scaleOf(key) {
 
 /**
  * The instruments on `context`, out through `output` unless a note names its own node (`into`). `room` is the reverb send, if any;
- * `voices` the song's instruments by role ({ a: 'piano', ... }, voices.js), the first ones where it names none.
+ * `voices` the song's instruments by role ({ a: 'piano', ... }, voices.js), the first ones where it names none; `instruments` a song's
+ * own instruments ({ name: tools => play }: tools are { context, outlet, release, tone, puff, levelOf, random }, play takes
+ * { freq, at, dur, vel, soft, tapped, into } like the others).
  * Returns { note(role, { freq, at, dur, vel, into, soft, tapped }), oops(role, ...), sparkle(freq), star(n, freq), voices }.
  */
-export function createSongSounds({ context, output, room = null, random = Math.random, voices = null }) {
+export function createSongSounds({ context, output, room = null, random = Math.random, voices = null, instruments = null }) {
   const bus = context.createGain();
   bus.gain.value = 1;
   bus.connect(output ?? context.destination);
@@ -189,7 +191,9 @@ export function createSongSounds({ context, output, room = null, random = Math.r
     if (!soft) puff({ at: at + 0.04, length: 0.8, level: 0.05 * vel, frequency: 260, end: 120, type: 'lowpass', q: 0.5, pan: 0.25, attack: 0.08, dest: into });
   }
 
-  const INSTRUMENTS = { horn, plates, drum, ...createVoices({ context, outlet, release, tone, puff }) };
+  // a song may bring instruments of its own (song.instruments: { name: tools => play }), made with the same parts
+  const own = Object.fromEntries(Object.entries(instruments ?? {}).map(([name, make]) => [name, make({ context, outlet, release, tone, puff, levelOf, random })]));
+  const INSTRUMENTS = { horn, plates, drum, ...createVoices({ context, outlet, release, tone, puff }), ...own };
   const kit = { ...VOICES_DEFAULT };
   for (const role of Object.keys(kit)) if (INSTRUMENTS[voices?.[role]]) kit[role] = voices[role];
 

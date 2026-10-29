@@ -158,7 +158,7 @@ async function start() {
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.value = 1;
-  const sounds = createSongSounds({ context, output: music, room, voices: song.voices });
+  const sounds = createSongSounds({ context, output: music, room, voices: song.voices, instruments: song.instruments });
   const band = createBand(context, { output: music, room });
   const conductor = createConductor({ context, song, clock, band, sounds, out: music, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;

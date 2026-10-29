@@ -9,8 +9,11 @@ import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
 import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
 import { SONGS } from '../engine/sloedla/songs/index.js';
 
+// a contest slot (songs/index.js) counts once its file is there
+const made = entry => !entry.file || fs.existsSync(new URL(`../engine/sloedla/songs/${entry.file}`, import.meta.url));
+
 test('every song reads, and its child\'s notes are two beats apart at least (four when calm), in all three lanes', async () => {
-  for (const entry of SONGS) {
+  for (const entry of SONGS.filter(made)) {
     const song = (await entry.load()).default;
     const { beat, sections, length } = timeline(song);
     assert.ok(length > 60 && length < 240, `${song.id}: a round of one to four minutes (${length.toFixed(0)} s)`);
@@ -132,12 +135,13 @@ test('the crowd answers now and then: a quiet spell between its sounds, a sigh s
 
 test('each song gives the dinosaurs instruments of its own, every one known, a tapped note louder than one that plays by itself', async () => {
   const kits = new Set();
-  for (const entry of SONGS) {
+  const ready = SONGS.filter(made);
+  for (const entry of ready) {
     const song = (await entry.load()).default;
-    for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[song.voices?.[role]], `${song.id}: role ${role} plays a known instrument (${song.voices?.[role]})`);
+    for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[song.voices?.[role]] || typeof song.instruments?.[song.voices?.[role]] === 'function', `${song.id}: role ${role} plays a known instrument, or one of the song's own (${song.voices?.[role]})`);
     kits.add(['a', 'b', 'c'].map(role => song.voices[role]).join(' '));
   }
-  assert.equal(kits.size, SONGS.length, 'no two songs sound alike');
+  assert.equal(kits.size, ready.length, 'no two songs sound alike');
   for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[VOICES_DEFAULT[role]], 'a song that names none has the first instruments');
   for (const [name, { play, tapped, soft }] of Object.entries(VOICE_LEVELS)) assert.ok(soft < play && play < tapped && tapped <= 1, `${name}: a stray tap is softest, a tapped note loudest`);
 });
