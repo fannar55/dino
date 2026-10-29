@@ -150,6 +150,36 @@ export const PRESETS = {
       'piano-house chord stabs on the offbeats', 'warm sidechain-pumping synth pads', 'happy, bright and energetic', 'clean modern club production',
     ],
   },
+  // the song contest (2026-10-29): two tracks that sound like a real band, fun and full of energy, for a six-year-old
+  rokk: {
+    name: 'Kids pop-rock',
+    style: 'happy pop-rock for kids',
+    bpm: 128,
+    key: 'D major',
+    keyWords: 'D major',
+    chords: { roman: 'I-V-vi-IV', names: ['D', 'A', 'Bm', 'G'], words: 'D, A, B minor, G', perBar: 1 },
+    bridgeChords: { roman: 'IV-V-vi-V', names: ['G', 'A', 'Bm', 'A'], words: 'G, A, B minor, A', perBar: 1 },
+    core: [
+      'happy, energetic pop-rock for kids', 'a real live rock band', 'live rock drum kit with a big snare, tom fills and crash cymbals',
+      'bright crunchy electric guitars strumming the chords', 'bouncy electric bass guitar playing the chord roots in eighth notes',
+      'hand claps on beats two and four', 'sparkling glockenspiel accents', 'sunny summer festival feel, fun and playful',
+      'four different chords in a loop, each chord lasts exactly one bar of four beats',
+    ],
+  },
+  ludrar: {
+    name: 'Brass band party',
+    style: 'joyful brass band street party',
+    bpm: 116,
+    key: 'F major',
+    keyWords: 'F major',
+    chords: { roman: 'I-vi-IV-V', names: ['F', 'Dm', 'Bb', 'C'], words: 'F, D minor, B-flat, C', perBar: 1 },
+    bridgeChords: { roman: 'IV-V-iii-vi', names: ['Bb', 'C', 'Am', 'Dm'], words: 'B-flat, C, A minor, D minor', perBar: 1 },
+    core: [
+      'joyful brass band street party for kids', 'a real live band', 'punchy horn section of trumpets, trombones and saxophones playing short stabs on the chords',
+      'bouncy tuba-style bass playing the chord roots', 'tight funky live drums with cowbell and tambourine', 'offbeat ska guitar chops',
+      'carnival festival energy, happy, silly and danceable', 'four different chords in a loop, each chord lasts exactly one bar of four beats',
+    ],
+  },
 };
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
