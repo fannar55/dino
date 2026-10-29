@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createBook, halsOpen } from '../engine/book/book.js';
 import { renderMap, MAP_PLACES } from '../engine/book/map-page.js';
+import { TREES, FALL, FOAM, treeBox, lifeClock, createLiveMap, timeLiveMaps } from '../engine/book/map-life.js';
 import { createMapMoment, fitMap, zoomTo } from '../engine/book/map-moment.js';
 import { parseCards, isUnlocked, PLACEHOLDER } from '../engine/book/cards.js';
 import { parseManifest, imageSize } from '../engine/book/media.js';
@@ -203,6 +204,55 @@ test('the map\'s life layers are cut from the painting at its size', () => {
     assert.ok(fs.existsSync(new URL(`../assets/book/${layer}`, import.meta.url)), `${layer} is there`);
     assert.deepEqual(size(layer), { width: 1681, height: 936 }, `${layer} is the painting's size`);
   }
+});
+
+test('the living map\'s trees, fall and foam lie inside the painting, each foot below its crown, no tree over a slot', () => {
+  const [width, height] = [1681, 936];
+  const inside = ([left, top, right, bottom]) => left >= 0 && top >= 0 && right <= width && bottom <= height;
+  assert.equal(TREES.length, 18, 'eighteen trees sway');
+  TREES.forEach((tree, i) => {
+    assert.ok(inside(treeBox(tree)), `tree ${i} moves inside the painting`);
+    assert.ok(tree.p[1] > tree.c[1], `tree ${i} stands with its foot below its crown`);
+  });
+  assert.ok(inside([FALL.left, FALL.top, FALL.right, FALL.bottom]), 'the fall is in the painting');
+  assert.ok(FALL.left < FALL.right && FALL.top < FALL.bottom, 'and has a width and a height');
+  assert.ok(inside([FOAM.at[0] - FOAM.r[0], FOAM.at[1] - FOAM.r[1], FOAM.at[0] + FOAM.r[0], FOAM.at[1] + FOAM.r[1]]), 'the foam is too');
+  // a slot's circle (the view's units, 1800 by 1000) is where a sticker goes: no swaying tree reaches it
+  for (const place of MAP_PLACES) {
+    const [x, y] = [place.at[0] * width / 1800, place.at[1] * height / 1000];
+    const radius = place.size / 2 * Math.max(width / 1800, height / 1000);
+    TREES.forEach((tree, i) => {
+      const [left, top, right, bottom] = treeBox(tree);
+      const near = Math.hypot(x - Math.min(Math.max(x, left), right), y - Math.min(Math.max(y, top), bottom));
+      assert.ok(near > radius, `tree ${i} does not reach the ${place.id} slot`);
+    });
+  }
+});
+
+test('the living map\'s clock wraps at an hour', () => {
+  assert.equal(lifeClock(0), 0);
+  assert.equal(lifeClock(1500), 1.5);
+  assert.equal(lifeClock(3_600_000), 0, 'an hour on, the clock starts over');
+  assert.ok(Math.abs(lifeClock(3_601_500) - 1.5) < 1e-9, 'and goes on from there');
+});
+
+test('there is no living layer where there is no WebGL', () => {
+  assert.equal(createLiveMap({}, { half: 0 }), null, 'a canvas that cannot draw');
+  assert.equal(createLiveMap({ getContext: () => null }, { half: 0 }), null, 'a canvas with no WebGL');
+  assert.equal(timeLiveMaps(), null, 'and so nothing to time');
+});
+
+test('a graphics card with no high-precision floats, or a shader that will not build, gets no living layer either', () => {
+  // a context that does nothing and answers null to what it is not told otherwise, with a few answers of its own
+  const canvasWith = answers => ({
+    getContext: () => new Proxy({ FRAGMENT_SHADER: 1, HIGH_FLOAT: 2, ...answers }, { get: (gl, name) => (name in gl ? gl[name] : () => null) }),
+  });
+  const win = { requestAnimationFrame: () => 1, cancelAnimationFrame() {}, devicePixelRatio: 1 };
+  const floats = { getShaderPrecisionFormat: () => ({ precision: 23 }) };
+  assert.equal(createLiveMap(canvasWith({ getShaderPrecisionFormat: () => ({ precision: 0 }) }), { half: 0, win }), null, 'no high floats in fragments');
+  assert.equal(createLiveMap(canvasWith({ ...floats, getShaderParameter: () => false }), { half: 0, win }), null, 'a shader that does not compile');
+  assert.equal(createLiveMap(canvasWith({ ...floats, getShaderParameter: () => true, getProgramParameter: () => false }), { half: 0, win }), null, 'a program that does not link');
+  assert.equal(timeLiveMaps(), null, 'none of them was made');
 });
 
 test('the map\'s water and mist lie over the painting, under the trail and the slots', () => {
