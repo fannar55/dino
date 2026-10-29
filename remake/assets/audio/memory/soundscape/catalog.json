@@ -116,6 +116,30 @@
       "targetLufs": -20
     },
     {
+      "id": "poof",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "A big fresh green leaf is squashed flat by a tap and puffs out a little air and dust: one short soft fluffy poof with a tiny leafy rustle, round and gentle, close and dry. Friendly cartoon foley for a preschool game, no sharp click, bang, voices, music or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "bonk",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "One soft rounded wooden bonk, like a padded mallet on a hollow wooden block, with a tiny rubbery bounce at the end. A short friendly oops cue for a preschool game, warm and low-key, no sharp crack, crash, buzzer, voices, music or background.",
+      "gain": 0.65,
+      "targetLufs": -20
+    },
+    {
+      "id": "ding",
+      "type": "sfx",
+      "seconds": 1,
+      "text": "One small bright friendly bell ding: a single soft glockenspiel note with a short warm shimmer and a gentle decay, a cheerful something-was-collected cue for a preschool game. Clear and sweet, not harsh, no arcade beep, voices, music or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
       "id": "river",
       "type": "sfx",
       "seconds": 12,

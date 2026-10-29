@@ -141,6 +141,33 @@
       "peak": 0.3228,
       "rms": 0.0713
     },
+    "poof": {
+      "file": "poof.mp3",
+      "duration": 0.59,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "5f59e5d48618222fe10f",
+      "peak": 0.7137,
+      "rms": 0.0434
+    },
+    "bonk": {
+      "file": "bonk.mp3",
+      "duration": 0.59,
+      "gain": 0.65,
+      "loop": false,
+      "requestHash": "40324e993c64643b2871",
+      "peak": 0.3275,
+      "rms": 0.0475
+    },
+    "ding": {
+      "file": "ding.mp3",
+      "duration": 0.99,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "8599f0e200e5df6946b5",
+      "peak": 0.3385,
+      "rms": 0.0475
+    },
     "river": {
       "file": "river.mp3",
       "duration": 11.25,

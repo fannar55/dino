@@ -12,11 +12,11 @@ test('mastering and playback adjustments preserve generation cache identities, w
 });
 
 test('the billable catalog remains bounded and all generated originals have a matching shipped asset', () => {
-  assert.equal(SOUND_JOBS.length, 16); assert.equal(new Set(SOUND_JOBS.map(job => job.id)).size, 16);
+  assert.equal(SOUND_JOBS.length, 19); assert.equal(new Set(SOUND_JOBS.map(job => job.id)).size, 19);
   assert.equal(SOUND_JOBS.filter(job => job.type === 'music').length, 1);
   const folder = new URL('../assets/audio/memory/soundscape/', import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', folder), 'utf8'));
-  assert.equal(Object.keys(manifest.sfx).length, 15);
+  assert.equal(Object.keys(manifest.sfx).length, 18);
   for (const job of SOUND_JOBS) {
     const request = requestFor(job), entry = job.type === 'music' ? manifest.music : manifest.sfx[job.id];
     if (job.type === 'music') { assert.equal(request.body.force_instrumental, true); assert.equal(request.body.music_length_ms, 48000); }
