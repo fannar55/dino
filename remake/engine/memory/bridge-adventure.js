@@ -44,7 +44,7 @@ const GROVE_LEADER={way:[[4.5,-23.5],[6.9,-23.9]],welcome:[3.2,-26.5]};
 const smooth=value=>{const t=THREE.MathUtils.clamp(value,0,1);return t*t*(3-2*t)};
 // A wrong friend's try: where the pair stands to have a go at each obstacle (centre, facing yaw, the two
 // members this far apart across it) and how it gets there and back: straight hops, lifted over closed leaves.
-const FAIL_SPOTS={branch:{centre:[-2.9,-1.75],yaw:1.1,apart:1.5},bark:{centre:[4.5,-17.7],yaw:Math.PI/2,apart:2.1}};
+const FAIL_SPOTS={branch:{centre:[-2.9,-1.75],yaw:1.1,apart:1.5},bark:{centre:[3.8,-17.7],yaw:Math.PI/2,apart:2.1}};
 const FAIL_HOP={reach:2.4,speed:5.6,arc:.2,min:.6,max:1.6};
 // The authored nose landmark sits behind the leading beak skin in a push.
 export const logPushOffset=vertical=>-Math.sqrt(Math.max(.1,BRIDGE.radius**2-vertical**2))-.145;
@@ -167,9 +167,14 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     actors.forEach(a=>{a.clearLook?.();a.clearSupport?.();a.walk?.(false)});
     return{run,attempt,back:run,total:run*2+attempt,yaw:spots[0].yaw};
   }
+  // A hop lands: a little dust, or in the mud and water a splash, and a step.
+  function hopLanding(actor){
+    const wet=wetGround(actor.root.position.x,actor.root.position.z);
+    fx?.emit?.(wet?'splash':'poof',actor.root.position,{count:wet?10:3,ring:.3,strength:wet?.8:1,colours:wet?MUD_COLOURS:null});events.push({type:'footstep',surface:wet?'mud':'soil',pan:0});
+  }
   function hopAlong(h,t,back){
     const actor=h.actor,from=back?h.to:h.from,to=back?h.from:h.to,run=Math.min(1,t),phase=h.count*run,hop=Math.min(h.count-1,Math.floor(phase));
-    if(hop!==h.hop){if(h.hop>=0){const wet=wetGround(actor.root.position.x,actor.root.position.z);fx?.emit?.(wet?'splash':'poof',actor.root.position,{count:wet?10:3,ring:.3,strength:wet?.8:1,colours:wet?MUD_COLOURS:null});events.push({type:'footstep',surface:wet?'mud':'soil',pan:0})}h.hop=hop;actor.gesture?.('hop')}
+    if(hop!==h.hop){if(h.hop>=0)hopLanding(actor);h.hop=hop;actor.gesture?.('hop')}
     const x=THREE.MathUtils.lerp(from.x,to.x,run),z=THREE.MathUtils.lerp(from.z,to.z,run);
     actor.root.position.set(x,heightAt(x,z)+.04+(run<1?FAIL_HOP.arc*Math.sin(Math.PI*(phase-hop)):0),z);actor.root.position.y+=hopOver(actor.root.position);
     const travel=Math.atan2(-(to.z-from.z),to.x-from.x),wanted=run>.75?(back?h.fromYaw:h.yaw):travel,d=Math.atan2(Math.sin(wanted-actor.root.rotation.y),Math.cos(wanted-actor.root.rotation.y));
@@ -179,7 +184,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     const p=Math.min(1,action.age/Math.max(.01,action.duration)),fire=(key,at,fn)=>{if(p>=at&&!action.fired.has(key)){action.fired.add(key);fn()}};
     if(action.phase==='run'||action.phase==='back'){action.hops.forEach(h=>hopAlong(h,action.age/h.duration,action.phase==='back'));
       if(action.age>=action.duration){
-        action.hops.forEach(h=>{h.hop=-1;h.actor.root.position.copy(action.phase==='back'?h.from:h.to);h.actor.root.rotation.y=action.phase==='back'?h.fromYaw:h.yaw});
+        action.hops.forEach(h=>{h.hop=-1;h.actor.root.position.copy(action.phase==='back'?h.from:h.to);h.actor.root.rotation.y=action.phase==='back'?h.fromYaw:h.yaw;if(action.phase==='run')hopLanding(h.actor)});
         if(action.phase==='back'){const{species,target}=action;action=null;pairActors(species).forEach(a=>a.setMotion?.('idle'));events.push({type:'fail-done',species,target});return}
         action.phase='try';action.age=0;action.duration=GESTURES[FAIL_GESTURES[action.species]].duration;
         action.hops.forEach(h=>h.actor.gesture?.(FAIL_GESTURES[action.species]));
@@ -476,7 +481,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     routes:action?[...action.routes,...(action.readyTravel?[action.readyTravel]:[])].map(t=>({species:t.actor.species,member:t.member,started:Boolean(t.started),finished:Boolean(t.finished),reservation:t.reservation,age:t.age,waiting:t.waiting,startedAt:t.startedAt,finishedAt:t.finishedAt,delay:t.delay,entryAt:t.entryAt,duration:t.duration,finalYaw:t.finalYaw,headings:t.route.points.map(p=>p.heading??null),points:t.route.points.map(p=>p.toArray())})):[],
   }}
   function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
-  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),builderSpots:()=>TRI_WAIT.map(([s,side])=>{const p=props.pointAlong(s,side);return ground(p.x,p.z,.6)}),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,groveRoute,groveSpeed:()=>reducedMotion?5.6:FINISH.speed,
+  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),builderSpots:()=>TRI_WAIT.map(([s,side])=>{const p=props.pointAlong(s,side);return ground(p.x,p.z,.6)}),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,groveRoute,onWalkway:(x,z)=>build.walkingHeight(x,z)!==null,groveSpeed:()=>reducedMotion?5.6:FINISH.speed,
   /** The lay as the script needs it: its phase, the panel (0-2) and how many are down; where the supply is and where each panel lies. */
   layState:()=>action?.id==='lay'?{phase:action.phase,panel:action.panel,placed:build.placedCount()}:null,cargoPoint:()=>build.cargo.position.clone(),panelCentre:i=>build.panelCenter(i),supplyPoint:()=>ground(7,-15.6,.3),branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)||action?.queue?.some(t=>t.actor===actor)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
 }

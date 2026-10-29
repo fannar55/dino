@@ -27,11 +27,11 @@ export function finishScene(stage, plan, timing) {
     { at: 0, shot: { kind: 'wide', subjects: () => [...group(), start()], cut: true },
       act: all(() => { if (stage.task.start('finish', { lead: timing.lead })) stage.mosi.walk(plan); else stage.task.abort(); }, () => stage.pairGesture('triceratops', 'hop'), () => stage.pairGesture('brontosaurus', 'hop'), () => stage.pairGesture('stegosaurus', 'hop')) },
     // Beside the boardwalk as Mosi steps onto it.
-    { at: follow, shot: { kind: 'follow', subjects: () => [stage.mosi.body(), stage.mosi.head(), ...onWalk()], front: stage.sideOn(start(), end()), cut: true } },
+    { at: follow, shot: { kind: 'follow', subjects: () => [stage.mosi.body(), stage.mosi.head(), ...onWalk()], front: stage.sideOn(start(), end()), elevation: 34, cut: true } },
     // Over his shoulder from behind, the grove ahead.
     { at: mid, shot: { kind: 'shoulder', subjects: () => [stage.mosi.head(), up(end(), .6), up(stage.task.point('grove'), .2)], elevation: 26, cut: true } },
     // Back to the friends coming along behind him.
-    { at: behind, shot: { kind: 'follow', subjects: () => [...onWalk(), stage.mosi.body()], front: stage.sideOn(start(), end()), elevation: 20, cut: true } },
+    { at: behind, shot: { kind: 'follow', subjects: () => [...onWalk(), stage.mosi.body()], front: stage.sideOn(start(), end()), elevation: 34, cut: true } },
     // There: Mosi at the grove, the friends finding their places.
     { at: arrival, shot: { kind: 'wide', subjects: () => [...group(), end(), up(stage.mosi.body(), 1)], cut: true },
       act: () => stage.mosi.look(centre(bodies(friends()))) },

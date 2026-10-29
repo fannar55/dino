@@ -129,7 +129,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const pickables = [];
   const hitGeometry = new THREE.SphereGeometry(1, 12, 8);
   const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  const fx = createWorldFx({ scene, heightAt: (x, z) => world.heightAt(x, z), wet: wetGround });
+  const fx = createWorldFx({ scene, heightAt: (x, z) => world.heightAt(x, z), wet: wetGround, wood: (x, z) => adventure?.onWalkway(x, z) ?? false });
   const renderTargets = [];
   const deferredEvents = [];
   let bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false };

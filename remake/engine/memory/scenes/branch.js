@@ -21,7 +21,7 @@ const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
 // how high it looks down and how near it stands (at the log, closer and from above the Þríhyrnur at home).
 // Mosi's laugh is seen from his south-west, three-quarters: the friends (all west of him) stay out of that close shot.
 const LAUGH_FRONT = [-.6, 0, .8];
-const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .9, elevation: 32, scale: 'action' } };
+const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .9, elevation: 32, scale: 'action', run: 36 } };
 
 /**
  * The branch: a wide establishing cut, the two Þórseðlur walk to it (a follow cut, then a close cut while they reach
@@ -69,11 +69,12 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
  * group past the lens, over the triangle budget).
  */
 export function failScene(stage, species, target, timing) {
-  const pair = () => stage.pair(species), point = () => stage.task.point(target);
+  // The bark's wrong friend stands at the marsh's edge (where the first panel will lie), not at the stack.
+  const pair = () => stage.pair(species), point = () => target === 'bark' ? stage.task.panelCentre(0) : stage.task.point(target);
   const view = FAIL_VIEW[target] ?? FAIL_VIEW.branch, start = centre(pair().map(actor => actor.root.position.clone())), front = stage.faceOn(timing.yaw ?? 0, view.turn);
   const laughAt = timing.run + timing.attempt * .62;
   return [
-    { at: 0, shot: { kind: 'wide', subjects: () => [...bodies(pair()), point(), start], cut: true },
+    { at: 0, shot: { kind: 'wide', subjects: () => [...bodies(pair()), point(), start], elevation: view.run, cut: true },
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
     { at: timing.run, shot: { kind: 'wide', scale: view.scale, subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },

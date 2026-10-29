@@ -13,13 +13,13 @@ const STYLES = {
   // Something found: bigger golden stars thrown up and falling slowly, twinkling as they turn.
   stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
   // Water thrown up from a landing: big drops that arc high and drop back (the size is a radius in metres), easy to see from the search view.
-  splash: { shape: 3, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.8, .4], size: [.07, .06], fall: 5, alpha: 1, grow: 1, fade: .5 },
+  splash: { shape: 3, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.8, .4], size: [.09, .07], fall: 5, alpha: 1, grow: 1, fade: .5 },
 };
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
 /** One transparent draw for grounded dust and soft leaf fragments. All motion
  * uses the game clock; foot contacts remain independent of camera/action time. */
-export function createWorldFx({ scene, heightAt, wet = () => false }) {
+export function createWorldFx({ scene, heightAt, wet = () => false, wood = () => false }) {
   const particles = [], steps = [], positions = new Float32Array(MAX * 3), colours = new Float32Array(MAX * 3), sizes = new Float32Array(MAX), alpha = new Float32Array(MAX), kinds = new Float32Array(MAX), angles = new Float32Array(MAX);
   const geometry = new THREE.BufferGeometry();
   for (const [name, array, size] of [['position', positions, 3], ['color', colours, 3], ['aSize', sizes, 1], ['aAlpha', alpha, 1], ['aKind', kinds, 1], ['aAngle', angles, 1]]) geometry.setAttribute(name, new THREE.BufferAttribute(array, size));
@@ -94,7 +94,7 @@ export function createWorldFx({ scene, heightAt, wet = () => false }) {
       if (foot < 0) foot = points.findIndex(p => p.y === lowest);
       const contact = points[foot]; track.lastFoot = foot; track.age = 0; track.distance = 0;
       // Wood on the log and the boardwalk, splashes in the river and the marsh and the mud sloping into it, dust on soil.
-      const surface = root.y > heightAt(root.x, root.z) + .30 ? 'wood' : wet(contact.x, contact.z) ? 'mud' : 'soil';
+      const surface = root.y > heightAt(root.x, root.z) + .30 || wood(contact.x, contact.z) ? 'wood' : wet(contact.x, contact.z) ? 'mud' : 'soil';
       if (surface === 'soil') { emit('dust', contact, { count: 2, strength: .6 }); footPuffs++; }
       else if (surface === 'mud') { emit('splash', contact, { count: 7, strength: .7, colours: MUD_COLOURS }); footPuffs++; }
       if (clock - lastStep >= .16) {

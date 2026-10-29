@@ -24,8 +24,8 @@
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
-//   --clearance     while a task or a wrong friend's go runs, measures the clearance between the animated bodies (the
-//                   game's own anatomical envelopes) every 150 ms; report.clearance has the worst overlaps per moment
+//   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
+//                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
 //                   (it slows the game down a little, so use it for a check run, not for timings).
 //
 // <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
@@ -258,8 +258,10 @@ const TIMELINE_JS = `(() => {
     // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
     const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
     take.tris = Math.max(take.tris, d.triangles || 0); take.calls = Math.max(take.calls, d.drawCalls || 0); take.actEnd = act;
+    // How much of that the friends are (the skins and their shadow twins of the ones drawn) and how many are drawn.
+    const lod = d.characterLod || [], bodies = lod.filter(c => c.rendered); if ((d.triangles || 0) >= take.tris) { take.actors = Math.round(bodies.reduce((sum, c) => sum + c.mainTriangles + c.shadowTriangles, 0) / 1000); take.drawn = bodies.length; }
     // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
-    if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { age: +adventure.age.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
+    if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { elapsed: +adventure.elapsed.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
     const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused].join('|');
     if (key !== last) {
@@ -270,20 +272,20 @@ const TIMELINE_JS = `(() => {
   }, 100);
 })()`;
 
-// --clearance: while the adventure runs (a task or a wrong friend's go), the game's own clearance audit (the anatomical
-// envelopes of the six friends and Mosi, the props) every 150 ms; the worst overlap of each pair at each moment is kept.
+// --clearance: while the marsh is laid or the walk to the grove runs, the game's own clearance audit (the anatomical
+// envelopes of the six friends and Mosi, the props) every 300 ms; the worst overlap of each pair at each moment is kept.
 const CLEARANCE_JS = `(async () => {
   const { assessSceneClearances } = await import('/remake/engine/memory/memory-clearance.js');
   window.__clr = { samples: 0, minimum: null, worst: {} };
   setInterval(() => {
-    const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action) return;
+    const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action || !['lay', 'finish', 'fail'].includes(action.id)) return;
     const result = assessSceneClearances(window.__memory.stats({ collision: true })), clr = window.__clr;
     clr.samples++; if (result.minimum !== null) clr.minimum = clr.minimum === null ? result.minimum : Math.min(clr.minimum, result.minimum);
     for (const hit of result.violations) {
       const key = action.id + '/' + action.phase + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
       if (!clr.worst[key] || hit.clearance < clr.worst[key].clearance) clr.worst[key] = { key, clearance: +hit.clearance.toFixed(3), age: +(action.age || 0).toFixed(2), t: +(performance.now() / 1000).toFixed(2) };
     }
-  }, 150);
+  }, 300);
 })()`;
 
 // One read of everything the driver decides on.
@@ -633,6 +635,8 @@ async function main() {
       // The branch: the obstacle glowing, the arrow after hesitating, the bubbles, a wrong friend's go and Mosi's laugh,
       // the walk there, each tap of the tap-along (or the timeout's "Við gerum þetta saman!") and the cheer.
       if (s.story.kind === 'work' && s.story.target === 'branch' && s.story.available && !s.cam.held && !s.scene) waited ||= await milestone('glow-branch', 'branch-glowing', 400);
+      // The bark at the marsh sways as well as glows: two pictures a moment apart.
+      if (s.story.kind === 'work' && s.story.target === 'bark' && s.story.available && !s.cam.held && !s.scene) { waited ||= await milestone('glow-bark', 'bark-glowing', 400); if (seen.has('glow-bark')) waited ||= await milestone('glow-bark-2', 'bark-glowing-later', 650); }
       if (s.arrow) waited ||= await milestone('arrow', 'gold-arrow', 200);
       if (s.who.open) waited ||= await milestone(`who-${s.who.asking}`, `who-${s.who.asking}`, 450);
       if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(`fail-${s.bridge.failing}`, `fail-${s.bridge.failing}`, 500);
@@ -655,7 +659,7 @@ async function main() {
       if ((s.bridge.active === 'cross' || s.bridge.atStaging) && s.cam.shot === 'wide' && seen.has('cross-shoulder')) waited ||= await milestone('cross-arrival', 'cross-arrival', 600);
       // The marsh: the wrong friend wading in (steps and hops in the mud), the Kambeðlur lifting the bark and carrying it, each
       // panel down with its mud thrown up and the finished boardwalk (below: walkway-built).
-      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:run' && s.fxActive >= 8) waited ||= await milestone('mud-steps', 'footsteps-in-the-mud', 0);
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:try') waited ||= await milestone('mud-steps', 'footsteps-in-the-mud', 120);
       if (s.act === 'lay:pickup') waited ||= await milestone('bark-pickup', 'kambedlur-pick-up-bark', 120);
       if (s.act === 'lay:carry') waited ||= await milestone('bark-carry', 'kambedlur-carry-bark', 800);
       for (let n = 1; n <= 3; n++) if (s.placed >= n && s.bridge.active === 'lay') waited ||= await milestone(`bark-splash-${n}`, `bark-${n}-lands-splash`, 150);
@@ -764,7 +768,10 @@ async function main() {
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
     try {
       const takes = Object.values(await ev('window.__takes')).sort((a, b) => b.tris - a.tris);
-      report.takes = takes.slice(0, 14); report.routes = await ev('window.__routes');
+      report.takes = takes; report.routes = await ev('window.__routes');
+      // The action's own seconds (the game clock; the wall-clock spans above run a little longer when a frame takes over 50 ms).
+      if (report.timelineCheck?.grove && report.routes?.finish) report.timelineCheck.grove.actionSeconds = report.routes.finish.elapsed;
+      if (report.timelineCheck?.marsh && report.routes?.lay) report.timelineCheck.marsh.actionSeconds = report.routes.lay.elapsed;
       if (report.timelineCheck) report.timelineCheck.takes = takes.length;
       if (o.clearance) report.clearance = await ev('window.__clr');
     } catch {}
@@ -807,7 +814,7 @@ async function main() {
   if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
   if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
   if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
-  if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls}`).join(' | ')}`);
+  if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);

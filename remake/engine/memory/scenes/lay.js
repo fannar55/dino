@@ -16,9 +16,10 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 // between them); the finished boardwalk from the east, low, along its length.
 const LAY_FRONT = [.55, 0, -.83], DONE_FRONT = [1, 0, -.15];
 // (trying three views, one for each panel, to see which one keeps under the triangle budget)
-const STILL = [{ front: [.55, 0, -.83], elevation: 36 }, { front: [.6, 0, .8], elevation: 30 }, { front: [1, 0, -.1], elevation: 30 }];
-const CARRY = [{ front: null, elevation: 28 }, { front: [.5, 0, .85], elevation: 28 }, { front: [.8, 0, -.6], elevation: 28 }];
-const BACK = [{ front: null, elevation: 26 }, { front: [.5, 0, .85], elevation: 26 }];
+const SE = [.55, 0, .83], E = [1, 0, .2], ENE = [1, 0, -.25], ESE = [1, 0, .5];
+const STILL = [{ front: SE, elevation: 34 }, { front: SE, elevation: 34 }, { front: SE, elevation: 34 }];
+const CARRY = [{ front: E, elevation: 32 }, { front: ENE, elevation: 32 }, { front: E, elevation: 32 }];
+const BACK = [{ front: ESE, elevation: 30 }, { front: ENE, elevation: 30 }];
 
 /**
  * The marsh: a wide cut on the pair fetching the first panel; for each panel a follow cut on the carry, then the still shot
@@ -42,7 +43,7 @@ export function layScene(stage, { panels = 3, timeout = 4 } = {}) {
   for (let i = 0; i < panels; i++) {
     if (!i) {
       // The pair fetching the first panel.
-      lines.push({ at: t, shot: { kind: 'wide', subjects: () => [...bodies(pair()), stage.task.supply(), spot(0)], cut: true },
+      lines.push({ at: t, shot: { kind: 'wide', subjects: () => [...bodies(pair()), stage.task.supply(), spot(0)], elevation: 34, cut: true },
         act: all(() => { if (!stage.task.start('lay', { beats: panels })) stage.task.abort(); }, () => stage.mosi.look(stage.task.supply()), () => stage.pairGesture('stegosaurus', 'hop')), say: 'build' });
       lines.push({ at: next(), wait: { until: () => ['pickup', 'carry'].includes(phase()) || !going(), timeout: 5 } });
     } else lines.push({ at: next(), wait: { until: () => phase() === 'pickup' || !going(), timeout: 8 } });
