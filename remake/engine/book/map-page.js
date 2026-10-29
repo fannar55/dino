@@ -1,4 +1,5 @@
 import { pressable, reducedMotion } from './fx.js';
+import { createLiveMap } from './map-life.js';
 import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 
 // The book's map, Kortið (spec section 7, the fifth ribbon): a painted watercolour map of the whole journey (assets/book/map.webp):
@@ -46,21 +47,25 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // far friends are, in chapter 2, before the line goes to them) a soft ring in her hue round her sticker. Exactly one piece is next,
 // none once every piece is reached.
 //
-// And the map is alive. Two layers cut from the painting itself (tools/map-life-layers.py), the same size as it and lying exactly
-// over it on each page, keep it moving without a line drawn: a soft light glides across the water (the river, the waterfall, the
-// Fen's pools: the layer shows only inside a band that crosses the spread in nine seconds, a little brighter than the painting
-// under it, so the light lies on the water and nowhere else); the mist (the cloud over the mountains in the top left) slides gently
-// from side to side and breathes over fourteen. The mist hangs round Grameðla's circle until she is found (her place, or her star):
-// the first time the page shows her so, the mist is drawn back from her, a round hole in it widening over two seconds, and the
-// save's seen list keeps `map-mist-gramedla` so that happens once; afterwards the hole is simply open. (The mist is the slot's: it
-// opens when she is found or done, and not when her piece of the trail is reached, which only her star does.) With
-// reduced motion nothing glides, drifts or widens: the water layer is not shown, the mist stands, and the hole is just open.
-// (The water was first to ripple, an animated SVG noise pushing its pixels about; its noise is drawn again every frame, which
-// took about five milliseconds a frame on a laptop's graphics at a tablet's size, more than the four allowed. The light is a mask
-// sliding over a picture, which costs next to nothing.)
+// And the map is alive. Over the painting each page has a living layer (map-life.js), a canvas that draws that page's half of the
+// painting itself with its own pixels moving: the water runs down the river, the fall falls, the trees sway and the cloud billows
+// and drifts. It lies exactly over the painting, under the trail, the names and the slots, so the red line and the stickers stay
+// as still and as sharp as they were. The layers are made when the page first shows (WebGL, and a texture or two each, are not
+// worth having for a book that never opens on the map), run while it is on view (show() starts them, hide() stops them, and a
+// book that is shut or turned to another page draws nothing) and begin to show once their first frame is drawn, the canvas fading
+// in over the stylesheet's mist, which then gives way (.live on the page). Where the life cannot be (no WebGL, less motion asked
+// for, or a context the graphics lose while the page shows) the page is the painting with the still mist layer over it, as it was
+// before the life: a page that has lost its layer does not get it back. dispose() lets the layers go for good.
+// The mist (the cloud over the mountains in the top left, cut from the painting: tools/map-life-layers.py) hangs round Grameðla's
+// circle until she is found (her place, or her star): the first time the page shows her so, the mist is drawn back from her, a
+// round hole in it widening over two seconds, and the save's seen list keeps `map-mist-gramedla` so that happens once; afterwards
+// the hole is simply open. (The mist is the slot's: it opens when she is found or done, and not when her piece of the trail is
+// reached, which only her star does.) The hole is the stylesheet's --map-hole on the left page's mist layer, a registered length
+// so it widens smoothly; the living layer is told its size every frame (the hole it draws, in the painting's pixels) and keeps its
+// clouds out of it. With reduced motion nothing moves, drifts or widens: there is no living layer, the mist stands, and the hole is
+// just open.
 
 export const MAP_SRC = new URL('../../assets/book/map.webp', import.meta.url).href;
-export const WATER_SRC = new URL('../../assets/book/map-water.webp', import.meta.url).href;
 export const MIST_SRC = new URL('../../assets/book/map-mist.webp', import.meta.url).href;
 const VIEW = { width: 1800, height: 1000 }; // the view the map is laid out in: each page shows half its width
 const PICTURE = { width: 1681, height: 936 }; // map.webp's pixels: stretched to the view, a fifth of a percent off its proportions
@@ -98,10 +103,12 @@ const NAMES = [
 ].map(name => ({ ...name, at: onMap(name.at) }));
 const BOUNCE_MS = 480;
 
-// The life. (The water's light is the stylesheet's alone: .map-water.) The mist round Grameðla (the slot 'gramedla'): a round hole in the mist layer, 1.6 times the width across her circle in radius,
-// which the layer's mask draws from its --map-hole (a radius in the page's own units, cqw: 9 to the cqw as the slots are sized) and
-// which the first time she is reached widens from nothing over MIST_OPEN_MS. Her circle was cleared of mist when the layer was
-// cut, so the hole shows once it is wider than that clearing.
+// The mist round Grameðla (the slot 'gramedla'): a round hole in the mist layer, 1.6 times the width across her circle in radius,
+// which the layer's mask draws from its --map-hole (a radius in the page's own units, cqw: 9 to the cqw as the slots are sized; a
+// registered length, book.css, so the widening is smooth) and which the first time she is reached widens from nothing over
+// MIST_OPEN_MS. Her circle was cleared of mist when the layer was cut, so the hole shows once it is wider than that clearing. The
+// living layer is given the same hole (hole() below, in picture pixels) and keeps its clouds out of it, the mist layer being
+// hidden behind the canvas once that draws.
 const MIST_OPEN_MS = 2000;
 const MIST_SEEN = 'map-mist-gramedla';
 const HOLE_SHUT = '0cqw';
@@ -169,11 +176,18 @@ function curve(points) {
 /**
  * The map in the Kortið leaf (`leaf`: book.js's { el, pages, tiles }), over the `save`, with the book's sound (`audio`, whose tap
  * every slot plays). `onTap(id, state, marker)` hears a tap on a found or done slot, and, once the Fen is found, a tap on its name
- * (`onTap('fen', 'found', the name's element)`: no slot's button). Returns
+ * (`onTap('fen', 'found', the name's element)`: no slot's button). `liveMap` makes each page's living layer, with createLiveMap's
+ * signature (map-life.js; a test gives its own). Returns
  *   render()        shows what the save holds now (the trail's pieces the child has not seen drawn wait, unseen, until show())
  *   show(delayMs)   the page is on view (the book's turn to it has this long to settle): the pieces waiting draw themselves in,
- *                   one after another, and each is kept in the save's seen list; pieces found while it is on view draw at once
- *   hide()          the page is off view: a piece still drawing is finished where it was going
+ *                   one after another, and each is kept in the save's seen list; pieces found while it is on view draw at once;
+ *                   and the living layers are started (startLife)
+ *   hide()          the page is off view: a piece still drawing is finished where it was going, and the living layers stop
+ *   startLife()     makes each page's living layer the first time (never with reduced motion), and starts them: a page whose layer
+ *                   cannot be made, or was lost, stays the painting and the still mist for good. show() does this
+ *   stopLife()      stops the layers drawing (hide() does this); startLife() runs them again
+ *   dispose()       lets the living layers go for good, their graphics contexts with them: the map is then the painting and the mist
+ *   alive()         whether some living layer is running now
  *   drawPieces(ids, { delay })  the named pieces ('a' to 'f') draw themselves in on request, in the order given, whether or not the save
  *                   has reached them or they were drawn before, and are kept as seen; returns the ms it takes after `delay` (0 with
  *                   reduced motion: they are simply there). It is the map in the journey's (map-moment.js), and it is not show()'s
@@ -189,7 +203,7 @@ function curve(points) {
  *                   shown it (show() opens it, over two seconds the first time, and keeps `map-mist-gramedla` in the save's seen
  *                   list), true from then on, and true as soon as she is found with reduced motion
  */
-export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window } = {}) {
+export function renderMap(leaf, { save, onTap = null, audio = null, win = globalThis.window, liveMap = createLiveMap } = {}) {
   const doc = leaf.el.ownerDocument;
   const make = (tag, className) => {
     const element = doc.createElement(tag);
@@ -212,17 +226,22 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     el.style.setProperty('top', `${((y / VIEW.height) * 100).toFixed(2)}%`);
   };
 
-  // Each page: its half of the drawing, with the water and the mist over it, and the names and the slots on them. The layers are
-  // the painting's own size and lie exactly where it does (the stylesheet puts all three alike), so they match it pixel for pixel.
+  // Each page: its half of the drawing, with the living layer (a canvas of this page's half, which draws the painting moving once
+  // startLife() has made it) and the mist over it, and the names and the slots on them. The painting and the mist are the
+  // painting's own size and lie exactly where it does (the stylesheet puts both alike), so they match it pixel for pixel; the
+  // canvas is the page's own size, drawn from the same pixels.
   const mists = []; // each page's mist layer
+  const canvases = []; // each page's living layer's canvas
   const halves = leaf.tiles.map((box, half) => {
     box.classList.add('map-tiles');
     const el = make('div', 'map-half');
     el.setAttribute('data-half', half ? 'right' : 'left');
     const drawing = layer('map-art', MAP_SRC);
-    const water = layer('map-water', WATER_SRC);
+    const canvas = make('canvas', 'map-live');
+    canvas.setAttribute('aria-hidden', 'true');
     const mist = layer('map-mist', MIST_SRC);
-    el.append(drawing, water, mist);
+    el.append(drawing, canvas, mist);
+    canvases.push(canvas);
     mists.push(mist);
     box.append(el);
     return el;
@@ -340,6 +359,70 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     if (!mistIsOpen) openMist(delay);
   }
 
+  // ---- The living layers --------------------------------------------------------------------------------------------------
+
+  const lives = [null, null]; // each page's living layer, once startLife() has made it
+  const lifeless = [false, false]; // a page that is the painting and the still mist for good: no WebGL, or its layer was lost, or let go
+  const [gramedlaLeft, gramedlaTop] = [gramedla.at[0] * PICTURE.width / VIEW.width, gramedla.at[1] * PICTURE.height / VIEW.height];
+
+  /**
+   * The hole in the clouds on the left page, [x, y, r] in the painting's pixels: round Grameðla's circle, as wide as the mist's
+   * --map-hole is now (the computed length in px, which is of the page as it is laid out: a page is half the painting, 840.5 pixels of
+   * it) and r 0 while it is shut, or where nothing can be measured.
+   */
+  function hole() {
+    const open = parseFloat(win.getComputedStyle?.(mists[0])?.getPropertyValue('--map-hole'));
+    const width = halves[0].getBoundingClientRect().width;
+    return [gramedlaLeft, gramedlaTop, open > 0 && width > 0 ? open * PICTURE.width / (2 * width) : 0];
+  }
+
+  /** Lets a page go to the painting and the mist, for good, and its layer with it. */
+  function loseLife(half) {
+    lifeless[half] = true;
+    halves[half].classList.remove('live');
+    const layer = lives[half];
+    lives[half] = null;
+    layer?.destroy();
+  }
+
+  /** The living layer of a page, made now: null (and the page without life for good) where it cannot be made. */
+  function makeLife(half) {
+    let layer = null;
+    try {
+      layer = liveMap(canvases[half], {
+        half,
+        win,
+        hole: half ? () => [0, 0, 0] : hole,
+        onReady: () => halves[half].classList.add('live'),
+        onLost: () => loseLife(half),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+    if (!layer) lifeless[half] = true;
+    return layer;
+  }
+
+  /** Makes the living layers the first time they are asked for, and runs them. Not with reduced motion, and not on a page without life. */
+  function startLife() {
+    if (reducedMotion(win)) return;
+    halves.forEach((el, half) => {
+      if (lifeless[half]) return;
+      lives[half] ??= makeLife(half);
+      lives[half]?.start();
+    });
+  }
+
+  /** Stops the layers drawing, whatever the reason: they are not on view. */
+  function stopLife() {
+    for (const layer of lives) layer?.stop();
+  }
+
+  /** Lets the layers go: their graphics contexts are given up, so the map is the painting and the mist from now on. */
+  function dispose() {
+    halves.forEach((el, half) => loseLife(half));
+  }
+
   // ---- The trail ----------------------------------------------------------------------------------------------------------
 
   let shown = false; // the page is on view: a piece that has not been drawn in is drawn in now, not kept for later
@@ -451,6 +534,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     shown = true;
     update();
     drawWaiting(delay);
+    startLife();
   }
 
   function hide() {
@@ -458,6 +542,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     for (const piece of pieces) finish(piece);
     opening?.cancel(); // the hole stays as wide as it was going to be
     opening = null;
+    stopLife(); // nothing draws in the background
   }
 
   /** Shows what the save holds now; a piece of the trail it has just reached draws in at once if the page is on view. */
@@ -503,6 +588,10 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     render,
     show,
     hide,
+    startLife,
+    stopLife,
+    dispose,
+    alive: () => lives.some(layer => layer?.running),
     drawPieces,
     bounds,
     markers: new Map([...markers].map(([id, marker]) => [id, marker.el])),

@@ -104,7 +104,7 @@ export function halsOpen(save) {
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
  * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
- * motion, the screen's shape). Returns
+ * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
  *                      holds the game) or a script's (by 'script', which does not); an open book turns to the tab instead, and a child's
  *                      open makes it the child's. On the animals, `find` (a finding's id, the journal's newest) opens the spread of the
@@ -121,7 +121,7 @@ export function halsOpen(save) {
  *                      time the child opens its card, it opens on the page that new place added (the card's refind, cards.js)
  *   cardViewer, zoom   the card and the zoom, for the lab and for probes
  */
-export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window } = {}) {
+export function createBook(doc, { cards = [], media = new Map(), models = new Map(), save, audio = null, onPause = null, onPlay = null, onTab = null, win = globalThis.window, liveMap = null } = {}) {
   const root = doc.getElementById('book');
   if (!root) throw new Error('The book needs #book on the page (see index.html)');
   const make = (tag, className) => {
@@ -291,7 +291,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   // The Risaeðlur leaf: the same page over the dinosaur cards, whose friends not met yet have Mosi say he will meet them later.
   const dinosaurs = createAnimalsPage(doc, [leaves.get('dinosaurs').el], { cards: dinosaurCards, media, save, audio, win, onOpenCard, findMe: DINOSAUR_FIND_ME });
   // The Kortið page: a tap on a place found has Mosi say its name and a sentence (the chapter's line, through the book's sound).
-  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`) });
+  const map = renderMap(leaves.get('map'), { save, audio, win, onTap: id => audio?.narrate?.(`k2_mosi_map_${id}`), ...(liveMap ? { liveMap } : {}) });
 
   /** Shows what the save holds: the dinosaurs met and the animals found and new, the games that are open and their stickers, the fossils. */
   function render() {

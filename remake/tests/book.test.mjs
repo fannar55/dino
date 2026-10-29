@@ -114,8 +114,8 @@ test('ribbons switch pages with a turn sound', () => {
   assert.deepEqual(sounds, ['turn', 'tap', 'turn']);
 });
 
-/** The book over a save of its own, with what it narrates, the sounds it makes and the games it hands on. */
-function savedRig(fill = () => {}, { onTab = null, storage = null } = {}) {
+/** The book over a save of its own, with what it narrates, the sounds it makes and the games it hands on (and, if `liveMap` is given, the map's living layers made by that factory). */
+function savedRig(fill = () => {}, { onTab = null, storage = null, liveMap = null } = {}) {
   const save = createSave(storage);
   fill(save);
   const narrated = [];
@@ -123,7 +123,7 @@ function savedRig(fill = () => {}, { onTab = null, storage = null } = {}) {
   const sounds = [];
   const audio = { sfx: name => { sounds.push(name); return true; }, stop() {}, narrate: id => { narrated.push(id); return DONE; } };
   const doc = new FakeDocument(['book']);
-  const book = createBook(doc, { save, audio, onPause() {}, onPlay: game => played.push(game), onTab });
+  const book = createBook(doc, { save, audio, onPause() {}, onPlay: game => played.push(game), onTab, ...(liveMap ? { liveMap } : {}) });
   const root = doc.getElementById('book');
   const tap = el => {
     el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
@@ -255,51 +255,188 @@ test('a graphics card with no high-precision floats, or a shader that will not b
   assert.equal(timeLiveMaps(), null, 'none of them was made');
 });
 
-test('the map\'s water and mist lie over the painting, under the trail and the slots', () => {
+/** A stand-in for createLiveMap: records each layer made and what was asked of it. */
+function fakeLife({ none = false } = {}) {
+  const made = [];
+  const liveMap = (canvas, options) => {
+    if (none) return null;
+    const layer = { canvas, options, starts: 0, stops: 0, destroyed: false, running: false,
+      start() { this.starts++; this.running = true; }, stop() { this.stops++; this.running = false; },
+      destroy() { this.destroyed = true; this.running = false; } };
+    made.push(layer);
+    return layer;
+  };
+  return { liveMap, made };
+}
+
+test('the map\'s living layer lies over the painting, under the mist, the trail and the slots', () => {
   const { root } = savedRig();
   const halves = root.findAll(e => e.classList.contains('map-half'));
   assert.equal(halves.length, 2, 'a half of the map on each page');
-  const layers = ['map-art', 'map-water', 'map-mist', 'map-route', 'map-name', 'map-marker'];
+  const layers = ['map-art', 'map-live', 'map-mist', 'map-route', 'map-name', 'map-marker'];
   for (const half of halves) {
     const side = half.getAttribute('data-half');
     const named = (child, name) => child.classList.contains(name) || child.getAttribute('class') === name; // the trail is an svg: its class is an attribute
     const order = half.children.map(child => layers.find(name => named(child, name))).filter(Boolean);
-    assert.deepEqual([...new Set(order)], layers, `${side}: the painting, the water, the mist, the trail, then the names and the slots`);
+    assert.deepEqual([...new Set(order)], layers, `${side}: the painting, the living layer, the mist, the trail, then the names and the slots`);
     const layer = name => half.children.find(child => child.classList.contains(name));
     assert.equal(layer('map-art').tagName, 'IMG');
-    assert.equal(layer('map-water').tagName, 'IMG');
+    assert.equal(layer('map-live').tagName, 'CANVAS', `${side}: the living layer is drawn on a canvas`);
+    assert.equal(layer('map-live').getAttribute('aria-hidden'), 'true', `${side}: and is decoration`);
     assert.equal(layer('map-mist').tagName, 'IMG');
-    assert.match(layer('map-water').src, /assets\/book\/map-water\.webp$/, `${side}: the water layer`);
     assert.match(layer('map-mist').src, /assets\/book\/map-mist\.webp$/, `${side}: the mist layer`);
-    assert.equal(layer('map-water').alt, '', `${side}: the water is decoration`);
     assert.equal(layer('map-mist').alt, '', `${side}: the mist is decoration`);
+    assert.equal(half.findAll(e => e.classList.contains('map-water')).length, 0, `${side}: no water layer`);
   }
 });
 
-test('a light glides over the water and the mist drifts, in the stylesheet, and reduced motion stills both', () => {
+test('the mist drifts in the stylesheet, the hole is a registered length, and the water\'s light is gone', () => {
   const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
-  const rule = (selector, from = 0) => {
-    const at = css.indexOf(`\n${selector} {`, from);
+  /** The text of one rule, from its selector (at the start of a line) to its closing brace. */
+  const rule = selector => {
+    const at = css.indexOf(`\n${selector} {`);
     assert.ok(at >= 0, `a rule for ${selector}`);
-    return css.slice(at, css.indexOf('\n}', at));
+    return css.slice(at, css.indexOf('}', at));
   };
-  const water = rule('.map-water');
-  assert.match(water, /mask-image: linear-gradient/, 'the water layer shows through a soft band');
-  assert.match(water, /mask-size: 30% 100%/, 'a third of the layer wide');
-  assert.match(water, /animation: map-water-glide 9s linear infinite/, 'which crosses it in nine seconds, over and over');
-  const glide = /@keyframes map-water-glide \{\s*from \{([^}]*)\}\s*to \{([^}]*)\}/.exec(css);
-  assert.ok(glide, 'from one side of the layer to the other');
-  const places = glide.slice(1).map(text => Number(/(?<![-\w])mask-position: (-?[\d.]+)%/.exec(text)[1]));
-  assert.ok(places[0] < -30 / 0.7 + 0.01 && places[1] > 100 / 0.7 - 0.01, 'the band starts wholly off the layer\'s left edge and ends wholly off its right');
-  assert.match(water, /mask-position: -42\.86% 0/, 'and stands there when it is not moving: the water layer shows nothing');
+  assert.doesNotMatch(css, /map-water/, 'nothing of the water\'s light is left in the stylesheet');
+  assert.match(css, /@property --map-hole \{\s*syntax: '<length>';\s*inherits: false;\s*initial-value: 0px;\s*\}/, 'the hole is a registered length, so it opens smoothly');
   const mist = rule('.map-mist');
   assert.match(mist, /animation: map-mist-drift 14s [^;]*infinite/, 'the mist slides over fourteen seconds');
   assert.match(css, /@keyframes map-mist-drift \{[^}]*translate: -\.75% 0;[^}]*\}[^}]*translate: \.75% 0;/, 'a little either way: .75 % of a layer twice the page wide is 1.5 % of the page');
-  // less motion: the book's own rule (every animation in it) and one for a map outside the book
+  // the living layer: the canvas of its half, hidden until its page has a live layer, which then shows it (fading in) and hides the mist (after the fade)
+  const live = rule('.map-live');
+  assert.match(live, /inset: 0/);
+  assert.match(live, /width: 100%/);
+  assert.match(live, /height: 100%/);
+  assert.match(live, /display: block/);
+  assert.match(live, /pointer-events: none/);
+  assert.match(live, /visibility: hidden/, 'nothing shows until the layer is ready');
+  assert.match(live, /opacity: 0/);
+  assert.match(live, /transition: opacity \.4s/, 'it fades in over 0.4 s');
+  const shown = rule('.map-half.live .map-live');
+  assert.match(shown, /visibility: visible/);
+  assert.match(shown, /opacity: 1/);
+  const hidden = rule('.map-half.live .map-mist');
+  assert.match(hidden, /visibility: hidden/, 'the CSS mist gives way to the living clouds');
+  assert.match(hidden, /transition: visibility 0s \.4s/, 'once the canvas has faded in');
+  // less motion: the book's own rule (every animation in it) and one for a map outside the book; no layer is made then
   const calm = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce) {'));
-  assert.match(calm, /\.map-water \{ animation: none; \}/);
   assert.match(calm, /\.map-mist \{ animation: none; \}/);
   assert.match(calm, /\.book \*, \.book \*::before, \.book \*::after \{ animation: none !important; \}/);
+});
+
+test('the map lives while its page shows', () => {
+  const { liveMap, made } = fakeLife();
+  const { map, leaf } = mapRig({ liveMap });
+  const halves = leaf.el.findAll(e => e.classList.contains('map-half'));
+  assert.equal(made.length, 0, 'nothing is made until the page shows');
+  assert.equal(map.alive(), false);
+  map.show(0);
+  assert.deepEqual(made.map(layer => layer.options.half), [0, 1], 'a layer for each page');
+  assert.deepEqual(made.map(layer => layer.canvas), halves.map(half => half.children.find(child => child.classList.contains('map-live'))), 'drawn on that page\'s canvas');
+  assert.deepEqual(made.map(layer => layer.starts), [1, 1], 'each started');
+  assert.equal(map.alive(), true);
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [false, false], 'the painting shows until a layer has drawn');
+  map.hide();
+  assert.deepEqual(made.map(layer => layer.stops), [1, 1], 'turning away stops both');
+  assert.equal(map.alive(), false);
+  map.show(0);
+  assert.equal(made.length, 2, 'the same two layers');
+  assert.deepEqual(made.map(layer => layer.starts), [2, 2], 'start again');
+  assert.equal(map.alive(), true);
+  made.forEach(layer => layer.options.onReady());
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [true, true], 'once a layer has drawn, its page is live');
+  map.dispose();
+  assert.ok(made.every(layer => layer.destroyed), 'and disposing of the map lets both go');
+  assert.equal(map.alive(), false);
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [false, false], 'the painting and the mist, as before');
+  map.show(0);
+  assert.equal(made.length, 2, 'a map let go makes no more');
+});
+
+test('with reduced motion, or without WebGL, the map stays as it was', () => {
+  const calm = fakeLife();
+  const still = mapRig({ reduced: true, liveMap: calm.liveMap });
+  still.map.show(0);
+  assert.equal(calm.made.length, 0, 'less motion: no layer is made');
+  assert.equal(still.map.alive(), false);
+
+  const none = fakeLife({ none: true });
+  const plain = mapRig({ liveMap: none.liveMap });
+  plain.map.show(0);
+  assert.equal(plain.map.alive(), false, 'no WebGL: nothing is alive');
+  assert.equal(plain.leaf.el.findAll(e => e.classList.contains('live')).length, 0, 'and no page is live');
+  plain.map.hide();
+  plain.map.show(0);
+  assert.equal(plain.map.alive(), false);
+  assert.equal(plain.map.mistOpen(), false, 'the mist is the mist of before');
+});
+
+test('a page whose living layer is lost goes back to the painting and does not bring it back', () => {
+  const { liveMap, made } = fakeLife();
+  const { map, leaf } = mapRig({ liveMap });
+  const halves = leaf.el.findAll(e => e.classList.contains('map-half'));
+  map.show(0);
+  made.forEach(layer => layer.options.onReady());
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [true, true]);
+  made[0].options.onLost(); // the graphics dropped the left page's context
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [false, true], 'the left page is the painting and mist again; the right lives on');
+  map.hide();
+  map.show(0);
+  assert.equal(made.length, 2, 'no new layer for the lost page');
+  assert.deepEqual(made.map(layer => layer.starts), [1, 2], 'only the right one is started again');
+  assert.deepEqual(halves.map(half => half.classList.contains('live')), [false, true]);
+  assert.equal(map.alive(), true, 'the right page is still alive');
+  made[1].options.onLost();
+  assert.equal(map.alive(), false, 'and when it is lost too, nothing is');
+});
+
+test('the hole the living layer is given follows the mist\'s --map-hole', () => {
+  const { liveMap, made } = fakeLife();
+  const asked = [];
+  const { map, leaf } = mapRig({ liveMap, win: { getComputedStyle: el => ({ getPropertyValue: name => { asked.push([el, name]); return '64px'; } }) } });
+  const [left] = leaf.el.findAll(e => e.classList.contains('map-half'));
+  left.rect = { left: 0, top: 0, width: 450, height: 500 };
+  map.show(0);
+  const [x, y, r] = made[0].options.hole();
+  assert.ok(Math.abs(x - 178) < 0.01 && Math.abs(y - 107) < 0.01, `Grameðla's circle, in the painting's pixels (${x}, ${y})`);
+  assert.ok(Math.abs(r - 64 * 1681 / 900) < 0.01, `64 px of a page 450 wide is ${64 * 1681 / 900} picture pixels (${r})`);
+  assert.deepEqual(asked.at(-1), [leaf.el.findAll(e => e.classList.contains('map-mist'))[0], '--map-hole'], 'read from the left page\'s mist');
+  assert.deepEqual(made[1].options.hole(), [0, 0, 0], 'the right page has no hole');
+  // shut, or with no layout to measure by: no radius
+  const shut = fakeLife();
+  const closed = mapRig({ liveMap: shut.liveMap, win: { getComputedStyle: () => ({ getPropertyValue: () => '0px' }) } });
+  closed.leaf.el.findAll(e => e.classList.contains('map-half'))[0].rect = { left: 0, top: 0, width: 450, height: 500 };
+  closed.map.show(0);
+  assert.equal(shut.made[0].options.hole()[2], 0, 'a shut hole');
+  const blind = fakeLife();
+  const nothing = mapRig({ liveMap: blind.liveMap });
+  nothing.map.show(0);
+  assert.equal(blind.made[0].options.hole()[2], 0, 'a window that cannot say');
+});
+
+test('turning away from the map, or closing the book, stops its life', () => {
+  const { liveMap, made } = fakeLife();
+  const { book, root } = savedRig(() => {}, { liveMap });
+  assert.equal(made.length, 0, 'nothing is made while the book is shut');
+  book.open('map', 'child');
+  assert.deepEqual(made.map(layer => layer.options.half), [0, 1], 'a layer for each page');
+  assert.deepEqual(made.map(layer => layer.running), [true, true], 'both started with the page');
+  const ribbon = tab => root.findAll(e => e.classList.contains('ribbon')).find(r => r.getAttribute('data-tab') === tab);
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  tap(ribbon('animals'));
+  assert.equal(book.tab, 'animals');
+  assert.deepEqual(made.map(layer => layer.running), [false, false], 'another page: nothing draws in the background');
+  tap(ribbon('map'));
+  assert.equal(book.tab, 'map');
+  assert.equal(made.length, 2, 'the same layers');
+  assert.deepEqual(made.map(layer => layer.running), [true, true], 'back on the map they run again');
+  book.close();
+  assert.deepEqual(made.map(layer => layer.running), [false, false], 'a shut book draws nothing');
+  assert.deepEqual(made.map(layer => layer.destroyed), [false, false], 'but keeps them for the next time');
 });
 
 const PIECES = ['a', 'b', 'c', 'd', 'e', 'f'];
@@ -378,7 +515,7 @@ test('the map\'s trail reaches as far as the child has got, and waits unseen unt
 });
 
 /** The map page alone over a save of its own (no book round it), with the animations it asks for (if `animated`) in the order they began. */
-function mapRig({ fill = () => {}, reduced = false, animated = false } = {}) {
+function mapRig({ fill = () => {}, reduced = false, animated = false, liveMap = null, win = {} } = {}) {
   const save = createSave(null);
   fill(save);
   const doc = new FakeDocument();
@@ -397,7 +534,7 @@ function mapRig({ fill = () => {}, reduced = false, animated = false } = {}) {
   }
   const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
   leaf.el.append(...leaf.tiles);
-  const map = renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }) } });
+  const map = renderMap(leaf, { save, win: { matchMedia: () => ({ matches: reduced }), ...win }, ...(liveMap ? { liveMap } : {}) });
   const reveals = () => animations.filter(({ el }) => el.getAttribute('class') === 'map-route-reveal');
   const spot = () => dotSpot(leaf.el);
   return { save, map, animations, reveals, spot, leaf };

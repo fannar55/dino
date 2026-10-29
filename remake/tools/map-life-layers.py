@@ -1,5 +1,8 @@
-"""Cuts the two layers that make the book's map (Kortið) live out of the owner's painting, so map-page.js can ripple the water
-and drift the mist over a map that otherwise stays still:
+"""Cuts the two layers that make the book's map (Kortið) live out of the owner's painting. The living layer (map-life.js) reads
+their alpha as its mask: the water's, where the shader runs the river and the Fen's pools, and the mist's, where it billows the
+cloud; the colour of each pixel is the painting's own, which the living layer reads from map.webp, so only the alpha is used there.
+map-page.js still shows the mist layer as a picture, a drifting cloud over the painting for a page that has no living layer (no
+WebGL, less motion); the water layer is no longer shown by the page, only read as a mask. Run it with:
 
     python -X utf8 -I remake/tools/map-life-layers.py [map.webp [out-dir [--sheet check-dir]]]
 
