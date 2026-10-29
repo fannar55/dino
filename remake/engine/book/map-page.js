@@ -368,11 +368,13 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
   /**
    * The hole in the clouds on the left page, [x, y, r] in the painting's pixels: round Grameðla's circle, as wide as the mist's
    * --map-hole is now (the computed length in px, which is of the page as it is laid out: a page is half the painting, 840.5 pixels of
-   * it) and r 0 while it is shut, or where nothing can be measured.
+   * it) and r 0 while it is shut, or where nothing can be measured. The page's width is its layout width (clientWidth), as the
+   * length is: its box on the screen (getBoundingClientRect) takes in the transforms above it, the map in the journey scaled up to
+   * 1.6 times and the book scaling as it opens, and would make the hole come out that much too small.
    */
   function hole() {
     const open = parseFloat(win.getComputedStyle?.(mists[0])?.getPropertyValue('--map-hole'));
-    const width = halves[0].getBoundingClientRect().width;
+    const width = halves[0].clientWidth;
     return [gramedlaLeft, gramedlaTop, open > 0 && width > 0 ? open * PICTURE.width / (2 * width) : 0];
   }
 

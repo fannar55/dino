@@ -396,17 +396,20 @@ test('the hole the living layer is given follows the mist\'s --map-hole', () => 
   const asked = [];
   const { map, leaf } = mapRig({ liveMap, win: { getComputedStyle: el => ({ getPropertyValue: name => { asked.push([el, name]); return '64px'; } }) } });
   const [left] = leaf.el.findAll(e => e.classList.contains('map-half'));
-  left.rect = { left: 0, top: 0, width: 450, height: 500 };
+  // the page as laid out is 450 wide (the computed --map-hole is a length of that); a transform on an ancestor (the map in the journey
+  // is scaled up to 1.6 times, the book scales as it opens) makes its box on the screen wider, which must not change the answer
+  left.clientWidth = 450;
+  left.rect = { left: 0, top: 0, width: 720, height: 800 };
   map.show(0);
   const [x, y, r] = made[0].options.hole();
   assert.ok(Math.abs(x - 178) < 0.01 && Math.abs(y - 107) < 0.01, `Grameðla's circle, in the painting's pixels (${x}, ${y})`);
-  assert.ok(Math.abs(r - 64 * 1681 / 900) < 0.01, `64 px of a page 450 wide is ${64 * 1681 / 900} picture pixels (${r})`);
+  assert.ok(Math.abs(r - 64 * 1681 / 900) < 0.01, `64 px of a page 450 wide is ${64 * 1681 / 900} picture pixels, whatever its scaled box is (${r})`);
   assert.deepEqual(asked.at(-1), [leaf.el.findAll(e => e.classList.contains('map-mist'))[0], '--map-hole'], 'read from the left page\'s mist');
   assert.deepEqual(made[1].options.hole(), [0, 0, 0], 'the right page has no hole');
   // shut, or with no layout to measure by: no radius
   const shut = fakeLife();
   const closed = mapRig({ liveMap: shut.liveMap, win: { getComputedStyle: () => ({ getPropertyValue: () => '0px' }) } });
-  closed.leaf.el.findAll(e => e.classList.contains('map-half'))[0].rect = { left: 0, top: 0, width: 450, height: 500 };
+  closed.leaf.el.findAll(e => e.classList.contains('map-half'))[0].clientWidth = 450;
   closed.map.show(0);
   assert.equal(shut.made[0].options.hole()[2], 0, 'a shut hole');
   const blind = fakeLife();
