@@ -98,9 +98,10 @@ function layoutOf(g, parts) {
  * Draws `text` centred on (x, y) at `size` px: a string, or parts in their own sizes ([['10', 1.4], [' í röð!', 0.85]]).
  * `style` is a palette name ('rainbow', 'gold', 'mint', 'sky', 'lilac', 'cream', 'grey') or a list of colours from top to foot.
  * `age` s since it appeared: each letter pops in `stagger` s after the one before (over `pop` s); `wave` (a share of the size)
- * bobs the letters; `time` moves the rainbow and the wave; `glow` lights it from behind; `fit` the widest it may be (it shrinks).
+ * bobs the letters; `time` moves the rainbow and the wave; `glow` lights it from behind; `fit` the widest it may be (it shrinks);
+ * `squash` [wide, tall] stretches the whole word about its middle.
  */
-export function drawWord(g, text, x, y, size, { style = 'cream', time = 0, age = 1, stagger = 0.035, pop = 0.22, wave = 0, glow = true, fit = Infinity, alpha = 1 } = {}) {
+export function drawWord(g, text, x, y, size, { style = 'cream', time = 0, age = 1, stagger = 0.035, pop = 0.22, wave = 0, glow = true, fit = Infinity, alpha = 1, squash = null } = {}) {
   if (!text || alpha <= 0) return;
   const parts = Array.isArray(text) ? text : [[text, 1]];
   const shape = layoutOf(g, parts);
@@ -111,6 +112,12 @@ export function drawWord(g, text, x, y, size, { style = 'cream', time = 0, age =
   const shine = glow && style !== 'cream' && style !== 'grey' && !Array.isArray(style);
   g.save();
   g.globalAlpha *= alpha;
+  if (squash) {
+    // the whole word squashed about its middle ([wide, tall]): a word leaving flattens out as it goes
+    g.translate(x, y);
+    g.scale(squash[0], squash[1]);
+    g.translate(-x, -y);
+  }
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineJoin = 'round';

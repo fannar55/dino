@@ -506,6 +506,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       burst(lane, result.great, gold);
       floaters.push({ lane, at: time, wobble: random() * 2 - 1 });
       grades[lane] = { grade: gradeOf(result.offset, windows), at: time };
+      if (grades[lane].grade === 'perfect') {
+        // right on the beat: a few twinkles round the word
+        for (let i = 0; i < 7; i++) sparks.push({ x: laneX[lane] + (random() - 0.5) * laneW * 0.8, y: hitY - dinoR * (1.25 + random() * 0.5), vx: (random() - 0.5) * 50, vy: -40 - random() * 60, life: 0, max: 0.5 + random() * 0.3, size: 9 + random() * 7, gravity: -10, hue: `hsl(${Math.floor(random() * 360)}, 100%, 78%)` });
+      }
       // what the instrument looks like when it plays: her horn's waves, the drum's thump, the plates' glitter
       const noteRole = result.note.role;
       if (noteRole === 'a') waves.push({ lane, at: time, kind: 'horn' });
@@ -1171,7 +1175,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const y = hitY - dinoR * 1.42 - Math.min(1, age / GRADE_LIFE) * dinoR * 0.45;
       drawWord(g, look.text, laneX[lane], y, size, {
         style: look.style, time, age, stagger: 0.025, pop: 0.16, wave: entry.grade === 'perfect' ? 0.06 : 0,
-        alpha: age > GRADE_LIFE * 0.6 ? (GRADE_LIFE - age) / (GRADE_LIFE * 0.4) : 1, fit: laneW * 0.98, glow: entry.grade !== 'ok',
+        // it leaves in its last 0.18 s by flattening out wide as it fades (the arcade dance games' exit)
+        alpha: age > GRADE_LIFE - 0.18 ? (GRADE_LIFE - age) / 0.18 : 1, fit: laneW * 0.98, glow: entry.grade !== 'ok',
+        squash: age > GRADE_LIFE - 0.18 ? [1 + 0.25 * (1 - (GRADE_LIFE - age) / 0.18), 1 - 0.45 * (1 - (GRADE_LIFE - age) / 0.18)] : null,
       });
     });
   }
@@ -1222,7 +1228,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       g.stroke();
       g.globalAlpha = 1;
     }
-    drawWord(g, `${score.streak} í röð`, w / 2, counterY, Math.round(size * (1 + pop)), { style: score.streak >= 20 ? 'rainbow' : tierNow >= 3 ? 'gold' : 'cream', time, pop: 0, glow: score.streak >= 20 });
+    drawWord(g, `${score.streak} í röð`, w / 2, counterY, Math.round(size * (1 + pop)), { style: score.streak >= 20 ? 'rainbow' : score.streak >= 10 ? 'gold' : 'cream', time, pop: 0, glow: score.streak >= 10 });
   }
 
   function drawBar(g, time) {
