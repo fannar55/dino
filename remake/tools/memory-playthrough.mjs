@@ -580,7 +580,8 @@ async function main() {
         }
         lastAsk = Date.now();
         if (s.story.target === 'branch') mark('branch-start');
-        await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1) });
+        const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
+        await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1), at: where });
       } else if (s.phase === 'one-open' && mayAct) {
         const open = s.cards.find(c => c.status === 'open');
         if (missPlan === 1 && order.length > 1) {

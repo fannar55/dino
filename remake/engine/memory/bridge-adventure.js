@@ -341,7 +341,8 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   // crossing that found its way blocked. `next` is the one that glows.
   function targets(){const busy=Boolean(action);return[
     {type:'task',id:'branch',point:new THREE.Vector3(-3.6,1.55,-3.1),enabled:!busy&&!atStaging&&!built&&!held,next:snapshot.next==='branch'},
-    {type:'task',id:'log',point:props.logContact(2.7,0).add(new THREE.Vector3(0,1.1,0)),enabled:!busy&&!built&&!atStaging,next:snapshot.next==='log'},
+    // The log's near end: it is in the glade view on a phone too (that view looks west, so the far end leaves it).
+    {type:'task',id:'log',point:props.logContact(.8,0).add(new THREE.Vector3(0,1.1,0)),enabled:!busy&&!built&&!atStaging,next:snapshot.next==='log'},
     {type:'task',id:'staging',point:ground(6.8,-12,1.3),enabled:!busy&&built&&!atStaging&&allReady()},
     {type:'task',id:'bark',point:ground(7,-15.6,1.2),enabled:!busy&&atStaging&&!boardwalkBuilt&&allReady(),next:snapshot.next==='bark'},
     {type:'task',id:'grove',point:ground(4.5,-26,1.5),enabled:!busy&&boardwalkBuilt&&!visited&&allReady()},
