@@ -368,7 +368,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       walk.onDeck ||= distance >= walk.deckAt;
       return;
     }
-    if (!walk.stopped) { walk.stopped = true; mosi.root.rotation.z = 0; mosi.play('idle', { fade: .35 }); }
+    if (!walk.stopped) { walk.stopped = true; mosi.root.rotation.z = 0; mosi.play('idle', { fade: .35, timeScale: reducedMotion ? 0 : 1 }); }
     walk.settle += dt;
     mosi.root.rotation.y = turnToward(mosi.root.rotation.y, walk.yaw, reducedMotion ? 1 : 1 - Math.exp(-dt / .12));
     if (walk.settle < .45) return;
