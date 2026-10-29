@@ -149,13 +149,21 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           pair.foot.position.copy(pair.foot.parent.worldToLocal(planted));pair.foot.updateMatrixWorld(true);
         }
       }
-      function beginSupport(name,{duration,walking=false}={}){
+      const blendPose=(a,b,t)=>new Map([...b].map(([bone,p])=>{const from=a.get(bone)??p;return[bone,{position:from.position.clone().lerp(p.position,t),quaternion:from.quaternion.clone().slerp(p.quaternion,t)}]}));
+      function beginSupport(name,{duration,walking=false,amount}={}){
         if(!supportBones.length)return;
         // Repeated hold calls never restart a lift or recapture a moving pose.
         if(name==='hold'&&support&&support.mode!=='release'){support.mode='hold';return;}
         if(name==='release'&&!support)return;
-        const planted=walking?null:support?.planted||copyPose(legs.flatMap(p=>[p.leg,p.foot]));
-        support={mode:name,age:0,duration:Math.max(.01,duration??(name==='lift'?.9:name==='hold'?.25:.45)),from:copyPose(supportBones),planted,target:name==='reach'?reachPose:liftedPose};
+        const share=amount==null?1:THREE.MathUtils.clamp(amount,0,1),span=Math.max(.01,duration??(name==='lift'?.9:name==='hold'?.25:.45));
+        // A lift in steps (one per tap of the child): each step starts where the last one is now and goes
+        // `amount` of the whole way from the pose the lift began in to the lifted pose.
+        if(name==='lift'&&amount!=null&&support?.mode==='lift'){
+          const t=support.age/support.duration;support.from=blendPose(support.from,support.target,t*t*(3-2*t));
+          support.target=blendPose(support.base,liftedPose,share);support.age=0;support.duration=span;return;
+        }
+        const planted=walking?null:support?.planted||copyPose(legs.flatMap(p=>[p.leg,p.foot])),from=copyPose(supportBones);
+        support={mode:name,age:0,duration:span,from,base:from,planted,target:name==='reach'?reachPose:share<1?blendPose(from,liftedPose,share):liftedPose};
         lookEnabled=false;lookWeight=0;
       }
       function applySupport(dt){
@@ -228,7 +236,8 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         setPushYaw(angle=0) { pushYaw=THREE.MathUtils.clamp(angle,-.72,.72); },
         reach(options) { setMotion('reach',options); },
         reachWalk(options) { setMotion('reach-walk',options); },
-        lift(options) { setMotion('lift',options); },
+        /** The branch lift; `amount` (0..1) lifts part of the way, and a later call with a larger amount goes on from there. */
+        lift(options={}) { if(options.amount!=null&&motion==='lift'&&support?.mode==='lift'){beginSupport('lift',options);return;} setMotion('lift',options); },
         hold() { setMotion('hold'); },
         release(options) { setMotion('release',options); },
         clearSupport() { support=null;restoreBasePose();if(['reach','lift','hold','release'].includes(motion))setMotion('idle'); },

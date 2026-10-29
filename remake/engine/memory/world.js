@@ -22,6 +22,7 @@ import { createForestVisibility } from './world-forest-visibility.js';
 import { createSceneRunner } from './scenes.js';
 import { createMosiPuppet } from './mosi-puppet.js';
 import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js';
+import { branchScene, failScene } from './scenes/branch.js';
 import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
 
 // Eight leaves in a 4 x 2 grid turned toward the search camera: the four of a row run across the screen (each `across`
@@ -196,6 +197,19 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       head: () => mosi.headPosition(new THREE.Vector3()),
     },
     planMeeting,
+    say: line => deferredEvents.push({ type: 'scene-say', line }),
+    pair: species => nests.find(nest => nest.species === species)?.members ?? [],
+    pairGesture: (species, name) => { for (const actor of stage.pair(species)) actor.gesture?.(name); },
+    // The obstacles' side of a task script (scenes/branch.js): the bridge adventure moves the friends.
+    task: {
+      start(id, options) { const started = adventure.start(id, options); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
+      beat: () => adventure.beat(),
+      waitingBeat: () => adventure.waitingBeat(),
+      busy: () => adventure.isBusy(),
+      abort() { if (taskScript != null) scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ duration: .6 }); },
+      point: id => adventure.getTargets().find(target => target.id === id)?.point.clone() ?? new THREE.Vector3(),
+      branch: () => adventure.branchPoints(),
+    },
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {
@@ -297,6 +311,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (t >= 1) { actor.root.position.copy(dash.to); actor.root.rotation.y = dash.yaw; actor.walk?.(false); cell.dash = null; }
   }
   const sceneIds = new Map();
+  let taskScript = null;
   function playFor(cell, lines) { if (sceneIds.has(cell)) scenes.cancel(sceneIds.get(cell)); sceneIds.set(cell, scenes.play(lines)); }
   const cameraCue = () => {
     const cue = adventure?.getCameraCue?.(); if (!cue || cue.key === 'glade') return gladeCue();
@@ -382,7 +397,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const hit = addHit(root, 3.2, 2.2, { type: 'nest', index: i });
       nests.push({ root, index: i, physicalIndex: i, hit, species: null, members: [], pulse: 100, reunionAge: 100, reunited: false, restOffsets: [restVector(SPECIES[i], 0), restVector(SPECIES[i], 1)], restYaw: restHeading() });
     }
-    adventure = createBridgeAdventure({ scene, heightAt: world.heightAt, nests, fx, onwardTravel: true, cancelWalk: actor => homeNav.release(actor), planWalk: (actor, end, { yaw } = {}) => {
+    adventure = createBridgeAdventure({ scene, heightAt: world.heightAt, nests, fx, onwardTravel: true, hopOver: point => leap(point), cancelWalk: actor => homeNav.release(actor), planWalk: (actor, end, { yaw } = {}) => {
       const action = adventure?.getDebug().action, pushing = actor.species === 'triceratops' && action?.id === 'roll';
       // A friend parked by the log for the crossing may start beside the Þórseðla babies holding the branch: their
       // capsules overlap there (theirs is as wide as the round belly all along the neck), so near the start the
@@ -434,7 +449,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
 
   function resetBoard(cards) {
-    scenes.cancelAll(); sceneIds.clear(); mosiPuppet?.cancel();
+    scenes.cancelAll(); sceneIds.clear(); taskScript = null; mosiPuppet?.cancel();
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
     for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(1); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
@@ -625,8 +640,17 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const selectable = adventure.isVisited() || !bridgeSnapshot.selected && (!bridgeSnapshot.atStaging || !bridgeSnapshot.boardwalkBuilt && nest.species === 'stegosaurus');
       renderTargets.push({ type: 'nest', index: nest.index, x: p.x, y: p.y, width: Math.max(minimum, Math.min(width < 600 ? 54 : 98, Math.abs(edge.x - p.x) * 2)), height: Math.max(minimum, Math.min(64, Math.abs(edge.x - p.x))), enabled: ready && !adventure.isBusy() && selectable });
     }
-    for (const target of adventure?.getTargets() ?? []) { const p = project(target.point), size = width < 600 ? 44 : 64; renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: target.enabled }); }
-    for (const target of renderTargets) target.enabled &&= cameraDirector.isInteractive() && target.x - target.width / 2 >= 8 && target.x + target.width / 2 <= width - 8 && target.y - target.height / 2 >= 8 && target.y + target.height / 2 <= height - 8;
+    // A script waiting for taps on an obstacle (the tap-along) makes that obstacle one big target under the still shot,
+    // over the two crowns for the branch, kept inside the screen; every other target waits for world input to return.
+    const waiting = scenes.waiting();
+    for (const target of adventure?.getTargets() ?? []) {
+      const tapAlong = waiting?.target === target.id, crowns = tapAlong && target.id === 'branch' ? stage.pair('brontosaurus').map(actor => actor.getSupportPosition(new THREE.Vector3())) : [];
+      const point = crowns.length ? crowns.reduce((sum, crown) => sum.add(crown), new THREE.Vector3()).multiplyScalar(1 / crowns.length).add(new THREE.Vector3(0, .35, 0)) : target.point;
+      const p = project(point), size = tapAlong ? Math.round(Math.max(width < 600 ? 150 : 200, Math.min(width, height) * .42)) : width < 600 ? 44 : 64;
+      if (tapAlong) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
+      renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong });
+    }
+    for (const target of renderTargets) target.enabled &&= target.tapAlong || cameraDirector.isInteractive() && target.x - target.width / 2 >= 8 && target.x + target.width / 2 <= width - 8 && target.y - target.height / 2 >= 8 && target.y + target.height / 2 <= height - 8;
   }
 
   function update(dt = 0, externalTime) {
@@ -847,7 +871,25 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     /** Play a script (scenes.js lines) on the game clock; game.js never reaches the runner itself. */
     runScene: (lines, options) => scenes.play(lines, options),
     /** A tap the child made that a waiting script may take (true when one did). */
-    tapScene: target => scenes.tap(target),
+    tapScene: target => { const taken = scenes.tap(target); if (taken) updateTargets(); return taken; },
+    /** The branch with the child's taps (scenes/branch.js). False when the camera or the friends cannot start it now. */
+    playBranch() {
+      if (cameraDirector.mode() !== 'auto' || adventure.isBusy()) return false;
+      taskScript = scenes.play(branchScene(stage));
+      if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
+      return true;
+    },
+    /** A wrong friend's funny go at an obstacle; the adventure's fail-done event says when the pair is back. */
+    startFail(species, target) {
+      if (cameraDirector.mode() !== 'auto') return false;
+      const timing = adventure.startFail(species, target); if (!timing) return false;
+      taskScript = scenes.play(failScene(stage, species, target, timing));
+      return true;
+    },
+    /** Mosi's own reaction to a hint (a MOSI_GESTURES name). */
+    mosiGesture: name => mosiPuppet.gesture(name),
+    /** "Hver getur þetta?": the pairs that may answer bounce, keen (the bubbles are open). */
+    eager(species = []) { for (const name of species) stage.pairGesture(name, 'eager'); },
     sceneBusy: () => scenes.busy(),
     getPairReadiness: () => Object.fromEntries(nests.filter(nest => nest.species).map(nest => [nest.species, nest.members.length === 2 && nest.members.every(actor => cells.some(cell => cell.actor === actor && cell.moved))])),
     setBridgeState(snapshot) { bridgeSnapshot = { ...snapshot }; adventure.setState(snapshot); cameraDirector.setCue(cameraCue()); updateTargets(); },

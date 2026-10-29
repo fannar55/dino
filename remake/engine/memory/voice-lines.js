@@ -14,4 +14,10 @@ export const VOICE_LINES = Object.freeze({
   build: { text: 'Þær bera börkinn saman. Ein fjöl í einu!', seed: 251109 },
   walkway: { text: 'Sjáðu gönguleiðina! Veldu nú berjalundinn.', seed: 251110 },
   finish: { text: 'Nú komast allir yfir. Berin bíða okkar!', seed: 251111 },
+  who: { text: 'Hver getur þetta?', seed: 251201 },
+  other: { text: 'Kannski einhver annar?', seed: 251202 },
+  together: { text: 'Við gerum þetta saman!', seed: 251203 },
+  push: { text: 'Einn, tveir, ÝTA!', seed: 251204 },
+  findFirst: { text: 'Finnum vini fyrst!', seed: 251205 },
+  notYet: { text: 'Fyrst þurfum við að lyfta greininni!', seed: 251206 },
 });

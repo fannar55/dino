@@ -1,15 +1,21 @@
 import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
 import { createMemoryAudio } from './audio.js';
-import { createBridgeAdventure } from './bridge-rules.js';
+import { createBridgeAdventure, BRIDGE_OBSTACLES } from './bridge-rules.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { SURPRISE_ITEMS } from './surprise-items.js';
+import { VOICE_LINES } from './voice-lines.js';
 import { BASKET_ICON } from '../scene/ui.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const roster = { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' };
+// The "who" bubbles: a portrait of each pair (portraits/, cropped round in CSS) and its name.
+const pairs = { triceratops: { name: 'Þríhyrnur', label: 'Þríhyrnuparið' }, brontosaurus: { name: 'Þórseðlur', label: 'Þórseðluparið' }, stegosaurus: { name: 'Kambeðlur', label: 'Kambeðluparið' } };
+// Mosi's lines that also go up in his bubble when a script says them.
+const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift']);
+const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
 const game = createMemoryGame(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {});
 const audio = createMemoryAudio();
@@ -20,7 +26,8 @@ let world, started = false, userPaused = false, time = 0, lastFrame = 0, raf = 0
 let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let muted = false;
 let celebrated = false;
-let pendingIntent = null, autoStep = null, autoAge = 0, blockedAuto = null, storyKey = '', captionUntil = 0;
+let autoStep = null, autoAge = 0, blockedAuto = null, storyKey = '', captionUntil = 0;
+let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // surprises that have flown into the basket in the ribbon
 try { muted = localStorage.getItem('mosi.memory.muted.v1') === 'true'; } catch {}
 const dialogs = [$('welcome'), $('pause-dialog'), $('help-dialog')];
@@ -63,8 +70,7 @@ function basketPoint() {
 const betweenTurns = () => ['ready', 'won'].includes(game.getState().phase);
 const currentStory = () => nextStoryStep(game.getState(), bridge.getState(), world?.getPairReadiness?.() ?? {});
 function syncBridge() {
-  const state = bridge.getState(), story = currentStory();
-  world?.setBridgeState({ ...state, suggestedSpecies: story.species ?? null });
+  world?.setBridgeState(bridge.getState());
   reflectJourney(); refreshControls();
 }
 function reflectJourney() {
@@ -87,6 +93,17 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'bonk') audio.bonk();
   else if (name === 'ding') audio.ding();
 }
+// A script's line for Mosi: heard, and the task lines also shown in his bubble.
+function sayLine(line) {
+  speech.play(line);
+  if (CAPTIONED.has(line) && VOICE_LINES[line]) caption(VOICE_LINES[line].text, 2.6);
+}
+// Big words over the scene for a step of the tap-along ("Upp!").
+function showWord(text) {
+  const word = $('beat-word'); word.textContent = text;
+  word.classList.remove('show'); void word.offsetWidth; word.classList.add('show');
+}
+function noteInput() { idleTime = 0; }
 function cameraState() { return world?.getCameraState?.() ?? world?.getDebug().camera ?? { mode: 'auto', moving: false, worldInputEnabled: true }; }
 function setCameraMode(mode) {
   if (!world || !['auto', 'overview'].includes(mode)) return;
@@ -100,41 +117,70 @@ function targetAvailable(type, id) {
 function guidance() {
   // While a script holds the camera its own caption stays up (the child cannot act on a new hint yet).
   if (time < captionUntil || cameraState().held) return;
-  const story = currentStory(); caption(pendingIntent ? 'Komið, hjálpumst að!' : story.prompt);
+  const story = currentStory(); caption(story.prompt);
   $('coach').dataset.tone = story.kind === 'action' ? 'action' : story.kind === 'celebrate' ? 'celebrate' : 'hint';
   if (bridge.getState().visited && !held()) speech.queue('won', { delay: .35 });
 }
 function launchAction(action) {
-  // Finish any already-moving friends before work takes ownership of the scene.
-  // The child's single action stays queued; nobody is frozen halfway home.
+  // The crossing and the walk to the grove: they start on their own once every friend is home.
   const ready = world?.getPairReadiness?.() ?? {};
   if (!bridge.getState().unlocked.every(species => ready[species])) return false;
   if (!bridge.can(action) || !world.startBridgeTask(action)) return false;
-  bridge.choose(action); pendingIntent = null; autoStep = null; autoAge = 0; blockedAuto = null;
+  bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
   if (action === 'cross' || action === 'finish') speech.queue(action, { delay: .15 });
   return true;
-}
-function requestStoryAction() {
-  const story = currentStory();
-  if (held() || !betweenTurns() || !story.available || bridge.getState().active || pendingIntent) return;
-  audio.unlock(); music.unlock(); speech.stop(); captionUntil = 0;
-  const state = bridge.getState();
-  if (story.species && state.selected !== story.species) { if (state.selected) bridge.select(null); bridge.select(story.species); }
-  else if (!story.species && state.selected) bridge.select(null);
-  pendingIntent = { action: story.action }; blockedAuto = null; syncBridge(); guidance(); reflectEnding();
 }
 function updateStory(dt) {
   const story = currentStory(), camera = cameraState();
   if (captionUntil > 0 && time >= captionUntil) { captionUntil = 0; storyKey = ''; }
   if (storyKey !== story.key && time >= captionUntil && !camera.held) { storyKey = story.key; guidance(); }
   if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) return;
-  if (pendingIntent) { launchAction(pendingIntent.action); return; }
   if (story.automatic && story.available && blockedAuto !== story.action) {
     if (autoStep !== story.action) { autoStep = story.action; autoAge = 0; }
     autoAge += dt;
     if (autoAge >= .7) launchAction(story.action);
   } else { autoStep = null; autoAge = 0; }
+}
+// The bubbles are up while the rules wait for a pick and the camera holds still (never during a cut or a glide);
+// a pause leaves them where they are (the pause dialog covers them, and a pick waits for play).
+function whoVisible() {
+  const state = bridge.getState(), camera = cameraState();
+  return Boolean(world && started && state.asking && !state.failing && !state.active && camera.mode === 'auto' && !camera.moving && !camera.held && camera.worldInputEnabled !== false);
+}
+// A tap on an obstacle: "Hver getur þetta?" with the bubbles, or one of Mosi's hints.
+function askObstacle(id) {
+  const answer = bridge.ask(id); if (!answer) return;
+  audio.unlock(); music.unlock(); speech.stop(); captionUntil = 0;
+  if (answer.kind === 'not-yet') { caption(VOICE_LINES.notYet.text, 2.6); speech.play('notYet'); world.mosiGesture?.('shake-head'); }
+  else if (answer.kind === 'find-first') { caption(VOICE_LINES.findFirst.text, 2.6); speech.play('findFirst'); world.mosiGesture?.('shake-head'); }
+  else { caption(VOICE_LINES.who.text, 2.6); speech.play('who'); }
+  syncBridge(); reflectEnding();
+}
+// A tap on a bubble: the right pair starts its task, a wrong one has its funny go first.
+function pickFriend(species) {
+  if (held() || !whoVisible()) return;
+  const ready = world.getPairReadiness?.() ?? {};
+  if (!bridge.getState().unlocked.every(name => ready[name])) return; // a pair is still hopping home
+  const target = bridge.getState().asking, result = bridge.pick(species);
+  if (!result) return;
+  noteInput(); audio.unlock(); music.unlock(); speech.stop(); captionUntil = 0;
+  if (result.kind === 'fail') {
+    if (!world.startFail(species, target)) bridge.failDone();
+  } else {
+    syncBridge();
+    const started = result.action === 'lift' ? world.playBranch() : world.startBridgeTask(result.action);
+    if (!started) bridge.cancel(result.action);
+  }
+  syncBridge(); guidance(); reflectEnding();
+}
+// After a wrong friend's go the bubbles come back, unless no friend in them can do it: then Mosi sends the child
+// back to the leaves.
+function failDone() {
+  if (!bridge.failDone()) return;
+  const state = bridge.getState();
+  if (state.asking && !state.candidates.includes(BRIDGE_OBSTACLES[state.asking].species)) { bridge.dismiss(); caption('Finnum fleiri vini undir laufunum!', 2.8); }
+  syncBridge(); reflectEnding();
 }
 function reflectEnding() {
   const state = bridge.getState();
@@ -144,7 +190,7 @@ function reflectEnding() {
   }
   const showEnding = won && !state.active;
   $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding;
-  $('cancel-choice').hidden = state.selected === null || Boolean(state.active);
+  $('cancel-choice').hidden = !whoVisible();
   $('holding').hidden = !started || state.branch !== 'held' || state.visited || Boolean(state.active);
 }
 function accept(events) {
@@ -172,39 +218,44 @@ function accept(events) {
   refreshControls();
 }
 function choose(id) {
-  if (!world || held() || bridge.getState().active || bridge.getState().selected !== null || !targetAvailable('leaf', id)) return;
+  if (!world || held()) return;
+  // A leaf tapped while the bubbles are open only closes them: the leaf stays shut.
+  if (bridge.getState().asking) { if (!bridge.getState().failing) cancelChoice(); return; }
+  if (bridge.getState().active || bridge.getState().failing || !targetAvailable('leaf', id)) return;
   const state = game.getState();
   if (!['ready', 'one-open'].includes(state.phase) || state.cards.find(card => card.id === id)?.status !== 'hidden') return;
-  if (bridge.getState().selected !== null) { bridge.select(null); syncBridge(); reflectEnding(); }
   audio.unlock(); music.unlock(); accept(game.pick(id));
 }
 function chooseNest(index) {
-  if (!world || held() || !betweenTurns() || bridge.getState().active || !nestSpecies[index] || !targetAvailable('nest', index)) return;
-  if (bridge.getState().unlocked.includes(nestSpecies[index]) && !bridge.getState().visited) {
-    if (bridge.select(nestSpecies[index])) { speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding(); }
-    return;
-  }
-  if (game.getState().phase !== 'won') return;
-  speech.stop(); audio.unlock(); music.unlock(); world.playNest(index); audio.nest(nestSpecies[index], index);
+  if (!world || held()) return;
+  if (bridge.getState().asking) { if (!bridge.getState().failing) cancelChoice(); return; }
+  if (!betweenTurns() || bridge.getState().active || bridge.getState().failing || !nestSpecies[index] || !targetAvailable('nest', index)) return;
+  // A pair at home greets the child; they are chosen for work from the bubbles, not here.
+  speech.stop(); audio.unlock(); music.unlock(); if (world.playNest(index)) audio.nest(nestSpecies[index], index);
 }
-function actionFor(id, state = bridge.getState()) {
-  return id === 'branch' ? (state.branch === 'held' ? 'lower' : 'lift') : ({ log: 'roll', staging: 'cross', bark: 'lay', grove: 'finish' }[id] ?? null);
+function actionFor(id) {
+  return ({ staging: 'cross', grove: 'finish' }[id] ?? null);
 }
 function mayTask(id) {
   const action = actionFor(id);
   return action !== null && bridge.can(action);
 }
 function chooseTask(id) {
-  if (!world || held() || !betweenTurns() || !targetAvailable('task', id)) return;
-  const story = currentStory();
-  if (story.target === id && story.available) { requestStoryAction(); return; }
-  if (!mayTask(id)) return;
-  const action = actionFor(id);
-  launchAction(action);
+  if (!world || held()) return;
+  const target = world.getTargets().find(value => value.type === 'task' && value.id === id);
+  // The tap-along: the script under the still shot takes the tap.
+  if (target?.tapAlong) { noteInput(); world.tapScene(id); return; }
+  const asking = bridge.getState().asking;
+  if (asking) { if (asking !== id && !bridge.getState().failing) cancelChoice(); return; }
+  if (!betweenTurns() || !targetAvailable('task', id)) return;
+  noteInput();
+  if (Object.hasOwn(BRIDGE_OBSTACLES, id)) { askObstacle(id); return; }
+  // Staging and grove: a crossing that found its way blocked starts again from here.
+  if (mayTask(id)) launchAction(actionFor(id));
 }
 function cancelChoice() {
-  if (held() || bridge.getState().selected === null || bridge.getState().active) return;
-  pendingIntent = null; bridge.select(null); syncBridge(); guidance(); reflectEnding();
+  if (held() || !bridge.dismiss()) return;
+  syncBridge(); guidance(); reflectEnding();
 }
 const taskIcons = {
   branch: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 25c8-6 13-6 22-2M7 24l-2-5m18 4 3-6"/><path class="branch-arrow" d="M16 18V5m-5 5 5-5 5 5"/></svg>',
@@ -221,15 +272,9 @@ function refreshControls() {
   const camera = cameraState();
   const overview = camera.mode === 'overview';
   $('game').dataset.playing = String(started);
-  $('game').dataset.busy = String(Boolean(task.active || pendingIntent));
+  $('game').dataset.busy = String(Boolean(task.active || task.failing));
   $('game').dataset.camera = overview ? 'overview' : camera.moving ? 'moving' : 'play';
-  const next = $('next-action');
-  if (next) {
-    next.hidden = !started || !story.available || Boolean(task.active || pendingIntent) || overview || Boolean(story.automatic && blockedAuto !== story.action) || !betweenTurns();
-    next.disabled = held() || camera.moving || Boolean(camera.held);
-    $('next-action-label').textContent = story.label ?? 'Áfram!';
-    next.dataset.action = story.action ?? '';
-  }
+  reflectWho();
   $('camera').setAttribute('aria-pressed', String(overview));
   $('camera').setAttribute('aria-label', overview ? 'Fara nær og halda áfram að leika' : 'Sjá allt svæðið');
   $('camera').querySelector('small').textContent = overview ? 'Nær' : 'Yfirlit';
@@ -239,7 +284,8 @@ function refreshControls() {
   $('ending').hidden = !finished || overview;
   const worldInput = !camera.moving && camera.worldInputEnabled !== false && !overview;
   const mayPick = !held() && worldInput && !task.active && task.selected === null && ['ready', 'one-open'].includes(state.phase);
-  const mayExplore = !held() && worldInput && !task.active && betweenTurns();
+  const mayExplore = !held() && worldInput && !task.active && !task.failing && betweenTurns();
+  const hesitating = mayExplore && !task.asking && idleTime >= IDLE_ARROW && story.available && !story.automatic;
   const visibleKeys = new Set();
   for (const target of world.getTargets()) {
     const key = `${target.type}-${target.type === 'nest' ? target.index : target.id}`;
@@ -254,32 +300,67 @@ function refreshControls() {
     }
     button.style.left = `${target.x}px`; button.style.top = `${target.y}px`;
     button.style.width = `${Math.max(44, target.width)}px`; button.style.height = `${Math.max(44, target.height)}px`;
-    button.classList.toggle('is-guided', target.type === 'task' && target.id === story.target && story.available && mayExplore && !pendingIntent);
+    button.classList.toggle('is-guided', target.type === 'task' && target.id === story.target && hesitating);
     if (target.type === 'leaf') {
       const card = state.cards.find(card => card.id === target.id);
       button.disabled = !mayPick || card?.status !== 'hidden' || target.enabled === false;
       // Hidden species must never leak through accessible names.
       button.setAttribute('aria-label', `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${roster[card.species]}` : card?.status === 'matched' ? ', tómt' : card?.status === 'found' ? ', fundið' : ', lokað'}`);
     } else if (target.type === 'task') {
-      const available = mayTask(target.id) || story.target === target.id && story.available;
-      button.disabled = !mayExplore || !available || target.enabled === false;
-      button.classList.toggle('choice-visible', available && mayExplore && target.enabled !== false);
-      button.classList.toggle('lower-branch', target.id === 'branch' && task.branch === 'held');
-      button.setAttribute('aria-label', target.id === 'branch' ? (task.branch === 'held' ? 'Láta þórseðlurnar leggja greinina niður' : 'Láta þórseðlurnar lyfta greininni') : ({ log: 'Láta þríhyrnurnar velta bolnum og búa til brú', staging: 'Senda alla sex vinina yfir trjábrúna', bark: 'Láta kambeðlurnar leggja börk yfir mýrina', grove: 'Senda alla vinina í berjalundinn' }[target.id]));
+      // Obstacles can always be asked about (Mosi answers); staging and grove only retry a blocked crossing.
+      const obstacle = Object.hasOwn(BRIDGE_OBSTACLES, target.id), available = obstacle || mayTask(target.id);
+      const tapAlong = Boolean(target.tapAlong) && target.enabled !== false && !held();
+      button.disabled = !tapAlong && (!mayExplore || !available || target.enabled === false);
+      button.classList.toggle('tap-along', tapAlong);
+      button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false && !task.asking);
+      button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false || target.id === story.target && hesitating);
+      button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : ({ branch: 'Greinin: hver getur lyft henni?', log: 'Stóri bolurinn: hver getur ýtt honum?', staging: 'Senda alla sex vinina yfir trjábrúna', bark: 'Börkurinn: hver getur lagt leið yfir mýrina?', grove: 'Senda alla vinina í berjalundinn' }[target.id]));
     } else {
       const species = nestSpecies[target.index];
-      const canSelect = task.unlocked.includes(species) && !task.visited;
-      button.disabled = !mayExplore || (!canSelect && state.phase !== 'won') || !nestSpecies[target.index] || target.enabled === false;
-      button.classList.toggle('pair-ready', canSelect && mayExplore && target.enabled !== false);
-      button.classList.toggle('pair-selected', canSelect && task.selected === species && mayExplore && target.enabled !== false);
-      button.setAttribute('aria-pressed', String(canSelect && task.selected === species));
-      const pairName = { triceratops: 'þríhyrnuparið', brontosaurus: 'þórseðluparið', stegosaurus: 'kambeðluparið' }[species];
-      button.setAttribute('aria-label', canSelect ? (task.selected === species ? `Afvelja ${pairName}` : `Velja ${pairName}`) : species ? `Leika við vinaparið: ${roster[species]}` : `Hreiður ${target.index + 1}, tómt`);
+      button.disabled = !mayExplore || !species || target.enabled === false;
+      button.classList.remove('pair-ready', 'pair-selected');
+      button.setAttribute('aria-label', species ? `Leika við vinaparið: ${roster[species]}` : `Hreiður ${target.index + 1}, tómt`);
     }
   }
   for (const [key, button] of buttons) if (!visibleKeys.has(key)) {
-    button.disabled = true; button.classList.remove('choice-visible', 'pair-ready', 'pair-selected');
+    button.disabled = true; button.classList.remove('choice-visible', 'pair-ready', 'pair-selected', 'is-next', 'is-guided', 'tap-along');
   }
+}
+// The "who" bubbles over the obstacle that was asked about: a portrait button for each candidate, popping in.
+const whoButtons = new Map();
+function reflectWho() {
+  const box = $('who'), state = bridge.getState(), visible = whoVisible();
+  if (!visible) { if (!box.hidden) box.hidden = true; whoShown = false; return; }
+  const row = box.querySelector('.who-row'), wanted = state.candidates;
+  if (!whoShown || row.children.length !== wanted.length || [...row.children].some((button, i) => button.dataset.species !== wanted[i])) {
+    row.replaceChildren(...wanted.map((species, i) => {
+      let button = whoButtons.get(species);
+      if (!button) {
+        button = document.createElement('button'); button.type = 'button'; button.className = 'who-friend'; button.dataset.species = species;
+        button.setAttribute('aria-label', pairs[species].label);
+        button.innerHTML = `<span class="who-face"><img src="./assets/memory/portraits/${species}.webp" alt="" width="512" height="384" draggable="false"></span><span class="who-name">${pairs[species].name}</span>`;
+        button.addEventListener('click', () => pickFriend(species));
+        whoButtons.set(species, button);
+      }
+      button.style.setProperty('--i', String(i));
+      return button;
+    }));
+  }
+  if (!whoShown) {
+    // Popping in again restarts the animation; the friends who may answer bounce, keen.
+    box.hidden = false; box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
+    whoShown = true; world.eager(wanted);
+  }
+  const target = world.getTargets().find(value => value.type === 'task' && value.id === state.asking);
+  const width = box.offsetWidth, height = box.offsetHeight, W = $('game').clientWidth, H = $('game').clientHeight;
+  const top = document.querySelector('.topbar').getBoundingClientRect().bottom + 8, bottom = Math.min(H - 8, $('coach').hidden ? H - 8 : $('coach').getBoundingClientRect().top - 8);
+  const x = target?.x ?? W / 2, y = target?.y ?? H / 2;
+  let place = y - height - 34;
+  if (place < top) place = y + 38;
+  place = Math.max(top, Math.min(place, bottom - height));
+  box.style.left = `${Math.round(Math.max(12, Math.min(W - width - 12, x - width / 2)))}px`; box.style.top = `${Math.round(place)}px`;
+  box.style.setProperty('--tail', `${Math.round(Math.max(18, Math.min(width - 18, x - parseFloat(box.style.left))))}px`);
+  box.classList.toggle('below', place > y);
 }
 function start({ restart = false } = {}) {
   if (!world) return;
@@ -287,7 +368,8 @@ function start({ restart = false } = {}) {
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
   if (restart) { game.restart(); bridge.restart(); celebrated = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
-  pendingIntent = null; autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0;
+  autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
+  $('who').hidden = true; $('beat-word').classList.remove('show');
   $('coach').hidden = false; $('ending').hidden = true; $('progress').hidden = false; $('journey').hidden = false;
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
   reflectProgress(game.getState()); reflectBasket(); reflectEnding(); syncPause(); audio.unlock(); music.unlock();
@@ -308,7 +390,9 @@ function frame(timestamp) {
       time += dt;
       const camera = cameraState();
       if (camera.mode !== 'auto' || !camera.moving) accept(game.advance(dt));
-      const phase = game.getState().phase;
+      const phase = game.getState().phase, task = bridge.getState();
+      // Hesitation counts only while the child could act (not during a script, a task or with the bubbles open).
+      if (betweenTurns() && !task.active && !task.failing && !task.asking && camera.worldInputEnabled !== false && !camera.moving && !world.sceneBusy()) idleTime += dt; else idleTime = 0;
       if (phase === 'one-open' && phaseBefore !== phase && time >= captionUntil) caption('Hvar er vinur hans?');
       if (['ready', 'won'].includes(phase) && phaseBefore !== phase) guidance();
       phaseBefore = phase;
@@ -322,10 +406,13 @@ function frame(timestamp) {
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollBridgeEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
-      else if (event.type === 'scene-say') speech.play(event.line);
+      else if (event.type === 'scene-say') sayLine(event.line);
       else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
-      else if (event.type === 'branch-lift') { audio.branchLift(); speech.queue('lift', { delay: .12 }); }
+      else if (event.type === 'branch-lift') audio.branchLift();
+      else if (event.type === 'beat' && event.id === 'lift') { showWord('Upp!'); audio.branchLift(); }
+      else if (event.type === 'fail-bump') audio.bonk();
+      else if (event.type === 'fail-done') failDone();
       else if (event.type === 'branch-lower') audio.branchLower();
       else if (event.type === 'log-roll') { audio.logRoll(); speech.queue('roll', { delay: .12 }); }
       else if (event.type === 'bridge-land') audio.bridgeLand();
@@ -337,7 +424,7 @@ function frame(timestamp) {
       else if (event.type === 'bridge-complete' && bridge.complete(event.id)) {
         syncBridge(); reflectEnding(); guidance();
       } else if (event.type === 'bridge-blocked' && bridge.cancel(event.id, { branch: event.branch })) {
-        blockedAuto = event.id; pendingIntent = null; autoStep = null; autoAge = 0;
+        blockedAuto = event.id; autoStep = null; autoAge = 0;
         speech.stop(); audio.cancel(); syncBridge(); reflectEnding();
         caption(['lift', 'roll'].includes(event.id)
           ? 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.'
@@ -356,10 +443,11 @@ const speech = createMemorySpeech();
 const music = createMemoryMusic();
 setMute(muted);
 $('start').addEventListener('click', () => start());
-$('next-action')?.addEventListener('click', requestStoryAction);
+// Any tap on the game counts as the child doing something (the gold arrow waits for hesitation).
+$('game').addEventListener('pointerdown', noteInput);
 $('again').addEventListener('click', () => start({ restart: true }));
 $('cancel-choice').addEventListener('click', cancelChoice);
-$('camera').addEventListener('click', () => { audio.unlock(); music.unlock(); setCameraMode(cameraState().mode === 'overview' ? 'auto' : 'overview'); });
+$('camera').addEventListener('click', () => { audio.unlock(); music.unlock(); if (cameraState().mode !== 'overview') cancelChoice(); setCameraMode(cameraState().mode === 'overview' ? 'auto' : 'overview'); });
 $('restart').addEventListener('click', () => start({ restart: true }));
 $('sound').addEventListener('click', () => { setMute(!muted); if (!muted) { audio.unlock(); music.unlock(); } });
 $('pause').addEventListener('click', () => openDialog('pause-dialog'));
@@ -382,6 +470,10 @@ window.__memory = {
   state: () => game.getState(), basket: () => basketCount, stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
   targets: () => world?.getTargets(),
   bridge: () => bridge.getState(), task: chooseTask,
+  // The playthrough's child: tap an obstacle, pick a friend from the bubbles, tap along (the same paths as the buttons).
+  ask: chooseTask, choose: pickFriend, tap: chooseTask,
+  who: () => ({ open: whoVisible(), asking: bridge.getState().asking, candidates: [...bridge.getState().candidates] }),
+  story: () => currentStory(), idle: () => idleTime,
   camera: setCameraMode,
   start: () => start(), pick: choose, nest: chooseNest,
   restart: () => start({ restart: true }),

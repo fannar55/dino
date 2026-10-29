@@ -113,7 +113,75 @@ export const GESTURES = Object.freeze({
   } },
   // Arrived home: a small settling sink.
   settle: { duration: .7, apply(rig, t, energy) { crouch(rig, .012 * rig.length * energy * bump(t, 0, 1)); } },
+  // "Hver getur þetta?": the whole group bounces on the spot, nose up, tail going, every one of them keen.
+  eager: { duration: 1.3, apply(rig, t, energy) {
+    const L = rig.length;
+    crouch(rig, .03 * L * energy * (bump(t, 0, .1) + bump(t, .3, .4) + bump(t, .6, .7) + bump(t, .9, 1)));
+    rig.pose.position.y += .075 * L * energy * (arc(t, .08, .32) + arc(t, .38, .62) + arc(t, .68, .92));
+    tuckLegs(rig, .02 * L * energy * (arc(t, .1, .3) + arc(t, .4, .6) + arc(t, .7, .9)));
+    rig.pose.rotation.z += .1 * energy * bump(t, .05, .95);
+    turnHead(rig, Z, .2 * energy * bump(t, .05, .95));
+    turnHead(rig, Y, .28 * energy * wave(t, 1.5) * bump(t, 0, 1));
+    openJaw(rig, .24 * bump(t, .15, .85));
+    rig.rotateInRoot(rig.tail, Y, .55 * energy * wave(t, 5) * bump(t, 0, 1));
+  } },
+  // The wrong friend at an obstacle, the Þríhyrna way: a big jump up at it, a miss, and down on its bottom.
+  'fail-triceratops': { duration: 1.9, apply(rig, t, energy) {
+    const L = rig.length, sit = ramp(t, .5, .6) * (1 - ramp(t, 1.42, 1.72));
+    crouch(rig, .07 * L * energy * bump(t, 0, .14) + .06 * L * energy * bump(t, .56, .7) + .04 * L * energy * bump(t, 1.7, 1.9));
+    rig.pose.position.y += .34 * L * energy * arc(t, .12, .56) - .035 * L * energy * sit;
+    rig.pose.rotation.z += energy * (.34 * bump(t, .1, .5) + .5 * sit);
+    tuckLegs(rig, .05 * L * energy * arc(t, .14, .52));
+    openJaw(rig, .36 * bump(t, .14, .5) + .18 * bump(t, .7, 1.3));
+    // Sat down, dazed: a slow wobble of the head and a blink.
+    const dazed = bump(t, .62, 1.5);
+    turnHead(rig, Y, .3 * energy * dazed * wave(t, 2.6));
+    turnHead(rig, Z, -.12 * energy * dazed);
+    rig.pose.rotation.x += .08 * energy * dazed * wave(t, 1.3);
+    rig.rotateInRoot(rig.tail, Y, .4 * energy * dazed * wave(t, 3));
+    if (rig.crossed(.6)) rig.lids?.blink.rest(.5, .08);
+    if (rig.crossed(1.3)) rig.lids?.blink.rest(0, .2);
+  } },
+  // The Kambeðla way: she squeezes under, her plates catch, she wriggles, and rolls over onto her side.
+  'fail-stegosaurus': { duration: 2.1, apply(rig, t, energy) {
+    const L = rig.length, duck = ramp(t, 0, .12) * (1 - ramp(t, .72, .8)), stuck = bump(t, .12, .74), roll = ramp(t, .72, .9) * (1 - ramp(t, 1.52, 1.86));
+    crouch(rig, .1 * L * energy * duck);
+    rig.pose.rotation.z += -.12 * energy * duck;
+    rig.pose.rotation.x += .1 * energy * stuck * wave(t, 6) + 1.2 * energy * roll;
+    rig.pose.position.y += .09 * L * energy * roll + .04 * L * energy * bump(t, .86, 1);
+    for (const pair of rig.legs) rig.offsetInRoot(pair.leg, .025 * L * energy * (stuck + roll) * wave(t, 7, pair.front ? 0 : .5), .02 * L * energy * roll * Math.abs(wave(t, 7)));
+    rig.rotateInRoot(rig.tail, Y, .5 * energy * (stuck + .6 * roll) * wave(t, 4.5));
+    turnHead(rig, Y, .3 * energy * stuck * wave(t, 3.5));
+    openJaw(rig, .28 * bump(t, .2, .7) + .2 * bump(t, .9, 1.5));
+    if (rig.crossed(.9)) rig.lids?.blink.rest(.6, .1);
+    if (rig.crossed(1.5)) rig.lids?.blink.rest(0, .2);
+  } },
+  // The Þórseðla way: she tries, her long neck goes round and round, and she sways, dizzy (the stars are fx).
+  'fail-brontosaurus': { duration: 2, apply(rig, t, energy) {
+    const L = rig.length, dizzy = bump(t, .08, .86), circle = Math.PI * 2 * 2.2 * t;
+    turnHead(rig, Y, .45 * energy * dizzy * Math.sin(circle));
+    turnHead(rig, Z, .22 * energy * dizzy * Math.cos(circle));
+    rig.pose.rotation.x += .14 * energy * dizzy * Math.sin(circle * .5);
+    rig.pose.rotation.y += .08 * energy * dizzy * Math.cos(circle * .5);
+    crouch(rig, .02 * L * energy * dizzy * (1 + Math.sin(circle)));
+    // Shakes it off at the end.
+    turnHead(rig, Y, .4 * energy * bump(t, .86, 1) * wave(t, 6));
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * dizzy * Math.sin(circle * .7));
+    if (rig.crossed(.1)) rig.lids?.blink.rest(.55, .15);
+    if (rig.crossed(.86)) rig.lids?.blink.rest(0, .1);
+  } },
+  // Working hard on a tap: squats a little, trembles with the effort, squeezes the eyes, pushes up.
+  strain: { duration: .7, apply(rig, t, energy) {
+    const L = rig.length, effort = bump(t, 0, 1);
+    crouch(rig, .025 * L * energy * effort);
+    rig.offsetInRoot(rig.body, .004 * L * energy * effort * wave(t, 9), 0, .005 * L * energy * effort * wave(t, 11, .3));
+    rig.pose.rotation.x += .03 * energy * effort * wave(t, 12);
+    rig.rotateInRoot(rig.tail, Z, .2 * energy * effort);
+    if (rig.crossed(.05)) rig.lids?.blink.rest(.7, .06);
+    if (rig.crossed(.8)) rig.lids?.blink.rest(0, .15);
+  } },
 });
+export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', stegosaurus: 'fail-stegosaurus', brontosaurus: 'fail-brontosaurus' });
 
 /** The older gesture names the adventure and the world still use. */
 export const GESTURE_ALIASES = Object.freeze({ reveal: 'peek', greet: 'hop', mismatch: 'oops', nuzzle: 'nuzzle', delight: 'cheer', settle: 'settle' });

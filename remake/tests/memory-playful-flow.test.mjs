@@ -46,7 +46,7 @@ test('Mosi names the obstacle, never the friend who can do it, and there is no b
     assert.equal(next.label, undefined, 'the gold "Áfram" button is gone');
   }
   assert.equal(nextStoryStep(memory, state({ unlocked: all, asking: 'branch' }), ready).prompt, 'Hver getur þetta?');
-  assert.equal(nextStoryStep(memory, state({ unlocked: all, failing: 'triceratops' }), ready).prompt, 'Kannski einhver annar?');
+  assert.equal(nextStoryStep(memory, state({ unlocked: all, failing: 'triceratops' }), ready).kind, 'action', 'a wrong friend is having a go');
 });
 test('an active action or final arrival cannot enqueue another action', () => {
   for (const active of ['lift', 'roll', 'cross', 'lay', 'finish']) {

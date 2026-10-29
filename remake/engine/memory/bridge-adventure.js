@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BRIDGE, RIVER, createBridgeProps } from './bridge-props.js';
 import { MARSH, WALKWAY, STAGING, DESTINATION, createBuildProps } from './build-props.js';
 import { canDepart, sampleTravel } from './travel-traffic.js';
+import { GESTURES, FAIL_GESTURES } from './gestures.js';
 
 const Y=new THREE.Vector3(0,1,0),HELPERS=['triceratops','brontosaurus','stegosaurus'];
 const HOLD_CROWNS=[[-7.15,-4.4],[-5.35,-3.3]],HOLD_YAW=.6;
@@ -14,10 +15,14 @@ const FINAL_PARKING=[[-.8,-25.3],[2.8,-25.7],[.3,-28.3],[4,-28.5],[8,-25.3],[8,-
 const TIMES={approach:1.8,reach:.45,lift:.95,brace:.4,roll:2.4,settle:.5,release:.65,return:1.6,pickup:.55,place:1.65};
 const CALM={approach:.5,reach:.15,lift:.3,brace:.15,roll:.7,settle:.2,release:.2,return:.5,pickup:.2,place:.65};
 const smooth=value=>{const t=THREE.MathUtils.clamp(value,0,1);return t*t*(3-2*t)};
+// A wrong friend's try: where the pair stands to have a go at each obstacle (centre, facing yaw, the two
+// members this far apart across it) and how it gets there and back: straight hops, lifted over closed leaves.
+const FAIL_SPOTS={branch:{centre:[-2.9,-1.75],yaw:1.1,apart:1.5},bark:{centre:[5.1,-15.6],yaw:0,apart:2.1}};
+const FAIL_HOP={reach:2.4,speed:5.6,arc:.2,min:.6,max:1.6};
 // The authored nose landmark sits behind the leading beak skin in a push.
 export const logPushOffset=vertical=>-Math.sqrt(Math.max(.1,BRIDGE.radius**2-vertical**2))-.145;
 
-export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWalk,onwardTravel=false}){
+export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWalk,onwardTravel=false,hopOver=()=>0}){
   const props=createBridgeProps({scene,heightAt}),build=createBuildProps({scene,heightAt});
   const pairs=Object.fromEntries(HELPERS.map(species=>[species,{members:[],ready:false}]));
   let snapshot={unlocked:[],selected:null},action=null,held=false,built=false,atStaging=false,boardwalkBuilt=false,visited=false;
@@ -82,15 +87,63 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   }
   function setState(value){snapshot={...value,unlocked:[...(value.unlocked??[])]}}
   function bindPair(species,members){if(!pairs[species]||pairs[species].ready||members.length!==2)return;pairs[species]={members,ready:true}}
-  function start(id){
+  /** Start a task. With `beats` the lift waits at each step for beat() (a tap of the child), emitting beat-wait. */
+  function start(id,{beats=0}={}){
     if(action||visited)return false;
     const allowed={lift:pairs.brontosaurus.ready&&!held&&!built&&!atStaging&&snapshot.selected==='brontosaurus',lower:held&&!atStaging&&snapshot.selected==='brontosaurus',roll:pairs.triceratops.ready&&held&&!built&&snapshot.selected==='triceratops',cross:built&&!atStaging&&allReady(),lay:atStaging&&!boardwalkBuilt&&allReady()&&snapshot.selected==='stegosaurus',finish:atStaging&&boardwalkBuilt&&allReady()};
     if(!allowed[id])return false;
     const species=id==='roll'?'triceratops':id==='lay'?'stegosaurus':'brontosaurus';
-    action={id,species,phase:'',age:0,elapsed:0,routes:[],crossed:[],startLift:lift,panel:0,duration:0};
+    action={id,species,phase:'',age:0,elapsed:0,routes:[],crossed:[],startLift:lift,panel:0,duration:0,beats:id==='lift'?Math.max(0,Math.floor(beats)||0):0,beatsGiven:0,beatIndex:0};
     if(id==='lay'){buildPhase('collect');return true}if(id==='finish'){phase('finish');return true}if(id==='cross'&&!held){phase('cross');return true}
     if(id==='lower'||id==='cross'){phase('release');pairActors('brontosaurus').forEach(a=>a.release?.({duration:timing().release}));events.push({type:'branch-lower'});return true}
     phase('approach');return true;
+  }
+  /** One beat of the child's tap-along: the next step of the lift (queued if the last one is still moving). */
+  function beat(){if(!action?.beats||action.beatsGiven>=action.beats)return false;action.beatsGiven++;return true}
+  // The wrong pair has a go: hops to the obstacle, its species' funny failure, hops back to where it stood.
+  function failSpots(species,target){
+    const actors=pairActors(species);
+    if(target==='log'){const yaw=props.pivot.rotation.y-Math.PI/2;return actors.map((actor,member)=>{const p=props.logContact(TRI_CONTACTS[member],-2.3);return{point:ground(p.x,p.z),yaw}})}
+    const spot=FAIL_SPOTS[target];if(!spot)return null;
+    const across=new THREE.Vector3(Math.sin(spot.yaw),0,Math.cos(spot.yaw));
+    return actors.map((actor,member)=>{const p=new THREE.Vector3(spot.centre[0],0,spot.centre[1]).addScaledVector(across,(member?.5:-.5)*spot.apart*(actor.lengthFactor??1));return{point:ground(p.x,p.z),yaw:spot.yaw}});
+  }
+  /** A wrong friend's go at `target`; emits fail-try, then fail-done when the pair is back. Returns its timing. */
+  function startFail(species,target){
+    if(action||visited||!pairs[species]?.ready||!FAIL_GESTURES[species])return null;
+    const spots=failSpots(species,target);if(!spots)return null;
+    const actors=pairActors(species),hops=actors.map((actor,member)=>{const from=actor.root.position.clone(),to=spots[member].point,distance=Math.hypot(to.x-from.x,to.z-from.z);
+      return{actor,from,fromYaw:actor.root.rotation.y,to,yaw:spots[member].yaw,count:Math.max(2,Math.round(distance/FAIL_HOP.reach)),duration:THREE.MathUtils.clamp(distance/FAIL_HOP.speed,FAIL_HOP.min,FAIL_HOP.max),hop:-1}});
+    const run=Math.max(...hops.map(h=>h.duration)),attempt=GESTURES[FAIL_GESTURES[species]].duration;
+    action={id:'fail',species,target,phase:'run',age:0,elapsed:0,duration:run,routes:[],crossed:[],hops,fired:new Set()};
+    actors.forEach(a=>{a.clearLook?.();a.clearSupport?.();a.walk?.(false)});
+    return{run,attempt,back:run,total:run*2+attempt};
+  }
+  function hopAlong(h,t,back){
+    const actor=h.actor,from=back?h.to:h.from,to=back?h.from:h.to,run=Math.min(1,t),phase=h.count*run,hop=Math.min(h.count-1,Math.floor(phase));
+    if(hop!==h.hop){if(h.hop>=0){fx?.emit?.('poof',actor.root.position,{count:3,ring:.3});events.push({type:'footstep',surface:'soil',pan:0})}h.hop=hop;actor.gesture?.('hop')}
+    const x=THREE.MathUtils.lerp(from.x,to.x,run),z=THREE.MathUtils.lerp(from.z,to.z,run);
+    actor.root.position.set(x,heightAt(x,z)+.04+(run<1?FAIL_HOP.arc*Math.sin(Math.PI*(phase-hop)):0),z);actor.root.position.y+=hopOver(actor.root.position);
+    const travel=Math.atan2(-(to.z-from.z),to.x-from.x),wanted=run>.75?(back?h.fromYaw:h.yaw):travel,d=Math.atan2(Math.sin(wanted-actor.root.rotation.y),Math.cos(wanted-actor.root.rotation.y));
+    actor.root.rotation.y+=d*(reducedMotion?1:Math.min(1,.25+run*.3));
+  }
+  function updateFail(){
+    const p=Math.min(1,action.age/Math.max(.01,action.duration)),fire=(key,at,fn)=>{if(p>=at&&!action.fired.has(key)){action.fired.add(key);fn()}};
+    if(action.phase==='run'||action.phase==='back'){action.hops.forEach(h=>hopAlong(h,action.age/h.duration,action.phase==='back'));
+      if(action.age>=action.duration){
+        action.hops.forEach(h=>{h.hop=-1;h.actor.root.position.copy(action.phase==='back'?h.from:h.to);h.actor.root.rotation.y=action.phase==='back'?h.fromYaw:h.yaw});
+        if(action.phase==='back'){const{species,target}=action;action=null;pairActors(species).forEach(a=>a.setMotion?.('idle'));events.push({type:'fail-done',species,target});return}
+        action.phase='try';action.age=0;action.duration=GESTURES[FAIL_GESTURES[action.species]].duration;
+        action.hops.forEach(h=>h.actor.gesture?.(FAIL_GESTURES[action.species]));events.push({type:'fail-try',species:action.species,target:action.target});
+      }
+      return;
+    }
+    // The try: the moment each species' failure lands gets its puff, its stars or its dust.
+    const heads=()=>action.hops.map(h=>h.actor.getNosePosition?.()??h.actor.root.position.clone().add(new THREE.Vector3(0,1,0)));
+    if(action.species==='triceratops')fire('bump',.31,()=>{action.hops.forEach(h=>fx?.emit?.('poof',h.actor.root.position,{count:8,ring:.4}));events.push({type:'fail-bump',species:action.species})});
+    if(action.species==='stegosaurus')fire('roll',.42,()=>{action.hops.forEach(h=>burst('dust',h.actor.root.position));events.push({type:'fail-bump',species:action.species})});
+    if(action.species==='brontosaurus'){fire('stars',.06,()=>heads().forEach(p=>fx?.emit?.('stars',p,{count:8})));fire('stars2',.45,()=>heads().forEach(p=>fx?.emit?.('stars',p,{count:6})))}
+    if(action.age>=action.duration){action.phase='back';action.age=0;action.duration=Math.max(...action.hops.map(h=>h.duration))}
   }
   function finishCrossRoute(points,member){
     const actor=allActors()[member],end=ground(...STAGE_PARKING[member]);
@@ -180,6 +233,14 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(next==='contact'){action.contactStarts=pairActors('brontosaurus').map(a=>a.root.position.clone());action.duration=reducedMotion?.25:.65;pairActors('brontosaurus').forEach(a=>a.reachWalk?.({duration:.1}))}
     if(next==='withdraw'){action.contactStarts=pairActors('brontosaurus').map(a=>a.root.position.clone());action.duration=reducedMotion?.25:.65;pairActors('brontosaurus').forEach(a=>a.reachWalk?.({duration:.1}))}
     if(next==='lift'){pairActors('brontosaurus').forEach(a=>a.lift?.({duration:timing().lift}));events.push({type:'branch-lift'});burst('leaves',pairActors('brontosaurus').reduce((p,a)=>p.add(a.getSupportPosition()),new THREE.Vector3()).multiplyScalar(.5))}
+    if(next==='beat-wait'){action.duration=Infinity;events.push({type:'beat-wait',id:action.id,index:action.beatIndex})}
+    if(next==='beat-lift'){
+      // One step of the lift (a third, for three beats): the necks push, both strain, dust at their feet, leaves fall.
+      const index=action.beatIndex,brontos=pairActors('brontosaurus');action.duration=timing().lift*.6;action.liftFrom=index/action.beats;action.liftTo=(index+1)/action.beats;
+      brontos.forEach(a=>{a.lift?.({duration:action.duration,amount:action.liftTo});a.gesture?.('strain');burst('dust',a.root.position)});
+      burst('leaves',brontos.reduce((p,a)=>p.add(a.getSupportPosition()),new THREE.Vector3()).multiplyScalar(.5).add(new THREE.Vector3(0,.4,0)));
+      if(!index)events.push({type:'branch-lift'});events.push({type:'beat',id:action.id,index});
+    }
     if(next==='brace'){action.contactStarts=pairActors('triceratops').map(a=>a.root.position.clone());pairActors('triceratops').forEach(a=>{a.walk?.(false);a.setMotion('brace')})}
     if(next==='roll'){pairActors('triceratops').forEach(a=>a.setMotion('push'));events.push({type:'log-roll'});burst('dust',props.pivot.position)}
     if(next==='settle'){built=true;roll=1;props.setLog(1);correctTriContact();action.contactStarts=pairActors('triceratops').map(a=>a.root.position.clone());pairActors('triceratops').forEach(a=>a.setMotion('brace'));events.push({type:'bridge-land'});burst('dust',props.deckPoint(0));burst('ripple',new THREE.Vector3(1.5,RIVER.waterY+.02,-6))}
@@ -234,7 +295,10 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     // Keeping this clock on dt prevents resumed dust or ripples from skipping.
     if(dt>0)time+=dt;props.update(time,reducedMotion);build.update(time,reducedMotion);
     if(action&&dt>0){action.age+=dt;action.elapsed+=dt;const p=Math.min(1,action.age/Math.max(.01,action.duration));
-      if(action.id==='lay')updateBuild(p,dt);
+      if(action.id==='fail')updateFail();
+      else if(action.phase==='beat-wait'){if(action.beatsGiven>action.beatIndex)phase('beat-lift')}
+      else if(action.phase==='beat-lift'){lift=THREE.MathUtils.lerp(action.liftFrom,action.liftTo,smooth(p));if(p>=1){action.beatIndex++;if(action.beatIndex>=action.beats)complete();else phase('beat-wait')}}
+      else if(action.id==='lay')updateBuild(p,dt);
       else if(['approach','return','cross','finish'].includes(action.phase))updateTravelGroup(dt);
       else{
         if(action.phase==='lift')lift=smooth(p);if(action.phase==='release')lift=action.startLift*(1-smooth(p));
@@ -247,14 +311,20 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
             // Stay by the bridge they just made. The story controller leads the
             // group onward instead of sending the builders back to their nest.
             parkedWork.add('triceratops');pairActors('triceratops').forEach(a=>a.setPushYaw?.(0));complete();
-          }else{const next={reach:'contact',contact:'lift',lift:null,brace:'roll',roll:'settle',settle:'return',release:action.id==='cross'?'cross':built?'return':'withdraw',withdraw:'return'}[action.phase];if(next)phase(next);else complete()}
+          }else{const next={reach:'contact',contact:action.beats?'beat-wait':'lift',lift:null,brace:'roll',roll:'settle',settle:'return',release:action.id==='cross'?'cross':built?'return':'withdraw',withdraw:'return'}[action.phase];if(next)phase(next);else complete()}
         }
       }
     }
-    const current=targets();for(const[id,marker]of Object.entries(props.markers)){const target=current.find(t=>t.id===id);marker.visible=target.enabled&&Boolean(snapshot.selected||snapshot.suggestedSpecies||id==='staging'||id==='grove');marker.position.copy(target.point);marker.position.y=heightAt(marker.position.x,marker.position.z)+.08}
+    // Only the next obstacle sways and glows (its gold ring, its wood warming, now and then a few sparks).
+    const next=!action&&!visited?snapshot.next:null,swing=reducedMotion?0:1,beam=.5+.5*Math.sin(time*2.6);
+    props.swayBranch(next==='branch'&&!held?.016*swing*Math.sin(time*1.7):0,next==='branch'&&!held?.008*swing*Math.sin(time*1.1+.6):0);
+    if(!built&&(!action||action.id==='fail'))props.log.rotation.x=next==='log'?.03*swing*Math.sin(time*2.2):0;
+    props.setGlow('branch',next==='branch'?.45+.55*beam:0);props.setGlow('log',next==='log'?.45+.55*beam:0);
+    if(next&&dt>0&&Math.floor(time/1.4)!==Math.floor((time-dt)/1.4)){const at=targets().find(t=>t.id===next);if(at?.enabled)fx?.emit?.('hint',at.point.clone().add(new THREE.Vector3(0,-.4,0)),{count:5})}
+    const current=targets();for(const[id,marker]of Object.entries(props.markers)){const target=current.find(t=>t.id===id);marker.visible=target.enabled&&(id===next||id==='staging'||id==='grove');marker.position.copy(target.point);marker.position.y=heightAt(marker.position.x,marker.position.z)+.08}
   }
   function afterActors(dt){
-    const supporting=held||action?.id==='lift'&&['lift'].includes(action.phase)||['release','withdraw'].includes(action?.phase),crowns=pairActors('brontosaurus').map(a=>a.getSupportPosition()),rest=HOLD_CROWNS.map(([x,z])=>new THREE.Vector3(x,2.7,z));
+    const supporting=held||action?.id==='lift'&&['lift','beat-wait','beat-lift'].includes(action.phase)||['release','withdraw'].includes(action?.phase),crowns=pairActors('brontosaurus').map(a=>a.getSupportPosition()),rest=HOLD_CROWNS.map(([x,z])=>new THREE.Vector3(x,2.7,z));
     const spring=built?1-lift:0,supports=built?rest.map((p,i)=>supporting&&crowns[i]?crowns[i].clone().lerp(p,spring):p):supporting?crowns:[];
     props.setBranch(built?1+.8*spring:lift,supports);
     if(dt>0&&action?.id==='roll'&&['brace','roll'].includes(action.phase))correctTriContact(action.phase==='brace'?smooth(action.age/action.duration):1);
@@ -266,11 +336,14 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     }
     if(dt>0&&action?.id==='lay'&&['pickup','carry','straighten'].includes(action.phase))updateSupportedCargo(Math.min(1,action.age/Math.max(.01,action.duration)));
   }
-  function targets(){const busy=Boolean(action),selected=snapshot.selected??snapshot.suggestedSpecies;return[
-    {type:'task',id:'branch',point:new THREE.Vector3(-6.5,2.55,-4.9),enabled:!busy&&!atStaging&&pairs.brontosaurus.ready&&selected==='brontosaurus'&&(!built||held)},
-    {type:'task',id:'log',point:props.logContact(2.7,0).add(new THREE.Vector3(0,1.1,0)),enabled:!busy&&!built&&held&&pairs.triceratops.ready&&selected==='triceratops'},
+  // The obstacles the child may tap: the branch until it is held, the log until it is a bridge (before the
+  // branch is up it only gets Mosi's "not yet"), the bark at the marsh; staging and grove only to retry a
+  // crossing that found its way blocked. `next` is the one that glows.
+  function targets(){const busy=Boolean(action);return[
+    {type:'task',id:'branch',point:new THREE.Vector3(-3.6,1.55,-3.1),enabled:!busy&&!atStaging&&!built&&!held,next:snapshot.next==='branch'},
+    {type:'task',id:'log',point:props.logContact(2.7,0).add(new THREE.Vector3(0,1.1,0)),enabled:!busy&&!built&&!atStaging,next:snapshot.next==='log'},
     {type:'task',id:'staging',point:ground(6.8,-12,1.3),enabled:!busy&&built&&!atStaging&&allReady()},
-    {type:'task',id:'bark',point:ground(7,-15.6,1.2),enabled:!busy&&atStaging&&!boardwalkBuilt&&allReady()&&selected==='stegosaurus'},
+    {type:'task',id:'bark',point:ground(7,-15.6,1.2),enabled:!busy&&atStaging&&!boardwalkBuilt&&allReady(),next:snapshot.next==='bark'},
     {type:'task',id:'grove',point:ground(4.5,-26,1.5),enabled:!busy&&boardwalkBuilt&&!visited&&allReady()},
   ]}
   function ownsPair(species){return HELPERS.includes(species)&&(parkedWork.has(species)||atStaging||visited||['cross','finish'].includes(action?.id)||action?.species===species||species==='brontosaurus'&&held)}
@@ -285,11 +358,8 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(action?.id==='lift'||action?.id==='lower')return cue('branch',[-4.8,1.1,-3.8],[[-10.5,3.8,-6],[-1.3,2.8,-3],[-10.2,1.2,.6],[-2.1,1.2,.6]]);
     if(visited)return cue('grove',[4.5,.5,-26.4],[[-1.1,2,-23],[10,2,-23],[-1,2,-29.8],[10,2,-29.8]],'wide');
     if(atStaging&&boardwalkBuilt)return cue('boardwalk-ready',[4.5,.6,-20],[[-1.5,2.4,-10.5],[10.5,2.4,-10.5],[-1,2,-28.5],[10,2,-28.5]],'wide');
-    if(atStaging&&snapshot.selected==='stegosaurus')return cue('bark-supply',[6,.6,-15.6],[[3.7,2.3,-10.8],[10.5,2.3,-10.8],[2.5,.3,-18.3],[10.5,.3,-18.3]]);
     if(atStaging)return cue('staging',[4.5,.5,-17],[[-1.5,2.4,-10.5],[10.5,2.4,-10.5],[1.7,1,-23],[8,1,-23]],'wide');
     if(built&&allReady())return cue('bridge-ready',[1.4,.6,-4],[[-8,3.3,8],[9.5,2.3,8],[-8,3.3,-15.3],[10.5,2.3,-15.3]],'wide');
-    if(snapshot.selected==='brontosaurus'&&pairs.brontosaurus.ready)return cue('branch',[-4.8,1.1,-3.8],[[-10.5,3.8,-6],[-1.3,2.8,-3],[-10.2,1.2,.6],[-2.1,1.2,.6]]);
-    if(snapshot.selected==='triceratops'&&held&&pairs.triceratops.ready)return cue('rolling-log',[-1.5,.9,-6],[[-10.5,3.0,-12.1],[5.8,3.0,-12.1],[-10.5,2.4,.6],[5.8,2.4,.6]]);
     return cue('glade',[-1.3,.5,.5],[[-8,2.7,-5.5],[6.8,2.1,-3.8],[-8,1.8,8],[7.5,2,8]],'wide');
   }
   function actorDebug(actor,index){actor.root.updateMatrixWorld(true);const feet=[];actor.model.traverse(b=>{if(b.isBone&&/Foot/.test(b.name))feet.push({name:b.name,position:b.getWorldPosition(new THREE.Vector3()).toArray()})});return{id:`${actor.species}-${index}`,position:actor.root.position.toArray(),carrySupport:actor.getCarrySupportPosition?.().toArray(),feet}}
@@ -306,6 +376,6 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     routes:action?[...action.routes,...(action.readyTravel?[action.readyTravel]:[])].map(t=>({species:t.actor.species,member:t.member,started:Boolean(t.started),finished:Boolean(t.finished),reservation:t.reservation,age:t.age,waiting:t.waiting,startedAt:t.startedAt,finishedAt:t.finishedAt,delay:t.delay,entryAt:t.entryAt,duration:t.duration,finalYaw:t.finalYaw,headings:t.route.points.map(p=>p.heading??null),points:t.route.points.map(p=>p.toArray())})):[],
   }}
   function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
-  return{setState,bindPair,start,update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
+  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
 }
 

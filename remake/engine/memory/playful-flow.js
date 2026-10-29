@@ -10,7 +10,7 @@ const ACTIVE = {
 };
 export function nextStoryStep(memory, bridge, ready = {}) {
   if (bridge.active) return { key: `doing-${bridge.active}`, kind: 'action', prompt: ACTIVE[bridge.active] };
-  if (bridge.failing) return { key: 'trying', kind: 'action', prompt: 'Kannski einhver annar?' };
+  if (bridge.failing) return { key: 'trying', kind: 'action', prompt: 'Sjáum hvað gerist!' };
   if (bridge.visited) return { key: 'home', kind: 'celebrate', prompt: 'Öll komumst við! Vel gert!' };
   if (bridge.asking) return { key: `who-${bridge.asking}`, kind: 'choose', target: bridge.asking, prompt: 'Hver getur þetta?' };
   const has = species => bridge.unlocked.includes(species);

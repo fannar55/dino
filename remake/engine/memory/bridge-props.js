@@ -126,9 +126,16 @@ export function createBridgeProps({scene,heightAt}){
       colourPart(leafGeometry.clone().applyMatrix4(dummy.matrix),['#688a3e','#77974b','#5d7d38'][i%3],parts);
     }
     const g=mergeGeometries(parts);parts.forEach(part=>part.dispose());
-    if(!branchMesh){branchMesh=make(g,branchMaterial,branchGroup);branchMesh.name='Lifandi grein og lauf';}else{branchMesh.geometry.dispose();branchMesh.geometry=g;}
+    if(!branchMesh){branchMesh=make(g,branchMaterial,branchGroup);branchMesh.name='Lifandi grein og lauf';branchMesh.position.copy(branchPivot).negate();}else{branchMesh.geometry.dispose();branchMesh.geometry=g;}
   }
+  // The branch waiting to be lifted sways from where it leaves the trunk: its tip bobs and swings a little.
+  const branchPivot=branchAnchor.clone().add(new THREE.Vector3(.35,3.35,-.2)),bobAxis=new THREE.Vector3(-.353,0,.936),swayQ=new THREE.Quaternion();
+  branchGroup.position.copy(branchPivot);
+  function swayBranch(bob=0,swing=0){branchGroup.quaternion.setFromAxisAngle(bobAxis,bob).multiply(swayQ.setFromAxisAngle(Y,swing));}
   setBranch(0);
+  // The next obstacle glows: a warm light in its own wood (the branch's and the log's materials are their own).
+  const glowColour=new THREE.Color('#ffc65c');
+  function setGlow(id,amount=0){const m=id==='branch'?branchMaterial:id==='log'?bark:null;if(!m)return;m.emissive.copy(glowColour);m.emissiveIntensity=Math.max(0,amount)*.32;}
 
   const ringGeometry=geo(new THREE.RingGeometry(.7,.75,40));ringGeometry.rotateX(-Math.PI/2);const markerMaterial=new THREE.MeshBasicMaterial({color:'#f4d88a',transparent:true,opacity:.65,depthWrite:false});materials.add(markerMaterial);
   const markers=Object.fromEntries(['branch','log','staging','bark','grove'].map(id=>{const marker=make(ringGeometry,markerMaterial,root,false);marker.visible=false;return[id,marker]}));
@@ -136,7 +143,7 @@ export function createBridgeProps({scene,heightAt}){
   function logContact(t,normalOffset=-1.0){return new THREE.Vector3(t,-.1,normalOffset).applyAxisAngle(Y,pivot.rotation.y).add(pivot.position);}
   function deckPoint(s,out=new THREE.Vector3()){out.copy(pointAlong(s));if(s<0){const t=THREE.MathUtils.clamp((s+1.7)/1.7,0,1);out.y=THREE.MathUtils.lerp(heightAt(out.x,out.z)+.04,deckY+.04,t*t*(3-2*t));}else if(s>BRIDGE.length){const t=1-THREE.MathUtils.clamp((s-BRIDGE.length)/1.7,0,1);out.y=THREE.MathUtils.lerp(heightAt(out.x,out.z)+.04,deckY+.04,t*t*(3-2*t));}else out.y=deckY+.04;return out;}
   setLog(0);
-  return {root,pivot,log,markers,setLog,setBranch,logContact,deckPoint,deckY,finalYaw,initialYaw,pointAlong,update(time,reduced){flowAt(reduced?0:time);waterFlow.update(time,reduced)},getBranchEnd:lift=>new THREE.Vector3(.3,.55+lift*2,-2.8),getBranchCollision:()=>({branch:{points:branchCurve.getPoints(36).map(p=>p.toArray()),radius:.15},trunk:{points:trunkCurve.getPoints(12).map(p=>p.toArray()),radius:.43}}),dispose(){root.removeFromParent();branchMesh?.geometry.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
+  return {root,pivot,log,markers,setLog,setBranch,swayBranch,setGlow,logContact,deckPoint,deckY,finalYaw,initialYaw,pointAlong,update(time,reduced){flowAt(reduced?0:time);waterFlow.update(time,reduced)},getBranchEnd:lift=>new THREE.Vector3(.3,.55+lift*2,-2.8),getBranchCollision:()=>({branch:{points:branchCurve.getPoints(36).map(p=>p.toArray()),radius:.15},trunk:{points:trunkCurve.getPoints(12).map(p=>p.toArray()),radius:.43}}),dispose(){root.removeFromParent();branchMesh?.geometry.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }
 
 

@@ -41,12 +41,14 @@
         <button id="pause" class="round-control" type="button" aria-label="Gera hlé"><span aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M10 6v16M18 6v16"/></svg></span><small>Hlé</small></button>
       </nav>
     </header>
+    <div id="who" class="who" role="group" aria-label="Hver getur þetta?" hidden><p class="who-title" aria-hidden="true">Hver getur þetta?</p><div class="who-row"></div></div>
+    <div id="beat-word" class="beat-word" aria-hidden="true"></div>
     <div id="overview-hint" class="overview-hint" hidden><svg aria-hidden="true"><use href="#berry-mark"/></svg><div>Allt ævintýrið <span>Veldu „Nær“ til að leika áfram</span></div></div>
     <section id="coach" class="coach" hidden aria-label="Mosi leiðbeinir">
       <div class="coach-portrait"><img src="./assets/eitt/mosi.webp" alt="Mosi" width="112" height="112"><svg aria-hidden="true"><use href="#leaf-mark"/></svg></div>
       <div class="coach-message"><span class="speaker">Mosi</span><p id="caption" role="status" aria-live="polite">Veldu lauf og finndu tvo eins unga.</p>
         <div id="holding" class="holding" role="status" hidden><span aria-hidden="true">↑</span> Þórseðlurnar halda greininni</div>
-        <div class="coach-actions"><button id="next-action" class="adventure-action" type="button" hidden><span id="next-action-label">Áfram!</span><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 14h17m-7-7 7 7-7 7"/></svg></button><button id="cancel-choice" type="button" class="choice-back" hidden aria-label="Til baka"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m11 7-7 7 7 7m-7-7h12a7 7 0 0 1 7 7"/></svg><span>Aftur</span></button></div>
+        <div class="coach-actions"><button id="cancel-choice" type="button" class="choice-back" hidden aria-label="Til baka"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="m11 7-7 7 7 7m-7-7h12a7 7 0 0 1 7 7"/></svg><span>Aftur</span></button></div>
       </div>
     </section>
     <section id="ending" class="ending" hidden aria-label="Leik lokið">
@@ -72,8 +74,8 @@
   </dialog>
   <dialog id="help-dialog" class="journal-panel">
     <span class="eyebrow">HJÁLPUMST AÐ</span><h2>Opnum leiðina saman.</h2>
-    <ol><li>Opnaðu lauf. Finndu tvo eins vini!</li><li>Fylgdu Mosa og gullna merkinu. Þórseðlurnar lyfta greininni.</li><li>Þríhyrnurnar ýta bolnum. Þegar brúin er tilbúin fara vinirnir saman yfir.</li><li>Kambeðlurnar byggja yfir mýrina. Þá ganga allir í berjalundinn!</li></ol>
-    <p>Gullni takkinn hjálpar þér áfram. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.</p>
+    <ol><li>Opnaðu lauf. Finndu tvo eins vini!</li><li>Ýttu á það sem glóir. Hver getur þetta? Veldu vin!</li><li>Þríhyrnurnar ýta bolnum. Þegar brúin er tilbúin fara vinirnir saman yfir.</li><li>Kambeðlurnar byggja yfir mýrina. Þá ganga allir í berjalundinn!</li></ol>
+    <p>Gullna örin bendir á næsta verkefni. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.</p>
     <button class="primary" data-resume type="button">Aftur í feluleikinn</button>
   </dialog>
   <script type="module" src="./engine/memory/game.js"></script>
