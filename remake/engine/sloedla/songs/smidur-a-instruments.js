@@ -16,8 +16,8 @@
 /** How loud each plays: a note of her phrase that plays by itself, a note the child taps (the loudest), a stray tap. */
 export const LEVELS = {
   stalpanna: { play: 0.2, tapped: 0.48, soft: 0.06 },
-  ukulele: { play: 0.34, tapped: 1, soft: 0.1 },
-  surdo: { play: 0.34, tapped: 0.48, soft: 0.12 },
+  ukulele: { play: 0.34, tapped: 1.05, soft: 0.1 },
+  surdo: { play: 0.34, tapped: 0.52, soft: 0.12 },
 };
 
 const levelOf = (name, { soft = false, tapped = false } = {}) => (soft ? LEVELS[name].soft : tapped ? LEVELS[name].tapped : LEVELS[name].play);
@@ -156,7 +156,8 @@ export const INSTRUMENTS = {
       const length = soft ? 0.3 : Math.min(1.1, Math.max(0.3, dur + 0.22)); // the hand damps it after its note
       const { volume, nodes } = outlet(-0.3, into, 0.22);
       const g = volume.gain;
-      g.setValueAtTime(level, at);
+      g.setValueAtTime(0, at);
+      g.linearRampToValueAtTime(level, at + 0.0015); // the nail leaves the string: a blink, not a click
       g.setValueAtTime(level, at + length - 0.06);
       g.exponentialRampToValueAtTime(0.0001, at + length);
       // the body: a little warmth under the string, and the edge of a nylon string
@@ -174,9 +175,9 @@ export const INSTRUMENTS = {
       nodes.push(body, edge);
       const bright = tapped ? 2 : soft ? 0 : 1;
       const sources = [];
-      // two strings a hair apart (a strum spreads), and for a tapped note the octave over them
+      // two strings a hair apart (a strum spreads); a tapped note is strummed hard across the octave under and over them
       const plucks = [[f, 0, 1], [f * 1.003, 0.011, 0.5]];
-      if (tapped) plucks.push([f * 2, 0.018, 0.3]);
+      if (tapped) plucks.push([f / 2, 0.006, 0.4], [f * 2, 0.018, 0.3]);
       for (const [pitch, delay, share] of plucks) {
         const { buffer, rate } = string(pitch, bright);
         const source = context.createBufferSource();
@@ -206,13 +207,15 @@ export const INSTRUMENTS = {
       // its second mode, short
       tone({ frequency: f * 1.59, at, length: 0.28, level: level * 0.22, attack: 0.003, decay: 0.07, hold: 0.3, scoop: 1.3, bend: 0.05, pan, dest: into });
       // its octave, for a small speaker
-      tone({ frequency: f * 2, type: 'triangle', at, length: 0.24, level: level * (tapped ? 0.5 : 0.3), attack: 0.003, decay: 0.06, hold: 0.3, scoop: 1.35, bend: 0.05, pan, dest: into });
+      tone({ frequency: f * 2, type: 'triangle', at, length: 0.26, level: level * (tapped ? 0.75 : 0.3), attack: 0.003, decay: 0.07, hold: 0.3, scoop: 1.35, bend: 0.05, pan, dest: into });
       // the felt beater's thump
       puff({ at, length: 0.09, level: level * 0.5, frequency: 900, end: 180, type: 'lowpass', q: 0.7, pan, attack: 0.002, dest: into });
       if (tapped) {
-        // a knock two octaves up and the slap of the stick on the rim
-        tone({ frequency: f * 4, type: 'triangle', at, length: 0.12, level: level * 0.42, attack: 0.001, decay: 0.035, hold: 0.25, scoop: 1.4, bend: 0.03, pan, dest: into });
-        puff({ at, length: 0.03, level: level * 0.5, frequency: 1900, q: 1.1, pan, attack: 0.001, dest: into });
+        // the stick hits the skin and the rim with it, as the lead surdo does on a big beat: a knock two octaves up, a ring of the
+        // metal rim (not on the note's partials), and a slap, which a tablet's speaker plays (the boom itself is too low for it)
+        tone({ frequency: f * 4, type: 'triangle', at, length: 0.16, level: level * 0.85, attack: 0.001, decay: 0.045, hold: 0.3, scoop: 1.4, bend: 0.03, pan, dest: into });
+        tone({ frequency: f * 6.3, at, length: 0.1, level: level * 0.22, attack: 0.001, decay: 0.03, hold: 0.25, pan, dest: into });
+        puff({ at, length: 0.045, level: level * 0.95, frequency: 2100, end: 1400, q: 1.1, pan, attack: 0.001, dest: into });
       }
     },
 };
