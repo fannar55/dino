@@ -16,6 +16,7 @@ const pairs = { triceratops: { name: 'Þríhyrnur', label: 'Þríhyrnuparið' },
 // Mosi's lines that also go up in his bubble when a script says them.
 const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift']);
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
+const PUSH_WORDS = ['Einn!', 'Tveir!', 'ÝTA!']; // the log's three pushes, as Mosi says them ("Einn, tveir, ÝTA!")
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
 const game = createMemoryGame(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {});
 const audio = createMemoryAudio();
@@ -125,7 +126,7 @@ function launchAction(action) {
   // The crossing and the walk to the grove: they start on their own once every friend is home.
   const ready = world?.getPairReadiness?.() ?? {};
   if (!bridge.getState().unlocked.every(species => ready[species])) return false;
-  if (!bridge.can(action) || !world.startBridgeTask(action)) return false;
+  if (!bridge.can(action) || !(action === 'cross' ? world.playCross() : world.startBridgeTask(action))) return false;
   bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
   if (action === 'cross' || action === 'finish') speech.queue(action, { delay: .15 });
@@ -169,7 +170,7 @@ function pickFriend(species) {
     if (!world.startFail(species, target)) bridge.failDone();
   } else {
     syncBridge();
-    const started = result.action === 'lift' ? world.playBranch() : world.startBridgeTask(result.action);
+    const started = result.action === 'lift' ? world.playBranch() : result.action === 'roll' ? world.playRoll() : world.startBridgeTask(result.action);
     if (!started) bridge.cancel(result.action);
   }
   // Mosi's bubble follows at once (the script's shots hold the camera, so guidance() would wait).
@@ -414,6 +415,7 @@ function frame(timestamp) {
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'branch-lift') audio.branchLift();
       else if (event.type === 'beat' && event.id === 'lift') { showWord('Upp!'); audio.branchLift(); }
+      else if (event.type === 'beat' && event.id === 'roll') { showWord(PUSH_WORDS[event.index] ?? PUSH_WORDS.at(-1)); audio.logRoll(); }
       else if (event.type === 'fail-bump') audio.bonk();
       else if (event.type === 'fail-done') failDone();
       else if (event.type === 'branch-lower') audio.branchLower();

@@ -12,7 +12,7 @@ import { prepareCharacter, releaseCharacter, updateCharacterLods } from '../char
 import { createForest } from '../../world/forest/forest.js';
 import { createLeafResources, makeLeaf, poseLeaf, LEAF_SCALE, createContactResources, makeContact, createClearingFloor, createGladeScenery } from './world-props.js';
 import { createBridgeAdventure } from './bridge-adventure.js';
-import { bridgeValley, refineBridgeGround, riverDistance, RIVER, MARSH } from './bridge-props.js';
+import { bridgeValley, refineBridgeGround, riverDistance, RIVER, MARSH, BRIDGE } from './bridge-props.js';
 import { createMemoryShadowLods } from './world-character-shadows.js';
 import { createCameraDirector } from './camera-director.js';
 import { createWorldFx } from './world-fx.js';
@@ -23,6 +23,10 @@ import { createSceneRunner } from './scenes.js';
 import { createMosiPuppet } from './mosi-puppet.js';
 import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js';
 import { branchScene, failScene } from './scenes/branch.js';
+import { rollScene } from './scenes/roll.js';
+import { crossScene } from './scenes/cross.js';
+import { sampleTravel } from './travel-traffic.js';
+import { measureWalkGait } from './walk-gait.js';
 import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
 
 // Eight leaves in a 4 x 2 grid turned toward the search camera: the four of a row run across the screen (each `across`
@@ -38,8 +42,10 @@ const CELLS = leafGrid({ centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, dee
 const NESTS = [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
-// Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
+// Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X). He is MOSI_HALF metres from his middle to
+// his nose (and about as far to his tail) when the friends walk behind him.
 const MOSI_SPOT = Object.freeze({ x: 3, z: 2.8, heading: 90 });
+const MOSI_HALF = 2.1;
 // The search view: low and from the side, as in the approved mock. Landscape looks in from the south-east
 // with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
 // fill the width, the rows fill the height and Mosi watches from the far end.
@@ -125,7 +131,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const renderTargets = [];
   const deferredEvents = [];
   let bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false };
-  const homeNav = createHomeNavigation({ destinations: () => cells.filter(cell => cell.transfer).map(cell => ({ actor: cell.actor, point: cell.transfer.end, yaw: cell.transfer.endYaw })), heightAt: (x, z) => world.heightAt(x, z), riverDistance, actors: () => [...babyActors.filter(actor => adventure?.isBusy() ? !adventure.hasTravelReservation(actor) : !cells.some(cell => cell.actor === actor && cell.transfer && !cell.transfer.waiting)), ...(mosi && !bridgeSnapshot.atStaging ? [mosi] : [])], leaves: () => cells.filter(cell => !matchedStatus(cell.status)).map(cell => ({ x: cell.root.position.x, z: cell.root.position.z })), objects: () => {
+  const homeNav = createHomeNavigation({ destinations: () => cells.filter(cell => cell.transfer).map(cell => ({ actor: cell.actor, point: cell.transfer.end, yaw: cell.transfer.endYaw })), heightAt: (x, z) => world.heightAt(x, z), riverDistance, actors: () => [...babyActors.filter(actor => adventure?.isBusy() ? !adventure.hasTravelReservation(actor) : !cells.some(cell => cell.actor === actor && cell.transfer && !cell.transfer.waiting)), ...(mosi && !bridgeSnapshot.atStaging && !mosiWalk && !mosiAcross ? [mosi] : [])], leaves: () => cells.filter(cell => !matchedStatus(cell.status)).map(cell => ({ x: cell.root.position.x, z: cell.root.position.z })), objects: () => {
     const debug = adventure?.getDebug(), collision = debug?.collision; if (!collision) return gladeScenery?.navigationObjects ?? [];
     const measured = bridgeCollisionObjects(debug);
     const matrix = new THREE.Matrix4().fromArray(collision.logMatrix), a = new THREE.Vector3(-collision.logLength / 2, 0, 0).applyMatrix4(matrix), b = new THREE.Vector3(collision.logLength / 2, 0, 0).applyMatrix4(matrix);
@@ -135,6 +141,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   } });
   const actorFrustum = new THREE.Frustum(), actorView = new THREE.Matrix4(), actorSphere = new THREE.Sphere();
   let cheerAge = 100, bonkAge = 100, lastStats = {}, reducedMotion = false;
+  // Mosi's walk over the bridge (the crossing moves him; nothing else does), where he stands now, and his walk clip's own speed.
+  let mosiWalk = null, mosiAcross = false, mosiPlace = { ...MOSI_SPOT }, mosiPace = 0;
 
   // Mosi's standing place: his posed bounds (scaled rig, x forward) turned to his heading.
   function mosiPoints() {
@@ -195,10 +203,16 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       look(point) { mosi.lookAt(point.clone(), { weight: .6, maxAngle: 28 }); },
       gesture: name => mosiPuppet.gesture(name),
       head: () => mosi.headPosition(new THREE.Vector3()),
+      body: () => mosi.root.position.clone().add(new THREE.Vector3(0, 1.3, 0)),
+      // The crossing's way for him (bridge-adventure leaderRoute), at the friends' pace.
+      walk: plan => startMosiWalk(plan),
+      walking: () => Boolean(mosiWalk),
     },
     planMeeting,
     say: line => deferredEvents.push({ type: 'scene-say', line }),
     pair: species => nests.find(nest => nest.species === species)?.members ?? [],
+    friends: () => nests.flatMap(nest => nest.members),
+    homeOf: species => (nests.find(nest => nest.species === species)?.root.position ?? new THREE.Vector3()).clone(),
     pairGesture: (species, name) => { for (const actor of stage.pair(species)) actor.gesture?.(name); },
     // The obstacles' side of a task script (scenes/branch.js): the bridge adventure moves the friends.
     task: {
@@ -209,6 +223,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       abort() { if (taskScript != null) scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ duration: .6 }); },
       point: id => adventure.getTargets().find(target => target.id === id)?.point.clone() ?? new THREE.Vector3(),
       branch: () => adventure.branchPoints(),
+      // The log (scenes/roll.js, scenes/cross.js): has it landed, its two ends, and how far along the bridge a point is.
+      isBuilt: () => adventure.isBuilt(),
+      logNear: () => adventure.logNear(),
+      logEnd: progress => adventure.logEnd(progress),
+      alongBridge: point => (point.x - BRIDGE.near[0]) * BRIDGE.axis[0] + (point.z - BRIDGE.near[1]) * BRIDGE.axis[1],
+      // The bridge is built: the Þórseðlur let the branch go and walk home.
+      lowerBranch() { const started = adventure.start('lower'); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
     },
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
@@ -234,6 +255,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const side = new THREE.Vector3(travel.z, 0, -travel.x).normalize();
       // Halfway to the search camera's side keeps the bridge log and the branch out of the foreground.
       return (side.dot(front) < 0 ? side.negate() : side).lerp(front, .5).normalize();
+    },
+    // A camera side that sees the face of a friend turned `yaw`: in front of it, turned at most `turn` toward the
+    // search camera's side (three-quarters), so the obstacle it faces is not between them.
+    faceOn(yaw, turn = .8) {
+      const ahead = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), search = camera.position.clone().sub(cameraDirector.focus()).setY(0).normalize();
+      const angle = Math.atan2(ahead.z * search.x - ahead.x * search.z, ahead.x * search.x + ahead.z * search.z);
+      return ahead.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.clamp(angle, -turn, turn));
     },
   };
 
@@ -310,6 +338,40 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     else { const travelYaw = Math.atan2(-heading.z, heading.x); actor.root.rotation.y = t < .7 ? turnToward(dash.fromYaw, travelYaw, smooth(t / .25)) : turnToward(travelYaw, dash.yaw, smooth((t - .7) / .3)); }
     if (t >= 1) { actor.root.position.copy(dash.to); actor.root.rotation.y = dash.yaw; actor.walk?.(false); cell.dash = null; }
   }
+  // Mosi walks the crossing at the friends' pace: along the way's points (their heights too, so he goes up the ramp and
+  // over the log), the body pitched with the slope, his walk clip at the pace; at the end he turns to his place's heading.
+  function startMosiWalk(plan) {
+    if (mosiWalk || mosiAcross || !plan?.points?.length) return false;
+    const lengths = [0];
+    for (let i = 1; i < plan.points.length; i++) lengths.push(lengths[i - 1] + plan.points[i].distanceTo(plan.points[i - 1]));
+    if (!mosiPace) {
+      const feet = []; mosi.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); });
+      mosiPace = (measureWalkGait(mosi.model, mosi.root, mosi.clips.get('walk'), feet)?.naturalSpeed ?? 2) * mosi.root.scale.x;
+    }
+    const speed = adventure.crossSpeed();
+    mosiWalk = { route: { points: plan.points, lengths, total: lengths.at(-1) }, speed, yaw: plan.yaw, age: 0, settle: 0, deckAt: lengths[Math.max(0, plan.deckStart)] ?? 0, onDeck: false, stopped: false };
+    mosi.lookAt(null); mosi.play('walk', { fade: .25, timeScale: THREE.MathUtils.clamp(speed / Math.max(.1, mosiPace), .5, 3) });
+    return true;
+  }
+  function updateMosiWalk(dt) {
+    const walk = mosiWalk; if (!walk || !(dt > 0)) return;
+    walk.age += dt;
+    const { route } = walk, distance = Math.min(route.total, walk.age * walk.speed), at = d => sampleTravel(route, THREE.MathUtils.clamp(d / Math.max(.01, route.total), 0, 1));
+    if (distance < route.total) {
+      const here = at(distance);
+      mosi.root.position.set(here.point.x, here.point.y - .04, here.point.z);
+      mosi.root.rotation.y = turnToward(mosi.root.rotation.y, here.yaw, reducedMotion ? 1 : 1 - Math.exp(-dt / .14));
+      mosi.root.rotation.z = Math.atan2(at(distance + 1.1).point.y - at(distance - 1.1).point.y, 2.2);
+      walk.onDeck ||= distance >= walk.deckAt;
+      return;
+    }
+    if (!walk.stopped) { walk.stopped = true; mosi.root.rotation.z = 0; mosi.play('idle', { fade: .35 }); }
+    walk.settle += dt;
+    mosi.root.rotation.y = turnToward(mosi.root.rotation.y, walk.yaw, reducedMotion ? 1 : 1 - Math.exp(-dt / .12));
+    if (walk.settle < .45) return;
+    mosi.root.rotation.y = walk.yaw; mosiWalk = null; mosiAcross = true;
+    mosiPlace = { x: mosi.root.position.x, z: mosi.root.position.z, heading: -THREE.MathUtils.radToDeg(walk.yaw) };
+  }
   const sceneIds = new Map();
   let taskScript = null;
   function playFor(cell, lines) { if (sceneIds.has(cell)) scenes.cancel(sceneIds.get(cell)); sceneIds.set(cell, scenes.play(lines)); }
@@ -336,9 +398,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     renderer.setPixelRatio(Math.min(q.pixelRatio * resolution, globalThis.devicePixelRatio || 1, q.maxPixelRatio));
     renderer.setSize(width, height, false);
     camera.fov = SHOT.fov; cameraDirector.setViewport(width, height);
-    if (mosi) mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading);
-    // The contact shade is long along its z: lay it along Mosi's body.
-    if (mosiShade && mosi) { mosiShade.position.copy(mosi.root.position).add(new THREE.Vector3(0, .095, 0)); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2; }
+    if (mosi && !mosiWalk) mosi.place(mosiPlace.x, mosiPlace.z, mosiPlace.heading);
     lighting.focus(new THREE.Vector3(-.7, .6, -3.6), 15);
     forest?.update(0, time);
     updateTargets();
@@ -450,6 +510,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
 
   function resetBoard(cards) {
     scenes.cancelAll(); sceneIds.clear(); taskScript = null; mosiPuppet?.cancel();
+    // Mosi back at his place in the glade, standing.
+    mosiWalk = null; mosiAcross = false; mosiPlace = { ...MOSI_SPOT };
+    if (mosi) { mosi.root.rotation.z = 0; mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading); mosi.play('idle', { fade: 0, timeScale: reducedMotion ? 0 : 1 }); }
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
     for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(1); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
@@ -722,7 +785,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     lighting.focus(cameraDirector.focus(), cameraDirector.mode() === 'overview' ? 22 : 15);
     cheerAge += delta; bonkAge += delta;
     if (cheerAge > 1.2 && cheerAge - delta <= 1.2) mosi.openEyes();
-    mosiPuppet.update(delta); mosi.update(delta);
+    updateMosiWalk(actionDelta); mosiPuppet.update(delta); mosi.update(delta);
     wind.update(reducedMotion ? 0 : time); sky.update(reducedMotion ? 0 : time, camera);
     gladeScenery.update(time, reducedMotion);
     scene.updateMatrixWorld();
@@ -736,8 +799,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       actor.model.visible = !actor.root.visible || actorFrustum.intersectsSphere(actorSphere);
     }
     actorSphere.center.copy(mosi.root.position); actorSphere.center.y += 1.2; actorSphere.radius = 4.2;
-    mosi.model.visible = !bridgeSnapshot.atStaging && actorFrustum.intersectsSphere(actorSphere);
-    mosiShade.scale.set(bridgeSnapshot.atStaging ? 0 : 2.6, 1, bridgeSnapshot.atStaging ? 0 : 3.8); mosiShade.updateMatrixWorld();
+    mosi.model.visible = actorFrustum.intersectsSphere(actorSphere);
+    // The contact shade is long along its z: it lies along Mosi's body wherever he stands (not under him on the log).
+    const grounded = mosi.root.position.y < world.heightAt(mosi.root.position.x, mosi.root.position.z) + .3;
+    mosiShade.position.set(mosi.root.position.x, world.heightAt(mosi.root.position.x, mosi.root.position.z) + .095, mosi.root.position.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2;
+    mosiShade.scale.set(grounded ? 2.6 : 0, 1, grounded ? 3.8 : 0); mosiShade.updateMatrixWorld();
     contactMeshes.forEach((mesh, index) => contactBatch.setMatrixAt(index, mesh.matrixWorld)); contactBatch.instanceMatrix.needsUpdate = true;
     const remainingCovers = cells.filter(cell => cell.vanish < 1);
     for (const batch of leafBatches) {
@@ -837,7 +903,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       pair.actors = (pair.actors ?? members.map((actor, index) => ({ id: `${species}-${index}`, position: actor.root.position.toArray() }))).map((value, index) => {
         const actor = members[index]; if (!actor) return value;
         const pose = actor.getDebugState?.();
-        return { ...value, motion: pose?.motion ?? null, gesture: pose?.gesture ?? null, screen: project(actor.root.position), headScreen: project(actor.getNosePosition?.() ?? actor.root.position.clone().add(new THREE.Vector3(0, 1, 0))) };
+        return { ...value, motion: pose?.motion ?? null, gesture: pose?.gesture ?? null, gait: pose?.gait ?? null, screen: project(actor.root.position), headScreen: project(actor.getNosePosition?.() ?? actor.root.position.clone().add(new THREE.Vector3(0, 1, 0))) };
       });
     }
     const characterLod = babyActors.filter(actor => actor.root.visible).map(actor => {
@@ -852,7 +918,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     });
     const cameraState = cameraDirector.getDebug();
     const collisionActors = collision ? babyActors.filter(actor => actor.root.visible).map(actor => actorCollisionSnapshot(actor, actorIds.get(actor))) : [];
-    if (collision && !bridgeSnapshot.atStaging) collisionActors.push(actorCollisionSnapshot(mosi, 'mosi'));
+    if (collision) collisionActors.push(actorCollisionSnapshot(mosi, 'mosi'));
     const collisionObjects = (collision ? cells.filter(cell => !cell.moved && cell.open < .2 && !cell.actor?.root.visible) : []).map(cell => {
       const matrix = cell.leaf.matrixWorld, e = matrix.elements, axes = [[e[0], e[1], e[2]], [e[4], e[5], e[6]], [e[8], e[9], e[10]]], lengths = axes.map(axis => Math.hypot(...axis));
       axes.forEach((axis, i) => axis.forEach((value, j) => { axis[j] = value / lengths[i]; }));
@@ -860,7 +926,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     });
     if (collision) collisionObjects.push(...gladeScenery.collisionObjects);
     const homeNavigation = { ...homeNav.getDebug(), queued: cells.filter(cell => cell.transfer?.waiting).map(cell => cell.id), active: cells.filter(cell => cell.transfer && !cell.transfer.waiting).map(cell => cell.id) };
-    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), mosi: mosiPuppet?.current ?? null }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
+    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), mosi: mosiPuppet?.current ?? null, mosiWalk: mosiWalk ? { onDeck: mosiWalk.onDeck, distance: +Math.min(mosiWalk.route.total, mosiWalk.age * mosiWalk.speed).toFixed(2), total: +mosiWalk.route.total.toFixed(2) } : null, mosiAcross, mosiPosition: mosi.root.position.toArray() }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, surprise: cell.surprise ? { age: cell.surprise.age, popped: cell.surprise.popped, done: cell.surprise.done } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
@@ -877,6 +943,27 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     playBranch() {
       if (cameraDirector.mode() !== 'auto' || adventure.isBusy()) return false;
       taskScript = scenes.play(branchScene(stage));
+      if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
+      return true;
+    },
+    /** The log with the child's taps (scenes/roll.js), then the branch let go. False when it cannot start now. */
+    playRoll() {
+      if (cameraDirector.mode() !== 'auto' || adventure.isBusy()) return false;
+      taskScript = scenes.play(rollScene(stage));
+      if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
+      return true;
+    },
+    /** Mosi leads all six over the bridge (scenes/cross.js). False when it cannot start now (it is tried again later). */
+    playCross() {
+      if (!cameraDirector.isInteractive() || adventure.isBusy() || mosiWalk) return false;
+      const plan = mosiAcross ? null : adventure.leaderRoute(mosi.root.position.clone()), speed = adventure.crossSpeed();
+      let timing = { lead: null, deck: 0, mid: 1.6, arrive: 3 };
+      if (plan) {
+        const lengths = [0]; for (let i = 1; i < plan.points.length; i++) lengths.push(lengths[i - 1] + plan.points[i].distanceTo(plan.points[i - 1]));
+        const middle = plan.points.findIndex(point => stage.task.alongBridge(point) >= BRIDGE.length / 2);
+        timing = { lead: { at: lengths[plan.entry] / speed, half: MOSI_HALF }, deck: lengths[plan.deckStart] / speed, mid: lengths[middle] / speed, arrive: lengths.at(-1) / speed + .45 };
+      }
+      taskScript = scenes.play(crossScene(stage, plan, timing));
       if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }
       return true;
     },

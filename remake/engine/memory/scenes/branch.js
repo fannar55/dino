@@ -58,17 +58,18 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
 
 /**
  * A wrong friend has a go (bridge-adventure startFail: hop there, its species' failure, hop back; `timing` is what
- * it returned): a wide cut on the run, a close cut on the failure, a cut to Mosi laughing "Kannski einhver annar?",
+ * it returned, with the way the pair faces there): a wide cut on the run, a close cut on the failure from in front
+ * of them, three-quarters (stage.faceOn), so their faces show, a cut to Mosi laughing "Kannski einhver annar?",
  * then the glide back to the glade, where the bubbles come back.
  */
 export function failScene(stage, species, target, timing) {
   const pair = () => stage.pair(species), point = () => stage.task.point(target);
-  const start = centre(pair().map(actor => actor.root.position.clone()));
+  const start = centre(pair().map(actor => actor.root.position.clone())), front = stage.faceOn(timing.yaw ?? 0, .65);
   const laughAt = timing.run + timing.attempt * .62;
   return [
     { at: 0, shot: { kind: 'wide', subjects: () => [...bodies(pair()), point(), start], cut: true },
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
-    { at: timing.run, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], cut: true },
+    { at: timing.run, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: 22, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },
     { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },

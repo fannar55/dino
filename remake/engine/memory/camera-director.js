@@ -18,6 +18,8 @@ export function createCameraDirector({ camera, overview, fallback }) {
   let destination = null, age = 1, duration = 1, moving = false, intent = 'glade', phase = 'idle', lastPoints = [], lastDirection = null;
   // Shot layer: the pose a shot holds, where its glide started, and the glide back after release().
   let shot = null, returning = null, nudging = null, shaking = null, clock = 0;
+  // Every new framing on screen counts: a shot (cut or glide) and each way back to the cue (QA: the timeline's cuts).
+  let takes = 0;
   const shotPosition = new THREE.Vector3(), shotTarget = new THREE.Vector3(), offset = new THREE.Vector3();
 
   function solve(description) {
@@ -112,7 +114,7 @@ export function createCameraDirector({ camera, overview, fallback }) {
     if (!shot.active) {
       // The shot starts on the first game tick after it was asked for: a paused camera never moves.
       const solved = solveShot(shot.options); if (!solved) { shot = null; return; }
-      shot.active = true; shot.age = 0;
+      shot.active = true; shot.age = 0; takes++;
       shot.fromPosition = camera.position.clone(); shot.fromTarget = currentTarget.clone();
       shot.to = solved; returning = null;
       if (shot.cut || reduced) { shotPosition.copy(solved.position); shotTarget.copy(solved.target); shot.age = shot.duration; return; }
@@ -155,7 +157,7 @@ export function createCameraDirector({ camera, overview, fallback }) {
     setCue(value) { cue = value || null; request(); },
     setMode(value) { if (!['auto', 'overview'].includes(value)) return false; mode = value; request(); return true; },
     setReducedMotion(value) { reduced = Boolean(value); },
-    reset() { mode = 'auto'; cue = null; cueKey = ''; initialized = false; shot = returning = nudging = shaking = null; request(true); },
+    reset() { mode = 'auto'; cue = null; cueKey = ''; initialized = false; shot = returning = nudging = shaking = null; takes = 0; request(true); },
     update,
     /** Hold a scripted shot until release(). `subjects` gives the points to frame (re-read every frame for 'follow'). */
     shot({ kind = 'wide', subjects, cut = true, duration = 1.05, front, elevation, scale } = {}) {
@@ -167,7 +169,7 @@ export function createCameraDirector({ camera, overview, fallback }) {
     release({ cut = false, duration = 1.05 } = {}) {
       if (!shot) return false;
       const from = shot.active ? { position: shotPosition.clone(), target: shotTarget.clone() } : null;
-      shot = null;
+      shot = null; if (from) takes++;
       returning = from && !cut && !reduced ? { position: from.position, target: from.target, age: 0, duration: Math.max(.05, Number(duration) || 1.05) } : null;
       compose();
       return true;
@@ -179,6 +181,6 @@ export function createCameraDirector({ camera, overview, fallback }) {
     isHeld: held,
     mode: () => mode,
     focus: () => currentTarget.clone(),
-    getDebug: () => ({ mode, intent, phase, moving, settled: !moving && !held(), shot: shot ? shot.options.kind : null, held: held(), returning: Boolean(returning), nudging: Boolean(nudging), worldInputEnabled: mode === 'auto' && !moving && !held(), progress: duration ? Math.min(1, age / duration) : 1, position: camera.position.toArray(), target: currentTarget.toArray(), destinationPosition: destination?.position.toArray() ?? [], destinationTarget: destination?.target.toArray() ?? [], framingPoints: lastPoints }),
+    getDebug: () => ({ mode, intent, phase, moving, settled: !moving && !held(), shot: shot ? shot.options.kind : null, takes, held: held(), returning: Boolean(returning), nudging: Boolean(nudging), worldInputEnabled: mode === 'auto' && !moving && !held(), progress: duration ? Math.min(1, age / duration) : 1, position: camera.position.toArray(), target: currentTarget.toArray(), destinationPosition: destination?.position.toArray() ?? [], destinationTarget: destination?.target.toArray() ?? [], framingPoints: lastPoints }),
   };
 }

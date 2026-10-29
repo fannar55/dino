@@ -85,7 +85,8 @@ export function createBridgeAdventure() {
     complete(id) {
       if (active === null || id !== active) return false;
       if (id === 'lift') branch = 'held';
-      if (id === 'roll') bridgeBuilt = true;
+      // The bridge is built: the Þórseðlur let the branch go (it rests on its own), so they are free again.
+      if (id === 'roll') { bridgeBuilt = true; branch = 'down'; }
       if (id === 'cross') { branch = 'down'; atStaging = true; }
       if (id === 'lay') boardwalkBuilt = true;
       if (id === 'finish') visited = true;
