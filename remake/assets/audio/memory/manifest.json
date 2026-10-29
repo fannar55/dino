@@ -68,5 +68,35 @@
     "src": "assets/audio/memory/finish.mp3",
     "duration": 4.01,
     "mouth": "6ffeea05ebd90004db00039ebadd984000000000003dfffdcdec005bcdf8eebb70a84000000000000"
+  },
+  "who": {
+    "src": "assets/audio/memory/who.mp3",
+    "duration": 1.61,
+    "mouth": "09bcfcdb40afd0fdfc488400000000000"
+  },
+  "other": {
+    "src": "assets/audio/memory/other.mp3",
+    "duration": 2.01,
+    "mouth": "07ffd0308dddc90ce00e98dfdca40000000000000"
+  },
+  "together": {
+    "src": "assets/audio/memory/together.mp3",
+    "duration": 2.01,
+    "mouth": "09fb008eefdfe6ed0c8003dcffda6300000000000"
+  },
+  "push": {
+    "src": "assets/audio/memory/push.mp3",
+    "duration": 2.73,
+    "mouth": "3dfeddca300000007cfeda85300000000cfe009ec50000000000000"
+  },
+  "findFirst": {
+    "src": "assets/audio/memory/findFirst.mp3",
+    "duration": 2.25,
+    "mouth": "0000fddedddbbceecdcf000cf94000000000000000000"
+  },
+  "notYet": {
+    "src": "assets/audio/memory/notYet.mp3",
+    "duration": 2.57,
+    "mouth": "009fd500000eebadddffeece60000df8cedefedb830000000000"
   }
 }
