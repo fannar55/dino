@@ -38,6 +38,16 @@ test('the finished walkway leads to the grove without an extra selection step', 
   const next = nextStoryStep(memory, state({ unlocked: all, bridgeBuilt: true, atStaging: true, boardwalkBuilt: true }), ready);
   assert.equal(next.action, 'finish'); assert.equal(next.automatic, true);
 });
+test('Mosi names the obstacle, never the friend who can do it, and there is no button to press', () => {
+  const names = /þórseðl|þríhyrn|kambeðl/i;
+  for (const bridge of [state({ unlocked: all }), state({ unlocked: all, branch: 'held' }), state({ unlocked: all, bridgeBuilt: true, atStaging: true }), state({ unlocked: all, branch: 'held', asking: 'log' }), state({ unlocked: all, failing: 'stegosaurus' })]) {
+    const next = nextStoryStep(memory, bridge, ready);
+    assert.doesNotMatch(next.prompt, names, next.key);
+    assert.equal(next.label, undefined, 'the gold "Áfram" button is gone');
+  }
+  assert.equal(nextStoryStep(memory, state({ unlocked: all, asking: 'branch' }), ready).prompt, 'Hver getur þetta?');
+  assert.equal(nextStoryStep(memory, state({ unlocked: all, failing: 'triceratops' }), ready).prompt, 'Kannski einhver annar?');
+});
 test('an active action or final arrival cannot enqueue another action', () => {
   for (const active of ['lift', 'roll', 'cross', 'lay', 'finish']) {
     const next = nextStoryStep(memory, state({ unlocked: all, active, boardwalkBuilt: true }), ready);

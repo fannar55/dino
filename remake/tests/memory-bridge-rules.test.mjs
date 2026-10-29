@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createBridgeAdventure, BRIDGE_HELPERS, BRIDGE_ACTIONS } from '../engine/memory/bridge-rules.js';
 
 const HELPERS = ['triceratops', 'brontosaurus', 'stegosaurus'];
-const ACTIONS = ['lift', 'lower', 'roll', 'cross', 'lay', 'finish'];
-const empty = () => ({ unlocked: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, phase: 'locked' });
+const ACTIONS = ['lift', 'roll', 'cross', 'lay', 'finish'];
+const empty = () => ({ unlocked: [], free: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, next: 'branch', asking: null, candidates: [], failing: null, phase: 'locked' });
 function run(game, id) {
   assert.equal(game.can(id), true, id + ' is available'); assert.equal(game.choose(id), true);
   assert.equal(game.getState().active, id);
@@ -20,7 +20,7 @@ function lay(game) { stage(game); game.select('stegosaurus'); run(game, 'lay'); 
 function allFound() { const game = createBridgeAdventure(); HELPERS.forEach(species => game.unlock(species)); return game; }
 const permutations = values => values.length === 1 ? [values] : values.flatMap((value, index) => permutations(values.filter((_, i) => i !== index)).map(rest => [value, ...rest]));
 
-test('three helpers and six actions begin locked with no construction or arrival progress', () => {
+test('three helpers and five actions begin locked with no construction or arrival progress', () => {
   assert.deepEqual([...BRIDGE_HELPERS].sort(), [...HELPERS].sort());
   assert.deepEqual([...BRIDGE_ACTIONS].sort(), [...ACTIONS].sort());
   const game = createBridgeAdventure(); assert.deepEqual(game.getState(), empty());
@@ -39,13 +39,13 @@ test('construction requires its own selected species and previous stage', () => 
   assert.equal(game.getState().active, null, 'holding is idle, so memory can continue');
   for (const species of HELPERS) {
     game.select(null); game.select(species);
-    assert.equal(game.can('roll'), species === 'triceratops'); assert.equal(game.can('lower'), species === 'brontosaurus');
+    assert.equal(game.can('roll'), species === 'triceratops'); assert.equal(game.can('lift'), false, 'a held branch is not lifted again');
     assert.equal(game.can('lay'), false, 'bark cannot be placed from the near bank');
   }
   game.select(null); game.select('triceratops'); run(game, 'roll'); run(game, 'cross');
   for (const species of HELPERS) {
     game.select(null); game.select(species); assert.equal(game.can('lay'), species === 'stegosaurus');
-    for (const action of ['lift', 'lower', 'roll', 'cross', 'finish']) assert.equal(game.can(action), false);
+    for (const action of ['lift', 'roll', 'cross', 'finish']) assert.equal(game.can(action), false);
   }
 });
 
@@ -71,11 +71,11 @@ for (const order of permutations(HELPERS)) test('complete chain after discovery 
   for (const species of HELPERS) assert.equal(game.select(species), false);
 });
 
-test('branch can be lowered and reopened before rolling or lowered safely after building', () => {
-  const game = allFound(); lift(game); game.select('brontosaurus'); run(game, 'lower');
-  game.select('triceratops'); assert.equal(game.choose('roll'), false);
-  lift(game); game.select('triceratops'); run(game, 'roll'); game.select('brontosaurus'); run(game, 'lower');
-  assert.equal(game.getState().bridgeBuilt, true); assert.equal(game.can('cross'), true);
+test('the branch stays held from the lift until the crossing puts it down', () => {
+  const game = allFound(); lift(game);
+  for (const species of HELPERS) { game.select(null); game.select(species); assert.equal(game.can('lift'), false); }
+  game.select(null); game.select('triceratops'); run(game, 'roll');
+  assert.equal(game.getState().branch, 'held'); assert.equal(game.getState().bridgeBuilt, true); assert.equal(game.can('cross'), true);
   assert.equal(game.can('lift'), false, 'a built bridge does not need another lift');
   run(game, 'cross'); assert.equal(game.getState().branch, 'down');
 });
@@ -93,7 +93,6 @@ test('immutable snapshots and selection cannot advance construction or hidden ti
 for (const interrupted of ACTIONS) test('restart during ' + interrupted + ' clears all progress and rejects late completion', () => {
   const game = allFound();
   if (interrupted === 'lift') game.select('brontosaurus');
-  else if (interrupted === 'lower') { lift(game); game.select('brontosaurus'); }
   else if (interrupted === 'roll') { lift(game); game.select('triceratops'); }
   else if (interrupted === 'cross') build(game);
   else if (interrupted === 'lay') { stage(game); game.select('stegosaurus'); }
@@ -106,7 +105,6 @@ test('a blocked route returns control without completing work and can be retried
   for (const interrupted of ACTIONS) {
     const game = allFound();
     if (interrupted === 'lift') game.select('brontosaurus');
-    else if (interrupted === 'lower') { lift(game); game.select('brontosaurus'); }
     else if (interrupted === 'roll') { lift(game); game.select('triceratops'); }
     else if (interrupted === 'cross') build(game);
     else if (interrupted === 'lay') { stage(game); game.select('stegosaurus'); }
@@ -131,7 +129,7 @@ test('blocked crossing retains the built bridge and the actually released branch
   assert.equal(game.cancel('cross', { branch: 'down' }), true);
   assert.equal(game.getState().branch, 'down'); assert.equal(game.getState().bridgeBuilt, true);
   assert.equal(game.getState().atStaging, false); assert.equal(game.getState().visited, false);
-  assert.equal(game.can('cross'), true); assert.equal(game.can('lower'), false);
+  assert.equal(game.can('cross'), true); assert.equal(game.can('lift'), false);
 });
 
 test('repeated mixed commands preserve every stage prerequisite', () => {
