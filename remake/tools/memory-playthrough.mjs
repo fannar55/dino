@@ -9,7 +9,8 @@
 //     [--limit 25]            minutes before the run gives up
 //
 //   full          the whole round: a first reveal, one mismatch, the three pairs, lift, roll, cross, lay, finish. The two
-//                 surprise leaves are opened as well, one before the first pair and one before the last (report.surprises).
+//                 surprise leaves are opened as well, one before the first pair and one before the last (report.surprises);
+//                 rapid does the same, with its triple taps.
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, the way a six-year-old does. The round must still finish.
@@ -420,10 +421,10 @@ async function main() {
     // species, then a card of the last one.
     const order = ['brontosaurus', 'triceratops', 'stegosaurus'].filter(sp => first.cards.some(c => c.species === sp));
     for (const sp of new Set(first.cards.map(c => c.species))) if (sp && !order.includes(sp)) order.push(sp);
-    // The surprise leaves, in card order. `full` opens one before the first pair and one before the last.
+    // The surprise leaves, in card order. `full` and `rapid` open one before the first pair and one before the last.
     const surpriseIds = first.cards.filter(c => c.item).map(c => c.id);
     report.surprises = [];
-    const surpriseAt = [0, 2]; // matched pairs when each one is opened
+    const surpriseAt = [0, 2]; // matched pairs when each one is opened (full and rapid)
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastWorkClick = 0, lastCancel = 0, overviewDone = false;
@@ -515,7 +516,7 @@ async function main() {
         if (partner !== undefined) await act(`leaf-${partner}`, `pick leaf ${partner} (partner of ${open.id}, ${open.species})`);
       } else if (s.phase === 'ready' && mayAct && !s.bridge.selected) {
         let id;
-        const due = o.mode === 'full' ? surpriseIds.find((value, k) => k < surpriseAt.length && s.matched >= surpriseAt[k] && s.cards[value].status === 'hidden') : undefined;
+        const due = o.mode === 'full' || rapid ? surpriseIds.find((value, k) => k < surpriseAt.length && s.matched >= surpriseAt[k] && s.cards[value].status === 'hidden') : undefined;
         if (due !== undefined && leaf(due) && !report.surprises.some(entry => entry.id === due)) {
           report.surprises.push({ id: due, item: s.cards[due].item, at: T() });
           await act(`leaf-${due}`, `pick surprise leaf ${due} (${s.cards[due].item})`); continue;
