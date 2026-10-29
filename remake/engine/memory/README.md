@@ -23,8 +23,9 @@ dialog for screenshots; browser audio still requires a gesture.
 
 ## Review scope
 
-- A larger connected woodland board: six domed leaf hiding places, natural rest
-  patches, a winding shallow river, a staging clearing, a marsh and a berry grove.
+- A larger connected woodland board: eight domed leaf hiding places (a 4 x 2 grid turned toward
+  the search camera: six hide friends, two hide surprises), Mosi at the head of the path with the
+  three home spots around him, a winding shallow river, a staging clearing, a marsh and a berry grove.
 - Two matching instances each of triceratops, stegosaurus, and brontosaurus.
 - The triceratops is a newly proportioned baby derived from the owner's textured
   Mosi mesh. See `assets/memory/triceratops-baby-source.json` and
@@ -35,6 +36,12 @@ dialog for screenshots; browser audio still requires a gesture.
   cues for the three species, footsteps, leaves, construction, river and rewards,
   and 14 Icelandic Mosi lines. Music stays audible during construction and ducks
   under speech; pause preserves the music and narration playheads.
+- Leaf juice: a tapped leaf squashes, bounces and puffs dust (`poof`), then swings away to lie
+  flat behind its hiding place. A wrong pair closes with a bounce and a `bonk`. A surprise leaf
+  (`rules.js` `surprises`, default berries and a butterfly; the pictures are the one table in
+  `surprise-items.js`) pops up with stars, hovers, and flies to the basket in the ribbon with a
+  `ding`; the basket counts them. A found pair hops home over the leaves with glitter and stars,
+  and each pair's chime is a step higher than the last (`audio.js` `CHIME_RISE`).
 - Reveal, mismatch, match transfer, end celebration, interactive nests, pause,
   reduced motion, mute, and replay. No timer or score penalty.
 - Current review — the route to the berry grove: Brontosaurus lifts and holds
@@ -53,9 +60,10 @@ dialog for screenshots; browser audio still requires a gesture.
   entire route and disables world input; “Nær” returns to the playable view.
   Pause freezes camera and action clocks, and reduced motion skips camera travel.
 - Wider leaf aisles and parallel resting places use measured animal dimensions.
-  Home transfers plan around closed leaves, other animals, Mosi, the log and
-  river, including the other friend's eventual resting place. The pair uses
-  the nearer of its two widened home bays and timed body reservations, so the
+  A found pair hops straight home over the closed leaves (the eight-leaf board is too
+  crowded for a walking route); later walks (branch, log, crossings) plan around closed leaves,
+  other animals, Mosi, the log and river, including the other friend's eventual resting place,
+  with timed body reservations, so the
   second friend can depart before the first arrives. Shared routes wait only
   while occupied. Cooperative routes also account for
   tails, heads and the carried bark rather than checking feet alone.
@@ -255,6 +263,7 @@ input, narration, music and the RAF. `world.js` owns the scene/camera; `world-pr
 owns the leaf/nest geometry; `baby-actors.js` owns the character rigs. `audio.js`
 owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `presentation-audio.js` owns gesture-gated music and the queued Mosi narration.
+`surprise-items.js` is the table of what a surprise leaf hides (name, caption, picture).
 `bridge-rules.js` owns helper selection and cooperative bridge progress;
 `bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
 shared game clock. `build-props.js` owns the marsh and bark walkway; the camera
@@ -263,7 +272,7 @@ director owns framing, motion and input readiness. `adventure-rules.js` /
 `world-home-nav.js` owns the incremental clearance planner and route reservations;
 `travel-traffic.js` checks when cooperative routes can overlap safely in time;
 `memory-clearance.js` supplies measured skin envelopes and the independent
-anatomical audit. `world-fx.js` batches dust/leaves and emits timed foot contacts;
+anatomical audit. `world-fx.js` batches dust, leaves, poofs, stars and splashes and emits timed foot contacts;
 `world-surface-fx.js` supplies procedural bark, water flow and soft foam.
 `world-forest-visibility.js` cuts away foreground plant ranges that obstruct the
 traveling camera, including their shadow ranges, while preserving distant trees.

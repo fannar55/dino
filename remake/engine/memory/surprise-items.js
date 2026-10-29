@@ -35,7 +35,7 @@ async function makeBerries() {
   });
   const geometry = mergeGeometries(parts); parts.forEach(part => part.dispose());
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .5, metalness: 0 });
-  const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true;
+  const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; mesh.scale.setScalar(1.6);
   const group = new THREE.Group(); group.name = 'Ber'; group.add(mesh);
   return { group, tilt: 0, animate(seconds) { mesh.rotation.y = seconds * 1.1; mesh.rotation.z = Math.sin(seconds * 2) * .08; }, dispose() { geometry.dispose(); material.dispose(); } };
 }

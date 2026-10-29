@@ -7,7 +7,7 @@ const puff = new THREE.Color('#f3ead2'), water = new THREE.Color('#cfeaf0'), spr
 // how hard they fall, how opaque; `grow` keeps a drop's size where a puff swells. Shapes: 0 soft ball, 2 star.
 const STYLES = {
   // A leaf squashed flat: a soft round puff of dust spreading out along the ground.
-  poof: { shape: 0, colours: [puff], spread: [.55, .5], rise: [.18, .3], life: [.5, .3], size: [.2, .18], fall: .02, alpha: .62 },
+  poof: { shape: 0, colours: [puff], spread: [.5, .5], rise: [.15, .3], life: [.55, .3], size: [.26, .2], fall: .02, alpha: .8 },
   // Something found: bigger golden stars thrown up and falling slowly, twinkling as they turn.
   stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
   // Water thrown up from a landing: little drops that arc and drop back.
@@ -48,13 +48,14 @@ export function createWorldFx({ scene, heightAt }) {
   });
   const mesh = new THREE.Points(geometry, material); mesh.name = 'Fótaryk, lauf og vinaglampi'; mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 10; scene.add(mesh);
   let sequence = 0, reduced = false, clock = 0, lastStep = -1, emitted = 0, footPuffs = 0, tracking = new WeakMap();
-  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1 } = {}) {
+  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0 } = {}) {
     if (reduced) return;
     const style = STYLES[kind];
     if (style) {
       for (let i = 0; i < count; i++) {
-        const seed = sequence++, a = hash(seed) * Math.PI * 2, speed = (style.spread[0] + hash(seed + 7) * style.spread[1]) * strength;
-        particles.push({ x: point.x + Math.cos(a) * .1, y: point.y + .1, z: point.z + Math.sin(a) * .1, vx: Math.cos(a) * speed, vy: (style.rise[0] + hash(seed + 21) * style.rise[1]) * Math.min(1.3, strength), vz: Math.sin(a) * speed,
+        // `ring` starts them evenly round a circle that wide, e.g. a puff from under the rim of a leaf.
+        const seed = sequence++, a = ring ? (i + hash(seed) * .5) / count * Math.PI * 2 : hash(seed) * Math.PI * 2, speed = (style.spread[0] + hash(seed + 7) * style.spread[1]) * strength;
+        particles.push({ x: point.x + Math.cos(a) * (.1 + ring), y: point.y + .1, z: point.z + Math.sin(a) * (.1 + ring), vx: Math.cos(a) * speed, vy: (style.rise[0] + hash(seed + 21) * style.rise[1]) * Math.min(1.3, strength), vz: Math.sin(a) * speed,
           age: 0, life: style.life[0] + hash(seed + 41) * style.life[1], size: style.size[0] + hash(seed + 63) * style.size[1], angle: a, spin: (hash(seed + 19) - .5) * (style.spin ?? 4), kind: style.shape,
           colour: style.colours[i % style.colours.length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow });
       }

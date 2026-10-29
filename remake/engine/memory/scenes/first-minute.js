@@ -41,13 +41,14 @@ export function mismatchScene(stage, first, second, { delay = 0 } = {}) {
 
 /**
  * The pair is found (the spec's timeline): a face cut, both jump and run to each other, nuzzle with
- * glitter, the chime and their call; a cut to the pair hopping off home, followed side-on; home, a
- * wide cut where Mosi claps and says his line; then the camera glides back to the glade, exactly as it
- * was, while Mosi laughs. World input stays off from the first cut to the end of the glide.
+ * glitter and stars, the chime and their call; a cut to the pair hopping off home over the leaves,
+ * followed side-on; home, a wide cut where Mosi claps and says his line; then the camera glides back to
+ * the glade, exactly as it was, while Mosi laughs. World input stays off from the first cut to the end
+ * of the glide: about five seconds from the match.
  */
 export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
   const meeting = stage.planMeeting(first, second);
-  const nuzzleAt = .14 + meeting.duration, wideAt = nuzzleAt + 1.05;
+  const nuzzleAt = .14 + meeting.duration, wideAt = nuzzleAt + .8;
   const pair = [first, second];
   return [
     { at: 0, shot: { kind: 'face', subjects: () => [stage.head(first), stage.head(second), stage.crown?.(first), stage.crown?.(second), meeting.point], cut: true },
@@ -55,7 +56,7 @@ export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
         () => stage.gesture(first, 'hop'), () => stage.gesture(second, 'hop'), () => stage.mosi.look(meeting.point)) },
     { at: .14, act: () => meeting.start() },
     { at: nuzzleAt, act: all(() => meeting.finish(), () => stage.look(first, null), () => stage.look(second, null), () => stage.gesture(first, 'nuzzle'), () => stage.gesture(second, 'nuzzle')),
-      fx: { kind: 'match', at: () => meeting.point, count: 18 },
+      fx: [{ kind: 'match', at: () => meeting.point, count: 18 }, { kind: 'stars', at: () => meeting.point, count: 10 }],
       sound: [{ name: 'call', species: first.species, index: nestIndex }, { name: 'match', species: first.species, nestIndex }] },
     // Off home together, hopping: the camera runs beside them, so they are seen side-on.
     { at: wideAt, shot: { kind: 'follow', subjects: () => pair.flatMap(cell => [cell.actor.root.position.clone(), stage.head(cell)]), front: stage.sideOn(meeting.point, stage.homeEnd(first)), cut: true },
@@ -65,6 +66,6 @@ export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
     { at: wideAt + .1, shot: { kind: 'wide', subjects: () => [...pair.flatMap(cell => [cell.actor.root.position.clone(), stage.head(cell)]), stage.mosi.head()], cut: true },
       act: () => stage.mosi.gesture('clap'), say: 'match' },
     // Back to the glade; Mosi laughs with delight on the way, in view on the left.
-    { at: wideAt + 1.55, shot: { release: true, duration: 1.05 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
+    { at: wideAt + 1.1, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];
 }

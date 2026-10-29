@@ -17,7 +17,7 @@ import { createMemoryShadowLods } from './world-character-shadows.js';
 import { createCameraDirector } from './camera-director.js';
 import { createWorldFx } from './world-fx.js';
 import { measureActor, actorCollisionSnapshot, bridgeCollisionObjects } from './memory-clearance.js';
-import { createHomeNavigation, homeTravelProgress, sampleHomeTravel } from './world-home-nav.js';
+import { createHomeNavigation } from './world-home-nav.js';
 import { createForestVisibility } from './world-forest-visibility.js';
 import { createSceneRunner } from './scenes.js';
 import { createMosiPuppet } from './mosi-puppet.js';
@@ -31,14 +31,14 @@ function leafGrid({ centre: [cx, cz], angle, across, deep }) {
   for (const row of [0, 1]) for (const col of [0, 1, 2, 3]) cells.push([cx + a[0] * (col - 1.5) * across + d[0] * (row - .5) * deep, cz + a[1] * (col - 1.5) * across + d[1] * (row - .5) * deep].map(v => Math.round(v * 100) / 100));
   return cells;
 }
-const CELLS = leafGrid({ centre: [-4, 5.6], angle: Math.PI / 6, across: 3.1, deep: 3.9 });
+const CELLS = leafGrid({ centre: [-4, 7], angle: Math.PI / 6, across: 3.1, deep: 3.7 });
 // The Þórseðla babies' rest (the third) stands 1.15 m nearer the leaves than the adults' did, so their longer tails
 // stay clear of the branch lying behind them.
-const NESTS = [[-.2, -.85], [-6.05, 2], [-6.9, -1.25]];
+const NESTS = [[.2, .4], [-8.8, .9], [-6, -.2]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
-const MOSI_SPOT = Object.freeze({ x: -3.7, z: -2.5, heading: 90 });
+const MOSI_SPOT = Object.freeze({ x: -3.2, z: 1.4, heading: 90 });
 // The search view: low and from the side, as in the approved mock. Landscape looks in from the south-east
 // with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
 // fill the width, the rows fill the height and Mosi watches from the far end.
@@ -49,6 +49,9 @@ const TAP = Object.freeze({ squash: .16, swing: .3 });
 const SURPRISE = Object.freeze({ pop: .3, rise: .5, hold: .8, fly: .75, hover: 1.2, target: 6, shrink: .12 });
 // The leaf's squash and rebound: a damped spring round 0 (stiffness, damping), kicked by a tap or a landing.
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
+// A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
+// walking route): metres per hop, average metres a second, the root's own arc, the lift over a leaf and how far its reach is.
+const HOP = Object.freeze({ reach: 2.8, speed: 5, arc: .2, leap: .75, dome: 1, margin: 1.9 });
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const easeOutBack = t => { const k = THREE.MathUtils.clamp(t, 0, 1) - 1; return 1 + 2.4 * k * k * k + 1.4 * k * k; };
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
@@ -57,7 +60,7 @@ const matchedStatus = value => ['matched', 'found'].includes(value);
 // Each friend's size is baked into its model (baby-actors.js lengthFactor: the Þórseðla baby stands
 // tallest); the roots stay at scale 1. The culling sphere grows with that size.
 const actorSize = actor => actor.lengthFactor ?? 1;
-const restOffset = species => species === 'triceratops' ? 1.25 : species === 'stegosaurus' ? .95 : 1.15;
+const restOffset = species => species === 'triceratops' ? 1.05 : species === 'stegosaurus' ? .85 : 1.15;
 const restHeading = () => -Math.PI * 70 / 180;
 const restVector = (species, member) => new THREE.Vector3(Math.sin(restHeading()) * restOffset(species) * (member ? -1 : 1), .1, Math.cos(restHeading()) * restOffset(species) * (member ? -1 : 1));
 
@@ -87,7 +90,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // Keep the playable oval bare and clear the foreground camera corridor.
     // This also gates grass generation, so blades cannot poke through hiding places.
     keepOut(x, z) {
-      const glade = Math.hypot((x + 4) / 7.6, (z - 5.6) / 6.2), working = Math.hypot((x + 3) / 4.8, (z + 3.5) / 3.6), staging = Math.hypot((x - 4.5) / 6.8, (z + 13.8) / 4.5), berries = Math.hypot((x - 4.5) / 6.8, (z + 26) / 4.8);
+      const glade = Math.hypot((x + 4) / 7.8, (z - 6.2) / 6.6), working = Math.hypot((x + 3) / 4.8, (z + 3.5) / 3.6), staging = Math.hypot((x - 4.5) / 6.8, (z + 13.8) / 4.5), berries = Math.hypot((x - 4.5) / 6.8, (z + 26) / 4.8);
       const marsh = Math.hypot((x - MARSH.center[0]) / (MARSH.halfWidth + 1.2), (z - MARSH.center[1]) / (MARSH.halfDepth + 1.1));
       const bare = 1 - THREE.MathUtils.smoothstep(Math.min(glade, working, staging, berries, marsh), .9, 1.12);
       const water = 1 - THREE.MathUtils.smoothstep(riverDistance(x, z).distance, RIVER.halfWidth + .1, RIVER.halfWidth + .65);
@@ -146,10 +149,12 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const [x, z] of NESTS) for (const dx of [-1.85, 1.85]) for (const dz of [-1.1, 1.1]) points.push([x + dx, 1.6, z + dz]);
     return points;
   }
-  // Every leaf and Mosi whole; the home spots only by their centres, so found pairs stay in view
-  // without pushing the camera back (the babies are what must read at this size).
+  // Every leaf and Mosi whole, and both places of each home spot (head height), so a found pair stays in view.
+  function homePoints() {
+    return NESTS.flatMap(([x, z], i) => [0, 1].map(member => { const rest = restVector(SPECIES[i], member); return [x + rest.x, world.heightAt(x, z) + 1.2, z + rest.z]; }));
+  }
   function gladeCue() {
-    const points = [...boardPoints(), ...mosiPoints(), ...NESTS.map(([x, z]) => [x, world.heightAt(x, z) + 1.2, z])];
+    const points = [...boardPoints(), ...mosiPoints(), ...homePoints()];
     return { key: 'glade', phase: 'memory', focus: [-1.5, .5, 3.2], points, scale: 'wide', direction: width / height < 1 ? GLADE_VIEW.portrait : GLADE_VIEW.landscape };
   }
   function overviewCue() {
@@ -183,7 +188,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       head: () => mosi.headPosition(new THREE.Vector3()),
     },
     planMeeting,
-    sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) cell.transfer = { age: 0, waiting: true, retry: cell.home.member * .14, nest: cell.home.nest, end: cell.home.end, member: cell.home.member, endYaw: cell.home.nest.restYaw, queuedAt: time }; },
+    sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {
       if (cell.moved || !cell.home) return;
@@ -241,11 +246,44 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       finish() { for (const spot of plan) { const actor = spot.cell.actor; spot.cell.dash = null; spot.cell.away = true; actor.root.position.copy(spot.to); actor.root.rotation.y = spot.yaw; actor.walk?.(false); } },
     };
   }
+  // How high a friend must be to pass over the closed leaves (domes) it crosses: 0 clear of them, HOP.leap over one.
+  function leap(point) {
+    let lift = 0;
+    for (const other of cells) {
+      if (other.vanish > 0 || other.moved || other.open > .5 || matchedStatus(other.status)) continue;
+      lift = Math.max(lift, HOP.leap * smooth((HOP.margin - Math.hypot(point.x - other.root.position.x, point.z - other.root.position.z)) / (HOP.margin - HOP.dome)));
+    }
+    return lift;
+  }
+  // A matched pair hops home: each friend runs hops straight to its place, a hop every HOP.reach metres.
+  function startHop(cell) {
+    const from = cell.actor.root.position.clone(), end = cell.home.end, distance = Math.hypot(end.x - from.x, end.z - from.z);
+    cell.transfer = { age: 0, waiting: false, from, hops: Math.max(2, Math.round(distance / HOP.reach)), hop: -1, nest: cell.home.nest, end, member: cell.home.member, endYaw: cell.home.nest.restYaw, duration: Math.max(1, distance / HOP.speed) + .25, startedAt: time };
+    cell.actor.walk?.(false); cell.actor.setMotion?.('idle');
+  }
+  function updateHop(cell, dt) {
+    const move = cell.transfer, actor = cell.actor; if (!(dt > 0)) return;
+    move.age += dt;
+    const run = Math.min(1, move.age / (move.duration - .25)), phase = move.hops * run, hop = Math.min(move.hops - 1, Math.floor(phase));
+    const x = THREE.MathUtils.lerp(move.from.x, move.end.x, run), z = THREE.MathUtils.lerp(move.from.z, move.end.z, run);
+    if (hop !== move.hop) {
+      // Each hop starts with the hop gesture; each landing puffs a little dust and thuds.
+      if (move.hop >= 0) { fx.emit('poof', actor.root.position, { count: 3, ring: .3 }); deferredEvents.push({ type: 'footstep', surface: 'soil', pan: 0 }); }
+      move.hop = hop; actor.gesture?.('hop');
+    }
+    actor.root.position.set(x, world.heightAt(x, z) + .085 + (run < 1 ? HOP.arc * Math.sin(Math.PI * (phase - hop)) : 0), z);
+    actor.root.position.y += leap(actor.root.position);
+    const wanted = run > .8 ? move.endYaw : Math.atan2(-(move.end.z - move.from.z), move.end.x - move.from.x);
+    actor.root.rotation.y = turnToward(actor.root.rotation.y, wanted, reducedMotion ? 1 : 1 - Math.exp(-dt / .09));
+    if (move.age < move.duration) return;
+    actor.root.position.copy(move.end); actor.root.rotation.y = move.endYaw; actor.greet?.();
+    cell.moved = true; cell.transfer = null; move.nest.pulse = 0; fx.emit('poof', move.end, { count: 5 });
+  }
   function updateDash(cell, dt) {
     const dash = cell.dash, actor = cell.actor; if (!dash || !(dt > 0)) return;
     dash.age = Math.min(dash.duration, dash.age + dt);
     const t = dash.age / dash.duration, eased = smooth(t), heading = dash.to.clone().sub(dash.from).setY(0);
-    actor.root.position.lerpVectors(dash.from, dash.to, eased);
+    actor.root.position.lerpVectors(dash.from, dash.to, eased); actor.root.position.y += leap(actor.root.position);
     if (heading.lengthSq() < 2.2 * 2.2) actor.root.rotation.y = turnToward(dash.fromYaw, dash.yaw, smooth(t / .55));
     else { const travelYaw = Math.atan2(-heading.z, heading.x); actor.root.rotation.y = t < .7 ? turnToward(dash.fromYaw, travelYaw, smooth(t / .25)) : turnToward(travelYaw, dash.yaw, smooth((t - .7) / .3)); }
     if (t >= 1) { actor.root.position.copy(dash.to); actor.root.rotation.y = dash.yaw; actor.walk?.(false); cell.dash = null; }
@@ -442,7 +480,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (Math.abs(cell.spring) < 1e-3 && Math.abs(cell.springV) < .01) cell.spring = cell.springV = 0;
   }
   function squash(cell) {
-    kick(cell, -.42); fx.emit('poof', cell.root.position, { count: 8 });
+    kick(cell, -.42); fx.emit('poof', cell.root.position, { count: 9, ring: .95 });
     deferredEvents.push({ type: 'scene-sound', name: 'poof' });
   }
   // The leaf has squashed: it swings away and the friend springs out from under it.
@@ -592,7 +630,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const focusHold = cameraTravel && adventure.isBusy();
     const actionDelta = focusHold ? 0 : delta;
     const homeDelta = adventure.isBusy() ? 0 : delta;
-    if (delta > 0) homeNav.pump(cells.some(cell => cell.transfer?.waiting) ? 6 : 3);
+    if (delta > 0) homeNav.pump(3);
     scenes.update(delta);
     // One friend waits under an open leaf: it wonders where its friend is, again and again.
     const waitingAlone = cells.filter(cell => cell.status === 'revealed' && !cell.away);
@@ -615,14 +653,14 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
         stepSpring(cell, revealDelta);
       }
       if (cell.open <= 0) cell.closing = false;
-      // The leaf of a friend that has gone shrinks away where it lies, with a puff.
-      const leaving = cell.moved || Boolean(cell.transfer) || cell.away;
+      // The leaf of a friend that has gone, or of a surprise that has flown off, shrinks away where it lies, with a puff.
+      const leaving = cell.moved || Boolean(cell.transfer) || cell.away || Boolean(cell.surprise?.done);
       if (leaving && cell.vanish < 1 && delta > 0) {
-        if (cell.vanish === 0) fx.emit('poof', cell.leaf.position.clone().add(cell.root.position), { count: 5 });
+        if (cell.vanish === 0) fx.emit('poof', cell.leaf.position.clone().add(cell.root.position), { count: 6, ring: .5 });
         cell.vanish = reducedMotion ? 1 : Math.min(1, cell.vanish + delta / .22);
       } else if (!leaving) cell.vanish = 0;
       poseLeaf(cell.leaf, leafResources, { open: smooth(cell.open), bounce: cell.spring, vanish: cell.vanish, turn: cell.turn });
-      const shade = (1 - .7 * smooth(cell.open)) * (1 - cell.vanish); cell.shade.scale.set(2.6 * shade, 1, 2.5 * shade);
+      const shade = (1 - smooth(cell.open)) * (1 - cell.vanish); cell.shade.scale.set(2.6 * shade + 1e-3, 1, 2.5 * shade + 1e-3);
       updateSurprise(cell, revealDelta);
       if (cell.dash) updateDash(cell, delta);
       if (cell.actor && !cell.moved && !cell.transfer && !cell.away) {
@@ -632,39 +670,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
         cell.actor.root.position.y = cell.root.position.y + .085;
         if (cell.faceYaw != null && delta > 0) cell.actor.root.rotation.y = turnToward(cell.actor.root.rotation.y, cell.faceYaw, reducedMotion ? 1 : 1 - Math.exp(-delta / .16));
       }
-      if (cell.transfer) {
-        const move = cell.transfer;
-        if (move.waiting) {
-          move.retry -= homeDelta;
-          if (homeDelta > 0 && move.retry <= 0) {
-            move.retry = .12;
-            const route = homeNav.request(cell.actor, move.end, move.endYaw);
-            if (route === undefined) move.retry = .05;
-            if (route && homeNav.canStart(cell.actor, route, cells.filter(value => value !== cell && value.transfer && !value.transfer.waiting))) {
-              Object.assign(move, route, { waiting: false, startedAt: time }); homeNav.release(cell.actor, true);
-              cell.actor.walk?.(true); cell.actor.setMotion?.('walk');
-            }
-          }
-          if (move.waiting) continue;
-        }
-        move.age += homeDelta;
-        const progress=homeTravelProgress(move,move.age),sampled=sampleHomeTravel(move,move.age);
-        cell.actor.root.position.copy(sampled.point);
-        cell.actor.root.scale.setScalar(1);
-        const wanted = progress>.97?move.endYaw:sampled.yaw, difference = Math.atan2(Math.sin(wanted - cell.actor.root.rotation.y), Math.cos(wanted - cell.actor.root.rotation.y));
-        cell.actor.root.rotation.y += difference * (1 - Math.exp(-homeDelta / .09));
-        if (move.age >= move.duration) {
-          cell.actor.root.position.copy(move.end);
-          move.finishAge = (move.finishAge ?? 0) + homeDelta;
-          const turn = Math.atan2(Math.sin(move.endYaw - cell.actor.root.rotation.y), Math.cos(move.endYaw - cell.actor.root.rotation.y));
-          cell.actor.root.rotation.y += turn * (1 - Math.exp(-homeDelta / .06));
-          cell.actor.walk?.(false); cell.actor.setMotion?.('idle');
-          if (!reducedMotion && move.finishAge < .24) continue;
-          cell.actor.root.rotation.y = move.endYaw;
-          cell.actor.walk?.(false); cell.actor.setMotion?.('idle'); cell.actor.greet?.();
-          cell.moved = true; cell.transfer = null; move.nest.pulse = 0; fx.emit('poof', move.end, { count: 5 });
-        }
-      }
+      if (cell.transfer) updateHop(cell, homeDelta);
     }
     for (const nest of nests) {
       nest.pulse += delta;

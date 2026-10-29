@@ -8,7 +8,8 @@
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
-//   full          the whole round: a first reveal, one mismatch, the three pairs, lift, roll, cross, lay, finish.
+//   full          the whole round: a first reveal, one mismatch, the three pairs, lift, roll, cross, lay, finish. The two
+//                 surprise leaves are opened as well, one before the first pair and one before the last (report.surprises).
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, the way a six-year-old does. The round must still finish.
@@ -18,7 +19,9 @@
 // frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
 // game is paused for each milestone picture (report.pauseHolds says nothing moved meanwhile); with --video a milestone
 // is the screencast's frame at that instant (NN-name.jpg, 960 px), so the video keeps real time.
-// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, ... }.
+// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, surprises, ... }.
+// `surprises` lists each surprise leaf the driver opened: { id, item, at (s) }; `found` and `basketEnd` say what the rules
+// and the basket in the ribbon held at the end.
 // `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
 // through (caption, phase, bridge, camera and scripted shot, work button), sampled every 100 ms inside the page.
 // `glade` measures the search view (each baby's on-screen height, Mosi, leaves, homes); after the first pair,
@@ -230,7 +233,7 @@ const SNAPSHOT_JS = `(() => {
   const buttons = [...document.querySelectorAll('#targets [data-target]')];
   return {
     phase: s.phase, matched: s.matchedPairs, paused: s.paused,
-    cards: s.cards.map(c => ({ id: c.id, species: c.species, status: c.status })),
+    cards: s.cards.map(c => ({ id: c.id, species: c.species, item: c.item || null, status: c.status })), found: [...s.found], basket: m.basket(),
     bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving), held: Boolean(cam.held), shot: cam.shot || null }, scene: Boolean(d.scene && d.scene.busy),
     work: { visible: !na.hidden, disabled: na.disabled, action: na.dataset.action || '', label: na.textContent.trim() },
     cancel: !cancel.hidden && !cancel.disabled,
@@ -416,7 +419,11 @@ async function main() {
     // The story asks for the pairs in this order. The first try is a deliberate mismatch: a card of the first
     // species, then a card of the last one.
     const order = ['brontosaurus', 'triceratops', 'stegosaurus'].filter(sp => first.cards.some(c => c.species === sp));
-    for (const sp of new Set(first.cards.map(c => c.species))) if (!order.includes(sp)) order.push(sp);
+    for (const sp of new Set(first.cards.map(c => c.species))) if (sp && !order.includes(sp)) order.push(sp);
+    // The surprise leaves, in card order. `full` opens one before the first pair and one before the last.
+    const surpriseIds = first.cards.filter(c => c.item).map(c => c.id);
+    report.surprises = [];
+    const surpriseAt = [0, 2]; // matched pairs when each one is opened
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastWorkClick = 0, lastCancel = 0, overviewDone = false;
@@ -431,6 +438,8 @@ async function main() {
       let after = {};
       if (rapid) { await sleep(300); const a = await ev(SNAPSHOT_JS); after = { after: `${a.phase}/${a.matched}${a.bridge.selected ? '/sel:' + a.bridge.selected : ''}`, open: a.cards.filter(c => c.status !== 'hidden').map(c => c.id + c.status[0]).join(',') }; }
       step(what, { ...extra, ...(rapid ? { targets: keys.length, taps, ...after } : {}) });
+      // The first leaf tapped: the squash and its puff, a moment (80 ms) after the tap.
+      if (key.startsWith('leaf-')) await milestone('squash', 'leaf-squash', 80);
     };
 
     for (;;) {
@@ -466,6 +475,9 @@ async function main() {
       if (s.cam.shot === 'follow') waited ||= await milestone('walk-home', 'walk-home', 900);
       if (s.cam.shot === 'wide') waited ||= await milestone('home-clap', 'home-clap', 500);
       if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);
+      // A surprise leaf was found: the pop (stars, flight) and then the basket counting it.
+      if (s.found.length) waited ||= await milestone('surprise-pop', 'surprise-pop', 650);
+      if (s.basket >= 1) waited ||= await milestone('surprise-basket', 'surprise-in-basket', 350);
       if (s.work.visible && !s.work.disabled) waited ||= await milestone(`work-${s.work.action}`, `work-offered-${s.work.action || 'next'}`);
       if (s.bridge.active) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
@@ -500,6 +512,11 @@ async function main() {
         if (partner !== undefined) await act(`leaf-${partner}`, `pick leaf ${partner} (partner of ${open.id}, ${open.species})`);
       } else if (s.phase === 'ready' && mayAct && !s.bridge.selected) {
         let id;
+        const due = o.mode === 'full' ? surpriseIds.find((value, k) => k < surpriseAt.length && s.matched >= surpriseAt[k] && s.cards[value].status === 'hidden') : undefined;
+        if (due !== undefined && leaf(due) && !report.surprises.some(entry => entry.id === due)) {
+          report.surprises.push({ id: due, item: s.cards[due].item, at: T() });
+          await act(`leaf-${due}`, `pick surprise leaf ${due} (${s.cards[due].item})`); continue;
+        }
         if (missPlan === 0 && s.matched === 0) { id = hidden(s, order[0])[0]; if (leaf(id)) missPlan = 1; }
         else {
           const species = order.find(sp => s.cards.some(c => c.species === sp && c.status !== 'matched'));
@@ -515,6 +532,7 @@ async function main() {
       await sleep(rapid ? 120 : 150);
     }
     report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
+    try { const end = await ev(SNAPSHOT_JS); report.found = end.found; report.basketEnd = end.basket; } catch {}
 
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); } catch {}
