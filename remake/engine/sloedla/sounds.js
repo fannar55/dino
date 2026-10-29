@@ -9,6 +9,12 @@
 // misses a note and opens when she hits one, so a missed note leaves a hole in the song, as in Guitar Hero. A tap that is not a hit
 // still plays a soft note (`soft`), straight away, so tapping is always music. The end's stars ring with bells.
 
+/**
+ * How loud each instrument plays a note the child taps (`tapped`), against 0.13, 0.16 and 0.34 for the notes of her phrase that
+ * play by themselves: the tapped note must be the loudest thing heard as she taps it, on a tablet's speaker too.
+ */
+export const TAPPED = { horn: 0.3, plates: 0.42, drum: 0.42 };
+
 /** The key's notes from its root up: step 0 is do, 5 the next do, and on (negative steps go down). Pentatonic `key` (5 notes). */
 export function scaleOf(key) {
   return step => key[((step % 5) + 5) % 5] * 2 ** Math.floor(step / 5);
@@ -108,20 +114,21 @@ export function createSongSounds({ context, output, room = null, random = Math.r
   }
 
   // Slóeðla's horn: a saw and a triangle a hair apart through a low-pass that opens as she blows and settles, sliding up into the
-  // note, with a breath at its start and a vibrato that comes in as it holds.
-  function horn({ freq: f, at, dur = 0.5, vel = 1, soft = false, into }) {
+  // note, with a breath at its start and a vibrato that comes in as it holds. A note the child taps is blown hard: it starts at
+  // once, bright, with a blat an octave up that a small speaker carries.
+  function horn({ freq: f, at, dur = 0.5, vel = 1, soft = false, tapped = false, into }) {
     const length = soft ? 0.32 : Math.max(0.22, dur);
-    const level = (soft ? 0.05 : 0.13) * vel;
+    const level = (soft ? 0.05 : tapped ? TAPPED.horn : 0.13) * vel;
     const filter = context.createBiquadFilter();
     filter.type = 'lowpass';
     filter.Q.value = 3;
-    filter.frequency.setValueAtTime(f * 1.6, at);
-    filter.frequency.exponentialRampToValueAtTime(f * (soft ? 3.5 : 7), at + 0.07);
-    filter.frequency.exponentialRampToValueAtTime(f * 3.4, at + 0.3);
+    filter.frequency.setValueAtTime(f * (tapped ? 5 : 1.6), at);
+    filter.frequency.exponentialRampToValueAtTime(f * (soft ? 3.5 : tapped ? 10 : 7), at + (tapped ? 0.03 : 0.07));
+    filter.frequency.exponentialRampToValueAtTime(f * (tapped ? 4.5 : 3.4), at + 0.3);
     const { volume, nodes } = outlet(-0.02, into, 0.25);
     const g = volume.gain;
     g.setValueAtTime(0, at);
-    g.linearRampToValueAtTime(level, at + 0.03);
+    g.linearRampToValueAtTime(level, at + (tapped ? 0.006 : 0.03));
     g.linearRampToValueAtTime(level * 0.72, at + Math.min(0.18, length * 0.5));
     g.setValueAtTime(level * 0.72, at + length * 0.8);
     g.exponentialRampToValueAtTime(0.0001, at + length + 0.08);
@@ -138,7 +145,7 @@ export function createSongSounds({ context, output, room = null, random = Math.r
       source.type = type;
       source.detune.value = detune;
       source.frequency.setValueAtTime(f * 0.93, at);
-      source.frequency.exponentialRampToValueAtTime(f, at + 0.07);
+      source.frequency.exponentialRampToValueAtTime(f, at + (tapped ? 0.035 : 0.07));
       depth.connect(source.frequency);
       const mix = context.createGain();
       mix.gain.value = share;
@@ -152,35 +159,46 @@ export function createSongSounds({ context, output, room = null, random = Math.r
       source.start(at);
       source.stop(at + length + 0.1);
     }
-    if (!soft) puff({ at, length: 0.07, level: 0.035 * vel, frequency: f * 5, end: f * 3, q: 1.2, dest: into });
+    if (!soft) puff({ at, length: 0.07, level: (tapped ? 0.08 : 0.035) * vel, frequency: f * (tapped ? 7 : 5), end: f * 3, q: 1.2, dest: into });
+    if (tapped) tone({ frequency: f * 2, type: 'square', at, length: 0.18, level: level * 0.28, attack: 0.004, decay: 0.06, hold: 0.25, pan: -0.02, dest: into });
   }
 
-  // Kambeðla's plates: a wooden xylophone, a sine with its fourth partial knocking quickly over it and a click of the mallet.
-  function plates({ freq: f, at, dur = 0.4, vel = 1, soft = false, into }) {
-    const level = (soft ? 0.05 : 0.16) * vel;
+  // Kambeðla's plates: a wooden xylophone, a sine with its fourth partial knocking quickly over it and a click of the mallet. A note
+  // the child taps is struck hard: the knock and the click louder, the octave ringing more.
+  function plates({ freq: f, at, dur = 0.4, vel = 1, soft = false, tapped = false, into }) {
+    const level = (soft ? 0.05 : tapped ? TAPPED.plates : 0.16) * vel;
     const ring = soft ? 0.35 : Math.min(1.1, Math.max(0.5, dur * 1.5));
     tone({ frequency: f, at, length: ring, level, attack: 0.003, decay: 0.12, hold: 0.35, pan: -0.25, dest: into, send: 0.2 });
-    tone({ frequency: f * 4, at, length: 0.09, level: level * 0.35, attack: 0.002, decay: 0.03, hold: 0.3, pan: -0.25, dest: into });
-    tone({ frequency: f * 2, at, length: 0.3, level: level * 0.15, attack: 0.002, decay: 0.08, hold: 0.3, pan: -0.25, dest: into });
-    puff({ at, length: 0.025, level: level * 0.4, frequency: 3200, q: 1.5, pan: -0.25, attack: 0.001, dest: into });
+    tone({ frequency: f * 4, at, length: 0.09, level: level * (tapped ? 0.55 : 0.35), attack: 0.002, decay: 0.03, hold: 0.3, pan: -0.25, dest: into });
+    tone({ frequency: f * 2, at, length: 0.3, level: level * (tapped ? 0.5 : 0.15), attack: 0.002, decay: 0.08, hold: 0.3, pan: -0.25, dest: into });
+    puff({ at, length: tapped ? 0.03 : 0.025, level: level * (tapped ? 0.9 : 0.4), frequency: 3200, q: 1.5, pan: -0.25, attack: 0.001, dest: into });
   }
 
   // Þórseðla's drum: a boom falling from high onto its note, its octave for small speakers, a slap of skin and a rumble of thunder.
-  function drum({ freq: f, at, vel = 1, soft = false, into }) {
-    const level = (soft ? 0.12 : 0.34) * vel;
+  // A note the child taps is hit hard: a crack of the beater and a knock two octaves up, which a tablet's speaker can play (the boom
+  // itself is too low for it).
+  function drum({ freq: f, at, vel = 1, soft = false, tapped = false, into }) {
+    const level = (soft ? 0.12 : tapped ? TAPPED.drum : 0.34) * vel;
     tone({ frequency: f, at, length: soft ? 0.3 : 0.7, level, attack: 0.004, decay: 0.16, hold: 0.4, scoop: 2.2, bend: 0.11, pan: 0.25, dest: into, send: 0.15 });
-    tone({ frequency: f * 2, at, length: 0.28, level: level * 0.35, attack: 0.004, decay: 0.08, hold: 0.3, scoop: 1.6, bend: 0.08, pan: 0.25, dest: into });
+    tone({ frequency: f * 2, at, length: 0.28, level: level * (tapped ? 0.6 : 0.35), attack: 0.004, decay: 0.08, hold: 0.3, scoop: 1.6, bend: 0.08, pan: 0.25, dest: into });
     puff({ at, length: 0.12, level: level * 0.45, frequency: 900, end: 300, type: 'lowpass', q: 0.7, pan: 0.25, attack: 0.002, dest: into });
+    if (tapped) {
+      tone({ frequency: f * 4, type: 'triangle', at, length: 0.14, level: level * 0.5, attack: 0.002, decay: 0.04, hold: 0.25, scoop: 1.5, bend: 0.04, pan: 0.25, dest: into });
+      puff({ at, length: 0.025, level: level * 0.5, frequency: 2500, q: 1.1, pan: 0.25, attack: 0.001, dest: into });
+    }
     if (!soft) puff({ at: at + 0.04, length: 0.8, level: 0.05 * vel, frequency: 260, end: 120, type: 'lowpass', q: 0.5, pan: 0.25, attack: 0.08, dest: into });
   }
 
   const INSTRUMENTS = { a: horn, b: plates, c: drum };
 
   return {
-    /** `role`'s instrument plays a note: `freq` Hz at context time `at` (now by default) for `dur` s, into `into` (the bus). */
-    note(role, { freq, at = context.currentTime, dur, vel = 1, into, soft = false }) {
+    /**
+     * `role`'s instrument plays a note: `freq` Hz at context time `at` (now by default) for `dur` s, into `into` (the bus).
+     * `tapped`: the child tapped it (struck hard, TAPPED); `soft`: a tap at no note.
+     */
+    note(role, { freq, at = context.currentTime, dur, vel = 1, into, soft = false, tapped = false }) {
       if (!(freq > 0)) return;
-      (INSTRUMENTS[role] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft });
+      (INSTRUMENTS[role] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft, tapped: tapped && !soft });
     },
     /**
      * A missed note: a soft "bloop" in her own voice that slides down two semitones, 0.3 s, never a buzzer (the gentle form of

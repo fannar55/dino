@@ -261,7 +261,8 @@ for (const button of document.querySelectorAll('[data-option]')) button.addEvent
 showOptions();
 for (const button of document.querySelectorAll('[data-play]')) button.addEventListener('click', () => start());
 
-window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options };
+// for a look from outside (captures, and a meter of the mix: `audio`)
+window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue } };
 Promise.all([loading, backdropLoading]).then(([loaded]) => {
   images = loaded;
   $('play').disabled = false;

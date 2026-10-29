@@ -7,7 +7,9 @@
 //     Kambeðla's, the bells and choir Slóeðla's) and, over a recorded backing, her stem. Only the skeleton is nobody's: a soft
 //     pulse on every beat and the pad. So the song starts bare, and each dinosaur comes in when the child hits her first note.
 //   - The notes the child taps are not scheduled ahead: each sounds when it is tapped (an early tap waits for its beat, up to
-//     SNAP_EARLY), so a missed note is a hole in the tune. A miss also plays a soft "bloop" in her instrument, and her chain closes
+//     SNAP_EARLY), so a missed note is a hole in the tune. A tapped note is struck harder than the notes that play by themselves
+//     (sounds.js TAPPED: a sharp start, and overtones a tablet's speaker can play), goes past her chain, and the rest of the song
+//     dips under it for a moment (the bed, DUCK), so it is the loudest thing heard as she taps it. A miss also plays a soft "bloop" in her instrument, and her chain closes
 //     to a muffled whisper (OUT_LEVEL through OUT_FILTER) until her next hit, which opens it at once. Three misses in a row in one
 //     lane bring her part back as a ghost for a bar (GHOST_LEVEL), to show what to play. The notes between the child's (the rest of
 //     her phrase) are scheduled ahead through her chain, so on a run they are exactly on the beat.
@@ -34,6 +36,11 @@ const OUT_LEVEL = 0.18; // a dinosaur who is out is a whisper of herself ...
 const OUT_FILTER = 520; // ... behind a low-pass at this many Hz
 const GHOST_LEVEL = 0.38; // after GHOST_AFTER misses in a row she plays along this loud for a bar, to show the way
 const GHOST_AFTER = 3;
+const DUCK = 0.7; // the rest of the song dips to this (about -3 dB) under each note the child taps ...
+const DUCK_GROWN = 0.82; // ... less on the grown-ups' level, where the notes come thick
+const DUCK_IN = 0.004; // s: how fast it dips
+const DUCK_HOLD = 0.05; // s: how long it stays down
+const DUCK_OUT = 0.09; // s: how fast it comes back (about 0.3 s to 95 %)
 const ROLES = ['a', 'b', 'c'];
 
 /**
@@ -50,10 +57,15 @@ export function createConductor({ context, song, clock, band, sounds, out, level
   mood.type = 'lowpass';
   mood.frequency.value = 18000;
   mood.Q.value = 0.7;
+  // everything but the notes the child taps goes through the bed, which dips for a moment under each of them, as a dance track
+  // ducks under its kick drum, so the note she taps is the loudest thing heard (and its start punches through)
+  const bed = context.createGain();
+  bed.connect(out);
+  const duckTo = level === 'barn' ? DUCK : DUCK_GROWN;
   const bandBus = context.createGain();
   bandBus.gain.value = 0.85;
   mood.connect(bandBus);
-  bandBus.connect(out);
+  bandBus.connect(bed);
   const tiers = [1, 2, 3].map(() => {
     const gain = context.createGain();
     gain.gain.value = 0;
@@ -68,11 +80,18 @@ export function createConductor({ context, song, clock, band, sounds, out, level
     filter.Q.value = 0.8;
     const level = context.createGain();
     filter.connect(level);
-    level.connect(out);
+    level.connect(bed);
     const open = !roles.includes(role); // a part with no lane plays all along; the others start out
     filter.frequency.value = open ? 18000 : OUT_FILTER;
     level.gain.value = open ? 1 : OUT_LEVEL;
     chains[role] = { input: filter, filter, level, open, misses: 0 };
+  }
+  // the notes the child taps, each dinosaur's through a gain of its own, past her chain and the bed (her chain opens as she hits)
+  const hits = {};
+  for (const role of ROLES) {
+    const gain = context.createGain();
+    gain.connect(out);
+    hits[role] = gain;
   }
   const loose = context.createGain(); // a tap that is not a hit: her instrument, softly, outside her chain
   loose.gain.value = 0.5;
@@ -160,6 +179,14 @@ export function createConductor({ context, song, clock, band, sounds, out, level
     }
   }
 
+  /** The bed dips under a tapped note that starts at context time `at`, and comes back. */
+  function duck(at) {
+    const gain = bed.gain;
+    gain.cancelScheduledValues(at);
+    gain.setTargetAtTime(duckTo, at, DUCK_IN);
+    gain.setTargetAtTime(1, at + DUCK_HOLD, DUCK_OUT);
+  }
+
   function open(role, at = context.currentTime) {
     const chain = chains[role];
     chain.misses = 0;
@@ -230,7 +257,8 @@ export function createConductor({ context, song, clock, band, sounds, out, level
       const at = clock.contextTimeOf(note.t);
       const when = at > now && offset >= -SNAP_EARLY ? at : now;
       const joined = open(note.role, now);
-      sounds.note(note.role, { freq: note.freq, at: when + 0.004, dur: note.dur, into: chains[note.role].input });
+      sounds.note(note.role, { freq: note.freq, at: when + 0.004, dur: note.dur, into: hits[note.role], tapped: true });
+      duck(when + 0.004);
       return joined;
     },
     /** The child missed chart note `note`: a soft bloop, and her part fades to a whisper until she is hit again. */
@@ -263,6 +291,7 @@ export function createConductor({ context, song, clock, band, sounds, out, level
       return decided[0] ? { index: 0, ...decided[0], compiled: undefined, notes: undefined } : null;
     },
     isOpen: role => chains[role].open,
+    hits,
     totals,
   };
 }
