@@ -12,9 +12,9 @@ const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), a
 const centre = points => points.reduce((sum, p) => sum.add(p), points[0].clone().multiplyScalar(0)).multiplyScalar(1 / points.length);
 const up = (point, metres) => point.clone().setY(point.y + metres);
 // The push from the glade's side, high enough to see the whole sweep of the log over the river past the two Þríhyrnur;
-// the new bridge from low down on the glade's side, the two of them in front of it, turned there to cheer, then close
-// on their faces; the branch let go from the south, under it.
-const PUSH_FRONT = [.35, 0, .94], BRIDGE_FRONT = [.6, 0, .8], CHEER_FRONT = [.2, 0, 1], BRANCH_FRONT = [.3, 0, 1];
+// the new bridge from low down behind its near end, along it, as they step back into line for it; their cheer face
+// on, from above the bridge's near end; the branch let go from the south, under it.
+const PUSH_FRONT = [.35, 0, .94], BRIDGE_FRONT = [-.64, 0, .77], CHEER_FRONT = [.64, 0, -.77], BRANCH_FRONT = [.3, 0, 1];
 
 /**
  * The log: a wide cut while the Þríhyrnur hop off, a follow cut on their walk, then the still shot of the push: Mosi says "Einn, tveir, ÝTA!" and every tap rolls the log a third (the adventure's beat
@@ -44,9 +44,9 @@ export function rollScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: 1.5, wait: { until: () => stage.task.isBuilt() || !stage.task.busy(), timeout: 6 } },
     // Down it comes over the river: a jolt.
     { at: 1.55, fx: { kind: 'shake', strength: .12, seconds: .35 } },
-    { at: 2.0, shot: { kind: 'hero', subjects: () => [near(), stage.task.logEnd(), ...heads(), ...tris().map(actor => actor.root.position.clone())], front: BRIDGE_FRONT, elevation: 12, cut: true } },
+    { at: 2.0, shot: { kind: 'hero', subjects: () => [near(), stage.task.logEnd(), ...heads(), ...tris().map(actor => actor.root.position.clone())], front: BRIDGE_FRONT, elevation: 10, cut: true } },
     // We did it! Face to face: both cheer and call, Mosi claps.
-    { at: 3.4, shot: { kind: 'face', subjects: () => [...heads(), ...heads().map(p => up(p, .5)), ...tris().map(actor => actor.root.position.clone())], front: CHEER_FRONT, elevation: 8, cut: true },
+    { at: 3.4, shot: { kind: 'face', subjects: () => [...heads(), ...heads().map(p => up(p, .5)), ...tris().map(actor => actor.root.position.clone())], front: CHEER_FRONT, elevation: 24, cut: true },
       act: all(() => stage.pairGesture('triceratops', 'cheer'), () => stage.mosi.gesture('clap')),
       fx: { kind: 'stars', at: () => up(centre(heads()), .5), count: 12 }, sound: { name: 'call', species: 'triceratops' } },
     { at: 4.6, wait: { until: () => !stage.task.busy(), timeout: 3 } },

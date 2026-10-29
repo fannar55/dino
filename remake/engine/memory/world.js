@@ -463,7 +463,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       // capsules overlap there (theirs is as wide as the round belly all along the neck), so near the start the
       // planner checks the measured bodies instead.
       const crossing = action?.id === 'cross' && action.phase === 'cross';
-      const route = homeNav.request(actor, end, yaw ?? actor.root.rotation.y, { allowEndContact: pushing && action.phase === 'approach', allowStartContact: pushing && action.phase === 'return' || crossing });
+      // So may a Þórseðla that has just let the branch go: her neck starts under it.
+      const releasing = actor.species === 'brontosaurus' && action?.id === 'lower';
+      const route = homeNav.request(actor, end, yaw ?? actor.root.rotation.y, { allowEndContact: pushing && action.phase === 'approach', allowStartContact: pushing && action.phase === 'return' || crossing || releasing });
       if (route === undefined) return undefined;
       homeNav.release(actor);
       return route?.points ?? null;
@@ -960,8 +962,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       let timing = { lead: null, deck: 0, mid: 1.6, arrive: 3 };
       if (plan) {
         const lengths = [0]; for (let i = 1; i < plan.points.length; i++) lengths.push(lengths[i - 1] + plan.points[i].distanceTo(plan.points[i - 1]));
+        // The friends line up behind where his middle would have passed their own way onto the deck (plan.ahead metres back).
         const middle = plan.points.findIndex(point => stage.task.alongBridge(point) >= BRIDGE.length / 2);
-        timing = { lead: { at: lengths[plan.entry] / speed, half: MOSI_HALF }, deck: lengths[plan.deckStart] / speed, mid: lengths[middle] / speed, arrive: lengths.at(-1) / speed + .45 };
+        timing = { lead: { at: Math.max(0, lengths[plan.deckStart] - plan.ahead) / speed, half: MOSI_HALF }, deck: lengths[plan.deckStart] / speed, mid: lengths[middle] / speed, arrive: lengths.at(-1) / speed + .45 };
       }
       taskScript = scenes.play(crossScene(stage, plan, timing));
       if (!adventure.isBusy()) { scenes.cancel(taskScript); taskScript = null; cameraDirector.release({ cut: true }); return false; }

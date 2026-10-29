@@ -59,7 +59,7 @@ test('two found pairs can build the main bridge but crossing waits for all six a
 
 for (const order of permutations(HELPERS)) test('complete chain after discovery order ' + order.join(' / '), () => {
   const game = createBridgeAdventure(); order.forEach(species => game.unlock(species));
-  build(game); assert.equal(game.getState().branch, 'held'); run(game, 'cross');
+  build(game); assert.equal(game.getState().branch, 'down', 'the built bridge lets the branch go'); run(game, 'cross');
   assert.equal(game.getState().atStaging, true); assert.equal(game.getState().branch, 'down');
   assert.equal(game.getState().boardwalkBuilt, false); assert.equal(game.getState().visited, false);
   assert.notEqual(game.getState().phase, 'complete', 'staging is not the ending'); assert.equal(game.can('finish'), false);
@@ -71,11 +71,13 @@ for (const order of permutations(HELPERS)) test('complete chain after discovery 
   for (const species of HELPERS) assert.equal(game.select(species), false);
 });
 
-test('the branch stays held from the lift until the crossing puts it down', () => {
+test('the branch stays held from the lift until the bridge is built, then the Þórseðlur are free again', () => {
   const game = allFound(); lift(game);
   for (const species of HELPERS) { game.select(null); game.select(species); assert.equal(game.can('lift'), false); }
+  assert.equal(game.getState().free.includes('brontosaurus'), false, 'holding the branch, they are busy');
   game.select(null); game.select('triceratops'); run(game, 'roll');
-  assert.equal(game.getState().branch, 'held'); assert.equal(game.getState().bridgeBuilt, true); assert.equal(game.can('cross'), true);
+  assert.equal(game.getState().branch, 'down'); assert.equal(game.getState().bridgeBuilt, true); assert.equal(game.can('cross'), true);
+  assert.equal(game.getState().free.includes('brontosaurus'), true, 'the branch let go, they can be chosen again');
   assert.equal(game.can('lift'), false, 'a built bridge does not need another lift');
   run(game, 'cross'); assert.equal(game.getState().branch, 'down');
 });

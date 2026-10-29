@@ -7,21 +7,25 @@ import { GESTURES, FAIL_GESTURES } from './gestures.js';
 const Y=new THREE.Vector3(0,1,0),HELPERS=['triceratops','brontosaurus','stegosaurus'];
 const HOLD_CROWNS=[[-7.15,-4.4],[-5.35,-3.3]],HOLD_YAW=.6;
 const TRI_CONTACTS=[.1,1.7];
-// Where the Þríhyrnur step back to once the log is a bridge, side by side on the glade's side of its near end and
-// clear of the way onto it (Mosi comes past them), turned to the glade (the search camera's side) to cheer.
-const TRI_WAIT=[[.1,-.3],[1.25,-1.45]],TRI_WAIT_YAW=-1.05;
+// Where the Þríhyrnur step back to once the log is a bridge: first in the line for crossing it, a little apart (metres
+// along the bridge from its near end, and to its glade side), facing over it; Mosi steps on ahead of them.
+const TRI_WAIT=[[-3.6,-.35],[-6,.45]];
 // Park helpers outside the two working lanes; Stego wait already astride the
 // bark supply, so neither companion must walk through the other's pickup spot.
 const SUPPLY_STAND=[9.05,-15.6];
 const FINAL_PARKING=[[-.8,-25.3],[2.8,-25.7],[.3,-28.3],[4,-28.5],[8,-25.3],[8,-28]];
 // The crossing: one file over the log behind Mosi, every friend at one trot (metres a second), each a body
 // length and `gap` behind the one ahead; a long neck may reach `reach` over the low tail in front. They cross
-// in this order (the builders first, the long necks last) and stand in pairs just past the far end.
-// Where each one stops (by member: Þríhyrnur, Þórseðlur, Kambeðlur), clear of the bark's lanes, all turned to
-// watch the bridge's far end; the Kambeðlur nearest the bark. Mosi walks in first and stands furthest in.
-const CROSS={speed:3.2,gap:.35,reach:.9,order:[0,1,4,5,2,3],face:[5.4,-8.6],leader:[8.1,-12]};
-const CROSS_PARKING=[[6.4,-13.5],[4.5,-13.3],[2.3,-12],[6.9,-10.1],[9.7,-13.2],[10.3,-11.1]];
-const TIMES={approach:1.8,reach:.45,lift:.95,brace:.4,roll:2.4,settle:.8,release:.65,return:1.6,pickup:.55,place:1.65};
+// in this order: the builders (waiting in line) first, the Kambeðlur (the farther bay first, its way passes
+// the nearer), the long necks last.
+const CROSS={speed:3.5,gap:.25,reach:1,order:[0,1,5,4,2,3]};
+// From the bridge's far end each one's way to its place (by member: Þríhyrnur, Þórseðlur, Kambeðlur), the place
+// last; all stand turned west, side on to the staging view. The Kambeðlur stand at the bark supply, the others
+// in rows west of the way off the bridge, clear of the bark's lanes. Mosi, in front, steps aside past the far
+// end and turns to welcome them (facing `welcome`).
+const CROSS_WAYS=[[[-.3,-12.2]],[[2.4,-12.2]],[[5.6,-10.9],[5.2,-13.4],[2,-13.7]],[[2.9,-10.7]],[[10.1,-11.2],[10.1,-14.3],[SUPPLY_STAND[0],-14.3]],[[10.1,-11.2],[10.1,-16.9],[SUPPLY_STAND[0],-16.9]]];
+const LEADER={way:[[5.6,-10.9],[9.2,-8.7]],welcome:[4,-11.5]};
+const TIMES={approach:1.8,reach:.45,lift:.95,brace:.4,roll:2.4,settle:1.2,release:.65,return:1.6,pickup:.55,place:1.65};
 const CALM={approach:.5,reach:.15,lift:.3,brace:.15,roll:.7,settle:.2,release:.2,return:.5,pickup:.2,place:.65};
 const smooth=value=>{const t=THREE.MathUtils.clamp(value,0,1);return t*t*(3-2*t)};
 // A wrong friend's try: where the pair stands to have a go at each obstacle (centre, facing yaw, the two
@@ -169,19 +173,19 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(action.species==='brontosaurus'){fire('stars',.06,()=>heads().forEach(p=>fx?.emit?.('stars',p,{count:8})));fire('stars2',.45,()=>heads().forEach(p=>fx?.emit?.('stars',p,{count:6})))}
     if(action.age>=action.duration){action.phase='back';action.age=0;action.duration=Math.max(...action.hops.map(h=>h.duration))}
   }
-  // Over the log from just before its near end, a step on past the far end, then to `spot`.
-  function deckRoute(points,spot,from=-2.6){
-    for(let s=from;s<BRIDGE.length+1.7;s+=.4)points.push(props.deckPoint(s));points.push(props.deckPoint(BRIDGE.length+1.7),props.deckPoint(BRIDGE.length+2.5),ground(...spot));
+  // Over the log from just before its near end (`from` metres along it) to its far end, then along `way`.
+  function deckRoute(points,way,from=-2.6){
+    for(let s=from;s<BRIDGE.length+1.7;s+=.4)points.push(props.deckPoint(s));points.push(props.deckPoint(BRIDGE.length+1.7),...way.map(p=>ground(...p)));
     return points;
   }
-  const facing=([x,z])=>Math.atan2(-(CROSS.face[1]-z),CROSS.face[0]-x);
-  function finishCrossRoute(points,member){return deckRoute(points,CROSS_PARKING[member])}
+  function finishCrossRoute(points,member){return deckRoute(points,CROSS_WAYS[member])}
   /** The far end of the log when it has rolled `progress` of the way (0 lying along the bank, 1 a bridge); its near end is the pivot. */
   function logEnd(progress=roll){const yaw=THREE.MathUtils.lerp(props.initialYaw,props.finalYaw,progress);return props.pivot.position.clone().add(new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)).multiplyScalar(BRIDGE.length))}
   /** Mosi's way over, from `from` (his place in the glade): round to the near end of the deck and over it, to his place at staging. */
   function leaderRoute(from){
-    const points=deckRoute([from.clone(),ground(.6,1.8),ground(-1.5,.4),ground(-2.4,-.9)],CROSS.leader,-2.2),deck=props.deckPoint(-2.6);
-    return{points,yaw:facing(CROSS.leader),entry:points.findIndex(p=>(p.x-deck.x)*BRIDGE.axis[0]+(p.z-deck.z)*BRIDGE.axis[1]>=0),deckStart:points.findIndex(p=>(p.x-BRIDGE.near[0])*BRIDGE.axis[0]+(p.z-BRIDGE.near[1])*BRIDGE.axis[1]>=-1.7)};
+    // He comes onto the ramp from its glade side, ahead of the Þríhyrnur waiting in line, so his tail stays clear of them.
+    const points=deckRoute([from.clone(),ground(.6,1.8),ground(-.6,-.2)],LEADER.way,-1.3),[x,z]=LEADER.way.at(-1);
+    return{points,yaw:Math.atan2(-(LEADER.welcome[1]-z),LEADER.welcome[0]-x),deckStart:3,ahead:1.3};
   }
   function beginCrossTravel(index=0){
     // Fill the farther Stego bay first; its approach passes the nearer bay.
@@ -189,7 +193,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(!order.length){complete();return;}
     const member=order[index],actor=allActors()[member];
     actor.clearSupport?.();actor.clearLook?.();actor.walk?.(false);
-    const yaw=!final?facing(CROSS_PARKING[member]):actor.species==='brontosaurus'?-.2:actor.species==='stegosaurus'?-Math.PI*.37:-Math.PI/2;
+    const yaw=!final?Math.PI:actor.species==='brontosaurus'?-.2:actor.species==='stegosaurus'?-Math.PI*.37:-Math.PI/2;
     // A larger friend waits further back, so her head stays off the log while she lines up.
     if(!final){action.pending={actor,member,goal:{point:props.deckPoint(-3-1.6*((actor.lengthFactor??1)-1)),yaw:props.finalYaw},finalYaw:yaw,age:0,kind:'cross'};return;}
     const end=ground(...FINAL_PARKING[member]),points=[actor.root.position.clone(),ground(4.5,actor.root.position.z),build.deckPoint(-16.65)];
@@ -229,7 +233,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(action.abortReason)return;
     if(action.id==='cross'){
       // The timetable: each planned friend sets off when its time comes; the next one is planned at once.
-      for(const t of action.queue.filter(t=>action.age>=t.departAt)){
+      for(const t of action.queue.filter(t=>action.age+1e-6>=t.departAt)){
         action.queue.splice(action.queue.indexOf(t),1);t.started=true;t.startedAt=t.delay=action.age;action.routes.push(t);action.duration=Math.max(action.duration,action.age+t.duration);t.actor.walk?.(true);
       }
       if(!action.pending&&action.nextIndex<action.travelCount)beginCrossTravel(action.nextIndex++);
@@ -353,7 +357,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
         if(action.phase==='contact')pairActors('brontosaurus').forEach((actor,member)=>{actor.root.position.lerpVectors(action.contactStarts[member],holdPoint(actor,member),smooth(p));actor.root.rotation.y=HOLD_YAW});
         if(action.phase==='withdraw')pairActors('brontosaurus').forEach((actor,member)=>{const end=holdPoint(actor,member).add(new THREE.Vector3(-.55,0,0).applyAxisAngle(Y,HOLD_YAW));end.y=heightAt(end.x,end.z)+.04;actor.root.position.lerpVectors(action.contactStarts[member],end,smooth(p));actor.root.rotation.y=HOLD_YAW});
         if(action.phase==='brace'||action.phase==='roll'){if(action.phase==='roll'){roll=smooth(p);props.setLog(roll)}pushPose(action.phase==='brace'?smooth(p):1)}
-        if(action.phase==='settle')pairActors('triceratops').forEach((actor,member)=>{const t=smooth(p),from=action.settleYaw[member];actor.root.position.lerpVectors(action.contactStarts[member],ground(...TRI_WAIT[member]),t);actor.root.rotation.y=from+Math.atan2(Math.sin(TRI_WAIT_YAW-from),Math.cos(TRI_WAIT_YAW-from))*t;if(p>=1)actor.walk?.(false)});
+        if(action.phase==='settle')pairActors('triceratops').forEach((actor,member)=>{const t=smooth(p),from=action.settleYaw[member];const wait=props.pointAlong(...TRI_WAIT[member]);actor.root.position.lerpVectors(action.contactStarts[member],ground(wait.x,wait.z),t);actor.root.rotation.y=from+Math.atan2(Math.sin(props.finalYaw-from),Math.cos(props.finalYaw-from))*t;if(p>=1)actor.walk?.(false)});
         if(p>=1){
           if(action.phase==='settle'&&onwardTravel){
             // Stay by the bridge they just made: the crossing starts from here (once every friend is found)
@@ -415,7 +419,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   function getDebug(){const boardwalk=build.getDebug();boardwalk.cargo.carriers=pairActors('stegosaurus').map((_,i)=>`stegosaurus-${i}`);return{
     collision:{logMatrix:(props.log.updateWorldMatrix(true,false),props.log.matrixWorld.toArray()),logLength:BRIDGE.length,logRadius:BRIDGE.radius,tubes:Object.entries(props.getBranchCollision?.()??{}).map(([id,value])=>({id,...value}))},
     stage:visited?'visited':boardwalkBuilt?'boardwalk-built':atStaging?'staging':built?'bridge-built':held?'branch-held':'waiting',
-    action:action?{id:action.id,phase:action.phase,panel:action.panel,elapsed:action.elapsed,age:action.age,progress:Math.min(1,action.age/Math.max(.01,action.duration)),planning:action.pending?{member:action.pending.member,age:action.pending.age,to:action.pending.goal.point.toArray()}:null,crossed:[...action.crossed]}:null,
+    action:action?{id:action.id,phase:action.phase,panel:action.panel,elapsed:action.elapsed,age:action.age,progress:Math.min(1,action.age/Math.max(.01,action.duration)),planning:action.pending?{member:action.pending.member,age:action.pending.age,to:action.pending.goal.point.toArray()}:null,queued:(action.queue??[]).map(t=>({member:t.member,departAt:t.departAt})),crossed:[...action.crossed]}:null,
     branch:{held,lift,restRaised:built&&!held,supports:pairActors('brontosaurus').map(a=>a.getSupportPosition().toArray())},
     bridge:{built,progress:roll,position:props.pivot.position.toArray(),rotation:props.pivot.rotation.y,walkable:{start:[BRIDGE.near[0],props.deckY,BRIDGE.near[1]],end:[BRIDGE.far[0],props.deckY,BRIDGE.far[1]],axis:[...BRIDGE.axis],halfWidth:BRIDGE.halfWidth,deckY:props.deckY}},
     river:{points:RIVER.points.map(p=>[...p]),halfWidth:RIVER.halfWidth,waterY:RIVER.waterY,bankBlend:RIVER.bankBlend,bounds:{minX:-15,maxX:13,minZ:-18,maxZ:10}},
@@ -425,6 +429,6 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     routes:action?[...action.routes,...(action.readyTravel?[action.readyTravel]:[])].map(t=>({species:t.actor.species,member:t.member,started:Boolean(t.started),finished:Boolean(t.finished),reservation:t.reservation,age:t.age,waiting:t.waiting,startedAt:t.startedAt,finishedAt:t.finishedAt,delay:t.delay,entryAt:t.entryAt,duration:t.duration,finalYaw:t.finalYaw,headings:t.route.points.map(p=>p.heading??null),points:t.route.points.map(p=>p.toArray())})):[],
   }}
   function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
-  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
+  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)||action?.queue?.some(t=>t.actor===actor)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
 }
 

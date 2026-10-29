@@ -246,11 +246,11 @@ const TIMELINE_JS = `(() => {
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), take = cam.takes || 0;
     const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, take, act, mosi].join('|');
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, take, act, mosi, s.paused].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take, act, mosi });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take, act, mosi, paused: Boolean(s.paused) });
     }
   }, 100);
 })()`;
@@ -340,9 +340,13 @@ const GPU_JS = `(() => {
 // The spec's pacing, read off the page's own timeline: the crossing (Mosi's first step, his first step onto the deck,
 // all six at staging, input back: the camera free again) and, over every stretch where the child only watches (a script,
 // a task or a wrong friend's go running), the longest time with no new framing (a cut, a glide or the way back) and
-// no tap. Times are the page's clock (performance.now() seconds), as in the timeline.
+// no tap. Times are the page's clock (performance.now() seconds), as in the timeline; the spans are game time: without
+// --video the game is paused for each picture, and those pauses are left out.
 function timelineCheck(timeline = [], taps = []) {
   if (!timeline?.length) return null;
+  const pauses = [];
+  timeline.forEach((e, i) => { if (e.paused && !timeline[i - 1]?.paused) pauses.push([e.t, timeline.slice(i + 1).find(n => !n.paused)?.t ?? Infinity]); });
+  const game = t => t - pauses.reduce((sum, [a, b]) => sum + Math.max(0, Math.min(t, b) - a), 0);
   const watching = e => Boolean(e.scene || e.active || e.failing);
   const events = [];
   for (let i = 1; i < timeline.length; i++) {
@@ -358,15 +362,15 @@ function timelineCheck(timeline = [], taps = []) {
     let j = i; while (j + 1 < timeline.length && watching(timeline[j + 1])) j++;
     const from = timeline[i].t, to = j + 1 < timeline.length ? timeline[j + 1].t : timeline[j].t;
     const marks = [from, ...events.filter(e => e.t > from && e.t < to).map(e => e.t), to];
-    for (let k = 1; k < marks.length; k++) if (marks[k] - marks[k - 1] > longest.seconds) {
+    for (let k = 1; k < marks.length; k++) if (game(marks[k]) - game(marks[k - 1]) > longest.seconds) {
       const at = [...timeline].reverse().find(e => e.t <= marks[k - 1]) ?? timeline[i];
-      longest = { seconds: +(marks[k] - marks[k - 1]).toFixed(2), from: marks[k - 1], to: marks[k], caption: at.caption, active: at.active, act: at.act, shot: at.shot };
+      longest = { seconds: +(game(marks[k]) - game(marks[k - 1])).toFixed(2), from: marks[k - 1], to: marks[k], caption: at.caption, active: at.active, act: at.act, shot: at.shot };
     }
     i = j + 1;
   }
   const firstStep = timeline.find(e => e.mosi === 'walk' || e.mosi === 'deck'), deck = timeline.find(e => e.mosi === 'deck'), arrive = timeline.find(e => e.staging);
   const input = arrive && timeline.find(e => e.t >= arrive.t && e.staging && !e.scene && !e.held && e.cam === 'auto');
-  const span = (a, b) => a && b ? +(b.t - a.t).toFixed(2) : null;
+  const span = (a, b) => a && b ? +(game(b.t) - game(a.t)).toFixed(2) : null;
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
