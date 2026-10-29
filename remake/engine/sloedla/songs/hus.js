@@ -30,6 +30,7 @@ export default {
   bpm: 125.997,
   root: 'G',
   scale: 'major',
+  voices: { a: 'piano', b: 'organ', c: 'housekick' }, // house (voices.js)
   // the recording split into stems (tools/sloedla-music.mjs house --stems), each a dinosaur's: the drums Þórseðla's, the bass
   // Kambeðla's, the piano Slóeðla's; "other" (quiet pads and effects) is the skeleton's, with the game's pulse and drone
   backing: {

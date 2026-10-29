@@ -135,7 +135,7 @@ async function start() {
   const windows = LEVELS[options.level];
   const fall = windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
-  const sounds = createSongSounds({ context, output: mix, room });
+  const sounds = createSongSounds({ context, output: mix, room, voices: song.voices });
   const band = createBand(context, { output: mix, room });
   const conductor = createConductor({ context, song, clock, band, sounds, out: mix, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;

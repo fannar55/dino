@@ -41,6 +41,7 @@ export default {
   bpm: 116,
   root: 'Bb',
   scale: 'major',
+  voices: { a: 'synthbrass', b: 'discopluck', c: 'syndrum' }, // disco (voices.js)
   form: ['intro', 'vers', 'vidlag', 'vers', 'vidlag', 'bru', 'lokavidlag', 'endir'],
   sections: {
     intro: {

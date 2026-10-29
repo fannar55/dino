@@ -57,6 +57,7 @@ export default {
   bpm: 124,
   root: 'G',
   scale: 'major',
+  voices: { a: 'supersaw', b: 'glass', c: 'boom' }, // a shimmering dance track (voices.js)
   form: ['intro', 'vers', 'vidlag', 'vers', 'vidlag', 'bru', 'lokavidlag', 'endir'],
   sections: {
     // Four bars of shimmer: pad and plucks, the plates, then a soft kick and the bass in the second half

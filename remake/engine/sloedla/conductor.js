@@ -8,7 +8,7 @@
 //     pulse on every beat and the pad. So the song starts bare, and each dinosaur comes in when the child hits her first note.
 //   - The notes the child taps are not scheduled ahead: each sounds when it is tapped (an early tap waits for its beat, up to
 //     SNAP_EARLY), so a missed note is a hole in the tune. A tapped note is struck harder than the notes that play by themselves
-//     (sounds.js TAPPED: a sharp start, and overtones a tablet's speaker can play), goes past her chain, and the rest of the song
+//     (voices.js VOICE_LEVELS: a sharp start, and overtones a tablet's speaker can play), goes past her chain, and the rest of the song
 //     dips under it for a moment (the bed, DUCK), so it is the loudest thing heard as she taps it. A miss also plays a soft "bloop" in her instrument, and her chain closes
 //     to a muffled whisper (OUT_LEVEL through OUT_FILTER) until her next hit, which opens it at once. Three misses in a row in one
 //     lane bring her part back as a ghost for a bar (GHOST_LEVEL), to show what to play. The notes between the child's (the rest of

@@ -8,12 +8,11 @@
 // The conductor (conductor.js) schedules a part's notes a little ahead into the role's gate (`into`), which it shuts when the child
 // misses a note and opens when she hits one, so a missed note leaves a hole in the song, as in Guitar Hero. A tap that is not a hit
 // still plays a soft note (`soft`), straight away, so tapping is always music. The end's stars ring with bells.
+//
+// These three are the first instruments; a song may give the dinosaurs others that suit it (voices.js), each keeping her place in
+// the band. How loud each plays (a note of her phrase, a note the child taps, a stray tap) is voices.js VOICE_LEVELS.
 
-/**
- * How loud each instrument plays a note the child taps (`tapped`), against 0.13, 0.16 and 0.34 for the notes of her phrase that
- * play by themselves: the tapped note must be the loudest thing heard as she taps it, on a tablet's speaker too.
- */
-export const TAPPED = { horn: 0.3, plates: 0.42, drum: 0.42 };
+import { VOICES_DEFAULT, levelOf, createVoices } from './voices.js';
 
 /** The key's notes from its root up: step 0 is do, 5 the next do, and on (negative steps go down). Pentatonic `key` (5 notes). */
 export function scaleOf(key) {
@@ -21,10 +20,11 @@ export function scaleOf(key) {
 }
 
 /**
- * The instruments on `context`, out through `output` unless a note names its own node (`into`). `room` is the reverb send, if any.
- * Returns { note(role, { freq, at, dur, vel, into, soft }), sparkle(freq), star(n, freq) }.
+ * The instruments on `context`, out through `output` unless a note names its own node (`into`). `room` is the reverb send, if any;
+ * `voices` the song's instruments by role ({ a: 'piano', ... }, voices.js), the first ones where it names none.
+ * Returns { note(role, { freq, at, dur, vel, into, soft, tapped }), oops(role, ...), sparkle(freq), star(n, freq), voices }.
  */
-export function createSongSounds({ context, output, room = null, random = Math.random }) {
+export function createSongSounds({ context, output, room = null, random = Math.random, voices = null }) {
   const bus = context.createGain();
   bus.gain.value = 1;
   bus.connect(output ?? context.destination);
@@ -118,7 +118,7 @@ export function createSongSounds({ context, output, room = null, random = Math.r
   // once, bright, with a blat an octave up that a small speaker carries.
   function horn({ freq: f, at, dur = 0.5, vel = 1, soft = false, tapped = false, into }) {
     const length = soft ? 0.32 : Math.max(0.22, dur);
-    const level = (soft ? 0.05 : tapped ? TAPPED.horn : 0.13) * vel;
+    const level = levelOf('horn', { soft, tapped }) * vel;
     const filter = context.createBiquadFilter();
     filter.type = 'lowpass';
     filter.Q.value = 3;
@@ -166,7 +166,7 @@ export function createSongSounds({ context, output, room = null, random = Math.r
   // Kambeðla's plates: a wooden xylophone, a sine with its fourth partial knocking quickly over it and a click of the mallet. A note
   // the child taps is struck hard: the knock and the click louder, the octave ringing more.
   function plates({ freq: f, at, dur = 0.4, vel = 1, soft = false, tapped = false, into }) {
-    const level = (soft ? 0.05 : tapped ? TAPPED.plates : 0.16) * vel;
+    const level = levelOf('plates', { soft, tapped }) * vel;
     const ring = soft ? 0.35 : Math.min(1.1, Math.max(0.5, dur * 1.5));
     tone({ frequency: f, at, length: ring, level, attack: 0.003, decay: 0.12, hold: 0.35, pan: -0.25, dest: into, send: 0.2 });
     tone({ frequency: f * 4, at, length: 0.09, level: level * (tapped ? 0.55 : 0.35), attack: 0.002, decay: 0.03, hold: 0.3, pan: -0.25, dest: into });
@@ -178,7 +178,7 @@ export function createSongSounds({ context, output, room = null, random = Math.r
   // A note the child taps is hit hard: a crack of the beater and a knock two octaves up, which a tablet's speaker can play (the boom
   // itself is too low for it).
   function drum({ freq: f, at, vel = 1, soft = false, tapped = false, into }) {
-    const level = (soft ? 0.12 : tapped ? TAPPED.drum : 0.34) * vel;
+    const level = levelOf('drum', { soft, tapped }) * vel;
     tone({ frequency: f, at, length: soft ? 0.3 : 0.7, level, attack: 0.004, decay: 0.16, hold: 0.4, scoop: 2.2, bend: 0.11, pan: 0.25, dest: into, send: 0.15 });
     tone({ frequency: f * 2, at, length: 0.28, level: level * (tapped ? 0.6 : 0.35), attack: 0.004, decay: 0.08, hold: 0.3, scoop: 1.6, bend: 0.08, pan: 0.25, dest: into });
     puff({ at, length: 0.12, level: level * 0.45, frequency: 900, end: 300, type: 'lowpass', q: 0.7, pan: 0.25, attack: 0.002, dest: into });
@@ -189,16 +189,20 @@ export function createSongSounds({ context, output, room = null, random = Math.r
     if (!soft) puff({ at: at + 0.04, length: 0.8, level: 0.05 * vel, frequency: 260, end: 120, type: 'lowpass', q: 0.5, pan: 0.25, attack: 0.08, dest: into });
   }
 
-  const INSTRUMENTS = { a: horn, b: plates, c: drum };
+  const INSTRUMENTS = { horn, plates, drum, ...createVoices({ context, outlet, release, tone, puff }) };
+  const kit = { ...VOICES_DEFAULT };
+  for (const role of Object.keys(kit)) if (INSTRUMENTS[voices?.[role]]) kit[role] = voices[role];
 
   return {
+    /** The instrument each role plays on, by name. */
+    voices: kit,
     /**
      * `role`'s instrument plays a note: `freq` Hz at context time `at` (now by default) for `dur` s, into `into` (the bus).
-     * `tapped`: the child tapped it (struck hard, TAPPED); `soft`: a tap at no note.
+     * `tapped`: the child tapped it (struck hard); `soft`: a tap at no note.
      */
     note(role, { freq, at = context.currentTime, dur, vel = 1, into, soft = false, tapped = false }) {
       if (!(freq > 0)) return;
-      (INSTRUMENTS[role] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft, tapped: tapped && !soft });
+      (INSTRUMENTS[kit[role]] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft, tapped: tapped && !soft });
     },
     /**
      * A missed note: a soft "bloop" in her own voice that slides down two semitones, 0.3 s, never a buzzer (the gentle form of

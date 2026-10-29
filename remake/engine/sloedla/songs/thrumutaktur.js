@@ -78,6 +78,7 @@ export default {
   bpm: 104,
   root: 'E',
   scale: 'dorian',
+  voices: { a: 'brass', b: 'clav', c: 'rocktom' }, // rock funk (voices.js)
   form: ['intro', 'vers', 'vidlag', 'vers', 'vidlag', 'bru', 'lokavidlag', 'endir'],
   sections: {
     // Four bars: stomp-stomp-clap alone with a crash, then the groove arrives. Chords: Em Em A Bm.
