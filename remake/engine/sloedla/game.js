@@ -11,7 +11,9 @@
 // the ground, and a pair of stage lights for each dinosaur that shine while she plays and go dark while she sleeps. On the lanes:
 // beat lines falling with the notes, a ring closing on the button as a note comes (tap when it touches), the button squashing under
 // the finger, a pillar of light up the lane and sparks on a hit, the run's count popping, stars flying up into the bar as they are
-// won, and at the top of a run everything turns gold. Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run
+// won, and at the top of a run everything turns gold. Words come with juice (text.js): over the dinosaur she tapped, how close to
+// the beat it was ("Fullkomið!" in a rainbow right on it, "Frábært!", "Fínt!", "OK!"); a run's milestones ("10 í röð!", "15 í
+// röð!" ...) rise from low on the screen, letter by letter, in the rainbow from twenty. Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run
 // breaks, cheering for a section that comes in big, applause at the end.
 //
 // The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
@@ -20,10 +22,13 @@
 import { danceGrid, beatAt } from '../beat.js';
 import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
 import { BROKE_AT, cueOf } from './crowd.js';
+import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
 import { seededRandom } from '../random.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
-const MORE = ['Áfram svona!', 'Stórkostlegt!', 'Ótrúlegt!']; // every eight hits further on
+const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
+const GRADE_LIFE = 0.75; // s a grade word stays over the dinosaur
+const RISE_LIFE = 1.9; // s a milestone takes to rise and fade
 const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
@@ -73,7 +78,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const missAt = new Array(lanes).fill(-Infinity);
   const lights = cast.map(() => 0); // each dinosaur's stage lights, 0 dark to 1 (follows whether she plays)
   const floaters = [];
-  const words = [];
+  const words = []; // the middle's words: { text, x, y, size, style, at }
+  const grades = new Array(lanes).fill(null); // the word over each dinosaur for her last tapped note: { grade, at }
+  const rises = []; // a run's milestones rising: { text, style, at }
   const rockets = []; // fireworks on their way up: { x, y, vy, target, hue }
   const constellations = []; // one a section: { section, stars: [{ x, y, lit }], lit, flashAt, good }
   const crowdMemory = {};
@@ -427,9 +434,22 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (amp >= now) { punchAt = lastTime; punchAmp = amp; }
   }
 
-  function say(text, { y = h * 0.4, size = 54, hue = '#fff6c8' } = {}) {
-    words.push({ text, x: w / 2, y, size, hue, at: lastTime });
+  /** A word in the middle of the screen, popping in letter by letter in `style` (text.js). */
+  function say(text, { y = h * 0.4, size = 54, style = 'cream' } = {}) {
+    words.push({ text, x: w / 2, y, size, style, at: lastTime });
     if (words.length > 3) words.shift();
+  }
+
+  /** A run's milestone, rising from low on the screen, with a puff of glitter where it starts. */
+  function rise(text, style) {
+    rises.push({ text, style, at: lastTime });
+    if (rises.length > 2) rises.shift();
+    const y = hitY - dinoR * 2;
+    for (let i = 0; i < 14; i++) {
+      const a = -Math.PI / 2 + (random() - 0.5) * 2.4;
+      const speed = 160 + random() * 200;
+      sparks.push({ x: w / 2 + (random() - 0.5) * w * 0.25, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: 0, max: 0.7 + random() * 0.4, size: 14 + random() * 10, gravity: 180, hue: style === 'rainbow' ? `hsl(${Math.floor(random() * 360)}, 100%, 70%)` : GOLD });
+    }
   }
 
   /** The crowd answers now and then (crowd.js cueOf decides when). */
@@ -476,7 +496,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (joined) {
         // she comes back into the song: her name over her lane
         const friend = cast.find(c => c.role === result.note.role) ?? cast[lane];
-        say(`${friend.name} er með!`, { y: h * 0.5, size: 40, hue: friend.light });
+        say(`${friend.name} er með!`, { y: h * 0.5, size: 40, style: ['#ffffff', friend.light, friend.hue] });
         cheer('rejoin', 0.8);
       }
       hops[lane] = time;
@@ -484,6 +504,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const gold = tierNow >= 3;
       burst(lane, result.great, gold);
       floaters.push({ lane, at: time, wobble: random() * 2 - 1 });
+      grades[lane] = { grade: gradeOf(result.offset, windows), at: time };
       // what the instrument looks like when it plays: her horn's waves, the drum's thump, the plates' glitter
       const noteRole = result.note.role;
       if (noteRole === 'a') waves.push({ lane, at: time, kind: 'horn' });
@@ -497,15 +518,13 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (result.great && tierNow >= 2) punch(0.012);
       const crossed = setTier();
       if (crossed) {
-        say(WORDS[crossed]);
+        say(WORDS[crossed], { style: WORD_STYLES[crossed] });
         punch(0.02 + crossed * 0.006);
         meteor();
         if (crossed === 2) cheer('tier2');
         if (crossed === 3) cheer('tier3');
-      } else if (score.streak >= 24 && score.streak % 8 === 0) {
-        say(MORE[(score.streak / 8) % MORE.length]);
-        cheer('more', 0.85);
-      }
+      } else if (score.streak >= 24 && score.streak % 8 === 0) cheer('more', 0.85);
+      if (milestoneOf(score.streak)) rise(`${score.streak} í röð!`, score.streak >= 20 ? 'rainbow' : 'gold');
       const lit = STAR_SHARES.filter(least => shareNow() >= least).length;
       if (lit > starsLit) {
         for (let k = starsLit; k < lit; k++) flyers.push({ x: laneX[lane], y: hitY - dinoR, index: k, at: time });
@@ -549,7 +568,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         if (section.variant === 'big') {
           for (let i = 0; i < 4; i++) firework(w * (0.15 + 0.7 * random()), h * (0.12 + random() * 0.25), [GOLD, '#ff7eb6', '#7fe3ff', '#b8ff8a'][i]);
           for (let i = 0; i < 3; i++) meteor();
-          say('Allir með!', { y: h * 0.32 });
+          say('Allir með!', { y: h * 0.32, style: 'lilac' });
           punch(0.035);
           cheer('big');
         }
@@ -1128,14 +1147,50 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     g.globalAlpha = 1;
     for (let i = words.length - 1; i >= 0; i--) {
       const word = words[i];
-      const k = (time - word.at) / 1.1;
+      const age = time - word.at;
+      const k = age / 1.3;
       if (k > 1 || k < 0) { if (k > 1) words.splice(i, 1); continue; }
-      const pop = k < 0.15 ? 0.6 + (k / 0.15) * 0.5 : 1.1 - Math.min(0.1, (k - 0.15) * 0.3);
-      g.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
-      outlined(g, word.text, word.x, word.y - k * 30, Math.round(word.size * pop), word.hue);
+      drawWord(g, word.text, word.x, word.y - k * 30, Math.round(word.size * (1 + 0.08 * Math.sin(age * 9) * Math.exp(-age * 3))), {
+        style: word.style, time, age, wave: 0.05, alpha: k > 0.75 ? (1 - k) / 0.25 : 1, fit: w * 0.92,
+      });
     }
-    g.globalAlpha = 1;
+    drawGrades(g, time);
+    drawRises(g, time);
     drawCounter(g, time);
+  }
+
+  // The word over each dinosaur for her last tapped note: it pops up over the button, drifts up a little and fades
+  function drawGrades(g, time) {
+    grades.forEach((entry, lane) => {
+      if (!entry) return;
+      const age = time - entry.at;
+      if (age < 0 || age > GRADE_LIFE) { if (age > GRADE_LIFE) grades[lane] = null; return; }
+      const look = GRADES[entry.grade];
+      const size = Math.round(Math.min(dinoR * 0.62, portrait ? 30 : 40) * look.size);
+      const y = hitY - dinoR * 1.42 - Math.min(1, age / GRADE_LIFE) * dinoR * 0.45;
+      drawWord(g, look.text, laneX[lane], y, size, {
+        style: look.style, time, age, stagger: 0.025, pop: 0.16, wave: entry.grade === 'perfect' ? 0.06 : 0,
+        alpha: age > GRADE_LIFE * 0.6 ? (GRADE_LIFE - age) / (GRADE_LIFE * 0.4) : 1, fit: laneW * 0.98, glow: entry.grade !== 'ok',
+      });
+    });
+  }
+
+  // A run's milestones: they rise from just over the dinosaurs to the middle of the screen, the letters popping in one by one and
+  // bobbing as they go, then fade
+  function drawRises(g, time) {
+    for (let i = rises.length - 1; i >= 0; i--) {
+      const r = rises[i];
+      const age = time - r.at;
+      if (age < 0 || age > RISE_LIFE) { if (age > RISE_LIFE) rises.splice(i, 1); continue; }
+      const k = Math.min(1, age / 1.1);
+      const eased = 1 - (1 - k) ** 3;
+      const from = hitY - dinoR * 2, to = portrait ? h * 0.5 : h * 0.52;
+      const size = Math.round((portrait ? 46 : 64) * (1 + 0.12 * Math.sin(age * 6) * Math.exp(-age * 2)));
+      drawWord(g, r.text, w / 2, from + (to - from) * eased, size, {
+        style: r.style, time, age, stagger: 0.05, pop: 0.28, wave: 0.07,
+        alpha: age > RISE_LIFE - 0.5 ? (RISE_LIFE - age) / 0.5 : 1, fit: w * 0.9,
+      });
+    }
   }
 
   // The run's count under the bar: it pops on every hit and more on every tenth; a broken run's count tumbles away, grey
@@ -1166,7 +1221,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       g.stroke();
       g.globalAlpha = 1;
     }
-    outlined(g, `${score.streak} í röð`, w / 2, counterY, Math.round(size * (1 + pop)), tierNow >= 3 ? '#ffe27a' : '#fff6c8');
+    drawWord(g, `${score.streak} í röð`, w / 2, counterY, Math.round(size * (1 + pop)), { style: score.streak >= 20 ? 'rainbow' : tierNow >= 3 ? 'gold' : 'cream', time, pop: 0, glow: score.streak >= 20 });
   }
 
   function drawBar(g, time) {
@@ -1221,7 +1276,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
       const total = notes.length;
-      outlined(g, END_WORDS[endStars], w / 2, cy + size * 1.6, portrait ? 40 : 52, '#fff6c8');
+      const since = time - (endAt + 0.4 + STAR_GAP * Math.max(1, endStars));
+      drawWord(g, END_WORDS[endStars], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
       outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
     }
   }

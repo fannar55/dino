@@ -5,6 +5,7 @@ import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, makeChart,
 import { scaleOf } from '../engine/sloedla/sounds.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
 import { VOICES_DEFAULT, VOICE_LEVELS } from '../engine/sloedla/voices.js';
+import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
 import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
 import { SONGS } from '../engine/sloedla/songs/index.js';
 
@@ -139,4 +140,18 @@ test('each song gives the dinosaurs instruments of its own, every one known, a t
   assert.equal(kits.size, SONGS.length, 'no two songs sound alike');
   for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[VOICES_DEFAULT[role]], 'a song that names none has the first instruments');
   for (const [name, { play, tapped, soft }] of Object.entries(VOICE_LEVELS)) assert.ok(soft < play && play < tapped && tapped <= 1, `${name}: a stray tap is softest, a tapped note loudest`);
+});
+
+test('a tap is praised by how close it was: Fullkomið! right on, Frábært!, Fínt!, OK! further off, early or late alike; milestones at 10, 15, 20 ...', () => {
+  const barn = LEVELS.barn;
+  assert.equal(gradeOf(0.02, barn), 'perfect');
+  assert.equal(gradeOf(-0.06, barn), 'perfect');
+  assert.equal(gradeOf(-0.12, barn), 'great');
+  assert.equal(gradeOf(0.2, barn), 'fine');
+  assert.equal(gradeOf(-0.25, barn), 'ok');
+  assert.equal(gradeOf(0.05, LEVELS.fullordinn), 'great', 'the grown-ups must be closer');
+  for (const level of Object.values(LEVELS)) assert.ok(level.perfect < level.great && level.great < level.fine && level.fine <= Math.max(level.early, level.late), 'the words go in order inside the window');
+  assert.deepEqual(Object.values(GRADES).map(g => g.text), ['Fullkomið!', 'Frábært!', 'Fínt!', 'OK!']);
+  const milestones = Array.from({ length: 120 }, (_, i) => i + 1).filter(milestoneOf);
+  assert.deepEqual(milestones, [10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120]);
 });
