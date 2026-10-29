@@ -19,12 +19,13 @@ const FINAL_PARKING=[[-.8,-25.3],[2.8,-25.7],[.3,-28.3],[4,-28.5],[8,-25.3],[8,-
 // length and `gap` behind the one ahead; a long neck may reach `reach` over the low tail in front. They cross
 // in this order: the builders (waiting in line) first, the Kambeðlur (the farther bay first, its way passes
 // the nearer), the long necks last.
-const CROSS={speed:3.5,gap:.25,reach:1,order:[0,1,5,4,2,3]};
+const CROSS={speed:3.6,gap:.25,reach:1.1,order:[0,1,5,4,2,3]};
 // From the bridge's far end each one's way to its place (by member: Þríhyrnur, Þórseðlur, Kambeðlur), the place
-// last; all stand turned west, side on to the staging view. The Kambeðlur stand at the bark supply, the others
-// in rows west of the way off the bridge, clear of the bark's lanes. Mosi, in front, steps aside past the far
-// end and turns to welcome them (facing `welcome`).
-const CROSS_WAYS=[[[-.3,-12.2]],[[2.4,-12.2]],[[5.6,-10.9],[5.2,-13.4],[2,-13.7]],[[2.9,-10.7]],[[10.1,-11.2],[10.1,-14.3],[SUPPLY_STAND[0],-14.3]],[[10.1,-11.2],[10.1,-16.9],[SUPPLY_STAND[0],-16.9]]];
+// last; all stand turned west, side on to the staging view. The Kambeðlur stand east of the way off the bridge,
+// each with a clear straight line to its place at the bark supply (the bark's first walk), the others in rows to
+// the west, clear of the bark's lanes. Mosi, in front, steps aside past the far end and turns to welcome them
+// (facing `welcome`).
+const CROSS_WAYS=[[[-1.2,-12.2]],[[1.6,-13.8]],[[2.4,-12.2]],[[2.9,-10.7]],[[7.6,-11]],[[8.6,-12.2]]];
 const LEADER={way:[[5.6,-10.9],[9.2,-8.7]],welcome:[4,-11.5]};
 const TIMES={approach:1.8,reach:.45,lift:.95,brace:.4,roll:2.4,settle:1.2,release:.65,return:1.6,pickup:.55,place:1.65};
 const CALM={approach:.5,reach:.15,lift:.3,brace:.15,roll:.7,settle:.2,release:.2,return:.5,pickup:.2,place:.65};
