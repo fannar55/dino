@@ -19,6 +19,8 @@ const up = (point, metres) => point.clone().setY(point.y + metres);
 const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
 // A wrong friend's failure, seen from in front of it: how far the camera may turn toward the search camera's side,
 // how high it looks down and how near it stands (at the log, closer and from above the Þríhyrnur at home).
+// Mosi's laugh is seen from his south-west, three-quarters: the friends (all west of him) stay out of that close shot.
+const LAUGH_FRONT = [-.6, 0, .8];
 const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .65, elevation: 22, scale: 'action' } };
 
 /**
@@ -63,7 +65,8 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
  * A wrong friend has a go (bridge-adventure startFail: hop there, its species' failure, hop back; `timing` is what
  * it returned, with the way the pair faces there): a wide cut on the run, a close cut on the failure from in front
  * of them, three-quarters (stage.faceOn), so their faces show, a cut to Mosi laughing "Kannski einhver annar?",
- * then the glide back to the glade, where the bubbles come back.
+ * then a cut back to the glade, where the bubbles come back (a glide from the close shot would sweep the whole
+ * group past the lens, over the triangle budget).
  */
 export function failScene(stage, species, target, timing) {
   const pair = () => stage.pair(species), point = () => stage.task.point(target);
@@ -74,9 +77,9 @@ export function failScene(stage, species, target, timing) {
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
     { at: timing.run, shot: { kind: 'wide', scale: view.scale, subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },
-    { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], cut: true },
+    { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], front: LAUGH_FRONT, cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },
     { at: laughAt + .05, wait: { until: () => !stage.task.busy(), timeout: 6 } },
-    { at: laughAt + .1, shot: { release: true, duration: .7 } },
+    { at: laughAt + .1, shot: { release: true, cut: true } },
   ];
 }

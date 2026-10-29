@@ -16,7 +16,7 @@ const up = (point, metres) => point.clone().setY(point.y + metres);
 // The push from the glade's side, high enough to see the whole sweep of the log over the river past the two Þríhyrnur;
 // the new bridge from low down on the glade's side as they step back into line for it; their cheer face on, from
 // the glade's side they have turned to; the branch let go from the south, under it.
-const PUSH_FRONT = [.35, 0, .94], BRIDGE_FRONT = [.2, 0, 1], CHEER_FRONT = [.5, 0, .87], BRANCH_FRONT = [.3, 0, 1];
+const PUSH_FRONT = [.35, 0, .94], BRIDGE_FRONT = [-.2, 0, 1], CHEER_FRONT = [.5, 0, .87], BRANCH_FRONT = [.3, 0, 1];
 
 /**
  * The log: a wide cut while the Þríhyrnur hop off, a follow cut on their walk, then the still shot of the push: Mosi says "Einn, tveir, ÝTA!" and every tap rolls the log a third (the adventure's beat

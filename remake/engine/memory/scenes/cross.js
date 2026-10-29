@@ -30,11 +30,11 @@ export function crossScene(stage, plan, timing) {
     { at: 0, shot: { kind: 'wide', subjects: () => [...group(), near()], cut: true },
       act: all(() => { if (stage.task.start('cross', { lead: timing.lead })) stage.mosi.walk(plan); else stage.task.abort(); }, () => stage.pairGesture('triceratops', 'hop'), () => stage.pairGesture('stegosaurus', 'hop')) },
     // Beside them as Mosi steps onto the log.
-    { at: follow, shot: { kind: 'follow', subjects: () => [stage.mosi.body(), stage.mosi.head(), ...onLog()], front: stage.sideOn(near(), far()), cut: true } },
+    { at: follow, shot: { kind: 'follow', subjects: () => [stage.mosi.body(), stage.mosi.head(), ...group()], front: stage.sideOn(near(), far()), cut: true } },
     // Over his shoulder from behind, the far bank ahead.
     { at: mid, shot: { kind: 'shoulder', subjects: () => [stage.mosi.head(), up(far(), .6), up(stage.task.point('staging'), .2)], elevation: 26, cut: true } },
     // Back to the friends coming over behind him.
-    { at: behind, shot: { kind: 'follow', subjects: onLog, front: stage.sideOn(near(), far()), elevation: 20, cut: true } },
+    { at: behind, shot: { kind: 'follow', subjects: () => [...onLog(), ...group()], front: stage.sideOn(near(), far()), elevation: 20, cut: true } },
     // Over: Mosi at staging, the friends arriving.
     { at: arrival, shot: { kind: 'wide', subjects: () => [...group(), far(), up(stage.mosi.body(), 1)], cut: true },
       act: () => stage.mosi.look(centre(bodies(friends()))) },
