@@ -16,7 +16,7 @@ const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), a
 const centre = points => points.reduce((sum, p) => sum.add(p), points[0].clone().multiplyScalar(0)).multiplyScalar(1 / points.length);
 const up = (point, metres) => point.clone().setY(point.y + metres);
 // The branch shots look from the south, low across the glade: the two Þórseðlur side by side in profile, the log behind them.
-const HERO_FRONT = [.12, 0, 1];
+const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
 
 /**
  * The branch: a wide establishing cut, the two Þórseðlur walk to it (a follow cut, then a close cut while they reach
@@ -40,7 +40,7 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: 1.4, shot: { kind: 'face', subjects: () => [...crowns(), ...heads()], front: HERO_FRONT, cut: true }, act: stillGoing },
     { at: 1.45, wait: { until: arrived, timeout: 8 } },
     // The child's moment. The shot holds still (no cut) until the taps are done or the wait runs out.
-    { at: 1.5, shot: { kind: 'hero', subjects: () => [...crowns(), ...crowns().map(p => up(p, 1.7)), ...brontos().map(actor => actor.root.position.clone())], front: HERO_FRONT, cut: true },
+    { at: 1.5, shot: { kind: 'hero', subjects: () => [...crowns(), ...crowns().map(p => up(p, 1.05)), ...brontos().map(actor => actor.root.position.clone())], front: HERO_FRONT, cut: true },
       act: all(stillGoing, () => stage.mosi.look(centre(crowns()))), say: 'lift' },
     { at: 1.55, wait: { tap: 'branch', count: taps, timeout,
       onTap: () => stage.task.beat(),
@@ -48,7 +48,8 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
       onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
     { at: 1.6, wait: { until: () => !stage.task.busy(), timeout: 6 } },
     // Up! A cut to their faces: they cheer and call together, Mosi claps.
-    { at: 1.65, shot: { kind: 'face', subjects: () => [...crowns(), ...heads(), ...crowns().map(p => up(p, .7))], front: HERO_FRONT, elevation: 6, cut: true },
+    // A new angle on the same moment: the raised branch over the two of them, both whole.
+    { at: 1.65, shot: { kind: 'hero', subjects: () => [...crowns().map(p => up(p, .8)), ...heads(), ...brontos().map(actor => actor.root.position.clone())], front: CHEER_FRONT, elevation: 10, cut: true },
       act: all(() => stage.pairGesture('brontosaurus', 'cheer'), () => stage.mosi.gesture('clap')),
       fx: { kind: 'stars', at: () => up(centre(crowns()), .4), count: 12 }, sound: { name: 'call', species: 'brontosaurus' } },
     { at: 3.05, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },

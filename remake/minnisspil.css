@@ -85,7 +85,7 @@ nav{display:flex;gap:8px;pointer-events:auto}
 .who.below:after{bottom:auto;top:-13px;transform:rotate(225deg);box-shadow:none}
 .who.pop{animation:who-in .32s cubic-bezier(.3,1.6,.5,1) both}
 @keyframes who-in{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
-.who-title{margin:0;color:#6b5026;font-size:16px;line-height:1.1;font-weight:900;letter-spacing:.01em}
+.who-title{margin:0;color:#6b5026;font-size:18px;line-height:1.1;font-weight:900;letter-spacing:.01em}
 .who-row{display:flex;gap:12px}
 .who-friend{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:var(--who-size);padding:0;border:0;background:none;color:#563f20;font:inherit;pointer-events:auto;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
 .who.pop .who-friend{animation:who-pop .42s cubic-bezier(.3,1.7,.5,1) both;animation-delay:calc(.06s + var(--i,0) * .08s)}
@@ -99,11 +99,12 @@ nav{display:flex;gap:8px;pointer-events:auto}
 .who-friend:active .who-face{transform:scale(1.12,.84);transition-duration:.06s}
 .who-friend:focus-visible{outline:none}
 .who-friend:focus-visible .who-face{outline:3px solid #fff0a1;outline-offset:3px}
-.who-name{font-size:15px;line-height:1.05;font-weight:900;white-space:nowrap}
+.who-name{font-size:17px;line-height:1.05;font-weight:900;white-space:nowrap}
 .beat-word{position:absolute;left:50%;top:34%;z-index:5;transform:translate(-50%,-50%);color:#fff3b0;font-size:clamp(64px,10vw,124px);line-height:1;font-weight:900;-webkit-text-stroke:5px #6a4a22;paint-order:stroke fill;text-shadow:0 7px 0 #6a4a22,0 12px 26px #0007;opacity:0;pointer-events:none;white-space:nowrap}
 .beat-word.show{animation:beat-pop .85s cubic-bezier(.3,1.6,.5,1) both}
+#game[data-paused=true] .beat-word,#game[data-paused=true] .who-friend,#game[data-paused=true] .who{animation-play-state:paused}
 @keyframes beat-pop{0%{opacity:0;scale:.3}22%{opacity:1;scale:1.2}55%{opacity:1;scale:1}100%{opacity:0;scale:1.04;translate:0 -26px}}
-@media(max-width:560px){.who{--who-size:66px;padding:8px 10px 10px;gap:4px;border-radius:22px}.who-row{gap:8px}.who-title{font-size:15px}.who-name{font-size:14px}.who-face{border-width:3px}}
+@media(max-width:560px){.who{--who-size:66px;padding:8px 10px 10px;gap:4px;border-radius:22px}.who-row{gap:8px}.who-title{font-size:16px}.who-name{font-size:15px}.who-face{border-width:3px}}
 
 /* Mosi is a character beside a speech bubble, rather than another HUD panel. */
 .coach{position:absolute;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:flex-end;gap:0;width:max-content;max-width:min(670px,calc(100% - 36px));pointer-events:none;z-index:4;filter:drop-shadow(0 7px 11px #15342638)}

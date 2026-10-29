@@ -469,7 +469,7 @@ async function main() {
     const act = async (key, what, extra = {}) => {
       const s = await ev(SNAPSHOT_JS);
       const keys = [key];
-      if (rapid) for (const other of [...s.enabled, ...(s.work.visible && !s.work.disabled ? ['work'] : [])]) if (!keys.includes(other)) keys.push(other);
+      if (rapid) for (const other of s.enabled) if (!keys.includes(other)) keys.push(other);
       const taps = await ev(tapJs(keys, rapid ? 3 : 1, rapid ? 10 : 0));
       let after = {};
       if (rapid) { await sleep(300); const a = await ev(SNAPSHOT_JS); after = { after: `${a.phase}/${a.matched}${a.bridge.selected ? '/sel:' + a.bridge.selected : ''}`, open: a.cards.filter(c => c.status !== 'hidden').map(c => c.id + c.status[0]).join(',') }; }
@@ -531,7 +531,7 @@ async function main() {
       if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone('mosi-laugh', 'mosi-laughs', 350);
       if (s.bridge.active === 'lift' && s.cam.shot === 'follow') waited ||= await milestone('bronto-walk', 'brontos-walk-to-branch', 500);
       if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone('together', 'timeout-together', 300);
-      if (s.bridge.branch === 'held' && s.cam.shot === 'face') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
+      if (s.bridge.branch === 'held' && s.scene && s.cam.shot === 'hero') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
       if (s.bridge.active && s.bridge.active !== 'lift') waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
@@ -559,8 +559,9 @@ async function main() {
           for (let i = 1; i <= 3; i++) {
             const tapped = await ev(tapJs([`task-${s.wait.target}`], 1, 0));
             step(`tap along ${s.wait.target} ${i}`, { taken: tapped });
-            if (shots) { seen.delete(`tap-${i}`); await milestone(`tap-${i}`, `hero-tap-${i}`, 160); }
-            await sleep(rapid ? 120 : 650);
+            // The picture once this step of the lift has landed (a step takes about 0.6 s), with its "Upp!" still up.
+            if (shots) { seen.delete(`tap-${i}`); await milestone(`tap-${i}`, `hero-tap-${i}`, 520); }
+            await sleep(rapid ? 120 : 250);
           }
         }
       } else if (s.who.open && mayAct) {

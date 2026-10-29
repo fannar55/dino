@@ -34,7 +34,7 @@ const dialogs = [$('welcome'), $('pause-dialog'), $('help-dialog')];
 const busyDialog = () => dialogs.some(dialog => dialog.open);
 const held = () => !started || userPaused || document.hidden || busyDialog();
 function syncPause() {
-  const paused = held(); game.pause(paused); audio.pause(paused);
+  const paused = held(); game.pause(paused); audio.pause(paused); $('game').dataset.paused = String(paused);
   speech.pause(paused, { force: !started || userPaused || document.hidden }); music.pause(paused);
   refreshControls();
 }
@@ -172,7 +172,8 @@ function pickFriend(species) {
     const started = result.action === 'lift' ? world.playBranch() : world.startBridgeTask(result.action);
     if (!started) bridge.cancel(result.action);
   }
-  syncBridge(); guidance(); reflectEnding();
+  // Mosi's bubble follows at once (the script's shots hold the camera, so guidance() would wait).
+  syncBridge(); caption(currentStory().prompt); reflectEnding();
 }
 // After a wrong friend's go the bubbles come back, unless no friend in them can do it: then Mosi sends the child
 // back to the leaves.
@@ -219,16 +220,15 @@ function accept(events) {
 }
 function choose(id) {
   if (!world || held()) return;
-  // A leaf tapped while the bubbles are open only closes them: the leaf stays shut.
-  if (bridge.getState().asking) { if (!bridge.getState().failing) cancelChoice(); return; }
+  // While the bubbles are open (or a wrong friend is trying) a leaf tap is ignored: "Aftur" closes them.
+  if (bridge.getState().asking) return;
   if (bridge.getState().active || bridge.getState().failing || !targetAvailable('leaf', id)) return;
   const state = game.getState();
   if (!['ready', 'one-open'].includes(state.phase) || state.cards.find(card => card.id === id)?.status !== 'hidden') return;
   audio.unlock(); music.unlock(); accept(game.pick(id));
 }
 function chooseNest(index) {
-  if (!world || held()) return;
-  if (bridge.getState().asking) { if (!bridge.getState().failing) cancelChoice(); return; }
+  if (!world || held() || bridge.getState().asking) return;
   if (!betweenTurns() || bridge.getState().active || bridge.getState().failing || !nestSpecies[index] || !targetAvailable('nest', index)) return;
   // A pair at home greets the child; they are chosen for work from the bubbles, not here.
   speech.stop(); audio.unlock(); music.unlock(); if (world.playNest(index)) audio.nest(nestSpecies[index], index);
@@ -245,8 +245,8 @@ function chooseTask(id) {
   const target = world.getTargets().find(value => value.type === 'task' && value.id === id);
   // The tap-along: the script under the still shot takes the tap.
   if (target?.tapAlong) { noteInput(); world.tapScene(id); return; }
-  const asking = bridge.getState().asking;
-  if (asking) { if (asking !== id && !bridge.getState().failing) cancelChoice(); return; }
+  // The bubbles are open: another obstacle (or the same one again) waits until they are closed or answered.
+  if (bridge.getState().asking) return;
   if (!betweenTurns() || !targetAvailable('task', id)) return;
   noteInput();
   if (Object.hasOwn(BRIDGE_OBSTACLES, id)) { askObstacle(id); return; }
