@@ -15,10 +15,25 @@
      what shows:
        animals (the default), dinosaurs, fossils   the book open on that ribbon (Risaeðlur, Dýrin, Safnið); it closes into the button, and the
                                       button opens it again
-       map                            the Kortið page; ?progress= says how far the child has got: 0 (a fresh save, no trail), 1 (chapter 1 done),
-                                      2 (chapter 2 come to the Fen) or 3 (Þórseðla's star too, the default); the trail draws itself in once, and
-                                      ?seen=1 has it drawn in before, as on a later visit, and ?at=<ms> holds the drawing at that moment
-                                      from the page's opening (the first piece starts at 560, each next 2150 later) for a picture of it half drawn
+       map                            the Kortið page; ?progress= says how far the child has got, in the order of the painted path (the owner,
+                                      2026-10-29), each level with the ones before it: 0 (a fresh save, no trail), 1 (Kambeðla's star, chapter 1),
+                                      2 (Uggeðla's star too: piece b, the glade to Uggeðla), 3 (Þórseðla's star too, the default, with the places
+                                      chapter 2 gives today: the Fen, Slóeðla, Flugeðla and Uggeðla, so their stickers are on the map, the Fen's
+                                      name takes a tap, and the way ahead is d, to Flugeðla), 4 (Flugeðla's star too: d), 5 (Slóeðla's: e) or 6
+                                      (Grameðla's: f, every piece of the trail, a to f); the piece not reached yet shows ahead as a dotted line,
+                                      its slot pulsing, and the red dot stands at the end of the last piece drawn; the trail draws itself in once,
+                                      with the dot riding at its head, and
+                                      ?seen=1 has it drawn in before, as on a later visit (and the mist already drawn back from Grameðla), and
+                                      ?at=<ms> holds the drawing and the dot at that moment from the page's opening (the first piece starts at 560,
+                                      each next 2850 later) for a picture of it half drawn; the water is lit by a gliding light and the mist drifts
+                                      on every map, and with ?progress=6 and no ?seen=1 the mist opens round Grameðla's circle (560 ms in, over 2 s)
+       journey                        the map in the journey (engine/book/map-moment.js) over this plain backdrop, as a chapter plays it at a
+                                      departure: the whole map slides up, dims the game, draws the leg ahead and comes nearer it; ?leg=1 (the
+                                      default) plays chapter 1's, piece a, on a fresh save, ?leg=2 chapter 2's, pieces b and c, over a trail
+                                      that has a already; it stays up at its end (__moment.close() slides it away, __journey() plays it
+                                      again); ?at=<ms> holds every one of its animations at that moment from the start (the slide 0 to 600,
+                                      the first piece 600 to 3250, a second 3450 to 6100) for a picture of it; ?seen=1 has the pieces
+                                      seen already, so it plays them over again; no book opens
        card                           a card open on its first page (?card=<id>, kalligrammatid unless told another)
        zoom                           Kambeðla's third page, whose picture is zoomed to the whole screen
        info                           the same page with its ⓘ window open (credit, licence and source)
@@ -76,7 +91,8 @@
 
   const params = new URLSearchParams(location.search);
   const asked = params.get('state');
-  const state = ['dinosaurs', 'animals', 'fossils', 'map', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const state = ['dinosaurs', 'animals', 'fossils', 'map', 'journey', 'card', 'zoom', 'info'].includes(asked) ? asked : 'animals';
+  const leg = params.get('leg') === '2' ? 2 : 1; // the map in the journey: chapter 1's departure or chapter 2's
   const read = async path => (await fetch(path)).json();
   const [cardData, mediaData, theme, lines] = await Promise.all([
     read('./assets/book/cards.json'), read('./assets/book/media-manifest.json'), read('./assets/audio/theme.json'), read('./assets/audio/lines.json'),
@@ -89,11 +105,19 @@
   const modelPage = cards.find(card => card.id === cardId)?.pages[Math.max(0, pageAsked)];
   if (cardAsked && params.has('model') && modelPage) modelPage.model = params.get('model'); // a look at a 3D page
   const save = createSave(null);
-  const progress = state === 'map' ? Number(params.get('progress') ?? 3) : 1; // the map's states: how far the child has got
+  const progress = state === 'map' ? Number(params.get('progress') ?? 3) : state === 'journey' ? leg - 1 : 1; // the map's states: how far the child has got (a journey's leg 1 sets out with nothing done)
+  // The painted path's order, one friend a level (the stars are read by their key's friend, so the number in it only aids reading).
   if (progress >= 1) save.addStar('k1_kambedla');
-  if (progress >= 2) save.addPlace('fen');
-  if (progress >= 3) save.addStar('k2_thorsedla');
-  if (state === 'map' && params.get('seen') === '1') for (const id of ['a', 'b', 'c']) save.addSeen(`map-route-${id}`);
+  if (progress >= 2) save.addStar('k2_uggedla');
+  if (progress >= 3) { // Þórseðla's star, and what chapter 2 puts on the map today: the Fen and the three far friends found from her head, not yet visited
+    save.addStar('k2_thorsedla');
+    for (const id of ['fen', 'sloedla', 'flugedla', 'uggedla']) save.addPlace(id);
+  }
+  if (progress >= 4) save.addStar('k4_flugedla');
+  if (progress >= 5) save.addStar('k5_sloedla');
+  if (progress >= 6) save.addStar('k6_gramedla');
+  if (state === 'journey' && leg === 2) save.addSeen('map-route-a'); // chapter 1's trail is drawn, as it is when chapter 2 sets out
+  if (state === 'map' && params.get('seen') === '1') for (const id of ['map-route-a', 'map-route-b', 'map-route-c', 'map-route-d', 'map-route-e', 'map-route-f', 'map-mist-gramedla']) save.addSeen(id);
   save.addFinding('butterfly');
   save.addSeen('mosi');
   save.addSeen('kambedla');
@@ -112,8 +136,8 @@
   addEventListener('pointerdown', () => context?.resume?.().catch?.(() => {}), { capture: true });
   const audio = createBookAudio({ context, output: context && createOutput(context), theme, lines });
   const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {} });
-  createJournal(document, save, { book, audio });
-  Object.assign(window, { __book: book, __bookAudio: audio, __save: save });
+  const journal = createJournal(document, save, { book, audio, win: window });
+  Object.assign(window, { __book: book, __bookAudio: audio, __save: save, __journal: journal, __moment: journal.mapMoment });
 
   /** A finger that touches `selector`'s element and lifts again, which is all a tap is. */
   function tap(selector) {
@@ -175,10 +199,27 @@
 
   // The page the book opens on: the dinosaurs' for ?state=dinosaurs, and for a card of a dinosaur (Mosi's, Kambeðla's), else the animals'.
   const onDinosaurs = state === 'dinosaurs' || (cardAsked && cards.find(card => card.id === cardId)?.group === 'dinosaur');
-  book.open(state === 'fossils' ? 'fossils' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
-  if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at
+  if (state === 'journey') { // no book: the map moment over the backdrop, which the journal's clock (here, the page's) counts
+    let last = performance.now();
+    const clock = now => { journal.update(Math.min(0.1, (now - last) / 1000)); last = now; requestAnimationFrame(clock); };
+    requestAnimationFrame(clock);
+    window.__journey = () => {
+      const { drawMs } = journal.mapMoment.play(leg === 2 ? ['b', 'c'] : ['a']);
+      window.__momentMs = drawMs;
+      if (params.has('at')) { // held at a moment: each of the moment's animations that ends, paused there
+        for (const animation of document.getAnimations()) {
+          const target = animation.effect?.target;
+          if (target?.closest?.('.map-moment') && animation.effect.getTiming().iterations !== Infinity) { animation.pause(); animation.currentTime = Number(params.get('at')); }
+        }
+      }
+    };
+    if (params.get('seen') === '1') for (const id of leg === 2 ? ['map-route-b', 'map-route-c'] : ['map-route-a']) save.addSeen(id);
+    window.__journey();
+  } else book.open(state === 'fossils' ? 'fossils' : state === 'map' ? 'map' : onDinosaurs ? 'dinosaurs' : 'animals', 'child');
+  if (state === 'map' && params.has('at')) { // the trail's drawing held at a moment, to be looked at: the line's, and the dot's riding at its head
     for (const animation of document.getAnimations()) {
-      if (animation.effect?.target?.classList?.contains('map-route-reveal')) { animation.pause(); animation.currentTime = Number(params.get('at')); }
+      const target = animation.effect?.target;
+      if (target?.classList?.contains('map-route-reveal') || target?.classList?.contains('map-dot')) { animation.pause(); animation.currentTime = Number(params.get('at')); }
     }
   }
   await settle();

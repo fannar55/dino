@@ -39,9 +39,9 @@ import { validateGame } from '../hals/rules.js';
 // slots that show share the left page (data-open says how many: one big, two side by side, or the three of a full book). It has had
 // the third tile since Slóeðla's Risaeðlu-Yatzy left the game (the owner's choice of 2026-10-24); before, it was a small button under hers.
 // The Kortið leaf is the map (map-page.js): the forest and the Fen painted across the spread, the trail the child has travelled drawn
-// along it in ink (each piece draws itself in the first time the page is on view), with a slot for the Fen and for each
-// friend that fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name
-// and a sentence (k2_mosi_map_<id>), an empty one only taps.
+// along it in ink (each piece draws itself in the first time the page is on view), with a slot for each of the six friends that
+// fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name and a
+// sentence (k2_mosi_map_<id>), an empty one only taps. The Fen has no slot and no name on the map: its painted reed is the Fen.
 // The Safnið leaf is the fossil collection, Steingervingasafn, which museum-page.js makes: the eight finds of "Háls og hali" as
 // taped stickers, a found one new ("Nýtt!") until tapped, a tap opening its card when the book has one, and a full collection
 // celebrated once. The Safnið ribbon wears a small "Nýtt!" (.ribbon-new) while a fossil is new. The celebration is for a book the

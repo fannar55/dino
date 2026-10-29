@@ -55,6 +55,8 @@
   --book-teal: #2f8f86;
   --book-gold: #f2b630;
   --book-green: #6fae4f;
+  /* The map's red: the travelled trail, the dot that says where the child is, and the dotted way ahead (a warm red, as the travel lines of old adventure films). */
+  --map-red: #c63b2f;
   /* Every control in the book is at least this big. */
   --book-target: 88px;
   /* Nunito, then the rounded faces a system has, for a glyph Nunito lacks (the same stack as the game's page, STYLE.md section 10). */
@@ -447,10 +449,19 @@
 }
 
 /* The Kortið page (engine/book/map-page.js): the painted map across the spread, each page showing its half of assets/book/map.webp,
-   the halves meeting at the spine; the trail the child has travelled, dashed in ink on the path; the place names in the book's
-   font; and a round slot for each place, on its pale circle in the picture: empty (a dashed ring in the place's hue), found (a
-   die-cut sticker of the friend on a wash of its hue) or done (the sticker wears a gold star). Everything on a half is sized from
-   the half's own width (it is a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
+   the halves meeting at the spine; the trail the child has travelled, six pieces (a to f, in the order of the painted path, one
+   friend each) of a solid red line, with a red dot at its head that says where the child is (it pulses a ring at rest) and, for
+   the next leg, a faint dotted red line and its slot's ring pulsing: the dashed ring of an empty slot, or, once the friend is found
+   (the far friends are, in chapter 2, before the line goes to them), a soft ring in her hue round her sticker;
+   the place names in the book's font (the Fen has none: its painted reed is all it is); and a round slot for each of the six
+   friends, on her pale circle in the picture: empty (a dashed ring in the place's hue), found (a die-cut sticker of the friend on a
+   wash of its hue, rocking gently on its tilt) or done (the sticker wears a gold star). Over the painting, the water and the mist, two layers cut from it (tools/map-life-layers.py) that lie exactly
+   where it does: a light glides over the water (the layer shows only inside a soft band that crosses it, a little brighter than the
+   painting under it: map-water-glide), the mist drifts and breathes (map-mist-drift, map-mist-breathe) and is masked by a round hole
+   round Grameðla's circle whose radius, --map-hole, map-page.js opens when she is reached. The motions are all stilled by the
+   reduced-motion rules at the end of this file: the dot then simply stands at its place, the ring that grows from it is not shown,
+   the ring round the next slot stands still, the stickers keep their tilt, the water layer is not shown and the mist stands still. Everything on a half is sized from the half's own width (it is
+   a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
 .book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
 .book-leaf[data-tab="map"] .book-tiles {
@@ -463,18 +474,55 @@
 }
 .map-half[data-half="left"] { justify-self: end; }
 .map-half[data-half="right"] { justify-self: start; }
-.map-art { /* the whole painting, twice the width of a half, stretched to the view (it is 1681 by 936, the view 1800 by 1000), this half of it showing */
+.map-art, .map-water, .map-mist { /* the whole painting, twice the width of a half, stretched to the view (it is 1681 by 936, the view 1800 by 1000), this half of it showing; the water and the mist are cut from it at its size, so they lie exactly over it */
   position: absolute; top: 0; left: 0; width: 200%; height: 100%; display: block; pointer-events: none; object-fit: fill;
 }
-.map-half[data-half="right"] .map-art { left: -100%; }
+.map-half[data-half="right"] :is(.map-art, .map-water, .map-mist) { left: -100%; }
+.map-water { /* the water's own pixels, a little brighter than the painting under them, shown only through a soft band a third of the layer wide that crosses it in 9 s: a light gliding on the water, and nowhere else */
+  filter: brightness(1.3) saturate(1.1);
+  -webkit-mask-image: linear-gradient(100deg, transparent, #000 50%, transparent); mask-image: linear-gradient(100deg, transparent, #000 50%, transparent);
+  -webkit-mask-size: 30% 100%; mask-size: 30% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  /* a mask position in percent is of what the band leaves free (70 % of the layer): -42.86 % puts the band wholly off the layer's left edge (at -30 %), 142.86 % wholly off its right (at 100 %).
+     It stands off the edge when it does not move, so that with less motion the layer shows nothing */
+  -webkit-mask-position: -42.86% 0; mask-position: -42.86% 0;
+  animation: map-water-glide 9s linear infinite;
+}
+@keyframes map-water-glide {
+  from { -webkit-mask-position: -42.86% 0; mask-position: -42.86% 0; }
+  to { -webkit-mask-position: 142.86% 0; mask-position: 142.86% 0; }
+}
+.map-mist { /* the cloud, at half strength, sliding a little (1.5 % of a page's width either way, over 14 s) and breathing; round Grameðla's circle (--map-hole-x, --map-hole-y, set on the left page's) its mask is clear to --map-hole, and fades to the mist by a third more */
+  opacity: .5;
+  -webkit-mask-image: radial-gradient(circle at var(--map-hole-x, 0%) var(--map-hole-y, 0%), transparent var(--map-hole), #000 calc(var(--map-hole) * 1.35 + 1px));
+  mask-image: radial-gradient(circle at var(--map-hole-x, 0%) var(--map-hole-y, 0%), transparent var(--map-hole), #000 calc(var(--map-hole) * 1.35 + 1px));
+  animation: map-mist-drift 14s ease-in-out infinite, map-mist-breathe 11s ease-in-out infinite;
+}
+@keyframes map-mist-drift { /* translate is of the layer, twice a page wide: .75 % of it is 1.5 % of the page */
+  0%, 100% { translate: -.75% 0; }
+  50% { translate: .75% 0; }
+}
+@keyframes map-mist-breathe {
+  0%, 100% { opacity: .45; }
+  50% { opacity: .6; }
+}
 .map-route { /* the trail: this half of the view, over the painting and under the names and the slots */
   position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; overflow: hidden;
 }
 .map-route-piece[data-state="hidden"] { display: none; }
-.map-route-reveal { fill: none; stroke: #fff; stroke-width: 14; stroke-linecap: butt; } /* what shows the ink: a pen that draws itself along the path */
-.map-route-line { /* the ink of the book, as the old painted dots were: short dashes with round ends, as thick as they were */
-  fill: none; stroke: var(--book-ink); stroke-width: 4.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 7 9.8;
+.map-route-reveal { fill: none; stroke: #fff; stroke-width: 16; stroke-linecap: butt; } /* what shows the red line: a pen, wider than it, that draws itself along the path */
+.map-route-line { /* the trail travelled: a solid red line with round ends and joins, as the travel lines in the Indiana Jones films */
+  fill: none; stroke: var(--map-red); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round;
 }
+.map-route-ahead { /* the way ahead: the same path as a faint dotted red line, under the red line, which covers it as it is drawn in */
+  display: none; fill: none; stroke: var(--map-red); stroke-opacity: .55; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: .1 15;
+}
+.map-route-piece[data-state="next"] .map-route-ahead, .map-route-piece[data-state="pending"] .map-route-ahead, .map-route-piece[data-state="drawing"] .map-route-ahead { display: inline; }
+.map-dot-core { fill: var(--map-red); stroke: var(--book-paper); stroke-width: 3; } /* the dot that says where the child is, with a rim of paper */
+.map-dot-ring { /* at rest a ring grows from the dot and fades; shown only while it grows, so that without the motion there is none */
+  fill: none; stroke: var(--map-red); stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center;
+  animation: map-dot-pulse 2.4s ease-out infinite;
+}
+.map-dot[data-moving="yes"] .map-dot-ring { animation: none; } /* while it travels with the line's head there is no ring */
 .map-name { /* a place name written on the map, with a halo of paper round its letters */
   position: absolute; z-index: 1; transform: translate(-50%, -50%) rotate(var(--tilt, -2deg)); pointer-events: none;
   white-space: nowrap; font-size: clamp(18px, 4.6cqw, 40px); font-weight: 900; line-height: 1;
@@ -490,13 +538,23 @@
   content: ""; width: calc(var(--d) * .74); aspect-ratio: 1; border-radius: 50%;
   border: 3.5px dashed color-mix(in srgb, var(--hue) 75%, var(--book-ink)); background: rgb(255 250 240 / .5);
 }
+.map-marker.next::before { animation: map-next-pulse 2.4s ease-in-out infinite; } /* the place the way ahead leads to: its ring breathes, the only one that does */
+.map-marker.next.found::after { /* the same place once its friend is found (the far friends are, a chapter or more before the line goes to them): her sticker is there, so the ring is a soft one in her hue just outside its rim, breathing as the dashed one does */
+  content: ""; position: absolute; top: 50%; left: 50%; box-sizing: border-box; width: calc(var(--d) * 1.1 + 8px); aspect-ratio: 1; translate: -50% -50%;
+  border-radius: 50%; border: 3px solid color-mix(in srgb, var(--hue) 80%, var(--book-card)); box-shadow: 0 0 .4em color-mix(in srgb, var(--hue) 70%, transparent);
+  opacity: .85; pointer-events: none; animation: map-next-ring 2.4s ease-in-out infinite;
+}
 .map-sticker { /* the friend on a round die-cut sticker with a shine, on a wash of its hue; the rim brings it to --d across */
+  --lean: -6deg; /* its tilt, which it rocks about */
   position: relative; width: calc(var(--d) * .9); aspect-ratio: 1; border-radius: 50%; overflow: hidden; font-size: var(--d);
   background: radial-gradient(circle at 50% 36%, var(--book-card), color-mix(in srgb, var(--hue) 46%, var(--book-card)) 74%);
   box-shadow: 0 0 0 .03em #fff, 0 0 0 .05em var(--book-ink), 0 .06em .1em .02em rgb(59 47 37 / .3);
-  rotate: -6deg;
+  rotate: var(--lean); animation: map-rock 4.2s ease-in-out infinite;
 }
-.map-marker:nth-of-type(2n) .map-sticker { rotate: 5deg; }
+.map-marker:nth-of-type(2n) .map-sticker { --lean: 5deg; animation-duration: 3.7s; animation-delay: -1.3s; }
+.map-marker:nth-of-type(3n) .map-sticker { animation-duration: 4.8s; animation-delay: -2.9s; }
+.map-marker:nth-of-type(4n) .map-sticker { animation-duration: 4.4s; animation-delay: -.7s; }
+.map-marker:nth-of-type(5n) .map-sticker { animation-duration: 3.6s; animation-delay: -2.2s; }
 .map-sticker img, .map-sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; transform: scale(1.16) translateY(4%); }
 .map-sticker svg { transform: none; }
 .map-sticker::after { /* the shine */
@@ -515,6 +573,60 @@
 @keyframes map-breathe {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -54%) scale(1.04); }
+}
+@keyframes map-rock { /* the sticker leans three degrees either side of its tilt */
+  0%, 100% { rotate: calc(var(--lean) - 3deg); }
+  50% { rotate: calc(var(--lean) + 3deg); }
+}
+@keyframes map-next-pulse {
+  0%, 100% { scale: 1; opacity: .6; }
+  50% { scale: 1.12; opacity: 1; }
+}
+@keyframes map-next-ring {
+  0%, 100% { scale: 1; opacity: .55; }
+  50% { scale: 1.12; opacity: 1; }
+}
+@keyframes map-dot-pulse {
+  0% { transform: scale(1); opacity: .7; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+/* The map in the journey (engine/book/map-moment.js): at a departure the whole map, the two pages of the Kortið page side by side as one
+   picture, slides up over the running game, draws the leg ahead and slides away. A veil dims the game by 35 %; over it a paper card the
+   shape of the map's view (1.8 to 1) and about 86 % of the screen, whichever way the tablet is held (map-moment.js sets --moment-w and
+   --moment-h from fitMap; the min() is the same rule for a page that has not). Everything in the overlay lets touches through to the
+   game. It has no z-index: the script puts it in the page right after the canvas, so it is over the game and under the caption (Mosi's
+   words, z-index 2), the buttons and the book, which opens over it (a z-index would have put it over the book, which has none). Its
+   own pages are boxes that size their half of the map as the book's tiles do, so the map's rules above hold in it unchanged. */
+.map-moment {
+  position: fixed; inset: 0; display: grid; place-items: center; overflow: hidden;
+  pointer-events: none;
+  font-family: var(--book-font); font-weight: 700; color: var(--book-ink);
+}
+.map-moment * { pointer-events: none; }
+.map-veil {
+  position: absolute; inset: 0;
+  background: rgb(20 16 10 / .35);
+}
+.map-card { /* the paper's rim and the card's shadow are outside its box, so the box is the map */
+  --rim: clamp(8px, 1.3vmin, 16px);
+  position: relative; overflow: hidden;
+  width: var(--moment-w, min(86vw, 154.8vh)); height: var(--moment-h, min(47.78vw, 86vh));
+  background: var(--book-paper);
+  box-shadow:
+    0 0 0 var(--rim) var(--book-paper), 0 0 0 calc(var(--rim) + 3px) rgb(59 47 37 / .5),
+    0 22px 48px rgb(14 8 3 / .5), 0 6px 14px rgb(14 8 3 / .35);
+}
+.map-card::after { /* the book's hand-drawn frame line over the map's edge */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: var(--book-frame); background-size: 100% 100%;
+}
+.map-zoom { /* what the map comes nearer by: scaled about its top left, in a card that clips it */
+  position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 100%; transform-origin: 0 0;
+}
+.map-moment .map-tiles { /* each page: a box of the card's half, as the book's tiles are (the map's half takes the width of it) */
+  --pad-x: 0px; --pad-top: 0px; --pad-bottom: 0px;
+  min-width: 0; min-height: 0; display: grid; place-items: center; container-type: size;
 }
 
 /* Each animal's own hue (STYLE.md section 3, and the critters' colours in world/critters/models.js), for its photo's
@@ -900,6 +1012,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .book *, .book *::before, .book *::after { animation: none !important; }
+  .map-mist { animation: none; } /* the mist stands where the book's rule does not reach it, a map outside .book */
+  .map-water { animation: none; } /* where it stands, off the layer, the light shows nowhere */
+  .map-moment *, .map-moment *::before, .map-moment *::after { animation: none !important; } /* the map in the journey is outside .book: it stands as still as the book's */
   /* the one thing that goes on is a twinkle that fades in and out where it is */
   .tile.found::after { animation: twinkle-fade 4.2s ease-in-out calc(var(--lag) * 1.3) infinite !important; }
 }
