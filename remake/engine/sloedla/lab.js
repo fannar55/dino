@@ -27,6 +27,7 @@ import { createBand, createReverb } from './band.js';
 import { createConductor } from './conductor.js';
 import { createCrowd } from './crowd.js';
 import { createDj } from './dj.js';
+import { createClaps } from './claps.js';
 import { createSongGame } from './game.js';
 import { SONGS, loadSong } from './songs/index.js';
 import { rootHz } from './song.js';
@@ -100,6 +101,10 @@ if (mix) {
 // the crowd's voice, made with ElevenLabs (tools/sloedla-crowd.mjs); fetched and decoded while the start card waits
 const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`) }) : null;
 crowd?.load();
+const CLAP_LEVEL = 1.55; // the clapping crowd against the crowd's bus (measured: tools in the side notes, meter-crowd.mjs + clap-report.mjs)
+// the crowd clapping along in Stjörnukraftur: real hand claps (claps.js), through the crowd's bus (its level, its share of the room)
+const claps = crowd ? createClaps({ context, output: crowd.bus, src: name => asset(`audio/sloedla/klapp/${name}.wav`), level: CLAP_LEVEL }) : null;
+claps?.load();
 // the music (the band, the dinosaurs' parts, the bells) goes through a bus of its own, which dips under the DJ while he talks, as
 // on the radio; the crowd and the DJ go past it
 const music = mix ? context.createGain() : null;
@@ -158,7 +163,7 @@ async function start() {
   const conductor = createConductor({ context, song, clock, band, sounds, out: music, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, crowd, dj, backdrop, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, crowd, claps, dj, backdrop, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });

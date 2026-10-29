@@ -181,3 +181,20 @@ test('the DJ calls the milestones and the big moments, never on top of himself, 
     assert.equal(made.lines[id]?.text, text, `dj.json says ${id} is "${text}"`);
   }
 });
+
+test('the crowd claps along with real claps: a few people first, more as it goes on; every clap on disk, its source and licence said', async () => {
+  const { CLAP_SETS, clapLayersOf, peopleOf } = await import('../engine/sloedla/claps.js');
+  assert.ok(peopleOf(0) < peopleOf(8) && peopleOf(8) < peopleOf(16) && peopleOf(16) < peopleOf(24), 'more people join as it goes on');
+  assert.equal(peopleOf(0), 4, 'four people start it');
+  assert.ok(clapLayersOf(40).some(layer => layer.far), 'at the end the back of the hall claps too');
+  const made = JSON.parse(fs.readFileSync(new URL('../assets/audio/sloedla/klapp/klapp.json', import.meta.url), 'utf8'));
+  const credits = fs.readFileSync(new URL('../assets/audio/sloedla/klapp/KREDIT.md', import.meta.url), 'utf8');
+  for (const [set, takes] of Object.entries(CLAP_SETS)) {
+    for (const take of takes) {
+      const name = `${set}-${take}`;
+      assert.ok(fs.existsSync(new URL(`../assets/audio/sloedla/klapp/${name}.wav`, import.meta.url)), `${name}.wav is there`);
+      assert.match(made.claps[name]?.licence ?? '', /^CC/, `klapp.json says ${name}'s licence`);
+      if (made.claps[name].licence.startsWith('CC BY')) assert.ok(credits.includes(`${name}.wav`), `KREDIT.md credits ${name}`);
+    }
+  }
+});

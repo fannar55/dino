@@ -4,7 +4,7 @@
 // so cueOf() lets one through only after a quiet spell, and the smaller moments only some of the time.
 
 /** The takes of each sound (crowd.json has what was asked for). */
-export const CROWD_TAKES = { va: 3, ae: 3, fagn: 2, klapp: 2, takt: 4 }; // takt: one clap of the whole crowd, played on the beat
+export const CROWD_TAKES = { va: 3, ae: 3, fagn: 2, klapp: 2 };
 
 /** What may set the crowd off, the sound it makes, how often (chance) and how long since the last sound of that kind (s). */
 const CUES = {

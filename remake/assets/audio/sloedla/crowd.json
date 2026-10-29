@@ -130,54 +130,6 @@
       },
       "made": "2026-10-29",
       "heard": "[aplauso]"
-    },
-    "takt-1": {
-      "kind": "takt",
-      "file": "crowd-takt-1.mp3",
-      "seconds": 0.42,
-      "asked": {
-        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words",
-        "duration_seconds": 0.8,
-        "prompt_influence": 0.6,
-        "model_id": "eleven_text_to_sound_v2"
-      },
-      "made": "2026-10-29"
-    },
-    "takt-2": {
-      "kind": "takt",
-      "file": "crowd-takt-2.mp3",
-      "seconds": 0.42,
-      "asked": {
-        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words",
-        "duration_seconds": 0.8,
-        "prompt_influence": 0.6,
-        "model_id": "eleven_text_to_sound_v2"
-      },
-      "made": "2026-10-29"
-    },
-    "takt-3": {
-      "kind": "takt",
-      "file": "crowd-takt-3.mp3",
-      "seconds": 0.42,
-      "asked": {
-        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words",
-        "duration_seconds": 0.8,
-        "prompt_influence": 0.6,
-        "model_id": "eleven_text_to_sound_v2"
-      },
-      "made": "2026-10-29"
-    },
-    "takt-4": {
-      "kind": "takt",
-      "file": "crowd-takt-4.mp3",
-      "seconds": 0.42,
-      "asked": {
-        "text": "a small, friendly crowd of children and parents at an outdoor evening festival in a forest, close by, no music, no instruments: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words",
-        "duration_seconds": 0.8,
-        "prompt_influence": 0.6,
-        "model_id": "eleven_text_to_sound_v2"
-      },
-      "made": "2026-10-29"
     }
   }
 }

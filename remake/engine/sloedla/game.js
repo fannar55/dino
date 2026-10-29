@@ -41,7 +41,6 @@ const STAR_DRAIN = 1 / 14; // of the star meter a second while it is Stjörnukra
 const STAR_HIT = 0.5; // a hit during Stjörnukraftur tops the meter up by this share of a hit's fill
 const STAR_MISS = 0.12; // and a miss spills this much of it
 const CLAP_AFTER = 8; // beats into Stjörnukraftur before the crowd claps along
-const CLAP_LEVEL = 1.5; // how loud the crowd's claps are (they grow from 45 % to this over two bars; measured to stand a little over the band)
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
 const GOLD = '#f2b630';
@@ -53,10 +52,11 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
  * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
- * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none).
+ * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none); `claps` the crowd clapping
+ * along in Stjörnukraftur (claps.js createClaps, or null).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, dj = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   const lanes = cast.length;
   const notes = conductor.chart; // grows a section at a time
@@ -80,7 +80,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const sparks = []; // short-lived glitter: { x, y, vx, vy, life, max, size, gravity, hue }
   const fill = 1 / (windows.meter ?? 12); // of the star meter a hit fills
   let meter = 0, meterShown = 0, meterPop = -Infinity, meterAt = { x: 0, y: 0, r: 0 };
-  let starMode = false, starAt = -Infinity, clapFrom = Infinity, clapping = false, nextClapBeat = 0;
+  let starMode = false, starAt = -Infinity, clapFrom = Infinity, clapping = false, nextClapBeat = 0, firstClapBeat = 0;
   const feeds = []; // glints flying from a dinosaur into the star meter: { x, y, at }
   const rings = [];
   const waves = []; // Slóeðla's sound waves, Þórseðla's ground wave
@@ -641,10 +641,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       setTier();
       return;
     }
-    if (!crowd?.at || time < clapFrom) return;
+    if (!claps || time < clapFrom) return;
     if (!clapping) {
       clapping = true;
       nextClapBeat = Math.ceil(time / beatLength);
+      firstClapBeat = nextClapBeat;
       call({ kind: 'clap' });
     }
     for (; nextClapBeat * beatLength <= time + 0.25; nextClapBeat++) {
@@ -652,8 +653,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const t = k * beatLength;
       const at = clock.contextTimeOf(t);
       if (at === null || t < time - 0.02) continue;
-      const grow = Math.min(1, Math.max(0, (t - clapFrom) / (beatLength * 8)));
-      crowd.at('takt', at, { gain: CLAP_LEVEL * (0.45 + 0.55 * grow), rate: 0.95 + random() * 0.1 });
+      // the crowd as it is this many beats in: a few people first, more as it goes on (claps.js)
+      claps.beat(at, k - firstClapBeat);
     }
   }
 

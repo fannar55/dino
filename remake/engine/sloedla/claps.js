@@ -20,9 +20,10 @@ const FAR_CUTOFF = 4500; // Hz: and duller
  * then sixteen (and eight), then the whole hall: two sixteens, eight, and the choir at the back. Each: { set, gain, far }.
  */
 export function clapLayersOf(beats) {
-  if (beats < 8) return [{ set: 'hopur4', gain: 1 }];
-  if (beats < 16) return [{ set: 'hopur8', gain: 1 }, { set: 'hopur4', gain: 0.6 }];
-  if (beats < 24) return [{ set: 'hopur16', gain: 1 }, { set: 'hopur8', gain: 0.7 }];
+  // the gains are measured so the crowd grows about 8 dB from four people to the whole hall (more would leave the four unheard)
+  if (beats < 8) return [{ set: 'hopur4', gain: 1.3 }];
+  if (beats < 16) return [{ set: 'hopur8', gain: 1.35 }, { set: 'hopur4', gain: 0.75 }];
+  if (beats < 24) return [{ set: 'hopur16', gain: 1.06 }, { set: 'hopur8', gain: 0.74 }];
   return [{ set: 'hopur16', gain: 1 }, { set: 'hopur16', gain: 0.75 }, { set: 'hopur8', gain: 0.55 }, { set: 'kor', gain: 0.6, far: true }];
 }
 

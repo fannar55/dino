@@ -31,8 +31,6 @@ const KINDS = {
   ae: { seconds: 2.0, takes: 3, text: `${PLACE}: everyone goes "ohhhh" together at once, a gentle, warm, sympathetic sigh at a near miss, kind and not mocking, falling in pitch` },
   fagn: { seconds: 3.5, takes: 2, text: `${PLACE}: a happy burst of cheering, whoops and a little clapping, excited children, no words` },
   klapp: { seconds: 5.0, takes: 2, text: `${PLACE}: warm applause and cheering at the end of a song, kids whooping, clapping that fades out at the end, no words` },
-  // one clap of the whole crowd at once, cut to its first `cut` s: the game plays it on the beat when the crowd claps along
-  takt: { seconds: 0.8, takes: 4, cut: 0.42, text: `${PLACE}: the whole crowd claps their hands exactly once, all together on the beat: one single big clap of many hands at the same moment, then silence, no cheering, no words` },
 };
 /** Every sound the tool makes: va-1, va-2 … klapp-2. */
 export const SOUNDS = Object.entries(KINDS).flatMap(([kind, k]) => Array.from({ length: k.takes }, (_, i) => ({ id: `${kind}-${i + 1}`, kind, ...k })));
