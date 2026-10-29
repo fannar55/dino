@@ -356,15 +356,15 @@ function timelineCheck(timeline = [], taps = []) {
   }
   for (const tap of taps ?? []) events.push({ t: tap.t, what: `tap ${tap.key}` });
   events.sort((a, b) => a.t - b.t);
-  let longest = { seconds: 0 };
+  const stretches = [];
   for (let i = 0; i < timeline.length;) {
     if (!watching(timeline[i])) { i++; continue; }
     let j = i; while (j + 1 < timeline.length && watching(timeline[j + 1])) j++;
     const from = timeline[i].t, to = j + 1 < timeline.length ? timeline[j + 1].t : timeline[j].t;
     const marks = [from, ...events.filter(e => e.t > from && e.t < to).map(e => e.t), to];
-    for (let k = 1; k < marks.length; k++) if (game(marks[k]) - game(marks[k - 1]) > longest.seconds) {
+    for (let k = 1; k < marks.length; k++) {
       const at = [...timeline].reverse().find(e => e.t <= marks[k - 1]) ?? timeline[i];
-      longest = { seconds: +(game(marks[k]) - game(marks[k - 1])).toFixed(2), from: marks[k - 1], to: marks[k], caption: at.caption, active: at.active, act: at.act, shot: at.shot };
+      stretches.push({ seconds: +(game(marks[k]) - game(marks[k - 1])).toFixed(2), from: marks[k - 1], to: marks[k], caption: at.caption, active: at.active, act: at.act, shot: at.shot });
     }
     i = j + 1;
   }
@@ -374,7 +374,8 @@ function timelineCheck(timeline = [], taps = []) {
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
-    longestWatch: longest,
+    // The longest stretch, and the five longest (with what was going on), so a long one can be placed.
+    longestWatch: stretches.sort((a, b) => b.seconds - a.seconds)[0] ?? { seconds: 0 }, longestWatches: stretches.slice(0, 5),
   };
 }
 

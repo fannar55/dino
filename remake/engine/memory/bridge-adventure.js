@@ -8,8 +8,9 @@ const Y=new THREE.Vector3(0,1,0),HELPERS=['triceratops','brontosaurus','stegosau
 const HOLD_CROWNS=[[-7.15,-4.4],[-5.35,-3.3]],HOLD_YAW=.6;
 const TRI_CONTACTS=[.1,1.7];
 // Where the Þríhyrnur step back to once the log is a bridge: first in the line for crossing it, a little apart (metres
-// along the bridge from its near end, and to its glade side), facing over it; Mosi steps on ahead of them.
-const TRI_WAIT=[[-3.6,-.35],[-6,.45]];
+// along the bridge from its near end, and to its glade side), turned to the glade (the search camera's side) to
+// cheer; Mosi steps on ahead of them, clear of the first one.
+const TRI_WAIT=[[-4.2,.4],[-6.8,1.1]],TRI_WAIT_YAW=-1.05;
 // Park helpers outside the two working lanes; Stego wait already astride the
 // bark supply, so neither companion must walk through the other's pickup spot.
 const SUPPLY_STAND=[9.05,-15.6];
@@ -131,7 +132,9 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   // The wrong pair has a go: hops to the obstacle, its species' funny failure, hops back to where it stood.
   function failSpots(species,target){
     const actors=pairActors(species);
-    if(target==='log'){const yaw=props.pivot.rotation.y-Math.PI/2;return actors.map((actor,member)=>{const p=props.logContact(TRI_CONTACTS[member],-2.3);return{point:ground(p.x,p.z),yaw}})}
+    // At the log the pair presses in side by side along its glade side, half turned in to squeeze under it, facing
+    // along it toward its near end (the camera can stand in front of them without the log or the Þríhyrnur at home between).
+    if(target==='log'){const yaw=props.pivot.rotation.y-Math.PI+.45;return actors.map((actor,member)=>{const p=props.logContact(2.4,member?-2.65:-1.55);return{point:ground(p.x,p.z),yaw}})}
     const spot=FAIL_SPOTS[target];if(!spot)return null;
     const across=new THREE.Vector3(Math.sin(spot.yaw),0,Math.cos(spot.yaw));
     return actors.map((actor,member)=>{const p=new THREE.Vector3(spot.centre[0],0,spot.centre[1]).addScaledVector(across,(member?.5:-.5)*spot.apart*(actor.lengthFactor??1));return{point:ground(p.x,p.z),yaw:spot.yaw}});
@@ -357,7 +360,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
         if(action.phase==='contact')pairActors('brontosaurus').forEach((actor,member)=>{actor.root.position.lerpVectors(action.contactStarts[member],holdPoint(actor,member),smooth(p));actor.root.rotation.y=HOLD_YAW});
         if(action.phase==='withdraw')pairActors('brontosaurus').forEach((actor,member)=>{const end=holdPoint(actor,member).add(new THREE.Vector3(-.55,0,0).applyAxisAngle(Y,HOLD_YAW));end.y=heightAt(end.x,end.z)+.04;actor.root.position.lerpVectors(action.contactStarts[member],end,smooth(p));actor.root.rotation.y=HOLD_YAW});
         if(action.phase==='brace'||action.phase==='roll'){if(action.phase==='roll'){roll=smooth(p);props.setLog(roll)}pushPose(action.phase==='brace'?smooth(p):1)}
-        if(action.phase==='settle')pairActors('triceratops').forEach((actor,member)=>{const t=smooth(p),from=action.settleYaw[member];const wait=props.pointAlong(...TRI_WAIT[member]);actor.root.position.lerpVectors(action.contactStarts[member],ground(wait.x,wait.z),t);actor.root.rotation.y=from+Math.atan2(Math.sin(props.finalYaw-from),Math.cos(props.finalYaw-from))*t;if(p>=1)actor.walk?.(false)});
+        if(action.phase==='settle')pairActors('triceratops').forEach((actor,member)=>{const t=smooth(p),from=action.settleYaw[member];const wait=props.pointAlong(...TRI_WAIT[member]);actor.root.position.lerpVectors(action.contactStarts[member],ground(wait.x,wait.z),t);actor.root.rotation.y=from+Math.atan2(Math.sin(TRI_WAIT_YAW-from),Math.cos(TRI_WAIT_YAW-from))*t;if(p>=1)actor.walk?.(false)});
         if(p>=1){
           if(action.phase==='settle'&&onwardTravel){
             // Stay by the bridge they just made: the crossing starts from here (once every friend is found)
@@ -429,6 +432,6 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     routes:action?[...action.routes,...(action.readyTravel?[action.readyTravel]:[])].map(t=>({species:t.actor.species,member:t.member,started:Boolean(t.started),finished:Boolean(t.finished),reservation:t.reservation,age:t.age,waiting:t.waiting,startedAt:t.startedAt,finishedAt:t.finishedAt,delay:t.delay,entryAt:t.entryAt,duration:t.duration,finalYaw:t.finalYaw,headings:t.route.points.map(p=>p.heading??null),points:t.route.points.map(p=>p.toArray())})):[],
   }}
   function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
-  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)||action?.queue?.some(t=>t.actor===actor)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
+  return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),builderSpots:()=>TRI_WAIT.map(([s,side])=>{const p=props.pointAlong(s,side);return ground(p.x,p.z,.6)}),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)||action?.queue?.some(t=>t.actor===actor)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
 }
 

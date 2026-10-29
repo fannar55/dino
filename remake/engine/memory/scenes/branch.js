@@ -17,6 +17,9 @@ const centre = points => points.reduce((sum, p) => sum.add(p), points[0].clone()
 const up = (point, metres) => point.clone().setY(point.y + metres);
 // The branch shots look from the south, low across the glade: the two Þórseðlur side by side in profile, the log behind them.
 const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
+// A wrong friend's failure, seen from in front of it: how far the camera may turn toward the search camera's side
+// and how high it looks down (over the Þríhyrnur at home, at the log).
+const FAIL_VIEW = { branch: { turn: .65, elevation: 22 }, log: { turn: .3, elevation: 36 }, bark: { turn: .65, elevation: 22 } };
 
 /**
  * The branch: a wide establishing cut, the two Þórseðlur walk to it (a follow cut, then a close cut while they reach
@@ -64,12 +67,12 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
  */
 export function failScene(stage, species, target, timing) {
   const pair = () => stage.pair(species), point = () => stage.task.point(target);
-  const start = centre(pair().map(actor => actor.root.position.clone())), front = stage.faceOn(timing.yaw ?? 0, .65);
+  const view = FAIL_VIEW[target] ?? FAIL_VIEW.branch, start = centre(pair().map(actor => actor.root.position.clone())), front = stage.faceOn(timing.yaw ?? 0, view.turn);
   const laughAt = timing.run + timing.attempt * .62;
   return [
     { at: 0, shot: { kind: 'wide', subjects: () => [...bodies(pair()), point(), start], cut: true },
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
-    { at: timing.run, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: 22, cut: true },
+    { at: timing.run, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },
     { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },

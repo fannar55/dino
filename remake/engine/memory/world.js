@@ -227,6 +227,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       isBuilt: () => adventure.isBuilt(),
       logNear: () => adventure.logNear(),
       logEnd: progress => adventure.logEnd(progress),
+      builderSpots: () => adventure.builderSpots(),
       alongBridge: point => (point.x - BRIDGE.near[0]) * BRIDGE.axis[0] + (point.z - BRIDGE.near[1]) * BRIDGE.axis[1],
       // The bridge is built: the Þórseðlur let the branch go and walk home.
       lowerBranch() { const started = adventure.start('lower'); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
