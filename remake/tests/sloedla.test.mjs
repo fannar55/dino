@@ -155,3 +155,25 @@ test('a tap is praised by how close it was: Fullkomið! right on, Frábært!, F�
   const milestones = Array.from({ length: 120 }, (_, i) => i + 1).filter(milestoneOf);
   assert.deepEqual(milestones, [10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120]);
 });
+
+test('the DJ calls the milestones and the big moments, never on top of himself, and the end always; his lines are on disk', async () => {
+  const { DJ_LINES, DJ_QUIET, djCueOf, endLineOf } = await import('../engine/sloedla/dj.js');
+  const memory = {};
+  assert.equal(djCueOf({ kind: 'start' }, 0, memory), 'byrjun');
+  assert.equal(djCueOf({ kind: 'tier', tier: 1 }, 1, memory), null, 'a quiet spell after a line');
+  assert.equal(djCueOf({ kind: 'tier', tier: 1 }, DJ_QUIET + 0.5, memory), 'flott');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 1, memory), null, 'a milestone waits for the line before to end');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 2, memory), 'r10', 'a milestone comes before the quiet spell is over');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 110 }, 60, memory), null, 'no line for a hundred and ten');
+  assert.equal(djCueOf({ kind: 'rejoin', role: 'b' }, 70, memory), 'kambedla');
+  assert.equal(djCueOf({ kind: 'end', stars: 3, misses: 0, full: true }, 70.1, memory), 'fullthus', 'the end is always said');
+  assert.equal(endLineOf({ stars: 3, misses: 2 }), 'naestum');
+  assert.equal(endLineOf({ stars: 3, misses: 5 }), 'frabaert');
+  assert.equal(endLineOf({ stars: 0, misses: 40 }), 'aftur');
+  const made = JSON.parse(fs.readFileSync(new URL('../assets/audio/sloedla/dj/dj.json', import.meta.url), 'utf8'));
+  assert.ok(made.voice?.id, 'the DJ has a voice of his own');
+  for (const [id, text] of Object.entries(DJ_LINES)) {
+    assert.ok(fs.existsSync(new URL(`../assets/audio/sloedla/dj/${id}.mp3`, import.meta.url)), `${id}.mp3 is there`);
+    assert.equal(made.lines[id]?.text, text, `dj.json says ${id} is "${text}"`);
+  }
+});

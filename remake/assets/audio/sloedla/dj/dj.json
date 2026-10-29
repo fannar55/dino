@@ -1,0 +1,308 @@
+{
+  "about": "Söngur Slóeðlu: the DJ (tools/sloedla-dj.mjs)",
+  "voice": {
+    "id": "I6RuvbMRjBUGuqUs1ky3",
+    "name": "Stjörnuhátíðar-DJ",
+    "design": "A fun, high-energy male radio DJ and party host, a native Icelandic speaker from Reykjavík with perfect Icelandic pronunciation. A big smile in the voice, hyping up children at a summer festival with short, punchy, excited shouts. Warm and friendly, never scary. Clear studio quality.",
+    "preview": "I6RuvbMRjBUGuqUs1ky3",
+    "kept": "2026-10-29T19:47:00.746Z"
+  },
+  "lines": {
+    "byrjun": {
+      "text": "Jæja krakkar, nú byrjar fjörið!",
+      "sent": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "byrjun.mp3",
+      "seed": 1,
+      "heard": "Jæja krakkar, nú byrjar fjörið",
+      "share": 1,
+      "seconds": 2.78,
+      "made": "2026-10-29T19:47:07.140Z"
+    },
+    "r10": {
+      "text": "Tíu í röð!",
+      "sent": "Tíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum saman á íslensku: eitt, tvö, þrjú, fjögur, fimm, sex, sjö, átta, níu, tíu.",
+      "file": "r10.mp3",
+      "seed": 1,
+      "heard": "Tíu í röð",
+      "share": 1,
+      "seconds": 1.65,
+      "made": "2026-10-29T19:47:09.291Z"
+    },
+    "r15": {
+      "text": "Fimmtán í röð!",
+      "sent": "Fimmtán í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "r15.mp3",
+      "seed": 1,
+      "heard": "Fimmtán í röð",
+      "share": 1,
+      "seconds": 1.76,
+      "made": "2026-10-29T19:47:11.369Z"
+    },
+    "r20": {
+      "text": "Tuttugu í röð!",
+      "sent": "Tuttugu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: tuttugu, tuttugu og eitt, tuttugu og tvö, þrjátíu.",
+      "file": "r20.mp3",
+      "seed": 1,
+      "heard": "Tuttugu í röð",
+      "share": 1,
+      "seconds": 1.72,
+      "made": "2026-10-29T19:47:13.907Z"
+    },
+    "r25": {
+      "text": "Tuttugu og fimm í röð!",
+      "sent": "Tuttugu og fimm í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: tuttugu, tuttugu og eitt, tuttugu og tvö, þrjátíu.",
+      "file": "r25.mp3",
+      "seed": 1,
+      "heard": "Tuttugu og fimm í röð",
+      "share": 1,
+      "seconds": 2.05,
+      "made": "2026-10-29T19:47:16.326Z"
+    },
+    "r30": {
+      "text": "Þrjátíu í röð!",
+      "sent": "Þrjátíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r30.mp3",
+      "seed": 1,
+      "heard": "Þrjátíu í röð",
+      "share": 1,
+      "seconds": 1.86,
+      "made": "2026-10-29T19:47:18.819Z"
+    },
+    "r35": {
+      "text": "Þrjátíu og fimm í röð!",
+      "sent": "Þrjátíu og fimm í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r35.mp3",
+      "seed": 1,
+      "heard": "Þrjátíu og fimm í röð",
+      "share": 1,
+      "seconds": 2.14,
+      "made": "2026-10-29T19:47:21.779Z"
+    },
+    "r40": {
+      "text": "Fjörutíu í röð!",
+      "sent": "Fjörutíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r40.mp3",
+      "seed": 1,
+      "heard": "Fjörutíu í röð",
+      "share": 1,
+      "seconds": 1.96,
+      "made": "2026-10-29T19:47:24.109Z"
+    },
+    "r45": {
+      "text": "Fjörutíu og fimm í röð!",
+      "sent": "Fjörutíu og fimm í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r45.mp3",
+      "seed": 1,
+      "heard": "Fjörutíu og fimm í röð",
+      "share": 1,
+      "seconds": 2.15,
+      "made": "2026-10-29T19:47:27.340Z"
+    },
+    "r50": {
+      "text": "Fimmtíu í röð!",
+      "sent": "Fimmtíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r50.mp3",
+      "seed": 1,
+      "heard": "Fimmtíu í röð",
+      "share": 1,
+      "seconds": 1.75,
+      "made": "2026-10-29T19:47:29.951Z"
+    },
+    "r60": {
+      "text": "Sextíu í röð!",
+      "sent": "Sextíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r60.mp3",
+      "seed": 1,
+      "heard": "Sextíu í röð",
+      "share": 1,
+      "seconds": 1.85,
+      "made": "2026-10-29T19:47:32.241Z"
+    },
+    "r70": {
+      "text": "Sjötíu í röð!",
+      "sent": "Sjötíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: þrjátíu, fjörutíu, fimmtíu, sextíu, sjötíu, áttatíu.",
+      "file": "r70.mp3",
+      "seed": 1,
+      "heard": "Sjötíu í röð",
+      "share": 1,
+      "seconds": 1.92,
+      "made": "2026-10-29T19:47:34.904Z"
+    },
+    "r80": {
+      "text": "Áttatíu í röð!",
+      "sent": "Áttatíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+      "file": "r80.mp3",
+      "seed": 1,
+      "heard": "Áttatíu í röð",
+      "share": 1,
+      "seconds": 1.87,
+      "made": "2026-10-29T19:47:37.091Z"
+    },
+    "r90": {
+      "text": "Níutíu í röð!",
+      "sent": "Níutíu í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: sextíu, sjötíu, áttatíu, níutíu, hundrað.",
+      "file": "r90.mp3",
+      "seed": 3,
+      "heard": "Níutíu í röð",
+      "share": 1,
+      "seconds": 1.86,
+      "made": "2026-10-29T19:47:44.433Z"
+    },
+    "r100": {
+      "text": "Hundrað í röð!",
+      "sent": "Hundrað í röð!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Við teljum á íslensku: níutíu, hundrað, hundrað og eitt, hundrað og tvö.",
+      "file": "r100.mp3",
+      "seed": 1,
+      "heard": "Hundrað í röð",
+      "share": 1,
+      "seconds": 1.75,
+      "made": "2026-10-29T19:47:46.546Z"
+    },
+    "flott": {
+      "text": "Flott!",
+      "sent": "Flott!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "flott.mp3",
+      "seed": 1,
+      "heard": "Flott!",
+      "share": 1,
+      "seconds": 0.87,
+      "made": "2026-10-29T19:47:48.151Z"
+    },
+    "va": {
+      "text": "Vá!",
+      "sent": "Vá!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "va.mp3",
+      "seed": 1,
+      "heard": "Wow!",
+      "share": 0,
+      "seconds": 0.95,
+      "made": "2026-10-29T19:47:53.503Z"
+    },
+    "stjornukraftur": {
+      "text": "Stjörnukraftur!",
+      "sent": "Stjörnukraftur!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "stjornukraftur.mp3",
+      "seed": 1,
+      "heard": "Stjörnukraftur",
+      "share": 1,
+      "seconds": 1.45,
+      "made": "2026-10-29T19:47:55.356Z"
+    },
+    "allir": {
+      "text": "Allir með!",
+      "sent": "Allir með!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "allir.mp3",
+      "seed": 1,
+      "heard": "Allir með",
+      "share": 1,
+      "seconds": 1.1,
+      "made": "2026-10-29T19:47:57.242Z"
+    },
+    "kambedla": {
+      "text": "Kambeðla er með!",
+      "sent": "Kambeðla er með!",
+      "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!",
+      "file": "kambedla.mp3",
+      "seed": 1,
+      "heard": "Kampbeðla er með",
+      "share": 0.67,
+      "seconds": 1.88,
+      "made": "2026-10-29T19:49:31.925Z"
+    },
+    "sloedla": {
+      "text": "Slóeðla er með!",
+      "sent": "Slóeðla er með!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu.",
+      "file": "sloedla.mp3",
+      "seed": 1,
+      "heard": "Slóeðla er með",
+      "share": 1,
+      "seconds": 1.91,
+      "made": "2026-10-29T19:48:06.260Z"
+    },
+    "thorsedla": {
+      "text": "Þórseðla er með!",
+      "sent": "Þórseðla er með!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!",
+      "file": "thorsedla.mp3",
+      "seed": 1,
+      "heard": "Þórseðla er með",
+      "share": 1,
+      "seconds": 2.29,
+      "made": "2026-10-29T19:48:08.657Z"
+    },
+    "fullthus": {
+      "text": "Fullt hús!",
+      "sent": "Fullt hús!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullthus.mp3",
+      "seed": 2,
+      "heard": "Fullt hús",
+      "share": 1,
+      "seconds": 1.22,
+      "made": "2026-10-29T19:48:12.279Z"
+    },
+    "naestum": {
+      "text": "Næstum fullt hús!",
+      "sent": "Næstum fullt hús!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "naestum.mp3",
+      "seed": 1,
+      "heard": "Næstum fullt hús",
+      "share": 1,
+      "seconds": 1.84,
+      "made": "2026-10-29T19:48:14.779Z"
+    },
+    "frabaert": {
+      "text": "Frábært!",
+      "sent": "Frábært!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "frabaert.mp3",
+      "seed": 1,
+      "heard": "Frábært",
+      "share": 1,
+      "seconds": 1.2,
+      "made": "2026-10-29T19:48:16.812Z"
+    },
+    "velgert": {
+      "text": "Vel gert!",
+      "sent": "Vel gert!",
+      "context": "Jæja krakkar, nú byrjar fjörið! Vel gert! Þú stóðst þig vel.",
+      "file": "velgert.mp3",
+      "seed": 1,
+      "heard": "Vel gert",
+      "share": 1,
+      "seconds": 1.22,
+      "made": "2026-10-29T19:48:18.730Z"
+    },
+    "aftur": {
+      "text": "Spilum aftur saman!",
+      "sent": "Spilum aftur saman!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "aftur.mp3",
+      "seed": 1,
+      "heard": "Spilum aftur saman",
+      "share": 1,
+      "seconds": 1.68,
+      "made": "2026-10-29T19:48:20.937Z"
+    }
+  }
+}

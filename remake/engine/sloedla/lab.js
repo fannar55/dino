@@ -15,6 +15,7 @@
 //   hljod=0               silent speakers (the sound is still made, and recorded)
 //   bakgrunnur=0          the night sky alone, without the forest (a render of the game's own world) under it
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
+//   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
@@ -25,6 +26,7 @@ import { createSongSounds } from './sounds.js';
 import { createBand, createReverb } from './band.js';
 import { createConductor } from './conductor.js';
 import { createCrowd } from './crowd.js';
+import { createDj } from './dj.js';
 import { createSongGame } from './game.js';
 import { SONGS, loadSong } from './songs/index.js';
 import { rootHz } from './song.js';
@@ -56,6 +58,7 @@ const options = {
   self: params.get('sjalf'),
   record: params.get('upptaka') === '1',
   crowd: params.get('ahorfendur') !== '0',
+  dj: params.get('dj') !== '0',
   backdrop: params.get('bakgrunnur') !== '0',
   extra: readSeinkun(),
 };
@@ -97,6 +100,19 @@ if (mix) {
 // the crowd's voice, made with ElevenLabs (tools/sloedla-crowd.mjs); fetched and decoded while the start card waits
 const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`) }) : null;
 crowd?.load();
+// the music (the band, the dinosaurs' parts, the bells) goes through a bus of its own, which dips under the DJ while he talks, as
+// on the radio; the crowd and the DJ go past it
+const music = mix ? context.createGain() : null;
+music?.connect(mix);
+const TALK_DIP = 0.56; // about -5 dB
+function talkOver(at, seconds) {
+  const gain = music.gain;
+  gain.cancelScheduledValues(at);
+  gain.setTargetAtTime(TALK_DIP, at, 0.04);
+  gain.setTargetAtTime(1, at + seconds, 0.2);
+}
+const dj = mix && options.dj ? createDj({ context, output: mix, src: id => asset(`audio/sloedla/dj/${id}.mp3`), onTalk: talkOver }) : null;
+dj?.load();
 
 function loadImage(src) {
   return new Promise(resolve => {
@@ -135,12 +151,14 @@ async function start() {
   const windows = LEVELS[options.level];
   const fall = windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
-  const sounds = createSongSounds({ context, output: mix, room, voices: song.voices });
-  const band = createBand(context, { output: mix, room });
-  const conductor = createConductor({ context, song, clock, band, sounds, out: mix, room, level: options.level, roles, fall });
+  music.gain.cancelScheduledValues(context.currentTime);
+  music.gain.value = 1;
+  const sounds = createSongSounds({ context, output: music, room, voices: song.voices });
+  const band = createBand(context, { output: music, room });
+  const conductor = createConductor({ context, song, clock, band, sounds, out: music, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, crowd, backdrop, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, crowd, dj, backdrop, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });

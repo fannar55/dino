@@ -13,7 +13,8 @@
 // the finger, a pillar of light up the lane and sparks on a hit, the run's count popping, stars flying up into the bar as they are
 // won, and at the top of a run everything turns gold. Words come with juice (text.js): over the dinosaur she tapped, how close to
 // the beat it was ("Fullkomið!" in a rainbow right on it, "Frábært!", "Fínt!", "OK!"); a run's milestones ("10 í röð!", "15 í
-// röð!" ...) rise from low on the screen, letter by letter, in the rainbow from twenty. Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run
+// röð!" ...) rise from low on the screen, letter by letter, in the rainbow from twenty. The festival's DJ (dj.js) calls them out:
+// the numbers, the tiers, a section coming in big, a friend back in, the start and the end ("Fullt hús!" for every note in one run). Now and then a crowd is heard (crowd.js): a "vá!", an "æææ" when a long run
 // breaks, cheering for a section that comes in big, applause at the end.
 //
 // The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
@@ -23,6 +24,7 @@ import { danceGrid, beatAt } from '../beat.js';
 import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
 import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
+import { DJ_LINES, djCueOf, endLineOf } from './dj.js';
 import { seededRandom } from '../random.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
@@ -31,7 +33,6 @@ const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes ofte
 const SAY_LIFE = 1.8; // s a word in the middle stays (an early reader needs one or two seconds for a new word)
 const SAY_TURN = 1.1; // s a word in the middle has to itself before the next may come
 const RISE_LIFE = 2.2; // s a milestone takes to rise and fade
-const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
 const GOLD = '#f2b630';
@@ -43,10 +44,10 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
  * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
- * own sky gives way to the night's) or null.
+ * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, dj = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   const lanes = cast.length;
   const notes = conductor.chart; // grows a section at a time
@@ -96,7 +97,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   let moodBig = 0, moodCalm = 0; // the sky's colour follows the section, smoothly
   let starsLit = 0;
   let phase = 'play';
-  let endAt = null, endStars = 0, starsShown = 0;
+  let endAt = null, endStars = 0, starsShown = 0, endLine = 'aftur';
+  const djMemory = {};
+  const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
+  let djStarted = false;
   let lastTime = 0;
   let lastSection = -1;
   let tierNow = 0;
@@ -466,6 +470,13 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (sound && crowd.play(sound, { gain })) heard.push([Number(lastTime.toFixed(2)), sound]);
   }
 
+  /** The DJ speaks, when he has something to say (dj.js djCueOf decides). */
+  function call(event) {
+    if (!dj) return;
+    const line = djCueOf(event, lastTime, djMemory);
+    if (line && dj.play(line)) spoken.push([Number(lastTime.toFixed(2)), line]);
+  }
+
   function giveLanes() {
     for (; laned < notes.length; laned++) notes[laned].lane = laneOf(notes[laned].role, lanes);
   }
@@ -505,6 +516,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         const friend = cast.find(c => c.role === result.note.role) ?? cast[lane];
         say(`${friend.name} er með!`, { y: h * 0.5, size: 40, style: ['#ffffff', friend.light, friend.hue] });
         cheer('rejoin', 0.8);
+        call({ kind: 'rejoin', role: friend.role });
       }
       hops[lane] = time;
       hitAt[lane] = time;
@@ -534,8 +546,12 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         meteor();
         if (crossed === 2) cheer('tier2');
         if (crossed === 3) cheer('tier3');
+        call({ kind: 'tier', tier: crossed });
       } else if (score.streak >= 24 && score.streak % 8 === 0) cheer('more', 0.85);
-      if (milestoneOf(score.streak)) rise(score.streak, score.streak >= 20 ? 'rainbow' : 'gold');
+      if (milestoneOf(score.streak)) {
+        rise(score.streak, score.streak >= 20 ? 'rainbow' : 'gold');
+        call({ kind: 'milestone', streak: score.streak });
+      }
       const lit = STAR_SHARES.filter(least => shareNow() >= least).length;
       if (lit > starsLit) {
         for (let k = starsLit; k < lit; k++) flyers.push({ x: laneX[lane], y: hitY - dinoR, index: k, at: time });
@@ -561,6 +577,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   function update(time, dt) {
     giveLanes();
     if (phase === 'play') {
+      if (!djStarted && time >= -0.2) { djStarted = true; call({ kind: 'start' }); }
       for (const index of judge.sweep(time)) {
         const note = notes[index];
         conductor.miss(note);
@@ -582,6 +599,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
           say('Allir með!', { y: h * 0.32, style: 'lilac' });
           punch(0.035);
           cheer('big');
+          call({ kind: 'big' });
         }
       }
       if (time > conductor.length + END_AFTER) {
@@ -589,6 +607,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         endAt = time;
         score.total = notes.length;
         endStars = starsFor(score);
+        endLine = endLineOf({ stars: endStars, misses: score.misses, full: score.misses === 0 && score.best >= notes.length && notes.length > 0 });
+        call({ kind: 'end', stars: endStars, misses: score.misses, full: endLine === 'fullthus' });
         if (endStars === 3) for (let i = 0; i < 6; i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff'][i % 3]);
         cheer('end', 0.55 + endStars * 0.15);
       }
@@ -1294,7 +1314,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
       const total = notes.length;
       const since = time - (endAt + 0.4 + STAR_GAP * Math.max(1, endStars));
-      drawWord(g, END_WORDS[endStars], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
+      drawWord(g, DJ_LINES[endLine], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
       outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
     }
   }
@@ -1345,7 +1365,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });
       return gap <= laneW * 0.9 ? best : -1;
     },
-    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, crowd: heard.slice() }),
+    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, crowd: heard.slice(), dj: spoken.slice() }),
     result,
   };
 }
