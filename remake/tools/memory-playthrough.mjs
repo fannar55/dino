@@ -600,7 +600,7 @@ async function main() {
       if (s.bridge.active === 'roll' && s.cam.shot === 'follow') waited ||= await milestone('tri-walk', 'trihyrnur-walk-to-log', 350);
       if (s.bridge.active === 'roll' && s.landed) waited ||= await milestone('landing', 'log-lands-splash', 120);
       if (s.bridge.active === 'roll' && s.landed && s.cam.shot === 'hero') waited ||= await milestone('bridge-hero', 'bridge-hero-low', 450);
-      if (s.landed && s.scene && s.cam.shot === 'face' && !s.bridge.atStaging && !s.mosi) { mark('log-end'); waited ||= await milestone('tri-cheer', 'trihyrnur-cheer', 400); }
+      if (s.landed && seen.has('bridge-hero') && s.scene && s.cam.shot === 'face' && !s.walking && !s.bridge.atStaging && !s.mosi) { mark('log-end'); waited ||= await milestone('tri-cheer', 'trihyrnur-cheer', 400); }
       if (s.act && s.act.startsWith('lower:')) waited ||= await milestone('branch-lower', 'branch-lowers', 450);
       if (s.act === 'lower:return') waited ||= await milestone('brontos-rejoin', 'brontos-rejoin', 900);
       // The crossing: beside them as Mosi steps on, over his shoulder at mid-bridge, the friends behind, the arrival.
