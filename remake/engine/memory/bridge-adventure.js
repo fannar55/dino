@@ -108,7 +108,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     const across=new THREE.Vector3(Math.sin(spot.yaw),0,Math.cos(spot.yaw));
     return actors.map((actor,member)=>{const p=new THREE.Vector3(spot.centre[0],0,spot.centre[1]).addScaledVector(across,(member?.5:-.5)*spot.apart*(actor.lengthFactor??1));return{point:ground(p.x,p.z),yaw:spot.yaw}});
   }
-  /** A wrong friend's go at `target`; emits fail-try, then fail-done when the pair is back. Returns its timing. */
+  /** A wrong friend's go at `target` (fail-bump when it lands, fail-done when the pair is back). Returns its timing in seconds. */
   function startFail(species,target){
     if(action||visited||!pairs[species]?.ready||!FAIL_GESTURES[species])return null;
     const spots=failSpots(species,target);if(!spots)return null;
@@ -134,7 +134,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
         action.hops.forEach(h=>{h.hop=-1;h.actor.root.position.copy(action.phase==='back'?h.from:h.to);h.actor.root.rotation.y=action.phase==='back'?h.fromYaw:h.yaw});
         if(action.phase==='back'){const{species,target}=action;action=null;pairActors(species).forEach(a=>a.setMotion?.('idle'));events.push({type:'fail-done',species,target});return}
         action.phase='try';action.age=0;action.duration=GESTURES[FAIL_GESTURES[action.species]].duration;
-        action.hops.forEach(h=>h.actor.gesture?.(FAIL_GESTURES[action.species]));events.push({type:'fail-try',species:action.species,target:action.target});
+        action.hops.forEach(h=>h.actor.gesture?.(FAIL_GESTURES[action.species]));
       }
       return;
     }

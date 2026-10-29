@@ -283,9 +283,11 @@ function refreshControls() {
   $('coach').hidden = !started || finished || overview;
   $('ending').hidden = !finished || overview;
   const worldInput = !camera.moving && camera.worldInputEnabled !== false && !overview;
-  const mayPick = !held() && worldInput && !task.active && task.selected === null && ['ready', 'one-open'].includes(state.phase);
-  const mayExplore = !held() && worldInput && !task.active && !task.failing && betweenTurns();
-  const hesitating = mayExplore && !task.asking && idleTime >= IDLE_ARROW && story.available && !story.automatic;
+  // With the bubbles open (or a wrong friend trying) the leaves, homes and other obstacles wait.
+  const choosing = Boolean(task.asking || task.failing);
+  const mayPick = !held() && worldInput && !task.active && !choosing && ['ready', 'one-open'].includes(state.phase);
+  const mayExplore = !held() && worldInput && !task.active && !choosing && betweenTurns();
+  const hesitating = mayExplore && idleTime >= IDLE_ARROW && story.available && !story.automatic;
   const visibleKeys = new Set();
   for (const target of world.getTargets()) {
     const key = `${target.type}-${target.type === 'nest' ? target.index : target.id}`;
@@ -312,7 +314,7 @@ function refreshControls() {
       const tapAlong = Boolean(target.tapAlong) && target.enabled !== false && !held();
       button.disabled = !tapAlong && (!mayExplore || !available || target.enabled === false);
       button.classList.toggle('tap-along', tapAlong);
-      button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false && !task.asking);
+      button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false);
       button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false || target.id === story.target && hesitating);
       button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : ({ branch: 'Greinin: hver getur lyft henni?', log: 'Stóri bolurinn: hver getur ýtt honum?', staging: 'Senda alla sex vinina yfir trjábrúna', bark: 'Börkurinn: hver getur lagt leið yfir mýrina?', grove: 'Senda alla vinina í berjalundinn' }[target.id]));
     } else {
