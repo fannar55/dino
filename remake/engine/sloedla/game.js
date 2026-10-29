@@ -19,7 +19,7 @@
 // in big, applause at the end. The star meter, a star beside the lanes, fills with every hit (a glint flies into it); a miss spills
 // a little, never all. Full, it is Stjörnukraftur (tier 3: the choir, gold everywhere) while it slowly empties, a hit topping it
 // up; two bars in, the DJ calls for clapping and the crowd claps along on every beat (as a crowd does when the MC asks), more of
-// them as it goes on.
+// them as it goes on, and their black hands come up along the bottom of the picture and clap with them (hands.js).
 //
 // The song's time comes from `clock` (song-clock.js: the heard time of the audio context), so the notes keep to the music even when
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
@@ -53,11 +53,13 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
  * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
- * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none).
+ * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none); `hands` the crowd's
+ * black hands that come up and clap along with it (hands.js createClapHands, loaded by the page, or null for none).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, dj = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, dj = null, backdrop = null, hands = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
+  hands?.reset();
   const lanes = cast.length;
   const notes = conductor.chart; // grows a section at a time
   const judge = createJudge(notes, { early: windows.early, late: windows.late, great: windows.great });
@@ -619,6 +621,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       starAt = time;
       clapFrom = time + beatLength * CLAP_AFTER;
       clapping = false;
+      if (crowd?.at) hands?.start(Math.ceil(clapFrom / beatLength)); // they come up to land on the first clap
       for (let i = 0; i < 26; i++) {
         const a = random() * Math.PI * 2, speed = 120 + random() * 260;
         sparks.push({ x: meterAt.x, y: meterAt.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 60, life: 0, max: 0.7 + random() * 0.5, size: 10 + random() * 12, gravity: 160, hue: `hsl(${Math.floor(random() * 360)}, 100%, 72%)` });
@@ -638,6 +641,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (meter <= 0) {
       starMode = false;
       clapping = false;
+      hands?.stop(time);
       setTier();
       return;
     }
@@ -645,6 +649,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (!clapping) {
       clapping = true;
       nextClapBeat = Math.ceil(time / beatLength);
+      hands?.start(nextClapBeat);
       call({ kind: 'clap' });
     }
     for (; nextClapBeat * beatLength <= time + 0.25; nextClapBeat++) {
@@ -701,6 +706,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (time > conductor.length + END_AFTER) {
         phase = 'end';
         endAt = time;
+        hands?.stop(time);
         score.total = notes.length;
         endStars = starsFor(score);
         endLine = endLineOf({ stars: endStars, misses: score.misses, full: score.misses === 0 && score.best >= notes.length && notes.length > 0 });
@@ -793,6 +799,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     drawConstellations(g, time);
     drawBeams(g, time, kick);
     drawGround(g, time);
+    hands?.draw(g, { time, beatLength, w, h, dpr, portrait, laneX, laneW, top: topY - 30, bottom: hitY }); // behind the lanes, notes and buttons
     drawLanes(g, time, pulse);
     drawDinosaurs(g, time);
     drawNotes(g, time, kick);

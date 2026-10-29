@@ -16,6 +16,7 @@
 //   bakgrunnur=0          the night sky alone, without the forest (a render of the game's own world) under it
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 //   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
+//   hendur=0              no black hands clapping along at the bottom in Stjörnukraftur (hands.js)
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
@@ -27,6 +28,7 @@ import { createBand, createReverb } from './band.js';
 import { createConductor } from './conductor.js';
 import { createCrowd } from './crowd.js';
 import { createDj } from './dj.js';
+import { createClapHands } from './hands.js';
 import { createSongGame } from './game.js';
 import { SONGS, loadSong } from './songs/index.js';
 import { rootHz } from './song.js';
@@ -60,6 +62,7 @@ const options = {
   crowd: params.get('ahorfendur') !== '0',
   dj: params.get('dj') !== '0',
   backdrop: params.get('bakgrunnur') !== '0',
+  hands: params.get('hendur') !== '0',
   extra: readSeinkun(),
 };
 
@@ -127,6 +130,9 @@ const loading = Promise.all(Object.values(FRIENDS).map(f => loadImage(f.src).the
 const backdropLoading = options.backdrop ? Promise.all([loadImage(BACKDROP.wide), loadImage(BACKDROP.upright)]) : Promise.resolve([null, null]);
 let backdrop = null;
 backdropLoading.then(([image, upright]) => { backdrop = image ? { image, upright, fade: BACKDROP.fade, fadeUpright: BACKDROP.fadeUpright } : null; });
+// the crowd's black hands clapping along in Stjörnukraftur: Openclipart's raised hands (assets/sloedla/hendur/, KREDIT.md)
+const hands = options.hands ? createClapHands({ src: id => asset(`sloedla/hendur/${id}.svg`) }) : null;
+hands?.load();
 
 let round = null; // { game, clock, conductor, bot }
 let images = null;
@@ -158,7 +164,7 @@ async function start() {
   const conductor = createConductor({ context, song, clock, band, sounds, out: music, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, crowd, dj, backdrop, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, crowd, dj, backdrop, hands, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });
