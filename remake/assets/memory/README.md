@@ -40,7 +40,13 @@ The owner approved Kambeðla's baby as first baked and asked for the stronger
 Þórseðla pass; the game now loads all three babies (`MEMORY_CHARACTER_ART`,
 `roster.json`). `baby-actors.js` places Þórseðla's nose and branch support on her
 GLB landmarks; Kambeðla's nose and bark-carry point are measured from her Head
-and Jaw skin as before.
+and Jaw skin as before. For the larger Þórseðla the round needed small offsets:
+her reach goes 53 % into `lowerHead` (`reach` in `MEMORY_CHARACTER_ART`) so her
+crown comes under the resting branch, her gestures keep the common size, her
+lift stand-off and crossing wait scale with her size, the face shot frames both
+crowns, the nuzzle spacing grows with size, her rest spot is (−6.9, −1.25), a
+crossing may start beside her by the measured bodies, and the held branch's bend
+toward the trunk rises with the first crown.
 
 ## Source and rights
 
