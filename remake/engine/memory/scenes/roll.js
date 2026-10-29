@@ -43,8 +43,9 @@ export function rollScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: 3.3, act: all(stillGoing, () => stage.mosi.look(centre(heads()))), say: 'push' },
     { at: 3.35, wait: { tap: 'log', count: taps, timeout,
       onTap: () => stage.task.beat(),
-      // No taps: "Við gerum þetta saman!", a cut down low beside them, and they push the rest on their own, in steps.
-      onTimeout: () => { stage.say('together'); stage.cut({ kind: 'wide', scale: 'action', subjects: () => [...bodies(tris()), near(), ...sweep()], front: PUSH_FRONT, elevation: 12 }); while (stage.task.beat()); } } },
+      // No taps: "Við gerum þetta saman!", a cut to the east, the log swinging out over the water, and they push the
+      // rest on their own, in steps.
+      onTimeout: () => { stage.say('together'); stage.cut({ kind: 'wide', scale: 'action', subjects: () => [...bodies(tris()), near(), ...sweep()], front: [.8, 0, .6], elevation: 18 }); while (stage.task.beat()); } } },
     { at: 3.4, wait: { until: () => stage.task.isBuilt() || !stage.task.busy(), timeout: 6 } },
     // Down it comes over the river: a jolt.
     { at: 3.45, fx: { kind: 'shake', strength: .12, seconds: .35 } },
