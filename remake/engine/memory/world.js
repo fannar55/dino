@@ -53,7 +53,7 @@ const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // walking route): metres per hop, average metres a second, the root's own arc, the lift over a leaf and how far its reach is.
 const HOP = Object.freeze({ reach: 2.8, speed: 6.4, arc: .2, leap: .75, dome: 1, margin: 1.9 });
 // Where a ground plant may not stand: under a leaf (it would show on top of it) or where an opened leaf lies, with a margin.
-const onLeafGround = (x, z, margin = 0) => CELLS.some(([cx, cz], i) => Math.hypot(x - cx, z - cz) < 1.3 * LEAF_SCALE + .75 + margin || Math.hypot(x - cx - (i % 2 ? -.4 : .4), z - cz + 1.35) < 1.3 * LEAF_SCALE + .5 + margin);
+const onLeafGround = (x, z, margin = 0) => CELLS.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 1.3 * LEAF_SCALE + .75 + margin || Math.hypot(x - cx - .45, z - cz + 1.35) < 1.3 * LEAF_SCALE + .5 + margin);
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const easeOutBack = t => { const k = THREE.MathUtils.clamp(t, 0, 1) - 1; return 1 + 2.4 * k * k * k + 1.4 * k * k; };
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;

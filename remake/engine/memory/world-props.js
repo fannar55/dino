@@ -101,20 +101,20 @@ export function createLeafResources() {
 /** The closed leaf's place in its hiding place: its stem is 1.3 m behind the middle, 0.32 m up. */
 export const LEAF_REST = Object.freeze({ y: .32, z: -1.3 });
 // Where an opened leaf ends up: swung round and flattened to a low dome lying on the ground behind the hiding place.
-const LYING = Object.freeze({ height: .2, width: .96, back: 1.35, drift: .4, lift: .55, tilt: .5, raise: .045 });
+const LYING = Object.freeze({ height: .2, width: .96, back: 1.35, drift: .45, lift: .55, tilt: .5, raise: .045 });
 // Every leaf is drawn this size of the shared geometry: eight of them have to fit the glade.
 export const LEAF_SCALE = .86;
 
 /**
  * One pose for the shared leaf, from four numbers. `open` 0 covers the hiding place and 1 lies flat on the ground behind
- * it (the leaf lifts, tips and turns on the way); `bounce` squashes (below 0) or stretches (above 0) it, a spring's offset
- * round 0; `vanish` 1 shrinks it away where it lies; `turn` is how far it turns (its sign says which side it drifts to).
+ * it, a little to the right as the camera sees it (so the friend does not hide it); the leaf lifts, tips and turns on the way. `bounce` squashes (below 0) or stretches (above 0) it, a spring's offset
+ * round 0; `vanish` 1 shrinks it away where it lies; `turn` is how far it turns.
  * With all four 0 this is the closed leaf exactly.
  */
 export function poseLeaf(leaf, resources, { open = 0, bounce = 0, vanish = 0, turn = 0 } = {}) {
   const half = LEAF_LENGTH / 2, wave = Math.sin(Math.PI * open), squash = Math.max(.25, 1 + bounce), grow = 1 - vanish;
   const sy = LEAF_SCALE * THREE.MathUtils.lerp(1, LYING.height, open) * squash * grow, sxz = LEAF_SCALE * THREE.MathUtils.lerp(1, LYING.width, open) / Math.sqrt(squash) * grow;
-  const yaw = turn * open, middleX = Math.sign(turn) * LYING.drift * open, middleZ = -LYING.back * open;
+  const yaw = turn * open, middleX = LYING.drift * open, middleZ = -LYING.back * open;
   const edge = LEAF_REST.y + resources.lowest + LYING.raise * open;
   leaf.rotation.set(-LYING.tilt * wave, yaw, 0, 'YXZ');
   leaf.scale.set(sxz, sy, sxz);
