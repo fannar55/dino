@@ -2,7 +2,7 @@
  * The third obstacle of "Hvar er vinur minn?" as a script for the scene runner (scenes.js): the Kambeðlur carry the
  * three bark panels out over the marsh, one by one, and put each down on the child's tap. Built like scenes/roll.js,
  * on the same `stage` (world.js), which for this one also gives:
- *   task.layState()       { phase, panel, placed } while the lay runs (phases: collect, pickup, carry, straighten, beat-wait,
+ *   task.layState()       { phase, panel, placed } while the lay runs (phases: collect, align, pickup, carry, straighten, beat-wait,
  *                         place, back), null otherwise          task.cargo()   the panel the pair carries
  *   task.panelCentre(i)   where panel i lies                    task.supply()  the stack they fetch them from
  * The big word of each panel ("Ein!", "Tvær!", "Þrjár!") comes with the adventure's beat event (game.js).
@@ -15,6 +15,10 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 // The still shot of each panel looks back from beyond the marsh (the pair turned to it, faces on, the panel hanging
 // between them); the finished boardwalk from the east, low, along its length.
 const LAY_FRONT = [.55, 0, -.83], DONE_FRONT = [1, 0, -.15];
+// (trying three views, one for each panel, to see which one keeps under the triangle budget)
+const STILL = [{ front: [.55, 0, -.83], elevation: 36 }, { front: [.6, 0, .8], elevation: 30 }, { front: [1, 0, -.1], elevation: 30 }];
+const CARRY = [{ front: null, elevation: 28 }, { front: [.5, 0, .85], elevation: 28 }, { front: [.8, 0, -.6], elevation: 28 }];
+const BACK = [{ front: null, elevation: 26 }, { front: [.5, 0, .85], elevation: 26 }];
 
 /**
  * The marsh: a wide cut on the pair fetching the first panel; for each panel a follow cut on the carry, then the still shot
@@ -31,16 +35,16 @@ export function layScene(stage, { panels = 3, timeout = 4 } = {}) {
   const lines = [];
   let t = 0;
   const next = (seconds = .05) => (t += seconds);
-  const carryShot = i => ({ kind: 'follow', subjects: () => [...bodies(pair()), stage.task.cargo()], front: () => stage.sideOn(stage.task.supply(), spot(i)), elevation: 20, cut: true });
-  const stillShot = (i, front = LAY_FRONT) => ({ kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.2)), spot(i), shift(spot(i), -1.7, 0, -.8), shift(spot(i), 1.7, 0, .8)], front, elevation: 24, cut: true });
-  const backShot = i => ({ kind: 'follow', subjects: () => bodies(pair()), front: () => stage.sideOn(spot(i), stage.task.supply()), elevation: 20, cut: true });
+  const carryShot = i => ({ kind: 'follow', subjects: () => [...bodies(pair()), stage.task.cargo()], front: CARRY[i].front ?? (() => stage.sideOn(stage.task.supply(), spot(i))), elevation: CARRY[i].elevation, cut: true });
+  const stillShot = (i, front = STILL[i].front) => ({ kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.2)), spot(i), shift(spot(i), -1.7, 0, -.8), shift(spot(i), 1.7, 0, .8)], front, elevation: STILL[i].elevation, cut: true });
+  const backShot = i => ({ kind: 'follow', subjects: () => bodies(pair()), front: BACK[i].front ?? (() => stage.sideOn(spot(i), stage.task.supply())), elevation: BACK[i].elevation, cut: true });
 
   for (let i = 0; i < panels; i++) {
     if (!i) {
       // The pair fetching the first panel.
       lines.push({ at: t, shot: { kind: 'wide', subjects: () => [...bodies(pair()), stage.task.supply(), spot(0)], cut: true },
         act: all(() => { if (!stage.task.start('lay', { beats: panels })) stage.task.abort(); }, () => stage.mosi.look(stage.task.supply()), () => stage.pairGesture('stegosaurus', 'hop')), say: 'build' });
-      lines.push({ at: next(), wait: { until: () => phase() !== 'collect', timeout: 5 } });
+      lines.push({ at: next(), wait: { until: () => ['pickup', 'carry'].includes(phase()) || !going(), timeout: 5 } });
     } else lines.push({ at: next(), wait: { until: () => phase() === 'pickup' || !going(), timeout: 8 } });
     // The panel comes off the stack and is carried to its place.
     lines.push({ at: next(), shot: carryShot(i), act: all(stillGoing, () => stage.mosi.look(stage.task.supply())) });

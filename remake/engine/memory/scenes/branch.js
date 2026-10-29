@@ -21,7 +21,7 @@ const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
 // how high it looks down and how near it stands (at the log, closer and from above the Þríhyrnur at home).
 // Mosi's laugh is seen from his south-west, three-quarters: the friends (all west of him) stay out of that close shot.
 const LAUGH_FRONT = [-.6, 0, .8];
-const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .65, elevation: 22, scale: 'action' } };
+const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .9, elevation: 32, scale: 'action' } };
 
 /**
  * The branch: a wide establishing cut, the two Þórseðlur walk to it (a follow cut, then a close cut while they reach

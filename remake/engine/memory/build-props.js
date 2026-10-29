@@ -90,10 +90,10 @@ export function createBuildProps({ scene, heightAt }) {
   function rearSupport(x){let rear=-Infinity;for(const triangle of bottomTriangles)for(let i=0;i<3;i++){const a=triangle[i],b=triangle[(i+1)%3],dx=b.x-a.x;if(Math.abs(dx)<1e-8){if(Math.abs(x-a.x)<1e-6)rear=Math.max(rear,a.z,b.z)}else{const t=(x-a.x)/dx;if(t>=0&&t<=1)rear=Math.max(rear,THREE.MathUtils.lerp(a.z,b.z,t))}}return new THREE.Vector3(x,bottomY,rear-.012)}
   let supportLocal=[];
   function carryPose(mouths){
-    const direction=mouths[1].clone().sub(mouths[0]),length=direction.length();let half=length/2;
+    const direction=mouths[1].clone().sub(mouths[0]),length=direction.length(),reach=panelGeometry.boundingBox.max.x-.03;let half=Math.min(reach,length/2);
     // Fit two real points just inside the irregular underside edge to the two
-    // measured mouths. This also permits the slight tilt between their heads.
-    for(let i=0;i<2;i++){const a=rearSupport(-half),b=rearSupport(half);half*=length/a.distanceTo(b)}
+    // measured mouths. This also permits the slight tilt between their heads (and never reaches past the panel's own width).
+    for(let i=0;i<2;i++){const a=rearSupport(-half),b=rearSupport(half);half=Math.min(reach,half*length/a.distanceTo(b))}
     supportLocal=[rearSupport(-half),rearSupport(half)];
     const localDirection=supportLocal[1].clone().sub(supportLocal[0]),quaternion=new THREE.Quaternion().setFromUnitVectors(localDirection.normalize(),direction.normalize());
     const middle=supportLocal[0].clone().add(supportLocal[1]).multiplyScalar(.5).applyQuaternion(quaternion);

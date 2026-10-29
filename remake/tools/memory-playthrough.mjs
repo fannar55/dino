@@ -258,6 +258,8 @@ const TIMELINE_JS = `(() => {
     // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
     const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
     take.tris = Math.max(take.tris, d.triangles || 0); take.calls = Math.max(take.calls, d.drawCalls || 0); take.actEnd = act;
+    // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
+    if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { age: +adventure.age.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
     const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused].join('|');
     if (key !== last) {
@@ -762,7 +764,7 @@ async function main() {
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
     try {
       const takes = Object.values(await ev('window.__takes')).sort((a, b) => b.tris - a.tris);
-      report.takes = takes.slice(0, 14);
+      report.takes = takes.slice(0, 14); report.routes = await ev('window.__routes');
       if (report.timelineCheck) report.timelineCheck.takes = takes.length;
       if (o.clearance) report.clearance = await ev('window.__clr');
     } catch {}
@@ -827,12 +829,14 @@ async function makeVideo(framesDir, outDir, frames) {
   let args;
   if (info.captureSeconds !== null) {
     info.timing = 'real';
-    const list = [];
-    for (let i = 0; i < frames.n; i++) {
-      const next = i + 1 < frames.n ? stamps[i + 1] - stamps[i] : 1 / VIDEO_FPS;
-      list.push(`file '${name(i)}'`, `duration ${Math.max(next, 0.001).toFixed(4)}`);
+    // Frames can arrive out of order (a loaded browser sends some a hundred milliseconds late), and a negative gap would
+    // stretch the video, so they are laid out in the order of their stamps.
+    const order = stamps.map((stamp, i) => ({ i, stamp })).sort((a, b) => a.stamp - b.stamp || a.i - b.i), list = [];
+    for (let k = 0; k < order.length; k++) {
+      const next = k + 1 < order.length ? order[k + 1].stamp - order[k].stamp : 1 / VIDEO_FPS;
+      list.push(`file '${name(order[k].i)}'`, `duration ${Math.max(next, 0.001).toFixed(4)}`);
     }
-    list.push(`file '${name(frames.n - 1)}'`); // ffmpeg's concat demuxer drops the last duration unless the file comes once more
+    list.push(`file '${name(order.at(-1).i)}'`); // ffmpeg's concat demuxer drops the last duration unless the file comes once more
     await fsp.writeFile(path.join(outDir, 'frames.txt'), list.join('\n') + '\n');
     args = ['-f', 'concat', '-safe', '0', '-i', path.join(outDir, 'frames.txt'), '-vf', `fps=${VIDEO_FPS},${pad}`, '-fps_mode', 'cfr'];
     info.videoSeconds = info.captureSeconds;

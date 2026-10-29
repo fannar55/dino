@@ -37,7 +37,7 @@ const LAY={carry:3.2,back:3.6,straighten:.35,hold:.5,calm:{straighten:.15,hold:.
 // row (member numbers, see allActors), each in its own lane `lane` metres either side of the boardwalk's middle (-1 the
 // west one), the deepest places first so nobody crosses in front of another's. Row mates go in together; a body length
 // and `gap` separate the rows; they all walk at `speed`.
-const FINISH={speed:3.2,gap:.3,lane:.9,rows:[[2,3],[5,4],[1,0]],side:[-1,1,-1,1,1,-1]};
+const FINISH={speed:3.5,gap:.2,lane:.9,rows:[[2,3],[5,4],[1,0]],side:[-1,1,-1,1,1,-1]};
 // Where each friend ends the walk (by member): the existing ending's places, their headings are in beginCrossTravel.
 // Mosi walks the boardwalk first, steps aside past it (`way`) and turns to welcome them (facing `welcome`).
 const GROVE_LEADER={way:[[4.5,-23.5],[6.9,-23.9]],welcome:[3.2,-26.5]};
@@ -232,7 +232,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   function startTravelGroup(){
     action.routes=[];action.pending=null;action.readyTravel=null;action.nextIndex=0;action.lastDepartureAt=-1;action.abortReason=null;
     const crossing=action.phase==='cross'||action.phase==='finish';
-    if(crossing)action.crossOrder=action.id==='finish'?[2,3,1,0,5,4].filter(member=>!finalArrivals.has(member)):CROSS.order.filter(member=>!riverArrivals.has(member));
+    if(crossing)action.crossOrder=action.id==='finish'?FINISH.rows.flat().filter(member=>!finalArrivals.has(member)):CROSS.order.filter(member=>!riverArrivals.has(member));
     // Retry keeps already-arrived friends solid even though their old travel
     // records belonged to the interrupted action.
     action.arrivalReservations=crossing?[...(action.id==='finish'?finalArrivals:riverArrivals)].map(member=>{
@@ -335,6 +335,8 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   function buildPhase(next){
     action.phase=next;action.age=0;const actors=pairActors('stegosaurus'),speed=reducedMotion?5.2:LAY.carry,calm=reducedMotion;
     if(next==='collect'){carryYaw=Math.PI;const center=ground(...SUPPLY_STAND);action.routes=actors.map((actor,member)=>{actor.clearLook?.();actor.clearSupport?.();actor.walk?.(false);const end=formation(center,member,carryYaw);end.y=heightAt(end.x,end.z)+.04;const travel=route([actor.root.position.clone(),end]),duration=Math.max(.35,travel.total/speed),delay=member*.08;return{actor,member,route:travel,duration,delay}});action.duration=Math.max(...action.routes.map(t=>t.delay+t.duration))}
+    // Squared up to the stack (the walk to it ends with the pair still turning): a short turn into place before the first panel is lifted.
+    if(next==='align'){actors.forEach(a=>a.walk?.(false));action.alignFrom=actors.map(a=>({position:a.root.position.clone(),yaw:a.root.rotation.y}));action.duration=calm?LAY.calm.straighten:LAY.straighten}
     if(next==='pickup'){actors.forEach(a=>{a.walk?.(false);a.setMotion('brace')});build.takePanel(action.panel);action.cargoFrom=new THREE.Vector3(7,heightAt(7,-15.6)+.23+(2-action.panel)*.19,-15.6);action.duration=timing().pickup;events.push({type:'bark-pickup',panel:action.panel})}
     if(next==='carry'){actors.forEach(a=>a.walk?.(true));const endZ=-15.75-action.panel*1.5,points=[carryCentre(),ground(4.5,-15.6)];for(let z=-15.85;z>endZ;z-=.25)points.push(build.deckPoint(z));points.push(build.deckPoint(endZ));action.centerRoute=route(points);action.duration=action.centerRoute.total/speed}
     // With the child's taps the pair holds the panel square over its place and waits (beat-wait) for one tap, then the panel goes down.
@@ -362,7 +364,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     const actors=pairActors('stegosaurus');
     if(action.phase==='collect')action.routes.forEach(t=>{const p=THREE.MathUtils.clamp((action.age-t.delay)/t.duration,0,1);if(p>0&&!t.started){t.started=true;t.actor.walk?.(true)}if(p>0)follow(t.actor,t.route,p,dt,Math.PI);if(p>=1&&!t.finished){t.finished=true;t.actor.walk?.(false)}});
     if(action.phase==='pickup')updateSupportedCargo(progress);
-    if(action.phase==='align'){carryYaw=THREE.MathUtils.lerp(action.fromYaw,Math.PI,smooth(progress));const center=ground(...SUPPLY_STAND);actors.forEach((actor,member)=>{actor.root.position.copy(formation(center,member,carryYaw));actor.root.rotation.y=carryYaw})}
+    if(action.phase==='align'){const center=ground(...SUPPLY_STAND),t=smooth(progress);actors.forEach((actor,member)=>{const from=action.alignFrom[member],to=formation(center,member,Math.PI);to.y=heightAt(to.x,to.z)+.04;actor.root.position.lerpVectors(from.position,to,t);actor.root.rotation.y=from.yaw+Math.atan2(Math.sin(Math.PI-from.yaw),Math.cos(Math.PI-from.yaw))*t})}
     if(action.phase==='straighten'){carryYaw=THREE.MathUtils.lerp(action.fromYaw,Math.PI/2,smooth(progress));actors.forEach((actor,member)=>{actor.root.position.copy(formation(action.center,member,carryYaw));actor.root.rotation.y=carryYaw});updateSupportedCargo()}
     if(action.phase==='carry'||action.phase==='back'){
       const p=sample(action.centerRoute,progress),backing=action.phase==='back';let wanted=backing&&p.point.z<-16.35?Math.PI/2:p.yaw;if(progress>.94)wanted=backing?Math.PI:Math.PI/2;
@@ -376,7 +378,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
       if(drop>=1)touchDown();
     }
     if(['pickup','carry','beat-wait','place'].includes(action.phase)){const look=build.cargo.position.clone().add(new THREE.Vector3(1.1,-.195,0).applyAxisAngle(Y,carryYaw));actors.forEach(a=>a.lookAt?.(look,{weight:.3,maxAngle:8}));}
-    if(progress>=1){if(action.phase==='collect')buildPhase('pickup');else if(action.phase==='pickup')buildPhase('carry');else if(action.phase==='carry')buildPhase('straighten');else if(action.phase==='straighten')buildPhase(action.beats?'beat-wait':'place');else if(action.phase==='place')buildPhase('back');else if(action.panel<2){action.panel++;buildPhase('pickup')}else{carryYaw=Math.PI;actors.forEach((a,m)=>{a.root.position.copy(formation(ground(...SUPPLY_STAND),m,carryYaw));a.root.rotation.y=carryYaw});complete()}}
+    if(progress>=1){if(action.phase==='collect')buildPhase('align');else if(action.phase==='align')buildPhase('pickup');else if(action.phase==='pickup')buildPhase('carry');else if(action.phase==='carry')buildPhase('straighten');else if(action.phase==='straighten')buildPhase(action.beats?'beat-wait':'place');else if(action.phase==='place')buildPhase('back');else{carryYaw=Math.PI;actors.forEach((a,m)=>{a.root.position.copy(formation(ground(...SUPPLY_STAND),m,carryYaw));a.root.rotation.y=carryYaw});if(action.panel<2){action.panel++;buildPhase('pickup')}else complete()}}
   }
   function complete(){
     const id=action.id;if(id==='lift'){held=true;lift=1;pairActors('brontosaurus').forEach(a=>a.hold?.())}if(id==='lower'){held=false;lift=0}

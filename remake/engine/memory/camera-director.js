@@ -72,7 +72,8 @@ export function createCameraDirector({ camera, overview, fallback }) {
   }
   const lifted = (front, degrees) => { const r = THREE.MathUtils.degToRad(degrees); return front.clone().multiplyScalar(Math.cos(r)).setY(Math.sin(r)); };
   function solveShot(options) {
-    const subjects = (options.subjects?.() ?? []).filter(Boolean).map(vector);
+    // A point that is not a number (a prop caught mid-pose) is left out: one bad subject must not blank the screen.
+    const subjects = (options.subjects?.() ?? []).filter(Boolean).map(vector).filter(p => Number.isFinite(p.x + p.y + p.z));
     if (!subjects.length) return null;
     const front = frontOf(options), points = [];
     const box = (p, r, below, above) => { for (const dx of [-r, r]) for (const dz of [-r, r]) for (const dy of [-below, above]) points.push(new THREE.Vector3(p.x + dx, Math.max(0, p.y + dy), p.z + dz)); };

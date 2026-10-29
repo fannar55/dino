@@ -130,7 +130,8 @@ function launchAction(action) {
   if (!bridge.can(action) || !(action === 'cross' ? world.playCross() : action === 'finish' ? world.playFinish() : world.startBridgeTask(action))) return false;
   bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
-  if (action === 'cross' || action === 'finish') speech.queue(action, { delay: .15 });
+  // The camera is already held by the script, so guidance() leaves the caption alone: put Mosi's words up with his voice.
+  if (action === 'cross' || action === 'finish') { speech.queue(action, { delay: .15 }); caption(VOICE_LINES[action].text, 3.2); }
   return true;
 }
 function updateStory(dt) {
