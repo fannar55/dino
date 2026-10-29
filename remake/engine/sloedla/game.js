@@ -24,7 +24,7 @@ import { danceGrid, beatAt } from '../beat.js';
 import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
 import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
-import { DJ_LINES, djCueOf, endLineOf } from './dj.js';
+import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
 import { seededRandom } from '../random.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
@@ -101,6 +101,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const djMemory = {};
   const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
   let djStarted = false;
+  let djBusyUntil = -Infinity; // song time he has finished talking
+  let djPending = null; // a big line waiting for him to finish: { line, until }
+  const played = new Set(); // the roles that have played a note this round (a later "X er með!" means she is back)
   let lastTime = 0;
   let lastSection = -1;
   let tierNow = 0;
@@ -470,11 +473,20 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (sound && crowd.play(sound, { gain })) heard.push([Number(lastTime.toFixed(2)), sound]);
   }
 
-  /** The DJ speaks, when he has something to say (dj.js djCueOf decides). */
+  /** The DJ speaks, when he has something to say (dj.js djCueOf decides); while he is talking, the line waits its turn. */
   function call(event) {
     if (!dj) return;
     const line = djCueOf(event, lastTime, djMemory);
-    if (line && dj.play(line)) spoken.push([Number(lastTime.toFixed(2)), line]);
+    if (!line) return;
+    if (lastTime < djBusyUntil) djPending = { line, until: lastTime + DJ_WAIT };
+    else speak(line);
+  }
+
+  function speak(line) {
+    const seconds = dj.play(line);
+    if (!seconds) return;
+    djBusyUntil = lastTime + seconds + 0.1;
+    spoken.push([Number(lastTime.toFixed(2)), line]);
   }
 
   function giveLanes() {
@@ -516,8 +528,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         const friend = cast.find(c => c.role === result.note.role) ?? cast[lane];
         say(`${friend.name} er með!`, { y: h * 0.5, size: 40, style: ['#ffffff', friend.light, friend.hue] });
         cheer('rejoin', 0.8);
-        call({ kind: 'rejoin', role: friend.role });
+        call({ kind: 'rejoin', role: friend.role, back: played.has(friend.role) });
       }
+      played.add(result.note.role);
       hops[lane] = time;
       hitAt[lane] = time;
       const gold = tierNow >= 3;
@@ -576,6 +589,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
 
   function update(time, dt) {
     giveLanes();
+    // a big line that waited for the DJ to finish (the end's too, so this is before the round's own checks)
+    if (djPending && time >= djBusyUntil) {
+      if (time <= djPending.until) speak(djPending.line);
+      djPending = null;
+    }
     if (phase === 'play') {
       if (!djStarted && time >= -0.2) { djStarted = true; call({ kind: 'start' }); }
       for (const index of judge.sweep(time)) {

@@ -39,7 +39,8 @@ export const DJ_LINES = Object.freeze({
 const TIERS = ['', 'flott', 'va', 'stjornukraftur'];
 const FRIENDS = { a: 'sloedla', b: 'kambedla', c: 'thorsedla' };
 const END = ['aftur', 'velgert', 'flott', 'frabaert']; // by the stars won, as the words at the end (game.js END_WORDS)
-export const DJ_QUIET = 3; // s at least between two of his lines, but for the milestones and the end
+export const DJ_QUIET = 4; // s at least between two of his lines, but for the big ones (milestones, Stjörnukraftur, the end)
+export const DJ_WAIT = 1.6; // s a big line may wait for him to finish the one before (the game queues it), else it is dropped
 
 /**
  * The line for the end of a round (the screen shows its words too): "Fullt hús!" when every note was played in one run, "Næstum
@@ -49,32 +50,31 @@ export const DJ_QUIET = 3; // s at least between two of his lines, but for the m
 export function endLineOf({ stars = 0, misses = 0, full = false }) {
   return full ? 'fullthus' : misses <= 2 && stars === 3 ? 'naestum' : END[Math.max(0, Math.min(3, stars))];
 }
-export const DJ_GAP = 1.2; // s at least after any line before a milestone (so two never overlap)
-
 /**
  * What the DJ says to `event` at song time `time`, or null. Events: { kind: 'start' }, { kind: 'milestone', streak },
- * { kind: 'tier', tier }, { kind: 'big' }, { kind: 'rejoin', role }, { kind: 'end', stars, misses, full } (`full`: every note in one
- * run). `memory` keeps when he last spoke ({ last }) and is updated when he speaks.
+ * { kind: 'tier', tier }, { kind: 'big' }, { kind: 'rejoin', role, back } (`back`: she had played before and dropped out; her
+ * first notes of the song are no news), { kind: 'end', stars, misses, full } (`full`: every note in one run). The big ones (a
+ * milestone, Stjörnukraftur, the end) are always said (the game queues one while he is still talking: DJ_WAIT); the others only
+ * after DJ_QUIET s of quiet. `memory` keeps when he last spoke ({ last }) and is updated when he speaks.
  */
 export function djCueOf(event, time, memory) {
   let line = null;
-  let priority = false;
+  let big = false;
   if (event.kind === 'start') line = 'byrjun';
-  else if (event.kind === 'milestone') { line = DJ_LINES[`r${event.streak}`] ? `r${event.streak}` : null; priority = true; }
-  else if (event.kind === 'tier') line = TIERS[event.tier] || null;
+  else if (event.kind === 'milestone') { line = DJ_LINES[`r${event.streak}`] ? `r${event.streak}` : null; big = true; }
+  else if (event.kind === 'tier') { line = TIERS[event.tier] || null; big = event.tier === 3; }
   else if (event.kind === 'big') line = 'allir';
-  else if (event.kind === 'rejoin') line = FRIENDS[event.role] ?? null;
-  else if (event.kind === 'end') { line = endLineOf(event); priority = true; }
+  else if (event.kind === 'rejoin') line = event.back ? FRIENDS[event.role] ?? null : null;
+  else if (event.kind === 'end') { line = endLineOf(event); big = true; }
   if (!line) return null;
-  const since = time - (memory.last ?? -Infinity);
-  if (event.kind !== 'end' && since < (priority ? DJ_GAP : DJ_QUIET)) return null;
+  if (!big && time - (memory.last ?? -Infinity) < DJ_QUIET) return null;
   memory.last = time;
   return line;
 }
 
 /**
  * The DJ's voice: `play(line)` plays it now (a hair late, as a voice answers) and calls `onTalk(at, seconds)` so the page can dip
- * the music under him; it returns whether it played (a line not loaded yet is just not heard). load() fetches and decodes the lines
+ * the music under him; it returns how long he talks, in s (0 for a line not loaded yet: it is just not heard). load() fetches and decodes the lines
  * one at a time (the page calls it while the start card waits).
  */
 export function createDj({ context, output, src, level = 1.2, onTalk = () => {} }) {
@@ -96,7 +96,7 @@ export function createDj({ context, output, src, level = 1.2, onTalk = () => {} 
   }
   function play(line, { delay = 0.05 } = {}) {
     const buffer = buffers[line];
-    if (!buffer) return false;
+    if (!buffer) return 0;
     const at = context.currentTime + delay;
     const source = context.createBufferSource();
     source.buffer = buffer;
@@ -104,7 +104,7 @@ export function createDj({ context, output, src, level = 1.2, onTalk = () => {} 
     source.start(at);
     source.onended = () => source.disconnect();
     onTalk(at, buffer.duration);
-    return true;
+    return buffer.duration + delay;
   }
   return { load, play, bus };
 }

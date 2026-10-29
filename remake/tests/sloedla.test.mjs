@@ -162,10 +162,12 @@ test('the DJ calls the milestones and the big moments, never on top of himself, 
   assert.equal(djCueOf({ kind: 'start' }, 0, memory), 'byrjun');
   assert.equal(djCueOf({ kind: 'tier', tier: 1 }, 1, memory), null, 'a quiet spell after a line');
   assert.equal(djCueOf({ kind: 'tier', tier: 1 }, DJ_QUIET + 0.5, memory), 'flott');
-  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 1, memory), null, 'a milestone waits for the line before to end');
-  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 2, memory), 'r10', 'a milestone comes before the quiet spell is over');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 1, memory), 'r10', 'a milestone is always said (the game queues it while he talks)');
+  assert.equal(djCueOf({ kind: 'tier', tier: 2 }, DJ_QUIET + 2, memory), null, 'a small one keeps the quiet');
+  assert.equal(djCueOf({ kind: 'tier', tier: 3 }, DJ_QUIET + 2.5, memory), 'stjornukraftur', 'Stjörnukraftur is a big one');
+  assert.equal(djCueOf({ kind: 'rejoin', role: 'c', back: false }, 50, memory), null, 'her first notes of the song are no news');
   assert.equal(djCueOf({ kind: 'milestone', streak: 110 }, 60, memory), null, 'no line for a hundred and ten');
-  assert.equal(djCueOf({ kind: 'rejoin', role: 'b' }, 70, memory), 'kambedla');
+  assert.equal(djCueOf({ kind: 'rejoin', role: 'b', back: true }, 70, memory), 'kambedla');
   assert.equal(djCueOf({ kind: 'end', stars: 3, misses: 0, full: true }, 70.1, memory), 'fullthus', 'the end is always said');
   assert.equal(endLineOf({ stars: 3, misses: 2 }), 'naestum');
   assert.equal(endLineOf({ stars: 3, misses: 5 }), 'frabaert');
