@@ -48,7 +48,7 @@ export function mismatchScene(stage, first, second, { delay = 0 } = {}) {
  */
 export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
   const meeting = stage.planMeeting(first, second);
-  const nuzzleAt = .14 + meeting.duration, wideAt = nuzzleAt + .8;
+  const nuzzleAt = .14 + meeting.duration, wideAt = nuzzleAt + .65;
   const pair = [first, second];
   return [
     { at: 0, shot: { kind: 'face', subjects: () => [stage.head(first), stage.head(second), stage.crown?.(first), stage.crown?.(second), meeting.point], cut: true },
@@ -66,6 +66,6 @@ export function matchScene(stage, first, second, { nestIndex = 0 } = {}) {
     { at: wideAt + .1, shot: { kind: 'wide', subjects: () => [...pair.flatMap(cell => [cell.actor.root.position.clone(), stage.head(cell)]), stage.mosi.head()], cut: true },
       act: () => stage.mosi.gesture('clap'), say: 'match' },
     // Back to the glade; Mosi laughs with delight on the way, in view on the left.
-    { at: wideAt + 1.1, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
+    { at: wideAt + 1, shot: { release: true, duration: .8 }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('laugh')) },
   ];
 }

@@ -51,7 +51,7 @@ const SURPRISE = Object.freeze({ pop: .3, rise: .5, hold: .8, fly: .75, hover: 1
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
 // walking route): metres per hop, average metres a second, the root's own arc, the lift over a leaf and how far its reach is.
-const HOP = Object.freeze({ reach: 2.8, speed: 5, arc: .2, leap: .75, dome: 1, margin: 1.9 });
+const HOP = Object.freeze({ reach: 2.8, speed: 6.4, arc: .2, leap: .75, dome: 1, margin: 1.9 });
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const easeOutBack = t => { const k = THREE.MathUtils.clamp(t, 0, 1) - 1; return 1 + 2.4 * k * k * k + 1.4 * k * k; };
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
