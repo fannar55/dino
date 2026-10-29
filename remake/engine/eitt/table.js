@@ -7,6 +7,7 @@ import { createGameSfx } from '../audio/game-music.js';
 import { createVoice } from '../scene/voice.js';
 import { eittSounds, EITT_GAPS, createEittMusic } from './eitt-sounds.js';
 import { avatarOf } from '../fjolspil/seats.js';
+import { wayElement, setWay } from './way.js';
 
 // The table of "Eitt!" (spec sections 5 to 9): the round the child plays with Kambeðla, rendered into eitt.css's classes (the class
 // list is at the top of eitt.css, which is the game's whole look). The rules, Kambeðla's choices, her skill and Mosi's advice are the
@@ -40,8 +41,10 @@ import { avatarOf } from '../fjolspil/seats.js';
 //     her phone, Kambeðla as the one computer when she was added) and "Halda áfram" (a round of Fjölspil kept under way). There
 //     is no shared screen in Eitt! (the owner's decision of 24 October): this table stays Egill's, his hand as above, and the
 //     others' hands lie face down in rows across the top, one for each seat with its picture, its name and how many cards it holds,
-//     the one whose turn it is lit and one that is away dim with "…"; Kambeðla's window, her voice and her lines are there only when
-//     she plays, and Mosi's advice is Egill's alone. A guest's turn waits for her act from her phone (guest-eitt.js), which the rules
+//     the one whose turn it is marked (its picture bigger and ringed in its own colour, pulsing) and one that is away dim with "…";
+//     Egill's own tag over Mosi's button is ringed the same way on his turn, and at a table of three or four a pair of arrows round the
+//     pile (way.js) shows the way the turn goes and spins once when a reverse turns it. Kambeðla's window, her voice and her lines
+//     are there only when she plays, and Mosi's advice is Egill's alone. A guest's turn waits for her act from her phone (guest-eitt.js), which the rules
 //     check, and her card flies from her row as Kambeðla's do; a guest who is away when her turn comes is waited for over the
 //     table (the lobby's waiting card), and after "Halda áfram án …" the computer plays her seat, silently, until a turn of hers
 //     finds her back. Every guest is sent her view after each change, and the round is kept in the save with its seats after each
@@ -301,7 +304,9 @@ export function createEittGame(doc, {
   deckEl.setAttribute('aria-label', 'Draga spil');
   const pileEl = make('div', 'eitt-pile');
   const ringEl = make('div', 'eitt-ring');
-  pileEl.append(ringEl);
+  const wayEl = wayElement(doc); // the way the turn goes, in a round of Fjölspil of three or four (way.js)
+  wayEl.hidden = true;
+  pileEl.append(ringEl, wayEl);
   const passEl = make('button', 'eitt-pass', `<span>Áfram</span>${ARROW}`);
   const coloursEl = make('div', 'eitt-colours');
   const colourButtons = Object.keys(ORDER).map(colour => {
@@ -549,6 +554,7 @@ export function createEittGame(doc, {
   // Egill's (seatRows: seat -> { el, fan, els, face, name, count, col }), across the top in seat order.
   const theirRow = { el: theirsEl, fan: theirsEl, els: theirEls };
   const seatRows = new Map();
+  let mePlace = null; // and Egill's own tag in a round of Fjölspil: { el, face, name }
   const rowOf = seat => (multi ? seatRows.get(seat) : seat === SOLO_KAMBEDLA ? theirRow : null) ?? null;
 
   /** Where `el` is: its middle in the game's own pixels, its width, and how it is turned (degrees). */
@@ -741,6 +747,8 @@ export function createEittGame(doc, {
     renderPile(pileCards());
     ringEl.hidden = false;
     ringEl.className = `eitt-ring ${pendingWild ? 'wild' : game.colour}`;
+    wayEl.hidden = !multi || game.hands.length < 3; // with two a reverse only skips: nothing turns
+    if (!wayEl.hidden) setWay(wayEl, game.direction, { calm: calm() });
     passEl.hidden = !(game.drew && game.turn === CHILD && game.winner === null) || Boolean(tutorial);
     eittEl.classList.toggle('needed', game.unsaid !== null && game.winner === null);
     deckEl.classList.toggle('draw', childMoves() && canDraw(game, CHILD) && (tutorial ? tutorial.live === 'deck' : hinting || mosiPick === 'draw'));
@@ -1437,6 +1445,8 @@ export function createEittGame(doc, {
   function buildRows(players) {
     for (const row of seatRows.values()) row.el.remove();
     seatRows.clear();
+    mePlace?.el.remove();
+    mePlace = makeMe();
     const columns = players === 2 ? [2] : players === 3 ? [1, 3] : [1, 2, 3];
     for (let seat = 1; seat < players; seat++) {
       const el = make('div', 'eitt-seat');
@@ -1456,16 +1466,42 @@ export function createEittGame(doc, {
     }
   }
 
-  /** The rows' tags as the seats are now: each seat's picture, name and cards, whose turn it is, the winner, and who is away. */
+  /** Egill's own place, his tag with his picture and name beside his cards, which rings on his turn as the other seats' tags do. */
+  function makeMe() {
+    const el = make('aside', 'eitt-me'); // not a div, so the rows keep their odd and even (eitt.css)
+    const label = make('div', 'eitt-seat-label');
+    const face = make('img', 'eitt-seat-face');
+    face.alt = '';
+    const name = make('span', 'eitt-seat-name');
+    label.append(face, name);
+    el.append(label);
+    table.insertBefore(el, centre);
+    return { el, face, name };
+  }
+
+  /** A seat's picture and colour on its tag: never an empty src, which a browser would read as the page. */
+  function paintFace(place, entry) {
+    const avatar = avatarOf(entry?.avatar);
+    const src = avatar ? asset(avatar.picture) : null;
+    if (src && place.face.src !== src) place.face.src = src;
+    place.face.hidden = !avatar;
+    place.el.style.setProperty('--c', avatar?.colour ?? 'transparent');
+    place.name.textContent = entry?.name ?? '';
+  }
+
+  /**
+   * The tags as the seats are now: each seat's picture, name and cards, whose turn it is (.turn: its picture bigger, ringed in its
+   * own colour and pulsing, eitt.css), the winner, and who is away. Egill's own tag too, ringed on his turn.
+   */
   function renderSeats() {
+    if (mePlace) {
+      paintFace(mePlace, fjolspil.seats.bySeat(CHILD));
+      mePlace.el.classList.toggle('turn', game.winner === null && game.turn === CHILD);
+      mePlace.el.classList.toggle('won', game.winner === CHILD);
+    }
     for (const [seat, row] of seatRows) {
       const entry = fjolspil.seats.bySeat(seat);
-      const avatar = avatarOf(entry?.avatar);
-      const src = avatar ? asset(avatar.picture) : null;
-      if (src && row.face.src !== src) row.face.src = src; // never an empty src, which a browser would read as the page
-      row.face.hidden = !avatar;
-      row.el.style.setProperty('--c', avatar?.colour ?? 'transparent');
-      row.name.textContent = entry?.name ?? '';
+      paintFace(row, entry);
       row.count.textContent = String(game.hands[seat]?.length ?? 0);
       row.el.classList.toggle('absent', Boolean(entry?.guestId) && !entry.present); // dim, with "…" (eitt.css)
       row.el.classList.toggle('turn', game.winner === null && game.turn === seat);
@@ -1765,6 +1801,8 @@ export function createEittGame(doc, {
     seatsOff = null;
     for (const row of seatRows.values()) row.el.remove();
     seatRows.clear();
+    mePlace?.el.remove();
+    mePlace = null;
     root.classList.remove('multi');
     table.classList.remove('multi');
     delete table.dataset.kCol;
@@ -1787,6 +1825,7 @@ export function createEittGame(doc, {
     KAMBEDLA = her ? her.seat : null;
     remoteSeat = null;
     buildRows(list.length);
+    delete wayEl.dataset.way; // a round begins going the usual way, with nothing to turn over
     root.classList.add('multi');
     table.classList.add('multi');
     table.style.setProperty('--k-col', String(rowOf(KAMBEDLA)?.col ?? 2));
