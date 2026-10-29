@@ -6,6 +6,7 @@
  *   task.logEnd(progress)   the log's far end when it has rolled that far (now, without one), world space
  *   task.lowerBranch()      the Þórseðlur let the branch go and walk home (false when they cannot now)
  *   task.builderSpots()     where the Þríhyrnur step back to once it has landed (their places in line to cross)
+ *   cut(shot)               a new shot from inside a wait's callback (the timeout's)
  * The big word of each push ("Einn!", "Tveir!", "ÝTA!") comes with the adventure's beat event (game.js).
  */
 const all = (...fns) => fns;
@@ -42,7 +43,8 @@ export function rollScene(stage, { taps = 3, timeout = 4 } = {}) {
     { at: 3.3, act: all(stillGoing, () => stage.mosi.look(centre(heads()))), say: 'push' },
     { at: 3.35, wait: { tap: 'log', count: taps, timeout,
       onTap: () => stage.task.beat(),
-      onTimeout: () => { stage.say('together'); while (stage.task.beat()); } } },
+      // No taps: "Við gerum þetta saman!", a cut down low beside them, and they push the rest on their own, in steps.
+      onTimeout: () => { stage.say('together'); stage.cut({ kind: 'hero', subjects: () => [...bodies(tris()), near(), ...sweep()], front: PUSH_FRONT, elevation: 8 }); while (stage.task.beat()); } } },
     { at: 3.4, wait: { until: () => stage.task.isBuilt() || !stage.task.busy(), timeout: 6 } },
     // Down it comes over the river: a jolt.
     { at: 3.45, fx: { kind: 'shake', strength: .12, seconds: .35 } },

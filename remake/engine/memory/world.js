@@ -210,6 +210,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     },
     planMeeting,
     say: line => deferredEvents.push({ type: 'scene-say', line }),
+    // A new shot from inside a wait's callback (a line's own `shot` is the usual way).
+    cut: options => cameraDirector.shot({ cut: true, ...options }),
     pair: species => nests.find(nest => nest.species === species)?.members ?? [],
     friends: () => nests.flatMap(nest => nest.members),
     homeOf: species => (nests.find(nest => nest.species === species)?.root.position ?? new THREE.Vector3()).clone(),
