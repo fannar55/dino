@@ -114,9 +114,11 @@ export function createBridgeProps({scene,heightAt}){
   const branchGroup=new THREE.Group();root.add(branchGroup);let branchMesh=null,lastBranchKey='',branchCurve=null;
   const leafGeometry=geo(new THREE.SphereGeometry(1,8,4));leafGeometry.scale(.47,.065,.20);
   const branchMaterial=mat({vertexColors:true});
+  // The bend between the trunk and the first crown rises with that crown, so a branch held high (the tall
+  // Þórseðla babies lift it past 2 m) does not dip into her head on its way to the trunk.
   function setBranch(lift,supports=[]){
     const a=supports[0]??new THREE.Vector3(-7.15,1.10,-4.4),b=supports[1]??new THREE.Vector3(-5.35,1.08,-3.3),key=[lift,...a.toArray(),...b.toArray()].map(v=>v.toFixed(4)).join(',');if(key===lastBranchKey)return;lastBranchKey=key;
-    branchCurve=new THREE.CatmullRomCurve3([branchAnchor.clone().add(new THREE.Vector3(.35,3.35,-.2)),new THREE.Vector3(-7.8,2,-4.9),a.clone().add(new THREE.Vector3(0,.16,0)),b.clone().add(new THREE.Vector3(0,.15,0)),new THREE.Vector3(-1.7,.9+lift*1.45,-3),new THREE.Vector3(.3,.55+lift*2.0,-2.8)]);
+    branchCurve=new THREE.CatmullRomCurve3([branchAnchor.clone().add(new THREE.Vector3(.35,3.35,-.2)),new THREE.Vector3(-7.8,Math.max(2,a.y+.25),-4.9),a.clone().add(new THREE.Vector3(0,.16,0)),b.clone().add(new THREE.Vector3(0,.15,0)),new THREE.Vector3(-1.7,.9+lift*1.45,-3),new THREE.Vector3(.3,.55+lift*2.0,-2.8)]);
     const parts=[];colourPart(new THREE.TubeGeometry(branchCurve,36,.15,8,false),'#82623d',parts);
     for(let i=0;i<28;i++){
       const p=branchCurve.getPoint(.26+i/28*.73);if(p.distanceTo(a)<.75||p.distanceTo(b)<.75)continue;

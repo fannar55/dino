@@ -190,7 +190,9 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(disposed||!GESTURES[id])return false;
         gesture={name:id,t:0,duration:GESTURES[id].duration};gestureFrom=0;return true;
       }
-      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length:L,crossed:at=>gestureFrom<at&&gesture.t>=at};
+      // Gestures keep the friends' common size (length): the big Þórseðla baby hops and leans as far as the others
+      // do, not 1.62 times as far (a 0.8 m hop lifted her tail into the branch behind her rest).
+      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length,crossed:at=>gestureFrom<at&&gesture.t>=at};
       function setMotion(name,options={}) {
         if(disposed) return;
         // The older gesture names start the matching gesture over a still stance.
