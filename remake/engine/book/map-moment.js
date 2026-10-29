@@ -7,9 +7,15 @@ import { reducedMotion } from './fx.js';
 //
 // It is one `.map-moment` element in the page (book.css): a veil that dims the game, over it a paper card holding the map as one
 // picture, its two pages side by side as a leaf renderMap draws into (the same map as the book's: the stickers, the trail so far,
-// the dot where the child is, the water and the mist). The card is 1.8 to 1 like the map's view and about 86 % of the screen, whichever
+// the dot where the child is, and the painting alive: the water, the fall, the trees and the clouds, which renderMap's living layers
+// (map-life.js) draw as the map slides up). The card is 1.8 to 1 like the map's view and about 86 % of the screen, whichever
 // way the tablet is held (fitMap); an upright one has the map as a band across its middle. While the line draws the map comes slowly
 // nearer the pieces (zoomTo: at most 1.6 times, and never so near that a piece or the end it leads to leaves the card).
+//
+// The life is the overlay's own and goes with it: play() starts it (a layer is a WebGL context, so each play makes new ones), close()
+// stops the drawing as the map slides away, and when the overlay leaves the page, or gives way to a new one, its layers are destroyed
+// (map.dispose()): the contexts are given back, none is left drawing in the background. With reduced motion, or where WebGL is not
+// to be had, no layer is made and the map is the painting and the still mist, as it was.
 //
 // The overlay lets touches through (pointer-events: none, inert): a tap goes to the game behind it, and nothing in it takes one. It
 // stands in the page right after the canvas, before the caption, the journal's button and the book, with no z-index of its own: so it
@@ -57,7 +63,8 @@ export function zoomTo({ x, y, width, height }) {
 
 /**
  * The map moment on a page (`doc`), over the `save`, with the journal's sound (`audio`, whose sfx(name) plays a named effect).
- * Returns
+ * `liveMap` makes the map's living layers (renderMap's option: createLiveMap's signature; the default is map-life.js's, a test gives
+ * its own). Returns
  *   play(ids)   puts the overlay up: the map slides up over the game and draws the pieces `ids` ('a' to 'g', as renderMap's) over the
  *               pieces drawn already, whether or not the child has seen them drawn, and keeps them seen; it zooms toward them as it
  *               does. Gives { drawMs }: how long the slide and the drawing take, in ms of game time (0 with reduced motion). A moment
@@ -69,7 +76,7 @@ export function zoomTo({ x, y, width, height }) {
  *               turn begins and takes the closed overlay off the page when its slide away is over
  *   isOpen      whether a moment is playing (from play() to close())
  */
-export function createMapMoment(doc, { save, audio = null, win = globalThis.window } = {}) {
+export function createMapMoment(doc, { save, audio = null, win = globalThis.window, liveMap } = {}) {
   let current = null; // { el, card, veil, map, animated, age, cues, closing, closeAge, onResize }
 
   const make = (tag, className) => {
@@ -106,6 +113,7 @@ export function createMapMoment(doc, { save, audio = null, win = globalThis.wind
     const moment = current;
     current = null;
     letGo(moment);
+    moment.map.dispose(); // its living layers go, and their graphics contexts: a context is a scarce thing, and this map never shows again
     moment.el.remove();
   }
 
@@ -126,10 +134,11 @@ export function createMapMoment(doc, { save, audio = null, win = globalThis.wind
     put(el);
 
     const animated = !reducedMotion(win) && typeof card.animate === 'function';
-    const map = renderMap({ el: zoom, tiles: pages }, { save, win });
+    const map = renderMap({ el: zoom, tiles: pages }, { save, win, liveMap }); // an undefined liveMap is renderMap's own (createLiveMap)
     const moment = { el, card, veil, map, animated, age: 0, cues: [], closing: false, closeAge: 0, onResize: () => size(card) };
     current = moment;
     win?.addEventListener?.('resize', moment.onResize);
+    map.startLife(); // the painting moves as it slides up (nothing is made with reduced motion, or without WebGL: the map is then as it was)
 
     audio?.sfx?.('mapOpen');
     const drawing = map.drawPieces(ids, { delay: animated ? SLIDE_MS : 0 });
@@ -153,7 +162,7 @@ export function createMapMoment(doc, { save, audio = null, win = globalThis.wind
     const moment = current;
     if (!moment || moment.closing) return 0;
     letGo(moment);
-    moment.map.hide(); // a line still being drawn is finished where it was going
+    moment.map.hide(); // a line still being drawn is finished where it was going, and the living layers stop drawing
     if (!moment.animated) {
       dispose();
       return 0;

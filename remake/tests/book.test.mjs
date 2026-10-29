@@ -1071,9 +1071,10 @@ const boundsOf = ids => mapRig().map.bounds(ids);
 
 /**
  * The map moment on a page of its own, over a save of its own, in a window `size` big: the animations it asks for (recorded, and
- * finished by hand), the sounds it makes, and the page's resize listener. `ids` are the elements the page already has.
+ * finished by hand), the sounds it makes, and the page's resize listener. `ids` are the elements the page already has; `liveMap`
+ * makes the map's living layers (as renderMap's; fakeLife's, to see them).
  */
-function momentRig({ fill = () => {}, reduced = false, size = [1366, 1024], ids = [] } = {}) {
+function momentRig({ fill = () => {}, reduced = false, size = [1366, 1024], ids = [], liveMap } = {}) {
   const save = createSave(null);
   fill(save);
   const doc = new FakeDocument(ids);
@@ -1094,7 +1095,7 @@ function momentRig({ fill = () => {}, reduced = false, size = [1366, 1024], ids 
     innerWidth: size[0], innerHeight: size[1], matchMedia: () => ({ matches: reduced }),
     addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener: type => listeners.delete(type),
   };
-  const moment = createMapMoment(doc, { save, audio: { sfx: name => { sounds.push(name); return true; } }, win });
+  const moment = createMapMoment(doc, { save, audio: { sfx: name => { sounds.push(name); return true; } }, win, liveMap });
   const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
   return { save, doc, moment, animations, sounds, win, listeners, overlays };
 }
@@ -1212,6 +1213,56 @@ test('the map moment plays again over pieces the child has seen, and a second pl
   assert.equal(rig.overlays().length, 1, 'one overlay, never two');
   assert.notEqual(rig.overlays()[0], first, 'the new one');
   assert.equal(first.parentNode, null, 'the old one gone');
+});
+
+test('the map in the journey lives while it plays and lets its living layers go when it leaves', () => {
+  const { liveMap, made } = fakeLife();
+  const rig = momentRig({ liveMap });
+  assert.equal(made.length, 0, 'nothing is made until it is played');
+  rig.moment.play(['a']);
+  const [overlay] = rig.overlays();
+  const halves = overlay.findAll(e => e.classList.contains('map-half'));
+  assert.deepEqual(made.map(layer => layer.options.half), [0, 1], 'a layer for each of its two pages');
+  assert.deepEqual(made.map(layer => layer.canvas), halves.map(half => half.children.find(child => child.classList.contains('map-live'))), 'drawn on the overlay\'s own canvases');
+  assert.deepEqual(made.map(layer => layer.starts), [1, 1], 'both started as the map slides up');
+  assert.deepEqual(made.map(layer => layer.running), [true, true]);
+  // it stops drawing as it slides away, and is let go when it is gone
+  assert.equal(rig.moment.close(), 600);
+  assert.deepEqual(made.map(layer => layer.running), [false, false], 'nothing draws under a map that is leaving');
+  assert.deepEqual(made.map(layer => layer.destroyed), [false, false], 'but they are not let go while it still slides');
+  rig.moment.update(0.59);
+  assert.deepEqual(made.map(layer => layer.destroyed), [false, false]);
+  rig.moment.update(0.02);
+  assert.equal(rig.overlays().length, 0, 'the overlay is gone');
+  assert.deepEqual(made.map(layer => layer.destroyed), [true, true], 'and its graphics contexts with it');
+  assert.equal(made.length, 2, 'no layer made after the first two');
+});
+
+test('a journey map played over another lets the first one\'s life go', () => {
+  const { liveMap, made } = fakeLife();
+  const rig = momentRig({ liveMap });
+  rig.moment.play(['a']);
+  const [first] = rig.overlays();
+  assert.equal(made.length, 2);
+  rig.moment.play(['b']);
+  assert.equal(first.parentNode, null, 'the first overlay is gone');
+  assert.equal(made.length, 4, 'two new layers for the second map');
+  assert.deepEqual(made.slice(0, 2).map(layer => layer.destroyed), [true, true], 'the first map\'s layers are let go');
+  assert.deepEqual(made.slice(0, 2).map(layer => layer.running), [false, false]);
+  assert.deepEqual(made.slice(2).map(layer => [layer.starts, layer.destroyed, layer.running]), [[1, false, true], [1, false, true]], 'the second map\'s are started and kept');
+  const [second] = rig.overlays();
+  assert.deepEqual(made.slice(2).map(layer => layer.canvas), second.findAll(e => e.classList.contains('map-live')), 'on the second overlay\'s canvases');
+});
+
+test('with reduced motion the map in the journey makes no living layer', () => {
+  const { liveMap, made } = fakeLife();
+  const rig = momentRig({ liveMap, reduced: true });
+  rig.moment.play(['b', 'c']);
+  assert.equal(rig.overlays().length, 1, 'the map is there, the painting and the still mist');
+  assert.equal(made.length, 0, 'no living layer is made');
+  assert.equal(rig.moment.close(), 0);
+  assert.equal(rig.overlays().length, 0);
+  assert.equal(made.length, 0);
 });
 
 test('the card is sized by fitMap, and keeps to it when the window changes', () => {
