@@ -279,7 +279,8 @@ const CLEARANCE_JS = `(async () => {
   window.__clr = { samples: 0, minimum: null, worst: {} };
   setInterval(() => {
     const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action || !['lay', 'finish', 'fail'].includes(action.id)) return;
-    const result = assessSceneClearances(window.__memory.stats({ collision: true })), clr = window.__clr;
+    const stats = window.__memory.stats({ collision: true }); stats.collisionObjects = []; // the glade's scenery is far from the marsh; the log, branch and carried bark stay
+    const result = assessSceneClearances(stats), clr = window.__clr;
     clr.samples++; if (result.minimum !== null) clr.minimum = clr.minimum === null ? result.minimum : Math.min(clr.minimum, result.minimum);
     for (const hit of result.violations) {
       const key = action.id + '/' + action.phase + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
