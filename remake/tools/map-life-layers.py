@@ -64,8 +64,8 @@ def read_places():
     source = open(MAP_PAGE, encoding='utf8').read()
     places = [(m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4)))
               for m in re.finditer(r"slot\('(\w+)', \[(\d+), (\d+)\], (\d+)\)", source)]
-    if len(places) != 7:
-        raise SystemExit(f'expected 7 slots in {MAP_PAGE}, found {len(places)}')
+    if len(places) != 6:
+        raise SystemExit(f'expected 6 slots in {MAP_PAGE} (the friends; the Fen has none), found {len(places)}')
     return places
 
 
@@ -76,8 +76,8 @@ def read_names():
     block = block[:block.index('].map(')]
     names = [(m.group(1), int(m.group(2)), int(m.group(3)), float(m.group(4) or -2))
              for m in re.finditer(r"text: '([^']+)', at: \[(\d+), (\d+)\](?:, tilt: (-?\d+))?", block)]
-    if len(names) != 5:
-        raise SystemExit(f'expected 5 names in {MAP_PAGE}, found {len(names)}')
+    if len(names) != 4:
+        raise SystemExit(f'expected 4 names in {MAP_PAGE} (the Fen has none), found {len(names)}')
     return names
 
 

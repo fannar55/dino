@@ -41,8 +41,7 @@ import { validateGame } from '../hals/rules.js';
 // The Kortið leaf is the map (map-page.js): the forest and the Fen painted across the spread, the trail the child has travelled drawn
 // along it in ink (each piece draws itself in the first time the page is on view), with a slot for each of the six friends that
 // fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name and a
-// sentence (k2_mosi_map_<id>), an empty one only taps. The Fen is a named place on the map with no slot: once found, a tap on its
-// name ("Fenið", an element that is no slot's button) has Mosi say k2_mosi_map_fen the same way (onTap uses only the id).
+// sentence (k2_mosi_map_<id>), an empty one only taps. The Fen has no slot and no name on the map: its painted reed is the Fen.
 // The Safnið leaf is the fossil collection, Steingervingasafn, which museum-page.js makes: the eight finds of "Háls og hali" as
 // taped stickers, a found one new ("Nýtt!") until tapped, a tap opening its card when the book has one, and a full collection
 // celebrated once. The Safnið ribbon wears a small "Nýtt!" (.ribbon-new) while a fossil is new. The celebration is for a book the

@@ -453,7 +453,7 @@
    friend each) of a solid red line, with a red dot at its head that says where the child is (it pulses a ring at rest) and, for
    the next leg, a faint dotted red line and its slot's ring pulsing: the dashed ring of an empty slot, or, once the friend is found
    (the far friends are, in chapter 2, before the line goes to them), a soft ring in her hue round her sticker;
-   the place names in the book's font (the Fen's, once it is found, takes a tap: .tappable); and a round slot for each of the six
+   the place names in the book's font (the Fen has none: its painted reed is all it is); and a round slot for each of the six
    friends, on her pale circle in the picture: empty (a dashed ring in the place's hue), found (a die-cut sticker of the friend on a
    wash of its hue, rocking gently on its tilt) or done (the sticker wears a gold star). Over the painting, the water and the mist, two layers cut from it (tools/map-life-layers.py) that lie exactly
    where it does: a light glides over the water (the layer shows only inside a soft band that crosses it, a little brighter than the
@@ -528,10 +528,6 @@
   white-space: nowrap; font-size: clamp(18px, 4.6cqw, 40px); font-weight: 900; line-height: 1;
   color: var(--book-ink); -webkit-text-stroke: .22em var(--book-paper); paint-order: stroke fill;
 }
-.map-name.tappable { /* a place's name that takes a tap (the Fen's, once it is found): a target as big as any control, the name in its middle (the box grows round it, which does not move the name) */
-  cursor: pointer; display: grid; place-items: center; min-width: var(--book-target); min-height: var(--book-target);
-}
-.book .map-name.tappable { pointer-events: auto; } /* in the book only: the map in the journey's overlay lets every touch through, its names too */
 .map-marker { /* a button as wide as its pale circle, and at least a target (--size is in the map's units: 9 to the cqw) */
   --d: calc(var(--size, 80) / 9 * 1cqw);
   position: absolute; z-index: 2; width: max(var(--book-target), var(--d)); aspect-ratio: 1;

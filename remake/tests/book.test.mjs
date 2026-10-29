@@ -185,105 +185,14 @@ test('the book has a Kortið page with the found places', () => {
   assert.deepEqual(state('thorsedla'), ['found', 'done']);
 });
 
-/** The Fen's name on the Kortið page of the rig's book (or in any root): the one element, written once. */
-const fenName = root => {
-  const names = root.findAll(e => e.classList.contains('map-name') && e.textContent === 'Fenið');
-  assert.equal(names.length, 1, 'the Fen\'s name is written once');
-  return names[0];
-};
-/** A finger that touches the element and lifts again. */
-const touch = el => {
-  el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
-  el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
-};
-
-test('the Fen is a named place with no slot: its name stands in the middle of the reed, takes a tap once the Fen is found, and has no sticker or star', () => {
-  const { save, book, root, narrated, sounds } = savedRig(s => { s.addStar('k1_kambedla'); s.addStar('k2_thorsedla'); });
-  const slots = () => root.findAll(e => e.classList.contains('map-marker')).map(e => e.getAttribute('data-place'));
+test('the Fen has no slot, no name and no star on the map: its painted reed is the Fen', () => {
+  const { root } = savedRig(s => { s.addStar('k1_kambedla'); s.addPlace('fen'); s.addStar('k2_thorsedla'); });
+  const slots = root.findAll(e => e.classList.contains('map-marker')).map(e => e.getAttribute('data-place'));
   assert.deepEqual(MAP_PLACES.map(place => place.id).sort(), ['flugedla', 'gramedla', 'kambedla', 'sloedla', 'thorsedla', 'uggedla'], 'six places have a slot: the friends\'');
-  assert.deepEqual(slots().sort(), ['flugedla', 'gramedla', 'kambedla', 'sloedla', 'thorsedla', 'uggedla'], 'and the book has those six, none of them the Fen');
+  assert.deepEqual(slots.sort(), ['flugedla', 'gramedla', 'kambedla', 'sloedla', 'thorsedla', 'uggedla'], 'and the book has those six, none of them the Fen');
   assert.equal(root.findAll(e => e.getAttribute('data-place') === 'fen').length, 0, 'no [data-place="fen"]');
-  // its name stands at the middle of where its slot was (picture pixels [1213, 447]), on the right page, with the other names
-  const name = fenName(root);
-  assert.equal(`${name.style.left} ${name.style.top}`, `${((1213 * 1800 / 1681 - 900) / 9).toFixed(2)}% ${(447 * 1000 / 936 / 10).toFixed(2)}%`, 'in the middle of the reed');
-  assert.equal(name.parentNode.getAttribute('data-half'), 'right');
-  // before the Fen is found it is only a name: not a control, no press, no sound, nobody to hear it
-  assert.equal(name.classList.contains('tappable'), false);
-  assert.equal(name.classList.contains('pressable'), false, 'not a control yet');
-  assert.equal(name.getAttribute('role'), null);
-  book.open('map', 'child');
-  sounds.length = 0;
-  touch(name);
-  assert.deepEqual(narrated, [], 'nothing is said');
-  assert.deepEqual(sounds, [], 'and the book\'s tap is not heard either');
-  // the chapter finds it: the name is a control, and a tap says the Fen's line, with the book's tap
-  save.addPlace('fen');
-  book.refresh();
-  assert.equal(fenName(root), name, 'the same name');
-  assert.equal(name.classList.contains('tappable'), true);
-  assert.equal(name.getAttribute('role'), 'button');
-  assert.equal(name.classList.contains('pressable'), true);
-  touch(name);
-  assert.deepEqual(narrated, ['k2_mosi_map_fen']);
-  assert.deepEqual(sounds, ['tap']);
-  // it wears no sticker and no star, though Þórseðla's star is in the book: the stars on the page are the two friends' own
-  assert.deepEqual(name.findAll(e => e.classList.contains('map-star') || e.classList.contains('map-sticker')), [], 'no sticker and no star on the name');
-  assert.equal(root.findAll(e => e.classList.contains('map-star')).length, 2, 'a star for Kambeðla and for Þórseðla, and no more');
-  assert.equal(slots().length, 6, 'and still no slot');
-});
-
-test('a tap on the Fen\'s name springs it as a slot springs, and tells the page it is the Fen, found, and which element', () => {
-  const rigFor = reduced => {
-    const heard = [];
-    const springs = [];
-    const save = createSave(null);
-    save.addPlace('fen');
-    const doc = new FakeDocument();
-    const create = doc.createElement.bind(doc);
-    doc.createElement = tag => {
-      const element = create(tag);
-      element.animate = (keyframes, options) => { springs.push({ el: element, keyframes, options }); return { cancel() {}, finish() {} }; };
-      return element;
-    };
-    const leaf = { el: doc.createElement('div'), tiles: [doc.createElement('div'), doc.createElement('div')] };
-    leaf.el.append(...leaf.tiles);
-    const map = renderMap(leaf, { save, onTap: (...args) => heard.push(args), win: { matchMedia: () => ({ matches: reduced }) } });
-    return { map, leaf, heard, springs };
-  };
-  const { map, leaf, heard, springs } = rigFor(false);
-  const name = map.names.get('fen');
-  assert.equal(name, fenName(leaf.el), 'the map gives its name element');
-  assert.equal(map.markers.has('fen'), false, 'and no slot');
-  assert.equal(map.stateOf('fen'), undefined, 'the Fen is no slot, with no state');
-  touch(name);
-  assert.deepEqual(heard, [['fen', 'found', name]]);
-  const spring = springs.filter(({ el }) => el === name);
-  assert.equal(spring.length, 1, 'it springs once');
-  assert.deepEqual(spring[0].keyframes, [{ scale: '1' }, { scale: '1.16' }, { scale: '1' }], 'as a slot does');
-  assert.equal(spring[0].options.duration, 480);
-  // an empty slot says nothing
-  touch(map.markers.get('sloedla'));
-  assert.equal(heard.length, 1);
-  // with less motion it does not spring, but is heard
-  const calm = rigFor(true);
-  const quiet = calm.map.names.get('fen');
-  touch(quiet);
-  assert.equal(calm.springs.filter(({ el }) => el === quiet).length, 0, 'no spring with less motion');
-  assert.deepEqual(calm.heard, [['fen', 'found', quiet]]);
-});
-
-test('the Fen\'s name takes a tap in the book only: the stylesheet gives it a target, and the overlay\'s map lets every touch through', () => {
-  const css = fs.readFileSync(new URL('../book.css', import.meta.url), 'utf8');
-  const rule = selector => {
-    const at = css.indexOf(`\n${selector} {`);
-    assert.ok(at >= 0, `a rule for ${selector}`);
-    return css.slice(at, css.indexOf('\n}', at));
-  };
-  const tappable = rule('.map-name.tappable');
-  assert.match(tappable, /min-width: var\(--book-target\); min-height: var\(--book-target\)/, 'at least a target, as every control');
-  assert.doesNotMatch(tappable.replace(/\/\*[^]*?\*\//g, ''), /pointer-events/, 'it takes no touch of its own accord: the overlay\'s `.map-moment *` keeps its names inert');
-  assert.match(css, /\n\.book \.map-name\.tappable \{ pointer-events: auto; \}/, 'but in the book it does');
-  assert.match(rule('.map-name'), /pointer-events: none/, 'a name is otherwise no control');
+  assert.deepEqual(root.findAll(e => e.classList.contains('map-name')).map(e => e.textContent).sort(), ['Burknalautin', 'Fenjaslóðin', 'Rjóðrið', 'Áin'].sort(), 'no name for the Fen, though it is found');
+  assert.equal(root.findAll(e => e.classList.contains('map-star')).length, 2, 'a star for Kambeðla and for Þórseðla, and none for the Fen');
 });
 
 test('the map\'s life layers are cut from the painting at its size', () => {

@@ -16,11 +16,9 @@ import { FRIENDS, STAR_SVG, friendOf, placeHue } from '../scene/journal.js';
 // A tap on a found or done slot hands it to onTap(id, state, marker): Mosi says its name and one sentence (k2_mosi_map_<id>,
 // book.js). The slots are made once and render() only changes their state.
 //
-// The Fen is a named place with no slot (the owner, 2026-10-29): the picture's painted reed is the Fen, so its name, "Fenið", is
-// written in the middle of it as the other names are, and once the Fen is found (the save's places have `fen`, which chapter 2 adds
-// and flies its marker to the book button for) the name takes a tap: it springs as a slot does and hands onTap('fen', 'found', the
-// name's element), so Mosi says k2_mosi_map_fen. Before it is found the name is only a name. The Fen has no sticker, no star and no
-// piece of the trail of its own.
+// The Fen has no slot and no name on the map (the owner, 2026-10-29): the golden reed painted in the middle of the right page is
+// the Fen itself, its pale clearing filled with reed (tools/erase-map-spot.py). The save's place `fen`, which chapter 2 adds and
+// flies its marker to the book button for, draws nothing here: no sticker, no star, no name and no piece of the trail.
 //
 // And the trail the child has travelled, drawn by the game (the picture has no line of its own) as a solid red line, like the travel
 // lines in the Indiana Jones films: six pieces, each from the place before to the next. The order follows the painted path (the
@@ -91,14 +89,12 @@ const PICTURES = {
   flugedla: art('eitt/pteranodon.webp'),
 };
 // The place names, on open spots near what they name (picture pixels): few words, big, in the book's font, each with a halo of
-// paper so it reads on the painting; none over a clearing, the trail or the compass. "Fenið" is the Fen's, in the middle of its reed
-// where its slot was; with `place` set, a name is the place's own and takes a tap once that place is found (the Fen's is the only one).
+// paper so it reads on the painting; none over a clearing, the trail or the compass.
 const NAMES = [
   { text: 'Rjóðrið', at: [228, 786] }, // on the sandy clearing the trail starts from
   { text: 'Burknalautin', at: [616, 584] }, // under the glade
   { text: 'Fenjaslóðin', at: [997, 606], tilt: 30 }, // along the prints, which run down to the right, above them
   { text: 'Áin', at: [600, 268], tilt: 6 }, // on the river below the waterfall
-  { text: 'Fenið', at: [1213, 447], place: 'fen' }, // in the middle of the golden reed, where the Fen's slot was
 ].map(name => ({ ...name, at: onMap(name.at) }));
 const BOUNCE_MS = 480;
 
@@ -183,7 +179,6 @@ function curve(points) {
  *                   reduced motion: they are simply there). It is the map in the journey's (map-moment.js), and it is not show()'s
  *   bounds(ids)     the box round the named pieces' curves, { x, y, width, height } in the view's units (the whole view for none)
  *   markers        id -> the slot's button, for the lab and for probes (six: the Fen has no slot)
- *   names          id -> the element of a place's name that takes a tap ('fen'), for the lab and for probes
  *   stateOf(id)     'empty', 'found' or 'done'
  *   routeOf(id)     a piece of the trail ('a' to 'f'): 'hidden' (not got that far), 'next' (the first not got to: a dotted
  *                   line), 'pending' (got there, not yet drawn in), 'drawing' or 'drawn'
@@ -209,7 +204,7 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     return image;
   };
   const friendNames = new Map(FRIENDS.map(friend => [friend.key, friend.name]));
-  const nameOf = id => (id === 'fen' ? 'Fenið' : friendNames.get(id) ?? id);
+  const nameOf = id => friendNames.get(id) ?? id;
   // A spot on the map, as its page's left and top in percent, on the half of the map that has it.
   const halfOf = ([x]) => (x < HALF ? 0 : 1);
   const spot = (el, [x, y], half) => {
@@ -274,7 +269,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     dots.push(dot);
     el.append(svg);
   });
-  const named = new Map(); // id -> { el, tappable }: a name that is a place's own, which takes a tap once the place is found
   for (const name of NAMES) {
     const half = halfOf(name.at);
     const label = make('span', 'map-name');
@@ -282,7 +276,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     if (name.tilt) label.style.setProperty('--tilt', `${name.tilt}deg`);
     spot(label, name.at, half);
     halves[half].append(label);
-    if (name.place) named.set(name.place, { el: label, tappable: false });
   }
 
   const markers = new Map(); // id -> { el, sticker, star }
@@ -322,14 +315,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     const { el } = markers.get(id);
     bounce(el);
     onTap?.(id, state, el);
-  }
-
-  /** A tap on a place's name (the Fen's), heard only once the place is found: the same bounce, and the page hears the place, 'found' and the name. */
-  function tapName(id) {
-    if (!found.has(id)) return;
-    const { el } = named.get(id);
-    bounce(el);
-    onTap?.(id, 'found', el);
   }
 
   // ---- The mist round Grameðla --------------------------------------------------------------------------------------------
@@ -497,15 +482,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
       el.replaceChildren(...(state === 'empty' ? [] : state === 'done' ? [sticker, star] : [sticker]));
       el.setAttribute('aria-label', state === 'empty' ? 'Ófundinn staður' : nameOf(place.id));
     }
-    // the names of places that are no slot: the Fen's takes a tap (the book's press, spring and sound) from the moment it is found, and
-    // not before: until then it is not pressable at all (places are only ever added to the save, so there is no going back)
-    for (const [id, name] of named) {
-      if (name.tappable || !found.has(id)) continue;
-      name.tappable = true;
-      name.el.classList.add('tappable');
-      name.el.setAttribute('role', 'button');
-      pressable(name.el, { audio, win, onTap: () => tapName(id) });
-    }
     // the trail: a piece is there once its place (a and c: found or done) or its friend's star (b, d, e and f: done; her place may be
     // found from Þórseðla's head, which is not a trip to her) or a later piece's is, and is waiting to be drawn in until the child has
     // seen that; the first one not there yet is next, a dotted way ahead, and the slot it leads to pulses, empty or found
@@ -530,7 +506,6 @@ export function renderMap(leaf, { save, onTap = null, audio = null, win = global
     drawPieces,
     bounds,
     markers: new Map([...markers].map(([id, marker]) => [id, marker.el])),
-    names: new Map([...named].map(([id, name]) => [id, name.el])),
     stateOf: id => states.get(id),
     routeOf: id => pieces.find(piece => piece.id === id)?.state,
     next: () => pieces.find(piece => piece.state === 'next')?.id ?? null,
