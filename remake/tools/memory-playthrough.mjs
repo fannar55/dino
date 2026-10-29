@@ -469,9 +469,12 @@ async function main() {
       if (s.phase === 'one-open' && seen.has('one-open')) waited ||= await milestone('wonder', 'wonder', 1300);
       if (s.phase === 'mismatch') waited ||= await milestone('mismatch', 'mismatch', 400);
       if (s.phase === 'mismatch' && seen.has('mismatch')) waited ||= await milestone('mismatch-duck', 'mismatch-duck', 350);
+      // The wrong pair closes (1.5 s after the mismatch began): the leaves drop with a bounce and a bonk.
+      if (s.phase === 'mismatch' && seen.has('mismatch-duck')) waited ||= await milestone('mismatch-close', 'mismatch-close', 750);
       // The match script: the face cut (startle), the run and nuzzle, the walk home (follow), Mosi's clap (wide).
       if (s.cam.shot === 'face') waited ||= await milestone('match-closeup', 'match-closeup', 150);
       if (s.cam.shot === 'face' && seen.has('match-closeup')) waited ||= await milestone('run-together', 'run-together', 450);
+      if (s.cam.shot === 'face' && seen.has('run-together')) waited ||= await milestone('nuzzle-glitter', 'nuzzle-glitter', 600);
       if (s.cam.shot === 'follow') waited ||= await milestone('walk-home', 'walk-home', 900);
       if (s.cam.shot === 'wide') waited ||= await milestone('home-clap', 'home-clap', 500);
       if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);

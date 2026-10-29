@@ -31,14 +31,14 @@ function leafGrid({ centre: [cx, cz], angle, across, deep }) {
   for (const row of [0, 1]) for (const col of [0, 1, 2, 3]) cells.push([cx + a[0] * (col - 1.5) * across + d[0] * (row - .5) * deep, cz + a[1] * (col - 1.5) * across + d[1] * (row - .5) * deep].map(v => Math.round(v * 100) / 100));
   return cells;
 }
-const CELLS = leafGrid({ centre: [-4, 7], angle: Math.PI / 6, across: 3.1, deep: 3.7 });
+const CELLS = leafGrid({ centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, deep: 3.6 });
 // The Þórseðla babies' rest (the third) stands 1.15 m nearer the leaves than the adults' did, so their longer tails
 // stay clear of the branch lying behind them.
-const NESTS = [[.2, .4], [-8.8, .9], [-6, -.2]];
+const NESTS = [[-.8, -.4], [3.8, 6.4], [-6.9, -1.25]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X).
-const MOSI_SPOT = Object.freeze({ x: -3.2, z: 1.4, heading: 90 });
+const MOSI_SPOT = Object.freeze({ x: 3, z: 2.8, heading: 90 });
 // The search view: low and from the side, as in the approved mock. Landscape looks in from the south-east
 // with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
 // fill the width, the rows fill the height and Mosi watches from the far end.
@@ -90,7 +90,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // Keep the playable oval bare and clear the foreground camera corridor.
     // This also gates grass generation, so blades cannot poke through hiding places.
     keepOut(x, z) {
-      const glade = Math.hypot((x + 4) / 7.8, (z - 6.2) / 6.6), working = Math.hypot((x + 3) / 4.8, (z + 3.5) / 3.6), staging = Math.hypot((x - 4.5) / 6.8, (z + 13.8) / 4.5), berries = Math.hypot((x - 4.5) / 6.8, (z + 26) / 4.8);
+      const glade = Math.hypot((x + 4.5) / 9, (z - 6.4) / 7.2), working = Math.hypot((x + 3) / 4.8, (z + 3.5) / 3.6), staging = Math.hypot((x - 4.5) / 6.8, (z + 13.8) / 4.5), berries = Math.hypot((x - 4.5) / 6.8, (z + 26) / 4.8);
       const marsh = Math.hypot((x - MARSH.center[0]) / (MARSH.halfWidth + 1.2), (z - MARSH.center[1]) / (MARSH.halfDepth + 1.1));
       const bare = 1 - THREE.MathUtils.smoothstep(Math.min(glade, working, staging, berries, marsh), .9, 1.12);
       const water = 1 - THREE.MathUtils.smoothstep(riverDistance(x, z).distance, RIVER.halfWidth + .1, RIVER.halfWidth + .65);

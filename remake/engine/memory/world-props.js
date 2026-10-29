@@ -103,7 +103,7 @@ export const LEAF_REST = Object.freeze({ y: .32, z: -1.3 });
 // Where an opened leaf ends up: swung round and flattened to a low dome lying on the ground behind the hiding place.
 const LYING = Object.freeze({ height: .2, width: .96, back: 1.35, drift: .4, lift: .55, tilt: .5, raise: .045 });
 // Every leaf is drawn this size of the shared geometry: eight of them have to fit the glade.
-export const LEAF_SCALE = .88;
+export const LEAF_SCALE = .86;
 
 /**
  * One pose for the shared leaf, from four numbers. `open` 0 covers the hiding place and 1 lies flat on the ground behind
@@ -212,7 +212,7 @@ export function createClearingFloor(world, { width = 17, depth = 13, centerZ = 0
     const i = (y * size + x) * 4;
     let alpha = clamp((1 - r) / .18, 0, 1), warm = 0;
     if (glade) {
-      const clearing = Math.hypot((wx + 3.6) / 8.4, (wz - 6.4) / 7.0), far = Math.hypot((wx - 4.5) / 6, (wz + 13.5) / 3.5), grove = Math.hypot((wx - 4.5) / 5.6, (wz + 26) / 3.7);
+      const clearing = Math.hypot((wx + 4.2) / 9.4, (wz - 6.8) / 7.8), far = Math.hypot((wx - 4.5) / 6, (wz + 13.5) / 3.5), grove = Math.hypot((wx - 4.5) / 5.6, (wz + 26) / 3.7);
       const trail = Math.min(pathDistance(wx, wz, path), pathDistance(wx, wz, farPath), pathDistance(wx, wz, grovePath));
       alpha = Math.max(clamp((1.13 - clearing) / .2, 0, 1), clamp((1.12 - far) / .22, 0, 1), clamp((1.12 - grove) / .22, 0, 1), clamp((1.7 - trail) / .65, 0, 1));
       warm = clamp((1.15 - trail) / 1.15, 0, 1) * 11;
@@ -306,7 +306,7 @@ export function createGladeScenery(world) {
   for (let i = 1; i < outline.length - 1; i++) { vertices.push(...outline[0], ...outline[i], ...outline[i + 1]); normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0); }
   frondGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); frondGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   const clumps = [];
-  const rim = [[-8.3, 1], [-11, 8], [-8.8, 13.4], [-6, 13.8], [-3, 13.6], [0, 13], [3.7, 10.7], [5.1, 1.0], [3.8, -.1], [-7.2, -1.5]];
+  const rim = [[-8.3, 1], [-12.3, 8], [-9.8, 14], [-6.6, 14.4], [-3.4, 14.2], [-.4, 13.4], [3.7, 10.7], [5.1, 1.0], [3.8, -.1], [-7.2, -1.5]];
   for (const [x, z] of rim) for (let i = 0; i < 9; i++) clumps.push({ x: x + Math.cos(i * 2.4) * .25, z: z + Math.sin(i * 2.4) * .25, scale: .9 + i % 3 * .2, angle: i * 2.4 });
   const fronds = new THREE.InstancedMesh(frondGeometry, material({ color: '#7c9f42', side: THREE.DoubleSide }), clumps.length); fronds.receiveShadow = true; root.add(fronds);
   clumps.forEach((part, i) => { dummy.position.set(part.x, world.heightAt(part.x, part.z) + .1, part.z); dummy.rotation.set(.06, part.angle, 0); dummy.scale.setScalar(part.scale); dummy.updateMatrix(); fronds.setMatrixAt(i, dummy.matrix); fronds.setColorAt(i, new THREE.Color(i % 3 === 0 ? '#a2b85a' : i % 3 === 1 ? '#77913f' : '#526f36')); });
@@ -327,7 +327,7 @@ export function createGladeScenery(world) {
   const flowers = new THREE.Mesh(flowerGeometry, material({ vertexColors: true, side: THREE.DoubleSide })); flowers.receiveShadow = true; root.add(flowers);
 
   const pebbleGeometry = geometry(new THREE.SphereGeometry(1, 9, 6)), mossGeometry = geometry(new THREE.SphereGeometry(1, 8, 4));
-  const stonePlaces = [[-11, 8], [-6, 13.8], [5.1, 1.0], [-12.2, -1.3]];
+  const stonePlaces = [[-12.3, 8], [-6.6, 14.4], [5.1, 1.0], [-12.2, -1.3]];
   const rocks = new THREE.InstancedMesh(pebbleGeometry, material({ color: '#928d73' }), stonePlaces.length), moss = new THREE.InstancedMesh(mossGeometry, material({ color: '#7e9844' }), stonePlaces.length); rocks.castShadow = true; rocks.receiveShadow = moss.receiveShadow = true; root.add(rocks, moss);
   stonePlaces.forEach(([x, z], i) => { const radius = .24 + (i % 3) * .08; dummy.position.set(x + .24, world.heightAt(x, z) + radius * .28, z - .25); dummy.scale.set(radius * 1.35, radius * .65, radius); dummy.rotation.set(.12, i * 1.3, .08); dummy.updateMatrix(); rocks.setMatrixAt(i, dummy.matrix); solidBounds(`glade-stone-${i}`, pebbleGeometry.attributes.position.array, dummy.matrix); dummy.position.y += radius * .28; dummy.scale.set(radius * 1.1, radius * .28, radius * .9); dummy.updateMatrix(); moss.setMatrixAt(i, dummy.matrix); });
 
@@ -338,8 +338,8 @@ export function createGladeScenery(world) {
     ['treeFern', -11.4, 1.8, 1.08, .4, 1], ['treeFern', -12.5, 11.5, 1.02, 1.3, 1],
     ['treeFern', 8.5, 8.2, 1.12, 2.6, 1], ['treeFern', 14, -13.5, 1.18, .2, 1],
     ['fern', -7.5, -1.3, 1.65, 1.2, 0], ['fern', -8.8, 3.2, 1.35, 2.1, 0],
-    ['fern', -10, 12.2, 1.65, .2, 0], ['fern', -4.8, 14.1, 1.35, 2.9, 0],
-    ['fern', -.3, 13.9, 1.65, 1.3, 0], ['fern', 3.3, 11.3, 1.25, 2.1, 0],
+    ['fern', -11.4, 12.2, 1.65, .2, 0], ['fern', -5.2, 14.6, 1.35, 2.9, 0],
+    ['fern', -.3, 14.3, 1.65, 1.3, 0], ['fern', 3.3, 11.3, 1.25, 2.1, 0],
     ['fern', 5.1, 1.0, 1.4, 3.3, 0], ['fern', 3.8, -.1, 1.35, .8, 0],
     ['fern', -2.4, -13.8, 1.8, 2.3, 0], ['fern', 11.8, -16.5, 1.5, 1.8, 0],
     ['treeFern', -3.2, -15.2, 1.2, 1.6, 1], ['treeFern', 14.2, -17, 1.15, .5, 1],
