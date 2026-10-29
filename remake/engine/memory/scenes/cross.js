@@ -25,14 +25,14 @@ export function crossScene(stage, plan, timing) {
   const near = () => stage.task.logNear(), far = () => stage.task.logEnd();
   // Those on the log or just about to step on (a stretch of 7 m of the way around it).
   const onLog = () => { const points = bodies(friends().filter(actor => { const s = stage.task.alongBridge(actor.root.position); return s > -4 && s < 10.5; })); return points.length ? points : bodies(friends()); };
-  const deck = timing.deck, follow = Math.max(1, deck - .7), mid = Math.max(follow + 1.4, timing.mid), behind = mid + 2.1, arrival = Math.max(behind + 1.6, timing.arrive - .4);
+  const deck = timing.deck, follow = Math.max(1, deck - .7), mid = Math.max(follow + 1.4, timing.mid), behind = mid + 1.5, arrival = Math.max(behind + 1.6, timing.arrive - .4);
   return [
     { at: 0, shot: { kind: 'wide', subjects: () => [...group(), near()], cut: true },
       act: all(() => { if (stage.task.start('cross', { lead: timing.lead })) stage.mosi.walk(plan); else stage.task.abort(); }, () => stage.pairGesture('triceratops', 'hop'), () => stage.pairGesture('stegosaurus', 'hop')) },
     // Beside them as Mosi steps onto the log.
     { at: follow, shot: { kind: 'follow', subjects: () => [stage.mosi.body(), stage.mosi.head(), ...onLog()], front: stage.sideOn(near(), far()), cut: true } },
     // Over his shoulder from behind, the far bank ahead.
-    { at: mid, shot: { kind: 'shoulder', subjects: () => [stage.mosi.head(), up(far(), .6), up(stage.task.point('staging'), .2)], cut: true } },
+    { at: mid, shot: { kind: 'shoulder', subjects: () => [stage.mosi.head(), up(far(), .6), up(stage.task.point('staging'), .2)], elevation: 26, cut: true } },
     // Back to the friends coming over behind him.
     { at: behind, shot: { kind: 'follow', subjects: onLog, front: stage.sideOn(near(), far()), elevation: 20, cut: true } },
     // Over: Mosi at staging, the friends arriving.
