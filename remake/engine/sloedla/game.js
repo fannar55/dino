@@ -35,7 +35,8 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `conductor` the
  * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
- * ({ image, horizon }: a render of the 3D world, `horizon` the share of its height where its sky ends) or null.
+ * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
+ * own sky gives way to the night's) or null.
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
 export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, backdrop = null, random = Math.random, onEnd = () => {}, debug = false }) {
@@ -54,6 +55,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   let laneW = 0, laneX = [], dinoR = 0, hitY = 0, topY = 0, bar = null, sky = null, counterY = 0;
   let background = null, vignetteGold = null, horizonGlow = null, mist = null, firefly = null;
   let glows = [], goldGlow = null, buttons = [], spark = null, beams = [];
+  const raySprites = new Map(); // a soft-edged ray of the northern lights, one a colour
   let laned = 0; // notes given their lane so far
 
   const twinkles = Array.from({ length: 110 }, () => ({ x: random(), y: random() * 0.62, r: 0.4 + random() * 1.6, phase: random() * 6.28, speed: 1.2 + random() * 2.4 }));
@@ -75,6 +77,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const rockets = []; // fireworks on their way up: { x, y, vy, target, hue }
   const constellations = []; // one a section: { section, stars: [{ x, y, lit }], lit, flashAt, good }
   const crowdMemory = {};
+  const heard = []; // [song time, sound] each time the crowd made a sound (state() and the debug corner show them)
   let shakeAt = -Infinity;
   let punchAt = -Infinity, punchAmp = 0; // the whole picture leans in a little on a great moment
   let comboAt = -Infinity, comboBigAt = -Infinity, broken = null; // the run's count: last pop, last round number, the one that broke
@@ -153,24 +156,24 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     night.addColorStop(1, '#6b4f86');
     g.fillStyle = night;
     g.fillRect(0, 0, w, h);
-    const image = backdrop?.image;
+    const image = portrait && backdrop?.upright?.naturalWidth ? backdrop.upright : backdrop?.image;
     if (image?.naturalWidth) {
       // the game's own forest, rendered in the evening, turned to night: covering the picture's width, standing on its bottom edge
       const scale = Math.max(w / image.naturalWidth, (h * 0.75) / image.naturalHeight);
       const iw = image.naturalWidth * scale, ih = image.naturalHeight * scale;
       const iy = h - ih;
-      const horizon = iy + ih * (backdrop.horizon ?? 0.45);
+      const [from, to] = (image === backdrop.upright ? backdrop.fadeUpright : backdrop.fade) ?? [0.2, 0.5];
       const [f, fg] = offscreen(w, h);
       fg.drawImage(image, (w - iw) / 2, iy, iw, ih);
       fg.globalCompositeOperation = 'multiply';
-      fg.fillStyle = '#4e5cae';
+      fg.fillStyle = '#6170c4';
       fg.fillRect(0, 0, w, h);
       fg.globalCompositeOperation = 'source-over';
-      fg.fillStyle = 'rgba(8, 10, 38, 0.42)';
+      fg.fillStyle = 'rgba(8, 10, 38, 0.3)';
       fg.fillRect(0, 0, w, h);
       // the render's own sky fades out into the night above it
       fg.globalCompositeOperation = 'destination-in';
-      const fade = fg.createLinearGradient(0, horizon - h * 0.16, 0, horizon + h * 0.05);
+      const fade = fg.createLinearGradient(0, iy + ih * from, 0, iy + ih * to);
       fade.addColorStop(0, 'rgba(0,0,0,0)');
       fade.addColorStop(1, 'rgba(0,0,0,1)');
       fg.fillStyle = fade;
@@ -257,6 +260,30 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     glow.addColorStop(1, hexAlpha(hue, 0));
     g.fillStyle = glow;
     g.fillRect(0, 0, size, size);
+    return c;
+  }
+
+  /** One ray of the northern lights: a soft strand, brightest a little below its top, fading down and at its sides. */
+  function raySprite(hue) {
+    if (raySprites.has(hue)) return raySprites.get(hue);
+    const c = document.createElement('canvas');
+    c.width = 16;
+    c.height = 128;
+    const g = c.getContext('2d');
+    const down = g.createLinearGradient(0, 0, 0, 128);
+    down.addColorStop(0, hexAlpha(hue, 0));
+    down.addColorStop(0.18, hexAlpha(hue, 1));
+    down.addColorStop(1, hexAlpha(hue, 0));
+    g.fillStyle = down;
+    g.fillRect(0, 0, 16, 128);
+    g.globalCompositeOperation = 'destination-in';
+    const across = g.createLinearGradient(0, 0, 16, 0);
+    across.addColorStop(0, 'rgba(0,0,0,0)');
+    across.addColorStop(0.5, 'rgba(0,0,0,1)');
+    across.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = across;
+    g.fillRect(0, 0, 16, 128);
+    raySprites.set(hue, c);
     return c;
   }
 
@@ -409,7 +436,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   function cheer(event, gain = 1) {
     if (!crowd) return;
     const sound = cueOf(event, lastTime, crowdMemory, random);
-    if (sound) crowd.play(sound, { gain });
+    if (sound && crowd.play(sound, { gain })) heard.push([Number(lastTime.toFixed(2)), sound]);
   }
 
   function giveLanes() {
@@ -686,9 +713,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const base = h * (0.08 + k * 0.08);
       const height = h * (0.16 + 0.04 * Math.sin(time * 0.4 + k));
       const top = x => base + Math.sin(x * 0.006 + time * (0.5 + k * 0.17) + k * 2) * h * 0.04 + Math.sin(x * 0.017 - time * 0.9) * h * 0.012;
-      const gradient = g.createLinearGradient(0, base - height * 0.4, 0, base + height);
+      // the curtain fades in from nothing at its wavy top edge, so it has no hard rim
+      const gradient = g.createLinearGradient(0, base - h * 0.055, 0, base + height);
       gradient.addColorStop(0, hexAlpha(colours[k], 0));
-      gradient.addColorStop(0.35, hexAlpha(colours[k], strength));
+      gradient.addColorStop(0.3, hexAlpha(colours[k], strength));
       gradient.addColorStop(1, hexAlpha(colours[k], 0));
       g.fillStyle = gradient;
       g.beginPath();
@@ -702,24 +730,17 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       }
       g.closePath();
       g.fill();
-      // the rays: thin bright strands hanging down from the curtain's edge, each its own length, shimmering
-      const rays = g.createLinearGradient(0, base - h * 0.05, 0, base + height * 1.1);
-      rays.addColorStop(0, hexAlpha(colours[k], 0));
-      rays.addColorStop(0.25, hexAlpha(colours[k], Math.min(0.16, strength * 0.55)));
-      rays.addColorStop(1, hexAlpha(colours[k], 0));
-      g.strokeStyle = rays;
-      g.lineWidth = Math.max(4, w / 110);
-      g.beginPath();
-      const strands = 44;
+      // the rays: soft strands hanging down from the curtain's edge, each its own length and brightness, shimmering
+      const ray = raySprite(colours[k]);
+      const strands = 48, rayW = Math.max(10, w / 70);
       for (let i = 0; i < strands; i++) {
         const x = ((i + 0.5) / strands) * w;
         const shimmer = 0.5 + 0.5 * Math.sin(x * 0.051 + time * 1.7 + k * 7) * Math.sin(x * 0.013 - time * 0.45 + k);
-        if (shimmer < 0.45) continue;
-        const y = top(x);
-        g.moveTo(x, y);
-        g.lineTo(x, y + height * (0.3 + shimmer * 0.8));
+        if (shimmer < 0.3) continue;
+        g.globalAlpha = Math.min(1, strength * 2.2 * (shimmer - 0.3));
+        g.drawImage(ray, x - rayW / 2, top(x) - height * 0.1, rayW, height * (0.5 + shimmer * 0.9));
       }
-      g.stroke();
+      g.globalAlpha = 1;
     }
     g.restore();
   }
@@ -784,7 +805,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   // Over the ground: mist drifting, and fireflies (more of them, and brighter, the better it goes)
   function drawGround(g, time) {
     const drift = (time * 14) % w;
-    g.globalAlpha = 0.8;
+    g.globalAlpha = 0.45;
     g.drawImage(mist, -drift, h * 0.6, w, h * 0.3);
     g.drawImage(mist, w - drift, h * 0.6, w, h * 0.3);
     g.globalAlpha = 1;
@@ -1213,7 +1234,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       `tími ${time.toFixed(2)} s · ${fps.value} fps · ${section ? `${section.name} (${section.variant})` : ''}`,
       `seinkun hljóðs ${(clock.latency() * 1000).toFixed(0)} ms · rásir ${gates} · stig ${tierNow}`,
       `hitt ${score.hits}/${notes.length} · mis ${score.misses} · auka ${score.strays} · best ${score.best}`,
-      `meðalskekkja ${mean >= 0 ? '+' : ''}${mean.toFixed(0)} ms (${offsets.length}) · neistar ${sparks.length}`,
+      `meðalskekkja ${mean >= 0 ? '+' : ''}${mean.toFixed(0)} ms (${offsets.length}) · neistar ${sparks.length}${heard.length ? ` · áhorfendur ${heard.at(-1)[1]} ${heard.at(-1)[0]} s` : ''}`,
     ];
     g.font = '600 14px ui-monospace, monospace';
     g.textAlign = 'left';
@@ -1251,7 +1272,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });
       return gap <= laneW * 0.9 ? best : -1;
     },
-    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow }),
+    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, crowd: heard.slice() }),
     result,
   };
 }

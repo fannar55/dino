@@ -13,6 +13,7 @@
 //                         (the bare song), or a show of what taps do (well, then nothing, then the dinosaurs back one by one)
 //   upptaka=1             records the round, picture and sound, into window.__recording (a data: URL of a webm), for a video
 //   hljod=0               silent speakers (the sound is still made, and recorded)
+//   bakgrunnur=0          the night sky alone, without the forest (a render of the game's own world) under it
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
 
@@ -36,6 +37,10 @@ const FRIENDS = {
   a: { role: 'a', name: 'Slóeðla', hue: '#6793d0', light: '#d9e5f6', dark: '#4b6fa4', src: asset('eitt/parasaurolophus.webp') },
   c: { role: 'c', name: 'Þórseðla', hue: '#e9b14d', light: '#f7e6c2', dark: '#89682e', src: asset('eitt/brontosaurus.webp') },
 };
+// The forest behind the lanes: the Fen (Þórseðla's home) rendered from the game's own 3D world in the evening light, wide and upright
+// (capture.mjs, qa/remake/sloedla/bakgrunnur), which game.js turns to night; `fade` is where, in shares of the picture's height, its
+// own sky gives way to the night sky above it (gone at the first, all there at the second).
+const BACKDROP = { wide: asset('sloedla/kvold-fen.webp'), upright: asset('sloedla/kvold-fen-upright.webp'), fade: [0.12, 0.48], fadeUpright: [0.2, 0.52] };
 const KEYS = {
   3: { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, arrowleft: 0, arrowdown: 1, arrowup: 1, arrowright: 2 },
   2: { f: 0, j: 1, a: 0, l: 1, d: 0, k: 1, arrowleft: 0, arrowright: 1 },
@@ -51,6 +56,7 @@ const options = {
   self: params.get('sjalf'),
   record: params.get('upptaka') === '1',
   crowd: params.get('ahorfendur') !== '0',
+  backdrop: params.get('bakgrunnur') !== '0',
   extra: readSeinkun(),
 };
 
@@ -102,6 +108,9 @@ function loadImage(src) {
 }
 
 const loading = Promise.all(Object.values(FRIENDS).map(f => loadImage(f.src).then(image => [f.role, image]))).then(Object.fromEntries);
+const backdropLoading = options.backdrop ? Promise.all([loadImage(BACKDROP.wide), loadImage(BACKDROP.upright)]) : Promise.resolve([null, null]);
+let backdrop = null;
+backdropLoading.then(([image, upright]) => { backdrop = image ? { image, upright, fade: BACKDROP.fade, fadeUpright: BACKDROP.fadeUpright } : null; });
 
 let round = null; // { game, clock, conductor, bot }
 let images = null;
@@ -131,7 +140,7 @@ async function start() {
   const conductor = createConductor({ context, song, clock, band, sounds, out: mix, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, crowd, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, crowd, backdrop, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });
@@ -253,7 +262,7 @@ showOptions();
 for (const button of document.querySelectorAll('[data-play]')) button.addEventListener('click', () => start());
 
 window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options };
-loading.then(loaded => {
+Promise.all([loading, backdropLoading]).then(([loaded]) => {
   images = loaded;
   $('play').disabled = false;
   $('play').classList.add('ready');

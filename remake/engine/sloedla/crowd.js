@@ -39,10 +39,12 @@ export function cueOf(event, time, memory, random = Math.random) {
 }
 
 /**
- * The crowd's voice: `play(sound, { gain })` plays one of its takes, never the one played last, a moment later (people react).
- * The buffers are fetched and decoded on first need, one at a time; a sound not ready yet is just not heard.
+ * The crowd's voice: `play(sound, { gain })` plays one of its takes, never the one played last, a moment later (people react), a little
+ * over the band (it must be heard over a full chorus).
+ * load() fetches and decodes the takes one at a time (the page calls it while the start card waits); a take not ready yet is just
+ * not heard.
  */
-export function createCrowd({ context, output, room = null, src, random = Math.random, level = 0.8 }) {
+export function createCrowd({ context, output, room = null, src, random = Math.random, level = 1.4 }) {
   const bus = context.createGain();
   bus.gain.value = level;
   bus.connect(output);
