@@ -2,6 +2,17 @@ import * as THREE from 'three';
 
 const MAX = 192;
 const dust = new THREE.Color('#c4ad7d'), leaf = new THREE.Color('#8aab55'), gold = new THREE.Color('#f4cd71'), cream = new THREE.Color('#fff1bf');
+const puff = new THREE.Color('#f3ead2'), water = new THREE.Color('#cfeaf0'), spray = new THREE.Color('#9fd2e0');
+// The game's own bursts, each a small recipe: how fast they spread and rise, how long they last, how big they are,
+// how hard they fall, how opaque; `grow` keeps a drop's size where a puff swells. Shapes: 0 soft ball, 2 star.
+const STYLES = {
+  // A leaf squashed flat: a soft round puff of dust spreading out along the ground.
+  poof: { shape: 0, colours: [puff], spread: [.55, .5], rise: [.18, .3], life: [.5, .3], size: [.2, .18], fall: .02, alpha: .62 },
+  // Something found: bigger golden stars thrown up and falling slowly, twinkling as they turn.
+  stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
+  // Water thrown up from a landing: little drops that arc and drop back.
+  splash: { shape: 0, colours: [water, spray], spread: [.35, .6], rise: [1.2, 1.1], life: [.5, .3], size: [.07, .07], fall: 4.6, alpha: .9, grow: 1 },
+};
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
 /** One transparent draw for grounded dust and soft leaf fragments. All motion
@@ -39,6 +50,17 @@ export function createWorldFx({ scene, heightAt }) {
   let sequence = 0, reduced = false, clock = 0, lastStep = -1, emitted = 0, footPuffs = 0, tracking = new WeakMap();
   function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1 } = {}) {
     if (reduced) return;
+    const style = STYLES[kind];
+    if (style) {
+      for (let i = 0; i < count; i++) {
+        const seed = sequence++, a = hash(seed) * Math.PI * 2, speed = (style.spread[0] + hash(seed + 7) * style.spread[1]) * strength;
+        particles.push({ x: point.x + Math.cos(a) * .1, y: point.y + .1, z: point.z + Math.sin(a) * .1, vx: Math.cos(a) * speed, vy: (style.rise[0] + hash(seed + 21) * style.rise[1]) * Math.min(1.3, strength), vz: Math.sin(a) * speed,
+          age: 0, life: style.life[0] + hash(seed + 41) * style.life[1], size: style.size[0] + hash(seed + 63) * style.size[1], angle: a, spin: (hash(seed + 19) - .5) * (style.spin ?? 4), kind: style.shape,
+          colour: style.colours[i % style.colours.length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow });
+      }
+      emitted += count; if (particles.length > MAX) particles.splice(0, particles.length - MAX);
+      return;
+    }
     const celebration = kind === 'match' || kind === 'reunion' || kind === 'hint';
     const isLeaf = kind === 'leaves', tint = celebration ? gold : isLeaf ? leaf : dust;
     for (let i = 0; i < count; i++) {
@@ -77,8 +99,8 @@ export function createWorldFx({ scene, heightAt }) {
     for (let i = particles.length - 1; i >= 0; i--) { particles[i].age += particles[i].domain === 'action' ? actionDt : dt; if (particles[i].age >= particles[i].life) particles.splice(i, 1); }
     particles.forEach((p, i) => {
       const t = p.age / p.life, flutter = p.kind === 1 ? Math.sin(p.age * 7 + p.angle) * .06 : 0;
-      positions[i * 3] = p.x + p.vx * p.age + flutter; positions[i * 3 + 1] = p.y + p.vy * p.age - (p.kind === 2 ? .18 : p.kind === 1 ? .34 : .02) * p.age * p.age; positions[i * 3 + 2] = p.z + p.vz * p.age;
-      p.colour.toArray(colours, i * 3); sizes[i] = p.size * (p.kind ? 1 : 1 + t * 1.8); alpha[i] = (p.kind === 2 ? .96 : p.kind === 1 ? .88 : .36) * Math.sin(Math.min(1, t * 7) * Math.PI / 2) * (1 - t) ** (p.kind === 2 ? .85 : 1.5); kinds[i] = p.kind; angles[i] = p.angle + p.spin * p.age;
+      positions[i * 3] = p.x + p.vx * p.age + flutter; positions[i * 3 + 1] = p.y + p.vy * p.age - (p.fall ?? (p.kind === 2 ? .18 : p.kind === 1 ? .34 : .02)) * p.age * p.age; positions[i * 3 + 2] = p.z + p.vz * p.age;
+      p.colour.toArray(colours, i * 3); sizes[i] = p.size * (p.grow ?? (p.kind ? 1 : 1 + t * 1.8)); alpha[i] = (p.alpha ?? (p.kind === 2 ? .96 : p.kind === 1 ? .88 : .36)) * Math.sin(Math.min(1, t * 7) * Math.PI / 2) * (1 - t) ** (p.kind === 2 ? .85 : 1.5); kinds[i] = p.kind; angles[i] = p.angle + p.spin * p.age;
     });
     geometry.setDrawRange(0, particles.length); mesh.visible = particles.length > 0 && !reduced;
     for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;

@@ -3,6 +3,9 @@ import { createAudioContext, createOutput } from '../audio/output.js';
 // Exact tuning of remake/assets/audio/theme.json. Calls are imagined animal voices, not musical cues.
 export const MEMORY_KEY = Object.freeze([524.28, 588.48, 660.55, 785.53, 881.73]);
 const LIMIT = 24;
+// Each pair found is a step higher (semitones above the first pair's chime): C, E and G major, a clear rise a child hears.
+const CHIME_RISE = Object.freeze([0, 4, 7]);
+const riseRate = nestIndex => 2 ** (CHIME_RISE[Math.max(0, Math.min(CHIME_RISE.length - 1, Math.floor(nestIndex) || 0))] / 12);
 const MANIFEST_URL = new URL('../../assets/audio/memory/soundscape/manifest.json', import.meta.url);
 const RECORDED_BASE = { leaf: .13, straw: .075, foot: .09, triceratops: .21, stegosaurus: .21, brontosaurus: .21 };
 const MOTIFS = {
@@ -304,13 +307,34 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       if (!allowed()) return false;
       return sample('leaf', context.currentTime, 0.085, 0);
     },
+    // A tapped leaf squashed flat.
+    poof() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('poof')) return recording('poof', now, 0, 'poof');
+      return sample('leaf', now, .1, 0, 'poof');
+    },
+    // A wrong pair closing under its leaves.
+    bonk() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('bonk')) return recording('bonk', now, 0, 'bonk');
+      return sample('wood', now, .11, 0, 'bonk');
+    },
+    // A surprise lands in the basket.
+    ding() {
+      if (!allowed()) return false;
+      const at = Math.max(context.currentTime, callUntil + .02);
+      if (recordings.has('ding')) return recording('ding', at, .1, 'ding');
+      return note(MEMORY_KEY[4], at, .5, .03);
+    },
     match(species, nestIndex = 0) {
       if (!allowed()) return false;
       const now = context.currentTime, pan = (nestIndex % 3 - 1) * 0.27;
       // The animal's identifying answer finishes before the musical acknowledgement.
-      const chordAt = Math.max(now + 0.02, callUntil + 0.025);
-      if (recordings.has('match-chime')) recording('match-chime', chordAt, pan, 'match-chime');
-      else [0, 2, 3].forEach((n, i) => note(MEMORY_KEY[n] / 2, chordAt + i * 0.055, 0.45, 0.025));
+      const chordAt = Math.max(now + 0.02, callUntil + 0.025), rise = riseRate(nestIndex);
+      if (recordings.has('match-chime')) recording('match-chime', chordAt, pan, 'match-chime', 1, rise);
+      else [0, 2, 3].forEach((n, i) => note(MEMORY_KEY[n] / 2 * rise, chordAt + i * 0.055, 0.45, 0.025));
       [0.08, 0.25, 0.43, 0.61].forEach((delay, i) => sample('foot', now + delay, 0.09, pan + (i % 2 ? 0.05 : -0.05)));
       sample('straw', now + 0.79, 0.075, pan);
       return true;

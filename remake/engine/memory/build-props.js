@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
 import { installWaterFlow } from './world-surface-fx.js';
 
+/** The grove's berries: a small faceted ball in one of two reds. The berries a surprise leaf hides (surprise-items.js) are the same. */
+export const GROVE_BERRY = Object.freeze({ radius: .12, reds: Object.freeze(['#b8474f', '#cf6a61']) });
 export const MARSH = Object.freeze({ center: [4.5, -19.5], halfWidth: 5.6, halfDepth: 1.5, waterY: -.32, bedY: -.65, bankBlend: .8, bounds: { minX: -1.1, maxX: 10.1, minZ: -21, maxZ: -18 } });
 export const WALKWAY = Object.freeze({ start: [4.5, -17.25], end: [4.5, -21.75], width: 3.5, halfWidth: 1.75, panelLength: 1.5, count: 3, supply: [7, -15.6] });
 export const STAGING = Object.freeze({ center: [4.5, -13.8], bounds: { minX: -1.5, maxX: 10.5, minZ: -17.3, maxZ: -10.5 } });
@@ -143,7 +145,7 @@ export function createBuildProps({ scene, heightAt }) {
     }
   }
   leafGeometry.dispose();
-  for (let i = 0; i < 60; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(.12 * (.75 + random(i + 4) * .45), 0); g.translate(x + Math.cos(a) * .24, y + h * (.6 + random(i) * .3), z + Math.sin(a) * .24); colourPart(g, i % 3 ? '#b8474f' : '#cf6a61', groveParts); }
+  for (let i = 0; i < 60; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.75 + random(i + 4) * .45), 0); g.translate(x + Math.cos(a) * .24, y + h * (.6 + random(i) * .3), z + Math.sin(a) * .24); colourPart(g, GROVE_BERRY.reds[i % 3 ? 0 : 1], groveParts); }
   const groveLeaves = merge([...bankParts, ...groveParts]); groveLeaves.material.side = THREE.DoubleSide;
 
   // All bursts and ripples run on the same game clock as the animals.

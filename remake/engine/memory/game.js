@@ -4,6 +4,8 @@ import { createMemoryAudio } from './audio.js';
 import { createBridgeAdventure } from './bridge-rules.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
+import { SURPRISE_ITEMS } from './surprise-items.js';
+import { BASKET_ICON } from '../scene/ui.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -19,6 +21,7 @@ let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let muted = false;
 let celebrated = false;
 let pendingIntent = null, autoStep = null, autoAge = 0, blockedAuto = null, storyKey = '', captionUntil = 0;
+let basketCount = 0; // surprises that have flown into the basket in the ribbon
 try { muted = localStorage.getItem('mosi.memory.muted.v1') === 'true'; } catch {}
 const dialogs = [$('welcome'), $('pause-dialog'), $('help-dialog')];
 const busyDialog = () => dialogs.some(dialog => dialog.open);
@@ -43,6 +46,20 @@ function reflectProgress(state) {
   $('progress-text').textContent = `${state.matchedPairs} / 3 pör`;
   $('progress').querySelectorAll('i').forEach((dot, index) => dot.classList.toggle('found', index < state.matchedPairs));
 }
+// The basket counts what the surprise leaves hid, as each one lands in it; hidden when this round has none.
+function reflectBasket(pulse = false) {
+  const total = game.getState().cards.filter(card => card.item).length, basket = $('basket');
+  basket.hidden = !started || total === 0;
+  $('basket-text').textContent = `${basketCount} / ${total}`;
+  basket.setAttribute('aria-label', `Karfan: ${basketCount} af ${total} fundið`);
+  basket.classList.toggle('full', total > 0 && basketCount >= total);
+  if (pulse) { basket.classList.remove('got'); void basket.offsetWidth; basket.classList.add('got'); }
+}
+// Where the basket is, in canvas pixels: the world flies a surprise there.
+function basketPoint() {
+  const box = $('basket').getBoundingClientRect(), canvas = $('world').getBoundingClientRect();
+  return box.width ? { x: box.left + box.width / 2 - canvas.left, y: box.top + box.height / 2 - canvas.top } : null;
+}
 const betweenTurns = () => ['ready', 'won'].includes(game.getState().phase);
 const currentStory = () => nextStoryStep(game.getState(), bridge.getState(), world?.getPairReadiness?.() ?? {});
 function syncBridge() {
@@ -66,6 +83,9 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'call') audio.nest(species, index);
   else if (name === 'match') audio.match(species, nestIndex);
   else if (name === 'conceal') audio.conceal();
+  else if (name === 'poof') audio.poof();
+  else if (name === 'bonk') audio.bonk();
+  else if (name === 'ding') audio.ding();
 }
 function cameraState() { return world?.getCameraState?.() ?? world?.getDebug().camera ?? { mode: 'auto', moving: false, worldInputEnabled: true }; }
 function setCameraMode(mode) {
@@ -133,6 +153,10 @@ function accept(events) {
       // The leaf and the friend's call come from the reveal script (scene-sound below).
       const id = event.ids[0]; world.reveal(id); speech.stop();
       caption(`${roster[event.species]}! Hvar er vinur hans?`, .8);
+    } else if (event.type === 'surprise') {
+      // The leaf's squash and the thing's flight to the basket come from the world; the count follows on landing (scene-basket).
+      world.reveal(event.ids[0]); speech.stop();
+      caption(SURPRISE_ITEMS[event.item]?.caption ?? 'Óvænt!', 2.6);
     } else if (event.type === 'conceal') {
       world.conceal(event.ids); audio.conceal(); caption('Úps! Kíkjum annars staðar.', .65);
     } else if (event.type === 'match') {
@@ -235,7 +259,7 @@ function refreshControls() {
       const card = state.cards.find(card => card.id === target.id);
       button.disabled = !mayPick || card?.status !== 'hidden' || target.enabled === false;
       // Hidden species must never leak through accessible names.
-      button.setAttribute('aria-label', `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${roster[card.species]}` : card?.status === 'matched' ? ', tómt' : ', lokað'}`);
+      button.setAttribute('aria-label', `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${roster[card.species]}` : card?.status === 'matched' ? ', tómt' : card?.status === 'found' ? ', fundið' : ', lokað'}`);
     } else if (target.type === 'task') {
       const available = mayTask(target.id) || story.target === target.id && story.available;
       button.disabled = !mayExplore || !available || target.enabled === false;
@@ -261,12 +285,12 @@ function start({ restart = false } = {}) {
   if (!world) return;
   for (const dialog of dialogs) if (dialog.open) dialog.close();
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
-  if (restart) { game.restart(); bridge.restart(); celebrated = false; nestSpecies.length = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
+  if (restart) { game.restart(); bridge.restart(); celebrated = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   pendingIntent = null; autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0;
   $('coach').hidden = false; $('ending').hidden = true; $('progress').hidden = false; $('journey').hidden = false;
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
-  reflectProgress(game.getState()); reflectEnding(); syncPause(); audio.unlock(); music.unlock();
+  reflectProgress(game.getState()); reflectBasket(); reflectEnding(); syncPause(); audio.unlock(); music.unlock();
   if (!restart) speech.play('welcome');
 }
 function openDialog(id) {
@@ -299,6 +323,7 @@ function frame(timestamp) {
     for (const event of world.pollBridgeEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
       else if (event.type === 'scene-say') speech.play(event.line);
+      else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'branch-lift') { audio.branchLift(); speech.queue('lift', { delay: .12 }); }
       else if (event.type === 'branch-lower') audio.branchLower();
@@ -354,7 +379,7 @@ window.addEventListener('pagehide', () => { userPaused = true; syncPause(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { userPaused = false; syncPause(); } });
 
 window.__memory = {
-  state: () => game.getState(), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
+  state: () => game.getState(), basket: () => basketCount, stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
   targets: () => world?.getTargets(),
   bridge: () => bridge.getState(), task: chooseTask,
   camera: setCameraMode,
@@ -365,7 +390,8 @@ window.__memory = {
 window.__memoryReady = false;
 try {
   const soundReady = Promise.allSettled([speech.ready, music.ready, audio.preload?.()]);
-  world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; } });
+  $('basket').querySelector('.basket-icon').innerHTML = BASKET_ICON;
+  world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint });
   await soundReady;
   world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);
   world.resize($('world').clientWidth, $('world').clientHeight); world.update(0, 0);

@@ -10,13 +10,16 @@
  *   sendHome(cell) / home(cell) / forceHome(cell)   the existing walk home (home navigation)
  *   homePoint(cell) / homeEnd(cell)   the home spot the pair walks to, and the friend's own place there
  *   faceCamera(cell)          turn three-quarters to the camera     sideOn(from, to)  a camera side for a walk
+ * revealScene and mismatchScene take { delay } for the squash a tapped leaf makes before it opens.
  * Line keys the world performs: shot ({ kind, subjects, cut, duration } | { release } | { nudge }),
  * act (a function or a list of them), fx ({ kind, at, count } | { kind: 'shake' }), sound, say.
  */
 const all = (...fns) => fns;
+// A script that starts `delay` seconds after the moment it was asked for (a tapped leaf squashes first).
+const later = (lines, delay) => delay ? lines.map(line => ({ ...line, at: line.at + delay })) : lines;
 
 /** A leaf opens: the friend springs out (peek, started with the leaf), Mosi looks, the friend looks at you. */
-export function revealScene(stage, cell, { second = false } = {}) {
+export function revealScene(stage, cell, { second = false, delay = 0 } = {}) {
   const lines = [
     { at: 0, shot: { nudge: () => stage.head(cell) }, sound: { name: 'reveal', species: cell.species, index: cell.index } },
     { at: .15, act: () => stage.mosi.look(stage.head(cell)) },
@@ -24,16 +27,16 @@ export function revealScene(stage, cell, { second = false } = {}) {
   ];
   // The first friend of a turn turns to the child; a second one is busy with the first.
   if (!second) lines.push({ at: .5, act: () => stage.look(cell, stage.camera(), { weight: .95, maxAngle: 24 }) }, { at: 1.5, act: () => stage.look(cell, null) });
-  return lines;
+  return later(lines, delay);
 }
 
 /** Two different friends: a glance at each other, both shake their heads and duck giggling; Mosi shakes his. */
-export function mismatchScene(stage, first, second) {
-  return [
+export function mismatchScene(stage, first, second, { delay = 0 } = {}) {
+  return later([
     { at: .42, act: all(() => stage.look(first, stage.head(second), { weight: .8, maxAngle: 24 }), () => stage.look(second, stage.head(first), { weight: .8, maxAngle: 24 })) },
     { at: .62, act: all(() => stage.look(first, null), () => stage.look(second, null), () => stage.gesture(first, 'oops'), () => stage.gesture(second, 'oops')) },
     { at: .74, act: () => stage.mosi.gesture('shake-head') },
-  ];
+  ], delay);
 }
 
 /**
