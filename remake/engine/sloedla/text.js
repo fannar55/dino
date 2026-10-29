@@ -39,7 +39,8 @@ const PALETTES = {
   lilac: ['#fbf5ff', '#d9bfff', '#a77bf0'],
   grey: ['#e4e0f2', '#b9b4d6'],
 };
-const GLOW = { gold: 'rgba(255, 196, 60, 0.75)', mint: 'rgba(80, 230, 170, 0.55)', sky: 'rgba(110, 190, 255, 0.55)', lilac: 'rgba(190, 150, 255, 0.55)' };
+// a soft light behind the letters, never strong (a flash of light is kept well inside WCAG 2.3.1's limits)
+const GLOW = { gold: 'rgba(255, 196, 60, 0.5)', mint: 'rgba(80, 230, 170, 0.45)', sky: 'rgba(110, 190, 255, 0.45)', lilac: 'rgba(190, 150, 255, 0.45)' };
 
 /** The overshooting ease of a pop: 0 at 0, past 1 a little, 1 at 1. */
 export function backOut(t) {
@@ -62,51 +63,74 @@ function fillOf(g, style, y, size, index, time) {
   return grad;
 }
 
+const fontOf = px => `900 ${px}px Nunito, ui-rounded, "Arial Rounded MT Bold", sans-serif`;
+const REF = 100; // px: words are laid out once at this size and scaled (a font's spacing grows with its size)
+const layouts = new Map();
+// a word laid out before the round's font came would keep the fallback font's spacing
+globalThis.document?.fonts?.addEventListener?.('loadingdone', () => layouts.clear());
+
+/** Where each letter of `parts` sits at REF px, with the font's own spacing kept: { letters: [{ char, k, centre }], width }. */
+function layoutOf(g, parts) {
+  const key = parts.map(([str, k]) => `${k}|${str}`).join('\u0000');
+  let shape = layouts.get(key);
+  if (shape) return shape;
+  const widthOf = (str, px) => { g.font = fontOf(px); return g.measureText(str).width; };
+  const letters = [];
+  let width = 0;
+  for (const [str, k] of parts) {
+    const px = REF * k;
+    let prefix = '';
+    for (const char of str) {
+      const before = widthOf(prefix, px);
+      const after = widthOf(prefix + char, px);
+      letters.push({ char, k, centre: width + (before + after) / 2 });
+      prefix += char;
+    }
+    width += widthOf(str, px);
+  }
+  shape = { letters, width };
+  if (layouts.size > 200) layouts.clear();
+  layouts.set(key, shape);
+  return shape;
+}
+
 /**
- * Draws `text` centred on (x, y) at `size` px. `style` is a palette name ('rainbow', 'gold', 'mint', 'sky', 'lilac', 'cream',
- * 'grey') or a list of colours from top to foot. `age` s since it appeared: each letter pops in `stagger` s after the one before;
- * `wave` (a share of the size) bobs the letters; `time` moves the rainbow and the wave; `glow` lights it from behind;
- * `fit` the widest it may be (it shrinks to fit).
+ * Draws `text` centred on (x, y) at `size` px: a string, or parts in their own sizes ([['10', 1.4], [' í röð!', 0.85]]).
+ * `style` is a palette name ('rainbow', 'gold', 'mint', 'sky', 'lilac', 'cream', 'grey') or a list of colours from top to foot.
+ * `age` s since it appeared: each letter pops in `stagger` s after the one before (over `pop` s); `wave` (a share of the size)
+ * bobs the letters; `time` moves the rainbow and the wave; `glow` lights it from behind; `fit` the widest it may be (it shrinks).
  */
 export function drawWord(g, text, x, y, size, { style = 'cream', time = 0, age = 1, stagger = 0.035, pop = 0.22, wave = 0, glow = true, fit = Infinity, alpha = 1 } = {}) {
   if (!text || alpha <= 0) return;
-  const font = s => `900 ${s}px Nunito, ui-rounded, "Arial Rounded MT Bold", sans-serif`;
-  g.font = font(size);
-  const natural = g.measureText(text).width;
-  if (natural > fit) {
-    size = Math.max(8, Math.floor(size * (fit / natural)));
-    g.font = font(size);
-  }
-  const letters = [...text];
-  const widths = letters.map(letter => g.measureText(letter).width);
-  const total = widths.reduce((a, b) => a + b, 0);
-  const outline = Math.max(4, size * 0.17);
+  const parts = Array.isArray(text) ? text : [[text, 1]];
+  const shape = layoutOf(g, parts);
+  if (shape.width * (size / REF) > fit) size = Math.max(8, Math.floor(size * (fit / (shape.width * (size / REF)))));
+  const unit = size / REF;
+  const left = shape.width * unit;
+  const letters = shape.letters.map(({ char, k, centre }) => ({ char, px: Math.round(size * k), centre: centre * unit }));
   const shine = glow && style !== 'cream' && style !== 'grey' && !Array.isArray(style);
   g.save();
   g.globalAlpha *= alpha;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineJoin = 'round';
-  let left = x - total / 2;
-  letters.forEach((letter, i) => {
-    const cx = left + widths[i] / 2;
-    left += widths[i];
-    if (letter === ' ') return;
+  letters.forEach(({ char, px, centre }, i) => {
+    if (char === ' ') return;
     const scale = pop > 0 ? backOut((age - i * stagger) / pop) : 1;
     if (scale <= 0.01) return;
-    const cy = y + (wave ? Math.sin(time * 7 + i * 0.7) * size * wave : 0);
     g.save();
-    g.translate(cx, cy);
+    g.translate(x - left / 2 + centre, y + (wave ? Math.sin(time * 7 + i * 0.7) * px * wave : 0));
     g.scale(scale, scale);
-    g.lineWidth = outline;
+    g.font = fontOf(px);
+    g.lineWidth = Math.max(4, px * 0.17);
     g.strokeStyle = 'rgba(30, 18, 64, 0.9)';
-    g.strokeText(letter, 0, 0);
+    g.strokeText(char, 0, 0);
     if (shine) {
-      g.shadowColor = style === 'rainbow' ? `hsla(${(time * 200 + i * 34) % 360}, 100%, 65%, 0.8)` : GLOW[style] ?? 'rgba(255,255,255,0.5)';
-      g.shadowBlur = size * 0.35;
+      g.shadowColor = style === 'rainbow' ? `hsla(${(time * 200 + i * 34) % 360}, 100%, 65%, 0.5)` : GLOW[style] ?? 'rgba(255,255,255,0.4)';
+      g.shadowBlur = px * 0.35;
     }
-    g.fillStyle = fillOf(g, style, 0, size, i, time);
-    g.fillText(letter, 0, 0);
+    g.fillStyle = fillOf(g, style, 0, px, i, time);
+    g.fillText(char, 0, 0);
     g.restore();
   });
   g.restore();

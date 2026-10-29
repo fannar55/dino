@@ -27,8 +27,9 @@ import { seededRandom } from '../random.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
-const GRADE_LIFE = 0.75; // s a grade word stays over the dinosaur
-const RISE_LIFE = 1.9; // s a milestone takes to rise and fade
+const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes often, and its colour says it too)
+const SAY_LIFE = 1.8; // s a word in the middle stays (an early reader needs one or two seconds for a new word)
+const RISE_LIFE = 2.2; // s a milestone takes to rise and fade
 const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
 const END_AFTER = 0.6; // s after the song's last bar before the stars
 const STAR_GAP = 0.75; // s between the stars rising at the end
@@ -80,7 +81,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const floaters = [];
   const words = []; // the middle's words: { text, x, y, size, style, at }
   const grades = new Array(lanes).fill(null); // the word over each dinosaur for her last tapped note: { grade, at }
-  const rises = []; // a run's milestones rising: { text, style, at }
+  const rises = []; // a run's milestones rising: { count, style, at }
   const rockets = []; // fireworks on their way up: { x, y, vy, target, hue }
   const constellations = []; // one a section: { section, stars: [{ x, y, lit }], lit, flashAt, good }
   const crowdMemory = {};
@@ -441,10 +442,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   }
 
   /** A run's milestone, rising from low on the screen, with a puff of glitter where it starts. */
-  function rise(text, style) {
-    rises.push({ text, style, at: lastTime });
+  function rise(count, style) {
+    rises.push({ count, style, at: lastTime });
     if (rises.length > 2) rises.shift();
-    const y = hitY - dinoR * 2;
+    const y = hitY - dinoR * 0.3;
     for (let i = 0; i < 14; i++) {
       const a = -Math.PI / 2 + (random() - 0.5) * 2.4;
       const speed = 160 + random() * 200;
@@ -524,7 +525,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         if (crossed === 2) cheer('tier2');
         if (crossed === 3) cheer('tier3');
       } else if (score.streak >= 24 && score.streak % 8 === 0) cheer('more', 0.85);
-      if (milestoneOf(score.streak)) rise(`${score.streak} í röð!`, score.streak >= 20 ? 'rainbow' : 'gold');
+      if (milestoneOf(score.streak)) rise(score.streak, score.streak >= 20 ? 'rainbow' : 'gold');
       const lit = STAR_SHARES.filter(least => shareNow() >= least).length;
       if (lit > starsLit) {
         for (let k = starsLit; k < lit; k++) flyers.push({ x: laneX[lane], y: hitY - dinoR, index: k, at: time });
@@ -1148,10 +1149,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     for (let i = words.length - 1; i >= 0; i--) {
       const word = words[i];
       const age = time - word.at;
-      const k = age / 1.3;
+      const k = age / SAY_LIFE;
       if (k > 1 || k < 0) { if (k > 1) words.splice(i, 1); continue; }
       drawWord(g, word.text, word.x, word.y - k * 30, Math.round(word.size * (1 + 0.08 * Math.sin(age * 9) * Math.exp(-age * 3))), {
-        style: word.style, time, age, wave: 0.05, alpha: k > 0.75 ? (1 - k) / 0.25 : 1, fit: w * 0.92,
+        style: word.style, time, age, wave: 0.05, alpha: k > 0.8 ? (1 - k) / 0.2 : 1, fit: w * 0.92,
       });
     }
     drawGrades(g, time);
@@ -1175,18 +1176,18 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     });
   }
 
-  // A run's milestones: they rise from just over the dinosaurs to the middle of the screen, the letters popping in one by one and
-  // bobbing as they go, then fade
+  // A run's milestones: they rise from the dinosaurs to the middle of the screen, the letters popping in one by one and bobbing
+  // as they go, then fade; the number big (a six-year-old reads numbers to a hundred more easily than words)
   function drawRises(g, time) {
     for (let i = rises.length - 1; i >= 0; i--) {
       const r = rises[i];
       const age = time - r.at;
       if (age < 0 || age > RISE_LIFE) { if (age > RISE_LIFE) rises.splice(i, 1); continue; }
-      const k = Math.min(1, age / 1.1);
+      const k = Math.min(1, age / 1.3);
       const eased = 1 - (1 - k) ** 3;
-      const from = hitY - dinoR * 2, to = portrait ? h * 0.5 : h * 0.52;
-      const size = Math.round((portrait ? 46 : 64) * (1 + 0.12 * Math.sin(age * 6) * Math.exp(-age * 2)));
-      drawWord(g, r.text, w / 2, from + (to - from) * eased, size, {
+      const from = hitY - dinoR * 0.3, to = h * 0.45;
+      const size = Math.round((portrait ? 44 : 60) * (1 + 0.12 * Math.sin(age * 6) * Math.exp(-age * 2)));
+      drawWord(g, [[String(r.count), 1.4], [' í röð!', 0.85]], w / 2, from + (to - from) * eased, size, {
         style: r.style, time, age, stagger: 0.05, pop: 0.28, wave: 0.07,
         alpha: age > RISE_LIFE - 0.5 ? (RISE_LIFE - age) / 0.5 : 1, fit: w * 0.9,
       });
