@@ -11,7 +11,7 @@
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
 
 import { danceGrid, beatAt } from '../beat.js';
-import { HIT_WINDOW, NEAR_WINDOW, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
+import { LEVELS, NEAR_WINDOW, RECENTRE, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
 import { seededRandom } from '../random.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
@@ -26,11 +26,14 @@ const GOLD = '#f2b630';
  * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n) }). Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   const lanes = cast.length;
   const notes = conductor.chart; // grows a section at a time
-  const judge = createJudge(notes);
+  const judge = createJudge(notes, { early: windows.early, late: windows.late, great: windows.great });
+  // the window follows the child: the median of her last hits' errors (late children tap late), at most RECENTRE.most either way
+  const errors = [];
+  let centre = 0;
   const score = createScore(conductor.expected);
   const dance = danceGrid({ bpm: conductor.bpm, beatOffset: 0, danceBeats: 2 });
 
@@ -57,6 +60,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
   let lastTime = 0;
   let lastSection = -1;
   let tierNow = 0;
+  let beatNow = { index: 0, phase: 0 }; // the song's own beat (not the slower dance grid), which the dinosaurs dance to
   const fps = { frames: 0, since: 0, value: 0 };
 
   // -------------------------------------------------------------------------------------------------------------------------
@@ -280,9 +284,20 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
     giveLanes();
     const role = cast[lane].role;
     flashes[lane] = time;
-    const result = judge.tap(lane, time);
+    const result = judge.tap(lane, time - centre);
     if (result.kind === 'hit') {
-      conductor.hit(result.note);
+      errors.push(result.offset + centre);
+      if (errors.length > RECENTRE.taps) errors.shift();
+      if (errors.length >= 4) {
+        const sorted = [...errors].sort((x, y) => x - y);
+        centre = Math.max(-RECENTRE.most, Math.min(RECENTRE.most, sorted[Math.floor(sorted.length / 2)]));
+      }
+      const joined = conductor.hit(result.note, result.offset);
+      if (joined) {
+        // she comes back into the song: her name over her lane
+        const friend = cast.find(c => c.role === result.note.role) ?? cast[lane];
+        say(`${friend.name} er með!`, { y: h * 0.5, size: 40, hue: friend.light });
+      }
       hops[lane] = time;
       const gold = tierNow >= 3;
       burst(lane, result.great, gold);
@@ -385,6 +400,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
     g.setTransform(dpr, 0, 0, dpr, shake ? (random() - 0.5) * shake * dpr : 0, shake ? (random() - 0.5) * shake * dpr : 0);
     g.drawImage(background, 0, 0, w, h);
     const beat = beatAt(Math.max(0, time), dance);
+    beatNow = beatAt(Math.max(0, time), { bpm: conductor.bpm, beatOffset: 0 });
     const pulse = Math.max(0, 1 - beat.phase * 3);
     const section = conductor.sectionAt(time);
     const big = section?.variant === 'big';
@@ -501,20 +517,29 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
       const state = judge.state(i);
       if (state === 'hit') continue;
       const gone = -ahead;
-      if (state === 'missed' && gone > HIT_WINDOW + 0.35) continue;
+      if (state === 'missed' && gone > windows.late + 0.6) continue;
       const y = hitY - (ahead / fall) * span;
       if (y < topY - laneW) continue;
       const near = 1 - Math.min(1, Math.max(0, ahead) / fall);
       let alpha = Math.min(1, (y - topY + laneW) / (laneW * 0.9));
       let scale = 0.62 + near * 0.38;
       if (state === 'missed') {
-        const fade = Math.min(1, (gone - HIT_WINDOW) / 0.35);
+        const fade = Math.min(1, (gone - windows.late) / 0.6);
         alpha *= 1 - fade;
         scale *= 1 - fade * 0.5;
       }
-      const sprite = gold ? goldGlow : glows[note.lane];
       const size = laneW * 0.95 * scale;
       g.globalAlpha = Math.max(0, alpha);
+      if (state === 'missed') {
+        // a missed note goes grey and sinks away: no red, no cross
+        const fade = Math.min(1, (gone - windows.late) / 0.6);
+        g.fillStyle = 'rgba(150, 150, 175, 0.75)';
+        g.beginPath();
+        g.arc(laneX[note.lane], y + fade * 40, size * 0.2, 0, Math.PI * 2);
+        g.fill();
+        continue;
+      }
+      const sprite = gold ? goldGlow : glows[note.lane];
       g.drawImage(sprite, laneX[note.lane] - size / 2, y - size / 2, size, size);
       g.fillStyle = gold ? '#7a4e00' : cast[note.lane].dark;
       g.font = `900 ${Math.round(size * 0.24)}px Nunito, ui-rounded, sans-serif`;
@@ -537,8 +562,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
       const x = laneX[i];
       const since = time - hops[i];
       const hop = since >= 0 && since < 0.32 ? Math.sin((since / 0.32) * Math.PI) : 0;
-      const y = hitY - hop * dinoR * 0.32;
-      const s = 1 + hop * 0.08;
+      // a dinosaur who is in the song dances on every beat; one who is out sits still, asleep
+      const playing = conductor.isOpen(cast[i].role);
+      const step = playing ? Math.max(0, 1 - beatNow.phase * 4) : 0;
+      const y = hitY - hop * dinoR * 0.32 - step * dinoR * 0.07;
+      const s = 1 + hop * 0.08 + step * 0.03;
       if (soon < 0.6 || tierNow >= 2) {
         const glow = Math.max(soon < 0.6 ? 1 - soon / 0.6 : 0, tierNow >= 2 ? 0.35 + 0.1 * tierNow : 0);
         g.globalAlpha = Math.min(1, glow);
@@ -557,12 +585,18 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, chimes = 
       const d = size * s;
       g.drawImage(button, x - d / 2, y - d / 2, d, d);
       // her part has dropped out of the song: her button dims until a note of hers is hit again
-      if (!conductor.isOpen(cast[i].role)) {
+      if (!playing) {
         g.globalAlpha = 0.42;
         g.fillStyle = '#1b1840';
         g.beginPath();
         g.arc(x, y, dinoR * s, 0, Math.PI * 2);
         g.fill();
+        // z z z rising from her, slowly
+        for (let z = 0; z < 3; z++) {
+          const k = ((time * 0.45 + z / 3) % 1);
+          g.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+          outlined(g, 'z', x + dinoR * (0.45 + k * 0.4), y - dinoR * (0.5 + k * 0.9), Math.round(dinoR * (0.22 + k * 0.18)), '#e7e0ff');
+        }
         g.globalAlpha = 1;
       }
     }

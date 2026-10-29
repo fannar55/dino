@@ -1,6 +1,6 @@
 // "Ljósahús": a bouncy house track made with ElevenLabs Music (assets/audio/sloedla/el-house.mp3, G major, 126 a minute, made by
-// tools/sloedla-music.mjs; its json has the plan and the measured grid), with the dinosaurs playing on top of it. The recording is
-// the band (drums, bass, chords): the game adds no band of its own, only star layers on a run of hits. Its beat 0 is the file's
+// tools/sloedla-music.mjs; its json has the plan and the measured grid), split into stems that the dinosaurs own, with their own
+// parts on top. The recording is the band (drums, bass, chords): the game adds only the skeleton's pulse and drone and star layers. Its beat 0 is the file's
 // first downbeat (measured.downbeatSec), so the song's bars are the recording's: intro 4, verse 8, chorus 8, verse, chorus,
 // bridge 8, last chorus 8, outro 4, as the plan asked. The model did not keep to the chords asked for bar by bar, so every part
 // here is in G major's pentatonic (G A B D E: steps 0 1 2 4 5 and their octaves, never 3 or 6), which sits on whatever it plays.
@@ -10,12 +10,13 @@
 const STAR1 = { inst: 'shaker', steps: 'oooooooooooooooo', tier: 1 };
 const STAR2 = { inst: 'bell', line: '1 2 3 2 1 2 3 2', tier: 2, vel: 0.7 };
 const STAR3 = { inst: 'choir', tier: 3, vel: 0.8 };
+const BED = { inst: 'pad', vel: 0.45 }; // the skeleton's drone: G and D (chords 'I5'), which sit under every chord the track plays
 
 const chorus = {
   bars: 8,
-  chords: 'I',
+  chords: 'I5',
   parts: [
-    STAR1, STAR2, STAR3,
+    BED, STAR1, STAR2, STAR3,
     { inst: 'choir', when: 'big', vel: 0.5 },
     { role: 'a', notes: '7! _ _ 5 4 _ . . | 5! _ _ 4 2 _ . . | 4! _ 5 _ 7 _ 5 _ | 4! _ _ _ 2 _ . . | 7! _ _ 5 4 _ . . | 8! _ _ 7 5 _ . . | 9! _ 8 _ 7 _ 5 _ | 7! _ _ _ _ _ . .' },
     { role: 'b', notes: '. . . . 2! 4 5 4 | . . . . . . . . | . . . . 4! 5 7 5 | . . . . . . . . | . . . . 2! 4 5 4 | . . . . . . . . | . . . . 4! 5 7 5 | . . . . . . . .' },
@@ -29,14 +30,26 @@ export default {
   bpm: 125.997,
   root: 'G',
   scale: 'major',
-  backing: { src: 'audio/sloedla/el-house.mp3', beatOffset: 0.0256, gain: 0.55 },
+  // the recording split into stems (tools/sloedla-music.mjs house --stems), each a dinosaur's: the drums Þórseðla's, the bass
+  // Kambeðla's, the piano Slóeðla's; "other" (quiet pads and effects) is the skeleton's, with the game's pulse and drone
+  backing: {
+    beatOffset: 0.0256,
+    gain: 0.6,
+    stems: [
+      { src: 'audio/sloedla/el-house-drums.mp3', gate: 'c' },
+      { src: 'audio/sloedla/el-house-bass.mp3', gate: 'b' },
+      { src: 'audio/sloedla/el-house-piano.mp3', gate: 'a', gain: 1.2 },
+      { src: 'audio/sloedla/el-house-other.mp3', gain: 1.5 },
+    ],
+  },
   form: ['intro', 'vers', 'vidlag', 'vers', 'vidlag', 'bru', 'lokavidlag', 'endir'],
   sections: {
     intro: {
       bars: 4,
-      chords: 'I',
+      chords: 'I5',
       fixed: true,
       parts: [
+        BED,
         { role: 'a', notes: '. . . . . . . . | . . . . . . . . | . . . . . . . . | 4! _ _ _ 2 _ . .' },
         { role: 'b', notes: '0 . 4 . 7 . 4 . | 0 . 4 . 7 . 4 . | . . . . 7! . 5 . | . . . . . . . .' },
         { role: 'c', notes: '. . . . . . . . | . . . . . . . . | 0! . . . . . . . | . . . . . . . .' },
@@ -44,9 +57,9 @@ export default {
     },
     vers: {
       bars: 8,
-      chords: 'I',
+      chords: 'I5',
       parts: [
-        STAR1, STAR2, STAR3,
+        BED, STAR1, STAR2, STAR3,
         { role: 'a', notes: '. . . . 4! _ 2 1 | 0! _ _ _ . . . . | . . . . 5! _ 4 2 | 4 _ . . . . . . | . . . . 4! _ 5 7 | 5! _ 4 _ 2 _ . . | . . . . 1! _ 2 4 | 2 _ _ _ . . . .' },
         { role: 'b', notes: '. . . . . . . . | . . . . . . . . | . . . . . . . . | 4! . 2 . 4! . 5 . | . . . . . . . . | . . . . . . . . | . . . . . . . . | 4! . 5 . 7 . . .' },
         { role: 'c', notes: '0! . . . . . . . | . . . . 0 . 0 . | 5! . . . . . . . | . . . . 4 . . . | 0! . . . . . . . | . . . . 5 . 5 . | 4! . . . . . . . | 4 . . . 4 . 4 4' },
@@ -55,9 +68,9 @@ export default {
     vidlag: chorus,
     bru: {
       bars: 8,
-      chords: 'I',
+      chords: 'I5',
       parts: [
-        STAR1, STAR2, STAR3,
+        BED, STAR1, STAR2, STAR3,
         { role: 'a', notes: '4! _ _ _ _ _ _ _ | 5! _ _ _ _ _ . . | 7! _ _ _ 5 _ . . | 4! _ _ _ _ _ _ _ | . . . . . . . . | 5! _ 4 _ . . . . | . . . . . . . . | 7! _ _ _ 5 _ 7 _' },
         { role: 'b', notes: '. . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . . . . . | 4! 5 7 5 4 5 7 5 | . . . . . . . . | 2! 4 5 4 2 4 5 4 | . . . . . . . .' },
         { role: 'c', notes: '. . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . 0! . . . | . . . . 5! . . . | . . . . 4! . 4 . | 4 . 4 . 4! 4 4 4' },
@@ -66,10 +79,10 @@ export default {
     lokavidlag: chorus,
     endir: {
       bars: 4,
-      chords: 'I',
+      chords: 'I5',
       fixed: true,
       parts: [
-        STAR3,
+        BED, STAR3,
         { role: 'a', notes: '7! _ _ _ 5 _ 4 _ | 5! _ _ _ . . . . | 7! _ _ _ _ _ _ _ | _ _ _ _ _ _ . .' },
         { role: 'b', notes: '. . . . . . . . | . . . . 4! 5 7 . | . . . . . . . . | . . . . . . . .' },
         { role: 'c', notes: '0 . . . . . . . | 4 . . . . . . . | 0 . . . 0! . . . | 0! . . . . . . .' },

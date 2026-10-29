@@ -182,6 +182,23 @@ export function createSongSounds({ context, output, room = null, random = Math.r
       if (!(freq > 0)) return;
       (INSTRUMENTS[role] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft });
     },
+    /**
+     * A missed note: a soft "bloop" in her own voice that slides down two semitones, 0.3 s, never a buzzer (the gentle form of
+     * Guitar Hero's wrong-note sound). `freq` is the note she missed.
+     */
+    oops(role, { freq = 233, into } = {}) {
+      if (!(freq > 0)) return;
+      const at = context.currentTime + 0.005;
+      const down = freq * 0.891; // two semitones under
+      if (role === 'c') {
+        tone({ frequency: down, type: 'sine', at, length: 0.32, level: 0.16, attack: 0.006, decay: 0.12, hold: 0.3, scoop: 1.12, bend: 0.22, pan: 0.25, dest: into });
+        puff({ at, length: 0.1, level: 0.05, frequency: 500, end: 200, type: 'lowpass', q: 0.6, pan: 0.25, dest: into });
+      } else {
+        const pan = role === 'b' ? -0.25 : 0;
+        tone({ frequency: down, type: 'triangle', at, length: 0.34, level: 0.075, attack: 0.012, decay: 0.15, hold: 0.4, scoop: 1.12, bend: 0.25, pan, dest: into });
+        tone({ frequency: down / 2, type: 'sine', at, length: 0.3, level: 0.04, attack: 0.012, decay: 0.12, hold: 0.4, scoop: 1.12, bend: 0.25, pan, dest: into });
+      }
+    },
     /** A hit right on the beat: a glint of two high bells, on `freq`'s octaves. */
     sparkle(freq = 880) {
       const now = context.currentTime;

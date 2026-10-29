@@ -66,6 +66,23 @@ test('a tap plays the nearest waiting note of its lane in the window; a miss goe
   assert.equal(judge.left(), 0);
 });
 
+test('the child\'s window is wider late than early, and the band belongs to the dinosaurs but for the skeleton', async () => {
+  const { barn } = LEVELS;
+  const judge = createJudge([{ t: 1, lane: 0 }, { t: 3, lane: 0 }], barn);
+  assert.equal(judge.tap(0, 1 - 0.3).kind, 'near', '300 ms early is too early');
+  assert.equal(judge.tap(0, 1 + 0.3).kind, 'hit', '300 ms late still plays it');
+  assert.deepEqual(judge.sweep(3 + barn.late - 0.01), [], 'the second note waits out its late window');
+  assert.deepEqual(judge.sweep(3 + barn.late + 0.01), [1]);
+  const song = (await SONGS[0].load()).default;
+  const { band } = compileSection(song, 2, 'normal');
+  const owner = inst => [...new Set(band.filter(e => e.inst === inst && !e.tier && e.vel > 0.4).map(e => e.gate))];
+  assert.deepEqual(owner('clap'), ['c'], 'the claps are Þórseðla\'s');
+  assert.deepEqual(owner('bass'), ['b'], 'the bass is Kambeðla\'s');
+  assert.deepEqual(owner('pad'), [null], 'the pad is the skeleton');
+  const pulse = band.filter(e => e.inst === 'kick' && e.gate === null);
+  assert.equal(pulse.length, song.sections.vidlag.bars * 4, 'the skeleton keeps a soft pulse on every beat');
+});
+
 test('stars: one to three for a fair share played; strays past a spare few cost; the run raises tiers', () => {
   assert.equal(starsFor({ hits: 0, strays: 0, total: 50 }), 0);
   assert.equal(starsFor({ hits: 13, strays: 0, total: 50 }), 1);
@@ -73,11 +90,11 @@ test('stars: one to three for a fair share played; strays past a spare few cost;
   assert.equal(starsFor({ hits: 40, strays: 0, total: 50 }), 3);
   assert.equal(starsFor({ hits: 40, strays: 13, total: 50 }), 3, 'a few strays are free');
   assert.equal(starsFor({ hits: 50, strays: 200, total: 50 }), 0, 'tapping everywhere all the time is no way to the stars');
-  assert.deepEqual([0, 3, 4, 8, 16, 40].map(tierOf), [0, 0, 1, 2, 3, 3]);
+  assert.deepEqual([0, 2, 3, 8, 16, 40].map(tierOf), [0, 0, 1, 2, 3, 3]);
   const score = createScore(10);
   const crossed = [];
   for (let i = 0; i < 8; i++) crossed.push(count(score, { kind: 'hit', offset: 0 }));
-  assert.deepEqual(crossed, [0, 0, 0, 1, 0, 0, 0, 2], 'the run crosses into tier 1 at four and tier 2 at eight');
+  assert.deepEqual(crossed, [0, 0, 1, 0, 0, 0, 0, 2], 'the run crosses into tier 1 at three (Fever) and tier 2 at eight');
 });
 
 test('lanes and notes: the roles sit b a c with three lanes, a and c with two; steps climb the key', () => {

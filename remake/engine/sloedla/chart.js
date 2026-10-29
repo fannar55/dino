@@ -20,17 +20,25 @@
 
 import { seededRandom } from '../random.js';
 
-export const HIT_WINDOW = 0.2; // s either side of a note: a tap this close plays it (the child's window; the plan's ±0.2 s)
-export const GREAT_WINDOW = 0.08; // s: a tap this close is right on the beat, and sparkles more
-export const NEAR_WINDOW = 0.4; // s: a tap this close to a waiting note is early or late, never a stray
+// The window a tap plays a note in. A six-year-old's taps scatter about 180 ms either way of the beat (Bonacina 2019: SD about
+// 180 ms at ages 5 to 8, clapping at 0.9 Hz) and young children tap late more often than early, so ±0.2 s caught only about three
+// taps in four; the child's window runs from 250 ms early to 350 ms late, and within 150 ms is "right on" (it sparkles more). The
+// grown-ups' is tighter. The research behind it: qa/rannsokn/reports/Hvernig tónlistarleikir eru gerðir.md (the worktree's qa/).
+export const HIT_WINDOW = 0.2; // s: the old symmetric window (makeChart's sheet and the first tests)
+export const GREAT_WINDOW = 0.08;
+export const NEAR_WINDOW = 0.5; // s: a tap this close to a waiting note is early or late, never a stray
 export const STAR_SHARES = [0.25, 0.5, 0.8]; // the share of the notes played (less the strays' cost) for one, two and three stars
 export const STRAY_SPARE = 0.25; // strays up to this share of the notes cost nothing
-export const STREAK_TIERS = [4, 8, 16]; // a run this long raises the glitter and the cheer a tier
+export const STREAK_TIERS = [3, 8, 16]; // a run this long raises the glitter and the band a tier (Fever after three, as Patapon's remake)
+export const RECENTRE = { taps: 8, most: 0.12 }; // the window follows the median of the last 8 hits' errors, at most 120 ms
 
-/** The levels: a note on every `every` beats at most, falling `fall` seconds from the top of the lane to the dinosaur. */
+/**
+ * The levels: a note on every `every` beats at most, falling `fall` seconds from the top of the lane to the dinosaur; a tap from
+ * `early` s before a note to `late` s after it plays it, within `great` it is right on.
+ */
 export const LEVELS = {
-  barn: { every: 2, fall: 2.3 },
-  fullordinn: { every: 1, fall: 1.6 },
+  barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, great: 0.15 },
+  fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, great: 0.07 },
 };
 
 // The sheet is phrases of four bars (16 beats). At the child's level a phrase has eight places, one on every second beat (the
@@ -121,31 +129,33 @@ export function laneOf(role, lanes = 3) {
  * (`offset` is the tap's time less the note's: negative early.) sweep(time) lets the notes go that can no longer be played and
  * returns their indices. state(i) is 'waiting', 'hit' or 'missed'; left() how many are still waiting.
  */
-export function createJudge(notes, { window = HIT_WINDOW, great = GREAT_WINDOW, near = NEAR_WINDOW } = {}) {
-  // `notes` may grow while the round plays (a song decided a section at a time: conductor.js), always later notes at its end
+export function createJudge(notes, { window = HIT_WINDOW, early = window, late = window, great = GREAT_WINDOW, near = NEAR_WINDOW } = {}) {
+  // `notes` may grow while the round plays (a song decided a section at a time: conductor.js), always later notes at its end. A
+  // tap from `early` s before a note to `late` s after it plays it (the child's window is wider late than early).
   const states = [];
   let first = 0; // every note before this one is hit or missed
   let resolved = 0;
+  const reach = Math.max(near, early, late);
   return {
     tap(lane, time) {
       let best = -1;
       let gap = Infinity;
-      for (let i = first; i < notes.length && notes[i].t <= time + near; i++) {
+      for (let i = first; i < notes.length && notes[i].t <= time + reach; i++) {
         if (states[i] || notes[i].lane !== lane) continue;
         const d = Math.abs(time - notes[i].t);
         if (d < gap) { gap = d; best = i; }
       }
-      if (best < 0 || gap > near) return { kind: 'stray' };
+      if (best < 0 || gap > reach) return { kind: 'stray' };
       const note = notes[best];
       const offset = time - note.t;
-      if (gap > window) return { kind: 'near', index: best, note, offset };
+      if (offset < -early || offset > late) return { kind: 'near', index: best, note, offset };
       states[best] = 'hit';
       resolved++;
       return { kind: 'hit', index: best, note, offset, great: gap <= great };
     },
     sweep(time) {
       const gone = [];
-      while (first < notes.length && notes[first].t + window < time) {
+      while (first < notes.length && notes[first].t + late < time) {
         if (!states[first]) {
           states[first] = 'missed';
           resolved++;

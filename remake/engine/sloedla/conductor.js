@@ -1,36 +1,51 @@
 // The conductor of Slóeðla's song game: it plays a song written as data (song.js) on the audio clock and lets the child's play
-// change it, as Guitar Hero does:
+// change it, as Guitar Hero and Amplitude do. The research behind the choices: qa/rannsokn/reports/Hvernig tónlistarleikir eru
+// gerðir.md (the worktree's qa/, outside git).
 //
-//   - Each dinosaur's part goes through a gate of her own. While the child keeps hitting that dinosaur's notes the gate is open and
-//     her whole part is heard, every note of it in time (scheduled ahead, so on a run it is exactly on the beat). A missed note
-//     shuts it: her part drops out of the song until the child hits one of her notes again, which is played at once and opens the
-//     gate for the rest of the phrase. A part with no lane (Kambeðla's, when two play) is always heard.
-//   - A run of hits brings in the song's star layers (parts with `tier`), more of them the longer the run; a miss lets them fade.
-//   - The song is in sections. A little before each one begins (the notes must have time to fall), the last one is judged: played
-//     well, the next comes big (every layer, a crash, a riser into it, and the last chorus up a key: `lift`); played badly, it
-//     comes calm (fewer notes, the band muffled, simpler parts); otherwise as written. The child is never told it got easier.
+//   - The dinosaurs own most of the music. Each has a chain of her own (a low-pass and a level) that all her sound goes through:
+//     her tune on her instrument, her share of the band (song.js BAND_GATES: the drum kit is Þórseðla's, the bass and riff
+//     Kambeðla's, the bells and choir Slóeðla's) and, over a recorded backing, her stem. Only the skeleton is nobody's: a soft
+//     pulse on every beat and the pad. So the song starts bare, and each dinosaur comes in when the child hits her first note.
+//   - The notes the child taps are not scheduled ahead: each sounds when it is tapped (an early tap waits for its beat, up to
+//     SNAP_EARLY), so a missed note is a hole in the tune. A miss also plays a soft "bloop" in her instrument, and her chain closes
+//     to a muffled whisper (OUT_LEVEL through OUT_FILTER) until her next hit, which opens it at once. Three misses in a row in one
+//     lane bring her part back as a ghost for a bar (GHOST_LEVEL), to show what to play. The notes between the child's (the rest of
+//     her phrase) are scheduled ahead through her chain, so on a run they are exactly on the beat.
+//   - A run of hits brings in the song's star layers (parts with `tier`); the first comes after three hits (Fever, as Patapon's
+//     remake has it), and a miss lets them fade.
+//   - The song is in sections. A little before each one begins (its notes must have time to fall), the last one is judged: played
+//     well, the next comes big (every layer, a crash, a riser into it, and the last chorus up a key: `lift`); played badly, calm
+//     (fewer notes, the band muffled, simpler parts); otherwise as written.
 //
-// The band and the parts are scheduled a little ahead of the audio clock (LOOKAHEAD) by a timer, so a slow frame never makes the
-// music stumble; the chart (the notes that fall) grows a section at a time as each section is decided.
+// The band and the phrases are scheduled a little ahead of the audio clock (LOOKAHEAD) by a timer; everything that answers a tap
+// (a note, a chain opening or closing, a bloop) goes straight onto the audio clock, so nothing waits for the queue.
 
 import { chartOf, compileSection, timeline } from './song.js';
 
-const LOOKAHEAD = 0.3; // s of song scheduled ahead of the audio clock
+const LOOKAHEAD = 0.15; // s of song scheduled ahead of the audio clock
 const TICK = 25; // ms between scheduling passes
 const BIG = 0.75; // the share of a section's notes played that makes the next one big
 const CALM = 0.45; // below this share the next one is calm
 const DECIDE_AFTER = 3; // notes of a section judged before its share counts (else the song's share so far counts)
+const SNAP_EARLY = 0.15; // s: a tap this much early sounds on its note's beat; earlier ones sound at once
+const OPEN_TAU = 0.007; // s: how fast a chain opens on a hit (about 21 ms to 95 %)
+const CLOSE_TAU = 0.015; // s: and closes on a miss (about 45 ms)
+const OUT_LEVEL = 0.18; // a dinosaur who is out is a whisper of herself ...
+const OUT_FILTER = 520; // ... behind a low-pass at this many Hz
+const GHOST_LEVEL = 0.38; // after GHOST_AFTER misses in a row she plays along this loud for a bar, to show the way
+const GHOST_AFTER = 3;
+const ROLES = ['a', 'b', 'c'];
 
 /**
  * The conductor for `song` on `context` and `clock` (song-clock.js, started by start()). `out` is where the music goes (the page's
- * mix), `band` the band (band.js) and `sounds` the dinosaurs' instruments (sounds.js), both made for this context; `room` the reverb.
- * `level` is 'barn' or 'fullordinn', `roles` the parts that have lanes, `fall` how long a note takes to fall (s).
+ * mix), `band` the band (band.js) and `sounds` the dinosaurs' instruments (sounds.js), both made for this context. `level` is
+ * 'barn' or 'fullordinn', `roles` the parts that have lanes (a part without one is always in), `fall` how long a note falls (s).
  */
-export function createConductor({ context, song, clock, band, sounds, out, room = null, level = 'barn', roles = ['a', 'b', 'c'], fall = 2.3 }) {
+export function createConductor({ context, song, clock, band, sounds, out, level = 'barn', roles = ROLES, fall = 2.3 }) {
   const { beat, bar, sections, length } = timeline(song);
-  const decideAhead = fall + 0.7; // s before a section starts that its version is chosen
+  const decideAhead = fall + 0.7;
 
-  // the buses: the band through a mood filter (calm muffles it), the star layers on their own gains, each part through its gate
+  // the skeleton (nobody's) and the star layers go through the mood filter (a calm section muffles it)
   const mood = context.createBiquadFilter();
   mood.type = 'lowpass';
   mood.frequency.value = 18000;
@@ -45,50 +60,49 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
     gain.connect(mood);
     return gain;
   });
-  // a song may have a recorded backing (song.backing: { buffer, beatOffset, gain }), which plays under it on the same grid, its beat
-  // 0 at the song's time 0, through the mood filter like the band
-  const backingGain = context.createGain();
-  backingGain.gain.value = song.backing?.gain ?? 0.8;
-  backingGain.connect(mood);
-  let backingSource = null;
-  const partBus = context.createGain();
-  partBus.gain.value = 1;
-  partBus.connect(out);
-  const gates = {};
-  const open = {};
-  for (const role of ['a', 'b', 'c']) {
-    gates[role] = context.createGain();
-    gates[role].gain.value = 1;
-    gates[role].connect(partBus);
-    open[role] = true;
+  // each dinosaur's chain: her low-pass, then her level
+  const chains = {};
+  for (const role of ROLES) {
+    const filter = context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = 0.8;
+    const level = context.createGain();
+    filter.connect(level);
+    level.connect(out);
+    const open = !roles.includes(role); // a part with no lane plays all along; the others start out
+    filter.frequency.value = open ? 18000 : OUT_FILTER;
+    level.gain.value = open ? 1 : OUT_LEVEL;
+    chains[role] = { input: filter, filter, level, open, misses: 0 };
   }
+  const loose = context.createGain(); // a tap that is not a hit: her instrument, softly, outside her chain
+  loose.gain.value = 0.5;
+  loose.connect(out);
 
-  // the sections as they are decided: { variant, transpose, compiled, chart, hits, misses }
+  // a recorded backing (song.backing): one mix, or stems each owned by a dinosaur ({ buffer, gate, gain })
+  const backingSources = [];
+
   const decided = [];
   const chart = []; // every note that falls, in time order (the game's judge reads it as it grows)
-  const queue = []; // events still to schedule: { t, kind: 'band'|'part', ... }
+  const queue = [];
   let transpose = 0;
   let tier = 0;
   let timer = null;
   let started = false;
   const totals = { hits: 0, misses: 0 };
 
-  // the chart the whole song would have, every section as written: what the bar at the top measures against until the end
   const expected = sections.reduce((n, _, i) => n + chartOf(compileSection(song, i, 'normal'), { level, roles, beat }).length, 0);
 
-  function shareOf(stats) {
+  const shareOf = stats => {
     const judged = stats.hits + stats.misses;
     return judged > 0 ? stats.hits / judged : 1;
-  }
+  };
 
-  /** Chooses section `k`'s version from how the one before went, compiles it, and puts its notes in the chart and the queue. */
   function decide(k) {
     const section = song.sections[sections[k].name];
     let variant = 'normal';
     if (k > 0 && !section.fixed) {
       const last = decided[k - 1];
-      const enough = last.hits + last.misses >= DECIDE_AFTER;
-      const share = shareOf(enough ? last : totals);
+      const share = shareOf(last.hits + last.misses >= DECIDE_AFTER ? last : totals);
       variant = share >= BIG ? 'big' : share < CALM ? 'calm' : 'normal';
     }
     if (variant === 'big' && section.lift) transpose += section.lift;
@@ -97,32 +111,28 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
     const entry = { variant, transpose, compiled, notes, hits: 0, misses: 0, start: sections[k].start, end: sections[k].end, name: sections[k].name };
     decided[k] = entry;
     for (const note of notes) {
-      note.next = nextPartNote(compiled.parts[note.role], note.index);
+      const part = compiled.parts[note.role];
+      part[note.index].charted = true; // the child's notes sound only when tapped
+      note.next = part[note.index + 1] ?? null;
       chart.push(note);
     }
     for (const event of compiled.band) queue.push({ ...event, kind: 'band' });
-    for (const role of ['a', 'b', 'c']) for (const note of compiled.parts[role]) queue.push({ ...note, role, kind: 'part' });
+    for (const role of ROLES) for (const note of compiled.parts[role]) if (!note.charted) queue.push({ ...note, role, kind: 'part' });
     if (variant === 'big') {
-      queue.push({ t: entry.start, kind: 'band', inst: 'crash', vel: 1.1, tier: 0 });
-      queue.push({ t: entry.start - bar, kind: 'band', inst: 'riser', dur: bar, vel: 1, tier: 0 });
+      queue.push({ t: entry.start, kind: 'band', inst: 'crash', vel: 1.1, tier: 0, gate: null });
+      queue.push({ t: entry.start - bar, kind: 'band', inst: 'riser', dur: bar, vel: 1, tier: 0, gate: null });
     }
     queue.sort((x, y) => x.t - y.t);
-    // the mood of the section, at its start: calm muffles the band, the others open it
     const at = Math.max(context.currentTime, clock.contextTimeOf(entry.start));
     mood.frequency.setTargetAtTime(variant === 'calm' ? 1400 : 18000, at, 0.15);
     bandBus.gain.setTargetAtTime(variant === 'calm' ? 0.7 : variant === 'big' ? 0.95 : 0.85, at, 0.2);
     return entry;
   }
 
-  function nextPartNote(notes, index) {
-    return notes[index + 1] ?? null;
-  }
-
-  /** Schedules what is due within LOOKAHEAD, and decides the next section when it is time. */
   function pump() {
     if (!started || context.state !== 'running') return;
     const now = context.currentTime;
-    const songNow = now - clock.contextTimeOf(0); // the song time being played now (not heard: what the clock schedules against)
+    const songNow = now - clock.contextTimeOf(0);
     const k = decided.length;
     if (k < sections.length && songNow >= sections[k].start - decideAhead) decide(k);
     while (queue.length) {
@@ -130,38 +140,67 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
       const at = clock.contextTimeOf(event.t);
       if (at > now + LOOKAHEAD) break;
       queue.shift();
-      if (at < now - 0.05) continue; // too late to play (the tab was asleep)
+      if (at < now - 0.05) continue;
       const when = Math.max(at, now);
       if (event.kind === 'band') {
-        band.play(event.inst, { at: when, freq: event.freq, notes: event.notes, dur: event.dur, vel: event.vel, into: event.tier ? tiers[event.tier - 1] : mood });
+        const into = event.tier ? tiers[event.tier - 1] : event.gate ? chains[event.gate].input : mood;
+        band.play(event.inst, { at: when, freq: event.freq, notes: event.notes, dur: event.dur, vel: event.vel, into });
       } else {
-        sounds.note(event.role, { freq: event.freq, at: when, dur: event.dur, vel: event.vel, into: gates[event.role] });
+        sounds.note(event.role, { freq: event.freq, at: when, dur: event.dur, vel: event.vel, into: chains[event.role].input });
       }
     }
   }
 
-  function setGate(role, on, at = context.currentTime) {
-    open[role] = on;
-    const gain = gates[role].gain;
-    gain.cancelScheduledValues(at);
-    gain.setTargetAtTime(on ? 1 : 0, at, on ? 0.005 : 0.02);
+  /** Moves `role`'s chain to `level` behind a low-pass at `cutoff`, from context time `at`, with time constant `tau`. */
+  function setChain(role, level, cutoff, at, tau) {
+    const chain = chains[role];
+    for (const [param, value] of [[chain.level.gain, level], [chain.filter.frequency, cutoff]]) {
+      param.cancelScheduledValues(at);
+      param.setTargetAtTime(value, at, tau);
+    }
+  }
+
+  function open(role, at = context.currentTime) {
+    const chain = chains[role];
+    chain.misses = 0;
+    if (chain.open) return false;
+    chain.open = true;
+    setChain(role, 1, 18000, at, OPEN_TAU);
+    return true;
+  }
+
+  function close(role) {
+    const chain = chains[role];
+    const now = context.currentTime;
+    chain.misses++;
+    chain.open = false;
+    if (chain.misses === GHOST_AFTER) {
+      // three in a row: she plays along as a ghost for a bar, then is a whisper again
+      setChain(role, GHOST_LEVEL, 2400, now, CLOSE_TAU);
+      setChain(role, OUT_LEVEL, OUT_FILTER, now + bar, 0.2);
+    } else setChain(role, OUT_LEVEL, OUT_FILTER, now, CLOSE_TAU);
   }
 
   return {
-    /** Starts the song `lead` seconds from now: the clock, the first section, the scheduling. */
     start(lead = 0.4) {
       clock.start(null, lead);
       started = true;
-      if (song.backing?.buffer) {
-        backingSource = context.createBufferSource();
-        backingSource.buffer = song.backing.buffer;
-        backingSource.connect(backingGain);
-        const fileStart = clock.contextTimeOf(0) - (song.backing.beatOffset ?? 0);
-        const now = context.currentTime;
-        if (fileStart >= now) backingSource.start(fileStart);
-        else backingSource.start(now, now - fileStart);
+      const zero = clock.contextTimeOf(0);
+      const now = context.currentTime;
+      const tracks = song.backing?.stems?.length ? song.backing.stems : song.backing?.buffer ? [{ buffer: song.backing.buffer }] : [];
+      for (const track of tracks) {
+        if (!track.buffer) continue;
+        const source = context.createBufferSource();
+        source.buffer = track.buffer;
+        const gain = context.createGain();
+        gain.gain.value = (song.backing.gain ?? 0.8) * (track.gain ?? 1);
+        source.connect(gain);
+        gain.connect(track.gate ? chains[track.gate].input : mood);
+        const fileStart = zero - (song.backing.beatOffset ?? 0);
+        if (fileStart >= now) source.start(fileStart);
+        else source.start(now, now - fileStart);
+        backingSources.push(source);
       }
-      for (const role of ['a', 'b', 'c']) setGate(role, true);
       decide(0);
       if (sections.length > 1 && sections[1].start - decideAhead <= 0) decide(1);
       pump();
@@ -172,41 +211,42 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
       timer = null;
       started = false;
       queue.length = 0;
-      for (const role of ['a', 'b', 'c']) setGate(role, false);
-      bandBus.gain.setTargetAtTime(0, context.currentTime, 0.1);
-      try { backingSource?.stop(context.currentTime + 0.3); } catch { /* not started */ }
-      backingSource = null;
+      const now = context.currentTime;
+      for (const role of ROLES) setChain(role, 0, OUT_FILTER, now, 0.05);
+      bandBus.gain.setTargetAtTime(0, now, 0.1);
+      for (const source of backingSources) try { source.stop(now + 0.3); } catch { /* not started */ }
+      backingSources.length = 0;
     },
     pump,
-    /** The child hit chart note `note`: her part plays on (or comes back, the note played now if its time has passed). */
-    hit(note) {
+    /**
+     * The child hit chart note `note` (her tap `offset` s from it, negative early): the note sounds (on its beat if the tap was
+     * a little early, else now) and her chain opens. Returns whether she came back in (her chain had been closed).
+     */
+    hit(note, offset = 0) {
       const entry = decided[note.section];
       if (entry) entry.hits++;
       totals.hits++;
-      if (open[note.role]) return;
-      const at = clock.contextTimeOf(note.t);
       const now = context.currentTime;
-      if (at > now + 0.02) {
-        setGate(note.role, true, now); // an early tap: the gate is open before the note, which plays in time
-        return;
-      }
-      sounds.note(note.role, { freq: note.freq, at: now, dur: note.dur, into: partBus });
-      const next = note.next ? clock.contextTimeOf(note.next.t) : now;
-      setGate(note.role, true, Math.max(now, next - 0.004));
+      const at = clock.contextTimeOf(note.t);
+      const when = at > now && offset >= -SNAP_EARLY ? at : now;
+      const joined = open(note.role, now);
+      sounds.note(note.role, { freq: note.freq, at: when + 0.004, dur: note.dur, into: chains[note.role].input });
+      return joined;
     },
-    /** The child missed chart note `note`: her part drops out until she hits again. */
+    /** The child missed chart note `note`: a soft bloop, and her part fades to a whisper until she is hit again. */
     miss(note) {
       const entry = decided[note.section];
       if (entry) entry.misses++;
       totals.misses++;
-      setGate(note.role, false);
+      if (!roles.includes(note.role)) return;
+      sounds.oops(note.role, { freq: note.freq, into: loose });
+      close(note.role);
     },
-    /** A tap with no note: a soft note of the role's, its root in the key now. */
+    /** A tap with no note: her instrument, softly, on the key's root (it does not open her chain). */
     stray(role) {
-      const pitch = decided.at(-1)?.compiled.parts[role]?.[0]?.freq ?? 233;
-      sounds.note(role, { freq: pitch, soft: true, into: partBus });
+      const freq = decided.at(-1)?.compiled.parts[role]?.[0]?.freq ?? 233;
+      sounds.note(role, { freq, soft: true, into: loose });
     },
-    /** The run of hits is at `next` tier (0-3): the star layers come in, or fade away. */
     setTier(next) {
       if (next === tier) return;
       tier = next;
@@ -218,13 +258,11 @@ export function createConductor({ context, song, clock, band, sounds, out, room 
     length,
     beat,
     bpm: song.bpm,
-    rootFreq: () => (decided.at(-1)?.compiled.parts.a.find(Boolean)?.freq ?? 233),
-    /** The section playing at song time `time`: { index, name, variant, start, end } (null before the first is decided). */
     sectionAt(time) {
       for (let i = decided.length - 1; i >= 0; i--) if (decided[i] && time >= decided[i].start) return { index: i, ...decided[i], compiled: undefined, notes: undefined };
       return decided[0] ? { index: 0, ...decided[0], compiled: undefined, notes: undefined } : null;
     },
-    isOpen: role => open[role],
+    isOpen: role => chains[role].open,
     totals,
   };
 }

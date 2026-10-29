@@ -34,6 +34,13 @@ const NUMERALS = { i: 0, ii: 1, iii: 2, iv: 3, v: 4, vi: 5, vii: 6 };
 // The register each voice plays in, in octaves from the root's (octave 3)
 const REGISTER = { a: 0, b: 1, c: -1, bass: -1, pad: 0, choir: 0, pluck: 1, bell: 2 };
 const DRUMS = new Set(['kick', 'snare', 'clap', 'hat', 'ohat', 'shaker', 'crash']);
+// Who in the band each instrument belongs to (a part's `gate`, or the song's `gates`, can say otherwise; null: nobody's). The
+// dinosaurs own most of the music, as the player's part does in Guitar Hero: the drum kit is Þórseðla's, the bass and the riff
+// Kambeðla's, the bells and the choir Slóeðla's with her tune. What is nobody's is the skeleton (the pad, and the pulse that
+// compileSection adds on every beat so the child keeps time between notes): with nothing hit, that is all there is, and the song
+// waits for the child. A star layer (tier) is nobody's: it comes and goes with the run.
+export const BAND_GATES = { kick: 'c', snare: 'c', clap: 'c', hat: 'c', ohat: 'c', shaker: 'c', bass: 'b', pluck: 'b', bell: 'a', choir: 'a' };
+const PULSE = 0.32; // the skeleton's soft kick on every beat (a song may say `pulse: 0` for none, or another level)
 
 /** The frequency of note name `root` in octave 3 (A4 = 440 Hz). */
 export function rootHz(root = 'C') {
@@ -70,9 +77,10 @@ export function timeline(song) {
 
 /** A chord by roman numeral: its scale steps (a triad, or with a seventh: 'V7'). */
 function chordSteps(symbol) {
-  const match = /^([ivIV]+)(7?)$/.exec(symbol.trim());
+  const match = /^([ivIV]+)(7|5)?$/.exec(symbol.trim());
   if (!match) throw new TypeError(`song.js: cannot read the chord ${symbol}`);
   const root = NUMERALS[match[1].toLowerCase()];
+  if (match[2] === '5') return [root, root + 4, root + 7]; // root, fifth and octave: no third, so it sits under any chord
   return match[2] ? [root, root + 2, root + 4, root + 6] : [root, root + 2, root + 4];
 }
 
@@ -116,13 +124,14 @@ export function compileSection(song, index, variant = 'normal', transpose = 0) {
     const vel = part.vel ?? 1;
     const tier = part.tier ?? 0;
     const octave = part.octave ?? 0;
+    const gate = tier ? null : part.gate !== undefined ? part.gate : ((song.gates ?? BAND_GATES)[part.inst] ?? null);
     if (DRUMS.has(part.inst)) {
       const steps = part.steps.replace(/\s|\|/g, '');
       const lastBar = part.last?.replace(/\s|\|/g, '');
       for (let s = 0; s < total * 4; s++) {
         const inLast = lastBar && s >= (section.bars - 1) * 16;
         const c = inLast ? lastBar[s % 16] : steps[s % steps.length];
-        if (c === 'x' || c === 'o') band.push({ t: start + (s / 4) * beat, inst: part.inst, vel: vel * (c === 'o' ? 0.55 : 1), tier });
+        if (c === 'x' || c === 'o') band.push({ t: start + (s / 4) * beat, inst: part.inst, vel: vel * (c === 'o' ? 0.55 : 1), tier, gate });
       }
       continue;
     }
@@ -130,10 +139,10 @@ export function compileSection(song, index, variant = 'normal', transpose = 0) {
       const voice = steps => steps.map(step => pitch(step, REGISTER[part.inst] + octave));
       for (let b = 0; b < section.bars; b++) {
         const [first, second] = [halves[2 * b], halves[2 * b + 1]];
-        if (first.join() === second.join()) band.push({ t: start + b * 4 * beat, inst: part.inst, notes: voice(first), dur: 4 * beat, vel, tier });
+        if (first.join() === second.join()) band.push({ t: start + b * 4 * beat, inst: part.inst, notes: voice(first), dur: 4 * beat, vel, tier, gate });
         else {
-          band.push({ t: start + b * 4 * beat, inst: part.inst, notes: voice(first), dur: 2 * beat, vel, tier });
-          band.push({ t: start + (b * 4 + 2) * beat, inst: part.inst, notes: voice(second), dur: 2 * beat, vel, tier });
+          band.push({ t: start + b * 4 * beat, inst: part.inst, notes: voice(first), dur: 2 * beat, vel, tier, gate });
+          band.push({ t: start + (b * 4 + 2) * beat, inst: part.inst, notes: voice(second), dur: 2 * beat, vel, tier, gate });
         }
       }
       continue;
@@ -166,13 +175,16 @@ export function compileSection(song, index, variant = 'normal', transpose = 0) {
       } else {
         const chord = chordAt(at);
         const freq = part.inst === 'bass' ? bassFreq(token, chord, pitch, octave) : arpFreq(token, chord, pitch, REGISTER[part.inst] + octave);
-        const note = { t: start + at * beat, inst: part.inst, freq, vel, tier, beat: at, dur: 0 };
+        const note = { t: start + at * beat, inst: part.inst, freq, vel, tier, gate, beat: at, dur: 0 };
         band.push(note);
         open = note;
       }
     }
     close(slots);
   }
+  // the skeleton's pulse: a soft kick on every beat, nobody's, so the child hears the time even when no dinosaur plays
+  const pulse = section.pulse ?? song.pulse ?? PULSE;
+  if (pulse > 0) for (let b = 0; b < total; b++) band.push({ t: start + b * beat, inst: 'kick', vel: pulse, tier: 0, gate: null });
   band.sort((x, y) => x.t - y.t);
   for (const role of Object.keys(parts)) parts[role].sort((x, y) => x.t - y.t);
   return { band, parts, start, end: start + total * beat, name, variant };

@@ -903,5 +903,45 @@
       "[outro jingle] 0-107 s"
     ],
     "languageGuess": "por"
+  },
+  "stems": {
+    "files": [
+      {
+        "stem": "vocals",
+        "from": "vocals.mp3",
+        "src": "el-house-vocals.mp3",
+        "bytes": 1708242
+      },
+      {
+        "stem": "guitar",
+        "from": "guitar.mp3",
+        "src": "el-house-guitar.mp3",
+        "bytes": 1708242
+      },
+      {
+        "stem": "drums",
+        "from": "drums.mp3",
+        "src": "el-house-drums.mp3",
+        "bytes": 1708242
+      },
+      {
+        "stem": "piano",
+        "from": "piano.mp3",
+        "src": "el-house-piano.mp3",
+        "bytes": 1708242
+      },
+      {
+        "stem": "other",
+        "from": "other.mp3",
+        "src": "el-house-other.mp3",
+        "bytes": 1708242
+      },
+      {
+        "stem": "bass",
+        "from": "bass.mp3",
+        "src": "el-house-bass.mp3",
+        "bytes": 1708242
+      }
+    ]
   }
 }

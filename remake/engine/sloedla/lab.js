@@ -9,7 +9,8 @@
 //   brautir=3|2           three lanes (Kambeðla, Slóeðla, Þórseðla) or two (Slóeðla and Þórseðla; Kambeðla then just plays along)
 //   seinkun=<ms>          sound heard this much later than the browser knows (a Bluetooth speaker): kept for the next visit
 //   debug=1               the clock's numbers in a corner: the section and its version, the gates, the taps' mean error, fps
-//   sjalf=1               plays itself (a pretend child), for a look or a capture; sjalf=illa plays badly (to hear the calm versions)
+//   sjalf=1|illa|ekkert|syna  plays itself (a pretend child), for a look or a capture: well, badly (the calm versions), not at all
+//                         (the bare song), or a show of what taps do (well, then nothing, then the dinosaurs back one by one)
 //   upptaka=1             records the round, picture and sound, into window.__recording (a data: URL of a webm), for a video
 //   hljod=0               silent speakers (the sound is still made, and recorded)
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
@@ -107,21 +108,24 @@ async function start() {
   $('end').hidden = true;
   round?.conductor.stop();
   const song = await loadSong(options.song);
-  if (song.backing?.src && !song.backing.buffer) {
-    // a recorded backing (an ElevenLabs track), decoded whole once
-    const bytes = await fetch(asset(song.backing.src)).then(r => r.arrayBuffer());
-    song.backing.buffer = await context.decodeAudioData(bytes);
+  // a recorded backing (an ElevenLabs track): its stems, each a dinosaur's, or the whole mix; decoded once, one at a time
+  // (decoding many at once has crashed iOS tabs)
+  for (const track of song.backing?.stems ?? (song.backing?.src ? [song.backing] : [])) {
+    if (track.buffer || !track.src) continue;
+    const bytes = await fetch(asset(track.src)).then(r => r.arrayBuffer());
+    track.buffer = await context.decodeAudioData(bytes);
   }
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
-  const fall = LEVELS[options.level].fall;
+  const windows = LEVELS[options.level];
+  const fall = windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
   const sounds = createSongSounds({ context, output: mix, room });
   const band = createBand(context, { output: mix, room });
   const conductor = createConductor({ context, song, clock, band, sounds, out: mix, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });
@@ -131,10 +135,16 @@ async function start() {
   window.__sloedla.round = round;
 }
 
-/** The pretend child of ?sjalf=1 (most notes hit, a little early or late) or ?sjalf=illa (fewer, to hear the calm versions). */
+/**
+ * The pretend child: ?sjalf=1 hits most notes, a little early or late; ?sjalf=illa fewer (the calm versions); ?sjalf=ekkert none
+ * (the bare song); ?sjalf=syna plays well, stops for a while, then brings the dinosaurs back one at a time (Þórseðla's beat,
+ * then Kambeðla's bass, then Slóeðla's tune), to show and hear what the taps do.
+ */
+const SHOW = [[30, 'abc'], [48, ''], [58, 'c'], [68, 'cb'], [Infinity, 'abc']]; // (until song time, who is played)
 function createBot(conductor, cast, how) {
   const random = seededRandom(`sloedla-sjalf-${how}`);
-  const hitRate = how === 'illa' ? 0.4 : 0.9;
+  const hitRate = how === 'illa' ? 0.4 : how === 'ekkert' ? 0 : 0.92;
+  const plays = note => how !== 'syna' || SHOW.find(([until]) => note.t < until)[1].includes(note.role);
   let planned = 0;
   const taps = [];
   return {
@@ -142,7 +152,7 @@ function createBot(conductor, cast, how) {
       const chart = conductor.chart;
       for (; planned < chart.length; planned++) {
         const note = chart[planned];
-        if (random() > hitRate) continue;
+        if (random() > hitRate || !plays(note)) continue;
         const lane = cast.findIndex(c => c.role === note.role);
         taps.push({ lane: lane >= 0 ? lane : cast.length - 1, at: note.t + (random() + random() + random() - 1.5) * 0.12 });
       }
