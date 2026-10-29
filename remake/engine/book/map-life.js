@@ -250,17 +250,18 @@ function mulberry32(seed) {
 /** A small tiling texture of four smooth noises (white noise blurred, wrapping round), RGBA bytes, N by N. */
 function noiseData(N = 256, R = 3) {
   const random = mulberry32(7);
+  // a box blur of 2R + 1 pixels along rows or down columns, wrapping round, by a running sum (one add and one take away a pixel)
   const blur = (src, horizontal) => {
     const out = new Float32Array(N * N);
-    for (let y = 0; y < N; y++) {
-      for (let x = 0; x < N; x++) {
-        let sum = 0;
-        for (let k = -R; k <= R; k++) {
-          const xx = horizontal ? (x + k + N) % N : x;
-          const yy = horizontal ? y : (y + k + N) % N;
-          sum += src[yy * N + xx];
-        }
-        out[y * N + x] = sum / (2 * R + 1);
+    const along = horizontal ? 1 : N; // the step from a pixel to the next one in the direction of the blur
+    const across = horizontal ? N : 1; // and from one line to the next
+    for (let line = 0; line < N; line++) {
+      const from = line * across;
+      let sum = 0;
+      for (let k = -R; k <= R; k++) sum += src[from + ((k + N) % N) * along];
+      for (let i = 0; i < N; i++) {
+        out[from + i * along] = sum / (2 * R + 1);
+        sum += src[from + ((i + R + 1) % N) * along] - src[from + ((i - R + N) % N) * along];
       }
     }
     return out;
@@ -445,7 +446,9 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
   canvas.addEventListener?.('webglcontextlost', lose);
 
   // The pictures. The painting cropped to this page's part, drawn through a 2D canvas; the mask from the two layers' alphas (water
-  // in red, mist in green) in the same crop; the noise. Each is made once, here, and the images are let go once they are in.
+  // in red, mist in green) in the same crop; the noise. Each is made once, here, and the images are let go once they are in. Each
+  // step takes a tenth of a second or so, so they are done one to a turn of the page's event loop, and the page goes on drawing
+  // (the book's pages turning) between them instead of standing still for half a second.
   const loadImage = src => new Promise((ok, bad) => {
     const image = new win.Image();
     image.onload = () => ok(image);
@@ -461,25 +464,42 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
     context.drawImage(image, left, top, width, height, 0, 0, width, height);
     return { surface, context };
   };
-  Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(loadImage)).then(([painting, water, mist]) => {
-    if (gone) return;
+  const alphas = image => cropped(image).context.getImageData(0, 0, crop[2], crop[3]).data;
+  const pause = () => new Promise(ok => setTimeout(ok, 0));
+  (async () => {
+    const [painting, water, mist] = await Promise.all([PAINTING_SRC, WATER_SRC, MIST_SRC].map(loadImage));
     const [, , width, height] = crop;
-    makeTexture(gl, 0, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cropped(painting).surface);
-    const waters = cropped(water).context.getImageData(0, 0, width, height).data;
-    const mists = cropped(mist).context.getImageData(0, 0, width, height).data;
-    const mask = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      mask[i * 4] = waters[i * 4 + 3];
-      mask[i * 4 + 1] = mists[i * 4 + 3];
-      mask[i * 4 + 3] = 255;
+    let waters = null; // each layer's alpha, kept from one step to the next
+    let mists = null;
+    const steps = [
+      () => {
+        makeTexture(gl, 0, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cropped(painting).surface);
+      },
+      () => { waters = alphas(water); },
+      () => { mists = alphas(mist); },
+      () => {
+        const mask = new Uint8Array(width * height * 4);
+        for (let i = 0; i < width * height; i++) {
+          mask[i * 4] = waters[i * 4 + 3];
+          mask[i * 4 + 1] = mists[i * 4 + 3];
+          mask[i * 4 + 3] = 255;
+        }
+        makeTexture(gl, 1, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, mask);
+      },
+      () => {
+        makeTexture(gl, 2, gl.REPEAT);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, NOISE_SIZE, NOISE_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, noiseBytes ??= noiseData(NOISE_SIZE));
+      },
+    ];
+    for (const step of steps) {
+      await pause();
+      if (gone) return; // let go while it waited
+      step();
     }
-    makeTexture(gl, 1, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, mask);
-    makeTexture(gl, 2, gl.REPEAT);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, NOISE_SIZE, NOISE_SIZE, 0, gl.RGBA, gl.UNSIGNED_BYTE, noiseBytes ??= noiseData(NOISE_SIZE));
     textures = true;
-  }).catch(() => {
+  })().catch(() => {
     lose();
     if (!gl.isContextLost?.()) loseContext(); // a picture that would not come: the context is of no use to anyone
   });
