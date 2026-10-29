@@ -29,6 +29,7 @@ const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
 const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes often, and its colour says it too)
 const SAY_LIFE = 1.8; // s a word in the middle stays (an early reader needs one or two seconds for a new word)
+const SAY_TURN = 1.1; // s a word in the middle has to itself before the next may come
 const RISE_LIFE = 2.2; // s a milestone takes to rise and fade
 const END_WORDS = ['Spilum aftur saman!', 'Vel gert!', 'Flott!', 'Frábært!'];
 const END_AFTER = 0.6; // s after the song's last bar before the stars
@@ -435,9 +436,14 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (amp >= now) { punchAt = lastTime; punchAmp = amp; }
   }
 
-  /** A word in the middle of the screen, popping in letter by letter in `style` (text.js). */
-  function say(text, { y = h * 0.4, size = 54, style = 'cream' } = {}) {
-    words.push({ text, x: w / 2, y, size, style, at: lastTime });
+  /**
+   * A word in the middle of the screen, popping in letter by letter in `style` (text.js). One big word at a time: while a run's
+   * milestone is rising, the word waits until it has gone, and a word waits SAY_TURN s after the one before (which then goes).
+   */
+  function say(text, { y = h * 0.37, size = 54, style = 'cream' } = {}) {
+    const busy = rises.length ? rises[rises.length - 1].at + RISE_LIFE - 0.4 : -Infinity;
+    const turn = words.length ? words[words.length - 1].at + SAY_TURN : -Infinity;
+    words.push({ text, x: w / 2, y, size, style, at: Math.max(lastTime, busy, turn) });
     if (words.length > 3) words.shift();
   }
 
@@ -1155,8 +1161,12 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const age = time - word.at;
       const k = age / SAY_LIFE;
       if (k > 1 || k < 0) { if (k > 1) words.splice(i, 1); continue; }
+      // the next word has come: this one goes quickly
+      const next = words[i + 1];
+      const giving = next && time >= next.at ? Math.max(0, 1 - (time - next.at) / 0.2) : 1;
+      if (giving <= 0) { words.splice(i, 1); continue; }
       drawWord(g, word.text, word.x, word.y - k * 30, Math.round(word.size * (1 + 0.08 * Math.sin(age * 9) * Math.exp(-age * 3))), {
-        style: word.style, time, age, wave: 0.05, alpha: k > 0.8 ? (1 - k) / 0.2 : 1, fit: w * 0.92,
+        style: word.style, time, age, wave: 0.05, alpha: (k > 0.8 ? (1 - k) / 0.2 : 1) * giving, fit: w * 0.92,
       });
     }
     drawGrades(g, time);
@@ -1191,7 +1201,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       if (age < 0 || age > RISE_LIFE) { if (age > RISE_LIFE) rises.splice(i, 1); continue; }
       const k = Math.min(1, age / 1.3);
       const eased = 1 - (1 - k) ** 3;
-      const from = hitY - dinoR * 0.3, to = h * 0.45;
+      const from = hitY - dinoR * 0.3, to = h * 0.5;
       const size = Math.round((portrait ? 44 : 60) * (1 + 0.12 * Math.sin(age * 6) * Math.exp(-age * 2)));
       drawWord(g, [[String(r.count), 1.4], [' í röð!', 0.85]], w / 2, from + (to - from) * eased, size, {
         style: r.style, time, age, stagger: 0.05, pop: 0.28, wave: 0.07,
