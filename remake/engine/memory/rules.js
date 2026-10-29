@@ -2,32 +2,36 @@
 export const MEMORY_TIMING = Object.freeze({ reveal: 0.45, mismatch: 1.5, close: 0.3, travel: 1 });
 
 const DEFAULT_SPECIES = Object.freeze(['triceratops', 'stegosaurus', 'brontosaurus']);
+// Leaves that hide no friend: the child finds the thing under them and the turn goes on (see pick()).
+const DEFAULT_SURPRISES = Object.freeze(['berries', 'butterfly']);
 
-export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECIES } = {}) {
+export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECIES, surprises = DEFAULT_SURPRISES } = {}) {
   if (typeof random !== 'function') throw new TypeError('random must be a function');
   if (!Array.isArray(species) || !species.length || species.some(value => typeof value !== 'string' || !value.trim())
     || new Set(species).size !== species.length) throw new TypeError('species must contain distinct, nonempty names');
-  const roster = [...species];
-  let cards, selected, matchedPairs, phase, paused, stage, remaining;
+  if (!Array.isArray(surprises) || surprises.some(value => typeof value !== 'string' || !value.trim())
+    || new Set(surprises).size !== surprises.length) throw new TypeError('surprises must contain distinct, nonempty names');
+  const roster = [...species], extras = [...surprises];
+  let cards, selected, matchedPairs, phase, paused, stage, remaining, found;
 
   function restart() {
     // Build before replacing current state, so a broken random source cannot leave a half-reset game.
-    const deck = roster.flatMap(name => [name, name]);
+    const deck = [...roster.flatMap(name => [{ species: name }, { species: name }]), ...extras.map(item => ({ species: null, item }))];
     for (let i = deck.length - 1; i > 0; i--) {
       const sample = random();
       if (!Number.isFinite(sample) || sample < 0 || sample >= 1) throw new RangeError('random must return a number in [0, 1)');
       const j = Math.floor(sample * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-    cards = deck.map((name, id) => ({ id, species: name, status: 'hidden' }));
-    selected = []; matchedPairs = 0; phase = 'ready'; paused = false; stage = null; remaining = 0;
+    cards = deck.map((card, id) => ({ id, ...card, status: 'hidden' }));
+    selected = []; found = []; matchedPairs = 0; phase = 'ready'; paused = false; stage = null; remaining = 0;
     return [];
   }
 
   function getState() {
     return Object.freeze({
       cards: Object.freeze(cards.map(card => Object.freeze({ ...card }))),
-      selected: Object.freeze([...selected]), matchedPairs, phase, paused,
+      selected: Object.freeze([...selected]), found: Object.freeze([...found]), matchedPairs, phase, paused,
     });
   }
 
@@ -38,6 +42,11 @@ export function createMemoryGame({ random = Math.random, species = DEFAULT_SPECI
   function pick(index) {
     if (paused || (phase !== 'ready' && phase !== 'one-open') || !Number.isInteger(index)
       || index < 0 || index >= cards.length || cards[index].status !== 'hidden') return [];
+    // A surprise is found on the spot. It starts no stage, so the phase and the leaf already open stay as they were.
+    if (cards[index].item) {
+      cards[index].status = 'found'; found.push(cards[index].item);
+      return [{ type: 'surprise', ids: [index], item: cards[index].item }];
+    }
     cards[index].status = 'open';
     selected.push(index);
     wait(selected.length === 1 ? 'reveal-first' : 'reveal-second', MEMORY_TIMING.reveal, 'revealing');

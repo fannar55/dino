@@ -17,17 +17,19 @@ function invariant(game) {
   assert.equal(state.cards.filter(card => card.status === 'matched').length, 2 * state.matchedPairs);
   assert.equal(new Set(state.selected).size, state.selected.length);
   assert.ok(state.selected.every(id => state.cards[id].status !== 'hidden'));
-  for (const name of new Set(state.cards.map(card => card.species))) {
+  // Surprise leaves (species null) hide no friend: they are never part of a pair.
+  for (const name of new Set(state.cards.map(card => card.species).filter(Boolean))) {
     const pair = state.cards.filter(card => card.species === name);
     assert.equal(pair.length, 2);
     assert.notEqual(pair.filter(card => card.status === 'matched').length, 1);
   }
 }
 
-test('new game has three shuffled pairs and independent, deeply immutable snapshots', () => {
+test('new game has three shuffled pairs, two surprise leaves and independent, deeply immutable snapshots', () => {
   const game = fixed(), before = game.getState();
   assert.equal(before.phase, 'ready');
-  assert.equal(before.cards.length, 6);
+  assert.equal(before.cards.length, 8);
+  assert.equal(before.cards.filter(card => card.species === null).length, 2);
   assert.equal(before.matchedPairs, 0);
   assert.equal(before.paused, false);
   assert.ok(before.cards.every(card => card.status === 'hidden'));
@@ -43,19 +45,20 @@ test('supplied random source controls Fisher-Yates shuffle and each restart resh
   let sample = 0.999, calls = 0;
   const roster = ['a', 'b', 'c'];
   const game = createMemoryGame({ species: roster, random: () => { calls++; return sample; } });
-  assert.deepEqual(game.getState().cards.map(card => card.species), ['a', 'a', 'b', 'b', 'c', 'c']);
-  assert.equal(calls, 5);
+  const names = () => game.getState().cards.map(card => card.species ?? card.item);
+  assert.deepEqual(names(), ['a', 'a', 'b', 'b', 'c', 'c', 'berries', 'butterfly']);
+  assert.equal(calls, 7);
   roster[0] = 'external change';
   sample = 0;
   game.restart();
-  assert.deepEqual(game.getState().cards.map(card => card.species), ['a', 'b', 'b', 'c', 'c', 'a']);
-  assert.equal(calls, 10);
+  assert.deepEqual(names(), ['a', 'b', 'b', 'c', 'c', 'berries', 'butterfly', 'a']);
+  assert.equal(calls, 14);
   invariant(game);
 });
 
 test('first reveal has a readability lock; same, invalid and third cards never reveal', () => {
   const game = fixed();
-  for (const invalid of [-1, 6, 1.5, NaN, '0', null]) assert.deepEqual(game.pick(invalid), []);
+  for (const invalid of [-1, 8, 1.5, NaN, '0', null]) assert.deepEqual(game.pick(invalid), []);
   assert.deepEqual(game.pick(0), [{ type: 'reveal', ids: [0], species: 'triceratops' }]);
   assert.equal(game.getState().phase, 'revealing');
   assert.deepEqual(game.pick(0), []);
@@ -99,7 +102,7 @@ test('matches are counted once, retain their slots and complete only after trave
     for (const id of ids) assert.deepEqual(game.pick(id), []);
     assert.deepEqual(game.advance(0.99), []);
     const events = game.advance(0.01);
-    assert.deepEqual(events, nestIndex === 2 ? [{ type: 'won', ids: [0, 1, 2, 3, 4, 5] }] : []);
+    assert.deepEqual(events, nestIndex === 2 ? [{ type: 'won', ids: [0, 1, 2, 3, 4, 5, 6, 7] }] : []);
     assert.equal(game.getState().phase, nestIndex === 2 ? 'won' : 'ready');
     invariant(game);
   }
@@ -166,7 +169,7 @@ test('repeated arbitrary input preserves pair and selection invariants', () => {
   const random = () => ((seed = Math.imul(seed, 1664525) + 1013904223 >>> 0) / 4294967296);
   const game = createMemoryGame({ random });
   for (let i = 0; i < 2000; i++) {
-    game.pick(Math.floor(random() * 8) - 1);
+    game.pick(Math.floor(random() * 10) - 1);
     game.advance(random() * 0.8);
     if (i % 113 === 0) game.pause(!game.getState().paused);
     if (i % 397 === 0) game.restart();
@@ -175,7 +178,7 @@ test('repeated arbitrary input preserves pair and selection invariants', () => {
 });
 
 test('custom roster supports a single pair and rejects invalid setup', () => {
-  const game = createMemoryGame({ species: ['triceratops'], random: () => 0 });
+  const game = createMemoryGame({ species: ['triceratops'], surprises: [], random: () => 0 });
   revealTwo(game, 0, 1);
   assert.equal(game.advance(1)[0].type, 'won');
   for (const species of [[], ['a', 'a'], [''], [1], 'a']) {
