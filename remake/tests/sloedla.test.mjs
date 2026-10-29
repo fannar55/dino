@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, makeChart, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { scaleOf } from '../engine/sloedla/sounds.js';
+import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
 import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
 import { SONGS } from '../engine/sloedla/songs/index.js';
 
@@ -102,4 +103,27 @@ test('lanes and notes: the roles sit b a c with three lanes, a and c with two; s
   assert.deepEqual(['a', 'b', 'c'].map(role => laneOf(role, 2)), [0, 1, 1]);
   const scale = scaleOf([100, 112, 125, 150, 168]);
   assert.deepEqual([0, 4, 5, 7, -1].map(scale), [100, 168, 200, 250, 84]);
+});
+
+test('the crowd answers now and then: a quiet spell between its sounds, a sigh seldom, applause at the end always; its takes are on disk', () => {
+  const memory = {};
+  const yes = () => 0;
+  assert.equal(cueOf('tier2', 10, memory, yes), 'va', 'a run of eight: vá!');
+  assert.equal(cueOf('tier3', 12, memory, yes), null, 'not again so soon');
+  assert.equal(cueOf('tier3', 10 + CROWD_QUIET + 0.1, memory, yes), 'fagn', 'gold, after a quiet spell: cheering');
+  assert.equal(cueOf('broke', 30, memory, yes), 'ae', 'a long run broken: æææ');
+  assert.equal(cueOf('broke', 40, memory, yes), null, 'a sigh is seldom: not twice in twenty seconds');
+  assert.equal(cueOf('end', 40.5, memory, yes), 'klapp', 'applause at the end, whatever came just before');
+  assert.equal(cueOf('rejoin', 60, {}, () => 0.9), null, 'the smaller moments only some of the time');
+  const busy = {};
+  let heard = 0;
+  for (let t = 0; t < 120; t += 1) if (cueOf(['more', 'rejoin', 'big', 'broke'][t % 4], t, busy, yes)) heard++;
+  assert.ok(heard <= 120 / CROWD_QUIET + 1, `a round full of moments still hears the crowd now and then (${heard} times in two minutes)`);
+  const made = JSON.parse(fs.readFileSync(new URL('../assets/audio/sloedla/crowd.json', import.meta.url), 'utf8')).sounds;
+  for (const [sound, takes] of Object.entries(CROWD_TAKES)) {
+    for (let take = 1; take <= takes; take++) {
+      assert.ok(fs.existsSync(new URL(`../assets/audio/sloedla/crowd-${sound}-${take}.mp3`, import.meta.url)), `crowd-${sound}-${take}.mp3 is there`);
+      assert.equal(made[`${sound}-${take}`]?.kind, sound, `crowd.json says what crowd-${sound}-${take} is`);
+    }
+  }
 });

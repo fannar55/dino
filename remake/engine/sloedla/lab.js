@@ -13,6 +13,7 @@
 //                         (the bare song), or a show of what taps do (well, then nothing, then the dinosaurs back one by one)
 //   upptaka=1             records the round, picture and sound, into window.__recording (a data: URL of a webm), for a video
 //   hljod=0               silent speakers (the sound is still made, and recorded)
+//   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
@@ -22,6 +23,7 @@ import { createSongClock } from './song-clock.js';
 import { createSongSounds } from './sounds.js';
 import { createBand, createReverb } from './band.js';
 import { createConductor } from './conductor.js';
+import { createCrowd } from './crowd.js';
 import { createSongGame } from './game.js';
 import { SONGS, loadSong } from './songs/index.js';
 import { rootHz } from './song.js';
@@ -48,6 +50,7 @@ const options = {
   debug: params.get('debug') === '1',
   self: params.get('sjalf'),
   record: params.get('upptaka') === '1',
+  crowd: params.get('ahorfendur') !== '0',
   extra: readSeinkun(),
 };
 
@@ -85,6 +88,9 @@ if (mix) {
   room.connect(wet);
   wet.connect(mix);
 }
+// the crowd's voice, made with ElevenLabs (tools/sloedla-crowd.mjs); fetched and decoded while the start card waits
+const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`) }) : null;
+crowd?.load();
 
 function loadImage(src) {
   return new Promise(resolve => {
@@ -125,7 +131,7 @@ async function start() {
   const conductor = createConductor({ context, song, clock, band, sounds, out: mix, room, level: options.level, roles, fall });
   const root = rootHz(song.root) * 2;
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, crowd, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
     onEnd: result => finish(result),
   });
