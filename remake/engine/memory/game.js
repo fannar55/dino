@@ -125,8 +125,7 @@ function guidance() {
   if (time < captionUntil || cameraState().held) return;
   const story = currentStory(); caption(story.prompt);
   $('coach').dataset.tone = story.kind === 'action' ? 'action' : story.kind === 'celebrate' ? 'celebrate' : 'hint';
-  // The celebration (scenes/celebrate.js) says it when the grove is reached.
-  if (bridge.getState().visited && !celebrated && !held()) speech.queue('won', { delay: .35 });
+  // "Allir sex komnir..." (`won`) is the celebration's (scenes/celebrate.js says it when the grove is reached): nothing here queues it.
 }
 function launchAction(action) {
   // The crossing and the walk to the grove: they start on their own once every friend is home.
@@ -461,7 +460,7 @@ function frame(timestamp) {
   raf = requestAnimationFrame(frame);
 }
 
-const speech = createMemorySpeech();
+const speech = createMemorySpeech({ clock: () => time });
 const music = createMemoryMusic();
 setMute(muted);
 $('start').addEventListener('click', () => start());

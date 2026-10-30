@@ -24,7 +24,7 @@
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
-//   --restart-at W  celebration or ending: restarts the round there ("Byrja upp á nýtt" in the middle of the celebration, "Spila aftur" on the card) and
+//   --restart-at W  celebration or ending: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card) and
 //                   reports what is left running (report.restartCheck: nothing should be).
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
@@ -53,7 +53,7 @@
 // `celebration` is the page's own list of the celebration's beats in game seconds (every cut and trick, the lines, the end), `idle` the
 // waiting friends' play (idle-play.js): every game that started (friend, game, game time, the not-busy seconds it had waited, how far from
 // its spot it went) and `idleCheck` the two things the round must show: never two at once, and 6 to 10 seconds between starts while nothing is busy.
-// `spoken` is each line of Mosi's the page played and when; `endingCard` the ending card's words (and the gifts row).
+// `spoken` is each line of Mosi's the page started and when (game seconds; `speechCheck` counts `won` and the gifts line and says how long the gifts line took to follow Mosi's cheer); `endingCard` the ending card's words (and the gifts row).
 // `surprises` lists each surprise leaf the driver opened: { id, item, at (s) }; `found` and `basketEnd` say what the rules
 // and the basket in the ribbon held at the end.
 // `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
@@ -254,7 +254,7 @@ function killProfileProcesses(exe, userDir) {
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
-  window.__taps = []; window.__origin = performance.timeOrigin; window.__spoken = []; window.__sounds = {}; const heard = new Set();
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; const heard = new Set();
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
     window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
@@ -270,7 +270,6 @@ const TIMELINE_JS = `(() => {
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
     // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
     for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
-    const spoken = m.audio ? m.audio().speech.current : null; if (spoken && (window.__spoken.at(-1)?.id !== spoken || performance.now() / 1000 - window.__spoken.at(-1).t > 6)) window.__spoken.push({ t: +(performance.now() / 1000).toFixed(2), id: spoken });
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
@@ -327,7 +326,7 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
   return { phase: s.phase, matched: s.matchedPairs, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
     sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
-    caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, basket: m.basket(), found: m.state().found.length }; })()`;
+    caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // One read of everything the driver decides on.
 const SNAPSHOT_JS = `(() => {
@@ -747,8 +746,9 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
-      if (o.restartAt === 'celebration' && s.beats.includes('trick-triceratops')) {
-        await sleep(700); step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
+      if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
+        await sleep(1200); // Mosi's gifts line is on its way (or playing)
+        step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
         report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
       }
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
@@ -851,7 +851,12 @@ async function main() {
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
-    try { report.spoken = await ev('window.__spoken'); report.sounds = await ev('window.__sounds'); } catch {}
+    try {
+      // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
+      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
+      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => /^gifts[12]$/.test(s.id));
+      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts: report.spoken.filter(s => /^gifts[12]$/.test(s.id)).length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null };
+    } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
     try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
     try {
