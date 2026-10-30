@@ -608,7 +608,7 @@ async function main() {
       }
     });
     await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
-    const phone = o.width < 768;
+    const phone = o.width < 768 || o.height < 500; // (a phone held sideways, 844x390, is a phone too: touch and the mobile media features)
     await send('Emulation.setDeviceMetricsOverride', { width: o.width, height: o.height, deviceScaleFactor: 1, mobile: phone });
     if (phone) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     if (o.cpuThrottle > 1) await send('Emulation.setCPUThrottlingRate', { rate: o.cpuThrottle });
@@ -812,10 +812,11 @@ async function main() {
       // "Rólegri hreyfing" pressed on and off while Mosi walks: his animation must stay the walk clip (it used to switch to a still idle).
       if (o.toggleMotion && !report.motionToggle && (s.mosi === 'walk' || s.mosi === 'deck')) {
         const read = () => ev(`(() => { const d = window.__memory.stats(); return { walking: Boolean(d.scene.mosiWalk), animation: d.scene.mosiAnimation, pressed: document.getElementById('motion').getAttribute('aria-pressed') }; })()`);
+        await sleep(450); // (his walk clip has faded in: it takes .25 s)
         const before = await read();
-        await ev(`document.getElementById('motion').click()`); await sleep(300); const calm = await read();
-        await ev(`document.getElementById('motion').click()`); await sleep(300); const after = await read();
-        const walks = value => value.walking && value.animation.some(a => a.clip === 'walk' && a.timeScale > 0) && !value.animation.some(a => a.clip === 'idle');
+        await ev(`document.getElementById('motion').click()`); await sleep(350); const calm = await read();
+        await ev(`document.getElementById('motion').click()`); await sleep(350); const after = await read();
+        const walks = value => value.walking && value.animation.some(a => a.clip === 'walk' && a.timeScale > 0 && a.weight > .95) && !value.animation.some(a => a.clip === 'idle' && a.weight > .05); // only the walk clip, at full weight (the old code faded him to a still idle)
         report.motionToggle = { during: s.bridge.active, before, calm, after, passed: [before, calm, after].every(walks) && calm.pressed === 'true' && after.pressed === 'false' };
         step('calm motion pressed on and off while Mosi walks', report.motionToggle);
         if (!report.motionToggle.passed) errors.push(`Mosi did not keep his walk clip when calm motion was pressed mid-walk: ${JSON.stringify(report.motionToggle)}`);
