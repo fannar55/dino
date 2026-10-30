@@ -240,7 +240,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         playClip(name,options) { return playClip(name,options); },
         /** Drop a running gesture and open the eyes (a restart or a cancelled script). */
         stopGesture() { gesture=null;if(clipLeft>0){clipLeft=0;clipName=null;play(motion==='walk'||motion==='reach-walk'?'walk':'idle');}lids?.blink.rest(0,.2); },
-        conceal() { root.visible=false; gesture=null; clipLeft=0; clipName=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
+        conceal() { root.visible=false; gesture=null; clipLeft=0; clipName=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.set(0,0,0);pose.rotation.set(0,0,0);setMotion('idle'); },
         walk(active=true) { setMotion(active?'walk':'idle'); },
         greet() { setMotion('greet'); },
         nuzzle() { setMotion('nuzzle'); },
@@ -282,7 +282,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           else walkRate=0;
           mixer.update(dt); lids?.update(dt);
           if(clipLeft>0){clipLeft-=dt;if(clipLeft<=0){clipLeft=0;clipName=null;play(motion==='walk'||motion==='reach-walk'?'walk':'idle');}}
-          pose.position.y=0; pose.rotation.set(0,0,0);
+          pose.position.set(0,0,0); pose.rotation.set(0,0,0);
           if(jaw) jaw.quaternion.copy(jawRest);
           captureBasePose();root.updateMatrixWorld(true);
           const bracing=motion==='brace'||motion==='push';

@@ -22,6 +22,7 @@ import * as THREE from 'three';
  *   plantNear(x, z, radius)     the nearest plant { x, z, radius } the layout placed within `radius` metres, or null
  *   butterfly                   { group, animate(seconds) }: the existing butterfly model (or null: no chase)
  *   sound(name)                 a soft sound ('giggle')
+ *   games                       which of the five may be played (all; a review can ask for one with ?idle=yawn)
  * getDebug() has every start (friend, game, time, how long it had waited), for the playthrough's own check.
  */
 export const IDLE_GAMES = Object.freeze(['chase-butterfly', 'yawn', 'scratch', 'sniff', 'nudge-friend']);
@@ -33,12 +34,11 @@ const PLAYABLE = ['idle', 'greet', 'delight', 'nuzzle', 'mismatch'];
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
 const ease = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 
-export function createIdlePlay({ actors = () => [], random = Math.random, camera = () => null, heightAt = () => 0, clear = () => true, plantNear = () => null, butterfly = null, sound = () => {}, speed = 1.15 } = {}) {
+export function createIdlePlay({ actors = () => [], random = Math.random, camera = () => null, heightAt = () => 0, clear = () => true, plantNear = () => null, butterfly = null, sound = () => {}, speed = 1.15, games = IDLE_GAMES } = {}) {
   let clock = 0, since = 0, nextAt = gap(), calm = 0, retry = 0, reduced = false, active = null, overlaps = 0;
   const log = [], returning = [], glances = new Map(), lastPlayed = new Map(), lastGame = new Map();
   const right = new THREE.Vector3(), point = new THREE.Vector3(), here = new THREE.Vector3();
   function gap() { return IDLE_GAP.min + random() * (IDLE_GAP.max - IDLE_GAP.min); }
-  const pick = list => list[Math.min(list.length - 1, Math.floor(random() * list.length))];
   const state = actor => actor.getDebugState?.() ?? {};
   const free = entry => { const s = state(entry.actor); return !s.gesture && !s.clip && !s.support && PLAYABLE.includes(s.motion); };
 
@@ -149,7 +149,7 @@ export function createIdlePlay({ actors = () => [], random = Math.random, camera
         if (!mate || !free(mate) || a.actor.root.position.distanceTo(other.root.position) > 3.6) return false;
         // Which side of each the other one stands on.
         const side = (from, to) => { const yaw = from.root.rotation.y; right.set(Math.sin(yaw), 0, Math.cos(yaw)); here.copy(to.root.position).sub(from.root.position); return right.dot(here) >= 0 ? 'right' : 'left'; };
-        a.mate = mate; a.mateSpot = other.root.position.clone();
+        a.mate = mate;
         use(a, `nudge-${side(a.actor, other)}`);
         a.jolted = false; return true;
       },
@@ -173,9 +173,9 @@ export function createIdlePlay({ actors = () => [], random = Math.random, camera
     for (const entry of ready) {
       const player = { entry, actor: entry.actor, others: entries.filter(other => other !== entry), spot: entry.actor.root.position.clone(), yaw: entry.actor.root.rotation.y, lift: 0, age: 0, walking: false, used: new Set(), looked: false };
       player.lift = player.spot.y - heightAt(player.spot.x, player.spot.z);
-      const games = [...IDLE_GAMES].filter(name => name !== lastGame.get(entry.actor));
-      for (let i = games.length; i > 1; i--) { const j = Math.floor(random() * i); [games[i - 1], games[j]] = [games[j], games[i - 1]]; }
-      for (const name of games) {
+      const names = games.filter(name => name !== lastGame.get(entry.actor) || games.length === 1);
+      for (let i = names.length; i > 1; i--) { const j = Math.floor(random() * i); [names[i - 1], names[j]] = [names[j], names[i - 1]]; }
+      for (const name of names) {
         const game = GAMES[name];
         if (!game.begin(player)) { endOwn(player); continue; }
         if (log.some(item => item.ended == null)) overlaps++;

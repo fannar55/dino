@@ -32,7 +32,7 @@ import { finishScene } from './scenes/finish.js';
 import { sampleTravel } from './travel-traffic.js';
 import { measureWalkGait } from './walk-gait.js';
 import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
-import { createIdlePlay } from './idle-play.js';
+import { createIdlePlay, IDLE_GAMES } from './idle-play.js';
 
 // Eight leaves in a 4 x 2 grid turned toward the search camera: the four of a row run across the screen (each `across`
 // metres from the next), the two rows `deep` apart, so the board is as wide on the screen as it can be made narrow.
@@ -524,7 +524,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     await Promise.all(babyActors.map(actor => prepareCharacter(actor.model, lighting.sun, { levels: BABY_LEVELS, casterLevel: 2 })));
     resize();
     babyShadows = createMemoryShadowLods(babyActors, lighting.sun);
-    idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly: items.get('butterfly') ?? null,
+    idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly: items.get('butterfly') ?? null, games: (params.get('idle') ?? '').split(',').filter(name => IDLE_GAMES.includes(name)).length ? params.get('idle').split(',').filter(name => IDLE_GAMES.includes(name)) : IDLE_GAMES,
       sound: name => deferredEvents.push({ type: 'scene-sound', name }) });
     resize();
     onProgress('Laufin eru tilbúin.');
