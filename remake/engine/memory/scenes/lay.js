@@ -18,7 +18,7 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 const DONE_FRONT = [1, 0, -.15];
 const SE = [.55, 0, .83], E = [1, 0, .2], ESE = [1, 0, .5];
 const STILL = [{ front: SE, elevation: 34 }, { front: SE, elevation: 34 }, { front: SE, elevation: 34 }];
-const CARRY = [{ front: E, elevation: 32 }, { front: ESE, elevation: 34 }, { front: E, elevation: 32 }];
+const CARRY = [{ front: E, elevation: 32 }, { front: E, elevation: 38 }, { front: E, elevation: 32 }];
 const BACK = [{ front: ESE, elevation: 30 }, { front: ESE, elevation: 32 }];
 
 /**
