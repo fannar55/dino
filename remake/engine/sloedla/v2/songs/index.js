@@ -3,6 +3,7 @@
 export const SONGS_V2 = [
   { id: 'pixel', name: 'Pixlaferð', file: 'pixel.js', load: () => import('./pixel.js') },
   { id: 'boogie', name: 'Rokkhopp', file: 'boogie.js', load: () => import('./boogie.js') },
+  { id: 'fonk', name: 'Fönkhopp', file: 'fonk.js', load: () => import('./fonk.js') },
 ];
 
 /** The v2 song called `id`, or null. */
