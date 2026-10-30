@@ -97,3 +97,20 @@ test('a star reached on the bar lives more quietly: a smaller beat, its turns fu
   const spins = Array.from({ length: 1200 }, (_, k) => at(11 + k * 0.01).spin); // 12 s
   assert.ok(spins.some((s, k) => k + 100 < spins.length && spins[k + 100] - s >= 2 * Math.PI), 'now and then a quick turn');
 });
+
+// the owner: a star that moves must come to rest facing front, never on its side
+const offFront = spin => Math.abs(Math.atan2(Math.sin(spin), Math.cos(spin))); // 0 facing front, π/2 on its side
+test('stars come to rest facing front, never on their side', () => {
+  for (let t = 0; t < 30; t += 0.1) assert.ok(offFront(barStar({ t, x: 300, y: 30, size: 20, litAt: Infinity }).spin) <= 0.4, `glass on the bar at ${t.toFixed(1)}`);
+  for (const litAt of [10, 10.37, 11.9, 13.3]) {
+    for (let life = 0; life < 3.9; life += 0.05) {
+      const s = barStar({ t: litAt + 0.5 + life, x: 300, y: 30, size: 20, litAt });
+      assert.ok(offFront(s.spin) <= 0.25, `reached at ${litAt}, ${life.toFixed(2)} s after its turn: ${offFront(s.spin).toFixed(2)} off the front`);
+    }
+  }
+  const times = endTimes(3);
+  for (let s = 2.5; s < 4.5; s += 0.05) { // after the three turned together (until 2.4 s), before its next burst of turns
+    const star = endStar({ t: times.lands[0] + s, i: 0, earned: true, from: { x: 0, y: 0 }, to: { x: 100, y: 100 }, size: 80, times });
+    assert.ok(offFront(star.spin) <= 0.35, `the end's star ${s.toFixed(2)} s after landing`);
+  }
+});

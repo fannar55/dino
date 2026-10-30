@@ -81,20 +81,23 @@ export function endStar({ t, i, earned, from, to, size, times }) {
   };
 }
 
-/** A star on the bar at (x, y) at time `t`: glass until `litAt` (when it was reached), then a jump, a quick turn, gold. */
+/**
+ * A star on the bar at (x, y) at time `t`: glass until `litAt` (when it was reached), then a jump, a quick turn, gold.
+ * Its face is always to the front at rest (the owner, 2026-10-30: a star that moves ends on its face, never on its side):
+ * the glass one only looks about a little, and every turn is a whole one.
+ */
 export function barStar({ t, x, y, size, litAt }) {
-  if (t < litAt) return { x, y, size, spin: 0.6 * t, tilt: 0, gold: 0, flash: 0, shine: 0, glass: true };
+  if (t < litAt) return { x, y, size, spin: 0.25 * Math.sin(0.7 * t + x / 97), tilt: 0, gold: 0, flash: 0, shine: 0, glass: true };
   const s = t - litAt;
-  const base = 0.6 * litAt;
   if (s < 0.5) {
     return {
       x, y: y - size * 0.9 * Math.sin((Math.PI * s) / 0.5), size: size * (1 + 0.25 * Math.sin((Math.PI * s) / 0.5)),
-      spin: base + 2 * Math.PI * easeOut(s / 0.5), tilt: 0, gold: 1, flash: Math.max(0, 1 - s / 0.35), shine: 0, glass: false,
+      spin: 2 * Math.PI * easeOut(s / 0.5), tilt: 0, gold: 1, flash: Math.max(0, 1 - s / 0.35), shine: 0, glass: false,
     };
   }
   const life = alive(s - 0.5, x / 97, LIFE.bar); // each bar star in its own time (its place on the bar)
   return {
-    x, y: y + 2 * Math.sin(2.2 * t), size: size * life.grow, spin: base + 2 * Math.PI + life.spin,
+    x, y: y + 2 * Math.sin(2.2 * t), size: size * life.grow, spin: 2 * Math.PI + life.spin,
     tilt: 0.08 * Math.sin(1.3 * t), gold: 1, flash: 0, shine: 0, glass: false,
   };
 }
