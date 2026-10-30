@@ -389,6 +389,7 @@ const SNAPSHOT_JS = `(() => {
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
     cancel: !cancel.hidden && !cancel.disabled,
+    cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
     enabled: [...buttons.filter(x => !x.disabled).map(x => x.dataset.target), ...bubbles],
     walking: (d.cells || []).some(c => c.moving || c.queued) || (d.cells || []).some(c => c.status === 'matched' && !c.moved),
     ending: !document.getElementById('ending').hidden, beats: (d.scene && d.scene.beats || []).map(b => b.name), idle: d.idle && d.idle.active ? d.idle.active.game : null,
@@ -682,6 +683,7 @@ async function main() {
     let giftsLeftChecked = false;
     const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
+    report.cancelCheck = {}; let sawFailing = false;
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
@@ -715,6 +717,19 @@ async function main() {
       if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
 
       if (!s.wait) tapWait = null;
+      // "Aftur" (#cancel-choice) must be on screen whenever the bubbles are open, also when they come back after a wrong friend's go.
+      if (s.bridge.failing) sawFailing = true; else if (!s.bridge.asking) sawFailing = false;
+      if (s.who.open) {
+        const kind = sawFailing ? 'reopened' : 'opened', c = (report.cancelCheck[kind] ||= { checks: 0, failures: 0 });
+        let box = s.cancelBox;
+        if (!(box.shown && !box.hidden && !box.disabled && box.inside)) { await sleep(120); box = (await ev(SNAPSHOT_JS)).cancelBox; } // (a frame later: the state can change between two frames)
+        c.checks++;
+        if (!(box.shown && !box.hidden && !box.disabled && box.inside)) {
+          c.failures++; errors.push(`#cancel-choice is not on screen with the bubbles open (${kind}, asking ${s.who.asking}): ${JSON.stringify(box)}`);
+          step('CANCEL BUTTON MISSING with the bubbles open', { kind, asking: s.who.asking, box });
+        }
+        if (sawFailing) { report.cancelCheck.afterWrong = (report.cancelCheck.afterWrong ?? 0) + 1; sawFailing = false; }
+      }
       for (const g of report.gifts) {
         if (!g.foundAt && s.found.includes(g.item)) g.foundAt = T();
       }

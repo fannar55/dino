@@ -391,6 +391,8 @@ function refreshControls() {
 const whoButtons = new Map();
 function reflectWho() {
   const box = $('who'), state = bridge.getState(), visible = whoVisible();
+  // "Aftur" goes with the bubbles, every frame: after a wrong friend's go the bubbles come back a frame or two after the event that closed them.
+  const cancel = $('cancel-choice'); if (cancel.hidden === visible) cancel.hidden = !visible;
   if (!visible) { if (!box.hidden) box.hidden = true; whoShown = false; return; }
   const row = box.querySelector('.who-row'), wanted = state.candidates;
   if (!whoShown || row.children.length !== wanted.length || [...row.children].some((button, i) => button.dataset.species !== wanted[i])) {
