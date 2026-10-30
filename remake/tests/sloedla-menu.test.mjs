@@ -87,6 +87,7 @@ test('hush stops the line he is saying', async () => {
     await dj.load();
     assert.ok(dj.play('hvadalag') > 0);
     const take = context.bufferSources.at(-1);
+    assert.ok(DJ_LINES.hvadalag.includes(dj.said()), 'the words of the take he says, for the bubble');
     dj.hush();
     assert.ok(take.stopTime !== undefined && take.stopTime <= context.currentTime + 0.1, 'stopped at once');
     assert.equal(talks.at(-1), 0, 'the music comes back up');

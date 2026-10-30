@@ -109,6 +109,7 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
   const buffers = {}; // id -> AudioBuffer
   const last = {}; // key -> the id said last
   let current = null; // { source, level } of the line he is saying
+  let saidText = '';
   let queue = Promise.resolve();
   function load() {
     const order = [...DJ_TAKES].sort((x, y) => Number(x.id.split('-').pop()) - Number(y.id.split('-').pop()));
@@ -128,6 +129,7 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
     const fresh = ready.length > 1 ? ready.filter(take => take.id !== last[key]) : ready;
     const take = fresh[Math.floor(random() * fresh.length)];
     last[key] = take.id;
+    saidText = take.text;
     const buffer = buffers[take.id];
     const at = context.currentTime + delay;
     const source = context.createBufferSource();
@@ -156,5 +158,7 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
     current = null;
     onTalk(now, 0);
   }
-  return { load, play, hush, bus };
+  /** The words of the take he said last (for a bubble), or the empty string. */
+  const said = () => saidText;
+  return { load, play, hush, said, bus };
 }

@@ -7,40 +7,54 @@
 <link rel="icon" href="data:,">
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./sloedla.css">
-<!-- Slóeðla's song game, stage 0 (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
-     The options are in engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0. -->
+<!-- Slóeðla's song game (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
+     The menu (menu.js, menu-view.js): step 1 who plays, step 2 the song cards, the DJ in the corner. The options are in
+     engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0. -->
 </head>
 <body>
 <main class="sl">
   <canvas class="sl-field" id="field" aria-label="Söngur Slóeðlu"></canvas>
 
-  <section class="sl-start" id="start">
-    <div class="sl-card">
-      <img class="sl-hero" src="./assets/eitt/parasaurolophus.webp" alt="Slóeðla">
-      <h1>Söngur Slóeðlu</h1>
-      <p class="sl-how" id="loading-words">Pikkaðu á eðluna þegar ljósið kemur til hennar!</p>
-      <button class="sl-play" id="play" type="button" data-play disabled>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
-        <span>Spila</span>
-      </button>
-      <div class="sl-options" role="group" aria-label="Stillingar">
-        <span class="sl-chips sl-songs" data-songs></span><span class="sl-by" data-by hidden></span>
-        <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
-        <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
+  <section class="sl-menu" id="start" data-step="hver">
+    <div class="sl-dj" aria-live="polite">
+      <span class="sl-dj-pic"><img src="./assets/sloedla/valmynd/dj.webp" alt="DJ-inn"></span>
+      <p class="sl-dj-say" data-say></p>
+    </div>
+
+    <div class="sl-step" data-step-view="hver">
+      <h1 class="sl-title">Söngur Slóeðlu</h1>
+      <div class="sl-pick" role="group" aria-label="Hver spilar?">
+        <button type="button" class="sl-big" data-option="stig=barn"><span class="sl-big-icon" aria-hidden="true">🧒</span><span>Barn</span></button>
+        <button type="button" class="sl-big" data-option="stig=fullordinn"><span class="sl-big-icon" aria-hidden="true">🧑</span><span>Fullorðinn</span></button>
+      </div>
+      <div class="sl-pick" role="group" aria-label="Hve margar eðlur?">
+        <button type="button" class="sl-big" data-option="brautir=3"><span class="sl-friends" aria-hidden="true"><img src="./assets/eitt/stegosaurus-tail.webp" alt=""><img src="./assets/eitt/parasaurolophus.webp" alt=""><img src="./assets/eitt/brontosaurus.webp" alt=""></span><span>3 eðlur</span></button>
+        <button type="button" class="sl-big" data-option="brautir=2"><span class="sl-friends" aria-hidden="true"><img src="./assets/eitt/parasaurolophus.webp" alt=""><img src="./assets/eitt/brontosaurus.webp" alt=""></span><span>2 eðlur</span></button>
+      </div>
+      <button type="button" class="sl-next" data-to-songs>Veljum lag →</button>
+    </div>
+
+    <div class="sl-step sl-step-songs" data-step-view="lag" hidden>
+      <div class="sl-cards" data-cards></div>
+      <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
+      <div class="sl-row">
+        <button type="button" class="sl-back" data-back>← Til baka</button>
+        <button class="sl-play" id="play" type="button" disabled hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
+          <span>Spila!</span>
+        </button>
       </div>
     </div>
   </section>
 
   <section class="sl-end" id="end" hidden>
     <p class="sl-end-words" id="end-words">Viltu spila aftur?</p>
-    <button class="sl-play ready" type="button" data-play>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Spilum aftur</span>
-    </button>
-    <div class="sl-options" role="group" aria-label="Stillingar">
-      <span class="sl-chips sl-songs" data-songs></span><span class="sl-by" data-by hidden></span>
-      <span class="sl-chips"><button type="button" data-option="stig=barn">Barn</button><button type="button" data-option="stig=fullordinn">Fullorðinn</button></span>
-      <span class="sl-chips"><button type="button" data-option="brautir=3">3 eðlur</button><button type="button" data-option="brautir=2">2 eðlur</button></span>
+    <div class="sl-row">
+      <button class="sl-play ready" type="button" data-again>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Spilum aftur</span>
+      </button>
+      <button type="button" class="sl-next" data-other>Annað lag</button>
     </div>
   </section>
 </main>

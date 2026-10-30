@@ -1,5 +1,6 @@
 /* Slóeðla's song game (sloedla-lab.html, engine/sloedla/): the round is drawn on .sl-field, a canvas over the whole page; the
-   start card (.sl-start) and the end's buttons (.sl-end) sit over it in the journal's look (STYLE.md section 10). */
+   menu (.sl-menu: step 1 who plays, step 2 the song cards, the DJ in the corner) and the end's buttons (.sl-end) sit over it in
+   the journal's look (STYLE.md section 10). */
 
 @font-face {
   font-family: "Nunito";
@@ -24,27 +25,154 @@ html, body {
 .sl-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 [hidden] { display: none !important; }
 
-.sl-start {
+/* ---- the menu ---- */
+
+.sl-menu {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: radial-gradient(ellipse at 50% 30%, #3d3b78 0%, #1b2150 75%);
-  padding: 16px;
+  padding: 104px 16px 20px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  touch-action: pan-y;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.5px) 0 0 / 53px 53px,
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.35) 0 1px, transparent 1.5px) 0 0 / 71px 71px,
+    radial-gradient(ellipse at 50% 120%, #4a4f9a 0%, #262a66 55%, #141638 100%);
 }
 
-.sl-card {
-  background: #fffaf0;
-  border-radius: 28px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
-  padding: 20px 32px 26px;
-  text-align: center;
-  max-width: min(560px, 92vw);
-  border: 4px solid #6793d0;
+/* the DJ in the corner: his picture on a light round, his words in a bubble */
+.sl-dj { position: absolute; left: 14px; top: 12px; display: flex; align-items: flex-start; gap: 10px; max-width: calc(100% - 28px); z-index: 2; }
+.sl-dj-pic {
+  flex: none;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #fffaf0 0%, #f6efdf 70%, #e9dcc0 100%);
+  box-shadow: 0 0 0 4px #ffd76a, 0 6px 16px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  display: grid;
+  place-items: end center;
 }
-.sl-hero { width: min(300px, 60vw); height: auto; margin: -70px auto 0; display: block; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.25)); }
-.sl-card h1 { margin: 4px 0 6px; font-size: clamp(34px, 6vw, 52px); font-weight: 900; color: #4b6fa4; letter-spacing: 0.01em; }
-.sl-how { margin: 0 0 18px; font-size: clamp(20px, 3.2vw, 26px); font-weight: 700; color: #6b5a4a; }
+.sl-dj-pic img { width: 92%; height: 92%; object-fit: contain; object-position: 50% 100%; }
+.sl-dj.talking .sl-dj-pic { animation: sl-bob 0.32s ease-in-out infinite alternate; }
+.sl-dj-say {
+  position: relative;
+  margin: 10px 0 0;
+  padding: 10px 16px;
+  max-width: min(420px, 62vw);
+  background: #fffaf0;
+  border-radius: 18px;
+  font-size: clamp(17px, 2.4vw, 22px);
+  font-weight: 900;
+  line-height: 1.2;
+  color: #3b2f25;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+.sl-dj-say:empty { display: none; }
+.sl-dj-say::before { content: ""; position: absolute; left: -9px; top: 18px; border: 9px solid transparent; border-left: 0; border-right-color: #fffaf0; }
+.sl-dj.talking .sl-dj-say { animation: sl-say 0.25s ease-out; }
+@keyframes sl-bob { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-5px) rotate(2deg); } }
+@keyframes sl-say { from { transform: scale(0.85); opacity: 0.4; } }
+
+.sl-step { display: flex; flex-direction: column; align-items: center; gap: 18px; width: min(980px, 100%); animation: sl-slide 0.35s ease-out; }
+@keyframes sl-slide { from { transform: translateX(40px); opacity: 0; } }
+.sl-title { margin: 0; font-size: clamp(34px, 6vw, 54px); font-weight: 900; color: #fff6c8; text-shadow: 0 3px 0 #3b2f25, 0 6px 18px rgba(0, 0, 0, 0.4); }
+
+/* step 1: big choices */
+.sl-pick { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.sl-big {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  min-width: 200px;
+  padding: 10px 24px;
+  border: 0;
+  border-radius: 24px;
+  background: #f6efdf;
+  color: #6b5a4a;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: clamp(22px, 3.4vw, 28px);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s, color 0.2s;
+}
+.sl-big[aria-pressed="true"] { background: #2f8f86; color: #fffaf0; transform: translateY(-3px); box-shadow: 0 8px 0 #1e5f59, 0 0 22px rgba(255, 215, 106, 0.45); }
+.sl-big:active { transform: translateY(3px); }
+.sl-big-icon { font-size: 1.5em; line-height: 1; }
+.sl-friends { display: inline-flex; }
+.sl-friends img { width: 46px; height: 46px; object-fit: contain; margin-left: -10px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); }
+.sl-friends img:first-child { margin-left: 0; }
+
+.sl-next, .sl-back {
+  min-height: 64px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: clamp(22px, 3.2vw, 28px);
+  cursor: pointer;
+}
+.sl-next { background: #ffd76a; color: #3b2f25; box-shadow: 0 6px 0 #b8902e, 0 10px 22px rgba(0, 0, 0, 0.3); }
+.sl-next:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8902e; }
+.sl-back { background: rgba(255, 250, 240, 0.16); color: #fff6c8; min-height: 56px; font-size: clamp(18px, 2.6vw, 22px); }
+
+/* step 2: the song cards */
+.sl-step-songs { position: relative; }
+.sl-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(12px, 2vw, 22px); max-width: 1000px; }
+.sl-songcard {
+  --hue: #6793d0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(150px, 19vw, 190px);
+  padding: 0 0 10px;
+  border: 4px solid #fffaf0;
+  border-radius: 22px;
+  background: #fffaf0;
+  font-family: inherit;
+  color: #3b2f25;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  overflow: hidden;
+  animation: sl-card-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) backwards, sl-sway 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.08s), calc(0.6s + var(--i) * 0.4s);
+  transition: transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.25s, box-shadow 0.25s;
+}
+.sl-songcard.gold { border-color: #e9b14d; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 0 0 2px #fff6c8 inset; }
+.sl-cardpic {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--hue) 55%, #fffaf0) 0%, color-mix(in srgb, var(--hue) 85%, #1b2150) 100%);
+}
+.sl-cardpic img { width: 86%; height: 86%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3)); }
+.sl-cardname { margin-top: 8px; font-size: clamp(19px, 2.4vw, 23px); font-weight: 900; }
+.sl-cardby { font-size: 15px; font-weight: 800; color: #b07a1c; }
+.sl-stars { margin-top: 2px; font-size: 20px; letter-spacing: 2px; color: #e9b14d; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2); }
+.sl-stars.new { animation: sl-twinkle 0.6s ease-in-out 4 alternate; }
+.sl-cards.has-pick .sl-songcard { opacity: 0.75; }
+.sl-cards .sl-songcard[aria-pressed="true"] {
+  opacity: 1;
+  animation: none;
+  transform: translateY(-10px) rotate(-3deg) scale(1.04);
+  box-shadow: 0 0 0 4px var(--hue), 0 0 32px 10px color-mix(in srgb, var(--hue) 65%, transparent), 0 12px 0 rgba(0, 0, 0, 0.25);
+}
+@keyframes sl-card-in { from { transform: translateY(40px) scale(0.7); opacity: 0; } }
+@keyframes sl-sway { 50% { transform: rotate(var(--sway, 1deg)) translateY(-3px); } }
+@keyframes sl-twinkle { to { transform: scale(1.25); color: #fff6c8; text-shadow: 0 0 12px #ffd76a; } }
+.sl-sparks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+
+.sl-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
+
+/* ---- Spila and the end ---- */
 
 .sl-play {
   display: inline-flex;
@@ -67,26 +195,10 @@ html, body {
 }
 .sl-play svg { width: 52px; height: 52px; }
 .sl-play.ready { opacity: 1; animation: sl-breathe 1.8s ease-in-out infinite; }
+.sl-play.ready.pop { animation: sl-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1), sl-breathe 1.8s ease-in-out 0.45s infinite; }
 .sl-play:active { transform: translateY(4px) scale(0.98); box-shadow: 0 2px 0 #a9542a, 0 6px 14px rgba(0, 0, 0, 0.25); }
 @keyframes sl-breathe { 50% { transform: scale(1.05); } }
-
-.sl-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 20px; }
-.sl-chips { display: inline-flex; background: #f6efdf; border-radius: 999px; padding: 4px; }
-.sl-chips button {
-  min-height: 52px;
-  min-width: 96px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font-family: inherit;
-  font-weight: 800;
-  font-size: 20px;
-  line-height: 1;
-  color: #6b5a4a;
-  cursor: pointer;
-}
-.sl-chips button[aria-pressed="true"] { background: #2f8f86; color: #fffaf0; }
+@keyframes sl-pop { from { transform: scale(0.6); } 70% { transform: scale(1.08); } }
 
 .sl-end {
   position: absolute;
@@ -100,10 +212,18 @@ html, body {
   padding: 0 16px;
 }
 .sl-end-words { margin: 0; font-size: 26px; font-weight: 800; color: #fff6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); text-align: center; }
-.sl-end .sl-options { margin-top: 4px; }
-.sl-by { flex-basis: 100%; margin: -4px 0 0; font-size: clamp(18px, 2.6vw, 22px); font-weight: 800; color: #6b5a4a; text-align: center; }
-.sl-end .sl-by { color: #fff6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
+
+@media (max-width: 560px) {
+  .sl-menu { padding-top: 112px; }
+  .sl-dj-pic { width: 68px; height: 68px; }
+  .sl-big { min-width: 150px; min-height: 72px; padding: 8px 16px; }
+  .sl-songcard { width: calc(50% - 8px); max-width: 190px; }
+  .sl-play { min-height: 76px; padding: 0 28px 0 22px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .sl-play.ready { animation: none; }
+  .sl-play.ready, .sl-play.ready.pop, .sl-songcard, .sl-dj.talking .sl-dj-pic, .sl-stars.new { animation: none; }
+  .sl-step { animation-name: sl-fade; }
+  .sl-cards .sl-songcard[aria-pressed="true"] { transform: none; }
+  @keyframes sl-fade { from { opacity: 0; } }
 }

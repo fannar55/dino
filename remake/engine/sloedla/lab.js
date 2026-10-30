@@ -1,23 +1,26 @@
 // The lab page of Slóeðla's song game (sloedla-lab.html): the round on a page of its own, never linked from the game, to prove the
 // play and the music before anything else is built. Each song owns everything it plays (v2/format.js, v2/songs/) and is played
-// by a player of its own (v2/player.js), so a hit or a miss changes what is heard. It waits for a tap on "Spila" (a browser lets
-// sound begin only from a touch), plays a round, shows the stars and offers another.
+// by a player of its own (v2/player.js), so a hit or a miss changes what is heard. The menu (menu.js, menu-view.js) asks who plays,
+// then shows the songs as cards; the DJ speaks once the first tap has woken the sound (a browser lets sound begin only from a
+// touch). "Spila!" plays a round; at its end, the stars and "Spilum aftur" or "Annað lag". The choices are kept on the device.
 //
 // The address says how (all optional):
-//   lag=<id>              which song (v2/songs/index.js), the first by default
+//   lag=<id>              which song is picked (v2/songs/index.js)
 //   stig=barn|fullordinn  the child's notes (marked in the song, two beats apart at least) or the grown-ups' (every part's notes)
 //   brautir=3|2           three lanes (Kambeðla, Slóeðla, Þórseðla) or two (Slóeðla and Þórseðla; Kambeðla then just plays along)
 //   seinkun=<ms>          sound heard this much later than the browser knows (a Bluetooth speaker): kept for the next visit
 //   debug=1               the clock's numbers in a corner: the section and its version, the gates, the taps' mean error, fps
 //   sjalf=1|illa|ekkert|syna  plays itself (a pretend child), for a look or a capture: well, badly (the calm versions), not at all
-//                         (the bare song), or a show of what taps do (well, then nothing, then the dinosaurs back one by one)
+//                         (the bare song), or a show of what taps do (well, then nothing, then the dinosaurs back one by one);
+//                         the menu opens on the songs with lag= picked, and #play starts it
 //   upptaka=1             records the round, picture and sound, into window.__recording (a data: URL of a webm), for a video
 //   hljod=0               silent speakers (the sound is still made, and recorded)
 //   bakgrunnur=0          the night sky alone, without the forest (a render of the game's own world) under it
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 //   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
 //   hendur=0              no black hands clapping along at the bottom in Stjörnukraftur (hands.js)
-// Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter starts.
+// Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
+// in the menu (to the songs, then plays the picked one) and plays again at the end.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { seededRandom } from '../random.js';
@@ -33,6 +36,11 @@ import { createSongGame } from './game.js';
 import { createPlayer } from './v2/player.js';
 import { SONGS_V2, loadSongV2 } from './v2/songs/index.js';
 import { rootHz } from './key.js';
+import { createMenu } from './menu.js';
+import { createMenuView } from './menu-view.js';
+import { createSparks } from './menu-sparks.js';
+import { createBest } from './best.js';
+import { createBrot } from './brot.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
@@ -51,12 +59,14 @@ const KEYS = {
   2: { f: 0, j: 1, a: 0, l: 1, d: 0, k: 1, arrowleft: 0, arrowright: 1 },
 };
 const SEINKUN_KEY = 'mosi-sloedla-seinkun';
+const CHOICES_KEY = 'mosi-sloedla-val'; // the menu's last choices on this device: { level, lanes, song }
 
 const params = new URLSearchParams(location.search);
+const saved = readChoices();
 const options = {
-  song: params.get('lag') ?? SONGS_V2[0].id,
-  level: params.get('stig') === 'fullordinn' ? 'fullordinn' : 'barn',
-  lanes: params.get('brautir') === '2' ? 2 : 3,
+  song: params.get('lag') ?? saved.song ?? null,
+  level: (params.get('stig') ?? saved.level) === 'fullordinn' ? 'fullordinn' : 'barn',
+  lanes: String(params.get('brautir') ?? saved.lanes) === '2' ? 2 : 3,
   debug: params.get('debug') === '1',
   self: params.get('sjalf'),
   record: params.get('upptaka') === '1',
@@ -66,6 +76,19 @@ const options = {
   hands: params.get('hendur') !== '0',
   extra: readSeinkun(),
 };
+
+function readChoices() {
+  try {
+    return JSON.parse(localStorage.getItem(CHOICES_KEY) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+function saveChoices({ level, lanes, song }) {
+  try {
+    localStorage.setItem(CHOICES_KEY, JSON.stringify({ level, lanes, song }));
+  } catch { /* kept for the visit only */ }
+}
 
 function readSeinkun() {
   const given = params.get('seinkun');
@@ -223,7 +246,7 @@ function createBot(conductor, cast, how) {
 
 function finish(result) {
   $('end-words').textContent = result.stars === 3 ? 'Slóeðla syngur með þér á hátíðinni!' : 'Viltu spila aftur?';
-  $('end').hidden = false;
+  view.showEnd(result, best.record(options.song, options.level, result.stars));
   window.__sloedlaResult = result;
   if (recorder) setTimeout(() => recorder.state === 'recording' && recorder.stop(), 2500);
 }
@@ -264,7 +287,7 @@ addEventListener('keydown', event => {
   const key = event.key.toLowerCase();
   if ((key === ' ' || key === 'enter') && (!$('start').hidden || !$('end').hidden)) {
     event.preventDefault();
-    start();
+    view.enter();
     return;
   }
   const lane = KEYS[options.lanes][key];
@@ -280,34 +303,30 @@ document.addEventListener('visibilitychange', () => {
   else context.resume().catch(() => {});
 });
 
-// The options on the start and end cards: the song, the level and the lanes, kept in the address so a reload keeps them.
-function choose(name, value) {
-  if (name === 'lag') options.song = value;
-  if (name === 'stig') options.level = value;
-  if (name === 'brautir') options.lanes = Number(value);
-  params.set(name, value);
+// The menu: who plays, then the songs (menu.js, menu-view.js); the songs' best stars on this device (best.js); their previews
+// into the music bus, so the DJ dips them (brot.js). The choices go into the address too, so a reload keeps them.
+const best = createBest();
+const brot = context ? createBrot({ context, output: music, src: id => asset(`audio/sloedla/v2/${id}/brot.mp3`) }) : null;
+// the pretend child (?sjalf=) always has a song: the address's, else the first (the tools that capture it click #play at once)
+const menu = createMenu({ songs: SONGS_V2, level: options.level, lanes: options.lanes, song: options.song ?? (options.self ? SONGS_V2[0].id : null), self: Boolean(options.self) });
+function keep({ level, lanes, song }) {
+  saveChoices({ level, lanes, song });
+  for (const [name, value] of [['stig', level], ['brautir', lanes], ['lag', song]]) if (value !== null) params.set(name, String(value));
   history.replaceState(null, '', `?${params}`);
-  showOptions();
 }
-function showOptions() {
-  for (const button of document.querySelectorAll('[data-option]')) {
-    const [name, value] = button.dataset.option.split('=');
-    const now = { lag: options.song, stig: options.level, brautir: String(options.lanes) }[name];
-    button.setAttribute('aria-pressed', String(now === value));
-  }
-  // whose song the chosen one is, if it says (v2/songs/index.js `by`)
-  const by = SONGS_V2.find(song => song.id === options.song)?.by ?? '';
-  for (const line of document.querySelectorAll('[data-by]')) {
-    line.textContent = by;
-    line.hidden = !by;
-  }
-}
-for (const holder of document.querySelectorAll('[data-songs]')) {
-  holder.innerHTML = SONGS_V2.map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');
-}
-for (const button of document.querySelectorAll('[data-option]')) button.addEventListener('click', () => choose(...button.dataset.option.split('=')));
-showOptions();
-for (const button of document.querySelectorAll('[data-play]')) button.addEventListener('click', () => start());
+const view = createMenuView({
+  menu, songs: SONGS_V2, best, dj, brot, asset,
+  sparks: createSparks(document.querySelector('[data-sparks]')),
+  onUnlock: () => context?.resume().catch(() => {}),
+  save: keep,
+  onPlay: choice => {
+    options.song = choice.song;
+    options.level = choice.level;
+    options.lanes = choice.lanes;
+    keep(choice);
+    start();
+  },
+});
 
 // for a look from outside (captures, and a meter of the mix: `audio`)
 window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
