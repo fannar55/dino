@@ -21,8 +21,8 @@
   },
   "won": {
     "src": "assets/audio/memory/won.mp3",
-    "duration": 6.01,
-    "mouth": "3eb0047da200ad09580ceffffefb0dfbeefffd69900000000000004feca9deeeed9ce909ddb00bca500000000000898ddeec800bff940000000000000"
+    "duration": 6.25,
+    "mouth": "0fc048dd6000de07890aeefffcfa0efbdffddc6980000000000000000bdbba98beefdc65ce708ccc40bcc90000000000678eddb700bfe9000000000000000"
   },
   "find_bronto": {
     "src": "assets/audio/memory/find_bronto.mp3",
@@ -41,8 +41,8 @@
   },
   "roll": {
     "src": "assets/audio/memory/roll.mp3",
-    "duration": 4.09,
-    "mouth": "3eeeeed90000030dedbca4002cfd00fd930000000000effeeeceecb9eeaaadcec48cdc940000000000"
+    "duration": 4.49,
+    "mouth": "cfd000000000000cfffcb400000007dec00bfc9500000000000cecfddecedeb8dfbbbecdd80ceec80000000000"
   },
   "cross": {
     "src": "assets/audio/memory/cross.mp3",
@@ -72,7 +72,7 @@
   "who": {
     "src": "assets/audio/memory/who.mp3",
     "duration": 1.61,
-    "mouth": "09bcfcdb40afd0fdfc488400000000000"
+    "mouth": "0050eed900bb0fdfb7740000000000000"
   },
   "other": {
     "src": "assets/audio/memory/other.mp3",
@@ -86,8 +86,8 @@
   },
   "push": {
     "src": "assets/audio/memory/push.mp3",
-    "duration": 2.73,
-    "mouth": "3dfeddca300000007cfeda85300000000cfe009ec50000000000000"
+    "duration": 2.65,
+    "mouth": "9ff8000000000000000eedc9550000000000ef900fc6000000000"
   },
   "findFirst": {
     "src": "assets/audio/memory/findFirst.mp3",

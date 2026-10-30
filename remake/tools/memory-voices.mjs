@@ -21,11 +21,14 @@ const voiceId=readJson(path.join(ROOT,'remake/assets/audio/voices.json'),{}).mos
 if(voiceId!=='osSKuDKznhXBktjJ9Z9F')throw new Error('The established Mosi voice changed; review before generating memory audio.');
 if(MODEL!=='eleven_v4'||SETTINGS.speed!==.95)throw new Error('Memory audio requires the approved Eleven v4 model at speed .95.');
 const all=Object.entries(VOICE_LINES);
-for(const[id,line]of all)if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||typeof line.text!=='string'||!line.text.trim())throw new Error('Invalid voice script entry.');
+const isText=value=>typeof value==='string'&&value.trim().length>0;
+for(const[id,line]of all)if(!/^[A-Za-z][A-Za-z0-9_]*$/.test(id)||!isText(line.text)||(line.say!==undefined&&!isText(line.say))||(line.context!==undefined&&!isText(line.context)))throw new Error('Invalid voice script entry.');
+// What is sent: `say` in place of the text the child sees, and `context` as previous_text (never spoken), when a line has them.
+const sent=line=>line.say??line.text;
 const argv=process.argv.slice(2),onlyAt=argv.indexOf('--only'),only=onlyAt>=0?(argv[onlyAt+1]||'').split(','):null;
 for(const id of only||[])if(!Object.hasOwn(VOICE_LINES,id))throw new Error(`Unknown memory line: ${id}`);
 const selected=only?all.filter(([id])=>only.includes(id)):all;
-const fingerprint=line=>cacheKey({text:line.text,voiceId,seed:line.seed});
+const fingerprint=line=>cacheKey({text:sent(line),voiceId,seed:line.seed,context:line.context});
 const run=(command,args)=>execFileSync(command,args,{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','pipe']});
 const writeJson=(file,value)=>{fs.writeFileSync(`${file}.part`,`${JSON.stringify(value,null,2)}\n`);fs.renameSync(`${file}.part`,file);};
 const manifestFile=path.join(FOLDER,'manifest.json');
@@ -51,7 +54,7 @@ function verify(){
 async function generate(){
   run('ffmpeg',['-version']);run('ffprobe',['-version']);
   if(argv.includes('--verify')){console.log(JSON.stringify({verified:true,...verify()},null,2));return;}
-  if(argv.includes('--dry-run')){console.log(JSON.stringify({clips:selected.length,characters:selected.reduce((n,[,line])=>n+line.text.length,0),cached:selected.filter(([,line])=>fs.existsSync(path.join(CACHE,`${fingerprint(line)}.mp3`))).length,model:MODEL,voiceId,language:'is',settings:SETTINGS},null,2));return;}
+  if(argv.includes('--dry-run')){console.log(JSON.stringify({clips:selected.length,characters:selected.reduce((n,[,line])=>n+sent(line).length,0),cached:selected.filter(([,line])=>fs.existsSync(path.join(CACHE,`${fingerprint(line)}.mp3`))).length,model:MODEL,voiceId,language:'is',settings:SETTINGS},null,2));return;}
   const key=process.env.ELEVENLABS_API_KEY;if(!key)throw new Error('ELEVENLABS_API_KEY must be available in the environment.');
   const models=await fetch('https://api.elevenlabs.io/v1/models',{headers:{'xi-api-key':key},signal:AbortSignal.timeout(30000)});
   if(!models.ok)throw new Error(`ElevenLabs model verification returned HTTP ${models.status}.`);
@@ -65,7 +68,7 @@ async function generate(){
       if(!fs.existsSync(raw)){
         let response;
         for(let attempt=0;attempt<3;attempt++){
-          response=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,{method:'POST',headers:{'xi-api-key':key,'Content-Type':'application/json'},body:JSON.stringify({text:line.text,model_id:MODEL,language_code:'is',voice_settings:SETTINGS,...(line.seed===undefined?{}:{seed:line.seed})}),signal:AbortSignal.timeout(120000)});
+          response=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,{method:'POST',headers:{'xi-api-key':key,'Content-Type':'application/json'},body:JSON.stringify({text:sent(line),model_id:MODEL,language_code:'is',voice_settings:SETTINGS,...(line.seed===undefined?{}:{seed:line.seed}),...(line.context===undefined?{}:{previous_text:line.context})}),signal:AbortSignal.timeout(120000)});
           if(response.status!==429)break;
           await response.arrayBuffer();await new Promise(resolve=>setTimeout(resolve,2000*(attempt+1)));
         }
