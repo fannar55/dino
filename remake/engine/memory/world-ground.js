@@ -70,8 +70,8 @@ function bakeMask() {
 // The forest's ground shader (world/forest/terrain.js) stays as it is for every other game. Here the memory game lays its own
 // colours over it: bright meadow, sandy trails and places with ragged edges, mud round the marsh, and the sunlit open ground.
 const COLOURS = Object.freeze({
-  uGrassBase: '#56882b', uGrassSun: '#98b83a', uClover: '#74a53d', uForestA: '#44692f', uForestB: '#5b7d38',
-  uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uSand: '#ecc886', uSandDark: '#d6aa6c', uSandRim: '#a98150', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
+  uGrassBase: '#56882b', uGrassSun: '#8fb23e', uClover: '#74a53d', uForestA: '#44692f', uForestB: '#5b7d38',
+  uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uSand: '#f3daa0', uSandDark: '#deba82', uSandRim: '#b08c5a', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
 });
 const SHADER = Object.freeze({
   head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec3 uCanopyLight, uCanopyDark, uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,

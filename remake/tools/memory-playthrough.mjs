@@ -276,7 +276,19 @@ const TIMELINE_JS = `(() => {
 // envelopes of the six friends and Mosi, the props) every 300 ms; the worst overlap of each pair at each moment is kept.
 const CLEARANCE_JS = `(async () => {
   const { assessSceneClearances } = await import('/remake/engine/memory/memory-clearance.js');
-  window.__clr = { samples: 0, minimum: null, worst: {} };
+  window.__clr = { samples: 0, minimum: null, worst: {}, plants: { samples: 0, minimum: null, closest: null } };
+  // Every 300 ms: how close each friend's feet and Mosi come to the plants the layout placed (the footprint of each kind and
+  // size, and half a body's width): a negative number is a plant in somebody's way.
+  const FOOT = { fern: .45, bush: .9, rock: .85, rockSmall: .4, flowers: .2, horsetailReed: .5, horsetailTall: .45, treeFern: .4, cycad: .5 };
+  setInterval(() => {
+    const d = window.__demoStats; if (!d || !d.dressing) return;
+    const walkers = [...d.cells.filter(c => c.position).map(c => ({ at: c.position, half: .55 })), { at: d.scene.mosiPosition, half: .9 }];
+    const clr = window.__clr.plants; clr.samples++;
+    for (const w of walkers) for (const p of d.dressing) {
+      const gap = Math.hypot(w.at[0] - p.position[0], w.at[2] - p.position[1]) - (FOOT[p.name] ?? .4) * p.scale - w.half;
+      if (clr.minimum === null || gap < clr.minimum) { clr.minimum = +gap.toFixed(2); clr.closest = { plant: p.name, scale: p.scale, at: p.position, walker: w.at.map(v => +v.toFixed(1)), t: +(performance.now() / 1000).toFixed(1) }; }
+    }
+  }, 300);
   setInterval(() => {
     const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action || !['lay', 'finish', 'fail'].includes(action.id)) return;
     const stats = window.__memory.stats({ collision: true }); stats.collisionObjects = []; // the glade's scenery is far from the marsh; the log, branch and carried bark stay
@@ -817,6 +829,7 @@ async function main() {
   if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
   if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
   if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
+  if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
