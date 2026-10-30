@@ -2,7 +2,8 @@
 // owned by a dinosaur or by the song. The owner's lean rule: a few tests of the fiddly parts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { timelineOf, validateSong } from '../engine/sloedla/v2/format.js';
+import { FIRST_NOTE, ROLES, timelineOf, validateSong } from '../engine/sloedla/v2/format.js';
+import { chartProblems, expectedOf, sectionChart } from '../engine/sloedla/v2/chart.js';
 import { partNotes } from '../engine/sloedla/v2/parts.js';
 import { makeSong } from './sloedla-v2-fixture.mjs';
 
@@ -30,4 +31,19 @@ test('v2 song: its timeline, the rules a song keeps, and composed notes', () => 
   assert.notDeepEqual(partNotes(song, lag, 2, 'big').map(n => n.step), notes.map(n => n.step));
   const tuned = partNotes({ ...song, key: { ...song.key, cents: 30 } }, lag, 2);
   assert.ok(Math.abs(tuned[0].freq / notes[0].freq - 2 ** (30 / 1200)) < 1e-9);
+});
+
+test('v2 charts: two beats apart for the child (four when calm), half a beat for grown-ups, every lane 8 times, two lanes leave b out', () => {
+  const song = makeSong();
+  const { beat, sections } = timelineOf(song);
+  const all = (variant, options) => sections.flatMap((_, i) => sectionChart(song, i, variant, options));
+  for (const variant of ['normal', 'big', 'calm'])
+    assert.deepEqual(chartProblems(all(variant), { level: 'barn', beat, calm: variant === 'calm', whole: variant === 'normal' }), [], variant);
+  const child = all('normal');
+  assert.ok(child.every(n => n.t >= FIRST_NOTE));
+  assert.equal(expectedOf(song, { level: 'barn', roles: ROLES }), child.length);
+  const grown = all('normal', { level: 'fullordinn' });
+  assert.deepEqual(chartProblems(grown, { level: 'fullordinn', beat }), []);
+  assert.ok(grown.length > child.length);
+  assert.ok(!all('normal', { roles: ['a', 'c'] }).some(n => n.role === 'b'));
 });
