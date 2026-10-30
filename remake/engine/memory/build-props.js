@@ -51,12 +51,12 @@ export function createBuildProps({ scene, heightAt }) {
     const a = j / segments * Math.PI * 2, f = rings[r];
     waterPos.push(MARSH.center[0] + Math.cos(a) * MARSH.halfWidth * f, MARSH.waterY, MARSH.center[1] + Math.sin(a) * MARSH.halfDepth * f);
     flowUv.push(Math.sin(a)*f,Math.cos(a)*MARSH.halfWidth*f);
-    const c = new THREE.Color('#74714a'); waterColour.push(c.r, c.g, c.b, r === rings.length - 1 ? 0 : .88);
+    const c = new THREE.Color('#86703c'); waterColour.push(c.r, c.g, c.b, r === rings.length - 1 ? 0 : .86);
     if (r < rings.length - 1 && j < segments) { const n = r * (segments + 1) + j; waterIndex.push(n, n + 1, n + segments + 1, n + 1, n + segments + 2, n + segments + 1); }
   }
   const waterGeometry = geo(new THREE.BufferGeometry()); waterGeometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPos, 3)); waterGeometry.setAttribute('color', new THREE.Float32BufferAttribute(waterColour, 4)); waterGeometry.setIndex(waterIndex); waterGeometry.computeVertexNormals();
   waterGeometry.setAttribute('aFlowUv',new THREE.Float32BufferAttribute(flowUv,2));
-  const water = mesh(waterGeometry, mat({ vertexColors: true, transparent: true, depthWrite: true, alphaTest: .01, side: THREE.DoubleSide, roughness: .78 }), root, false); water.receiveShadow = false; water.renderOrder = 7.5;
+  const water = mesh(waterGeometry, mat({ vertexColors: true, transparent: true, depthWrite: true, alphaTest: .01, side: THREE.DoubleSide, roughness: .6 }), root, false); water.receiveShadow = false; water.renderOrder = 7.5;
   const waterFlow=installWaterFlow(water.material,{speed:.62,marsh:true});
 
   const barkTexture = createBarkTexture(); textures.add(barkTexture);

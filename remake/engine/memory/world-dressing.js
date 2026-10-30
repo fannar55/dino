@@ -2,8 +2,8 @@ import { RIVER, MARSH } from './bridge-props.js';
 import { sandAt, walkable } from './world-ground.js';
 
 // The memory game's own plants, named for the forest's planner (layout.plants: { name, position: [x, z], scale, variant, rot, sky }).
-// They are the forest species as they are (ferns, mossy stones, reeds, bushes with berries, flowers), only put where this place
-// wants them: round the sandy glade, along the river and the marsh, round the grove and in the dark corners of the search view.
+// They are the forest species as they are (ferns, mossy stones, golden reeds, bushes, flowers), only put where this place wants
+// them: round the sandy glade, along the river and the marsh, round the grove and in the dark corners of the search view.
 // Nothing stands where a friend or Mosi walks (walkable), on a leaf's ground (`avoid`) or on the sand.
 const VARIANTS = Object.freeze({ fern: 5, bush: 8, flowers: 8, rock: 5, rockSmall: 5, horsetailReed: 4 });
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -52,7 +52,7 @@ export function dressGround({ avoid = () => false } = {}) {
     else add('flowers', x, z, { scale: range(.9, 1.3) });
   }, { margin: .3 });
 
-  // The marsh: reeds round it where nobody walks (its ends and the strip of bank beside the lane), taller ones behind.
+  // The marsh: golden reeds and stones round it where nobody walks (its ends and the strip of bank beside the boardwalk's lane).
   const marsh = () => { const a = next() * Math.PI * 2, e = range(1.05, 1.5); return [MARSH.center[0] + Math.cos(a) * (MARSH.halfWidth + 1.2) * e, MARSH.center[1] + Math.sin(a) * (MARSH.halfDepth + 1.2) * e]; };
   scatter(90, marsh, (x, z) => {
     const roll = next();
@@ -61,7 +61,7 @@ export function dressGround({ avoid = () => false } = {}) {
     else add('fern', x, z, { scale: range(.9, 1.4) });
   }, { margin: .3 });
 
-  // The grove: ferns, flowers and stones round its berry shrubs (build-props.js), and a few of the forest's own bushes behind them.
+  // The grove: ferns, flowers and stones round its berry shrubs (build-props.js), and a few leafy bushes behind them.
   const grove = () => { const a = Math.PI + next() * Math.PI, e = range(1.0, 1.8); return [4.5 + Math.cos(a) * 6.4 * e, -26 + Math.sin(a) * 4.4 * e - 1.2]; };
   scatter(60, grove, (x, z) => {
     const roll = next();

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { RIVER, MARSH, BRIDGE, riverDistance } from './bridge-props.js';
+import { RIVER, riverDistance } from './bridge-props.js';
+import { walkable } from './world-ground.js';
 
 const random = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
@@ -72,17 +73,10 @@ export function createLivingForest(world, { avoid = () => false } = {}) {
     }
     leaf(x+dx*length*.78,y+length*.27,z+dz*length*.78,angle,length*.24,length*.055,colour,.025);
   }
+  // Nothing is planted where somebody walks or on a leaf's ground (the glade's centre and its aisles, the places after the log and
+  // at the grove, the way over the log, the water and the boardwalk's lane: world-ground.js walkable).
   function safe(x,z) {
-    if (avoid(x,z)) return false;
-    // The first clearing's centre and its leaf aisles remain open.
-    if (x>-9.4&&x<5.9&&z>-5.7&&z<10.3) return false;
-    if (x>-1.9&&x<10.6&&z>-17.4&&z<-9.8) return false;
-    if (x>-1.3&&x<10.4&&z>-30.3&&z<-22.1) return false;
-    if (Math.hypot(x+8.8,z-9.7)<1.8) return false;
-    if (Math.min(Math.hypot(x-BRIDGE.near[0],z-BRIDGE.near[1]),Math.hypot(x-BRIDGE.far[0],z-BRIDGE.far[1]))<3.3) return false;
-    if (riverDistance(x,z).distance<2.0) return false;
-    const marsh=Math.hypot((x-MARSH.center[0])/MARSH.halfWidth,(z-MARSH.center[1])/MARSH.halfDepth);
-    return marsh>1.15;
+    return !avoid(x,z)&&!walkable(x,z)&&Math.hypot(x+8.8,z-9.7)>=1.8;
   }
   const anchors=[[-10.4,1.5],[-10.6,4.6],[-10.5,7.8],[-7.2,11.5],[-4.8,11.4],[-1.8,11.7],[1.1,11.4],[4.2,10.8],[6.3,9.1],[-10.5,-3.4],[-11.3,-5.9],[-7.4,-13.2],[-4.1,-14.6],[-2.7,-17.4],[11.4,-12.9],[11.7,-15.7],[-2.6,-23.8],[-2.7,-27.3],[.3,-31],[4.3,-31.3],[8.2,-31],[11.6,-27.4],[11.4,-24],[-2.6,-20],[11.6,-20]];
   for(let i=2;i<RIVER.points.length-2;i+=3){const a=RIVER.points[i-1],p=RIVER.points[i],b=RIVER.points[i+1],dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz);for(const side of[-1,1])anchors.push([p[0]-dz/l*2.35*side,p[1]+dx/l*2.35*side]);}
