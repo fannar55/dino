@@ -87,6 +87,9 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
     assert.equal(s.starts[0].offset, 0);
   }
   assert.ok(ROLES.every(r => player.isOpen(r)));
+  // the song and the hits leave through a fast limiter, so a hit on top of a full song never clips
+  const limiter = player.hits.a.outputs.find(node => node.kind === 'compressor');
+  assert.ok(limiter && limiter.threshold.value <= -1 && limiter.ratio.value >= 12 && limiter.attack.value <= 0.003, 'a limiter');
   to(10);
   const drums = song.layers.find(l => l.id === 'trommur');
   const note = player.chart.find(n => n.layer === 'trommur' && n.t > 11);

@@ -43,6 +43,7 @@ const CLIP = Float32Array.from({ length: 1025 }, (_, i) => Math.tanh(3 * (i / 51
 const STRAY_GAIN = 0.25; // a tap at no note: a bit of her stem at -12 dB ...
 const STRAY_LENGTH = 0.12; // ... this long
 const OPEN = 18000;
+const LIMITER = { threshold: -3, knee: 0, ratio: 20, attack: 0.002, release: 0.12 }; // dB, s
 
 /**
  * The player for v2 `song` on `context` and `clock` (song-clock.js, started by start()). `out` is where the music goes (the page's
@@ -70,8 +71,13 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     return node;
   };
 
+  // everything leaves through a fast limiter, so a hit on top of a full song never clips (measured 2026-10-30: without it a few
+  // samples of a recorded song reached full scale at its hits)
+  const limiter = context.createDynamicsCompressor();
+  for (const [name, value] of Object.entries(LIMITER)) limiter[name].value = value;
+  limiter.connect(out);
   // the song bus: everything but the notes the child taps; a calm section muffles it, a big one brightens it
-  const bus = gain(1, out);
+  const bus = gain(1, limiter);
   const shelf = filter('highshelf', 4000, { gain: 0 });
   shelf.connect(bus);
   const mood = filter('lowpass', OPEN, { Q: 0.7 });
@@ -89,7 +95,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const hits = {};
   const edges = {};
   for (const role of ROLES) {
-    hits[role] = gain(1, out);
+    hits[role] = gain(1, limiter);
     const clip = context.createWaveShaper();
     clip.curve = CLIP;
     clip.oversample = '2x';
@@ -98,7 +104,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     high.connect(gain(EDGE_TRIM, hits[role]));
     edges[role] = clip;
   }
-  const loose = gain(0.5, out); // a miss's bloop and a tap at no note, outside her chain
+  const loose = gain(0.5, limiter); // a miss's bloop and a tap at no note, outside her chain
   // each layer's own level, into her chain, a tier, or the song bus
   const layers = {};
   for (const layer of song.layers) {
