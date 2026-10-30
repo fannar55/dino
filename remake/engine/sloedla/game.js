@@ -30,6 +30,7 @@ import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
 import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
 import { seededRandom } from '../random.js';
+import { barStar as barStarAt, countUp, endStar, endTimes, flyer, isNewBest } from './star-motion.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
@@ -42,7 +43,6 @@ const STAR_HIT = 0.5; // a hit during Stjörnukraftur tops the meter up by this 
 const STAR_MISS = 0.12; // and a miss spills this much of it
 const CLAP_AFTER = 8; // beats into Stjörnukraftur before the crowd claps along
 const END_AFTER = 0.6; // s after the song's last bar before the stars
-const STAR_GAP = 0.75; // s between the stars rising at the end
 const GOLD = '#f2b630';
 const FLY = 0.7; // s a won star takes to fly from the button up into the bar
 const APPROACH = 0.9; // s before a note arrives that its ring starts closing on the button
@@ -50,14 +50,16 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
 /**
  * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `conductor` the
  * player (v2/player.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
- * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
+ * ({ star(n), sparkle(), tick() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
  * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
  * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none); `claps` the crowd clapping
  * along in Stjörnukraftur (claps.js createClaps, or null); `hands` the crowd's black hands that come up and clap along with it
- * (hands.js createClapHands, loaded by the page, or null for none).
+ * (hands.js createClapHands, loaded by the page, or null for none); `stars3d` the stars in 3D (star-view.js createStarView, or null:
+ * the stars are drawn flat), `bestBefore` the song's best stars before this round (for "Nýtt met!"), `endNow` a number of stars to
+ * end with at once (the page's ?lokaskjar=, for a look at the end).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = 0, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   hands?.reset();
   const lanes = cast.length;
@@ -89,6 +91,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const pillars = []; // light going up a lane on a hit
   const puffs = []; // a grey puff where a note was missed
   const flyers = []; // stars won, on their way up into the bar
+  const shocks = []; // the end's shock waves where a star lands: { x, y, r, at }
   const meteors = []; // falling stars
   const hops = new Array(lanes).fill(-Infinity);
   const flashes = new Array(lanes).fill(-Infinity); // any tap (the button squashes)
@@ -113,6 +116,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   let starsLit = 0;
   let phase = 'play';
   let endAt = null, endStars = 0, starsShown = 0, endLine = 'aftur';
+  let endPlan = null; // the end's timings (star-motion.js endTimes), once it has begun
+  let together = false, shownCount = 0, lastTick = -Infinity; // the three turning together done; the count heard so far
+  const barLitAt = [Infinity, Infinity, Infinity]; // when each star on the bar was reached (its flyer arrived)
   const djMemory = {};
   const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
   let djStarted = false;
@@ -144,7 +150,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     dinoR = Math.min(laneW * 0.5, h * 0.13);
     hitY = h - dinoR - Math.max(14, h * 0.035);
     const barW = Math.min(w * (portrait ? 0.7 : 0.42), 520);
-    bar = { x: (w - barW) / 2, y: Math.max(22, h * 0.045), w: barW, h: Math.max(18, Math.min(26, h * 0.03)) };
+    bar = { x: (w - barW) / 2, y: Math.max(22, h * 0.045), w: barW, h: Math.max(22, Math.min(32, h * 0.036)) };
+    stars3d?.resize(w, h);
     topY = bar.y + bar.h + h * 0.06;
     counterY = bar.y + bar.h + (portrait ? 30 : 34);
     // the star meter: in the margin left of the lanes, low down; on a narrow screen, left of the bar of stars
@@ -704,15 +711,21 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
           call({ kind: 'big' });
         }
       }
-      if (time > conductor.length + END_AFTER) {
+      const lookAtEnd = endNow !== null && time > 0.3; // ?lokaskjar=: the end at once, with that many stars, for a look
+      if (time > conductor.length + END_AFTER || lookAtEnd) {
         phase = 'end';
         endAt = time;
         hands?.stop(time);
         score.total = notes.length;
-        endStars = starsFor(score);
+        if (lookAtEnd) {
+          score.total = conductor.expected;
+          score.hits = Math.round(conductor.expected * [0.1, 0.35, 0.6, 0.92][endNow]);
+          score.best = Math.round(score.hits * 0.6);
+        }
+        endStars = lookAtEnd ? endNow : starsFor(score);
+        endPlan = endTimes(endStars);
         endLine = endLineOf({ stars: endStars, misses: score.misses, full: score.misses === 0 && score.best >= notes.length && notes.length > 0 });
         call({ kind: 'end', stars: endStars, misses: score.misses, full: endLine === 'fullthus' });
-        if (endStars === 3) for (let i = 0; i < 6; i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff'][i % 3]);
         cheer('end', 0.55 + endStars * 0.15);
       }
       // falling stars now and then while a run is going
@@ -721,12 +734,37 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         nextMeteor = time + 7 - tierNow * 1.5 + random() * 4;
       }
     } else if (phase === 'end') {
-      const due = Math.min(endStars, Math.floor((time - endAt - 0.6) / STAR_GAP) + 1);
-      while (starsShown < due) chimes?.star?.(++starsShown);
-      if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) + 0.4) {
+      const t = time - endAt;
+      // each star won lands with its bell, a ring and sparks where it lands
+      while (starsShown < endStars && t >= endPlan.lands[starsShown]) {
+        const spot = endSpot(starsShown);
+        chimes?.star?.(++starsShown);
+        shocks.push({ x: spot.x, y: spot.y, r: spot.size, at: time });
+        for (let k = 0; k < 24; k++) {
+          const a = (k / 24) * Math.PI * 2, v = 160 + random() * 140;
+          sparks.push({ x: spot.x, y: spot.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0, max: 0.7 + random() * 0.4, size: 12, gravity: 140 });
+        }
+      }
+      // with three: they turn together, and the fireworks
+      if (!together && endPlan.together !== null && t >= endPlan.together) {
+        together = true;
+        for (let i = 0; i < 6; i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff'][i % 3]);
+      }
+      // the count rises with a soft tick for each new number (not more than one every 0.05 s)
+      const counted = countUp(t, endPlan.countFrom, endPlan.countTo, score.hits);
+      if (counted > shownCount && time - lastTick >= 0.05) {
+        chimes?.tick?.();
+        lastTick = time;
+      }
+      shownCount = counted;
+      if (t >= endPlan.done) {
         phase = 'done';
         onEnd(result());
       }
+    }
+    // the glitter at the gold's leading edge on the bar
+    if (phase === 'play' && shareNow() > 0 && random() < dt * 3) {
+      sparks.push({ x: bar.x + bar.w * Math.min(1, shareNow()), y: bar.y + bar.h * (0.2 + random() * 0.6), vx: (random() - 0.3) * 50, vy: -20 - random() * 50, life: 0, max: 0.5, size: 8, gravity: 60 });
     }
     // the stage lights follow whether each dinosaur plays; the sky's colour follows the section
     const ease = Math.min(1, dt * 3);
@@ -765,6 +803,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       flyers.splice(i, 1);
       const to = barStar(f.index);
       barPop = { at: time, index: f.index };
+      barLitAt[f.index] = time;
+      chimes?.sparkle?.();
       for (let k = 0; k < 16; k++) {
         const a = (k / 16) * Math.PI * 2;
         sparks.push({ x: to.x, y: to.y, vx: Math.cos(a) * 160, vy: Math.sin(a) * 160, life: 0, max: 0.6, size: 14, gravity: 120 });
@@ -773,7 +813,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     if (sparks.length > 450) sparks.splice(0, sparks.length - 450);
   }
 
-  const barStar = index => ({ x: bar.x + bar.w * STAR_SHARES[index], y: bar.y + bar.h / 2 });
+  // the bar shakes a little when a star is reached (2 px, 0.3 s)
+  const barShake = () => { const since = lastTime - barPop.at; return since >= 0 && since < 0.3 ? 2 * Math.sin(since * 60) * (1 - since / 0.3) : 0; };
+  const barStar = index => ({ x: bar.x + bar.w * STAR_SHARES[index] + barShake(), y: bar.y + bar.h / 2 });
 
   // -------------------------------------------------------------------------------------------------------------------------
   // Draw
@@ -804,6 +846,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     drawLanes(g, time, pulse);
     drawDinosaurs(g, time);
     drawNotes(g, time, kick);
+    if (phase !== 'play') drawEndVeil(g, time);
     drawEffects(g, time);
     drawBar(g, time);
     drawMeter(g, time);
@@ -813,6 +856,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       g.globalAlpha = 1;
     }
     if (phase !== 'play') drawEnd(g, time);
+    drawStars(g, time);
     if (debug) drawDebug(g, time, section);
   }
 
@@ -1221,15 +1265,10 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       g.arc(r.x, r.y, 3, 0, Math.PI * 2);
       g.fill();
     }
-    // stars won, flying up into the bar on a curve, glitter behind them
+    // stars won, flying up into the bar on a curve (drawStars draws them): glitter behind them
     for (const f of flyers) {
       const k = Math.min(1, Math.max(0, (time - f.at) / FLY));
-      const to = barStar(f.index);
-      const e = 1 - (1 - k) * (1 - k);
-      const x = f.x + (to.x - f.x) * e + Math.sin(k * Math.PI) * (f.x < w / 2 ? -1 : 1) * w * 0.08;
-      const y = f.y + (to.y - f.y) * e;
-      g.globalAlpha = 1;
-      star(g, x, y, bar.h * (1.6 - k * 0.6), GOLD, '#fff6c8', 3);
+      const { x, y } = flyer({ k, from: f, to: barStar(f.index), width: w });
       if (random() < 0.7) sparks.push({ x, y, vx: (random() - 0.5) * 40, vy: (random() - 0.5) * 40, life: 0, max: 0.4, size: 10, gravity: 60 });
     }
     g.restore();
@@ -1367,8 +1406,13 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   }
 
   function drawBar(g, time) {
-    const { x, y, w: bw, h: bh } = bar;
+    const { y, w: bw, h: bh } = bar;
+    const x = bar.x + barShake();
     const share = shareNow();
+    // a darker rim, then the groove
+    g.fillStyle = 'rgba(12, 10, 36, 0.8)';
+    roundRect(g, x - 6, y - 6, bw + 12, bh + 12, (bh + 12) / 2);
+    g.fill();
     g.fillStyle = 'rgba(20, 18, 50, 0.55)';
     roundRect(g, x - 4, y - 4, bw + 8, bh + 8, (bh + 8) / 2);
     g.fill();
@@ -1392,12 +1436,13 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       roundRect(g, x, y, Math.max(bh, bw * share), bh, bh / 2);
       g.fill();
     }
-    STAR_SHARES.forEach((least, index) => {
-      const lit = share >= least && !flyers.some(f => f.index === index);
-      const since = barPop.index === index ? time - barPop.at : Infinity;
-      const pop = since >= 0 && since < 0.5 ? 1 + 0.6 * Math.sin((since / 0.5) * Math.PI) : 1;
-      star(g, x + bw * least, y + bh / 2, bh * (lit ? 1.05 : 0.85) * pop, lit ? GOLD : 'rgba(255,255,255,0.35)', lit ? '#fff6c8' : 'rgba(255,255,255,0.5)');
-    });
+    // a gloss over the upper half, as on a sweet (the stars on it are drawStars')
+    const gloss = g.createLinearGradient(0, y, 0, y + bh * 0.55);
+    gloss.addColorStop(0, 'rgba(255, 255, 255, 0.38)');
+    gloss.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    g.fillStyle = gloss;
+    roundRect(g, x + bh * 0.2, y + 2, bw - bh * 0.4, bh * 0.5, bh * 0.25);
+    g.fill();
   }
 
   // The star meter: a star that fills like a glass of gold, its top a little wave; glints fly into it from the dinosaurs. Nearly
@@ -1490,27 +1535,105 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     g.restore();
   }
 
-  function drawEnd(g, time) {
-    const k = Math.min(1, (time - endAt) / 0.5);
-    g.globalAlpha = k * 0.55;
+  /** Where end star `i` lands, and how big it is: three in a row, the middle one higher and bigger. */
+  function endSpot(i) {
+    const cy = portrait ? h * 0.33 : h * 0.31;
+    const size = Math.min(w, h) * (portrait ? 0.12 : 0.11);
+    return { x: w / 2 + (i - 1) * size * 2.4, y: cy - (i === 1 ? size * 0.35 : 0), size: size * (i === 1 ? 1.15 : 1) };
+  }
+
+  /** The end's veil: the round goes dark behind the stars (drawn under the sparks and fireworks, so they shine on it). */
+  function drawEndVeil(g, time) {
+    g.globalAlpha = Math.min(1, (time - endAt) / 0.5) * 0.55;
     g.fillStyle = '#120f2e';
     g.fillRect(0, 0, w, h);
     g.globalAlpha = 1;
-    const cy = portrait ? h * 0.36 : h * 0.34;
-    const size = Math.min(w, h) * (portrait ? 0.12 : 0.11);
-    for (let i = 0; i < 3; i++) {
-      const sx = w / 2 + (i - 1) * size * 2.3;
-      const since = time - (endAt + 0.6 + i * STAR_GAP);
-      if (i < endStars && since >= 0) {
-        const pop = since < 0.25 ? 0.4 + (since / 0.25) * 0.8 : 1.2 - Math.min(0.2, (since - 0.25) * 0.8);
-        star(g, sx, cy - (i === 1 ? size * 0.3 : 0), size * pop, GOLD, '#fff6c8', 6);
-      } else star(g, sx, cy - (i === 1 ? size * 0.3 : 0), size * 0.9, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.35)', 4);
+  }
+
+  /** The end's words: the shock waves where stars land, the DJ's word, the count, the longest run, a new best. */
+  function drawEnd(g, time) {
+    for (let i = shocks.length - 1; i >= 0; i--) {
+      const s = shocks[i];
+      const k = (time - s.at) / 0.55;
+      if (k > 1 || k < 0) { if (k > 1) shocks.splice(i, 1); continue; }
+      g.globalAlpha = 1 - k;
+      g.strokeStyle = k < 0.3 ? '#fff6c8' : GOLD;
+      g.lineWidth = 10 * (1 - k) + 2;
+      g.beginPath();
+      g.arc(s.x, s.y, s.r * (0.9 + k * 1.4), 0, Math.PI * 2);
+      g.stroke();
     }
-    if (time - endAt > 0.6 + STAR_GAP * Math.max(1, endStars) - 0.2) {
-      const total = notes.length;
-      const since = time - (endAt + 0.4 + STAR_GAP * Math.max(1, endStars));
-      drawWord(g, DJ_LINES[endLine][0], w / 2, cy + size * 1.6, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: since, wave: 0.05, fit: w * 0.92 });
-      outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, cy + size * 1.6 + (portrait ? 50 : 60), portrait ? 24 : 30, '#e7e0ff');
+    g.globalAlpha = 1;
+    const t = time - endAt;
+    const spot = endSpot(0);
+    const below = endSpot(1).y + spot.size * 2.1;
+    if (t >= endPlan.countFrom - 0.2) {
+      drawWord(g, DJ_LINES[endLine][0], w / 2, below, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: t - endPlan.countFrom + 0.2, wave: 0.05, fit: w * 0.92 });
+      const total = score.total;
+      const shown = countUp(t, endPlan.countFrom, endPlan.countTo, score.hits);
+      const pop = t < endPlan.countTo ? 1 + 0.08 * Math.max(0, 1 - ((time - lastTick) / 0.08)) : 1;
+      outlined(g, `Þú spilaðir ${shown} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, below + (portrait ? 50 : 60), (portrait ? 24 : 30) * pop, '#e7e0ff');
+    }
+    if (t >= endPlan.countTo) {
+      const k = Math.min(1, (t - endPlan.countTo) / 0.3);
+      g.globalAlpha = k;
+      outlined(g, `Lengsta röð: ${score.best}`, w / 2, below + (portrait ? 88 : 104), portrait ? 21 : 26, '#fff6c8');
+      g.globalAlpha = 1;
+      if (isNewBest(endStars, bestBefore) && t >= endPlan.countTo + 0.3) {
+        drawWord(g, 'Nýtt met!', w / 2 + spot.size * 3.1, endSpot(1).y - spot.size * 1.2, portrait ? 30 : 38, { style: 'rainbow', time, age: t - endPlan.countTo - 0.3, wave: 0.08, fit: w * 0.4 });
+        if (random() < 0.3) sparks.push({ x: w / 2 + spot.size * 3.1 + (random() - 0.5) * 90, y: endSpot(1).y - spot.size * 1.2 + (random() - 0.5) * 30, vx: 0, vy: -30, life: 0, max: 0.5, size: 9, gravity: 0 });
+      }
+    }
+  }
+
+  /**
+   * Every star to show this frame, as star-motion.js states with ids: the bar's three, the ones flying up into it, and the end's
+   * (each won one leaves the bar when it flies). Drawn in 3D (stars3d) or flat.
+   */
+  function starStates(time) {
+    const list = [];
+    const t = endPlan ? time - endAt : -Infinity;
+    STAR_SHARES.forEach((least, index) => {
+      if (endPlan && index < endStars && t >= endPlan.launches[index]) return; // it has flown to the end's row
+      const lit = shareNow() >= least && !flyers.some(f => f.index === index);
+      const at = barStar(index);
+      list.push({ id: `bar-${index}`, ...barStarAt({ t: time, x: at.x, y: at.y, size: bar.h * 0.95, litAt: lit ? Math.min(barLitAt[index], time) : Infinity }) });
+    });
+    for (const f of flyers) {
+      const k = Math.min(1, Math.max(0, (time - f.at) / FLY));
+      const at = flyer({ k, from: f, to: barStar(f.index), width: w });
+      list.push({ id: `fly-${f.index}`, x: at.x, y: at.y, size: bar.h * at.scale, spin: k * 4 * Math.PI, tilt: 0, gold: 1, flash: 0, shine: 0, glass: false });
+    }
+    if (endPlan) {
+      for (let i = 0; i < 3; i++) {
+        const spot = endSpot(i);
+        const state = endStar({ t, i, earned: i < endStars, from: barStar(i), to: spot, size: spot.size, times: endPlan });
+        if (state.shown) list.push({ id: `end-${i}`, ...state });
+      }
+    }
+    return list;
+  }
+
+  /** The stars: in 3D when there is a view, else flat (a turn squeezes the star sideways, as a coin turning). */
+  function drawStars(g, time) {
+    const list = starStates(time);
+    if (stars3d) {
+      stars3d.draw(list);
+      return;
+    }
+    for (const s of list) {
+      const turn = Math.max(0.15, Math.abs(Math.cos(s.spin)));
+      g.save();
+      g.translate(s.x, s.y);
+      g.rotate(s.tilt);
+      g.scale(turn, 1);
+      if (s.flash > 0 || s.shine > 0) {
+        g.shadowColor = '#fff6c8';
+        g.shadowBlur = 30 * Math.max(s.flash, s.shine);
+      }
+      if (s.glass) star(g, 0, 0, s.size, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.4)', 3);
+      else star(g, 0, 0, s.size, GOLD, '#fff6c8', Math.max(2, s.size * 0.06));
+      g.restore();
     }
   }
 

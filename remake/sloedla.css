@@ -213,6 +213,9 @@ html, body {
   padding: 0 16px;
 }
 .sl-end-words { margin: 0; font-size: 26px; font-weight: 800; color: #fff6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); text-align: center; }
+.sl-end:not([hidden]) .sl-row, .sl-end:not([hidden]) .sl-end-words { animation: sl-rise 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) backwards; } /* after the stars have landed */
+.sl-end:not([hidden]) .sl-row { animation-delay: 0.12s; }
+@keyframes sl-rise { from { transform: translateY(40px); opacity: 0; } }
 
 @media (max-width: 560px) {
   .sl-menu { padding-top: 112px; }

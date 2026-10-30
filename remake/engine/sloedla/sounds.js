@@ -10,7 +10,7 @@
  * The sounds on `context`, out through `output` unless a note names its own node (`into`). `room` is the reverb send, if any;
  * `instruments` a song's own instruments ({ name: tools => play }: tools are { context, outlet, release, tone, puff, random }, play
  * takes { freq, step, at, dur, vel, soft, tapped, into }).
- * Returns { play(instrument, ...), oops(role, ...), sparkle(freq), star(n, freq) }.
+ * Returns { play(instrument, ...), oops(role, ...), tick(freq), sparkle(freq), star(n, freq) }.
  */
 export function createSongSounds({ context, output, room = null, random = Math.random, instruments = null }) {
   const bus = context.createGain();
@@ -131,6 +131,10 @@ export function createSongSounds({ context, output, room = null, random = Math.r
         tone({ frequency: down, type: 'triangle', at, length: 0.34, level: 0.075, attack: 0.012, decay: 0.15, hold: 0.4, scoop: 1.12, bend: 0.25, pan, dest: into });
         tone({ frequency: down / 2, type: 'sine', at, length: 0.3, level: 0.04, attack: 0.012, decay: 0.12, hold: 0.4, scoop: 1.12, bend: 0.25, pan, dest: into });
       }
+    },
+    /** A soft tick (the end's count going up): one tiny high bell. */
+    tick(freq = 1760) {
+      bell(freq, context.currentTime + 0.005, 0.018, 0.08);
     },
     /** A hit right on the beat: a glint of two high bells, on `freq`'s octaves. */
     sparkle(freq = 880) {

@@ -19,6 +19,8 @@
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 //   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
 //   hendur=0              no black hands clapping along at the bottom in Stjörnukraftur (hands.js)
+//   3d=0                  the stars flat, not in 3D (star-view.js: the owner's star; flat too when there is no WebGL or no star)
+//   lokaskjar=0..3        the end at once with that many stars, for a look at it
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
 // in the menu (to the songs, then plays the picked one) and plays again at the end.
 
@@ -60,6 +62,8 @@ const KEYS = {
 };
 const SEINKUN_KEY = 'mosi-sloedla-seinkun';
 const CHOICES_KEY = 'mosi-sloedla-val'; // the menu's last choices on this device: { level, lanes, song }
+// the owner's star (Tripo3D) turned so its face looks at the viewer: degrees about x, y, z (assets/sloedla/stjarna/KREDIT.md)
+const STAR_FACING = [0, 0, 0];
 
 const params = new URLSearchParams(location.search);
 const saved = readChoices();
@@ -74,6 +78,8 @@ const options = {
   dj: params.get('dj') !== '0',
   backdrop: params.get('bakgrunnur') !== '0',
   hands: params.get('hendur') !== '0',
+  stars3d: params.get('3d') !== '0',
+  endNow: ['0', '1', '2', '3'].includes(params.get('lokaskjar')) ? Number(params.get('lokaskjar')) : null,
   extra: readSeinkun(),
 };
 
@@ -168,6 +174,10 @@ backdropLoading.then(([image, upright]) => { backdrop = image ? { image, upright
 // the crowd's black hands clapping along in Stjörnukraftur: Openclipart's raised hands (assets/sloedla/hendur/, KREDIT.md)
 const hands = options.hands ? createClapHands({ src: id => asset(`sloedla/hendur/${id}.svg`) }) : null;
 hands?.load();
+// the stars in 3D (star-view.js, three.js over the field): loaded while the menu waits; null (no WebGL, no star): flat stars
+const starView = options.stars3d && context
+  ? import('./star-view.js').then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING })).catch(() => null)
+  : Promise.resolve(null);
 
 let round = null; // { game, clock, conductor, bot }
 let images = null;
@@ -204,9 +214,12 @@ async function start() {
   // the player keeps the name the round and the measuring tools know it by (round.conductor)
   const conductor = createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall });
   const root = rootHz(song.key.root) * 2;
+  const stars3d = await starView;
+  stars3d?.clear();
   const game = createSongGame({
     canvas, cast, conductor, fall, clock, windows, crowd, claps, dj, backdrop, hands, debug: options.debug,
-    chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
+    stars3d, bestBefore: best.get(options.song, options.level), endNow: options.endNow,
+    chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2), tick: () => sounds.tick(root * 8) },
     onEnd: result => finish(result),
   });
   round = { game, clock, conductor, bot: options.self ? createBot(conductor, cast, options.self) : null };
