@@ -7,6 +7,7 @@
 <link rel="icon" href="data:,">
 <link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./sloedla.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script>
 <!-- Slóeðla's song game (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
      The menu (menu.js, menu-view.js): step 1 who plays, step 2 the song cards, the DJ in the corner. The options are in
      engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0. -->
@@ -14,6 +15,7 @@
 <body>
 <main class="sl">
   <canvas class="sl-field" id="field" aria-label="Söngur Slóeðlu"></canvas>
+  <canvas class="sl-stars3d" id="stars3d" aria-hidden="true"></canvas>
 
   <section class="sl-menu" id="start" data-step="hver">
     <div class="sl-dj" aria-live="polite">
