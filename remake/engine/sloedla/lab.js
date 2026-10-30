@@ -101,11 +101,12 @@ if (mix) {
   wet.connect(mix);
 }
 // The balance of the round (measured 2026-10-30 with the side notes' loudness.mjs + loudness-report.mjs, K-weighted as loudness
-// meters hear; the owner: the music was too low against the rest): the music bus up 2 dB, the crowd and the DJ down 2 dB each,
-// and the music dips 3 dB under the DJ, not 5. The DJ had peaked 9-14 dB over the music, the crowd up to 9.
+// meters hear; the owner: the music was too low against the rest): the music bus up 2 dB, the crowd down 2 dB, the DJ down 1 dB,
+// and the music dips 3 dB under the DJ, not 5. The DJ had peaked 9-14 dB over the music, now about 3-7 (still clear to a child);
+// the crowd's cheers had peaked up to 9 dB over it, now about 0-3.
 const MUSIC_LEVEL = 1.26;
 const CROWD_LEVEL = 1.1;
-const DJ_LEVEL = 0.95;
+const DJ_LEVEL = 1.07;
 const TALK_DIP = 0.71;
 // the crowd's voice, made with ElevenLabs (tools/sloedla-crowd.mjs); fetched and decoded while the start card waits
 const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`), level: CROWD_LEVEL }) : null;
