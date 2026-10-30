@@ -2,7 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **Yfirlit fyrir eigandann:** níu bútar (0–8). Bútur 0 setur greinina á
+> **Yfirlit fyrir eigandann:** tíu bútar (0–9). Bútur 9 (bætt við 30. okt.) eru tólf lauf, gjafapör
+> (snjáldurmús, kuðungakrabbi, krabbi) og að leiknum lýkur fyrst þegar öll laufin eru fundin. Bútur 0 setur greinina á
 > núverandi main og býr til tólið sem tekur myndir og myndbönd. Bútur 1 lífgar
 > fyrstu mínútuna með handritum og skotum. Bútur 2 eru ungarnir (þú samþykkir
 > fyrst). Bútar 3–6 eru rjóðrið, fyrsta þrautin, brúin og mýrin. Bútur 7 er ljós
@@ -285,3 +286,76 @@
   - A short update to `remake/engine/memory/README.md`.
   - Give the owner the list of old tests or tools that no longer apply (two-stone modules, clearance and convoy gates) and remove them only on his word. Commit.
 - [ ] **Owner checkpoint:** a full round on video and the last sounds. A whole-branch review runs before any merge into main.
+
+### Task 9: Twelve leaves, gift pairs, the round ends when all are found
+
+The owner's word after playing Task 8 (2026-10-30): eight leaves is too easy; the gifts are new small animals, found as pairs
+like the friends; the round ends only when all 12 leaves are found. He picked the three gifts and downloaded them himself:
+snjáldurmús (shrew), kuðungakrabbi (hermit crab) and krabbi (fiddler crab). The game already has a frog, snail, beetle,
+salamander, dragonfly, butterfly, fish, turtle and birds, so none of those is a gift.
+
+**Files:**
+- Modify: `rules.js`, `surprise-items.js` (becomes the gift table), `world.js` (`CELLS` 4 × 3, `gladeCue`, the leaf batch, reveal/celebration hooks), `game.js`, `minnisspil.html`, `minnisspil.css`, `scenes/celebrate.js`, `voice-lines.js`, `remake/tools/memory-playthrough.mjs`, `remake/engine/memory/README.md`
+- Create: `remake/assets/memory/gifts/{shrew,hermit-crab,crab}.glb` and a `-source.json` beside each; `remake/tools/blender-gift.py`
+- Test: update `remake/tests/memory-surprises.test.mjs` and `remake/tests/memory-rules.test.mjs` (no new test file)
+
+**Interfaces:**
+- Produces: `createMemoryGame({ random, species, gifts = ['shrew', 'hermitCrab', 'crab'] })`; the `surprises` option and the `surprise` event are gone.
+  - A gift card is `{ id, species: null, item, status }`, with status `'hidden' | 'open' | 'found'`. Friend cards are unchanged.
+  - Two leaves match when they hide the same friend or the same gift. `pick` emits `{ type: 'reveal', ids: [id], species, item }` for either kind (the other field is null). A gift pair emits `{ type: 'gift', ids, item, giftIndex }`, sets both to `'found'`, appends `item` to `getState().found`, and waits `MEMORY_TIMING.travel` like a match.
+  - A gift and a friend, or two different gifts, are a mismatch and close as now.
+  - `matchedPairs` counts friend pairs only (homes and the "x / 3 pör" dots stay as they are). `won` fires only when all friend pairs and all gift pairs are found.
+- Produces: `GIFT_ITEMS` in `surprise-items.js`, one row per gift: `word`, `name`, `seek`, `caption`, `voice`, `make()`. `make()` returns `{ group, tilt, animate(seconds), dispose() }` as before.
+  - `shrew` = Snjáldurmús, seek "Snjáldurmús! Hvar er hin?", caption "Snjáldurmús! Hún fer í körfuna."
+  - `hermitCrab` = Kuðungakrabbi, seek "Kuðungakrabbi! Hvar er hinn?", caption "Kuðungakrabbi! Hann fer í körfuna."
+  - `crab` = Krabbi, seek "Krabbi! Hvar er hinn?", caption "Krabbi! Hann fer í körfuna."
+  - The crab plays its `Dance` clip while shown. The other two bob and turn gently, like the berries did.
+
+- [ ] **Step 1: The gift models.** The owner's downloads are in `qa/memory/gjafir/src/` (git-ignored): `shrew.glb`, `little_hermit_crab.glb`, `dancing_crab_-_uca_mjoebergi.glb`. All three are CC BY 4.0; their `asset.extras` hold author, title and source.
+  - Write `remake/tools/blender-gift.py` (Blender 5.2 headless: `"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup --python …`). It imports a GLB, drops the meshes whose material is named on the command line, joins the rest into one mesh with one material, decimates to a triangle target, scales maps to 512 px WebP at quality 80, and exports a GLB with its animations. It keeps a skin and its clips.
+  - Each gift is at most 4,000 triangles, one mesh and one material, 512 px maps, faces +X with its feet on y = 0, and a known size.
+  - The crab: drop the `AOFLoor` floor, and convert the spec-gloss material (`KHR_materials_pbrSpecularGlossiness`, which three no longer reads) to metal-rough. Keep `Dance`.
+  - The hermit crab: join its 13 parts.
+  - The shrew: decimate from 37,652 triangles.
+  - Run `remake/tools/quantize-glb.mjs` on the static two only, because three ignores the node scale quantization needs on a skinned mesh.
+  - Write a `-source.json` beside each, as `assets/critters/butterfly-source.json` does: author, title, source URL, `CC BY 4.0` with its licence URL, the download's bytes and md5, triangles, maps, what was changed, and the exact commands.
+  - Render each in the game's light, from the search camera's height, and look at it. Expected: a recognisable textured animal with no holes, no missing map and no floor. Commit.
+- [ ] **Step 2: Rules.** Update `memory-surprises.test.mjs` and `memory-rules.test.mjs`:
+  - `deck has 12 cards: 3 friend pairs and 3 gift pairs`.
+  - `a gift pair is found, joins found, and does not count as a friend pair`.
+  - `a gift and a friend mismatch and both close`.
+  - `two different gifts mismatch`.
+  - `found gifts cannot be picked again`.
+  - `won waits for the last gift pair` (all friends matched with one gift pair left → not won).
+  - Run them. Expected: FAIL. Implement it in `rules.js`, then run again. Expected: PASS.
+- [ ] **Step 3: The glade.**
+  - 12 leaves in a 4 × 3 grid, turned toward the search camera like now.
+  - Re-fit `gladeCue` so all 12 leaves, Mosi and the group are visible at 1280 × 800, 820 × 1180 and 390 × 844.
+  - Leaf hit targets stay ≥44 px on the phone size.
+  - Keep the camera corridors and the paths clear.
+- [ ] **Step 4: Gifts in play.**
+  - The first leaf of a gift shows the gift standing on it, with its `seek` caption.
+  - The pair flies to the basket with `stars` and the `ding`. The basket counts "x / 3" and shows from the start of the round.
+  - Mosi says the gift's `voice` line.
+  - The berries and the butterfly no longer hide under leaves.
+  - "Byrja upp á nýtt" in the middle of a gift's flight cancels it and sets the basket to 0 / 3. A leaf tapped during the flight waits, as it does during a match.
+- [ ] **Step 5: All 12 before the crossing.**
+  - The crossing starts on its own only when all friends and all gifts are found.
+  - With the bridge built, all friends found and gifts left, Mosi says `giftsLeft` and the guiding arrow points at a hidden leaf. A tap on the staging spot says the same.
+  - When the last gift pair lands in the basket, the crossing starts, once.
+  - At the grove the celebration shows all three gifts rising from Mosi's basket, framed beside his head. Mosi says `gifts3`, and the ending card says it too.
+  - The credits for the three models (Líkan / Leyfi / Frá, as the book's card viewer shows them) are behind a small "i" on the ending card.
+- [ ] **Step 6: Lines.** Read the memory note `icelandic-voice-pronunciation` first. Add these to `voice-lines.js` with new seeds:
+  - `giftsLeft` ("Finnum fyrst gjafirnar sem eru eftir!")
+  - `gifts3` ("Þú fannst allar þrjár gjafirnar!")
+  - `gift_shrew` ("Snjáldurmús! Hún fer í körfuna.")
+  - `gift_hermitCrab` ("Kuðungakrabbi! Hann fer í körfuna.")
+  - `gift_crab` ("Krabbi! Hann fer í körfuna.")
+  - Remove `gifts1` and `gifts2`, their mp3 files and manifest entries, since the round now always ends with three.
+  - Run `memory-voices.mjs --only … --dry-run`, then without `--dry-run`, then `--verify`. The controller checks the new takes by ear and with speech-to-text afterwards.
+- [ ] **Step 7: Playthrough.**
+  - The driver finds all 12. Drop `--surprises`, and report each gift pair found (`report.gifts`: id, item, at).
+  - Run `full --video` at 1280 × 800, 820 × 1180 and 390 × 844, plus `rapid`, plus a run that finds every friend first, so the `giftsLeft` wait is seen.
+  - Expected: no errors, nothing stuck, the crossing starts once, the basket ends at 3 / 3, and ≤100 draw calls and ≤250k triangles at every sampled frame, including the celebration with three gifts.
+  - Run `npm run test:memory`. Update the README's review scope (12 leaves, gift pairs, the model credits). Commit.
+- [ ] **Owner checkpoint:** the 12-leaf glade, a gift found and a gift mismatch, the `giftsLeft` wait, the celebration with three gifts, and the new lines to listen to.
