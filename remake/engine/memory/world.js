@@ -68,8 +68,10 @@ const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.52
 // leaf (GIFT.pop); when its pair is found both rise (GIFT.rise) to GIFT.hover metres above their leaves, hold, then fly to the basket
 // in the ribbon (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
 // closes ducks (GIFT.duck). `apart`: how far the two of a pair fly from one another on the screen's side to side, in metres.
+// `phone`: on a phone (under 600 px wide) the search view is far away and a gift is 25-30 px across, so it is drawn 1.75 times larger
+// at 390 px wide (682 / width, between 1.55 and 2.2) from the pop on its leaf until it has flown to the basket (about 45-70 px).
 const TAP = Object.freeze({ squash: .16, swing: .3 });
-const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: .8, duck: .2, target: 6, shrink: .12, apart: .55 });
+const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: .8, duck: .2, target: 6, shrink: .12, apart: .55, phone: 682 });
 // The leaf's squash and rebound: a damped spring round 0 (stiffness, damping), kicked by a tap or a landing.
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
@@ -689,10 +691,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (!state.shown && cell.open > .17) { state.shown = true; state.shownAge = 0; }
     if (state.shown) state.shownAge += dt;
     const place = model ? model.group.position : spare, pop = !state.shown ? 0 : reducedMotion ? 1 : Math.max(.05, easeOutBack(state.shownAge / GIFT.pop));
-    let scale = pop;
+    const boost = width < 600 ? THREE.MathUtils.clamp(GIFT.phone / width, 1.55, 2.2) : 1;
+    let scale = pop * boost;
     place.copy(ground); place.y += .085;
     if (state.phase === 'duck') {
-      const k = reducedMotion ? 1 : smooth(state.t / GIFT.duck); scale = pop * (1 - k);
+      const k = reducedMotion ? 1 : smooth(state.t / GIFT.duck); scale = pop * boost * (1 - k);
       if (k >= 1) { releaseGift(cell); return; }
     } else if (state.phase === 'rise') {
       const rise = reducedMotion ? 0 : GIFT.rise;
@@ -707,7 +710,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       basketWorldPoint(flightTo); cameraRight.setFromMatrixColumn(camera.matrixWorld, 0); flightTo.addScaledVector(cameraRight, (state.index - .5) * GIFT.apart);
       flightMid.lerpVectors(flightFrom, flightTo, .35); flightMid.y += 1;
       place.copy(flightFrom).multiplyScalar((1 - e) * (1 - e)).addScaledVector(flightMid, 2 * (1 - e) * e).addScaledVector(flightTo, e * e);
-      scale = THREE.MathUtils.lerp(1, GIFT.shrink, e);
+      scale = THREE.MathUtils.lerp(boost, GIFT.shrink, e);
       if (state.t >= fly) {
         if (model) model.group.visible = false;
         state.phase = 'done'; state.pair.landed++;
@@ -1072,9 +1075,22 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     });
     return points;
   }
+  // The vertices of whatever is drawn under `object` (every third one), posed: a gift's silhouette on the screen.
+  function drawnPoints(object) {
+    object.updateMatrixWorld(true);
+    const points = [];
+    object.traverse(mesh => {
+      if (!mesh.isMesh || !mesh.visible) return;
+      const count = mesh.geometry.attributes.position.count;
+      for (let i = 0; i < count; i += 3) points.push(mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld));
+    });
+    return points;
+  }
   function measureFrame() {
     return {
       size: { width, height }, camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray() },
+      // The gifts on screen now (on a leaf, risen or in flight): the silhouette's box in pixels.
+      gifts: cells.filter(cell => cell.gift?.model?.group.visible).map(cell => ({ cell: cell.index, item: cell.item, phase: cell.gift.phase, scale: +cell.gift.model.group.scale.x.toFixed(3), ...screenBox(drawnPoints(cell.gift.model.group)) })),
       babies: cells.filter(cell => cell.actor).map(cell => ({ cell: cell.index, species: cell.species, visible: cell.actor.root.visible, ...screenBox(skinPoints(cell.actor.model)) })),
       mosi: screenBox(skinPoints(mosi.model)),
       homes: nests.map(nest => ({ index: nest.physicalIndex, ...screenBox([nest.root.position.clone().add(new THREE.Vector3(0, 1, 0))]) })),
