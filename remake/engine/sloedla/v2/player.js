@@ -32,8 +32,12 @@ const GHOST_AFTER = 3;
 const ACCENT_GAIN = 1; // the copy of a hit stem note, times the layer's gain: the note doubled, about +6 dB
 const ACCENT_ATTACK = 0.002; // s
 const ACCENT_MAX = 0.25; // s: the copy is never longer
-const EDGE_HZ = 3000; // the copy's brighter edge: a high shelf ...
-const EDGE_DB = 6; // ... this much up
+// The copy's edge: the same copy through a high-pass, much louder for its first moment, so the hit is heard on a tablet's small
+// speaker too (a bass note's or a kick's own body is under what it plays: measured 2026-10-30, the copy alone lifted the tablet
+// band by 0.2 dB)
+const EDGE_HZ = 300;
+const EDGE_GAIN = 3; // times the layer's gain at the start ...
+const EDGE_TAU = 0.04; // ... falling with this time constant (s)
 const STRAY_GAIN = 0.25; // a tap at no note: a bit of her stem at -12 dB ...
 const STRAY_LENGTH = 0.12; // ... this long
 const OPEN = 18000;
@@ -84,7 +88,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const edges = {};
   for (const role of ROLES) {
     hits[role] = gain(1, out);
-    edges[role] = filter('highshelf', EDGE_HZ, { gain: EDGE_DB });
+    edges[role] = filter('highpass', EDGE_HZ, { Q: 0.7 });
     edges[role].connect(hits[role]);
   }
   const loose = gain(0.5, out); // a miss's bloop and a tap at no note, outside her chain
@@ -196,17 +200,25 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     } else setChain(role, OUT_LEVEL, OUT_FILTER, now, CLOSE_TAU);
   }
 
-  /** A hit stem note: the same place of the same file again, from `when` to the note's end (at most ACCENT_MAX), into her edge. */
+  /**
+   * A hit stem note: the same place of the same file again, from `when` to the note's end (at most ACCENT_MAX), the note doubled
+   * into her hit bus and, for its first moment, an edge of it through a high-pass.
+   */
   function accent(layer, note, at, when) {
     const end = at + note.dur;
     if (!layer.buffer || when >= end - 0.005) return;
     const seconds = Math.min(end - when, ACCENT_MAX);
-    const envelope = gain(0, edges[note.role]);
-    const top = ACCENT_GAIN * (layer.gain ?? 1);
-    envelope.gain.setValueAtTime(0, when);
-    envelope.gain.linearRampToValueAtTime(top, when + ACCENT_ATTACK);
-    envelope.gain.setTargetAtTime(0, when + ACCENT_ATTACK, seconds / 3);
-    play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: envelope, length: seconds });
+    const level = layer.gain ?? 1;
+    const body = gain(0, hits[note.role]);
+    body.gain.setValueAtTime(0, when);
+    body.gain.linearRampToValueAtTime(ACCENT_GAIN * level, when + ACCENT_ATTACK);
+    body.gain.setTargetAtTime(0, when + ACCENT_ATTACK, seconds / 3);
+    const edge = gain(0, edges[note.role]);
+    edge.gain.setValueAtTime(0, when);
+    edge.gain.linearRampToValueAtTime(EDGE_GAIN * level, when + ACCENT_ATTACK);
+    edge.gain.setTargetAtTime(0, when + ACCENT_ATTACK, EDGE_TAU);
+    const source = play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: body, length: seconds });
+    source.connect(edge);
   }
 
   return {

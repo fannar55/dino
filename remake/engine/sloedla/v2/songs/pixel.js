@@ -24,8 +24,8 @@ const REST16 = `${REST} ${REST}`;
 /** How loud each plays: a note that plays by itself, one the child taps (the loudest), a stray tap. */
 const LEVELS = {
   ferningur: { play: 0.075, tapped: 0.17, soft: 0.03 },
-  pulsi: { play: 0.11, tapped: 0.24, soft: 0.04 },
-  tromma: { play: 0.32, tapped: 0.5, soft: 0.12 },
+  pulsi: { play: 0.11, tapped: 0.38, soft: 0.04 },
+  tromma: { play: 0.32, tapped: 0.7, soft: 0.12 },
   thrihyrningur: { play: 0.24, tapped: 0.24, soft: 0.1 },
   bergmal: { play: 0.03, tapped: 0.03, soft: 0.03 },
   glimmer: { play: 0.03, tapped: 0.03, soft: 0.03 },
@@ -127,7 +127,7 @@ const INSTRUMENTS = {
       const source = osc(context, { freq, at, end, dest: volume, width: tapped ? 0.25 : 0.125 });
       if (tapped) {
         const blip = context.createGain();
-        blip.gain.setValueAtTime(0.45, at);
+        blip.gain.setValueAtTime(0.6, at);
         blip.gain.linearRampToValueAtTime(0, at + 0.06);
         blip.connect(volume);
         release(osc(context, { freq: freq * 2, at, end: at + 0.06, dest: blip, width: 0.125 }), [blip]);
@@ -156,10 +156,10 @@ const INSTRUMENTS = {
         release(source, nodes);
         if (tapped) {
           const { volume: click, nodes: more } = outlet(pan, into);
-          click.gain.setValueAtTime(level * 0.35, at);
+          click.gain.setValueAtTime(level * 0.5, at);
           click.gain.linearRampToValueAtTime(0, at + 0.015);
           release(osc(context, { freq: 1200, at, end: at + 0.015, dest: click }), more);
-          puff({ at, length: 0.04, level: level * 0.5, frequency: 3000, q: 0.9, pan, attack: 0.001, dest: into });
+          puff({ at, length: 0.05, level: level * 0.7, frequency: 3000, q: 0.9, pan, attack: 0.001, dest: into });
         }
       } else if (step === 1) {
         puff({ at, length: soft ? 0.06 : 0.13, level: level * 0.7, frequency: 1900, end: 1100, q: 0.6, pan, attack: 0.001, dest: into });

@@ -3,7 +3,10 @@
 // 96-100 % alike), so every song of the new kind (engine/sloedla/v2) is compared with every other song, old and new:
 //   the tap rhythm  where the child's notes fall, bar by bar in order (barn, the normal version): under 60 % alike
 //   the form        its sections' lengths and repeats ('4A 8B 8C 8B'): never the same as another's
-//   the start       (--starts, in a browser) the spectrum of its first seconds with nobody playing: under 85 % alike (goal 80 %)
+//   the start       (--starts, in a browser) the spectrum of its first 2.5 s with nobody playing: under 85 % alike (goal 80 %);
+//                   and, for a look, its first seconds played well
+// Why 2.5 s: in a song of the new kind nobody playing means every note missed, and a missed note muffles that dinosaur's layers,
+// so after its first notes the bare song is no longer the song; no note falls before 2.5 s (v2/format.js FIRST_NOTE).
 //
 //   node remake/tools/sloedla-variety.mjs                          the tap rhythms and forms; exit 1 if a new song is too like another
 //   node remake/tools/sloedla-variety.mjs --starts [--seconds 8] [--lock <dir>]
@@ -145,8 +148,8 @@ const decode = file => {
   return new Float32Array(pcm.buffer, pcm.byteOffset, pcm.length / 4);
 };
 
-/** Records the first `seconds` of each song (the lab's glue, nobody playing) in headless Edge into `dir`/<id>.webm. */
-async function recordStarts(ids, dir, seconds) {
+/** Records the first `seconds` of each song (the lab's glue; the pretend child playing `how`) in headless Edge into `dir`/<how>-<id>.webm. */
+async function recordStarts(ids, dir, seconds, how = 'ekkert') {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const exe = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
   const userDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sloedla-variety-'));
@@ -184,7 +187,7 @@ async function recordStarts(ids, dir, seconds) {
       return false;
     };
     for (const song of ids) {
-      await send('Page.navigate', { url: `http://127.0.0.1:4231/remake/sloedla-lab.html?hljod=0&dj=0&ahorfendur=0&sjalf=ekkert&lag=${song}` });
+      await send('Page.navigate', { url: `http://127.0.0.1:4231/remake/sloedla-lab.html?hljod=0&dj=0&ahorfendur=0&sjalf=${how}&lag=${song}` });
       await sleep(300);
       await waitFor('window.__sloedlaReady === true');
       await ev(`(async () => {
@@ -204,8 +207,8 @@ async function recordStarts(ids, dir, seconds) {
       })()`);
       await waitFor('typeof window.__clip === "string"', (seconds + 30) * 1000);
       const data = await ev('window.__clip');
-      await fsp.writeFile(path.join(dir, `${song}.webm`), Buffer.from(data.slice(data.indexOf('base64,') + 7), 'base64'));
-      console.log(`  recorded ${song}`);
+      await fsp.writeFile(path.join(dir, `${how}-${song}.webm`), Buffer.from(data.slice(data.indexOf('base64,') + 7), 'base64'));
+      console.log(`  recorded ${how} ${song}`);
     }
     ws.close();
   } finally {
@@ -223,22 +226,34 @@ async function starts({ seconds, lock }) {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sloedla-starts-'));
   if (lock) fs.mkdirSync(lock); // throws if another capture holds it
   try {
-    await recordStarts([...old, ...fresh], dir, seconds);
+    await recordStarts([...old, ...fresh], dir, seconds, 'ekkert');
+    await recordStarts([...old, ...fresh], dir, seconds, '1');
   } finally {
     if (lock) fs.rmSync(lock, { recursive: true, force: true });
   }
-  const shapes = Object.fromEntries([...old, ...fresh].map(id => [id, spectrumShape(decode(path.join(dir, `${id}.webm`)))]));
-  let worst = 0;
-  for (const id of fresh) {
-    const rows = Object.keys(shapes).filter(other => other !== id).map(other => [other, cosine(shapes[id], shapes[other])]).sort((a, b) => b[1] - a[1]);
-    worst = Math.max(worst, rows[0][1]);
-    console.log(`${id}: most alike ${rows.slice(0, 3).map(([o, c]) => `${o} ${(100 * c).toFixed(0)} %`).join(', ')}`);
-  }
-  let oldSum = 0, oldN = 0;
-  for (let i = 0; i < old.length; i++) for (let j = i + 1; j < old.length; j++) { oldSum += cosine(shapes[old[i]], shapes[old[j]]); oldN++; }
-  console.log(`the old songs' starts, two by two: ${(100 * oldSum / Math.max(1, oldN)).toFixed(0)} % alike on average`);
-  console.log(`the new songs' highest: ${(100 * worst).toFixed(0)} % (limit ${100 * START_ALIKE} %, goal under ${100 * START_GOAL} %)`);
-  return worst <= START_ALIKE;
+  // the clip starts as the round does, 0.4 s before the song's first beat (the clock's lead)
+  const LEAD = 0.4, BARE = 2.5;
+  const compare = (how, from, to) => {
+    const shapes = Object.fromEntries([...old, ...fresh].map(id => {
+      const samples = decode(path.join(dir, `${how}-${id}.webm`));
+      return [id, spectrumShape(samples.subarray(Math.round(from * RATE), Math.round(to * RATE)))];
+    }));
+    let worst = 0;
+    for (const id of fresh) {
+      const rows = Object.keys(shapes).filter(other => other !== id).map(other => [other, cosine(shapes[id], shapes[other])]).sort((a, b) => b[1] - a[1]);
+      worst = Math.max(worst, rows[0][1]);
+      console.log(`  ${id}: most alike ${rows.slice(0, 3).map(([o, c]) => `${o} ${(100 * c).toFixed(0)} %`).join(', ')}`);
+    }
+    let oldSum = 0, oldN = 0;
+    for (let i = 0; i < old.length; i++) for (let j = i + 1; j < old.length; j++) { oldSum += cosine(shapes[old[i]], shapes[old[j]]); oldN++; }
+    console.log(`  the old songs, two by two: ${(100 * oldSum / Math.max(1, oldN)).toFixed(0)} % alike on average; the new songs' highest: ${(100 * worst).toFixed(0)} %`);
+    return worst;
+  };
+  console.log(`the first ${BARE} s, nobody playing (limit ${100 * START_ALIKE} %, goal under ${100 * START_GOAL} %):`);
+  const bare = compare('ekkert', LEAD, LEAD + BARE);
+  console.log(`the first ${seconds} s, played well (for a look):`);
+  compare('1', LEAD, LEAD + seconds);
+  return bare <= START_ALIKE;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

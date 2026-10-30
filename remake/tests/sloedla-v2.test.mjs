@@ -1,6 +1,6 @@
 // Slóeðla's song game, the new song system (engine/sloedla/v2): songs made of layers, each a recorded stem or a composed part,
 // owned by a dinosaur or by the song. The owner's lean rule: a few tests of the fiddly parts.
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FIRST_NOTE, ROLES, timelineOf, validateSong } from '../engine/sloedla/v2/format.js';
@@ -52,6 +52,10 @@ test('v2 charts: two beats apart for the child (four when calm), half a beat for
   assert.ok(!all('normal', { roles: ['a', 'c'] }).some(n => n.role === 'b'));
 });
 
+// every player made is stopped at the end, a failed test's too (its timer would keep the run going)
+const players = [];
+after(() => { for (const player of players) player.stop(); });
+
 // A player on the fake audio context (fake-audio.mjs) and a clock whose song time 0 is context time 0.4. The song plays on as the
 // game's timer would move it: small steps, a pump each (sections are decided as time passes).
 function rig({ roles, drop } = {}) {
@@ -62,6 +66,7 @@ function rig({ roles, drop } = {}) {
   const plays = [];
   const sounds = { play: (name, options) => plays.push({ name, ...options }), oops() {} };
   const player = createPlayer({ context, song, clock, sounds, out: context.createGain(), roles });
+  players.push(player);
   const to = t => {
     while (context.currentTime < 0.4 + t - 1e-9) {
       context.advance(Math.min(0.1, 0.4 + t - context.currentTime));
@@ -91,6 +96,10 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
   assert.ok(Math.abs(accent.starts[0].when - (0.4 + note.t)) < 1e-9);
   assert.ok(Math.abs(accent.starts[0].offset - (0.03 + note.t)) < 1e-9);
   assert.ok(accent.stopTime <= accent.starts[0].when + Math.min(note.dur, 0.25) + 1e-6);
+  // its edge: the same copy through a high-pass, much louder at its start, so a tablet's small speaker hears the hit too
+  const edge = accent.outputs.find(node => node.outputs.some(next => next.kind === 'filter' && next.type === 'highpass'));
+  assert.ok(edge, 'the copy has an edge through a high-pass');
+  assert.ok(edge.gain.valueAt(accent.starts[0].when + 0.002) >= 2.5, 'the edge is at least 2.5 times the note at its start');
   const late = player.chart.find(n => n.layer === 'bassi' && n.t > note.t);
   to(late.t + late.dur + 0.01);
   const made = context.bufferSources.length;
