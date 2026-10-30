@@ -215,7 +215,8 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   /**
    * A hit stem note: the same place of the same file again, from `when` to the note's end (at most ACCENT_MAX), the note doubled
    * into her hit bus and, for its first moment, an edge of it through a soft clip and a high-pass. The layer's `accent` (the song
-   * says) makes both stronger, for a stem that is quiet in its recording.
+   * says) makes both stronger, for a stem that is quiet in its recording; its `edge` (0 to 1) how much edge it has (none for a
+   * voice, which the clip would roughen).
    */
   function accent(layer, note, at, when) {
     const end = at + note.dur;
@@ -226,11 +227,13 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     body.gain.setValueAtTime(0, when);
     body.gain.linearRampToValueAtTime(ACCENT_GAIN * level, when + ACCENT_ATTACK);
     body.gain.setTargetAtTime(0, when + ACCENT_ATTACK, seconds / 3);
+    const source = play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: body, length: seconds });
+    const share = layer.edge ?? 1;
+    if (!(share > 0)) return;
     const edge = gain(0, edges[note.role]);
     edge.gain.setValueAtTime(0, when);
-    edge.gain.linearRampToValueAtTime(EDGE_GAIN * level, when + ACCENT_ATTACK);
+    edge.gain.linearRampToValueAtTime(EDGE_GAIN * level * share, when + ACCENT_ATTACK);
     edge.gain.setTargetAtTime(0, when + ACCENT_ATTACK, EDGE_TAU);
-    const source = play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: body, length: seconds });
     source.connect(edge);
   }
 

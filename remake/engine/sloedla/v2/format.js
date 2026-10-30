@@ -12,7 +12,8 @@
 //                 the side notes' loudness.mjs; the crowd and the DJ are set against it)
 //   a section     whole 4/4 bars; fixed: never bigger or calmer; lift: semitones up from here when it plays big (no stems)
 //   a layer       { id, owner, gain?, tier?: 1-3 (a star layer, the song's), when?: 'big'|'calm' (a part), stem: file | part,
-//                   accent?: how strongly a hit on a stem stands out (1; more for a stem that is quiet in its recording) }
+//                   accent?: how strongly a hit on a stem stands out (1; more for a stem that is quiet in its recording),
+//                   edge?: how much of a hit's soft-clipped edge it has (1; 0 for a voice, which the clip would roughen) }
 //   a part        { instrument, unit?: 8|16, octave?, vel?, sections: { name | 'name/big' | 'name/calm': line } } (parts.js)
 //   a chart note  { beat (from the first beat), owner, layer, dur? (beats, 0.5), pitch? (scale step or null), pinned? }
 //                 for stems; a composed part's notes for the child are its '!' marks (chart.js)
@@ -73,6 +74,7 @@ export function validateSong(song) {
     if (layer.tier !== undefined && (layer.owner !== null || ![1, 2, 3].includes(layer.tier))) say(`${where}: a tier (1-3) is for a layer of the song's own (owner null)`);
     if (layer.when !== undefined && (layer.stem || !['big', 'calm'].includes(layer.when))) say(`${where}: when (big or calm) is for a part`);
     if (layer.accent !== undefined && !(layer.accent > 0)) say(`${where}: accent (how strongly a hit stands out) must be more than 0`);
+    if (layer.edge !== undefined && !(layer.edge >= 0 && layer.edge <= 1)) say(`${where}: edge (how much of a hit's edge it has) must be from 0 to 1`);
     if (layer.stem) stems++;
     if (layer.part) {
       if (!Object.hasOwn(song.instruments ?? {}, layer.part.instrument)) say(`${where}: the instrument ${layer.part.instrument} is not one of the song's own`);

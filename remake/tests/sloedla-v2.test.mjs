@@ -129,6 +129,23 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
   player.stop(); // every test ends so: the timer would keep the test running
 });
 
+test('v2 song: a stem with edge 0 (a voice) is hit without the soft clip, the note doubled all the same', () => {
+  const layers = makeSong().layers;
+  assert.ok(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: -1 } : l)) })).some(p => p.includes('edge')));
+  assert.ok(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 2 } : l)) })).some(p => p.includes('edge')));
+  const { context, player, to } = rig({ change: { layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 0 } : l)) } });
+  assert.deepEqual(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 0 } : l)) })), []);
+  player.start(0.4);
+  to(10); // the chart grows a section at a time
+  const note = player.chart.find(n => n.layer === 'trommur' && n.t > 11);
+  to(note.t - 0.05);
+  player.hit(note, -0.03);
+  const copy = context.bufferSources.at(-1);
+  assert.ok(copy.starts.length, 'the note is doubled');
+  assert.ok(!copy.outputs.some(node => node.outputs.some(next => next.kind === 'shaper')), 'no edge into the clip');
+  assert.ok(copy.outputs.some(node => node.outputs.includes(player.hits.c)), 'the body into her hit bus');
+});
+
 test('v2 player: a miss leaves a hole until the next hit, three make a ghost; parts, tiers, two lanes, a lost stem, a sleeping tablet, stop', () => {
   const { context, player, plays, to } = rig();
   player.start(0.4);

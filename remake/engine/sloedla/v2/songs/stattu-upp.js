@@ -21,6 +21,7 @@ export default {
   name: 'Stattu upp',
   tempo: { bpm: 130, offset: 0.1645 },
   key: { root: 'E', scale: 'major' },
+  gain: 0.63, // -4 dB: the release is mastered loud (-13 LUFS in the game against -17 for the other songs)
   sections: [
     { name: 'inngangur', bars: 8, fixed: true },
     { name: 'uppbygging', bars: 4 },
@@ -37,9 +38,9 @@ export default {
   ],
   instruments: {},
   layers: [
-    { id: 'songur', owner: 'a', stem: 'vocals.mp3' },
-    { id: 'bassi', owner: 'b', stem: 'bass.mp3' },
-    { id: 'trommur', owner: 'c', stem: 'drums.mp3' },
+    { id: 'songur', owner: 'a', stem: 'vocals.mp3', accent: 5, edge: 0 }, // his voice is never driven into the clip
+    { id: 'bassi', owner: 'b', stem: 'bass.mp3', accent: 5 },
+    { id: 'trommur', owner: 'c', stem: 'drums.mp3', accent: 2.5 },
     { id: 'lagid', owner: null, stem: 'lagid.mp3' },
   ],
   chart,
