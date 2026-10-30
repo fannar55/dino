@@ -832,6 +832,8 @@ async function main() {
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
     try { report.spoken = await ev('window.__spoken'); report.sounds = await ev('window.__sounds'); } catch {}
+    // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
+    try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
     try {
       const d = await ev('window.__memory.stats()');
       report.idle = d.idle; report.idleCheck = idleCheck(d.idle);
