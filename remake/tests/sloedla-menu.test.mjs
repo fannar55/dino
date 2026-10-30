@@ -7,6 +7,9 @@ import { createMenu } from '../engine/sloedla/menu.js';
 import { DJ_LINES, createDj } from '../engine/sloedla/dj.js';
 import { SONGS_V2 } from '../engine/sloedla/v2/songs/index.js';
 import { createFakeContext } from './fake-audio.mjs';
+import fs from 'node:fs';
+import { createBrot } from '../engine/sloedla/brot.js';
+import { timelineOf } from '../engine/sloedla/v2/format.js';
 
 test('best stars: kept per song and level, only ever higher', () => {
   const store = new Map();
@@ -87,6 +90,34 @@ test('hush stops the line he is saying', async () => {
     dj.hush();
     assert.ok(take.stopTime !== undefined && take.stopTime <= context.currentTime + 0.1, 'stopped at once');
     assert.equal(talks.at(-1), 0, 'the music comes back up');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('every song has its preview on disk, about ten seconds, from inside the song', async () => {
+  for (const entry of SONGS_V2) {
+    const song = (await entry.load()).default;
+    assert.ok(entry.brot >= 0 && entry.brot + 10 <= timelineOf(song).length, entry.id);
+    assert.ok(fs.statSync(new URL(`../assets/audio/sloedla/v2/${entry.id}/brot.mp3`, import.meta.url)).size > 40_000, entry.id);
+  }
+});
+
+test('the preview player: one at a time, faded out on stop', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+  try {
+    const context = createFakeContext({ state: 'running' });
+    const brot = createBrot({ context, output: context.destination, src: id => id });
+    await brot.play('a');
+    const a = context.bufferSources.at(-1);
+    await brot.play('b');
+    const b = context.bufferSources.at(-1);
+    assert.notEqual(a, b);
+    assert.ok(a.stopTime !== undefined && a.stopTime <= context.currentTime + 0.35, 'the last one goes when the next comes');
+    assert.equal(b.stopTime, undefined);
+    brot.stop();
+    assert.ok(b.stopTime !== undefined && b.stopTime <= context.currentTime + 0.35);
   } finally {
     globalThis.fetch = realFetch;
   }
