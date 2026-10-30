@@ -127,6 +127,12 @@ dialog for screenshots; browser audio still requires a gesture.
   partner) and now and then looks at the child. Nothing starts while a script, cut, glide, bubble row or choice is
   up, a running game stops at once, nobody goes more than 1.4 m from its spot, and the camera is never touched.
   `window.__memory.stats().idle` lists every game that started; the playthrough checks it (`report.idleCheck`).
+- The twelve leaves are checked by `tools/memory-playthrough.mjs` (`--mode full`, also `--video`, `--size`, `--reduced-motion`): it finds every
+  friend pair and gift pair (`report.gifts`: item, first leaf, when it was opened, found and landed in the basket), measures the twelve leaf
+  buttons (`report.leafTargets`, never under 44 px, 3 touching pairs at most by 1 px on a phone), and ends with the credits window open
+  (`report.credits`). `--gifts-last` finds the gifts after every friend and the bridge so the wait is seen (`report.giftsLeft`: Mosi's line, the
+  gold arrow on a shut leaf, a tap on the staging spot; `report.crossAfterGifts`: the crossing starts once, after the last pair has landed).
+  `--restart-at gift` restarts while the first pair flies (the basket goes back to "0 / 3").
 - Two small creature sounds, `giggle` (a wrong pair ducking, a wrong friend's go) and `strain` (each tap of a
   tap-along), made with `memory-sound-design.mjs`; both have synthesized fallbacks in `audio.js`.
 
