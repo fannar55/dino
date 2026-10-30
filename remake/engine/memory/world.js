@@ -500,7 +500,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const hit = addHit(root, 3.2, 2.2, { type: 'nest', index: i });
       nests.push({ root, index: i, physicalIndex: i, hit, species: null, members: [], pulse: 100, reunionAge: 100, reunited: false, restOffsets: [restVector(SPECIES[i], 0), restVector(SPECIES[i], 1)], restYaw: restHeading() });
     }
-    adventure = createBridgeAdventure({ scene, heightAt: world.heightAt, nests, fx, onwardTravel: true, hopOver: point => leap(point), cancelWalk: actor => homeNav.release(actor), planWalk: (actor, end, { yaw } = {}) => {
+    // QA only (?planblock=cross,finish): the first plan of each named action is out of budget at once, to see a blocked crossing and its retry.
+    const planBlock = new Set((params.get('planblock') ?? '').split(',').filter(Boolean));
+    adventure = createBridgeAdventure({ scene, heightAt: world.heightAt, nests, fx, onwardTravel: true, hopOver: point => leap(point), cancelWalk: actor => homeNav.release(actor), planSpent: (actor, id) => planBlock.delete(id) ? Infinity : homeNav.spent(actor), planWalk: (actor, end, { yaw } = {}) => {
       const action = adventure?.getDebug().action, pushing = actor.species === 'triceratops' && action?.id === 'roll';
       // A friend parked by the log for the crossing may start beside the Þórseðla babies holding the branch: their
       // capsules overlap there (theirs is as wide as the round belly all along the neck), so near the start the

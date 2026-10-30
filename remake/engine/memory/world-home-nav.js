@@ -188,7 +188,7 @@ export function createHomeNavigation({ heightAt, riverDistance, actors, leaves, 
   function request(actor, end, yaw, options) {
     const key = `${end.x.toFixed(4)}:${end.z.toFixed(4)}:${yaw.toFixed(4)}:${JSON.stringify(options ?? {})}`;
     let job = jobs.get(actor);
-    if (!job || job.key !== key) { job = { key, iterator: search(actor, end, yaw, options), done: false, result: undefined }; jobs.set(actor, job); }
+    if (!job || job.key !== key) { job = { key, iterator: search(actor, end, yaw, options), done: false, result: undefined, cpuMs: 0 }; jobs.set(actor, job); }
     if (!job.done) return undefined;
     if (job.result === null) jobs.delete(actor);
     return job.result;
@@ -197,11 +197,12 @@ export function createHomeNavigation({ heightAt, riverDistance, actors, leaves, 
     const started = performance.now();
     for (const job of jobs.values()) {
       if (job.done) continue;
-      do { const at = performance.now(), result = job.iterator.next(); maxSliceMs = Math.max(maxSliceMs, performance.now() - at); if (result.done) { job.done = true; job.result = result.value; break; } } while (performance.now() - started < budgetMs);
+      do { const at = performance.now(), result = job.iterator.next(), took = performance.now() - at; job.cpuMs += took; maxSliceMs = Math.max(maxSliceMs, took); if (result.done) { job.done = true; job.result = result.value; break; } } while (performance.now() - started < budgetMs);
       if (performance.now() - started >= budgetMs) break;
     }
   }
-  return { plan, request, pump, canStart, release: (actor, departed = false) => {
+  // The planner CPU (ms) this actor's current search has been given: a walk times out on this, not on game seconds (bridge-adventure.js).
+  return { plan, request, pump, canStart, spent: actor => jobs.get(actor)?.cpuMs ?? 0, release: (actor, departed = false) => {
     jobs.delete(actor);
     // An unfinished search may still see the departing friend in its old
     // hiding place. Rebuild once that aisle is vacated, instead of completing

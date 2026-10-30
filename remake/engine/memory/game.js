@@ -18,6 +18,7 @@ const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'not
 // How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
 const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, giftsLeft: 3.2 };
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
+const RETRY_AFTER = 3; // seconds the camera is still before a blocked crossing (or walk to the grove) tries again by itself
 const PANEL_WORDS = ['Ein!', 'Tvær!', 'Þrjár!']; // the bark's three panels, counted as they go down (fjöl is feminine)
 const PUSH_WORDS = ['Einn!', 'Tveir!', 'ÝTA!']; // the log's three pushes, as Mosi says them ("Einn, tveir, ÝTA!")
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -30,7 +31,7 @@ let world, started = false, userPaused = false, time = 0, lastFrame = 0, raf = 0
 let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let muted = false;
 let celebrated = false;
-let autoStep = null, autoAge = 0, blockedAuto = null, storyKey = '', captionUntil = 0;
+let autoStep = null, autoAge = 0, blockedAuto = null, retryAge = 0, storyKey = '', captionUntil = 0;
 let giftsLeftSaid = false; // Mosi has said `giftsLeft` for this wait
 let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // gift pairs that have flown into the basket in the ribbon
@@ -157,7 +158,14 @@ function updateStory(dt) {
     if (story.key === 'gifts-left' && !giftsLeftSaid) { giftsLeftSaid = true; speech.queue('giftsLeft', { delay: .4, once: false }); }
   }
   if (story.key !== 'gifts-left') giftsLeftSaid = false;
-  if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) return;
+  if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) { retryAge = 0; return; }
+  // A crossing (or the walk to the grove) that found its way blocked has nothing for the child to tap: after about 3 s of a still camera it tries again by itself
+  // (the staging spot or the grove carries the gold arrow meanwhile, see refreshControls). Lift, roll and the bark are tapped again by the child.
+  if (story.automatic && story.available && blockedAuto !== null && blockedAuto === story.action) {
+    // (counted while the child could act: a script that still holds the camera, such as Mosi finishing his walk over the bridge, does not count)
+    retryAge = camera.held || camera.worldInputEnabled === false ? 0 : retryAge + dt;
+    if (retryAge >= RETRY_AFTER) { blockedAuto = null; retryAge = 0; }
+  } else retryAge = 0;
   if (story.automatic && story.available && blockedAuto !== story.action) {
     if (autoStep !== story.action) { autoStep = story.action; autoAge = 0; }
     autoAge += dt;
@@ -344,6 +352,8 @@ function refreshControls() {
   const mayPick = !held() && worldInput && !task.active && !choosing && ['ready', 'one-open'].includes(state.phase) && !world.giftBusy?.();
   const mayExplore = !held() && worldInput && !task.active && !choosing && betweenTurns();
   const hesitating = mayExplore && idleTime >= IDLE_ARROW && story.available && !story.automatic;
+  // A blocked crossing (or walk to the grove) starts again by itself in a moment: its place carries the gold arrow while it waits.
+  const retrying = mayExplore && story.automatic && story.available && blockedAuto !== null && blockedAuto === story.action;
   // With gifts left the gold arrow points at a shut leaf (the first one in the deck's order, which is shuffled: it says nothing about what is under it).
   const guidedLeaf = story.leaf && hesitating ? state.cards.find(card => card.status === 'hidden')?.id : undefined;
   const visibleKeys = new Set();
@@ -360,7 +370,7 @@ function refreshControls() {
     }
     button.style.left = `${target.x}px`; button.style.top = `${target.y}px`;
     button.style.width = `${Math.max(44, target.width)}px`; button.style.height = `${Math.max(44, target.height)}px`;
-    button.classList.toggle('is-guided', target.type === 'leaf' ? target.id === guidedLeaf : target.type === 'task' && target.id === story.target && hesitating);
+    button.classList.toggle('is-guided', target.type === 'leaf' ? target.id === guidedLeaf : target.type === 'task' && target.id === story.target && (hesitating || retrying));
     if (target.type === 'leaf') {
       const card = state.cards.find(card => card.id === target.id);
       button.disabled = !mayPick || card?.status !== 'hidden' || target.enabled === false;
@@ -374,7 +384,7 @@ function refreshControls() {
       button.disabled = tapAlong ? held() : !mayExplore || !available || target.enabled === false;
       button.classList.toggle('tap-along', tapAlong);
       button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false);
-      button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(target.id === 'staging' && giftsToLand() > 0) || target.id === story.target && hesitating);
+      button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(target.id === 'staging' && giftsToLand() > 0) || target.id === story.target && (hesitating || retrying));
       button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : ({ branch: 'Greinin: hver getur lyft henni?', log: 'Stóri bolurinn: hver getur ýtt honum?', staging: 'Senda alla sex vinina yfir trjábrúna', bark: 'Börkurinn: hver getur lagt leið yfir mýrina?', grove: 'Senda alla vinina í berjalundinn' }[target.id]));
     } else {
       const species = nestSpecies[target.index];
@@ -431,7 +441,7 @@ function start({ restart = false } = {}) {
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
   if (restart) { game.restart(); bridge.restart(); celebrated = false; giftsLeftSaid = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
-  autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
+  autoStep = null; autoAge = 0; blockedAuto = null; retryAge = 0; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
   $('who').hidden = true; $('beat-word').classList.remove('show');
   $('coach').hidden = false; $('ending').hidden = true; $('ending-gifts').hidden = true; $('progress').hidden = false; $('journey').hidden = false; setCredits(false);
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
@@ -489,7 +499,7 @@ function frame(timestamp) {
       else if (event.type === 'bridge-complete' && bridge.complete(event.id)) {
         syncBridge(); reflectEnding(); guidance();
       } else if (event.type === 'bridge-blocked' && bridge.cancel(event.id, { branch: event.branch })) {
-        blockedAuto = event.id; autoStep = null; autoAge = 0;
+        blockedAuto = event.id; autoStep = null; autoAge = 0; retryAge = 0;
         speech.stop(); audio.cancel(); syncBridge(); reflectEnding();
         caption(['lift', 'roll'].includes(event.id)
           ? 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.'

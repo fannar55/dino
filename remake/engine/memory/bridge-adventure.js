@@ -56,11 +56,14 @@ export const logPushOffset=vertical=>-Math.sqrt(Math.max(.1,BRIDGE.radius**2-ver
 /** Soft ground under a foot: the river and its bank, the marsh and the mud sloping into it (a step there splashes). */
 export const wetGround=(x,z)=>riverDistance(x,z).distance<RIVER.halfWidth+.25||marshValley(x,z)<-.04;
 
-export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWalk,onwardTravel=false,hopOver=()=>0}){
+export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,planSpent,cancelWalk,onwardTravel=false,hopOver=()=>0}){
   const props=createBridgeProps({scene,heightAt}),build=createBuildProps({scene,heightAt});
   const pairs=Object.fromEntries(HELPERS.map(species=>[species,{members:[],ready:false}]));
   let snapshot={unlocked:[],selected:null},action=null,held=false,built=false,atStaging=false,boardwalkBuilt=false,visited=false;
   let lift=0,roll=0,reducedMotion=false,time=0,carryYaw=Math.PI;
+  // A walk waits for its route for at most this much planner CPU (ms): the 12 s of 60 fps frames (each gives the planner 3 ms, homeNav.pump(3) in world.js) the timeout used to be in game seconds.
+  // A slow frame rate has fewer frames a second, and must not get less search. The 60 s of game time only ends a walk the planner never reaches.
+  const PLAN_BUDGET_MS=12*60*3,PLAN_BACKSTOP=60,blockedLog=[];
   const events=[],ground=(x,z,rise=.04)=>new THREE.Vector3(x,heightAt(x,z)+rise,z);
   const feetCache=new WeakMap(),parkedWork=new Set(),riverArrivals=new Set(),finalArrivals=new Set();
   const trafficStats={checks:0,deferred:0,maxCheckMs:0};
@@ -100,6 +103,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(action.pending)cancelWalk?.(action.pending.actor);
     const id=action.id;for(const actor of allActors()){actor.walk?.(false);parkedWork.add(actor.species);}
     if(action.phase==='return'&&(id==='roll'||id==='lower')){complete();return;}
+    blockedLog.push({id,reason,at:+time.toFixed(1),...action.abortInfo});if(blockedLog.length>20)blockedLog.shift();
     action=null;events.push({type:'bridge-blocked',id,reason,branch:held?'held':'down'});
   }
   function acceptTravel(points,pending){
@@ -117,15 +121,19 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     ready.departAt=entry-approach/pace;action.lastEntry=Math.max(action.lastEntry,entry);action.lastHalf=half;if(finish)action.rowEntry[row]=Math.max(shared??0,entry);action.queue.push(ready);
   }
   function stopQueue(reason){
-    if(action.pending)cancelWalk?.(action.pending.actor);
+    if(action.pending){const spent=planSpent?.(action.pending.actor,action.id);action.abortInfo={spentMs:Number.isFinite(spent)?Math.round(spent):null,seconds:+action.pending.age.toFixed(1)};cancelWalk?.(action.pending.actor)}
     action.pending=null;action.readyTravel=null;action.abortReason=reason;if(action.queue)action.queue.length=0;
   }
   function pollRoute(dt){
     const pending=action.pending;pending.age+=dt;
-    if(pending.age>12){stopQueue('planning-timeout');return;}
     pending.plannedAround??=action.routes.filter(t=>t.finished).map(t=>t.actor);
     const planned=planWalk?.(pending.actor,pending.goal.point,{yaw:pending.goal.yaw});
-    if(planned===undefined)return;
+    if(planned===undefined){
+      // Still searching: out of budget in the planner's own CPU for this walk (or, with no such count, 12 s of game time as before).
+      const spent=planSpent?.(pending.actor,action.id);
+      if((spent===undefined?pending.age>12:spent>PLAN_BUDGET_MS)||pending.age>PLAN_BACKSTOP)stopQueue('planning-timeout');
+      return;
+    }
     if(!planned?.length){stopQueue('no-clear-route');return;}
     if(pending.kind==='cross'){pending.entry=planned.length;finishCrossRoute(planned,pending.member)}
     acceptTravel(planned,pending);
@@ -482,10 +490,10 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     river:{points:RIVER.points.map(p=>[...p]),halfWidth:RIVER.halfWidth,waterY:RIVER.waterY,bankBlend:RIVER.bankBlend,bounds:{minX:-15,maxX:13,minZ:-18,maxZ:10}},
     marsh:{...MARSH,center:[...MARSH.center],bounds:{...MARSH.bounds}},boardwalk,staging:{arrived:atStaging,...STAGING},destination:{...DESTINATION},grove:{visited},
     pairs:Object.fromEntries(Object.entries(pairs).map(([species,pair])=>[species,{ready:pair.ready,positions:pair.members.map(a=>a.root.position.toArray()),actors:pair.members.map(actorDebug)}])),
-    traffic:{...trafficStats},
+    traffic:{...trafficStats},blocked:blockedLog.map(entry=>({...entry})),
     routes:action?[...action.routes,...(action.readyTravel?[action.readyTravel]:[])].map(t=>({species:t.actor.species,member:t.member,started:Boolean(t.started),finished:Boolean(t.finished),reservation:t.reservation,age:t.age,waiting:t.waiting,startedAt:t.startedAt,finishedAt:t.finishedAt,delay:t.delay,entryAt:t.entryAt,duration:t.duration,finalYaw:t.finalYaw,headings:t.route.points.map(p=>p.heading??null),points:t.route.points.map(p=>p.toArray())})):[],
   }}
-  function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
+  function reset(){if(action?.pending)cancelWalk?.(action.pending.actor);action=null;trafficStats.checks=trafficStats.deferred=trafficStats.maxCheckMs=0;parkedWork.clear();riverArrivals.clear();finalArrivals.clear();blockedLog.length=0;held=built=atStaging=boardwalkBuilt=visited=false;lift=roll=0;events.length=0;snapshot={unlocked:[],selected:null};for(const pair of Object.values(pairs)){pair.members.forEach(a=>{a.walk?.(false);a.clearSupport?.();a.setPushYaw?.(0);a.root.rotation.z=0});pair.members=[];pair.ready=false}props.setBranch(0);props.setLog(0);build.reset();Object.values(props.markers).forEach(m=>{m.visible=false})}
   return{setState,bindPair,start,beat,startFail,waitingBeat:()=>action?.phase==='beat-wait'?action.beatIndex:null,isBuilt:()=>built,leaderRoute,logEnd,logNear:()=>props.pivot.position.clone(),builderSpots:()=>TRI_WAIT.map(([s,side])=>{const p=props.pointAlong(s,side);return ground(p.x,p.z,.6)}),crossSpeed:()=>reducedMotion?5.6:CROSS.speed,groveRoute,onWalkway:(x,z)=>build.walkingHeight(x,z)!==null,
   /** The lay as the script needs it: its phase, the panel (0-2) and how many are down; where the supply is and where each panel lies. */
   layState:()=>action?.id==='lay'?{phase:action.phase,panel:action.panel,placed:build.placedCount()}:null,cargoPoint:()=>build.cargo.position.clone(),panelCentre:i=>build.panelCenter(i),supplyPoint:()=>ground(7,-15.6,.3),branchPoints:()=>props.getBranchCollision().branch.points.filter((_,i)=>i%6===0).map(p=>new THREE.Vector3(...p)),update,afterActors,ownsPair,pairCentre,reset,isBusy:()=>Boolean(action),isVisited:()=>visited,hasTravelReservation:actor=>Boolean(action?.routes.some(t=>t.actor===actor&&!t.finished)||action?.queue?.some(t=>t.actor===actor)),getTargets:targets,getCameraCue,pollEvents:()=>events.splice(0),setReducedMotion(value){reducedMotion=Boolean(value)},getDebug,dispose(){props.dispose();build.dispose()}};
