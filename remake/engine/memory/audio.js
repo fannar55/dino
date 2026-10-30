@@ -131,7 +131,7 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
         const response = await fetcher(String(manifestUrl), { signal: loadController.signal });
         if (!response.ok) throw new Error('manifest unavailable');
         const manifest = await response.json();
-        const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 20);
+        const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 24);
         await Promise.all(entries.map(async ([id, entry]) => {
           try {
             const response = await fetcher(new URL(entry.file, manifestUrl).href, { signal: loadController.signal });
@@ -327,6 +327,22 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       const at = Math.max(context.currentTime, callUntil + .02);
       if (recordings.has('ding')) return recording('ding', at, .1, 'ding');
       return note(MEMORY_KEY[4], at, .5, .03);
+    },
+    // Baby dinosaurs giggling: a wrong pair ducking under its leaves, a wrong friend's funny go.
+    giggle() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('giggle')) return recording('giggle', Math.min(now + .5, Math.max(now, callUntil)), .05, 'giggle');
+      [3, 4, 3, 4].forEach((n, i) => note(MEMORY_KEY[n] * (i % 2 ? 1.12 : 1), now + i * .085, .07, .016));
+      return true;
+    },
+    // A pair pushing hard at a tap of the tap-along (the strain gesture).
+    strain() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('strain')) return recording('strain', now, 0, 'strain');
+      effort(now, .1);
+      return true;
     },
     match(species, nestIndex = 0) {
       if (!allowed()) return false;

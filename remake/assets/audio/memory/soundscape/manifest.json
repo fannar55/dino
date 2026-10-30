@@ -168,6 +168,24 @@
       "peak": 0.3385,
       "rms": 0.0475
     },
+    "giggle": {
+      "file": "giggle.mp3",
+      "duration": 0.87,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "0ab911c745645403daa5",
+      "peak": 0.3648,
+      "rms": 0.0474
+    },
+    "strain": {
+      "file": "strain.mp3",
+      "duration": 0.59,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "abe09a2527fe47a7bee0",
+      "peak": 0.282,
+      "rms": 0.0475
+    },
     "river": {
       "file": "river.mp3",
       "duration": 11.25,

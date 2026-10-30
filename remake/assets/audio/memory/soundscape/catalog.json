@@ -140,6 +140,22 @@
       "targetLufs": -20
     },
     {
+      "id": "giggle",
+      "type": "sfx",
+      "seconds": 0.9,
+      "text": "Two tiny baby dinosaurs giggle together: three quick soft breathy hee-hee chuckles, round, warm and high, ending in a little happy squeak, cute and playful like a delighted toddler. A short friendly cue for a preschool game, close and dry. No words, human speech, music, growl, echo or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "strain",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "One tiny baby dinosaur gives a quick cheerful effort grunt as it heaves a heavy log: a short chesty hup-hnf, closed mouth, low-ish and rounded, a determined little push that is clearly effort and not a whimper, whine, cry or squeal. Brief friendly cue for a preschool game, close and dry. No words, human speech, music, roar, echo or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
       "id": "river",
       "type": "sfx",
       "seconds": 12,
