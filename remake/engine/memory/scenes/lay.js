@@ -9,16 +9,16 @@
  */
 const all = (...fns) => fns;
 const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), actor.getNosePosition()]);
-const centre = points => points.reduce((sum, p) => sum.add(p), points[0].clone().multiplyScalar(0)).multiplyScalar(1 / points.length);
 const up = (point, metres) => point.clone().setY(point.y + metres);
 const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, point.z + z);
-// The still shot of each panel looks back from beyond the marsh (the pair turned to it, faces on, the panel hanging
-// between them); the finished boardwalk from the east, low, along its length.
-const LAY_FRONT = [.55, 0, -.83], DONE_FRONT = [1, 0, -.15];
-// Each panel has its own view of each shot (measured: all under 250k triangles); the stills look from the south-east, the follow shots from the east.
-const SE = [.55, 0, .83], E = [1, 0, .2], ENE = [1, 0, -.25], ESE = [1, 0, .5];
+// Where the camera stands (the direction from the subject toward it, then how high it looks down): the stills from the
+// south-east, high enough to see the whole spot the panel will lie on; the follow shots from the east (each panel its own
+// angle, to keep the cuts apart); the finished boardwalk from the east along its length. Each was measured: every shot of the
+// marsh stays under 250k triangles (a view from the north or low down sees the friends at staging and does not).
+const DONE_FRONT = [1, 0, -.15];
+const SE = [.55, 0, .83], E = [1, 0, .2], ESE = [1, 0, .5];
 const STILL = [{ front: SE, elevation: 34 }, { front: SE, elevation: 34 }, { front: SE, elevation: 34 }];
-const CARRY = [{ front: E, elevation: 32 }, { front: ENE, elevation: 32 }, { front: E, elevation: 32 }];
+const CARRY = [{ front: E, elevation: 32 }, { front: ESE, elevation: 34 }, { front: E, elevation: 32 }];
 const BACK = [{ front: ESE, elevation: 30 }, { front: ESE, elevation: 32 }];
 
 /**
