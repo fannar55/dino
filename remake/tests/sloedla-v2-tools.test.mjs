@@ -49,15 +49,24 @@ test('stem chart: onsets on the beat from a click track; the child\'s notes two 
     const at = Math.round(t * rate);
     for (let k = 0; k < 200; k++) samples[at + k] = 0.8 * Math.exp(-k / 40) * (k % 2 ? 1 : -1);
   }
+  // the last 10 s are 45 dB quieter: a stem that hardly plays there (another instrument's bleed) has no notes there
+  for (let i = 50 * rate; i < samples.length; i++) samples[i] *= 10 ** (-45 / 20);
   const onsets = gridOnsets(onsetStrength(samples, rate), { bpm: 120, offset: 0, slotsPerBeat: 2, length: 60 });
   const beats = onsets.map(o => o.beat);
-  for (let b = 1; b <= 118; b++) assert.ok(beats.includes(b), `an onset on beat ${b}`);
+  for (let b = 1; b <= 99; b++) assert.ok(beats.includes(b), `an onset on beat ${b}`);
+  assert.ok(!beats.some(b => b >= 101), 'none where the stem is near silence');
   assert.ok(beats.every(b => Number.isInteger(b)), 'none between the beats');
   const every = Array.from({ length: 120 }, (_, beat) => ({ beat, strength: 1 }));
   const layers = { a: 'piano', b: 'bass', c: 'drums' };
   const chart = pickChart({ onsets: { a: every, b: every, c: every }, layers, level: 'barn', bpm: 120, length: 60, fixed: [{ beat: 41, owner: 'a' }] });
   const sorted = chart.map(n => n.beat).sort((x, y) => x - y);
   for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i] - sorted[i - 1] >= 2, `${sorted[i - 1]} and ${sorted[i]}`);
+  // a breath: never more than four notes in a row at the shortest gap
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    run = sorted[i] - sorted[i - 1] <= 2 ? run + 1 : 1;
+    assert.ok(run <= 4, `five in a row ending at beat ${sorted[i]}`);
+  }
   assert.ok(sorted[0] * 0.5 >= 2.5);
   assert.ok(!sorted.some(b => Math.abs(b - 41) < 2));
   const counts = ['a', 'b', 'c'].map(owner => chart.filter(n => n.owner === owner).length);
