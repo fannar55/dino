@@ -289,6 +289,12 @@ function showOptions() {
     const now = { lag: options.song, stig: options.level, brautir: String(options.lanes) }[name];
     button.setAttribute('aria-pressed', String(now === value));
   }
+  // whose song the chosen one is, if it says (v2/songs/index.js `by`)
+  const by = SONGS_V2.find(song => song.id === options.song)?.by ?? '';
+  for (const line of document.querySelectorAll('[data-by]')) {
+    line.textContent = by;
+    line.hidden = !by;
+  }
 }
 for (const holder of document.querySelectorAll('[data-songs]')) {
   holder.innerHTML = SONGS_V2.map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');

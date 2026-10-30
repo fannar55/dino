@@ -1,9 +1,11 @@
 // The songs of the new kind (v2/format.js) in Slóeðla's song game, by id, in the order the lab offers them.
-// Each module's default export is a song. A slot whose `file` is not there yet is skipped by the tests.
+// Each module's default export is a song. A slot whose `file` is not there yet is skipped by the tests. `by`, if there, is a line
+// the lab shows under the songs while that song is chosen (whose song it is).
 export const SONGS_V2 = [
   { id: 'pixel', name: 'Pixlaferð', file: 'pixel.js', load: () => import('./pixel.js') },
   { id: 'boogie', name: 'Rokkhopp', file: 'boogie.js', load: () => import('./boogie.js') },
   { id: 'fonk', name: 'Fönkhopp', file: 'fonk.js', load: () => import('./fonk.js') },
+  { id: 'stattu-upp', name: 'Stattu upp', by: 'Lag eftir pabba', file: 'stattu-upp.js', load: () => import('./stattu-upp.js') },
 ];
 
 /** The v2 song called `id`, or null. */
