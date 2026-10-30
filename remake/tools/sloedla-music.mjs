@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 // Söngur Slóeðlu: instrumental backing tracks, made with the ElevenLabs Music API (model music_v2_5) and measured.
-// One preset = one track: a style, a bpm, a key, a four-chord loop and eight sections of whole 4/4 bars. The game plays the
+// One preset = one track: a style, a bpm, a key, a four-chord loop and eight sections of whole 4/4 bars (STRUCTURE), or a form of
+// its own. A preset for the new kind of song (engine/sloedla/v2) may have:
+//   form      [[name, kind, bars, styles?]], its sections in place of STRUCTURE; styles are added to that section's
+//   kinds     { kind: [styles] }, over KINDS        negative  [styles], in place of NEGATIVE
+//   folder    its files go to remake/assets/audio/sloedla/<folder>/: song.mp3, song.json and the stems <stem>.mp3 (a later
+//             version: song-N.mp3, <stem>-N.mp3) The game plays the
 // backing (drums, bass, chords) and its dinosaur instruments play the lead melody on top, in time and in key, so a backing has
 // to keep one tempo, stay in one key and leave room for a lead.
 //   node remake/tools/sloedla-music.mjs --list                     the presets, with the sections' times
@@ -183,7 +188,9 @@ export const PRESETS = {
 };
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
-export const presetOf = (preset, version = 1) => ({ ...PRESETS[preset], ...(PRESETS[preset].revisions?.[version] ?? {}) });
+/** A preset by name (or a preset itself) as it is for a version. */
+const baseOf = preset => (typeof preset === 'string' ? PRESETS[preset] : preset);
+export const presetOf = (preset, version = 1) => ({ ...baseOf(preset), ...(baseOf(preset).revisions?.[version] ?? {}) });
 
 /** The song's id (the file is el-<id>.mp3): the preset's name, and "-N" for a later version. */
 export const trackId = (preset, version = 1) => (version > 1 ? `${preset}-${version}` : preset);
@@ -195,30 +202,31 @@ const barMs = bpm => (4 * 60000) / bpm;
  * every boundary is within half a millisecond of its bar.
  */
 export function sectionsOf(preset) {
-  const p = PRESETS[preset];
+  const p = baseOf(preset);
   let bar = 0;
-  return STRUCTURE.map(([name, kind, bars]) => {
+  return (p.form ?? STRUCTURE).map(([name, kind, bars, styles = []]) => {
     const startBar = bar;
     bar += bars;
     const startMs = Math.round(startBar * barMs(p.bpm)), endMs = Math.round(bar * barMs(p.bpm));
-    return { name, kind, startBar, bars, startSec: startMs / 1000, seconds: (endMs - startMs) / 1000, durationMs: endMs - startMs };
+    return { name, kind, startBar, bars, styles, startSec: startMs / 1000, seconds: (endMs - startMs) / 1000, durationMs: endMs - startMs };
   });
 }
 
 /** The composition plan (music_v2_5: chunks): one chunk a section, no lyric lines. */
 export function planOf(preset, version = 1) {
   const p = presetOf(preset, version);
+  const kinds = { ...KINDS, ...(p.kinds ?? {}) };
   const chunks = sectionsOf(preset).map(section => {
-    const chords = section.kind === 'bridge' ? p.bridgeChords : p.chords;
+    const chords = section.kind === 'bridge' ? p.bridgeChords ?? p.chords : p.chords;
     return {
       text: `[${section.name}]`,
       duration_ms: section.durationMs,
       positive_styles: [
         `${p.bpm} BPM`, `steady tempo, never speeds up or slows down`, `in ${p.keyWords}`,
         `simple chord progression ${chords.roman} in ${p.keyWords}: ${chords.words}, one chord per bar, repeating`,
-        ...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals', ...KINDS[section.kind],
+        ...p.core, ...(p.extra ?? []), 'instrumental backing track', 'no vocals', ...kinds[section.kind], ...section.styles,
       ],
-      negative_styles: NEGATIVE,
+      negative_styles: p.negative ?? NEGATIVE,
     };
   });
   return { chunks };
@@ -293,13 +301,22 @@ const keptHeaders = (headers, key) => Object.fromEntries([...headers].filter(([n
 const run = (command, args, options = {}) => execFileSync(command, args, { maxBuffer: 1 << 28, ...options });
 const probe = file => JSON.parse(run('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', file]).toString());
 const fileOf = (id, ext) => path.join(ROOT, FOLDER, `el-${id}.${ext}`);
+/** A track's files: its mp3 and json, and where a stem of it goes. */
+function filesOf(preset, version = 1) {
+  const p = baseOf(preset);
+  const id = trackId(preset, version);
+  if (!p.folder) return { mp3: fileOf(id, 'mp3'), json: fileOf(id, 'json'), stem: name => fileOf(`${id}-${name}`, 'mp3') };
+  const dir = path.join(ROOT, FOLDER, p.folder);
+  const tail = version > 1 ? `-${version}` : '';
+  return { mp3: path.join(dir, `song${tail}.mp3`), json: path.join(dir, `song${tail}.json`), stem: name => path.join(dir, `${name}${tail}.mp3`) };
+}
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const writeJson = (file, data) => fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
 
 /** Composes one track: the mp3 and its json. */
 async function compose({ preset, version, seed, cache, force }) {
   const id = trackId(preset, version);
-  const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
+  const { mp3, json, stem: stemFile } = filesOf(preset, version);
   if (fs.existsSync(mp3) && !force) throw new Error(`${path.relative(ROOT, mp3)} exists: --force makes it again (that costs credits).`);
   const key = keyOf();
   const p = presetOf(preset, version);
@@ -394,7 +411,7 @@ export function sameKey(a, b) {
 /** Runs theme-tempo on the track and adds to its json what it printed and what the planned sections look like on the grid. */
 function measure({ preset, version }) {
   const id = trackId(preset, version);
-  const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
+  const { mp3, json, stem: stemFile } = filesOf(preset, version);
   if (!fs.existsSync(mp3) || !fs.existsSync(json)) throw new Error(`el-${id} has not been made yet.`);
   const before = readJson(json);
   const printed = run(process.execPath, [path.join(ROOT, 'remake/tools/theme-tempo.mjs'), '--file', path.relative(ROOT, mp3).replace(/\\/g, '/'), '--key', '--no-mix'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
@@ -482,8 +499,8 @@ export function unzip(buffer) {
  */
 async function stems({ preset, version, cache, force }) {
   const id = trackId(preset, version);
-  const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
-  if (!fs.existsSync(mp3)) throw new Error(`el-${id}.mp3 has not been made yet.`);
+  const { mp3, json, stem: stemFile } = filesOf(preset, version);
+  if (!fs.existsSync(mp3)) throw new Error(`${path.relative(ROOT, mp3)} has not been made yet.`);
   const zip = path.join(cache, `${id}-stems.zip`);
   fs.mkdirSync(cache, { recursive: true });
   if (!fs.existsSync(zip) || force) {
@@ -504,7 +521,7 @@ async function stems({ preset, version, cache, force }) {
     const file = path.join(dir, path.basename(name));
     fs.writeFileSync(file, data);
     const stem = path.parse(name).name.toLowerCase().replace(/^el-[a-z0-9-]*?-?(?=[a-z]+$)/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'stem';
-    const target = fileOf(`${id}-${stem}`, 'mp3');
+    const target = stemFile(stem);
     run('ffmpeg', ['-v', 'error', '-y', '-i', file, '-c:a', 'libmp3lame', '-b:a', '128k', '-ar', '44100', '-ac', '2', target]);
     made.push({ stem, from: path.basename(name), src: path.basename(target), bytes: fs.statSync(target).size });
     console.log(`wrote ${path.relative(ROOT, target)} (from ${path.basename(name)})`);
@@ -519,7 +536,7 @@ async function stems({ preset, version, cache, force }) {
  */
 async function vocals({ preset, version }) {
   const id = trackId(preset, version);
-  const mp3 = fileOf(id, 'mp3'), json = fileOf(id, 'json');
+  const { mp3, json, stem: stemFile } = filesOf(preset, version);
   if (!fs.existsSync(mp3)) throw new Error(`el-${id}.mp3 has not been made yet.`);
   const key = keyOf();
   const form = new FormData();
@@ -560,7 +577,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const has = flag => args.flags.includes(flag);
   if (has('--list')) {
     for (const [name, p] of Object.entries(PRESETS)) {
-      console.log(`${name}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${p.chords.roman} (${p.chords.names.join(' ')}), bridge ${p.bridgeChords.roman} (${p.bridgeChords.names.join(' ')})`);
+      console.log(`${name}: ${p.name}, ${p.bpm} bpm, ${p.key}, ${p.chords.roman} (${p.chords.names.join(' ')})${p.bridgeChords ? `, bridge ${p.bridgeChords.roman} (${p.bridgeChords.names.join(' ')})` : ''}${p.folder ? `, files in ${p.folder}/` : ''}`);
       console.log(`  ${sectionsOf(name).map(s => `${s.name} ${s.bars} bars from ${s.startSec} s (${s.seconds} s)`).join('; ')}`);
     }
   } else if (has('--credits')) {
