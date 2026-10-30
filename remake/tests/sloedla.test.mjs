@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
+import { HIT_WINDOW, LEVELS, createJudge, createScore, count, fullHouse, laneOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
 import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
 import { pitchOf, rootHz } from '../engine/sloedla/key.js';
@@ -34,6 +34,21 @@ test('a tap plays the nearest waiting note of its lane in the window; a miss goe
   assert.equal(judge.left(), 0);
 });
 
+// the owner (2026-10-31): the screen said 95 of 95 notes, the DJ "Næstum fullt hús!" (a stray tap had broken the run)
+test('fullt hús is every note played, as the end screen counts them; a stray tap does not take it away, a missed note does', () => {
+  const score = createScore(95);
+  for (let i = 0; i < 95; i++) {
+    if (i === 3) count(score, { kind: 'stray' });
+    count(score, { kind: 'hit', great: true, offset: 0 });
+  }
+  assert.equal(score.best, 92, 'the stray broke the run, as in the owner\'s round');
+  assert.equal(fullHouse(score), true, '95 of 95 played');
+  const missed = createScore(95);
+  for (let i = 0; i < 94; i++) count(missed, { kind: 'hit', great: true, offset: 0 });
+  count(missed, { kind: 'miss' });
+  assert.equal(fullHouse(missed), false, '94 of 95');
+  assert.equal(fullHouse(createScore(0)), false, 'no notes, no full house');
+});
 test('the child\'s window is wider late than early', () => {
   const { barn } = LEVELS;
   const judge = createJudge([{ t: 1, lane: 0 }, { t: 3, lane: 0 }], barn);

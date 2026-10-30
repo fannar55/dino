@@ -25,7 +25,7 @@
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
 
 import { danceGrid, beatAt } from '../beat.js';
-import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, laneOf, shareOf, starsFor, tierOf } from './chart.js';
+import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, fullHouse, laneOf, shareOf, starsFor, tierOf } from './chart.js';
 import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
 import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
@@ -725,7 +725,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         }
         endStars = lookAtEnd ? endNow : starsFor(score);
         endPlan = endTimes(endStars);
-        endLine = endLineOf({ stars: endStars, misses: score.misses, full: score.misses === 0 && score.best >= notes.length && notes.length > 0 });
+        endLine = endLineOf({ stars: endStars, misses: score.misses, full: fullHouse(score) }); // as the screen counts: hits of total
         call({ kind: 'end', stars: endStars, misses: score.misses, full: endLine === 'fullthus' });
         cheer('end', 0.55 + endStars * 0.15);
       }

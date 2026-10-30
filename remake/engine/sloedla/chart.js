@@ -117,6 +117,12 @@ export function count(score, result) {
   return after > before ? after : 0;
 }
 
+/**
+ * Fullt hús: every note of the round played, as the end screen counts them ("95 af 95"). A stray tap breaks the run but does
+ * not take it away (the owner, 2026-10-31: the screen said 95 of 95 and the DJ "Næstum fullt hús!").
+ */
+export const fullHouse = ({ hits, total }) => total > 0 && hits >= total;
+
 /** The share of the round played, 0 to 1: hits, less half a note for each stray past the spare ones, over all the notes. */
 export function shareOf({ hits, strays, total }) {
   if (!(total > 0)) return 0;

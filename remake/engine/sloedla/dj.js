@@ -54,7 +54,7 @@ const COUNT_AGAIN = [1, 0.75, 0.5, 0.35];
 const ALWAYS_COUNTED = new Set([50, 100]);
 
 /**
- * The line for the end of a round (the screen shows its first words): "Fullt hús!" when every note was played in one run, "Næstum
+ * The line for the end of a round (the screen shows its first words): "Fullt hús!" when every note was played (chart.js fullHouse), "Næstum
  * fullt hús!" when one or two were missed, else by the stars won ("Frábært!", "Flott!", "Vel gert!", "Spilum aftur saman!").
  */
 export function endLineOf({ stars = 0, misses = 0, full = false }) {
@@ -65,7 +65,7 @@ export function endLineOf({ stars = 0, misses = 0, full = false }) {
  * What the DJ says to `event` at song time `time` (a key of DJ_LINES), or null. Events: { kind: 'start' }, { kind: 'milestone',
  * streak }, { kind: 'tier', tier }, { kind: 'clap' } (the crowd starts clapping along), { kind: 'big' }, { kind: 'rejoin', role,
  * back } (`back`: she had played before and dropped out; her first notes of the song are no news), { kind: 'end', stars, misses,
- * full } (`full`: every note in one run). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
+ * full } (`full`: every note played). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
  * one while he is still talking: DJ_WAIT), and a milestone mostly (COUNT_AGAIN, by `random`); the others only after DJ_QUIET s of
  * quiet. `memory` keeps when he last spoke and how many milestones he has said in a row ({ last, counted }), updated as he goes.
  */
