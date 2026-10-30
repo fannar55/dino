@@ -21,6 +21,8 @@
 //                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
 //                 bubble, the way a six-year-old does. The round must still finish.
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
+//   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
+//                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
@@ -86,7 +88,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0 };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0, think: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -99,6 +101,7 @@ function parseArgs(argv) {
     else if (a === '--usual-order') o.usualOrder = true;
     else if (a === '--clearance') o.clearance = true;
     else if (a === '--hold') o.hold = Number(next());
+    else if (a === '--think') o.think = Number(next());
     else if (a === '--surprises') { o.surprises = Number(next()); if (![0, 1, 2].includes(o.surprises)) throw new Error('--surprises must be 0, 1 or 2'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
@@ -617,7 +620,8 @@ async function main() {
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
     const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
-    let barkTaps = 0, runTake = null, holdFrom = null;
+    let barkTaps = 0, runTake = null, holdFrom = null, thinkUntil = 0;
+    const thought = new Set();
     const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
 
     // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
@@ -728,8 +732,8 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
-      const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus-west': ['eating-thorsedla', 700], 'wide-eating': ['eating-all', 500],
-        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus-west': ['trick-thorsedla-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
+      const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
+        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
       for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
@@ -741,6 +745,12 @@ async function main() {
       if (waited) continue;
 
       const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
+      // A child looks around once a pair is home: the waiting friends play (in the story modes, between the leaves).
+      const thinkSeconds = o.think ?? (o.mode === 'full' ? 11 : 0);
+      if (thinkSeconds > 0 && mayAct && s.phase === 'ready' && s.matched >= 1 && !s.walking && !s.who.open && !s.wait && !thought.has(s.matched)) {
+        thought.add(s.matched); thinkUntil = Date.now() + thinkSeconds * 1000; step('looks around', { seconds: thinkSeconds, pairs: s.matched });
+      }
+      if (Date.now() < thinkUntil && mayAct && !s.wait) { await sleep(150); continue; }
       const leaf = id => id !== undefined && s.enabled.includes(`leaf-${id}`);
       if (o.mode === 'first-minute' && s.matched >= 1) {
         // The first pair is found: wait for its friends to walk home, and pick nothing more.

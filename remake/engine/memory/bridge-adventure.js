@@ -15,11 +15,12 @@ const TRI_WAIT=[[-4.2,.4],[-6.8,1.1]],TRI_WAIT_YAW=-1.05;
 // Park helpers outside the two working lanes; Stego wait already astride the
 // bark supply, so neither companion must walk through the other's pickup spot.
 const SUPPLY_STAND=[9.05,-15.6];
-// Where each friend ends the walk to the grove (by member) and which way it faces there: a group photo for the celebration. The
-// Þríhyrnur and the Kambeðlur stand in a shallow row in front, turned to the camera on the south-east, the Þórseðlur beside
-// the outer berry shrubs, and Mosi has the middle at the back (GROVE_LEADER), clear of every one of them, so that each face shows.
-const FINAL_PARKING=[[1.6,-24.6],[-1.2,-25.4],[.4,-28.3],[8.4,-28.5],[6.7,-24.8],[9.8,-25.6]];
-const FINAL_YAW=[-1.35,-1.25,-.95,-1,-1.3,-1.15];
+// Where each friend ends the walk to the grove (by member) and which way it faces there: a group photo for the celebration, close
+// round Mosi. The Þríhyrnur and the Kambeðlur stand in a shallow arc in front, turned to the camera on the south-east, the Þórseðlur
+// either side of him at the back between the berry shrubs, and Mosi has the middle at the back (GROVE_LEADER), a body's width clear of
+// every one of them, so that each face shows and the whole group fits in one close shot.
+const FINAL_PARKING=[[2.9,-24.2],[.8,-25],[2.1,-28],[6.9,-28.2],[6.1,-24.2],[8.2,-25]];
+const FINAL_YAW=[-1.45,-1.3,-1.05,-1.1,-1.3,-1.2];
 // The crossing: one file over the log behind Mosi, every friend at one trot (metres a second), each a body
 // length and `gap` behind the one ahead; a long neck may reach `reach` over the low tail in front. They cross
 // in this order: the builders (waiting in line) first, the Kambeðlur (the farther bay first, its way passes
@@ -44,7 +45,7 @@ const LAY={carry:3.2,back:3.6,straighten:.35,hold:.5,calm:{straighten:.15,hold:.
 // length and `gap` separate the rows; they all walk at `speed`.
 const FINISH={speed:3.4,gap:.6,lane:1,exit:1.25,rows:[[2,3],[1,5],[0,4]],side:[-1,-1,-1,1,1,1]};
 // Mosi walks the boardwalk first, on past it to his place at the back of the grove, in the middle (`way`), and turns to face them (facing `welcome`).
-const GROVE_LEADER={way:[[4.5,-23.6],[4.5,-27.2]],welcome:[4.5,-20.5]};
+const GROVE_LEADER={way:[[4.5,-23.6],[4.5,-27]],welcome:[4.5,-20.5]};
 const smooth=value=>{const t=THREE.MathUtils.clamp(value,0,1);return t*t*(3-2*t)};
 // A wrong friend's try: where the pair stands to have a go at each obstacle (centre, facing yaw, the two
 // members this far apart across it) and how it gets there and back: straight hops, lifted over closed leaves.

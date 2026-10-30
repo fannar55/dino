@@ -228,6 +228,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       gesture: name => mosiPuppet.gesture(name),
       head: () => mosi.headPosition(new THREE.Vector3()),
       body: () => mosi.root.position.clone().add(new THREE.Vector3(0, 1.3, 0)),
+      yaw: () => mosi.root.rotation.y,
       // The crossing's way for him (bridge-adventure leaderRoute), at the friends' pace.
       walk: plan => startMosiWalk(plan),
       walking: () => Boolean(mosiWalk),
@@ -669,9 +670,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   // bob while his line says what they were, then fly to the basket in the ribbon, as a found one did. The same models as the leaves'.
   const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
   const found = () => cells.filter(cell => cell.item && cell.status === 'found' && items.get(cell.item)).map(cell => ({ id: cell.item, model: items.get(cell.item) }));
+  // Beside Mosi's head, a little toward the camera (the shot of them is a close one on his face).
   function giftHover(i, n = Math.max(1, found().length)) {
-    const p = mosi.root.position;
-    return new THREE.Vector3(p.x + (i - (n - 1) / 2) * 1.8, p.y + 3.4, p.z + .8);
+    const head = mosi.headPosition(new THREE.Vector3());
+    return new THREE.Vector3(head.x + (i - (n - 1) / 2) * 2.1, head.y + .75, head.z + 1.1);
   }
   function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
   function startGifts() {
