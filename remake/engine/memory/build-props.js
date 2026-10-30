@@ -22,10 +22,10 @@ export function createBarkTexture() {
     const grain = Math.sin((y + bend) * .22) * 8 + Math.sin((y + bend) * .63) * 2;
     const knot = Math.exp(-((x - 164) ** 2 / 650 + (y - 107) ** 2 / 170));
     const ring = Math.sin(Math.hypot((x - 164) * .42, y - 107) * .63) * knot * 15;
-    const crack = Math.max(0, Math.sin((y + bend) * .27)) ** 15 * 25;
+    const crack = Math.max(0, Math.sin((y + bend) * .27)) ** 15 * 38;
     const fine = (Math.sin(x * 71.3 + y * 97.1) * 43758.5 % 1) * 2, v = grain + ring - crack + fine;
     const i = (y * size + x) * 4;
-    pixels[i] = 140 + v; pixels[i + 1] = 101 + v * .75; pixels[i + 2] = 58 + v * .45; pixels[i + 3] = 255;
+    pixels[i] = 178 + v; pixels[i + 1] = 138 + v * .78; pixels[i + 2] = 92 + v * .5; pixels[i + 3] = 255;
   }
   const texture = new THREE.DataTexture(pixels, size, size, THREE.RGBAFormat);
   texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -51,7 +51,7 @@ export function createBuildProps({ scene, heightAt }) {
     const a = j / segments * Math.PI * 2, f = rings[r];
     waterPos.push(MARSH.center[0] + Math.cos(a) * MARSH.halfWidth * f, MARSH.waterY, MARSH.center[1] + Math.sin(a) * MARSH.halfDepth * f);
     flowUv.push(Math.sin(a)*f,Math.cos(a)*MARSH.halfWidth*f);
-    const c = new THREE.Color('#4c7867'); waterColour.push(c.r, c.g, c.b, r === rings.length - 1 ? 0 : .92);
+    const c = new THREE.Color('#74714a'); waterColour.push(c.r, c.g, c.b, r === rings.length - 1 ? 0 : .88);
     if (r < rings.length - 1 && j < segments) { const n = r * (segments + 1) + j; waterIndex.push(n, n + 1, n + segments + 1, n + 1, n + segments + 2, n + segments + 1); }
   }
   const waterGeometry = geo(new THREE.BufferGeometry()); waterGeometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPos, 3)); waterGeometry.setAttribute('color', new THREE.Float32BufferAttribute(waterColour, 4)); waterGeometry.setIndex(waterIndex); waterGeometry.computeVertexNormals();
@@ -59,20 +59,8 @@ export function createBuildProps({ scene, heightAt }) {
   const water = mesh(waterGeometry, mat({ vertexColors: true, transparent: true, depthWrite: true, alphaTest: .01, side: THREE.DoubleSide, roughness: .42 }), root, false); water.receiveShadow = false; water.renderOrder = 7.5;
   const waterFlow=installWaterFlow(water.material,{speed:.62,marsh:true});
 
-  const bankParts = [];
-  for (let tuft = 0; tuft < 24; tuft++) {
-    const a = tuft / 24 * Math.PI * 2, x = 4.5 + Math.cos(a) * (5.9 + random(tuft) * .4), z = -19.5 + Math.sin(a) * (1.9 + random(tuft + 10) * .3);
-    if (Math.abs(x - 4.5) < 1.9 || x > 2.5 && x < 10.5 && z > -18) continue;
-    for (let blade = 0; blade < 5; blade++) {
-      const h = .5 + random(tuft * 6 + blade) * .7, g = new THREE.ConeGeometry(.045, h, 4);
-      g.rotateZ((blade - 2) * .14); g.rotateY(a); g.translate(x + (blade - 2) * .08, heightAt(x, z) + h / 2, z);
-      colourPart(g, ['#597344', '#81924f', '#adad65'][blade % 3], bankParts);
-    }
-    if (tuft % 3 === 0) { const g = new THREE.IcosahedronGeometry(1, 0); g.scale(.48, .19, .34); g.translate(x, heightAt(x, z) + .12, z); colourPart(g, '#7b806b', bankParts); }
-  }
-
   const barkTexture = createBarkTexture(); textures.add(barkTexture);
-  const barkMaterial = mat({ color: '#d3bb8e', map: barkTexture, bumpMap: barkTexture, bumpScale: .04 });
+  const barkMaterial = mat({ color: '#fff2d6', map: barkTexture, bumpMap: barkTexture, bumpScale: .05 });
   const shape = new THREE.Shape();
   shape.moveTo(-1.51, -.73); shape.lineTo(-.6, -.77); shape.lineTo(.58, -.73); shape.lineTo(1.52, -.68); shape.lineTo(1.6, -.3); shape.lineTo(1.55, .64); shape.lineTo(.62, .76); shape.lineTo(-.65, .7); shape.lineTo(-1.6, .62); shape.closePath();
   const panelGeometry = geo(new THREE.ExtrudeGeometry(shape, { depth: .14, steps: 1, bevelEnabled: true, bevelSize: .035, bevelThickness: .035, bevelSegments: 1, curveSegments: 2 }));
@@ -131,7 +119,7 @@ export function createBuildProps({ scene, heightAt }) {
       positions.push(x, THREE.MathUtils.lerp(ground, deckY - .005, edge * (rising ? t : 1 - t)), z);
       if (row < 4 && col < 6) { const n = row * 7 + col; indices.push(n, n + 1, n + 7, n + 1, n + 8, n + 7); }
     }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); g.setIndex(indices); g.computeVertexNormals(); colourPart(g, '#927b51', rampParts);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); g.setIndex(indices); g.computeVertexNormals(); colourPart(g, '#d9b479', rampParts);
   }
   const access = merge(rampParts); access.visible = false; access.castShadow = false;
   const nearRampVertices = access.geometry.attributes.position.count / 2;
@@ -141,20 +129,23 @@ export function createBuildProps({ scene, heightAt }) {
   const groveParts = [], leafGeometry = new THREE.BufferGeometry();
   leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, -.16, .03, .27, 0, .08, .34, .16, .03, .27, 0, .02, .69], 3));
   leafGeometry.setIndex([0, 2, 1, 0, 3, 2, 1, 2, 4, 2, 3, 4]); leafGeometry.computeVertexNormals();
-  const shrubSpots = [];
-  for (let cluster = 0; cluster < 3; cluster++) for (let branch = 0; branch < 5; branch++) {
-    const x = [.6, 4.25, 8.1][cluster] + (random(branch + cluster * 9) - .5) * 1.7, z = [-28.1, -29, -28.2][cluster] + (random(branch + 60) - .5) * 1.2, y = heightAt(x, z), h = .55 + random(branch + cluster * 7) * .55;
+  // Berry shrubs: the three the friends eat from, and bigger ones beside and behind the grove, each [x, z, size].
+  const shrubSpots = [], shrubs = [[.6, -28.1, 1.1], [4.25, -29, 1.25], [8.1, -28.2, 1.1], [-2.7, -26.6, 1.3], [11.7, -26.8, 1.3], [-1.8, -31.2, 1.55], [2.6, -32, 1.6], [6.6, -31.6, 1.55], [10.4, -31, 1.45]];
+  for (const [cluster, [cx, cz, size]] of shrubs.entries()) for (let branch = 0; branch < 8; branch++) {
+    const x = cx + (random(branch + cluster * 9) - .5) * 1.7 * size, z = cz + (random(branch + 60 + cluster) - .5) * 1.2 * size, y = heightAt(x, z), h = (.55 + random(branch + cluster * 7) * .55) * size * 1.2;
     shrubSpots.push([x, y, z, h]);
-    const stem = new THREE.CylinderGeometry(.025, .065, h, 5); stem.translate(x, y + h / 2, z); colourPart(stem, '#725e37', groveParts);
+    const stem = new THREE.CylinderGeometry(.025 * size, .065 * size, h, 5); stem.translate(x, y + h / 2, z); colourPart(stem, '#725e37', groveParts);
     for (let leaf = 0; leaf < 8; leaf++) {
-      const g = leafGeometry.clone(), a = leaf * 2.4 + cluster, scale = .65 + random(leaf + branch * 8) * .65;
+      const g = leafGeometry.clone(), a = leaf * 2.4 + cluster, scale = (.65 + random(leaf + branch * 8) * .65) * size;
       g.scale(scale, scale, scale); g.rotateX(-.2 + (leaf % 3) * .22); g.rotateY(a); g.translate(x, y + .2 + leaf / 8 * h, z);
       colourPart(g, ['#3d6e3f', '#5f8742', '#8ca454'][leaf % 3], groveParts);
     }
   }
   leafGeometry.dispose();
-  for (let i = 0; i < 60; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.75 + random(i + 4) * .45), 0); g.translate(x + Math.cos(a) * .24, y + h * (.6 + random(i) * .3), z + Math.sin(a) * .24); colourPart(g, GROVE_BERRY.reds[i % 3 ? 0 : 1], groveParts); }
-  const groveLeaves = merge([...bankParts, ...groveParts]); groveLeaves.material.side = THREE.DoubleSide;
+  // Heavy with berries, and some that fell on the ground under them.
+  for (let i = 0; i < 230; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.7 + random(i + 4) * .5), 0); g.translate(x + Math.cos(a) * .3, y + h * (.45 + random(i) * .5), z + Math.sin(a) * .3); colourPart(g, GROVE_BERRY.reds[i % 3 ? 0 : 1], groveParts); }
+  for (let i = 0; i < 70; i++) { const [x, y, z] = shrubSpots[(i * 5) % shrubSpots.length], a = i * 2.1, d = .5 + random(i + 70) * 1.1, px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.6 + random(i + 8) * .4), 0); g.translate(px, heightAt(px, pz) + .06, pz); colourPart(g, GROVE_BERRY.reds[i % 2], groveParts); }
+  const groveLeaves = merge(groveParts); groveLeaves.material.side = THREE.DoubleSide;
 
   // All bursts and ripples run on the same game clock as the animals.
   const particleGeometry = geo(new THREE.PlaneGeometry(.12, .07)), particleMaterial = mat({ color: '#d0af63', side: THREE.DoubleSide });

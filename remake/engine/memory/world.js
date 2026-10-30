@@ -45,6 +45,13 @@ const CELLS = leafGrid({ centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, dee
 // stay clear of the branch lying behind them.
 const NESTS = [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]];
 const SPECIES = ['triceratops', 'stegosaurus', 'brontosaurus'];
+const FAR_RINGS = [
+  { radius: 56, rows: 2, spacing: 4.2, height: [9, 13], crown: [5, 8], strip: [2.6, 4.2], color: ['#2a4b2c', '#4b7537'], haze: '#c9d3a2', topHaze: .2, araucaria: 0 },
+  { radius: 72, rows: 2, spacing: 4.4, height: [10, 14.5], crown: [5.5, 8.5], strip: [2.6, 4.4], color: ['#2c5030', '#52803c'], haze: '#cbd6a8', topHaze: .3, araucaria: 0 },
+  { radius: 92, rows: 1, spacing: 4.6, height: [10, 14], crown: [6, 9], strip: [2.8, 4.6], color: ['#365a3a', '#5f8a48'], haze: '#d0d9b0', topHaze: .45, araucaria: 0 },
+  { radius: 118, rows: 1, spacing: 5.4, height: [12, 16], crown: [6, 9], strip: [2.8, 4.6], color: ['#3e6242', '#6b9250'], haze: '#d5dcb8', topHaze: .55, araucaria: 0 },
+  { radius: 150, rows: 1, spacing: 6.4, height: [12, 17], crown: [6, 9.5], strip: [2.6, 4.4], color: ['#476b49', '#779a5c'], haze: '#d9dfc0', topHaze: .65, araucaria: 0 },
+];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X). He is MOSI_HALF metres from his middle to
 // his nose (and about as far to his tail) when the friends walk behind him.
@@ -82,7 +89,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   if (!canvas) throw new TypeError('Memory world needs its canvas.');
   const params = new URLSearchParams(globalThis.location?.search || '');
   const preset = pickQuality(params);
-  const q = { ...preset, trees: preset.trees * .22, grass: preset.grass * .07, plants: preset.plants * .28 };
+  const q = { ...preset, trees: preset.trees * .4, grass: preset.grass * .07, plants: preset.plants * .28 };
   const look = pickLook('memoryMorning');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance', stencil: false });
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
@@ -111,6 +118,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const cameraCorridor = CORRIDORS.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z >= z0 && z <= z1);
       return Math.max(bare, water, cameraCorridor ? 1 : 0);
     },
+    // The far treeline in warm greens, closer and in more rings than the forest's own (misty teal, two rings), so the overview ends in forest.
+    farRings: FAR_RINGS,
     shots: { board: SHOT },
     plants: dressGround({ avoid: onLeafGround }),
     actors: { mosi: { position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading }, ...Object.fromEntries(CELLS.map(([x, z], i) => [`place${i}`, { position: [x, 0, z], heading: 90 }])) },

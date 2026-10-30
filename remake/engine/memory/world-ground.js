@@ -71,10 +71,14 @@ function bakeMask() {
 // colours over it: bright meadow, sandy trails and places with ragged edges, mud round the marsh, and the sunlit open ground.
 const COLOURS = Object.freeze({
   uGrassBase: '#56882b', uGrassSun: '#98b83a', uClover: '#74a53d', uForestA: '#44692f', uForestB: '#5b7d38',
-  uSand: '#ecc886', uSandDark: '#d6aa6c', uSandRim: '#a98150', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
+  uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uSand: '#ecc886', uSandDark: '#d6aa6c', uSandRim: '#a98150', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
 });
 const SHADER = Object.freeze({
-  head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec3 uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,
+  head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec3 uCanopyLight, uCanopyDark, uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,
+  // Seen from above, the forest beyond the open ground is a canopy: broad lighter and darker blotches of leaves.
+  canopy: ['floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );', `floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );
+  floorC = mix( floorC, uCanopyLight * ( 0.85 + 0.3 * fine ), smoothstep( 0.52, 0.78, nB.r + ( med - 0.5 ) * 0.3 ) * 0.7 );
+  floorC = mix( floorC, uCanopyDark, smoothstep( 0.56, 0.8, nB.g + ( fine - 0.5 ) * 0.2 ) * 0.55 );`],
   floor: ['vec3 col = mix( grass, floorC, smoothstep( 0.05, 0.95, m.b ) );', 'vec4 mem = texture2D( uMemMask, ( gp - uMemBox.xy ) / uMemBox.zw );\n  vec3 col = mix( grass, floorC, smoothstep( 0.05, 0.95, m.b * ( 1.0 - mem.r ) ) );'],
   litter: ['col = mix( col, mix( uLitterA, uLitterB, smoothstep( 0.3, 0.7, nA.r ) ) * 0.8, litter * 0.55 );', 'col = mix( col, mix( uLitterA, uLitterB, smoothstep( 0.3, 0.7, nA.r ) ) * 0.8, litter * 0.55 * ( 1.0 - mem.r ) );'],
   // After the forest's own trail: sand with grain and small stones, a darker rim, damp earth by the water, mud in the marsh.
@@ -87,7 +91,9 @@ const SHADER = Object.freeze({
   col = mix( col, sandC, sandCover );
   col = mix( col, mix( col, uDamp, 0.55 ) * ( 0.9 + 0.16 * fine ), mem.a * ( 1.0 - sandCover * 0.5 ) * ( 1.0 - mem.b ) );
   float mudCover = smoothstep( 0.18, 0.5, mem.b + ( nA.g - 0.5 ) * 0.35 );
-  col = mix( col, mix( uMud, uMudWet, smoothstep( 0.45, 0.9, mem.b ) ) * ( 0.85 + 0.3 * fine ), mudCover );`],
+  col = mix( col, mix( uMud, uMudWet, smoothstep( 0.45, 0.9, mem.b ) ) * ( 0.85 + 0.3 * fine ), mudCover );
+  float puddle = smoothstep( 0.6, 0.68, nA.g * 0.8 + nC.r * 0.3 ) * smoothstep( 0.1, 0.28, mem.b ) * ( 1.0 - smoothstep( 0.6, 0.85, mem.b ) );
+  col = mix( col, vec3( 0.2, 0.26, 0.26 ), puddle * 0.75 );`],
   shade: ['float shade = texture2D( uShadeMask, ( gp - uMaskOrigin ) / uMaskSize ).r;', 'float shade = texture2D( uShadeMask, ( gp - uMaskOrigin ) / uMaskSize ).r * ( 1.0 - mem.r );'],
   // The forest's soft grass contrast, narrowed for this broader open floor (as the game had it).
   contrast: [['( 0.84 + 0.3 * nA.a )', '( 0.95 + 0.10 * nA.a )'], ['smoothstep( 0.6, 0.74, nB.g ) * 0.55', 'smoothstep( 0.6, 0.74, nB.g ) * 0.16'], ['soil );', 'soil * 0.3 );'], ['litter * 0.55', 'litter * 0.2']],
@@ -100,11 +106,11 @@ export function installGroundLook(material) {
   material.onBeforeCompile = function (shader, renderer) {
     compile.call(this, shader, renderer);
     for (const [name, hex] of Object.entries(COLOURS)) (shader.uniforms[name] ??= { value: new THREE.Color() }).value.set(hex);
-    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
+    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uForestSun.value = .4; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
     let source = shader.fragmentShader;
     const swap = ([from, to]) => { if (!source.includes(from)) console.warn(`[memory ground] the forest ground shader changed: ${from.slice(0, 48)}`); source = source.replace(from, to); };
     source = source.replace('#include <common>', `#include <common>\n${SHADER.head}`);
-    [SHADER.floor, SHADER.litter, SHADER.trail, SHADER.shade].forEach(swap); SHADER.contrast.forEach(swap);
+    [SHADER.canopy, SHADER.floor, SHADER.litter, SHADER.trail, SHADER.shade].forEach(swap); SHADER.contrast.forEach(swap);
     shader.fragmentShader = source;
   };
   material.customProgramCacheKey = () => `${key()}-memory-ground-v2`;

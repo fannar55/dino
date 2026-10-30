@@ -23,7 +23,7 @@ export const LOOKS = {
     ...morning,
     sun: { azimuth: 310, elevation: 38, color: '#ffdba2', intensity: 3.1 },
     hemi: { sky: '#c4dcec', ground: '#6e6a3a', intensity: 0.6 },
-    fog: { color: '#d3d8b4', sunColor: '#ffd9a0', sunStrength: 1, density: 0.0055, heightFalloff: 0.08 },
+    fog: { color: '#d3d8b4', sunColor: '#ffd9a0', sunStrength: 1, density: 0.0055, heightFalloff: 0.035 },
     envIntensity: 0.5,
   },
   golden: {

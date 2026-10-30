@@ -19,11 +19,12 @@
 //           plants keep out of it (keepOut), lilies grow on it, and `forest.water` draws it; heightAt is the bed, so an actor
 //           in the water stands on the bottom
 //   hummocks [{ center, radius, height }]: dry mounds raised out of the Fen's floor
-//   plants  [{ name, position: [x, z], scale, variant, rot }]: plants the chapter places itself, first and where it says
+//   plants  [{ name, position: [x, z], scale, variant, rot, sky }]: plants the chapter places itself, first and where it says (in a forest too, plan.js 0b)
 //   mist    [{ center, radius, height, level }]: low mist over the place (world/props/mist.js), `forest.mists` in order
 //   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
 //           the lines between them
 //   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
+//   farRings  the far treeline's rings (far.js) instead of the biome's own: [{ radius, rows, spacing, height, crown, strip, color, haze, topHaze, araucaria }]
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
 //   species.js     the species registry: procedural variants per kind
@@ -265,7 +266,7 @@ function* forestSteps(world, layout) {
   yield 'grass';
 
   // far forest and air; the Fen's treeline stands well out, so the Fen opens to it
-  const far = yield* createFarForestSteps({ layout, seed, terrain, q, rings: terrain.biome.fen ? FEN.far.rings : FOREST.far.rings });
+  const far = yield* createFarForestSteps({ layout, seed, terrain, q, rings: layout.farRings ?? (terrain.biome.fen ? FEN.far.rings : FOREST.far.rings) });
   group.add(far.mesh);
   yield 'far';
   const air = createAtmosphere(world, { layout, seed, terrain, shared, sun: world.lighting.direction, q });
