@@ -664,6 +664,8 @@ async function main() {
       if (s.act === 'lay:pickup') waited ||= await milestone('bark-pickup', 'kambedlur-pick-up-bark', 120);
       if (s.act === 'lay:carry') waited ||= await milestone('bark-carry', 'kambedlur-carry-bark', 800);
       for (let n = 1; n <= 3; n++) if (s.placed >= n && s.bridge.active === 'lay') waited ||= await milestone(`bark-splash-${n}`, `bark-${n}-lands-splash`, 150);
+      // The third panel is down: the whole boardwalk, done, in the cut that follows (Mosi claps).
+      if (s.placed >= 3 && s.bridge.active === 'lay' && s.cam.shot === 'wide') waited ||= await milestone('boardwalk-done', 'boardwalk-finished', 500);
       // The walk to the grove: Mosi leads (wide, then beside the boardwalk, over his shoulder, the friends behind, the arrival).
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && !seen.has('grove-walk')) waited ||= await milestone('grove-walk', 'grove-walk-starts', 500);
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow') waited ||= await milestone('grove-follow', 'grove-follow', 450);

@@ -19,9 +19,10 @@ const up = (point, metres) => point.clone().setY(point.y + metres);
 const HERO_FRONT = [.12, 0, 1], CHEER_FRONT = [.45, 0, 1];
 // A wrong friend's failure, seen from in front of it: how far the camera may turn toward the search camera's side,
 // how high it looks down and how near it stands (at the log, closer and from above the Þríhyrnur at home).
+// `lead` cuts to the close shot that many seconds before the pair arrives, so its last hop (and the mud it throws up) is in it.
 // Mosi's laugh is seen from his south-west, three-quarters: the friends (all west of him) stay out of that close shot.
 const LAUGH_FRONT = [-.6, 0, .8];
-const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .9, elevation: 32, scale: 'action', run: 36 } };
+const FAIL_VIEW = { branch: { turn: .65, elevation: 22, scale: 'action' }, log: { turn: .3, elevation: 36, scale: 'close' }, bark: { turn: .9, elevation: 32, scale: 'action', run: 36, lead: .5 } };
 
 /**
  * The branch: a wide establishing cut, the two Þórseðlur walk to it (a follow cut, then a close cut while they reach
@@ -76,7 +77,7 @@ export function failScene(stage, species, target, timing) {
   return [
     { at: 0, shot: { kind: 'wide', subjects: () => [...bodies(pair()), point(), start], elevation: view.run, cut: true },
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
-    { at: timing.run, shot: { kind: 'wide', scale: view.scale, subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
+    { at: Math.max(.1, timing.run - (view.lead ?? 0)), shot: { kind: 'wide', scale: view.scale, subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },
     { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], front: LAUGH_FRONT, cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },

@@ -172,7 +172,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   // A hop lands: a little dust, or in the mud and water a splash, and a step.
   function hopLanding(actor){
     const wet=wetGround(actor.root.position.x,actor.root.position.z);
-    fx?.emit?.(wet?'splash':'poof',actor.root.position,{count:wet?10:3,ring:.3,strength:wet?.8:1,colours:wet?MUD_COLOURS:null});events.push({type:'footstep',surface:wet?'mud':'soil',pan:0});
+    fx?.emit?.(wet?'splash':'poof',actor.root.position,{count:wet?14:3,ring:.3,strength:wet?1:1,colours:wet?MUD_COLOURS:null});events.push({type:'footstep',surface:wet?'mud':'soil',pan:0});
   }
   function hopAlong(h,t,back){
     const actor=h.actor,from=back?h.to:h.from,to=back?h.from:h.to,run=Math.min(1,t),phase=h.count*run,hop=Math.min(h.count-1,Math.floor(phase));
@@ -360,7 +360,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
   // The panel settles into the mud: water thrown out from under each of its four sides and a ring spreading over the marsh.
   function mudSplash(panel){
     const c=build.panelCenter(panel);
-    for(const side of[-1,1])for(const along of[-.55,.55])fx?.emit?.('splash',new THREE.Vector3(c.x+side*(WALKWAY.halfWidth+.1),build.deckY-.4,c.z+along),{count:12,strength:1.5,domain:'action',colours:MUD_COLOURS});
+    for(const side of[-1,1])for(const along of[-.55,.55])fx?.emit?.('splash',new THREE.Vector3(c.x+side*(WALKWAY.halfWidth+.1),build.deckY-.4,c.z+along),{count:16,strength:1.5,domain:'action',colours:MUD_COLOURS});
     burst('ripple',new THREE.Vector3(c.x,MARSH.waterY+.02,c.z));
   }
   function touchDown(){

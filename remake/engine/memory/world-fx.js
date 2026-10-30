@@ -13,7 +13,7 @@ const STYLES = {
   // Something found: bigger golden stars thrown up and falling slowly, twinkling as they turn.
   stars: { shape: 2, colours: [gold, cream, gold], spread: [.3, .55], rise: [.9, .8], life: [.95, .45], size: [.15, .15], fall: .55, alpha: .96, spin: 3.2 },
   // Water thrown up from a landing: big drops that arc high and drop back (the size is a radius in metres), easy to see from the search view.
-  splash: { shape: 3, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.8, .4], size: [.09, .07], fall: 5, alpha: 1, grow: 1, fade: .5 },
+  splash: { shape: 3, colours: [water, spray], spread: [.5, .8], rise: [1.8, 1.4], life: [.8, .4], size: [.11, .08], fall: 5, alpha: 1, grow: 1, fade: .5 },
 };
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
