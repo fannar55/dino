@@ -129,7 +129,7 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
   player.stop(); // every test ends so: the timer would keep the test running
 });
 
-test('v2 song: a sung stem (voice) is never pushed up and down by the taps; a few misses in a row muffle it, gently', () => {
+test('v2 song: a sung stem (voice) is never pushed up and down by the taps; two misses in a row muffle it, gently', () => {
   const sung = (voice, id = 'bassi') => makeSong().layers.map(l => (l.id === id ? { ...l, voice } : l));
   assert.deepEqual(validateSong(makeSong({ layers: sung(true) })), []);
   assert.ok(validateSong(makeSong({ layers: sung('yes') })).some(p => p.includes('voice')));
@@ -144,22 +144,23 @@ test('v2 song: a sung stem (voice) is never pushed up and down by the taps; a fe
   assert.equal(context.bufferSources.length, before, 'a hit does not double the syllable (a voice would jump up and fall back)');
   player.stray('b');
   assert.equal(context.bufferSources.length, before, 'a tap at no note plays no bit of the voice');
-  // one miss, or two, between hits: the voice goes on as it is (down at a miss and up at the next hit would be at every tap)
+  // one miss between hits: the voice goes on as it is (down at a miss and up at the next hit would be at every tap)
   to(40); // more of the song known (the chart grows a section at a time); which of her notes they are does not matter
   const later = player.chart.filter(n => n.role === 'b' && n !== note);
   assert.ok(later.length >= 4);
   const gate = player.chains.b.gate.gain;
   player.miss(later[0]);
-  player.miss(later[1]);
-  assert.ok(player.isOpen('b'), 'two misses: still singing');
-  assert.equal(gate.valueAt(context.currentTime + 1), 1);
-  // a few in a row: she is muffled, gently, and stays so (no ghost coming and going)
+  player.hit(later[1], 0);
   player.miss(later[2]);
-  assert.ok(!player.isOpen('b'), 'three in a row muffle her voice');
+  assert.ok(player.isOpen('b'), 'a miss, a hit, a miss: still singing');
+  assert.equal(gate.valueAt(context.currentTime + 1), 1);
+  // two in a row: she is muffled, gently, and stays so (no ghost coming and going)
+  player.miss(later[3]);
+  assert.ok(!player.isOpen('b'), 'two in a row muffle her voice');
   assert.ok(gate.valueAt(context.currentTime + 0.05) > 0.6, 'not at once');
   to(42);
   assert.ok(gate.valueAt(context.currentTime) < 0.25, 'but soon, and she stays down until a hit');
-  player.hit(later[3], 0);
+  player.hit(later[0], 0);
   assert.ok(player.isOpen('b'), 'a hit brings her back');
   assert.ok(gate.valueAt(context.currentTime + 0.05) < 0.6, 'gently');
 });

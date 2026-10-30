@@ -32,7 +32,7 @@ const GHOST_AFTER = 3;
 // A dinosaur who sings (a `voice` stem): down at a miss and up at the next hit would be at every tap, which a voice cannot take
 // (the owner, 2026-10-30), so she goes on as she is until she has missed this many in a row, then fades to the whisper, and
 // comes back at a hit, gently both ways; no ghost
-const VOICE_MISSES = 3;
+const VOICE_MISSES = 2; // the owner: two in a row
 const VOICE_TAU = 0.25; // s
 const ACCENT_GAIN = 1; // the copy of a hit stem note, times the layer's gain: the note doubled, about +6 dB
 const ACCENT_ATTACK = 0.002; // s
