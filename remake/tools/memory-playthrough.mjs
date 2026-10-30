@@ -9,6 +9,7 @@
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
+//     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
 //     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
 //     [--cpu-throttle 4]      CDP Emulation.setCPUThrottlingRate (a slower tablet's CPU): the whole run is that many times slower; after the final frame-rate sample the throttle is lifted
 //                             and the run waits 15 s, so report.resolution.afterRelief says whether the game's dynamic resolution stepped back up
@@ -100,7 +101,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -118,6 +119,7 @@ function parseArgs(argv) {
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--toggle-motion') o.toggleMotion = true;
+    else if (a === '--help-shot') o.helpShot = true;
     else if (a === '--stop-after-retry') o.stopAfterRetry = true;
     else if (a === '--cpu-throttle') { o.cpuThrottle = Number(next()); if (!(o.cpuThrottle >= 1)) throw new Error('--cpu-throttle must be 1 or more'); }
     else if (a === '--seed') o.seed = next();
@@ -433,7 +435,7 @@ const reachJs = key => `(() => { ${REACH_FN}
   return el ? { found: true, ...reach(el) } : { found: false }; })()`;
 // Every enabled target (a leaf, an obstacle, a home) and the bubbles that a finger cannot fully reach right now.
 const ENABLED_REACH_JS = `(() => { ${REACH_FN}
-  return [...document.querySelectorAll('#targets .world-target:not(:disabled), #who .who-friend')].map(el => ({ key: el.dataset.target || 'who-' + el.dataset.species, ...reach(el) })).filter(x => x.percent < 70 || !x.centreHit || !x.inside); })()`;
+  return [...document.querySelectorAll('#targets .world-target:not(:disabled), #who .who-friend')].filter(el => !el.closest('[hidden]')).map(el => ({ key: el.dataset.target || 'who-' + el.dataset.species, ...reach(el) })).filter(x => x.percent < 70 || !x.centreHit || !x.inside); })()`;
 
 // Taps buttons inside the page, `times` clicks each, gapMs apart. A disabled or hidden button ignores the tap, as it does for a child.
 const tapJs = (keys, times, gapMs) => `(async () => {
@@ -652,6 +654,13 @@ async function main() {
     step('start clicked');
     await sleep(2500);
     await shot('glade');
+    if (o.helpShot) {
+      await ev(`document.getElementById('help').click()`); await sleep(700);
+      report.helpDialog = await ev(`(() => { const d = document.getElementById('help-dialog'), r = d.getBoundingClientRect(); return { open: d.open, items: [...d.querySelectorAll('li')].map(li => li.textContent), box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }, insideScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, scrolls: d.scrollHeight > d.clientHeight + 1, scrollHeight: d.scrollHeight, clientHeight: d.clientHeight, viewport: { width: innerWidth, height: innerHeight } }; })()`);
+      step('help dialog', { items: report.helpDialog.items.length, second: report.helpDialog.items[1], box: report.helpDialog.box, scrolls: report.helpDialog.scrolls });
+      await shot('help-dialog');
+      await ev(`document.querySelector('#help-dialog [data-resume]').click()`); await sleep(500);
+    }
     // The search view: every baby's on-screen size (projected posed bounds, hidden ones measured at their cells),
     // Mosi and the leaves, with whether each is inside the frame.
     report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
@@ -1086,7 +1095,7 @@ async function main() {
         giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
     } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
-    try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
+    try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, maxPlanningMs: d.homeNavigation.maxPlanningMs, maxIterations: d.homeNavigation.maxIterations, maxSliceMs: d.homeNavigation.maxSliceMs, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
     try {
       const d = await ev('window.__memory.stats()');
       report.idle = d.idle; report.idleCheck = idleCheck(d.idle);

@@ -306,6 +306,23 @@ shadows use separate simplified index buffers with the same rigs and skin
 weights. Their combined measured simplification error is below .7 sun-shadow
 texel. High quality keeps the engine's original visible-model LOD thresholds.
 
+## The last fixes before the merge
+
+- **"Aftur" follows the bubbles.** `#cancel-choice` is shown and hidden on every frame together with the "who" bubbles (`reflectWho()`),
+  so it is there when the bubbles come back a frame after a wrong friend's go.
+- **Dynamic resolution recovers.** The render scale steps down by .1 (to .65) when the 1.2 s average frame is over 38 ms and back up by .05 (to 1)
+  when it is under 25 ms; 4 s of game time pass after a step up before a step down, and after any change before a step up. A restart resets it to 1.
+- **A walk's planning timeout counts planner work, not game seconds.** The planner (`world-home-nav.js`) counts the CPU it gives each search;
+  a walk gives up (`planning-timeout`, then `bridge-blocked`) after 2160 ms of it, which is the old 12 s of 60 fps frames at 3 ms each. A slow
+  frame rate no longer shrinks the search. 60 s of game time is a backstop for a walk the planner never reaches.
+- **A blocked crossing or walk to the grove tries again by itself** once the camera is free for 3 s (`blockedAuto` is cleared for `cross` and `finish`);
+  the staging spot (or the grove) carries the gold arrow while it waits. The lift, the roll and the bark are tapped again by the child, as before.
+- **`?planblock=cross` (QA only)** runs the first plan of each named action out of budget at once, to see the blocked crossing and its retry.
+- **`window.__demoStats` is a getter**, built when it is read (at most once a frame) and not by `world.getDebug()` on every frame.
+- **Calm motion while Mosi walks** keeps his walk clip (`setReducedMotion` in `world.js`); only a standing Mosi goes still.
+- **`memory-playthrough.mjs`** gained `--cpu-throttle N`, `--toggle-motion`, `--stop-after-retry`, the list of blocked walks, the reach check
+  (can a finger reach each button it taps; every enabled target sampled for overlap) and the ending render scale.
+
 ## Ownership and boundaries
 
 `rules.js` owns shuffled cards and clock-driven transitions. `game.js` owns DOM,
