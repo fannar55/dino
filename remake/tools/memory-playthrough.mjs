@@ -5,7 +5,7 @@
 // paths during scripts). It takes screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
 //
 //   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
-//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--surprises 0|1|2]
+//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
@@ -13,8 +13,9 @@
 //                 friend to pick), the branch (after ~5 s of waiting for the gold arrow, one wrong pick, then the right one and
 //                 three taps in the hero shot), then the Kambeðlur, the log (one wrong pick, the Kambeðlur, then the Þríhyrnur and
 //                 three taps on "Einn, tveir, ÝTA!"), the crossing, the bark (one wrong pick, the Þórseðlur, then the Kambeðlur
-//                 and a tap on each of the three panels) and the grove. The two surprise leaves are opened as well, one before
-//                 the first pair and one before the last (report.surprises).
+//                 and a tap on each of the three panels) and the grove. The twelve leaves are all found: the three gift pairs (the shrew,
+//                 the hermit crab, the crab) are opened too, the first before the first friend pair, the others after the first and the second
+//                 (each pair's first try is a deliberate miss: with another gift, with a friend, then the right one); report.gifts has each pair.
 //   branch        like full, but stops when the branch is up and the camera is back on the glade.
 //   first-minute  stops when the first pair is matched and its friends have walked home.
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
@@ -24,14 +25,15 @@
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
-//   --restart-at W  celebration or ending: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card) and
+//   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
 //                   reports what is left running (report.restartCheck: nothing should be).
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
-//   --surprises N   full and rapid open exactly N of the two surprise leaves (0, 1 or 2; without it both, as before), so the celebration's gifts line
-//                   and the ending card can be seen for each count (report.endingCard, report.spoken).
+//   --gifts-last    full and rapid find the three gift pairs only after every friend pair (and the bridge), so the crossing's wait for the gifts is seen:
+//                   the gifts-left story, Mosi's line, the gold arrow on a shut leaf and a tap on the staging spot (report.giftsLeft), and that the crossing
+//                   starts once, after the last pair has landed in the basket (report.crossAfterGifts).
 //   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
 //                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
 //                   (it slows the game down a little, so use it for a check run, not for timings).
@@ -40,7 +42,7 @@
 // frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
 // game is paused for each milestone picture (report.pauseHolds says nothing moved meanwhile); with --video a milestone
 // is the screencast's frame at that instant (NN-name.jpg, 960 px), so the video keeps real time.
-// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, surprises, who, marks, ... }.
+// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, gifts, who, marks, ... }.
 // `who` measures the bubbles the first time they open (each portrait's on-screen size); `marks` are named moments with
 // their time into round.mp4 (branch-start / log-start / bark-start: the first tap on the obstacle, branch-end / log-end: the
 // cheer, bark-end: the third panel is down).
@@ -54,7 +56,7 @@
 // waiting friends' play (idle-play.js): every game that started (friend, game, game time, the not-busy seconds it had waited, how far from
 // its spot it went) and `idleCheck` the two things the round must show: never two at once, and 6 to 10 seconds between starts while nothing is busy.
 // `spoken` is each line of Mosi's the page started and when (game seconds; `speechCheck` counts `won` and the gifts line and says how long the gifts line took to follow Mosi's cheer); `endingCard` the ending card's words (and the gifts row).
-// `surprises` lists each surprise leaf the driver opened: { id, item, at (s) }; `found` and `basketEnd` say what the rules
+// `gifts` lists each gift pair the driver found: { item, id (its first leaf), at (s, when it was opened), foundAt, landedAt (the basket counted it) }; `found` and `basketEnd` say what the rules
 // and the basket in the ribbon held at the end.
 // `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
 // through (caption, phase, bridge, camera and scripted shot, work button), sampled every 100 ms inside the page.
@@ -91,7 +93,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -106,8 +108,8 @@ function parseArgs(argv) {
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
     else if (a === '--first') o.first = next();
-    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending'].includes(o.restartAt)) throw new Error('--restart-at must be celebration or ending'); }
-    else if (a === '--surprises') { o.surprises = Number(next()); if (![0, 1, 2].includes(o.surprises)) throw new Error('--surprises must be 0, 1 or 2'); }
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
+    else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
     else if (a === '--page') o.page = next();
@@ -326,6 +328,7 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
   return { phase: s.phase, matched: s.matchedPairs, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
     sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
+    basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // One read of everything the driver decides on.
@@ -340,7 +343,9 @@ const SNAPSHOT_JS = `(() => {
     bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving), held: Boolean(cam.held), shot: cam.shot || null, take: cam.takes || 0 }, scene: Boolean(d.scene && d.scene.busy),
     act: d.bridge && d.bridge.action ? d.bridge.action.id + ':' + d.bridge.action.phase : null, placed: d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0, fxActive: d.fx ? d.fx.active : 0, landed: Boolean(d.bridge && d.bridge.bridge && d.bridge.bridge.built),
     mosi: d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : d.scene && d.scene.mosiAcross ? 'across' : null,
-    who, story: { kind: story.kind, target: story.target || null, available: Boolean(story.available), automatic: Boolean(story.automatic) },
+    who, story: { key: story.key, kind: story.kind, target: story.target || null, available: Boolean(story.available), automatic: Boolean(story.automatic) },
+    giftPhases: (d.cells || []).filter(c => c.gift).map(c => c.gift.phase), giftsLeft: m.giftsLeft(),
+    guidedLeaf: (document.querySelector('#targets .is-guided[data-target^="leaf-"]') || {}).dataset?.target || null,
     wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
@@ -628,10 +633,14 @@ async function main() {
     const order = (story ? ['triceratops', 'brontosaurus', 'stegosaurus'] : ['brontosaurus', 'triceratops', 'stegosaurus']).filter(sp => first.cards.some(c => c.species === sp));
     for (const sp of new Set(first.cards.map(c => c.species))) if (sp && !order.includes(sp)) order.push(sp);
     if (o.first && order.includes(o.first)) order.splice(0, order.length, o.first, ...order.filter(sp => sp !== o.first));
-    // The surprise leaves, in card order. `full` and `rapid` open one before the first pair and one before the last.
-    const surpriseIds = first.cards.filter(c => c.item).map(c => c.id);
-    report.surprises = [];
-    const surpriseAt = [0, 2].slice(0, o.surprises ?? 2); // matched pairs when each one is opened (full and rapid; --surprises N opens only the first N)
+    // The gift pairs, in card order. `full` and `rapid` find them: the first before the first friend pair, the second after the first and the
+    // third after the second (every one after the last friend pair with --gifts-last). The first try of the first two is a deliberate miss.
+    const giftItems = [...new Set(first.cards.filter(c => c.item).map(c => c.item))];
+    report.gifts = [];
+    const giftAt = giftItems.map((_, k) => o.giftsLast ? 3 : k); // matched friend pairs when each pair is opened
+    const giftMissed = new Set(), wantGifts = o.mode === 'full' || o.mode === 'rapid';
+    let giftsLeftChecked = false;
+    const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
@@ -666,13 +675,26 @@ async function main() {
       if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
 
       if (!s.wait) tapWait = null;
+      for (const g of report.gifts) {
+        if (!g.foundAt && s.found.includes(g.item)) g.foundAt = T();
+      }
+      if (s.basket > report.gifts.filter(g => g.landedAt).length) { const g = report.gifts.find(x => x.foundAt && !x.landedAt); if (g) g.landedAt = T(); }
       if (s.placed >= 3 && s.bridge.active === 'lay') mark('bark-end');
+      if (s.bridge.active === 'cross' && !report.crossAfterGifts) report.crossAfterGifts = { at: T(), basket: s.basket, giftsLeft: s.giftsLeft, lastLanded: report.gifts.map(g => g.landedAt).filter(Boolean).at(-1) ?? null };
       if (s.bridge.active === 'finish' && (s.mosi === 'walk' || s.mosi === 'deck')) mark('grove-start');
       if (s.bridge.visited) mark('grove-end');
       if (s.ending) {
         report.finished = true; step('ending'); await sleep(1500); await shot('ending');
         report.endingCard = await ev(`(() => { const row = document.getElementById('ending-gifts'), size = el => parseFloat(getComputedStyle(el).fontSize); return { copy: document.getElementById('ending-copy').textContent, gifts: row.hidden ? null : document.getElementById('ending-gifts-text').textContent, giftsFontPx: row.hidden ? null : size(row), copyFontPx: size(document.getElementById('ending-copy')), again: document.getElementById('again').textContent.trim(), basketInCard: !row.hidden && Boolean(row.querySelector('svg')), foundInRules: window.__memory.state().found, basket: window.__memory.basket() }; })()`);
         step('the ending card', report.endingCard ?? {});
+        // The small "i": the credits of the three models (one Líkan / Leyfi / Frá group each), open for a picture, then shut.
+        try {
+          await ev(`document.getElementById('credits-toggle').click()`); await sleep(400);
+          report.credits = await ev(`(() => { const box = document.getElementById('credits'), toggle = document.getElementById('credits-toggle'), r = box.getBoundingClientRect(), t = toggle.getBoundingClientRect(), card = document.getElementById('ending').getBoundingClientRect();
+            return { open: !box.hidden, groups: box.querySelectorAll('.credit-group').length, rows: [...box.querySelectorAll('p')].map(p => p.textContent), fontPx: parseFloat(getComputedStyle(box.querySelector('p')).fontSize), box: { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom) }, insideScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, toggle: { width: Math.round(t.width), height: Math.round(t.height) }, expanded: toggle.getAttribute('aria-expanded'), closedByDefault: true }; })()`);
+          await shot('ending-credits'); await ev(`document.getElementById('credits-toggle').click()`); await sleep(150);
+          report.credits.closedAgain = await ev(`document.getElementById('credits').hidden`);
+        } catch (e) { report.credits = { error: e.message }; }
         if (o.restartAt === 'ending') {
           const beats = await ev('window.__memory.stats().scene.beats'); if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
           await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
@@ -707,9 +729,13 @@ async function main() {
       if (s.cam.shot === 'follow') waited ||= await milestone('walk-home', 'walk-home', 900);
       if (s.cam.shot === 'wide') waited ||= await milestone('home-clap', 'home-clap', 500);
       if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);
-      // A surprise leaf was found: the pop (stars, flight) and then the basket counting it.
-      if (s.found.length) waited ||= await milestone('surprise-pop', 'surprise-pop', 650);
-      if (s.basket >= 1) waited ||= await milestone('surprise-basket', 'surprise-in-basket', 350);
+      // A gift: its first leaf (the animal standing, Mosi's "Hvar er hin?"), a miss, the pair rising, flying and the basket counting it; and the wait for them.
+      if (s.phase === 'one-open' && s.cards.some(c => c.status === 'open' && c.item)) waited ||= await milestone('gift-first', 'gift-first-leaf', 900);
+      if (s.phase === 'mismatch' && s.cards.some(c => c.status === 'open' && c.item)) waited ||= await milestone('gift-mismatch', 'gift-mismatch', 800);
+      if (s.giftPhases.includes('rise')) waited ||= await milestone('gift-rise', 'gift-pair-rises', 450);
+      if (s.giftPhases.includes('fly')) waited ||= await milestone('gift-fly', 'gift-pair-flies', 250);
+      if (s.basket >= 1) waited ||= await milestone('gift-basket', 'gift-in-basket', 350);
+      if (s.story.key === 'gifts-left') waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
       // The branch: the obstacle glowing, the arrow after hesitating, the bubbles, a wrong friend's go and Mosi's laugh,
       // the walk there, each tap of the tap-along (or the timeout's "Við gerum þetta saman!") and the cheer.
       if (s.story.kind === 'work' && s.story.target === 'branch' && s.story.available && !s.cam.held && !s.scene) waited ||= await milestone('glow-branch', 'branch-glowing', 400);
@@ -751,6 +777,12 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
+      if (o.restartAt === 'gift' && (s.giftPhases.includes('rise') || s.giftPhases.includes('fly'))) {
+        await sleep(350); report.beforeGiftRestart = await ev(RESTART_JS);
+        step('restart while a gift pair flies', { basket: report.beforeGiftRestart.basketText, phases: report.beforeGiftRestart.giftPhases });
+        await ev('window.__memory.restart()'); await sleep(1500);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+      }
       if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
         await sleep(1200); // Mosi's gifts line is on its way (or playing)
         step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
@@ -818,6 +850,17 @@ async function main() {
         if (['branch', 'log', 'bark'].includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
         await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1), at: where });
+      } else if (s.phase === 'one-open' && mayAct && s.cards.some(c => c.status === 'open' && c.item)) {
+        // A gift's first leaf is open. The first two pairs are tried wrongly once (with another gift, then with a friend), then the partner.
+        const open = s.cards.find(c => c.status === 'open'), k = giftItems.indexOf(open.item);
+        let target;
+        if (!giftMissed.has(open.item) && k < 2) {
+          giftMissed.add(open.item);
+          target = k === 0 ? hiddenGift(s, giftItems[1])[0] : s.cards.find(c => c.species && c.status === 'hidden')?.id;
+          if (leaf(target)) { await act(`leaf-${target}`, `pick leaf ${target} (${s.cards[target].item ?? s.cards[target].species}) to miss the ${open.item} on purpose`); continue; }
+        }
+        target = hiddenGift(s, open.item).find(leaf);
+        if (target !== undefined) await act(`leaf-${target}`, `pick leaf ${target} (the other ${open.item})`);
       } else if (s.phase === 'one-open' && mayAct) {
         const open = s.cards.find(c => c.status === 'open');
         if (missPlan === 1 && order.length > 1) {
@@ -828,10 +871,27 @@ async function main() {
         if (partner !== undefined) await act(`leaf-${partner}`, `pick leaf ${partner} (partner of ${open.id}, ${open.species})`);
       } else if (s.phase === 'ready' && mayAct && !s.bridge.asking) {
         let id;
-        const due = o.mode === 'full' || rapid ? surpriseIds.find((value, k) => k < surpriseAt.length && s.matched >= surpriseAt[k] && s.cards[value].status === 'hidden') : undefined;
-        if (due !== undefined && leaf(due) && !report.surprises.some(entry => entry.id === due)) {
-          report.surprises.push({ id: due, item: s.cards[due].item, at: T() });
-          await act(`leaf-${due}`, `pick surprise leaf ${due} (${s.cards[due].item})`); continue;
+        // With every friend found, the bridge built and gifts left (--gifts-last): Mosi says so, the gold arrow points at a shut leaf and a tap on the staging spot says the same.
+        if (wantGifts && o.giftsLast && s.story.key === 'gifts-left' && !giftsLeftChecked) {
+          giftsLeftChecked = true; step('every friend home, the bridge built, gifts left: hesitate for the arrow');
+          const speechBefore = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft').length;
+          const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
+          const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
+          const before = await ev(SNAPSHOT_JS);
+          await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
+          const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
+          const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
+          report.giftsLeft = { story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
+            linesBeforeTap: speechBefore, linesAfterTap: spoken.length, crossStartedByTap: after.bridge.active === 'cross' || after.mosi === 'walk', captionAfterTap: after.caption, giftsLeft: after.giftsLeft };
+          step('gifts left check', report.giftsLeft); continue;
+        }
+        const dueItem = wantGifts ? giftItems.find((item, k) => !s.found.includes(item) && s.matched >= giftAt[k]) : undefined;
+        if (dueItem !== undefined) {
+          const firstLeaf = hiddenGift(s, dueItem).find(leaf);
+          if (firstLeaf !== undefined) {
+            if (!report.gifts.some(g => g.item === dueItem)) report.gifts.push({ item: dueItem, id: firstLeaf, at: T() });
+            await act(`leaf-${firstLeaf}`, `pick gift leaf ${firstLeaf} (${dueItem})`); continue;
+          }
         }
         if (missPlan === 0 && s.matched === 0) { id = hidden(s, order[0])[0]; if (leaf(id)) missPlan = 1; }
         else {
@@ -859,8 +919,9 @@ async function main() {
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
       report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
-      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => /^gifts[12]$/.test(s.id));
-      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts: report.spoken.filter(s => /^gifts[12]$/.test(s.id)).length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null };
+      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => s.id === 'gifts3');
+      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts3: report.spoken.filter(s => s.id === 'gifts3').length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
+        giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
     } catch {}
     // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
     try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }

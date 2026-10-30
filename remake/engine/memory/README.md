@@ -23,9 +23,29 @@ dialog for screenshots; browser audio still requires a gesture.
 
 ## Review scope
 
-- A larger connected woodland board: eight domed leaf hiding places (a 4 x 2 grid turned toward
-  the search camera: six hide friends, two hide surprises), Mosi at the head of the path with the
+- A larger connected woodland board: twelve domed leaf hiding places (a 4 x 3 grid turned toward
+  the search camera: six hide friends in three pairs, six hide gifts in three pairs), Mosi at the head of the path with the
   three home spots around him, a winding shallow river, a staging clearing, a marsh and a berry grove.
+  The search view fits all twelve leaves, Mosi and the home spots at 1280 x 800 and 820 x 1180; on a phone (390 x 844) it looks
+  along the grid from higher up so the three columns and four rows keep a 44 px button each (the playthrough measures them:
+  `report.leafTargets`).
+- The gifts (`rules.js` `gifts`, default `shrew`, `hermitCrab`, `crab`): three small animals the owner picked, found as pairs
+  like the friends. Two leaves match when they hide the same friend or the same gift; a gift and a friend, or two
+  different gifts, are a mismatch and close as before. The first leaf shows the animal standing where the leaf lay, with
+  Mosi's bubble asking for the other half ("Snjáldurmús! Hvar er hin?"); a found pair rises, hovers and flies to the basket
+  in the ribbon with stars and a `ding`, and Mosi names it (`gift_shrew`, `gift_hermitCrab`, `gift_crab`). The basket
+  counts the pairs ("0 / 3" from the start; the progress dots stay "x / 3 pör" for the friends). The round ends only when
+  all twelve leaves are found: the crossing to the berry grove starts on its own when every friend is home, the bridge is built
+  and the last gift pair has landed in the basket, once. Until then Mosi says `giftsLeft` ("Finnum fyrst gjafirnar sem eru
+  eftir!"), the gold arrow points at a shut leaf and a tap on the staging spot says the same.
+- The gift models are `assets/memory/gifts/{shrew,hermit-crab,crab}.glb`, each at most 4,000 triangles, one mesh, one
+  material, 512 px WebP maps, facing +X with its feet on y = 0, with a `-source.json` beside it (author, licence, what was
+  changed, the exact commands). They are the owner's downloads from Sketchfab, all CC BY 4.0 (Shrew by Robert_the_whale,
+  Little Hermit Crab by Citflo, Dancing Crab - Uca Mjoebergi by Bohdan Lvov), processed by `tools/blender-gift.py` and
+  `tools/quantize-glb.mjs` (the two static ones). Their credits (Líkan / Leyfi / Frá, as the book's card viewer shows them) are
+  behind the small "i" on the ending card (`GIFT_CREDITS` in `surprise-items.js`). The crab plays its `Dance` clip (each of the
+  pair has its own skeleton clone and mixer); the other two bob and turn gently. `surprise-items.js` also makes the butterfly the
+  waiting friends chase (it hides under no leaf any more).
 - Two matching instances each of triceratops, stegosaurus, and brontosaurus.
 - The triceratops is a newly proportioned baby derived from the owner's textured
   Mosi mesh. See `assets/memory/triceratops-baby-source.json` and
@@ -34,13 +54,11 @@ dialog for screenshots; browser audio still requires a gesture.
   Their final baby designs are deliberately deferred until the art review.
 - A new local ElevenLabs woodland theme (45-second seamless loop), 15 recorded
   cues for the three species, footsteps, leaves, construction, river and rewards,
-  and 14 Icelandic Mosi lines. Music stays audible during construction and ducks
+  and 25 Icelandic Mosi lines. Music stays audible during construction and ducks
   under speech; pause preserves the music and narration playheads.
 - Leaf juice: a tapped leaf squashes, bounces and puffs dust (`poof`), then swings away to lie
-  flat behind its hiding place. A wrong pair closes with a bounce and a `bonk`. A surprise leaf
-  (`rules.js` `surprises`, default berries and a butterfly; the pictures are the one table in
-  `surprise-items.js`) pops up with stars, hovers, and flies to the basket in the ribbon with a
-  `ding`; the basket counts them. A found pair hops home over the leaves with glitter and stars,
+  flat behind its hiding place. A wrong pair closes with a bounce and a `bonk` (a gift ducks under its leaf).
+  A found pair hops home over the leaves with glitter and stars,
   and each pair's chime is a step higher than the last (`audio.js` `CHIME_RISE`).
 - Reveal, mismatch, match transfer, end celebration, interactive nests, pause,
   reduced motion, mute, and replay. No timer or score penalty.
@@ -60,7 +78,7 @@ dialog for screenshots; browser audio still requires a gesture.
   entire route and disables world input; “Nær” returns to the playable view.
   Pause freezes camera and action clocks, and reduced motion skips camera travel.
 - Wider leaf aisles and parallel resting places use measured animal dimensions.
-  A found pair hops straight home over the closed leaves (the eight-leaf board is too
+  A found pair hops straight home over the closed leaves (the twelve-leaf board is too
   crowded for a walking route); later walks (branch, log, crossings) plan around closed leaves,
   other animals, Mosi, the log and river, including the other friend's eventual resting place,
   with timed body reservations, so the
@@ -99,11 +117,11 @@ dialog for screenshots; browser audio still requires a gesture.
 - The ending (`scenes/celebrate.js`, played by `scenes/finish.js` once all six have arrived): about
   seventeen seconds of cuts, never more than three apart. The friends eat berries (the Kambeðlur with their
   own `eat` clip, the others with the `nibble` gesture), each pair does its trick (the Þríhyrnur hop, the
-  Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the surprises the child found rise from
-  his basket while he says "Þú fannst eina óvænta gjöf!" or "Þú fannst tvær óvæntar gjafir!" (`gifts1`, `gifts2`;
-  none found, no line). The six stand in a row and Mosi at the back in the middle (`bridge-adventure.js`
+  Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the three gifts rise from his basket
+  (one at each side of his head, one high above it) while he says "Þú fannst allar þrjár gjafirnar!" (`gifts3`). The six
+  stand in a row and Mosi at the back in the middle (`bridge-adventure.js`
   `FINAL_PARKING`, `GROVE_LEADER`) so that every face shows. The last wide shot stays up under the ending
-  card, which says the same sentence as the line beside the basket.
+  card, which says the same sentence beside the basket and has the small "i" for the models' credits.
 - Waiting friends (`idle-play.js`): a found friend at its waiting place, with no task, plays one game at a
   time every six to ten seconds of quiet time (chase a butterfly, yawn, scratch, sniff at a flower, nudge its
   partner) and now and then looks at the child. Nothing starts while a script, cut, glide, bubble row or choice is
@@ -279,7 +297,7 @@ input, narration, music and the RAF. `world.js` owns the scene/camera; `world-pr
 owns the leaf/nest geometry; `baby-actors.js` owns the character rigs. `audio.js`
 owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `presentation-audio.js` owns gesture-gated music and the queued Mosi narration.
-`surprise-items.js` is the table of what a surprise leaf hides (name, caption, picture).
+`surprise-items.js` is the table of the gifts (`GIFT_ITEMS`: name, the words for the first and the found leaf, the voice line, the model) and their credits (`GIFT_CREDITS`).
 `bridge-rules.js` owns helper selection and cooperative bridge progress;
 `bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
 shared game clock. `build-props.js` owns the marsh and bark walkway; the camera

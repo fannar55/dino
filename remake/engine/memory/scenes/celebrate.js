@@ -1,16 +1,16 @@
 /**
  * The celebration at the berry grove, as lines for the scene runner (scenes.js), played by scenes/finish.js once all six have arrived
- * and before the ending card: the friends eat berries, each pair does its trick, Mosi cheers and the surprises the child found are
+ * and before the ending card: the friends eat berries, each pair does its trick, Mosi cheers and the three gifts the child found are
  * shown, with a cut every one to three seconds and a wide shot of them all at the end. Times are seconds from the start; the
  * whole is about sixteen. The stage is the world's (world.js; scenes/first-minute.js lists the helpers), and for this one it gives
  *   friends()                        all six actors              pair(species)               a pair's two actors
  *   mosi.yaw()                       the way Mosi faces
- *   gifts.count()                    how many surprises were found (0, 1 or 2)
- *   gifts.hover(i, n)                where gift i of n floats          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the ribbon
+ *   gifts.count()                    how many gifts were found (0 to 3: a finished round has all three)
+ *   gifts.hover(i)                   where gift i floats (left, right, high above)          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the ribbon
  *   beat(name, cut)                  notes a beat in the page's debug (the playthrough's report and pictures)
  * The Kambeðlur eat with their own `eat` clip and the others with the nibble gesture (gestures.js); tricks: the Þríhyrnur hop,
  * the Kambeðlur and the Þórseðlur play their `happy` clips (a friend without the clip, or in reduced motion, cheers instead).
- * Mosi's lines: `won` at the start, then the gifts line (gifts1 or gifts2) once it is over; no surprise, no gifts line.
+ * Mosi's lines: `won` at the start, then the gifts line (gifts3: "Þú fannst allar þrjár gjafirnar!") once it is over; no gifts, no gifts line.
  * The six stand close round Mosi (bridge-adventure.js FINAL_PARKING), so a close shot of a pair or of Mosi and the last wide shot all
  * show faces; every close shot looks down at 18 to 24 degrees, over the reeds and berries at the edge of the grove.
  */
@@ -40,8 +40,12 @@ export function celebrateScene(stage) {
   const T = { eat: 1.2, stego: 2.4, bronto: 3.6, wide: 4.8, tri: 5.9, stegoTrick: 7.5, brontoTrick: 8.8, mosi: 11.2 };
   const look = T.mosi + 1.7, last = T.mosi + (gifts ? 3.4 : 1.9);
   const mosiFront = (spin = 0) => () => stage.faceOn(mosi.yaw(), .5).applyAxisAngle(UP, spin);
-  // Where the gifts float. With none found the shot is framed as if three floated there, so it is as wide (and as light) as with them.
-  const framed = Math.max(3, gifts), giftPoints = () => Array.from({ length: framed }, (_, i) => stage.gifts.hover(i, framed));
+  // Where the gifts float, and their size (each is up to 1.6 m high and across): points all round them, so the shot holds them whole. With none
+  // found the shot is framed as if three floated there, so it is as wide (and as light) as with them.
+  const framed = Math.max(3, gifts), giftPoints = () => Array.from({ length: framed }, (_, i) => stage.gifts.hover(i)).flatMap(point => {
+    const across = stage.gifts.across();
+    return [point, up(point, 1.6), point.clone().addScaledVector(across, .9), point.clone().addScaledVector(across, -.9)];
+  });
   return [
     // They have all arrived: the whole grove, the cheer still going, Mosi's line; he looks them over.
     { at: 0, shot: { kind: 'wide', subjects: group, elevation: 26, cut: true },
@@ -64,7 +68,7 @@ export function celebrateScene(stage) {
       act: all(beat('trick-stegosaurus'), () => stego().forEach(happy), () => mosi.gesture('clap')), sound: call('stegosaurus'), fx: { kind: 'stars', at: () => up(stego()[0].root.position, 1.4), count: 10 } },
     { at: T.brontoTrick, shot: { kind: 'face', subjects: () => faces(bronto()), front: frontOf(bronto, -.15), elevation: 20, cut: true },
       act: all(beat('trick-brontosaurus'), () => bronto().forEach(happy)), sound: call('brontosaurus'), fx: [{ kind: 'stars', at: () => up(bronto()[0].root.position, 2), count: 10 }, { kind: 'stars', at: () => up(bronto()[1].root.position, 2), count: 10 }] },
-    // Mosi cheers, close on his face, and the surprises the child found rise from his basket beside his head while his line says so.
+    // Mosi cheers, close on his face, and the gifts the child found rise from his basket round his head while his line says so.
     { at: T.mosi, shot: { kind: 'face', subjects: () => [mosi.head(), up(mosi.head(), .6), ...giftPoints()], front: mosiFront(), elevation: 26, cut: true },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer'), () => stage.gifts.start()), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 }, sound: gifts ? 'ding' : undefined, say: line ? { line, queue: true } : undefined },
     // The gifts again from his other side (only when there are some).

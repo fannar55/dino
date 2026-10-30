@@ -275,7 +275,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     },
     beat: (name, cut = false) => { beats.push({ name, t: +time.toFixed(2), cut }); if (beats.length > 60) beats.shift(); },
     // The celebration's gifts (scenes/celebrate.js).
-    gifts: { count: () => found().length, hover: (i, n) => giftHover(i, n), start: startGifts, end: flyGifts },
+    gifts: { count: () => found().length, hover: i => giftHover(i), across: () => giftAcross(), start: startGifts, end: flyGifts },
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {
@@ -718,12 +718,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
   const found = () => [...new Set(cells.filter(cell => cell.item && cell.status === 'found').map(cell => cell.item))]
     .filter(id => giftModels.get(id)).map(id => ({ id, model: giftModels.get(id)[0] }));
-  // Beside Mosi's head, a little toward the camera (the shot of them is a close one on his face).
-  // The gifts float to the sides of his head, never over it, so that his face stays clear.
-  function giftHover(i, n = found().length) {
-    n = Math.max(3, n);
-    const head = mosi.headPosition(new THREE.Vector3());
-    return new THREE.Vector3(head.x + (i - (n - 1) / 2) * 2.3, head.y + .95, head.z + 1.1);
+  // Round Mosi's head, a little toward the camera (the shot of them is a close one on his face): one at each side and one high above it
+  // (metres across the picture, and the feet's height against his head), so that his face stays clear.
+  const GIFT_SLOTS = [[-2.5, -.3], [2.5, -.3], [0, .9]];
+  const giftAcross = () => { const front = stage.faceOn(mosi.root.rotation.y, .5); return new THREE.Vector3(front.z, 0, -front.x); };
+  function giftHover(i) {
+    const head = mosi.headPosition(new THREE.Vector3()), front = stage.faceOn(mosi.root.rotation.y, .5), [across, rise] = GIFT_SLOTS[i % GIFT_SLOTS.length];
+    return head.addScaledVector(giftAcross(), across).addScaledVector(front, 1.3).add(new THREE.Vector3(0, rise, 0));
   }
   function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
   function startGifts() {
@@ -732,7 +733,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   function flyGifts() {
     if (gift.phase !== 'rise') return;
     gift.phase = 'fly'; gift.flyAge = 0;
-    gift.entries.forEach((entry, i) => { entry.from = giftHover(i, gift.entries.length); });
+    gift.entries.forEach((entry, i) => { entry.from = giftHover(i); });
   }
   function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; gift.entries = []; gift.phase = 'none'; }
   function updateGifts(dt) {
@@ -744,7 +745,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const group = entry.model.group, delay = i * .4, rise = reducedMotion ? 0 : 1.1;
       if (!entry.shown && gift.age >= delay) { entry.shown = true; group.visible = true; fx.emit('stars', giftOrigin(), { count: 8 }); }
       if (!entry.shown) return;
-      const k = rise ? THREE.MathUtils.clamp((gift.age - delay) / rise, 0, 1) : 1, e = easeOutBack(k), hover = giftHover(i, n), origin = giftOrigin();
+      const k = rise ? THREE.MathUtils.clamp((gift.age - delay) / rise, 0, 1) : 1, e = easeOutBack(k), hover = giftHover(i), origin = giftOrigin();
       let scale = THREE.MathUtils.lerp(.05, 1, Math.min(1, e));
       group.position.copy(origin).lerp(hover, e); if (k >= 1) group.position.y += Math.sin((gift.age - delay) * 3.1 + i) * .08;
       if (gift.phase === 'fly') {
