@@ -20,4 +20,6 @@ export const VOICE_LINES = Object.freeze({
   push: { text: 'Einn, tveir, ÝTA!', seed: 251204 },
   findFirst: { text: 'Finnum vini fyrst!', seed: 251205 },
   notYet: { text: 'Fyrst þurfum við að lyfta greininni!', seed: 251206 },
+  gifts1: { text: 'Þú fannst eina óvænta gjöf!', seed: 251207 },
+  gifts2: { text: 'Þú fannst tvær óvæntar gjafir!', seed: 251208 },
 });
