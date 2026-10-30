@@ -31,6 +31,7 @@ let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let muted = false;
 let celebrated = false;
 let autoStep = null, autoAge = 0, blockedAuto = null, storyKey = '', captionUntil = 0;
+let giftsLeftSaid = false; // Mosi has said `giftsLeft` for this wait
 let idleTime = 0, whoShown = false; // game seconds since the child last tapped; whether the bubbles are on screen
 let basketCount = 0; // gift pairs that have flown into the basket in the ribbon
 try { muted = localStorage.getItem('mosi.memory.muted.v1') === 'true'; } catch {}
@@ -152,9 +153,10 @@ function updateStory(dt) {
   if (captionUntil > 0 && time >= captionUntil) { captionUntil = 0; storyKey = ''; }
   if (storyKey !== story.key && time >= captionUntil && !camera.held) {
     storyKey = story.key; guidance();
-    // The bridge is built, every friend is home and gifts are left: Mosi says so once as it comes up (and again if it comes up again).
-    if (story.key === 'gifts-left') speech.queue('giftsLeft', { delay: .4, once: false });
+    // The bridge is built, every friend is home and gifts are left: Mosi says so once as the wait begins (not again each time a held caption ends).
+    if (story.key === 'gifts-left' && !giftsLeftSaid) { giftsLeftSaid = true; speech.queue('giftsLeft', { delay: .4, once: false }); }
   }
+  if (story.key !== 'gifts-left') giftsLeftSaid = false;
   if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) return;
   if (story.automatic && story.available && blockedAuto !== story.action) {
     if (autoStep !== story.action) { autoStep = story.action; autoAge = 0; }
@@ -246,7 +248,8 @@ function accept(events) {
       caption(gift ? (game.getState().selected.length > 1 ? `${gift.name}!` : gift.seek) : `${roster[event.species]}! Hvar er vinur hans?`, .8);
     } else if (event.type === 'gift') {
       // Both animals rise from their leaves and fly to the basket together (the world; the count follows on landing: scene-basket).
-      world.foundGift(event.ids); const gift = GIFT_ITEMS[event.item];
+      if (!world.foundGift(event.ids)) { basketCount++; reflectBasket(true); } // (a pair the world cannot show still counts: the crossing waits for the basket)
+      const gift = GIFT_ITEMS[event.item];
       caption(gift?.caption ?? 'Gjöf!', 3.4); if (gift) speech.play(gift.voice);
     } else if (event.type === 'conceal') {
       world.conceal(event.ids); audio.conceal(); caption('Úps! Kíkjum annars staðar.', .65);
@@ -424,7 +427,7 @@ function start({ restart = false } = {}) {
   if (!world) return;
   for (const dialog of dialogs) if (dialog.open) dialog.close();
   // setBoard cancels every running script, shot and gesture before the new board is laid out.
-  if (restart) { game.restart(); bridge.restart(); celebrated = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
+  if (restart) { game.restart(); bridge.restart(); celebrated = false; giftsLeftSaid = false; nestSpecies.length = 0; basketCount = 0; world.setBoard(game.getState().cards); syncBridge(); speech.reset(); music.restart(); }
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
   $('who').hidden = true; $('beat-word').classList.remove('show');

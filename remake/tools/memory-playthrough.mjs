@@ -585,9 +585,10 @@ async function main() {
     report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
     if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
     // The twelve leaf buttons as the page lays them out: none under 44 px either way, and how many pairs overlap each other.
-    report.leafTargets = await ev(`(() => { const boxes = [...document.querySelectorAll('.world-target[data-target^="leaf-"]')].map(b => { const r = b.getBoundingClientRect(); return { key: b.dataset.target, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) }; });
+    const LEAF_BOXES_JS = (only = '') => `(() => { const boxes = [...document.querySelectorAll('.world-target[data-target^="leaf-"]${only}')].map(b => { const r = b.getBoundingClientRect(); return { key: b.dataset.target, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) }; });
       let overlaps = 0, deepest = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j], ox = (a.width + b.width) / 2 - Math.abs(a.x - b.x), oy = (a.height + b.height) / 2 - Math.abs(a.y - b.y); if (ox > 0 && oy > 0) { overlaps++; deepest = Math.max(deepest, Math.min(ox, oy)); } }
-      return { count: boxes.length, minWidth: Math.min(...boxes.map(b => b.width)), minHeight: Math.min(...boxes.map(b => b.height)), overlaps, deepestOverlap: Math.round(deepest), boxes }; })()`).catch(e => ({ error: e.message }));
+      return { count: boxes.length, minWidth: Math.min(...boxes.map(b => b.width)), minHeight: Math.min(...boxes.map(b => b.height)), overlaps, deepestOverlap: Math.round(deepest), boxes }; })()`;
+    report.leafTargets = await ev(LEAF_BOXES_JS()).catch(e => ({ error: e.message }));
     step('leaf buttons', { count: report.leafTargets?.count, min: `${report.leafTargets?.minWidth}x${report.leafTargets?.minHeight}`, overlaps: report.leafTargets?.overlaps, deepest: report.leafTargets?.deepestOverlap });
     // The overview button once at the start, as a child would peek at the whole place: the picture shows that no edge of the world is in sight.
     if (o.mode === 'full' || o.mode === 'glade') {
@@ -878,11 +879,12 @@ async function main() {
           const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
           const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
           const before = await ev(SNAPSHOT_JS);
+          const leafButtons = await ev(LEAF_BOXES_JS(':not(:disabled)')); delete leafButtons.boxes; // the shut leaves' buttons as the wide view lays them out
           await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
           const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
           const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
           report.giftsLeft = { story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
-            linesBeforeTap: speechBefore, linesAfterTap: spoken.length, crossStartedByTap: after.bridge.active === 'cross' || after.mosi === 'walk', captionAfterTap: after.caption, giftsLeft: after.giftsLeft };
+            leafButtons, linesBeforeTap: speechBefore, linesAfterTap: spoken.length, crossStartedByTap: after.bridge.active === 'cross' || after.mosi === 'walk', captionAfterTap: after.caption, giftsLeft: after.giftsLeft };
           step('gifts left check', report.giftsLeft); continue;
         }
         const dueItem = wantGifts ? giftItems.find((item, k) => !s.found.includes(item) && s.matched >= giftAt[k]) : undefined;
