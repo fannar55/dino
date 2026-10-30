@@ -528,10 +528,12 @@ export function createLiveMap(canvas, { half, win = globalThis.window, hole = ()
 
 /**
  * What the life costs, for the lab: the average ms a frame takes to draw every live map now made (one draw of each, `frames` times),
- * each draw waited for with a one-pixel read, once with the effects on (`life`) and once with them off, just the painting (`plain`);
- * `added` is the difference. Null when no layer is made with its pictures in and a size to draw at.
+ * waited for with a one-pixel read after every `every` frames (1: after each draw), once with the effects on (`life`) and once with
+ * them off, just the painting (`plain`); `added` is the difference. Null when no layer is made with its pictures in and a size to
+ * draw at. A browser pane that is not on screen (a hidden pane, a window nobody is watching) makes every read wait for its next 60 Hz
+ * tick, 16.7 ms however little was drawn; `every` = `frames` waits once for them all, so that tick is shared by every frame.
  */
-export function timeLiveMaps(frames = 30) {
+export function timeLiveMaps(frames = 30, every = 1) {
   const layers = [...made].filter(layer => layer.ready() && layer.frame(0, 1));
   if (!layers.length) return null;
   const time = life => {
@@ -543,7 +545,7 @@ export function timeLiveMaps(frames = 30) {
     for (let i = 0; i < frames; i++) {
       for (const layer of layers) {
         layer.frame(i / LIFE_FPS, life);
-        layer.wait();
+        if ((i + 1) % every === 0 || i === frames - 1) layer.wait();
       }
     }
     return (globalThis.performance.now() - start) / frames;

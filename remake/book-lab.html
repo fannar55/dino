@@ -25,8 +25,9 @@
                                       with the dot riding at its head, and
                                       ?seen=1 has it drawn in before, as on a later visit (and the mist already drawn back from Grameðla), and
                                       ?at=<ms> holds the drawing and the dot at that moment from the page's opening (the first piece starts at 560,
-                                      each next 2850 later) for a picture of it half drawn; the water is lit by a gliding light and the mist drifts
-                                      on every map, and with ?progress=6 and no ?seen=1 the mist opens round Grameðla's circle (560 ms in, over 2 s)
+                                      each next 2850 later) for a picture of it half drawn; the painting itself lives on every map (the water flows,
+                                      the fall streaks, the trees sway, the clouds drift; map-life.js), and with ?progress=6 and no ?seen=1 the clouds
+                                      open round Grameðla's circle (560 ms in, over 2 s)
        journey                        the map in the journey (engine/book/map-moment.js) over this plain backdrop, as a chapter plays it at a
                                       departure: the whole map slides up, dims the game, draws the leg ahead and comes nearer it; ?leg=1 (the
                                       default) plays chapter 1's, piece a, on a fresh save, ?leg=2 chapter 2's, pieces b and c, over a trail
@@ -44,7 +45,11 @@
      ?card=<id>&page=<n>&model=<path> makes that page a 3D page, its model a GLB read from remake/ (model=assets/characters/mosi.glb), as
      a card's page does with a "model" of its own (the picture stays where there is no WebGL or the model will not load).
      __demoStats.cornerSteals counts the points of the tiles in view that a corner takes instead (none is right), on a 24 × 24 grid
-     over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels. */
+     over each tile, and cornerBoxes gives each corner's drawn shape (its turned-up corner and arrow) in screen pixels.
+     __lifeMs(frames, every) times the map's living layers (engine/book/map-life.js timeLiveMaps): the ms a frame takes to draw every layer
+     made, with the effects on (life) and off (plain), and the difference (added); the cost a frame is added × LIFE_FPS / 60. Each draw is
+     waited for with a one-pixel read, or once in `every` frames: a pane nobody is watching makes every read cost 16.7 ms, so there pass
+     every = frames (__lifeMs(120, 120)). Null where no layer is made. */
   .no-corner-hits .spread-turn * { pointer-events: none !important; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
   body {
@@ -86,6 +91,7 @@
   import { parseManifest, parseModels } from './engine/book/media.js';
   import { createJournal } from './engine/scene/journal.js';
   import { createSave } from './engine/save.js';
+  import { timeLiveMaps } from './engine/book/map-life.js';
   import { FOSSIL_KINDS } from './engine/hals/rules.js';
   import { createAudioContext, createOutput } from './engine/audio/output.js';
 
@@ -138,6 +144,7 @@
   const book = createBook(document, { cards, media: parseManifest(mediaData), models: parseModels(mediaData), save, audio, win: window, onPause: () => {} });
   const journal = createJournal(document, save, { book, audio, win: window });
   Object.assign(window, { __book: book, __bookAudio: audio, __save: save, __journal: journal, __moment: journal.mapMoment });
+  window.__lifeMs = (frames, every) => timeLiveMaps(frames, every);
 
   /** A finger that touches `selector`'s element and lifts again, which is all a tap is. */
   function tap(selector) {
