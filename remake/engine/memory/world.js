@@ -421,8 +421,21 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const sceneIds = new Map();
   let taskScript = null;
   function playFor(cell, lines) { if (sceneIds.has(cell)) scenes.cancel(sceneIds.get(cell)); sceneIds.set(cell, scenes.play(lines)); }
+  // The corners of the leaves that are still shut (or open and waiting), as boardPoints() has them for the whole board.
+  function shutLeafPoints() {
+    const points = [];
+    for (const cell of cells) {
+      if (cell.id == null || matchedStatus(cell.status) || cell.moved) continue;
+      const [x, z] = CELLS[cell.index];
+      for (const dx of [-1.45, 1.45]) for (const dz of [-1.4, 1.4]) for (const y of [.03, 1.15]) points.push([x + dx, world.heightAt(x, z) + y, z + dz]);
+    }
+    return points;
+  }
   const cameraCue = () => {
     const cue = adventure?.getCameraCue?.(); if (!cue || cue.key === 'glade') return gladeCue();
+    // The wide view before the crossing waits for the gifts: every leaf still shut stays inside it, so each can be tapped (a leaf at the
+    // edge would have its button switched off, and its pair could never be found).
+    if (cue.key === 'bridge-ready') return { ...cue, points: [...cue.points, ...shutLeafPoints()] };
     if (cue.key === 'branch') return { ...cue, points: [...cue.points, [-10.2, 2.3, -5.0], [-10.2, 0, -1.8]], direction: [.85, .9, .35] };
     if (cue.key === 'rolling-log') {
       // Keep the route establishing shot wide, then show the two helpers and
