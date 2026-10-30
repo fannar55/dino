@@ -4,6 +4,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBest } from '../engine/sloedla/best.js';
 import { createMenu } from '../engine/sloedla/menu.js';
+import { DJ_LINES, createDj } from '../engine/sloedla/dj.js';
+import { SONGS_V2 } from '../engine/sloedla/v2/songs/index.js';
+import { createFakeContext } from './fake-audio.mjs';
 
 test('best stars: kept per song and level, only ever higher', () => {
   const store = new Map();
@@ -63,4 +66,28 @@ test('menu: no song, no play; an address song is picked when the songs open', ()
 test('menu: self-play opens on the songs with the address song picked', () => {
   const menu = createMenu({ songs, song: 'stattu-upp', self: true });
   assert.deepEqual(menu.state(), { step: 'lag', level: 'barn', lanes: 3, song: 'stattu-upp', heard: false });
+});
+
+test('every song has the DJ\'s line, more than one way of saying it', () => {
+  for (const { id } of SONGS_V2) assert.ok(DJ_LINES[`lag-${id}`]?.length >= 2, id);
+  assert.ok(DJ_LINES.hverspilar?.length >= 1 && DJ_LINES.hvadalag?.length >= 2);
+  assert.equal(DJ_LINES['lag-stattu-upp'][0], 'Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!');
+});
+
+test('hush stops the line he is saying', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+  try {
+    const context = createFakeContext({ state: 'running' });
+    const talks = [];
+    const dj = createDj({ context, output: context.destination, src: id => id, onTalk: (at, seconds) => talks.push(seconds) });
+    await dj.load();
+    assert.ok(dj.play('hvadalag') > 0);
+    const take = context.bufferSources.at(-1);
+    dj.hush();
+    assert.ok(take.stopTime !== undefined && take.stopTime <= context.currentTime + 0.1, 'stopped at once');
+    assert.equal(talks.at(-1), 0, 'the music comes back up');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

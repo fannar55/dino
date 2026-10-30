@@ -1125,6 +1125,193 @@
       "share": 1,
       "seconds": 2.37,
       "made": "2026-10-29T20:35:02.049Z"
+    },
+    "hverspilar-1": {
+      "text": "Hæ! Hver ætlar að spila í dag?",
+      "sent": "Hæ! Hver ætlar að spila í dag?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "hverspilar-1.mp3",
+      "seed": 1,
+      "heard": "Hæ, hver ætlar að spila í dag?",
+      "share": 1,
+      "seconds": 2.4,
+      "made": "2026-10-30T20:02:29.888Z"
+    },
+    "hverspilar-2": {
+      "text": "Halló! Hver ætlar að spila með mér?",
+      "sent": "Halló! Hver ætlar að spila með mér?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "hverspilar-2.mp3",
+      "seed": 1,
+      "heard": "Halló, hver ætlar að spila með mér?",
+      "share": 1,
+      "seconds": 2.46,
+      "made": "2026-10-30T20:02:31.972Z"
+    },
+    "hvadalag-1": {
+      "text": "Hvaða lag viltu spila?",
+      "sent": "Hvaða lag viltu spila?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "hvadalag-1.mp3",
+      "seed": 1,
+      "heard": "Hvaða lag viltu spila?",
+      "share": 1,
+      "seconds": 2.12,
+      "made": "2026-10-30T20:02:33.622Z"
+    },
+    "hvadalag-2": {
+      "text": "Veldu lag!",
+      "sent": "Veldu lag!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "hvadalag-2.mp3",
+      "seed": 1,
+      "heard": "Veldu lag",
+      "share": 1,
+      "seconds": 1.23,
+      "made": "2026-10-30T20:02:35.341Z"
+    },
+    "hvadalag-3": {
+      "text": "Hvaða lag eigum við að taka?",
+      "sent": "Hvaða lag eigum við að taka?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "hvadalag-3.mp3",
+      "seed": 1,
+      "heard": "Hvaða lag eigum við að taka?",
+      "share": 1,
+      "seconds": 1.95,
+      "made": "2026-10-30T20:02:38.105Z"
+    },
+    "lag-pixel-1": {
+      "text": "Pixlaferð! Beint inn í tölvuleikinn!",
+      "sent": "Pixlaferð! Beint inn í tölvuleikinn!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-pixel-1.mp3",
+      "seed": 1,
+      "heard": "Pixlaferð, beint inn í tölvuleikinn",
+      "share": 1,
+      "seconds": 3.04,
+      "made": "2026-10-30T20:02:40.408Z"
+    },
+    "lag-pixel-2": {
+      "text": "Pixlaferð, bíp bíp búp!",
+      "sent": "Pixlaferð, bíp bíp búp!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-pixel-2.mp3",
+      "seed": 2,
+      "heard": "Pixlaferð. Bíp bíp búpp",
+      "share": 0.75,
+      "seconds": 2.2,
+      "made": "2026-10-30T20:02:46.795Z"
+    },
+    "lag-pixel-3": {
+      "text": "Pixlaferð! Hoppum milli pixlanna!",
+      "sent": "Pixlaferð! Hoppum milli pixlanna!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-pixel-3.mp3",
+      "seed": 1,
+      "heard": "Pixlaferð. Hoppum milli pixlanna",
+      "share": 1,
+      "seconds": 3.01,
+      "made": "2026-10-30T20:02:48.959Z"
+    },
+    "lag-boogie-1": {
+      "text": "Rokkhopp! Hoppum og skoppum!",
+      "sent": "Rokkhopp! Hoppum og skoppum!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-boogie-1.mp3",
+      "seed": 1,
+      "heard": "Rock hopp. Hoppum og skoppum",
+      "share": 0.75,
+      "seconds": 2.98,
+      "made": "2026-10-30T20:02:55.750Z"
+    },
+    "lag-boogie-2": {
+      "text": "Rokkhopp, rokk og ról!",
+      "sent": "Rokkhopp, rokk og ról!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-boogie-2.mp3",
+      "seed": 3,
+      "heard": "Rock hop, rokk og ról",
+      "share": 0.75,
+      "seconds": 2.63,
+      "made": "2026-10-30T20:03:01.311Z"
+    },
+    "lag-boogie-3": {
+      "text": "Rokkhopp! Upp með hendurnar!",
+      "sent": "Rokkhopp! Upp með hendurnar!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-boogie-3.mp3",
+      "seed": 2,
+      "heard": "Rock hopp. Upp með hendurnar",
+      "share": 0.75,
+      "seconds": 2.3,
+      "made": "2026-10-30T20:03:06.926Z"
+    },
+    "lag-fonk-1": {
+      "text": "Fönkhopp! Dillum okkur!",
+      "sent": "Fönkhopp! Dillum okkur!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-fonk-1.mp3",
+      "seed": 1,
+      "heard": "Funk hop. Dillum okkur",
+      "share": 0.67,
+      "seconds": 2.17,
+      "made": "2026-10-30T20:03:12.666Z"
+    },
+    "lag-fonk-2": {
+      "text": "Fönkhopp, nú verður fönkí!",
+      "sent": "Fönkhopp, nú verður fönkí!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-fonk-2.mp3",
+      "seed": 2,
+      "heard": "Fönk kopp. Nú verður fönkí",
+      "share": 0.75,
+      "seconds": 2.52,
+      "made": "2026-10-30T20:03:19.263Z"
+    },
+    "lag-fonk-3": {
+      "text": "Fönkhopp! Allir að dilla sér!",
+      "sent": "Fönkhopp! Allir að dilla sér!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-fonk-3.mp3",
+      "seed": 1,
+      "heard": "Funk hop. Allir að dilla sér",
+      "share": 0.8,
+      "seconds": 2.58,
+      "made": "2026-10-30T20:03:27.144Z"
+    },
+    "lag-stattu-upp-1": {
+      "text": "Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!",
+      "sent": "Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-stattu-upp-1.mp3",
+      "seed": 1,
+      "heard": "Blár ópal. Stattu upp. Svo gott að það ætti að vera bannað",
+      "share": 1,
+      "seconds": 5.39,
+      "made": "2026-10-30T20:03:30.527Z"
+    },
+    "lag-stattu-upp-2": {
+      "text": "Stattu upp, lagið hans pabba!",
+      "sent": "Stattu upp, lagið hans pabba!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-stattu-upp-2.mp3",
+      "seed": 1,
+      "heard": "Stattu upp lagið hans pabba",
+      "share": 1,
+      "seconds": 2.46,
+      "made": "2026-10-30T20:03:32.760Z"
+    },
+    "lag-stattu-upp-3": {
+      "text": "Stattu upp! Nú standa allir upp og dansa!",
+      "sent": "Stattu upp! Nú standa allir upp og dansa!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "lag-stattu-upp-3.mp3",
+      "seed": 1,
+      "heard": "Stattu upp. Nú standa allir upp og dansa",
+      "share": 1,
+      "seconds": 4.01,
+      "made": "2026-10-30T20:03:35.302Z"
     }
   }
 }

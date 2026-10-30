@@ -30,6 +30,13 @@ export const DJ_LINES = Object.freeze({
   frabaert: ['Frábært!', 'Frábært hjá þér!', 'Þetta var frábært!', 'Algjör snilld!'],
   velgert: ['Vel gert!', 'Vel gert hjá þér!', 'Flott spilað!', 'Mjög vel gert!'],
   aftur: ['Spilum aftur saman!', 'Eigum við að spila aftur?', 'Prófum aftur saman!', 'Æfingin skapar meistarann!'],
+  // the menu (menu.js): who plays, which song, and a line for each song when it is picked (lag-<song id>, every song has one)
+  hverspilar: ['Hæ! Hver ætlar að spila í dag?', 'Halló! Hver ætlar að spila með mér?'],
+  hvadalag: ['Hvaða lag viltu spila?', 'Veldu lag!', 'Hvaða lag eigum við að taka?'],
+  'lag-pixel': ['Pixlaferð! Beint inn í tölvuleikinn!', 'Pixlaferð, bíp bíp búp!', 'Pixlaferð! Hoppum milli pixlanna!'],
+  'lag-boogie': ['Rokkhopp! Hoppum og skoppum!', 'Rokkhopp, rokk og ról!', 'Rokkhopp! Upp með hendurnar!'],
+  'lag-fonk': ['Fönkhopp! Dillum okkur!', 'Fönkhopp, nú verður fönkí!', 'Fönkhopp! Allir að dilla sér!'],
+  'lag-stattu-upp': ['Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!', 'Stattu upp, lagið hans pabba!', 'Stattu upp! Nú standa allir upp og dansa!'],
 });
 
 /** The recordings, one a way of saying a line: [{ id: 'r10-2', key: 'r10', text }]. */
@@ -40,6 +47,7 @@ const FRIENDS = { a: 'sloedla', b: 'kambedla', c: 'thorsedla' };
 const END = ['aftur', 'velgert', 'flott', 'frabaert']; // by the stars won, as the words at the end
 export const DJ_QUIET = 4; // s at least between two of his lines, but for the big ones (milestones, Stjörnukraftur, the clapping, the end)
 export const DJ_WAIT = 1.6; // s a big line may wait for him to finish the one before (the game queues it), else it is dropped
+const HUSH = 0.06; // s: a line cut short (hush) fades this fast
 // He does not count every five (the owner, 2026-10-30): the chance he says a milestone after 0, 1, 2, 3 or more said in a row;
 // letting one go starts the count again. Fifty and a hundred he always says.
 const COUNT_AGAIN = [1, 0.75, 0.5, 0.35];
@@ -100,6 +108,7 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
   bus.connect(output);
   const buffers = {}; // id -> AudioBuffer
   const last = {}; // key -> the id said last
+  let current = null; // { source, level } of the line he is saying
   let queue = Promise.resolve();
   function load() {
     const order = [...DJ_TAKES].sort((x, y) => Number(x.id.split('-').pop()) - Number(y.id.split('-').pop()));
@@ -123,11 +132,29 @@ export function createDj({ context, output, src, level = 1.2, random = Math.rand
     const at = context.currentTime + delay;
     const source = context.createBufferSource();
     source.buffer = buffer;
-    source.connect(bus);
+    const level = context.createGain();
+    source.connect(level);
+    level.connect(bus);
     source.start(at);
-    source.onended = () => source.disconnect();
+    const saying = { source, level };
+    current = saying;
+    source.onended = () => {
+      source.disconnect();
+      level.disconnect();
+      if (current === saying) current = null;
+    };
     onTalk(at, buffer.duration);
     return buffer.duration + delay;
   }
-  return { load, play, bus };
+  /** Stops the line he is saying (a quick fade), so a new one never talks over it; the music comes back up. */
+  function hush() {
+    if (!current) return;
+    const now = context.currentTime;
+    current.level.gain.setValueAtTime(current.level.gain.value, now);
+    current.level.gain.linearRampToValueAtTime(0, now + HUSH);
+    current.source.stop(now + HUSH);
+    current = null;
+    onTalk(now, 0);
+  }
+  return { load, play, hush, bus };
 }
