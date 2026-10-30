@@ -47,8 +47,9 @@ lagaval á flottum spjöldum með mynd og nafni, og DJ-inn í viðmótinu, sem s
 stillingar) og **„Annað lag“** (í skref 2). Stjörnurnar sem unnust skrást sem bestu stjörnur lagsins ef þær eru fleiri en áður.
 
 **Slóðin** virkar áfram: `?lag=` velur lagið fyrirfram (spjaldið er valið þegar skref 2 opnast), `?stig=` og `?brautir=`
-stillingarnar. Annað (`?sjalf=`, `?upptaka=` …) óbreytt; sjálfspil (`?sjalf=`) sleppir valmyndinni og byrjar strax, svo upptökur og
-mælitæki virka eins og áður.
+stillingarnar. Annað (`?sjalf=`, `?upptaka=` …) óbreytt. Sjálfspil (`?sjalf=`) sleppir skrefi 1: valmyndin opnast í skrefi 2 með lag
+slóðarinnar valið og DJ-inn hljóðan, og „Spila!“ heldur auðkenninu `#play` sem upptökur og mælitæki smella á, svo þau virka eins
+og áður.
 
 ## 4. DJ-inn í valmyndinni
 
