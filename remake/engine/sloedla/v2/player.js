@@ -29,6 +29,11 @@ const OUT_FILTER = 600; // ... behind a low-pass at this many Hz
 const GHOST_LEVEL = 0.38; // after GHOST_AFTER misses in a row she plays along this loud for a bar
 const GHOST_FILTER = 2400;
 const GHOST_AFTER = 3;
+// A dinosaur who sings (a `voice` stem): down at a miss and up at the next hit would be at every tap, which a voice cannot take
+// (the owner, 2026-10-30), so she goes on as she is until she has missed this many in a row, then fades to the whisper, and
+// comes back at a hit, gently both ways; no ghost
+const VOICE_MISSES = 3;
+const VOICE_TAU = 0.25; // s
 const ACCENT_GAIN = 1; // the copy of a hit stem note, times the layer's gain: the note doubled, about +6 dB
 const ACCENT_ATTACK = 0.002; // s
 const ACCENT_MAX = 0.25; // s: the copy is never longer
@@ -84,6 +89,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const tiers = [1, 2, 3].map(() => gain(0, mood));
   // each dinosaur's chain: her low-pass, then her gate
   const chains = {};
+  const sung = new Set(song.layers.filter(layer => layer.voice).map(layer => layer.owner)); // the dinosaurs who sing (VOICE_MISSES)
   for (const role of ROLES) {
     const gate = gain(1, mood);
     const low = filter('lowpass', OPEN, { Q: 0.8 });
@@ -197,7 +203,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     chain.misses = 0;
     if (chain.open) return false;
     chain.open = true;
-    setChain(role, 1, OPEN, at, OPEN_TAU);
+    setChain(role, 1, OPEN, at, sung.has(role) ? VOICE_TAU : OPEN_TAU);
     return true;
   }
 
@@ -205,6 +211,13 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     const chain = chains[role];
     const now = context.currentTime;
     chain.misses++;
+    if (sung.has(role)) {
+      if (chain.open && chain.misses >= VOICE_MISSES) {
+        chain.open = false;
+        setChain(role, OUT_LEVEL, OUT_FILTER, now, VOICE_TAU);
+      }
+      return;
+    }
     chain.open = false;
     if (chain.misses === GHOST_AFTER) {
       setChain(role, GHOST_LEVEL, GHOST_FILTER, now, CLOSE_TAU);
@@ -215,8 +228,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   /**
    * A hit stem note: the same place of the same file again, from `when` to the note's end (at most ACCENT_MAX), the note doubled
    * into her hit bus and, for its first moment, an edge of it through a soft clip and a high-pass. The layer's `accent` (the song
-   * says) makes both stronger, for a stem that is quiet in its recording; its `edge` (0 to 1) how much edge it has (none for a
-   * voice, which the clip would roughen).
+   * says) makes both stronger, for a stem that is quiet in its recording. A sung stem (`voice`) is never accented.
    */
   function accent(layer, note, at, when) {
     const end = at + note.dur;
@@ -228,11 +240,9 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     body.gain.linearRampToValueAtTime(ACCENT_GAIN * level, when + ACCENT_ATTACK);
     body.gain.setTargetAtTime(0, when + ACCENT_ATTACK, seconds / 3);
     const source = play(layer.buffer, { at: when, from: offset + note.t + (when - at), to: body, length: seconds });
-    const share = layer.edge ?? 1;
-    if (!(share > 0)) return;
     const edge = gain(0, edges[note.role]);
     edge.gain.setValueAtTime(0, when);
-    edge.gain.linearRampToValueAtTime(EDGE_GAIN * level * share, when + ACCENT_ATTACK);
+    edge.gain.linearRampToValueAtTime(EDGE_GAIN * level, when + ACCENT_ATTACK);
     edge.gain.setTargetAtTime(0, when + ACCENT_ATTACK, EDGE_TAU);
     source.connect(edge);
   }
@@ -283,7 +293,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       const when = at > now && offset >= -SNAP_EARLY ? at : now;
       const joined = open(note.role, now);
       const layer = byId[note.layer];
-      if (layer?.stem) accent(layer, note, at, when);
+      if (layer?.stem && !layer.voice) accent(layer, note, at, when);
       else if (layer?.part) sounds.play(layer.part.instrument, { freq: note.freq, step: note.step, at: when + 0.004, dur: note.dur, vel: note.vel, into: hits[note.role], tapped: true });
       return joined;
     },
@@ -296,9 +306,9 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       sounds.oops(note.role, { freq: note.freq, into: loose });
       close(note.role);
     },
-    /** A tap with no note: a soft bit of her stem where the song is, or a soft note of her instrument on the key's root. */
+    /** A tap with no note: a soft bit of her stem where the song is (never of a voice), or a soft note of her instrument on the key's root. */
     stray(role) {
-      const layer = song.layers.find(l => l.owner === role && (l.part || l.buffer));
+      const layer = song.layers.find(l => l.owner === role && !l.voice && (l.part || l.buffer));
       if (!layer || !started) return;
       const now = context.currentTime;
       if (layer.part) {

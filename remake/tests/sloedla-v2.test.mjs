@@ -129,21 +129,39 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
   player.stop(); // every test ends so: the timer would keep the test running
 });
 
-test('v2 song: a stem with edge 0 (a voice) is hit without the soft clip, the note doubled all the same', () => {
-  const layers = makeSong().layers;
-  assert.ok(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: -1 } : l)) })).some(p => p.includes('edge')));
-  assert.ok(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 2 } : l)) })).some(p => p.includes('edge')));
-  const { context, player, to } = rig({ change: { layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 0 } : l)) } });
-  assert.deepEqual(validateSong(makeSong({ layers: layers.map(l => (l.id === 'trommur' ? { ...l, edge: 0 } : l)) })), []);
+test('v2 song: a sung stem (voice) is never pushed up and down by the taps; a few misses in a row muffle it, gently', () => {
+  const sung = (voice, id = 'bassi') => makeSong().layers.map(l => (l.id === id ? { ...l, voice } : l));
+  assert.deepEqual(validateSong(makeSong({ layers: sung(true) })), []);
+  assert.ok(validateSong(makeSong({ layers: sung('yes') })).some(p => p.includes('voice')));
+  assert.ok(validateSong(makeSong({ layers: sung(true, 'lag') })).some(p => p.includes('voice')), 'a voice is a recorded stem');
+  const { context, player, to } = rig({ change: { layers: sung(true) } });
   player.start(0.4);
   to(10); // the chart grows a section at a time
-  const note = player.chart.find(n => n.layer === 'trommur' && n.t > 11);
+  const note = player.chart.find(n => n.layer === 'bassi' && n.t > 11);
   to(note.t - 0.05);
+  const before = context.bufferSources.length;
   player.hit(note, -0.03);
-  const copy = context.bufferSources.at(-1);
-  assert.ok(copy.starts.length, 'the note is doubled');
-  assert.ok(!copy.outputs.some(node => node.outputs.some(next => next.kind === 'shaper')), 'no edge into the clip');
-  assert.ok(copy.outputs.some(node => node.outputs.includes(player.hits.c)), 'the body into her hit bus');
+  assert.equal(context.bufferSources.length, before, 'a hit does not double the syllable (a voice would jump up and fall back)');
+  player.stray('b');
+  assert.equal(context.bufferSources.length, before, 'a tap at no note plays no bit of the voice');
+  // one miss, or two, between hits: the voice goes on as it is (down at a miss and up at the next hit would be at every tap)
+  to(40); // more of the song known (the chart grows a section at a time); which of her notes they are does not matter
+  const later = player.chart.filter(n => n.role === 'b' && n !== note);
+  assert.ok(later.length >= 4);
+  const gate = player.chains.b.gate.gain;
+  player.miss(later[0]);
+  player.miss(later[1]);
+  assert.ok(player.isOpen('b'), 'two misses: still singing');
+  assert.equal(gate.valueAt(context.currentTime + 1), 1);
+  // a few in a row: she is muffled, gently, and stays so (no ghost coming and going)
+  player.miss(later[2]);
+  assert.ok(!player.isOpen('b'), 'three in a row muffle her voice');
+  assert.ok(gate.valueAt(context.currentTime + 0.05) > 0.6, 'not at once');
+  to(42);
+  assert.ok(gate.valueAt(context.currentTime) < 0.25, 'but soon, and she stays down until a hit');
+  player.hit(later[3], 0);
+  assert.ok(player.isOpen('b'), 'a hit brings her back');
+  assert.ok(gate.valueAt(context.currentTime + 0.05) < 0.6, 'gently');
 });
 
 test('v2 player: a miss leaves a hole until the next hit, three make a ghost; parts, tiers, two lanes, a lost stem, a sleeping tablet, stop', () => {

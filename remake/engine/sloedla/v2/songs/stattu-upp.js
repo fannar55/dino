@@ -3,7 +3,8 @@
 // mp3 encoder's delay) after the release; the guitar, the piano, the synths and the rest (the release minus the six stems, so that
 // nothing of it is lost) are mixed into one, lagid.mp3, since they always play together. The four together are the release
 // (32 dB under it). Each of three is a dinosaur's:
-//   Slóeðla (a)   the singing: she sings his song, and the child's notes are the words' first sounds
+//   Slóeðla (a)   the singing: she sings his song, and the child's notes are the words' first sounds; a voice (format.js):
+//                 a hit does not push it up, only a few misses in a row muffle it
 //   Kambeðla (b)  the bass
 //   Þórseðla (c)  the drums
 // The child's notes are read from the stems (tools/sloedla-stem-chart.mjs: stattu-upp.chart.js). Four files, not seven: a tablet
@@ -38,7 +39,7 @@ export default {
   ],
   instruments: {},
   layers: [
-    { id: 'songur', owner: 'a', stem: 'vocals.mp3', accent: 5, edge: 0 }, // his voice is never driven into the clip
+    { id: 'songur', owner: 'a', stem: 'vocals.mp3', voice: true }, // his voice: never pushed up at a hit, only a few misses muffle it
     { id: 'bassi', owner: 'b', stem: 'bass.mp3', accent: 5 },
     { id: 'trommur', owner: 'c', stem: 'drums.mp3', accent: 2.5 },
     { id: 'lagid', owner: null, stem: 'lagid.mp3' },
