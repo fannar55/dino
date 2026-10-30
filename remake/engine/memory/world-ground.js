@@ -71,10 +71,11 @@ function bakeMask() {
 // colours over it: bright meadow, sandy trails and places with ragged edges, mud round the marsh, and the sunlit open ground.
 const COLOURS = Object.freeze({
   uGrassBase: '#56882b', uGrassSun: '#8fb23e', uClover: '#74a53d', uForestA: '#44692f', uForestB: '#5b7d38',
-  uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uSand: '#f3daa0', uSandDark: '#deba82', uSandRim: '#b08c5a', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
+  uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uBedDark: '#44702a', uBedLight: '#7aa538', uSand: '#f3daa0', uSandDark: '#deba82', uSandRim: '#b08c5a', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
 });
+const BEDS = 8; // the leaves
 const SHADER = Object.freeze({
-  head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec3 uCanopyLight, uCanopyDark, uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,
+  head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec2 uBeds[ ${BEDS} ]; uniform vec3 uBedDark, uBedLight, uCanopyLight, uCanopyDark, uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,
   // Seen from above, the forest beyond the open ground is a canopy: broad lighter and darker blotches of leaves.
   canopy: ['floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );', `floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );
   floorC = mix( floorC, uCanopyLight * ( 0.85 + 0.3 * fine ), smoothstep( 0.52, 0.78, nB.r + ( med - 0.5 ) * 0.3 ) * 0.7 );
@@ -89,6 +90,10 @@ const SHADER = Object.freeze({
   sandC = mix( sandC, uSandRim, ( 1.0 - smoothstep( 0.5, 0.78, sandEdge ) ) * 0.6 );
   sandC *= 1.0 - 0.16 * smoothstep( 0.8, 0.9, nC.b ) * smoothstep( 0.55, 0.8, mem.g );
   col = mix( col, sandC, sandCover );
+  // A bed of moss and clover under each leaf, with a ragged edge.
+  float bed = 0.0;
+  for ( int i = 0; i < ${BEDS}; i ++ ) bed = max( bed, 1.0 - smoothstep( 0.95, 1.7, length( ( gp - uBeds[ i ] ) * vec2( 1.0, 0.8 ) ) + ( nA.g - 0.5 ) * 0.9 + ( fine - 0.5 ) * 0.3 ) );
+  col = mix( col, mix( uBedDark, uBedLight, smoothstep( 0.3, 0.75, nC.r ) ) * ( 0.85 + 0.3 * fine ), bed * 0.92 );
   col = mix( col, mix( col, uDamp, 0.55 ) * ( 0.9 + 0.16 * fine ), mem.a * ( 1.0 - sandCover * 0.5 ) * ( 1.0 - mem.b ) );
   float mudCover = smoothstep( 0.18, 0.5, mem.b + ( nA.g - 0.5 ) * 0.35 );
   col = mix( col, mix( uMud, uMudWet, smoothstep( 0.45, 0.9, mem.b ) ) * ( 0.85 + 0.3 * fine ), mudCover );
@@ -100,13 +105,13 @@ const SHADER = Object.freeze({
 });
 
 /** Lays the memory game's look over the forest's ground material. Returns { dispose }. */
-export function installGroundLook(material) {
+export function installGroundLook(material, { beds = [] } = {}) {
   const mask = bakeMask(), box = new THREE.Vector4(BOX.x, BOX.z, BOX.width, BOX.depth);
   const compile = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = function (shader, renderer) {
     compile.call(this, shader, renderer);
     for (const [name, hex] of Object.entries(COLOURS)) (shader.uniforms[name] ??= { value: new THREE.Color() }).value.set(hex);
-    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uForestSun.value = .4; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
+    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uForestSun.value = .4; shader.uniforms.uBeds = { value: Array.from({ length: BEDS }, (_, i) => new THREE.Vector2(...(beds[i] ?? [1e4, 1e4]))) }; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
     let source = shader.fragmentShader;
     const swap = ([from, to]) => { if (!source.includes(from)) console.warn(`[memory ground] the forest ground shader changed: ${from.slice(0, 48)}`); source = source.replace(from, to); };
     source = source.replace('#include <common>', `#include <common>\n${SHADER.head}`);

@@ -444,7 +444,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (nativeAir) nativeAir.visible = false;
     // This scene has a broader open floor than the story chapters: the ground shader gets its own colours, sand and mud.
     const groundMaterial = scene.getObjectByName('Forest ground')?.material;
-    if (groundMaterial) groundLook = installGroundLook(groundMaterial);
+    if (groundMaterial) groundLook = installGroundLook(groundMaterial, { beds: CELLS });
     refineBridgeGround(forest, world.heightAt);
     gladeScenery = createGladeScenery(world, { avoid: onLeafGround });
     for (let i = 0; i < CELLS.length; i++) {
