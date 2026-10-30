@@ -25,6 +25,10 @@ export const VOICE_LINES = Object.freeze({
   push: { text: 'Einn, tveir, ÝTA!', context: COUNTING, seed: 7 },
   findFirst: { text: 'Finnum vini fyrst!', seed: 251205 },
   notYet: { text: 'Fyrst þurfum við að lyfta greininni!', seed: 251206 },
-  gifts1: { text: 'Þú fannst eina óvænta gjöf!', seed: 251207 },
-  gifts2: { text: 'Þú fannst tvær óvæntar gjafir!', seed: 251208 },
+  // The gifts (Task 9): the crossing waits for them, Mosi names each pair as it is found, and the round always ends with all three.
+  giftsLeft: { text: 'Finnum fyrst gjafirnar sem eru eftir!', seed: 251301 },
+  gifts3: { text: 'Þú fannst allar þrjár gjafirnar!', seed: 251302 },
+  gift_shrew: { text: 'Snjáldurmús! Hún fer í körfuna.', context: 'Hér er lítil snjáldurmús. Snjáldurmús er pínulítið dýr.', seed: 251311 },
+  gift_hermitCrab: { text: 'Kuðungakrabbi! Hann fer í körfuna.', seed: 251304 },
+  gift_crab: { text: 'Krabbi! Hann fer í körfuna.', seed: 251305 },
 });

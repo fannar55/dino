@@ -99,14 +99,29 @@
     "duration": 2.57,
     "mouth": "009fd500000eebadddffeece60000df8cedefedb830000000000"
   },
-  "gifts2": {
-    "src": "assets/audio/memory/gifts2.mp3",
-    "duration": 3.13,
-    "mouth": "00aed70eed000000400dcdcdd700aedc97ffa0bfb04effc9973000000000000"
+  "gifts3": {
+    "src": "assets/audio/memory/gifts3.mp3",
+    "duration": 3.05,
+    "mouth": "00bed40ded9000000fc000a9ef8005ddedddb50afdcafabe9300000000000"
   },
-  "gifts1": {
-    "src": "assets/audio/memory/gifts1.mp3",
+  "giftsLeft": {
+    "src": "assets/audio/memory/giftsLeft.mp3",
+    "duration": 2.89,
+    "mouth": "000feedc000ea50000bfff9f6ceda900eeedda6f90000a830000000000"
+  },
+  "gift_shrew": {
+    "src": "assets/audio/memory/gift_shrew.mp3",
+    "duration": 3.13,
+    "mouth": "000dffedd700fcffc726640000000000ded00cedcb08aeb8bcb960000000000"
+  },
+  "gift_hermitCrab": {
+    "src": "assets/audio/memory/gift_hermitCrab.mp3",
     "duration": 2.97,
-    "mouth": "009eb70efe300006abcceeffb009ddca9ff90cf527deeb50000000000000"
+    "mouth": "08dfabcbfc096bff000b70000000000fdc80cdd655dca9cb700000000000"
+  },
+  "gift_crab": {
+    "src": "assets/audio/memory/gift_crab.mp3",
+    "duration": 2.97,
+    "mouth": "098eff000d930000000003fedb00afec967b066dbbbca830000000000000"
   }
 }
