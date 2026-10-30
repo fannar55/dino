@@ -209,6 +209,16 @@ export function createSongSounds({ context, output, room = null, random = Math.r
       (INSTRUMENTS[kit[role]] ?? horn)({ freq, at: Math.max(at, context.currentTime), dur, vel, into, soft, tapped: tapped && !soft });
     },
     /**
+     * The instrument called `instrument` (a song's own, or one of these) plays a note, for the songs of the new kind (v2/player.js):
+     * its options as they are, `step` too (the scale step, which a drum kit of a song's own reads as which drum), `at` not before
+     * now. An instrument nobody knows plays nothing.
+     */
+    play(instrument, { freq, step, at = context.currentTime, dur, vel = 1, into, soft = false, tapped = false } = {}) {
+      const make = INSTRUMENTS[instrument];
+      if (!make) return;
+      make({ freq, step, at: Math.max(at, context.currentTime), dur, vel, into, soft, tapped: tapped && !soft });
+    },
+    /**
      * A missed note: a soft "bloop" in her own voice that slides down two semitones, 0.3 s, never a buzzer (the gentle form of
      * Guitar Hero's wrong-note sound). `freq` is the note she missed.
      */

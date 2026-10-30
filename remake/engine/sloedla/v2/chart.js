@@ -35,13 +35,13 @@ export function sectionChart(song, index, variant = 'normal', { level = 'barn', 
   for (const entry of song.chart?.[level] ?? []) {
     if (!roles.includes(entry.owner) || entry.beat < section.startBeat || entry.beat >= endBeat) continue;
     const freq = entry.pitch === null || entry.pitch === undefined ? pitch(0) : pitch(entry.pitch);
-    add({ t: entry.beat * beat, beat: entry.beat, role: entry.owner, layer: entry.layer, freq, dur: (entry.dur ?? 0.5) * beat, index: null, part: false }, entry.pinned ? 10 : 0);
+    add({ t: entry.beat * beat, beat: entry.beat, role: entry.owner, layer: entry.layer, freq, step: entry.pitch ?? null, vel: 1, dur: (entry.dur ?? 0.5) * beat, index: null, part: false }, entry.pinned ? 10 : 0);
   }
   for (const layer of song.layers) {
     if (!layer.part || !roles.includes(layer.owner)) continue;
     partNotes(song, layer, index, variant, transpose).forEach((note, i) => {
       if (level !== 'fullordinn' && !note.mark) return;
-      add({ t: note.t, beat: note.beat, role: layer.owner, layer: layer.id, freq: note.freq, dur: note.dur, index: i, part: true });
+      add({ t: note.t, beat: note.beat, role: layer.owner, layer: layer.id, freq: note.freq, step: note.step, vel: note.vel, dur: note.dur, index: i, part: true });
     });
   }
   candidates.sort((x, y) => y.weight - x.weight || x.t - y.t);
