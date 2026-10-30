@@ -176,7 +176,7 @@ const hands = options.hands ? createClapHands({ src: id => asset(`sloedla/hendur
 hands?.load();
 // the stars in 3D (star-view.js, three.js over the field): loaded while the menu waits; null (no WebGL, no star): flat stars
 const starView = options.stars3d && context
-  ? import('./star-view.js').then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING })).catch(() => null)
+  ? import('./star-view.js').then(m => m.createStarView({ canvas: $('stars3d'), url: asset('sloedla/stjarna/stjarna.glb'), facing: STAR_FACING, keep: options.record })).catch(() => null)
   : Promise.resolve(null);
 
 let round = null; // { game, clock, conductor, bot }
@@ -223,7 +223,7 @@ async function start() {
     onEnd: result => finish(result),
   });
   round = { game, clock, conductor, bot: options.self ? createBot(conductor, cast, options.self) : null };
-  if (options.record) startRecording();
+  if (options.record) startRecording(stars3d);
   conductor.start(0.4);
   window.__sloedla.round = round;
 }
@@ -264,11 +264,29 @@ function finish(result) {
   if (recorder) setTimeout(() => recorder.state === 'recording' && recorder.stop(), 2500);
 }
 
-function startRecording() {
+// With the stars in 3D the picture is two canvases (the field, and the stars over it): a recording takes both, laid together on
+// a canvas of its own each frame (layDown).
+let recordCanvas = null;
+function layDown() {
+  if (!recordCanvas) return;
+  if (recordCanvas.width !== canvas.width || recordCanvas.height !== canvas.height) {
+    recordCanvas.width = canvas.width;
+    recordCanvas.height = canvas.height;
+  }
+  const g = recordCanvas.getContext('2d');
+  g.drawImage(canvas, 0, 0);
+  g.drawImage($('stars3d'), 0, 0, canvas.width, canvas.height);
+}
+
+function startRecording(stars3d) {
   if (!globalThis.MediaRecorder || !canvas.captureStream) return;
   const sink = context.createMediaStreamDestination();
   glue.connect(sink);
-  const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...sink.stream.getAudioTracks()]);
+  if (stars3d) {
+    recordCanvas = document.createElement('canvas');
+    layDown();
+  }
+  const stream = new MediaStream([...(recordCanvas ?? canvas).captureStream(30).getVideoTracks(), ...sink.stream.getAudioTracks()]);
   const type = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t));
   const chunks = [];
   recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 });
@@ -286,6 +304,7 @@ function frame(perf) {
   if (!round) return;
   if (round.bot) for (const { lane, at } of round.bot.due(round.clock.time())) round.game.tap(lane, at);
   round.game.frame(perf);
+  layDown();
 }
 
 canvas.addEventListener('pointerdown', event => {

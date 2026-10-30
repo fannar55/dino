@@ -9,20 +9,22 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 
 const GOLD = new THREE.Color('#ffc93a');
-const GLASS = new THREE.Color('#3a3f7a');
+const GLASS = new THREE.Color('#1c2150'); // dark night glass, the sky seen through it
 const GOLD_SPEC = new THREE.Color('#fff6c8');
-const GLASS_SPEC = new THREE.Color('#c9d8ff');
+const GLASS_SPEC = new THREE.Color('#7f90d8'); // small cool glints, not a sheen over the whole star
 const GLOW = new THREE.Color('#ff9a00');
 const MAX_RATIO = 1.5; // the canvas's pixels per CSS pixel, at most (a tablet's battery)
 
 /**
- * The 3D stars on `canvas`, from the model at `url`, turned by `facing` (degrees about x, y, z) so its face looks at the viewer.
+ * The 3D stars on `canvas`, from the model at `url`, turned by `facing` (degrees about x, y, z) so its face looks at the viewer;
+ * `keep` when a recording reads the canvas each frame.
  * Resolves to { draw(stars), resize(width, height), clear() }, or null when there is no WebGL or the model cannot be loaded.
  */
-export async function createStarView({ canvas, url, facing = [0, 0, 0], win = globalThis }) {
+export async function createStarView({ canvas, url, facing = [0, 0, 0], keep = false, win = globalThis }) {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' }); // no MSAA: a whole-screen layer
+    // no MSAA: a whole-screen layer; `keep` holds the picture between draws, for a recording that reads it every frame
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power', preserveDrawingBuffer: keep });
   } catch {
     return null;
   }
@@ -106,10 +108,10 @@ export async function createStarView({ canvas, url, facing = [0, 0, 0], win = gl
         const gold = state.glass ? 0 : state.gold;
         material.color.copy(GLASS).lerp(GOLD, gold);
         material.specular.copy(GLASS_SPEC).lerp(GOLD_SPEC, gold);
-        material.shininess = 70 + 60 * (state.shine ?? 0);
+        material.shininess = (gold >= 1 ? 70 : 160) + 60 * (state.shine ?? 0); // glass: tighter glints
         material.emissiveIntensity = 0.9 * (state.flash ?? 0) + 0.45 * (state.shine ?? 0) + 0.12 * gold;
         material.transparent = gold < 1;
-        material.opacity = 0.55 + 0.45 * gold;
+        material.opacity = 0.62 + 0.38 * gold;
         material.depthWrite = gold >= 1;
       }
       for (const [id, star] of stars) if (!shown.has(id)) star.holder.visible = false;
