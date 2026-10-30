@@ -455,13 +455,23 @@
    (the far friends are, in chapter 2, before the line goes to them), a soft ring in her hue round her sticker;
    the place names in the book's font (the Fen has none: its painted reed is all it is); and a round slot for each of the six
    friends, on her pale circle in the picture: empty (a dashed ring in the place's hue), found (a die-cut sticker of the friend on a
-   wash of its hue, rocking gently on its tilt) or done (the sticker wears a gold star). Over the painting, the water and the mist, two layers cut from it (tools/map-life-layers.py) that lie exactly
-   where it does: a light glides over the water (the layer shows only inside a soft band that crosses it, a little brighter than the
-   painting under it: map-water-glide), the mist drifts and breathes (map-mist-drift, map-mist-breathe) and is masked by a round hole
-   round Grameðla's circle whose radius, --map-hole, map-page.js opens when she is reached. The motions are all stilled by the
-   reduced-motion rules at the end of this file: the dot then simply stands at its place, the ring that grows from it is not shown,
-   the ring round the next slot stands still, the stickers keep their tilt, the water layer is not shown and the mist stands still. Everything on a half is sized from the half's own width (it is
-   a size container: 1cqw is 9 units of the map's 1800 by 1000 view), so it keeps its place on the picture. */
+   wash of its hue, rocking gently on its tilt) or done (the sticker wears a gold star). Over the painting, the living layer (.map-live,
+   a canvas of the half that map-life.js draws the painting on with its water running, its fall falling, its trees swaying and its
+   cloud billowing: it is made by map-page.js, which puts .live on the page once the canvas has drawn, and then the canvas fades in
+   and the mist layer below goes) and the mist, a layer cut from the painting (tools/map-life-layers.py) that lies exactly where it
+   does and is what a page shows where there is no life: it drifts and breathes (map-mist-drift, map-mist-breathe) and is masked by
+   a round hole round Grameðla's circle whose radius, --map-hole (a registered length: the hole widens smoothly), map-page.js opens
+   when she is reached (the living layer reads it from here, and keeps its clouds out of the hole). The motions are all stilled by
+   the reduced-motion rules at the end of this file (and no living layer is made then): the dot then simply stands at its place, the
+   ring that grows from it is not shown, the ring round the next slot stands still, the stickers keep their tilt and the mist stands
+   still. Everything on a half is sized from the half's own width (it is a size container: 1cqw is 9 units of the map's 1800 by 1000
+   view), so it keeps its place on the picture. */
+/* How wide the hole in the mist round Grameðla's circle is: a length, so that it can be animated from shut to open. */
+@property --map-hole {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
 .ribbon[data-tab="map"] { --ribbon: #4f87b5; color: var(--book-card); } /* the map's blue, the colour of its water */
 .book-leaf[data-tab="map"] .book-page::before { background-image: var(--book-frame); background-size: 100% 100%; background-position: 0 0; } /* the frame, without the margin doodles the map lies over */
 .book-leaf[data-tab="map"] .book-tiles {
@@ -474,22 +484,19 @@
 }
 .map-half[data-half="left"] { justify-self: end; }
 .map-half[data-half="right"] { justify-self: start; }
-.map-art, .map-water, .map-mist { /* the whole painting, twice the width of a half, stretched to the view (it is 1681 by 936, the view 1800 by 1000), this half of it showing; the water and the mist are cut from it at its size, so they lie exactly over it */
+.map-art, .map-mist { /* the whole painting, twice the width of a half, stretched to the view (it is 1681 by 936, the view 1800 by 1000), this half of it showing; the mist is cut from it at its size, so it lies exactly over it */
   position: absolute; top: 0; left: 0; width: 200%; height: 100%; display: block; pointer-events: none; object-fit: fill;
 }
-.map-half[data-half="right"] :is(.map-art, .map-water, .map-mist) { left: -100%; }
-.map-water { /* the water's own pixels, a little brighter than the painting under them, shown only through a soft band a third of the layer wide that crosses it in 9 s: a light gliding on the water, and nowhere else */
-  filter: brightness(1.3) saturate(1.1);
-  -webkit-mask-image: linear-gradient(100deg, transparent, #000 50%, transparent); mask-image: linear-gradient(100deg, transparent, #000 50%, transparent);
-  -webkit-mask-size: 30% 100%; mask-size: 30% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  /* a mask position in percent is of what the band leaves free (70 % of the layer): -42.86 % puts the band wholly off the layer's left edge (at -30 %), 142.86 % wholly off its right (at 100 %).
-     It stands off the edge when it does not move, so that with less motion the layer shows nothing */
-  -webkit-mask-position: -42.86% 0; mask-position: -42.86% 0;
-  animation: map-water-glide 9s linear infinite;
+.map-half[data-half="right"] :is(.map-art, .map-mist) { left: -100%; }
+.map-live { /* the living layer: the canvas of this half (it draws that half of the painting itself, so it is the half's own size), shown once map-page.js says the page is live, and then fading in over the mist */
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none;
+  visibility: hidden; opacity: 0; transition: opacity .4s;
 }
-@keyframes map-water-glide {
-  from { -webkit-mask-position: -42.86% 0; mask-position: -42.86% 0; }
-  to { -webkit-mask-position: 142.86% 0; mask-position: 142.86% 0; }
+.map-half.live .map-live {
+  visibility: visible; opacity: 1;
+}
+.map-half.live .map-mist { /* the mist is the living layer's clouds now: it goes once the canvas has faded in over it */
+  visibility: hidden; transition: visibility 0s .4s;
 }
 .map-mist { /* the cloud, at half strength, sliding a little (1.5 % of a page's width either way, over 14 s) and breathing; round Grameðla's circle (--map-hole-x, --map-hole-y, set on the left page's) its mask is clear to --map-hole, and fades to the mist by a third more */
   opacity: .5;
@@ -1013,7 +1020,6 @@
 @media (prefers-reduced-motion: reduce) {
   .book *, .book *::before, .book *::after { animation: none !important; }
   .map-mist { animation: none; } /* the mist stands where the book's rule does not reach it, a map outside .book */
-  .map-water { animation: none; } /* where it stands, off the layer, the light shows nowhere */
   .map-moment *, .map-moment *::before, .map-moment *::after { animation: none !important; } /* the map in the journey is outside .book: it stands as still as the book's */
   /* the one thing that goes on is a twinkle that fades in and out where it is */
   .tile.found::after { animation: twinkle-fade 4.2s ease-in-out calc(var(--lag) * 1.3) infinite !important; }
