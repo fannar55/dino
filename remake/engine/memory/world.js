@@ -31,14 +31,14 @@ import { layScene } from './scenes/lay.js';
 import { finishScene } from './scenes/finish.js';
 import { sampleTravel } from './travel-traffic.js';
 import { measureWalkGait } from './walk-gait.js';
-import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
+import { GIFT_ITEMS, createGiftItem, createButterflyItem } from './surprise-items.js';
 import { createIdlePlay, IDLE_GAMES } from './idle-play.js';
 
-// Eight leaves in a 4 x 2 grid turned toward the search camera: the four of a row run across the screen (each `across`
-// metres from the next), the two rows `deep` apart, so the board is as wide on the screen as it can be made narrow.
+// Twelve leaves in a 4 x 3 grid turned toward the search camera: the four of a row run across the screen (each `across`
+// metres from the next), the three rows `deep` apart, so the board is as wide on the screen as it can be made narrow.
 function leafGrid({ centre: [cx, cz], angle, across, deep }) {
   const a = [Math.cos(angle), -Math.sin(angle)], d = [-Math.sin(angle), -Math.cos(angle)], cells = [];
-  for (const row of [0, 1]) for (const col of [0, 1, 2, 3]) cells.push([cx + a[0] * (col - 1.5) * across + d[0] * (row - .5) * deep, cz + a[1] * (col - 1.5) * across + d[1] * (row - .5) * deep].map(v => Math.round(v * 100) / 100));
+  for (const row of [0, 1, 2]) for (const col of [0, 1, 2, 3]) cells.push([cx + a[0] * (col - 1.5) * across + d[0] * (row - 1) * deep, cz + a[1] * (col - 1.5) * across + d[1] * (row - 1) * deep].map(v => Math.round(v * 100) / 100));
   return cells;
 }
 const CELLS = leafGrid({ centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, deep: 3.6 });
@@ -63,10 +63,12 @@ const MOSI_HALF = 2.1;
 // with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
 // fill the width, the rows fill the height and Mosi watches from the far end.
 const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.77, .64, 0] });
-// A tapped leaf squashes first (TAP.squash), then swings away over TAP.swing; what it hid appears after. A surprise pops up,
-// hovers, then flies to the basket in the ribbon (the screen point basketPoint() says), TARGET metres in front of the camera.
+// A tapped leaf squashes first (TAP.squash), then swings away over TAP.swing; what it hid appears after. A gift stands up on its
+// leaf (GIFT.pop); when its pair is found both rise (GIFT.rise) to GIFT.hover metres above their leaves, hold, then fly to the basket
+// in the ribbon (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
+// closes ducks (GIFT.duck). `apart`: how far the two of a pair fly from one another on the screen's side to side, in metres.
 const TAP = Object.freeze({ squash: .16, swing: .3 });
-const SURPRISE = Object.freeze({ pop: .3, rise: .5, hold: .8, fly: .75, hover: 1.2, target: 6, shrink: .12 });
+const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: 1.15, duck: .2, target: 6, shrink: .12, apart: .55 });
 // The leaf's squash and rebound: a damped spring round 0 (stiffness, damping), kicked by a tap or a landing.
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
@@ -140,7 +142,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   leafResources.geometry.computeBoundingBox();
   const leafCorners = [], footBones = new WeakMap(), actorIds = new WeakMap(), leafBox = leafResources.geometry.boundingBox;
   for (const x of [leafBox.min.x, leafBox.max.x]) for (const y of [leafBox.min.y, leafBox.max.y]) for (const z of [leafBox.min.z, leafBox.max.z]) leafCorners.push(new THREE.Vector3(x, y, z));
-  const cells = [], nests = [], byId = new Map(), leafBatches = [], contactMeshes = [], logicalToPhysical = [0, 1, 2], items = new Map();
+  const cells = [], nests = [], byId = new Map(), leafBatches = [], contactMeshes = [], logicalToPhysical = [0, 1, 2];
+  // The gifts: two instances of each animal (a pair shows on two leaves at once), by the id the rules hold in card.item; the butterfly
+  // the waiting friends chase (it hides under no leaf any more).
+  const giftModels = new Map();
+  let butterfly = null;
   let contactBatch;
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), projection = new THREE.Vector3();
   const pickables = [];
@@ -216,13 +222,15 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // A line of Mosi's: its name, or { line, queue } to have it wait until what he is saying is over (the celebration's).
     if (line.say) deferredEvents.push({ type: 'scene-say', ...(typeof line.say === 'string' ? { line: line.say } : line.say) });
   } });
-  const nose = cell => cell.actor.getNosePosition(new THREE.Vector3());
+  // A gift leaf has no friend under it: the scripts of a leaf opening (scenes/first-minute.js) look at, and shake the head of, the gift instead.
+  const giftSpot = cell => cell.root.position.clone().add(new THREE.Vector3(0, .6, 0));
+  const nose = cell => cell.actor ? cell.actor.getNosePosition(new THREE.Vector3()) : giftSpot(cell);
   const stage = {
     head: nose,
-    crown: cell => cell.actor.getSupportPosition(new THREE.Vector3()),
+    crown: cell => cell.actor ? cell.actor.getSupportPosition(new THREE.Vector3()) : giftSpot(cell),
     camera: () => camera.position.clone(),
-    look(cell, point, options) { if (point) cell.actor.lookAt(point, options); else cell.actor.clearLook(); },
-    gesture: (cell, name) => cell.actor.gesture(name),
+    look(cell, point, options) { if (!cell.actor) return; if (point) cell.actor.lookAt(point, options); else cell.actor.clearLook(); },
+    gesture: (cell, name) => { if (cell.actor) cell.actor.gesture(name); else if (name === 'oops') wobbleGift(cell); },
     mosi: {
       look(point) { mosi.lookAt(point.clone(), { weight: .6, maxAngle: 28 }); },
       gesture: name => mosiPuppet.gesture(name),
@@ -280,6 +288,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // Turn to show the face three-quarters, on the friend's own side: the triceratops nearly to the camera
     // (horns and frill), the long necks well round so the neck is not hidden behind the head.
     faceCamera(cell) {
+      if (!cell.actor) return;
       const toward = camera.position.clone().sub(cell.actor.root.position).setY(0), yaw = Math.atan2(-toward.z, toward.x);
       const side = Math.sign(Math.atan2(Math.sin(cell.hideYaw - yaw), Math.cos(cell.hideYaw - yaw))) || 1;
       cell.faceYaw = yaw + side * (cell.species === 'triceratops' ? .45 : .8);
@@ -466,7 +475,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const leaf = makeLeaf(leafResources); leaf.position.set(0, .32, -1.3); root.add(leaf);
       const hit = addHit(root, 2.4, 2.4, { type: 'leaf', index: i });
       cells.push({ root, leaf, shade, hit, index: i, id: null, species: null, item: null, status: 'hidden', targetOpen: 0, open: 0, revealAge: 100, pending: 0, spring: 0, springV: 0, vanish: 0, closing: false,
-        turn: (i % 2 ? -1 : 1) * (Math.PI - .35 + i % 3 * .3), actor: null, surprise: null, transfer: null, moved: false });
+        turn: (i % 2 ? -1 : 1) * (Math.PI - .35 + i % 3 * .3), actor: null, gift: null, transfer: null, moved: false });
     }
     // Identical covers share two instanced draws and one shadow draw.
     // Their empty pose groups still animate independently and remain pickable.
@@ -513,18 +522,23 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       actorIds.set(actor, `${actor.species}-${memberCounts[actor.species] ?? 0}`); memberCounts[actor.species] = (memberCounts[actor.species] ?? 0) + 1; measureActor(actor);
       const feet = []; actor.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); }); footBones.set(actor, feet);
     }
-    onProgress('Óvæntu hlutirnir bíða…');
-    // Every surprise the table knows is made now, so the first one found shows at once and compiles with the scene.
-    // A missing model costs only that item's picture: the leaf still opens and the basket still counts.
-    for (const id of Object.keys(SURPRISE_ITEMS)) {
-      try { const item = await createSurpriseItem(id); item.group.visible = false; scene.add(item.group); items.set(id, item); }
-      catch (error) { console.warn(`The surprise "${id}" has no picture:`, error?.message ?? error); }
+    onProgress('Gjafirnar bíða…');
+    // Every gift the table knows is made now, two of each, so the first one found shows at once and compiles with the scene.
+    // A missing model costs only that gift's picture: the leaf still opens and the basket still counts.
+    for (const id of Object.keys(GIFT_ITEMS)) {
+      try {
+        const pair = [await createGiftItem(id), await createGiftItem(id)];
+        for (const item of pair) { item.group.visible = false; scene.add(item.group); }
+        giftModels.set(id, pair);
+      } catch (error) { console.warn(`The gift "${id}" has no picture:`, error?.message ?? error); }
     }
+    try { butterfly = await createButterflyItem(); butterfly.group.visible = false; scene.add(butterfly.group); }
+    catch (error) { console.warn('The butterfly has no picture:', error?.message ?? error); }
     onProgress('Ungarnir gera sig tilbúna…');
     await Promise.all(babyActors.map(actor => prepareCharacter(actor.model, lighting.sun, { levels: BABY_LEVELS, casterLevel: 2 })));
     resize();
     babyShadows = createMemoryShadowLods(babyActors, lighting.sun);
-    idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly: items.get('butterfly') ?? null, games: (params.get('idle') ?? '').split(',').filter(name => IDLE_GAMES.includes(name)).length ? params.get('idle').split(',').filter(name => IDLE_GAMES.includes(name)) : IDLE_GAMES,
+    idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly, games: (params.get('idle') ?? '').split(',').filter(name => IDLE_GAMES.includes(name)).length ? params.get('idle').split(',').filter(name => IDLE_GAMES.includes(name)) : IDLE_GAMES,
       sound: name => deferredEvents.push({ type: 'scene-sound', name }) });
     resize();
     onProgress('Laufin eru tilbúin.');
@@ -544,18 +558,19 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     byId.clear(); fx.reset(); homeNav.reset(); deferredEvents.length = 0; cheerAge = 100; adventure.reset(); bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false }; cameraDirector.reset(); logicalToPhysical.splice(0, 3, 0, 1, 2);
     for (const actor of babyActors) { actor.root.visible = false; actor.root.scale.setScalar(1); actor.walk?.(false); actor.setMotion?.('idle'); actor.stopGesture?.(); }
     for (const nest of nests) { nest.index = nest.physicalIndex; nest.species = null; nest.members = []; nest.pulse = 100; nest.reunionAge = 100; nest.reunited = false; }
-    for (const item of items.values()) item.group.visible = false;
+    for (const pair of giftModels.values()) for (const item of pair) { item.group.visible = false; item.busy = false; }
+    if (butterfly) butterfly.group.visible = false;
     const available = [...babyActors];
     cards.forEach((card, i) => {
       const cell = cells[i]; if (!cell) return;
-      // A surprise leaf hides no friend: its cell has no actor, only the item its card names.
+      // A gift leaf hides no friend: its cell has no actor, only the item its card names (an instance of the animal comes when it opens).
       let actor = null;
       if (card.species) {
         const actorIndex = available.findIndex(value => value.species === card.species);
         if (actorIndex < 0) throw new Error(`Missing baby for ${card.species}.`);
         actor = available.splice(actorIndex, 1)[0];
       }
-      Object.assign(cell, { id: card.id, species: card.species, item: card.item ?? null, status: card.status ?? 'hidden', actor, targetOpen: 0, open: 0, revealAge: 100, pending: 0, spring: 0, springV: 0, vanish: 0, closing: false, surprise: null,
+      Object.assign(cell, { id: card.id, species: card.species, item: card.item ?? null, status: card.status ?? 'hidden', actor, targetOpen: 0, open: 0, revealAge: 100, pending: 0, spring: 0, springV: 0, vanish: 0, closing: false, gift: null,
         transfer: null, moved: false, dash: null, away: false, home: null, wonderAt: 0, faceYaw: null, hideYaw: 0 });
       cell.leaf.visible = true; cell.shade.visible = false;
       poseLeaf(cell.leaf, leafResources, { turn: cell.turn });
@@ -607,90 +622,99 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const cell = byId.get(id); if (!cell || cell.moved || cell.transfer || cell.away) return false;
     squash(cell);
     cell.pending = reducedMotion ? 0 : TAP.squash;
-    if (cell.item) return revealSurprise(cell);
     const other = cells.find(value => value !== cell && value.status === 'revealed' && !value.away);
     cell.status = 'revealed'; cell.revealAge = 0; cell.wonderAt = cell.pending + 1.3;
+    // A gift leaf: the animal stands up on the open leaf (updateGift).
+    if (cell.item) cell.gift = { model: takeGift(cell.item), age: 0, shownAge: 0, shown: false, phase: 'stand', t: 0, pair: null, wobble: 0 };
     if (!cell.pending) openCell(cell);
     playFor(cell, revealScene(stage, cell, { second: Boolean(other), delay: cell.pending }));
-    // A different friend under the second leaf: both react before the leaves close.
-    if (other && other.species !== cell.species) scenes.play(mismatchScene(stage, other, cell, { delay: cell.pending }));
+    // A different friend or gift under the second leaf: both react before the leaves close.
+    if (other && (other.species !== cell.species || other.item !== cell.item)) scenes.play(mismatchScene(stage, other, cell, { delay: cell.pending }));
     return true;
   }
 
-  // A surprise leaf (the rules' card.item): the leaf swings away, the thing pops up with stars, hovers, then flies to the basket.
-  function revealSurprise(cell) {
-    cell.status = 'found'; cell.surprise = { age: 0, model: items.get(cell.item) ?? null, popped: false, done: false };
-    if (!cell.pending) openCell(cell);
-    return true;
-  }
+  // ---- the gifts ----
   const hover = new THREE.Vector3(), flightFrom = new THREE.Vector3(), flightTo = new THREE.Vector3(), flightMid = new THREE.Vector3(), cameraRight = new THREE.Vector3();
-  // Where the basket is on the screen, as the point SURPRISE.target metres in front of the camera.
+  // One of the two instances of an animal that is not on a leaf now (a pair always finds one).
+  function takeGift(id) {
+    const pair = giftModels.get(id); if (!pair) return null;
+    const model = pair.find(value => !value.busy) ?? pair[0]; model.busy = true; return model;
+  }
+  // Where the basket is on the screen, as the point GIFT.target metres in front of the camera.
   function basketWorldPoint(out) {
     const at = basketPoint();
     camera.updateMatrixWorld();
     out.set(at ? at.x / width * 2 - 1 : -.7, at ? 1 - at.y / height * 2 : .8, .5).unproject(camera).sub(camera.position).normalize();
-    return out.multiplyScalar(SURPRISE.target).add(camera.position);
+    return out.multiplyScalar(GIFT.target).add(camera.position);
   }
-  // The surprise shows its face to the camera (a flat butterfly lies back toward it).
+  // A gift shows its face to the camera (a flat butterfly lies back toward it).
   function faceCamera(model) {
     cameraRight.setFromMatrixColumn(camera.matrixWorld, 0);
     model.group.rotation.set(model.tilt ?? 0, Math.atan2(-cameraRight.z, cameraRight.x), 0, 'YXZ');
   }
-  function updateSurprise(cell, dt) {
-    const state = cell.surprise; if (!state || state.done || !(dt > 0)) return;
-    state.age += dt;
-    const rise = reducedMotion ? 0 : SURPRISE.rise, fly = reducedMotion ? 0 : SURPRISE.fly;
-    const popAt = TAP.squash + SURPRISE.pop, flyAt = popAt + rise + SURPRISE.hold, landAt = flyAt + fly, model = state.model;
-    if (state.age < popAt) return;
-    hover.copy(cell.root.position); hover.y += SURPRISE.hover;
-    if (!state.popped) {
-      state.popped = true; fx.emit('stars', hover, { count: 12 });
-      mosi.lookAt(hover.clone(), { weight: .6, maxAngle: 28 }); cameraDirector.nudge(hover, .06, .5);
-      if (model) model.group.visible = true;
+  // The pair is found (rules.js 'gift'): both animals rise from their leaves, hover, fly to the basket together and it counts.
+  function foundGift(ids) {
+    const pair = ids.map(id => byId.get(id)).filter(cell => cell?.gift && cell.gift.phase === 'stand');
+    if (pair.length !== 2) return false;
+    const record = { landed: 0, item: pair[0].item, cells: pair };
+    pair.forEach((cell, index) => { cell.status = 'found'; Object.assign(cell.gift, { phase: 'rise', t: 0, pair: record, index }); });
+    const middle = pair[0].root.position.clone().add(pair[1].root.position).multiplyScalar(.5).add(new THREE.Vector3(0, GIFT.hover * .6, 0));
+    cameraDirector.nudge(middle, .05, .7); mosi.lookAt(middle.clone(), { weight: .6, maxAngle: 28 }); mosi.blink();
+    return true;
+  }
+  // A gift under a leaf that closes (a mismatch) ducks down before the leaf is over it.
+  function duckGift(cell) { if (cell.gift && cell.gift.phase === 'stand') Object.assign(cell.gift, { phase: 'duck', t: 0 }); }
+  // A small shake of the head for a gift that is not the one (the stage's 'oops').
+  function wobbleGift(cell) { if (cell.gift) cell.gift.wobble = .6; }
+  function releaseGift(cell) {
+    const state = cell.gift; if (!state) return;
+    if (state.model) { state.model.group.visible = false; state.model.busy = false; }
+    cell.gift = null;
+  }
+  // The state machine runs whether or not the animal's model loaded (a pair must still reach the basket and count); only the drawing needs it.
+  const spare = new THREE.Vector3();
+  function updateGift(cell, dt) {
+    const state = cell.gift; if (!state || state.phase === 'done' || !(dt > 0)) return;
+    state.age += dt; state.t += dt;
+    const model = state.model, ground = cell.root.position;
+    // It comes up when the leaf has swung open; the pop is a little spring.
+    if (!state.shown && cell.open > .17) { state.shown = true; state.shownAge = 0; }
+    if (state.shown) state.shownAge += dt;
+    const place = model ? model.group.position : spare, pop = !state.shown ? 0 : reducedMotion ? 1 : Math.max(.05, easeOutBack(state.shownAge / GIFT.pop));
+    let scale = pop;
+    place.copy(ground); place.y += .085;
+    if (state.phase === 'duck') {
+      const k = reducedMotion ? 1 : smooth(state.t / GIFT.duck); scale = pop * (1 - k);
+      if (k >= 1) { releaseGift(cell); return; }
+    } else if (state.phase === 'rise') {
+      const rise = reducedMotion ? 0 : GIFT.rise;
+      if (!state.started) { state.started = true; fx.emit('stars', ground.clone().setY(ground.y + .5), { count: 10 }); }
+      const e = rise ? easeOutBack(state.t / rise) : 1;
+      place.y += THREE.MathUtils.lerp(0, GIFT.hover, e) + (state.t > rise ? Math.sin((state.t - rise) * 3.2 + state.index) * .06 : 0);
+      if (state.t >= rise + (reducedMotion ? 0 : GIFT.hold)) { state.phase = 'fly'; state.t = 0; }
     }
-    if (model) {
-      let scale = 1; const place = model.group.position;
-      if (state.age < popAt + rise) { const e = easeOutBack((state.age - popAt) / rise); place.copy(cell.root.position); place.y += THREE.MathUtils.lerp(.15, SURPRISE.hover, e); scale = Math.max(.05, e); }
-      else if (state.age < flyAt) { place.copy(hover); place.y += Math.sin((state.age - popAt - rise) * 3.2) * .07; }
-      else {
-        const e = smooth(fly ? (state.age - flyAt) / fly : 1); flightFrom.copy(hover); basketWorldPoint(flightTo);
-        flightMid.lerpVectors(flightFrom, flightTo, .35); flightMid.y += 1;
-        place.copy(flightFrom).multiplyScalar((1 - e) * (1 - e)).addScaledVector(flightMid, 2 * (1 - e) * e).addScaledVector(flightTo, e * e);
-        scale = THREE.MathUtils.lerp(1, SURPRISE.shrink, e);
+    if (state.phase === 'fly') {
+      const fly = reducedMotion ? 0 : GIFT.fly, e = smooth(fly ? state.t / fly : 1);
+      flightFrom.copy(ground); flightFrom.y += .085 + GIFT.hover;
+      basketWorldPoint(flightTo); cameraRight.setFromMatrixColumn(camera.matrixWorld, 0); flightTo.addScaledVector(cameraRight, (state.index - .5) * GIFT.apart);
+      flightMid.lerpVectors(flightFrom, flightTo, .35); flightMid.y += 1;
+      place.copy(flightFrom).multiplyScalar((1 - e) * (1 - e)).addScaledVector(flightMid, 2 * (1 - e) * e).addScaledVector(flightTo, e * e);
+      scale = THREE.MathUtils.lerp(1, GIFT.shrink, e);
+      if (state.t >= fly) {
+        if (model) model.group.visible = false;
+        state.phase = 'done'; state.pair.landed++;
+        if (state.pair.landed === 2) deferredEvents.push({ type: 'scene-sound', name: 'ding' }, { type: 'scene-basket', item: state.pair.item });
+        return;
       }
-      model.group.scale.setScalar(scale); faceCamera(model); model.animate(state.age);
     }
-    if (state.age >= landAt) {
-      state.done = true; if (model) model.group.visible = false;
-      deferredEvents.push({ type: 'scene-sound', name: 'ding' }, { type: 'scene-basket', item: cell.item });
-    }
+    if (!model) return;
+    if (state.wobble > 0) { state.wobble = Math.max(0, state.wobble - dt); place.x += Math.sin(state.age * 38) * .03 * (state.wobble / .6); }
+    model.group.visible = state.shown; model.group.scale.setScalar(scale); faceCamera(model); model.animate(state.age);
   }
-
-  // The celebration's gifts (scenes/celebrate.js): the surprises the child found rise from Mosi's basket (his back), float above him and
-  // bob while his line says what they were, then fly to the basket in the ribbon, as a found one did. The same models as the leaves'.
-  const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
-  const found = () => cells.filter(cell => cell.item && cell.status === 'found' && items.get(cell.item)).map(cell => ({ id: cell.item, model: items.get(cell.item) }));
-  // Beside Mosi's head, a little toward the camera (the shot of them is a close one on his face).
-  // One gift floats where the first of two would, to the left of his head, so that his face stays clear.
-  function giftHover(i, n = found().length) {
-    n = Math.max(2, n);
-    const head = mosi.headPosition(new THREE.Vector3());
-    return new THREE.Vector3(head.x + (i - (n - 1) / 2) * 2.3, head.y + .95, head.z + 1.1);
-  }
-  function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
-  function startGifts() {
-    stopGifts(); gift.entries = found().map(entry => ({ ...entry, shown: false })); gift.age = 0; gift.phase = gift.entries.length ? 'rise' : 'none';
-  }
-  function flyGifts() {
-    if (gift.phase !== 'rise') return;
-    gift.phase = 'fly'; gift.flyAge = 0;
-    gift.entries.forEach((entry, i) => { entry.from = giftHover(i, gift.entries.length); });
-  }
-  function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; gift.entries = []; gift.phase = 'none'; }
   function updateGifts(dt) {
     if (gift.phase === 'none' || !(dt > 0)) return;
     gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
-    const n = gift.entries.length, fly = reducedMotion ? 0 : SURPRISE.fly;
+    const n = gift.entries.length, fly = reducedMotion ? 0 : GIFT.fly;
     let landed = 0;
     gift.entries.forEach((entry, i) => {
       const group = entry.model.group, delay = i * .4, rise = reducedMotion ? 0 : 1.1;
@@ -702,7 +726,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       if (gift.phase === 'fly') {
         const t = smooth(fly ? gift.flyAge / fly : 1); basketWorldPoint(flightTo); flightMid.lerpVectors(entry.from, flightTo, .35); flightMid.y += 1;
         group.position.copy(entry.from).multiplyScalar((1 - t) * (1 - t)).addScaledVector(flightMid, 2 * (1 - t) * t).addScaledVector(flightTo, t * t);
-        scale = THREE.MathUtils.lerp(1, SURPRISE.shrink, t);
+        scale = THREE.MathUtils.lerp(1, GIFT.shrink, t);
         if (t >= 1) { group.visible = false; landed++; }
       }
       group.scale.setScalar(scale); faceCamera(entry.model); entry.model.animate(gift.age);
@@ -718,11 +742,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       .map(cell => ({ actor: cell.actor, id: actorIds.get(cell.actor), species: cell.species, partner: cells.find(other => other !== cell && other.species === cell.species && other.moved && other.actor)?.actor ?? null }));
   }
   // Nothing may be going on that the child watches or decides: a script, a task, a cut or a glide, the bubbles, a wrong friend's go,
-  // a leaf opening or closing, a surprise on its way to the basket, a pair on its way home.
+  // a leaf opening or closing, a gift pair on its way to the basket, a pair on its way home.
   function idleBusy() {
     if (scenes.busy() || adventure.isBusy() || cameraDirector.isHeld() || cameraDirector.isMoving() || bridgeSnapshot.asking || bridgeSnapshot.failing || bridgeSnapshot.active || gift.phase !== 'none') return true;
     if (cells.filter(cell => cell.status === 'revealed' && !cell.away).length > 1) return true;
-    return cells.some(cell => cell.pending > 0 || cell.closing || cell.transfer || cell.dash || (cell.surprise && !cell.surprise.done) || (cell.status === 'revealed' && cell.open < 1) || (cell.status === 'matched' && !cell.moved));
+    return cells.some(cell => cell.pending > 0 || cell.closing || cell.transfer || cell.dash || (cell.gift && ['rise', 'fly', 'duck'].includes(cell.gift.phase)) || (cell.status === 'revealed' && cell.open < 1) || (cell.status === 'matched' && !cell.moved));
   }
   let solidsAt = -1, solids = [];
   const idleSolids = () => { if (time - solidsAt > .5 || time < solidsAt) { solids = navObjects(); solidsAt = time; } return solids; };
@@ -766,7 +790,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
 
   function conceal(ids) {
     for (const id of ids) {
-      const cell = byId.get(id); if (!cell || cell.moved || cell.transfer || cell.away || !cell.actor) continue;
+      const cell = byId.get(id); if (!cell || cell.moved || cell.transfer || cell.away) continue;
+      // A gift ducks under the closing leaf (the 'oops' wobble of mismatchScene is over by now).
+      if (cell.gift) { cell.status = 'hidden'; cell.targetOpen = 0; cell.pending = 0; cell.closing = true; duckGift(cell); continue; }
+      if (!cell.actor) continue;
       // The friends already said "oops" (mismatchScene); they only duck under the closing leaf.
       cell.status = 'hidden'; cell.targetOpen = 0; cell.pending = 0; cell.closing = true; cell.actor.clearLook?.(); cell.faceYaw = cell.hideYaw;
       if (!cell.actor.getDebugState?.().gesture) cell.actor.gesture?.('settle');
@@ -856,6 +883,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     scenes.update(delta);
     // One friend waits under an open leaf: it wonders where its friend is, again and again.
     const waitingAlone = cells.filter(cell => cell.status === 'revealed' && !cell.away);
+    if (waitingAlone.length === 1 && !waitingAlone[0].actor) waitingAlone.length = 0; // a gift on its own leaf has no one to wonder
     if (waitingAlone.length === 1 && delta > 0) {
       const cell = waitingAlone[0]; cell.wonderAt -= revealDelta;
       if (cell.wonderAt <= 0) { if (!cell.actor.getDebugState?.().gesture) cell.actor.gesture('wonder'); cell.wonderAt = 2.7; }
@@ -875,15 +903,15 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
         stepSpring(cell, revealDelta);
       }
       if (cell.open <= 0) cell.closing = false;
-      // The leaf of a friend that has gone, or of a surprise that has flown off, shrinks away where it lies, with a puff.
-      const leaving = cell.moved || Boolean(cell.transfer) || cell.away || Boolean(cell.surprise?.done);
+      // The leaf of a friend that has gone, or of a gift that has lifted off, shrinks away where it lies, with a puff.
+      const leaving = cell.moved || Boolean(cell.transfer) || cell.away || ['fly', 'done'].includes(cell.gift?.phase);
       if (leaving && cell.vanish < 1 && delta > 0) {
         if (cell.vanish === 0) fx.emit('poof', cell.leaf.position.clone().add(cell.root.position), { count: 6, ring: .5 });
         cell.vanish = reducedMotion ? 1 : Math.min(1, cell.vanish + delta / .22);
       } else if (!leaving) cell.vanish = 0;
       poseLeaf(cell.leaf, leafResources, { open: smooth(cell.open), bounce: cell.spring, vanish: cell.vanish, turn: cell.turn });
       const shade = (1 - smooth(cell.open)) * (1 - cell.vanish); cell.shade.scale.set(2.6 * shade + 1e-3, 1, 2.5 * shade + 1e-3);
-      updateSurprise(cell, revealDelta);
+      updateGift(cell, revealDelta);
       if (cell.dash) updateDash(cell, delta);
       if (cell.actor && !cell.moved && !cell.transfer && !cell.away) {
         cell.actor.root.visible = cell.open > .17;
@@ -978,7 +1006,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     babyShadows?.dispose();
     if (!Array.isArray(babyLibrary)) babyLibrary?.dispose?.();
     scenes.cancelAll(); mosiPuppet?.dispose(); adventure?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); groundLook?.dispose(); gladeScenery?.dispose(); sky.dispose();
-    for (const item of items.values()) { item.group.removeFromParent(); item.dispose(); }
+    for (const pair of giftModels.values()) for (const item of pair) { item.group.removeFromParent(); item.dispose(); }
+    if (butterfly) { butterfly.group.removeFromParent(); butterfly.dispose(); }
     leafResources.dispose(); contactResources.dispose(); hitGeometry.dispose(); hitMaterial.dispose();
     fx.dispose(); depthShadow?.target.dispose();
     lighting.sun.shadow.map = null; lighting.sun.dispose(); scene.environment = null; scene.clear(); renderer.renderLists.dispose(); renderer.dispose(); renderer.forceContextLoss();
@@ -1058,13 +1087,17 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       // The plants the layout names (world-dressing.js), so a run can check that none stands where somebody walks.
       dressing: layout.plants, idle: idlePlay ? { ...idlePlay.getDebug(), blocked: idleBlocked } : null,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
-      cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, surprise: cell.surprise ? { age: cell.surprise.age, popped: cell.surprise.popped, done: cell.surprise.done } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
+      cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, gift: cell.gift ? { age: cell.gift.age, phase: cell.gift.phase, shown: cell.gift.shown } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
       ...(measure ? { frame: measureFrame() } : {}),
     };
   }
 
   return { setBoard, reveal, conceal, match, celebrate, playNest, update, resize, pick,
+    /** A gift pair is found (rules.js 'gift'): both animals rise, hover and fly to the basket (the count follows as a 'scene-basket' event). */
+    foundGift: ids => foundGift(ids),
+    /** True while a found pair is rising or flying to the basket: a leaf tapped then waits, as it does during a match. */
+    giftBusy: () => cells.some(cell => cell.gift && ['rise', 'fly'].includes(cell.gift.phase)),
     /** Play a script (scenes.js lines) on the game clock; game.js never reaches the runner itself. */
     runScene: (lines, options) => scenes.play(lines, options),
     /** A tap the child made that a waiting script may take (true when one did). */

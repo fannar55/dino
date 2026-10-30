@@ -301,7 +301,7 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     reveal(species, index) {
       if (!allowed()) return false;
       sample('leaf', context.currentTime, 0.13, ((index % 3) - 1) * 0.27);
-      return call(species, index);
+      return species ? call(species, index) : true; // a gift leaf has no friend's call: the leaf alone
     },
     conceal() {
       if (!allowed()) return false;

@@ -24,7 +24,7 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 
 export function celebrateScene(stage) {
   const friends = () => stage.friends(), pair = species => stage.pair(species), mosi = stage.mosi;
-  const gifts = stage.gifts.count(), line = gifts === 0 ? null : gifts === 1 ? 'gifts1' : 'gifts2';
+  const gifts = stage.gifts.count(), line = gifts >= 3 ? 'gifts3' : null;
   const beat = (name, cut = true) => () => stage.beat?.(name, cut);
   const group = () => [mosi.body(), up(mosi.body(), 1), ...bodies(friends())];
   // The faces of some friends: noses, crowns and a point above the back, so a head bent to a berry stays inside the frame.
@@ -40,8 +40,8 @@ export function celebrateScene(stage) {
   const T = { eat: 1.2, stego: 2.4, bronto: 3.6, wide: 4.8, tri: 5.9, stegoTrick: 7.5, brontoTrick: 8.8, mosi: 11.2 };
   const look = T.mosi + 1.7, last = T.mosi + (gifts ? 3.4 : 1.9);
   const mosiFront = (spin = 0) => () => stage.faceOn(mosi.yaw(), .5).applyAxisAngle(UP, spin);
-  // Where the gifts float. With none found the shot is framed as if two floated there, so it is as wide (and as light) as with them.
-  const framed = Math.max(2, gifts), giftPoints = () => Array.from({ length: framed }, (_, i) => stage.gifts.hover(i, framed));
+  // Where the gifts float. With none found the shot is framed as if three floated there, so it is as wide (and as light) as with them.
+  const framed = Math.max(3, gifts), giftPoints = () => Array.from({ length: framed }, (_, i) => stage.gifts.hover(i, framed));
   return [
     // They have all arrived: the whole grove, the cheer still going, Mosi's line; he looks them over.
     { at: 0, shot: { kind: 'wide', subjects: group, elevation: 26, cut: true },

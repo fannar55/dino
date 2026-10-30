@@ -26,7 +26,7 @@
         <div class="ribbon-heading"><svg class="ribbon-leaf" aria-hidden="true"><use href="#leaf-mark"/></svg><div class="game-title"><h1>Hvar er vinur minn?</h1><span>Leiðin að berjalundinum</span></div><svg class="ribbon-berries" aria-hidden="true"><use href="#berry-mark"/></svg></div>
         <div class="ribbon-progress">
           <div id="progress" class="progress" aria-label="0 af 3 pörum fundin" hidden><div class="nest-dots" aria-hidden="true"><i></i><i></i><i></i></div><span id="progress-text">0 / 3 pör</span></div>
-          <div id="basket" class="basket" role="img" aria-label="Karfan: 0 af 2 fundið" hidden><span class="basket-icon" aria-hidden="true"></span><span id="basket-text" aria-hidden="true">0 / 2</span></div>
+          <div id="basket" class="basket" role="img" aria-label="Karfan: 0 af 3 fundið" hidden><span class="basket-icon" aria-hidden="true"></span><span id="basket-text" aria-hidden="true">0 / 3</span></div>
           <ol id="journey" class="journey" aria-label="Þrjú verkefni á leiðinni" hidden>
             <li data-step="lift"><span class="trail-medallion"><svg aria-hidden="true"><use href="#trail-branch"/></svg><b>1</b></span><span class="trail-label">Greinin</span></li>
             <li data-step="roll"><span class="trail-medallion"><svg aria-hidden="true"><use href="#trail-log"/></svg><b>2</b></span><span class="trail-label">Trjábrúin</span></li>
@@ -54,6 +54,8 @@
     <section id="ending" class="ending" hidden aria-label="Leik lokið">
       <svg class="ending-berries" aria-hidden="true"><use href="#berry-mark"/></svg><div><span class="eyebrow">SEX VINIR · EIN LEIÐ</span><h2>Öll komumst við!</h2><p id="ending-copy">Þið lyftuð, ýttuð og byggðuð. Nú njóta allir vinirnir berjalundarins.</p><p id="ending-gifts" class="ending-gifts" hidden><span class="basket-icon" aria-hidden="true"></span><span id="ending-gifts-text"></span></p></div>
       <button id="again" class="primary" type="button">Spila aftur <span aria-hidden="true">↻</span></button>
+      <button id="credits-toggle" class="credits-toggle" type="button" aria-label="Um líkönin af gjöfunum" aria-expanded="false" aria-controls="credits"><span aria-hidden="true">i</span></button>
+      <div id="credits" class="credits" role="note" aria-label="Höfundar líkananna af gjöfunum" hidden></div>
     </section>
     <div id="loading" class="loading" role="status"><div class="loading-mark" aria-hidden="true"></div><h2>Hreiðurlundurinn vaknar…</h2><p id="loading-copy">Mosi finnur ungana.</p></div>
     <section id="error" class="error-panel" hidden role="alert"><h2>Lundurinn náði ekki að opnast.</h2><p id="error-copy">Prófaðu að endurhlaða síðunni.</p><button id="retry" class="primary" type="button">Reyna aftur</button></section>
