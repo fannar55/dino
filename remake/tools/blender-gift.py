@@ -2,7 +2,7 @@
 # model the owner downloaded from Sketchfab. Step 1 of preparing it:
 #   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" -b --factory-startup
 #     --python remake/tools/blender-gift.py -- in.glb out.glb name=Shrew size=1.0 front=-90 tris=3900 tex=512
-#     [drop=AOFLoor] [roughness=0.6] [normal=0|1] [anim=0|1] [credit=extras.json]
+#     [drop=AOFLoor] [roughness=0.6] [normal=0|1] [anim=0|1] [lift=0.62] [credit=extras.json]
 # It imports the GLB, drops the meshes whose material is named in drop= (a floor), joins the rest into ONE mesh with ONE
 # material, welds and decimates the mesh to about `tris` triangles (a skin is left alone when it is already under the
 # target), rebuilds the material as plain metal-rough (the colour map, the normal map when normal=1, a constant roughness,
@@ -11,6 +11,9 @@
 # in Blender's frame), scales it so its longest side on the ground (X or Z in glTF) is `size` metres, centres it on the
 # ground and sets its feet on y = 0, and writes a GLB (with its animations and skin when anim=1). A skin is never
 # applied: the armature object carries the scale, the turn and the lift, so the clips play as they were made.
+# lift= (default 1, off) brightens the colour map: each pixel's brightest channel v becomes v ** lift (0.62 turns a dark brown
+# value of 0.25 into 0.43) and the other two channels follow in the same ratio, so the hue and the saturation stay and only the
+# darks come up (a pale belly hardly moves). It is done on the shrunk map, in the map's own (sRGB) values.
 # Step 2 is node remake/tools/quantize-glb.mjs, for the static ones only (three ignores the node scale quantization needs
 # on a skinned mesh). The welding and pinhole code is blender-decimate.py's.
 import json
@@ -31,6 +34,7 @@ TRIS = int(options.get('tris', 4000))
 TEX = int(options.get('tex', 512))
 DROP = [d for d in options.get('drop', '').split(',') if d]
 ROUGHNESS = float(options.get('roughness', 0.6))
+LIFT = float(options.get('lift', 1.0))
 NORMAL = options.get('normal', '1') == '1'
 ANIM = options.get('anim', '0') == '1'
 CREDIT = json.load(open(options['credit'])) if 'credit' in options else {}
@@ -175,6 +179,19 @@ for image in list(bpy.data.images):
         bpy.data.images.remove(image)
     else:
         image.scale(TEX, TEX)
+if LIFT != 1.0 and colour_node:
+    import numpy as np
+    image = colour_node.image
+    pixels = np.empty(len(image.pixels), dtype=np.float32)
+    image.pixels.foreach_get(pixels)
+    pixels = pixels.reshape(-1, 4)
+    value = pixels[:, :3].max(axis=1, keepdims=True)
+    ratio = np.where(value > 1e-5, np.power(value, LIFT) / np.maximum(value, 1e-5), 1.0)
+    before = float(pixels[:, :3].mean())
+    pixels[:, :3] = np.clip(pixels[:, :3] * ratio, 0.0, 1.0)
+    image.pixels.foreach_set(pixels.reshape(-1))
+    image.update()
+    print(f'[gift] colour map lifted by v ** {LIFT}: mean {before:.3f} -> {float(pixels[:, :3].mean()):.3f}')
 material.use_backface_culling = False  # double-sided: the claws and antennae are thin shells
 material.name = NAME.lower()
 print(f'[gift] maps: {[(i.name, i.size[0]) for i in bpy.data.images]}')
