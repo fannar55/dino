@@ -268,14 +268,15 @@ const TIMELINE_JS = `(() => {
   window.__scenePerf = []; let previous = 0;
   const tick = now => { const d = window.__demoStats; if (previous && d && d.scene && d.scene.busy) window.__scenePerf.push(now - previous); previous = now; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
-  // The camera on every frame while gifts are still to land and for 4 s after the crossing starts (the last 900 frames kept): report.giftsGlide reads the glide out of the last landing from it.
-  window.__camTrack = []; let trackStop = 0;
+  // The camera on every frame while gifts are still to land, 8 s after the last one lands and for 4 s after the crossing starts (the last 900 frames kept): report.giftsGlide reads the glide out of the last landing from it.
+  window.__camTrack = []; let trackStop = 0, lastLeft = -1e9;
   const track = now => {
     const m = window.__memory, d = window.__demoStats, c = d && d.camera;
     if (m && c && c.position && !(trackStop && now > trackStop)) {
       const b = m.bridge(), cross = b.active === 'cross';
       if (cross && !trackStop) trackStop = now + 4000;
-      if (cross || m.giftsLeft().toLand > 0 || trackStop) {
+      if (m.giftsLeft().toLand > 0) lastLeft = now; // (and for 8 s after the last pair lands, so the glide to the crossing is kept)
+      if (cross || now - lastLeft < 8000 || trackStop) {
         const ring = window.__camTrack;
         ring.push({ t: +(now / 1000).toFixed(3), p: c.position.map(v => +v.toFixed(2)), g: c.target.map(v => +v.toFixed(2)), intent: c.intent, moving: Boolean(c.moving), shot: c.shot || null, held: Boolean(c.held), cross, basket: m.basket(), flying: (d.cells || []).some(x => x.gift && ['rise', 'fly'].includes(x.gift.phase)) });
         if (ring.length > 900) ring.shift();

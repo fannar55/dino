@@ -37,12 +37,16 @@ dialog for screenshots; browser audio still requires a gesture.
   counts the pairs ("0 / 3" from the start; the progress dots stay "x / 3 pör" for the friends). The round ends only when
   all twelve leaves are found: the crossing to the berry grove starts on its own when every friend is home, the bridge is built
   and the last gift pair has landed in the basket, once. Until then Mosi says `giftsLeft` ("Finnum fyrst gjafirnar sem eru
-  eftir!"), the gold arrow points at a shut leaf and a tap on the staging spot says the same.
+  eftir!"), the gold arrow (the big arrow of the obstacles, just above its leaf) points at a shut leaf and a tap on the staging spot (when
+  it is on the screen) says the same. The wait is played in the search view, so the leaves keep their play size; the camera
+  glides out to the wide view of the bridge only once the last pair has landed (`world.js` `cameraCue`), and the crossing starts from there.
+  On a phone (under 600 px wide) a gift is drawn 1.75 times larger from its pop on the leaf to the basket (`GIFT.phone`), so it is about
+  45 px across or more.
 - The gift models are `assets/memory/gifts/{shrew,hermit-crab,crab}.glb`, each at most 4,000 triangles, one mesh, one
   material, 512 px WebP maps, facing +X with its feet on y = 0, with a `-source.json` beside it (author, licence, what was
   changed, the exact commands). They are the owner's downloads from Sketchfab, all CC BY 4.0 (Shrew by Robert_the_whale,
   Little Hermit Crab by Citflo, Dancing Crab - Uca Mjoebergi by Bohdan Lvov), processed by `tools/blender-gift.py` and
-  `tools/quantize-glb.mjs` (the two static ones). Their credits (Líkan / Leyfi / Frá, as the book's card viewer shows them) are
+  `tools/quantize-glb.mjs` (the two static ones; the shrew's dark colour map is lifted with `lift=0.35`, see its `-source.json`). Their credits (Líkan / Leyfi / Frá, as the book's card viewer shows them) are
   behind the small "i" on the ending card (`GIFT_CREDITS` in `surprise-items.js`). The crab plays its `Dance` clip (each of the
   pair has its own skeleton clone and mixer); the other two bob and turn gently. `surprise-items.js` also makes the butterfly the
   waiting friends chase (it hides under no leaf any more).
@@ -132,7 +136,10 @@ dialog for screenshots; browser audio still requires a gesture.
   buttons (`report.leafTargets`, never under 44 px, 3 touching pairs at most by 1 px on a phone), and ends with the credits window open
   (`report.credits`). `--gifts-last` finds the gifts after every friend and the bridge so the wait is seen (`report.giftsLeft`: Mosi's line, the
   gold arrow on a shut leaf, a tap on the staging spot; `report.crossAfterGifts`: the crossing starts once, after the last pair has landed).
-  `--restart-at gift` restarts while the first pair flies (the basket goes back to "0 / 3").
+  `--restart-at gift` restarts while the first pair flies (the basket goes back to "0 / 3"). With `--gifts-last` the wait is measured too:
+  `report.giftsView` (the camera's intent and every shut leaf inside the frame), `report.giftsArrow` (the gold arrow's box, inside the screen,
+  off the HUD and the caption) and `report.giftsGlide` (the camera from the last landing to the crossing: intents, seconds, jumps, Mosi on screen;
+  the frames are in `camtrack.json`).
 - Two small creature sounds, `giggle` (a wrong pair ducking, a wrong friend's go) and `strain` (each tap of a
   tap-along), made with `memory-sound-design.mjs`; both have synthesized fallbacks in `audio.js`.
 
