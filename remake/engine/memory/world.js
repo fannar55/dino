@@ -711,6 +711,29 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (state.wobble > 0) { state.wobble = Math.max(0, state.wobble - dt); place.x += Math.sin(state.age * 38) * .03 * (state.wobble / .6); }
     model.group.visible = state.shown; model.group.scale.setScalar(scale); faceCamera(model); model.animate(state.age);
   }
+  // The celebration's gifts (scenes/celebrate.js): the gifts the child found (one of each animal, all three in a finished round) rise from
+  // Mosi's basket (his back), float above him and bob while his line says what they were, then fly to the basket in the ribbon, as a
+  // found pair did. The same models as the leaves'.
+  const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
+  const found = () => [...new Set(cells.filter(cell => cell.item && cell.status === 'found').map(cell => cell.item))]
+    .filter(id => giftModels.get(id)).map(id => ({ id, model: giftModels.get(id)[0] }));
+  // Beside Mosi's head, a little toward the camera (the shot of them is a close one on his face).
+  // The gifts float to the sides of his head, never over it, so that his face stays clear.
+  function giftHover(i, n = found().length) {
+    n = Math.max(3, n);
+    const head = mosi.headPosition(new THREE.Vector3());
+    return new THREE.Vector3(head.x + (i - (n - 1) / 2) * 2.3, head.y + .95, head.z + 1.1);
+  }
+  function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
+  function startGifts() {
+    stopGifts(); gift.entries = found().map(entry => ({ ...entry, shown: false })); gift.age = 0; gift.phase = gift.entries.length ? 'rise' : 'none';
+  }
+  function flyGifts() {
+    if (gift.phase !== 'rise') return;
+    gift.phase = 'fly'; gift.flyAge = 0;
+    gift.entries.forEach((entry, i) => { entry.from = giftHover(i, gift.entries.length); });
+  }
+  function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; gift.entries = []; gift.phase = 'none'; }
   function updateGifts(dt) {
     if (gift.phase === 'none' || !(dt > 0)) return;
     gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
