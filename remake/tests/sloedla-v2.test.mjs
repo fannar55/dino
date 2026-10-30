@@ -2,11 +2,13 @@
 // owned by a dinosaur or by the song. The owner's lean rule: a few tests of the fiddly parts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { FIRST_NOTE, ROLES, timelineOf, validateSong } from '../engine/sloedla/v2/format.js';
 import { chartProblems, expectedOf, sectionChart } from '../engine/sloedla/v2/chart.js';
 import { partNotes } from '../engine/sloedla/v2/parts.js';
 import { createPlayer } from '../engine/sloedla/v2/player.js';
 import { createFakeContext } from './fake-audio.mjs';
+import { SONGS_V2 } from '../engine/sloedla/v2/songs/index.js';
 import { makeSong } from './sloedla-v2-fixture.mjs';
 
 test('v2 song: its timeline, the rules a song keeps, and composed notes', () => {
@@ -173,5 +175,21 @@ test('v2 player: a miss leaves a hole until the next hit, three make a ghost; pa
     lost.player.stop();
   } finally {
     console.warn = warn;
+  }
+});
+
+test('every v2 song: valid, nothing shared, playable at both levels and with two lanes', async () => {
+  for (const entry of SONGS_V2.filter(e => fs.existsSync(new URL(`../engine/sloedla/v2/songs/${e.file}`, import.meta.url)))) {
+    const song = (await entry.load()).default;
+    assert.deepEqual(validateSong(song), [], entry.id);
+    const source = fs.readFileSync(new URL(`../engine/sloedla/v2/songs/${entry.file}`, import.meta.url), 'utf8');
+    for (const [, from] of source.matchAll(/^\s*import\s[^'"]*['"]([^'"]+)['"]/gm)) assert.equal(from, `./${song.id}.chart.js`, `${song.id} imports ${from}`);
+    const { beat, sections } = timelineOf(song);
+    for (const level of ['barn', 'fullordinn']) {
+      for (const roles of [['a', 'b', 'c'], ['a', 'c']]) {
+        const notes = sections.flatMap((_, i) => sectionChart(song, i, 'normal', { level, roles }));
+        assert.deepEqual(chartProblems(notes, { level, beat, roles }), [], `${song.id} ${level} ${roles.join('')}`);
+      }
+    }
   }
 });

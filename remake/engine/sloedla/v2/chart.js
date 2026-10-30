@@ -27,10 +27,13 @@ export function sectionChart(song, index, variant = 'normal', { level = 'barn', 
   const endBeat = section.startBeat + section.bars * 4;
   const gap = GAP[level] * (variant === 'calm' ? 2 : 1);
   const pitch = pitchOfKey(song.key, transpose);
+  const grown = level === 'fullordinn';
   const candidates = [];
+  // the child's level leans to Slóeðla's tune; the grown-ups' keeps every note the child has ('!') and shares the rest fairly
   const add = (note, extra = 0) => {
     if (note.t < FIRST_NOTE - 1e-9 || note.beat > endBeat - gap + 1e-9) return;
-    candidates.push({ ...note, section: index, weight: weightOf(note.beat, note.dur, beat) + (note.role === 'a' ? 0.25 : 0) + extra });
+    const lean = grown ? (note.mark ? 1 : 0) : note.role === 'a' ? 0.25 : 0;
+    candidates.push({ ...note, section: index, weight: weightOf(note.beat, note.dur, beat) + lean + extra });
   };
   for (const entry of song.chart?.[level] ?? []) {
     if (!roles.includes(entry.owner) || entry.beat < section.startBeat || entry.beat >= endBeat) continue;
@@ -41,16 +44,24 @@ export function sectionChart(song, index, variant = 'normal', { level = 'barn', 
     if (!layer.part || !roles.includes(layer.owner)) continue;
     partNotes(song, layer, index, variant, transpose).forEach((note, i) => {
       if (level !== 'fullordinn' && !note.mark) return;
-      add({ t: note.t, beat: note.beat, role: layer.owner, layer: layer.id, freq: note.freq, step: note.step, vel: note.vel, dur: note.dur, index: i, part: true });
+      add({ t: note.t, beat: note.beat, role: layer.owner, layer: layer.id, freq: note.freq, step: note.step, vel: note.vel, dur: note.dur, index: i, part: true, mark: note.mark });
     });
   }
-  candidates.sort((x, y) => y.weight - x.weight || x.t - y.t);
+  // the strongest first; among equally strong ones, the dinosaur with the fewest notes kept so far, then the earliest
+  const pending = candidates.sort((x, y) => y.weight - x.weight || x.t - y.t);
   const kept = [];
-  for (const note of candidates) {
+  const counts = {};
+  while (pending.length) {
+    let pick = 0;
+    for (let i = 1; i < pending.length && pending[i].weight === pending[0].weight; i++) {
+      if ((counts[pending[i].role] ?? 0) < (counts[pending[pick].role] ?? 0)) pick = i;
+    }
+    const [note] = pending.splice(pick, 1);
     if (kept.some(other => Math.abs(other.beat - note.beat) < gap - 1e-6)) continue;
     kept.push(note);
+    counts[note.role] = (counts[note.role] ?? 0) + 1;
   }
-  return kept.sort((x, y) => x.t - y.t).map(({ weight, ...note }) => note);
+  return kept.sort((x, y) => x.t - y.t).map(({ weight, mark, ...note }) => note);
 }
 
 /** How many notes the child meets if every section plays as written. */
@@ -59,7 +70,7 @@ export function expectedOf(song, { level = 'barn', roles = ROLES } = {}) {
 }
 
 /**
- * What is wrong with a list of the child's notes: two closer than the gap; and over a `whole` song at the child's level, a
+ * What is wrong with a list of the child's notes: two closer than the gap; and over a `whole` song, at either level, a
  * dinosaur with lanes who has fewer than 8.
  */
 export function chartProblems(notes, { level = 'barn', beat, roles = ROLES, calm = false, whole = true } = {}) {
@@ -70,7 +81,7 @@ export function chartProblems(notes, { level = 'barn', beat, roles = ROLES, calm
     const apart = (sorted[i].t - sorted[i - 1].t) / beat;
     if (apart < gap - 1e-6) problems.push(`notes at ${sorted[i - 1].t.toFixed(2)} s and ${sorted[i].t.toFixed(2)} s are ${apart.toFixed(2)} beats apart (at least ${gap})`);
   }
-  if (whole && level === 'barn') {
+  if (whole) {
     for (const role of roles) {
       const count = notes.filter(n => n.role === role).length;
       if (count < 8) problems.push(`${role} has ${count} notes (at least 8)`);

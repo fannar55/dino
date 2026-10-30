@@ -30,6 +30,8 @@ import { createDj } from './dj.js';
 import { createClaps } from './claps.js';
 import { createSongGame } from './game.js';
 import { SONGS, loadSong } from './songs/index.js';
+import { createPlayer } from './v2/player.js';
+import { SONGS_V2, loadSongV2 } from './v2/songs/index.js';
 import { rootHz } from './song.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
@@ -143,10 +145,23 @@ async function start() {
   $('start').hidden = true;
   $('end').hidden = true;
   round?.conductor.stop();
-  const song = await loadSong(options.song);
+  // a song of the new kind (v2/format.js) owns everything it plays and has a player of its own (v2/player.js)
+  const v2 = await loadSongV2(options.song);
+  const song = v2 ?? await loadSong(options.song);
+  // its stems, decoded once, one at a time; one that cannot be loaded is left out (the player says so) and the round plays
+  for (const layer of v2?.layers ?? []) {
+    if (!layer.stem || layer.buffer) continue;
+    try {
+      const response = await fetch(asset(`audio/sloedla/v2/${song.id}/${layer.stem}`));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      layer.buffer = await context.decodeAudioData(await response.arrayBuffer());
+    } catch (error) {
+      console.warn(`Slóeðla: ${song.id}/${layer.stem} could not be loaded`, error);
+    }
+  }
   // a recorded backing (an ElevenLabs track): its stems, each a dinosaur's, or the whole mix; decoded once, one at a time
   // (decoding many at once has crashed iOS tabs)
-  for (const track of song.backing?.stems ?? (song.backing?.src ? [song.backing] : [])) {
+  for (const track of v2 ? [] : song.backing?.stems ?? (song.backing?.src ? [song.backing] : [])) {
     if (track.buffer || !track.src) continue;
     const bytes = await fetch(asset(track.src)).then(r => r.arrayBuffer());
     track.buffer = await context.decodeAudioData(bytes);
@@ -158,10 +173,11 @@ async function start() {
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.value = 1;
-  const sounds = createSongSounds({ context, output: music, room, voices: song.voices, instruments: song.instruments });
-  const band = createBand(context, { output: music, room });
-  const conductor = createConductor({ context, song, clock, band, sounds, out: music, room, level: options.level, roles, fall });
-  const root = rootHz(song.root) * 2;
+  const sounds = createSongSounds({ context, output: music, room, voices: v2 ? null : song.voices, instruments: song.instruments });
+  const conductor = v2
+    ? createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall })
+    : createConductor({ context, song, clock, band: createBand(context, { output: music, room }), sounds, out: music, room, level: options.level, roles, fall });
+  const root = rootHz(v2 ? song.key.root : song.root) * 2;
   const game = createSongGame({
     canvas, cast, conductor, fall, clock, windows, crowd, claps, dj, backdrop, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
@@ -278,7 +294,7 @@ function showOptions() {
   }
 }
 for (const holder of document.querySelectorAll('[data-songs]')) {
-  holder.innerHTML = SONGS.map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');
+  holder.innerHTML = [...SONGS, ...SONGS_V2].map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');
 }
 for (const button of document.querySelectorAll('[data-option]')) button.addEventListener('click', () => choose(...button.dataset.option.split('=')));
 showOptions();
