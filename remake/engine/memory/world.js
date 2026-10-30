@@ -50,9 +50,9 @@ const FAR_RINGS = [
   { radius: 84, rows: 1, spacing: 5.6, height: [10, 14], crown: [6, 9], strip: [2.8, 4.6], color: ['#33563a', '#5a8644'], haze: '#d0d9b0', topHaze: .45, araucaria: 0 },
   { radius: 118, rows: 1, spacing: 7, height: [12, 16], crown: [6.5, 9.5], strip: [2.8, 4.6], color: ['#3e6242', '#6b9250'], haze: '#d5dcb8', topHaze: .55, araucaria: 0 },
 ];
-// The six friends are seen small in most shots: below 700 px half their triangles, below 200 a quarter (the engine's own levels),
-// and below 110 an eighth, which at that size is within about a pixel. Their shadows stay cut from the quarter.
-const BABY_LEVELS = [{ ratio: .5, maxError: .001, below: 700 }, { ratio: .25, maxError: .0025, below: 200 }, { ratio: .12, maxError: .006, below: 110 }];
+// The six friends are seen small in most shots: below 700 px half their triangles, below 380 a quarter and below 190 an eighth (the
+// error of each is under about a pixel at the size it is used). The engine's levels are 700 and 200 px. Their shadows stay cut from the quarter.
+const BABY_LEVELS = [{ ratio: .5, maxError: .001, below: 700 }, { ratio: .25, maxError: .0025, below: 380 }, { ratio: .12, maxError: .006, below: 190 }];
 const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 // Mosi stands at the glade's west edge and faces the leaves (heading 0 = +X). He is MOSI_HALF metres from his middle to
 // his nose (and about as far to his tail) when the friends walk behind him.

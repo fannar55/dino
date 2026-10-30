@@ -9,7 +9,7 @@
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
-//   full          the whole round: a first reveal, one mismatch, the three pairs (Þríhyrnur first, so the branch has a wrong
+//   full          (after the glade picture, a picture of the overview) the whole round: a first reveal, one mismatch, the three pairs (Þríhyrnur first, so the branch has a wrong
 //                 friend to pick), the branch (after ~5 s of waiting for the gold arrow, one wrong pick, then the right one and
 //                 three taps in the hero shot), then the Kambeðlur, the log (one wrong pick, the Kambeðlur, then the Þríhyrnur and
 //                 three taps on "Einn, tveir, ÝTA!"), the crossing, the bark (one wrong pick, the Þórseðlur, then the Kambeðlur
@@ -20,7 +20,7 @@
 //   rapid         like full, but at every step it taps the right button three times in a row and then every other
 //                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
 //                 bubble, the way a six-year-old does. The round must still finish.
-//   glade         only the search view: the glade picture and its measurement (report.glade), then stops.
+//   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
@@ -523,6 +523,12 @@ async function main() {
     // Mosi and the leaves, with whether each is inside the frame.
     report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
     if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
+    // The overview button once at the start, as a child would peek at the whole place: the picture shows that no edge of the world is in sight.
+    if (o.mode === 'full' || o.mode === 'glade') {
+      await ev(`window.__memory.camera('overview')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'overview camera'); await sleep(600);
+      await shot('overview');
+      await ev(`window.__memory.camera('auto')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'play camera');
+    }
     if (o.mode === 'glade') report.finished = Boolean(report.glade?.babies);
 
     // ---- the round, driven by what the page shows -------------------------------------------------------------
@@ -566,7 +572,7 @@ async function main() {
     const surpriseAt = [0, 2]; // matched pairs when each one is opened (full and rapid)
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
-    let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, overviewDone = false, arrowWaited = false, tapWait = null;
+    let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
     const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
     let barkTaps = 0, runTake = null;
@@ -680,15 +686,6 @@ async function main() {
       if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
       if (s.bridge.boardwalkBuilt) waited ||= await milestone('walkway', 'walkway-built', 600);
       if (waited) continue;
-
-      // The overview button once, when the log is across, as a child would peek at the whole place.
-      if (o.mode === 'full' && !overviewDone && s.bridge.bridgeBuilt && !s.bridge.active && s.phase === 'ready' && !s.cam.moving) {
-        overviewDone = true;
-        await ev(`window.__memory.camera('overview')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'overview camera'); await sleep(500);
-        await shot('overview');
-        await ev(`window.__memory.camera('auto')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'play camera');
-        continue;
-      }
 
       const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
       const leaf = id => id !== undefined && s.enabled.includes(`leaf-${id}`);

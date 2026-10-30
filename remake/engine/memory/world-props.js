@@ -182,7 +182,7 @@ export function createContactResources() {
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const d = Math.hypot((x + .5) / n * 2 - 1, (y + .5) / n * 2 - 1);
     const i = (y * n + x) * 4;
-    data[i] = 61; data[i + 1] = 49; data[i + 2] = 30; data[i + 3] = Math.round(Math.pow(Math.max(0, 1 - d), 1.9) * 92);
+    data[i] = 46; data[i + 1] = 33; data[i + 2] = 18; data[i + 3] = Math.round(Math.pow(Math.max(0, 1 - d), 1.9) * 122);
   }
   const texture = new THREE.DataTexture(data, n, n, THREE.RGBAFormat); texture.needsUpdate = true;
   const geometry = new THREE.PlaneGeometry(1, 1); geometry.rotateX(-Math.PI / 2);
