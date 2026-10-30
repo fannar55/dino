@@ -23,6 +23,9 @@
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
+//   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
+//   --restart-at W  celebration or ending: restarts the round there ("Byrja upp á nýtt" in the middle of the celebration, "Spila aftur" on the card) and
+//                   reports what is left running (report.restartCheck: nothing should be).
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
@@ -88,7 +91,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0, think: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -102,6 +105,8 @@ function parseArgs(argv) {
     else if (a === '--clearance') o.clearance = true;
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
+    else if (a === '--first') o.first = next();
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending'].includes(o.restartAt)) throw new Error('--restart-at must be celebration or ending'); }
     else if (a === '--surprises') { o.surprises = Number(next()); if (![0, 1, 2].includes(o.surprises)) throw new Error('--surprises must be 0, 1 or 2'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
@@ -316,6 +321,13 @@ const CLEARANCE_JS = `(async () => {
     }
   }, 300);
 })()`;
+
+// What a restart must leave: a clean board, no script, no beat, no gift, no idle game, nothing said, nothing on the ending card.
+const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.state(), b = m.bridge();
+  return { phase: s.phase, matched: s.matchedPairs, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
+    sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
+    ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
+    caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // One read of everything the driver decides on.
 const SNAPSHOT_JS = `(() => {
@@ -611,6 +623,7 @@ async function main() {
     // pick). The first try is a deliberate mismatch: a card of the first species, then a card of the last one.
     const order = (story ? ['triceratops', 'brontosaurus', 'stegosaurus'] : ['brontosaurus', 'triceratops', 'stegosaurus']).filter(sp => first.cards.some(c => c.species === sp));
     for (const sp of new Set(first.cards.map(c => c.species))) if (sp && !order.includes(sp)) order.push(sp);
+    if (o.first && order.includes(o.first)) order.splice(0, order.length, o.first, ...order.filter(sp => sp !== o.first));
     // The surprise leaves, in card order. `full` and `rapid` open one before the first pair and one before the last.
     const surpriseIds = first.cards.filter(c => c.item).map(c => c.id);
     report.surprises = [];
@@ -656,6 +669,7 @@ async function main() {
         report.finished = true; step('ending'); await sleep(1500); await shot('ending');
         report.endingCard = await ev(`(() => { const row = document.getElementById('ending-gifts'), size = el => parseFloat(getComputedStyle(el).fontSize); return { copy: document.getElementById('ending-copy').textContent, gifts: row.hidden ? null : document.getElementById('ending-gifts-text').textContent, giftsFontPx: row.hidden ? null : size(row), copyFontPx: size(document.getElementById('ending-copy')), again: document.getElementById('again').textContent.trim(), basketInCard: !row.hidden && Boolean(row.querySelector('svg')), foundInRules: window.__memory.state().found, basket: window.__memory.basket() }; })()`);
         step('the ending card', report.endingCard ?? {});
+        if (o.restartAt === 'ending') { await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
         break;
       }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
@@ -731,6 +745,10 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
+      if (o.restartAt === 'celebration' && s.beats.includes('trick-triceratops')) {
+        await sleep(700); step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+      }
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
       const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
         'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
