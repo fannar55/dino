@@ -8,6 +8,8 @@
 //     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
+//     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
+//     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
 //     [--cpu-throttle 4]      CDP Emulation.setCPUThrottlingRate (a slower tablet's CPU): the whole run is that many times slower; after the final frame-rate sample the throttle is lifted
 //                             and the run waits 15 s, so report.resolution.afterRelief says whether the game's dynamic resolution stepped back up
 //
@@ -98,7 +100,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -115,6 +117,8 @@ function parseArgs(argv) {
     else if (a === '--first') o.first = next();
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
     else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--toggle-motion') o.toggleMotion = true;
+    else if (a === '--stop-after-retry') o.stopAfterRetry = true;
     else if (a === '--cpu-throttle') { o.cpuThrottle = Number(next()); if (!(o.cpuThrottle >= 1)) throw new Error('--cpu-throttle must be 1 or more'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
@@ -394,6 +398,7 @@ const SNAPSHOT_JS = `(() => {
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
     cancel: !cancel.hidden && !cancel.disabled,
+    blocked: d.bridge && d.bridge.blocked ? d.bridge.blocked.length : 0,
     cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
     enabled: [...buttons.filter(x => !x.disabled).map(x => x.dataset.target), ...bubbles],
     walking: (d.cells || []).some(c => c.moving || c.queued) || (d.cells || []).some(c => c.status === 'matched' && !c.moved),
@@ -408,6 +413,27 @@ const POSE_JS = `(() => {
   for (const c of d.cells) if (c.position) values.push(...c.position, ...c.feet.flatMap(f => f.position));
   return { values, scene: Boolean(d.scene && d.scene.busy), shot: d.camera.shot || null };
 })()`;
+
+// Can a finger reach a button? Its box is sampled on a 5 x 5 grid and each point is asked which element is on top there (elementFromPoint leaves out what has pointer-events: none): how much of the
+// button is the topmost thing, whether the middle is, whether the whole box is inside the screen, and what covers the rest (another target's key, a HUD part's id or class).
+const REACH_FN = `const reach = el => {
+  const r = el.getBoundingClientRect(), covers = {}; let hits = 0;
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+    const x = r.left + r.width * (i + .5) / 5, y = r.top + r.height * (j + .5) / 5;
+    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) { covers.offscreen = (covers.offscreen ?? 0) + 1; continue; }
+    const top = document.elementFromPoint(x, y);
+    if (top && (top === el || el.contains(top))) hits++; else { const name = top ? (top.closest('button')?.dataset.target || top.closest('[id]')?.id || String(top.className).split(' ')[0] || top.tagName) : 'nothing'; covers[name] = (covers[name] ?? 0) + 1; }
+  }
+  const c = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)));
+  return { disabled: Boolean(el.disabled), percent: Math.round(hits * 4), centreHit: Boolean(c && (c === el || el.contains(c))), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+    box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }, covers };
+};`;
+const reachJs = key => `(() => { ${REACH_FN}
+  const key = ${JSON.stringify(key)}, el = key.startsWith('who-') ? document.querySelector('#who [data-species="' + key.slice(4) + '"]') : key === 'cancel-choice' ? document.getElementById('cancel-choice') : document.querySelector('[data-target="' + key + '"]');
+  return el ? { found: true, ...reach(el) } : { found: false }; })()`;
+// Every enabled target (a leaf, an obstacle, a home) and the bubbles that a finger cannot fully reach right now.
+const ENABLED_REACH_JS = `(() => { ${REACH_FN}
+  return [...document.querySelectorAll('#targets .world-target:not(:disabled), #who .who-friend')].map(el => ({ key: el.dataset.target || 'who-' + el.dataset.species, ...reach(el) })).filter(x => x.percent < 70 || !x.centreHit || !x.inside); })()`;
 
 // Taps buttons inside the page, `times` clicks each, gapMs apart. A disabled or hidden button ignores the tap, as it does for a child.
 const tapJs = (keys, times, gapMs) => `(async () => {
@@ -689,7 +715,8 @@ async function main() {
     let giftsLeftChecked = false;
     const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
-    report.cancelCheck = {}; let sawFailing = false;
+    report.cancelCheck = {}; let sawFailing = false, lastReach = 0;
+    report.blocked = []; report.blockedRetry = []; let blockedSeen = 0, retryWatch = null; // (the adventure's own list of walks it gave up)
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
@@ -703,6 +730,10 @@ async function main() {
       const s = await ev(SNAPSHOT_JS);
       const keys = [key];
       if (rapid) for (const other of s.enabled) if (!keys.includes(other)) keys.push(other);
+      // Could a finger reach it? (disabled, not inside the screen, covered by the HUD or by another target)
+      const reach = await ev(reachJs(key)).catch(() => null), tally = (report.reach ||= { checks: 0, hard: [], sampled: 0, obstructed: {} });
+      tally.checks++;
+      if (reach && (!reach.found || reach.disabled || !reach.centreHit || reach.percent < 50 || !reach.inside)) { tally.hard.push({ key, t: T(), what, ...reach }); step('TARGET HARD TO REACH', { key, ...reach }); }
       const taps = await ev(tapJs(keys, rapid ? 3 : 1, rapid ? 10 : 0));
       let after = {};
       if (rapid) { await sleep(300); const a = await ev(SNAPSHOT_JS); after = { after: `${a.phase}/${a.matched}${a.bridge.selected ? '/sel:' + a.bridge.selected : ''}`, open: a.cards.filter(c => c.status !== 'hidden').map(c => c.id + c.status[0]).join(',') }; }
@@ -723,6 +754,16 @@ async function main() {
       if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
 
       if (!s.wait) tapWait = null;
+      // Every 2.5 s: which enabled targets a finger cannot fully reach (under the HUD, off the screen, overlapped by a neighbour).
+      if (!s.paused && Date.now() - lastReach > 2500) {
+        lastReach = Date.now();
+        const list = await ev(ENABLED_REACH_JS).catch(() => []), tally = (report.reach ||= { checks: 0, hard: [], sampled: 0, obstructed: {} });
+        tally.sampled++;
+        for (const x of list) {
+          const id = x.key + ' by ' + Object.keys(x.covers).sort().join('+'), entry = (tally.obstructed[id] ||= { key: x.key, covers: x.covers, firstAt: T(), samples: 0, worstPercent: 100, centreHit: true, inside: true, box: x.box, caption: s.caption, act: s.act, shot: s.cam.shot });
+          entry.samples++; entry.worstPercent = Math.min(entry.worstPercent, x.percent); entry.centreHit &&= x.centreHit; entry.inside &&= x.inside;
+        }
+      }
       // "Aftur" (#cancel-choice) must be on screen whenever the bubbles are open, also when they come back after a wrong friend's go.
       if (s.bridge.failing) sawFailing = true; else if (!s.bridge.asking) sawFailing = false;
       if (s.who.open) {
@@ -741,6 +782,45 @@ async function main() {
       }
       if (s.basket > report.gifts.filter(g => g.landedAt).length) { const g = report.gifts.find(x => x.foundAt && !x.landedAt); if (g) g.landedAt = T(); }
       if (s.placed >= 3 && s.bridge.active === 'lay') mark('bark-end');
+      // A walk the adventure gave up (planning-timeout, no-clear-route): "bridge-blocked". Each one is listed; a blocked crossing or walk to the grove is watched until it starts again by itself
+      // (the gold arrow on its place meanwhile: the staging spot or the grove).
+      if (s.blocked < blockedSeen) blockedSeen = s.blocked;
+      if (s.blocked > blockedSeen) {
+        const list = await ev('window.__demoStats.bridge.blocked');
+        for (const entry of list.slice(blockedSeen)) { report.blocked.push({ ...entry, t: T() }); step('BRIDGE BLOCKED', entry); }
+        blockedSeen = list.length;
+        const last = list.at(-1);
+        if (['cross', 'finish'].includes(last.id)) retryWatch = { id: last.id, reason: last.reason, t: T(), caption: s.caption, captions: [s.caption], arrowAt: null, restartedAt: null };
+      }
+      if (retryWatch) {
+        const target = retryWatch.id === 'cross' ? 'task-staging' : 'task-grove';
+        if (s.caption && !retryWatch.captions.includes(s.caption)) retryWatch.captions.push(s.caption);
+        if (!retryWatch.arrowAt && await ev(`Boolean(document.querySelector('#targets .is-guided[data-target="${target}"]'))`)) {
+          retryWatch.arrowAt = T();
+          retryWatch.arrow = await ev(ARROW_JS).catch(e => ({ error: e.message }));
+          retryWatch.button = await ev(`(() => { const b = document.querySelector('[data-target="${target}"]'), r = b.getBoundingClientRect(); return { enabled: !b.disabled, ring: b.classList.contains('choice-visible'), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, width: Math.round(r.width), height: Math.round(r.height) }; })()`);
+          step(`the gold arrow on ${target} while the blocked ${retryWatch.id} waits`, { caption: s.caption, arrow: retryWatch.arrow?.insideScreen, button: retryWatch.button });
+          // (not a paused milestone: a pause takes the arrow away and restarts the wait)
+          await shot(`blocked-${retryWatch.id}-gold-arrow-while-it-waits`);
+        }
+        if (!retryWatch.restartedAt && s.bridge.active === retryWatch.id) {
+          retryWatch.restartedAt = T(); retryWatch.secondsToRetry = +(retryWatch.restartedAt - retryWatch.t).toFixed(1);
+          step(`the blocked ${retryWatch.id} starts again by itself`, { seconds: retryWatch.secondsToRetry, arrowSeen: Boolean(retryWatch.arrowAt) });
+          report.blockedRetry.push(retryWatch); retryWatch = null;
+        }
+      }
+      // "Rólegri hreyfing" pressed on and off while Mosi walks: his animation must stay the walk clip (it used to switch to a still idle).
+      if (o.toggleMotion && !report.motionToggle && (s.mosi === 'walk' || s.mosi === 'deck')) {
+        const read = () => ev(`(() => { const d = window.__memory.stats(); return { walking: Boolean(d.scene.mosiWalk), animation: d.scene.mosiAnimation, pressed: document.getElementById('motion').getAttribute('aria-pressed') }; })()`);
+        const before = await read();
+        await ev(`document.getElementById('motion').click()`); await sleep(300); const calm = await read();
+        await ev(`document.getElementById('motion').click()`); await sleep(300); const after = await read();
+        const walks = value => value.walking && value.animation.some(a => a.clip === 'walk' && a.timeScale > 0) && !value.animation.some(a => a.clip === 'idle');
+        report.motionToggle = { during: s.bridge.active, before, calm, after, passed: [before, calm, after].every(walks) && calm.pressed === 'true' && after.pressed === 'false' };
+        step('calm motion pressed on and off while Mosi walks', report.motionToggle);
+        if (!report.motionToggle.passed) errors.push(`Mosi did not keep his walk clip when calm motion was pressed mid-walk: ${JSON.stringify(report.motionToggle)}`);
+      }
+      if (o.stopAfterRetry && report.blockedRetry.at(-1)?.restartedAt && s.bridge.atStaging && !s.scene && !s.cam.held) { report.finished = true; step('the retried crossing has arrived: stop'); await sleep(800); await shot('retried-crossing-arrived'); break; }
       if (s.bridge.active === 'cross' && !report.crossAfterGifts) report.crossAfterGifts = { at: T(), basket: s.basket, giftsLeft: s.giftsLeft, lastLanded: report.gifts.map(g => g.landedAt).filter(Boolean).at(-1) ?? null };
       if (s.bridge.active === 'finish' && (s.mosi === 'walk' || s.mosi === 'deck')) mark('grove-start');
       if (s.bridge.visited) mark('grove-end');
@@ -981,6 +1061,7 @@ async function main() {
     report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
     for (const entry of report.marks) entry.round = +(entry.at - roundStart / 1000).toFixed(1);
     try { const end = await ev(SNAPSHOT_JS); report.found = end.found; report.basketEnd = end.basket; } catch {}
+    if (retryWatch) report.blockedRetry.push({ ...retryWatch, neverRetried: true });
 
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
@@ -1070,6 +1151,8 @@ async function main() {
   if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
   if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
+  if (r.reach) console.log(`Targets a finger could not fully reach: ${r.reach.hard.length} of ${r.reach.checks} taps; ${Object.keys(r.reach.obstructed).length} kinds in ${r.reach.sampled} samples of the enabled ones${Object.keys(r.reach.obstructed).length ? ' ' + JSON.stringify(Object.values(r.reach.obstructed).slice(0, 8).map(x => ({ key: x.key, by: x.covers, worst: x.worstPercent, centre: x.centreHit, inside: x.inside, n: x.samples }))) : ''}`);
+  if (r.blocked) console.log(`Blocked walks (bridge-blocked): ${r.blocked.length}${r.blocked.length ? ' ' + JSON.stringify(r.blocked) : ''}; retried by itself: ${JSON.stringify((r.blockedRetry ?? []).map(x => ({ id: x.id, reason: x.reason, seconds: x.secondsToRetry, arrow: x.arrowAt != null, captions: x.captions })))}`);
   if (r.resolution) console.log(`Resolution scale: end ${r.resolution.end}, lowest ${r.resolution.min}, ${r.resolution.changes.length} changes${r.resolution.afterRelief !== undefined ? `, ${r.resolution.afterRelief} after 15 s without the throttle` : ''}${r.resolution.flag ? ' - FLAG: ' + r.resolution.flag : ''}`);
   if (r.resolutionRestart) console.log(`Resolution across the restart: ${JSON.stringify(r.resolutionRestart)}`);
   if (r.cancelCheck) console.log(`"Aftur" check with the bubbles open: ${JSON.stringify(r.cancelCheck)}`);
