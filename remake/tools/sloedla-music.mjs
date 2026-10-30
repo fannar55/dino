@@ -12,16 +12,17 @@
 //   node remake/tools/sloedla-music.mjs --credits                  what the account has left (asks for nothing to be made)
 //   node remake/tools/sloedla-music.mjs <preset> --plan            writes nothing, asks nothing: prints the composition plan
 //   node remake/tools/sloedla-music.mjs <preset> [--version N] [--seed N] [--cache <dir>] [--force]
-//                                                                  composes remake/assets/audio/sloedla/el-<id>.mp3 and its .json
+//                                                                  composes the track (its folder's song.mp3) and its .json
 //   node remake/tools/sloedla-music.mjs <preset> --measure [--version N]
 //                                                                  runs tools/theme-tempo.mjs on it, adds driftMs, the key it heard,
 //                                                                  where the planned sections sit on the beat grid and how loud each is
 //   node remake/tools/sloedla-music.mjs <preset> --stems [--version N] [--cache <dir>]
-//                                                                  asks the API to split the track: el-<id>-<stem>.mp3 beside it
+//                                                                  asks the API to split the track: <stem>.mp3 beside it
 //   node remake/tools/sloedla-music.mjs <preset> --vocals [--version N]
 //                                                                  speech-to-text on the track, to find out whether anyone sings in it
-// <id> is the preset's name, and "-N" after it for a later version (--version 2 makes el-funk-2; a preset's `revisions` map says
-// what version N asks for differently). A track that exists is never made again (that costs credits) unless --force is given.
+// <id> is the preset's name, and "-N" after it for a later version (--version 2 makes song-2.mp3 in its folder; a preset's
+// `revisions` map says what version N asks for differently). A track that exists is never made again (that costs credits) unless
+// --force is given.
 // A stem that comes back as digital silence (the separator found nothing of that kind) is not worth keeping: delete it by hand.
 //
 // The plan: music_v2_5 takes a composition plan of chunks with exact durations ("for v2 models section durations are always
@@ -76,115 +77,6 @@ const NEGATIVE = [
 ];
 
 export const PRESETS = {
-  synthpop: {
-    name: 'Synth-pop disco',
-    style: 'upbeat synth-pop / disco',
-    bpm: 118,
-    key: 'Bb major',
-    keyWords: 'B-flat major',
-    chords: { roman: 'I-V-vi-IV', names: ['Bb', 'F', 'Gm', 'Eb'], words: 'B-flat, F, G minor, E-flat', perBar: 1 },
-    bridgeChords: { roman: 'vi-IV-I-V', names: ['Gm', 'Eb', 'Bb', 'F'], words: 'G minor, E-flat, B-flat, F', perBar: 1 },
-    core: [
-      'upbeat synth-pop disco', 'four-on-the-floor kick drum', 'crisp claps and open hi-hats', 'driving disco bass guitar with octave jumps',
-      'bright plucky synth chord stabs', 'clean funky rhythm guitar chops', 'shimmering analog synth pads', 'joyful modern dance-floor energy',
-    ],
-    revisions: {
-      2: {
-        revision: 'version 1 came out in F major (chords B-flat, F, D minor, two bars each); this one names the tonic and the bass roots',
-        extra: [
-          'the tonic is B-flat: the song starts and ends on the B-flat major chord',
-          'bass guitar plays only the chord roots B-flat, F, G and E-flat, one root per bar',
-          'four different chords in a loop, each chord lasts exactly one bar of four beats',
-          'only these four chords: B-flat major, F major, G minor, E-flat major',
-        ],
-      },
-    },
-  },
-  funk: {
-    name: 'Funky groove',
-    style: 'funky groove with live bass and drums',
-    bpm: 104,
-    key: 'F major',
-    keyWords: 'F major',
-    chords: { roman: 'I-vi-ii-V', names: ['F', 'Dm', 'Gm', 'C'], words: 'F, D minor, G minor, C', perBar: 1 },
-    bridgeChords: { roman: 'ii-V-I-vi', names: ['Gm', 'C', 'F', 'Dm'], words: 'G minor, C, F, D minor', perBar: 1 },
-    core: [
-      'tight modern funk groove', 'live drum kit with a crisp snare and ghost notes', 'warm slap-style electric bass guitar groove',
-      'clean funky rhythm guitar scratches', 'warm electric piano chords', 'short punchy brass stabs on the chord changes',
-      'straight sixteenth-note feel', 'fun, playful and danceable',
-    ],
-    revisions: {
-      2: {
-        revision: 'version 1 was drums and bass on one vamp (the stems: no chord instruments); this one asks for audible chord instruments and a chord per bar',
-        core: [
-          'tight modern funk groove', 'live drum kit with a crisp snare and ghost notes', 'warm slap-style electric bass guitar playing the chord roots',
-          'prominent warm electric piano playing the chords', 'clean funky rhythm guitar strumming the chords in sixteenth notes',
-          'short punchy brass stabs on the chord changes', 'straight sixteenth-note feel', 'fun, playful and danceable',
-        ],
-        extra: [
-          'four different chords in a loop, each chord lasts exactly one bar of four beats',
-          'bass guitar plays only the chord roots F, D, G and C, one root per bar',
-          'the chords are clearly audible in the electric piano and guitar',
-        ],
-      },
-    },
-  },
-  cinema: {
-    name: 'Adventure pop',
-    style: 'adventurous cinematic pop with strings and brass stabs',
-    bpm: 124,
-    key: 'Eb major',
-    keyWords: 'E-flat major',
-    chords: { roman: 'vi-IV-I-V', names: ['Cm', 'Ab', 'Eb', 'Bb'], words: 'C minor, A-flat, E-flat, B-flat', perBar: 1 },
-    bridgeChords: { roman: 'IV-V-vi-V', names: ['Ab', 'Bb', 'Cm', 'Bb'], words: 'A-flat, B-flat, C minor, B-flat', perBar: 1 },
-    core: [
-      'adventurous cinematic pop', 'driving pop drums with big toms and claps', 'pulsing staccato string ostinato', 'bold short brass stabs',
-      'rich sustained string pads', 'deep round bass', 'heroic, energetic and exciting', 'a modern pop adventure feel, not a film score',
-    ],
-  },
-  house: {
-    name: 'Bouncy house',
-    style: 'bouncy electronic house',
-    bpm: 126,
-    key: 'G major',
-    keyWords: 'G major',
-    chords: { roman: 'I-IV-vi-V', names: ['G', 'C', 'Em', 'D'], words: 'G, C, E minor, D', perBar: 1 },
-    bridgeChords: { roman: 'vi-IV-I-V', names: ['Em', 'C', 'G', 'D'], words: 'E minor, C, G, D', perBar: 1 },
-    core: [
-      'bouncy uplifting electronic house', 'four-on-the-floor kick drum', 'offbeat open hi-hats', 'rolling bouncy bassline',
-      'piano-house chord stabs on the offbeats', 'warm sidechain-pumping synth pads', 'happy, bright and energetic', 'clean modern club production',
-    ],
-  },
-  // the song contest (2026-10-29): two tracks that sound like a real band, fun and full of energy, for a six-year-old
-  rokk: {
-    name: 'Kids pop-rock',
-    style: 'happy pop-rock for kids',
-    bpm: 128,
-    key: 'D major',
-    keyWords: 'D major',
-    chords: { roman: 'I-V-vi-IV', names: ['D', 'A', 'Bm', 'G'], words: 'D, A, B minor, G', perBar: 1 },
-    bridgeChords: { roman: 'IV-V-vi-V', names: ['G', 'A', 'Bm', 'A'], words: 'G, A, B minor, A', perBar: 1 },
-    core: [
-      'happy, energetic pop-rock for kids', 'a real live rock band', 'live rock drum kit with a big snare, tom fills and crash cymbals',
-      'bright crunchy electric guitars strumming the chords', 'bouncy electric bass guitar playing the chord roots in eighth notes',
-      'hand claps on beats two and four', 'sparkling glockenspiel accents', 'sunny summer festival feel, fun and playful',
-      'four different chords in a loop, each chord lasts exactly one bar of four beats',
-    ],
-  },
-  ludrar: {
-    name: 'Brass band party',
-    style: 'joyful brass band street party',
-    bpm: 116,
-    key: 'F major',
-    keyWords: 'F major',
-    chords: { roman: 'I-vi-IV-V', names: ['F', 'Dm', 'Bb', 'C'], words: 'F, D minor, B-flat, C', perBar: 1 },
-    bridgeChords: { roman: 'IV-V-iii-vi', names: ['Bb', 'C', 'Am', 'Dm'], words: 'B-flat, C, A minor, D minor', perBar: 1 },
-    core: [
-      'joyful brass band street party for kids', 'a real live band', 'punchy horn section of trumpets, trombones and saxophones playing short stabs on the chords',
-      'bouncy tuba-style bass playing the chord roots', 'tight funky live drums with cowbell and tambourine', 'offbeat ska guitar chops',
-      'carnival festival energy, happy, silly and danceable', 'four different chords in a loop, each chord lasts exactly one bar of four beats',
-    ],
-  },
   // the new song system (2026-10-30, engine/sloedla/v2): songs with a form, words and a folder of their own
   // Rokkhopp: a recording only, a rock-and-roll trio; the piano is Slóeðla's, the double bass Kambeðla's, the drums Þórseðla's
   boogie: {

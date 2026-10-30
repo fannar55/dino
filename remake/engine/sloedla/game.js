@@ -1,6 +1,6 @@
 // Slóeðla's song game, the round itself, drawn on one canvas (cheap on a tablet, and recordable with its sound: lab.js ?upptaka=1):
 // lanes down the screen, each ending in a big round button with its dinosaur; glowing notes fall in time with the song, and the
-// child taps the lane when a note reaches the dinosaur. The song is played by the conductor (conductor.js), and the round tells it
+// child taps the lane when a note reaches the dinosaur. The song is played by its player (v2/player.js), and the round tells it
 // what the child does: a hit plays that dinosaur's note and keeps her part in the song, a miss lets it drop out (she falls asleep
 // until she is hit again), a run of hits brings in more of the band. Nobody loses: a missed note sinks away grey, the song plays to
 // its end, and the stars won rise one by one.
@@ -49,7 +49,7 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
 
 /**
  * A round. `canvas` to draw on; `cast` one entry a lane, left to right ({ role, name, hue, light, dark, image }); `conductor` the
- * song (conductor.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
+ * player (v2/player.js, started by the page); `fall` how long a note takes to fall; `clock` the song's clock; `chimes` the end's bells
  * ({ star(n), sparkle() }); `crowd` the festival's voice (crowd.js createCrowd, or null for none); `backdrop` the forest behind
  * ({ image, upright, fade, fadeUpright }: renders of the 3D world, wide and upright, and where in shares of the picture's height its
  * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none); `claps` the crowd clapping

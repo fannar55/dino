@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Söngur Slóeðlu: is every song its own? The old songs came out alike (2026-10-30: the same start, two forms among nine, tap rhythms
-// 96-100 % alike), so every song of the new kind (engine/sloedla/v2) is compared with every other song, old and new:
+// Söngur Slóeðlu: is every song its own? The first songs came out alike (2026-10-30: the same start, two forms among nine, tap
+// rhythms 96-100 % alike), so every song (engine/sloedla/v2) is compared with every other:
 //   the tap rhythm  where the child's notes fall, bar by bar in order (barn, the normal version): under 60 % alike
 //   the form        its sections' lengths and repeats ('4A 8B 8C 8B'): never the same as another's
 //   the start       (--starts, in a browser) the spectrum of its first 2.5 s with nobody playing: under 85 % alike (goal 80 %);
@@ -8,7 +8,7 @@
 // Why 2.5 s: in a song of the new kind nobody playing means every note missed, and a missed note muffles that dinosaur's layers,
 // so after its first notes the bare song is no longer the song; no note falls before 2.5 s (v2/format.js FIRST_NOTE).
 //
-//   node remake/tools/sloedla-variety.mjs                          the tap rhythms and forms; exit 1 if a new song is too like another
+//   node remake/tools/sloedla-variety.mjs                          the tap rhythms and forms; exit 1 if a song is too like another
 //   node remake/tools/sloedla-variety.mjs --starts [--seconds 8] [--lock <dir>]
 //                                                                  records every song's start in headless Edge from the running lab
 //                                                                  (port 4231) and compares the spectra; exit 1 above 85 %
@@ -19,7 +19,6 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chartOf, compileSection, timeline } from '../engine/sloedla/song.js';
 import { timelineOf } from '../engine/sloedla/v2/format.js';
 import { sectionChart } from '../engine/sloedla/v2/chart.js';
 
@@ -27,21 +26,17 @@ const TAPS_ALIKE = 0.6;
 const START_ALIKE = 0.85;
 const START_GOAL = 0.8;
 
-/** The child's notes (barn, normal) of a song of either kind, as { t, role }, with its beat. */
+/** The child's notes (barn, normal) of a song, as { t, role }, with its beat. */
 function childNotes(song) {
-  if (song.version === 2) {
-    const { beat, sections } = timelineOf(song);
-    return { beat, notes: sections.flatMap((_, i) => sectionChart(song, i, 'normal')) };
-  }
-  const { beat, sections } = timeline(song);
-  return { beat, notes: sections.flatMap((_, i) => chartOf(compileSection(song, i, 'normal'), { level: 'barn', beat, section: i })) };
+  const { beat, sections } = timelineOf(song);
+  return { beat, notes: sections.flatMap((_, i) => sectionChart(song, i, 'normal')) };
 }
 
 /** The child's taps bar by bar: for each bar a string of role and eighth (0-7) of each note, sorted, joined by ','. */
 export function tapsOf(song) {
   const { beat, notes } = childNotes(song);
   const bar = 4 * beat;
-  const length = song.version === 2 ? timelineOf(song).length : timeline(song).length;
+  const { length } = timelineOf(song);
   const bars = Array.from({ length: Math.round(length / bar) }, () => []);
   for (const note of notes) {
     const index = Math.floor(note.t / bar + 1e-6);
@@ -53,9 +48,7 @@ export function tapsOf(song) {
 
 /** The form: each section's bars and a letter for its name, in order of first appearance ('4A 8B 8C 8B 4D'). */
 export function formOf(song) {
-  const sections = song.version === 2
-    ? song.sections.map(s => [s.name, s.bars])
-    : song.form.map(name => [name, song.sections[name].bars]);
+  const sections = song.sections.map(s => [s.name, s.bars]);
   const letters = new Map();
   return sections.map(([name, bars]) => {
     if (!letters.has(name)) letters.set(name, String.fromCharCode(65 + letters.size));
@@ -219,34 +212,30 @@ async function recordStarts(ids, dir, seconds, how = 'ekkert') {
 }
 
 async function starts({ seconds, lock }) {
-  const { SONGS } = await import('../engine/sloedla/songs/index.js');
   const { SONGS_V2 } = await import('../engine/sloedla/v2/songs/index.js');
-  const fresh = SONGS_V2.filter(e => fs.existsSync(new URL(`../engine/sloedla/v2/songs/${e.file}`, import.meta.url))).map(e => e.id);
-  const old = SONGS.filter(e => !e.file || fs.existsSync(new URL(`../engine/sloedla/songs/${e.file}`, import.meta.url))).map(e => e.id);
+  const songs = SONGS_V2.filter(e => fs.existsSync(new URL(`../engine/sloedla/v2/songs/${e.file}`, import.meta.url))).map(e => e.id);
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sloedla-starts-'));
   if (lock) fs.mkdirSync(lock); // throws if another capture holds it
   try {
-    await recordStarts([...old, ...fresh], dir, seconds, 'ekkert');
-    await recordStarts([...old, ...fresh], dir, seconds, '1');
+    await recordStarts(songs, dir, seconds, 'ekkert');
+    await recordStarts(songs, dir, seconds, '1');
   } finally {
     if (lock) fs.rmSync(lock, { recursive: true, force: true });
   }
   // the clip starts as the round does, 0.4 s before the song's first beat (the clock's lead)
   const LEAD = 0.4, BARE = 2.5;
   const compare = (how, from, to) => {
-    const shapes = Object.fromEntries([...old, ...fresh].map(id => {
+    const shapes = Object.fromEntries(songs.map(id => {
       const samples = decode(path.join(dir, `${how}-${id}.webm`));
       return [id, spectrumShape(samples.subarray(Math.round(from * RATE), Math.round(to * RATE)))];
     }));
     let worst = 0;
-    for (const id of fresh) {
+    for (const id of songs) {
       const rows = Object.keys(shapes).filter(other => other !== id).map(other => [other, cosine(shapes[id], shapes[other])]).sort((a, b) => b[1] - a[1]);
       worst = Math.max(worst, rows[0][1]);
       console.log(`  ${id}: most alike ${rows.slice(0, 3).map(([o, c]) => `${o} ${(100 * c).toFixed(0)} %`).join(', ')}`);
     }
-    let oldSum = 0, oldN = 0;
-    for (let i = 0; i < old.length; i++) for (let j = i + 1; j < old.length; j++) { oldSum += cosine(shapes[old[i]], shapes[old[j]]); oldN++; }
-    console.log(`  the old songs, two by two: ${(100 * oldSum / Math.max(1, oldN)).toFixed(0)} % alike on average; the new songs' highest: ${(100 * worst).toFixed(0)} %`);
+    console.log(`  the highest: ${(100 * worst).toFixed(0)} %`);
     return worst;
   };
   console.log(`the first ${BARE} s, nobody playing (limit ${100 * START_ALIKE} %, goal under ${100 * START_GOAL} %):`);
@@ -263,17 +252,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const ok = await starts({ seconds: Number(value('--seconds') ?? 8), lock: value('--lock') });
     process.exit(ok ? 0 : 1);
   }
-  const { SONGS } = await import('../engine/sloedla/songs/index.js');
   const { SONGS_V2 } = await import('../engine/sloedla/v2/songs/index.js');
-  const load = async (list, folder) => Promise.all(list.filter(e => !e.file || fs.existsSync(new URL(`../engine/sloedla/${folder}/${e.file}`, import.meta.url))).map(async e => (await e.load()).default));
-  const old = await load(SONGS, 'songs');
-  const fresh = await load(SONGS_V2, 'v2/songs');
-  for (const song of fresh) {
+  const songs = await Promise.all(SONGS_V2.filter(e => fs.existsSync(new URL(`../engine/sloedla/v2/songs/${e.file}`, import.meta.url))).map(async e => (await e.load()).default));
+  for (const song of songs) {
     const taps = tapsOf(song);
-    const best = [...old, ...fresh].filter(o => o !== song).map(o => [o.id, tapLikeness(taps, tapsOf(o))]).sort((a, b) => b[1] - a[1])[0];
+    const best = songs.filter(o => o !== song).map(o => [o.id, tapLikeness(taps, tapsOf(o))]).sort((a, b) => b[1] - a[1])[0];
     console.log(`${song.id}: form ${formOf(song)}; tap rhythm most like ${best?.[0]} (${(100 * (best?.[1] ?? 0)).toFixed(0)} %)`);
   }
-  const problems = varietyProblems(fresh, [...old, ...fresh]);
+  const problems = varietyProblems(songs, songs);
   for (const problem of problems) console.log(`  too alike: ${problem}`);
   process.exit(problems.length ? 1 : 0);
 }

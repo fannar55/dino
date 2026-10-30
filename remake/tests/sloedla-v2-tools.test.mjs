@@ -4,13 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { formOf, tapLikeness, tapsOf, varietyProblems } from '../tools/sloedla-variety.mjs';
-import { SONGS } from '../engine/sloedla/songs/index.js';
 import { SONGS_V2 } from '../engine/sloedla/v2/songs/index.js';
 import { PRESETS, planOf, sectionsOf } from '../tools/sloedla-music.mjs';
 import { gridOnsets, onsetStrength, pickChart } from '../tools/sloedla-stem-chart.mjs';
 import { makeSong } from './sloedla-v2-fixture.mjs';
 
-const madeOld = entry => !entry.file || fs.existsSync(new URL(`../engine/sloedla/songs/${entry.file}`, import.meta.url));
 const madeNew = entry => fs.existsSync(new URL(`../engine/sloedla/v2/songs/${entry.file}`, import.meta.url));
 
 test('variety: taps, form and likeness; every v2 song is its own', async () => {
@@ -22,19 +20,18 @@ test('variety: taps, form and likeness; every v2 song is its own', async () => {
   assert.equal(taps[3], 'b0,c4');
   assert.equal(tapLikeness(['a0', 'b4'], ['a0', 'c4']), 0.5);
   const fresh = await Promise.all(SONGS_V2.filter(madeNew).map(async entry => (await entry.load()).default));
-  const old = await Promise.all(SONGS.filter(madeOld).map(async entry => (await entry.load()).default));
-  assert.ok(fresh.length >= 1 && old.length >= 4);
-  assert.ok(tapsOf(old[0]).length > 30, 'an old song has its taps too');
-  assert.deepEqual(varietyProblems(fresh, [...old, ...fresh]), []);
+  assert.ok(fresh.length >= 3);
+  assert.deepEqual(varietyProblems(fresh, fresh), []);
   assert.ok(varietyProblems([song], [song, { ...song, id: 'twin' }]).some(p => p.includes('twin')), 'a twin is caught');
 });
 
-test('music tool: a preset\'s own form and words; old presets as before', () => {
-  const rokk = sectionsOf('rokk');
-  assert.equal(rokk.length, 8);
-  assert.equal(rokk.reduce((sum, s) => sum + s.bars, 0), 56);
-  assert.ok(planOf('rokk').chunks[0].negative_styles.includes('prominent lead melody'));
-  const own = { ...PRESETS.rokk, form: [['Intro', 'intro', 2, ['drums alone']], ['A', 'verse', 8]], negative: ['x'] };
+test('music tool: a preset\'s own form and words, or the standard eight sections and words', () => {
+  const plain = { ...PRESETS.fonk, form: undefined, negative: undefined };
+  const standard = sectionsOf(plain);
+  assert.equal(standard.length, 8);
+  assert.equal(standard.reduce((sum, s) => sum + s.bars, 0), 56);
+  assert.ok(planOf(plain).chunks[0].negative_styles.includes('prominent lead melody'));
+  const own = { ...plain, form: [['Intro', 'intro', 2, ['drums alone']], ['A', 'verse', 8]], negative: ['x'] };
   assert.deepEqual(sectionsOf(own).map(s => s.bars), [2, 8]);
   const plan = planOf(own);
   assert.equal(plan.chunks.length, 2);

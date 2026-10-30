@@ -17,7 +17,7 @@
 //   a chart note  { beat (from the first beat), owner, layer, dur? (beats, 0.5), pitch? (scale step or null), pinned? }
 //                 for stems; a composed part's notes for the child are its '!' marks (chart.js)
 
-import { rootHz } from '../song.js';
+import { rootHz } from '../key.js';
 
 export const ROLES = ['a', 'b', 'c'];
 export const FIRST_NOTE = 2.5; // s: no note for the child before this (it must have time to fall)

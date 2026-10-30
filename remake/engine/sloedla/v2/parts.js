@@ -1,9 +1,9 @@
 // The composed parts of a v2 song (format.js): a line of notes per section on one of the song's own instruments, in the notation
-// of the old songs (song.js): scale steps (0 do, 1 re ... 7 the next do, negative below), '_' hold, '.' rest, '!' after a step
+// of the first songs: scale steps (0 do, 1 re ... 7 the next do, negative below), '_' hold, '.' rest, '!' after a step
 // marks a note the child taps, '|' only for the eye; 8ths unless unit: 16. A line repeats to fill its section. A section may have
 // its own line for a big or a calm version ('vers/big'); a section with no line is silent for that part.
 
-import { pitchOf } from '../song.js';
+import { pitchOf } from '../key.js';
 import { timelineOf } from './format.js';
 
 /** A function from scale step (0 do, negative below) to Hz in `key` (do in octave 3), `transpose` semitones up, tuned by key.cents. */

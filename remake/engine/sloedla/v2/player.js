@@ -1,4 +1,4 @@
-// The player of a v2 song (format.js) in Slóeðla's song game. It has the old conductor's interface (conductor.js), so the game,
+// The player of a v2 song (format.js) in Slóeðla's song game. It plays to the interface the game knows, so the game,
 // the lab and everything around them stay as they are, but the song is played the other way round: whole, from its first beat.
 //
 //   - Every layer plays from the first beat: the stems as buffer sources started together on the audio clock, the composed parts
@@ -9,7 +9,7 @@
 //     hit, which opens it at once (a hole in the song); three in a row bring her back as a ghost for a bar, to show the way.
 //   - Star layers (tier, the song's own) come in with a run of hits (setTier). The song is in sections: a little before one
 //     begins, the last is judged, and it comes big (brighter, louder, the parts' big lines, a lift up a key), calm (muffled, the
-//     calm lines, fewer notes) or as written, as the old conductor does it.
+//     calm lines, fewer notes) or as written.
 //   - With two lanes Kambeðla has none: her layers play on and never close.
 
 import { ROLES, timelineOf } from './format.js';

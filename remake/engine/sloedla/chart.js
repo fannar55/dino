@@ -1,13 +1,9 @@
-// Slóeðla's song game (chapter 3's gift: she leads the song at the Star Festival), stage 0: the sheet and the rules, pure (no
-// page, no sound), so the big screen and, later, each phone of a Fjölspil round play by the same ones.
-//
-// The sheet is made from the song's beat grid (its json: bpm, beatOffset, written by tools/theme-tempo.mjs) by makeChart and
-// saved as JSON by tools/sloedla-chart.mjs. A note is { t, beat, role, step }: `t` the song time it is to be played at (s, on the
-// file's own clock), `beat` its beat on the grid, `role` whose it is and `step` the note of the key it sounds (0 is do, 1 re, 2 mi,
-// 3 sol, 4 la, 5 the next do and on up), which each instrument plays in its own register (sounds.js). The roles:
-//   a  Slóeðla, the lead, whose crest is a horn: she opens the song alone and has most of it
-//   b  Kambeðla, her plates rung like a xylophone
-//   c  Þórseðla, the big drum
+// Slóeðla's song game (chapter 3's gift: she leads the song at the Star Festival): the rules, pure (no page, no sound), so the
+// big screen and, later, each phone of a Fjölspil round play by the same ones. A song's notes for the child come from the song
+// itself (v2/chart.js); each is { t, role, ... }: `t` the song time it is to be played at (s) and `role` whose it is:
+//   a  Slóeðla
+//   b  Kambeðla
+//   c  Þórseðla
 // The page seats the roles in its lanes (laneOf): with three lanes b a c from left to right, with two Slóeðla and Þórseðla, who
 // then plays Kambeðla's notes too. In a Fjölspil round each phone will take a role.
 //
@@ -18,13 +14,11 @@
 // the time is not a way round it: a tap with no note near (a stray) breaks the run too, and past a fair few, strays cost half a
 // note each.
 
-import { seededRandom } from '../random.js';
-
 // The window a tap plays a note in. A six-year-old's taps scatter about 180 ms either way of the beat (Bonacina 2019: SD about
 // 180 ms at ages 5 to 8, clapping at 0.9 Hz) and young children tap late more often than early, so ±0.2 s caught only about three
 // taps in four; the child's window runs from 250 ms early to 350 ms late, and within 150 ms is "right on" (it sparkles more). The
 // grown-ups' is tighter. The research behind it: qa/rannsokn/reports/Hvernig tónlistarleikir eru gerðir.md (the worktree's qa/).
-export const HIT_WINDOW = 0.2; // s: the old symmetric window (makeChart's sheet and the first tests)
+export const HIT_WINDOW = 0.2; // s: the plain symmetric window (createJudge's default)
 export const GREAT_WINDOW = 0.08;
 export const NEAR_WINDOW = 0.5; // s: a tap this close to a waiting note is early or late, never a stray
 export const STAR_SHARES = [0.25, 0.5, 0.8]; // the share of the notes played (less the strays' cost) for one, two and three stars
@@ -42,80 +36,6 @@ export const LEVELS = {
   barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, perfect: 0.07, great: 0.15, fine: 0.24, meter: 12 },
   fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, perfect: 0.035, great: 0.07, fine: 0.12, meter: 24 },
 };
-
-// The sheet is phrases of four bars (16 beats). At the child's level a phrase has eight places, one on every second beat (the
-// strong ones), each a role or a rest ('.'). Slóeðla opens alone, slowly, then her friends come in, and all three end it.
-const OPENING = ['a...a...a...a...', 'a.a.a...a.a.a...'].map(halve); // she sings alone first: once a bar, then a little more
-const MOTIFS = [
-  'b.b.a.a.', 'c.c.a.a.', 'bba.cca.', 'a.b.a.c.', 'bac.bac.', 'cab.cab.', 'aab.aac.', 'a.ab.ac.', 'bbaa.cc.', 'ab.ac.a.',
-];
-const FINALE = 'bbaaccaa';
-// Slóeðla's tunes, one a phrase, her notes taking its steps in turn; Kambeðla rings a broken chord high up; Þórseðla beats do and sol.
-const TUNES = [[0, 2, 4, 2], [4, 3, 2, 0], [2, 3, 4, 5], [5, 4, 2, 3], [0, 2, 3, 4], [3, 4, 5, 4], [2, 1, 0, 2], [4, 5, 7, 5]];
-const PLATES = [5, 7, 9, 7, 6, 8];
-const DRUM = [0, 3];
-
-function halve(pattern) {
-  return [...pattern].filter((_, i) => i % 2 === 0).join('');
-}
-
-/**
- * The notes of a song: `bpm` and `beatOffset` its grid (beat 0 a strong beat), notes from beat `from` while a phrase still fits
- * before beat `to`, at `level` (LEVELS), the same every time for the same `seed`. Returns the notes, sorted by time.
- */
-export function makeChart({ bpm, beatOffset = 0, from = 8, to, level = 'barn', seed = 'sloedla' }) {
-  if (!(bpm > 0) || !Number.isFinite(to)) throw new TypeError('makeChart needs the song\'s bpm and the beat to end before (to)');
-  const { every } = LEVELS[level] ?? LEVELS.barn;
-  const random = seededRandom(`${seed}:${level}`);
-  const beatTime = beat => beatOffset + (beat * 60) / bpm;
-  const phrases = Math.floor((to - from) / 16);
-  const notes = [];
-  const counts = { a: 0, b: 0, c: 0 };
-  let lastMotif = -1;
-  for (let p = 0; p < phrases; p++) {
-    let pattern;
-    if (p < OPENING.length) pattern = OPENING[p];
-    else if (p === phrases - 1) pattern = FINALE;
-    else {
-      let pick;
-      do pick = Math.floor(random() * MOTIFS.length); while (pick === lastMotif);
-      lastMotif = pick;
-      pattern = MOTIFS[pick];
-    }
-    const tune = TUNES[p % TUNES.length];
-    let sung = 0;
-    const roles = [...pattern];
-    // the grown-ups' level: every beat may have a note; the child's notes stay, and a friend's answer comes between some of them
-    const slots = every === 1 ? 16 : 8;
-    for (let s = 0; s < slots; s++) {
-      let role;
-      if (every === 1) {
-        if (s % 2 === 0) role = roles[s / 2];
-        else {
-          const before = roles[(s - 1) / 2], after = roles[(s + 1) / 2] ?? '.';
-          role = random() < (before === '.' || after === '.' ? 0.6 : 0.4) ? answer(before, after, random) : '.';
-        }
-      } else role = roles[s];
-      if (role === '.') continue;
-      const beat = from + p * 16 + s * every;
-      let step;
-      if (role === 'a') step = tune[sung++ % tune.length];
-      else if (role === 'b') step = PLATES[counts.b % PLATES.length];
-      else step = DRUM[counts.c % DRUM.length];
-      counts[role]++;
-      notes.push({ t: round(beatTime(beat)), beat, role, step });
-    }
-  }
-  return notes;
-}
-
-/** A note between two others at the grown-ups' level: someone other than who plays the one after. */
-function answer(before, after, random) {
-  const others = ['a', 'b', 'c'].filter(role => role !== after && role !== before);
-  return others[Math.floor(random() * others.length)] ?? 'a';
-}
-
-const round = t => Math.round(t * 10000) / 10000;
 
 /** The lane a role plays in, with `lanes` lanes (2 or 3): b a c from the left, or a and c (who takes b's notes too). */
 export function laneOf(role, lanes = 3) {

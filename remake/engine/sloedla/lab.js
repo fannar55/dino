@@ -1,10 +1,10 @@
 // The lab page of Slóeðla's song game (sloedla-lab.html): the round on a page of its own, never linked from the game, to prove the
-// play and the music before anything else is built. The songs are written as data (songs/) and played by the game itself
-// (conductor.js), so a hit or a miss changes what is heard. It waits for a tap on "Spila" (a browser lets sound begin only from a
-// touch), plays a round, shows the stars and offers another.
+// play and the music before anything else is built. Each song owns everything it plays (v2/format.js, v2/songs/) and is played
+// by a player of its own (v2/player.js), so a hit or a miss changes what is heard. It waits for a tap on "Spila" (a browser lets
+// sound begin only from a touch), plays a round, shows the stars and offers another.
 //
 // The address says how (all optional):
-//   lag=<id>              which song (songs/index.js), the first by default
+//   lag=<id>              which song (v2/songs/index.js), the first by default
 //   stig=barn|fullordinn  the child's notes (marked in the song, two beats apart at least) or the grown-ups' (every part's notes)
 //   brautir=3|2           three lanes (Kambeðla, Slóeðla, Þórseðla) or two (Slóeðla and Þórseðla; Kambeðla then just plays along)
 //   seinkun=<ms>          sound heard this much later than the browser knows (a Bluetooth speaker): kept for the next visit
@@ -23,20 +23,18 @@ import { seededRandom } from '../random.js';
 import { LEVELS } from './chart.js';
 import { createSongClock } from './song-clock.js';
 import { createSongSounds } from './sounds.js';
-import { createBand, createReverb } from './band.js';
-import { createConductor } from './conductor.js';
+import { createReverb } from './room.js';
 import { createCrowd } from './crowd.js';
 import { createDj } from './dj.js';
 import { createClaps } from './claps.js';
 import { createSongGame } from './game.js';
-import { SONGS, loadSong } from './songs/index.js';
 import { createPlayer } from './v2/player.js';
 import { SONGS_V2, loadSongV2 } from './v2/songs/index.js';
-import { rootHz } from './song.js';
+import { rootHz } from './key.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
-// The friends who play, by role (song.js), in the hues of the style guide (STYLE.md section 3).
+// The friends who play, by role (v2/format.js ROLES), in the hues of the style guide (STYLE.md section 3).
 const FRIENDS = {
   b: { role: 'b', name: 'Kambeðla', hue: '#8f6aa3', light: '#e6d8ee', dark: '#5d4370', src: asset('eitt/stegosaurus-tail.webp') },
   a: { role: 'a', name: 'Slóeðla', hue: '#6793d0', light: '#d9e5f6', dark: '#4b6fa4', src: asset('eitt/parasaurolophus.webp') },
@@ -54,7 +52,7 @@ const SEINKUN_KEY = 'mosi-sloedla-seinkun';
 
 const params = new URLSearchParams(location.search);
 const options = {
-  song: params.get('lag') ?? SONGS[0].id,
+  song: params.get('lag') ?? SONGS_V2[0].id,
   level: params.get('stig') === 'fullordinn' ? 'fullordinn' : 'barn',
   lanes: params.get('brautir') === '2' ? 2 : 3,
   debug: params.get('debug') === '1',
@@ -152,11 +150,11 @@ async function start() {
   $('start').hidden = true;
   $('end').hidden = true;
   round?.conductor.stop();
-  // a song of the new kind (v2/format.js) owns everything it plays and has a player of its own (v2/player.js)
-  const v2 = await loadSongV2(options.song);
-  const song = v2 ?? await loadSong(options.song);
-  // its stems, decoded once, one at a time; one that cannot be loaded is left out (the player says so) and the round plays
-  for (const layer of v2?.layers ?? []) {
+  // the song (v2/format.js) owns everything it plays and has a player of its own (v2/player.js); an unknown id plays the first
+  const song = await loadSongV2(options.song) ?? await loadSongV2(SONGS_V2[0].id);
+  // its stems, decoded once, one at a time (decoding many at once has crashed iOS tabs); one that cannot be loaded is left out
+  // (the player says so) and the round plays
+  for (const layer of song.layers) {
     if (!layer.stem || layer.buffer) continue;
     try {
       const response = await fetch(asset(`audio/sloedla/v2/${song.id}/${layer.stem}`));
@@ -166,13 +164,6 @@ async function start() {
       console.warn(`Slóeðla: ${song.id}/${layer.stem} could not be loaded`, error);
     }
   }
-  // a recorded backing (an ElevenLabs track): its stems, each a dinosaur's, or the whole mix; decoded once, one at a time
-  // (decoding many at once has crashed iOS tabs)
-  for (const track of v2 ? [] : song.backing?.stems ?? (song.backing?.src ? [song.backing] : [])) {
-    if (track.buffer || !track.src) continue;
-    const bytes = await fetch(asset(track.src)).then(r => r.arrayBuffer());
-    track.buffer = await context.decodeAudioData(bytes);
-  }
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const windows = LEVELS[options.level];
@@ -180,11 +171,10 @@ async function start() {
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.value = MUSIC_LEVEL;
-  const sounds = createSongSounds({ context, output: music, room, voices: v2 ? null : song.voices, instruments: song.instruments });
-  const conductor = v2
-    ? createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall })
-    : createConductor({ context, song, clock, band: createBand(context, { output: music, room }), sounds, out: music, room, level: options.level, roles, fall });
-  const root = rootHz(v2 ? song.key.root : song.root) * 2;
+  const sounds = createSongSounds({ context, output: music, room, instruments: song.instruments });
+  // the player keeps the name the round and the measuring tools know it by (round.conductor)
+  const conductor = createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall });
+  const root = rootHz(song.key.root) * 2;
   const game = createSongGame({
     canvas, cast, conductor, fall, clock, windows, crowd, claps, dj, backdrop, debug: options.debug,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2) },
@@ -301,7 +291,7 @@ function showOptions() {
   }
 }
 for (const holder of document.querySelectorAll('[data-songs]')) {
-  holder.innerHTML = [...SONGS, ...SONGS_V2].map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');
+  holder.innerHTML = SONGS_V2.map(song => `<button type="button" data-option="lag=${song.id}">${song.name}</button>`).join('');
 }
 for (const button of document.querySelectorAll('[data-option]')) button.addEventListener('click', () => choose(...button.dataset.option.split('=')));
 showOptions();

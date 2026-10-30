@@ -1,53 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, makeChart, starsFor, tierOf } from '../engine/sloedla/chart.js';
-import { scaleOf } from '../engine/sloedla/sounds.js';
+import { HIT_WINDOW, LEVELS, createJudge, createScore, count, laneOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
-import { VOICES_DEFAULT, VOICE_LEVELS } from '../engine/sloedla/voices.js';
 import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
-import { chartOf, compileSection, pitchOf, rootHz, timeline } from '../engine/sloedla/song.js';
-import { SONGS } from '../engine/sloedla/songs/index.js';
+import { pitchOf, rootHz } from '../engine/sloedla/key.js';
 
-// a contest slot (songs/index.js) counts once its file is there
-const made = entry => !entry.file || fs.existsSync(new URL(`../engine/sloedla/songs/${entry.file}`, import.meta.url));
-
-test('every song reads, and its child\'s notes are two beats apart at least (four when calm), in all three lanes', async () => {
-  for (const entry of SONGS.filter(made)) {
-    const song = (await entry.load()).default;
-    const { beat, sections, length } = timeline(song);
-    assert.ok(length > 60 && length < 240, `${song.id}: a round of one to four minutes (${length.toFixed(0)} s)`);
-    for (const variant of ['normal', 'big', 'calm']) {
-      const notes = sections.flatMap((_, i) => chartOf(compileSection(song, i, variant), { level: 'barn', beat, section: i }));
-      const gap = variant === 'calm' ? 4 : 2;
-      for (let i = 1; i < notes.length; i++) assert.ok((notes[i].t - notes[i - 1].t) / beat >= gap - 1e-6, `${song.id} ${variant}: notes ${i - 1} and ${i} are ${gap} beats apart`);
-      if (variant === 'normal') for (const role of ['a', 'b', 'c']) assert.ok(notes.filter(n => n.role === role).length >= 8, `${song.id}: the child plays ${role} too`);
-    }
-  }
+test('the key: A4 is 440 Hz, and a lift goes up by semitones', () => {
   assert.ok(Math.abs(rootHz('A') * 2 - 440) < 1e-9, 'A4 is 440 Hz');
   const lifted = pitchOf({ root: 'Bb', scale: 'major' }, 2)(0);
   assert.ok(Math.abs(lifted - rootHz('C') * 2) < 1e-9, 'a lift of two semitones takes B-flat3 to C4');
-});
-
-const SONG = new URL('../assets/audio/sloedla/dino-trail.json', import.meta.url);
-const SHEET = new URL('../assets/audio/sloedla/dino-trail.notes.json', import.meta.url);
-
-test('the sheet on disk is the one makeChart writes from the song\'s grid, on its beats', () => {
-  const grid = JSON.parse(fs.readFileSync(SONG, 'utf8'));
-  const sheet = JSON.parse(fs.readFileSync(SHEET, 'utf8'));
-  assert.equal(sheet.bpm, grid.bpm);
-  assert.equal(sheet.beatOffset, grid.beatOffset);
-  const to = Math.floor(((sheet.duration - 4 - grid.beatOffset) * grid.bpm) / 60);
-  for (const level of Object.keys(LEVELS)) {
-    const notes = sheet.levels[level].notes;
-    assert.deepEqual(notes, makeChart({ bpm: grid.bpm, beatOffset: grid.beatOffset, from: 8, to, level, seed: sheet.seed }), `${level}: tools/sloedla-chart.mjs wrote it`);
-    for (const note of notes) assert.ok(Math.abs(note.t - (grid.beatOffset + (note.beat * 60) / grid.bpm)) < 1e-3, `${level}: note at beat ${note.beat} is on it`);
-    assert.ok(notes.at(-1).t < sheet.duration - 4, `${level}: the song fades out after the last note`);
-  }
-  const child = sheet.levels.barn.notes;
-  assert.ok(child.length >= 40 && child.length <= 60, `the child's level has a fair number of notes (${child.length})`);
-  for (let i = 1; i < child.length; i++) assert.ok(child[i].beat - child[i - 1].beat >= 2, 'the child never has two notes closer than two beats');
-  assert.ok(child.slice(0, 8).every(note => note.role === 'a'), 'Slóeðla opens the song alone');
 });
 
 test('a tap plays the nearest waiting note of its lane in the window; a miss goes, a stray breaks the run', () => {
@@ -72,21 +34,13 @@ test('a tap plays the nearest waiting note of its lane in the window; a miss goe
   assert.equal(judge.left(), 0);
 });
 
-test('the child\'s window is wider late than early, and the band belongs to the dinosaurs but for the skeleton', async () => {
+test('the child\'s window is wider late than early', () => {
   const { barn } = LEVELS;
   const judge = createJudge([{ t: 1, lane: 0 }, { t: 3, lane: 0 }], barn);
   assert.equal(judge.tap(0, 1 - 0.3).kind, 'near', '300 ms early is too early');
   assert.equal(judge.tap(0, 1 + 0.3).kind, 'hit', '300 ms late still plays it');
   assert.deepEqual(judge.sweep(3 + barn.late - 0.01), [], 'the second note waits out its late window');
   assert.deepEqual(judge.sweep(3 + barn.late + 0.01), [1]);
-  const song = (await SONGS[0].load()).default;
-  const { band } = compileSection(song, 2, 'normal');
-  const owner = inst => [...new Set(band.filter(e => e.inst === inst && !e.tier && e.vel > 0.4).map(e => e.gate))];
-  assert.deepEqual(owner('clap'), ['c'], 'the claps are Þórseðla\'s');
-  assert.deepEqual(owner('bass'), ['b'], 'the bass is Kambeðla\'s');
-  assert.deepEqual(owner('pad'), [null], 'the pad is the skeleton');
-  const pulse = band.filter(e => e.inst === 'kick' && e.gate === null);
-  assert.equal(pulse.length, song.sections.vidlag.bars * 4, 'the skeleton keeps a soft pulse on every beat');
 });
 
 test('stars: one to three for a fair share played; strays past a spare few cost; the run raises tiers', () => {
@@ -103,11 +57,9 @@ test('stars: one to three for a fair share played; strays past a spare few cost;
   assert.deepEqual(crossed, [0, 0, 1, 0, 0, 0, 0, 2], 'the run crosses into tier 1 at three (Fever) and tier 2 at eight');
 });
 
-test('lanes and notes: the roles sit b a c with three lanes, a and c with two; steps climb the key', () => {
+test('lanes: the roles sit b a c with three lanes, a and c with two', () => {
   assert.deepEqual(['b', 'a', 'c'].map(role => laneOf(role, 3)), [0, 1, 2]);
   assert.deepEqual(['a', 'b', 'c'].map(role => laneOf(role, 2)), [0, 1, 1]);
-  const scale = scaleOf([100, 112, 125, 150, 168]);
-  assert.deepEqual([0, 4, 5, 7, -1].map(scale), [100, 168, 200, 250, 84]);
 });
 
 test('the crowd answers now and then: a quiet spell between its sounds, a sigh seldom, applause at the end always; its takes are on disk', () => {
@@ -131,19 +83,6 @@ test('the crowd answers now and then: a quiet spell between its sounds, a sigh s
       assert.equal(made[`${sound}-${take}`]?.kind, sound, `crowd.json says what crowd-${sound}-${take} is`);
     }
   }
-});
-
-test('each song gives the dinosaurs instruments of its own, every one known, a tapped note louder than one that plays by itself', async () => {
-  const kits = new Set();
-  const ready = SONGS.filter(made);
-  for (const entry of ready) {
-    const song = (await entry.load()).default;
-    for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[song.voices?.[role]] || typeof song.instruments?.[song.voices?.[role]] === 'function', `${song.id}: role ${role} plays a known instrument, or one of the song's own (${song.voices?.[role]})`);
-    kits.add(['a', 'b', 'c'].map(role => song.voices[role]).join(' '));
-  }
-  assert.equal(kits.size, ready.length, 'no two songs sound alike');
-  for (const role of ['a', 'b', 'c']) assert.ok(VOICE_LEVELS[VOICES_DEFAULT[role]], 'a song that names none has the first instruments');
-  for (const [name, { play, tapped, soft }] of Object.entries(VOICE_LEVELS)) assert.ok(soft < play && play < tapped && tapped <= 1, `${name}: a stray tap is softest, a tapped note loudest`);
 });
 
 test('a tap is praised by how close it was: Fullkomið! right on, Frábært!, Fínt!, OK! further off, early or late alike; milestones at 10, 15, 20 ...', () => {

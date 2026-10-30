@@ -1,6 +1,6 @@
 // The notes that fall for the child in a v2 song (format.js), section by section as the song is played: a stem's notes are data
 // (song.chart, from tools/sloedla-stem-chart.mjs), a composed part's are its '!' marks (barn) or all its notes (fullordinn). They
-// are thinned as the old songs' are (song.js chartOf): the strongest places in the bar first, no two closer than the level's gap
+// are thinned as the first songs' were: the strongest places in the bar first, no two closer than the level's gap
 // in beats (twice that in a calm section), none in the first 2.5 s, and none in the last gap of a section, so the gap holds
 // across the start of the next one too.
 
@@ -9,7 +9,7 @@ import { partNotes, pitchOfKey } from './parts.js';
 
 export const GAP = { barn: 2, fullordinn: 0.5 }; // beats
 
-/** How strong a place in the bar is: the bar's first beat most, then the third, the beats, the 8ths (song.js weightOf). */
+/** How strong a place in the bar is: the bar's first beat most, then the third, the beats, the 8ths. */
 function weightOf(beat, dur, beatLength) {
   const p = beat % 4;
   const place = p === 0 ? 4 : p === 2 ? 3 : Number.isInteger(p) ? 2 : Number.isInteger(p * 2) ? 1 : 0;
