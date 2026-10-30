@@ -1,6 +1,7 @@
 // The stars of Slóeðla's song game: how they fly, turn, land and shine (star-motion.js), and the star model on disk.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { END, barStar, countUp, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
 
 test('an end star flies from the bar to its place, turns twice, and lands on time', () => {
@@ -59,4 +60,16 @@ test('the count rises from 0 to the notes played, whole numbers; a new best is m
   assert.equal(isNewBest(2, 1), true);
   assert.equal(isNewBest(2, 2), false);
   assert.equal(isNewBest(0, 0), false);
+});
+
+// the owner makes the star in Tripo3D (2026-10-30); until his file is here the game draws the flat stars, and this waits
+const STAR = new URL('../assets/sloedla/stjarna/stjarna.glb', import.meta.url);
+test('the star is on disk, a GLB, small, where it is from and its facing said', { skip: !fs.existsSync(STAR) && 'waiting for the owner\'s star' }, () => {
+  const bytes = fs.readFileSync(STAR);
+  assert.equal(bytes.subarray(0, 4).toString('latin1'), 'glTF');
+  assert.ok(bytes.length < 300_000);
+  const credits = fs.readFileSync(new URL('../assets/sloedla/stjarna/KREDIT.md', import.meta.url), 'utf8');
+  assert.match(credits, /stjarna\.glb/);
+  assert.match(credits, /Tripo3D|CC0|public domain|almenningseign/i);
+  assert.match(credits, /facing/);
 });
