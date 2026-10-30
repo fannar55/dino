@@ -28,8 +28,9 @@ export default {
   instruments: {},
   layers: [
     { id: 'piano', owner: 'a', stem: 'piano.mp3' },
-    { id: 'kontrabassi', owner: 'b', stem: 'bass.mp3' },
-    { id: 'trommur', owner: 'c', stem: 'drums.mp3' },
+    { id: 'kontrabassi', owner: 'b', stem: 'bass.mp3', accent: 1.4 },
+    // the drums are brushes, 18 dB under the piano in the recording: Þórseðla's line must be heard, and her hits too
+    { id: 'trommur', owner: 'c', stem: 'drums.mp3', gain: 3, accent: 4 },
   ],
   chart,
 };

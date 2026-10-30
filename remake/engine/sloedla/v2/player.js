@@ -32,12 +32,14 @@ const GHOST_AFTER = 3;
 const ACCENT_GAIN = 1; // the copy of a hit stem note, times the layer's gain: the note doubled, about +6 dB
 const ACCENT_ATTACK = 0.002; // s
 const ACCENT_MAX = 0.25; // s: the copy is never longer
-// The copy's edge: the same copy through a high-pass, much louder for its first moment, so the hit is heard on a tablet's small
-// speaker too (a bass note's or a kick's own body is under what it plays: measured 2026-10-30, the copy alone lifted the tablet
-// band by 0.2 dB)
+// The copy's edge: the same copy driven into a soft clip, which gives the note overtones of its own, then through a high-pass, much
+// louder for its first moment, so the hit is heard on a tablet's small speaker too (a bass note's or a kick's body is under what
+// such a speaker plays: measured 2026-10-30, the copy alone lifted the tablet band by 0.2 dB, through a high-pass alone by 0.7)
 const EDGE_HZ = 300;
-const EDGE_GAIN = 3; // times the layer's gain at the start ...
+const EDGE_GAIN = 4; // the drive into the clip, times the layer's gain, at the start ...
 const EDGE_TAU = 0.04; // ... falling with this time constant (s)
+const EDGE_TRIM = 1; // the edge's level after the clip
+const CLIP = Float32Array.from({ length: 1025 }, (_, i) => Math.tanh(3 * (i / 512 - 1)) / Math.tanh(3));
 const STRAY_GAIN = 0.25; // a tap at no note: a bit of her stem at -12 dB ...
 const STRAY_LENGTH = 0.12; // ... this long
 const OPEN = 18000;
@@ -88,8 +90,13 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const edges = {};
   for (const role of ROLES) {
     hits[role] = gain(1, out);
-    edges[role] = filter('highpass', EDGE_HZ, { Q: 0.7 });
-    edges[role].connect(hits[role]);
+    const clip = context.createWaveShaper();
+    clip.curve = CLIP;
+    clip.oversample = '2x';
+    const high = filter('highpass', EDGE_HZ, { Q: 0.7 });
+    clip.connect(high);
+    high.connect(gain(EDGE_TRIM, hits[role]));
+    edges[role] = clip;
   }
   const loose = gain(0.5, out); // a miss's bloop and a tap at no note, outside her chain
   // each layer's own level, into her chain, a tier, or the song bus
@@ -202,13 +209,14 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
 
   /**
    * A hit stem note: the same place of the same file again, from `when` to the note's end (at most ACCENT_MAX), the note doubled
-   * into her hit bus and, for its first moment, an edge of it through a high-pass.
+   * into her hit bus and, for its first moment, an edge of it through a soft clip and a high-pass. The layer's `accent` (the song
+   * says) makes both stronger, for a stem that is quiet in its recording.
    */
   function accent(layer, note, at, when) {
     const end = at + note.dur;
     if (!layer.buffer || when >= end - 0.005) return;
     const seconds = Math.min(end - when, ACCENT_MAX);
-    const level = layer.gain ?? 1;
+    const level = (layer.gain ?? 1) * (layer.accent ?? 1);
     const body = gain(0, hits[note.role]);
     body.gain.setValueAtTime(0, when);
     body.gain.linearRampToValueAtTime(ACCENT_GAIN * level, when + ACCENT_ATTACK);

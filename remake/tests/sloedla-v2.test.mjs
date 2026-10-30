@@ -24,6 +24,7 @@ test('v2 song: its timeline, the rules a song keeps, and composed notes', () => 
     [{ layers: [...song.layers, { id: 'x', owner: 'd', stem: 'x.mp3' }] }, 'owner'],
     [{ layers: [...song.layers, { id: 'y', owner: 'a', part: { instrument: 'horn', sections: {} } }] }, 'instrument'],
     [{ layers: [...song.layers, { id: 'z', owner: 'a', stem: 'z.mp3', part: lag.part }] }, 'stem or a part'],
+    [{ layers: [...song.layers, { id: 'k', owner: 'a', stem: 'k.mp3', accent: 0 }] }, 'accent'],
     [{ sections: song.sections.map(s => (s.name === 'kor' ? { ...s, lift: 2 } : s)) }, 'lift'],
     [{ chart: { ...song.chart, barn: [{ beat: 2, owner: 'c', layer: 'trommur' }, ...song.chart.barn] } }, '2.5'],
     [{ chart: { ...song.chart, barn: [...song.chart.barn, { beat: 100, owner: 'b', layer: 'trommur' }] } }, 'owned'],
@@ -96,9 +97,11 @@ test('v2 player: the whole song from the first beat; a hit plays the same place 
   assert.ok(Math.abs(accent.starts[0].when - (0.4 + note.t)) < 1e-9);
   assert.ok(Math.abs(accent.starts[0].offset - (0.03 + note.t)) < 1e-9);
   assert.ok(accent.stopTime <= accent.starts[0].when + Math.min(note.dur, 0.25) + 1e-6);
-  // its edge: the same copy through a high-pass, much louder at its start, so a tablet's small speaker hears the hit too
-  const edge = accent.outputs.find(node => node.outputs.some(next => next.kind === 'filter' && next.type === 'highpass'));
-  assert.ok(edge, 'the copy has an edge through a high-pass');
+  // its edge: the same copy driven into a soft clip (the note's own overtones, which a tablet's small speaker can play) and through
+  // a high-pass, much louder at its start
+  const edge = accent.outputs.find(node => node.outputs.some(next => next.kind === 'shaper' && next.curve
+    && next.outputs.some(after => after.kind === 'filter' && after.type === 'highpass')));
+  assert.ok(edge, 'the copy has an edge through a soft clip and a high-pass');
   assert.ok(edge.gain.valueAt(accent.starts[0].when + 0.002) >= 2.5, 'the edge is at least 2.5 times the note at its start');
   const late = player.chart.find(n => n.layer === 'bassi' && n.t > note.t);
   to(late.t + late.dur + 0.01);
