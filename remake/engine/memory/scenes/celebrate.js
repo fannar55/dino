@@ -6,7 +6,7 @@
  *   friends()                        all six actors              pair(species)               a pair's two actors
  *   mosi.yaw()                       the way Mosi faces
  *   gifts.count()                    how many surprises were found (0, 1 or 2)
- *   gifts.hover(i)                   where gift i floats          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the ribbon
+ *   gifts.hover(i, n)                where gift i of n floats          gifts.start() / gifts.end()  show them rising from Mosi's basket / fly them to the one in the ribbon
  *   beat(name, cut)                  notes a beat in the page's debug (the playthrough's report and pictures)
  * The Kambeðlur eat with their own `eat` clip and the others with the nibble gesture (gestures.js); tricks: the Þríhyrnur hop,
  * the Kambeðlur and the Þórseðlur play their `happy` clips (a friend without the clip, or in reduced motion, cheers instead).
@@ -40,7 +40,8 @@ export function celebrateScene(stage) {
   const T = { eat: 1.2, stego: 2.4, bronto: 3.6, wide: 4.8, tri: 5.9, stegoTrick: 7.5, brontoTrick: 8.8, mosi: 11.2 };
   const look = T.mosi + 1.7, last = T.mosi + (gifts ? 3.4 : 1.9);
   const mosiFront = (spin = 0) => () => stage.faceOn(mosi.yaw(), .5).applyAxisAngle(UP, spin);
-  const giftPoints = () => Array.from({ length: gifts }, (_, i) => stage.gifts.hover(i));
+  // Where the gifts float. With none found the shot is framed as if two floated there, so it is as wide (and as light) as with them.
+  const framed = Math.max(2, gifts), giftPoints = () => Array.from({ length: framed }, (_, i) => stage.gifts.hover(i, framed));
   return [
     // They have all arrived: the whole grove, the cheer still going, Mosi's line; he looks them over.
     { at: 0, shot: { kind: 'wide', subjects: group, elevation: 26, cut: true },

@@ -266,7 +266,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     },
     beat: (name, cut = false) => { beats.push({ name, t: +time.toFixed(2), cut }); if (beats.length > 60) beats.shift(); },
     // The celebration's gifts (scenes/celebrate.js).
-    gifts: { count: () => found().length, hover: i => giftHover(i), start: startGifts, end: flyGifts },
+    gifts: { count: () => found().length, hover: (i, n) => giftHover(i, n), start: startGifts, end: flyGifts },
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {
@@ -671,7 +671,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
   const found = () => cells.filter(cell => cell.item && cell.status === 'found' && items.get(cell.item)).map(cell => ({ id: cell.item, model: items.get(cell.item) }));
   // Beside Mosi's head, a little toward the camera (the shot of them is a close one on his face).
-  function giftHover(i, n = Math.max(1, found().length)) {
+  // One gift floats where the first of two would, to the left of his head, so that his face stays clear.
+  function giftHover(i, n = found().length) {
+    n = Math.max(2, n);
     const head = mosi.headPosition(new THREE.Vector3());
     return new THREE.Vector3(head.x + (i - (n - 1) / 2) * 2.3, head.y + .95, head.z + 1.1);
   }

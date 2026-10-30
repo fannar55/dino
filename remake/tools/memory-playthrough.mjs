@@ -669,7 +669,9 @@ async function main() {
         report.finished = true; step('ending'); await sleep(1500); await shot('ending');
         report.endingCard = await ev(`(() => { const row = document.getElementById('ending-gifts'), size = el => parseFloat(getComputedStyle(el).fontSize); return { copy: document.getElementById('ending-copy').textContent, gifts: row.hidden ? null : document.getElementById('ending-gifts-text').textContent, giftsFontPx: row.hidden ? null : size(row), copyFontPx: size(document.getElementById('ending-copy')), again: document.getElementById('again').textContent.trim(), basketInCard: !row.hidden && Boolean(row.querySelector('svg')), foundInRules: window.__memory.state().found, basket: window.__memory.basket() }; })()`);
         step('the ending card', report.endingCard ?? {});
-        if (o.restartAt === 'ending') { await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
+        if (o.restartAt === 'ending') {
+          const beats = await ev('window.__memory.stats().scene.beats'); if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
+          await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
         break;
       }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
