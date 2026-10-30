@@ -150,13 +150,16 @@ review. This milestone does not claim final AA quality or measured tablet FPS.
 
 ```text
 npm run test:memory
-npm run check:memory
+node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/<name>
 node remake/tools/memory-voices.mjs --verify
 node remake/tools/memory-sound-design.mjs --audit
 ```
 
 The unit checks use the bundled Three.js through the test setup; no install is
-needed. The browser check uses the
+needed. `memory-playthrough.mjs` plays a whole round the way a child does (its header lists the
+modes and flags). The earlier `memory-check.mjs` below drove the removed gold `#next-action` button
+and can no longer pass, so it has no `npm run` script; the file is kept until the owner decides. Its
+browser check uses the
 project's existing Playwright convention (`PLAYWRIGHT_PATH`, or the installed
 Codex runtime) and a self-contained temporary local server. Its report and
 screenshots are written to `qa/memory/three-step/check/` by default. The older

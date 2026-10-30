@@ -10,7 +10,6 @@
     "test:remake": "node --import ./remake/tests/setup.mjs --test remake/tests/*.test.mjs",
     "start:memory": "node remake/tools/serve.mjs --port 4206",
     "test:memory": "node --import ./remake/tests/setup.mjs --test remake/tests/memory-*.test.mjs",
-    "check:memory": "node remake/tools/memory-check.mjs",
     "stage:cloud": "node cloud/stage.mjs",
     "test:cloud": "node --test cloud/test/*.test.mjs",
     "start:yatzy-junior": "node remake/tools/serve.mjs --port 4197",
