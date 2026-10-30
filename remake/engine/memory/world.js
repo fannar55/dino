@@ -139,7 +139,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const actors = new Map();
   const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'memoryMorning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
   world.resolvePoint = createPointResolver(world); world.points = world.resolvePoint;
-  let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0;
+  let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0, lastAdapt = -1e9, lastStep = 0;
   let forest, forestVisibility, groundLook, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure, idlePlay;
   const leafResources = createLeafResources(), contactResources = createContactResources();
   leafResources.geometry.computeBoundingBox();
@@ -562,6 +562,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
 
   function resetBoard(cards) {
     scenes.cancelAll(); sceneIds.clear(); taskScript = null; mosiPuppet?.cancel(); idlePlay?.reset(); stopGifts(); beats.length = 0;
+    // A new round starts at full sharpness; the frame times of the last one say nothing about this one.
+    frameTime = frameCount = 0; lastAdapt = -1e9; lastStep = 0; if (resolution !== 1) { resolution = 1; resize(width, height); }
     // Mosi back at his place in the glade, standing.
     mosiWalk = null; mosiAcross = false; mosiPlace = { ...MOSI_SPOT };
     if (mosi) { mosi.root.rotation.z = 0; mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading); mosi.play('idle', { fade: 0, timeScale: reducedMotion ? 0 : 1 }); }
@@ -1017,9 +1019,13 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     if (q.dynamicResolution && delta > 0) {
       frameTime += delta; frameCount++;
       if (frameTime > 1.2) {
-        const average = frameTime / frameCount, old = resolution;
-        if (average > .038) resolution = Math.max(.65, resolution - .1);
-        frameTime = frameCount = 0; if (old !== resolution) resize(width, height);
+        // The shared rule (engine/renderer.js adapt, the Yatzy table): down when the 1.2 s average is slow, back up by .05 when there is headroom.
+        // After any change 4 s pass (game time) before a step the other way, so it never flickers; further steps down in a row need no wait.
+        const average = frameTime / frameCount, old = resolution, settled = time - lastAdapt >= 4;
+        if (average > .038 && (lastStep <= 0 || settled)) resolution = Math.max(.65, Math.round((resolution - .1) * 100) / 100);
+        else if (average < .025 && settled) resolution = Math.min(1, Math.round((resolution + .05) * 100) / 100);
+        frameTime = frameCount = 0;
+        if (old !== resolution) { lastAdapt = time; lastStep = resolution > old ? 1 : -1; resize(width, height); }
       }
     }
   }

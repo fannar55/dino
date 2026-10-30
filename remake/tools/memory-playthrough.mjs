@@ -8,6 +8,8 @@
 //     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
+//     [--cpu-throttle 4]      CDP Emulation.setCPUThrottlingRate (a slower tablet's CPU): the whole run is that many times slower; after the final frame-rate sample the throttle is lifted
+//                             and the run waits 15 s, so report.resolution.afterRelief says whether the game's dynamic resolution stepped back up
 //
 //   full          (after the glade picture, a picture of the overview) the whole round: a first reveal, one mismatch, the three pairs (Þríhyrnur first, so the branch has a wrong
 //                 friend to pick), the branch (after ~5 s of waiting for the gold arrow, one wrong pick, then the right one and
@@ -96,7 +98,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -113,6 +115,7 @@ function parseArgs(argv) {
     else if (a === '--first') o.first = next();
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
     else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--cpu-throttle') { o.cpuThrottle = Number(next()); if (!(o.cpuThrottle >= 1)) throw new Error('--cpu-throttle must be 1 or more'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
     else if (a === '--page') o.page = next();
@@ -290,6 +293,8 @@ const TIMELINE_JS = `(() => {
     const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), who = m.who ? m.who() : {}, w = d.scene && d.scene.waiting;
     window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
+    // The render scale the game's dynamic resolution chose: the lowest it went and every change (it steps down when frames are slow and back up when there is headroom).
+    if (Number.isFinite(d.resolutionScale)) { const r = (window.__res ||= { min: d.resolutionScale, last: d.resolutionScale, changes: [] }); r.min = Math.min(r.min, d.resolutionScale); if (d.resolutionScale !== r.last) { r.changes.push({ t: +(performance.now() / 1000).toFixed(1), from: r.last, to: d.resolutionScale }); r.last = d.resolutionScale; } }
     // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
     for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
@@ -542,7 +547,7 @@ async function main() {
 
   const errors = [];
   const report = {
-    page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, startedAt: new Date().toISOString(),
+    page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, cpuThrottle: o.cpuThrottle || null, startedAt: new Date().toISOString(),
     finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], pauseHolds: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
   };
   const server = await startServer();
@@ -580,6 +585,7 @@ async function main() {
     const phone = o.width < 768;
     await send('Emulation.setDeviceMetricsOverride', { width: o.width, height: o.height, deviceScaleFactor: 1, mobile: phone });
     if (phone) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    if (o.cpuThrottle > 1) await send('Emulation.setCPUThrottlingRate', { rate: o.cpuThrottle });
     if (o.reducedMotion) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 
     const ev = async (expression, awaitPromise = true) => {
@@ -835,8 +841,10 @@ async function main() {
       if (o.restartAt === 'gift' && (s.giftPhases.includes('rise') || s.giftPhases.includes('fly'))) {
         await sleep(350); report.beforeGiftRestart = await ev(RESTART_JS);
         step('restart while a gift pair flies', { basket: report.beforeGiftRestart.basketText, phases: report.beforeGiftRestart.giftPhases });
-        await ev('window.__memory.restart()'); await sleep(1500);
-        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+        // The render scale must be back at 1 a moment after the restart (it steps down again only if the next 1.2 s are slow).
+        report.resolutionRestart = { before: await ev('window.__demoStats.resolutionScale') };
+        await ev('window.__memory.restart()'); await sleep(150); report.resolutionRestart.after = await ev('window.__demoStats.resolutionScale'); await sleep(1350);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', { ...report.restartCheck, resolution: report.resolutionRestart }); report.finished = true; break;
       }
       if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
         await sleep(1200); // Mosi's gifts line is on its way (or playing)
@@ -1017,7 +1025,15 @@ async function main() {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
       report.renderMax = await ev('window.__max');
+      // The ending render scale: a full 1280x800 round that ends below 1 is flagged (the scale must recover once the frames are fast again).
+      const res = (await ev('window.__res')) ?? {}, end = report.render?.resolutionScale;
+      report.resolution = { end, min: res.min ?? null, changes: res.changes ?? [], flag: o.mode === 'full' && o.width === 1280 && o.height === 800 && Number.isFinite(end) && end < 0.999 ? (o.cpuThrottle > 1 ? 'ends below 1 (CPU throttled: expected)' : 'ENDS BELOW 1 AT 1280x800') : null };
       report.scenePerf = await ev(`(() => { const d = window.__scenePerf.slice(1), s = [...d].sort((a, b) => a - b); return d.length ? { frames: d.length, fps: +(1000 / (d.reduce((a, b) => a + b, 0) / d.length)).toFixed(1), p95ms: +s[Math.floor(s.length * .95)].toFixed(1), worstMs: +s[s.length - 1].toFixed(1) } : null; })()`);
+      // Throttled: lift the throttle and give the game 15 s of fast frames; the render scale must have stepped back up (.05 at a time, at most every 4 s).
+      if (o.cpuThrottle > 1) {
+        await send('Emulation.setCPUThrottlingRate', { rate: 1 }); await sleep(15000);
+        report.resolution.afterRelief = await ev('window.__demoStats.resolutionScale'); report.resolution.lastChanges = ((await ev('window.__res')) ?? {}).changes?.slice(-8) ?? [];
+      }
     } catch (e) { report.perf = { error: e.message }; }
     if (o.video) {
       await send('Page.stopScreencast').catch(() => {});
@@ -1054,6 +1070,9 @@ async function main() {
   if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
   if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
   if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
+  if (r.resolution) console.log(`Resolution scale: end ${r.resolution.end}, lowest ${r.resolution.min}, ${r.resolution.changes.length} changes${r.resolution.afterRelief !== undefined ? `, ${r.resolution.afterRelief} after 15 s without the throttle` : ''}${r.resolution.flag ? ' - FLAG: ' + r.resolution.flag : ''}`);
+  if (r.resolutionRestart) console.log(`Resolution across the restart: ${JSON.stringify(r.resolutionRestart)}`);
+  if (r.cancelCheck) console.log(`"Aftur" check with the bubbles open: ${JSON.stringify(r.cancelCheck)}`);
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
   if (fatal || !r.finished || r.errors.length) process.exitCode = 1;
