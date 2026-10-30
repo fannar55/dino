@@ -96,6 +96,22 @@ dialog for screenshots; browser audio still requires a gesture.
   stays queued until they arrive, so starting an action never freezes them
   halfway home. Overview, pause and camera focus hold automatic travel safely.
 
+- The ending (`scenes/celebrate.js`, played by `scenes/finish.js` once all six have arrived): about
+  seventeen seconds of cuts, never more than three apart. The friends eat berries (the Kambeðlur with their
+  own `eat` clip, the others with the `nibble` gesture), each pair does its trick (the Þríhyrnur hop, the
+  Kambeðlur and the Þórseðlur play their `happy` clips), Mosi cheers and the surprises the child found rise from
+  his basket while he says "Þú fannst eina óvænta gjöf!" or "Þú fannst tvær óvæntar gjafir!" (`gifts1`, `gifts2`;
+  none found, no line). The six stand in a row and Mosi at the back in the middle (`bridge-adventure.js`
+  `FINAL_PARKING`, `GROVE_LEADER`) so that every face shows. The last wide shot stays up under the ending
+  card, which says the same sentence as the line beside the basket.
+- Waiting friends (`idle-play.js`): a found friend at its waiting place, with no task, plays one game at a
+  time every six to ten seconds of quiet time (chase a butterfly, yawn, scratch, sniff at a flower, nudge its
+  partner) and now and then looks at the child. Nothing starts while a script, cut, glide, bubble row or choice is
+  up, a running game stops at once, nobody goes more than 1.4 m from its spot, and the camera is never touched.
+  `window.__memory.stats().idle` lists every game that started; the playthrough checks it (`report.idleCheck`).
+- Two small creature sounds, `giggle` (a wrong pair ducking, a wrong friend's go) and `strain` (each tap of a
+  tap-along), made with `memory-sound-design.mjs`; both have synthesized fallbacks in `audio.js`.
+
 The new baby art and recorded speech remain subject to human visual/listening
 review. This milestone does not claim final AA quality or measured tablet FPS.
 
@@ -268,7 +284,8 @@ owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
 shared game clock. `build-props.js` owns the marsh and bark walkway; the camera
 director owns framing, motion and input readiness. `adventure-rules.js` /
-`rock-adventure.js` are the earlier two-stone slice.
+`rock-adventure.js` are the earlier two-stone slice. `scenes.js` and `scenes/` are the timed scripts of each moment; `idle-play.js`
+owns the waiting friends' games; `gestures.js` the friends' shared moves.
 `world-home-nav.js` owns the incremental clearance planner and route reservations;
 `travel-traffic.js` checks when cooperative routes can overlap safely in time;
 `memory-clearance.js` supplies measured skin envelopes and the independent

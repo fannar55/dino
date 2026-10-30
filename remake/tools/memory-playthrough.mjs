@@ -21,6 +21,7 @@
 //                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
 //                 bubble, the way a six-year-old does. The round must still finish.
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
+//   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
@@ -85,7 +86,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null, hold: 0 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -97,6 +98,7 @@ function parseArgs(argv) {
     else if (a === '--no-tap-along') o.tapAlong = false;
     else if (a === '--usual-order') o.usualOrder = true;
     else if (a === '--clearance') o.clearance = true;
+    else if (a === '--hold') o.hold = Number(next());
     else if (a === '--surprises') { o.surprises = Number(next()); if (![0, 1, 2].includes(o.surprises)) throw new Error('--surprises must be 0, 1 or 2'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
@@ -244,7 +246,7 @@ function killProfileProcesses(exe, userDir) {
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
-  window.__taps = []; window.__origin = performance.timeOrigin; window.__spoken = [];
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__spoken = []; window.__sounds = {}; const heard = new Set();
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
     window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
@@ -258,6 +260,8 @@ const TIMELINE_JS = `(() => {
     const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), who = m.who ? m.who() : {}, w = d.scene && d.scene.waiting;
     window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
+    // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
+    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
     const spoken = m.audio ? m.audio().speech.current : null; if (spoken && (window.__spoken.at(-1)?.id !== spoken || performance.now() / 1000 - window.__spoken.at(-1).t > 6)) window.__spoken.push({ t: +(performance.now() / 1000).toFixed(2), id: spoken });
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
@@ -613,7 +617,7 @@ async function main() {
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
     const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
-    let barkTaps = 0, runTake = null;
+    let barkTaps = 0, runTake = null, holdFrom = null;
     const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
 
     // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
@@ -654,7 +658,7 @@ async function main() {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
       }
       // The match script holds the camera until it has glided back to the glade.
-      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving && !s.cam.held && !s.scene) {
+      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving && !s.cam.held && !s.scene && (holdFrom ??= Date.now()) && Date.now() - holdFrom >= o.hold * 1000) {
         report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home');
         // After the match script has glided back, the search view must be the frame it was before.
         report.gladeAfter = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
@@ -725,7 +729,7 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
       // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
       const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus-west': ['eating-thorsedla', 700], 'wide-eating': ['eating-all', 500],
-        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus-west': ['trick-thorsedla-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 1700], 'final-wide': ['final-wide-shot', 600] };
+        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus-west': ['trick-thorsedla-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
       for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
       // The waiting friends at play during the search (the first two kinds of game the page starts).
       if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
@@ -817,7 +821,7 @@ async function main() {
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
-    try { report.spoken = await ev('window.__spoken'); } catch {}
+    try { report.spoken = await ev('window.__spoken'); report.sounds = await ev('window.__sounds'); } catch {}
     try {
       const d = await ev('window.__memory.stats()');
       report.idle = d.idle; report.idleCheck = idleCheck(d.idle);

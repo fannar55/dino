@@ -710,7 +710,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   // A friend is free to play when it is at its waiting place (found, home, no task and no walk of its own) and not holding the branch.
   function idleFriends() {
     if (bridgeSnapshot.visited) return [];
-    return cells.filter(cell => cell.actor && cell.moved && !cell.transfer && !cell.dash && !cell.away && cell.actor.root.visible && !adventure.hasTravelReservation(cell.actor) && !(cell.species === 'brontosaurus' && bridgeSnapshot.branch === 'held'))
+    return cells.filter(cell => cell.actor && cell.moved && !cell.transfer && !cell.dash && cell.actor.root.visible && !adventure.hasTravelReservation(cell.actor) && !(cell.species === 'brontosaurus' && bridgeSnapshot.branch === 'held'))
       .map(cell => ({ actor: cell.actor, id: actorIds.get(cell.actor), species: cell.species, partner: cells.find(other => other !== cell && other.species === cell.species && other.moved && other.actor)?.actor ?? null }));
   }
   // Nothing may be going on that the child watches or decides: a script, a task, a cut or a glide, the bubbles, a wrong friend's go,
@@ -718,7 +718,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   function idleBusy() {
     if (scenes.busy() || adventure.isBusy() || cameraDirector.isHeld() || cameraDirector.isMoving() || bridgeSnapshot.asking || bridgeSnapshot.failing || bridgeSnapshot.active || gift.phase !== 'none') return true;
     if (cells.filter(cell => cell.status === 'revealed' && !cell.away).length > 1) return true;
-    return cells.some(cell => cell.pending > 0 || cell.closing || cell.transfer || cell.dash || cell.away || (cell.surprise && !cell.surprise.done) || (cell.status === 'revealed' && cell.open < 1) || (cell.status === 'matched' && !cell.moved));
+    return cells.some(cell => cell.pending > 0 || cell.closing || cell.transfer || cell.dash || (cell.surprise && !cell.surprise.done) || (cell.status === 'revealed' && cell.open < 1) || (cell.status === 'matched' && !cell.moved));
   }
   let solidsAt = -1, solids = [];
   const idleSolids = () => { if (time - solidsAt > .5 || time < solidsAt) { solids = navObjects(); solidsAt = time; } return solids; };

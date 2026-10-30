@@ -31,8 +31,8 @@ export function celebrateScene(stage) {
   const eatAll = () => friends().forEach(eat);
   const tri = () => pair('triceratops'), stego = () => pair('stegosaurus'), bronto = () => pair('brontosaurus');
   // When each beat starts (seconds): the meal, then the tricks, then Mosi's cheer with the gifts, then the last picture.
-  const T = { eat: 1.2, stego: 2.5, brontoWest: 3.8, brontoEast: 4.9, wide: 6, tri: 7, stegoTrick: 8.6, brontoTrickWest: 9.9, brontoTrickEast: 11.1, mosi: 12.3 };
-  const last = T.mosi + (gifts ? 3.3 : 1.9);
+  const T = { eat: 1.2, stego: 2.4, brontoWest: 3.6, wide: 4.8, tri: 5.9, stegoTrick: 7.5, brontoTrickWest: 8.8, brontoTrickEast: 10, mosi: 11.2 };
+  const look = T.mosi + 1.7, last = T.mosi + (gifts ? 3.4 : 1.9);
   return [
     // They have all arrived: the whole grove, the cheer still going, Mosi's line; he looks them over.
     { at: 0, shot: { kind: 'wide', subjects: group, elevation: 28, cut: true },
@@ -42,9 +42,8 @@ export function celebrateScene(stage) {
     { at: T.eat, shot: { kind: 'face', subjects: () => faces(tri()), front: frontOf(tri), elevation: 14, cut: true },
       act: all(beat('eat-triceratops'), () => friends().forEach(actor => actor.clearLook?.()), eatAll, () => mosi.gesture('clap')) },
     { at: T.stego, shot: { kind: 'face', subjects: () => faces(stego()), front: frontOf(stego), elevation: 14, cut: true }, act: beat('eat-stegosaurus') },
-    { at: T.brontoWest, shot: { kind: 'face', subjects: () => faces([west()]), front: frontOf(() => [west()]), elevation: 12, cut: true },
+    { at: T.brontoWest, shot: { kind: 'face', subjects: () => faces([west()]), front: frontOf(() => [west()]), elevation: 20, cut: true },
       act: all(beat('eat-brontosaurus-west'), () => tri().concat(bronto()).forEach(actor => actor.gesture('nibble'))) },
-    { at: T.brontoEast, shot: { kind: 'face', subjects: () => faces([east()]), front: frontOf(() => [east()]), elevation: 12, cut: true }, act: beat('eat-brontosaurus-east') },
     // Them all, still eating (the Kambeðlur on their second helping).
     { at: T.wide, shot: { kind: 'wide', subjects: group, elevation: 28, cut: true }, act: all(beat('wide-eating'), eatAll, () => mosi.look(stage.camera())) },
     // The tricks. The Þríhyrnur hop three times, the Kambeðlur and the Þórseðlur play their happy clips, each with its call.
@@ -60,6 +59,8 @@ export function celebrateScene(stage) {
     // Mosi cheers, and the surprises the child found rise from his basket while his line says so.
     { at: T.mosi, shot: { kind: 'hero', subjects: () => [mosi.head(), mosi.body(), ...Array.from({ length: Math.max(1, gifts) }, (_, i) => stage.gifts.hover(i))], front: [.12, 0, 1], elevation: 8, cut: true },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer'), () => stage.gifts.start()), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 }, sound: gifts ? 'ding' : undefined, say: line ? { line, queue: true } : undefined },
+    // The gifts again from the side, with Mosi under them (only when there are some).
+    ...(gifts ? [{ at: look, shot: { kind: 'hero', subjects: () => [mosi.head(), ...Array.from({ length: gifts }, (_, i) => stage.gifts.hover(i))], front: [-.55, 0, 1], elevation: 6, cut: true }, act: beat('gifts-seen') }] : []),
     // The last picture: the six and Mosi, wide, the berries behind them. The card comes up under it.
     { at: last, shot: { kind: 'wide', subjects: () => [...group(), shift(mosi.body(), 0, 0, 5.5), shift(mosi.body(), -5, 0, 4), shift(mosi.body(), 5, 0, 4)], elevation: 27, cut: true },
       act: all(beat('final-wide'), () => stage.gifts.end(), () => friends().forEach(actor => actor.gesture('settle'))) },
