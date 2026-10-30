@@ -5,7 +5,7 @@
 // paths during scripts). It takes screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
 //
 //   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
-//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance]
+//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--surprises 0|1|2]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
 //
@@ -24,6 +24,8 @@
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
+//   --surprises N   full and rapid open exactly N of the two surprise leaves (0, 1 or 2; without it both, as before), so the celebration's gifts line
+//                   and the ending card can be seen for each count (report.endingCard, report.spoken).
 //   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
 //                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
 //                   (it slows the game down a little, so use it for a check run, not for timings).
@@ -42,6 +44,10 @@
 // longest stretches of watching (a script, a task or a wrong friend's go running) with no new camera framing and no tap,
 // with where they fall; with --video each moment also has its time in round.mp4. `takes` lists every camera framing's
 // most triangles and draw calls (the shot, what was going on), the heaviest first.
+// `celebration` is the page's own list of the celebration's beats in game seconds (every cut and trick, the lines, the end), `idle` the
+// waiting friends' play (idle-play.js): every game that started (friend, game, game time, the not-busy seconds it had waited, how far from
+// its spot it went) and `idleCheck` the two things the round must show: never two at once, and 6 to 10 seconds between starts while nothing is busy.
+// `spoken` is each line of Mosi's the page played and when; `endingCard` the ending card's words (and the gifts row).
 // `surprises` lists each surprise leaf the driver opened: { id, item, at (s) }; `found` and `basketEnd` say what the rules
 // and the basket in the ribbon held at the end.
 // `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
@@ -79,7 +85,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, surprises: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -91,6 +97,7 @@ function parseArgs(argv) {
     else if (a === '--no-tap-along') o.tapAlong = false;
     else if (a === '--usual-order') o.usualOrder = true;
     else if (a === '--clearance') o.clearance = true;
+    else if (a === '--surprises') { o.surprises = Number(next()); if (![0, 1, 2].includes(o.surprises)) throw new Error('--surprises must be 0, 1 or 2'); }
     else if (a === '--seed') o.seed = next();
     else if (a === '--query') o.query = next();
     else if (a === '--page') o.page = next();
@@ -237,7 +244,7 @@ function killProfileProcesses(exe, userDir) {
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
-  window.__taps = []; window.__origin = performance.timeOrigin;
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__spoken = [];
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
     window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
@@ -251,6 +258,8 @@ const TIMELINE_JS = `(() => {
     const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), who = m.who ? m.who() : {}, w = d.scene && d.scene.waiting;
     window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
     window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
+    const spoken = m.audio ? m.audio().speech.current : null; if (spoken && (window.__spoken.at(-1)?.id !== spoken || performance.now() / 1000 - window.__spoken.at(-1).t > 6)) window.__spoken.push({ t: +(performance.now() / 1000).toFixed(2), id: spoken });
+    const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
     const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
@@ -263,11 +272,11 @@ const TIMELINE_JS = `(() => {
     // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
     if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { elapsed: +adventure.elapsed.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
     const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
-    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused].join('|');
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending].join('|');
     if (key !== last) {
       last = key;
       window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
-        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused) });
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending });
     }
   }, 100);
 })()`;
@@ -290,13 +299,13 @@ const CLEARANCE_JS = `(async () => {
     }
   }, 300);
   setInterval(() => {
-    const d = window.__demoStats, action = d && d.bridge && d.bridge.action; if (!action || !['lay', 'finish', 'fail'].includes(action.id)) return;
+    const d = window.__demoStats, action = d && d.bridge && d.bridge.action, playing = d && d.idle && d.idle.active; if (!playing && (!action || !['lay', 'finish', 'fail'].includes(action.id))) return;
     const stats = window.__memory.stats({ collision: true }); stats.collisionObjects = []; // the glade's scenery is far from the marsh; the log, branch and carried bark stay
     const result = assessSceneClearances(stats), clr = window.__clr;
     clr.samples++; if (result.minimum !== null) clr.minimum = clr.minimum === null ? result.minimum : Math.min(clr.minimum, result.minimum);
     for (const hit of result.violations) {
-      const key = action.id + '/' + action.phase + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
-      if (!clr.worst[key] || hit.clearance < clr.worst[key].clearance) clr.worst[key] = { key, clearance: +hit.clearance.toFixed(3), age: +(action.age || 0).toFixed(2), t: +(performance.now() / 1000).toFixed(2) };
+      const key = (playing ? 'idle/' + playing.game : action.id + '/' + action.phase) + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
+      if (!clr.worst[key] || hit.clearance < clr.worst[key].clearance) clr.worst[key] = { key, clearance: +hit.clearance.toFixed(3), age: +((playing ? playing.age : action.age) || 0).toFixed(2), t: +(performance.now() / 1000).toFixed(2) };
     }
   }, 300);
 })()`;
@@ -320,7 +329,7 @@ const SNAPSHOT_JS = `(() => {
     cancel: !cancel.hidden && !cancel.disabled,
     enabled: [...buttons.filter(x => !x.disabled).map(x => x.dataset.target), ...bubbles],
     walking: (d.cells || []).some(c => c.moving || c.queued) || (d.cells || []).some(c => c.status === 'matched' && !c.moved),
-    ending: !document.getElementById('ending').hidden,
+    ending: !document.getElementById('ending').hidden, beats: (d.scene && d.scene.beats || []).map(b => b.name), idle: d.idle && d.idle.active ? d.idle.active.game : null,
     caption: document.getElementById('caption')?.textContent || '',
   };
 })()`;
@@ -421,7 +430,8 @@ function timelineCheck(timeline = [], taps = []) {
   const barkTap = (taps ?? []).find(tap => tap.key === 'task-bark'), layStart = timeline.find(e => e.act && e.act.startsWith('lay:')), lastPanel = timeline.find(e => (e.placed ?? 0) >= 3), built = timeline.find(e => e.walk);
   // The walk to the grove: Mosi's first step, all six arrived (the walk is over), the camera back and the ending up.
   const groveStep = timeline.find(e => e.active === 'finish' && (e.mosi === 'walk' || e.mosi === 'deck')), groveArrive = timeline.find(e => e.visited);
-  const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && !e.scene && !e.held && e.cam === 'auto');
+  // `input` is now the ending card: the celebration (a script) runs between the arrival and it.
+  const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && e.ending);
   return {
     framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
     crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
@@ -443,6 +453,22 @@ function frameDrift(before, after) {
   }
   return { camera: +camera.toExponential(2), leafPixels: +leafPixels.toFixed(2) };
 }
+
+// The waiting friends' play (idle-play.js), checked over the round: never two at once, and each game starting 6 to 10 seconds
+// (of not-busy time) after the one before; no friend further than 1.5 m from its spot.
+function idleCheck(idle) {
+  if (!idle) return null;
+  const starts = idle.starts ?? [], waits = starts.map(item => item.waited), games = {}, friends = {};
+  for (const item of starts) { games[item.game] = (games[item.game] ?? 0) + 1; friends[item.friend] = (friends[item.friend] ?? 0) + 1; }
+  // Two at once would be a start before the game before it ended (a game that was cut short by something busy ends at that moment).
+  const overlapping = starts.filter((item, i) => i && starts[i - 1].ended != null && item.t < starts[i - 1].ended - 1e-6 || i && starts[i - 1].ended == null);
+  const outOfRange = starts.filter(item => item.waited < IDLE_GAP.min - .001 || item.waited > IDLE_GAP.max + .1);
+  const far = Math.max(0, ...starts.map(item => item.far ?? 0));
+  return { starts: starts.length, games, friends, glances: idle.glances, overlapsInGame: idle.overlaps, overlapping: overlapping.length, spacing: { min: waits.length ? Math.min(...waits) : null, max: waits.length ? Math.max(...waits) : null, outOfRange: outOfRange.map(item => ({ t: item.t, waited: item.waited, game: item.game })) },
+    farthestFromSpot: far, stopped: starts.reduce((all, item) => ({ ...all, [item.stopped ?? 'running']: (all[item.stopped ?? 'running'] ?? 0) + 1 }), {}),
+    passed: !overlapping.length && !idle.overlaps && !outOfRange.length && far <= 1.5 };
+}
+const IDLE_GAP = { min: 6, max: 10 };
 
 async function main() {
   const o = parseArgs(process.argv.slice(2));
@@ -581,7 +607,7 @@ async function main() {
     // The surprise leaves, in card order. `full` and `rapid` open one before the first pair and one before the last.
     const surpriseIds = first.cards.filter(c => c.item).map(c => c.id);
     report.surprises = [];
-    const surpriseAt = [0, 2]; // matched pairs when each one is opened (full and rapid)
+    const surpriseAt = [0, 2].slice(0, o.surprises ?? 2); // matched pairs when each one is opened (full and rapid; --surprises N opens only the first N)
     const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
@@ -618,7 +644,12 @@ async function main() {
       if (s.placed >= 3 && s.bridge.active === 'lay') mark('bark-end');
       if (s.bridge.active === 'finish' && (s.mosi === 'walk' || s.mosi === 'deck')) mark('grove-start');
       if (s.bridge.visited) mark('grove-end');
-      if (s.ending) { report.finished = true; step('ending'); await sleep(1500); await shot('ending'); break; }
+      if (s.ending) {
+        report.finished = true; step('ending'); await sleep(1500); await shot('ending');
+        report.endingCard = await ev(`(() => { const row = document.getElementById('ending-gifts'), size = el => parseFloat(getComputedStyle(el).fontSize); return { copy: document.getElementById('ending-copy').textContent, gifts: row.hidden ? null : document.getElementById('ending-gifts-text').textContent, giftsFontPx: row.hidden ? null : size(row), copyFontPx: size(document.getElementById('ending-copy')), again: document.getElementById('again').textContent.trim(), basketInCard: !row.hidden && Boolean(row.querySelector('svg')), foundInRules: window.__memory.state().found, basket: window.__memory.basket() }; })()`);
+        step('the ending card', report.endingCard ?? {});
+        break;
+      }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
       }
@@ -692,6 +723,12 @@ async function main() {
       if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
       if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
       if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
+      // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
+      const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus-west': ['eating-thorsedla', 700], 'wide-eating': ['eating-all', 500],
+        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus-west': ['trick-thorsedla-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 1700], 'final-wide': ['final-wide-shot', 600] };
+      for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
+      // The waiting friends at play during the search (the first two kinds of game the page starts).
+      if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
       if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
       if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
@@ -780,6 +817,13 @@ async function main() {
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
+    try { report.spoken = await ev('window.__spoken'); } catch {}
+    try {
+      const d = await ev('window.__memory.stats()');
+      report.idle = d.idle; report.idleCheck = idleCheck(d.idle);
+      const beats = d.scene?.beats ?? [];
+      if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
+    } catch {}
     try {
       const takes = Object.values(await ev('window.__takes')).sort((a, b) => b.tris - a.tris);
       report.takes = takes; report.routes = await ev('window.__routes');

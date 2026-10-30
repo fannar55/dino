@@ -79,6 +79,8 @@ export function failScene(stage, species, target, timing) {
       act: all(() => stage.mosi.look(point()), () => stage.pairGesture(species, 'hop')) },
     { at: Math.max(.1, timing.run - (view.lead ?? 0)), shot: { kind: 'wide', scale: view.scale, subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.3)), point()], front, elevation: view.elevation, cut: true },
       act: () => stage.mosi.look(centre(pair().map(actor => actor.getNosePosition()))) },
+    // The wrong friend, sat down dazed: it giggles.
+    { at: timing.run + timing.attempt * .5, sound: 'giggle' },
     { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], front: LAUGH_FRONT, cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },
     { at: laughAt + .05, wait: { until: () => !stage.task.busy(), timeout: 6 } },

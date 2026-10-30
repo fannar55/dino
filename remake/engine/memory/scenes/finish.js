@@ -5,6 +5,7 @@
  * `timing` is Mosi's walk, in seconds from the start: `deck` his first step onto the boardwalk, `mid` the middle of it,
  * `arrive` at his place past it; `lead` what the friends follow ({ at, half }, see bridge-adventure start).
  */
+import { celebrateScene } from './celebrate.js';
 const all = (...fns) => fns;
 const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), actor.getNosePosition()]);
 const centre = points => points.reduce((sum, p) => sum.add(p), points[0].clone().multiplyScalar(0)).multiplyScalar(1 / points.length);
@@ -14,7 +15,7 @@ const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, po
 /**
  * A wide cut as Mosi sets off (the friends wait for him to pass), a follow cut beside the boardwalk as he steps onto
  * it, a cut over his shoulder as the grove opens up ahead, a cut back to the friends coming along behind him, and a wide
- * cut of the arrival with Mosi at the grove. When the last one has arrived the camera cuts back and the ending takes over.
+ * cut of the arrival with Mosi at the grove. When the last one has arrived the celebration takes over (celebrate.js) and the ending card follows it.
  */
 export function finishScene(stage, plan, timing) {
   const friends = () => stage.friends();
@@ -36,6 +37,7 @@ export function finishScene(stage, plan, timing) {
     { at: arrival, shot: { kind: 'wide', subjects: () => [...group(), end(), up(stage.mosi.body(), 1)], cut: true },
       act: () => stage.mosi.look(centre(bodies(friends()))) },
     { at: arrival + .05, wait: { until: () => !stage.task.busy() && !stage.mosi.walking(), timeout: 9 } },
-    { at: arrival + .1, shot: { release: true, cut: true }, act: all(() => stage.mosi.look(stage.camera()), () => stage.mosi.gesture('cheer')) },
+    // Then the celebration (scenes/celebrate.js), which ends on a wide shot that stays up under the ending card.
+    ...celebrateScene(stage).map(line => ({ ...line, at: arrival + .1 + line.at })),
   ];
 }

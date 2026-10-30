@@ -111,7 +111,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       const lids = createEyelids(model, { seed: `memory-${id}-${instance}` });
       let action = null, motion = 'idle', elapsed = 0, gesture = null, disposed = false;
       let gestureFrom = 0;
-      let motionAge=0, stance=0, pushYaw=0, reducedMotion=false, lookEnabled=false, lookWeight=0, lookWanted=.65, lookMaxAngle=18;
+      let clipLeft=0, clipName=null, motionAge=0, stance=0, pushYaw=0, reducedMotion=false, lookEnabled=false, lookWeight=0, lookWanted=.65, lookMaxAngle=18;
       let support=null;
       const lastPosition=root.position.clone();let travelSpeed=0,walkRate=0,walkDistance=0,footingMode=false;
       const lookTarget=new THREE.Vector3(), rootQ=new THREE.Quaternion(), parentQ=new THREE.Quaternion(), offsetQ=new THREE.Quaternion();
@@ -198,9 +198,20 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(disposed||!GESTURES[id])return false;
         gesture={name:id,t:0,duration:GESTURES[id].duration};gestureFrom=0;return true;
       }
+      // One of the model's own clips (the Kambeðla's eat, the Kambeðla's and the Þórseðla's happy) played over the stance for
+      // `loops` rounds, then back to idle. False when this friend has no such clip or it is walking; in reduced motion the clips
+      // stay shut (they are whole-body moves) and the caller uses a gesture.
+      function playClip(name,{loops=1,fade=.2}={}){
+        const clip=clips.get(String(name).toLowerCase());
+        if(disposed||!clip||reducedMotion||motion==='walk'||motion==='reach-walk'||support)return false;
+        const next=mixer.clipAction(clip);
+        next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
+        if(action&&action!==next)action.crossFadeTo(next,fade,false);
+        action=next;clipLeft=clip.duration*Math.max(.1,loops);clipName=name;return true;
+      }
       // Gestures keep the friends' common size (length): the big Þórseðla baby hops and leans as far as the others
       // do, not 1.62 times as far (a 0.8 m hop lifted her tail into the branch behind her rest).
-      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length,crossed:at=>gestureFrom<at&&gesture.t>=at};
+      const rig={pose,head,neck,jaw,body:rigBody,shoulders:rigShoulders,tail,legs,lids,rotateInRoot,offsetInRoot,length,species:id,crossed:at=>gestureFrom<at&&gesture.t>=at};
       function setMotion(name,options={}) {
         if(disposed) return;
         // The older gesture names start the matching gesture over a still stance.
@@ -209,7 +220,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
         if(name==='reach-walk')beginSupport('reach',{...options,walking:true});
         else if(['reach','lift','hold','release'].includes(name))beginSupport(name,options);
         else if(support&&support.mode!=='release')beginSupport('release',{duration:name==='walk'?.18:.45});
-        motion=name;motionAge=0;
+        motion=name;motionAge=0;clipLeft=0;clipName=null;
         const walking=name==='walk'||name==='reach-walk';
         if(walking){lastPosition.copy(root.position);footing.restore();footing.reset();footingMode=true;}
         else if(footingMode){footing.restore();footing.stand();footingMode=false;}
@@ -223,11 +234,13 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       const actor = {
         root, model, species: id, name: art.name, isBaby: art.isBaby, lengthFactor: size, noseLocal, supportLocal,
         setMotion,
-        reveal() { root.visible=true;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
+        reveal() { root.visible=true;clipLeft=0;clipName=null;support=null;stance=0;lookEnabled=false;lookWeight=0;restoreBasePose();footing.restore();footing.reset();lastPosition.copy(root.position);setMotion('reveal');lids?.blink.blink(); },
         gesture(name) { return startGesture(name); },
+        /** One of the model's own clips for `loops` rounds ('eat', 'happy'), then idle; false when this friend has none. */
+        playClip(name,options) { return playClip(name,options); },
         /** Drop a running gesture and open the eyes (a restart or a cancelled script). */
-        stopGesture() { gesture=null;lids?.blink.rest(0,.2); },
-        conceal() { root.visible=false; gesture=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
+        stopGesture() { gesture=null;if(clipLeft>0){clipLeft=0;clipName=null;play(motion==='walk'||motion==='reach-walk'?'walk':'idle');}lids?.blink.rest(0,.2); },
+        conceal() { root.visible=false; gesture=null; clipLeft=0; clipName=null; support=null; stance=0; lookEnabled=false;lookWeight=0;restoreBasePose();pose.position.y=0;pose.rotation.set(0,0,0);setMotion('idle'); },
         walk(active=true) { setMotion(active?'walk':'idle'); },
         greet() { setMotion('greet'); },
         nuzzle() { setMotion('nuzzle'); },
@@ -268,6 +281,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
           if(walking&&gait){walkRate=signed*travelSpeed/(gait.naturalSpeed*root.scale.x);action?.setEffectiveTimeScale(walkRate);walkDistance+=distance;}
           else walkRate=0;
           mixer.update(dt); lids?.update(dt);
+          if(clipLeft>0){clipLeft-=dt;if(clipLeft<=0){clipLeft=0;clipName=null;play(motion==='walk'||motion==='reach-walk'?'walk':'idle');}}
           pose.position.y=0; pose.rotation.set(0,0,0);
           if(jaw) jaw.quaternion.copy(jawRest);
           captureBasePose();root.updateMatrixWorld(true);
@@ -304,7 +318,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
             root.updateMatrixWorld(true);
           }
         },
-        getDebugState() { return {species:id,isBaby:art.isBaby,motion,elapsed,gesture:gesture?.name || null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
+        getDebugState() { return {species:id,isBaby:art.isBaby,motion,elapsed,gesture:gesture?.name || null,clip:clipLeft>0?clipName:null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
         dispose() {
           if(disposed)return;disposed=true;lids?.dispose();mixer.stopAllAction();mixer.uncacheRoot(model);
           materials.forEach(m=>m.dispose());root.removeFromParent();

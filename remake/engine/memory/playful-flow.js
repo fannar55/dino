@@ -5,7 +5,7 @@
 // and the walk to the grove start on their own (`automatic`).
 const HELPERS = ['triceratops', 'brontosaurus', 'stegosaurus'];
 const ACTIVE = {
-  lift: 'Upp með greinina!', roll: 'Einn, tveir, ÝTA!', cross: 'Allir með yfir brúna!',
+  lift: 'Upp með greinina!', roll: 'Þríhyrnurnar koma að bolnum!', cross: 'Allir með yfir brúna!',
   lay: 'Þær bera börkinn saman. Ein fjöl í einu!', finish: 'Nú komast allir yfir. Berin bíða okkar!',
 };
 export function nextStoryStep(memory, bridge, ready = {}) {

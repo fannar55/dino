@@ -36,6 +36,8 @@ export function mismatchScene(stage, first, second, { delay = 0 } = {}) {
     { at: .42, act: all(() => stage.look(first, stage.head(second), { weight: .8, maxAngle: 24 }), () => stage.look(second, stage.head(first), { weight: .8, maxAngle: 24 })) },
     { at: .62, act: all(() => stage.look(first, null), () => stage.look(second, null), () => stage.gesture(first, 'oops'), () => stage.gesture(second, 'oops')) },
     { at: .74, act: () => stage.mosi.gesture('shake-head') },
+    // They duck down giggling (the oops gesture's second half).
+    { at: 1.2, sound: 'giggle' },
   ], delay);
 }
 

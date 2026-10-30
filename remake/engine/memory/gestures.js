@@ -6,7 +6,7 @@ import * as THREE from 'three';
  *
  * GESTURES[name] = { duration, apply(rig, t, energy) }. t runs 0..1 over `duration` seconds of game
  * time; energy is 1, or .3 in reduced motion. rig = { pose, head, neck, jaw, body, shoulders, tail,
- * legs, lids, rotateInRoot, offsetInRoot, length, crossed(at) }:
+ * legs, lids, rotateInRoot, offsetInRoot, length, species, crossed(at) }:
  *   pose          the group that holds the model under the actor's root (whole-body lift and tilt),
  *   rotateInRoot  (bone, axis, angle) about the actor's own axes (X forward, Y up, Z its right side),
  *   offsetInRoot  (bone, x, y, z) metres in the actor's own frame,
@@ -34,6 +34,29 @@ function turnHead(rig, axis, angle) {
 function crouch(rig, depth) { if (depth) rig.offsetInRoot(rig.body, 0, -depth); }
 function tuckLegs(rig, lift) { if (lift > 1e-4) for (const pair of rig.legs) rig.offsetInRoot(pair.leg, 0, lift); }
 function openJaw(rig, amount) { if (rig.jaw && amount > 1e-4) rig.rotateInRoot(rig.jaw, Z, -amount); }
+
+// The shove and the stumble of two friends side by side. `side` is +1 for the other friend on the right-hand side (the +Z of the actor).
+const nudge = side => ({ duration: 1.1, apply(rig, t, energy) {
+  const L = rig.length, wind = bump(t, 0, .3), shove = bump(t, .26, .64), settle = bump(t, .6, 1);
+  rig.pose.rotation.y += -side * energy * (.32 * shove - .14 * wind);
+  rig.pose.position.z += side * .11 * L * energy * (shove - .35 * wind);
+  turnHead(rig, Y, -side * energy * (.75 * shove - .25 * wind));
+  turnHead(rig, Z, .14 * energy * shove);
+  crouch(rig, .02 * L * energy * wind);
+  rig.rotateInRoot(rig.tail, Y, .5 * energy * (shove + settle) * wave(t, 4));
+  if (rig.crossed(.3)) rig.lids?.blink.rest(.5, .06);
+  if (rig.crossed(.7)) rig.lids?.blink.rest(0, .15);
+} });
+const jolt = side => ({ duration: 1.2, apply(rig, t, energy) {
+  const L = rig.length, push = bump(t, 0, .4), look = bump(t, .4, 1);
+  rig.pose.position.z += -side * .09 * L * energy * push;
+  rig.pose.position.y += .1 * L * energy * arc(t, .02, .4);
+  rig.pose.rotation.x += -side * .16 * energy * push;
+  tuckLegs(rig, .03 * L * energy * arc(t, .04, .38));
+  turnHead(rig, Y, -side * .55 * energy * look);
+  openJaw(rig, .24 * bump(t, .1, .9));
+  rig.rotateInRoot(rig.tail, Y, .45 * energy * (push + look) * wave(t, 5));
+} });
 
 export const GESTURES = Object.freeze({
   // Out from under the leaf: a spring up, a wet-dog shake that throws the leaf off, then a call.
@@ -180,6 +203,56 @@ export const GESTURES = Object.freeze({
     if (rig.crossed(.05)) rig.lids?.blink.rest(.7, .06);
     if (rig.crossed(.8)) rig.lids?.blink.rest(0, .15);
   } },
+  // Eating off the ground or a bush: the head goes down and stays down for a few bites, the jaw working, a small bob of the
+  // body, the tail swaying. The Þórseðla's long neck has further to go.
+  nibble: { duration: 2.6, apply(rig, t, energy) {
+    const L = rig.length, long = rig.species === 'brontosaurus' ? 1.55 : 1, meal = ramp(t, 0, .13) * (1 - ramp(t, .88, 1));
+    const bites = meal * (.78 + .22 * wave(t, 3)), chew = .5 + .5 * wave(t, 8);
+    turnHead(rig, Z, -.5 * long * energy * bites);
+    openJaw(rig, .22 * chew * meal);
+    crouch(rig, .02 * L * energy * (bites + .5 * meal * Math.abs(wave(t, 3))));
+    rig.pose.rotation.z += -.05 * energy * meal;
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * meal * wave(t, 2));
+    if (rig.crossed(.5)) rig.lids?.blink.blink();
+  } },
+  // A big yawn: the head goes back, the jaw opens wide, the eyes shut, the whole body stretches, then a small shake.
+  yawn: { duration: 2.8, apply(rig, t, energy) {
+    const L = rig.length, wide = bump(t, .14, .78), stretch = ramp(t, .1, .4) * (1 - ramp(t, .72, .94));
+    turnHead(rig, Z, .5 * energy * stretch);
+    openJaw(rig, .62 * wide);
+    rig.pose.rotation.z += .1 * energy * stretch;
+    crouch(rig, -.012 * L * energy * stretch);
+    rig.rotateInRoot(rig.tail, Y, .25 * energy * stretch * wave(t, 1.5));
+    turnHead(rig, Y, .28 * energy * bump(t, .84, 1) * wave(t, 5));
+    if (rig.crossed(.14)) rig.lids?.blink.rest(.95, .25);
+    if (rig.crossed(.8)) rig.lids?.blink.rest(0, .3);
+  } },
+  // Scratching an itch with a back foot: the body leans away, the foot kicks quickly, the head turns to look at it.
+  scratch: { duration: 2.4, apply(rig, t, energy) {
+    const L = rig.length, on = bump(t, 0, 1), foot = rig.legs.find(pair => !pair.front && /\.L$/.test(pair.leg.name)) ?? rig.legs.find(pair => !pair.front);
+    rig.pose.rotation.x += .09 * energy * on;
+    rig.pose.rotation.z += -.04 * energy * on;
+    if (foot) rig.offsetInRoot(foot.leg, .07 * L * energy * on * wave(t, 8), .14 * L * energy * on);
+    turnHead(rig, Y, .5 * energy * on);
+    turnHead(rig, Z, -.12 * energy * on);
+    openJaw(rig, .12 * bump(t, .3, .8));
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * on * wave(t, 3));
+    if (rig.crossed(.8)) rig.lids?.blink.blink();
+  } },
+  // Sniffing at something low: the nose goes down and stays there, bobbing in quick small sniffs.
+  sniff: { duration: 2.6, apply(rig, t, energy) {
+    const long = rig.species === 'brontosaurus' ? 1.45 : 1, near = ramp(t, .06, .26) * (1 - ramp(t, .8, .97));
+    turnHead(rig, Z, (-.42 * long - .07 * wave(t, 6)) * energy * near);
+    turnHead(rig, Y, .1 * energy * near * wave(t, 9));
+    crouch(rig, .015 * rig.length * energy * near);
+    rig.rotateInRoot(rig.tail, Y, .35 * energy * near * wave(t, 2.5));
+    if (rig.crossed(.9)) rig.lids?.blink.blink();
+  } },
+  // A friendly shove for the friend beside it (`side` 1: that friend is on its right): a wind-up away, then the head and the
+  // shoulder swing in, and back. The other one reacts with `jolt`.
+  'nudge-right': nudge(1), 'nudge-left': nudge(-1),
+  // Pushed by a friend (`side` 1: the one who pushed is on its right): knocked a step away with a small hop, then a look back.
+  'jolt-right': jolt(1), 'jolt-left': jolt(-1),
 });
 export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', stegosaurus: 'fail-stegosaurus', brontosaurus: 'fail-brontosaurus' });
 

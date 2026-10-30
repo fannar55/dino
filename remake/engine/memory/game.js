@@ -14,7 +14,9 @@ const roster = { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaur
 // The "who" bubbles: a portrait of each pair (portraits/, cropped round in CSS) and its name.
 const pairs = { triceratops: { name: 'Þríhyrnur', label: 'Þríhyrnuparið' }, brontosaurus: { name: 'Þórseðlur', label: 'Þórseðluparið' }, stegosaurus: { name: 'Kambeðlur', label: 'Kambeðluparið' } };
 // Mosi's lines that also go up in his bubble when a script says them.
-const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build']);
+const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts1', 'gifts2']);
+// How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
+const CAPTION_HOLD = { won: 5.8, gifts1: 3.4, gifts2: 3.4 };
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
 const PANEL_WORDS = ['Ein!', 'Tvær!', 'Þrjár!']; // the bark's three panels, counted as they go down (fjöl is feminine)
 const PUSH_WORDS = ['Einn!', 'Tveir!', 'ÝTA!']; // the log's three pushes, as Mosi says them ("Einn, tveir, ÝTA!")
@@ -94,11 +96,13 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'poof') audio.poof();
   else if (name === 'bonk') audio.bonk();
   else if (name === 'ding') audio.ding();
+  else if (name === 'giggle') audio.giggle();
 }
 // A script's line for Mosi: heard, and the task lines also shown in his bubble.
-function sayLine(line) {
-  speech.play(line);
-  if (CAPTIONED.has(line) && VOICE_LINES[line]) caption(VOICE_LINES[line].text, 2.6);
+// `queue`: the celebration's lines wait until what he is saying is over (the gifts line after "Allir sex komnir…").
+function sayLine(line, { queue = false } = {}) {
+  if (queue) speech.queue(line, { delay: .1, once: false }); else speech.play(line);
+  if (CAPTIONED.has(line) && VOICE_LINES[line]) caption(VOICE_LINES[line].text, CAPTION_HOLD[line] ?? 2.6);
 }
 // Big words over the scene for a step of the tap-along ("Upp!").
 function showWord(text) {
@@ -121,7 +125,8 @@ function guidance() {
   if (time < captionUntil || cameraState().held) return;
   const story = currentStory(); caption(story.prompt);
   $('coach').dataset.tone = story.kind === 'action' ? 'action' : story.kind === 'celebrate' ? 'celebrate' : 'hint';
-  if (bridge.getState().visited && !held()) speech.queue('won', { delay: .35 });
+  // The celebration (scenes/celebrate.js) says it when the grove is reached.
+  if (bridge.getState().visited && !celebrated && !held()) speech.queue('won', { delay: .35 });
 }
 function launchAction(action) {
   // The crossing and the walk to the grove: they start on their own once every friend is home.
@@ -186,13 +191,21 @@ function failDone() {
   if (state.asking && !state.candidates.includes(BRIDGE_OBSTACLES[state.asking].species)) { bridge.dismiss(); caption('Finnum fleiri vini undir laufunum!', 2.8); }
   syncBridge(); reflectEnding();
 }
+// The ending card comes when the round is won and the celebration (a script) is over; what the child found shows in it.
+const endingDue = () => game.getState().phase === 'won' && bridge.getState().visited && !bridge.getState().active && !world?.sceneBusy();
+function reflectGifts() {
+  const found = game.getState().found.length, row = $('ending-gifts');
+  row.hidden = found === 0;
+  if (found) $('ending-gifts-text').textContent = VOICE_LINES[found === 1 ? 'gifts1' : 'gifts2'].text;
+}
 function reflectEnding() {
   const state = bridge.getState();
   const won = game.getState().phase === 'won' && state.visited;
   if (won && !celebrated && !state.active) {
     celebrated = true; world.celebrate(); audio.win();
   }
-  const showEnding = won && !state.active;
+  const showEnding = endingDue();
+  if (showEnding && $('ending').hidden) reflectGifts();
   $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding;
   $('cancel-choice').hidden = !whoVisible();
   $('holding').hidden = !started || state.branch !== 'held' || state.visited || Boolean(state.active);
@@ -282,7 +295,8 @@ function refreshControls() {
   $('camera').setAttribute('aria-label', overview ? 'Fara nær og halda áfram að leika' : 'Sjá allt svæðið');
   $('camera').querySelector('small').textContent = overview ? 'Nær' : 'Yfirlit';
   $('overview-hint').hidden = !started || !overview;
-  const finished = state.phase === 'won' && task.visited && !task.active;
+  const finished = endingDue();
+  if (finished && $('ending').hidden) reflectGifts();
   $('coach').hidden = !started || finished || overview;
   $('ending').hidden = !finished || overview;
   const worldInput = !camera.moving && camera.worldInputEnabled !== false && !overview;
@@ -376,7 +390,7 @@ function start({ restart = false } = {}) {
   started = true; userPaused = false; phaseBefore = ''; audio.cancel(); speech.stop();
   autoStep = null; autoAge = 0; blockedAuto = null; storyKey = ''; captionUntil = 0; idleTime = 0; whoShown = false;
   $('who').hidden = true; $('beat-word').classList.remove('show');
-  $('coach').hidden = false; $('ending').hidden = true; $('progress').hidden = false; $('journey').hidden = false;
+  $('coach').hidden = false; $('ending').hidden = true; $('ending-gifts').hidden = true; $('progress').hidden = false; $('journey').hidden = false;
   caption('Kíktu undir lauf. Hver felur sig þar?', 1.2);
   reflectProgress(game.getState()); reflectBasket(); reflectEnding(); syncPause(); audio.unlock(); music.unlock();
   if (!restart) speech.play('welcome');
@@ -412,13 +426,13 @@ function frame(timestamp) {
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollBridgeEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
-      else if (event.type === 'scene-say') sayLine(event.line);
+      else if (event.type === 'scene-say') sayLine(event.line, event);
       else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
       else if (event.type === 'branch-lift') audio.branchLift();
-      else if (event.type === 'beat' && event.id === 'lift') { showWord('Upp!'); audio.branchLift(); }
-      else if (event.type === 'beat' && event.id === 'roll') { showWord(PUSH_WORDS[event.index] ?? PUSH_WORDS.at(-1)); audio.logRoll(); }
-      else if (event.type === 'beat' && event.id === 'lay') showWord(PANEL_WORDS[event.index] ?? PANEL_WORDS.at(-1));
+      else if (event.type === 'beat' && event.id === 'lift') { showWord('Upp!'); audio.branchLift(); audio.strain(); }
+      else if (event.type === 'beat' && event.id === 'roll') { showWord(PUSH_WORDS[event.index] ?? PUSH_WORDS.at(-1)); audio.logRoll(); audio.strain(); }
+      else if (event.type === 'beat' && event.id === 'lay') { showWord(PANEL_WORDS[event.index] ?? PANEL_WORDS.at(-1)); audio.strain(); }
       else if (event.type === 'fail-bump') audio.bonk();
       else if (event.type === 'fail-done') failDone();
       else if (event.type === 'branch-lower') audio.branchLower();
@@ -427,7 +441,7 @@ function frame(timestamp) {
       else if (event.type === 'staging-arrival') audio.stagingArrival();
       else if (event.type === 'bark-pickup') audio.barkPickup();
       else if (event.type === 'bark-place') audio.barkPlace(event.panel);
-      else if (event.type === 'boardwalk-complete') audio.boardwalkComplete();
+      else if (event.type === 'boardwalk-complete') { audio.boardwalkComplete(); caption('Gönguleiðin er tilbúin!', 3.5); }
       else if (event.type === 'final-arrival' || event.type === 'berry-arrival') audio.berryArrival();
       else if (event.type === 'bridge-complete' && bridge.complete(event.id)) {
         syncBridge(); reflectEnding(); guidance();
@@ -490,7 +504,7 @@ window.__memory = {
 window.__memoryReady = false;
 try {
   const soundReady = Promise.allSettled([speech.ready, music.ready, audio.preload?.()]);
-  $('basket').querySelector('.basket-icon').innerHTML = BASKET_ICON;
+  $('basket').querySelector('.basket-icon').innerHTML = BASKET_ICON; $('ending-gifts').querySelector('.basket-icon').innerHTML = BASKET_ICON;
   world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint });
   await soundReady;
   world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);

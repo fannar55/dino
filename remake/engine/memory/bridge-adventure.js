@@ -15,9 +15,11 @@ const TRI_WAIT=[[-4.2,.4],[-6.8,1.1]],TRI_WAIT_YAW=-1.05;
 // Park helpers outside the two working lanes; Stego wait already astride the
 // bark supply, so neither companion must walk through the other's pickup spot.
 const SUPPLY_STAND=[9.05,-15.6];
-// Where each friend ends the walk to the grove (by member): the Þríhyrnur and a Kambeðla in front, with Mosi's place (4.5, -24.9)
-// between them, the Þórseðlur and the other Kambeðla behind. Their headings are in beginCrossTravel.
-const FINAL_PARKING=[[2.8,-25.7],[-.8,-25.3],[1.5,-28.4],[5.6,-28.7],[8,-25.3],[8.2,-28.2]];
+// Where each friend ends the walk to the grove (by member) and which way it faces there: a group photo for the celebration. The
+// Þríhyrnur and the Kambeðlur stand in a shallow row in front, turned to the camera on the south-east, the Þórseðlur beside
+// the outer berry shrubs, and Mosi has the middle at the back (GROVE_LEADER), clear of every one of them, so that each face shows.
+const FINAL_PARKING=[[1.6,-24.6],[-1.2,-25.4],[.4,-28.3],[8.4,-28.5],[6.7,-24.8],[9.8,-25.6]];
+const FINAL_YAW=[-1.35,-1.25,-.95,-1,-1.3,-1.15];
 // The crossing: one file over the log behind Mosi, every friend at one trot (metres a second), each a body
 // length and `gap` behind the one ahead; a long neck may reach `reach` over the low tail in front. They cross
 // in this order: the builders (waiting in line) first, the Kambeðlur (the farther bay first, its way passes
@@ -41,8 +43,8 @@ const LAY={carry:3.2,back:3.6,straighten:.35,hold:.5,calm:{straighten:.15,hold:.
 // side of Mosi's and nobody crosses in front of another. The deepest places go first. Row mates go in together; a body
 // length and `gap` separate the rows; they all walk at `speed`.
 const FINISH={speed:3.4,gap:.6,lane:1,exit:1.25,rows:[[2,3],[1,5],[0,4]],side:[-1,-1,-1,1,1,1]};
-// Mosi walks the boardwalk first, on past it to his place in front of the berries (`way`), and turns back to welcome them (facing `welcome`).
-const GROVE_LEADER={way:[[4.5,-23.6],[4.5,-24.9]],welcome:[4.5,-20.5]};
+// Mosi walks the boardwalk first, on past it to his place at the back of the grove, in the middle (`way`), and turns to face them (facing `welcome`).
+const GROVE_LEADER={way:[[4.5,-23.6],[4.5,-27.2]],welcome:[4.5,-20.5]};
 const smooth=value=>{const t=THREE.MathUtils.clamp(value,0,1);return t*t*(3-2*t)};
 // A wrong friend's try: where the pair stands to have a go at each obstacle (centre, facing yaw, the two
 // members this far apart across it) and how it gets there and back: straight hops, lifted over closed leaves.
@@ -228,7 +230,7 @@ export function createBridgeAdventure({scene,heightAt,nests,fx,planWalk,cancelWa
     if(!order.length){complete();return;}
     const member=order[index],actor=allActors()[member];
     actor.clearSupport?.();actor.clearLook?.();actor.walk?.(false);
-    const yaw=!final?Math.PI:actor.species==='brontosaurus'?-.2:actor.species==='stegosaurus'?-Math.PI*.37:-Math.PI/2;
+    const yaw=!final?Math.PI:FINAL_YAW[member];
     // A larger friend waits further back, so her head stays off the log while she lines up.
     if(!final){action.pending={actor,member,goal:{point:props.deckPoint(-3-1.6*((actor.lengthFactor??1)-1)),yaw:props.finalYaw},finalYaw:yaw,age:0,kind:'cross'};return;}
     // Straight from where they stand to the foot of the boardwalk, over it in their own lane, then straight to their place.

@@ -32,6 +32,7 @@ import { finishScene } from './scenes/finish.js';
 import { sampleTravel } from './travel-traffic.js';
 import { measureWalkGait } from './walk-gait.js';
 import { SURPRISE_ITEMS, createSurpriseItem } from './surprise-items.js';
+import { createIdlePlay } from './idle-play.js';
 
 // Eight leaves in a 4 x 2 grid turned toward the search camera: the four of a row run across the screen (each `across`
 // metres from the next), the two rows `deep` apart, so the board is as wide on the screen as it can be made narrow.
@@ -74,6 +75,8 @@ const HOP = Object.freeze({ reach: 2.8, speed: 6.4, arc: .2, leap: .75, dome: 1,
 // Where a ground plant may not stand: under a leaf (it would show on top of it) or where an opened leaf lies, with a margin.
 const onLeafGround = (x, z, margin = 0) => CELLS.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 1.3 * LEAF_SCALE + .75 + margin || Math.hypot(x - cx - .45, z - cz + 1.35) < 1.3 * LEAF_SCALE + .5 + margin);
 const smooth = t => { t = THREE.MathUtils.clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+// A small seeded generator (mulberry32) for the friends' play, so a run with a seed plays the same games.
+const seededRandom = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const easeOutBack = t => { const k = THREE.MathUtils.clamp(t, 0, 1) - 1; return 1 + 2.4 * k * k * k + 1.4 * k * k; };
 const turnToward = (from, to, amount) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
 const visibleStatus = value => ['open', 'revealed', 'selected', 'matched', 'found'].includes(value);
@@ -132,7 +135,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'memoryMorning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
   world.resolvePoint = createPointResolver(world); world.points = world.resolvePoint;
   let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0;
-  let forest, forestVisibility, groundLook, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure;
+  let forest, forestVisibility, groundLook, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure, idlePlay;
   const leafResources = createLeafResources(), contactResources = createContactResources();
   leafResources.geometry.computeBoundingBox();
   const leafCorners = [], footBones = new WeakMap(), actorIds = new WeakMap(), leafBox = leafResources.geometry.boundingBox;
@@ -146,15 +149,19 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const fx = createWorldFx({ scene, heightAt: (x, z) => world.heightAt(x, z), wet: wetGround, wood: (x, z) => adventure?.onWalkway(x, z) ?? false });
   const renderTargets = [];
   const deferredEvents = [];
+  // The celebration's beats as they happen ({ name, t (game seconds), cut }), for the playthrough's report and pictures.
+  const beats = [];
   let bridgeSnapshot = { selected: null, atStaging: false, boardwalkBuilt: false, visited: false };
-  const homeNav = createHomeNavigation({ destinations: () => cells.filter(cell => cell.transfer).map(cell => ({ actor: cell.actor, point: cell.transfer.end, yaw: cell.transfer.endYaw })), heightAt: (x, z) => world.heightAt(x, z), riverDistance, actors: () => [...babyActors.filter(actor => adventure?.isBusy() ? !adventure.hasTravelReservation(actor) : !cells.some(cell => cell.actor === actor && cell.transfer && !cell.transfer.waiting)), ...(mosi && !bridgeSnapshot.atStaging && !mosiWalk && !mosiAcross ? [mosi] : [])], leaves: () => cells.filter(cell => !matchedStatus(cell.status)).map(cell => ({ x: cell.root.position.x, z: cell.root.position.z })), objects: () => {
+  const homeNav = createHomeNavigation({ destinations: () => cells.filter(cell => cell.transfer).map(cell => ({ actor: cell.actor, point: cell.transfer.end, yaw: cell.transfer.endYaw })), heightAt: (x, z) => world.heightAt(x, z), riverDistance, actors: () => [...babyActors.filter(actor => adventure?.isBusy() ? !adventure.hasTravelReservation(actor) : !cells.some(cell => cell.actor === actor && cell.transfer && !cell.transfer.waiting)), ...(mosi && !bridgeSnapshot.atStaging && !mosiWalk && !mosiAcross ? [mosi] : [])], leaves: () => cells.filter(cell => !matchedStatus(cell.status)).map(cell => ({ x: cell.root.position.x, z: cell.root.position.z })), objects: navObjects });
+  // The things the friends' walks keep clear of beside the leaves: the log and the branch (as measured), the glade's stones and trunks.
+  function navObjects() {
     const debug = adventure?.getDebug(), collision = debug?.collision; if (!collision) return gladeScenery?.navigationObjects ?? [];
     const measured = bridgeCollisionObjects(debug);
     const matrix = new THREE.Matrix4().fromArray(collision.logMatrix), a = new THREE.Vector3(-collision.logLength / 2, 0, 0).applyMatrix4(matrix), b = new THREE.Vector3(collision.logLength / 2, 0, 0).applyMatrix4(matrix);
     const result = [{ id: 'main-log', a, b, radius: collision.logRadius, parts: measured.find(value => value.id === 'main-log')?.parts }];
     for (const tube of collision.tubes ?? []) for (let i = 1; i < tube.points.length; i++) result.push({ id: tube.id, a: new THREE.Vector3(...tube.points[i - 1]), b: new THREE.Vector3(...tube.points[i]), radius: tube.radius, parts: [measured.find(value => value.id === tube.id)?.parts[i - 1]].filter(Boolean) });
     return [...result, ...(gladeScenery?.navigationObjects ?? [])];
-  } });
+  }
   const actorFrustum = new THREE.Frustum(), actorView = new THREE.Matrix4(), actorSphere = new THREE.Sphere();
   let cheerAge = 100, bonkAge = 100, lastStats = {}, reducedMotion = false;
   // Mosi's walk over the bridge (the crossing moves him; nothing else does), where he stands now, and his walk clip's own speed.
@@ -206,7 +213,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       else fx.emit(effect.kind, call(effect.at), { count: effect.count, strength: effect.strength ?? 1 });
     }
     for (const sound of [line.sound ?? []].flat()) deferredEvents.push({ type: 'scene-sound', ...(typeof sound === 'string' ? { name: sound } : sound) });
-    if (line.say) deferredEvents.push({ type: 'scene-say', line: line.say });
+    // A line of Mosi's: its name, or { line, queue } to have it wait until what he is saying is over (the celebration's).
+    if (line.say) deferredEvents.push({ type: 'scene-say', ...(typeof line.say === 'string' ? { line: line.say } : line.say) });
   } });
   const nose = cell => cell.actor.getNosePosition(new THREE.Vector3());
   const stage = {
@@ -234,7 +242,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     pairGesture: (species, name) => { for (const actor of stage.pair(species)) actor.gesture?.(name); },
     // The obstacles' side of a task script (scenes/branch.js): the bridge adventure moves the friends.
     task: {
-      start(id, options) { const started = adventure.start(id, options); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
+      start(id, options) { idlePlay?.settle(); const started = adventure.start(id, options); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
       beat: () => adventure.beat(),
       waitingBeat: () => adventure.waitingBeat(),
       busy: () => adventure.isBusy(),
@@ -253,8 +261,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       panelCentre: i => adventure.panelCentre(i),
       supply: () => adventure.supplyPoint(),
       // The bridge is built: the Þórseðlur let the branch go and walk home.
-      lowerBranch() { const started = adventure.start('lower'); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
+      lowerBranch() { idlePlay?.settle(); const started = adventure.start('lower'); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
     },
+    beat: (name, cut = false) => { beats.push({ name, t: +time.toFixed(2), cut }); if (beats.length > 60) beats.shift(); },
+    // The celebration's gifts (scenes/celebrate.js).
+    gifts: { count: () => found().length, hover: i => giftHover(i), start: startGifts, end: flyGifts },
     sendHome(cell) { if (cell.home && !cell.transfer && !cell.moved) startHop(cell); },
     home: cell => cell.moved,
     forceHome(cell) {
@@ -512,6 +523,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     await Promise.all(babyActors.map(actor => prepareCharacter(actor.model, lighting.sun, { levels: BABY_LEVELS, casterLevel: 2 })));
     resize();
     babyShadows = createMemoryShadowLods(babyActors, lighting.sun);
+    idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly: items.get('butterfly') ?? null,
+      sound: name => deferredEvents.push({ type: 'scene-sound', name }) });
     resize();
     onProgress('Laufin eru tilbúin.');
     // Warm the visible scene before the first playable frame.
@@ -523,7 +536,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
 
   function resetBoard(cards) {
-    scenes.cancelAll(); sceneIds.clear(); taskScript = null; mosiPuppet?.cancel();
+    scenes.cancelAll(); sceneIds.clear(); taskScript = null; mosiPuppet?.cancel(); idlePlay?.reset(); stopGifts(); beats.length = 0;
     // Mosi back at his place in the glade, standing.
     mosiWalk = null; mosiAcross = false; mosiPlace = { ...MOSI_SPOT };
     if (mosi) { mosi.root.rotation.z = 0; mosi.place(MOSI_SPOT.x, MOSI_SPOT.z, MOSI_SPOT.heading); mosi.play('idle', { fade: 0, timeScale: reducedMotion ? 0 : 1 }); }
@@ -650,6 +663,97 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       state.done = true; if (model) model.group.visible = false;
       deferredEvents.push({ type: 'scene-sound', name: 'ding' }, { type: 'scene-basket', item: cell.item });
     }
+  }
+
+  // The celebration's gifts (scenes/celebrate.js): the surprises the child found rise from Mosi's basket (his back), float above him and
+  // bob while his line says what they were, then fly to the basket in the ribbon, as a found one did. The same models as the leaves'.
+  const gift = { phase: 'none', age: 0, flyAge: 0, entries: [] };
+  const found = () => cells.filter(cell => cell.item && cell.status === 'found' && items.get(cell.item)).map(cell => ({ id: cell.item, model: items.get(cell.item) }));
+  function giftHover(i, n = Math.max(1, found().length)) {
+    const p = mosi.root.position;
+    return new THREE.Vector3(p.x + (i - (n - 1) / 2) * 1.8, p.y + 3.4, p.z + .8);
+  }
+  function giftOrigin() { const yaw = mosi.root.rotation.y; return new THREE.Vector3(mosi.root.position.x - Math.cos(yaw) * .9, mosi.root.position.y + 1.7, mosi.root.position.z + Math.sin(yaw) * .9); }
+  function startGifts() {
+    stopGifts(); gift.entries = found().map(entry => ({ ...entry, shown: false })); gift.age = 0; gift.phase = gift.entries.length ? 'rise' : 'none';
+  }
+  function flyGifts() {
+    if (gift.phase !== 'rise') return;
+    gift.phase = 'fly'; gift.flyAge = 0;
+    gift.entries.forEach((entry, i) => { entry.from = giftHover(i, gift.entries.length); });
+  }
+  function stopGifts() { for (const entry of gift.entries) entry.model.group.visible = false; gift.entries = []; gift.phase = 'none'; }
+  function updateGifts(dt) {
+    if (gift.phase === 'none' || !(dt > 0)) return;
+    gift.age += dt; if (gift.phase === 'fly') gift.flyAge += dt;
+    const n = gift.entries.length, fly = reducedMotion ? 0 : SURPRISE.fly;
+    let landed = 0;
+    gift.entries.forEach((entry, i) => {
+      const group = entry.model.group, delay = i * .4, rise = reducedMotion ? 0 : 1.1;
+      if (!entry.shown && gift.age >= delay) { entry.shown = true; group.visible = true; fx.emit('stars', giftOrigin(), { count: 8 }); }
+      if (!entry.shown) return;
+      const k = rise ? THREE.MathUtils.clamp((gift.age - delay) / rise, 0, 1) : 1, e = easeOutBack(k), hover = giftHover(i, n), origin = giftOrigin();
+      let scale = THREE.MathUtils.lerp(.05, 1, Math.min(1, e));
+      group.position.copy(origin).lerp(hover, e); if (k >= 1) group.position.y += Math.sin((gift.age - delay) * 3.1 + i) * .08;
+      if (gift.phase === 'fly') {
+        const t = smooth(fly ? gift.flyAge / fly : 1); basketWorldPoint(flightTo); flightMid.lerpVectors(entry.from, flightTo, .35); flightMid.y += 1;
+        group.position.copy(entry.from).multiplyScalar((1 - t) * (1 - t)).addScaledVector(flightMid, 2 * (1 - t) * t).addScaledVector(flightTo, t * t);
+        scale = THREE.MathUtils.lerp(1, SURPRISE.shrink, t);
+        if (t >= 1) { group.visible = false; landed++; }
+      }
+      group.scale.setScalar(scale); faceCamera(entry.model); entry.model.animate(gift.age);
+    });
+    if (gift.phase === 'fly' && landed === n) stopGifts();
+  }
+
+  // ---- the waiting friends' play (idle-play.js) ----
+  // A friend is free to play when it is at its waiting place (found, home, no task and no walk of its own) and not holding the branch.
+  function idleFriends() {
+    if (bridgeSnapshot.visited) return [];
+    return cells.filter(cell => cell.actor && cell.moved && !cell.transfer && !cell.dash && !cell.away && cell.actor.root.visible && !adventure.hasTravelReservation(cell.actor) && !(cell.species === 'brontosaurus' && bridgeSnapshot.branch === 'held'))
+      .map(cell => ({ actor: cell.actor, id: actorIds.get(cell.actor), species: cell.species, partner: cells.find(other => other !== cell && other.species === cell.species && other.moved && other.actor)?.actor ?? null }));
+  }
+  // Nothing may be going on that the child watches or decides: a script, a task, a cut or a glide, the bubbles, a wrong friend's go,
+  // a leaf opening or closing, a surprise on its way to the basket, a pair on its way home.
+  function idleBusy() {
+    if (scenes.busy() || adventure.isBusy() || cameraDirector.isHeld() || cameraDirector.isMoving() || bridgeSnapshot.asking || bridgeSnapshot.failing || bridgeSnapshot.active || gift.phase !== 'none') return true;
+    if (cells.filter(cell => cell.status === 'revealed' && !cell.away).length > 1) return true;
+    return cells.some(cell => cell.pending > 0 || cell.closing || cell.transfer || cell.dash || cell.away || (cell.surprise && !cell.surprise.done) || (cell.status === 'revealed' && cell.open < 1) || (cell.status === 'matched' && !cell.moved));
+  }
+  let solidsAt = -1, solids = [];
+  const idleSolids = () => { if (time - solidsAt > .5 || time < solidsAt) { solids = navObjects(); solidsAt = time; } return solids; };
+  const segmentGap = (x, z, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, t = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1), 0, 1); return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };
+  const rectsOverlap = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  // In the search view a friend must not stand in front of a leaf that is still shut: its box on the screen against each leaf's.
+  function idleCoversLeaf(actor, x, z) {
+    if (cameraDirector.mode() !== 'auto' || cameraDirector.getDebug().intent !== 'glade') return false;
+    const lf = actor.lengthFactor ?? 1, r = 1.2 * lf, y = world.heightAt(x, z), points = [];
+    for (const dx of [-r, r]) for (const dz of [-r, r]) for (const dy of [0, 1.9 * lf]) points.push(new THREE.Vector3(x + dx, y + dy, z + dz));
+    const box = screenBox(points);
+    return cells.some(cell => !cell.moved && !matchedStatus(cell.status) && cell.id != null && rectsOverlap(box, screenBox(leafCorners.map(corner => corner.clone().applyMatrix4(cell.leaf.matrixWorld)))));
+  }
+  // May `actor` stand on `p` while it plays? Not in water or on the boardwalk, not on a leaf's ground, not by the log or the branch,
+  // never nearer to another friend, Mosi or a leaf than it is now, and never in front of a leaf in the search view.
+  function idleClear(actor, p) {
+    const x = p.x, z = p.z, from = actor.root.position, size = 1.3 * (actor.lengthFactor ?? 1);
+    if (wetGround(x, z) || adventure.onWalkway(x, z) || riverDistance(x, z).distance < RIVER.halfWidth + 1.6 || Math.abs(world.heightAt(x, z) - world.heightAt(from.x, from.z)) > .2) return false;
+    if (onLeafGround(x, z, .35) && !onLeafGround(from.x, from.z, .35)) return false;
+    const away = (ax, az, need) => Math.hypot(x - ax, z - az) >= Math.min(need, Math.hypot(from.x - ax, from.z - az)) - .01;
+    for (const other of babyActors) if (other !== actor && other.root.visible && !away(other.root.position.x, other.root.position.z, (size + 1.3 * (other.lengthFactor ?? 1)) * .9 + .3)) return false;
+    if (!away(mosi.root.position.x, mosi.root.position.z, size + 2.4)) return false;
+    for (const object of idleSolids()) if (segmentGap(x, z, object.a, object.b) < object.radius + size * .8 && segmentGap(from.x, from.z, object.a, object.b) >= object.radius + size * .8) return false;
+    return !idleCoversLeaf(actor, x, z);
+  }
+  // A plant the layout placed that is worth a sniff, near a point: flowers, ferns, bushes and reeds (not the stones).
+  const SNIFFABLE = { fern: .45, bush: .9, flowers: .2, horsetailReed: .5 };
+  function idlePlant(x, z, radius) {
+    let best = null, nearest = radius;
+    for (const plant of layout.plants) {
+      const foot = SNIFFABLE[plant.name]; if (foot === undefined) continue;
+      const size = foot * plant.scale, gap = Math.hypot(plant.position[0] - x, plant.position[1] - z) - size;
+      if (gap > .3 && gap < nearest) { nearest = gap; best = { x: plant.position[0], z: plant.position[1], radius: size }; }
+    }
+    return best;
   }
 
   function conceal(ids) {
@@ -789,6 +893,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       nest.reunionAge += delta;
     }
     adventure.update(actionDelta, time);
+    // The waiting friends' play moves their roots and gestures before their own update reads them.
+    idlePlay?.update(delta, { busy: idleBusy(), snap: scenes.busy() || adventure.isBusy() });
     for (const actor of babyActors) if (actor.root.visible && delta > 0) {
       const cell = cells.find(value => value.actor === actor);
       const revealHold = cameraTravel && cell && !cell.moved && !cell.transfer;
@@ -799,7 +905,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     lighting.focus(cameraDirector.focus(), cameraDirector.mode() === 'overview' ? 22 : 15);
     cheerAge += delta; bonkAge += delta;
     if (cheerAge > 1.2 && cheerAge - delta <= 1.2) mosi.openEyes();
-    updateMosiWalk(actionDelta); mosiPuppet.update(delta); mosi.update(delta);
+    updateMosiWalk(actionDelta); mosiPuppet.update(delta); mosi.update(delta); updateGifts(delta);
     wind.update(reducedMotion ? 0 : time); sky.update(reducedMotion ? 0 : time, camera);
     gladeScenery.update(time, reducedMotion);
     scene.updateMatrixWorld();
@@ -940,9 +1046,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     });
     if (collision) collisionObjects.push(...gladeScenery.collisionObjects);
     const homeNavigation = { ...homeNav.getDebug(), queued: cells.filter(cell => cell.transfer?.waiting).map(cell => cell.id), active: cells.filter(cell => cell.transfer && !cell.transfer.waiting).map(cell => cell.id) };
-    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), mosi: mosiPuppet?.current ?? null, mosiWalk: mosiWalk ? { onDeck: mosiWalk.onDeck, distance: +Math.min(mosiWalk.route.total, mosiWalk.age * mosiWalk.speed).toFixed(2), total: +mosiWalk.route.total.toFixed(2) } : null, mosiAcross, mosiPosition: mosi.root.position.toArray() }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
+    return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), beats, mosi: mosiPuppet?.current ?? null, mosiWalk: mosiWalk ? { onDeck: mosiWalk.onDeck, distance: +Math.min(mosiWalk.route.total, mosiWalk.age * mosiWalk.speed).toFixed(2), total: +mosiWalk.route.total.toFixed(2) } : null, mosiAcross, mosiPosition: mosi.root.position.toArray() }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
       // The plants the layout names (world-dressing.js), so a run can check that none stands where somebody walks.
-      dressing: layout.plants,
+      dressing: layout.plants, idle: idlePlay?.getDebug() ?? null,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, surprise: cell.surprise ? { age: cell.surprise.age, popped: cell.surprise.popped, done: cell.surprise.done } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
@@ -1007,7 +1113,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     /** A wrong friend's funny go at an obstacle; the adventure's fail-done event says when the pair is back. */
     startFail(species, target) {
       if (cameraDirector.mode() !== 'auto') return false;
-      const timing = adventure.startFail(species, target); if (!timing) return false;
+      idlePlay?.settle(); const timing = adventure.startFail(species, target); if (!timing) return false;
       taskScript = scenes.play(failScene(stage, species, target, timing));
       return true;
     },
@@ -1018,7 +1124,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     sceneBusy: () => scenes.busy(),
     getPairReadiness: () => Object.fromEntries(nests.filter(nest => nest.species).map(nest => [nest.species, nest.members.length === 2 && nest.members.every(actor => cells.some(cell => cell.actor === actor && cell.moved))])),
     setBridgeState(snapshot) { bridgeSnapshot = { ...snapshot }; adventure.setState(snapshot); cameraDirector.setCue(cameraCue()); updateTargets(); },
-    startBridgeTask(id) { if (!cameraDirector.isInteractive()) return false; const started = adventure.start(id); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
+    startBridgeTask(id) { if (!cameraDirector.isInteractive()) return false; idlePlay?.settle(); const started = adventure.start(id); cameraDirector.setCue(cameraCue()); updateTargets(); return started; },
     pollBridgeEvents() {
       deferredEvents.push(...adventure.pollEvents(), ...fx.pollSteps());
       if (cameraDirector.mode() === 'auto' && cameraDirector.isMoving() && adventure.isBusy()) { const ready = deferredEvents.filter(event => event.type === 'bridge-complete' || event.type === 'footstep' || event.type.startsWith('scene-')); for (const event of ready) deferredEvents.splice(deferredEvents.indexOf(event), 1); return ready; }
@@ -1026,7 +1132,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     },
     setCameraMode(mode) { const changed = cameraDirector.setMode(mode); updateTargets(); return changed; },
     getCameraState: () => cameraDirector.getDebug(),
-    setReducedMotion(value) { reducedMotion = Boolean(value); fx.setReducedMotion(reducedMotion); cameraDirector.setReducedMotion(reducedMotion); mosiPuppet.setReducedMotion(reducedMotion); adventure.setReducedMotion(reducedMotion); babyActors.forEach(actor => actor.setReducedMotion?.(reducedMotion)); mosi.play('idle', { timeScale: reducedMotion ? 0 : 1 }); },
+    setReducedMotion(value) { reducedMotion = Boolean(value); fx.setReducedMotion(reducedMotion); cameraDirector.setReducedMotion(reducedMotion); mosiPuppet.setReducedMotion(reducedMotion); adventure.setReducedMotion(reducedMotion); babyActors.forEach(actor => actor.setReducedMotion?.(reducedMotion)); idlePlay?.setReducedMotion(reducedMotion); mosi.play('idle', { timeScale: reducedMotion ? 0 : 1 }); },
     setMosiSpeech(amplitude = 0) { const level = THREE.MathUtils.clamp(Number(amplitude) || 0, 0, 1); if (level < .015) mosi.stopTalking(); else mosi.talk({ mouth: Math.round(level * 15).toString(16).repeat(5), duration: .25 }); },
     getTargets: () => renderTargets.map(target => ({ ...target })),
     getDebug,
