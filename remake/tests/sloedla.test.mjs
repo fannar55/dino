@@ -105,11 +105,23 @@ test('the DJ calls the milestones and the big moments, never on top of himself, 
   assert.equal(djCueOf({ kind: 'start' }, 0, memory), 'byrjun');
   assert.equal(djCueOf({ kind: 'tier', tier: 1 }, 1, memory), null, 'a quiet spell after a line');
   assert.equal(djCueOf({ kind: 'tier', tier: 1 }, DJ_QUIET + 0.5, memory), 'flott');
-  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 1, memory), 'r10', 'a milestone is always said (the game queues it while he talks)');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, DJ_QUIET + 1, memory), 'r10', 'his first milestone is said, even in his quiet (the game queues it while he talks)');
   assert.equal(djCueOf({ kind: 'tier', tier: 2 }, DJ_QUIET + 2, memory), null, 'a small one keeps the quiet');
   assert.equal(djCueOf({ kind: 'tier', tier: 3 }, DJ_QUIET + 2.5, memory), 'stjornukraftur', 'Stjörnukraftur is a big one');
   assert.equal(djCueOf({ kind: 'rejoin', role: 'c', back: false }, 50, memory), null, 'her first notes of the song are no news');
   assert.equal(djCueOf({ kind: 'milestone', streak: 110 }, 60, memory), null, 'no line for a hundred and ten');
+  // he does not count every five: the more he has counted in a row, the likelier he lets the next go (the number still rises on
+  // the screen); fifty and a hundred he always says
+  const counting = {};
+  const unlucky = () => 0.99;
+  assert.equal(djCueOf({ kind: 'milestone', streak: 10 }, 100, counting, unlucky), 'r10', 'the first he counts');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 15 }, 110, counting, unlucky), null, 'after one, he may let the next go');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 20 }, 120, counting, unlucky), 'r20', 'after letting one go he counts again');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 50 }, 130, counting, unlucky), 'r50', 'fifty always');
+  assert.equal(djCueOf({ kind: 'milestone', streak: 100 }, 140, counting, unlucky), 'r100', 'a hundred always');
+  const keen = {};
+  const said = [10, 15, 20, 25, 30].map((streak, i) => djCueOf({ kind: 'milestone', streak }, 200 + 10 * i, keen, () => 0.6));
+  assert.deepEqual(said, ['r10', 'r15', null, 'r25', 'r30'], 'a fair chance after one (75 %), less after two (50 %)');
   assert.equal(djCueOf({ kind: 'rejoin', role: 'b', back: true }, 70, memory), 'kambedla');
   assert.equal(djCueOf({ kind: 'end', stars: 3, misses: 0, full: true }, 70.1, memory), 'fullthus', 'the end is always said');
   assert.equal(endLineOf({ stars: 3, misses: 2 }), 'naestum');

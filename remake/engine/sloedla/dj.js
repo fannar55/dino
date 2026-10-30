@@ -40,6 +40,10 @@ const FRIENDS = { a: 'sloedla', b: 'kambedla', c: 'thorsedla' };
 const END = ['aftur', 'velgert', 'flott', 'frabaert']; // by the stars won, as the words at the end
 export const DJ_QUIET = 4; // s at least between two of his lines, but for the big ones (milestones, Stjörnukraftur, the clapping, the end)
 export const DJ_WAIT = 1.6; // s a big line may wait for him to finish the one before (the game queues it), else it is dropped
+// He does not count every five (the owner, 2026-10-30): the chance he says a milestone after 0, 1, 2, 3 or more said in a row;
+// letting one go starts the count again. Fifty and a hundred he always says.
+const COUNT_AGAIN = [1, 0.75, 0.5, 0.35];
+const ALWAYS_COUNTED = new Set([50, 100]);
 
 /**
  * The line for the end of a round (the screen shows its first words): "Fullt hús!" when every note was played in one run, "Næstum
@@ -53,15 +57,26 @@ export function endLineOf({ stars = 0, misses = 0, full = false }) {
  * What the DJ says to `event` at song time `time` (a key of DJ_LINES), or null. Events: { kind: 'start' }, { kind: 'milestone',
  * streak }, { kind: 'tier', tier }, { kind: 'clap' } (the crowd starts clapping along), { kind: 'big' }, { kind: 'rejoin', role,
  * back } (`back`: she had played before and dropped out; her first notes of the song are no news), { kind: 'end', stars, misses,
- * full } (`full`: every note in one run). The big ones (a milestone, Stjörnukraftur, the clapping, the end) are always said (the
- * game queues one while he is still talking: DJ_WAIT); the others only after DJ_QUIET s of quiet. `memory` keeps when he last
- * spoke ({ last }) and is updated when he speaks.
+ * full } (`full`: every note in one run). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
+ * one while he is still talking: DJ_WAIT), and a milestone mostly (COUNT_AGAIN, by `random`); the others only after DJ_QUIET s of
+ * quiet. `memory` keeps when he last spoke and how many milestones he has said in a row ({ last, counted }), updated as he goes.
  */
-export function djCueOf(event, time, memory) {
+export function djCueOf(event, time, memory, random = Math.random) {
   let line = null;
   let big = false;
   if (event.kind === 'start') line = 'byrjun';
-  else if (event.kind === 'milestone') { line = DJ_LINES[`r${event.streak}`] ? `r${event.streak}` : null; big = true; }
+  else if (event.kind === 'milestone') {
+    line = DJ_LINES[`r${event.streak}`] ? `r${event.streak}` : null;
+    big = true;
+    if (line) {
+      const counted = memory.counted ?? 0;
+      if (!ALWAYS_COUNTED.has(event.streak) && !(random() < COUNT_AGAIN[Math.min(counted, COUNT_AGAIN.length - 1)])) {
+        memory.counted = 0;
+        return null;
+      }
+      memory.counted = counted + 1;
+    }
+  }
   else if (event.kind === 'tier') { line = TIERS[event.tier] || null; big = event.tier === 3; }
   else if (event.kind === 'clap') { line = 'klapp'; big = true; }
   else if (event.kind === 'big') line = 'allir';

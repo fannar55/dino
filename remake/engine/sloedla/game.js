@@ -498,7 +498,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   /** The DJ speaks, when he has something to say (dj.js djCueOf decides); while he is talking, the line waits its turn. */
   function call(event) {
     if (!dj) return;
-    const line = djCueOf(event, lastTime, djMemory);
+    const line = djCueOf(event, lastTime, djMemory, random);
     if (!line) return;
     if (lastTime < djBusyUntil || djPending.length) {
       if (djPending.length >= 2) djPending.shift();
