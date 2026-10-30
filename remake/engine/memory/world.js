@@ -421,21 +421,15 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const sceneIds = new Map();
   let taskScript = null;
   function playFor(cell, lines) { if (sceneIds.has(cell)) scenes.cancel(sceneIds.get(cell)); sceneIds.set(cell, scenes.play(lines)); }
-  // The corners of the leaves that are still shut (or open and waiting), as boardPoints() has them for the whole board.
-  function shutLeafPoints() {
-    const points = [];
-    for (const cell of cells) {
-      if (cell.id == null || matchedStatus(cell.status) || cell.moved) continue;
-      const [x, z] = CELLS[cell.index];
-      for (const dx of [-1.45, 1.45]) for (const dz of [-1.4, 1.4]) for (const y of [.03, 1.15]) points.push([x + dx, world.heightAt(x, z) + y, z + dz]);
-    }
-    return points;
-  }
+  // The crossing waits for the gifts: a leaf is still shut (or open and waiting for its other half), or a found pair is still rising or
+  // flying to the basket (it has not landed yet).
+  const giftsWait = () => cells.some(cell => cell.id != null && !cell.moved && !matchedStatus(cell.status)) || cells.some(cell => cell.gift && ['rise', 'fly'].includes(cell.gift.phase));
   const cameraCue = () => {
     const cue = adventure?.getCameraCue?.(); if (!cue || cue.key === 'glade') return gladeCue();
-    // The wide view before the crossing waits for the gifts: every leaf still shut stays inside it, so each can be tapped (a leaf at the
-    // edge would have its button switched off, and its pair could never be found).
-    if (cue.key === 'bridge-ready') return { ...cue, points: [...cue.points, ...shutLeafPoints()] };
+    // The bridge is built and every friend is home, but gifts are left: the camera stays on the search view, where each leaf is the size it
+    // is when the child plays (the wide view of the bridge made them small), and every leaf, shut or not, is in it. Only once the last pair
+    // has landed in the basket does it glide out to the wide view; the crossing starts from there (game.js waits for a still camera).
+    if (cue.key === 'bridge-ready' && giftsWait()) return gladeCue();
     if (cue.key === 'branch') return { ...cue, points: [...cue.points, [-10.2, 2.3, -5.0], [-10.2, 0, -1.8]], direction: [.85, .9, .35] };
     if (cue.key === 'rolling-log') {
       // Keep the route establishing shot wide, then show the two helpers and

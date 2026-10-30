@@ -33,7 +33,10 @@
 //                   (no wrong friend at the log then, and the crossing waits for the last pair).
 //   --gifts-last    full and rapid find the three gift pairs only after every friend pair (and the bridge), so the crossing's wait for the gifts is seen:
 //                   the gifts-left story, Mosi's line, the gold arrow on a shut leaf and a tap on the staging spot (report.giftsLeft), and that the crossing
-//                   starts once, after the last pair has landed in the basket (report.crossAfterGifts).
+//                   starts once, after the last pair has landed in the basket (report.crossAfterGifts). The wait is played in the search view:
+//                   report.giftsView (the camera's intent and every shut leaf inside the frame), report.giftsArrow (the gold arrow's box, inside the
+//                   screen, off the HUD and the caption) and report.giftsGlide (the camera from the last landing to the crossing's first shot: the
+//                   intents it passed, seconds, jumps, Mosi on screen; the frames are in camtrack.json).
 //   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
 //                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
 //                   (it slows the game down a little, so use it for a check run, not for timings).
@@ -265,6 +268,22 @@ const TIMELINE_JS = `(() => {
   window.__scenePerf = []; let previous = 0;
   const tick = now => { const d = window.__demoStats; if (previous && d && d.scene && d.scene.busy) window.__scenePerf.push(now - previous); previous = now; requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
+  // The camera on every frame while gifts are still to land and for 4 s after the crossing starts (the last 900 frames kept): report.giftsGlide reads the glide out of the last landing from it.
+  window.__camTrack = []; let trackStop = 0;
+  const track = now => {
+    const m = window.__memory, d = window.__demoStats, c = d && d.camera;
+    if (m && c && c.position && !(trackStop && now > trackStop)) {
+      const b = m.bridge(), cross = b.active === 'cross';
+      if (cross && !trackStop) trackStop = now + 4000;
+      if (cross || m.giftsLeft().toLand > 0 || trackStop) {
+        const ring = window.__camTrack;
+        ring.push({ t: +(now / 1000).toFixed(3), p: c.position.map(v => +v.toFixed(2)), g: c.target.map(v => +v.toFixed(2)), intent: c.intent, moving: Boolean(c.moving), shot: c.shot || null, held: Boolean(c.held), cross, basket: m.basket(), flying: (d.cells || []).some(x => x.gift && ['rise', 'fly'].includes(x.gift.phase)) });
+        if (ring.length > 900) ring.shift();
+      }
+    }
+    requestAnimationFrame(track);
+  };
+  requestAnimationFrame(track);
   setInterval(() => {
     const m = window.__memory; if (!m) return;
     const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), who = m.who ? m.who() : {}, w = d.scene && d.scene.waiting;
@@ -330,6 +349,25 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
     basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
+
+// The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
+const GIFTS_VIEW_JS = `(() => { const d = window.__memory.stats({ measure: true }), f = d.frame, shut = f.leaves.filter(l => l.status === 'hidden');
+  return { intent: d.camera.intent, moving: d.camera.moving, size: f.size, shutLeaves: shut.length, shutInside: shut.every(l => l.inside), outside: shut.filter(l => !l.inside).map(l => l.cell),
+    leafPxMin: { width: Math.round(Math.min(...shut.map(l => l.width))), height: Math.round(Math.min(...shut.map(l => l.height))) }, mosiInside: f.mosi.inside, homesInside: f.homes.every(h => h.inside), mosiAt: d.scene.mosiPosition }; })()`;
+
+// The gold arrow over a guided leaf, from its own computed style: the turned square's box (and the glow and the bob around it), whether it is inside the screen, and what it overlaps of the HUD and the caption.
+const ARROW_JS = `(() => {
+  const el = document.querySelector('#targets .is-guided'); if (!el) return null;
+  const r = el.getBoundingClientRect(), a = getComputedStyle(el, '::after'), px = value => parseFloat(value) || 0;
+  const borderBox = a.boxSizing === 'border-box', W = borderBox ? px(a.width) : px(a.width) + px(a.borderRightWidth), H = borderBox ? px(a.height) : px(a.height) + px(a.borderBottomWidth);
+  const cx = r.left + px(a.left) + W / 2, cy = r.top + px(a.top) + H / 2, half = (W + H) / 2 * Math.SQRT1_2;
+  const box = (pad, bob) => ({ left: Math.round(cx - half - pad), top: Math.round(cy - half - pad - bob), right: Math.round(cx + half + pad), bottom: Math.round(cy + half + pad + bob) });
+  const core = box(0, 4), glow = box(12, 4);
+  const hits = [['ribbon', '.adventure-ribbon'], ['controls', '.topbar nav'], ['coach-portrait', '.coach-portrait'], ['caption', '.coach-message']].map(([name, selector]) => { const e = document.querySelector(selector), b = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null; return b && b.width ? { name, overlap: core.left < b.right && core.right > b.left && core.top < b.bottom && core.bottom > b.top, glowOverlap: glow.left < b.right && glow.right > b.left && glow.top < b.bottom && glow.bottom > b.top } : null; }).filter(Boolean);
+  return { leaf: el.dataset.target, leafBox: { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) },
+    arrow: { width: W, height: H, borderRight: px(a.borderRightWidth), color: a.borderRightColor, top: a.top, left: a.left, filter: a.filter, side: Math.round(half * 2) }, core, glow,
+    insideScreen: core.left >= 0 && core.top >= 0 && core.right <= innerWidth && core.bottom <= innerHeight, glowInside: glow.left >= 0 && glow.top >= 0 && glow.right <= innerWidth && glow.bottom <= innerHeight,
+    overHud: hits.filter(h => h.overlap).map(h => h.name), glowOverHud: hits.filter(h => h.glowOverlap).map(h => h.name) }; })()`;
 
 // One read of everything the driver decides on.
 const SNAPSHOT_JS = `(() => {
@@ -876,14 +914,19 @@ async function main() {
         if (wantGifts && o.giftsLast && s.story.key === 'gifts-left' && !giftsLeftChecked) {
           giftsLeftChecked = true; step('every friend home, the bridge built, gifts left: hesitate for the arrow');
           const speechBefore = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft').length;
+          // The wait is played in the search view (camera intent 'glade'): once the glide has settled, every shut leaf is inside the frame.
+          await waitFor('!window.__demoStats.camera.moving', 20000, 'the wait camera');
+          report.giftsView = await ev(GIFTS_VIEW_JS); step('the wait view', report.giftsView);
           const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
           const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
+          report.giftsArrow = await ev(ARROW_JS).catch(e => ({ error: e.message })); step('the gold arrow', report.giftsArrow ?? {});
+          const stagingButton = await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
           const before = await ev(SNAPSHOT_JS);
           const leafButtons = await ev(LEAF_BOXES_JS(':not(:disabled)')); delete leafButtons.boxes; // the shut leaves' buttons as the wide view lays them out
           await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
           const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
           const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
-          report.giftsLeft = { story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
+          report.giftsLeft = { stagingButton, story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
             leafButtons, linesBeforeTap: speechBefore, linesAfterTap: spoken.length, crossStartedByTap: after.bridge.active === 'cross' || after.mosi === 'walk', captionAfterTap: after.caption, giftsLeft: after.giftsLeft };
           step('gifts left check', report.giftsLeft); continue;
         }
@@ -918,6 +961,17 @@ async function main() {
     // ---- what the run looked like -----------------------------------------------------------------------------
     try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
     report.timelineCheck = timelineCheck(report.timeline, report.taps);
+    // The glide from the search view into the crossing once the last gift pair has landed (--gifts-last): from the camera on every frame.
+    try {
+      const track = await ev('window.__camTrack');
+      if (o.giftsLast && track?.length) {
+        const [w, h] = o.size.split('x').map(Number);
+        report.giftsGlide = analyseGlide(track, w / h, report.giftsView?.mosiAt);
+        const keep = report.giftsGlide.landedAt != null ? track.filter(f => f.t >= report.giftsGlide.landedAt - 1.5) : track.slice(-300);
+        await fsp.writeFile(path.join(outDir, 'camtrack.json'), JSON.stringify(keep));
+        step('the glide into the crossing', { ...report.giftsGlide, intents: report.giftsGlide.intents?.length });
+      }
+    } catch (e) { report.giftsGlide = { error: e.message }; }
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
       report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
@@ -987,6 +1041,39 @@ async function main() {
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
   if (fatal || !r.finished || r.errors.length) process.exitCode = 1;
+}
+
+// The camera's frames around the last gift pair's landing and the crossing's start, read out: the intents it passed through, how far and how fast it moved
+// (a jump over 3 m in one frame is a cut), how long the glide took, whether Mosi (his feet and head, from his place in the wait) stayed on the screen, and how
+// long after the landing the crossing began. Points are projected with the game's own lens (35 degrees, the page's aspect).
+function analyseGlide(track, aspect, mosiAt) {
+  const landed = track.find(f => f.basket > 0 && track.every(g => g.basket <= f.basket) && f.basket === Math.max(...track.map(g => g.basket)));
+  const cross = track.find(f => f.cross);
+  if (!landed || !cross) return { error: 'no landing or no crossing in the camera track', frames: track.length };
+  const view = track.filter(f => f.t >= landed.t - 1.2 && f.t <= cross.t + 2.0);
+  const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const norm = a => { const l = Math.hypot(...a); return a.map(v => v / l); }, crossP = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const tan = Math.tan(35 / 2 * Math.PI / 180);
+  const inside = (frame, point) => { const f = norm(sub(frame.g, frame.p)), r = norm(crossP(f, [0, 1, 0])), u = crossP(r, f), rel = sub(point, frame.p), z = dot(rel, f); if (z <= 0) return false; return Math.abs(dot(rel, r) / (z * tan * aspect)) <= 1 && Math.abs(dot(rel, u) / (z * tan)) <= 1; };
+  const mosiPoints = mosiAt ? [mosiAt, [mosiAt[0], mosiAt[1] + 2.1, mosiAt[2]]] : [];
+  let maxStep = 0, peakSpeed = 0, jumps = 0, mosiOut = 0, glideFrames = 0, cutStep = 0;
+  const intents = [];
+  for (let i = 0; i < view.length; i++) {
+    const f = view[i], last = intents.at(-1);
+    if (!last || last.intent !== f.intent || last.moving !== f.moving || last.shot !== f.shot) intents.push({ at: +(f.t - landed.t).toFixed(2), intent: f.intent, moving: f.moving, shot: f.shot, cross: f.cross });
+    if (i && f.t <= cross.t + 0.4) {
+      const step = Math.hypot(...sub(f.p, view[i - 1].p)), dt = f.t - view[i - 1].t;
+      if (f.t < cross.t - 0.05) { maxStep = Math.max(maxStep, step); if (dt > 0) peakSpeed = Math.max(peakSpeed, step / dt); if (step > 3) jumps++; }
+      else cutStep = Math.max(cutStep, step); // the crossing's own first shot is a cut (scenes/cross.js)
+    }
+    if (f.t >= landed.t && f.t < cross.t && f.moving) glideFrames++;
+    if (f.t >= landed.t && f.t <= cross.t + 0.1 && mosiPoints.some(point => !inside(f, point))) mosiOut++;
+  }
+  const glade = view.filter(f => f.t < landed.t && f.intent !== 'glade' && !f.cross);
+  const movingSpan = view.filter(f => f.t >= landed.t && f.t < cross.t && f.moving);
+  return { landedAt: landed.t, crossAt: cross.t, secondsToCrossing: +(cross.t - landed.t).toFixed(2), glideSeconds: movingSpan.length ? +(movingSpan.at(-1).t - movingSpan[0].t).toFixed(2) : 0, glideFrames,
+    beforeLandingNotGlade: glade.length, maxStepMetres: +maxStep.toFixed(2), crossingCutMetres: +cutStep.toFixed(2), peakSpeedMetresPerSecond: +peakSpeed.toFixed(1), jumpsOver3m: jumps, mosiOutFrames: mosiOut, mosiChecked: mosiPoints.length > 0,
+    intentAtLanding: landed.intent, intentAtCrossing: cross.intent, intents, frames: view.length, from: view[0].p, to: view.at(-1).p };
 }
 
 // frames/%05d.jpg -> round.mp4 at 15 fps. The screencast sends a frame only when the picture changes (about 22 a second
