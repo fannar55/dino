@@ -10,7 +10,9 @@ import { createPointResolver } from '../points.js';
 import { createActor } from '../actor.js';
 import { prepareCharacter, releaseCharacter, updateCharacterLods } from '../character-lod.js';
 import { createForest } from '../../world/forest/forest.js';
-import { createLeafResources, makeLeaf, poseLeaf, LEAF_SCALE, createContactResources, makeContact, createClearingFloor, createGladeScenery } from './world-props.js';
+import { createLeafResources, makeLeaf, poseLeaf, LEAF_SCALE, createContactResources, makeContact, createGladeScenery } from './world-props.js';
+import { CORRIDORS, installGroundLook } from './world-ground.js';
+import { dressGround } from './world-dressing.js';
 import { createBridgeAdventure, wetGround } from './bridge-adventure.js';
 import { bridgeValley, refineBridgeGround, riverDistance, RIVER, MARSH, BRIDGE } from './bridge-props.js';
 import { createMemoryShadowLods } from './world-character-shadows.js';
@@ -81,8 +83,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const params = new URLSearchParams(globalThis.location?.search || '');
   const preset = pickQuality(params);
   const q = { ...preset, trees: preset.trees * .22, grass: preset.grass * .07, plants: preset.plants * .28 };
-  const base = pickLook('morning');
-  const look = { ...base, sun: { ...base.sun, azimuth: 135, elevation: 48, color: '#ffe4b9', intensity: 2.75 }, hemi: { ...base.hemi, sky: '#d2e4e9', ground: '#8b7956', intensity: .72 }, fog: { ...base.fog, color: '#c4d1c7', density: .009 }, envIntensity: .62 };
+  const look = pickLook('memoryMorning');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance', stencil: false });
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = look.exposure; renderer.shadowMap.enabled = q.shadowSize > 0;
@@ -107,18 +108,19 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const water = 1 - THREE.MathUtils.smoothstep(riverDistance(x, z).distance, RIVER.halfWidth + .1, RIVER.halfWidth + .65);
       // Full-height procedural crowns must stay outside every automatic
       // camera corridor. Authored low plants frame these foreground edges.
-      const cameraCorridor = x > -12 && x < 21 && z > -18 && z < 16 || x > -5 && x < 15 && z >= -34 && z <= -16;
+      const cameraCorridor = CORRIDORS.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z >= z0 && z <= z1);
       return Math.max(bare, water, cameraCorridor ? 1 : 0);
     },
     shots: { board: SHOT },
+    plants: dressGround({ avoid: onLeafGround }),
     actors: { mosi: { position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading }, ...Object.fromEntries(CELLS.map(([x, z], i) => [`place${i}`, { position: [x, 0, z], heading: 90 }])) },
     lift(x, z) { return bridgeValley(x, z); },
   };
   const actors = new Map();
-  const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
+  const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'memoryMorning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
   world.resolvePoint = createPointResolver(world); world.points = world.resolvePoint;
   let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0;
-  let forest, forestVisibility, floor, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure;
+  let forest, forestVisibility, groundLook, gladeScenery, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, adventure;
   const leafResources = createLeafResources(), contactResources = createContactResources();
   leafResources.geometry.computeBoundingBox();
   const leafCorners = [], footBones = new WeakMap(), actorIds = new WeakMap(), leafBox = leafResources.geometry.boundingBox;
@@ -428,22 +430,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     // effects. Do not also draw the story forest's distant air batches.
     const nativeAir = forest.group.getObjectByName('Atmosphere');
     if (nativeAir) nativeAir.visible = false;
-    // This scene has a broader open floor than the story chapters. Preserve
-    // their material while narrowing only this clearing's grass contrast.
+    // This scene has a broader open floor than the story chapters: the ground shader gets its own colours, sand and mud.
     const groundMaterial = scene.getObjectByName('Forest ground')?.material;
-    if (groundMaterial) {
-      const compile = groundMaterial.onBeforeCompile, cacheKey = groundMaterial.customProgramCacheKey.bind(groundMaterial);
-      groundMaterial.onBeforeCompile = function (shader, activeRenderer) {
-        compile.call(this, shader, activeRenderer);
-        shader.uniforms.uGrassBase.value.set('#778b55'); shader.uniforms.uGrassSun.value.set('#8e9f61'); shader.uniforms.uClover.value.set('#80934f');
-        shader.uniforms.uLeafShadow.value = .16;
-        shader.uniforms.uForestA.value.set('#53674a'); shader.uniforms.uForestB.value.set('#69774f');
-        shader.fragmentShader = shader.fragmentShader.replace('( 0.84 + 0.3 * nA.a )', '( 0.95 + 0.10 * nA.a )').replace('smoothstep( 0.6, 0.74, nB.g ) * 0.55', 'smoothstep( 0.6, 0.74, nB.g ) * 0.16').replace('soil );', 'soil * 0.3 );').replace('litter * 0.55', 'litter * 0.2');
-      };
-      groundMaterial.customProgramCacheKey = () => `${cacheKey()}-memory-soft-moss`;
-    }
+    if (groundMaterial) groundLook = installGroundLook(groundMaterial);
     refineBridgeGround(forest, world.heightAt);
-    floor = createClearingFloor(world, { width: 29, depth: 47, centerZ: -9, glade: true });
     gladeScenery = createGladeScenery(world, { avoid: onLeafGround });
     for (let i = 0; i < CELLS.length; i++) {
       const [x, z] = CELLS[i], y = world.heightAt(x, z);
@@ -861,7 +851,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     for (const actor of babyActors) { if (actor.model) releaseCharacter(actor.model); actor.dispose?.(); }
     babyShadows?.dispose();
     if (!Array.isArray(babyLibrary)) babyLibrary?.dispose?.();
-    scenes.cancelAll(); mosiPuppet?.dispose(); adventure?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); floor?.dispose(); gladeScenery?.dispose(); sky.dispose();
+    scenes.cancelAll(); mosiPuppet?.dispose(); adventure?.dispose(); mosi?.dispose(); forestVisibility?.dispose(); forest?.dispose(); groundLook?.dispose(); gladeScenery?.dispose(); sky.dispose();
     for (const item of items.values()) { item.group.removeFromParent(); item.dispose(); }
     leafResources.dispose(); contactResources.dispose(); hitGeometry.dispose(); hitMaterial.dispose();
     fx.dispose(); depthShadow?.target.dispose();

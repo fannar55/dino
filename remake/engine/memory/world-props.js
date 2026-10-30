@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { createSpeciesLibrary } from '../../world/forest/species.js';
-import { RIVER, MARSH, riverDistance } from './bridge-props.js';
 import { createLivingForest, installStoryBreeze } from './world-living-forest.js';
 
 const colour = hex => new THREE.Color(hex);
@@ -194,70 +193,6 @@ export function createContactResources() {
 export function makeContact(resources, width, depth) {
   const mesh = new THREE.Mesh(resources.geometry, resources.material); mesh.scale.set(width, 1, depth); mesh.renderOrder = 8;
   return mesh;
-}
-
-/** A warm oval of fine soil, feathered into the established forest ground. */
-export function createClearingFloor(world, { width = 17, depth = 13, centerZ = 0, glade = false } = {}) {
-  const size = 512, data = new Uint8Array(size * size * 4);
-  const path = [[-8, 8], [-6, 4], [-3.4, .4], [-1, -3]], farPath = [[4, -9], [4.5, -12], [4.5, -17.25]], grovePath = [[4.5, -21.75], [4.5, -24], [4.5, -28]];
-  function pathDistance(x, z, points) {
-    let result = Infinity;
-    for (let i = 1; i < points.length; i++) { const [ax, az] = points[i - 1], [bx, bz] = points[i], dx = bx - ax, dz = bz - az, t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1); result = Math.min(result, Math.hypot(x - ax - t * dx, z - az - t * dz)); }
-    return result;
-  }
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const u = (x + .5) / size * 2 - 1, v = (y + .5) / size * 2 - 1;
-    const wx = u * width / 2, wz = centerZ - v * depth / 2;
-    const r = Math.hypot(u, v), variation = Math.sin(x * .045 + Math.sin(y * .03) * 2) * 4 + Math.sin(y * .11 + x * .13) * 2 + Math.sin(x * 32.17 + y * 27.31) * 1.8;
-    const i = (y * size + x) * 4;
-    let alpha = clamp((1 - r) / .18, 0, 1), warm = 0;
-    if (glade) {
-      const clearing = Math.hypot((wx + 4.2) / 9.4, (wz - 6.8) / 7.8), far = Math.hypot((wx - 4.5) / 6, (wz + 13.5) / 3.5), grove = Math.hypot((wx - 4.5) / 5.6, (wz + 26) / 3.7);
-      const trail = Math.min(pathDistance(wx, wz, path), pathDistance(wx, wz, farPath), pathDistance(wx, wz, grovePath));
-      alpha = Math.max(clamp((1.13 - clearing) / .2, 0, 1), clamp((1.12 - far) / .22, 0, 1), clamp((1.12 - grove) / .22, 0, 1), clamp((1.7 - trail) / .65, 0, 1));
-      warm = clamp((1.15 - trail) / 1.15, 0, 1) * 11;
-      const riverDry = THREE.MathUtils.smoothstep(riverDistance(wx, wz).distance, RIVER.halfWidth + .08, RIVER.halfWidth + .65);
-      const marshRadius = Math.hypot((wx - MARSH.center[0]) / MARSH.halfWidth, (wz - MARSH.center[1]) / MARSH.halfDepth);
-      // Let the native grassy bank cover the whole curved marsh shoulder.
-      // The painted soil resumes only on flat dry land, without a paper lip.
-      alpha *= riverDry * THREE.MathUtils.smoothstep(marshRadius, 1.65, 2.0);
-    }
-    data[i] = 194 + variation + warm; data[i + 1] = 170 + variation + warm; data[i + 2] = 119 + variation + warm * 1.2;
-    data[i + 3] = Math.round(alpha * 252);
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat); texture.colorSpace = THREE.SRGBColorSpace; texture.magFilter = THREE.LinearFilter; texture.minFilter = THREE.LinearMipmapLinearFilter; texture.generateMipmaps = true; texture.needsUpdate = true;
-  const geometry = new THREE.PlaneGeometry(width, depth, 72, 112); geometry.rotateX(-Math.PI / 2); geometry.translate(0, 0, centerZ);
-  // Check full texture bounds before dropping a triangle, preserving narrow
-  // trails while avoiding the broad transparent rectangle around the glades.
-  const uv = geometry.attributes.uv, sourceIndex = geometry.index.array, retained = [];
-  for (let at = 0; at < sourceIndex.length; at += 3) {
-    const ids = [sourceIndex[at], sourceIndex[at + 1], sourceIndex[at + 2]];
-    const x0 = clamp(Math.floor(Math.min(...ids.map(i => uv.getX(i))) * size) - 1, 0, size - 1), x1 = clamp(Math.ceil(Math.max(...ids.map(i => uv.getX(i))) * size) + 1, 0, size - 1);
-    const y0 = clamp(Math.floor(Math.min(...ids.map(i => uv.getY(i))) * size) - 1, 0, size - 1), y1 = clamp(Math.ceil(Math.max(...ids.map(i => uv.getY(i))) * size) + 1, 0, size - 1);
-    let visible = false;
-    for (let y = y0; y <= y1 && !visible; y++) for (let x = x0; x <= x1; x++) if (data[(y * size + x) * 4 + 3] > 0) { visible = true; break; }
-    if (visible) retained.push(...ids);
-  }
-  geometry.setIndex(retained);
-  const positions = geometry.attributes.position;
-  for (let i = 0; i < positions.count; i++) positions.setY(i, world.heightAt(positions.getX(i), positions.getZ(i)) + .075);
-  geometry.computeVertexNormals();
-  const material = new THREE.MeshStandardMaterial({ map: texture, roughness: 1, transparent: true, depthWrite: false });
-  // Fine soil and the gentle movement of canopy light remain readable between
-  // the planted edges without adding solid clutter to the walking lanes.
-  material.onBeforeCompile = shader => {
-    shader.uniforms.uSoilTime = world.wind?.uniforms.uWindTime ?? { value: 0 };
-    shader.vertexShader=`varying vec2 vSoilPoint;\n${shader.vertexShader}`.replace('#include <begin_vertex>','#include <begin_vertex>\nvSoilPoint=position.xz;');
-    shader.fragmentShader=`uniform float uSoilTime;varying vec2 vSoilPoint;\n${shader.fragmentShader}`.replace('#include <color_fragment>',`#include <color_fragment>
-      float grain=fract(sin(dot(floor(vSoilPoint*90.0),vec2(12.9898,78.233)))*43758.5453);
-      float mottling=sin(vSoilPoint.x*2.4+sin(vSoilPoint.y*1.6))*sin(vSoilPoint.y*3.1);
-      vec2 lightPoint=vSoilPoint+vec2(sin(uSoilTime*.23)*.16,cos(uSoilTime*.17)*.13);
-      float dapple=smoothstep(.38,.85,sin(lightPoint.x*1.4+sin(lightPoint.y*.9))*sin(lightPoint.y*1.7));
-      diffuseColor.rgb*=.97+grain*.045+mottling*.024+dapple*.055;`);
-  };
-  material.customProgramCacheKey=()=> 'storybook-soil-v2';
-  const mesh = new THREE.Mesh(geometry, material); mesh.receiveShadow = true; mesh.renderOrder = 8; world.scene.add(mesh);
-  return { mesh, dispose() { mesh.removeFromParent(); geometry.dispose(); material.dispose(); texture.dispose(); } };
 }
 
 function roundedFern(variant) {

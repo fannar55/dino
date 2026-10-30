@@ -431,6 +431,21 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     }
   }
 
+  // ---- 0b. the layout's own plants, outside a Fen, where it says (a Fen's are placed first in growFen) -------
+  if (!biome.fen && layout.plants?.length) {
+    const rng = createRng(seed, 'authored');
+    for (const spec of layout.plants) {
+      yield; // a plant tried at a time (slices.js)
+      const [x, z] = spec.position;
+      const tall = Boolean(SPECIES[spec.name]?.tall);
+      const p = yield* tryPlace(spec.name, x, z, {
+        variant: spec.variant ?? 0, lod: 0, tall, rot: spec.rot ?? rng.angle(), scale: spec.scale ?? 1,
+        authored: true, skipShots: true, sky: spec.sky, phase: rng.next(), blocksGrass: true, grassRadius: 0.8,
+      });
+      if (p && tall) treeHash.add({ x, z, s: 4.5 });
+    }
+  }
+
   // ---- 1. the edge ring: big characterful trees framing the clearing ---------------------------
   {
     const rng = createRng(seed, 'edge-ring');

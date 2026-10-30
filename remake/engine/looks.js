@@ -17,6 +17,15 @@ export const LOOKS = {
     sun: { azimuth: 150, elevation: 26, color: '#ffe0b0', intensity: 2.8 },
     fog: { ...morning.fog, color: '#dfe7df' },
   },
+  // The memory game's (engine/memory/world.js): a golden morning, the sun high on the upper right of the search view, a deeper fill under
+  // it and only a thin warm mist.
+  memoryMorning: {
+    ...morning,
+    sun: { azimuth: 310, elevation: 38, color: '#ffdba2', intensity: 3.1 },
+    hemi: { sky: '#c4dcec', ground: '#6e6a3a', intensity: 0.6 },
+    fog: { color: '#d3d8b4', sunColor: '#ffd9a0', sunStrength: 1, density: 0.0055, heightFalloff: 0.08 },
+    envIntensity: 0.5,
+  },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },
     hemi: { sky: '#cadcef', ground: '#6b5a37', intensity: 0.55 },
