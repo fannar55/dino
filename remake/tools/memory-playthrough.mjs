@@ -569,7 +569,7 @@ async function main() {
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, overviewDone = false, arrowWaited = false, tapWait = null;
     const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
     const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
-    let barkTaps = 0;
+    let barkTaps = 0, runTake = null;
     const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
 
     // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
@@ -660,7 +660,9 @@ async function main() {
       if ((s.bridge.active === 'cross' || s.bridge.atStaging) && s.cam.shot === 'wide' && seen.has('cross-shoulder')) waited ||= await milestone('cross-arrival', 'cross-arrival', 600);
       // The marsh: the wrong friend wading in (steps and hops in the mud), the Kambeðlur lifting the bark and carrying it, each
       // panel down with its mud thrown up and the finished boardwalk (below: walkway-built).
-      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:try') waited ||= await milestone('mud-steps', 'footsteps-in-the-mud', 120);
+      // The wrong friend wades in at the marsh's edge: the last hop into the mud in the close shot (it starts a moment before they land), then just after the landing.
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:run') { runTake ??= s.cam.take; if (s.cam.take > runTake) waited ||= await milestone('mud-hop', 'footsteps-in-the-mud', 150); }
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:try') waited ||= await milestone('mud-landed', 'footsteps-in-the-mud-landed', 0);
       if (s.act === 'lay:pickup') waited ||= await milestone('bark-pickup', 'kambedlur-pick-up-bark', 120);
       if (s.act === 'lay:carry') waited ||= await milestone('bark-carry', 'kambedlur-carry-bark', 800);
       for (let n = 1; n <= 3; n++) if (s.placed >= n && s.bridge.active === 'lay') waited ||= await milestone(`bark-splash-${n}`, `bark-${n}-lands-splash`, 150);

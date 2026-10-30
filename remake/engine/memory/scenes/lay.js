@@ -12,13 +12,13 @@ const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), a
 const up = (point, metres) => point.clone().setY(point.y + metres);
 const shift = (point, x, y, z) => point.clone().set(point.x + x, point.y + y, point.z + z);
 // Where the camera stands (the direction from the subject toward it, then how high it looks down): the stills from the
-// south-east, high enough to see the whole spot the panel will lie on; the follow shots from the east (each panel its own
-// angle, to keep the cuts apart); the finished boardwalk from the east along its length. Each was measured: every shot of the
-// marsh stays under 250k triangles (a view from the north or low down sees the friends at staging and does not).
+// south-east, high enough to see the whole spot the panel will lie on; the follow shots from the east; the cut when the
+// tap-along times out and the finished boardwalk (along its length) from the east too. Each was measured: every shot of the
+// marsh stays under 250k triangles (a view from the north or from low down takes in the friends at staging and does not).
 const DONE_FRONT = [1, 0, -.15];
 const SE = [.55, 0, .83], E = [1, 0, .2], ESE = [1, 0, .5];
 const STILL = [{ front: SE, elevation: 34 }, { front: SE, elevation: 34 }, { front: SE, elevation: 34 }];
-const CARRY = [{ front: E, elevation: 32 }, { front: E, elevation: 38 }, { front: E, elevation: 32 }];
+const CARRY = [{ front: E, elevation: 32 }, { front: E, elevation: 32 }, { front: E, elevation: 32 }];
 const BACK = [{ front: ESE, elevation: 30 }, { front: ESE, elevation: 32 }];
 
 /**
@@ -56,7 +56,7 @@ export function layScene(stage, { panels = 3, timeout = 4 } = {}) {
     lines.push({ at: next(), wait: { tap: 'bark', count: 1, timeout, until: () => timedOut,
       onTap: () => stage.task.beat(),
       // No tap: "Við gerum þetta saman!", a cut, and they lay this panel and the rest on their own, in turn.
-      onTimeout: () => { timedOut = true; stage.say('together'); stage.cut(stillShot(i, [1, 0, -.35])); while (stage.task.beat()); } } });
+      onTimeout: () => { timedOut = true; stage.say('together'); stage.cut(stillShot(i, E)); while (stage.task.beat()); } } });
     // Down it goes: the mud flies (the adventure), the camera shakes.
     lines.push({ at: next(), wait: { until: () => placed() > i || !going(), timeout: 4 } });
     lines.push({ at: next(), fx: { kind: 'shake', strength: .1, seconds: .3 } });
