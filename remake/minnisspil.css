@@ -65,7 +65,8 @@ nav{display:flex;gap:8px;pointer-events:auto}
 .world-target:focus-visible{outline:3px solid #fff0a1;outline-offset:1px;background:#ffe7a315;box-shadow:0 0 0 6px #294a3659}
 .world-target.pair-ready:before,.world-target.pair-selected:before,.world-target.is-guided:before{content:'';position:absolute;left:5%;right:5%;bottom:7%;height:23%;border-radius:50%;border:2px solid #fff3b98a;background:radial-gradient(ellipse,#ffdd7c18 25%,#ffed9766 70%,transparent 75%);box-shadow:0 0 12px #ffe69d33;pointer-events:none}
 .world-target.pair-selected:before,.world-target.is-guided:before{border-color:#ffe08d;box-shadow:0 0 0 4px #ffda6822,0 0 24px #ffdc8c77;background:radial-gradient(ellipse,#ffce4533,#ffeea155 65%,transparent 72%)}
-.world-target.is-guided:after{content:'';position:absolute;left:calc(50% - 9px);top:-18px;width:18px;height:18px;border-right:5px solid #fff2b8;border-bottom:5px solid #fff2b8;border-radius:3px;transform:rotate(45deg);filter:drop-shadow(0 3px 0 #765332);animation:point-way 1.3s ease-in-out infinite;pointer-events:none}
+/* The gold arrow over a guided target: one big arrow (32 px, 9 px gold border, shadow and glow) for the leaves and the obstacles alike. A leaf's sits just above it (its tip about 12 px over the button), an obstacle's higher (below). */
+.world-target.is-guided:after{content:'';position:absolute;left:calc(50% - 16px);top:-62px;width:32px;height:32px;border-right:9px solid #ffd45c;border-bottom:9px solid #ffd45c;border-radius:5px;transform:rotate(45deg);filter:drop-shadow(0 3px 0 #6a4a22) drop-shadow(0 0 10px #fff3b0);animation:point-way 1.3s ease-in-out infinite;pointer-events:none}
 .task-badge{position:absolute;left:50%;top:4%;transform:translate(-50%,-50%);display:grid;place-items:center;width:49px;height:49px;border:2px solid #fff0b1;border-radius:17px 20px 17px 15px;background:linear-gradient(145deg,#ffdf86,#e9ac46);color:#604727;box-shadow:0 4px 0 #906535,0 8px 17px #283b3040,inset 0 2px 0 #fff2c4;opacity:0;transition:opacity .18s,scale .18s;pointer-events:none;scale:.9}
 .task-badge svg{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
 .choice-visible .task-badge{opacity:1;scale:1}
@@ -74,7 +75,7 @@ nav{display:flex;gap:8px;pointer-events:auto}
 @keyframes point-way{0%,100%{translate:0 -3px}50%{translate:0 4px}}
 .world-target.is-next:before{content:'';position:absolute;left:12%;right:12%;bottom:8%;height:20%;border:2px solid #ffe7a0b0;border-radius:50%;box-shadow:0 0 18px #ffd97a88;animation:next-glow 1.6s ease-in-out infinite;pointer-events:none}
 @keyframes next-glow{0%,100%{opacity:.55;scale:.94}50%{opacity:1;scale:1.06}}
-.task-target.is-guided:after{left:calc(50% - 16px);top:-66px;width:32px;height:32px;border-right:9px solid #ffd45c;border-bottom:9px solid #ffd45c;border-radius:5px;filter:drop-shadow(0 3px 0 #6a4a22) drop-shadow(0 0 10px #fff3b0)}
+.task-target.is-guided:after{top:-66px}
 .world-target.tap-along{border-radius:50%;cursor:pointer}
 .world-target.tap-along:before{content:'';position:absolute;inset:18%;border:4px dashed #fff2b8cc;border-radius:50%;box-shadow:0 0 26px #ffd86f88,inset 0 0 26px #ffd86f55;animation:tap-ring 1.1s ease-in-out infinite;pointer-events:none}
 .world-target.tap-along:active:before{scale:.86;transition:scale .06s}
