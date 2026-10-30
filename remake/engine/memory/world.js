@@ -60,9 +60,10 @@ const SHOT = { position: [12, 24, 25], target: [-1, .1, -2.8], fov: 35 };
 const MOSI_SPOT = Object.freeze({ x: 3, z: 2.8, heading: 90 });
 const MOSI_HALF = 2.1;
 // The search view: low and from the side, as in the approved mock. Landscape looks in from the south-east
-// with the log and river behind the leaves; portrait looks along the rows from the east, so the two columns
-// fill the width, the rows fill the height and Mosi watches from the far end.
-const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.77, .64, 0] });
+// with the log and river behind the leaves, the four of a row across the screen and the three rows deep. Portrait looks along the
+// four-leaf rows from Mosi's side and higher up (the grid's own axis, 30 degrees off the east), so the three columns fill the width,
+// the four rows stand one above the other far enough apart for a 44 px button each on a phone, and Mosi watches from the near end.
+const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.52, .8, -.3] });
 // A tapped leaf squashes first (TAP.squash), then swings away over TAP.swing; what it hid appears after. A gift stands up on its
 // leaf (GIFT.pop); when its pair is found both rise (GIFT.rise) to GIFT.hover metres above their leaves, hold, then fly to the basket
 // in the ribbon (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
@@ -866,7 +867,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const project = point => { projection.copy(point).project(camera); return { x: (projection.x + 1) * .5 * width, y: (1 - projection.y) * .5 * height }; };
     for (const cell of cells) {
       if (cell.id == null) continue;
-      const centre = cell.root.position.clone().add(new THREE.Vector3(0, .45, .05)), p = project(centre), left = project(centre.clone().add(new THREE.Vector3(-1.25, 0, 0))), front = project(centre.clone().add(new THREE.Vector3(0, 0, 1.2))), back = project(centre.clone().add(new THREE.Vector3(0, 0, -1.2)));
+      // The leaf's own size along the camera's side to side and its depth (not the world's x and z: the search view is turned to the grid), so
+      // that neighbouring buttons only overlap where the leaves themselves are that close (44 px at least either way).
+      const centre = cell.root.position.clone().add(new THREE.Vector3(0, .45, .05)), p = project(centre);
+      const side = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize(), depth = new THREE.Vector3(-side.z, 0, side.x);
+      const left = project(centre.clone().addScaledVector(side, -1.25)), front = project(centre.clone().addScaledVector(depth, 1.2)), back = project(centre.clone().addScaledVector(depth, -1.2));
       renderTargets.push({ type: 'leaf', id: cell.id, x: p.x, y: p.y, width: Math.max(44, Math.abs(p.x - left.x) * 2), height: Math.max(44, Math.abs(front.y - back.y)), enabled: !matchedStatus(cell.status) && !cell.transfer && !cell.moved });
     }
     for (const nest of nests) {

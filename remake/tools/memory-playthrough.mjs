@@ -579,6 +579,11 @@ async function main() {
     // Mosi and the leaves, with whether each is inside the frame.
     report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
     if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
+    // The twelve leaf buttons as the page lays them out: none under 44 px either way, and how many pairs overlap each other.
+    report.leafTargets = await ev(`(() => { const boxes = [...document.querySelectorAll('.world-target[data-target^="leaf-"]')].map(b => { const r = b.getBoundingClientRect(); return { key: b.dataset.target, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) }; });
+      let overlaps = 0, deepest = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j], ox = (a.width + b.width) / 2 - Math.abs(a.x - b.x), oy = (a.height + b.height) / 2 - Math.abs(a.y - b.y); if (ox > 0 && oy > 0) { overlaps++; deepest = Math.max(deepest, Math.min(ox, oy)); } }
+      return { count: boxes.length, minWidth: Math.min(...boxes.map(b => b.width)), minHeight: Math.min(...boxes.map(b => b.height)), overlaps, deepestOverlap: Math.round(deepest), boxes }; })()`).catch(e => ({ error: e.message }));
+    step('leaf buttons', { count: report.leafTargets?.count, min: `${report.leafTargets?.minWidth}x${report.leafTargets?.minHeight}`, overlaps: report.leafTargets?.overlaps, deepest: report.leafTargets?.deepestOverlap });
     // The overview button once at the start, as a child would peek at the whole place: the picture shows that no edge of the world is in sight.
     if (o.mode === 'full' || o.mode === 'glade') {
       await ev(`window.__memory.camera('overview')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'overview camera'); await sleep(600);
