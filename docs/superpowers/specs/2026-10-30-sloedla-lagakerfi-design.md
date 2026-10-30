@@ -110,7 +110,8 @@ Hvert lag fær myndband (sýningarumferð) og stendur í tilraunasíðunni við 
 ## 7. Prófun
 
 - Sjálfvirk próf: sniðið (allar línur til, eigendur gildir, `chart` vísar á til línur), reglur barnastigsins, fjölbreytniprófið (5).
-- Mælt (ekki heyrt): byrjun laganna þriggja < 80 % lík hver annarri og gömlu lögunum (áður 98 %); hitt-kikk ≥ +3 dB á
+- Mælt (ekki heyrt): byrjun laganna þriggja helst < 80 % lík hver annarri og gömlu lögunum (áður 98 %; fjölbreytniprófið fellur
+  yfir 85 %); hitt-kikk ≥ +3 dB á
   spjaldtölvubandi; ekkert klipp; 60 rammar á sekúndu.
 - Myndbönd og skjámyndir 1280×800 og 390×844.
 
