@@ -12,7 +12,7 @@ const leafX = (t, s) => leafWidth(t) * (s + .09 * Math.sin(t * Math.PI) * (1 - M
 /** One thick, gently folded broad leaf. Every hiding place shares this geometry. */
 export function createLeafResources() {
   const geometry = new THREE.BufferGeometry(), positions = [], colours = [], indices = [], uvs = [];
-  const rows = 24, columns = 12;
+  const rows = 18, columns = 10;
   const base = colour('#6e9848'), light = colour('#99b85b'), edge = colour('#54743a');
   for (let i = 0; i <= rows; i++) {
     const t = i / rows, z = t * LEAF_LENGTH;
@@ -79,7 +79,7 @@ export function createLeafResources() {
     const t = i / 22;
     centre.push(new THREE.Vector3(leafX(t, 0), leafHeight(t, 0) + .027, t * LEAF_LENGTH));
   }
-  veinParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(centre), 28, .024, 6, false));
+  veinParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(centre), 14, .024, 4, false));
   for (let k = 1; k <= 6; k++) for (const sign of [-1, 1]) {
     const t = .1 + k * .105, points = [];
     for (let j = 0; j <= 10; j++) {
@@ -87,7 +87,7 @@ export function createLeafResources() {
       const y = leafHeight(at, sign * s) + .023;
       points.push(new THREE.Vector3(leafX(at, sign * s), y, at * LEAF_LENGTH));
     }
-    veinParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 12, .012, 4, false));
+    veinParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 5, .012, 3, false));
   }
   const stemGeometry = new THREE.CylinderGeometry(.028, .04, .5, 7); stemGeometry.rotateX(Math.PI / 2); stemGeometry.translate(0, 0, -.15);
   const veinGeometry = mergeGeometry([...veinParts, stemGeometry]);
@@ -195,28 +195,6 @@ export function makeContact(resources, width, depth) {
   return mesh;
 }
 
-function roundedFern(variant) {
-  const thin = { pos: [], nrm: [], col: [], idx: [] };
-  const vertex = (x, y, z, tint) => { const index = thin.pos.length / 3; thin.pos.push(x, y, z); thin.nrm.push(0, 1, 0); thin.col.push(...tint); return index; };
-  for (let frond = 0; frond < 6; frond++) {
-    const angle = frond * Math.PI / 3 + variant * .13, dx = Math.cos(angle), dz = Math.sin(angle), length = .55 + (frond % 3) * .05;
-    const spine = t => [dx * length * t, .04 + Math.sin(t * Math.PI * .85) * .34, dz * length * t];
-    for (let segment = 0; segment < 4; segment++) {
-      const a = spine(segment / 4), b = spine((segment + 1) / 4), tint = [.45, .57, .25];
-      const p = vertex(a[0] - dz * .012, a[1], a[2] + dx * .012, tint), q = vertex(a[0] + dz * .012, a[1], a[2] - dx * .012, tint), r = vertex(b[0] - dz * .008, b[1], b[2] + dx * .008, tint), s = vertex(b[0] + dz * .008, b[1], b[2] - dx * .008, tint);
-      thin.idx.push(p, r, q, q, r, s);
-    }
-    for (let station = 0; station < 4; station++) for (const side of [-1, 1]) {
-      const t = .28 + station * .2, p = spine(t), yaw = angle + side * .95, along = [.15 * Math.cos(yaw), .15 * Math.sin(yaw)], across = [-.075 * Math.sin(yaw), .075 * Math.cos(yaw)];
-      const x = p[0] + along[0] * .85, z = p[2] + along[1] * .85, y = p[1] + .018, tint = [.38 + station * .018, .56 + station * .015, .24];
-      const centre = vertex(x, y + .025, z, tint.map(c => c * 1.12)), ring = [];
-      for (let edge = 0; edge < 8; edge++) { const a = edge * Math.PI / 4; ring.push(vertex(x + along[0] * Math.cos(a) + across[0] * Math.sin(a), y - .012 + Math.cos(a) * .015, z + along[1] * Math.cos(a) + across[1] * Math.sin(a), tint)); }
-      for (let edge = 0; edge < 8; edge++) thin.idx.push(centre, ring[(edge + 1) % 8], ring[edge]);
-    }
-  }
-  return { thin, solid: null };
-}
-
 /** Low, lush edge detail round the glade and its flowers, stones and ferns. */
 /** `avoid(x, z, margin)` says where a plant, flower or stone may not stand: on a leaf's ground (world.js knows the leaves). */
 export function createGladeScenery(world, { avoid = () => false } = {}) {
@@ -270,29 +248,23 @@ export function createGladeScenery(world, { avoid = () => false } = {}) {
 
   // Reuse the forest's authored leaflet forms. Two merged meshes keep the
   // layered fringe inexpensive while giving the clearing a fern silhouette.
-  const library = createSpeciesLibrary(251017), botanical = { solid: { p: [], n: [], c: [], i: [] }, thin: { p: [], n: [], c: [], i: [] } };
+  const library = createSpeciesLibrary(251017), zoneOf = z => z > -8 ? 0 : z > -20 ? 1 : 2, botanical = Object.fromEntries(['solid', 'thin'].map(part => [part, [0, 1, 2].map(() => ({ p: [], n: [], c: [], i: [] }))]));
+  // The tall ones (tree ferns and cycads) round the three play places; the low ferns, stones and flowers are world-dressing.js's.
   const plants = [
     ['treeFern', -11.4, 1.8, 1.08, .4, 1], ['treeFern', -12.5, 11.5, 1.02, 1.3, 1],
     ['treeFern', 8.5, 8.2, 1.12, 2.6, 1], ['treeFern', 14, -13.5, 1.18, .2, 1],
-    ['fern', -7.5, -1.3, 1.65, 1.2, 0], ['fern', -8.8, 3.2, 1.35, 2.1, 0],
-    ['fern', -11.4, 12.2, 1.65, .2, 0], ['fern', -5.2, 14.6, 1.35, 2.9, 0],
-    ['fern', -.3, 14.3, 1.65, 1.3, 0], ['fern', 3.3, 11.3, 1.25, 2.1, 0],
-    ['fern', 5.1, 1.0, 1.4, 3.3, 0], ['fern', 3.8, -.1, 1.35, .8, 0],
-    ['fern', -2.4, -13.8, 1.8, 2.3, 0], ['fern', 11.8, -16.5, 1.5, 1.8, 0],
     ['treeFern', -3.2, -15.2, 1.2, 1.6, 1], ['treeFern', 14.2, -17, 1.15, .5, 1],
     ['treeFern', -2.5, -29.8, 1.4, 2.4, 1], ['treeFern', 11.2, -29.8, 1.5, 1.3, 1],
     ['cycad', -2.4, -23.4, 1.1, .4, 1], ['cycad', 11.3, -23.4, 1.1, 2.4, 1],
-    ['fern', -1.8, -16.4, 1.5, 2.3, 1], ['fern', 12.3, -16.2, 1.6, .4, 1],
-    ['fern', -2, -26.6, 1.8, 1.3, 1], ['fern', 11, -26.6, 1.7, 2.1, 1],
   ];
   const tint = new THREE.Color();
   plants.forEach(([kind, x, z, scale, yaw, lod], variant) => {
     if (avoid(x, z, scale * .55)) return;
-    const model = kind === 'fern' ? roundedFern(variant % 3) : library.get(kind, variant % 3, lod), cos = Math.cos(yaw), sin = Math.sin(yaw), y = world.heightAt(x, z) + .045;
+    const model = library.get(kind, variant % 3, lod), cos = Math.cos(yaw), sin = Math.sin(yaw), y = world.heightAt(x, z) + .045;
     if (model.solid?.pos.length) solidBounds(`glade-${kind}-${variant}`, model.solid.pos, new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(scale, scale, scale)));
     for (const part of ['solid', 'thin']) {
       const source = model[part]; if (!source) continue;
-      const batch = botanical[part], offset = batch.p.length / 3;
+      const batch = botanical[part][zoneOf(z)], offset = batch.p.length / 3;
       for (let i = 0; i < source.pos.length; i += 3) {
         batch.p.push(x + (source.pos[i] * cos + source.pos[i + 2] * sin) * scale, y + source.pos[i + 1] * scale, z + (source.pos[i + 2] * cos - source.pos[i] * sin) * scale);
         batch.n.push(source.nrm[i] * cos + source.nrm[i + 2] * sin, source.nrm[i + 1], source.nrm[i + 2] * cos - source.nrm[i] * sin);
@@ -301,10 +273,10 @@ export function createGladeScenery(world, { avoid = () => false } = {}) {
       for (const index of source.idx) batch.i.push(index + offset);
     }
   });
-  for (const [part, batch] of Object.entries(botanical)) {
+  for (const [part, zones] of Object.entries(botanical)) for (const [zone, batch] of zones.entries()) {
     if (!batch.i.length) continue;
     const g = geometry(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(batch.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(batch.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(batch.c, 3)); g.setIndex(batch.i); g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, material({ vertexColors: true, side: part === 'thin' ? THREE.DoubleSide : THREE.FrontSide })); mesh.name = `Rjóðurburknar · ${part}`; mesh.receiveShadow = true; mesh.castShadow = part === 'solid'; root.add(mesh);
+    const mesh = new THREE.Mesh(g, material({ vertexColors: true, side: part === 'thin' ? THREE.DoubleSide : THREE.FrontSide })); mesh.name = `Rjóðurburknar · ${part}`; mesh.userData.zone = zone; mesh.receiveShadow = true; mesh.castShadow = part === 'solid'; root.add(mesh);
   }
 
   // All these matte, static plants share two colour batches: opaque pieces
@@ -314,7 +286,7 @@ export function createGladeScenery(world, { avoid = () => false } = {}) {
   root.updateMatrixWorld(true);
   for (const source of [...root.children]) {
     if (!source.isMesh) continue;
-    const key = source.castShadow ? 'solid' : 'foliage';
+    const key = `${source.castShadow ? 'solid' : 'foliage'}:${source.userData.zone ?? 0}`;
     if (!sceneryBatches.has(key)) sceneryBatches.set(key, { p: [], n: [], c: [], i: [] });
     const batch = sceneryBatches.get(key), g = source.geometry, count = source.isInstancedMesh ? source.count : 1;
     for (let instance = 0; instance < count; instance++) {
@@ -332,8 +304,8 @@ export function createGladeScenery(world, { avoid = () => false } = {}) {
   }
   for (const [key, batch] of sceneryBatches) {
     const g = geometry(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(batch.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(batch.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(batch.c, 3)); g.setIndex(batch.i); g.computeBoundingSphere();
-    const mesh = new THREE.Mesh(g, material({ vertexColors: true, side: key === 'solid' ? THREE.FrontSide : THREE.DoubleSide })); mesh.name = `Rjóðurskraut · ${key}`; mesh.castShadow = key === 'solid'; mesh.receiveShadow = true; root.add(mesh);
-    if(key==='foliage')breezeMaterials.push(installStoryBreeze(mesh.material,g,world.heightAt));
+    const mesh = new THREE.Mesh(g, material({ vertexColors: true, side: key.startsWith('solid') ? THREE.FrontSide : THREE.DoubleSide })); mesh.name = `Rjóðurskraut · ${key}`; mesh.castShadow = key.startsWith('solid'); mesh.receiveShadow = true; root.add(mesh);
+    if(key.startsWith('foliage'))breezeMaterials.push(installStoryBreeze(mesh.material,g,world.heightAt));
   }
   const pollenData = new Uint8Array(32 * 32 * 4);
   for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) { const d = Math.hypot((x + .5) / 16 - 1, (y + .5) / 16 - 1), i = (y * 32 + x) * 4; pollenData[i] = pollenData[i + 1] = pollenData[i + 2] = 255; pollenData[i + 3] = Math.round(Math.max(0, 1 - d) ** 2 * 255); }

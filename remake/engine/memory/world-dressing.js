@@ -8,6 +8,8 @@ import { sandAt, walkable } from './world-ground.js';
 const VARIANTS = Object.freeze({ fern: 5, bush: 8, flowers: 8, rock: 5, rockSmall: 5, horsetailReed: 4 });
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 const GLADE = Object.freeze({ centre: [-4.2, 6.8], radius: [9.4, 7.8] });
+// The dark corners of the search view: big ferns close to the camera that frame the picture, as in the mock ([x, z, scale]).
+const FRAME = Object.freeze([[-11.5, 15.8, 2.3], [-13.8, 12, 2.4], [6.8, 13, 2.3], [9, 10.8, 2.4], [-15, 5.5, 2.6], [-15.8, 9.8, 2.6], [-14.5, 0, 2.4]]);
 const round = value => Math.round(value * 100) / 100;
 
 export function dressGround({ avoid = () => false } = {}) {
@@ -34,9 +36,11 @@ export function dressGround({ avoid = () => false } = {}) {
     else if (roll < .78) add('rock', x, z, { scale: range(.4, .8) });
     else if (roll < .96) add('flowers', x, z, { scale: range(.9, 1.4) });
     else add('bush', x, z, { scale: range(.7, 1.1), variant: pick([3, 6, 7]) });
-  });
+  }, { margin: 1.2 });
   // Further out, bigger: bushes and ferns that make the edge of the clearing a wall of leaves.
   scatter(80, ring(1.5, 2.3), (x, z) => (next() < .75 ? add('fern', x, z, { scale: range(1.4, 2.4) }) : add('bush', x, z, { scale: range(1.1, 1.6), variant: pick([3, 6, 7]) })), { margin: 1 });
+
+  for (const [x, z, scale] of FRAME) if (room(x, z, .5)) add('fern', x, z, { scale, sky: .5 });
 
   // The river's banks: reeds and stones at the water's edge, on both sides.
   const bank = () => { const i = 1 + Math.floor(next() * (RIVER.points.length - 2)), [ax, az] = RIVER.points[i - 1], [bx, bz] = RIVER.points[i + 1], l = Math.hypot(bx - ax, bz - az), side = next() < .5 ? -1 : 1, d = range(2, 3.4); return [RIVER.points[i][0] - (bz - az) / l * d * side, RIVER.points[i][1] + (bx - ax) / l * d * side]; };

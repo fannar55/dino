@@ -19,9 +19,9 @@ export function createMemoryShadowLods(actors, light) {
           for (let k = 0; k < 4; k++) { indices[i * 4 + k] = skinIndex.getComponent(i, k); weights[i * 4 + k] = skinWeight.getComponent(i, k); }
         }
         // Include the engine quarter mesh's existing error in the allowance.
-        // At tablet resolution both passes together stay below 0.7 sun texel.
+        // At tablet resolution both passes together stay below 1.5 sun texels (under 5 cm on the ground).
         const priorError = source.userData.lod?.error ?? 0;
-        const allowance = Math.max(0, texel * .7 / scale - priorError);
+        const allowance = Math.max(0, texel * 1.5 / scale - priorError);
         const [result] = simplify(positions, Uint32Array.from(source.index.array), { levels: [{ ratio: .3, maxError: allowance }], skin: { indices, weights } });
         const geometry = new THREE.BufferGeometry();
         for (const [name, attribute] of Object.entries(source.attributes)) geometry.setAttribute(name, attribute);

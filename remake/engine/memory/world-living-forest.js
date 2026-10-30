@@ -5,10 +5,12 @@ const random = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return
 
 /** A shared breeze for planted scenery. Roots stay fixed and only the soft
  * tips move. This remains in the existing material/draw, without a shadow pass. */
-export function installStoryBreeze(material, geometry, heightAt) {
-  const p = geometry.attributes.position, weights = new Float32Array(p.count);
-  for (let i = 0; i < p.count; i++) weights[i] = Math.min(1, Math.max(0, (p.getY(i) - heightAt(p.getX(i), p.getZ(i)) - .075) / .65)) ** 1.4;
-  geometry.setAttribute('aStoryBend', new THREE.BufferAttribute(weights, 1));
+export function installStoryBreeze(material, geometries, heightAt) {
+  for (const geometry of [geometries].flat()) {
+    const p = geometry.attributes.position, weights = new Float32Array(p.count);
+    for (let i = 0; i < p.count; i++) weights[i] = Math.min(1, Math.max(0, (p.getY(i) - heightAt(p.getX(i), p.getZ(i)) - .075) / .65)) ** 1.4;
+    geometry.setAttribute('aStoryBend', new THREE.BufferAttribute(weights, 1));
+  }
   const time = { value: 0 }, compile = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = function(shader, renderer) {
     compile.call(this, shader, renderer); shader.uniforms.uStoryBreezeTime = time;
@@ -28,10 +30,12 @@ export function installStoryBreeze(material, geometry, heightAt) {
 /** `avoid(x, z)` says where nothing may be planted (the leaves' ground and a margin round it). */
 export function createLivingForest(world, { avoid = () => false } = {}) {
   const root = new THREE.Group(); root.name = 'Lifandi skógarjaðar'; world.scene.add(root);
-  const positions = [], colours = [], weights = [], tint = new THREE.Color();
+  // The planted detail is cut in three by where it lies (the glade, the place after the log, the grove): a camera draws only what it sees.
+  const zones = [0, 1, 2].map(() => ({ positions: [], colours: [], weights: [] })), tint = new THREE.Color();
   const height = (x, z) => world.heightAt(x, z);
   function tri(a, b, c, colour, bends = [0, 0, 0]) {
     tint.set(colour);
+    const { positions, colours, weights } = zones[a[2] > -8 ? 0 : a[2] > -20 ? 1 : 2];
     for (const [i, point] of [a,b,c].entries()) { positions.push(...point); colours.push(tint.r, tint.g, tint.b); weights.push(bends[i]); }
   }
   function blade(x, z, angle, length, width, colour, seed) {
@@ -107,10 +111,12 @@ export function createLivingForest(world, { avoid = () => false } = {}) {
     const y=height(x,z)+.083,a=random(i+14)*Math.PI*2,l=.06+random(i+19)*.13;
     leaf(x,y,z,a,l,l*.31,['#9c9159','#9d7844','#b5a168','#7a8c4c'][i%4],-.015);
   }
-  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colours,3));geometry.setAttribute('aStoryBend',new THREE.Float32BufferAttribute(weights,1));geometry.computeVertexNormals();geometry.computeBoundingSphere();
-  const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.93,side:THREE.DoubleSide});
-  const foliage=new THREE.Mesh(geometry,material);foliage.name='Trjágróður, starir og skógarbotn';foliage.receiveShadow=true;root.add(foliage);
-  const breeze=installStoryBreeze(material,geometry,height);
+  const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.93,side:THREE.DoubleSide}), geometries=[];
+  for(const [index,{positions,colours,weights}]of zones.entries()) {
+    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colours,3));geometry.setAttribute('aStoryBend',new THREE.Float32BufferAttribute(weights,1));geometry.computeVertexNormals();geometry.computeBoundingSphere();
+    const foliage=new THREE.Mesh(geometry,material);foliage.name=`Trjágróður, starir og skógarbotn ${index+1}`;foliage.receiveShadow=true;root.add(foliage);geometries.push(geometry);
+  }
+  const breeze=installStoryBreeze(material,geometries,height);
 
   const butterflyPos=[],butterflyColours=[];
   function wingTri(a,b,c,col){const colour=new THREE.Color(col);butterflyPos.push(...a,...b,...c);for(let i=0;i<3;i++)butterflyColours.push(colour.r,colour.g,colour.b);}
@@ -132,5 +138,5 @@ export function createLivingForest(world, { avoid = () => false } = {}) {
     for(let i=0;i<6;i++){const [x,z]=flutterPlaces[i],phase=time*.32+i*2.1,dx=Math.cos(phase)*.65,dz=Math.sin(phase*1.7)*.42;dummy.position.set(x+dx,height(x,z)+.8+Math.sin(time*.85+i)*.2,z+dz);dummy.rotation.set(.12,Math.atan2(Math.sin(phase),-Math.cos(phase*1.7))+.7,Math.sin(time*.7+i)*.15);dummy.scale.setScalar(.65+(i%3)*.12);dummy.updateMatrix();butterflies.setMatrixAt(i,dummy.matrix);}butterflies.instanceMatrix.needsUpdate=true;
   }
   update(0,false);
-  return{root,update,getDebug:()=>({plantedClumps:planted,triangles:positions.length/9+butterflyPos.length/9*6,drawCalls:2,butterflies:6}),dispose(){root.removeFromParent();geometry.dispose();material.dispose();butterflyGeometry.dispose();butterflyMaterial.dispose();}};
+  return{root,update,getDebug:()=>({plantedClumps:planted,triangles:zones.reduce((sum,zone)=>sum+zone.positions.length/9,0)+butterflyPos.length/9*6,drawCalls:2,butterflies:6}),dispose(){root.removeFromParent();geometries.forEach(geometry=>geometry.dispose());material.dispose();butterflyGeometry.dispose();butterflyMaterial.dispose();}};
 }

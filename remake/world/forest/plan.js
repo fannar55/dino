@@ -227,7 +227,7 @@ export function* planForestSteps({ world, layout, seed, terrain, library, q }) {
     return 'deep';
   }
   function sectorOf(band, x, z) {
-    const n = B.sectors[band];
+    const n = (layout.sectors ?? B.sectors)[band];
     const a = Math.atan2(z - cz, x - cx) + Math.PI;
     return Math.min(n - 1, Math.floor((a / (Math.PI * 2)) * n));
   }

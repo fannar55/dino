@@ -56,7 +56,7 @@ export function createBuildProps({ scene, heightAt }) {
   }
   const waterGeometry = geo(new THREE.BufferGeometry()); waterGeometry.setAttribute('position', new THREE.Float32BufferAttribute(waterPos, 3)); waterGeometry.setAttribute('color', new THREE.Float32BufferAttribute(waterColour, 4)); waterGeometry.setIndex(waterIndex); waterGeometry.computeVertexNormals();
   waterGeometry.setAttribute('aFlowUv',new THREE.Float32BufferAttribute(flowUv,2));
-  const water = mesh(waterGeometry, mat({ vertexColors: true, transparent: true, depthWrite: true, alphaTest: .01, side: THREE.DoubleSide, roughness: .42 }), root, false); water.receiveShadow = false; water.renderOrder = 7.5;
+  const water = mesh(waterGeometry, mat({ vertexColors: true, transparent: true, depthWrite: true, alphaTest: .01, side: THREE.DoubleSide, roughness: .78 }), root, false); water.receiveShadow = false; water.renderOrder = 7.5;
   const waterFlow=installWaterFlow(water.material,{speed:.62,marsh:true});
 
   const barkTexture = createBarkTexture(); textures.add(barkTexture);
@@ -126,7 +126,7 @@ export function createBuildProps({ scene, heightAt }) {
   access.geometry.setDrawRange(0, nearRampVertices);
 
   // Individual curved leaves and branching stems replace uniform green globes.
-  const groveParts = [], leafGeometry = new THREE.BufferGeometry();
+  const groveBands = [[], [], []], groveBand = x => groveBands[x < 2.5 ? 0 : x < 7 ? 1 : 2], leafGeometry = new THREE.BufferGeometry();
   leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, -.16, .03, .27, 0, .08, .34, .16, .03, .27, 0, .02, .69], 3));
   leafGeometry.setIndex([0, 2, 1, 0, 3, 2, 1, 2, 4, 2, 3, 4]); leafGeometry.computeVertexNormals();
   // Berry shrubs: the three the friends eat from, and bigger ones beside and behind the grove, each [x, z, size].
@@ -134,18 +134,19 @@ export function createBuildProps({ scene, heightAt }) {
   for (const [cluster, [cx, cz, size]] of shrubs.entries()) for (let branch = 0; branch < 8; branch++) {
     const x = cx + (random(branch + cluster * 9) - .5) * 1.7 * size, z = cz + (random(branch + 60 + cluster) - .5) * 1.2 * size, y = heightAt(x, z), h = (.55 + random(branch + cluster * 7) * .55) * size * 1.2;
     shrubSpots.push([x, y, z, h]);
-    const stem = new THREE.CylinderGeometry(.025 * size, .065 * size, h, 5); stem.translate(x, y + h / 2, z); colourPart(stem, '#725e37', groveParts);
+    const stem = new THREE.CylinderGeometry(.025 * size, .065 * size, h, 5); stem.translate(x, y + h / 2, z); colourPart(stem, '#725e37', groveBand(x));
     for (let leaf = 0; leaf < 8; leaf++) {
       const g = leafGeometry.clone(), a = leaf * 2.4 + cluster, scale = (.65 + random(leaf + branch * 8) * .65) * size;
       g.scale(scale, scale, scale); g.rotateX(-.2 + (leaf % 3) * .22); g.rotateY(a); g.translate(x, y + .2 + leaf / 8 * h, z);
-      colourPart(g, ['#3d6e3f', '#5f8742', '#8ca454'][leaf % 3], groveParts);
+      colourPart(g, ['#3d6e3f', '#5f8742', '#8ca454'][leaf % 3], groveBand(x));
     }
   }
   leafGeometry.dispose();
   // Heavy with berries, and some that fell on the ground under them.
-  for (let i = 0; i < 230; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.7 + random(i + 4) * .5), 0); g.translate(x + Math.cos(a) * .3, y + h * (.45 + random(i) * .5), z + Math.sin(a) * .3); colourPart(g, GROVE_BERRY.reds[i % 3 ? 0 : 1], groveParts); }
-  for (let i = 0; i < 70; i++) { const [x, y, z] = shrubSpots[(i * 5) % shrubSpots.length], a = i * 2.1, d = .5 + random(i + 70) * 1.1, px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.6 + random(i + 8) * .4), 0); g.translate(px, heightAt(px, pz) + .06, pz); colourPart(g, GROVE_BERRY.reds[i % 2], groveParts); }
-  const groveLeaves = merge(groveParts); groveLeaves.material.side = THREE.DoubleSide;
+  for (let i = 0; i < 230; i++) { const [x, y, z, h] = shrubSpots[i % shrubSpots.length], a = i * 2.4, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.7 + random(i + 4) * .5), 0); g.translate(x + Math.cos(a) * .3, y + h * (.45 + random(i) * .5), z + Math.sin(a) * .3); colourPart(g, GROVE_BERRY.reds[i % 3 ? 0 : 1], groveBand(x)); }
+  for (let i = 0; i < 70; i++) { const [x, y, z] = shrubSpots[(i * 5) % shrubSpots.length], a = i * 2.1, d = .5 + random(i + 70) * 1.1, px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d, g = new THREE.IcosahedronGeometry(GROVE_BERRY.radius * (.6 + random(i + 8) * .4), 0); g.translate(px, heightAt(px, pz) + .06, pz); colourPart(g, GROVE_BERRY.reds[i % 2], groveBand(px)); }
+  // One mesh for each third of the grove's width, so a camera that sees one of them draws only that one.
+  for (const parts of groveBands) merge(parts).material.side = THREE.DoubleSide;
 
   // All bursts and ripples run on the same game clock as the animals.
   const particleGeometry = geo(new THREE.PlaneGeometry(.12, .07)), particleMaterial = mat({ color: '#d0af63', side: THREE.DoubleSide });

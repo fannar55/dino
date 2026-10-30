@@ -24,6 +24,7 @@
 //   farFriends, lookout  where the friends far out in the Fen are and the point they are seen from: tall plants keep out of
 //           the lines between them
 //   mossClear [{ center: [x, z], radius }]: no hanging moss from inside these discs (moss.js), the plan unchanged
+//   sectors   { clearing, edge, inner, deep }: how many sector meshes each band is cut into (config.js: bands.sectors); fewer, bigger ones draw in fewer calls
 //   farRings  the far treeline's rings (far.js) instead of the biome's own: [{ radius, rows, spacing, height, crown, strip, color, haze, topHaze, araucaria }]
 // Everything else (palette, densities, bands, wind weights) is in ./config.js. The pieces:
 //   terrain.js     height function, ground masks, ground mesh and material
