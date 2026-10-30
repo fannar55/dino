@@ -8,7 +8,37 @@
 export const END = { first: 0.6, gap: 0.7, flight: 0.6, settle: 0.5, together: 0.8, count: 1.0, rest: 0.4 };
 
 const easeOut = k => 1 - (1 - k) * (1 - k);
+const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k));
 const clamp01 = k => Math.min(1, Math.max(0, k));
+
+// A star that has landed is alive, as Mario's star is (the owner, 2026-10-30): its size beats like a heart (a double beat each
+// second), now and then it turns a few times quickly, and between those it looks about a little. `life` is s since it came to
+// life, `seed` keeps the stars apart; on the bar it is quieter (a smaller beat, its turns further apart).
+export const LIFE = {
+  end: { beat: 1, burstEvery: 3.6, burst: 0.7, turns: 3, look: 0.3 },
+  bar: { beat: 0.45, burstEvery: 7, burst: 0.6, turns: 2, look: 0.2 },
+};
+const BEAT_EVERY = 1.0; // s
+/** The heartbeat's lift of the size, 0..~0.09: a strong beat and a softer one after it, each second. */
+function heartbeat(life) {
+  const p = ((life % BEAT_EVERY) + BEAT_EVERY) % BEAT_EVERY;
+  const bump = (centre, width) => Math.exp(-((p - centre) ** 2) / (2 * width * width));
+  return 0.09 * bump(0.08, 0.045) + 0.055 * bump(0.28, 0.045);
+}
+/** How alive a star is `life` s in: { grow (times its size), spin (radians added) }. */
+function alive(life, seed, kind) {
+  if (life <= 0) return { grow: 1, spin: 0 };
+  const u = life - seed * 1.3; // each star bursts in its own time
+  let turned = 0;
+  if (u > 0) {
+    const n = Math.floor(u / kind.burstEvery), p = u - n * kind.burstEvery;
+    turned = 2 * Math.PI * kind.turns * (n + easeInOut(clamp01(p / kind.burst)));
+  }
+  return {
+    grow: 1 + kind.beat * heartbeat(life) * clamp01(life / 0.5),
+    spin: turned + kind.look * Math.sin(1.1 * life),
+  };
+}
 
 /** When things happen on the end screen with `stars` won (s after it began). */
 export function endTimes(stars) {
@@ -43,9 +73,10 @@ export function endStar({ t, i, earned, from, to, size, times }) {
   const turn = times.together !== null && t >= times.together ? 2 * Math.PI * easeOut(clamp01((t - times.together) / END.together)) : 0;
   const p = s - 1 - i * 1.3; // the gloss: 0.4 s every 4 s, from a second after landing, each star a little after the last
   const phase = p >= 0 ? p % 4 : -1;
+  const life = alive(s - 1, i, LIFE.end); // alive from a second after landing, when the bounce has settled
   return {
-    x: to.x, y: to.y, size: size * (1 + 0.3 * Math.exp(-6 * s) * Math.cos(18 * s)),
-    spin: 4 * Math.PI + turn, tilt: 0.1 * Math.sin(1.6 * t + i), gold: 1, flash: Math.max(0, 1 - s / 0.35),
+    x: to.x, y: to.y, size: size * (1 + 0.3 * Math.exp(-6 * s) * Math.cos(18 * s)) * life.grow,
+    spin: 4 * Math.PI + turn + life.spin, tilt: 0.1 * Math.sin(1.6 * t + i), gold: 1, flash: Math.max(0, 1 - s / 0.35),
     shine: phase >= 0 && phase < 0.4 ? Math.sin((Math.PI * phase) / 0.4) : 0, glass: false, shown: true,
   };
 }
@@ -61,8 +92,9 @@ export function barStar({ t, x, y, size, litAt }) {
       spin: base + 2 * Math.PI * easeOut(s / 0.5), tilt: 0, gold: 1, flash: Math.max(0, 1 - s / 0.35), shine: 0, glass: false,
     };
   }
+  const life = alive(s - 0.5, x / 97, LIFE.bar); // each bar star in its own time (its place on the bar)
   return {
-    x, y: y + 2 * Math.sin(2.2 * t), size, spin: base + 2 * Math.PI + 0.5 * Math.sin(1.2 * t),
+    x, y: y + 2 * Math.sin(2.2 * t), size: size * life.grow, spin: base + 2 * Math.PI + life.spin,
     tilt: 0.08 * Math.sin(1.3 * t), gold: 1, flash: 0, shine: 0, glass: false,
   };
 }

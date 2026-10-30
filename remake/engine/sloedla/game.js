@@ -119,6 +119,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   let endPlan = null; // the end's timings (star-motion.js endTimes), once it has begun
   let together = false, shownCount = 0, lastTick = -Infinity; // the three turning together done; the count heard so far
   const barLitAt = [Infinity, Infinity, Infinity]; // when each star on the bar was reached (its flyer arrived)
+  let starFrame = 0; // frames drawn, for drawing the 3D stars every other frame while only the bar's are there
   const djMemory = {};
   const spoken = []; // [song time, line] each time the DJ spoke (state() shows them)
   let djStarted = false;
@@ -761,6 +762,12 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         phase = 'done';
         onEnd(result());
       }
+    }
+    // glitter about the gold stars, as about Mario's: a twinkle now and then, more about the end's
+    for (const s of starStates(time)) {
+      if (s.glass || s.gold < 1 || random() >= dt * (s.id.startsWith('end') ? 5 : 1.2)) continue;
+      const a = random() * Math.PI * 2, r = s.size * (0.7 + random() * 0.6);
+      sparks.push({ x: s.x + Math.cos(a) * r, y: s.y + Math.sin(a) * r, vx: 0, vy: -18, life: 0, max: 0.45 + random() * 0.25, size: 8 + random() * 7, gravity: 0 });
     }
     // the glitter at the gold's leading edge on the bar
     if (phase === 'play' && shareNow() > 0 && random() < dt * 3) {
@@ -1580,8 +1587,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       outlined(g, `Lengsta röð: ${score.best}`, w / 2, below + (portrait ? 88 : 104), portrait ? 21 : 26, '#fff6c8');
       g.globalAlpha = 1;
       if (isNewBest(endStars, bestBefore) && t >= endPlan.countTo + 0.3) {
-        drawWord(g, 'Nýtt met!', w / 2 + spot.size * 3.1, endSpot(1).y - spot.size * 1.2, portrait ? 30 : 38, { style: 'rainbow', time, age: t - endPlan.countTo - 0.3, wave: 0.08, fit: w * 0.4 });
-        if (random() < 0.3) sparks.push({ x: w / 2 + spot.size * 3.1 + (random() - 0.5) * 90, y: endSpot(1).y - spot.size * 1.2 + (random() - 0.5) * 30, vx: 0, vy: -30, life: 0, max: 0.5, size: 9, gravity: 0 });
+        // beside the stars on a wide screen, over the middle one on a narrow one (it must not leave the screen)
+        const nx = portrait ? w / 2 : w / 2 + spot.size * 3.1;
+        const ny = endSpot(1).y - spot.size * (portrait ? 1.75 : 1.2);
+        drawWord(g, 'Nýtt met!', nx, ny, portrait ? 30 : 38, { style: 'rainbow', time, age: t - endPlan.countTo - 0.3, wave: 0.08, fit: w * (portrait ? 0.8 : 0.4) });
+        if (random() < 0.3) sparks.push({ x: nx + (random() - 0.5) * 90, y: ny + (random() - 0.5) * 30, vx: 0, vy: -30, life: 0, max: 0.5, size: 9, gravity: 0 });
       }
     }
   }
@@ -1618,7 +1628,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   function drawStars(g, time) {
     const list = starStates(time);
     if (stars3d) {
-      stars3d.draw(list);
+      // while the round plays only the bar's slow stars are there: every other frame is enough (a tablet's frame rate), but
+      // never while one flies up or has just been reached; the end draws every frame
+      starFrame++;
+      const busy = phase !== 'play' || flyers.length || barLitAt.some(at => time - at < 0.6);
+      if (busy || starFrame % 2 === 0) stars3d.draw(list);
       return;
     }
     for (const s of list) {

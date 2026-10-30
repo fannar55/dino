@@ -22,7 +22,7 @@ const MAX_RATIO = 1.5; // the canvas's pixels per CSS pixel, at most (a tablet's
 export async function createStarView({ canvas, url, facing = [0, 0, 0], win = globalThis }) {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' }); // no MSAA: a whole-screen layer
   } catch {
     return null;
   }
