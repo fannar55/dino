@@ -1,6 +1,6 @@
 {
   "file": "crab.glb",
-  "bytes": 279604,
+  "bytes": 280672,
   "triangles": 3082,
   "vertices": 2185,
   "meshes": [
@@ -36,13 +36,13 @@
   },
   "use": "The krabbi gift (surprise-items.js GIFT_ITEMS.crab): two instances, each a clone of the skin (SkeletonUtils) with its own AnimationMixer playing Dance while shown. Faces +X, +Y up, feet on y = 0 through the whole dance; the armature node carries the turn and the scale, so the clip plays as it was made.",
   "size": {
-    "lengthMetres": 1.2,
-    "widthMetres": 1.16,
-    "heightMetres": 1.123,
-    "note": "the largest side on the ground is 1.2 m; the height is the highest point of the dance (a raised claw and the eye stalks)"
+    "lengthMetres": 1.6,
+    "widthMetres": 1.545,
+    "heightMetres": 1.498,
+    "note": "the largest side on the ground is 1.6 m; the height is the highest point of the dance (a raised claw and the eye stalks)"
   },
-  "modifications": "blender-gift.py: the floor plane (material AOFLoor) and the importer's bone shape dropped, the source's empties removed, the specular-glossiness material rebuilt as plain metal-rough (the diffuse map as colour, the normal map, roughness 0.6, metallic 0; the importer's IOR of 1000 reset), the maps shrunk to 512 and written as WebP at quality 80, the armature turned 90 degrees to face +X, scaled to 1.2 m and lifted so the feet are on y = 0 over the whole clip (measured over frames 1 to 59). Skin, weights, bones and the Dance clip are untouched (3,082 triangles, under the target, so no decimation); not quantized, because three ignores the node scale that quantization needs on a skinned mesh.",
-  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/gjafir/src/dancing_crab_-_uca_mjoebergi.glb crab-blender.glb name=Crab size=1.2 front=90 tris=3900 tex=512 drop=AOFLoor roughness=0.6 normal=1 anim=1 credit=credit-crab.json",
+  "modifications": "blender-gift.py: the floor plane (material AOFLoor) and the importer's bone shape dropped, the source's empties removed, the specular-glossiness material rebuilt as plain metal-rough (the diffuse map as colour, the normal map, roughness 0.6, metallic 0; the importer's IOR of 1000 reset), the maps shrunk to 512 and written as WebP at quality 80, the armature turned 90 degrees to face +X, scaled to 1.6 m and lifted so the feet are on y = 0 over the whole clip (measured over frames 1 to 59). Skin, weights, bones and the Dance clip are untouched (3,082 triangles, under the target, so no decimation); not quantized, because three ignores the node scale that quantization needs on a skinned mesh.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/gjafir/src/dancing_crab_-_uca_mjoebergi.glb crab-blender.glb name=Crab size=1.6 front=90 tris=3900 tex=512 drop=AOFLoor roughness=0.6 normal=1 anim=1 credit=credit-crab.json",
   "quantizeCommand": null,
-  "passes": "blenderCommand (Blender 5.2, glTF I/O 5.2.41; 279,604 bytes), copied as it is."
+  "passes": "blenderCommand (Blender 5.2, glTF I/O 5.2.41; 280,672 bytes), copied as it is."
 }

@@ -69,7 +69,7 @@ const GLADE_VIEW = Object.freeze({ landscape: [.464, .375, .803], portrait: [.52
 // in the ribbon (GIFT.fly; the screen point basketPoint() says), `target` metres in front of the camera. A gift under a leaf that
 // closes ducks (GIFT.duck). `apart`: how far the two of a pair fly from one another on the screen's side to side, in metres.
 const TAP = Object.freeze({ squash: .16, swing: .3 });
-const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: 1.15, duck: .2, target: 6, shrink: .12, apart: .55 });
+const GIFT = Object.freeze({ pop: .35, rise: .45, hold: .55, fly: .75, hover: .8, duck: .2, target: 6, shrink: .12, apart: .55 });
 // The leaf's squash and rebound: a damped spring round 0 (stiffness, damping), kicked by a tap or a landing.
 const SPRING = Object.freeze({ stiffness: 520, damping: 17 });
 // A matched pair hops home in a straight line, lifted over the closed leaves it crosses (the board is too crowded for a
@@ -660,7 +660,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const record = { landed: 0, item: pair[0].item, cells: pair };
     pair.forEach((cell, index) => { cell.status = 'found'; Object.assign(cell.gift, { phase: 'rise', t: 0, pair: record, index }); });
     const middle = pair[0].root.position.clone().add(pair[1].root.position).multiplyScalar(.5).add(new THREE.Vector3(0, GIFT.hover * .6, 0));
-    cameraDirector.nudge(middle, .05, .7); mosi.lookAt(middle.clone(), { weight: .6, maxAngle: 28 }); mosi.blink();
+    cameraDirector.nudge(middle, .13, 1.7); mosi.lookAt(middle.clone(), { weight: .6, maxAngle: 28 }); mosi.blink(); // the camera leans in toward the pair for as long as they rise and hover
     return true;
   }
   // A gift under a leaf that closes (a mismatch) ducks down before the leaf is over it.
@@ -1115,7 +1115,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       // The plants the layout names (world-dressing.js), so a run can check that none stands where somebody walks.
       dressing: layout.plants, idle: idlePlay ? { ...idlePlay.getDebug(), blocked: idleBlocked } : null,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
-      cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, gift: cell.gift ? { age: cell.gift.age, phase: cell.gift.phase, shown: cell.gift.shown } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
+      cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, gift: cell.gift ? { age: cell.gift.age, phase: cell.gift.phase, shown: cell.gift.shown, t: cell.gift.t, model: cell.gift.model ? { visible: cell.gift.model.group.visible, position: cell.gift.model.group.position.toArray(), scale: cell.gift.model.group.scale.x } : null } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
       ...(measure ? { frame: measureFrame() } : {}),
     };
