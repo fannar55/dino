@@ -4,10 +4,12 @@
 // plays whole from its first beat; the child's hits keep a dinosaur's layers in and play her note louder, a miss leaves a hole.
 //
 // A song (v2/songs/<id>.js, its sounds in assets/audio/sloedla/v2/<id>/):
-//   { version: 2, id, name, tempo: { bpm, offset }, key: { root, scale, cents? }, sections: [{ name, bars, fixed?, lift? }],
+//   { version: 2, id, name, tempo: { bpm, offset }, key: { root, scale, cents? }, gain?, sections: [{ name, bars, fixed?, lift? }],
 //     instruments: { name: tools => play }, layers: [...], chart?: { barn: [...], fullordinn: [...] } }
 //   tempo.offset  s from the start of the stems to the first beat (0 for a song with no stems)
 //   key.cents     composed parts tuned to a recording (theme-tempo's tuningCents)
+//   gain          how loud the whole song plays, its hits alike (1): every song's music about as loud as the others (measured with
+//                 the side notes' loudness.mjs; the crowd and the DJ are set against it)
 //   a section     whole 4/4 bars; fixed: never bigger or calmer; lift: semitones up from here when it plays big (no stems)
 //   a layer       { id, owner, gain?, tier?: 1-3 (a star layer, the song's), when?: 'big'|'calm' (a part), stem: file | part,
 //                   accent?: how strongly a hit on a stem stands out (1; more for a stem that is quiet in its recording) }
@@ -48,6 +50,7 @@ export function validateSong(song) {
   try { rootHz(song?.key?.root); } catch { say(`key: no note called ${song?.key?.root}`); }
   if (!SCALES.includes(song?.key?.scale ?? 'major')) say(`key: no scale called ${song?.key?.scale}`);
   if (song?.key?.cents !== undefined && !Number.isFinite(song.key.cents)) say('key: cents must be a number');
+  if (song?.gain !== undefined && !(song.gain > 0)) say('gain (how loud the whole song plays) must be more than 0');
   if (!Array.isArray(song?.sections) || !song.sections.length) {
     say('the song has no sections');
     return problems;

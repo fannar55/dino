@@ -58,6 +58,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const decideAhead = fall + 0.7;
   const offset = song.tempo.offset ?? 0;
   const byId = Object.fromEntries(song.layers.map(layer => [layer.id, layer]));
+  const loud = HEADROOM * (song.gain ?? 1); // the whole song, its hits alike (format.js: a song's gain)
 
   const filter = (type, frequency, extra = {}) => {
     const node = context.createBiquadFilter();
@@ -75,7 +76,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   };
 
   // the song bus: everything but the notes the child taps; a calm section muffles it, a big one brightens it
-  const bus = gain(HEADROOM, out);
+  const bus = gain(loud, out);
   const shelf = filter('highshelf', 4000, { gain: 0 });
   shelf.connect(bus);
   const mood = filter('lowpass', OPEN, { Q: 0.7 });
@@ -93,7 +94,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   const hits = {};
   const edges = {};
   for (const role of ROLES) {
-    hits[role] = gain(HEADROOM, out);
+    hits[role] = gain(loud, out);
     const clip = context.createWaveShaper();
     clip.curve = CLIP;
     clip.oversample = '2x';
@@ -102,7 +103,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     high.connect(gain(EDGE_TRIM, hits[role]));
     edges[role] = clip;
   }
-  const loose = gain(0.5 * HEADROOM, out); // a miss's bloop and a tap at no note, outside her chain
+  const loose = gain(0.5 * loud, out); // a miss's bloop and a tap at no note, outside her chain
   // each layer's own level, into her chain, a tier, or the song bus
   const layers = {};
   for (const layer of song.layers) {
@@ -164,7 +165,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
     const at = Math.max(context.currentTime, clock.contextTimeOf(section.start));
     mood.frequency.setTargetAtTime(variant === 'calm' ? 1400 : OPEN, at, 0.15);
     shelf.gain.setTargetAtTime(variant === 'big' ? 3 : 0, at, 0.15);
-    bus.gain.setTargetAtTime(HEADROOM * (variant === 'big' ? 1.12 : variant === 'calm' ? 0.85 : 1), at, 0.2);
+    bus.gain.setTargetAtTime(loud * (variant === 'big' ? 1.12 : variant === 'calm' ? 0.85 : 1), at, 0.2);
   }
 
   function pump() {

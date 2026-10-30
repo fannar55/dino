@@ -314,6 +314,7 @@ export default {
   name: 'Pixlaferð',
   tempo: { bpm: 140, offset: 0 },
   key: { root: 'A', scale: 'minor' },
+  gain: 1.6, // +4 dB: a console's chips are quieter than a recording (measured -23.4 LUFS against -19 for the recorded songs)
   sections: [
     { name: 'byrjun', bars: 2, fixed: true },
     { name: 'A', bars: 8 },

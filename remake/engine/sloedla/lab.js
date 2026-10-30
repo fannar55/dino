@@ -100,8 +100,15 @@ if (mix) {
   room.connect(wet);
   wet.connect(mix);
 }
+// The balance of the round (measured 2026-10-30 with the side notes' loudness.mjs + loudness-report.mjs, K-weighted as loudness
+// meters hear; the owner: the music was too low against the rest): the music bus up 2 dB, the crowd and the DJ down 2 dB each,
+// and the music dips 3 dB under the DJ, not 5. The DJ had peaked 9-14 dB over the music, the crowd up to 9.
+const MUSIC_LEVEL = 1.26;
+const CROWD_LEVEL = 1.1;
+const DJ_LEVEL = 0.95;
+const TALK_DIP = 0.71;
 // the crowd's voice, made with ElevenLabs (tools/sloedla-crowd.mjs); fetched and decoded while the start card waits
-const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`) }) : null;
+const crowd = mix && options.crowd ? createCrowd({ context, output: mix, room, src: id => asset(`audio/sloedla/crowd-${id}.mp3`), level: CROWD_LEVEL }) : null;
 crowd?.load();
 const CLAP_LEVEL = 1.55; // the clapping crowd against the crowd's bus (measured: tools in the side notes, meter-crowd.mjs + clap-report.mjs)
 // the crowd clapping along in Stjörnukraftur: real hand claps (claps.js), through the crowd's bus (its level, its share of the room)
@@ -111,14 +118,13 @@ claps?.load();
 // on the radio; the crowd and the DJ go past it
 const music = mix ? context.createGain() : null;
 music?.connect(mix);
-const TALK_DIP = 0.56; // about -5 dB
 function talkOver(at, seconds) {
   const gain = music.gain;
   gain.cancelScheduledValues(at);
-  gain.setTargetAtTime(TALK_DIP, at, 0.04);
-  gain.setTargetAtTime(1, at + seconds, 0.2);
+  gain.setTargetAtTime(MUSIC_LEVEL * TALK_DIP, at, 0.04);
+  gain.setTargetAtTime(MUSIC_LEVEL, at + seconds, 0.2);
 }
-const dj = mix && options.dj ? createDj({ context, output: mix, src: id => asset(`audio/sloedla/dj/${id}.mp3`), onTalk: talkOver }) : null;
+const dj = mix && options.dj ? createDj({ context, output: mix, src: id => asset(`audio/sloedla/dj/${id}.mp3`), level: DJ_LEVEL, onTalk: talkOver }) : null;
 dj?.load();
 
 function loadImage(src) {
@@ -172,7 +178,7 @@ async function start() {
   const fall = windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
-  music.gain.value = 1;
+  music.gain.value = MUSIC_LEVEL;
   const sounds = createSongSounds({ context, output: music, room, voices: v2 ? null : song.voices, instruments: song.instruments });
   const conductor = v2
     ? createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall })
@@ -301,7 +307,7 @@ showOptions();
 for (const button of document.querySelectorAll('[data-play]')) button.addEventListener('click', () => start());
 
 // for a look from outside (captures, and a meter of the mix: `audio`)
-window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null } };
+window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
 Promise.all([loading, backdropLoading]).then(([loaded]) => {
   images = loaded;
   $('play').disabled = false;

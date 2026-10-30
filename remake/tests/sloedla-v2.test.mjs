@@ -7,7 +7,7 @@ import { FIRST_NOTE, ROLES, timelineOf, validateSong } from '../engine/sloedla/v
 import { chartProblems, expectedOf, sectionChart } from '../engine/sloedla/v2/chart.js';
 import { partNotes } from '../engine/sloedla/v2/parts.js';
 import { createPlayer } from '../engine/sloedla/v2/player.js';
-import { createFakeContext } from './fake-audio.mjs';
+import { createFakeContext, peakThrough } from './fake-audio.mjs';
 import { SONGS_V2 } from '../engine/sloedla/v2/songs/index.js';
 import { makeSong } from './sloedla-v2-fixture.mjs';
 
@@ -59,14 +59,15 @@ after(() => { for (const player of players) player.stop(); });
 
 // A player on the fake audio context (fake-audio.mjs) and a clock whose song time 0 is context time 0.4. The song plays on as the
 // game's timer would move it: small steps, a pump each (sections are decided as time passes).
-function rig({ roles, drop } = {}) {
+function rig({ roles, drop, change } = {}) {
   const context = createFakeContext({ state: 'running' });
-  const song = makeSong();
+  const song = makeSong(change);
   for (const layer of song.layers) if (layer.stem && layer.id !== drop) layer.buffer = { duration: 61, length: 61 * 44100, sampleRate: 44100, numberOfChannels: 2 };
   const clock = { start() {}, contextTimeOf: t => 0.4 + t };
   const plays = [];
   const sounds = { play: (name, options) => plays.push({ name, ...options }), oops() {} };
-  const player = createPlayer({ context, song, clock, sounds, out: context.createGain(), roles });
+  const out = context.createGain();
+  const player = createPlayer({ context, song, clock, sounds, out, roles });
   players.push(player);
   const to = t => {
     while (context.currentTime < 0.4 + t - 1e-9) {
@@ -74,8 +75,20 @@ function rig({ roles, drop } = {}) {
       player.pump();
     }
   };
-  return { context, song, player, plays, to };
+  return { context, song, player, plays, to, out };
 }
+
+test('v2 song gain: a song plays louder or softer as a whole, its hits alike, so a hit stands out just as much', () => {
+  assert.ok(validateSong(makeSong({ gain: 0 })).some(p => p.includes('gain')));
+  assert.deepEqual(validateSong(makeSong({ gain: 1.6 })), []);
+  const plain = rig(), loud = rig({ change: { gain: 1.6 } });
+  for (const { player } of [plain, loud]) player.start(0.4);
+  plain.to(12);
+  loud.to(12);
+  const stem = ({ context, out }) => peakThrough(context.bufferSources.find(s => s.buffer && s.outputs.length), out);
+  assert.ok(Math.abs(stem(loud) / stem(plain) - 1.6) < 1e-9, 'the song');
+  for (const role of ROLES) assert.ok(Math.abs(loud.player.hits[role].gain.value / plain.player.hits[role].gain.value - 1.6) < 1e-9, role);
+});
 
 test('v2 player: the whole song from the first beat; a hit plays the same place of the same file louder, never past the note', () => {
   const { context, song, player, to } = rig();
