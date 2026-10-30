@@ -51,7 +51,7 @@ export function createWorldFx({ scene, heightAt, wet = () => false, wood = () =>
   });
   const mesh = new THREE.Points(geometry, material); mesh.name = 'Fótaryk, lauf og vinaglampi'; mesh.frustumCulled = false; mesh.visible = false; mesh.renderOrder = 10; scene.add(mesh);
   let sequence = 0, reduced = false, clock = 0, lastStep = -1, emitted = 0, footPuffs = 0, tracking = new WeakMap();
-  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0, colours = null } = {}) {
+  function emit(kind, point, { count = kind === 'dust' ? 5 : 7, domain = 'world', strength = 1, ring = 0, colours: palette = null } = {}) {
     if (reduced) return;
     const style = STYLES[kind];
     if (style) {
@@ -60,7 +60,7 @@ export function createWorldFx({ scene, heightAt, wet = () => false, wood = () =>
         const seed = sequence++, a = ring ? (i + hash(seed) * .5) / count * Math.PI * 2 : hash(seed) * Math.PI * 2, speed = (style.spread[0] + hash(seed + 7) * style.spread[1]) * strength;
         particles.push({ x: point.x + Math.cos(a) * (.1 + ring), y: point.y + .1, z: point.z + Math.sin(a) * (.1 + ring), vx: Math.cos(a) * speed, vy: (style.rise[0] + hash(seed + 21) * style.rise[1]) * Math.min(1.3, strength), vz: Math.sin(a) * speed,
           age: 0, life: style.life[0] + hash(seed + 41) * style.life[1], size: style.size[0] + hash(seed + 63) * style.size[1], angle: a, spin: (hash(seed + 19) - .5) * (style.spin ?? 4), kind: style.shape,
-          colour: (colours ?? style.colours)[i % (colours ?? style.colours).length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow, fade: style.fade });
+          colour: (palette ?? style.colours)[i % (palette ?? style.colours).length].clone().multiplyScalar(.9 + hash(seed + 71) * .2), domain, fall: style.fall, alpha: style.alpha, grow: style.grow, fade: style.fade });
       }
       emitted += count; if (particles.length > MAX) particles.splice(0, particles.length - MAX);
       return;
