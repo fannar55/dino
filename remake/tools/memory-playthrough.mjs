@@ -1106,6 +1106,8 @@ async function main() {
       report.perf = await ev(PERF_JS(4));
       report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
       report.renderMax = await ev('window.__max');
+      // What one world.getDebug() costs here (it used to run on every frame for window.__demoStats; now only when it is read).
+      report.debugCostMs = await ev("(() => { const t = performance.now(); for (let i = 0; i < 20; i++) window.__memory.stats({ collision: false }); return +((performance.now() - t) / 20).toFixed(2); })()").catch(() => null);
       // The ending render scale: a full 1280x800 round that ends below 1 is flagged (the scale must recover once the frames are fast again).
       const res = (await ev('window.__res')) ?? {}, end = report.render?.resolutionScale;
       report.resolution = { end, min: res.min ?? null, changes: res.changes ?? [], flag: o.mode === 'full' && o.width === 1280 && o.height === 800 && Number.isFinite(end) && end < 0.999 ? (o.cpuThrottle > 1 ? 'ends below 1 (CPU throttled: expected)' : 'ENDS BELOW 1 AT 1280x800') : null };
@@ -1156,6 +1158,7 @@ async function main() {
   if (r.resolution) console.log(`Resolution scale: end ${r.resolution.end}, lowest ${r.resolution.min}, ${r.resolution.changes.length} changes${r.resolution.afterRelief !== undefined ? `, ${r.resolution.afterRelief} after 15 s without the throttle` : ''}${r.resolution.flag ? ' - FLAG: ' + r.resolution.flag : ''}`);
   if (r.resolutionRestart) console.log(`Resolution across the restart: ${JSON.stringify(r.resolutionRestart)}`);
   if (r.cancelCheck) console.log(`"Aftur" check with the bubbles open: ${JSON.stringify(r.cancelCheck)}`);
+  if (r.debugCostMs != null) console.log(`One world.getDebug() call: ${r.debugCostMs} ms`);
   console.log(`GPU: ${r.gpu}`);
   console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
   if (fatal || !r.finished || r.errors.length) process.exitCode = 1;

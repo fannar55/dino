@@ -508,8 +508,7 @@ function frame(timestamp) {
     }
     updateStory(frozen ? 0 : dt);
     refreshControls();
-    // Anatomical envelopes are sampled explicitly by QA, not rebuilt every RAF.
-    window.__demoStats = world.getDebug({ collision: false });
+    statsFrame++; // (window.__demoStats is built when QA reads it: see below)
   }
   raf = requestAnimationFrame(frame);
 }
@@ -542,6 +541,10 @@ window.addEventListener('resize', () => { world?.resize($('world').clientWidth, 
 window.addEventListener('pagehide', () => { userPaused = true; syncPause(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { userPaused = false; syncPause(); } });
 
+// QA reads window.__demoStats (the playthrough and the check tools). The world's debug object walks every friend and copies the idle log, so it is built
+// when it is read, at most once a frame, and not on every frame. The anatomical envelopes are sampled explicitly by QA (window.__memory.stats({ collision: true })).
+let statsFrame = 0, statsBuilt = -1, statsCache;
+Object.defineProperty(window, '__demoStats', { configurable: true, get() { if (statsBuilt !== statsFrame || !statsCache) { statsCache = world?.getDebug({ collision: false }); statsBuilt = statsFrame; } return statsCache; } });
 window.__memory = {
   state: () => game.getState(), basket: () => basketCount, giftsLeft: () => ({ toLand: giftsToLand(), unfound: giftsUnfound() }), stats: options => world?.getDebug(options), audio: () => ({ ...audio.getStats(), music: music.getStats(), speech: speech.getStats() }),
   targets: () => world?.getTargets(),
