@@ -736,15 +736,19 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
   // May `actor` stand on `p` while it plays? Not in water or on the boardwalk, not on a leaf's ground, not by the log or the branch,
   // never nearer to another friend, Mosi or a leaf than it is now, and never in front of a leaf in the search view.
+  const idleBlocked = {};
   function idleClear(actor, p) {
-    const x = p.x, z = p.z, from = actor.root.position, size = 1.3 * (actor.lengthFactor ?? 1);
-    if (wetGround(x, z) || adventure.onWalkway(x, z) || riverDistance(x, z).distance < RIVER.halfWidth + 1.6 || Math.abs(world.heightAt(x, z) - world.heightAt(from.x, from.z)) > .2) return false;
-    if (onLeafGround(x, z, .35) && !onLeafGround(from.x, from.z, .35)) return false;
+    const x = p.x, z = p.z, from = actor.root.position, size = 1.3 * (actor.lengthFactor ?? 1), no = why => { idleBlocked[why] = (idleBlocked[why] ?? 0) + 1; return false; };
+    if (wetGround(x, z)) return no('wet');
+    if (adventure.onWalkway(x, z)) return no('boardwalk');
+    if (riverDistance(x, z).distance < RIVER.halfWidth + 1.6) return no('river');
+    if (Math.abs(world.heightAt(x, z) - world.heightAt(from.x, from.z)) > .2) return no('slope');
+    if (onLeafGround(x, z, .35) && !onLeafGround(from.x, from.z, .35)) return no('leaf');
     const away = (ax, az, need) => Math.hypot(x - ax, z - az) >= Math.min(need, Math.hypot(from.x - ax, from.z - az)) - .01;
-    for (const other of babyActors) if (other !== actor && other.root.visible && !away(other.root.position.x, other.root.position.z, (size + 1.3 * (other.lengthFactor ?? 1)) * .9 + .3)) return false;
-    if (!away(mosi.root.position.x, mosi.root.position.z, size + 2.4)) return false;
-    for (const object of idleSolids()) if (segmentGap(x, z, object.a, object.b) < object.radius + size * .8 && segmentGap(from.x, from.z, object.a, object.b) >= object.radius + size * .8) return false;
-    return !idleCoversLeaf(actor, x, z);
+    for (const other of babyActors) if (other !== actor && other.root.visible && !away(other.root.position.x, other.root.position.z, (size + 1.3 * (other.lengthFactor ?? 1)) * .9 + .3)) return no('friend');
+    if (!away(mosi.root.position.x, mosi.root.position.z, size + 2.4)) return no('mosi');
+    for (const object of idleSolids()) if (segmentGap(x, z, object.a, object.b) < object.radius + size * .8 && segmentGap(from.x, from.z, object.a, object.b) >= object.radius + size * .8) return no(object.id ?? 'solid');
+    return idleCoversLeaf(actor, x, z) ? no('covers-a-leaf') : true;
   }
   // A plant the layout placed that is worth a sniff, near a point: flowers, ferns, bushes and reeds (not the stones).
   const SNIFFABLE = { fern: .45, bush: .9, flowers: .2, horsetailReed: .5 };
@@ -1050,7 +1054,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     const homeNavigation = { ...homeNav.getDebug(), queued: cells.filter(cell => cell.transfer?.waiting).map(cell => cell.id), active: cells.filter(cell => cell.transfer && !cell.transfer.waiting).map(cell => cell.id) };
     return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), beats, mosi: mosiPuppet?.current ?? null, mosiWalk: mosiWalk ? { onDeck: mosiWalk.onDeck, distance: +Math.min(mosiWalk.route.total, mosiWalk.age * mosiWalk.speed).toFixed(2), total: +mosiWalk.route.total.toFixed(2) } : null, mosiAcross, mosiPosition: mosi.root.position.toArray() }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
       // The plants the layout names (world-dressing.js), so a run can check that none stands where somebody walks.
-      dressing: layout.plants, idle: idlePlay?.getDebug() ?? null,
+      dressing: layout.plants, idle: idlePlay ? { ...idlePlay.getDebug(), blocked: idleBlocked } : null,
       glade: { leaves: CELLS, rests: NESTS, river: { points: RIVER.points, halfWidth: RIVER.halfWidth, waterY: RIVER.waterY } },
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, surprise: cell.surprise ? { age: cell.surprise.age, popped: cell.surprise.popped, done: cell.surprise.done } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),

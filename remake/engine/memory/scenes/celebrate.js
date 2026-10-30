@@ -64,10 +64,10 @@ export function celebrateScene(stage) {
     { at: T.brontoTrick, shot: { kind: 'face', subjects: () => faces(bronto()), front: frontOf(bronto, -.15), elevation: 20, cut: true },
       act: all(beat('trick-brontosaurus'), () => bronto().forEach(happy)), sound: call('brontosaurus'), fx: [{ kind: 'stars', at: () => up(bronto()[0].root.position, 2), count: 10 }, { kind: 'stars', at: () => up(bronto()[1].root.position, 2), count: 10 }] },
     // Mosi cheers, close on his face, and the surprises the child found rise from his basket beside his head while his line says so.
-    { at: T.mosi, shot: { kind: 'face', subjects: () => [mosi.head(), up(mosi.head(), .6), ...giftPoints()], front: mosiFront(), elevation: 10, cut: true },
+    { at: T.mosi, shot: { kind: 'face', subjects: () => [mosi.head(), up(mosi.head(), .6), ...giftPoints()], front: mosiFront(), elevation: 15, cut: true },
       act: all(beat('mosi-cheer'), () => mosi.look(stage.camera()), () => mosi.gesture('cheer'), () => stage.gifts.start()), fx: { kind: 'stars', at: () => up(mosi.body(), .8), count: 14 }, sound: gifts ? 'ding' : undefined, say: line ? { line, queue: true } : undefined },
     // The gifts again from his other side (only when there are some).
-    ...(gifts ? [{ at: look, shot: { kind: 'face', subjects: () => [mosi.head(), up(mosi.head(), .6), ...giftPoints()], front: mosiFront(.8), elevation: 8, cut: true }, act: beat('gifts-seen') }] : []),
+    ...(gifts ? [{ at: look, shot: { kind: 'face', subjects: () => [mosi.head(), up(mosi.head(), .6), ...giftPoints()], front: mosiFront(.8), elevation: 13, cut: true }, act: beat('gifts-seen') }] : []),
     // The last picture: the six and Mosi together, wide and low, the berries behind them. The card comes up under it.
     { at: last, shot: { kind: 'wide', subjects: () => [...group(), shift(mosi.body(), -3.4, -1.3, 3), shift(mosi.body(), 3.6, -1.3, 3)], elevation: 20, cut: true },
       act: all(beat('final-wide'), () => stage.gifts.end(), () => friends().forEach(actor => actor.gesture('settle'))) },

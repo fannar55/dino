@@ -93,7 +93,7 @@ export function createIdlePlay({ actors = () => [], random = Math.random, camera
           a.look = { x: spot.x + Math.cos(yaw) * 1.4, z: spot.z - Math.sin(yaw) * 1.4 };
           to = wayClear(a, ahead) ? ahead : { x: spot.x, z: spot.z };
         }
-        a.to = to; a.phase = 'go'; return true;
+        a.to = to; a.phase = 'go'; a.went = Math.hypot(to.x - spot.x, to.z - spot.z) < .1 ? 'in place' : plant && to.x !== spot.x && Math.hypot(to.x - plant.x, to.z - plant.z) < Math.hypot(spot.x - plant.x, spot.z - plant.z) - .2 && a.look.x === plant.x ? 'to a plant' : 'ahead'; return true;
       },
       step(a, dt) {
         const actor = a.actor;
@@ -180,7 +180,7 @@ export function createIdlePlay({ actors = () => [], random = Math.random, camera
         if (!game.begin(player)) { endOwn(player); continue; }
         if (log.some(item => item.ended == null)) overlaps++;
         player.game = name; active = player; since = 0; nextAt = gap(); lastPlayed.set(entry.actor, clock); lastGame.set(entry.actor, name);
-        player.record = { friend: entry.id, species: entry.species, game: name, t: +clock.toFixed(2), waited: +waited.toFixed(2), at: [+player.spot.x.toFixed(2), +player.spot.z.toFixed(2)], ended: null, stopped: null, seconds: null, far: 0 };
+        player.record = { friend: entry.id, species: entry.species, game: name, t: +clock.toFixed(2), waited: +waited.toFixed(2), at: [+player.spot.x.toFixed(2), +player.spot.z.toFixed(2)], ended: null, stopped: null, seconds: null, far: 0, ...(player.went ? { went: player.went } : {}) };
         log.push(player.record); if (log.length > 400) log.shift();
         return true;
       }
