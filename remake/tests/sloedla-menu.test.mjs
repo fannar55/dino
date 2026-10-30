@@ -122,3 +122,12 @@ test('the preview player: one at a time, faded out on stop', async () => {
     globalThis.fetch = realFetch;
   }
 });
+
+test('every song has its picture on disk, its source and licence said', () => {
+  const credits = fs.readFileSync(new URL('../assets/sloedla/valmynd/KREDIT.md', import.meta.url), 'utf8');
+  for (const entry of [...SONGS_V2, { id: 'dj', card: 'dj.webp' }]) {
+    assert.ok(fs.existsSync(new URL(`../assets/sloedla/valmynd/${entry.card}`, import.meta.url)), entry.id);
+    assert.ok(credits.includes(entry.card), `KREDIT.md says where ${entry.card} is from`);
+    if (entry.hue) assert.match(entry.hue, /^#[0-9a-f]{6}$/i);
+  }
+});
