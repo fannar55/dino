@@ -185,6 +185,72 @@ export const PRESETS = {
       'carnival festival energy, happy, silly and danceable', 'four different chords in a loop, each chord lasts exactly one bar of four beats',
     ],
   },
+  // the new song system (2026-10-30, engine/sloedla/v2): songs with a form, words and a folder of their own
+  // Rokkhopp: a recording only, a rock-and-roll trio; the piano is Slóeðla's, the double bass Kambeðla's, the drums Þórseðla's
+  boogie: {
+    name: 'Boogie rock and roll',
+    style: 'happy 1950s rock and roll boogie-woogie',
+    bpm: 150,
+    key: 'C major',
+    keyWords: 'C major',
+    folder: 'v2/boogie',
+    chords: { roman: 'I-I-I-I-IV-IV-I-I-V-IV-I-V', names: ['C', 'C', 'C', 'C', 'F', 'F', 'C', 'C', 'G', 'F', 'C', 'G'], words: 'the twelve-bar blues: C, C, C, C, F, F, C, C, G, F, C, G', perBar: 1 },
+    bridgeChords: { roman: 'IV-IV-I-I-V-IV-I-V', names: ['F', 'F', 'C', 'C', 'G', 'F', 'C', 'G'], words: 'F, F, C, C, G, F, C, G', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 4, ['solo boogie-woogie piano alone with a rolling left-hand bass pattern', 'the double bass and the drums come in on the last bar']],
+      ['Verse 1', 'verse', 12],
+      ['Verse 2', 'verse', 12],
+      ['Bridge', 'bridge', 8, ['stop-time: the whole band hits together on beat one of each bar and the piano answers with a fill']],
+      ['Verse 3', 'final', 12],
+      ['Outro', 'outro', 4, ['a classic rock and roll ending: a last piano run down the keys and the band hits the final chord together']],
+    ],
+    kinds: {
+      intro: ['intro', 'builds up over four bars'],
+      verse: ['verse', 'steady swinging groove, high energy', 'the boogie-woogie piano plays rolling riffs and bright licks over the twelve-bar blues'],
+      bridge: ['stop-time bridge', 'drums keep exactly the same steady tempo'],
+      final: ['last verse', 'the biggest and most energetic section', 'the piano plays its wildest boogie licks and glissandos'],
+      outro: ['outro', 'ends cleanly on the C chord, no fade out'],
+    },
+    core: [
+      'happy, bouncy 1950s rock and roll for kids', 'a real live trio of boogie-woogie piano, upright double bass and drums',
+      'boogie-woogie piano with a rolling eighth-note left hand and bright right-hand licks', 'slapped upright double bass walking in quarter notes',
+      'swinging drum kit with a strong snare backbeat on two and four', 'shuffle swing feel', 'fun, cheeky and playful',
+    ],
+    negative: [...NEGATIVE.filter(style => !['prominent lead melody', 'lead solo'].includes(style)), 'electric guitar', 'saxophone', 'synthesizer', 'horns', 'organ'],
+  },
+  // Fönkhopp: a hybrid; the recording gives the drums (Þórseðla's) and the bass (Kambeðla's), Slóeðla's tune is composed in the game
+  fonk: {
+    name: 'Funky hip-hop beat',
+    style: 'funky hip-hop beat',
+    bpm: 95,
+    key: 'E minor',
+    keyWords: 'E minor',
+    folder: 'v2/fonk',
+    chords: { roman: 'i-VI-III-VII', names: ['Em', 'C', 'G', 'D'], words: 'E minor, C, G, D', perBar: 1 },
+    form: [
+      ['Intro', 'intro', 2, ['the drums alone: a funky breakbeat']],
+      ['Verse 1', 'verse', 8],
+      ['Hook 1', 'chorus', 4],
+      ['Verse 2', 'verse', 8],
+      ['Hook 2', 'chorus', 4],
+      ['Bridge', 'bridge', 4, ['the drums and bass break down to a kick and a few bass notes, then build back up']],
+      ['Hook 3', 'final', 4],
+      ['Outro', 'outro', 2],
+    ],
+    kinds: {
+      intro: ['intro', 'only drums'],
+      verse: ['verse', 'steady head-nodding groove', 'leaves open space for a lead melody'],
+      chorus: ['hook', 'fuller and punchier drums with extra hand claps', 'leaves open space for a lead melody'],
+      bridge: ['breakdown', 'drums keep exactly the same steady tempo'],
+      final: ['last hook', 'the biggest and punchiest section', 'leaves open space for a lead melody'],
+      outro: ['outro', 'ends cleanly on a last kick and bass note, no fade out'],
+    },
+    core: [
+      'a funky hip-hop beat for kids, playful and bouncy', 'crisp boom-bap drums with a punchy kick, a snappy snare on two and four and swung sixteenth-note hi-hats',
+      'a deep funky electric bass guitar with slides and ghost notes, following the chords', 'only drums and bass, nothing else', 'clean modern production',
+    ],
+    negative: [...NEGATIVE, 'piano', 'keys', 'guitar', 'synth lead', 'strings', 'melody', 'pads', 'brass'],
+  },
 };
 
 /** A preset as it is for a version: version 2 and later may override fields (a `revisions` map: core, extra, revision = what was changed). */
