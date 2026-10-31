@@ -63,7 +63,7 @@ export function branchScene(stage, { taps = 3, timeout = 4 } = {}) {
 }
 
 /**
- * A wrong friend has a go (bridge-adventure startFail: hop there, its species' failure, hop back; `timing` is what
+ * A wrong friend has a go (adventure.js startFail: hop there, its species' failure, hop back; `timing` is what
  * it returned, with the way the pair faces there): a wide cut on the run, a close cut on the failure from in front
  * of them, three-quarters (stage.faceOn), so their faces show, a cut to Mosi laughing "Kannski einhver annar?",
  * then a cut back to the glade, where the bubbles come back (a glide from the close shot would sweep the whole

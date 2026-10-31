@@ -7,7 +7,7 @@
  *   task.alongBridge(point)   metres along the bridge from its near end (negative before it)
  * `timing` is Mosi's walk, in seconds from the start: `entry` his middle passes the near end of the deck, `deck`
  * his first step onto it, `mid` mid-bridge, `arrive` at his place at staging; `lead` what the friends follow
- * ({ at, half }, see bridge-adventure start), null when he does not walk.
+ * ({ at, half }, see adventure.js start), null when he does not walk.
  */
 const all = (...fns) => fns;
 const bodies = actors => actors.flatMap(actor => [actor.root.position.clone(), actor.getNosePosition()]);

@@ -3,7 +3,7 @@
  * (scenes.js) on the world's `stage` (world.js; see scenes/cross.js, which gives the same Mosi and friends helpers).
  * For this one the stage also gives task.panelCentre(i), where panel i of the boardwalk lies, and task.point('grove').
  * `timing` is Mosi's walk, in seconds from the start: `deck` his first step onto the boardwalk, `mid` the middle of it,
- * `arrive` at his place past it; `lead` what the friends follow ({ at, half }, see bridge-adventure start).
+ * `arrive` at his place past it; `lead` what the friends follow ({ at, half }, see adventure.js start).
  */
 import { celebrateScene } from './celebrate.js';
 const all = (...fns) => fns;

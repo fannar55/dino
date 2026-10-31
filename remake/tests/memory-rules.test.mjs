@@ -236,6 +236,42 @@ test('level 1 is described as frozen data the rules, the story and the game read
   assert.throws(() => { BERJALUNDUR.friends.push('x'); }, TypeError);
 });
 
+test("level 1's glade is data too: a leaf for every card, a rest for every pair, where Mosi stands, how the search view looks", () => {
+  const { grid, nests, mosiSpot, gladeView, friends, gifts } = BERJALUNDUR;
+  assert.equal(grid.columns * grid.rows, 2 * (friends.length + gifts.length), 'a hiding place for every card');
+  assert.deepEqual([grid.columns, grid.rows, grid.across, grid.deep, grid.angle, ...grid.centre], [4, 3, 3, 3.6, Math.PI / 6, -5.2, 7.6]);
+  assert.deepEqual(nests.map(rest => [...rest]), [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]]);
+  assert.equal(nests.length, friends.length, 'a rest for every pair');
+  assert.deepEqual({ ...mosiSpot }, { x: 3, z: 2.8, heading: 90 });
+  assert.deepEqual([[...gladeView.landscape], [...gladeView.portrait]], [[.464, .375, .803], [.52, .8, -.3]]);
+  assert.throws(() => { grid.across = 1; }, TypeError);
+  assert.throws(() => { nests[0].push(1); }, TypeError);
+});
+
+test('a level has a world: level 1 loads, an unknown level does not', async () => {
+  const { loadLevelWorld } = await import('../engine/memory/levels/worlds.js');
+  assert.equal(typeof await loadLevelWorld('berjalundur'), 'function');
+  await assert.rejects(() => loadLevelWorld('nope'), RangeError);
+});
+
+test("level 1's world answers the shared stage with every member the interface lists (levels/worlds.js)", async () => {
+  const THREE = await import('three');
+  const { createSceneRunner } = await import('../engine/memory/scenes.js');
+  const { loadLevelWorld } = await import('../engine/memory/levels/worlds.js');
+  const stage = { THREE, scene: new THREE.Scene(), params: new URLSearchParams(), level: BERJALUNDUR, nests: [], scenes: createSceneRunner(), fx: {}, mosi: {}, heightAt: () => 0, time: () => 0, reducedMotion: () => false };
+  const world = (await loadLevelWorld('berjalundur'))(stage);
+  const calls = ['build', 'cameraCue', 'getTargets', 'tapPoint', 'playStep', 'startFail', 'isBusy', 'setStepState', 'setReducedMotion', 'update', 'afterActors', 'updateMosi', 'pollEvents',
+    'navObjects', 'mosiPlace', 'mosiObstacle', 'bindPair', 'ownsPair', 'pairCentre', 'hasTravelReservation', 'visited', 'nestSelectable', 'wet', 'wood', 'riverDistance', 'avoidIdle', 'getDebug', 'reset', 'dispose'];
+  assert.deepEqual(calls.filter(name => typeof world[name] !== 'function'), []);
+  assert.deepEqual(Object.keys(world.layout).sort(), ['dress', 'keepOut', 'lift', 'path'], 'what the forest is grown from');
+  assert.ok(Array.isArray(world.overviewPoints) && world.overviewPoints.every(point => point.length === 3));
+  for (const [x, z] of [[0, 0], [-5, 7], [4.5, -20]]) { const keep = world.layout.keepOut(x, z); assert.ok(keep >= 0 && keep <= 1, 'keepOut is 0 to 1'); assert.ok(Number.isFinite(world.layout.lift(x, z))); }
+  // before the forest stands (build) nothing is busy, no obstacle shows, and Mosi stands at his spot in the glade
+  assert.equal(world.isBusy(), false); assert.deepEqual(world.getTargets(), []); assert.deepEqual({ ...world.mosiPlace() }, { ...BERJALUNDUR.mosiSpot });
+  assert.equal(world.mosiObstacle(), true);
+  assert.equal(world.wet(0, 0), false, 'dry in the glade'); assert.equal(world.wood(0, 0), false);
+});
+
 test("level 1's flags are today's five fields, read off the done steps", () => {
   const flags = ids => BERJALUNDUR.flags(new Set(ids));
   assert.deepEqual(flags([]), { branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false });

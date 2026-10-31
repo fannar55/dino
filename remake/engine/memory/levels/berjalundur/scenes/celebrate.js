@@ -11,7 +11,7 @@
  * The Kambeðlur eat with their own `eat` clip and the others with the nibble gesture (gestures.js); tricks: the Þríhyrnur hop,
  * the Kambeðlur and the Þórseðlur play their `happy` clips (a friend without the clip, or in reduced motion, cheers instead).
  * Mosi's lines: `won` at the start, then the gifts line (gifts3: "Þú fannst allar þrjár gjafirnar!") once it is over; no gifts, no gifts line.
- * The six stand close round Mosi (bridge-adventure.js FINAL_PARKING), so a close shot of a pair or of Mosi and the last wide shot all
+ * The six stand close round Mosi (adventure.js FINAL_PARKING), so a close shot of a pair or of Mosi and the last wide shot all
  * show faces; every close shot looks down at 18 to 24 degrees, over the reeds and berries at the edge of the grove.
  */
 import * as THREE from 'three';

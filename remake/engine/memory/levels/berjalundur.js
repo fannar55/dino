@@ -3,7 +3,7 @@ import { freezeLevel } from '../step-rules.js';
 /**
  * Level 1, "Berjalundurinn": three friend pairs, three gift pairs and a way to the berry grove (the branch, the log across the river,
  * the crossing, the bark over the marsh, the walk). Everything the rules, the story and game.js need to know about the level is here;
- * the world still builds its terrain and scenes (until it is split by level).
+ * its 3D world (the terrain, the props, the scenes of its steps) is levels/berjalundur/world.js (see levels/worlds.js).
  *
  * steps        the ladder, in order (step-rules.js says what each kind means). `journey` is the step's name in the ribbon.
  * story        the words of the story, by step (playful-flow.js says which moment uses which): `doing`, `ready`, `arriving`, `find`,

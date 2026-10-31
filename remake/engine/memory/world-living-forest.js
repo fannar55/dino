@@ -74,7 +74,7 @@ export function createLivingForest(world, { avoid = () => false } = {}) {
     leaf(x+dx*length*.78,y+length*.27,z+dz*length*.78,angle,length*.24,length*.055,colour,.025);
   }
   // Nothing is planted where somebody walks or on a leaf's ground (the glade's centre and its aisles, the places after the log and
-  // at the grove, the way over the log, the water and the boardwalk's lane: world-ground.js walkable).
+  // at the grove, the way over the log, the water and the boardwalk's lane: ground.js walkable).
   function safe(x,z) {
     return !avoid(x,z)&&!walkable(x,z)&&Math.hypot(x+8.8,z-9.7)>=1.8;
   }

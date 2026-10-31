@@ -56,7 +56,7 @@ export function createGladeScenery(world, { avoid = () => false } = {}) {
   // Reuse the forest's authored leaflet forms. Two merged meshes keep the
   // layered fringe inexpensive while giving the clearing a fern silhouette.
   const library = createSpeciesLibrary(251017), zoneOf = z => z > -8 ? 0 : z > -20 ? 1 : 2, botanical = Object.fromEntries(['solid', 'thin'].map(part => [part, [0, 1, 2].map(() => ({ p: [], n: [], c: [], i: [] }))]));
-  // The tall ones (tree ferns and cycads) round the three play places; the low ferns, stones and flowers are world-dressing.js's.
+  // The tall ones (tree ferns and cycads) round the three play places; the low ferns, stones and flowers are dressing.js's.
   const plants = [
     ['treeFern', -11.4, 1.8, 1.08, .4, 1], ['treeFern', -12.5, 11.5, 1.02, 1.3, 1],
     ['treeFern', 8.5, 8.2, 1.12, 2.6, 1], ['treeFern', 14, -13.5, 1.18, .2, 1],
