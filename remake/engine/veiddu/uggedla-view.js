@@ -9,10 +9,11 @@ import { mouthFromText } from '../talk.js';
 //   talk({ mouth, duration })   her mouth follows a line's mouth track (lines.json's entry for it); without a track, `duration`
 //                               seconds of a gentle neutral talking
 //   think(on)                   her head tilts and she looks down at her cards while she chooses
-//   splash()                    she dips toward the water (her kink clip, once) when anyone fishes
+//   splash()                    she dips toward the water (her kink clip, once, and a bow of her head) when anyone fishes
 //   happy()                     she is glad (her happy clip, once): she laid a pair
-//   cheer()                     the end of a round: her happy clip, on and on, until her next move (think, splash, happy or rest)
+//   cheer()                     the end of a round: her happy clip, on and on, until her next move (splash, happy or rest)
 //   rest()                      back to calm: no thinking, no dip, no cheer (a new round, or the game shut mid-move)
+// With prefers-reduced-motion she still breathes, blinks, talks and thinks, but her splash, her gladness and her cheer are a small nod.
 // Everything moves on the view's own clock, which runs only between start() and stop(): the table stops her while the game is shut.
 // The canvas is transparent, so the window's own soft clearing (veiddu.css) is the sky and the meadow behind her.
 
@@ -20,10 +21,11 @@ const MODEL = new URL('../../assets/characters/spinosaurus.glb', import.meta.url
 const rad = THREE.MathUtils.degToRad;
 
 // Where the camera looks from: az is degrees round her (0 in front of her, 90 at her right side), el degrees above the level, fov the
-// lens. Only her front is framed (the head and snout, the neck, the arms and the sail: `from` is where the framed part starts, a share
-// of her length from the tail and a share of her height from the ground), taking `fill` of the frame across and up, and `drop` is how
-// far (a share of the frame's height) she sits lower than the middle: her cards lie over the window's lower edge, so her legs go behind
-// them and her face, arms and sail have the window.
+// lens. Only her front is framed (the head and snout, the neck, the sail and the arms: `from` is where the framed part starts, a share of
+// her length from the tail and a share of her height from the ground), taking `fill` of the frame across and up, and `drop` is how far
+// (a share of the frame's height) it sits lower than the middle (negative: higher). Her cards lie over the window's lower edge, so her
+// legs and feet go behind them, her hands rest on their top edge, and her face, sail and arms have the window above. The tail runs out
+// of the window at the left.
 const SHOT = { az: 48, el: 9, fov: 24, from: [0.2, 0.24], fill: [0.97, 0.84], drop: -0.04 };
 const LIGHT = {
   key: { az: -28, el: 54, i: 2.7, color: '#ffe2b5' },
@@ -37,7 +39,7 @@ const LOOK = { weight: 0.55, maxAngle: 40, maxPitch: 20 }; // how she looks at t
 // so the splash adds a bow over it that a child sees across the table; with less motion she only nods a little, and plays no clip.
 const BOW = { head: 15, neck: 6, seconds: 1.1 };
 const NOD = { head: 6, neck: 0, seconds: 0.6 };
-const NEUTRAL_RATE = 3.6; // syllables a second in her neutral talking
+const NEUTRAL = { rate: 3.6, level: 0.75 }; // her neutral talking: syllables a second, and how wide of her jaw's 6 degrees they open
 
 /** A soft sky for the light her colours bounce in, as the book's renders have it (tools/bake/book-render.js). */
 function skyLight(renderer) {
@@ -135,6 +137,12 @@ function rotateBoneWorld(bone, q) {
 }
 
 const smooth = x => x * x * (3 - 2 * x);
+
+/** A mouth track of `duration` seconds of gentle talking (for a line with no recording yet): soft syllables, a little under her widest. */
+function neutralMouth(duration) {
+  const syllables = Math.max(1, Math.round(duration * NEUTRAL.rate));
+  return mouthFromText('Ba '.repeat(syllables).trim(), duration).replace(/./g, digit => Math.round(parseInt(digit, 16) * NEUTRAL.level).toString(16));
+}
 
 /**
  * Uggeðla's view in `container` (her window: a canvas fills it). Resolves once she is loaded and drawn, or rejects when there is no
@@ -297,7 +305,7 @@ export async function createUggedlaView(container, { win = globalThis.window } =
     /** Her mouth follows a line: lines.json's { mouth, duration } for it; with no track, a gentle neutral talking for `duration` seconds. */
     talk({ mouth = null, duration = 1.2 } = {}) {
       if (talking) actor.stopTalking(talking);
-      const track = mouth || mouthFromText('Ba '.repeat(Math.max(1, Math.round(duration * NEUTRAL_RATE))).trim(), duration);
+      const track = mouth || neutralMouth(duration);
       talking = actor.talk({ mouth: track, duration });
     },
     /** She thinks over her cards (true), or looks up at the child again (false). */
