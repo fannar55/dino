@@ -12,8 +12,14 @@ nets. Velgengni lítur svona út:
 
 - Leikinn má setja upp á Android (Chrome), PC (Chrome eða Edge) og iPad/iPhone (Safari: Deila → „Bæta á heimaskjá“). Táknið
   er höfuð Mosa og nafnið „Mosi“.
-- Eftir eina eða tvær lotur á Wi-Fi stendur „Tilbúinn án nets ✓“ undir Byrja. Þá virkar allt í flugstillingu: allir leikir,
-  raddir, lög og bókin. Eina undantekningin er Fjölspil, sem segir „Fjölspil þarf net“.
+- Eftir eina eða tvær lotur á Wi-Fi stendur „Tilbúinn án nets ✓“ undir Byrja. Þá virkar **allur Mosi** í flugstillingu:
+  - sagan og kaflarnir með þrívíddarheiminum, persónunum og röddunum;
+  - bókin (Risaeðlur, Dýrin, Leikir, Kortið, Safnið);
+  - allir litlu leikirnir: Eitt!, Háls og hali, Litla Yatzy, Hvar er vinur minn? og Söngur Slóeðlu.
+
+  Eina undantekningin er Fjölspil, sem segir „Fjölspil þarf net“.
+- Leikir sem bætast við seinna (til dæmis Veiddu, Slönguspil og kafli Uggeðlu, þegar þeir koma í `main`) fylgja sjálfkrafa með.
+  Listinn nær yfir hverja skrá sem `npm run stage` afritar, og þarf enga breytingu fyrir hvern leik.
 - Ný útgáfa (`npm run deploy`) berst í tækið án þess að neitt sé gert á því. Aðeins breyttar skrár sækjast, og skiptin verða
   aldrei í miðjum leik.
 - Vafraflipi, símar gesta sem skanna QR-kóðann og prófanir heima á `localhost` haga sér eins og í dag.
@@ -189,8 +195,14 @@ nets. Velgengni lítur svona út:
   - Skrefin:
     1. `?forrit=1` (flipi): service workerinn skráist en ekkert sækist;
     2. `?forrit=uppsett`: línan fer frá „Sæki leikinn í tækið“ í „Tilbúinn án nets ✓“;
-    3. netið rofið og síðan hlaðin aftur: leikurinn opnast, Byrja virkar, bókin opnast, lag Söngsins spilast með öllum
-       hljóðfærum og Fjölspil segir „Fjölspil þarf net“;
+    3. netið rofið og síðan hlaðin aftur:
+       - **hver einasta skrá á listanum** er sótt í gegnum síðuna og svarar 200 með réttri stærð. Þetta sannar að allur Mosi er
+         í tækinu, hvaða leið sem barnið fer;
+       - leikurinn opnast og Byrja virkar; sagan fer af stað með rödd;
+       - bókin opnast á hverjum flipa;
+       - hver litli leikur opnast og byrjar: Eitt!, Háls og hali, Litla Yatzy, Hvar er vinur minn? og Söngur Slóeðlu (lag spilast
+         með öllum hljóðfærum);
+       - Fjölspil segir „Fjölspil þarf net“;
     4. ein skrá í afritaðri síðunni breytt og listinn skrifaður aftur: aðeins sú skrá sækist og skiptin verða á fyrsta skjánum;
     5. `spil.html` sækir ekkert.
   - Skjáskot og `report.json` fara í `qa/remake/forrit/`.
