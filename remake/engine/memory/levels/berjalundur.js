@@ -13,6 +13,7 @@ import { freezeLevel } from '../step-rules.js';
  * doneFrom     the ladder read back from those fields (the story is also asked with a state written by hand)
  * onCancel     what a cancelled step changes besides stopping
  * roster       the friends' names; pairs: the names the "who" bubbles show
+ * grid, nests, mosiSpot, gladeView   where the leaves, the pairs' rests and Mosi stand, and how the search view looks (world.js)
  * targets      each obstacle's badge (icon) and its accessible name
  * copy         the words on the welcome card, the ending card, the help card and the loading card (the markup has the same words)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
@@ -41,6 +42,17 @@ export const BERJALUNDUR = freezeLevel({
     brontosaurus: { name: 'Þórseðlur', label: 'Þórseðluparið' },
     stegosaurus: { name: 'Kambeðlur', label: 'Kambeðluparið' },
   },
+  // Where things stand in the glade (world.js lays them out). The leaves are a grid turned toward the search camera: the `columns` of a
+  // row run across the screen (each `across` metres from the next), the `rows` are `deep` apart, so the board is as wide on the screen as
+  // it can be made narrow. `nests` is the rest of each pair, in the order of `friends` (the third stands 1.15 m nearer the leaves than
+  // the adults' did, so the Þórseðla babies' longer tails stay clear of the branch lying behind them). Mosi stands at the glade's west
+  // edge and faces the leaves (heading 0 = +X). The search view is low and from the side, as in the approved mock: landscape looks in from
+  // the south-east, portrait looks along the rows from Mosi's side and higher up, so the columns fill the width and the rows stand one
+  // above the other far enough apart for a 44 px button each.
+  grid: { centre: [-5.2, 7.6], angle: Math.PI / 6, across: 3, deep: 3.6, columns: 4, rows: 3 },
+  nests: [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]],
+  mosiSpot: { x: 3, z: 2.8, heading: 90 },
+  gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
   steps: [
     { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll', journey: 'Lyfta grein' },
     { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], journey: 'Gera trjábrú' },

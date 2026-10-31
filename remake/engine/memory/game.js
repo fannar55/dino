@@ -114,7 +114,7 @@ const betweenTurns = () => ['ready', 'won'].includes(game.getState().phase);
 const seekLine = () => { const state = game.getState(), open = state.selected.length === 1 ? state.cards[state.selected[0]] : null; return open?.item ? GIFT_ITEMS[open.item]?.seek ?? null : null; };
 const currentStory = () => nextStoryStep({ ...game.getState(), giftsLeft: giftsUnfound(), giftsLanding: giftsToLand() - giftsUnfound(), seek: seekLine() }, bridge.getState(), world?.getPairReadiness?.() ?? {}, level);
 function syncBridge() {
-  world?.setBridgeState(bridge.getState());
+  world?.setStepState(bridge.getState());
   reflectJourney(); refreshControls();
 }
 // The ribbon's steps are the level's steps that have a `journey` name: done once finished, the first one not done is the next job.
@@ -190,7 +190,7 @@ function guidance() {
   if (time < captionUntil || cameraState().held) return;
   const story = currentStory(); caption(story.prompt);
   $('coach').dataset.tone = story.kind === 'action' ? 'action' : story.kind === 'celebrate' ? 'celebrate' : 'hint';
-  // "Allir sex komnir..." (`won`) is the celebration's (scenes/celebrate.js says it when the grove is reached): nothing here queues it.
+  // "Allir sex komnir..." (`won`) is the celebration's (levels/berjalundur/scenes/celebrate.js says it when the grove is reached): nothing here queues it.
 }
 function launchAction(action) {
   // The crossing and the walk to the grove: they start on their own once every friend is home.
@@ -199,7 +199,7 @@ function launchAction(action) {
   // The leaves are behind the camera once the crossing starts: every gift pair is in the basket first.
   const step = stepById(action);
   if (step?.waitsForGifts && giftsToLand() > 0) return false;
-  if (!bridge.can(action) || !(action === 'cross' ? world.playCross() : action === 'finish' ? world.playFinish() : world.startBridgeTask(action))) return false;
+  if (!bridge.can(action) || world.playStep(action, {}) === null) return false;
   bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
   // The camera is already held by the script, so guidance() leaves the caption alone: put Mosi's words up with his voice.
@@ -256,8 +256,7 @@ function pickFriend(species) {
     if (!world.startFail(species, target)) bridge.failDone();
   } else {
     syncBridge();
-    const started = result.action === 'lift' ? world.playBranch() : result.action === 'roll' ? world.playRoll() : result.action === 'lay' ? world.playLay() : world.startBridgeTask(result.action);
-    if (!started) bridge.cancel(result.action);
+    if (world.playStep(result.action, { species }) === null) bridge.cancel(result.action);
   }
   // Mosi's bubble follows at once (the script's shots hold the camera, so guidance() would wait).
   syncBridge(); caption(currentStory().prompt); reflectEnding();
@@ -528,7 +527,7 @@ function frame(timestamp) {
     music.update(dt, { speech: voice, action, stage: level.music(bridgeState) });
     audio.duck?.(voice); audio.river(!frozen, voice || action);
     world.update(frozen ? 0 : dt, time);
-    for (const event of world.pollBridgeEvents()) {
+    for (const event of world.pollStepEvents()) {
       if (event.type === 'scene-sound') playSceneSound(event);
       else if (event.type === 'scene-say') sayLine(event.line, event);
       else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); reflectEnding(); }
@@ -605,7 +604,7 @@ window.__memoryReady = false;
 try {
   const soundReady = Promise.allSettled([speech.ready, music.ready, audio.preload?.()]);
   $('basket').querySelector('.basket-icon').innerHTML = BASKET_ICON; $('ending-gifts').querySelector('.basket-icon').innerHTML = BASKET_ICON; buildCredits();
-  world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint });
+  world = await createMemoryWorld({ canvas: $('world'), onProgress: text => { $('loading-copy').textContent = text; }, basketPoint, level });
   await soundReady;
   world.setBoard(game.getState().cards); syncBridge(); world.setReducedMotion?.(reducedMotion);
   world.resize($('world').clientWidth, $('world').clientHeight); world.update(0, 0);
