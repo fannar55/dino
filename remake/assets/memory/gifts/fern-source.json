@@ -1,0 +1,53 @@
+{
+  "file": "fern.glb",
+  "bytes": 66588,
+  "triangles": 2900,
+  "vertices": 1452,
+  "meshes": [
+    "Fern"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "512 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "Digital Atlas of Ancient Life (https://sketchfab.com/DigitalAtlasOfAncientLife)",
+  "title": "Fern: Crenulopteris acadica (PRI 42681)",
+  "sourceUrl": "https://sketchfab.com/3d-models/fern-crenulopteris-acadica-pri-42681-467b1faa231b40a9936a4458a51a5fea",
+  "license": "CC0 1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "rightsNote": "CC0: no credit is required; the game names it behind the small \"i\" on the ending card all the same.",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-31)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/f5-fern/, git-ignored).",
+  "download": {
+    "bytes": 3341704,
+    "md5": "b61aa9d1884490595c76edc39943f61a",
+    "triangles": 99800,
+    "maps": "one 1024 px JPEG colour map, an unlit (KHR_materials_unlit) material (a photogrammetry scan with its light baked in)",
+    "file": "fern_crenulopteris_acadica_pri_42681.glb"
+  },
+  "use": "The laufsteinn gift (surprise-items.js GIFT_ITEMS.fern): two instances, one on each of the pair's leaves, lying flat with the fern up and leant toward the camera. +Y up, the origin on the ground in the middle of its footprint.",
+  "size": {
+    "note": "2.1 m long, 0.68 m across, 0.31 m high; a fern fossil slab of about 20 cm",
+    "bounds": {
+      "x": [
+        -1.05,
+        1.05
+      ],
+      "y": [
+        -0.3387,
+        0.3387
+      ],
+      "z": [
+        0,
+        0.3106
+      ]
+    }
+  },
+  "modifications": "blender-gift.py: the slab turned 90 degrees about X (pitch=-90) so that its imprint faces up (the scan stood it on its edge), the seam vertices welded, decimated by collapse from 99,800 to 2,900 triangles, custom normals from the welded whole, scaled to 2.1 m and set on y = 0, the unlit material replaced by a plain metal-rough one fed by the same colour map (roughness 0.9), the map shrunk to 512 and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/f5-fern/fern_crenulopteris_acadica_pri_42681.glb fern-blender.glb name=Fern size=2.1 pitch=-90 tris=2900 tex=512 normal=0 roughness=0.9",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs fern-blender.glb remake/assets/memory/gifts/fern.glb",
+  "passes": "blenderCommand (Blender 5.2; 97872 bytes), then quantizeCommand (66588 bytes)."
+}

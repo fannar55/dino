@@ -1,0 +1,53 @@
+{
+  "file": "gorge-tunnel.glb",
+  "bytes": 182436,
+  "triangles": 8000,
+  "vertices": 4118,
+  "meshes": [
+    "GorgeTunnel"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "1024 px + 1024 px WebP maps (EXT_texture_webp, quality 80), plain metal-rough material, double-sided",
+  "extensions": [
+    "EXT_texture_webp",
+    "KHR_mesh_quantization"
+  ],
+  "author": "the game owner (generated with Tripo3D)",
+  "title": "rock tunnel",
+  "sourceUrl": "Tripo3D, the owner's own generation (no URL)",
+  "license": "the owner's own model (no third-party licence)",
+  "licenseUrl": null,
+  "rightsNote": "The owner made this model with Tripo3D; it is not an open asset, so it needs no credit (the game names the open ones behind the \"i\").",
+  "sourceHost": "Tripo3D (made and downloaded by the game owner as a GLB, 2026-10-31: \"rock tunnel\", the owner chose this version of two)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/bord2/src/tripo-tunnel-b/, git-ignored).",
+  "download": {
+    "bytes": 5155188,
+    "md5": "74e1170ec50684508d2d7fc1da857c4a",
+    "triangles": 101989,
+    "maps": "a 1.4 MB PNG colour map and two JPEG maps (normal and one more), a generated material",
+    "file": "rock-tunnel-3d-model.glb"
+  },
+  "use": "The tunnel mouth in the gorge wall (levels/steinagljufur/props.js): it stands at the edge of the glade, its opening toward the leaves (it faces +X in the file), and the Kambeðlur light it in Task 4. Feet (the cut) on y = 0.",
+  "size": {
+    "note": "7.8 m wide, 9 m deep, 5.05 m high; its opening about 3.5 m wide and 2.5 m high",
+    "bounds": {
+      "x": [
+        -3.9198,
+        3.9198
+      ],
+      "y": [
+        -4.5,
+        4.5
+      ],
+      "z": [
+        0,
+        5.0506
+      ]
+    }
+  },
+  "modifications": "blender-gift.py (new options cut=, fill=, weld=, flaps=): the vertices closer than 0.15 % of the model (1.5 mm of a metre) welded, which collapses the 34 tiny slivers (about 1 mm of a metre across) that left 68 open edges no pinhole fill can close, and 23 flaps (faces with two open edges hanging from one edge) dropped; everything below 4 % of the height cut away (the ragged floor the generator left: 1,725 of the model's 1,797 open edges; the cut itself stays open, the ground closes it); the pinholes after the cut filled (none left); decimated by collapse from 101,989 to 8,000 triangles (0 open edges above the cut after the decimation, 236 on the cut itself); custom normals from the welded whole; turned 90 degrees to face +X, scaled so its longest side on the ground is 9 m, set on y = 0; the material rebuilt as plain metal-rough (colour map and normal map shrunk from 2048 to 1024, WebP at quality 80, roughness 0.9). quantize-glb.mjs: positions 16-bit, normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/bord2/src/tripo-tunnel-b/rock-tunnel-3d-model.glb gorge-tunnel-blender.glb name=GorgeTunnel size=9 front=-90 tris=8000 tex=1024 normal=1 roughness=0.9 cut=0.04 fill=6 weld=0.0015 flaps=1",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs gorge-tunnel-blender.glb remake/assets/memory/bord2/gorge-tunnel.glb",
+  "passes": "blenderCommand (Blender 5.2; 278368 bytes), then quantizeCommand (182436 bytes)."
+}
