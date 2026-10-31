@@ -44,4 +44,10 @@ export const VOICE_LINES = Object.freeze({
   gift_trilobite: { text: 'Pöddusteinn! Hann fer í körfuna.', seed: 251412 },
   gift_fern: { text: 'Laufsteinn! Hann fer í körfuna.', context: 'Hér er steinn með laufblaði í. Laufsteinn er steingervingur.', seed: 251413 },
   gift_footprint: { text: 'Risaspor! Það fer í körfuna.', seed: 251414 },
+  // Level 2's first two tasks (Task 4): the tunnel is dark (said when the Kambeðlur are found and home), the plates light it, the rockfall is
+  // there (said when the Þríhyrnur are), and the pile is gone. "Hver" goes as IPA, as in who and won.
+  g2_light_ready: { text: 'Göngin eru dimm. Hver getur lýst þau upp?', say: `Göngin eru dimm. ${HVER} getur lýst þau upp?`, seed: 42 },
+  g2_lit: { text: 'Plöturnar lýsa eins og ljósker!', seed: 251422 },
+  g2_rocks_ready: { text: 'Grjót lokar göngunum. Hver getur stangað það burt?', say: `Grjót lokar göngunum. ${HVER} getur stangað það burt?`, seed: 251423 },
+  g2_rocks_done: { text: 'Búmm! Leiðin er opin!', seed: 251424 },
 });

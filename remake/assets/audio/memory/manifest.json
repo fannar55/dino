@@ -158,5 +158,25 @@
     "src": "assets/audio/memory/gift_footprint.mp3",
     "duration": 2.73,
     "mouth": "3cedc0bf707ea5000000000cefa09fdc28ffbaec950000000000000"
+  },
+  "g2_lit": {
+    "src": "assets/audio/memory/g2_lit.mp3",
+    "duration": 2.89,
+    "mouth": "058ffc608e9efcadabaa8000cc6cf7cddeeefd5688507a400000000000"
+  },
+  "g2_light_ready": {
+    "src": "assets/audio/memory/g2_light_ready.mp3",
+    "duration": 3.77,
+    "mouth": "00cfffeeeeb9fdf900cefd5700000000000000044dfd935d88dabc83000ed973000000000000"
+  },
+  "g2_rocks_ready": {
+    "src": "assets/audio/memory/g2_rocks_ready.mp3",
+    "duration": 4.09,
+    "mouth": "0efffeea6647dfbafa6eff78c9400000000000040beda06d8aa770bdda0cf8e80cd750000000000000"
+  },
+  "g2_rocks_done": {
+    "src": "assets/audio/memory/g2_rocks_done.mp3",
+    "duration": 2.73,
+    "mouth": "ab7ffffea63300000009cecc98dcb40ed800cfe3098400000000000"
   }
 }
