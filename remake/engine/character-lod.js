@@ -144,7 +144,7 @@ function boneReaches(mesh) {
 }
 
 /** [full, half, quarter] geometries for a skinned geometry; the simpler ones share its attributes. */
-function lodGeometries(geometry, eyes) {
+function lodGeometries(geometry, eyes, levels = LEVELS) {
   if (levelsOf.has(geometry)) return levelsOf.get(geometry);
   const position = geometry.attributes.position;
   const skinIndex = geometry.attributes.skinIndex, skinWeight = geometry.attributes.skinWeight;
@@ -160,7 +160,7 @@ function lodGeometries(geometry, eyes) {
   if (!geometry.boundingBox) geometry.computeBoundingBox();
   if (!geometry.boundingSphere) geometry.computeBoundingSphere();
   const diagonal = geometry.boundingBox.getSize(new THREE.Vector3()).length();
-  const options = { levels: LEVELS.map(l => ({ ratio: l.ratio, maxError: l.maxError * diagonal })), skin: { indices, weights }, keep: eyelidVertices(geometry, eyes) };
+  const options = { levels: levels.map(l => ({ ratio: l.ratio, maxError: l.maxError * diagonal })), skin: { indices, weights }, keep: eyelidVertices(geometry, eyes) };
   const promise = simplifyAsync(positions, Uint32Array.from(geometry.index.array), options).then(levels => [
     geometry,
     ...levels.map(({ corners, triangles, error }) => {
@@ -208,17 +208,19 @@ const entries = new Set(); // meshes with levels: { mesh, geometries, centre, di
 
 /**
  * Give the large skinned meshes under `model` their levels and a shadow caster for `light`. Returns
- * a promise that settles when they are in place.
+ * a promise that settles when they are in place. `levels` (default LEVELS) can ask for more or other levels, and
+ * `casterLevel` which geometry casts the shadow (an index into [full, ...levels]; default the last), for a game whose
+ * characters are seen small (the memory game adds a level for them, and keeps the quarter for the shadows).
  */
-export function prepareCharacter(model, light) {
+export function prepareCharacter(model, light, { levels = LEVELS, casterLevel = levels.length } = {}) {
   const meshes = [];
   model.traverse(o => {
     if (o.isSkinnedMesh && !o.geometry.groups.length && (o.geometry.index?.count ?? 0) / 3 >= MIN_TRIANGLES) meshes.push(o);
   });
-  const done = Promise.all(meshes.map(mesh => lodGeometries(mesh.geometry, mesh.userData.face?.eyes).then(geometries => {
-    const quarter = geometries[geometries.length - 1];
+  const done = Promise.all(meshes.map(mesh => lodGeometries(mesh.geometry, mesh.userData.face?.eyes, levels).then(geometries => {
+    const quarter = geometries[casterLevel];
     const entry = {
-      mesh, geometries, level: 0, caster: null, casters: null,
+      mesh, geometries, levels, level: 0, caster: null, casters: null,
       centre: mesh.geometry.boundingSphere.center.clone(),
       diagonal: mesh.geometry.boundingBox.getSize(new THREE.Vector3()).length(),
       reaches: boneReaches(mesh),
@@ -287,8 +289,8 @@ export function updateCharacterLods(camera, height) {
     mesh.visible = inView;
     const px = inView ? (e.diagonal * scale * pxPerUnit) / Math.max(0.1, camPos.distanceTo(centre)) : 0;
     let level = e.level;
-    while (level < LEVELS.length && px < LEVELS[level].below * (1 - HYSTERESIS)) level++;
-    while (level > 0 && px > LEVELS[level - 1].below * (1 + HYSTERESIS)) level--;
+    while (level < e.levels.length && px < e.levels[level].below * (1 - HYSTERESIS)) level++;
+    while (level > 0 && px > e.levels[level - 1].below * (1 + HYSTERESIS)) level--;
     if (level !== e.level) { e.level = level; mesh.geometry = e.geometries[level]; }
   }
 }

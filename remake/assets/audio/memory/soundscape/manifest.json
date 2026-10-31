@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "provider": "ElevenLabs",
+  "music": {
+    "id": "woodland-theme",
+    "file": "woodland-theme.mp3",
+    "duration": 45,
+    "gain": 0.42,
+    "loop": true,
+    "loopStart": 0,
+    "loopEnd": 45,
+    "duckGain": 0.15,
+    "requestHash": "71843076bb3c47b669be",
+    "peak": 0.7233,
+    "rms": 0.0984
+  },
+  "sfx": {
+    "triceratops": {
+      "file": "triceratops.mp3",
+      "duration": 0.79,
+      "gain": 0.85,
+      "loop": false,
+      "requestHash": "836b81d7620a3b23af49",
+      "peak": 0.3412,
+      "rms": 0.0713
+    },
+    "stegosaurus": {
+      "file": "stegosaurus.mp3",
+      "duration": 0.67,
+      "gain": 0.85,
+      "loop": false,
+      "requestHash": "2a2dc6a38e0e7b1ba206",
+      "peak": 0.3884,
+      "rms": 0.0713
+    },
+    "brontosaurus": {
+      "file": "brontosaurus.mp3",
+      "duration": 0.99,
+      "gain": 0.85,
+      "loop": false,
+      "requestHash": "8ef0f6c87b6bbf81d5a5",
+      "peak": 0.4501,
+      "rms": 0.0713
+    },
+    "leaf": {
+      "file": "leaf.mp3",
+      "duration": 0.47,
+      "gain": 0.55,
+      "loop": false,
+      "requestHash": "1df3ada128e76a48f54d",
+      "peak": 0.6257,
+      "rms": 0.0477
+    },
+    "straw": {
+      "file": "straw.mp3",
+      "duration": 0.67,
+      "gain": 0.45,
+      "loop": false,
+      "requestHash": "453b79ffd5c2943e8d36",
+      "peak": 0.3865,
+      "rms": 0.0476
+    },
+    "foot": {
+      "file": "foot.mp3",
+      "duration": 0.32,
+      "gain": 0.38,
+      "loop": false,
+      "requestHash": "fbd4af2ee2f454d14dfd",
+      "peak": 0.7154,
+      "rms": 0.0437
+    },
+    "branch-lift": {
+      "file": "branch-lift.mp3",
+      "duration": 1.581,
+      "gain": 0.65,
+      "loop": false,
+      "requestHash": "a1f4a992cf16aea0366e",
+      "peak": 0.7217,
+      "rms": 0.0477
+    },
+    "branch-lower": {
+      "file": "branch-lower.mp3",
+      "duration": 1.044,
+      "gain": 0.55,
+      "loop": false,
+      "requestHash": "08ed16c3c42c1de68a63",
+      "peak": 0.7142,
+      "rms": 0.0422
+    },
+    "log-roll": {
+      "file": "log-roll.mp3",
+      "duration": 2.19,
+      "gain": 0.65,
+      "loop": false,
+      "requestHash": "495d4c5756569d3be256",
+      "peak": 0.5572,
+      "rms": 0.0475
+    },
+    "bridge-land": {
+      "file": "bridge-land.mp3",
+      "duration": 1.07,
+      "gain": 0.7,
+      "loop": false,
+      "requestHash": "07dd108c27f79b360c1f",
+      "peak": 0.7123,
+      "rms": 0.0283
+    },
+    "bark-pickup": {
+      "file": "bark-pickup.mp3",
+      "duration": 0.951,
+      "gain": 0.55,
+      "loop": false,
+      "requestHash": "99399b6c506c81e527a2",
+      "peak": 0.3108,
+      "rms": 0.0475
+    },
+    "bark-place": {
+      "file": "bark-place.mp3",
+      "duration": 0.79,
+      "gain": 0.7,
+      "loop": false,
+      "requestHash": "94a483aad7621e5c59d3",
+      "peak": 0.52,
+      "rms": 0.0475
+    },
+    "match-chime": {
+      "file": "match-chime.mp3",
+      "duration": 1.19,
+      "gain": 0.5,
+      "loop": false,
+      "requestHash": "f7dcf2124076ffeb65dd",
+      "peak": 0.7221,
+      "rms": 0.0615
+    },
+    "win": {
+      "file": "win.mp3",
+      "duration": 2.75,
+      "gain": 0.55,
+      "loop": false,
+      "requestHash": "109e552c2aada35aa254",
+      "peak": 0.3228,
+      "rms": 0.0713
+    },
+    "poof": {
+      "file": "poof.mp3",
+      "duration": 0.59,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "5f59e5d48618222fe10f",
+      "peak": 0.7137,
+      "rms": 0.0434
+    },
+    "bonk": {
+      "file": "bonk.mp3",
+      "duration": 0.59,
+      "gain": 0.65,
+      "loop": false,
+      "requestHash": "40324e993c64643b2871",
+      "peak": 0.3275,
+      "rms": 0.0475
+    },
+    "ding": {
+      "file": "ding.mp3",
+      "duration": 0.99,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "8599f0e200e5df6946b5",
+      "peak": 0.3385,
+      "rms": 0.0475
+    },
+    "giggle": {
+      "file": "giggle.mp3",
+      "duration": 0.87,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "0ab911c745645403daa5",
+      "peak": 0.3648,
+      "rms": 0.0474
+    },
+    "strain": {
+      "file": "strain.mp3",
+      "duration": 0.59,
+      "gain": 0.6,
+      "loop": false,
+      "requestHash": "abe09a2527fe47a7bee0",
+      "peak": 0.282,
+      "rms": 0.0475
+    },
+    "river": {
+      "file": "river.mp3",
+      "duration": 11.25,
+      "gain": 0.65,
+      "loop": true,
+      "loopStart": 0,
+      "loopEnd": 11.25,
+      "requestHash": "f85efdc03dfa785ee299",
+      "peak": 0.2475,
+      "rms": 0.019
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "source": "../characters/mosi.glb",
+  "asset": "triceratops-baby.glb",
+  "provenance": "Derived from the owner’s textured Tripo Mosi, with existing rig and author-authored baby deformation; retains parent asset rights.",
+  "newPaidGeneration": false,
+  "triangles": 25222,
+  "vertices": 14942,
+  "bones": 19,
+  "clips": [
+    "idle",
+    "walk"
+  ],
+  "normalizedLength": 1,
+  "normalizedHeight": 0.578487175412577,
+  "normalizedWidth": 0.5639180902151687,
+  "minDeformationJacobian": 0.09857044039642604,
+  "design": "short torso and tail; short legs; large head and eyes; rounded horn buds; original Mosi painted skin",
+  "bake": "node scripts/memory-baby-bake.mjs",
+  "status": "First playable art review, requires visual approval"
+}

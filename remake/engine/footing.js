@@ -126,7 +126,7 @@ export function stopCost(feet, tuning) {
  * pivot legs' swing pivots in the root's frame. tuning: QUADRUPED (the default) or BIPED, or
  * overrides of it, scaled to these legs. Create it in the bind pose, with the root at the origin.
  */
-export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
+export function createFooting({ root, legs: specs, pivotHeight, tuning, rootFrame = false }) {
   root.updateMatrixWorld(true);
   const height = bone => root.worldToLocal(bone.getWorldPosition(new THREE.Vector3())).y;
   const size = specs.length
@@ -224,7 +224,19 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   const q3 = new THREE.Quaternion();
 
   /** Where a leg's foot rests when the root faces `yaw` (world). */
-  const homeAt = (L, yaw, out) => out.copy(L.home).applyAxisAngle(UP, yaw).add(root.position);
+  const homeAt = (L, yaw, out) => {
+    if (!rootFrame) return out.copy(L.home).applyAxisAngle(UP, yaw).add(root.position);
+    // Scaled babies crossing inclined bridges keep rest feet in the complete
+    // root frame. Rotating the world offset preserves the standing-turn API.
+    root.localToWorld(out.copy(L.home));
+    return out.sub(root.position).applyAxisAngle(UP, yaw - root.rotation.y).add(root.position);
+  };
+  const surfaceY = (L, point) => {
+    if (!rootFrame) return L.ground;
+    const home = homeAt(L, root.rotation.y, new THREE.Vector3());
+    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(root.quaternion);
+    return home.y + (normal.x * (home.x - point.x) + normal.z * (home.z - point.z)) / Math.max(.25, normal.y);
+  };
   /** How a resting foot is turned when the root faces `yaw` (world). */
   const restTurn = (L, yaw, out) => out.setFromAxisAngle(UP, yaw).multiply(L.parentQ).multiply(L.restFoot);
   const forward = (yaw, out) => out.set(Math.cos(yaw), 0, -Math.sin(yaw));
@@ -251,7 +263,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
 
   function plant(L, position, turn) {
     L.state = 'down';
-    L.at.copy(position).setY(L.ground);
+    L.at.copy(position).setY(surfaceY(L, position));
     L.turn.copy(turn);
     L.step = null;
     L.join = null;
@@ -392,6 +404,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
   // The foot's place and turn this frame (world).
   function footPose(L, position, turn) {
     if (L.state === 'down') {
+      if (rootFrame) L.at.y = surfaceY(L, L.at);
       position.copy(L.at);
       turn.copy(L.turn);
     } else if (L.state === 'clip') {
@@ -402,7 +415,7 @@ export function createFooting({ root, legs: specs, pivotHeight, tuning }) {
       const k = Math.min(1, j.t / j.duration);
       const e = smooth(k);
       position.lerpVectors(j.from, L.clip, e);
-      position.y = Math.max(position.y, L.ground + j.arc * Math.sin(Math.PI * k));
+      position.y = Math.max(position.y, surfaceY(L, position) + j.arc * Math.sin(Math.PI * k));
       turn.slerpQuaternions(j.turnFrom, L.clipTurn, e);
     } else {
       const s = L.step;
