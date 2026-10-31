@@ -118,6 +118,7 @@ export function createFjolspil(doc, {
     welcomeJoin: null, // the phone page's LAN addresses from the welcome; null until one came
     joinUrl: null, lanMissing: false, // what the QR code carries, and whether the lobby says --lan is missing
     replaced: false, // another tab took this room: this one shows nothing more
+    everConnected: false, needsNet: false, // the room was reached once; it never was and the net is down ("Fjölspil þarf net")
     lobbyOpen: false, lobbyAi: null, // the game's character the lobby offers, or null
     lobbySong: { offer: null, ask: null, note: null, reserved: [] }, // Söngur Slóeðlu's lobby keys (null: not in the view)
     pendingStart: null, // the open lobby's { promise, resolve }
@@ -215,6 +216,14 @@ export function createFjolspil(doc, {
   }
 
   function status(next) {
+    // With no net at all (the installed app offline) the room is never reached: the lobby says so in the QR code's place.
+    // While it tries again ('connecting') the words stay; a room reached once keeps its QR code for the phones that know it.
+    if (next === 'connected') at.everConnected = true;
+    const needs = next === 'offline' ? !at.everConnected : next === 'connecting' ? at.needsNet : false;
+    if (needs !== at.needsNet) {
+      at.needsNet = needs;
+      lobby.needsNet?.(needs);
+    }
     if (next === 'taken') { // the code is another host's: a new one, with the same key
       const old = at.net;
       at.net = null;
@@ -355,6 +364,7 @@ export function createFjolspil(doc, {
 
   function showLobby() {
     lobby.show({ joinUrl: at.joinUrl, code: at.code, ai: at.lobbyAi, lanMissing: at.lanMissing });
+    lobby.needsNet?.(at.needsNet);
   }
 
   /** The seats changed while the lobby is open: every phone in the room and the big screen see them. */

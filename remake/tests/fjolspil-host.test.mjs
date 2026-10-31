@@ -695,3 +695,18 @@ test('a reloaded big screen seats a known phone again with its level', () => {
   net.say('g1', 'hello', { name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
   assert.deepEqual([again.fjolspil.seats.bySeat(1).name, again.fjolspil.seats.bySeat(1).level], ['Anna', 'fullordinn']);
 });
+
+test('a big screen that never reached the room says Fjölspil þarf net; one that did never does', () => {
+  const r = rig();
+  r.fjolspil.openLobby({ game: 'hals', ai: THORSEDLA });
+  const words = () => $(r.root, '.fjolspil-lobby .fjolspil-needs-net');
+  assert.equal(words().hidden, true, 'while it first tries');
+  r.net().setStatus('offline');
+  assert.equal(words().hidden, false);
+  r.net().setStatus('connecting');
+  assert.equal(words().hidden, false, 'it stays while it tries again');
+  r.net().welcome();
+  assert.equal(words().hidden, true);
+  r.net().setStatus('offline');
+  assert.equal(words().hidden, true, 'a room it reached once: the QR stays for the phones that know it');
+});

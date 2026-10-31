@@ -366,3 +366,20 @@ test('a phone back mid-song with „Tilbúin!“ again gives her dinosaur to Egi
   const late = band.room.calls.filter(([name, n, body]) => name === 'send' && n === 1 && body.phase === 'late');
   assert.deepEqual(late, [['send', 1, { screen: 'sloedla', phase: 'late', song: BOOGIE }]]);
 });
+
+test('the band card says Fjölspil þarf net in place of the code while the network is down', () => {
+  const doc = new FakeDocument();
+  const root = doc.add('saman', 'section');
+  const lobby = createBandLobby(doc);
+  lobby.show({ joinUrl: 'http://192.168.1.5:4231/remake/spil.html', code: 'GULL' });
+  const $ = selector => root.querySelector(selector);
+  lobby.needsNet(true);
+  assert.equal($('.sl-saman-qr').hidden, true);
+  assert.equal($('.sl-saman-code').hidden, true);
+  assert.equal($('.sl-saman-needs-net').textContent, 'Fjölspil þarf net');
+  assert.equal($('.sl-saman-needs-net').hidden, false);
+  lobby.needsNet(false);
+  assert.equal($('.sl-saman-qr').hidden, false);
+  assert.equal($('.sl-saman-code').hidden, false);
+  assert.equal($('.sl-saman-needs-net').hidden, true);
+});

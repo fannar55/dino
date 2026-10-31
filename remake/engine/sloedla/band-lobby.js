@@ -10,8 +10,8 @@ import { qrSvg } from '../fjolspil/qr.js';
 
 /**
  * The card in `root` (#saman). Takes the options createFjolspil gives every lobby (`seats`, `win`, `audio`, `timers`, the
- * callbacks; only onStart and onClose are used). Returns { show, refresh, hide, isOpen, waitFor, hideWaiting, start, close,
- * onRefresh }.
+ * callbacks; only onStart and onClose are used). Returns { show, refresh, hide, isOpen, waitFor, hideWaiting, needsNet, start,
+ * close, onRefresh }.
  */
 export function createBandLobby(doc, { root = doc.getElementById('saman'), onStart = null, onClose = null } = {}) {
   if (!root) throw new Error('"Spilum saman" needs #saman on the page (see sloedla-lab.html)');
@@ -23,11 +23,13 @@ export function createBandLobby(doc, { root = doc.getElementById('saman'), onSta
   };
   const card = make('div', 'sl-saman-card');
   const qr = make('div', 'sl-saman-qr');
+  const need = make('p', 'sl-saman-needs-net', 'Fjölspil þarf net'); // in the QR code's place while the room was never reached
+  need.hidden = true;
   const letters = make('div', 'sl-saman-code');
   const ask = make('p', 'sl-saman-ask', 'Skannaðu til að spila með');
   const lan = make('p', 'sl-saman-lan', 'Keyrðu þjóninn með --lan');
   lan.hidden = true;
-  card.append(qr, letters, ask, lan);
+  card.append(qr, need, letters, ask, lan);
   root.replaceChildren(card);
   root.hidden = true;
 
@@ -57,6 +59,12 @@ export function createBandLobby(doc, { root = doc.getElementById('saman'), onSta
     get isOpen() { return open; },
     waitFor() {},
     hideWaiting() {},
+    /** With `on`, "Fjölspil þarf net" stands in the place of the QR code and the letters (Fjölspil's host calls this). */
+    needsNet(on) {
+      qr.hidden = Boolean(on);
+      letters.hidden = Boolean(on);
+      need.hidden = !on;
+    },
     /** "Spila!": the card leaves, the room's lobby ends with the seats. */
     start() {
       hide();
