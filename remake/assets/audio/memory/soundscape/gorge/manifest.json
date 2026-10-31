@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "provider": "Freesound (HQ mp3 previews, the owner approved each)",
+  "sfx": {
+    "rocks-fall": {
+      "file": "rocks-fall.mp3",
+      "duration": 3.4,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 567251",
+      "peak": 0.6677,
+      "rms": 0.103
+    },
+    "rocks-tumble": {
+      "file": "rocks-tumble.mp3",
+      "duration": 1.113,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 389618",
+      "peak": 0.6702,
+      "rms": 0.0222
+    },
+    "rock-hit": {
+      "file": "rock-hit.mp3",
+      "duration": 0.648,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 572753",
+      "peak": 0.6728,
+      "rms": 0.0679
+    },
+    "rock-land": {
+      "file": "rock-land.mp3",
+      "duration": 0.188,
+      "gain": 0.35,
+      "loop": false,
+      "source": "freesound 422753",
+      "peak": 0.6754,
+      "rms": 0.1193
+    },
+    "pebble": {
+      "file": "pebble.mp3",
+      "duration": 0.426,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 364711",
+      "peak": 0.6699,
+      "rms": 0.0444
+    },
+    "peck": {
+      "file": "peck.mp3",
+      "duration": 0.158,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 350343",
+      "peak": 0.6716,
+      "rms": 0.0607
+    },
+    "glow-chime": {
+      "file": "glow-chime.mp3",
+      "duration": 0.561,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 198401",
+      "peak": 0.6833,
+      "rms": 0.0392
+    },
+    "glow-chime-alt": {
+      "file": "glow-chime-alt.mp3",
+      "duration": 1.287,
+      "gain": 0.4,
+      "loop": false,
+      "source": "freesound 398661",
+      "peak": 0.6725,
+      "rms": 0.1157
+    }
+  }
+}
