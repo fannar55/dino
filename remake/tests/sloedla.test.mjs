@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { HIT_WINDOW, LEVELS, createJudge, createScore, count, fullHouse, laneOf, perfectGame, pointsOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
+import { HIT_WINDOW, LEVELS, REMOTE_GRACE, createJudge, createScore, count, fullHouse, laneOf, perfectGame, pointsOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { seededRandom } from '../engine/random.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
 import { GRADES, gradeOf, milestoneOf, pointsText } from '../engine/sloedla/text.js';
@@ -68,6 +68,27 @@ test('the child\'s window is wider late than early', () => {
   assert.equal(judge.tap(0, 1 + 0.3).kind, 'hit', '300 ms late still plays it');
   assert.deepEqual(judge.sweep(3 + barn.late - 0.01), [], 'the second note waits out its late window');
   assert.deepEqual(judge.sweep(3 + barn.late + 0.01), [1]);
+});
+test('judge: a grown-up lane beside a child\'s keeps the grown-ups\' window', () => {
+  const judge = createJudge([{ t: 1, lane: 0 }, { t: 1, lane: 1 }], { windowOf: lane => (lane === 0 ? LEVELS.barn : LEVELS.fullordinn) });
+  assert.equal(judge.tap(0, 1.3).kind, 'hit');
+  assert.equal(judge.tap(1, 1.3).kind, 'near');
+});
+test('judge: a guest\'s lane waits REMOTE_GRACE before its note is missed, so a stamped tap that came late still counts', () => {
+  const notes = [{ t: 1, lane: 0 }, { t: 1, lane: 1 }, { t: 3, lane: 1 }];
+  const judge = createJudge(notes, { windowOf: lane => ({ ...LEVELS.barn, grace: lane === 1 ? REMOTE_GRACE : 0 }) });
+  assert.deepEqual(judge.sweep(1.6), [0]);
+  assert.equal(judge.tap(1, 1.2).kind, 'hit');
+  assert.deepEqual(judge.sweep(3.64), []);
+  assert.deepEqual(judge.sweep(3.66), [2]);
+});
+test('judge: a lane judged elsewhere is never swept; settle gives it the big screen\'s word', () => {
+  const judge = createJudge([{ t: 1, lane: 0 }, { t: 1.5, lane: 1 }], { windowOf: lane => ({ ...LEVELS.barn, grace: lane === 1 ? Infinity : 0 }) });
+  assert.deepEqual(judge.sweep(9), [0]);
+  assert.equal(judge.state(1), 'waiting');
+  assert.equal(judge.settle(1, 'hit'), 'waiting');
+  assert.equal(judge.settle(0, 'hit'), 'missed');
+  assert.equal(judge.left(), 0);
 });
 
 test('the run raises tiers', () => {

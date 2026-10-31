@@ -4,7 +4,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FIRST_NOTE, ROLES, timelineOf, validateSong } from '../engine/sloedla/v2/format.js';
-import { chartProblems, expectedOf, sectionChart } from '../engine/sloedla/v2/chart.js';
+import { bandChart, chartProblems, expectedOf, sectionChart } from '../engine/sloedla/v2/chart.js';
 import { partNotes } from '../engine/sloedla/v2/parts.js';
 import { createPlayer } from '../engine/sloedla/v2/player.js';
 import { createFakeContext, peakThrough } from './fake-audio.mjs';
@@ -59,7 +59,7 @@ after(() => { for (const player of players) player.stop(); });
 
 // A player on the fake audio context (fake-audio.mjs) and a clock whose song time 0 is context time 0.4. The song plays on as the
 // game's timer would move it: small steps, a pump each (sections are decided as time passes).
-function rig({ roles, drop, change } = {}) {
+function rig({ roles, drop, change, groups, onDecide } = {}) {
   const context = createFakeContext({ state: 'running' });
   const song = makeSong(change);
   for (const layer of song.layers) if (layer.stem && layer.id !== drop) layer.buffer = { duration: 61, length: 61 * 44100, sampleRate: 44100, numberOfChannels: 2 };
@@ -67,7 +67,7 @@ function rig({ roles, drop, change } = {}) {
   const plays = [];
   const sounds = { play: (name, options) => plays.push({ name, ...options }), oops() {} };
   const out = context.createGain();
-  const player = createPlayer({ context, song, clock, sounds, out, roles });
+  const player = createPlayer({ context, song, clock, sounds, out, roles, groups, onDecide });
   players.push(player);
   const to = t => {
     while (context.currentTime < 0.4 + t - 1e-9) {
@@ -88,6 +88,34 @@ test('v2 song gain: a song plays louder or softer as a whole, its hits alike, so
   const stem = ({ context, out }) => peakThrough(context.bufferSources.find(s => s.buffer && s.outputs.length), out);
   assert.ok(Math.abs(stem(loud) / stem(plain) - 1.6) < 1e-9, 'the song');
   for (const role of ROLES) assert.ok(Math.abs(loud.player.hits[role].gain.value / plain.player.hits[role].gain.value - 1.6) < 1e-9, role);
+});
+
+test('band chart: each player gets her own notes at her level, as she would alone', () => {
+  const song = makeSong();
+  const groups = [{ roles: ['a'], level: 'barn' }, { roles: ['b', 'c'], level: 'fullordinn' }];
+  timelineOf(song).sections.forEach((_, k) => {
+    const band = bandChart(song, k, 'normal', { groups });
+    assert.deepEqual(band.filter(n => n.role === 'a'), sectionChart(song, k, 'normal', { level: 'barn', roles: ['a'] }));
+    assert.deepEqual(band.filter(n => n.role !== 'a'), sectionChart(song, k, 'normal', { level: 'fullordinn', roles: ['b', 'c'] }));
+    assert.ok(band.every((n, i) => i === 0 || band[i - 1].t <= n.t));
+  });
+});
+test('band chart: one player on every lane gets the notes of today', () => {
+  const song = makeSong();
+  timelineOf(song).sections.forEach((_, k) => assert.deepEqual(
+    bandChart(song, k, 'normal', { groups: [{ roles: ROLES, level: 'barn' }] }),
+    sectionChart(song, k, 'normal', { level: 'barn', roles: ROLES })));
+});
+test('v2 player: each section is decided with the groups of that moment and told to onDecide', () => {
+  let groups = [{ roles: ROLES, level: 'barn' }];
+  const told = [];
+  const { song, player, to } = rig({ groups: () => groups, onDecide: (notes, section) => told.push({ notes, section }) });
+  player.start(0.4);
+  groups = [{ roles: ['b', 'a'], level: 'barn' }, { roles: ['c'], level: 'fullordinn' }];
+  to(timelineOf(song).length);
+  const last = told.at(-1);
+  assert.equal(told.length, timelineOf(song).sections.length);
+  assert.deepEqual(last.notes, bandChart(song, last.section.index, last.section.variant, { groups, transpose: last.section.transpose }));
 });
 
 test('v2 player: the whole song from the first beat; a hit plays the same place of the same file louder, never past the note', () => {

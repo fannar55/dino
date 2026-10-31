@@ -64,9 +64,20 @@ export function sectionChart(song, index, variant = 'normal', { level = 'barn', 
   return kept.sort((x, y) => x.t - y.t).map(({ weight, mark, ...note }) => note);
 }
 
-/** How many notes the child meets if every section plays as written. */
-export function expectedOf(song, { level = 'barn', roles = ROLES } = {}) {
-  return timelineOf(song).sections.reduce((n, _, i) => n + sectionChart(song, i, 'normal', { level, roles }).length, 0);
+/**
+ * A band's notes of section `index` (fjölspil): each player's lanes at her own level, as she would get them alone, together in
+ * time order. `groups` is [{ roles, level }], one a player.
+ */
+export function bandChart(song, index, variant = 'normal', { groups, transpose = 0 } = {}) {
+  return groups
+    .flatMap(({ roles, level }) => sectionChart(song, index, variant, { level, roles, transpose }))
+    .sort((x, y) => x.t - y.t);
+}
+
+/** How many notes the child (or the band, with `groups`) meets if every section plays as written. */
+export function expectedOf(song, { level = 'barn', roles = ROLES, groups = null } = {}) {
+  const band = groups ?? [{ roles, level }];
+  return timelineOf(song).sections.reduce((n, _, i) => n + bandChart(song, i, 'normal', { groups: band }).length, 0);
 }
 
 /**

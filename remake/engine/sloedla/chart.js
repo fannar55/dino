@@ -31,6 +31,9 @@ export const STRAY_SPARE = 0.25; // strays up to this share of the notes cost no
 export const STRAY_COST = 50; // the points each stray past the spare ones costs the stars (never the number shown)
 export const STREAK_TIERS = [3, 8, 16]; // a run this long raises the glitter and the band a tier (Fever after three, as Patapon's remake)
 export const RECENTRE = { taps: 8, most: 0.12 }; // the window follows the median of the last 8 hits' errors, at most 120 ms
+// s a guest's note waits past its window before the big screen calls it missed: her tap is stamped with the shared clock on her
+// phone, but reaches the big screen a trip later (a relay over the net can take 100–200 ms)
+export const REMOTE_GRACE = 0.3;
 
 /**
  * The levels: a note on every `every` beats at most, falling `fall` seconds from the top of the lane to the dinosaur; a tap from
@@ -56,16 +59,24 @@ export function laneOf(role, lanes = 3) {
  *   { kind: 'stray' }                            no note near
  * (`offset` is the tap's time less the note's: negative early.) sweep(time) lets the notes go that can no longer be played and
  * returns their indices. state(i) is 'waiting', 'hit' or 'missed'; left() how many are still waiting.
+ *
+ * In a band (fjölspil) each lane may have its own player and level: `windowOf(lane)` gives that lane's { early, late, great,
+ * grace } (a missing key is the judge's own). `grace` s more are waited past a note's window before it is missed (a guest's
+ * tap comes a trip late: REMOTE_GRACE); Infinity means the lane is judged elsewhere and only settle(i, 'hit' | 'missed') resolves
+ * its notes. settle returns the state the note had; it also gives a note already judged here the word that counts.
  */
-export function createJudge(notes, { window = HIT_WINDOW, early = window, late = window, great = GREAT_WINDOW, near = NEAR_WINDOW } = {}) {
+export function createJudge(notes, { window = HIT_WINDOW, early = window, late = window, great = GREAT_WINDOW, near = NEAR_WINDOW, windowOf = null } = {}) {
   // `notes` may grow while the round plays (a song decided a section at a time: conductor.js), always later notes at its end. A
   // tap from `early` s before a note to `late` s after it plays it (the child's window is wider late than early).
   const states = [];
   let first = 0; // every note before this one is hit or missed
   let resolved = 0;
-  const reach = Math.max(near, early, late);
+  const own = { early, late, great, grace: 0 };
+  const rulesOf = lane => (windowOf ? { ...own, ...windowOf(lane) } : own);
   return {
     tap(lane, time) {
+      const rules = rulesOf(lane);
+      const reach = Math.max(near, rules.early, rules.late);
       let best = -1;
       let gap = Infinity;
       for (let i = first; i < notes.length && notes[i].t <= time + reach; i++) {
@@ -76,22 +87,31 @@ export function createJudge(notes, { window = HIT_WINDOW, early = window, late =
       if (best < 0 || gap > reach) return { kind: 'stray' };
       const note = notes[best];
       const offset = time - note.t;
-      if (offset < -early || offset > late) return { kind: 'near', index: best, note, offset };
+      if (offset < -rules.early || offset > rules.late) return { kind: 'near', index: best, note, offset };
       states[best] = 'hit';
       resolved++;
-      return { kind: 'hit', index: best, note, offset, great: gap <= great };
+      return { kind: 'hit', index: best, note, offset, great: gap <= rules.great };
     },
     sweep(time) {
+      // a waiting note with grace (or judged elsewhere) holds `first`; the notes after it are still swept
       const gone = [];
-      while (first < notes.length && notes[first].t + late < time) {
-        if (!states[first]) {
-          states[first] = 'missed';
-          resolved++;
-          gone.push(first);
-        }
-        first++;
+      for (let i = first; i < notes.length && notes[i].t < time; i++) {
+        if (states[i]) continue;
+        const rules = rulesOf(notes[i].lane);
+        if (notes[i].t + rules.late + (rules.grace ?? 0) >= time) continue;
+        states[i] = 'missed';
+        resolved++;
+        gone.push(i);
       }
+      while (first < notes.length && states[first]) first++;
       return gone;
+    },
+    settle(index, state) {
+      const had = states[index] ?? 'waiting';
+      if (had === 'waiting') resolved++;
+      states[index] = state;
+      while (first < notes.length && states[first]) first++;
+      return had;
     },
     state: i => states[i] ?? 'waiting',
     left: () => notes.length - resolved,

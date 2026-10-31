@@ -14,7 +14,7 @@
 
 import { ROLES, timelineOf } from './format.js';
 import { partNotes, pitchOfKey } from './parts.js';
-import { expectedOf, sectionChart } from './chart.js';
+import { bandChart, expectedOf } from './chart.js';
 
 const LOOKAHEAD = 0.15; // s of song scheduled ahead of the audio clock
 const TICK = 25; // ms between scheduling passes
@@ -57,8 +57,12 @@ const HEADROOM = 0.8;
  * The player for v2 `song` on `context` and `clock` (song-clock.js, started by start()). `out` is where the music goes (the page's
  * music bus), `sounds` the game's sounds made with the song's instruments (sounds.js: play, oops). Stem layers bring their decoded
  * buffer as `layer.buffer`. `level` is 'barn' or 'fullordinn', `roles` the dinosaurs with lanes, `fall` how long a note falls (s).
+ * In a band (fjölspil) `groups` is [{ roles, level }], one a player (or a function giving them, read as each section is
+ * decided): each player's notes are thinned at her own level (bandChart); `roles` is still every role with a lane and `fall` the
+ * longest of the lanes'. `onDecide(notes, { index, start, variant, transpose })` hears each section's notes as they join `chart`.
  */
-export function createPlayer({ context, song, clock, sounds, out, level = 'barn', roles = ROLES, fall = 2.3 }) {
+export function createPlayer({ context, song, clock, sounds, out, level = 'barn', roles = ROLES, fall = 2.3, groups = null, onDecide = null }) {
+  const groupsNow = () => (typeof groups === 'function' ? groups() : groups) ?? [{ roles, level }];
   const { beat, bar, sections, length } = timelineOf(song);
   const decideAhead = fall + 0.7;
   const offset = song.tempo.offset ?? 0;
@@ -138,7 +142,7 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
   let started = false;
   let zero = 0; // context time of the song's first beat
   const totals = { hits: 0, misses: 0 };
-  const expected = expectedOf(song, { level, roles });
+  const expected = expectedOf(song, { groups: groupsNow() });
 
   const shareOf = stats => {
     const judged = stats.hits + stats.misses;
@@ -154,13 +158,14 @@ export function createPlayer({ context, song, clock, sounds, out, level = 'barn'
       variant = share >= BIG ? 'big' : share < CALM ? 'calm' : 'normal';
     }
     if (variant === 'big' && section.lift) transpose += section.lift;
-    const notes = sectionChart(song, k, variant, { level, roles, transpose });
+    const notes = bandChart(song, k, variant, { groups: groupsNow(), transpose });
     decided[k] = { index: k, name: section.name, variant, transpose, start: section.start, end: section.end, hits: 0, misses: 0 };
     const charted = new Set();
     for (const note of notes) {
       if (note.part) charted.add(`${note.layer}:${note.index}`);
       chart.push(note);
     }
+    onDecide?.(notes, { index: k, start: section.start, variant, transpose });
     for (const layer of song.layers) {
       if (!layer.part) continue;
       partNotes(song, layer, k, variant, transpose).forEach((note, i) => {
