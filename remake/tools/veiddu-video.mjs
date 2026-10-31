@@ -420,9 +420,13 @@ function soundTap() {
 /** Where, in the video, a moment of the page's wall clock (ms) is seen and heard: seconds from the video's first frame. */
 const videoSecond = (at, video) => (at - video.t0) / 1000;
 
+// A recording from MediaRecorder has no packets while the page is silent, so its timestamps jump: decoded as it is, the sound after
+// each hole would come too early and the recording would be short. This puts the holes back, silent, from the first packet on.
+const WHOLE = 'asetpts=PTS-STARTPTS,aresample=async=1:first_pts=0';
+
 /** Where the calibration click starts in a recording (seconds from its first sample), or null: its first sample louder than half the click. */
 function findClick(file) {
-  const r = spawnSync('ffmpeg', ['-v', 'error', '-t', '5', '-i', file, '-vn', '-ac', '1', '-ar', '48000', '-f', 'f32le', '-'], { maxBuffer: 1 << 26 });
+  const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-t', '5', '-af', WHOLE, '-vn', '-ac', '1', '-ar', '48000', '-f', 'f32le', '-'], { maxBuffer: 1 << 26 });
   const samples = new Float32Array(r.stdout.buffer, r.stdout.byteOffset, Math.floor(r.stdout.length / 4));
   const peak = samples.reduce((m, x) => Math.max(m, Math.abs(x)), 0);
   if (peak < 0.3) return null;
@@ -446,7 +450,7 @@ function muxSound({ silent, out, recordings, voices, seconds, workDir, video }) 
     const offsetMs = rec.startedAt - video.t0;
     // the calibration click is cut out to the sample (aeval knows each sample's time; the volume filter's enable works by whole frames)
     const click = rec.clickAt === null ? [] : [`aeval='val(0)*not(between(t,${(rec.clickAt - 0.003).toFixed(4)},${(rec.clickAt + 0.02).toFixed(4)}))':c=same`];
-    filters.push(`[${k}:a]${['asetpts=PTS-STARTPTS', ...click, stereo, ...place(offsetMs)].join(',')}[a${k}]`);
+    filters.push(`[${k}:a]${[WHOLE, ...click, stereo, ...place(offsetMs)].join(',')}[a${k}]`);
     mixed.push({ kind: 'context', file: path.basename(rec.file), offsetMs: Math.round(offsetMs), calibrated: rec.clickAt !== null, clickAt: rec.clickAt });
   }
   for (const voice of voices) {
