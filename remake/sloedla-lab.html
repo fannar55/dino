@@ -54,15 +54,18 @@
     </div>
 
     <div class="sl-step sl-step-songs" data-step-view="lag" hidden>
-      <div class="sl-cards" data-cards></div>
-      <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
-      <div class="sl-row">
-        <button type="button" class="sl-back" data-back>← Til baka</button>
-        <button class="sl-play" id="play" type="button" disabled hidden>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
-          <span>Spila!</span>
-        </button>
+      <div class="sl-ui2">
+        <div class="sl-cards" data-cards></div>
+        <div class="sl-row2">
+          <button type="button" class="sl-back" data-back>← Til baka</button>
+          <!-- "Spila!" keeps its place, unseen until a song is picked (.show) -->
+          <button class="sl-go sl-play" id="play" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
+            <span>Spila!</span>
+          </button>
+        </div>
       </div>
+      <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
     </div>
   </section>
 

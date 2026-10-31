@@ -139,84 +139,57 @@ html, body {
 .sl-step:not([hidden]) .sl-ui1 > .sl-go { animation: sl-rise-far 0.55s cubic-bezier(0.3, 1.4, 0.5, 1) 0.14s backwards, sl-breathe 1.4s ease-in-out 0.7s infinite; }
 @keyframes sl-rise-far { from { transform: translateY(40vh); } }
 
-/* step 2: the song cards */
-.sl-step-songs { position: relative; }
-.sl-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(12px, 2vw, 22px); max-width: 1000px; }
+/* step 2: the songs as cards of dark glass in each song's colour, the picture popping out over the top; they fly in one by one */
+.sl-ui2 { position: absolute; left: 0; right: 0; bottom: 3vh; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.sl-cards { display: flex; gap: clamp(12px, 2vw, 24px); justify-content: center; padding: 0 16px; }
 .sl-songcard {
-  --hue: #6793d0;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: clamp(150px, 19vw, 190px);
-  padding: 0 0 10px;
-  border: 4px solid #fffaf0;
-  border-radius: 22px;
-  background: #fffaf0;
-  font-family: inherit;
-  color: #3b2f25;
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  overflow: hidden;
-  animation: sl-card-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) backwards, sl-sway 3.2s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 0.08s), calc(0.6s + var(--i) * 0.4s);
-  transition: transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.25s, box-shadow 0.25s;
+  --hue: #8a5cd6;
+  --hop: 0;
+  position: relative; display: flex; flex-direction: column; align-items: center; width: clamp(150px, 16vw, 196px); padding: 0 10px 12px; margin-top: 46px;
+  border: 0; border-radius: 26px; cursor: pointer; font-family: inherit; color: #fff8e6;
+  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--hue) 55%, #241d5c) 0%, #19143f 72%);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--hue) 80%, #fff 10%), inset 0 3px 0 rgba(255, 255, 255, 0.3), 0 12px 24px rgba(0, 0, 0, 0.5);
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.25s, opacity 0.25s, filter 0.25s;
 }
-.sl-songcard.gold { border-color: #e9b14d; box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 0 0 2px #fff6c8 inset; }
-.sl-cardpic {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--hue) 55%, #fffaf0) 0%, color-mix(in srgb, var(--hue) 85%, #1b2150) 100%);
-}
-.sl-cardpic img { width: 86%; height: 86%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3)); }
-.sl-cardname { margin-top: 8px; font-size: clamp(19px, 2.4vw, 23px); font-weight: 900; }
-.sl-cardby { font-size: 15px; font-weight: 800; color: #b07a1c; }
-.sl-stars { margin-top: 2px; font-size: 20px; letter-spacing: 2px; color: #e9b14d; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2); }
-.sl-met { font-size: 14px; font-weight: 800; color: #b07a1c; } /* the song's most points, under its stars */
-.sl-stars.new { animation: sl-twinkle 0.6s ease-in-out 4 alternate; }
-.sl-cards.has-pick .sl-songcard { opacity: 0.75; }
-.sl-cards .sl-songcard[aria-pressed="true"] {
-  opacity: 1;
-  animation: none;
-  transform: translateY(-10px) rotate(-3deg) scale(1.04);
-  box-shadow: 0 0 0 4px var(--hue), 0 0 32px 10px color-mix(in srgb, var(--hue) 65%, transparent), 0 12px 0 rgba(0, 0, 0, 0.25);
-}
-@keyframes sl-card-in { from { transform: translateY(40px) scale(0.7); opacity: 0; } }
-@keyframes sl-sway { 50% { transform: rotate(var(--sway, 1deg)) translateY(-3px); } }
+.sl-step:not([hidden]) .sl-songcard { animation: sl-card-in 0.65s cubic-bezier(0.3, 1.45, 0.5, 1) backwards; animation-delay: calc(var(--i) * 0.09s + 0.15s); }
+@keyframes sl-card-in { from { transform: translateY(70vh) rotate(calc((var(--i) - 1.5) * 9deg)); } }
+.sl-cardpic { position: relative; width: 112%; aspect-ratio: 1; margin-top: -46px; display: grid; place-items: center; }
+.sl-cardpic::before { content: ""; position: absolute; inset: 10%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--hue) 80%, #fff 20%) 0%, transparent 68%); opacity: 0.55; transition: opacity 0.3s; }
+.sl-cardpic img { position: relative; width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.45)); transform: translateY(calc(var(--hop) * -12px)) scale(calc(1 + var(--hop) * 0.07)); }
+.sl-cardname { font-weight: 900; font-size: clamp(19px, 2.1vw, 24px); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); margin-top: -4px; }
+.sl-cardby { font-weight: 800; font-size: 14px; color: #ffd24a; }
+.sl-stars { font-size: 21px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.16); margin-top: 2px; }
+.sl-stars b { color: #ffd24a; font-weight: inherit; text-shadow: 0 0 8px rgba(255, 200, 60, 0.8), 0 1px 0 #a8650f; }
+.sl-stars.new b { display: inline-block; animation: sl-twinkle 0.6s ease-in-out 4 alternate; }
 @keyframes sl-twinkle { to { transform: scale(1.25); color: #fff6c8; text-shadow: 0 0 12px #ffd76a; } }
+.sl-met { font-size: 14px; font-weight: 800; color: #ffe9a8; min-height: 1.25em; } /* the song's most points, under its stars */
+.sl-songcard:hover { transform: translateY(-6px) rotate(-1.5deg); }
+.sl-songcard:active { transform: scale(0.95); }
+.sl-cards.has-pick .sl-songcard { opacity: 0.6; filter: saturate(0.7); transform: scale(0.94); }
+.sl-cards.has-pick .sl-songcard[aria-pressed="true"] {
+  opacity: 1; filter: none; transform: translateY(-16px) scale(1.07);
+  box-shadow: inset 0 0 0 4px #fff3b0, 0 0 0 4px var(--hue), 0 0 44px 10px color-mix(in srgb, var(--hue) 70%, transparent), 0 16px 26px rgba(0, 0, 0, 0.5);
+}
+.sl-songcard[aria-pressed="true"] .sl-cardpic::before { opacity: 1; }
+.sl-songcard.just { animation: sl-pickpop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) !important; }
+@keyframes sl-pickpop { 0% { transform: translateY(-16px) scale(0.9) rotate(4deg); } 50% { transform: translateY(-22px) scale(1.14) rotate(-3deg); } }
 .sl-sparks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+
+.sl-row2 { display: flex; gap: 18px; align-items: center; }
+.sl-back {
+  padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; font-family: inherit; font-weight: 900; font-size: 21px; color: #fff3c8;
+  background: rgba(20, 16, 56, 0.7); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14), 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+.sl-back:active { transform: scale(0.94); }
+/* "Spila!": unseen until a song is picked, then it pops in and breathes; faded until the page can play */
+.sl-play { visibility: hidden; }
+.sl-play.show { visibility: visible; animation: sl-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1), sl-breathe 1.4s ease-in-out 0.5s infinite; }
+.sl-play:not(.ready) { opacity: 0.55; }
+@keyframes sl-pop { from { transform: scale(0.4); opacity: 0; } }
 
 .sl-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
 
-/* ---- Spila and the end ---- */
-
-.sl-play {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 88px;
-  padding: 0 40px 0 30px;
-  border: 0;
-  border-radius: 999px;
-  background: #e07a3f;
-  color: #fffaf0;
-  font-family: inherit;
-  font-weight: 900;
-  font-size: clamp(32px, 5vw, 42px);
-  line-height: 1;
-  box-shadow: 0 6px 0 #a9542a, 0 12px 24px rgba(0, 0, 0, 0.25);
-  cursor: pointer;
-  opacity: 0.5;
-  transition: transform 0.12s, opacity 0.3s;
-}
-.sl-play svg { width: 52px; height: 52px; }
-.sl-play.ready { opacity: 1; animation: sl-breathe 1.8s ease-in-out infinite; }
-.sl-play.ready.pop { animation: sl-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1), sl-breathe 1.8s ease-in-out 0.45s infinite; }
-.sl-play:active { transform: translateY(4px) scale(0.98); box-shadow: 0 2px 0 #a9542a, 0 6px 14px rgba(0, 0, 0, 0.25); }
-@keyframes sl-breathe { 50% { transform: scale(1.05); } }
-@keyframes sl-pop { from { transform: scale(0.6); } 70% { transform: scale(1.08); } }
+/* ---- the end ---- */
 
 .sl-end {
   position: absolute;
@@ -239,6 +212,9 @@ html, body {
   .sl-bg { background-image: url("./assets/sloedla/kvold-fen-upright.webp"); }
   .sl[data-screen="lag"] .sl-world { transform: translateY(-15vh); }
   .sl[data-screen="hlada"] .sl-world { transform: translateY(24vh) scale(1.02); }
+  .sl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; width: min(420px, calc(100% - 24px)); padding: 0; }
+  .sl-songcard { width: auto; margin-top: 30px; padding-bottom: 8px; }
+  .sl-cardpic { width: 74%; margin-top: -30px; }
 }
 
 @media (max-width: 600px) {
@@ -249,15 +225,15 @@ html, body {
   .sl-go svg { width: 30px; height: 30px; }
   .sl-dj-pic { width: 64px; height: 64px; }
   .sl-dj-say { font-size: 15px; padding: 9px 13px; }
-  .sl-songcard { width: calc(50% - 8px); max-width: 190px; }
-  .sl-play { min-height: 76px; padding: 0 28px 0 22px; }
+  .sl-back { font-size: 17px; padding: 10px 16px; }
+  .sl-cardname { font-size: 18px; }
+  .sl-stars { font-size: 17px; }
+  .sl-met { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sl-play.ready, .sl-play.ready.pop, .sl-songcard, .sl-dj.talking .sl-dj-pic, .sl-stars.new { animation: none; }
+  .sl-play.show, .sl-songcard, .sl-step:not([hidden]) .sl-songcard, .sl-songcard.just, .sl-dj.talking .sl-dj-pic, .sl-stars.new b { animation: none !important; }
   .sl-world { transition: none; }
   .sl-aurora, .sl-beam.on, .sl-dj-pic, .sl-go, .sl-go::after, .sl-choice.picked, .sl-step:not([hidden]) .sl-ui1 > *, .sl-step:not([hidden]) .sl-ui1 > .sl-go { animation: none; }
-  .sl-step { animation-name: sl-fade; }
-  .sl-cards .sl-songcard[aria-pressed="true"] { transform: none; }
-  @keyframes sl-fade { from { opacity: 0; } }
+  .sl-cards.has-pick .sl-songcard[aria-pressed="true"] { transform: none; }
 }

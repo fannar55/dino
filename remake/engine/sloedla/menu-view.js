@@ -8,9 +8,16 @@
 // (drawWord). .sl's data-screen says which screen shows (hver, lag, hlada, umferd, lok); the stage draws only on the first three.
 
 import { DJ_LINES } from './dj.js';
+import { bounce } from './stage-motion.js';
 import { drawWord, pointsText } from './text.js';
 
 const STAGE_SCREENS = new Set(['hver', 'lag', 'hlada']);
+const LANDING = [1, 1.125, 1.25, 1.5, 1.667]; // the cards' bells as they land, over 660 Hz
+/** `hex` (#rrggbb) at `alpha`, for a beam in a song's colour. */
+const rgba = (hex, alpha) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+};
 const MAX_RATIO = 2; // the sky's and the words' canvases, pixels per CSS pixel at most
 
 /**
@@ -31,6 +38,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   let clock = 0;
   let raf = 0;
   let last = 0;
+  let beamColour = ''; // the beams' colour now ('' white)
   const skyStars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random() * 0.55, r: Math.random() * 1.6 + 0.4, p: Math.random() * 6 }));
   const portrait = () => win.innerHeight > win.innerWidth;
   const TITLE = { text: 'Söngur Slóeðlu', style: 'rainbow', y: () => win.innerHeight * (portrait() ? 0.2 : 0.17), size: () => Math.min(win.innerWidth * 0.09, portrait() ? 54 : 84) };
@@ -85,8 +93,19 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     clock += dt;
     drawSky();
     drawWords();
-    stage?.frame(dt, null, null);
-    placeBeams(0);
+    // step 2 with a song picked: everyone in the round dances to its preview's beat, the beams take its colour and flash on
+    // the beat, its card's picture hops
+    const picked = screenName === 'lag' ? songs.find(song => song.id === menu.state().song) ?? null : null;
+    const beats = picked && !reduced ? brot?.beats() ?? null : null;
+    const hop = beats === null ? 0 : bounce(beats);
+    stage?.frame(dt, beats, picked?.bpm ?? null);
+    placeBeams(hop);
+    const beam = picked?.hue ? rgba(picked.hue, 0.55) : '';
+    if (beam !== beamColour) {
+      beamColour = beam;
+      for (const each of Object.values(beams)) beam ? each.style.setProperty('--beam', beam) : each.style.removeProperty('--beam');
+    }
+    for (const card of cards.children) card.style.setProperty('--hop', card.dataset.song === picked?.id ? hop.toFixed(3) : '0');
     raf = win.requestAnimationFrame(frame);
   }
   /** Shows screen `name` (hver, lag, hlada, umferd, lok); the stage draws only on the menu's own screens. */
@@ -150,7 +169,6 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     card.dataset.song = song.id;
     card.style.setProperty('--hue', song.hue ?? '#6793d0');
     card.style.setProperty('--i', String(i));
-    card.style.setProperty('--sway', `${i % 2 ? 1.2 : -1.2}deg`);
     const pic = document.createElement('span');
     pic.className = 'sl-cardpic';
     if (song.card) {
@@ -192,7 +210,9 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       card.setAttribute('aria-pressed', String(card.dataset.song === s.song));
       const { stars: n, points } = best.get(card.dataset.song, s.level);
       const stars = card.querySelector('.sl-stars');
-      stars.textContent = '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
+      const won = document.createElement('b'); // the stars won, gold; the rest faint
+      won.textContent = '★'.repeat(n);
+      stars.replaceChildren(won, '★'.repeat(Math.max(0, 5 - n)));
       stars.setAttribute('aria-label', `${n} af 5 stjörnum`);
       stars.classList.toggle('new', card.dataset.song === newBest);
       const met = card.querySelector('.sl-met');
@@ -200,13 +220,12 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       met.hidden = !(points > 0);
     }
     cards.classList.toggle('has-pick', Boolean(s.song));
-    const wasHidden = play.hidden;
-    play.hidden = !s.song;
-    if (wasHidden && !play.hidden) {
-      play.classList.remove('pop');
-      void play.offsetWidth; // start the pop again
-      play.classList.add('pop');
-    }
+    play.classList.toggle('show', Boolean(s.song)); // it pops in when it first shows
+    play.setAttribute('aria-hidden', String(!s.song));
+  }
+  /** The cards fly in one by one; a bell, higher and higher, as each lands. */
+  function cardsIn() {
+    songs.forEach((song, i) => setTimeout(() => chimes?.sparkle(660 * LANDING[i % LANDING.length]), (0.38 + i * 0.09) * 1000));
   }
 
   /** "Spila!" (or, `again`, "Spilum aftur"): once, however many taps, and not before the page is ready to play. */
@@ -236,13 +255,19 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   $('[data-to-songs]')?.addEventListener('click', () => {
     run(menu.toSongs(), 'hvadalag');
     render();
+    cardsIn();
   });
+  // a card picked: it pops and sparks with a bell (also when it is tapped again; then nothing else happens), its line and its bit
   cards.addEventListener('click', event => {
     const card = event.target.closest('[data-song]');
     if (!card) return;
     run(menu.pick(card.dataset.song), `lag-${card.dataset.song}`);
     save(menu.state());
     render();
+    chimes?.sparkle(990);
+    card.classList.remove('just');
+    void card.offsetWidth; // start the pop again
+    card.classList.add('just');
     if (sparks && sparkCanvas) {
       const a = card.getBoundingClientRect(), b = sparkCanvas.getBoundingClientRect();
       sparks.burst(a.left + a.width / 2 - b.left, a.top + a.height * 0.4 - b.top, card.style.getPropertyValue('--hue'));
@@ -260,6 +285,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     screen('lag');
     run(menu.other(), 'hvadalag');
     render();
+    cardsIn();
   });
   // a browser lets sound begin only from a tap: the first one wakes the audio, and the menu may speak from then on
   root.addEventListener('pointerdown', () => {
