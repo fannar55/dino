@@ -65,7 +65,14 @@
           </button>
         </div>
       </div>
-      <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
+    </div>
+  </section>
+
+  <!-- the wait while a song loads (menu-view.js showLoading): its picture on a disc, a gold ring filling, then "Byrjum!" -->
+  <section class="sl-loading" id="loading" hidden>
+    <div class="sl-vignette"></div>
+    <div class="sl-disc" data-disc>
+      <div class="sl-disc-halo"></div><div class="sl-disc-face"></div><img data-disc-img alt=""><div class="sl-disc-ring"></div><span class="sl-disc-tip" data-disc-tip>★</span>
     </div>
   </section>
 
@@ -79,6 +86,8 @@
       <button type="button" class="sl-next" data-other>Annað lag</button>
     </div>
   </section>
+  <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
+  <div class="sl-flash" data-flash></div>
 </main>
 <script type="module" src="./engine/sloedla/lab.js"></script>
 </body>

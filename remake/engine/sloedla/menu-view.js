@@ -8,7 +8,7 @@
 // (drawWord). .sl's data-screen says which screen shows (hver, lag, hlada, umferd, lok); the stage draws only on the first three.
 
 import { DJ_LINES } from './dj.js';
-import { bounce } from './stage-motion.js';
+import { bounce, loadingDone, ringStep } from './stage-motion.js';
 import { drawWord, pointsText } from './text.js';
 
 const STAGE_SCREENS = new Set(['hver', 'lag', 'hlada']);
@@ -39,6 +39,17 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   let raf = 0;
   let last = 0;
   let beamColour = ''; // the beams' colour now ('' white)
+  let talkUntil = 0; // the frame clock when the DJ's line ends (0: he says nothing)
+  let load = null; // the loading show while it runs (showLoading)
+  const loadingBox = $('#loading');
+  const disc = $('[data-disc]');
+  const discImg = $('[data-disc-img]');
+  const tip = $('[data-disc-tip]');
+  const flashBox = $('[data-flash]');
+  const discY = () => win.innerHeight * (portrait() ? 0.27 : 0.3);
+  const discD = () => Math.min(win.innerHeight * 0.36, win.innerWidth * 0.62);
+  const BYRJUM = 0.9; // s of "Byrjum!" before the flash
+  const FLASH = 0.65; // s of the white flash; the round takes over at its brightest (0.3 of it)
   const skyStars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random() * 0.55, r: Math.random() * 1.6 + 0.4, p: Math.random() * 6 }));
   const portrait = () => win.innerHeight > win.innerWidth;
   const TITLE = { text: 'Söngur Slóeðlu', style: 'rainbow', y: () => win.innerHeight * (portrait() ? 0.2 : 0.17), size: () => Math.min(win.innerWidth * 0.09, portrait() ? 54 : 84) };
@@ -91,6 +102,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
     last = now;
     clock += dt;
+    if (load) load.dt = dt;
     drawSky();
     drawWords();
     // step 2 with a song picked: everyone in the round dances to its preview's beat, the beams take its colour and flash on
@@ -106,7 +118,48 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       for (const each of Object.values(beams)) beam ? each.style.setProperty('--beam', beam) : each.style.removeProperty('--beam');
     }
     for (const card of cards.children) card.style.setProperty('--hop', card.dataset.song === picked?.id ? hop.toFixed(3) : '0');
+    if (load) loadingFrame();
     raf = win.requestAnimationFrame(frame);
+  }
+  /** One frame of the loading show: the ring after the song, a tick each tenth, then "Byrjum!", the flash, the round. */
+  function loadingFrame() {
+    const t = clock - load.at;
+    if (!load.cheered && !load.again && t >= 0.3) {
+      load.cheered = true;
+      stage?.cheer();
+    }
+    load.shown = ringStep(load.shown, load.real, load.dt);
+    disc?.style.setProperty('--p', load.shown.toFixed(4));
+    if (tip) {
+      const a = load.shown * Math.PI * 2, r = 0.5 - 13.5 / discD();
+      tip.style.left = `${(0.5 + Math.sin(a) * r) * 100}%`;
+      tip.style.top = `${(0.5 - Math.cos(a) * r) * 100}%`;
+    }
+    const tenth = Math.floor(load.shown * 10 + 1e-9);
+    if (tenth > load.ticks) {
+      load.ticks = tenth;
+      chimes?.tick(1100 + 130 * tenth);
+    }
+    if (!load.byrjum && loadingDone({ shown: load.shown, now: clock, talkUntil })) {
+      load.byrjum = clock;
+      setWords([{ text: 'Byrjum!', style: 'rainbow', y: discY, size: () => Math.min(win.innerWidth * 0.17, 120), wave: 0.1 }]);
+      chimes?.star(5);
+      sparks?.burst(win.innerWidth / 2, discY(), load.song.hue ?? '#ffd24a');
+      sparks?.burst(win.innerWidth / 2, discY(), '#ffd24a');
+      stage?.cheer();
+      disc?.classList.add('done');
+    }
+    if (load.byrjum && !load.flashed && clock >= load.byrjum + BYRJUM) {
+      load.flashed = clock;
+      if (!reduced) flashBox?.animate([{ opacity: 0 }, { opacity: 0.92, offset: 0.3 }, { opacity: 0 }], { duration: FLASH * 1000, easing: 'ease-out' });
+    }
+    if (load.flashed && clock >= load.flashed + (reduced ? 0 : FLASH * 0.3)) {
+      const done = load.resolve;
+      load = null;
+      if (loadingBox) loadingBox.hidden = true;
+      screen('umferd');
+      done();
+    }
   }
   /** Shows screen `name` (hver, lag, hlada, umferd, lok); the stage draws only on the menu's own screens. */
   function screen(name) {
@@ -147,12 +200,17 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   /** Carries out the menu's cues; the bubble shows the words he says, or `words` (a line's key) while there is no sound yet. */
   function run(cues, words = null) {
     for (const cue of cues) {
-      if (cue.hush) { dj?.hush(); talking(0); }
+      if (cue.hush) {
+        dj?.hush();
+        talking(0);
+        talkUntil = 0;
+      }
       if (cue.stop) brot?.stop();
       if (cue.say) {
         const seconds = dj?.play(cue.say) ?? 0;
         if (bubble) bubble.textContent = seconds ? dj.said() : line(cue.say);
         talking(seconds);
+        talkUntil = seconds ? clock + seconds : 0;
       }
       if (cue.brot) brot?.play(cue.brot);
     }
@@ -235,7 +293,6 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     if (!cues) return;
     run(cues);
     newBest = null;
-    screen('umferd');
     onPlay(menu.play(), { again });
   }
 
@@ -307,6 +364,42 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       stage?.resize();
     },
     screen,
+    /**
+     * The wait while `song` (a SONGS_V2 entry) loads, as a show: the stage moves down and closer, its picture on a disc, a gold
+     * ring that fills as the page says (progress(share), 0..1 of its parts in), never faster than RING_MIN; then "Byrjum!" once
+     * the DJ has finished his line, and a flash. `again` ("Spilum aftur"): the ring full at once, no name. `finished` resolves
+     * when the round should begin.
+     */
+    showLoading(song, { again = false } = {}) {
+      start.hidden = true;
+      end.hidden = true;
+      if (loadingBox) loadingBox.hidden = false;
+      if (disc) {
+        disc.classList.remove('done');
+        disc.style.setProperty('--hue', song.hue ?? '#ffd24a');
+        disc.style.setProperty('--y', `${discY()}px`);
+        disc.style.setProperty('--d', `${discD()}px`);
+        disc.style.setProperty('--p', again ? '1' : '0');
+      }
+      if (discImg) discImg.src = song.card ? asset(`sloedla/valmynd/${song.card}`) : '';
+      screen('hlada');
+      const below = () => discY() + discD() / 2 + Math.min(54, win.innerHeight * 0.07);
+      setWords(again ? [] : [
+        { text: song.name, style: 'rainbow', y: below, size: () => Math.min(win.innerWidth * 0.1, 60) },
+        song.by && { text: song.by, style: 'cream', y: () => below() + Math.min(46, win.innerHeight * 0.055), size: () => Math.min(win.innerWidth * 0.06, 30), wave: 0.03 },
+      ]);
+      let resolve;
+      const finished = new Promise(r => { resolve = r; });
+      load = { song, again, at: clock, dt: 0, real: again ? 1 : 0, shown: again ? 1 : 0, ticks: again ? 10 : 0, cheered: false, byrjum: 0, flashed: 0, resolve };
+      const show = load;
+      return {
+        /** The share of the song's parts in so far (0..1); the ring follows it, never ahead. */
+        progress(share) {
+          show.real = Math.max(show.real, Math.min(1, Math.max(0, share)));
+        },
+        finished,
+      };
+    },
     showStart() {
       end.hidden = true;
       start.hidden = false;

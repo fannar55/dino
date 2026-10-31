@@ -185,19 +185,21 @@ let round = null; // { game, clock, conductor, bot }
 let images = null;
 let recorder = null;
 
-async function start() {
+/** A round of the chosen song: the menu's loading show (menu-view.js showLoading) while its stems load, then the play. */
+async function start({ again = false } = {}) {
   if (!images || !context) return;
   try { await context.resume(); } catch { /* the game goes on silent */ }
-  $('start').hidden = true;
-  $('end').hidden = true;
-  view.screen('umferd'); // the menu's stage rests while the round plays
   round?.conductor.stop();
+  round = null;
+  const entry = SONGS_V2.find(each => each.id === options.song) ?? SONGS_V2[0];
+  const show = view.showLoading(entry, { again });
   // the song (v2/format.js) owns everything it plays and has a player of its own (v2/player.js); an unknown id plays the first
   const song = await loadSongV2(options.song) ?? await loadSongV2(SONGS_V2[0].id);
   // its stems, decoded once, one at a time (decoding many at once has crashed iOS tabs); one that cannot be loaded is left out
-  // (the player says so) and the round plays
-  for (const layer of song.layers) {
-    if (!layer.stem || layer.buffer) continue;
+  // (the player says so) and the round plays; the ring follows them
+  const wanted = song.layers.filter(layer => layer.stem && !layer.buffer);
+  let done = 0;
+  for (const layer of wanted) {
     try {
       const response = await fetch(asset(`audio/sloedla/v2/${song.id}/${layer.stem}`));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -205,7 +207,10 @@ async function start() {
     } catch (error) {
       console.warn(`Slóeðla: ${song.id}/${layer.stem} could not be loaded`, error);
     }
+    show.progress(++done / wanted.length);
   }
+  show.progress(1);
+  await show.finished;
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const windows = LEVELS[options.level];
@@ -361,12 +366,12 @@ const view = createMenuView({
   sparks: createSparks(document.querySelector('[data-sparks]')),
   onUnlock: () => context?.resume().catch(() => {}),
   save: keep,
-  onPlay: choice => {
+  onPlay: (choice, { again = false } = {}) => {
     options.song = choice.song;
     options.level = choice.level;
     options.lanes = choice.lanes;
     keep(choice);
-    start();
+    start({ again });
   },
 });
 
