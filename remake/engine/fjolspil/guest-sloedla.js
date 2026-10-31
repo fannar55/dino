@@ -149,6 +149,7 @@ function createScreen(root, { send, doc, post, listen }) {
     const shown = card({ picture: view.song?.picture, name: view.song?.name, words: WORDS.ready, note: WORDS.connecting });
     at.waitNote = shown.note;
     shown.note.hidden = sync.offset !== null;
+    send({ type: 'ready' }); // in the middle of a song this page has none of it (reloaded): the big screen gives her dinosaur to Egill
     measure();
     loadPictures();
   }

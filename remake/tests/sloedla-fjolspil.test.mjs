@@ -80,6 +80,7 @@ function fakeRoom() {
   doc.add('saman', 'section');
   const calls = [];
   const acts = new Set();
+  const alives = new Set();
   const seats = createSeats();
   const lobby = createBandLobby(doc, {
     seats: { list: () => seats.list(), bySeat: n => seats.bySeat(n) },
@@ -97,10 +98,14 @@ function fakeRoom() {
     onAct(fn) { acts.add(fn); return () => acts.delete(fn); },
     broadcast(body) { calls.push(['broadcast', body]); },
     closeGame() { calls.push(['closeGame']); },
+    sendSong(n, body) { calls.push(['sendSong', n, body]); return true; },
+    send(n, body) { calls.push(['send', n, body]); return true; },
+    onAlive(fn) { alives.add(fn); return () => alives.delete(fn); },
   };
-  const act = (n, body) => { for (const fn of acts) fn(n, body); };
+  const act = (n, body) => { for (const fn of alives) fn(seats.bySeat(n)); for (const fn of acts) fn(n, body); };
+  const alive = n => { for (const fn of alives) fn(seats.bySeat(n)); };
   const join = (guestId, name, avatar) => { seats.join({ guestId, name, avatar }); lobby.refresh(); };
-  return { doc, calls, seats, lobby, fjolspil, act, join };
+  return { doc, calls, seats, lobby, fjolspil, act, alive, join };
 }
 
 test('the song lobby offers the free dinosaurs, asks a level and closes at three', () => {
@@ -217,4 +222,147 @@ test('device: 390×844 is a phone, 1180×820 a tablet, ?taeki overrides', () => 
   assert.equal(deviceOf(390, 844, 'spjald'), 'spjald');
   assert.equal(deviceOf(1180, 820, 'simi'), 'simi');
   assert.equal(deviceOf(1180, 820, 'eitthvad'), 'spjald');
+});
+
+// ---- The round over the net: the big screen's side (fjolspil-song.js's round half) ----------------------------------------
+
+/** The page's clock and timers, moved on by the test: intervals run at their times as `advance` passes them. */
+function fakeTime(start = 10000) {
+  let now = start;
+  let next = 1;
+  const intervals = new Map();
+  return {
+    perf: () => now,
+    timers: {
+      setInterval(fn, ms) { intervals.set(next, { fn, ms, at: now + ms }); return next++; },
+      clearInterval(id) { intervals.delete(id); },
+    },
+    advance(ms) {
+      const end = now + ms;
+      for (;;) {
+        const due = [...intervals.values()].filter(timer => timer.at <= end).sort((x, y) => x.at - y.at)[0];
+        if (!due) break;
+        now = due.at;
+        due.at += due.ms;
+        due.fn();
+      }
+      now = end;
+    },
+  };
+}
+
+const SONG = { id: 'boogie', name: 'Rokkhopp', bpm: 150, length: 90 };
+const BOOGIE = { name: 'Rokkhopp', picture: 'assets/sloedla/valmynd/boogie.webp' };
+
+/** Egill on Slóeðla (a grown-up), guests from their phones; the round's game and clock as fakes that keep what they are told. */
+function bandRound(guests = [['g1', 'Anna', 'thorsedla']]) {
+  const room = fakeRoom();
+  const time = fakeTime();
+  const host = createBandHost({ fjolspil: room.fjolspil, lobby: room.lobby, perf: time.perf, timers: time.timers });
+  for (const [id, name, avatar] of guests) room.join(id, name, avatar);
+  const lineup = lineupOf({ lanes: 3, mine: 'a', level: 'fullordinn', seats: room.seats.list() });
+  const game = { taps: [], lineups: [], tap(lane, at) { this.taps.push([lane, at]); }, setLineup(next) { this.lineups.push(next); } };
+  const clock = { time: () => 20 };
+  host.ready('boogie');
+  const begin = () => host.beginRound({ song: SONG, lineup, clock, level: 'fullordinn', game });
+  const songs = n => room.calls.filter(([name, seatN]) => name === 'sendSong' && seatN === n).map(([, , body]) => body);
+  return { room, time, host, game, begin, songs };
+}
+
+test('a guest\'s tap is judged on her own lane at its stamp', () => {
+  const band = bandRound();
+  band.begin();
+  band.room.act(1, { type: 'tap', at: 9950 }); // 50 ms ago on the big screen's clock, the song now at 20 s
+  assert.equal(band.game.taps.length, 1);
+  const [lane, at] = band.game.taps[0];
+  assert.equal(lane, 2, 'Þórseðla\'s lane');
+  assert.ok(Math.abs(at - 19.95) < 1e-9);
+});
+
+test('a tap from the future or two seconds old is not judged', () => {
+  const band = bandRound();
+  band.room.act(1, { type: 'tap', at: 9990 }); // before the round
+  band.begin();
+  band.room.act(1, { type: 'tap', at: 10100 });
+  band.room.act(1, { type: 'tap', at: 7000 });
+  band.room.act(1, { type: 'tap', at: 'now' });
+  assert.deepEqual(band.game.taps, []);
+});
+
+test('three silent seconds give her dinosaur to Egill at his level; heard again she learns she is in next time', () => {
+  const band = bandRound();
+  band.begin();
+  band.time.advance(2500);
+  band.room.alive(1); // her phone asked the time
+  band.time.advance(2900);
+  assert.deepEqual(band.game.lineups, [], '2.9 s quiet: still hers');
+  band.time.advance(700);
+  const egill = { role: 'c', player: 0, name: 'Egill', level: 'fullordinn', judged: 'here' };
+  assert.deepEqual(band.game.lineups.at(-1)[2], egill);
+  assert.deepEqual(band.host.lineup()[2], egill);
+  band.room.alive(1);
+  band.room.alive(1);
+  const late = band.room.calls.filter(([name, n, body]) => name === 'send' && n === 1 && body.phase === 'late');
+  assert.deepEqual(late, [['send', 1, { screen: 'sloedla', phase: 'late', song: BOOGIE }]], 'told once');
+});
+
+test('a decided section and every verdict reach every phone', () => {
+  const band = bandRound([['g1', 'Anna', 'thorsedla'], ['g2', 'Bjarni', 'kambedla']]);
+  assert.deepEqual(band.room.calls.find(([name]) => name === 'broadcast'), ['broadcast', { screen: 'sloedla', phase: 'ready', song: BOOGIE }]);
+  band.host.decided([{ t: 2.4, role: 'a' }, { t: 2.8, role: 'c' }], { index: 0, start: 0, variant: 'normal', transpose: 0 }); // before the round
+  band.begin();
+  band.host.decided([{ t: 8.2, role: 'b' }, { t: 8.6, role: 'c' }], { index: 1, start: 8, variant: 'big', transpose: 0 });
+  band.host.judged({ index: 3, lane: 2, role: 'c', kind: 'hit', grade: 'great' });
+  for (const [n, mine] of [[1, 'c'], [2, 'b']]) {
+    assert.deepEqual(band.songs(n), [
+      { kind: 'start', song: SONG, lanes: ['b', 'a', 'c'], levels: { b: 'barn', a: 'fullordinn', c: 'barn' }, names: { b: 'Bjarni', a: 'Egill', c: 'Anna' }, mine },
+      { kind: 'clock', at: 10000, song: 20 },
+      { kind: 'notes', section: { index: 0, start: 0, variant: 'normal' }, list: [{ id: 0, t: 2.4, role: 'a' }, { id: 1, t: 2.8, role: 'c' }] },
+      { kind: 'notes', section: { index: 1, start: 8, variant: 'big' }, list: [{ id: 2, t: 8.2, role: 'b' }, { id: 3, t: 8.6, role: 'c' }] },
+      { kind: 'played', id: 3, role: 'c', result: 'hit', grade: 'great' },
+    ]);
+  }
+  band.time.advance(2000);
+  assert.deepEqual(band.songs(1).at(-1), { kind: 'clock', at: 12000, song: 20 }, 'an anchor every two seconds');
+});
+
+test('a tap from a guest whose dinosaur Egill took is not heard', () => {
+  const band = bandRound();
+  band.begin();
+  band.room.seats.presence(1, false); // her phone stopped answering
+  band.time.advance(600);
+  assert.equal(band.host.lineup()[2].name, 'Egill');
+  band.room.seats.presence(1, true);
+  band.room.act(1, { type: 'tap', at: 10550 });
+  assert.deepEqual(band.game.taps, []);
+});
+
+test('the end gives each guest the band\'s stars and her own line', () => {
+  const band = bandRound([['g1', 'Anna', 'thorsedla'], ['g2', 'Bjarni', 'kambedla']]);
+  band.begin();
+  band.host.endRound({ stars: 4, players: [
+    { player: 0, name: 'Egill', roles: ['a'], points: 2400, great: 9 },
+    { player: 1, name: 'Anna', roles: ['c'], points: 1800, great: 6 },
+    { player: 2, name: 'Bjarni', roles: ['b'], points: 900, great: 2 },
+  ] });
+  const ends = band.room.calls.filter(([name, , body]) => name === 'send' && body.phase === 'end');
+  assert.deepEqual(ends, [
+    ['send', 1, { screen: 'sloedla', phase: 'end', stars: 4, line: { name: 'Anna', roles: ['c'], points: 1800, great: 6 } }],
+    ['send', 2, { screen: 'sloedla', phase: 'end', stars: 4, line: { name: 'Bjarni', roles: ['b'], points: 900, great: 2 } }],
+  ]);
+  const before = band.room.calls.length;
+  band.time.advance(5000);
+  assert.equal(band.room.calls.length, before, 'no anchors, no silence watch after the end');
+});
+
+test('a phone back mid-song with „Tilbúin!“ again gives her dinosaur to Egill and learns she is in next time', () => {
+  const band = bandRound();
+  band.room.act(1, { type: 'ready' }); // at „Spila!“, before the round: nothing
+  band.begin();
+  assert.equal(band.host.lineup()[2].name, 'Anna');
+  band.room.act(1, { type: 'ready' }); // her page was reloaded: it has no song
+  assert.equal(band.host.lineup()[2].name, 'Egill');
+  assert.equal(band.game.lineups.length, 1);
+  const late = band.room.calls.filter(([name, n, body]) => name === 'send' && n === 1 && body.phase === 'late');
+  assert.deepEqual(late, [['send', 1, { screen: 'sloedla', phase: 'late', song: BOOGIE }]]);
 });

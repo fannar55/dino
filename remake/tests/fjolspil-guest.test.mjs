@@ -474,3 +474,13 @@ test('late: she is in next time', () => {
   show({ phase: 'late', song: { name: 'Boogie', picture: 'https://example.com/x.png' } }); // a view is data: no picture from elsewhere
   assert.equal($(root, '.sl-guest-picture'), null);
 });
+
+test('ready: „Tilbúin!“ with the song, „Tengist…“ until the clock answers, and the big screen is told', () => {
+  const { root, show, sent } = sloedlaScreen();
+  show({ phase: 'ready', song: { name: 'Rokkhopp', picture: 'assets/sloedla/valmynd/boogie.webp' } });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Tilbúin!');
+  assert.equal($(root, '.sl-guest-song').textContent, 'Rokkhopp');
+  assert.equal($(root, '.sl-guest-note').textContent, 'Tengist…');
+  assert.equal($(root, '.sl-guest-note').hidden, false);
+  assert.deepEqual(sent, [{ type: 'ready' }]);
+});

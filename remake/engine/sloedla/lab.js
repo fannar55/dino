@@ -32,7 +32,7 @@
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { seededRandom } from '../random.js';
 import { LEVELS } from './chart.js';
-import { groupsOf, laneRules, mineFor, roleOf, rolesOf } from './lineup.js';
+import { groupsOf, laneRules, lineupOf, mineFor, roleOf, rolesOf } from './lineup.js';
 import { createFjolspil } from '../fjolspil/fjolspil.js';
 import { createBandLobby } from './band-lobby.js';
 import { BAND_STORAGE_KEY, createBandHost } from './fjolspil-song.js';
@@ -200,6 +200,12 @@ async function start({ again = false } = {}) {
   round = null;
   const entry = SONGS_V2.find(each => each.id === options.song) ?? SONGS_V2[0];
   const show = view.showLoading(entry, { again });
+  // "Spilum saman": the room closes to new guests and every phone shows „Tilbúin!“ (and measures its clock) while the song loads
+  const together = options.together;
+  if (together) {
+    band.start();
+    band.ready(entry.id);
+  }
   // the song (v2/format.js) owns everything it plays and has a player of its own (v2/player.js); an unknown id plays the first
   const song = await loadSongV2(options.song) ?? await loadSongV2(SONGS_V2[0].id);
   // its stems, decoded once, one at a time (decoding many at once has crashed iOS tabs); one that cannot be loaded is left out
@@ -221,24 +227,34 @@ async function start({ again = false } = {}) {
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const windows = LEVELS[options.level];
-  // ?gestur=: one lane a guest's at her level, the rest Egill's (a band's look on this screen alone)
-  const lineup = options.guest && roles.includes(options.guest.role)
-    ? roles.map(role => (role === options.guest.role
-      ? { role, player: 1, name: 'Gestur', level: options.guest.level, judged: 'here' }
-      : { role, player: 0, name: 'Egill', level: options.level, judged: 'here' }))
-    : null;
+  // the band: each guest who is there on her dinosaur at her level, Egill on the rest (lineupOf); or ?gestur=, one lane a
+  // guest's at her level and the rest Egill's (a band's look on this screen alone)
+  const lineup = together
+    ? lineupOf({ lanes: options.lanes, mine: options.mine, level: options.level, seats: bandRoom.seats.list() })
+    : options.guest && roles.includes(options.guest.role)
+      ? roles.map(role => (role === options.guest.role
+        ? { role, player: 1, name: 'Gestur', level: options.guest.level, judged: 'here' }
+        : { role, player: 0, name: 'Egill', level: options.level, judged: 'here' }))
+      : null;
   const fall = lineup ? Math.max(...lineup.map(lane => laneRules(lane).fall)) : windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.value = MUSIC_LEVEL;
   const sounds = createSongSounds({ context, output: music, room, instruments: song.instruments });
   // the player keeps the name the round and the measuring tools know it by (round.conductor)
-  const conductor = createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall, groups: lineup ? groupsOf(lineup) : null });
+  // in a band each player's notes are her level's, and follow who plays each lane now (a dinosaur Egill took is his); the phones
+  // get each section's notes as it is decided
+  const conductor = createPlayer({
+    context, song, clock, sounds, out: music, level: options.level, roles, fall,
+    groups: lineup ? () => groupsOf(band.lineup() ?? lineup) : null,
+    onDecide: together ? band.decided : null,
+  });
   const root = rootHz(song.key.root) * 2;
   const stars3d = await starView;
   stars3d?.clear();
   const game = createSongGame({
     canvas, cast, conductor, fall, clock, windows, lineup, crowd, claps, dj, backdrop, hands, debug: options.debug,
+    onJudged: together ? band.judged : null,
     stars3d, bestBefore: best.get(options.song, options.level), endNow: options.endNow,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2), tick: () => sounds.tick(root * 8) },
     onEnd: result => finish(result),
@@ -246,6 +262,7 @@ async function start({ again = false } = {}) {
   round = { game, clock, conductor, bot: options.self ? createBot(conductor, cast, options.self) : null };
   if (options.record) startRecording(stars3d);
   conductor.start(0.4);
+  if (together) band.beginRound({ song: { id: song.id, name: entry.name, bpm: song.tempo.bpm, length: conductor.length }, lineup, clock, level: options.level, game });
   menu.begun();
   window.__sloedla.round = round;
 }
@@ -283,7 +300,9 @@ function finish(result) {
   // the story's reward at four stars or more, so a child who plays every note has it (spec 2026-10-31)
   $('end-words').textContent = result.stars >= 4 ? 'Slóeðla syngur með þér á hátíðinni!' : 'Viltu spila aftur?';
   // a look at the end (?lokaskjar=) is no record
+  // the band's stars are Egill's record too, under his song and level (spec §9)
   const rose = options.endNow === null && best.record(options.song, options.level, { stars: result.stars, points: result.points });
+  if (options.together) band.endRound(result); // each phone: the band's stars and her own line
   view.showEnd(result, rose);
   window.__sloedlaResult = result;
   if (recorder) setTimeout(() => recorder.state === 'recording' && recorder.stop(), 2500);
@@ -336,8 +355,12 @@ canvas.addEventListener('pointerdown', event => {
   event.preventDefault();
   if (!round) return;
   const lane = round.game.laneAt(event.offsetX);
-  if (lane >= 0) round.game.tap(lane, round.clock.timeAt(event.timeStamp));
+  if (lane >= 0 && egills(lane)) round.game.tap(lane, round.clock.timeAt(event.timeStamp));
 });
+/** Whether Egill plays lane `lane` here: a guest's lane is played from her phone, and a tap on it here does nothing. */
+function egills(lane) {
+  return (band.lineup()?.[lane]?.judged ?? 'here') === 'here';
+}
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 addEventListener('keydown', event => {
   if (event.repeat) return;
@@ -350,7 +373,7 @@ addEventListener('keydown', event => {
   const lane = KEYS[options.lanes][key];
   if (round && lane !== undefined) {
     event.preventDefault();
-    round.game.tap(lane, round.clock.timeAt(event.timeStamp));
+    if (egills(lane)) round.game.tap(lane, round.clock.timeAt(event.timeStamp));
   }
 });
 addEventListener('resize', () => round?.game.resize());
@@ -400,6 +423,8 @@ const view = createMenuView({
     options.song = choice.song;
     options.level = choice.level;
     options.lanes = choice.lanes;
+    options.together = choice.together;
+    options.mine = choice.mine;
     keep(choice);
     start({ again });
   },
@@ -449,6 +474,14 @@ function bandChanged({ seatsOnly = false } = {}) {
   const { together, mine } = menu.state();
   view.setBand({ together, mine, seats: bandRoom.seats.list() });
 }
+
+// "Annað lag" after a band's song: the lobby opens again on the same seats, so a new guest may come or one change her level
+document.querySelector('[data-other]')?.addEventListener('click', () => {
+  const { together, lanes, mine, level } = menu.state();
+  if (!together) return;
+  band.open({ lanes, mine, level }).catch(error => console.error('Slóeðla: the room could not be opened', error));
+  bandChanged();
+});
 
 // for a look from outside (captures, and a meter of the mix: `audio`)
 window.__sloedla = { start, bandRoom, band, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
