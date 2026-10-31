@@ -192,13 +192,15 @@ test('Síkið as data: the path goes under the channel, a ferry line of 50 m run
   assert.ok(across >= 10 && across <= 16, `Uggeðla's reed is ${across.toFixed(1)} m from Mosi`);
   const between = [0.35, 0.5, 0.65].map(t => [MOSI_BANK.position[0] + (UGGEDLA_REED.position[0] - MOSI_BANK.position[0]) * t, MOSI_BANK.position[2] + (UGGEDLA_REED.position[2] - MOSI_BANK.position[2]) * t]);
   assert.ok(between.some(p => shape.signedAt(...p) < -1), 'the channel lies between them');
-  assert.ok(depth(xz(UGGEDLA_REED)) > 0 && depth(xz(UGGEDLA_REED)) < 1.2, 'she lies in its shallows by the far bank');
-  // The fish jump in the water round her, in open water she can reach.
+  assert.ok(Math.abs(shape.signedAt(...xz(UGGEDLA_REED))) <= 1.2, 'she lies on the far bank\'s edge, in the shallows');
+  // The fish jump in the water round her head (6 m from her middle, along her), in open water she can reach.
   assert.ok(FISHING_SPOTS.length >= 5, `${FISHING_SPOTS.length} fishing spots`);
+  const h = (UGGEDLA_REED.heading * Math.PI) / 180;
+  const head = [UGGEDLA_REED.position[0] + Math.cos(h) * 6, UGGEDLA_REED.position[2] + Math.sin(h) * 6];
   for (const spot of FISHING_SPOTS) {
     assert.ok(depth(spot) >= 0.8, `a fish jumps from ${depth(spot).toFixed(2)} m of water`);
-    const reach = Math.hypot(spot[0] - UGGEDLA_REED.position[0], spot[1] - UGGEDLA_REED.position[2]);
-    assert.ok(reach >= 2 && reach <= 12, `${reach.toFixed(1)} m from Uggeðla`);
+    const reach = Math.hypot(spot[0] - head[0], spot[1] - head[1]);
+    assert.ok(reach >= 2 && reach <= 9, `${reach.toFixed(1)} m from her head`);
   }
   // The hummocks at the end of the channel are dry, and she stops in deep water beside them.
   const dry = ([x, z]) => shape.signedAt(x, z) > 0.5 && ground.terrain.heightAt(x, z) > shape.level;

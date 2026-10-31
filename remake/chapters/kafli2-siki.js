@@ -52,9 +52,10 @@ export const SIKI_WALK = SIKI_PATH.slice(0, 4); // from where Síkið begins to 
 // The channel comes up from the south-west along the front of the bank, passes the end of the path and turns east, then south-east,
 // to the hummocks. 8 m wide (it breathes between 6.5 and 9.5 m along its length) and 1.25 m deep in the middle (world/props/water.js:
 // the bed rises to each edge over 2.5 times the depth), so a swimmer 14 m long keeps her belly in the water with her sail up, and Mosi
-// wades its shallow edge (water 0.3 to 0.6 m deep) a metre and a bit inside the bank. It ends in a rounded pool beside the hummocks.
+// wades its shallow edge (water 0.3 to 0.6 m deep) a metre and a bit inside the bank.
 const CHANNEL = [[9.2, -44], [9.2, -22], [9.2, -9], [9.2, 0], [9.2, 7], [12.4, 13], [20, 17], [30, 16], [40, 11], [48, 4]].map(([a, b]) => ahead(a, b));
-const SIKI_WATER = { pools: [], channel: { line: CHANNEL, width: 8, depth: 1.25 } };
+// and a round pool 11 m across at its end, as deep as the channel, where she stops, so that all of her fits in it.
+const SIKI_WATER = { pools: [{ center: [41.4, 25.2], radius: 5.5, depth: 1.25 }], channel: { line: CHANNEL, width: 8, depth: 1.25 } };
 const SHAPE = waterShape(SIKI_WATER);
 /** How deep the water is at [x, z] on the ground the forest digs (0 on dry ground). */
 const depthAt = ([x, z]) => (SHAPE.signedAt(x, z) < 0 ? Math.max(0, SHAPE.level - SHAPE.bedAt(x, z)) : 0);
@@ -64,19 +65,21 @@ const depthAt = ([x, z]) => (SHAPE.signedAt(x, z) < 0 ? Math.max(0, SHAPE.level 
 
 /** Mosi stops on the bank where the path goes under, his nose at the water, facing the way he came down. */
 export const MOSI_BANK = spot(0, 0, PATH_HEADING);
-// Uggeðla lies low across the channel, in the shallows by the far bank, her head to the north-east (the way the ferry will go), in the
-// reed that hides all of her but her sail (the reed bed below). Her root is the middle of her 14 m.
-export const UGGEDLA_REED = spot(12.6, 1.5, PATH_HEADING - 90);
-// The fish jump in the channel's deep water round her head: five spots in the open water a few metres off, spread so that a child
-// sees them one after the other across the picture, none behind another.
-export const FISHING_SPOTS = [[9.6, 2.4], [8.4, 5.4], [10.4, 8.2], [9.2, 10.6], [13.0, 12.6]].map(([a, b]) => ahead(a, b));
+// Uggeðla lies low across the channel, on the far bank's edge where the bank is straight (a 14 m body), her head to the north-east (the
+// way the ferry will go), in the shallows and the reed that hides all of her but her sail (the reed bed below). Her root is the
+// middle of her 14 m.
+export const UGGEDLA_REED = spot(13.4, -2.0, PATH_HEADING - 90);
+// The fish jump in the channel's deep water round her head (6 m from her middle, to the north-east): six spots in the open water 3 to
+// 7 m off it, spread across the channel's width so that, seen from the near bank, a child sees them one after the other across the
+// picture and none behind another.
+export const FISHING_SPOTS = [[11.2, 1.4], [9.0, 3.4], [11.4, 6.6], [8.4, 7.2], [10.4, 10.0], [7.0, 2.0]].map(([a, b]) => ahead(a, b));
 // The ferry: her line along the middle of the channel from the crossing, a metre toward the far bank so that Mosi, wading the shallow
 // edge on the near side, has the room, to the pool at the hummocks; and his line beside it. (Derived from the channel's own centre line
 // and depth by tests/kafli2.test.mjs's rules: 1.13 m deep or more for her, 0.4 to 0.45 m for him.)
 export const FERRY_LINE = [[8.3, 5.9], [10.3, 2.7], [12.3, 0.2], [14.8, -1.5], [17.8, -2.5], [20.6, -2.7], [23.7, -2.3], [26.5, -1.2], [29.1, 0.6], [31.5, 3], [33.6, 5.5], [35.4, 8.3], [36.9, 11.2], [38.2, 14.2], [39.3, 17.9], [40.1, 21.8], [40.6, 24.5]];
-export const MOSI_WADE_LINE = [[4.6, 3.4], [6.6, 0.3], [9.6, -2.7], [13.1, -4.7], [17.2, -5.9], [20.7, -6.1], [24.6, -5.7], [28.3, -4.2], [31.2, -2], [34, 0.7], [36.5, 3.5], [38.8, 6.3], [40.8, 9.4], [42.3, 12.7], [43.4, 16.9], [44, 21], [44.4, 23.7]];
+export const MOSI_WADE_LINE = [[4.6, 3.4], [6.6, 0.3], [9.6, -2.7], [13.1, -4.7], [17.2, -5.9], [20.7, -6.1], [24.6, -5.7], [28.3, -4.2], [31.2, -2], [34, 0.7], [36.5, 3.5], [38.8, 6.3], [40.8, 9.4], [42.3, 12.7], [43.4, 16.9], [43.6, 18.4], [43.8, 19.9], [44, 21.4], [44.7, 21.8], [45.7, 22.5], [45.8, 23.4], [45.2, 24.8], [45.1, 26.2], [44.8, 27.6]];
 /** Mosi's stop at the end of the channel, on the dry moss hummock, where he comes up out of the water. */
-export const HUMMOCK = { position: [47.4, 0, 27.0], heading: 215 };
+export const HUMMOCK = { position: [49.2, 0, 27.6], heading: 215 };
 /** Where she stops in the pool at the end, beside the hummock. */
 export const UGGEDLA_DROP = { position: [40.2, 0, 23.6], heading: 80 };
 /** Þórseðla, far off beyond the hummocks in the way the ferry goes, among low swamp conifers, biting the top of the one she faces. */
@@ -94,9 +97,10 @@ const alongHer = metres => {
 };
 
 /**
- * The reed bed she lies in: dense golden horsetail reed, 2.2 to 3.7 m tall (scale 1.45 to 1.8), over an ellipse round her middle,
- * 19 m along her and 12 across, where the water is not deeper than 0.8 m; and a few tall horsetails (3 to 5 m) behind it. From the
- * near bank, a camera at a child's height sees reed to the tops of her back and the sail standing out of it.
+ * The reed bed she lies in: dense golden horsetail reed, a clump every 0.6 m over the ellipse round her middle, 21 m along her and
+ * 12 across, where the water is not deeper than 0.75 m (twice as far apart behind her, where nobody looks): 2.7 to 4.2 m tall toward
+ * the channel (scale 1.8 to 2.1), 2.2 to 3.5 m behind; and a few tall horsetails (3 to 5 m) behind it. From the near bank, a camera at a child's height sees reed to the
+ * tops of her back and her sail standing out of it.
  */
 function reedBed() {
   const random = seededRandom('siki reed bed');
@@ -105,19 +109,22 @@ function reedBed() {
   const along = [Math.cos(h), Math.sin(h)], across = [-Math.sin(h), Math.cos(h)];
   const plants = [];
   const taken = [];
-  const clear = p => taken.every(q => Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.95);
-  for (let tries = 0; tries < 900 && plants.length < 70; tries++) {
-    const u = (random() * 2 - 1) * 9.5, v = (random() * 2 - 1) * 6;
-    if ((u / 9.5) ** 2 + (v / 6) ** 2 > 1) continue;
-    const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
-    if (depthAt(p) > 0.8 || !clear(p)) continue;
-    taken.push(p);
-    plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(1.45 + random() * 0.35) });
+  for (let u0 = -10.5; u0 <= 10.5; u0 += 0.6) {
+    for (let v0 = -6; v0 <= 6; v0 += v0 < 2 ? 0.6 : 1.2) {
+      const u = u0 + (random() - 0.5) * 0.5, v = v0 + (random() - 0.5) * 0.5;
+      if ((u / 10.5) ** 2 + (v / 6) ** 2 > 1) continue;
+      const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
+      if (depthAt(p) > 0.75) continue;
+      taken.push(p);
+      // the rows toward the channel stand a head taller than the rest (2.7 to 4.2 m): they are the wall she is hidden behind
+      const wall = v < 0.8;
+      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2((wall ? 1.8 : 1.45) + random() * 0.3) });
+    }
   }
   for (let tries = 0, tall = 0; tries < 300 && tall < 14; tries++) {
     const u = (random() * 2 - 1) * 9, v = 2.2 + random() * 3.6;
     const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
-    if (depthAt(p) > 0 || SHAPE.signedAt(...p) < 0.5 || !clear(p)) continue;
+    if (depthAt(p) > 0 || SHAPE.signedAt(...p) < 0.5) continue;
     taken.push(p);
     tall++;
     plants.push({ name: 'horsetailTall', position: p, variant: tall % 4, scale: round2(1.15 + random() * 0.3) });
@@ -180,6 +187,18 @@ function mossAtTheEnd() {
 // ---------------------------------------------------------------------------------------------
 // The layout
 
+// The Fen's ground comes down to the water's edge only where it stands higher than the water; where its low swell would leave it
+// lower, the edge shows as a step with the water hanging over bare mud. So within 2.5 m of the water the ground is raised, if it must
+// be, to stand 0.1 m over it (the forest's own easing then lays the bank down to the water's edge); beyond 4.5 m it is untouched.
+// The clearing's middle is further than that from the water, so the heights are still counted from it.
+const BANK = 0.1;
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function liftBanks(x, z, natural) {
+  const s = SHAPE.signedAt(x, z);
+  if (s >= 4.5) return 0;
+  return Math.max(0, SHAPE.level + BANK - natural) * (1 - smoothstep(2.5, 4.5, s));
+}
+
 export const SIKI_LAYOUT = {
   seed: 13,
   // The clearing's middle is on the dry land inside the channel's bend, among the places the story spends its time (its ground is
@@ -189,10 +208,11 @@ export const SIKI_LAYOUT = {
   path: SIKI_PATH,
   biome: 'fen',
   water: SIKI_WATER,
+  lift: liftBanks,
   // the dry moss mounds at the end of the channel, where Mosi comes up out of the water
   hummocks: [
-    { center: [48, 26], radius: 6, height: 0.45 },
-    { center: [55, 33], radius: 5, height: 0.35 },
+    { center: [49.5, 27.5], radius: 6.5, height: 0.45 },
+    { center: [56, 34], radius: 5, height: 0.35 },
   ],
   plants: [...reedBed(), ...lilies(), ...herTrees(), ...mossAtTheEnd()],
   mist: [
@@ -217,24 +237,29 @@ export const SIKI_LAYOUT = {
 // The shots
 
 export const SIKI_SHOTS = {
-  // The arrival: from behind the path's start, low, the path running on into the water with the reed beyond it; Mosi walks away down it.
-  siki_arrive: { position: eye(-23, 3.0, 1.9), target: eye(7, 0.5, 1.2), fov: 46 },
-  // Mosi and Egill at the water, the path gone under it, seen from the near bank across his nose.
-  siki_flooded: { position: eye(2.5, -12, 1.5), target: eye(2.5, 0, 1.9), fov: 44 },
+  // The arrival: from far behind the path's start, a little up, the whole way down it to the water and the reed beyond; Mosi walks away.
+  siki_arrive: { position: eye(-30, 4.5, 3.4), target: eye(6, 0, 1.6), fov: 48 },
+  // Mosi and Egill at the water, the path gone under it: from the channel in front of them, low over the water, looking back at
+  // Mosi's face with the flooded path running under us to his feet.
+  siki_flooded: { position: eye(10.0, -1.4, 1.5), target: eye(1.8, 0.0, 2.0), fov: 44 },
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-7, -5.5, 2.2), target: eye(14, 1.0, 3.6), fov: 50 },
   // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
-  siki_fishing: { position: eye(-1.5, -14, 2.8), target: eye(10, 4.5, 1.0), fov: 52 },
+  siki_fishing: { position: eye(-2, -15, 3.4), target: eye(10, 6, 0.9), fov: 54 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(4, -13, 1.7), target: eye(9, 3, 2.2), fov: 48 },
   // Low, looking up at her sail against the sky, where the star rises from its top.
-  siki_star: { position: eye(2.8, -4.5, 0.9), target: eye(13, 2.0, 6.0), fov: 48 },
-  // The ferry (moving shots, in her own frame: x ahead of her, y up, z to her right; Mosi wades on her left).
-  ferry_side: { position: { actor: 'uggedla', part: 'feet', offset: [0.5, 1.8, 13], local: true }, target: { actor: 'uggedla', part: 'feet', offset: [0, 1.6, -3], local: true }, fov: 50 },
-  ferry_front: { position: { actor: 'uggedla', part: 'feet', offset: [9, 1.6, 1.5], local: true }, target: { actor: 'uggedla', part: 'feet', offset: [0, 3.2, 0], local: true }, fov: 46 },
-  ferry_back: { position: { actor: 'uggedla', part: 'feet', offset: [-8, 4.5, 0.8], local: true }, target: 'thorsedla.head', fov: 46 },
+  siki_star: { position: eye(0.5, -6, 0.9), target: eye(13, 2.0, 5.6), fov: 50 },
+  // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
+  // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
+  // Side by side: from the inner bank, across her and Mosi.
+  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [0.5, 1.7, 17], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 2.0, 3.2], local: true }, fov: 50 },
+  // From the front, over the water: her head, Egill on her back and the sail over him.
+  ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
+  // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
+  ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 46 },
   // The end of the channel: Mosi coming up out of the water onto the hummock, Uggeðla in the pool, the berry bushes beyond.
-  siki_hummocks: { position: [35.5, 1.6, 31.5], target: [44.5, 1.8, 25.5], fov: 48 },
+  siki_hummocks: { position: [31.5, 1.7, 33.5], target: [45.5, 2.2, 25.8], fov: 50 },
   // For a tall screen: the sail over the reed, Mosi small below.
   siki_portrait: { position: eye(1.5, -6, 1.4), target: eye(12.5, 1.0, 4.0), fov: 38 },
 };
@@ -245,9 +270,9 @@ export const SIKI_SHOTS = {
 /** The berry bushes behind the hummocks, as a picture of the place: two big ones with red bunches facing the pool, a smaller blue one. */
 export function berriesAtTheHummocks(world) {
   const spec = [
-    { position: [53.5, 24.2], kind: 'red', count: 3, facing: 205, size: 1.5 },
-    { position: [51.5, 31.8], kind: 'red', count: 2, facing: 215, size: 1.2 },
-    { position: [57.6, 28.4], kind: 'blue', count: 3, facing: 200, size: 1.3 },
+    { position: [55.3, 24.6], kind: 'red', count: 3, facing: 205, size: 1.5 },
+    { position: [53.4, 32.4], kind: 'red', count: 2, facing: 215, size: 1.2 },
+    { position: [59.6, 29.0], kind: 'blue', count: 3, facing: 200, size: 1.3 },
   ];
   return createBerryBushes(world, { bushes: spec.map(b => ({ ...b, position: [b.position[0], world.heightAt(...b.position), b.position[1]] })) });
 }
