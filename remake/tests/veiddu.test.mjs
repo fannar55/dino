@@ -113,7 +113,7 @@ test('ask: a yes gives the card, lays the pair and keeps the turn', () => {
   ]);
   assert.deepEqual([out.game.turn, out.game.phase, out.game.asked], [0, 'ask', null]);
   assert.deepEqual(out.game.pairs[0], ['snigill']);
-  assert.equal(out.game.hands[0].length, 3);
+  assert.equal(out.game.hands[0].length, 4, 'five cards, one given, two laid');
   assert.equal(out.game.hands[1].length, 4);
   assert.ok(!holds(out.game, 0, 'snigill') && !holds(out.game, 1, 'snigill'));
 });
@@ -289,11 +289,10 @@ function playGame(seed, skill) {
     if (game.phase === 'ask') {
       const choice = minds[seat].chooseAsk(game, { skill });
       choices++;
-      const others = game.hands.flatMap((hand, s) => (s === seat ? [] : hand)).concat(game.pond);
       if (game.hands[seat].length === 0) violations.push(['empty-handed asker', seed, skill]);
       if (!holds(game, seat, choice.kind)) violations.push(['kind not in hand', seed, skill, choice]);
       if (choice.target === seat || !Number.isInteger(choice.target) || !game.hands[choice.target]?.length) violations.push(['bad target', seed, skill, choice]);
-      if (!others.some(c => c.kind === choice.kind)) violations.push(['no unseen copy', seed, skill, choice]);
+      if (!game.pond.some(c => c.kind === choice.kind) && !game.hands.some((hand, s) => s !== seat && hand.some(c => c.kind === choice.kind))) violations.push(['no unseen copy', seed, skill, choice]);
       out = ask(game, seat, choice.target, choice.kind);
     } else {
       out = fish(game, seat);
