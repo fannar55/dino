@@ -9,10 +9,12 @@
 //
 // The child taps a lane when its note reaches the dinosaur. createJudge says which note a tap plays (the nearest waiting one in the
 // lane, within HIT_WINDOW) and which notes went by unplayed; a note missed just goes. Nobody loses: the song always plays to its
-// end. createScore counts, and starsFor turns the count into one to three stars, so playing well is worth it: a run of hits
-// (the streak) makes the glitter and the audience grow (tierOf), a miss lets it go back to nothing, quietly. Tapping everywhere all
-// the time is not a way round it: a tap with no note near (a stray) breaks the run too, and past a fair few, strays cost half a
-// note each.
+// end. createScore counts: each note played gives points by how close it was (POINTS, the word over her dinosaur: 100 right on,
+// 80, 60, 40 further off; twice that while Stjörnukraftur burns), and starsFor turns the base points into zero to five stars (the
+// owner, 2026-10-31: show in points what was done, a perfect tap gives more, but not too hard). Fullt hús is every note played;
+// fullkominn leikur, above it, every note at least "Frábært!" and no stray. A run of hits (the streak) makes the glitter and the
+// audience grow (tierOf), a miss lets it go back to nothing, quietly. Tapping everywhere all the time is not a way round it: a tap
+// with no note near (a stray) breaks the run too, and past a fair few, strays cost the stars half a perfect note each.
 
 // The window a tap plays a note in. A six-year-old's taps scatter about 180 ms either way of the beat (Bonacina 2019: SD about
 // 180 ms at ages 5 to 8, clapping at 0.9 Hz) and young children tap late more often than early, so ±0.2 s caught only about three
@@ -21,8 +23,12 @@
 export const HIT_WINDOW = 0.2; // s: the plain symmetric window (createJudge's default)
 export const GREAT_WINDOW = 0.08;
 export const NEAR_WINDOW = 0.5; // s: a tap this close to a waiting note is early or late, never a stray
-export const STAR_SHARES = [0.25, 0.5, 0.8]; // the share of the notes played (less the strays' cost) for one, two and three stars
+export const POINTS = { perfect: 100, great: 80, fine: 60, ok: 40 }; // a note played, by its word (text.js gradeOf)
+// the share of the most base points there are (every note 100), less the strays' cost, for one to five stars; held by the
+// simulated children in tests/sloedla.test.mjs (85 % at 150 ms three stars, all at 150 ms four, all at 100 ms five)
+export const STAR_SHARES = [0.15, 0.35, 0.55, 0.73, 0.85]; // four at 0.73: the 85 % children reach up to 0.70, the all-notes 0.76
 export const STRAY_SPARE = 0.25; // strays up to this share of the notes cost nothing
+export const STRAY_COST = 50; // the points each stray past the spare ones costs the stars (never the number shown)
 export const STREAK_TIERS = [3, 8, 16]; // a run this long raises the glitter and the band a tier (Fever after three, as Patapon's remake)
 export const RECENTRE = { taps: 8, most: 0.12 }; // the window follows the median of the last 8 hits' errors, at most 120 ms
 
@@ -30,11 +36,11 @@ export const RECENTRE = { taps: 8, most: 0.12 }; // the window follows the media
  * The levels: a note on every `every` beats at most, falling `fall` seconds from the top of the lane to the dinosaur; a tap from
  * `early` s before a note to `late` s after it plays it, within `great` it is right on. The word over her dinosaur (text.js
  * gradeOf) says "Fullkomið!" within `perfect`, "Frábært!" within `great`, "Fínt!" within `fine` and "OK!" further off. The star
- * meter (game.js) is full after `meter` hits.
+ * meter (game.js) is full after `meter` hits (a quarter more than it was: the owner, 2026-10-31, a little harder to reach).
  */
 export const LEVELS = {
-  barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, perfect: 0.07, great: 0.15, fine: 0.24, meter: 12 },
-  fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, perfect: 0.035, great: 0.07, fine: 0.12, meter: 24 },
+  barn: { every: 2, fall: 2.3, early: 0.25, late: 0.35, perfect: 0.07, great: 0.15, fine: 0.24, meter: 15 },
+  fullordinn: { every: 1, fall: 1.6, early: 0.15, late: 0.2, perfect: 0.035, great: 0.07, fine: 0.12, meter: 30 },
 };
 
 /** The lane a role plays in, with `lanes` lanes (2 or 3): b a c from the left, or a and c (who takes b's notes too). */
@@ -92,17 +98,27 @@ export function createJudge(notes, { window = HIT_WINDOW, early = window, late =
   };
 }
 
-/** A count for a round of `total` notes; count(score, result) adds a tap's result (createJudge) or a miss ({ kind: 'miss' }). */
+/**
+ * A count for a round of `total` notes; count(score, result) adds a tap's result (createJudge) or a miss ({ kind: 'miss' }).
+ * `points` are the base points (POINTS), `bonus` what Stjörnukraftur added, `belowGreat` the notes played "Fínt!" or "OK!".
+ */
 export function createScore(total) {
-  return { total, hits: 0, great: 0, misses: 0, strays: 0, streak: 0, best: 0, offsets: [] };
+  return { total, hits: 0, great: 0, misses: 0, strays: 0, streak: 0, best: 0, offsets: [], points: 0, bonus: 0, belowGreat: 0 };
 }
 
-/** Adds one result to `score` and returns the streak tier it crossed into (a number), or 0 when it crossed none. */
+/**
+ * Adds one result to `score` and returns the streak tier it crossed into (a number), or 0 when it crossed none. A hit carries its
+ * `grade` (a key of POINTS; none counts as 'ok') and `double` (Stjörnukraftur burned: its points come again as bonus).
+ */
 export function count(score, result) {
   const before = tierOf(score.streak);
   if (result.kind === 'hit') {
+    const grade = POINTS[result.grade] ? result.grade : 'ok';
     score.hits++;
     if (result.great) score.great++;
+    score.points += POINTS[grade];
+    if (result.double) score.bonus += POINTS[grade];
+    if (grade === 'fine' || grade === 'ok') score.belowGreat++;
     score.streak++;
     score.best = Math.max(score.best, score.streak);
     score.offsets.push(result.offset);
@@ -123,16 +139,26 @@ export function count(score, result) {
  */
 export const fullHouse = ({ hits, total }) => total > 0 && hits >= total;
 
-/** The share of the round played, 0 to 1: hits, less half a note for each stray past the spare ones, over all the notes. */
-export function shareOf({ hits, strays, total }) {
+/** Fullkominn leikur: every note played, each at least "Frábært!", and no stray that counted. Always five stars. */
+export const perfectGame = ({ hits, total, belowGreat = 0, strays = 0 }) => total > 0 && hits >= total && belowGreat === 0 && strays === 0;
+
+/** The number shown: the base points and what Stjörnukraftur added. It never goes down. */
+export const pointsOf = ({ points = 0, bonus = 0 }) => points + bonus;
+
+/**
+ * The share of the round's best that was played, 0 to 1: the base points, less STRAY_COST for each stray past the spare ones,
+ * over 100 a note (Stjörnukraftur's bonus is not in it).
+ */
+export function shareOf({ points = 0, strays = 0, total }) {
   if (!(total > 0)) return 0;
   const spare = Math.ceil(total * STRAY_SPARE);
-  const points = hits - Math.max(0, strays - spare) * 0.5;
-  return Math.max(0, Math.min(1, points / total));
+  const earned = points - Math.max(0, strays - spare) * STRAY_COST;
+  return Math.max(0, Math.min(1, earned / (POINTS.perfect * total)));
 }
 
-/** Stars for a round, 0 to 3 (STAR_SHARES). */
+/** Stars for a round, 0 to 5 (STAR_SHARES); a perfect game always has five. */
 export function starsFor(score) {
+  if (perfectGame(score)) return STAR_SHARES.length;
   const share = shareOf(score);
   return STAR_SHARES.filter(least => share >= least).length;
 }

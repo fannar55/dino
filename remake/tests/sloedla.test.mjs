@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { HIT_WINDOW, LEVELS, createJudge, createScore, count, fullHouse, laneOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
+import { HIT_WINDOW, LEVELS, createJudge, createScore, count, fullHouse, laneOf, perfectGame, pointsOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
+import { seededRandom } from '../engine/random.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
 import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
 import { pitchOf, rootHz } from '../engine/sloedla/key.js';
@@ -69,18 +70,81 @@ test('the child\'s window is wider late than early', () => {
   assert.deepEqual(judge.sweep(3 + barn.late + 0.01), [1]);
 });
 
-test('stars: one to three for a fair share played; strays past a spare few cost; the run raises tiers', () => {
-  assert.equal(starsFor({ hits: 0, strays: 0, total: 50 }), 0);
-  assert.equal(starsFor({ hits: 13, strays: 0, total: 50 }), 1);
-  assert.equal(starsFor({ hits: 25, strays: 0, total: 50 }), 2);
-  assert.equal(starsFor({ hits: 40, strays: 0, total: 50 }), 3);
-  assert.equal(starsFor({ hits: 40, strays: 13, total: 50 }), 3, 'a few strays are free');
-  assert.equal(starsFor({ hits: 50, strays: 200, total: 50 }), 0, 'tapping everywhere all the time is no way to the stars');
+test('the run raises tiers', () => {
   assert.deepEqual([0, 2, 3, 8, 16, 40].map(tierOf), [0, 0, 1, 2, 3, 3]);
   const score = createScore(10);
   const crossed = [];
-  for (let i = 0; i < 8; i++) crossed.push(count(score, { kind: 'hit', offset: 0 }));
+  for (let i = 0; i < 8; i++) crossed.push(count(score, { kind: 'hit', offset: 0, grade: 'perfect' }));
   assert.deepEqual(crossed, [0, 0, 1, 0, 0, 0, 0, 2], 'the run crosses into tier 1 at three (Fever) and tier 2 at eight');
+});
+
+test('points: 100 right on, 80 close, 60 and 40 further off, nothing for a miss; Stjörnukraftur doubles the number, not the stars', () => {
+  const score = createScore(4);
+  for (const grade of ['perfect', 'great', 'fine', 'ok']) count(score, { kind: 'hit', offset: 0, grade });
+  assert.equal(score.points, 280);
+  assert.equal(pointsOf(score), 280);
+  const star = createScore(4);
+  for (const grade of ['perfect', 'great', 'fine', 'ok']) count(star, { kind: 'hit', offset: 0, grade, double: true });
+  assert.equal(pointsOf(star), 560, 'every note twice in Stjörnukraftur');
+  assert.equal(starsFor(star), starsFor(score), 'the doubling never changes the stars');
+});
+
+test('stars: zero to five from the points; strays past a spare few cost the stars but never the number shown', () => {
+  const at = share => starsFor({ points: share * 100 * 100, strays: 0, total: 100, hits: 100, belowGreat: 1 });
+  assert.deepEqual([0, 0.14, 0.15, 0.35, 0.55, 0.72, 0.73, 0.85, 1].map(at), [0, 0, 1, 2, 3, 3, 4, 5, 5]);
+  assert.equal(starsFor({ points: 8000, strays: 25, total: 100, hits: 100, belowGreat: 10 }), 4, 'a quarter of the notes in strays is free');
+  const spam = { points: 9000, strays: 400, total: 100, hits: 100, belowGreat: 10 };
+  assert.equal(starsFor(spam), 0, 'tapping everywhere all the time is no way to the stars');
+  assert.equal(pointsOf({ ...spam, bonus: 0 }), 9000, 'the number shown does not go down');
+});
+
+test('fullkominn leikur: every note at least Frábært! and no stray, always five stars; above fullt hús', () => {
+  const play = (grades, strays = 0) => {
+    const score = createScore(grades.length);
+    for (let i = 0; i < strays; i++) count(score, { kind: 'stray' });
+    for (const grade of grades) count(score, { kind: 'hit', offset: 0, grade });
+    return score;
+  };
+  const great = play(Array(50).fill('great'));
+  assert.equal(perfectGame(great), true);
+  assert.equal(starsFor(great), 5, '80 % of the points, yet five stars');
+  assert.equal(perfectGame(play([...Array(49).fill('perfect'), 'fine'])), false, 'one Fínt! is not perfect');
+  assert.equal(fullHouse(play([...Array(49).fill('perfect'), 'fine'])), true, 'but it is a full house');
+  assert.equal(perfectGame(play(Array(50).fill('perfect'), 1)), false, 'a stray takes it away');
+  assert.equal(perfectGame(createScore(0)), false);
+});
+
+test('Stjörnukraftur takes a quarter more hits to reach: 15 for a child, 30 for grown-ups', () => {
+  assert.equal(LEVELS.barn.meter, 15);
+  assert.equal(LEVELS.fullordinn.meter, 30);
+});
+
+/**
+ * A round played by a pretend child (seeded): 200 notes in one lane 2 s apart, each tapped with chance `tapped` at its time plus a
+ * normal spread of `spread` s; the stars it gets.
+ */
+function childStars({ seed, tapped, spread }) {
+  const random = seededRandom(`child-${seed}`);
+  const normal = () => Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
+  const notes = Array.from({ length: 200 }, (_, i) => ({ t: 2 + i * 2, lane: 0 }));
+  const judge = createJudge(notes, LEVELS.barn);
+  const score = createScore(notes.length);
+  for (const note of notes) {
+    if (random() >= tapped) continue;
+    const result = judge.tap(0, note.t + spread * normal());
+    if (result.kind === 'hit') count(score, { ...result, grade: gradeOf(result.offset, LEVELS.barn) });
+  }
+  for (const _ of judge.sweep(Infinity)) count(score, { kind: 'miss' });
+  return starsFor(score);
+}
+
+// the owner (2026-10-31): not too hard; the stars held by children who play as six-year-olds do (Bonacina 2019: ~180 ms)
+test('simulated children: 85 % at 150 ms gets three stars, all at 150 ms four, all at 100 ms five', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    assert.equal(childStars({ seed, tapped: 0.85, spread: 0.15 }), 3, `seed ${seed}: 85 % at 150 ms`);
+    assert.equal(childStars({ seed, tapped: 1, spread: 0.15 }), 4, `seed ${seed}: all at 150 ms`);
+    assert.equal(childStars({ seed, tapped: 1, spread: 0.1 }), 5, `seed ${seed}: all at 100 ms`);
+  }
 });
 
 test('lanes: the roles sit b a c with three lanes, a and c with two', () => {
