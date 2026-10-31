@@ -153,3 +153,35 @@ test('the gifts are a choice: none, one, or any distinct names', () => {
   findFriends(plain);
   assert.equal(plain.getState().phase, 'won');
 });
+
+// ---- the gift table: level 1's animals and level 2's fossils ----
+test("every gift of both levels has its words, its voice line and its model, and the four fossils say what the plan says", async () => {
+  const { GIFT_ITEMS, GIFT_CREDITS } = await import('../engine/memory/surprise-items.js');
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
+  const { LEVELS } = await import('../engine/memory/levels/index.js');
+  const { existsSync } = await import('node:fs');
+  for (const level of LEVELS) for (const id of level.gifts) {
+    const item = GIFT_ITEMS[id];
+    assert.ok(item, `${level.id}: ${id} is in the table`);
+    assert.equal(typeof item.make, 'function'); assert.ok(VOICE_LINES[item.voice], `${id}: the voice line ${item.voice} exists`);
+    assert.equal(VOICE_LINES[item.voice].text, item.caption, `${id}: Mosi says what the bubble says`);
+    assert.ok(item.seek.endsWith('Hvar er hinn?') || item.seek.endsWith('Hvar er hin?') || item.seek.endsWith('Hvar er hitt?'), `${id}: the first leaf asks for the other half`);
+    assert.ok(GIFT_CREDITS.some(row => row.id === id && row.author && row.license && row.source), `${id}: its licence row is behind the "i"`);
+  }
+  const copy = id => [GIFT_ITEMS[id].name, GIFT_ITEMS[id].seek, GIFT_ITEMS[id].caption, GIFT_ITEMS[id].voice];
+  assert.deepEqual(copy('ammonite'), ['Snigilsteinn', 'Snigilsteinn! Hvar er hinn?', 'Snigilsteinn! Hann fer í körfuna.', 'gift_ammonite']);
+  assert.deepEqual(copy('trilobite'), ['Pöddusteinn', 'Pöddusteinn! Hvar er hinn?', 'Pöddusteinn! Hann fer í körfuna.', 'gift_trilobite']);
+  assert.deepEqual(copy('fern'), ['Laufsteinn', 'Laufsteinn! Hvar er hinn?', 'Laufsteinn! Hann fer í körfuna.', 'gift_fern']);
+  assert.deepEqual(copy('footprint'), ['Risaspor', 'Risaspor! Hvar er hitt?', 'Risaspor! Það fer í körfuna.', 'gift_footprint']);
+  for (const file of ['ammonite', 'trilobite', 'fern', 'footprint', 'shrew', 'hermit-crab', 'crab']) {
+    assert.ok(existsSync(new URL(`../assets/memory/gifts/${file}.glb`, import.meta.url)) && existsSync(new URL(`../assets/memory/gifts/${file}-source.json`, import.meta.url)), `${file}: a model and its -source.json`);
+  }
+  // Each fossil's -source.json names its author, its licence, the download's md5 and what was changed.
+  const { readFileSync } = await import('node:fs');
+  for (const file of ['ammonite', 'trilobite', 'fern', 'footprint']) {
+    const info = JSON.parse(readFileSync(new URL(`../assets/memory/gifts/${file}-source.json`, import.meta.url), 'utf8'));
+    assert.ok(info.author && info.license && info.sourceUrl && /^[0-9a-f]{32}$/.test(info.download.md5) && info.modifications && info.blenderCommand && info.quantizeCommand, file);
+    assert.ok(info.triangles <= 3000, `${file}: at most 3,000 triangles`);
+  }
+  assert.equal(GIFT_CREDITS.filter(row => LEVELS[1].gifts.includes(row.id)).length, 4); assert.equal(GIFT_CREDITS.filter(row => LEVELS[0].gifts.includes(row.id)).length, 3);
+});

@@ -447,3 +447,48 @@ test('level 2 is described as frozen data: its steps, its pairs, its glade and i
   assert.ok(level.steps.every(step => level.targets[step.target]?.label), 'every obstacle has an accessible name');
   assert.equal(level.music({}), 'glade');
 });
+
+test("level 2's world loads and answers the shared stage with every member the interface requires; it stands nothing before it is built and starts no step", async () => {
+  const THREE = await import('three');
+  const { createSceneRunner } = await import('../engine/memory/scenes.js');
+  const { loadLevelWorld } = await import('../engine/memory/levels/worlds.js');
+  const { frameOf, outside, closure, FLOOR } = await import('../engine/memory/levels/steinagljufur/ground.js');
+  const stage = { THREE, scene: new THREE.Scene(), params: new URLSearchParams(), level: STEINAGLJUFUR, nests: [], scenes: createSceneRunner(), fx: {}, mosi: {}, heightAt: () => 0, time: () => 0, reducedMotion: () => false, leaves: [], onLeafGround: () => false };
+  const world = (await loadLevelWorld('steinagljufur'))(stage);
+  const required = ['build', 'cameraCue', 'getTargets', 'tapPoint', 'playStep', 'startFail', 'isBusy', 'setStepState', 'setReducedMotion', 'update', 'afterActors', 'pollEvents',
+    'navObjects', 'mosiPlace', 'mosiObstacle', 'bindPair', 'ownsPair', 'pairCentre', 'hasTravelReservation', 'visited', 'nestSelectable', 'avoidIdle', 'getDebug', 'reset', 'dispose'];
+  assert.deepEqual(required.filter(name => typeof world[name] !== 'function'), []);
+  assert.deepEqual(['keepOut', 'lift', 'dress', 'path', 'clearing', 'farRings'].filter(key => !(key in world.layout)), [], 'what the forest is grown from');
+  assert.ok(Array.isArray(world.overviewPoints) && world.overviewPoints.every(point => point.length === 3));
+  // Nothing grows by itself in a gorge; the floor is flat and the ground climbs behind the back and the left walls, not on the open side.
+  const frame = frameOf(STEINAGLJUFUR.grid), at = (u, v) => frame.toWorld(u, v);
+  for (const [u, v] of [[0, 0], [-20, 5], [30, 30]]) assert.equal(world.layout.keepOut(...at(u, v)), 1);
+  assert.equal(world.layout.lift(...at(0, 0)), 0); assert.equal(world.layout.lift(...at(5, -5)), 0, 'the floor is flat');
+  assert.ok(world.layout.lift(...at(0, 30)) > 8, 'the plateau behind the back wall'); assert.ok(world.layout.lift(...at(-30, 0)) > 8, 'and behind the left wall');
+  assert.ok(world.layout.lift(...at(8, -40)) < 1.5, 'the open side stays open');
+  // Before build(): no obstacle, nothing busy, no step starts, Mosi is at his spot and the friends keep clear of him.
+  assert.deepEqual(world.getTargets(), []); assert.equal(world.isBusy(), false);
+  for (const id of STEINAGLJUFUR.steps.map(step => step.id)) assert.equal(world.playStep(id), null, `${id} is not built yet`);
+  assert.equal(world.startFail('triceratops', 'tunnel'), false); assert.deepEqual(world.pollEvents(), []);
+  assert.deepEqual({ ...world.mosiPlace() }, { ...STEINAGLJUFUR.mosiSpot }); assert.equal(world.mosiObstacle(), true);
+  assert.equal(world.nestSelectable('triceratops'), true); world.setStepState({ selected: 'triceratops' }); assert.equal(world.nestSelectable('triceratops'), false); world.reset();
+  // The walls stand outside the floor: a friend does not play at their foot, and may in the middle.
+  assert.equal(world.avoidIdle(...at(0, 0)), null); assert.equal(world.avoidIdle(...at(FLOOR.half[0] + 2, 0)), 'wall');
+  // The glade's frame: the grid's (u, v) and the world's (x, z) turn into one another, and the description puts everything on the floor.
+  for (const [u, v] of [[0, 0], [3.5, -2], [-8, 7]]) { const [x, z] = frame.toWorld(u, v), [u2, v2] = frame.toGrid(x, z); assert.ok(Math.hypot(u - u2, v - v2) < 1e-9); }
+  const grid = STEINAGLJUFUR.grid, cells = [];
+  for (let row = 0; row < grid.rows; row++) for (let col = 0; col < grid.columns; col++) cells.push([(col - (grid.columns - 1) / 2) * grid.across, -((row - (grid.rows - 1) / 2) * grid.deep)]);
+  const onFloor = (x, z, margin) => outside(...frame.toGrid(x, z)) < -margin;
+  for (const [index, [x, z]] of STEINAGLJUFUR.nests.entries()) {
+    assert.ok(onFloor(x, z, 3), `the rest of pair ${index} is well inside the floor`);
+    const [u, v] = frame.toGrid(x, z);
+    assert.ok(cells.every(([cu, cv]) => Math.hypot(u - cu, v - cv) > 4), `the rest of pair ${index} is clear of the leaves`);
+  }
+  assert.ok(onFloor(STEINAGLJUFUR.mosiSpot.x, STEINAGLJUFUR.mosiSpot.z, 1.5), 'Mosi stands on the floor');
+  assert.ok(closure(0, 20) > .99 && closure(-20, 0) > .99, 'the back and the left are walls'); assert.ok(closure(0, -20) < .01 && closure(20, 0) < .2, 'the front and the right are open');
+  // The dressing keeps off the rests, Mosi and the leaves it is told to avoid, and names only plants the forest has.
+  const plants = world.layout.dress({ avoid: () => false });
+  assert.ok(plants.length > 20 && plants.every(plant => ['rock', 'rockSmall', 'fern', 'cycad', 'treeFern'].includes(plant.name) && plant.scale > 0));
+  assert.ok(plants.every(plant => STEINAGLJUFUR.nests.every(([nx, nz]) => Math.hypot(plant.position[0] - nx, plant.position[1] - nz) >= 3.4)), 'nothing grows in a pair\'s rest');
+  assert.ok(plants.every(plant => Math.hypot(plant.position[0] - STEINAGLJUFUR.mosiSpot.x, plant.position[1] - STEINAGLJUFUR.mosiSpot.z) >= 3.6), 'nothing grows where Mosi stands');
+});

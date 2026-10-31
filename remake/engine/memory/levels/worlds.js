@@ -20,12 +20,15 @@
  * or the rests is made in `build()`. The scripts of its own steps (scenes/) get the stage with the level's additions (`task`, Mosi's walk).
  *
  * `createLevelWorld(stage)` returns
- *   layout            what the forest is grown from: { keepOut(x, z), path, lift(x, z), dress({ avoid }) }
- *   build()           once the forest, the leaves and the rests stand: the ground's look, the props, the mover
+ *   layout            what the forest is grown from: { keepOut(x, z), path, lift(x, z), dress({ avoid }) }, and any other key of the forest's
+ *                     layout (world/forest/forest.js) the level replaces: level 2 gives its own `clearing` and `farRings`
+ *   build()           once the forest, the leaves and the rests stand: the ground's look, the props, the mover; it may return a promise
+ *                     (a level that loads models), which the stage waits for
  *   overviewPoints    the points (besides the board, the rests and Mosi) the overview keeps in the frame: [[x, y, z]...]
  *   cameraCue(glade)  the camera's cue now (what the mover shows), or glade() (the search view's cue)
- *   getTargets()      the obstacles: [{ id, point, enabled, next, tapAlong, radius? }] (tapAlong: a script waits for taps on it;
- *                     radius in metres, if given, makes the button at least as wide as the obstacle looks)
+ *   getTargets()      the obstacles: [{ id, point, enabled, next, tapAlong, radius?, unbuilt? }] (tapAlong: a script waits for taps on it;
+ *                     radius in metres, if given, makes the button at least as wide as the obstacle looks; unbuilt: its scene is not
+ *                     built yet, so the gold arrow never points at it)
  *   tapPoint(id)      where the big tap-along button of obstacle `id` sits
  *   playStep(id, options)   plays step `id` (its script): the script's id, or null when it cannot start now
  *   startFail(species, target)   a wrong pair's go at an obstacle (true, or false when it cannot start now)
@@ -46,6 +49,7 @@
  */
 const WORLDS = Object.freeze({
   berjalundur: () => import('./berjalundur/world.js'),
+  steinagljufur: () => import('./steinagljufur/world.js'),
 });
 
 /** The `createLevelWorld` function of level `id`. */

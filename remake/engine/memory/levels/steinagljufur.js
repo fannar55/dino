@@ -10,6 +10,10 @@ import { freezeLevel } from '../step-rules.js';
  * Task 3 builds the glade and the search; the keys and words of the steps that follow (Tasks 4 to 6 build their scenes and record their lines)
  * are here so that the story reads the whole ladder, but until then only the search is reachable: when every leaf is found the round waits.
  * The story keys all start with `g2-`, so that a run's timeline says which level it is in.
+ *
+ * Beyond level 1's fields it has: `look` (engine/looks.js: the light of the gorge's afternoon), `lines` (which of Mosi's lines are the level's own:
+ * the welcome, the one for the fossils still to find, the fossils' sentence; a null has no line yet) and `credits` (the open scenery behind the
+ * ending card's "i", besides the gifts' own).
  */
 const FLAG_OF = {
   light: state => state.tunnelLit,
@@ -27,6 +31,12 @@ export const STEINAGLJUFUR = freezeLevel({
   number: 2,
   title: 'Steinagljúfrið',
   ribbon: 'Leiðin upp á Sólarsylluna',
+  look: 'gorgeAfternoon',
+  lines: { welcome: 'g2_welcome', help: null, giftsLeft: 'g2_left', gifts: 'gifts4' },
+  credits: [
+    { title: 'Klettarnir (Sandstone | Cliff, sjö hlutar)', author: 'YadroGames', license: 'CC BY 4.0', source: 'sketchfab.com/erroratten' },
+    { title: 'Stórgrýtið (Rock Large)', author: 'Quaternius', license: 'CC0 1.0', source: 'poly.pizza/m/54jZKTAt5p og poly.pizza/m/d2VWOdthtR' },
+  ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus', 'pteranodon'],
   gifts: ['ammonite', 'trilobite', 'fern', 'footprint'],
   roster: { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla', pteranodon: 'Flugeðla' },
@@ -37,13 +47,17 @@ export const STEINAGLJUFUR = freezeLevel({
     pteranodon: { name: 'Flugeðlur', label: 'Flugeðluparið' },
   },
   // The glade on the floor of the gorge (world.js lays the leaves out as levels/berjalundur.js says: the columns of a row run across the
-  // screen, the rows stand `deep` apart, turned toward the search camera). Sixteen leaves, four by four. The rests of the four pairs are two
-  // on each side of the board and Mosi stands at its right-hand end; the search view is a little higher than level 1's, so that four rows
-  // stand clear of one another in landscape, and from the side and high in portrait, so that the four columns fill a phone's width.
-  grid: { centre: [0, 0], angle: Math.PI / 6, across: 2.9, deep: 3.1, columns: 4, rows: 4 },
-  nests: [[-8.6, -6.6], [-5.2, 7.2], [8.6, -6.2], [7.9, 6.4]],
-  mosiSpot: { x: 11, z: 2, heading: 150 },
-  gladeView: { landscape: [.43, .52, .74], portrait: [.52, .8, -.3] },
+  // screen, the rows stand `deep` apart, turned toward the search camera). Sixteen leaves, four by four. The rests of the four pairs are two at
+  // each side of the board (the Kambeðlur at its left, at the back) and Mosi stands between the two on its right, facing the leaves; the tunnel
+  // is in the back wall. The search view is higher than
+  // level 1's (36 degrees), so that four rows stand clear of one another in landscape, and from the side and high in portrait, so that the four
+  // columns fill a phone's width. (The numbers are the glade's grid, in the world's x and z: levels/steinagljufur/ground.js says how it is laid.)
+  grid: { centre: [0, 0], angle: Math.PI / 6, across: 2.8, deep: 3, columns: 4, rows: 4 },
+  nests: [[-6.07, 7.89], [-9.87, 1.31], [6.07, -7.89], [9.87, -1.31]],
+  mosiSpot: { x: 8.49, z: -4.9, heading: 150 },
+  gladeView: { landscape: [.405, .588, .7], portrait: [.52, .8, -.3], focus: [0, .5, 0], overviewFocus: [0, .5, -4], overviewDirection: [.22, .62, .75] },
+  // (the friend the playthrough tool tries first at each obstacle: the ones the plan gives a wrong go there)
+  wrongFriends: { tunnel: 'triceratops', rocks: 'stegosaurus', ledge: 'triceratops', cliff: 'brontosaurus' },
   steps: [
     { id: 'light', kind: 'task', target: 'tunnel', species: 'stegosaurus', holds: 'through' },
     { id: 'headbutt', kind: 'task', target: 'rocks', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'BÚMM!'] },

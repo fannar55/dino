@@ -31,4 +31,14 @@ export const VOICE_LINES = Object.freeze({
   gift_shrew: { text: 'Snjáldurmús! Hún fer í körfuna.', context: 'Hér er lítil snjáldurmús. Snjáldurmús er pínulítið dýr.', seed: 251311 },
   gift_hermitCrab: { text: 'Kuðungakrabbi! Hann fer í körfuna.', seed: 251304 },
   gift_crab: { text: 'Krabbi! Hann fer í körfuna.', seed: 251305 },
+  // Level 2, Steinagljúfrið (Task 3): the welcome, the wait for the fossils still under the leaves (said when the way through the tunnel
+  // waits for them), the fossils' sentence and the four fossils, named as each pair is found. The lines of the tasks (g2_light_ready...)
+  // come with their scenes in Tasks 4 to 7.
+  g2_welcome: { text: 'Velkomin í Steinagljúfrið! Finndu tvo eins vini.', seed: 251401 },
+  g2_left: { text: 'Finnum fyrst það sem er eftir undir laufunum!', seed: 251402 },
+  gifts4: { text: 'Þú fannst alla fjóra steingervingana!', seed: 251403 },
+  gift_ammonite: { text: 'Snigilsteinn! Hann fer í körfuna.', seed: 251411 },
+  gift_trilobite: { text: 'Pöddusteinn! Hann fer í körfuna.', seed: 251412 },
+  gift_fern: { text: 'Laufsteinn! Hann fer í körfuna.', seed: 251413 },
+  gift_footprint: { text: 'Risaspor! Það fer í körfuna.', seed: 251414 },
 });

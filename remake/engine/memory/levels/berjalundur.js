@@ -16,6 +16,7 @@ import { freezeLevel } from '../step-rules.js';
  * grid, nests, mosiSpot, gladeView   where the leaves, the pairs' rests and Mosi stand, and how the search view looks (world.js)
  * targets      each obstacle's badge (icon) and its accessible name
  * copy         the words on the welcome card, the ending card, the help card and the loading card (the markup has the same words)
+ * wrongFriends  the friend the playthrough tool tries first at each obstacle, on purpose (a friend that cannot do it)
  * music        the music stage for a state; eventSounds, eventCaptions: what the world's events sound and say
  */
 const TIGHT = 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.';
@@ -53,6 +54,7 @@ export const BERJALUNDUR = freezeLevel({
   nests: [[-.8, -.4], [2.2, 7.6], [-6.9, -1.25]],
   mosiSpot: { x: 3, z: 2.8, heading: 90 },
   gladeView: { landscape: [.464, .375, .803], portrait: [.52, .8, -.3] },
+  wrongFriends: { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' },
   steps: [
     { id: 'lift', kind: 'task', target: 'branch', species: 'brontosaurus', beatWords: ['Upp!'], holds: 'roll', journey: 'Lyfta grein' },
     { id: 'roll', kind: 'task', target: 'log', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'ÝTA!'], journey: 'Gera trjábrú' },

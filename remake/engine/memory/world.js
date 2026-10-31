@@ -21,7 +21,7 @@ import { createSceneRunner } from './scenes.js';
 import { createMosiPuppet } from './mosi-puppet.js';
 import { revealScene, mismatchScene, matchScene } from './scenes/first-minute.js';
 import { loadLevelWorld } from './levels/worlds.js';
-import { GIFT_ITEMS, createGiftItem, createButterflyItem } from './surprise-items.js';
+import { createGiftItem, createButterflyItem } from './surprise-items.js';
 import { createIdlePlay, IDLE_GAMES } from './idle-play.js';
 
 // The leaves in a grid turned toward the search camera (a level's `grid`): the `columns` of a row run across the screen (each `across`
@@ -86,7 +86,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   const params = new URLSearchParams(globalThis.location?.search || '');
   const preset = pickQuality(params);
   const q = { ...preset, trees: preset.trees * .4, grass: preset.grass * .07, plants: preset.plants * .28 };
-  const look = pickLook('memoryMorning');
+  const look = pickLook(level.look ?? 'memoryMorning');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: q.antialias, alpha: false, powerPreference: 'high-performance', stencil: false });
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = look.exposure; renderer.shadowMap.enabled = q.shadowSize > 0;
@@ -110,7 +110,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     actors: { mosi: { position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading }, ...Object.fromEntries(CELLS.map(([x, z], i) => [`place${i}`, { position: [x, 0, z], heading: 90 }])) },
   };
   const actors = new Map();
-  const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: 'memoryMorning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
+  const world = { THREE, scene, camera, renderer, q, params, look, lighting, wind, actors, chapter: { look: level.look ?? 'memoryMorning', layout, shots: layout.shots, actors: layout.actors }, heightAt: () => 0 };
   world.resolvePoint = createPointResolver(world); world.points = world.resolvePoint;
   let disposed = false, time = 0, width = 1280, height = 800, resolution = 1, frameTime = 0, frameCount = 0, lastAdapt = -1e9, lastStep = 0;
   let forest, forestVisibility, mosi, mosiShade, mosiPuppet, babyActors = [], babyLibrary, babyShadows, resizeObserver, idlePlay, levelWorld;
@@ -160,7 +160,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
   // Every leaf and Mosi whole, and both places of each home spot with the friends' length (nose and tail), so a found pair
   // stays in the frame whichever way the search camera looks along the board.
-  const HALF_LENGTH = { triceratops: 1.3, stegosaurus: 1, brontosaurus: 2.2 };
+  const HALF_LENGTH = { triceratops: 1.3, stegosaurus: 1, brontosaurus: 2.2, pteranodon: 1.3 };
   function homePoints() {
     const along = new THREE.Vector3(Math.cos(restHeading()), 0, -Math.sin(restHeading()));
     return NESTS.flatMap(([x, z], i) => [0, 1].flatMap(member => {
@@ -171,11 +171,11 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   // A cue for the camera director (camera-director.js): the points the shot keeps in the frame, wide and in the memory phase unless said otherwise.
   const cue = (points, options = {}) => ({ phase: 'memory', scale: 'wide', ...options, points });
   function gladeCue() {
-    return cue([...boardPoints(), ...mosiPoints(), ...homePoints()], { key: 'glade', focus: [-1.5, .5, 3.2], direction: width / height < 1 ? GLADE_VIEW.portrait : GLADE_VIEW.landscape });
+    return cue([...boardPoints(), ...mosiPoints(), ...homePoints()], { key: 'glade', focus: GLADE_VIEW.focus ?? [-1.5, .5, 3.2], direction: width / height < 1 ? GLADE_VIEW.portrait : GLADE_VIEW.landscape });
   }
   // The overview shows the board, the rests, Mosi and the points the level adds (the way its steps lead on).
   function overviewCue() {
-    return cue([...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])], { key: 'overview', phase: 'overview', focus: [0, .5, -10] });
+    return cue([...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])], { key: 'overview', phase: 'overview', focus: GLADE_VIEW.overviewFocus ?? [0, .5, -10], direction: GLADE_VIEW.overviewDirection });
   }
   const cameraDirector = createCameraDirector({ camera, overview: overviewCue, fallback: gladeCue });
   // Scripts (scenes.js) run on the game clock. Their lines say what to do; this is where it happens.
@@ -421,7 +421,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     }
     // The level builds what it stands on and moves with now that the forest, the leaves and the rests exist: the ground's look, its props,
     // its mover (the one that plays the steps).
-    levelWorld.build();
+    await levelWorld.build(); // (a level's world may load its models: its build then returns a promise)
     onProgress('Mosi kemur að hjálpa…');
     mosi = await createActor(world, { name: 'mosi-memory', url: new URL('../../assets/characters/mosi.glb', import.meta.url).href, position: [MOSI_SPOT.x, 0, MOSI_SPOT.z], heading: MOSI_SPOT.heading });
     mosi.root.scale.setScalar(.49); mosi.controlled = true; mosi.lookYawLimit = 25; mosi.lookUpLimit = 20; mosi.species = 'mosi'; measureActor(mosi);
@@ -442,9 +442,9 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const feet = []; actor.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); }); footBones.set(actor, feet);
     }
     onProgress('Gjafirnar bíða…');
-    // Every gift the table knows is made now, two of each, so the first one found shows at once and compiles with the scene.
+    // Every gift the level hides is made now, two of each, so the first one found shows at once and compiles with the scene.
     // A missing model costs only that gift's picture: the leaf still opens and the basket still counts.
-    for (const id of Object.keys(GIFT_ITEMS)) {
+    for (const id of level.gifts) {
       try {
         const pair = [await createGiftItem(id), await createGiftItem(id)];
         for (const item of pair) { item.group.visible = false; scene.add(item.group); }
@@ -817,7 +817,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       if (!tapAlong && target.radius > 0) size = Math.max(size, Math.round(Math.abs(project(point.clone().add(new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius))).x - p.x) * 2));
       // An obstacle at the very edge of the view (the log on a phone) keeps its button just inside the screen.
       if (tapAlong || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
-      renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong });
+      renderTargets.push({ type: 'task', id: target.id, x: p.x, y: p.y, width: size, height: size, enabled: tapAlong || target.enabled, next: Boolean(target.next), tapAlong, unbuilt: Boolean(target.unbuilt) });
     }
     for (const target of renderTargets) target.enabled &&= target.tapAlong || cameraDirector.isInteractive() && target.x - target.width / 2 >= 8 && target.x + target.width / 2 <= width - 8 && target.y - target.height / 2 >= 8 && target.y + target.height / 2 <= height - 8;
   }
@@ -1054,7 +1054,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     return { ...lastStats, camera: cameraState, cameraDirector: cameraState, scene: { busy: scenes.busy(), waiting: scenes.waiting(), beats, gifts: gift.phase, mosi: mosiPuppet?.current ?? null, mosiWalk: levelDebug.mosiWalk, mosiAcross: levelDebug.mosiAcross, mosiPosition: mosi.root.position.toArray(), mosiAnimation: (mosi.mixer?._actions ?? []).filter(action => action.isRunning() && action.getEffectiveWeight() > 0).map(action => ({ clip: action.getClip().name, timeScale: +action.getEffectiveTimeScale().toFixed(3), weight: +action.getEffectiveWeight().toFixed(2) })) }, cameraPosition: camera.position.toArray(), size: { width, height }, bridge, characterLod, shadowLod: babyShadows?.stats ?? [], fx: fx.getDebug(), forestVisibility: forestVisibility.getDebug(), homeNavigation, collisionActors, collisionObjects,
       // The plants the layout names (dressing.js), so a run can check that none stands where somebody walks.
       dressing: layout.plants, idle: idlePlay ? { ...idlePlay.getDebug(), blocked: idleBlocked } : null,
-      glade: { leaves: CELLS, rests: NESTS, river: levelDebug.river },
+      glade: { leaves: CELLS, rests: NESTS, river: levelDebug.river }, levelStats: levelDebug.stats ?? null,
       cells: cells.map(cell => ({ id: cell.id, species: cell.species, item: cell.item, gift: cell.gift ? { age: cell.gift.age, phase: cell.gift.phase, shown: cell.gift.shown, t: cell.gift.t, model: cell.gift.model ? { visible: cell.gift.model.group.visible, position: cell.gift.model.group.position.toArray(), scale: cell.gift.model.group.scale.x } : null } : null, status: cell.status, open: cell.open, moving: Boolean(cell.transfer), queued: Boolean(cell.transfer?.waiting), moved: cell.moved, actorVisible: cell.actor?.root.visible ?? false, position: cell.actor?.root.visible ? cell.actor.root.position.toArray() : null, leafBounds: leafBounds(cell), feet: cell.actor?.root.visible ? (footBones.get(cell.actor) ?? []).map(bone => ({ name: bone.name, position: bone.getWorldPosition(new THREE.Vector3()).toArray() })) : [] })),
       nests: nests.map(nest => ({ index: nest.index, physicalIndex: nest.physicalIndex, species: nest.species, count: nest.members.length, reunionAge: nest.reunionAge, noseDistance: nest.species === 'triceratops' && nest.members.length === 2 ? nest.members[0].getNosePosition().distanceTo(nest.members[1].getNosePosition()) : null })),
       ...(measure ? { frame: measureFrame() } : {}),

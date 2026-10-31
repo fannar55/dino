@@ -73,8 +73,8 @@ const COLOURS = Object.freeze({
   uGrassBase: '#56882b', uGrassSun: '#8fb23e', uClover: '#74a53d', uForestA: '#44692f', uForestB: '#5b7d38',
   uCanopyLight: '#6f9a3c', uCanopyDark: '#2c4a26', uBedDark: '#44702a', uBedLight: '#7aa538', uSand: '#f3daa0', uSandDark: '#deba82', uSandRim: '#b08c5a', uMud: '#5a4630', uMudWet: '#3f3322', uDamp: '#7a6038',
 });
-const BEDS = 8; // the leaves
-const SHADER = Object.freeze({
+const BEDS = 8; // the leaves (level 1's: its first eight have a moss bed; level 2 asks for all its sixteen, levels/steinagljufur/ground.js)
+const makeShader = BEDS => Object.freeze({
   head: `uniform sampler2D uMemMask; uniform vec4 uMemBox; uniform vec2 uBeds[ ${BEDS} ]; uniform vec3 uBedDark, uBedLight, uCanopyLight, uCanopyDark, uSand, uSandDark, uSandRim, uMud, uMudWet, uDamp;`,
   // Seen from above, the forest beyond the open ground is a canopy: broad lighter and darker blotches of leaves.
   canopy: ['floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );', `floorC = mix( floorC, uMoss, smoothstep( 0.45, 0.75, coarse ) * 0.5 );
@@ -104,21 +104,25 @@ const SHADER = Object.freeze({
   contrast: [['( 0.84 + 0.3 * nA.a )', '( 0.95 + 0.10 * nA.a )'], ['smoothstep( 0.6, 0.74, nB.g ) * 0.55', 'smoothstep( 0.6, 0.74, nB.g ) * 0.16'], ['soil );', 'soil * 0.3 );'], ['litter * 0.55', 'litter * 0.2']],
 });
 
-/** Lays the memory game's look over the forest's ground material. Returns { dispose }. */
-export function installGroundLook(material, { beds = [] } = {}) {
-  const mask = bakeMask(), box = new THREE.Vector4(BOX.x, BOX.z, BOX.width, BOX.depth);
+/**
+ * Lays the memory game's look over the forest's ground material. Returns { dispose }. Level 1 asks for nothing else than its beds; another
+ * level gives its own `mask` (a texture: open ground, sand, mud, damp in R, G, B, A), the `box` it covers (x, z, width, depth in metres), its
+ * `colours` (the uniforms of COLOURS by name) and how many leaves have a bed (`bedCount`).
+ */
+export function installGroundLook(material, { beds = [], bedCount = BEDS, mask: ownMask = null, box: ownBox = null, colours = COLOURS } = {}) {
+  const SHADER = makeShader(bedCount), mask = ownMask ?? bakeMask(), box = ownBox ?? new THREE.Vector4(BOX.x, BOX.z, BOX.width, BOX.depth);
   const compile = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = function (shader, renderer) {
     compile.call(this, shader, renderer);
-    for (const [name, hex] of Object.entries(COLOURS)) (shader.uniforms[name] ??= { value: new THREE.Color() }).value.set(hex);
-    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uForestSun.value = .4; shader.uniforms.uBeds = { value: Array.from({ length: BEDS }, (_, i) => new THREE.Vector2(...(beds[i] ?? [1e4, 1e4]))) }; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
+    for (const [name, hex] of Object.entries(colours)) (shader.uniforms[name] ??= { value: new THREE.Color() }).value.set(hex);
+    shader.uniforms.uLeafShadow.value = .16; shader.uniforms.uForestSun.value = .4; shader.uniforms.uBeds = { value: Array.from({ length: bedCount }, (_, i) => new THREE.Vector2(...(beds[i] ?? [1e4, 1e4]))) }; shader.uniforms.uMemMask = { value: mask }; shader.uniforms.uMemBox = { value: box };
     let source = shader.fragmentShader;
     const swap = ([from, to]) => { if (!source.includes(from)) console.warn(`[memory ground] the forest ground shader changed: ${from.slice(0, 48)}`); source = source.replace(from, to); };
     source = source.replace('#include <common>', `#include <common>\n${SHADER.head}`);
     [SHADER.canopy, SHADER.floor, SHADER.litter, SHADER.trail, SHADER.shade].forEach(swap); SHADER.contrast.forEach(swap);
     shader.fragmentShader = source;
   };
-  material.customProgramCacheKey = () => `${key()}-memory-ground-v2`;
+  material.customProgramCacheKey = () => `${key()}-memory-ground-v2${bedCount === BEDS ? '' : `-${bedCount}`}`;
   material.needsUpdate = true;
-  return { dispose() { mask.dispose(); } };
+  return { dispose() { if (!ownMask) mask.dispose(); } };
 }
