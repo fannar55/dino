@@ -12,7 +12,12 @@
 //   hello      { name, avatar }: seats.join gives her a seat, or the one she had, answered with seat { ok: true, seat, name }
 //              or { ok: false, reason }; then the lobby to everyone, or, with no lobby open, the newest view or `closed`
 //   act        a game's act, for onAct: heard only from a guest who is there and plays her own seat (not covered)
+//   time       { sent }: Söngur Slóeðlu's shared clock (clock-sync.js) asks the time, answered time { sent, host } with this
+//              page's performance clock (`perf`); a time or an act from a seated guest is heard by onAlive (she is playing)
 //   presence   whether the phone answers the pings (net.js); `left` is absent too
+// Söngur Slóeðlu's lobby is the song game's own (`lobby:`, band-lobby.js) and its view carries `offer` (the dinosaurs on
+// offer), `ask: 'level'` ("Krakki eða fullorðinn?") and `note` (the song Egill picks) when the game sets them; its notes and
+// clock go to each phone as `song` messages (sendSong), which are not views and are not kept.
 // A guest is always found by her id, never by a seat number, which a removal changes (removeAi, dropAbsent at "Byrjum!").
 //
 // A game's views go through send(seat, body): message('view', body, { seq }), the seq rising for each guest across every view
@@ -33,7 +38,7 @@
 // network came back to a socket that silent: a window over the game for a moment changes nothing, as every guest would be
 // let go and see the wait screen.
 
-import { makeCode, message, normalizeCode, randomKey } from './protocol.js';
+import { MAX_SEATS, makeCode, message, normalizeCode, randomKey } from './protocol.js';
 import { createSeats } from './seats.js';
 import { createLobby } from './lobby.js';
 import { createHostNet, iceServersFor, wsUrlFor } from './net.js';
@@ -101,10 +106,12 @@ function deferred() {
  */
 export function createFjolspil(doc, {
   win = globalThis.window, random = Math.random, storage = sessionStorageOf(win), storageKey = STORAGE_KEY, audio = null,
-  timers, now = () => Date.now(), net: createNet = createHostNet, lobby: makeLobby = createLobby, forceRelay = relayAsked(win),
+  timers, now = () => Date.now(), perf = () => win?.performance?.now?.() ?? now(), net: createNet = createHostNet,
+  lobby: makeLobby = createLobby, forceRelay = relayAsked(win),
 } = {}) {
   let seats = createSeats();
   const acts = new Set();
+  const alives = new Set();
   const at = {
     net: null, // the host net of the room while it is open
     code: null, key: null,
@@ -112,6 +119,7 @@ export function createFjolspil(doc, {
     joinUrl: null, lanMissing: false, // what the QR code carries, and whether the lobby says --lan is missing
     replaced: false, // another tab took this room: this one shows nothing more
     lobbyOpen: false, lobbyAi: null, // the game's character the lobby offers, or null
+    lobbySong: { offer: null, ask: null, note: null, reserved: [] }, // Söngur Slóeðlu's lobby keys (null: not in the view)
     pendingStart: null, // the open lobby's { promise, resolve }
     waiting: null, // the wait for a guest: { seat, guestId, promise, resolve }
     inRoom: new Set(), // the guests the meeting point says are in the room, seated or still choosing
@@ -265,10 +273,11 @@ export function createFjolspil(doc, {
     const body = msg.body !== null && typeof msg.body === 'object' ? msg.body : {};
     if (msg.type === 'hello') hello(id, body);
     else if (msg.type === 'act') act(id, msg.body);
+    else if (msg.type === 'time') time(id, body);
   }
 
-  function hello(id, { name, avatar }) {
-    const answer = seats.join({ guestId: id, name, avatar });
+  function hello(id, { name, avatar, level }) {
+    const answer = seats.join({ guestId: id, name, avatar, level });
     at.net.send(id, message('seat', answer));
     if (!answer.ok) return;
     checkWaiting();
@@ -277,9 +286,28 @@ export function createFjolspil(doc, {
   }
 
   function act(id, body) {
+    alive(id);
     const seat = seats.byGuest(id);
     if (seat?.kind !== 'remote' || !seat.present) return; // a covered seat is the computer's, an absent one is not heard
     for (const fn of [...acts]) fn(seat.seat, body);
+  }
+
+  /** The shared clock's question, answered with this page's clock at once (the trip's middle is the phone's guess). */
+  function time(id, { sent }) {
+    if (Number.isFinite(sent)) at.net.send(id, message('time', { sent, host: perf() }));
+    alive(id);
+  }
+
+  /** A seated guest said something: she is playing (Söngur Slóeðlu's silence watch). */
+  function alive(id) {
+    const seat = seats.byGuest(id);
+    if (seat?.kind === 'remote') for (const fn of [...alives]) fn(seat);
+  }
+
+  /** A `song` message to seat `n`'s phone (Söngur Slóeðlu's notes, clock and verdicts): not a view, not kept. */
+  function sendSong(n, body) {
+    const id = seats.bySeat(n)?.guestId;
+    return id ? (at.net?.send(id, message('song', body)) ?? false) : false;
   }
 
   // ---- Views ------------------------------------------------------------------------------------------------------
@@ -318,7 +346,9 @@ export function createFjolspil(doc, {
   /** The lobby as the guest with this id sees it: the seats, the avatars free, and `you`, her seat (null: none yet). */
   function lobbyView(id = null) {
     const own = id === null ? null : seats.byGuest(id);
-    return { screen: 'lobby', seats: seats.list().map(shown), available: seats.available(), you: own ? own.seat : null };
+    const view = { screen: 'lobby', seats: seats.list().map(shown), available: seats.available(), you: own ? own.seat : null };
+    for (const key of ['offer', 'ask', 'note']) if (at.lobbySong[key] != null) view[key] = at.lobbySong[key];
+    return view;
   }
 
   // ---- The lobby --------------------------------------------------------------------------------------------------
@@ -344,16 +374,20 @@ export function createFjolspil(doc, {
   /**
    * The lobby for a game (`game`, 'hals' or 'eitt'; `ai`, its character { name, avatar, add, remove }, or null): the seats
    * that are there, the room opened on first use. Resolves with { seats } at "Byrjum!", the guests not there dropped, and
-   * null at the X. A lobby already open gives its own promise.
+   * null at the X. A lobby already open gives its own promise. Söngur Slóeðlu's lobby gives `offer` (the avatars on offer),
+   * `ask` ('level'), `max` (seats, Egill's among them), `reserved` (avatars no guest may pick) and `note` ({ text, picture });
+   * every other game's lobby has none of them (each opening sets them afresh).
    */
-  function openLobby({ ai = null } = {}) {
+  function openLobby({ ai = null, offer = null, ask = null, max = null, reserved = [], note = null } = {}) {
     if (at.replaced) return Promise.resolve(null);
     if (at.pendingStart) return at.pendingStart.promise;
     openRoom();
     at.lastView.clear(); // the game before is over
+    at.lobbySong = { offer, ask, note, reserved: [...reserved] };
+    seats.setLimit(max ?? MAX_SEATS);
     const own = seats.list().find(seat => seat.kind === 'ai' && !seat.covered);
     if (own && own.avatar !== ai?.avatar) seats.removeAi(); // another game's character leaves the table
-    seats.reserve(ai ? [ai.avatar] : []);
+    seats.reserve([...reserved, ...(ai ? [ai.avatar] : [])]);
     const held = ai !== null && seats.list().some(seat => seat.guestId && seat.avatar === ai.avatar); // a guest keeps hers
     at.lobbyAi = held ? null : ai;
     at.pendingStart = deferred();
@@ -361,6 +395,19 @@ export function createFjolspil(doc, {
     showLobby();
     lobbyChanged();
     return at.pendingStart.promise;
+  }
+
+  /** Söngur Slóeðlu's lobby changes while open (Egill picks another dinosaur, two lanes, a song): only the keys given. */
+  function setLobby(change = {}) {
+    if (!at.lobbyOpen) return;
+    for (const key of ['offer', 'ask', 'note']) if (key in change) at.lobbySong[key] = change[key];
+    if ('max' in change) seats.setLimit(change.max ?? MAX_SEATS);
+    if ('reserved' in change) {
+      at.lobbySong.reserved = [...(change.reserved ?? [])];
+      seats.reserve([...at.lobbySong.reserved, ...(at.lobbyAi ? [at.lobbyAi.avatar] : [])]);
+    }
+    showLobby();
+    lobbyChanged();
   }
 
   // ---- Waiting for a guest ----------------------------------------------------------------------------------------
@@ -412,6 +459,7 @@ export function createFjolspil(doc, {
 
   return {
     openLobby,
+    setLobby,
     resume,
     get seats() { return seats; },
     get active() { return at.net !== null && !at.replaced; },
@@ -423,6 +471,12 @@ export function createFjolspil(doc, {
       acts.add(fn);
       return () => { acts.delete(fn); };
     },
+    /** fn(seat) at every time and act from a seated guest; returns the unsubscribe. */
+    onAlive(fn) {
+      alives.add(fn);
+      return () => { alives.delete(fn); };
+    },
+    sendSong,
     waitFor,
     closeGame,
     lobbyView,

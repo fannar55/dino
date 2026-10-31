@@ -1,0 +1,180 @@
+// The DJ of the Star Festival in Slóeðla's song game: a voice made for the game with ElevenLabs Voice Design (a fun, high-energy
+// Icelandic radio DJ; the owner picked "DJ 1" of twelve, 2026-10-29), recorded by tools/sloedla-dj.mjs into
+// assets/audio/sloedla/dj/. He calls out the run's milestones and the big moments, short and hyped, and never chats: the numbers
+// ("Tíu í röð!"), the tiers ("Flott!", "Vá!", "Stjörnukraftur!"), the crowd's clapping, a section that comes in big ("Allir
+// með!"), a friend coming back in ("Kambeðla er komin aftur!"), the start, and the end ("Fullkominn leikur!", "Fullt hús!", "Fimm
+// stjörnur!" ...). Each has a few ways of saying it, and he never says the same one twice in a row. While he talks, the music dips a little
+// under him, as on the radio (the page's `onTalk`).
+
+const NUMBERS = { 10: 'Tíu', 15: 'Fimmtán', 20: 'Tuttugu', 25: 'Tuttugu og fimm', 30: 'Þrjátíu', 35: 'Þrjátíu og fimm', 40: 'Fjörutíu', 45: 'Fjörutíu og fimm', 50: 'Fimmtíu', 60: 'Sextíu', 70: 'Sjötíu', 80: 'Áttatíu', 90: 'Níutíu', 100: 'Hundrað' };
+const milestone = n => {
+  const say = NUMBERS[n];
+  return n <= 50 ? [`${say} í röð!`, `${say} í röð, haltu áfram!`, `Já! ${say} í röð!`, `${say} í röð, æðislegt!`] : [`${say} í röð!`, `Já! ${say} í röð!`];
+};
+const friend = name => [`${name} er með!`, `${name} er komin aftur!`, `Velkomin aftur, ${name}!`, `Þarna er ${name}!`];
+
+/** Every line the DJ has: a key, and the ways of saying it (the first is the line the words on the screen match). */
+export const DJ_LINES = Object.freeze({
+  byrjun: ['Jæja krakkar, nú byrjar fjörið!', 'Halló halló! Eru allir tilbúnir?', 'Velkomin á Stjörnuhátíðina!', 'Hæ öll sömul, nú skulum við dansa!', 'Upp með hendurnar, hér kemur lagið!'],
+  ...Object.fromEntries(Object.keys(NUMBERS).map(n => [`r${n}`, milestone(Number(n))])),
+  flott: ['Flott!', 'Flott hjá þér!', 'Já, flott!', 'Glæsilegt!'],
+  va: ['Vá!', 'Vá, hvað þetta er flott!', 'Vá, vá, vá!', 'Þetta er geggjað!'],
+  // the last two say what it does: every note counts twice (the owner, 2026-10-31)
+  stjornukraftur: ['Stjörnukraftur!', 'Stjörnukraftur, allir saman!', 'Nú kemur stjörnukrafturinn!', 'Stjörnukraftur! Stjörnurnar skína!', 'Stjörnukraftur, tvöföld stig!', 'Allir saman, tvöföld stig!'],
+  klapp: ['Klöppum öll saman!', 'Allir að klappa!', 'Klöppum í takt!', 'Nú klöppum við!'],
+  allir: ['Allir með!', 'Allir saman nú!', 'Allir að dansa!', 'Nú syngja allir með!'],
+  kambedla: friend('Kambeðla'),
+  sloedla: friend('Slóeðla'),
+  thorsedla: friend('Þórseðla'),
+  fullkominn: ['Fullkominn leikur!', 'Vá, fullkominn leikur!', 'Fullkominn leikur, hver einasti tónn!', 'Fullkominn leikur, ótrúlegt!'],
+  fullthus: ['Fullt hús!', 'Fullt hús, þú náðir öllu!', 'Fullt hús, algjör stjarna!', 'Vá, fullt hús!'],
+  fimm: ['Fimm stjörnur!', 'Fimm stjörnur, vá!', 'Fimm stjörnur, þú ert stjarna!'],
+  naestum: ['Næstum fullt hús!', 'Næstum fullt hús, frábært!', 'Næstum allt, vel gert!'],
+  frabaert: ['Frábært!', 'Frábært hjá þér!', 'Þetta var frábært!', 'Algjör snilld!'],
+  velgert: ['Vel gert!', 'Vel gert hjá þér!', 'Flott spilað!', 'Mjög vel gert!'],
+  aftur: ['Spilum aftur saman!', 'Eigum við að spila aftur?', 'Prófum aftur saman!', 'Æfingin skapar meistarann!'],
+  // the menu (menu.js): who plays, which song, and a line for each song when it is picked (lag-<song id>, every song has one)
+  hverspilar: ['Hæ! Hver ætlar að spila í dag?', 'Halló! Hver ætlar að spila með mér?'],
+  hvadalag: ['Hvaða lag viltu spila?', 'Veldu lag!', 'Hvaða lag eigum við að taka?'],
+  // step 1's picks (who plays), and the wait while a song loads after "Spila!" (not after "Spilum aftur")
+  barn: ['Egill spilar, frábært!', 'Já, Egill spilar!'],
+  fullordinn: ['Fullorðinn spilar, til í þetta?', 'Nú spila þau fullorðnu!'],
+  thrjar: ['Allar þrjár eðlurnar með!', 'Kambeðla, Slóeðla og Þórseðla!'],
+  tvaer: ['Slóeðla og Þórseðla spila!', 'Tvær eðlur í dag!'],
+  tilbuin: ['Eru allir tilbúnir?', 'Gerum okkur klár!', 'Allir á sinn stað!'],
+  // "Spilum saman" (the band, spec 2026-10-31-sloedla-fjolspil §10): it is tapped, and a guest takes a dinosaur
+  saman: ['Fáum vini með! Skannið kóðann!', 'Hver vill spila með?'],
+  kom: ['Nýr spilari kominn!', 'Velkomin í hljómsveitina!'],
+  'lag-pixel': ['Pixlaferð! Beint inn í tölvuleikinn!', 'Pixlaferð, bíp bíp búp!', 'Pixlaferð! Hoppum milli pixlanna!'],
+  'lag-boogie': ['Rokkhopp! Hoppum og skoppum!', 'Rokkhopp, rokk og ról!', 'Rokkhopp! Upp með hendurnar!'],
+  'lag-fonk': ['Fönkhopp! Dillum okkur!', 'Fönkhopp, nú verður fönkí!', 'Fönkhopp! Allir að dilla sér!'],
+  'lag-stattu-upp': ['Blár ópal! Stattu upp, svo gott að það ætti að vera bannað!', 'Stattu upp, lagið hans pabba!', 'Stattu upp! Nú standa allir upp og dansa!'],
+});
+
+/** The recordings, one a way of saying a line: [{ id: 'r10-2', key: 'r10', text }]. */
+export const DJ_TAKES = Object.freeze(Object.entries(DJ_LINES).flatMap(([key, texts]) => texts.map((text, i) => ({ id: `${key}-${i + 1}`, key, text }))));
+
+const TIERS = ['', 'flott', 'va', 'stjornukraftur'];
+const FRIENDS = { a: 'sloedla', b: 'kambedla', c: 'thorsedla' };
+const END = ['aftur', 'velgert', 'velgert', 'flott', 'frabaert', 'fimm']; // by the stars won (0 to 5), as the words at the end
+export const DJ_QUIET = 4; // s at least between two of his lines, but for the big ones (milestones, Stjörnukraftur, the clapping, the end)
+export const DJ_WAIT = 1.6; // s a big line may wait for him to finish the one before (the game queues it), else it is dropped
+const HUSH = 0.06; // s: a line cut short (hush) fades this fast
+// He does not count every five (the owner, 2026-10-30): the chance he says a milestone after 0, 1, 2, 3 or more said in a row;
+// letting one go starts the count again. Fifty and a hundred he always says.
+const COUNT_AGAIN = [1, 0.75, 0.5, 0.35];
+const ALWAYS_COUNTED = new Set([50, 100]);
+
+/**
+ * The line for the end of a round (the screen shows its first words), the first that fits: "Fullkominn leikur!" (`perfect`,
+ * chart.js perfectGame), "Fullt hús!" (`full`, every note played: chart.js fullHouse), "Næstum fullt hús!" (one or two missed and
+ * at least four stars), else by the stars won ("Fimm stjörnur!", "Frábært!", "Flott!", "Vel gert!", "Spilum aftur saman!").
+ */
+export function endLineOf({ stars = 0, misses = 0, full = false, perfect = false }) {
+  if (perfect) return 'fullkominn';
+  if (full) return 'fullthus';
+  if (misses <= 2 && stars >= 4) return 'naestum';
+  return END[Math.max(0, Math.min(END.length - 1, stars))];
+}
+
+/**
+ * What the DJ says to `event` at song time `time` (a key of DJ_LINES), or null. Events: { kind: 'start' }, { kind: 'milestone',
+ * streak }, { kind: 'tier', tier }, { kind: 'clap' } (the crowd starts clapping along), { kind: 'big' }, { kind: 'rejoin', role,
+ * back } (`back`: she had played before and dropped out; her first notes of the song are no news), { kind: 'end', stars, misses,
+ * full, perfect } (`full`: every note played; `perfect`: fullkominn leikur). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
+ * one while he is still talking: DJ_WAIT), and a milestone mostly (COUNT_AGAIN, by `random`); the others only after DJ_QUIET s of
+ * quiet. `memory` keeps when he last spoke and how many milestones he has said in a row ({ last, counted }), updated as he goes.
+ */
+export function djCueOf(event, time, memory, random = Math.random) {
+  let line = null;
+  let big = false;
+  if (event.kind === 'start') line = 'byrjun';
+  else if (event.kind === 'milestone') {
+    line = DJ_LINES[`r${event.streak}`] ? `r${event.streak}` : null;
+    big = true;
+    if (line) {
+      const counted = memory.counted ?? 0;
+      if (!ALWAYS_COUNTED.has(event.streak) && !(random() < COUNT_AGAIN[Math.min(counted, COUNT_AGAIN.length - 1)])) {
+        memory.counted = 0;
+        return null;
+      }
+      memory.counted = counted + 1;
+    }
+  }
+  else if (event.kind === 'tier') { line = TIERS[event.tier] || null; big = event.tier === 3; }
+  else if (event.kind === 'clap') { line = 'klapp'; big = true; }
+  else if (event.kind === 'big') line = 'allir';
+  else if (event.kind === 'rejoin') line = event.back ? FRIENDS[event.role] ?? null : null;
+  else if (event.kind === 'end') { line = endLineOf(event); big = true; }
+  if (!line) return null;
+  if (!big && time - (memory.last ?? -Infinity) < DJ_QUIET) return null;
+  memory.last = time;
+  return line;
+}
+
+/**
+ * The DJ's voice: `play(key)` says one of the ways of saying that line (never the one he said last time), now (a hair late, as a
+ * voice answers), and calls `onTalk(at, seconds)` so the page can dip the music under him; it returns how long he talks, in s (0
+ * when none of its takes is loaded yet: it is just not heard). load() fetches and decodes the takes one at a time (the page calls
+ * it while the start card waits; the first way of each line first, so a round started early has them all).
+ */
+export function createDj({ context, output, src, level = 1.2, random = Math.random, onTalk = () => {} }) {
+  const bus = context.createGain();
+  bus.gain.value = level;
+  bus.connect(output);
+  const buffers = {}; // id -> AudioBuffer
+  const last = {}; // key -> the id said last
+  let current = null; // { source, level } of the line he is saying
+  let saidText = '';
+  let queue = Promise.resolve();
+  function load() {
+    const order = [...DJ_TAKES].sort((x, y) => Number(x.id.split('-').pop()) - Number(y.id.split('-').pop()));
+    for (const { id } of order) {
+      queue = queue.then(async () => {
+        try {
+          const bytes = await fetch(src(id)).then(r => r.arrayBuffer());
+          buffers[id] = await context.decodeAudioData(bytes);
+        } catch { /* that take stays quiet */ }
+      });
+    }
+    return queue;
+  }
+  function play(key, { delay = 0.05 } = {}) {
+    const ready = DJ_TAKES.filter(take => take.key === key && buffers[take.id]);
+    if (!ready.length) return 0;
+    const fresh = ready.length > 1 ? ready.filter(take => take.id !== last[key]) : ready;
+    const take = fresh[Math.floor(random() * fresh.length)];
+    last[key] = take.id;
+    saidText = take.text;
+    const buffer = buffers[take.id];
+    const at = context.currentTime + delay;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    const level = context.createGain();
+    source.connect(level);
+    level.connect(bus);
+    source.start(at);
+    const saying = { source, level };
+    current = saying;
+    source.onended = () => {
+      source.disconnect();
+      level.disconnect();
+      if (current === saying) current = null;
+    };
+    onTalk(at, buffer.duration);
+    return buffer.duration + delay;
+  }
+  /** Stops the line he is saying (a quick fade), so a new one never talks over it; the music comes back up. */
+  function hush() {
+    if (!current) return;
+    const now = context.currentTime;
+    current.level.gain.setValueAtTime(current.level.gain.value, now);
+    current.level.gain.linearRampToValueAtTime(0, now + HUSH);
+    current.source.stop(now + HUSH);
+    current = null;
+    onTalk(now, 0);
+  }
+  /** The words of the take he said last (for a bubble), or the empty string. */
+  const said = () => saidText;
+  return { load, play, hush, said, bus };
+}

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Söngur Slóeðlu — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./sloedla.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js"}}</script>
+<!-- Slóeðla's song game (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
+     The menu (menu.js, menu-view.js) on a stage in the evening Fen (stage.js: the cast in 3D; stage-flat.js: in pictures):
+     step 1 who plays, step 2 the song cards, the DJ in the corner; .sl's data-screen says which screen shows. The options are in
+     engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0.
+     "Spilum saman" (fjölspil): the QR card in #saman (band-lobby.js), each friend's name tag under her (.sl-tags). -->
+<!-- The QR code's encoder for the QR card (engine/fjolspil/qr.js): a classic script that defines the global qrcode. -->
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
+</head>
+<body>
+<main class="sl" data-screen="hver">
+  <canvas class="sl-field" id="field" aria-label="Söngur Slóeðlu"></canvas>
+  <canvas class="sl-stars3d" id="stars3d" aria-hidden="true"></canvas>
+
+  <!-- the menu's stage: the sky stands still; the forest, the floodlights and the cast move as one, as a camera would. The night's
+       shade lies on the forest only; the floodlights over it, and the friends in front, lit -->
+  <div class="sl-scene" aria-hidden="true">
+    <canvas class="sl-sky" data-sky></canvas>
+    <div class="sl-aurora"></div>
+    <div class="sl-world">
+      <div class="sl-bg"></div>
+    </div>
+    <div class="sl-night"></div>
+    <div class="sl-lights">
+      <div class="sl-beam" data-beam="b"></div><div class="sl-beam" data-beam="a"></div><div class="sl-beam" data-beam="c"></div><div class="sl-beam" data-beam="egill"></div>
+    </div>
+    <div class="sl-cast">
+      <canvas class="sl-stage" data-stage></canvas>
+      <div class="sl-flat" data-flat></div>
+      <!-- "Spilum saman": who plays each friend, at her feet (menu-view.js setBand): Egill, a guest's name, or Laus -->
+      <div class="sl-tags" data-tags hidden><span class="sl-tag" data-tag="b"></span><span class="sl-tag" data-tag="a"></span><span class="sl-tag" data-tag="c"></span></div>
+    </div>
+  </div>
+  <canvas class="sl-words" data-words aria-hidden="true"></canvas>
+  <!-- "Spilum saman": the QR card a phone scans, in the scene's top-right corner (band-lobby.js); half its size in step 2 -->
+  <section class="sl-saman" id="saman" aria-label="Spilum saman" hidden></section>
+
+  <div class="sl-dj" aria-live="polite">
+    <span class="sl-dj-pic"><img src="./assets/sloedla/valmynd/dj.webp" alt="DJ-inn"></span>
+    <p class="sl-dj-say" data-say></p>
+  </div>
+
+  <section class="sl-menu" id="start" data-step="hver">
+    <div class="sl-step" data-step-view="hver">
+      <h1 class="sl-title">Söngur Slóeðlu</h1>
+      <div class="sl-ui1">
+        <div class="sl-pick" role="group" aria-label="Hver spilar?">
+          <button type="button" class="sl-choice" data-option="stig=barn"><span class="sl-face" aria-hidden="true">🧒</span>Barn</button>
+          <button type="button" class="sl-choice" data-option="stig=fullordinn"><span class="sl-face" aria-hidden="true">🧑</span>Fullorðinn</button>
+        </div>
+        <div class="sl-pick" role="group" aria-label="Hve margar eðlur?">
+          <button type="button" class="sl-choice" data-option="brautir=3">3 eðlur</button>
+          <button type="button" class="sl-choice" data-option="brautir=2">2 eðlur</button>
+        </div>
+        <button type="button" class="sl-choice sl-together" data-together><span class="sl-qrmark" aria-hidden="true"></span><span data-together-word>Spilum saman</span></button>
+        <button type="button" class="sl-go" data-to-songs>Veljum lag →</button>
+      </div>
+    </div>
+
+    <div class="sl-step sl-step-songs" data-step-view="lag" hidden>
+      <div class="sl-ui2">
+        <div class="sl-cards" data-cards></div>
+        <div class="sl-row2">
+          <button type="button" class="sl-back" data-back>← Til baka</button>
+          <!-- "Spila!" keeps its place, unseen until a song is picked (.show) -->
+          <button class="sl-go sl-play" id="play" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fffaf0" stroke="#3b2f25" stroke-width="2" stroke-linejoin="round"/></svg>
+            <span>Spila!</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- the wait while a song loads (menu-view.js showLoading): its picture on a disc, a gold ring filling, then "Byrjum!" -->
+  <section class="sl-loading" id="loading" hidden>
+    <div class="sl-vignette"></div>
+    <div class="sl-disc" data-disc>
+      <div class="sl-disc-halo"></div><div class="sl-disc-face"></div><img data-disc-img alt=""><div class="sl-disc-ring"></div><span class="sl-disc-tip" data-disc-tip>★</span>
+    </div>
+  </section>
+
+  <!-- the end, over the round's own end (its stars and points): the words in the game's letters, two buttons on a dark floor -->
+  <section class="sl-end" id="end" hidden>
+    <div class="sl-end-floor"></div>
+    <canvas class="sl-end-words" data-end-words aria-hidden="true"></canvas>
+    <!-- a band's end: a line for each player (menu-view.js showEnd) -->
+    <ol class="sl-lines" data-lines aria-label="Hljómsveitin" hidden></ol>
+    <p class="sl-hide" id="end-words" aria-live="polite">Viltu spila aftur?</p>
+    <div class="sl-ui4">
+      <button class="sl-go sl-again" type="button" data-again>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Spilum aftur</span>
+      </button>
+      <button type="button" class="sl-choice sl-other" data-other><span class="sl-fan" data-fan aria-hidden="true"></span>Annað lag</button>
+    </div>
+  </section>
+  <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>
+  <div class="sl-flash" data-flash></div>
+</main>
+<script type="module" src="./engine/sloedla/lab.js"></script>
+</body>
+</html>
