@@ -93,6 +93,14 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   const headsOf = species => members(species).map(actor => actor.getNosePosition?.() ?? actor.root.position.clone().add(new THREE.Vector3(0, 1, 0)));
   const stand = species => { for (const actor of members(species)) { actor.clearLook?.(); actor.clearSupport?.(); actor.walk?.(false); } };
   const busy = () => action !== null;
+  // A cheer is for the child: the pair turns to face the camera (the way they stood, in to the tunnel, shows only their backs).
+  const faceCamera = (species, dt) => {
+    const cam = stage.camera();
+    for (const actor of members(species)) {
+      const target = Math.atan2(-(cam.z - actor.root.position.z), cam.x - actor.root.position.x), d = Math.atan2(Math.sin(target - actor.root.rotation.y), Math.cos(target - actor.root.rotation.y));
+      actor.root.rotation.y += d * (reduced ? 1 : 1 - Math.exp(-dt / .14));
+    }
+  };
 
   // ---- the light ----
   function startLight(beats) {
@@ -125,6 +133,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     } else if (a.phase === 'lit') {
       // The whole light has come; a moment, then the tunnel is lit and the pair cheers.
       if (a.age >= (reduced ? .2 : .55) && !a.litSaid) { a.litSaid = true; events.push({ type: 'tunnel-lit' }); for (const actor of members('stegosaurus')) actor.gesture?.('cheer'); }
+      if (a.litSaid) faceCamera('stegosaurus', dt);
       if (a.litSaid && a.age >= (reduced ? .6 : 2.3)) { holding.add('stegosaurus'); const id = a.id; action = null; events.push({ type: 'bridge-complete', id }); }
     }
   }
@@ -185,6 +194,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
         for (const point of headsOf('triceratops')) fx?.emit?.('stars', point.clone().add(new THREE.Vector3(0, .5, 0)), { count: 8 });
       }
     } else if (a.phase === 'cheer') {
+      faceCamera('triceratops', dt);
       if (a.age >= (reduced ? .5 : 1.5)) {
         // Back home: the same hops as the way there.
         const spots = members('triceratops').map(() => null).map((_, i) => ({ point: homePoint('triceratops', i), yaw: homeYaw('triceratops') }));

@@ -37,7 +37,8 @@ export function createLevelWorld(stage) {
   // The Kambeðlur's plates (engine/plate-glow.js): their glow is the light of the tunnel's task, raised a step with each tap; with none lit they look as they always did.
   const glows = [];
   const plates = {
-    setAll(level, options) { for (const one of glows) one.setAll(level, options); },
+    target: 0,
+    setAll(level, options) { this.target = level; for (const one of glows) one.setAll(level, options); },
     update(dt) { for (const one of glows) one.update(dt); },
   };
 
@@ -130,7 +131,7 @@ export function createLevelWorld(stage) {
     },
     /** The friends exist and have their LODs: the Kambeðlur's plates can glow (before the scene is compiled, so that their shader is made once). */
     afterBabies(actors) {
-      for (const actor of actors) if (actor.species === 'stegosaurus') { try { glows.push(addPlateGlow(actor, { colour: '#ffcf72', dull: 0 })); } catch (error) { console.warn('The plates cannot glow:', error.message); } }
+      for (const actor of actors) if (actor.species === 'stegosaurus') { try { { const plate = addPlateGlow(actor, { colour: '#ffcf72', dull: 0 }); plate.colour.multiplyScalar(1.35); glows.push(plate); } } catch (error) { console.warn('The plates cannot glow:', error.message); } }
     },
 
     // ---- the obstacles ----
@@ -191,7 +192,7 @@ export function createLevelWorld(stage) {
     // ---- the page's debug and the round's end ----
     getDebug() {
       return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: [],
-        stats: gorge ? { gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), ...interior.stats() } : null } : null };
+        stats: gorge ? { gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
     reset() { snapshot = null; taskScript = null; mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); },

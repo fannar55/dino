@@ -184,8 +184,8 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   function apply() {
     glow.uLight.value = level;
     // The pile is in the dark inside the bore until the light comes; it is that dim, and then lit.
-    glow.uDim.value = lerp(.035, 1, smooth(level * 1.25));
-    lamp.intensity = level * 26;
+    glow.uDim.value = lerp(.012, 1, smooth(level * 1.25));
+    lamp.intensity = level * 11;
     for (const crystal of crystals) crystal.material.emissiveIntensity = crystalLook[crystal.name].base + level * .55 + glint * 1.6;
     for (const crystal of crystals) crystal.material.color.setScalar(lerp(.45, 1, level));
   }

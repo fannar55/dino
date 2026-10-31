@@ -11,6 +11,10 @@
 //     [--hide-hud]            the ribbon, the buttons, Mosi's bubble and the tap targets are hidden: the pictures are the world alone (the level cards' pictures)
 //     [--unlocked '["steinagljufur"]']   the page's saved key minnisspil.unlocked (the levels the child has opened): the level picker's open state (a new profile has none: level 2 is locked)
 //     [--picker-check]        on the welcome card: reads the level cards (report.picker), taps the locked one (nothing may happen) and the other open one (the page must reload at its level; the run then goes on there)
+//     [--wrong tunnel=brontosaurus,rocks=brontosaurus]   the wrong friend the driver tries first at an obstacle (level 2; the level's own `wrongFriends` otherwise)
+//     [--wrong-all]           the story modes try every wrong friend the bubbles offer at each obstacle, one after the other (every one of level 2's goes), then the right one
+//     [--no-encode]           with --video: keep the frames and the report but do not make round.mp4 (a long encode, run it alone afterwards with --encode-only)
+//     [--encode-only]         makes round.mp4, and round-sound.mp4 with the sounds the page played laid under it, from the frames of an earlier --video run in --out; no browser
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
 //     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
 //     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
@@ -32,6 +36,8 @@
 //   search        only the search: every friend pair and every gift pair found (the first tries are deliberate misses, the gifts as in `full`), the
 //                 pictures of each, and a stop when every leaf is found and every gift pair is in the basket (report.allFound, report.gladeAll, the
 //                 picture `all-found`). Level 2 ends its round here until its steps are built; its worst framing (report.renderMax, report.takes) has all eight friends.
+//   (level 2, full: finds every pair, then the tunnel (a wrong friend, the Kambeðlur, three taps) and the rockfall (a wrong friend, the Þríhyrnur, three taps), and stops once the rocks are gone;
+//    the steps after them come with the next tasks. --first pteranodon finds the Flugeðlur first, so that they are a wrong friend at the rocks; report.level2 has the light and the pile.)
 //   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
 //   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
 //                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
@@ -110,7 +116,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -128,6 +134,10 @@ function parseArgs(argv) {
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--hide-hud') o.hideHud = true;
+    else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
+    else if (a === '--wrong-all') o.wrongAll = true;
+    else if (a === '--no-encode') o.encode = false;
+    else if (a === '--encode-only') o.encodeOnly = true;
     else if (a === '--picker-check') o.pickerCheck = true;
     else if (a === '--unlocked') o.unlocked = next();
     else if (a === '--level') { o.level = Number(next()); if (![1, 2].includes(o.level)) throw new Error('--level must be 1 or 2'); }
@@ -281,7 +291,7 @@ function killProfileProcesses(exe, userDir) {
 // wall-clock time (for the video).
 const TIMELINE_JS = `(() => {
   window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
-  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; const heard = new Set();
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; window.__audioLog = []; const heard = new Set();
   document.addEventListener('click', event => {
     const button = event.target.closest && event.target.closest('button'); if (!button) return;
     window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
@@ -315,7 +325,7 @@ const TIMELINE_JS = `(() => {
     // The render scale the game's dynamic resolution chose: the lowest it went and every change (it steps down when frames are slow and back up when there is headroom).
     if (Number.isFinite(d.resolutionScale)) { const r = (window.__res ||= { min: d.resolutionScale, last: d.resolutionScale, changes: [] }); r.min = Math.min(r.min, d.resolutionScale); if (d.resolutionScale !== r.last) { r.changes.push({ t: +(performance.now() / 1000).toFixed(1), from: r.last, to: d.resolutionScale }); r.last = d.resolutionScale; } }
     // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
-    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
+    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; if (entry.asset && entry.at) window.__audioLog.push({ asset: entry.asset, kind: entry.kind, at: entry.at, level: entry.level, rate: entry.rate, duration: +(entry.end - entry.start).toFixed(3) }); } }
     const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
     const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
     const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
@@ -412,6 +422,7 @@ const SNAPSHOT_JS = `(() => {
     wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null,
     cancel: !cancel.hidden && !cancel.disabled,
     blocked: d.bridge && d.bridge.blocked ? d.bridge.blocked.length : 0,
     cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
@@ -759,7 +770,7 @@ async function main() {
     report.blocked = []; report.blockedRetry = []; let blockedSeen = 0, retryWatch = null; // (the adventure's own list of walks it gave up)
     let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
     let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
-    const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
+    const wrongTried = {}; // the wrong friends each obstacle has had so far (one each by default: the branch, the log and the bark; --wrong-all tries every one the bubbles offer)
     const WRONG = LEVEL.wrongFriends ?? {}; // whom the driver tries first at each (level 1's log: the right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
     let barkTaps = 0, runTake = null, holdFrom = null, thinkUntil = 0;
     const thought = new Set();
@@ -890,6 +901,12 @@ async function main() {
         report.allFound = await ev(`(() => { const d = window.__demoStats; return { drawCalls: d.drawCalls, triangles: d.triangles, camera: d.camera.intent, babiesRendered: d.characterLod.filter(c => c.rendered).length, babiesVisible: d.cells.filter(c => c.actorVisible).length, tunnel: window.__memory.targets().find(t => t.id === 'tunnel') ?? null, gorge: window.__memory.stats().levelStats?.gorge ?? null }; })()`).catch(e => ({ error: e.message }));
         break;
       }
+      // Level 2 (full) stops here for now: the tunnel is lit, the rocks are gone and nobody moves (the next tasks carry the round on).
+      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.rocksFallen && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
+        report.finished = true; step('the rocks are gone and the tunnel is lit: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, caption: s.caption }); await sleep(2500);
+        report.level2 = await ev(`(() => { const d = window.__demoStats; return { tunnel: d.levelStats.tunnel, gorge: d.levelStats.gorge, targets: window.__memory.targets().filter(t => t.type === 'task'), story: window.__memory.story(), bridge: window.__memory.bridge(), drawCalls: d.drawCalls, triangles: d.triangles }; })()`).catch(e => ({ error: e.message }));
+        await shot('rocks-gone'); break;
+      }
       if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
         report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
       }
@@ -933,8 +950,8 @@ async function main() {
       if (s.story.kind === 'work' && s.story.target === 'bark' && s.story.available && !s.cam.held && !s.scene) { waited ||= await milestone('glow-bark', 'bark-glowing', 400); if (seen.has('glow-bark')) waited ||= await milestone('glow-bark-2', 'bark-glowing-later', 650); }
       if (s.arrow) waited ||= await milestone('arrow', 'gold-arrow', 200);
       if (s.who.open) waited ||= await milestone(`who-${s.who.asking}`, `who-${s.who.asking}`, 450);
-      if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(`fail-${s.bridge.failing}`, `fail-${s.bridge.failing}`, 500);
-      if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(`mosi-laugh-${s.bridge.asking}`, `mosi-laughs-${s.bridge.asking}`, 350);
+      if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(LEVEL.number > 1 ? `fail-${s.bridge.asking}-${s.bridge.failing}` : `fail-${s.bridge.failing}`, LEVEL.number > 1 ? `fail-${s.bridge.asking}-${s.bridge.failing}` : `fail-${s.bridge.failing}`, 500);
+      if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(LEVEL.number > 1 ? `mosi-laugh-${s.bridge.asking}-${s.bridge.failing}` : `mosi-laugh-${s.bridge.asking}`, LEVEL.number > 1 ? `mosi-laughs-${s.bridge.asking}-${s.bridge.failing}` : `mosi-laughs-${s.bridge.asking}`, 350);
       if (s.bridge.active === 'lift' && s.cam.shot === 'follow') waited ||= await milestone('bronto-walk', 'brontos-walk-to-branch', 500);
       if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone(`together-${s.bridge.active}`, `timeout-together-${s.bridge.active === 'roll' ? 'log' : s.bridge.active === 'lay' ? 'bark' : 'branch'}`, 300);
       if (s.bridge.branch === 'held' && !s.bridge.active && !s.landed && s.scene && s.cam.shot === 'hero') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
@@ -991,6 +1008,17 @@ async function main() {
       if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
       if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
       if (s.bridge.boardwalkBuilt) waited ||= await milestone('walkway', 'walkway-built', 600);
+      // Level 2's first two tasks: the dark tunnel before, each step of the light, the lit tunnel with the pile in it, each hit, the pile coming down and on its steps.
+      if (LEVEL.number === 2 && s.tunnel) {
+        if (s.story.kind === 'work' && s.story.target === 'tunnel' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('tunnel-dark', 'tunnel-dark-before', 700);
+        if (s.bridge.active === 'light') for (const [n, at] of [[1, .38], [2, .7], [3, .99]]) if (s.tunnel.light >= at - .04) waited ||= await milestone(`light-${n}`, `light-stage-${n}`, 450);
+        if (s.bridge.active === 'light' && s.tunnel.light >= .99 && s.cam.shot === 'hero') waited ||= await milestone('tunnel-lit-pile', 'tunnel-lit-the-pile', 1100);
+        if (s.bridge.tunnelLit && s.tunnel.light >= .99 && !s.bridge.active && !s.scene && !s.cam.held && !s.cam.moving && s.story.target === 'rocks') waited ||= await milestone('tunnel-lit-glade', 'tunnel-lit-glade-view', 500);
+        if (s.bridge.active === 'headbutt' && s.cam.shot === 'hero' && s.wait) waited ||= await milestone('pile-before', 'pile-before-the-hits', 350);
+        if (s.bridge.active === 'headbutt') for (const n of [1, 2, 3]) if (s.tunnel.pile >= n) waited ||= await milestone(`hit-${n}`, `headbutt-hit-${n}`, n === 3 ? 200 : 120);
+        if (s.bridge.active === 'headbutt' && s.tunnel.pile >= 3 && s.tunnel.falling) waited ||= await milestone('pile-falling', 'pile-falling-into-steps', 900);
+        if (s.bridge.rocksFallen && !s.tunnel.falling && !s.scene && !s.cam.held && !s.cam.moving) waited ||= await milestone('pile-fallen', 'pile-fallen-steps', 700);
+      }
       if (waited) continue;
 
       const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
@@ -1024,9 +1052,11 @@ async function main() {
       } else if (s.who.open && mayAct) {
         // The bubbles: at the branch, the log and the bark in the story modes one wrong friend first (at the branch the
         // Þríhyrnur, at the log the Kambeðlur, the only other free pair there, at the bark the Þórseðlur), then the right one.
-        const right = RIGHT[s.who.asking], wrong = s.who.candidates.find(sp => sp === WRONG[s.who.asking] && sp !== right) ?? s.who.candidates.find(sp => sp !== right);
-        const pick = story && !wrongDone.has(s.who.asking) && OBSTACLE_IDS.includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
-        if (pick === wrong && pick) wrongDone.add(s.who.asking);
+        const right = RIGHT[s.who.asking], tried = (wrongTried[s.who.asking] ??= new Set()), first = o.wrong?.[s.who.asking] ?? WRONG[s.who.asking];
+        const wanted = o.wrongAll ? s.who.candidates.filter(sp => sp !== right && !tried.has(sp)).sort((a, b) => (b === first) - (a === first)) : tried.size ? [] : [s.who.candidates.find(sp => sp === first && sp !== right) ?? s.who.candidates.find(sp => sp !== right)].filter(Boolean);
+        const wrong = wanted[0];
+        const pick = story && OBSTACLE_IDS.includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
+        if (pick === wrong && pick) tried.add(pick);
         if (pick) await act(`who-${pick}`, `pick ${pick} for the ${s.who.asking}${pick === right ? '' : ' (the wrong friend, on purpose)'}`);
         else if (s.cancel) { await ev(`document.getElementById('cancel-choice').click()`); step('close the bubbles: nobody there can do it'); }
       } else if (o.mode !== 'search' && s.story.kind === 'work' && s.story.available && s.story.target && mayAct && ['ready', 'won'].includes(s.phase) && !s.walking && Date.now() - lastAsk > 1500
@@ -1038,6 +1068,8 @@ async function main() {
           if (await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 12000, 'the gold arrow') >= 0) await milestone('arrow', 'gold-arrow', 150);
           continue;
         }
+        // (level 2: Mosi says what the tunnel and the rockfall are when they come; a child listens to him first, so the driver waits for his line to end)
+        if (LEVEL.number === 2 && !seen.has(`listened-${s.story.target}`)) { seen.add(`listened-${s.story.target}`); await sleep(600); await waitFor('(a => !a.current && !a.pending)(window.__memory.audio().speech)', 9000, "Mosi's line to end"); continue; }
         lastAsk = Date.now();
         if (OBSTACLE_IDS.includes(s.story.target)) mark(`${s.story.target}-start`);
         const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
@@ -1129,7 +1161,7 @@ async function main() {
     } catch (e) { report.giftsGlide = { error: e.message }; }
     try {
       // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
-      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
+      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds'); report.audioLog = await ev('window.__audioLog');
       const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => s.id === 'gifts3');
       report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts3: report.spoken.filter(s => s.id === 'gifts3').length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
         giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
@@ -1177,7 +1209,8 @@ async function main() {
   } finally {
     if (o.video) {
       await Promise.allSettled(frames.writes);
-      report.video = await makeVideo(framesDir, outDir, frames);
+      report.video = await makeVideo(framesDir, outDir, frames, { encode: o.encode });
+      if (o.encode && report.video.file) report.soundtrack = await makeSoundtrack(outDir, report, frames.stamps.find(Number.isFinite), report.video.videoSeconds);
       // Each mark's place in round.mp4: seconds after the first screencast frame; the timeline check's moments too.
       const first = frames.stamps.find(Number.isFinite);
       if (Number.isFinite(first)) for (const entry of report.marks ?? []) entry.video = +(entry.at - first).toFixed(1);
@@ -1251,7 +1284,7 @@ function analyseGlide(track, aspect, mosiAt) {
 // while the scene moves here), so the frames are laid out by the time the browser stamped on each (frames.txt, ffmpeg's
 // concat list) and the video plays at the speed the round was played. Without usable stamps it falls back to a plain
 // 15 fps sequence, and the report's captureSeconds against videoSeconds shows by how much that speed is off.
-async function makeVideo(framesDir, outDir, frames) {
+async function makeVideo(framesDir, outDir, frames, { encode = true } = {}) {
   const info = { frames: frames.n, file: null, bytes: null, captureSeconds: null, videoSeconds: null, timing: null };
   if (!frames.n) { info.error = 'the screencast sent no frames'; return info; }
   const stamps = frames.stamps;
@@ -1278,11 +1311,62 @@ async function makeVideo(framesDir, outDir, frames) {
     args = ['-framerate', String(VIDEO_FPS), '-i', path.join(framesDir, '%05d.jpg'), '-vf', pad];
     info.videoSeconds = +(frames.n / VIDEO_FPS).toFixed(1);
   }
-  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '23', file], { encoding: 'utf8', timeout: 10 * 60 * 1000 });
+  await fsp.writeFile(path.join(outDir, 'frames-stamps.json'), JSON.stringify(stamps));
+  if (!encode) { info.encoded = false; return info; }
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', file], { encoding: 'utf8', timeout: 60 * 60 * 1000 });
   if (r.status !== 0) { info.error = `ffmpeg failed: ${(r.stderr || r.error?.message || '').slice(0, 400)}`; return info; }
   info.file = path.relative(ROOT, file).replace(/\\/g, '/');
   info.bytes = fs.statSync(file).size;
   return info;
 }
 
-main().catch(e => { console.error(e); process.exit(2); });
+// The sounds the page played, laid under the video: each recorded cue of the audio log (its file, when it began by the wall clock, how loud and how fast) and each of Mosi's lines
+// (the speech log), mixed to one mono track in the file's own time (the screencast's first frame is 0) and muxed into round-sound.mp4. The music is left out: the owner
+// listens to the cues and the voice. The envelope of each cue is the page's own (full for 70 % of it, then down to nothing).
+async function makeSoundtrack(outDir, report, first, seconds) {
+  if (!Number.isFinite(first) || !(seconds > 0)) return { error: 'no first frame stamp' };
+  const RATE = 44100, total = Math.ceil((seconds + 2) * RATE), mix = new Float32Array(total), cache = new Map();
+  const pcm = file => {
+    if (!cache.has(file)) {
+      const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
+      cache.set(file, r.status === 0 ? new Float32Array(r.stdout.buffer.slice(r.stdout.byteOffset, r.stdout.byteOffset + r.stdout.length)) : null);
+    }
+    return cache.get(file);
+  };
+  const lay = (data, at, level, rate = 1, fade = true) => {
+    if (!data || !(at >= -1)) return false;
+    const start = Math.round(at * RATE), n = Math.floor(data.length / rate);
+    for (let i = 0; i < n; i++) {
+      const j = start + i; if (j < 0 || j >= total) continue;
+      const x = i * rate, k = Math.floor(x), f = x - k, value = (data[k] ?? 0) * (1 - f) + (data[k + 1] ?? 0) * f, u = i / n;
+      mix[j] += value * (fade && u > .7 ? level * Math.pow(.0001 / Math.max(level, .0002), (u - .7) / .3) : level);
+    }
+    return true;
+  };
+  const cueFile = id => ['gorge/', ''].map(dir => path.join(ROOT, 'remake/assets/audio/memory/soundscape', dir, id + '.mp3')).find(file => fs.existsSync(file));
+  let cues = 0, voices = 0;
+  for (const cue of report.audioLog ?? []) { const file = cueFile(cue.asset); if (file && lay(pcm(file), cue.at / 1000 - first, cue.level ?? .5, cue.rate ?? 1)) cues++; }
+  for (const line of report.spoken ?? []) { const file = path.join(ROOT, 'remake/assets/audio/memory', line.id + '.mp3'); if (line.at && fs.existsSync(file) && lay(pcm(file), line.at / 1000 - first, .74, 1, false)) voices++; }
+  let peak = 0; for (const v of mix) peak = Math.max(peak, Math.abs(v));
+  if (peak > .95) for (let i = 0; i < mix.length; i++) mix[i] *= .95 / peak;
+  const track = path.join(outDir, 'soundtrack.m4a'), silent = path.join(outDir, 'round.mp4'), sound = path.join(outDir, 'round-sound.mp4');
+  let r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-f', 'f32le', '-ar', String(RATE), '-ac', '1', '-i', '-', '-c:a', 'aac', '-b:a', '128k', track], { input: Buffer.from(mix.buffer), maxBuffer: 1 << 28 });
+  if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
+  r = spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', silent, '-i', track, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', sound], { encoding: 'utf8', timeout: 20 * 60 * 1000 });
+  if (r.status !== 0) return { error: String(r.stderr).slice(0, 300) };
+  return { file: path.relative(ROOT, sound).replace(/\\/g, '/'), cues, voices, peak: +peak.toFixed(2), seconds: +seconds.toFixed(1) };
+}
+
+// --encode-only: the video and its sound from the frames of an earlier --video run (--no-encode) in --out, with no browser.
+async function encodeOnly(o) {
+  const outDir = path.resolve(ROOT, o.out), report = JSON.parse(await fsp.readFile(path.join(outDir, 'report.json'), 'utf8'));
+  const framesDir = path.join(outDir, 'frames'), names = (await fsp.readdir(framesDir)).filter(name => name.endsWith('.jpg')), stamps = JSON.parse(await fsp.readFile(path.join(outDir, 'frames-stamps.json'), 'utf8'));
+  const frames = { n: names.length, stamps };
+  report.video = await makeVideo(framesDir, outDir, frames, { encode: true });
+  if (report.video.file) report.soundtrack = await makeSoundtrack(outDir, report, stamps.find(Number.isFinite), report.video.videoSeconds);
+  await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+  console.log('Video:', JSON.stringify(report.video), 'Sound:', JSON.stringify(report.soundtrack));
+}
+
+if (process.argv.includes('--encode-only')) encodeOnly(parseArgs(process.argv.slice(2))).catch(e => { console.error(e); process.exit(2); });
+else main().catch(e => { console.error(e); process.exit(2); });

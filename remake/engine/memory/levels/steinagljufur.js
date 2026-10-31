@@ -174,6 +174,8 @@ export const STEINAGLJUFUR = freezeLevel({
       note: 'Gullna örin bendir á næsta verkefni. Yfirlit sýnir allt ævintýrið. Þú mátt alltaf taka þér hlé.',
       resume: 'Aftur í feluleikinn',
     },
+    // (the line over the ribbon while a pair holds something up: the Kambeðlur hold the light from when the tunnel is lit until everyone is through)
+    holding: 'Kambeðlurnar halda ljósinu',
     loading: { title: 'Gljúfrið vaknar…', copy: 'Mosi finnur ungana.' },
     aria: { targets: 'Lauf, vinapör og leiðin upp á Sólarsylluna', journey: 'Fjögur verkefni á leiðinni' },
   },

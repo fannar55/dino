@@ -69,6 +69,8 @@ nav{display:flex;gap:8px;pointer-events:auto}
 .world-target.is-guided:after{content:'';position:absolute;left:calc(50% - 16px);top:-62px;width:32px;height:32px;border-right:9px solid #ffd45c;border-bottom:9px solid #ffd45c;border-radius:5px;transform:rotate(45deg);filter:drop-shadow(0 3px 0 #6a4a22) drop-shadow(0 0 10px #fff3b0);animation:point-way 1.3s ease-in-out infinite;pointer-events:none}
 .task-badge{position:absolute;left:50%;top:4%;transform:translate(-50%,-50%);display:grid;place-items:center;width:49px;height:49px;border:2px solid #fff0b1;border-radius:17px 20px 17px 15px;background:linear-gradient(145deg,#ffdf86,#e9ac46);color:#604727;box-shadow:0 4px 0 #906535,0 8px 17px #283b3040,inset 0 2px 0 #fff2c4;opacity:0;transition:opacity .18s,scale .18s;pointer-events:none;scale:.9}
 .task-badge svg{width:31px;height:31px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+/* level 2's badges are renders of its own models (assets/memory/bord2/badge-*.webp), not drawings */
+.task-badge img{width:40px;height:40px;object-fit:contain;display:block;pointer-events:none}
 .choice-visible .task-badge{opacity:1;scale:1}
 .task-target.choice-visible:before{content:'';position:absolute;left:15%;right:15%;bottom:10%;height:18%;border:2px solid #ffe494a6;border-radius:50%;box-shadow:0 0 22px #ffe59477}
 .lower-branch .branch-arrow{transform:rotate(180deg);transform-origin:16px 11.5px}

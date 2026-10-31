@@ -62,7 +62,7 @@ const DARK_GLSL = `
   float tunnelSeen = clamp(max(1.0 - smoothstep(0.1, ${REACH.day.toFixed(2)}, tunnelD), uLight * (1.0 - smoothstep(0.2 * tunnelReach, tunnelReach, tunnelD))), 0.0, 1.0);
   diffuseColor.rgb *= mix(1.0, mix(${REACH.floor.toFixed(2)}, 1.0, tunnelSeen), tunnelIn);`;
 const WARM_GLSL = `
-  totalEmissiveRadiance += vec3(1.0, 0.6, 0.24) * uLight * 0.3 * tunnelIn * (1.0 - smoothstep(0.0, tunnelReach, tunnelD)) * smoothstep(0.1, 0.9, tunnelD);`;
+  totalEmissiveRadiance += vec3(1.0, 0.66, 0.28) * uLight * 0.2 * tunnelIn * (1.0 - smoothstep(0.0, tunnelReach, tunnelD)) * smoothstep(0.1, 0.9, tunnelD);`;
 /** The bore of a tunnel material goes dark: its lining dims with the depth (a lit tunnel grows light with `glow.uLight`), the rest of the rock is as it was. */
 function darkInside(material, glow) {
   material.onBeforeCompile = shader => {
@@ -71,7 +71,7 @@ function darkInside(material, glow) {
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTunnel;\nuniform float uLight;')
       .replace('#include <color_fragment>', `#include <color_fragment>${DARK_GLSL}`).replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>${WARM_GLSL}`);
   };
-  material.customProgramCacheKey = () => 'gorge-tunnel-dark-v1';
+  material.customProgramCacheKey = () => 'gorge-tunnel-dark-v2';
 }
 
 /**

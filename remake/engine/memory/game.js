@@ -75,6 +75,9 @@ function applyLevelDom() {
   if ([...intro.childNodes].map(node => node.nodeName === 'BR' ? '\n' : node.nodeValue).join('') !== copy.welcome.lines.join('\n')) {
     intro.replaceChildren(...copy.welcome.lines.flatMap((line, index) => (index ? [document.createElement('br'), line] : [line])));
   }
+  // The line that says who is holding something up ("Þórseðlurnar halda greininni"; level 2's: the Kambeðlur and the light): its words follow the arrow.
+  const holding = copy.holding && [...$('holding').childNodes].find(node => node.nodeType === 3);
+  if (holding && holding.nodeValue !== ` ${copy.holding}`) holding.nodeValue = ` ${copy.holding}`;
   text('#help-dialog .eyebrow', copy.help.eyebrow); text('#help-dialog h2', copy.help.title); text('#help-dialog > p', copy.help.note); text('#help-dialog [data-resume]', copy.help.resume);
   const steps = document.querySelector('#help-dialog ol');
   if ([...steps.children].map(item => item.textContent).join('\n') !== copy.help.items.join('\n')) {
