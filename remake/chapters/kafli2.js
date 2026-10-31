@@ -2,17 +2,21 @@
 // (docs/superpowers/specs/2026-10-31-kafli-2-bod-til-uggedlu-design.md): this one is the way to Uggeðla, the Fen part is chapter 3
 // (kafli3.js). Scenes 1 and 2 of the old chapter are kept as they were (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-
 // design.md): from Kambeðla's fern glade Mosi and Egill ride out of the forest and down the Fenjaslóð, and count Þórseðla's ten
-// water-filled footprints in the mud, one to ten. The scenes that follow (the flooded channel, the fishing, Uggeðla's star and the
-// ferry) are built in the next tasks of the plan; until then the chapter ends in the trail: after Mosi's walk on down it the picture
-// fades to black and the script ends.
+// water-filled footprints in the mud, one to ten. The trail leads on to Síkið, a channel flooded over its end, where Uggeðla lies
+// hidden in the reed. The scenes there (the sail, the fishing, her star and the ferry) are built in the next tasks of the plan; until
+// then the chapter ends in Síkið: Mosi walks down the path to the water and the picture fades to black and the script ends.
 //
-// Two places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m, Egill
-// 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late morning sun (engine/looks.js: lateMorning) comes from
-// heading 150 at 26 degrees, a little lower than chapter 1's.
+// Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m, Uggeðla
+// 14 m, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late morning sun (engine/looks.js: lateMorning)
+// comes from heading 150 at 26 degrees, a little lower than chapter 1's.
 //   burknalaut  Kambeðla's fern glade, chapter 1's own (its layout and its shots, so it grows as the child left it), where chapter 1
 //               ended: Mosi on its north-east side facing her across it, Egill in the saddle on his back, her plates alight.
 //   fenjaslod   the trail out of the forest and down into the Fen, with Þórseðla's ten footprints in the mud.
-// The trail's pieces are in kafli2-trail.js (the prints and the counting). The Fen the trail leads to is chapter 3's.
+//   siki        the flooded channel in the Fen's look: the path goes under the water, Uggeðla's reed bed across it, the channel 50 m to
+//               the hummocks, and Þórseðla far off beyond them, her head over the trees. Uggeðla and Þórseðla are chapter actors, made
+//               with the others before the start button and hidden until the scene comes there.
+// The trail's pieces are in kafli2-trail.js (the prints and the counting), Síkið's in kafli2-siki.js. The Fen the channel leads to is
+// chapter 3's.
 import { chapter as kafli1 } from './kafli1.js';
 import { createSaddle, ride } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
@@ -21,8 +25,11 @@ import {
   TRAIL_PATH, TRAIL_PRINTS, TRAIL_BARE, PRINT_SIZE, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot,
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
+import { SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, arriveInSiki } from './kafli2-siki.js';
+import { createBerryBushes } from '../world/props/berries.js'; // (the warm-up's throwaways)
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
+import { ringsFor } from '../engine/neck-ride.js';
 
 // ---------------------------------------------------------------------------------------------
 // Burknalautin, the fern glade: chapter 1's
@@ -118,8 +125,18 @@ const WORDS = {
 function* story(s, c) {
   yield* leaving(s, c);
   yield* footprints(s, c);
-  // The chapter ends here for now (the channel, the fishing, Uggeðla's star and the ferry come in the next tasks): the picture fades
-  // out while Mosi walks on down the trail, and the script ends.
+  yield* intoSiki(s, c);
+}
+
+// The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel, and Mosi walks down it to
+// the water. The chapter ends here for now (the sail, the fishing, Uggeðla's star and the ferry come in the next tasks): the picture
+// holds on him at the flooded path, fades to black, and the script ends.
+function* intoSiki(s, c) {
+  yield* goTo(s, c, 'siki', () => arriveInSiki(s, c));
+  yield c.mosi.walkTo(SIKI_WALK.slice(1), { speed: 1.2 });
+  yield c.mosi.turnTo(MOSI_BANK.heading, { rate: 40 });
+  yield s.camera.cut('siki_flooded');
+  yield s.wait(3);
   yield s.fade(1, 0.8);
 }
 
@@ -273,11 +290,19 @@ export const chapter = {
       shots: TRAIL_SHOTS,
       warmUp: ['trail_wide', 'trail_fog'],
     },
+    siki: {
+      layout: SIKI_LAYOUT,
+      shots: SIKI_SHOTS,
+      warmUp: ['siki_arrive', 'siki_sail', 'siki_hummocks'],
+    },
   },
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_GLADE },
     egill: { url: '../assets/characters/egill.glb', ...MOSI_GLADE }, // on Mosi's back: the script seats him in the saddle
     kambedla: { url: '../assets/characters/stegosaurus.glb', ...KAMBEDLA_GLADE },
+    // Síkið's two, hidden until the scene comes there (the script hides them as it starts): where Síkið has them
+    uggedla: { url: '../assets/characters/spinosaurus.glb', ...UGGEDLA_REED },
+    thorsedla: { url: '../assets/characters/brontosaurus.glb', ...THORSEDLA_FAR },
   },
   // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3).
   cast: {
@@ -288,9 +313,9 @@ export const chapter = {
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.
   startShot: 'glade_leaving',
-  // The trail is built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare; main.js): the
-  // script's first fade from black waits for it, and a change of place to it waits for its build.
-  prepare: ['fenjaslod'],
+  // The trail and then Síkið are built once the start button shows, a slice at a time, and kept, hidden (engine/locations.js: prepare;
+  // main.js): the script's first fade from black waits for the trail, and the change of place to either waits for its build.
+  prepare: ['fenjaslod', 'siki'],
   // The first animal the chapter puts in the book (the dragonfly over the trail's third print): main.js shows its card's drawing once
   // where nobody sees a frame stall, so its flight into the book is not the first drawing with the hand-drawn filter.
   firstFind: 'dragonfly',
@@ -299,7 +324,8 @@ export const chapter = {
    * What the chapter draws once where nobody sees a frame stall (engine/warm-up.js): behind the start button, and again under the
    * black as it comes to a place. `place` is the place it is drawn for (main.js), and each place brings what shows there first, so
    * each black waits for its own: the glade, where the chapter starts, only the actors, so the start button waits for no more than
-   * the glade shows; the trail a print with its water, its digit up and a splash, and its animals. No place (null): all of it.
+   * the glade shows; the trail a print with its water, its digit up and a splash, and its animals; Síkið a berry bush with a bunch
+   * picked (the hummocks' bushes). No place (null): all of it.
    */
   warmUp(world, { place = null } = {}) {
     const actors = [...world.actors.values()].map(actor => actor.root);
@@ -308,14 +334,21 @@ export const chapter = {
     const ground = (x, z) => [x, world.heightAt(x, z), z];
     const objects = [...actors], throwaways = [];
     const keep = (made, object) => { objects.push(object); throwaways.push(made); };
-    const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }], size: PRINT_SIZE });
-    prints.count(0);
-    prints.splash(0);
-    keep(prints, prints.group);
-    const critters = createCritters(world, {
-      spots: PRINT_ANIMALS.map(({ kind }, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
-    });
-    keep(critters, critters.group);
+    if (place !== 'siki') {
+      const prints = createMudPrints(world, { prints: [{ position: [0, 0.5], heading: 0 }], size: PRINT_SIZE });
+      prints.count(0);
+      prints.splash(0);
+      keep(prints, prints.group);
+      const critters = createCritters(world, {
+        spots: PRINT_ANIMALS.map(({ kind }, i) => ({ name: `warm-up-${kind}`, kind, position: ground(i * 0.6 - 2, 1.5), heading: 0 })),
+      });
+      keep(critters, critters.group);
+    }
+    if (place === null || place === 'siki') {
+      // a red and a blue bush, as many as Síkið has (their shader is one a number of bushes: the Fen's warm-up does the same)
+      const berries = createBerryBushes(world, { bushes: [{ kind: 'red', count: 1 }, { kind: 'red', count: 1 }, { kind: 'blue', count: 1 }].map((b, i) => ({ ...b, position: ground(2 + i, 2) })) });
+      keep(berries, berries.group);
+    }
     return {
       objects, shots,
       dispose() {
@@ -330,11 +363,15 @@ export const chapter = {
     const mosi = s.actor('mosi');
     const egill = s.actor('egill');
     const kambedla = s.actor('kambedla');
+    const uggedla = s.actor('uggedla');
+    const thorsedla = s.actor('thorsedla');
     const world = mosi.raw.world;
     world.chapterTimeline = [];
+    uggedla.raw.root.visible = thorsedla.raw.root.visible = false; // they wait for Síkið (arriveInSiki)
     egill.raw.footprintScale = EGILL_FOOTPRINT;
-    const c = { s, world, mosi, egill, kambedla, talking: false, saying: 0, printLog: [] };
+    const c = { s, world, mosi, egill, kambedla, uggedla, thorsedla, talking: false, saying: 0, printLog: [] };
     c.say = (speaker, id, options) => say(s, c, speaker, id, options); // for the trail's pieces
+    c.ring = ringsFor(world, { most: 3 }); // the script's rings on the water (Þórseðla's falling leaves, in Síkið)
     world.chapterState = c; // what the scenes share, for captures and probes
     // As chapter 1 ended: Egill in the saddle on Mosi's back and Kambeðla's plates all alight.
     c.saddle = createSaddle(mosi.raw);

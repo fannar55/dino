@@ -162,9 +162,9 @@ test('Síkið as data: the path goes under the channel, a ferry line of 50 m run
   for (const name of SIKI_SHOT_NAMES) {
     assert.ok(siki.shots[name], `the shot ${name} is set in Síkið`);
   }
-  const ground = groundOf('siki');
+  const ground = shapeGround({ chapter }, { ...layout, shots: siki.shots }, layout.seed); // the ground as the forest digs it
   const shape = waterShape(layout.water);
-  const depth = ([x, z]) => ground.layout.water.depthAt(x, z); // on the ground as the forest digs it
+  const depth = ([x, z]) => ground.layout.water.depthAt(x, z);
   // The path comes in from the north-west and the water has flooded its last four metres.
   const { path } = layout;
   assert.ok(shape.signedAt(...path[0]) > 8, 'the path starts on dry ground');
