@@ -272,7 +272,7 @@ test('winners: [0,2] when seats 0 and 2 tie on most pairs', () => {
 });
 
 // Minds play whole games; the same games serve the end-of-game and the legal-ask checks.
-function playGame(seed, skill) {
+function playGame(seed, skill, onStep = null) {
   const random = seededRandom(`veiddu-${skill}-${seed}`);
   let { game, events } = newGame({ random });
   const minds = [0, 1, 2].map(seat => createMind(seat, { random }));
@@ -300,6 +300,7 @@ function playGame(seed, skill) {
     game = out.game;
     all.push(...out.events);
     see(out.events, game);
+    onStep?.(game);
   }
   return { game, acts, choices, events: all, violations };
 }
@@ -439,4 +440,33 @@ test('bestAsk guesses without a clue and sends the child fishing when the pond c
   assert.equal(bestAsk(fishing, 0).reason, 'fish');
   const asked = bestAsk(ask(game, 0, 1, 'snigill').game, 0);
   assert.notEqual(asked.kind, 'snigill', 'the pair is laid: no longer in the hand');
+});
+
+// The log as another seat's private card ids hide it: only the seats named keep their own card ids.
+const masked = (game, keep) => ({
+  ...game,
+  log: game.log.map(e => (['deal', 'fish', 'refill'].includes(e.type) && !keep.includes(e.seat) ? { ...e, cardId: 'hidden' } : e)),
+});
+
+test('bestAsk gives the same advice whichever card another seat fished', () => {
+  const { game: start } = table(['brunnklukka-2', 'froskur-2', 'skjaldbaka-2']);
+  let game = fish(ask(start, 0, 2, 'froskur').game, 0).game;
+  game = ask(game, 1, 2, 'snigill').game;
+  game = fish(game, 1).game;
+  assert.ok(game.log.some(e => e.type === 'fish' && e.seat === 1), 'the other seat fished');
+  assert.deepEqual(bestAsk(masked(game, [0]), 0), bestAsk(game, 0));
+  assert.deepEqual(bestAsk(masked(game, [0]), 0), { kind: 'snigill', target: 1, reason: 'they-asked' });
+
+  let advice = 0;
+  for (let seed = 0; seed < 30; seed++) {
+    playGame(seed, 0.5, game => {
+      if (isOver(game)) return;
+      for (const seat of [0, 1, 2]) {
+        const real = bestAsk(game, seat);
+        assert.deepEqual(bestAsk(masked(game, [seat]), seat), real, `seed ${seed}, seat ${seat}`);
+        if (real.reason === 'they-asked' || real.reason === 'mosi-asked') advice++;
+      }
+    });
+  }
+  assert.ok(advice > 100, `${advice} pieces of advice came from what the others asked`);
 });

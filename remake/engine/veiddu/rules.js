@@ -11,7 +11,8 @@
 //   asked          in phase 'fish' after a no: { seat, target, kind }, what was asked; otherwise null
 //   winners        the seats with the most pairs once the game is over, otherwise null
 //   pondEmptySaid  "the pond is empty" has been said; from then on a no passes the turn instead of sending the asker fishing
-//   log            every event so far, in order: the public record the computer players' memories are built from (minds.js)
+//   log            every event so far, in order: what Mosi's advice (bestAsk in minds.js) is worked out from. It holds the private
+//                  card ids of deal, fish and refill, so a guest view of the game (Fjölspil) must never send it to a phone
 //
 // Every act returns { game, events }. The events, in the order they happen:
 //   deal { seat, cardId }        pair { seat, kind, cardIds }      ask { seat, target, kind }

@@ -14,8 +14,8 @@ import { isOver, legalTargets } from './rules.js';
 
 export const SEAT = Object.freeze({ child: 0, uggedla: 1, mosi: 2 });
 
-/** The skill the computer players begin with in a new save (the simulation in tools/veiddu-sim.mjs set it). */
-export const VEIDDU_SKILL_START = 0.35;
+/** The skill the computer players begin with in a new save: the child model wins 50.5% of 4000 simulated games at it (tools/veiddu-sim.mjs). */
+export const VEIDDU_SKILL_START = 0.2;
 
 const BEHIND = 3; // the child is this many pairs behind the leader
 const EASE = 0.3; // how much milder the minds are then
@@ -75,6 +75,9 @@ function learn(memory, me, event) {
       break; // deal, fish, refill, pond-empty, out, over: nothing that everyone saw
   }
 }
+
+// The events everyone at the table saw; the card ids of the others (deal, fish, refill) are private to their seat.
+const PUBLIC = new Set(['ask', 'no', 'give', 'pair', 'out', 'turn', 'pond-empty']);
 
 const copyFacts = facts => [...facts.values()].map(fact => ({ ...fact }));
 
@@ -143,7 +146,8 @@ export function createMind(seat, { random = Math.random } = {}) {
 
 /**
  * The best ask for `seat` (the child), from everything that was said so far (the game's log) and with no forgetting: Mosi's
- * advice and the idle hint. { kind, target, reason }, with reason
+ * advice and the idle hint. It reads only the public events of the log, never the card ids another seat fished, drew or was dealt.
+ * { kind, target, reason }, with reason
  *   'they-asked'  a seat other than Mosi asked for a kind in the hand: ask that seat (the latest ask comes first)
  *   'mosi-asked'  Mosi (seat 2) asked for it
  *   'guess'       nobody has: a kind with the most copies unseen, from a seat that has not said no to it and has the most cards
@@ -158,7 +162,7 @@ export function bestAsk(game, seat) {
     return { kind: null, target: null, reason: 'fish' };
   }
   const memory = newMemory();
-  for (const event of game.log) learn(memory, seat, event);
+  for (const event of game.log) if (PUBLIC.has(event.type)) learn(memory, seat, event);
 
   const [holder] = knownHolders(memory, game, seat, () => true);
   if (holder) return { kind: holder.kind, target: holder.seat, reason: holder.seat === SEAT.mosi ? 'mosi-asked' : 'they-asked' };
