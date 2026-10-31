@@ -47,6 +47,9 @@
         "snigillinn",
         "Snigillinn"
       ],
+      "except": [
+        "snigil"
+      ],
       "recipes": {
         "hratt": {
           "note": "Sent eins og það er skrifað. Eleven segir þá oft „snill“ eða með hörðu g."
