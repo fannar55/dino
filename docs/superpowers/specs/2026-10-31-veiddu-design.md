@@ -163,7 +163,7 @@ prefers-reduced-motion). Ný síða: `veiddu.css`. Mið: spjaldtölva á hlið
 - **Þegar barnið er spurt** („Áttu frosk?“): barnið svarar sjálft.
   - Eigi það dýrið pikkar það á spilið til að gefa það (Egill: „Gjörðu svo
     vel!“). Pikk á rangt spil vaggar mjúklega. Eftir 4 s lýsir rétta spilið og
-    eftir 8 s segir Mosi „Þú átt frosk! Pikkaðu á hann.“
+    eftir 8 s segir Mosi „Þú átt þetta dýr! Pikkaðu á það.“
   - Eigi það ekki dýrið birtist stór hnappur, „Farðu að veiða!“ (Egill segir
     það).
   
