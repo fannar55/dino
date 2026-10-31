@@ -38,6 +38,34 @@ spyrja skýið um hvert þeirra næst þegar leikurinn opnast. Kóðinn, síður
 hvert sinn, svo ný útgáfa nær þeim strax. Gallinn: ef hljóð eða mynd er skipt út undir sama nafni getur gamla útgáfan
 heyrst eða sést í allt að sólarhring á tæki sem hafði hana. Þá dugar að hreinsa gögn síðunnar í vafranum.
 
+## Forritið og án nets
+
+Mosa má setja upp sem forrit: „Setja upp“ í Chrome eða Edge á Android og PC, „Bæta á heimaskjá“ í Safari á iPad. Í uppsetta
+forritinu sækir leikurinn sig allan í tækið, um 195 MB, og línan undir Byrja segir hve mikið er komið („Sæki leikinn í tækið
+… 40 %“, svo „Tilbúinn án nets ✓“). Eftir það spilast allur leikurinn án nets nema Fjölspil, sem segir „Fjölspil þarf net“.
+Í venjulegum flipa er ekkert sótt.
+
+`stage.mjs` skrifar listann `site/remake/offline.json` (`src/offline-list.mjs`): hverja skrá með stærð og fingrafari, og
+útgáfu sem breytist ef einhver skrá breytist. Ný útgáfa berst því sjálf: næst þegar forritið opnast á neti sér það nýjan
+lista, sækir aðeins skrárnar sem breyttust („Sæki nýja útgáfu … 40 %“) og skiptir yfir á fyrsta skjánum, aldrei í miðjum
+leik. Eitt fullt niðurhal er um 1.800 beiðnir, þar af um 800 hljóð í gegnum Workerinn, langt undir 100.000 á dag.
+
+Neyðarhemill, ef forritið festist í slæmri útgáfu:
+
+```
+node stage.mjs --burt
+wrangler deploy
+```
+
+Þá segir listinn aðeins `{"burt":true}`. Hvert tæki eyðir þá geymslunni, afskráir service workerinn og spilar af netinu eins
+og vefsíða næst þegar það opnast á neti. Notaðu `wrangler deploy` hér, ekki `npm run deploy`, sem setur saman aftur án
+hemilsins, og ekki `npx`, sem gæti reynt að sækja wrangler. Til að kveikja aftur er sent upp án `--burt` (`npm run deploy`).
+Lagfærður `remake/sw.js` dugar líka: vafrinn ber hann saman við skýið við hverja ræsingu á neti, svo hann nær í hvert tæki
+næst þegar það opnast.
+
+iPad geymir forritið á heimaskjánum sér, aðskilið frá Safari, með sína eigin geymslu og sínar eigin stjörnur. Niðurhal í
+Safari-flipa nýtist því ekki forritinu, og stjörnur úr Safari fylgja ekki yfir í það.
+
 ## Villuskrá
 
 `[observability]` í `wrangler.toml` kveikir á Workers Logs: hver beiðni, svar hennar og hver villa sjást í mælaborði
