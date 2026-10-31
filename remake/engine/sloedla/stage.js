@@ -14,6 +14,8 @@ const DIM = 0.3; // the colour of a friend out of the round (as a sleeping frien
 const CROSSFADE = 0.3; // s from one move to the next (0.25 into the dance)
 const DROP = { height: 0.6, time: 0.4, land: 0.2, squash: 0.12 }; // a friend's arrival: from 0.6 up, then a squash on landing
 const CHEER_GAP = 0.12; // s between the friends' cheers
+const FLOOD = { intensity: 75, height: 7.5, ahead: 4, angle: 18, beat: 0.5 }; // each friend's floodlight from above and in front
+// (candela; off while she is out, brighter on the beat as her beam of light is)
 
 /** A soft round shadow, dark in the middle (a texture of its own, no page canvas needed). */
 function shadowTexture() {
@@ -117,6 +119,7 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
     friend.holder.position.x = spot.x;
     friend.holder.position.z = spot.z;
     friend.shadow.position.set(spot.x, 0.01, spot.z);
+    friend.flood.position.set(spot.x, FLOOD.height, spot.z + FLOOD.ahead);
   }
 
   function arrive(id, gltf) {
@@ -133,7 +136,9 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shade, transparent: true, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2;
     shadow.scale.set(conf.height * 1.3, conf.height * 0.7, 1);
-    scene.add(holder, shadow);
+    const flood = new THREE.SpotLight('#fff1d6', 0, 0, THREE.MathUtils.degToRad(FLOOD.angle), 0.55, 2);
+    flood.target = holder;
+    scene.add(holder, shadow, flood);
     const materials = [];
     model.traverse(node => {
       if (!node.isMesh) return;
@@ -142,7 +147,7 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
     const mixer = new THREE.AnimationMixer(model);
     mixer.timeScale = 0.9 + Math.random() * 0.2;
     const friend = {
-      id, conf, holder, shadow, mixer, materials, scale, x: 0, z: 0,
+      id, conf, holder, shadow, flood, mixer, materials, scale, x: 0, z: 0,
       clips: Object.fromEntries(gltf.animations.map(clip => [clip.name, clip])),
       out: out[id], dim: out[id] ? DIM : 1, shownDim: -1, age: reduced ? DROP.time + DROP.land : 0,
       current: null, dancing: null, once: null,
@@ -236,6 +241,8 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
           for (const { material, base } of friend.materials) material.color.copy(base).multiplyScalar(friend.dim);
           friend.shownDim = friend.dim;
         }
+        // her floodlight: on while she is in the round (it fades as she darkens), a flash on the beat
+        friend.flood.intensity = FLOOD.intensity * ((friend.dim - DIM) / (1 - DIM)) * (1 + FLOOD.beat * hop);
       }
       renderer.render(scene, camera);
     },

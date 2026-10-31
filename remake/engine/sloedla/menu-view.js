@@ -116,7 +116,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const hop = beats === null ? 0 : bounce(beats);
     stage?.frame(dt, beats, picked?.bpm ?? null);
     placeBeams(hop);
-    const beam = picked?.hue ? rgba(picked.hue, 0.55) : '';
+    const beam = picked?.hue ? rgba(picked.hue, 0.66) : '';
     if (beam !== beamColour) {
       beamColour = beam;
       for (const each of Object.values(beams)) beam ? each.style.setProperty('--beam', beam) : each.style.removeProperty('--beam');

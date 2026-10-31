@@ -18,17 +18,22 @@
   <canvas class="sl-field" id="field" aria-label="Söngur Slóeðlu"></canvas>
   <canvas class="sl-stars3d" id="stars3d" aria-hidden="true"></canvas>
 
-  <!-- the menu's stage: the sky stands still, the world (forest, beams, cast) moves as a camera would -->
+  <!-- the menu's stage: the sky stands still; the forest, the floodlights and the cast move as one, as a camera would. The night's
+       shade lies on the forest only; the floodlights over it, and the friends in front, lit -->
   <div class="sl-scene" aria-hidden="true">
     <canvas class="sl-sky" data-sky></canvas>
     <div class="sl-aurora"></div>
     <div class="sl-world">
       <div class="sl-bg"></div>
+    </div>
+    <div class="sl-night"></div>
+    <div class="sl-lights">
       <div class="sl-beam" data-beam="b"></div><div class="sl-beam" data-beam="a"></div><div class="sl-beam" data-beam="c"></div><div class="sl-beam" data-beam="egill"></div>
+    </div>
+    <div class="sl-cast">
       <canvas class="sl-stage" data-stage></canvas>
       <div class="sl-flat" data-flat></div>
     </div>
-    <div class="sl-night"></div>
   </div>
   <canvas class="sl-words" data-words aria-hidden="true"></canvas>
 

@@ -41,9 +41,9 @@ html, body {
 }
 @keyframes sl-aurora { from { transform: skewX(-8deg) translateX(-4%) scaleY(0.9); } to { transform: skewX(6deg) translateX(4%) scaleY(1.1); } }
 /* the world moves as one, as a camera would: up for the cards, down and closer while a song loads */
-.sl-world { position: absolute; inset: 0; transform-origin: 50% 50%; transition: transform 1.1s cubic-bezier(0.45, 0, 0.2, 1); }
-.sl[data-screen="lag"] .sl-world { transform: translateY(-17vh); }
-.sl[data-screen="hlada"] .sl-world { transform: translateY(27vh) scale(1.06); }
+.sl-world, .sl-lights, .sl-cast { position: absolute; inset: 0; transform-origin: 50% 50%; transition: transform 1.1s cubic-bezier(0.45, 0, 0.2, 1); }
+.sl[data-screen="lag"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(-17vh); }
+.sl[data-screen="hlada"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(27vh) scale(1.06); }
 .sl-bg {
   position: absolute; inset: 0;
   background: url("./assets/sloedla/kvold-fen.webp") center 62% / cover no-repeat;
@@ -54,12 +54,21 @@ html, body {
 .sl-stage, .sl-flat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .sl-flat-friend { position: absolute; object-fit: contain; transform-origin: 50% 100%; filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.45)); transition: filter 0.4s; }
 .sl-flat-friend.out { filter: brightness(0.3) saturate(0.6) drop-shadow(0 10px 8px rgba(0, 0, 0, 0.45)); }
-/* a beam of light from above down to each friend's feet (menu-view.js sets where; --beam its colour) */
+/* a floodlight from above on each friend (menu-view.js sets where; --beam its colour): a bright cone over her, and a pool of light
+   on the ground at her feet; they screen over the night's shade, so she stands lit */
 .sl-beam {
-  --beam: rgba(255, 245, 215, 0.38);
-  position: absolute; top: -6vh; left: -40vmin; width: 22vmin; opacity: 0; transform-origin: 50% 0;
-  background: linear-gradient(180deg, var(--beam), rgba(255, 240, 200, 0.04) 88%, transparent);
-  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%); filter: blur(6px); transition: opacity 0.6s; mix-blend-mode: screen;
+  --beam: rgba(255, 246, 222, 0.62);
+  position: absolute; top: -6vh; left: -40vmin; width: 34vmin; opacity: 0; transform-origin: 50% 0; mix-blend-mode: screen;
+  transition: opacity 0.6s;
+}
+.sl-beam::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--beam) 0%, color-mix(in srgb, var(--beam) 55%, transparent) 50%, color-mix(in srgb, var(--beam) 28%, transparent) 100%);
+  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+}
+.sl-beam::after {
+  content: ""; position: absolute; left: -6%; right: -6%; bottom: 0; height: 13vmin; transform: translateY(50%); border-radius: 50%;
+  background: radial-gradient(closest-side, var(--beam) 0%, color-mix(in srgb, var(--beam) 55%, transparent) 50%, transparent 100%);
 }
 .sl-beam.on { opacity: 1; animation: sl-beam-sway 5s ease-in-out infinite alternate; }
 @keyframes sl-beam-sway { from { rotate: -4deg; } to { rotate: 4deg; } }
@@ -241,8 +250,8 @@ html, body {
 /* an upright screen: the stage closes up */
 @media (orientation: portrait) {
   .sl-bg { background-image: url("./assets/sloedla/kvold-fen-upright.webp"); }
-  .sl[data-screen="lag"] .sl-world { transform: translateY(-15vh); }
-  .sl[data-screen="hlada"] .sl-world { transform: translateY(24vh) scale(1.02); }
+  .sl[data-screen="lag"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(-15vh); }
+  .sl[data-screen="hlada"] :is(.sl-world, .sl-lights, .sl-cast) { transform: translateY(24vh) scale(1.02); }
   .sl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; width: min(420px, calc(100% - 24px)); padding: 0; }
   .sl-songcard { width: auto; margin-top: 30px; padding-bottom: 8px; }
   .sl-cardpic { width: 74%; margin-top: -30px; }
@@ -266,7 +275,7 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   .sl-play.show, .sl-songcard, .sl-step:not([hidden]) .sl-songcard, .sl-songcard.just, .sl-dj.talking .sl-dj-pic, .sl-stars.new b { animation: none !important; }
-  .sl-world { transition: none; }
+  .sl-world, .sl-lights, .sl-cast { transition: none; }
   .sl-loading:not([hidden]) .sl-disc, .sl-disc-halo, .sl-disc img, .sl-disc.done .sl-disc-face, .sl-disc.done img { animation: none; }
   .sl-aurora, .sl-beam.on, .sl-dj-pic, .sl-go, .sl-go::after, .sl-choice.picked, .sl-step:not([hidden]) .sl-ui1 > *, .sl-step:not([hidden]) .sl-ui1 > .sl-go { animation: none; }
   .sl-cards.has-pick .sl-songcard[aria-pressed="true"] { transform: none; }
