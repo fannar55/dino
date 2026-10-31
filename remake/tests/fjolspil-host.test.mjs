@@ -49,6 +49,7 @@ function fakeNets() {
       presence(id, present) { emit(on.presence, id, present); },
       hello(id, name, avatar) { emit(on.message, id, { v: 1, type: 'hello', body: { name, avatar } }); },
       act(id, body) { emit(on.message, id, { v: 1, type: 'act', body }); },
+      say(id, type, body) { emit(on.message, id, { v: 1, type, body }); },
       to: id => sent.get(id) ?? [],
       last: id => net.to(id).at(-1),
     };
@@ -87,7 +88,7 @@ function stepping() {
   return () => ((n++ % CODE_ALPHABET.length) + 0.5) / CODE_ALPHABET.length;
 }
 
-function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), storageKey, random = stepping(), now } = {}) {
+function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), storageKey, random = stepping(), now, perf } = {}) {
   const doc = new FakeDocument(['fjolspil']);
   const location = new URL(`${origin}/remake/${search}`);
   const listeners = {}; // the window's, by event type
@@ -96,7 +97,7 @@ function rig({ origin = `${LAN}`, search = '?play=1', storage = fakeStorage(), s
   const nets = fakeNets();
   const timers = fakeTimers();
   const sfx = [];
-  const fjolspil = createFjolspil(doc, { win, storage, storageKey, random, timers, now, net: nets.create, audio: { sfx: name => sfx.push(name) } });
+  const fjolspil = createFjolspil(doc, { win, storage, storageKey, random, timers, now, perf, net: nets.create, audio: { sfx: name => sfx.push(name) } });
   const root = doc.getElementById('fjolspil');
   return { doc, win, storage, nets, timers, sfx, fjolspil, root, fire, net: () => nets.made.at(-1) };
 }
@@ -635,4 +636,62 @@ test('a waking big screen tells its net how long the page was away; the network 
   r.fire('online');
   show('visible'); // visible with no hidden before it: not away at all
   assert.deepEqual(net.awayMs, [5000, 40000, undefined, 0], 'online gives no time: the net\'s default, Infinity');
+});
+
+// ---- Söngur Slóeðlu (docs/superpowers/specs/2026-10-31-sloedla-fjolspil-design.md) --------------------------------------
+
+const SONG_LOBBY = { offer: ['kambedla', 'thorsedla'], ask: 'level', max: 3, reserved: ['sloedla', 'gramedla', 'flugedla', 'uggedla'], note: { text: 'Egill velur lag…' } };
+
+test('a phone asking the time gets the big screen\'s clock and counts as alive', () => {
+  const r = rig({ perf: () => 777 });
+  const { net } = seated(r, [['g1', 'Anna', 'sloedla']]);
+  const alive = [];
+  r.fjolspil.onAlive(seat => alive.push(seat.seat));
+  net.say('g1', 'time', { sent: 12 });
+  net.say('g1', 'time', { sent: 'soon' });
+  assert.deepEqual(net.to('g1').filter(msg => msg.type === 'time').map(msg => msg.body), [{ sent: 12, host: 777 }]);
+  assert.deepEqual(alive, [1, 1]);
+});
+
+test('sendSong reaches the seat\'s phone as a song message, not a view', () => {
+  const r = rig();
+  const { net } = seated(r, [['g1', 'Anna', 'sloedla']]);
+  const before = views(net, 'g1').length;
+  assert.equal(r.fjolspil.sendSong(1, { kind: 'clock', at: 5, song: 1 }), true);
+  assert.deepEqual(net.last('g1'), { v: 1, type: 'song', body: { kind: 'clock', at: 5, song: 1 } });
+  assert.equal(views(net, 'g1').length, before);
+  assert.equal(r.fjolspil.sendSong(0, { kind: 'end' }), false, 'Egill has no phone');
+});
+
+test('the song game\'s lobby offers only its dinosaurs, asks for a level and carries its note', () => {
+  const r = rig();
+  r.fjolspil.openLobby(SONG_LOBBY);
+  const net = r.net();
+  net.welcome();
+  net.joined('g1');
+  const first = views(net, 'g1').at(-1).body;
+  assert.deepEqual([first.offer, first.ask, first.note], [['kambedla', 'thorsedla'], 'level', { text: 'Egill velur lag…' }]);
+  assert.deepEqual(first.available, ['kambedla', 'thorsedla']);
+  net.say('g1', 'hello', { name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
+  assert.equal(r.fjolspil.seats.bySeat(1).level, 'fullordinn');
+  r.fjolspil.setLobby({ note: null });
+  const after = views(net, 'g1').at(-1).body;
+  assert.equal('note' in after, false);
+  assert.deepEqual(after.offer, ['kambedla', 'thorsedla'], 'the keys not given stay');
+});
+
+test('a reloaded big screen seats a known phone again with its level', () => {
+  const r = rig();
+  r.fjolspil.openLobby(SONG_LOBBY);
+  r.net().welcome();
+  r.net().joined('g1');
+  r.net().say('g1', 'hello', { name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
+  const again = rig({ storage: r.storage }); // the page reloaded: the same room
+  again.fjolspil.openLobby(SONG_LOBBY);
+  const net = again.net();
+  assert.equal(net.options.url, r.net().options.url, 'the same room');
+  net.welcome();
+  net.joined('g1');
+  net.say('g1', 'hello', { name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
+  assert.deepEqual([again.fjolspil.seats.bySeat(1).name, again.fjolspil.seats.bySeat(1).level], ['Anna', 'fullordinn']);
 });
