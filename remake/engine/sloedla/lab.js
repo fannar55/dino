@@ -19,7 +19,8 @@
 //   ahorfendur=0          no crowd (the "vá!", the "æææ", the cheering and the applause: crowd.js)
 //   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
 //   hendur=0              no black hands clapping along at the bottom in Stjörnukraftur (hands.js)
-//   3d=0                  the stars flat, not in 3D (star-view.js: the owner's star; flat too when there is no WebGL or no star)
+//   3d=0                  the stars flat, not in 3D (star-view.js: the owner's star; flat too when there is no WebGL or no star),
+//                         and the menu's stage in pictures (stage-flat.js), not the cast in 3D (stage.js)
 //   lokaskjar=0..5|fullkominn  the end at once with that many stars, or a perfect game, for a look at it
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
 // in the menu (to the songs, then plays the picked one) and plays again at the end.
@@ -43,6 +44,7 @@ import { createMenuView } from './menu-view.js';
 import { createSparks } from './menu-sparks.js';
 import { createBest } from './best.js';
 import { createBrot } from './brot.js';
+import { createFlatStage } from './stage-flat.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
@@ -188,6 +190,7 @@ async function start() {
   try { await context.resume(); } catch { /* the game goes on silent */ }
   $('start').hidden = true;
   $('end').hidden = true;
+  view.screen('umferd'); // the menu's stage rests while the round plays
   round?.conductor.stop();
   // the song (v2/format.js) owns everything it plays and has a player of its own (v2/player.js); an unknown id plays the first
   const song = await loadSongV2(options.song) ?? await loadSongV2(SONGS_V2[0].id);
@@ -350,8 +353,11 @@ function keep({ level, lanes, song }) {
   for (const [name, value] of [['stig', level], ['brautir', lanes], ['lag', song]]) if (value !== null) params.set(name, String(value));
   history.replaceState(null, '', `?${params}`);
 }
+// the menu's bells (sounds.js: a sparkle at a pick, ticks while a song loads, the star's chord at "Byrjum!")
+const chimes = mix ? createSongSounds({ context, output: mix }) : null;
+const reduced = matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 const view = createMenuView({
-  menu, songs: SONGS_V2, best, dj, brot, asset,
+  menu, songs: SONGS_V2, best, dj, brot, asset, chimes, reduced,
   sparks: createSparks(document.querySelector('[data-sparks]')),
   onUnlock: () => context?.resume().catch(() => {}),
   save: keep,
@@ -363,6 +369,16 @@ const view = createMenuView({
     start();
   },
 });
+
+// The menu's stage: the cast in 3D (stage.js, loaded with import() so the game never needs three.js), or in pictures
+// (stage-flat.js) with ?3d=0, without WebGL, or when a model cannot be loaded
+const flatStage = () => createFlatStage({ root: document.querySelector('[data-flat]'), asset });
+if (!options.stars3d) view.useStage(flatStage());
+else {
+  import('./stage.js')
+    .then(m => m.createStage({ canvas: document.querySelector('[data-stage]'), asset, reduced, onLost: () => view.useStage(flatStage()) }))
+    .then(stage => view.useStage(stage ?? flatStage()), () => view.useStage(flatStage()));
+}
 
 // for a look from outside (captures, and a meter of the mix: `audio`)
 window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
