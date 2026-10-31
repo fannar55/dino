@@ -6,6 +6,13 @@ import assert from 'node:assert/strict';
 import { LEVELS, REMOTE_GRACE } from '../engine/sloedla/chart.js';
 import { canTwoLanes, groupsOf, laneRules, linesOf, lineupOf, lobbyOf, mineFor, takeOver } from '../engine/sloedla/lineup.js';
 import { createClockSync, hostSongTime, songTimeAt } from '../engine/sloedla/clock-sync.js';
+import { createSeats } from '../engine/fjolspil/seats.js';
+import { createBandLobby } from '../engine/sloedla/band-lobby.js';
+import { createBandHost } from '../engine/sloedla/fjolspil-song.js';
+import { FakeDocument } from './fake-dom.mjs';
+import { createRequire } from 'node:module';
+
+globalThis.qrcode = createRequire(import.meta.url)('../vendor/qrcode-generator/qrcode.js'); // the QR card's encoder
 
 const seat = (n, avatar, extra = {}) => ({ seat: n, name: ['Egill', 'Anna', 'Bjarni'][n], avatar, kind: n ? 'remote' : 'host', present: true, level: null, ...extra });
 test('lineup: Egill\'s dinosaur is never offered, nor Kambeðla with two; three seats with three dinosaurs, two with two', () => {
@@ -61,4 +68,89 @@ test('clock: a stamp from the future or two seconds old is no tap', () => {
   assert.equal(hostSongTime({ songNow: 10, perfNow: 5000, at: 4900 }), 9.9);
   assert.equal(hostSongTime({ songNow: 10, perfNow: 5000, at: 5100 }), null);
   assert.equal(hostSongTime({ songNow: 10, perfNow: 5000, at: 2900 }), null);
+});
+
+// ---- „Spilum saman“: the band host in the menu (fjolspil-song.js) and the stage's QR card (band-lobby.js) ----------------
+
+/** A room as the band host sees it (fjolspil.js's): real seats, every call kept, acts sent by the test. */
+function fakeRoom() {
+  const doc = new FakeDocument();
+  doc.add('saman', 'section');
+  const calls = [];
+  const acts = new Set();
+  const seats = createSeats();
+  const lobby = createBandLobby(doc, {
+    seats: { list: () => seats.list(), bySeat: n => seats.bySeat(n) },
+    onStart: () => calls.push(['start']),
+    onClose: () => calls.push(['close']),
+  });
+  const fjolspil = {
+    seats,
+    openLobby(options) {
+      calls.push(['openLobby', options]);
+      lobby.show({ joinUrl: 'http://192.168.1.5:4231/remake/spil.html', code: 'GULL', lanMissing: false });
+      return new Promise(resolve => { fjolspil.finish = resolve; });
+    },
+    setLobby(change) { calls.push(['setLobby', change]); lobby.refresh(); },
+    onAct(fn) { acts.add(fn); return () => acts.delete(fn); },
+    broadcast(body) { calls.push(['broadcast', body]); },
+    closeGame() { calls.push(['closeGame']); },
+  };
+  const act = (n, body) => { for (const fn of acts) fn(n, body); };
+  const join = (guestId, name, avatar) => { seats.join({ guestId, name, avatar }); lobby.refresh(); };
+  return { doc, calls, seats, lobby, fjolspil, act, join };
+}
+
+test('the song lobby offers the free dinosaurs, asks a level and closes at three', () => {
+  const room = fakeRoom();
+  const host = createBandHost({ fjolspil: room.fjolspil, lobby: room.lobby });
+  host.open({ lanes: 3, mine: 'a', level: 'barn' });
+  const [name, options] = room.calls[0];
+  assert.equal(name, 'openLobby');
+  assert.deepEqual(options.offer, ['kambedla', 'thorsedla']);
+  assert.equal(options.max, 3);
+  assert.equal(options.ask, 'level');
+  assert.deepEqual(options.note, { text: 'Egill velur lag…' });
+  const card = room.doc.getElementById('saman');
+  assert.equal(card.hidden, false, 'the QR card is on the stage');
+  assert.equal(card.querySelectorAll('.sl-saman-letter').map(el => el.textContent).join(''), 'GULL');
+  host.update({ lanes: 2, mine: 'a', level: 'barn', song: 'pixel' });
+  const [, change] = room.calls.at(-1);
+  assert.deepEqual([change.offer, change.max], [['thorsedla'], 2]);
+  assert.deepEqual(change.note, { text: 'Pixlaferð', picture: 'assets/sloedla/valmynd/pixel.webp' });
+});
+
+test('a guest\'s level act sets her seat\'s level', () => {
+  const room = fakeRoom();
+  createBandHost({ fjolspil: room.fjolspil, lobby: room.lobby }).open({ lanes: 3, mine: 'a', level: 'barn' });
+  room.join('g1', 'Anna', 'thorsedla');
+  room.act(1, { type: 'level', level: 'fullordinn' });
+  assert.equal(room.seats.bySeat(1).level, 'fullordinn');
+  room.act(1, { type: 'level', level: 'meistari' });
+  assert.equal(room.seats.bySeat(1).level, 'fullordinn', 'a level the song has not is not taken');
+});
+
+test('a new guest is told once', () => {
+  const room = fakeRoom();
+  const joined = [];
+  const seen = [];
+  const host = createBandHost({ fjolspil: room.fjolspil, lobby: room.lobby, onJoin: seat => joined.push(seat.name), onSeats: list => seen.push(list.length) });
+  host.open({ lanes: 3, mine: 'a', level: 'barn' });
+  room.join('g1', 'Anna', 'thorsedla');
+  room.act(1, { type: 'level', level: 'barn' });
+  room.join('g2', 'Bjarni', 'kambedla');
+  assert.deepEqual(joined, ['Anna', 'Bjarni']);
+  assert.equal(seen.at(-1), 3, 'the seats as they are now: Egill, Anna and Bjarni');
+});
+
+test('Spila einn tells every phone thanks for playing', async () => {
+  const room = fakeRoom();
+  const host = createBandHost({ fjolspil: room.fjolspil, lobby: room.lobby });
+  const seated = host.open({ lanes: 3, mine: 'a', level: 'barn' });
+  room.fjolspil.finish(null); // the room's lobby ends at „Spila einn“ (fjolspil.js's onClose)
+  host.close();
+  assert.ok(room.calls.some(([name]) => name === 'close'), 'the lobby is closed');
+  assert.deepEqual(room.calls.at(-1), ['broadcast', { screen: 'sloedla', phase: 'bless' }]);
+  assert.equal(room.doc.getElementById('saman').hidden, true, 'the QR card leaves the stage');
+  assert.equal(await seated, null);
 });

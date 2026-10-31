@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CAST, bounce, castLayout, clipTime, loadingDone, loopBeats, reactions, ringStep, RING_MIN } from '../engine/sloedla/stage-motion.js';
+import { CAST, bounce, castLayout, clipTime, loadingDone, loopBeats, nearestFriend, reactions, ringStep, RING_MIN } from '../engine/sloedla/stage-motion.js';
 
 /** The names of the animations in a .glb (its JSON chunk). */
 function clipNamesOf(url) {
@@ -100,4 +100,13 @@ test('the pictures keep their places while the stage is hidden (a round), and st
   stage.resize();
   assert.ok(pictures.every(img => parseFloat(img.style.width) > 50), 'upright now, and still their size');
   assert.notDeepEqual(pictures.map(img => img.style.width), shown);
+});
+
+test('a tap on the stage finds the dinosaur over whose feet it is, never Egill', () => {
+  const feet = [{ id: 'egill', x: 100, y: 500 }, { id: 'b', x: 300, y: 500 }, { id: 'a', x: 500, y: 480 }, { id: 'c', x: 700, y: 470 }];
+  assert.equal(nearestFriend(feet, 310, 400, { reach: 120 }), 'b');
+  assert.equal(nearestFriend(feet, 505, 300, { reach: 120 }), 'a');
+  assert.equal(nearestFriend(feet, 100, 400, { reach: 120 }), null, 'Egill is not one to pick');
+  assert.equal(nearestFriend(feet, 1000, 400, { reach: 120 }), null, 'too far from any');
+  assert.equal(nearestFriend(feet, 700, 520, { reach: 120 }), null, 'under her feet is not on her');
 });

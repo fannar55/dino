@@ -52,7 +52,7 @@ test('menu: who plays, then the songs; a pick says its line and plays its bit; b
   assert.deepEqual(menu.toSongs(), [{ hush: true }, { say: 'hvadalag' }]);
   assert.deepEqual(menu.pick('stattu-upp'), [{ hush: true }, { stop: true }, { say: 'lag-stattu-upp' }, { brot: 'stattu-upp' }]);
   assert.deepEqual(menu.pick('nope'), []);
-  assert.deepEqual(menu.play(), { song: 'stattu-upp', level: 'fullordinn', lanes: 2 });
+  assert.deepEqual(menu.play(), { song: 'stattu-upp', level: 'fullordinn', lanes: 2, together: false, mine: null });
   assert.deepEqual(menu.other(), [{ say: 'hvadalag' }]);
   assert.equal(menu.state().step, 'lag');
   assert.deepEqual(menu.back(), [{ hush: true }, { stop: true }, { say: 'hverspilar' }]);
@@ -110,9 +110,42 @@ test('menu: no song, no play; an address song is picked when the songs open', ()
   assert.equal(createMenu({ songs, song: 'gamalt' }).state().song, null, 'an old or unknown id picks nothing');
 });
 
+test('menu: Spilum saman: the DJ says saman, and the songs wait for Egill\'s dinosaur', () => {
+  const menu = createMenu({ songs });
+  assert.deepEqual(menu.together(), [{ hush: true }], 'nothing said before the first tap');
+  menu.unlock();
+  assert.deepEqual(menu.together(), [{ hush: true }, { say: 'saman' }]);
+  assert.equal(menu.state().together, true);
+  assert.equal(menu.toSongs(), null, 'no songs before Egill has his dinosaur');
+  assert.equal(menu.state().step, 'hver');
+  assert.deepEqual(menu.setMine('a'), []);
+  assert.deepEqual(menu.toSongs(), [{ hush: true }, { say: 'hvadalag' }]);
+  menu.pick('pixel');
+  assert.deepEqual(menu.play(), { song: 'pixel', level: 'barn', lanes: 3, together: true, mine: 'a' });
+});
+
+test('menu: a guest joining: the DJ says kom', () => {
+  const menu = createMenu({ songs });
+  menu.unlock();
+  assert.deepEqual(menu.joined(), [], 'nobody joins Egill playing alone');
+  menu.together();
+  assert.deepEqual(menu.joined(), [{ say: 'kom' }]);
+});
+
+test('menu: Spila einn: one player again, the songs open', () => {
+  const menu = createMenu({ songs });
+  menu.unlock();
+  menu.together();
+  assert.deepEqual(menu.alone(), [{ hush: true }]);
+  assert.deepEqual([menu.state().together, menu.state().mine], [false, null]);
+  assert.deepEqual(menu.toSongs(), [{ hush: true }, { say: 'hvadalag' }]);
+  menu.pick('pixel');
+  assert.deepEqual(menu.play(), { song: 'pixel', level: 'barn', lanes: 3, together: false, mine: null });
+});
+
 test('menu: self-play opens on the songs with the address song picked', () => {
   const menu = createMenu({ songs, song: 'stattu-upp', self: true });
-  assert.deepEqual(menu.state(), { step: 'lag', level: 'barn', lanes: 3, song: 'stattu-upp', heard: false });
+  assert.deepEqual(menu.state(), { step: 'lag', level: 'barn', lanes: 3, song: 'stattu-upp', heard: false, together: false, mine: null });
 });
 
 test('every song has the DJ\'s line, more than one way of saying it', () => {

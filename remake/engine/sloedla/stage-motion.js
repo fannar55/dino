@@ -54,6 +54,21 @@ export function reactions(before, after) {
   return list;
 }
 
+/**
+ * The friend a tap at (`x`, `y`) on the stage is on, "Spilum saman" (Egill picks his dinosaur): of `feet` ([{ id, x, y }], each
+ * friend's feet on the screen, y down), the one whose feet are nearest `x` within `reach` px and above whose feet the tap is;
+ * never Egill. Null when the tap is on none.
+ */
+export function nearestFriend(feet, x, y, { reach = 120 } = {}) {
+  let best = null;
+  for (const foot of feet) {
+    if (foot.id === 'egill' || y > foot.y) continue;
+    const off = Math.abs(x - foot.x);
+    if (off <= reach && (!best || off < best.off)) best = { id: foot.id, off };
+  }
+  return best ? best.id : null;
+}
+
 /** The hop on the beat, 0..1: up and down in the first half of each beat, still in the second. */
 export function bounce(beats) {
   const f = ((beats % 1) + 1) % 1;
