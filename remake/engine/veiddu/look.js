@@ -23,13 +23,23 @@ function kindFor(cardOrKind) {
 // About how wide Nunito's heavy letters are, in ems: the narrow ones, the wide ones, and the rest.
 const letterWidth = ch => ('iíjl'.includes(ch) ? 0.3 : 'tf'.includes(ch) ? 0.4 : 'rs'.includes(ch) ? 0.46 : 'mwæ'.includes(ch) ? 0.9 : ch === ch.toUpperCase() && ch !== ch.toLowerCase() ? 0.66 : 0.58);
 
+const NAME_FULL = 16.5; // the size of a short name, in cqw (a hundredth of the card's width)
+const NAME_ROOM = 82; // how wide a line of a name may be, in cqw: nearly the whole card (the plate is 87 wide, 85 inside its padding)
+
 /**
- * A name's size on a card, in cqw (a hundredth of the card's width). A name never breaks inside a word (a child who is learning to
- * read must see each word whole): it breaks only between words, and a long single word shrinks until it fits on its line.
+ * How a name is set on a card: { size, spacing }, the font size in cqw and the letter-spacing in em. A name never breaks inside a word
+ * (a child who is learning to read must see each word whole): it breaks only between words, and a long word is set smaller until it
+ * fits on its line. It is never much smaller than a short name, though: a single word holds at 80% of the full size (a long one such
+ * as "Salamandra" or "Vatnalæsingi" is closed up a touch instead) and "Appelsínugulur fiskur" at 70%.
  */
-function nameSize(text) {
-  const widest = Math.max(...text.split(' ').map(word => [...word].reduce((sum, ch) => sum + letterWidth(ch), 0)));
-  return Math.min(16.5, 72 / widest);
+export function nameSetting(text) {
+  const words = text.split(' ');
+  const widest = 1.04 * Math.max(...words.map(word => [...word].reduce((sum, ch) => sum + letterWidth(ch), 0))); // (measured: the estimate is a little low)
+  const longest = Math.max(...words.map(word => [...word].length));
+  const size = Math.max(Math.min(NAME_FULL, NAME_ROOM / widest), NAME_FULL * (words.length === 1 ? 0.8 : 0.7));
+  const over = size * widest - (NAME_ROOM - 2); // cqw by which the longest word is too wide at that size (with a little to spare)
+  const spacing = over > 0 ? -Math.min(0.05, over / (size * longest)) : 0;
+  return { size, spacing };
 }
 
 /**
@@ -64,7 +74,9 @@ export function cardElement(doc, card, { back = false, tag = 'div', mini = false
   const name = doc.createElement('span');
   name.className = 'name';
   name.setAttribute('aria-hidden', 'true');
-  name.style.setProperty('--fs', `${nameSize(text).toFixed(2)}cqw`);
+  const { size, spacing } = nameSetting(text);
+  name.style.setProperty('--fs', `${size.toFixed(2)}cqw`);
+  if (spacing) name.style.setProperty('--ls', `${spacing.toFixed(3)}em`);
   name.textContent = text;
   el.append(pic, name);
   return el;

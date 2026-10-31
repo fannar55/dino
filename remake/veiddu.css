@@ -283,9 +283,9 @@
   box-shadow: inset 0 0 0 1.2cqw color-mix(in srgb, var(--c) 38%, transparent), inset 0 2cqw 5cqw color-mix(in srgb, var(--c-deep) 20%, transparent);
 }
 .veiddu-card .name { /* the name, big, on a cream plate: dark Nunito that a child who is learning to read can see at once */
-  position: absolute; left: 9cqw; right: 9cqw; top: 93.5cqw; bottom: 9cqw;
-  display: grid; place-items: center; padding: 0 1.5cqw; border-radius: 7cqw;
-  font-size: var(--fs, 15cqw); font-weight: 900; line-height: .98; letter-spacing: -.005em; text-wrap: balance; hyphens: none; overflow-wrap: normal; word-break: keep-all; /* a name breaks between words only */
+  position: absolute; left: 6.5cqw; right: 6.5cqw; top: 93.5cqw; bottom: 8cqw; /* nearly the card's whole width: a long name needs it */
+  display: grid; place-items: center; padding: 0 .8cqw; border-radius: 7cqw;
+  font-size: var(--fs, 15cqw); font-weight: 900; line-height: .98; letter-spacing: var(--ls, -.005em); text-wrap: balance; hyphens: none; overflow-wrap: normal; word-break: keep-all; /* a name breaks between words only */
   color: var(--ink);
   background: linear-gradient(var(--card), color-mix(in srgb, var(--c) 14%, var(--card)));
   box-shadow: inset 0 0 0 1cqw color-mix(in srgb, var(--c-deep) 28%, transparent), 0 1cqw 0 color-mix(in srgb, var(--c-deep) 50%, transparent);
