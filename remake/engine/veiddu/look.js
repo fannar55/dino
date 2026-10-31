@@ -153,7 +153,7 @@ function layRows(handEl, els, bounds) {
 }
 
 /** An opponent's cards face down in front of its window, fanned closer as it holds more. */
-function layTheirs(fan, seat) {
+export function layTheirs(fan, seat) {
   const els = [...fan.querySelectorAll('.veiddu-card')];
   const n = els.length;
   els.forEach((el, k) => el.style.setProperty('--i', ((k - (n - 1) / 2) * (n > 7 ? 6 / (n - 1) : 1)).toFixed(2)));
@@ -181,7 +181,7 @@ const CAP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 9.5L12 5l
 export const STILL_STATES = ['table', 'ask', 'asked', 'fish', 'win', 'cards', 'advice'];
 
 /** A small element: tag, classes and attributes in one go (attributes with a null value are left out). */
-function make(doc, tag, className, attributes = {}, html = '') {
+export function make(doc, tag, className, attributes = {}, html = '') {
   const el = doc.createElement(tag);
   if (className) el.className = className;
   if (tag === 'button') el.type = 'button';
@@ -191,7 +191,7 @@ function make(doc, tag, className, attributes = {}, html = '') {
 }
 
 /** The pairs laid down, as the catch shows them: the last pair face up and how many; its edges stack up as the pairs pile up. */
-function catchElement(doc, laid, who) {
+export function catchElement(doc, laid, who) {
   const n = laid.length;
   const depth = n === 0 ? 'empty' : n === 1 ? 0 : n < 4 ? 1 : n < 7 ? 2 : 3;
   const el = make(doc, 'div', 'veiddu-catch', { 'data-depth': depth, role: 'img', 'aria-label': `${who} á ${n} ${n === 1 ? 'par' : 'pör'}` });
@@ -206,7 +206,7 @@ function catchElement(doc, laid, who) {
 }
 
 /** An opponent's place: its window, its cards face down with their number, and its catch. */
-function seatElement(doc, seat, { held, laid, target = false }) {
+export function seatElement(doc, seat, { held, laid, target = false }) {
   const person = PEOPLE[seat];
   const el = make(doc, 'section', 'veiddu-seat', { 'data-seat': seat });
   const window = make(doc, 'div', `${person.cls}${target ? ' veiddu-target' : ''}`, { role: target ? 'button' : null, tabindex: target ? '0' : null, 'aria-label': person.name });
@@ -221,19 +221,23 @@ function seatElement(doc, seat, { held, laid, target = false }) {
   return el;
 }
 
+export const POND_SHOWN = 14; // the most cards a pond shows lying on it
+
+/** The pond's k-th card (0 to POND_SHOWN - 1) lying face down where it was thrown: each has its own place, which it keeps as others go. */
+export function pondCard(doc, k) {
+  const angle = k * 2.399963;
+  const reach = Math.sqrt((k + 0.5) / POND_SHOWN);
+  const card = cardElement(doc, null);
+  card.classList.add('veiddu-pond-card');
+  card.style.cssText = `--x:${(50 + 40 * reach * Math.cos(angle)).toFixed(1)}%;--y:${(50 + 35 * reach * Math.sin(angle)).toFixed(1)}%;--r:${((k * 53) % 44) - 22}deg;--i:${k}`;
+  return card;
+}
+
 /** The pond: a water oval, its ripples and up to 14 cards lying face down where they were thrown (a card keeps its place as others go). */
-function pondElement(doc, count, { calls = false, splash = false } = {}) {
+export function pondElement(doc, count, { calls = false, splash = false } = {}) {
   const pond = make(doc, 'div', `veiddu-pond${calls ? ' calls' : ''}`, { role: 'button', tabindex: '0', 'aria-label': `Tjörnin: ${count} spil` });
   for (let k = 0; k < 3; k++) pond.append(make(doc, 'i', 'veiddu-ripple', { style: `--d:${(-k * 2.2).toFixed(1)}s` }));
-  const shown = Math.min(count, 14);
-  for (let k = 0; k < shown; k++) {
-    const angle = k * 2.399963;
-    const reach = Math.sqrt((k + 0.5) / 14);
-    const card = cardElement(doc, null);
-    card.classList.add('veiddu-pond-card');
-    card.style.cssText = `--x:${(50 + 40 * reach * Math.cos(angle)).toFixed(1)}%;--y:${(50 + 35 * reach * Math.sin(angle)).toFixed(1)}%;--r:${((k * 53) % 44) - 22}deg;--i:${k}`;
-    pond.append(card);
-  }
+  for (let k = 0; k < Math.min(count, POND_SHOWN); k++) pond.append(pondCard(doc, k));
   if (splash) {
     const drops = make(doc, 'div', 'veiddu-splash frozen', { 'aria-hidden': 'true' });
     for (let k = 0; k < 11; k++) {
@@ -246,7 +250,7 @@ function pondElement(doc, count, { calls = false, splash = false } = {}) {
 }
 
 /** Egill's own place on the bottom left: his tag (his picture from Fjölspil's seats) over his catch. */
-function meElement(doc, laid) {
+export function meElement(doc, laid) {
   const egill = avatarOf('egill');
   const el = make(doc, 'div', 'veiddu-me-catch');
   const tag = make(doc, 'div', 'veiddu-tag');
@@ -257,7 +261,7 @@ function meElement(doc, laid) {
 }
 
 /** What is said, by `from` to `to` (seats; to is null when nobody is asked). */
-function bubbleElement(doc, from, to, words, { long = false } = {}) {
+export function bubbleElement(doc, from, to, words, { long = false } = {}) {
   const el = make(doc, 'div', `veiddu-bubble${long ? ' long' : ''}`, { 'data-from': from, 'data-to': to, role: 'status' });
   el.append(make(doc, 'p', '', {}, words));
   if (to !== null) el.append(make(doc, 'span', 'veiddu-bubble-arrow', { 'aria-hidden': 'true' }, POINTER));
@@ -265,7 +269,7 @@ function bubbleElement(doc, from, to, words, { long = false } = {}) {
 }
 
 /** The win card, under the opponents' windows, with its sticker and confetti. */
-function winElement(doc) {
+export function winElement(doc) {
   const win = make(doc, 'div', 'veiddu-win');
   const card = make(doc, 'div', 'veiddu-win-card');
   card.append(
@@ -285,7 +289,7 @@ function winElement(doc) {
 }
 
 /** Everything the lab's states have in common: the table with the two opponents, the pond, Egill's place, the buttons. */
-function tableElement(doc, round) {
+export function tableElement(doc, round) {
   const table = make(doc, 'div', 'veiddu-table');
   const [, ugg, mosi] = round.pairs;
   table.append(

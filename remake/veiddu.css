@@ -600,6 +600,16 @@
 /* While Mosi teaches, only what he means is live: the rest waits, dimmed, and takes no taps */
 .veiddu.teaching :is(.veiddu-hand .veiddu-card, .veiddu-pond, .veiddu-fish-button, .veiddu-uggedla, .veiddu-mosi):not(.live) { opacity: .38; pointer-events: none; }
 
+/* ---- The live table: whose turn it is, a mind thinking, a seat that is out (table.js sets .turn, .thinking and .out) --------------- */
+
+.veiddu-seat.turn :is(.veiddu-uggedla, .veiddu-mosi):not(.veiddu-target) { /* the one on turn: ringed in teal */
+  box-shadow: 0 0 0 7px var(--card), 0 0 0 10px var(--ink), 0 0 0 16px var(--teal), 0 0 34px 12px rgb(63 176 184 / .55), 0 14px 26px 6px rgb(40 24 10 / .3);
+}
+.veiddu-me-catch.turn .veiddu-tag { box-shadow: 0 0 0 5px var(--teal), 0 0 0 8px var(--ink), 0 0 24px 8px rgb(63 176 184 / .55); }
+.veiddu-seat.thinking .veiddu-uggedla img { transform-origin: 50% 92%; animation: think-tilt 1.1s ease-in-out infinite; } /* her head tilts */
+.veiddu-seat.thinking .veiddu-mosi img { animation-duration: 1.2s; } /* he sways faster */
+.veiddu-seat.out :is(.veiddu-uggedla, .veiddu-mosi), .veiddu-me-catch.out .veiddu-tag { opacity: .5; } /* no cards and no pond: the turn goes by */
+
 /* ---- The lab's gallery of every card (veiddu-lab.html?state=cards) ---------------------------------------------------------- */
 
 .veiddu-gallery {
@@ -642,6 +652,10 @@
   40% { rotate: 6deg; }
   60% { rotate: -4deg; }
   80% { rotate: 2deg; }
+}
+@keyframes think-tilt {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(4deg) translateY(-2px); }
 }
 @keyframes eitt-pulse {
   0%, 100% { scale: 1; }
