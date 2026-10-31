@@ -1,0 +1,9 @@
+{
+  "froskur": { "src": "frog-common", "x": 228, "y": 100, "size": 620 },
+  "skjaldbaka": { "src": "pond-turtle", "x": 150, "y": 50, "size": 760 },
+  "drekafluga": { "src": "emperor-dragonfly", "x": 120, "y": 0, "size": 785 },
+  "brunnklukka": { "src": "diving-beetle", "x": 0, "y": 10, "size": 895 },
+  "vatnalaesingi": { "src": "waterstrider-sharp", "x": 292, "y": 95, "size": 530 },
+  "salamandra": { "src": "fire-salamander", "x": 190, "y": 4, "size": 660 },
+  "snigill": { "src": "snail-garden", "x": 120, "y": 0, "size": 768 }
+}

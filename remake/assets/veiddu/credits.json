@@ -1,0 +1,72 @@
+{
+  "froskur": {
+    "image": "assets/veiddu/froskur.webp",
+    "from": "frog-common",
+    "credit": "Holger Krisp",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Grasfrosch-Rana-temporaria-side.jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 228, y 100, 620 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "0974207a10fba331c67170b856fc02441d6a5405953454b271dae3aecae5d629"
+  },
+  "skjaldbaka": {
+    "image": "assets/veiddu/skjaldbaka.webp",
+    "from": "pond-turtle",
+    "credit": "George Chernilevsky",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Emys_orbicularis_2020_G2.jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 150, y 50, 760 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "05f9df656636ae305c0081ddbb572f3649b5a2a4093a0597f7387933e88f657a"
+  },
+  "drekafluga": {
+    "image": "assets/veiddu/drekafluga.webp",
+    "from": "emperor-dragonfly",
+    "credit": "Quartl",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Anax_imperator_qtl2.jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 120, y 0, 785 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "3e87d663305059a2a998f35c621bd4c128bc7c72af77097e4db03cc9fa2886aa"
+  },
+  "brunnklukka": {
+    "image": "assets/veiddu/brunnklukka.webp",
+    "from": "diving-beetle",
+    "credit": "David Perez (derivative work: B kimmel)",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Dytiscus_marginalis_01_by-dpckk.jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 0, y 10, 895 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "a7fce419e6475344ae4022f43caeacaf3612367897a1d1a4bbaf81d468f3f15b"
+  },
+  "vatnalaesingi": {
+    "image": "assets/veiddu/vatnalaesingi.webp",
+    "from": "waterstrider-sharp",
+    "credit": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Water_strider_(Gerridae_sp.)_Makiling.jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 292, y 95, 530 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "aa84dfc407654a067937a375ac89b8bebf248c2ad8a509fd930bee9c62170efe"
+  },
+  "salamandra": {
+    "image": "assets/veiddu/salamandra.webp",
+    "from": "fire-salamander",
+    "credit": "Petar Milošević",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Fire_salamander_(Salamandra_Salamandra).jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 190, y 4, 660 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "3c5ac3e92460dde7c6bbfe60d6a6d8931e69527386f795b56a22ca8a5fc66890"
+  },
+  "snigill": {
+    "image": "assets/veiddu/snigill.webp",
+    "from": "snail-garden",
+    "credit": "Gzen92",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Cornu_aspersum_(Helix_aspersa).jpg",
+    "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 120, y 0, 768 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
+    "sha256": "475182e4bd80b95a1af4287056531b60c25526c1e9ac8fbc4a05c44577a4c6e8"
+  }
+}
