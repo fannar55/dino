@@ -1077,13 +1077,14 @@ async function main() {
           tapWait = target;
           // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
           if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
-          else await sleep(rapid ? 100 : 500);
+          else await sleep(rapid ? 100 : LEVEL.number === 2 ? 250 : 500);
           for (let i = 1; i <= count; i++) {
             const tapped = await ev(tapJs([`task-${target}`], 1, 0));
             step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
             // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s, the big word
             // of a panel is up at once).
-            if (shots) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
+            // (level 2's steps have their own pictures, by the light and the pile; a picture here would hold the next tap back past the wait's 4 s)
+            if (shots && LEVEL.number !== 2) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
             await sleep(rapid ? 120 : 250);
           }
         }
