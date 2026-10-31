@@ -136,3 +136,40 @@ test('level 1 tells its story with the same keys and words', () => {
   assert.deepEqual(key(state({ unlocked: all, asking: 'log' }), ready), ['who-log', 'Hver getur þetta?']);
   assert.deepEqual(key(state({ visited: true, boardwalkBuilt: true }), ready), ['home', 'Öll komumst við! Vel gert!']);
 });
+
+test('level 2 tells the search with its own g2- keys and stops there until its steps are built: the Kambeðlur are asked for first', async () => {
+  const { STEINAGLJUFUR } = await import('../engine/memory/levels/steinagljufur.js');
+  const { createStepRules } = await import('../engine/memory/step-rules.js');
+  const rules = createStepRules(STEINAGLJUFUR), friends = [...STEINAGLJUFUR.friends];
+  const say = (bridge, readyNow = {}, mem = memory) => { const next = nextStoryStep(mem, bridge, readyNow, STEINAGLJUFUR); return [next.key, next.prompt]; };
+  assert.deepEqual(say(rules.getState()), ['g2-find-glowers', 'Finnum vin sem getur lýst! Kíktu undir lauf.']);
+  assert.deepEqual(say(rules.getState(), {}, { phase: 'one-open' }), ['g2-find-glowers', 'Hvar er vinur hans?'], 'with one leaf open the search names the other half');
+  assert.deepEqual(say(rules.getState(), {}, { phase: 'one-open', seek: 'Snigilsteinn! Hvar er hinn?' }), ['g2-find-glowers', 'Snigilsteinn! Hvar er hinn?']);
+  // The Þríhyrnur found first do not make the tunnel ready: the Kambeðlur are still to find.
+  rules.unlock('triceratops');
+  assert.deepEqual(say(rules.getState(), { triceratops: true }), ['g2-find-glowers', 'Finnum vin sem getur lýst! Kíktu undir lauf.']);
+  rules.unlock('stegosaurus');
+  assert.deepEqual(say(rules.getState(), { triceratops: true, stegosaurus: false }), ['g2-light-arriving', 'Vinirnir eru á leiðinni! Þú mátt skoða fleiri lauf.']);
+  const ready = Object.fromEntries(friends.map(species => [species, true]));
+  const light = nextStoryStep(memory, rules.getState(), ready, STEINAGLJUFUR);
+  assert.deepEqual([light.key, light.kind, light.action, light.target, light.species, light.available], ['g2-light-ready', 'work', 'light', 'tunnel', 'stegosaurus', true]);
+  assert.equal(light.prompt, 'Göngin eru dimm. Hver getur lýst þau upp?');
+  assert.doesNotMatch(light.prompt, /þórseðl|þríhyrn|kambeðl|flugeðl/i, 'Mosi names the obstacle, never the friend');
+  // Each task asks for its own verb; the prompt of every search starts the same way.
+  for (const [done, key, verb] of [[['light'], 'g2-find-butters', 'stangað'], [['light', 'headbutt', 'through'], 'g2-find-reachers', 'náð hátt'], [['light', 'headbutt', 'through', 'reach'], 'g2-find-flyers', 'flogið']]) {
+    const next = nextStoryStep(memory, { unlocked: [], done, active: null, failing: null, asking: null }, {}, STEINAGLJUFUR);
+    assert.equal(next.key, key); assert.equal(next.prompt, `Finnum vin sem getur ${verb}! Kíktu undir lauf.`);
+  }
+  // The way through the tunnel waits for every friend, then for the fossils, in the search view's words.
+  const lit = ['light', 'headbutt'];
+  assert.equal(nextStoryStep(memory, { unlocked: friends.slice(0, 3), done: lit }, ready, STEINAGLJUFUR).key, 'g2-gather-friends');
+  assert.equal(nextStoryStep({ phase: 'ready', giftsLeft: 1 }, { unlocked: friends, done: lit }, ready, STEINAGLJUFUR).key, 'g2-gifts-left');
+  assert.equal(nextStoryStep({ phase: 'ready', giftsLeft: 1 }, { unlocked: friends, done: lit }, ready, STEINAGLJUFUR).prompt, 'Finnum fyrst það sem er eftir undir laufunum!');
+  assert.equal(nextStoryStep({ phase: 'ready', giftsLanding: 1 }, { unlocked: friends, done: lit }, ready, STEINAGLJUFUR).key, 'g2-gifts-landing');
+  assert.equal(nextStoryStep(memory, { unlocked: friends, done: lit }, ready, STEINAGLJUFUR).key, 'g2-through-open');
+  // A state written by hand (no `done`) is read through the level's own fields.
+  assert.deepEqual(nextStoryStep(memory, { unlocked: friends, tunnelLit: true }, ready, STEINAGLJUFUR).key, 'g2-headbutt-ready');
+  assert.deepEqual(say({ unlocked: friends, active: 'pull', done: [] }), ['g2-doing-pull', 'Einn, tveir, TOGA!']);
+  assert.deepEqual(say({ unlocked: friends, done: STEINAGLJUFUR.steps.map(step => step.id) }), ['g2-home', 'Öll komumst við upp! Vel gert!']);
+  assert.deepEqual(say({ unlocked: friends, asking: 'tunnel', done: [] }, ready), ['g2-who-tunnel', 'Hver getur þetta?']);
+});

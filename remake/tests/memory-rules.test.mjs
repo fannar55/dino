@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createMemoryGame } from '../engine/memory/rules.js';
 import { LEVELS, levelById, levelNumber, unlockedLevels, unlockLevel, chooseLevel } from '../engine/memory/levels/index.js';
 import { BERJALUNDUR } from '../engine/memory/levels/berjalundur.js';
+import { STEINAGLJUFUR } from '../engine/memory/levels/steinagljufur.js';
 
 const fixed = () => createMemoryGame({ random: () => 0.999 });
 const pairIds = (game, species) => game.getState().cards.filter(card => card.species === species).map(card => card.id);
@@ -244,7 +245,7 @@ test('a four-friend level deals 16 cards: four friend pairs (the Flugeðla among
 });
 
 test('level 1 is described as frozen data the rules, the story and the game read', () => {
-  assert.deepEqual(LEVELS.map(level => level.id), ['berjalundur']);
+  assert.deepEqual(LEVELS.map(level => level.id), ['berjalundur', 'steinagljufur']);
   assert.equal(levelById('berjalundur'), BERJALUNDUR); assert.equal(levelById('nope'), null);
   assert.equal(levelNumber(1), BERJALUNDUR); assert.equal(levelNumber(9), null);
   assert.equal(BERJALUNDUR.number, 1); assert.equal(BERJALUNDUR.title, 'Berjalundurinn'); assert.equal(BERJALUNDUR.ribbon, 'Leiðin að berjalundinum');
@@ -311,7 +312,7 @@ test("level 1's flags are today's five fields, read off the done steps", () => {
 test('level 1 is always unlocked, whatever storage holds or does when it is blocked', () => {
   for (const storage of [blockedStorage, memoryStorage(null), memoryStorage('not json'), memoryStorage('{"a":1}'), memoryStorage('[1,null,"nope"]'), {}, undefined]) {
     assert.deepEqual([...unlockedLevels(storage)], ['berjalundur']);
-    assert.deepEqual([...chooseLevel(new URLSearchParams(''), storage).locked], []);
+    assert.deepEqual([...chooseLevel(new URLSearchParams(''), storage).locked], ['steinagljufur'], 'level 2 is locked until level 1 has been finished');
   }
   assert.equal(unlockedLevels() instanceof Set, true, 'the default storage is localStorage behind a try/catch: no localStorage here, no crash');
 });
@@ -327,7 +328,7 @@ test('unlocking a level is written as a JSON array of ids, and tells whether it 
 
 test('choosing a level: level 1 by default, ?bord= by number, an unknown number falls back to level 1', () => {
   const storage = memoryStorage(null);
-  for (const query of ['', 'bord=1', 'bord=9', 'bord=abc', 'bord=0', 'bord=-1']) {
+  for (const query of ['', 'bord=1', 'bord=3', 'bord=9', 'bord=abc', 'bord=0', 'bord=-1', 'bord=2.5', 'bord=']) {
     const choice = chooseLevel(new URLSearchParams(query), storage);
     assert.equal(choice.level, BERJALUNDUR, query); assert.equal(choice.locked instanceof Set, true);
   }
@@ -351,4 +352,98 @@ test("level 1's words are the markup's own words: the first paint stays as it wa
     ...BERJALUNDUR.steps.filter(step => step.journey).map(step => `<li data-step="${step.id}">`),
   ];
   for (const snippet of inMarkup) assert.ok(html.includes(snippet), snippet);
+});
+
+// ---- level 2 and the lock ----
+
+test('the lock survives a throwing storage: only level 1 is open, nothing is saved, and ?bord=2 still opens level 2', () => {
+  assert.deepEqual([...unlockedLevels(blockedStorage)], ['berjalundur']);
+  assert.equal(unlockLevel('steinagljufur', blockedStorage), false, 'storage that throws is a no, not a crash');
+  const plain = chooseLevel(new URLSearchParams(''), blockedStorage);
+  assert.equal(plain.level.id, 'berjalundur'); assert.deepEqual([...plain.locked], ['steinagljufur']);
+  const asked = chooseLevel(new URLSearchParams('bord=2'), blockedStorage);
+  assert.equal(asked.level.id, 'steinagljufur'); assert.equal(asked.level, STEINAGLJUFUR);
+  assert.deepEqual([...asked.locked], [], 'the level asked for by number is not shown locked');
+  assert.equal(chooseLevel(new URLSearchParams('bord=1'), blockedStorage).level, BERJALUNDUR);
+});
+
+test('unlocking is remembered: level 2 opens once level 1 has been finished and stays open', () => {
+  const storage = memoryStorage(null);
+  assert.deepEqual([...unlockedLevels(storage)], ['berjalundur']);
+  assert.equal(unlockLevel('steinagljufur', storage), true);
+  assert.deepEqual(JSON.parse(storage.value), ['steinagljufur']);
+  assert.deepEqual([...unlockedLevels(storage)].sort(), ['berjalundur', 'steinagljufur']);
+  const choice = chooseLevel(new URLSearchParams(''), storage);
+  assert.equal(choice.level, BERJALUNDUR, 'the page still starts at level 1'); assert.deepEqual([...choice.locked], []);
+  assert.equal(unlockLevel('berjalundur', storage), true); assert.deepEqual(JSON.parse(storage.value).sort(), ['berjalundur', 'steinagljufur'], 'the saved ids add up');
+  // a second visit (a new reader of the same storage) sees it open
+  assert.deepEqual([...unlockedLevels(memoryStorage(storage.value))].sort(), ['berjalundur', 'steinagljufur']);
+});
+
+test('an unknown ?bord falls back to level 1, and the known numbers pick their level', () => {
+  const storage = memoryStorage(null);
+  for (const query of ['bord=3', 'bord=9', 'bord=0', 'bord=-2', 'bord=abc', 'bord=2x', 'bord=1.5', 'bord=%20', 'x=2']) assert.equal(chooseLevel(new URLSearchParams(query), storage).level, BERJALUNDUR, query);
+  assert.equal(chooseLevel(new URLSearchParams('bord=2'), storage).level, STEINAGLJUFUR);
+  assert.equal(chooseLevel(new URLSearchParams('seed=7&bord=2'), storage).level, STEINAGLJUFUR);
+  assert.equal(chooseLevel(null, storage).level, BERJALUNDUR); assert.equal(chooseLevel(undefined, storage).level, BERJALUNDUR);
+});
+
+test('level 2 deals 16 cards with four fossil pairs and the baby Flugeðla among the four friend pairs, and is won with the last pair', () => {
+  const { friends, gifts } = STEINAGLJUFUR;
+  assert.deepEqual([...friends], ['triceratops', 'stegosaurus', 'brontosaurus', 'pteranodon']);
+  assert.deepEqual([...gifts], ['ammonite', 'trilobite', 'fern', 'footprint']);
+  const game = createMemoryGame({ random: () => 0.999, species: friends, gifts });
+  const cards = game.getState().cards;
+  assert.equal(cards.length, 16); assert.equal(new Set(cards.map(card => card.id)).size, 16);
+  for (const name of friends) assert.equal(cards.filter(card => card.species === name).length, 2, `two leaves hide ${name}`);
+  for (const item of gifts) assert.equal(cards.filter(card => card.item === item).length, 2, `two leaves hide the ${item}`);
+  assert.equal(cards.filter(card => card.species === null).length, 8, 'eight fossil leaves');
+  assert.equal(cards.filter(card => card.species === 'pteranodon').length, 2);
+  invariant(game);
+  for (const [nestIndex, species] of friends.entries()) {
+    const ids = pairIds(game, species);
+    assert.deepEqual(revealTwo(game, ...ids), [{ type: 'match', ids, species, nestIndex }]);
+    game.advance(1); invariant(game);
+  }
+  for (const [giftIndex, item] of gifts.entries()) {
+    const ids = game.getState().cards.filter(card => card.item === item).map(card => card.id);
+    assert.deepEqual(revealTwo(game, ...ids), [{ type: 'gift', ids, item, giftIndex }]);
+    assert.deepEqual(game.advance(1), giftIndex === 3 ? [{ type: 'won', ids: [...Array(16).keys()] }] : []);
+  }
+  assert.equal(game.getState().phase, 'won'); assert.deepEqual([...game.getState().found], ['ammonite', 'trilobite', 'fern', 'footprint']);
+});
+
+test('level 2 is described as frozen data: its steps, its pairs, its glade and its words', () => {
+  const level = STEINAGLJUFUR;
+  assert.equal(level.number, 2); assert.equal(level.title, 'Steinagljúfrið'); assert.equal(level.ribbon, 'Leiðin upp á Sólarsylluna');
+  assert.equal(levelById('steinagljufur'), level); assert.equal(levelNumber(2), level);
+  assert.deepEqual(level.steps.map(step => [step.id, step.kind, step.target]), [['light', 'task', 'tunnel'], ['headbutt', 'task', 'rocks'], ['through', 'travel', 'tunnelExit'], ['reach', 'task', 'ledge'], ['fly', 'task', 'cliff'], ['climb', 'travel', 'clifftop'], ['pull', 'together', 'trunk'], ['walk', 'travel', 'sunLedge']]);
+  assert.deepEqual(level.steps.filter(step => step.species).map(step => [step.id, step.species]), [['light', 'stegosaurus'], ['headbutt', 'triceratops'], ['reach', 'brontosaurus'], ['fly', 'pteranodon']]);
+  assert.equal(level.steps[0].holds, 'through');
+  assert.deepEqual(level.steps.find(step => step.id === 'headbutt').beatWords, ['Einn!', 'Tveir!', 'BÚMM!']);
+  assert.deepEqual(level.steps.find(step => step.id === 'pull').beatWords, ['Einn!', 'Tveir!', 'TOGA!']);
+  const through = level.steps.find(step => step.id === 'through');
+  assert.deepEqual([through.needsAllFound, through.waitsForGifts, through.automatic], [true, true, true]);
+  // the grid has a leaf for every card, a rest for every pair
+  const { grid, nests, mosiSpot, gladeView, friends, gifts } = level;
+  assert.equal(grid.columns * grid.rows, 2 * (friends.length + gifts.length)); assert.deepEqual([grid.columns, grid.rows], [4, 4]);
+  assert.equal(nests.length, friends.length); assert.ok(Number.isFinite(mosiSpot.x + mosiSpot.z + mosiSpot.heading));
+  assert.ok(gladeView.landscape.length === 3 && gladeView.portrait.length === 3);
+  assert.deepEqual(Object.keys(level.roster).sort(), [...friends].sort()); assert.deepEqual(Object.keys(level.pairs).sort(), [...friends].sort());
+  assert.throws(() => { level.steps[0].target = 'changed'; }, TypeError); assert.throws(() => { level.friends.push('x'); }, TypeError);
+  // every key of the story is level 2's own (g2-), and no two moments share one
+  const keys = [...Object.values(level.story.common).filter(value => typeof value === 'string'), ...level.steps.flatMap(step => ['doing', 'ready', 'arriving', 'find', 'open', 'gather', 'gifts', 'landing'].map(name => level.story[step.id][name]).filter(Boolean))];
+  assert.ok(keys.length > 20); assert.ok(keys.every(key => key.startsWith('g2-')), keys.filter(key => !key.startsWith('g2-')).join());
+  assert.equal(new Set(keys).size, keys.length, 'a key says one moment');
+  // the words the search says: a task's find prompt, the wait for the fossils
+  assert.equal(level.story.light.find, 'g2-find-glowers'); assert.equal(level.story.light.ready, 'g2-light-ready');
+  assert.deepEqual(level.steps.filter(step => step.kind === 'task').map(step => level.story[step.id].prompts.find.startsWith('Finnum vin sem getur ')), [true, true, true, true]);
+  assert.equal(level.story.through.prompts.gifts, 'Finnum fyrst það sem er eftir undir laufunum!');
+  // the flags read the done steps, and the ladder reads back from them
+  const flags = ids => level.flags(new Set(ids));
+  assert.ok(Object.values(flags([])).every(value => value === false));
+  const all = level.steps.map(step => step.id);
+  for (let n = 0; n <= all.length; n++) assert.deepEqual(level.doneFrom(flags(all.slice(0, n))), all.slice(0, n), `${n} steps done`);
+  assert.ok(level.steps.every(step => level.targets[step.target]?.label), 'every obstacle has an accessible name');
+  assert.equal(level.music({}), 'glade');
 });

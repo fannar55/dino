@@ -1,7 +1,8 @@
 import { BERJALUNDUR } from './berjalundur.js';
+import { STEINAGLJUFUR } from './steinagljufur.js';
 
 /** The levels, in the order the child plays them. Level 1 is always open; the next opens when the one before it is finished. */
-export const LEVELS = Object.freeze([BERJALUNDUR]);
+export const LEVELS = Object.freeze([BERJALUNDUR, STEINAGLJUFUR]);
 export const levelById = id => LEVELS.find(level => level.id === id) ?? null;
 export const levelNumber = number => LEVELS.find(level => level.number === number) ?? null;
 
