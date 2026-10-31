@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBridgeAdventure, BRIDGE_HELPERS, BRIDGE_ACTIONS } from '../engine/memory/bridge-rules.js';
+import { createStepRules } from '../engine/memory/step-rules.js';
 
 const HELPERS = ['triceratops', 'brontosaurus', 'stegosaurus'];
 const ACTIONS = ['lift', 'roll', 'cross', 'lay', 'finish'];
@@ -152,4 +153,93 @@ test('repeated mixed commands preserve every stage prerequisite', () => {
     if (after.boardwalkBuilt) assert.ok(after.atStaging);
     if (after.visited) assert.ok(after.boardwalkBuilt && after.branch === 'down' && after.active === null);
   }
+});
+
+// A level that is not level 1: a task, a "together" step and a travel step. The rules read the ladder from the description.
+const fakeLevel = (extra = {}) => ({
+  id: 'fake', friends: ['x', 'y'],
+  steps: [
+    { id: 'a', kind: 'task', target: 'rock', species: 'x' },
+    { id: 'b', kind: 'together', target: 'rope', beatWords: ['Einn!', 'Tveir!'] },
+    { id: 'c', kind: 'travel', target: 'far', needsAllFound: true, automatic: true },
+  ],
+  flags: done => ({ rockMoved: done.has('a') }),
+  ...extra,
+});
+
+test("step rules run any level's ladder", () => {
+  const rules = createStepRules(fakeLevel());
+  assert.equal(rules.next(), 'rock', 'the first step glows first');
+  assert.deepEqual(rules.getState().done, []);
+  assert.equal(rules.getState().rockMoved, false, "the level's flags are part of the state");
+  assert.deepEqual(rules.ask('rope'), { kind: 'not-yet' }, 'the together step waits for the one before it');
+  assert.equal(rules.ask('far'), null, 'a travel step is not an obstacle');
+  assert.deepEqual(rules.ask('rock'), { kind: 'find-first' });
+  rules.unlock('x');
+  assert.deepEqual(rules.ask('rock'), { kind: 'choose', candidates: ['x'] });
+  assert.deepEqual(rules.pick('x'), { kind: 'start', action: 'a' });
+  assert.equal(rules.complete('a'), true);
+  assert.deepEqual(rules.getState().done, ['a']); assert.equal(rules.getState().rockMoved, true);
+  assert.equal(rules.next(), 'rope');
+  assert.deepEqual(rules.ask('rope'), { kind: 'start', action: 'b' }, 'a together step starts at once');
+  const together = rules.getState();
+  assert.equal(together.asking, null); assert.deepEqual(together.candidates, []); assert.equal(together.active, 'b', 'no bubbles, the step is running');
+  assert.equal(rules.complete('b'), true);
+  assert.equal(rules.next(), null, 'a travel step starts on its own');
+  assert.equal(rules.can('c'), false, 'y is not found yet'); assert.equal(rules.choose('c'), false);
+  rules.unlock('y'); assert.equal(rules.can('c'), true);
+  assert.equal(rules.choose('c'), true); assert.equal(rules.complete('c'), true);
+  assert.equal(rules.getState().phase, 'complete'); assert.deepEqual(rules.getState().done, ['a', 'b', 'c']);
+  rules.restart();
+  assert.deepEqual(rules.getState().done, []); assert.equal(rules.getState().rockMoved, false); assert.equal(rules.next(), 'rock');
+});
+
+test('a step the one before it has not finished cannot start, even by asking', () => {
+  const rules = createStepRules(fakeLevel()); rules.unlock('x'); rules.unlock('y');
+  for (const id of ['b', 'c']) assert.equal(rules.can(id), false);
+  assert.deepEqual(rules.ask('rope'), { kind: 'not-yet' });
+  assert.equal(rules.getState().active, null, 'a not-yet answer starts nothing');
+  assert.equal(rules.select('x'), true); assert.equal(rules.choose('a'), true);
+  assert.deepEqual(rules.ask('rope'), null, 'nothing is asked while a step runs'); assert.equal(rules.getState().active, 'a');
+});
+
+test("cancel hands the level's onCancel the step, the options and the done steps", () => {
+  const calls = [];
+  const rules = createStepRules(fakeLevel({ onCancel: (id, opts, done) => calls.push([id, opts, [...done]]) }));
+  rules.unlock('x'); rules.select('x');
+  assert.equal(rules.cancel('a', { why: 'blocked' }), false); assert.equal(calls.length, 0, 'nothing runs, nothing to cancel');
+  rules.choose('a');
+  assert.equal(rules.cancel('b', { why: 'blocked' }), false); assert.equal(calls.length, 0, 'another step is not the running one');
+  assert.equal(rules.cancel('a', { why: 'blocked' }), true);
+  assert.deepEqual(calls, [['a', { why: 'blocked' }, []]]);
+  assert.equal(rules.getState().active, null); assert.deepEqual(rules.getState().done, [], 'a cancelled step is not done');
+});
+
+test('holds keep a species busy until the named step', () => {
+  const game = allFound(); lift(game);
+  assert.equal(game.getState().free.includes('brontosaurus'), false, 'holding the branch');
+  assert.equal(game.getState().free.includes('triceratops'), true);
+  game.select('triceratops'); run(game, 'roll');
+  assert.equal(game.getState().free.includes('brontosaurus'), true, 'the roll let the branch go');
+  // The same rule in a level of another shape: x is busy after a until b is done.
+  const rules = createStepRules(fakeLevel({ steps: [
+    { id: 'a', kind: 'task', target: 'rock', species: 'x', holds: 'b' },
+    { id: 'b', kind: 'task', target: 'log', species: 'y' },
+  ] }));
+  rules.unlock('x'); rules.unlock('y'); rules.select('x'); rules.choose('a'); rules.complete('a');
+  assert.deepEqual([...rules.getState().free], ['y']);
+  assert.deepEqual(rules.ask('log'), { kind: 'choose', candidates: ['y'] }, 'only the free pair can be chosen');
+  rules.pick('y'); rules.complete('b');
+  assert.deepEqual([...rules.getState().free], ['x', 'y']);
+});
+
+test("level 1's state keeps today's five fields and adds the done steps", () => {
+  const game = allFound();
+  assert.deepEqual(game.getState().done, []);
+  lift(game); assert.deepEqual(game.getState().done, ['lift']); assert.equal(game.getState().branch, 'held');
+  game.select('triceratops'); run(game, 'roll'); assert.deepEqual(game.getState().done, ['lift', 'roll']);
+  run(game, 'cross'); game.select('stegosaurus'); run(game, 'lay'); run(game, 'finish');
+  assert.deepEqual(game.getState().done, ACTIONS);
+  assert.deepEqual(Object.keys(game.getState()), Object.keys(empty()), 'done is not one of the listed fields: snapshots still compare as before');
+  game.restart(); assert.deepEqual(game.getState().done, []);
 });

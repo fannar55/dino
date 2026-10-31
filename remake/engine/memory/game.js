@@ -1,7 +1,8 @@
 import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
 import { createMemoryAudio } from './audio.js';
-import { createBridgeAdventure, BRIDGE_OBSTACLES } from './bridge-rules.js';
+import { createStepRules, obstaclesOf } from './step-rules.js';
+import { chooseLevel } from './levels/index.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { GIFT_ITEMS, GIFT_CREDITS } from './surprise-items.js';
@@ -10,21 +11,24 @@ import { BASKET_ICON } from '../scene/ui.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const roster = { triceratops: 'Þríhyrna', stegosaurus: 'Kambeðla', brontosaurus: 'Þórseðla' };
+// The level being played: its friends, steps, story, words and sounds are all read from its description (levels/).
+const { level } = chooseLevel(params);
+const roster = level.roster;
 // The "who" bubbles: a portrait of each pair (portraits/, cropped round in CSS) and its name.
-const pairs = { triceratops: { name: 'Þríhyrnur', label: 'Þríhyrnuparið' }, brontosaurus: { name: 'Þórseðlur', label: 'Þórseðluparið' }, stegosaurus: { name: 'Kambeðlur', label: 'Kambeðluparið' } };
+const pairs = level.pairs;
+const OBSTACLES = obstaclesOf(level);
+const stepById = id => level.steps.find(step => step.id === id);
+const travelAt = target => level.steps.find(step => step.kind === 'travel' && step.target === target);
 // Mosi's lines that also go up in his bubble when a script says them.
 const CAPTIONED = new Set(['who', 'other', 'together', 'push', 'findFirst', 'notYet', 'lift', 'build', 'won', 'gifts3', 'giftsLeft']);
 // How long a line's words stay up in his bubble when a script says it (seconds; the others 2.6).
 const CAPTION_HOLD = { won: 5.8, gifts3: 3.4, giftsLeft: 3.2 };
 const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the next obstacle
 const RETRY_AFTER = 3; // seconds the camera is still before a blocked crossing (or walk to the grove) tries again by itself
-const PANEL_WORDS = ['Ein!', 'Tvær!', 'Þrjár!']; // the bark's three panels, counted as they go down (fjöl is feminine)
-const PUSH_WORDS = ['Einn!', 'Tveir!', 'ÝTA!']; // the log's three pushes, as Mosi says them ("Einn, tveir, ÝTA!")
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-const game = createMemoryGame(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {});
+const game = createMemoryGame({ ...(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {}), species: level.friends, gifts: level.gifts });
 const audio = createMemoryAudio();
-const bridge = createBridgeAdventure();
+const bridge = createStepRules(level);
 const buttons = new Map();
 const nestSpecies = [];
 let world, started = false, userPaused = false, time = 0, lastFrame = 0, raf = 0, disposed = false, phaseBefore = '';
@@ -54,13 +58,40 @@ function setMute(value) {
   $('sound').querySelector('small').textContent = muted ? 'Hljóð af' : 'Hljóð';
   try { localStorage.setItem('mosi.memory.muted.v1', String(muted)); } catch {}
 }
+// The words and counts on the page come from the level (levels/*.js, `copy`, `ribbon`, `friends`, `gifts`). The markup has the same words
+// for level 1, so its first paint is the markup's own: only what differs is written.
+function applyLevelDom() {
+  const { copy } = level;
+  const text = (selector, value) => { const element = document.querySelector(selector); if (element && element.textContent !== value) element.textContent = value; };
+  // A button's label is its first text node (its icon follows in a span).
+  const label = (selector, value) => { const node = document.querySelector(selector)?.firstChild; if (node?.nodeType === 3 && node.nodeValue !== `${value} `) node.nodeValue = `${value} `; };
+  const describe = (id, value) => { if ($(id).getAttribute('aria-label') !== value) $(id).setAttribute('aria-label', value); };
+  text('.game-title span', level.ribbon);
+  text('#welcome .eyebrow', copy.welcome.eyebrow); text('#welcome h2', copy.welcome.title); text('#welcome .fine', copy.welcome.fine); label('#start', copy.welcome.start);
+  const intro = document.querySelector('#welcome > p:not(.fine)');
+  if ([...intro.childNodes].map(node => node.nodeName === 'BR' ? '\n' : node.nodeValue).join('') !== copy.welcome.lines.join('\n')) {
+    intro.replaceChildren(...copy.welcome.lines.flatMap((line, index) => (index ? [document.createElement('br'), line] : [line])));
+  }
+  text('#help-dialog .eyebrow', copy.help.eyebrow); text('#help-dialog h2', copy.help.title); text('#help-dialog > p', copy.help.note); text('#help-dialog [data-resume]', copy.help.resume);
+  const steps = document.querySelector('#help-dialog ol');
+  if ([...steps.children].map(item => item.textContent).join('\n') !== copy.help.items.join('\n')) {
+    steps.replaceChildren(...copy.help.items.map(item => Object.assign(document.createElement('li'), { textContent: item })));
+  }
+  text('#ending .eyebrow', copy.ending.eyebrow); text('#ending h2', copy.ending.title); text('#ending-copy', copy.ending.text); label('#again', copy.ending.again);
+  text('#loading h2', copy.loading.title); text('#loading-copy', copy.loading.copy);
+  describe('targets', copy.aria.targets); describe('journey', copy.aria.journey);
+  // One dot for each friend pair, the counts of friends and gifts ("0 / 3 pör", "0 / 3").
+  const dots = $('progress').querySelector('.nest-dots');
+  if (dots.children.length !== level.friends.length) dots.replaceChildren(...level.friends.map(() => document.createElement('i')));
+  reflectProgress(game.getState()); reflectBasket();
+}
 function reflectProgress(state) {
-  $('progress').setAttribute('aria-label', `${state.matchedPairs} af 3 pörum fundin`);
-  $('progress-text').textContent = `${state.matchedPairs} / 3 pör`;
+  $('progress').setAttribute('aria-label', `${state.matchedPairs} af ${level.friends.length} pörum fundin`);
+  $('progress-text').textContent = `${state.matchedPairs} / ${level.friends.length} pör`;
   $('progress').querySelectorAll('i').forEach((dot, index) => dot.classList.toggle('found', index < state.matchedPairs));
 }
 // The basket counts the gift pairs, as each pair lands in it: "0 / 3" from the start of the round; hidden when a round has none.
-const giftTotal = () => new Set(game.getState().cards.filter(card => card.item).map(card => card.item)).size;
+const giftTotal = () => level.gifts.length;
 // Gift pairs not in the basket yet (the crossing and the ending wait until there are none), and gift pairs not found yet (the rest are
 // on their way to the basket).
 const giftsToLand = () => Math.max(0, giftTotal() - basketCount);
@@ -81,21 +112,27 @@ function basketPoint() {
 const betweenTurns = () => ['ready', 'won'].includes(game.getState().phase);
 // What Mosi's hint needs from the rules besides the phase: the gift pairs still to land in the basket, and (with one leaf open) the line for a gift's other half.
 const seekLine = () => { const state = game.getState(), open = state.selected.length === 1 ? state.cards[state.selected[0]] : null; return open?.item ? GIFT_ITEMS[open.item]?.seek ?? null : null; };
-const currentStory = () => nextStoryStep({ ...game.getState(), giftsLeft: giftsUnfound(), giftsLanding: giftsToLand() - giftsUnfound(), seek: seekLine() }, bridge.getState(), world?.getPairReadiness?.() ?? {});
+const currentStory = () => nextStoryStep({ ...game.getState(), giftsLeft: giftsUnfound(), giftsLanding: giftsToLand() - giftsUnfound(), seek: seekLine() }, bridge.getState(), world?.getPairReadiness?.() ?? {}, level);
 function syncBridge() {
   world?.setBridgeState(bridge.getState());
   reflectJourney(); refreshControls();
 }
+// The ribbon's steps are the level's steps that have a `journey` name: done once finished, the first one not done is the next job.
+const journeySteps = level.steps.filter(step => step.journey);
 function reflectJourney() {
-  const state = bridge.getState();
-  const done = [state.branch === 'held' || state.bridgeBuilt, state.bridgeBuilt, state.boardwalkBuilt];
-  const current = state.boardwalkBuilt ? -1 : state.bridgeBuilt ? 2 : state.branch === 'held' ? 1 : 0;
-  $('journey').querySelectorAll('[data-step]').forEach((step, index) => {
-    step.classList.toggle('done', done[index]); step.classList.toggle('current', current === index);
-    step.setAttribute('aria-label', `${['Lyfta grein', 'Gera trjábrú', 'Leggja gönguleið'][index]}${done[index] ? ', lokið' : current === index ? ', næsta verkefni' : ''}`);
-    step.querySelector('b').textContent = done[index] ? '✓' : String(index + 1);
+  const finished = new Set(bridge.getState().done);
+  const current = journeySteps.findIndex(step => !finished.has(step.id));
+  $('journey').querySelectorAll('[data-step]').forEach(element => {
+    const index = journeySteps.findIndex(step => step.id === element.dataset.step);
+    if (index < 0) return;
+    const done = finished.has(journeySteps[index].id);
+    element.classList.toggle('done', done); element.classList.toggle('current', current === index);
+    element.setAttribute('aria-label', `${journeySteps[index].journey}${done ? ', lokið' : current === index ? ', næsta verkefni' : ''}`);
+    element.querySelector('b').textContent = done ? '✓' : String(index + 1);
   });
 }
+// Whether a pair is busy holding something up (level 1: the Þórseðlur hold the branch from the lift until the log is across).
+const holding = state => level.steps.some(step => step.holds && state.done.includes(step.id) && !state.done.includes(step.holds));
 // What a script asked to be heard. The world never touches audio; game.js does.
 function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   if (name === 'reveal') audio.reveal(species, index);
@@ -106,6 +143,25 @@ function playSceneSound({ name, species, index = 0, nestIndex = 0 }) {
   else if (name === 'bonk') audio.bonk();
   else if (name === 'ding') audio.ding();
   else if (name === 'giggle') audio.giggle();
+}
+// What the level's own events (the world's task events: a branch lifted, a log rolling, the bark placed...) sound like, said in
+// the level's table (levels/*.js, eventSounds): by event type, a beat by its step ('beat:lift').
+function playEventSounds(event) {
+  for (const entry of level.eventSounds[event.type === 'beat' ? `beat:${event.id}` : event.type] ?? []) {
+    if (typeof entry === 'string') audio[entry]();
+    else if (entry.say) speech.queue(entry.say, { delay: entry.delay });
+    else audio[entry.method](event[entry.arg]);
+  }
+}
+// The words Mosi's bubble shows for an event, from the level's table (eventCaptions).
+function showEventCaption(event) {
+  const entry = level.eventCaptions[event.type];
+  if (entry) caption(entry.by?.[event.id] ?? entry.text, entry.hold);
+}
+// A beat of the tap-along: its big word, the step's beatWords by the beat's number (the last one if there are more beats than words).
+function showBeatWord(event) {
+  const words = stepById(event.id)?.beatWords;
+  if (words) showWord(words[event.index] ?? words.at(-1));
 }
 // A script's line for Mosi: heard, and the task lines also shown in his bubble.
 // `queue`: the celebration's lines wait until what he is saying is over (the gifts line after "Allir sex komnir…").
@@ -141,12 +197,13 @@ function launchAction(action) {
   const ready = world?.getPairReadiness?.() ?? {};
   if (!bridge.getState().unlocked.every(species => ready[species])) return false;
   // The leaves are behind the camera once the crossing starts: every gift pair is in the basket first.
-  if (action === 'cross' && giftsToLand() > 0) return false;
+  const step = stepById(action);
+  if (step?.waitsForGifts && giftsToLand() > 0) return false;
   if (!bridge.can(action) || !(action === 'cross' ? world.playCross() : action === 'finish' ? world.playFinish() : world.startBridgeTask(action))) return false;
   bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
   // The camera is already held by the script, so guidance() leaves the caption alone: put Mosi's words up with his voice.
-  if (action === 'cross' || action === 'finish') { speech.queue(action, { delay: .15 }); caption(VOICE_LINES[action].text, 3.2); }
+  if (step?.kind === 'travel') { speech.queue(action, { delay: .15 }); caption(VOICE_LINES[action].text, 3.2); }
   return true;
 }
 function updateStory(dt) {
@@ -210,11 +267,12 @@ function pickFriend(species) {
 function failDone() {
   if (!bridge.failDone()) return;
   const state = bridge.getState();
-  if (state.asking && !state.candidates.includes(BRIDGE_OBSTACLES[state.asking].species)) { bridge.dismiss(); caption('Finnum fleiri vini undir laufunum!', 2.8); }
+  if (state.asking && !state.candidates.includes(OBSTACLES[state.asking].species)) { bridge.dismiss(); caption('Finnum fleiri vini undir laufunum!', 2.8); }
   syncBridge(); reflectEnding();
 }
 // The ending card comes when the round is won and the celebration (a script) is over; the round always ends with all three gifts.
-const endingDue = () => game.getState().phase === 'won' && bridge.getState().visited && !bridge.getState().active && !world?.sceneBusy();
+const levelDone = () => bridge.getState().phase === 'complete'; // every step of the level is done
+const endingDue = () => game.getState().phase === 'won' && levelDone() && !bridge.getState().active && !world?.sceneBusy();
 function reflectGifts() {
   const total = giftTotal(), row = $('ending-gifts');
   row.hidden = !total || game.getState().found.length < total;
@@ -236,7 +294,7 @@ function setCredits(open) {
 }
 function reflectEnding() {
   const state = bridge.getState();
-  const won = game.getState().phase === 'won' && state.visited;
+  const won = game.getState().phase === 'won' && levelDone();
   if (won && !celebrated && !state.active) {
     celebrated = true; world.celebrate(); audio.win();
   }
@@ -244,7 +302,7 @@ function reflectEnding() {
   if (showEnding && $('ending').hidden) reflectGifts();
   $('ending').hidden = !showEnding; $('coach').hidden = !started || showEnding;
   $('cancel-choice').hidden = !whoVisible();
-  $('holding').hidden = !started || state.branch !== 'held' || state.visited || Boolean(state.active);
+  $('holding').hidden = !started || !holding(state) || levelDone() || Boolean(state.active);
 }
 function accept(events) {
   for (const event of events) {
@@ -290,7 +348,7 @@ function chooseNest(index) {
   speech.stop(); audio.unlock(); music.unlock(); if (world.playNest(index)) audio.nest(nestSpecies[index], index);
 }
 function actionFor(id) {
-  return ({ staging: 'cross', grove: 'finish' }[id] ?? null);
+  return travelAt(id)?.id ?? null;
 }
 function mayTask(id) {
   const action = actionFor(id);
@@ -305,9 +363,9 @@ function chooseTask(id) {
   if (bridge.getState().asking) return;
   if (!betweenTurns() || !targetAvailable('task', id)) return;
   noteInput();
-  if (Object.hasOwn(BRIDGE_OBSTACLES, id)) { askObstacle(id); return; }
+  if (Object.hasOwn(OBSTACLES, id)) { askObstacle(id); return; }
   // Staging and grove: a crossing that found its way blocked starts again from here (not while gifts are left: Mosi says so).
-  if (id === 'staging' && bridge.can('cross') && giftsToLand() > 0) { sayGiftsLeft(); return; }
+  if (travelAt(id)?.waitsForGifts && bridge.can(actionFor(id)) && giftsToLand() > 0) { sayGiftsLeft(); return; }
   if (mayTask(id)) launchAction(actionFor(id));
 }
 // A tap on the staging spot with gift leaves still shut: Mosi says what is left. With every pair found and the last on its way to the
@@ -320,13 +378,6 @@ function cancelChoice() {
   if (held() || !bridge.dismiss()) return;
   syncBridge(); guidance(); reflectEnding();
 }
-const taskIcons = {
-  branch: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 25c8-6 13-6 22-2M7 24l-2-5m18 4 3-6"/><path class="branch-arrow" d="M16 18V5m-5 5 5-5 5 5"/></svg>',
-  log: '<svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="8" cy="20" rx="5" ry="7"/><path d="M8 13h16c7 0 7 14 0 14H8M14 7c4-4 10-3 13 1m-5 2 5-2-1-5"/></svg>',
-  staging: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 25v-8c7-9 15-9 22 0v8M5 21h22M16 14V4m-5 5 5-5 5 5"/></svg>',
-  bark: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m7 6 20 3-2 6-20-3zM6 16l20 3-2 6-20-3zM10 7l-1 6m8-5-1 6m-6 3-1 6m8-5-1 6"/></svg>',
-  grove: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="10" cy="20" r="6"/><circle cx="22" cy="20" r="6"/><circle cx="16" cy="12" r="6"/><path d="M16 6c4-5 8-5 10-3-1 4-5 5-10 3"/></svg>',
-};
 function refreshControls() {
   if (!world) return;
   const state = game.getState();
@@ -365,7 +416,7 @@ function refreshControls() {
       button = document.createElement('button'); button.type = 'button'; button.className = 'world-target';
       button.dataset.target = key;
       button.addEventListener('click', () => target.type === 'leaf' ? choose(target.id) : target.type === 'task' ? chooseTask(target.id) : chooseNest(target.index));
-      if (target.type === 'task') { button.classList.add('task-target'); button.innerHTML = `<span class="task-badge">${taskIcons[target.id]}</span>`; }
+      if (target.type === 'task') { button.classList.add('task-target'); button.innerHTML = `<span class="task-badge">${level.targets[target.id]?.icon}</span>`; }
       $('targets').append(button); buttons.set(key, button);
     }
     button.style.left = `${target.x}px`; button.style.top = `${target.y}px`;
@@ -378,14 +429,14 @@ function refreshControls() {
       button.setAttribute('aria-label', `Lauf ${target.id + 1}${card?.status === 'open' ? `, ${card.item ? GIFT_ITEMS[card.item]?.name : roster[card.species]}` : card?.status === 'matched' ? ', tómt' : card?.status === 'found' ? ', fundið' : ', lokað'}`);
     } else if (target.type === 'task') {
       // Obstacles can always be asked about (Mosi answers); staging and grove only retry a blocked crossing.
-      const obstacle = Object.hasOwn(BRIDGE_OBSTACLES, target.id), available = obstacle || mayTask(target.id);
+      const obstacle = Object.hasOwn(OBSTACLES, target.id), available = obstacle || mayTask(target.id);
       // The tap-along ring stays drawn through a pause; only its taps wait for play.
       const tapAlong = Boolean(target.tapAlong) && target.enabled !== false;
       button.disabled = tapAlong ? held() : !mayExplore || !available || target.enabled === false;
       button.classList.toggle('tap-along', tapAlong);
       button.classList.toggle('is-next', Boolean(target.next) && mayExplore && target.enabled !== false);
-      button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(target.id === 'staging' && giftsToLand() > 0) || target.id === story.target && (hesitating || retrying));
-      button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : ({ branch: 'Greinin: hver getur lyft henni?', log: 'Stóri bolurinn: hver getur ýtt honum?', staging: 'Senda alla sex vinina yfir trjábrúna', bark: 'Börkurinn: hver getur lagt leið yfir mýrina?', grove: 'Senda alla vinina í berjalundinn' }[target.id]));
+      button.classList.toggle('choice-visible', !obstacle && available && mayExplore && target.enabled !== false && !(travelAt(target.id)?.waitsForGifts && giftsToLand() > 0) || target.id === story.target && (hesitating || retrying));
+      button.setAttribute('aria-label', tapAlong ? 'Ýttu til að hjálpa!' : level.targets[target.id]?.label);
     } else {
       const species = nestSpecies[target.index];
       button.disabled = !mayExplore || !species || target.enabled === false;
@@ -474,7 +525,7 @@ function frame(timestamp) {
     speech.update(frozen ? 0 : dt, camera.mode === 'auto' && camera.moving);
     world.setMosiSpeech?.(speech.amplitude());
     const voice = speech.isPlaying(), action = Boolean(bridgeState.active);
-    music.update(dt, { speech: voice, action, stage: bridgeState.visited ? 'grove' : bridgeState.atStaging ? 'marsh' : 'glade' });
+    music.update(dt, { speech: voice, action, stage: level.music(bridgeState) });
     audio.duck?.(voice); audio.river(!frozen, voice || action);
     world.update(frozen ? 0 : dt, time);
     for (const event of world.pollBridgeEvents()) {
@@ -482,28 +533,19 @@ function frame(timestamp) {
       else if (event.type === 'scene-say') sayLine(event.line, event);
       else if (event.type === 'scene-basket') { basketCount++; reflectBasket(true); reflectEnding(); }
       else if (event.type === 'footstep') audio.footstep?.(event.surface, event.pan);
-      else if (event.type === 'branch-lift') audio.branchLift();
-      else if (event.type === 'beat' && event.id === 'lift') { showWord('Upp!'); audio.branchLift(); audio.strain(); }
-      else if (event.type === 'beat' && event.id === 'roll') { showWord(PUSH_WORDS[event.index] ?? PUSH_WORDS.at(-1)); audio.logRoll(); audio.strain(); }
-      else if (event.type === 'beat' && event.id === 'lay') { showWord(PANEL_WORDS[event.index] ?? PANEL_WORDS.at(-1)); audio.strain(); }
-      else if (event.type === 'fail-bump') audio.bonk();
       else if (event.type === 'fail-done') failDone();
-      else if (event.type === 'branch-lower') audio.branchLower();
-      else if (event.type === 'log-roll') { audio.logRoll(); speech.queue('roll', { delay: .12 }); }
-      else if (event.type === 'bridge-land') audio.bridgeLand();
-      else if (event.type === 'staging-arrival') audio.stagingArrival();
-      else if (event.type === 'bark-pickup') audio.barkPickup();
-      else if (event.type === 'bark-place') audio.barkPlace(event.panel);
-      else if (event.type === 'boardwalk-complete') { audio.boardwalkComplete(); caption('Gönguleiðin er tilbúin!', 3.5); }
-      else if (event.type === 'final-arrival' || event.type === 'berry-arrival') audio.berryArrival();
-      else if (event.type === 'bridge-complete' && bridge.complete(event.id)) {
-        syncBridge(); reflectEnding(); guidance();
-      } else if (event.type === 'bridge-blocked' && bridge.cancel(event.id, { branch: event.branch })) {
-        blockedAuto = event.id; autoStep = null; autoAge = 0; retryAge = 0;
-        speech.stop(); audio.cancel(); syncBridge(); reflectEnding();
-        caption(['lift', 'roll'].includes(event.id)
-          ? 'Hér er þröngt. Finndu fleiri vini eða veldu parið aftur.'
-          : 'Vinirnir bíða. Veldu verkefnið aftur þegar leiðin er laus.', 2.4);
+      else if (event.type === 'bridge-complete') {
+        if (bridge.complete(event.id)) { syncBridge(); reflectEnding(); guidance(); }
+      } else if (event.type === 'bridge-blocked') {
+        if (bridge.cancel(event.id, { branch: event.branch })) {
+          blockedAuto = event.id; autoStep = null; autoAge = 0; retryAge = 0;
+          speech.stop(); audio.cancel(); syncBridge(); reflectEnding();
+          showEventCaption(event);
+        }
+      } else {
+        // The level's own events (the world's task events): the big word of a beat, what it sounds like, what Mosi's bubble says.
+        if (event.type === 'beat') showBeatWord(event);
+        playEventSounds(event); showEventCaption(event);
       }
     }
     updateStory(frozen ? 0 : dt);
@@ -516,6 +558,7 @@ function frame(timestamp) {
 const speech = createMemorySpeech({ clock: () => time });
 const music = createMemoryMusic();
 setMute(muted);
+applyLevelDom();
 $('start').addEventListener('click', () => start());
 // Any tap on the game counts as the child doing something (the gold arrow waits for hesitation).
 $('game').addEventListener('pointerdown', noteInput);
