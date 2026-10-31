@@ -16,10 +16,21 @@
 //
 // The brief's starting geometry (the path from the north-west to (0, 0) heading 35; the channel across it, south-west to north-east,
 // then east for about 50 m to the hummocks near (45, 25); her reed across the channel about 10 m from Mosi; Þórseðla 90 to 110 m beyond
-// the hummocks) is kept. What capture changed:
-//   - the water's edge is 4.5 m from Mosi's middle, not 1.5: his nose is 4.4 m ahead of it, and stops at the water; the reed is 12.6 m
-//     out to her middle, measured from the same point (the test holds it to 10 to 16 m);
-//   - (more below as the shots were found)
+// the hummocks) is kept in its shape. What capture changed, and why:
+//   - the water's edge is 4.5 m from Mosi's middle, not 1.5: his nose is 4.4 m ahead of it, so he stops with it at the water;
+//   - her reed is 13.7 m from Mosi, not 10: it is the far bank's edge across a channel of 8 m, where the bank is straight for her 14 m;
+//     on the bend further on, her head would have lain in open water, with no reed in front of it to hide it;
+//   - the channel ends in a round pool 11 m across (it ended in a rounded point 8 m wide, and she looked to be in a puddle), and the
+//     Fen's low ground at the water's edge is raised to stand 0.1 m over it (liftBanks), or the edge showed as a step with the water
+//     hanging over bare mud;
+//   - the clearing is 34 m in radius round (17.3, 8.7), not the Fen's 24 round the origin: the grass grows only within 38 m of the
+//     clearing's middle (grass.js), and the place is 70 m long; the path is 14 m long before the water (the walk is 12 s);
+//   - the reed is a wall of clumps 0.6 m apart, the rows toward the channel 2.7 to 4.2 m tall, where the Fen's own reed (a clump a metre
+//     or more apart, 1.5 to 2.2 m tall) left her in plain sight;
+//   - Þórseðla is 84 m beyond the hummocks, not 90 to 110: at 107 m through the look's haze she was a pale ghost; her trees are lower
+//     than her head (4.5 to 6.5 m, and the 8.5 m one she bites), so that from the ferry her neck and head stand out over them;
+//   - the ferry's shots are in Mosi's frame, not Uggeðla's: she sinks into the water as she swims (her root goes under the bed), he
+//     stands on it, so a camera placed from his feet is where it was put whatever her pose, and the shots look at her wherever she is.
 import * as THREE from 'three';
 import { seededRandom } from '../engine/random.js';
 import { waterShape } from '../world/props/water.js';
@@ -97,10 +108,10 @@ const alongHer = metres => {
 };
 
 /**
- * The reed bed she lies in: dense golden horsetail reed, a clump every 0.6 m over the ellipse round her middle, 21 m along her and
- * 12 across, where the water is not deeper than 0.75 m (twice as far apart behind her, where nobody looks): 2.7 to 4.2 m tall toward
- * the channel (scale 1.8 to 2.1), 2.2 to 3.5 m behind; and a few tall horsetails (3 to 5 m) behind it. From the near bank, a camera at a child's height sees reed to the
- * tops of her back and her sail standing out of it.
+ * The reed bed she lies in: dense golden horsetail reed over the ellipse round her middle, 21 m along her and 12 across, where the
+ * water is not deeper than 0.75 m: a clump every metre, 3 to 4.9 m tall (scale 2 to 2.25), in the rows toward the channel, and
+ * 2.3 to 4 m tall, 2 m apart behind her; and a few tall horsetails (3 to 5 m) behind it. From the near bank, a camera at a child's
+ * height sees reed to the tops of her back and her sail standing out of it.
  */
 function reedBed() {
   const random = seededRandom('siki reed bed');
@@ -109,19 +120,20 @@ function reedBed() {
   const along = [Math.cos(h), Math.sin(h)], across = [-Math.sin(h), Math.cos(h)];
   const plants = [];
   const taken = [];
-  for (let u0 = -10.5; u0 <= 10.5; u0 += 0.6) {
-    for (let v0 = -6; v0 <= 6; v0 += v0 < 2 ? 0.6 : 1.2) {
-      const u = u0 + (random() - 0.5) * 0.5, v = v0 + (random() - 0.5) * 0.5;
+  // the rows toward the channel are the wall she is hidden behind: close together and a head taller than the rest (scale 2 to
+  // 2.25: 3 to 4.9 m); the rest, behind her where nobody looks, stand twice as far apart
+  for (let u0 = -10.5; u0 <= 10.5; u0 += 1.0) {
+    for (let v0 = -6; v0 <= 6; v0 += v0 < 0.8 ? 1.0 : 2.4) {
+      const u = u0 + (random() - 0.5) * 0.4, v = v0 + (random() - 0.5) * 0.4;
       if ((u / 10.5) ** 2 + (v / 6) ** 2 > 1) continue;
       const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
       if (depthAt(p) > 0.75) continue;
       taken.push(p);
-      // the rows toward the channel stand a head taller than the rest (2.7 to 4.2 m): they are the wall she is hidden behind
       const wall = v < 0.8;
-      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2((wall ? 1.8 : 1.45) + random() * 0.3) });
+      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(wall ? 2.0 + random() * 0.25 : 1.5 + random() * 0.3) });
     }
   }
-  for (let tries = 0, tall = 0; tries < 300 && tall < 14; tries++) {
+  for (let tries = 0, tall = 0; tries < 300 && tall < 6; tries++) {
     const u = (random() * 2 - 1) * 9, v = 2.2 + random() * 3.6;
     const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
     if (depthAt(p) > 0 || SHAPE.signedAt(...p) < 0.5) continue;
@@ -216,10 +228,7 @@ export const SIKI_LAYOUT = {
     { center: [56, 34], radius: 5, height: 0.35 },
   ],
   plants: [...reedBed(), ...lilies(), ...herTrees(), ...mossAtTheEnd()],
-  mist: [
-    { center: ahead(10, 4), radius: 24, height: 1.1 },
-    { center: [44, 26], radius: 14, height: 1.0 },
-  ],
+  mist: [{ center: ahead(10, 4), radius: 24, height: 1.1 }], // one, as the Fen has: each card is additive over the water, and the water is most of a wide shot
   // Þórseðla is seen from the last stretch of the ferry's way only: tall plants keep out of the corridor from there to her
   farFriends: { thorsedla: [THORSEDLA_FAR.position[0], THORSEDLA_FAR.position[2]] },
   lookout: [33.8, 4, 4.1],
@@ -246,11 +255,11 @@ export const SIKI_SHOTS = {
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-7, -5.5, 2.2), target: eye(14, 1.0, 3.6), fov: 50 },
   // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
-  siki_fishing: { position: eye(-2, -15, 5.0), target: eye(10, 6, 0.4), fov: 56 },
+  siki_fishing: { position: eye(-2, -16, 5.0), target: eye(10, 6, 1.4), fov: 54 },
   // Mosi and Uggeðla face to face across the water.
-  siki_two_shot: { position: eye(4, -13, 1.7), target: eye(9, 3, 2.2), fov: 48 },
+  siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 46 },
   // Low, looking up at her sail against the sky, where the star rises from its top.
-  siki_star: { position: eye(1.0, -8, 0.9), target: eye(13.5, 1.5, 5.4), fov: 50 },
+  siki_star: { position: eye(3.5, -9, 0.9), target: eye(13.5, 1.5, 6.2), fov: 50 },
   // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
   // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
   // Side by side: from the inner bank a little ahead of them, across her and Mosi, who stand clear of each other from there.
