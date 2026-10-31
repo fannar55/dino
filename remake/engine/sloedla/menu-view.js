@@ -46,6 +46,10 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   const discImg = $('[data-disc-img]');
   const tip = $('[data-disc-tip]');
   const flashBox = $('[data-flash]');
+  const endCanvas = $('[data-end-words]');
+  const endText = $('#end-words');
+  let endRaf = 0;
+  let endFrom = 0; // when the end showed (the page's ms), for its words' pop and wave
   const discY = () => win.innerHeight * (portrait() ? 0.27 : 0.3);
   const discD = () => Math.min(win.innerHeight * 0.36, win.innerWidth * 0.62);
   const BYRJUM = 0.9; // s of "Byrjum!" before the flash
@@ -157,6 +161,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       const done = load.resolve;
       load = null;
       if (loadingBox) loadingBox.hidden = true;
+      stageRoot?.removeAttribute('data-again');
       screen('umferd');
       done();
     }
@@ -174,11 +179,25 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       raf = win.requestAnimationFrame(frame);
     }
   }
+  /** The end's words (#end-words' text), cream in the game's letters over the buttons, while the end shows. */
+  function drawEnd(now) {
+    endRaf = 0;
+    if (!endCanvas || end.hidden) return;
+    if (!endFrom) endFrom = now;
+    const t = (now - endFrom) / 1000;
+    const g = endCanvas.getContext('2d');
+    g.clearRect(0, 0, win.innerWidth, win.innerHeight);
+    const size = Math.min(win.innerWidth * 0.07, 34);
+    drawWord(g, endText?.textContent ?? '', win.innerWidth / 2, win.innerHeight * (portrait() ? 0.655 : 0.785), size, { style: 'cream', time: reduced ? 0 : t, age: reduced ? 9 : t, stagger: 0.05, pop: 0.35, wave: reduced ? 0 : 0.08, fit: win.innerWidth * 0.9 });
+    endRaf = win.requestAnimationFrame(drawEnd);
+  }
   fit(sky);
   fit(wordsCanvas);
+  fit(endCanvas);
   win.addEventListener('resize', () => {
     fit(sky);
     fit(wordsCanvas);
+    fit(endCanvas);
     stage?.resize();
   });
   const start = $('#start');
@@ -336,6 +355,17 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   });
   play.addEventListener('click', () => go());
   $('[data-again]')?.addEventListener('click', () => go({ again: true }));
+  // "Annað lag" shows a little fan of the songs' pictures
+  const fan = $('[data-fan]');
+  if (fan) {
+    for (const song of songs) {
+      if (!song.card) continue;
+      const img = root.createElement?.('img') ?? new Image();
+      img.alt = '';
+      img.src = asset(`sloedla/valmynd/${song.card}`);
+      fan.append(img);
+    }
+  }
   $('[data-other]')?.addEventListener('click', () => {
     end.hidden = true;
     start.hidden = false;
@@ -382,8 +412,9 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
         disc.style.setProperty('--p', again ? '1' : '0');
       }
       if (discImg) discImg.src = song.card ? asset(`sloedla/valmynd/${song.card}`) : '';
+      stageRoot?.toggleAttribute('data-again', again); // "Spilum aftur": only the disc and "Byrjum!", the DJ quiet and away
       screen('hlada');
-      const below = () => discY() + discD() / 2 + Math.min(54, win.innerHeight * 0.07);
+      const below =() => discY() + discD() / 2 + Math.min(54, win.innerHeight * 0.07);
       setWords(again ? [] : [
         { text: song.name, style: 'rainbow', y: below, size: () => Math.min(win.innerWidth * 0.1, 60) },
         song.by && { text: song.by, style: 'cream', y: () => below() + Math.min(46, win.innerHeight * 0.055), size: () => Math.min(win.innerWidth * 0.06, 30), wave: 0.03 },
@@ -411,6 +442,11 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       end.hidden = false;
       screen('lok');
       render();
+      endFrom = 0;
+      if (!endRaf) endRaf = win.requestAnimationFrame(drawEnd);
+      // two bells as the buttons come up
+      win.setTimeout(() => chimes?.sparkle(880), 650);
+      win.setTimeout(() => chimes?.sparkle(1175), 750);
     },
     /** Enter or space: on to the songs, play the picked one, or play again. */
     enter() {

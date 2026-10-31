@@ -76,14 +76,17 @@
     </div>
   </section>
 
+  <!-- the end, over the round's own end (its stars and points): the words in the game's letters, two buttons on a dark floor -->
   <section class="sl-end" id="end" hidden>
-    <p class="sl-end-words" id="end-words">Viltu spila aftur?</p>
-    <div class="sl-row">
-      <button class="sl-play ready" type="button" data-again>
+    <div class="sl-end-floor"></div>
+    <canvas class="sl-end-words" data-end-words aria-hidden="true"></canvas>
+    <p class="sl-hide" id="end-words" aria-live="polite">Viltu spila aftur?</p>
+    <div class="sl-ui4">
+      <button class="sl-go sl-again" type="button" data-again>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#3b2f25" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4.5v4.6h-4.6" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Spilum aftur</span>
       </button>
-      <button type="button" class="sl-next" data-other>Annað lag</button>
+      <button type="button" class="sl-choice sl-other" data-other><span class="sl-fan" data-fan aria-hidden="true"></span>Annað lag</button>
     </div>
   </section>
   <canvas class="sl-sparks" data-sparks aria-hidden="true"></canvas>

@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { END, barPlace, barStar, countUp, endSpots, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
+import { END, barPlace, barStar, countUp, endSpots, endStar, endTimes, isNewBest, padSink } from '../engine/sloedla/star-motion.js';
 import { STAR_SHARES } from '../engine/sloedla/chart.js';
 
 test('an end star flies from the bar to its place, turns twice, and lands on time', () => {
@@ -142,4 +142,14 @@ test('the bar: its stars stand evenly, the gold reaches each just as its share i
   assert.equal(barPlace(-1), 0);
   assert.equal(barPlace(2), 1);
   for (let s = 0; s < 1; s += 0.01) assert.ok(barPlace(s + 0.01) > barPlace(s), 'the gold only grows');
+});
+
+test('the dinosaur pads sink away after the count, gone by the time the buttons come', () => {
+  for (const stars of [0, 3, 5]) {
+    const times = endTimes(stars);
+    assert.equal(padSink(times.countTo, times), 0);
+    assert.ok(padSink((times.countTo + times.done) / 2, times) > 0.4);
+    assert.equal(padSink(times.done, times), 1);
+    assert.equal(padSink(times.done + 5, times), 1);
+  }
 });

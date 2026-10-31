@@ -82,6 +82,11 @@ export function endTimes(stars) {
   return { launches, lands, together, countFrom, countTo, done: countTo + END.rest };
 }
 
+/** How far the dinosaur pads have sunk away at `t` (0..1): not before the count is over, gone when the buttons come. */
+export function padSink(t, times) {
+  return easeOut(clamp01((t - times.countTo) / (times.done - times.countTo)));
+}
+
 /** End star `i` at time `t` (s after the end began): won (`earned`) it flies from `from` (its star on the bar) to `to`. */
 export function endStar({ t, i, earned, from, to, size, times }) {
   if (!earned) {

@@ -74,7 +74,7 @@ html, body {
 .sl-menu { position: absolute; inset: 0; pointer-events: none; }
 .sl-menu button, .sl-menu .sl-cards { pointer-events: auto; }
 /* the title is drawn in the game's letters (drawWord, on .sl-words); this one is for screen readers */
-.sl-title { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sl-title, .sl-hide { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* the DJ in the corner: his picture on a light round, his words in a bubble; he bobs, faster while he talks */
 .sl-dj { position: absolute; left: 14px; top: 14px; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 28px); z-index: 4; pointer-events: none; }
@@ -191,6 +191,7 @@ html, body {
 
 .sl-loading { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
 .sl[data-screen="hlada"] .sl-words { z-index: 2; } /* the song's name and "Byrjum!" over the disc */
+.sl[data-again] .sl-dj { visibility: hidden; } /* "Spilum aftur": no line, only the disc and "Byrjum!" */
 .sl-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, transparent 22%, rgba(8, 6, 24, 0.72) 78%); animation: sl-fade-in 0.6s both; }
 @keyframes sl-fade-in { from { opacity: 0; } }
 .sl-disc { --p: 0; --hue: #ffd24a; position: absolute; left: 50%; top: var(--y, 30%); width: var(--d, 280px); height: var(--d, 280px); transform: translate(-50%, -50%); }
@@ -217,25 +218,25 @@ html, body {
 /* the white flash into the round */
 .sl-flash { position: absolute; inset: 0; background: #fffbe8; opacity: 0; pointer-events: none; z-index: 6; }
 
-.sl-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; }
+/* ---- the end: the round's pads have sunk away; the words in the game's letters and two buttons rise on a dark floor ---- */
 
-/* ---- the end ---- */
-
-.sl-end {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: max(24px, 5vh);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 0 16px;
-}
-.sl-end-words { margin: 0; font-size: 26px; font-weight: 800; color: #fff6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); text-align: center; }
-.sl-end:not([hidden]) .sl-row, .sl-end:not([hidden]) .sl-end-words { animation: sl-rise 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) backwards; } /* after the stars have landed */
-.sl-end:not([hidden]) .sl-row { animation-delay: 0.12s; }
-@keyframes sl-rise { from { transform: translateY(40px); opacity: 0; } }
+.sl-end { position: absolute; inset: 0; pointer-events: none; }
+.sl-end-floor { position: absolute; left: 0; right: 0; bottom: 0; height: 30vh; background: linear-gradient(180deg, transparent, rgba(10, 8, 30, 0.85) 60%); }
+.sl-end-words { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sl-ui4 { position: absolute; left: 0; right: 0; bottom: 4vh; display: flex; justify-content: center; align-items: center; gap: 22px; padding: 0 16px; }
+.sl-ui4 > * { pointer-events: auto; }
+.sl-end:not([hidden]) .sl-ui4 > * { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) 0.7s backwards; }
+.sl-end:not([hidden]) .sl-ui4 > .sl-go { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) 0.6s backwards, sl-breathe 1.4s ease-in-out 1.2s infinite; }
+.sl-end:not([hidden]) .sl-again svg { animation: sl-spin 0.9s cubic-bezier(0.3, 1.3, 0.5, 1) 0.8s backwards; }
+.sl-again:hover svg { animation: sl-spin 0.7s cubic-bezier(0.3, 1.3, 0.5, 1); }
+@keyframes sl-spin { from { transform: rotate(-360deg); } }
+/* "Annað lag": a little fan of the songs' pictures */
+.sl-fan { display: inline-flex; }
+.sl-fan img { width: 40px; height: 40px; object-fit: contain; margin-left: -14px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); transition: transform 0.2s; }
+.sl-fan img:first-child { margin-left: 0; }
+.sl-fan img:nth-child(odd) { transform: rotate(-10deg); }
+.sl-fan img:nth-child(even) { transform: rotate(8deg) translateY(-3px); }
+.sl-other:hover .sl-fan img { transform: translateY(-6px) rotate(0deg); }
 
 /* an upright screen: the stage closes up */
 @media (orientation: portrait) {
@@ -245,6 +246,8 @@ html, body {
   .sl-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; width: min(420px, calc(100% - 24px)); padding: 0; }
   .sl-songcard { width: auto; margin-top: 30px; padding-bottom: 8px; }
   .sl-cardpic { width: 74%; margin-top: -30px; }
+  .sl-ui4 { flex-direction: column; gap: 12px; }
+  .sl-end-floor { height: 36vh; }
 }
 
 @media (max-width: 600px) {
@@ -267,4 +270,5 @@ html, body {
   .sl-loading:not([hidden]) .sl-disc, .sl-disc-halo, .sl-disc img, .sl-disc.done .sl-disc-face, .sl-disc.done img { animation: none; }
   .sl-aurora, .sl-beam.on, .sl-dj-pic, .sl-go, .sl-go::after, .sl-choice.picked, .sl-step:not([hidden]) .sl-ui1 > *, .sl-step:not([hidden]) .sl-ui1 > .sl-go { animation: none; }
   .sl-cards.has-pick .sl-songcard[aria-pressed="true"] { transform: none; }
+  .sl-end:not([hidden]) .sl-ui4 > *, .sl-end:not([hidden]) .sl-ui4 > .sl-go, .sl-end:not([hidden]) .sl-again svg, .sl-again:hover svg { animation: none; }
 }

@@ -30,7 +30,7 @@ import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf, pointsText } from './text.js';
 import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
 import { seededRandom } from '../random.js';
-import { barPlace, barStar as barStarAt, countUp, endSpots, endStar, endTimes, flyer, isNewBest } from './star-motion.js';
+import { barPlace, barStar as barStarAt, countUp, endSpots, endStar, endTimes, flyer, isNewBest, padSink } from './star-motion.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
@@ -1188,6 +1188,11 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   }
 
   function drawDinosaurs(g, time) {
+    // after the end's count the buttons sink away below the screen, making room for "Spilum aftur" and "Annað lag"
+    const sink = endPlan ? padSink(time - endAt, endPlan) * (h - hitY + dinoR * 1.4) : 0;
+    if (sink >= h - hitY + dinoR * 1.4) return;
+    g.save();
+    g.translate(0, sink);
     for (let i = 0; i < lanes; i++) {
       // the next note coming down her lane: a ring closes on her button, touching it when it is time to tap
       let ahead = Infinity;
@@ -1273,6 +1278,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         g.globalAlpha = 1;
       }
     }
+    g.restore();
   }
 
   function drawEffects(g, time) {
