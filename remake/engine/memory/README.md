@@ -326,7 +326,9 @@ owns the leaf/nest geometry; `baby-actors.js` owns the character rigs. `audio.js
 owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `presentation-audio.js` owns gesture-gated music and the queued Mosi narration.
 `surprise-items.js` is the table of the gifts (`GIFT_ITEMS`: name, the words for the first and the found leaf, the voice line, the model) and their credits (`GIFT_CREDITS`).
-`bridge-rules.js` owns helper selection and cooperative bridge progress;
+`levels/` describes each level as data (`levels/berjalundur.js`: friends, gifts, the steps in order, the story's keys and hints, the words on the cards, the sounds and captions of the world's events; `levels/index.js`: which levels exist, which are unlocked, which one the address asks for);
+`step-rules.js` plays a level's steps (what glows next, who can do it, which pair is held busy, what is done) and `playful-flow.js` tells the story from the same description;
+`bridge-rules.js` is level 1's name for those rules (helper selection and cooperative bridge progress);
 `bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
 shared game clock. `build-props.js` owns the marsh and bark walkway; the camera
 director owns framing, motion and input readiness.
