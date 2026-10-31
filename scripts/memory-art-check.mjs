@@ -1,5 +1,5 @@
 // Look check of a memory-game baby through the game's own actor controller (eyelids, gestures, walk):
-//   node scripts/memory-art-check.mjs [--species triceratops|brontosaurus|stegosaurus]
+//   node scripts/memory-art-check.mjs [--species triceratops|brontosaurus|stegosaurus|pteranodon]
 // The baby GLB is loaded in its species' place, so a baby the game does not load yet (its
 // MEMORY_CHARACTER_ART entry still names the adult) can be reviewed before the switch.
 // Captures go to qa/memory/art/ (Triceratops) or qa/memory/art/<species>/, with report.json.
@@ -17,6 +17,7 @@ const LABELS={
   triceratops:['Þríhyrnuungi','Þríhyrnuungi · sama Mosa-fjölskylda','Nýr ungi úr upprunalega áferðarlagða Mosa-líkaninu.'],
   brontosaurus:['Þórseðluungi','Þórseðluungi · sama fjölskylda','Nýr ungi úr upprunalega áferðarlagða Þórseðlu-líkaninu.'],
   stegosaurus:['Kambeðluungi','Kambeðluungi · sama fjölskylda','Nýr ungi úr upprunalega áferðarlagða Kambeðlu-líkaninu.'],
+  pteranodon:['Flugeðluungi','Flugeðluungi · sama fjölskylda','Nýr ungi úr upprunalega áferðarlagða Flugeðlu-líkaninu.'],
 };
 if(!LABELS[species])throw new Error(`Unknown --species ${species}; use ${Object.keys(LABELS).join('|')}`);
 const model=`/remake/assets/memory/${species}-baby.glb`;

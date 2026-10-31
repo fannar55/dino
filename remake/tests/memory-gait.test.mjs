@@ -16,10 +16,12 @@ const loader = { async loadAsync(url) {
 
 // Measure actual rig feet in world space. Reading an animation clock alone
 // would miss the sliding and stretched legs that prompted this regression.
-test('all three real rigs plant feet while moving forwards/backwards on flat and inclined ground', async () => {
+test('all four real rigs plant feet while moving forwards/backwards on flat and inclined ground', async () => {
   const actors = await createBabyActors({ scene: new THREE.Scene(), length: 2.6, instancesPerSpecies: 1, loader });
   try {
     for (const actor of actors) for (const direction of [1, -1]) for (const grade of [0, .18]) {
+      // The winged friend walks on two legs at about half the quadrupeds' pace, so her feet are down for fewer samples.
+      const speed = actor.species === 'pteranodon' ? 1.6 : 2.9, plants = actor.species === 'pteranodon' ? 250 : 400;
       actor.root.scale.setScalar(actor.species === 'brontosaurus' ? 1.2 : 1);
       actor.root.position.set(0, 0, 0); actor.root.rotation.set(0, 0, Math.atan(grade));
       actor.reveal(); for (let i = 0; i < 60; i++) actor.update(1 / 60);
@@ -27,7 +29,7 @@ test('all three real rigs plant feet while moving forwards/backwards on flat and
       const feet = []; actor.model.traverse(bone => { if (bone.isBone && /Foot/.test(bone.name)) feet.push(bone); });
       const samples = [];
       for (let frame = 0; frame < 360; frame++) {
-        actor.root.position.x += direction * 2.9 / 60; actor.root.position.y = grade * actor.root.position.x;
+        actor.root.position.x += direction * speed / 60; actor.root.position.y = grade * actor.root.position.x;
         actor.update(1 / 60); actor.root.updateMatrixWorld(true);
         samples.push(feet.map(foot => { const p = foot.getWorldPosition(new THREE.Vector3()); return { p, height: p.y - grade * p.x }; }));
       }
@@ -41,7 +43,7 @@ test('all three real rigs plant feet while moving forwards/backwards on flat and
       }
       slips.sort((a, b) => a - b);
       const label = `${actor.species}, direction ${direction}, grade ${grade}`;
-      assert.ok(slips.length > 400, `${label}: feet repeatedly plant`);
+      assert.ok(slips.length > plants, `${label}: feet repeatedly plant`);
       assert.ok(slips[Math.floor(slips.length / 2)] < .05, `${label}: planted feet stay in world space`);
       assert.ok(Math.max(...lifts) < .13, `${label}: incline does not stretch feet off the ground`);
       const frozen = feet.map(foot => foot.getWorldPosition(new THREE.Vector3()).toArray());

@@ -96,6 +96,7 @@ nav{display:flex;gap:8px;pointer-events:auto}
 .who-friend[data-species=triceratops]{--z:1.5;--hx:.64;--hy:.55}
 .who-friend[data-species=brontosaurus]{--z:1.7;--hx:.63;--hy:.22}
 .who-friend[data-species=stegosaurus]{--z:1.6;--hx:.65;--hy:.49}
+.who-friend[data-species=pteranodon]{--z:1.4;--hx:.52;--hy:.5}
 .who-friend:hover .who-face{filter:brightness(1.06)}
 .who-friend:active .who-face{transform:scale(1.12,.84);transition-duration:.06s}
 .who-friend:focus-visible{outline:none}

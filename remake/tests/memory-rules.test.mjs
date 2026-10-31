@@ -217,6 +217,32 @@ const memoryStorage = initial => {
 };
 const blockedStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
 
+test('a four-friend level deals 16 cards: four friend pairs (the Flugeðla among them) and four gift pairs, and is won with the last pair', () => {
+  const roster = ['triceratops', 'stegosaurus', 'brontosaurus', 'pteranodon'], gifts = ['ammonite', 'trilobite', 'fern', 'footprint'];
+  const game = createMemoryGame({ random: () => 0.999, species: roster, gifts });
+  const cards = game.getState().cards;
+  assert.equal(cards.length, 16);
+  assert.equal(new Set(cards.map(card => card.id)).size, 16);
+  for (const name of roster) assert.equal(cards.filter(card => card.species === name).length, 2, `two leaves hide ${name}`);
+  for (const item of gifts) assert.equal(cards.filter(card => card.item === item).length, 2, `two leaves hide the ${item}`);
+  assert.equal(cards.filter(card => card.species === null).length, 8);
+  invariant(game);
+  for (const [nestIndex, species] of roster.entries()) {
+    const ids = pairIds(game, species);
+    assert.deepEqual(revealTwo(game, ...ids), [{ type: 'match', ids, species, nestIndex }]);
+    game.advance(1);
+    assert.equal(game.getState().matchedPairs, nestIndex + 1);
+    invariant(game);
+  }
+  for (const [giftIndex, item] of gifts.entries()) {
+    const ids = game.getState().cards.filter(card => card.item === item).map(card => card.id);
+    assert.deepEqual(revealTwo(game, ...ids), [{ type: 'gift', ids, item, giftIndex }]);
+    const events = game.advance(1);
+    assert.deepEqual(events, giftIndex === 3 ? [{ type: 'won', ids: [...Array(16).keys()] }] : []);
+  }
+  assert.equal(game.getState().phase, 'won');
+});
+
 test('level 1 is described as frozen data the rules, the story and the game read', () => {
   assert.deepEqual(LEVELS.map(level => level.id), ['berjalundur']);
   assert.equal(levelById('berjalundur'), BERJALUNDUR); assert.equal(levelById('nope'), null);

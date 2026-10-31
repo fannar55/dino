@@ -12,6 +12,8 @@ const MOTIFS = {
   triceratops: { duration: 0.59, pitch: 172, formants: [490, 1330], pulses: [[0.01, 0.22], [0.29, 0.25]], breath: 0.13 },
   stegosaurus: { duration: 0.49, pitch: 228, formants: [380, 1040], pulses: [[0.01, 0.15], [0.22, 0.24]], breath: 0.065 },
   brontosaurus: { duration: 0.75, pitch: 139, formants: [320, 880], pulses: [[0.01, 0.70]], breath: 0.035 },
+  // The Flugeðla baby (level 2): the highest of the four, three quick, bright chirps, the last a little longer.
+  pteranodon: { duration: 0.54, pitch: 318, formants: [640, 1760], pulses: [[0.01, 0.14], [0.19, 0.12], [0.34, 0.19]], breath: 0.08 },
 };
 
 /** Friendly, breathy voiced PCM: glottal harmonics shaped by two broad moving vocal resonances. */

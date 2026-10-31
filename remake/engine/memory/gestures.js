@@ -6,7 +6,8 @@ import * as THREE from 'three';
  *
  * GESTURES[name] = { duration, apply(rig, t, energy) }. t runs 0..1 over `duration` seconds of game
  * time; energy is 1, or .3 in reduced motion. rig = { pose, head, neck, jaw, body, shoulders, tail,
- * legs, lids, rotateInRoot, offsetInRoot, length, species, crossed(at) }:
+ * legs, lids, rotateInRoot, offsetInRoot, length, species, crossed(at) } (and wings: the two upper-arm bones of a winged friend, none
+ * for the others):
  *   pose          the group that holds the model under the actor's root (whole-body lift and tilt),
  *   rotateInRoot  (bone, axis, angle) about the actor's own axes (X forward, Y up, Z its right side),
  *   offsetInRoot  (bone, x, y, z) metres in the actor's own frame,
@@ -193,6 +194,22 @@ export const GESTURES = Object.freeze({
     if (rig.crossed(.1)) rig.lids?.blink.rest(.55, .15);
     if (rig.crossed(.86)) rig.lids?.blink.rest(0, .1);
   } },
+  // The Flugeðla way: she pecks at the stone, three quick taps ("tikk, tikk, tikk"), and it does not even wobble. She looks at it, tilts her
+  // head, and gives a small shrug with both wings.
+  'fail-pteranodon': { duration: 2.2, apply(rig, t, energy) {
+    const L = rig.length, tap = a => bump(t, a, a + .1), pecks = tap(.1) + tap(.24) + tap(.38), cock = bump(t, .5, .98), shrug = bump(t, .62, .9);
+    turnHead(rig, Z, -.62 * energy * pecks + .16 * energy * bump(t, 0, .1));
+    rig.pose.rotation.z += -.07 * energy * pecks;
+    crouch(rig, .02 * L * energy * pecks);
+    openJaw(rig, .1 * pecks);
+    turnHead(rig, Z, -.14 * energy * cock);
+    rig.rotateInRoot(rig.head, X, .5 * energy * cock);
+    turnHead(rig, Y, .3 * energy * cock * wave(t, 1.5));
+    rig.wings?.forEach((wing, side) => rig.rotateInRoot(wing, X, (side ? -1 : 1) * .5 * energy * shrug));
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * bump(t, .1, .5) * wave(t, 3));
+    if (rig.crossed(.55)) rig.lids?.blink.rest(.55, .1);
+    if (rig.crossed(.92)) rig.lids?.blink.rest(0, .15);
+  } },
   // Working hard on a tap: squats a little, trembles with the effort, squeezes the eyes, pushes up.
   strain: { duration: .7, apply(rig, t, energy) {
     const L = rig.length, effort = bump(t, 0, 1);
@@ -254,7 +271,7 @@ export const GESTURES = Object.freeze({
   // Pushed by a friend (`side` 1: the one who pushed is on its right): knocked a step away with a small hop, then a look back.
   'jolt-right': jolt(1), 'jolt-left': jolt(-1),
 });
-export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', stegosaurus: 'fail-stegosaurus', brontosaurus: 'fail-brontosaurus' });
+export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', stegosaurus: 'fail-stegosaurus', brontosaurus: 'fail-brontosaurus', pteranodon: 'fail-pteranodon' });
 
 /** The older gesture names the adventure and the world still use. */
 export const GESTURE_ALIASES = Object.freeze({ reveal: 'peek', greet: 'hop', mismatch: 'oops', nuzzle: 'nuzzle', delight: 'cheer', settle: 'settle' });
