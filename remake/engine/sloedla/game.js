@@ -92,16 +92,22 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * window, grace and word follow her level, its notes fall at her level's speed (fixed for the round), the window follows each
  * player's own taps, and a name tag stands under each button; `onJudged({ index, lane, role, kind, grade })` hears every hit and
  * every miss (the big screen tells the phones). setLineup(lineup) changes who plays a lane (a guest dropped out: Egill's now).
- * Returns { tap(lane, time), frame(), resize(), laneAt(x), setLineup(lineup), state(), result() }; `onEnd(result)` when the stars
- * rose; result().players is one line a player ([] alone).
+ * Returns { tap(lane, time), frame(), resize(), laneAt(x), setLineup(lineup), verdict(index, { kind, grade }), state(), result() };
+ * `onEnd(result)` when the stars rose; result().players is one line a player ([] alone); tap's hit carries its `grade`.
+ * `mode` 'guest' is a guest's phone or tablet (fjolspil/guest-sloedla.js, its conductor and clock remote-round.js's): no end (the
+ * round plays until the page drops it), no bar of stars, run count or star meter; a lane `judged: 'outside'` (another player's)
+ * is dim, its notes resolved only by verdict() (the big screen's word: a dim burst or a grey puff); one lane (a phone) has a
+ * button about a third of the screen across. verdict() also settles her own lane's notes: the word she saw stands.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, lineup = null, onJudged = null, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = { stars: 0, points: 0 }, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, lineup = null, mode = 'band', onJudged = null, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = { stars: 0, points: 0 }, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
+  const guest = mode === 'guest';
   const ctx = canvas.getContext('2d');
   hands?.reset();
   const lanes = cast.length;
   const notes = conductor.chart; // grows a section at a time
   // each lane's rules: alone, the child's (`windows`, `fall`); in a band, its player's (laneRules), changed by setLineup
-  const ruleOf = lane => ({ ...(lane ? laneRules(lane) : { windows, fall, grace: 0 }), player: lane?.player ?? 0, name: lane?.name ?? null });
+  const ruleOf = lane => ({ ...(lane ? laneRules(lane) : { windows, fall, grace: 0 }), player: lane?.player ?? 0, name: lane?.name ?? null, judged: lane?.judged ?? 'here' });
+  const outside = i => laneRule[i]?.judged === 'outside'; // another player's lane on a guest's tablet: dim, judged on the big screen
   let current = lineup ? lineup.map(lane => ({ ...lane })) : null;
   const laneRule = cast.map((_, i) => ruleOf(current?.[i] ?? null));
   const laneFall = laneRule.map(rule => rule.fall); // fixed for the round: falling notes never jump
@@ -195,6 +201,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     portrait = h > w * 1.05;
     laneW = portrait ? Math.min((w * 0.86) / lanes, 230) : Math.min(w * 0.17, 220, h * 0.3);
     if (lanes === 2) laneW *= portrait ? 0.85 : 1.1;
+    if (lanes === 1) laneW = w / 3; // a guest's phone: her one button, about a third of the screen across
     const gap = laneW * 0.16;
     const span = lanes * laneW + (lanes - 1) * gap;
     const x0 = (w - span) / 2;
@@ -497,16 +504,24 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   // -------------------------------------------------------------------------------------------------------------------------
   // Play
 
-  function burst(lane, great, gold) {
+  /** A hit's sparks, ring and pillar of light; `dim` (another player's lane on a guest's tablet): a few small sparks only. */
+  function burst(lane, great, gold, dim = false) {
     const x = laneX[lane], y = hitY;
-    const many = great ? 22 : 13;
+    const many = Math.round((great ? 22 : 13) * (dim ? 0.4 : 1));
     for (let i = 0; i < many; i++) {
       const a = (i / many) * Math.PI * 2 + random() * 0.4;
-      const speed = (great ? 300 : 210) * (0.6 + random() * 0.6);
-      sparks.push({ x, y: y - dinoR * 0.2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 140, life: 0, max: 0.55 + random() * 0.35, size: (great ? 22 : 16) * (0.7 + random() * 0.6), gravity: 420 });
+      const speed = (great ? 300 : 210) * (0.6 + random() * 0.6) * (dim ? 0.7 : 1);
+      sparks.push({ x, y: y - dinoR * 0.2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed - 140, life: 0, max: 0.55 + random() * 0.35, size: (great ? 22 : 16) * (0.7 + random() * 0.6) * (dim ? 0.6 : 1), gravity: 420 });
     }
+    if (dim) return;
     rings.push({ lane, at: lastTime, hue: gold ? GOLD : cast[lane].hue, great });
     pillars.push({ lane, at: lastTime, hue: gold ? GOLD : cast[lane].hue, great });
+  }
+
+  /** A missed note: the lane dims a moment, she shakes her head, and a grey puff rises where it went. */
+  function missPuff(lane, time) {
+    missAt[lane] = time;
+    for (let i = 0; i < 5; i++) puffs.push({ x: laneX[lane] + (random() - 0.5) * laneW * 0.3, y: hitY - dinoR * 1.1, vx: (random() - 0.5) * 40, vy: -20 - random() * 30, at: time, r: laneW * (0.06 + random() * 0.05) });
   }
 
   function firework(x, y, hue) {
@@ -576,7 +591,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   }
 
   function giveLanes() {
-    for (; laned < notes.length; laned++) notes[laned].lane = laneOf(notes[laned].role, lanes);
+    for (; laned < notes.length; laned++) notes[laned].lane = lanes === 1 ? 0 : laneOf(notes[laned].role, lanes);
   }
 
   /** The tier: a run of hits raises it to Flott! and Vá! (tierOf), and the star meter, full, to Stjörnukraftur. */
@@ -612,7 +627,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         follow.centre = Math.max(-RECENTRE.most, Math.min(RECENTRE.most, sorted[Math.floor(sorted.length / 2)]));
       }
       const joined = conductor.hit(result.note, result.offset);
-      if (joined) {
+      if (joined && !guest) {
         // she comes back into the song: her name over her lane
         const friend = cast.find(c => c.role === result.note.role) ?? cast[lane];
         say(`${friend.name} er með!`, { y: h * 0.5, size: 40, style: ['#ffffff', friend.light, friend.hue] });
@@ -621,6 +636,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       }
       // its word, and its points by it (twice while Stjörnukraftur burns): counted at once, shown under the word ("+100")
       const grade = gradeOf(result.offset, laneRule[lane].windows);
+      result.grade = grade; // a guest's phone vibrates harder for the best words
       grades[lane] = { grade, at: time, points: POINTS[grade] * (starMode ? 2 : 1) };
       count(score, { ...result, grade, double: starMode });
       laneScores[lane].points += grades[lane].points;
@@ -643,7 +659,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       else for (let i = 0; i < 8; i++) sparks.push({ x: laneX[lane] + (random() - 0.5) * dinoR, y: hitY - dinoR * 0.5, vx: (random() - 0.5) * 60, vy: -120 - random() * 120, life: 0, max: 0.9, size: 12, gravity: -20 });
       const c = constellationFor(result.note.section);
       if (c.lit < c.stars.length) c.stars[c.lit++].lit = time;
-      feedMeter(lane, time);
+      if (!guest) feedMeter(lane, time); // the star meter is the band's, on the big screen
       comboAt = time;
       if (score.streak % 10 === 0) comboBigAt = time;
       if (result.great && tierNow >= 2) punch(0.012);
@@ -661,7 +677,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         call({ kind: 'milestone', streak: score.streak });
       }
       const lit = STAR_SHARES.filter(least => shareNow() >= least).length;
-      if (lit > starsLit) {
+      if (lit > starsLit && !guest) { // a guest has no bar of stars for them to fly into
         for (let k = starsLit; k < lit; k++) flyers.push({ x: laneX[lane], y: hitY - dinoR, index: k, at: time });
         starsLit = lit;
         chimes?.sparkle?.();
@@ -753,8 +769,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       for (const index of judge.sweep(time)) {
         const note = notes[index];
         conductor.miss(note);
-        missAt[note.lane] = time;
-        for (let i = 0; i < 5; i++) puffs.push({ x: laneX[note.lane] + (random() - 0.5) * laneW * 0.3, y: hitY - dinoR * 1.1, vx: (random() - 0.5) * 40, vy: -20 - random() * 30, at: time, r: laneW * (0.06 + random() * 0.05) });
+        missPuff(note.lane, time);
         breakRun(time, true);
         count(score, { kind: 'miss' });
         spillMeter(starMode ? STAR_MISS : fillOf(note.lane) * 2);
@@ -777,7 +792,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         }
       }
       const lookAtEnd = endNow !== null && time > 0.3; // ?lokaskjar=: the end at once, with that many stars, for a look
-      if (time > conductor.length + END_AFTER || lookAtEnd) {
+      if (!guest && (time > conductor.length + END_AFTER || lookAtEnd)) { // a guest's round ends when the big screen says
         phase = 'end';
         endAt = time;
         hands?.stop(time);
@@ -828,13 +843,13 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       }
     }
     // glitter about the gold stars, as about Mario's: a twinkle now and then, more about the end's
-    for (const s of starStates(time)) {
+    for (const s of guest ? [] : starStates(time)) {
       if (s.glass || s.gold < 1 || random() >= dt * (s.id.startsWith('end') ? 5 : 1.2)) continue;
       const a = random() * Math.PI * 2, r = s.size * (0.7 + random() * 0.6);
       sparks.push({ x: s.x + Math.cos(a) * r, y: s.y + Math.sin(a) * r, vx: 0, vy: -18, life: 0, max: 0.45 + random() * 0.25, size: 8 + random() * 7, gravity: 0 });
     }
     // the glitter at the gold's leading edge on the bar
-    if (phase === 'play' && shareNow() > 0 && random() < dt * 3) {
+    if (phase === 'play' && !guest && shareNow() > 0 && random() < dt * 3) {
       sparks.push({ x: bar.x + bar.w * Math.min(1, shareNow()), y: bar.y + bar.h * (0.2 + random() * 0.6), vx: (random() - 0.3) * 50, vy: -20 - random() * 50, life: 0, max: 0.5, size: 8, gravity: 60 });
     }
     // the stage lights follow whether each dinosaur plays; the sky's colour follows the section
@@ -919,18 +934,39 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     drawLanes(g, time, pulse);
     drawDinosaurs(g, time);
     drawNotes(g, time, kick);
+    drawOutside(g, time);
     if (phase !== 'play') drawEndVeil(g, time);
     drawEffects(g, time);
-    drawBar(g, time);
-    drawMeter(g, time);
+    if (!guest) {
+      drawBar(g, time);
+      drawMeter(g, time);
+    }
     if (tierNow >= 3) {
       g.globalAlpha = 0.22 + pulse * 0.12;
       g.drawImage(vignetteGold, 0, 0, w, h);
       g.globalAlpha = 1;
     }
     if (phase !== 'play') drawEnd(g, time);
-    drawStars(g, time);
+    if (!guest) drawStars(g, time);
     if (debug) drawDebug(g, time, section);
+  }
+
+  // On a guest's tablet the other players' lanes are dim: the picture behind is laid back over each at 0.65, so the lane, its
+  // notes and its dinosaur show at about 0.35; then its name tag, clear, over it
+  function drawOutside(g, time) {
+    for (let i = 0; i < lanes; i++) {
+      if (!outside(i)) continue;
+      const x = laneX[i] - laneW * 0.58; // to the middle of the gap on each side
+      g.save();
+      g.beginPath();
+      g.rect(x, topY - laneW, laneW * 1.16, h);
+      g.clip();
+      g.globalAlpha = 0.65;
+      g.drawImage(background, 0, 0, w, h);
+      g.restore();
+      drawTag(g, i, laneX[i], time);
+    }
+    g.globalAlpha = 1;
   }
 
   // The sky: its colour with the section (deeper when calm, warm over the horizon when big), the twinkling stars, falling stars
@@ -1449,6 +1485,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     drawGrades(g, time);
     drawRises(g, time);
+    if (guest) return; // the run's count and the points are the band's, on the big screen
     drawCounter(g, time);
     drawPoints(g, time);
   }
@@ -1826,12 +1863,31 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     });
   }
 
+  /**
+   * The big screen's word on note `index` (a guest's page, from remote-round.js's `played`): the note takes that state. On a lane
+   * judged elsewhere ('outside') a hit bursts, dimly, and a miss goes as a grey puff; on her own lane the word she saw stands.
+   */
+  function verdict(index, { kind, grade = null } = {}) {
+    giveLanes();
+    const note = notes[index];
+    if (!note) return;
+    const had = judge.settle(index, kind === 'hit' ? 'hit' : 'missed');
+    if (had !== 'waiting' || !outside(note.lane)) return;
+    if (kind === 'hit') {
+      hops[note.lane] = lastTime;
+      burst(note.lane, grade === 'perfect' || grade === 'great', false, true);
+    } else {
+      missPuff(note.lane, lastTime);
+    }
+  }
+
   let lastPerf = null;
   resize();
   return {
     tap,
     resize,
     setLineup,
+    verdict,
     frame(perf = performance.now()) {
       const time = clock.time();
       const dt = lastPerf === null ? 0 : Math.min(0.1, Math.max(0, (perf - lastPerf) / 1000));
@@ -1842,6 +1898,8 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       update(lastTime, dt);
       draw(lastTime);
     },
+    /** Where lane `lane`'s button is on the canvas (CSS px): its middle and radius (a walk taps there). */
+    spot: lane => ({ x: laneX[lane], y: hitY, r: dinoR }),
     laneAt(x) {
       let best = -1, gap = Infinity;
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });

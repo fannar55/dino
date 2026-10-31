@@ -53,19 +53,11 @@ import { createSparks } from './menu-sparks.js';
 import { createBest } from './best.js';
 import { createBrot } from './brot.js';
 import { createFlatStage } from './stage-flat.js';
+import { BACKDROP, FRIENDS } from './friends.js';
 
 const asset = path => new URL(`../../assets/${path}`, import.meta.url).href;
 
-// The friends who play, by role (v2/format.js ROLES), in the hues of the style guide (STYLE.md section 3).
-const FRIENDS = {
-  b: { role: 'b', name: 'Kambeðla', hue: '#8f6aa3', light: '#e6d8ee', dark: '#5d4370', src: asset('eitt/stegosaurus-tail.webp') },
-  a: { role: 'a', name: 'Slóeðla', hue: '#6793d0', light: '#d9e5f6', dark: '#4b6fa4', src: asset('eitt/parasaurolophus.webp') },
-  c: { role: 'c', name: 'Þórseðla', hue: '#e9b14d', light: '#f7e6c2', dark: '#89682e', src: asset('eitt/brontosaurus.webp') },
-};
-// The forest behind the lanes: the Fen (Þórseðla's home) rendered from the game's own 3D world in the evening light, wide and upright
-// (capture.mjs, qa/remake/sloedla/bakgrunnur), which game.js turns to night; `fade` is where, in shares of the picture's height, its
-// own sky gives way to the night sky above it (gone at the first, all there at the second).
-const BACKDROP = { wide: asset('sloedla/kvold-fen.webp'), upright: asset('sloedla/kvold-fen-upright.webp'), fade: [0.12, 0.48], fadeUpright: [0.2, 0.52] };
+// The friends who play (FRIENDS) and the Fen behind the lanes (BACKDROP) are friends.js's: a guest's tablet draws them too.
 const KEYS = {
   3: { a: 0, s: 1, d: 2, j: 0, k: 1, l: 2, arrowleft: 0, arrowdown: 1, arrowup: 1, arrowright: 2 },
   2: { f: 0, j: 1, a: 0, l: 1, d: 0, k: 1, arrowleft: 0, arrowright: 1 },

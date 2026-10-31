@@ -90,7 +90,7 @@ const LEVEL_CHOICES = [['barn', '🧒', WORDS.kid], ['fullordinn', '🧑', WORDS
 const isLevel = level => LEVEL_CHOICES.some(([id]) => id === level);
 
 /** A note's picture from the big screen: a file of the game's own under remake/assets/, nothing else. */
-const SAFE_PICTURE = /^assets\/[\w-]+(\/[\w.-]+)*\.(webp|png|jpg|svg)$/;
+export const SAFE_PICTURE = /^assets\/[\w-]+(\/[\w.-]+)*\.(webp|png|jpg|svg)$/;
 
 /** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
 export const ASK_EVERY_MS = 5000;

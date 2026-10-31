@@ -16,6 +16,8 @@
        ?demo=code|join|lobby|wait|closed|over|hals|eitt|yatzy
                                     a sample of each screen with no connection, for the captures (capture.mjs waits for
                                     __demoReady)
+       ?taeki=simi|spjald           Söngur Slóeðlu's song as a phone shows it (her lane) or a tablet (the whole stage),
+                                    whatever the screen's size (guest-sloedla.js)
      It never draws a QR code: the phone is the one that scans. -->
 </head>
 <body>
@@ -26,11 +28,12 @@ import { createGuestNet, iceServersFor, wsUrlFor } from './engine/fjolspil/net.j
 import { renderHals } from './engine/fjolspil/guest-hals.js';
 import { renderEitt } from './engine/fjolspil/guest-eitt.js';
 import { renderYatzy } from './engine/fjolspil/guest-yatzy.js';
+import { renderSloedla } from './engine/fjolspil/guest-sloedla.js';
 
 // The room's meeting point beside this page (serve.mjs at home, the Worker in the cloud), as this phone's guest id.
 const net = ({ code, guestId }) => createGuestNet({ url: wsUrlFor(location, code, { role: 'guest', id: guestId }), iceServers: iceServersFor(location) });
 // The games' phone screens, by the view's screen (spec §6.3).
-const views = { hals: renderHals, eitt: renderEitt, yatzy: renderYatzy };
+const views = { hals: renderHals, eitt: renderEitt, yatzy: renderYatzy, sloedla: renderSloedla };
 window.__spil = createGuestPage(document, { net, views });
 </script>
 </body>

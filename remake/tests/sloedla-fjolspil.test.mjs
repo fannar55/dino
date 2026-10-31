@@ -9,6 +9,8 @@ import { createClockSync, hostSongTime, songTimeAt } from '../engine/sloedla/clo
 import { createSeats } from '../engine/fjolspil/seats.js';
 import { createBandLobby } from '../engine/sloedla/band-lobby.js';
 import { createBandHost } from '../engine/sloedla/fjolspil-song.js';
+import { createRemoteRound } from '../engine/sloedla/remote-round.js';
+import { deviceOf } from '../engine/fjolspil/guest-sloedla.js';
 import { FakeDocument } from './fake-dom.mjs';
 import { createRequire } from 'node:module';
 
@@ -153,4 +155,66 @@ test('Spila einn tells every phone thanks for playing', async () => {
   assert.deepEqual(room.calls.at(-1), ['broadcast', { screen: 'sloedla', phase: 'bless' }]);
   assert.equal(room.doc.getElementById('saman').hidden, true, 'the QR card leaves the stage');
   assert.equal(await seated, null);
+});
+
+// ---- The guest's round: the notes and the clock from the big screen (remote-round.js) ------------------------------------
+
+const START = { kind: 'start', song: { id: 'boogie', name: 'Boogie', bpm: 120, length: 90 }, lanes: ['b', 'a', 'c'], levels: { b: 'barn', a: 'barn', c: 'fullordinn' }, names: { b: 'Egill', a: 'Egill', c: 'Anna' }, mine: 'c' };
+const SECTION_0 = { kind: 'notes', section: { index: 0, start: 0, variant: 'normal' }, list: [{ id: 3, t: 2, role: 'a' }, { id: 4, t: 2.5, role: 'c' }] };
+const SECTION_1 = { kind: 'notes', section: { index: 1, start: 8, variant: 'big' }, list: [{ id: 9, t: 8.5, role: 'c' }, { id: 10, t: 9, role: 'b' }] };
+
+test('remote round: notes fall in time order with the big screen\'s ids; played finds the guest\'s own', () => {
+  const phone = createRemoteRound({ sync: createClockSync(), now: () => 0 });
+  for (const body of [START, SECTION_0, SECTION_1]) phone.receive(body);
+  assert.deepEqual(phone.conductor.chart.map(note => [note.t, note.role, note.section]), [[2.5, 'c', 0], [8.5, 'c', 1]]);
+  assert.deepEqual(phone.receive({ kind: 'played', id: 9, role: 'c', result: 'hit', grade: 'great' }), { kind: 'played', index: 1, verdict: { kind: 'hit', grade: 'great' } });
+  assert.equal(phone.receive({ kind: 'played', id: 10, role: 'b', result: 'miss', grade: null }), null); // not on her phone
+  assert.deepEqual(phone.conductor.sectionAt(8.6), { index: 1, start: 8, variant: 'big' });
+  assert.equal(phone.conductor.length, 90);
+  // a tablet has every lane's notes, and every verdict
+  const tablet = createRemoteRound({ sync: createClockSync(), now: () => 0, every: true });
+  for (const body of [START, SECTION_0, SECTION_1]) tablet.receive(body);
+  assert.deepEqual(tablet.conductor.chart.map(note => note.t), [2, 2.5, 8.5, 9]);
+  assert.deepEqual(tablet.receive({ kind: 'played', id: 10, role: 'b', result: 'miss', grade: null }), { kind: 'played', index: 3, verdict: { kind: 'miss', grade: null } });
+});
+
+test('remote round: the guest\'s song time follows the anchors through the shared clock', () => {
+  const sync = createClockSync();
+  sync.receive({ sent: 0, host: 5010 }, 20); // the big screen's clock is 5000 ms ahead of hers
+  let now = 4500;
+  const round = createRemoteRound({ sync, now: () => now });
+  round.receive(START);
+  assert.equal(round.clock.time(), null); // no anchor yet: no song time
+  round.receive({ kind: 'clock', at: 9000, song: 12 });
+  assert.ok(Math.abs(round.clock.time() - 12.5) < 0.005);
+  assert.ok(Math.abs(round.clock.timeAt(4400) - 12.4) < 0.005); // a tap's own stamp
+  round.receive({ kind: 'clock', at: 11000, song: 14.01 }); // the newest anchor counts
+  now = 6000;
+  assert.ok(Math.abs(round.clock.time() - 14.01) < 0.005);
+});
+
+test('remote round: notes that come after their time keep the chart in order and throw nothing', () => {
+  const round = createRemoteRound({ sync: createClockSync(), now: () => 0, every: true });
+  round.receive(START);
+  round.receive(SECTION_1);
+  assert.doesNotThrow(() => {
+    round.receive(SECTION_0); // late: earlier than the notes already falling
+    round.receive(SECTION_1); // again
+    round.receive({ kind: 'notes' });
+    round.receive({ kind: 'notes', section: { index: 2 }, list: [{ id: 'x', t: 'soon', role: 'a' }, null] });
+    round.receive(null);
+    round.receive({ kind: 'played', id: 99, result: 'hit' });
+  });
+  assert.deepEqual(round.conductor.chart.map(note => note.t), [8.5, 9]);
+  round.receive({ kind: 'notes', section: { index: 2, start: 16, variant: 'calm' }, list: [{ id: 12, t: 16.5, role: 'a' }, { id: 11, t: 16.2, role: 'b' }] });
+  assert.deepEqual(round.conductor.chart.map(note => note.t), [8.5, 9, 16.2, 16.5]);
+});
+
+test('device: 390×844 is a phone, 1180×820 a tablet, ?taeki overrides', () => {
+  assert.equal(deviceOf(390, 844), 'simi');
+  assert.equal(deviceOf(844, 390), 'simi');
+  assert.equal(deviceOf(1180, 820), 'spjald');
+  assert.equal(deviceOf(390, 844, 'spjald'), 'spjald');
+  assert.equal(deviceOf(1180, 820, 'simi'), 'simi');
+  assert.equal(deviceOf(1180, 820, 'eitthvad'), 'spjald');
 });

@@ -5,6 +5,8 @@ import { pointerEvent } from './fake-dom.mjs';
 import { FakeStorage, rig, $, $$, view, tap } from './fjolspil-guest-rig.mjs';
 import { renderHals } from '../engine/fjolspil/guest-hals.js';
 import { renderEitt } from '../engine/fjolspil/guest-eitt.js';
+import { renderSloedla } from '../engine/fjolspil/guest-sloedla.js';
+import { FakeDocument } from './fake-dom.mjs';
 import { makeDeck } from '../engine/eitt/rules.js';
 import { bookSounds, BOOK_GAPS } from '../engine/book/book-sounds.js';
 import { FakeContext } from './fake-audio.mjs';
@@ -429,4 +431,46 @@ test('a game screen can post a message and hear the big screen\'s other messages
   assert.deepEqual(heard, [{ kind: 'end' }]);
   assert.equal(context.post('time', { sent: 1 }), true);
   assert.deepEqual(net.sent.at(-1), { v: 1, type: 'time', body: { sent: 1 } });
+});
+
+// ---- Söngur Slóeðlu's screen (guest-sloedla.js) ---------------------------------------------------------------------------
+
+function sloedlaScreen() {
+  const doc = new FakeDocument();
+  const root = doc.createElement('section');
+  const sent = [], posted = [];
+  const context = { doc, send: act => sent.push(act), post: (type, body) => posted.push([type, body]), listen: () => () => {} };
+  const show = body => renderSloedla(root, { screen: 'sloedla', ...body }, context);
+  return { root, show, sent, posted };
+}
+const allText = el => [el.textContent, ...el.children.map(allText)].join(' ');
+
+test('the end shows the band\'s stars and her own line', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'end', stars: 4, line: { name: 'Anna', roles: ['c'], points: 3400, great: 12 } });
+  const stars = $$(root, '.sl-guest-star');
+  assert.equal(stars.length, 5);
+  assert.equal(stars.filter(star => star.classList.contains('lit')).length, 4);
+  assert.equal($(root, '.sl-guest-name').textContent, 'Anna');
+  assert.equal($(root, '.sl-guest-points').textContent, '3.400');
+  assert.match(allText(root), /12/);
+  assert.equal($$(root, '.sl-guest-line img').length, 1); // her dinosaur
+  assert.equal($(root, '.sl-guest-wait').textContent, 'Bíðum eftir næsta lagi…');
+});
+
+test('thanks for playing', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'end', stars: 2, line: null });
+  show({ phase: 'bless' });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Takk fyrir að spila!');
+  assert.equal($$(root, '.sl-guest-star').length, 0);
+});
+
+test('late: she is in next time', () => {
+  const { root, show } = sloedlaScreen();
+  show({ phase: 'late', song: { name: 'Boogie', picture: 'assets/sloedla/valmynd/boogie.webp' } });
+  assert.equal($(root, '.sl-guest-words').textContent, 'Þú kemst inn í næsta lagi!');
+  assert.match($(root, '.sl-guest-picture').src, /assets\/sloedla\/valmynd\/boogie\.webp$/);
+  show({ phase: 'late', song: { name: 'Boogie', picture: 'https://example.com/x.png' } }); // a view is data: no picture from elsewhere
+  assert.equal($(root, '.sl-guest-picture'), null);
 });
