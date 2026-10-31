@@ -157,9 +157,9 @@ export function createLevelWorld(stage) {
       }
     },
     /** A wrong friend's go at an obstacle (scenes/fail.js). False when it cannot start now. */
-    startFail(species, target) {
+    startFail(species, target, options) {
       if (!mover || stage.director.mode() !== 'auto') return false;
-      stage.idle?.settle(); const timing = mover.startFail(species, target); if (!timing) return false;
+      stage.idle?.settle(); const timing = mover.startFail(species, target, options); if (!timing) return false;
       searchCamera = stage.camera(); taskScript = stage.scenes.play(failScene(script, species, target, timing));
       return true;
     },

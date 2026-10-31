@@ -1,0 +1,17 @@
+{
+  "files": ["badge-tunnel.webp", "badge-rocks.webp"],
+  "what": "The badges of level 2's first two obstacles (levels/steinagljufur.js `targets`, the gold square that shows over an obstacle that waits for a child's tap). Each is a RENDER of the level's own model, not a drawing: Blender's workbench renderer, studio light, a transparent background, 192 px, then 96 px as WebP at quality 88.",
+  "tunnel": {
+    "file": "badge-tunnel.webp",
+    "model": "gorge-tunnel.glb (the owner's own Tripo3D model: no third-party licence, see gorge-tunnel-source.json)",
+    "view": "from the front, 22 degrees above the ground and 22 degrees to the side, the whole mouth, with the model's own texture"
+  },
+  "rocks": {
+    "file": "badge-rocks.webp",
+    "model": "gorge-rocks.glb (Quaternius, Rocks, CC0 1.0, see gorge-rocks-source.json)",
+    "view": "nine of the file's eleven rocks stacked in a heap as the game stacks the pile, each in the gorge's sandstone colour (the workbench does not read the game's tint shader), from 24 degrees above and 32 degrees to the side"
+  },
+  "license": "The tunnel render is the owner's; the rocks render is of a CC0 model. No credit is required for either; the rocks are named behind the ending card's \"i\" all the same (levels/steinagljufur.js credits).",
+  "command": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-badge.py -- <absolute path of the glb> <absolute path of the png> kind=tunnel|rocks size=192, then ffmpeg -i x.png -vf scale=96:96:flags=lanczos -c:v libwebp -quality 88 -pix_fmt yuva420p badge-<kind>.webp",
+  "script": "remake/tools/blender-badge.py"
+}

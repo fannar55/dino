@@ -13,6 +13,7 @@
 //     [--picker-check]        on the welcome card: reads the level cards (report.picker), taps the locked one (nothing may happen) and the other open one (the page must reload at its level; the run then goes on there)
 //     [--wrong tunnel=brontosaurus,rocks=brontosaurus]   the wrong friend the driver tries first at an obstacle (level 2; the level's own `wrongFriends` otherwise)
 //     [--wrong-all]           the story modes try every wrong friend the bubbles offer at each obstacle, one after the other (every one of level 2's goes), then the right one
+//     [--qa-fail species:target]   level 2, with --query qa=1: instead of a wrong friend from the bubbles, the world is asked for that go once the target is next (the Kambeðlur at the rocks are never in the bubbles: they hold the light)
 //     [--no-encode]           with --video: keep the frames and the report but do not make round.mp4 (a long encode, run it alone afterwards with --encode-only)
 //     [--encode-only]         makes round.mp4, and round-sound.mp4 with the sounds the page played laid under it, from the frames of an earlier --video run in --out; no browser
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
@@ -44,6 +45,7 @@
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
 //   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
 //                   reports what is left running (report.restartCheck: nothing should be).
+//   --restart-at glow   level 2: pauses while the first tap's light is on the plates (report.pauseGlow: the light and the plates must not move, nor anything else), goes on, and restarts there.
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
 //   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
@@ -116,7 +118,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, qaFail: null, wrong: null, wrongAll: false, encode: true, encodeOnly: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -131,11 +133,12 @@ function parseArgs(argv) {
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
     else if (a === '--first') o.first = next();
-    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift or glow'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--hide-hud') o.hideHud = true;
     else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
     else if (a === '--wrong-all') o.wrongAll = true;
+    else if (a === '--qa-fail') o.qaFail = next();
     else if (a === '--no-encode') o.encode = false;
     else if (a === '--encode-only') o.encodeOnly = true;
     else if (a === '--picker-check') o.pickerCheck = true;
@@ -383,6 +386,7 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
     sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
     basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null, holding: (b.holding || null), action: b.action || null,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
@@ -991,6 +995,38 @@ async function main() {
         report.resolutionRestart = { before: await ev('window.__demoStats.resolutionScale') };
         await ev('window.__memory.restart()'); await sleep(150); report.resolutionRestart.after = await ev('window.__demoStats.resolutionScale'); await sleep(1350);
         report.restartCheck = await ev(RESTART_JS); step('after the restart', { ...report.restartCheck, resolution: report.resolutionRestart }); report.finished = true; break;
+      }
+      if (o.restartAt === 'glow' && s.bridge.active === 'light' && s.tunnel && s.tunnel.light > .3) {
+        // Paused while the plates glow: the light, the plates and every pose must stand still; then on, and a restart in the middle of it.
+        await ev('window.__memory.pause(true)'); await sleep(300);
+        const before = await ev(POSE_JS), l1 = (await ev(SNAPSHOT_JS)).tunnel; await sleep(1200);
+        const after = await ev(POSE_JS), l2 = (await ev(SNAPSHOT_JS)).tunnel;
+        report.pauseGlow = { light: [l1.light, l2.light], plates: [l1.plates, l2.plates], drift: +Math.max(...before.values.map((v, i) => Math.abs(v - after.values[i]))).toExponential(2), still: l1.light === l2.light && l1.plates === l2.plates };
+        step('paused while the plates glow', report.pauseGlow); await shot('paused-while-glowing');
+        await ev('window.__memory.pause(false)'); await sleep(500);
+        const during = (await ev(SNAPSHOT_JS)).tunnel; step('restart while the tunnel glows', { light: during.light, plates: during.plates, pile: during.pile });
+        await ev('window.__memory.restart()'); await sleep(1500);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); await shot('restarted'); report.finished = true; break;
+      }
+      if (o.qaFail && LEVEL.number === 2 && !seen.has('qa-fail') && s.story.target === o.qaFail.split(':')[1] && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.walking && !s.who.open) {
+        seen.add('qa-fail'); const [species, target] = o.qaFail.split(':');
+        step(`QA: the world is asked for ${species}'s go at the ${target}`);
+        const started = await ev(`window.__gorge.api.startFail(${JSON.stringify(species)}, ${JSON.stringify(target)}, { qa: true })`).catch(e => e.message);
+        step('the go started', { started });
+        if (started === true) {
+          report.qaFail = { species, target, pictures: [], before: (await ev(SNAPSHOT_JS)).tunnel }; let tries = 0;
+          while (tries++ < 120) {
+            const now = await ev(SNAPSHOT_JS).catch(() => null); if (!now) break;
+            if (now.trying && !report.qaFail.pictures.includes('try')) { report.qaFail.pictures.push('try'); await milestone(`qa-fail-${species}-${target}`, `qa-fail-${target}-${species}`, 900); }
+            if (!(await ev('window.__gorge.mover.isBusy()'))) break;
+            await sleep(250);
+          }
+          // The light the pair holds must not have dropped or moved while it had its go.
+          report.qaFail.after = (await ev(SNAPSHOT_JS)).tunnel; report.qaFail.holdsLight = report.qaFail.before.light === report.qaFail.after.light && report.qaFail.before.plates === report.qaFail.after.plates && report.qaFail.after.light >= .99;
+          step('the go is over', { species, target, light: [report.qaFail.before.light, report.qaFail.after.light], plates: [report.qaFail.before.plates, report.qaFail.after.plates], holdsLight: report.qaFail.holdsLight });
+          if (!report.qaFail.holdsLight) errors.push(`the light dropped during the QA go: ${JSON.stringify(report.qaFail)}`);
+        }
+        continue;
       }
       if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
         await sleep(1200); // Mosi's gifts line is on its way (or playing)

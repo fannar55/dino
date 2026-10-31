@@ -64,7 +64,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   };
   // The moves of each go while its gesture plays (seconds of the go): [from, to, metres toward the pile along the tunnel]; the legs walk while the root moves.
   const FAIL_MOVES = {
-    'tunnel:triceratops': [[0, 1, .85], [1.95, 2.95, -.85]],
+    'tunnel:triceratops': [[0, 1.05, 1.35], [1.95, 3, -1.35]],
     'tunnel:brontosaurus': [[0, .9, .6], [2.0, 2.95, -.6]],
   };
   // What happens at moments of a go (seconds into it): the bump, the pebble, the pecks.
@@ -217,9 +217,12 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   }
 
   // ---- a wrong friend's go ----
-  function startFail(species, target) {
+  // A wrong go belongs to a pair the bubbles offer, and a pair that holds the light is never offered (step-rules.js `holds`): the game never asks it. Only QA does (`qa: true`, the
+  // playthrough's --qa-fail: the Kambeðlur's go at the rocks, which the spec names): it hops away and back to where it stood, and the light it holds is not touched (the plates and the
+  // tunnel keep their level, the pair keeps holding) while it does.
+  function startFail(species, target, { qa = false } = {}) {
     const key = `${target}:${species}`;
-    if (action || !pairs[species]?.ready || !FAIL_SPOTS[key] || holding.has(species)) return null;
+    if (action || !pairs[species]?.ready || !FAIL_SPOTS[key] || holding.has(species) && !qa) return null;
     const spots = FAIL_SPOTS[key](), gesture = FAIL_TRIES[key], duration = GESTURES[gesture].duration;
     stand(species);
     const hops = hopsTo(species, spots), run = Math.max(...hops.map(h => h.duration));
