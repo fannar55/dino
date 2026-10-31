@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import * as kafli2 from '../chapters/kafli2.js';
+import * as kafli3 from '../chapters/kafli3.js';
 import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { createSave, defaultChapter } from '../engine/save.js';
 import { LOOKS } from '../engine/looks.js';
@@ -145,7 +146,7 @@ test('every shot keeps the camera rules over its ground', () => {
 // ---------------------------------------------------------------------------------------------
 // The hand-over from chapter 1
 
-test('the default chapter follows the stars', () => {
+test('the default chapter follows the stars: Kambeðla\'s, then Uggeðla\'s, and an old chapter 2 save meets Uggeðla', () => {
   const saveWith = stars => {
     const save = createSave(null);
     for (const star of stars) save.addStar(star);
@@ -153,14 +154,17 @@ test('the default chapter follows the stars', () => {
   };
   assert.equal(defaultChapter(saveWith([])), 'kafli1', 'a new child starts at the beginning');
   assert.equal(defaultChapter(saveWith(['k1_kambedla'])), 'kafli2', "with Kambeðla's star, chapter 2");
-  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_thorsedla'])), 'kafli2', 'and chapter 2 again with both, to play it again');
+  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_thorsedla'])), 'kafli2', 'an old chapter 2 save meets Uggeðla');
+  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_uggedla'])), 'kafli3', "with Uggeðla's star, chapter 3");
+  assert.equal(defaultChapter(saveWith(['k1_kambedla', 'k2_uggedla', 'k2_thorsedla'])), 'kafli3', 'and again, to play it again');
   // The page asks it when its address names no chapter; ?chapter= still says which.
   assert.match(MAIN_TEXT, /params\.get\('chapter'\)\s*\|\|\s*defaultChapter\(save\)/);
 });
 
-test('chapter 1 hands over to chapter 2 with an "Áfram" when its script ends, and chapter 2 to none yet', () => {
+test('chapter 1 hands over to chapter 2 and chapter 2 to chapter 3 with an "Áfram" when the script ends, and chapter 3 to none yet', () => {
   assert.equal(kafli1.next, 'kafli2', 'chapter 1 names the next');
-  assert.equal(chapter.next, null, 'chapter 2 is the last so far');
+  assert.equal(chapter.next, 'kafli3', 'chapter 2 names chapter 3');
+  assert.equal(kafli3.chapter.next, null, 'chapter 3 is the last so far');
   // main.js: when the script's task is done (and did not fail), a raised "Áfram" pill goes after the book and leads to ?chapter=<next>
   const main = MAIN_TEXT.replace(/\r\n/g, '\n');
   assert.match(main, /scriptTask = stage\.start\(chapter\.script\)/, 'the page keeps the script\'s task');
