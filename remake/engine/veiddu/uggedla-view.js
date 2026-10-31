@@ -33,7 +33,10 @@ const LIGHT = {
 };
 const THINK = { tilt: 12, nod: 5, turn: -8, ease: 0.28 }; // degrees the head rolls, dips and turns toward her cards; seconds to get there
 const LOOK = { weight: 0.55, maxAngle: 40, maxPitch: 20 }; // how she looks at the child
-const NOD = { dip: 9, seconds: 0.7 }; // with less motion the splash is a nod: degrees the head dips, and how long it takes
+// A bow of the head and neck over the water: degrees each dips, and seconds the whole bow takes. Her kink clip is a gentle nod of her own,
+// so the splash adds a bow over it that a child sees across the table; with less motion she only nods a little, and plays no clip.
+const BOW = { head: 15, neck: 6, seconds: 1.1 };
+const NOD = { head: 6, neck: 0, seconds: 0.6 };
 const NEUTRAL_RATE = 3.6; // syllables a second in her neutral talking
 
 /** A soft sky for the light her colours bounce in, as the book's renders have it (tools/bake/book-render.js). */
@@ -197,7 +200,8 @@ export async function createUggedlaView(container, { win = globalThis.window } =
 
   let thinking = 0; // 0 to 1, easing toward `thinkGoal`
   let thinkGoal = 0;
-  let nodT = -1; // seconds into a nod, or -1
+  let bowT = -1; // seconds into a bow (or a nod), or -1
+  let bow = BOW; // and which
   let clock = 0;
   let cheering = false;
   let oneShot = ''; // a one-shot clip (kink, happy) plays until `oneShotUntil` on the view's clock
@@ -216,16 +220,19 @@ export async function createUggedlaView(container, { win = globalThis.window } =
       rotateBoneWorld(head, q.setFromAxisAngle(right, -rad(THINK.nod) * w));
       any = true;
     }
-    if (nodT >= 0 && head) {
-      nodT += dt;
-      const x = Math.min(1, nodT / NOD.seconds);
-      rotateBoneWorld(head, q.setFromAxisAngle(right, -rad(NOD.dip) * Math.sin(Math.PI * x) ** 2));
-      if (x >= 1) nodT = -1;
+    if (bowT >= 0 && head) {
+      bowT += dt;
+      const x = Math.min(1, bowT / bow.seconds);
+      const w = smooth(Math.min(1, x / 0.35)) * (1 - smooth(Math.max(0, (x - 0.55) / 0.45))); // down, a moment over the water, up
+      if (neck) rotateBoneWorld(neck, q.setFromAxisAngle(right, -rad(bow.neck) * w));
+      rotateBoneWorld(head, q.setFromAxisAngle(right, -rad(bow.head) * w));
+      if (x >= 1) bowT = -1;
       any = true;
     }
     return any;
   }
 
+  const nod = () => { bow = NOD; bowT = 0; };
   /** Plays a clip once (it loops by itself, so she goes back to her rest at its end). */
   function playOnce(name) {
     if (oneShotUntil && oneShot === name) return; // she is at it already
@@ -233,7 +240,7 @@ export async function createUggedlaView(container, { win = globalThis.window } =
     oneShot = name;
     oneShotUntil = clock + seconds(name);
   }
-  const resting = () => actor.play(cheering ? 'happy' : 'idle', { fade: 0.4 });
+  const resting = () => actor.play(cheering && !calm() ? 'happy' : 'idle', { fade: 0.4 });
 
   function update(dt) {
     clock += dt;
@@ -298,16 +305,18 @@ export async function createUggedlaView(container, { win = globalThis.window } =
       thinkGoal = on ? 1 : 0;
       actor.lookAt(on ? cards : child, on ? { ...LOOK, weight: 0.45 } : LOOK);
     },
-    /** She dips toward the water: her kink clip, once (with less motion, a nod of the head). */
+    /** She dips toward the water: her kink clip, once, and a bow of her head over it (with less motion, a small nod only). */
     splash() {
       cheering = false;
-      if (calm()) nodT = 0;
-      else playOnce('kink');
+      if (calm()) return nod();
+      playOnce('kink');
+      bow = BOW;
+      bowT = 0;
     },
     /** She is glad: her happy clip, once. */
     happy() {
       cheering = false;
-      if (calm()) nodT = 0;
+      if (calm()) nod();
       else playOnce('happy');
     },
     /** She cheers (the end of a round): her happy clip, on and on, until her next move. */
@@ -316,13 +325,13 @@ export async function createUggedlaView(container, { win = globalThis.window } =
       actor.lookAt(child, LOOK);
       cheering = true;
       oneShotUntil = 0;
-      if (calm()) nodT = 0;
+      if (calm()) nod();
       else actor.play('happy', { fade: 0.25 });
     },
     /** Back to rest: no thinking, no dip, no cheer (a new round, or the game shut mid-move). */
     rest() {
       thinkGoal = 0;
-      nodT = -1;
+      bowT = -1;
       cheering = false;
       oneShotUntil = 0;
       actor.play('idle', { fade: 0.4 });

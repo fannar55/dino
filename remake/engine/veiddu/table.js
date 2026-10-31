@@ -96,7 +96,8 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
  * "Veiddu" in `doc`'s #veiddu (an element with the class veiddu), over the `save` (engine/save.js: getVeiddu and setVeiddu keep the
  * minds' skill and the wins; null: the minds start at VEIDDU_SKILL_START each round and nothing is kept). `audio` and `fjolspil` are
  * for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
- * `auto` makes the child's moves by itself (the lab's &auto=1, for a video of a whole round). Returns
+ * `auto` makes the child's moves by itself (the lab's &auto=1, for a video of a whole round). `uggedlaLive` (true) lets Uggeðla's picture
+ * give way to her live 3D view (uggedla-view.js) once it is ready; false keeps the picture (a slow machine, a capture with no WebGL). Returns
  *   open({ tutorial })  opens the game and deals a round
  *   close()    shuts it, dropping a round under way with no penalty
  *   isOpen     whether it is open
@@ -104,9 +105,12 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
  *   game       the round as it is now (the rules' data), for a probe, and phase, what it waits for: 'shut', 'child-pick', 'child-target',
  *              'child-fish', 'child-give', 'child-no', 'busy' or 'over'
  *   dealt      how many rounds have been dealt since the page began; auto: whether the child plays itself
+ *   uggedla    her live view, once it is ready (null before, and for good where it cannot start); viewReady: a promise that settles
+ *              when it has started or has failed
  */
 export function createVeidduGame(doc, {
   save = null, audio = {}, onClose = null, onPause = null, win = globalThis.window, random = Math.random, fjolspil = null, auto: autoStart = false,
+  uggedlaLive = true,
 } = {}) {
   const root = doc.getElementById('veiddu');
   if (!root) throw new Error('"Veiddu" needs #veiddu on the page (see veiddu-lab.html)');
@@ -328,6 +332,23 @@ export function createVeidduGame(doc, {
     later(1700, () => drops.remove());
   }
 
+  // ---- Uggeðla's view: loaded the first time the game opens; until then (and without WebGL) her picture stands in ------------
+
+  let view = null;
+  let viewLoading = null;
+  function startView() {
+    if (!uggedlaLive) return;
+    if (view) return view.start();
+    viewLoading ??= import('./uggedla-view.js')
+      .then(module => module.createUggedlaView(windowEls[UGGEDLA], { win }))
+      .then(made => {
+        view = made;
+        windowEls[UGGEDLA].querySelector('img')?.setAttribute('hidden', '');
+        if (isOpen) view.start();
+      })
+      .catch(error => console.warn('[veiddu] Uggeðla stays a picture: her live view could not start.', error));
+  }
+
   /** `seat`'s catch shows `laid` (the kinds in it) and `shownCount` pairs in its tag. Returns the new element, not yet in the page. */
   const makeCatch = (seat, laid, shownCount) => {
     const next = catchElement(doc, laid, NAMES[seat]);
@@ -343,6 +364,7 @@ export function createVeidduGame(doc, {
   }
   function thinking(seat, on) {
     seatEls[seat]?.classList.toggle('thinking', on);
+    if (seat === UGGEDLA) view?.think(on); // her head tilts (the picture's tilt is the class's, until her view is ready)
   }
   function markOut(seat) {
     (seat === CHILD ? meEl : seatEls[seat]).classList.add('out');
@@ -417,6 +439,7 @@ export function createVeidduGame(doc, {
     bubbleEl?.remove();
     bubbleEl = bubbleElement(doc, from, to, text, { long: [...text].length > 24 });
     table.append(bubbleEl);
+    if (from === UGGEDLA) view?.talk({ duration: 1.2 }); // her mouth moves (no recorded lines yet: a neutral mouth)
     speakingUntil = clock() + lineMs(text);
   }
 
@@ -555,6 +578,7 @@ export function createVeidduGame(doc, {
       if (!calm()) next.querySelector('.veiddu-catch-count')?.animate?.([{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 400, easing: 'cubic-bezier(.3, 1.6, .5, 1)' });
     }
     pairsShown[seat] = laid;
+    if (seat === UGGEDLA) view?.happy(); // she is glad of her pair
   }
 
   /** The card drawn from the pond (a fish, or the draw of an empty hand) flies to `seat`'s hand: face up for the child. */
@@ -567,6 +591,7 @@ export function createVeidduGame(doc, {
     const to = mine ? placeHand(hidden) : placeTheirs(hidden);
     setPond(--pondCount);
     splash();
+    view?.splash(); // she dips toward the water with the droplets, whoever fishes
     const flight = flyer(mine ? card : null, from, { width: Math.max(to.w, from.w), up: mine });
     await flight.move(to, { turn: mine, duration: FLY_MS + 100 });
     hidden.style.visibility = '';
@@ -882,6 +907,7 @@ export function createVeidduGame(doc, {
     pondCount = 0;
     pondEl.classList.remove('calls');
     winEl.hidden = true;
+    view?.rest();
     marks();
   }
 
@@ -946,6 +972,7 @@ export function createVeidduGame(doc, {
     winEl.querySelector('.veiddu-confetti').hidden = !childWon;
     winEl.hidden = false;
     ended = true;
+    view?.cheer(); // she cheers for the winner
   }
 
   // ---- Touch ----------------------------------------------------------------------------------------------------------------
@@ -994,6 +1021,7 @@ export function createVeidduGame(doc, {
     root.hidden = false;
     if (!calm()) root.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
     pause(true);
+    startView();
     run(deal());
   }
 
@@ -1002,6 +1030,7 @@ export function createVeidduGame(doc, {
     isOpen = false;
     round++; // the round under way is dropped, with no penalty
     reset();
+    view?.stop();
     root.hidden = true;
     pause(false);
     try {
@@ -1031,6 +1060,8 @@ export function createVeidduGame(doc, {
     get game() { return game; },
     get phase() { return phase(); },
     get dealt() { return dealt; },
+    get uggedla() { return view; },
+    get viewReady() { return viewLoading ?? Promise.resolve(); },
     get auto() { return auto; },
     set auto(value) {
       auto = Boolean(value);

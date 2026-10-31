@@ -16,7 +16,8 @@
      itself (bestAsk, after 1.2 s each), so a whole round plays on its own for a video (tools/veiddu-video.mjs). window.__veiddu is the
      game (its phase, game and dealt, for a probe). It links book.css for the touch the book and the game share (fx.js: the squash and
      the sparks), as the game's page will. The other states are the look as still markup in veiddu.css's classes (look.js draws them):
-       live       a real round (the default)
+       live       a real round (the default); &view=0 keeps Uggeðla's picture in her window (no WebGL, a slow machine), else she is live there
+                  (engine/veiddu/uggedla-view.js; keys t talk, k think, s splash, h happy, c cheer; window.__veiddu.uggedla is her view)
        table      a round under way: Uggeðla's picture in her window, Mosi's, their cards and pairs, the pond, the child's cards
        ask        a card picked (Skjaldbaka lifted) and both windows glowing: whom to ask?
        asked      Mosi asks the child "Áttu frosk?" and the frog lifts; &have=0 asks for an animal the child does not hold and the big
@@ -25,6 +26,7 @@
        win        the round won: the words, Uggeðla's sticker for the book, "Spilum aftur?" and confetti
        cards      every card, big, and the back
        advice     Mosi's help: he pops up with his reason and the card he means lifts and glows
+     &view=1 puts Uggeðla live in her window on a still state too (for a capture of her view).
      &hand=N (1 to 13) gives the child N distinct kinds in a still state: 13 is a full hand, for the widths of the cards. capture.mjs
      waits for __demoReady, which comes once the pictures are in (live: once the first deal has landed). -->
 </head>
@@ -46,11 +48,24 @@
       save,
       random: params.has('seed') ? seededRandom(params.get('seed')) : Math.random,
       auto: params.get('auto') === '1',
+      uggedlaLive: params.get('view') !== '0',
       onClose: () => setTimeout(() => game.open(), 600), // the lab has no book to go back to: the next round is dealt
     });
     Object.assign(window, { __veiddu: game, __veidduSave: kept });
     game.open();
     while (game.dealt < 1) await new Promise(resolve => setTimeout(resolve, 100));
+    await game.viewReady; // her live view has started (or has failed, and her picture stays)
+    // Keys move Uggeðla's live view: t talks, k thinks (again to stop), s splashes, h is glad, c cheers (window.__veiddu.uggedla is the view).
+    let thinking = false;
+    addEventListener('keydown', ({ key }) => {
+      const view = game.uggedla;
+      if (!view) return;
+      if (key === 't') view.talk({ duration: 1.2 });
+      if (key === 'k') view.think((thinking = !thinking));
+      if (key === 's') view.splash();
+      if (key === 'h') view.happy();
+      if (key === 'c') view.cheer();
+    });
   } else {
     renderStill(document, root, STILL_STATES.includes(params.get('state')) ? params.get('state') : 'table', params);
     if (params.get('view') === '1') {
