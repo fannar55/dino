@@ -79,3 +79,25 @@ test('every friend on the stage is on disk with every move the stage asks of her
     for (const clip of [friend.rest, friend.cheer, friend.away, friend.dance]) assert.ok(names.includes(clip), `${id} ${friend.file}: ${clip}`);
   }
 });
+
+test('the pictures keep their places while the stage is hidden (a round), and stand right again once it shows', async () => {
+  const { createFlatStage } = await import('../engine/sloedla/stage-flat.js');
+  const pictures = [];
+  const root = {
+    clientWidth: 1280, clientHeight: 800,
+    ownerDocument: { createElement: () => ({ style: {}, dataset: {}, classList: { toggle() {} } }) },
+    append: img => pictures.push(img),
+  };
+  const stage = createFlatStage({ root, asset: path => path });
+  const shown = pictures.map(img => img.style.width);
+  assert.ok(shown.every(width => parseFloat(width) > 50), 'the friends stand at their size');
+  root.clientWidth = 0;
+  root.clientHeight = 0; // the scene hidden while the round plays, and the tablet turned
+  stage.resize();
+  assert.deepEqual(pictures.map(img => img.style.width), shown, 'nothing to measure: they stay as they were');
+  root.clientWidth = 390;
+  root.clientHeight = 844;
+  stage.resize();
+  assert.ok(pictures.every(img => parseFloat(img.style.width) > 50), 'upright now, and still their size');
+  assert.notDeepEqual(pictures.map(img => img.style.width), shown);
+});

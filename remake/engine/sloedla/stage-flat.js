@@ -44,8 +44,10 @@ export function createFlatStage({ root, asset }) {
   const cheers = [];
 
   function resize() {
-    const width = Math.max(1, root.clientWidth);
-    const height = Math.max(1, root.clientHeight);
+    // hidden (the round plays): nothing to measure, so they keep their places until the stage shows again
+    if (!root.clientWidth || !root.clientHeight) return;
+    const width = root.clientWidth;
+    const height = root.clientHeight;
     const portrait = height > width;
     const layout = castLayout(portrait);
     for (const friend of Object.values(friends)) {

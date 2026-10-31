@@ -169,8 +169,11 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   /** Shows screen `name` (hver, lag, hlada, umferd, lok); the stage draws only on the menu's own screens. */
   function screen(name) {
     if (name !== screenName) {
+      const back = !STAGE_SCREENS.has(screenName) && STAGE_SCREENS.has(name);
       screenName = name;
       if (stageRoot) stageRoot.dataset.screen = name;
+      // back from a round: the stage was hidden, and the tablet may have turned since
+      if (back) stage?.resize();
       if (name === 'hver') setWords([TITLE]);
       if (name === 'lag' || name === 'lok' || name === 'umferd') setWords([]);
     }
