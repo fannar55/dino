@@ -53,6 +53,15 @@
     while (game.dealt < 1) await new Promise(resolve => setTimeout(resolve, 100));
   } else {
     renderStill(document, root, STILL_STATES.includes(params.get('state')) ? params.get('state') : 'table', params);
+    if (params.get('view') === '1') {
+      // &view=1 puts Uggeðla live in her window on a still too (a capture of her view; the stills keep her picture otherwise).
+      const { createUggedlaView } = await import('./engine/veiddu/uggedla-view.js');
+      const frame = document.querySelector('.veiddu-uggedla');
+      const view = await createUggedlaView(frame, { win: window });
+      frame.querySelector('img').hidden = true;
+      view.start();
+      window.__uggedla = view;
+    }
   }
 
   /** Waits until the font and pictures are in and nothing is moving but the idle life. */
