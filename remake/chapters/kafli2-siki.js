@@ -253,17 +253,17 @@ export const SIKI_SHOTS = {
   // Mosi's face with the flooded path running under us to his feet.
   siki_flooded: { position: eye(10.5, -1.2, 1.6), target: eye(2.5, 0.0, 1.2), fov: 48 },
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
-  siki_sail: { position: eye(-7, -5.5, 2.2), target: eye(14, 1.0, 3.6), fov: 50 },
+  siki_sail: { position: eye(-7, -5.5, 2.2), target: eye(14, 1.5, 3.6), fov: 46 },
   // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
   siki_fishing: { position: eye(-2, -16, 5.0), target: eye(10, 6, 1.4), fov: 54 },
   // Mosi and Uggeðla face to face across the water.
-  siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 46 },
+  siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 44 },
   // Low, looking up at her sail against the sky, where the star rises from its top.
-  siki_star: { position: eye(3.5, -9, 0.9), target: eye(13.5, 1.5, 6.2), fov: 50 },
+  siki_star: { position: eye(3.5, -9, 0.9), target: eye(13.5, 1.5, 6.2), fov: 48 },
   // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
   // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
   // Side by side: from the inner bank a little ahead of them, across her and Mosi, who stand clear of each other from there.
-  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [9, 2.4, 15], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 1.8, 2.6], local: true }, fov: 50 },
+  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [9, 3.0, 16], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 1.8, 2.6], local: true }, fov: 50 },
   // From the front, over the water: her head, Egill on her back and the sail over him.
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
   // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
