@@ -11,24 +11,34 @@ import fs from 'node:fs';
 import { createBrot } from '../engine/sloedla/brot.js';
 import { timelineOf } from '../engine/sloedla/v2/format.js';
 
-test('best stars: kept per song and level, only ever higher', () => {
-  const store = new Map();
-  const storage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+/** A storage in memory, like localStorage, with `seed` entries in it. */
+function memoryStorage(seed = {}) {
+  const store = new Map(Object.entries(seed));
+  return { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+}
+
+test('records: stars and points kept per song and level, each only ever higher', () => {
+  const storage = memoryStorage();
   const best = createBest(storage);
-  assert.equal(best.get('pixel', 'barn'), 0);
-  assert.equal(best.record('pixel', 'barn', 2), true);
-  assert.equal(best.record('pixel', 'barn', 1), false);
-  assert.equal(best.get('pixel', 'barn'), 2);
-  assert.equal(best.get('pixel', 'fullordinn'), 0);
-  assert.equal(createBest(storage).get('pixel', 'barn'), 2, 'still there next time');
+  assert.deepEqual(best.get('pixel', 'barn'), { stars: 0, points: 0 });
+  assert.equal(best.record('pixel', 'barn', { stars: 3, points: 6000 }), true);
+  assert.equal(best.record('pixel', 'barn', { stars: 2, points: 7000 }), true, 'more points is a record');
+  assert.equal(best.record('pixel', 'barn', { stars: 2, points: 5000 }), false);
+  assert.deepEqual(best.get('pixel', 'fullordinn'), { stars: 0, points: 0 });
+  assert.deepEqual(createBest(storage).get('pixel', 'barn'), { stars: 3, points: 7000 }, 'kept on the device');
 });
 
-test('best stars: a storage that throws, or none, works and remembers for the visit', () => {
+test('records: the old three-star records are not read as five', () => {
+  const storage = memoryStorage({ 'mosi-sloedla-best': JSON.stringify({ 'pixel/barn': 3 }) });
+  assert.deepEqual(createBest(storage).get('pixel', 'barn'), { stars: 0, points: 0 });
+});
+
+test('records: a storage that throws, or none, works and remembers for the visit', () => {
   const broken = { getItem() { throw new Error('no'); }, setItem() { throw new Error('no'); } };
   for (const best of [createBest(broken), createBest(null)]) {
-    assert.equal(best.get('fonk', 'barn'), 0);
-    assert.equal(best.record('fonk', 'barn', 3), true);
-    assert.equal(best.get('fonk', 'barn'), 3);
+    assert.deepEqual(best.get('fonk', 'barn'), { stars: 0, points: 0 });
+    assert.equal(best.record('fonk', 'barn', { stars: 4, points: 8200 }), true);
+    assert.deepEqual(best.get('fonk', 'barn'), { stars: 4, points: 8200 });
   }
 });
 

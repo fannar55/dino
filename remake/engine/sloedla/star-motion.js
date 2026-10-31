@@ -133,5 +133,6 @@ export function countUp(t, from, to, total) {
   return Math.floor(total * easeOut((t - from) / (to - from)));
 }
 
-/** More stars than the song's best before: a new best. */
-export const isNewBest = (stars, before) => stars > 0 && stars > before;
+/** A new record: more stars or more points than the song's records before ({ stars, points }, best.js). */
+export const isNewBest = ({ stars = 0, points = 0 }, before = { stars: 0, points: 0 }) =>
+  (stars > 0 || points > 0) && (stars > (before?.stars ?? 0) || points > (before?.points ?? 0));

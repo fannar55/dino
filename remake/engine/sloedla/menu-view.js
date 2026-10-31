@@ -1,9 +1,11 @@
 // The menu of Slóeðla's song game on the lab page (sloedla-lab.html): step 1 (who plays) and step 2 (the song cards) of the
 // start section, and the end's two buttons. The logic is menu.js's; this draws it and carries out its cues: the DJ's lines
 // (dj.js: his words in the bubble, his picture bobbing while he talks), the songs' previews (brot.js), and sparks when a card is
-// picked (menu-sparks.js). The cards show each song's best stars on this device at the chosen level (best.js).
+// picked (menu-sparks.js). The cards show each song's records on this device at the chosen level (best.js): stars of five, and
+// under them the most points ("Met: 7.480").
 
 import { DJ_LINES } from './dj.js';
+import { pointsText } from './text.js';
 
 /**
  * The menu over the page `root`. `onPlay({ song, level, lanes })` starts a round; `onUnlock()` is called at the first tap (the
@@ -76,6 +78,9 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const stars = document.createElement('span');
     stars.className = 'sl-stars';
     card.append(stars);
+    const met = document.createElement('span'); // the most points, under the stars
+    met.className = 'sl-met';
+    card.append(met);
     cards.append(card);
   });
 
@@ -89,11 +94,14 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     }
     for (const card of all('[data-song]')) {
       card.setAttribute('aria-pressed', String(card.dataset.song === s.song));
-      const n = best.get(card.dataset.song, s.level);
+      const { stars: n, points } = best.get(card.dataset.song, s.level);
       const stars = card.querySelector('.sl-stars');
       stars.textContent = '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
       stars.setAttribute('aria-label', `${n} af 5 stjörnum`);
       stars.classList.toggle('new', card.dataset.song === newBest);
+      const met = card.querySelector('.sl-met');
+      met.textContent = points > 0 ? `Met: ${pointsText(points)}` : '';
+      met.hidden = !(points > 0);
     }
     cards.classList.toggle('has-pick', Boolean(s.song));
     const wasHidden = play.hidden;

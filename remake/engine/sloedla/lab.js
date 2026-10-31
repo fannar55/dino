@@ -260,7 +260,9 @@ function createBot(conductor, cast, how) {
 function finish(result) {
   // the story's reward at four stars or more, so a child who plays every note has it (spec 2026-10-31)
   $('end-words').textContent = result.stars >= 4 ? 'Slóeðla syngur með þér á hátíðinni!' : 'Viltu spila aftur?';
-  view.showEnd(result, best.record(options.song, options.level, result.stars));
+  // a look at the end (?lokaskjar=) is no record
+  const rose = options.endNow === null && best.record(options.song, options.level, { stars: result.stars, points: result.points });
+  view.showEnd(result, rose);
   window.__sloedlaResult = result;
   if (recorder) setTimeout(() => recorder.state === 'recording' && recorder.stop(), 2500);
 }

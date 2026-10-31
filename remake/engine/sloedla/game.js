@@ -85,11 +85,11 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * own sky gives way to the night's) or null; `dj` the festival's DJ (dj.js createDj, or null for none); `claps` the crowd clapping
  * along in Stjörnukraftur (claps.js createClaps, or null); `hands` the crowd's black hands that come up and clap along with it
  * (hands.js createClapHands, loaded by the page, or null for none); `stars3d` the stars in 3D (star-view.js createStarView, or null:
- * the stars are drawn flat), `bestBefore` the song's best stars before this round (for "Nýtt met!"), `endNow` a number of stars to
+ * the stars are drawn flat), `bestBefore` the song's records before this round ({ stars, points }, best.js; for "Nýtt met!"), `endNow` a number of stars to
  * end with at once, 0 to 5, or 'fullkominn' for a perfect game (the page's ?lokaskjar=, for a look at the end: lookScore).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
-export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = 0, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
+export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = { stars: 0, points: 0 }, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
   const ctx = canvas.getContext('2d');
   hands?.reset();
   const lanes = cast.length;
@@ -1650,7 +1650,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       g.globalAlpha = k;
       outlined(g, `Lengsta röð: ${score.best}`, w / 2, below + (portrait ? 88 : 104), portrait ? 21 : 26, '#fff6c8');
       g.globalAlpha = 1;
-      if (isNewBest(endStars, bestBefore) && t >= endPlan.countTo + 0.3) {
+      if (isNewBest({ stars: endStars, points: pointsOf(score) }, bestBefore) && t >= endPlan.countTo + 0.3) {
         // beside the stars on a wide screen, over the middle one on a narrow one (it must not leave the screen)
         const nx = portrait ? w / 2 : w / 2 + spot.size * 3.1;
         const ny = endSpot(1).y - spot.size * (portrait ? 1.75 : 1.2);

@@ -54,13 +54,16 @@ test('two bar stars reached close together move on their own', () => {
   assert.ok(Math.abs(later.y - 30) <= 2, 'back on the bar, bobbing');
 });
 
-test('the count rises from 0 to the notes played, whole numbers; a new best is more stars than before', () => {
+test('the count rises from 0 to the notes played, whole numbers', () => {
   const seen = [0, 0.25, 0.5, 0.75, 1, 1.5].map(t => countUp(t, 0.25, 1.25, 45));
   assert.deepEqual([seen[0], seen.at(-1)], [0, 45]);
   for (let i = 1; i < seen.length; i++) assert.ok(seen[i] >= seen[i - 1] && Number.isInteger(seen[i]));
-  assert.equal(isNewBest(2, 1), true);
-  assert.equal(isNewBest(2, 2), false);
-  assert.equal(isNewBest(0, 0), false);
+});
+
+test('a new record is more stars or more points', () => {
+  assert.equal(isNewBest({ stars: 3, points: 5000 }, { stars: 3, points: 4000 }), true);
+  assert.equal(isNewBest({ stars: 3, points: 4000 }, { stars: 4, points: 9000 }), false);
+  assert.equal(isNewBest({ stars: 0, points: 0 }), false);
 });
 
 // the owner makes the star in Tripo3D (2026-10-30); until his file is here the game draws the flat stars, and this waits
