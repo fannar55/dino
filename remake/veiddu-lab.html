@@ -38,7 +38,7 @@
     if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
     for (let round = 0; round < 3; round++) {
       await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
-      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity && animation.playState === 'running');
       await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }

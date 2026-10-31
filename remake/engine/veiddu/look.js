@@ -51,6 +51,7 @@ export function cardElement(doc, card, { back = false, tag = 'div', mini = false
   el.dataset.kind = kind.id;
   el.style.setProperty('--c', kind.colour);
   el.setAttribute('aria-label', kind.name);
+  if (tag !== 'button') el.setAttribute('role', 'img');
   const pic = doc.createElement('span');
   pic.className = 'pic';
   if (kind.image) {
@@ -232,14 +233,14 @@ function pondElement(doc, count, { calls = false, splash = false } = {}) {
     const reach = Math.sqrt((k + 0.5) / 14);
     const card = cardElement(doc, null);
     card.classList.add('veiddu-pond-card');
-    card.style.cssText = `--x:${(50 + 36 * reach * Math.cos(angle)).toFixed(1)}%;--y:${(50 + 33 * reach * Math.sin(angle)).toFixed(1)}%;--r:${((k * 53) % 44) - 22}deg;--i:${k}`;
+    card.style.cssText = `--x:${(50 + 40 * reach * Math.cos(angle)).toFixed(1)}%;--y:${(50 + 35 * reach * Math.sin(angle)).toFixed(1)}%;--r:${((k * 53) % 44) - 22}deg;--i:${k}`;
     pond.append(card);
   }
   if (splash) {
     const drops = make(doc, 'div', 'veiddu-splash frozen', { 'aria-hidden': 'true' });
     for (let k = 0; k < 11; k++) {
       const side = k % 2 ? 1 : -1;
-      drops.append(make(doc, 'i', '', { style: `--x:${side * (14 + ((k * 37) % 90))}px;--a:${(0.7 + ((k * 13) % 7) / 10).toFixed(1)};--t:${(1 + (k % 4) * 0.12).toFixed(2)}s` }));
+      drops.append(make(doc, 'i', '', { style: `--x:${side * (40 + ((k * 53) % 170))}px;--a:${(0.7 + ((k * 13) % 7) / 10).toFixed(1)};--t:${(1 + (k % 4) * 0.12).toFixed(2)}s` }));
     }
     pond.append(drops);
   }
@@ -311,7 +312,7 @@ function tableElement(doc, round) {
   }
   if (round.fishButton) table.append(make(doc, 'button', 'veiddu-fish-button', {}, `<span>Farðu að veiða!</span>`));
   table.append(
-    make(doc, 'button', 'veiddu-teach', {}, `${CAP}<span>Kennsla</span>`),
+    make(doc, 'button', 'veiddu-teach', { 'aria-label': 'Kennsla' }, `${CAP}<span>Kennsla</span>`),
     make(doc, 'button', 'veiddu-close veiddu-quit', { 'aria-label': 'Hætta' }, CROSS),
   );
   return table;
