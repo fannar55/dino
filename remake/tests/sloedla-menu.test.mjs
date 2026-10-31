@@ -134,6 +134,34 @@ test('the preview player: one at a time, faded out on stop', async () => {
   }
 });
 
+test('every song says its tempo in the list, the same as the song itself', async () => {
+  for (const entry of SONGS_V2) assert.equal(entry.bpm, (await entry.load()).default.tempo.bpm, entry.id);
+});
+
+test('the preview goes round while its card is picked, and counts its beats from its own start', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+  try {
+    const context = createFakeContext({ state: 'running' });
+    context.decodeAudioData = async () => context.createBuffer(2, context.sampleRate * 10, context.sampleRate);
+    const brot = createBrot({ context, output: context.destination, src: id => id, bpmOf: id => ({ a: 120, b: 150 })[id] ?? null });
+    assert.equal(brot.beats(), null);
+    await brot.play('a');
+    assert.equal(context.bufferSources.at(-1).loop, true);
+    context.advance(1);
+    assert.ok(Math.abs(brot.beats() - 2) < 1e-6, 'two beats in a second at 120');
+    await brot.play('b');
+    context.advance(0.4);
+    assert.ok(Math.abs(brot.beats() - 1) < 1e-6, 'the newest song, at its tempo, from its start');
+    context.advance(10);
+    assert.ok(Math.abs(brot.beats() - 1) < 1e-6, 'round again after its ten seconds');
+    brot.stop();
+    assert.equal(brot.beats(), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('every song has its picture on disk, its source and licence said', () => {
   const credits = fs.readFileSync(new URL('../assets/sloedla/valmynd/KREDIT.md', import.meta.url), 'utf8');
   for (const entry of [...SONGS_V2, { id: 'dj', card: 'dj.webp' }]) {

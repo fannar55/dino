@@ -341,7 +341,7 @@ document.addEventListener('visibilitychange', () => {
 // The menu: who plays, then the songs (menu.js, menu-view.js); the songs' best stars on this device (best.js); their previews
 // into the music bus, so the DJ dips them (brot.js). The choices go into the address too, so a reload keeps them.
 const best = createBest();
-const brot = context ? createBrot({ context, output: music, src: id => asset(`audio/sloedla/v2/${id}/brot.mp3`) }) : null;
+const brot = context ? createBrot({ context, output: music, src: id => asset(`audio/sloedla/v2/${id}/brot.mp3`), bpmOf: id => SONGS_V2.find(song => song.id === id)?.bpm ?? null }) : null;
 // the pretend child (?sjalf=) always has a song: the address's, else the first (the tools that capture it click #play at once)
 const menu = createMenu({ songs: SONGS_V2, level: options.level, lanes: options.lanes, song: options.song ?? (options.self ? SONGS_V2[0].id : null), self: Boolean(options.self) });
 function keep({ level, lanes, song }) {
