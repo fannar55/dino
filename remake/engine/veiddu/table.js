@@ -2,7 +2,10 @@ import { KINDS, kindOf } from './cards.js';
 import { newGame, ask, fish, legalTargets, holds } from './rules.js';
 import { SEAT, createMind, bestAsk, inRoundSkill, VEIDDU_SKILL_START } from './minds.js';
 import { afterRound } from '../eitt/skill.js';
+import { createEittMusic } from '../eitt/eitt-sounds.js';
+import { createGameSfx } from '../audio/game-music.js';
 import { pressable, sparkle, reducedMotion, TAP_SLOP_PX } from '../book/fx.js';
+import { veidduSounds, VEIDDU_GAPS, createSplash } from './veiddu-sounds.js';
 import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCard, tableElement, winElement, make, POND_SHOWN } from './look.js';
 
 // The table of "Veiddu" (spec sections 2 to 5): the round the child plays with Uggeðla and Mosi, rendered into veiddu.css's classes (the
@@ -23,12 +26,14 @@ import { cardElement, layoutHand, layTheirs, catchElement, bubbleElement, pondCa
 //     "Þú átt leik, Egill!", at most once in 20 s. Mosi's button gives the same advice at once, with his reason.
 //   - The end: the winner's words (all the winners on a tie), confetti and Uggeðla's sticker for a child who won or tied, "Spilum
 //     aftur?", and the minds' skill updated for the next round (skill.js afterRound) when the save keeps one.
-// Input waits while a card flies or a mind moves: every handler answers only the phase it serves. There is no sound yet: every line
-// shows as text in its bubble for lineMs(text), which is the one place the pace of a line lives. Under prefers-reduced-motion a flight
-// is a fade where the card lands and nothing idles.
+// Input waits while a card flies or a mind moves: every handler answers only the phase it serves. Every line shows as text in its bubble
+// for lineMs(text), which is the one place the pace of a line lives (there are no voices yet). The sound is veiddu-sounds.js: Eitt!'s
+// effects and music, tuned to Eitt!'s key, and the recorded splash on every fish. Under prefers-reduced-motion a flight is a fade where
+// the card lands and nothing idles; the sounds still play, for sound is not motion.
 
 const REMAKE = new URL('../../', import.meta.url); // remake/: where the pictures start
 const asset = path => new URL(path, REMAKE).href;
+const MUSIC = asset('assets/audio/eitt/music.mp3'); // Eitt!'s music for now (spec section 6); the effects take the key of its music.json
 
 const KIND = new Map(KINDS.map(kind => [kind.id, kind]));
 const ORDER = KINDS.map(kind => kind.id);
@@ -94,14 +99,14 @@ const EMPTY_ROUND = { mine: [], theirs: [0, 0], pairs: [[], [], []], pond: 0, ta
 
 /**
  * "Veiddu" in `doc`'s #veiddu (an element with the class veiddu), over the `save` (engine/save.js: getVeiddu and setVeiddu keep the
- * minds' skill and the wins; null: the minds start at VEIDDU_SKILL_START each round and nothing is kept). `audio` and `fjolspil` are
- * for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
+ * minds' skill and the wins; null: the minds start at VEIDDU_SKILL_START each round and nothing is kept). `audio` is the page's sound,
+ * { context, output, theme, muted } (engine/audio/output.js; no context: the game is silent), and `fjolspil` is for the tasks that follow. `onPause(paused)` holds the chapter while the game is open, and `onClose()` is told when it shuts.
  * `auto` makes the child's moves by itself (the lab's &auto=1, for a video of a whole round). `uggedlaLive` (true) lets Uggeðla's picture
  * give way to her live 3D view (uggedla-view.js) once it is ready; false keeps the picture (a slow machine, a capture with no WebGL). Returns
  *   open({ tutorial })  opens the game and deals a round
  *   close()    shuts it, dropping a round under way with no penalty
  *   isOpen     whether it is open
- *   muted      silences it (nothing sounds yet)
+ *   muted      silences it (the effects, the music and the splash)
  *   game       the round as it is now (the rules' data), for a probe, and phase, what it waits for: 'shut', 'child-pick', 'child-target',
  *              'child-fish', 'child-give', 'child-no', 'busy' or 'over'
  *   dealt      how many rounds have been dealt since the page began; auto: whether the child plays itself
@@ -199,6 +204,33 @@ export function createVeidduGame(doc, {
   const run = flow => flow?.catch?.(error => {
     if (error !== STALE) console.error('[veiddu] A move went wrong:', error);
   });
+
+  // ---- Sound ----------------------------------------------------------------------------------------------------------------
+
+  const context = audio.context ?? null;
+  const output = audio.output ?? null;
+  // The effects are tuned to their music's key (assets/audio/eitt/music.json), else the page's theme (engine/audio/game-music.js); the
+  // music loops while the game is open; the splash is two recorded files (assets/veiddu/splash.json). With no context all are silent.
+  const effects = createGameSfx({ music: MUSIC, context, theme: audio.theme ?? null, output, sounds: veidduSounds, gaps: VEIDDU_GAPS });
+  const music = createEittMusic({ context, output, url: MUSIC });
+  const splashes = createSplash({ context, output, urls: { full: asset('assets/veiddu/splash.mp3'), soft: asset('assets/veiddu/splash-soft.mp3') } });
+  // The voices come after this (Task 6b): a speech queue beside these, which ducks the music (music.duck(on)) while a line speaks.
+  let muted = false;
+  const sfx = (name, detail) => effects.play(name, detail);
+  function setMuted(value) {
+    muted = Boolean(value);
+    effects.muted = muted;
+    music.muted = muted;
+    splashes.muted = muted;
+  }
+  setMuted(audio.muted); // wherever the game's sound is muted (captures), so is this
+
+  /** A touch in the game: the browser lets sound begin from it, so the music that could not start before a touch starts now. */
+  function wake() {
+    if (!isOpen) return;
+    if (context?.state === 'suspended') context.resume?.().catch?.(() => {});
+    music.wake();
+  }
 
   const skillBase = () => save?.getVeiddu?.()?.skill ?? VEIDDU_SKILL_START;
   const skillNow = () => inRoundSkill(skillBase(), game.pairs[CHILD].length, Math.max(...game.pairs.map(laid => laid.length)));
@@ -394,6 +426,7 @@ export function createVeidduGame(doc, {
         frame.removeAttribute('tabindex');
       }
     }
+    if (p === 'child-fish' && !pondEl.classList.contains('calls')) sfx('pond-call'); // the pond begins to call the child
     pondEl.classList.toggle('calls', p === 'child-fish');
     if (p === 'child-no' && !fishButton) {
       fishButton = el('button', 'veiddu-fish-button', '<span>Farðu að veiða!</span>');
@@ -407,6 +440,7 @@ export function createVeidduGame(doc, {
 
   /** A wiggle: no (a card wiggles as .nope does; with less motion everything just blinks). */
   function nope(box) {
+    sfx('wiggle');
     if (calm()) {
       box.animate?.([{ opacity: 1 }, { opacity: 0.55 }, { opacity: 1 }], { duration: 480 });
       return;
@@ -568,8 +602,10 @@ export function createVeidduGame(doc, {
       await Promise.all(fliers.map((flier, k) => flier.move({ x: meet.x + (k ? 1 : -1) * wide * 0.3, y: meet.y, r: k ? 5 : -7, w: wide }, { turn: down[k], duration: GATHER_MS })));
       if (!calm()) for (const flier of fliers) flier.el.animate?.([{ scale: 1 }, { scale: 1.12 }, { scale: 1 }], { duration: 240, easing: 'ease-out' });
       sparkleAt(meet, wide);
+      sfx('pair');
       await wait(SNAP_MS);
       await Promise.all(fliers.map((flier, k) => flier.move(slots[k], { duration: CATCH_MS })));
+      sfx('flick', { soft: true }); // the pair lands in the catch
       old.replaceWith(next);
       next.querySelector('.veiddu-pair').style.visibility = '';
       next.querySelector('.veiddu-catch-count').textContent = String(laid.length);
@@ -592,6 +628,8 @@ export function createVeidduGame(doc, {
     setPond(--pondCount);
     splash();
     view?.splash(); // she dips toward the water with the droplets, whoever fishes
+    sfx('draw');
+    splashes.play(seat); // and the water sounds: Egill's fish with the full splash, the minds' with the soft one (with less motion too)
     const flight = flyer(mine ? card : null, from, { width: Math.max(to.w, from.w), up: mine });
     await flight.move(to, { turn: mine, duration: FLY_MS + 100 });
     hidden.style.visibility = '';
@@ -746,6 +784,7 @@ export function createVeidduGame(doc, {
 
   /** The child picks a kind: it lifts (another tap changes it) and the windows that may be asked glow. */
   function pick(kind) {
+    sfx('flick', { soft: true }); // the card is picked up
     picked = kind;
     hintKind = null;
     hintTarget = null;
@@ -938,6 +977,7 @@ export function createVeidduGame(doc, {
       flights.push(flight.move(to, { turn: seat === CHILD, duration: DEAL_MS }).then(() => {
         place.style.visibility = '';
         flight.drop();
+        sfx('flick', { soft: true });
       }));
       await wait(DEAL_GAP);
     }
@@ -973,6 +1013,7 @@ export function createVeidduGame(doc, {
     winEl.hidden = false;
     ended = true;
     view?.cheer(); // she cheers for the winner
+    if (childWon) sfx('fanfare'); // a round lost has no jingle: the winners cheer
   }
 
   // ---- Touch ----------------------------------------------------------------------------------------------------------------
@@ -1021,6 +1062,8 @@ export function createVeidduGame(doc, {
     root.hidden = false;
     if (!calm()) root.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
     pause(true);
+    music.start();
+    splashes.load();
     startView();
     run(deal());
   }
@@ -1030,6 +1073,7 @@ export function createVeidduGame(doc, {
     isOpen = false;
     round++; // the round under way is dropped, with no penalty
     reset();
+    music.stop();
     view?.stop();
     root.hidden = true;
     pause(false);
@@ -1046,6 +1090,7 @@ export function createVeidduGame(doc, {
   pressable(quitEl, { win, sound: null, onTap: () => close() });
   pressable(winCard.querySelector('.veiddu-close'), { win, sound: null, onTap: () => close() });
   pressable(winCard.querySelector('.veiddu-again'), { win, sound: null, onTap: () => { if (phase() === 'over') run(deal()); } });
+  root.addEventListener('pointerdown', () => wake(), true);
   root.addEventListener('contextmenu', event => event.preventDefault()); // a long press is a tap, never the browser's menu
   win?.addEventListener?.('resize', () => {
     if (!isOpen || !game || flying) return;
@@ -1067,7 +1112,7 @@ export function createVeidduGame(doc, {
       auto = Boolean(value);
       if (auto) autoDrive();
     },
-    get muted() { return true; }, // nothing sounds yet
-    set muted(_value) {},
+    get muted() { return muted; },
+    set muted(value) { setMuted(value); },
   };
 }

@@ -14,8 +14,9 @@
      (engine/veiddu/table.js), on a save held in the page (the game's own comes with the book, Task 8), and a round that is shut deals the
      next. &seed=<text> deals the same round every time, &skill=0 to 1 sets the minds' skill, and &auto=1 plays the child's moves by
      itself (bestAsk, after 1.2 s each), so a whole round plays on its own for a video (tools/veiddu-video.mjs). window.__veiddu is the
-     game (its phase, game and dealt, for a probe). It links book.css for the touch the book and the game share (fx.js: the squash and
-     the sparks), as the game's page will. The other states are the look as still markup in veiddu.css's classes (look.js draws them):
+     game (its phase, game and dealt, for a probe). A live round plays with the page's sound (the effects and Eitt!'s music in its key, the
+     splash on every fish: engine/veiddu/veiddu-sounds.js), which wakes at the first touch; &sound=0 starts it muted.
+     It links book.css for the touch the book and the game share (fx.js: the squash and the sparks), as the game's page will. The other states are the look as still markup in veiddu.css's classes (look.js draws them):
        live       a real round (the default); &view=0 keeps Uggeðla's picture in her window (no WebGL, a slow machine), else she is live there
                   (engine/veiddu/uggedla-view.js; keys t talk, k think, s splash, h happy, c cheer; window.__veiddu.uggedla is her view)
        table      a round under way: Uggeðla's picture in her window, Mosi's, their cards and pairs, the pond, the child's cards
@@ -40,17 +41,24 @@
 
   if (live) {
     // A real round. The lab keeps the minds' skill in the page (so it follows the child from round to round, as the save's will).
-    const [{ createVeidduGame }, { seededRandom }] = await Promise.all([import('./engine/veiddu/table.js'), import('./engine/random.js')]);
+    const [{ createVeidduGame }, { seededRandom }, { createAudioContext, createOutput }] = await Promise.all([
+      import('./engine/veiddu/table.js'), import('./engine/random.js'), import('./engine/audio/output.js'),
+    ]);
+    const theme = await fetch('./assets/audio/theme.json').then(response => (response.ok ? response.json() : null), () => null);
+    const context = createAudioContext();
+    const output = context && createOutput(context);
     const kept = { losses: 0, wins: 0, tutorialDone: false };
     if (params.has('skill')) kept.skill = Number(params.get('skill'));
     const save = { getVeiddu: () => ({ ...kept }), setVeiddu: changes => Object.assign(kept, changes) };
     const game = createVeidduGame(document, {
       save,
+      audio: { context, output, theme, muted: params.get('sound') === '0' },
       random: params.has('seed') ? seededRandom(params.get('seed')) : Math.random,
       auto: params.get('auto') === '1',
       uggedlaLive: params.get('view') !== '0',
       onClose: () => setTimeout(() => game.open(), 600), // the lab has no book to go back to: the next round is dealt
     });
+    addEventListener('pointerdown', () => context?.resume?.(), { capture: true });
     Object.assign(window, { __veiddu: game, __veidduSave: kept });
     game.open();
     while (game.dealt < 1) await new Promise(resolve => setTimeout(resolve, 100));

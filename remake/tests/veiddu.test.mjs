@@ -4,6 +4,12 @@ import { seededRandom } from '../engine/random.js';
 import { KINDS, COPIES, makeDeck, kindOf } from '../engine/veiddu/cards.js';
 import { newGame, ask, fish, legalTargets, holds, isOver, winners } from '../engine/veiddu/rules.js';
 import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START } from '../engine/veiddu/minds.js';
+import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS, SPLASHES, splashFor, createSplash } from '../engine/veiddu/veiddu-sounds.js';
+import { EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
+import { createSfx } from '../engine/audio/sfx.js';
+import { createFakeContext, centsFromKey, pitchesOf, withFetch } from './fake-audio.mjs';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 
 const deck = makeDeck();
 const card = id => deck.find(c => c.id === id);
@@ -469,4 +475,123 @@ test('bestAsk gives the same advice whichever card another seat fished', () => {
     });
   }
   assert.ok(advice > 100, `${advice} pieces of advice came from what the others asked`);
+});
+
+// ---- Sound ----------------------------------------------------------------------------------------------------------------------
+
+const MUSIC_KEY = JSON.parse(fs.readFileSync(new URL('../assets/audio/eitt/music.json', import.meta.url), 'utf8')).key; // Eitt!'s music, which Veiddu plays for now
+const VEIDDU_ASSETS = new URL('../assets/veiddu/', import.meta.url);
+const seededSound = () => 0.5;
+
+test('veidduSounds makes the seven sounds, every note of them in the key of the game\'s music', () => {
+  assert.deepEqual([...VEIDDU_SFX].sort(), ['draw', 'fanfare', 'flick', 'pair', 'pond-call', 'turn', 'wiggle']);
+  const none = () => {};
+  assert.deepEqual(Object.keys(veidduSounds({ tone: none, noise: none, bell: none, key: MUSIC_KEY })).sort(), [...VEIDDU_SFX].sort());
+  const context = createFakeContext({ state: 'running' });
+  const sfx = createSfx({ context, theme: { key: MUSIC_KEY }, random: seededSound, sounds: veidduSounds, gaps: VEIDDU_GAPS });
+  for (const name of VEIDDU_SFX) {
+    const before = context.started.length;
+    assert.equal(sfx.play(name), true, `${name} plays`);
+    const made = context.started.slice(before);
+    assert.ok(made.length > 0, `${name} makes a sound`);
+    for (const hz of context.oscillators.slice(-made.length).flatMap(pitchesOf)) assert.ok(centsFromKey(hz, MUSIC_KEY) < 0.5, `${name}: ${hz} Hz is a note of the key`);
+    context.advance(10);
+  }
+  assert.equal(sfx.play('flick', { soft: true }), true, 'a soft flick is the same sound, softer');
+});
+
+test('VEIDDU_GAPS names only its sounds, keeps Eitt!\'s where it has them, and stops a pair, a call or a chime from doubling', () => {
+  for (const [name, seconds] of Object.entries(VEIDDU_GAPS)) {
+    assert.ok(VEIDDU_SFX.includes(name), `${name} is one of the sounds`);
+    assert.ok(seconds > 0 && seconds < 2, `${name}: ${seconds} s`);
+    if (name in EITT_GAPS) assert.equal(seconds, EITT_GAPS[name], `${name} keeps Eitt!'s gap`);
+  }
+  assert.ok(VEIDDU_GAPS.turn >= 1, 'a gap longer than the chime itself');
+  const context = createFakeContext({ state: 'running' });
+  const sfx = createSfx({ context, theme: { key: MUSIC_KEY }, sounds: veidduSounds, gaps: VEIDDU_GAPS });
+  for (const name of ['pair', 'pond-call', 'turn']) {
+    assert.equal(sfx.play(name), true, name);
+    assert.equal(sfx.play(name), false, `${name} asked again at once does not sound`);
+    context.advance(VEIDDU_GAPS[name] + 0.1);
+    assert.equal(sfx.play(name), true, `${name} again after its gap`);
+  }
+});
+
+test('a pair is two flicks one on the other and a bright chord of the key; the pond\'s call is two bells rising', () => {
+  const context = createFakeContext({ state: 'running' });
+  const sfx = createSfx({ context, theme: { key: MUSIC_KEY }, random: seededSound, sounds: veidduSounds, gaps: VEIDDU_GAPS });
+  sfx.play('pair');
+  const slaps = context.bufferSources; // each flick has a papery slap of noise
+  assert.equal(slaps.length, 2, 'two flicks');
+  assert.ok(slaps[1].starts[0].when > slaps[0].starts[0].when, 'one after the other');
+  const chord = new Set(context.oscillators.flatMap(pitchesOf).map(hz => Math.round(hz * 100)));
+  for (const n of [0, 2, 4]) assert.ok(chord.has(Math.round(MUSIC_KEY[n] * 2 * 100)), `the chord has the key's note ${n}`);
+  context.advance(10);
+  const before = context.oscillators.length;
+  sfx.play('pond-call');
+  const call = context.oscillators.slice(before);
+  const first = call.find(o => pitchesOf(o)[0] === MUSIC_KEY[2] * 2);
+  const second = call.find(o => pitchesOf(o)[0] === MUSIC_KEY[4] * 2);
+  assert.ok(first && second, 'two bells');
+  assert.ok(MUSIC_KEY[4] > MUSIC_KEY[2] && second.starts[0].when > first.starts[0].when, 'the second is higher and later: it rises');
+});
+
+test('the splash: Egill\'s fishes make the full one, Uggeðla\'s and Mosi\'s the soft one, quieter', () => {
+  assert.equal(splashFor(0), 'full');
+  assert.equal(splashFor(1), 'soft');
+  assert.equal(splashFor(2), 'soft');
+  assert.ok(SPLASHES.soft.level < SPLASHES.full.level);
+});
+
+test('splash.json describes both files: CC0, with the sha256 of each file as it is installed', () => {
+  const info = JSON.parse(fs.readFileSync(new URL('splash.json', VEIDDU_ASSETS), 'utf8'));
+  for (const { file } of Object.values(SPLASHES)) {
+    const entry = info.files[file];
+    assert.ok(entry, `${file} is described`);
+    assert.equal(entry.licence, 'CC0 1.0');
+    assert.match(entry.source, /^https:\/\/freesound\.org\/people\/[^/]+\/sounds\/\d+\/$/);
+    assert.match(entry.preview, /^https:\/\/cdn\.freesound\.org\/previews\//);
+    assert.ok(entry.author && entry.done);
+    assert.match(entry.sourceSha256, /^[0-9a-f]{64}$/);
+    assert.equal(entry.sha256, crypto.createHash('sha256').update(fs.readFileSync(new URL(file, VEIDDU_ASSETS))).digest('hex'), `${file} is the file that was described`);
+  }
+});
+
+test('createSplash plays the right file at its level through the output, and only when it may', async t => {
+  t.mock.method(console, 'info', () => {}); // the missing file says so
+  const urls = { full: 'http://x/splash.mp3', soft: 'http://x/splash-soft.mp3' };
+  const context = createFakeContext({ state: 'suspended' });
+  const output = context.createGain();
+  const splash = createSplash({ context, output, urls, random: seededSound });
+  assert.equal(splash.play(0), false, 'not before the files are in');
+  const asked = await withFetch(async seen => {
+    await splash.load();
+    await splash.load();
+    return seen;
+  });
+  assert.deepEqual(asked, [urls.full, urls.soft], 'each file fetched once');
+  assert.equal(splash.play(0), false, 'not on a page the browser has not let sound begin');
+  context.setState('running');
+  const sounded = seat => {
+    const before = context.bufferSources.length;
+    assert.equal(splash.play(seat), true);
+    const [source] = context.bufferSources.slice(before);
+    const volume = source.outputs[0];
+    assert.ok(volume.outputs.includes(output), 'heard through the page\'s output');
+    return { source, level: volume.gain.value };
+  };
+  assert.equal(sounded(0).level, SPLASHES.full.level);
+  assert.equal(sounded(1).level, SPLASHES.soft.level);
+  assert.equal(sounded(2).level, SPLASHES.soft.level);
+  assert.equal(sounded(0).source.playbackRate.value, 1, 'at its own pitch when the dice say the middle');
+  splash.muted = true;
+  assert.equal(splash.play(0), false, 'muted');
+  splash.muted = false;
+  assert.equal(splash.play(0), true);
+  // silent: no context, a file that is not there
+  assert.equal(createSplash({ urls }).play(0), false);
+  await createSplash({ urls }).load();
+  const missing = createSplash({ context, urls });
+  await withFetch(() => missing.load(), () => ({ ok: false, status: 404 }));
+  assert.equal(missing.play(1), false, 'a splash that cannot be had is simply not heard');
 });
