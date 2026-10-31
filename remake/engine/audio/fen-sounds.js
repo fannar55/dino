@@ -1,4 +1,4 @@
-// Chapter 2's sounds (remake/chapters/kafli2*.js): the footprints in the mud, the berries, Þórseðla's head, the lookout, the slide
+// Chapter 2's and 3's sounds (remake/chapters/kafli2*.js and kafli3*.js): the footprints in the mud, the berries, Þórseðla's head, the lookout, the slide
 // and the Fen's own animals. The game's sound effects (engine/audio/sfx.js) carry them as their own, and the Fen's bed of water,
 // frogs and drips is laid there beside the forest's wind.
 //
