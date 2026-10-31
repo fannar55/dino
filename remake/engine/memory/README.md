@@ -157,12 +157,9 @@ node remake/tools/memory-sound-design.mjs --audit
 
 The unit checks use the bundled Three.js through the test setup; no install is
 needed. `memory-playthrough.mjs` plays a whole round the way a child does (its header lists the
-modes and flags). The earlier `memory-check.mjs` below drove the removed gold `#next-action` button
-and can no longer pass, so it has no `npm run` script; the file is kept until the owner decides. Its
-browser check uses the
-project's existing Playwright convention (`PLAYWRIGHT_PATH`, or the installed
-Codex runtime) and a self-contained temporary local server. Its report and
-screenshots are written to `qa/memory/three-step/check/` by default. The older
+modes and flags). The earlier Playwright checks of the old flow (`memory-check.mjs`, `memory-render-check.mjs`,
+`memory-convoy-check.mjs` and the other probes that drove the old gold `#next-action` button)
+were removed on 2026-10-31; the records below are their saved results. The older
 smaller-board evidence remains at `qa/memory/check/`. The approved mock and
 development captures live alongside the new report folder.
 
@@ -201,8 +198,6 @@ construction-visibility correction separately verifies ramp draw ranges of
 0/144/144/288 vertices for zero/one/two/three placed panels and zero after reset;
 it leaves completed geometry and draw count unchanged.
 
-`node remake/tools/memory-render-check.mjs` repeats the bounded rendering review.
-`node remake/tools/memory-look.mjs` captures initial glade/overview framing only.
 The 3D Mosi hosts the first clearing; his portrait continues guiding the later
 stages while all six playable friends remain in the world.
 
@@ -249,12 +244,12 @@ unsupported feet. A separate lift/roll/return case leaves both Stegosaurus
 covers closed and passes another **242 clearance samples**. Failure/retry tests
 preserve friends already across either obstacle; reset cancels all travelers.
 
-`node remake/tools/memory-convoy-check.mjs` repeats this targeted gate. Its
-isolated browser uses the actual production scene, models, terrain, navigation
-and camera. Drawing is suppressed between captured frames to avoid software
-rasterization dominating the check; game clocks and animation still advance.
+That gate was `memory-convoy-check.mjs` (removed on 2026-10-31). Its
+isolated browser used the actual production scene, models, terrain, navigation
+and camera. Drawing was suppressed between captured frames to avoid software
+rasterization dominating the check; game clocks and animation still advanced.
 The before/after measurements are game time, not a device FPS benchmark.
-`MEMORY_CONVOY_SCOPE=partial` runs the bounded closed-cover case. The acceptance
+`MEMORY_CONVOY_SCOPE=partial` ran the bounded closed-cover case. The acceptance
 record verifies the exact saved runtime hashes and preserves earlier failed
 diagnostic reports separately.
 
@@ -334,8 +329,8 @@ owns recorded SFX, their local synthesized fallbacks and sound cancellation;
 `bridge-rules.js` owns helper selection and cooperative bridge progress;
 `bridge-adventure.js` owns the physical branch, log, carrying and crossings on the
 shared game clock. `build-props.js` owns the marsh and bark walkway; the camera
-director owns framing, motion and input readiness. `adventure-rules.js` /
-`rock-adventure.js` are the earlier two-stone slice. `scenes.js` and `scenes/` are the timed scripts of each moment; `idle-play.js`
+director owns framing, motion and input readiness.
+`scenes.js` and `scenes/` are the timed scripts of each moment; `idle-play.js`
 owns the waiting friends' games; `gestures.js` the friends' shared moves.
 `world-home-nav.js` owns the incremental clearance planner and route reservations;
 `travel-traffic.js` checks when cooperative routes can overlap safely in time;
