@@ -28,8 +28,14 @@
 //   - the reed is a wall of clumps a metre apart, the rows toward the channel 3 to 4.9 m tall (85 clumps: a denser wall cost 60k
 //     triangles, over the tablet's 250k in the sail, fishing and star shots), where the Fen's own reed (a clump a metre or more apart,
 //     1.5 to 2.2 m tall) left her in plain sight; and one mist, not two: each card is additive over the water, most of a wide shot;
-//   - Þórseðla is 84 m beyond the hummocks, not 90 to 110: at 107 m through the look's haze she was a pale ghost; her trees are lower
-//     than her head (4.5 to 6.5 m, and the 8.5 m one she bites), so that from the ferry her neck and head stand out over them;
+//   - Þórseðla is 36 m beyond the hummocks, not 90 to 110: at 107 m, and still at 84, the look's haze took her colour and she was a pale
+//     ghost from the ferry (fix round 1: the owner could not tell her neck and head from the mist); from the end of the ferry's way she
+//     is 40 to 60 m off now, east of its heading by 20 degrees so that she stands clear of Mosi in the hummocks' shot, behind the berry
+//     bushes. Her trees stay lower than her head: a row of conifers 4.2 to 5 m tall along her near side, so that from the ferry her
+//     neck and head stand out over them, the 8.5 m one she bites, and six of 6.5 to 8 m some way behind her, so that her back has green
+//     behind it, not haze. siki_hummocks looks south from the bank above the pool (it looked north-east from the south-west, away from her);
+//   - the layout's static shots are kept clear for a tall screen too (tall: 0.6, world/forest/plan.js): the director keeps the 16:10
+//     frame's width on a tablet held upright and shows more above and below, so the ground at the camera's feet is in the picture;
 //   - the ferry's shots are in Mosi's frame, not Uggeðla's: she sinks into the water as she swims (her root goes under the bed), he
 //     stands on it, so a camera placed from his feet is where it was put whatever her pose, and the shots look at her wherever she is.
 import * as THREE from 'three';
@@ -95,7 +101,7 @@ export const HUMMOCK = { position: [49.2, 0, 27.6], heading: 215 };
 /** Where she stops in the pool at the end, beside the hummock. */
 export const UGGEDLA_DROP = { position: [40.2, 0, 23.6], heading: 80 };
 /** Þórseðla, far off beyond the hummocks in the way the ferry goes, among low swamp conifers, biting the top of the one she faces. */
-export const THORSEDLA_FAR = { position: [66, 0, 110], heading: -15 };
+export const THORSEDLA_FAR = { position: [66, 0, 60], heading: -15 };
 
 // ---------------------------------------------------------------------------------------------
 // The plants the layout places itself (world/forest/plan.js: growFen places these first, and where it says); the Fen's own passes fill
@@ -158,23 +164,23 @@ function lilies() {
 }
 
 /**
- * Þórseðla's trees: the one she bites (8.5 m, level with her head, in front of her and a little to her left, as in the Fen), and a
- * low ring of swamp conifers between her and the channel, 4.5 to 6.5 m tall, so that her body is hidden from the ferry and her
- * head and neck stand out over the tops (her head is 8.3 to 9 m up).
+ * Þórseðla's trees: the one she bites (8.5 m, level with her head, in front of her and a little to her left, as in the Fen); a row of
+ * low swamp conifers (5 to 6 m) along her near side, between her and the channel, so that her body is hidden from the ferry and her
+ * neck and head stand out over their tops (her head is 8.3 to 9 m up); and a few trees a little lower than her head some way behind
+ * her, so that her pale neck has green behind it, not haze.
  */
 function herTrees() {
   const random = seededRandom('siki thorsedla trees');
   const h = rad(THORSEDLA_FAR.heading);
   const [x, z] = [THORSEDLA_FAR.position[0], THORSEDLA_FAR.position[2]];
-  const local = (ahead_, left) => [round2(x + Math.cos(h) * ahead_ - Math.sin(h) * left), round2(z + Math.sin(h) * ahead_ + Math.cos(h) * left)];
+  // her frame: `ahead_` metres the way she faces, `side` metres to the south of her (the channel is to the north)
+  const local = (ahead_, side) => [round2(x + Math.cos(h) * ahead_ - Math.sin(h) * side), round2(z + Math.sin(h) * ahead_ + Math.cos(h) * side)];
   const plants = [{ name: 'swampConifer', position: local(9.6, -2.1), scale: 0.72, variant: 7 }];
-  // toward the ferry: the way she is seen from the channel (south-west to north is where the camera comes from)
-  const to = rad(bearing([x, z], [41, 24]));
-  for (let k = 0; k < 16; k++) {
-    const d = 10 + random() * 24, side = (random() - 0.5) * 40;
-    const p = [round2(x + Math.cos(to) * d - Math.sin(to) * side), round2(z + Math.sin(to) * d + Math.cos(to) * side)];
-    if (plants.some(q => Math.hypot(q.position[0] - p[0], q.position[1] - p[1]) < 3.6)) continue;
-    plants.push({ name: 'swampConifer', position: p, scale: round2(0.36 + random() * 0.18), variant: Math.floor(random() * 12) });
+  for (let a = -11.5; a <= 4; a += 3.9) {
+    plants.push({ name: 'swampConifer', position: local(a + (random() - 0.5) * 1.2, -(5 + random() * 2.5)), scale: round2(0.36 + random() * 0.06), variant: Math.floor(random() * 12) });
+  }
+  for (let k = 0; k < 6; k++) {
+    plants.push({ name: 'swampConifer', position: local(-13 + k * 4.8 + (random() - 0.5) * 2, 11 + random() * 6), scale: round2(0.55 + random() * 0.13), variant: Math.floor(random() * 12) });
   }
   return plants;
 }
@@ -266,8 +272,10 @@ export const SIKI_SHOTS = {
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
   // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
   ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 46 },
-  // The end of the channel: Mosi coming up out of the water onto the hummock, Uggeðla in the pool, the berry bushes beyond.
-  siki_hummocks: { position: [31.5, 1.7, 33.5], target: [45.5, 2.2, 25.8], fov: 50 },
+  // The end of the channel, from the dry bank north of the pool, looking south over it the way the ferry goes: Uggeðla in the pool on
+  // the right, Mosi coming up out of the water onto the hummock, the berry bushes beside him, and at the left Þórseðla's neck and head
+  // over her trees.
+  siki_hummocks: { position: [46, 2.0, 6], target: [44.5, 1.3, 24.5], fov: 52 },
   // For a tall screen: the sail over the reed, Mosi small below.
   siki_portrait: { position: eye(1.5, -6, 1.4), target: eye(12.5, 1.0, 4.0), fov: 38 },
 };
