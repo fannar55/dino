@@ -14,6 +14,7 @@ import { FEN } from '../world/forest/config.js';
 import { MAP_PLACES } from '../engine/book/map-page.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
+import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
 
 // Chapter 3 (remake/chapters/kafli3.js), "Boð til Þórseðlu": the Fen part of the old chapter 2 since the split of 31 October 2026
 // (kafli2.test.mjs has the chapter before it): its lines, its place as data, the camera rules of its shots, and its script played
@@ -29,11 +30,10 @@ const RECORDED = readJson('../assets/audio/lines.json');
 const CHAPTER_TEXT = ['kafli3', 'kafli3-thorsedla', 'kafli3-fen', 'kafli3-lookout'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
 
 // Every line has its recording (the kafli2 set). A line added before the controller records it fails here, named, unless it is
-// in WAITING_FOR_VOICE below; setting this false while lines wait for their recording names them and marks the test skipped instead.
+// in WAITING_FOR_VOICE (tests/waiting-for-voice.mjs: the lines new to this chapter, timed by their words until the plan's seventh
+// task records them; the test tells which wait, and a waiting line that has its recording fails, so the set empties as they come);
+// setting this false while lines wait for their recording names them and marks the test skipped instead.
 const RECORDINGS_REQUIRED = true;
-// The lines new to this chapter, which have no recording yet: they are timed by their words until a later task records them (the
-// plan's seventh task), and the test tells which wait. A line in this set that has its recording fails, so the set empties as they come.
-const WAITING_FOR_VOICE = new Set(['k3_mosi_wave', 'k3_egill_hi', 'k3_mosi_third', 'k3_mosi_three']);
 // Lines in the kafli2 set that neither chapter says (yet): the old lookout's search for Uggeðla, which the wave replaced (the
 // recordings stay), and chapter 2's own once its star is built (the plan's sixth task: "Önnur stjarnan!" and "Tvær komnar").
 const RETIRED = new Set(['k2_mosi_hint_far3', 'k2_mosi_found_uggedla']);

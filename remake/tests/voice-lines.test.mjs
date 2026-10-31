@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { CANDIDATES, JUNIOR_LINES, MODEL, SETTINGS, cacheKey, madeFrom, main, parseArgs, readLines, regenerationPlan, siblingCaches } from '../tools/voice-lines.mjs';
 import { MULTI_LINES, VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
 import { VISIT, fixtureLexicon, fixtureWords } from './lexicon-fixture.mjs';
+import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
 
 // The remake's voices (tools/voice-lines.mjs): the lines to be spoken (lines-source.json) match the spec, the key stays
 // out of every file and log, every answer is cached, and the lines.json entries are the game's own kind. The lines come in
@@ -116,7 +117,7 @@ test('every line has a clear id, a speaker with a voice slot, text, and its own 
   const lines = readJson(REAL.source);
   const voices = readJson(REAL.voices);
   const recorded = readJson(REAL.lines);
-  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator and the games' hosts (Þórseðla) are picked by the owner later
+  assert.deepEqual(Object.keys(voices).filter(who => !['narrator', 'thorsedla', 'uggedla'].includes(who)).sort(), ['egill', 'kambedla', 'mosi']); // the book's narrator, the games' hosts (Þórseðla) and chapter 2's Uggeðla (picked by the owner 2026-10-31) are not chapter 1's
   const ids = new Set();
   const takes = new Map();
   for (const line of lines) {
@@ -1036,7 +1037,9 @@ test("the committed record accounts for every MP3 in the repo: --plan with an em
     const hint = 'run node remake/tools/voice-lines.mjs --plan and make these lines again (or node remake/tools/audio-lines.mjs for stale entries)';
     // Fjölspil's optional lines are to make until the owner records them himself (his decision of 2026-10-24): listed, not a fault.
     const owners = found.make.filter(item => set === 'yatzy-junior' && item.optional && Object.hasOwn(MULTI_LINES, item.id) && item.reasons.join('; ') === 'no MP3 yet');
-    assert.deepEqual(found.make.filter(item => !owners.includes(item)).map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
+    // The lines of the kafli2 set that wait for their voice (tests/waiting-for-voice.mjs) are to make until the plan's seventh task records them.
+    const waiting = found.make.filter(item => set === 'kafli2' && WAITING_FOR_VOICE.has(item.id) && item.reasons.join('; ') === 'no MP3 yet');
+    assert.deepEqual(found.make.filter(item => !owners.includes(item) && !waiting.includes(item)).map(item => `${item.id}: ${item.reasons.join('; ')}`), [], `${set}: ${hint}`);
     assert.deepEqual(found.unknown.map(item => item.id), [], `${set}: ${hint}`);
     assert.deepEqual(found.stale.map(item => item.id), [], `${set}: ${hint}`);
     assert.ok(found.current > 0, `${set}: lines as they should be`);
