@@ -17,8 +17,8 @@ export const MEMORY_CHARACTER_ART = Object.freeze({
   stegosaurus: { name: 'Kambeðla', url: new URL('../../assets/memory/stegosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1 },
   brontosaurus: { name: 'Þórseðla', url: new URL('../../assets/memory/brontosaurus-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: 1.62, reach: .53 },
   // The fourth friend (level 2) is `winged`: two jointed legs (thigh, shin, foot) in place of four pivot legs, and the model's own
-  // flight clips behind fly(), land() and carry(). Her lengthFactor is against the bind pose, where her wings are spread and her
-  // neck stands upright, so it is measured against her idle height below, not the other babies' length.
+  // flight clips behind fly(), land() and carry(). Her length is measured in the bind pose (beak to crest or tail, her wings spread and
+  // her neck upright), and .85 of the game's 2.6 puts her crest, standing, at 1.6 m: level with the Þríhyrna baby's head top (1.56 m).
   pteranodon: { name: 'Flugeðla', url: new URL('../../assets/memory/pteranodon-baby.glb', import.meta.url).href, isBaby: true, lengthFactor: .85, winged: true },
 });
 
