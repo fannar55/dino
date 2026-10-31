@@ -3,7 +3,7 @@
 // Paper and Nunito like qa/remake/kafli2/listen.html; each page saves the owner's choices as a JSON file he sends back.
 
 /** The speakers by the names the owner knows them by, in the order the pages show them. */
-export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', narrator: 'Sögumaður' };
+export const SPEAKER_NAMES = { mosi: 'Mosi', egill: 'Egill', kambedla: 'Kambeðla', thorsedla: 'Þórseðla', uggedla: 'Uggeðla', narrator: 'Sögumaður' };
 
 export const escapeHtml = text => String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
