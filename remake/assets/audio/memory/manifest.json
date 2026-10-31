@@ -123,5 +123,40 @@
     "src": "assets/audio/memory/gift_crab.mp3",
     "duration": 2.97,
     "mouth": "098eff000d930000000003fedb00afec967b066dbbbca830000000000000"
+  },
+  "g2_left": {
+    "src": "assets/audio/memory/g2_left.mp3",
+    "duration": 3.05,
+    "mouth": "000fffdb003e800009d90ddd70c900007eb8deaeceeedbdca650000000000"
+  },
+  "g2_welcome": {
+    "src": "assets/audio/memory/g2_welcome.mp3",
+    "duration": 4.33,
+    "mouth": "6bfec90aefffe5aea2008eeeeea9db8630000000000008fe84c30300acdc80afff809bfeda6400000000000"
+  },
+  "gifts4": {
+    "src": "assets/audio/memory/gifts4.mp3",
+    "duration": 3.29,
+    "mouth": "00aeb00eed8000005ed0037dd0004dfdbccee900aeeb55fdefdbcb660000000000"
+  },
+  "gift_ammonite": {
+    "src": "assets/audio/memory/gift_ammonite.mp3",
+    "duration": 3.05,
+    "mouth": "000bfeedcdfd700cc80000000000002fed00feda0aceb9bec980000000000"
+  },
+  "gift_trilobite": {
+    "src": "assets/audio/memory/gift_trilobite.mp3",
+    "duration": 2.97,
+    "mouth": "04ef000ff40ddb800000000000ffd90afebd075ecaacb950000000000000"
+  },
+  "gift_fern": {
+    "src": "assets/audio/memory/gift_fern.mp3",
+    "duration": 2.81,
+    "mouth": "7def806600eeb000000000000efeb0bfde967dcc9bec8700000000000"
+  },
+  "gift_footprint": {
+    "src": "assets/audio/memory/gift_footprint.mp3",
+    "duration": 2.73,
+    "mouth": "3cedc0bf707ea5000000000cefa09fdc28ffbaec950000000000000"
   }
 }
