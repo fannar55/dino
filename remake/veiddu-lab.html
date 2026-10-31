@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="is">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Veiddu — tilraunasíða</title>
+<link rel="icon" href="data:,">
+<link rel="preload" href="./assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./book.css">
+<link rel="stylesheet" href="./veiddu.css">
+<script type="importmap">{"imports":{"three":"../dist/vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+<!-- "Veiddu" on a page of its own, never linked from the game. For now it shows the look as still markup in veiddu.css's classes (the live
+     round comes with the table, Task 3); look.js draws the stills. It links book.css for the touch the book and the game share
+     (fx.js: the squash and the sparks), as the game's page will. ?state= is one of
+       table      a round under way: Uggeðla's picture in her window, Mosi's, their cards and pairs, the pond, the child's cards (the default)
+       ask        a card picked (Skjaldbaka lifted) and both windows glowing: whom to ask?
+       asked      Mosi asks the child "Áttu frosk?" and the frog lifts; &have=0 asks for an animal the child does not hold and the big
+                  "Farðu að veiða!" button comes
+       fish       Uggeðla said no: "Nei! Farðu að veiða!" and the pond calls; &splash=1 catches the thrown water in the air
+       win        the round won: the words, Uggeðla's sticker for the book, "Spilum aftur?" and confetti
+       cards      every card, big, and the back
+       advice     Mosi's help: he pops up with his reason and the card he means lifts and glows
+     &hand=N (1 to 13) gives the child N distinct kinds in any state: 13 is a full hand, for the widths of the cards. capture.mjs waits for
+     __demoReady, which comes once the pictures are in. -->
+</head>
+<body>
+<main class="veiddu" id="veiddu"></main>
+<script type="module">
+  const params = new URLSearchParams(location.search);
+  const { renderStill, STILL_STATES } = await import('./engine/veiddu/look.js');
+  const state = STILL_STATES.includes(params.get('state')) ? params.get('state') : 'table';
+  renderStill(document, document.getElementById('veiddu'), state, params);
+
+  /** Waits until the font and pictures are in and nothing is moving but the idle life. */
+  async function settle() {
+    await document.fonts.ready;
+    if (document.readyState !== 'complete') await new Promise(resolve => addEventListener('load', resolve, { once: true }));
+    for (let round = 0; round < 3; round++) {
+      await Promise.all([...document.images].map(img => img.decode?.().catch(() => {})));
+      const moving = document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity);
+      await Promise.all(moving.map(animation => animation.finished.catch(() => {})));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+  }
+  await settle();
+  window.__demoReady = true;
+</script>
+</body>
+</html>
