@@ -36,6 +36,12 @@ export const DJ_LINES = Object.freeze({
   // the menu (menu.js): who plays, which song, and a line for each song when it is picked (lag-<song id>, every song has one)
   hverspilar: ['Hæ! Hver ætlar að spila í dag?', 'Halló! Hver ætlar að spila með mér?'],
   hvadalag: ['Hvaða lag viltu spila?', 'Veldu lag!', 'Hvaða lag eigum við að taka?'],
+  // step 1's picks (who plays), and the wait while a song loads after "Spila!" (not after "Spilum aftur")
+  barn: ['Egill spilar, frábært!', 'Já, Egill spilar!'],
+  fullordinn: ['Fullorðinn spilar, til í þetta?', 'Nú spila þau fullorðnu!'],
+  thrjar: ['Allar þrjár eðlurnar með!', 'Kambeðla, Slóeðla og Þórseðla!'],
+  tvaer: ['Slóeðla og Þórseðla spila!', 'Tvær eðlur í dag!'],
+  tilbuin: ['Eru allir tilbúnir?', 'Gerum okkur klár!', 'Allir á sinn stað!'],
   'lag-pixel': ['Pixlaferð! Beint inn í tölvuleikinn!', 'Pixlaferð, bíp bíp búp!', 'Pixlaferð! Hoppum milli pixlanna!'],
   'lag-boogie': ['Rokkhopp! Hoppum og skoppum!', 'Rokkhopp, rokk og ról!', 'Rokkhopp! Upp með hendurnar!'],
   'lag-fonk': ['Fönkhopp! Dillum okkur!', 'Fönkhopp, nú verður fönkí!', 'Fönkhopp! Allir að dilla sér!'],

@@ -47,7 +47,7 @@ const songs = [{ id: 'pixel' }, { id: 'stattu-upp' }];
 test('menu: who plays, then the songs; a pick says its line and plays its bit; back and other', () => {
   const menu = createMenu({ songs });
   menu.unlock();
-  assert.deepEqual(menu.choose('stig', 'fullordinn'), []);
+  assert.deepEqual(menu.choose('stig', 'fullordinn'), [{ hush: true }, { say: 'fullordinn' }]);
   menu.choose('brautir', 2);
   assert.deepEqual(menu.toSongs(), [{ hush: true }, { say: 'hvadalag' }]);
   assert.deepEqual(menu.pick('stattu-upp'), [{ hush: true }, { stop: true }, { say: 'lag-stattu-upp' }, { brot: 'stattu-upp' }]);
@@ -57,6 +57,40 @@ test('menu: who plays, then the songs; a pick says its line and plays its bit; b
   assert.equal(menu.state().step, 'lag');
   assert.deepEqual(menu.back(), [{ hush: true }, { stop: true }, { say: 'hverspilar' }]);
   assert.equal(menu.state().step, 'hver');
+});
+
+test('menu: a pick in step 1 is said, and the first tap that is a pick cuts the greeting', () => {
+  const menu = createMenu({ songs });
+  assert.deepEqual(menu.choose('stig', 'fullordinn'), [], 'nothing before the sound is open');
+  assert.deepEqual(menu.unlock(), [{ say: 'hverspilar' }]);
+  assert.deepEqual(menu.choose('stig', 'barn'), [{ hush: true }, { say: 'barn' }]);
+  assert.deepEqual(menu.choose('stig', 'fullordinn'), [{ hush: true }, { say: 'fullordinn' }]);
+  assert.deepEqual(menu.choose('brautir', 2), [{ hush: true }, { say: 'tvaer' }]);
+  assert.deepEqual(menu.choose('brautir', 3), [{ hush: true }, { say: 'thrjar' }]);
+});
+
+test('menu: the same card again says and plays nothing new while its bit plays', () => {
+  const menu = createMenu({ songs });
+  menu.unlock();
+  menu.toSongs();
+  assert.equal(menu.pick('pixel').length, 4);
+  assert.deepEqual(menu.pick('pixel'), []);
+  menu.other();
+  assert.equal(menu.pick('pixel').length, 4, 'after a round its bit is not playing: it plays again');
+});
+
+test('menu: Spila! gets everyone ready once; Spilum aftur says nothing; no second start while one loads', () => {
+  const menu = createMenu({ songs });
+  menu.unlock();
+  assert.equal(menu.go(), null, 'no song, no start');
+  menu.pick('pixel');
+  assert.deepEqual(menu.go(), [{ hush: true }, { stop: true }, { say: 'tilbuin' }]);
+  assert.equal(menu.state().step, 'hlada');
+  assert.equal(menu.go(), null, 'a double tap starts one round');
+  assert.equal(menu.again(), null);
+  menu.begun();
+  assert.deepEqual(menu.again(), [{ hush: true }]);
+  assert.equal(menu.again(), null);
 });
 
 test('menu: nothing before the first tap; the greeting once when it opens the sound', () => {

@@ -8,7 +8,7 @@ import { DJ_LINES } from './dj.js';
 import { pointsText } from './text.js';
 
 /**
- * The menu over the page `root`. `onPlay({ song, level, lanes })` starts a round; `onUnlock()` is called at the first tap (the
+ * The menu over the page `root`. `onPlay({ song, level, lanes }, { again })` starts a round (`again`: "Spilum aftur"); `onUnlock()` is called at the first tap (the
  * page wakes its audio there); `save(state)` keeps the choices. Returns { showStart(), showEnd(result, newBest), enter() }.
  */
 export function createMenuView({ root = document, menu, songs, best, dj = null, brot = null, sparks = null, asset, onPlay, onUnlock = () => {}, save = () => {} }) {
@@ -113,12 +113,14 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     }
   }
 
-  function go() {
-    const choice = menu.play();
-    if (!choice) return;
-    run([{ hush: true }, { stop: true }]);
+  /** "Spila!" (or, `again`, "Spilum aftur"): once, however many taps, and not before the page is ready to play. */
+  function go({ again = false } = {}) {
+    if (play.disabled) return;
+    const cues = again ? menu.again() : menu.go();
+    if (!cues) return;
+    run(cues);
     newBest = null;
-    onPlay(choice);
+    onPlay(menu.play(), { again });
   }
 
   for (const button of all('#start [data-option]')) {
@@ -147,8 +149,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     run(menu.back(), 'hverspilar');
     render();
   });
-  play.addEventListener('click', go);
-  $('[data-again]')?.addEventListener('click', go);
+  play.addEventListener('click', () => go());
+  $('[data-again]')?.addEventListener('click', () => go({ again: true }));
   $('[data-other]')?.addEventListener('click', () => {
     end.hidden = true;
     start.hidden = false;
@@ -178,7 +180,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     },
     /** Enter or space: on to the songs, play the picked one, or play again. */
     enter() {
-      if (!end.hidden) return go();
+      if (!end.hidden) return go({ again: true });
       if (start.hidden) return;
       if (menu.state().step === 'hver') $('[data-to-songs]')?.click();
       else go();

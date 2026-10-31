@@ -225,6 +225,7 @@ async function start() {
   round = { game, clock, conductor, bot: options.self ? createBot(conductor, cast, options.self) : null };
   if (options.record) startRecording(stars3d);
   conductor.start(0.4);
+  menu.begun();
   window.__sloedla.round = round;
 }
 
