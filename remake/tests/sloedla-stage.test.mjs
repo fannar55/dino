@@ -68,6 +68,11 @@ test('on an upright screen the friends stand closer, Egill in front', () => {
   assert.deepEqual(tall.egill, { x: -1.15, z: 2.6 });
 });
 
+test('with no WebGL the stage is null, so the page shows the friends as pictures', async () => {
+  const { createStage } = await import('../engine/sloedla/stage.js');
+  assert.equal(await createStage({ canvas: {}, asset: path => path, win: { devicePixelRatio: 1, innerWidth: 800, innerHeight: 600 } }), null);
+});
+
 test('every friend on the stage is on disk with every move the stage asks of her', () => {
   for (const [id, friend] of Object.entries(CAST)) {
     const names = clipNamesOf(new URL(`../assets/characters/${friend.file}.glb`, import.meta.url));
