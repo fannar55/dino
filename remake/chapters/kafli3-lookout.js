@@ -1,8 +1,8 @@
-// Chapter 2's lookout (remake/chapters/kafli2.js, scene 6): up on Þórseðla's head Egill finds the three friends far away, each
+// Chapter 3's lookout (remake/chapters/kafli3.js, scene 6): up on Þórseðla's head Egill finds the three friends far away, each
 // glittering where she is, and each goes onto the book's map (the fifth task of the plan). The pieces the scene calls, with their
 // constants and helpers:
 //   farFriends(s, c, spots)  the three of them and Grameðla (world/props/far-friends.js), made after the start button shows
-//                            (kafli2.js: later), or under the chapter's first black; shown from the Fen on, and only from above 6 m
+//                            (kafli3.js: later), or under the chapter's first black; shown from the Fen on, and only from above 6 m
 //   haze(c, factor, seconds) the air thickens round the lookout (the fog's density, eased): the Fen far below reads far below
 //   lookDown(s, c)           at the top, the camera looks down past Egill at Mosi: "Vá… Mosi er pínulítill!", and Mosi's answer
 //   findFriends(s, c)        "Horfðu vel, Egill…", the camera turns out over the Fen to the north-west and the child looks round for
@@ -15,7 +15,7 @@
 // beat of the look at Grameðla began in c.teaser.
 import * as THREE from 'three';
 import { createFarFriends } from '../world/props/far-friends.js';
-import { LOOKOUT_CAMERA, LOOKOUT_HEAD, MOSI_HEAD, downToMosi } from './kafli2-thorsedla.js';
+import { LOOKOUT_CAMERA, LOOKOUT_HEAD, MOSI_HEAD, downToMosi } from './kafli3-thorsedla.js';
 
 // The friends, in the order the script hints them (Slóeðla, Flugeðla, Uggeðla: k2_mosi_hint_far1..3): where each stands in the
 // Fen (the layout's farFriends), which way she faces (a three-quarter view from the lookout, so the crest, the wings and the sail
@@ -28,7 +28,7 @@ const FRIENDS = {
   // the lookout's side (1,400 triangles)
   uggedla: { heading: -64, clip: 'idle', y: 0, sink: 2.0, reed: { clumps: 16, near: 0.75, radius: [1.3, 3.6], height: [2.7, 3.9] } },
   // Grameðla, the sixth friend, at the forest's edge beyond the Fen to the west, where the book's map has her beyond the mountains
-  // (kafli2.js: GRAMEDLA_FAR): side-on to the search camera, facing north along the trees, so that 144 m off in the haze her shape
+  // (kafli3.js: GRAMEDLA_FAR): side-on to the search camera, facing north along the trees, so that 144 m off in the haze her shape
   // reads as hers, the big head, the two legs and the long tail. Only seen, never found (find: false).
   gramedla: { heading: -62.5, clip: 'idle', y: 0, find: false },
 };
@@ -41,7 +41,7 @@ const FOUND = { sloedla: 'k2_mosi_found_sloedla', flugedla: 'k2_mosi_found_fluge
 // The camera of the search: behind Egill on his right, 2 m above his feet, over her neck and back curving away below. First it
 // turns out over the Fen to the north-west, between Slóeðla and Flugeðla, a little to the left of their middle and 6 degrees down,
 // so both glitter in the upper half of the frame, Flugeðla left of and under the star counter, so that her burst and the marker's
-// flight into the book read (kafli2.test holds them clear of it), the Fen lies far below in its haze, and her tail curves up through
+// flight into the book read (kafli3.test holds them clear of it), the Fen lies far below in its haze, and her tail curves up through
 // the bottom left: he is nine metres up, on her. On a tall screen it looks TALL_DOWN degrees further down, or the top third is sky.
 // The lens is a little long (44 degrees), so they read from
 // 80 to 100 m (a longer one would lose her tail, which lies 25 to 40 degrees under the level from here). The free look turns as far as each
@@ -89,7 +89,7 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
  * and keeps them updated on world.effects until they are disposed of. Call it as the chapter starts. Their models are not made yet
  * (defer): parsing four models and making their light levels are long frames, so main.js has them made once the start button
  * shows and the places are built (chapter.later), and if the child has started by then the script makes them under its first
- * black (kafli2.js). Uggeðla is kept back until the camera has turned away from her (findFriends): from the lift and the look down
+ * black (kafli3.js). Uggeðla is kept back until the camera has turned away from her (findFriends): from the lift and the look down
  * at Mosi she would show at the edge of the frame before the child is asked to look. Grameðla is kept back until the camera turns
  * to her (farOff): she stands where the first search's free look reaches.
  */
@@ -133,7 +133,7 @@ export const hazeUp = c => haze(c, HAZE.up, HAZE.rise);
 
 /**
  * At the top of the lift: he looks down at Mosi, small below on the bank beside her withers, and the camera looks down past him
- * (Task 3's LOOKOUT_CAMERA with its look down, kafli2-thorsedla.js): "Vá… Mosi er pínulítill!" once it has turned down to Mosi, so the
+ * (Task 3's LOOKOUT_CAMERA with its look down, kafli3-thorsedla.js): "Vá… Mosi er pínulítill!" once it has turned down to Mosi, so the
  * child sees what he sees. Mosi looks up at him: "Ég er ekki lítill, ég er langt í burtu!"
  */
 export function* lookDown(s, c) {
