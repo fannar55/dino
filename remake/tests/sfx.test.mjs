@@ -7,7 +7,7 @@ import { DONE } from '../engine/handle.js';
 import { centsFromKey, createFakeContext, peakThrough, pitchesOf } from './fake-audio.mjs';
 
 const THEME = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
-const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float'];
+const NAMES = ['forest', 'step', 'frog', 'snail', 'beetle', 'birds', 'butterfly', 'flower', 'plate', 'star', 'journal', 'saddle', 'float', 'mapOpen', 'mapPen'];
 const ONE_SHOTS = NAMES.filter(name => name !== 'forest');
 const MELODIC = ['plate', 'star', 'flower', 'journal', 'saddle', 'float']; // the sounds made of bells
 

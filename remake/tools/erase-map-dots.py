@@ -6,6 +6,8 @@ The painted map as the owner sent it is kept as assets/book/map-source.webp; thi
 
     python -X utf8 -I remake/tools/erase-map-dots.py
 
+Then remake/tools/erase-map-spot.py fills the pale clearing in the middle of the Fen (the Fen has no slot), on what this wrote.
+
 Only dark ink-brown pixels inside a narrow corridor along the trail's centre are touched (the three pieces below mirror the
 game's route, in picture pixels), and none within a few pixels of a footprint, whose dark rims are part of the picture. Each
 touched pixel is then filled from the sandy path around it, a layer of neighbours at a time, with a faint noise of the

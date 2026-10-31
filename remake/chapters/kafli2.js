@@ -37,6 +37,7 @@ import { BERRY_BUSHES, FEN_CRITTERS, fenAnimals, berryBushes, pickBerries, holdU
 import { farFriends, haze, hazeUp, lookDown, findFriends } from './kafli2-lookout.js';
 import { ringsFor } from '../engine/neck-ride.js';
 import { addPlateGlow } from '../engine/plate-glow.js';
+import { mapMoment } from '../engine/scene/map-moment-scene.js';
 import {
   thorsedlaLife, headDown, liftUp, slideDown, leafWarm, faceInView, tailSwish, tapOnHer, LOOKOUT_HEAD, HEAD_DOWN_CAMERA, LIFT_CAMERA, MOSI_HEAD,
 } from './kafli2-thorsedla.js';
@@ -240,6 +241,7 @@ const WORDS = {
   k2_mosi_next: 'Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!',
   k2_egill_bigger: 'Stærri en þú?',
   k2_mosi_muchbigger: 'Miklu stærri. Þú sérð!',
+  k2_mosi_map_trail: 'Nú förum við út úr skóginum, niður Fenjaslóðina og alla leið að Feninu, til Þórseðlu.',
   k2_kambedla_bye: 'Góða ferð!',
   // 2. The footprints in the mud, counted one to ten (the berries in scene 4 count with the first five)
   k2_mosi_prints: 'Sjáðu! Fótspor Þórseðlu. Þau eru risastór!',
@@ -322,7 +324,8 @@ function* story(s, c) {
   yield* theStar(s, c);
 }
 
-// 1. Leaving the glade: Mosi says who is next, Kambeðla's plates blink goodbye (a tap on her: "Góða ferð!"), and they go.
+// 1. Leaving the glade: Mosi says who is next, the map slides up over the game and draws the way ahead (the trail, and across the Fen to
+// Þórseðla's pool) while he says where they are going, Kambeðla's plates blink goodbye (a tap on her: "Góða ferð!"), and they go.
 function* leaving(s, c) {
   mark(c, 1);
   const { mosi, egill, kambedla } = c;
@@ -336,6 +339,10 @@ function* leaving(s, c) {
   yield egill.lookAt('mosi.head', { weight: 0.6, maxPitch: 30 });
   yield* say(s, c, 'egill', 'k2_egill_bigger');
   yield* say(s, c, 'mosi', 'k2_mosi_muchbigger');
+  // The map slides up (nothing is cut: Mosi and Egill keep their looks, and Kambeðla can still be tapped behind it), draws the Fenjaslóð
+  // and the way across the Fen while Mosi says where they are going, and slides away. His line goes through the chapter's own say, so
+  // `c.saying` counts it and her goodbye waits for it.
+  yield* mapMoment(s, c, { pieces: ['b', 'c'], line: 'k2_mosi_map_trail', speak: (speaker, id) => say(s, c, speaker, id) });
   // They go: Mosi turns to the path out of the glade, her plates blink goodbye, and the camera pans after them.
   yield mosi.lookAt(null);
   yield egill.lookAt(null);

@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "provider": "ElevenLabs",
+  "jobs": [
+    {
+      "id": "triceratops",
+      "type": "sfx",
+      "seconds": 0.8,
+      "text": "One tiny friendly baby dinosaur makes two soft breathy pruff-pruff calls, round nasal chest resonance and a little puppy-like curiosity. Organic creature voice, close and dry. No words, human speech, music, threatening roar, echo or background.",
+      "gain": 0.85,
+      "targetLufs": -20
+    },
+    {
+      "id": "stegosaurus",
+      "type": "sfx",
+      "seconds": 0.7,
+      "text": "One tiny friendly baby dinosaur makes a short warm bu-bup, two rounded playful throaty notes with a soft breathy finish. Distinct small animal vocalization, close and dry. No words, human speech, music, threatening roar, echo or background.",
+      "gain": 0.85,
+      "targetLufs": -20
+    },
+    {
+      "id": "brontosaurus",
+      "type": "sfx",
+      "seconds": 1,
+      "text": "One gentle baby long-neck dinosaur makes a warm low muuu humming animal call, softly rising then falling, breathy chest resonance, curious and reassuring. Close dry creature sound. No words, human speech, music, elephant trumpet, frightening roar or background.",
+      "gain": 0.85,
+      "targetLufs": -20
+    },
+    {
+      "id": "leaf",
+      "type": "sfx",
+      "seconds": 0.5,
+      "text": "A single large fresh green leaf gently folds open: soft leafy swish, papery rustle and delicate stem flex. One clear short gesture, close dry foley, preschool game, no sharp click, music, voices or background.",
+      "gain": 0.55,
+      "targetLufs": -20
+    },
+    {
+      "id": "straw",
+      "type": "sfx",
+      "seconds": 0.7,
+      "text": "A tiny friendly animal settles into a soft moss and leaf nest: one short fluffy brush and warm dry leaf rustle. Intimate gentle foley, no animal voice, music, impact, echo or background.",
+      "gain": 0.45,
+      "targetLufs": -20
+    },
+    {
+      "id": "foot",
+      "type": "sfx",
+      "seconds": 0.5,
+      "text": "One small padded dinosaur foot lands softly on mossy earth over a wooden surface: one rounded low thup with a tiny dry leaf crunch. A single isolated footfall at the start, gentle and close, no repeated walking, music, voice or background.",
+      "gain": 0.38,
+      "targetLufs": -20,
+      "trim": 0.32
+    },
+    {
+      "id": "branch-lift",
+      "type": "sfx",
+      "seconds": 1.6,
+      "text": "A leafy wooden branch is gently lifted upward: warm slow wood flexing creak and delicate leaves brushing, modest effort, small scale, friendly woodland game. One movement with a soft ending, no breaking, crash, voices, music or scary tension.",
+      "gain": 0.65,
+      "targetLufs": -20
+    },
+    {
+      "id": "branch-lower",
+      "type": "sfx",
+      "seconds": 1.1,
+      "text": "A leafy wooden branch gently lowers into its resting place: soft descending wood flex creak, leaves brush and settle quietly. One movement, close natural foley, no breaking, impact, voice or music.",
+      "gain": 0.55,
+      "targetLufs": -20
+    },
+    {
+      "id": "log-roll",
+      "type": "sfx",
+      "seconds": 2.2,
+      "text": "One hollow wooden log rolls slowly a quarter turn across soft earth: rounded woody rumble, small bark rubs and tiny leaf crunches, beginning gently and settling. Friendly miniature woodland foley, no crash, heavy bass, voices or music.",
+      "gain": 0.65,
+      "targetLufs": -20
+    },
+    {
+      "id": "bridge-land",
+      "type": "sfx",
+      "seconds": 1.1,
+      "text": "A hollow wooden log settles onto two soft riverbanks with one warm low wooden tok and a brief gentle earth crumble. Soft satisfying landing for a child game. No splash, crash, sharp crack, voices or music.",
+      "gain": 0.7,
+      "targetLufs": -20
+    },
+    {
+      "id": "bark-pickup",
+      "type": "sfx",
+      "seconds": 1,
+      "text": "Two small animals carefully lift a broad bark plank off a small stack: a soft woody scrape, tiny fibers brushing and a short warm creak. Delicate close dry foley, one gentle pickup. No voices, animal calls, music or sharp impacts.",
+      "gain": 0.55,
+      "targetLufs": -20
+    },
+    {
+      "id": "bark-place",
+      "type": "sfx",
+      "seconds": 0.8,
+      "text": "One broad bark plank is gently placed flat onto another wooden panel: a rounded light wooden tok followed by fine dry bark rustle. One soft satisfying contact, child-friendly close foley. No sharp nail hammer, crash, voices or music.",
+      "gain": 0.7,
+      "targetLufs": -20
+    },
+    {
+      "id": "match-chime",
+      "type": "sfx",
+      "seconds": 1.2,
+      "text": "A short friendly success sound for a woodland preschool game: three softly struck warm wooden marimba notes C E G ascending, with a tiny felted bell sparkle and rounded natural decay. Sparse, acoustic, no arcade beeps, voices, drums or background music.",
+      "gain": 0.5,
+      "targetLufs": -20
+    },
+    {
+      "id": "win",
+      "type": "sfx",
+      "seconds": 2.8,
+      "text": "A small gentle woodland discovery fanfare: warm marimba and soft plucked nylon strings play a cheerful C major pentatonic five-note rising phrase then a peaceful soft chord, with one subtle wooden shaker. Child-friendly and restrained, no vocals, loud brass, drums or arcade synths.",
+      "gain": 0.55,
+      "targetLufs": -20
+    },
+    {
+      "id": "poof",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "A big fresh green leaf is squashed flat by a tap and puffs out a little air and dust: one short soft fluffy poof with a tiny leafy rustle, round and gentle, close and dry. Friendly cartoon foley for a preschool game, no sharp click, bang, voices, music or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "bonk",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "One soft rounded wooden bonk, like a padded mallet on a hollow wooden block, with a tiny rubbery bounce at the end. A short friendly oops cue for a preschool game, warm and low-key, no sharp crack, crash, buzzer, voices, music or background.",
+      "gain": 0.65,
+      "targetLufs": -20
+    },
+    {
+      "id": "ding",
+      "type": "sfx",
+      "seconds": 1,
+      "text": "One small bright friendly bell ding: a single soft glockenspiel note with a short warm shimmer and a gentle decay, a cheerful something-was-collected cue for a preschool game. Clear and sweet, not harsh, no arcade beep, voices, music or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "giggle",
+      "type": "sfx",
+      "seconds": 0.9,
+      "text": "Two tiny baby dinosaurs giggle together: three quick soft breathy hee-hee chuckles, round, warm and high, ending in a little happy squeak, cute and playful like a delighted toddler. A short friendly cue for a preschool game, close and dry. No words, human speech, music, growl, echo or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "strain",
+      "type": "sfx",
+      "seconds": 0.6,
+      "text": "One tiny baby dinosaur gives a quick cheerful effort grunt as it heaves a heavy log: a short chesty hup-hnf, closed mouth, low-ish and rounded, a determined little push that is clearly effort and not a whimper, whine, cry or squeal. Brief friendly cue for a preschool game, close and dry. No words, human speech, music, roar, echo or background.",
+      "gain": 0.6,
+      "targetLufs": -20
+    },
+    {
+      "id": "river",
+      "type": "sfx",
+      "seconds": 12,
+      "text": "Seamless quiet woodland river ambience: close soft flowing water over smooth stones, distant light leaf breeze and extremely sparse tiny songbirds far away. Stable peaceful bed, no splashes, sudden bird cries, insects, voices, music or dramatic changes.",
+      "gain": 0.65,
+      "targetLufs": -28,
+      "loop": true,
+      "crossfade": 0.75
+    },
+    {
+      "id": "woodland-theme",
+      "type": "music",
+      "seconds": 48,
+      "gain": 0.42,
+      "duckGain": 0.15,
+      "targetLufs": -18,
+      "loop": true,
+      "crossfade": 3,
+      "text": "Original instrumental background loop for a gentle preschool dinosaur memory and cooperation game in a sunlit woodland. Exactly 48 seconds, 80 BPM, C major pentatonic, steady 4/4, sixteen bars. Warm wooden marimba, sparse felt piano, light nylon-string plucks, delicate pizzicato strings and occasional airy flute answers. Curious, tender, friendly, unhurried. Small melodic phrases with ample silence for spoken narration and creature calls. Consistent soft dynamics, no build, no dramatic climax, no intro, no outro, no final cadence; last harmony and pulse naturally reconnect to the first bar. No vocals, humming, speech, choir, heavy percussion, brass, electronic beeps or sound effects. Acoustic storybook texture, clear and intimate, gentle low end."
+    }
+  ]
+}

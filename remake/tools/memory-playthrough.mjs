@@ -1,0 +1,1248 @@
+#!/usr/bin/env node
+// Plays a round of "Hvar er vinur minn?" (remake/minnisspil.html) in headless Edge, the way a child does:
+// through the real buttons on the page (leaves, the glowing obstacle, the "who" bubbles in #who, the big tap-along
+// target), with window.__memory only used to read the state back (and, in rapid mode, to hammer its ask/choose/tap
+// paths during scripts). It takes screenshots at the milestones, optionally records the screen as an mp4 and writes a report.
+//
+//   node remake/tools/memory-playthrough.mjs --out qa/memory/lifandi/t0 [--video]
+//     [--size 1280x800] [--mode full|branch|first-minute|rapid|glade] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
+//     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
+//     [--limit 25]            minutes before the run gives up
+//     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
+//     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
+//     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
+//     [--cpu-throttle 4]      CDP Emulation.setCPUThrottlingRate (a slower tablet's CPU): the whole run is that many times slower; after the final frame-rate sample the throttle is lifted
+//                             and the run waits 15 s, so report.resolution.afterRelief says whether the game's dynamic resolution stepped back up
+//
+//   full          (after the glade picture, a picture of the overview) the whole round: a first reveal, one mismatch, the three pairs (Þríhyrnur first, so the branch has a wrong
+//                 friend to pick), the branch (after ~5 s of waiting for the gold arrow, one wrong pick, then the right one and
+//                 three taps in the hero shot), then the Kambeðlur, the log (one wrong pick, the Kambeðlur, then the Þríhyrnur and
+//                 three taps on "Einn, tveir, ÝTA!"), the crossing, the bark (one wrong pick, the Þórseðlur, then the Kambeðlur
+//                 and a tap on each of the three panels) and the grove. The twelve leaves are all found: the three gift pairs (the shrew,
+//                 the hermit crab, the crab) are opened too, the first before the first friend pair, the others after the first and the second
+//                 (each pair's first try is a deliberate miss: with another gift, with a friend, then the right one); report.gifts has each pair.
+//   branch        like full, but stops when the branch is up and the camera is back on the glade.
+//   first-minute  stops when the first pair is matched and its friends have walked home.
+//   rapid         like full, but at every step it taps the right button three times in a row and then every other
+//                 enabled button three times as well, and while a script runs it keeps tapping every leaf, obstacle and
+//                 bubble, the way a six-year-old does. The round must still finish.
+//   glade         only the search view: the glade picture and its measurement (report.glade), a picture of the overview, then stops.
+//   --think S       full and rapid: after each pair is home the driver waits S seconds before the next leaf, as a child looks around, so the waiting
+//                   friends' play (idle-play.js) is seen (default 11 in full, 0 in rapid; 0 turns it off).
+//   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
+//   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
+//                   reports what is left running (report.restartCheck: nothing should be).
+//   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
+//   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
+//   --usual-order   the story modes go to the log as soon as the Þríhyrnur can roll it, before the Kambeðlur are found
+//                   (no wrong friend at the log then, and the crossing waits for the last pair).
+//   --gifts-last    full and rapid find the three gift pairs only after every friend pair (and the bridge), so the crossing's wait for the gifts is seen:
+//                   the gifts-left story, Mosi's line, the gold arrow on a shut leaf and a tap on the staging spot (report.giftsLeft), and that the crossing
+//                   starts once, after the last pair has landed in the basket (report.crossAfterGifts). The wait is played in the search view:
+//                   report.giftsView (the camera's intent and every shut leaf inside the frame), report.giftsArrow (the gold arrow's box, inside the
+//                   screen, off the HUD and the caption) and report.giftsGlide (the camera from the last landing to the crossing's first shot: the
+//                   intents it passed, seconds, jumps, Mosi on screen; the frames are in camtrack.json).
+//   --clearance     while the marsh is laid, the walk to the grove runs or a wrong friend has a go, measures the clearance between the animated bodies (the
+//                   game's own anatomical envelopes) every 300 ms; report.clearance has the worst overlaps per moment
+//                   (it slows the game down a little, so use it for a check run, not for timings).
+//
+// <out> is relative to the repo root. It gets NN-name.png at the milestones, report.json, and with --video the
+// frames/00001.jpg ..., frames.txt and round.mp4 (CDP screencast, laid out by real time, 15 fps). Without --video the
+// game is paused for each milestone picture (report.pauseHolds says nothing moved meanwhile); with --video a milestone
+// is the screencast's frame at that instant (NN-name.jpg, 960 px), so the video keeps real time.
+// report.json: { errors, steps, timeline, perf, render: { drawCalls, triangles }, glade, gladeAfter, gladeDrift, gifts, who, marks, ... }.
+// `who` measures the bubbles the first time they open (each portrait's on-screen size); `marks` are named moments with
+// their time into round.mp4 (branch-start / log-start / bark-start: the first tap on the obstacle, branch-end / log-end: the
+// cheer, bark-end: the third panel is down).
+// `timelineCheck` reads the page's own timeline: the crossing (Mosi's first step onto the deck, the arrival, input back,
+// and the seconds between), the marsh (the first tap on the bark, the lay's start, the third panel down, the boardwalk
+// built), the walk to the grove (Mosi's first step, all six arrived, the seconds between, the watch after) and the
+// longest stretches of watching (a script, a task or a wrong friend's go running) with no new camera framing and no tap,
+// with where they fall; with --video each moment also has its time in round.mp4. `takes` lists every camera framing's
+// most triangles and draw calls (the shot, what was going on), the heaviest first.
+// `celebration` is the page's own list of the celebration's beats in game seconds (every cut and trick, the lines, the end), `idle` the
+// waiting friends' play (idle-play.js): every game that started (friend, game, game time, the not-busy seconds it had waited, how far from
+// its spot it went) and `idleCheck` the two things the round must show: never two at once, and 6 to 10 seconds between starts while nothing is busy.
+// `spoken` is each line of Mosi's the page started and when (game seconds; `speechCheck` counts `won` and the gifts line and says how long the gifts line took to follow Mosi's cheer); `endingCard` the ending card's words (and the gifts row).
+// `gifts` lists each gift pair the driver found: { item, id (its first leaf), at (s, when it was opened), foundAt, landedAt (the basket counted it) }; `found` and `basketEnd` say what the rules
+// and the basket in the ribbon held at the end.
+// `steps` are the driver's actions with the wall-clock seconds since launch; `timeline` is what the page itself went
+// through (caption, phase, bridge, camera and scripted shot, work button), sampled every 100 ms inside the page.
+// `glade` measures the search view (each baby's on-screen height, Mosi, leaves, homes); after the first pair,
+// `gladeDrift` is how far that view moved (camera and leaf pixels; 0 means the match script glided back exactly).
+// The flow is driven by what the page shows (state-driven), so later chapters change the driver where the flow changes.
+// The page is served from the repo root by a throwaway static server on a free port; nothing is left running.
+
+import http from 'node:http';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const BROWSERS = {
+  edge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  chrome: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+};
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2',
+  '.hdr': 'application/octet-stream', '.exr': 'application/octet-stream', '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.mp3': 'audio/mpeg', '.wasm': 'application/wasm',
+  '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
+};
+const MODES = ['full', 'branch', 'first-minute', 'rapid', 'glade'];
+// The one pair that can do each obstacle (the game's BRIDGE_OBSTACLES), so the driver can pick right or wrong.
+const RIGHT = { branch: 'brontosaurus', log: 'triceratops', bark: 'stegosaurus' };
+const VIDEO_FPS = 15;
+
+function parseArgs(argv) {
+  const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
+    if (a === '--out') o.out = next();
+    else if (a === '--size') o.size = next();
+    else if (a === '--mode') o.mode = next();
+    else if (a === '--reduced-motion') o.reducedMotion = true;
+    else if (a === '--video') o.video = true;
+    else if (a === '--no-tap-along') o.tapAlong = false;
+    else if (a === '--usual-order') o.usualOrder = true;
+    else if (a === '--clearance') o.clearance = true;
+    else if (a === '--hold') o.hold = Number(next());
+    else if (a === '--think') o.think = Number(next());
+    else if (a === '--first') o.first = next();
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
+    else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--toggle-motion') o.toggleMotion = true;
+    else if (a === '--help-shot') o.helpShot = true;
+    else if (a === '--stop-after-retry') o.stopAfterRetry = true;
+    else if (a === '--cpu-throttle') { o.cpuThrottle = Number(next()); if (!(o.cpuThrottle >= 1)) throw new Error('--cpu-throttle must be 1 or more'); }
+    else if (a === '--seed') o.seed = next();
+    else if (a === '--query') o.query = next();
+    else if (a === '--page') o.page = next();
+    else if (a === '--browser') o.browser = next();
+    else if (a === '--limit') o.limit = Number(next());
+    else if (a === '--help' || a === '-h') {
+      console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 45).map(l => l.replace(/^\/\/ ?/, '')).join('\n'));
+      process.exit(0);
+    } else throw new Error(`Unknown argument ${a}`);
+  }
+  if (!o.out) throw new Error('--out <dir> is required');
+  if (!MODES.includes(o.mode)) throw new Error(`--mode must be one of ${MODES.join(', ')}`);
+  const m = /^(\d+)x(\d+)$/.exec(o.size);
+  if (!m) throw new Error('--size must look like 1280x800');
+  o.width = Number(m[1]); o.height = Number(m[2]);
+  return o;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Waits for a promise, but at most ms, and leaves no timer behind to hold the process open.
+const within = (promise, ms) => {
+  let timer;
+  return Promise.race([promise, new Promise(r => { timer = setTimeout(r, ms); })]).finally(() => clearTimeout(timer));
+};
+
+function startServer() {
+  const server = http.createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      const file = path.resolve(ROOT, '.' + decodeURIComponent(url.pathname));
+      if (file !== ROOT && !file.startsWith(ROOT + path.sep)) { res.writeHead(403); res.end(); return; }
+      const stat = await fsp.stat(file);
+      const target = stat.isDirectory() ? path.join(file, 'index.html') : file;
+      const body = await fsp.readFile(target);
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(target).toLowerCase()] || 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch {
+      res.writeHead(404); res.end('not found');
+    }
+  });
+  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
+}
+
+class CDP {
+  constructor(ws) {
+    this.ws = ws; this.id = 0; this.pending = new Map(); this.handlers = new Set();
+    ws.addEventListener('message', ev => {
+      const msg = JSON.parse(typeof ev.data === 'string' ? ev.data : Buffer.from(ev.data).toString('utf8'));
+      if (msg.id && this.pending.has(msg.id)) {
+        const { resolve, reject } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.error) reject(new Error(`${msg.error.message} ${msg.error.data || ''}`));
+        else resolve(msg.result);
+      } else if (msg.method) {
+        for (const h of this.handlers) h(msg);
+      }
+    });
+    // A dropped socket (the browser closing or crashing) fails the calls it will never answer instead of leaving them waiting.
+    ws.addEventListener('close', () => {
+      for (const { reject } of this.pending.values()) reject(new Error('DevTools socket closed'));
+      this.pending.clear();
+    });
+  }
+  send(method, params = {}, sessionId) {
+    if (this.ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('DevTools socket closed'));
+    const id = ++this.id;
+    const payload = { id, method, params };
+    if (sessionId) payload.sessionId = sessionId;
+    this.ws.send(JSON.stringify(payload));
+    return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject }));
+  }
+}
+
+async function launchBrowser(o) {
+  const exe = BROWSERS[o.browser] || o.browser;
+  const userDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'memplay-'));
+  const args = [
+    '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${userDir}`,
+    `--window-size=${o.width},${o.height}`, '--hide-scrollbars', '--mute-audio', '--no-first-run',
+    '--no-default-browser-check', '--disable-extensions', '--use-angle=d3d11', '--ignore-gpu-blocklist',
+    '--enable-gpu-rasterization', '--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
+    '--autoplay-policy=no-user-gesture-required', 'about:blank',
+  ];
+  // With __COMPAT_LAYER set (it is on this laptop) Edge relaunches itself without it and the process we spawn exits
+  // at once, so waiting for it or killing it misses the real browser. Leave it out, as Edge's relaunch does.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toUpperCase() !== '__COMPAT_LAYER'));
+  const proc = spawn(exe, args, { stdio: ['ignore', 'ignore', 'ignore'], env });
+  const browser = { exe, proc, exited: new Promise(r => proc.once('exit', r)), userDir, ws: null, cdp: null };
+  try {
+    const portFile = path.join(userDir, 'DevToolsActivePort');
+    for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await sleep(100);
+    if (!fs.existsSync(portFile)) throw new Error('Browser did not start (no DevToolsActivePort)');
+    let lines = [];
+    for (let i = 0; i < 50; i++) {
+      lines = fs.readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
+      if (lines.length >= 2) break;
+      await sleep(100);
+    }
+    const ws = new WebSocket(`ws://127.0.0.1:${lines[0]}${lines[1]}`);
+    await new Promise((resolve, reject) => {
+      ws.addEventListener('open', resolve, { once: true });
+      ws.addEventListener('error', reject, { once: true });
+    });
+    return Object.assign(browser, { ws, cdp: new CDP(ws) });
+  } catch (e) {
+    await stopBrowser(browser);
+    throw e;
+  }
+}
+
+// Browser.close is not enough on Windows: the browser can take a minute or more to exit after it, its helper
+// processes (GPU, crashpad) can outlive it, and while any of them runs the profile folder cannot be removed.
+async function stopBrowser(browser) {
+  if (browser.cdp) await within(browser.cdp.send('Browser.close').catch(() => {}), 2000);
+  try { browser.ws?.close(); } catch {}
+  await within(browser.exited, 5000);
+  try { browser.proc.kill(); } catch {}
+  killProfileProcesses(browser.exe, browser.userDir);
+  // A killed browser keeps its files open until it has torn down, which took up to 13 s in tests here.
+  await within(browser.exited, 15000);
+  for (let i = 0; i < 40; i++) {
+    try { await fsp.rm(browser.userDir, { recursive: true, force: true }); return; } catch { await sleep(250); }
+  }
+  console.warn(`Could not remove ${browser.userDir}`);
+}
+
+// Windows only: kill() reaches the browser but not its helpers, so stop every process of this browser that was
+// started with this run's profile folder.
+function killProfileProcesses(exe, userDir) {
+  if (process.platform !== 'win32') return;
+  const ps = `Get-CimInstance Win32_Process -Filter "Name='${path.basename(exe)}'" | Where-Object { $_.CommandLine -like '*${path.basename(userDir)}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+  try { spawnSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 20000 }); } catch {}
+}
+
+// Runs inside the page: caption, phase, bridge, camera and work-button changes with the page's own clock, plus the
+// largest draw-call and triangle counts seen. Reads window.__demoStats (the world's own per-frame debug copy).
+// `take` counts every new framing the camera director put on screen (a shot, cut or glide, and each way back);
+// `act` is the adventure's own action and phase; `mosi` is 'walk' or 'deck' while Mosi crosses. Every button the
+// child (the driver) clicks is logged with the same clock in window.__taps; window.__origin turns that clock into
+// wall-clock time (for the video).
+const TIMELINE_JS = `(() => {
+  window.__tl = []; window.__max = { drawCalls: 0, triangles: 0 }; window.__takes = {}; let last = '';
+  window.__taps = []; window.__origin = performance.timeOrigin; window.__sounds = {}; const heard = new Set();
+  document.addEventListener('click', event => {
+    const button = event.target.closest && event.target.closest('button'); if (!button) return;
+    window.__taps.push({ t: +(performance.now() / 1000).toFixed(2), key: button.dataset.target || (button.dataset.species ? 'who-' + button.dataset.species : button.id || 'button') });
+  }, true);
+  // Frame times while a script runs (shots re-solve, gestures, dashes), apart from the idle sample at the end.
+  window.__scenePerf = []; let previous = 0;
+  const tick = now => { const d = window.__demoStats; if (previous && d && d.scene && d.scene.busy) window.__scenePerf.push(now - previous); previous = now; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  // The camera on every frame while gifts are still to land, 8 s after the last one lands and for 4 s after the crossing starts (the last 900 frames kept): report.giftsGlide reads the glide out of the last landing from it.
+  window.__camTrack = []; let trackStop = 0, lastLeft = -1e9;
+  const track = now => {
+    const m = window.__memory, d = window.__demoStats, c = d && d.camera;
+    if (m && c && c.position && !(trackStop && now > trackStop)) {
+      const b = m.bridge(), cross = b.active === 'cross';
+      if (cross && !trackStop) trackStop = now + 4000;
+      if (m.giftsLeft().toLand > 0) lastLeft = now; // (and for 8 s after the last pair lands, so the glide to the crossing is kept)
+      if (cross || now - lastLeft < 8000 || trackStop) {
+        const ring = window.__camTrack;
+        ring.push({ t: +(now / 1000).toFixed(3), p: c.position.map(v => +v.toFixed(2)), g: c.target.map(v => +v.toFixed(2)), intent: c.intent, moving: Boolean(c.moving), shot: c.shot || null, held: Boolean(c.held), cross, basket: m.basket(), flying: (d.cells || []).some(x => x.gift && ['rise', 'fly'].includes(x.gift.phase)) });
+        if (ring.length > 900) ring.shift();
+      }
+    }
+    requestAnimationFrame(track);
+  };
+  requestAnimationFrame(track);
+  setInterval(() => {
+    const m = window.__memory; if (!m) return;
+    const d = window.__demoStats || {}, cam = d.camera || {}, s = m.state(), b = m.bridge(), who = m.who ? m.who() : {}, w = d.scene && d.scene.waiting;
+    window.__max.drawCalls = Math.max(window.__max.drawCalls, d.drawCalls || 0);
+    window.__max.triangles = Math.max(window.__max.triangles, d.triangles || 0);
+    // The render scale the game's dynamic resolution chose: the lowest it went and every change (it steps down when frames are slow and back up when there is headroom).
+    if (Number.isFinite(d.resolutionScale)) { const r = (window.__res ||= { min: d.resolutionScale, last: d.resolutionScale, changes: [] }); r.min = Math.min(r.min, d.resolutionScale); if (d.resolutionScale !== r.last) { r.changes.push({ t: +(performance.now() / 1000).toFixed(1), from: r.last, to: d.resolutionScale }); r.last = d.resolutionScale; } }
+    // The sounds the page played (kind and whether recorded or its synth fallback), each counted once.
+    for (const entry of (m.audio ? m.audio().log : []) ?? []) { const id = entry.kind + '@' + entry.start; if (!heard.has(id)) { heard.add(id); const k = entry.kind + ':' + entry.source; window.__sounds[k] = (window.__sounds[k] ?? 0) + 1; } }
+    const word = document.getElementById('beat-word').classList.contains('show') ? document.getElementById('beat-word').textContent : '', ending = !document.getElementById('ending').hidden;
+    const caption = document.getElementById('caption')?.textContent || '', bubbles = who.open ? who.candidates.join('+') : null, wait = w ? w.target + ':' + w.count : null;
+    const shot = cam.shot || (cam.returning ? 'return' : ''), scene = Boolean(d.scene && d.scene.busy), takeNumber = cam.takes || 0;
+    const adventure = d.bridge && d.bridge.action, act = adventure ? adventure.id + ':' + adventure.phase : null;
+    const placed = d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0;
+    // The most triangles and draw calls of each camera framing (a shot, a glide, the way back), with what was going on.
+    const take = window.__takes[cam.takes || 0] ||= { take: cam.takes || 0, t: +(performance.now() / 1000).toFixed(2), shot: cam.shot || (cam.returning ? 'return' : ''), act, tris: 0, calls: 0 };
+    take.tris = Math.max(take.tris, d.triangles || 0); take.calls = Math.max(take.calls, d.drawCalls || 0); take.actEnd = act;
+    // How much of that the friends are (the skins and their shadow twins of the ones drawn) and how many are drawn.
+    const lod = d.characterLod || [], bodies = lod.filter(c => c.rendered); if ((d.triangles || 0) >= take.tris) { take.actors = Math.round(bodies.reduce((sum, c) => sum + c.mainTriangles + c.shadowTriangles, 0) / 1000); take.drawn = bodies.length; }
+    // What each walker of the running action has done (its start and finish in the action's own seconds), the last look.
+    if (adventure && d.bridge.routes) (window.__routes ||= {})[adventure.id] = { elapsed: +adventure.elapsed.toFixed(2), routes: d.bridge.routes.map(r => ({ member: r.member, delay: r.delay == null ? null : +r.delay.toFixed(2), duration: +r.duration.toFixed(2), finishedAt: r.finishedAt == null ? null : +r.finishedAt.toFixed(2) })) };
+    const mosi = d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : null;
+    const key = [caption, s.phase, s.matchedPairs, b.active, b.failing, b.branch, b.bridgeBuilt, b.atStaging, b.boardwalkBuilt, b.visited, cam.mode, cam.moving, cam.held, bubbles, wait, shot, scene, takeNumber, act, mosi, placed, s.paused, word, ending].join('|');
+    if (key !== last) {
+      last = key;
+      window.__tl.push({ t: +(performance.now() / 1000).toFixed(2), caption, phase: s.phase, pairs: s.matchedPairs, active: b.active, branch: b.branch,
+        bridge: b.bridgeBuilt, staging: b.atStaging, walk: b.boardwalkBuilt, visited: b.visited, cam: (cam.mode || '') + (cam.moving ? '*' : ''), held: Boolean(cam.held), failing: b.failing, who: bubbles, wait, shot, scene, take: takeNumber, act, mosi, placed, paused: Boolean(s.paused), word, ending });
+    }
+  }, 100);
+})()`;
+
+// --clearance: while the marsh is laid or the walk to the grove runs, the game's own clearance audit (the anatomical
+// envelopes of the six friends and Mosi, the props) every 300 ms; the worst overlap of each pair at each moment is kept.
+const CLEARANCE_JS = `(async () => {
+  const { assessSceneClearances } = await import('/remake/engine/memory/memory-clearance.js');
+  window.__clr = { samples: 0, minimum: null, worst: {}, plants: { samples: 0, minimum: null, closest: null } };
+  // Every 300 ms: how close each friend's feet and Mosi come to the plants the layout placed (the footprint of each kind and
+  // size, and half a body's width): a negative number is a plant in somebody's way.
+  const FOOT = { fern: .45, bush: .9, rock: .85, rockSmall: .4, flowers: .2, horsetailReed: .5, horsetailTall: .45, treeFern: .4, cycad: .5 };
+  setInterval(() => {
+    const d = window.__demoStats; if (!d || !d.dressing) return;
+    const walkers = [...d.cells.filter(c => c.position).map(c => ({ at: c.position, half: .55 })), { at: d.scene.mosiPosition, half: .9 }];
+    const clr = window.__clr.plants; clr.samples++;
+    for (const w of walkers) for (const p of d.dressing) {
+      const gap = Math.hypot(w.at[0] - p.position[0], w.at[2] - p.position[1]) - (FOOT[p.name] ?? .4) * p.scale - w.half;
+      if (clr.minimum === null || gap < clr.minimum) { clr.minimum = +gap.toFixed(2); clr.closest = { plant: p.name, scale: p.scale, at: p.position, walker: w.at.map(v => +v.toFixed(1)), t: +(performance.now() / 1000).toFixed(1) }; }
+    }
+  }, 300);
+  setInterval(() => {
+    const d = window.__demoStats, action = d && d.bridge && d.bridge.action, playing = d && d.idle && d.idle.active; if (!playing && (!action || !['lay', 'finish', 'fail'].includes(action.id))) return;
+    const stats = window.__memory.stats({ collision: true }); stats.collisionObjects = []; // the glade's scenery is far from the marsh; the log, branch and carried bark stay
+    const result = assessSceneClearances(stats), clr = window.__clr;
+    clr.samples++; if (result.minimum !== null) clr.minimum = clr.minimum === null ? result.minimum : Math.min(clr.minimum, result.minimum);
+    for (const hit of result.violations) {
+      const key = (playing ? 'idle/' + playing.game : action.id + '/' + action.phase) + ':' + hit.a + ':' + hit.b + ':' + hit.kindA + ':' + hit.kindB;
+      if (!clr.worst[key] || hit.clearance < clr.worst[key].clearance) clr.worst[key] = { key, clearance: +hit.clearance.toFixed(3), age: +((playing ? playing.age : action.age) || 0).toFixed(2), t: +(performance.now() / 1000).toFixed(2) };
+    }
+  }, 300);
+})()`;
+
+// What a restart must leave: a clean board, no script, no beat, no gift, no idle game, nothing said, nothing on the ending card.
+const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.state(), b = m.bridge();
+  return { phase: s.phase, matched: s.matchedPairs, hiddenCards: s.cards.filter(c => c.status === 'hidden').length, bridge: { active: b.active, visited: b.visited, asking: b.asking, branch: b.branch, boardwalkBuilt: b.boardwalkBuilt },
+    sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
+    ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
+    basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
+    caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
+
+// The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
+const GIFTS_VIEW_JS = `(() => { const d = window.__memory.stats({ measure: true }), f = d.frame, shut = f.leaves.filter(l => l.status === 'hidden');
+  return { intent: d.camera.intent, moving: d.camera.moving, size: f.size, shutLeaves: shut.length, shutInside: shut.every(l => l.inside), outside: shut.filter(l => !l.inside).map(l => l.cell),
+    leafPxMin: { width: Math.round(Math.min(...shut.map(l => l.width))), height: Math.round(Math.min(...shut.map(l => l.height))) }, mosiInside: f.mosi.inside, homesInside: f.homes.every(h => h.inside), mosiAt: d.scene.mosiPosition }; })()`;
+
+// The gold arrow over a guided leaf, from its own computed style: the turned square's box (and the glow and the bob around it), whether it is inside the screen, and what it overlaps of the HUD and the caption.
+const ARROW_JS = `(() => {
+  const el = document.querySelector('#targets .is-guided'); if (!el) return null;
+  const r = el.getBoundingClientRect(), a = getComputedStyle(el, '::after'), px = value => parseFloat(value) || 0;
+  const borderBox = a.boxSizing === 'border-box', W = borderBox ? px(a.width) : px(a.width) + px(a.borderRightWidth), H = borderBox ? px(a.height) : px(a.height) + px(a.borderBottomWidth);
+  const cx = r.left + px(a.left) + W / 2, cy = r.top + px(a.top) + H / 2, half = (W + H) / 2 * Math.SQRT1_2;
+  const box = (pad, bob) => ({ left: Math.round(cx - half - pad), top: Math.round(cy - half - pad - bob), right: Math.round(cx + half + pad), bottom: Math.round(cy + half + pad + bob) });
+  const core = box(0, 4), glow = box(12, 4);
+  const hits = [['ribbon', '.adventure-ribbon'], ['controls', '.topbar nav'], ['coach-portrait', '.coach-portrait'], ['caption', '.coach-message']].map(([name, selector]) => { const e = document.querySelector(selector), b = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null; return b && b.width ? { name, overlap: core.left < b.right && core.right > b.left && core.top < b.bottom && core.bottom > b.top, glowOverlap: glow.left < b.right && glow.right > b.left && glow.top < b.bottom && glow.bottom > b.top } : null; }).filter(Boolean);
+  return { leaf: el.dataset.target, leafBox: { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) },
+    arrow: { width: W, height: H, borderRight: px(a.borderRightWidth), color: a.borderRightColor, top: a.top, left: a.left, filter: a.filter, side: Math.round(half * 2) }, core, glow,
+    insideScreen: core.left >= 0 && core.top >= 0 && core.right <= innerWidth && core.bottom <= innerHeight, glowInside: glow.left >= 0 && glow.top >= 0 && glow.right <= innerWidth && glow.bottom <= innerHeight,
+    overHud: hits.filter(h => h.overlap).map(h => h.name), glowOverHud: hits.filter(h => h.glowOverlap).map(h => h.name) }; })()`;
+
+// One read of everything the driver decides on.
+const SNAPSHOT_JS = `(() => {
+  const m = window.__memory, s = m.state(), b = m.bridge(), d = window.__demoStats || {}, cam = d.camera || {};
+  const cancel = document.getElementById('cancel-choice'), who = m.who(), story = m.story(), w = d.scene && d.scene.waiting;
+  const buttons = [...document.querySelectorAll('#targets [data-target]')];
+  const bubbles = who.open ? [...document.querySelectorAll('#who [data-species]')].map(x => 'who-' + x.dataset.species) : [];
+  return {
+    phase: s.phase, matched: s.matchedPairs, paused: s.paused,
+    cards: s.cards.map(c => ({ id: c.id, species: c.species, item: c.item || null, status: c.status })), found: [...s.found], basket: m.basket(),
+    bridge: b, cam: { mode: cam.mode, moving: Boolean(cam.moving), held: Boolean(cam.held), shot: cam.shot || null, take: cam.takes || 0 }, scene: Boolean(d.scene && d.scene.busy),
+    act: d.bridge && d.bridge.action ? d.bridge.action.id + ':' + d.bridge.action.phase : null, placed: d.bridge && d.bridge.boardwalk ? d.bridge.boardwalk.panels.filter(p => p.placed).length : 0, fxActive: d.fx ? d.fx.active : 0, landed: Boolean(d.bridge && d.bridge.bridge && d.bridge.bridge.built),
+    mosi: d.scene && d.scene.mosiWalk ? (d.scene.mosiWalk.onDeck ? 'deck' : 'walk') : d.scene && d.scene.mosiAcross ? 'across' : null,
+    who, story: { key: story.key, kind: story.kind, target: story.target || null, available: Boolean(story.available), automatic: Boolean(story.automatic) },
+    giftPhases: (d.cells || []).filter(c => c.gift).map(c => c.gift.phase), giftsLeft: m.giftsLeft(),
+    guidedLeaf: (document.querySelector('#targets .is-guided[data-target^="leaf-"]') || {}).dataset?.target || null,
+    wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
+    trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
+    arrow: Boolean(document.querySelector('#targets .is-guided')),
+    cancel: !cancel.hidden && !cancel.disabled,
+    blocked: d.bridge && d.bridge.blocked ? d.bridge.blocked.length : 0,
+    cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
+    enabled: [...buttons.filter(x => !x.disabled).map(x => x.dataset.target), ...bubbles],
+    walking: (d.cells || []).some(c => c.moving || c.queued) || (d.cells || []).some(c => c.status === 'matched' && !c.moved),
+    ending: !document.getElementById('ending').hidden, beats: (d.scene && d.scene.beats || []).map(b => b.name), idle: d.idle && d.idle.active ? d.idle.active.game : null,
+    caption: document.getElementById('caption')?.textContent || '',
+  };
+})()`;
+
+// Everything that moves, as one list of numbers: the camera, every visible friend's root and nose, Mosi's head.
+const POSE_JS = `(() => {
+  const d = window.__memory.stats(), values = [...d.camera.position, ...d.camera.target];
+  for (const c of d.cells) if (c.position) values.push(...c.position, ...c.feet.flatMap(f => f.position));
+  return { values, scene: Boolean(d.scene && d.scene.busy), shot: d.camera.shot || null };
+})()`;
+
+// Can a finger reach a button? Its box is sampled on a 5 x 5 grid and each point is asked which element is on top there (elementFromPoint leaves out what has pointer-events: none): how much of the
+// button is the topmost thing, whether the middle is, whether the whole box is inside the screen, and what covers the rest (another target's key, a HUD part's id or class).
+const REACH_FN = `const reach = el => {
+  const r = el.getBoundingClientRect(), covers = {}; let hits = 0;
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+    const x = r.left + r.width * (i + .5) / 5, y = r.top + r.height * (j + .5) / 5;
+    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) { covers.offscreen = (covers.offscreen ?? 0) + 1; continue; }
+    const top = document.elementFromPoint(x, y);
+    if (top && (top === el || el.contains(top))) hits++; else { const name = top ? (top.closest('button')?.dataset.target || top.closest('[id]')?.id || String(top.className).split(' ')[0] || top.tagName) : 'nothing'; covers[name] = (covers[name] ?? 0) + 1; }
+  }
+  const c = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)));
+  return { disabled: Boolean(el.disabled), percent: Math.round(hits * 4), centreHit: Boolean(c && (c === el || el.contains(c))), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+    box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }, covers };
+};`;
+const reachJs = key => `(() => { ${REACH_FN}
+  const key = ${JSON.stringify(key)}, el = key.startsWith('who-') ? document.querySelector('#who [data-species="' + key.slice(4) + '"]') : key === 'cancel-choice' ? document.getElementById('cancel-choice') : document.querySelector('[data-target="' + key + '"]');
+  return el ? { found: true, ...reach(el) } : { found: false }; })()`;
+// Every enabled target (a leaf, an obstacle, a home) and the bubbles that a finger cannot fully reach right now.
+const ENABLED_REACH_JS = `(() => { ${REACH_FN}
+  return [...document.querySelectorAll('#targets .world-target:not(:disabled), #who .who-friend')].filter(el => !el.closest('[hidden]')).map(el => ({ key: el.dataset.target || 'who-' + el.dataset.species, ...reach(el) })).filter(x => x.percent < 70 || !x.centreHit || !x.inside); })()`;
+
+// Taps buttons inside the page, `times` clicks each, gapMs apart. A disabled or hidden button ignores the tap, as it does for a child.
+const tapJs = (keys, times, gapMs) => `(async () => {
+  const find = key => key.startsWith('who-') ? document.querySelector('#who [data-species="' + key.slice(4) + '"]') : document.querySelector('[data-target="' + key + '"]');
+  let taps = 0;
+  for (const key of ${JSON.stringify(keys)}) for (let i = 0; i < ${times}; i++) {
+    const el = find(key);
+    if (el && !el.hidden && !el.disabled && !el.closest('[hidden]')) { el.click(); taps++; }
+    await new Promise(r => setTimeout(r, ${gapMs}));
+  }
+  return taps;
+})()`;
+
+// Rapid mode while a script runs: every leaf, obstacle and bubble through window.__memory (past the buttons' own disabled
+// state), the way a child taps through a cut. The game must ignore every one of them that is not its turn.
+const HAMMER_JS = `(() => {
+  const m = window.__memory, s = m.state();
+  for (const target of ['branch', 'log', 'bark']) { m.ask(target); m.tap(target); }
+  for (const species of ['triceratops', 'brontosaurus', 'stegosaurus']) m.choose(species);
+  for (const card of s.cards) if (card.status === 'hidden') m.pick(card.id);
+  return true;
+})()`;
+
+const PERF_JS = seconds => `new Promise(res => {
+  const d = []; let last = performance.now(); const t0 = last;
+  const f = now => {
+    d.push(now - last); last = now;
+    if (now - t0 < ${seconds * 1000}) { requestAnimationFrame(f); return; }
+    d.shift();
+    const s = [...d].sort((a, b) => a - b);
+    res({ seconds: +((now - t0) / 1000).toFixed(1), frames: d.length,
+      fps: +(1000 / (d.reduce((a, b) => a + b, 0) / d.length)).toFixed(1),
+      p50ms: +s[Math.floor(s.length * .5)].toFixed(1), p95ms: +s[Math.floor(s.length * .95)].toFixed(1), worstMs: +s[s.length - 1].toFixed(1) });
+  };
+  requestAnimationFrame(f);
+})`;
+
+// The bubbles as the child sees them: the box and each portrait's on-screen size.
+const WHO_JS = `(() => {
+  const box = document.getElementById('who'), r = box.getBoundingClientRect();
+  return { box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) },
+    faces: [...box.querySelectorAll('.who-friend')].map(b => { const f = b.querySelector('.who-face').getBoundingClientRect(), n = b.querySelector('.who-name'); return { species: b.dataset.species, width: Math.round(f.width), height: Math.round(f.height), button: Math.round(b.getBoundingClientRect().height), nameFontPx: parseFloat(getComputedStyle(n).fontSize) }; }),
+    viewport: { width: innerWidth, height: innerHeight } };
+})()`;
+
+const GPU_JS = `(() => {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  if (!gl) return 'no webgl2';
+  const e = gl.getExtension('WEBGL_debug_renderer_info');
+  return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+})()`;
+
+// The spec's pacing, read off the page's own timeline: the crossing (Mosi's first step, his first step onto the deck,
+// all six at staging, input back: the camera free again) and, over every stretch where the child only watches (a script,
+// a task or a wrong friend's go running), the longest time with no new framing (a cut, a glide or the way back) and
+// no tap. Times are the page's clock (performance.now() seconds), as in the timeline; the spans are game time: without
+// --video the game is paused for each picture, and those pauses are left out.
+function timelineCheck(timeline = [], taps = []) {
+  if (!timeline?.length) return null;
+  const pauses = [];
+  timeline.forEach((e, i) => { if (e.paused && !timeline[i - 1]?.paused) pauses.push([e.t, timeline.slice(i + 1).find(n => !n.paused)?.t ?? Infinity]); });
+  const game = t => t - pauses.reduce((sum, [a, b]) => sum + Math.max(0, Math.min(t, b) - a), 0);
+  const watching = e => Boolean(e.scene || e.active || e.failing);
+  const events = [];
+  for (let i = 1; i < timeline.length; i++) {
+    const a = timeline[i - 1], b = timeline[i];
+    if ((b.take ?? 0) !== (a.take ?? 0)) events.push({ t: b.t, what: 'framing' });
+    else if (String(b.cam).endsWith('*') && !String(a.cam).endsWith('*')) events.push({ t: b.t, what: 'glide' });
+  }
+  for (const tap of taps ?? []) events.push({ t: tap.t, what: `tap ${tap.key}` });
+  events.sort((a, b) => a.t - b.t);
+  const stretches = [];
+  for (let i = 0; i < timeline.length;) {
+    if (!watching(timeline[i])) { i++; continue; }
+    let j = i; while (j + 1 < timeline.length && watching(timeline[j + 1])) j++;
+    const from = timeline[i].t, to = j + 1 < timeline.length ? timeline[j + 1].t : timeline[j].t;
+    const marks = [from, ...events.filter(e => e.t > from && e.t < to).map(e => e.t), to];
+    for (let k = 1; k < marks.length; k++) {
+      const at = [...timeline].reverse().find(e => e.t <= marks[k - 1]) ?? timeline[i];
+      stretches.push({ seconds: +(game(marks[k]) - game(marks[k - 1])).toFixed(2), from: marks[k - 1], to: marks[k], caption: at.caption, active: at.active, act: at.act, shot: at.shot });
+    }
+    i = j + 1;
+  }
+  const firstStep = timeline.find(e => (e.mosi === 'walk' || e.mosi === 'deck') && e.active === 'cross'), deck = timeline.find(e => e.mosi === 'deck' && e.active === 'cross'), arrive = timeline.find(e => e.staging);
+  const input = arrive && timeline.find(e => e.t >= arrive.t && e.staging && !e.scene && !e.held && e.cam === 'auto');
+  const span = (a, b) => a && b ? +(game(b.t) - game(a.t)).toFixed(2) : null;
+  // The marsh: the first tap on the bark, the lay's start, the third panel down, the boardwalk built.
+  const barkTap = (taps ?? []).find(tap => tap.key === 'task-bark'), layStart = timeline.find(e => e.act && e.act.startsWith('lay:')), lastPanel = timeline.find(e => (e.placed ?? 0) >= 3), built = timeline.find(e => e.walk);
+  // The walk to the grove: Mosi's first step, all six arrived (the walk is over), the camera back and the ending up.
+  const groveStep = timeline.find(e => e.active === 'finish' && (e.mosi === 'walk' || e.mosi === 'deck')), groveArrive = timeline.find(e => e.visited);
+  // `input` is now the ending card: the celebration (a script) runs between the arrival and it.
+  const groveInput = groveArrive && timeline.find(e => e.t >= groveArrive.t && e.visited && e.ending);
+  return {
+    framings: events.filter(e => !e.what.startsWith('tap')).length, taps: (taps ?? []).length,
+    crossing: firstStep ? { firstStep: firstStep.t, deck: deck?.t ?? null, arrive: arrive?.t ?? null, input: input?.t ?? null, deckToInput: span(deck, input), firstStepToArrive: span(firstStep, arrive), firstStepToInput: span(firstStep, input) } : null,
+    marsh: layStart ? { firstTap: barkTap?.t ?? null, layStart: layStart.t, lastPanel: lastPanel?.t ?? null, boardwalk: built?.t ?? null, tapToLastPanel: barkTap && lastPanel ? span(barkTap, lastPanel) : null, layToLastPanel: span(layStart, lastPanel), layToBoardwalk: span(layStart, built) } : null,
+    grove: groveStep ? { firstStep: groveStep.t, arrive: groveArrive?.t ?? null, input: groveInput?.t ?? null, firstStepToArrive: span(groveStep, groveArrive), watchAfterArrival: span(groveArrive, groveInput) } : null,
+    // The longest stretch, and the five longest (with what was going on), so a long one can be placed.
+    longestWatch: stretches.sort((a, b) => b.seconds - a.seconds)[0] ?? { seconds: 0 }, longestWatches: stretches.slice(0, 5),
+  };
+}
+
+// How far the search view moved between two measurements: camera position and the leaves still on the board.
+function frameDrift(before, after) {
+  if (!before?.camera || !after?.camera) return null;
+  const camera = Math.max(...before.camera.position.map((v, i) => Math.abs(v - after.camera.position[i])), ...before.camera.quaternion.map((v, i) => Math.abs(v - after.camera.quaternion[i])));
+  let leafPixels = 0;
+  for (const leaf of after.leaves) {
+    const old = before.leaves.find(value => value.cell === leaf.cell);
+    if (old && leaf.status === 'hidden' && old.status === 'hidden') leafPixels = Math.max(leafPixels, ...['left', 'top', 'right', 'bottom'].map(k => Math.abs(leaf[k] - old[k])));
+  }
+  return { camera: +camera.toExponential(2), leafPixels: +leafPixels.toFixed(2) };
+}
+
+// The waiting friends' play (idle-play.js), checked over the round: never two at once, and each game starting 6 to 10 seconds
+// (of not-busy time) after the one before; no friend further than 1.5 m from its spot.
+function idleCheck(idle) {
+  if (!idle) return null;
+  const starts = idle.starts ?? [], waits = starts.map(item => item.waited), games = {}, friends = {};
+  for (const item of starts) { games[item.game] = (games[item.game] ?? 0) + 1; friends[item.friend] = (friends[item.friend] ?? 0) + 1; }
+  // Two at once would be a start before the game before it ended (a game that was cut short by something busy ends at that moment).
+  const overlapping = starts.filter((item, i) => i && starts[i - 1].ended != null && item.t < starts[i - 1].ended - 1e-6 || i && starts[i - 1].ended == null);
+  const outOfRange = starts.filter(item => item.waited < IDLE_GAP.min - .001 || item.waited > IDLE_GAP.max + .1);
+  const far = Math.max(0, ...starts.map(item => item.far ?? 0));
+  return { starts: starts.length, games, friends, glances: idle.glances, overlapsInGame: idle.overlaps, overlapping: overlapping.length, spacing: { min: waits.length ? Math.min(...waits) : null, max: waits.length ? Math.max(...waits) : null, outOfRange: outOfRange.map(item => ({ t: item.t, waited: item.waited, game: item.game })) },
+    farthestFromSpot: far, stopped: starts.reduce((all, item) => ({ ...all, [item.stopped ?? 'running']: (all[item.stopped ?? 'running'] ?? 0) + 1 }), {}),
+    passed: !overlapping.length && !idle.overlaps && !outOfRange.length && far <= 1.5 };
+}
+const IDLE_GAP = { min: 6, max: 10 };
+
+async function main() {
+  const o = parseArgs(process.argv.slice(2));
+  const outDir = path.resolve(ROOT, o.out);
+  await fsp.mkdir(outDir, { recursive: true });
+  const framesDir = path.join(outDir, 'frames');
+  if (o.video) { await fsp.rm(framesDir, { recursive: true, force: true }); await fsp.mkdir(framesDir, { recursive: true }); }
+
+  const errors = [];
+  const report = {
+    page: o.page, mode: o.mode, size: o.size, seed: o.seed, query: o.query, reducedMotion: o.reducedMotion, cpuThrottle: o.cpuThrottle || null, startedAt: new Date().toISOString(),
+    finished: false, stalled: null, roundSeconds: null, errors, steps: [], shots: [], pauseHolds: [], timeline: [], perf: null, render: null, renderMax: null, gpu: null, video: null,
+  };
+  const server = await startServer();
+  const query = [`seed=${o.seed}`, o.query].filter(Boolean).join('&');
+  const url = `http://127.0.0.1:${server.address().port}/${o.page.replace(/\\/g, '/').replace(/^\//, '')}?${query}`;
+  const browser = await launchBrowser(o);
+  const { cdp } = browser;
+  const t0 = Date.now();
+  const T = () => +((Date.now() - t0) / 1000).toFixed(1);
+  const frames = { n: 0, stamps: [], writes: [] };
+  let fatal = null;
+  try {
+    const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    const send = (m, p) => cdp.send(m, p, sessionId);
+    cdp.handlers.add(msg => {
+      if (msg.sessionId !== sessionId) return;
+      if (msg.method === 'Runtime.exceptionThrown') {
+        const d = msg.params.exceptionDetails;
+        errors.push(`exception: ${d.exception?.description || d.text} @${d.url || ''}:${d.lineNumber}`.slice(0, 900));
+      } else if (msg.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(msg.params.type)) {
+        errors.push(`console.${msg.params.type}: ${msg.params.args.map(a => a.value ?? a.description ?? a.type).join(' ')}`.slice(0, 600));
+      } else if (msg.method === 'Log.entryAdded' && ['error', 'warning'].includes(msg.params.entry.level)) {
+        const e = msg.params.entry;
+        if (!/favicon\.ico/.test(e.url || e.text || '')) errors.push(`log.${e.level}: ${e.text} ${e.url || ''}`.slice(0, 600));
+      } else if (msg.method === 'Page.screencastFrame') {
+        const n = ++frames.n, p = msg.params;
+        frames.stamps.push(p.metadata?.timestamp ?? null);
+        frames.last = p.data;
+        frames.writes.push(fsp.writeFile(path.join(framesDir, `${String(n).padStart(5, '0')}.jpg`), Buffer.from(p.data, 'base64')));
+        send('Page.screencastFrameAck', { sessionId: p.sessionId }).catch(() => {});
+      }
+    });
+    await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
+    const phone = o.width < 768 || o.height < 500; // (a phone held sideways, 844x390, is a phone too: touch and the mobile media features)
+    await send('Emulation.setDeviceMetricsOverride', { width: o.width, height: o.height, deviceScaleFactor: 1, mobile: phone });
+    if (phone) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    if (o.cpuThrottle > 1) await send('Emulation.setCPUThrottlingRate', { rate: o.cpuThrottle });
+    if (o.reducedMotion) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+
+    const ev = async (expression, awaitPromise = true) => {
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    const step = (what, extra = {}) => { report.steps.push({ t: T(), what, ...extra }); console.log(`[${T()}] ${what}${Object.keys(extra).length ? ' ' + JSON.stringify(extra) : ''}`); };
+    let shotCount = 0;
+    const shot = async name => {
+      const label = `${String(++shotCount).padStart(2, '0')}-${name}`;
+      const d = await send('Page.captureScreenshot', { format: 'png' });
+      await fsp.writeFile(path.join(outDir, `${label}.png`), Buffer.from(d.data, 'base64'));
+      report.shots.push({ name: label, t: T() }); console.log(`[${T()}] shot ${label}`);
+    };
+    const waitFor = async (expr, ms, label) => {
+      const s = Date.now();
+      while (Date.now() - s < ms) { try { if (await ev(`Boolean(${expr})`)) return (Date.now() - s) / 1000; } catch {} await sleep(150); }
+      step(`TIMEOUT waiting for ${label}`); return -1;
+    };
+
+    await send('Page.navigate', { url });
+    if (await waitFor('window.__memoryReady === true', 120000, 'the page to be ready') < 0) throw new Error('The page never became ready');
+    report.gpu = await ev(GPU_JS).catch(e => `error: ${e.message}`);
+    report.reducedMotionActive = await ev("matchMedia('(prefers-reduced-motion: reduce)').matches").catch(() => null);
+    step('loaded', { url: url.replace(/^http:\/\/127\.0\.0\.1:\d+/, '') });
+    if (o.video) await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: 960, maxHeight: 960, everyNthFrame: 2 });
+    // Named moments, kept with the wall clock so they can be placed in round.mp4 (its first frame's stamp) afterwards.
+    report.marks = [];
+    const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
+    await ev(TIMELINE_JS);
+    if (o.clearance) await ev(CLEARANCE_JS);
+    await sleep(700);
+    await shot('welcome');
+
+    await ev(`document.getElementById('start').click()`);
+    const roundStart = Date.now();
+    step('start clicked');
+    await sleep(2500);
+    await shot('glade');
+    if (o.helpShot) {
+      await ev(`document.getElementById('help').click()`); await sleep(700);
+      report.helpDialog = await ev(`(() => { const d = document.getElementById('help-dialog'), r = d.getBoundingClientRect(); return { open: d.open, items: [...d.querySelectorAll('li')].map(li => li.textContent), box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }, insideScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, scrolls: d.scrollHeight > d.clientHeight + 1, scrollHeight: d.scrollHeight, clientHeight: d.clientHeight, viewport: { width: innerWidth, height: innerHeight } }; })()`);
+      step('help dialog', { items: report.helpDialog.items.length, second: report.helpDialog.items[1], box: report.helpDialog.box, scrolls: report.helpDialog.scrolls });
+      await shot('help-dialog');
+      await ev(`document.querySelector('#help-dialog [data-resume]').click()`); await sleep(500);
+    }
+    // The search view: every baby's on-screen size (projected posed bounds, hidden ones measured at their cells),
+    // Mosi and the leaves, with whether each is inside the frame.
+    report.glade = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
+    if (report.glade?.babies) step('glade measured', { babyHeights: report.glade.babies.map(b => `${b.species}:${b.height}`).join(' '), mosi: report.glade.mosi?.height, allInside: [...report.glade.leaves, report.glade.mosi].every(b => b?.inside) });
+    // The twelve leaf buttons as the page lays them out: none under 44 px either way, and how many pairs overlap each other.
+    const LEAF_BOXES_JS = (only = '') => `(() => { const boxes = [...document.querySelectorAll('.world-target[data-target^="leaf-"]${only}')].map(b => { const r = b.getBoundingClientRect(); return { key: b.dataset.target, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), width: Math.round(r.width), height: Math.round(r.height) }; });
+      let overlaps = 0, deepest = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j], ox = (a.width + b.width) / 2 - Math.abs(a.x - b.x), oy = (a.height + b.height) / 2 - Math.abs(a.y - b.y); if (ox > 0 && oy > 0) { overlaps++; deepest = Math.max(deepest, Math.min(ox, oy)); } }
+      return { count: boxes.length, minWidth: Math.min(...boxes.map(b => b.width)), minHeight: Math.min(...boxes.map(b => b.height)), overlaps, deepestOverlap: Math.round(deepest), boxes }; })()`;
+    report.leafTargets = await ev(LEAF_BOXES_JS()).catch(e => ({ error: e.message }));
+    step('leaf buttons', { count: report.leafTargets?.count, min: `${report.leafTargets?.minWidth}x${report.leafTargets?.minHeight}`, overlaps: report.leafTargets?.overlaps, deepest: report.leafTargets?.deepestOverlap });
+    // The overview button once at the start, as a child would peek at the whole place: the picture shows that no edge of the world is in sight.
+    if (o.mode === 'full' || o.mode === 'glade') {
+      await ev(`window.__memory.camera('overview')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'overview camera'); await sleep(600);
+      await shot('overview');
+      await ev(`window.__memory.camera('auto')`); await waitFor(`!window.__demoStats.camera.moving`, 20000, 'play camera');
+    }
+    if (o.mode === 'glade') report.finished = Boolean(report.glade?.babies);
+
+    // ---- the round, driven by what the page shows -------------------------------------------------------------
+    const rapid = o.mode === 'rapid', shots = o.mode !== 'rapid', story = ['full', 'branch', 'rapid'].includes(o.mode);
+    const seen = new Set();
+    // A picture the first time `key` is seen (after delayMs, so the thing has had time to show). True if it waited.
+    const milestone = async (key, name, delayMs = 0) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (!shots) return false;
+      if (delayMs) await sleep(delayMs);
+      // A capture takes a second or more here. Without a video the game is paused for it (the game clock
+      // stops, as it does for a child's pause), so the picture is the moment it is named after.
+      if (o.video) {
+        // With the screencast running a full capture lags by a second or more, so the moment's picture is
+        // the screencast's latest frame (960 px JPEG), taken the instant it is due.
+        if (!frames.last) return true;
+        const label = `${String(++shotCount).padStart(2, '0')}-${name}`;
+        await fsp.writeFile(path.join(outDir, `${label}.jpg`), Buffer.from(frames.last, 'base64'));
+        report.shots.push({ name: label, t: T(), from: 'screencast' }); console.log(`[${T()}] frame ${label}`);
+        return true;
+      }
+      await ev('window.__memory.pause(true)');
+      const held = await ev(POSE_JS);
+      await shot(name);
+      // While paused nothing may move: not the camera, not a friend, not a running script.
+      const after = await ev(POSE_JS), drift = Math.max(...held.values.map((v, i) => Math.abs(v - after.values[i])));
+      report.pauseHolds.push({ shot: name, drift: +drift.toExponential(2), scene: held.scene, shotKind: held.shot });
+      await ev('window.__memory.pause(false)');
+      return true;
+    };
+    const first = await ev(SNAPSHOT_JS);
+    step('cards', { cards: first.cards.map(c => `${c.id}:${c.species}`).join(' ') });
+    // The pairs are found in this order (in the story modes the Þríhyrnur first, so the branch has a wrong friend to
+    // pick). The first try is a deliberate mismatch: a card of the first species, then a card of the last one.
+    const order = (story ? ['triceratops', 'brontosaurus', 'stegosaurus'] : ['brontosaurus', 'triceratops', 'stegosaurus']).filter(sp => first.cards.some(c => c.species === sp));
+    for (const sp of new Set(first.cards.map(c => c.species))) if (sp && !order.includes(sp)) order.push(sp);
+    if (o.first && order.includes(o.first)) order.splice(0, order.length, o.first, ...order.filter(sp => sp !== o.first));
+    // The gift pairs, in card order. `full` and `rapid` find them: the first before the first friend pair, the second after the first and the
+    // third after the second (every one after the last friend pair with --gifts-last). The first try of the first two is a deliberate miss.
+    const giftItems = [...new Set(first.cards.filter(c => c.item).map(c => c.item))];
+    report.gifts = [];
+    const giftAt = giftItems.map((_, k) => o.giftsLast ? 3 : k); // matched friend pairs when each pair is opened
+    const giftMissed = new Set(), wantGifts = o.mode === 'full' || o.mode === 'rapid';
+    let giftsLeftChecked = false;
+    const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
+    const hidden = (s, species) => s.cards.filter(c => c.species === species && c.status === 'hidden').map(c => c.id);
+    report.cancelCheck = {}; let sawFailing = false, lastReach = 0;
+    report.blocked = []; report.blockedRetry = []; let blockedSeen = 0, retryWatch = null; // (the adventure's own list of walks it gave up)
+    let missPlan = 0; // 0 not yet, 1 first card of the miss is open, 2 done
+    let lastKey = '', lastProgress = Date.now(), lastAsk = 0, lastCancel = 0, lastHammer = 0, arrowWaited = false, tapWait = null;
+    const wrongDone = new Set(); // the obstacles that have had their wrong friend (one each: the branch, the log and the bark)
+    const WRONG = { branch: 'triceratops', log: 'triceratops', bark: 'brontosaurus' }; // whom the driver tries first at each (the log's right friend is the Þríhyrnur, so its other free pair, the Kambeðlur, goes)
+    let barkTaps = 0, runTake = null, holdFrom = null, thinkUntil = 0;
+    const thought = new Set();
+    const limitMs = o.limit * 60 * 1000, stallMs = 4 * 60 * 1000;
+
+    // One step of the child: the right button, and in rapid mode three taps on it and then on every other enabled target.
+    const act = async (key, what, extra = {}) => {
+      const s = await ev(SNAPSHOT_JS);
+      const keys = [key];
+      if (rapid) for (const other of s.enabled) if (!keys.includes(other)) keys.push(other);
+      // Could a finger reach it? (disabled, not inside the screen, covered by the HUD or by another target)
+      const reach = await ev(reachJs(key)).catch(() => null), tally = (report.reach ||= { checks: 0, hard: [], sampled: 0, obstructed: {} });
+      tally.checks++;
+      if (reach && (!reach.found || reach.disabled || !reach.centreHit || reach.percent < 50 || !reach.inside)) { tally.hard.push({ key, t: T(), what, ...reach }); step('TARGET HARD TO REACH', { key, ...reach }); }
+      const taps = await ev(tapJs(keys, rapid ? 3 : 1, rapid ? 10 : 0));
+      let after = {};
+      if (rapid) { await sleep(300); const a = await ev(SNAPSHOT_JS); after = { after: `${a.phase}/${a.matched}${a.bridge.selected ? '/sel:' + a.bridge.selected : ''}`, open: a.cards.filter(c => c.status !== 'hidden').map(c => c.id + c.status[0]).join(',') }; }
+      step(what, { ...extra, ...(rapid ? { targets: keys.length, taps, ...after } : {}) });
+      // The first leaf tapped: the squash and its puff, a moment (80 ms) after the tap.
+      if (key.startsWith('leaf-')) await milestone('squash', 'leaf-squash', 80);
+      // The first time the bubbles open: how big each portrait is on this screen.
+      if (key.startsWith('task-') && !report.who) { await sleep(500); const who = await ev('window.__memory.who()'); if (who.open) { report.who = await ev(WHO_JS); step('bubbles measured', { faces: report.who.faces.map(f => `${f.species}:${f.width}x${f.height}`).join(' ') }); } }
+    };
+
+    for (;;) {
+      if (o.mode === 'glade') break;
+      if (Date.now() - roundStart > limitMs) { report.stalled = `over the ${o.limit} minute limit`; step('TIMEOUT round limit'); break; }
+      const s = await ev(SNAPSHOT_JS);
+      const progress = [s.phase, s.matched, s.bridge.active, s.bridge.failing, s.bridge.branch, s.bridge.bridgeBuilt, s.bridge.atStaging, s.bridge.boardwalkBuilt, s.bridge.visited,
+        s.bridge.asking, s.who.open, s.wait?.count, s.cam.moving, s.cam.held, s.cam.shot, s.scene, s.walking].join('|');
+      if (progress !== lastKey) { lastKey = progress; lastProgress = Date.now(); }
+      if (Date.now() - lastProgress > stallMs) { report.stalled = `no change for ${stallMs / 1000}s at ${progress}`; step('STALLED', { at: progress, caption: s.caption }); break; }
+
+      if (!s.wait) tapWait = null;
+      // Every 2.5 s: which enabled targets a finger cannot fully reach (under the HUD, off the screen, overlapped by a neighbour).
+      if (!s.paused && Date.now() - lastReach > 2500) {
+        lastReach = Date.now();
+        const list = await ev(ENABLED_REACH_JS).catch(() => []), tally = (report.reach ||= { checks: 0, hard: [], sampled: 0, obstructed: {} });
+        tally.sampled++;
+        for (const x of list) {
+          const id = x.key + ' by ' + Object.keys(x.covers).sort().join('+'), entry = (tally.obstructed[id] ||= { key: x.key, covers: x.covers, firstAt: T(), samples: 0, worstPercent: 100, centreHit: true, inside: true, box: x.box, caption: s.caption, act: s.act, shot: s.cam.shot });
+          entry.samples++; entry.worstPercent = Math.min(entry.worstPercent, x.percent); entry.centreHit &&= x.centreHit; entry.inside &&= x.inside;
+        }
+      }
+      // "Aftur" (#cancel-choice) must be on screen whenever the bubbles are open, also when they come back after a wrong friend's go.
+      if (s.bridge.failing) sawFailing = true; else if (!s.bridge.asking) sawFailing = false;
+      if (s.who.open) {
+        const kind = sawFailing ? 'reopened' : 'opened', c = (report.cancelCheck[kind] ||= { checks: 0, failures: 0 });
+        let box = s.cancelBox;
+        if (!(box.shown && !box.hidden && !box.disabled && box.inside)) { await sleep(120); box = (await ev(SNAPSHOT_JS)).cancelBox; } // (a frame later: the state can change between two frames)
+        c.checks++;
+        if (!(box.shown && !box.hidden && !box.disabled && box.inside)) {
+          c.failures++; errors.push(`#cancel-choice is not on screen with the bubbles open (${kind}, asking ${s.who.asking}): ${JSON.stringify(box)}`);
+          step('CANCEL BUTTON MISSING with the bubbles open', { kind, asking: s.who.asking, box });
+        }
+        if (sawFailing) { report.cancelCheck.afterWrong = (report.cancelCheck.afterWrong ?? 0) + 1; sawFailing = false; }
+      }
+      for (const g of report.gifts) {
+        if (!g.foundAt && s.found.includes(g.item)) g.foundAt = T();
+      }
+      if (s.basket > report.gifts.filter(g => g.landedAt).length) { const g = report.gifts.find(x => x.foundAt && !x.landedAt); if (g) g.landedAt = T(); }
+      if (s.placed >= 3 && s.bridge.active === 'lay') mark('bark-end');
+      // A walk the adventure gave up (planning-timeout, no-clear-route): "bridge-blocked". Each one is listed; a blocked crossing or walk to the grove is watched until it starts again by itself
+      // (the gold arrow on its place meanwhile: the staging spot or the grove).
+      if (s.blocked < blockedSeen) blockedSeen = s.blocked;
+      if (s.blocked > blockedSeen) {
+        const list = await ev('window.__demoStats.bridge.blocked');
+        for (const entry of list.slice(blockedSeen)) { report.blocked.push({ ...entry, t: T() }); step('BRIDGE BLOCKED', entry); }
+        blockedSeen = list.length;
+        const last = list.at(-1);
+        if (['cross', 'finish'].includes(last.id)) retryWatch = { id: last.id, reason: last.reason, t: T(), caption: s.caption, captions: [s.caption], arrowAt: null, restartedAt: null };
+      }
+      if (retryWatch) {
+        const target = retryWatch.id === 'cross' ? 'task-staging' : 'task-grove';
+        if (s.caption && !retryWatch.captions.includes(s.caption)) retryWatch.captions.push(s.caption);
+        if (!retryWatch.arrowAt && await ev(`Boolean(document.querySelector('#targets .is-guided[data-target="${target}"]'))`)) {
+          retryWatch.arrowAt = T();
+          retryWatch.arrow = await ev(ARROW_JS).catch(e => ({ error: e.message }));
+          retryWatch.button = await ev(`(() => { const b = document.querySelector('[data-target="${target}"]'), r = b.getBoundingClientRect(); return { enabled: !b.disabled, ring: b.classList.contains('choice-visible'), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, width: Math.round(r.width), height: Math.round(r.height) }; })()`);
+          step(`the gold arrow on ${target} while the blocked ${retryWatch.id} waits`, { caption: s.caption, arrow: retryWatch.arrow?.insideScreen, button: retryWatch.button });
+          // (not a paused milestone: a pause takes the arrow away and restarts the wait)
+          await shot(`blocked-${retryWatch.id}-gold-arrow-while-it-waits`);
+        }
+        if (!retryWatch.restartedAt && s.bridge.active === retryWatch.id) {
+          retryWatch.restartedAt = T(); retryWatch.secondsToRetry = +(retryWatch.restartedAt - retryWatch.t).toFixed(1);
+          step(`the blocked ${retryWatch.id} starts again by itself`, { seconds: retryWatch.secondsToRetry, arrowSeen: Boolean(retryWatch.arrowAt) });
+          report.blockedRetry.push(retryWatch); retryWatch = null;
+        }
+      }
+      // "Rólegri hreyfing" pressed on and off while Mosi walks: his animation must stay the walk clip (it used to switch to a still idle).
+      if (o.toggleMotion && !report.motionToggle && (s.mosi === 'walk' || s.mosi === 'deck')) {
+        const read = () => ev(`(() => { const d = window.__memory.stats(); return { walking: Boolean(d.scene.mosiWalk), animation: d.scene.mosiAnimation, pressed: document.getElementById('motion').getAttribute('aria-pressed') }; })()`);
+        await sleep(450); // (his walk clip has faded in: it takes .25 s)
+        const before = await read();
+        await ev(`document.getElementById('motion').click()`); await sleep(350); const calm = await read();
+        await ev(`document.getElementById('motion').click()`); await sleep(350); const after = await read();
+        const walks = value => value.walking && value.animation.some(a => a.clip === 'walk' && a.timeScale > 0 && a.weight > .95) && !value.animation.some(a => a.clip === 'idle' && a.weight > .05); // only the walk clip, at full weight (the old code faded him to a still idle)
+        report.motionToggle = { during: s.bridge.active, before, calm, after, passed: [before, calm, after].every(walks) && calm.pressed === 'true' && after.pressed === 'false' };
+        step('calm motion pressed on and off while Mosi walks', report.motionToggle);
+        if (!report.motionToggle.passed) errors.push(`Mosi did not keep his walk clip when calm motion was pressed mid-walk: ${JSON.stringify(report.motionToggle)}`);
+      }
+      if (o.stopAfterRetry && report.blockedRetry.at(-1)?.restartedAt && s.bridge.atStaging && !s.scene && !s.cam.held) { report.finished = true; step('the retried crossing has arrived: stop'); await sleep(800); await shot('retried-crossing-arrived'); break; }
+      if (s.bridge.active === 'cross' && !report.crossAfterGifts) report.crossAfterGifts = { at: T(), basket: s.basket, giftsLeft: s.giftsLeft, lastLanded: report.gifts.map(g => g.landedAt).filter(Boolean).at(-1) ?? null };
+      if (s.bridge.active === 'finish' && (s.mosi === 'walk' || s.mosi === 'deck')) mark('grove-start');
+      if (s.bridge.visited) mark('grove-end');
+      if (s.ending) {
+        report.finished = true; step('ending'); await sleep(1500); await shot('ending');
+        report.endingCard = await ev(`(() => { const row = document.getElementById('ending-gifts'), size = el => parseFloat(getComputedStyle(el).fontSize); return { copy: document.getElementById('ending-copy').textContent, gifts: row.hidden ? null : document.getElementById('ending-gifts-text').textContent, giftsFontPx: row.hidden ? null : size(row), copyFontPx: size(document.getElementById('ending-copy')), again: document.getElementById('again').textContent.trim(), basketInCard: !row.hidden && Boolean(row.querySelector('svg')), foundInRules: window.__memory.state().found, basket: window.__memory.basket() }; })()`);
+        step('the ending card', report.endingCard ?? {});
+        // The small "i": the credits of the three models (one Líkan / Leyfi / Frá group each), open for a picture, then shut.
+        try {
+          await ev(`document.getElementById('credits-toggle').click()`); await sleep(400);
+          report.credits = await ev(`(() => { const box = document.getElementById('credits'), toggle = document.getElementById('credits-toggle'), r = box.getBoundingClientRect(), t = toggle.getBoundingClientRect(), card = document.getElementById('ending').getBoundingClientRect();
+            return { open: !box.hidden, groups: box.querySelectorAll('.credit-group').length, rows: [...box.querySelectorAll('p')].map(p => p.textContent), fontPx: parseFloat(getComputedStyle(box.querySelector('p')).fontSize), box: { left: Math.round(r.left), top: Math.round(r.top), right: Math.round(r.right), bottom: Math.round(r.bottom) }, insideScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, toggle: { width: Math.round(t.width), height: Math.round(t.height) }, expanded: toggle.getAttribute('aria-expanded'), closedByDefault: true }; })()`);
+          await shot('ending-credits'); await ev(`document.getElementById('credits-toggle').click()`); await sleep(150);
+          report.credits.closedAgain = await ev(`document.getElementById('credits').hidden`);
+        } catch (e) { report.credits = { error: e.message }; }
+        if (o.restartAt === 'ending') {
+          const beats = await ev('window.__memory.stats().scene.beats'); if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
+          await ev(`document.getElementById('again').click()`); await sleep(1500); report.restartCheck = await ev(RESTART_JS); step('after Spila aftur', report.restartCheck); }
+        break;
+      }
+      if (o.mode === 'branch' && s.bridge.branch === 'held' && !s.bridge.active && !s.cam.moving && !s.cam.held && !s.scene) {
+        report.finished = true; step('the branch is up'); await sleep(800); await shot('branch-held'); break;
+      }
+      // The match script holds the camera until it has glided back to the glade.
+      if (o.mode === 'first-minute' && s.matched >= 1 && s.phase === 'ready' && !s.walking && !s.cam.moving && !s.cam.held && !s.scene && (holdFrom ??= Date.now()) && Date.now() - holdFrom >= o.hold * 1000) {
+        report.finished = true; step('first pair is home'); await sleep(800); await shot('first-pair-home');
+        // After the match script has glided back, the search view must be the frame it was before.
+        report.gladeAfter = await ev('window.__memory.stats({ measure: true }).frame').catch(e => ({ error: e.message }));
+        report.gladeDrift = frameDrift(report.glade, report.gladeAfter);
+        step('glade after the first pair', report.gladeDrift ?? {});
+        break;
+      }
+
+      // Milestone pictures. Waiting for one makes the snapshot stale, so the loop starts over after it.
+      let waited = false;
+      if (s.phase === 'one-open') waited ||= await milestone('one-open', 'first-reveal', 350);
+      // The first friend waiting alone wonders (from 1.3 s after its leaf opened).
+      if (s.phase === 'one-open' && seen.has('one-open')) waited ||= await milestone('wonder', 'wonder', 1300);
+      if (s.phase === 'mismatch') waited ||= await milestone('mismatch', 'mismatch', 400);
+      if (s.phase === 'mismatch' && seen.has('mismatch')) waited ||= await milestone('mismatch-duck', 'mismatch-duck', 350);
+      // The wrong pair closes (1.5 s after the mismatch began): the leaves drop with a bounce and a bonk.
+      if (s.phase === 'mismatch' && seen.has('mismatch-duck')) waited ||= await milestone('mismatch-close', 'mismatch-close', 750);
+      // The match script: the face cut (startle), the run and nuzzle, the walk home (follow), Mosi's clap (wide).
+      if (s.cam.shot === 'face') waited ||= await milestone('match-closeup', 'match-closeup', 150);
+      if (s.cam.shot === 'face' && seen.has('match-closeup')) waited ||= await milestone('run-together', 'run-together', 450);
+      if (s.cam.shot === 'face' && seen.has('run-together')) waited ||= await milestone('nuzzle-glitter', 'nuzzle-glitter', 600);
+      if (s.cam.shot === 'follow') waited ||= await milestone('walk-home', 'walk-home', 900);
+      if (s.cam.shot === 'wide') waited ||= await milestone('home-clap', 'home-clap', 500);
+      if (s.matched > 0 && !s.cam.held) waited ||= await milestone(`matched-${s.matched}`, `match-${s.matched}`, 300);
+      // A gift: its first leaf (the animal standing, Mosi's "Hvar er hin?"), a miss, the pair rising, flying and the basket counting it; and the wait for them.
+      if (s.phase === 'one-open' && s.cards.some(c => c.status === 'open' && c.item)) waited ||= await milestone('gift-first', 'gift-first-leaf', 900);
+      if (s.phase === 'mismatch' && s.cards.some(c => c.status === 'open' && c.item)) waited ||= await milestone('gift-mismatch', 'gift-mismatch', 800);
+      if (s.giftPhases.includes('rise')) waited ||= await milestone('gift-rise', 'gift-pair-rises', 450);
+      if (s.giftPhases.includes('fly')) waited ||= await milestone('gift-fly', 'gift-pair-flies', 250);
+      if (s.basket >= 1) waited ||= await milestone('gift-basket', 'gift-in-basket', 350);
+      if (s.story.key === 'gifts-left') waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
+      // The branch: the obstacle glowing, the arrow after hesitating, the bubbles, a wrong friend's go and Mosi's laugh,
+      // the walk there, each tap of the tap-along (or the timeout's "Við gerum þetta saman!") and the cheer.
+      if (s.story.kind === 'work' && s.story.target === 'branch' && s.story.available && !s.cam.held && !s.scene) waited ||= await milestone('glow-branch', 'branch-glowing', 400);
+      // The bark at the marsh sways as well as glows: two pictures a moment apart.
+      if (s.story.kind === 'work' && s.story.target === 'bark' && s.story.available && !s.cam.held && !s.scene) { waited ||= await milestone('glow-bark', 'bark-glowing', 400); if (seen.has('glow-bark')) waited ||= await milestone('glow-bark-2', 'bark-glowing-later', 650); }
+      if (s.arrow) waited ||= await milestone('arrow', 'gold-arrow', 200);
+      if (s.who.open) waited ||= await milestone(`who-${s.who.asking}`, `who-${s.who.asking}`, 450);
+      if (s.bridge.failing && s.trying && s.caption !== 'Kannski einhver annar?') waited ||= await milestone(`fail-${s.bridge.failing}`, `fail-${s.bridge.failing}`, 500);
+      if (s.bridge.failing && s.caption === 'Kannski einhver annar?') waited ||= await milestone(`mosi-laugh-${s.bridge.asking}`, `mosi-laughs-${s.bridge.asking}`, 350);
+      if (s.bridge.active === 'lift' && s.cam.shot === 'follow') waited ||= await milestone('bronto-walk', 'brontos-walk-to-branch', 500);
+      if (s.caption === 'Við gerum þetta saman!') waited ||= await milestone(`together-${s.bridge.active}`, `timeout-together-${s.bridge.active === 'roll' ? 'log' : s.bridge.active === 'lay' ? 'bark' : 'branch'}`, 300);
+      if (s.bridge.branch === 'held' && !s.bridge.active && !s.landed && s.scene && s.cam.shot === 'hero') { mark('branch-end'); waited ||= await milestone('cheer', 'cheer-branch-up', 450); }
+      // The log: the Þríhyrnur walking over, the landing (its splash, the jolt), the low hero shot of the bridge, the cheer,
+      // then the branch let go and the Þórseðlur walking home.
+      if (s.bridge.active === 'roll' && s.cam.shot === 'follow') waited ||= await milestone('tri-walk', 'trihyrnur-walk-to-log', 350);
+      if (s.bridge.active === 'roll' && s.landed) waited ||= await milestone('landing', 'log-lands-splash', 120);
+      if (s.bridge.active === 'roll' && s.landed && s.cam.shot === 'hero') waited ||= await milestone('bridge-hero', 'bridge-hero-low', 450);
+      if (s.landed && seen.has('bridge-hero') && s.scene && s.cam.shot === 'face' && !s.walking && !s.bridge.atStaging && !s.mosi) { mark('log-end'); waited ||= await milestone('tri-cheer', 'trihyrnur-cheer', 400); }
+      if (s.act && s.act.startsWith('lower:')) waited ||= await milestone('branch-lower', 'branch-lowers', 450);
+      if (s.act === 'lower:return') waited ||= await milestone('brontos-rejoin', 'brontos-rejoin', 900);
+      // The crossing: beside them as Mosi steps on, over his shoulder at mid-bridge, the friends behind, the arrival.
+      if (s.bridge.active === 'cross' && s.cam.shot === 'follow' && s.mosi === 'deck') waited ||= await milestone('cross-follow', 'cross-follow', 300);
+      if (s.bridge.active === 'cross' && s.cam.shot === 'shoulder') waited ||= await milestone('cross-shoulder', 'cross-shoulder-mid-bridge', 500);
+      if (s.bridge.active === 'cross' && s.cam.shot === 'follow' && seen.has('cross-shoulder')) waited ||= await milestone('cross-behind', 'cross-friends-behind', 400);
+      if ((s.bridge.active === 'cross' || s.bridge.atStaging) && s.cam.shot === 'wide' && seen.has('cross-shoulder')) waited ||= await milestone('cross-arrival', 'cross-arrival', 600);
+      // The marsh: the wrong friend wading in (steps and hops in the mud), the Kambeðlur lifting the bark and carrying it, each
+      // panel down with its mud thrown up and the finished boardwalk (below: walkway-built).
+      // The wrong friend wades in at the marsh's edge: the last hop into the mud in the close shot (it starts a moment before they land), then just after the landing.
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:run') { runTake ??= s.cam.take; if (s.cam.take > runTake) waited ||= await milestone('mud-hop', 'footsteps-in-the-mud', 150); }
+      if (s.bridge.failing && s.bridge.asking === 'bark' && s.act === 'fail:try') waited ||= await milestone('mud-landed', 'footsteps-in-the-mud-landed', 0);
+      if (s.act === 'lay:pickup') waited ||= await milestone('bark-pickup', 'kambedlur-pick-up-bark', 120);
+      if (s.act === 'lay:carry') waited ||= await milestone('bark-carry', 'kambedlur-carry-bark', 800);
+      for (let n = 1; n <= 3; n++) if (s.placed >= n && s.bridge.active === 'lay') waited ||= await milestone(`bark-splash-${n}`, `bark-${n}-lands-splash`, 150);
+      // The third panel is down: the whole boardwalk, done, in the cut that follows (Mosi claps).
+      if (s.placed >= 3 && s.bridge.active === 'lay' && s.cam.shot === 'wide') waited ||= await milestone('boardwalk-done', 'boardwalk-finished', 500);
+      // The walk to the grove: Mosi leads (wide, then beside the boardwalk, over his shoulder, the friends behind, the arrival).
+      if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && !seen.has('grove-walk')) waited ||= await milestone('grove-walk', 'grove-walk-starts', 500);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'follow') waited ||= await milestone('grove-follow', 'grove-follow', 450);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'shoulder') waited ||= await milestone('grove-shoulder', 'grove-shoulder', 500);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'follow' && seen.has('grove-shoulder')) waited ||= await milestone('grove-behind', 'grove-friends-behind', 450);
+      if (s.bridge.active === 'finish' && s.cam.shot === 'wide' && seen.has('grove-shoulder')) waited ||= await milestone('grove-arrival', 'grove-arrival-mosi', 900);
+      if (o.restartAt === 'gift' && (s.giftPhases.includes('rise') || s.giftPhases.includes('fly'))) {
+        await sleep(350); report.beforeGiftRestart = await ev(RESTART_JS);
+        step('restart while a gift pair flies', { basket: report.beforeGiftRestart.basketText, phases: report.beforeGiftRestart.giftPhases });
+        // The render scale must be back at 1 a moment after the restart (it steps down again only if the next 1.2 s are slow).
+        report.resolutionRestart = { before: await ev('window.__demoStats.resolutionScale') };
+        await ev('window.__memory.restart()'); await sleep(150); report.resolutionRestart.after = await ev('window.__demoStats.resolutionScale'); await sleep(1350);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', { ...report.restartCheck, resolution: report.resolutionRestart }); report.finished = true; break;
+      }
+      if (o.restartAt === 'celebration' && s.beats.includes('mosi-cheer')) {
+        await sleep(1200); // Mosi's gifts line is on its way (or playing)
+        step('restart in the middle of the celebration'); await ev('window.__memory.restart()'); await sleep(1500);
+        report.restartCheck = await ev(RESTART_JS); step('after the restart', report.restartCheck); report.finished = true; break;
+      }
+      // The celebration: a picture a moment into each beat (the pair eating, each trick, Mosi's cheer with the gifts risen, the last wide shot).
+      const BEAT_STILLS = { 'wide-start': ['celebration-arrived', 500], 'eat-triceratops': ['eating-trihyrnur', 700], 'eat-stegosaurus': ['eating-kambedlur', 700], 'eat-brontosaurus': ['eating-thorsedlur', 700], 'wide-eating': ['eating-all', 500],
+        'trick-triceratops': ['trick-trihyrnur-hop', 400], 'trick-stegosaurus': ['trick-kambedlur-happy', 500], 'trick-brontosaurus': ['trick-thorsedlur-happy', 600], 'mosi-cheer': ['mosi-cheers-gifts-rising', 800], 'gifts-seen': ['gifts-from-the-side', 700], 'final-wide': ['final-wide-shot', 600] };
+      for (const name of s.beats) if (BEAT_STILLS[name]) waited ||= await milestone(`beat-${name}`, BEAT_STILLS[name][0], BEAT_STILLS[name][1]);
+      // The waiting friends at play during the search (the first two kinds of game the page starts).
+      if (s.idle && [...seen].filter(key => key.startsWith('idle-')).length < 2) waited ||= await milestone(`idle-${s.idle}`, `idle-${s.idle}`, 1300);
+      if (s.bridge.active && !['lift', 'roll', 'cross', 'lay', 'finish'].includes(s.bridge.active)) waited ||= await milestone(`active-${s.bridge.active}`, `task-${s.bridge.active}`, 3000);
+      if (s.bridge.branch === 'held') waited ||= await milestone('held', 'branch-held', 600);
+      if (s.bridge.bridgeBuilt) waited ||= await milestone('bridge', 'bridge-built', 600);
+      if (s.bridge.atStaging) waited ||= await milestone('staging', 'at-staging', 600);
+      if (s.bridge.boardwalkBuilt) waited ||= await milestone('walkway', 'walkway-built', 600);
+      if (waited) continue;
+
+      const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
+      // A child looks around once a pair is home: the waiting friends play (in the story modes, between the leaves).
+      const thinkSeconds = o.think ?? (o.mode === 'full' ? 11 : 0);
+      if (thinkSeconds > 0 && mayAct && s.phase === 'ready' && s.matched >= 1 && !s.walking && !s.who.open && !s.wait && !thought.has(s.matched)) {
+        thought.add(s.matched); thinkUntil = Date.now() + thinkSeconds * 1000; step('looks around', { seconds: thinkSeconds, pairs: s.matched });
+      }
+      if (Date.now() < thinkUntil && mayAct && !s.wait) { await sleep(150); continue; }
+      const leaf = id => id !== undefined && s.enabled.includes(`leaf-${id}`);
+      if (o.mode === 'first-minute' && s.matched >= 1) {
+        // The first pair is found: wait for its friends to walk home, and pick nothing more.
+      } else if (s.wait && s.wait.target) {
+        // The tap-along under the still shot: three taps, a picture after each (its "Upp!" or "Einn!", "Tveir!", "ÝTA!" is
+        // up), or none at all.
+        if (o.tapAlong && tapWait !== s.wait.target) {
+          const target = s.wait.target, bark = target === 'bark', count = s.wait.count;
+          tapWait = target;
+          // The bark: one wait for each panel. A picture of the still shot before its tap (the panel held over its place).
+          if (bark) { barkTaps++; await sleep(rapid ? 100 : 350); if (shots) await milestone(`bark-still-${barkTaps}`, `bark-still-${barkTaps}`, 0); await sleep(rapid ? 0 : 150); }
+          else await sleep(rapid ? 100 : 500);
+          for (let i = 1; i <= count; i++) {
+            const tapped = await ev(tapJs([`task-${target}`], 1, 0));
+            step(`tap along ${target} ${bark ? barkTaps : i}`, { taken: tapped });
+            // The picture once this step has landed (a step of the lift takes about 0.6 s, a third of the roll 0.77 s, the big word
+            // of a panel is up at once).
+            if (shots) await (bark ? milestone(`bark-word-${barkTaps}`, `bark-word-${barkTaps}`, 280) : milestone(`tap-${target}-${i}`, `${target === 'branch' ? 'hero' : target}-tap-${i}`, target === 'log' ? 450 : 520));
+            await sleep(rapid ? 120 : 250);
+          }
+        }
+      } else if (s.who.open && mayAct) {
+        // The bubbles: at the branch, the log and the bark in the story modes one wrong friend first (at the branch the
+        // Þríhyrnur, at the log the Kambeðlur, the only other free pair there, at the bark the Þórseðlur), then the right one.
+        const right = RIGHT[s.who.asking], wrong = s.who.candidates.find(sp => sp === WRONG[s.who.asking] && sp !== right) ?? s.who.candidates.find(sp => sp !== right);
+        const pick = story && !wrongDone.has(s.who.asking) && ['branch', 'log', 'bark'].includes(s.who.asking) && wrong ? wrong : s.who.candidates.includes(right) ? right : null;
+        if (pick === wrong && pick) wrongDone.add(s.who.asking);
+        if (pick) await act(`who-${pick}`, `pick ${pick} for the ${s.who.asking}${pick === right ? '' : ' (the wrong friend, on purpose)'}`);
+        else if (s.cancel) { await ev(`document.getElementById('cancel-choice').click()`); step('close the bubbles: nobody there can do it'); }
+      } else if (s.story.kind === 'work' && s.story.available && s.story.target && mayAct && ['ready', 'won'].includes(s.phase) && !s.walking && Date.now() - lastAsk > 1500
+        && !(story && !o.usualOrder && s.story.target === 'log' && s.cards.some(c => c.species && c.status !== 'matched'))) {
+        // (The story modes find every pair before the log, so the Kambeðlur can be its wrong friend; --usual-order does not.)
+        // Hesitate once (full mode, at the branch) so the gold arrow shows, then tap the glowing obstacle.
+        if (o.mode !== 'rapid' && !arrowWaited && s.story.target === 'branch') {
+          arrowWaited = true; step('wait for the gold arrow');
+          if (await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 12000, 'the gold arrow') >= 0) await milestone('arrow', 'gold-arrow', 150);
+          continue;
+        }
+        lastAsk = Date.now();
+        if (['branch', 'log', 'bark'].includes(s.story.target)) mark(`${s.story.target}-start`);
+        const where = await ev(`(() => { const t = window.__memory.targets().find(t => t.type === 'task' && t.id === ${JSON.stringify(s.story.target)}); return t ? { x: Math.round(t.x), y: Math.round(t.y), enabled: t.enabled } : null; })()`);
+        await act(`task-${s.story.target}`, `tap the ${s.story.target}`, { since: +((Date.now() - lastProgress) / 1000).toFixed(1), at: where });
+      } else if (s.phase === 'one-open' && mayAct && s.cards.some(c => c.status === 'open' && c.item)) {
+        // A gift's first leaf is open. The first two pairs are tried wrongly once (with another gift, then with a friend), then the partner.
+        const open = s.cards.find(c => c.status === 'open'), k = giftItems.indexOf(open.item);
+        let target;
+        if (!giftMissed.has(open.item) && k < 2) {
+          giftMissed.add(open.item);
+          target = k === 0 ? hiddenGift(s, giftItems[1])[0] : s.cards.find(c => c.species && c.status === 'hidden')?.id;
+          if (leaf(target)) { await act(`leaf-${target}`, `pick leaf ${target} (${s.cards[target].item ?? s.cards[target].species}) to miss the ${open.item} on purpose`); continue; }
+        }
+        target = hiddenGift(s, open.item).find(leaf);
+        if (target !== undefined) await act(`leaf-${target}`, `pick leaf ${target} (the other ${open.item})`);
+      } else if (s.phase === 'one-open' && mayAct) {
+        const open = s.cards.find(c => c.status === 'open');
+        if (missPlan === 1 && order.length > 1) {
+          const miss = hidden(s, order[order.length - 1])[0];
+          if (leaf(miss)) { missPlan = 2; await act(`leaf-${miss}`, `pick leaf ${miss} (${s.cards[miss].species}) to miss on purpose`); continue; }
+        }
+        const partner = hidden(s, open?.species).find(leaf);
+        if (partner !== undefined) await act(`leaf-${partner}`, `pick leaf ${partner} (partner of ${open.id}, ${open.species})`);
+      } else if (s.phase === 'ready' && mayAct && !s.bridge.asking) {
+        let id;
+        // With every friend found, the bridge built and gifts left (--gifts-last): Mosi says so, the gold arrow points at a shut leaf and a tap on the staging spot says the same.
+        if (wantGifts && o.giftsLast && s.story.key === 'gifts-left' && !giftsLeftChecked) {
+          giftsLeftChecked = true; step('every friend home, the bridge built, gifts left: hesitate for the arrow');
+          const speechBefore = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft').length;
+          // The wait is played in the search view (camera intent 'glade'): once the glide has settled, every shut leaf is inside the frame.
+          await waitFor('!window.__demoStats.camera.moving', 20000, 'the wait camera');
+          report.giftsView = await ev(GIFTS_VIEW_JS); step('the wait view', report.giftsView);
+          const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
+          const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
+          report.giftsArrow = await ev(ARROW_JS).catch(e => ({ error: e.message })); step('the gold arrow', report.giftsArrow ?? {});
+          const stagingButton = await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+          const before = await ev(SNAPSHOT_JS);
+          const leafButtons = await ev(LEAF_BOXES_JS(':not(:disabled)')); delete leafButtons.boxes; // the shut leaves' buttons as the wide view lays them out
+          await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
+          const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
+          const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
+          report.giftsLeft = { stagingButton, story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
+            leafButtons, linesBeforeTap: speechBefore, linesAfterTap: spoken.length, crossStartedByTap: after.bridge.active === 'cross' || after.mosi === 'walk', captionAfterTap: after.caption, giftsLeft: after.giftsLeft };
+          step('gifts left check', report.giftsLeft); continue;
+        }
+        const dueItem = wantGifts ? giftItems.find((item, k) => !s.found.includes(item) && s.matched >= giftAt[k]) : undefined;
+        if (dueItem !== undefined) {
+          const firstLeaf = hiddenGift(s, dueItem).find(leaf);
+          if (firstLeaf !== undefined) {
+            if (!report.gifts.some(g => g.item === dueItem)) report.gifts.push({ item: dueItem, id: firstLeaf, at: T() });
+            await act(`leaf-${firstLeaf}`, `pick gift leaf ${firstLeaf} (${dueItem})`); continue;
+          }
+        }
+        if (missPlan === 0 && s.matched === 0) { id = hidden(s, order[0])[0]; if (leaf(id)) missPlan = 1; }
+        else {
+          const species = order.find(sp => s.cards.some(c => c.species === sp && c.status !== 'matched'));
+          id = species === undefined ? undefined : hidden(s, species)[0];
+        }
+        if (leaf(id)) await act(`leaf-${id}`, `pick leaf ${id} (${s.cards[id].species})`);
+      } else if (s.bridge.asking && s.cancel && !s.who.open && Date.now() - lastProgress > 8000 && Date.now() - lastCancel > 8000) {
+        // Bubbles a stray tap opened and nothing came of them: "Aftur" closes them.
+        lastCancel = Date.now();
+        await ev(`document.getElementById('cancel-choice').click()`);
+        step('close stray bubbles', { asking: s.bridge.asking });
+      }
+      // Rapid: while a script holds the camera, tap everything anyway, every 0.4 s.
+      if (rapid && (s.scene || s.cam.held) && Date.now() - lastHammer > 400) { lastHammer = Date.now(); await ev(HAMMER_JS); }
+      await sleep(rapid ? 120 : 150);
+    }
+    report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
+    for (const entry of report.marks) entry.round = +(entry.at - roundStart / 1000).toFixed(1);
+    try { const end = await ev(SNAPSHOT_JS); report.found = end.found; report.basketEnd = end.basket; } catch {}
+    if (retryWatch) report.blockedRetry.push({ ...retryWatch, neverRetried: true });
+
+    // ---- what the run looked like -----------------------------------------------------------------------------
+    try { report.timeline = await ev('window.__tl'); report.taps = await ev('window.__taps'); report.pageOrigin = await ev('window.__origin'); } catch {}
+    report.timelineCheck = timelineCheck(report.timeline, report.taps);
+    // The glide from the search view into the crossing once the last gift pair has landed (--gifts-last): from the camera on every frame.
+    try {
+      const track = await ev('window.__camTrack');
+      if (o.giftsLast && track?.length) {
+        const [w, h] = o.size.split('x').map(Number);
+        report.giftsGlide = analyseGlide(track, w / h, report.giftsView?.mosiAt);
+        const keep = report.giftsGlide.landedAt != null ? track.filter(f => f.t >= report.giftsGlide.landedAt - 1.5) : track.slice(-300);
+        await fsp.writeFile(path.join(outDir, 'camtrack.json'), JSON.stringify(keep));
+        step('the glide into the crossing', { ...report.giftsGlide, intents: report.giftsGlide.intents?.length });
+      }
+    } catch (e) { report.giftsGlide = { error: e.message }; }
+    try {
+      // Every line of Mosi's that began, with the game clock (the speech's own log, not a sample), and how long the gifts line took to follow the gifts beat.
+      report.spoken = await ev('window.__memory.audio().speech.started'); report.sounds = await ev('window.__sounds');
+      const beats = (await ev('window.__memory.stats().scene.beats')) ?? [], cheer = beats.find(b => b.name === 'mosi-cheer'), gifts = report.spoken.find(s => s.id === 'gifts3');
+      report.speechCheck = { won: report.spoken.filter(s => s.id === 'won').length, gifts3: report.spoken.filter(s => s.id === 'gifts3').length, giftsLag: cheer && gifts ? +(gifts.t - cheer.t).toFixed(2) : null,
+        giftLines: report.spoken.filter(s => /^gift_/.test(s.id)).map(s => s.id), giftsLeftLines: report.spoken.filter(s => s.id === 'giftsLeft').length };
+    } catch {}
+    // Where the round ended (a finished round or a stuck one): the page's own state, to read when it did not finish.
+    try { report.endState = await ev(`(() => { const d = window.__memory.stats(), b = d.bridge || {}; return { action: b.action ? { id: b.action.id, phase: b.action.phase, age: b.action.age } : null, scene: { busy: d.scene.busy, waiting: d.scene.waiting }, camera: { mode: d.camera.mode, moving: d.camera.moving, held: d.camera.held, shot: d.camera.shot }, bridge: window.__memory.bridge(), pairs: Object.fromEntries(Object.entries(b.pairs || {}).map(([k, p]) => [k, { ready: p.ready, actors: (p.actors || []).map(a => ({ at: a.position && a.position.map(v => +v.toFixed(2)), motion: a.motion, gesture: a.gesture })) }])), idle: d.idle && d.idle.active, homeNavigation: d.homeNavigation && { planned: d.homeNavigation.planned, failures: d.homeNavigation.failures, maxPlanningMs: d.homeNavigation.maxPlanningMs, maxIterations: d.homeNavigation.maxIterations, maxSliceMs: d.homeNavigation.maxSliceMs, lastPlan: d.homeNavigation.lastPlan, lastTrafficBlock: d.homeNavigation.lastTrafficBlock }, cells: d.cells.map(c => ({ id: c.id, species: c.species, status: c.status, moved: c.moved, moving: c.moving, at: c.position && c.position.map(v => +v.toFixed(2)) })) }; })()`); } catch (e) { report.endState = { error: e.message }; }
+    try {
+      const d = await ev('window.__memory.stats()');
+      report.idle = d.idle; report.idleCheck = idleCheck(d.idle);
+      const beats = d.scene?.beats ?? [];
+      if (beats.length) report.celebration = { beats, seconds: +(beats.at(-1).t - beats[0].t).toFixed(2), cuts: beats.filter(b => b.cut).map(b => b.t).map((t, i, all) => i ? +(t - all[i - 1]).toFixed(2) : null).filter(Boolean) };
+    } catch {}
+    try {
+      const takes = Object.values(await ev('window.__takes')).sort((a, b) => b.tris - a.tris);
+      report.takes = takes; report.routes = await ev('window.__routes');
+      // The action's own seconds (the game clock; the wall-clock spans above run a little longer when a frame takes over 50 ms).
+      if (report.timelineCheck?.grove && report.routes?.finish) report.timelineCheck.grove.actionSeconds = report.routes.finish.elapsed;
+      if (report.timelineCheck?.marsh && report.routes?.lay) report.timelineCheck.marsh.actionSeconds = report.routes.lay.elapsed;
+      if (report.timelineCheck) report.timelineCheck.takes = takes.length;
+      if (o.clearance) report.clearance = await ev('window.__clr');
+    } catch {}
+    if (report.timelineCheck) step('timeline check', { crossing: report.timelineCheck.crossing?.deckToInput ?? null, marsh: report.timelineCheck.marsh?.layToBoardwalk ?? null, grove: report.timelineCheck.grove?.firstStepToArrive ?? null, longestWatch: report.timelineCheck.longestWatch?.seconds ?? null });
+    try {
+      report.perf = await ev(PERF_JS(4));
+      report.render = await ev(`(() => { const s = window.__demoStats || {}; return { drawCalls: s.drawCalls, triangles: s.triangles, textures: s.textures, geometries: s.geometries, resolutionScale: s.resolutionScale }; })()`);
+      report.renderMax = await ev('window.__max');
+      // What one world.getDebug() costs here (it used to run on every frame for window.__demoStats; now only when it is read).
+      report.debugCostMs = await ev("(() => { const t = performance.now(); for (let i = 0; i < 20; i++) window.__memory.stats({ collision: false }); return +((performance.now() - t) / 20).toFixed(2); })()").catch(() => null);
+      // The ending render scale: a full 1280x800 round that ends below 1 is flagged (the scale must recover once the frames are fast again).
+      const res = (await ev('window.__res')) ?? {}, end = report.render?.resolutionScale;
+      report.resolution = { end, min: res.min ?? null, changes: res.changes ?? [], flag: o.mode === 'full' && o.width === 1280 && o.height === 800 && Number.isFinite(end) && end < 0.999 ? (o.cpuThrottle > 1 ? 'ends below 1 (CPU throttled: expected)' : 'ENDS BELOW 1 AT 1280x800') : null };
+      report.scenePerf = await ev(`(() => { const d = window.__scenePerf.slice(1), s = [...d].sort((a, b) => a - b); return d.length ? { frames: d.length, fps: +(1000 / (d.reduce((a, b) => a + b, 0) / d.length)).toFixed(1), p95ms: +s[Math.floor(s.length * .95)].toFixed(1), worstMs: +s[s.length - 1].toFixed(1) } : null; })()`);
+      // Throttled: lift the throttle and give the game 15 s of fast frames; the render scale must have stepped back up (.05 at a time, at most every 4 s).
+      if (o.cpuThrottle > 1) {
+        await send('Emulation.setCPUThrottlingRate', { rate: 1 }); await sleep(15000);
+        report.resolution.afterRelief = await ev('window.__demoStats.resolutionScale'); report.resolution.lastChanges = ((await ev('window.__res')) ?? {}).changes?.slice(-8) ?? [];
+      }
+    } catch (e) { report.perf = { error: e.message }; }
+    if (o.video) {
+      await send('Page.stopScreencast').catch(() => {});
+      await sleep(300);
+    }
+  } catch (e) {
+    fatal = e; errors.push(`driver: ${e.stack || e.message}`.slice(0, 900));
+  } finally {
+    if (o.video) {
+      await Promise.allSettled(frames.writes);
+      report.video = await makeVideo(framesDir, outDir, frames);
+      // Each mark's place in round.mp4: seconds after the first screencast frame; the timeline check's moments too.
+      const first = frames.stamps.find(Number.isFinite);
+      if (Number.isFinite(first)) for (const entry of report.marks ?? []) entry.video = +(entry.at - first).toFixed(1);
+      if (Number.isFinite(first) && report.timelineCheck && report.pageOrigin) {
+        const video = t => Number.isFinite(t) ? +(report.pageOrigin / 1000 + t - first).toFixed(1) : null, check = report.timelineCheck;
+        check.video = { crossingFirstStep: video(check.crossing?.firstStep), crossingDeck: video(check.crossing?.deck), crossingArrive: video(check.crossing?.arrive), crossingInput: video(check.crossing?.input),
+          marshFirstTap: video(check.marsh?.firstTap), marshLayStart: video(check.marsh?.layStart), marshLastPanel: video(check.marsh?.lastPanel), marshBoardwalk: video(check.marsh?.boardwalk),
+          groveFirstStep: video(check.grove?.firstStep), groveArrive: video(check.grove?.arrive), groveInput: video(check.grove?.input),
+          longestWatchFrom: video(check.longestWatch?.from), longestWatchTo: video(check.longestWatch?.to) };
+      }
+    }
+    report.finishedAt = new Date().toISOString();
+    report.totalSeconds = T();
+    await stopBrowser(browser);
+    server.close();
+    await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+  }
+  const r = report;
+  console.log(`${r.finished ? 'FINISHED' : 'NOT FINISHED'} ${o.mode} ${o.size}: round ${r.roundSeconds}s, ${r.errors.length} errors, ${r.steps.length} steps, perf ${JSON.stringify(r.perf)}, render ${JSON.stringify(r.render)}`);
+  if (r.video) console.log(`Video: ${r.video.file ?? 'none'} (${r.video.frames} frames${r.video.error ? ', ' + r.video.error : ''})`);
+  if (r.marks?.length) console.log(`Marks: ${r.marks.map(m => `${m.name} ${m.video ?? m.round}s`).join(', ')}`);
+  if (r.timelineCheck) console.log(`Timeline check: crossing ${JSON.stringify(r.timelineCheck.crossing)}, marsh ${JSON.stringify(r.timelineCheck.marsh)}, grove ${JSON.stringify(r.timelineCheck.grove)}, longest watch ${JSON.stringify(r.timelineCheck.longestWatch)}${r.timelineCheck.video ? `, video ${JSON.stringify(r.timelineCheck.video)}` : ''}`);
+  if (r.takes?.length) console.log(`Heaviest framings: ${r.takes.slice(0, 5).map(t => `#${t.take} ${t.shot || '-'} ${t.act ?? ''} ${Math.round(t.tris / 1000)}k/${t.calls} (friends ${t.actors ?? '?'}k, ${t.drawn ?? '?'} drawn)`).join(' | ')}`);
+  if (r.clearance) console.log(`Plants: ${r.clearance.plants?.samples} samples, closest gap ${r.clearance.plants?.minimum} m ${JSON.stringify(r.clearance.plants?.closest)}`);
+  if (r.clearance) console.log(`Clearance: ${r.clearance.samples} samples, minimum ${r.clearance.minimum}, ${Object.keys(r.clearance.worst).length} overlaps ${JSON.stringify(Object.values(r.clearance.worst).sort((a, b) => a.clearance - b.clearance).slice(0, 6))}`);
+  if (r.reach) console.log(`Targets a finger could not fully reach: ${r.reach.hard.length} of ${r.reach.checks} taps; ${Object.keys(r.reach.obstructed).length} kinds in ${r.reach.sampled} samples of the enabled ones${Object.keys(r.reach.obstructed).length ? ' ' + JSON.stringify(Object.values(r.reach.obstructed).slice(0, 8).map(x => ({ key: x.key, by: x.covers, worst: x.worstPercent, centre: x.centreHit, inside: x.inside, n: x.samples }))) : ''}`);
+  if (r.blocked) console.log(`Blocked walks (bridge-blocked): ${r.blocked.length}${r.blocked.length ? ' ' + JSON.stringify(r.blocked) : ''}; retried by itself: ${JSON.stringify((r.blockedRetry ?? []).map(x => ({ id: x.id, reason: x.reason, seconds: x.secondsToRetry, arrow: x.arrowAt != null, captions: x.captions })))}`);
+  if (r.resolution) console.log(`Resolution scale: end ${r.resolution.end}, lowest ${r.resolution.min}, ${r.resolution.changes.length} changes${r.resolution.afterRelief !== undefined ? `, ${r.resolution.afterRelief} after 15 s without the throttle` : ''}${r.resolution.flag ? ' - FLAG: ' + r.resolution.flag : ''}`);
+  if (r.resolutionRestart) console.log(`Resolution across the restart: ${JSON.stringify(r.resolutionRestart)}`);
+  if (r.cancelCheck) console.log(`"Aftur" check with the bubbles open: ${JSON.stringify(r.cancelCheck)}`);
+  if (r.debugCostMs != null) console.log(`One world.getDebug() call: ${r.debugCostMs} ms`);
+  console.log(`GPU: ${r.gpu}`);
+  console.log(`Report: ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
+  if (fatal || !r.finished || r.errors.length) process.exitCode = 1;
+}
+
+// The camera's frames around the last gift pair's landing and the crossing's start, read out: the intents it passed through, how far and how fast it moved
+// (a jump over 3 m in one frame is a cut), how long the glide took, whether Mosi (his feet and head, from his place in the wait) stayed on the screen, and how
+// long after the landing the crossing began. Points are projected with the game's own lens (35 degrees, the page's aspect).
+function analyseGlide(track, aspect, mosiAt) {
+  const landed = track.find(f => f.basket > 0 && track.every(g => g.basket <= f.basket) && f.basket === Math.max(...track.map(g => g.basket)));
+  const cross = track.find(f => f.cross);
+  if (!landed || !cross) return { error: 'no landing or no crossing in the camera track', frames: track.length };
+  const view = track.filter(f => f.t >= landed.t - 1.2 && f.t <= cross.t + 2.0);
+  const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const norm = a => { const l = Math.hypot(...a); return a.map(v => v / l); }, crossP = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const tan = Math.tan(35 / 2 * Math.PI / 180);
+  const inside = (frame, point) => { const f = norm(sub(frame.g, frame.p)), r = norm(crossP(f, [0, 1, 0])), u = crossP(r, f), rel = sub(point, frame.p), z = dot(rel, f); if (z <= 0) return false; return Math.abs(dot(rel, r) / (z * tan * aspect)) <= 1 && Math.abs(dot(rel, u) / (z * tan)) <= 1; };
+  const mosiPoints = mosiAt ? [mosiAt, [mosiAt[0], mosiAt[1] + 2.1, mosiAt[2]]] : [];
+  let maxStep = 0, peakSpeed = 0, jumps = 0, mosiOut = 0, glideFrames = 0, cutStep = 0;
+  const intents = [];
+  for (let i = 0; i < view.length; i++) {
+    const f = view[i], last = intents.at(-1);
+    if (!last || last.intent !== f.intent || last.moving !== f.moving || last.shot !== f.shot) intents.push({ at: +(f.t - landed.t).toFixed(2), intent: f.intent, moving: f.moving, shot: f.shot, cross: f.cross });
+    if (i && f.t <= cross.t + 0.4) {
+      const step = Math.hypot(...sub(f.p, view[i - 1].p)), dt = f.t - view[i - 1].t;
+      if (f.t < cross.t - 0.05) { maxStep = Math.max(maxStep, step); if (dt > 0) peakSpeed = Math.max(peakSpeed, step / dt); if (step > 3) jumps++; }
+      else cutStep = Math.max(cutStep, step); // the crossing's own first shot is a cut (scenes/cross.js)
+    }
+    if (f.t >= landed.t && f.t < cross.t && f.moving) glideFrames++;
+    if (f.t >= landed.t && f.t <= cross.t + 0.1 && mosiPoints.some(point => !inside(f, point))) mosiOut++;
+  }
+  const glade = view.filter(f => f.t < landed.t && f.intent !== 'glade' && !f.cross);
+  const movingSpan = view.filter(f => f.t >= landed.t && f.t < cross.t && f.moving);
+  return { landedAt: landed.t, crossAt: cross.t, secondsToCrossing: +(cross.t - landed.t).toFixed(2), glideSeconds: movingSpan.length ? +(movingSpan.at(-1).t - movingSpan[0].t).toFixed(2) : 0, glideFrames,
+    beforeLandingNotGlade: glade.length, maxStepMetres: +maxStep.toFixed(2), crossingCutMetres: +cutStep.toFixed(2), peakSpeedMetresPerSecond: +peakSpeed.toFixed(1), jumpsOver3m: jumps, mosiOutFrames: mosiOut, mosiChecked: mosiPoints.length > 0,
+    intentAtLanding: landed.intent, intentAtCrossing: cross.intent, intents, frames: view.length, from: view[0].p, to: view.at(-1).p };
+}
+
+// frames/%05d.jpg -> round.mp4 at 15 fps. The screencast sends a frame only when the picture changes (about 22 a second
+// while the scene moves here), so the frames are laid out by the time the browser stamped on each (frames.txt, ffmpeg's
+// concat list) and the video plays at the speed the round was played. Without usable stamps it falls back to a plain
+// 15 fps sequence, and the report's captureSeconds against videoSeconds shows by how much that speed is off.
+async function makeVideo(framesDir, outDir, frames) {
+  const info = { frames: frames.n, file: null, bytes: null, captureSeconds: null, videoSeconds: null, timing: null };
+  if (!frames.n) { info.error = 'the screencast sent no frames'; return info; }
+  const stamps = frames.stamps;
+  if (stamps.length > 1 && stamps.every(Number.isFinite)) info.captureSeconds = +(stamps[stamps.length - 1] - stamps[0]).toFixed(1);
+  const file = path.join(outDir, 'round.mp4');
+  const name = i => `frames/${String(i + 1).padStart(5, '0')}.jpg`;
+  const pad = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  let args;
+  if (info.captureSeconds !== null) {
+    info.timing = 'real';
+    // Frames can arrive out of order (a loaded browser sends some a hundred milliseconds late), and a negative gap would
+    // stretch the video, so they are laid out in the order of their stamps.
+    const order = stamps.map((stamp, i) => ({ i, stamp })).sort((a, b) => a.stamp - b.stamp || a.i - b.i), list = [];
+    for (let k = 0; k < order.length; k++) {
+      const next = k + 1 < order.length ? order[k + 1].stamp - order[k].stamp : 1 / VIDEO_FPS;
+      list.push(`file '${name(order[k].i)}'`, `duration ${Math.max(next, 0.001).toFixed(4)}`);
+    }
+    list.push(`file '${name(order.at(-1).i)}'`); // ffmpeg's concat demuxer drops the last duration unless the file comes once more
+    await fsp.writeFile(path.join(outDir, 'frames.txt'), list.join('\n') + '\n');
+    args = ['-f', 'concat', '-safe', '0', '-i', path.join(outDir, 'frames.txt'), '-vf', `fps=${VIDEO_FPS},${pad}`, '-fps_mode', 'cfr'];
+    info.videoSeconds = info.captureSeconds;
+  } else {
+    info.timing = 'sequence';
+    args = ['-framerate', String(VIDEO_FPS), '-i', path.join(framesDir, '%05d.jpg'), '-vf', pad];
+    info.videoSeconds = +(frames.n / VIDEO_FPS).toFixed(1);
+  }
+  const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...args, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '23', file], { encoding: 'utf8', timeout: 10 * 60 * 1000 });
+  if (r.status !== 0) { info.error = `ffmpeg failed: ${(r.stderr || r.error?.message || '').slice(0, 400)}`; return info; }
+  info.file = path.relative(ROOT, file).replace(/\\/g, '/');
+  info.bytes = fs.statSync(file).size;
+  return info;
+}
+
+main().catch(e => { console.error(e); process.exit(2); });

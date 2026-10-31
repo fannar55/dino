@@ -3313,5 +3313,15 @@
   "src": "assets/audio/book/book_flugedla_10.mp3",
   "duration": 7.61,
   "mouth": "0bd30df900efdeffc0bedb50bddb46ab7076340000000008d7000a609eea86304000000000000000ffefbdc5000ac00000b6000cb0000aec008cdba88000aca0def0b800b8000000000000000"
+ },
+ "k1_mosi_map_ride": {
+  "src": "assets/audio/kafli1/k1_mosi_map_ride.mp3",
+  "duration": 5.53,
+  "mouth": "03cfedccc70000adf9700bb000000000006ff00ffedefc00da4007cdaeedded609d7409ffeee69ba7000000fb087ffb0ccb866000000000"
+ },
+ "k2_mosi_map_trail": {
+  "src": "assets/audio/kafli2/k2_mosi_map_trail.mp3",
+  "duration": 6.81,
+  "mouth": "9ffee800ffbddeb6aab70bb552cfeeeec8700000005dffdbc603fffee70cfdcdcdb30005c804dc000becdeeee50dd000eefecb870000003db400efc83aba5560000000000"
  }
 }

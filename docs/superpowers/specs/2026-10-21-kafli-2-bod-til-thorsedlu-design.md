@@ -72,8 +72,10 @@ handritið lyftir þeim: útsýnisturninn, og hægt pan yfir Fenið við komuna.
 - **Skot:** burknalautin; Kambeðla lýsandi, Egill í hnakknum. Mosi snýr til norðausturs og heldur af stað; plöturnar hennar blikka
   bless. Hægt pan með þeim út úr lautinni.
 - **Línur:** Mosi: „Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!“ Egill: „Stærri en þú?“ Mosi:
-  „Miklu stærri. Þú sérð!“
-- **Barnið:** ekkert nauðsynlegt; má pikka á Kambeðlu, sem segir „Góða ferð!“
+  „Miklu stærri. Þú sérð!“ Svo rennur kortið upp yfir leikinn (bætt við 28. október, áður en Mosi gengur úr lautinni; sjá
+  `2026-10-28-kortid-lifandi-og-i-ferdalaginu-design.md`, 3. kafla): rauða línan teiknast niður Fenjaslóðina og yfir Fenið að tjörn
+  Þórseðlu á meðan Mosi segir „Nú förum við út úr skóginum, niður Fenjaslóðina og alla leið að Feninu, til Þórseðlu.“, og kortið rennur burt.
+- **Barnið:** ekkert nauðsynlegt; má pikka á Kambeðlu, sem segir „Góða ferð!“ að línu Mosa lokinni.
 
 ### 2. Fótsporin í leðjunni (60–90 s, á hraða barnsins)
 - **Markmið:** barnið telur upp í tíu.

@@ -1,0 +1,43 @@
+{
+  "file": "hermit-crab.glb",
+  "bytes": 145092,
+  "triangles": 3900,
+  "vertices": 2933,
+  "meshes": [
+    "HermitCrab"
+  ],
+  "skin": false,
+  "clips": [],
+  "maps": "colour and normal, 512 x 512 WebP (EXT_texture_webp, quality 80); the metal-roughness and occlusion map is dropped, roughness 0.55, metallic 0, double-sided",
+  "extensions": [
+    "KHR_mesh_quantization",
+    "EXT_texture_webp"
+  ],
+  "author": "Citflo (https://sketchfab.com/allegory.fake)",
+  "title": "Little Hermit Crab",
+  "sourceUrl": "https://sketchfab.com/3d-models/little-hermit-crab-3fc91d811ae54de5b5fc5bb0e3db538a",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "rightsNote": "Creative Commons Attribution 4.0: the author, the title, the licence and the changes made must be credited. The game credits it behind the small \"i\" on the ending card (game.js, the Líkan / Leyfi / Frá rows).",
+  "sourceHost": "Sketchfab (downloaded by the game owner as a GLB, 2026-10-30)",
+  "sourceExport": "The owner's download, not in the repository (qa/memory/gjafir/src/, git-ignored).",
+  "download": {
+    "bytes": 3504560,
+    "md5": "0961d45cb392c5a868a91fdcd0b0c55e",
+    "triangles": 5436,
+    "maps": "three PNG maps (colour, metal-roughness with occlusion, normal)",
+    "file": "little_hermit_crab.glb",
+    "parts": 13
+  },
+  "use": "The kuðungakrabbi gift (surprise-items.js GIFT_ITEMS.hermitCrab). Faces +X (the crab itself; its shell trails behind and to the side), +Y up, the origin on the ground in the middle of its footprint (feet on y = 0).",
+  "size": {
+    "lengthMetres": 1.7,
+    "widthMetres": 1.594,
+    "heightMetres": 0.974,
+    "note": "1.7 m along X (shell tip to claws); the shell is about 1 m across; a hermit crab is about 3 cm, shown much larger so a child sees it from the glade"
+  },
+  "modifications": "blender-gift.py: the thirteen parts joined into one mesh with the one material, the imported node scales (x100 and x0.01) taken into the vertices, the seam vertices welded and ten pinholes filled, decimated by collapse from 5,436 to 3,900 triangles, custom normals from the welded whole, turned 90 degrees to face +X, scaled to 1.7 m and set on y = 0, the material rebuilt as plain metal-rough (colour and normal maps only, roughness 0.55), the maps shrunk to 512 and written as WebP at quality 80. quantize-glb.mjs: positions 16-bit over the model's extent (0.97 m, the node's scale), normals 8-bit, texture coordinates 16-bit.",
+  "blenderCommand": "\"C:/Program Files/Blender Foundation/Blender 5.2/blender.exe\" -b --factory-startup --python remake/tools/blender-gift.py -- qa/memory/gjafir/src/little_hermit_crab.glb hermit-blender.glb name=HermitCrab size=1.7 front=-90 tris=3900 tex=512 roughness=0.55 normal=1 credit=credit-hermit.json",
+  "quantizeCommand": "node remake/tools/quantize-glb.mjs hermit-blender.glb remake/assets/memory/gifts/hermit-crab.glb",
+  "passes": "blenderCommand (Blender 5.2, glTF I/O 5.2.41; 197,628 bytes), then quantizeCommand (145,092 bytes)."
+}

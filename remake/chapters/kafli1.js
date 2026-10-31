@@ -32,6 +32,7 @@ import { createFootprints } from '../world/props/footprints.js';
 import { sparkleBurst } from '../world/props/sparkles.js';
 import { WINK_SECONDS } from '../engine/sun-face.js';
 import { tapOrWait } from '../engine/scene/tap-or-wait.js';
+import { mapMoment } from '../engine/scene/map-moment-scene.js';
 
 // ---------------------------------------------------------------------------------------------
 // Rjóðrið, the clearing
@@ -476,6 +477,9 @@ function* upOnBack(s, c) {
   yield spellSaid();
   yield s.say('egill', 'k1_egill_wow');
   yield* butterflyIntoTheBook(s, c);
+  // The map slides up over the game, the first piece of the red line draws from the clearing to the fern glade while Mosi says where
+  // they are going, and the map slides away (engine/scene/map-moment-scene.js). He stands as he was, watching Egill; nothing is cut.
+  yield* mapMoment(s, c, { pieces: ['a'], line: 'k1_mosi_map_ride' });
   yield mosi.lookAt(null);
   yield s.say('mosi', 'k1_mosi_hold');
 }
@@ -1078,6 +1082,7 @@ export const chapter = {
     k1_mosi_butterfly: { text: 'Æ, þetta fiðrildi er alveg fyrir mér! Smelltu á það fyrir mig, Egill.', audio: 'k1_mosi_butterfly' },
     k1_mosi_book: { text: 'Sjáðu! Fiðrildið flaug beint í Landkönnuðabókina þína. Þangað fara öll dýrin sem við finnum og risaeðlurnar sem við hittum. Í henni er líka kort af skóginum, og leikir sem við lærum á leiðinni.', audio: 'k1_mosi_book' },
     k1_mosi_book_close: { text: 'Ýttu á krossinn til að loka bókinni og halda áfram. Þú getur alltaf opnað hana aftur.', audio: 'k1_mosi_book_close' },
+    k1_mosi_map_ride: { text: 'Sjáðu, kortið! Við förum eftir stígnum að Burknalautinni, til Kambeðlu.', audio: 'k1_mosi_map_ride' },
     k1_mosi_hold: { text: 'Haltu þér fast. Af stað!', audio: 'k1_mosi_hold' },
     k1_mosi_visit: { text: 'Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker!', audio: 'k1_mosi_visit' },
     k1_mosi_critters: { text: 'Horfðu vel í kringum þig á leiðinni, Egill! Ef þú pikkar á smádýrin sem þú sérð, skrifum við um þau í Landkönnuðabókina þína.', audio: 'k1_mosi_critters' },

@@ -18,6 +18,13 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 //
 //   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/book/images/egill-render.webp --query "who=egill&width=512"
 //
+// The friends' bubbles in "Hvar er vinur minn?" (assets/memory/portraits/) show the three babies from their baked models, each
+// the front of the baby (its head and chest) turned a little to us, for the round crops of the "who" bubbles:
+//
+//   node remake/tools/bake/bake-character.mjs --page book-render --out remake/assets/memory/portraits/triceratops.webp --query "who=memory-triceratops&width=512"
+//
+// (and memory-brontosaurus, memory-stegosaurus the same way).
+//
 // The book's map (engine/book/map-page.js) takes its friends' stickers from the cards' pictures and, for Uggeðla, who has no card
 // picture, from the spinosaurus shot here:
 //
@@ -29,7 +36,7 @@ import { GLTFLoader } from '../../../dist/vendor/GLTFLoader.js';
 // the picture over the card's paper instead of uploading it, for capture.mjs; bg=<css colour> changes the paper). Any other key
 // is a setting, by its path, of the shot (SHOTS below) or of the light (LOOK below), as in camera.az=40 camera.el=6
 // camera.fov=22 camera.fill=0.92,0.88 camera.top=0.4 (the share of the characters' height, from the top down, the frame
-// holds: 1, all of them, when left out), actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the
+// holds: 1, all of them, when left out), camera.front=0.5 (the same along their length from the nose back, for heading 0), actors.0.heading=0 actors.0.time=1 (seconds into the clip) actors.0.turn=34 (degrees the
 // head turns, + toward heading 90) actors.0.nod=3 (degrees the head dips) actors.0.x, actors.0.y and actors.0.z (metres),
 // actors.0.bank and actors.0.pitch (degrees the whole body rolls about its length and tips its nose up), actors.0.swish
 // (degrees the tail swings sideways, spread along its bones, + toward heading 90) and actors.0.lift (degrees it rises),
@@ -50,7 +57,8 @@ const status = text => { window.__bakeStatus = text; console.log('[book-render]'
 const rad = THREE.MathUtils.degToRad;
 
 const MODELS = Object.fromEntries(['mosi', 'egill', 'stegosaurus', 'trex', 'brontosaurus', 'parasaurolophus', 'pteranodon', 'spinosaurus']
-  .map(name => [name, `../../assets/characters/${name}.glb`]));
+  .map(name => [name, `../../assets/characters/${name}.glb`]).concat(['triceratops', 'brontosaurus', 'stegosaurus']
+  .map(name => [`${name}-baby`, `../../assets/memory/${name}-baby.glb`])));
 
 // The shots. A camera's az is world degrees (0 in front of a character that faces +X, 90 on its +Z side), el is how far
 // above the level it looks from, fill is how much of the frame the characters take (and top, when there, how much of their
@@ -101,6 +109,22 @@ const SHOTS = {
   spinosaurus: {
     camera: { az: 50, el: 8, fov: 22, fill: [0.92, 0.88] },
     actors: [{ model: 'spinosaurus', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 30, nod: 0 }],
+  },
+  // The memory game's babies, for its "who" bubbles: the head and chest, a little from the front. No ground, so no shadow.
+  'memory-triceratops': {
+    camera: { az: 38, el: 8, fov: 22, fill: [0.8, 0.86], front: 0.5 },
+    actors: [{ model: 'triceratops-baby', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 28, nod: 2 }],
+    look: { shadow: 0 },
+  },
+  'memory-brontosaurus': {
+    camera: { az: 38, el: 8, fov: 22, fill: [0.8, 0.86], front: 0.42 },
+    actors: [{ model: 'brontosaurus-baby', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 28, nod: 2 }],
+    look: { shadow: 0 },
+  },
+  'memory-stegosaurus': {
+    camera: { az: 38, el: 8, fov: 22, fill: [0.8, 0.86], front: 0.5 },
+    actors: [{ model: 'stegosaurus-baby', x: 0, z: 0, heading: 0, clip: 'idle', time: 1.0, turn: 28, nod: 2 }],
+    look: { shadow: 0 },
   },
   'stegosaurus-tail': {
     camera: { az: 100, el: 30, fov: 22, fill: [0.92, 0.88] },
@@ -225,6 +249,16 @@ function topShare(points, share) {
   return out;
 }
 
+/** The points in the front `share` of the characters' length (+X, heading 0), for a portrait of a four-legged head. */
+function frontShare(points, share) {
+  let [x0, x1] = [Infinity, -Infinity];
+  for (let i = 0; i < points.length; i += 3) { x0 = Math.min(x0, points[i]); x1 = Math.max(x1, points[i]); }
+  const cut = x1 - share * (x1 - x0);
+  const out = [];
+  for (let i = 0; i < points.length; i += 3) if (points[i] >= cut) out.push(points[i], points[i + 1], points[i + 2]);
+  return out;
+}
+
 /** Puts the camera where the characters take `fill` of the frame, centred, looking from azimuth and elevation (degrees). */
 function frame(camera, points, { az, el, fov, fill }) {
   const dir = new THREE.Vector3(Math.cos(rad(el)) * Math.cos(rad(az)), Math.sin(rad(el)), Math.cos(rad(el)) * Math.sin(rad(az)));
@@ -328,7 +362,8 @@ try {
     scene.add(actor.root);
   }
   const points = posedPoints(actors);
-  const framed = (shot.camera.top ?? 1) < 1 ? topShare(points, shot.camera.top) : points;
+  const topped = (shot.camera.top ?? 1) < 1 ? topShare(points, shot.camera.top) : points;
+  const framed = (shot.camera.front ?? 1) < 1 ? frontShare(topped, shot.camera.front) : topped;
   const camera = new THREE.PerspectiveCamera();
   // The frame holds the characters and the ground their shadows fall on (each vertex carried along the key's light to the ground).
   const toLight = new THREE.Vector3(

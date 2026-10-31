@@ -8,7 +8,10 @@ import { createStarSprite } from '../engine/scene/star-sprite.js';
 import { createScene } from '../engine/scene/scene.js';
 import { createPointResolver } from '../engine/points.js';
 import { DONE } from '../engine/handle.js';
+import { createSfx } from '../engine/audio/sfx.js';
+import { createBookAudio } from '../engine/book/book-audio.js';
 import { FakeDocument } from './fake-dom.mjs';
+import { createFakeContext, peakThrough } from './fake-audio.mjs';
 
 const KEY = 'mosi-remake-v1';
 
@@ -401,6 +404,56 @@ test('the book can be brought out and put away', () => {
   assert.equal(el('journal-button').hidden, false);
   journal.show(false);
   assert.equal(el('journal-button').hidden, true);
+});
+
+test('the journal owns the map moment: it draws on the journal\'s save, sounds through its audio and ends on the game clock', () => {
+  const sounds = [];
+  const audio = { sfx: name => { sounds.push(name); return true; } };
+  const { doc, journal, save } = journalRig({ audio });
+  const create = doc.createElement.bind(doc);
+  doc.createElement = tag => { // a page that can animate
+    const element = create(tag);
+    element.animate = () => ({ cancel() {}, finish() {} });
+    return element;
+  };
+  assert.equal(journal.mapMoment.isOpen, false, 'there from the start, and not showing');
+  const { drawMs } = journal.mapMoment.play(['a']);
+  assert.equal(drawMs, 3250);
+  assert.equal(journal.mapMoment.isOpen, true);
+  assert.deepEqual(save.get().seen, ['map-route-a'], 'on the journal\'s own save');
+  assert.deepEqual(sounds, ['mapOpen'], 'through the audio the journal was given');
+  const overlays = () => doc.body.children.filter(e => e.classList.contains('map-moment'));
+  assert.equal(overlays().length, 1);
+  journal.update(0.6); // the journal's update is the game clock's: it moves the moment on
+  assert.deepEqual(sounds, ['mapOpen', 'mapPen']);
+  assert.equal(journal.mapMoment.close(), 600);
+  journal.update(0);
+  assert.equal(overlays().length, 1, 'a held game holds it');
+  journal.update(0.6);
+  assert.equal(overlays().length, 0);
+});
+
+test('the two sounds of the map moment exist, in the effects of the game and in the journal\'s own, and are quiet: a paper unrolling in half a second, a pen scratching for each piece', () => {
+  const theme = JSON.parse(fs.readFileSync(new URL('../assets/audio/theme.json', import.meta.url), 'utf8'));
+  const SOUNDS = {
+    mapOpen: { shortest: 0.35, longest: 0.6, least: 2 }, // it comes as the map slides up in 0.6 s
+    mapPen: { shortest: 2.2, longest: 2.65, least: 6 }, // a tick at a time, as long as a piece takes to draw (2.65 s)
+  };
+  const ways = {
+    'the effects of the game': context => name => createSfx({ context, theme }).play(name),
+    'the audio of the journal (the book)': context => name => createBookAudio({ context, theme }).sfx(name),
+  };
+  for (const [how, make] of Object.entries(ways)) {
+    for (const [name, { shortest, longest, least }] of Object.entries(SOUNDS)) {
+      const context = createFakeContext({ state: 'running' });
+      assert.equal(make(context)(name), true, `${how} play ${name}`);
+      const made = context.started;
+      assert.ok(made.length >= least, `${how}: ${name} starts ${made.length} sources`);
+      const ends = Math.max(...made.map(source => source.stopTime));
+      assert.ok(ends > shortest && ends <= longest, `${how}: ${name} lasts ${ends.toFixed(2)} s`);
+      for (const source of made) assert.ok(peakThrough(source, context.destination) < 0.1, `${how}: ${name} is quiet (${peakThrough(source, context.destination)})`);
+    }
+  }
 });
 
 test('main.js ties the book the child holds to the clock and the sound', () => {

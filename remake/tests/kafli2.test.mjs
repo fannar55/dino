@@ -412,6 +412,9 @@ test('the slide lands in the saddle', async () => {
 // The lookout, the far friends, the slide and the star (scenes 6 to 8), played by a child who never touches the screen
 
 const FAR = ['sloedla', 'flugedla', 'uggedla'];
+// The seconds the chapter may take for a child who taps nothing: 600 until the map moment came to the glade scene (2026-10-28), which
+// takes about 9 s (the idle child's chapter then took 596 s).
+const IDLE_LIMIT = 620;
 let idled = null;
 function playIdle() {
   idled ??= (async () => {
@@ -426,7 +429,7 @@ function playIdle() {
     };
     let phase = null;
     const run = await playUnattended(kafli2, {
-      seeking: false, limit: 600, shaped: true,
+      seeking: false, limit: IDLE_LIMIT, shaped: true,
       onFrame({ world, stage, pointer }) {
         const c = world.chapterState;
         const far = c?.farFriends;
@@ -531,7 +534,7 @@ test('the chapter plays to its end unattended with no director warnings', async 
   const { task, stage, world, director, journal, book } = await playIdle();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.ok(stage.s.time < 600, `it took ${stage.s.time.toFixed(1)} s`);
+  assert.ok(stage.s.time < IDLE_LIMIT, `it took ${stage.s.time.toFixed(1)} s`);
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.equal(world.location, 'fen');
   assert.deepEqual(journal.stars, ['k2_thorsedla'], 'Þórseðla\'s star is in the book');
@@ -828,6 +831,84 @@ test('a tap on Kambeðla as they go: her plates blink and she says goodbye', asy
   assert.ok(bye && bye.who === 'Kambeðla', 'she says goodbye');
   const others = captions.filter(c => c.who !== 'Kambeðla' && c.at < bye.at + 1.6 && c.at > bye.at - 0.1);
   assert.deepEqual(others, [], 'when nobody else is speaking');
+});
+
+// ---------------------------------------------------------------------------------------------
+// The map in the journey (docs/superpowers/specs/2026-10-28-kortid-lifandi-og-i-ferdalaginu-design.md, section 3): as they leave the
+// glade the map slides up over the game, draws the trail and the way across the Fen while Mosi says where they are going, and goes
+
+const MOMENT_HOLD = 0.8; // seconds the map stands once the line and the drawing are over
+const LINE_HOLD = 0.5; // seconds a line is held after its recording (engine/scene/scene.js)
+const LEAVING_SECONDS = 45; // the glade scene and a bit more: the map moment is over well before
+
+/** How long a map moment lasts in scene time: the drawing or Mosi's line (and its hold), whichever is longer, the map standing, and the slide away. */
+const lasts = (run, moment, line) => Math.max(moment.drawMs / 1000, run.stage.s.lineDuration(line) + LINE_HOLD) + MOMENT_HOLD + moment.closeMs / 1000;
+
+/** Scene 1 played as a capture seeks it, watching how many lines the chapter has under way each frame and when Mosi first walks. */
+function playLeaving(options = {}) {
+  const seen = { saying: [], firstWalk: null };
+  return playUnattended(kafli2, {
+    limit: LEAVING_SECONDS, shaped: true, ...options,
+    onFrame({ world, stage }) {
+      seen.saying.push({ at: stage.s.time, saying: world.chapterState?.saying ?? 0 });
+      if (seen.firstWalk === null && world.actors.get('mosi').walking) seen.firstWalk = stage.s.time;
+    },
+  }).then(run => ({ ...run, leaving: seen }));
+}
+let left = null;
+const leaving = () => (left ??= playLeaving());
+
+test('the map comes up as they leave the glade: b and c drawn before Mosi walks off, Mosi saying where they go, over by itself within 9 s', async () => {
+  const trail = chapter.lines.k2_mosi_map_trail;
+  assert.equal(trail.text, 'Nú förum við út úr skóginum, niður Fenjaslóðina og alla leið að Feninu, til Þórseðlu.');
+  for (const [how, play] of [['a capture', leaving], ['a child who waits', () => playLeaving({ seeking: false })]]) {
+    const run = await play();
+    const { moments, captions, doc, save, world, task, seen, leaving: watched } = run;
+    assert.equal(moments.length, 1, `${how}: one map moment in the glade scene`);
+    const [moment] = moments;
+    assert.deepEqual(moment.ids, ['b', 'c'], `${how}: the Fenjaslóð, and across the Fen to Þórseðla's pool`);
+    // After "Miklu stærri. Þú sérð!", before they go, with Mosi's line about the map beside it.
+    assert.ok(moment.saidBefore.has('k2_mosi_muchbigger'), `${how}: it comes after "Miklu stærri"`);
+    assert.ok(!moment.saidBefore.has('k2_mosi_map_trail'), `${how}: with Mosi's line not yet said`);
+    const said = captions.filter(c => c.text === trail.text);
+    assert.equal(said.length, 1, `${how}: Mosi says where they are going, once`);
+    assert.equal(said[0].who, 'Mosi');
+    assert.ok(Math.abs(said[0].at - moment.at) < 0.1, `${how}: he begins as the map slides up (${said[0].at.toFixed(2)} s, the map at ${moment.at.toFixed(2)} s)`);
+    // His line is the chapter's own say: the chapter counts one voice at a time, through it and not after it.
+    const line = run.stage.s.lineDuration('k2_mosi_map_trail');
+    const during = watched.saying.filter(f => f.at > said[0].at + 0.1 && f.at < said[0].at + line);
+    assert.ok(during.length > 10 && during.every(f => f.saying === 1), `${how}: c.saying counts Mosi's line while he says it`);
+    assert.equal(watched.saying.find(f => f.at >= moment.goneAt).saying, 0, `${how}: and nothing after it`);
+    // Both pieces are drawn on the map, and kept as seen.
+    assert.equal(moment.drawMs, 6100, `${how}: the slide up, two pieces and the gap between them`);
+    assert.deepEqual(moment.states, { b: ['drawing'], c: ['drawing'] }, `${how}: both draw themselves, in the overlay`);
+    assert.deepEqual(moment.seenAfter, ['map-route-b', 'map-route-c'], `${how}: and the save has them as seen`);
+    assert.ok(['map-route-b', 'map-route-c'].every(id => save.get().seen.includes(id)), `${how}: for good`);
+    // Nothing is cut, and it ends by itself: Mosi's line and the drawing, 0.8 s of the map standing, 0.6 s sliding away.
+    assert.ok(moment.goneAt !== null, `${how}: the overlay was taken off the page`);
+    assert.deepEqual(run.seen.cuts.filter(cut => cut.at > moment.at + 1e-6 && cut.at < moment.goneAt), [], `${how}: the camera cuts nowhere while the map is up`);
+    assert.equal(moment.closeMs, 600, `${how}: it slides away in 0.6 s`);
+    const lasted = moment.goneAt - moment.at;
+    assert.ok(lasted < 9, `${how}: the moment lasted ${lasted.toFixed(2)} s of scene time`);
+    assert.ok(Math.abs(lasted - lasts(run, moment, 'k2_mosi_map_trail')) < 0.15, `${how}: it waits for Mosi's line, then 0.8 s, then the slide (${lasted.toFixed(2)} s)`);
+    // Then Mosi walks out of the glade, with no map left on the page.
+    assert.ok(watched.firstWalk >= moment.goneAt - 1e-6, `${how}: Mosi walks off (${watched.firstWalk?.toFixed(2)} s) once the map is gone (${moment.goneAt.toFixed(2)} s)`);
+    assert.equal(doc.body.children.filter(e => e.classList.contains('map-moment')).length, 0, `${how}: no overlay is left on the page`);
+    assert.equal(world.chapterTimeline.at(-1).scene, 2, `${how}: and the story goes on into the trail`);
+    assert.equal(task.failed, false);
+  }
+});
+
+test('a tap on Kambeðla while the map is up goes to the game behind it: her plates blink at once and she says goodbye as Mosi\'s line ends', async () => {
+  const first = await leaving();
+  const [moment] = first.moments;
+  const run = await playLeaving({ seeking: false, earlyTap: { name: 'kambedla', after: moment.at + 2 } });
+  assert.ok(run.seen.earlyTap && run.seen.earlyTap.at > run.moments[0].at && run.seen.earlyTap.at < run.moments[0].closeAt, 'she was tapped with the map up');
+  const trail = run.captions.find(c => c.text === chapter.lines.k2_mosi_map_trail.text);
+  const bye = run.captions.find(c => c.text === 'Góða ferð!');
+  assert.ok(bye && bye.who === 'Kambeðla', 'she says goodbye');
+  assert.ok(bye.at >= trail.at + run.stage.s.lineDuration('k2_mosi_map_trail') + LINE_HOLD - 1e-6, 'not over Mosi: when he has finished');
+  assert.ok(bye.at < run.moments[0].goneAt, 'while the map is still sliding away');
 });
 
 test('a blue berry is the birds\': Mosi says so, and it stays on its bush', async () => {
