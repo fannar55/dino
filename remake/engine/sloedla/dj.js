@@ -2,8 +2,8 @@
 // Icelandic radio DJ; the owner picked "DJ 1" of twelve, 2026-10-29), recorded by tools/sloedla-dj.mjs into
 // assets/audio/sloedla/dj/. He calls out the run's milestones and the big moments, short and hyped, and never chats: the numbers
 // ("Tíu í röð!"), the tiers ("Flott!", "Vá!", "Stjörnukraftur!"), the crowd's clapping, a section that comes in big ("Allir
-// með!"), a friend coming back in ("Kambeðla er komin aftur!"), the start, and the end ("Fullt hús!" for a run with every note in
-// it). Each has a few ways of saying it, and he never says the same one twice in a row. While he talks, the music dips a little
+// með!"), a friend coming back in ("Kambeðla er komin aftur!"), the start, and the end ("Fullkominn leikur!", "Fullt hús!", "Fimm
+// stjörnur!" ...). Each has a few ways of saying it, and he never says the same one twice in a row. While he talks, the music dips a little
 // under him, as on the radio (the page's `onTalk`).
 
 const NUMBERS = { 10: 'Tíu', 15: 'Fimmtán', 20: 'Tuttugu', 25: 'Tuttugu og fimm', 30: 'Þrjátíu', 35: 'Þrjátíu og fimm', 40: 'Fjörutíu', 45: 'Fjörutíu og fimm', 50: 'Fimmtíu', 60: 'Sextíu', 70: 'Sjötíu', 80: 'Áttatíu', 90: 'Níutíu', 100: 'Hundrað' };
@@ -19,13 +19,16 @@ export const DJ_LINES = Object.freeze({
   ...Object.fromEntries(Object.keys(NUMBERS).map(n => [`r${n}`, milestone(Number(n))])),
   flott: ['Flott!', 'Flott hjá þér!', 'Já, flott!', 'Glæsilegt!'],
   va: ['Vá!', 'Vá, hvað þetta er flott!', 'Vá, vá, vá!', 'Þetta er geggjað!'],
-  stjornukraftur: ['Stjörnukraftur!', 'Stjörnukraftur, allir saman!', 'Nú kemur stjörnukrafturinn!', 'Stjörnukraftur! Stjörnurnar skína!'],
+  // the last two say what it does: every note counts twice (the owner, 2026-10-31)
+  stjornukraftur: ['Stjörnukraftur!', 'Stjörnukraftur, allir saman!', 'Nú kemur stjörnukrafturinn!', 'Stjörnukraftur! Stjörnurnar skína!', 'Stjörnukraftur, tvöföld stig!', 'Allir saman, tvöföld stig!'],
   klapp: ['Klöppum öll saman!', 'Allir að klappa!', 'Klöppum í takt!', 'Nú klöppum við!'],
   allir: ['Allir með!', 'Allir saman nú!', 'Allir að dansa!', 'Nú syngja allir með!'],
   kambedla: friend('Kambeðla'),
   sloedla: friend('Slóeðla'),
   thorsedla: friend('Þórseðla'),
+  fullkominn: ['Fullkominn leikur!', 'Vá, fullkominn leikur!', 'Fullkominn leikur, hver einasti tónn!', 'Fullkominn leikur, ótrúlegt!'],
   fullthus: ['Fullt hús!', 'Fullt hús, þú náðir öllu!', 'Fullt hús, algjör stjarna!', 'Vá, fullt hús!'],
+  fimm: ['Fimm stjörnur!', 'Fimm stjörnur, vá!', 'Fimm stjörnur, þú ert stjarna!'],
   naestum: ['Næstum fullt hús!', 'Næstum fullt hús, frábært!', 'Næstum allt, vel gert!'],
   frabaert: ['Frábært!', 'Frábært hjá þér!', 'Þetta var frábært!', 'Algjör snilld!'],
   velgert: ['Vel gert!', 'Vel gert hjá þér!', 'Flott spilað!', 'Mjög vel gert!'],
@@ -44,7 +47,7 @@ export const DJ_TAKES = Object.freeze(Object.entries(DJ_LINES).flatMap(([key, te
 
 const TIERS = ['', 'flott', 'va', 'stjornukraftur'];
 const FRIENDS = { a: 'sloedla', b: 'kambedla', c: 'thorsedla' };
-const END = ['aftur', 'velgert', 'flott', 'frabaert']; // by the stars won, as the words at the end
+const END = ['aftur', 'velgert', 'velgert', 'flott', 'frabaert', 'fimm']; // by the stars won (0 to 5), as the words at the end
 export const DJ_QUIET = 4; // s at least between two of his lines, but for the big ones (milestones, Stjörnukraftur, the clapping, the end)
 export const DJ_WAIT = 1.6; // s a big line may wait for him to finish the one before (the game queues it), else it is dropped
 const HUSH = 0.06; // s: a line cut short (hush) fades this fast
@@ -54,18 +57,22 @@ const COUNT_AGAIN = [1, 0.75, 0.5, 0.35];
 const ALWAYS_COUNTED = new Set([50, 100]);
 
 /**
- * The line for the end of a round (the screen shows its first words): "Fullt hús!" when every note was played (chart.js fullHouse), "Næstum
- * fullt hús!" when one or two were missed, else by the stars won ("Frábært!", "Flott!", "Vel gert!", "Spilum aftur saman!").
+ * The line for the end of a round (the screen shows its first words), the first that fits: "Fullkominn leikur!" (`perfect`,
+ * chart.js perfectGame), "Fullt hús!" (`full`, every note played: chart.js fullHouse), "Næstum fullt hús!" (one or two missed and
+ * at least four stars), else by the stars won ("Fimm stjörnur!", "Frábært!", "Flott!", "Vel gert!", "Spilum aftur saman!").
  */
-export function endLineOf({ stars = 0, misses = 0, full = false }) {
-  return full ? 'fullthus' : misses <= 2 && stars === 3 ? 'naestum' : END[Math.max(0, Math.min(3, stars))];
+export function endLineOf({ stars = 0, misses = 0, full = false, perfect = false }) {
+  if (perfect) return 'fullkominn';
+  if (full) return 'fullthus';
+  if (misses <= 2 && stars >= 4) return 'naestum';
+  return END[Math.max(0, Math.min(END.length - 1, stars))];
 }
 
 /**
  * What the DJ says to `event` at song time `time` (a key of DJ_LINES), or null. Events: { kind: 'start' }, { kind: 'milestone',
  * streak }, { kind: 'tier', tier }, { kind: 'clap' } (the crowd starts clapping along), { kind: 'big' }, { kind: 'rejoin', role,
  * back } (`back`: she had played before and dropped out; her first notes of the song are no news), { kind: 'end', stars, misses,
- * full } (`full`: every note played). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
+ * full, perfect } (`full`: every note played; `perfect`: fullkominn leikur). The big ones (Stjörnukraftur, the clapping, the end) are always said (the game queues
  * one while he is still talking: DJ_WAIT), and a milestone mostly (COUNT_AGAIN, by `random`); the others only after DJ_QUIET s of
  * quiet. `memory` keeps when he last spoke and how many milestones he has said in a row ({ last, counted }), updated as he goes.
  */

@@ -1312,6 +1312,105 @@
       "share": 1,
       "seconds": 4.01,
       "made": "2026-10-30T20:03:35.302Z"
+    },
+    "fullkominn-1": {
+      "text": "Fullkominn leikur!",
+      "sent": "Fullkominn leikur!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullkominn-1.mp3",
+      "seed": 1,
+      "heard": "Fullkominn leikur",
+      "share": 1,
+      "seconds": 1.98,
+      "made": "2026-10-31T01:10:16.767Z"
+    },
+    "fullkominn-2": {
+      "text": "Vá, fullkominn leikur!",
+      "sent": "Vá, fullkominn leikur!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullkominn-2.mp3",
+      "seed": 1,
+      "heard": "Vá, fullkominn leikur",
+      "share": 1,
+      "seconds": 2.59,
+      "made": "2026-10-31T01:10:18.438Z"
+    },
+    "fullkominn-3": {
+      "text": "Fullkominn leikur, hver einasti tónn!",
+      "sent": "Fullkominn leikur, hver einasti tónn!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullkominn-3.mp3",
+      "seed": 1,
+      "heard": "Fullkominn leikur. Hver einasti tónn",
+      "share": 1,
+      "seconds": 3.07,
+      "made": "2026-10-31T01:10:20.219Z"
+    },
+    "fullkominn-4": {
+      "text": "Fullkominn leikur, ótrúlegt!",
+      "sent": "Fullkominn leikur, ótrúlegt!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullkominn-4.mp3",
+      "seed": 1,
+      "heard": "Fullkominn leikur. Ótrúlegt!",
+      "share": 1,
+      "seconds": 2.95,
+      "made": "2026-10-31T01:10:21.863Z"
+    },
+    "fimm-1": {
+      "text": "Fimm stjörnur!",
+      "sent": "Fimm stjörnur!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fimm-1.mp3",
+      "seed": 1,
+      "heard": "Fimm stjörnur",
+      "share": 1,
+      "seconds": 1.38,
+      "made": "2026-10-31T01:10:23.156Z"
+    },
+    "fimm-2": {
+      "text": "Fimm stjörnur, vá!",
+      "sent": "Fimm stjörnur, vá!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fimm-2.mp3",
+      "seed": 1,
+      "heard": "Fimm stjörnur? Vá!",
+      "share": 1,
+      "seconds": 2.37,
+      "made": "2026-10-31T01:10:24.723Z"
+    },
+    "fimm-3": {
+      "text": "Fimm stjörnur, þú ert stjarna!",
+      "sent": "Fimm stjörnur, þú ert stjarna!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fimm-3.mp3",
+      "seed": 1,
+      "heard": "Fimm stjörnur. Þú ert stjarna",
+      "share": 1,
+      "seconds": 2.95,
+      "made": "2026-10-31T01:10:26.389Z"
+    },
+    "stjornukraftur-5": {
+      "text": "Stjörnukraftur, tvöföld stig!",
+      "sent": "Stjörnukraftur, tvöföld stig!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "stjornukraftur-5.mp3",
+      "seed": 1,
+      "heard": "Stjörnukraftur, tvöföld stig",
+      "share": 1,
+      "seconds": 2.61,
+      "made": "2026-10-31T01:10:28.211Z"
+    },
+    "stjornukraftur-6": {
+      "text": "Allir saman, tvöföld stig!",
+      "sent": "Allir saman, tvöföld stig!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "stjornukraftur-6.mp3",
+      "seed": 1,
+      "heard": "Allir saman. Tvöföld stig",
+      "share": 1,
+      "seconds": 2.52,
+      "made": "2026-10-31T01:10:53.069Z"
     }
   }
 }

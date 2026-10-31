@@ -214,9 +214,14 @@ test('the DJ calls the milestones and the big moments, never on top of himself, 
   assert.deepEqual(said, ['r10', 'r15', null, 'r25', 'r30'], 'a fair chance after one (75 %), less after two (50 %)');
   assert.equal(djCueOf({ kind: 'rejoin', role: 'b', back: true }, 70, memory), 'kambedla');
   assert.equal(djCueOf({ kind: 'end', stars: 3, misses: 0, full: true }, 70.1, memory), 'fullthus', 'the end is always said');
-  assert.equal(endLineOf({ stars: 3, misses: 2 }), 'naestum');
-  assert.equal(endLineOf({ stars: 3, misses: 5 }), 'frabaert');
-  assert.equal(endLineOf({ stars: 0, misses: 40 }), 'aftur');
+  // the end's line (the owner, 2026-10-31): fullkominn leikur › fullt hús › næstum › by the five stars
+  assert.equal(endLineOf({ stars: 5, misses: 0, full: true, perfect: true }), 'fullkominn');
+  assert.equal(endLineOf({ stars: 5, misses: 0, full: true }), 'fullthus');
+  assert.equal(endLineOf({ stars: 4, misses: 2 }), 'naestum');
+  assert.equal(endLineOf({ stars: 3, misses: 2 }), 'flott', 'almost full, but not near the top stars');
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(stars => endLineOf({ stars, misses: 9 })), ['aftur', 'velgert', 'velgert', 'flott', 'frabaert', 'fimm']);
+  assert.equal(djCueOf({ kind: 'end', stars: 5, misses: 0, full: true, perfect: true }, 70.1, {}), 'fullkominn');
+  assert.ok(DJ_LINES.stjornukraftur.includes('Stjörnukraftur, tvöföld stig!'), 'he says Stjörnukraftur doubles the points');
   const made = JSON.parse(fs.readFileSync(new URL('../assets/audio/sloedla/dj/dj.json', import.meta.url), 'utf8'));
   assert.ok(made.voice?.id, 'the DJ has a voice of his own');
   for (const [key, texts] of Object.entries(DJ_LINES)) assert.ok(texts.length >= 2, `${key}: more than one way of saying it, so he does not repeat himself`);
