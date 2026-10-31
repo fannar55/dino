@@ -451,6 +451,9 @@
 .veiddu-bubble[data-from="0"] p::after { left: 28px; bottom: -14px; border-top: 0; border-right: 0; transform: rotate(-45deg); border-bottom-left-radius: 6px; }
 /* Where the arrow stands and which way it points (it is drawn pointing right): down at the child, across at the other opponent, up at an opponent */
 .veiddu-bubble[data-to="0"] .veiddu-bubble-arrow { left: 50%; top: 100%; margin: -4px 0 0 -32px; --turn: 90deg; }
+/* a question to the child from a window at the top: the arrow leans toward the child's hand, down in the middle of the table, not at the pond */
+.veiddu-bubble[data-from="1"][data-to="0"] .veiddu-bubble-arrow { --turn: 58deg; }
+.veiddu-bubble[data-from="2"][data-to="0"] .veiddu-bubble-arrow { --turn: 122deg; }
 .veiddu-bubble[data-from="1"][data-to="2"] .veiddu-bubble-arrow { left: 100%; top: 50%; margin: -32px 0 0 8px; --turn: 0deg; }
 .veiddu-bubble[data-from="2"][data-to="1"] .veiddu-bubble-arrow { right: 100%; top: 50%; margin: -32px 8px 0 0; --turn: 180deg; }
 .veiddu-bubble[data-from="0"][data-to="1"] .veiddu-bubble-arrow { left: 70%; bottom: 100%; margin: 0 0 4px -32px; --turn: -125deg; }
