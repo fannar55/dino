@@ -8,6 +8,9 @@ import { chapter as kafli1 } from '../chapters/kafli1.js';
 import { createSave, defaultChapter } from '../engine/save.js';
 import { LOOKS } from '../engine/looks.js';
 import { shapeGround } from '../world/forest/forest.js';
+import { planForest } from '../world/forest/plan.js';
+import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
+import { PRESETS } from '../engine/quality.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
@@ -218,6 +221,36 @@ test('Síkið as data: the path goes under the channel, a ferry line of 50 m run
   const off = Math.abs(((bearing - heading + 540) % 360) - 180);
   assert.ok(off < 30, `she is ${off.toFixed(0)} degrees off the way the ferry is going`);
   assert.ok(shape.signedAt(fx, fz) > 5, 'on dry ground');
+});
+
+test('Síkið keeps its camera shots clear for a tablet held upright too: no plant stands near a camera, and none big in the view of the ground in front of it', () => {
+  // A tall screen keeps the 16:10 frame's width and shows more above and below it (the director's lens), so the ground at the camera's
+  // feet is in the picture: the planner protects each static shot a second time for it (layout.tall, world/forest/plan.js).
+  const place = chapter.locations.siki, world = { chapter };
+  const { layout, terrain } = shapeGround(world, { ...place.layout, shots: place.shots }, place.layout.seed);
+  const plan = planForest({ world, layout, seed: place.layout.seed, terrain, library: createSpeciesLibrary(place.layout.seed), q: PRESETS.tablet });
+  const own = new Set(layout.plants.map(p => [p.position[0], p.position[1]].join())); // the place's own reed, lilies and trees go where it says
+  const fixed = Object.entries(place.shots).filter(([, shot]) => Array.isArray(shot.position) && Array.isArray(shot.target));
+  assert.ok(fixed.length >= 7, 'the static shots');
+  for (const [name, shot] of fixed) {
+    const tanH = Math.tan(THREE.MathUtils.degToRad(shot.fov / 2)) * 1.6;
+    const camera = new THREE.PerspectiveCamera(THREE.MathUtils.radToDeg(2 * Math.atan(tanH / 0.625)), 0.625, 0.1, 100); // 800 x 1280
+    camera.position.fromArray(shot.position);
+    camera.lookAt(new THREE.Vector3().fromArray(shot.target));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const view = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    for (const p of plan.placements) {
+      const crown = p.model.crown;
+      if (!crown || own.has([p.x, p.z].join())) continue;
+      const tall = Boolean(SPECIES[p.name]?.tall);
+      const radius = (tall ? Math.min(crown.r, crown.ry * 1.2) * 0.95 : Math.max(crown.r, crown.ry)) * p.scale;
+      const centre = new THREE.Vector3(p.x + crown.c[0] * p.scale, p.y + crown.c[1] * p.scale, p.z + crown.c[2] * p.scale);
+      assert.ok(centre.distanceTo(camera.position) >= radius + 3, `a ${p.name} at ${p.x.toFixed(1)}, ${p.z.toFixed(1)} stands within 3 m of ${name}'s camera`);
+      const depth = -centre.clone().applyMatrix4(camera.matrixWorldInverse).z;
+      if (radius >= 0.6 && depth < 8) assert.ok(!view.intersectsSphere(new THREE.Sphere(centre, radius)), `a ${p.name} of ${radius.toFixed(1)} m at ${p.x.toFixed(1)}, ${p.z.toFixed(1)} stands in ${name}'s upright view, within 8 m of the camera`);
+    }
+  }
 });
 
 test('every shot keeps the camera rules over its ground', () => {

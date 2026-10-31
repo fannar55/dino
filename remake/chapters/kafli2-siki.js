@@ -217,6 +217,7 @@ export const SIKI_LAYOUT = {
   forestEdge: 40,
   path: SIKI_PATH,
   biome: 'fen',
+  tall: 0.6, // its shots are kept clear on a tall screen too (world/forest/plan.js): a portrait tablet sees the ground in front of the camera
   water: SIKI_WATER,
   lift: liftBanks,
   // the dry moss mounds at the end of the channel, where Mosi comes up out of the water
