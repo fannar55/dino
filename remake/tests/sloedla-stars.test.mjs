@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { END, barStar, countUp, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
+import { END, barPlace, barStar, countUp, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
+import { STAR_SHARES } from '../engine/sloedla/chart.js';
 
 test('an end star flies from the bar to its place, turns twice, and lands on time', () => {
   const times = endTimes(2);
@@ -113,4 +114,14 @@ test('stars come to rest facing front, never on their side', () => {
     const star = endStar({ t: times.lands[0] + s, i: 0, earned: true, from: { x: 0, y: 0 }, to: { x: 100, y: 100 }, size: 80, times });
     assert.ok(offFront(star.spin) <= 0.35, `the end's star ${s.toFixed(2)} s after landing`);
   }
+});
+
+// five stars on the bar must not crowd (4 and 5 are 12 % apart): they stand evenly, and the gold runs evenly between them
+test('the bar: its stars stand evenly, the gold reaches each just as its share is played', () => {
+  assert.deepEqual(STAR_SHARES.map(s => Math.round(barPlace(s) * 600) / 100), [1, 2, 3, 4, 5], 'a sixth of the bar apart');
+  assert.equal(barPlace(0), 0);
+  assert.equal(barPlace(1), 1);
+  assert.equal(barPlace(-1), 0);
+  assert.equal(barPlace(2), 1);
+  for (let s = 0; s < 1; s += 0.01) assert.ok(barPlace(s + 0.01) > barPlace(s), 'the gold only grows');
 });

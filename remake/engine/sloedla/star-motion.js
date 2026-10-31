@@ -4,12 +4,26 @@
 // ones not won stand as glass and shiver). game.js turns each into a state for star-view.js (3D) or for its own flat stars:
 // { x, y, size, spin, tilt, gold, flash, shine, glass } (spin, tilt in radians; gold, flash, shine 0..1).
 
+import { STAR_SHARES } from './chart.js';
+
 /** The end screen's timings, s: the first star's launch, between launches, a flight, a bounce, three turning together, the count. */
 export const END = { first: 0.6, gap: 0.7, flight: 0.6, settle: 0.5, together: 0.8, count: 1.0, rest: 0.4 };
 
 const easeOut = k => 1 - (1 - k) * (1 - k);
 const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k));
 const clamp01 = k => Math.min(1, Math.max(0, k));
+
+/**
+ * Where on the bar (0 to 1) the gold reaches for a share played (chart.js shareOf): the stars stand evenly, a sixth of the bar
+ * apart, and the gold runs evenly from one to the next (five stars by their shares would crowd: four and five are 12 % apart).
+ */
+export function barPlace(share, shares = STAR_SHARES) {
+  const from = [0, ...shares, 1];
+  const s = clamp01(share);
+  let i = 0;
+  while (i < from.length - 2 && s >= from[i + 1]) i++;
+  return (i + (s - from[i]) / (from[i + 1] - from[i])) / (from.length - 1);
+}
 
 // A star that has landed is alive, as Mario's star is (the owner, 2026-10-30): its size beats like a heart (a double beat each
 // second), now and then it turns a few times quickly, and between those it looks about a little. `life` is s since it came to

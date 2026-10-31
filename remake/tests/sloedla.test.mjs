@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { HIT_WINDOW, LEVELS, createJudge, createScore, count, fullHouse, laneOf, perfectGame, pointsOf, starsFor, tierOf } from '../engine/sloedla/chart.js';
 import { seededRandom } from '../engine/random.js';
 import { CROWD_QUIET, CROWD_TAKES, cueOf } from '../engine/sloedla/crowd.js';
-import { GRADES, gradeOf, milestoneOf } from '../engine/sloedla/text.js';
+import { GRADES, gradeOf, milestoneOf, pointsText } from '../engine/sloedla/text.js';
 import { pitchOf, rootHz } from '../engine/sloedla/key.js';
 
 test('the key: A4 is 440 Hz, and a lift goes up by semitones', () => {
@@ -137,6 +137,10 @@ function childStars({ seed, tapped, spread }) {
   for (const _ of judge.sweep(Infinity)) count(score, { kind: 'miss' });
   return starsFor(score);
 }
+
+test('points are written the Icelandic way: a full stop between thousands', () => {
+  assert.deepEqual([0, 40, 4250, 15840, 1234567].map(pointsText), ['0', '40', '4.250', '15.840', '1.234.567']);
+});
 
 test('the end of a look (?lokaskjar=): any of 0 to 5 stars, or a perfect game', async () => {
   const { lookScore } = await import('../engine/sloedla/game.js');

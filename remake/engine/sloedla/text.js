@@ -30,6 +30,11 @@ export function milestoneOf(streak) {
   return streak >= 10 && streak % (streak <= 50 ? 5 : 10) === 0;
 }
 
+/** Points written the Icelandic way, a full stop between thousands: 4250 → "4.250". */
+export function pointsText(n) {
+  return String(Math.max(0, Math.round(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 // fills from the top of a letter to its foot
 const PALETTES = {
   cream: ['#fffdf0', '#fff0b8'],
