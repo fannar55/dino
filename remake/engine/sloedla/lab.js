@@ -24,13 +24,18 @@
 //   lokaskjar=0..5|fullkominn  the end at once with that many stars, or a perfect game, for a look at it
 //   gestur=<b|a|c>:<barn|fullordinn>  a band's look without phones: that dinosaur's lane is a guest's ("Gestur") at that level
 //                         (its window, its notes, its speed), played here like the rest
+// "Spilum saman" in step 1 opens a room for guests' phones (Fjölspil, fjolspil-song.js): the QR card on the stage, Egill taps
+// his dinosaur, guests take the others from their phones, each at her own level.
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
 // in the menu (to the songs, then plays the picked one) and plays again at the end.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { seededRandom } from '../random.js';
 import { LEVELS } from './chart.js';
-import { groupsOf, laneRules } from './lineup.js';
+import { groupsOf, laneRules, mineFor, roleOf, rolesOf } from './lineup.js';
+import { createFjolspil } from '../fjolspil/fjolspil.js';
+import { createBandLobby } from './band-lobby.js';
+import { BAND_STORAGE_KEY, createBandHost } from './fjolspil-song.js';
 import { createSongClock } from './song-clock.js';
 import { createSongSounds } from './sounds.js';
 import { createReverb } from './room.js';
@@ -373,6 +378,7 @@ function keep({ level, lanes, song }) {
   saveChoices({ level, lanes, song });
   for (const [name, value] of [['stig', level], ['brautir', lanes], ['lag', song]]) if (value !== null) params.set(name, String(value));
   history.replaceState(null, '', `?${params}`);
+  bandChanged(); // "Spilum saman": the phones see the lanes, Egill's dinosaur and the song as they are now
 }
 // the menu's bells (sounds.js: a sparkle at a pick, ticks while a song loads, the star's chord at "Byrjum!")
 const chimes = mix ? createSongSounds({ context, output: mix }) : null;
@@ -382,6 +388,22 @@ const view = createMenuView({
   sparks: createSparks(document.querySelector('[data-sparks]')),
   onUnlock: () => context?.resume().catch(() => {}),
   save: keep,
+  onTogether: () => {
+    const { lanes, mine, level } = menu.state();
+    band.open({ lanes, mine, level }).catch(error => console.error('Slóeðla: the room could not be opened', error));
+    bandChanged();
+  },
+  onAlone: () => {
+    band.close();
+    bandChanged();
+  },
+  onMine: role => {
+    const { lanes, mine } = menu.state();
+    const held = bandRoom.seats.list().some(seat => seat.kind === 'remote' && roleOf(seat.avatar) === role);
+    if (held || role === mine || !rolesOf(lanes).includes(role)) return; // a guest's, his already, or out of the round
+    menu.setMine(role);
+    bandChanged();
+  },
   onPlay: (choice, { again = false } = {}) => {
     options.song = choice.song;
     options.level = choice.level;
@@ -401,8 +423,43 @@ else {
     .then(stage => view.useStage(stage ?? flatStage()), () => view.useStage(flatStage()));
 }
 
+// "Spilum saman": the room for the guests' phones (Fjölspil), kept apart from the book's, its lobby the QR card on the stage
+// (band-lobby.js, the one instance the band host also needs), the band host over it (fjolspil-song.js)
+let bandLobby = null;
+const bandRoom = createFjolspil(document, {
+  storageKey: BAND_STORAGE_KEY,
+  lobby: (doc, lobbyOptions) => (bandLobby = createBandLobby(doc, lobbyOptions)),
+  audio: { sfx: () => chimes?.sparkle(880) },
+});
+const band = createBandHost({
+  fjolspil: bandRoom,
+  lobby: bandLobby,
+  onSeats: () => bandChanged({ seatsOnly: true }),
+  onJoin: seat => {
+    const role = roleOf(seat.avatar);
+    if (role) view.welcome(role);
+  },
+});
+/**
+ * The band as it is now, everywhere: Egill's dinosaur again if the lanes or the seats changed it (mineFor), the phones' lobby
+ * (what is on offer, and the song once the songs show) and the stage's tags. When only the seats changed (the lobby told us),
+ * the lobby is sent again only if Egill's dinosaur moved, since sending it tells us the seats again.
+ */
+function bandChanged({ seatsOnly = false } = {}) {
+  const seats = bandRoom.seats.list();
+  const before = menu.state();
+  if (before.together) {
+    const mine = mineFor({ lanes: before.lanes, mine: before.mine, seats });
+    if (mine !== before.mine) menu.setMine(mine);
+    const { lanes, level, step, song } = menu.state();
+    if (!seatsOnly || mine !== before.mine) band.update({ lanes, mine, level, song: step === 'hver' ? null : song });
+  }
+  const { together, mine } = menu.state();
+  view.setBand({ together, mine, seats: bandRoom.seats.list() });
+}
+
 // for a look from outside (captures, and a meter of the mix: `audio`)
-window.__sloedla = { start, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
+window.__sloedla = { start, bandRoom, band, state: () => round?.game.state() ?? null, latency: () => round?.clock.latency() ?? null, options, audio: { context, mix, glue, music, crowd: crowd?.bus ?? null, dj: dj?.bus ?? null } };
 Promise.all([loading, backdropLoading]).then(([loaded]) => {
   images = loaded;
   $('play').disabled = false;

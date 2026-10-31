@@ -11,7 +11,10 @@
 <!-- Slóeðla's song game (engine/sloedla/): a page of its own, never linked from the game, to prove the play and the sound.
      The menu (menu.js, menu-view.js) on a stage in the evening Fen (stage.js: the cast in 3D; stage-flat.js: in pictures):
      step 1 who plays, step 2 the song cards, the DJ in the corner; .sl's data-screen says which screen shows. The options are in
-     engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0. -->
+     engine/sloedla/lab.js: ?lag=<id>, ?stig=barn|fullordinn, ?brautir=3|2, ?seinkun=<ms>, ?debug=1, ?sjalf=1|illa, ?upptaka=1, ?hljod=0.
+     "Spilum saman" (fjölspil): the QR card in #saman (band-lobby.js), each friend's name tag under her (.sl-tags). -->
+<!-- The QR code's encoder for the QR card (engine/fjolspil/qr.js): a classic script that defines the global qrcode. -->
+<script src="./vendor/qrcode-generator/qrcode.js"></script>
 </head>
 <body>
 <main class="sl" data-screen="hver">
@@ -33,9 +36,13 @@
     <div class="sl-cast">
       <canvas class="sl-stage" data-stage></canvas>
       <div class="sl-flat" data-flat></div>
+      <!-- "Spilum saman": who plays each friend, at her feet (menu-view.js setBand): Egill, a guest's name, or Laus -->
+      <div class="sl-tags" data-tags hidden><span class="sl-tag" data-tag="b"></span><span class="sl-tag" data-tag="a"></span><span class="sl-tag" data-tag="c"></span></div>
     </div>
   </div>
   <canvas class="sl-words" data-words aria-hidden="true"></canvas>
+  <!-- "Spilum saman": the QR card a phone scans, in the scene's top-right corner (band-lobby.js); half its size in step 2 -->
+  <section class="sl-saman" id="saman" aria-label="Spilum saman" hidden></section>
 
   <div class="sl-dj" aria-live="polite">
     <span class="sl-dj-pic"><img src="./assets/sloedla/valmynd/dj.webp" alt="DJ-inn"></span>
@@ -54,6 +61,7 @@
           <button type="button" class="sl-choice" data-option="brautir=3">3 eðlur</button>
           <button type="button" class="sl-choice" data-option="brautir=2">2 eðlur</button>
         </div>
+        <button type="button" class="sl-choice sl-together" data-together><span class="sl-qrmark" aria-hidden="true"></span><span data-together-word>Spilum saman</span></button>
         <button type="button" class="sl-go" data-to-songs>Veljum lag →</button>
       </div>
     </div>

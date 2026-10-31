@@ -110,3 +110,21 @@ test('a tap on the stage finds the dinosaur over whose feet it is, never Egill',
   assert.equal(nearestFriend(feet, 1000, 400, { reach: 120 }), null, 'too far from any');
   assert.equal(nearestFriend(feet, 700, 520, { reach: 120 }), null, 'under her feet is not on her');
 });
+
+test('the flat stage: a picked friend hops', async () => {
+  const { createFlatStage } = await import('../engine/sloedla/stage-flat.js');
+  const pictures = [];
+  const root = {
+    clientWidth: 1280, clientHeight: 800,
+    ownerDocument: { createElement: () => ({ style: {}, dataset: {}, classList: { toggle() {} } }) },
+    append: img => pictures.push(img),
+  };
+  const stage = createFlatStage({ root, asset: path => path });
+  stage.pick('c');
+  stage.frame(0.1);
+  const lift = img => parseFloat(/translateY\((-?[\d.]+)px\)/.exec(img.style.transform)[1]);
+  const by = id => pictures.find(img => img.dataset.friend === id);
+  assert.ok(lift(by('c')) < -5, 'Þórseðla jumps');
+  assert.equal(lift(by('a')), 0);
+  assert.equal(lift(by('b')), 0);
+});

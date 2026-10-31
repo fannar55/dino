@@ -75,6 +75,10 @@ export function createFlatStage({ root, asset }) {
     cheer() {
       ['b', 'a', 'c'].filter(id => !friends[id].out).forEach((id, i) => cheers.push({ at: clock + i * CHEER_GAP, id }));
     },
+    /** "Spilum saman": a friend picked (by Egill, or a guest who joined) jumps once. */
+    pick(id) {
+      if (friends[id]) friends[id].cheerAt = clock;
+    },
     frame(dt, beats = null) {
       clock += dt;
       for (let i = cheers.length - 1; i >= 0; i--) {

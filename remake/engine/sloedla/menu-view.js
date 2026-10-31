@@ -6,9 +6,13 @@
 // It all stands on the menu's stage (spec 2026-10-31-sloedla-valmynd-svid): the evening Fen with the cast (stage.js or
 // stage-flat.js, handed in by useStage), a beam of light on each friend, twinkling stars and the words in the game's letters
 // (drawWord). .sl's data-screen says which screen shows (hver, lag, hlada, umferd, lok); the stage draws only on the first three.
+// "Spilum saman" (spec 2026-10-31-sloedla-fjolspil): a button beside the choices ("Spila einn" while together); until Egill has
+// his dinosaur the words are "Hvaða eðlu spilar þú?" and a tap on the stage picks one (onMine); each friend's name tag at her
+// feet (Egill, a guest's name, "Laus", or "…" while a guest is away); a guest joining is welcomed (welcome).
 
 import { DJ_LINES } from './dj.js';
-import { bounce, loadingDone, ringStep } from './stage-motion.js';
+import { SONG_AVATARS, canTwoLanes } from './lineup.js';
+import { bounce, loadingDone, nearestFriend, ringStep } from './stage-motion.js';
 import { drawWord, pointsText } from './text.js';
 
 const STAGE_SCREENS = new Set(['hver', 'lag', 'hlada']);
@@ -19,12 +23,16 @@ const rgba = (hex, alpha) => {
   return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 };
 const MAX_RATIO = 2; // the sky's and the words' canvases, pixels per CSS pixel at most
+// "Spilum saman"'s small QR mark: the three corner squares of a QR code and a few of its dots
+const QR_MARK = '<svg viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="15" y="2" width="7" height="7" rx="1"/><rect x="2" y="15" width="7" height="7" rx="1"/></g><g fill="currentColor"><rect x="4.5" y="4.5" width="2" height="2"/><rect x="17.5" y="4.5" width="2" height="2"/><rect x="4.5" y="17.5" width="2" height="2"/><rect x="12" y="12" width="3" height="3"/><rect x="17" y="15" width="3" height="3"/><rect x="15" y="19" width="3" height="3"/><rect x="20" y="20" width="2" height="2"/><rect x="12" y="17" width="2" height="4"/></g></svg>';
 
 /**
- * The menu over the page `root`. `onPlay({ song, level, lanes }, { again })` starts a round (`again`: "Spilum aftur"); `onUnlock()` is called at the first tap (the
- * page wakes its audio there); `save(state)` keeps the choices. Returns { showStart(), showEnd(result, newBest), enter() }.
+ * The menu over the page `root`. `onPlay({ song, level, lanes, together, mine }, { again })` starts a round (`again`: "Spilum aftur");
+ * `onUnlock()` is called at the first tap (the page wakes its audio there); `save(state)` keeps the choices (and is told the step
+ * changed); `onTogether()`, `onAlone()` and `onMine(role)` are "Spilum saman", "Spila einn" and a dinosaur tapped on the stage.
+ * Returns { useStage, screen, showLoading, showStart, showEnd, enter, setBand, welcome }.
  */
-export function createMenuView({ root = document, menu, songs, best, dj = null, brot = null, sparks = null, chimes = null, reduced = false, asset, onPlay, onUnlock = () => {}, save = () => {} }) {
+export function createMenuView({ root = document, menu, songs, best, dj = null, brot = null, sparks = null, chimes = null, reduced = false, asset, onPlay, onUnlock = () => {}, save = () => {}, onTogether = () => {}, onAlone = () => {}, onMine = () => {} }) {
   const $ = selector => root.querySelector(selector);
   const all = selector => [...root.querySelectorAll(selector)];
   const win = root.defaultView ?? globalThis;
@@ -56,8 +64,16 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   const FLASH = 0.65; // s of the white flash; the round takes over at its brightest (0.3 of it)
   const skyStars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random() * 0.55, r: Math.random() * 1.6 + 0.4, p: Math.random() * 6 }));
   const portrait = () => win.innerHeight > win.innerWidth;
-  const TITLE = { text: 'Söngur Slóeðlu', style: 'rainbow', y: () => win.innerHeight * (portrait() ? 0.2 : 0.17), size: () => Math.min(win.innerWidth * 0.09, portrait() ? 54 : 84) };
+  // (on an upright screen while together, under the QR card)
+  const TITLE = { text: 'Söngur Slóeðlu', style: 'rainbow', y: () => win.innerHeight * (portrait() ? (band.together ? 0.33 : 0.2) : 0.17), size: () => Math.min(win.innerWidth * 0.09, portrait() ? 54 : 84) };
   const setWords = list => { words = list.filter(Boolean).map(word => ({ ...word, at: clock })); };
+  // "Spilum saman" until Egill has his dinosaur: the question in the title's place (lower on an upright screen, under the QR card)
+  const ASK = { text: 'Hvaða eðlu spilar þú?', style: 'rainbow', y: () => win.innerHeight * (portrait() ? 0.33 : 0.17), size: () => Math.min(win.innerWidth * 0.075, portrait() ? 40 : 64) };
+  let band = { together: false, mine: null, seats: [] }; // setBand's
+  const castBox = $('.sl-cast');
+  const tagsBox = $('[data-tags]');
+  const tags = Object.fromEntries(all('[data-tag]').map(tag => [tag.dataset.tag, tag]));
+  const stepWords = () => (band.together && !band.mine ? ASK : TITLE);
 
   function fit(canvas) {
     if (!canvas) return;
@@ -100,6 +116,18 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       beam.style.filter = `blur(6px) brightness(${(1 + 0.9 * (foot.out ? 0 : hop)).toFixed(3)})`;
     }
   }
+  /** Each friend's name tag at her feet ("Spilum saman"), as the beams; none for a friend out of the round. */
+  function placeTags() {
+    if (!tagsBox || tagsBox.hidden) return;
+    const feet = stage?.feet() ?? [];
+    for (const [id, tag] of Object.entries(tags)) {
+      const foot = feet.find(f => f.id === id);
+      tag.style.visibility = foot && !foot.out ? '' : 'hidden';
+      if (!foot) continue;
+      tag.style.left = `${foot.x}px`;
+      tag.style.top = `${foot.y + win.innerHeight * 0.012}px`;
+    }
+  }
   function frame(now) {
     raf = 0;
     if (!STAGE_SCREENS.has(screenName)) return;
@@ -116,6 +144,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const hop = beats === null ? 0 : bounce(beats);
     stage?.frame(dt, beats, picked?.bpm ?? null);
     placeBeams(hop);
+    placeTags();
     const beam = picked?.hue ? rgba(picked.hue, 0.66) : '';
     if (beam !== beamColour) {
       beamColour = beam;
@@ -174,7 +203,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       if (stageRoot) stageRoot.dataset.screen = name;
       // back from a round: the stage was hidden, and the tablet may have turned since
       if (back) stage?.resize();
-      if (name === 'hver') setWords([TITLE]);
+      if (name === 'hver') setWords([stepWords()]);
       if (name === 'lag' || name === 'lok' || name === 'umferd') setWords([]);
     }
     if (STAGE_SCREENS.has(name) && !raf) {
@@ -299,9 +328,32 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       met.textContent = points > 0 ? `Met: ${pointsText(points)}` : '';
       met.hidden = !(points > 0);
     }
+    renderBand();
     cards.classList.toggle('has-pick', Boolean(s.song));
     play.classList.toggle('show', Boolean(s.song)); // it pops in when it first shows
     play.setAttribute('aria-hidden', String(!s.song));
+  }
+  /** "Spilum saman": the button's word, the tags, and what waits for Egill's dinosaur or cannot be while guests play. */
+  function renderBand() {
+    const s = menu.state();
+    if (togetherWord) togetherWord.textContent = band.together ? 'Spila einn' : 'Spilum saman';
+    togetherButton?.setAttribute('aria-pressed', String(band.together));
+    if (toSongsButton) toSongsButton.disabled = band.together && !band.mine;
+    if (twoButton) twoButton.disabled = band.together && !canTwoLanes(band.seats);
+    if (tagsBox) tagsBox.hidden = !band.together;
+    for (const [role, tag] of Object.entries(tags)) {
+      const seat = band.seats.find(each => each.kind === 'remote' && each.avatar === SONG_AVATARS[role]);
+      const kind = seat ? (seat.present ? 'guest' : 'away') : role === band.mine ? 'egill' : 'free';
+      const text = { guest: seat?.name, away: '…', egill: 'Egill', free: 'Laus' }[kind];
+      tag.hidden = role === 'b' && s.lanes === 2;
+      for (const each of ['egill', 'free', 'away']) tag.classList.toggle(each, kind === each);
+      if (tag.textContent === text) continue;
+      tag.textContent = text;
+      if (kind === 'free' || reduced) continue;
+      tag.classList.remove('pop');
+      void tag.offsetWidth; // start the pop again
+      tag.classList.add('pop');
+    }
   }
   /** The cards fly in one by one; a bell, higher and higher, as each lands. */
   function cardsIn() {
@@ -332,9 +384,42 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     });
   }
   $('[data-to-songs]')?.addEventListener('click', () => {
-    run(menu.toSongs(), 'hvadalag');
+    const cues = menu.toSongs();
+    if (!cues) return; // "Spilum saman": Egill picks his dinosaur first
+    run(cues, 'hvadalag');
+    save(menu.state());
     render();
     cardsIn();
+  });
+  // "Spilum saman" / "Spila einn"
+  const togetherButton = $('[data-together]');
+  const togetherWord = $('[data-together-word]');
+  const toSongsButton = $('[data-to-songs]');
+  const twoButton = all('#start [data-option]').find(button => button.dataset.option === 'brautir=2') ?? null;
+  const qrMark = $('.sl-qrmark');
+  if (qrMark) qrMark.innerHTML = QR_MARK;
+  togetherButton?.addEventListener('click', () => {
+    if (band.together) {
+      run(menu.alone());
+      onAlone();
+    } else {
+      run(menu.together());
+      onTogether();
+    }
+    render();
+    chimes?.sparkle(880);
+    togetherButton.classList.remove('picked');
+    void togetherButton.offsetWidth; // start the pop again
+    togetherButton.classList.add('picked');
+  });
+  // while together in step 1, a tap on the stage over a friend's feet picks her for Egill (the page decides whether she is free)
+  stageRoot?.addEventListener('pointerdown', event => {
+    if (!band.together || screenName !== 'hver' || start.hidden || !stage) return;
+    if (event.target?.closest?.('button, .sl-saman, .sl-dj')) return;
+    const box = castBox?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    const feet = stage.feet().filter(foot => !foot.out);
+    const role = nearestFriend(feet, event.clientX - box.left, event.clientY - box.top, { reach: win.innerWidth * 0.12 });
+    if (role) onMine(role);
   });
   // a card picked: it pops and sparks with a bell (also when it is tapped again; then nothing else happens), its line and its bit
   cards.addEventListener('click', event => {
@@ -354,6 +439,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   });
   $('[data-back]')?.addEventListener('click', () => {
     run(menu.back(), 'hverspilar');
+    save(menu.state());
     render();
   });
   play.addEventListener('click', () => go());
@@ -384,7 +470,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   }, { once: true, capture: true });
 
   if (bubble) bubble.textContent = line(menu.state().step === 'lag' ? 'hvadalag' : 'hverspilar');
-  if (screenName === 'hver') setWords([TITLE]);
+  if (screenName === 'hver') setWords([stepWords()]);
   render();
   screen(screenName);
 
@@ -450,6 +536,28 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       // two bells as the buttons come up
       win.setTimeout(() => chimes?.sparkle(880), 650);
       win.setTimeout(() => chimes?.sparkle(1175), 750);
+    },
+    /**
+     * "Spilum saman" as the page has it: `together`, Egill's dinosaur (`mine`) and the room's `seats`. A newly picked dinosaur
+     * of Egill's jumps; the question gives way to the title once he has one.
+     */
+    setBand({ together, mine, seats = [] }) {
+      const before = band;
+      band = { together: Boolean(together), mine: mine ?? null, seats };
+      if (band.mine && band.mine !== before.mine) stage?.pick(band.mine);
+      if (screenName === 'hver' && stepWords() !== (before.together && !before.mine ? ASK : TITLE)) setWords([stepWords()]);
+      render();
+    },
+    /** A guest took `role`'s dinosaur: the DJ welcomes her, the dinosaur jumps, a bell and sparks at her name tag. */
+    welcome(role) {
+      run(menu.joined());
+      stage?.pick(role);
+      chimes?.sparkle(1175);
+      const tag = tags[role];
+      if (sparks && sparkCanvas && tag && !tag.hidden) {
+        const a = tag.getBoundingClientRect(), b = sparkCanvas.getBoundingClientRect();
+        sparks.burst(a.left + a.width / 2 - b.left, a.top + a.height / 2 - b.top, '#ffd24a');
+      }
     },
     /** Enter or space: on to the songs, play the picked one, or play again. */
     enter() {

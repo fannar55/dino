@@ -247,6 +247,62 @@ html, body {
 .sl-fan img:nth-child(even) { transform: rotate(8deg) translateY(-3px); }
 .sl-other:hover .sl-fan img { transform: translateY(-6px) rotate(0deg); }
 
+/* ---- "Spilum saman" (fjölspil) ---- */
+
+/* the button beside the other choices, with a small QR mark; "Spila einn" while the room is open */
+.sl-together { padding-left: 16px; }
+/* four things along the bottom of a wide screen: a little smaller, each on one line, two rows on a narrow one */
+.sl-ui1 .sl-choice, .sl-ui1 .sl-go { white-space: nowrap; }
+@media (orientation: landscape) and (max-width: 1500px) {
+  .sl-ui1 { flex-wrap: wrap; gap: 14px 16px; padding: 0 16px; }
+  .sl-ui1 .sl-choice { font-size: 22px; padding: 10px 20px 10px 12px; gap: 10px; }
+  .sl-ui1 .sl-choice[data-option^="brautir"] { padding-left: 20px; }
+  .sl-ui1 .sl-face { font-size: 28px; }
+  .sl-ui1 .sl-go { font-size: 28px; padding: 12px 30px; }
+}
+.sl-qrmark { display: inline-grid; width: 30px; height: 30px; flex: none; }
+.sl-qrmark svg { width: 100%; height: 100%; }
+.sl-choice:disabled, .sl-go:disabled { opacity: 0.45; cursor: default; filter: saturate(0.5); animation: none; }
+.sl-choice:disabled:hover { transform: none; }
+
+/* the QR card in the scene's top-right corner: dark code on a light card, at least 28 % of the screen's short side; half its
+   size in step 2, in the same corner (guests may still join there) */
+.sl { --saman: max(28vmin, 112px); }
+.sl-saman { position: absolute; top: 14px; right: 14px; z-index: 4; transform-origin: 100% 0; transition: transform 0.6s cubic-bezier(0.3, 1.3, 0.5, 1); }
+.sl-saman:not([hidden]) { animation: sl-saman-in 0.55s cubic-bezier(0.3, 1.45, 0.5, 1); }
+.sl[data-screen="lag"] .sl-saman { transform: scale(0.5); }
+.sl[data-screen="hlada"] .sl-saman, .sl[data-screen="umferd"] .sl-saman, .sl[data-screen="lok"] .sl-saman { display: none; }
+@keyframes sl-saman-in { from { transform: translateX(120%) rotate(8deg); } }
+.sl-saman-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; width: var(--saman); padding: 12px 12px 10px; border-radius: 22px;
+  background: #fffaf0; color: #2b2350; box-shadow: 0 0 0 4px #ffd24a, 0 0 0 8px rgba(255, 210, 74, 0.25), 0 10px 26px rgba(0, 0, 0, 0.5);
+}
+.sl-saman-qr { width: 100%; aspect-ratio: 1; }
+.sl-saman-qr svg { display: block; width: 100%; height: 100%; }
+.sl-saman-code { display: flex; gap: 5px; }
+.sl-saman-letter {
+  display: grid; place-items: center; width: 1.45em; height: 1.6em; border-radius: 8px; font-weight: 900; font-size: clamp(16px, 2.4vmin, 24px);
+  background: #2b2350; color: #fff6e0;
+}
+.sl-saman-ask { margin: 0; font-weight: 900; font-size: clamp(13px, 1.9vmin, 18px); line-height: 1.15; text-align: center; }
+.sl-saman-lan { margin: 0; font-weight: 800; font-size: 12px; color: #a33b2a; text-align: center; }
+/* the DJ's words end before the card */
+.sl:has(.sl-saman:not([hidden])) .sl-dj { max-width: calc(100% - var(--saman) - 60px); }
+.sl:has(.sl-saman:not([hidden])) .sl-dj-say { max-width: min(420px, calc(100vw - var(--saman) - 150px)); }
+
+/* who plays each friend, at her feet: Egill gold, a guest cream on dark glass, "Laus" faint, "…" while a guest is away */
+.sl-tags { position: absolute; inset: 0; pointer-events: none; }
+.sl-tag {
+  position: absolute; left: 0; top: 0; padding: 5px 16px; border-radius: 999px; white-space: nowrap; transform: translate(-50%, 0);
+  font-weight: 900; font-size: clamp(15px, 2.1vmin, 22px); line-height: 1.15; color: #fff6e0;
+  background: rgba(20, 16, 48, 0.84); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18), 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+.sl-tag.egill { color: #3a2400; background: linear-gradient(180deg, #fff3b0 0%, #ffd24a 50%, #ff9a1f 100%); box-shadow: 0 0 0 3px rgba(255, 220, 120, 0.5), 0 0 18px rgba(255, 200, 60, 0.6), 0 4px 12px rgba(0, 0, 0, 0.45); }
+.sl-tag.free { opacity: 0.55; font-weight: 800; }
+.sl-tag.away { opacity: 0.7; }
+.sl-tag.pop { animation: sl-tag-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes sl-tag-pop { from { scale: 0.4; } 60% { scale: 1.2; } }
+
 /* an upright screen: the stage closes up */
 @media (orientation: portrait) {
   .sl-bg { background-image: url("./assets/sloedla/kvold-fen-upright.webp"); }

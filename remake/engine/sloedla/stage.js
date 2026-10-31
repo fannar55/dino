@@ -16,6 +16,7 @@ const DROP = { height: 0.6, time: 0.4, land: 0.2, squash: 0.12 }; // a friend's 
 const CHEER_GAP = 0.12; // s between the friends' cheers
 const FLOOD = { intensity: 75, height: 7.5, ahead: 4, angle: 18, beat: 0.5 }; // each friend's floodlight from above and in front
 // (candela; off while she is out, brighter on the beat as her beam of light is)
+const PICKED = { time: 0.8, flash: 1.6 }; // a friend picked ("Spilum saman"): her floodlight flashes twice in this time, this much brighter
 
 /** A soft round shadow, dark in the middle (a texture of its own, no page canvas needed). */
 function shadowTexture() {
@@ -35,7 +36,7 @@ function shadowTexture() {
 /**
  * The stage on `canvas` (a canvas filling the stage's box); `asset(path)` the address of a file in assets/; `onLost()` once if a
  * model cannot be loaded (the stage has then cleared its canvas and stopped). Resolves to the Stage
- * { setChoice({ lanes, level }), cheer(), frame(dt, beats, bpm), feet(), resize() } as soon as the renderer is up, or null
+ * { setChoice({ lanes, level }), cheer(), pick(id), frame(dt, beats, bpm), feet(), resize() } as soon as the renderer is up, or null
  * without WebGL.
  */
 export async function createStage({ canvas, asset, win = globalThis, onLost = () => {}, reduced = false }) {
@@ -150,7 +151,7 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
       id, conf, holder, shadow, flood, mixer, materials, scale, x: 0, z: 0,
       clips: Object.fromEntries(gltf.animations.map(clip => [clip.name, clip])),
       out: out[id], dim: out[id] ? DIM : 1, shownDim: -1, age: reduced ? DROP.time + DROP.land : 0,
-      current: null, dancing: null, once: null,
+      current: null, dancing: null, once: null, pickedAt: -Infinity,
     };
     mixer.addEventListener('finished', event => {
       if (event.action === friend.once && friend.current === event.action) play(friend, restOf(friend));
@@ -208,6 +209,13 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
       const order = ['egill', 'b', 'a', 'c'].filter(id => !out[id]);
       order.forEach((id, i) => cheers.push({ at: clock + i * CHEER_GAP, id }));
     },
+    /** "Spilum saman": a friend picked (by Egill, or a guest who joined) cheers once, and her floodlight flashes twice. */
+    pick(id) {
+      const friend = friends[id];
+      if (!friend || lost) return;
+      if (!friend.out) play(friend, friend.conf.cheer, { once: true });
+      friend.pickedAt = clock;
+    },
     /** One frame, `dt` s on: with `beats` (the preview's, and its `bpm`) those in the round dance; else they rest. */
     frame(dt, beats = null, bpm = null) {
       if (lost) return;
@@ -242,7 +250,9 @@ export async function createStage({ canvas, asset, win = globalThis, onLost = ()
           friend.shownDim = friend.dim;
         }
         // her floodlight: on while she is in the round (it fades as she darkens), a flash on the beat
-        friend.flood.intensity = FLOOD.intensity * ((friend.dim - DIM) / (1 - DIM)) * (1 + FLOOD.beat * hop);
+        const picked = (clock - friend.pickedAt) / PICKED.time;
+        const flash = picked >= 0 && picked < 1 ? PICKED.flash * Math.abs(Math.sin(picked * 2 * Math.PI)) : 0;
+        friend.flood.intensity = FLOOD.intensity * ((friend.dim - DIM) / (1 - DIM)) * (1 + FLOOD.beat * hop + flash);
       }
       renderer.render(scene, camera);
     },
