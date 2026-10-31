@@ -15,9 +15,13 @@ nets. Velgengni lítur svona út:
 - Eftir eina eða tvær lotur á Wi-Fi stendur „Tilbúinn án nets ✓“ undir Byrja. Þá virkar **allur Mosi** í flugstillingu:
   - sagan og kaflarnir með þrívíddarheiminum, persónunum og röddunum;
   - bókin (Risaeðlur, Dýrin, Leikir, Kortið, Safnið);
-  - allir litlu leikirnir: Eitt!, Háls og hali, Litla Yatzy, Hvar er vinur minn? og Söngur Slóeðlu.
+  - leikirnir í bókinni: Eitt!, Háls og hali og Litla Yatzy.
 
   Eina undantekningin er Fjölspil, sem segir „Fjölspil þarf net“.
+- **Söngur Slóeðlu og Hvar er vinur minn?** eru sjálfstæðir litlir leikir á eigin síðum (`sloedla-lab.html`,
+  `minnisspil.html`). Þeir tengjast Mosa ekki, og óákveðið er hvar Hvar er vinur minn? á heima (eigandinn, 31. október). Þeir
+  verða því ekki hluti af forritinu núna, og ekkert í þessu verki tengir þá við bókina. Skrárnar þeirra eru samt á listanum.
+  Þegar eigandinn tengir þá við Mosa virka þeir án nets án nokkurrar breytingar hér.
 - Leikir sem bætast við seinna (til dæmis Veiddu, Slönguspil og kafli Uggeðlu, þegar þeir koma í `main`) fylgja sjálfkrafa með.
   Listinn nær yfir hverja skrá sem `npm run stage` afritar, og þarf enga breytingu fyrir hvern leik.
 - Ný útgáfa (`npm run deploy`) berst í tækið án þess að neitt sé gert á því. Aðeins breyttar skrár sækjast, og skiptin verða
@@ -200,8 +204,7 @@ nets. Velgengni lítur svona út:
          í tækinu, hvaða leið sem barnið fer;
        - leikurinn opnast og Byrja virkar; sagan fer af stað með rödd;
        - bókin opnast á hverjum flipa;
-       - hver litli leikur opnast og byrjar: Eitt!, Háls og hali, Litla Yatzy, Hvar er vinur minn? og Söngur Slóeðlu (lag spilast
-         með öllum hljóðfærum);
+       - hver leikur í bókinni opnast og byrjar: Eitt!, Háls og hali og Litla Yatzy (í ramma sínum yfir bókinni);
        - Fjölspil segir „Fjölspil þarf net“;
     4. ein skrá í afritaðri síðunni breytt og listinn skrifaður aftur: aðeins sú skrá sækist og skiptin verða á fyrsta skjánum;
     5. `spil.html` sækir ekkert.
@@ -216,3 +219,5 @@ nets. Velgengni lítur svona út:
 - Samstilling vistunar milli tækja, eigið lén, tilkynningar og niðurhal í bakgrunni þegar forritið er lokað. iOS leyfir það
   ekki hvort sem er.
 - Lab-síðurnar og síða gestsins sem forrit.
+- Að tengja Söng Slóeðlu eða Hvar er vinur minn? við Mosa, eða gera þá að sérstökum forritum. Það bíður ákvörðunar
+  eigandans. „Fjölspil þarf net“ (§8) nær samt líka yfir QR-spjald Söngsins, því það er sami vandinn í sama kóðanum.
