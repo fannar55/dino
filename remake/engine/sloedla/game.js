@@ -35,6 +35,15 @@ import { barStar as barStarAt, countUp, endStar, endTimes, flyer, isNewBest } fr
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
 const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes often, and its colour says it too)
+export const STRAY_SHAKE = 0.45; // s her button shakes "no" after a tap at no note
+
+/**
+ * Her button's shake sideways `age` s after a tap at no note, as a share of her size: a light "no" that settles (the owner,
+ * 2026-10-31: such a tap breaks the run, so it must be seen). 0 before it and after STRAY_SHAKE.
+ */
+export function strayShake(age) {
+  return age >= 0 && age < STRAY_SHAKE ? Math.sin(age * 40) * 0.12 * Math.exp(-age * 7) : 0;
+}
 const SAY_LIFE = 1.8; // s a word in the middle stays (an early reader needs one or two seconds for a new word)
 const SAY_TURN = 1.1; // s a word in the middle has to itself before the next may come
 const RISE_LIFE = 2.2; // s a milestone takes to rise and fade
@@ -89,7 +98,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const rings = [];
   const waves = []; // Slóeðla's sound waves, Þórseðla's ground wave
   const pillars = []; // light going up a lane on a hit
-  const puffs = []; // a grey puff where a note was missed
+  const puffs = []; // a grey puff where a note was missed, or over a button tapped at no note ({ ..., alpha })
   const flyers = []; // stars won, on their way up into the bar
   const shocks = []; // the end's shock waves where a star lands: { x, y, r, at }
   const meteors = []; // falling stars
@@ -97,6 +106,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   const flashes = new Array(lanes).fill(-Infinity); // any tap (the button squashes)
   const hitAt = new Array(lanes).fill(-Infinity);
   const missAt = new Array(lanes).fill(-Infinity);
+  const strayAt = new Array(lanes).fill(-Infinity); // a tap at no note that broke the run (her button shakes "no")
   const lights = cast.map(() => 0); // each dinosaur's stage lights, 0 dark to 1 (follows whether she plays)
   const floaters = [];
   const words = []; // the middle's words: { text, x, y, size, style, at }
@@ -615,6 +625,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         count(score, result);
         spillMeter(fill);
         setTier();
+        // seen where the finger is: her button shakes "no" and a little grey puff rises from it
+        strayAt[lane] = time;
+        for (let i = 0; i < 3; i++) puffs.push({ x: laneX[lane] + (i - 1) * dinoR * 0.32 + (random() - 0.5) * dinoR * 0.15, y: hitY - dinoR * 1.08, vx: (i - 1) * 22 + (random() - 0.5) * 12, vy: -30 - random() * 25, at: time, r: dinoR * (0.13 + random() * 0.05), alpha: 0.7 });
       }
     }
     return result;
@@ -1198,7 +1211,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       }
       const { canvas: button, size } = buttons[i];
       g.save();
-      g.translate(x, y);
+      g.translate(x + strayShake(time - strayAt[i]) * dinoR, y); // a tap at no note: a light "no" sideways
       if (turn) g.rotate(turn);
       g.drawImage(button, (-size * sxScale) / 2, (-size * syScale) / 2, size * sxScale, size * syScale);
       // a hit: the button flashes white for a moment
@@ -1239,7 +1252,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       const p = puffs[i];
       const k = (time - p.at) / 0.6;
       if (k > 1 || k < 0) { if (k > 1) puffs.splice(i, 1); continue; }
-      g.globalAlpha = (1 - k) * 0.35;
+      g.globalAlpha = (1 - k) * (p.alpha ?? 0.35);
       g.fillStyle = '#9b98b8';
       g.beginPath();
       g.arc(p.x + p.vx * k, p.y + p.vy * k, p.r * (1 + k), 0, Math.PI * 2);

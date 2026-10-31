@@ -34,6 +34,17 @@ test('a tap plays the nearest waiting note of its lane in the window; a miss goe
   assert.equal(judge.left(), 0);
 });
 
+// the owner (2026-10-31): a tap at no note breaks the run, so it must be seen: a light shake of her button and a little grey puff
+test('a tap at no note is seen: her button shakes "no" for a moment, then stands still', async () => {
+  const { STRAY_SHAKE, strayShake } = await import('../engine/sloedla/game.js');
+  assert.equal(strayShake(Infinity), 0, 'no tap at nothing, no shake');
+  assert.equal(strayShake(-0.1), 0);
+  const most = Math.max(...Array.from({ length: 16 }, (_, i) => Math.abs(strayShake(i * 0.01))));
+  assert.ok(most >= 0.05 && most <= 0.15, `a light shake you can see, a share of her size: ${most.toFixed(3)}`);
+  assert.ok(STRAY_SHAKE > 0.2 && STRAY_SHAKE <= 0.5, 'a moment, not a fuss');
+  assert.equal(strayShake(STRAY_SHAKE), 0, 'then she stands still');
+});
+
 // the owner (2026-10-31): the screen said 95 of 95 notes, the DJ "Næstum fullt hús!" (a stray tap had broken the run)
 test('fullt hús is every note played, as the end screen counts them; a stray tap does not take it away, a missed note does', () => {
   const score = createScore(95);
