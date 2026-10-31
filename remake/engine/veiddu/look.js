@@ -11,8 +11,6 @@ const asset = path => new URL(path, REMAKE).href;
 const BY_ID = new Map(KINDS.map(kind => [kind.id, kind]));
 const ORDER = KINDS.map(kind => kind.id);
 const TAP_PX = 88; // the least a card of the child's hand may show across to be tapped (veiddu.css's --veiddu-target)
-const SHY = '­'; // a soft hyphen: where a long name may break
-
 /** The kind of a card or a kind id (a RangeError for one that is not a kind). */
 function kindFor(cardOrKind) {
   const id = typeof cardOrKind === 'string' ? cardOrKind : cardOrKind?.kind;
@@ -21,16 +19,16 @@ function kindFor(cardOrKind) {
   return kind;
 }
 
-// Where a long name may break, so it can be set big in two lines: a word of the card's name, split in its syllables.
-const BREAKS = {
-  skjaldbaka: `Skjald${SHY}baka`, drekafluga: `Dreka${SHY}fluga`, brunnklukka: `Brunn${SHY}klukka`, vatnalaesingi: `Vatna${SHY}læsingi`,
-  salamandra: `Sala${SHY}mandra`, 'fiskur-appelsinugulur': `Appelsínu${SHY}gulur fiskur`,
-};
+// About how wide Nunito's heavy letters are, in ems: the narrow ones, the wide ones, and the rest.
+const letterWidth = ch => ('iíjl'.includes(ch) ? 0.3 : 'tf'.includes(ch) ? 0.4 : 'rs'.includes(ch) ? 0.46 : 'mwæ'.includes(ch) ? 0.9 : ch === ch.toUpperCase() && ch !== ch.toLowerCase() ? 0.66 : 0.58);
 
-/** A name's size on a card, in cqw (a hundredth of the card's width): as big as the longest piece it cannot break allows. */
+/**
+ * A name's size on a card, in cqw (a hundredth of the card's width). A name never breaks inside a word (a child who is learning to
+ * read must see each word whole): it breaks only between words, and a long single word shrinks until it fits on its line.
+ */
 function nameSize(text) {
-  const pieces = text.split(' ').flatMap(word => word.split(SHY).map((piece, i, all) => [...piece].length + (i < all.length - 1 ? 1 : 0)));
-  return Math.min(16.5, 74 / (Math.max(...pieces) * 0.58));
+  const widest = Math.max(...text.split(' ').map(word => [...word].reduce((sum, ch) => sum + letterWidth(ch), 0)));
+  return Math.min(16.5, 72 / widest);
 }
 
 /**
@@ -61,7 +59,7 @@ export function cardElement(doc, card, { back = false, tag = 'div', mini = false
     img.draggable = false;
     pic.append(img);
   }
-  const text = BREAKS[kind.id] ?? kind.name;
+  const text = kind.name;
   const name = doc.createElement('span');
   name.className = 'name';
   name.setAttribute('aria-hidden', 'true');
