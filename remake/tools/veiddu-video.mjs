@@ -278,15 +278,15 @@ async function main() {
       return r.result.value;
     };
 
-    // The screencast starts as soon as the game exists, so the deal is in the video.
-    await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: o.width, maxHeight: o.height, everyNthFrame: 1 });
     const t0 = Date.now();
     await send('Page.navigate', { url });
-    for (let n = 0; n < 1200; n++) { // up to 2 minutes for the page to load
+    for (let n = 0; n < 2400; n++) { // up to 2 minutes for the page to load
       if (await ev('typeof window.__veiddu === "object"').catch(() => false)) break;
-      await sleep(100);
+      await sleep(50);
     }
     if (!(await ev('typeof window.__veiddu === "object"').catch(() => false))) throw new Error('The page never made window.__veiddu');
+    // The screencast starts the moment the game exists (its first deal begins a moment later), so the deal is in the video.
+    await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: o.width, maxHeight: o.height, everyNthFrame: 1 });
     const dealAt = Date.now();
     report.gpu = await ev(`(() => { const gl = document.createElement('canvas').getContext('webgl2'); if (!gl) return 'no webgl2'; const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); })()`).catch(e => `error: ${e.message}`);
     console.log(`[0.0] game is up (page load ${((dealAt - t0) / 1000).toFixed(1)} s), seed ${o.seed}, ${o.size}`);

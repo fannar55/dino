@@ -1,6 +1,7 @@
 // The look of "Veiddu" as markup, in veiddu.css's classes: the card element the live table (Task 3) and a guest's device (Fjölspil) both
 // draw, the child's hand laid out in an arc or in rows, and the still states of the lab page (veiddu-lab.html?state=...). The stills
-// are made of what the rules would give (kinds laid, cards held, the pond left), but nothing here plays a round.
+// are made of what the rules would give (kinds laid, cards held, the pond left), but nothing here plays a round. The pieces the stills
+// are made of (the table, the seats, the pond, the catch, the bubble and the win card) are exported, and table.js plays the round in them.
 
 import { KINDS, COPIES } from './cards.js';
 import { avatarOf } from '../fjolspil/seats.js';

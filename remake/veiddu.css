@@ -36,6 +36,8 @@
      .veiddu-teach               "Kennsla", the tutorial again, on the table's top left corner; .veiddu-skip ("Sleppa") ends it there
      .teaching                   on .veiddu while Mosi teaches: everything is dimmed but what he means (.live)
      .veiddu-gallery             the lab's gallery of every card (veiddu-lab.html?state=cards)
+     .turn .thinking .out        on a .veiddu-seat (or Egill's .veiddu-me-catch): whose turn it is (a teal ring), a mind about to ask (her head
+                                 tilts, he sways faster), and a seat with no cards and no pond (dim): table.js sets them
 
    The rules it keeps, as Eitt! and the book do (STYLE.md section 10, book.css):
    - the journal's palette for the paper, the ink and the buttons, and the water's blue-greens beside it (below);

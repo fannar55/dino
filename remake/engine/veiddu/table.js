@@ -459,7 +459,7 @@ export function createVeidduGame(doc, {
     if (up) inner.style.transform = 'rotateY(180deg)';
     flier.append(inner);
     const h = (width * 7) / 5;
-    const at = ({ x, y, r, w }, extra = '') => `translate(${(x - width / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${(w / width).toFixed(3)})${extra}`;
+    const at = ({ x, y, r, w }) => `translate(${(x - width / 2).toFixed(1)}px, ${(y - h / 2).toFixed(1)}px) rotate(${r.toFixed(1)}deg) scale(${(w / width).toFixed(3)})`;
     let pos = from;
     let dropped = false;
     flier.style.transform = at(from);
@@ -934,6 +934,8 @@ export function createVeidduGame(doc, {
     const was = save?.getVeiddu?.() ?? {};
     if (!auto && save?.setVeiddu) save.setVeiddu({ ...afterRound({ skill: skillBase(), losses: was.losses ?? 0 }, childWon), wins: (was.wins ?? 0) + (childWon ? 1 : 0) });
     markTurn(null);
+    for (const box of [meEl, seatEls[UGGEDLA], seatEls[MOSI]]) box.classList.remove('out', 'thinking'); // the winners are all in sight
+    clearBubble();
     await wait(600);
     const words = winWords(winners);
     const title = winCard.querySelector('h2');
