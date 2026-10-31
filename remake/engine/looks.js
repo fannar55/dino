@@ -26,6 +26,16 @@ export const LOOKS = {
     fog: { color: '#d3d8b4', sunColor: '#ffd9a0', sunStrength: 1, density: 0.0055, heightFalloff: 0.035 },
     envIntensity: 0.5,
   },
+  // Level 2's (engine/memory/levels/steinagljufur.js): the gorge in the afternoon, the sun high and warm over the search camera's right shoulder so
+  // the sandstone walls facing the glade are lit and the friends' shadows fall away behind them, warm light bounced up from the sand and a dusty haze.
+  // (Later stages of the round take it on to golden, sunset and evening: Task 7.)
+  gorgeAfternoon: {
+    ...morning,
+    sun: { azimuth: 30, elevation: 42, color: '#ffe4c0', intensity: 2.8 },
+    hemi: { sky: '#d0dcea', ground: '#85704f', intensity: 0.6 },
+    fog: { color: '#e9dcc5', sunColor: '#ffe2b8', sunStrength: 0.8, density: 0.0042, heightFalloff: 0.04 },
+    envIntensity: 0.55,
+  },
   golden: {
     sun: { azimuth: 210, elevation: 15, color: '#ffc68a', intensity: 2.9 },
     hemi: { sky: '#cadcef', ground: '#6b5a37', intensity: 0.55 },

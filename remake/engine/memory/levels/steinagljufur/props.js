@@ -102,7 +102,7 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
 
   // ---- instanced meshes, one for each kind ----
   let triangles = 0, draws = 0;
-  const warm = new THREE.Color('#ffe6cc');
+  const warm = new THREE.Color('#e8d3be'); // a little of the sandstone's orange taken out, so the walls sit back behind the green leaves
   for (const [name, list] of placements) {
     const model = models.get(name), material = model.material.clone();
     material.side = THREE.FrontSide; disposables.push(material);
@@ -119,7 +119,7 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
 
   // ---- the tunnel mouth: stands against the wall, its opening toward the glade ----
   const tunnelModel = models.get('gorge-tunnel'), tunnelMaterial = tunnelModel.material.clone(); disposables.push(tunnelMaterial);
-  tunnelMaterial.color.set('#e6ae8a'); // a little deeper than the owner's model, to sit with the cliffs
+  tunnelMaterial.color.set('#e8c0a2'); // a little deeper than the owner's model, to sit with the cliffs
   const tunnel = new THREE.Mesh(tunnelModel.geometry, tunnelMaterial); tunnel.name = 'Gangaopið'; tunnel.receiveShadow = true;
   const [tx, tz] = frame.toWorld(...place.at);
   tunnel.position.set(tx, heightAt(tx, tz) - .05, tz); tunnel.rotation.y = frame.yawToward(...place.facing); tunnel.scale.setScalar(place.scale ?? 1);
