@@ -410,7 +410,7 @@
 .veiddu-advice img { width: 100%; height: auto; filter: drop-shadow(0 10px 10px rgb(40 24 10 / .3)); }
 .veiddu-advice p { /* his bubble */
   position: absolute; right: 40%; bottom: 66%; margin: 0;
-  width: max-content; max-width: 10em; padding: .42em .7em .48em;
+  width: max-content; max-width: 12em; padding: .42em .7em .48em;
   font-size: clamp(24px, 2.6cqmin, 32px); font-weight: 900; line-height: 1.1; text-align: center;
   color: var(--ink); background: var(--card);
   border: 3px solid var(--ink); border-radius: 26px;
