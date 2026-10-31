@@ -6,8 +6,26 @@
 
 import { STAR_SHARES } from './chart.js';
 
-/** The end screen's timings, s: the first star's launch, between launches, a flight, a bounce, three turning together, the count. */
-export const END = { first: 0.6, gap: 0.7, flight: 0.6, settle: 0.5, together: 0.8, count: 1.0, rest: 0.4 };
+/**
+ * The end screen's timings, s: the first star's launch, between launches (five do not drag: 0.45), a flight, a bounce, all five
+ * turning together, the count.
+ */
+export const END = { first: 0.6, gap: 0.45, flight: 0.6, settle: 0.5, together: 0.8, count: 1.0, rest: 0.4 };
+const ARC = [0.78, 0.9, 1, 0.9, 0.78]; // the end's five stars' sizes against the middle one's
+const LIFT = [0, 0.28, 0.42, 0.28, 0]; // and how much higher each stands, in the middle one's sizes
+
+/**
+ * The places of the end's five stars on a screen `w` × `h` (`portrait` when it is upright): a gentle arc, the middle star the
+ * biggest and highest, the sides even, every star inside the screen and none over the next. [{ x, y, size }], size a radius.
+ */
+export function endSpots({ w, h, portrait }) {
+  const cy = portrait ? h * 0.33 : h * 0.31;
+  const half = ARC[4] + 1.05 * (ARC[3] + ARC[4]) + 1.05 * (ARC[2] + ARC[3]); // half the row, in the middle one's sizes
+  const size = Math.min(Math.min(w, h) * (portrait ? 0.12 : 0.11), (w * 0.47) / half);
+  const xs = [w / 2];
+  for (let i = 3; i < 5; i++) xs[i - 2] = xs[i - 3] + 1.05 * size * (ARC[i - 1] + ARC[i]);
+  return ARC.map((share, i) => ({ x: i < 2 ? w - xs[2 - i] : xs[i - 2], y: cy - LIFT[i] * size, size: size * share }));
+}
 
 const easeOut = k => 1 - (1 - k) * (1 - k);
 const easeInOut = k => (k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k));
@@ -58,7 +76,7 @@ function alive(life, seed, kind) {
 export function endTimes(stars) {
   const launches = Array.from({ length: stars }, (_, i) => END.first + i * END.gap);
   const lands = launches.map(at => at + END.flight);
-  const together = stars === 3 ? lands[2] + 0.2 : null;
+  const together = stars === ARC.length ? lands[stars - 1] + 0.2 : null; // all five turn together
   const countFrom = together !== null ? together + END.together : stars ? lands[stars - 1] + END.settle : END.first;
   const countTo = countFrom + END.count;
   return { launches, lands, together, countFrom, countTo, done: countTo + END.rest };

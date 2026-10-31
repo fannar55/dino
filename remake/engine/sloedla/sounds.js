@@ -142,13 +142,16 @@ export function createSongSounds({ context, output, room = null, random = Math.r
       bell(freq * 2, now + 0.02, 0.022, 0.35);
       bell(freq * 3, now + 0.07, 0.016, 0.35);
     },
-    /** The `n`th star (1 to 3) of the round's end, on the song's root `freq`: a bell a little higher each time, a chord for the third. */
+    /**
+     * The `n`th star (1 to 5) of the round's end, on the song's root `freq`: a bell up the pentatonic each time (do re mi so la),
+     * a chord for the fifth.
+     */
     star(n = 1, freq = 466) {
       const now = context.currentTime;
-      const ratio = [1, 1.25, 1.5][Math.max(0, Math.min(2, n - 1))];
+      const ratio = [1, 1.125, 1.25, 1.5, 1.667][Math.max(0, Math.min(4, n - 1))];
       bell(freq * 2 * ratio, now, 0.08, 1.2);
       bell(freq * 4 * ratio, now + 0.05, 0.03, 0.8);
-      if (n === 3) [1, 1.25, 1.5, 2].forEach((r, i) => bell(freq * 2 * r, now + 0.25 + i * 0.07, 0.04, 1.4));
+      if (n === 5) [1, 1.25, 1.5, 2].forEach((r, i) => bell(freq * 2 * r, now + 0.25 + i * 0.07, 0.04, 1.4));
     },
   };
 }

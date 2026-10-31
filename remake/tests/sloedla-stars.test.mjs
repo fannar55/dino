@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { END, barPlace, barStar, countUp, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
+import { END, barPlace, barStar, countUp, endSpots, endStar, endTimes, isNewBest } from '../engine/sloedla/star-motion.js';
 import { STAR_SHARES } from '../engine/sloedla/chart.js';
 
 test('an end star flies from the bar to its place, turns twice, and lands on time', () => {
@@ -20,7 +20,7 @@ test('an end star flies from the bar to its place, turns twice, and lands on tim
   assert.ok(Math.abs(at(times.lands[0] + 3).tilt) <= 0.12, 'the sway stays small');
   const shines = Array.from({ length: 80 }, (_, k) => at(times.lands[0] + 1 + k * 0.1).shine);
   assert.ok(shines.some(s => s > 0.5) && shines.filter(s => s > 0).length < 30, 'a gloss now and then, not always');
-  assert.deepEqual(times.launches.map(t => Number(t.toFixed(2))), [0.6, 1.3]);
+  assert.deepEqual(times.launches.map(t => Number(t.toFixed(2))), [0.6, 1.05]);
 });
 
 test('no stars: nothing flies, the count and the end still come', () => {
@@ -34,11 +34,25 @@ test('no stars: nothing flies, the count and the end still come', () => {
   assert.ok(times.done > times.countTo && times.countTo > times.countFrom);
 });
 
-test('three stars turn together after the third lands; the end waits for the count', () => {
-  const times = endTimes(3);
-  assert.ok(times.together >= times.lands[2]);
+test('five stars land 0.45 s apart and turn together after the fifth; the end waits for the count', () => {
+  const times = endTimes(5);
+  assert.ok(Math.abs(times.launches[4] - times.launches[0] - 4 * 0.45) < 1e-9);
+  assert.ok(times.together >= times.lands[4]);
   assert.ok(times.countFrom >= times.together + END.together - 1e-9);
   assert.equal(times.done, times.countTo + END.rest);
+  assert.equal(endTimes(4).together, null, 'only all five turn together');
+});
+
+test('five end stars in an arc: the middle biggest and highest, the sides even, all on a phone and a laptop', () => {
+  for (const [w, h, portrait] of [[390, 844, true], [1280, 800, false], [768, 1024, true]]) {
+    const spots = endSpots({ w, h, portrait });
+    assert.equal(spots.length, 5);
+    assert.ok(spots.every(s => s.x - s.size >= w * 0.02 && s.x + s.size <= w * 0.98), `${w}×${h}: inside`);
+    assert.ok(spots[2].size > spots[1].size && spots[1].size > spots[0].size, 'bigger to the middle');
+    assert.ok(spots[2].y < spots[1].y && spots[1].y < spots[0].y, 'higher to the middle');
+    assert.ok(Math.abs((spots[0].x + spots[4].x) / 2 - w / 2) < 1 && Math.abs(spots[0].y - spots[4].y) < 1e-9, 'even');
+    for (let i = 0; i < 4; i++) assert.ok(spots[i + 1].x - spots[i].x >= spots[i].size + spots[i + 1].size * 0.9, 'they do not overlap');
+  }
 });
 
 test('two bar stars reached close together move on their own', () => {
@@ -112,8 +126,9 @@ test('stars come to rest facing front, never on their side', () => {
       assert.ok(offFront(s.spin) <= 0.25, `reached at ${litAt}, ${life.toFixed(2)} s after its turn: ${offFront(s.spin).toFixed(2)} off the front`);
     }
   }
-  const times = endTimes(3);
-  for (let s = 2.5; s < 4.5; s += 0.05) { // after the three turned together (until 2.4 s), before its next burst of turns
+  const times = endTimes(5);
+  const after = times.together + END.together - times.lands[0]; // after the five turned together, before its next burst of turns
+  for (let s = after + 0.1; s < 4.5; s += 0.05) {
     const star = endStar({ t: times.lands[0] + s, i: 0, earned: true, from: { x: 0, y: 0 }, to: { x: 100, y: 100 }, size: 80, times });
     assert.ok(offFront(star.spin) <= 0.35, `the end's star ${s.toFixed(2)} s after landing`);
   }

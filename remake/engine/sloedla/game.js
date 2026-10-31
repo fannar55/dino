@@ -30,7 +30,7 @@ import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf, pointsText } from './text.js';
 import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
 import { seededRandom } from '../random.js';
-import { barPlace, barStar as barStarAt, countUp, endStar, endTimes, flyer, isNewBest } from './star-motion.js';
+import { barPlace, barStar as barStarAt, countUp, endSpots, endStar, endTimes, flyer, isNewBest } from './star-motion.js';
 
 const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier 1, 2, 3 (a six-year-old is starting to read)
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
@@ -783,13 +783,15 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
           sparks.push({ x: spot.x, y: spot.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 0, max: 0.7 + random() * 0.4, size: 12, gravity: 140 });
         }
       }
-      // with three: they turn together, and the fireworks
+      // with five: they turn together, and the fireworks (twice as many, and falling stars, for a perfect game)
       if (!together && endPlan.together !== null && t >= endPlan.together) {
         together = true;
-        for (let i = 0; i < 6; i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff'][i % 3]);
+        const perfect = endLine === 'fullkominn';
+        for (let i = 0; i < (perfect ? 12 : 6); i++) firework(w * (0.1 + 0.8 * random()), h * (0.1 + random() * 0.3), [GOLD, '#ff7eb6', '#7fe3ff', '#b8ff8a'][i % (perfect ? 4 : 3)]);
+        if (perfect) for (let i = 0; i < 4; i++) meteor();
       }
-      // the count rises with a soft tick for each new number (not more than one every 0.05 s)
-      const counted = countUp(t, endPlan.countFrom, endPlan.countTo, score.hits);
+      // the points rise with a soft tick for each new number (not more than one every 0.05 s)
+      const counted = countUp(t, endPlan.countFrom, endPlan.countTo, pointsOf(score));
       if (counted > shownCount && time - lastTick >= 0.05) {
         chimes?.tick?.();
         lastTick = time;
@@ -1606,11 +1608,9 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     g.restore();
   }
 
-  /** Where end star `i` lands, and how big it is: three in a row, the middle one higher and bigger. */
+  /** Where end star `i` lands, and how big it is: five in an arc, the middle one higher and bigger (star-motion.js endSpots). */
   function endSpot(i) {
-    const cy = portrait ? h * 0.33 : h * 0.31;
-    const size = Math.min(w, h) * (portrait ? 0.12 : 0.11);
-    return { x: w / 2 + (i - 1) * size * 2.4, y: cy - (i === 1 ? size * 0.35 : 0), size: size * (i === 1 ? 1.15 : 1) };
+    return endSpots({ w, h, portrait })[i];
   }
 
   /** The end's veil: the round goes dark behind the stars (drawn under the sparks and fireworks, so they shine on it). */
@@ -1621,7 +1621,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     g.globalAlpha = 1;
   }
 
-  /** The end's words: the shock waves where stars land, the DJ's word, the count, the longest run, a new best. */
+  /** The end's words: the shock waves where stars land, the DJ's word, the points counting up, the notes, the longest run, a new best. */
   function drawEnd(g, time) {
     for (let i = shocks.length - 1; i >= 0; i--) {
       const s = shocks[i];
@@ -1636,26 +1636,28 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
     }
     g.globalAlpha = 1;
     const t = time - endAt;
-    const spot = endSpot(0);
-    const below = endSpot(1).y + spot.size * 2.1;
+    const spots = endSpots({ w, h, portrait });
+    // under the arc: the word, the points large and gold, then the notes, the longest run and a new best smaller
+    const below = spots[0].y + spots[0].size + spots[2].size * 0.75;
+    const line = portrait ? [0, 52, 98, 128, 168] : [0, 66, 120, 156, 202];
     if (t >= endPlan.countFrom - 0.2) {
-      drawWord(g, DJ_LINES[endLine][0], w / 2, below, portrait ? 40 : 52, { style: endStars === 3 ? 'rainbow' : endStars === 2 ? 'gold' : 'lilac', time, age: t - endPlan.countFrom + 0.2, wave: 0.05, fit: w * 0.92 });
-      const total = score.total;
-      const shown = countUp(t, endPlan.countFrom, endPlan.countTo, score.hits);
+      const style = endLine === 'fullkominn' || endStars === 5 ? 'rainbow' : endLine === 'fullthus' || endStars === 4 ? 'gold' : 'lilac';
+      drawWord(g, DJ_LINES[endLine][0], w / 2, below, portrait ? 40 : 52, { style, time, age: t - endPlan.countFrom + 0.2, wave: 0.05, fit: w * 0.92 });
+      const shown = countUp(t, endPlan.countFrom, endPlan.countTo, pointsOf(score));
       const pop = t < endPlan.countTo ? 1 + 0.08 * Math.max(0, 1 - ((time - lastTick) / 0.08)) : 1;
-      outlined(g, `Þú spilaðir ${shown} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, below + (portrait ? 50 : 60), (portrait ? 24 : 30) * pop, '#e7e0ff');
+      drawWord(g, `${pointsText(shown)} stig`, w / 2, below + line[1], Math.round((portrait ? 36 : 46) * pop), { style: 'gold', time, pop: 0, fit: w * 0.9 });
     }
     if (t >= endPlan.countTo) {
       const k = Math.min(1, (t - endPlan.countTo) / 0.3);
+      const total = score.total;
       g.globalAlpha = k;
-      outlined(g, `Lengsta röð: ${score.best}`, w / 2, below + (portrait ? 88 : 104), portrait ? 21 : 26, '#fff6c8');
+      outlined(g, `Þú spilaðir ${score.hits} af ${total} ${total % 10 === 1 && total % 100 !== 11 ? 'tóni' : 'tónum'}`, w / 2, below + line[2], portrait ? 21 : 26, '#e7e0ff');
+      outlined(g, `Lengsta röð: ${score.best}`, w / 2, below + line[3], portrait ? 19 : 23, '#fff6c8');
       g.globalAlpha = 1;
       if (isNewBest({ stars: endStars, points: pointsOf(score) }, bestBefore) && t >= endPlan.countTo + 0.3) {
-        // beside the stars on a wide screen, over the middle one on a narrow one (it must not leave the screen)
-        const nx = portrait ? w / 2 : w / 2 + spot.size * 3.1;
-        const ny = endSpot(1).y - spot.size * (portrait ? 1.75 : 1.2);
-        drawWord(g, 'Nýtt met!', nx, ny, portrait ? 30 : 38, { style: 'rainbow', time, age: t - endPlan.countTo - 0.3, wave: 0.08, fit: w * (portrait ? 0.8 : 0.4) });
-        if (random() < 0.3) sparks.push({ x: nx + (random() - 0.5) * 90, y: ny + (random() - 0.5) * 30, vx: 0, vy: -30, life: 0, max: 0.5, size: 9, gravity: 0 });
+        const ny = below + line[4];
+        drawWord(g, 'Nýtt met!', w / 2, ny, portrait ? 30 : 38, { style: 'rainbow', time, age: t - endPlan.countTo - 0.3, wave: 0.08, fit: w * 0.8 });
+        if (random() < 0.3) sparks.push({ x: w / 2 + (random() - 0.5) * 90, y: ny + (random() - 0.5) * 30, vx: 0, vy: -30, life: 0, max: 0.5, size: 9, gravity: 0 });
       }
     }
   }
@@ -1679,7 +1681,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       list.push({ id: `fly-${f.index}`, x: at.x, y: at.y, size: barStarSize() * at.scale, spin: k * 4 * Math.PI, tilt: 0, gold: 1, flash: 0, shine: 0, glass: false });
     }
     if (endPlan) {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < STAR_SHARES.length; i++) {
         const spot = endSpot(i);
         const state = endStar({ t, i, earned: i < endStars, from: barStar(i), to: spot, size: spot.size, times: endPlan });
         if (state.shown) list.push({ id: `end-${i}`, ...state });
