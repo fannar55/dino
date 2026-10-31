@@ -25,8 +25,9 @@
 //     hanging over bare mud;
 //   - the clearing is 34 m in radius round (17.3, 8.7), not the Fen's 24 round the origin: the grass grows only within 38 m of the
 //     clearing's middle (grass.js), and the place is 70 m long; the path is 14 m long before the water (the walk is 12 s);
-//   - the reed is a wall of clumps 0.6 m apart, the rows toward the channel 2.7 to 4.2 m tall, where the Fen's own reed (a clump a metre
-//     or more apart, 1.5 to 2.2 m tall) left her in plain sight;
+//   - the reed is a wall of clumps a metre apart, the rows toward the channel 3 to 4.9 m tall (85 clumps: a denser wall cost 60k
+//     triangles, over the tablet's 250k in the sail, fishing and star shots), where the Fen's own reed (a clump a metre or more apart,
+//     1.5 to 2.2 m tall) left her in plain sight; and one mist, not two: each card is additive over the water, most of a wide shot;
 //   - Þórseðla is 84 m beyond the hummocks, not 90 to 110: at 107 m through the look's haze she was a pale ghost; her trees are lower
 //     than her head (4.5 to 6.5 m, and the 8.5 m one she bites), so that from the ferry her neck and head stand out over them;
 //   - the ferry's shots are in Mosi's frame, not Uggeðla's: she sinks into the water as she swims (her root goes under the bed), he
@@ -101,7 +102,6 @@ export const THORSEDLA_FAR = { position: [66, 0, 110], heading: -15 };
 // in the rest of the place round them (reed beds along the water, groves of swamp conifers, moss hummocks, ferns, lilies on the water).
 
 const round2 = v => Math.round(v * 100) / 100;
-const far = ([x, z], from = [0, 0]) => Math.hypot(x - from[0], z - from[1]);
 const alongHer = metres => {
   const h = rad(THORSEDLA_FAR.heading);
   return { position: [round(THORSEDLA_FAR.position[0] + Math.cos(h) * metres), 0, round(THORSEDLA_FAR.position[2] + Math.sin(h) * metres)] };
@@ -119,7 +119,6 @@ function reedBed() {
   const h = rad(UGGEDLA_REED.heading);
   const along = [Math.cos(h), Math.sin(h)], across = [-Math.sin(h), Math.cos(h)];
   const plants = [];
-  const taken = [];
   // the rows toward the channel are the wall she is hidden behind: close together and a head taller than the rest (scale 2 to
   // 2.25: 3 to 4.9 m); the rest, behind her where nobody looks, stand twice as far apart
   for (let u0 = -10.5; u0 <= 10.5; u0 += 1.0) {
@@ -128,7 +127,6 @@ function reedBed() {
       if ((u / 10.5) ** 2 + (v / 6) ** 2 > 1) continue;
       const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
       if (depthAt(p) > 0.75) continue;
-      taken.push(p);
       const wall = v < 0.8;
       plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(wall ? 2.0 + random() * 0.25 : 1.5 + random() * 0.3) });
     }
@@ -137,7 +135,6 @@ function reedBed() {
     const u = (random() * 2 - 1) * 9, v = 2.2 + random() * 3.6;
     const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
     if (depthAt(p) > 0 || SHAPE.signedAt(...p) < 0.5) continue;
-    taken.push(p);
     tall++;
     plants.push({ name: 'horsetailTall', position: p, variant: tall % 4, scale: round2(1.15 + random() * 0.3) });
   }
@@ -190,7 +187,7 @@ function mossAtTheEnd() {
   for (let k = 0; k < 9; k++) {
     const a = random() * Math.PI * 2, d = 1.2 + random() * 5.2;
     const p = [round2(HUMMOCK.position[0] + 1 + Math.cos(a) * d), round2(HUMMOCK.position[2] - 1 + Math.sin(a) * d)];
-    if (SHAPE.signedAt(...p) < 1 || far(p, [HUMMOCK.position[0], HUMMOCK.position[2]]) < 2.4) continue;
+    if (SHAPE.signedAt(...p) < 1 || Math.hypot(p[0] - HUMMOCK.position[0], p[1] - HUMMOCK.position[2]) < 2.4) continue;
     plants.push({ name: 'mossHummock', position: p, variant: k % 4, scale: round2(0.9 + random() * 0.5) });
   }
   return plants;

@@ -618,7 +618,7 @@ test('the warm-up draws a print with its water and the trail\'s animals; behind 
   const critterNames = namesOf(trail).filter(name => name.startsWith('Critter warm-up-')).map(name => name.slice('Critter warm-up-'.length)).sort();
   assert.deepEqual(critterNames, ['dragonfly', 'salamander', 'waterBeetle', 'waterStrider']);
   trail.dispose();
-  // Síkið its berry bushes (the hummocks' ones: one shader for as many bushes as it has), and none of the trail's prints or animals
+  // Síkið: its berry bushes (the hummocks' ones: one shader for as many bushes as it has), and none of the trail's prints or animals
   const channel = kafli2.chapter.warmUp(world, { place: 'siki' });
   assert.ok(namesOf(channel).includes('Berry bushes'), 'the hummocks\' berry bushes are drawn');
   for (const name of ['Mud prints', 'Print water']) assert.ok(!namesOf(channel).includes(name), `${name} is not in Síkið`);
