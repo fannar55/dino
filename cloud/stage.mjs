@@ -5,13 +5,16 @@
 // node_modules/. Nothing that may be a secret is published: no file or folder whose name starts with a dot (.env, .git,
 // .wrangler and the like) and no *.pem or *.key, even when git ignores it and it sits in the working tree.
 // Workers Static Assets take no file over 25 MiB, so one is refused here, by name, before anything is copied. Run it again
-// whenever the game changes: cloud/site/ is emptied first. Prints { files, bytes }.
+// whenever the game changes: cloud/site/ is emptied first (npm run dev and npm run deploy run it first). Last it writes
+// site/_headers (src/cache.mjs), which keeps the site's pictures, models and sounds in the browser for a day. Prints
+// { files, bytes }.
 //
 //   node cloud/stage.mjs        (npm run stage in cloud/, npm run stage:cloud at the root)
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { headersFile } from './src/cache.mjs';
 
 const cloud = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.dirname(cloud);
@@ -54,4 +57,5 @@ for (const { source, target } of copies) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
 }
+fs.writeFileSync(path.join(site, '_headers'), headersFile());
 console.log({ files: copies.length, bytes: copies.reduce((sum, copy) => sum + copy.size, 0) });
