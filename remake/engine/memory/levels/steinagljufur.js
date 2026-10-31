@@ -13,7 +13,7 @@ import { freezeLevel } from '../step-rules.js';
  *
  * Beyond level 1's fields it has: `look` (engine/looks.js: the light of the gorge's afternoon), `lines` (which of Mosi's lines are the level's own:
  * the welcome, the one for the fossils still to find, the fossils' sentence; a null has no line yet) and `credits` (the open scenery behind the
- * ending card's "i", besides the gifts' own).
+ * ending card's "i", besides the gifts' own). Its `copy.locked` is what its card in the level picker says until level 1 has been finished.
  */
 const FLAG_OF = {
   light: state => state.tunnelLit,
@@ -142,6 +142,7 @@ export const STEINAGLJUFUR = freezeLevel({
     sunLedge: { label: 'Senda alla vinina yfir á Sólarsylluna', icon: '' },
   },
   copy: {
+    locked: 'Kláraðu Berjalundinn fyrst',
     welcome: {
       eyebrow: 'ÆVINTÝRI MEÐ MOSA', title: 'Hvar er vinur minn?',
       lines: ['Velkomin í Steinagljúfrið!', 'Finndu tvo eins vini.'],

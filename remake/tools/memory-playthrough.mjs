@@ -8,6 +8,9 @@
 //     [--size 1280x800] [--level 1|2] [--mode full|branch|first-minute|rapid|glade|search] [--reduced-motion] [--no-tap-along] [--usual-order] [--clearance] [--gifts-last]
 //     [--seed 251025] [--query "a=1&b=2"] [--page remake/minnisspil.html] [--browser edge|chrome|<exe>]
 //     [--limit 25]            minutes before the run gives up
+//     [--hide-hud]            the ribbon, the buttons, Mosi's bubble and the tap targets are hidden: the pictures are the world alone (the level cards' pictures)
+//     [--unlocked '["steinagljufur"]']   the page's saved key minnisspil.unlocked (the levels the child has opened): the level picker's open state (a new profile has none: level 2 is locked)
+//     [--picker-check]        on the welcome card: reads the level cards (report.picker), taps the locked one (nothing may happen) and the other open one (the page must reload at its level; the run then goes on there)
 //     [--stop-after-retry]    stops once a blocked crossing has started again by itself and its friends have arrived (use with --query planblock=cross)
 //     [--help-shot]           opens the help dialog once after the glade picture: a picture and report.helpDialog (its items, its size against the screen, whether it scrolls), then closes it
 //     [--toggle-motion]       full and rapid: while Mosi first walks (the crossing) the "Rólegri hreyfing" button is pressed on and off again; report.motionToggle has his animation before, calm and after (it must stay the walk clip)
@@ -107,7 +110,7 @@ const VIDEO_FPS = 15;
 
 function parseArgs(argv) {
   const o = { out: '', size: '1280x800', mode: 'full', reducedMotion: false, video: false, seed: '251025', query: '',
-    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
+    page: 'remake/minnisspil.html', browser: 'edge', limit: 25, tapAlong: true, usualOrder: false, clearance: false, giftsLast: false, level: 1, hideHud: false, unlocked: null, pickerCheck: false, helpShot: false, stopAfterRetry: false, toggleMotion: false, cpuThrottle: 0, hold: 0, think: null, first: null, restartAt: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -124,6 +127,9 @@ function parseArgs(argv) {
     else if (a === '--first') o.first = next();
     else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending or gift'); }
     else if (a === '--gifts-last') o.giftsLast = true;
+    else if (a === '--hide-hud') o.hideHud = true;
+    else if (a === '--picker-check') o.pickerCheck = true;
+    else if (a === '--unlocked') o.unlocked = next();
     else if (a === '--level') { o.level = Number(next()); if (![1, 2].includes(o.level)) throw new Error('--level must be 1 or 2'); }
     else if (a === '--toggle-motion') o.toggleMotion = true;
     else if (a === '--help-shot') o.helpShot = true;
@@ -645,6 +651,7 @@ async function main() {
       step(`TIMEOUT waiting for ${label}`); return -1;
     };
 
+    if (o.unlocked) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('minnisspil.unlocked', ${JSON.stringify(o.unlocked)}); } catch {}` });
     await send('Page.navigate', { url });
     if (await waitFor('window.__memoryReady === true', 120000, 'the page to be ready') < 0) throw new Error('The page never became ready');
     report.gpu = await ev(GPU_JS).catch(e => `error: ${e.message}`);
@@ -655,9 +662,23 @@ async function main() {
     report.marks = [];
     const mark = name => { if (report.marks.some(entry => entry.name === name)) return; report.marks.push({ name, at: Date.now() / 1000, t: T() }); step(`mark ${name}`); };
     await ev(TIMELINE_JS);
+    if (o.hideHud) await ev("document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.topbar, #coach, #targets, #who, #beat-word { display: none !important }' }))");
     if (o.clearance) await ev(CLEARANCE_JS);
     await sleep(700);
     await shot('welcome');
+    if (o.pickerCheck) {
+      const READ = `(() => ({ url: location.search, level: document.querySelector('.level-card[aria-current="true"]')?.dataset.level ?? null, open: document.getElementById('welcome').open, startFocused: document.activeElement?.id === 'start',
+        cards: [...document.querySelectorAll('#level-cards .level-card')].map(card => ({ level: card.dataset.level, disabled: card.getAttribute('aria-disabled'), current: card.getAttribute('aria-current'), label: card.getAttribute('aria-label'), text: card.textContent.trim(), padlock: card.textContent.includes('🔒'), box: (r => ({ width: Math.round(r.width), height: Math.round(r.height) }))(card.getBoundingClientRect()) })) }))()`;
+      report.picker = { before: await ev(READ) };
+      const locked = report.picker.before.cards.find(card => card.disabled === 'true'), other = report.picker.before.cards.find(card => card.disabled === 'false' && card.current !== 'true');
+      if (locked) { await ev(`document.querySelector('.level-card[data-level="${locked.level}"]').click()`); await sleep(300); report.picker.afterLockedTap = await ev(READ); report.picker.afterLockedTap.shook = await ev(`document.querySelector('.level-card[data-level="${locked.level}"]').classList.contains('nope')`); await shot('picker-locked-tapped'); }
+      if (other) {
+        await ev(`document.querySelector('.level-card[data-level="${other.level}"]').click()`);
+        await sleep(1200); await waitFor('window.__memoryReady === true', 120000, 'the page of the other level');
+        await ev(TIMELINE_JS); await sleep(800); report.picker.afterOtherTap = await ev(READ); await shot('picker-other-level-opened');
+      }
+      step('the level picker', { before: report.picker.before.cards.map(c => `${c.level}:${c.disabled === 'true' ? 'locked' : c.current === 'true' ? 'here' : 'open'}`).join(' '), lockedTapStayed: report.picker.afterLockedTap ? report.picker.afterLockedTap.url === report.picker.before.url && report.picker.afterLockedTap.open : null, otherTapWent: report.picker.afterOtherTap?.url ?? null });
+    }
 
     await ev(`document.getElementById('start').click()`);
     const roundStart = Date.now();
@@ -1089,6 +1110,7 @@ async function main() {
     report.roundSeconds = +((Date.now() - roundStart) / 1000).toFixed(1);
     for (const entry of report.marks) entry.round = +(entry.at - roundStart / 1000).toFixed(1);
     try { const end = await ev(SNAPSHOT_JS); report.found = end.found; report.basketEnd = end.basket; } catch {}
+    try { report.storage = await ev("(() => { try { return localStorage.getItem('minnisspil.unlocked'); } catch (e) { return 'blocked: ' + e.message; } })()"); } catch {}
     if (retryWatch) report.blockedRetry.push({ ...retryWatch, neverRetried: true });
 
     // ---- what the run looked like -----------------------------------------------------------------------------

@@ -492,3 +492,15 @@ test("level 2's world loads and answers the shared stage with every member the i
   assert.ok(plants.every(plant => STEINAGLJUFUR.nests.every(([nx, nz]) => Math.hypot(plant.position[0] - nx, plant.position[1] - nz) >= 3.4)), 'nothing grows in a pair\'s rest');
   assert.ok(plants.every(plant => Math.hypot(plant.position[0] - STEINAGLJUFUR.mosiSpot.x, plant.position[1] - STEINAGLJUFUR.mosiSpot.z) >= 3.6), 'nothing grows where Mosi stands');
 });
+
+test("the welcome card has the level picker: a card for each level with its picture, the lock's words and the start button in focus", async () => {
+  const html = readFileSync(new URL('../minnisspil.html', import.meta.url), 'utf8'), { existsSync } = await import('node:fs');
+  assert.ok(html.includes('<div id="level-cards" class="level-cards" role="group" aria-label="Veldu borð"></div>'), 'the cards are made from LEVELS by game.js into this');
+  assert.ok(html.includes('<button id="start" class="primary" autofocus type="button">'), 'the dialog opens with the start button in focus, not the first card');
+  assert.ok(!html.includes('intro-pairs'), "level 1's three badges are not on the card of the other level");
+  for (const level of LEVELS) assert.ok(existsSync(new URL(`../assets/memory/levels/${level.id}.webp`, import.meta.url)), `${level.id}: the picture of its world`);
+  assert.equal(STEINAGLJUFUR.copy.locked, 'Kláraðu Berjalundinn fyrst'); assert.equal(BERJALUNDUR.copy.locked, undefined, 'level 1 is never locked');
+  const game = readFileSync(new URL('../engine/memory/game.js', import.meta.url), 'utf8');
+  assert.match(game, /unlockLevel\(nextLevel\.id\)/, 'a level finished opens the next');
+  assert.match(game, /aria-disabled/); assert.match(game, /dataset\.level/);
+});

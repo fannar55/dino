@@ -2,7 +2,7 @@ import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
 import { createMemoryAudio } from './audio.js';
 import { createStepRules, obstaclesOf } from './step-rules.js';
-import { chooseLevel } from './levels/index.js';
+import { LEVELS, chooseLevel, unlockLevel } from './levels/index.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
 import { nextStoryStep } from './playful-flow.js';
 import { GIFT_ITEMS, GIFT_CREDITS } from './surprise-items.js';
@@ -12,7 +12,7 @@ import { BASKET_ICON } from '../scene/ui.js';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 // The level being played: its friends, steps, story, words and sounds are all read from its description (levels/).
-const { level } = chooseLevel(params);
+const { level, locked } = chooseLevel(params);
 const roster = level.roster;
 // The "who" bubbles: a portrait of each pair (portraits/, cropped round in CSS) and its name.
 const pairs = level.pairs;
@@ -85,8 +85,35 @@ function applyLevelDom() {
   // One dot for each friend pair, the counts of friends and gifts ("0 / 3 pör", "0 / 3").
   const dots = $('progress').querySelector('.nest-dots');
   if (dots.children.length !== level.friends.length) dots.replaceChildren(...level.friends.map(() => document.createElement('i')));
-  reflectProgress(game.getState()); reflectBasket();
+  reflectProgress(game.getState()); reflectBasket(); reflectPicker();
 }
+// The level picker on the welcome card: one card for each level (levels/*.js). The one being played is outlined and starts it; another that is open
+// opens its page (the page plays one level: its world is the only one loaded); one that is locked says what opens it (level 1 finished) and cannot
+// be started. Only the cards' look is told by aria-disabled and aria-current: a locked card can still be focused, so that it can be read out.
+const nextLevel = LEVELS[LEVELS.indexOf(level) + 1] ?? null;
+function levelCards() {
+  const make = (tag, className, text = '') => Object.assign(document.createElement(tag), { className, textContent: text });
+  return LEVELS.map(item => {
+    const here = item === level, shut = locked.has(item.id) && !here, card = make('button', 'level-card');
+    card.type = 'button'; card.dataset.level = item.id; card.setAttribute('aria-disabled', String(shut));
+    if (here) card.setAttribute('aria-current', 'true');
+    card.setAttribute('aria-label', shut ? `${item.title}, læst. ${item.copy.locked ?? ''}` : `${item.title}, borð ${item.number}${here ? ', þú ert hér' : ''}`);
+    const picture = Object.assign(document.createElement('img'), { className: 'level-picture', src: `./assets/memory/levels/${item.id}.webp`, alt: '', width: 640, height: 330, draggable: false });
+    const parts = [picture, make('span', 'level-number', String(item.number)), make('span', 'level-title', item.title)];
+    if (shut) { parts.push(make('span', 'level-lock', '🔒')); parts.push(make('span', 'level-note', item.copy.locked ?? '')); }
+    card.append(...parts);
+    card.addEventListener('click', () => {
+      if (shut) { card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
+      if (here) { start(); return; }
+      const next = new URLSearchParams(location.search); next.delete('play'); next.delete('bord'); if (item.number > 1) next.set('bord', String(item.number));
+      const query = next.toString(); location.assign(`${location.pathname}${query ? `?${query}` : ''}`);
+    });
+    return card;
+  });
+}
+function reflectPicker() { $('level-cards').replaceChildren(...levelCards()); }
+// A level finished opens the next one for good (storage that does not take it leaves the next level locked: the game works either way).
+function unlockNext() { if (nextLevel && unlockLevel(nextLevel.id)) { locked.delete(nextLevel.id); reflectPicker(); } }
 function reflectProgress(state) {
   $('progress').setAttribute('aria-label', `${state.matchedPairs} af ${level.friends.length} pörum fundin`);
   $('progress-text').textContent = `${state.matchedPairs} / ${level.friends.length} pör`;
@@ -298,7 +325,7 @@ function reflectEnding() {
   const state = bridge.getState();
   const won = game.getState().phase === 'won' && levelDone();
   if (won && !celebrated && !state.active) {
-    celebrated = true; world.celebrate(); audio.win();
+    celebrated = true; world.celebrate(); audio.win(); unlockNext();
   }
   const showEnding = endingDue();
   if (showEnding && $('ending').hidden) reflectGifts();
