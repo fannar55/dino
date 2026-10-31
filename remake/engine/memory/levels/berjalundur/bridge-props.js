@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
+import { mergeGeometries } from '../../../../../dist/vendor/BufferGeometryUtils.js';
 import { MARSH, marshValley } from './build-props.js';
-import { installWaterFlow, createFoamTexture, installFoamFade, createStoryBarkTexture } from './world-surface-fx.js';
+import { installWaterFlow, createFoamTexture, installFoamFade, createStoryBarkTexture } from '../../world-surface-fx.js';
 export { MARSH, WALKWAY, STAGING, DESTINATION } from './build-props.js';
 
 const near = [-1, -3], far = [4, -9], length = Math.hypot(far[0] - near[0], far[1] - near[1]);

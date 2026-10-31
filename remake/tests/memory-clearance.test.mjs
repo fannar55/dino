@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import './setup.mjs';
 const THREE=await import('three');
 const {objectBox,boxClearance,boxFromCorners,measureActor,actorCollisionSnapshot,assessActorClearances}=await import('../engine/memory/memory-clearance.js');
-const {createBridgeAdventure}=await import('../engine/memory/bridge-adventure.js');
-const {createBuildProps}=await import('../engine/memory/build-props.js');
+const {createBridgeAdventure}=await import('../engine/memory/levels/berjalundur/adventure.js');
+const {createBuildProps}=await import('../engine/memory/levels/berjalundur/build-props.js');
 
 test('oriented clearance catches a long tail cutting across another body',()=>{
   const a=objectBox('tail',[0,.8,0],[1.4,.08,.08],Math.PI/4),b=objectBox('body',[.6,.8,-.6],[.35,.3,.35]);

@@ -1,5 +1,5 @@
 import { RIVER, MARSH } from './bridge-props.js';
-import { sandAt, walkable } from './world-ground.js';
+import { sandAt, walkable } from './ground.js';
 
 // The memory game's own plants, named for the forest's planner (layout.plants: { name, position: [x, z], scale, variant, rot, sky }).
 // They are the forest species as they are (ferns, mossy stones, golden reeds, bushes, flowers), only put where this place wants

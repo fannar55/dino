@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { mergeGeometries } from '../../../dist/vendor/BufferGeometryUtils.js';
-import { installWaterFlow } from './world-surface-fx.js';
+import { mergeGeometries } from '../../../../../dist/vendor/BufferGeometryUtils.js';
+import { installWaterFlow } from '../../world-surface-fx.js';
 
 /** The grove's berries: a small faceted ball in one of two reds. The berries a surprise leaf hides (surprise-items.js) are the same. */
 export const GROVE_BERRY = Object.freeze({ radius: .12, reds: Object.freeze(['#b8474f', '#cf6a61']) });

@@ -78,10 +78,9 @@ export function createStepRules(level) {
       const state = {
         unlocked: Object.freeze([...unlocked]), free: Object.freeze(free()), selected, active, ...flags(done),
         next: next(), asking: asking?.target ?? null, candidates: Object.freeze([...(asking?.candidates ?? [])]), failing, phase: phase(),
+        // The finished steps, in the order they were done (the story and the world read the ladder from here).
+        done: Object.freeze([...done]),
       };
-      // The finished steps are part of the state but not one of its enumerable fields: the snapshots of level 1 compare, copy and
-      // print as they always did, and whoever needs the ladder reads `state.done` (the story does).
-      Object.defineProperty(state, 'done', { value: Object.freeze([...done]), enumerable: false });
       return Object.freeze(state);
     },
     unlock(species) {

@@ -5,7 +5,7 @@ import { createStepRules } from '../engine/memory/step-rules.js';
 
 const HELPERS = ['triceratops', 'brontosaurus', 'stegosaurus'];
 const ACTIONS = ['lift', 'roll', 'cross', 'lay', 'finish'];
-const empty = () => ({ unlocked: [], free: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, next: 'branch', asking: null, candidates: [], failing: null, phase: 'locked' });
+const empty = () => ({ unlocked: [], free: [], selected: null, active: null, branch: 'down', bridgeBuilt: false, atStaging: false, boardwalkBuilt: false, visited: false, next: 'branch', asking: null, candidates: [], failing: null, phase: 'locked', done: [] });
 function run(game, id) {
   assert.equal(game.can(id), true, id + ' is available'); assert.equal(game.choose(id), true);
   assert.equal(game.getState().active, id);

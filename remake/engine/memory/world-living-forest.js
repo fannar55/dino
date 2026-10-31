@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { RIVER, riverDistance } from './bridge-props.js';
-import { walkable } from './world-ground.js';
+import { RIVER, riverDistance } from './levels/berjalundur/bridge-props.js';
+import { walkable } from './levels/berjalundur/ground.js';
 
 const random = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 

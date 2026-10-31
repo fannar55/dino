@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { BRIDGE, RIVER, riverDistance, createBridgeProps } from './bridge-props.js';
 import { MARSH, WALKWAY, STAGING, DESTINATION, createBuildProps, marshValley } from './build-props.js';
-import { canDepart, sampleTravel } from './travel-traffic.js';
-import { GESTURES, FAIL_GESTURES } from './gestures.js';
-import { MUD_COLOURS } from './world-fx.js';
+import { canDepart, sampleTravel } from '../../travel-traffic.js';
+import { GESTURES, FAIL_GESTURES } from '../../gestures.js';
+import { MUD_COLOURS } from '../../world-fx.js';
 
 const Y=new THREE.Vector3(0,1,0),HELPERS=['triceratops','brontosaurus','stegosaurus'];
 const HOLD_CROWNS=[[-7.15,-4.4],[-5.35,-3.3]],HOLD_YAW=.6;
