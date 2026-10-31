@@ -12,21 +12,25 @@ import { LIMITS } from '../engine/camera/director.js';
 import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
+import {
+  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR,
+} from '../chapters/kafli2-siki.js';
+import { waterShape } from '../world/props/water.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
 
 // Chapter 2 (remake/chapters/kafli2.js), "Boð til Uggeðlu": its lines, its places as data, the camera rules of its shots, the page's
 // choice of chapter from the save, and its script played through by nobody (tests/chapter-harness.mjs). Since the split of 31 October
-// 2026 it is the glade and the trail, and ends in black on the trail until the scenes after the footprints are built (the plan's
-// next tasks); the Fen is chapter 3's (kafli3.test.mjs).
+// 2026 it is the glade, the trail and Síkið (the flooded channel, kafli2-siki.js), and ends in black at the water's edge in Síkið until
+// the scenes after the footprints are built (the plan's next tasks); the Fen is chapter 3's (kafli3.test.mjs).
 
 const { chapter } = kafli2;
 const file = relative => new URL(relative, import.meta.url);
 const readJson = relative => JSON.parse(fs.readFileSync(file(relative), 'utf8'));
 const SOURCE = readJson('../assets/audio/kafli2/lines-source.json');
 const RECORDED = readJson('../assets/audio/lines.json');
-// The script, with its pieces: the trail's (kafli2-trail.js), which speaks lines of its own.
-const CHAPTER_TEXT = ['kafli2', 'kafli2-trail'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
+// The script, with its pieces: the trail's (kafli2-trail.js), which speaks lines of its own, and Síkið's (kafli2-siki.js).
+const CHAPTER_TEXT = ['kafli2', 'kafli2-trail', 'kafli2-siki'].map(name => fs.readFileSync(file(`../chapters/${name}.js`), 'utf8')).join(''); // each ends in a newline
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
 // Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
@@ -74,7 +78,7 @@ test('every chapter line has a recording and the source\'s words', t => {
 // ---------------------------------------------------------------------------------------------
 // The chapter as data
 
-test('locations as data: the glade and the trail, with who stands where and the shots of each', () => {
+test('locations as data: the glade, the trail and Síkið, with who stands where and the shots of each', () => {
   assert.equal(chapter.id, 'kafli2');
   assert.equal(chapter.title, 'Boð til Uggeðlu');
   assert.equal(chapter.next, 'kafli3', 'Boð til Þórseðlu follows');
@@ -84,17 +88,21 @@ test('locations as data: the glade and the trail, with who stands where and the 
   assert.equal(LOOKS[chapter.look].sun.elevation, 26, 'and a little lower');
   assert.equal(chapter.theme, 'kafli2/theme.json', 'Dino Trail, the song of both chapters');
   assert.equal(chapter.start, 'burknalaut');
-  assert.deepEqual(Object.keys(chapter.locations), ['burknalaut', 'fenjaslod'], 'in the order the story goes');
-  assert.deepEqual(chapter.prepare, ['fenjaslod'], 'the trail is built behind the start button');
-  // Three actors, all made at load: Þórseðla is chapter 3's, and Uggeðla comes with her channel.
-  assert.deepEqual(Object.keys(chapter.actors).sort(), ['egill', 'kambedla', 'mosi']);
+  assert.deepEqual(Object.keys(chapter.locations), ['burknalaut', 'fenjaslod', 'siki'], 'in the order the story goes');
+  assert.deepEqual(chapter.prepare, ['fenjaslod', 'siki'], 'the trail and Síkið are built behind the start button, in that order');
+  // Five actors, all made at load (before the start button): Uggeðla and Þórseðla wait hidden for Síkið, where they are placed. The
+  // cast (the captions' names) is the three who speak so far: Uggeðla's lines come with the scenes to be built.
+  assert.deepEqual(Object.keys(chapter.actors).sort(), ['egill', 'kambedla', 'mosi', 'thorsedla', 'uggedla']);
+  assert.match(chapter.actors.uggedla.url, /spinosaurus\.glb$/);
+  assert.match(chapter.actors.thorsedla.url, /brontosaurus\.glb$/);
   assert.deepEqual(Object.keys(chapter.cast).sort(), ['egill', 'kambedla', 'mosi']);
-  // Who stands in each place: Mosi everywhere, Kambeðla only in her glade.
+  // Who stands in each place: Mosi everywhere, Kambeðla only in her glade, Uggeðla and Þórseðla only in Síkið.
   const standing = name => Object.keys(chapter.locations[name].layout.actors ?? {});
   const has = (name, actor) => standing(name).some(key => key === actor || key.startsWith(`${actor}_`));
   for (const name of Object.keys(chapter.locations)) assert.ok(has(name, 'mosi'), `${name} says where Mosi stands`);
   assert.deepEqual(Object.keys(chapter.locations).filter(name => has(name, 'kambedla')), ['burknalaut']);
-  assert.deepEqual(Object.keys(chapter.locations).filter(name => has(name, 'thorsedla')), [], 'Þórseðla stands in the Fen, chapter 3\'s');
+  assert.deepEqual(Object.keys(chapter.locations).filter(name => has(name, 'uggedla')), ['siki']);
+  assert.deepEqual(Object.keys(chapter.locations).filter(name => has(name, 'thorsedla')), ['siki'], 'Þórseðla stands far off in Síkið (the Fen of chapter 3 is its own chapter\'s)');
   // The glade is chapter 1's, grown as the child left it: its layout, and its shots kept clear, with chapter 2's own besides.
   const glade = chapter.locations.burknalaut;
   assert.equal(glade.layout, kafli1.locations.burknalaut.layout);
@@ -116,6 +124,99 @@ const groundOf = name => {
   const { layout, shots } = chapter.locations[name];
   return shapeGround({ chapter }, { ...layout, shots }, layout.seed).terrain;
 };
+
+// ---------------------------------------------------------------------------------------------
+// Síkið (kafli2-siki.js): a channel flooded over the path, in the Fen's look
+
+const lengthOf = points => points.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
+/** A point `back` metres before the end of a polyline, along it. */
+function beforeEnd(points, back) {
+  let left = back;
+  for (let i = points.length - 1; i > 0; i--) {
+    const leg = Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+    if (left <= leg) {
+      const t = left / leg;
+      return [points[i][0] + (points[i - 1][0] - points[i][0]) * t, points[i][1] + (points[i - 1][1] - points[i][1]) * t];
+    }
+    left -= leg;
+  }
+  return [...points[0]];
+}
+/** The line and the middle of each leg of it, so that a leg cannot cut a corner through shallow water or dry land. */
+const withMiddles = points => points.flatMap((p, i) => (i ? [[(p[0] + points[i - 1][0]) / 2, (p[1] + points[i - 1][1]) / 2], p] : [p]));
+const nearestOf = (point, points) => Math.min(...points.map(p => Math.hypot(p[0] - point[0], p[1] - point[1])));
+const xz = point => [point.position[0], point.position[2]];
+const SIKI_SHOT_NAMES = ['siki_arrive', 'siki_flooded', 'siki_sail', 'siki_fishing', 'siki_two_shot', 'siki_star', 'ferry_side', 'ferry_front', 'ferry_back', 'siki_hummocks', 'siki_portrait'];
+
+test('Síkið as data: the path goes under the channel, a ferry line of 50 m runs in deep water, a shallow edge beside it and dry hummocks at its end', () => {
+  const siki = chapter.locations.siki;
+  assert.ok(siki, 'the chapter has Síkið');
+  assert.equal(siki.layout, SIKI_LAYOUT);
+  assert.equal(siki.shots, SIKI_SHOTS);
+  const { layout } = siki;
+  assert.equal(layout.seed, 13, 'its own seed, so the trail\'s and the Fen\'s plants are dealt as they were');
+  assert.equal(layout.biome, 'fen', 'in the Fen\'s look');
+  const { channel } = layout.water;
+  assert.ok(channel.width >= 6 && channel.width <= 8, `the channel is ${channel.width} m wide`);
+  assert.ok(channel.depth >= 1.1, `and ${channel.depth} m deep in the middle`);
+  for (const name of SIKI_SHOT_NAMES) {
+    assert.ok(siki.shots[name], `the shot ${name} is set in Síkið`);
+  }
+  const ground = groundOf('siki');
+  const shape = waterShape(layout.water);
+  const depth = ([x, z]) => ground.layout.water.depthAt(x, z); // on the ground as the forest digs it
+  // The path comes in from the north-west and the water has flooded its last four metres.
+  const { path } = layout;
+  assert.ok(shape.signedAt(...path[0]) > 8, 'the path starts on dry ground');
+  assert.ok(shape.signedAt(...path.at(-1)) < 0, 'and ends in the water');
+  for (let back = 0; back <= 4; back += 0.5) {
+    const at = beforeEnd(path, back);
+    assert.ok(shape.signedAt(...at) < 0, `${back} m before its end the path is under water (${shape.signedAt(...at).toFixed(2)})`);
+  }
+  // Mosi stops on the bank, nose at the water, on the path.
+  assert.ok(shape.signedAt(...xz(MOSI_BANK)) > 2.5, 'Mosi\'s middle is on dry ground');
+  assert.ok(Math.min(...path.map(p => Math.hypot(p[0] - MOSI_BANK.position[0], p[1] - MOSI_BANK.position[2]))) < 1.5, 'on the path');
+  // The ferry line: 40 to 60 m along the channel, deep enough all the way for her to swim with her belly in the water.
+  const ferryLength = lengthOf(FERRY_LINE);
+  assert.ok(ferryLength >= 40 && ferryLength <= 60, `the ferry line is ${ferryLength.toFixed(1)} m long`);
+  for (const point of withMiddles(FERRY_LINE)) assert.ok(depth(point) >= 1, `the ferry line is ${depth(point).toFixed(2)} m deep at ${point.map(v => v.toFixed(1))}`);
+  // Mosi's line beside it, on the shallow edge: the water between his ankles and his knees, clear of her.
+  assert.ok(lengthOf(MOSI_WADE_LINE) >= 35, 'Mosi wades most of the way');
+  for (const point of withMiddles(MOSI_WADE_LINE)) {
+    assert.ok(depth(point) >= 0.3 && depth(point) <= 0.6, `Mosi wades in ${depth(point).toFixed(2)} m of water at ${point.map(v => v.toFixed(1))}`);
+    const apart = nearestOf(point, withMiddles(FERRY_LINE));
+    assert.ok(apart >= 3 && apart <= 6, `and ${apart.toFixed(1)} m from her line`);
+  }
+  // She lies low in the reed across the channel from Mosi, 10 to 16 m from him, with the water between.
+  const across = Math.hypot(UGGEDLA_REED.position[0] - MOSI_BANK.position[0], UGGEDLA_REED.position[2] - MOSI_BANK.position[2]);
+  assert.ok(across >= 10 && across <= 16, `Uggeðla's reed is ${across.toFixed(1)} m from Mosi`);
+  const between = [0.35, 0.5, 0.65].map(t => [MOSI_BANK.position[0] + (UGGEDLA_REED.position[0] - MOSI_BANK.position[0]) * t, MOSI_BANK.position[2] + (UGGEDLA_REED.position[2] - MOSI_BANK.position[2]) * t]);
+  assert.ok(between.some(p => shape.signedAt(...p) < -1), 'the channel lies between them');
+  assert.ok(depth(xz(UGGEDLA_REED)) > 0 && depth(xz(UGGEDLA_REED)) < 1.2, 'she lies in its shallows by the far bank');
+  // The fish jump in the water round her, in open water she can reach.
+  assert.ok(FISHING_SPOTS.length >= 5, `${FISHING_SPOTS.length} fishing spots`);
+  for (const spot of FISHING_SPOTS) {
+    assert.ok(depth(spot) >= 0.8, `a fish jumps from ${depth(spot).toFixed(2)} m of water`);
+    const reach = Math.hypot(spot[0] - UGGEDLA_REED.position[0], spot[1] - UGGEDLA_REED.position[2]);
+    assert.ok(reach >= 2 && reach <= 12, `${reach.toFixed(1)} m from Uggeðla`);
+  }
+  // The hummocks at the end of the channel are dry, and she stops in deep water beside them.
+  const dry = ([x, z]) => shape.signedAt(x, z) > 0.5 && ground.terrain.heightAt(x, z) > shape.level;
+  assert.ok(dry(xz(HUMMOCK)), 'Mosi\'s hummock is dry ground above the water');
+  assert.ok(depth(xz(UGGEDLA_DROP)) >= 1, 'Uggeðla stops in deep water');
+  assert.ok(Math.hypot(...xz(HUMMOCK).map((v, i) => v - xz(UGGEDLA_DROP)[i])) <= 12, 'by the hummock');
+  assert.ok(nearestOf(xz(UGGEDLA_DROP), FERRY_LINE) < 3 && nearestOf(xz(HUMMOCK), MOSI_WADE_LINE) < 6, 'the lines end at the hummocks');
+  // Þórseðla stands far off, ahead of the ferry's last stretch, on dry ground.
+  const end = FERRY_LINE.at(-1), before = beforeEnd(FERRY_LINE, 12);
+  const [fx, fz] = xz(THORSEDLA_FAR);
+  const away = Math.hypot(fx - xz(HUMMOCK)[0], fz - xz(HUMMOCK)[1]);
+  assert.ok(away >= 80 && away <= 120, `Þórseðla is ${away.toFixed(0)} m beyond the hummocks`);
+  const heading = (Math.atan2(end[1] - before[1], end[0] - before[0]) * 180) / Math.PI;
+  const bearing = (Math.atan2(fz - end[1], fx - end[0]) * 180) / Math.PI;
+  const off = Math.abs(((bearing - heading + 540) % 360) - 180);
+  assert.ok(off < 30, `she is ${off.toFixed(0)} degrees off the way the ferry is going`);
+  assert.ok(shape.signedAt(fx, fz) > 5, 'on dry ground');
+});
 
 test('every shot keeps the camera rules over its ground', () => {
   for (const [name, { shots }] of Object.entries(chapter.locations)) {
@@ -200,16 +301,41 @@ function playIdle() {
   return idled;
 }
 
-test('the chapter plays its two scenes unattended and ends in black on the trail, with no director warnings', async () => {
+test('the chapter plays its two scenes unattended, comes to Síkið and ends in black at the water, with no director warnings', async () => {
   const { task, stage, world, director, journal, last } = await playIdle();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
   assert.ok(stage.s.time < IDLE_LIMIT, `it took ${stage.s.time.toFixed(1)} s`);
   assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2], 'the glade and the footprints, as before');
-  assert.equal(world.location, 'fenjaslod');
+  assert.equal(world.location, 'siki', 'the trail ends in Síkið, where the scenes to be built go on');
   assert.ok(last.fade >= 0.999, `the picture has faded to black (${last.fade.toFixed(2)})`);
   assert.deepEqual(journal.stars, [], 'no star yet: Uggeðla\'s comes with the scenes to be built');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
+});
+
+// The trail's end is the arrival in Síkið (kafli2-siki.js: arriveInSiki): the trail's prints let go of, Mosi coming down the path to the
+// water, Uggeðla lying low across it (hidden until her pose is built), Þórseðla far off in the trees, alive, and the Fen's water sounds.
+test('Síkið: Mosi comes down the path to the water, Uggeðla waits unseen, Þórseðla stands far off, and the trail is let go of', async () => {
+  const { world, soundLog, seen } = await playIdle();
+  const c = world.chapterState;
+  const mosi = world.actors.get('mosi'), egill = world.actors.get('egill');
+  const [bx, bz] = xz(MOSI_BANK);
+  assert.ok(Math.hypot(mosi.root.position.x - bx, mosi.root.position.z - bz) < 1, 'Mosi stands at the flooded path with his nose at the water');
+  assert.ok(Math.abs(((mosi.heading - MOSI_BANK.heading + 540) % 360) - 180) < 8, `facing the water (${mosi.heading.toFixed(0)} degrees)`);
+  assert.ok(Math.hypot(egill.root.position.x - mosi.root.position.x, egill.root.position.z - mosi.root.position.z) < 2, 'with Egill in the saddle on his back');
+  assert.equal(world.actors.get('kambedla').root.visible, false, 'Kambeðla stayed in her glade');
+  assert.equal(world.actors.get('uggedla').root.visible, false, 'Uggeðla lies low in the reed: not seen until her pose is built (the next task)');
+  const [ux, uz] = xz(UGGEDLA_REED), her = world.actors.get('uggedla').root.position;
+  assert.ok(Math.hypot(her.x - ux, her.z - uz) < 0.3, 'but she is at her reed');
+  const thorsedla = world.actors.get('thorsedla');
+  assert.equal(thorsedla.root.visible, true, 'Þórseðla is there');
+  const [tx, tz] = xz(THORSEDLA_FAR);
+  assert.ok(Math.hypot(thorsedla.root.position.x - tx, thorsedla.root.position.z - tz) < 0.3, 'far off, where Síkið puts her');
+  assert.ok(c.life && c.life.log.length >= 1, 'and alive: she nods or bites the treetop as she does in the Fen');
+  assert.equal(c.prints, null, 'the trail\'s prints are let go of');
+  assert.equal(c.printCritters, null, 'and their animals');
+  assert.ok(soundLog.filter(e => e.name === 'fen').length >= 1, 'the Fen\'s water sounds go on');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_arrive'), 'the scene comes to Síkið on its arrival shot');
 });
 
 // main.js builds the trail once the start button shows, a slice at a time: a child who taps at once comes to it before it is
@@ -241,6 +367,35 @@ test('no scene plays in a place still being built: the glade waits under the bla
     assert.ok(place === null || place === frame.location, `${frame.shot} (a shot of ${place}) showed in ${frame.location} at ${frame.t.toFixed(2)} s`);
   }
   assert.ok(visible.some(v => v.location === 'fenjaslod'), 'and the trail showed');
+});
+
+// Síkið is built behind the start button too (chapter.prepare), but the scene comes to it minutes later: the slow device is one whose build
+// of it failed or is not done by then. Its first build fails here (the change of place builds it again, as locations.js has it) and
+// then takes 5 s: the scene after the trail does not start until Síkið is built, and shows nothing of it before.
+test('no scene plays in Síkið still being built: the trail waits under the black for it', async () => {
+  const visible = []; // every frame the picture shows (not under the black)
+  const { task, stage, world, director, builds } = await playUnattended(kafli2, {
+    seeking: false, limit: IDLE_LIMIT, failBuilds: { siki: 1 }, slowBuilds: { siki: 5 },
+    onFrame({ t, world, ui, shot }) {
+      if (ui.fadeLevel >= 0.999) return;
+      visible.push({ t, location: world.location, shot });
+    },
+  });
+  assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
+  assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
+  assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
+  assert.equal(builds.siki.failed, 1, 'the build ahead failed');
+  assert.ok(builds.siki.asked > 60, `and the change of place asked for it again, at ${builds.siki.asked.toFixed(1)} s`);
+  assert.ok(builds.siki.built - builds.siki.asked > 4.99, `which took ${(builds.siki.built - builds.siki.asked).toFixed(1)} s`);
+  assert.equal(world.location, 'siki');
+  const inSiki = visible.filter(v => v.location === 'siki');
+  assert.ok(inSiki.length > 60, 'Síkið showed');
+  assert.ok(inSiki[0].t >= builds.siki.built, `it showed at ${inSiki[0].t.toFixed(2)} s, built at ${builds.siki.built.toFixed(2)} s`);
+  // the trail was in view until the black came down for Síkið, and no shot of Síkið was framed over another place
+  const lastTrail = visible.filter(v => v.location === 'fenjaslod').at(-1);
+  assert.ok(lastTrail.t < builds.siki.asked + 0.5, 'the black came down as the scene went there');
+  assert.ok(visible.filter(v => v.location !== 'siki').every(v => !SIKI_SHOT_NAMES.includes(v.shot)), 'no shot of Síkið was shown over another place');
+  assert.ok(inSiki.some(v => v.shot === 'siki_arrive' || v.shot === 'siki_flooded'), 'and the arrival\'s shot showed in it');
 });
 
 test('a trail whose build fails while the start\'s black waits: the glade plays, and the change of place builds it again', async () => {
