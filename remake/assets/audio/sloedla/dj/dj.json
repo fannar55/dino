@@ -1411,6 +1411,127 @@
       "share": 1,
       "seconds": 2.52,
       "made": "2026-10-31T01:10:53.069Z"
+    },
+    "barn-1": {
+      "text": "Egill spilar, frábært!",
+      "sent": "Egill spilar, frábært!",
+      "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins!",
+      "file": "barn-1.mp3",
+      "seed": 42,
+      "heard": "Egill spilar. Frábært",
+      "share": 1,
+      "seconds": 2.6,
+      "made": "2026-10-31T15:17:31.021Z"
+    },
+    "barn-2": {
+      "text": "Já, Egill spilar!",
+      "sent": "Já, Egill spilar!",
+      "context": "Engar áhyggjur. Egill er besti leitarmaður skógarins!",
+      "file": "barn-2.mp3",
+      "seed": 42,
+      "heard": "Já, Egill spilar",
+      "share": 1,
+      "seconds": 2.25,
+      "made": "2026-10-31T15:17:33.123Z"
+    },
+    "fullordinn-1": {
+      "text": "Fullorðinn spilar, til í þetta?",
+      "sent": "Fullorðinn spilar, til í þetta?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullordinn-1.mp3",
+      "seed": 1,
+      "heard": "Fullorðin spilar. Til í þetta?",
+      "share": 0.8,
+      "seconds": 2.17,
+      "made": "2026-10-31T15:17:38.973Z"
+    },
+    "fullordinn-2": {
+      "text": "Nú spila þau fullorðnu!",
+      "sent": "Nú spila þau fullorðnu!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "fullordinn-2.mp3",
+      "seed": 1,
+      "heard": "Nú spila þau fullorðnu",
+      "share": 1,
+      "seconds": 1.93,
+      "made": "2026-10-31T15:17:41.063Z"
+    },
+    "thrjar-1": {
+      "text": "Allar þrjár eðlurnar með!",
+      "sent": "Allar þrjár eðlurnar með!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "thrjar-1.mp3",
+      "seed": 1,
+      "heard": "Allar þrjár eðlurnar með",
+      "share": 1,
+      "seconds": 2.59,
+      "made": "2026-10-31T15:17:43.263Z"
+    },
+    "thrjar-2": {
+      "text": "Kambeðla, Slóeðla og Þórseðla!",
+      "sent": "Kambeðla, Slóeðla og Þórseðla!",
+      "context": "Fyrst heimsækjum við Kambeðlu vinkonu mína. Plöturnar á bakinu hennar lýsa eins og ljósker! Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu. Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!",
+      "file": "thrjar-2.mp3",
+      "seed": 42,
+      "heard": "Kambeðla, slóeðla og þórseðla",
+      "share": 1,
+      "seconds": 3.31,
+      "made": "2026-10-31T15:17:48.313Z"
+    },
+    "tvaer-1": {
+      "text": "Slóeðla og Þórseðla spila!",
+      "sent": "Slóeðla og Þórseðla spila!",
+      "context": "Slóeðla er vinkona mín. Henni finnst gott að vaða í vatninu. Næst er það Þórseðla, stærsti vinur minn. Hún er svo há að hún bítur trjátoppana!",
+      "file": "tvaer-1.mp3",
+      "seed": 42,
+      "heard": "Slóeðla og Þórseðla spila",
+      "share": 1,
+      "seconds": 2.83,
+      "made": "2026-10-31T15:17:50.662Z"
+    },
+    "tvaer-2": {
+      "text": "Tvær eðlur í dag!",
+      "sent": "\"/ˈtʰvaiːr/\" eðlur í dag!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "tvaer-2.mp3",
+      "seed": 42,
+      "heard": "Tvær eðlur í dag",
+      "share": 1,
+      "seconds": 1.9,
+      "made": "2026-10-31T15:17:52.330Z"
+    },
+    "tilbuin-1": {
+      "text": "Eru allir tilbúnir?",
+      "sent": "Eru allir tilbúnir?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "tilbuin-1.mp3",
+      "seed": 1,
+      "heard": "Eru allir tilbúnir?",
+      "share": 1,
+      "seconds": 1.31,
+      "made": "2026-10-31T15:17:54.069Z"
+    },
+    "tilbuin-2": {
+      "text": "Gerum okkur klár!",
+      "sent": "Gerum okkur klár!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "tilbuin-2.mp3",
+      "seed": 1,
+      "heard": "Gerum okkur klár",
+      "share": 1,
+      "seconds": 1.35,
+      "made": "2026-10-31T15:17:55.639Z"
+    },
+    "tilbuin-3": {
+      "text": "Allir á sinn stað!",
+      "sent": "Allir á sinn stað!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "tilbuin-3.mp3",
+      "seed": 1,
+      "heard": "Allir á sinn stað",
+      "share": 1,
+      "seconds": 1.78,
+      "made": "2026-10-31T15:17:57.199Z"
     }
   }
 }
