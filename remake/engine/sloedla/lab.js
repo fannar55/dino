@@ -22,12 +22,15 @@
 //   3d=0                  the stars flat, not in 3D (star-view.js: the owner's star; flat too when there is no WebGL or no star),
 //                         and the menu's stage in pictures (stage-flat.js), not the cast in 3D (stage.js)
 //   lokaskjar=0..5|fullkominn  the end at once with that many stars, or a perfect game, for a look at it
+//   gestur=<b|a|c>:<barn|fullordinn>  a band's look without phones: that dinosaur's lane is a guest's ("Gestur") at that level
+//                         (its window, its notes, its speed), played here like the rest
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
 // in the menu (to the songs, then plays the picked one) and plays again at the end.
 
 import { createAudioContext, createOutput } from '../audio/output.js';
 import { seededRandom } from '../random.js';
 import { LEVELS } from './chart.js';
+import { groupsOf, laneRules } from './lineup.js';
 import { createSongClock } from './song-clock.js';
 import { createSongSounds } from './sounds.js';
 import { createReverb } from './room.js';
@@ -82,8 +85,15 @@ const options = {
   hands: params.get('hendur') !== '0',
   stars3d: params.get('3d') !== '0',
   endNow: ['0', '1', '2', '3', '4', '5'].includes(params.get('lokaskjar')) ? Number(params.get('lokaskjar')) : params.get('lokaskjar') === 'fullkominn' ? 'fullkominn' : null,
+  guest: guestOf(params.get('gestur')),
   extra: readSeinkun(),
 };
+
+/** ?gestur=c:fullordinn → { role: 'c', level: 'fullordinn' }; null for anything else. */
+function guestOf(text) {
+  const [role, level] = String(text ?? '').split(':');
+  return ['a', 'b', 'c'].includes(role) && ['barn', 'fullordinn'].includes(level) ? { role, level } : null;
+}
 
 function readChoices() {
   try {
@@ -214,18 +224,24 @@ async function start({ again = false } = {}) {
   const roles = options.lanes === 2 ? ['a', 'c'] : ['b', 'a', 'c'];
   const cast = roles.map(role => ({ ...FRIENDS[role], image: images[role] }));
   const windows = LEVELS[options.level];
-  const fall = windows.fall;
+  // ?gestur=: one lane a guest's at her level, the rest Egill's (a band's look on this screen alone)
+  const lineup = options.guest && roles.includes(options.guest.role)
+    ? roles.map(role => (role === options.guest.role
+      ? { role, player: 1, name: 'Gestur', level: options.guest.level, judged: 'here' }
+      : { role, player: 0, name: 'Egill', level: options.level, judged: 'here' }))
+    : null;
+  const fall = lineup ? Math.max(...lineup.map(lane => laneRules(lane).fall)) : windows.fall;
   const clock = createSongClock(context, { extra: options.extra });
   music.gain.cancelScheduledValues(context.currentTime);
   music.gain.value = MUSIC_LEVEL;
   const sounds = createSongSounds({ context, output: music, room, instruments: song.instruments });
   // the player keeps the name the round and the measuring tools know it by (round.conductor)
-  const conductor = createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall });
+  const conductor = createPlayer({ context, song, clock, sounds, out: music, level: options.level, roles, fall, groups: lineup ? groupsOf(lineup) : null });
   const root = rootHz(song.key.root) * 2;
   const stars3d = await starView;
   stars3d?.clear();
   const game = createSongGame({
-    canvas, cast, conductor, fall, clock, windows, crowd, claps, dj, backdrop, hands, debug: options.debug,
+    canvas, cast, conductor, fall, clock, windows, lineup, crowd, claps, dj, backdrop, hands, debug: options.debug,
     stars3d, bestBefore: best.get(options.song, options.level), endNow: options.endNow,
     chimes: { star: n => sounds.star(n, root), sparkle: () => sounds.sparkle(root * 2), tick: () => sounds.tick(root * 8) },
     onEnd: result => finish(result),
