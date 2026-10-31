@@ -46,7 +46,7 @@ const spot = (a, b, heading) => { const [x, z] = ahead(a, b); return { position:
 
 // The path comes in from the north-west (the trail's way on) and is flooded: its last 4.9 m lie under the channel, from the water's edge
 // 4.5 m past MOSI_BANK to its end just past the channel's middle. A little crooked, as a trodden path is.
-export const SIKI_PATH = [[-18, -1.5], [-12, 0.9], [-6, 0.8], [0, 0], [4.8, 0], [9.4, 0]].map(([a, b]) => ahead(a, b));
+export const SIKI_PATH = [[-14, -1.0], [-8, 0.8], [-4, 0.6], [0, 0], [4.8, 0], [9.4, 0]].map(([a, b]) => ahead(a, b));
 export const SIKI_WALK = SIKI_PATH.slice(0, 4); // from where Síkið begins to MOSI_BANK: Mosi's walk
 
 // The channel comes up from the south-west along the front of the bank, passes the end of the path and turns east, then south-east,
@@ -83,7 +83,7 @@ export const HUMMOCK = { position: [49.2, 0, 27.6], heading: 215 };
 /** Where she stops in the pool at the end, beside the hummock. */
 export const UGGEDLA_DROP = { position: [40.2, 0, 23.6], heading: 80 };
 /** Þórseðla, far off beyond the hummocks in the way the ferry goes, among low swamp conifers, biting the top of the one she faces. */
-export const THORSEDLA_FAR = { position: [69, 0, 117], heading: -15 };
+export const THORSEDLA_FAR = { position: [66, 0, 110], heading: -15 };
 
 // ---------------------------------------------------------------------------------------------
 // The plants the layout places itself (world/forest/plan.js: growFen places these first, and where it says); the Fen's own passes fill
@@ -201,10 +201,11 @@ function liftBanks(x, z, natural) {
 
 export const SIKI_LAYOUT = {
   seed: 13,
-  // The clearing's middle is on the dry land inside the channel's bend, among the places the story spends its time (its ground is
-  // finest within 40 m of it: the path's start, the crossing, the ferry's whole way).
-  clearing: { center: [18, 6], radius: 24 },
-  forestEdge: 30,
+  // The clearing's middle is on the dry land inside the channel's bend, 37 m from the path's start and 29 m from the pool at the end:
+  // the ground is finest within 40 m of it and the grass grows only within 38 m of it (grass.js), full as far as the clearing's
+  // radius, so the clearing reaches 34 m: the whole way from the path's start to the hummocks has its grass.
+  clearing: { center: [17.3, 8.7], radius: 34 },
+  forestEdge: 40,
   path: SIKI_PATH,
   biome: 'fen',
   water: SIKI_WATER,
@@ -238,22 +239,22 @@ export const SIKI_LAYOUT = {
 
 export const SIKI_SHOTS = {
   // The arrival: from far behind the path's start, a little up, the whole way down it to the water and the reed beyond; Mosi walks away.
-  siki_arrive: { position: eye(-30, 4.5, 3.4), target: eye(6, 0, 1.6), fov: 48 },
+  siki_arrive: { position: eye(-24, 3.0, 2.6), target: eye(6, 1.0, 1.7), fov: 48 },
   // Mosi and Egill at the water, the path gone under it: from the channel in front of them, low over the water, looking back at
   // Mosi's face with the flooded path running under us to his feet.
-  siki_flooded: { position: eye(10.0, -1.4, 1.5), target: eye(1.8, 0.0, 2.0), fov: 44 },
+  siki_flooded: { position: eye(10.5, -1.2, 1.6), target: eye(2.5, 0.0, 1.2), fov: 48 },
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-7, -5.5, 2.2), target: eye(14, 1.0, 3.6), fov: 50 },
   // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
-  siki_fishing: { position: eye(-2, -15, 3.4), target: eye(10, 6, 0.9), fov: 54 },
+  siki_fishing: { position: eye(-2, -15, 5.0), target: eye(10, 6, 0.4), fov: 56 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(4, -13, 1.7), target: eye(9, 3, 2.2), fov: 48 },
   // Low, looking up at her sail against the sky, where the star rises from its top.
-  siki_star: { position: eye(0.5, -6, 0.9), target: eye(13, 2.0, 5.6), fov: 50 },
+  siki_star: { position: eye(1.0, -8, 0.9), target: eye(13.5, 1.5, 5.4), fov: 50 },
   // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
   // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
-  // Side by side: from the inner bank, across her and Mosi.
-  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [0.5, 1.7, 17], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 2.0, 3.2], local: true }, fov: 50 },
+  // Side by side: from the inner bank a little ahead of them, across her and Mosi, who stand clear of each other from there.
+  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [9, 2.4, 15], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0, 1.8, 2.6], local: true }, fov: 50 },
   // From the front, over the water: her head, Egill on her back and the sail over him.
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
   // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
