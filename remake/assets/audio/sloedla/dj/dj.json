@@ -1532,6 +1532,50 @@
       "share": 1,
       "seconds": 1.78,
       "made": "2026-10-31T15:17:57.199Z"
+    },
+    "saman-1": {
+      "text": "Fáum vini með! Skannið kóðann!",
+      "sent": "Fáum vini með! Skannið kóðann!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "saman-1.mp3",
+      "seed": 1,
+      "heard": "Fáum vini með. Skannið kóðann",
+      "share": 1,
+      "seconds": 2.94,
+      "made": "2026-10-31T19:26:09.026Z"
+    },
+    "saman-2": {
+      "text": "Hver vill spila með?",
+      "sent": "Hver vill spila með?",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "saman-2.mp3",
+      "seed": 1,
+      "heard": "Hver vill spila með?",
+      "share": 1,
+      "seconds": 1.4,
+      "made": "2026-10-31T19:26:11.173Z"
+    },
+    "kom-1": {
+      "text": "Nýr spilari kominn!",
+      "sent": "Nýr spilari kominn!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "kom-1.mp3",
+      "seed": 1,
+      "heard": "Nýr spilari kominn",
+      "share": 1,
+      "seconds": 1.8,
+      "made": "2026-10-31T19:26:13.776Z"
+    },
+    "kom-2": {
+      "text": "Velkomin í hljómsveitina!",
+      "sent": "Velkomin í hljómsveitina!",
+      "context": "Jæja krakkar, nú byrjar fjörið!",
+      "file": "kom-2.mp3",
+      "seed": 1,
+      "heard": "Velkomin í hljómsveitina",
+      "share": 1,
+      "seconds": 1.96,
+      "made": "2026-10-31T19:26:16.702Z"
     }
   }
 }

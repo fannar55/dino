@@ -42,6 +42,9 @@ export const DJ_LINES = Object.freeze({
   thrjar: ['Allar þrjár eðlurnar með!', 'Kambeðla, Slóeðla og Þórseðla!'],
   tvaer: ['Slóeðla og Þórseðla spila!', 'Tvær eðlur í dag!'],
   tilbuin: ['Eru allir tilbúnir?', 'Gerum okkur klár!', 'Allir á sinn stað!'],
+  // "Spilum saman" (the band, spec 2026-10-31-sloedla-fjolspil §10): it is tapped, and a guest takes a dinosaur
+  saman: ['Fáum vini með! Skannið kóðann!', 'Hver vill spila með?'],
+  kom: ['Nýr spilari kominn!', 'Velkomin í hljómsveitina!'],
   'lag-pixel': ['Pixlaferð! Beint inn í tölvuleikinn!', 'Pixlaferð, bíp bíp búp!', 'Pixlaferð! Hoppum milli pixlanna!'],
   'lag-boogie': ['Rokkhopp! Hoppum og skoppum!', 'Rokkhopp, rokk og ról!', 'Rokkhopp! Upp með hendurnar!'],
   'lag-fonk': ['Fönkhopp! Dillum okkur!', 'Fönkhopp, nú verður fönkí!', 'Fönkhopp! Allir að dilla sér!'],

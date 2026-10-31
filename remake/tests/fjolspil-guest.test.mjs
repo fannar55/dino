@@ -484,3 +484,21 @@ test('ready: „Tilbúin!“ with the song, „Tengist…“ until the clock ans
   assert.equal($(root, '.sl-guest-note').hidden, false);
   assert.deepEqual(sent, [{ type: 'ready' }]);
 });
+
+test('the walk can hold her words to the big screen\'s: its word on each of her notes, and the lanes her screen shows', () => {
+  const doc = new FakeDocument();
+  const timer = () => 0;
+  doc.defaultView = { innerWidth: 390, innerHeight: 844, location: { search: '' }, setTimeout: timer, clearTimeout() {}, setInterval: timer, clearInterval() {}, addEventListener() {}, removeEventListener() {} };
+  const root = doc.createElement('section');
+  const ears = {};
+  const context = { doc, send() {}, post() {}, listen: (type, fn) => { ears[type] = fn; return () => {}; } };
+  renderSloedla(root, { screen: 'sloedla', phase: 'ready' }, context);
+  ears.song({ kind: 'start', song: { id: 'boogie', name: 'Rokkhopp', bpm: 120, length: 60 }, lanes: ['b', 'a', 'c'], levels: {}, names: {}, mine: 'c' });
+  ears.song({ kind: 'notes', section: { index: 0, start: 0, variant: 'a' }, list: [{ id: 0, t: 1, role: 'a' }, { id: 1, t: 1.5, role: 'c' }, { id: 2, t: 2, role: 'c' }] });
+  ears.song({ kind: 'played', id: 1, role: 'c', result: 'hit', grade: 'perfect' });
+  ears.song({ kind: 'played', id: 0, role: 'a', result: 'miss', grade: null });
+  ears.song({ kind: 'played', id: 2, role: 'c', result: 'miss', grade: null });
+  const state = doc.defaultView.__sloedlaGuest.state();
+  assert.deepEqual(state.heard, [{ id: 1, kind: 'hit', grade: 'perfect' }, { id: 2, kind: 'miss', grade: null }]);
+  assert.deepEqual(state.lanes, ['c']); // a phone: her lane only
+});

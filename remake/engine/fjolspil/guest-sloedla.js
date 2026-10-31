@@ -18,7 +18,8 @@
 //   bless  „Takk fyrir að spila!“: Egill plays alone now
 //
 // window.__sloedlaGuest = { state(), clock } is for the walk (remake/tools/sloedla-fjolspil-walk.mjs): her lane's notes, the words
-// her taps had, where her button is. The look is spil.css's .sl-guest-*.
+// her taps had and the big screen's word on each of her notes (heard), the lanes her screen shows, where her button is. The look
+// is spil.css's .sl-guest-*.
 
 import { SAFE_PICTURE } from './guest.js';
 import { BACKDROP, FRIENDS } from '../sloedla/friends.js';
@@ -66,7 +67,7 @@ function createScreen(root, { send, doc, post, listen }) {
   const sync = createClockSync();
   const at = {
     phase: null, remote: null, start: null, game: null, lane: -1, canvas: null, raf: null, timers: [], every: null, lock: null,
-    images: null, backdrop: null, waitNote: null, words: [],
+    images: null, backdrop: null, waitNote: null, words: [], heard: [],
   };
   const offs = [listen('time', heard), listen('song', onSong)];
 
@@ -202,8 +203,14 @@ function createScreen(root, { send, doc, post, listen }) {
     if (at.phase !== 'ready') return; // a song she is not in (late, or after the end)
     if (body?.kind === 'start') return begin(body);
     const told = at.remote?.receive(body);
-    if (told?.kind === 'played') at.game?.verdict(told.index, told.verdict);
+    if (told?.kind !== 'played') return;
+    at.game?.verdict(told.index, told.verdict);
+    const note = at.remote.conductor.chart[told.index];
+    if (note?.role === at.remote.mine) at.heard.push({ id: note.id, kind: told.verdict.kind, grade: told.verdict.grade ?? null });
   }
+
+  /** The lanes her screen shows, in the stage's order: on a phone hers alone, on a tablet the song's. */
+  const shown = () => (!at.start ? [] : device === 'simi' ? [at.remote.mine] : at.start.lanes);
 
   /** `start`: her round, drawn as soon as the clock and the pictures are there. */
   function begin(body) {
@@ -215,6 +222,7 @@ function createScreen(root, { send, doc, post, listen }) {
     at.remote = remote;
     at.start = { lanes, levels: body.levels ?? {}, names: body.names ?? {} };
     at.words = [];
+    at.heard = [];
     if (win?.requestAnimationFrame) at.raf = win.requestAnimationFrame(loop);
   }
 
@@ -231,7 +239,7 @@ function createScreen(root, { send, doc, post, listen }) {
   function play() {
     const mine = at.remote.mine;
     const phone = device === 'simi';
-    const roles = phone ? [mine] : at.start.lanes;
+    const roles = shown();
     const levelOf = role => (at.start.levels[role] === 'fullordinn' ? 'fullordinn' : 'barn');
     const nameOf = role => (typeof at.start.names[role] === 'string' ? at.start.names[role] : null);
     const lineup = roles.map(role => (role === mine
@@ -314,6 +322,8 @@ function createScreen(root, { send, doc, post, listen }) {
         time: remote?.clock.time() ?? null,
         notes: remote ? remote.conductor.chart.filter(note => note.role === mine).map(note => ({ id: note.id, t: note.t })) : [],
         words: at.words.slice(),
+        heard: at.heard.slice(),
+        lanes: at.remote ? shown().slice() : [],
         button: at.game && at.lane >= 0 ? at.game.spot(at.lane) : null,
       };
     },

@@ -234,9 +234,27 @@ html, body {
 .sl-end-words { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .sl-ui4 { position: absolute; left: 0; right: 0; bottom: 4vh; display: flex; justify-content: center; align-items: center; gap: 22px; padding: 0 16px; }
 .sl-ui4 > * { pointer-events: auto; }
-.sl-end:not([hidden]) .sl-ui4 > * { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) 0.7s backwards; }
-.sl-end:not([hidden]) .sl-ui4 > .sl-go { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) 0.6s backwards, sl-breathe 1.4s ease-in-out 1.2s infinite; }
-.sl-end:not([hidden]) .sl-again svg { animation: sl-spin 0.9s cubic-bezier(0.3, 1.3, 0.5, 1) 0.8s backwards; }
+/* the buttons rise after a band's lines (--after: their time, set by menu-view.js) */
+.sl-end:not([hidden]) .sl-ui4 > * { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) calc(0.7s + var(--after, 0s)) backwards; }
+.sl-end:not([hidden]) .sl-ui4 > .sl-go { animation: sl-rise-far 0.6s cubic-bezier(0.3, 1.45, 0.5, 1) calc(0.6s + var(--after, 0s)) backwards, sl-breathe 1.4s ease-in-out calc(1.2s + var(--after, 0s)) infinite; }
+.sl-end:not([hidden]) .sl-again svg { animation: sl-spin 0.9s cubic-bezier(0.3, 1.3, 0.5, 1) calc(0.8s + var(--after, 0s)) backwards; }
+/* a band's end: a line for each player on dark glass, her dinosaurs in their own colours, her name, her points in gold and
+   „Frábært! ×N“; one row under the stars' words where the question would stand, rising one by one */
+.sl-lines { position: absolute; left: 0; right: 0; top: 75.5%; margin: 0; padding: 0 16px; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px; pointer-events: none; }
+.sl-line {
+  display: flex; align-items: center; gap: 12px; padding: 7px 22px 7px 8px; border-radius: 999px;
+  background: rgba(20, 16, 48, 0.86); box-shadow: inset 0 0 0 2px rgba(255, 220, 120, 0.35), 0 6px 16px rgba(0, 0, 0, 0.45);
+  animation: sl-line-in 0.55s cubic-bezier(0.3, 1.45, 0.5, 1) calc(0.25s + var(--i, 0) * 0.45s) backwards;
+}
+@keyframes sl-line-in { from { transform: translateY(36px) scale(0.7); opacity: 0; } }
+.sl-line-pics { display: flex; }
+.sl-line-pic { width: 54px; height: 54px; border-radius: 50%; object-fit: contain; background: var(--light, #f4ecff); box-shadow: 0 0 0 3px var(--hue, #fff); }
+.sl-line-pic + .sl-line-pic { margin-left: -16px; }
+.sl-line-who { display: grid; line-height: 1.1; text-align: left; }
+.sl-line-name { font-weight: 900; font-size: 20px; color: #fff6e0; white-space: nowrap; }
+.sl-line-score { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.sl-line-points { font-weight: 900; font-size: 25px; color: #ffd24a; text-shadow: 0 2px 0 #7a4a00; }
+.sl-line-great { font-weight: 800; font-size: 15px; color: #e7e0ff; }
 .sl-again:hover svg { animation: sl-spin 0.7s cubic-bezier(0.3, 1.3, 0.5, 1); }
 @keyframes sl-spin { from { transform: rotate(-360deg); } }
 /* "Annað lag": a little fan of the songs' pictures */
@@ -313,6 +331,7 @@ html, body {
   .sl-cardpic { width: 74%; margin-top: -30px; }
   .sl-ui4 { flex-direction: column; gap: 12px; }
   .sl-end-floor { height: 36vh; }
+  .sl-lines { top: 63%; flex-direction: column; align-items: center; gap: 6px; }
 }
 
 @media (max-width: 600px) {
@@ -327,6 +346,12 @@ html, body {
   .sl-cardname { font-size: 18px; }
   .sl-stars { font-size: 17px; }
   .sl-met { font-size: 12px; }
+  .sl-line { gap: 8px; padding: 4px 16px 4px 5px; }
+  .sl-line-pic { width: 36px; height: 36px; box-shadow: 0 0 0 2px var(--hue, #fff); }
+  .sl-line-pic + .sl-line-pic { margin-left: -12px; }
+  .sl-line-name { font-size: 15px; }
+  .sl-line-points { font-size: 18px; }
+  .sl-line-great { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -335,5 +360,5 @@ html, body {
   .sl-loading:not([hidden]) .sl-disc, .sl-disc-halo, .sl-disc img, .sl-disc.done .sl-disc-face, .sl-disc.done img { animation: none; }
   .sl-aurora, .sl-beam.on, .sl-dj-pic, .sl-go, .sl-go::after, .sl-choice.picked, .sl-step:not([hidden]) .sl-ui1 > *, .sl-step:not([hidden]) .sl-ui1 > .sl-go { animation: none; }
   .sl-cards.has-pick .sl-songcard[aria-pressed="true"] { transform: none; }
-  .sl-end:not([hidden]) .sl-ui4 > *, .sl-end:not([hidden]) .sl-ui4 > .sl-go, .sl-end:not([hidden]) .sl-again svg, .sl-again:hover svg { animation: none; }
+  .sl-end:not([hidden]) .sl-ui4 > *, .sl-end:not([hidden]) .sl-ui4 > .sl-go, .sl-end:not([hidden]) .sl-again svg, .sl-again:hover svg, .sl-line { animation: none; }
 }

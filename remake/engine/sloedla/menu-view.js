@@ -14,6 +14,10 @@ import { DJ_LINES } from './dj.js';
 import { SONG_AVATARS, canTwoLanes } from './lineup.js';
 import { bounce, loadingDone, nearestFriend, ringStep } from './stage-motion.js';
 import { drawWord, pointsText } from './text.js';
+import { FRIENDS } from './friends.js';
+
+const LINE_GAP = 0.45; // s between two players' lines rising at a band's end
+const LINE_BELLS = [880, 988, 1175]; // Hz: each line's bell, a little higher than the one before
 
 const STAGE_SCREENS = new Set(['hver', 'lag', 'hlada']);
 const LANDING = [1, 1.125, 1.25, 1.5, 1.667]; // the cards' bells as they land, over 660 Hz
@@ -220,7 +224,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
     const g = endCanvas.getContext('2d');
     g.clearRect(0, 0, win.innerWidth, win.innerHeight);
     const size = Math.min(win.innerWidth * 0.07, 34);
-    drawWord(g, endText?.textContent ?? '', win.innerWidth / 2, win.innerHeight * (portrait() ? 0.655 : 0.785), size, { style: 'cream', time: reduced ? 0 : t, age: reduced ? 9 : t, stagger: 0.05, pop: 0.35, wave: reduced ? 0 : 0.08, fit: win.innerWidth * 0.9 });
+    // a band's end has the players' lines where these words would stand (the words stay in #end-words, read aloud)
+    if (!endLines) drawWord(g, endText?.textContent ?? '',win.innerWidth / 2, win.innerHeight * (portrait() ? 0.655 : 0.785), size, { style: 'cream', time: reduced ? 0 : t, age: reduced ? 9 : t, stagger: 0.05, pop: 0.35, wave: reduced ? 0 : 0.08, fit: win.innerWidth * 0.9 });
     endRaf = win.requestAnimationFrame(drawEnd);
   }
   fit(sky);
@@ -234,6 +239,7 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   });
   const start = $('#start');
   const end = $('#end');
+  const linesBox = $('[data-lines]');
   const play = $('#play');
   const cards = $('[data-cards]');
   const sparkCanvas = $('[data-sparks]');
@@ -241,6 +247,49 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
   const djBox = $('.sl-dj');
   let talkTimer = 0;
   let newBest = null; // the song whose best stars just rose (they twinkle)
+  let endLines = 0; // the players' lines at the end now (none when one plays)
+
+  /**
+   * A band's end (`players`, the result's lines, two or more): a line for each under the stars, her dinosaurs (Egill's every
+   * one), her name, her points and „Frábært! ×N“, rising one by one with a bell; the buttons rise after them (--after).
+   */
+  function showLines(players) {
+    const list = Array.isArray(players) && players.length >= 2 ? players : [];
+    endLines = list.length;
+    end.style.setProperty('--after', `${endLines * LINE_GAP}s`);
+    if (!linesBox) return;
+    linesBox.replaceChildren(...list.map(lineOf));
+    linesBox.hidden = endLines === 0;
+    list.forEach((_, i) => win.setTimeout(() => chimes?.sparkle(LINE_BELLS[i % LINE_BELLS.length]), (0.25 + i * LINE_GAP) * 1000));
+  }
+  function lineOf({ name, roles = [], points = 0, great = 0 }, i) {
+    const make = (tag, className, text = null) => {
+      const el = document.createElement(tag);
+      el.className = className;
+      if (text !== null) el.textContent = text;
+      return el;
+    };
+    const line = make('li', 'sl-line');
+    line.style.setProperty('--i', i);
+    const pics = make('span', 'sl-line-pics');
+    for (const role of roles) {
+      const friend = FRIENDS[role];
+      if (!friend) continue;
+      const img = make('img', 'sl-line-pic');
+      img.alt = friend.name;
+      img.src = friend.src;
+      img.style.setProperty('--light', friend.light);
+      img.style.setProperty('--hue', friend.hue);
+      pics.append(img);
+    }
+    const score = make('span', 'sl-line-score');
+    score.append(make('span', 'sl-line-points', pointsText(points)));
+    if (great > 0) score.append(make('span', 'sl-line-great', `Frábært! ×${great}`));
+    const who = make('span', 'sl-line-who');
+    who.append(make('span', 'sl-line-name', name ?? ''), score);
+    line.append(pics, who);
+    return line;
+  }
 
   const line = key => DJ_LINES[key]?.[0] ?? '';
   function talking(seconds) {
@@ -525,17 +574,22 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       start.hidden = false;
       render();
     },
-    /** The round ended: its words, and the two buttons; `rose` says the song's best stars rose. */
+    /**
+     * The round ended: its words (or a band's lines, `result.players`), and the two buttons; `rose` says the song's best stars
+     * rose.
+     */
     showEnd(result, rose = false) {
       newBest = rose ? menu.state().song : null;
       end.hidden = false;
+      showLines(result?.players);
       screen('lok');
       render();
       endFrom = 0;
       if (!endRaf) endRaf = win.requestAnimationFrame(drawEnd);
-      // two bells as the buttons come up
-      win.setTimeout(() => chimes?.sparkle(880), 650);
-      win.setTimeout(() => chimes?.sparkle(1175), 750);
+      // two bells as the buttons come up (after the lines)
+      const after = endLines * LINE_GAP * 1000;
+      win.setTimeout(() => chimes?.sparkle(880), 650 + after);
+      win.setTimeout(() => chimes?.sparkle(1175), 750 + after);
     },
     /**
      * "Spilum saman" as the page has it: `together`, Egill's dinosaur (`mine`) and the room's `seats`. A newly picked dinosaur
