@@ -91,8 +91,8 @@ export function createMenuView({ root = document, menu, songs, best, dj = null, 
       card.setAttribute('aria-pressed', String(card.dataset.song === s.song));
       const n = best.get(card.dataset.song, s.level);
       const stars = card.querySelector('.sl-stars');
-      stars.textContent = '★'.repeat(n) + '☆'.repeat(3 - n);
-      stars.setAttribute('aria-label', `${n} af 3 stjörnum`);
+      stars.textContent = '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
+      stars.setAttribute('aria-label', `${n} af 5 stjörnum`);
       stars.classList.toggle('new', card.dataset.song === newBest);
     }
     cards.classList.toggle('has-pick', Boolean(s.song));

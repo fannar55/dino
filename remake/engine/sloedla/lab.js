@@ -20,7 +20,7 @@
 //   dj=0                  no DJ (the voice that calls out "Tíu í röð!" and the big moments: dj.js)
 //   hendur=0              no black hands clapping along at the bottom in Stjörnukraftur (hands.js)
 //   3d=0                  the stars flat, not in 3D (star-view.js: the owner's star; flat too when there is no WebGL or no star)
-//   lokaskjar=0..3        the end at once with that many stars, for a look at it
+//   lokaskjar=0..5|fullkominn  the end at once with that many stars, or a perfect game, for a look at it
 // Keys for a grown-up at a computer: A S D (or J K L, or the arrows) for the lanes, F and J with two; space or Enter goes on
 // in the menu (to the songs, then plays the picked one) and plays again at the end.
 
@@ -79,7 +79,7 @@ const options = {
   backdrop: params.get('bakgrunnur') !== '0',
   hands: params.get('hendur') !== '0',
   stars3d: params.get('3d') !== '0',
-  endNow: ['0', '1', '2', '3'].includes(params.get('lokaskjar')) ? Number(params.get('lokaskjar')) : null,
+  endNow: ['0', '1', '2', '3', '4', '5'].includes(params.get('lokaskjar')) ? Number(params.get('lokaskjar')) : params.get('lokaskjar') === 'fullkominn' ? 'fullkominn' : null,
   extra: readSeinkun(),
 };
 
@@ -258,7 +258,8 @@ function createBot(conductor, cast, how) {
 }
 
 function finish(result) {
-  $('end-words').textContent = result.stars === 3 ? 'Slóeðla syngur með þér á hátíðinni!' : 'Viltu spila aftur?';
+  // the story's reward at four stars or more, so a child who plays every note has it (spec 2026-10-31)
+  $('end-words').textContent = result.stars >= 4 ? 'Slóeðla syngur með þér á hátíðinni!' : 'Viltu spila aftur?';
   view.showEnd(result, best.record(options.song, options.level, result.stars));
   window.__sloedlaResult = result;
   if (recorder) setTimeout(() => recorder.state === 'recording' && recorder.stop(), 2500);

@@ -138,6 +138,14 @@ function childStars({ seed, tapped, spread }) {
   return starsFor(score);
 }
 
+test('the end of a look (?lokaskjar=): any of 0 to 5 stars, or a perfect game', async () => {
+  const { lookScore } = await import('../engine/sloedla/game.js');
+  for (const stars of [0, 1, 2, 3, 4, 5]) assert.equal(starsFor(lookScore(stars, 80)), stars, `${stars} stars`);
+  const best = lookScore('fullkominn', 80);
+  assert.equal(perfectGame(best), true);
+  assert.ok(pointsOf(best) > pointsOf(lookScore(5, 80)), 'a perfect game shows more points (it had Stjörnukraftur too)');
+});
+
 // the owner (2026-10-31): not too hard; the stars held by children who play as six-year-olds do (Bonacina 2019: ~180 ms)
 test('simulated children: 85 % at 150 ms gets three stars, all at 150 ms four, all at 100 ms five', () => {
   for (const seed of [1, 2, 3, 4, 5]) {

@@ -25,7 +25,7 @@
 // frames come late; tap(lane, time) is judged at the song time given (the page passes its event's time).
 
 import { danceGrid, beatAt } from '../beat.js';
-import { LEVELS, RECENTRE, STAR_SHARES, createJudge, createScore, count, fullHouse, laneOf, shareOf, starsFor, tierOf } from './chart.js';
+import { LEVELS, POINTS, RECENTRE, STAR_SHARES, createJudge, createScore, count, fullHouse, laneOf, perfectGame, pointsOf, shareOf, starsFor, tierOf } from './chart.js';
 import { BROKE_AT, cueOf } from './crowd.js';
 import { GRADES, drawWord, gradeOf, milestoneOf } from './text.js';
 import { DJ_LINES, DJ_WAIT, djCueOf, endLineOf } from './dj.js';
@@ -36,6 +36,27 @@ const WORDS = ['', 'Flott!', 'Vá!', 'Stjörnukraftur!']; // a run reaching tier
 const WORD_STYLES = ['cream', 'gold', 'sky', 'rainbow']; // and their colours (text.js)
 const GRADE_LIFE = 0.9; // s a grade word stays over the dinosaur (it comes often, and its colour says it too)
 export const STRAY_SHAKE = 0.45; // s her button shakes "no" after a tap at no note
+
+/**
+ * The score a look at the end shows (the page's ?lokaskjar=), for `total` notes: `endNow` stars (0 to 5), its base share mid-way
+ * in that star's band (none: 5 %), every fourth note in Stjörnukraftur; or 'fullkominn', every note "Frábært!" or better and a
+ * third of them in Stjörnukraftur.
+ */
+export function lookScore(endNow, total) {
+  const score = createScore(total);
+  if (endNow === 'fullkominn') {
+    for (let i = 0; i < total; i++) count(score, { kind: 'hit', offset: 0, grade: i % 4 ? 'perfect' : 'great', double: i % 3 === 0 });
+    return score;
+  }
+  const stars = Math.max(0, Math.min(STAR_SHARES.length, Math.round(Number(endNow) || 0)));
+  const bands = [0, ...STAR_SHARES, 1];
+  const share = stars === 0 ? 0.05 : (bands[stars] + bands[stars + 1]) / 2;
+  const hits = Math.round(share * total);
+  for (let i = 0; i < hits; i++) count(score, { kind: 'hit', offset: 0, grade: 'perfect', double: i % 4 === 0 });
+  for (let i = hits; i < total; i++) count(score, { kind: 'miss' });
+  score.best = Math.round(hits * 0.6);
+  return score;
+}
 
 /**
  * Her button's shake sideways `age` s after a tap at no note, as a share of her size: a light "no" that settles (the owner,
@@ -65,7 +86,7 @@ const APPROACH = 0.9; // s before a note arrives that its ring starts closing on
  * along in Stjörnukraftur (claps.js createClaps, or null); `hands` the crowd's black hands that come up and clap along with it
  * (hands.js createClapHands, loaded by the page, or null for none); `stars3d` the stars in 3D (star-view.js createStarView, or null:
  * the stars are drawn flat), `bestBefore` the song's best stars before this round (for "Nýtt met!"), `endNow` a number of stars to
- * end with at once (the page's ?lokaskjar=, for a look at the end).
+ * end with at once, 0 to 5, or 'fullkominn' for a perfect game (the page's ?lokaskjar=, for a look at the end: lookScore).
  * Returns { tap(lane, time), frame(), resize(), laneAt(x), state(), result() }; `onEnd(result)` when the stars rose.
  */
 export function createSongGame({ canvas, cast, conductor, fall, clock, windows = LEVELS.barn, chimes = null, crowd = null, claps = null, dj = null, backdrop = null, hands = null, stars3d = null, bestBefore = 0, endNow = null, random = Math.random, onEnd = () => {}, debug = false }) {
@@ -576,13 +597,16 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         cheer('rejoin', 0.8);
         call({ kind: 'rejoin', role: friend.role, back: played.has(friend.role) });
       }
+      // its word, and its points by it (twice while Stjörnukraftur burns): counted at once, shown under the word ("+100")
+      const grade = gradeOf(result.offset, windows);
+      grades[lane] = { grade, at: time, points: POINTS[grade] * (starMode ? 2 : 1) };
+      count(score, { ...result, grade, double: starMode });
       played.add(result.note.role);
       hops[lane] = time;
       hitAt[lane] = time;
       const gold = tierNow >= 3;
       burst(lane, result.great, gold);
       floaters.push({ lane, at: time, wobble: random() * 2 - 1 });
-      grades[lane] = { grade: gradeOf(result.offset, windows), at: time };
       if (grades[lane].grade === 'perfect') {
         // right on the beat: a few twinkles round the word
         for (let i = 0; i < 7; i++) sparks.push({ x: laneX[lane] + (random() - 0.5) * laneW * 0.8, y: hitY - dinoR * (1.25 + random() * 0.5), vx: (random() - 0.5) * 50, vy: -40 - random() * 60, life: 0, max: 0.5 + random() * 0.3, size: 9 + random() * 7, gravity: -10, hue: `hsl(${Math.floor(random() * 360)}, 100%, 78%)` });
@@ -594,7 +618,6 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       else for (let i = 0; i < 8; i++) sparks.push({ x: laneX[lane] + (random() - 0.5) * dinoR, y: hitY - dinoR * 0.5, vx: (random() - 0.5) * 60, vy: -120 - random() * 120, life: 0, max: 0.9, size: 12, gravity: -20 });
       const c = constellationFor(result.note.section);
       if (c.lit < c.stars.length) c.stars[c.lit++].lit = time;
-      count(score, result);
       feedMeter(lane, time);
       comboAt = time;
       if (score.streak % 10 === 0) comboBigAt = time;
@@ -731,16 +754,14 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
         endAt = time;
         hands?.stop(time);
         score.total = notes.length;
-        if (lookAtEnd) {
-          score.total = conductor.expected;
-          score.hits = Math.round(conductor.expected * [0.1, 0.35, 0.6, 0.92][endNow]);
-          score.best = Math.round(score.hits * 0.6);
-        }
-        endStars = lookAtEnd ? endNow : starsFor(score);
+        if (lookAtEnd) Object.assign(score, lookScore(endNow, conductor.expected));
+        endStars = starsFor(score);
         endPlan = endTimes(endStars);
-        endLine = endLineOf({ stars: endStars, misses: score.misses, full: fullHouse(score) }); // as the screen counts: hits of total
-        call({ kind: 'end', stars: endStars, misses: score.misses, full: endLine === 'fullthus' });
-        cheer('end', 0.55 + endStars * 0.15);
+        // as the screen counts: hits of total; a perfect game above a full house
+        const full = fullHouse(score), perfect = perfectGame(score);
+        endLine = endLineOf({ stars: endStars, misses: score.misses, full, perfect });
+        call({ kind: 'end', stars: endStars, misses: score.misses, full, perfect });
+        cheer('end', 0.55 + endStars * 0.09);
       }
       // falling stars now and then while a run is going
       if (tierNow >= 1 && time > nextMeteor) {
@@ -1686,8 +1707,12 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
   // -------------------------------------------------------------------------------------------------------------------------
 
   function result() {
-    const final = { ...score, total: notes.length };
-    return { stars: starsFor(final), share: shareOf(final), hits: score.hits, total: notes.length, misses: score.misses, strays: score.strays, best: score.best, great: score.great };
+    // once the end has come its own count (a look's too); before it, the notes so far
+    const final = { ...score, total: endAt !== null ? score.total : notes.length };
+    return {
+      stars: starsFor(final), share: shareOf(final), hits: final.hits, total: final.total, misses: final.misses, strays: final.strays, best: final.best, great: final.great,
+      points: pointsOf(final), base: final.points, perfect: perfectGame(final), full: fullHouse(final),
+    };
   }
 
   let lastPerf = null;
@@ -1710,7 +1735,7 @@ export function createSongGame({ canvas, cast, conductor, fall, clock, windows =
       laneX.forEach((lx, i) => { const d = Math.abs(x - lx); if (d < gap) { gap = d; best = i; } });
       return gap <= laneW * 0.9 ? best : -1;
     },
-    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: notes.length }, stars: starsFor({ ...score, total: Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, meter: Number(meter.toFixed(2)), star: starMode, crowd: heard.slice(), dj: spoken.slice() }),
+    state: () => ({ phase, time: lastTime, section: conductor.sectionAt(lastTime)?.name ?? null, variant: conductor.sectionAt(lastTime)?.variant ?? null, score: { ...score, offsets: undefined, total: endAt !== null ? score.total : notes.length }, stars: starsFor({ ...score, total: endAt !== null ? score.total : Math.max(1, notes.length) }), share: shareNow(), tier: tierNow, meter: Number(meter.toFixed(2)), star: starMode, crowd: heard.slice(), dj: spoken.slice() }),
     result,
   };
 }
