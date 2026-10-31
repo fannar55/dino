@@ -76,6 +76,8 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     'rocks:pteranodon': [[.25, 'peck'], [.55, 'peck'], [.85, 'peck']],
   };
 
+  // How long a go takes when it is longer than its gesture: the Flugeðla's flight in, bump, tumble out, landing and shake (the scene paces its cuts by it).
+  const TRY_SECONDS = { 'tunnel:pteranodon': 5.8 };
   const hopsTo = (species, spots) => members(species).map((actor, i) => {
     const from = actor.root.position.clone(), to = spots[i].point, distance = Math.hypot(to.x - from.x, to.z - from.z);
     return { actor, from, fromYaw: actor.root.rotation.y, to, yaw: spots[i].yaw, count: Math.max(2, Math.round(distance / HOP.reach)), duration: clamp(distance / HOP.speed, HOP.min, HOP.max), hop: -1 };
@@ -223,7 +225,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   function startFail(species, target, { qa = false } = {}) {
     const key = `${target}:${species}`;
     if (action || !pairs[species]?.ready || !FAIL_SPOTS[key] || holding.has(species) && !qa) return null;
-    const spots = FAIL_SPOTS[key](), gesture = FAIL_TRIES[key], duration = GESTURES[gesture].duration;
+    const spots = FAIL_SPOTS[key](), gesture = FAIL_TRIES[key], duration = TRY_SECONDS[key] ?? GESTURES[gesture].duration;
     stand(species);
     const hops = hopsTo(species, spots), run = Math.max(...hops.map(h => h.duration));
     action = { id: 'fail', species, target, key, phase: 'run', age: 0, duration: run, hops, spots, gesture, tryLength: duration, fired: new Set(), flights: 0, walking: false };

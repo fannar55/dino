@@ -672,6 +672,8 @@ async function main() {
     report.gpu = await ev(GPU_JS).catch(e => `error: ${e.message}`);
     report.reducedMotionActive = await ev("matchMedia('(prefers-reduced-motion: reduce)').matches").catch(() => null);
     step('loaded', { url: url.replace(/^http:\/\/127\.0\.0\.1:\d+/, '') });
+    // The credits the page built behind the ending card's "i" (hidden until the card shows): each group's Líkan or Hljóð, Leyfi and Frá rows.
+    report.creditsBuilt = await ev("[...document.querySelectorAll('#credits .credit-group')].map(group => [...group.querySelectorAll('p')].map(p => p.textContent).join(' | '))").catch(() => null);
     if (o.video) await send('Page.startScreencast', { format: 'jpeg', quality: 80, maxWidth: 960, maxHeight: 960, everyNthFrame: 2 });
     // Named moments, kept with the wall clock so they can be placed in round.mp4 (its first frame's stamp) afterwards.
     report.marks = [];
