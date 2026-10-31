@@ -455,6 +455,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     catch (error) { console.warn('The butterfly has no picture:', error?.message ?? error); }
     onProgress('Ungarnir gera sig tilbúna…');
     await Promise.all(babyActors.map(actor => prepareCharacter(actor.model, lighting.sun, { levels: BABY_LEVELS, casterLevel: 2 })));
+    levelWorld.afterBabies?.(babyActors); // (a level that does something to its friends' skins, level 2's plates that glow, does it here, before the scene is compiled)
     resize();
     babyShadows = createMemoryShadowLods(babyActors, lighting.sun);
     idlePlay = createIdlePlay({ actors: idleFriends, random: seededRandom((Number(params.get('seed')) || 251025) ^ 0x2f6e2b1), camera: () => camera, heightAt: (x, z) => world.heightAt(x, z), clear: idleClear, plantNear: idlePlant, butterfly, games: (params.get('idle') ?? '').split(',').filter(name => IDLE_GAMES.includes(name)).length ? params.get('idle').split(',').filter(name => IDLE_GAMES.includes(name)) : IDLE_GAMES,

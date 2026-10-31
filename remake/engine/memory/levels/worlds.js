@@ -24,6 +24,8 @@
  *                     layout (world/forest/forest.js) the level replaces: level 2 gives its own `clearing` and `farRings`
  *   build()           once the forest, the leaves and the rests stand: the ground's look, the props, the mover; it may return a promise
  *                     (a level that loads models), which the stage waits for
+ *   afterBabies(actors)?   the friends' actors exist and have their levels of detail, before the scene is compiled: a level that changes their skins (level 2's
+ *                     plates that glow) does it here
  *   overviewPoints    the points (besides the board, the rests and Mosi) the overview keeps in the frame: [[x, y, z]...]
  *   cameraCue(glade)  the camera's cue now (what the mover shows), or glade() (the search view's cue)
  *   getTargets()      the obstacles: [{ id, point, enabled, next, tapAlong, radius?, unbuilt? }] (tapAlong: a script waits for taps on it;

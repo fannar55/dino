@@ -243,3 +243,55 @@ test("level 1's state keeps today's five fields and adds the done steps", () => 
   assert.deepEqual(Object.keys(game.getState()), Object.keys(empty()), 'done is not one of the listed fields: snapshots still compare as before');
   game.restart(); assert.deepEqual(game.getState().done, []);
 });
+
+// ---- level 2: the tunnel and the rockfall (Task 4) ----
+const gorge = async () => (await import('../engine/memory/levels/steinagljufur.js')).STEINAGLJUFUR;
+const everyone = (level, rules) => { for (const species of level.friends) rules.unlock(species); return rules; };
+
+test('level 2 opens light, then headbutt; a wrong friend fails and the right one starts', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level));
+  assert.equal(rules.next(), 'tunnel', 'the tunnel glows first');
+  assert.deepEqual(rules.ask('rocks'), { kind: 'not-yet' }, 'the rockfall waits for the light');
+  assert.deepEqual(rules.ask('tunnel'), { kind: 'choose', candidates: [...level.friends] }, 'every found pair is a choice');
+  assert.equal(level.steps[0].species, 'stegosaurus', 'the Kambeðlur light the tunnel');
+  // Three wrong friends, each fails and the bubbles come back; the table of the playthrough's first try is one of them.
+  const wrongAtTunnel = level.friends.filter(species => species !== 'stegosaurus');
+  assert.ok(wrongAtTunnel.includes(level.wrongFriends.tunnel), `the driver tries a wrong friend at the tunnel (${level.wrongFriends.tunnel})`);
+  for (const species of wrongAtTunnel) {
+    assert.deepEqual(rules.pick(species), { kind: 'fail' }); assert.equal(rules.getState().failing, species); assert.equal(rules.getState().phase, 'failing');
+    assert.equal(rules.pick('stegosaurus'), null, 'nothing is picked while a wrong friend tries');
+    assert.equal(rules.failDone(), true); assert.equal(rules.getState().asking, 'tunnel', 'the bubbles come back');
+  }
+  assert.deepEqual(rules.pick('stegosaurus'), { kind: 'start', action: 'light' }); assert.equal(rules.getState().active, 'light');
+  assert.equal(rules.complete('light'), true); assert.equal(rules.getState().tunnelLit, true); assert.equal(rules.next(), 'rocks');
+  // The rockfall: the Kambeðlur are still at the tunnel (they hold the light), so the choice is the other three, and the playthrough's wrong try is one of them.
+  assert.deepEqual(rules.ask('rocks'), { kind: 'choose', candidates: ['triceratops', 'brontosaurus', 'pteranodon'] });
+  assert.ok(['brontosaurus', 'pteranodon'].includes(level.wrongFriends.rocks), `the driver tries a wrong friend at the rocks that the bubbles offer (${level.wrongFriends.rocks})`);
+  for (const species of ['brontosaurus', 'pteranodon']) { assert.deepEqual(rules.pick(species), { kind: 'fail' }); assert.equal(rules.failDone(), true); }
+  assert.deepEqual(rules.pick('triceratops'), { kind: 'start', action: 'headbutt' });
+  assert.equal(rules.complete('headbutt'), true); assert.equal(rules.getState().rocksFallen, true);
+  assert.equal(rules.next(), null, 'the walk through the tunnel starts on its own (Task 5)');
+  assert.deepEqual(level.steps.find(step => step.id === 'headbutt').beatWords, ['Einn!', 'Tveir!', 'BÚMM!'], 'three taps in rhythm');
+});
+
+test('the stegosaurus pair holds the light until through', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level));
+  rules.ask('tunnel'); rules.pick('stegosaurus'); rules.complete('light');
+  assert.deepEqual([...rules.getState().free], ['triceratops', 'brontosaurus', 'pteranodon'], 'the Kambeðlur stay at the tunnel');
+  rules.ask('rocks'); rules.pick('triceratops'); rules.complete('headbutt');
+  assert.equal(rules.getState().free.includes('stegosaurus'), false, 'still holding the light while the rocks are gone');
+  assert.equal(rules.getState().tunnelLit, true);
+  assert.equal(rules.can('through'), true); assert.equal(rules.choose('through'), true); assert.equal(rules.complete('through'), true);
+  assert.deepEqual([...rules.getState().free], [...level.friends], 'through lets the light go');
+  assert.equal(rules.getState().tunnelLit, true, 'the tunnel stays lit until the trunk is down');
+  // What the world raises while it works is heard and said: each name is an audio method that exists.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null });
+  const names = Object.keys(level.eventSounds);
+  for (const type of ['light-step', 'tunnel-lit', 'beat:headbutt', 'rocks-hit', 'rocks-fall', 'fail-bump', 'fail-pebble', 'fail-peck']) assert.ok(names.includes(type), `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) {
+    const method = typeof entry === 'string' ? entry : entry.method;
+    if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`);
+  }
+  audio.dispose();
+  assert.equal(level.eventCaptions['tunnel-lit'].text, 'Plöturnar lýsa eins og ljósker!'); assert.equal(level.eventCaptions['rocks-fall'].text, 'Búmm! Leiðin er opin!');
+});

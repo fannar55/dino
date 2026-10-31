@@ -1,6 +1,6 @@
 import { createMemoryGame } from './rules.js';
 import { createMemoryWorld } from './world.js';
-import { createMemoryAudio } from './audio.js';
+import { createMemoryAudio, soundscapeUrl } from './audio.js';
 import { createStepRules, obstaclesOf } from './step-rules.js';
 import { LEVELS, chooseLevel, unlockLevel } from './levels/index.js';
 import { createMemoryMusic, createMemorySpeech } from './presentation-audio.js';
@@ -29,7 +29,8 @@ const IDLE_ARROW = 5; // seconds of no input before the gold arrow points at the
 const RETRY_AFTER = 3; // seconds the camera is still before a blocked crossing (or walk to the grove) tries again by itself
 const seeded = seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
 const game = createMemoryGame({ ...(params.has('seed') ? { random: seeded(Number(params.get('seed')) || 251025) } : {}), species: level.friends, gifts: level.gifts });
-const audio = createMemoryAudio();
+// (a level may add a soundscape of its own to the shared one: levels/*.js `soundscape`)
+const audio = createMemoryAudio({ extraManifests: level.soundscape ? [soundscapeUrl(level.soundscape)] : [] });
 const bridge = createStepRules(level);
 const buttons = new Map();
 const nestSpecies = [];
@@ -241,6 +242,8 @@ function updateStory(dt) {
   if (captionUntil > 0 && time >= captionUntil) { captionUntil = 0; storyKey = ''; }
   if (storyKey !== story.key && time >= captionUntil && !camera.held) {
     storyKey = story.key; guidance();
+    // A moment of the story that Mosi says aloud (the level's `voice`, by story key: level 2's tunnel and rockfall): once, when it comes, as the giftsLeft line is.
+    if (level.voice?.[story.key]) speech.queue(level.voice[story.key], { delay: .5 });
     // The bridge is built, every friend is home and gifts are left: Mosi says so once as the wait begins (not again each time a held caption ends).
     if (story.key === 'gifts-left' && !giftsLeftSaid) { giftsLeftSaid = true; speech.queue(LINES.giftsLeft, { delay: .4, once: false }); }
   }
@@ -312,7 +315,7 @@ function buildCredits() {
   const make = (tag, className, text = '') => Object.assign(document.createElement(tag), { className, textContent: text });
   $('credits').replaceChildren(...[...GIFT_CREDITS.filter(row => level.gifts.includes(row.id)), ...(level.credits ?? [])].map(row => {
     const group = make('div', 'credit-group');
-    for (const [label, value] of [['Líkan', `${row.title} · ${row.author}`], ['Leyfi', row.license], ['Frá', row.source]]) {
+    for (const [label, value] of [[row.sound ? 'Hljóð' : 'Líkan', `${row.title} · ${row.author}`], ['Leyfi', row.license], ['Frá', row.source]]) {
       const line = make('p', ''); line.append(make('span', 'credit-label', label), make('span', 'credit-value', value)); group.append(line);
     }
     return group;

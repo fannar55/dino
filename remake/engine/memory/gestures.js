@@ -210,6 +210,98 @@ export const GESTURES = Object.freeze({
     if (rig.crossed(.55)) rig.lids?.blink.rest(.55, .1);
     if (rig.crossed(.92)) rig.lids?.blink.rest(0, .15);
   } },
+  // ---- Level 2, the tunnel and the rockfall (Task 4) ----
+  // The Kambeðla lights a step of her plates: she stretches up on her legs, throws her head up and shivers her plates (the glow itself is the plate glow, tunnel.js).
+  glow: { duration: 1, apply(rig, t, energy) {
+    const L = rig.length, lit = bump(t, .08, .92), shiver = bump(t, .2, .8);
+    crouch(rig, -.03 * L * energy * lit);
+    turnHead(rig, Z, .38 * energy * lit);
+    rig.pose.rotation.z += .08 * energy * lit;
+    rig.pose.rotation.x += .09 * energy * shiver * wave(t, 5);
+    rig.pose.rotation.y += .05 * energy * shiver * wave(t, 4, .25);
+    openJaw(rig, .16 * bump(t, .2, .7));
+    rig.rotateInRoot(rig.tail, Y, .5 * energy * shiver * wave(t, 4));
+    if (rig.crossed(.2)) rig.lids?.blink.rest(.6, .1);
+    if (rig.crossed(.8)) rig.lids?.blink.rest(0, .15);
+  } },
+  // The Þríhyrna's headbutt: she rears back, lowers the horns and drives them in (the mover moves her root: back, in, and out again), then shakes her head.
+  charge: { duration: .95, apply(rig, t, energy) {
+    const L = rig.length, wind = bump(t, 0, .34), drive = bump(t, .3, .66), shake = bump(t, .56, .95);
+    crouch(rig, .07 * L * energy * wind + .035 * L * energy * drive);
+    rig.pose.rotation.z += energy * (.16 * wind - .2 * drive);
+    turnHead(rig, Z, energy * (.16 * wind - .5 * drive));
+    rig.pose.position.y += .03 * L * energy * arc(t, .32, .6);
+    turnHead(rig, Y, .34 * energy * shake * wave(t, 6.5));
+    rig.rotateInRoot(rig.tail, Y, .4 * energy * (wind + shake) * wave(t, 4));
+    openJaw(rig, .2 * bump(t, .1, .35));
+    if (rig.crossed(.3)) rig.lids?.blink.rest(.75, .06);
+    if (rig.crossed(.85)) rig.lids?.blink.rest(0, .15);
+  } },
+  // Tunnel, the Þríhyrna: into the dark (the mover walks her in) until she runs into something: dúnk, the head back, stars, a dazed wobble, and out again backwards.
+  'fail-tunnel-triceratops': { duration: 3, apply(rig, t, energy) {
+    const L = rig.length, bonk = bump(t, .33, .45), dazed = bump(t, .36, .64);
+    rig.pose.rotation.z += energy * (-.1 * bump(t, .1, .34) + .3 * bonk);
+    crouch(rig, .05 * L * energy * bonk);
+    rig.pose.position.x += -.05 * L * energy * bonk;
+    turnHead(rig, Z, energy * (.1 * bump(t, .1, .34) + .42 * bonk));
+    turnHead(rig, Y, .36 * energy * dazed * wave(t, 3.2));
+    rig.pose.rotation.x += .07 * energy * dazed * wave(t, 2.4);
+    rig.rotateInRoot(rig.tail, Y, .45 * energy * dazed * wave(t, 3.4));
+    openJaw(rig, .24 * bump(t, .34, .5));
+    if (rig.crossed(.35)) rig.lids?.blink.rest(.65, .06);
+    if (rig.crossed(.66)) rig.lids?.blink.rest(0, .2);
+  } },
+  // Tunnel, the Þórseðla: she walks in and stretches her neck up to see, and the low roof catches her head: bonk, a squashed head, stars, a sway and a duck back out.
+  'fail-tunnel-brontosaurus': { duration: 3.2, apply(rig, t, energy) {
+    const L = rig.length, reach = ramp(t, .12, .38) * (1 - ramp(t, .4, .46)), bonk = bump(t, .38, .52), sway = bump(t, .42, .78);
+    turnHead(rig, Z, energy * (.7 * reach - .55 * bonk));
+    rig.pose.rotation.z += .1 * energy * reach;
+    crouch(rig, .04 * L * energy * bonk);
+    turnHead(rig, Y, .5 * energy * sway * wave(t, 2.6));
+    rig.pose.rotation.x += .06 * energy * sway * wave(t, 1.8);
+    rig.pose.rotation.y += .07 * energy * sway * wave(t, 1.8, .25);
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * sway * wave(t, 2.5));
+    if (rig.crossed(.4)) rig.lids?.blink.rest(.7, .06);
+    if (rig.crossed(.8)) rig.lids?.blink.rest(0, .2);
+  } },
+  // Tunnel, the Flugeðla: she has flown in and run into the dark; this is the way out: head over tail in a roll, then a hard shake of the head when she is out.
+  'fail-tunnel-pteranodon': { duration: 2.4, apply(rig, t, energy) {
+    const roll = ramp(t, .04, .5), shake = bump(t, .55, .95);
+    rig.pose.rotation.x += (energy < 1 ? .5 : Math.PI * 2) * roll;
+    rig.pose.rotation.z += .25 * energy * bump(t, .05, .45);
+    turnHead(rig, Y, .6 * energy * shake * wave(t, 6.5));
+    rig.rotateInRoot(rig.head, X, .16 * energy * shake * wave(t, 3.4));
+    rig.wings?.forEach((wing, side) => rig.rotateInRoot(wing, X, (side ? -1 : 1) * .5 * energy * bump(t, .05, .5)));
+    openJaw(rig, .14 * bump(t, .05, .4));
+    if (rig.crossed(.6)) rig.lids?.blink.rest(.6, .08);
+    if (rig.crossed(.95)) rig.lids?.blink.rest(0, .15);
+  } },
+  // Rocks, the Kambeðla: she swishes her tail at the pile (it is a big swing), a pebble drops on her head (the event is the mover's), she looks up, cross-eyed, and shakes it off.
+  'fail-rocks-stegosaurus': { duration: 2.6, apply(rig, t, energy) {
+    const swing = bump(t, .04, .4), hit = bump(t, .42, .52), dazed = bump(t, .46, .85);
+    rig.rotateInRoot(rig.tail, Y, 1.0 * energy * swing * wave(t, 2.2));
+    rig.pose.rotation.y += .24 * energy * swing * wave(t, 2.2);
+    rig.pose.position.z += .04 * rig.length * energy * swing * wave(t, 2.2, .2);
+    crouch(rig, .06 * rig.length * energy * hit);
+    turnHead(rig, Z, energy * (-.4 * hit + .3 * bump(t, .55, .8)));
+    turnHead(rig, Y, .5 * energy * dazed * wave(t, 4));
+    openJaw(rig, .2 * bump(t, .44, .7));
+    if (rig.crossed(.44)) rig.lids?.blink.rest(.8, .05);
+    if (rig.crossed(.86)) rig.lids?.blink.rest(0, .2);
+  } },
+  // Rocks, the Þórseðla: she nudges the pile with her nose, twice; nothing moves; she looks at it and shrugs her shoulders and her neck.
+  'fail-rocks-brontosaurus': { duration: 2.8, apply(rig, t, energy) {
+    const push = bump(t, .08, .26) + bump(t, .3, .48), shrug = bump(t, .6, .92);
+    turnHead(rig, Z, energy * (-.3 * push + .2 * bump(t, .5, .62)));
+    rig.pose.position.x += .06 * rig.length * energy * push;
+    rig.pose.rotation.z += -.06 * energy * push;
+    turnHead(rig, Y, .45 * energy * shrug * wave(t, 2.2));
+    crouch(rig, -.025 * rig.length * energy * shrug);
+    rig.rotateInRoot(rig.shoulders ?? rig.body, Z, .12 * energy * shrug);
+    rig.rotateInRoot(rig.tail, Y, .35 * energy * shrug * wave(t, 2));
+    if (rig.crossed(.64)) rig.lids?.blink.rest(.6, .1);
+    if (rig.crossed(.94)) rig.lids?.blink.rest(0, .2);
+  } },
   // Working hard on a tap: squats a little, trembles with the effort, squeezes the eyes, pushes up.
   strain: { duration: .7, apply(rig, t, energy) {
     const L = rig.length, effort = bump(t, 0, 1);
@@ -272,6 +364,11 @@ export const GESTURES = Object.freeze({
   'jolt-right': jolt(1), 'jolt-left': jolt(-1),
 });
 export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', stegosaurus: 'fail-stegosaurus', brontosaurus: 'fail-brontosaurus', pteranodon: 'fail-pteranodon' });
+/** A wrong friend's go at an obstacle of level 2, by 'obstacle:species' (the pteranodon's peck at the rocks is the one her own failure already is). */
+export const FAIL_TRIES = Object.freeze({
+  'tunnel:triceratops': 'fail-tunnel-triceratops', 'tunnel:brontosaurus': 'fail-tunnel-brontosaurus', 'tunnel:pteranodon': 'fail-tunnel-pteranodon',
+  'rocks:stegosaurus': 'fail-rocks-stegosaurus', 'rocks:brontosaurus': 'fail-rocks-brontosaurus', 'rocks:pteranodon': 'fail-pteranodon',
+});
 
 /** The older gesture names the adventure and the world still use. */
 export const GESTURE_ALIASES = Object.freeze({ reveal: 'peek', greet: 'hop', mismatch: 'oops', nuzzle: 'nuzzle', delight: 'cheer', settle: 'settle' });

@@ -7,13 +7,15 @@ import { freezeLevel } from '../step-rules.js';
  * Everything the rules, the story and game.js need to know about the level is here; its 3D world is levels/steinagljufur/world.js
  * (levels/worlds.js says what a world is). The fields are the ones levels/berjalundur.js describes.
  *
- * Task 3 builds the glade and the search; the keys and words of the steps that follow (Tasks 4 to 6 build their scenes and record their lines)
- * are here so that the story reads the whole ladder, but until then only the search is reachable: when every leaf is found the round waits.
+ * Task 3 built the glade and the search and Task 4 the first two steps (the tunnel and the rockfall); the keys and words of the steps that follow (Tasks 5 and 6
+ * build their scenes and record their lines) are here so that the story reads the whole ladder, but until then only those are reachable: when the rocks are gone the round waits.
  * The story keys all start with `g2-`, so that a run's timeline says which level it is in.
  *
  * Beyond level 1's fields it has: `look` (engine/looks.js: the light of the gorge's afternoon), `lines` (which of Mosi's lines are the level's own:
- * the welcome, the one for the fossils still to find, the fossils' sentence; a null has no line yet) and `credits` (the open scenery behind the
- * ending card's "i", besides the gifts' own). Its `copy.locked` is what its card in the level picker says until level 1 has been finished.
+ * the welcome, the one for the fossils still to find, the fossils' sentence; a null has no line yet), `voice` (a line Mosi says when the story reaches a moment:
+ * by story key), `soundscape` (the folder of found sounds the level adds to the shared ones: assets/audio/memory/soundscape/<name>/) and `credits` (the open scenery and
+ * sounds behind the ending card's "i", besides the gifts' own; a row with `sound: true` is a sound, not a model). Its `copy.locked` is what its card in the level picker says
+ * until level 1 has been finished.
  */
 const FLAG_OF = {
   light: state => state.tunnelLit,
@@ -33,9 +35,16 @@ export const STEINAGLJUFUR = freezeLevel({
   ribbon: 'Leiðin upp á Sólarsylluna',
   look: 'gorgeAfternoon',
   lines: { welcome: 'g2_welcome', help: null, giftsLeft: 'g2_left', gifts: 'gifts4' },
+  voice: { 'g2-light-ready': 'g2_light_ready', 'g2-headbutt-ready': 'g2_rocks_ready' },
+  soundscape: 'gorge',
   credits: [
     { title: 'Klettarnir (Sandstone | Cliff, sjö hlutar)', author: 'YadroGames', license: 'CC BY 4.0', source: 'sketchfab.com/erroratten' },
     { title: 'Stórgrýtið (Rock Large)', author: 'Quaternius', license: 'CC0 1.0', source: 'poly.pizza/m/54jZKTAt5p og poly.pizza/m/d2VWOdthtR' },
+    { title: 'Grjóthrunið (Rocks)', author: 'Quaternius', license: 'CC0 1.0', source: 'poly.pizza/m/gYhoEOKItJ' },
+    { title: 'Stóri kristallinn (Big Crystal)', author: 'Quaternius', license: 'CC0 1.0', source: 'poly.pizza/m/pf5lzmgr2J' },
+    { title: 'Kristallinn (Crystal)', author: 'iPoly3D', license: 'CC0 1.0', source: 'poly.pizza/m/WzWPKHFMkL' },
+    { sound: true, title: 'Knocking into Pile of Large Stones 1', author: 'F.M.Audio', license: 'CC BY 4.0', source: 'freesound.org/people/F.M.Audio/sounds/572753' },
+    { sound: true, title: 'Stones Falling, Rock Tumble 2, Landing_Stone_1, Stone dropping, tap stone, ANI - Wine Glass - Hard, Chime', author: 'iwanPlays, _stubb, KieranKeegan, alegemaate, nettimato, ani_music, Psykoosiossi', license: 'CC0 1.0', source: 'freesound.org' },
   ],
   friends: ['triceratops', 'stegosaurus', 'brontosaurus', 'pteranodon'],
   gifts: ['ammonite', 'trilobite', 'fern', 'footprint'],
@@ -56,8 +65,9 @@ export const STEINAGLJUFUR = freezeLevel({
   nests: [[-6.07, 7.89], [-9.87, 1.31], [6.07, -7.89], [9.87, -1.31]],
   mosiSpot: { x: 8.49, z: -4.9, heading: 150 },
   gladeView: { landscape: [.405, .588, .7], portrait: [.52, .8, -.3], focus: [0, .5, 0], overviewFocus: [0, .5, -4], overviewDirection: [.22, .62, .75] },
-  // (the friend the playthrough tool tries first at each obstacle: the ones the plan gives a wrong go there)
-  wrongFriends: { tunnel: 'triceratops', rocks: 'stegosaurus', ledge: 'triceratops', cliff: 'brontosaurus' },
+  // (the friend the playthrough tool tries first at each obstacle: the ones the plan gives a wrong go there. The Kambeðlur hold the light until everyone is through, so the
+  // bubbles at the rocks do not offer them: the Flugeðla's peck is the go there that the spec names)
+  wrongFriends: { tunnel: 'triceratops', rocks: 'pteranodon', ledge: 'triceratops', cliff: 'brontosaurus' },
   steps: [
     { id: 'light', kind: 'task', target: 'tunnel', species: 'stegosaurus', holds: 'through' },
     { id: 'headbutt', kind: 'task', target: 'rocks', species: 'triceratops', beatWords: ['Einn!', 'Tveir!', 'BÚMM!'] },
@@ -130,10 +140,10 @@ export const STEINAGLJUFUR = freezeLevel({
   },
   // A cancelled step keeps what was finished and grants nothing, as in level 1.
   onCancel() {},
-  // The badges are the level's own renders, and they come with the scenes (Task 4): until then the obstacles carry only their accessible names.
+  // The badges are renders of the level's own models (assets/memory/bord2/badge-*.webp), not drawn: the first two are made (Task 4), the others come with their scenes.
   targets: {
-    tunnel: { label: 'Göngin: hver getur lýst þau upp?', icon: '' },
-    rocks: { label: 'Grjóthrunið: hver getur stangað það burt?', icon: '' },
+    tunnel: { label: 'Göngin: hver getur lýst þau upp?', icon: '<img src="./assets/memory/bord2/badge-tunnel.webp" alt="" width="72" height="72" draggable="false">' },
+    rocks: { label: 'Grjóthrunið: hver getur stangað það burt?', icon: '<img src="./assets/memory/bord2/badge-rocks.webp" alt="" width="72" height="72" draggable="false">' },
     tunnelExit: { label: 'Senda alla vinina í gegnum göngin', icon: '' },
     ledge: { label: 'Stallurinn: hver nær hátt?', icon: '' },
     cliff: { label: 'Klettaveggurinn: hver getur flogið með reipið upp?', icon: '' },
@@ -168,7 +178,21 @@ export const STEINAGLJUFUR = freezeLevel({
     aria: { targets: 'Lauf, vinapör og leiðin upp á Sólarsylluna', journey: 'Fjögur verkefni á leiðinni' },
   },
   music: () => 'glade',
-  // The world's events and what they sound and say come with the scenes of the steps (Tasks 4 to 7).
-  eventSounds: {},
-  eventCaptions: {},
+  // What the world's events sound and say (the mover's: levels/steinagljufur/mover.js lists them); the steps after the rockfall add theirs (Tasks 5 to 7).
+  // Each tap of the light is a chime a step higher, the whole light a chord and Mosi's line; each hit of the horns is the pile knocked, the third its collapse and Mosi's line.
+  eventSounds: {
+    'light-step': [{ method: 'lightStep', arg: 'index' }],
+    'tunnel-lit': ['tunnelLit', { say: 'g2_lit', delay: .5 }],
+    'beat:headbutt': ['strain'],
+    'rocks-hit': [{ method: 'rockHit', arg: 'index' }],
+    'rocks-fall': ['rocksFall', { say: 'g2_rocks_done', delay: 1.1 }],
+    'rock-land': ['rockLand'],
+    'fail-bump': ['bonk'],
+    'fail-pebble': ['pebble'],
+    'fail-peck': ['peck'],
+  },
+  eventCaptions: {
+    'tunnel-lit': { text: 'Plöturnar lýsa eins og ljósker!', hold: 3.2 },
+    'rocks-fall': { text: 'Búmm! Leiðin er opin!', hold: 3.2 },
+  },
 });

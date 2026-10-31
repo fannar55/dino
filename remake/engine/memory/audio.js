@@ -7,6 +7,10 @@ const LIMIT = 24;
 const CHIME_RISE = Object.freeze([0, 4, 7]);
 const riseRate = nestIndex => 2 ** (CHIME_RISE[Math.max(0, Math.min(CHIME_RISE.length - 1, Math.floor(nestIndex) || 0))] / 12);
 const MANIFEST_URL = new URL('../../assets/audio/memory/soundscape/manifest.json', import.meta.url);
+/** The manifest of a level's own soundscape (levels/*.js `soundscape`): found sounds in a folder of their own beside level 1's, in the same format. */
+export const soundscapeUrl = name => new URL(`../../assets/audio/memory/soundscape/${name}/manifest.json`, import.meta.url);
+// The glow chime of level 2's light: the first choice (ani_music's wine glass) or, with ?chime=alt in the page's address, the other (Psykoosiossi's chime), to be judged by ear.
+const glowChime = () => /[?&]chime=alt\b/.test(globalThis.location?.search ?? '') ? 'glow-chime-alt' : 'glow-chime';
 const RECORDED_BASE = { leaf: .13, straw: .075, foot: .09, triceratops: .21, stegosaurus: .21, brontosaurus: .21 };
 const MOTIFS = {
   triceratops: { duration: 0.59, pitch: 172, formants: [490, 1330], pulses: [[0.01, 0.22], [0.29, 0.25]], breath: 0.13 },
@@ -101,7 +105,7 @@ function riverBuffer(context) {
 }
 
 /** Starts silently. unlock() must be called from the player's gesture. All scheduling uses the audio clock. */
-export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch } = {}) {
+export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = globalThis.fetch, extraManifests = [] } = {}) {
   let context = null, output = null, muted = false, paused = false, disposed = false, unlocked = false;
   let played = 0, dropped = 0, callUntil = 0, lastRockAt = -Infinity, riverVoice = null, ducked = false;
   let preloadPromise = null, decodePromise = null, loadController = null, recordedPlayed = 0;
@@ -129,20 +133,24 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     if (!preloadPromise) preloadPromise = (async () => {
       loadController = new AbortController();
       const timeout = setTimeout(() => loadController?.abort(), 15000);
-      try {
-        const response = await fetcher(String(manifestUrl), { signal: loadController.signal });
-        if (!response.ok) throw new Error('manifest unavailable');
-        const manifest = await response.json();
-        const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 24);
-        await Promise.all(entries.map(async ([id, entry]) => {
-          try {
-            const response = await fetcher(new URL(entry.file, manifestUrl).href, { signal: loadController.signal });
-            if (!response.ok) throw new Error('recording unavailable');
-            const bytes = await response.arrayBuffer();
-            if (!disposed && bytes.byteLength > 0) { recordingBytes.set(id, bytes); recordingMeta.set(id, entry); }
-          } catch { if (!disposed) recordingFailed.add(id); }
-        }));
-      } catch { if (!disposed) recordingFailed.add('manifest'); }
+      // The shared soundscape, and the level's own (a level that has one: its manifest is in a folder of its own); a manifest that does not come costs only its own sounds.
+      const load = async url => {
+        try {
+          const response = await fetcher(String(url), { signal: loadController.signal });
+          if (!response.ok) throw new Error('manifest unavailable');
+          const manifest = await response.json();
+          const entries = Object.entries(manifest.sfx || {}).filter(([, entry]) => typeof entry.file === 'string' && entry.duration > 0 && entry.duration <= 30).slice(0, 24);
+          await Promise.all(entries.map(async ([id, entry]) => {
+            try {
+              const response = await fetcher(new URL(entry.file, url).href, { signal: loadController.signal });
+              if (!response.ok) throw new Error('recording unavailable');
+              const bytes = await response.arrayBuffer();
+              if (!disposed && bytes.byteLength > 0) { recordingBytes.set(id, bytes); recordingMeta.set(id, entry); }
+            } catch { if (!disposed) recordingFailed.add(id); }
+          }));
+        } catch { if (!disposed) recordingFailed.add(url === manifestUrl ? 'manifest' : String(url)); }
+      };
+      try { await Promise.all([manifestUrl, ...extraManifests].map(load)); }
       finally { clearTimeout(timeout); }
       return recordingBytes.size > 0;
     })();
@@ -183,7 +191,7 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
     voice.cleanup = cleanup; source.onended = cleanup; voices.add(voice);
     source.start(at); source.stop(at + duration + 0.015); played++;
     if (sourceType === 'recorded') recordedPlayed++;
-    record({ kind, ...(species ? { species } : {}), ...(asset ? { asset } : {}), source: sourceType, start: at, end: at + duration, pan: panner.pan.value });
+    record({ kind, ...(species ? { species } : {}), ...(asset ? { asset } : {}), source: sourceType, start: at, end: at + duration, pan: panner.pan.value, level, rate: source.playbackRate?.value ?? 1, at: Date.now() + (at - context.currentTime) * 1000 });
     return true;
   }
 
@@ -445,6 +453,57 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       const at = Math.max(now + 0.06, callUntil + 0.045);
       [0, 2, 3].forEach((n, i) => note(MEMORY_KEY[n] / 2, at + i * 0.12, 0.5, 0.025));
     }),
+    // ---- Level 2: the tunnel and the rockfall (found sounds: soundscape/gorge/) ----
+    // Each tap of the light: a chime a step higher than the last (the major third and the fifth), the plates glowing.
+    lightStep(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, rate = [1, 1.26, 1.5][Math.max(0, Math.min(2, Math.floor(index) || 0))], id = glowChime();
+      if (recordings.has(id)) return recording(id, now, 0, 'light-step', 1, rate);
+      note(MEMORY_KEY[Math.min(4, 1 + Math.floor(index))] / 2, now, .5, .03); return true;
+    },
+    // The tunnel is lit: all three chimes together, and a bright one above them.
+    tunnelLit() {
+      if (!allowed()) return false;
+      const now = context.currentTime, id = glowChime();
+      if (recordings.has(id)) { [1, 1.26, 1.5].forEach((rate, i) => recording(id, now + i * .07, (i - 1) * .2, 'tunnel-lit', .8, rate)); recording(id, now + .3, 0, 'tunnel-lit', .55, 2); return true; }
+      [0, 2, 4].forEach((n, i) => note(MEMORY_KEY[n] / 2, now + i * .09, .7, .025)); return true;
+    },
+    // The horns meet the pile, each time lower and harder.
+    rockHit(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0)), rate = [1, .93, .84][i], scale = [.85, 1, 1.15][i];
+      if (recordings.has('rock-hit')) { recording('rock-hit', now, 0, 'rock-hit', scale, rate); if (i < 2 && recordings.has('rocks-tumble')) recording('rocks-tumble', now + .14, .1, 'rocks-slide', .45 + .15 * i, 1 + .1 * i); return true; }
+      sample('wood', now, .16 * scale, 0, 'rock-hit'); sample('gravel', now + .05, .12, .1, 'rocks-slide'); return true;
+    },
+    // The third hit lets the pile go: the collapse, with a short tumble on top of it.
+    rocksFall() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rocks-fall')) { recording('rocks-fall', now + .05, 0, 'rocks-fall'); if (recordings.has('rocks-tumble')) recording('rocks-tumble', now + .2, -.15, 'rocks-slide', .5, .9); return true; }
+      sample('gravel', now, .25, 0, 'rocks-fall'); sample('wood', now + .1, .14, -.1, 'rocks-fall'); return true;
+    },
+    // One rock of the pile lands on its step (throttled: several land together).
+    rockLand() {
+      if (!allowed()) return false;
+      const now = context.currentTime; if (now - (bridgeTimes.get('rock-land') ?? -Infinity) < .11) return false;
+      bridgeTimes.set('rock-land', now); const k = (played % 5) / 4;
+      if (recordings.has('rock-land')) return recording('rock-land', now, (k - .5) * .5, 'rock-land', .75 + .3 * k, .9 + .25 * k);
+      return sample('foot', now, .09, (k - .5) * .5, 'rock-land');
+    },
+    // A pebble lands on the Kambeðla's head.
+    pebble() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('pebble')) return recording('pebble', now, 0, 'pebble');
+      return sample('wood', now, .1, 0, 'pebble');
+    },
+    // The Flugeðla's beak on a stone: "tikk" (each peck a little different).
+    peck() {
+      if (!allowed()) return false;
+      const now = context.currentTime, k = played % 3;
+      if (recordings.has('peck')) return recording('peck', now, 0, 'peck', .9 + .08 * k, .96 + .06 * k);
+      return sample('foot', now, .08, 0, 'peck');
+    },
     mute(value) {
       if (disposed) return;
       muted = Boolean(value);
