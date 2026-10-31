@@ -565,13 +565,15 @@
   position: absolute; z-index: 9; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none;
 }
 .veiddu-splash i {
-  position: absolute; left: -13px; top: -19px; width: calc(26px * var(--a, 1)); height: calc(38px * var(--a, 1)); opacity: 0;
-  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  background: radial-gradient(circle at 34% 28%, #fff 0 14%, transparent 16%), linear-gradient(170deg, var(--water-light), var(--water-mid));
-  border: 2px solid rgb(28 100 137 / .75); box-shadow: 0 2px 4px rgb(8 66 96 / .3);
+  position: absolute; left: -14px; top: -14px; width: calc(28px * var(--a, 1)); height: calc(28px * var(--a, 1)); opacity: 0;
   animation: droplet var(--t, 1.1s) cubic-bezier(.25, .6, .4, 1) both;
 }
-.veiddu-splash.frozen i { animation-play-state: paused; animation-delay: calc(var(--t, 1.1s) * -.42); } /* the lab's still: droplets caught in the air */
+.veiddu-splash i::before { /* a teardrop, its point up (turned on the pseudo-element so the flight below is not turned with it) */
+  content: ""; position: absolute; inset: 0; border-radius: 50% 0 50% 50%; rotate: -45deg;
+  background: radial-gradient(circle at 36% 62%, #fff 0 12%, transparent 14%), linear-gradient(200deg, var(--water-light), var(--water-mid));
+  border: 2px solid rgb(28 100 137 / .75); box-shadow: 0 2px 4px rgb(8 66 96 / .3);
+}
+.veiddu-splash.frozen i { animation-play-state: paused; animation-delay: calc(var(--t, 1.1s) * -.3); } /* the lab's still: droplets caught in the air */
 
 /* ---- The tutorial and Mosi's reasons ------------------------------------------------------------------------------------------- */
 
@@ -688,6 +690,10 @@
   .veiddu-mosi-help { margin-bottom: 8px; }
   .veiddu-pond { align-self: center; margin-bottom: 0; max-height: 100%; }
   .veiddu-hand { padding-top: calc(var(--hand-w) * .24); padding-bottom: 10px; min-height: calc(var(--hand-w) * 1.6 + 10px); }
+  .veiddu-bubble p, .veiddu-bubble.long p { font-size: 26px; }
+  .veiddu-fish-button { margin-bottom: -22px; font-size: 30px; } /* down over the hand's empty top, so the bubble's arrow points down at it */
+  .veiddu-advice { width: 150px; right: 0; }
+  .veiddu-advice p { right: 16%; bottom: 72%; font-size: 21px; max-width: 8.5em; }
   .veiddu-teach span { display: none; } /* just the cap: the corner is narrow */
   .veiddu-teach { padding: 0 .7em; }
   .veiddu-win-card { gap: 16px; padding: 20px 28px 22px; }
