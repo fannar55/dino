@@ -16,9 +16,9 @@ import { createSfx } from '../engine/audio/sfx.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import {
-  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
+  SIKI_LAYOUT, SIKI_SHOTS, MOSI_BANK, UGGEDLA_REED, FISHING_SPOTS, FISH_ARC, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, UGGEDLA_DROP, THORSEDLA_FAR, arriveInSiki,
 } from '../chapters/kafli2-siki.js';
-import { riseSail, headUpWithFish, catchFish, swimAlong, tailSplash, createBackSeat } from '../chapters/kafli2-uggedla.js';
+import { riseSail, headUpWithFish, catchFish, swimAlong, tailSplash, createBackSeat, BIG_FISH } from '../chapters/kafli2-uggedla.js';
 import { fishing, getUp, jumpOrder, jumpPath, FISH_SIZES, JUMP_SECONDS, HINT_AFTER, HELP_AFTER, FISH_COUNT, TAP_RADIUS } from '../chapters/kafli2-fishing.js';
 import { createSaddle, ride, floatTo } from '../engine/riding.js';
 import { ringsFor } from '../engine/neck-ride.js';
@@ -963,9 +963,9 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
 // looks away from her) and the star's low shot.
 const LYING_SHOTS = ['siki_arrive', 'siki_sail', 'siki_flooded', 'siki_star', 'siki_portrait'];
 const CATCHES = [
-  { spot: 0, up: 1.1, size: 1.0 }, // low, a big fish (the fishing hangs a tapped fish 1.6 m up at least: her snout reaches lower ones only near)
-  { spot: 3, up: 1.7, size: 1.0 },
-  { spot: 4, up: 2.7, size: 1.0 }, // high and far, the fish that makes her stretch
+  { spot: 0, up: 1.1, size: 1.5 }, // low, a big fish (the fishing hangs a tapped fish 1.6 m up at least: her snout reaches lower ones only near)
+  { spot: 3, up: 1.7, size: 1.5 },
+  { spot: 4, up: 2.7, size: 1.5 }, // high and far, the fish that makes her stretch
 ];
 const SWIM = FERRY_LINE.slice(0, 7); // about 20 m from the crossing
 let reeled = null;
@@ -1418,7 +1418,8 @@ test('the jumps: about one in three is small and never two in a row, no spot twi
   const smalls = order.filter(jump => jump.kind === 'small').length;
   assert.ok(smalls >= 10 && smalls <= 16, `${smalls} of 40 are small`);
   assert.deepEqual(jumpOrder(40), order, 'deterministic');
-  assert.deepEqual(FISH_SIZES, { big: 1.0, small: 0.3 }, 'a metre and thirty centimetres');
+  assert.deepEqual(FISH_SIZES, { big: 1.5, small: 0.6 }, 'a metre and a half and sixty centimetres');
+  assert.equal(BIG_FISH, FISH_SIZES.big, 'the fish she holds as her head first comes up is a big one');
   assert.equal(JUMP_SECONDS, 1.5);
   assert.deepEqual([HINT_AFTER, HELP_AFTER, FISH_COUNT], [8, 16, 5]);
 });
@@ -1473,6 +1474,36 @@ test('a tall screen sees every jump of a big fish and its tap target is at least
     }
   }
   assert.ok(narrowest >= 44, `the tap target of a big fish is ${narrowest.toFixed(0)} px in radius at the furthest, on an 800x1280 screen`);
+});
+
+test('a fish in the air reads as a fish on the screen: a small one at least about 30 px long, a big one 2.5 times that, on a wide screen and on a tablet held upright', () => {
+  // The camera as the director has it for a screen of this size (a taller one keeps the authored 16:10 frame's width), the fish at the
+  // top of its jump, side-on along FISH_ARC, its two ends projected: how long it is in pixels. (A big fish was a metre and a small
+  // one 30 cm: the small one was 9 to 15 px and could not be seen.)
+  const shot = SIKI_SHOTS.siki_fishing;
+  const length = (width, height, spot, kind) => {
+    const halfWidth = Math.atan(Math.tan(THREE.MathUtils.degToRad(shot.fov) / 2) * 1.6);
+    const wide = width / height >= 1.6;
+    const fov = wide ? shot.fov : THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfWidth) / (width / height)));
+    const camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 1200);
+    camera.position.set(...shot.position);
+    camera.lookAt(new V3(...shot.target));
+    camera.updateMatrixWorld(true);
+    const middle = jumpPath(spot, kind, 1).at(0.5);
+    const along = new V3(FISH_ARC[0], 0, FISH_ARC[1]).multiplyScalar(FISH_SIZES[kind] / 2);
+    const a = middle.clone().add(along).project(camera), b = middle.clone().sub(along).project(camera);
+    return Math.hypot(((a.x - b.x) * width) / 2, ((a.y - b.y) * height) / 2);
+  };
+  for (const [width, height, smallest, average] of [[1280, 800, 26, 30], [800, 1280, 16, 18]]) {
+    const small = [], big = [];
+    for (let spot = 0; spot < FISHING_SPOTS.length; spot++) {
+      small.push(length(width, height, spot, 'small'));
+      big.push(length(width, height, spot, 'big'));
+      assert.ok(big[spot] >= 2.5 * small[spot] - 0.01, `${width}x${height}, spot ${spot}: a big fish is ${big[spot].toFixed(0)} px, a small one ${small[spot].toFixed(0)} px`);
+    }
+    assert.ok(Math.min(...small) >= smallest, `${width}x${height}: the smallest small fish is ${Math.min(...small).toFixed(1)} px long`);
+    assert.ok(small.reduce((x, y) => x + y) / small.length >= average, `${width}x${height}: a small fish is ${(small.reduce((x, y) => x + y) / small.length).toFixed(1)} px long on average`);
+  }
 });
 
 test('scene 4 as the chapter plays it for an idle child: she asks, the five are counted by Mosi and she thanks him, from the fishing shot', async () => {

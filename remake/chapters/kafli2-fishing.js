@@ -1,6 +1,6 @@
 // Chapter 2's fishing (remake/chapters/kafli2.js, scene 4; docs/superpowers/specs/2026-10-31-kafli-2-bod-til-uggedlu-design.md, section 4):
 // Uggeðla is hungry and the fish are quick. They jump out of the channel in front of her one at a time, in an arc of 1.5 s; a big one
-// (a metre long, glittering) is the child's to tap, a small one (30 cm, not glittering) is to be left alone. A tapped big fish hangs in the air
+// (a metre and a half long, glittering) is the child's to tap, a small one (60 cm, not glittering) is to be left alone. A tapped big fish hangs in the air
 // for a moment, her head darts to it, her jaws snap shut on it and she swallows it (kafli2-uggedla.js: catchFish), and Mosi counts it in
 // the masculine, fiskur being masculine: Einn, tveir, þrír, fjórir, fimm. A tapped small fish is told it is too small by her and
 // swims off with a splash. A child who taps no big fish for 8 s is given a hint (Mosi), and at 16 s she catches the next big fish herself,
@@ -36,13 +36,17 @@ const TAU = Math.PI * 2;
 // ---------------------------------------------------------------------------------------------
 // The numbers
 
-/** The length of a fish in metres, nose to tail: a big one the Fen's fish (30 cm) stretched to a metre. */
-export const FISH_SIZES = { big: 1.0, small: 0.3 };
+/**
+ * The length of a fish in metres, nose to tail: a big one the Fen's fish (30 cm) stretched five times, a small one twice. They were a metre and
+ * 30 cm; on the screen a six-year-old could not tell big from small (the small one was a speck, only its ring showed), so now a metre and a half
+ * and 60 cm: on a 1280x800 screen a small one is 27 to 40 px long and a big one 2.5 times that.
+ */
+export const FISH_SIZES = { big: 1.5, small: 0.6 };
 export const JUMP_SECONDS = 1.5; // in the air, from the water to the water
 export const HINT_AFTER = 8; // seconds without a big catch before Mosi's hint
 export const HELP_AFTER = 16; // and before she catches the next big fish herself
 export const FISH_COUNT = 5; // big fish to catch
-/** How far a tap may be from a fish's middle, in metres: the finger's, not the fish's (a big one is a metre long). */
+/** How far a tap may be from a fish's middle, in metres: the finger's, not the fish's (a big one is a metre and a half long). */
 export const TAP_RADIUS = { big: 2.2, small: 1.3 };
 const APEX = { big: 1.8, small: 1.0 }; // m over the water at the top of a jump
 const ARC = { big: 2.0, small: 1.2 }; // m along FISH_ARC from the water to the water
@@ -53,6 +57,7 @@ const COUNT_LINES = ['k2_mosi_einn', 'k2_mosi_tveir', 'k2_mosi_thrir', 'k2_mosi_
 const LEVEL = waterShape(SIKI_LAYOUT.water).level;
 const LIFTED = 1.6; // m over the water: a tapped fish hangs at this height at least, where her snout reaches
 const FLEX_BEATS = 5; // a fish's tail beats a second in the air
+const SMALL_LIGHT = '#a8d4e6', SMALL_GLOW = 0.55; // a small fish's silver
 
 // ---------------------------------------------------------------------------------------------
 // The jumps
@@ -126,8 +131,10 @@ function makeView(world) {
         group.rotation.set(0, -Math.atan2(velocity.z, velocity.x), Math.atan2(velocity.y, Math.hypot(velocity.x, velocity.z)), 'YXZ');
       }
       if (flex !== undefined) mesh.morphTargetInfluences[flex] = 0.5 + 0.5 * Math.sin(TAU * beat);
-      material.emissive.set(shine ? '#ffbf4a' : '#000000');
-      material.emissiveIntensity = shine;
+      // a big one shines gold, glittering; a small one has a cool silver light on it (it does not glitter): on the Fen's gold reed a
+      // plain small fish is gold on gold and cannot be seen
+      material.emissive.set(kind === 'small' ? SMALL_LIGHT : '#ffbf4a');
+      material.emissiveIntensity = kind === 'small' ? SMALL_GLOW : shine;
     },
     hide() { group.visible = false; },
     dispose() {

@@ -13,7 +13,7 @@
 //                                     resolves when she is as she was (a second or two; a fish far off makes her lunge, up to 6.5 m, and
 //                                     swim back). `fish` is what the fishing game hands in: { point: THREE.Vector3, size: number,
 //                                     caught(): void }. point is the fish's middle in the air (read every frame, so a fish that still
-//                                     moves is followed), size its length in metres (1 a big fish, 0.3 a small one: the fish she holds is
+//                                     moves is followed), size its length in metres (1.5 a big fish, 0.6 a small one: the fish she holds is
 //                                     the Fen's fish, 0.3 m, drawn at size / 0.3), and caught() is called once, in the frame the jaws shut
 //                                     on it: it is hers from then, whoever drew it hides it (hers appears where it was and goes to her snout)
 //   swimAlong(s, c, points, { speed, sink, sinkAtEnd, then })
@@ -74,6 +74,8 @@ export const SWIM_SPEED = 1.1;
 export const WADE_SPEED = 0.52;
 /** The jaw opens at most this many degrees (her bake notes: at 10 degrees and more four tiny triangles turn over at her left mouth corner; 12 is the limit). */
 export const JAW_MAX = 9;
+/** The fish she holds when her head first comes up is a big fish's size (kafli2-fishing.js: FISH_SIZES.big). */
+export const BIG_FISH = 1.5;
 
 const BONES = ['Hips', 'Spine', 'Chest', 'Neck', 'Head', 'Jaw', 'Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
 const TAIL = BONES.filter(name => name.startsWith('Tail'));
@@ -435,7 +437,7 @@ export function* headUpWithFish(s, c) {
     const mosi = c.mosi.raw.root.position;
     const toward = deg(Math.atan2(mosi.z - her.z, mosi.x - her.x));
     const turned = clamp(wrap180(toward - rig.station.heading), -65, 65);
-    fish.hold(1.0);
+    fish.hold(BIG_FISH);
     rig.tween('yaw', turned, 2.0, smoother);
     rig.tween('sink', SINK.up, 1.8, smoother);
     yield s.wait(0.5);

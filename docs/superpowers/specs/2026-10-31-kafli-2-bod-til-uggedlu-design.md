@@ -85,7 +85,7 @@ Síkið (í stað Fensins).
   hver fiskur sem stekkur sést.
 - **Línur:** Uggeðla: „En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!“
 - **Fiskarnir:** einn í einu stekkur fiskur upp úr síkinu í boga (um 1,5 s í loftinu) á stöðum í kringum Uggeðlu. Stórir fiskar eru
-  um 1 m (fiskur Fensins, Lepidotes-líkur, stækkaður) og glitra þegar þeir stökkva; litlir eru um 30 cm og glitra ekki. Um þriðji
+  um 1,5 m (fiskur Fensins, Lepidotes-líkur, stækkaður) og glitra þegar þeir stökkva; litlir eru um 60 cm og glitra ekki. Um þriðji
   hver fiskur er lítill, og aldrei tveir litlir í röð.
 - **Pikk á stóran fisk:** hann frýs andartak í loftinu, haus Uggeðlu skýst að honum og hún grípur hann (kjafturinn opnast lítillega og
   smellur saman), kastar höfðinu aftur og gleypir. Mosi telur í karlkyni, því fiskur er karlkyns: „Einn!“, „Tveir!“, „Þrír!“,
