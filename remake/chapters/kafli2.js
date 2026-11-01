@@ -321,7 +321,7 @@ function* theFerry(s, c) {
  * are chosen by the triangles of a tablet's frame and by what is in the lens (the ferry's shots are not planted around, so each was measured
  * at each stretch of the swim, 250k at the most): the two-shot from the crossing for the first seconds (a camera in Mosi's frame swings round
  * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one as the
- * tail splashes (from the dry bank, 17 m off, it is 213 to 244k then, and 260 to 300k in the middle of the swim) and the back one for
+ * tail splashes (from the dry bank, 21 m off, it is about 215 to 245k then, and 260 to 300k in the middle of the swim) and the back one for
  * Þórseðla's head.
  */
 const CHAT_PAUSE = 0.9;

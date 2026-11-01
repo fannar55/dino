@@ -1771,11 +1771,12 @@ test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or 
   assert.ok(frames.length > 600, `${frames.length} frames in the ferry's shots`);
   const { plan } = sikiPlan();
   const lowPlants = ['horsetailReed', 'horsetailTall', 'fern', 'mossHummock', 'waterLily', 'bush'];
-  /** Is the camera in a clump of reed or a bush, or within a metre of a trunk (a leaf in the lens)? */
+  /** Is the camera in a clump of reed or a bush, or under the crown of a tree or by its trunk (a leaf in the lens)? */
   const crowded = camera => plan.placements.find(p => {
     const top = p.y + p.model.height * p.scale;
     if (lowPlants.includes(p.name)) return camera.y < top * 0.8 && Math.hypot(camera.x - p.x, camera.z - p.z) < p.model.radius * p.scale * 0.5 + 0.3;
-    return camera.y < top * 0.5 && Math.hypot(camera.x - p.x, camera.z - p.z) < 1.2;
+    const height = p.model.height * p.scale;
+    return camera.y < top * 0.9 && Math.hypot(camera.x - p.x, camera.z - p.z) < (height > 4 ? Math.max(1.2, 0.4 * height) : 1.2); // under a tree's crown (0.4 of its height) or by a trunk
   });
   const worst = {};
   for (const frame of frames.filter((_, i) => i % 6 === 0)) {
