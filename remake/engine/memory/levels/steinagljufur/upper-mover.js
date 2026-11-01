@@ -103,7 +103,8 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     ORDER.forEach((who, g) => {
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
-        const file = who === 'triceratops', lane = who === 'mosi' ? 0 : file ? TRI_FILE.lane : (i ? 1 : -1) * (LANES[who] ?? .62), lip = who !== 'mosi' && !file && !i ? LIP.shift : 0;
+        // (the right-hand Flugeðla walks 0.1 m further in: her right wing's tip brushed the foot of the exit's right wall, veggir)
+        const file = who === 'triceratops', lane = who === 'mosi' ? 0 : file ? TRI_FILE.lane : (i ? 1 : -1) * (LANES[who] ?? .62) - (who === 'pteranodon' && i ? .1 : 0), lip = who !== 'mosi' && !file && !i ? LIP.shift : 0;
         const spot = spotOf('floor', who, i), inside = world(mouth - 3.2 - (file && i ? TRI_FILE.behind : 0), lane);
         const out = file ? [world(bore(LIP.back), lane), world(mouth + .3, lane), spot.point] : [world(bore(LIP.back), lane), world(bore(LIP.to), lane + lip), world(mouth + .3, lane + lip), world(mouth + .9, lane * 1.4), spot.point];
         walkers.place(actor, inside, forward(0), false); actor.root.scale.setScalar(.02);
@@ -189,15 +190,18 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   // ---- fly ----
   // The rope lies in a coil at the foot of the cliff, tied to its stake. The Flugeðlur take its free end (A, in front, then B a metre behind: the rope runs through B's beak to A's) and
   // fly it up the cliff in three legs, one for each tap; at the top they circle the tree, winding the rope round its trunk; it draws taut, and they land by the tree.
-  // (the wrap's radius keeps the Flugeðlur's wings off the trunk: at 1.15 m they brushed it, veggir)
-  const LEG_SPEED = 4.4, WRAP = { radius: 1.3, turns: 1.4, speed: 3.4, behind: 1.15 };
+  // (the wrap keeps the Flugeðlur off the wood: the tree forks two metres up and its limbs reach up to 2.15 m out over that, so they circle low, their roots 0.35 m over
+  // its foot (not 1.55) and 1.9 m out (not 1.15): their bodies ride a metre over their roots in flight, their wings' tips up to 1.25 m over them as they beat, and
+  // higher their legs (at 1.15 and 1.3 m out) and their wings (1.7 m out, 1.05 m up) went into the limbs. `speed` is 3.4 m/s at 1.15 m made as much faster as the
+  // circle is longer: the wrap takes as long as it did, veggir)
+  const LEG_SPEED = 4.4, WRAP = { radius: 1.9, rise: .35, turns: 1.4, speed: 3.4 * 1.9 / 1.15, behind: 1.15 };
   const frameOf = point => U.local(point);
   const noseFrame = actor => frameOf(actor.getNosePosition());
   const airAt = fraction => { // a point above the path, fraction 0..1 of its length, toward the hillside a little and 2.6 metres up: [x, y, z]
     const k = Math.max(1, Math.min(wayFrame.length - 1, Math.round(fraction * (wayFrame.length - 1)))), [x, z, y] = wayFrame[k];
     return [x, y + 2.7, z + 1.2];
   };
-  const circle = angle => { const c = U.tree.base; return [c.x + Math.cos(angle) * WRAP.radius, U.tree.base.y + 1.55, c.z + Math.sin(angle) * WRAP.radius]; };
+  const circle = angle => { const c = U.tree.base; return [c.x + Math.cos(angle) * WRAP.radius, U.tree.base.y + WRAP.rise, c.z + Math.sin(angle) * WRAP.radius]; };
   function startFly(beats) {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'fly', species: 'pteranodon', phase: 'approach', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, legAge: 0, lift: 0, trail: [], trailAge: 0, b0: null, tight: 0 };
