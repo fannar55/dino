@@ -158,8 +158,10 @@ export function createLevelWorld(stage) {
       if (groundMaterial) { groundLook = installGorgeGround(groundMaterial, frame, { beds: stage.leaves }); installUpperGroundLook(groundMaterial); }
       models = await loadGorgeModels();
       const keepClear = [...level.nests.map(([x, z]) => [...frame.toGrid(x, z), 3.4]), [...frame.toGrid(spot.x, spot.z), 3], [...TUNNEL.at, 5]];
+      // The rests' room for the wall pieces: a pair rests up to 1.15 m from its nest's middle and a Langháls's tail reaches 2.4 m behind its root.
+      const rests = [...level.nests.map(([x, z]) => ({ x, z, radius: 3.75 })), { x: spot.x, z: spot.z, radius: 3 }];
       gorge = buildGorge({
-        scene, frame, heightAt: stage.heightAt, models, tunnel: TUNNEL, glow,
+        scene, frame, heightAt: stage.heightAt, models, tunnel: TUNNEL, glow, rests,
         avoid: (u, v, radius) => keepClear.some(([cu, cv, r]) => Math.hypot(u - cu, v - cv) < r + radius * .3) || stage.onLeafGround(...frame.toWorld(u, v), radius),
       });
       upperModels = await loadUpperModels();

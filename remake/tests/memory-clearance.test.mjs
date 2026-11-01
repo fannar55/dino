@@ -125,3 +125,16 @@ test('retrying a partially blocked river crossing leaves arrived helpers on the 
     const events=adventure.pollEvents();assert.equal(events.filter(event=>event.type==='bridge-complete'&&event.id==='cross').length,1);assert.equal(events.some(event=>event.type==='bridge-blocked'),false);
   }finally{adventure.dispose()}
 });
+
+test('a gorge wall piece is measured against the rests by its rock: what reaches in is caught, what is sunk or over the heads is not', async () => {
+  const { restGap } = await import('../engine/memory/levels/steinagljufur/props.js');
+  // a ring of rock points 1 m round its middle, from the ground to 2 m up, one point sunk 1 m and one 4 m up
+  const points = [];
+  for (let k = 0; k < 16; k++) for (const y of [0, 1, 2]) points.push(Math.cos(k * Math.PI / 8), y, Math.sin(k * Math.PI / 8));
+  points.push(-1.4, -1, 0, -1.4, 4, 0);
+  const rock = new Float32Array(points), at = x => new THREE.Matrix4().makeTranslation(x, 0, 0), rests = [{ x: 0, y: 0, z: 0, radius: 3.75, height: 3 }];
+  assert.ok(Math.abs(restGap(rock, at(5.5), rests) - .75) < 1e-6, 'its near side at 4.5 m is 0.75 m clear of the rest');
+  assert.ok(restGap(rock, at(4), rests) < 0, 'its near side at 3 m is inside the 3.75 m rest');
+  assert.ok(restGap(rock, at(5.1), rests) > 0, 'the sunk point and the point over the heads (both at 3.7 m) do not count');
+  assert.ok(restGap(rock, new THREE.Matrix4().makeTranslation(3, 5, 0), rests) === Infinity, 'a rock wholly over the heads does not count');
+});

@@ -75,10 +75,29 @@ export function darkInside(material, glow) {
 }
 
 /**
- * Stands the scenery. `frame` is the glade's (ground.js frameOf), `heightAt(x, z)` the ground, `avoid(u, v, radius)` says where nothing may
- * stand (the leaves, the rests, Mosi and the tunnel's mouth). Returns { group, tunnel, solids, stats(), dispose() }.
+ * How near a rock comes to the rests: the least horizontal distance from a rest's middle to a vertex of `positions` (x, y, z, ...) through `matrix`,
+ * less the rest's radius, over the vertices from the rest's ground `y` up to `height` above it (lower is sunk in the ground, higher is over every
+ * head). Negative: the rock reaches into the rest. `rests` [{ x, y, z, radius, height }].
  */
-export function buildGorge({ scene, frame, heightAt, models, avoid = () => false, tunnel: place, glow = { uLight: { value: 0 } } }) {
+export function restGap(positions, matrix, rests) {
+  const e = matrix.elements; let gap = Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const px = positions[i], py = positions[i + 1], pz = positions[i + 2];
+    const x = e[0] * px + e[4] * py + e[8] * pz + e[12], y = e[1] * px + e[5] * py + e[9] * pz + e[13], z = e[2] * px + e[6] * py + e[10] * pz + e[14];
+    for (const rest of rests) {
+      if (y < rest.y - .05 || y > rest.y + rest.height) continue;
+      const d = Math.hypot(x - rest.x, z - rest.z) - rest.radius; if (d < gap) gap = d;
+    }
+  }
+  return gap;
+}
+
+/**
+ * Stands the scenery. `frame` is the glade's (ground.js frameOf), `heightAt(x, z)` the ground, `avoid(u, v, radius)` says where nothing may
+ * stand (the leaves, the rests, Mosi and the tunnel's mouth). `rests` ([{ x, z, radius }], world) are the places the friends and Mosi wait at,
+ * with the room their bodies need round them: no wall piece's rock comes into one. Returns { group, tunnel, solids, stats(), dispose() }.
+ */
+export function buildGorge({ scene, frame, heightAt, models, avoid = () => false, rests = [], tunnel: place, glow = { uLight: { value: 0 } } }) {
   const group = new THREE.Group(); group.name = 'Steinagljúfrið'; scene.add(group);
   const random = seeded(20261031), range = (a, b) => a + (b - a) * random(), pick = list => list[Math.floor(random() * list.length) % list.length];
   const dummy = new THREE.Object3D(), disposables = [], solids = [];
@@ -104,6 +123,18 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
     }
     return null;
   };
+  // A wall piece must also stand clear of the rests: the rock itself (its vertices from the rest's ground up to 3 m, through the piece's matrix), not its middle
+  // or its box. A piece that comes into one is moved straight out along its row's ray (further outside the floor's edge) until it is clear.
+  const restRooms = rests.map(rest => ({ ...rest, y: heightAt(rest.x, rest.z), height: 3 })), pushed = [];
+  const clearOfRests = (name, entry, angle, offset) => {
+    const positions = models.get(name).geometry.attributes.position.array;
+    for (let shift = 0; shift <= 12; shift += .5) {
+      if (shift) { const [x, z] = frame.toWorld(...edgePoint(angle, offset + shift)); Object.assign(entry, { x, z, y: heightAt(x, z) - entry.sink * entry.scale }); }
+      dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix();
+      if (restGap(positions, dummy.matrix, restRooms) >= 0) { if (shift) pushed.push({ name, shift, x: +entry.x.toFixed(2), z: +entry.z.toFixed(2) }); return entry; }
+    }
+    return null;
+  };
 
   // ---- the walls: three rows of cliff pieces round the back and the left of the floor, each further out and higher ----
   // A row follows the floor's edge at `offset` metres outside it; walking the rows round the grid, a piece stands about `spacing` metres after the
@@ -122,12 +153,13 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
   for (const [rowIndex, row] of ROWS.entries()) {
     let angle = THREE.MathUtils.degToRad(-8), last = null;
     for (let step = 0; step < 400 && angle < THREE.MathUtils.degToRad(352); step++) {
-      const [u, v] = edgePoint(angle, row.offset + range(-.7, .7)), wall = closure(u, v);
+      const offset = row.offset + range(-.7, .7), [u, v] = edgePoint(angle, offset), wall = closure(u, v);
       if (!last || Math.hypot(u - last[0], v - last[1]) >= row.spacing * range(.8, 1.15)) {
         if (wall > .42) {
           const kind = pick(row.kinds), scale = range(...row.scale) * (.55 + .45 * wall), [x, z] = frame.toWorld(u, v);
           const entry = { x, z, y: heightAt(x, z) - row.sink * scale, sink: row.sink, yaw: range(0, Math.PI * 2), scale, tilt: range(-.05, .05), tint: .86 + .2 * random() };
-          const standing = clearOfBore(`gorge-cliff-${kind}`, entry); if (standing) add(`gorge-cliff-${kind}`, standing);
+          const clear = clearOfRests(`gorge-cliff-${kind}`, entry, angle, offset), standing = clear && clearOfBore(`gorge-cliff-${kind}`, clear);
+          if (standing) add(`gorge-cliff-${kind}`, standing);
           last = [u, v];
         }
       }
@@ -183,7 +215,7 @@ export function buildGorge({ scene, frame, heightAt, models, avoid = () => false
     group, tunnel, solids,
     /** Where the opening is: its middle on the ground, and the way it faces. */
     mouth: { point: tunnel.position.clone().addScaledVector(facing, half[0]), facing },
-    stats: () => ({ triangles, draws, kinds: [...placements].map(([name, list]) => `${name} x${list.length}`) }),
+    stats: () => ({ triangles, draws, kinds: [...placements].map(([name, list]) => `${name} x${list.length}`), pushedFromRests: pushed }),
     dispose() { scene.remove(group); for (const item of disposables) item.dispose(); for (const model of models.values()) model.geometry.dispose(); },
   };
 }
