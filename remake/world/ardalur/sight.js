@@ -93,7 +93,7 @@ export function createGorgeSight(route, terrain, index) {
 //   fogBetween(camera, point, density, falloff) -> 0..1   how fogged `point` is seen from `camera`, as engine/fog.js reckons it
 //   createHazeSight(world) -> { hidden(camera, sphere) }   the far plant inside `sphere` is lost in the haze (the scene's fog density,
 //                                                           the look's heightFalloff; no fog: nothing is)
-export const FOG_CUT = 0.86;
+export const FOG_CUT = 0.82;
 
 export function fogBetween(camera, point, density, falloff) {
   const dx = point.x - camera.x;
