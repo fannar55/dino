@@ -34,8 +34,10 @@ export const FORMATIONS = Object.freeze({
   // (the Kambeðlur stand on the flat, in a line behind the second Flugeðla, who is 0.6 m nearer the first: the second stood 0.2 m up the hillside's foot as the ground is
   // drawn (a 0.9 m grid over groundAt, so its slope starts up to a cell early) and the first with a foot in the boulder at its edge. The second Kambeðla stands at the
   // flat's far end, out of the close-up of Mosi laughing at a wrong friend's go at the cliff: 0.7 m nearer the first, it came into that shot on a tall screen (820 x 1180)
-  // and took it to 267,000 triangles, veggir)
-  terrace: { mosi: [8.2, -3.6], triceratops: [[5.6, -4.7], [7.4, -5.2]], stegosaurus: [[4.4, 1.7], [7.7, 1.4]], brontosaurus: [[4.9, -2.7], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .3]] },
+  // and took it to 267,000 triangles. The first Þórseðla stands out of that close-up too, 1.2 m nearer the open side and 0.4 m back, and the first Þríhyrna 1.0 m nearer
+  // the open side, on the far side of the second, to make room: at [4.9, -2.7] its head and front legs came into the close-up at full detail while the Þríhyrnur and
+  // the Kambeðlur had their goes, and took it to 277,000 and 285,000 triangles, veggir)
+  terrace: { mosi: [8.2, -3.6], triceratops: [[5.5, -5.7], [7.4, -5.2]], stegosaurus: [[4.4, 1.7], [7.7, 1.4]], brontosaurus: [[4.5, -3.9], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .3]] },
   // on the rim, at the end of the climb
   // (the first Flugeðla lands on the tree's flat, north of the tree, just outside where her wrap round it ends: where she stood, on the path's edge, her tail was in the
   // flat's bank, and from the wrap's end her way down to the far side of the tree went through its trunk, veggir)
