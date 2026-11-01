@@ -110,6 +110,15 @@ const WORDS = {
   k2_mosi_tenprints: 'Tíu fótspor! Hún hlýtur að vera rétt hjá.',
   k2_mosi_hint_print: 'Hvað með næsta spor? Pikkaðu á það!',
   k2_mosi_nextprint: 'Næsta er þarna!',
+  // 4. The fishing: Uggeðla asks, Mosi counts the big fish in the masculine (fiskur is masculine), five (k2_mosi_5) as the prints' five
+  k2_uggedla_help: 'En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!',
+  k2_mosi_einn: 'Einn!',
+  k2_mosi_tveir: 'Tveir!',
+  k2_mosi_thrir: 'Þrír!',
+  k2_mosi_fjorir: 'Fjórir!',
+  k2_uggedla_small: 'Nei, hann er of lítill. Hann má stækka!',
+  k2_mosi_hint_fish: 'Bíddu eftir stórum fiski… og pikkaðu!',
+  k2_uggedla_thanks: 'Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!',
   // The book's map: a tap on the marker of a place found or done, and Mosi says its name and one sentence (an empty slot is silent)
   k2_mosi_map_fen: 'Fenið! Þar eru tjarnir, sef og froskar.',
   k2_mosi_map_kambedla: 'Kambeðla! Plöturnar hennar lýsa eins og ljósker.',
@@ -312,6 +321,7 @@ export const chapter = {
     mosi: { name: 'Mosi', colour: '#4f5433' },
     egill: { name: 'Egill', colour: '#355774' },
     kambedla: { name: 'Kambeðla', colour: '#5d4370' },
+    uggedla: { name: 'Uggeðla', colour: '#2f6a65' }, // the dark tone of her teal (FRIENDS' #47908a)
   },
   lines: Object.fromEntries(Object.entries(WORDS).map(([id, text]) => [id, { text, audio: id }])),
   // The camera shows this shot while the start button waits: the glade as chapter 1 left it.

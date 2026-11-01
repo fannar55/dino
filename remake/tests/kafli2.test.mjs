@@ -24,6 +24,7 @@ import { ringsFor } from '../engine/neck-ride.js';
 import { waterShape } from '../world/props/water.js';
 import { playUnattended } from './chapter-harness.mjs';
 import { createFakeContext } from './fake-audio.mjs';
+import { WAITING_FOR_VOICE } from './waiting-for-voice.mjs';
 
 // Chapter 2 (remake/chapters/kafli2.js), "Boð til Uggeðlu": its lines, its places as data, the camera rules of its shots, the page's
 // choice of chapter from the save, and its script played through by nobody (tests/chapter-harness.mjs). Since the split of 31 October
@@ -40,7 +41,9 @@ const CHAPTER_TEXT = ['kafli2', 'kafli2-trail', 'kafli2-siki', 'kafli2-uggedla']
 const MAIN_TEXT = fs.readFileSync(file('../main.js'), 'utf8');
 
 // Every line has its recording (the kafli2 set, recorded 2026-10-21). A line added before the controller records it fails here,
-// named; setting this false while lines wait for their recording names them and marks the test skipped instead.
+// named, unless it is in WAITING_FOR_VOICE (tests/waiting-for-voice.mjs: the lines new to the chapters, timed by their words until the
+// plan's seventh task records them; the test tells which wait, and a waiting line that has its recording fails, so the set empties as they
+// come); setting this false while lines wait for their recording names them and marks the test skipped instead.
 const RECORDINGS_REQUIRED = true;
 
 const words = text => text.replace(/\[[^\]]*\]\s*/g, '').trim(); // what is said, without the voice's tags
@@ -63,16 +66,20 @@ test('every chapter line has a recording and the source\'s words', t => {
   const counts = ['Eitt!', 'Tvö!', 'Þrjú!', 'Fjögur!', 'Fimm!', 'Sex!', 'Sjö!', 'Átta!', 'Níu!', 'Tíu!'];
   counts.forEach((text, i) => assert.equal(chapter.lines[`k2_mosi_${i + 1}`]?.text, text, `Mosi counts ${i + 1}`));
   // Whatever the script names as a line is one of them.
-  for (const [, id] of CHAPTER_TEXT.matchAll(/'(k2_(?:mosi|egill|thorsedla|kambedla)_[a-z0-9_]+)'/g)) {
+  for (const [, id] of CHAPTER_TEXT.matchAll(/'(k2_(?:mosi|egill|thorsedla|kambedla|uggedla)_[a-z0-9_]+)'/g)) {
     assert.ok(chapter.lines[id], `the script names '${id}', which is not one of its lines`);
   }
   // Each recording there is is the set's own; a line not recorded yet is named.
-  const unrecorded = [];
+  const unrecorded = [], waiting = [];
   for (const [id, line] of Object.entries(chapter.lines)) {
     const entry = RECORDED[line.audio];
-    if (!entry) unrecorded.push(id);
-    else assert.equal(entry.src, `assets/audio/kafli2/${line.audio}.mp3`, `${id} is recorded in the kafli2 set`);
+    if (!entry) (WAITING_FOR_VOICE.has(id) ? waiting : unrecorded).push(id);
+    else {
+      assert.equal(entry.src, `assets/audio/kafli2/${line.audio}.mp3`, `${id} is recorded in the kafli2 set`);
+      assert.ok(!WAITING_FOR_VOICE.has(id), `${id} has its recording now: take it out of WAITING_FOR_VOICE`);
+    }
   }
+  if (waiting.length) t.diagnostic(`${waiting.length} chapter 2 lines wait for their voice and are timed by their words: ${waiting.join(', ')}`);
   if (unrecorded.length) {
     const message = `${unrecorded.length} of ${Object.keys(chapter.lines).length} chapter 2 lines have no recording in lines.json yet `
       + `(node remake/tools/voice-lines.mjs --set kafli2 records them): ${unrecorded.slice(0, 5).join(', ')}${unrecorded.length > 5 ? ', …' : ''}`;
@@ -97,11 +104,12 @@ test('locations as data: the glade, the trail and Síkið, with who stands where
   assert.deepEqual(Object.keys(chapter.locations), ['burknalaut', 'fenjaslod', 'siki'], 'in the order the story goes');
   assert.deepEqual(chapter.prepare, ['fenjaslod', 'siki'], 'the trail and Síkið are built behind the start button, in that order');
   // Five actors, all made at load (before the start button): Uggeðla and Þórseðla wait hidden for Síkið, where they are placed. The
-  // cast (the captions' names) is the three who speak so far: Uggeðla's lines come with the scenes to be built.
+  // cast (the captions' names) is the four who speak so far: Uggeðla's first lines are the fishing's.
   assert.deepEqual(Object.keys(chapter.actors).sort(), ['egill', 'kambedla', 'mosi', 'thorsedla', 'uggedla']);
   assert.match(chapter.actors.uggedla.url, /spinosaurus\.glb$/);
   assert.match(chapter.actors.thorsedla.url, /brontosaurus\.glb$/);
-  assert.deepEqual(Object.keys(chapter.cast).sort(), ['egill', 'kambedla', 'mosi']);
+  assert.deepEqual(Object.keys(chapter.cast).sort(), ['egill', 'kambedla', 'mosi', 'uggedla']);
+  assert.equal(chapter.cast.uggedla.colour, '#2f6a65', 'the dark tone of her teal');
   // Who stands in each place: Mosi everywhere, Kambeðla only in her glade, Uggeðla and Þórseðla only in Síkið.
   const standing = name => Object.keys(chapter.locations[name].layout.actors ?? {});
   const has = (name, actor) => standing(name).some(key => key === actor || key.startsWith(`${actor}_`));

@@ -6,4 +6,6 @@
 export const WAITING_FOR_VOICE = new Set([
   'k3_mosi_wave', 'k3_egill_hi', // chapter 3's lookout: Uggeðla waves from her reed
   'k3_mosi_third', 'k3_mosi_three', // chapter 3's star: the third, and "Þrjár komnar"
+  'k2_uggedla_help', 'k2_mosi_einn', 'k2_mosi_tveir', 'k2_mosi_thrir', 'k2_mosi_fjorir', // chapter 2's fishing: her ask and Mosi's count
+  'k2_uggedla_small', 'k2_mosi_hint_fish', 'k2_uggedla_thanks', // the small fish, the hint and her thanks
 ]);

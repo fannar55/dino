@@ -63,5 +63,13 @@
  { "id": "k2_mosi_map_thorsedla", "speaker": "mosi", "text": "Þórseðla! Hún er hæst af öllum vinum mínum." },
  { "id": "k2_mosi_map_sloedla", "speaker": "mosi", "text": "Slóeðla! Henni finnst gott að vaða í vatninu." },
  { "id": "k2_mosi_map_flugedla", "speaker": "mosi", "text": "Flugeðla! Hún situr hátt uppi á gamla trénu." },
- { "id": "k2_mosi_map_uggedla", "speaker": "mosi", "text": "Uggeðla! Hún felur sig í sefinu, en seglið sést alltaf." }
+ { "id": "k2_mosi_map_uggedla", "speaker": "mosi", "text": "Uggeðla! Hún felur sig í sefinu, en seglið sést alltaf." },
+ { "id": "k2_uggedla_help", "speaker": "uggedla", "text": "En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!" },
+ { "id": "k2_mosi_einn", "speaker": "mosi", "text": "Einn!" },
+ { "id": "k2_mosi_tveir", "speaker": "mosi", "text": "Tveir!" },
+ { "id": "k2_mosi_thrir", "speaker": "mosi", "text": "Þrír!" },
+ { "id": "k2_mosi_fjorir", "speaker": "mosi", "text": "Fjórir!" },
+ { "id": "k2_uggedla_small", "speaker": "uggedla", "text": "Nei, hann er of lítill. Hann má stækka!" },
+ { "id": "k2_mosi_hint_fish", "speaker": "mosi", "text": "Bíddu eftir stórum fiski… og pikkaðu!" },
+ { "id": "k2_uggedla_thanks", "speaker": "uggedla", "text": "Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!" }
 ]

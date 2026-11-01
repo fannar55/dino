@@ -71,7 +71,7 @@ test('every chapter line has a recording, or waits for its voice, and the source
       assert.ok(!WAITING_FOR_VOICE.has(id), `${id} has its recording now: take it out of WAITING_FOR_VOICE`);
     }
   }
-  for (const id of WAITING_FOR_VOICE) assert.ok(chapter.lines[id], `WAITING_FOR_VOICE names ${id}, which is not a line of chapter 3`);
+  for (const id of WAITING_FOR_VOICE) assert.ok(chapter.lines[id] || kafli2.chapter.lines[id], `WAITING_FOR_VOICE names ${id}, which is not a line of chapter 2 or 3`);
   if (waiting.length) t.diagnostic(`${waiting.length} chapter 3 lines wait for their voice and are timed by their words: ${waiting.join(', ')}`);
   if (unrecorded.length) {
     const message = `${unrecorded.length} of ${Object.keys(chapter.lines).length} chapter 3 lines have no recording in lines.json yet `
