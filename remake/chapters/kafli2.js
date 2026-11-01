@@ -204,8 +204,9 @@ function* theChannel(s, c) {
   yield s.camera.cut('siki_flooded');
   yield* say(s, c, 'mosi', 'k2_mosi_flooded');
   yield* say(s, c, 'egill', 'k2_egill_across');
-  // across the channel to the reed, close on the sail (the tall screen's shot: siki_sail, over Mosi's shoulder with her whole length in it, is
-  // 273k triangles on a tablet while she lies broadside; this is 226k): the sail rises, and Mosi sees a boat
+  // across the channel to the reed, close on the sail, and on her head as it comes up (the tall screen's shot, kept for the whole of the
+  // reveal: siki_sail, over Mosi's shoulder with her whole length in it, is 273k triangles on a tablet while she lies broadside, and the
+  // two-shot 6 to 7 ms; this is 226k and 4.5 to 5.6 ms): the sail rises, and Mosi sees a boat
   yield s.camera.cut('siki_portrait');
   yield mosi.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
   yield egill.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
@@ -218,7 +219,6 @@ function* theChannel(s, c) {
   // it turns, and her head comes up out of the water with a fish; "this is no boat"
   stopTaps();
   const head = s.after(0, () => headUpWithFish(s, c));
-  yield s.camera.cut('siki_two_shot'); // closer, and her head and the fish in her jaws are in it
   yield s.wait(HEAD_UP_SEES);
   yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
   yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
