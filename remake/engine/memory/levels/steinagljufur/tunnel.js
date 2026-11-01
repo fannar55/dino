@@ -172,11 +172,12 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
 
   // ---- the crystals ----
   // [x, z, y, yaw, scale, tilt about x, tilt about z]: inside and just in the mouth, where the plates' light finds them. In the bore they grow out of its walls a metre
-  // up, leaning in, above the friends' flanks (the floor is as wide as the friends that walk through it: at its foot they stood in their way, veggir), the two on the
-  // left wall set into the rock far enough for a Þríhyrna's frill to pass them; in the mouth's open right side one stands on the floor. With no yaw the tilt about x
-  // leans a crystal toward +z (into the bore from its -z wall), a negative one toward -z.
+  // up, leaning in, above the friends' flanks (the floor is as wide as the friends that walk through it: at its foot they stood in their way, veggir), the two purple
+  // ones on the left wall set into the rock far enough for a Þríhyrna's frill to pass them (the one in the mouth also above it: there the wall is only a hand's
+  // width beyond the frill); in the mouth's open right side one stands on the floor. With no yaw the tilt about x leans a crystal toward +z (into the bore from
+  // its -z wall), a negative one toward -z.
   const CRYSTALS = {
-    purple: [[3.05, -1.83, .95, .1, .55, .45, -.1], [2.4, 1.63, .9, -.15, .5, -.45, .12], [.4, -1.96, .95, .2, .65, .45, -.12]],
+    purple: [[3.05, -1.83, 1.3, .1, .55, .45, -.1], [2.4, 1.63, .9, -.15, .5, -.45, .12], [.4, -1.96, .95, .2, .65, .45, -.12]],
     blue: [[3.35, 1.88, 0, 1.3, .7, 0, .2], [2.6, -1.67, 1.0, -.1, .55, .4, .1], [.9, 1.38, .95, .15, .6, -.4, -.1]],
   };
   const crystalLook = { purple: { emissive: '#8b5cff', base: .05 }, blue: { emissive: '#4aa9ff', base: .05 } };
