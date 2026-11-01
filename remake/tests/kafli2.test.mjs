@@ -1123,6 +1123,10 @@ test('a tail stroke throws a splash at Mosi', async () => {
   const rows = seen.frames.filter(f => f.t >= from && f.t <= to && f.tail);
   const sideways = Math.max(...rows.map(r => r.tail.distanceTo(rows[0].tail)));
   assert.ok(sideways > 3, `her tail swings ${sideways.toFixed(1)} m`);
+  // and the stroke is in the water: at the ring by the tail the tail's end is down at the surface, not in the air
+  const level = WATER_LEVEL();
+  const lowest = Math.min(...rows.map(r => r.tail.y));
+  assert.ok(lowest < level + 1.6, `her tail's end comes down to ${(lowest - level).toFixed(2)} m over the water`);
   assert.ok(to - from < 5, `the stroke takes ${(to - from).toFixed(1)} s`);
 });
 

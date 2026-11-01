@@ -54,15 +54,18 @@ export const SINK = { low: 2.1, sail: 1.0, up: 0.9, swim: 1.4 };
 export const SWIM_SPEED = 1.1;
 export const WADE_SPEED = 0.52;
 /** The jaw opens at most this many degrees (her bake notes: at 10 degrees and more four tiny triangles turn over at her left mouth corner; 12 is the limit). */
-export const JAW_MAX = 11;
+export const JAW_MAX = 9;
 
 const BONES = ['Hips', 'Spine', 'Chest', 'Neck', 'Head', 'Jaw', 'Tail1', 'Tail2', 'Tail3', 'Tail4', 'Tail5', 'Tail6'];
 const TAIL = BONES.filter(name => name.startsWith('Tail'));
 // The tip of her snout in her Head bone's frame (measured on the model: the furthest vertex forward that the head carries alone), and
-// where a fish lies in her jaws and where it goes down her throat.
+// where a fish lies in her jaws (its nose just inside her mouth, its length out along her snout, so that it shows its side) and where it
+// goes down her throat.
 const SNOUT = new V3(2.79, -0.633, 0.026);
-const IN_JAWS = new V3(2.62, -0.66, 0);
+const MOUTH = new V3(2.5, -0.7, 0); // where its nose is
 const THROAT = new V3(1.55, -0.45, 0);
+/** Where the middle of a fish `size` metres long is in her jaws. */
+const inJaws = (size, out = new V3()) => out.set(MOUTH.x + size / 2, MOUTH.y, MOUTH.z);
 const FISH_LENGTH = 0.3; // the Fen's fish, in metres; it is drawn at size / FISH_LENGTH
 // Lying low (with the tuck at 0): the neck laid down and swung round to her right, to the bank's side, with the head resting on the ground
 // by her shoulder, so that her back hides it from the channel (the reed in front of her head is thin: the water there is deep). Pitch about
@@ -217,10 +220,14 @@ function makeRig(c) {
       TAIL.forEach((name, i) => {
         // her sail rides the tail's first three bones: they bend a little, the rest of the tail does the moving
         const wave = v.swim * [0.5, 1, 2, 5.5, 8.5, 11][i] * Math.sin(rig.beat - rad(46 * i));
-        const curl = v.curl * rig.side * rig.curlTotal * [0, 0.03, 0.06, 0.28, 0.33, 0.30][i];
-        turn(bones[name], -v.swim * 1.5 - Math.abs(v.curl) * 3, wave + curl);
+        const curl = v.curl * rig.side * rig.curlTotal * [0, 0.06, 0.1, 0.26, 0.29, 0.29][i];
+        // the tail points backward, so a turn about Z the other way than the neck's puts its end down: in the stroke it comes down to the
+        // water (and rises a little as it winds back)
+        const dip = [0, 1, 2, 17, 22, 22][i] * Math.max(0, v.curl) - [0, 0.5, 1, 2, 3, 3][i] * Math.max(0, -v.curl);
+        turn(bones[name], v.swim * 1.2 + dip, wave + curl);
       });
-      turn(bones.Hips, 0, v.swim * 1.4 * Math.sin(rig.beat + rad(40)));
+      // she tips her whole body back a little in the stroke, so that the end of her tail comes down to the water (the sail goes with it, whole)
+      turn(bones.Hips, 7 * v.curl, v.swim * 1.4 * Math.sin(rig.beat + rad(40)));
     }
     // the head thrown back after a catch
     turn(bones.Neck, 30 * v.toss);
@@ -326,13 +333,15 @@ function makeHeldFish(rig) {
     hold(size) {
       group.visible = true;
       group.scale.setScalar(size / FISH_LENGTH);
-      group.position.copy(IN_JAWS);
-      group.rotation.set(0, Math.PI / 2, 0); // its length across her snout, its back up
+      inJaws(size, group.position);
+      group.rotation.set(0, Math.PI, 0); // nose in, tail out along her snout, its back up
       held.size = size;
     },
-    /** It wriggles (its tail flexes) with `rate` beats a second. */
+    /** It wriggles: its tail flexes and flaps up and down, `rate` beats a second. */
     wriggle(rate = 3, amount = 1) {
-      if (flex !== undefined) mesh.morphTargetInfluences[flex] = amount * (0.5 + 0.5 * Math.sin(rad(360 * rate * rig.t)));
+      const beat = Math.sin(rad(360 * rate * rig.t));
+      if (flex !== undefined) mesh.morphTargetInfluences[flex] = amount * (0.5 + 0.5 * beat);
+      group.rotation.z = 0.22 * amount * beat;
     },
     hide() { group.visible = false; },
     size: 1,
@@ -426,9 +435,10 @@ export function* headUpWithFish(s, c) {
     yield s.wait(0.45);
     rig.animate('jaw', u => 9 * Math.sin(Math.PI * u), 0.45);
     const group = fish.group;
+    const held = inJaws(fish.size);
     for (let t = 0; t < 0.45; t += 1 / 30) {
       const k = smooth(t / 0.4);
-      group.position.lerpVectors(IN_JAWS, THROAT, k);
+      group.position.lerpVectors(held, THROAT, k);
       group.scale.setScalar((fish.size / FISH_LENGTH) * (1 - k));
       fish.wriggle(5);
       yield;
@@ -491,12 +501,13 @@ export function* catchFish(s, c, fish) {
     rig.tween('yaw', 0, back, smoother);
     const group = held.group;
     const size = (fish.size ?? 1) / FISH_LENGTH;
+    const held0 = inJaws(fish.size ?? 1);
     for (let t = 0; t < 0.9; t += 1 / 30) {
-      if (t < 0.12) group.position.lerpVectors(from, IN_JAWS, smooth(t / 0.12));
-      else if (t < 0.5) group.position.copy(IN_JAWS);
+      if (t < 0.12) group.position.lerpVectors(from, held0, smooth(t / 0.12));
+      else if (t < 0.5) group.position.copy(held0);
       else {
         const k = smooth((t - 0.5) / 0.35);
-        group.position.lerpVectors(IN_JAWS, THROAT, k);
+        group.position.lerpVectors(held0, THROAT, k);
         group.scale.setScalar(size * (1 - k));
       }
       held.wriggle(5);
@@ -631,12 +642,13 @@ export function* tailSplash(s, c, target) {
     const root = rig.actor.root;
     const local = root.worldToLocal(aimed.clone());
     rig.side = local.z >= 0 ? 1 : -1;
-    rig.curlTotal = 110;
+    rig.curlTotal = 150;
     rig.tween('curl', -0.25, 0.55, smooth); // winds back, away from him
     yield s.wait(0.6);
     rig.tween('curl', 1, 0.42, t => 1 - Math.pow(1 - clamp(t, 0, 1), 2)); // fast, then it hangs
     yield s.wait(0.22);
     const tip = rig.bones.Tail6.getWorldPosition(new V3());
+    tip.y = rig.baseAt(tip.x, tip.z); // the splash rises from the water under the end of her tail
     where();
     s.sfx('splash');
     spray(c.world, tip, aimed.clone(), { seed: 'tail splash' });
@@ -652,14 +664,16 @@ export function* tailSplash(s, c, target) {
 
 // The spray: drops of water thrown from `from` to land on `to`, small, pale and glinting like the drops off a wet neck (neck-ride.js).
 const SPRAY_LOOK = { glow: 1, falloff: 3.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.AdditiveBlending };
-function spray(world, from, to, { count = 30, seed = 'spray', seconds = 1.2 } = {}) {
-  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.11, colour: '#d8f1f4', seed, look: SPRAY_LOOK });
+function spray(world, from, to, { count = 56, seed = 'spray', seconds = 1.2 } = {}) {
+  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.24, colour: '#d8f1f4', seed, look: SPRAY_LOOK });
   set.birth.fill(1e6);
   const random = seededRandom(`${seed} ways`);
+  // the first quarter go straight up where the tail struck the water; the rest fly to the target and land on it
   const drops = Array.from({ length: count }, (_, i) => {
+    const start = from.clone().add(new V3((random() - 0.5) * 0.8, random() * 0.3, (random() - 0.5) * 0.8));
+    if (i < count / 4) return { p: start, v: new V3((random() - 0.5) * 1.6, 3 + 3 * random(), (random() - 0.5) * 1.6), born: (i / count) * 0.2, live: false, done: false };
     const flight = 0.8 + 0.5 * random();
     const goal = to.clone().add(new V3((random() - 0.5) * 1.6, (random() - 0.2) * 2.2, (random() - 0.5) * 1.6));
-    const start = from.clone().add(new V3((random() - 0.5) * 0.8, random() * 0.3, (random() - 0.5) * 0.8));
     const v = goal.clone().sub(start).divideScalar(flight);
     v.y += 0.5 * 9.8 * flight;
     return { p: start, v, born: (i / count) * 0.35, live: false, done: false };
