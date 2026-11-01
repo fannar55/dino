@@ -348,6 +348,9 @@ export const chapter = {
       keep(critters, critters.group);
     }
     if (place === null || place === 'siki') {
+      // the fish she holds in her jaws (hidden until she has one): its material is drawn here, not for the first time as she lifts her head
+      const held = world.chapterState?.uggedlaRig?.fish.group;
+      if (held) objects.push(held);
       // a red and a blue bush, as many as Síkið has (their shader is one a number of bushes: the Fen's warm-up does the same)
       const berries = createBerryBushes(world, { bushes: [{ kind: 'red', count: 1 }, { kind: 'red', count: 1 }, { kind: 'blue', count: 1 }].map((b, i) => ({ ...b, position: ground(2 + i, 2) })) });
       keep(berries, berries.group);

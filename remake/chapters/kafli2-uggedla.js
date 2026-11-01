@@ -132,7 +132,7 @@ function makeRig(c) {
     lunge: new V3(), // the lunge's whole way, from the station (horizontal)
     placed: { x: NaN, z: NaN, heading: NaN }, // what the rig put last, to tell a place() from outside
     target: null, // the point the strike reaches for (a Vector3, followed live)
-    reached: false, tip: new V3(), error: Infinity,
+    tip: new V3(), error: Infinity, // the tip of her snout now, and how far it is from the strike's target
     side: 1, curlTotal: 0, beat: 0, // the tail's curl: +1 to her right, its total turn; the swim's beat
     mover: null, // the swim, while she swims
     carrying: false, // Egill rides her (createBackSeat): her neck is down, on her wade clip, whatever she does
@@ -462,6 +462,12 @@ export function* catchFish(s, c, fish) {
   try {
     rig.commit();
     rig.actor.lookAt(null);
+    // a head that is still laid down (she has not lifted it yet) comes up first
+    if (rig.v.tuck < 0.99) {
+      rig.tween('tuck', 1, 0.9, smoother);
+      rig.tween('sink', Math.min(rig.v.sink, SINK.up), 0.9, smoother);
+      yield s.wait(0.9);
+    }
     const point = fish.point;
     rig.target = point;
     // the way to the fish: turn toward it, and lunge the rest of the way if it is beyond her reach
@@ -664,8 +670,8 @@ export function* tailSplash(s, c, target) {
 
 // The spray: drops of water thrown from `from` to land on `to`, small, pale and glinting like the drops off a wet neck (neck-ride.js).
 const SPRAY_LOOK = { glow: 1, falloff: 3.2, star: 0, twinkle: 0, rim: 1, vary: 1, core: '#ffffff', blending: THREE.AdditiveBlending };
-function spray(world, from, to, { count = 56, seed = 'spray', seconds = 1.2 } = {}) {
-  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.24, colour: '#d8f1f4', seed, look: SPRAY_LOOK });
+function spray(world, from, to, { count = 72, seed = 'spray', seconds = 1.2 } = {}) {
+  const set = glints(world, { count, life: 1.6, spread: 0, fall: 0, size: 0.34, colour: '#eefbfd', seed, look: SPRAY_LOOK });
   set.birth.fill(1e6);
   const random = seededRandom(`${seed} ways`);
   // the first quarter go straight up where the tail struck the water; the rest fly to the target and land on it

@@ -1168,3 +1168,11 @@ test('she lives in the water: rings by her, her sail swaying a little, nothing f
   const head = Math.max(...seen.heads.map(p => p.distanceTo(seen.heads[0])));
   assert.ok(head < 1.2, `and she stays where she lies (her head moves ${head.toFixed(2)} m)`);
 });
+
+test('the warm-up draws the fish she holds in her jaws, so that it is not first drawn as she lifts her head', async () => {
+  const { world } = await inSiki(function* (s) { yield s.wait(0.2); }, { limit: 5 });
+  const warm = kafli2.chapter.warmUp(world, { place: 'siki' });
+  const names = warm.objects.flatMap(root => { const n = []; root.traverse(o => n.push(o.name)); return n; });
+  assert.ok(names.includes('Uggeðla fish'), 'the fish is drawn in Síkið\'s warm-up');
+  warm.dispose();
+});
