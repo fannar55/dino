@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { seededRandom } from '../engine/random.js';
 import { KINDS, COPIES, makeDeck, kindOf } from '../engine/veiddu/cards.js';
 import { newGame, ask, fish, legalTargets, holds, isOver, winners } from '../engine/veiddu/rules.js';
-import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START } from '../engine/veiddu/minds.js';
+import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START, SEAT } from '../engine/veiddu/minds.js';
+import { createSpeech, GUARD_MS, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from '../engine/veiddu/speech.js';
+import { SAY, WHY, asking } from '../engine/veiddu/table.js';
 import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS, SPLASHES, splashFor, createSplash } from '../engine/veiddu/veiddu-sounds.js';
 import { EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
 import { createSfx } from '../engine/audio/sfx.js';
@@ -594,4 +596,257 @@ test('createSplash plays the right file at its level through the output, and onl
   const missing = createSplash({ context, urls });
   await withFetch(() => missing.load(), () => ({ ok: false, status: 404 }));
   assert.equal(missing.play(1), false, 'a splash that cannot be had is simply not heard');
+});
+
+// ---- The voices (speech.js) -------------------------------------------------------------------------------------------------
+
+const LINES_SOURCE = JSON.parse(fs.readFileSync(new URL('../assets/audio/veiddu/lines-source.json', import.meta.url), 'utf8'));
+const LINES_MADE = JSON.parse(fs.readFileSync(new URL('../assets/audio/lines.json', import.meta.url), 'utf8'));
+const WHY_REASONS = ['they-asked', 'mosi-asked', 'guess', 'fish'];
+const SEATS = [SEAT.child, SEAT.uggedla, SEAT.mosi];
+
+/** Every line id the table can ask for, with the words its bubble shows (null: the table shows none). */
+function tableLines() {
+  const out = [];
+  for (const kind of KINDS) {
+    out.push({ id: nameLine(kind.id), text: null });
+    for (const seat of SEATS) out.push({ id: askLine(seat, kind.id), text: asking(kind.id) });
+  }
+  for (const seat of SEATS) {
+    out.push({ id: answerLine(seat, 'yes'), text: seat === SEAT.child ? SAY.give : SAY.yes });
+    out.push({ id: answerLine(seat, 'no'), text: seat === SEAT.child ? SAY.childNo : SAY.no });
+    out.push({ id: answerLine(seat, 'lucky'), text: SAY.lucky });
+  }
+  out.push({ id: EMPTY_LINE, text: SAY.empty }, { id: NUDGE_LINE, text: SAY.nudge }, { id: HINT_LINE, text: SAY.giveHelp });
+  for (const reason of WHY_REASONS) out.push({ id: whyLine(reason), text: WHY[reason] });
+  for (const round of [1, 2]) for (const winners of [[0], [1], [2], [0, 1], [1, 2], [0, 1, 2]]) out.push({ id: endLine(winners, round), text: null });
+  return out;
+}
+
+test('every line the table can ask for is in the veiddu set, in the right voice, and its bubble says what the line says', () => {
+  const source = new Map(LINES_SOURCE.map(line => [line.id, line]));
+  const asked = tableLines();
+  for (const { id, text } of asked) {
+    const line = source.get(id);
+    assert.ok(line, `${id} is in lines-source.json`);
+    assert.equal(id.split('_')[1], line.speaker, `${id} is spoken by ${line.speaker}`);
+    if (text !== null) assert.equal(text, line.text, `${id}: the bubble and the voice say the same`);
+    const made = LINES_MADE[id];
+    assert.ok(made?.src && made.duration > 0 && made.mouth, `${id} is recorded, with a length and a mouth`);
+  }
+  // and every recorded line but the tutorial's (Task 7) is one the table asks for
+  const used = new Set(asked.map(line => line.id));
+  const unused = LINES_SOURCE.map(line => line.id).filter(id => !used.has(id) && !id.startsWith('veiddu_tut_'));
+  assert.deepEqual(unused, [], 'no recorded line is left unspoken');
+  assert.equal(nameLine('fiskur-graenn'), 'veiddu_egill_name_fiskur_graenn', 'the dash of a kind id is an underscore in a line id');
+  assert.equal(askLine(SEAT.uggedla, 'froskur'), 'veiddu_uggedla_ask_froskur');
+});
+
+test('the end of a round: a winner says "Ég vann!", the others take turns at "Þú vannst!", a tie is Mosi\'s', () => {
+  assert.equal(endLine([SEAT.uggedla], 1), 'veiddu_uggedla_won');
+  assert.equal(endLine([SEAT.mosi], 1), 'veiddu_mosi_won');
+  assert.equal(endLine([SEAT.child], 1), 'veiddu_uggedla_you_won');
+  assert.equal(endLine([SEAT.child], 2), 'veiddu_mosi_you_won');
+  assert.equal(endLine([SEAT.child], 3), 'veiddu_uggedla_you_won');
+  for (const winners of [[0, 1], [1, 2], [0, 1, 2]]) assert.equal(endLine(winners, 1), 'veiddu_mosi_tie');
+});
+
+test('priorities: Egill first, then Mosi\'s advice and the tutorial, then the asks and answers, then chatter', () => {
+  assert.equal(priorityOf('veiddu_egill_name_froskur'), 3);
+  assert.equal(priorityOf('veiddu_egill_ask_snigill'), 3);
+  assert.equal(priorityOf('veiddu_egill_yes'), 3);
+  for (const id of ['veiddu_mosi_why_guess', 'veiddu_mosi_why_they_asked', 'veiddu_mosi_give_hint', 'veiddu_tut_pick']) assert.equal(priorityOf(id), 2, id);
+  for (const id of ['veiddu_mosi_ask_froskur', 'veiddu_uggedla_ask_froskur', 'veiddu_mosi_yes', 'veiddu_uggedla_no', 'veiddu_mosi_lucky', 'veiddu_uggedla_empty', 'veiddu_mosi_won', 'veiddu_uggedla_you_won', 'veiddu_mosi_tie']) {
+    assert.equal(priorityOf(id), 1, id);
+  }
+  assert.equal(priorityOf('veiddu_uggedla_your_turn'), 0);
+  assert.equal(priorityOf('veiddu_mosi_ask_froskur') > priorityOf('veiddu_uggedla_your_turn'), true);
+  for (const { id } of tableLines()) assert.ok([0, 1, 2, 3].includes(priorityOf(id)), id);
+  assert.equal(isHers('veiddu_uggedla_empty'), true);
+  assert.equal(isHers('veiddu_mosi_ask_froskur'), false);
+});
+
+const SPEECH_LINES = {
+  veiddu_egill_name_froskur: { src: 'assets/n.mp3', duration: 1, mouth: '00ff' },
+  veiddu_egill_name_skjaldbaka: { src: 'assets/n2.mp3', duration: 1.2, mouth: '00ff' },
+  veiddu_uggedla_ask_froskur: { src: 'assets/ua.mp3', duration: 2, mouth: '00ff' },
+  veiddu_mosi_ask_froskur: { src: 'assets/ma.mp3', duration: 2, mouth: '00ff' },
+  veiddu_mosi_why_guess: { src: 'assets/w1.mp3', duration: 3, mouth: '00ff' },
+  veiddu_mosi_why_fish: { src: 'assets/w2.mp3', duration: 2.5, mouth: '00ff' },
+  veiddu_uggedla_your_turn: { src: 'assets/t.mp3', duration: 1.5, mouth: '00ff' },
+};
+
+/** Speech over a voice that plays nothing, a clock and timers that move only when told, and notes of what happened. */
+function rig(lines = SPEECH_LINES, options = {}) {
+  let now = 1000;
+  let nextTimer = 1;
+  const timers = [];
+  const played = [];
+  const ducks = [];
+  const heard = [];
+  let speaking = null;
+  let report;
+  const voice = {
+    play(src) {
+      if (silenced) return null;
+      played.push(src.replace('http://x/assets/', ''));
+      const was = speaking;
+      speaking = src;
+      if (!was) report(true);
+      return src;
+    },
+    stop() {
+      if (speaking === null) return;
+      speaking = null;
+      report(false);
+    },
+  };
+  let silenced = false;
+  Object.defineProperty(voice, 'muted', { get: () => silenced, set: value => { silenced = Boolean(value); if (silenced) voice.stop(); } });
+  const speech = createSpeech({
+    lines, base: 'http://x/', clock: () => now, makeVoice: ({ onSpeaking }) => { report = onSpeaking; return voice; },
+    setTimer: (fn, ms) => { timers.push({ id: nextTimer, at: now + ms, fn }); return nextTimer++; },
+    clearTimer: id => { const k = timers.findIndex(timer => timer.id === id); if (k >= 0) timers.splice(k, 1); },
+    onDuck: on => ducks.push(on), onLine: line => heard.push(line), ...options,
+  });
+  const advance = ms => {
+    const until = now + ms;
+    for (;;) {
+      timers.sort((a, b) => a.at - b.at);
+      if (!timers.length || timers[0].at > until) break;
+      now = timers[0].at;
+      timers.shift().fn();
+    }
+    now = until;
+  };
+  return { speech, played, ducks, heard, advance, ended: () => voice.stop(), get speaking() { return speaking !== null; } };
+}
+
+test('a line begins at once when nothing speaks, ducks the music, and its seconds come back', () => {
+  const r = rig();
+  assert.equal(r.speech.say('veiddu_uggedla_ask_froskur'), 2);
+  assert.deepEqual(r.played, ['ua.mp3']);
+  assert.deepEqual(r.ducks, [true]);
+  assert.equal(r.speech.talking, true);
+  assert.deepEqual(r.speech.current, { id: 'veiddu_uggedla_ask_froskur', priority: 1 });
+  assert.deepEqual(r.heard, [{ id: 'veiddu_uggedla_ask_froskur', line: SPEECH_LINES.veiddu_uggedla_ask_froskur, sound: true }], 'the mouth is told, with the line');
+  r.ended();
+  assert.deepEqual(r.ducks, [true, false], 'the music comes back');
+  assert.equal(r.speech.talking, false);
+  assert.equal(r.speech.current, null);
+});
+
+test('one voice at a time: a line asked for while another speaks waits its turn, and says how long that will be', () => {
+  const r = rig();
+  let started = 0;
+  assert.equal(r.speech.say('veiddu_uggedla_ask_froskur'), 2);
+  r.advance(500);
+  assert.equal(r.speech.say('veiddu_mosi_ask_froskur', { onStart: () => started++ }), 3.5, '1.5 s of the first left, then its own 2');
+  assert.deepEqual(r.played, ['ua.mp3'], 'it does not speak over the first');
+  assert.equal(started, 0);
+  r.ended();
+  assert.deepEqual(r.played, ['ua.mp3', 'ma.mp3'], 'it begins as the first ends');
+  assert.equal(started, 1, 'onStart runs as it begins');
+  assert.deepEqual(r.ducks, [true, false, true], 'the music dips again for it only after it dipped, never twice in a row');
+});
+
+test('lines waiting go in order of who matters: Egill, Mosi\'s advice, the game\'s asks, chatter', () => {
+  const r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur'); // sounding
+  r.speech.say('veiddu_uggedla_your_turn');
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.speech.say('veiddu_mosi_why_guess');
+  r.speech.say('veiddu_egill_name_froskur');
+  assert.equal(r.speech.waiting, 4);
+  for (let k = 0; k < 4; k++) r.ended();
+  assert.deepEqual(r.played, ['ua.mp3', 'n.mp3', 'w1.mp3', 'ma.mp3', 't.mp3']);
+  r.ended();
+  assert.equal(r.speech.talking, false);
+});
+
+test('a line that waited too long, or is no longer true, is dropped; a later piece of advice and a repeated line take the old one\'s place', () => {
+  const r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_egill_name_froskur', { within: 1000 }); // waits too long
+  r.speech.say('veiddu_egill_name_skjaldbaka', { still: () => false }); // no longer true
+  r.speech.say('veiddu_uggedla_your_turn', { still: () => true, within: 5000 }); // fine
+  r.advance(2000);
+  r.ended();
+  assert.deepEqual(r.played, ['ua.mp3', 't.mp3'], 'only the chatter that was still worth saying');
+  r.ended();
+  // advice: the newer one replaces the older one waiting
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.speech.say('veiddu_mosi_why_guess');
+  r.speech.say('veiddu_mosi_why_fish');
+  r.speech.say('veiddu_egill_name_froskur');
+  r.speech.say('veiddu_egill_name_froskur'); // asked twice: said once
+  assert.equal(r.speech.waiting, 2);
+  r.ended();
+  r.ended();
+  assert.deepEqual(r.played.slice(2), ['ma.mp3', 'n.mp3', 'w2.mp3']);
+});
+
+test('a line not recorded yet, or a muted game, is passed over: no sound, no time, and onStart at once', () => {
+  const r = rig();
+  let started = 0;
+  assert.equal(r.speech.say('veiddu_tut_pick', { onStart: () => started++ }), 0);
+  assert.equal(started, 1);
+  assert.deepEqual(r.heard, [{ id: 'veiddu_tut_pick', line: null, sound: false }], 'her mouth is told there is no recording');
+  assert.deepEqual(r.played, []);
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_mosi_ask_froskur'); // waiting
+  r.speech.muted = true;
+  assert.equal(r.speech.waiting, 0, 'muting drops what waits');
+  assert.equal(r.speech.talking, false, 'and stops what sounds');
+  assert.equal(r.speech.say('veiddu_mosi_ask_froskur', { onStart: () => started++ }), 0);
+  assert.equal(started, 2);
+  assert.equal(r.heard.at(-1).sound, false);
+  r.speech.muted = false;
+  assert.equal(r.speech.say('veiddu_mosi_ask_froskur'), 2, 'sound again');
+  assert.deepEqual(createSpeech({ muted: true, makeVoice: () => ({}) }).muted, true, 'a speech can begin muted');
+});
+
+test('a voice whose end never comes is stopped after its length and 1.5 s, and the next line goes on', () => {
+  const r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur'); // 2 s
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.advance(2000 + GUARD_MS - 10);
+  assert.deepEqual(r.played, ['ua.mp3'], 'not yet');
+  r.advance(20);
+  assert.deepEqual(r.played, ['ua.mp3', 'ma.mp3'], 'stopped, and the next begins');
+  r.ended();
+  r.advance(60000);
+  assert.equal(r.speech.talking, false, 'nothing is left going');
+});
+
+test('cut drops the chatter and stops it if it is sounding, and leaves everything else alone', () => {
+  const r = rig();
+  r.speech.say('veiddu_uggedla_your_turn');
+  assert.equal(r.speech.cut(0), true);
+  assert.equal(r.speech.talking, false);
+  r.speech.say('veiddu_egill_name_froskur');
+  r.speech.say('veiddu_uggedla_your_turn'); // waits
+  assert.equal(r.speech.cut(0), false, 'a name is not chatter');
+  assert.equal(r.speech.waiting, 0, 'but the chatter waiting is gone');
+  assert.equal(r.speech.talking, true);
+  r.ended();
+  r.speech.say('veiddu_mosi_why_guess');
+  assert.equal(r.speech.cut(2), true, 'Mosi\'s advice, when it has been taken');
+  assert.equal(r.speech.talking, false);
+});
+
+test('stop drops everything and silences the voice; hush leaves the one sounding to end by itself', () => {
+  const r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.speech.hush();
+  assert.equal(r.speech.waiting, 0);
+  assert.equal(r.speech.talking, true);
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.speech.stop();
+  assert.equal(r.speech.waiting, 0);
+  assert.equal(r.speech.talking, false);
+  assert.deepEqual(r.played, ['ua.mp3']);
+  r.advance(60000);
+  assert.deepEqual(r.played, ['ua.mp3'], 'the guard of the stopped line does not wake the next');
 });

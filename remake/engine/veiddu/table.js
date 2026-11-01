@@ -73,8 +73,8 @@ const NAME_WITHIN_MS = 2500; // and so is a name that has waited this long for t
  */
 export const lineMs = text => 1600 + 60 * [...text].length;
 
-const asking = kind => `Áttu ${KIND.get(kind).ask}?`;
-const SAY = {
+export const asking = kind => `Áttu ${KIND.get(kind).ask}?`;
+export const SAY = {
   yes: 'Já, gjörðu svo vel!', // a mind gives the card
   give: 'Gjörðu svo vel!', // and Egill does
   no: 'Nei! Farðu að veiða!', // a mind has not got it
@@ -85,7 +85,7 @@ const SAY = {
   giveHelp: 'Þú átt þetta dýr! Pikkaðu á það.', // Mosi, when the child has not found the card to give
 };
 /** Mosi's words for each reason bestAsk gives (minds.js). */
-const WHY = {
+export const WHY = {
   'they-asked': 'Uggeðla bað um þetta dýr. Spurðu hana!',
   'mosi-asked': 'Ég bað um þetta dýr. Spurðu mig!',
   guess: 'Enginn hefur beðið um neitt sem þú átt. Prófaðu eitthvað!',
