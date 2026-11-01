@@ -1,7 +1,7 @@
 // Chapter 2's Uggeðla alive (remake/chapters/kafli2.js, scenes 3, 4 and 6; docs/superpowers/specs/2026-10-31-kafli-2-bod-til-uggedlu-design.md,
 // sections 2 and 4): the movements the scenes ask of her. She is the Spinosaurus of the owner's model (14 m, a coral sail 7.3 m up), glad and
 // teasing, and she lives in the water of Síkið. Each movement is a generator for the scheduler (`yield*`), or a plain call:
-//   lieLow(c)                         she lies in the water at her reed, only her sail and her back over the reed, her neck laid down and
+//   lieLow(c)                         she lies in the water at her reed, only her sail over the reed, her neck laid down and
 //                                     her head tucked in on the bank's side (arriveInSiki calls it, and shows her)
 //   uggedlaLife(s, c)                 she breathes, blinks, her sail sways, her head looks about, rings and bubbles come by her
 //                                     (arriveInSiki starts it; it leaves the water alone while she swims, strikes or splashes)
@@ -63,8 +63,12 @@ const findBone = (model, name) => model.getObjectByName(name) ?? model.getObject
 // ---------------------------------------------------------------------------------------------
 // The numbers
 
-/** How far her root is under the water's surface: lying low in the reed, the sail risen, her head up, swimming. */
-export const SINK = { low: 2.1, sail: 1.0, up: 0.9, swim: 1.4 };
+/**
+ * How far her root is under the water's surface: lying low in the reed, the sail risen, her head up, swimming. Lying low is 3.25: her back
+ * is then 1.7 m over the water and only the top of her sail (4 m) is over the reed (the tests hold that every bit of her but the sail is
+ * behind two clumps of it from the cameras of the arrival, the sail, the star and the tall screen).
+ */
+export const SINK = { low: 3.25, sail: 1.0, up: 0.9, swim: 1.4 };
 /** The speed she swims at when a scene does not say, m/s; her wade clip's own matched speed is WADE_SPEED. */
 export const SWIM_SPEED = 1.1;
 export const WADE_SPEED = 0.52;
@@ -381,7 +385,7 @@ const herPlace = rig => ({ x: rig.actor.root.position.x, z: rig.actor.root.posit
 
 /**
  * She lies low in the water at her reed (arriveInSiki): her root SINK.low under the water, her neck laid down and her head tucked in on
- * the bank's side (LYING), so that her back, her tail and the top of her sail are all that show over the reed. She breathes on her idle
+ * the bank's side (LYING), so that nothing of her but the top of her sail shows over the reed. She breathes on her idle
  * clip. Shown, if she was hidden.
  */
 export function lieLow(c) {

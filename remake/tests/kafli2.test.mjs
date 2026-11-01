@@ -863,19 +863,65 @@ function herParts(her) {
 }
 
 const WATER_LEVEL = () => waterShape(SIKI_LAYOUT.water).level;
+/** Síkið's ground and the plants the forest deals it (planForest), once: the reed she lies behind is read from it. */
+let dealt = null;
+function sikiPlan() {
+  if (!dealt) {
+    const place = chapter.locations.siki, world = { chapter };
+    const { layout, terrain } = shapeGround(world, { ...place.layout, shots: place.shots }, place.layout.seed);
+    const plan = planForest({ world, layout, seed: place.layout.seed, terrain, library: createSpeciesLibrary(place.layout.seed), q: PRESETS.tablet });
+    dealt = { layout, terrain, plan };
+  }
+  return dealt;
+}
 /**
  * How high the reed wall she lies behind stands: the median top of the clumps of it within 7 m of her middle (the place's own reed, the
  * rows toward the channel: scale 2 and over), as the forest deals them (planForest: each clump's height is its model's, times its scale).
  */
 function reedTop() {
-  const place = chapter.locations.siki, world = { chapter };
-  const { layout, terrain } = shapeGround(world, { ...place.layout, shots: place.shots }, place.layout.seed);
-  const plan = planForest({ world, layout, seed: place.layout.seed, terrain, library: createSpeciesLibrary(place.layout.seed), q: PRESETS.tablet });
+  const { layout, plan } = sikiPlan();
   const wall = new Set(layout.plants.filter(p => p.name === 'horsetailReed' && p.scale >= 2).map(p => [p.position[0], p.position[1]].join()));
   const [hx, hz] = xz(UGGEDLA_REED);
   const tops = plan.placements.filter(p => p.name === 'horsetailReed' && wall.has([p.x, p.z].join()) && Math.hypot(p.x - hx, p.z - hz) < 7).map(p => p.y + p.model.height * p.scale).sort((x, y) => x - y);
   assert.ok(tops.length >= 20, `${tops.length} clumps of the wall near her`);
   return tops[Math.floor(tops.length / 2)];
+}
+
+/**
+ * What one camera of Síkið can see of her, her sail apart, through the reed and over the ground: of every vertex of her skin that is in
+ * the picture and above the ground, how many of the place's reed clumps stand between the camera and it (a clump is the cylinder its
+ * dense lower part fills: 0.5 of its radius, 0.8 of its height). A vertex with fewer than two between is "showing". `parts` is herParts.
+ */
+function showingFrom(parts, shot, aspect = 1.6) {
+  const { plan, terrain } = sikiPlan();
+  const [hx, hz] = xz(UGGEDLA_REED);
+  const clumps = plan.placements.filter(p => p.name === 'horsetailReed' && Math.hypot(p.x - hx, p.z - hz) < 16)
+    .map(p => ({ x: p.x, z: p.z, r: p.model.radius * p.scale * 0.5, top: p.y + p.model.height * p.scale * 0.8 }));
+  const camera = new THREE.PerspectiveCamera(shot.fov, aspect, 0.1, 1200);
+  camera.position.set(...shot.position);
+  camera.lookAt(new V3(...shot.target));
+  camera.updateMatrixWorld(true);
+  const eye = camera.position, v = new V3(), ndc = new V3();
+  let visible = 0, showing = 0, highest = -Infinity;
+  for (const i of parts.rest) {
+    parts.mesh.getVertexPosition(i, v).applyMatrix4(parts.mesh.matrixWorld);
+    if (v.y < terrain.heightAt(v.x, v.z) - 0.02) continue; // under the ground
+    ndc.copy(v).project(camera);
+    if (ndc.z > 1 || Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1) continue; // not in the picture
+    visible++;
+    let between = 0;
+    const [dx, dz] = [v.x - eye.x, v.z - eye.z];
+    const length2 = dx * dx + dz * dz;
+    for (const c of clumps) {
+      const t = ((c.x - eye.x) * dx + (c.z - eye.z) * dz) / length2; // where along the way, in the ground's plane, the clump's axis is nearest
+      if (t <= 0 || t >= 0.995) continue;
+      if (Math.hypot(eye.x + dx * t - c.x, eye.z + dz * t - c.z) > c.r) continue;
+      if (eye.y + (v.y - eye.y) * t > c.top) continue; // the way goes over it
+      between++;
+    }
+    if (between < 2) { showing++; highest = Math.max(highest, v.y); }
+  }
+  return { visible, showing, highest };
 }
 
 /** The chapter's own cast and state as Síkið leaves them (kafli2.js's script makes the same), then `play(s, c)`. */
@@ -903,6 +949,9 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
 
 // The reel: she lies low, the sail rises, her head comes up with a fish, three fish are caught in the air at three heights, Egill floats
 // onto her back and she swims with him along the ferry line, Mosi wading beside her, and flicks a splash at him with her tail.
+// The cameras of the scenes where she lies low: the arrival, the sail over the reed (and the tall screen's), the flooded path (which
+// looks away from her) and the star's low shot.
+const LYING_SHOTS = ['siki_arrive', 'siki_sail', 'siki_flooded', 'siki_star', 'siki_portrait'];
 const CATCHES = [
   { spot: 0, up: 0.5, size: 1.0 }, // low, a big fish
   { spot: 3, up: 1.4, size: 1.0 },
@@ -980,7 +1029,10 @@ function reel() {
         if (phaseName?.startsWith('catch')) seen.jaw.catches = Math.max(seen.jaw.catches, jawAngle);
         // the end of the lying phase: her highest bit that is not sail, and the sail's
         if (phaseName === 'lying' && t > 2.8 && !seen.lying) {
-          seen.lying = { rest: parts.top(parts.rest), sail: parts.top(parts.sail), reed: reedTop() };
+          seen.lying = {
+            rest: parts.top(parts.rest), sail: parts.top(parts.sail), reed: reedTop(),
+            showing: Object.fromEntries(LYING_SHOTS.map(name => [name, showingFrom(parts, SIKI_SHOTS[name])])),
+          };
         }
         // the moment a fish is caught: how far her snout's tip is from it
         for (const record of seen.catches) {
@@ -1013,15 +1065,23 @@ const phaseOf = (seen, name) => {
 };
 const during = (seen, name) => { const { from, to } = phaseOf(seen, name); return seen.frames.filter(f => f.t >= from && f.t < to); };
 
-test('Uggeðla lies low in her reed: nothing of her shows over it but the top of her sail', async () => {
+test('Uggeðla lies low in her reed: nothing of her shows from the cameras of the scenes but her sail', async () => {
   const { run, seen } = await reel();
   assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
   assert.equal(run.task.done, true, `the reel was still going at ${run.stage.s.time.toFixed(1)} s`);
   const her = run.world.actors.get('uggedla');
   assert.equal(her.root.visible, true, 'she is there to be seen');
-  assert.ok(seen.lying.rest < seen.lying.reed - 0.2, `her back, head and tail reach ${seen.lying.rest.toFixed(2)} m, under the reed wall's middle height, ${seen.lying.reed.toFixed(2)} m`);
-  assert.ok(seen.lying.sail > seen.lying.reed + 1.5, `but her sail reaches ${seen.lying.sail.toFixed(2)} m, well over it`);
+  assert.ok(seen.lying.rest < seen.lying.reed - 0.8, `her back, head and tail reach ${seen.lying.rest.toFixed(2)} m, well under the reed wall's middle height, ${seen.lying.reed.toFixed(2)} m`);
+  assert.ok(seen.lying.sail > seen.lying.reed + 0.7, `but her sail reaches ${seen.lying.sail.toFixed(2)} m, over it`);
   assert.equal(seen.jaw.lying < 1, true, 'her mouth is shut');
+  // From each camera that has her in the picture, no bit of her but the sail is in plain sight: every vertex of her skin that is there
+  // and over the ground has two clumps of the reed between it and the camera, but a sliver (not one in a hundred).
+  const cameras = LYING_SHOTS.filter(name => seen.lying.showing[name].visible > 0);
+  assert.ok(cameras.length >= 4, `her sail is in the picture of ${cameras.join(', ')}`);
+  for (const name of cameras) {
+    const { visible, showing, highest } = seen.lying.showing[name];
+    assert.ok(showing <= visible * 0.01, `${name}: ${showing} of ${visible} bits of her body show through the reed, up to ${highest.toFixed(2)} m`);
+  }
 });
 
 test('the sail rises out of the reed in four seconds, rustling, and stays up', async () => {

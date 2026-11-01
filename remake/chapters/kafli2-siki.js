@@ -25,9 +25,13 @@
 //     hanging over bare mud;
 //   - the clearing is 34 m in radius round (17.3, 8.7), not the Fen's 24 round the origin: the grass grows only within 38 m of the
 //     clearing's middle (grass.js), and the place is 70 m long; the path is 14 m long before the water (the walk is 12 s);
-//   - the reed is a wall of clumps a metre apart, the rows toward the channel 3 to 4.9 m tall (85 clumps: a denser wall cost 60k
-//     triangles, over the tablet's 250k in the sail, fishing and star shots), where the Fen's own reed (a clump a metre or more apart,
-//     1.5 to 2.2 m tall) left her in plain sight; and one mist, not two: each card is additive over the water, most of a wide shot;
+//   - the reed is a wall of clumps a metre apart, the rows toward the channel 3 to 4.9 m tall, where the Fen's own reed (a clump a metre
+//     or more apart, 1.5 to 2.2 m tall) left her in plain sight; and one mist, not two: each card is additive over the water, most of a
+//     wide shot. The wall is four rows deep in front of her back and sail, and she lies 3.25 m under the water (kafli2-uggedla.js:
+//     SINK.low), so that two clumps stand between every camera of the lying-low scenes and every bit of her but her sail (the owner:
+//     only the sail shows, as a boat's). Two rows stand on the water's edge, two more out in the shallows (0.75 to 1.3 m of water deep);
+//     nothing stands behind her, where the clumps were no use and cost the triangles of the new rows. 69 clumps, the star shot 230k
+//     triangles, the ferry's first shot 246k (the tablet's limit is 250k);
 //   - Þórseðla is 27 m beyond the hummocks, not 90 to 110: at 107 m, and still at 84, the look's haze took her colour and she
 //     was a pale ghost from the ferry (fix round 1: the owner could not tell her neck and head from the mist); from the ferry's cameras
 //     at the end of its way (12 m behind Mosi) she is 45 m off now (60 m off she read, but pale), east of its heading by 20 degrees so that she stands clear of Mosi
@@ -116,9 +120,9 @@ const alongHer = metres => {
 
 /**
  * The reed bed she lies in: dense golden horsetail reed over the ellipse round her middle, 21 m along her and 12 across, where the
- * water is not deeper than 0.75 m: a clump every metre, 3 to 4.9 m tall (scale 2 to 2.25), in the rows toward the channel, and
- * 2.3 to 4 m tall, 2 m apart behind her; and a few tall horsetails (3 to 5 m) behind it. From the near bank, a camera at a child's
- * height sees reed to the tops of her back and her sail standing out of it.
+ * water is not deeper than 1.3 m: a clump every metre, 3 to 4.9 m tall (scale 2 to 2.25), in the four rows toward the channel (the two
+ * outer ones only along her 17 m, tail to snout), and 2.3 to 4 m tall, 2 m apart behind her; and a few tall horsetails (3 to 5 m)
+ * behind it. From the near bank, a camera at a child's height sees reed to over her back and her sail standing out of it.
  */
 function reedBed() {
   const random = seededRandom('siki reed bed');
@@ -126,16 +130,27 @@ function reedBed() {
   const h = rad(UGGEDLA_REED.heading);
   const along = [Math.cos(h), Math.sin(h)], across = [-Math.sin(h), Math.cos(h)];
   const plants = [];
-  // the rows toward the channel are the wall she is hidden behind: close together and a head taller than the rest (scale 2 to
-  // 2.25: 3 to 4.9 m); the rest, behind her where nobody looks, stand twice as far apart
+  // The wall she is hidden behind, in four rows toward the channel. The two on the water's edge (0.75 m of water or less) stand all along
+  // her 21 m, a clump a metre, 3 to 4.9 m tall (scale 2 to 2.25), close together and a head taller than the Fen's own reed.
   for (let u0 = -10.5; u0 <= 10.5; u0 += 1.0) {
-    for (let v0 = -6; v0 <= 6; v0 += v0 < 0.8 ? 1.0 : 2.4) {
+    for (let v0 = -6; v0 <= 0; v0 += 1.0) {
       const u = u0 + (random() - 0.5) * 0.4, v = v0 + (random() - 0.5) * 0.4;
       if ((u / 10.5) ** 2 + (v / 6) ** 2 > 1) continue;
       const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
       if (depthAt(p) > 0.75) continue;
-      const wall = v < 0.8;
-      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(wall ? 2.0 + random() * 0.25 : 1.5 + random() * 0.3) });
+      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(2.0 + random() * 0.25) });
+    }
+  }
+  // The two in front of them, out in the shallows (0.75 to 1.3 m of water), 14 m of her, from her tail to her chest and sail: lying low
+  // her back, 1.7 m over the water, is behind four clumps of reed from the bank, not two. Nothing stands behind her: the clumps there
+  // were no use (she lay in front of them) and cost the triangles of these, over the tablet's 250k in the ferry's first shots.
+  const front = seededRandom('siki reed bed front');
+  for (let u0 = -6.5; u0 <= 5.5; u0 += 1.0) {
+    for (const v0 of [-3, -2]) {
+      const u = u0 + (front() - 0.5) * 0.4, v = v0 + (front() - 0.5) * 0.4;
+      const p = [round2(hx + along[0] * u + across[0] * v), round2(hz + along[1] * u + across[1] * v)];
+      if (depthAt(p) > 1.3) continue;
+      plants.push({ name: 'horsetailReed', position: p, variant: plants.length % 4, scale: round2(2.0 + front() * 0.25) });
     }
   }
   for (let tries = 0, tall = 0; tries < 300 && tall < 6; tries++) {
