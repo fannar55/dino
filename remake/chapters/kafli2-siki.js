@@ -28,10 +28,10 @@
 //   - the reed is a wall of clumps a metre apart, the rows toward the channel 3 to 4.9 m tall (85 clumps: a denser wall cost 60k
 //     triangles, over the tablet's 250k in the sail, fishing and star shots), where the Fen's own reed (a clump a metre or more apart,
 //     1.5 to 2.2 m tall) left her in plain sight; and one mist, not two: each card is additive over the water, most of a wide shot;
-//   - Þórseðla is 36 m beyond the hummocks, not 90 to 110: at 107 m, and still at 84, the look's haze took her colour and she was a pale
-//     ghost from the ferry (fix round 1: the owner could not tell her neck and head from the mist); from the end of the ferry's way she
-//     is 40 to 60 m off now, east of its heading by 20 degrees so that she stands clear of Mosi in the hummocks' shot, behind the berry
-//     bushes. Her trees stay lower than her head: a row of conifers 4.2 to 5 m tall along her near side, so that from the ferry her
+//   - Þórseðla is 27 m beyond the hummocks, not 90 to 110: at 107 m, and still at 84, the look's haze took her colour and she
+//     was a pale ghost from the ferry (fix round 1: the owner could not tell her neck and head from the mist); from the ferry's cameras
+//     at the end of its way (12 m behind Mosi) she is 45 m off now (60 m off she read, but pale), east of its heading by 20 degrees so that she stands clear of Mosi
+//     in the hummocks' shot, beside the berry bushes; ferry_back's lens is 40 degrees, not 46, to show her larger. Her trees stay lower than her head: a row of conifers 4.2 to 5 m tall along her near side, so that from the ferry her
 //     neck and head stand out over them, the 8.5 m one she bites, and six of 6.5 to 8 m some way behind her, so that her back has green
 //     behind it, not haze. siki_hummocks looks south from the bank above the pool (it looked north-east from the south-west, away from her);
 //   - the layout's static shots are kept clear for a tall screen too (tall: 0.6, world/forest/plan.js): the director keeps the 16:10
@@ -101,7 +101,7 @@ export const HUMMOCK = { position: [49.2, 0, 27.6], heading: 215 };
 /** Where she stops in the pool at the end, beside the hummock. */
 export const UGGEDLA_DROP = { position: [40.2, 0, 23.6], heading: 80 };
 /** Þórseðla, far off beyond the hummocks in the way the ferry goes, among low swamp conifers, biting the top of the one she faces. */
-export const THORSEDLA_FAR = { position: [66, 0, 60], heading: -15 };
+export const THORSEDLA_FAR = { position: [60, 0, 52], heading: -15 };
 
 // ---------------------------------------------------------------------------------------------
 // The plants the layout places itself (world/forest/plan.js: growFen places these first, and where it says); the Fen's own passes fill
@@ -271,7 +271,7 @@ export const SIKI_SHOTS = {
   // From the front, over the water: her head, Egill on her back and the sail over him.
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [13, 1.5, 4.2], local: true }, target: { actor: 'uggedla', offset: [2, 1.6, 0] }, fov: 46 },
   // From behind and above, over her sail: where she is going, and Þórseðla's head over the trees.
-  ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 46 },
+  ferry_back: { position: { actor: 'mosi', part: 'feet', offset: [-12, 4.6, 4.2], local: true }, target: 'thorsedla.head', fov: 40 },
   // The end of the channel, from the dry bank north of the pool, looking south over it the way the ferry goes: Uggeðla in the pool on
   // the right, Mosi coming up out of the water onto the hummock, the berry bushes beside him, and at the left Þórseðla's neck and head
   // over her trees.
