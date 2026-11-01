@@ -15,7 +15,8 @@ game and tool in `remake/`.
   IPA in `"/.../"`, a respelling, another seed. A fix that wins for a word goes into the book as a recipe of that word, and becomes
   its `chosen` when the owner agrees (or the second time it wins). A line that keeps its own `say` or `context` must say what it
   fixes in `"fixes"`: the book word id(s), `"punctuation"`, or `"line"` with a note that says it fixes the whole line. A word with
-  no entry gets one (`"chosen": null`, a `"hratt"` recipe) so no request changes.
+  no entry gets one with a `"hratt"` recipe, so no request changes: `"chosen": "hratt"` when the owner has approved its other
+  lines as written, `null` only while he has not heard it at all.
 - **Keep his verdicts.** After he saves a yes/no page (`jano-<set>.json`), import it and commit the file it writes:
   `node remake/tools/heard.mjs <jano.json> [--made <the checkout's voices-made.json, as it was when he listened>]`. A rejected
   request cannot be made again; `--plan` lists the shipped lines to redo.

@@ -1928,10 +1928,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "hittum": {
       "word": "hittum",
@@ -1942,10 +1942,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "skjaldbaka": {
       "word": "Skjaldbaka",
@@ -1961,10 +1961,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "salamandra": {
       "word": "Salamandra",
@@ -1978,10 +1978,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "eins": {
       "word": "eins",
@@ -1991,10 +1991,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "va": {
       "word": "Vá",
@@ -2004,10 +2004,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "tvo": {
       "word": "Tvö",
@@ -2018,10 +2018,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "thrju": {
       "word": "Þrjú",
@@ -2032,10 +2032,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "fimm": {
       "word": "Fimm",
@@ -2046,10 +2046,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "jafntefli": {
       "word": "Jafntefli",
@@ -2059,10 +2059,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     },
     "alvoruleikur": {
       "word": "alvöruleikur",
@@ -2073,10 +2073,10 @@
       ],
       "recipes": {
         "hratt": {
-          "note": "Sent eins og það er skrifað. Ekkert valið enn: orðið fékk sérlausn á einni línu (hún ber \"fixes\"), sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry."
+          "note": "Sent eins og það er skrifað: eigandinn hefur samþykkt setningarnar með orðinu þannig. Sérlausn aðeins á línum sem bera \"fixes\" (sjá „Sérlausnir annars staðar“ í bókinni og voice-lines.mjs --dry)."
         }
       },
-      "chosen": null
+      "chosen": "hratt"
     }
   }
 }
