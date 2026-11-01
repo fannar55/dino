@@ -278,7 +278,11 @@ export const SIKI_SHOTS = {
   // Still, from the bank behind Mosi and 7 m up, looking down on the stretch of channel the fish jump in (the open water in front of her, with
   // the water behind a fish, not the reed): Mosi and Egill on the bank at the left, her in the reed beyond. The fish are 50 to 70 px to the
   // metre on a 1280x800 screen, 32 to 44 on a tablet held upright (the director keeps the 16:10 width): a tap target is 2.2 m in radius.
-  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(6.8, -1.2, 1.0), fov: 48 },
+  // The lens is 46 degrees and the aim 3.5 degrees to the left and 0.3 m higher than it was (48 and 6.8, -1.2, 1.0). Þórseðla, 85 m off beyond the frame's
+  // right edge, had a bone in the view and was drawn (her 29k triangles, body and shadow, took the shot to 271k, over the tablet's 250k);
+  // all of her is out of it now (the right edge is 30.7 degrees off the aim, and she comes in at 33.3: 2.3 degrees to spare): 246k, and the
+  // whole of Uggeðla, her sail and her tail, still in the picture. Mosi, Egill and she are 5 % larger. Plants are the same as before.
+  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(6.3, -0.6, 1.3), fov: 46 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 44 },
   // Low, looking up at her sail against the sky, where the star rises from its top.
