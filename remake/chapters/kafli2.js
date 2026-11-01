@@ -296,13 +296,16 @@ export const chapter = {
       warmUp: ['siki_arrive', 'siki_sail', 'siki_hummocks'],
     },
   },
+  // The order they are made in is the order they are updated in (main.js's updateActors puts those that something else moves after the
+  // rest, in this order): Uggeðla, who is moved by her rig (kafli2-uggedla.js), comes before Egill, who rides her in the ferry, so that
+  // he sits where she is in the same frame.
   actors: {
     mosi: { url: '../assets/characters/mosi.glb', ...MOSI_GLADE },
-    egill: { url: '../assets/characters/egill.glb', ...MOSI_GLADE }, // on Mosi's back: the script seats him in the saddle
-    kambedla: { url: '../assets/characters/stegosaurus.glb', ...KAMBEDLA_GLADE },
     // Síkið's two, hidden until the scene comes there (the script hides them as it starts): where Síkið has them
     uggedla: { url: '../assets/characters/spinosaurus.glb', ...UGGEDLA_REED },
     thorsedla: { url: '../assets/characters/brontosaurus.glb', ...THORSEDLA_FAR },
+    egill: { url: '../assets/characters/egill.glb', ...MOSI_GLADE }, // on Mosi's back: the script seats him in the saddle
+    kambedla: { url: '../assets/characters/stegosaurus.glb', ...KAMBEDLA_GLADE },
   },
   // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3).
   cast: {

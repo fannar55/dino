@@ -43,6 +43,7 @@ import { seededRandom } from '../engine/random.js';
 import { waterShape } from '../world/props/water.js';
 import { createBerryBushes } from '../world/props/berries.js';
 import { thorsedlaLife } from './kafli3-thorsedla.js';
+import { lieLow, uggedlaLife } from './kafli2-uggedla.js';
 
 // ---------------------------------------------------------------------------------------------
 // The frame
@@ -308,7 +309,8 @@ export function arriveInSiki(s, c) {
   const [sx, sz] = SIKI_PATH[0], [nx, nz] = SIKI_PATH[1];
   mosi.place(sx, sz, bearing([sx, sz], [nx, nz]));
   uggedla.place(UGGEDLA_REED.position[0], UGGEDLA_REED.position[2], UGGEDLA_REED.heading);
-  uggedla.raw.root.visible = false; // lies low in the reed; her pose is the next task's
+  lieLow(c); // lies low in the reed, only her sail over it (kafli2-uggedla.js), shown from here on
+  uggedlaLife(s, c); // and breathes, her sail swaying, rings by her
   thorsedla.raw.root.visible = true;
   thorsedla.place(THORSEDLA_FAR.position[0], THORSEDLA_FAR.position[2], THORSEDLA_FAR.heading);
   c.berries = berriesAtTheHummocks(world);

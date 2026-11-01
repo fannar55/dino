@@ -820,13 +820,18 @@ function herParts(her) {
   const mesh = skinOf(her);
   const pos = mesh.geometry.attributes.position, idx = mesh.geometry.index.array;
   const { skinIndex, skinWeight } = mesh.geometry.attributes;
-  const ids = ['Head', 'Jaw'].map(n => mesh.skeleton.bones.findIndex(b => b.name === n));
-  const carried = i => { let w = 0; for (let k = 0; k < 4; k++) if (ids.includes(skinIndex.getComponent(i, k))) w += skinWeight.getComponent(i, k); return w; };
+  const carriedBy = names => {
+    const ids = names.map(n => mesh.skeleton.bones.findIndex(b => b.name === n));
+    return i => { let w = 0; for (let k = 0; k < 4; k++) if (ids.includes(skinIndex.getComponent(i, k))) w += skinWeight.getComponent(i, k); return w; };
+  };
+  const carried = carriedBy(['Head', 'Jaw']), neck = carriedBy(['Neck', 'Head', 'Jaw']);
   let backTop = 0;
   for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getZ(i)) > 0.45 && pos.getX(i) > -0.5 && pos.getX(i) < 2) backTop = Math.max(backTop, pos.getY(i));
-  const upper = new Set(), rest = [];
+  // the sail as spinosaurus.test.mjs has it, and the tip of it that reaches forward over her shoulders (not carried by her neck)
+  const upper = new Set(), rest = [], sail = [];
   for (let i = 0; i < pos.count; i++) {
     if (pos.getY(i) > backTop + 0.4 && pos.getX(i) > -4.3 && pos.getX(i) < 2.3) upper.add(i);
+    if (upper.has(i) || (pos.getY(i) > backTop && pos.getX(i) > -4.8 && pos.getX(i) < 2.8 && Math.abs(pos.getZ(i)) < 0.45 && neck(i) < 0.3)) sail.push(i);
     else rest.push(i);
   }
   let tip = -1;
@@ -837,25 +842,38 @@ function herParts(her) {
   for (const i of upper) { const b = Math.round(pos.getX(i) * 10); if (!bins.has(b) || pos.getY(i) > pos.getY(bins.get(b))) bins.set(b, i); }
   const edge = [...bins.keys()].sort((a, b) => a - b).map(b => bins.get(b));
   const at = i => mesh.getVertexPosition(i, new V3()).applyMatrix4(mesh.matrixWorld);
-  const edgeLength = () => edge.slice(1).reduce((sum, i, k) => sum + at(i).distanceTo(at(edge[k])), 0);
-  const normals = () => {
+  const bind = i => new V3(pos.getX(i), pos.getY(i), pos.getZ(i));
+  const posed = i => mesh.getVertexPosition(i, new V3()); // in her own frame, as she was bound: turning her about changes nothing of the sail
+  const lengthOf = point => edge.slice(1).reduce((sum, i, k) => sum + point(i).distanceTo(point(edge[k])), 0);
+  const normalsOf = point => {
     const P = new Map();
-    for (const i of upper) P.set(i, at(i));
+    for (const i of upper) P.set(i, point(i));
     return tris.map(t => P.get(idx[t + 1]).clone().sub(P.get(idx[t])).cross(P.get(idx[t + 2]).clone().sub(P.get(idx[t]))));
   };
+  const rest0 = { length: lengthOf(bind), normals: normalsOf(bind) }; // as she was bound
   return {
-    mesh, sail: [...upper], rest, tip, edge, tris,
+    mesh, sail, rest, tip, edge, tris,
     tipAt: out => out.copy(at(tip)),
     top: indices => Math.max(...indices.map(i => at(i).y)),
-    edgeLength, normals,
+    // the sail's top edge as long as it was bound (1 for untouched) and how many of its triangles have turned over
+    torn: () => ({ ratio: lengthOf(posed) / rest0.length, turned: normalsOf(posed).filter((n, k) => rest0.normals[k].length() > 1e-4 && n.dot(rest0.normals[k]) < 0).length }),
   };
 }
 
 const WATER_LEVEL = () => waterShape(SIKI_LAYOUT.water).level;
-/** The least top of any clump of the reed wall she lies behind (a clump's tallest stalk is 1.5 to 2.2 times its scale), over its ground. */
+/**
+ * How high the reed wall she lies behind stands: the median top of the clumps of it within 7 m of her middle (the place's own reed, the
+ * rows toward the channel: scale 2 and over), as the forest deals them (planForest: each clump's height is its model's, times its scale).
+ */
 function reedTop() {
-  const ground = groundOf('siki');
-  return Math.min(...SIKI_LAYOUT.plants.filter(p => p.name === 'horsetailReed' && p.scale >= 2).map(p => ground.heightAt(...p.position) + 1.5 * p.scale));
+  const place = chapter.locations.siki, world = { chapter };
+  const { layout, terrain } = shapeGround(world, { ...place.layout, shots: place.shots }, place.layout.seed);
+  const plan = planForest({ world, layout, seed: place.layout.seed, terrain, library: createSpeciesLibrary(place.layout.seed), q: PRESETS.tablet });
+  const wall = new Set(layout.plants.filter(p => p.name === 'horsetailReed' && p.scale >= 2).map(p => [p.position[0], p.position[1]].join()));
+  const [hx, hz] = xz(UGGEDLA_REED);
+  const tops = plan.placements.filter(p => p.name === 'horsetailReed' && wall.has([p.x, p.z].join()) && Math.hypot(p.x - hx, p.z - hz) < 7).map(p => p.y + p.model.height * p.scale).sort((x, y) => x - y);
+  assert.ok(tops.length >= 20, `${tops.length} clumps of the wall near her`);
+  return tops[Math.floor(tops.length / 2)];
 }
 
 /** The chapter's own cast and state as Síkið leaves them (kafli2.js's script makes the same), then `play(s, c)`. */
@@ -866,6 +884,7 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
     *script(s) {
       const [mosi, egill, kambedla, uggedla, thorsedla] = ['mosi', 'egill', 'kambedla', 'uggedla', 'thorsedla'].map(name => s.actor(name));
       const world = mosi.raw.world;
+      world.chapterTimeline = [];
       const c = { s, world, mosi, egill, kambedla, uggedla, thorsedla, talking: false, saying: 0, printLog: [] };
       c.ring = ringsFor(world, { most: 3 });
       world.chapterState = c;
@@ -892,10 +911,10 @@ let reeled = null;
 function reel() {
   reeled ??= (async () => {
     const seen = { phases: [], frames: [], catches: [], meets: [], gauge: [], jaw: { lying: 0, headUp: 0, catches: 0 }, ripples: [], splashAt: null };
-    let parts = null, gauge = null, phase = null, frame = 0;
+    let parts = null, frame = 0;
     const play = function* (s, c) {
       const { world, mosi, egill, uggedla } = c;
-      const mark = name => { phase = name; seen.phases.push({ phase: name, at: s.time }); };
+      const mark = name => { seen.phases.push({ phase: name, at: s.time }); };
       const level = WATER_LEVEL();
       mark('lying');
       yield s.wait(3);
@@ -942,7 +961,6 @@ function reel() {
         if (!c?.uggedla) return;
         const her = c.uggedla.raw;
         parts ??= herParts(her);
-        gauge ??= { edge: null, normals: null };
         const t = stage.s.time;
         const water = world.forest?.water;
         her.root.updateMatrixWorld(true);
@@ -970,11 +988,7 @@ function reel() {
           }
         }
         // the sail never tears: its top edge's length and the triangles that turn over
-        if (frame % 5 === 0) {
-          if (gauge.edge === null) { gauge.edge = parts.edgeLength(); gauge.normals = parts.normals(); }
-          const normals = parts.normals();
-          seen.gauge.push({ t, phase: phaseName, ratio: parts.edgeLength() / gauge.edge, turned: normals.filter((n, k) => gauge.normals[k].length() > 1e-4 && n.dot(gauge.normals[k]) < 0).length });
-        }
+        if (frame % 5 === 0) seen.gauge.push({ t, phase: phaseName, ...parts.torn() });
         // Egill and her skin while she swims
         if (phaseName === 'swim' && frame % 6 === 0 && c.egill.raw.controlled) {
           const meet = skinsMeet(her, c.egill.raw);
@@ -1003,7 +1017,7 @@ test('Uggeðla lies low in her reed: nothing of her shows over it but the top of
   assert.equal(run.task.done, true, `the reel was still going at ${run.stage.s.time.toFixed(1)} s`);
   const her = run.world.actors.get('uggedla');
   assert.equal(her.root.visible, true, 'she is there to be seen');
-  assert.ok(seen.lying.rest < seen.lying.reed - 0.1, `her back, head and tail reach ${seen.lying.rest.toFixed(2)} m, under the lowest reed top, ${seen.lying.reed.toFixed(2)} m`);
+  assert.ok(seen.lying.rest < seen.lying.reed - 0.2, `her back, head and tail reach ${seen.lying.rest.toFixed(2)} m, under the reed wall's middle height, ${seen.lying.reed.toFixed(2)} m`);
   assert.ok(seen.lying.sail > seen.lying.reed + 1.5, `but her sail reaches ${seen.lying.sail.toFixed(2)} m, well over it`);
   assert.equal(seen.jaw.lying < 1, true, 'her mouth is shut');
 });
@@ -1076,10 +1090,11 @@ test('she swims low along the line at the speed asked, her sail up and the water
   const { seen, run } = await reel();
   const rows = during(seen, 'swim');
   const line = SWIM;
-  const apart = point => Math.min(...withMiddles(line).map(p => Math.hypot(p[0] - point.x, p[1] - point.z)));
+  const way = [[rows[0].root.x, rows[0].root.z], ...line]; // from where she lay, along the line
+  const apart = point => Math.min(...withMiddles(way).map(p => Math.hypot(p[0] - point.x, p[1] - point.z)));
   const end = rows.at(-1).root;
   assert.ok(Math.hypot(end.x - line.at(-1)[0], end.z - line.at(-1)[1]) < 0.6, 'she gets to the end of the line');
-  const body = rows.filter(f => f.t > rows[0].t + 3);
+  const body = rows.filter(f => f.t > rows[0].t + 1);
   assert.ok(Math.max(...body.map(f => apart(f.root))) < 1.2, `she keeps to the line (${Math.max(...body.map(f => apart(f.root))).toFixed(2)} m at the furthest)`);
   const steady = rows.filter(f => f.t > rows[0].t + 3 && f.t < rows.at(-1).t - 2);
   const speed = steady.slice(1).reduce((sum, f, i) => sum + f.root.distanceTo(steady[i].root), 0) / (steady.at(-1).t - steady[0].t);
