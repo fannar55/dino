@@ -50,4 +50,13 @@ export const VOICE_LINES = Object.freeze({
   g2_lit: { text: 'Plöturnar lýsa eins og ljósker!', seed: 251422 },
   g2_rocks_ready: { text: 'Grjót lokar göngunum. Hver getur stangað það burt?', say: `Grjót lokar göngunum. ${HVER} getur stangað það burt?`, seed: 251423 },
   g2_rocks_done: { text: 'Búmm! Leiðin er opin!', seed: 251424 },
+  // Level 2's next steps (Task 5): everyone goes through the tunnel, the ledge is too high (said when the Þórseðlur are home), the Þórseðlur pull the slab down, the cliff is steep
+  // (said when the Flugeðlur are home), the Flugeðlur have flown the rope up, and everyone climbs with the rope as a handrail.
+  g2_through: { text: 'Göngin eru opin. Allir með!', seed: 251431 },
+  g2_ledge_ready: { text: 'Stallurinn er of hár. Hver nær hátt?', say: `Stallurinn er of hár. ${HVER} nær hátt?`, seed: 251432 },
+  g2_reached: { text: 'Langir hálsar ná hátt!', seed: 251433 },
+  g2_cliff_ready: { text: 'Klettaveggurinn er brattur. Hver getur flogið með reipið upp?', say: `Klettaveggurinn er brattur. ${HVER} getur flogið með reipið upp?`, seed: 251434 },
+  // (plain, scribe heard "Fluggeðlurnar", and with other seeds "Flugvellurnar" and "Fluggæslurnar", and IPA made it "Flugvellirnar": the sentence about her that the pronunciation book's Flugeðla recipe sends first, not spoken, brought it to "Flugeðlurnar")
+  g2_flown: { text: 'Flugeðlurnar fljúga upp!', context: 'Flugeðlan flýgur hátt yfir skóginum og veifar vængjunum.', seed: 42 },
+  g2_climb: { text: 'Haldið í reipið. Upp með ykkur!', seed: 251436 },
 });

@@ -178,5 +178,35 @@
     "src": "assets/audio/memory/g2_rocks_done.mp3",
     "duration": 2.73,
     "mouth": "ab7ffffea63300000009cecc98dcb40ed800cfe3098400000000000"
+  },
+  "g2_through": {
+    "src": "assets/audio/memory/g2_through.mp3",
+    "duration": 2.81,
+    "mouth": "009fcdcddd89fee7df60a96000000000ff002aecdeda2000000000000"
+  },
+  "g2_ledge_ready": {
+    "src": "assets/audio/memory/g2_ledge_ready.mp3",
+    "duration": 3.53,
+    "mouth": "0000dfceffdeeec0bfdd0497adea54200000000000003dfe8effcc8be80000000000000"
+  },
+  "g2_reached": {
+    "src": "assets/audio/memory/g2_reached.mp3",
+    "duration": 2.41,
+    "mouth": "0bfecb03db9888f60300bc9bee979ff400000000000000000"
+  },
+  "g2_cliff_ready": {
+    "src": "assets/audio/memory/g2_cliff_ready.mp3",
+    "duration": 4.651,
+    "mouth": "06fe00efef06fefe96fc06ee700086430000000000050cec904d99c400cedeceedadffceee50ebbdb0000000000000"
+  },
+  "g2_flown": {
+    "src": "assets/audio/memory/g2_flown.mp3",
+    "duration": 2.49,
+    "mouth": "03efedccedcdf90ced90006fefeccefc7efc30000000000000"
+  },
+  "g2_climb": {
+    "src": "assets/audio/memory/g2_climb.mp3",
+    "duration": 2.73,
+    "mouth": "04ffb40adadebffc00a80000000000ff807eeeb2895000000000000"
   }
 }
