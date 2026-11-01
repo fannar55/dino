@@ -217,6 +217,7 @@ function* theChannel(s, c) {
   // it turns, and her head comes up out of the water with a fish; "this is no boat"
   stopTaps();
   const head = s.after(0, () => headUpWithFish(s, c));
+  yield s.camera.cut('siki_two_shot'); // closer, and her head and the fish in her jaws are in it
   yield s.wait(HEAD_UP_SEES);
   yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
   yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
@@ -315,16 +316,22 @@ function* theFerry(s, c) {
   yield swim;
 }
 
-/** What is said on the way, with the cameras that go with it: a short pause between the lines, so that the chat fills the swim. */
+/**
+ * What is said on the way, with the cameras that go with it: a short pause between the lines, so that the chat fills the swim. The cameras
+ * are chosen by the triangles of a tablet's frame and by what is in the lens (the ferry's shots are not planted around, so each was measured
+ * at each stretch of the swim, 250k at the most): the two-shot from the crossing for the first seconds (a camera in Mosi's frame swings round
+ * with him as he turns into the water, and the far bank's reed is in the lens), then the front shot for the long middle, the side one as the
+ * tail splashes (from the dry bank, 17 m off, it is 213 to 244k then, and 260 to 300k in the middle of the swim) and the back one for
+ * Þórseðla's head.
+ */
 const CHAT_PAUSE = 0.9;
 function* ferryChat(s, c) {
   const { mosi } = c;
-  yield s.camera.cut('ferry_side');
-  yield s.wait(3);
+  yield s.wait(3); // the two-shot from the crossing holds while Mosi turns and wades in: a camera in his frame swings round with him then
   yield mosi.lookAt('uggedla.head', { weight: 0.6, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k2_mosi_brrr');
-  yield* say(s, c, 'uggedla', 'k2_uggedla_wet');
   yield s.camera.cut('ferry_front');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_wet');
   yield s.wait(CHAT_PAUSE);
   yield* say(s, c, 'egill', 'k2_egill_sail');
   yield s.wait(CHAT_PAUSE);

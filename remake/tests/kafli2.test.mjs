@@ -1764,7 +1764,7 @@ test('scene 6: Þórseðla\'s head is over the trees, in frame, from a ferry cam
   assert.ok(frames.some(frame => frame.shot === 'ferry_back'), 'from over her sail');
 });
 
-test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or against a trunk, with at most one clump between a camera and Mosi and two between it and her', async () => {
+test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or against a trunk, with at most one clump between a camera and Mosi or her sail', async () => {
   const run = await playIdle();
   const start = sceneStart(run.world, 6), hummocks = sceneStart(run.world, 7);
   const frames = framesIn(run, start, hummocks).filter(frame => frame.shot?.startsWith('ferry_') && frame.camera);
@@ -1780,7 +1780,7 @@ test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or 
   const worst = {};
   for (const frame of frames.filter((_, i) => i % 6 === 0)) {
     const row = worst[frame.shot] ??= { her: 0, mosi: 0, crowded: null };
-    row.her = Math.max(row.her, clumpsBetween(frame.camera, frame.herMiddle));
+    row.her = Math.max(row.her, clumpsBetween(frame.camera, frame.herMiddle.clone().setY(frame.herMiddle.y + 3))); // her sail, over her back
     row.mosi = Math.max(row.mosi, clumpsBetween(frame.camera, frame.mosi.clone().setY(frame.mosi.y + 3)));
     const hit = crowded(frame.camera);
     if (hit) row.crowded = `${hit.name} at ${hit.x.toFixed(1)}, ${hit.z.toFixed(1)} (t ${frame.t.toFixed(0)})`;
@@ -1788,7 +1788,7 @@ test('scene 6: the ferry\'s cameras are in clear air: not in a clump of reed or 
   assert.deepEqual(Object.keys(worst).sort(), ['ferry_back', 'ferry_front', 'ferry_side'], 'the three of Task 3\'s ferry shots are used');
   for (const [shot, row] of Object.entries(worst)) {
     assert.equal(row.crowded, null, `${shot}: the camera is in ${row.crowded}`);
-    assert.ok(row.her <= 2 && row.mosi <= 1, `${shot}: ${row.her} clumps between the camera and her, ${row.mosi} between it and Mosi, at the worst`);
+    assert.ok(row.her <= 1 && row.mosi <= 1, `${shot}: ${row.her} clumps between the camera and her sail, ${row.mosi} between it and Mosi, at the worst`);
   }
 });
 
