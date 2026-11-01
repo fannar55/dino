@@ -1869,6 +1869,22 @@ test('a corner takes a tap only where it is drawn, so it never takes a tile\'s',
   assert.match(css, /\.spread-turn :is\(\.corner-under, \.corner-flap, \.book-arrow path\) \{ pointer-events: visiblePainted; \}/, 'what is drawn of it does');
 });
 
+test('Litla Yatzy opens over the book, with its round X at the top right', () => {
+  // The frame (engine/yatzy-junior/frame.js) goes at the end of <body>. Without its rules it lay in the page under the game: the
+  // child saw nothing and could not reach the X (they were in yatzy.css, which went with Risaeðlu-Yatzy).
+  const read = name => fs.readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
+  const css = [...read('index.html').matchAll(/<link rel="stylesheet" href="\.\/([^"]+)">/g)].map(([, sheet]) => read(sheet)).join('\n');
+  const rule = selector => {
+    const at = css.indexOf(`\n${selector} {`);
+    assert.ok(at >= 0, `a sheet the game's page links styles ${selector}`);
+    return css.slice(at, css.indexOf('}', at));
+  };
+  for (const [, name] of read('engine/yatzy-junior/frame.js').matchAll(/className = '([^']+)'/g)) rule(`.${name}`);
+  assert.match(rule('.junior-frame'), /position: fixed; inset: 0; z-index: 60;/, 'the game covers the screen, over the book and the chapter');
+  assert.match(rule('.junior-close'), /position: absolute; top: [^;]+; right: [^;]+;/, 'the X sits at the top right');
+  assert.match(rule('.junior-close'), /width: 88px; height: 88px;/, 'big enough for a finger');
+});
+
 test('an open book that a find asks for turns once, straight to its spread, and the tile nods after the turn', () => {
   const { book, sounds, animations, tile, leaf, save } = fenRig({ animate: true });
   save.addFinding('turtle');
