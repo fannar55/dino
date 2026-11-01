@@ -295,3 +295,66 @@ test('the stegosaurus pair holds the light until through', async () => {
   audio.dispose();
   assert.equal(level.eventCaptions['tunnel-lit'].text, 'Plöturnar lýsa eins og ljósker!'); assert.equal(level.eventCaptions['rocks-fall'].text, 'Búmm! Leiðin er opin!');
 });
+
+// ---- level 2: through the tunnel, the ledge and the cliff (Task 5) ----
+test('through waits for every pair and every gift', async () => {
+  const level = await gorge(), rules = createStepRules(level), through = level.steps.find(step => step.id === 'through');
+  // The step is a travel step that starts by itself, and needs every friend found and every fossil in the basket (the leaves are behind the camera once it begins).
+  assert.deepEqual([through.kind, through.needsAllFound, through.waitsForGifts, through.automatic], ['travel', true, true, true]);
+  for (const species of ['stegosaurus', 'triceratops', 'brontosaurus']) rules.unlock(species);
+  rules.select('stegosaurus'); assert.equal(rules.choose('light'), true); assert.equal(rules.complete('light'), true);
+  rules.select('triceratops'); assert.equal(rules.choose('headbutt'), true); assert.equal(rules.complete('headbutt'), true);
+  assert.equal(rules.can('through'), false, 'the Flugeðlur are still under the leaves');
+  assert.equal(rules.choose('through'), false);
+  assert.equal(rules.unlock('pteranodon'), true);
+  assert.equal(rules.can('through'), true, 'all four pairs are found');
+  assert.equal(rules.choose('through'), true); assert.equal(rules.complete('through'), true);
+  assert.equal(rules.getState().throughTunnel, true);
+  // The next obstacle is the ledge, and the Kambeðlur, free again, can try it (and fail) like the rest.
+  assert.equal(rules.next(), 'ledge');
+  assert.deepEqual([...rules.ask('ledge').candidates].sort(), [...level.friends].sort());
+});
+
+test('level 2 has a wrong go for every friend that cannot do the ledge or the cliff, and the right one starts', async () => {
+  const level = await gorge(), rules = everyone(level, createStepRules(level)), { FAIL_TRIES, GESTURES } = await import('../engine/memory/gestures.js');
+  for (const species of ['stegosaurus', 'triceratops']) { rules.select(species); assert.equal(rules.choose(species === 'stegosaurus' ? 'light' : 'headbutt'), true); rules.complete(species === 'stegosaurus' ? 'light' : 'headbutt'); }
+  rules.choose('through'); rules.complete('through');
+  // The ledge: the Þórseðlur reach it; the Þríhyrnur hop and cannot, the Kambeðlur rear up and wobble, the Flugeðlur fly up and dangle from the slab.
+  for (const [target, right, wrong] of [['ledge', 'brontosaurus', ['triceratops', 'stegosaurus', 'pteranodon']], ['cliff', 'pteranodon', ['brontosaurus', 'triceratops', 'stegosaurus']]]) {
+    assert.deepEqual(rules.ask(target), { kind: 'choose', candidates: [...level.friends] }, `every found pair is a choice at the ${target}`);
+    assert.ok(wrong.includes(level.wrongFriends[target]), `the driver tries a wrong friend at the ${target}: ${level.wrongFriends[target]}`);
+    for (const species of wrong) {
+      assert.deepEqual(rules.pick(species), { kind: 'fail' }, `${species} fails at the ${target}`); assert.equal(rules.failDone(), true);
+      assert.ok(GESTURES[FAIL_TRIES[`${target}:${species}`]], `${species} at the ${target} has a funny try of its own`);
+    }
+    assert.deepEqual(rules.pick(right), { kind: 'start', action: target === 'ledge' ? 'reach' : 'fly' });
+    assert.equal(rules.complete(target === 'ledge' ? 'reach' : 'fly'), true);
+  }
+  assert.equal(rules.getState().ropeUp, true); assert.equal(rules.next(), null, 'the climb starts on its own');
+  assert.equal(rules.can('climb'), true);
+});
+
+test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff and the climb', async () => {
+  const level = await gorge(), { VOICE_LINES } = await import('../engine/memory/voice-lines.js'), fs = await import('node:fs');
+  const TEXT = { g2_through: 'Göngin eru opin. Allir með!', g2_ledge_ready: 'Stallurinn er of hár. Hver nær hátt?', g2_reached: 'Langir hálsar ná hátt!', g2_cliff_ready: 'Klettaveggurinn er brattur. Hver getur flogið með reipið upp?', g2_flown: 'Flugeðlurnar fljúga upp!', g2_climb: 'Haldið í reipið. Upp með ykkur!' };
+  for (const [id, text] of Object.entries(TEXT)) {
+    assert.equal(VOICE_LINES[id]?.text, text, `${id}: the words`);
+    assert.ok(fs.existsSync(new URL(`../assets/audio/memory/${id}.mp3`, import.meta.url)), `${id} is recorded`);
+  }
+  // Mosi says the travel steps' lines as they start, the two "who can" lines when the pair is home, the other two as their tasks begin.
+  assert.deepEqual([level.lines.through, level.lines.climb], ['g2_through', 'g2_climb']);
+  assert.equal(level.voice['g2-reach-ready'], 'g2_ledge_ready'); assert.equal(level.voice['g2-fly-ready'], 'g2_cliff_ready');
+  assert.equal(level.story.reach.prompts.ready, TEXT.g2_ledge_ready); assert.equal(level.story.fly.prompts.ready, TEXT.g2_cliff_ready); assert.equal(level.story.through.prompts.open, TEXT.g2_through); assert.equal(level.story.climb.prompts.doing, TEXT.g2_climb);
+  assert.deepEqual(level.eventSounds['reach-start'], [{ say: 'g2_reached', delay: .9 }]); assert.deepEqual(level.eventSounds['fly-start'], [{ say: 'g2_flown', delay: .9 }]);
+  assert.equal(level.eventCaptions['reach-start'].text, TEXT.g2_reached); assert.equal(level.eventCaptions['fly-start'].text, TEXT.g2_flown);
+  // What the world raises while it works is heard: each name is an audio method that exists, and each recorded cue is in the gorge's manifest.
+  const audio = (await import('../engine/memory/audio.js')).createMemoryAudio({ manifestUrl: null }), manifest = JSON.parse(fs.readFileSync(new URL('../assets/audio/memory/soundscape/gorge/manifest.json', import.meta.url), 'utf8'));
+  for (const type of ['reach-start', 'beat:reach', 'slab-step', 'slab-down', 'fly-start', 'wing-beat', 'rope-lift', 'rope-knots', 'rope-taut', 'climb-step', 'fail-rope', 'fail-slip']) assert.ok(level.eventSounds[type], `${type} has a sound`);
+  for (const [type, entries] of Object.entries(level.eventSounds)) for (const entry of entries) { const method = typeof entry === 'string' ? entry : entry.method; if (method) assert.equal(typeof audio[method], 'function', `${type}: audio.${method} exists`); }
+  for (const id of ['wing-flap', 'slab-lower', 'slab-lower-alt', 'rope-whoosh', 'rope-tighten', 'rope-knots', 'gravel-slip', 'gravel-climb']) assert.ok(manifest.sfx[id] && fs.existsSync(new URL(`../assets/audio/memory/soundscape/gorge/${manifest.sfx[id].file}`, import.meta.url)), `${id} is a sound of the gorge`);
+  audio.dispose();
+  // The two CC BY sounds the step adds, and the three models, are named behind the ending card's "i".
+  const credited = level.credits.map(row => `${row.author} ${row.license} ${row.source}`).join(' | ');
+  for (const needle of ['Tdude9000 CC BY 3.0', 'jorickhoofd CC BY 4.0', 'F.M.Audio CC BY 4.0', 'Kenney CC0', 'ambientCG CC0']) assert.ok(credited.includes(needle), `${needle} is credited`);
+  assert.ok(level.credits.some(row => row.title.startsWith('Tréð') && row.author === 'Quaternius'));
+});

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GESTURES, FAIL_TRIES } from '../../gestures.js';
 import { BORE } from './props.js';
+import { createUpperMover } from './upper-mover.js';
 
 /**
  * The mover of level 2's first two tasks and their wrong friends (level 1's is levels/berjalundur/adventure.js): who stands where at the tunnel, what each tap of the child
@@ -27,7 +28,7 @@ const GAP = .5; // metres between the horns and the pile when the Þríhyrnur st
 const REAR = .34;
 const STRIKE = { seconds: .95, hit: .52 };
 
-export function createGorgeMover({ THREE: three = THREE, stage, interior, plates, tunnel, level }) {
+export function createGorgeMover({ THREE: three = THREE, stage, interior, plates, tunnel, level, upper, rope, setLower = () => {} }) {
   void three;
   const { fx, nests, heightAt } = stage;
   const across = BORE.across;
@@ -94,7 +95,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   const landHops = (hops, back) => { for (const h of hops) { h.hop = -1; h.actor.root.position.copy(back ? h.from : h.to); h.actor.root.rotation.y = back ? h.fromYaw : h.yaw; hopLanding(h.actor); } };
   const headsOf = species => members(species).map(actor => actor.getNosePosition?.() ?? actor.root.position.clone().add(new THREE.Vector3(0, 1, 0)));
   const stand = species => { for (const actor of members(species)) { actor.clearLook?.(); actor.clearSupport?.(); actor.walk?.(false); } };
-  const busy = () => action !== null;
+  // The steps after the rockfall (through the tunnel, the ledge, the cliff, the climb: upper-mover.js) and their wrong friends' goes at the ledge and at the cliff.
+  const up = createUpperMover({ stage, level, upper, rope, plates, events, members, holding, tunnelPoint: (x, z) => ground(x, z, 0), setLower, fx, reduced: () => reduced });
+  const busy = () => action !== null || up.busy();
   // A cheer is for the child: the pair turns to face the camera (the way they stood, in to the tunnel, shows only their backs).
   const faceCamera = (species, dt) => {
     const cam = stage.camera();
@@ -224,7 +227,8 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   // tunnel keep their level, the pair keeps holding) while it does.
   function startFail(species, target, { qa = false } = {}) {
     const key = `${target}:${species}`;
-    if (action || !pairs[species]?.ready || !FAIL_SPOTS[key] || holding.has(species) && !qa) return null;
+    if (target === 'ledge' || target === 'cliff') return action || !pairs[species]?.ready ? null : up.startFail(species, target, { qa });
+    if (action || up.busy() || !pairs[species]?.ready || !FAIL_SPOTS[key] || holding.has(species) && !qa) return null;
     const spots = FAIL_SPOTS[key](), gesture = FAIL_TRIES[key], duration = TRY_SECONDS[key] ?? GESTURES[gesture].duration;
     stand(species);
     const hops = hopsTo(species, spots), run = Math.max(...hops.map(h => h.duration));
@@ -308,40 +312,52 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     a.hops.forEach(h => { h.hop = -1; });
   }
 
+  // The conditions of each step after the rockfall (the step rules' state, level.flags): the rocks gone, everyone found and home; through, then the pair of the step is home.
+  function startUpper(id, beats) {
+    const state = snapshot, ready = species => pairs[species].ready;
+    if (id === 'through' && state.rocksFallen && !state.throughTunnel && level.friends.every(ready)) return up.start('through');
+    if (id === 'fly' && state.ledgeLowered && !state.ropeUp && ready('pteranodon') && state.selected === 'pteranodon') return up.start('fly', { beats });
+    if (id === 'climb' && state.ropeUp && !state.atClifftop && level.friends.every(ready)) return up.start('climb');
+    if (id === 'reach' && state.throughTunnel && !state.ledgeLowered && ready('brontosaurus') && state.selected === 'brontosaurus') return up.start('reach', { beats });
+    return false;
+  }
+
   return {
     pairs,
     /** The two of a species are home (the world binds them when both have walked there). */
     bindPair(species, list) { if (pairs[species] && !pairs[species].ready && list.length === 2) pairs[species] = { members: list, ready: true }; },
-    ownsPair: species => Boolean(action && action.species === species) || holding.has(species),
+    ownsPair: species => Boolean(action && action.species === species) || holding.has(species) || up.where() !== 'glade',
     holds: species => holding.has(species),
     pairCentre(species) { const list = members(species); return list.length ? list.reduce((sum, actor) => sum.add(actor.root.position), new THREE.Vector3()).multiplyScalar(1 / list.length).add(new THREE.Vector3(0, 1, 0)) : new THREE.Vector3(); },
-    hasReservation: actor => Boolean(action && members(action.species).includes(actor)) || [...holding].some(species => members(species).includes(actor)),
+    hasReservation: actor => Boolean(action && members(action.species).includes(actor)) || [...holding].some(species => members(species).includes(actor)) || up.where() !== 'glade' || up.busy(),
     setState(value) { snapshot = value ?? {}; },
     isBusy: busy,
     /** Starts a task (false when it cannot start now). `beats`: the taps the child gives it. */
     start(id, { beats = 3 } = {}) {
-      if (action) return false;
+      if (action || up.busy()) return false;
+      if (['through', 'reach', 'fly', 'climb'].includes(id)) return startUpper(id, beats);
       if (id === 'light' && pairs.stegosaurus.ready && snapshot.selected === 'stegosaurus' && !holding.has('stegosaurus') && !snapshot.tunnelLit) return startLight(beats);
       if (id === 'headbutt' && pairs.triceratops.ready && snapshot.selected === 'triceratops' && snapshot.tunnelLit && !snapshot.rocksFallen) return startHeadbutt(beats);
       return false;
     },
     /** One tap of the child: the next step of the task (queued if the last one is still going). False when there is none left to give. */
     beat() {
+      if (up.busy()) return up.beat();
       if (!action || !action.beats || action.given >= action.beats || !['light', 'headbutt'].includes(action.id)) return false;
       const index = action.given; action.given++; action.queue++;
       events.push({ type: 'beat', id: action.id, index });
       return true;
     },
     /** The number of the beat the pair waits for (the first is 0), or null while it is not ready for one. */
-    waitingBeat: () => action && action.beats && ['ready'].includes(action.phase) && action.given < action.beats ? action.given : null,
+    waitingBeat: () => up.busy() ? up.waitingBeat() : action && action.beats && ['ready'].includes(action.phase) && action.given < action.beats ? action.given : null,
     /** The phase of the task or go that runs now ('approach', 'ready', 'step', 'lit', 'strike', 'fall', 'cheer', 'home', 'run', 'try', 'back'), or null. */
-    phase: () => action?.phase ?? null,
+    phase: () => up.busy() ? up.phase() : action?.phase ?? null,
     /** The lit tunnel (the whole light has come) and the fallen pile. */
     lit: () => Boolean(holding.has('stegosaurus') || (action?.id === 'light' && action.litSaid)),
     startFail,
     update(dt) {
       if (!(dt > 0)) return;
-      time += dt;
+      time += dt; up.update(dt);
       if (!action) return;
       if (action.id === 'light') updateLight(dt);
       else if (action.id === 'headbutt') updateHeadbutt(dt);
@@ -349,8 +365,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     },
     pollEvents: () => events.splice(0),
     setReducedMotion(value) { reduced = Boolean(value); },
-    reset() { action = null; holding.clear(); events.length = 0; for (const species of Object.keys(pairs)) pairs[species] = { members: [], ready: false }; },
-    debug: () => ({ action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), species: action.species, target: action.target ?? null, given: action.given ?? 0, done: action.done ?? 0 } : null, holding: [...holding], pairs: Object.fromEntries(Object.entries(pairs).map(([species, pair]) => [species, { ready: pair.ready }])) }),
+    reset() { up.reset(); action = null; holding.clear(); events.length = 0; for (const species of Object.keys(pairs)) pairs[species] = { members: [], ready: false }; },
+    upper: up,
+    debug: () => ({ up: up.debug(), action: action ? { id: action.id, phase: action.phase, age: +action.age.toFixed(2), species: action.species, target: action.target ?? null, given: action.given ?? 0, done: action.done ?? 0 } : null, holding: [...holding], pairs: Object.fromEntries(Object.entries(pairs).map(([species, pair]) => [species, { ready: pair.ready }])) }),
     /** Where the pair of a species stands at a task now: for the scenes' shots. */
     spots: kind => (kind === 'light' ? SPOTS.light() : SPOTS.ram(0)).map(spot => spot.point),
     time: () => time,

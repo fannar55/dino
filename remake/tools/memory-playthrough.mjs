@@ -426,7 +426,7 @@ const SNAPSHOT_JS = `(() => {
     wait: w ? { target: w.target, count: w.count, left: w.left } : null, idle: m.idle(),
     trying: Object.values((d.bridge && d.bridge.pairs) || {}).some(p => (p.actors || []).some(a => (a.gesture || '').startsWith('fail-'))),
     arrow: Boolean(document.querySelector('#targets .is-guided')),
-    tunnel: (d.levelStats && d.levelStats.tunnel) || null,
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null, upper: (d.levelStats && d.levelStats.upper) || null,
     cancel: !cancel.hidden && !cancel.disabled,
     blocked: d.bridge && d.bridge.blocked ? d.bridge.blocked.length : 0,
     cancelBox: (() => { const r = cancel.getBoundingClientRect(), cs = getComputedStyle(cancel); return { hidden: cancel.hidden, disabled: cancel.disabled, shown: cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, box: { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } }; })(),
@@ -907,9 +907,9 @@ async function main() {
         report.allFound = await ev(`(() => { const d = window.__demoStats; return { drawCalls: d.drawCalls, triangles: d.triangles, camera: d.camera.intent, babiesRendered: d.characterLod.filter(c => c.rendered).length, babiesVisible: d.cells.filter(c => c.actorVisible).length, tunnel: window.__memory.targets().find(t => t.id === 'tunnel') ?? null, gorge: window.__memory.stats().levelStats?.gorge ?? null }; })()`).catch(e => ({ error: e.message }));
         break;
       }
-      // Level 2 (full) stops here for now: the tunnel is lit, the rocks are gone and nobody moves (the next tasks carry the round on).
-      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.rocksFallen && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
-        report.finished = true; step('the rocks are gone and the tunnel is lit: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, caption: s.caption }); await sleep(2500);
+      // Level 2 (full) stops here for now: everyone has climbed to the rim, the rope is tied round the tree and nobody moves (Task 6 carries the round on: the trunk, the gap).
+      if (LEVEL.number === 2 && o.mode === 'full' && s.bridge.atClifftop && !s.bridge.active && !s.bridge.failing && !s.scene && !s.cam.moving && !s.cam.held && !s.walking && !s.giftPhases.some(phase => phase !== 'done')) {
+        report.finished = true; step('everyone is on the rim and the rope is the handrail: the round waits for the next task', { light: s.tunnel?.light, pile: s.tunnel?.pile, upper: s.upper, caption: s.caption }); await sleep(2500);
         report.level2 = await ev(`(() => { const d = window.__demoStats; return { tunnel: d.levelStats.tunnel, gorge: d.levelStats.gorge, targets: window.__memory.targets().filter(t => t.type === 'task'), story: window.__memory.story(), bridge: window.__memory.bridge(), drawCalls: d.drawCalls, triangles: d.triangles }; })()`).catch(e => ({ error: e.message }));
         await shot('rocks-gone'); break;
       }

@@ -173,3 +173,24 @@ test('level 2 tells the search with its own g2- keys and stops there until its s
   assert.deepEqual(say({ unlocked: friends, done: STEINAGLJUFUR.steps.map(step => step.id) }), ['g2-home', 'Öll komumst við upp! Vel gert!']);
   assert.deepEqual(say({ unlocked: friends, asking: 'tunnel', done: [] }, ready), ['g2-who-tunnel', 'Hver getur þetta?']);
 });
+
+test("level 2's way through the tunnel waits for the fossils, in the search view, and then opens", async () => {
+  const { STEINAGLJUFUR } = await import('../engine/memory/levels/steinagljufur.js');
+  const { VOICE_LINES } = await import('../engine/memory/voice-lines.js');
+  const friends = [...STEINAGLJUFUR.friends], everyone = Object.fromEntries(friends.map(species => [species, true])), done = ['light', 'headbutt'];
+  const story = mem => nextStoryStep(mem, { unlocked: friends, done }, everyone, STEINAGLJUFUR);
+  // fossils still under the leaves: Mosi sends the child back to them (the gold arrow points at a shut leaf), whatever else is ready
+  const left = story({ phase: 'ready', giftsLeft: 2, giftsLanding: 0 });
+  assert.deepEqual([left.key, left.kind, left.leaf, left.available, left.prompt], ['g2-gifts-left', 'search', true, true, 'Finnum fyrst það sem er eftir undir laufunum!']);
+  assert.equal(story({ phase: 'ready', giftsLeft: 1, giftsLanding: 1 }).key, 'g2-gifts-left', 'one fossil pair unfound is enough to wait');
+  // every pair found, the last still flying to the basket: it only waits
+  const landing = story({ phase: 'ready', giftsLeft: 0, giftsLanding: 2 });
+  assert.deepEqual([landing.key, landing.kind, landing.available, landing.prompt], ['g2-gifts-landing', 'arriving', undefined, 'Steingervingarnir fara í körfuna!']);
+  // everything in the basket: the walk starts by itself, with the line the level says for it
+  const open = story({ phase: 'ready', giftsLeft: 0, giftsLanding: 0 });
+  assert.deepEqual([open.key, open.kind, open.action, open.automatic, open.available, open.target], ['g2-through-open', 'travel', 'through', true, true, 'tunnelExit']);
+  assert.equal(open.prompt, VOICE_LINES[STEINAGLJUFUR.lines.through].text, 'the caption of the walk is the words Mosi says as it starts');
+  // the ledge, the cliff and the climb: the next steps tell the work in their own words
+  const keys = [['through'], ['through', 'reach'], ['through', 'reach', 'fly']].map(rest => nextStoryStep(memory, { unlocked: friends, done: [...done, ...rest] }, everyone, STEINAGLJUFUR).key);
+  assert.deepEqual(keys, ['g2-reach-ready', 'g2-fly-ready', 'g2-climb-open']);
+});

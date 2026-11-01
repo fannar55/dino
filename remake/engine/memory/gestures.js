@@ -59,6 +59,29 @@ const jolt = side => ({ duration: 1.2, apply(rig, t, energy) {
   rig.rotateInRoot(rig.tail, Y, .45 * energy * (push + look) * wave(t, 5));
 } });
 
+// The Þórseðla's pull on the slab: how high her head is (0 standing, 1 the neck right up) at the start, at the top of the stretch and when the pull is over, for each of the three taps.
+const PULL = [{ from: 0, top: .95, to: .7 }, { from: .7, top: .7, to: .42 }, { from: .42, top: .42, to: 0 }];
+function pullGesture(index) {
+  const { from, top, to } = PULL[index], last = index === 2, duration = last ? 1.9 : 4.2;
+  return { duration, apply(rig, t, energy) {
+    const L = rig.length, seconds = t * duration;
+    // the head's height: the first pull stretches up from standing (.45 s) and then pulls down to `to`; the others pull on from where the one before ended; after the pull it stays (the last lets go)
+    let level;
+    if (index === 0) level = seconds < .45 ? top * smooth(seconds / .45) : top + (to - top) * smooth((seconds - .5) / .6);
+    else level = from + (to - from) * smooth((seconds - .1) / .85);
+    if (last && seconds > 1.2) level *= 1 - smooth((seconds - 1.2) / .6);
+    const effort = bump(seconds, .35, 1.1);
+    turnHead(rig, Z, energy * .78 * level);
+    rig.pose.rotation.z += .08 * energy * level;
+    crouch(rig, .035 * L * energy * effort);
+    rig.offsetInRoot(rig.body, .005 * L * energy * effort * Math.sin(seconds * 47), 0, .005 * L * energy * effort * Math.sin(seconds * 39 + 1));
+    openJaw(rig, seconds < .55 ? .3 * energy : .06 * energy);
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * effort * Math.sin(seconds * 9));
+    if (rig.crossed(.05 / duration)) rig.lids?.blink.rest(.6, .06);
+    if (last && rig.crossed(1.4 / duration)) rig.lids?.blink.rest(0, .15);
+  } };
+}
+
 export const GESTURES = Object.freeze({
   // Out from under the leaf: a spring up, a wet-dog shake that throws the leaf off, then a call.
   peek: { duration: 1.2, apply(rig, t, energy) {
@@ -312,6 +335,73 @@ export const GESTURES = Object.freeze({
     if (rig.crossed(.05)) rig.lids?.blink.rest(.7, .06);
     if (rig.crossed(.8)) rig.lids?.blink.rest(0, .15);
   } },
+  // ---- Level 2, the high ledge (Task 5) ----
+  // The Þórseðla pulls the slab down, one tap at a time (`pull-1`, `pull-2`, `pull-3`): she stretches her long neck up over the slab's edge, takes hold with her jaws and pulls: the
+  // lower the slab comes, the lower her head. Each starts where the one before ended (the first from standing, the last lets go and stands again); a pull that is not the last holds
+  // the head where the slab is until the next tap.
+  'pull-1': pullGesture(0), 'pull-2': pullGesture(1), 'pull-3': pullGesture(2),
+  // The wrong friends at the ledge and the cliff (Task 5; the mover moves their roots, the stars and the sounds are its events).
+  // The Kambeðla at the ledge: she rears up on her hind legs to see over it, her front legs paw the air, she wobbles... and sits down hard on her plates.
+  'fail-ledge-stegosaurus': { duration: 2.7, apply(rig, t, energy) {
+    const L = rig.length, rear = ramp(t, .1, .38) * (1 - ramp(t, .74, .84)), wobble = bump(t, .38, .76), sit = bump(t, .8, 1);
+    rig.pose.rotation.z += energy * (.85 * rear + .1 * wobble * wave(t, 3));
+    rig.pose.rotation.x += .16 * energy * wobble * wave(t, 4.5);
+    rig.pose.position.y += .22 * L * energy * rear;
+    for (const pair of rig.legs) if (pair.front) rig.offsetInRoot(pair.leg, .03 * L * energy * (rear + wobble) * wave(t, 6, pair.front ? 0 : .5), .03 * L * energy * wobble * Math.abs(wave(t, 6)));
+    turnHead(rig, Z, .3 * energy * rear); turnHead(rig, Y, .4 * energy * wobble * wave(t, 2.2));
+    openJaw(rig, .2 * bump(t, .2, .75));
+    crouch(rig, .07 * L * energy * sit);
+    rig.rotateInRoot(rig.tail, Y, .5 * energy * (wobble + sit) * wave(t, 3.5));
+    if (rig.crossed(.4)) rig.lids?.blink.rest(.5, .08);
+    if (rig.crossed(.95)) rig.lids?.blink.rest(0, .2);
+  } },
+  // The Þórseðla at the cliff throws the rope up: her neck scoops down and whips up (the mover lets the rope go), she watches it go up, it comes down on her head: bonk, her head
+  // squashed, stars, a dizzy sway.
+  'fail-cliff-brontosaurus': { duration: 3.1, apply(rig, t, energy) {
+    const scoop = bump(t, .02, .22), whip = bump(t, .2, .36), watch = ramp(t, .34, .5) * (1 - ramp(t, .7, .74)), bonk = bump(t, .72, .84), sway = bump(t, .8, 1);
+    turnHead(rig, Z, energy * (-.55 * scoop + 1.05 * whip + .85 * watch - .9 * bonk));
+    turnHead(rig, Y, .35 * energy * sway * wave(t, 3));
+    rig.pose.rotation.z += energy * (.12 * whip + .06 * watch);
+    crouch(rig, .05 * rig.length * energy * (scoop + bonk));
+    rig.pose.rotation.x += .08 * energy * sway * wave(t, 2.2);
+    rig.rotateInRoot(rig.tail, Y, .35 * energy * sway * wave(t, 2.6));
+    openJaw(rig, .3 * bump(t, .2, .4));
+    if (rig.crossed(.74)) rig.lids?.blink.rest(.75, .05);
+    if (rig.crossed(1)) rig.lids?.blink.rest(0, .2);
+  } },
+  // The Þríhyrna at the cliff hops up the path with the rope in her beak, and a hop too far: she loses her footing and tumbles over and over, back down (the mover moves her root).
+  'fail-cliff-triceratops': { duration: 3.2, apply(rig, t, energy) {
+    const L = rig.length, hop = arc(t, .02, .2) + arc(t, .2, .38) + arc(t, .38, .56), tumble = ramp(t, .6, .84), dazed = bump(t, .86, 1);
+    rig.pose.position.y += .22 * L * energy * hop;
+    rig.pose.rotation.z += .2 * energy * hop;
+    tuckLegs(rig, .04 * L * energy * hop);
+    rig.pose.rotation.x += (energy < 1 ? .6 : Math.PI * 2) * tumble * (1 - ramp(t, .84, .86));
+    turnHead(rig, Y, .4 * energy * dazed * wave(t, 3)); rig.rotateInRoot(rig.tail, Y, .4 * energy * (dazed + hop) * wave(t, 3.4));
+    openJaw(rig, .1 * (1 - tumble));
+  } },
+  // The Kambeðla at the cliff walks up the path, her legs working harder and harder, the gravel goes from under her feet, and she slides back down it on her belly, paws scrabbling.
+  'fail-cliff-stegosaurus': { duration: 3.2, apply(rig, t, energy) {
+    const L = rig.length, climb = bump(t, 0, .55), slip = ramp(t, .5, .62) * (1 - ramp(t, .86, .95)), dazed = bump(t, .88, 1);
+    rig.pose.rotation.z += energy * (.22 * climb + .3 * slip);
+    crouch(rig, .05 * L * energy * (climb + slip));
+    for (const pair of rig.legs) rig.offsetInRoot(pair.leg, .035 * L * energy * (climb + slip) * wave(t, 7 + 4 * slip, pair.front ? 0 : .5), .03 * L * energy * (climb + 2 * slip) * Math.abs(wave(t, 7 + 4 * slip)));
+    rig.pose.rotation.x += .1 * energy * slip * wave(t, 5);
+    rig.rotateInRoot(rig.tail, Y, .5 * energy * (slip + dazed) * wave(t, 4));
+    turnHead(rig, Y, .4 * energy * dazed * wave(t, 3)); openJaw(rig, .2 * slip);
+    if (rig.crossed(.9)) rig.lids?.blink.rest(.6, .1);
+    if (rig.crossed(1)) rig.lids?.blink.rest(0, .2);
+  } },
+  // The Flugeðla at the ledge: she has flown up to the slab and caught its edge (the mover holds her there): she hangs, feet kicking, wings flapping, and the slab does not move.
+  'fail-ledge-pteranodon': { duration: 3, apply(rig, t, energy) {
+    const kick = bump(t, .05, .85), flap = Math.abs(wave(t, 4.5));
+    rig.pose.rotation.z += energy * (-.5 * ramp(t, .05, .2) * (1 - ramp(t, .85, .95)));
+    for (const pair of rig.legs) rig.offsetInRoot(pair.leg, .03 * rig.length * energy * kick * wave(t, 5, pair.front ? 0 : .5), .04 * rig.length * energy * kick * Math.abs(wave(t, 5)));
+    rig.wings?.forEach((wing, side) => rig.rotateInRoot(wing, X, (side ? -1 : 1) * .55 * energy * kick * flap));
+    openJaw(rig, .1 * kick);
+    rig.rotateInRoot(rig.tail, Y, .3 * energy * kick * wave(t, 3));
+    if (rig.crossed(.3)) rig.lids?.blink.rest(.6, .1);
+    if (rig.crossed(.92)) rig.lids?.blink.rest(0, .2);
+  } },
   // Eating off the ground or a bush: the head goes down and stays down for a few bites, the jaw working, a small bob of the
   // body, the tail swaying. The Þórseðla's long neck has further to go.
   nibble: { duration: 2.6, apply(rig, t, energy) {
@@ -368,6 +458,9 @@ export const FAIL_GESTURES = Object.freeze({ triceratops: 'fail-triceratops', st
 export const FAIL_TRIES = Object.freeze({
   'tunnel:triceratops': 'fail-tunnel-triceratops', 'tunnel:brontosaurus': 'fail-tunnel-brontosaurus', 'tunnel:pteranodon': 'fail-tunnel-pteranodon',
   'rocks:stegosaurus': 'fail-rocks-stegosaurus', 'rocks:brontosaurus': 'fail-rocks-brontosaurus', 'rocks:pteranodon': 'fail-pteranodon',
+  // the high ledge and the cliff (Task 5): the Þríhyrna's is her own failure (a big jump, a miss, down on her bottom)
+  'ledge:triceratops': 'fail-triceratops', 'ledge:stegosaurus': 'fail-ledge-stegosaurus', 'ledge:pteranodon': 'fail-ledge-pteranodon',
+  'cliff:brontosaurus': 'fail-cliff-brontosaurus', 'cliff:triceratops': 'fail-cliff-triceratops', 'cliff:stegosaurus': 'fail-cliff-stegosaurus',
 });
 
 /** The older gesture names the adventure and the world still use. */

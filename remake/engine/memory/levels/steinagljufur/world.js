@@ -2,11 +2,17 @@ import { frameOf, liftOf, outside, closure, installGorgeGround } from './ground.
 import { loadGorgeModels, buildGorge } from './props.js';
 import { createTunnelInterior } from './tunnel.js';
 import { createGorgeMover } from './mover.js';
+import { loadUpperModels, createUpperGorge } from './upper.js';
 import { BORE } from './props.js';
 import { addPlateGlow } from '../../../plate-glow.js';
 import { lightScene } from './scenes/light.js';
 import { headbuttScene } from './scenes/headbutt.js';
 import { failScene } from './scenes/fail.js';
+import { throughScene } from './scenes/through.js';
+import { reachScene } from './scenes/reach.js';
+import { flyScene } from './scenes/fly.js';
+import { climbScene } from './scenes/climb.js';
+import { createRope } from './rope.js';
 
 // The farthest hills are only seen in the overview: pale rock buttes in the haze, in the forest's far rings (a ring's `color` is the colour
 // of its crowns, `haze` what they fade into).
@@ -31,7 +37,7 @@ const TUNNEL = Object.freeze({ at: [-2.5, 11.4], facing: [.5, -.87], scale: 1 })
 export function createLevelWorld(stage) {
   const { THREE, scene } = stage, level = stage.level, spot = level.mosiSpot;
   const frame = frameOf(level.grid);
-  let models = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
+  let models = null, upperModels = null, upper = null, rope = null, gorge = null, interior = null, mover = null, groundLook = null, snapshot = null, taskScript = null, searchCamera = null, api = null;
   // The one number the tunnel's shaders read: how far the Kambeðlur's plates have lit it (0 dark, 1 lit; tunnel.js eases it).
   const glow = { uLight: { value: 0 } };
   // The Kambeðlur's plates (engine/plate-glow.js): their glow is the light of the tunnel's task, raised a step with each tap; with none lit they look as they always did.
@@ -90,6 +96,15 @@ export function createLevelWorld(stage) {
     abort() { if (taskScript != null) stage.scenes.cancel(taskScript); taskScript = null; stage.director.release({ duration: .6 }); },
     mouth: mouthPoint,
     pile: () => ({ front: interior.pile.front(), top: interior.pile.top(), centre: interior.pile.centre() }),
+    // The upper gorge (levels/steinagljufur/upper.js): a point of its frame in the scene, a camera direction (to the camera) from a direction of the frame, and the cut into it.
+    up: (x, y, z) => upper.world(x, y, z),
+    view: front => upper.direction(front[0], front[1]),
+    exit: () => upper.world(upper.anchors.exit.mouth.x, 0, 0),
+    cutUpper() { const done = mover.upper.cutUpper(); stage.refresh(); return done; },
+    where: () => mover.upper.where(),
+    slab: () => ({ hinge: upper.world(...upper.slab.hinge.toArray()), edge: upper.world(...upper.slab.under(upper.slab.length, 0).toArray()), middle: upper.world(...upper.slab.under(upper.slab.length * .55, 0).toArray()) }),
+    tree: () => { const b = upper.tree.base; return { base: upper.world(b.x, b.y, b.z), middle: upper.world(b.x, b.y + 2.4, b.z), top: upper.world(b.x, b.y + 4.6, b.z) }; },
+    rope: () => upper.world(...rope.tip().toArray()),
     // The way from the mouth toward the camera: the tunnel's own way out (0) turned toward where the search camera stood when the task began (1), so that the shots look into it from the glade's side.
     front(toward = .3) {
       const out = gorge.mouth.facing.clone().setY(0).normalize(), cam = (searchCamera ?? stage.camera()).clone().sub(mouthPoint()).setY(0).normalize();
@@ -106,13 +121,27 @@ export function createLevelWorld(stage) {
     return taskScript;
   }
 
+  // The resting view in the upper gorge, from the open side: the floor in front of the ledge (the ledge is next), the terrace and the cliff (the cliff is next), the rim.
+  // A cue is a set of points the camera keeps in the frame and the direction it looks from (from the right-hand side of the way, a little ahead of it, from above).
+  function upperCue() {
+    const state = snapshot ?? {}, portrait = stage.camera().aspect < 1, phase = !state.ledgeLowered ? 'floor' : !state.ropeUp ? 'terrace' : 'rim', w = upper.world.bind(upper);
+    const SHOTS = {
+      floor: { points: [[-17, 0, -4], [-3, 1.5, 3], [-1, 5.6, -3.4], [8, 2.6, -4]], focus: [-4, 1.4, 0], front: [-.34, -1], elevation: portrait ? 36 : 21 },
+      terrace: { points: [[3.4, 1.9, -5], [10, 4, 5], [16, 5.2, 5], [23.4, 9, 11], [22, 11.6, 10]], focus: [13, 5.2, 3], front: [-.12, -1], elevation: portrait ? 36 : 21 },
+      rim: { points: [[21, 9, 5], [36, 9, 11], [28, 12, 8]], focus: [28, 9.5, 7], front: [-.15, -1], elevation: portrait ? 36 : 21 },
+    }[phase];
+    const d = upper.direction(...SHOTS.front), e = Math.PI / 180 * SHOTS.elevation;
+    return stage.cue(SHOTS.points.map(p => w(...p)), { key: `upper-${phase}`, focus: w(...SHOTS.focus).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
+  }
+
   api = {
     layout,
     // The points the overview adds to the board, the rests and Mosi: the tunnel and the walls behind it.
     overviewPoints: Object.freeze([[-8, 6, -14], [4, 6, -16], [-14, 3, -2], [14, 3, -8]]),
     /** The things the friends' walks and play keep clear of: the tunnel and the boulders. */
     navObjects: () => gorge?.solids ?? [],
-    cameraCue: glade => glade(),
+    // The search view in the glade; once everyone is through the tunnel, the view of the place the next step is at (upperCue).
+    cameraCue: glade => mover?.upper.where() === 'glade' || !upper ? glade() : upperCue(),
 
     /** Loads the gorge's models and stands them, once the forest, the leaves and the rests exist: the ground's look, the walls, the boulders, the tunnel. */
     async build() {
@@ -124,10 +153,15 @@ export function createLevelWorld(stage) {
         scene, frame, heightAt: stage.heightAt, models, tunnel: TUNNEL, glow,
         avoid: (u, v, radius) => keepClear.some(([cu, cv, r]) => Math.hypot(u - cu, v - cv) < r + radius * .3) || stage.onLeafGround(...frame.toWorld(u, v), radius),
       });
+      upperModels = await loadUpperModels();
+      upper = createUpperGorge({ scene, models, upperModels, glow });
       interior = createTunnelInterior({ tunnel: gorge.tunnel, models, fx: stage.fx, glow, reducedMotion: stage.reducedMotion });
-      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level });
+      // The rope: tied at the foot of the cliff, it runs up the path's right edge to the tree; its texture is the owner's approved ambientCG rope.
+      const rail = upper.rail.map(p => new THREE.Vector3(p.x, p.y, p.z + 0)), sideway = rail.map((p, k) => { const a = rail[Math.max(0, k - 1)], b = rail[Math.min(rail.length - 1, k + 1)], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1; return new THREE.Vector3(p.x - dz / len * 1.55, p.y, p.z + dx / len * 1.55); });
+      rope = createRope(stage, { from: upper.anchors.stake, to: new THREE.Vector3(7.5, 0, .6), parent: upper.group, groundAt: upper.groundAt, route: [upper.anchors.stake, ...sideway.slice(1)], trunk: upper.tree });
+      mover = createGorgeMover({ stage, interior, plates, tunnel: gorge.tunnel, level, upper, rope, setLower: visible => { gorge.group.visible = visible; } });
       mover.setReducedMotion(stage.reducedMotion());
-      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, glow, stage, mover, plates, get api() { return api; } };
+      if (stage.params.has('qa')) globalThis.__gorge = { interior, gorge, upper, rope, glow, stage, mover, plates, get api() { return api; } };
     },
     /** The friends exist and have their LODs: the Kambeðlur's plates can glow (before the scene is compiled, so that their shader is made once). */
     afterBabies(actors) {
@@ -144,10 +178,14 @@ export function createLevelWorld(stage) {
       if (!state.tunnelLit) return [target('tunnel', mouthPoint().add(new THREE.Vector3(0, 1.3, 0)))];
       // (the pile is a little way in at the mouth, which a portrait view can leave at its edge: the button is at the mouth, over the pile's front, so that it is on the screen wherever the tunnel is)
       if (!state.rocksFallen) return [target('rocks', mouthPoint().add(new THREE.Vector3(0, 1.1, 0)))];
+      // (beyond the tunnel, the upper gorge: the ledge, then the cliff; buttons on the screen's edge are kept inside it like the tunnel's on a phone)
+      if (mover.upper.where() === 'glade') return [];
+      if (!state.ledgeLowered) return [target('ledge', upper.world(.2, 1.6, 0))];
+      if (!state.ropeUp) return [target('cliff', upper.world(15, 5, 3))];
       return [];
     },
     /** Where the big tap-along button of an obstacle sits: over the mouth for the tunnel, over the pile for the rocks. */
-    tapPoint: id => id === 'rocks' ? interior.pile.centre() : mouthPoint().add(new THREE.Vector3(0, 1.3, 0)),
+    tapPoint: id => id === 'rocks' ? interior.pile.centre() : id === 'ledge' ? upper.world(.2, 1.6, 0) : id === 'cliff' ? upper.world(15, 5, 3) : mouthPoint().add(new THREE.Vector3(0, 1.3, 0)),
 
     // ---- the steps ----
     /** Plays a step (its script): the id of the script, or null when it cannot start now. */
@@ -155,6 +193,10 @@ export function createLevelWorld(stage) {
       switch (id) {
         case 'light': return playTask(() => lightScene(script));
         case 'headbutt': return playTask(() => headbuttScene(script));
+        case 'through': return playTask(() => throughScene(script));
+        case 'reach': return playTask(() => reachScene(script));
+        case 'fly': return playTask(() => flyScene(script));
+        case 'climb': return playTask(() => climbScene(script));
         default: return null;
       }
     },
@@ -165,6 +207,9 @@ export function createLevelWorld(stage) {
       searchCamera = stage.camera(); taskScript = stage.scenes.play(failScene(script, species, target, timing));
       return true;
     },
+    /** QA only (?qa=1): the camera looks at points of the upper gorge's frame from the frame's direction `front` (to the camera), `elevation` degrees up. */
+    qaUpper({ points, front = [-.2, -1], elevation = 24, kind = 'wide', scale } = {}) { upper.show(); gorge.group.visible = false; stage.director.shot({ kind, subjects: () => points.map(p => upper.world(...p)), front: upper.direction(...front), elevation, cut: true, scale }); },
+    qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),
     /** The step rules' state (step-rules.js getState()). */
     setStepState(state) { snapshot = { ...state }; mover?.setState(snapshot); },
@@ -172,7 +217,7 @@ export function createLevelWorld(stage) {
     pollEvents: () => mover?.pollEvents() ?? [],
 
     // ---- every frame ----
-    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); },
+    update(dt) { mover?.update(dt); interior?.update(dt); plates.update(dt); rope?.update(); },
     afterActors() {},
 
     // ---- who is where ----
@@ -183,9 +228,11 @@ export function createLevelWorld(stage) {
     hasTravelReservation: actor => Boolean(mover?.hasReservation(actor)),
     visited: () => false,
     /** The child may greet a pair at its home whenever no pair has been picked for a job. */
-    nestSelectable: species => !snapshot?.selected && !mover?.holds(species), // (a pair that holds the light stands at the tunnel and is not greeted: its button would only lie over the obstacle's)
-    mosiPlace: () => ({ ...spot }),
-    mosiObstacle: () => true,
+    nestSelectable: species => !snapshot?.selected && !mover?.holds(species) && (!mover || mover.upper.where() === 'glade'), // (a pair that holds the light stands at the tunnel and is not greeted: its button would only lie over the obstacle's)
+    mosiPlace: () => !mover || mover.upper.where() === 'glade' && !mover.upper.walkers.isWalking(stage.mosi.actor) ? { ...spot } : null,
+    mosiObstacle: () => !mover || mover.upper.where() === 'glade' && !mover.upper.walkers.isWalking(stage.mosi.actor),
+    /** The ground under a friend at (x, z): the upper gorge's, when everyone is there (Mosi's contact shade lies on it). */
+    groundAt: (x, z) => mover?.upper.where() !== 'glade' && upper ? upper.heightAt(x, z) : null,
 
     // ---- the ground ----
     /** Why a waiting friend may not play at (x, z): at the foot of a wall. */
@@ -194,11 +241,11 @@ export function createLevelWorld(stage) {
     // ---- the page's debug and the round's end ----
     getDebug() {
       return { bridge: mover?.debug() ?? {}, mosiWalk: null, mosiAcross: false, river: null, collisionObjects: [],
-        stats: gorge ? { gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
+        stats: gorge ? { upper: upper ? { where: mover?.upper.where(), ...mover?.upper.debug(), slab: upper.slab.angle, ...upper.stats(), rope: rope?.debug() } : null, gorge: gorge.stats(), tunnel: interior ? { light: +interior.level.toFixed(3), pile: interior.pile.stage, falling: interior.pile.isFalling(), plates: plates.target, ...interior.stats() } : null } : null };
     },
     setReducedMotion(value) { mover?.setReducedMotion(value); },
-    reset() { snapshot = null; taskScript = null; mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); },
-    dispose() { interior?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
+    reset() { snapshot = null; taskScript = null; rope?.reset(); mover?.reset(); plates.setAll(0, { duration: 0 }); interior?.reset(); upper?.reset(); if (gorge) gorge.group.visible = true; },
+    dispose() { interior?.dispose(); upper?.dispose(); gorge?.dispose(); groundLook?.dispose(); },
   };
   return api;
 }

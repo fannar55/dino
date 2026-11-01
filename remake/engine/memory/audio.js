@@ -11,6 +11,8 @@ const MANIFEST_URL = new URL('../../assets/audio/memory/soundscape/manifest.json
 export const soundscapeUrl = name => new URL(`../../assets/audio/memory/soundscape/${name}/manifest.json`, import.meta.url);
 // The glow chime of level 2's light: the first choice (ani_music's wine glass) or, with ?chime=alt in the page's address, the other (Psykoosiossi's chime), to be judged by ear.
 const glowChime = () => /[?&]chime=alt\b/.test(globalThis.location?.search ?? '') ? 'glow-chime-alt' : 'glow-chime';
+// The sound of the slab coming down (level 2's ledge): the first choice (msavioti's heavy stone push) or, with ?slab=alt, the other (dslrguide's scraping stone), to be judged by ear.
+const slabSound = () => /[?&]slab=alt\b/.test(globalThis.location?.search ?? '') ? 'slab-lower-alt' : 'slab-lower';
 const RECORDED_BASE = { leaf: .13, straw: .075, foot: .09, triceratops: .21, stegosaurus: .21, brontosaurus: .21 };
 const MOTIFS = {
   triceratops: { duration: 0.59, pitch: 172, formants: [490, 1330], pulses: [[0.01, 0.22], [0.29, 0.25]], breath: 0.13 },
@@ -503,6 +505,63 @@ export function createMemoryAudio({ manifestUrl = MANIFEST_URL, fetcher = global
       const now = context.currentTime, k = played % 3;
       if (recordings.has('peck')) return recording('peck', now, 0, 'peck', .9 + .08 * k, .96 + .06 * k);
       return sample('foot', now, .08, 0, 'peck');
+    },
+    // ---- Level 2: the ledge, the cliff and the climb (found sounds: soundscape/gorge/) ----
+    // Each tap the Þórseðlur pull the slab down a step: a heavy stone pushed, a little lower each time.
+    slabLower(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0)), id = slabSound();
+      if (recordings.has(id)) return recording(id, now, 0, 'slab-lower', 1 + .1 * i, [1, .94, .88][i]);
+      sample('gravel', now, .2, 0, 'slab-lower'); sample('wood', now + .08, .1, .1); return true;
+    },
+    // The slab settles as a ramp: a landing stone, deep, with the tumble of the pile's collapse under it.
+    slabDown() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rock-land')) { recording('rock-land', now, 0, 'slab-down', 1.7, .62); if (recordings.has('rocks-tumble')) recording('rocks-tumble', now + .05, .1, 'slab-down', .5, .8); return true; }
+      sample('wood', now, .2, 0, 'slab-down'); sample('gravel', now + .05, .12, .1); return true;
+    },
+    // A wingbeat of the Flugeðlur, each tap a little higher.
+    wingFlap(index = 0) {
+      if (!allowed()) return false;
+      const now = context.currentTime, i = Math.max(0, Math.min(2, Math.floor(index) || 0));
+      if (recordings.has('wing-flap')) return recording('wing-flap', now, 0, 'wing-flap', 1, [1, 1.05, 1.1][i]);
+      return sample('flutter', now, .2, 0, 'wing-flap');
+    },
+    // The rope thrown or lifted: a whoosh.
+    ropeWhoosh() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-whoosh')) return recording('rope-whoosh', now, .05, 'rope-whoosh');
+      return sample('flutter', now, .14, .05, 'rope-whoosh');
+    },
+    // The rope wound round the tree: knots pulled.
+    ropeKnots() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-knots')) return recording('rope-knots', now, 0, 'rope-knots');
+      return sample('straw', now, .1, 0, 'rope-knots');
+    },
+    // The rope draws taut.
+    ropeTighten() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('rope-tighten')) return recording('rope-tighten', now, 0, 'rope-tighten');
+      return sample('straw', now, .08, 0, 'rope-tighten');
+    },
+    // The Kambeðla slides back down the path.
+    gravelSlip() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('gravel-slip')) return recording('gravel-slip', now, 0, 'gravel-slip');
+      return sample('gravel', now, .18, 0, 'gravel-slip');
+    },
+    // Everyone climbs the steep path (one pass of the sample for each stretch of the climb).
+    gravelClimb() {
+      if (!allowed()) return false;
+      const now = context.currentTime;
+      if (recordings.has('gravel-climb')) return recording('gravel-climb', now, 0, 'gravel-climb', .85);
+      sample('gravel', now, .12, -.1, 'gravel-climb'); sample('foot', now + .2, .07, .1); sample('foot', now + .45, .07, -.1); return true;
     },
     mute(value) {
       if (disposed) return;

@@ -1,0 +1,79 @@
+/**
+ * The ground of the upper gorge, beyond the tunnel (levels/steinagljufur.js steps `through`, `reach`, `fly` and `climb`), in its own frame, as plain numbers (no three.js, so a test
+ * or a tool can read it): x runs forward along the gorge, z to the right of someone who looks along it (the side of the hillside: the open side, where the cameras stand and the ground falls away, is -z), y is up.
+ *
+ *   the exit floor     the floor at y = 0 in front of the exit of the tunnel (x -18 to 3): the group comes out of the tunnel here
+ *   the high ledge     a step up (LEDGE.height, too high to walk up): the terrace at y = 1.9 from x = 3
+ *   the steep path     the way up the cliff, three bends, from the terrace (x 9) to the rim (x 26): CLIMB.length metres, 7 metres up
+ *   the clifftop       the rim: a wide flat (y 8.9) with the tree at its near edge, room for the dead trunk and the gap (Task 6)
+ *
+ * The ground is the highest of many "mesas": a capsule along a segment (a flat top at the heights of its ends, `hw` metres either side of the segment) whose sides fall away at
+ * `slope` metres of height to the metre of distance, down to the level of the plain (0). The ledge, the path and the clifftop are mesas; the hillside beside them is the same with a
+ * high top and steep sides. Everything about the shape is told here; upper.js stands the models on it and builds its mesh.
+ */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+export const LEDGE = Object.freeze({ x: 3.0, height: 1.9 });
+/** The path up the cliff, from where it leaves the terrace to the rim: [x, z, y]. The group walks it, the rope runs along its left side. */
+export const CLIMB = Object.freeze([[9.5, -1.4, 1.9], [13.2, -.4, 3.2], [16.4, 2.2, 4.7], [18.6, 5.6, 6.2], [21.8, 7.6, 7.5], [25.2, 8.3, 8.9]]);
+/** The rim: the flat top of the cliff (y), and its middle line from where the path comes up to where Task 6's gap will be. */
+export const RIM = Object.freeze({ y: 8.9, from: [25.2, 8.3], to: [38, 6.2], hw: 6.2 });
+const PATH_HW = 2.25;
+
+const lengths = points => points.map((p, i) => i ? Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) : 0);
+export const CLIMB_LENGTH = lengths(CLIMB).reduce((a, b) => a + b, 0);
+
+// A mesa: [ax, az, bx, bz, ya, yb, hw, slope]
+const MESAS = [];
+const mesa = (a, b, ya, yb, hw, slope) => MESAS.push([a[0], a[1], b[0], b[1], ya, yb, hw, slope]);
+// the terrace (the ledge's top): its front edge, x = LEDGE.x, runs straight across the gorge
+mesa([LEDGE.x + 3.6, -7.5], [LEDGE.x + 3.6, 6], LEDGE.height, LEDGE.height, 3.6, 3.2);
+// the steep path: a mesa along each leg, its sides falling to the plain, the hillside rising on its right (+z)
+for (let i = 1; i < CLIMB.length; i++) mesa(CLIMB[i - 1], CLIMB[i], CLIMB[i - 1][2], CLIMB[i][2], PATH_HW, 1.15);
+// the clifftop
+mesa(RIM.from, RIM.to, RIM.y, RIM.y, RIM.hw, 1.1);
+// the hillside beside the whole way (+z): a long wall whose foot meets the path's edge all the way up (wall.centre is where its centre line runs), as high as the rim plus
+// 3.3 metres. The path is cut into its foot.
+export const WALL = Object.freeze({ top: 12.2, hw: 7, slope: 2.3, centre: Object.freeze([[-46, 16.6], [1.5, 16.6], [4.2, 21], [9.2, 21], [11.4, 13.4], [13.2, 12.75], [16.4, 14.7], [18.6, 17.5], [21.8, 18.9], [25.2, 22.9], [40, 22.9]]) });
+for (let i = 1; i < WALL.centre.length; i++) mesa(WALL.centre[i - 1], WALL.centre[i], WALL.top, WALL.top, WALL.hw, WALL.slope);
+// the end wall beyond the clifftop (Task 6 cuts the gap in front of it)
+mesa([RIM.to[0] + 9, RIM.to[1] - 11], [RIM.to[0] + 9, RIM.to[1] + 13], RIM.y + 3.6, RIM.y + 3.6, 4, 2.4);
+export const MESA_COUNT = MESAS.length;
+/** (for tests and tools) the mesas: [ax, az, bx, bz, ya, yb, hw, slope]. */
+export const MESA_LIST = Object.freeze(MESAS.map(m => Object.freeze([...m])));
+
+/** The height of the ground at (x, z) of the upper gorge. */
+export function groundAt(x, z) {
+  let height = 0;
+  for (const [ax, az, bx, bz, ya, yb, hw, slope] of MESAS) {
+    const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, t = len2 ? clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1) : 0;
+    const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t)), top = lerp(ya, yb, t);
+    // (a flat top, a short round-off at the edge, then the straight side)
+    const out = d - hw, y = out <= 0 ? top : top - slope * out;
+    if (y > height) height = y;
+  }
+  return height;
+}
+
+/** The middle line of the way the group walks from the terrace's edge to the rim, as [x, z, y] points at every `step` metres (the path's own bends). */
+export function wayPoints(step = 1) {
+  const out = [], list = CLIMB;
+  for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], b = list[i], len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(len / step));
+    for (let k = i === 1 ? 0 : 1; k <= n; k++) { const t = k / n; out.push([lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]); }
+  }
+  return out;
+}
+
+/** Where on the path (0 at the terrace's end, 1 at the rim) the path point nearest (x, z) lies, and how far to its right (z positive: toward the hillside) the point is. */
+export function alongPath(x, z) {
+  const list = CLIMB, total = CLIMB_LENGTH; let best = { s: 0, d: Infinity, side: 0 }, walked = 0;
+  for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], b = list[i], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / (len * len), 0, 1);
+    const px = a[0] + dx * t, pz = a[1] + dz * t, d = Math.hypot(x - px, z - pz);
+    if (d < best.d) best = { s: (walked + len * t) / total, d, side: ((x - px) * -dz + (z - pz) * dx) / len * -1 };
+    walked += len;
+  }
+  return best;
+}

@@ -64,7 +64,7 @@ const DARK_GLSL = `
 const WARM_GLSL = `
   totalEmissiveRadiance += vec3(1.0, 0.66, 0.28) * uLight * 0.2 * tunnelIn * (1.0 - smoothstep(0.0, tunnelReach, tunnelD)) * smoothstep(0.1, 0.9, tunnelD);`;
 /** The bore of a tunnel material goes dark: its lining dims with the depth (a lit tunnel grows light with `glow.uLight`), the rest of the rock is as it was. */
-function darkInside(material, glow) {
+export function darkInside(material, glow) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uLight = glow.uLight;
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTunnel;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvTunnel = position;');

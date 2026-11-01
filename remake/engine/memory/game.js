@@ -237,7 +237,8 @@ function launchAction(action) {
   bridge.choose(action); autoStep = null; autoAge = 0; blockedAuto = null;
   captionUntil = 0; speech.stop(); audio.unlock(); music.unlock(); syncBridge(); guidance(); reflectEnding();
   // The camera is already held by the script, so guidance() leaves the caption alone: put Mosi's words up with his voice.
-  if (step?.kind === 'travel') { speech.queue(action, { delay: .15 }); caption(VOICE_LINES[action].text, 3.2); }
+  // (level 1's travel steps have their own id for their line: cross, finish; a level may say which line each has, `lines`: level 2's through and climb)
+  if (step?.kind === 'travel') { const line = LINES[action] ?? action; speech.queue(line, { delay: .15 }); caption(VOICE_LINES[line].text, 3.2); }
   return true;
 }
 function updateStory(dt) {

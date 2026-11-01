@@ -910,8 +910,10 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
     actorSphere.center.copy(mosi.root.position); actorSphere.center.y += 1.2; actorSphere.radius = 4.2;
     mosi.model.visible = actorFrustum.intersectsSphere(actorSphere);
     // The contact shade is long along its z: it lies along Mosi's body wherever he stands (not under him on the log).
-    const grounded = mosi.root.position.y < world.heightAt(mosi.root.position.x, mosi.root.position.z) + .3;
-    mosiShade.position.set(mosi.root.position.x, world.heightAt(mosi.root.position.x, mosi.root.position.z) + .095, mosi.root.position.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2;
+    // (a level whose friends stand somewhere else than the glade's ground, level 2's upper gorge, says how high the ground is under him)
+    const floorY = levelWorld.groundAt?.(mosi.root.position.x, mosi.root.position.z) ?? world.heightAt(mosi.root.position.x, mosi.root.position.z);
+    const grounded = mosi.root.position.y < floorY + .3;
+    mosiShade.position.set(mosi.root.position.x, floorY + .095, mosi.root.position.z); mosiShade.rotation.y = mosi.root.rotation.y + Math.PI / 2;
     mosiShade.scale.set(grounded ? 2.6 : 0, 1, grounded ? 3.8 : 0); mosiShade.updateMatrixWorld();
     contactMeshes.forEach((mesh, index) => contactBatch.setMatrixAt(index, mesh.matrixWorld)); contactBatch.instanceMatrix.needsUpdate = true;
     const remainingCovers = cells.filter(cell => cell.vanish < 1);

@@ -76,17 +76,19 @@ export function createCameraDirector({ camera, overview, fallback }) {
     const subjects = (options.subjects?.() ?? []).filter(Boolean).map(vector).filter(p => Number.isFinite(p.x + p.y + p.z));
     if (!subjects.length) return null;
     const front = frontOf(options), points = [];
-    const box = (p, r, below, above) => { for (const dx of [-r, r]) for (const dz of [-r, r]) for (const dy of [-below, above]) points.push(new THREE.Vector3(p.x + dx, Math.max(0, p.y + dy), p.z + dz)); };
+    // (`floor`: the height of the ground the subjects stand above, 0 in the glade: level 2's cliff is up to 9 metres, and a shot of someone high on it must not frame the way down to 0)
+    // (`floor: 'auto'`: the lowest of the subjects, less a little: a shot high on the cliff frames the climbers and the way just under them, not the plain far below)
+    const floor = options.floor === 'auto' ? Math.max(0, Math.min(...subjects.map(p => p.y)) - .35) : options.floor ?? 0, box = (p, r, below, above) => { for (const dx of [-r, r]) for (const dz of [-r, r]) for (const dy of [-below, above]) points.push(new THREE.Vector3(p.x + dx, Math.max(floor, p.y + dy), p.z + dz)); };
     let direction, scale = 'action';
     if (options.kind === 'face') { subjects.forEach(p => box(p, .5, .55, .45)); direction = lifted(front, options.elevation ?? 11); scale = 'close'; }
-    else if (options.kind === 'hero') { subjects.forEach(p => box(p, .7, p.y, .5)); direction = lifted(front, options.elevation ?? 3); scale = 'close'; }
+    else if (options.kind === 'hero') { subjects.forEach(p => box(p, .7, p.y - floor, .5)); direction = lifted(front, options.elevation ?? 3); scale = 'close'; }
     else if (options.kind === 'shoulder') {
       // subjects[0] is the shoulder (Mosi's head); the camera stands behind it, looking at the rest.
       const [shoulder, ...rest] = subjects, look = rest.length ? rest.reduce((sum, p) => sum.add(p), new THREE.Vector3()).multiplyScalar(1 / rest.length) : shoulder.clone().add(front);
       const back = shoulder.clone().sub(look).setY(0); if (back.lengthSq() < 1e-6) back.copy(front);
       back.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), .32);
-      box(shoulder, .4, .3, .4); rest.forEach(p => box(p, .9, p.y, .6)); direction = lifted(back, options.elevation ?? 18);
-    } else { subjects.forEach(p => box(p, 1.3, p.y, 1.1)); direction = lifted(front, options.elevation ?? (options.kind === 'follow' ? 26 : 24)); scale = options.kind === 'wide' ? 'wide' : 'action'; }
+      box(shoulder, .4, .3, .4); rest.forEach(p => box(p, .9, p.y - floor, .6)); direction = lifted(back, options.elevation ?? 18);
+    } else { subjects.forEach(p => box(p, 1.3, p.y - floor, 1.1)); direction = lifted(front, options.elevation ?? (options.kind === 'follow' ? 26 : 24)); scale = options.kind === 'wide' ? 'wide' : 'action'; }
     return solve({ shot: true, points, direction, scale: options.scale ?? scale });
   }
 
@@ -161,9 +163,9 @@ export function createCameraDirector({ camera, overview, fallback }) {
     reset() { mode = 'auto'; cue = null; cueKey = ''; initialized = false; shot = returning = nudging = shaking = null; takes = 0; request(true); },
     update,
     /** Hold a scripted shot until release(). `subjects` gives the points to frame (re-read every frame for 'follow'). */
-    shot({ kind = 'wide', subjects, cut = true, duration = 1.05, front, elevation, scale } = {}) {
+    shot({ kind = 'wide', subjects, cut = true, duration = 1.05, front, elevation, scale, floor } = {}) {
       if (!SHOT_KINDS.includes(kind) || typeof subjects !== 'function') return false;
-      shot = { options: { kind, subjects, front, elevation, scale }, cut: Boolean(cut), duration: Math.max(.05, Number(duration) || 1.05), active: false, age: 0 };
+      shot = { options: { kind, subjects, front, elevation, scale, floor }, cut: Boolean(cut), duration: Math.max(.05, Number(duration) || 1.05), active: false, age: 0 };
       return true;
     },
     /** Back to the cue's frame: a glide (or a cut), after which world input returns. */
