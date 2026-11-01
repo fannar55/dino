@@ -138,3 +138,30 @@ test('a gorge wall piece is measured against the rests by its rock: what reaches
   assert.ok(restGap(rock, at(5.1), rests) > 0, 'the sunk point and the point over the heads (both at 3.7 m) do not count');
   assert.ok(restGap(rock, new THREE.Matrix4().makeTranslation(3, 5, 0), rests) === Infinity, 'a rock wholly over the heads does not count');
 });
+
+test('every place of the upper gorge stands on flat ground: the ground under no friend\'s feet or tail rises there (veggir)', async () => {
+  const { FORMATIONS } = await import('../engine/memory/levels/steinagljufur/upper-mover.js');
+  const { groundAt } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
+  // the ground as it is drawn: upper.js lays a grid over groundAt (0.9 m cells, finer across the ledge's riser), two triangles a cell, so a slope starts up to a cell
+  // before groundAt's does
+  const xs = [], zs = [];
+  for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
+  for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
+  const cell = (list, v) => { let k = 0; while (k < list.length - 2 && list[k + 1] <= v) k++; return k; };
+  const drawn = (x, z) => {
+    const i = cell(xs, x), j = cell(zs, z), u = (x - xs[i]) / (xs[i + 1] - xs[i]), v = (z - zs[j]) / (zs[j + 1] - zs[j]);
+    const a = groundAt(xs[i], zs[j]), b = groundAt(xs[i + 1], zs[j]), c = groundAt(xs[i], zs[j + 1]), d = groundAt(xs[i + 1], zs[j + 1]);
+    return u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - u) * (c - d) + (1 - v) * (b - d);
+  };
+  // where its feet and tail are on the ground as it stands facing forward (+x): metres behind, ahead and to either side of its place (and 0.1 m wider: the stride sways)
+  const FOOT = { mosi: [.8, .8, .4], triceratops: [1.0, .9, .45], stegosaurus: [1.3, 1.0, .45], brontosaurus: [2.3, 1.4, .5], pteranodon: [1.0, 1.0, .5] };
+  for (const [formation, places] of Object.entries(FORMATIONS)) for (const [who, list] of Object.entries(places)) {
+    (who === 'mosi' ? [list] : list).forEach(([x, z], i) => {
+      const [back, front, side] = FOOT[who], g = groundAt(x, z);
+      for (let a = -back; a <= front + 1e-9; a += .1) for (let c = -side - .1; c <= side + .1 + 1e-9; c += .1) {
+        const rise = drawn(x + a, z + c) - g;
+        assert.ok(rise < .06, `${formation}: ${who} ${i} at (${x}, ${z}): the ground ${a.toFixed(1)} m along and ${c.toFixed(1)} m across rises ${rise.toFixed(2)} m`);
+      }
+    });
+  }
+});

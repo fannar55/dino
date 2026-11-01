@@ -31,9 +31,13 @@ export const FORMATIONS = Object.freeze({
   // on the floor in front of the ledge, as they come out of the tunnel (the Þórseðlur at the front: their go is next)
   floor: { mosi: [-4.8, 1.8], triceratops: [[-6.6, -3.2], [-7, -.4]], stegosaurus: [[-8.6, -2.5], [-9, .2]], brontosaurus: [[-3.2, -3.0], [-3.4, -.2]], pteranodon: [[-10.2, -1.9], [-10.5, .9]] },
   // on the terrace of the ledge, at the foot of the cliff (the Flugeðlur by the rope)
-  terrace: { mosi: [8.2, -3.6], triceratops: [[5.6, -4.7], [7.4, -5.2]], stegosaurus: [[5.9, 2.4], [7.7, 2.9]], brontosaurus: [[4.9, -2.7], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .9]] },
+  // (the Kambeðlur stand on the flat, in a line behind the second Flugeðla, who is 0.6 m nearer the first: the second stood 0.2 m up the hillside's foot as the ground is
+  // drawn (a 0.9 m grid over groundAt, so its slope starts up to a cell early) and the first with a foot in the boulder at its edge, veggir)
+  terrace: { mosi: [8.2, -3.6], triceratops: [[5.6, -4.7], [7.4, -5.2]], stegosaurus: [[4.4, 1.7], [7.0, 1.4]], brontosaurus: [[4.9, -2.7], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .3]] },
   // on the rim, at the end of the climb
-  rim: { mosi: [27.6, 7], triceratops: [[28.8, 4.6], [29.4, 7.6]], stegosaurus: [[30.6, 4], [31.2, 7]], brontosaurus: [[32.4, 5.2], [33, 8.2]], pteranodon: [[22.4, 9.5], [25.2, 10.7]] },
+  // (the first Flugeðla lands on the tree's flat, north of the tree, just outside where her wrap round it ends: where she stood, on the path's edge, her tail was in the
+  // flat's bank, and from the wrap's end her way down to the far side of the tree went through its trunk, veggir)
+  rim: { mosi: [27.6, 7], triceratops: [[28.8, 4.6], [29.4, 7.6]], stegosaurus: [[30.6, 4], [31.2, 7]], brontosaurus: [[32.4, 5.2], [33, 8.2]], pteranodon: [[23.9, 14.0], [25.2, 10.7]] },
 });
 // the Þórseðlur's places at the ledge: each side of the slab, close under the riser, their long necks over its edges
 const REACH_SPOTS = [[.9, -2.7], [.9, 2.7]];
@@ -363,7 +367,15 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     if (a.go.path) {
       const { to, up, down } = a.go.path;
       const s = a.age < up[1] ? to * smooth((a.age - up[0]) / (up[1] - up[0])) : to * (1 - smooth((a.age - down[0]) / (down[1] - down[0])));
-      list.forEach((actor, i) => { const lane = i ? -.55 : .8, [x, z] = routeFrame(lane, Math.max(0, s)), p = world(x, z); actor.root.position.set(p.x, p.y + .04, p.z); const [x2, z2] = routeFrame(lane, Math.max(0, s) + .6), q = world(x2, z2), run = Math.atan2(q.y - p.y, Math.hypot(q.x - p.x, q.z - p.z)); actor.root.rotation.z = a.key === 'cliff:stegosaurus' ? run : run * .8; });
+      // (the body is pitched along the line from the ground under its heels to under its toes, and rises until no part of its underside is within 8 cm of the ground, the
+      // Þríhyrna's 18 cm (its try's leap and slip take its head and tail lower than it stands, the Þríhyrna's head 18 cm lower): walkers.js bodyOn and settle. Pitched from
+      // one point 0.6 m ahead (the Þríhyrna's by 80 % of that) and standing on its root, the tails went into the flat behind the path's foot and the Þríhyrna's head into the
+      // path ahead, veggir)
+      list.forEach((actor, i) => {
+        const lane = i ? -.55 : .8, along = Math.max(0, s), [x, z] = routeFrame(lane, along), p = world(x, z);
+        const body = walkers.bodyOn(actor, d => { const [bx, bz] = routeFrame(lane, along + d), q = world(bx, bz); q.y = walkers.rootY(actor, q.y); return q; });
+        actor.root.position.set(p.x, walkers.rootY(actor, p.y), p.z); actor.root.rotation.z = body.pitch; walkers.settle(body, body.pitch, a.species === 'triceratops' ? .18 : .08);
+      });
       if (a.key === 'cliff:triceratops') ropeInMouth(Math.min(1, a.age / .4));
     }
     if (a.key === 'cliff:brontosaurus') {
@@ -382,7 +394,8 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   function startDangle(a) {
     a.step = 'up'; a.arrived = 0; a.wait = 0;
     members('pteranodon').forEach((actor, i) => {
-      const edge = U.slab.under(U.slab.length - .5, i ? .8 : -.8), hang = U.world(edge.x - .6, edge.y - 1.0, edge.z);
+      // (they hang 1.05 m out from the slab's edge: at 0.6 m a tail and at 0.85 m a head went into its end as she kicked, veggir)
+      const edge = U.slab.under(U.slab.length - .5, i ? .8 : -.8), hang = U.world(edge.x - 1.05, edge.y - 1.0, edge.z);
       a.hang = a.hang ?? []; a.hang[i] = hang.clone();
       const ok = actor.fly?.([hang], { speed: 3.1, onDone: () => { a.arrived++; } }); if (!ok) { a.arrived++; actor.root.position.copy(hang); }
     });

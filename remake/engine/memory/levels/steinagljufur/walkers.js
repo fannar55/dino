@@ -79,11 +79,12 @@ export function createWalkers({ stage, ground = null }) {
     return { actor, span, front, back, f, b, under: span.under.map(([x, y]) => [x, y, along(x).y]), pitch: Math.atan2(f.y - b.y, front + back) };
   }
   /** At pitch `tilt`, raises the root (its yaw, pitch and place along the way already set) as far as needed that nothing of the body's underside goes under the ground along its
-   * way, nor its feet where they are now (the stride and its turns take them off the way). */
-  function settle(body, tilt) {
+   * way (nor within `margin` of it where it is over the root's level: the head, the tail and the belly, not the feet), nor its feet where they are now (the stride and its
+   * turns take them off the way). */
+  function settle(body, tilt, margin = 0) {
     const { actor, span, front, back, f, b } = body, root = actor.root, t = Math.tan(tilt);
     let y = Math.max(root.position.y, f.y - front * t, b.y + back * t);
-    for (const [x, low, g] of body.under) y = Math.max(y, g - x * t - low);
+    for (const [x, low, g] of body.under) y = Math.max(y, g - x * t - low + (low > 0 ? margin : 0));
     root.position.y = y;
     if (!ground) return;
     let lift = 0;
