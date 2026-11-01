@@ -164,7 +164,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   // ---- the crystals ----
   // [x, z, y, yaw, scale, tilt about x, tilt about z]: at the foot of the bore's walls, inside and just in the mouth, where the plates' light finds them.
   const CRYSTALS = {
-    purple: [[3.05, -1.18, 0, .5, .62, .12, -.18], [2.35, 1.0, 0, 2.2, .5, -.1, .2], [.35, -1.2, 0, 4.1, .7, .1, -.2], [-.2, 1.0, 0, 1.0, .6, 0, .15]],
+    purple: [[3.05, -1.18, 0, .5, .62, .12, -.18], [2.35, 1.0, 0, 2.2, .5, -.1, .2], [.35, -1.2, 0, 4.1, .7, .1, -.2]],
     blue: [[3.3, .95, 0, 1.3, .7, 0, .2], [2.6, -1.1, 0, 3.4, .55, .1, -.15], [.9, 1.05, 0, 5.2, .6, 0, .2]],
   };
   const crystalLook = { purple: { emissive: '#8b5cff', base: .05 }, blue: { emissive: '#4aa9ff', base: .05 } };
