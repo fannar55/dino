@@ -25,6 +25,7 @@
 // --quick plays the check run on a smaller table (two seats: Egill and Uggeðla): no Anna, so no illegal acts of hers and no dropout.
 // --kinds N (6 to 13, the lab's &kinds=N) deals the round from a deck of the first N kinds: a round in minutes, for the video; with fewer
 // than thirteen the round is not kept in the save, so the reload of the big screen is not checked.
+// --four seats Bjarni (a third phone, gramedla) too, so four play: Egill, Anna, Bjarni and Uggeðla.
 // <out>/report.json (report-video.json with --video) has every check, the captures, the errors and the acts. Exit code 1 when a check fails or an error is logged, 2 when the
 // tool itself breaks. The page is served by the dev server; nothing is left running here but what the tool starts, which it stops.
 
@@ -39,7 +40,7 @@ import { ROOT, FPS, launchBrowser, stopBrowser, startVideo, soundTap, collectSou
 const COVER_AFTER_MS = 20000; // protocol.js
 
 function parseArgs(argv) {
-  const o = { out: 'qa/remake/veiddu/t9', url: 'http://127.0.0.1:4256/remake/', seed: 't9', video: false, browser: 'edge', max: 1500, stall: 120, quick: false, kinds: 13 };
+  const o = { out: 'qa/remake/veiddu/t9', url: 'http://127.0.0.1:4256/remake/', seed: 't9', video: false, browser: 'edge', max: 1500, stall: 120, quick: false, kinds: 13, four: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -52,6 +53,7 @@ function parseArgs(argv) {
     else if (a === '--stall') o.stall = Number(next());
     else if (a === '--quick') o.quick = true;
     else if (a === '--kinds') o.kinds = Number(next());
+    else if (a === '--four') o.four = true;
     else throw new Error(`Unknown argument ${a}`);
   }
   o.url = o.url.replace(/\/?$/, '/');
@@ -176,7 +178,9 @@ async function main() {
     const big = await openPage(browser, { name: 'big', size: [1280, 800], mobile: false, errors, sound: o.video, onFrame: bigRec ? (jpeg, at) => { lagSamples.push(Date.now() - at); bigRec.frame(jpeg, at); } : null });
     const egill = await openPage(browser, { name: 'egill', size: [390, 844], mobile: true, errors, onFrame: eRec ? (jpeg, at) => eRec.frame(jpeg, at) : null });
     const anna = o.quick ? null : await openPage(browser, { name: 'anna', size: [390, 844], mobile: true, errors });
-    const phones = [egill, anna].filter(Boolean);
+    const bjarni = o.four ? await openPage(browser, { name: 'bjarni', size: [390, 844], mobile: true, errors }) : null;
+    const phones = [egill, anna, bjarni].filter(Boolean);
+    const humans = [egill, anna, bjarni]; // by seat; Uggeðla's seat, after them, has no phone
 
     // The big screen: the lab with the page's Fjölspil session; its setup card, then the lobby
     await goto(big, `${o.url}veiddu-lab.html?fjolspil=1&seed=${encodeURIComponent(o.seed)}&kinds=${o.kinds}`);
@@ -227,13 +231,22 @@ async function main() {
       await until(anna, `window.__spil.screen === 'lobby'`, 'Anna in the lobby');
       check('Anna joins with a name and a friend (and is not offered Egill\'s portrait)');
     }
+    if (bjarni) {
+      await goto(bjarni, phoneUrl);
+      await until(bjarni, `window.__spil && window.__spil.screen === 'join'`, 'Bjarni\'s join screen');
+      await bjarni.ev(`(() => { const n = document.querySelector('.spil-name'); n.value = 'Bjarni'; n.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+      await click(bjarni, '.spil-avatar[data-id="gramedla"]');
+      await click(bjarni, '.spil-ready');
+      await until(bjarni, `window.__spil.screen === 'lobby'`, 'Bjarni in the lobby');
+      check('Bjarni joins too (a third phone)');
+    }
     // Uggeðla is added, and "Byrjum!"
     await click(big, '#fjolspil .fjolspil-ai');
     await until(big, `window.__fjolspil.seats.list().some(s => s.kind === 'ai')`, 'Uggeðla seated');
     await sleep(700);
     await still(big, 'lobby-full');
     await click(big, '#fjolspil .fjolspil-start');
-    const seatsAtStart = o.quick ? 2 : 3;
+    const seatsAtStart = o.quick ? 2 : o.four ? 4 : 3;
     await until(big, `window.__veiddu.fjolspil.isOn && window.__veiddu.fjolspil.seats === ${seatsAtStart}`, 'the round to begin');
     check(`"Byrjum!" seats ${seatsAtStart}: the big screen is the pond and the seats (no hand), Egill's phone has his own`);
     assert.equal(await big.ev(`document.querySelectorAll('.veiddu-multi .veiddu-place').length`), seatsAtStart);
@@ -243,7 +256,7 @@ async function main() {
     const started = Date.now();
     const expected = []; // every act the phones sent, in order: { seat, body, legal }
     const taken = {};
-    const seatOf = page => (page === egill ? 0 : 1);
+    const seatOf = page => humans.indexOf(page);
     const view = page => page.ev('window.__spil && window.__spil.state ? JSON.parse(JSON.stringify(window.__spil.state)) : null');
     let phase = '';
     let lastChange = Date.now();
@@ -263,14 +276,14 @@ async function main() {
       if (need === 'ask') {
         const card = v.hand[acts % v.hand.length];
         const target = v.targets[acts % v.targets.length];
-        await click(page, `.veiddu-card[data-id="${card.id}"]`);
+        await click(page, `.spil-veiddu-hand .veiddu-card[data-id="${card.id}"]`);
         await sleep(250);
         await click(page, `.spil-veiddu-seat[data-seat="${target}"] .spil-veiddu-seat-hit`);
         body = { type: 'ask', target, kind: card.kind };
       } else if (need === 'give') {
         const card = v.hand.find(held => held.kind === v.asked.kind);
         await sleep(400);
-        await click(page, `.veiddu-card[data-id="${card.id}"]`);
+        await click(page, `.spil-veiddu-hand .veiddu-card[data-id="${card.id}"]`);
         body = { type: 'give', cardId: card.id };
       } else if (need === 'no') {
         await sleep(400);
@@ -297,14 +310,25 @@ async function main() {
       if (!now) break;
       const key = `${now.phase}/${now.log}`;
       if (key !== lastKey) { lastKey = key; lastChange = Date.now(); }
-      if (Date.now() - lastChange > o.stall * 1000) throw new Error(`the round stalled at "${now.phase}" after ${now.log} events (${o.stall} s)`);
+      if (Date.now() - lastChange > o.stall * 1000) {
+        report.stall = { phase: now.phase, log: now.log };
+        try { // what each side says, for whoever has to find out why
+          report.stall.big = await big.ev(`JSON.stringify({ seats: window.__fjolspil.seats.list().map(s => ({ seat: s.seat, kind: s.kind, present: s.present, covered: s.covered })), acts: window.__acts.slice(-6), refused: window.__veiddu.fjolspil.refused.slice(-4), phase: window.__veiddu.phase })`);
+          report.stall.phones = await Promise.all(phones.map(async p => p.closed ? 'closed' : p.ev(`JSON.stringify({ screen: window.__spil.screen, mode: window.__spil.state && window.__spil.state.mode, status: (document.querySelector('.spil-status') || {}).textContent, debug: (document.querySelector('.spil-debug') || {}).textContent })`).catch(e => e.message)));
+          for (const p of phones) if (!p.closed) await still(p, `stall-${p.name}`).catch(() => {});
+          await still(big, 'stall-big').catch(() => {});
+          const q = phones[1] ?? phones[0];
+          report.stall.hit = await q.ev(`(() => { const card = document.querySelector('.spil-veiddu-hand .veiddu-card'); const seat = document.querySelector('.spil-veiddu-seat-hit'); const at = e => { if (!e) return null; const r = e.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return { rect: [r.x, r.y, r.width, r.height].map(Math.round), top: top && (top.className || top.tagName) }; }; return JSON.stringify({ card: at(card), seat: at(seat), sentClass: document.querySelector('.spil-veiddu').className, mode: window.__spil.state && window.__spil.state.mode, targets: window.__spil.state && window.__spil.state.targets, hand: window.__spil.state && window.__spil.state.hand.length }); })()`).catch(e => e.message);
+        } catch (error) { report.stall.error = error.message; }
+        throw new Error(`the round stalled at "${now.phase}" after ${now.log} events (${o.stall} s)`);
+      }
       phase = now.phase;
       if (Date.now() - beat > 20000) { beat = Date.now(); console.log(`  [${Math.round((beat - started) / 1000)} s] ${phase}, ${now.log} events, ${acts} acts`); }
       if (phase === 'fjolspil over') break;
       const match = /^fjolspil (\d) (ask|fish|give|no)$/.exec(phase);
-      if (match && taken[key] !== true) {
+      if (match && !(taken[key] > Date.now() - 8000)) { // an act that changed nothing for 8 s (a phone with a stale view: the table sent it a fresh one) is made again
         const seat = Number(match[1]);
-        const page = seat === 0 ? egill : anna;
+        const page = humans[seat];
         const need = match[2];
         if (page && !page.closed) {
           // the checks of the check run, at stable moments (the table waits for Egill to ask)
@@ -340,7 +364,12 @@ async function main() {
             await click(egill, '.spil-veiddu-hand .veiddu-card');
             await sleep(500);
             await still(egill, 'phone-hand-picked');
-            if (!o.video) { // the same phone on its side (844x390), for a moment
+            if (!o.video) { // the big screen on a tablet held upright (820x1180), and the phone on its side (844x390), for a moment
+              await big.send('Emulation.setDeviceMetricsOverride', { width: 820, height: 1180, deviceScaleFactor: 1, mobile: false });
+              await sleep(900);
+              await still(big, 'big-pond-portrait');
+              await big.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+              await sleep(500);
               await egill.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 1, mobile: true });
               await sleep(900);
               await still(egill, 'phone-hand-landscape');
@@ -354,8 +383,9 @@ async function main() {
             await still(big, 'big-asked');
             await still(page, `phone-${page.name}-asked`);
           }
+          if (taken[key]) report.retries = [...(report.retries ?? []), { key, refused: await big.ev('JSON.stringify(window.__veiddu.fjolspil.refused.slice(-3))') }];
           await duty(page, need);
-          taken[key] = true;
+          taken[key] = Date.now();
         }
       }
       await sleep(150);
@@ -364,7 +394,7 @@ async function main() {
     assert.equal(phase, 'fjolspil over', `the round ended (the table says "${phase}")`);
     await sleep(2500);
     await still(big, 'big-win');
-    for (const [k, p] of phones.entries()) await still(p, k === 0 ? 'phone-egill-end' : 'phone-anna-end');
+    for (const p of phones) await still(p, `phone-${p.name}-end`);
     report.final = await big.ev(`(() => { const g = window.__veiddu.fjolspil.game; return { pairs: g.pairs.map(p => p.length), winners: g.winners, title: document.querySelector('.veiddu-win:not([hidden]) h2').textContent, sticker: !document.querySelector('.veiddu-win:not([hidden]) .veiddu-sticker').hidden, said: window.__veiddu.said.map(line => line.id), acts: window.__acts.length, save: window.__veidduSave.wins }; })()`);
     check(`the round ended: ${JSON.stringify(report.final.pairs)} pairs, "${report.final.title}"`);
     assert.equal(report.final.pairs.reduce((sum, n) => sum + n, 0), o.kinds * 2, `all ${o.kinds * 2} pairs are down`);
@@ -404,7 +434,7 @@ async function main() {
       await sleep(900);
       assert.equal(await gameState(), before, 'the rules\' game is as it was');
       assert.equal(await big.ev('window.__veiddu.phase'), waitingFor, 'the table still waits for the same seat');
-      for (const page of phones) assert.equal(await page.ev('window.__spil.state !== window.__before'), true, `${page.name}'s phone was sent its view again`);
+      for (const page of new Set(tries.map(([sender]) => sender))) assert.equal(await page.ev('window.__spil.state !== window.__before'), true, `${page.name}'s phone was sent its view again`);
       check(`${tries.length} acts that are not allowed (out of turn, to oneself, a card not held, a seat that is not there, junk) changed nothing, and the phones were sent their views again`);
     }
 

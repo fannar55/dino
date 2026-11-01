@@ -114,6 +114,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
   let flying = 0;
   const outSeen = new Set();
   const timers = new Set();
+  const refused = []; // the last acts the table did not take, { seat, act, waitingFor }: for a probe
 
   const seatList = () => fjolspil.seats.list();
   const entryOf = seat => fjolspil.seats.bySeat(seat);
@@ -557,6 +558,8 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     if (!on || !game || ended || !Number.isInteger(seat) || seat >= n) return;
     const act = awaiting ? actOf(game, seat, body, { seat: awaiting.seat, need: awaiting.need, kind: awaiting.kind }) : null;
     if (!act) {
+      refused.push({ seat, act: body ?? null, waitingFor: awaiting ? { seat: awaiting.seat, need: awaiting.need, kind: awaiting.kind } : null });
+      if (refused.length > 20) refused.shift();
       sendView(seat);
       return;
     }
@@ -950,6 +953,7 @@ export function createVeidduMulti(doc, { root, fjolspil, save, win, random = Mat
     get game() { return game; },
     get dealt() { return dealt; },
     get seats() { return n; },
+    get refused() { return refused; },
     get phase() {
       if (!on) return 'shut';
       if (ended) return 'over';

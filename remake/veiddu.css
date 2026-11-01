@@ -887,7 +887,7 @@
     --place-w: 44cqw; --window-w: min(44cqw, 22cqh * 1.6); --them-w: clamp(40px, min(6cqw, 5.6cqh), 62px); --catch-w: clamp(36px, min(5.4cqw, 5cqh), 56px);
     --pond-card-w: clamp(46px, min(7cqw, 6.6cqh), 72px);
   }
-  .veiddu-multi .veiddu-pond, .veiddu-multi[data-seats="3"] .veiddu-pond { left: 50%; top: 52%; width: min(86cqw, 36cqh * 1.55); }
+  .veiddu-multi .veiddu-pond, .veiddu-multi[data-seats="3"] .veiddu-pond { left: 50%; top: 52%; width: min(86cqw, 36cqh * 1.55); height: auto; max-height: none; margin: 0; }
   .veiddu-place[data-slot="l"] { left: 50%; right: auto; top: var(--top); translate: -50% 0; }
   .veiddu-place[data-slot="r"] { left: 50%; right: auto; top: auto; bottom: max(3cqh, 14px); translate: -50% 0; }
   .veiddu-place[data-slot="tl"], .veiddu-place[data-slot="bl"] { left: 3cqw; }
