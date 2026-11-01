@@ -175,7 +175,8 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
     // (a boulder is a metre across: it too is moved back from the walked places)
     const x0 = x, z0 = z, near = (px, pz) => [[0, 0], [.8, 0], [-.8, 0], [0, .8], [0, -.8]].some(([dx, dz]) => walkable(px + dx, pz + dz)); let k = 0; while (k < 30 && near(x, z)) { z += .4; k++; }
     if (k) moved.push({ name: `gorge-boulder-${kind}`, from: [x0, z0], to: [+x.toFixed(2), +z.toFixed(2)] });
-    add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
+    const yaw = range(0, Math.PI * 2), name = `gorge-boulder-${kind}`; // (it stands on the lowest ground under its foot, like a piece)
+    add(name, { x, z, y: Math.min(...footing(name, x, z, yaw, scale, .7, 2).map(([px, pz]) => groundAt(px, pz))) - .16 * scale, yaw, scale, tilt: 0, tint: .9 + .15 * random() });
   }
 
   const warm = new THREE.Color('#e8d3be');

@@ -66,7 +66,7 @@ function pathInfo(x, z) {
 export function groundAt(x, z) {
   // The way the friends walk is the ground exactly (a path cut into the hillside: where the hillside's wall would stand on it, the path cuts the wall), and so is the flat round the tree.
   const path = pathInfo(x, z); if (path.d <= PATH_HW + .3) return path.top;
-  if (Math.hypot(x - TREE_AT[0], z - TREE_AT[1]) <= 3.2) return RIM.y;
+  const treeD = Math.hypot(x - TREE_AT[0], z - TREE_AT[1]); if (treeD <= 3.2) return RIM.y;
   let height = Math.max(0, path.top - PATH_SLOPE * (path.d - PATH_HW));
   const bank = path.top + BANK * Math.max(0, path.d - (PATH_HW + .3));
   for (const [k, [ax, az, bx, bz, ya, yb, hw, slope]] of MESAS.entries()) {
@@ -76,6 +76,8 @@ export function groundAt(x, z) {
     const out = d - hw, mesaY = out <= 0 ? top : top - slope * out, y = k >= WALL_FROM && k < WALL_TO ? Math.min(mesaY, bank) : mesaY;
     if (y > height) height = y;
   }
+  // (the flat round the tree meets the ground about it over a metre and a half, not in a step)
+  if (treeD < 4.8) { const t = clamp((treeD - 3.2) / 1.6, 0, 1); height = lerp(RIM.y, height, t * t * (3 - 2 * t)); }
   return height;
 }
 
