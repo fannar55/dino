@@ -195,7 +195,8 @@ export function fakeBook() {
  * at once. `slowBuilds` (seconds, or { name: seconds }) builds each place but the first as main.js does once the start button
  * shows, one after another in the order of chapter.prepare and over frames: each build is done that many seconds of the run after
  * it is asked for. Each place's build is in `builds` ({ name: { asked, built, failed } }, the run's seconds). `failBuilds`
- * ({ name: times }) makes a place's first builds fail, as a build that throws would.
+ * ({ name: times }) makes a place's first builds fail, as a build that throws would. `savedWith(save)` makes the child's save
+ * before the play begins (an earlier version's: `save.addStar('k2_thorsedla')`).
  *
  * The page the journal's map moment (engine/book/map-moment.js) stands in can animate, as a tablet's does: its elements have an
  * `animate` that only takes the call, and the moment slides, draws and closes on the game clock as it does in the game. `reduced`
@@ -203,7 +204,7 @@ export function fakeBook() {
  * Every moment the script plays is in `moments`. `seenBefore` are the ids the child's save has seen already (the map's pieces, such as
  * 'map-route-a', from an earlier play of the chapter).
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [] } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], savedWith = null } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
@@ -307,6 +308,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   const win = reduced ? { matchMedia: () => ({ matches: true }) } : undefined;
   const save = createSave(null);
   for (const id of seenBefore) save.addSeen(id);
+  savedWith?.(save); // a save from an earlier play: stars, places and the rest, as the child's page had them
   const journal = createJournal(doc, save, { book, win });
   // Every map moment the script plays: the pieces, when it came up (scene time), how long it said the slide and the drawing take,
   // when it was closed and how long it said the slide away takes, when the overlay was gone from the page, the lines said by the time

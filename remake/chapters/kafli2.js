@@ -114,6 +114,13 @@ const WORDS = {
   k2_mosi_tenprints: 'Tíu fótspor! Hún hlýtur að vera rétt hjá.',
   k2_mosi_hint_print: 'Hvað með næsta spor? Pikkaðu á það!',
   k2_mosi_nextprint: 'Næsta er þarna!',
+  // 3. The channel: the path flooded, a sail rises out of the reed, "a boat", and it is Uggeðla
+  k2_mosi_flooded: 'Ó nei! Síkið hefur flætt yfir stíginn.',
+  k2_egill_across: 'Hvernig komumst við yfir?',
+  k2_mosi_boat: 'Sjáðu, Egill! Bátur! Með stóru, litríku segli!',
+  k2_egill_helloboat: 'Halló, bátur!',
+  k2_mosi_notboat: 'Þetta er enginn bátur… þetta er Uggeðla!',
+  k2_uggedla_hello: 'Bátur? Ha ha ha! Halló, Mosi. Ég er að veiða.',
   // 4. The fishing: Uggeðla asks, Mosi counts the big fish in the masculine (fiskur is masculine), five (k2_mosi_5) as the prints' five
   k2_uggedla_help: 'En fiskarnir eru svo snöggir í dag. Viltu hjálpa mér, Egill? Pikkaðu á stóru fiskana þegar þeir stökkva!',
   k2_mosi_einn: 'Einn!',
@@ -123,6 +130,24 @@ const WORDS = {
   k2_uggedla_small: 'Nei, hann er of lítill. Hann má stækka!',
   k2_mosi_hint_fish: 'Bíddu eftir stórum fiski… og pikkaðu!',
   k2_uggedla_thanks: 'Fimm fiskar! Takk, Egill. Þú ert frábær veiðimaður!',
+  // 5. The invitation and her star
+  k2_mosi_invite_ugg: 'Uggeðla, viltu koma á Stjörnuhátíðina í kvöld?',
+  k2_uggedla_accept: 'Stjörnuhátíð! Já, ég kem! Og ég veit hvað ég geri: ég ferja alla gestina yfir ána.',
+  k2_mosi_second: 'Sjáðu, Egill! Önnur stjarnan!',
+  // 6. The ferry: Egill on her back, the chat on the way
+  k2_uggedla_aboard: 'Og ég byrja strax. Upp á bakið, Egill! Ég ferja ykkur til Þórseðlu.',
+  k2_mosi_brrr: 'Brrr! Vatnið er svo blautt!',
+  k2_uggedla_wet: 'Vatn er alltaf blautt, Mosi!',
+  k2_egill_sail: 'Af hverju ertu með svona stórt segl?',
+  k2_uggedla_sail: 'Svo allir sjái mig langt að. Meira að segja þeir sem halda að ég sé bátur!',
+  k2_mosi_onlyabit: 'Ég hélt það bara pínulitla stund…',
+  k2_uggedla_tail: 'Og sjáðu, ég syndi með halanum, eins og fiskur!',
+  k2_mosi_wetter: 'Hei! Nú er ég ennþá blautari!',
+  k2_egill_head: 'Sjáðu! Höfuðið á Þórseðlu, uppi yfir trjánum!',
+  // 7. The hummocks, and the book
+  k2_uggedla_berries: 'Hér eru þúfurnar. Þórseðla heyrir ekki í litlum röddum. En hún elskar rauðu berin!',
+  k2_mosi_thanks_ugg: 'Takk, Uggeðla! Sjáumst í kvöld!',
+  k2_mosi_two: 'Tvær komnar. Og nú vitum við hvert við förum næst!',
   // The book's map: a tap on the marker of a place found or done, and Mosi says its name and one sentence (an empty slot is silent)
   k2_mosi_map_fen: 'Fenið! Þar eru tjarnir, sef og froskar.',
   k2_mosi_map_kambedla: 'Kambeðla! Plöturnar hennar lýsa eins og ljósker.',

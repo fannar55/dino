@@ -8,4 +8,9 @@ export const WAITING_FOR_VOICE = new Set([
   'k3_mosi_third', 'k3_mosi_three', // chapter 3's star: the third, and "Þrjár komnar"
   'k2_uggedla_help', 'k2_mosi_einn', 'k2_mosi_tveir', 'k2_mosi_thrir', 'k2_mosi_fjorir', // chapter 2's fishing: her ask and Mosi's count
   'k2_uggedla_small', 'k2_mosi_hint_fish', 'k2_uggedla_thanks', // the small fish, the hint and her thanks
+  'k2_mosi_flooded', 'k2_egill_across', 'k2_mosi_boat', 'k2_egill_helloboat', 'k2_mosi_notboat', 'k2_uggedla_hello', // chapter 2's channel: the "boat"
+  'k2_mosi_invite_ugg', 'k2_uggedla_accept', // the invitation
+  'k2_uggedla_aboard', 'k2_mosi_brrr', 'k2_uggedla_wet', 'k2_egill_sail', 'k2_uggedla_sail', // the ferry's chat
+  'k2_mosi_onlyabit', 'k2_uggedla_tail', 'k2_mosi_wetter', 'k2_egill_head',
+  'k2_uggedla_berries', 'k2_mosi_thanks_ugg', // the hummocks
 ]);

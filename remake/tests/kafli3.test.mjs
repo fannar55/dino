@@ -34,10 +34,10 @@ const CHAPTER_TEXT = ['kafli3', 'kafli3-thorsedla', 'kafli3-fen', 'kafli3-lookou
 // task records them; the test tells which wait, and a waiting line that has its recording fails, so the set empties as they come);
 // setting this false while lines wait for their recording names them and marks the test skipped instead.
 const RECORDINGS_REQUIRED = true;
-// Lines in the kafli2 set that neither chapter says (yet): the old lookout's search for Uggeðla, which the wave replaced (the
-// recordings stay), and chapter 2's own once its star is built (the plan's sixth task: "Önnur stjarnan!" and "Tvær komnar").
+// Lines in the kafli2 set that neither chapter says: the old lookout's search for Uggeðla, which the wave replaced (the recordings
+// stay). Chapter 2's "Önnur stjarnan!" and "Tvær komnar" were here until its star was built (the plan's sixth task): both chapters
+// say every other line of the set.
 const RETIRED = new Set(['k2_mosi_hint_far3', 'k2_mosi_found_uggedla']);
-const LATER = new Set(['k2_mosi_second', 'k2_mosi_two']);
 
 const words = text => text.replace(/\[[^\]]*\]\s*/g, '').trim(); // what is said, without the voice's tags
 
@@ -84,7 +84,7 @@ test('every chapter line has a recording, or waits for its voice, and the source
 test('the kafli2 set\'s lines are the two chapters\': each said by one of them, the same words where both say it, no two the same take', () => {
   const said = new Set([...Object.keys(chapter.lines), ...Object.keys(kafli2.chapter.lines)]);
   for (const line of SOURCE) {
-    if (RETIRED.has(line.id) || LATER.has(line.id)) assert.ok(!said.has(line.id), `${line.id} is said by a chapter now: take it out of RETIRED or LATER`);
+    if (RETIRED.has(line.id)) assert.ok(!said.has(line.id), `${line.id} is said by a chapter now: take it out of RETIRED`);
     else assert.ok(said.has(line.id), `${line.id} is said by neither chapter 2 nor chapter 3`);
   }
   for (const id of Object.keys(chapter.lines)) {
