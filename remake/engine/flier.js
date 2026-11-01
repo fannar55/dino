@@ -33,7 +33,7 @@ export const FLIGHT = {
   bankWindow: 0.75, // seconds either side over which the turn's bank is averaged
   lean: 4, // degrees of bank per m/s of sideways move
   spring: 4.5, // 1/s: a steer or a skim is back within 1.5 s (critically damped)
-  skim: 1.4, // her body over the water when she skims, at the 7.5 m size: her feet and wingtips brush it
+  skim: 1.3, // her body over the water when she skims, at the 7.5 m size: her lowest skin 0.6 m over it in glide (0.7 m under her hips)
   burst: { factor: 1.6, seconds: 2.5, rest: 3, payBack: 4 },
   climbing: 1.5, // m/s up: she beats her wings (fly) instead of gliding
   turning: 12, // degrees of a turn's bank from which she beats her wings through it (spec 8: wingbeats in the turns)
