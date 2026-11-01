@@ -354,8 +354,9 @@ function soundTap() {
     return mediaSource.call(this, element);
   };
   const ids = new WeakMap();
+  let lastId = 0;
   const idOf = element => {
-    if (!ids.has(element)) ids.set(element, ids.size + 1);
+    if (!ids.has(element)) ids.set(element, ++lastId);
     return ids.get(element);
   };
   const watched = new WeakSet();
