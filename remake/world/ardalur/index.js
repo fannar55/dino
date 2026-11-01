@@ -15,7 +15,7 @@ import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './
 import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.js';
 import { bankSteps, plantSteps } from './banks.js';
 import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
-import { createGorgeSight, ABOVE_SECTOR } from './sight.js';
+import { createGorgeSight, createHazeSight, ABOVE_SECTOR } from './sight.js';
 import { createAnimals } from './animals.js';
 import { createSpeciesLibrary } from '../forest/species.js';
 import { cullBatches } from '../forest/batch.js';
@@ -111,6 +111,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   // from down in the gorge the ground hides most plants above the falls: the cull leaves those out (sight.js)
   const sight = real ? createGorgeSight(route, terrain, index) : null;
   const hideAbove = (range, mesh) => mesh.userData.sector === ABOVE_SECTOR && sight.hidden(world.camera.position, range.sphere);
+  // low over the fen the far plants deep in the haze are left out too (sight.js)
+  const haze = real ? createHazeSight(world) : null;
+  const hideHazed = (range, mesh) => mesh.userData.band === 'far' && haze.hidden(world.camera.position, range.sphere);
+  const hideBoth = (range, mesh) => hideHazed(range, mesh) || hideAbove(range, mesh);
   const stats = { late: [], built: [], sections: parts };
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
@@ -155,10 +159,10 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     lastVisible = sections.update(u, near);
     parts.forEach((part, i) => { if (part) part.visible = sections.list[i].visible; });
     if (real) {
-      // the plants in view, at the detail their distance calls for (world/forest/batch.js), but for those the gorge hides; her
+      // the plants in view, at the detail their distance calls for (world/forest/batch.js), but for those the gorge or the haze hides; her
       // downwash; the water's clock
       world.camera.updateMatrixWorld();
-      const hide = sight.active(camera) ? hideAbove : null;
+      const hide = sight.active(camera) ? hideBoth : hideHazed;
       for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera, 1.5, hide);
       const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
       if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);

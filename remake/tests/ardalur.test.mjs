@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createRoute, BEATS, LEAP, FALLS, GORGE } from '../chapters/kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
-import { createGorgeSight, ABOVE_SECTOR } from '../world/ardalur/sight.js';
+import { createGorgeSight, ABOVE_SECTOR, createHazeSight, fogBetween, FOG_CUT } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
 import { createAnimals } from '../world/ardalur/animals.js';
@@ -403,6 +403,76 @@ test('from down in the gorge the ground hides most plants above the falls: the c
   }
   assert.ok(hidden > ranges.length * 10, `the rule left out ${hidden} plant pieces in all (${ranges.length} pieces, ${cameras.length} cameras)`);
   assert.ok(checked > 3000, `${checked} sight lines checked`);
+});
+
+test('low over the fen the far plants deep in the haze are left out, and only those: near ones and the view from up high keep all', () => {
+  const place = litValley();
+  const world = litWorldOf;
+  const { look } = world;
+  world.scene.fog = new THREE.FogExp2(look.fog.color, look.fog.density); // as engine/fog.js installs it
+  const haze = createHazeSight(world);
+  const meshes = () => place.stats.sections.filter(part => part.visible)
+    .flatMap(part => part.children.find(o => o.name === 'Árdalur plants').children);
+  const view = t => {
+    // a chase camera's view: 12 m behind her and 2 m up, looking 40 m ahead along her path
+    const at = route.pointAt(route.progressAt(t));
+    const ahead = route.pointAt(route.progressAt(t + 2));
+    const back = new THREE.Vector3(at.x - ahead.x, 0, at.z - ahead.z).normalize();
+    world.flightU = route.progressAt(t);
+    world.flightPoint = null;
+    world.camera.position.set(at.x + back.x * 12, at.y + 2, at.z + back.z * 12);
+    world.camera.lookAt(ahead.x, ahead.y, ahead.z);
+    world.camera.updateMatrixWorld();
+    place.update(DT, t);
+    const kept = { far: 0, near: 0 };
+    for (const mesh of meshes()) if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.reduce((n, r) => n + r.count / 3, 0);
+    return kept;
+  };
+  const plain = () => {
+    const kept = { far: 0, near: 0 };
+    for (const mesh of meshes()) {
+      cullBatches([mesh], world.camera);
+      if (mesh.visible) kept[mesh.userData.band] += mesh.userData.cull.kept.reduce((n, r) => n + r.count / 3, 0);
+    }
+    return kept;
+  };
+  for (const t of [22, 30, 40.45]) {
+    const ruled = view(t);
+    const all = plain();
+    assert.ok(all.far > 40000, `t ${t}: a plain cull draws ${all.far} far triangles`);
+    assert.ok(ruled.far < all.far * 0.85, `t ${t}: the haze rule draws ${ruled.far} of ${all.far} far triangles`);
+    assert.equal(ruled.near, all.near, `t ${t}: the near band is never left out for haze`);
+    // every far piece left out is more than FOG_CUT fogged at its nearest point and at its top; every one kept is less
+    view(t);
+    const cam = world.camera.position;
+    for (const mesh of meshes()) {
+      if (mesh.userData.band !== 'far') continue;
+      const kept = new Set(mesh.userData.cull.kept);
+      cullBatches([mesh], world.camera);
+      for (const r of mesh.userData.cull.kept) {
+        const { center: c, radius } = r.sphere;
+        const toward = new THREE.Vector3().subVectors(cam, c).normalize().multiplyScalar(radius).add(c);
+        const fog = Math.min(fogBetween(cam, toward, look.fog.density, look.fog.heightFalloff),
+          fogBetween(cam, new THREE.Vector3(c.x, c.y + radius, c.z), look.fog.density, look.fog.heightFalloff));
+        assert.equal(kept.has(r), fog <= FOG_CUT, `t ${t}: a far piece ${cam.distanceTo(c).toFixed(0)} m away, ${fog.toFixed(3)} fogged`);
+      }
+    }
+  }
+  // from up high over the land the haze is thin: nothing is left out
+  const high = view(157);
+  assert.deepEqual(high, plain(), 'from up high the haze rule leaves nothing out');
+  world.flightU = null;
+  world.scene.fog = null;
+});
+
+test('the haze along a line of sight is engine/fog.js\'s: thicker with distance, thinner the higher the camera', () => {
+  const at = (cy, x, y) => fogBetween(new THREE.Vector3(0, cy, 0), new THREE.Vector3(x, y, 0), 0.014, 0.08);
+  assert.ok(at(6, 300, 6) > at(6, 200, 6) && at(6, 200, 6) > at(6, 100, 6));
+  assert.ok(at(50, 300, 50) < at(6, 300, 6) * 0.2);
+  // level line: 1 - exp(-density * e^(-falloff y) * distance)
+  assert.ok(Math.abs(at(6, 250, 6) - (1 - Math.exp(-0.014 * Math.exp(-0.08 * 6) * 250))) < 1e-9);
+  // a line rising to a crown is less fogged than a level one as long
+  assert.ok(at(6, 250, 30) < at(6, Math.hypot(250, 24), 6));
 });
 
 // ---- the animal groups (Task 8) -----------------------------------------------------------------------------------------------

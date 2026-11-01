@@ -84,3 +84,48 @@ export function createGorgeSight(route, terrain, index) {
     },
   };
 }
+
+// What the haze hides. The look's height fog (engine/fog.js) thickens with distance and thins with height. Low over the fen, looking
+// up the valley, the far band's trees 200 to 500 m off are most of what the view draws, and most of them are no more than a faint
+// shape in the haze. A far plant whose nearest point and top are both more than FOG_CUT fogged from the camera is left out; as she
+// flies on it comes back, as faint as the haze lets it. The near band (her own banks) is never left out for haze.
+//
+//   fogBetween(camera, point, density, falloff) -> 0..1   how fogged `point` is seen from `camera`, as engine/fog.js reckons it
+//   createHazeSight(world) -> { hidden(camera, sphere) }   the far plant inside `sphere` is lost in the haze (the scene's fog density,
+//                                                           the look's heightFalloff; no fog: nothing is)
+export const FOG_CUT = 0.86;
+
+export function fogBetween(camera, point, density, falloff) {
+  const dx = point.x - camera.x;
+  const dy = point.y - camera.y;
+  const dz = point.z - camera.z;
+  const dist = Math.max(Math.hypot(dx, dy, dz), 1e-4);
+  const dirY = dy / dist;
+  const base = density * Math.exp(-falloff * Math.max(camera.y, 0));
+  const path = Math.abs(dirY) > 1e-3 ? (1 - Math.exp(-falloff * dy)) / (falloff * dirY) : dist;
+  return 1 - Math.exp(-Math.max(base * path, 0));
+}
+
+export function createHazeSight(world) {
+  const near = { x: 0, y: 0, z: 0 };
+  const top = { x: 0, y: 0, z: 0 };
+  return {
+    hidden(camera, sphere) {
+      const density = world.scene.fog?.density;
+      const falloff = world.look?.fog?.heightFalloff;
+      if (!density || !falloff) return false;
+      const { center: c, radius: r } = sphere;
+      const d = Math.hypot(camera.x - c.x, camera.y - c.y, camera.z - c.z);
+      if (d <= r) return false;
+      const k = r / d; // the sphere's point toward the camera
+      near.x = c.x + (camera.x - c.x) * k;
+      near.y = c.y + (camera.y - c.y) * k;
+      near.z = c.z + (camera.z - c.z) * k;
+      if (fogBetween(camera, near, density, falloff) <= FOG_CUT) return false;
+      top.x = c.x;
+      top.y = c.y + r;
+      top.z = c.z;
+      return fogBetween(camera, top, density, falloff) > FOG_CUT;
+    },
+  };
+}
