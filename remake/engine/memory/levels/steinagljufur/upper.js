@@ -80,15 +80,15 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
 
   // The ground's mesh: a grid laid over groundAt, finer across the ledge's riser (its face is steep), coloured by how steep each place is (sand on the flat, rock on a face).
   const xs = [], zs = [];
-  for (let x = -46; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
+  for (let x = -40; x <= 52; x += x > 2 && x < 4.4 ? .1 : x > 1.4 && x < 5 ? .3 : .9) xs.push(+x.toFixed(2));
   for (let z = -16; z <= 31; z += .9) zs.push(+z.toFixed(2));
   const cols = xs.length, rows = zs.length, position = new Float32Array(cols * rows * 3), normal = new Float32Array(cols * rows * 3), colour = new Float32Array(cols * rows * 3);
-  const SAND = new THREE.Color('#c9a26e'), ROCK = new THREE.Color('#94502c'), DEEP = new THREE.Color('#7b4023'), tint = new THREE.Color(), e = .25;
+  const SAND = new THREE.Color('#c4965a'), ROCK = new THREE.Color('#9b4318'), DEEP = new THREE.Color('#7a3010'), tint = new THREE.Color(), e = .25;
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = xs[i], z = zs[j], y = groundAt(x, z), k = j * cols + i;
     const nx = groundAt(x - e, z) - groundAt(x + e, z), nz = groundAt(x, z - e) - groundAt(x, z + e), l = Math.hypot(nx, 2 * e, nz);
     position.set([x, y, z], k * 3); normal.set([nx / l, 2 * e / l, nz / l], k * 3);
-    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .07;
+    const steep = smoothstep(.03, .22, 1 - 2 * e / l), shade = 1 + (random() - .5) * .03;
     tint.copy(SAND).lerp(ROCK, steep).lerp(DEEP, smoothstep(.35, .7, 1 - 2 * e / l) * .7).multiplyScalar(shade); colour.set([tint.r, tint.g, tint.b], k * 3);
   }
   const index = [];
@@ -116,11 +116,11 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   const rimZ = x => RIM.from[1] + (RIM.to[1] - RIM.from[1]) * (x - RIM.from[0]) / (RIM.to[0] - RIM.from[0]);
   // where the middle of the place is at x: [z, y] (the exit floor and the terrace, the path, the rim)
   const middleAt = x => x < 9.5 ? [x < LEDGE.x ? 0 : -1, groundAt(x, 0)] : x < RIM.from[0] ? [nearest(x)[1], nearest(x)[2]] : [rimZ(x), RIM.y];
-  const EXIT = { mouth: -18.5 }, BORE_BOX = { minX: -38, maxX: EXIT.mouth + 2.5, halfZ: 4.6 };
+  const EXIT = { mouth: -12 }, BORE_BOX = { minX: -32, maxX: EXIT.mouth + 2.5, halfZ: 4.6 };
   const bores = (x, z) => x < BORE_BOX.maxX && x > BORE_BOX.minX && Math.abs(z) < BORE_BOX.halfZ;
   const ALL = [0, 3, 4, 5, 6, 1, 2];
   // the hillside (+z): two rows, the lower at the foot and the upper high on the face
-  for (let x = -36; x <= 50; x += range(4.6, 6.4)) {
+  for (let x = -30; x <= 50; x += range(4.6, 6.4)) {
     const [z0, y0] = middleAt(Math.min(x, RIM.to[0])), reach = x > 9.5 && x < RIM.from[0] ? 1.5 : 0;
     for (const [rise, scale, sink] of [[2.2, range(2.4, 3.1), .5], [6.2, range(3.1, 4), .55]]) {
       let z = null; for (let k = 0; k < 90 && z === null; k++) if (groundAt(x, z0 + reach + k * .5) >= y0 + rise) z = z0 + reach + k * .5;
@@ -128,7 +128,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     }
   }
   // the back of the exit floor: a wall of pieces behind the tunnel, two rows
-  for (const [x, scale] of [[-28.4, 3.6], [-25.2, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -30) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5); }
+  for (const [x, scale] of [[-22, 3.6], [-18.8, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -24) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5); }
   // the end beyond the rim (Task 6's gap is in front of it)
   for (let z = -4; z <= 16; z += range(4.2, 5.6)) piece([4, 6, 0, 5], RIM.to[0] + 9.2, z, groundAt(RIM.to[0] + 9.2, z), range(3, 3.9), .55);
   // the open side (-z): under the terrace, the path and the rim, walking out from the edge of the flat until the ground has fallen: a row at each of the drops
@@ -144,16 +144,21 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
   // the ledge's riser: pieces along it at each side of the middle, which is left clear for the slab
   for (const z of [-10.4, -8, -5.8, -3.9, 4, 6, 8, 10]) piece([4, 6, 5, 3], LEDGE.x - .2 + range(-.2, .3), z, groundAt(LEDGE.x - .2, z), range(1.3, 1.9), .4);
   // boulders at the foot of the riser, along the hillside and at the edge of the path (the rope's stake is one)
-  for (const [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [1.5, -6.2, 1, .46], [2, -8.6, 2, .36], [5.2, -9.6, 1, .5], [-14, 3.2, 1, .5], [-5, 3.8, 2, .4], [-22, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [-12.2, -6.8, 2, .3], [-3.8, -8, 1, .34], [-21, -7, 1, .4], [17.8, 4.4, 2, .3]]) add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
+  for (const [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [1.5, -6.2, 1, .46], [2, -8.6, 2, .36], [5.2, -9.6, 1, .5], [-12, 3.2, 1, .5], [-5, 3.8, 2, .4], [-18, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [-10.2, -6.8, 2, .3], [-3.8, -8, 1, .34], [-17, -7, 1, .4], [17.8, 4.4, 2, .3]]) add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
 
   const warm = new THREE.Color('#e8d3be');
-  for (const [name, list] of placements) {
+  // (each kind in chunks along the gorge, a mesh each, so that the frustum drops the stretches a view does not see: the budget's 250,000 triangles are for what is drawn)
+  const CHUNKS = [-1e9, -8, 11, 27, 1e9];
+  for (const [name, all] of placements) {
     const model = models.get(name), material = model.material.clone(); material.side = THREE.FrontSide; disposables.push(material);
     if (name.startsWith('gorge-boulder')) material.color.set('#ffdcb4'); else material.color.copy(warm);
-    const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = `${name} (efra)`;
-    list.forEach((entry, i) => { dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); mesh.setColorAt(i, new THREE.Color(entry.tint, entry.tint, entry.tint)); });
-    mesh.instanceMatrix.needsUpdate = true; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = name.startsWith('gorge-boulder');
-    frame.add(mesh); triangles += model.triangles * list.length; draws++;
+    for (let c = 0; c < CHUNKS.length - 1; c++) {
+      const list = all.filter(entry => entry.x >= CHUNKS[c] && entry.x < CHUNKS[c + 1]); if (!list.length) continue;
+      const mesh = new THREE.InstancedMesh(model.geometry, material, list.length); mesh.name = `${name} (efra ${c})`;
+      list.forEach((entry, i) => { dummy.position.set(entry.x, entry.y, entry.z); dummy.rotation.set(entry.tilt, entry.yaw, 0, 'YXZ'); dummy.scale.setScalar(entry.scale); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix); mesh.setColorAt(i, new THREE.Color(entry.tint, entry.tint, entry.tint)); });
+      mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); mesh.frustumCulled = true; mesh.receiveShadow = true; mesh.castShadow = name.startsWith('gorge-boulder');
+      frame.add(mesh); triangles += model.triangles * list.length; draws++;
+    }
   }
 
   // ---- the exit of the tunnel: the owner's tunnel model again, its mouth toward the floor, the dark bore lit by the plates' glow like the first ----

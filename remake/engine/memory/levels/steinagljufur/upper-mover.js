@@ -29,7 +29,7 @@ const wayFrame = wayPoints(1);
 // ---- where the group stands (the frame's x forward, z to the right; each spot a place on the ground and the way it faces: radians from forward, positive turning to the right) ----
 export const FORMATIONS = Object.freeze({
   // on the floor in front of the ledge, as they come out of the tunnel (the Þórseðlur at the front: their go is next)
-  floor: { mosi: [-7.2, 1.6], triceratops: [[-9.3, -3.3], [-9.7, -.6]], stegosaurus: [[-12.3, -2.6], [-12.7, .1]], brontosaurus: [[-4.8, -2.9], [-5.1, -.1]], pteranodon: [[-14.8, -1.6], [-15.1, 1.2]] },
+  floor: { mosi: [-4.8, 1.8], triceratops: [[-6.6, -3.2], [-7, -.4]], stegosaurus: [[-8.6, -2.5], [-9, .2]], brontosaurus: [[-3.2, -3.0], [-3.4, -.2]], pteranodon: [[-10.2, -1.9], [-10.5, .9]] },
   // on the terrace of the ledge, at the foot of the cliff (the Flugeðlur by the rope)
   terrace: { mosi: [8.2, -3.6], triceratops: [[5.6, -4.7], [7.4, -5.2]], stegosaurus: [[5.9, 2.4], [7.7, 2.9]], brontosaurus: [[4.9, -2.7], [4.8, 0]], pteranodon: [[6.5, -1.3], [6.8, .9]] },
   // on the rim, at the end of the climb
@@ -69,7 +69,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   }
 
   // ---- through ----
-  const ENTER = { first: 2.7, every: .4, run: 5, walk: 3.4 };
+  const ENTER = { first: 2.0, every: .26, run: 6.4, walk: 4.4 };
   const ORDER = ['stegosaurus', 'mosi', 'triceratops', 'brontosaurus', 'pteranodon'];
   function startThrough() {
     walkers.cancelAll(); walkers.resetClock();
@@ -81,7 +81,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       list.forEach((actor, i) => {
         actor.clearLook?.(); actor.stopGesture?.();
         const lane = who === 'mosi' ? BORE.across : lanes(i), row = who === 'stegosaurus' ? 0 : g;
-        const stage1 = tunnelPoint(BORE.mouth + 1.0 + row * 1.15, lane), enter = tunnelPoint(BORE.mouth - .2, lane), inside = tunnelPoint(-1.7, lane);
+        const stage1 = tunnelPoint(BORE.mouth + 1.1 + row * .5, lane), enter = tunnelPoint(BORE.mouth - .2, lane), inside = tunnelPoint(-1.7, lane);
         const at = ENTER.first + g * ENTER.every + i * .12;
         walkers.start(actor, [{ to: [stage1], speed: ENTER.run }, { until: at }, { to: [enter, inside], speed: ENTER.walk }, { hide: true }], { yaw: null, onDone: () => { action.hidden++; } });
       });
@@ -98,8 +98,8 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       list.forEach((actor, i) => {
         const lane = who === 'mosi' ? 0 : (i ? .62 : -.62), spot = spotOf('floor', who, i), inside = world(mouth - 3.2, lane), mouthPoint = world(mouth + .9, lane * 1.4);
         walkers.place(actor, inside, forward(0), false); actor.root.scale.setScalar(.02);
-        const delay = g * .42 + i * .14;
-        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: [world(mouth - 1.2, lane), mouthPoint, spot.point], speed: 3.6 }], { yaw: spot.yaw, onDone: () => { action.arrived++; } });
+        const delay = g * .3 + i * .1;
+        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: [world(mouth - 1.2, lane), mouthPoint, spot.point], speed: 5.4 }], { yaw: spot.yaw, onDone: () => { action.arrived++; } });
       });
     });
     return true;
@@ -109,7 +109,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     if (a.phase === 'gather' && a.age >= ENTER.first) a.phase = 'enter';
     if ((a.phase === 'gather' || a.phase === 'enter') && a.hidden >= a.total) a.phase = 'inside';
     if (a.phase === 'exit' && a.arrived >= a.total) { a.phase = 'lineup'; a.age = 0; for (const actor of friends()) actor.lookAt?.(U.world(2, 2, 0), { weight: .5, maxAngle: 18 }); }
-    if (a.phase === 'lineup' && a.age >= (reduced() ? .1 : .8)) {
+    if (a.phase === 'lineup' && a.age >= (reduced() ? .1 : .6)) {
       // the Kambeðlur let the light go: their plates dim (they held it until now)
       holding.delete('stegosaurus'); plates.setAll(0, { duration: reduced() ? 0 : 1.1 });
       for (const actor of friends()) actor.clearLook?.();
@@ -163,8 +163,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
           list.forEach((actor, i) => {
             const lane = who === 'mosi' ? 0 : (i ? .85 : -.85), spot = spotOf(formation, who, i), foot = U.slab.ramp(lane).map(p => U.world(p.x, p.y, p.z));
             // (from where it stands: to the foot of the slab, up it, and on to its place on the terrace)
-            const start = world(-2.2 - (k % 3) * .6, lane * 2.1);
-            walkers.start(actor, [{ until: t0 + k * .27 }, { to: [start, ...foot, spot.point], speed: 3.3 }], { yaw: spot.yaw, pitch: true });
+            walkers.start(actor, [{ until: t0 + k * .2 }, { to: [...foot, spot.point], speed: 4 }], { yaw: spot.yaw, pitch: true });
           });
           k += who === 'mosi' ? 1 : 2;
         }
@@ -181,7 +180,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   // ---- fly ----
   // The rope lies in a coil at the foot of the cliff, tied to its stake. The Flugeðlur take its free end (A, in front, then B a metre behind: the rope runs through B's beak to A's) and
   // fly it up the cliff in three legs, one for each tap; at the top they circle the tree, winding the rope round its trunk; it draws taut, and they land by the tree.
-  const LEG_SPEED = 3.7, WRAP = { radius: 1.15, turns: 1.4, speed: 3.4, behind: 1.15 };
+  const LEG_SPEED = 4.4, WRAP = { radius: 1.15, turns: 1.4, speed: 3.4, behind: 1.15 };
   const frameOf = point => U.local(point);
   const noseFrame = actor => frameOf(actor.getNosePosition());
   const airAt = fraction => { // a point above the path, fraction 0..1 of its length, toward the hillside a little and 2.6 metres up: [x, y, z]
@@ -254,7 +253,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
 
   // ---- climb ----
   // Everyone but the Flugeðlur (they are at the tree) walks the steep path, Mosi first, the rope on their right (the hillside's side) as a handrail; two abreast, the body pitched with the slope.
-  const CLIMB_SPEED = 3.1, STRIDE = 3.4;
+  const CLIMB_SPEED = 3.9, STRIDE = 3.1;
   function startClimb() {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'climb', phase: 'walk', age: 0, steps: 0 };
@@ -265,7 +264,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       list.forEach((actor, i) => {
         const lane = who === 'mosi' ? .35 : (i ? -.65 : .8), spot = spotOf('rim', who, i), route = pathRoute(lane);
         actor.clearLook?.();
-        walkers.start(actor, [{ to: [route[0], ...route, spot.point], speed: CLIMB_SPEED }], { delay: k * .32, yaw: spot.yaw, pitch: true });
+        walkers.start(actor, [{ to: [route[0], ...route, spot.point], speed: CLIMB_SPEED }], { delay: k * .2, yaw: spot.yaw, pitch: true });
         k += 1;
       });
     }

@@ -45,6 +45,7 @@
 //   --first SPECIES the pair found first in the non-story modes (triceratops, stegosaurus or brontosaurus), so a hold run can watch that pair's waiting place.
 //   --restart-at W  celebration, ending or gift: restarts the round there ("Byrja upp á nýtt" while Mosi cheers and the gifts line is on, "Spila aftur" on the card, or while the first gift pair is rising or flying to the basket) and
 //                   reports what is left running (report.restartCheck: nothing should be).
+//   --restart-at rope   level 2 (use --query qa=1): restarts while the Flugeðlur fly the rope up the cliff (report.beforeRopeRestart, report.restartCheck: the rope, the flight and the upper gorge must be reset)
 //   --restart-at glow   level 2: pauses while the first tap's light is on the plates (report.pauseGlow: the light and the plates must not move, nor anything else), goes on, and restarts there.
 //   --hold N        first-minute mode only: keeps playing N seconds after the first pair is home (the waiting friends' play, report.idle).
 //   --no-tap-along  never taps in a tap-along wait, so the friends finish on their own ("Við gerum þetta saman!").
@@ -133,7 +134,7 @@ function parseArgs(argv) {
     else if (a === '--hold') o.hold = Number(next());
     else if (a === '--think') o.think = Number(next());
     else if (a === '--first') o.first = next();
-    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift or glow'); }
+    else if (a === '--restart-at') { o.restartAt = next(); if (!['celebration', 'ending', 'gift', 'glow', 'rope'].includes(o.restartAt)) throw new Error('--restart-at must be celebration, ending, gift, glow or rope'); }
     else if (a === '--gifts-last') o.giftsLast = true;
     else if (a === '--hide-hud') o.hideHud = true;
     else if (a === '--wrong') o.wrong = Object.fromEntries(next().split(',').map(pair => pair.split('=')));
@@ -386,7 +387,8 @@ const RESTART_JS = `(() => { const m = window.__memory, d = m.stats(), s = m.sta
     sceneBusy: d.scene.busy, waiting: d.scene.waiting, beats: d.scene.beats.length, gifts: d.scene.gifts, idleActive: d.idle && d.idle.active, idleStarts: d.idle && d.idle.starts.length,
     ending: !document.getElementById('ending').hidden, endingGifts: !document.getElementById('ending-gifts').hidden, who: !document.getElementById('who').hidden, word: document.getElementById('beat-word').classList.contains('show'),
     basketText: document.getElementById('basket-text').textContent, giftPhases: d.cells.filter(c => c.gift).map(c => c.gift.phase), giftModelsVisible: d.cells.filter(c => c.gift && c.gift.model && c.gift.model.visible).length, creditsOpen: !document.getElementById('credits').hidden,
-    tunnel: (d.levelStats && d.levelStats.tunnel) || null, holding: (b.holding || null), action: b.action || null,
+    tunnel: (d.levelStats && d.levelStats.tunnel) || null, upper: (d.levelStats && d.levelStats.upper) || null, holding: (b.holding || null), action: b.action || null,
+    flights: window.__gorge ? window.__gorge.stage.babies.map(a => a.getDebugState().flight).filter(Boolean).length : null, ropeVisible: window.__gorge ? window.__gorge.rope.visible : null, babiesVisible: window.__gorge ? window.__gorge.stage.babies.filter(a => a.root.visible).length : null, babiesTilted: window.__gorge ? window.__gorge.stage.babies.filter(a => Math.abs(a.root.rotation.z) > 1e-6 || Math.abs(a.root.rotation.x) > 1e-6).length : null, lowerVisible: window.__gorge ? window.__gorge.gorge.group.visible : null,
     caption: document.getElementById('caption').textContent, camera: { mode: d.camera.mode, shot: d.camera.shot, held: d.camera.held }, visibleFriends: d.cells.filter(c => c.actorVisible).length, speech: m.audio().speech.current, speechPending: m.audio().speech.pending, basket: m.basket(), found: m.state().found.length }; })()`;
 
 // The wait for the gifts is played in the search view: the camera's intent, and every leaf that is still shut inside the frame, how big each is.
@@ -767,7 +769,7 @@ async function main() {
     // third after the second (every one after the last friend pair with --gifts-last). The first try of the first two is a deliberate miss.
     const giftItems = [...new Set(first.cards.filter(c => c.item).map(c => c.item))];
     report.gifts = [];
-    const giftAt = giftItems.map((_, k) => o.giftsLast ? 3 : k); // matched friend pairs when each pair is opened
+    const giftAt = giftItems.map((_, k) => o.giftsLast ? LEVEL.friends.length : k); // matched friend pairs when each pair is opened
     const giftMissed = new Set(), wantGifts = o.mode === 'full' || o.mode === 'rapid' || o.mode === 'search';
     let giftsLeftChecked = false;
     const hiddenGift = (s, item) => s.cards.filter(c => c.item === item && c.status === 'hidden').map(c => c.id);
@@ -948,7 +950,7 @@ async function main() {
       if (s.giftPhases.includes('rise')) waited ||= await milestone('gift-rise', 'gift-pair-rises', 450);
       if (s.giftPhases.includes('fly')) waited ||= await milestone('gift-fly', 'gift-pair-flies', 250);
       if (s.basket >= 1) waited ||= await milestone('gift-basket', 'gift-in-basket', 350);
-      if (s.story.key === 'gifts-left') waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
+      if (/gifts-left$/.test(s.story.key)) waited ||= await milestone('gifts-left', 'gifts-left-wait', 1500);
       // The branch: the obstacle glowing, the arrow after hesitating, the bubbles, a wrong friend's go and Mosi's laugh,
       // the walk there, each tap of the tap-along (or the timeout's "Við gerum þetta saman!") and the cheer.
       if (s.story.kind === 'work' && s.story.target === 'branch' && s.story.available && !s.cam.held && !s.scene) waited ||= await milestone('glow-branch', 'branch-glowing', 400);
@@ -1057,6 +1059,45 @@ async function main() {
         if (s.bridge.active === 'headbutt' && s.tunnel.pile >= 3 && s.tunnel.falling) waited ||= await milestone('pile-falling', 'pile-falling-into-steps', 900);
         if (s.bridge.rocksFallen && !s.tunnel.falling && !s.scene && !s.cam.held && !s.cam.moving) waited ||= await milestone('pile-fallen', 'pile-fallen-steps', 700);
       }
+      // Level 2's steps after the rockfall: the walk through the tunnel, the ledge before and each pull of the slab, the ramp, the cliff before, each wingbeat, the rope round the tree and drawn taut, the climb.
+      if (LEVEL.number === 2 && s.upper) {
+        const u = s.upper, a = u.action ?? {}, act = s.bridge.active;
+        if (act === 'through') {
+          if (a.phase === 'gather') waited ||= await milestone('through-gather', 'through-everyone-runs-to-the-tunnel', 600);
+          if (a.phase === 'enter' && s.cam.shot === 'hero') waited ||= await milestone('through-enter', 'through-into-the-lit-tunnel', 700);
+          if (a.phase === 'exit' && a.arrived >= 1) waited ||= await milestone('through-exit', 'through-out-of-the-tunnel', 500);
+          if (a.phase === 'lineup') waited ||= await milestone('through-floor', 'through-on-the-floor-before-the-ledge', 300);
+        }
+        if (s.story.kind === 'work' && s.story.target === 'ledge' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('ledge-before', 'ledge-before-the-slab-comes-down', 900);
+        if (act === 'reach') {
+          if (u.slab <= 32) waited ||= await milestone('slab-1', 'slab-step-1', 350);
+          if (u.slab <= 11) waited ||= await milestone('slab-2', 'slab-step-2', 350);
+          if (u.slab <= -23) waited ||= await milestone('slab-3', 'slab-ramp-down', 500);
+          if (a.phase === 'ascend') waited ||= await milestone('ramp-walk', 'everyone-walks-up-the-ramp', 700);
+        }
+        if (s.story.kind === 'work' && s.story.target === 'cliff' && s.story.available && !s.cam.held && !s.scene && !s.bridge.active && !s.bridge.asking) waited ||= await milestone('cliff-before', 'cliff-before-the-rope-flies', 900);
+        if (act === 'fly') {
+          if (a.phase === 'ready' && a.given >= 1) waited ||= await milestone('wing-0', 'wingbeat-0-rope-lifted', 300);
+          if (a.phase === 'leg' && a.done >= 1) waited ||= await milestone('wing-1', 'wingbeat-1-up-the-cliff', 500);
+          if (a.phase === 'leg' && a.done >= 2) waited ||= await milestone('wing-2', 'wingbeat-2-to-the-tree', 400);
+          if (a.phase === 'wrap') waited ||= await milestone('rope-wrap', 'rope-round-the-tree', 1100);
+          if (a.phase === 'tie') waited ||= await milestone('rope-taut', 'rope-drawn-taut', 1000);
+          if (a.phase === 'cheer') waited ||= await milestone('rope-tied', 'rope-tied-the-flugedlur-land', 500);
+        }
+        if (act === 'climb') {
+          if (s.cam.shot === 'wide' && !seen.has('climb-follow')) waited ||= await milestone('climb-start', 'climb-start-the-rope-beside-the-path', 600);
+          if (s.cam.shot === 'follow') waited ||= await milestone('climb-follow', 'climb-handrail-follow', 700);
+          if (s.cam.shot === 'wide' && seen.has('climb-follow')) waited ||= await milestone('climb-high', 'climb-high-on-the-cliff', 900);
+          if (a.phase === 'cheer') waited ||= await milestone('climb-top', 'climb-everyone-on-the-rim', 500);
+        }
+        if (o.restartAt === 'rope' && act === 'fly' && ['leg', 'wrap'].includes(a.phase) && u.rope) {
+          await sleep(500);
+          report.beforeRopeRestart = await ev(RESTART_JS); step('restart while the rope is in flight', { phase: a.phase, rope: u.rope, flights: report.beforeRopeRestart.flights, upper: report.beforeRopeRestart.upper?.where });
+          await ev('window.__memory.restart()'); await sleep(1600);
+          report.restartCheck = await ev(RESTART_JS); step('after the restart', { upper: report.restartCheck.upper, flights: report.restartCheck.flights, ropeVisible: report.restartCheck.ropeVisible, babiesVisible: report.restartCheck.babiesVisible, babiesTilted: report.restartCheck.babiesTilted, lowerVisible: report.restartCheck.lowerVisible, hiddenCards: report.restartCheck.hiddenCards, basket: report.restartCheck.basketText });
+          await shot('restarted-after-the-rope'); report.finished = true; break;
+        }
+      }
       if (waited) continue;
 
       const mayAct = !s.paused && !s.cam.moving && !s.cam.held && !s.bridge.active;
@@ -1135,7 +1176,7 @@ async function main() {
       } else if (s.phase === 'ready' && mayAct && !s.bridge.asking) {
         let id;
         // With every friend found, the bridge built and gifts left (--gifts-last): Mosi says so, the gold arrow points at a shut leaf and a tap on the staging spot says the same.
-        if (wantGifts && o.giftsLast && s.story.key === 'gifts-left' && !giftsLeftChecked) {
+        if (wantGifts && o.giftsLast && /gifts-left$/.test(s.story.key) && !giftsLeftChecked) {
           giftsLeftChecked = true; step('every friend home, the bridge built, gifts left: hesitate for the arrow');
           const speechBefore = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft').length;
           // The wait is played in the search view (camera intent 'glade'): once the glide has settled, every shut leaf is inside the frame.
@@ -1144,10 +1185,10 @@ async function main() {
           const arrowAt = await waitFor('window.__memory.idle() > 5.4 && document.querySelector("#targets .is-guided")', 15000, 'the gold arrow on a shut leaf');
           const arrow = await ev(SNAPSHOT_JS); await milestone('gifts-left-arrow', 'gifts-left-gold-arrow', 200);
           report.giftsArrow = await ev(ARROW_JS).catch(e => ({ error: e.message })); step('the gold arrow', report.giftsArrow ?? {});
-          const stagingButton = await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
+          const stagingButton = LEVEL.number > 1 ? { present: false } : await ev(`(() => { const b = document.querySelector('[data-target="task-staging"]'); if (!b) return { present: false }; const r = b.getBoundingClientRect(); return { present: true, enabled: !b.disabled, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; })()`);
           const before = await ev(SNAPSHOT_JS);
           const leafButtons = await ev(LEAF_BOXES_JS(':not(:disabled)')); delete leafButtons.boxes; // the shut leaves' buttons as the wide view lays them out
-          await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
+          if (LEVEL.number === 1) await act('task-staging', 'tap the staging spot with gifts left'); await sleep(1800);
           const after = await ev(SNAPSHOT_JS); await milestone('gifts-left-tap', 'gifts-left-staging-tap', 100);
           const spoken = (await ev('window.__memory.audio().speech.started')).filter(x => x.id === 'giftsLeft');
           report.giftsLeft = { stagingButton, story: before.story.key, caption: before.caption, arrowAfterIdle: arrowAt >= 0, guidedLeaf: arrow.guidedLeaf, guidedLeafHidden: arrow.guidedLeaf ? before.cards[Number(arrow.guidedLeaf.slice(5))].status === 'hidden' : null,
@@ -1190,7 +1231,7 @@ async function main() {
     // The glide from the search view into the crossing once the last gift pair has landed (--gifts-last): from the camera on every frame.
     try {
       const track = await ev('window.__camTrack');
-      if (o.giftsLast && track?.length) {
+      if (o.giftsLast && track?.length && LEVEL.number === 1) {
         const [w, h] = o.size.split('x').map(Number);
         report.giftsGlide = analyseGlide(track, w / h, report.giftsView?.mosiAt);
         const keep = report.giftsGlide.landedAt != null ? track.filter(f => f.t >= report.giftsGlide.landedAt - 1.5) : track.slice(-300);

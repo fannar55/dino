@@ -328,6 +328,8 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     bindPair(species, list) { if (pairs[species] && !pairs[species].ready && list.length === 2) pairs[species] = { members: list, ready: true }; },
     ownsPair: species => Boolean(action && action.species === species) || holding.has(species) || up.where() !== 'glade',
     holds: species => holding.has(species),
+    /** QA only: a pair holds the light. */
+    hold: species => { holding.add(species); },
     pairCentre(species) { const list = members(species); return list.length ? list.reduce((sum, actor) => sum.add(actor.root.position), new THREE.Vector3()).multiplyScalar(1 / list.length).add(new THREE.Vector3(0, 1, 0)) : new THREE.Vector3(); },
     hasReservation: actor => Boolean(action && members(action.species).includes(actor)) || [...holding].some(species => members(species).includes(actor)) || up.where() !== 'glade' || up.busy(),
     setState(value) { snapshot = value ?? {}; },

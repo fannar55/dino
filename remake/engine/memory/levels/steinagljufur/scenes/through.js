@@ -27,7 +27,7 @@ export function throughScene(stage) {
     { at: .15, wait: { until: () => phase() === 'inside' || ended(), timeout: 7 } },
     // The cut: they come out of the exit of the tunnel, one after the other.
     { at: .2, act: () => { if (!stage.task.cutUpper()) stage.task.abort(); },
-      shot: { kind: 'wide', subjects: () => [stage.task.exit(), up(stage.task.exit(), 2.4), stage.task.up(-14, 1, -3), stage.task.up(-11, 1, 3)], front: () => stage.task.view([.55, -1]), elevation: 17, cut: true, floor: 'auto' } },
+      shot: { kind: 'wide', subjects: () => [stage.task.exit(), up(stage.task.exit(), 2.4), stage.task.up(-8, 1, -3), stage.task.up(-6, 1, 3)], front: () => stage.task.view([.55, -1]), elevation: 17, cut: true, floor: 'auto' } },
     { at: .25, wait: { until: () => phase() === 'lineup' || ended(), timeout: 7 } },
     // Everyone is out: the floor in front of the ledge, the slab up on it.
     { at: .3, shot: { kind: 'wide', subjects: () => [...crowd(), stage.task.up(3, 4.6, -4), stage.task.up(8, 2.5, 4)], front: () => stage.task.view([-.25, -1]), elevation: 22, cut: true, floor: 'auto' }, act: () => stage.mosi.look(stage.task.up(3, 3, 0)) },

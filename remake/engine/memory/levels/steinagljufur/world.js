@@ -209,6 +209,13 @@ export function createLevelWorld(stage) {
     },
     /** QA only (?qa=1): the camera looks at points of the upper gorge's frame from the frame's direction `front` (to the camera), `elevation` degrees up. */
     qaUpper({ points, front = [-.2, -1], elevation = 24, kind = 'wide', scale } = {}) { upper.show(); gorge.group.visible = false; stage.director.shot({ kind, subjects: () => points.map(p => upper.world(...p)), front: upper.direction(...front), elevation, cut: true, scale }); },
+    /** QA only (?qa=1): the round as it stands before the walk through the tunnel (the friends at their rests, the tunnel lit, the rocks gone, the Kambeðlur holding the light), and then the walk starts. */
+    qaThrough() {
+      level.friends.forEach((species, i) => { const actors = stage.babies.filter(actor => actor.species === species), nest = stage.nests[i]; mover.bindPair(species, actors); actors.forEach((actor, k) => { actor.root.position.copy(nest.root.position).add(nest.restOffsets[k]); actor.root.rotation.y = nest.restYaw; actor.root.visible = true; actor.setMotion?.('idle'); }); });
+      const state = { selected: null, unlocked: [...level.friends], free: [...level.friends], asking: null, failing: null, active: null, done: ['light', 'headbutt'], tunnelLit: true, rocksFallen: true, next: null, phase: 'available' };
+      api.setStepState(state); plates.setAll(1, { duration: 0 }); interior.light(1, { seconds: 0 }); interior.pile.set(3); mover.hold('stegosaurus');
+      return api.playStep('through');
+    },
     qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),
     /** The step rules' state (step-rules.js getState()). */
