@@ -8,7 +8,7 @@ import { newGame, ask, fish, holds, legalTargets, isOver } from '../engine/veidd
 import { bestAsk, SEAT } from '../engine/veiddu/minds.js';
 import { makeDeck, KINDS } from '../engine/veiddu/cards.js';
 import { TUTORIAL, LISTEN, REAL, TUTORIAL_MINDS, tutorialStack } from '../engine/veiddu/table.js';
-import { priorityOf } from '../engine/veiddu/speech.js';
+import { priorityOf, createSpeech } from '../engine/veiddu/speech.js';
 
 const { child: CHILD, uggedla: UGGEDLA, mosi: MOSI } = SEAT;
 const read = path => JSON.parse(fs.readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -183,4 +183,67 @@ test('every line of the tutorial is in the veiddu set, in Mosi\'s voice, with th
   }
   // and the set has no veiddu_tut line the table does not use
   assert.deepEqual(source.filter(entry => entry.id.startsWith('veiddu_tut_')).map(entry => entry.id).sort(), lines.map(line => line.id).sort());
+});
+
+// ---- Mosi's voice while he teaches: what the table relies on (speech.js, with a voice that does nothing) ---------------------------
+
+function teachingVoice() {
+  const lines = {
+    veiddu_tut_pairs: { src: 'assets/audio/veiddu/a.mp3', duration: 4.8 },
+    veiddu_tut_ask: { src: 'assets/audio/veiddu/b.mp3', duration: 5.2 },
+    veiddu_tut_listen: { src: 'assets/audio/veiddu/c.mp3', duration: 4.3 },
+    veiddu_egill_name_skjaldbaka: { src: 'assets/audio/veiddu/d.mp3', duration: 1.5 },
+  };
+  const played = [];
+  let speaking = null;
+  let report;
+  const voice = {
+    play(src) {
+      played.push(src.split('/').at(-1));
+      speaking = src;
+      report(true);
+    },
+    stop() {
+      if (speaking === null) return;
+      speaking = null;
+      report(false);
+    },
+  };
+  const speech = createSpeech({
+    lines, base: 'http://x/', clock: () => 0, setTimer: () => 0, clearTimer: () => {},
+    makeVoice: ({ onSpeaking }) => { report = onSpeaking; return voice; },
+  });
+  return { speech, played, ended: () => voice.stop() };
+}
+
+test('a step waits for the step before it; the child\'s tap cuts the step and Egill reads the name at once', () => {
+  const r = teachingVoice();
+  r.speech.say('veiddu_tut_pairs');
+  const seconds = r.speech.say('veiddu_tut_ask');
+  assert.equal(seconds, 4.8 + 5.2, 'the next step begins when the one before ends, and says how long that is');
+  assert.deepEqual(r.played, ['a.mp3'], 'it does not speak over the step before');
+  r.ended();
+  assert.deepEqual(r.played, ['a.mp3', 'b.mp3'], 'it begins as the first ends');
+
+  // the child taps the card: the step is cut (priority 2), and the name (priority 3) is said
+  assert.equal(r.speech.cut(priorityOf('veiddu_tut_ask')), true, 'the sounding step is stopped');
+  r.speech.say('veiddu_egill_name_skjaldbaka');
+  assert.deepEqual(r.played, ['a.mp3', 'b.mp3', 'd.mp3'], 'Egill reads the name now');
+  assert.equal(r.speech.cut(priorityOf('veiddu_tut_ask')), false, 'a cut of Mosi\'s step never stops Egill\'s name');
+  assert.equal(r.speech.talking, true);
+});
+
+test('Mosi\'s button repeats a step once, however often it is tapped, and a name goes before the step that waits', () => {
+  const r = teachingVoice();
+  r.speech.say('veiddu_tut_ask');
+  r.speech.say('veiddu_tut_ask');
+  r.speech.say('veiddu_tut_ask');
+  assert.equal(r.speech.waiting, 1, 'a step asked for again waits once');
+  r.speech.say('veiddu_egill_name_skjaldbaka');
+  r.speech.say('veiddu_tut_listen'); // a newer piece of Mosi's replaces the waiting one (priority 2)
+  assert.equal(r.speech.waiting, 2);
+  r.ended();
+  assert.deepEqual(r.played, ['b.mp3', 'd.mp3'], 'the name (priority 3) goes before the step that waited');
+  r.ended();
+  assert.deepEqual(r.played, ['b.mp3', 'd.mp3', 'c.mp3'], 'then Mosi\'s newer line');
 });
