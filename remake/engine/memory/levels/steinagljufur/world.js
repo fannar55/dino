@@ -145,6 +145,12 @@ export function createLevelWorld(stage) {
     navObjects: () => gorge?.solids ?? [],
     // The search view in the glade; once everyone is through the tunnel, the view of the place the next step is at (upperCue).
     cameraCue: glade => mover?.upper.where() === 'glade' || !upper ? glade() : upperCue(),
+    /** The overview button, once everyone is in the upper gorge: the whole of it, high (the glade is far away and hidden). Null in the glade: the shared overview. */
+    overviewCue(cue) {
+      if (!upper || !mover || mover.upper.where() === 'glade') return null;
+      const portrait = stage.aspect() < 1, w = upper.world.bind(upper), front = portrait ? [-.55, -.8] : [-.25, -1], d = upper.direction(...front), e = Math.PI / 180 * (portrait ? 52 : 40);
+      return cue([[-14, 0, -6], [-3, 4, 4], [10, 3, -6], [24, 9, 12], [36, 9, 10], [20, 6, 0]].map(p => w(...p)), { key: 'overview', phase: 'overview', focus: w(12, 4, 2).toArray(), direction: [d.x * Math.cos(e), Math.sin(e), d.z * Math.cos(e)] });
+    },
 
     /** Loads the gorge's models and stands them, once the forest, the leaves and the rests exist: the ground's look, the walls, the boulders, the tunnel. */
     async build() {

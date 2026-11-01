@@ -241,6 +241,8 @@ function launchAction(action) {
   if (step?.kind === 'travel') { const line = LINES[action] ?? action; speech.queue(line, { delay: .15 }); caption(VOICE_LINES[line].text, 3.2); }
   return true;
 }
+// The story's wait for the gifts: level 1's key is 'gifts-left', a level's own has its prefix (level 2's 'g2-gifts-left').
+const waitsForGifts = key => key === 'gifts-left' || key.endsWith('-gifts-left');
 function updateStory(dt) {
   const story = currentStory(), camera = cameraState();
   if (captionUntil > 0 && time >= captionUntil) { captionUntil = 0; storyKey = ''; }
@@ -249,9 +251,9 @@ function updateStory(dt) {
     // A moment of the story that Mosi says aloud (the level's `voice`, by story key: level 2's tunnel and rockfall): once, when it comes, as the giftsLeft line is.
     if (level.voice?.[story.key]) speech.queue(level.voice[story.key], { delay: .5 });
     // The bridge is built, every friend is home and gifts are left: Mosi says so once as the wait begins (not again each time a held caption ends).
-    if (story.key === 'gifts-left' && !giftsLeftSaid) { giftsLeftSaid = true; speech.queue(LINES.giftsLeft, { delay: .4, once: false }); }
+    if (waitsForGifts(story.key) && !giftsLeftSaid) { giftsLeftSaid = true; speech.queue(LINES.giftsLeft, { delay: .4, once: false }); }
   }
-  if (story.key !== 'gifts-left') giftsLeftSaid = false;
+  if (!waitsForGifts(story.key)) giftsLeftSaid = false;
   if (held() || camera.mode !== 'auto' || camera.moving || !betweenTurns()) { retryAge = 0; return; }
   // A crossing (or the walk to the grove) that found its way blocked has nothing for the child to tap: after about 3 s of a still camera it tries again by itself
   // (the staging spot or the grove carries the gold arrow meanwhile, see refreshControls). Lift, roll and the bark are tapped again by the child.

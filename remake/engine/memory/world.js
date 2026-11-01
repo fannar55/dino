@@ -175,6 +175,8 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
   }
   // The overview shows the board, the rests, Mosi and the points the level adds (the way its steps lead on).
   function overviewCue() {
+    // (a level whose friends have left the glade, level 2's after the tunnel, shows where they are: its own overview)
+    const own = levelWorld?.overviewCue?.(cue); if (own) return own;
     return cue([...boardPoints(), ...nestPoints(), ...mosiPoints(), ...(levelWorld?.overviewPoints ?? [])], { key: 'overview', phase: 'overview', focus: GLADE_VIEW.overviewFocus ?? [0, .5, -10], direction: GLADE_VIEW.overviewDirection });
   }
   const cameraDirector = createCameraDirector({ camera, overview: overviewCue, fallback: gladeCue });
