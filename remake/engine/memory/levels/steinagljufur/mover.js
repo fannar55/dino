@@ -162,9 +162,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   }
   // How far the horns have gone from where the pair rests toward the pile, over one strike (u 0 to 1): a rear back, the drive in (to GAP, the pile's face; a little more
   // after the first), the hold and the way back. (The third goes no deeper than the second: it went 24 cm past the face, the heads into the pile and the feet and
-  // horns into the mouth's sides, veggir.)
+  // horns into the mouth's sides; and the second and third go 3 cm past it, not 7: a head was 6 cm into a rock of the pile, veggir.)
   function strikeReach(u, index) {
-    const dive = GAP + .07 * Math.min(index, 1);
+    const dive = GAP + .03 * Math.min(index, 1);
     if (u < .3) return -REAR * easeOut(u / .3);
     if (u < STRIKE.hit) return lerp(-REAR, dive, easeIn((u - .3) / (STRIKE.hit - .3)));
     if (u < .6) return dive;
