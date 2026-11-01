@@ -3361,8 +3361,8 @@
  },
  "k2_uggedla_sail": {
   "src": "assets/audio/kafli2/k2_uggedla_sail.mp3",
-  "duration": 5.85,
-  "mouth": "00af5fc0000ac306feffffe9b859a0000005997000000000000004becbbb70cfd30bf9a306b807c700becbac08a000fefa6000050000000000000"
+  "duration": 5.931,
+  "mouth": "000ae08e00007c7008effdffa9aad70000058a9500000000000004bdfdbffc0cec009e9453000cc359700a986b05c000fdc82000300000000000000"
  },
  "k2_uggedla_tail": {
   "src": "assets/audio/kafli2/k2_uggedla_tail.mp3",
@@ -3446,8 +3446,8 @@
  },
  "k2_mosi_invite_ugg": {
   "src": "assets/audio/kafli2/k2_mosi_invite_ugg.mp3",
-  "duration": 3.53,
-  "mouth": "ff06efccc600000006f90d05ffeefdc700ee607dfffd07fdeeeeea68ddb000000000000"
+  "duration": 3.69,
+  "mouth": "4f90dffddb700000000de3aa50fddeedb700ed850cfeefb09dcdddcc65abca300000000000"
  },
  "k2_mosi_brrr": {
   "src": "assets/audio/kafli2/k2_mosi_brrr.mp3",
