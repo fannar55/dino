@@ -347,8 +347,9 @@
 }
 .tile.unfound .tile-name { color: var(--book-ink-soft); }
 
-/* The Leikir page (part 3): the "Eitt!" tile alone and big on the left page (a tile's three states, as an animal's), and on the right
-   the stickers won from Kambeðla, one for each round won, as the game hands them out (eitt.css .eitt-sticker). */
+/* The Leikir page (part 3): the games that are open as tiles on the left page (a tile's three states, as an animal's), and on the right
+   the stickers won, one for each round won, as the games hand them out: Kambeðla's (eitt.css .eitt-sticker) and Uggeðla's (veiddu.css
+   .veiddu-sticker, whose wash and picture .book-sticker.uggedla takes). */
 .ribbon[data-tab="games"] { --ribbon: var(--book-green); color: var(--book-card); }
 .game-tile { --tile-w: min((100cqw - 2 * var(--pad-x)) * .74, (100cqh - var(--pad-top) - var(--pad-bottom) - var(--book-target) - 30px) * .96); }
 .game-teach { /* "Kennsla": the tutorial again, a raised teal pill under the tile */
