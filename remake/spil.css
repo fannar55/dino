@@ -839,6 +839,17 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   animation: spil-eitt-seat 1.1s ease-in-out infinite;
 }
 .spil-veiddu-seat.going { opacity: .7; }
+/* Four at the table: three other tags, small enough for one row on a phone. */
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-seat { flex-basis: 104px; padding: 5px 4px 4px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-name { font-size: 15px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-face { width: 30px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-seat-hit { min-height: 32px; column-gap: 5px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-meta { gap: 3px; }
+.spil-veiddu-seats[data-n="3"] .veiddu-catch { --catch-w: 16px; gap: 3px; }
+.spil-veiddu-seats[data-n="3"] .veiddu-catch-count { min-width: 22px; height: 22px; font-size: 14px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-count { font-size: 14px; }
+.spil-veiddu-seats[data-n="3"] .spil-veiddu-back { display: none; }
+
 
 /* The pond (a button: it calls when she must fish) and "Farðu að veiða!" beside it, and the two never at once. */
 .spil-veiddu-mid { display: flex; align-items: center; justify-content: center; gap: clamp(14px, 4vw, 28px); width: 100%; min-height: 58px; }
@@ -926,15 +937,6 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   .spil-veiddu-head { grid-column: 1; grid-row: 1; justify-items: start; text-align: left; }
   .spil-veiddu-seats { grid-column: 2; grid-row: 1; justify-content: flex-start; padding-top: 2px; }
   .spil-veiddu-seat { flex: 0 1 152px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-seat { flex-basis: 104px; padding: 5px 4px 4px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-name { font-size: 15px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-face { width: 30px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-seat-hit { min-height: 32px; column-gap: 5px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-meta { gap: 3px; }
-  .spil-veiddu-seats[data-n="3"] .veiddu-catch { --catch-w: 16px; gap: 3px; }
-  .spil-veiddu-seats[data-n="3"] .veiddu-catch-count { min-width: 22px; height: 22px; font-size: 14px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-count { font-size: 14px; }
-  .spil-veiddu-seats[data-n="3"] .spil-veiddu-back { display: none; }
   .spil-veiddu-mid { grid-column: 3; grid-row: 1; flex-direction: column; width: auto; min-height: 0; }
   .spil-veiddu-pond { width: 118px; min-height: 0; }
   .spil-veiddu-hand { grid-column: 1 / -1; grid-row: 2; align-self: end; }

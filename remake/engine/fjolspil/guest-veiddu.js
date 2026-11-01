@@ -360,7 +360,10 @@ function update(at, view) {
   const hand = numbers(view.hand).filter(card => typeof card?.id === 'string' && typeof card?.kind === 'string').sort(byKind);
   if (at.picked && !hand.some(card => card.kind === at.picked)) at.picked = null;
 
-  const before = prev ? where(at) : { hand: new Map(), seats: new Map(), pond: rectOf(at.pondEl) };
+  // A new round being dealt (nothing said at the table yet, or after the end of the last): the cards come in from the pond. A phone that
+  // opens on a round under way (a reload, a return) just shows it.
+  const fresh = prev ? modeOf(prev) === 'over' : view.lastEvent == null;
+  const before = prev ? where(at) : fresh ? { hand: new Map(), seats: new Map(), pond: rectOf(at.pondEl) } : null;
   // The heading: whose turn, in that seat's colour; the end says who won
   const winners = numbers(view.winners).filter(isSeat);
   const turnSeat = isSeat(view.turn) ? view.turn : you;
@@ -381,7 +384,7 @@ function update(at, view) {
   } else if (!duty) endCue(at, { quick: true });
 
   renderSeats(at, view, { you, names, avatars, over });
-  renderHand(at, hand, before, prev === null || modeOf(prev) === 'over');
+  renderHand(at, hand, before, fresh);
   renderMine(at, view, { you, names });
   at.pondCount.textContent = String(Number.isInteger(view.pond) ? view.pond : 0);
   at.pondEl.setAttribute('aria-label', WORDS.pond(view.pond ?? 0));

@@ -136,12 +136,23 @@ async function click(page, selector, { timeout = 60000 } = {}) {
   const where = await until(page, `(() => {
     const e = document.querySelector(${JSON.stringify(selector)});
     if (!e || e.hidden || e.disabled) return null;
+    if (e.scrollIntoView) e.scrollIntoView({ block: "nearest", inline: "nearest" }); // a tall hand on a short screen: scrolled to, as a finger would
     const r = e.getBoundingClientRect();
     if (!r.width || !r.height) return null;
     const x = r.x + r.width / 2, y = r.y + r.height / 2;
-    return { x, y, hit: e.contains(document.elementFromPoint(x, y)) };
-  })()`, `${selector} to be tappable`, timeout);
-  if (!where.hit) throw new Error(`${page.name}: ${selector} is under something else`);
+    const top = document.elementFromPoint(x, y);
+    const key = Math.round(x) + ',' + Math.round(y);
+    const still = window.__lastPoint === key; // it has not moved since the last look (a card still flying in is waited for)
+    window.__lastPoint = key;
+    return { still, x, y, hit: e.contains(top), top: top ? (top.className || top.tagName) + ' ' + (top.parentElement ? top.parentElement.className : '') : null, at: [Math.round(x), Math.round(y)], size: [innerWidth, innerHeight] };
+  })()`, `${selector} to be tappable`, timeout).then(async first => { // one look, a moment, and a second: the same place
+    await sleep(180);
+    return first.still ? first : until(page, `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; const r = e.getBoundingClientRect(); const x = r.x + r.width / 2, y = r.y + r.height / 2; const top = document.elementFromPoint(x, y); const key = Math.round(x) + ',' + Math.round(y); const same = window.__lastPoint === key; window.__lastPoint = key; return same ? { still: true, x, y, hit: e.contains(top), top: top ? (top.className || top.tagName) : null, at: [Math.round(x), Math.round(y)], size: [innerWidth, innerHeight] } : null; })()`, `${selector} to hold still`, timeout);
+  });
+  if (!where.hit) {
+    await shot(page, path.join(process.cwd(), 'qa/remake/veiddu/t9/under-something.png')).catch(() => {});
+    throw new Error(`${page.name}: ${selector} is under something else: ${JSON.stringify(where)}`);
+  }
   await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: where.x, y: where.y });
   await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: where.x, y: where.y, button: 'left', clickCount: 1 });
   await sleep(40);
