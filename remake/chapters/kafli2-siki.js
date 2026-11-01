@@ -92,10 +92,11 @@ export const MOSI_BANK = spot(0, 0, PATH_HEADING);
 // way the ferry will go), in the shallows and the reed that hides all of her but her sail (the reed bed below). Her root is the
 // middle of her 14 m.
 export const UGGEDLA_REED = spot(13.4, -2.0, PATH_HEADING - 90);
-// The fish jump in the channel's deep water round her head (6 m from her middle, to the north-east): six spots in the open water 3 to
-// 7 m off it, spread across the channel's width so that, seen from the near bank, a child sees them one after the other across the
-// picture and none behind another.
-export const FISHING_SPOTS = [[11.2, 1.4], [9.0, 3.4], [11.4, 6.6], [8.4, 7.2], [10.4, 10.0], [7.0, 2.0]].map(([a, b]) => ahead(a, b));
+// The fish jump in the channel's water in front of her head, where it is when she is up and turned to the bank (kafli2-fishing.js): six
+// spots 3.6 to 5.6 m from her middle, so that her neck reaches every one of them without more than a step (a catch takes 3 s or less),
+// spread over the water in front of her. A jump is an arc of about 1.6 m along FISH_ARC, across the picture of siki_fishing.
+export const FISHING_SPOTS = [[8.6, -3.6], [7.8, -1.8], [8.4, 0.2], [7.2, -4.0], [7.6, 0.6], [7.0, -2.0]].map(([a, b]) => ahead(a, b));
+export const FISH_ARC = [LEFT[0], LEFT[1]];
 // The ferry: her line along the middle of the channel from the crossing, a metre toward the far bank so that Mosi, wading the shallow
 // edge on the near side, has the room, to the pool at the hummocks; and his line beside it. (Derived from the channel's own centre line
 // and depth by tests/kafli2.test.mjs's rules: 1.13 m deep or more for her, 0.4 to 0.45 m for him.)
@@ -275,7 +276,7 @@ export const SIKI_SHOTS = {
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-9, -7.5, 2.3), target: eye(14, 1.5, 3.6), fov: 48 },
   // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
-  siki_fishing: { position: eye(-2, -16, 5.0), target: eye(10, 6, 1.4), fov: 54 },
+  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(8.2, -1.6, 1.0), fov: 58 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 44 },
   // Low, looking up at her sail against the sky, where the star rises from its top.

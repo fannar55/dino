@@ -147,11 +147,14 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
       noise({ kind: 'warm', type: 'lowpass', frequency: 600, end: 250, duration: 0.08, level: 0.05, attack: 0.003, delay: 0.2 });
     },
     // The fish jumps: a plip as it leaves the water (a quarter of a second in) and a splash as it falls back (0.95 s), as it does.
-    fish() {
-      droplet(key[3] * 2, 0.25, 0.04, 0);
-      noise({ type: 'bandpass', frequency: 1200, end: 450, q: 1, duration: 0.22, level: 0.09, attack: 0.005, delay: 0.95 });
-      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.1, level: 0.05, attack: 0.004, delay: 0.95 });
-      [2, 4].forEach((n, i) => droplet(key[n] * 2, 1.02 + i * 0.07, 0.018, (i - 0.5) * 0.3));
+    // A script that times a jump itself asks for each half, as it happens: { part: 'out' } the plip now, { part: 'in' } the splash now.
+    fish({ part } = {}) {
+      const lead = part ? 0 : 0.25, back = part === 'in' ? 0 : 0.95;
+      if (part !== 'in') droplet(key[3] * 2, lead, 0.04, 0);
+      if (part === 'out') return;
+      noise({ type: 'bandpass', frequency: 1200, end: 450, q: 1, duration: 0.22, level: 0.09, attack: 0.005, delay: back });
+      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.1, level: 0.05, attack: 0.004, delay: back });
+      [2, 4].forEach((n, i) => droplet(key[n] * 2, back + 0.07 + i * 0.07, 0.018, (i - 0.5) * 0.3));
     },
     // The early bird flies up: two notes of a call, la falling to mi, a short sol after, and a flutter of wings.
     earlyBird() {

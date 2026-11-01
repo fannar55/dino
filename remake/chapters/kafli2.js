@@ -17,6 +17,7 @@
 //               with the others before the start button and hidden until the scene comes there.
 // The trail's pieces are in kafli2-trail.js (the prints and the counting), Síkið's in kafli2-siki.js. The Fen the channel leads to is
 // chapter 3's.
+import * as THREE from 'three';
 import { chapter as kafli1 } from './kafli1.js';
 import { createSaddle, ride } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
@@ -26,6 +27,8 @@ import {
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
 import { SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, arriveInSiki } from './kafli2-siki.js';
+import { fishing, getUp } from './kafli2-fishing.js';
+import { sparkleBurst } from '../world/props/sparkles.js'; // (the warm-up's throwaways)
 import { createBerryBushes } from '../world/props/berries.js'; // (the warm-up's throwaways)
 import { addPlateGlow } from '../engine/plate-glow.js';
 import { mapMoment } from '../engine/scene/map-moment-scene.js';
@@ -146,7 +149,26 @@ function* intoSiki(s, c) {
   yield c.mosi.turnTo(MOSI_BANK.heading, { rate: 40 });
   yield s.camera.cut('siki_flooded');
   yield s.wait(3);
+  yield* fishingScene(s, c);
   yield s.fade(1, 0.8);
+}
+
+// 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. She
+// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). The scenes before it (her sail
+// seen over the reed, her hello) and after it (the invitation, her star, the ferry) are built in the plan's sixth task; until then she
+// is got up here (getUp does nothing for a scene that has her up already).
+function* fishingScene(s, c) {
+  mark(c, 4);
+  const { mosi, egill } = c;
+  yield s.camera.cut('siki_fishing');
+  yield mosi.lookAt('uggedla.head', { weight: 0.7 });
+  yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
+  yield* getUp(s, c);
+  yield* say(s, c, 'uggedla', 'k2_uggedla_help');
+  yield* fishing(s, c);
+  yield* say(s, c, 'uggedla', 'k2_uggedla_thanks');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
 }
 
 // 1. Leaving the glade: Mosi says who is next, the map slides up over the game and draws the way ahead (the trail, and across the Fen to
@@ -361,6 +383,9 @@ export const chapter = {
       // the fish she holds in her jaws (hidden until she has one): its material is drawn here, not for the first time as she lifts her head
       const held = world.chapterState?.uggedlaRig?.fish.group;
       if (held) objects.push(held);
+      // a burst of glints, as the fishing's big fish and the tail's spray draw them (their shader is one)
+      const glints = sparkleBurst(world, new THREE.Vector3(...ground(1, 2)), { count: 4, seed: 'warm-up' });
+      throwaways.push({ dispose: () => glints.cancel() });
       // a red and a blue bush, as many as Síkið has (their shader is one a number of bushes: the Fen's warm-up does the same)
       const berries = createBerryBushes(world, { bushes: [{ kind: 'red', count: 1 }, { kind: 'red', count: 1 }, { kind: 'blue', count: 1 }].map((b, i) => ({ ...b, position: ground(2 + i, 2) })) });
       keep(berries, berries.group);

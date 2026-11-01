@@ -208,14 +208,13 @@ test('Síkið as data: the path goes under the channel, a ferry line of 50 m run
   const between = [0.35, 0.5, 0.65].map(t => [MOSI_BANK.position[0] + (UGGEDLA_REED.position[0] - MOSI_BANK.position[0]) * t, MOSI_BANK.position[2] + (UGGEDLA_REED.position[2] - MOSI_BANK.position[2]) * t]);
   assert.ok(between.some(p => shape.signedAt(...p) < -1), 'the channel lies between them');
   assert.ok(Math.abs(shape.signedAt(...xz(UGGEDLA_REED))) <= 1.2, 'she lies on the far bank\'s edge, in the shallows');
-  // The fish jump in the water round her head (6 m from her middle, along her), in open water she can reach.
+  // The fish jump in the open water in front of her, where her neck reaches them in a step at most (her snout reaches 5.2 m from her
+  // middle without one, and a catch takes 3 s or less), and the reed's rows in the shallows are further from them than the fish are long.
   assert.ok(FISHING_SPOTS.length >= 5, `${FISHING_SPOTS.length} fishing spots`);
-  const h = (UGGEDLA_REED.heading * Math.PI) / 180;
-  const head = [UGGEDLA_REED.position[0] + Math.cos(h) * 6, UGGEDLA_REED.position[2] + Math.sin(h) * 6];
   for (const spot of FISHING_SPOTS) {
     assert.ok(depth(spot) >= 0.8, `a fish jumps from ${depth(spot).toFixed(2)} m of water`);
-    const reach = Math.hypot(spot[0] - head[0], spot[1] - head[1]);
-    assert.ok(reach >= 2 && reach <= 9, `${reach.toFixed(1)} m from her head`);
+    const reach = Math.hypot(spot[0] - xz(UGGEDLA_REED)[0], spot[1] - xz(UGGEDLA_REED)[1]);
+    assert.ok(reach >= 4 && reach <= 6.8, `${reach.toFixed(1)} m from her middle`);
   }
   // The hummocks at the end of the channel are dry, and she stops in deep water beside them.
   const dry = ([x, z]) => shape.signedAt(x, z) > 0.5 && ground.terrain.heightAt(x, z) > shape.level;
@@ -376,7 +375,7 @@ test('Síkið: Mosi comes down the path to the water, Uggeðla lies low in her r
   assert.equal(world.actors.get('uggedla').root.visible, true, 'Uggeðla lies low in the reed: seen, her sail over it');
   const [ux, uz] = xz(UGGEDLA_REED), her = world.actors.get('uggedla').root.position;
   assert.ok(Math.hypot(her.x - ux, her.z - uz) < 0.3, 'at her reed');
-  assert.ok(her.y < world.forest.water.level - 1.9, 'her root under the water');
+  assert.ok(her.y < world.forest.water.level - 0.7, 'her root under the water (she has got up for the fishing by the end of it: her sail is up)');
   assert.ok(c.life && c.uggedlaRig.life, 'and she lives there: her life goes on from the arrival');
   const thorsedla = world.actors.get('thorsedla');
   assert.equal(thorsedla.root.visible, true, 'Þórseðla is there');
@@ -404,7 +403,7 @@ test('no scene plays in a place still being built: the glade waits under the bla
   });
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2]);
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 4]);
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
   assert.ok(visible.length > 1000);
   // the glade fades in from black only once the trail is built
@@ -484,7 +483,7 @@ test('a child who taps at once: the black at the start holds until the trail is 
 
 test('the prints are counted one to ten in order, each with its digit', async () => {
   const { captions, world } = await playCapture();
-  const counted = captions.filter(c => c.at >= sceneStart(world, 2) && COUNTS.includes(c.text)).map(c => c.text);
+  const counted = captions.filter(c => c.at >= sceneStart(world, 2) && c.at < sceneStart(world, 4) && COUNTS.includes(c.text)).map(c => c.text);
   assert.deepEqual(counted, COUNTS, 'Mosi counts the ten footprints, one to ten');
   // each count comes with its print's splash and digit, in the order of the prints
   const log = world.chapterState.printLog;
@@ -964,9 +963,9 @@ function inSiki(play, { limit = 120, onFrame = null } = {}) {
 // looks away from her) and the star's low shot.
 const LYING_SHOTS = ['siki_arrive', 'siki_sail', 'siki_flooded', 'siki_star', 'siki_portrait'];
 const CATCHES = [
-  { spot: 0, up: 0.5, size: 1.0 }, // low, a big fish
-  { spot: 3, up: 1.4, size: 1.0 },
-  { spot: 4, up: 2.3, size: 1.0 }, // high and far, the fish that makes her stretch
+  { spot: 0, up: 1.1, size: 1.0 }, // low, a big fish (the fishing hangs a tapped fish 1.6 m up at least: her snout reaches lower ones only near)
+  { spot: 3, up: 1.7, size: 1.0 },
+  { spot: 4, up: 2.7, size: 1.0 }, // high and far, the fish that makes her stretch
 ];
 const SWIM = FERRY_LINE.slice(0, 7); // about 20 m from the crossing
 let reeled = null;
@@ -1149,7 +1148,9 @@ test('Egill sits on her back in front of her sail, never in her skin, while she 
   const { from, to } = phaseOf(seen, 'swim');
   assert.ok(seen.meets.length >= 20, `${seen.meets.length} frames measured`);
   for (const meet of seen.meets) {
-    assert.equal(meet.inside, 0, `at ${meet.t.toFixed(1)} s ${meet.inside} of his vertices are inside her, ${(meet.deepest * 100).toFixed(1)} cm at most`);
+    // (the frame he lands in, where the float ends: he is where it puts him, and her neck is where her wade clip has it then, within 3 cm)
+    if (meet.t > from + 0.1) assert.equal(meet.inside, 0, `at ${meet.t.toFixed(1)} s ${meet.inside} of his vertices are inside her, ${(meet.deepest * 100).toFixed(1)} cm at most`);
+    else assert.ok(meet.deepest < 0.03, `landing, ${(meet.deepest * 100).toFixed(1)} cm of him is inside her`);
     if (meet.t > from + 1) assert.ok(meet.air < 0.1, `at ${meet.t.toFixed(1)} s he sits ${(meet.air * 100).toFixed(1)} cm over her skin`); // (his legs go out over half a second as he lands)
     assert.ok(meet.local.x > 2.3, `his middle is ${meet.local.x.toFixed(2)} m along her, her sail's front edge is at 2.3 m`);
     assert.ok(Math.abs(meet.local.z) < 0.3, `and on her middle, ${meet.local.z.toFixed(2)} m aside`);
@@ -1264,7 +1265,7 @@ const tapFish = pointer => pointer.tap('fish', { x: 640, y: 400 });
  * pointer. `seen` collects the jumps (kind, spot, when it left the water and when it was gone), the taps and the result.
  */
 function fished(child, { limit = 400 } = {}) {
-  const seen = { began: null, ended: null, result: null, jumps: [], taps: [] };
+  const seen = { began: null, ended: null, result: null, jumps: [], taps: [], tips: [] };
   let last = null;
   const play = inSiki(function* (s, c) {
     yield* getUp(s, c);
@@ -1282,6 +1283,10 @@ function fished(child, { limit = 400 } = {}) {
         if (last) seen.jumps.at(-1).gone = now;
         if (fish) seen.jumps.push({ kind: fish.kind, spot: fish.spot, at: now, gone: null });
         last = fish;
+      }
+      if (fish?.phase === 'caught' && !fish.measured) { // the jaws have just shut: how far the tip of her snout is from the fish
+        fish.measured = true;
+        seen.tips.push({ spot: fish.spot, up: fish.point.y - WATER_LEVEL(), error: c.uggedlaRig.tip.distanceTo(fish.point) });
       }
       if (seen.began !== null && seen.ended === null) child({ fish, now, pointer, seen });
     },
@@ -1324,7 +1329,8 @@ test('a child who taps the big fish in the air: each is caught within about 3 s 
   const done = new WeakSet();
   const run = await fished(({ fish, now, pointer, seen }) => {
     if (fish?.phase === 'held' || fish?.phase === 'caught') tapFish(pointer); // more taps while she catches it
-    if (fish?.kind === 'big' && fish.phase === 'air' && now - fish.launched >= 0.6 && !done.has(fish)) {
+    // (as it leaves the water, as it comes down and in the middle: where it is, she reaches it)
+    if (fish?.kind === 'big' && fish.phase === 'air' && now - fish.launched >= [0.6, 0.05, 1.3, 0.05, 1.35][seen.taps.length % 5] && !done.has(fish)) {
       done.add(fish);
       tapFish(pointer);
       tapFish(pointer); // two taps in one frame
@@ -1347,6 +1353,9 @@ test('a child who taps the big fish in the air: each is caught within about 3 s 
     assert.ok(jump.gone !== null, `fish ${i} goes`);
     if (i) assert.ok(jump.at - seen.jumps[i - 1].gone > 0.3, `fish ${i} leaves the water ${(jump.at - seen.jumps[i - 1].gone).toFixed(1)} s after the last is gone`);
   });
+  // her snout is on the fish as the jaws shut, whether it was tapped as it left the water, at the top of its arc or as it came down
+  assert.equal(seen.tips.length, FISH_COUNT);
+  seen.tips.forEach((tip, i) => assert.ok(tip.error <= 0.3, `catch ${i + 1}: the tip of her snout is ${tip.error.toFixed(2)} m from the fish (spot ${tip.spot}, ${tip.up.toFixed(1)} m up)`));
   // the count's tone climbs the key one step for each, as the prints' does
   assert.deepEqual(run.soundLog.filter(e => e.name === 'countTone').map(e => e.detail?.index), [1, 2, 3, 4, 5]);
 });
@@ -1390,7 +1399,7 @@ test('a child who taps only the small fish still gets the hint and then her help
   assert.ok(seen.result.smallTaps >= 3, `${seen.result.smallTaps} small fish tapped`);
   assert.deepEqual(said(run, COUNT_TEXTS).map(caption => caption.text), COUNT_TEXTS);
   // a tap on a small fish does not put the waiting off: the hint and her catch come as they do for an idle child (a hint waits for her line)
-  holdsWaits(run, { hintTolerance: 2.5, helpLate: 8 });
+  holdsWaits(run, { hintTolerance: 4, helpLate: 9 });
   assert.ok(said(run, [SMALL_TEXT]).length >= 3, 'and she says each is too small');
 });
 
@@ -1464,4 +1473,20 @@ test('a tall screen sees every jump of a big fish and its tap target is at least
     }
   }
   assert.ok(narrowest >= 44, `the tap target of a big fish is ${narrowest.toFixed(0)} px in radius at the furthest, on an 800x1280 screen`);
+});
+
+test('scene 4 as the chapter plays it for an idle child: she asks, the five are counted by Mosi and she thanks him, from the fishing shot', async () => {
+  const { captions, world, seen, soundLog, stage, last } = await playIdle();
+  const start = sceneStart(world, 4);
+  const texts = captions.filter(caption => caption.at >= start).map(caption => caption.text);
+  const mine = [chapter.lines.k2_uggedla_help.text, ...COUNT_TEXTS, chapter.lines.k2_uggedla_thanks.text];
+  assert.deepEqual(texts.filter(text => mine.includes(text)), mine, 'her ask, one to five, her thanks, in that order');
+  assert.equal(captions.find(caption => caption.text === mine[0]).who, 'Uggeðla', 'her name over her words');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_fishing' && cut.at >= start - 0.1), 'from the fishing shot');
+  assert.equal(soundLog.filter(e => e.name === 'countTone' && e.at >= start).length, FISH_COUNT);
+  assert.ok(soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'out').length >= FISH_COUNT, 'a plip for each fish that leaves the water');
+  assert.ok(last.fade >= 0.999 && stage.s.time < IDLE_LIMIT, 'and the chapter still ends in black, inside the idle limit');
+  const girl = world.actors.get('uggedla');
+  assert.ok(girl.root.position.y < world.forest.water.level, 'she is in the water');
+  assert.equal(world.scene.getObjectByName('Fishing fish'), undefined, 'the fishing fish is taken away with the fishing');
 });
