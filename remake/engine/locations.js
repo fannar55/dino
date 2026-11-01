@@ -20,6 +20,10 @@
 // a script does with s.goTo. prepare(name, options) builds a place ahead of time and keeps it hidden (main.js does it for
 // chapter.prepare once the start button shows, a slice at a time: `options` go to the build), so the change to it later is only
 // the fades; a change to a place still being built waits for that build.
+//
+// A place that is not a forest gives its own builder instead of a layout: `{ build: (world, options) => place, shots }` (chapter 4's
+// Árdalurinn, world/ardalur/index.js). The place stands where a forest would: it has a `group`, `heightAt(x, z)` and, if it moves or
+// builds as the camera goes, `update(dt, time)`, which main.js calls each frame as it does a forest's.
 
 /**
  * Every shot of a chapter, wherever it is set, for the director: its own (`chapter.shots`) and, for a chapter in several places,
@@ -56,8 +60,8 @@ export function createLocations({ world, locations, build }) {
 
   function forestOf(name, options) {
     if (!forests.has(name)) {
-      const { layout, shots = {} } = locations[name];
-      const building = Promise.resolve(build({ ...layout, shots }, options));
+      const { layout, shots = {}, build: own } = locations[name];
+      const building = Promise.resolve(own ? own(world, options) : build({ ...layout, shots }, options));
       forests.set(name, building);
       building.catch(() => forests.delete(name)); // a failed build may be tried again
     }

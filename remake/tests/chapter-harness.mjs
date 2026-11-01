@@ -596,6 +596,7 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     updateActors(world.actors.values(), dt);
     world.effects.update(dt);
     director.update(dt);
+    world.forest?.update?.(dt, world.clock.time); // after the camera, as main.js does (a place that builds as it goes: chapter 4's valley)
     sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
     {
       const scene = world.chapterTimeline.at(-1)?.scene;
