@@ -3,7 +3,7 @@
 //
 //   node remake/tools/veiddu-video.mjs --out qa/remake/veiddu/round-a --seed a
 //     [--size 1280x800] [--max 900] [--query "skill=0.2"] [--page remake/veiddu-lab.html] [--browser edge|chrome|<exe>]
-//     [--reduced-motion] [--stall 45] [--cut 90] [--sound] [--test-line remake/assets/audio/veiddu/x.mp3@12]
+//     [--reduced-motion] [--stall 45] [--cut 90] [--sound] [--tutorial] [--test-line remake/assets/audio/veiddu/x.mp3@12]
 //
 // It serves the repo on a throwaway static server, loads <page>?auto=1&seed=<seed> at --size (the child's moves are made by bestAsk,
 // after 1.2 s each; everything else plays at its real pace, so the video shows the real feel), records the page with the CDP screencast
@@ -15,6 +15,11 @@
 // log }, phaseSeconds, video, sound }. The page is served from the repo root; nothing is left running.
 //
 // --cut <seconds> records only that long and stops there, cleanly (a short clip: not finishing the round is then no failure).
+//
+// --tutorial records Mosi's tutorial instead of a round (it adds &tutorial=1 to the query: the child does each step by itself, once Mosi
+// has said it): the video ends when the tutorial is over and the first real round has been dealt (the phase is child-pick again), a few
+// seconds into it. report.tutorial lists each phase the table passed through ("tutorial ask pick", ...) with its time, and the report's
+// sound.said has every line Mosi and the others said, for a check that each step was heard.
 //
 // --sound puts the page's sound in round.mp4 (AAC), which is otherwise silent. The browser still plays to no speakers; the tool listens
 // to the page instead. Before the page loads it is patched (soundTap below): every connection to a context's destination also goes to
@@ -61,7 +66,7 @@ const POLL_MS = 250;
 const SOUND_CHUNK = 1 << 20; // characters of a recording read back from the page in one call
 
 function parseArgs(argv) {
-  const o = { out: '', size: '1280x800', seed: 'a', max: 900, query: '', page: 'remake/veiddu-lab.html', browser: 'edge', reducedMotion: false, stall: 45, cut: 0, sound: false, testLines: [] };
+  const o = { out: '', size: '1280x800', seed: 'a', max: 900, query: '', page: 'remake/veiddu-lab.html', browser: 'edge', reducedMotion: false, stall: 45, cut: 0, sound: false, tutorial: false, testLines: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => { if (i + 1 >= argv.length) throw new Error(`${a} needs a value`); return argv[++i]; };
@@ -76,6 +81,7 @@ function parseArgs(argv) {
     else if (a === '--reduced-motion') o.reducedMotion = true;
     else if (a === '--cut') o.cut = Number(next());
     else if (a === '--sound') o.sound = true;
+    else if (a === '--tutorial') o.tutorial = true;
     else if (a === '--test-line') {
       const [file, seconds] = next().split('@');
       if (!file || !(Number(seconds) >= 0)) throw new Error('--test-line needs <file>@<seconds>');
@@ -586,7 +592,7 @@ async function main() {
     finished: false, stalled: null, roundSeconds: null, videoSeconds: null, errors, warnings, final: null, phaseSeconds: {}, gpu: null, video: null,
   };
   const server = await startServer();
-  const query = ['auto=1', `seed=${encodeURIComponent(o.seed)}`, o.query].filter(Boolean).join('&');
+  const query = ['auto=1', `seed=${encodeURIComponent(o.seed)}`, o.tutorial ? 'tutorial=1' : '', o.query].filter(Boolean).join('&');
   const url = `http://127.0.0.1:${server.address().port}/${o.page.replace(/\\/g, '/').replace(/^\//, '')}?${query}`;
   const browser = await launchBrowser(o);
   const { cdp } = browser;
@@ -656,6 +662,9 @@ async function main() {
     let last = { phase: null, log: -1 };
     let changedAt = Date.now();
     let overAt = null;
+    let taught = false; // --tutorial: the tutorial has been seen, and ends when the table is a real round's again
+    const steps = []; // the tutorial's phases, in order, with their times
+    report.tutorial = o.tutorial ? { steps, endedAt: null } : null;
     const seen = {};
     let polled = Date.now();
     let beat = Date.now();
@@ -675,6 +684,11 @@ async function main() {
       if (tickNow - beat >= 20000) { // a sign of life every 20 s
         beat = tickNow;
         console.log(`[${((tickNow - dealAt) / 1000).toFixed(0)}] ${now.phase}, ${now.log} events so far`);
+      }
+      if (o.tutorial) {
+        if (now.phase.startsWith('tutorial') && steps.at(-1)?.phase !== now.phase) steps.push({ at: +((tickNow - dealAt) / 1000).toFixed(1), phase: now.phase });
+        if (now.phase.startsWith('tutorial')) taught = true;
+        else if (taught && now.dealt >= 2 && now.phase === 'child-pick') { overAt = tickNow; report.tutorial.endedAt = +((tickNow - dealAt) / 1000).toFixed(1); break; }
       }
       if (now.phase === 'over') { overAt = tickNow; break; }
       if (tickNow - changedAt > o.stall * 1000) { report.stalled = { phase: now.phase, log: now.log, seconds: o.stall, at: +((tickNow - dealAt) / 1000).toFixed(1) }; break; }
@@ -726,6 +740,7 @@ async function main() {
   console.log(`${r.finished ? 'FINISHED' : r.cut ? `CUT at ${r.cut} s` : 'NOT FINISHED'} seed ${o.seed} ${o.size}: round ${r.roundSeconds ?? '-'} s (${r.roundSeconds ? (r.roundSeconds / 60).toFixed(1) : '-'} min), ${r.errors.length} errors, ${r.warnings.length} warnings${r.stalled ? `, STALLED in ${r.stalled.phase} at ${r.stalled.at} s` : ''}`);
   if (r.final) console.log(`Final: pairs ${JSON.stringify(r.final.pairs)}, winners ${JSON.stringify(r.final.winners)}, asks ${JSON.stringify(r.final.asks)}, fishes ${JSON.stringify(r.final.fishes)}, lucky ${r.final.lucky}, noes ${r.final.noes}, card "${r.final.title}", sticker ${r.final.sticker}`);
   console.log(`Seconds in each phase: ${JSON.stringify(r.phaseSeconds)}`);
+  if (r.tutorial) console.log(`Tutorial: ${r.tutorial.steps.length} phases, ${r.tutorial.endedAt === null ? 'NOT over' : `over at ${r.tutorial.endedAt} s`}: ${r.tutorial.steps.map(step => `${step.at} ${step.phase.replace('tutorial ', '')}`).join(', ')}`);
   if (r.sound?.volume) console.log(`Sound: ${r.sound.parts.length} part(s) mixed (${r.sound.parts.filter(part => part.kind === 'voice').length} voices), frames reached the tool ${r.sound.lag.median} ms after they were drawn (90% within ${r.sound.lag.p90}), click ${r.sound.parts[0]?.calibrated ? 'found' : 'NOT found'}, mean ${r.sound.volume.mean} dB, max ${r.sound.volume.max} dB`);
   else if (r.sound) console.log('Sound: none was recorded');
   if (r.sound?.said) console.log(`Voices: ${r.sound.said.length} lines said, ${r.sound.overlaps.length} overlapping, ${r.sound.cutOff.length} cut off before their end`);
