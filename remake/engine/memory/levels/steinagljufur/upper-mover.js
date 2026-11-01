@@ -75,15 +75,19 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'through', phase: 'gather', age: 0, hidden: 0, total: 9, arrived: 0 };
     events.push({ type: 'through-start' });
-    const lanes = i => BORE.across + (i ? .62 : -.62);
+    // Each pair's two lanes, metres either side of the bore's middle: the narrower pairs walk closer in (the bore is 2.1 to 2.7 m wide at the friends' feet),
+    // and a low lip of rock at the left foot of the mouth (x 2.6 to 3.2) leaves 0.81 m on that side, so the left lane comes in 0.3 m to the right of its
+    // line and is back on it 1.5 m in. The Þríhyrnur keep their lanes: side by side they are 2.84 m wide, wider than the bore (veggir).
+    const LANES = { stegosaurus: .6, triceratops: .62, brontosaurus: .56, pteranodon: .62 }, LIP = { shift: .3, to: 3.0, back: 1.5 };
     ORDER.forEach((who, g) => {
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
         actor.clearLook?.(); actor.stopGesture?.();
-        const lane = who === 'mosi' ? BORE.across : lanes(i), row = who === 'stegosaurus' ? 0 : g;
-        const stage1 = tunnelPoint(BORE.mouth + 1.1 + row * .5, lane), enter = tunnelPoint(BORE.mouth - .2, lane), inside = tunnelPoint(-1.7, lane);
+        const lane = who === 'mosi' ? BORE.across : BORE.across + (i ? 1 : -1) * (LANES[who] ?? .62), row = who === 'stegosaurus' ? 0 : g;
+        const lip = who !== 'mosi' && who !== 'triceratops' && !i ? LIP.shift : 0, past = lip ? [tunnelPoint(LIP.to, lane + lip), tunnelPoint(LIP.back, lane)] : [];
+        const stage1 = tunnelPoint(BORE.mouth + 1.1 + row * .5, lane + lip), enter = tunnelPoint(BORE.mouth - .2, lane + lip), inside = tunnelPoint(-1.7, lane);
         const at = ENTER.first + g * ENTER.every + i * .12;
-        walkers.start(actor, [{ to: [stage1], speed: ENTER.run }, { until: at }, { to: [enter, inside], speed: ENTER.walk }, { hide: true }], { yaw: null, onDone: () => { action.hidden++; } });
+        walkers.start(actor, [{ to: [stage1], speed: ENTER.run }, { until: at }, { to: [enter, ...past, inside], speed: ENTER.walk }, { hide: true }], { yaw: null, onDone: () => { action.hidden++; } });
       });
     });
   }

@@ -49,25 +49,34 @@ export function splitRocks(model) {
 
 // ---- the pile ----
 // The pile's pieces. Each is one of the model's rocks (`kind`: 0 to 10, left to right as the file has them: their sizes are on the shells), placed by its middle as
-// [x along the tunnel, y, z across, yaw, tilt about x, tilt about z, size], where it starts (stacked across the bore, its front face at x = 2.2) and where it ends
-// (low, in steps: on its side or small). A hit shoves every piece a little of the way to its end (the loose ones on top further), the third lets go.
+// [x along the tunnel, y, z across, yaw, tilt about x, tilt about z, size], where it starts (stacked across the bore, its front face at x = 2.2), the low steps
+// the two shoves move it toward (on its side or small) and where the third hit throws it (`gone`). A hit shoves every piece a little of the way to its steps (the
+// loose ones on top further), the third lets go: the rocks are knocked back into the dark at the far end of the bore, behind its black plane (x = -2.55), each
+// to one side of the end's widening (x -2.9 to -3.7), its long side along the wall and its inner face 1.25 m from the bore's middle. The friends that walk through
+// reach no further in than x = -3.8, within 1.06 m of the middle (their heads), so the way is clear. (The steps lay across both lanes of the walk through: every
+// friend walked through rock there, veggir.)
 function pieceDefs(rocks) {
   const size = kind => rocks[kind].size;
   const up = (kind, x, z, yaw, s, base = 0) => [x, base + size(kind).y / 2 * s, z, yaw, 0, 0, s];
   const lie = (kind, x, z, yaw, s, base = 0) => [x, base + size(kind).x / 2 * s, z, yaw, 0, Math.PI / 2, s];
-  const P = (kind, start, end, extra = {}) => ({ kind, start, end, ...extra });
+  // the pose by the wall at the end, from the pose on the steps: a rock on its side lies along the tunnel, a standing one turns its narrow side across
+  const stow = (kind, step, x, side) => {
+    const s = step[6], lying = step[5] !== 0, k = size(kind), half = (lying ? k.z : Math.min(k.x, k.z)) / 2 * s, yaw = lying || k.z <= k.x ? 0 : Math.PI / 2;
+    return [x, step[1], BORE.across + side * (1.25 + half), yaw, step[4], step[5], s];
+  };
+  const P = (kind, start, end, [x, side], extra = {}) => ({ kind, start, end, gone: stow(kind, end, x, side), ...extra });
   return [
-    P(9, up(9, 1.75, -.7, .3, 1), up(9, 1.05, -1.0, .6, 1)),
-    P(3, up(3, 1.75, .65, 1.2, 1.05), up(3, 1.15, 1.0, 2.0, 1)),
-    P(5, up(5, 2.0, -.05, .8, 1.1), lie(5, 2.05, 0, 1.4, 1.1)),
-    P(2, up(2, 2.0, -1.1, 2.1, 1.1), lie(2, 2.1, -.85, 2.6, 1.1)),
-    P(8, up(8, 1.25, -.35, 2.6, 1.15), lie(8, 1.4, -.3, 3.1, 1.15)),
-    P(0, up(0, 1.2, .6, 4.0, 1.05), lie(0, 1.35, .55, 4.6, 1.05)),
-    P(1, up(1, .8, 0, 5.1, 1), lie(1, .7, 0, 5.6, 1)),
-    P(7, up(7, 1.65, -.55, 1.5, 1.2, .85), up(7, 1.55, .15, 2.4, 1.2), { top: true }),
-    P(4, up(4, 1.55, .55, 3.3, 1.3, 1.05), up(4, .9, .55, 3.8, 1.3), { top: true }),
-    P(6, up(6, 1.35, 0, .2, 1.4, 1.45), up(6, 1.0, -.4, .9, 1.4), { top: true }),
-    P(10, up(10, .85, -.9, 3.6, 1.2), up(10, .3, -.9, 4.1, 1.2)),
+    P(9, up(9, 1.75, -.7, .3, 1), up(9, 1.05, -1.0, .6, 1), [-3.0, -1]),
+    P(3, up(3, 1.75, .65, 1.2, 1.05), up(3, 1.15, 1.0, 2.0, 1), [-3.05, 1]),
+    P(5, up(5, 2.0, -.05, .8, 1.1), lie(5, 2.05, 0, 1.4, 1.1), [-3.45, 1]),
+    P(2, up(2, 2.0, -1.1, 2.1, 1.1), lie(2, 2.1, -.85, 2.6, 1.1), [-3.5, -1]),
+    P(8, up(8, 1.25, -.35, 2.6, 1.15), lie(8, 1.4, -.3, 3.1, 1.15), [-3.2, -1]),
+    P(0, up(0, 1.2, .6, 4.0, 1.05), lie(0, 1.35, .55, 4.6, 1.05), [-3.25, 1]),
+    P(1, up(1, .8, 0, 5.1, 1), lie(1, .7, 0, 5.6, 1), [-3.7, -1]),
+    P(7, up(7, 1.65, -.55, 1.5, 1.2, .85), up(7, 1.55, .15, 2.4, 1.2), [-2.9, 1], { top: true }),
+    P(4, up(4, 1.55, .55, 3.3, 1.3, 1.05), up(4, .9, .55, 3.8, 1.3), [-3.65, 1], { top: true }),
+    P(6, up(6, 1.35, 0, .2, 1.4, 1.45), up(6, 1.0, -.4, .9, 1.4), [-2.9, -1], { top: true }),
+    P(10, up(10, .85, -.9, 3.6, 1.2), up(10, .3, -.9, 4.1, 1.2), [-3.35, -1]),
   ];
 }
 const STEP_REST = .04; // metres above the tunnel's floor line (the model stands 5 cm in the ground)
@@ -127,7 +136,7 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   const pieces = PIECES.map(piece => {
     const mesh = meshes.find(entry => entry.list.includes(piece)), slot = mesh.list.indexOf(piece), at1 = piece.top ? .22 : .08, at2 = piece.top ? .5 : .16;
     const mix = t => piece.start.map((value, i) => lerp(value, piece.end[i], t));
-    return { ...piece, mesh, slot, keys: [piece.start, mix(at1), mix(at2), piece.end], cur: [...piece.start], from: null, tween: null, landed: true, drop: 0 };
+    return { ...piece, mesh, slot, keys: [piece.start, mix(at1), mix(at2), piece.gone], cur: [...piece.start], from: null, tween: null, landed: true, drop: 0 };
   });
   let pileStage = 0, pileTime = 0, pileDirty = true, falling = false, fallAge = 0;
   const pileEvents = [];
@@ -162,10 +171,13 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
   }
 
   // ---- the crystals ----
-  // [x, z, y, yaw, scale, tilt about x, tilt about z]: at the foot of the bore's walls, inside and just in the mouth, where the plates' light finds them.
+  // [x, z, y, yaw, scale, tilt about x, tilt about z]: inside and just in the mouth, where the plates' light finds them. In the bore they grow out of its walls a metre
+  // up, leaning in, above the friends' flanks (the floor is as wide as the friends that walk through it: at its foot they stood in their way, veggir), the two on the
+  // left wall set into the rock far enough for a Þríhyrna's frill to pass them; in the mouth's open right side one stands on the floor. With no yaw the tilt about x
+  // leans a crystal toward +z (into the bore from its -z wall), a negative one toward -z.
   const CRYSTALS = {
-    purple: [[3.05, -1.18, 0, .5, .62, .12, -.18], [2.35, 1.0, 0, 2.2, .5, -.1, .2], [.35, -1.2, 0, 4.1, .7, .1, -.2]],
-    blue: [[3.3, .95, 0, 1.3, .7, 0, .2], [2.6, -1.1, 0, 3.4, .55, .1, -.15], [.9, 1.05, 0, 5.2, .6, 0, .2]],
+    purple: [[3.05, -1.83, .95, .1, .55, .45, -.1], [2.4, 1.63, .9, -.15, .5, -.45, .12], [.4, -1.96, .95, .2, .65, .45, -.12]],
+    blue: [[3.35, 1.88, 0, 1.3, .7, 0, .2], [2.6, -1.67, 1.0, -.1, .55, .4, .1], [.9, 1.38, .95, .15, .6, -.4, -.1]],
   };
   const crystalLook = { purple: { emissive: '#8b5cff', base: .05 }, blue: { emissive: '#4aa9ff', base: .05 } };
   const crystals = Object.entries(CRYSTALS).map(([name, list]) => {
@@ -238,8 +250,8 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
       const stage = Math.min(3, index + 1); pileStage = stage;
       if (stage < 3) { pieces.forEach(piece => { piece.tween = { kind: 'shove', from: [...piece.cur], to: piece.keys[stage], age: 0, delay: 0, seconds: .38 }; piece.landed = true; }); pileShake = FALL.shiver; pileDirty = true; return; }
       pieces.forEach((piece, i) => {
-        const drop = piece.cur[1] - piece.end[1] + 1, seconds = lerp(FALL.seconds[0], FALL.seconds[1], clamp01(drop / 2)) * (reducedMotion() ? .4 : 1);
-        piece.tween = { kind: 'fall', from: [...piece.cur], to: [...piece.end], age: 0, delay: reducedMotion() ? 0 : (piece.top ? 0 : (piece.late ?? 0) + FALL.delay * (.5 + .5 * (i % 3))) , seconds, drop };
+        const drop = piece.cur[1] - piece.gone[1] + 1, seconds = lerp(FALL.seconds[0], FALL.seconds[1], clamp01(drop / 2)) * (reducedMotion() ? .4 : 1);
+        piece.tween = { kind: 'fall', from: [...piece.cur], to: [...piece.gone], age: 0, delay: reducedMotion() ? 0 : (piece.top ? 0 : (piece.late ?? 0) + FALL.delay * (.5 + .5 * (i % 3))) , seconds, drop };
         piece.landed = false;
       });
       pileDirty = true;
@@ -272,7 +284,8 @@ export function createTunnelInterior({ tunnel, models, fx, glow, reducedMotion =
     crystals: {
       /** Stars from every crystal, and a flash on them (the light's taps). */
       sparkle(count = 6) { glint = 1; for (const point of this.points()) fx?.emit?.('stars', point, { count }); },
-      points: () => crystals.flatMap(crystal => crystal.list.map(([x, z, y, , s]) => at(x, y + .75 * s, z))),
+      // (up the crystal's own lean: those on the walls lean in)
+      points: () => crystals.flatMap(crystal => crystal.list.map(([x, z, y, yaw, s, rx, rz]) => { const lean = new THREE.Vector3(0, .75 * s, 0).applyEuler(new THREE.Euler(rx, yaw, rz, 'YXZ')); return at(x + lean.x, y + lean.y, z + lean.z); })),
     },
     reset() { level = wanted = from = 0; easeAge = 1; glint = 0; pile.reset(); apply(); },
     stats: () => ({ triangles: PIECES.reduce((sum, piece) => sum + rocks[piece.kind].triangles, 0) + crystals.reduce((sum, c) => sum + (models.get(`gorge-crystal-${c.name}`).triangles) * c.list.length, 0), draws: meshes.length + crystals.length + 3, pieces: PIECES.length, crystalsStanding: crystals.reduce((sum, c) => sum + c.list.length, 0) }),

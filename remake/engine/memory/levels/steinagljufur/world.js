@@ -48,13 +48,29 @@ export function createLevelWorld(stage) {
     update(dt) { for (const one of glows) one.update(dt); },
   };
 
+  // The ground's lift (ground.js liftOf: the climb behind the walls), let off in a box over the tunnel's bore and the ground just behind the tunnel, so that the
+  // bore's floor is flat under the friends' feet (the climb came up through their legs inside the tunnel). The forest's ground here is a coarse mesh (rings
+  // 2.7 m apart), and its vertices behind the tunnel, 2 to 2.7 m up, carried the climb into the bore: the box takes them down too. That ground lies behind the
+  // tunnel's rock and the wall, out of every camera's sight. The wall pieces and the tunnel are stood on the ground as it was (`plainHeightAt`), so none moves.
+  const plainLift = liftOf(frame);
+  function boreLift() {
+    const [tx, tz] = frame.toWorld(...TUNNEL.at), yaw = frame.yawToward(...TUNNEL.facing), c = Math.cos(yaw), s = Math.sin(yaw), k = TUNNEL.scale;
+    return (x, z) => {
+      // (x, z) in the tunnel's frame: x along the bore (the mouth at BORE.mouth), z across it
+      const dx = x - tx, dz = z - tz, lx = (dx * c - dz * s) / k, lz = (dx * s + dz * c) / k - BORE.across;
+      const out = Math.max(-5.2 - lx, lx - (BORE.mouth + 1), -3.3 - lz, lz - 2.5); // metres outside the box (negative inside)
+      return out >= 0 ? plainLift(x, z) : plainLift(x, z) * THREE.MathUtils.smoothstep(out, -.3, 0);
+    };
+  }
+  const groundLift = boreLift(), plainHeightAt = (x, z) => stage.heightAt(x, z) + plainLift(x, z) - groundLift(x, z);
+
   // What the forest is grown from: nothing grows by itself (a gorge has no forest), the ground is the floor with its walls lifted, and the
   // plants are the few the dress below places. The clearing is wide so that the floor is the forest's calm, flat ground.
   const layout = {
     clearing: { center: [...level.grid.centre], radius: 26 }, forestEdge: 34,
     path: [[level.grid.centre[0] + 70, level.grid.centre[1] + 40], [level.grid.centre[0] + 62, level.grid.centre[1] + 34]],
     keepOut: () => 1,
-    lift: liftOf(frame),
+    lift: groundLift,
     farRings: FAR_ROCKS,
     // Dry gorge dressing, only at the edge of the floor and the foot of the walls: pebbles, mossy stones and a few ferns and cycads where green hangs on.
     dress({ avoid = () => false } = {}) {
@@ -161,7 +177,7 @@ export function createLevelWorld(stage) {
       // The rests' room for the wall pieces: a pair rests up to 1.15 m from its nest's middle and a Langháls's tail reaches 2.4 m behind its root.
       const rests = [...level.nests.map(([x, z]) => ({ x, z, radius: 3.75 })), { x: spot.x, z: spot.z, radius: 3 }];
       gorge = buildGorge({
-        scene, frame, heightAt: stage.heightAt, models, tunnel: TUNNEL, glow, rests,
+        scene, frame, heightAt: plainHeightAt, models, tunnel: TUNNEL, glow, rests,
         avoid: (u, v, radius) => keepClear.some(([cu, cv, r]) => Math.hypot(u - cu, v - cv) < r + radius * .3) || stage.onLeafGround(...frame.toWorld(u, v), radius),
       });
       upperModels = await loadUpperModels();

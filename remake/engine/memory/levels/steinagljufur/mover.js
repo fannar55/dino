@@ -51,13 +51,17 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
   const SPOTS = {
     // The Kambeðlur: one at each side of the mouth, a little out in front of it, turned in to it (their plates shine on it from both sides).
     light: () => [-1, 1].map(sign => ({ point: ground(BORE.mouth + 1.15, across + sign * 2.55), yaw: yawOf(-1.0, -sign * 2.4) })),
-    // The Þríhyrnur: side by side in the mouth, noses to the pile (`reach`: how far the root has gone from its rest toward the pile).
-    ram: (reach, front = interior.pile.frontX()) => members('triceratops').map((actor, i) => ({ point: ground(front + noseOf(actor) + GAP - reach, across + (i ? .78 : -.78)), yaw: yawOf(-1, 0) })),
+    // The Þríhyrnur: side by side in the mouth, noses to the pile (`reach`: how far the root has gone from its rest toward the pile). The pair stands a little
+    // toward +z, where the mouth is wide: at -z a low lip of the rock comes in at the foot of the mouth (less than a metre from the middle), and two Þríhyrnur
+    // side by side are wider than the bore (veggir phase 2).
+    ram: (reach, front = interior.pile.frontX()) => members('triceratops').map((actor, i) => ({ point: ground(front + noseOf(actor) + GAP - reach, across + (i ? .85 : -.35)), yaw: yawOf(-1, 0) })),
   };
   // Where each wrong friend stands to have its go (rest of the go), by 'obstacle:species'.
+  // (the -z member of a pair stands nearer the middle than the +z one: the mouth's -z side has a low lip of rock at its foot and a crystal at the height of a
+  // Þríhyrna's frill, and the Langháls's bonk swings its head aside)
   const FAIL_SPOTS = {
-    'tunnel:triceratops': () => members('triceratops').map((a, i) => ({ point: ground(interior.pile.frontX() + noseOf(a) + GAP + .85, across + (i ? .8 : -.8)), yaw: yawOf(-1, 0) })),
-    'tunnel:brontosaurus': () => members('brontosaurus').map((a, i) => ({ point: ground(BORE.mouth + noseOf(a) + .35, across + (i ? .75 : -.75)), yaw: yawOf(-1, 0) })),
+    'tunnel:triceratops': () => members('triceratops').map((a, i) => ({ point: ground(interior.pile.frontX() + noseOf(a) + GAP + .85, across + (i ? .98 : -.45)), yaw: yawOf(-1, 0) })),
+    'tunnel:brontosaurus': () => members('brontosaurus').map((a, i) => ({ point: ground(BORE.mouth + noseOf(a) + .35, across + (i ? .75 : -.34)), yaw: yawOf(-1, 0) })),
     'tunnel:pteranodon': () => members('pteranodon').map((a, i) => ({ point: ground(BORE.mouth + 1.15, across + (i ? .95 : -.95)), yaw: yawOf(-1, 0) })),
     'rocks:stegosaurus': () => members('stegosaurus').map((a, i) => ({ point: ground(interior.pile.frontX() + 1.35, across + (i ? .72 : -.72)), yaw: yawOf(1, 0) })),
     'rocks:brontosaurus': () => members('brontosaurus').map((a, i) => ({ point: ground(interior.pile.frontX() + noseOf(a) + .08, across + (i ? .7 : -.7)), yaw: yawOf(-1, 0) })),
@@ -156,9 +160,11 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     const a = action; a.queue--; a.phase = 'strike'; a.strikeAge = 0; a.index = a.done; a.hitDone = false;
     for (const actor of members('triceratops')) actor.gesture?.('charge');
   }
-  // How far the horns have gone from where the pair rests toward the pile, over one strike (u 0 to 1): a rear back, the drive in (to GAP, the pile's face; a little more on the last), the hold and the way back.
+  // How far the horns have gone from where the pair rests toward the pile, over one strike (u 0 to 1): a rear back, the drive in (to GAP, the pile's face; a little more
+  // after the first), the hold and the way back. (The third goes no deeper than the second: it went 24 cm past the face, the heads into the pile and the feet and
+  // horns into the mouth's sides, veggir.)
   function strikeReach(u, index) {
-    const dive = GAP + .07 * index + (index >= 2 ? .1 : 0);
+    const dive = GAP + .07 * Math.min(index, 1);
     if (u < .3) return -REAR * easeOut(u / .3);
     if (u < STRIKE.hit) return lerp(-REAR, dive, easeIn((u - .3) / (STRIKE.hit - .3)));
     if (u < .6) return dive;
