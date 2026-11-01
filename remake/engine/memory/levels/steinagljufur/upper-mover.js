@@ -72,14 +72,15 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   // ---- through ----
   const ENTER = { first: 2.0, every: .26, run: 6.4, walk: 4.4 };
   const ORDER = ['stegosaurus', 'mosi', 'triceratops', 'brontosaurus', 'pteranodon'];
+  // Each pair's two lanes, metres either side of the bore's middle: the narrower pairs walk closer in (the bore is 2.1 to 2.7 m wide at the friends' feet),
+  // and a low lip of rock at the left foot of the mouth (x 2.6 to 3.2) leaves 0.81 m on that side, so the left lane comes in 0.3 m to the right of its
+  // line and is back on it 1.5 m in. The Þríhyrnur keep their lanes: side by side they are 2.84 m wide, wider than the bore (veggir). The exit is the same
+  // tunnel: there they come out one behind the other in its middle (TRI_FILE), the second from further in, which no cut waits for.
+  const LANES = { stegosaurus: .6, triceratops: .62, brontosaurus: .56, pteranodon: .62 }, LIP = { shift: .3, to: 3.0, back: 1.5 }, TRI_FILE = { lane: .12, behind: 1.8 };
   function startThrough() {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'through', phase: 'gather', age: 0, hidden: 0, total: 9, arrived: 0 };
     events.push({ type: 'through-start' });
-    // Each pair's two lanes, metres either side of the bore's middle: the narrower pairs walk closer in (the bore is 2.1 to 2.7 m wide at the friends' feet),
-    // and a low lip of rock at the left foot of the mouth (x 2.6 to 3.2) leaves 0.81 m on that side, so the left lane comes in 0.3 m to the right of its
-    // line and is back on it 1.5 m in. The Þríhyrnur keep their lanes: side by side they are 2.84 m wide, wider than the bore (veggir).
-    const LANES = { stegosaurus: .6, triceratops: .62, brontosaurus: .56, pteranodon: .62 }, LIP = { shift: .3, to: 3.0, back: 1.5 };
     ORDER.forEach((who, g) => {
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
@@ -97,14 +98,17 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     if (!action || action.id !== 'through' || action.cut) return false;
     action.cut = true; action.phase = 'exit'; action.age = 0; where = 'upper';
     setLower(false); U.show(); walkers.cancelAll(); walkers.resetClock();
-    const t0 = walkers.clock(), mouth = U.anchors.exit.mouth.x;
+    // (`bore(x)`: the frame's x of a place in the exit's tunnel, in the tunnel's own x as the glade's lanes are given: the mouth at BORE.mouth; its middle is the frame's z = 0)
+    const t0 = walkers.clock(), mouth = U.anchors.exit.mouth.x, bore = x => mouth - BORE.mouth + x;
     ORDER.forEach((who, g) => {
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
-        const lane = who === 'mosi' ? 0 : (i ? .62 : -.62), spot = spotOf('floor', who, i), inside = world(mouth - 3.2, lane), mouthPoint = world(mouth + .9, lane * 1.4);
+        const file = who === 'triceratops', lane = who === 'mosi' ? 0 : file ? TRI_FILE.lane : (i ? 1 : -1) * (LANES[who] ?? .62), lip = who !== 'mosi' && !file && !i ? LIP.shift : 0;
+        const spot = spotOf('floor', who, i), inside = world(mouth - 3.2 - (file && i ? TRI_FILE.behind : 0), lane);
+        const out = file ? [world(bore(LIP.back), lane), world(mouth + .3, lane), spot.point] : [world(bore(LIP.back), lane), world(bore(LIP.to), lane + lip), world(mouth + .3, lane + lip), world(mouth + .9, lane * 1.4), spot.point];
         walkers.place(actor, inside, forward(0), false); actor.root.scale.setScalar(.02);
         const delay = g * .3 + i * .1;
-        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: [world(mouth - 1.2, lane), mouthPoint, spot.point], speed: 5.4 }], { yaw: spot.yaw, onDone: () => { action.arrived++; } });
+        walkers.start(actor, [{ until: t0 + delay }, { pop: .22 }, { to: out, speed: 5.4 }], { yaw: spot.yaw, onDone: () => { action.arrived++; } });
       });
     });
     return true;
@@ -185,7 +189,8 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   // ---- fly ----
   // The rope lies in a coil at the foot of the cliff, tied to its stake. The Flugeðlur take its free end (A, in front, then B a metre behind: the rope runs through B's beak to A's) and
   // fly it up the cliff in three legs, one for each tap; at the top they circle the tree, winding the rope round its trunk; it draws taut, and they land by the tree.
-  const LEG_SPEED = 4.4, WRAP = { radius: 1.15, turns: 1.4, speed: 3.4, behind: 1.15 };
+  // (the wrap's radius keeps the Flugeðlur's wings off the trunk: at 1.15 m they brushed it, veggir)
+  const LEG_SPEED = 4.4, WRAP = { radius: 1.3, turns: 1.4, speed: 3.4, behind: 1.15 };
   const frameOf = point => U.local(point);
   const noseFrame = actor => frameOf(actor.getNosePosition());
   const airAt = fraction => { // a point above the path, fraction 0..1 of its length, toward the hillside a little and 2.6 metres up: [x, y, z]

@@ -125,7 +125,8 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   // behind it the piece is in the ground. (`y` is the ground at its middle; the old rule stood a piece at that height, and a piece on a slope hung over the lower ground.)
   // The places in the frame that somebody walks or stands (the exit floor and the terrace in front of and on the ledge, the rim, and the path with a body's width either side): no piece
   // stands on them, so that nobody is inside a rock. A piece that would is moved back from the open side (+z) until its foot is clear.
-  const KEEP = [[-14, 12.5, -7.5, 3.6], [21, 39, -.5, 14.2]];
+  // (the second is the inside of the exit's bore, from the dark at its back to its mouth: the group comes out of it, and a hillside piece behind the tunnel filled it, veggir)
+  const KEEP = [[-14, 12.5, -7.5, 3.6], [-19, -11.5, -1.9, 1.9], [21, 39, -.5, 14.2]];
   const walkable = (x, z) => KEEP.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1) || way.some(p => Math.hypot(p[0] - x, p[1] - z) < 3.2);
   /** The points of the foot of a piece (its box of bounds, drawn in to `part` of its size, turned and scaled) in the frame. */
   const footing = (name, x, z, yaw, scale, part, n = 4) => {
@@ -139,9 +140,10 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   };
   const lowest = (name, x, z, yaw, scale) => Math.min(...footing(name, x, z, yaw, scale, .7).map(([px, pz]) => groundAt(px, pz)));
   const moved = []; // QA: the pieces moved back from the walked places (their old and new places)
-  const piece = (kinds, x, z, y, scale, sink) => {
+  // (`away`: the way a piece is moved, +1 toward the hillside, -1 for the back wall's pieces on the open side of the exit)
+  const piece = (kinds, x, z, y, scale, sink, away = 1) => {
     const name = `gorge-cliff-${kinds[Math.floor(random() * kinds.length) % kinds.length]}`, yaw = range(0, Math.PI * 2), x0 = x, z0 = z, old = y - sink * scale;
-    let k = 0; while (k < 30 && footing(name, x, z, yaw, scale, .85, 6).some(([px, pz]) => walkable(px, pz))) { z += .5; k++; }
+    let k = 0; while (k < 30 && footing(name, x, z, yaw, scale, .85, 6).some(([px, pz]) => walkable(px, pz))) { z += .5 * away; k++; }
     const tilt = range(-.05, .05), tint = .88 + .16 * random();
     if (k >= 30) { moved.push({ name, from: [+x0.toFixed(2), +z0.toFixed(2)], to: null }); return; }
     if (k) { y = groundAt(x, z); moved.push({ name, from: [+x0.toFixed(2), +z0.toFixed(2)], to: [+x.toFixed(2), +z.toFixed(2)] }); }
@@ -163,7 +165,7 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
     }
   }
   // the back of the exit floor: a wall of pieces behind the tunnel, two rows
-  for (const [x, scale] of [[-22, 3.6], [-18.8, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -24) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5); }
+  for (const [x, scale] of [[-22, 3.6], [-18.8, 3.0]]) for (let z = -13; z <= 9; z += range(4.4, 5.6)) { if (bores(x, z) && x > -24) continue; piece(ALL, x + range(-.8, .8), z, 0, scale * range(.9, 1.15), .5, z < 0 ? -1 : 1); }
   // the end beyond the rim (Task 6's gap is in front of it)
   for (let z = -4; z <= 16; z += range(4.2, 5.6)) piece([4, 6, 0, 5], RIM.to[0] + 9.2, z, groundAt(RIM.to[0] + 9.2, z), range(3, 3.9), .55);
   // (the open side, -z, is where the cameras stand: nothing solid is placed on it, only the ground, so that no shot is inside or behind a rock; the embankments under the path and the rim are
