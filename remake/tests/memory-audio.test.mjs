@@ -287,3 +287,17 @@ test('river ambience is one gesture-gated loop with bounded PCM and explicit lif
   assert.ok(context.started.every(source => source.disconnected));
   assert.equal(audio.river(true), false); assert.equal(context.closeCalls, 1);
 }));
+
+test("every line Mosi says goes through the pronunciation standard: each hard word's inflection is a form of its word, a line's say gets the lexicon too, and the owner's picks are sent as he heard them", async () => {
+  const tool = await import('../tools/memory-voices.mjs'), { readLexicon } = await import('../tools/pronunciation.mjs');
+  const lexicon = readLexicon(tool.ROOT), states = tool.statesOf(lexicon, {});
+  assert.deepEqual(states.flatMap(item => item.uncovered.map(word => `${item.id}: ${word}`)), [], "add each to its word's forms (or except) in remake/assets/audio/pronunciation.json, or it is sent as written");
+  for (const item of states) {
+    if (item.line.kept !== undefined) { assert.equal(item.key, item.ownKey, `${item.id}: kept, sent as its own fields`); continue; }
+    for (const word of item.sent.words.filter(found => found.recipe)) {
+      const recipe = lexicon.words[word.id].recipes[word.recipe];
+      for (const form of recipe.say === undefined ? [] : word.forms) assert.ok(item.sent.text.includes(typeof recipe.say === 'string' ? recipe.say : recipe.say[form]), `${item.id}: ${form} is sent as its recipe says`);
+    }
+  }
+  for (const id of ['who', 'won', 'push', 'roll', 'gift_shrew']) assert.ok(states.find(item => item.id === id).line.kept, `${id}: the owner's pick by ear stays kept`);
+});

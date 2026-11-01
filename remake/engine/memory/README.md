@@ -155,6 +155,13 @@ node remake/tools/memory-voices.mjs --verify
 node remake/tools/memory-sound-design.mjs --audit
 ```
 
+Mosi's lines go through the remake's pronunciation standard (`remake/assets/audio/pronunciation.json`, the owner's
+recipe for each hard word) the way the other games' lines do: `memory-voices.mjs --dry-run` shows what each line sends,
+`--plan` lists the lines whose MP3 is not of that request, and `--ab --only <ids>` makes their new takes into
+`qa/memory/tal/` beside the shipped ones, for the owner's ear, without installing them. A new inflection of a hard word
+must be added to its word's forms first (the tool stops on it), and a take the owner picked by ear carries `kept` in
+`voice-lines.js`. A scribe check that hears the words is weak proof: the owner listens.
+
 The unit checks use the bundled Three.js through the test setup; no install is
 needed. `memory-playthrough.mjs` plays a whole round the way a child does (its header lists the
 modes and flags). The earlier Playwright checks of the old flow (`memory-check.mjs`, `memory-render-check.mjs`,

@@ -1,6 +1,6 @@
 // The remake's pronunciation standard, remake/assets/audio/pronunciation.json: the hard words, each with every form the lines say,
-// the recipes that can be sent in their place and the one the owner chose by ear. voice-lines.mjs and yatzy-junior-voices.mjs send
-// every line through requestFor -> applyLexicon; nothing here asks ElevenLabs or knows a key.
+// the recipes that can be sent in their place and the one the owner chose by ear. voice-lines.mjs, yatzy-junior-voices.mjs and
+// memory-voices.mjs (the memory game) send every line through requestFor -> applyLexicon; nothing here asks ElevenLabs or knows a key.
 //
 // The file is written as JSON.stringify(lexicon, null, 2) plus a newline (lexiconText), and --pick rewrites it that way, so a choice
 // changes one line of it. Edit it, or add candidates, with node (read, change, writeLexicon or lexiconText), not with Python's

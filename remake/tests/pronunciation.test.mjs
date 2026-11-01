@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SETS } from '../tools/audio-lines.mjs';
 import { VOICE_LINES } from '../engine/yatzy-junior/voice-lines.js';
+import { VOICE_LINES as MEMORY_LINES } from '../engine/memory/voice-lines.js';
 import { JUNIOR_LINES, JUNIOR_OVERRIDES, allLines, bookPlan, cacheKey, juniorOverrides, linesOf } from '../tools/voice-lines.mjs';
 import { applyLexicon, checkLexicon, formsPattern, lexiconText, requestFor, resolveWord } from '../tools/pronunciation.mjs';
 import { SPEAKER_NAMES, bookHtml } from '../tools/voice-pages.mjs';
@@ -49,11 +50,13 @@ test('the shipped lexicon, whatever the owner picked: valid, every choice a reci
   const lines = corpus();
   assert.ok(lines.length > 400, `${lines.length} lines read`);
   assert.deepEqual(lines.filter(line => line.optional).map(line => `${line.set}/${line.id}`), ['multiWelcome', 'multiTurn', 'multiScored', 'multiZero', 'multiWait', 'multiOver'].map(id => `yatzy-junior/${id}`), "Fjölspil's six are read, optional");
+  // The memory game's lines too: remake/tools/memory-voices.mjs sends them through the same lexicon.
+  const stemmed = [...lines, ...Object.entries(MEMORY_LINES).map(([id, line]) => ({ set: 'memory', id, text: line.text }))];
   const uncovered = [];
   for (const [id, entry] of entries) {
     const stem = new RegExp(`^(?:${entry.stem})`, 'u');
     const known = new Set([...entry.forms, ...(entry.except ?? [])]);
-    for (const line of lines) {
+    for (const line of stemmed) {
       for (const token of tokens(line.text)) if (stem.test(token) && !known.has(token)) uncovered.push(`${token} (${id}) in ${line.set}/${line.id}`);
     }
   }
