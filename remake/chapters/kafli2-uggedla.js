@@ -380,8 +380,9 @@ function ringAt(c, x, z, strength = 0.5) {
 const herPlace = rig => ({ x: rig.actor.root.position.x, z: rig.actor.root.position.z });
 
 /**
- * She lies low in the water at her reed (arriveInSiki): only her sail over the reed, her neck folded down and her head resting by the
- * water, her root SINK.low under it. She breathes on her idle clip. Shown, if she was hidden.
+ * She lies low in the water at her reed (arriveInSiki): her root SINK.low under the water, her neck laid down and her head tucked in on
+ * the bank's side (LYING), so that her back, her tail and the top of her sail are all that show over the reed. She breathes on her idle
+ * clip. Shown, if she was hidden.
  */
 export function lieLow(c) {
   const rig = rigOf(c);
@@ -441,7 +442,7 @@ export function* headUpWithFish(s, c) {
       rig.actor.headPosition(head);
       ringAt(c, head.x, head.z, 0.7);
     });
-    for (let waited = 0; waited < 2.3; waited += 1 / 30) {
+    for (const until = s.time + 2.3; s.time < until;) {
       fish.wriggle(3.2);
       yield;
     }
@@ -451,8 +452,8 @@ export function* headUpWithFish(s, c) {
     rig.animate('jaw', u => 9 * Math.sin(Math.PI * u), 0.45);
     const group = fish.group;
     const held = inJaws(fish.size);
-    for (let t = 0; t < 0.45; t += 1 / 30) {
-      const k = smooth(t / 0.4);
+    for (const began = s.time; s.time - began < 0.45;) {
+      const k = smooth((s.time - began) / 0.4);
       group.position.lerpVectors(held, THROAT, k);
       group.scale.setScalar((fish.size / FISH_LENGTH) * (1 - k));
       fish.wriggle(5);
@@ -503,7 +504,7 @@ export function* catchFish(s, c, fish) {
     s.after(reach - 0.3, () => rig.tween('jaw', JAW_MAX - 0.5, 0.28, smooth));
     yield s.until(() => rig.v.strike >= 0.999 && (lunge <= 0.05 || rig.v.lunge >= 0.999));
     // on the fish, or as near as she can get; then the jaws snap shut
-    for (let waited = 0; waited < 0.5 && rig.error > 0.06; waited += 1 / 30) yield;
+    for (const until = s.time + 0.5; s.time < until && rig.error > 0.06;) yield;
     rig.tween('jaw', 0, 0.09, smooth);
     yield s.wait(0.1);
     // the fish is hers: the one she holds appears where the other was, and slides to her snout
@@ -523,7 +524,8 @@ export function* catchFish(s, c, fish) {
     const group = held.group;
     const size = (fish.size ?? 1) / FISH_LENGTH;
     const held0 = inJaws(fish.size ?? 1);
-    for (let t = 0; t < 0.9; t += 1 / 30) {
+    for (const began = s.time; s.time - began < 0.9;) {
+      const t = s.time - began;
       if (t < 0.12) group.position.lerpVectors(from, held0, smooth(t / 0.12));
       else if (t < 0.5) group.position.copy(held0);
       else {
