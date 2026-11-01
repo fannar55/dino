@@ -43,7 +43,8 @@ heyrst eða sést í allt að sólarhring á tæki sem hafði hana. Þá dugar a
 Mosa má setja upp sem forrit: „Setja upp“ í Chrome eða Edge á Android og PC, „Bæta á heimaskjá“ í Safari á iPad. Í uppsetta
 forritinu sækir leikurinn sig allan í tækið, um 195 MB, og línan undir Byrja segir hve mikið er komið („Sæki leikinn í tækið
 … 40 %“, svo „Tilbúinn án nets ✓“). Eftir það spilast allur leikurinn án nets nema Fjölspil, sem segir „Fjölspil þarf net“.
-Í venjulegum flipa er ekkert sótt.
+Í venjulegum flipa er ekkert sótt. Aðrar síður, til dæmis Söngur Slóeðlu og síða gestsins, koma alltaf af netinu, líka á tæki
+þar sem forritið er uppsett, svo flipi sýnir aldrei gamla útgáfu af þeim.
 
 `stage.mjs` skrifar listann `site/remake/offline.json` (`src/offline-list.mjs`): hverja skrá með stærð og fingrafari, og
 útgáfu sem breytist ef einhver skrá breytist. Ný útgáfa berst því sjálf: næst þegar forritið opnast á neti sér það nýjan

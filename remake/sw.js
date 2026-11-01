@@ -2,8 +2,9 @@
 // (engine/offline/forrit.js) downloads the whole game into the device's store and tells this worker when a complete version
 // may take over. From then on the worker answers the game from the store, so it plays with no net:
 //   - only GET requests of this site, for a file on the active version's list whose bytes are in the store;
-//   - everything else goes to the net as before: Fjölspil's room, files not on the list, and the download itself and the list
-//     (they ask with cache 'reload' and 'no-store');
+//   - everything else goes to the net as before: Fjölspil's room, files not on the list, another page of the site in a tab of
+//     its own (Söngur Slóeðlu, the guest's page) with all it asks for, and the download itself and the list (they ask with
+//     cache 'reload' and 'no-store');
 //   - until the first whole version is in the store and active it answers nothing, so the game is never half there.
 // A classic script with no import: the iPad may not run a service worker written as a module. So the byte ranges are cut by
 // its own copy of the rules in cloud/src/range.mjs; remake/tests/forrit-sw.test.mjs runs the same cases on both and keeps them
@@ -28,11 +29,23 @@ function fileFor(pathname, files) {
   return null;
 }
 
-/** Whether a request goes straight to the net: not a GET, another site, the download or the list, or Fjölspil. */
-function passesThrough({ method, url, cache }, origin) {
+// Mosi's own page. Another page of the site opened in a tab of its own (Söngur Slóeðlu, the guest's page, a lab) is not part
+// of the app: it and all it asks for go to the net as before, so a tab never shows a kept copy that a deploy has passed by.
+// Frames inside Mosi (Litla Yatzy) are part of him.
+const isMosi = url => ['/remake/', '/remake/index.html'].includes(new URL(url).pathname);
+
+/** Whether a request goes straight to the net: not a GET, another site, the download or the list, Fjölspil, or another page. */
+function passesThrough({ method, url, cache, mode, destination }, origin) {
   if (method !== 'GET' || cache === 'reload' || cache === 'no-store') return true;
   const address = new URL(url);
-  return address.origin !== origin || address.pathname.startsWith('/fjolspil/');
+  if (address.origin !== origin || address.pathname.startsWith('/fjolspil/')) return true;
+  return mode === 'navigate' && destination === 'document' && !isMosi(url);
+}
+
+/** Whether what a page asks for is the app's: Mosi's page, a frame or worker of the game, or no page known. */
+async function askedByTheApp(clientId) {
+  const client = clientId ? await self.clients.get(clientId) : null;
+  return !client || client.frameType !== 'top-level' || isMosi(client.url);
 }
 
 // --- Byte ranges: a copy of cloud/src/range.mjs (bytes=a-b, bytes=a-, bytes=-n; one range only). ---
@@ -87,9 +100,9 @@ async function fromStore(stored, range) {
   return new Response(stored.body, { status: 200, headers });
 }
 
-async function answer(request) {
+async function answer(request, clientId) {
   try {
-    const list = await activeList();
+    const list = request.mode === 'navigate' || await askedByTheApp(clientId) ? await activeList() : null;
     const name = list && fileFor(new URL(request.url).pathname, list.files);
     const stored = name && await (await caches.open(FILES)).match(fileKey(list.files[name].hash));
     if (stored) return await fromStore(stored, request.headers.get('range'));
@@ -117,7 +130,7 @@ self.addEventListener('activate', event => { event.waitUntil(self.clients.claim(
 
 self.addEventListener('fetch', event => {
   if (passesThrough(event.request, self.location.origin)) return;
-  event.respondWith(answer(event.request));
+  event.respondWith(answer(event.request, event.clientId));
 });
 
 self.addEventListener('message', event => {

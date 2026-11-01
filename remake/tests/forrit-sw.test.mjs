@@ -14,8 +14,9 @@ const ORIGIN = 'https://mosi.example';
 const SOURCE = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
 const THEME = fs.readFileSync(new URL('../assets/audio/theme.mp3', import.meta.url));
 
-/** sw.js loaded as the browser loads it, with a store, a net that records what it is asked, and the given window clients. */
-function load({ windows = [{ frameType: 'top-level' }], net = async () => new Response('from the net') } = {}) {
+/** sw.js loaded as the browser loads it, with a store, a net that records what it is asked, the given window clients, and the
+ * clients known by id (`known`: { id: { url, frameType } }, what clients.get answers). */
+function load({ windows = [{ frameType: 'top-level' }], known = {}, net = async () => new Response('from the net') } = {}) {
   const handlers = {};
   const fetched = [];
   const caches = createCaches(ORIGIN);
@@ -23,7 +24,7 @@ function load({ windows = [{ frameType: 'top-level' }], net = async () => new Re
     location: { origin: ORIGIN },
     addEventListener: (type, handler) => { handlers[type] = handler; },
     skipWaiting: async () => {},
-    clients: { claim: async () => {}, matchAll: async () => windows },
+    clients: { claim: async () => {}, matchAll: async () => windows, get: async id => known[id] },
   };
   const ctx = { self, caches, Response, Request, Headers, URL, fetch: async request => { fetched.push(request); return net(request); } };
   vm.runInNewContext(SOURCE, ctx);
@@ -146,4 +147,41 @@ test('a version takes over only when it is the only window', async () => {
   assert.deepEqual({ ...(await ask()) }, { ok: true });
   assert.deepEqual(await active(), { version: 'v2' });
   assert.equal(await (await get('/remake/')).text(), '<html>v2');
+});
+
+test('only Mosi and the frames inside him answer from the store: another page in a tab of its own goes to the net', async () => {
+  const known = {
+    mosi: { url: `${ORIGIN}/remake/?forrit=uppsett`, frameType: 'top-level' },
+    yatzy: { url: `${ORIGIN}/remake/yatzy-junior.html?inbook=1`, frameType: 'nested' }, // Litla Yatzy, a frame in the book
+    song: { url: `${ORIGIN}/remake/sloedla-lab.html`, frameType: 'top-level' }, // Söngur Slóeðlu, not part of the app
+  };
+  const { sw, caches, fetched, dispatch } = load({ known });
+  await seed(caches, 'v1', {
+    '/remake/index.html': ['<html>v1', 'text/html'],
+    '/remake/sloedla-lab.html': ['<html>song v1', 'text/html'],
+    '/remake/spil.html': ['<html>spil v1', 'text/html'],
+    '/remake/yatzy-junior.html': ['<html>yatzy v1', 'text/html'],
+    '/remake/main.js': ['// v1', 'text/javascript'],
+  });
+  await markActive(caches, 'v1');
+  // A navigation as the browser sends it (a Request made here cannot be one).
+  const page = (path, destination = 'document') => ({ method: 'GET', url: ORIGIN + path, cache: 'default', mode: 'navigate', destination, headers: new Headers() });
+  const asked = async (request, clientId = '') => {
+    if (sw.passesThrough(request, ORIGIN)) return 'the browser';
+    const answer = await dispatch('fetch', { request, clientId });
+    return answer ? (await answer).text() : 'the browser';
+  };
+  const file = path => new Request(ORIGIN + path);
+
+  assert.equal(await asked(page('/remake/')), '<html>v1');
+  assert.equal(await asked(page('/remake/index.html?play=1')), '<html>v1');
+  assert.equal(await asked(page('/remake/yatzy-junior.html?inbook=1', 'iframe')), '<html>yatzy v1');
+  assert.equal(await asked(file('/remake/main.js'), 'mosi'), '// v1');
+  assert.equal(await asked(file('/remake/main.js'), 'yatzy'), '// v1');
+  assert.equal(await asked(file('/remake/main.js')), '// v1', 'a request with no client (a worker of the game) stays with the app');
+  assert.equal(fetched.length, 0);
+
+  assert.equal(await asked(page('/remake/sloedla-lab.html')), 'the browser');
+  assert.equal(await asked(page('/remake/spil?r=GULL')), 'the browser');
+  assert.equal(await asked(file('/remake/main.js'), 'song'), 'from the net');
 });

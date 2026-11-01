@@ -10,7 +10,7 @@
 //      game asks for is missing, and no console error but the net's.
 //   4. A new version (a line added to remake/README.md in the site): only that file is fetched, the page reloads itself once on
 //      the start screen, the new version is active and the old README is gone from the store.
-//   5. The guest's page (spil.html) never asks for the list.
+//   5. The guest's page (spil.html) never asks for the list, and comes from the net, not the app's store.
 // Shots and report.json go to qa/remake/forrit/walk/; the exit code is 1 when a check fails. At the end wrangler's whole process
 // tree is stopped (a workerd left behind locks cloud/site) and the site is staged again.
 //   node remake/tools/forrit-walk.mjs [--lock <dir>]   (--lock: the one-capture-at-a-time lock, a dir taken with mkdir and given
@@ -128,7 +128,7 @@ const cdp = (method, params = {}, sessionId) => {
 };
 
 const requests = []; // { url, at } as the page asked
-const responses = []; // { url, status, fromServiceWorker }
+const responses = []; // { url, status, type, fromServiceWorker }
 const failures = []; // same-site loads that failed: { url, error }
 let navigations = 0; // the main frame's
 let errors = []; // console errors and exceptions
@@ -154,7 +154,7 @@ async function openBrowser() {
     }
     const { method, params } = msg;
     if (method === 'Network.requestWillBeSent') requests.push({ url: params.request.url, id: params.requestId });
-    else if (method === 'Network.responseReceived') responses.push({ url: params.response.url, status: params.response.status, fromServiceWorker: Boolean(params.response.fromServiceWorker) });
+    else if (method === 'Network.responseReceived') responses.push({ url: params.response.url, status: params.response.status, type: params.type, fromServiceWorker: Boolean(params.response.fromServiceWorker) });
     else if (method === 'Network.loadingFailed') {
       const asked = requests.findLast(r => r.id === params.requestId);
       if (asked?.url.startsWith(ORIGIN)) failures.push({ url: asked.url, error: params.errorText });
@@ -374,9 +374,12 @@ try {
 
   // 5. The guest's page.
   since = requests.length;
+  const guestFrom = responses.length;
   await page.go(`${ORIGIN}/remake/spil.html`);
   await sleep(8000);
   check('the guest\'s page never asks for the list', !asked(since, '/remake/offline.json'));
+  const guestPage = responses.slice(guestFrom).find(r => r.type === 'Document' && pathOf(r.url).startsWith('/remake/spil'));
+  check('the guest\'s page comes from the net, not the app\'s store', Boolean(guestPage) && !guestPage.fromServiceWorker, guestPage ?? null);
   await page.shot('4-spil.png');
   report.errors.push(...errors.map(text => `online: ${text}`));
 } catch (error) {
