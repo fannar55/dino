@@ -148,6 +148,34 @@ const ONE_LEVEL = new Set(['rock', 'rockSmall', 'mossHummock']); // their middle
 const LANE = 4; // m she may be steered aside (route.lanes)
 export const CLEAR_OF_HER = 3.5; // m between a plant (its crown counted) and her path at any steer: a little more than the 3 m the test asks
 const SNAG_CLEAR = 4; // m round the white snag's foot
+// High over the land (F and G: her path HIGH m or more over the ground under it) no tree's crown may come within UNDER m under her
+// path within ASIDE m of it seen from above: the chase camera, above and behind her, would see a crown, not the land.
+export const HIGH = 12;
+const UNDER = 9.5;
+const ASIDE = 14.5;
+const TREES = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag']);
+const highOf = new WeakMap(); // the route index's samples where she flies high over dry land, worked out once
+
+/** The samples of her path that are HIGH m or more over dry land (not the river, not the pool): [{ x, y, z }]. */
+export function highOverLand(index, terrain, route) {
+  if (highOf.has(index)) return highOf.get(index);
+  const list = index.points.filter(q => {
+    const w = terrain.where(q.x, q.z);
+    return q.y - terrain.heightAt(q.x, q.z) >= HIGH && w.e > 0 && w.toPool > route.pool.radius;
+  });
+  highOf.set(index, list);
+  return list;
+}
+
+/** True when a tree with its top at `top` and its crown `r` round its foot at (x, z) would rise into the view under her (HIGH). */
+function underHer(high, x, z, top, r) {
+  const reach = ASIDE + r;
+  for (const q of high) {
+    if (Math.abs(q.x - x) >= reach || Math.abs(q.z - z) >= reach) continue;
+    if (Math.hypot(q.x - x, q.z - z) - r < ASIDE && q.y - top < UNDER) return true;
+  }
+  return false;
+}
 
 /** How far a placed model reaches round its foot (its crown counted) and how tall it is, in metres. */
 export function bodyOf(model, scale) {
@@ -187,6 +215,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
     return Math.hypot(gx, gz) / 2 > 0.75;
   };
   const near = {};
+  const high = highOverLand(index, terrain, route);
   const placements = [];
   const CELL = 10;
   const per = Math.round(CELL / GRID);
@@ -236,6 +265,7 @@ export function* plantSteps({ terrain, index, route, ground, seed, library, mate
           const body = bodyOf(coarse, scale);
           if (inHerWay(index, px, y, pz, body.r, body.h, near)) continue;
           if (clear.some(c => Math.hypot(px - c.x, pz - c.z) < c.r + body.r)) continue; // an animal or what it sits on
+          if (TREES.has(name) && underHer(high, px, pz, y + body.h, body.r)) continue;
           const one = ONE_LEVEL.has(name);
           const fine = !one && index.nearest(px, pz, FINE, near) >= 0;
           const middle = one || fine ? yield* library.getSteps(name, variant, 1, {}) : null;

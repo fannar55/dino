@@ -11,6 +11,7 @@ import { createGorgeSight, ABOVE_SECTOR } from '../world/ardalur/sight.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createRouteIndex, createTerrain } from '../world/ardalur/terrain.js';
 import { createAnimals } from '../world/ardalur/animals.js';
+import { HIGH } from '../world/ardalur/banks.js';
 import { cullBatches } from '../world/forest/batch.js';
 import { createLocations } from '../engine/locations.js';
 import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
@@ -281,6 +282,30 @@ test('the plants keep out of her flight lane: none within 3 m of her path, at an
     }
   }
   assert.ok(bodies.length > 1000, `${bodies.length} plants`);
+});
+
+test('high over dry land no tree crown rises within 9 m under her, so the chase camera sees the land, not a crown', () => {
+  const place = litValley();
+  const { terrain } = place;
+  const trees = new Set(['broadleaf', 'araucaria', 'treeFern', 'swampConifer', 'deadSnag']);
+  const crowns = place.stats.sections.flatMap(part => part.userData.placements).filter(p => trees.has(p.name)).map(p => {
+    const m = p.models[0].model;
+    const crown = m.crown ? Math.hypot(m.crown.c[0], m.crown.c[2]) + m.crown.r : 0;
+    return { x: p.x, z: p.z, top: p.y + m.height * p.scale, r: Math.max(m.radius, crown) * p.scale, name: p.name };
+  });
+  let high = 0;
+  for (let t = LEAP + 1.5; t <= BEATS.END; t += 0.25) {
+    const p = route.pointAt(route.progressAt(t));
+    // low, or over the river or the pool (along it, up the falls): the banks' and the rim's trees stand beside her there
+    const w = terrain.where(p.x, p.z);
+    if (p.y - terrain.heightAt(p.x, p.z) < HIGH || w.e <= 0 || w.toPool <= route.pool.radius) continue;
+    high++;
+    for (const c of crowns) {
+      if (Math.hypot(c.x - p.x, c.z - p.z) - c.r >= 14) continue;
+      assert.ok(p.y - c.top >= 9, `t=${t}: a ${c.name}'s top ${(p.y - c.top).toFixed(1)} m under her, ${(Math.hypot(c.x - p.x, c.z - p.z) - c.r).toFixed(1)} m aside`);
+    }
+  }
+  assert.ok(high > 100, `${high} quarter seconds high over the land`);
 });
 
 test('the reeds bend under her: the plants\' downwash follows her, 8 m round', () => {
