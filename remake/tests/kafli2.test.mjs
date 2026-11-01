@@ -335,47 +335,113 @@ const IDLE_LIMIT = 450;
 let played = null;
 const playCapture = () => (played ??= playUnattended(kafli2, { limit: IDLE_LIMIT, shaped: true }));
 
-// The chapter as it plays for a child who taps nothing, once, with how dark the picture was in its last frame.
+// The chapter as it plays for a child who taps nothing, once, with how dark the picture was in its last frame and, from scene 3 on, what
+// the scenes did frame by frame (`probes.frames`: where she, Mosi and Egill were, her sail and head, the camera, Þórseðla's head), the
+// marker's flight to the map (`probes.place`) and the star's rise (`probes.star`: the calls the script made).
 let idled = null;
 function playIdle() {
   idled ??= (async () => {
     const last = { fade: 0 };
+    const probes = { frames: [], place: [], star: [] };
+    let wrapped = false, parts = null;
+    const sample = (world, name) => world.actors.get(name);
     const run = await playUnattended(kafli2, {
       seeking: false, limit: IDLE_LIMIT, shaped: true,
-      onFrame({ ui }) { last.fade = ui.fadeLevel; },
+      onFrame({ ui, world, stage, pointer, shot }) {
+        last.fade = ui.fadeLevel;
+        const s = stage.s;
+        if (!wrapped) {
+          wrapped = true;
+          const { place, star } = s;
+          s.place = (id, from) => {
+            const her = world.actors.get('uggedla');
+            world.camera.updateMatrixWorld();
+            const ndc = her.headPosition(new V3()).project(world.camera);
+            probes.place.push({ id, from, at: s.time, head: { x: ((ndc.x + 1) / 2) * 1280, y: ((1 - ndc.y) / 2) * 800 } });
+            return place(id, from);
+          };
+          s.star = (id, spec) => {
+            const her = world.actors.get('uggedla');
+            her.root.updateMatrixWorld(true);
+            parts ??= herParts(her);
+            let top = null;
+            for (const i of parts.sail) {
+              const at = parts.mesh.getVertexPosition(i, new V3()).applyMatrix4(parts.mesh.matrixWorld);
+              if (!top || at.y > top.y) top = at;
+            }
+            probes.star.push({ id, at: s.time, point: world.resolvePoint(spec, new V3()), top });
+            return star(id, spec);
+          };
+        }
+        const scene = world.chapterTimeline.at(-1)?.scene ?? 0;
+        if (scene < 3) return;
+        const c = world.chapterState;
+        const her = sample(world, 'uggedla'), mosi = sample(world, 'mosi'), egill = sample(world, 'egill'), thorsedla = sample(world, 'thorsedla');
+        const water = world.forest?.water;
+        const frame = {
+          t: s.time, scene, shot, sink: c.uggedlaRig?.v.sink, tuck: c.uggedlaRig?.v.tuck, visible: her.root.visible, her: her.root.position.clone(),
+          heading: her.heading, mosi: mosi.root.position.clone(), mosiHeading: mosi.heading, depth: water?.depthAt(mosi.root.position.x, mosi.root.position.z),
+          egill: egill.root.position.clone(), egillControlled: egill.controlled, sailTarget: pointer.targets.has('sail'),
+          seat: c.backSeat ? c.backSeat.seat.clone() : null, saddle: scene === 7 ? c.saddle.update().clone() : null,
+        };
+        if (scene >= 6) {
+          her.root.updateMatrixWorld(true);
+          frame.hips = her.model.getObjectByName('Hips').getWorldPosition(new V3());
+          world.camera.updateMatrixWorld();
+          frame.camera = world.camera.position.clone();
+          frame.thorsedlaHead = thorsedla.headPosition(new V3());
+          frame.thorsedlaNdc = frame.thorsedlaHead.clone().project(world.camera);
+          frame.herMiddle = her.centre(new V3());
+          frame.herPoints = [her.root.position, her.headPosition(new V3()), her.model.getObjectByName('Tail6').getWorldPosition(new V3()), frame.hips]
+            .map(point => point.clone().project(world.camera));
+        }
+        probes.frames.push(frame);
+      },
     });
-    return { ...run, last };
+    return { ...run, last, probes };
   })();
   return idled;
 }
 
-test('the chapter plays its two scenes unattended, comes to Síkið and ends in black at the water, with no director warnings', async () => {
-  const { task, stage, world, director, journal, last } = await playIdle();
+const SIX = ['k2_uggedla_aboard', 'k2_mosi_brrr', 'k2_uggedla_wet', 'k2_egill_sail', 'k2_uggedla_sail', 'k2_mosi_onlyabit', 'k2_uggedla_tail', 'k2_mosi_wetter', 'k2_egill_head'];
+const THREE_LINES = ['k2_mosi_flooded', 'k2_egill_across', 'k2_mosi_boat', 'k2_egill_helloboat', 'k2_mosi_notboat', 'k2_uggedla_hello'];
+const textOf = id => chapter.lines[id].text;
+/** When a line was captioned, in scene time. */
+const saidAt = (run, id) => run.captions.find(caption => caption.text === textOf(id))?.at;
+const framesIn = (run, from, to) => run.probes.frames.filter(frame => frame.t >= from && frame.t < to);
+
+test('the chapter plays its seven scenes unattended, one after the other, and ends in the book in at most 450 s with no director warnings', async t => {
+  const { task, stage, world, director, journal } = await playIdle();
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.ok(stage.s.time < IDLE_LIMIT, `it took ${stage.s.time.toFixed(1)} s`);
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 4], 'the glade, the footprints and (the sail and the star being built) the fishing');
-  assert.equal(world.location, 'siki', 'the trail ends in Síkið, where the scenes to be built go on');
-  assert.ok(last.fade >= 0.999, `the picture has faded to black (${last.fade.toFixed(2)})`);
-  assert.deepEqual(journal.stars, [], 'no star yet: Uggeðla\'s comes with the scenes to be built');
+  assert.ok(stage.s.time <= IDLE_LIMIT, `it took ${stage.s.time.toFixed(1)} s`);
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7], 'the glade, the footprints, the channel, the fishing, the invitation, the ferry and the hummocks');
+  const starts = world.chapterTimeline.map(mark => mark.at);
+  t.diagnostic(`scenes: ${starts.map((at, i) => `${i + 1}: ${((starts[i + 1] ?? stage.s.time) - at).toFixed(0)} s`).join(', ')}; the chapter ${stage.s.time.toFixed(0)} s`);
+  assert.equal(world.location, 'siki', 'the ferry and the hummocks are in Síkið');
+  assert.deepEqual(journal.stars, ['k2_uggedla'], 'Uggeðla\'s star is in the book (the old Þórseðla\'s is chapter 3\'s)');
+  assert.deepEqual([...journal.places], ['uggedla'], 'and she is on the map');
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
 });
 
 // The trail's end is the arrival in Síkið (kafli2-siki.js: arriveInSiki): the trail's prints let go of, Mosi coming down the path to the
 // water, Uggeðla lying low across it (hidden until her pose is built), Þórseðla far off in the trees, alive, and the Fen's water sounds.
 test('Síkið: Mosi comes down the path to the water, Uggeðla lies low in her reed, Þórseðla stands far off, and the trail is let go of', async () => {
-  const { world, soundLog, seen } = await playIdle();
+  const run = await playIdle();
+  const { world, soundLog, seen } = run;
   const c = world.chapterState;
-  const mosi = world.actors.get('mosi'), egill = world.actors.get('egill');
+  // Mosi stands at the flooded path with his nose at the water, Egill in the saddle on his back, as the first words are said
+  const flooded = framesIn(run, saidAt(run, 'k2_mosi_flooded'), Infinity)[0];
   const [bx, bz] = xz(MOSI_BANK);
-  assert.ok(Math.hypot(mosi.root.position.x - bx, mosi.root.position.z - bz) < 1, 'Mosi stands at the flooded path with his nose at the water');
-  assert.ok(Math.abs(((mosi.heading - MOSI_BANK.heading + 540) % 360) - 180) < 8, `facing the water (${mosi.heading.toFixed(0)} degrees)`);
-  assert.ok(Math.hypot(egill.root.position.x - mosi.root.position.x, egill.root.position.z - mosi.root.position.z) < 2, 'with Egill in the saddle on his back');
+  assert.ok(Math.hypot(flooded.mosi.x - bx, flooded.mosi.z - bz) < 1, 'Mosi stands at the flooded path with his nose at the water');
+  assert.ok(Math.abs(((flooded.mosiHeading - MOSI_BANK.heading + 540) % 360) - 180) < 8, `facing the water (${flooded.mosiHeading.toFixed(0)} degrees)`);
+  assert.ok(Math.hypot(flooded.egill.x - flooded.mosi.x, flooded.egill.z - flooded.mosi.z) < 2, 'with Egill in the saddle on his back');
   assert.equal(world.actors.get('kambedla').root.visible, false, 'Kambeðla stayed in her glade');
-  assert.equal(world.actors.get('uggedla').root.visible, true, 'Uggeðla lies low in the reed: seen, her sail over it');
-  const [ux, uz] = xz(UGGEDLA_REED), her = world.actors.get('uggedla').root.position;
-  assert.ok(Math.hypot(her.x - ux, her.z - uz) < 0.3, 'at her reed');
-  assert.ok(her.y < world.forest.water.level - 0.7, 'her root under the water (she has got up for the fishing by the end of it: her sail is up)');
+  // Uggeðla is seen, lying low in the reed, until she gets up
+  const [ux, uz] = xz(UGGEDLA_REED);
+  assert.equal(flooded.visible, true, 'Uggeðla lies low in the reed: seen, her sail over it');
+  assert.ok(Math.hypot(flooded.her.x - ux, flooded.her.z - uz) < 0.3, 'at her reed');
+  assert.ok(flooded.sink > 3, 'her root deep under the water: she lies low');
   assert.ok(c.life && c.uggedlaRig.life, 'and she lives there: her life goes on from the arrival');
   const thorsedla = world.actors.get('thorsedla');
   assert.equal(thorsedla.root.visible, true, 'Þórseðla is there');
@@ -403,7 +469,7 @@ test('no scene plays in a place still being built: the glade waits under the bla
   });
   assert.equal(task.done, true, `the chapter was still going at ${stage.s.time.toFixed(1)} s`);
   assert.equal(task.failed, false, String(task.error?.stack ?? task.error));
-  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 4]);
+  assert.deepEqual(world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7]);
   assert.deepEqual(director.warnings, [], 'the camera keeps the style guide\'s rules');
   assert.ok(visible.length > 1000);
   // the glade fades in from black only once the trail is built
@@ -483,7 +549,7 @@ test('a child who taps at once: the black at the start holds until the trail is 
 
 test('the prints are counted one to ten in order, each with its digit', async () => {
   const { captions, world } = await playCapture();
-  const counted = captions.filter(c => c.at >= sceneStart(world, 2) && c.at < sceneStart(world, 4) && COUNTS.includes(c.text)).map(c => c.text);
+  const counted = captions.filter(c => c.at >= sceneStart(world, 2) && c.at < sceneStart(world, 3) && COUNTS.includes(c.text)).map(c => c.text);
   assert.deepEqual(counted, COUNTS, 'Mosi counts the ten footprints, one to ten');
   // each count comes with its print's splash and digit, in the order of the prints
   const log = world.chapterState.printLog;
@@ -1507,7 +1573,7 @@ test('a fish in the air reads as a fish on the screen: a small one at least abou
 });
 
 test('scene 4 as the chapter plays it for an idle child: she asks, the five are counted by Mosi and she thanks him, from the fishing shot', async () => {
-  const { captions, world, seen, soundLog, stage, last } = await playIdle();
+  const { captions, world, seen, soundLog, stage } = await playIdle();
   const start = sceneStart(world, 4);
   const texts = captions.filter(caption => caption.at >= start).map(caption => caption.text);
   const mine = [chapter.lines.k2_uggedla_help.text, ...COUNT_TEXTS, chapter.lines.k2_uggedla_thanks.text];
@@ -1516,8 +1582,272 @@ test('scene 4 as the chapter plays it for an idle child: she asks, the five are 
   assert.ok(seen.cuts.some(cut => cut.shot === 'siki_fishing' && cut.at >= start - 0.1), 'from the fishing shot');
   assert.equal(soundLog.filter(e => e.name === 'countTone' && e.at >= start).length, FISH_COUNT);
   assert.ok(soundLog.filter(e => e.name === 'fish' && e.detail?.part === 'out').length >= FISH_COUNT, 'a plip for each fish that leaves the water');
-  assert.ok(last.fade >= 0.999 && stage.s.time < IDLE_LIMIT, 'and the chapter still ends in black, inside the idle limit');
-  const girl = world.actors.get('uggedla');
-  assert.ok(girl.root.position.y < world.forest.water.level, 'she is in the water');
+  assert.ok(stage.s.time <= IDLE_LIMIT, 'and the chapter is over inside the idle limit');
   assert.equal(world.scene.getObjectByName('Fishing fish'), undefined, 'the fishing fish is taken away with the fishing');
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 3: the channel, the boat that is not one
+
+/** How many clumps of the place's plants stand between a camera and a point (a clump is the cylinder its dense lower part fills). */
+function clumpsBetween(from, to, { only = null } = {}) {
+  const { plan } = sikiPlan();
+  const [dx, dz] = [to.x - from.x, to.z - from.z];
+  const length2 = dx * dx + dz * dz;
+  let n = 0;
+  for (const p of plan.placements) {
+    if (only && !only.includes(p.name)) continue;
+    const r = p.model.radius * p.scale * 0.5, top = p.y + p.model.height * p.scale * 0.8;
+    const t = ((p.x - from.x) * dx + (p.z - from.z) * dz) / length2;
+    if (t <= 0 || t >= 0.995) continue;
+    if (Math.hypot(from.x + dx * t - p.x, from.z + dz * t - p.z) > r) continue;
+    if (from.y + (to.y - from.y) * t > top) continue; // the way goes over it
+    n++;
+  }
+  return n;
+}
+
+test('scene 3: the path is flooded, a big colourful sail rises out of the reed, "a boat", then her head comes up with a fish and it is Uggeðla, and her place goes on the map from her head', async () => {
+  const run = await playIdle();
+  const { captions, world, seen } = run;
+  const start = sceneStart(world, 3), fishing = sceneStart(world, 4);
+  const lines = captions.filter(caption => caption.at >= start && caption.at < fishing).map(caption => caption.text);
+  assert.deepEqual(lines, THREE_LINES.map(textOf), 'flooded, across, the boat, hello boat, not a boat, her hello: in that order');
+  assert.equal(captions.find(caption => caption.text === textOf('k2_uggedla_hello')).who, 'Uggeðla');
+  const at = Object.fromEntries(THREE_LINES.map(id => [id, saidAt(run, id)]));
+  const frames = framesIn(run, start, fishing);
+  const sinkAt = t => frames.find(frame => frame.t >= t).sink;
+  const tuckAt = t => frames.find(frame => frame.t >= t).tuck;
+  // she lies low until Mosi has asked how to get across, the sail rises as he says "a boat", and stands up by the time Egill says hello to it
+  assert.ok(sinkAt(at.k2_egill_across) > 3, `lying low as Egill asks (${sinkAt(at.k2_egill_across).toFixed(2)} m under)`);
+  assert.ok(sinkAt(at.k2_mosi_boat) > 2.5, `and the sail has hardly begun to rise as Mosi says "boat" (${sinkAt(at.k2_mosi_boat).toFixed(2)} m under)`);
+  assert.ok(sinkAt(at.k2_egill_helloboat) <= 1.5, `the sail stands as Egill says hello to it (${sinkAt(at.k2_egill_helloboat).toFixed(2)} m under)`);
+  const rising = frames.filter(frame => frame.t >= at.k2_egill_across && frame.t < at.k2_mosi_notboat && frame.sink < 3.2 && frame.sink > 1.1);
+  const riseSeconds = rising.at(-1).t - rising[0].t;
+  assert.ok(riseSeconds >= 2 && riseSeconds <= 6, `the sail takes its time over the 2.25 m it rises: ${riseSeconds.toFixed(1)} s over the last metre or so`);
+  // her head comes up with the fish after Egill's hello and before Mosi says it is Uggeðla
+  assert.ok(tuckAt(at.k2_egill_helloboat) < 0.5, 'her head is still down as Egill says hello');
+  assert.ok(tuckAt(at.k2_mosi_notboat) > 0.95, 'her head is up as Mosi says "this is no boat"');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_sail' && cut.at >= start), 'the sail is seen from over Mosi\'s shoulder');
+  // her place goes on the map once, as she says hello, from where her head is on the screen
+  assert.equal(run.probes.place.length, 1, 'one place goes on the map');
+  const [place] = run.probes.place;
+  assert.equal(place.id, 'uggedla');
+  assert.ok(place.at >= at.k2_uggedla_hello && place.at < fishing, `at ${place.at.toFixed(1)} s, as she says hello`);
+  assert.ok(Math.hypot(place.from.x - place.head.x, place.from.y - place.head.y) < 1.5, `the marker flies from her head on the screen (${place.from.x.toFixed(0)}, ${place.from.y.toFixed(0)}; her head is at ${place.head.x.toFixed(0)}, ${place.head.y.toFixed(0)})`);
+  assert.ok(place.head.x > 0 && place.head.x < 1280 && place.head.y > 0 && place.head.y < 800, 'which is on the screen');
+});
+
+test('a tap on the sail while it stands in the reed makes it glitter and nothing else', async () => {
+  const idle = await playIdle();
+  const tapped = await playUnattended(kafli2, { seeking: false, limit: IDLE_LIMIT, shaped: true, earlyTap: { name: 'sail', after: 1 } });
+  assert.ok(tapped.seen.earlyTap, 'the sail is a tap target in scene 3');
+  const start = sceneStart(tapped.world, 3), fishing = sceneStart(tapped.world, 4);
+  assert.ok(tapped.seen.earlyTap.at >= start && tapped.seen.earlyTap.at < fishing, 'in the channel scene');
+  assert.ok(tapped.added.some(o => o.name === 'Sparkles' && o.at >= tapped.seen.earlyTap.at - 1e-6 && o.at < tapped.seen.earlyTap.at + 0.2), 'glints fly from the sail as it is tapped');
+  // the target is there from the moment the sail begins to rise and goes when her head comes up: nothing to find
+  const frames = idle.probes.frames.filter(frame => frame.scene === 3);
+  const first = frames.find(frame => frame.sailTarget), lastOne = frames.findLast(frame => frame.sailTarget);
+  assert.ok(first && lastOne.t <= saidAt(idle, 'k2_mosi_notboat'), `the sail can be tapped from ${first?.t.toFixed(1)} s to ${lastOne?.t.toFixed(1)} s, while it stands in the reed`);
+  assert.ok(first.t <= saidAt(idle, 'k2_mosi_boat') + 0.5 && first.t >= saidAt(idle, 'k2_egill_across'), 'from the moment it begins to rise');
+  // and nothing else: the script is the same, line for line and second for second, as for the child who taps nothing
+  const lines = r => r.captions.map(caption => `${caption.at.toFixed(3)} ${caption.text}`);
+  assert.deepEqual(lines(tapped), lines(idle), 'every line is said when it was');
+  assert.deepEqual(tapped.journal.stars, idle.journal.stars);
+  assert.deepEqual([...tapped.journal.places], [...idle.journal.places]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 5: the invitation and her star
+
+test('scene 5: Mosi invites her, she says yes, her star rises from the top of her sail and an idle child\'s flies into the book by itself', async () => {
+  const run = await playIdle();
+  const { captions, world, seen, journal } = run;
+  const start = sceneStart(world, 5), ferry = sceneStart(world, 6);
+  const texts = captions.filter(caption => caption.at >= start && caption.at < ferry).map(caption => caption.text);
+  assert.deepEqual(texts, ['k2_mosi_invite_ugg', 'k2_uggedla_accept', 'k2_mosi_second'].map(textOf), 'the invitation, her yes, "the second star"');
+  const second = saidAt(run, 'k2_mosi_second');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_two_shot' && cut.at >= start - 0.1), 'the two of them face to face across the water');
+  assert.ok(seen.cuts.some(cut => cut.shot === 'siki_star' && cut.at >= start), 'and her sail against the sky for the star');
+  assert.equal(run.probes.star.length, 1, 'one star');
+  const [star] = run.probes.star;
+  assert.equal(star.id, 'k2_uggedla');
+  assert.ok(star.at >= saidAt(run, 'k2_uggedla_accept') && star.at <= second, 'the star rises after her yes, and Mosi sees it');
+  assert.ok(star.point.distanceTo(star.top) < 0.6, `from the top of her sail (${star.point.distanceTo(star.top).toFixed(2)} m from its highest point)`);
+  // nobody taps: it flies in by itself after the wait for a tap
+  assert.deepEqual(journal.stars, ['k2_uggedla'], 'and it is in the book');
+  assert.ok(run.soundLog.some(e => e.name === 'star' && e.at >= start && e.at < ferry), 'with the star\'s sound');
+  assert.ok(ferry - star.at > 7.5 && ferry - star.at < 14, `the star waits for the tap at most 8 s (the ferry begins ${(ferry - star.at).toFixed(1)} s after it rose)`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 6: the ferry
+
+test('scene 6: Egill floats from Mosi\'s saddle onto her back seat, and the chat goes on in the table\'s order', async () => {
+  const run = await playIdle();
+  const { captions, world, seen } = run;
+  const start = sceneStart(world, 6), hummocks = sceneStart(world, 7);
+  const texts = captions.filter(caption => caption.at >= start && caption.at < hummocks).map(caption => caption.text);
+  assert.deepEqual(texts, SIX.map(textOf), 'from "up on my back, Egill" to "Þórseðla\'s head, over the trees"');
+  assert.equal(captions.find(caption => caption.text === textOf('k2_uggedla_aboard')).who, 'Uggeðla');
+  // Egill is carried by his own float, never walks: he leaves Mosi's saddle after her invitation and is on her seat when Mosi says brrr
+  const aboard = saidAt(run, 'k2_uggedla_aboard'), brrr = saidAt(run, 'k2_mosi_brrr'), head = saidAt(run, 'k2_egill_head');
+  const frames = framesIn(run, aboard, hummocks);
+  const floating = frames.filter(frame => frame.egillControlled && frame.seat && frame.egill.distanceTo(frame.seat) > 0.3);
+  assert.ok(floating.length > 30, `he floats across (${floating.length} frames)`);
+  assert.ok(floating[0].t >= aboard - 0.1, 'after she says "up on my back"');
+  const seated = framesIn(run, brrr, head + 1);
+  assert.ok(seated.length > 100 && seated.every(frame => frame.egillControlled && frame.seat && frame.egill.distanceTo(frame.seat) < 0.08), 'and from there to the end of the chat he sits on her seat, within 8 cm');
+  const lifted = frames.find(frame => frame.seat && frame.egill.distanceTo(frame.seat) < 0.05);
+  assert.ok(lifted.t < brrr, 'he has landed as Mosi says "brrr"');
+  // the seat is hers: the carrying posture (her neck down) begins with it, not before the fishing is over
+  assert.ok(world.chapterState.backSeat, 'her back seat');
+  assert.ok(!run.probes.frames.some(frame => frame.scene < 6 && frame.seat), 'no seat before the ferry (it lowers her neck)');
+  // the ferry's shots: a few, none within 2.5 s of the last
+  const cuts = seen.cuts.filter(cut => cut.at >= start && cut.at < hummocks && cut.shot?.startsWith('ferry_'));
+  assert.ok(cuts.length >= 2 && cuts.length <= 3 + 3, `${cuts.length} cuts to the ferry's own shots: ${cuts.map(cut => `${cut.shot} ${cut.at.toFixed(0)}`).join(', ')}`);
+});
+
+test('scene 6: she swims along the ferry line and Mosi wades the shallow edge beside her, his feet in 0.3 to 0.6 m of water', async () => {
+  const run = await playIdle();
+  const start = sceneStart(run.world, 6), hummocks = sceneStart(run.world, 7);
+  const brrr = saidAt(run, 'k2_mosi_brrr'), head = saidAt(run, 'k2_egill_head');
+  const frames = framesIn(run, brrr, head + 1);
+  // she is in the channel's deep water all the way: nearer the ferry line than 2 m, at least the depth of her swim
+  const water = run.world.forest.water;
+  const lineOf = point => Math.min(...FERRY_LINE.map(([x, z]) => Math.hypot(x - point.x, z - point.z)));
+  let farthest = 0;
+  for (const frame of frames) farthest = Math.max(farthest, lineOf(frame.her));
+  assert.ok(farthest < 3.5, `she keeps to the ferry line (${farthest.toFixed(1)} m at the furthest)`);
+  assert.ok(frames.every(frame => water.depthAt(frame.her.x, frame.her.z) >= 0.8), 'in water deeper than 0.8 m');
+  // Mosi wades: his feet in water 0.3 to 0.6 m deep from the time he is in it until they are across
+  const wading = frames.filter(frame => frame.t > brrr + 1);
+  const depths = wading.map(frame => frame.depth);
+  assert.ok(Math.min(...depths) >= 0.28 && Math.max(...depths) <= 0.62, `his feet are in ${Math.min(...depths).toFixed(2)} to ${Math.max(...depths).toFixed(2)} m of water`);
+  // beside her: within 3 to 9 m of her middle through the chat
+  const apart = wading.map(frame => Math.hypot(frame.mosi.x - frame.her.x, frame.mosi.z - frame.her.z));
+  assert.ok(Math.min(...apart) > 2.5 && Math.max(...apart) < 10, `Mosi is ${Math.min(...apart).toFixed(1)} to ${Math.max(...apart).toFixed(1)} m from her middle`);
+  // she has moved a good way: from her reed (the crossing) to the pool
+  const gone = frames.at(-1).her;
+  assert.ok(Math.hypot(gone.x - UGGEDLA_DROP.position[0], gone.z - UGGEDLA_DROP.position[2]) < 12, 'and is near the pool at the hummocks by the time Egill sees Þórseðla');
+  assert.ok(start < brrr && hummocks > head);
+});
+
+test('scene 6: her tail splashes Mosi as she says "I swim with my tail", with Mosi level with her hips and 3 to 5 m off her side, and he is wetter for it', async () => {
+  const run = await playIdle();
+  const tail = saidAt(run, 'k2_uggedla_tail'), wetter = saidAt(run, 'k2_mosi_wetter');
+  const splashes = run.soundLog.filter(e => e.name === 'splash' && e.at >= tail - 0.1 && e.at < wetter + 0.5);
+  assert.ok(splashes.length >= 1, 'the tail splash comes with her line');
+  const splash = splashes[0];
+  assert.ok(splash.at - tail < 4, `${(splash.at - tail).toFixed(1)} s after she begins to say it`);
+  assert.ok(wetter - splash.at > -0.2 && wetter - splash.at < 3.5, 'and Mosi answers it: "now I am even wetter"');
+  const frame = framesIn(run, splash.at, Infinity)[0];
+  const h = (frame.heading * Math.PI) / 180, forward = [Math.cos(h), Math.sin(h)], right = [-Math.sin(h), Math.cos(h)];
+  const [dx, dz] = [frame.mosi.x - frame.hips.x, frame.mosi.z - frame.hips.z];
+  const along = dx * forward[0] + dz * forward[1], side = Math.abs(dx * right[0] + dz * right[1]);
+  assert.ok(Math.abs(along) <= 3, `Mosi is level with her hips (${along.toFixed(1)} m ahead of them)`);
+  assert.ok(side >= 2.8 && side <= 5.5, `and ${side.toFixed(1)} m off her side`);
+  const water = run.world.forest.water;
+  assert.ok(water.ripples.some(ring => Math.hypot(ring.x - frame.mosi.x, ring.z - frame.mosi.z) < 3.5 && ring.at >= splash.at - 0.2 && ring.at < splash.at + 1.5), 'a ring spreads by Mosi where the drops land');
+});
+
+test('scene 6: Þórseðla\'s head is over the trees, in frame, from a ferry camera as Egill says so', async () => {
+  const run = await playIdle();
+  const from = saidAt(run, 'k2_egill_head');
+  const frames = framesIn(run, from, from + 3).filter(frame => frame.shot?.startsWith('ferry_'));
+  assert.ok(frames.length > 60, `a ferry shot is up as Egill says it (${frames.length} frames of it)`);
+  const clear = frames.filter(frame => {
+    const { x, y, z } = frame.thorsedlaNdc;
+    return z < 1 && Math.abs(x) < 0.85 && Math.abs(y) < 0.85 && clumpsBetween(frame.camera, frame.thorsedlaHead) === 0;
+  });
+  assert.ok(clear.length >= frames.length * 0.9, `her head is in the picture, with no tree or reed between it and the camera, in ${clear.length} of ${frames.length} frames`);
+  assert.ok(frames.some(frame => frame.shot === 'ferry_back'), 'from over her sail');
+});
+
+test('scene 6: the ferry\'s shots are not in the reed: from each, at most one clump of reed or a tree stands between the camera and her middle', async () => {
+  const run = await playIdle();
+  const start = sceneStart(run.world, 6), hummocks = sceneStart(run.world, 7);
+  const frames = framesIn(run, start, hummocks).filter(frame => frame.shot?.startsWith('ferry_') && frame.camera);
+  assert.ok(frames.length > 600, `${frames.length} frames in the ferry's shots`);
+  const worst = {};
+  for (const frame of frames.filter((_, i) => i % 6 === 0)) {
+    const n = clumpsBetween(frame.camera, frame.herMiddle);
+    worst[frame.shot] = Math.max(worst[frame.shot] ?? 0, n);
+  }
+  for (const [shot, n] of Object.entries(worst)) assert.ok(n <= 1, `${shot}: ${n} clumps between the camera and her at the worst`);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Scene 7: the hummocks and the book
+
+test('scene 7: Egill floats back into Mosi\'s saddle, she tells of the berries and Mosi thanks her, she swims off and is hidden once out of view', async () => {
+  const run = await playIdle();
+  const { captions, world, book } = run;
+  const start = sceneStart(world, 7);
+  const texts = captions.filter(caption => caption.at >= start).map(caption => caption.text);
+  assert.deepEqual(texts, ['k2_uggedla_berries', 'k2_mosi_thanks_ugg', 'k2_mosi_two'].map(textOf), 'the berries, the thanks and "two are in"');
+  const berries = saidAt(run, 'k2_uggedla_berries'), thanks = saidAt(run, 'k2_mosi_thanks_ugg'), two = saidAt(run, 'k2_mosi_two');
+  // he is in the saddle, root within 5 cm of its seat, from her berries to the book
+  const sitting = framesIn(run, berries, thanks + 3);
+  assert.ok(sitting.length > 100 && sitting.every(frame => frame.egillControlled && frame.egill.distanceTo(frame.saddle) < 0.05), 'Egill sits in Mosi\'s saddle, within 5 cm of its seat');
+  // Mosi has come up out of the water onto the hummock
+  const [hx, hz] = xz(HUMMOCK);
+  assert.ok(Math.hypot(sitting[0].mosi.x - hx, sitting[0].mosi.z - hz) < 2.5, 'Mosi stands on the hummock');
+  assert.ok(sitting[0].depth < 0.15, 'out of the water');
+  assert.ok(Math.hypot(sitting[0].her.x - UGGEDLA_DROP.position[0], sitting[0].her.z - UGGEDLA_DROP.position[2]) < 5, 'and she is in the pool beside it');
+  // she swims off after the thanks, and is hidden once she is out of view
+  const after = framesIn(run, thanks, Infinity);
+  const gone = after.findIndex(frame => !frame.visible);
+  assert.ok(gone > 30, `she swims off for ${(after[gone]?.t - thanks).toFixed(1)} s and is then hidden`);
+  assert.ok(after.slice(gone).every(frame => !frame.visible), 'and stays hidden');
+  const before = after[gone - 1];
+  assert.ok(before.herPoints.every(p => p.z >= 1 || Math.abs(p.x) > 1.02 || Math.abs(p.y) > 1.02), 'out of the picture (her root, head, tail and hips) in the last frame she was shown');
+  // the book: opens on the dinosaurs with her card new and nodding, turns to the map, and Mosi says what's next as it does
+  assert.deepEqual(book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map'], 'the book opens on the dinosaurs and turns to the map');
+  assert.deepEqual(book.nods.slice(-2), ['uggedla', null], 'Uggeðla, new on the Risaeðlur page, nods as it opens');
+  assert.ok(two > thanks + 1, 'her thanks are before the book');
+  assert.equal(run.task.done, true, 'and the script ends there (main.js shows "Áfram" into chapter 3)');
+  assert.equal(chapter.next, 'kafli3');
+});
+
+// ---------------------------------------------------------------------------------------------
+// An old save
+
+test('the chapter on a save from before the split (Þórseðla\'s star, her places, a game of Háls og hali played): it plays through, Uggeðla\'s place adds nothing new, her star is added and the page goes on to chapter 3', async () => {
+  const OLD = ['fen', 'sloedla', 'flugedla', 'uggedla'];
+  let before = null;
+  const adds = []; // what the journal's asks to put a place on the map came to: [id, was it new]
+  const run = await playUnattended(kafli2, {
+    limit: IDLE_LIMIT, shaped: true,
+    savedWith(save) {
+      for (const star of ['k1_kambedla', 'k2_thorsedla']) save.addStar(star);
+      for (const place of OLD) save.addPlace(place);
+      save.setHalsPlay({ played: true });
+      before = save.get();
+      const addPlace = save.addPlace;
+      save.addPlace = id => { const fresh = addPlace(id); adds.push([id, fresh]); return fresh; };
+    },
+  });
+  assert.equal(run.task.done, true, `still going at ${run.stage.s.time.toFixed(1)} s`);
+  assert.equal(run.task.failed, false, String(run.task.error?.stack ?? run.task.error));
+  assert.deepEqual(run.world.chapterTimeline.map(mark => mark.scene), [1, 2, 3, 4, 5, 6, 7]);
+  const after = run.save.get();
+  assert.deepEqual(after.places, OLD, 'the map has the same four places: hers was there already, so nothing new flies (and nothing twice)');
+  assert.deepEqual(after.stars, [...before.stars, 'k2_uggedla'], 'her star is added to the two');
+  assert.deepEqual(adds, [['uggedla', false]], 'the script asked once for her place, and it was there already: no marker flies');
+  assert.equal(defaultChapter(run.save), 'kafli3', 'the page goes on to chapter 3 now');
+  assert.equal(run.save.getHalsPlay().played, true, 'and Háls og hali stays open');
+  assert.deepEqual(run.book.opened.map(([tab]) => tab).slice(-2), ['dinosaurs', 'map']);
+});
+
+test('the idle child\'s chapter takes at most 450 s, and every scene from the channel on has its time', async t => {
+  const { world, stage } = await playIdle();
+  const starts = world.chapterTimeline.map(mark => mark.at);
+  const length = n => (starts[n] ?? stage.s.time) - starts[n - 1];
+  t.diagnostic(`scene lengths: ${[3, 4, 5, 6, 7].map(n => `${n}: ${length(n).toFixed(0)} s`).join(', ')}; the chapter ${stage.s.time.toFixed(0)} s`);
+  assert.ok(stage.s.time <= 450, `${stage.s.time.toFixed(1)} s`);
+  assert.ok(length(3) > 20 && length(3) < 60, `the channel ${length(3).toFixed(0)} s`);
+  assert.ok(length(5) > 20 && length(5) < 60, `the invitation and the star ${length(5).toFixed(0)} s`);
+  assert.ok(length(6) > 35 && length(6) < 75, `the ferry ${length(6).toFixed(0)} s`);
+  assert.ok(length(7) > 15 && length(7) < 45, `the hummocks ${length(7).toFixed(0)} s`);
 });
