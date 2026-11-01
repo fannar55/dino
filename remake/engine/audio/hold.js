@@ -17,3 +17,23 @@ export function createHold(parts) {
     for (const part of parts) part.setPaused(held);
   };
 }
+
+/**
+ * Parts that come and go while the page lives (a chapter's own sound: chapter 4's wind bed, engine/audio/flight-sounds.js), as one
+ * part of a hold. `add(part)` returns the function that takes it out again; a part added while the sound is held is told at once.
+ */
+export function holdLater() {
+  const parts = new Set();
+  let held = false;
+  return {
+    setPaused(paused) {
+      held = Boolean(paused);
+      for (const part of parts) part.setPaused(held);
+    },
+    add(part) {
+      parts.add(part);
+      if (held) part.setPaused(true);
+      return () => parts.delete(part);
+    },
+  };
+}

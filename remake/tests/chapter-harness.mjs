@@ -13,6 +13,7 @@ import { createPointResolver } from '../engine/points.js';
 import { createLocations } from '../engine/locations.js';
 import { createDirector } from '../engine/camera/director.js';
 import { createScene } from '../engine/scene/scene.js';
+import { createHold, holdLater } from '../engine/audio/hold.js';
 import { createStageUI, DRAG_LIFT } from '../engine/scene/ui.js';
 import { createJournal } from '../engine/scene/journal.js';
 import { createSave } from '../engine/save.js';
@@ -201,13 +202,23 @@ export function fakeBook() {
  * `animate` that only takes the call, and the moment slides, draws and closes on the game clock as it does in the game. `reduced`
  * is a tablet that asks for less motion (prefers-reduced-motion: reduce): the moment then comes and goes without sliding or drawing.
  * Every moment the script plays is in `moments`. `seenBefore` are the ids the child's save has seen already (the map's pieces, such as
- * 'map-route-a', from an earlier play of the chapter).
+ * 'map-route-a', from an earlier play of the chapter). `reduced` is also world.reduced, which a chapter may read (chapter 4's flight).
+ *
+ * `audio` is an audio context (tests/fake-audio.mjs, running) for a chapter's own sound: world.sound is { context, output, hold }, as
+ * main.js gives it, and the context's clock moves on with every frame of the run. `pauses` ([{ at, seconds }], the run's seconds) stand
+ * the game still as the child's book or a hidden tab does: the clock and every update get no time, and the sound is held meanwhile.
  */
-export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [] } = {}) {
+export async function playUnattended(chapterModule, { limit = 600, seeking = true, eager = false, brokenSteps = false, noseAt = null, earlyTap = null, shaped = false, onFrame = null, makeLater = true, slowBuilds = 0, failBuilds = {}, reduced = false, seenBefore = [], audio = null, pauses = [] } = {}) {
   // Chapter 1's probes (the flowers in Egill's hands, his grip, Kambeðla's mouth) read its POINTS, HELD and onBone; a chapter
   // without them leaves those probes idle.
   const { chapter, POINTS, HELD, onBone } = chapterModule;
   const world = await chapterWorld(chapter);
+  world.reduced = reduced;
+  // A chapter's own sound, held with the game as main.js holds it (engine/audio/hold.js: holdLater)
+  const chapterSound = holdLater();
+  const holdSound = createHold([chapterSound]);
+  if (audio) world.sound = { context: audio, output: audio.destination, hold: chapterSound.add };
+  let wasPaused = false;
   // The real sun, as main.js has it, updated each frame once the camera has moved: its calls start its gestures and finish their
   // handles. (Made before world.scene.add is watched below: its sprite and overlay are there from the start.)
   const sunFace = createSunFace({ scene: world.scene, lighting: world.lighting });
@@ -582,6 +593,10 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
   const dt = 1 / 30;
   for (let t = 0; t < limit && !task.done; t += dt) {
     runTime = t;
+    const paused = pauses.some(p => t >= p.at - 1e-9 && t < p.at + p.seconds - 1e-9);
+    if (paused !== wasPaused) holdSound('pause', (wasPaused = paused));
+    const step = paused ? 0 : dt; // the game's time this frame: none while it stands still
+    audio?.advance(dt); // the sound's clock is the room's: it goes on through a pause
     for (const build of due.filter(d => d.at <= t + 1e-9)) {
       due.splice(due.indexOf(build), 1);
       build.resolve();
@@ -589,14 +604,14 @@ export async function playUnattended(chapterModule, { limit = 600, seeking = tru
     if (eager) eagerChild(t);
     if (noseAt) noseChild(t);
     if (earlyTap) earlyChild(t);
-    world.clock.step(dt);
-    journal.update(dt);
+    world.clock.step(step);
+    journal.update(step);
     for (const moment of moments) if (moment.closeAt !== null && moment.goneAt === null && !overlayUp()) moment.goneAt = stage.s.time;
-    stage.update(dt);
-    updateActors(world.actors.values(), dt);
-    world.effects.update(dt);
-    director.update(dt);
-    world.forest?.update?.(dt, world.clock.time); // after the camera, as main.js does (a place that builds as it goes: chapter 4's valley)
+    stage.update(step);
+    updateActors(world.actors.values(), step);
+    world.effects.update(step);
+    director.update(step);
+    world.forest?.update?.(step, world.clock.time); // after the camera, as main.js does (a place that builds as it goes: chapter 4's valley)
     sunFace.update(world.clock.time, world.camera); // after the camera, as main.js does
     {
       const scene = world.chapterTimeline.at(-1)?.scene;

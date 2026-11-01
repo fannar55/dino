@@ -68,7 +68,7 @@ function createFader(param, value, now) {
  * (theme.json) whose `src` is read against `base` (theme.json's own URL). `clock` is the game clock. `output` is the node to
  * play through (the context's destination by default). `createElement` makes the <audio> element (a test gives it a fake).
  *
- * Returns { ready, start, duck, lenient, setPaused, update, muted, position }; `ready` is a promise of whether the theme's file could be
+ * Returns { ready, start, duck, setLevel, lenient, setPaused, update, muted, position }; `ready` is a promise of whether the theme's file could be
  * opened. update() must be called every frame, after the clock has ticked: it is what starts the sound.
  */
 export function createMusic({ context = null, theme = null, clock, base, output, createElement = () => new Audio() } = {}) {
@@ -80,6 +80,7 @@ export function createMusic({ context = null, theme = null, clock, base, output,
   let paused = false; // held with the clock
   let muted = false; // a capture's replay
   let ducked = false;
+  let raised = 1; // setLevel: the theme's level against its place in the mix (chapter 4 plays it louder through the flight)
   let blocked = false; // the browser refused to play the element: it wants a touch first
   let followed = false; // the element cannot be moved, so the playhead follows it
   let anchor = null; // the clock's time when the theme first sounded; null until then
@@ -304,7 +305,13 @@ export function createMusic({ context = null, theme = null, clock, base, output,
     duck(on) {
       if (Boolean(on) === ducked) return;
       ducked = Boolean(on);
-      volume?.to(ducked ? LEVEL * 10 ** (DUCK_DB / 20) : LEVEL, context.currentTime, DUCK_SECONDS);
+      volume?.to(LEVEL * raised * (ducked ? 10 ** (DUCK_DB / 20) : 1), context.currentTime, DUCK_SECONDS);
+    },
+    /** Sets the theme's level against its place in the mix (1, as it was) over `seconds`; a duck under a line still works on top. */
+    setLevel(value, seconds = 1) {
+      if (!Number.isFinite(value) || value < 0) throw new TypeError(`The music's level is a number from 0 up, not ${value}`);
+      raised = value;
+      volume?.to(LEVEL * raised * (ducked ? 10 ** (DUCK_DB / 20) : 1), context.currentTime, Math.max(0, seconds));
     },
     /**
      * For the next `seconds` of game time a frame that loses time moves the playhead to the sound instead of the sound to the playhead:

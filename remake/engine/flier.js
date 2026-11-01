@@ -57,6 +57,7 @@ const Z = new V3(0, 0, 1);
  *   extra         metres she is ahead of the schedule
  *   bank, pitch, heading   degrees; turnBank: the part of the bank that is the route's turn
  *   speed         m/s along the route
+ *   clip          the clip she plays now (idle, takeOff, fly, glide, land)
  *   offset, lift  metres aside (right positive) and up (negative: down) from the route
  *   pose          { position (her body), quaternion }; root: { position, quaternion } where her root goes
  *   land()        play `land` and hold it; stop(): give her back
@@ -232,6 +233,8 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
     get offset() { return state.offset; },
     get lift() { return state.lift; },
     get bursting() { return state.t !== null && state.t < state.burstUntil; },
+    /** The clip she plays now: idle, takeOff, fly, glide or land (the flight's sound beats her wings as she does). */
+    get clip() { return state.clip; },
     update,
     steer(x) { state.steer = clamp(Number(x) || 0, -1, 1); },
     skim(on) { state.skim = Boolean(on); },

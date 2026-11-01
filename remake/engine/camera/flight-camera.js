@@ -56,6 +56,14 @@ const FIXED = {
     const across = r.half + 16;
     return c.ground(r.x - r.dir[1] * across, r.z + r.dir[0] * across, 1.8, 50); // the north bank
   },
+  // D: up on the gorge's north rim behind Mosi (route.cameos.rim), looking down past him at her in the gorge below: he stands in the top
+  // of the frame, back from the edge, as she flies by under him
+  mosiRim: (c) => {
+    const [x, z] = c.route.cameos.rim.path[1];
+    const r = c.route.river.at(c.route.river.nearest(x, z).d);
+    const out = r.half + 26; // 10 m behind him, still on the rim (the walls fall away from 30 m back)
+    return c.ground(r.x - r.dir[1] * out, r.z + r.dir[0] * out, 14, 50);
+  },
   // D: high in the gorge ahead of her, looking down at them small below
   gorgeHigh: (c, { lead = 6 } = {}) => {
     const s = c.route.distanceAt(Math.min(BEATS.END, c.t + lead));
@@ -184,9 +192,10 @@ export function createFlightCamera(director, flier, { world = null, egill = null
 
   /**
    * Cut to a named shot. Options: quick (one of the three 1.5 s shots of the gorge), look (a point spec function out => out for a fixed
-   * shot to keep in view instead of her), and the shot's own (side, lead, group). Returns the director's handle.
+   * shot to keep in view instead of her), and the shot's own: a fixed shot's (side, lead, group), or for a bound one `raise` (metres the
+   * camera and its look go up together: she holds her head high perched on the snag) and `fov`. Returns the director's handle.
    */
-  function shot(name, { quick = false, look = null, ...options } = {}) {
+  function shot(name, { quick = false, look = null, raise = 0, fov = null, ...options } = {}) {
     if (!BOUND[name] && !FIXED[name]) throw new Error(`No flight shot named "${name}" (there are ${shots.join(', ')})`);
     endShot();
     if (quick && ++state.quicks > FLIGHT_RULES.quick.max) warn(`shot "${name}" is quick shot number ${state.quicks} (at most ${FLIGHT_RULES.quick.max})`);
@@ -198,6 +207,11 @@ export function createFlightCamera(director, flier, { world = null, egill = null
     state.broken = new Set();
     state.last = null;
     bound = BOUND[chosen] ?? null;
+    if (bound && !bound.radius && (raise || fov)) {
+      const [ahead, up, right] = bound.offset;
+      const [lookAhead, lookUp, lookRight] = bound.look.at;
+      bound = { ...bound, offset: [ahead, up + raise, right], look: { ...bound.look, at: [lookAhead, lookUp + raise, lookRight] }, fov: fov ?? bound.fov };
+    }
     orbitAt = 0;
     fixed = null;
     if (!bound) {

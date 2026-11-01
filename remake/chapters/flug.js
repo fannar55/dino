@@ -1,0 +1,87 @@
+// The flight alone, for review (?chapter=flug): chapter 4's flight on Flugeðla's back (chapters/kafli4-flight.js), from Egill seated
+// on her on top of the white snag to her glide down over the far pool, in Árdalurinn (world/ardalur). The full chapter (kafli4.js,
+// later) plays the same flight after its first scenes; this plays it on its own, so the owner can judge each chunk of it.
+//
+//   ?chapter=flug               the grey animatic
+//   ?chapter=flug&flugedla=10   Flugeðla 10 m from wingtip to wingtip instead of 7.5 (the owner picks one: spec 11)
+//   ?chapter=flug&lit=1         the real valley instead of grey (from chunk 2)
+//   ?chapter=flug&reduced=1     as a tablet that asks for less motion sees it: no orbit, no slow second, half the bank
+import { createRoute, TREE } from './kafli4-route.js';
+import { theFlight, FLIGHT_WORDS } from './kafli4-flight.js';
+import { createArdalur } from '../world/ardalur/index.js';
+import { createFlier, rideFlier } from '../engine/flier.js';
+import { createFlightCamera } from '../engine/camera/flight-camera.js';
+import { createFlightSounds } from '../engine/audio/flight-sounds.js';
+
+const params = new URLSearchParams(globalThis.location?.search ?? '');
+const WINGSPAN = Number(params.get('flugedla')) || 7.5;
+const route = createRoute({ wingspan: WINGSPAN });
+
+/** Less motion: the page's ask (prefers-reduced-motion), ?reduced=1, or what a test's world says. */
+function reducedMotion(world) {
+  if (typeof world.reduced === 'boolean') return world.reduced;
+  return params.get('reduced') === '1' || Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+export const chapter = {
+  id: 'flug',
+  title: 'Flugið',
+  next: null,
+  look: 'lateMorning', // until Task 10 brings earlyAfternoon
+  // Chapter 2's song until the owner's flight theme (spec 8): the flight plays it louder (music.setLevel)
+  theme: 'kafli2/theme.json',
+  start: 'ardalur',
+  locations: {
+    ardalur: {
+      build: world => createArdalur(world, { grey: !params.has('lit'), route }),
+      shots: {
+        // While the start button waits: the white snag on the Fen, with her on top of it and Egill on her back.
+        flug_snag: { position: [17, 5, 13], target: [...TREE].map((v, i) => (i === 1 ? v + 1.5 : v)), fov: 42 },
+      },
+    },
+  },
+  actors: {
+    flugedla: { url: '../assets/characters/pteranodon.glb', position: [...TREE], heading: 0, scale: WINGSPAN / 7.5 },
+    egill: { url: '../assets/characters/egill.glb', position: [...TREE], heading: 0 }, // on her back: the script seats him
+    mosi: { url: '../assets/characters/mosi.glb', position: [0, 0, 30], heading: 0 }, // out of sight until his cameos
+  },
+  // Caption names; the colour is the dark tone of each character's main hue (STYLE.md section 3: her crest's raspberry).
+  cast: {
+    mosi: { name: 'Mosi', colour: '#4f5433' },
+    egill: { name: 'Egill', colour: '#355774' },
+    flugedla: { name: 'Flugeðla', colour: '#955055' },
+  },
+  // Captions only until her voice and the lines are recorded (Task 15)
+  lines: Object.fromEntries(Object.entries(FLIGHT_WORDS).map(([id, text]) => [id, { text }])),
+  startShot: 'flug_snag',
+  shots: {},
+
+  *script(s) {
+    const flugedla = s.actor('flugedla');
+    const egill = s.actor('egill');
+    const mosi = s.actor('mosi');
+    const world = flugedla.raw.world;
+    world.chapterTimeline = [];
+    const reduced = reducedMotion(world);
+    const flier = createFlier(flugedla.raw, route, { world, reduced });
+    flier.update(0); // on top of the snag, wings folded
+    const riding = rideFlier(egill.raw, flier);
+    const camera = createFlightCamera(world.director, flier, { world, egill: egill.raw, reduced });
+    const sounds = createFlightSounds({ context: world.sound?.context ?? null, output: world.sound?.output ?? null });
+    const c = { s, world, flugedla, egill, mosi, route, flier, riding, camera, sounds, reduced, flight: null };
+    c.say = (speaker, id) => s.say(speaker, id);
+    c.mark = scene => {
+      c.flight.beat = scene;
+      world.chapterTimeline.push({ scene, at: s.time });
+    };
+    world.chapterState = c; // for captures and probes
+    mosi.raw.root.visible = false;
+    yield s.camera.cut('flug_snag');
+    yield s.ready(); // the start button; immediate in captures
+    yield* theFlight(s, c);
+    // over the far pool: the review ends in black (the full chapter lands her there: scene 7)
+    yield s.fade(1, 1);
+    riding.stop();
+    flier.stop();
+  },
+};

@@ -128,11 +128,11 @@ test('the orbit circles slowly, and under reduced motion it is the vista instead
   assert.ok(from.length() > 5);
 });
 
-// When each shot is used in the flight (spec 5), and when to look.
+// When each shot is used in the flight (spec 5, chapters/kafli4-flight.js), and when to look.
 const WHEN = {
   chase: [20, 40], face: [83, 86], side: [47, 50], orbit: [134, 141],
-  belowTakeOff: [3, 5.5], waterLevel: [25, 28], bankShadow: [63, 66], mosiBank: [55, 58],
-  gorgeHigh: [88, 91.5], fallsSide: [110, 113], vista: [126, 129],
+  belowTakeOff: [3, 5.5], waterLevel: [25, 27.5], bankShadow: [63, 66], mosiBank: [57.5, 60],
+  gorgeHigh: [90.5, 93], mosiRim: [95.5, 97], fallsSide: [110, 113], vista: [125, 128],
 };
 
 test('every named shot frames her and Egill at 16:10 and at an upright 0.625, and is never inside her', () => {

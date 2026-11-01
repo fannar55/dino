@@ -306,6 +306,30 @@ test('duck lowers the gain by 8 dB over 0.3 s and restores it', async () => {
   assert.ok(near(volume.valueAt(t1 + 60), normal, 1e-9));
 });
 
+test('setLevel raises the theme for a while (chapter 4: louder through the flight), and a duck still works on top', async () => {
+  const { context, music } = await setup();
+  music.start();
+  const volume = volumeOf(context).gain;
+  const normal = volume.valueAt(context.currentTime);
+  context.advance(1);
+  music.setLevel(1.5, 2);
+  const t0 = context.currentTime;
+  assert.ok(near(volume.valueAt(t0), normal, 1e-9), 'from where it was');
+  assert.ok(near(volume.valueAt(t0 + 1), normal * 1.25, 1e-9), 'gliding');
+  assert.ok(near(volume.valueAt(t0 + 2), normal * 1.5, 1e-9), 'to half again as loud in 2 s');
+  context.advance(3);
+  music.duck(true);
+  const t1 = context.currentTime;
+  assert.ok(near(volume.valueAt(t1 + 0.3), normal * 1.5 * 10 ** (-8 / 20), 1e-9), 'ducked 8 dB under the raised level');
+  context.advance(1);
+  music.duck(false);
+  context.advance(1);
+  music.setLevel(1, 3);
+  const t2 = context.currentTime;
+  assert.ok(near(volume.valueAt(t2 + 3), normal, 1e-9), 'and back to its place in the mix');
+  assert.throws(() => music.setLevel(-1, 1), /level/);
+});
+
 test('a line that ends mid-duck lets the music up from where it had got to, without a jump', async () => {
   const { context, music } = await setup();
   music.start();

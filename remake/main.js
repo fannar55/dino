@@ -36,7 +36,7 @@ import { createAudioContext, createOutput } from './engine/audio/output.js';
 import { createMusic } from './engine/audio/music.js';
 import { createSfx } from './engine/audio/sfx.js';
 import { loadTheme } from './engine/audio/theme.js';
-import { createHold } from './engine/audio/hold.js';
+import { createHold, holdLater } from './engine/audio/hold.js';
 import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
@@ -213,7 +213,12 @@ const voice = createVoice({ onSpeaking: on => music.duck(on) }); // the music lo
 if (playing) voice.preload(Object.values(chapter.lines ?? {}).map(line => lines[line.audio]?.src).filter(Boolean));
 // The sound follows the game clock: the voice, the music and the effects hold while the book is open and while the tab is
 // hidden (a hidden tab draws no frames, so the clock stands still too), and go on from where the clock is.
-const hold = createHold([voice, music, sfx]);
+// A chapter's own sound (chapter 4's wind bed, engine/audio/flight-sounds.js) is made on the page's output and held with the rest,
+// and the chapter may raise the theme (music.setLevel: the flight plays it louder). A capture has no audio context: neither sounds.
+const chapterSound = holdLater();
+const hold = createHold([voice, music, sfx, chapterSound]);
+world.sound = { context: audio, output, hold: chapterSound.add };
+world.music = music;
 // Seconds of game time round a change of place in which a long frame moves the music's playhead to the sound instead of seeking
 // the sound back (engine/audio/music.js: lenient): the build, the warm-up draw and the fade back in, all under the black.
 const PLACE_CHANGE = 4;

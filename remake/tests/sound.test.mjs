@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createHold } from '../engine/audio/hold.js';
+import { createHold, holdLater } from '../engine/audio/hold.js';
 import { createAudioContext, createOutput } from '../engine/audio/output.js';
 import { createVoice } from '../engine/scene/voice.js';
 import { createFakeContext, FakeContext } from './fake-audio.mjs';
@@ -160,6 +160,23 @@ test('the book and a hidden tab each hold the sound, which goes on only when bot
   assert.deepEqual(log.slice(6), ['voice:false', 'music:false']);
 });
 
+test('a chapter\'s own sound is held with the rest, and one added while held starts held (chapter 4\'s wind bed)', () => {
+  const log = [];
+  const part = name => ({ setPaused: paused => log.push(`${name}:${paused}`) });
+  const later = holdLater();
+  const hold = createHold([part('music'), later]);
+  const letGo = later.add(part('wind'));
+  hold('book', true);
+  assert.deepEqual(log, ['music:true', 'wind:true']);
+  later.add(part('falls')); // made while the book is open
+  assert.deepEqual(log.slice(2), ['falls:true']);
+  hold('book', false);
+  assert.deepEqual(log.slice(3), ['music:false', 'wind:false', 'falls:false']);
+  letGo(); // the flight is over
+  hold('hidden', true);
+  assert.deepEqual(log.slice(6), ['music:true', 'falls:true']);
+});
+
 // ---------------------------------------------------------------------------------------------
 // The audio context and its output
 
@@ -213,7 +230,9 @@ test('main.js starts the sound on the first touch and holds it with the book and
   assert.match(MAIN, /window\.addEventListener\('pointerup', \(\) => \{ if \(stage\.started\) music\.start\(\); \}/, 'any later touch wakes sound the system put to sleep');
   assert.match(MAIN, /document\.addEventListener\('visibilitychange', \(\) => hold\('hidden', document\.hidden\)\)/, 'a hidden tab holds the sound with the clock that stops');
   assert.match(MAIN, /\nhold\('hidden', document\.hidden\);/, 'also one that opens hidden');
-  assert.match(MAIN, /createHold\(\[voice, music, sfx\]\)/, 'the voice, the music and the effects follow the same hold');
+  assert.match(MAIN, /createHold\(\[voice, music, sfx, chapterSound\]\)/, 'the voice, the music, the effects and the chapter\'s own sound follow the same hold');
+  assert.match(MAIN, /world\.sound = \{ context: audio, output, hold: chapterSound\.add \};/, 'a chapter makes its own sound on the page\'s output, held with the rest');
+  assert.match(MAIN, /world\.music = music;/, 'and may raise the theme (chapter 4\'s flight)');
 });
 
 test('main.js keeps captures and review shots silent and gives the scene its effects', () => {
