@@ -12,7 +12,9 @@ import { measureWalkGait } from '../../walk-gait.js';
  *   { call: () => {...} }         does something, on the way
  * With a `ground(x, z)` (the height of the ground at a point of the scene), the root takes the ground's height wherever it is on a walk, so that a friend steps over a
  * rise between two points instead of going through it: each point keeps only its height over the ground under it, drawn straight between them (a point in the air
- * keeps its own). A walk on a solid (the slab) says `ground: false` and is drawn straight from point to point.
+ * keeps its own). A walk on a solid (the slab) says `ground: false` and is drawn straight from point to point; with `surface(x, z)` (the solid's top and the ground round it)
+ * a pitched body on it lies on that surface as a body on the ground does (below), its root on the walk's line or as much higher as the surface needs. A walk that says
+ * `backward: true` is walked facing the other way (the friend backs out of a tight place: its walk is played backward, baby-actors.js).
  * The walk clip is played at the pace the friend moves (the friends' own feet follow the root: baby-actors.js), the body pitched with the slope when `pitch` is set. On the
  * ground, a pitched body lies on the ground under its toes and heels: it is pitched along the line between the two (as far as its stride takes them), and the root comes up
  * as far as its underside (tail and head too) and its feet where they are now need at the pitch it has, so that where the way rises ahead (the foot of a slope, the edge of
@@ -153,14 +155,16 @@ export function createWalkers({ stage, ground = null }) {
           };
           const need = Math.max(0, total - seg.s), step = speed * budget;
           seg.s += Math.min(need, step);
-          const here = at(seg.s), ahead = at(seg.s + .45), behind = at(seg.s - .45);
-          // (pitched on the ground: the body along the line between the ground under its toes and under its heels, as far as its stride takes them)
-          const body = w.pitch && over ? bodyOn(actor, d => at(seg.s + d)) : null;
+          const here = at(seg.s), ahead = at(seg.s + .45), behind = at(seg.s - .45), back = seg.backward ? -1 : 1;
+          // (pitched on the ground: the body along the line between the ground under its toes and under its heels, as far as its stride takes them; on a solid with its
+          // surface, the same over that surface; a friend that backs has its toes behind it on the way)
+          const onSurface = seg.surface && !over ? d => { const p = at(seg.s + back * d), h = seg.surface(p.x, p.z); if (Number.isFinite(h)) p.y = rootY(actor, h); return p; } : null;
+          const body = w.pitch && over ? bodyOn(actor, d => at(seg.s + back * d)) : w.pitch && onSurface ? bodyOn(actor, onSurface) : null;
           root.position.copy(here);
           const dx = ahead.x - here.x, dz = ahead.z - here.z;
-          if (Math.hypot(dx, dz) > .02) root.rotation.y = turn(root.rotation.y, Math.atan2(-dz, dx), reduced ? 1 : 1 - Math.exp(-dt / .11));
+          if (Math.hypot(dx, dz) > .02) root.rotation.y = turn(root.rotation.y, Math.atan2(-dz, dx) + (back < 0 ? Math.PI : 0), reduced ? 1 : 1 - Math.exp(-dt / .11));
           if (w.pitch) {
-            const target = body ? body.pitch : Math.atan2(ahead.y - behind.y, Math.hypot(ahead.x - behind.x, ahead.z - behind.z) + 1e-6);
+            const target = body ? body.pitch : back * Math.atan2(ahead.y - behind.y, Math.hypot(ahead.x - behind.x, ahead.z - behind.z) + 1e-6);
             w.tilt = turn(w.tilt, target, reduced ? 1 : 1 - Math.exp(-dt / (body ? .06 : .2))); root.rotation.z = w.tilt;
             // (and at the pitch it has, nothing of it goes under the ground: the root rises as far as its underside and its feet need)
             if (body) settle(body, w.tilt);

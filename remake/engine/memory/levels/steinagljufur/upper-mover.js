@@ -43,6 +43,12 @@ export const FORMATIONS = Object.freeze({
 });
 // the Þórseðlur's places at the ledge: each side of the slab, close under the riser, their long necks over its edges
 const REACH_SPOTS = [[.9, -2.7], [.9, 2.7]];
+// Where they stand there is no room for a long tail to turn in: the slab on one side, the riser in front, and the second has the hillside at its back. In the cheer the first
+// turns toward the camera only as far as its tail stays out of the slab's foot (45 degrees), the second not at all (its tail went 84 cm into the bank), and both look at it;
+// then they back out to the slab's foot (BACK_TO) and turn there to walk up it (turning round where they stood, a tail went 51 cm into the riser, veggir).
+const CHEER_TURN = [Math.PI / 4, 0], BACK_TO = [[-2.0, -1.6], [-2.0, 1.6]];
+// The slab as the friends walk on it: the plane of its ridge, on which U.slab.ramp lays their lanes, this far either side of its middle (their lanes and feet)
+const RAMP_HALF = 1.3;
 // the slab's steps: angles above the horizontal toward the floor (upper.js slab.steps), and how long each takes
 const STEP_SECONDS = 1.05;
 // the Flugeðlur's three legs up the cliff (fractions of the way along the path) and the height they fly above it
@@ -167,19 +173,27 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
         } else a.phase = 'ready';
       }
     } else if (a.phase === 'down') {
-      if (a.age >= (reduced() ? .3 : .9)) { a.phase = 'cheer'; a.age = 0; for (const actor of members('brontosaurus')) actor.gesture?.('cheer'); }
+      if (a.age >= (reduced() ? .3 : .9)) {
+        a.phase = 'cheer'; a.age = 0; a.cheerFrom = members('brontosaurus').map(actor => actor.root.rotation.y);
+        for (const actor of members('brontosaurus')) { actor.gesture?.('cheer'); actor.lookAt?.(stage.camera(), { weight: .8, maxAngle: 24 }); }
+      }
     } else if (a.phase === 'cheer') {
-      faceCamera('brontosaurus', dt);
+      faceCamera('brontosaurus', dt, a.cheerFrom, CHEER_TURN);
       if (a.age >= (reduced() ? .4 : 1.4)) {
         // everyone walks up the ramp to the terrace: two lanes up the slab, then to their places
         a.phase = 'ascend'; a.age = 0; walkers.resetClock();
-        const t0 = 0; let k = 0;
+        const t0 = 0, surface = rampSurface(); let k = 0;
         for (const [who, formation] of [['mosi', 'terrace'], ['brontosaurus', 'terrace'], ['triceratops', 'terrace'], ['stegosaurus', 'terrace'], ['pteranodon', 'terrace']]) {
           const list = who === 'mosi' ? [mosi()] : members(who);
           list.forEach((actor, i) => {
             const lane = who === 'mosi' ? 0 : (i ? .85 : -.85), spot = spotOf(formation, who, i), foot = U.slab.ramp(lane).map(p => U.world(p.x, p.y, p.z));
-            // (from where it stands: to the foot of the slab, up it, and on to its place on the terrace)
-            walkers.start(actor, [{ until: t0 + k * .2 }, { to: [...foot, spot.point], speed: 4, ground: false }], { yaw: spot.yaw, pitch: true });
+            // (from where it stands: to the foot of the slab, up it, and on to its place on the terrace; off the slab's top every body lies on the terrace and the slab as it
+            // steps down, not pitched along the line (its front feet went 8-15 cm into the terrace, veggir). The Þórseðlur back out to the slab's foot first, and lie on the
+            // slab and the floor all the way)
+            if (who === 'brontosaurus') {
+              actor.clearLook?.();
+              walkers.start(actor, [{ to: [world(...BACK_TO[i])], speed: 3.4, ground: false, backward: true }, { to: [...foot, spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true });
+            } else walkers.start(actor, [{ until: t0 + k * .2 }, { to: foot, speed: 4, ground: false }, { to: [spot.point], speed: 4, ground: false, surface }], { yaw: spot.yaw, pitch: true });
           });
           k += who === 'mosi' ? 1 : 2;
         }
@@ -188,10 +202,23 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       if (!walkers.busy()) { const id = a.id; where = 'terrace'; action = null; rope.hang(); rope.show(); events.push({ type: 'bridge-complete', id }); }
     }
   }
-  const faceCamera = (species, dt) => {
-    const cam = stage.camera();
-    for (const actor of members(species)) { const target = Math.atan2(-(cam.z - actor.root.position.z), cam.x - actor.root.position.x), d = Math.atan2(Math.sin(target - actor.root.rotation.y), Math.cos(target - actor.root.rotation.y)); actor.root.rotation.y += d * (reduced() ? 1 : 1 - Math.exp(-dt / .14)); }
+  // (each turns toward the camera; with `from` and `most`, at most most[i] radians from the way it faced at from[i])
+  const faceCamera = (species, dt, from = null, most = null) => {
+    const cam = stage.camera(), wrap = r => Math.atan2(Math.sin(r), Math.cos(r));
+    members(species).forEach((actor, i) => {
+      let target = Math.atan2(-(cam.z - actor.root.position.z), cam.x - actor.root.position.x);
+      if (from && most) target = from[i] + clamp(wrap(target - from[i]), -most[i], most[i]);
+      actor.root.rotation.y += wrap(target - actor.root.rotation.y) * (reduced() ? 1 : 1 - Math.exp(-dt / .14));
+    });
   };
+  /** The slab lying as a ramp, as the friends walk on it (walkers.js `surface`): the plane of its ridge from its foot to the ledge, RAMP_HALF either side of its middle, and the ground round it. */
+  function rampSurface() {
+    const angle = U.slab.steps.at(-1), hi = U.slab.top(0, 0, angle), lo = U.slab.top(U.slab.length, 0, angle), v = V(0, 0, 0);
+    return (x, z) => {
+      const p = U.local(v.set(x, 0, z)), u = (p.x - lo.x) / (hi.x - lo.x), ground = U.heightAt(x, z);
+      return u >= 0 && u <= 1 && Math.abs(p.z) <= RAMP_HALF ? Math.max(ground, lo.y + (hi.y - lo.y) * u) : ground;
+    };
+  }
 
   // ---- fly ----
   // The rope lies in a coil at the foot of the cliff, tied to its stake. The Flugeðlur take its free end (A, in front, then B a metre behind: the rope runs through B's beak to A's) and
