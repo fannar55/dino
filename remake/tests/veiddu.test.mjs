@@ -4,7 +4,7 @@ import { seededRandom } from '../engine/random.js';
 import { KINDS, COPIES, makeDeck, kindOf } from '../engine/veiddu/cards.js';
 import { newGame, ask, fish, legalTargets, holds, isOver, winners } from '../engine/veiddu/rules.js';
 import { createMind, bestAsk, inRoundSkill, recallChance, VEIDDU_SKILL_START, SEAT } from '../engine/veiddu/minds.js';
-import { createSpeech, GUARD_MS, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from '../engine/veiddu/speech.js';
+import { createSpeech, GUARD_MS, LATE_START_MS, nameLine, askLine, answerLine, whyLine, endLine, isHers, priorityOf, HINT_LINE, EMPTY_LINE, NUDGE_LINE } from '../engine/veiddu/speech.js';
 import { SAY, WHY, asking } from '../engine/veiddu/table.js';
 import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS, SPLASHES, splashFor, createSplash } from '../engine/veiddu/veiddu-sounds.js';
 import { EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
@@ -686,10 +686,13 @@ function rig(lines = SPEECH_LINES, options = {}) {
   const heard = [];
   let speaking = null;
   let report;
+  let position = 0; // how far the voice has played (a test moves it)
   const voice = {
+    get current() { return speaking === null ? null : { src: speaking, time: position }; },
     play(src) {
       if (silenced) return null;
       played.push(src.replace('http://x/assets/', ''));
+      position = 0;
       const was = speaking;
       speaking = src;
       if (!was) report(true);
@@ -719,7 +722,7 @@ function rig(lines = SPEECH_LINES, options = {}) {
     }
     now = until;
   };
-  return { speech, played, ducks, heard, advance, ended: () => voice.stop(), get speaking() { return speaking !== null; } };
+  return { speech, played, ducks, heard, advance, ended: () => voice.stop(), setPosition: seconds => { position = seconds; }, get speaking() { return speaking !== null; } };
 }
 
 test('a line begins at once when nothing speaks, ducks the music, and its seconds come back', () => {
@@ -810,6 +813,7 @@ test('a voice whose end never comes is stopped after its length and 1.5 s, and t
   const r = rig();
   r.speech.say('veiddu_uggedla_ask_froskur'); // 2 s
   r.speech.say('veiddu_mosi_ask_froskur');
+  r.setPosition(2); // it has played all of it and does not end
   r.advance(2000 + GUARD_MS - 10);
   assert.deepEqual(r.played, ['ua.mp3'], 'not yet');
   r.advance(20);
@@ -817,6 +821,38 @@ test('a voice whose end never comes is stopped after its length and 1.5 s, and t
   r.ended();
   r.advance(60000);
   assert.equal(r.speech.talking, false, 'nothing is left going');
+});
+
+test('a voice that began late is let finish; one that has not begun is waited for once more, and a stalled one is stopped', () => {
+  // begun late: 1.2 s into a 2 s line when its time is up
+  let r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.advance(2000 + GUARD_MS - 1);
+  r.setPosition(1.2);
+  r.advance(2);
+  r.advance(0.8 * 1000 + GUARD_MS - 10);
+  assert.deepEqual(r.played, ['ua.mp3'], 'let go on, not cut');
+  r.setPosition(2);
+  r.advance(20);
+  assert.deepEqual(r.played, ['ua.mp3', 'ma.mp3'], 'stopped only when it had played its length and still did not end');
+  // not begun: one more wait, then it is given up
+  r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.advance(2000 + GUARD_MS + LATE_START_MS - 10);
+  assert.deepEqual(r.played, ['ua.mp3'], 'waited for');
+  r.advance(20);
+  assert.deepEqual(r.played, ['ua.mp3', 'ma.mp3'], 'then given up');
+  // stalled part way: the position does not move between two looks
+  r = rig();
+  r.speech.say('veiddu_uggedla_ask_froskur');
+  r.speech.say('veiddu_mosi_ask_froskur');
+  r.advance(2000 + GUARD_MS - 1);
+  r.setPosition(0.5);
+  r.advance(2);
+  r.advance(1.5 * 1000 + GUARD_MS + 10);
+  assert.deepEqual(r.played, ['ua.mp3', 'ma.mp3'], 'a voice stuck at 0.5 s is stopped at its next look');
 });
 
 test('cut drops the chatter and stops it if it is sounding, and leaves everything else alone', () => {

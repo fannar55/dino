@@ -11,12 +11,15 @@ import { SEAT } from './minds.js';
 //     Mosi's advice takes the place of one still waiting, and a line asked for twice waits once.
 //   - A line that is not recorded yet, or a muted game, is not said: its `onStart` runs at once and it takes no time (0 seconds).
 //   - A voice whose end never comes (a file that stalls, an element that never reports) is stopped after its length and GUARD_MS,
-//     so the game never hangs on it.
+//     so the game never hangs on it. A voice that is playing but began late (a file over a slow network, a busy machine) is let finish,
+//     and one that has not begun at all is waited for once more (LATE_START_MS) before it is given up.
 //   - The music ducks while a line sounds (onDuck), and `onLine({ id, line, sound })` says when a line begins (sound: true) or is
 //     passed over silently (sound: false; line is null when it is not recorded), which is where Uggeðla's mouth is moved.
 
 /** How long past its length a voice may go on before it is stopped (ms). */
 export const GUARD_MS = 1500;
+/** How much longer a voice that has not begun at all is waited for, once (ms). */
+export const LATE_START_MS = 3000;
 
 /** The line ids' speakers by seat (minds.js SEAT). */
 const SPEAKERS = [];
@@ -101,8 +104,28 @@ export function createSpeech({
   function startLine(item) {
     const seconds = item.line.duration ?? 1;
     voiceUntil = clock() + seconds * 1000;
-    clearTimer(guard);
-    guard = setTimer(() => { if (talking) voice.stop(); else nextLine(); }, seconds * 1000 + GUARD_MS); // its end never came: go on
+    // Its end never came: go on. But a voice that is going, only late, is let finish, and one not begun gets one wait more.
+    let lastPosition = 0;
+    let waitedForStart = false;
+    const arm = ms => {
+      clearTimer(guard);
+      guard = setTimer(check, ms);
+    };
+    function check() {
+      if (!talking) {
+        nextLine();
+        return;
+      }
+      const position = voice.current?.time ?? 0;
+      if (position === 0 && !waitedForStart) {
+        waitedForStart = true;
+        arm(LATE_START_MS);
+      } else if (position > lastPosition && position < seconds) {
+        lastPosition = position;
+        arm((seconds - position) * 1000 + GUARD_MS);
+      } else voice.stop();
+    }
+    arm(seconds * 1000 + GUARD_MS);
     current = item;
     voice.play(new URL(item.line.src, base).href);
     onLine?.({ id: item.id, line: item.line, sound: true });

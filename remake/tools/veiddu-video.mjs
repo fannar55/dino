@@ -27,7 +27,10 @@
 // recording by a calibration click the page lays in it only (a recorder does not say where its first sample is; the click is found in the
 // recording and cut out). report.sound has contexts (what was recorded), lag (how long frames took to reach the tool: for information),
 // parts (what was mixed in, and where, in seconds of video), buffers (every buffered sound the page started: its length and when it is
-// heard in the video), log (when each game event happened, the same way), and volume.
+// heard in the video), log (when each game event happened, the same way), said (each line the table's voices sounded, from the table's
+// own log window.__veiddu.said: its id, when it is heard in the video and its length), overlaps (lines that began before the one before
+// had ended: there must be none), cutOff (voices stopped before their end: a nudge cut off by the child's move, or a piece of advice
+// taken) and volume.
 // --test-line <file>@<seconds> plays that file (a path from the repo root) from the page, <seconds> after the screencast starts, as a
 // stand-in for a voice: it tests the mixing path. It can be given more than once.
 
@@ -271,7 +274,7 @@ function startVideo(file, width, height) {
 function soundTap() {
   if (window.__snd) return;
   const clock = () => performance.timeOrigin + performance.now();
-  const snd = (window.__snd = { taps: [], plays: [], buffers: [], log: [], recording: false });
+  const snd = (window.__snd = { taps: [], plays: [], media: [], buffers: [], log: [], recording: false });
   const connect = AudioNode.prototype.connect;
   const disconnect = AudioNode.prototype.disconnect;
   const tapOf = new Map(); // context -> its tap
@@ -355,9 +358,14 @@ function soundTap() {
     if (!ids.has(element)) ids.set(element, ids.size + 1);
     return ids.get(element);
   };
+  const watched = new WeakSet();
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
     try {
+      if (!routed.has(this) && !watched.has(this)) { // what the element reports of its own playing: when it is heard, when it ends, what goes wrong
+        watched.add(this);
+        for (const name of ['playing', 'ended', 'error', 'stalled', 'waiting']) this.addEventListener(name, () => snd.media.push({ event: name, id: idOf(this), at: clock(), position: this.currentTime, duration: this.duration }));
+      }
       if (!routed.has(this)) snd.plays.push({ type: 'play', id: idOf(this), src: this.currentSrc || this.src, at: clock(), volume: this.volume, muted: this.muted, from: this.currentTime });
     } catch { /* only a log */ }
     return play.apply(this, args);
@@ -478,6 +486,17 @@ function loudness(file) {
   return mean && max ? { mean: Number(mean[1]), max: Number(max[1]) } : null;
 }
 
+/** Where one spoken line began before the one before it had ended (the table's own log of the lines it sounded: { id, at, seconds }). */
+function overlapsOf(said) {
+  const found = [];
+  const lines = [...said].sort((a, b) => a.at - b.at);
+  for (let k = 1; k < lines.length; k++) {
+    const over = lines[k - 1].at + lines[k - 1].seconds * 1000 - lines[k].at;
+    if (over > 30) found.push({ first: lines[k - 1].id, then: lines[k].id, overMs: Math.round(over) });
+  }
+  return found;
+}
+
 const median = values => (values.length ? [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] : 0);
 const EXTENSIONS = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/webm': 'webm' };
 
@@ -487,7 +506,7 @@ const EXTENSIONS = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav'
  */
 async function collectSound(ev, workDir, outDir) {
   const summary = await ev('window.__snd.stop()');
-  const logs = await ev('({ plays: window.__snd.plays, buffers: window.__snd.buffers, log: window.__snd.log })');
+  const logs = await ev('({ plays: window.__snd.plays, media: window.__snd.media, buffers: window.__snd.buffers, log: window.__snd.log, said: window.__veiddu?.said ?? [] })');
   const recordings = [];
   for (const rec of summary) {
     if (!rec.base64Length) continue;
@@ -505,7 +524,7 @@ async function collectSound(ev, workDir, outDir) {
       const voice = { ...event, length: null, file: null };
       voices.push(voice);
       playing.set(event.id, voice);
-    } else if (playing.has(event.id)) {
+    } else if (event.type === 'pause' && playing.has(event.id)) {
       const voice = playing.get(event.id);
       voice.length = Math.max(0, (event.at - voice.at) / 1000);
       playing.delete(event.id);
@@ -524,7 +543,7 @@ async function collectSound(ev, workDir, outDir) {
     }
     voice.file = fetched.get(voice.src);
   }
-  return { summary, recordings, voices, buffers: logs.buffers, log: logs.log };
+  return { summary, recordings, voices, media: logs.media, buffers: logs.buffers, log: logs.log, said: logs.said };
 }
 
 /** Puts the sound `collectSound` brought under the video in `silent`, as `out`. Returns what report.sound gets. */
@@ -547,6 +566,10 @@ function mixSound(sound, video, lagSamples, silent, out, workDir) {
     unplayed: sound.voices.filter(voice => !voice.file).map(voice => voice.src),
     buffers: sound.buffers.map(({ at: ms, duration, loop, rate }) => ({ at: at(ms), duration: +duration.toFixed(3), loop, rate })),
     log: sound.log.map(({ index, type, seat, lucky, at: ms }) => ({ index, type, seat, lucky, at: at(ms) })),
+    said: sound.said.map(({ id, at: ms, seconds }) => ({ id, at: at(ms), seconds })),
+    overlaps: overlapsOf(sound.said),
+    media: sound.media.map(({ event, id, at: ms, position, duration }) => ({ event, id, at: at(ms), position: +Number(position ?? 0).toFixed(2), duration: +Number(duration ?? 0).toFixed(2) })),
+    cutOff: sound.voices.filter(voice => voice.length !== null).map(voice => ({ at: at(voice.at), playedSeconds: +voice.length.toFixed(2) })),
     volume: loudness(out),
   };
 }
@@ -704,6 +727,7 @@ async function main() {
   console.log(`Seconds in each phase: ${JSON.stringify(r.phaseSeconds)}`);
   if (r.sound?.volume) console.log(`Sound: ${r.sound.parts.length} part(s) mixed (${r.sound.parts.filter(part => part.kind === 'voice').length} voices), frames reached the tool ${r.sound.lag.median} ms after they were drawn (90% within ${r.sound.lag.p90}), click ${r.sound.parts[0]?.calibrated ? 'found' : 'NOT found'}, mean ${r.sound.volume.mean} dB, max ${r.sound.volume.max} dB`);
   else if (r.sound) console.log('Sound: none was recorded');
+  if (r.sound?.said) console.log(`Voices: ${r.sound.said.length} lines said, ${r.sound.overlaps.length} overlapping, ${r.sound.cutOff.length} cut off before their end`);
   if (r.video?.file) console.log(`Video: ${r.video.file} (${r.videoSeconds} s, ${(r.video.bytes / 1e6).toFixed(1)} MB, ${r.video.received} screencast frames)`);
   else console.log(`Video: none${r.video?.error ? ` (${r.video.error})` : ''}`);
   for (const e of r.errors.slice(0, 10)) console.log(`  error: ${e}`);
