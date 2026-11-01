@@ -18,7 +18,9 @@ export const LEDGE = Object.freeze({ x: 3.0, height: 1.9 });
 /** The path up the cliff, from where it leaves the terrace to the rim: [x, z, y]. The group walks it, the rope runs along its left side. */
 export const CLIMB = Object.freeze([[9.5, -1.4, 1.9], [13.2, -.4, 3.2], [16.4, 2.2, 4.7], [18.6, 5.6, 6.2], [21.8, 7.6, 7.5], [25.2, 8.3, 8.9]]);
 /** The rim: the flat top of the cliff (y), and its middle line from where the path comes up to where Task 6's gap will be. */
-export const RIM = Object.freeze({ y: 8.9, from: [25.2, 8.3], to: [38, 6.2], hw: 6.2 });
+export const RIM = Object.freeze({ y: 8.9, from: [31.4, 7.4], to: [38, 6.2], hw: 6.2 });
+/** The tree stands on the rim at the near edge: a little flat of its own where the path ends (the rim's round end must not reach back over the path). */
+export const TREE_AT = Object.freeze([23.4, 12.1]);
 const PATH_HW = 2.25;
 
 const lengths = points => points.map((p, i) => i ? Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) : 0);
@@ -29,13 +31,15 @@ const MESAS = [];
 const mesa = (a, b, ya, yb, hw, slope) => MESAS.push([a[0], a[1], b[0], b[1], ya, yb, hw, slope]);
 // the terrace (the ledge's top): its front edge, x = LEDGE.x, runs straight across the gorge
 mesa([LEDGE.x + 3.6, -7.5], [LEDGE.x + 3.6, 6], LEDGE.height, LEDGE.height, 3.6, 3.2);
-// the steep path: a mesa along each leg, its sides falling to the plain, the hillside rising on its right (+z)
-for (let i = 1; i < CLIMB.length; i++) mesa(CLIMB[i - 1], CLIMB[i], CLIMB[i - 1][2], CLIMB[i][2], PATH_HW, 1.15);
-// the clifftop
+// the steep path is not a mesa of its own for each leg (the round end of one would stand at the other's height): it is one ground, the nearest leg's (pathHeight below), its sides
+// falling to the plain, the hillside rising on its right (+z)
+const PATH_SLOPE = 1.15;
+// the clifftop, and the flat round the tree
 mesa(RIM.from, RIM.to, RIM.y, RIM.y, RIM.hw, 1.1);
+mesa(TREE_AT, TREE_AT, RIM.y, RIM.y, 3, 1.1);
 // the hillside beside the whole way (+z): a long wall whose foot meets the path's edge all the way up (wall.centre is where its centre line runs), as high as the rim plus
 // 3.3 metres. The path is cut into its foot.
-export const WALL = Object.freeze({ top: 12.2, hw: 7, slope: 2.3, centre: Object.freeze([[-46, 16.6], [1.5, 16.6], [4.2, 21], [9.2, 21], [11.4, 13.4], [13.2, 12.75], [16.4, 14.7], [18.6, 17.5], [21.8, 18.9], [25.2, 22.9], [40, 22.9]]) });
+export const WALL = Object.freeze({ top: 12.2, hw: 7, slope: 2.3, centre: Object.freeze([[-46, 16.6], [1.5, 16.6], [4.2, 21], [9.2, 21], [11.4, 13.4], [13.2, 12.75], [16.4, 14.7], [18.6, 17.5], [21.8, 18.9], [24, 24.8], [40, 24.8]]) });
 for (let i = 1; i < WALL.centre.length; i++) mesa(WALL.centre[i - 1], WALL.centre[i], WALL.top, WALL.top, WALL.hw, WALL.slope);
 // the end wall beyond the clifftop (Task 6 cuts the gap in front of it)
 mesa([RIM.to[0] + 9, RIM.to[1] - 11], [RIM.to[0] + 9, RIM.to[1] + 13], RIM.y + 3.6, RIM.y + 3.6, 4, 2.4);
@@ -43,9 +47,23 @@ export const MESA_COUNT = MESAS.length;
 /** (for tests and tools) the mesas: [ax, az, bx, bz, ya, yb, hw, slope]. */
 export const MESA_LIST = Object.freeze(MESAS.map(m => Object.freeze([...m])));
 
+/** The path's ground at (x, z): { d: how far the point is from the path's middle line, top: the height of the nearest leg of CLIMB at its nearest point (the ramp is exact along the way) }. */
+function pathInfo(x, z) {
+  let best = Infinity, top = 0;
+  for (let i = 1; i < CLIMB.length; i++) {
+    const [ax, az, ya] = CLIMB[i - 1], [bx, bz, yb] = CLIMB[i], dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, t = clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1);
+    const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t));
+    if (d < best) { best = d; top = lerp(ya, yb, t); }
+  }
+  return { d: best, top };
+}
+
 /** The height of the ground at (x, z) of the upper gorge. */
 export function groundAt(x, z) {
-  let height = 0;
+  // The way the friends walk is the ground exactly (a path cut into the hillside: where the hillside's wall would stand on it, the path cuts the wall), and so is the flat round the tree.
+  const path = pathInfo(x, z); if (path.d <= PATH_HW + .3) return path.top;
+  if (Math.hypot(x - TREE_AT[0], z - TREE_AT[1]) <= 3.2) return RIM.y;
+  let height = Math.max(0, path.top - PATH_SLOPE * (path.d - PATH_HW));
   for (const [ax, az, bx, bz, ya, yb, hw, slope] of MESAS) {
     const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, t = len2 ? clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1) : 0;
     const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t)), top = lerp(ya, yb, t);

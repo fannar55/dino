@@ -358,3 +358,26 @@ test('level 2 says and sounds the walk through the tunnel, the ledge, the cliff 
   for (const needle of ['Tdude9000 CC BY 3.0', 'jorickhoofd CC BY 4.0', 'F.M.Audio CC BY 4.0', 'Kenney CC0', 'ambientCG CC0']) assert.ok(credited.includes(needle), `${needle} is credited`);
   assert.ok(level.credits.some(row => row.title.startsWith('Tréð') && row.author === 'Quaternius'));
 });
+
+test("level 2's upper gorge is as the story says: a ledge too high to walk up, a steep path up to a flat rim with room for Task 6, and a rope, slab and tree within their caps", async () => {
+  const { groundAt, LEDGE, CLIMB, RIM, CLIMB_LENGTH, wayPoints } = await import('../engine/memory/levels/steinagljufur/upper-ground.js');
+  const { ROPE_TRIANGLES } = await import('../engine/memory/levels/steinagljufur/rope.js');
+  const fs = await import('node:fs'), asset = name => JSON.parse(fs.readFileSync(new URL(`../assets/memory/bord2/${name}`, import.meta.url), 'utf8'));
+  // the exit floor is level and the ledge is a step of 1.9 metres up in under a metre of ground: too high for a baby to walk up, and the slab (4.8 m, 24 degrees) is what lets them
+  assert.equal(groundAt(-6, -1), 0); assert.equal(groundAt(LEDGE.x + 2.5, 0), LEDGE.height);
+  assert.ok(groundAt(LEDGE.x - .6, 0) < .05 && groundAt(LEDGE.x + .05, 0) === LEDGE.height, 'the riser is a step (the whole height in 60 centimetres), not a slope');
+  assert.ok(LEDGE.height > 1.2 && LEDGE.height < 2.6, 'a baby stands about a metre high');
+  // the path climbs from the terrace to the rim in bends, steeply but not a wall; every point of it is on the ground it says
+  const way = wayPoints(1), rise = CLIMB.at(-1)[2] - CLIMB[0][2];
+  assert.ok(Math.abs(rise - (RIM.y - LEDGE.height)) < 1.1, `the path ends at the rim: ${rise} metres up`);
+  assert.ok(Math.atan2(rise, CLIMB_LENGTH) > .3 && Math.atan2(rise, CLIMB_LENGTH) < .6, 'steep: between 17 and 34 degrees on average');
+  for (const [x, z, y] of way) assert.ok(Math.abs(groundAt(x, z) - y) < .05, `the path is the ground at ${x}, ${z}`);
+  const headings = way.slice(1).map((p, i) => Math.atan2(p[1] - way[i][1], p[0] - way[i][0]));
+  assert.ok(Math.max(...headings) - Math.min(...headings) > .7, 'the path winds (the camera follows it up)');
+  // the rim is flat and wide, with room for the dead trunk and the gap beyond the tree (Task 6): level for more than ten metres past the top of the path
+  for (let x = 26; x <= 36; x += 2) assert.equal(groundAt(x, RIM.from[1] + (RIM.to[1] - RIM.from[1]) * (x - RIM.from[0]) / (RIM.to[0] - RIM.from[0])), RIM.y, `the rim is level at ${x}`);
+  // the caps the plan sets: the rope 1,000 triangles, the slab 1,000, the tree 3,000
+  assert.ok(ROPE_TRIANGLES <= 1000, `the rope's tube: ${ROPE_TRIANGLES}`);
+  assert.ok(asset('gorge-slab-source.json').triangles <= 1000); assert.ok(asset('gorge-tree-source.json').triangles <= 3000);
+  assert.equal(asset('rope-source.json').width, 512); assert.ok(asset('rope-source.json').height <= 512, 'the rope texture is 512 px or less');
+});

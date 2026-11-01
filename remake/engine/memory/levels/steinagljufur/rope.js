@@ -22,7 +22,7 @@ import * as THREE from 'three';
  *
  * The tube is ROPE_TRIANGLES triangles (under the plan's 1,000).
  */
-const SEGMENTS = 72, SIDES = 7, RADIUS = .085;
+const SEGMENTS = 68, SIDES = 7, RADIUS = .085;
 export const ROPE_TRIANGLES = SEGMENTS * SIDES * 2;
 const url = new URL('../../../../assets/memory/bord2/rope-color.webp', import.meta.url).href;
 const smooth = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
