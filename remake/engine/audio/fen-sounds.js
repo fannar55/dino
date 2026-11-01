@@ -1,5 +1,5 @@
-// Chapter 2's and 3's sounds (remake/chapters/kafli2*.js and kafli3*.js): the footprints in the mud, the berries, Þórseðla's head, the lookout, the slide
-// and the Fen's own animals. The game's sound effects (engine/audio/sfx.js) carry them as their own, and the Fen's bed of water,
+// Chapter 2's and 3's sounds (remake/chapters/kafli2*.js and kafli3*.js): the footprints in the mud, the berries, Þórseðla's head, the lookout, the slide,
+// the Fen's own animals and Uggeðla (her sail rising out of the reed, her jaws and her gulp, her tail's splash and her swimming). The game's sound effects (engine/audio/sfx.js) carry them as their own, and the Fen's bed of water,
 // frogs and drips is laid there beside the forest's wind.
 //
 // Every one is made on the spot with sfx.js's tools (tone, noise, bell, and hum for wings), as the Litla Yatzy sounds are
@@ -11,18 +11,25 @@
 //
 // A sound that needs a detail is given it as s.sfx(name, detail): countTone and berryPop { index } (the count, from 1), liftTone
 // { seconds } (how long the lift is).
+//
+// Uggeðla's five (chapters/kafli2-uggedla.js asks for them): sailRise (3.6 s of reed rustling as her sail climbs out of it), jawSnap (a dry
+// clack as her jaws shut on a fish), gulp (the swallow), tailSplash (her tail's slap on the water, 1.7 s) and swim (two soft strokes
+// of water, 2 s, asked for every SWIM_STROKE seconds while she swims, so the strokes run on without a seam: each begins and ends on silence).
 
 /** The names, in the order the chapter meets them, and the Fen's animals'. */
 export const FEN_SFX = [
   'splash', 'ripple', 'countTone', 'berryPop', 'sniff', 'breathHuge', 'chew', 'liftTone', 'windHigh', 'slide', 'landSaddle', 'mapMark',
-  'dragonfly', 'turtle', 'fish', 'earlyBird',
+  'dragonfly', 'turtle', 'fish', 'earlyBird', 'sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim',
 ];
 
 /** The least time, in audio seconds, between two of the same: a child tapping fast piles nothing up. */
 export const FEN_GAPS = {
   splash: 0.12, ripple: 0.2, countTone: 0.05, berryPop: 0.1, sniff: 1, breathHuge: 2, chew: 0.8, liftTone: 4, windHigh: 3, slide: 2,
-  landSaddle: 1, mapMark: 0.3, dragonfly: 0.4, turtle: 0.4, fish: 0.5, earlyBird: 0.6,
+  landSaddle: 1, mapMark: 0.3, dragonfly: 0.4, turtle: 0.4, fish: 0.5, earlyBird: 0.6, sailRise: 3, jawSnap: 0.25, gulp: 0.4, tailSplash: 1, swim: 1,
 };
+
+/** Seconds between two asks for the swim sound while she swims: a little less than its 2 s, so one stroke is under the last of the one before. */
+export const SWIM_STROKE = 1.9;
 
 const LIFT_SECONDS = 8; // Þórseðla's liftUp clip, when the lift does not say
 
@@ -162,6 +169,60 @@ export function fenSounds({ tone, noise, bell, hum, key, between }) {
       tone({ frequency: key[4] * 2, end: key[2] * 2, duration: 0.22, level: 0.05, pan, attack: 0.02 });
       tone({ frequency: key[3] * 2, duration: 0.12, level: 0.04, pan, attack: 0.01, delay: 0.3 });
       for (let i = 0; i < 4; i++) noise({ kind: 'warm', type: 'bandpass', frequency: 1400, q: 1, duration: 0.07, level: 0.035, attack: 0.01, delay: 0.05 + i * 0.09, pan });
+    },
+    // Her sail pushes up out of the reed (riseSail; the sail takes 3 to 4.5 s): stems brushing and rustling as it climbs, a soft
+    // "shhh" that swells from low to high and falls away, dry crackles of single stems scattered along it, a faint tone climbing from
+    // do to sol under it and a small bell, sol, as the sail stands at the top. 3.6 s.
+    sailRise() {
+      noise({ kind: 'warm', type: 'bandpass', frequency: 650, end: 1900, q: 0.8, duration: 3.6, level: 0.11, attack: 1.0, pan: -0.15 });
+      noise({ kind: 'brown', type: 'lowpass', frequency: 380, end: 820, duration: 3.3, level: 0.1, attack: 0.95, delay: 0.1, pan: 0.15 });
+      noise({ kind: 'white', type: 'bandpass', frequency: 2800, end: 4600, q: 1.6, duration: 3, level: 0.014, attack: 0.9, delay: 0.3 });
+      for (let i = 0; i < 14; i++) {
+        noise({ kind: 'white', type: 'bandpass', frequency: between(3200, 5200), q: 5, duration: 0.07, level: 0.012 + between(0, 0.008), attack: 0.005,
+          delay: 0.2 + 2.7 * (i / 13) + between(0, 0.12), pan: between(-0.55, 0.55) });
+      }
+      tone({ frequency: key[0], end: key[3], duration: 3.2, level: 0.013, attack: 1.2, body: 0.85, sustain: 0.9 });
+      bell(key[3], { delay: 2.7, level: 0.035, duration: 0.85 });
+    },
+    // Her jaws shut on the fish: a dry, short "clack", a click of noise on a woody knock a note low and a tiny bright tick on top.
+    // Cartoon-crisp, nothing sharp. About 0.1 s.
+    jawSnap() {
+      noise({ kind: 'white', type: 'bandpass', frequency: 2300, end: 1500, q: 1.6, duration: 0.06, level: 0.12, attack: 0.002 });
+      noise({ kind: 'warm', type: 'lowpass', frequency: 900, end: 300, duration: 0.1, level: 0.09, attack: 0.002, delay: 0.01 });
+      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.13, level: 0.11, type: 'triangle', attack: 0.002, body: 0.5, sustain: 0.35 });
+      tone({ frequency: key[4] * 2, duration: 0.06, level: 0.025, attack: 0.002, body: 0, delay: 0.015 });
+    },
+    // The swallow: a round "glúúp" falling in her throat, sol an octave down to do, a wet gurgle of drops after it and a smaller
+    // "glup" to finish. 0.45 s.
+    gulp() {
+      tone({ frequency: key[3] / 2, end: key[0] / 2, duration: 0.2, level: 0.1, attack: 0.012 });
+      noise({ kind: 'warm', type: 'lowpass', frequency: 700, end: 260, duration: 0.18, level: 0.06, attack: 0.01 });
+      droplet(key[2], 0.17, 0.025, 0.1);
+      tone({ frequency: key[2] / 2, end: key[0] / 2, duration: 0.12, level: 0.05, delay: 0.24, attack: 0.01 });
+    },
+    // Her tail comes down flat on the water at Mosi's side: a big wet slap (noise falling away, a round thump falling from sol to do
+    // two octaves down), the spray rising and raining back as seven drops, and the water rolling away after it. Louder than any splash of the
+    // Fen's: it is the joke. 1.7 s of notes, the last half second only a murmur of water.
+    tailSplash() {
+      const pan = between(-0.2, 0.2);
+      noise({ kind: 'white', type: 'bandpass', frequency: 1800, end: 420, q: 0.8, duration: 0.42, level: 0.13, attack: 0.004, pan });
+      noise({ kind: 'warm', type: 'lowpass', frequency: 1000, end: 220, duration: 0.5, level: 0.11, attack: 0.006, pan });
+      tone({ frequency: key[3] / 2, end: key[0] / 4, duration: 0.3, level: 0.09, attack: 0.004, pan });
+      noise({ kind: 'white', type: 'bandpass', frequency: 3400, end: 2000, q: 1.1, duration: 0.9, level: 0.04, attack: 0.08, delay: 0.06, pan: -pan });
+      [4, 2, 3, 1, 4, 3, 2].forEach((n, i) => droplet(key[n] * 2, 0.35 + i * 0.1 + between(0, 0.05), 0.016, between(-0.5, 0.5)));
+      noise({ kind: 'brown', type: 'lowpass', frequency: 700, end: 180, duration: 1.4, level: 0.06, attack: 0.2, delay: 0.25 });
+    },
+    // She swims (swimAlong asks for it every SWIM_STROKE s while she goes): two soft strokes of the water under her, left then right,
+    // each a gentle swell of "whoosh" with a low note rolling under it and a drop falling back. It begins and ends on silence, so the
+    // strokes run on without a seam, and it is quiet: the chat goes on over it. 2 s.
+    swim() {
+      [0, 0.9].forEach((at, i) => {
+        const pan = i ? 0.25 : -0.25;
+        noise({ kind: 'warm', type: 'bandpass', frequency: 480 + i * 60, end: 1100 - i * 100, q: 0.5, duration: 1.1, level: 0.12, attack: 0.3, delay: at, pan });
+        noise({ kind: 'warm', type: 'lowpass', frequency: 420, end: 200, duration: 1.05, level: 0.05, attack: 0.25, delay: at + 0.05, pan });
+        tone({ frequency: key[i ? 2 : 0] / 2, end: key[i ? 0 : 2] / 2, duration: 0.5, level: 0.014, attack: 0.18, delay: at + 0.1, pan });
+        droplet(key[i ? 4 : 3], at + 0.4 + between(0, 0.1), 0.012, pan);
+      });
     },
   };
 }

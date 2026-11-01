@@ -47,6 +47,7 @@ import * as THREE from 'three';
 import { createSeat } from '../engine/riding.js';
 import { ringsFor, legsOut } from '../engine/neck-ride.js';
 import { seededRandom } from '../engine/random.js';
+import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { createModel } from '../world/critters/models.js';
 import { glints, run } from '../world/props/sparkles.js';
 
@@ -415,6 +416,7 @@ export function* riseSail(s, c, { seconds = 4 } = {}) {
   const rig = rigOf(c);
   rig.busy++;
   try {
+    s.sfx('sailRise'); // the reed rustling as it climbs (3.6 s, for a rise of 3 to 4.5)
     rig.tween('sink', SINK.sail, seconds, smoother);
     rig.animate('shiver', u => Math.pow(Math.sin(Math.PI * u), 0.6), seconds);
     const { x, z } = herPlace(rig);
@@ -460,6 +462,7 @@ export function* headUpWithFish(s, c) {
     rig.tween('toss', 1, 0.5, smooth);
     yield s.wait(0.45);
     rig.animate('jaw', u => 9 * Math.sin(Math.PI * u), 0.45);
+    s.sfx('gulp');
     const group = fish.group;
     const held = inJaws(fish.size);
     for (const began = s.time; s.time - began < 0.45;) {
@@ -516,6 +519,7 @@ export function* catchFish(s, c, fish) {
     // on the fish, or as near as she can get; then the jaws snap shut
     for (const until = s.time + 0.5; s.time < until && rig.error > 0.06;) yield;
     rig.tween('jaw', 0, 0.09, smooth);
+    s.sfx('jawSnap');
     yield s.wait(0.1);
     // the fish is hers: the one she holds appears where the other was, and slides to her snout
     const held = rig.fish;
@@ -527,7 +531,7 @@ export function* catchFish(s, c, fish) {
     // the head thrown back with the fish across her snout, then the fish goes down her throat
     rig.tween('toss', 1, 0.45, smooth);
     rig.tween('strike', 0, 0.6, smoother);
-    s.after(0.72, () => { rig.animate('jaw', u => 8 * Math.sin(Math.PI * u), 0.3); });
+    s.after(0.72, () => { rig.animate('jaw', u => 8 * Math.sin(Math.PI * u), 0.3); s.sfx('gulp'); });
     const back = Math.max(0.9, lunge / 3.2);
     rig.tween('lunge', 0, back, smoother);
     rig.tween('yaw', 0, back, smoother);
@@ -636,7 +640,12 @@ export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim,
     rig.tween('sink', sink, 1.5, smoother);
     rig.tween('swim', 1, 1.5, smooth);
     let ringed = 0;
+    let stroked = s.time; // the swim sound is asked for again every SWIM_STROKE s, so the strokes run on without a seam
     while (!mover.done) {
+      if (s.time >= stroked) {
+        s.sfx('swim');
+        stroked = s.time + SWIM_STROKE;
+      }
       if (mover.at - ringed > 2.4) {
         ringed = mover.at;
         const bow = new V3();
@@ -683,7 +692,7 @@ export function* tailSplash(s, c, target) {
     const tip = rig.bones.Tail6.getWorldPosition(new V3());
     tip.y = rig.baseAt(tip.x, tip.z); // the splash rises from the water under the end of her tail
     where();
-    s.sfx('splash');
+    s.sfx('tailSplash');
     spray(c.world, tip, aimed.clone(), { seed: 'tail splash' });
     ringAt(c, tip.x, tip.z, 1.1, { always: true });
     s.after(0.25, () => { ringAt(c, aimed.x, aimed.z, 0.8, { always: true }); });

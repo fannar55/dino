@@ -13,6 +13,7 @@ import { createSpeciesLibrary, SPECIES } from '../world/forest/species.js';
 import { PRESETS } from '../engine/quality.js';
 import { LIMITS } from '../engine/camera/director.js';
 import { createSfx } from '../engine/audio/sfx.js';
+import { SWIM_STROKE } from '../engine/audio/fen-sounds.js';
 import { CRITTER_SOUNDS } from '../chapters/kafli3-fen.js';
 import { PRINT_ANIMALS, PRINT_SIZE } from '../chapters/kafli2-trail.js';
 import {
@@ -778,6 +779,8 @@ test('every sound the script asks for exists', () => {
   for (const name of new Set([...literal, ...Object.values(CRITTER_SOUNDS)])) assert.equal(known(name), true, `"${name}" is a sound of the set`);
   // the sounds of the glade and the trail are all asked for, and the forest only once: in the glade, until the trail goes into the fen
   for (const name of ['fen', 'splash', 'ripple', 'countTone']) assert.ok(literal.includes(name), `the script asks for ${name}`);
+  // Uggeðla's five (engine/audio/fen-sounds.js): the sail rising out of the reed, her jaws and her gulp, her tail's splash and her swimming
+  for (const name of ['sailRise', 'jawSnap', 'gulp', 'tailSplash', 'swim']) assert.ok(literal.includes(name), `the script asks for ${name}`);
   assert.equal(literal.filter(name => name === 'forest').length, 1);
   assert.ok(CRITTER_SOUNDS.dragonfly, 'the dragonfly over the third print has a sound');
 });
@@ -796,6 +799,40 @@ test('the sounds come where the script has them: the forest at the start, the wa
   for (const count of counts) {
     for (const what of ['splash', 'ripple']) assert.ok(named(what, 2).some(e => Math.abs(e.at - count.at) < 0.05), `${what} with ${count.detail.index}`);
   }
+});
+
+test("Uggeðla's sounds come where she does it: the reed's rustle as her sail rises, the jaws' snap and the gulp at each fish, the tail's slap as it hits the water, the swim under the ferry", async () => {
+  const run = await playIdle();
+  const log = name => run.soundLog.filter(e => e.name === name);
+  const [s3, s4, s6] = [3, 4, 6].map(n => sceneStart(run.world, n));
+  // the sail: once, in the channel, as it begins to rise, before Mosi says "boat"
+  const rise = log('sailRise');
+  assert.equal(rise.length, 1, 'the sail rises once');
+  assert.ok(rise[0].at >= s3 && rise[0].at < saidAt(run, 'k2_mosi_boat'), `the rustle begins with the rise, ${(saidAt(run, 'k2_mosi_boat') - rise[0].at).toFixed(1)} s before "boat"`);
+  assert.equal(rise[0].scene, 3);
+  // the swallow of the fish she shows in the channel, and of the five she is fed
+  const gulps = log('gulp'), snaps = log('jawSnap'), counts = log('countTone');
+  assert.equal(gulps.length, 1 + FISH_COUNT, 'a gulp for the fish in the channel and one for each of the five');
+  assert.ok(gulps[0].at >= s3 && gulps[0].at < s4 && gulps[0].at > saidAt(run, 'k2_mosi_notboat'), 'the first as she swallows in the channel, as Mosi says it is no boat');
+  assert.equal(snaps.length, FISH_COUNT, 'a snap for each fish caught');
+  snaps.forEach((snap, i) => {
+    const count = counts.filter(e => e.scene === 4)[i];
+    assert.ok(snap.scene === 4 && count.at - snap.at > 0 && count.at - snap.at < 0.4, `snap ${i + 1} as the jaws shut, ${(count.at - snap.at).toFixed(2)} s before the fish is counted`);
+    const gulp = gulps[i + 1];
+    assert.ok(gulp.at - snap.at > 0.7 && gulp.at - snap.at < 1.5, `and its gulp ${(gulp.at - snap.at).toFixed(2)} s after it`);
+  });
+  // the tail: once, at the ferry's splash
+  const slaps = log('tailSplash');
+  assert.equal(slaps.length, 1);
+  assert.ok(slaps[0].at > saidAt(run, 'k2_uggedla_tail') && slaps[0].at < saidAt(run, 'k2_mosi_wetter'), 'the tail hits the water between her line and his answer');
+  // the swim: under the ferry from its first moments to the pool, one stroke pair after another with no seam, and as she swims off; nowhere else
+  const swims = log('swim');
+  assert.ok(swims.every(e => e.scene === 6 || e.scene === 7), 'she swims in scenes 6 and 7 only');
+  const ferry = swims.filter(e => e.scene === 6);
+  assert.ok(ferry.length >= 15 && ferry[0].at > saidAt(run, 'k2_uggedla_aboard') && ferry[0].at - s6 < 12, `${ferry.length} strokes from ${(ferry[0].at - s6).toFixed(1)} s into the ferry, as she sets off`);
+  assert.ok(ferry.at(-1).at > saidAt(run, 'k2_egill_head'), 'right up to the last line of the chat');
+  for (let i = 1; i < ferry.length; i++) assert.ok(Math.abs(ferry[i].at - ferry[i - 1].at - SWIM_STROKE) < 0.12, `stroke ${i + 1} follows ${(ferry[i].at - ferry[i - 1].at).toFixed(2)} s after the one before`);
+  assert.ok(swims.some(e => e.scene === 7), 'and she swims off with it too');
 });
 
 test('a full save as the page keeps it loads whole but Risaeðlu-Yatzy\'s old block, and the map\'s places start empty', () => {
@@ -1257,7 +1294,7 @@ test('a tail stroke throws a splash at Mosi', async () => {
   const mosi = run.world.actors.get('mosi');
   const rings = seen.ripples.filter(r => r.at >= from && r.at <= to + 1 && Math.hypot(r.x - mosi.root.position.x, r.z - mosi.root.position.z) < 4);
   assert.ok(rings.length >= 1, 'a ring spreads on the water by him');
-  assert.ok(seen.sounds.some(e => e.name === 'splash' && e.at >= from && e.at <= to + 1), 'and the splash sounds');
+  assert.ok(seen.sounds.some(e => e.name === 'tailSplash' && e.at >= from && e.at <= to + 1), 'and the splash sounds');
   const rows = seen.frames.filter(f => f.t >= from && f.t <= to && f.tail);
   const sideways = Math.max(...rows.map(r => r.tail.distanceTo(rows[0].tail)));
   assert.ok(sideways > 3, `her tail swings ${sideways.toFixed(1)} m`);
@@ -1736,7 +1773,7 @@ test('scene 6: she swims along the ferry line and Mosi wades the shallow edge be
 test('scene 6: her tail splashes Mosi as she says "I swim with my tail", with Mosi level with her hips and 3 to 5 m off her side, and he is wetter for it', async () => {
   const run = await playIdle();
   const tail = saidAt(run, 'k2_uggedla_tail'), wetter = saidAt(run, 'k2_mosi_wetter');
-  const splashes = run.soundLog.filter(e => e.name === 'splash' && e.at >= tail - 0.1 && e.at < wetter + 0.5);
+  const splashes = run.soundLog.filter(e => e.name === 'tailSplash' && e.at >= tail - 0.1 && e.at < wetter + 0.5);
   assert.ok(splashes.length >= 1, 'the tail splash comes with her line');
   const splash = splashes[0];
   assert.ok(splash.at - tail < 6, `${(splash.at - tail).toFixed(1)} s after she begins to say it`);
