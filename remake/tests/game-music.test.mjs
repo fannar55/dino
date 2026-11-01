@@ -5,6 +5,7 @@ import { createGameSfx, musicJsonUrl, readMusic, tunedTheme } from '../engine/au
 import { createSfx } from '../engine/audio/sfx.js';
 import { eittSounds, EITT_SFX, EITT_GAPS } from '../engine/eitt/eitt-sounds.js';
 import { halsSounds, HALS_SFX, HALS_GAPS } from '../engine/hals/hals-sounds.js';
+import { veidduSounds, VEIDDU_SFX, VEIDDU_GAPS } from '../engine/veiddu/veiddu-sounds.js';
 import { createFakeContext, pitchesOf, withFetch } from './fake-audio.mjs';
 
 // A game with music of its own tunes its effects to that music (engine/audio/game-music.js): "Eitt!" and Háls og hali each to its
@@ -18,6 +19,7 @@ const ELSEWHERE = { ...PAGE, key: [440, 495, 556.25, 660, 742.5] }; // A major, 
 const GAMES = [
   { name: 'Eitt!', music: 'eitt/music.mp3', sounds: eittSounds, names: EITT_SFX, gaps: EITT_GAPS, source: '../engine/eitt/table.js' },
   { name: 'Háls og hali', music: 'hals/music.mp3', sounds: halsSounds, names: HALS_SFX, gaps: HALS_GAPS, source: '../engine/hals/game.js' },
+  { name: 'Veiddu', music: 'eitt/music.mp3', sounds: veidduSounds, names: VEIDDU_SFX, gaps: VEIDDU_GAPS, source: '../engine/veiddu/table.js' }, // plays Eitt!'s music for now
 ];
 const seeded = seed => () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 

@@ -1,0 +1,31 @@
+{
+  "note": "The splash of Veiddu's pond (engine/veiddu/veiddu-sounds.js). Two real recordings from Freesound, both CC0 1.0 (public domain): no credit is required, so there is no KREDIT.md. The owner chose both by ear from the candidates on 2026-10-31 (\"1 og 2\"). The files are the HQ previews Freesound serves without a login. Playback levels are set in code (veiddu-sounds.js SPLASHES), not baked in.",
+  "files": {
+    "splash.mp3": {
+      "use": "Egill's fishes and refills",
+      "title": "Splash",
+      "author": "swordofkings128",
+      "source": "https://freesound.org/people/swordofkings128/sounds/398032/",
+      "preview": "https://cdn.freesound.org/previews/398/398032_7586736-hq.mp3",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloaded": "2026-10-31",
+      "sourceSha256": "76551fa32cc72ec86f01b6385008ad27993a05036eae75d1d7a662c3f7445324",
+      "sha256": "5e73e260feb5de4b8e27bcfa2d06a6f9311feea2c741505cbfc92f7250eca49d",
+      "done": "A hand splashed into pool water, 1.331 s, stereo 44.1 kHz. Cut from 0.02 s for 0.78 s (the attack is at 0.04 s, the tail and its small second splash end by 0.7 s), mixed to mono (half of each side), 3 ms fade-in, 80 ms fade-out, gain -0.2 dB so the peak is -1 dBFS (measured -0.9 after encoding), MP3 96 kbps mono 44.1 kHz with ffmpeg 9 / libmp3lame. Now 0.78 s."
+    },
+    "splash-soft.mp3": {
+      "use": "Mosi's and Uggeðla's fishes and refills (played quieter than splash.mp3)",
+      "title": "Water drop / Splash",
+      "author": "bxyorna",
+      "source": "https://freesound.org/people/bxyorna/sounds/410335/",
+      "preview": "https://cdn.freesound.org/previews/410/410335_7963426-hq.mp3",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloaded": "2026-10-31",
+      "sourceSha256": "2ba6f2dc5f1575eed55f333dcc4ee1f0d8b79963effec78766a75d567bd281da",
+      "sha256": "931e077fdc04f828d2fb74676bc23489b685ff395f1a597b12a0923475e94bc7",
+      "done": "A lighter plop, 1.084 s, mono 44.1 kHz, with a low room rumble under it. Cut from 0.46 s for 0.42 s (the plop is at 0.52 to 0.76 s: 50 ms of lead and 0.1 s of tail), 120 Hz high-pass, which takes about 18 dB off the rumble (a tablet's speaker does not play that low anyway), 3 ms fade-in, 80 ms fade-out, raised 24.3 dB so the peak is -1 dBFS (measured -1.0 after encoding), MP3 96 kbps mono 44.1 kHz with ffmpeg 9 / libmp3lame. Now 0.42 s."
+    }
+  }
+}

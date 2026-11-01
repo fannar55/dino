@@ -15,6 +15,11 @@
 //   time       { sent }: Söngur Slóeðlu's shared clock (clock-sync.js) asks the time, answered time { sent, host } with this
 //              page's performance clock (`perf`); a time or an act from a seated guest is heard by onAlive (she is playing)
 //   presence   whether the phone answers the pings (net.js); `left` is absent too
+//   Egill's own device (a lobby opened with hostOnPhone, Veiddu's: in Go Fish a hand must be hidden, the owner's answer of
+//   2026-11-01): a phone that says hello with Egill's avatar is bound to seat 0 (seats.bindHost) when no phone has it. The seat stays
+//   his (kind 'host', his name and portrait); his phone is a guest's in every other way: its acts are heard as seat 0, send(0, …)
+//   reaches it, it comes back by its kept id, and its dropout waits (waitFor) and can be covered. Any other lobby unbinds it, so
+//   Eitt!, Háls og hali and Litla Yatzy have Egill at the big screen as they always did.
 // Söngur Slóeðlu's lobby is the song game's own (`lobby:`, band-lobby.js) and its view carries `offer` (the dinosaurs on
 // offer), `ask: 'level'` ("Krakki eða fullorðinn?") and `note` (the song Egill picks) when the game sets them; its notes and
 // clock go to each phone as `song` messages (sendSong), which are not views and are not kept.
@@ -39,7 +44,7 @@
 // let go and see the wait screen.
 
 import { MAX_SEATS, makeCode, message, normalizeCode, randomKey } from './protocol.js';
-import { createSeats } from './seats.js';
+import { HOST_AVATAR, createSeats, playsFromPhone } from './seats.js';
 import { createLobby } from './lobby.js';
 import { createHostNet, iceServersFor, wsUrlFor } from './net.js';
 
@@ -120,6 +125,7 @@ export function createFjolspil(doc, {
     replaced: false, // another tab took this room: this one shows nothing more
     everConnected: false, needsNet: false, // the room was reached once; it never was and the net is down ("Fjölspil þarf net")
     lobbyOpen: false, lobbyAi: null, // the game's character the lobby offers, or null
+    hostOnPhone: false, // Egill plays from a phone of his own in this game (openLobby's hostOnPhone, or a kept game that had one)
     lobbySong: { offer: null, ask: null, note: null, reserved: [] }, // Söngur Slóeðlu's lobby keys (null: not in the view)
     pendingStart: null, // the open lobby's { promise, resolve }
     waiting: null, // the wait for a guest: { seat, guestId, promise, resolve }
@@ -286,7 +292,7 @@ export function createFjolspil(doc, {
   }
 
   function hello(id, { name, avatar, level }) {
-    const answer = seats.join({ guestId: id, name, avatar, level });
+    const answer = avatar === HOST_AVATAR.id && at.hostOnPhone ? seats.bindHost(id) : seats.join({ guestId: id, name, avatar, level });
     at.net.send(id, message('seat', answer));
     if (!answer.ok) return;
     checkWaiting();
@@ -297,7 +303,7 @@ export function createFjolspil(doc, {
   function act(id, body) {
     alive(id);
     const seat = seats.byGuest(id);
-    if (seat?.kind !== 'remote' || !seat.present) return; // a covered seat is the computer's, an absent one is not heard
+    if (!playsFromPhone(seat)) return; // a covered seat is the computer's, an absent one is not heard
     for (const fn of [...acts]) fn(seat.seat, body);
   }
 
@@ -338,7 +344,7 @@ export function createFjolspil(doc, {
 
   function send(n, body) {
     const id = seats.bySeat(n)?.guestId;
-    return id ? toGuest(id, body) : false; // Egill and the game's character have no phone
+    return id ? toGuest(id, body) : false; // Egill (unless his phone is bound to seat 0) and the game's character have no phone
   }
 
   function broadcast(body) {
@@ -356,6 +362,10 @@ export function createFjolspil(doc, {
   function lobbyView(id = null) {
     const own = id === null ? null : seats.byGuest(id);
     const view = { screen: 'lobby', seats: seats.list().map(shown), available: seats.available(), you: own ? own.seat : null };
+    if (at.hostOnPhone) { // Egill's seat is for a phone: "Ég er Egill" while no phone has it
+      const phone = seats.bySeat(0)?.guestId ?? null;
+      view.host = phone === null ? 'free' : phone === id ? 'mine' : 'taken';
+    }
     for (const key of ['offer', 'ask', 'note']) if (at.lobbySong[key] != null) view[key] = at.lobbySong[key];
     return view;
   }
@@ -363,7 +373,7 @@ export function createFjolspil(doc, {
   // ---- The lobby --------------------------------------------------------------------------------------------------
 
   function showLobby() {
-    lobby.show({ joinUrl: at.joinUrl, code: at.code, ai: at.lobbyAi, lanMissing: at.lanMissing });
+    lobby.show({ joinUrl: at.joinUrl, code: at.code, ai: at.lobbyAi, lanMissing: at.lanMissing, hostOnPhone: at.hostOnPhone });
     lobby.needsNet?.(at.needsNet);
   }
 
@@ -382,16 +392,20 @@ export function createFjolspil(doc, {
   }
 
   /**
-   * The lobby for a game (`game`, 'hals' or 'eitt'; `ai`, its character { name, avatar, add, remove }, or null): the seats
-   * that are there, the room opened on first use. Resolves with { seats } at "Byrjum!", the guests not there dropped, and
-   * null at the X. A lobby already open gives its own promise. Söngur Slóeðlu's lobby gives `offer` (the avatars on offer),
-   * `ask` ('level'), `max` (seats, Egill's among them), `reserved` (avatars no guest may pick) and `note` ({ text, picture });
-   * every other game's lobby has none of them (each opening sets them afresh).
+   * The lobby for a game (`game`, 'hals', 'eitt', 'yatzy', 'veiddu' or 'sloedla'; `ai`, its character { name, avatar, add,
+   * remove }, or null): the seats that are there, the room opened on first use. With `hostOnPhone` (Veiddu's) Egill's seat waits
+   * for his own phone, which a hello with his avatar binds, and "Byrjum!" waits for it; any lobby without it has Egill at the big
+   * screen. Söngur Slóeðlu's lobby gives `offer` (the avatars on offer), `ask` ('level'), `max` (seats, Egill's among them),
+   * `reserved` (avatars no guest may pick) and `note` ({ text, picture }); every other game's lobby has none of them (each opening
+   * sets them afresh). Resolves with { seats } at "Byrjum!", the guests not there dropped, and null at the X. A lobby already open
+   * gives its own promise.
    */
-  function openLobby({ ai = null, offer = null, ask = null, max = null, reserved = [], note = null } = {}) {
+  function openLobby({ ai = null, hostOnPhone = false, offer = null, ask = null, max = null, reserved = [], note = null } = {}) {
     if (at.replaced) return Promise.resolve(null);
     if (at.pendingStart) return at.pendingStart.promise;
     openRoom();
+    at.hostOnPhone = hostOnPhone === true;
+    if (!at.hostOnPhone) seats.unbindHost(); // Egill is at the big screen again, as in every game but Veiddu
     at.lastView.clear(); // the game before is over
     at.lobbySong = { offer, ask, note, reserved: [...reserved] };
     seats.setLimit(max ?? MAX_SEATS);
@@ -462,6 +476,7 @@ export function createFjolspil(doc, {
     if (at.replaced) return;
     const here = new Set([...at.inRoom].filter(id => seats.byGuest(id)?.present !== false)); // in the room now, and answering
     seats = createSeats({ from: snapshot });
+    at.hostOnPhone = seats.bySeat(0)?.guestId != null; // a kept game that had Egill on a phone has him on it again
     for (const seat of seats.list()) if (here.has(seat.guestId)) seats.presence(seat.seat, true);
     openRoom();
     if (at.lobbyOpen) lobbyChanged();
