@@ -183,6 +183,25 @@ face), misty far forest, forest wall.
   search is a soft pan that follows the hint, and the child may drag; a celebration is a slow
   orbit; a transition is a pan along the path or a fade.
 
+### Flug (kafli 4)
+
+Flugmyndavélin (`engine/camera/flight-camera.js`, `FLIGHT_RULES`) hefur eigin reglur ofan á þær hér að ofan, því að
+Flugeðla flýgur 7 til 25 m/s og myndavélin fer með henni. Hún skráir brot í `director.warnings` sem `flight: …`.
+
+- **Bundin skot** fylgja henni (eltiskot, framan á Egil, frá hlið, hringsól). Staða myndavélarinnar er í ramma hennar séð
+  ofan frá: stefnan hennar, ekki hallinn eða klifrið. Miðað við hana hreyfist myndavélin mest 1,2 m/s og snýst mest 15°/s.
+- **Halli:** myndavélin hallar um þriðjung af halla hennar og mest 8° (hún sjálf allt að 30°). Ekkert hallast í kyrrum
+  skotum. Ef beðið er um minni hreyfingu helmingast hallinn.
+- **Kyrr skot** standa á bakkanum, við fossinn eða hátt í gljúfrinu og snúast til að halda henni í mynd, mest 40°/s. Þau
+  standa því minnst 25 m frá leið hennar þegar hún fer hraðast, eða enda áður en hún þýtur fram hjá.
+- **Hringsól** (F): 100° á 16 s í 6,8 m fjarlægð, mjúkt í byrjun og enda. Ef beðið er um minni hreyfingu kemur víða
+  skotið í staðinn.
+- **Klippingar:** hvert skot stendur minnst 2,5 s, nema þrjú stutt skot á 1,5 s í gljúfrinu. Skotin skiptast með
+  klippingum, ekki hreyfingum.
+- **„Hraðar!“:** linsan víkkar um 8° á 0,4 s og fer til baka á 1 s.
+- **Rammi:** Egill og andlitið hennar eru ofan við neðstu 30 % og neðan við efstu 8 %, bæði á 16:10 og á uppréttri
+  spjaldtölvu (0,625), og myndavélin er aldrei inni í henni.
+
 ## 9. Motion
 
 - Always alive: breathing idle, blinks every 2 to 6 s (now and then two in a row, and one with each
