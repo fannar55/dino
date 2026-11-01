@@ -81,6 +81,29 @@ which reads the key from the environment.
 
 The 3D table it plays on (the world, the dice and the cup, the effects, Mosi as the opponent and the classic rules) is `engine/yatzy-table/`: what remains of "Yatzy við Mosa", the full game, which went out of the remake on 2026-10-25.
 
+## Veiddu
+
+Uggeðla's Go Fish for Egill (six, learning to read), opened from the book's Leikir page once the chapter 2 star `k2_uggedla` is
+won (`VEIDDU_STAR` in `engine/book.js`). Thirteen kinds of pond animals, four cards each, every card a photo with its name under it
+(`assets/veiddu/`, open licences in `credits.json`). Egill asks Uggeðla or Mosi for a kind he holds; a "Nei!" sends him to fish from
+the pond, two alike are laid down as a pair at once, and the most pairs win. Uggeðla plays live in her window (`engine/veiddu/uggedla-view.js`), Mosi
+gives advice from his button, and every line is recorded Icelandic speech (the `veiddu` set of `tools/voice-lines.mjs`, 81 lines).
+The minds (`engine/veiddu/minds.js`) are fair: they remember only what was said at the table, and forget some of it.
+
+- Rules: `engine/veiddu/rules.js` (pure, seeded); the table: `engine/veiddu/table.js`; speech queue: `speech.js`; sounds:
+  `veiddu-sounds.js` (two CC0 splashes, `assets/veiddu/splash.json`).
+- The first time, Mosi's six-step tutorial plays from a stacked deck ("Sleppa kennslu" skips it, "Kennsla" replays it); the save
+  keeps `veiddu: { skill, losses, wins, tutorialDone, game, seats }` inside `mosi-remake-v1`, and a won round gives a sticker.
+- Fjölspil: two to four seats, at most one computer (Uggeðla). Every hand is hidden, so Egill plays from his own phone or tablet
+  too: Veiddu's lobby opens with `hostOnPhone`, a phone that joins is offered "Ég er Egill" and binds to seat 0
+  (`seats.bindHost`). The big screen is only the pond with every seat's tag (`engine/veiddu/multi.js`); the phones get
+  `engine/veiddu/remote.js`'s view and draw it with `engine/fjolspil/guest-veiddu.js`. Solo play keeps Egill's hand on the
+  big screen. Other games' lobbies are unchanged.
+- Lab: `/remake/veiddu-lab.html` (`&seed=`, `&view=0`, `&tutorial=1|first`, `&auto=1`, `?fjolspil=1`, `&kinds=6..13`).
+- Checks: `remake/tests/veiddu*.test.mjs`; `node remake/tools/veiddu-video.mjs` records a round (or `--tutorial`) with
+  `--sound`; `node remake/tools/veiddu-fjolspil-check.mjs` plays Fjölspil headless in Edge over the DevTools protocol (no
+  Playwright) with the dev server on port 4256; `node remake/tools/veiddu-sim.mjs` estimates how often Egill wins.
+
 ## Layout
 
 - `engine/`: clock, renderer, looks, lighting, fog, sky, wind, stats, actors and their footing
