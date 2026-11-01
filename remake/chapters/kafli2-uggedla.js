@@ -30,7 +30,7 @@
 // her before Egill), or he sits where she was a frame ago.
 import * as THREE from 'three';
 import { createSeat } from '../engine/riding.js';
-import { ringsFor } from '../engine/neck-ride.js';
+import { ringsFor, legsOut } from '../engine/neck-ride.js';
 import { seededRandom } from '../engine/random.js';
 import { createModel } from '../world/critters/models.js';
 import { glints, run } from '../world/props/sparkles.js';
@@ -71,6 +71,9 @@ export const LYING = { neck: { pitch: -58, yaw: -80 }, head: { pitch: 38, yaw: -
 // The strike: the joints that reach for the fish (not her chest: her sail rides it), how far each may turn from where it was (degrees), and how
 // the turn about the vertical is shared between them
 const REACH_JOINTS = [{ name: 'Head', limit: 70, share: 0.45 }, { name: 'Neck', limit: 85, share: 0.55 }];
+// The seat on her back, on her Chest bone (in a frame kept level): [across, up, ahead], and where his wrists go, from there
+export const SEAT = { offset: [0, 0.62, 1.1], grips: { left: [-0.2, 0.65, -0.3], right: [0.2, 0.65, -0.3] }, legs: 0.5 };
+const CARRY_PACE = 0.3; // her wade clip's time scale while she wades in place with him on her
 const REACH = 5.2; // how far along the water the tip of her snout reaches from her root without her moving, for a fish a metre or two up
 const MAX_LUNGE = 6.5; // the most she moves her whole body toward a fish
 const LUNGE_SPEED = 4.5; // m/s at the quickest of the lunge
@@ -80,8 +83,11 @@ const MAX_TURN = 80; // degrees she turns toward a fish at most
 // The rig
 
 /** Her rig, made the first time anything asks for it (lieLow): c.uggedlaRig. */
+const rigs = new WeakMap(); // actor -> rig
 function rigOf(c) {
-  return c.uggedlaRig ?? (c.uggedlaRig = makeRig(c));
+  const actor = c.uggedla.raw;
+  if (!rigs.has(actor)) rigs.set(actor, makeRig(c));
+  return (c.uggedlaRig = rigs.get(actor));
 }
 
 const turnQ = new Q();
@@ -126,6 +132,7 @@ function makeRig(c) {
     reached: false, tip: new V3(), error: Infinity,
     side: 1, curlTotal: 0, beat: 0, // the tail's curl: +1 to her right, its total turn; the swim's beat
     mover: null, // the swim, while she swims
+    carrying: false, // Egill rides her (createBackSeat): her neck is down, on her wade clip, whatever she does
     fish: null,
   };
 
@@ -361,6 +368,7 @@ export function lieLow(c) {
   rig.tweens.length = 0;
   Object.assign(rig.v, { sink: SINK.low, tuck: 0, shiver: 0, yaw: 0, lunge: 0, jaw: 0, strike: 0, toss: 0, swim: 0, curl: 0, life: 1 });
   rig.mover = null;
+  rig.carrying = false;
   rig.fish.hide();
   Object.assign(rig.station, { x: actor.root.position.x, z: actor.root.position.z, heading: actor.heading });
   rig.placed = { x: NaN, z: NaN, heading: NaN };
@@ -503,17 +511,50 @@ export function* catchFish(s, c, fish) {
   }
 }
 
-/** The seat on her back for Egill: in front of her sail, on her Chest bone, his hands on the sail's front edge. */
+/**
+ * The seat on her back for Egill: in front of her sail, on the base of her neck (her Chest bone), his hands on the sail's front edge.
+ * Her neck rises steeply when she stands at ease, with no room for a rider on it, so making the seat has her lower her neck and take her
+ * wade posture (the neck laid forward, the head low over the water) and sink to her swimming depth, in 1.6 s; floatTo takes 2.2 s, and he
+ * lands as she is ready. She keeps that posture, wading in place or swimming, until a swim says otherwise (swimAlong's `then`).
+ */
 export function createBackSeat(uggedla) {
-  return createSeat(uggedla.raw, { bone: 'Chest', offset: [0, 1.5, 1.0], grips: { left: [-0.12, 0.3, -0.3], right: [0.12, 0.3, -0.3] } });
+  const rig = rigs.get(uggedla.raw);
+  if (!rig) throw new Error('createBackSeat: she is not lying low yet (lieLow makes her)');
+  rig.carrying = true;
+  rig.actor.lookAt(null);
+  rig.actor.play('wade', { fade: 1.2, timeScale: CARRY_PACE });
+  rig.tween('sink', SINK.swim, 1.6, smoother);
+  rig.tween('tuck', 1, 1.2, smoother);
+  rig.tween('toss', 0, 0.8, smoother);
+  // He sits on her neck's broad top with his legs out in front of him (neck-ride.js: legsOut), as on Þórseðla's head, from the moment he
+  // is at the seat until he leaves it: the seat watches where he is.
+  const seat = createSeat(uggedla.raw, { bone: 'Chest', offset: SEAT.offset, grips: SEAT.grips });
+  const egill = rig.c.egill?.raw;
+  if (egill) {
+    const legs = legsOut(egill);
+    let seated = false;
+    const update = seat.update;
+    seat.update = () => {
+      const at = update();
+      const near = egill.controlled && egill.root.position.distanceTo(at) < 0.2;
+      if (near !== seated) {
+        seated = near;
+        legs.to(near ? 1 : 0, { duration: SEAT.legs });
+      }
+      return at;
+    };
+    seat.legs = legs;
+  }
+  return seat;
 }
 
 /**
  * She swims low along the points ([x, z]; from where she is) at `speed` m/s: her root `sink` metres under the water, the sail up, her
  * wade clip paddling under her, the tail sweeping from side to side and rings spreading from her. Resolves when she has stopped at the
- * last point and is at ease again.
+ * last point: at ease on her idle clip, or, with Egill on her back (createBackSeat) or `then: 'wade'`, treading water on her wade clip, her
+ * neck as it was; `then: 'idle'` has her stand at ease anyway (only when nobody rides her). `sinkAtEnd` sinks her to that depth then.
  */
-export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim, sinkAtEnd = null } = {}) {
+export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim, sinkAtEnd = null, then = null } = {}) {
   const rig = rigOf(c);
   rig.busy++;
   try {
@@ -562,7 +603,11 @@ export function* swimAlong(s, c, points, { speed = SWIM_SPEED, sink = SINK.swim,
       yield;
     }
     rig.mover = null;
-    rig.actor.play('idle', { fade: 0.9 });
+    if (then === 'wade' || (then === null && rig.carrying)) rig.actor.play('wade', { fade: 0.9, timeScale: CARRY_PACE }); // treads water, the neck as it was
+    else {
+      rig.carrying = false;
+      rig.actor.play('idle', { fade: 0.9 });
+    }
     rig.tween('swim', 0, 1.2, smooth);
     if (sinkAtEnd !== null) rig.tween('sink', sinkAtEnd, 1.5, smoother);
     yield s.wait(1.0);
