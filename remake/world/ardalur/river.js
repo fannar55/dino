@@ -18,12 +18,16 @@ export function createRiverSurface(route, material) {
     for (let r = 0; r <= rows; r++) {
       const d = Math.min(to, from + r * STEP);
       const at = river.at(d);
-      const nx = -at.dir[1];
-      const nz = at.dir[0];
+      // across the river, from its direction over 12 m: at a sharp corner of the polyline the inner edge would fold back on itself
+      const ahead = river.at(Math.min(to, d + 6));
+      const behind = river.at(Math.max(from, d - 6));
+      const along = Math.hypot(ahead.x - behind.x, ahead.z - behind.z) || 1;
+      const nx = -(ahead.z - behind.z) / along;
+      const nz = (ahead.x - behind.x) / along;
       positions.push(at.x + nx * at.half, at.level, at.z + nz * at.half, at.x - nx * at.half, at.level, at.z - nz * at.half);
       if (r > 0) {
         const a = first + (r - 1) * 2;
-        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); // facing up: seen from its back a double-sided face is lit from below
       }
     }
   };

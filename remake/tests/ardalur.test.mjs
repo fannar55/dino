@@ -108,6 +108,33 @@ test('the cliff of the falls stands behind the falling water, and she climbs 3 m
   place.dispose();
 });
 
+test('the water and the ground face up, so the sun lights them from above', () => {
+  const world = { scene: new THREE.Scene() };
+  const place = createArdalur(world, { grey: true, route });
+  place.buildAll();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const facing = new THREE.Vector3();
+  const flat = [];
+  world.scene.traverse(o => { if (o.isMesh && !o.isInstancedMesh && /river|pool|ground/.test(o.name)) flat.push(o); });
+  assert.ok(flat.length > 10);
+  for (const mesh of flat) {
+    const { position } = mesh.geometry.attributes;
+    const index = mesh.geometry.index;
+    let down = 0;
+    for (let i = 0; i < index.count; i += 3) {
+      a.fromBufferAttribute(position, index.getX(i));
+      b.fromBufferAttribute(position, index.getX(i + 1));
+      c.fromBufferAttribute(position, index.getX(i + 2));
+      facing.subVectors(b, a).cross(c.sub(a));
+      if (facing.y < 0) down++;
+    }
+    assert.equal(down, 0, `${mesh.name}: ${down} of ${index.count / 3} triangles face down (a double-sided face seen from its back is lit from below: black)`);
+  }
+  place.dispose();
+});
+
 test('each section stays within the forest budget', () => {
   const world = { scene: new THREE.Scene() };
   const place = createArdalur(world, { grey: true, route });
