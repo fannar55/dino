@@ -40,6 +40,66 @@ function toeOf(model, foot) {
   return toe && foot.worldToLocal(toe.setZ(foot.getWorldPosition(p).z).setY(0));
 }
 
+// Points of a model's skin that a gesture must not take under the ground: every so many vertices of each skinned mesh, and each bone's farthest vertex (the
+// horns' tips, the toes, the tail's end, the wings' fingers), each with its bones and weights at the bind pose. Shared by the copies of one model.
+const skinProbes = new WeakMap();
+function skinProbeOf(mesh, budget) {
+  const geometry = mesh.geometry;
+  if (skinProbes.has(geometry)) return skinProbes.get(geometry);
+  const { position, skinIndex, skinWeight } = geometry.attributes;
+  if (!position || !skinIndex || !skinWeight) { skinProbes.set(geometry, null); return null; }
+  const n = position.count, chosen = new Set(), stride = Math.max(1, Math.floor(n / budget)), groups = new Map(), v = new THREE.Vector3();
+  for (let i = Math.floor(stride / 2); i < n; i += stride) chosen.add(i);
+  for (let i = 0; i < n; i++) {
+    let bone = 0, most = -1; for (let k = 0; k < 4; k++) { const w = skinWeight.getComponent(i, k); if (w > most) { most = w; bone = skinIndex.getComponent(i, k); } }
+    v.fromBufferAttribute(position, i);
+    const g = groups.get(bone) ?? { x: 0, y: 0, z: 0, n: 0, list: [] }; g.x += v.x; g.y += v.y; g.z += v.z; g.n++; g.list.push(i); groups.set(bone, g);
+  }
+  for (const g of groups.values()) {
+    let far = -1, at = -1;
+    for (const i of g.list) { v.fromBufferAttribute(position, i); const d = (v.x - g.x / g.n) ** 2 + (v.y - g.y / g.n) ** 2 + (v.z - g.z / g.n) ** 2; if (d > far) { far = d; at = i; } }
+    if (at >= 0) chosen.add(at);
+  }
+  const list = [...chosen], probe = { count: list.length, base: new Float32Array(list.length * 3), bones: new Uint16Array(list.length * 4), weights: new Float32Array(list.length * 4) };
+  list.forEach((i, j) => {
+    v.fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix); v.toArray(probe.base, j * 3);
+    for (let k = 0; k < 4; k++) { probe.bones[j * 4 + k] = skinIndex.getComponent(i, k); probe.weights[j * 4 + k] = skinWeight.getComponent(i, k); }
+  });
+  skinProbes.set(geometry, probe);
+  return probe;
+}
+/** A model's skin points to measure: [{ mesh, probe, rows, done }] for its skinned meshes. */
+function skinOf(model, budget = 160) {
+  const meshes = []; model.traverse(o => { if (o.isSkinnedMesh) meshes.push(o); });
+  const total = meshes.reduce((sum, mesh) => sum + mesh.geometry.attributes.position.count, 0) || 1;
+  return meshes.map(mesh => ({ mesh, probe: skinProbeOf(mesh, Math.max(12, Math.round(budget * mesh.geometry.attributes.position.count / total))), rows: new Float64Array(mesh.skeleton.bones.length * 4), done: new Uint8Array(mesh.skeleton.bones.length) })).filter(entry => entry.probe);
+}
+const toFrame = new THREE.Matrix4(), skinPre = new THREE.Matrix4(), skinBone = new THREE.Matrix4();
+// The ground in a friend's root frame (the root stands 4 cm over it) less the 2 cm a point of the skin may touch into it (a sniff, a nibble).
+const GROUND_FLOOR = -.06;
+/** The lowest of a model's skin points as drawn now, in `frame`'s space (its y), skinned as the GPU does. */
+function lowestSkin(skin, frame) {
+  toFrame.copy(frame.matrixWorld).invert();
+  const pre = skinPre, m = skinBone;
+  let low = Infinity;
+  for (const { mesh, probe, rows, done } of skin) {
+    const bones = mesh.skeleton.bones; done.fill(0);
+    pre.multiplyMatrices(toFrame, mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+    for (let j = 0; j < probe.count; j++) {
+      const x = probe.base[j * 3], y = probe.base[j * 3 + 1], z = probe.base[j * 3 + 2]; let h = 0;
+      for (let k = 0; k < 4; k++) {
+        const w = probe.weights[j * 4 + k]; if (!w) continue;
+        const b = probe.bones[j * 4 + k];
+        // (only the frame's y of each bone's skinning matrix is needed: its second row)
+        if (!done[b]) { m.multiplyMatrices(pre, bones[b].matrixWorld).multiply(mesh.skeleton.boneInverses[b]); const e = m.elements; rows[b * 4] = e[1]; rows[b * 4 + 1] = e[5]; rows[b * 4 + 2] = e[9]; rows[b * 4 + 3] = e[13]; done[b] = 1; }
+        h += w * (rows[b * 4] * x + rows[b * 4 + 1] * y + rows[b * 4 + 2] * z + rows[b * 4 + 3]);
+      }
+      if (h < low) low = h;
+    }
+  }
+  return low;
+}
+
 /**
  * Six rigged characters (two of each species by default), all facing local +X.
  * World owns root position/rotation/visibility. This controller only animates
@@ -73,6 +133,7 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
       model.updateMatrixWorld(true); bounds.setFromObject(model, true);
       const center = bounds.getCenter(new THREE.Vector3());
       model.position.set(-center.x, -bounds.min.y, -center.z);
+      const skin = skinOf(model);
       const mixer = new THREE.AnimationMixer(model);
       const clips = new Map(gltf.animations.map(c => [c.name.toLowerCase(), c]));
       const bone = name => model.getObjectByName(name) || model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(name));
@@ -440,6 +501,9 @@ export async function createBabyActors({ scene, length = 1.55, instancesPerSpeci
             const current=gesture;GESTURES[current.name].apply(rig,current.t,reducedMotion?.3:1);
             if(gesture===current&&current.t>=1)gesture=null;
             root.updateMatrixWorld(true);
+            // Nothing of the friend goes into the ground: the root stands 4 cm over it, and where the gesture would take a point of the skin more than 2 cm
+            // under it (a sit back, a lowered head, a roll), the whole friend is lifted by that much (veggir).
+            if(!flight){const low=lowestSkin(skin,root);if(low<GROUND_FLOOR){pose.position.y+=GROUND_FLOOR-low;root.updateMatrixWorld(true);}}
           }
         },
         getDebugState() { return {species:id,isBaby:art.isBaby,flight:flight?{phase:flight.phase,progress:flight.length>0?flight.s/flight.length:1}:null,carrying,motion,elapsed,gesture:gesture?.name || null,clip:clipLeft>0?clipName:null,stance,support:support?{mode:support.mode,progress:support.age/support.duration}:null,gait:gait?{naturalSpeed:gait.naturalSpeed*root.scale.x,cycle:gait.cycle,rate:walkRate,speed:travelSpeed,distance:walkDistance}:null,reducedMotion,looking:lookEnabled,clips:[...clips.keys()],eyelids:Boolean(lids),visible:root.visible}; },
