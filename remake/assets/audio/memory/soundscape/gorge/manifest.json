@@ -73,6 +73,78 @@
       "source": "freesound 398661",
       "peak": 0.6725,
       "rms": 0.1157
+    },
+    "wing-flap": {
+      "file": "wing-flap.mp3",
+      "duration": 0.824,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 389634",
+      "peak": 0.6637,
+      "rms": 0.047
+    },
+    "slab-lower": {
+      "file": "slab-lower.mp3",
+      "duration": 1.107,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 558254",
+      "peak": 0.6731,
+      "rms": 0.1504
+    },
+    "slab-lower-alt": {
+      "file": "slab-lower-alt.mp3",
+      "duration": 2.305,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 321488",
+      "peak": 0.6715,
+      "rms": 0.0711
+    },
+    "rope-whoosh": {
+      "file": "rope-whoosh.mp3",
+      "duration": 0.512,
+      "gain": 0.45,
+      "loop": false,
+      "source": "freesound 789840",
+      "peak": 0.6711,
+      "rms": 0.1099
+    },
+    "rope-tighten": {
+      "file": "rope-tighten.mp3",
+      "duration": 2.417,
+      "gain": 0.6,
+      "loop": false,
+      "source": "freesound 676987",
+      "peak": 0.6587,
+      "rms": 0.0159
+    },
+    "rope-knots": {
+      "file": "rope-knots.mp3",
+      "duration": 2,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 273530",
+      "peak": 0.666,
+      "rms": 0.0578
+    },
+    "gravel-slip": {
+      "file": "gravel-slip.mp3",
+      "duration": 2.127,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 138343",
+      "peak": 0.6797,
+      "rms": 0.0366
+    },
+    "gravel-climb": {
+      "file": "gravel-climb.mp3",
+      "duration": 3.73,
+      "gain": 0.5,
+      "loop": false,
+      "source": "freesound 169547",
+      "peak": 0.6728,
+      "rms": 0.0233
     }
   }
 }
