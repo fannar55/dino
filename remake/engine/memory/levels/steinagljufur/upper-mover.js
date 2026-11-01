@@ -45,8 +45,9 @@ export const FORMATIONS = Object.freeze({
 const REACH_SPOTS = [[.9, -2.7], [.9, 2.7]];
 // Where they stand there is no room for a long tail to turn in: the slab on one side, the riser in front, and the second has the hillside at its back. In the cheer the first
 // turns toward the camera only as far as its tail stays out of the slab's foot (45 degrees), the second not at all (its tail went 84 cm into the bank), and both look at it;
-// then they back out to the slab's foot (BACK_TO) and turn there to walk up it (turning round where they stood, a tail went 51 cm into the riser, veggir).
-const CHEER_TURN = [Math.PI / 4, 0], BACK_TO = [[-2.0, -1.6], [-2.0, 1.6]];
+// then they back out to the slab's foot (BACK_TO) and turn there to walk up it (turning round where they stood, a tail went 51 cm into the riser; the second backs out
+// 0.25 m further from the slab's side, where its front foot brushed the slab, veggir).
+const CHEER_TURN = [Math.PI / 4, 0], BACK_TO = [[-2.0, -1.6], [-2.0, 1.85]];
 // The slab as the friends walk on it: the plane of its ridge, on which U.slab.ramp lays their lanes, this far either side of its middle (their lanes and feet)
 const RAMP_HALF = 1.3;
 // the slab's steps: angles above the horizontal toward the floor (upper.js slab.steps), and how long each takes
@@ -86,9 +87,11 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   const ORDER = ['stegosaurus', 'mosi', 'triceratops', 'brontosaurus', 'pteranodon'];
   // Each pair's two lanes, metres either side of the bore's middle: the narrower pairs walk closer in (the bore is 2.1 to 2.7 m wide at the friends' feet),
   // and a low lip of rock at the left foot of the mouth (x 2.6 to 3.2) leaves 0.81 m on that side, so the left lane comes in 0.3 m to the right of its
-  // line and is back on it 1.5 m in. The Þríhyrnur keep their lanes: side by side they are 2.84 m wide, wider than the bore (veggir). The exit is the same
-  // tunnel: there they come out one behind the other in its middle (TRI_FILE), the second from further in, which no cut waits for.
+  // line and is back on it 1.5 m in. Side by side the Þríhyrnur are 2.84 m wide, wider than the bore (their feet went 17-21 cm into its mouth, veggir): they wait side by
+  // side where they did and go in one behind the other in its middle (TRI_IN), the second TRI_IN.wait seconds after it went before and the pairs behind them as much later.
+  // The exit is the same tunnel: there they come out one behind the other in its middle (TRI_FILE), the second from further in, which no cut waits for.
   const LANES = { stegosaurus: .6, triceratops: .62, brontosaurus: .56, pteranodon: .62 }, LIP = { shift: .3, to: 3.0, back: 1.5 }, TRI_FILE = { lane: .12, behind: 1.8 };
+  const TRI_IN = { lane: .05, wait: .45 };
   function startThrough() {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'through', phase: 'gather', age: 0, hidden: 0, total: 9, arrived: 0 };
@@ -97,10 +100,10 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
       const list = who === 'mosi' ? [mosi()] : members(who);
       list.forEach((actor, i) => {
         actor.clearLook?.(); actor.stopGesture?.();
-        const lane = who === 'mosi' ? BORE.across : BORE.across + (i ? 1 : -1) * (LANES[who] ?? .62), row = who === 'stegosaurus' ? 0 : g;
-        const lip = who !== 'mosi' && who !== 'triceratops' && !i ? LIP.shift : 0, past = lip ? [tunnelPoint(LIP.to, lane + lip), tunnelPoint(LIP.back, lane)] : [];
-        const stage1 = tunnelPoint(BORE.mouth + 1.1 + row * .5, lane + lip), enter = tunnelPoint(BORE.mouth - .2, lane + lip), inside = tunnelPoint(-1.7, lane);
-        const at = ENTER.first + g * ENTER.every + i * .12;
+        const file = who === 'triceratops', lane = who === 'mosi' ? BORE.across : BORE.across + (i ? 1 : -1) * (LANES[who] ?? .62), row = who === 'stegosaurus' ? 0 : g;
+        const lip = who !== 'mosi' && !file && !i ? LIP.shift : 0, past = lip ? [tunnelPoint(LIP.to, lane + lip), tunnelPoint(LIP.back, lane)] : [], way = file ? BORE.across + TRI_IN.lane : lane;
+        const stage1 = tunnelPoint(BORE.mouth + 1.1 + row * .5, lane + lip), enter = tunnelPoint(BORE.mouth - .2, way + lip), inside = tunnelPoint(-1.7, way);
+        const at = ENTER.first + g * ENTER.every + i * .12 + (file ? i : g > ORDER.indexOf('triceratops') ? 1 : 0) * TRI_IN.wait;
         walkers.start(actor, [{ to: [stage1], speed: ENTER.run }, { until: at }, { to: [enter, ...past, inside], speed: ENTER.walk }, { hide: true }], { yaw: null, onDone: () => { action.hidden++; } });
       });
     });
@@ -347,6 +350,14 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     return [wayFrame[0][0], wayFrame[0][1]];
   }
   const headsOf = species => members(species).map(actor => actor.getNosePosition());
+  // How much lower than when the go `a` began a friend's head and tail are now, in metres in its own frame (its head, jaw and tail bones; the lowest of them that went down).
+  const DIPPING = /^(Head|Jaw|Tail\d*)$/, dipAt = new THREE.Vector3();
+  function dipOf(a, actor, i) {
+    const bones = (a.dipBones ??= [])[i] ??= (() => { const list = []; (actor.model ?? actor.root).traverse(b => { if (b.isBone && DIPPING.test(b.name)) list.push(b); }); return list; })();
+    actor.root.updateMatrixWorld(true);
+    const ys = bones.map(b => actor.root.worldToLocal(b.getWorldPosition(dipAt)).y * actor.root.scale.y), from = (a.dipFrom ??= [])[i] ??= ys;
+    return Math.max(0, ...ys.map((y, k) => from[k] - y));
+  }
   function startFail(species, target, { qa = false } = {}) {
     const key = `${target}:${species}`, go = GOES[key];
     if (action || !go || !GESTURES[FAIL_TRIES_OF[key]]) return null;
@@ -396,14 +407,14 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     if (a.go.path) {
       const { to, up, down } = a.go.path;
       const s = a.age < up[1] ? to * smooth((a.age - up[0]) / (up[1] - up[0])) : to * (1 - smooth((a.age - down[0]) / (down[1] - down[0])));
-      // (the body is pitched along the line from the ground under its heels to under its toes, and rises until no part of its underside is within 8 cm of the ground, the
-      // Þríhyrna's 18 cm (its try's leap and slip take its head and tail lower than it stands, the Þríhyrna's head 18 cm lower): walkers.js bodyOn and settle. Pitched from
-      // one point 0.6 m ahead (the Þríhyrna's by 80 % of that) and standing on its root, the tails went into the flat behind the path's foot and the Þríhyrna's head into the
-      // path ahead, veggir)
+      // (the body is pitched along the line from the ground under its heels to under its toes, and rises until no part of its underside is within 8 cm of the ground:
+      // walkers.js bodyOn and settle. The Þríhyrna's try's leap and slip take its head and tail lower than it stands, so it rises as much more as they are lower than when
+      // its go began (dipOf); a fixed 18 cm lifted all of it, the whole go. Pitched from one point 0.6 m ahead (the Þríhyrna's by 80 % of that) and standing on its root,
+      // the tails went into the flat behind the path's foot and the Þríhyrna's head into the path ahead, veggir)
       list.forEach((actor, i) => {
         const lane = i ? -.55 : .8, along = Math.max(0, s), [x, z] = routeFrame(lane, along), p = world(x, z);
         const body = walkers.bodyOn(actor, d => { const [bx, bz] = routeFrame(lane, along + d), q = world(bx, bz); q.y = walkers.rootY(actor, q.y); return q; });
-        actor.root.position.set(p.x, walkers.rootY(actor, p.y), p.z); actor.root.rotation.z = body.pitch; walkers.settle(body, body.pitch, a.species === 'triceratops' ? .18 : .08);
+        actor.root.position.set(p.x, walkers.rootY(actor, p.y), p.z); actor.root.rotation.z = body.pitch; walkers.settle(body, body.pitch, .08 + (a.species === 'triceratops' ? dipOf(a, actor, i) : 0));
       });
       if (a.key === 'cliff:triceratops') ropeInMouth(Math.min(1, a.age / .4));
     }
@@ -423,8 +434,9 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
   function startDangle(a) {
     a.step = 'up'; a.arrived = 0; a.wait = 0;
     members('pteranodon').forEach((actor, i) => {
-      // (they hang 1.05 m out from the slab's edge: at 0.6 m a tail and at 0.85 m a head went into its end as she kicked, veggir)
-      const edge = U.slab.under(U.slab.length - .5, i ? .8 : -.8), hang = U.world(edge.x - 1.05, edge.y - 1.0, edge.z);
+      // (they hang 1.05 m out from the slab's edge: at 0.6 m a tail and at 0.85 m a head went into its end as she kicked; the second, the farther from the camera, hangs
+      // 0.6 m further out and 0.45 m lower, where the first and the slab's end do not hide her, veggir)
+      const edge = U.slab.under(U.slab.length - .5, i ? .8 : -.8), hang = U.world(edge.x - 1.05 - (i ? .6 : 0), edge.y - 1.0 - (i ? .45 : 0), edge.z);
       a.hang = a.hang ?? []; a.hang[i] = hang.clone();
       const ok = actor.fly?.([hang], { speed: 3.1, onDone: () => { a.arrived++; } }); if (!ok) { a.arrived++; actor.root.position.copy(hang); }
     });

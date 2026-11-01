@@ -81,6 +81,9 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     'rocks:pteranodon': [[.25, 'peck'], [.55, 'peck'], [.85, 'peck']],
   };
 
+  // How much of the way home a pair hops backward before it turns: the Langhálsar stand in the tunnel's mouth with their long necks in it, and turning round there the
+  // first one's head swept through the mouth's side (veggir).
+  const BACK_OUT = { 'tunnel:brontosaurus': .2 };
   // How long a go takes when it is longer than its gesture: the Flugeðla's flight in, bump, tumble out, landing and shake (the scene paces its cuts by it).
   const TRY_SECONDS = { 'tunnel:pteranodon': 5.8 };
   const hopsTo = (species, spots) => members(species).map((actor, i) => {
@@ -93,7 +96,8 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     if (hop !== h.hop) { if (h.hop >= 0) hopLanding(actor); h.hop = hop; actor.gesture?.('hop'); }
     const x = lerp(from.x, to.x, run), z = lerp(from.z, to.z, run);
     actor.root.position.set(x, heightAt(x, z) + .04 + (run < 1 ? HOP.arc * Math.sin(Math.PI * (phase - hop)) : 0), z); actor.root.position.y += stage.hopOver?.(actor.root.position) ?? 0;
-    const travel = Math.atan2(-(to.z - from.z), to.x - from.x), wanted = run > .75 ? (back ? h.fromYaw : h.yaw) : travel, d = Math.atan2(Math.sin(wanted - actor.root.rotation.y), Math.cos(wanted - actor.root.rotation.y));
+    // (on the way back a pair that backs out first (`backOut`, BACK_OUT) keeps facing the way it did for that part of the way)
+    const travel = Math.atan2(-(to.z - from.z), to.x - from.x), wanted = run > .75 ? (back ? h.fromYaw : h.yaw) : back && run < (h.backOut ?? 0) ? actor.root.rotation.y : travel, d = Math.atan2(Math.sin(wanted - actor.root.rotation.y), Math.cos(wanted - actor.root.rotation.y));
     actor.root.rotation.y += d * (reduced ? 1 : Math.min(1, .25 + run * .3));
   }
   const landHops = (hops, back) => { for (const h of hops) { h.hop = -1; h.actor.root.position.copy(back ? h.from : h.to); h.actor.root.rotation.y = back ? h.fromYaw : h.yaw; hopLanding(h.actor); } };
@@ -238,6 +242,7 @@ export function createGorgeMover({ THREE: three = THREE, stage, interior, plates
     const spots = FAIL_SPOTS[key](), gesture = FAIL_TRIES[key], duration = TRY_SECONDS[key] ?? GESTURES[gesture].duration;
     stand(species);
     const hops = hopsTo(species, spots), run = Math.max(...hops.map(h => h.duration));
+    for (const h of hops) h.backOut = BACK_OUT[key] ?? 0;
     action = { id: 'fail', species, target, key, phase: 'run', age: 0, duration: run, hops, spots, gesture, tryLength: duration, fired: new Set(), flights: 0, walking: false };
     return { run, attempt: duration, back: run, total: run * 2 + duration, yaw: spots[0].yaw };
   }
