@@ -2234,9 +2234,9 @@
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_ask_snigill": {
-   "key": "49b62088518d1239bc83a05dc59a4d4a3197267951612b68c6b3945ee870d35a",
-   "mp3": "f015455ff967a9882551e8e6dd860e1c4ab760ed007be4470bd4aa8f96e05c48",
-   "duration": 1.69,
+   "key": "cdd6509912cde07fa16718eb7a0618a5ee378f9d6b61026c5c068ab4307a21e0",
+   "mp3": "ba2249db1df1797b964bf0eae025d6b614f15157efc86f5d8538610256b3af48",
+   "duration": 1.61,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_ask_vatnalaesingi": {
@@ -2306,21 +2306,21 @@
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_name_salamandra": {
-   "key": "1042ecd3028741127dbdbc2e84edbcab7a5ea65d8e808f10913c97c05a50c09b",
-   "mp3": "51288ace48b409b9882f4ab81e0e3918bd450f44e044bd8edb6d9c96e0956e3e",
-   "duration": 1.29,
+   "key": "1c404407f9a59ec6e552dbc04626889532bbb77a2b91db1c419cb4ef74b51f34",
+   "mp3": "b1b557fdbebb7d5e02ea158afc0ccf703fdc94daf3a4081b0fe8b790b5b66ba7",
+   "duration": 1.45,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_name_skjaldbaka": {
-   "key": "e672a6cd7731d14faf01c841e189ccb4f038f29d4e6facf27adf4b7155cec59d",
-   "mp3": "7357a2aeb3068e43abd5094ed8abece20bdd82733591b30f0727b1d64e186d68",
+   "key": "570965c274392e9186d5a8a2afda678c890573d996112e8d7881673ebffcb3be",
+   "mp3": "47ade5ac72b66dfc12504f0854e29d217285a207a64c1dd4fc31e1a6968164c8",
    "duration": 1.53,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_name_snigill": {
-   "key": "6b675f66508c1d1da6d78d910efc851804724dcb9e376cefb0e2a6933f032714",
-   "mp3": "700a1db805fa737db2998a2dba7cdd67ec887924cf8de2364f920b12bf64c105",
-   "duration": 1.61,
+   "key": "f5e5256f0c75924af1a27cb7386c3374c7cad992329b89687fca00c99bc6c1e0",
+   "mp3": "ae295fb319cca29644cdb23767a985536d94059c864706afcfe965ef23c83563",
+   "duration": 1.37,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_egill_name_vatnalaesingi": {
@@ -2438,15 +2438,15 @@
    "model": "eleven_v4"
   },
   "veiddu/veiddu_mosi_tie": {
-   "key": "7c09d578adc311e82705160681dcf78735c5eb0258d6c7aa7bf5415ac5011f13",
-   "mp3": "f2cd889c00da90fa6b63497699215355d6036de4446e98afa7095b8a48da05e8",
+   "key": "22de0bb438c56aaf8efbb1d7aa90f2d13badb48e2075301119052def44d4e448",
+   "mp3": "46b2f8c3f54a57230ae883479fbc71e59e74ee01b00b4d01f0859a0f9be2a3c7",
    "duration": 2.97,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_mosi_why_fish": {
-   "key": "962e15b3fcbf1932b6c9d44be18b70de3c765916a62c0776ea550b6fcd2d4bee",
-   "mp3": "add873bae7cbba204fdf4d6413e47d07db9dd08eb5d0d5794b028ab43a3673a0",
-   "duration": 3.05,
+   "key": "9419fc58479d07ffe6f5d6794f95c74e4bb5c93bf7cc5467eb3d7606ca4ed3e4",
+   "mp3": "5e3bd278551522839e5f2ed9cff78a1f92dcc1ba8c3aa39c964a5f2494366419",
+   "duration": 2.89,
    "model": "eleven_v4"
   },
   "veiddu/veiddu_mosi_why_guess": {

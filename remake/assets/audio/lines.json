@@ -3332,7 +3332,7 @@
  "veiddu_egill_name_skjaldbaka": {
   "src": "assets/audio/veiddu/veiddu_egill_name_skjaldbaka.mp3",
   "duration": 1.53,
-  "mouth": "00000ffeb0000d86009830000000000"
+  "mouth": "0000ffd800000f90036000000000000"
  },
  "veiddu_egill_name_drekafluga": {
   "src": "assets/audio/veiddu/veiddu_egill_name_drekafluga.mp3",
@@ -3351,13 +3351,13 @@
  },
  "veiddu_egill_name_salamandra": {
   "src": "assets/audio/veiddu/veiddu_egill_name_salamandra.mp3",
-  "duration": 1.29,
-  "mouth": "000cddfcffdc86332000000000"
+  "duration": 1.45,
+  "mouth": "007ffd9d748500000000000000000"
  },
  "veiddu_egill_name_snigill": {
   "src": "assets/audio/veiddu/veiddu_egill_name_snigill.mp3",
-  "duration": 1.61,
-  "mouth": "0000006fffeb500004000000000000000"
+  "duration": 1.37,
+  "mouth": "0000ceffd97a4000000000000000"
  },
  "veiddu_egill_name_fiskur_raudur": {
   "src": "assets/audio/veiddu/veiddu_egill_name_fiskur_raudur.mp3",
@@ -3421,8 +3421,8 @@
  },
  "veiddu_egill_ask_snigill": {
   "src": "assets/audio/veiddu/veiddu_egill_ask_snigill.mp3",
-  "duration": 1.69,
-  "mouth": "9f30006c00009bfb000035000000000000"
+  "duration": 1.61,
+  "mouth": "8f6000c4000dff4776660000000000000"
  },
  "veiddu_egill_ask_fiskur_raudur": {
   "src": "assets/audio/veiddu/veiddu_egill_ask_fiskur_raudur.mp3",
@@ -3656,8 +3656,8 @@
  },
  "veiddu_mosi_why_fish": {
   "src": "assets/audio/veiddu/veiddu_mosi_why_fish.mp3",
-  "duration": 3.05,
-  "mouth": "057ffe504dee5cfecefc64000000000499ed0004d950acb93000000000000"
+  "duration": 2.89,
+  "mouth": "07fffc00fed08df009ba630000000005cf900d7306cec8000000000000"
  },
  "veiddu_mosi_give_hint": {
   "src": "assets/audio/veiddu/veiddu_mosi_give_hint.mp3",
@@ -3687,7 +3687,7 @@
  "veiddu_mosi_tie": {
   "src": "assets/audio/veiddu/veiddu_mosi_tie.mp3",
   "duration": 2.97,
-  "mouth": "5abfc0000df97a8400000007dfa00decaadcb6009fdedb85000000000000"
+  "mouth": "9bfd0004ff6bcb3000000009dfd400eeedffeb00dedfedb6500000000000"
  },
  "veiddu_tut_pairs": {
   "src": "assets/audio/veiddu/veiddu_tut_pairs.mp3",
