@@ -122,7 +122,7 @@ export function createUpperGorge({ scene, models, upperModels, glow }) {
     const [z0, y0] = middleAt(Math.min(x, RIM.to[0])), reach = x > 9.5 && x < RIM.from[0] ? 1.5 : 0;
     for (const [rise, scale, sink] of [[2.2, range(2.4, 3.1), .5], [6.2, range(3.1, 4), .55]]) {
       let z = null; for (let k = 0; k < 90 && z === null; k++) if (groundAt(x, z0 + reach + k * .5) >= y0 + rise) z = z0 + reach + k * .5;
-      if (z !== null) piece(ALL, x + range(-1.2, 1.2), z + .5, groundAt(x, z), scale, sink);
+      const px = x + range(-1.2, 1.2); if (z !== null && Math.hypot(px - 23.4, z - 12.1) > 7) piece(ALL, px, z + .5, groundAt(px, z), scale, sink);
     }
   }
   // the back of the exit floor: a wall of pieces behind the tunnel, two rows

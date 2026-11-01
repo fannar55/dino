@@ -22,7 +22,7 @@ import * as THREE from 'three';
  *
  * The tube is ROPE_TRIANGLES triangles (under the plan's 1,000).
  */
-const SEGMENTS = 72, SIDES = 7, RADIUS = .058;
+const SEGMENTS = 72, SIDES = 7, RADIUS = .085;
 export const ROPE_TRIANGLES = SEGMENTS * SIDES * 2;
 const url = new URL('../../../../assets/memory/bord2/rope-color.webp', import.meta.url).href;
 const smooth = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -88,8 +88,8 @@ export function createRope(stage, { from, to, sag = 1.3, parent, groundAt = () =
         const nx = n.x * c + binormal.x * s, ny = n.y * c + binormal.y * s, nz = n.z * c + binormal.z * s;
         position[k * 3] = samples[i].x + nx * RADIUS; position[k * 3 + 1] = samples[i].y + ny * RADIUS; position[k * 3 + 2] = samples[i].z + nz * RADIUS;
         normal[k * 3] = nx; normal[k * 3 + 1] = ny; normal[k * 3 + 2] = nz;
-        // the strands run along the rope: the texture repeats once for every .85 metres, twice round
-        uv[k * 2] = along / .85; uv[k * 2 + 1] = j / SIDES * 2;
+        // the strands run along the rope: the texture repeats once for every 1.2 metres, twice round
+        uv[k * 2] = along / 1.2; uv[k * 2 + 1] = j / SIDES * 2;
       }
     }
     geometry.attributes.position.needsUpdate = true; geometry.attributes.normal.needsUpdate = true; geometry.attributes.uv.needsUpdate = true;

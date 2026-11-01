@@ -187,7 +187,7 @@ export function createUpperMover({ stage, level, upper: U, rope, plates, events,
     const k = Math.max(1, Math.min(wayFrame.length - 1, Math.round(fraction * (wayFrame.length - 1)))), [x, z, y] = wayFrame[k];
     return [x, y + 2.7, z + 1.2];
   };
-  const circle = angle => { const c = U.tree.base; return [c.x + Math.cos(angle) * WRAP.radius, U.tree.base.y + 2.2, c.z + Math.sin(angle) * WRAP.radius]; };
+  const circle = angle => { const c = U.tree.base; return [c.x + Math.cos(angle) * WRAP.radius, U.tree.base.y + 1.55, c.z + Math.sin(angle) * WRAP.radius]; };
   function startFly(beats) {
     walkers.cancelAll(); walkers.resetClock();
     action = { id: 'fly', species: 'pteranodon', phase: 'approach', age: 0, beats: Math.max(0, Math.floor(beats) || 0), given: 0, queue: 0, done: 0, legAge: 0, lift: 0, trail: [], trailAge: 0, b0: null, tight: 0 };
