@@ -13,19 +13,41 @@ import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
 import { createSections, createBuildQueue, finish } from './sections.js';
 import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './terrain.js';
 import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.js';
-import { bankSteps } from './banks.js';
+import { bankSteps, plantSteps } from './banks.js';
+import { groundPaint, createGroundMaterial, createPlantMaterials } from './look.js';
+import { createSpeciesLibrary } from '../forest/species.js';
+import { cullBatches } from '../forest/batch.js';
+import { createNoiseTexture, createLeafTexture } from '../forest/materials.js';
+import { createWaterMaterial } from '../props/water.js';
+import { FEN } from '../forest/config.js';
 
 export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
+export const DOWNWASH = 8; // metres round her body within which the reeds and the plants bend away from her
 
-/** Build Árdalurinn. Options: grey (the stand-ins; the real look comes in chunk 2), seed, route, budget(), now() (the build slices). */
+/**
+ * Build Árdalurinn. Options: grey (the stand-ins of chunk 1; otherwise the real look: look.js, the forest's plants, the game's
+ * water), seed, route, budget(), now() (the build slices).
+ */
 export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now() } = {}) {
   const terrain = createTerrain(route, { seed });
   const index = createRouteIndex(route);
   const sections = createSections(route);
   const lambert = colour => new THREE.MeshLambertMaterial({ color: colour });
-  const materials = {
+  // the real look's shared things: the noise and leaf textures, the plants' materials, one species library, the river's water
+  const real = grey ? null : (() => {
+    const noise = createNoiseTexture(seed);
+    const leaf = createLeafTexture(seed);
+    return {
+      noise, leaf, library: createSpeciesLibrary(seed), paint: groundPaint(terrain, route),
+      plants: createPlantMaterials(world, { noise, leaf }), water: createWaterMaterial(world, { seed, river: true, noise }),
+    };
+  })();
+  const materials = grey ? {
     ground: lambert(GREY.ground), water: lambert(GREY.water), rock: lambert(GREY.rock), plant: lambert(GREY.plant),
     falls: new THREE.MeshLambertMaterial({ color: GREY.falls, side: THREE.DoubleSide }), snag: lambert(GREY.snag), mark: lambert(GREY.mark), far: lambert(GREY.far),
+  } : {
+    ground: createGroundMaterial(real.noise), water: real.water.material,
+    falls: new THREE.MeshLambertMaterial({ color: '#dfe9ec', side: THREE.DoubleSide }), snag: lambert(FEN.snag), mark: lambert(GREY.mark), far: lambert('#6f8a80'),
   };
   const group = new THREE.Group();
   group.name = 'Árdalur';
@@ -78,17 +100,22 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   }
 
   const parts = sections.list.map(() => null); // each section's group once built
+  const plantMeshes = sections.list.map(() => []); // each section's merged plant meshes (the real look), culled as the camera moves
   const stats = { late: [], built: [], sections: parts };
   const queue = createBuildQueue({ budget, now });
   function* build(i) {
-    const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground);
-    const banks = yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials });
+    const ground = yield* groundSteps(terrain, index, sections.list[i], materials.ground, real?.paint);
+    const banks = grey
+      ? yield* bankSteps({ terrain, index, route, ground, seed: seed * 1000 + i, materials })
+      : yield* plantSteps({ terrain, index, route, ground, seed: seed * 1000 + i, library: real.library, materials: real.plants });
     return { ground, banks };
   }
   const done = i => ({ ground, banks }) => {
     const part = new THREE.Group();
     part.name = `Árdalur section ${i}`;
     part.add(ground.mesh, banks.group);
+    part.userData.placements = banks.placements ?? [];
+    plantMeshes[i] = banks.meshes ?? [];
     part.visible = false;
     parts[i] = part;
     group.add(part);
@@ -102,7 +129,8 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
   for (const i of sections.list.map(s => s.index).filter(i => !first.has(i)).sort(order)) queue.add(i, build(i), done(i));
 
   let lastVisible = [];
-  function update() {
+  const downwash = real ? real.plants.downwash : new THREE.Vector4();
+  function update(dt, time = 0) {
     const u = world.flightU ?? 0;
     const camera = world.camera?.position;
     const near = camera ? nearTo(camera.x, camera.z) : [];
@@ -114,11 +142,23 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
     }
     lastVisible = sections.update(u, near);
     parts.forEach((part, i) => { if (part) part.visible = sections.list[i].visible; });
+    if (real) {
+      // the plants in view, at the detail their distance calls for (world/forest/batch.js); her downwash; the water's clock
+      world.camera.updateMatrixWorld();
+      for (const i of lastVisible) cullBatches(plantMeshes[i], world.camera);
+      const her = world.flightU === null || world.flightU === undefined ? null : world.flightPoint ?? route.pointAt(world.flightU);
+      if (her) downwash.set(her.x, her.y, her.z, DOWNWASH);
+      else downwash.set(0, 0, 0, 0);
+      real.water.uniforms.uTime.value = time;
+      if (world.lighting?.direction) real.water.uniforms.uSunDir.value.copy(world.lighting.direction);
+    }
     queue.tick();
   }
 
   return {
     group, route, terrain, sections, stats, materials, grey,
+    /** Her downwash as the plants see it: her body (x, y, z) and how far round it they bend (w; 0 when she is not flying). */
+    downwash,
     heightAt: (x, z) => terrain.heightAt(x, z),
     get visible() { return lastVisible; },
     get building() { return queue.current; },
@@ -130,6 +170,11 @@ export function createArdalur(world, { grey = false, seed = 4, route = createRou
       group.removeFromParent();
       group.traverse(o => { if (o.geometry) o.geometry.dispose(); });
       for (const material of Object.values(materials)) material.dispose();
+      if (real) {
+        real.plants.dispose();
+        real.water.dispose();
+        real.leaf.dispose();
+      }
     },
   };
 }

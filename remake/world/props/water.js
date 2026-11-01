@@ -169,6 +169,9 @@ attribute vec2 aFlow; // m/s the water drifts
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef RIVER_WATER
+varying float vWhite;
+#endif
 #ifdef PRINT_WATER
 attribute vec2 aState; // a footprint's water: x 0 to 1 still and gold (counted), y 0 to 1 glimmering (the next to count)
 attribute vec2 aLocal; // where in the print's own frame (metres along it, to its right): its shore is drawn from its shape
@@ -182,6 +185,9 @@ void main() {
   vWorld = world.xyz;
   vWater = aWater.xy;
   vFlow = aFlow;
+  #ifdef RIVER_WATER
+  vWhite = aWater.z;
+  #endif
   #ifdef PRINT_WATER
   vState = aState;
   vLocal = aLocal;
@@ -206,6 +212,9 @@ uniform float uFade;
 varying vec3 vWorld;
 varying vec2 vWater;
 varying vec2 vFlow;
+#ifdef RIVER_WATER
+uniform vec3 uFoam;
+#endif
 #ifdef PRINT_WATER
 uniform vec3 uGold;
 uniform vec4 uBlobs[ PRINT_BLOBS ]; // the print's shape, its ellipses: x, z, radius along, radius across (mud-prints.js)
@@ -233,13 +242,29 @@ float printDistance( vec2 p ) {
 #endif
 #include <common>
 #include <fog_pars_fragment>
-float waterHeight( vec2 p ) {
-  // two layers of soft noise drifting against each other, and with the channel's flow
-  vec2 drift = vFlow * uTime;
+float waterLayers( vec2 p, vec2 drift ) {
+  // two layers of soft noise drifting against each other, and with the flow
   float a = texture2D( uNoise, ( p - drift ) * 0.19 + vec2( uTime * 0.012, uTime * 0.008 ) ).g;
   float b = texture2D( uNoise, ( p - drift * 1.4 ) * 0.43 - vec2( uTime * 0.019, -uTime * 0.014 ) ).b;
   return a * 0.6 + b * 0.4;
 }
+#ifdef RIVER_WATER
+// A river's flow changes along it (lazy, then rapids), so its pattern cannot simply drift by flow times the clock: where the flow
+// changes it would stretch more every second. Instead it drifts for RIVER_PERIOD seconds and starts again, in two phases half a
+// period apart, each faded out as it jumps back, so the water runs at its own speed everywhere and never stretches.
+uniform float uRiverPeriod;
+varying float vWhite;
+float waterHeight( vec2 p ) {
+  float k0 = fract( uTime / uRiverPeriod );
+  float k1 = fract( uTime / uRiverPeriod + 0.5 );
+  float w = 1.0 - abs( 1.0 - 2.0 * k0 );
+  return mix( waterLayers( p + vec2( 3.7, 1.9 ), vFlow * ( k1 * uRiverPeriod ) ), waterLayers( p, vFlow * ( k0 * uRiverPeriod ) ), w );
+}
+#else
+float waterHeight( vec2 p ) {
+  return waterLayers( p, vFlow * uTime );
+}
+#endif
 void main() {
   vec2 p = vWorld.xz;
   // the small waves fade out with distance, so far water lies smooth and reflects the sky
@@ -270,7 +295,12 @@ void main() {
       tilt += ( d / max( dist, 1e-3 ) ) * ( -x * w );
     }
   }
-  vec3 n = normalize( vec3( -grad.x * 0.07 * detail - tilt.x * 0.35, 1.0, -grad.y * 0.07 * detail - tilt.y * 0.35 ) );
+  #ifdef RIVER_WATER
+  float bump = 0.07 * detail + 0.22 * vWhite; // white water is rough, near or far
+  #else
+  float bump = 0.07 * detail;
+  #endif
+  vec3 n = normalize( vec3( -grad.x * bump - tilt.x * 0.35, 1.0, -grad.y * bump - tilt.y * 0.35 ) );
   vec3 v = normalize( cameraPosition - vWorld );
   float facing = max( dot( n, v ), 0.0 );
   float fresnel = 0.02 + 0.98 * pow( 1.0 - facing, 5.0 ); // Schlick
@@ -295,6 +325,13 @@ void main() {
   // the edge fades over the last metres inside it; shallow water is clearer
   float shore = smoothstep( 0.0, uFade, -vWater.x );
   float alpha = shore * clamp( mix( 0.8, 0.95, deep ) + fresnel * 0.3 + glint + glitter + crest * 0.2, 0.0, 1.0 );
+  #ifdef RIVER_WATER
+  // white water: foam on the crests of the running pattern, more of it the whiter the river, and a pale churn under it
+  float foam = vWhite * smoothstep( 0.68 - 0.3 * vWhite, 0.8 - 0.14 * vWhite, h0 );
+  col = mix( col, mix( col, uFoam, 0.35 ), vWhite * 0.6 );
+  col = mix( col, uFoam, foam * 0.9 );
+  alpha = max( alpha, shore * foam );
+  #endif
   #ifdef PRINT_WATER
   // A footprint's water: a few centimetres over a mud floor. Its shore is the print's own shape, per pixel. Looking down it is
   // clear (the dark floor, lit or in shade as the mud is, shows through it); looking along it, it shows the sky. Counted, it lies
@@ -592,15 +629,20 @@ export function* createWaterSteps(world, spec, heightAt, { spots = [], seed = 12
   };
 }
 
+const RIVER_PERIOD = 4; // s a river's pattern drifts before it starts again (createWaterMaterial: river)
+const FOAM = '#eef3ec'; // a river's white water
+
 /**
  * The surface's material: teal in the deep, the bed through the shallows, the look's sky by a fresnel, the sun's sheen and glitter,
  * and RIPPLES rings in `uniforms.uRipples` ([x, z, the time it began, strength]; strength 0 is none), on the clock `uniforms.uTime`.
  * A geometry drawn with it carries aWater ([distance to the shore, negative inside, depth, 0]) and aFlow ([m/s, m/s]), and with
  * `prints` aState ([still and gold, glimmer], 0 to 1) and aLocal (the point in the print's frame): a footprint's water, its shore
  * the print's shape (`blobs` ellipses in `uniforms.uBlobs`, turned by `uBlobTurn`, fused over `uBlend` m), clear over its mud floor
- * (`bed`). `fade` is the metres it fades out over inside its shore.
+ * (`bed`). `fade` is the metres it fades out over inside its shore. With `river` it is a river's water (chapter 4's Árdalur): its
+ * pattern runs with aFlow in two phases RIVER_PERIOD seconds long, so a flow that changes along it never stretches it, and aWater's
+ * third value is how white it is (0 to 1): rougher, paler, foam on its crests.
  */
-export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed, noise: given = null } = {}) {
+export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = false, blobs = 4, bed = FEN.waterBed, noise: given = null, river = false } = {}) {
   const noise = given ?? createNoiseTexture((seed ^ 0x77a7e) >>> 0); // `noise`: the same texture, made already
   const sunDir = world.lighting?.direction?.clone?.() ?? new THREE.Vector3(0, 1, 0);
   const uniforms = {
@@ -622,13 +664,15 @@ export function createWaterMaterial(world, { seed = 12, fade = FADE, prints = fa
       uBlobTurn: { value: Array.from({ length: blobs }, () => new THREE.Vector2(1, 0)) },
       uBlend: { value: 0.001 },
     } : {}),
+    ...(river ? { uRiverPeriod: { value: RIVER_PERIOD }, uFoam: { value: new THREE.Color(FOAM) } } : {}),
   };
   const material = new THREE.ShaderMaterial({
     vertexShader: SURFACE_VERT, fragmentShader: SURFACE_FRAG, uniforms,
     fog: true, transparent: true, depthWrite: false,
   });
-  material.name = prints ? 'fen-water prints' : 'fen-water';
+  material.name = prints ? 'fen-water prints' : river ? 'river-water' : 'fen-water';
   if (prints) material.defines = { PRINT_WATER: '', PRINT_BLOBS: blobs };
+  if (river) material.defines = { RIVER_WATER: '' };
   return {
     material, uniforms,
     dispose() { material.dispose(); noise.dispose(); },

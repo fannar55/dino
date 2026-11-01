@@ -9,9 +9,33 @@ import { createRoute, BEATS, LEAP, FALLS } from '../chapters/kafli4-route.js';
 import { createArdalur } from '../world/ardalur/index.js';
 import { createSections } from '../world/ardalur/sections.js';
 import { createLocations } from '../engine/locations.js';
+import { RAPIDS, flowAt, whiteAt } from '../world/ardalur/river.js';
+import { createWind } from '../engine/wind.js';
+import { PRESETS } from '../engine/quality.js';
+import { pickLook } from '../engine/looks.js';
+import { sunDirection } from '../engine/lighting.js';
 
 const route = createRoute();
 const DT = 1 / 30;
+
+/** A world in Node for the real look (as tests/fen.test.mjs makes one): wind, a look, a sun and a quality preset, no renderer. */
+function litWorld() {
+  const look = pickLook('lateMorning');
+  return {
+    scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(40, 1.6, 0.1, 1200), q: PRESETS.tablet, look,
+    lighting: { direction: sunDirection(look), focusRadius: 10 }, wind: createWind(), actors: new Map(), params: new URLSearchParams(''),
+  };
+}
+let lit = null;
+/** The real valley, built once for the tests that only look at it. */
+function litValley() {
+  if (!lit) {
+    lit = createArdalur(litWorld(), { grey: false, route });
+    lit.buildAll();
+  }
+  return lit;
+}
+const trianglesOf = model => (model.solid ? model.solid.triangles : 0) + (model.thin ? model.thin.triangles : 0);
 
 test('sections cover the route and only near ones are visible', () => {
   const sections = createSections(route);
@@ -151,6 +175,124 @@ test('each section stays within the forest budget', () => {
     assert.ok(triangles <= 150000 && calls <= 60, `${part.name}: ${triangles} triangles, ${calls} calls`);
     assert.ok(triangles > 1000, `${part.name} has ground`);
   }
+  place.dispose();
+});
+
+test('the real valley: each section stays within the forest budget, its plants at the finest level they are drawn at', () => {
+  const place = litValley();
+  for (const part of place.stats.sections) {
+    let calls = 0;
+    let triangles = 0;
+    part.traverse(o => {
+      if (!o.isMesh) return;
+      calls++;
+      if (!o.userData.cull) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+    });
+    const { placements } = part.userData;
+    assert.ok(placements.length > 50, `${part.name}: ${placements.length} plants`); // the gorge's walls leave least room
+    for (const p of placements) triangles += trianglesOf(p.models[0].model);
+    assert.ok(triangles <= 150000 && calls <= 60, `${part.name}: ${Math.round(triangles)} triangles, ${calls} calls`);
+  }
+  // the Fen's plants round the snag, the forest's up the valley, the reed at the water's edge
+  const names = new Set(place.stats.sections.flatMap(part => part.userData.placements.map(p => p.name)));
+  for (const name of ['horsetailReed', 'swampConifer', 'broadleaf', 'araucaria', 'treeFern', 'cycad', 'bush', 'rock', 'waterLily']) {
+    assert.ok(names.has(name), `the valley grows ${name}`);
+  }
+});
+
+test('the river runs: lazy below the rapids, white water only from where they begin to the falls, lilies in the lazy reach', () => {
+  const place = litValley();
+  const river = place.group.getObjectByName('Árdalur river');
+  const { position, aFlow, aWater } = river.geometry.attributes;
+  assert.ok(aFlow && aWater, 'the river carries the water\'s flow and shore');
+  const fallsD = route.river.falls;
+  let white = 0;
+  for (let i = 0; i < position.count; i++) {
+    const { d } = route.river.nearest(position.getX(i), position.getZ(i));
+    const speed = Math.hypot(aFlow.getX(i), aFlow.getY(i));
+    const dir = route.river.at(d).dir;
+    assert.ok(aFlow.getX(i) * dir[0] + aFlow.getY(i) * dir[1] <= 0, `d=${d.toFixed(0)}: the water runs downstream`);
+    if (d < RAPIDS.from - 5) {
+      assert.ok(Math.abs(speed - 0.4) < 0.05, `d=${d.toFixed(0)}: the lazy reach drifts at ${speed.toFixed(2)} m/s`);
+      assert.equal(aWater.getZ(i), 0, `d=${d.toFixed(0)}: no white water in the lazy reach`);
+    }
+    if (d > fallsD + 1) assert.equal(aWater.getZ(i), 0, `d=${d.toFixed(0)}: no white water above the falls`);
+    if (d > route.gorge.from + 5 && d < route.gorge.to - 5) {
+      assert.ok(speed > 2.4, `d=${d.toFixed(0)}: the gorge's rapids run at ${speed.toFixed(2)} m/s`);
+      assert.ok(aWater.getZ(i) > 0.6, `d=${d.toFixed(0)}: white water in the gorge`);
+      white++;
+    }
+  }
+  assert.ok(white > 20);
+  assert.equal(whiteAt(route, RAPIDS.from - 1), 0);
+  assert.ok(whiteAt(route, route.gorge.from + 10) > 0.6);
+  assert.ok(Math.abs(flowAt(route, 100) - 0.4) < 1e-6);
+  assert.ok(Math.abs(flowAt(route, 1000) - 2.5) < 1e-6);
+  // the lilies float on the lazy reach, near its banks, and round the far pool (calm water both)
+  const lilies = place.stats.sections.flatMap(part => part.userData.placements.filter(p => p.name === 'waterLily'));
+  const inPool = p => Math.hypot(p.x - route.pool.center[0], p.z - route.pool.center[1]) < route.pool.radius - 1;
+  assert.ok(lilies.filter(p => !inPool(p)).length > 20, `${lilies.length} lilies`);
+  assert.ok(lilies.some(inPool), 'lilies on the far pool');
+  for (const p of lilies) {
+    if (inPool(p)) {
+      assert.ok(Math.abs(p.y - route.pool.level) < 0.05, 'a lily floats at the pool\'s level');
+      continue;
+    }
+    const n = route.river.nearest(p.x, p.z);
+    const at = route.river.at(n.d);
+    assert.ok(n.d < RAPIDS.from, `a lily at d=${n.d.toFixed(0)} is in the lazy reach`);
+    assert.ok(n.dist < at.half - 0.5, 'a lily is on the water');
+    assert.ok(Math.abs(p.y - at.level) < 0.05, `a lily floats at the water's level (${(p.y - at.level).toFixed(3)})`);
+  }
+});
+
+test('the plants keep out of her flight lane: none within 3 m of her path, at any steer', () => {
+  const place = litValley();
+  const plants = place.stats.sections.flatMap(part => part.userData.placements);
+  // each plant as an upright cylinder: its crown's reach round its foot, from its foot to its top
+  const bodies = plants.map(p => {
+    const m = p.models[0].model;
+    const crown = m.crown ? Math.hypot(m.crown.c[0], m.crown.c[2]) + m.crown.r : 0;
+    return { x: p.x, z: p.z, y0: p.y, y1: p.y + m.height * p.scale, r: Math.max(m.radius, crown) * p.scale, name: p.name };
+  });
+  const side = new THREE.Vector3();
+  for (let t = LEAP + 1.5; t <= BEATS.END; t += 0.25) {
+    const u = route.progressAt(t);
+    const p = route.pointAt(u);
+    const tan = route.tangentAt(u);
+    side.set(-tan.z, 0, tan.x).normalize();
+    const lane = route.lanes.find(l => u >= l.from && u <= l.to);
+    const reach = lane ? [-lane.half, -lane.half / 2, 0, lane.half / 2, lane.half] : [0];
+    for (const k of reach) {
+      const x = p.x + side.x * k;
+      const z = p.z + side.z * k;
+      for (const b of bodies) {
+        const across = Math.hypot(b.x - x, b.z - z) - b.r;
+        if (across > 3) continue;
+        const up = Math.max(0, b.y0 - p.y, p.y - b.y1);
+        assert.ok(Math.hypot(Math.max(0, across), up) >= 3, `t=${t} aside ${k}: a ${b.name} ${Math.hypot(Math.max(0, across), up).toFixed(2)} m from her`);
+      }
+    }
+  }
+  assert.ok(bodies.length > 1000, `${bodies.length} plants`);
+});
+
+test('the reeds bend under her: the plants\' downwash follows her, 8 m round', () => {
+  const world = litWorld();
+  const place = createArdalur(world, { grey: false, route });
+  world.flightU = route.progressAt(30);
+  world.flightPoint = route.pointAt(world.flightU);
+  world.camera.position.copy(world.flightPoint).add(new THREE.Vector3(0, 3, 8));
+  world.camera.lookAt(world.flightPoint);
+  world.camera.updateMatrixWorld();
+  place.update(DT, 30);
+  const wash = place.downwash;
+  assert.deepEqual([wash.x, wash.y, wash.z, wash.w], [world.flightPoint.x, world.flightPoint.y, world.flightPoint.z, 8]);
+  // no flight: nothing bends
+  world.flightU = null;
+  world.flightPoint = null;
+  place.update(DT, 31);
+  assert.equal(place.downwash.w, 0);
   place.dispose();
 });
 

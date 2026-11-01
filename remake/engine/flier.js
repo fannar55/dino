@@ -205,6 +205,7 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
       .multiply(q.setFromAxisAngle(X, rad(state.bank)));
     root.quaternion.copy(pose.quaternion);
     root.position.copy(hips).applyQuaternion(root.quaternion).negate().add(pose.position);
+    if (world) world.flightPoint = pose.position; // her body, where the valley's plants bend away from (world/ardalur: her downwash)
     // On the snag her feet are on its top, whatever her size; the difference goes as she leaps.
     const perched = 1 - smooth((t - LEAP) / 1.5);
     if (perched > 0) root.position.y += (route.tree[1] - (route.pointAt(0, a).y - hips.y)) * perched;
@@ -253,6 +254,7 @@ export function createFlier(actor, route, { world = null, reduced = false } = {}
     stop() {
       actor.control(null);
       if (world && world.flightU === state.u) world.flightU = null;
+      if (world && world.flightPoint === pose.position) world.flightPoint = null;
     },
   };
   return api;

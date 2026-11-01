@@ -109,9 +109,10 @@ export function createRouteIndex(route) {
 
 /**
  * The steps that build one section's ground (a generator for the build queue): the cells it owns, their heights, and a mesh with
- * normals taken across the grid (so they match the next section's at the seam). Returns { mesh, cells, bounds }.
+ * normals taken across the grid (so they match the next section's at the seam). With `paint(x, z, y, ny)` -> [r, g, b, rock] (the
+ * real look, look.js: groundPaint) each vertex gets its colour and its share of bare rock (aRock). Returns { mesh, cells, bounds }.
  */
-export function* groundSteps(terrain, index, { from, to }, material) {
+export function* groundSteps(terrain, index, { from, to }, material, paint = null) {
   const { points } = index;
   const i0 = Math.floor(from * index.count);
   const i1 = Math.min(index.count + 1, Math.ceil(to * index.count) + (to >= 1 ? 1 : 0));
@@ -156,6 +157,8 @@ export function* groundSteps(terrain, index, { from, to }, material) {
   const vertexOf = new Int32Array(W * H).fill(-1);
   const positions = [];
   const normals = [];
+  const colours = [];
+  const rocks = [];
   const at = (i, j) => heights[j * W + i];
   const indices = [];
   const corner = (i, j) => {
@@ -170,6 +173,11 @@ export function* groundSteps(terrain, index, { from, to }, material) {
     vertexOf[id] = positions.length / 3;
     positions.push((gx0 + i) * GRID, h, (gz0 + j) * GRID);
     normals.push(n.x, n.y, n.z);
+    if (paint) {
+      const [r, g, b, rock] = paint((gx0 + i) * GRID, (gz0 + j) * GRID, h, n.y);
+      colours.push(r, g, b);
+      rocks.push(rock);
+    }
     return vertexOf[id];
   };
   for (let j = 0; j < H - 1; j++) {
@@ -181,10 +189,15 @@ export function* groundSteps(terrain, index, { from, to }, material) {
       const d = corner(i + 1, j + 1);
       indices.push(a, c, b, b, c, d);
     }
+    if (paint && j % 3 === 2) yield 'paint'; // painting a vertex asks where it is: a few rows a step
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  if (paint) {
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+    geometry.setAttribute('aRock', new THREE.Float32BufferAttribute(rocks, 1));
+  }
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
