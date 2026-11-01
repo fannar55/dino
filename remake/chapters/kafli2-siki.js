@@ -285,13 +285,13 @@ export const SIKI_SHOTS = {
   siki_star: { position: eye(3.5, -10.5, 0.9), target: eye(13.5, 1.5, 6.2), fov: 48 },
   // The ferry, moving shots in Mosi's frame (x ahead of him, y up from the water he wades, z to his right: toward her): he is on
   // the ground whatever she does, and the shots look at her wherever she is. Mosi wades the near bank, 3 to 4.5 m from her.
-  // Side by side: from the dry bank, 22 m to Mosi's left and 10 m behind him, 3 m up, on a 36 degree lens, looking across him at her: the
+  // Side by side: from the dry bank, 22 m to Mosi's left and 10 m behind him, 4.5 m up (3 m was 0.5 to 1 ms dearer: more of the water), on a 36 degree lens, looking across him at her: the
   // two of them wade and swim along together, his flank in front and her sail, her back and Egill beyond, and her tail swinging at him when it
   // splashes him. (It was across the channel, on her far side, in the reed: from there the picture was reed and a leaf in the lens. The bank
   // is clear grass. Nearer, 10 m, the two of them filled the picture and the far bank's reed with it: 300k triangles on a tablet in the
   // middle of the swim, and the swamp conifers on the bank, 12 m tall, stand over a camera nearer than 5 m to them: only out here is the camera
   // under no crown for the whole of the splash; from here 210 to 245k as the tail splashes, which is the stretch of the ferry it is used for.)
-  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [-10, 3.0, -22], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0.5, 2.2, 2.2], local: true }, fov: 36 },
+  ferry_side: { position: { actor: 'mosi', part: 'feet', offset: [-10, 4.5, -22], local: true }, target: { actor: 'mosi', part: 'feet', offset: [0.5, 2.0, 2.2], local: true }, fov: 36 },
   // From the front, over the water, 9 m ahead of Mosi, 8 m out and 2 m up (clear of the swamp conifers on the bank all through the swim): her head, Egill on her back with his hands on the sail's front edge and the
   // sail over him, Mosi beside her.
   ferry_front: { position: { actor: 'mosi', part: 'feet', offset: [9, 2.0, 8.0], local: true }, target: { actor: 'uggedla', offset: [1.5, 2.2, 0] }, fov: 46 },
