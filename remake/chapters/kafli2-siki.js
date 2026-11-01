@@ -275,8 +275,10 @@ export const SIKI_SHOTS = {
   siki_flooded: { position: eye(10.5, -1.2, 1.6), target: eye(2.5, 0.0, 1.2), fov: 48 },
   // Over Mosi's right shoulder, across the channel to the reed bed, wide enough for her whole sail.
   siki_sail: { position: eye(-9, -7.5, 2.3), target: eye(14, 1.5, 3.6), fov: 48 },
-  // Still and wide: the whole stretch of channel the fish jump in, Mosi on the bank at the left and her reed beyond.
-  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(8.2, -1.6, 1.0), fov: 58 },
+  // Still, from the bank behind Mosi and 7 m up, looking down on the stretch of channel the fish jump in (the open water in front of her, with
+  // the water behind a fish, not the reed): Mosi and Egill on the bank at the left, her in the reed beyond. The fish are 50 to 70 px to the
+  // metre on a 1280x800 screen, 32 to 44 on a tablet held upright (the director keeps the 16:10 width): a tap target is 2.2 m in radius.
+  siki_fishing: { position: eye(-4, -9, 7.0), target: eye(6.8, -1.2, 1.0), fov: 48 },
   // Mosi and Uggeðla face to face across the water.
   siki_two_shot: { position: eye(3, -15, 1.9), target: eye(9, 3, 2.3), fov: 44 },
   // Low, looking up at her sail against the sky, where the star rises from its top.

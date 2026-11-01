@@ -3,8 +3,9 @@
 // (kafli3.js). Scenes 1 and 2 of the old chapter are kept as they were (docs/superpowers/specs/2026-10-21-kafli-2-bod-til-thorsedlu-
 // design.md): from Kambeðla's fern glade Mosi and Egill ride out of the forest and down the Fenjaslóð, and count Þórseðla's ten
 // water-filled footprints in the mud, one to ten. The trail leads on to Síkið, a channel flooded over its end, where Uggeðla lies
-// hidden in the reed. The scenes there (the sail, the fishing, her star and the ferry) are built in the next tasks of the plan; until
-// then the chapter ends in Síkið: Mosi walks down the path to the water and the picture fades to black and the script ends.
+// hidden in the reed. Of the scenes there the fishing (scene 4, kafli2-fishing.js) is built; the others (the sail, her star and the ferry)
+// are built in the next task of the plan, so until then the chapter ends in Síkið: Mosi walks down the path to the water, Egill helps
+// Uggeðla to five fish, and the picture fades to black and the script ends.
 //
 // Three places (engine/locations.js), in metres at real size (STYLE.md section 3): Mosi 8.5 m nose to tail, Kambeðla 7 m, Uggeðla
 // 14 m, Egill 1.1 m tall. Headings are degrees, 0 facing +X and 90 facing +Z. The late morning sun (engine/looks.js: lateMorning)
@@ -141,8 +142,8 @@ function* story(s, c) {
 }
 
 // The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel, and Mosi walks down it to
-// the water. The chapter ends here for now (the sail, the fishing, Uggeðla's star and the ferry come in the next tasks): the picture
-// holds on him at the flooded path, fades to black, and the script ends.
+// the water. The picture holds on him at the flooded path, the fishing follows (scene 4), and then, for now (the sail, Uggeðla's star and
+// the ferry come in the next task), it fades to black and the script ends.
 function* intoSiki(s, c) {
   yield* goTo(s, c, 'siki', () => arriveInSiki(s, c));
   yield c.mosi.walkTo(SIKI_WALK.slice(1), { speed: 1.2 });
