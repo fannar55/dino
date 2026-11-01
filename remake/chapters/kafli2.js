@@ -20,15 +20,18 @@
 // chapter 3's.
 import * as THREE from 'three';
 import { chapter as kafli1 } from './kafli1.js';
-import { createSaddle, ride } from '../engine/riding.js';
+import { createSaddle, ride, floatTo } from '../engine/riding.js';
 import { createMudPrints } from '../world/props/mud-prints.js'; // (the warm-up's throwaways)
 import { createCritters } from '../world/critters/critters.js';
 import {
   TRAIL_PATH, TRAIL_PRINTS, TRAIL_BARE, PRINT_SIZE, RIDE_POINTS, TRAIL_ON, RIDE_CAMERA, PRINT_ANIMALS, mosiAt, printsLow, printShot,
   printFollow, arriveOnTheTrail, countPrints,
 } from './kafli2-trail.js';
-import { SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, arriveInSiki } from './kafli2-siki.js';
-import { fishing, getUp } from './kafli2-fishing.js';
+import {
+  SIKI_LAYOUT, SIKI_SHOTS, SIKI_WALK, MOSI_BANK, UGGEDLA_REED, THORSEDLA_FAR, FERRY_LINE, MOSI_WADE_LINE, HUMMOCK, arriveInSiki,
+} from './kafli2-siki.js';
+import { fishing } from './kafli2-fishing.js';
+import { riseSail, headUpWithFish, swimAlong, tailSplash, createBackSeat, SINK } from './kafli2-uggedla.js';
 import { sparkleBurst } from '../world/props/sparkles.js'; // (the warm-up's throwaways)
 import { createBerryBushes } from '../world/props/berries.js'; // (the warm-up's throwaways)
 import { addPlateGlow } from '../engine/plate-glow.js';
@@ -164,37 +167,216 @@ function* story(s, c) {
   yield* leaving(s, c);
   yield* footprints(s, c);
   yield* intoSiki(s, c);
+  yield* theChannel(s, c);
+  yield* fishingScene(s, c);
+  yield* theInvitation(s, c);
+  yield* theFerry(s, c);
+  yield* theHummocks(s, c);
 }
 
-// The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel, and Mosi walks down it to
-// the water. The picture holds on him at the flooded path, the fishing follows (scene 4), and then, for now (the sail, Uggeðla's star and
-// the ferry come in the next task), it fades to black and the script ends.
+// The way into Síkið: on down the trail the picture fades to black and comes up on the path at the channel. Scenes 3 to 7 are there.
 function* intoSiki(s, c) {
   yield* goTo(s, c, 'siki', () => arriveInSiki(s, c));
-  yield c.mosi.walkTo(SIKI_WALK.slice(1), { speed: 1.2 });
-  yield c.mosi.turnTo(MOSI_BANK.heading, { rate: 40 });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Where things are on her: points that follow her wherever she is (her root is under the water, as deep as she lies or swims)
+const SAIL_TAP = { actor: 'uggedla', part: 'feet', offset: [-0.6, 6.4, 0], local: true }; // the middle of the part of her sail that shows over the reed
+const SAIL_TOP = { actor: 'uggedla', part: 'feet', offset: [0.2, 7.35, 0], local: true }; // just over the top of her sail (7.27 m over her feet)
+const SAIL_SECONDS = 4.5; // the sail takes its time: it is the "boat" joke
+
+// 3. The channel: Mosi walks down the path to the water, which has flooded it ("Ó nei!"), and Egill asks how they are to get across. A big,
+// colourful sail rises out of the reed on the other side, slowly, like a boat's: "Bátur!" Egill says hello to it. It turns, and her
+// head comes up out of the water with a fish in her jaws, which she swallows: no boat, but Uggeðla, who is fishing. Her place goes onto the
+// book's map from where her head is on the screen. While the sail stands in the reed it can be tapped: it glitters, and nothing else.
+function* theChannel(s, c) {
+  mark(c, 3);
+  const { mosi, egill, world } = c;
+  yield mosi.walkTo(SIKI_WALK.slice(1), { speed: 1.2 });
+  yield mosi.turnTo(MOSI_BANK.heading, { rate: 40 });
   yield s.camera.cut('siki_flooded');
-  yield s.wait(3);
-  yield* fishingScene(s, c);
-  yield s.fade(1, 0.8);
+  yield* say(s, c, 'mosi', 'k2_mosi_flooded');
+  yield* say(s, c, 'egill', 'k2_egill_across');
+  // over Mosi's shoulder, across the channel to the reed: the sail rises, and Mosi sees a boat
+  yield s.camera.cut('siki_sail');
+  yield mosi.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
+  yield egill.lookAt(SAIL_TAP, { weight: 0.7, maxPitch: 40 });
+  const stopTaps = sailTaps(s, c);
+  const rising = s.after(0, () => riseSail(s, c, { seconds: SAIL_SECONDS }));
+  yield s.wait(0.8);
+  yield* say(s, c, 'mosi', 'k2_mosi_boat');
+  yield* say(s, c, 'egill', 'k2_egill_helloboat');
+  yield rising;
+  // it turns, and her head comes up out of the water with a fish; "this is no boat"
+  stopTaps();
+  const head = s.after(0, () => headUpWithFish(s, c));
+  yield s.wait(HEAD_UP_SEES);
+  yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
+  yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 45 });
+  yield* say(s, c, 'mosi', 'k2_mosi_notboat');
+  yield head;
+  yield* say(s, c, 'uggedla', 'k2_uggedla_hello');
+  s.place('uggedla', screenOf(world, c.uggedla.raw.headPosition(new THREE.Vector3()))); // her marker flies from her head into the book
+  s.sfx('mapMark');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+}
+const HEAD_UP_SEES = 2.2; // s into her head coming up (it breaks the water at about 1.4 s) that Mosi sees who it is
+
+/** The sail can be tapped while it stands in the reed: it glitters, nothing more. Returns what stops it. */
+function sailTaps(s, c) {
+  const { world } = c;
+  let n = 0;
+  s.target('sail', { point: SAIL_TAP, radius: 2.4 });
+  const unhear = s.onTap('sail', () => {
+    s.sfx('flower');
+    sparkleBurst(world, world.resolvePoint(SAIL_TAP, new THREE.Vector3()), { count: 40, size: 0.32, spread: 2.4, duration: 1.4, seed: `sail ${n++}` });
+  });
+  return () => { unhear(); s.target('sail', null); };
+}
+
+/** Where a point is on the screen, in CSS pixels ({ x, y }), for a marker to fly from; the middle of the screen when it is behind us. */
+function screenOf(world, point) {
+  const box = world.renderer?.domElement?.getBoundingClientRect?.();
+  if (!box) return null;
+  world.camera.updateMatrixWorld();
+  const p = point.clone().project(world.camera);
+  if (p.z >= 1) return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  return { x: box.left + ((p.x + 1) / 2) * box.width, y: box.top + ((1 - p.y) / 2) * box.height };
 }
 
 // 4. The fishing: from the bank across the channel, still, with Uggeðla in the water in the middle and Mosi and Egill on the bank. She
-// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). The scenes before it (her sail
-// seen over the reed, her hello) and after it (the invitation, her star, the ferry) are built in the plan's sixth task; until then she
-// is got up here (getUp does nothing for a scene that has her up already).
+// asks Egill to tap the big fish when they jump; he taps five, and she thanks him (kafli2-fishing.js). She got up in scene 3.
 function* fishingScene(s, c) {
   mark(c, 4);
   const { mosi, egill } = c;
   yield s.camera.cut('siki_fishing');
   yield mosi.lookAt('uggedla.head', { weight: 0.7 });
   yield egill.lookAt('uggedla.head', { weight: 0.7, maxPitch: 40 });
-  yield* getUp(s, c);
   yield* say(s, c, 'uggedla', 'k2_uggedla_help');
   yield* fishing(s, c);
   yield* say(s, c, 'uggedla', 'k2_uggedla_thanks');
   yield mosi.lookAt(null);
   yield egill.lookAt(null);
+}
+
+// 5. The invitation and her star: Mosi asks her to the Star Festival in the evening, she says yes and will ferry all the guests over the
+// river, and a star rises from the top of her sail and waits for a tap (8 s at most, as in chapters 1 and 3), "the second star".
+function* theInvitation(s, c) {
+  mark(c, 5);
+  const { mosi, egill } = c;
+  yield s.camera.cut('siki_two_shot');
+  yield mosi.lookAt('uggedla.head', { weight: 0.8, maxPitch: 40 });
+  yield egill.lookAt('uggedla.head', { weight: 0.8, maxPitch: 40 });
+  yield* say(s, c, 'mosi', 'k2_mosi_invite_ugg');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_accept');
+  // her sail against the sky, and the star rises from its top
+  yield s.camera.cut('siki_star');
+  yield mosi.lookAt(SAIL_TOP, { weight: 0.7, maxAngle: 60, maxPitch: 45 });
+  yield egill.lookAt(SAIL_TOP, { weight: 0.8, maxAngle: 60, maxPitch: 50 });
+  s.sfx('star');
+  const star = s.star('k2_uggedla', SAIL_TOP);
+  yield s.wait(1.4);
+  yield* say(s, c, 'mosi', 'k2_mosi_second');
+  yield star;
+  s.sfx('journal');
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+}
+
+// 6. The ferry: "Up on my back, Egill!" He floats from Mosi's saddle onto her back, in front of her sail with his hands on its front edge
+// (her back seat: making it has her lower her neck for him), and she swims him along the channel to the hummocks while Mosi wades the shallow
+// edge beside them. The chat on the way is the owner's: the water is wet, why such a big sail, "boat", the tail splash, Þórseðla's head over
+// the trees. Three of the ferry's shots (kafli2-siki.js) cut in as it suits what is said; a ferry shot is never within 2.5 s of another.
+const FERRY_SPEED = 1.25; // m/s she swims
+const MOSI_WADE_SPEED = 1.55; // m/s Mosi wades: his line along the shallow edge is a third longer than hers
+function* theFerry(s, c) {
+  mark(c, 6);
+  const { mosi, egill, uggedla } = c;
+  yield s.camera.cut('siki_two_shot');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_aboard');
+  // Egill floats across onto her back: her neck comes down for him as it begins
+  const seat = c.backSeat = createBackSeat(uggedla);
+  yield mosi.lookAt(null);
+  yield egill.lookAt(null);
+  yield floatTo(egill.raw, seat, { duration: 3 });
+  c.riding = ride(egill.raw, seat, { settle: 0 });
+  // off they go: she swims the channel to the pool at the hummocks, Mosi wades along the near edge
+  const swim = s.after(0, () => swimAlong(s, c, FERRY_LINE, { speed: FERRY_SPEED }));
+  c.wade = mosi.walkTo([...MOSI_WADE_LINE, [HUMMOCK.position[0], HUMMOCK.position[2]]], { speed: MOSI_WADE_SPEED });
+  yield* ferryChat(s, c);
+  yield swim;
+}
+
+/** What is said on the way, with the cameras that go with it: a short pause between the lines, so that the chat fills the swim. */
+const CHAT_PAUSE = 0.9;
+function* ferryChat(s, c) {
+  const { mosi } = c;
+  yield s.camera.cut('ferry_side');
+  yield s.wait(3);
+  yield mosi.lookAt('uggedla.head', { weight: 0.6, maxPitch: 30 });
+  yield* say(s, c, 'mosi', 'k2_mosi_brrr');
+  yield* say(s, c, 'uggedla', 'k2_uggedla_wet');
+  yield s.camera.cut('ferry_front');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'egill', 'k2_egill_sail');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'uggedla', 'k2_uggedla_sail');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'mosi', 'k2_mosi_onlyabit');
+  // from behind and above her, over her sail: the tail comes down in the water as she says "like a fish", and Mosi gets the splash
+  yield s.camera.cut('ferry_back');
+  yield s.wait(CHAT_PAUSE);
+  const saying = s.after(0, () => say(s, c, 'uggedla', 'k2_uggedla_tail'));
+  yield s.wait(Math.max(0.3, s.lineDuration('k2_uggedla_tail') - TAIL_LANDS));
+  const splash = s.after(0, () => tailSplash(s, c, mosi));
+  yield saying;
+  yield* say(s, c, 'mosi', 'k2_mosi_wetter');
+  yield s.wait(CHAT_PAUSE);
+  yield* say(s, c, 'egill', 'k2_egill_head');
+  yield splash;
+  yield mosi.lookAt(null);
+}
+const TAIL_LANDS = 0.85; // s from the start of tailSplash to the tail's hit on the water (kafli2-uggedla.js: winds back 0.6 s, sweeps 0.22 s)
+
+// 7. The hummocks: the channel ends in a pool by dry moss mounds with berry bushes behind them, where Mosi comes up out of the water. Egill
+// floats from her back into his saddle, she tells them Þórseðla cannot hear small voices but loves red berries, and Mosi thanks her;
+// she swims off along the channel, the sail low like a boat's, and is hidden as soon as she is out of view. The picture goes into the
+// book, which opens on the dinosaurs, where her card is new and nods, and turns to the map: the red line to her ring is drawn with her
+// star. "Two are in."
+const OFF_SPEED = 1.7; // m/s she swims off
+const TO_THE_MAP = 1.2; // seconds the book shows its dinosaurs (her card nodding) before it turns to the map
+const OFF = [[40.1, 21.8], [39.3, 17.9], [38.2, 14.2], [36.9, 11.2], [35.4, 8.3], [33.6, 5.5]]; // the way back along the channel (the ferry line's end, reversed)
+function* theHummocks(s, c) {
+  mark(c, 7);
+  const { mosi, egill, uggedla, world } = c;
+  yield s.camera.cut('siki_hummocks');
+  yield c.wade; // Mosi comes up out of the water onto the hummock
+  mosi.turnTo(HUMMOCK.heading, { rate: 60 }); // to face her across the pool, as Egill floats to him and she speaks
+  yield floatTo(egill.raw, c.saddle, { duration: 2.6 });
+  c.riding = ride(egill.raw, c.saddle, { settle: 0 });
+  c.backSeat = null;
+  yield* say(s, c, 'uggedla', 'k2_uggedla_berries');
+  // she goes as Mosi thanks her: back along the channel with her sail low like a boat's, until she is out of the picture
+  const off = s.after(0, () => swimAlong(s, c, OFF, { speed: OFF_SPEED, sink: SINK.low, then: 'idle' }));
+  yield* say(s, c, 'mosi', 'k2_mosi_thanks_ugg');
+  yield s.until(() => outOfView(world, uggedla.raw));
+  off.cancel();
+  uggedla.raw.root.visible = false;
+  // into the book
+  s.fade(0.45, 1.6);
+  s.journal.open('dinosaurs', { nod: 'uggedla' });
+  s.after(TO_THE_MAP, () => s.journal.open('map'));
+  yield* say(s, c, 'mosi', 'k2_mosi_two');
+}
+
+/** Is all of her out of the picture: her head, her hips, the end of her tail and the top of her sail (past the edge of the frame, or behind us)? */
+function outOfView(world, her) {
+  world.camera.updateMatrixWorld();
+  const point = new THREE.Vector3();
+  const parts = [her.headPosition(point.clone()), her.model.getObjectByName('Hips').getWorldPosition(point.clone()), her.model.getObjectByName('Tail6').getWorldPosition(point.clone()),
+    world.resolvePoint(SAIL_TOP, point.clone()), her.root.position.clone()];
+  return parts.every(p => { p.project(world.camera); return p.z >= 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1; });
 }
 
 // 1. Leaving the glade: Mosi says who is next, the map slides up over the game and draws the way ahead (the trail, and across the Fen to
