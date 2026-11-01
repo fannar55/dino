@@ -300,9 +300,10 @@ og engin breyting á færni. Svo gefur Mosi fyrstu alvöruumferðina.
   og spjaldið á símanum): ramminn í lit leikmannsins, „Þú átt leik!“-spjald,
   hljómur og titringur.
 - Tveir til fjórir leikmenn, ein tölva í mesta lagi (reglur Fjölspils).
-- **Opið til búts 4:** hvort hönd Egils er á stóra skjánum (eins og í Eitt!) eða
-  á eigin tæki, því í Go Fish verða hendur að vera faldar. Eigandinn ákveður
-  þegar þar að kemur.
+- **Hönd Egils er á hans eigin tæki** (eigandinn ákvað 2026-11-01), því í Go
+  Fish verða hendur að vera faldar. Í Fjölspili er engin hönd á stóra
+  skjánum: hver mennskur leikmaður, Egill líka, á sæti með síma eða spjaldtölvu
+  og stóri skjárinn er aðeins tjörnin.
 
 ## Lokið þegar
 
