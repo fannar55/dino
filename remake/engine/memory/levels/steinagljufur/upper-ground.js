@@ -40,7 +40,11 @@ mesa(TREE_AT, TREE_AT, RIM.y, RIM.y, 3, 1.1);
 // the hillside beside the whole way (+z): a long wall whose foot meets the path's edge all the way up (wall.centre is where its centre line runs), as high as the rim plus
 // 3.3 metres. The path is cut into its foot.
 export const WALL = Object.freeze({ top: 12.2, hw: 7, slope: 2.3, centre: Object.freeze([[-46, 16.6], [1.5, 16.6], [4.2, 21], [9.2, 21], [11.4, 13.4], [13.2, 12.75], [16.4, 14.7], [18.6, 17.5], [21.8, 18.9], [24, 24.8], [40, 24.8]]) });
+const WALL_FROM = MESAS.length;
 for (let i = 1; i < WALL.centre.length; i++) mesa(WALL.centre[i - 1], WALL.centre[i], WALL.top, WALL.top, WALL.hw, WALL.slope);
+const WALL_TO = MESAS.length;
+/** The path is cut into the hillside: from the edge of the way the bank rises this many metres to the metre (the wall's own foot, cut straight down at the way's edge, was a sheer face of several metres). */
+const BANK = 1.4;
 // the end wall beyond the clifftop (Task 6 cuts the gap in front of it)
 mesa([RIM.to[0] + 9, RIM.to[1] - 11], [RIM.to[0] + 9, RIM.to[1] + 13], RIM.y + 3.6, RIM.y + 3.6, 4, 2.4);
 export const MESA_COUNT = MESAS.length;
@@ -64,11 +68,12 @@ export function groundAt(x, z) {
   const path = pathInfo(x, z); if (path.d <= PATH_HW + .3) return path.top;
   if (Math.hypot(x - TREE_AT[0], z - TREE_AT[1]) <= 3.2) return RIM.y;
   let height = Math.max(0, path.top - PATH_SLOPE * (path.d - PATH_HW));
-  for (const [ax, az, bx, bz, ya, yb, hw, slope] of MESAS) {
+  const bank = path.top + BANK * Math.max(0, path.d - (PATH_HW + .3));
+  for (const [k, [ax, az, bx, bz, ya, yb, hw, slope]] of MESAS.entries()) {
     const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz, t = len2 ? clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1) : 0;
     const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t)), top = lerp(ya, yb, t);
     // (a flat top, a short round-off at the edge, then the straight side)
-    const out = d - hw, y = out <= 0 ? top : top - slope * out;
+    const out = d - hw, mesaY = out <= 0 ? top : top - slope * out, y = k >= WALL_FROM && k < WALL_TO ? Math.min(mesaY, bank) : mesaY;
     if (y > height) height = y;
   }
   return height;

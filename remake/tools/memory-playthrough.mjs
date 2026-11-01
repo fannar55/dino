@@ -365,7 +365,9 @@ const TIMELINE_JS = `(() => {
       if (covered) { hud++; take.hudBy[covered.id] = (take.hudBy[covered.id] || 0) + 1; }
     }
     take.samples++; take.inView = Math.max(take.inView, sight.items.length); take.hidden = Math.max(take.hidden, hidden); take.hud = Math.max(take.hud, hud); take.act = d.levelStats && d.levelStats.upper && d.levelStats.upper.action ? d.levelStats.upper.action.id + ':' + d.levelStats.upper.action.phase : take.act;
-    if (hidden && window.__sight.events.length < 80) window.__sight.events.push({ t: +(performance.now() / 1000).toFixed(1), take: take.take, shot: take.shot, camera: sight.camera, hidden: sight.items.filter(i => i.by).map(i => i.name + ' by ' + i.by + ' @' + i.distance) });
+    const fresh = sight.items.filter(i => i.by && !(window.__sight.seen ||= new Set()).has(take.take + i.name)); fresh.forEach(i => window.__sight.seen.add(take.take + i.name));
+    if (fresh.length && window.__sight.events.length < 120) window.__sight.events.push({ t: +(performance.now() / 1000).toFixed(1), take: take.take, shot: take.shot, cameraAt: sight.cameraAt, hidden: fresh.map(i => i.name + ' ' + JSON.stringify(i.at) + ' by ' + i.by + ' ' + JSON.stringify(i.hit)) });
+    if (sight.roof !== null) { take.roof = Math.min(take.roof ?? 99, sight.roof); }
   }, 300);
 })()`;
 

@@ -236,9 +236,12 @@ export function createLevelWorld(stage) {
         const p = point.clone().project(cam), inView = Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && p.z < 1; if (!inView) continue;
         const toward = point.clone().sub(eye), distance = toward.length(); raycaster.set(eye, toward.normalize()); raycaster.near = .05; raycaster.far = Math.max(.1, distance - .35);
         const hit = raycaster.intersectObject(upper.group, true).find(h => !/^(Slétta|Reipið|Tré|Hellan)/.test(h.object.name));
-        items.push({ name, x: Math.round((p.x + 1) / 2 * width), y: Math.round((1 - p.y) / 2 * height), by: hit ? hit.object.name.replace(/ (efra d)/, '') : null, distance: +distance.toFixed(1) });
+        const frameAt = q => upper.local(q).toArray().map(v => +v.toFixed(1));
+        items.push({ name, x: Math.round((p.x + 1) / 2 * width), y: Math.round((1 - p.y) / 2 * height), by: hit ? hit.object.name.replace(/ (efra d)/, '') : null, distance: +distance.toFixed(1), at: frameAt(point), hit: hit ? frameAt(hit.point) : null });
       }
-      return { camera: d.position.map(v => +v.toFixed(1)), items };
+      // (a block over the camera: the nearest piece straight up within 9 metres)
+      raycaster.set(eye, new THREE.Vector3(0, 1, 0)); raycaster.near = .05; raycaster.far = 9; const roof = raycaster.intersectObject(upper.group, true).find(h => /^gorge-/.test(h.object.name));
+      return { camera: d.position.map(v => +v.toFixed(1)), cameraAt: upper.local(eye).toArray().map(v => +v.toFixed(1)), roof: roof ? +roof.distance.toFixed(1) : null, items };
     },
     qaPlace(formation) { for (const species of level.friends) mover.bindPair(species, stage.babies.filter(actor => actor.species === species)); return mover.upper.qaPlace(formation); },
     isBusy: () => Boolean(mover?.isBusy()),

@@ -109,6 +109,9 @@ export function installUpperGroundLook(material) {
     col = mix( col, col * vec3( 1.2, 1.14, 0.84 ) + vec3( 0.02, 0.016, 0.0 ), nearActor * 0.75 * uActorWarm * ( 1.0 - rockCover ) );
   }
   diffuseColor.rgb = col * ao;`);
+    // (a steep face takes no real shadow: a face turned edge-on to the sun shows the shadow map's stripes, long dark and light bands down it)
+    swap('fragmentShader', 'gShadowUse = smoothstep( 0.2, 0.45, openSky );', `gShadowUse = smoothstep( 0.2, 0.45, openSky );
+  if ( vRock > 1.0 ) gShadowUse *= 1.0 - smoothstep( 0.12, 0.3, vRock - 1.0 );`);
   };
   material.customProgramCacheKey = () => `${key()}-upper-ground-v1`;
   material.needsUpdate = true;

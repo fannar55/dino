@@ -123,19 +123,29 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   const add = (name, entry) => { if (!placements.has(name)) placements.set(name, []); placements.get(name).push(entry); };
   // A piece stands on the lowest ground under its foot (the middle of the box of its bounds, drawn in), sunk a little into it: there is never a gap under it, and where the ground rises
   // behind it the piece is in the ground. (`y` is the ground at its middle; the old rule stood a piece at that height, and a piece on a slope hung over the lower ground.)
-  const lowest = (name, x, z, yaw, scale) => {
+  // The places in the frame that somebody walks or stands (the exit floor and the terrace in front of and on the ledge, the rim, and the path with a body's width either side): no piece
+  // stands on them, so that nobody is inside a rock. A piece that would is moved back from the open side (+z) until its foot is clear.
+  const KEEP = [[-14, 12.5, -7.5, 3.6], [21, 39, -.5, 14.2]];
+  const walkable = (x, z) => KEEP.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1) || way.some(p => Math.hypot(p[0] - x, p[1] - z) < 3.2);
+  /** The points of the foot of a piece (its box of bounds, drawn in to `part` of its size, turned and scaled) in the frame. */
+  const footing = (name, x, z, yaw, scale, part, n = 4) => {
     const geometry = models.get(name).geometry; if (!geometry.boundingBox) geometry.computeBoundingBox();
-    const box = geometry.boundingBox, cos = Math.cos(yaw), sin = Math.sin(yaw);
-    let low = Infinity;
-    for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
-      const lx = (box.min.x + (box.max.x - box.min.x) * (.15 + .7 * i / 4)) * scale, lz = (box.min.z + (box.max.z - box.min.z) * (.15 + .7 * j / 4)) * scale;
-      low = Math.min(low, groundAt(x + lx * cos + lz * sin, z - lx * sin + lz * cos));
+    const box = geometry.boundingBox, cos = Math.cos(yaw), sin = Math.sin(yaw), out = [];
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+      const lx = (box.min.x + (box.max.x - box.min.x) * ((1 - part) / 2 + part * i / n)) * scale, lz = (box.min.z + (box.max.z - box.min.z) * ((1 - part) / 2 + part * j / n)) * scale;
+      out.push([x + lx * cos + lz * sin, z - lx * sin + lz * cos]);
     }
-    return low;
+    return out;
   };
+  const lowest = (name, x, z, yaw, scale) => Math.min(...footing(name, x, z, yaw, scale, .7).map(([px, pz]) => groundAt(px, pz)));
+  const moved = []; // QA: the pieces moved back from the walked places (their old and new places)
   const piece = (kinds, x, z, y, scale, sink) => {
-    const name = `gorge-cliff-${kinds[Math.floor(random() * kinds.length) % kinds.length]}`, yaw = range(0, Math.PI * 2);
-    add(name, { x, z, y: Math.min(y, lowest(name, x, z, yaw, scale)) - sink * scale * .6, old: y - sink * scale, yaw, scale, tilt: range(-.05, .05), tint: .88 + .16 * random() });
+    const name = `gorge-cliff-${kinds[Math.floor(random() * kinds.length) % kinds.length]}`, yaw = range(0, Math.PI * 2), x0 = x, z0 = z, old = y - sink * scale;
+    let k = 0; while (k < 30 && footing(name, x, z, yaw, scale, .85, 6).some(([px, pz]) => walkable(px, pz))) { z += .5; k++; }
+    const tilt = range(-.05, .05), tint = .88 + .16 * random();
+    if (k >= 30) { moved.push({ name, from: [+x0.toFixed(2), +z0.toFixed(2)], to: null }); return; }
+    if (k) { y = groundAt(x, z); moved.push({ name, from: [+x0.toFixed(2), +z0.toFixed(2)], to: [+x.toFixed(2), +z.toFixed(2)] }); }
+    add(name, { x, z, y: Math.min(y, lowest(name, x, z, yaw, scale)) - sink * scale * .6, old, x0, z0, yaw, scale, tilt, tint });
   };
   const way = wayPoints(1), nearest = x => way.reduce((best, p) => Math.abs(p[0] - x) < Math.abs(best[0] - x) ? p : best);
   const rimZ = x => RIM.from[1] + (RIM.to[1] - RIM.from[1]) * (x - RIM.from[0]) / (RIM.to[0] - RIM.from[0]);
@@ -161,7 +171,12 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
   // the ledge's riser: pieces along it on the hillside's side of the middle, which is left clear for the slab
   for (const z of [3.6, 5.4, 7.2, 9]) piece([4, 6, 5, 3], LEDGE.x - .2 + range(-.2, .3), z, groundAt(LEDGE.x - .2, z), range(1.3, 1.9), .4);
   // boulders at the foot of the riser, along the hillside and at the edge of the path (the rope's stake is one)
-  for (const [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [-12, 3.2, 1, .5], [-5, 3.8, 2, .4], [-18, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [17.8, 4.4, 2, .3]]) add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
+  for (let [x, z, kind, scale] of [[1.4, 5.9, 1, .5], [1.9, 8.4, 2, .42], [-12, 3.2, 1, .5], [-5, 3.8, 2, .4], [-18, 3.4, 2, .4], [5.6, 4.6, 1, .46], [11.4, 3.2, 2, .36], [15.6, 6.8, 1, .38], [17.8, 4.4, 2, .3]]) {
+    // (a boulder is a metre across: it too is moved back from the walked places)
+    const x0 = x, z0 = z, near = (px, pz) => [[0, 0], [.8, 0], [-.8, 0], [0, .8], [0, -.8]].some(([dx, dz]) => walkable(px + dx, pz + dz)); let k = 0; while (k < 30 && near(x, z)) { z += .4; k++; }
+    if (k) moved.push({ name: `gorge-boulder-${kind}`, from: [x0, z0], to: [+x.toFixed(2), +z.toFixed(2)] });
+    add(`gorge-boulder-${kind}`, { x, z, y: groundAt(x, z) - .16 * scale, yaw: range(0, Math.PI * 2), scale, tilt: 0, tint: .9 + .15 * random() });
+  }
 
   const warm = new THREE.Color('#e8d3be');
   // (each kind in chunks along the gorge, a mesh each, so that the frustum drops the stretches a view does not see: the budget's 250,000 triangles are for what is drawn)
@@ -246,7 +261,7 @@ export function createUpperGorge({ scene, models, upperModels, glow, groundMater
     get visible() { return frame.visible; },
     stats: () => ({ triangles, draws, mesaTriangles: chunks.reduce((sum, index) => sum + index.length / 3, 0), cliffKinds: [...placements].map(([name, list]) => `${name} x${list.length}`), visible: frame.visible, slabAngle,
       // (QA: every cliff piece of the dressing, its place in the frame, the height of its foot by the old rule (`old`) and by the rule now (`y`), and its scale)
-      pieces: [...placements].flatMap(([name, list]) => list.filter(e => e.old !== undefined).map(e => ({ name, x: +e.x.toFixed(2), z: +e.z.toFixed(2), old: +e.old.toFixed(2), y: +e.y.toFixed(2), scale: +e.scale.toFixed(2) }))) }),
+      pieces: [...placements].flatMap(([name, list]) => list.filter(e => e.old !== undefined).map(e => ({ name, x: +e.x.toFixed(2), z: +e.z.toFixed(2), x0: +e.x0.toFixed(2), z0: +e.z0.toFixed(2), old: +e.old.toFixed(2), y: +e.y.toFixed(2), scale: +e.scale.toFixed(2) }))), moved }),
     reset() { slab.set(SLAB.start); frame.visible = false; },
     dispose() { scene.remove(frame); for (const item of disposables) item.dispose?.(); for (const part of [...upperModels.slab, ...upperModels.tree]) part.geometry.dispose(); },
   };
