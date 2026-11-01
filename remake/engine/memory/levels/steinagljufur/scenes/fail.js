@@ -24,7 +24,12 @@ export function failScene(stage, species, target, timing) {
     // Mosi's laugh is seen from in front of him, three-quarters (level 2's Mosi stands at the side of the glade, facing the leaves).
     { at: laughAt, shot: { kind: 'face', subjects: () => [stage.mosi.head(), up(stage.mosi.head(), -.6)], front: () => stage.faceOn(stage.mosi.yaw(), .6), cut: true },
       act: all(() => stage.mosi.gesture('laugh'), () => stage.mosi.look(stage.camera())), say: 'other' },
-    { at: laughAt + .05, wait: { until: () => !stage.task.busy(), timeout: 8 } },
-    { at: laughAt + .1, shot: { release: true, cut: true } },
+    // A go that is long (the Flugeðla's flight) is cut back to the pair when Mosi has laughed for a while, so that no stretch of watching passes about 3 s without a new framing.
+    ...(timing.attempt > 4 ? [
+      { at: laughAt + .05, wait: { until: () => !stage.task.busy(), timeout: 2.2 } },
+      { at: laughAt + .1, shot: { kind: 'wide', scale: 'action', subjects: () => [...bodies(pair()), ...pair().map(actor => up(actor.root.position, 1.6)), point(), up(stage.task.mouth(), 2.2)], front: front(.6), elevation: elevation + 4, cut: true } },
+    ] : []),
+    { at: laughAt + .15, wait: { until: () => !stage.task.busy(), timeout: 8 } },
+    { at: laughAt + .2, shot: { release: true, cut: true } },
   ];
 }

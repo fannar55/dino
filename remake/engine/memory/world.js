@@ -815,7 +815,7 @@ export async function createMemoryWorld({ canvas, onProgress = () => {}, basketP
       const tapAlong = Boolean(target.tapAlong), point = tapAlong ? levelWorld.tapPoint(target.id) : target.point;
       const p = project(point);
       let size = tapAlong ? Math.round(Math.max(width < 600 ? 150 : 200, Math.min(width, height) * .42)) : width < 600 ? 44 : 64;
-      if (!tapAlong && target.radius > 0) size = Math.max(size, Math.round(Math.abs(project(point.clone().add(new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius))).x - p.x) * 2));
+      if (!tapAlong && target.radius > 0 && !(target.edge && width < 600)) size =Math.max(size, Math.round(Math.abs(project(point.clone().add(new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(target.radius))).x - p.x) * 2));
       // An obstacle at the very edge of the view (the log on a phone) keeps its button just inside the screen.
       // (a level may mark an obstacle `edge`: one that a narrow view leaves just outside its side, level 2's tunnel on a phone, keeps its button at the screen's edge too)
       if (tapAlong || target.edge || p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) { p.x = THREE.MathUtils.clamp(p.x, size / 2 + 8, width - size / 2 - 8); p.y = THREE.MathUtils.clamp(p.y, size / 2 + 8, height - size / 2 - 8); }
