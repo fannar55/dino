@@ -23,7 +23,8 @@ export function throughScene(stage) {
       act: all(() => { if (!stage.task.start('through')) stage.task.abort(); }, () => stage.mosi.look(mouth())) },
     // They gather at the mouth and the Kambeðlur lead the way in.
     { at: .05, wait: { until: () => phase() === 'enter' || ended(), timeout: 5 } },
-    { at: .1, shot: { kind: 'hero', subjects: () => [...crowd().filter(p => p.distanceTo(mouth()) < 9), mouth(), up(mouth(), 2.2)], front: front(.5), elevation: 12, cut: true, floor: 'auto' } },
+    // (a tall screen takes this cut wider: the close one put all eight friends at their finest detail at once, 265,000 triangles at 820 x 1180)
+    { at: .1, shot: { kind: stage.aspect() < 1 ? 'wide' : 'hero', scale: 'action', subjects: () => [...crowd().filter(p => p.distanceTo(mouth()) < 9), mouth(), up(mouth(), 2.2)], front: front(.5), elevation: stage.aspect() < 1 ? 16 : 12, cut: true, floor: 'auto' } },
     { at: .15, wait: { until: () => phase() === 'inside' || ended(), timeout: 7 } },
     // The cut: they come out of the exit of the tunnel, one after the other.
     { at: .2, act: () => { if (!stage.task.cutUpper()) stage.task.abort(); },
