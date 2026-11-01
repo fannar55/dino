@@ -50,10 +50,15 @@ test('a section ahead is built before it is wanted, on a slow device too', () =>
     const i = place.sections.indexAt(world.flightU);
     assert.ok(place.sections.list[i].visible, `t=${t.toFixed(2)}: the section under her (${i}) is shown`);
     if (Math.abs(here.y) > 1e6) throw new Error('nan');
-    shown.push(place.visible.length);
+    let triangles = 0;
+    place.stats.sections.forEach(part => part?.visible && part.traverse(o => {
+      if (o.isMesh) triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1);
+    }));
+    shown.push(triangles);
   }
   assert.deepEqual(place.stats.late, [], 'every section was built in time');
-  assert.ok(Math.max(...shown) <= 9, `at most ${Math.max(...shown)} sections shown at once`);
+  // the valley's share of a shot's 250k triangles (STYLE.md 11): the rest is for Flugeðla, Egill and Mosi (some 85k)
+  assert.ok(Math.max(...shown) <= 140000, `at most ${Math.max(...shown)} triangles of land shown at once`);
   place.dispose();
 });
 
@@ -88,7 +93,9 @@ test('the land never comes within 2 m of her path, nor of the lane she may steer
 test('the cliff of the falls stands behind the falling water, and she climbs 3 m clear of it', () => {
   const world = { scene: new THREE.Scene() };
   const place = createArdalur(world, { grey: true, route });
-  assert.ok(place.heightAt(FALLS.face - 8, FALLS.z) > FALLS.top - 1, 'above the falls, the land is up at the lip');
+  // beside the river (its upper reach lies on FALLS.z): up at the lip above the falls, down in the gorge's bowl below them
+  assert.ok(place.heightAt(FALLS.face - 8, FALLS.z + 30) > FALLS.top - 1, 'above the falls, the land is up at the lip');
+  assert.ok(place.heightAt(FALLS.face + 8, FALLS.z + 110) < FALLS.top - 10, 'below the falls, the land beyond the gorge rim is low');
   assert.ok(place.heightAt(FALLS.face + 8, FALLS.z) < FALLS.base, 'below it, the plunge pool');
   for (let t = BEATS.E; t <= BEATS.F; t += 0.1) {
     const p = route.pointAt(route.progressAt(t));

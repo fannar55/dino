@@ -6,7 +6,7 @@
 // after the camera has moved. The land is in 150 m sections along the route (sections.js). Those round the snag are built at once;
 // the rest are built a slice a frame (3 ms) in the order the flight needs them, worked out from the route's schedule: a section is
 // needed from the first second the flight comes within sight of it. A section is shown while it is near her (one behind, two ahead,
-// at world.flightU) or within sight of the camera, so a fixed shot away from her still has its ground. A section that is wanted
+// at world.flightU) or its land is within SIGHT of the camera, so a fixed shot away from her still has its ground. A section that is wanted
 // before it is built (a seek) is built at once, and noted in `stats.late`.
 import * as THREE from 'three';
 import { createRoute, BEATS } from '../../chapters/kafli4-route.js';
@@ -15,7 +15,7 @@ import { createTerrain, createRouteIndex, groundSteps, CORRIDOR, GREY } from './
 import { createRiverSurface, createFallsSlot, createPoolSurface } from './river.js';
 import { bankSteps } from './banks.js';
 
-export const SIGHT = 260; // metres from the camera (seen from above) within which a section's land is shown
+export const SIGHT = 100; // metres from the camera (seen from above) to a section's land (its route piece and the 160 m round it) within which it is shown
 
 /** Build Árdalurinn. Options: grey (the stand-ins; the real look comes in chunk 2), seed, route, budget(), now() (the build slices). */
 export function createArdalur(world, { grey = false, seed = 4, route = createRoute(), budget = () => 3, now = () => performance.now() } = {}) {
