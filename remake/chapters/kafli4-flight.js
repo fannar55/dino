@@ -52,7 +52,7 @@ const clamp = THREE.MathUtils.clamp;
 
 /** The flight: returns at BEATS.END with her over the far pool. */
 export function* theFlight(s, c) {
-  const { world, flier, camera, sounds, route } = c;
+  const { world, flier, camera, sounds } = c;
   c.flight = { beat: null, started: s.time, ended: null };
   flier.update(0);
   const release = s.seeking ? null : world.sound?.hold?.(sounds);
