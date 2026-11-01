@@ -68,5 +68,65 @@
     "source": "https://commons.wikimedia.org/wiki/File:Cornu_aspersum_(Helix_aspersa).jpg",
     "modifications": "Skorið ferningslaga úr mynd bókarinnar (x 225, y 60, 620 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP. Myndinni er ekki breytt að öðru leyti.",
     "sha256": "d80c72c098c217368ed77136aab659ad25f9edf856041981503631d515b22aa5"
+  },
+  "fiskur-raudur": {
+    "image": "assets/veiddu/fiskur-raudur.webp",
+    "from": null,
+    "credit": "Daniella Vereeken",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Trad_PK_Red_M_-_Betta-Online.jpg",
+    "modifications": "Skorið ferningslaga (x 110, y 0, 1875 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "dd035d7815e19c467e0741e705e327b9a0608e5db5189f61639ff23ddbce640e"
+  },
+  "fiskur-gulur": {
+    "image": "assets/veiddu/fiskur-gulur.webp",
+    "from": null,
+    "credit": "albert kok",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Chaetodon_semilarvatus_2.jpg",
+    "modifications": "Skorið ferningslaga (x 276, y 123, 1191 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "07b9554e80a8719089bb9866a30b9d9e992c8019bf01e08681373d17df627e90"
+  },
+  "fiskur-graenn": {
+    "image": "assets/veiddu/fiskur-graenn.webp",
+    "from": null,
+    "credit": "Adrian Pingstone",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Green.chromis.arp.jpg",
+    "modifications": "Skorið ferningslaga (x 166, y 0, 1026 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "d7ff39205a461707b4622e2b5d8ed653b777dfac388fb2ed094f3a20d79d6dd4"
+  },
+  "fiskur-blar": {
+    "image": "assets/veiddu/fiskur-blar.webp",
+    "from": null,
+    "credit": "Tewy",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Blue_tang_(Paracanthurus_hepatus)_01.jpg",
+    "modifications": "Skorið ferningslaga (x 400, y 0, 1704 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "077602c0113d017e5d51f96926d79d940b8c7d0770d4f882e5ffee04e6d61c99"
+  },
+  "fiskur-appelsinugulur": {
+    "image": "assets/veiddu/fiskur-appelsinugulur.webp",
+    "from": null,
+    "credit": "Nhobgood Nick Hobgood",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Amphiprion_ocellaris_(Clown_anemonefish)_Nemo.jpg",
+    "modifications": "Skorið ferningslaga (x 183, y 0, 1500 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "304d2b8f22d5142174d7f28df3d68819bab7b63bb54d68e93968b7c817f6d81c"
+  },
+  "fiskur-fjolublar": {
+    "image": "assets/veiddu/fiskur-fjolublar.webp",
+    "from": null,
+    "credit": "Gdiggers",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Zebrasoma_xanthurum2.JPG",
+    "modifications": "Skorið ferningslaga (x 940, y 0, 1852 punktar) og minnkað í 480 × 480 punkta; vistað sem WebP.",
+    "sha256": "6cca9a37e867fa58204d214876b817be32d9af75d92b61dc24f43445e71d9d55"
   }
 }

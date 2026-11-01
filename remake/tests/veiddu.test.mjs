@@ -67,8 +67,14 @@ test('the kinds follow the spec: names, questions, images and colours', () => {
   assert.equal(KINDS[4].ask, 'vatnalæsingja');
   assert.equal(KINDS[12].name, 'Fjólublár fiskur');
   assert.equal(KINDS[12].ask, 'fjólubláan fisk');
-  for (const kind of KINDS.slice(0, 7)) assert.equal(kind.image, `assets/veiddu/${kind.id}.webp`);
-  for (const kind of KINDS.slice(7)) assert.equal(kind.image, null, 'the fish wait for the owner\'s images');
+  const credits = JSON.parse(fs.readFileSync(new URL('../assets/veiddu/credits.json', import.meta.url), 'utf8'));
+  for (const kind of KINDS) {
+    assert.equal(kind.image, `assets/veiddu/${kind.id}.webp`, 'every card is a photo, the fish too (the owner\'s picks, 2026-11-01)');
+    const file = fs.readFileSync(new URL(`../${kind.image}`, import.meta.url));
+    const credit = credits[kind.id];
+    assert.ok(credit?.credit && credit.license && credit.source, `${kind.id} is credited`);
+    assert.equal(crypto.createHash('sha256').update(file).digest('hex'), credit.sha256, `${kind.id}: the file is the one credited`);
+  }
   assert.ok(KINDS.every(k => /^#[0-9a-f]{6}$/i.test(k.colour)));
   assert.equal(new Set(KINDS.map(k => k.colour)).size, 13, 'no two cards share a colour');
   assert.deepEqual(KINDS.slice(7, 11).map(k => k.colour), ['#e8483b', '#f7bd2b', '#48ad4a', '#3a8de4'], 'the four Eitt! colours');
