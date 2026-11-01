@@ -326,6 +326,7 @@ const villa = createVilla(document, {
     fjolspil: () => ({ active: fjolspil.active, code: fjolspil.code ?? null, seats: fjolspil.seats.list().map(({ seat, kind, name, avatar, present, covered }) => ({ seat, kind, name, avatar, present, covered })) }), // never a guest's id, her secret
     memory: () => (performance.memory ? { usedMB: Math.round(performance.memory.usedJSHeapSize / 1048576), limitMB: Math.round(performance.memory.jsHeapSizeLimit / 1048576) } : null),
     consoleLog: () => consoleLog.entries(),
+    timeline: () => world.chapterTimeline ?? null, // when each scene began (a chapter that marks them), for the video tool too
   }),
 });
 // A slice of a later place's build may take 25 ms of a frame while the start button waits (the picture holds still behind it), 8
@@ -801,6 +802,7 @@ renderer.setAnimationLoop(now => {
     if (failures++ < 5) console.error('[frame]', error);
   }
   handOver(); // the script may have ended in this frame
+  if (scriptTask?.done && !window.__chapterEnd) window.__chapterEnd = true; // for the video tool (tools/chapter-video.mjs): the script is over
   if (warmedPlace !== null) starInTheBlack(now);
   if (warmedPlace !== null && stage.started && ui.fadeLevel >= 0.999) warmDrawing();
   if (warmedPlace !== null && world.location !== warmedPlace) {
@@ -823,4 +825,4 @@ renderer.setAnimationLoop(now => {
   slicedInFrame = false;
   if (++frames >= 20 && lodsReady && startReady) window.__demoReady = true;
 });
-Object.assign(window, { __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
+Object.assign(window, { __timeline: () => world.chapterTimeline ?? null, __world: world, __scene: stage, __director: director, __journal: journal, __book: book, __eitt: eitt, __veiddu: veiddu, __hals: hals, __fjolspil: fjolspil, __junior: junior, __save: save, __music: music, __sfx: sfx, __audio: { context: audio, output } });
