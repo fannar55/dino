@@ -18,8 +18,9 @@
 //            2026-10-24: a phone sat on this screen until a refresh)
 //   closed   "Bíðum eftir næsta leik": the game was closed on the big screen; the next lobby comes by itself
 //   over     "{name} vann!" with the winner's avatar
-//   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio }) renders it (Háls og hali and
-//            Eitt! register theirs: spil.html passes guest-hals.js's renderHals and guest-eitt.js's renderEitt); `el` is the
+//   game     a game's own screen: views[view.screen](el, view, { send, doc, control, audio }) renders it (Háls og hali, Eitt!,
+//            Litla Yatzy and Veiddu register theirs: spil.html passes guest-hals.js's renderHals, guest-eitt.js's renderEitt,
+//            guest-yatzy.js's renderYatzy and guest-veiddu.js's renderVeiddu); `el` is the
 //            game's element in the middle of the page, the same one while that game's views follow one another and a new one
 //            after any other screen, send(act) sends act { … } to the big screen, control(button, onTap) makes a button of the
 //            page's own (the tap, its sound and the keyboard), and audio.effects(options) a game's own effects on the page's
@@ -117,6 +118,13 @@ const DEMOS = {
     canDraw: false, canPass: false, needsColour: null, eittNeeded: false, canCatch: null, winner: null,
     counts: [{ ...EGILL, cards: 4 }, { ...ASTA, cards: 5 }, { ...BJARNI, cards: 6 }],
   } },
+  // Veiddu, Ásta's own turn among three: seven cards in her hand, Egill's, Bjarni's and her own catch laid (spil.html registers renderVeiddu);
+  // -give: Bjarni asks her for the frog she holds, -no: he asks for a snail she has not got, -fish: she was told no and the pond calls
+  veiddu: { seat: ASTA, view: veidduDemo('ask') },
+  'veiddu-give': { seat: ASTA, view: veidduDemo('give') },
+  'veiddu-no': { seat: ASTA, view: veidduDemo('no') },
+  'veiddu-fish': { seat: ASTA, view: veidduDemo('fish') },
+  veiddu4: { seat: ASTA, view: veidduDemo('ask', 4) }, // four at the table: three others
   // Litla Yatzy, Ásta's own turn after one roll: two threes held, the cup offering a roll again and a pair worth six, Egill,
   // Bjarni and Mosi at the table too (spil.html registers renderYatzy)
   yatzy: { seat: ASTA, view: {
@@ -133,6 +141,20 @@ const DEMOS = {
     winner: null,
   } },
 };
+
+/** Veiddu's demo views for ?demo=veiddu…: Ásta (seat 1) among Egill (0) and Bjarni (2), and `mode` what she does now. */
+function veidduDemo(mode, seats = 3) {
+  const card = id => ({ id, kind: id.replace(/-\d+$/, '') });
+  const ask = { type: 'ask', seat: 2, target: 1, kind: 'froskur' };
+  return {
+    screen: 'veiddu', seat: 1, hand: ['froskur-1', 'skjaldbaka-2', 'salamandra-1', 'fiskur-gulur-1', 'snigill-1', 'fiskur-blar-1', 'drekafluga-1'].map(card),
+    counts: [5, 7, 6, 4].slice(0, seats), catches: [['brunnklukka'], ['vatnalaesingi', 'fiskur-raudur'], ['fiskur-graenn'], []].slice(0, seats), pond: 23, turn: mode === 'ask' ? 1 : mode === 'fish' ? 1 : 2,
+    phase: mode === 'fish' ? 'fish' : 'ask', mode: mode === 'ask' ? 'ask' : mode === 'fish' ? 'fish' : mode,
+    asked: mode === 'give' ? { from: 2, to: 1, kind: 'froskur', no: false } : mode === 'no' ? { from: 2, to: 1, kind: 'snigill', no: false } : mode === 'fish' ? { from: 1, to: 0, kind: 'froskur', no: true } : null,
+    targets: mode === 'ask' ? [0, 2] : [], lastEvent: mode === 'give' || mode === 'no' ? ask : mode === 'fish' ? { type: 'no', seat: 0, kind: 'froskur' } : { type: 'pair', seat: 0, kind: 'brunnklukka' },
+    names: ['Egill', 'Ásta', 'Bjarni', 'Uggeðla'].slice(0, seats), avatars: ['egill', 'kambedla', 'gramedla', 'uggedla'].slice(0, seats), away: [], winners: [],
+  };
+}
 
 /** A card of the deck by its id, for the demo's Eitt! view. */
 function cardOf(id) {
