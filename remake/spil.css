@@ -41,7 +41,13 @@
                                  (.spil-yatzy-cards of .spil-yatzy-card[data-card]: .spil-yatzy-pick of .spil-yatzy-minis,
                                  .spil-yatzy-name and .spil-yatzy-value, and .spil-yatzy-confirm; .filled, .available, .zero),
                                  the players (.spil-yatzy-players of .spil-yatzy-player: .spil-yatzy-face, .spil-yatzy-pname,
-                                 .spil-yatzy-total; .current, .won) and the winner (.spil-yatzy-won)
+                                 .spil-yatzy-total; .current, .won) and the winner (.spil-yatzy-won). Söngur Slóeðlu's
+                                 (data-game="sloedla", engine/fjolspil/guest-sloedla.js, data-phase ready|late|end|bless):
+                                 a card (.sl-guest-card: .sl-guest-picture, .sl-guest-song, .sl-guest-words, .sl-guest-note),
+                                 the end's .sl-guest-stars of .sl-guest-star (.lit) and her .sl-guest-line (.sl-guest-friend,
+                                 .sl-guest-name, .sl-guest-points, .sl-guest-great) over .sl-guest-wait; while a song plays
+                                 the round over the whole page (.sl-guest-play, .simi or .spjald: its .sl-guest-canvas, and
+                                 on a phone her dinosaur and name at the top, .sl-guest-head)
      .spil-face                  a round picture in an avatar's colour (--c), an img.spil-picture in it
      .spil-big                   the big green raised pill ("Áfram", "Tilbúin/n"), as "Byrjum!" on the big screen
      .nope                       a little shake: what is missing ("Áfram" with the code unfinished, "Tilbúin/n" with no avatar)
@@ -214,7 +220,7 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   user-select: text; -webkit-user-select: text; appearance: none;
 }
 .spil-name:focus { border-color: var(--teal); background: var(--card); box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--teal) 28%, transparent), 0 5px 0 var(--card-deep), 0 5px 0 3px var(--teal); }
-.spil-avatars { display: grid; grid-template-columns: repeat(3, minmax(var(--spil-target), 132px)); justify-content: center; gap: clamp(14px, 3.6vw, 20px); width: 100%; padding: 0 10px; }
+.spil-avatars { display: grid; grid-template-columns: repeat(var(--spil-columns, 3), minmax(var(--spil-target), 132px)); justify-content: center; gap: clamp(14px, 3.6vw, 20px); width: 100%; padding: 0 10px; }
 .spil-avatar { /* a taped photo of a friend */
   position: relative; width: 100%; aspect-ratio: 1; padding: 11%; border-radius: 24px;
   background: var(--paper); border: 3px solid var(--ink);
@@ -247,6 +253,27 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
 .spil-host-face { width: 72px; flex: none; margin: -2px 0; box-shadow: 0 0 0 3px var(--ink); }
 .spil-host.pressable.pressed { translate: 0 4px; }
 .spil-or { font-size: clamp(20px, 5vw, 24px); font-weight: 800; color: var(--ink-soft); }
+/* Söngur Slóeðlu's lobby: "Krakki eða fullorðinn?" (.spil-levels: .spil-level-ask and two .spil-level buttons, a face
+   .spil-level-face and a word .spil-level-word; aria-pressed the picked one), on the join screen and in the lobby; and
+   "Allar eðlurnar eru í notkun" (.spil-none) when all its dinosaurs are taken */
+.spil-levels { display: grid; grid-template-columns: repeat(2, minmax(var(--spil-target), 168px)); justify-content: center; gap: 10px clamp(14px, 3.6vw, 20px); width: 100%; padding: 0 10px; }
+.spil-level-ask { grid-column: 1 / -1; font-size: clamp(24px, 6.4vw, 32px); font-weight: 900; line-height: 1.15; text-wrap: balance; }
+.spil-level { /* the same taped card as an avatar, with a face and a word */
+  display: grid; justify-items: center; align-content: center; gap: 2px; min-height: max(88px, var(--spil-target)); padding: 8px 6px;
+  border-radius: 24px; background: var(--paper); border: 3px solid var(--ink); color: var(--ink);
+  font: 900 clamp(20px, 5.4vw, 26px) / 1.1 var(--spil-font);
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .18);
+}
+.spil-level:nth-of-type(odd) { rotate: -1.2deg; } .spil-level:nth-of-type(even) { rotate: 1deg; }
+.spil-level-face { font-size: clamp(34px, 9vw, 44px); line-height: 1; }
+.spil-level[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--gold) 30%, var(--card));
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 0 0 7px var(--gold), 0 0 0 9.5px var(--ink);
+}
+.spil-none { font-size: clamp(26px, 7vw, 34px); font-weight: 900; line-height: 1.2; text-wrap: balance; color: var(--ink-soft); }
+.spil-lobby-note-box { display: grid; justify-items: center; gap: 8px; }
+.spil-lobby-note-picture { width: clamp(110px, 30vw, 160px); aspect-ratio: 1; object-fit: cover; border-radius: 20px; border: 3px solid var(--ink); background: var(--paper); rotate: -1.5deg; }
+.spil-lobby-note { font-size: clamp(24px, 6.4vw, 32px); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; text-wrap: balance; }
 
 /* ---- lobby: her avatar big, "Þú ert með!" and the table ------------------------------------------------------------- */
 
@@ -766,6 +793,45 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   .spil-yatzy-face { width: 38px; }
   .spil-yatzy-won { grid-area: won; }
   .spil-yatzy-won .spil-hero { width: 128px; }
+}
+
+/* ---- Söngur Slóeðlu (engine/fjolspil/guest-sloedla.js): the paper's cards around a song, and the song over the whole page --- */
+
+.spil-game[data-game="sloedla"] { width: 100%; }
+/* while a song plays the screen does not move: its entry animation would make it the frame the fixed round is placed in */
+.spil-game[data-game="sloedla"]:has(> .sl-guest-play) { animation: none; }
+html:has(.sl-guest-play) { overflow: hidden; } /* nothing scrolls under the round, no scroll bar beside it */
+.sl-guest-card { display: grid; justify-items: center; gap: clamp(12px, 2.4vh, 22px); text-align: center; }
+.sl-guest-picture {
+  width: clamp(150px, 42vw, 230px); aspect-ratio: 1; object-fit: cover; border-radius: 24px; border: 3px solid var(--ink);
+  background: var(--paper); rotate: -1.5deg; box-shadow: 0 12px 20px rgb(40 24 10 / .2); animation: spil-bob 3.6s ease-in-out infinite;
+}
+.sl-guest-song { font-size: clamp(22px, 5.6vw, 28px); font-weight: 900; color: var(--ink-soft); overflow-wrap: anywhere; }
+.sl-guest-words { font-size: clamp(34px, 9vw, 48px); font-weight: 900; line-height: 1.1; text-wrap: balance; }
+.sl-guest-note, .sl-guest-wait { font-size: clamp(20px, 5vw, 24px); color: var(--ink-soft); }
+.sl-guest-stars { display: flex; gap: 4px; font-size: clamp(46px, 13vw, 66px); line-height: 1; color: rgb(59 47 37 / .16); }
+.sl-guest-star.lit { color: var(--gold); text-shadow: 0 3px 0 #b07a12, 0 0 18px rgb(242 182 48 / .5); }
+.sl-guest-line {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; padding: 10px 20px;
+  border-radius: 999px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 6px 12px rgb(40 24 10 / .14);
+  font-size: clamp(20px, 5vw, 24px); font-weight: 900;
+}
+.sl-guest-line .sl-guest-friend { width: 54px; height: 54px; object-fit: contain; margin: -8px 0; }
+.sl-guest-points { color: #b07a12; }
+.sl-guest-great { color: var(--teal); }
+
+/* the song: over the whole page, the night of the big screen's game; nothing scrolls or zooms under a finger */
+.sl-guest-play { position: fixed; inset: 0; z-index: 20; background: #0b0920; touch-action: none; overscroll-behavior: none; }
+.sl-guest-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.sl-guest-head {
+  position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; translate: -50% 0; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; padding: 6px 22px 6px 8px; border-radius: 999px; white-space: nowrap;
+  background: rgb(20 16 48 / .72); border: 2px solid rgb(255 246 224 / .4); color: #fff6e0; font-size: 26px; font-weight: 900;
+}
+.sl-guest-head .sl-guest-friend { width: 56px; height: 56px; object-fit: contain; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-guest-picture { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

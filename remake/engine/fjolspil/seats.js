@@ -69,6 +69,9 @@ const isOwnAi = seat => seat.kind === 'ai' && !seat.covered;
 
 const refused = reason => ({ ok: false, reason });
 
+/** A guest's level in Söngur Slóeðlu ("Krakki" or "Fullorðinn"); a seat has the key only once it was given one. */
+const LEVEL_IDS = new Set(['barn', 'fullordinn']);
+
 /**
  * Whether this seat is played from a phone that is there: a guest's, or Egill's when his phone is bound to seat 0. A covered seat is
  * the computer's, and so is one whose phone is away. (The host session hears acts only from these.)
@@ -80,7 +83,7 @@ export const playsFromPhone = seat => Boolean(seat) && seat.present === true && 
  * they are the snapshot's, every guest absent until its phone says hello again.
  */
 export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}) {
-  const limit = from ? (from.max ?? MAX_SEATS) : max;
+  let limit = from ? (from.max ?? MAX_SEATS) : max;
   let held = [...(from ? (from.reserved ?? []) : reserved)];
   let seats = [hostSeat()];
   for (const kept of from?.seats ?? []) {
@@ -93,7 +96,7 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
       continue;
     }
     const { name, avatar, kind, guestId = null, covered = false } = kept;
-    seats.push({ seat: seats.length, name, avatar, kind, guestId, present: !isGuestSeat(kept), covered });
+    seats.push({ seat: seats.length, name, avatar, kind, guestId, present: !isGuestSeat(kept), covered, ...(LEVEL_IDS.has(kept.level) ? { level: kept.level } : {}) });
   }
   const listeners = new Set();
 
@@ -127,9 +130,10 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
 
     /**
      * A guest's hello: a seat for a new guest, or its own again with the name and avatar it sends now, present.
-     * { ok: true, seat, name } with the name as the screens show it, or { ok: false, reason }.
+     * { ok: true, seat, name } with the name as the screens show it, or { ok: false, reason }. A `level` (Söngur Slóeðlu's)
+     * is kept with the seat; a hello without one leaves the level she had.
      */
-    join({ guestId, name, avatar } = {}) {
+    join({ guestId, name, avatar, level } = {}) {
       const cleaned = cleanName(name);
       if (cleaned === null) return refused('bad-name');
       if (!isGuestAvatar(avatar)) return refused('bad-avatar');
@@ -143,11 +147,12 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
       const others = seats.filter(seat => seat !== own).map(seat => seat.name);
       let unique = cleaned;
       for (let n = 2; others.includes(unique); n++) unique = `${cleaned} ${n}`;
+      const levelled = LEVEL_IDS.has(level) ? { level } : {};
       if (own) {
-        update(own, { name: unique, avatar, present: true });
+        update(own, { name: unique, avatar, present: true, ...levelled });
         return { ok: true, seat: own.seat, name: unique };
       }
-      seats.push({ seat: seats.length, name: unique, avatar, kind: 'remote', guestId, present: true, covered: false });
+      seats.push({ seat: seats.length, name: unique, avatar, kind: 'remote', guestId, present: true, covered: false, ...levelled });
       changed();
       return { ok: true, seat: seats.length - 1, name: unique };
     },
@@ -170,6 +175,17 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
     presence(n, present) {
       const seat = seats[n];
       if (seat && isGuestSeat(seat)) update(seat, { present: Boolean(present) });
+    },
+
+    /** A guest's level in Söngur Slóeðlu, 'barn' or 'fullordinn' (Egill's is the menu's, never a seat's). */
+    setLevel(n, level) {
+      const seat = seats[n];
+      if (seat && isGuestSeat(seat) && LEVEL_IDS.has(level)) update(seat, { level });
+    },
+
+    /** At most `max` seats from now on, Egill's among them: a guest past it is refused 'full'; nobody seated leaves. */
+    setLimit(max) {
+      limit = max;
     },
 
     /** The computer plays a guest's seat until uncover (spec §4 step 6), or Egill's when his phone is bound. */

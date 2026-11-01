@@ -48,7 +48,8 @@ const hasOwnAi = list => list.some(seat => seat.kind === 'ai' && !seat.covered);
 
 /**
  * The lobby and the waiting card in `root` (#fjolspil). `seats` is seats.js's; `audio` is { sfx(name) }; `timers` holds the
- * waiting card's delay. Returns { show, refresh, hide, isOpen, waitFor, hideWaiting }.
+ * waiting card's delay. Returns { show, refresh, hide, isOpen, waitFor, hideWaiting, needsNet }: needsNet(true) puts
+ * "Fjölspil þarf net" in the QR code's place while the room was never reached (the installed app with no net).
  */
 export function createLobby(doc, {
   root = doc.getElementById('fjolspil'), seats, win = globalThis.window, audio = null, timers = PAGE_TIMERS,
@@ -65,15 +66,26 @@ export function createLobby(doc, {
   let isOpen = false;
   let ai = null; // the game's character: { name, avatar, add, remove }, or null when it offers none
   let hostOnPhone = false; // Egill plays from a phone of his own in this game (Veiddu's)
-  let waiting = null; // the waiting card while it is up: { el, who, seat, name, timer, done }
+  let waiting = null; // the waiting card while it is up: { el, who, seat, name, timer, done, block }
+  let netNeeded = false; // the room was never reached: "Fjölspil þarf net" stands in the QR code's place
 
-  /** The QR code and the four letters under it, for a card to hold. */
+  /** The QR code and the four letters under it, for a card to hold, and the words that stand in their place with no net. */
   function joinBlock() {
     const el = make('div', 'fjolspil-join');
     const qr = make('div', 'fjolspil-qr');
+    const need = make('p', 'fjolspil-needs-net');
+    need.textContent = 'Fjölspil þarf net';
     const letters = make('div', 'fjolspil-code');
-    el.append(qr, letters);
-    return { el, qr, letters };
+    el.append(qr, need, letters);
+    const block = { el, qr, need, letters };
+    showNet(block);
+    return block;
+  }
+
+  function showNet({ qr, need, letters }) {
+    qr.hidden = netNeeded;
+    letters.hidden = netNeeded;
+    need.hidden = !netNeeded;
   }
 
   function fillJoin({ qr, letters }, joinUrl, code) {
@@ -254,7 +266,7 @@ export function createLobby(doc, {
       fillJoin(block, joinUrl, code);
       waitCard.append(who, block.el);
       el.append(waitCard);
-      const card = { el, who, seat, name, timer: null, done: false };
+      const card = { el, who, seat, name, timer: null, done: false, block };
       waiting = card;
       card.timer = timers.setTimeout(() => {
         card.timer = null;
@@ -266,5 +278,12 @@ export function createLobby(doc, {
     },
 
     hideWaiting,
+
+    /** With `on`, the lobby and the waiting card say "Fjölspil þarf net" in place of the QR code and the letters. */
+    needsNet(on) {
+      netNeeded = Boolean(on);
+      showNet(join);
+      if (waiting) showNet(waiting.block);
+    },
   };
 }

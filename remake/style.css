@@ -82,6 +82,13 @@ canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
   font-family: inherit; font-size: 26px; font-weight: 700; line-height: 1; color: var(--ink); background: var(--accent); box-shadow: var(--shadow); cursor: pointer;
 }
 .start:active, .start.pressed { transform: translate(-50%, -50%) scale(.97); }
+/* The app's download, said quietly under Byrja (engine/offline/forrit.js): only on the start screen of the installed app. A pale
+   paper pill, so the small words read over the dark forest. */
+.forrit-lina {
+  position: fixed; left: 50%; top: calc(66% + 52px); transform: translateX(-50%); margin: 0; padding: 5px 14px; border-radius: 999px;
+  font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--ink-soft); background: rgba(246, 239, 223, .8);
+  white-space: nowrap; pointer-events: none;
+}
 
 /* The tray: pockets along the left edge with the things the child carries to a place in the world. */
 .tray {

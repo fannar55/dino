@@ -41,6 +41,7 @@ import { guard } from './engine/guard.js';
 import { warmUp } from './engine/warm-up.js';
 import { installConsoleLog } from './engine/console-log.js';
 import { createVilla } from './engine/villa/villa.js';
+import { createForrit } from './engine/offline/forrit.js';
 
 // URL parameters
 //   chapter=<id>          chapter module in chapters/ (default: the one the child's save is at, engine/save.js defaultChapter: kafli1
@@ -55,8 +56,11 @@ import { createVilla } from './engine/villa/villa.js';
 //   villa=1               a "Villa" button for the bug report tool (F1, or three fingers held, opens it anyway: engine/villa)
 //   nyr=1                 forget the child's save and start from the first chapter (the address then loses the parameter, so a
 //                         reload does not forget again)
+//   forrit=1|uppsett      at home (localhost) only: register the app's service worker; uppsett also downloads as the installed
+//                         app does (engine/offline/forrit.js; in the cloud the worker is always registered)
 const consoleLog = installConsoleLog(); // before anything else says a word: the bug report carries the console's last lines
 const params = new URLSearchParams(location.search);
+const forrit = createForrit(); // the installed app keeps the whole game in the device and says how far under Byrja
 const q = pickQuality(params);
 const canvas = document.getElementById('view');
 const display = createRenderer(canvas, q); // keep the object: resolutionScale is a live getter
@@ -687,7 +691,9 @@ if (shotName || !chapter.script) {
     }
     stage.seeking = false;
     clock.freeze();
+    forrit.started();
   } else if (params.get('play') === '1') {
+    forrit.started();
     ui.setFade(1);
     stage.begin();
   } else {
@@ -704,6 +710,7 @@ if (shotName || !chapter.script) {
     button.addEventListener('pointercancel', () => button.classList.remove('pressed'));
     button.addEventListener('click', () => {
       button.hidden = true;
+      forrit.started();
       ui.setFade(1); // the scene opens from black, the same as in captures
       stage.begin();
       music.start(); // the first touch: the browser lets sound begin, and the theme with it
@@ -714,6 +721,7 @@ if (shotName || !chapter.script) {
       setTimeout(() => { loading.hidden = true; }, 600); // once it has faded
       ui.setFade(0.35);
       button.hidden = false;
+      forrit.startScreen();
       startReady = true;
       prepareLater().catch(error => console.error('[warm-up]', error));
     });

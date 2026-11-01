@@ -91,3 +91,28 @@ test('a snapshot restores the seats with every guest absent, and onChange fires 
   assert.deepEqual(copy.list().map(s => [s.name, s.kind, s.present]), [['Egill', 'host', true], ['Anna', 'remote', false], ['Kambeðla', 'ai', true]]);
   assert.deepEqual(copy.available(), ['gramedla', 'thorsedla', 'flugedla', 'uggedla']);
 });
+
+test('a guest\'s level comes with her hello and stays with her seat when she comes back', () => {
+  const seats = createSeats();
+  seats.join({ guestId: 'g1', name: 'Anna', avatar: 'thorsedla', level: 'fullordinn' });
+  seats.join({ guestId: 'g1', name: 'Anna', avatar: 'thorsedla' });
+  assert.equal(seats.bySeat(1).level, 'fullordinn');
+});
+
+test('setLevel changes a guest\'s level, never Egill\'s', () => {
+  const seats = createSeats();
+  seats.join({ guestId: 'g1', name: 'Anna', avatar: 'thorsedla', level: 'barn' });
+  seats.setLevel(1, 'fullordinn');
+  seats.setLevel(1, 'erfitt');
+  seats.setLevel(0, 'fullordinn');
+  assert.equal(seats.bySeat(1).level, 'fullordinn');
+  assert.equal(seats.bySeat(0).level ?? null, null);
+});
+
+test('setLimit(3): a third guest is refused full', () => {
+  const seats = createSeats();
+  seats.setLimit(3);
+  assert.equal(seats.join({ guestId: 'g1', name: 'Anna', avatar: 'sloedla' }).ok, true);
+  assert.equal(seats.join({ guestId: 'g2', name: 'Bjarni', avatar: 'thorsedla' }).ok, true);
+  assert.equal(seats.join({ guestId: 'g3', name: 'Cecilía', avatar: 'kambedla' }).reason, 'full');
+});

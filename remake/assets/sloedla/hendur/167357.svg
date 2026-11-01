@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:cc="http://creativecommons.org/ns#"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:svg="http://www.w3.org/2000/svg"
+    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+    xmlns:ns1="http://sozi.baierouge.fr"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    id="svg1"
+    viewBox="0 0 420 480"
+    version="1.1"
+  >
+  <g
+      id="layer1"
+      transform="translate(-124.29 -209.51)"
+    >
+    <path
+        id="path1"
+        d="m311.74 669.76c-1.1088-25.696 0.60244-51.52 6.9218-76.505 4.9526-22.29 6.7962-45.034 5.612-67.842-1.0249-18.041 0.90922-36.744-4.3128-54.249-10.54-13.828-27.306-21.927-41.568-31.621-13.253-8.9051-18.061-25.602-29.894-36.307-6.2506-7.5223-13.413-14.179-20.601-20.779 10.422-10.722 27.067-2.391 36.742 5.4388 7.7219 4.7144 29.143 28.008 25.944 5.3104-4.4464-16.212-11.989-31.08-22.061-44.468-5.7663-12.259-10.965-25.167-13.529-38.444-9.3994-17.632 19.318-21.021 21.209-3.5921 6.9422 14.075 14.351 27.819 23.861 40.221 4.2088 9.003 15.586 10.74 8.3783-1.5742-4.8107-21.834-13.487-43.541-12.106-66.178 11.486-16.291 25.619 8.3579 25.287 20.877 5.8832 16.756 7.6165 35.253 16.961 50.594 14.293 10.139 7.6928-19.563 9.2029-28.129 0.001-11.391 0.0002-22.782 0.00048-34.173 14.24-12.249 23.48 10.662 21.737 22.771 1.8139 16.282 0.0766 32.84 2.5302 49.024 14.091 6.7016 18.954-21.906 26.359-30.874 0.4388-14.956 25.952-19.713 20.927-1.3156-5.01 18.302-17.677 33.932-20.812 52.683 1.6422 17.256 6.8557 34.694 2.1423 52.019-2.9235 16.678-9.8415 33.895-3.2251 50.637 10.159 38.04 13.83 77.393 19.9 116.22 0.20648 30.003 0.41297 60.005 0.61947 90.008h-105.46c-0.25551-6.5833-0.51108-13.167-0.76656-19.75z"
+    />
+  </g
+  >
+  <metadata
+    >
+    <rdf:RDF
+      >
+      <cc:Work
+        >
+        <dc:format
+          >image/svg+xml</dc:format
+        >
+        <dc:type
+            rdf:resource="http://purl.org/dc/dcmitype/StillImage"
+        />
+        <cc:license
+            rdf:resource="http://creativecommons.org/licenses/publicdomain/"
+        />
+        <dc:publisher
+          >
+          <cc:Agent
+              rdf:about="http://openclipart.org/"
+            >
+            <dc:title
+              >Openclipart</dc:title
+            >
+          </cc:Agent
+          >
+        </dc:publisher
+        >
+        <dc:title
+          >Raised Hand in Silhouette</dc:title
+        >
+        <dc:date
+          >2012-01-22T22:37:07</dc:date
+        >
+        <dc:description
+          >Raised Hand in Silhouette</dc:description
+        >
+        <dc:source
+          >https://openclipart.org/detail/167357/raised-hand-in-silhouette-by-dripsandcastle</dc:source
+        >
+        <dc:creator
+          >
+          <cc:Agent
+            >
+            <dc:title
+              >dripsandcastle</dc:title
+            >
+          </cc:Agent
+          >
+        </dc:creator
+        >
+        <dc:subject
+          >
+          <rdf:Bag
+            >
+            <rdf:li
+              >hand</rdf:li
+            >
+            <rdf:li
+              >raised hand</rdf:li
+            >
+            <rdf:li
+              >raised hand silhouette</rdf:li
+            >
+            <rdf:li
+              >silhouette</rdf:li
+            >
+          </rdf:Bag
+          >
+        </dc:subject
+        >
+      </cc:Work
+      >
+      <cc:License
+          rdf:about="http://creativecommons.org/licenses/publicdomain/"
+        >
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#Reproduction"
+        />
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#Distribution"
+        />
+        <cc:permits
+            rdf:resource="http://creativecommons.org/ns#DerivativeWorks"
+        />
+      </cc:License
+      >
+    </rdf:RDF
+    >
+  </metadata
+  >
+</svg
+>
