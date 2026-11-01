@@ -3323,5 +3323,160 @@
   "src": "assets/audio/kafli2/k2_mosi_map_trail.mp3",
   "duration": 6.81,
   "mouth": "9ffee800ffbddeb6aab70bb552cfeeeec8700000005dffdbc603fffee70cfdcdcdb30005c804dc000becdeeee50dd000eefecb870000003db400efc83aba5560000000000"
+ },
+ "k2_uggedla_help": {
+  "src": "assets/audio/kafli2/k2_uggedla_help.mp3",
+  "duration": 8.491,
+  "mouth": "07c700980000ce3fedfa70974300ee700006d670583000000000000000000b00c3cd006fca60006bc7300000000000000000005cd000cf8cbda00009efffda0aa00078664000bed72e300e70002000000000000000"
+ },
+ "k2_uggedla_small": {
+  "src": "assets/audio/kafli2/k2_uggedla_small.mp3",
+  "duration": 4.09,
+  "mouth": "4deebbbb800000000ceed80008befe500058a500000000000000000dfffb006d000005000000000000"
+ },
+ "k2_uggedla_thanks": {
+  "src": "assets/audio/kafli2/k2_uggedla_thanks.mp3",
+  "duration": 5.45,
+  "mouth": "0008ffdcc000de000403a300000000000000035fa500056bca7000000000000049f2000008befff900cb86acc36540000000000000000"
+ },
+ "k2_uggedla_hello": {
+  "src": "assets/audio/kafli2/k2_uggedla_hello.mp3",
+  "duration": 4.89,
+  "mouth": "00eeee30008b900000000000fe00bdc00877000000000005fbbffc8009dd0087000000000039fcd7efec03400000000000"
+ },
+ "k2_uggedla_accept": {
+  "src": "assets/audio/kafli2/k2_uggedla_accept.mp3",
+  "duration": 8.17,
+  "mouth": "00000bffca00fe88d6000400000000000008bfffc800000cdd000ded720000000000000ab7c643fcd000ebba03c600000000000000b3000db99bd80cc0007b30b60009ba9309b89b7bdcc730000000000000"
+ },
+ "k2_uggedla_aboard": {
+  "src": "assets/audio/kafli2/k2_uggedla_aboard.mp3",
+  "duration": 5.77,
+  "mouth": "4eacf00aebdeb000cb0000000000000000000cc09f25ffc00bb5ab880000000000006ad700df9aeca00572007800bc3004530000000000000000"
+ },
+ "k2_uggedla_wet": {
+  "src": "assets/audio/kafli2/k2_uggedla_wet.mp3",
+  "duration": 2.73,
+  "mouth": "055fd7400de800d30000fc3000cdf80000007985003300000000000"
+ },
+ "k2_uggedla_sail": {
+  "src": "assets/audio/kafli2/k2_uggedla_sail.mp3",
+  "duration": 5.85,
+  "mouth": "00af5fc0000ac306feffffe9b859a0000005997000000000000004becbbb70cfd30bf9a306b807c700becbac08a000fefa6000050000000000000"
+ },
+ "k2_uggedla_tail": {
+  "src": "assets/audio/kafli2/k2_uggedla_tail.mp3",
+  "duration": 4.33,
+  "mouth": "06309fd90600000000008c00009cfe000dfe8646abcb9653300000000bfbce0007f00000052000000000000"
+ },
+ "k2_uggedla_berries": {
+  "src": "assets/audio/kafli2/k2_uggedla_berries.mp3",
+  "duration": 7.53,
+  "mouth": "00defb4edc60ffd5900400000000000000000000008ec6007ea65883029cbc8c5c80004677690000975c60004000000000000000b97ca0003ff9cc00006fa77ffe8a70b9465300000000000"
+ },
+ "k2_mosi_einn": {
+  "src": "assets/audio/kafli2/k2_mosi_einn.mp3",
+  "duration": 1.13,
+  "mouth": "0effffca600000000000000"
+ },
+ "k2_mosi_tveir": {
+  "src": "assets/audio/kafli2/k2_mosi_tveir.mp3",
+  "duration": 1.29,
+  "mouth": "03acffeec95300000000000000"
+ },
+ "k2_mosi_thrir": {
+  "src": "assets/audio/kafli2/k2_mosi_thrir.mp3",
+  "duration": 1.13,
+  "mouth": "0000feffec7530000000000"
+ },
+ "k2_mosi_fjorir": {
+  "src": "assets/audio/kafli2/k2_mosi_fjorir.mp3",
+  "duration": 1.21,
+  "mouth": "0003cffefcb64000000000000"
+ },
+ "k2_mosi_hint_fish": {
+  "src": "assets/audio/kafli2/k2_mosi_hint_fish.mp3",
+  "duration": 3.69,
+  "mouth": "5cfa00ced00c77600ceccbcdd00db00085000000000005cfe003fe00ffca70000000000000"
+ },
+ "k2_mosi_flooded": {
+  "src": "assets/audio/kafli2/k2_mosi_flooded.mp3",
+  "duration": 3.85,
+  "mouth": "6effffffddddb85000000000000adc009eb5ecca40079c60005cbc85009baab96400000000000"
+ },
+ "k2_egill_across": {
+  "src": "assets/audio/kafli2/k2_egill_across.mp3",
+  "duration": 2.25,
+  "mouth": "30dfb05da007ffcfe6004d908dfe70300000000000000"
+ },
+ "k2_mosi_boat": {
+  "src": "assets/audio/kafli2/k2_mosi_boat.mp3",
+  "duration": 5.29,
+  "mouth": "007ffedbee8000dfffd600000000000fdecf005dd5600000000de645304ffcccbaddc95deceeeb04dec0bf60bd003bb80000000000"
+ },
+ "k2_egill_helloboat": {
+  "src": "assets/audio/kafli2/k2_egill_helloboat.mp3",
+  "duration": 1.85,
+  "mouth": "00fddfdfb93000009ffa00470000000000000"
+ },
+ "k2_mosi_notboat": {
+  "src": "assets/audio/kafli2/k2_mosi_notboat.mp3",
+  "duration": 3.77,
+  "mouth": "00ec00dec38ffd53efc0eec900534000000000000eb0cfa00ee0000dfcba9840000000000000"
+ },
+ "k3_mosi_wave": {
+  "src": "assets/audio/kafli2/k3_mosi_wave.mp3",
+  "duration": 4.09,
+  "mouth": "bf6b049fdcdebcda000000007fd0005fecbeeaaeddd9dfce80cddb7700ccb8bfff88ccb80000000000"
+ },
+ "k3_egill_hi": {
+  "src": "assets/audio/kafli2/k3_egill_hi.mp3",
+  "duration": 1.77,
+  "mouth": "00afffea5000ad005fcb8899000000000000"
+ },
+ "k3_mosi_third": {
+  "src": "assets/audio/kafli2/k3_mosi_third.mp3",
+  "duration": 3.05,
+  "mouth": "008efedbcc9000deefd900000000000dcec4ded900dfd80dec70000000000"
+ },
+ "k3_mosi_three": {
+  "src": "assets/audio/kafli2/k3_mosi_three.mp3",
+  "duration": 4.41,
+  "mouth": "000fdeffd7078ffeda500000000000000beddeefec99ff45edee9040ce9003dd0adbddcfeb000000000000000"
+ },
+ "k2_mosi_invite_ugg": {
+  "src": "assets/audio/kafli2/k2_mosi_invite_ugg.mp3",
+  "duration": 3.53,
+  "mouth": "ff06efccc600000006f90d05ffeefdc700ee607dfffd07fdeeeeea68ddb000000000000"
+ },
+ "k2_mosi_brrr": {
+  "src": "assets/audio/kafli2/k2_mosi_brrr.mp3",
+  "duration": 3.29,
+  "mouth": "06beefffedaa40000000028ec900ce9996000008cee700accc7000000000000000"
+ },
+ "k2_egill_sail": {
+  "src": "assets/audio/kafli2/k2_egill_sail.mp3",
+  "duration": 2.89,
+  "mouth": "afa00000edfe309deeb07cb00000ae7000000009fc0000300000000000"
+ },
+ "k2_mosi_onlyabit": {
+  "src": "assets/audio/kafli2/k2_mosi_onlyabit.mp3",
+  "duration": 2.65,
+  "mouth": "04fd00d9300c57fed000a30deefffdd76b800cda0000000000000"
+ },
+ "k2_mosi_wetter": {
+  "src": "assets/audio/kafli2/k2_mosi_wetter.mp3",
+  "duration": 2.81,
+  "mouth": "0defeb600000000dfdaefbdd008dba800fe7aeee00c88400000000000"
+ },
+ "k2_egill_head": {
+  "src": "assets/audio/kafli2/k2_egill_head.mp3",
+  "duration": 5.05,
+  "mouth": "000fffe7076000000000008eccc0584888f605df5000b9300000000009ff50000b807efd3a400008dfb989500000000000000"
+ },
+ "k2_mosi_thanks_ugg": {
+  "src": "assets/audio/kafli2/k2_mosi_thanks_ugg.mp3",
+  "duration": 2.81,
+  "mouth": "0afeb500500de5dfecca500000000005fddc30d43ffb6000000000000"
  }
 }

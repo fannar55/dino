@@ -373,8 +373,12 @@ function makeHeldFish(rig) {
 // ---------------------------------------------------------------------------------------------
 // Water: rings and bubbles
 
-/** A ring on the water at (x, z); the script's own (c.ring) keeps few alive at once. */
-function ringAt(c, x, z, strength = 0.5) {
+/**
+ * A ring on the water at (x, z); the script's own (c.ring) keeps few alive at once. A ring that is the point of a move (the tail's splash
+ * on Mosi) is made whatever else is spreading: it is not left out because the swim's bow and tail rings happen to fill the three.
+ */
+function ringAt(c, x, z, strength = 0.5, { always = false } = {}) {
+  if (always) return c.world.forest?.water?.rippleAt?.([x, 0, z], strength) ?? null;
   c.ring ??= ringsFor(c.world, { most: 3 });
   return c.ring([x, 0, z], strength);
 }
@@ -681,8 +685,8 @@ export function* tailSplash(s, c, target) {
     where();
     s.sfx('splash');
     spray(c.world, tip, aimed.clone(), { seed: 'tail splash' });
-    ringAt(c, tip.x, tip.z, 1.1);
-    s.after(0.25, () => { ringAt(c, aimed.x, aimed.z, 0.8); });
+    ringAt(c, tip.x, tip.z, 1.1, { always: true });
+    s.after(0.25, () => { ringAt(c, aimed.x, aimed.z, 0.8, { always: true }); });
     yield s.wait(0.5);
     rig.tween('curl', 0, 0.9, smoother);
     yield s.wait(1.0);

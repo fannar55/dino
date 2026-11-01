@@ -326,8 +326,13 @@ function* theFerry(s, c) {
  * for Þórseðla's head.
  */
 const CHAT_PAUSE = 0.9;
+// The side shot was measured for the swim's stretch from 27.5 s on (before it the bank's swamp conifers put their crowns over the camera),
+// and the chat's lines took that long when they were timed by their words. With the recordings the lines before it are 2 s shorter, so
+// the cut waits for the swim to have gone that far: the chat may run shorter or longer with a new take, the shot stays where it is clear.
+const SIDE_SHOT_FROM = 27.5; // s after the swim begins
 function* ferryChat(s, c) {
   const { mosi } = c;
+  const sideShotMayCut = s.after(0, () => s.wait(SIDE_SHOT_FROM));
   yield s.wait(3); // the two-shot from the crossing holds while Mosi turns and wades in: a camera in his frame swings round with him then
   yield mosi.lookAt('uggedla.head', { weight: 0.6, maxPitch: 30 });
   yield* say(s, c, 'mosi', 'k2_mosi_brrr');
@@ -340,6 +345,7 @@ function* ferryChat(s, c) {
   yield s.wait(CHAT_PAUSE);
   yield* say(s, c, 'mosi', 'k2_mosi_onlyabit');
   // side by side again: the tail comes down in the water as she says "like a fish", and Mosi gets the splash
+  yield sideShotMayCut;
   yield s.camera.cut('ferry_side');
   yield s.wait(CHAT_PAUSE);
   const saying = s.after(0, () => say(s, c, 'uggedla', 'k2_uggedla_tail'));
