@@ -71,5 +71,13 @@
  { "id": "veiddu_uggedla_won", "speaker": "uggedla", "text": "Ég vann!" },
  { "id": "veiddu_mosi_you_won", "speaker": "mosi", "text": "Þú vannst! Vel gert!" },
  { "id": "veiddu_uggedla_you_won", "speaker": "uggedla", "text": "Þú vannst! Vel gert!" },
- { "id": "veiddu_mosi_tie", "speaker": "mosi", "text": "Jafntefli! Við unnum saman!" }
+ { "id": "veiddu_mosi_tie", "speaker": "mosi", "text": "Jafntefli! Við unnum saman!" },
+ { "id": "veiddu_tut_pairs", "speaker": "mosi", "text": "Tvö eins spil eru par. Safnaðu flestum pörum!", "context": "Hérna eru tvö eins spil.", "seed": 42, "note": "Own context and seed 42: chosen because scribe_v2 heard it as written (the plain take was not)." },
+ { "id": "veiddu_tut_ask", "speaker": "mosi", "text": "Pikkaðu á skjaldbökuna. Pikkaðu svo á Uggeðlu og spurðu hana!", "context": "Sjáðu Uggeðlu! Hún á mörg spil.", "seed": 42, "note": "Own context and seed 42: scribe heard the plain take as ugguðlu." },
+ { "id": "veiddu_tut_laid", "speaker": "mosi", "text": "Þú fékkst skjaldböku! Nú áttu par. Parið fer í aflann." },
+ { "id": "veiddu_tut_fish", "speaker": "mosi", "text": "Spurðu Mosa um drekaflugu. Hann á hana ekki. Þá ferðu að veiða í tjörninni!" },
+ { "id": "veiddu_tut_listen", "speaker": "mosi", "text": "Nú spila Uggeðla og ég. Mundu hvað við biðjum um!" },
+ { "id": "veiddu_tut_give", "speaker": "mosi", "text": "Nú spyr ég þig! Pikkaðu á spilið sem ég bið um." },
+ { "id": "veiddu_tut_remember", "speaker": "mosi", "text": "Uggeðla bað um frosk. Spurðu hana!", "context": "Sjáðu, þarna er Uggeðla! Hún bíður eftir þér.", "seed": 42, "note": "Own context and seed 42: scribe heard the plain take as Buggeðla." },
+ { "id": "veiddu_tut_real", "speaker": "mosi", "text": "Nú spilum við alvöruleik!", "context": "Nú kanntu reglurnar, Egill.", "seed": 42, "note": "Own context and seed 42: scribe heard the plain take as alvöru leik (two words)." }
 ]

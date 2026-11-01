@@ -36,8 +36,12 @@ import { validateGame } from '../hals/rules.js';
 // onPlay('hals') (engine/hals/game.js) and appears once it is open (halsOpen: her star, k2_thorsedla, or a game of it played), new
 // until it is first played. Then the "Litla Yatzy" tile, a taped photo of Mosi, always there and new until it is first played, which
 // hands the junior dice game with Mosi to onPlay('yatzy-junior'): a page of its own that main.js opens in a frame over the book. The
-// slots that show share the left page (data-open says how many: one big, two side by side, or the three of a full book). It has had
-// the third tile since Slóeðla's Risaeðlu-Yatzy left the game (the owner's choice of 2026-10-24); before, it was a small button under hers.
+// slots that show share the left page (data-open says how many: one big, two side by side, three with the first big, or the four of a
+// full book in two rows; data-place numbers the ones that show, for the style sheet). It has had the third tile since Slóeðla's
+// Risaeðlu-Yatzy left the game (the owner's choice of 2026-10-24); before, it was a small button under hers. The "Veiddu" tile, a render
+// of Uggeðla, is the fourth: it appears with her star (k2_uggedla, VEIDDU_STAR), is new until it is first played, and hands Uggeðla's
+// Go Fish to onPlay('veiddu') (engine/veiddu/table.js, from main.js). Each round the child wins from her (a tie the child is in too) is a
+// sticker of hers, one for each of getVeiddu().wins, after Kambeðla's on the same sheet, which shows when either game is open.
 // The Kortið leaf is the map (map-page.js): the forest and the Fen painted across the spread, the trail the child has travelled drawn
 // along it in ink (each piece draws itself in the first time the page is on view), with a slot for each of the six friends that
 // fills with the friend's sticker once found and wears a star once done; a tap on a filled one has Mosi say its name and a
@@ -63,8 +67,12 @@ const DINOSAUR_FIND_ME = 'book_mosi_later'; // Mosi, for a dinosaur not met yet:
 const MOSI_RIBBON_PICTURE = new URL('../../assets/book/images/mosi-render-thumb.webp', import.meta.url).href; // the Risaeðlur ribbon's icon
 const EITT_STAR = 'k1_kambedla'; // the star that opens "Eitt!": Kambeðla's
 const EITT_SEEN = 'eitt'; // kept in the save's seen list once the game has been opened, so the tile is new no more
+export const VEIDDU_STAR = 'k2_uggedla'; // the star that opens "Veiddu": Uggeðla's (chapter 2's friend; the chapter adds it)
+const VEIDDU_SEEN = 'veiddu'; // kept in the save's seen list once the game has been opened, so its tile is new no more
 const STICKERS_SHOWN = 20; // the sticker page holds this many; a child who has won more sees the count
+const STICKERS_EACH = 5; // and when it is full, a game that has won keeps at least this many of its stickers on it
 const KAMBEDLA_PICTURE = new URL('../../assets/book/images/kambedla-render.webp', import.meta.url).href;
+const UGGEDLA_PICTURE = new URL('../../assets/book/images/uggedla-render.webp', import.meta.url).href;
 const THORSEDLA_PICTURE = new URL('../../assets/eitt/brontosaurus.webp', import.meta.url).href;
 const MOSI_PICTURE = new URL('../../assets/eitt/mosi.webp', import.meta.url).href;
 export const HALS_STAR = 'k2_thorsedla'; // the star that opens "Háls og hali": Þórseðla's (spec section 7)
@@ -102,7 +110,7 @@ export function halsOpen(save) {
 
 /**
  * The book in `doc`'s #book, over `cards` (parseCards), `media` (parseManifest), the 3D pages' `models` (parseModels) and the `save`, with the book's sound (`audio`,
- * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt', { tutorial })` opens a game from the Leikir page; `onTab(tab)` is told
+ * createBookAudio). `onPause(paused)` holds the game; `onPlay('eitt' | 'veiddu' | 'hals' | 'yatzy-junior')` opens a game from the Leikir page; `onTab(tab)` is told
  * the page an open book shows each time it opens or turns (main.js starts building "Háls og hali" on the Leikir page); `win` is the window (less
  * motion, the screen's shape); `liveMap` makes the map's living layers (createLiveMap's signature, map-life.js: a test gives its own). Returns
  *   open(tab, by, { find, nod })  opens it on 'dinosaurs', 'animals', 'games', 'map' or 'fossils', as the child's (by 'child', which
@@ -227,8 +235,28 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   halsBadge.textContent = 'Nýtt!';
   halsBadge.setAttribute('aria-hidden', 'true');
   halsTile.append(halsPicture, halsName);
+  // "Veiddu": a taped render of Uggeðla, between "Eitt!" and "Háls og hali" (the two card games side by side).
+  const veidduTile = make('button', 'tile game-tile');
+  veidduTile.setAttribute('type', 'button');
+  veidduTile.setAttribute('data-game', 'veiddu');
+  veidduTile.setAttribute('aria-label', 'Veiddu, spil við Uggeðlu');
+  veidduTile.style.setProperty('--hue', '#47908a'); // Uggeðla's teal, as on her card (book.css [data-card="uggedla"])
+  const veidduPicture = make('span', 'tile-picture');
+  const veidduImage = doc.createElement('img');
+  veidduImage.src = UGGEDLA_PICTURE;
+  veidduImage.alt = '';
+  veidduImage.draggable = false;
+  veidduPicture.append(veidduImage);
+  const veidduName = make('span', 'tile-name');
+  veidduName.textContent = 'Veiddu';
+  const veidduBadge = make('span', 'badge-new');
+  veidduBadge.textContent = 'Nýtt!';
+  veidduBadge.setAttribute('aria-hidden', 'true');
+  veidduTile.append(veidduPicture, veidduName);
   const eittSlot = make('div', 'game-slot');
   eittSlot.append(eittTile); // the tutorial is the game's own (its Kennsla button): the book had one too until 2026-10-26
+  const veidduSlot = make('div', 'game-slot');
+  veidduSlot.append(veidduTile); // its tutorial is the game's own too
   const halsSlot = make('div', 'game-slot');
   halsSlot.append(halsTile);
   // "Litla Yatzy": a taped photo of Mosi beside "Eitt!" and "Háls og hali".
@@ -252,7 +280,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   const juniorSlot = make('div', 'game-slot');
   juniorSlot.append(juniorTile);
   const [gamesLeft, gamesRight] = leaves.get('games').tiles;
-  gamesLeft.append(eittSlot, halsSlot, juniorSlot); // each shows once its game is open (renderGameSlots)
+  gamesLeft.append(eittSlot, veidduSlot, halsSlot, juniorSlot); // each shows once its game is open (renderGameSlots)
   gamesRight.append(sheet);
 
   // The Safnið ribbon's own "Nýtt!", while a fossil is found and not tapped yet (renderRibbonNew).
@@ -300,6 +328,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     animals.render();
     renderCorners(state);
     renderGames(state);
+    renderVeiddu(state);
     renderHals(state);
     renderJunior(state);
     renderGameSlots(state);
@@ -342,7 +371,11 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     if (isOpen && holder === 'child' && tab === 'fossils') museum.celebrate({ delay });
   }
 
-  /** "Eitt!" opens with Kambeðla's star and is new until first played; each round won is a sticker on the right page. */
+  /**
+   * "Eitt!" opens with Kambeðla's star and is new until first played; each round won is a sticker on the right page, Kambeðla's
+   * first and then Uggeðla's from "Veiddu". The page holds STICKERS_SHOWN: past it a game keeps at least STICKERS_EACH of its own on it
+   * (the newest game does not push the older one's off, nor the other way round) and the count says how many there are in all.
+   */
   function renderGames(state) {
     const open = state.stars.includes(EITT_STAR);
     const fresh = open && !state.seen.includes(EITT_SEEN);
@@ -353,17 +386,43 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     if (fresh && eittBadge.parentNode !== eittTile) eittTile.append(eittBadge);
     if (!fresh) eittBadge.remove();
     const wins = save.getEitt?.().wins ?? 0;
-    if (sheet.getAttribute('data-wins') === String(wins)) return; // nothing new for the sticker sheet
-    sheet.setAttribute('data-wins', String(wins));
-    const stickers = Array.from({ length: Math.min(wins, STICKERS_SHOWN) }, () => make('span', 'book-sticker'));
-    if (!wins) stickers.push(make('span', 'book-sticker empty')); // where the first one will go
-    if (wins > STICKERS_SHOWN) {
+    const veidduWins = save.getVeiddu?.().wins ?? 0;
+    const veiddu = state.stars.includes(VEIDDU_STAR);
+    const key = `${wins}/${veidduWins}/${open}/${veiddu}`;
+    if (sheet.getAttribute('data-wins') === key) return; // nothing new for the sticker sheet
+    sheet.setAttribute('data-wins', key);
+    const total = wins + veidduWins;
+    const veidduShown = total <= STICKERS_SHOWN ? veidduWins : Math.min(veidduWins, Math.max(STICKERS_SHOWN - wins, STICKERS_EACH));
+    const eittShown = Math.min(wins, STICKERS_SHOWN - veidduShown);
+    const stickers = [
+      ...Array.from({ length: eittShown }, () => make('span', 'book-sticker')),
+      ...Array.from({ length: veidduShown }, () => make('span', 'book-sticker uggedla')),
+    ];
+    if (!total) stickers.push(make('span', 'book-sticker empty')); // where the first one will go
+    if (total > STICKERS_SHOWN) {
       const count = make('span', 'sticker-count');
-      count.textContent = String(wins);
+      count.textContent = String(total);
       stickers.push(count);
     }
     sheet.replaceChildren(...stickers);
-    sheet.setAttribute('aria-label', wins === 1 ? 'Einn kambeðlulímmiði' : `${wins} kambeðlulímmiðar`);
+    const said = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
+    const parts = [];
+    if (wins) parts.push(said(wins, 'Einn kambeðlulímmiði', 'kambeðlulímmiðar'));
+    if (veidduWins) parts.push(said(veidduWins, 'Einn uggeðlulímmiði', 'uggeðlulímmiðar'));
+    if (!parts.length) parts.push(veiddu && !open ? '0 uggeðlulímmiðar' : '0 kambeðlulímmiðar'); // Kambeðla's, unless only Veiddu is open
+    sheet.setAttribute('aria-label', parts.join(' og '));
+  }
+
+  /** "Veiddu" opens with Uggeðla's star and is new until it is first played. */
+  function renderVeiddu(state) {
+    const open = state.stars.includes(VEIDDU_STAR);
+    const fresh = open && !state.seen.includes(VEIDDU_SEEN);
+    veidduTile.classList.toggle('found', open && !fresh);
+    veidduTile.classList.toggle('new', fresh);
+    veidduTile.classList.toggle('unfound', !open);
+    veidduTile.setAttribute('aria-label', open ? 'Veiddu, spil við Uggeðlu' : 'Veiddu (opnast með stjörnu Uggeðlu)');
+    if (fresh && veidduBadge.parentNode !== veidduTile) veidduTile.append(veidduBadge);
+    if (!fresh) veidduBadge.remove();
   }
 
   /** "Háls og hali" opens with Þórseðla's star or a game of it played (halsOpen), and is new until it is first played. */
@@ -379,16 +438,21 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
   }
 
   /**
-   * The Leikir page shows only the games that are open: "Eitt!" (and its stickers) with Kambeðla's star, "Háls og hali" once halsOpen,
-   * and "Litla Yatzy" always. `data-open` is how many slots show, for the page's layout (book.css).
+   * The Leikir page shows only the games that are open: "Eitt!" with Kambeðla's star, "Veiddu" with Uggeðla's, "Háls og hali" once
+   * halsOpen, and "Litla Yatzy" always; the stickers (Kambeðla's and Uggeðla's) when either card game is open. `data-open` is how many
+   * slots show, and each slot's `data-place` its order among them (0 for one that is hidden), for the page's layout (book.css).
    */
   function renderGameSlots(state) {
     const eitt = state.stars.includes(EITT_STAR);
+    const veiddu = state.stars.includes(VEIDDU_STAR);
     const hals = halsOpen(save);
-    eittSlot.hidden = !eitt;
-    sheet.hidden = !eitt;
-    halsSlot.hidden = !hals;
-    gamesLeft.setAttribute('data-open', String([eitt, hals, true].filter(Boolean).length));
+    let places = 0;
+    for (const [slot, open] of [[eittSlot, eitt], [veidduSlot, veiddu], [halsSlot, hals], [juniorSlot, true]]) {
+      slot.hidden = !open;
+      slot.setAttribute('data-place', String(open ? ++places : 0));
+    }
+    sheet.hidden = !(eitt || veiddu);
+    gamesLeft.setAttribute('data-open', String(places));
   }
 
   /** "Litla Yatzy" is always open, and new until it is first played. */
@@ -440,6 +504,18 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     save.addSeen(EITT_SEEN);
     render();
     onPlay?.('eitt');
+  }
+
+  /** A tap on the "Veiddu" tile: it opens the game once Uggeðla's star is in, and wiggles before. */
+  function tapVeiddu() {
+    if (!save.get().stars.includes(VEIDDU_STAR)) {
+      wiggle(veidduTile);
+      return;
+    }
+    audio?.sfx?.('tile');
+    save.addSeen(VEIDDU_SEEN);
+    render();
+    onPlay?.('veiddu');
   }
 
   /** The card and what is zoomed in it are put away at once, as the book is shut or turns to another page. */
@@ -746,6 +822,7 @@ export function createBook(doc, { cards = [], media = new Map(), models = new Ma
     if (leaf.corners.prev) pressable(leaf.corners.prev, { audio, sound: null, win, onTap: () => turnSpread(nextShown(i, -1)) });
   });
   pressable(eittTile, { audio, sound: null, win, onTap: () => tapGame() }); // the tile plays its own sound
+  pressable(veidduTile, { audio, sound: null, win, onTap: () => tapVeiddu() }); // the tile plays its own sound
   pressable(halsTile, { audio, sound: null, win, onTap: () => tapHals() });
   pressable(juniorTile, { audio, sound: null, win, onTap: () => tapJunior() });
   pressable(closeEl, { audio, sound: null, win, onTap: () => close() }); // close() plays its own sound

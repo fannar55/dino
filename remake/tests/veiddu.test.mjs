@@ -12,6 +12,11 @@ import { createSfx } from '../engine/audio/sfx.js';
 import { createFakeContext, centsFromKey, pitchesOf, withFetch } from './fake-audio.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { createSave, forgetSave } from '../engine/save.js';
+import { createBook, VEIDDU_STAR } from '../engine/book/book.js';
+import { afterRound } from '../engine/eitt/skill.js';
+import { DONE } from '../engine/handle.js';
+import { FakeDocument, pointerEvent } from './fake-dom.mjs';
 
 const deck = makeDeck();
 const card = id => deck.find(c => c.id === id);
@@ -885,4 +890,226 @@ test('stop drops everything and silences the voice; hush leaves the one sounding
   assert.deepEqual(r.played, ['ua.mp3']);
   r.advance(60000);
   assert.deepEqual(r.played, ['ua.mp3'], 'the guard of the stopped line does not wake the next');
+});
+
+// ---- The save, the tile and the stickers (Task 8) ---------------------------------------------------------------------------
+
+const SAVE_KEY = 'mosi-remake-v1';
+const NO_VEIDDU = { skill: null, losses: 0, wins: 0, tutorialDone: false, game: null, seats: null };
+
+/** A storage of the test's own, as the browser's localStorage behaves. */
+function memoryStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, String(value)), removeItem: key => map.delete(key) };
+}
+const storedOf = storage => JSON.parse(storage.getItem(SAVE_KEY));
+
+test('createSave keeps veiddu { skill, losses, wins, tutorialDone } and reads a save without it as defaults', () => {
+  // a save from before the game (with Eitt! played): the defaults, and no block written until Veiddu is played
+  const storage = memoryStorage({ [SAVE_KEY]: JSON.stringify({ stars: ['k1_kambedla'], findings: [], seen: [], places: [], eitt: { skill: 0.4, losses: 2, wins: 3, tutorialDone: true } }) });
+  const save = createSave(storage);
+  assert.deepEqual(save.getVeiddu(), NO_VEIDDU);
+  assert.equal(save.getVeiddu().skill, null, 'skill is null before the first round');
+  save.addStar(VEIDDU_STAR);
+  assert.equal('veiddu' in storedOf(storage), false, 'the star is not a game played: no veiddu block yet');
+
+  // the round's result is kept, and the next page reads it
+  save.setVeiddu({ skill: 0.35, losses: 1, wins: 2 });
+  assert.deepEqual(save.getVeiddu(), { ...NO_VEIDDU, skill: 0.35, losses: 1, wins: 2 });
+  assert.deepEqual(storedOf(storage).veiddu, { skill: 0.35, losses: 1, wins: 2, tutorialDone: false });
+  assert.deepEqual(createSave(storage).getVeiddu(), { ...NO_VEIDDU, skill: 0.35, losses: 1, wins: 2 });
+
+  // a change leaves what it does not name as it was (the tutorial's flag, the round's numbers)
+  save.setVeiddu({ tutorialDone: true });
+  assert.deepEqual(save.getVeiddu(), { ...NO_VEIDDU, skill: 0.35, losses: 1, wins: 2, tutorialDone: true });
+  save.setVeiddu({ skill: 0.5, losses: 0, wins: 3 });
+  assert.deepEqual(createSave(storage).getVeiddu(), { ...NO_VEIDDU, skill: 0.5, losses: 0, wins: 3, tutorialDone: true });
+  assert.equal(save.setVeiddu(), undefined, 'a call with nothing to change is allowed');
+
+  // Eitt!'s block and the rest are not touched, and the other way round
+  assert.deepEqual(save.getEitt(), { skill: 0.4, losses: 2, wins: 3, tutorialDone: true, game: null, seats: null });
+  assert.deepEqual(storedOf(storage).eitt, { skill: 0.4, losses: 2, wins: 3, tutorialDone: true });
+  assert.deepEqual(save.get().stars, ['k1_kambedla', VEIDDU_STAR]);
+  save.setEitt({ wins: 4 });
+  assert.equal(save.getVeiddu().wins, 3, 'Eitt!\'s wins are not Veiddu\'s');
+  assert.equal(save.getEitt().wins, 4);
+
+  // forgotten with the save, as Eitt! is (forgetSave takes the one key)
+  forgetSave(storage);
+  assert.deepEqual(createSave(storage).getVeiddu(), NO_VEIDDU);
+});
+
+test('the save reads only what makes sense: bad numbers and strangers in the veiddu block become the defaults', () => {
+  const stored = veiddu => createSave(memoryStorage({ [SAVE_KEY]: JSON.stringify({ stars: [], veiddu }) })).getVeiddu();
+  assert.deepEqual(stored({ skill: 2, losses: -1, wins: 1.5, tutorialDone: 'yes', game: [1], seats: { x: 1 } }), NO_VEIDDU, 'out of range, not whole, not true, a list for a game, seats without a game');
+  assert.deepEqual(stored({ skill: 'high', losses: '3', wins: null }), NO_VEIDDU);
+  assert.deepEqual(stored('veiddu'), NO_VEIDDU);
+  assert.deepEqual(stored({ skill: 0, losses: 2, wins: 7, tutorialDone: true }), { ...NO_VEIDDU, skill: 0, losses: 2, wins: 7, tutorialDone: true }, 'skill 0 is a skill');
+  // a storage that fails is the game's problem no more than before: it lives in memory
+  const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('full'); } };
+  const save = createSave(broken);
+  assert.doesNotThrow(() => save.setVeiddu({ wins: 1 }));
+  assert.equal(save.getVeiddu().wins, 1);
+});
+
+test('veiddu keeps a round of Fjölspil with its seats, hands out copies, and forgets both on game: null', () => {
+  const save = createSave(null);
+  assert.equal(save.getVeiddu().game, null);
+  const game = { pairs: [[], [], []], turn: 1 };
+  save.setVeiddu({ game, seats: { max: 4, reserved: ['uggedla'], seats: [] } });
+  assert.deepEqual(save.getVeiddu().game, game);
+  assert.notEqual(save.getVeiddu().game, game, 'a copy');
+  save.getVeiddu().game.turn = 9;
+  assert.equal(save.getVeiddu().game.turn, 1, 'and the copy is not the save\'s own');
+  assert.deepEqual(save.getVeiddu().seats.reserved, ['uggedla']);
+  save.setVeiddu({ wins: 1 });
+  assert.deepEqual(save.getVeiddu().game, game, 'other changes leave it');
+  save.setVeiddu({ game: null });
+  assert.equal(save.getVeiddu().game, null);
+  assert.equal(save.getVeiddu().seats, null, 'the seats go with the game');
+  save.setVeiddu({ seats: { max: 4 } });
+  assert.equal(save.getVeiddu().seats, null, 'seats without a game are not kept');
+});
+
+test('a tie that includes the child counts as a win for wins', () => {
+  // a whole game the minds played in which the child and another seat have most pairs (seeded: the same game each run)
+  const tied = playAll(0.5).find(({ game }) => game.winners.length > 1 && game.winners.includes(SEAT.child));
+  assert.ok(tied, 'among 1000 seeded games there is a tie with the child in it');
+  const { game } = tied;
+  assert.deepEqual(winners(game), game.winners);
+  assert.ok(game.winners.length >= 2 && game.winners.includes(SEAT.child));
+  assert.ok(game.winners.every(seat => game.pairs[seat].length === Math.max(...game.pairs.map(p => p.length))), 'all of them have the most pairs');
+  assert.ok(game.pairs.some(p => p.length < game.pairs[SEAT.child].length) || game.winners.length === 3, 'and the child did not simply win alone');
+
+  // the table's end of a round (table.js endRound): a child among the winners has won, whether alone or in a tie, and the save
+  // gets the next skill with one more win; a round lost leaves the wins, and the child's losses grow
+  const source = fs.readFileSync(new URL('../engine/veiddu/table.js', import.meta.url), 'utf8');
+  assert.match(source, /const childWon = winners\.includes\(CHILD\);/, 'the table asks whether the child is among the winners, not whether it is the only one');
+  assert.match(source, /wins: \(was\.wins \?\? 0\) \+ \(childWon \? 1 : 0\)/, 'and counts that as one win');
+  const afterIt = (was, winnerSeats) => {
+    const childWon = winnerSeats.includes(SEAT.child);
+    return { ...afterRound({ skill: was.skill ?? VEIDDU_SKILL_START, losses: was.losses }, childWon), wins: was.wins + (childWon ? 1 : 0) };
+  };
+  const save = createSave(null);
+  save.setVeiddu(afterIt(save.getVeiddu(), game.winners));
+  assert.equal(save.getVeiddu().wins, 1, 'a tie is a win');
+  assert.equal(save.getVeiddu().losses, 0);
+  save.setVeiddu(afterIt(save.getVeiddu(), [SEAT.mosi]));
+  assert.equal(save.getVeiddu().wins, 1, 'a round the child is not in the winners of is no sticker');
+  assert.equal(save.getVeiddu().losses, 1);
+});
+
+/** The book over a save, with a record of the games it opens and the sounds it plays; the Veiddu tile, the sticker sheet and the slots. */
+function bookRig(fill = () => {}) {
+  const save = createSave(null);
+  fill(save);
+  const played = [];
+  const sounds = [];
+  const doc = new FakeDocument(['book']);
+  const book = createBook(doc, { save, audio: { sfx: name => { sounds.push(name); return true; }, stop() {}, narrate: () => DONE }, onPause() {}, onPlay: game => played.push(game) });
+  const root = doc.getElementById('book');
+  const tap = el => {
+    el.dispatchEvent(pointerEvent('pointerdown', { x: 10, y: 10 }));
+    el.dispatchEvent(pointerEvent('pointerup', { x: 10, y: 10 }));
+  };
+  const tile = game => root.findAll(e => e.getAttribute('data-game') === game)[0];
+  const slot = game => tile(game).parentNode;
+  const sheet = () => root.findAll(e => e.classList.contains('sticker-sheet'))[0];
+  const stickers = () => sheet().findAll(e => e.classList.contains('book-sticker'));
+  const slots = () => root.findAll(e => e.classList.contains('game-slot'));
+  return { save, book, root, played, sounds, tap, tile, slot, sheet, stickers, slots };
+}
+
+test('Veiddu\'s tile is Uggeðla\'s, shows with her star, is new until opened, and a tap hands the game to onPlay', () => {
+  assert.equal(VEIDDU_STAR, 'k2_uggedla');
+  const { save, book, played, sounds, tap, tile, slot, slots } = bookRig(s => s.addStar('k1_kambedla'));
+  book.open('games', 'child');
+  assert.equal(slot('veiddu').hidden, true, 'no Veiddu without Uggeðla\'s star');
+  assert.deepEqual(slots().map(s => s.findAll(e => e.getAttribute('data-game'))[0].getAttribute('data-game')), ['eitt', 'veiddu', 'hals', 'yatzy-junior'], 'four slots: the two card games side by side, then the board and the dice');
+  assert.equal(tile('veiddu').parentNode.parentNode.getAttribute('data-open'), '2', 'Eitt! and Litla Yatzy are the two open');
+  assert.ok(tile('veiddu').classList.contains('unfound'));
+  sounds.length = 0;
+  tap(tile('veiddu'));
+  assert.deepEqual(played, [], 'a game not open opens nothing');
+  assert.deepEqual(sounds, ['wiggle'], 'it wiggles');
+
+  sounds.length = 0;
+  save.addStar(VEIDDU_STAR);
+  book.refresh();
+  assert.equal(slot('veiddu').hidden, false, 'Veiddu appears with k2_uggedla');
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '3', 'and is counted in data-open');
+  const t = tile('veiddu');
+  assert.ok(t.classList.contains('new') && !t.classList.contains('found') && !t.classList.contains('unfound'), 'new until opened');
+  assert.deepEqual(t.findAll(e => e.classList.contains('badge-new')).map(e => e.textContent), ['Nýtt!']);
+  assert.equal(t.getAttribute('aria-label'), 'Veiddu, spil við Uggeðlu');
+  assert.equal(t.findAll(e => e.classList.contains('tile-name'))[0].textContent, 'Veiddu');
+  assert.match(t.findAll(e => e.tagName === 'IMG')[0].src, /assets\/book\/images\/uggedla-render\.webp$/, 'her picture');
+  assert.ok(t.style['--hue'], 'in her colour');
+
+  tap(t);
+  assert.deepEqual(played, ['veiddu'], 'a tap hands the game over');
+  assert.deepEqual(sounds, ['tile']);
+  assert.ok(save.get().seen.includes('veiddu'), 'and it is seen from then on');
+  assert.ok(t.classList.contains('found') && !t.classList.contains('new'), 'the tile is not new');
+  assert.deepEqual(t.findAll(e => e.classList.contains('badge-new')), []);
+  assert.equal(save.get().seen.includes('eitt'), false, 'Eitt! is not touched');
+});
+
+test('with Uggeðla\'s star alone the Leikir page shows Veiddu and Litla Yatzy; all four of a full book are counted', () => {
+  const { save, book, slot } = bookRig(s => s.addStar(VEIDDU_STAR));
+  book.open('games', 'child');
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [true, true, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '2');
+  save.addStar('k1_kambedla');
+  save.addStar('k2_thorsedla');
+  book.refresh();
+  assert.deepEqual(['eitt', 'hals', 'veiddu', 'yatzy-junior'].map(game => slot(game).hidden), [false, false, false, false]);
+  assert.equal(slot('veiddu').parentNode.getAttribute('data-open'), '4');
+});
+
+test('Uggeðla\'s stickers follow Kambeðla\'s on the sheet, one for each win, and the sheet shows when either game is open', () => {
+  const { save, book, sheet, stickers } = bookRig();
+  book.open('games', 'child');
+  assert.equal(sheet().hidden, true, 'no game open, no sheet');
+  save.addStar(VEIDDU_STAR);
+  book.refresh();
+  assert.equal(sheet().hidden, false, 'Uggeðla\'s game alone opens it');
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'one dashed place where the first will go');
+
+  save.setVeiddu({ wins: 2 });
+  book.refresh();
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker uggedla', 'book-sticker uggedla']);
+  assert.equal(sheet().getAttribute('aria-label'), '2 uggeðlulímmiðar');
+
+  save.addStar('k1_kambedla');
+  save.setEitt({ wins: 3 });
+  book.refresh();
+  assert.deepEqual(stickers().map(s => s.className), [...Array(3).fill('book-sticker'), ...Array(2).fill('book-sticker uggedla')], 'Kambeðla\'s first, then Uggeðla\'s');
+  assert.equal(sheet().getAttribute('aria-label'), '3 kambeðlulímmiðar og 2 uggeðlulímmiðar');
+
+  save.setEitt({ wins: 0 });
+  save.setVeiddu({ wins: 1 });
+  book.refresh();
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker uggedla']);
+  assert.equal(sheet().getAttribute('aria-label'), 'Einn uggeðlulímmiði');
+  save.setVeiddu({ wins: 0 });
+  book.refresh();
+  assert.deepEqual(stickers().map(s => s.className), ['book-sticker empty'], 'still one dashed place, not two');
+
+  // more than the page holds: the page is full and the count says how many there are
+  save.setEitt({ wins: 12 });
+  save.setVeiddu({ wins: 11 });
+  book.refresh();
+  assert.equal(stickers().length, 20, 'twenty stickers on the page');
+  assert.equal(stickers().filter(s => s.classList.contains('uggedla')).length, 8, 'Kambeðla\'s twelve first, then eight of Uggeðla\'s');
+  assert.deepEqual(sheet().findAll(e => e.classList.contains('sticker-count')).map(e => e.textContent), ['23']);
+});
+
+test('a win in Veiddu is a sticker in the book that was open, the next time the book refreshes (the table\'s onClose)', () => {
+  const { save, book, stickers } = bookRig(s => s.addStar(VEIDDU_STAR));
+  book.open('games', 'child');
+  assert.equal(stickers().filter(s => s.classList.contains('uggedla')).length, 0);
+  save.setVeiddu({ skill: 0.25, losses: 0, wins: 1 }); // as table.js endRound does
+  book.refresh(); // and as main.js does when the game shuts
+  assert.equal(stickers().filter(s => s.classList.contains('uggedla')).length, 1);
 });
