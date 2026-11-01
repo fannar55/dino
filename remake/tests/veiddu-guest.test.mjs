@@ -190,7 +190,8 @@ test('the end: the winners in the heading, her fanfare only if she won, and noth
   const s = screen();
   s.show(make(game, 1, { awaiting: { seat: 1, need: 'ask' } }));
   s.show(make(over, 1, { awaiting: { seat: 1, need: 'ask' } }));
-  assert.equal($(s.root, '.spil-veiddu-turn').textContent, 'Anna vann!');
+  assert.equal($(s.root, '.spil-veiddu-turn').textContent, 'Þú vannst!', 'she is told herself');
+  assert.equal($(s.root, '.spil-veiddu-heard').hidden, true);
   assert.equal($(s.root, '.spil-veiddu-turn').classList.contains('won'), true);
   assert.equal($(s.root, '.spil-veiddu-frame').classList.contains('on'), false);
   assert.ok(s.played.includes('fanfare'));
@@ -198,6 +199,7 @@ test('the end: the winners in the heading, her fanfare only if she won, and noth
   loser.show(make(game, 0, { awaiting: { seat: 1, need: 'ask' } }));
   loser.show(make(over, 0, { awaiting: { seat: 1, need: 'ask' } }));
   assert.ok(!loser.played.includes('fanfare'), 'a round lost has no jingle');
+  assert.equal($(loser.root, '.spil-veiddu-turn').textContent, 'Anna vann!', 'and the others hear who won');
 });
 
 test('a big hand lies in rows with every card at least 88 px across, and what was said is a line of words with no name in a case', () => {

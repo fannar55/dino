@@ -25,7 +25,7 @@
 // --quick plays the check run on a smaller table (two seats: Egill and Uggeðla): no Anna, so no illegal acts of hers and no dropout.
 // --kinds N (6 to 13, the lab's &kinds=N) deals the round from a deck of the first N kinds: a round in minutes, for the video; with fewer
 // than thirteen the round is not kept in the save, so the reload of the big screen is not checked.
-// <out>/report.json has every check, the captures, the errors and the acts. Exit code 1 when a check fails or an error is logged, 2 when the
+// <out>/report.json (report-video.json with --video) has every check, the captures, the errors and the acts. Exit code 1 when a check fails or an error is logged, 2 when the
 // tool itself breaks. The page is served by the dev server; nothing is left running here but what the tool starts, which it stops.
 
 import fs from 'node:fs';
@@ -340,6 +340,13 @@ async function main() {
             await click(egill, '.spil-veiddu-hand .veiddu-card');
             await sleep(500);
             await still(egill, 'phone-hand-picked');
+            if (!o.video) { // the same phone on its side (844x390), for a moment
+              await egill.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 1, mobile: true });
+              await sleep(900);
+              await still(egill, 'phone-hand-landscape');
+              await egill.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+              await sleep(500);
+            }
           }
           if (!hadAsked && (need === 'give' || need === 'no') && now.log > 24) { // a guest being asked: her phone and the big screen's bubble
             hadAsked = true;
@@ -358,7 +365,7 @@ async function main() {
     await sleep(2500);
     await still(big, 'big-win');
     for (const [k, p] of phones.entries()) await still(p, k === 0 ? 'phone-egill-end' : 'phone-anna-end');
-    report.final = await big.ev(`(() => { const g = window.__veiddu.fjolspil.game; return { pairs: g.pairs.map(p => p.length), winners: g.winners, title: document.querySelector('.veiddu-win h2').textContent, sticker: !document.querySelector('.veiddu-sticker').hidden, acts: window.__acts.length, said: window.__veiddu.said.length, save: window.__veidduSave.wins }; })()`);
+    report.final = await big.ev(`(() => { const g = window.__veiddu.fjolspil.game; return { pairs: g.pairs.map(p => p.length), winners: g.winners, title: document.querySelector('.veiddu-win:not([hidden]) h2').textContent, sticker: !document.querySelector('.veiddu-win:not([hidden]) .veiddu-sticker').hidden, said: window.__veiddu.said.map(line => line.id), acts: window.__acts.length, save: window.__veidduSave.wins }; })()`);
     check(`the round ended: ${JSON.stringify(report.final.pairs)} pairs, "${report.final.title}"`);
     assert.equal(report.final.pairs.reduce((sum, n) => sum + n, 0), o.kinds * 2, `all ${o.kinds * 2} pairs are down`);
 
@@ -498,10 +505,10 @@ async function main() {
     await stopBrowser(browser);
     if (fatal) console.error(fatal.stack || fatal.message);
     report.finishedAt = new Date().toISOString();
-    await fsp.writeFile(path.join(outDir, 'report.json'), JSON.stringify(report, null, 2));
+    await fsp.writeFile(path.join(outDir, o.video ? 'report-video.json' : 'report.json'), JSON.stringify(report, null, 2));
     if (workDir) fs.rmSync(workDir, { recursive: true, force: true });
   }
-  console.log(`${fatal ? 'FAILED' : 'DONE'}: ${report.checks.length} checks, ${errors.length} errors; report ${path.relative(ROOT, path.join(outDir, 'report.json')).replace(/\\/g, '/')}`);
+  console.log(`${fatal ? 'FAILED' : 'DONE'}: ${report.checks.length} checks, ${errors.length} errors; report ${path.relative(ROOT, path.join(outDir, o.video ? 'report-video.json' : 'report.json')).replace(/\\/g, '/')}`);
   for (const e of errors.slice(0, 12)) console.log(`  error: ${e}`);
   process.exitCode = fatal ? 1 : errors.length ? 1 : 0;
 }

@@ -40,7 +40,7 @@ export const WORDS = {
   mine: 'Þú átt leik!',
   theirs: name => `${name} á leik`,
   askedYou: name => `${name} spyr þig!`,
-  won: names => names,
+  youWon: 'Þú vannst!',
   pick: 'Pikkaðu á spil',
   target: 'Pikkaðu á þann sem þú spyrð',
   give: 'Pikkaðu á spilið!',
@@ -364,14 +364,14 @@ function update(at, view) {
   // The heading: whose turn, in that seat's colour; the end says who won
   const winners = numbers(view.winners).filter(isSeat);
   const turnSeat = isSeat(view.turn) ? view.turn : you;
-  at.turnEl.textContent = over ? winnersWords(winners, names) : turnSeat === you ? WORDS.mine : WORDS.theirs(nameOf(turnSeat));
+  at.turnEl.textContent = over ? (winners.length === 1 && winners[0] === you ? WORDS.youWon : winnersWords(winners, names)) : turnSeat === you ? WORDS.mine : WORDS.theirs(nameOf(turnSeat));
   at.turnEl.classList.toggle('mine', !over && turnSeat === you);
   at.turnEl.classList.toggle('won', over);
   const turnColour = over ? null : avatarAt(turnSeat)?.colour;
   if (turnColour) at.turnEl.style.setProperty('--c', turnColour);
   else at.turnEl.style.removeProperty('--c');
   at.heardEl.textContent = heardText(view.lastEvent, names);
-  at.heardEl.hidden = !at.heardEl.textContent;
+  at.heardEl.hidden = over || !at.heardEl.textContent; // at the end the winners are the words
 
   // Her duty: the frame, the card, the chime
   turnFrame(at, duty, avatarAt(you)?.colour);
