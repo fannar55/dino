@@ -10,6 +10,11 @@
 // guest's seat the computer plays while the guest is away ("Halda áfram án Önnu", spec §4 step 6, §7.1), which is
 // `covered` and keeps its guest, name and avatar until uncover gives it back. A guest that goes keeps its seat, absent.
 //
+// Egill may play from a device of his own (the owner's answer for Veiddu, 2026-11-01: in Go Fish a hand must be hidden): bindHost
+// gives seat 0 the guest id of his phone. The seat stays 'host' with his name and portrait, so every game that does not ask for
+// this is unchanged (nothing binds unless a lobby opens for it, and every other lobby unbinds), and from then on it is a guest's
+// in every other way: his phone is present or absent, the computer can cover him, and a kept game finds his phone by its id.
+//
 // The six friends are the avatars a guest picks from; no two seats share one, and the game's own character is reserved
 // (not on offer, spec §4 step 4). Mosi is an avatar no guest picks either: Litla Yatzy's own character, who plays at the
 // junior table as its computer player (the owner's decision, 2026-10-24), with the book's picture of him; Egill's seat,
@@ -56,13 +61,19 @@ export function cleanName(text) {
 
 const hostSeat = () => ({ seat: 0, name: HOST_AVATAR.name, avatar: HOST_AVATAR.id, kind: 'host', guestId: null, present: true, covered: false });
 
-/** A guest's seat, played by the guest or covered by the computer. */
-const isGuestSeat = seat => seat.kind === 'remote' || seat.covered;
+/** A guest's seat, played by the guest or covered by the computer; Egill's too when his phone is bound to it (bindHost). */
+const isGuestSeat = seat => seat.kind === 'remote' || seat.covered || (seat.kind === 'host' && seat.guestId !== null);
 
 /** The game's own computer player (not a covered guest). */
 const isOwnAi = seat => seat.kind === 'ai' && !seat.covered;
 
 const refused = reason => ({ ok: false, reason });
+
+/**
+ * Whether this seat is played from a phone that is there: a guest's, or Egill's when his phone is bound to seat 0. A covered seat is
+ * the computer's, and so is one whose phone is away. (The host session hears acts only from these.)
+ */
+export const playsFromPhone = seat => Boolean(seat) && seat.present === true && (seat.kind === 'remote' || (seat.kind === 'host' && seat.guestId !== null));
 
 /**
  * The seats, Egill alone in seat 0; `reserved` are the avatar ids not on offer. With `from` (a snapshot, for a kept game)
@@ -73,7 +84,14 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
   let held = [...(from ? (from.reserved ?? []) : reserved)];
   let seats = [hostSeat()];
   for (const kept of from?.seats ?? []) {
-    if (kept.kind === 'host') continue;
+    if (kept.kind === 'host' || kept.seat === 0) { // Egill's seat, with his phone's id when it was bound to one: absent until it says hello again
+      const phone = typeof kept.guestId === 'string' && kept.guestId !== '' ? kept.guestId : null;
+      if (phone !== null) {
+        const covered = kept.covered === true;
+        Object.assign(seats[0], { guestId: phone, present: false, covered, kind: covered ? 'ai' : 'host' });
+      }
+      continue;
+    }
     const { name, avatar, kind, guestId = null, covered = false } = kept;
     seats.push({ seat: seats.length, name, avatar, kind, guestId, present: !isGuestSeat(kept), covered });
   }
@@ -116,6 +134,7 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
       if (cleaned === null) return refused('bad-name');
       if (!isGuestAvatar(avatar)) return refused('bad-avatar');
       const own = guestSeat(guestId);
+      if (own === seats[0]) return refused('bad-avatar'); // Egill's phone is Egill's: he keeps his name and portrait (bindHost)
       if (!own && seats.length >= limit) return refused('full');
       if (avatar !== own?.avatar) { // the avatar a guest already has is never refused it, so a reconnect always seats it
         if (held.includes(avatar)) return refused('avatar-reserved');
@@ -147,26 +166,47 @@ export function createSeats({ max = MAX_SEATS, reserved = [], from = null } = {}
       remove(isOwnAi);
     },
 
-    /** Whether a guest's phone is there (Egill and the computer always are). */
+    /** Whether a guest's phone is there (the computer always is, and so is Egill unless his phone is bound). */
     presence(n, present) {
       const seat = seats[n];
       if (seat && isGuestSeat(seat)) update(seat, { present: Boolean(present) });
     },
 
-    /** The computer plays a guest's seat until uncover (spec §4 step 6). */
+    /** The computer plays a guest's seat until uncover (spec §4 step 6), or Egill's when his phone is bound. */
     cover(n) {
       const seat = seats[n];
-      if (seat?.kind === 'remote') update(seat, { kind: 'ai', covered: true });
+      if (seat?.kind === 'remote' || (seat?.kind === 'host' && seat.guestId !== null)) update(seat, { kind: 'ai', covered: true });
     },
 
-    /** The guest plays its seat again. */
+    /** The guest plays its seat again (Egill his, on his phone). */
     uncover(n) {
       const seat = seats[n];
-      if (seat?.covered) update(seat, { kind: 'remote', covered: false });
+      if (seat?.covered) update(seat, { kind: n === 0 ? 'host' : 'remote', covered: false });
     },
 
-    /** The lobby at "Byrjum!" (spec §4): drops the guests that are not there and renumbers; the numbers they had. */
-    dropAbsent: () => remove(seat => isGuestSeat(seat) && !seat.present),
+    /**
+     * Egill's own device: the phone with this guest id plays seat 0, which stays his (kind 'host', his name and portrait) and is
+     * present at once. { ok: true, seat: 0, name }, or { ok: false, reason }: 'host-taken' (another phone has the seat) or
+     * 'already-seated' (this phone is a guest's seat at the table). The same phone again is its own seat again.
+     */
+    bindHost(guestId) {
+      if (typeof guestId !== 'string' || guestId === '') return refused('bad-id');
+      const host = seats[0];
+      if (host.guestId !== null && host.guestId !== guestId) return refused('host-taken');
+      if (guestSeat(guestId) && guestSeat(guestId) !== host) return refused('already-seated');
+      update(host, { guestId, present: true });
+      return { ok: true, seat: 0, name: host.name };
+    },
+
+    /** Egill is at the big screen again: no phone, and no computer in his place. */
+    unbindHost() {
+      const host = seats[0];
+      if (host.guestId === null) return;
+      update(host, { guestId: null, present: true, covered: false, kind: 'host' });
+    },
+
+    /** The lobby at "Byrjum!" (spec §4): drops the guests that are not there and renumbers; the numbers they had. Egill's seat stays. */
+    dropAbsent: () => remove(seat => seat.seat !== 0 && isGuestSeat(seat) && !seat.present),
 
     /** The avatar ids not on offer from now on (the game's own character), in place of the ones before. */
     reserve(ids) {

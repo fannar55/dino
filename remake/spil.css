@@ -14,7 +14,9 @@
        .spil-code                .spil-title (two friends and "Fjölspil"), the four .spil-digit boxes in .spil-digits (an
                                  empty box is dashed, :placeholder-shown) and "Áfram" (.spil-go)
        .spil-join                "Hvað heitirðu?" (.spil-ask, the label of .spil-name), the six .spil-avatar buttons in
-                                 .spil-avatars (aria-pressed, the chosen one; disabled, one not free) and "Tilbúin/n" (.spil-ready)
+                                 .spil-avatars (aria-pressed, the chosen one; disabled, one not free) and "Tilbúin/n" (.spil-ready);
+                                 where the game wants Egill on a device of his own (Veiddu), .spil-host first, his portrait
+                                 (.spil-host-face) and "Ég er Egill", with .spil-or ("eða") under it, and .with-host on the screen
        .spil-lobby               her avatar big (.spil-hero), "Þú ert með!" (.spil-words) and the seats (.spil-seats of
                                  .spil-seat, .mine hers, .absent dim)
        .spil-note                a picture (.spil-note-face, .spil-note-picture, or the winner's .spil-hero in its .spil-burst)
@@ -234,6 +236,18 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   opacity: .3; box-shadow: none; border-style: dashed; cursor: default; pointer-events: none;
 }
 
+/* "Ég er Egill": his portrait first, where the game wants him on a device of his own (Veiddu's lobby): one tap, no name typed */
+.spil-host {
+  position: relative; width: min(100%, 360px); min-height: var(--spil-target);
+  display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 24px 6px 8px;
+  font-size: clamp(28px, 7.6vw, 36px); font-weight: 900; line-height: 1.1; color: var(--ink);
+  background: color-mix(in srgb, var(--gold) 38%, var(--paper)); border: 3px solid var(--ink); border-radius: 999px;
+  box-shadow: 0 6px 0 var(--card-deep), 0 6px 0 3px var(--ink), 0 10px 12px 2px rgb(40 24 10 / .22);
+}
+.spil-host-face { width: 72px; flex: none; margin: -2px 0; box-shadow: 0 0 0 3px var(--ink); }
+.spil-host.pressable.pressed { translate: 0 4px; }
+.spil-or { font-size: clamp(20px, 5vw, 24px); font-weight: 800; color: var(--ink-soft); }
+
 /* ---- lobby: her avatar big, "Þú ert með!" and the table ------------------------------------------------------------- */
 
 .spil-hero { width: clamp(130px, 22vh, 190px); box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--ink), 0 14px 22px 8px rgb(40 24 10 / .2); animation: spil-pop .5s .1s cubic-bezier(.3, 1.6, .5, 1) both; }
@@ -396,6 +410,9 @@ html, body { margin: 0; min-height: 100%; background: #e9efd8; }
   }
   .spil-ask { grid-area: ask; } .spil-name { grid-area: name; } .spil-ready { grid-area: ready; justify-self: center; }
   .spil-avatars { grid-area: avatars; grid-template-columns: repeat(3, var(--spil-target)); gap: 12px; }
+  .spil-join.with-host { grid-template-areas: "ask host" "name avatars" "ready avatars"; row-gap: 12px; }
+  .spil-host { grid-area: host; justify-self: center; width: auto; padding-right: 20px; font-size: 30px; }
+  .spil-or { display: none; }
   .spil-lobby, .spil-note { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; justify-items: center; column-gap: 40px; }
   .spil-lobby .spil-hero { grid-row: span 2; }
   .spil-retake { grid-column: 1 / -1; } /* under the picture and the words, across both */

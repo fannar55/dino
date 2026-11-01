@@ -7,7 +7,9 @@
 //            each, in any case, go on by themselves, go back with Backspace and fill all four from a paste; then "Áfram"
 //   join     "Hvað heitirðu?" (1–12 letters), the six friends to pick from (the ones taken or kept for the game's own
 //            character are dim) and "Tilbúin/n", which sends hello { name, avatar }. The phone remembers both
-//            (localStorage, mosi-fjolspil-guest, with the guest's id), so the next time one tap is enough
+//            (localStorage, mosi-fjolspil-guest, with the guest's id), so the next time one tap is enough. In a lobby that
+//            wants Egill on a device of his own (Veiddu's: the view says host: 'free') Egill's portrait comes first, "Ég er
+//            Egill": one tap, no name typed, hello { name: 'Egill', avatar: 'egill' } binds this phone to his seat 0
 //   lobby    "Þú ert með!" with her avatar and the seats at the table
 //   wait     "Bíðum eftir stóra skjánum…": the big screen has gone; the connection tries again, and while its socket is open
 //            a seated page says hello again every ASK_EVERY_MS, ASK_TIMES times, until a seat or a view comes. When
@@ -72,6 +74,8 @@ const WORDS = {
   noName: 'Skrifaðu nafnið þitt',
   retake: 'Pikkaðu hér til að taka sætið þitt aftur', // under "Bíðum eftir stóra skjánum…" when another tab took the seat
   paused: 'Stóri skjárinn er í hléi', // a game's view while the big screen is paused (Litla Yatzy's junior page, 2026-10-24)
+  egill: 'Ég er Egill', // Egill's portrait on the join screen, when the game wants him on a device of his own
+  or: 'eða',
 };
 
 /** How often, and how many times, the wait screen says hello again while its socket is open: for two minutes. */
@@ -94,6 +98,8 @@ const EGILL = { seat: 0, name: 'Egill', avatar: 'egill' };
 const BJARNI = { seat: 2, name: 'Bjarni', avatar: 'gramedla' };
 const DEMOS = {
   code: { typed: 'GU' },
+  joinhost: { name: '', avatar: null, view: { screen: 'lobby', host: 'free', seats: [{ ...EGILL, present: false }, { ...BJARNI, seat: 1 }], available: ['kambedla', 'sloedla', 'flugedla', 'uggedla'], you: null } },
+  lobbyhost: { seat: EGILL, view: { screen: 'lobby', host: 'mine', seats: [EGILL, { seat: 1, name: 'Anna', avatar: 'kambedla' }], available: ['sloedla', 'gramedla', 'flugedla'], you: 0 } },
   join: { name: 'Ásta', avatar: 'kambedla', view: { screen: 'lobby', seats: [EGILL, { ...BJARNI, seat: 1 }], available: ['kambedla', 'sloedla', 'flugedla', 'uggedla'], you: null } },
   lobby: { seat: ASTA, view: { screen: 'lobby', seats: [EGILL, ASTA, BJARNI], available: ['sloedla', 'flugedla', 'uggedla'], you: 1 } },
   wait: { seat: ASTA, view: { screen: 'wait', reason: 'host-gone' } },
@@ -154,7 +160,7 @@ function readGuest(storage, crypto) {
   return {
     guestId: guestId ?? randomKey(crypto),
     name: cleanName(saved?.name),
-    avatar: AVATARS.some(a => a.id === saved?.avatar) ? saved.avatar : null,
+    avatar: AVATARS.some(a => a.id === saved?.avatar) || saved?.avatar === HOST_AVATAR.id ? saved.avatar : null, // Egill's phone remembers his portrait
     fresh: guestId === null,
   };
 }
@@ -184,7 +190,8 @@ export function createGuestPage(doc, {
     seat: null, // { seat, name, avatar } once the big screen has given this page a seat
     available: null, // the avatar ids free, from the last lobby view; null until one has come (then none is dim)
     taken: new Set(), // avatars refused since that view (avatar-taken)
-    chosen: guest.avatar, // the avatar picked on the join screen
+    chosen: AVATARS.some(a => a.id === guest.avatar) ? guest.avatar : null, // the avatar picked on the join screen (never Egill's: his is its own button)
+    host: null, // the lobby's word on Egill's seat: 'free' (a phone may have it), 'mine', 'taken', or null (this game keeps him at the big screen)
     pending: null, // the hello sent, { name, avatar }, until its seat comes back
     again: false, // that hello is her seat's, asked for again (rehello): its answer is not what she typed
     hadSeat: false, // a seat in this room: its no-room is the end of the game, not a wrong code
@@ -445,7 +452,22 @@ export function createGuestPage(doc, {
   }
   const readyEl = make('button', 'spil-ready spil-big');
   readyEl.innerHTML = `${PLAY}<span>${WORDS.ready}</span>`;
-  joinEl.append(askEl, nameEl, avatarsEl, readyEl);
+  // Egill's portrait first, where the game wants him on a device of his own (the lobby view's host: 'free')
+  const hostEl = make('button', 'spil-host');
+  hostEl.setAttribute('aria-label', WORDS.egill);
+  const hostLook = face('spil-host-face');
+  setFace(hostLook, HOST_AVATAR.id);
+  hostEl.append(hostLook.el, make('span', 'spil-host-words', WORDS.egill));
+  const orEl = make('p', 'spil-or', WORDS.or);
+  orEl.setAttribute('aria-hidden', 'true');
+  hostEl.hidden = true;
+  orEl.hidden = true;
+  const renderHost = () => {
+    hostEl.hidden = at.host !== 'free';
+    orEl.hidden = hostEl.hidden;
+    joinEl.classList.toggle('with-host', !hostEl.hidden);
+  };
+  joinEl.append(hostEl, orEl, askEl, nameEl, avatarsEl, readyEl);
 
   /** May this avatar be picked now? Not one refused, and once a lobby has come, only one it says is free (or her own). */
   function free(id) {
@@ -466,6 +488,16 @@ export function createGuestPage(doc, {
     unsay('page');
     renderAvatars();
   }
+
+  /** "Ég er Egill": hello with his name and portrait, which binds this phone to seat 0 where the game wants it. */
+  function imEgill() {
+    if (at.host !== 'free') return false;
+    at.pending = { name: HOST_AVATAR.name, avatar: HOST_AVATAR.id };
+    at.again = false;
+    at.connection?.send?.(message('hello', at.pending));
+    return true;
+  }
+  control(hostEl, () => imEgill());
 
   nameEl.addEventListener('input', () => unsay('page'));
   nameEl.addEventListener('keydown', event => {
@@ -626,6 +658,8 @@ export function createGuestPage(doc, {
     showSeat();
     at.available = Array.isArray(view.available) ? [...view.available] : [];
     at.taken.clear(); // the big screen's word is newer than any refusal
+    at.host = ['free', 'mine', 'taken'].includes(view.host) ? view.host : null;
+    renderHost();
     renderAvatars();
     if (at.seat) {
       renderLobby(view);
@@ -660,6 +694,11 @@ export function createGuestPage(doc, {
     }
     if (body.reason === 'full') return say(WORDS.full, 'page');
     show('join');
+    if (body.reason === 'host-taken' || body.reason === 'already-seated') { // another phone is Egill's
+      at.host = 'taken';
+      renderHost();
+      return say(WORDS.taken, 'page');
+    }
     if (body.reason === 'bad-name') {
       nameEl.focus?.();
       return say(WORDS.noName, 'page');
@@ -714,7 +753,8 @@ export function createGuestPage(doc, {
       case 'connected': // the socket is open (again), or the big screen is back: a seat had or asked for is asked for again
         unsay('net');
         if (at.pending && !at.again) { // her own tap's hello, sent before the socket opened: hers, even when she had a seat
-          submit(); // (dropped at "Byrjum!", she may have chosen another avatar than the one she had)
+          if (at.pending.avatar === HOST_AVATAR.id) at.connection?.send?.(message('hello', at.pending)); // Egill's: as it was
+          else submit(); // (dropped at "Byrjum!", she may have chosen another avatar than the one she had)
         } else if (at.hadSeat) { // spec §6.4: hello again, and her seat and the newest view come back
           rehello();
           if (at.screen === 'wait') keepAsking(); // and again, until they do
@@ -734,7 +774,7 @@ export function createGuestPage(doc, {
     stopAsking();
     Object.assign(at, {
       connection: null, state: null, lastSeq: 0, seat: null, available: null, pending: null, again: false, hadSeat: false,
-      status: null, replaced: false, heardAt: null,
+      status: null, replaced: false, heardAt: null, host: null,
     });
     retakeEl.hidden = true;
     at.taken.clear();
